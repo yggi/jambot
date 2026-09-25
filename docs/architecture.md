@@ -10,7 +10,7 @@ Jambot is a pnpm workspace with two packages:
   `/prototype.html`.
 
 The engine is being ported from the [prototype](prototype.md) one module at
-a time. Randomness is ported so far. The web app is a shell that links to the
+a time (#2). Until the port is done, the web app is a shell that links to the
 prototype.
 
 ## Layers
