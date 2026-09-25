@@ -10,7 +10,7 @@ Jambot is a pnpm workspace with two packages:
   `/prototype.html`.
 
 The engine is being ported from the [prototype](prototype.md) one module at
-a time; nothing is ported yet. The web app is a shell that links to the
+a time. Randomness is ported so far. The web app is a shell that links to the
 prototype.
 
 ## Layers
@@ -34,8 +34,8 @@ prototype.
 - **Engine**: its state is explicit and serialisable, so a snapshot can be
   sent, stored or replayed. It takes the style, the input history and a
   seed, and returns the score text and note events for bar _n_. All
-  randomness is keyed by seed and position, so the same inputs always give
-  the same music.
+  randomness is keyed by seed and position (see `random.ts`), so the same
+  inputs always give the same music.
 - **Score text**: the contract between composing and playing. The composer
   writes each bar as text, and only the compiler turns text into notes.
   Overrides, tests and sync all work on this text.

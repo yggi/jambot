@@ -115,4 +115,4 @@ Deliberate musical changes, such as the MIDI overlap fix, happen after the
 module matches the prototype, and they update the reference values in the
 same commit.
 
-Ported so far: nothing yet.
+Ported so far: randomness (`packages/engine/src/random.ts`).

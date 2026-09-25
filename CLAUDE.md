@@ -6,7 +6,7 @@ A generative backing band in the browser. See `README.md` and `docs/`.
 - Tests first. Tests sit next to the code as `*.test.ts` and test behaviour
   through public functions.
 - `packages/engine` stays pure: no DOM, Web Audio, timers or Node APIs. All
-  randomness is keyed by seed and position.
+  randomness goes through `random.ts`, keyed by seed and position.
 - Code ported from `prototype/jambot-prototype.html` matches it. Pin
   behaviour with values recorded from the prototype, and change them only
   deliberately, saying why.
