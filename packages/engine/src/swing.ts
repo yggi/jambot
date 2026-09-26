@@ -4,8 +4,8 @@
  * What is written and what is played are kept apart: the score holds
  * positions on the grid, and a time map turns a written position into the
  * position it is played at. A map comes with its inverse, which reads played
- * notes (a player's input) back onto the grid. Maps compose, so swing, and
- * later looseness and tempo, are each one more map.
+ * notes (a player's input) back onto the grid. Maps compose, so swing and
+ * tempo (`tempo.ts`), and later looseness, are each one more map.
  *
  * Swing works the same way at two levels. At each, the midpoint of a span
  * moves late, by up to a sixth of the span, where it lands on the triplet:
