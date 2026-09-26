@@ -15,10 +15,10 @@ import {
   PRESET_GLIDE,
   type Preset,
   SLIDER_GLIDE,
+  type Style,
   type StyleTrack,
   glideTo,
   holding,
-  styleAt,
 } from '@jambot/engine';
 
 export type Intent =
@@ -32,7 +32,13 @@ export function conduct(track: StyleTrack, intent: Intent, at: number | null): S
   return glideTo(track, targets, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);
 }
 
-/** The track a stopped band keeps: the style where it stopped, held from step 0. */
-export function stopAt(track: StyleTrack, position: number): StyleTrack {
-  return holding(styleAt(track, position));
+/**
+ * The track a stopped band keeps: where every axis was going, held from
+ * step 0. So a preset chosen just before a stop is what the next start
+ * plays, and what the page shows as chosen.
+ */
+export function stopAt(track: StyleTrack): StyleTrack {
+  return holding(
+    Object.fromEntries(Object.entries(track).map(([axis, glide]) => [axis, glide.to])) as Style,
+  );
 }

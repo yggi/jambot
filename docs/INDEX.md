@@ -79,7 +79,11 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
     - `src/player.svelte.ts`: runs the transport on the audio clock and
-      plays its events; the screen follows what is heard
+      plays its events; the screen follows what is heard. Starting, playing
+      and stopped, with a stop that cancels a pending start
+    - `src/heard.ts`: the positions waiting to be heard, bounded
+    - `src/audio/output.ts`: what the player plays on, and the Web Audio
+      one
     - `src/conductor.ts`: intents (presets, sliders) into glides on the
       style track
     - `src/audio/drums.ts`: the built-in drum kit

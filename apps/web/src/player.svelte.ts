@@ -2,10 +2,15 @@
  * The player: the band on this device's clock.
  *
  * It runs the transport on the audio clock, a tick every 25 ms, and plays
- * the events it schedules on the built-in drum kit. What is on screen
- * follows what is heard: steps wait in a queue until the audio clock
- * reaches them. The style track lives here, and intents go through the
- * conductor.
+ * the events it schedules on an output, the built-in synth by default. What
+ * is on screen follows what is heard: scheduled steps wait until the audio
+ * clock reaches them, and those older than a second, which can no longer be
+ * shown, are dropped on every tick, so a hidden tab builds up no backlog.
+ * The style track lives here, and intents go through the conductor.
+ *
+ * Starting waits for the audio clock, which a browser starts only after a
+ * gesture. While it waits the player is starting: another start does
+ * nothing, and a stop cancels it.
  */
 
 import {
@@ -17,8 +22,9 @@ import {
   holding,
   transport,
 } from '@jambot/engine';
-import { type DrumKit, drumKit } from './audio/drums.ts';
+import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt } from './conductor.ts';
+import { Heard } from './heard.ts';
 import { startTicker } from './ticker.ts';
 
 /** Where the music is, as heard. */
@@ -28,109 +34,114 @@ export interface Position {
   readonly section: SectionType;
 }
 
-interface Audio {
-  readonly ctx: AudioContext;
-  readonly out: AudioNode;
-  bus: GainNode;
-  kit: DrumKit;
+export type Status = 'stopped' | 'starting' | 'playing';
+
+/** What the player runs on; a test can stand in for each. */
+export interface Surroundings {
+  output(): Output;
+  ticker(tick: () => void): () => void;
+  frame(follow: () => void): () => void;
 }
 
+const browser: Surroundings = {
+  output: webAudioOutput,
+  ticker: startTicker,
+  frame(follow) {
+    let id = requestAnimationFrame(function loop() {
+      follow();
+      id = requestAnimationFrame(loop);
+    });
+    return () => cancelAnimationFrame(id);
+  },
+};
+
 export class Player {
-  playing = $state(false);
+  status: Status = $state('stopped');
   track: StyleTrack = $state.raw(holding(INITIAL_STYLE));
   position: Position | null = $state.raw(null);
 
-  #audio: Audio | null = null;
+  #surroundings: Surroundings;
+  #output: Output | null = null;
   #carried: TransportCarried | null = null;
   #seed = 0;
   #start = 0;
   #stopTicker: (() => void) | null = null;
-  #queue: { seconds: number; position: Position }[] = [];
-  #frame = 0;
+  #stopFrames: (() => void) | null = null;
+  #heard = new Heard<Position>();
+
+  constructor(surroundings: Surroundings = browser) {
+    this.#surroundings = surroundings;
+  }
+
+  /** Whether the band is playing or about to: the start button reads Stop. */
+  get playing(): boolean {
+    return this.status !== 'stopped';
+  }
+
+  /** How many scheduled positions wait to be heard. */
+  get backlog(): number {
+    return this.#heard.size;
+  }
 
   apply(intent: Intent) {
-    this.track = conduct(this.track, intent, this.playing ? (this.#carried?.head.step ?? 0) : null);
+    const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
+    this.track = conduct(this.track, intent, at);
   }
 
   async start() {
-    if (this.playing) return;
-    const audio = this.#audio ?? this.#openAudio();
-    await audio.ctx.resume();
+    if (this.status !== 'stopped') return;
+    this.status = 'starting';
+    const output = (this.#output ??= this.#surroundings.output());
+    await output.resume();
+    if (this.status !== 'starting') return;
+    this.status = 'playing';
     this.#seed = Math.floor(Math.random() * 2 ** 32);
-    this.#start = audio.ctx.currentTime + 0.1;
+    this.#start = output.currentTime + 0.1;
     this.#carried = null;
-    this.#queue = [];
-    this.playing = true;
+    this.#heard.clear();
     this.#tick();
-    this.#stopTicker = startTicker(() => this.#tick());
-    this.#frame = requestAnimationFrame(() => this.#follow());
+    this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
+    this.#stopFrames = this.#surroundings.frame(() => this.#follow());
   }
 
   stop() {
-    if (!this.playing) return;
-    this.playing = false;
+    if (this.status === 'stopped') return;
+    const wasPlaying = this.status === 'playing';
+    this.status = 'stopped';
+    if (!wasPlaying) return;
     this.#stopTicker?.();
-    cancelAnimationFrame(this.#frame);
-    this.track = stopAt(this.track, this.#carried?.head.step ?? 0);
+    this.#stopFrames?.();
+    this.#stopTicker = this.#stopFrames = null;
+    this.track = stopAt(this.track);
     this.position = null;
-    const audio = this.#audio;
-    if (audio) {
-      // Fade out what is already scheduled, and play on from a fresh bus.
-      const old = audio.bus;
-      old.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.03);
-      setTimeout(() => old.disconnect(), 400);
-      audio.bus = this.#bus(audio.ctx, audio.out);
-      audio.kit = drumKit(audio.ctx, audio.bus);
-    }
-  }
-
-  #openAudio(): Audio {
-    const ctx = new AudioContext();
-    const out = ctx.createDynamicsCompressor();
-    out.connect(ctx.destination);
-    const bus = this.#bus(ctx, out);
-    this.#audio = { ctx, out, bus, kit: drumKit(ctx, bus) };
-    return this.#audio;
-  }
-
-  #bus(ctx: AudioContext, out: AudioNode): GainNode {
-    const bus = ctx.createGain();
-    bus.gain.value = 0.8;
-    bus.connect(out);
-    return bus;
+    this.#output?.silence();
   }
 
   #tick() {
-    const audio = this.#audio;
-    if (!this.playing || !audio) return;
-    const now = audio.ctx.currentTime;
-    const { carried, output } = transport.advance(
+    const output = this.#output;
+    if (this.status !== 'playing' || !output) return;
+    const now = output.currentTime;
+    const { carried, output: scheduled } = transport.advance(
       { seed: this.#seed, start: this.#start, track: this.track },
       this.#carried,
       { now, until: now + LOOKAHEAD },
     );
     this.#carried = carried;
-    for (const { event, seconds } of output.events)
-      audio.kit.play(event.note, event.velocity, seconds);
-    for (const { step, section, seconds } of output.steps)
-      this.#queue.push({
-        seconds,
-        position: {
-          bar: Math.floor(step / 16),
-          beat: Math.floor((step % 16) / 4),
-          section: section.type,
-        },
+    for (const { event, seconds } of scheduled.events)
+      output.play(event.note, event.velocity, seconds);
+    for (const { step, section, seconds } of scheduled.steps)
+      this.#heard.push(seconds, {
+        bar: Math.floor(step / 16),
+        beat: Math.floor((step % 16) / 4),
+        section: section.type,
       });
+    this.#heard.drop(now - 1);
   }
 
   #follow() {
-    const audio = this.#audio;
-    if (!this.playing || !audio) return;
-    const heard = audio.ctx.currentTime - (audio.ctx.outputLatency || audio.ctx.baseLatency || 0);
-    let latest: Position | null = null;
-    while (this.#queue.length && this.#queue[0]!.seconds <= heard)
-      latest = this.#queue.shift()!.position;
-    if (latest && latest !== this.position) this.position = latest;
-    this.#frame = requestAnimationFrame(() => this.#follow());
+    const output = this.#output;
+    if (this.status !== 'playing' || !output) return;
+    const latest = this.#heard.take(output.currentTime - output.latency);
+    if (latest) this.position = latest;
   }
 }

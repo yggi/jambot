@@ -44,10 +44,13 @@ describe('conduct', () => {
 });
 
 describe('stopAt', () => {
-  it('keeps the style where the band stopped, for the next start from step 0', () => {
+  it('keeps where the style was going, so a preset chosen before a stop is the one that plays', () => {
+    // Stopping one bar into an eight-bar glide to Funk: the next start plays
+    // Funk, as the page shows, not the style one bar in.
     const gliding = glideTo(holding(INITIAL_STYLE), funk.style, 0, PRESET_GLIDE);
-    const stopped = stopAt(gliding, 64);
-    expect(styleAt(stopped, 0)).toEqual(styleAt(gliding, 64));
-    expect(styleAt(stopped, 1000)).toEqual(styleAt(gliding, 64));
+    const stopped = stopAt(gliding);
+    expect(styleAt(stopped, 0)).toEqual({ ...funk.style, entropy: INITIAL_STYLE.entropy });
+    expect(styleAt(stopped, 1000)).toEqual(styleAt(stopped, 0));
+    expect(styleAt(gliding, 16)).not.toEqual(styleAt(stopped, 0));
   });
 });
