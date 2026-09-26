@@ -88,9 +88,12 @@ export function compose(inner: Helix, outer: Helix): Helix {
 }
 
 /**
- * The helix reflected about degree 0: degree d stands as far above degree 0 as
- * degree −d stood below it. The gaps come in reverse order. The major and
- * minor triads are mirror images, and so are ionian and phrygian.
+ * The helix reflected about degree 0: degree d stands as far above degree 0
+ * as degree −d stood below it. The gaps come in reverse order, and the tonic
+ * stays: ionian mirrors to phrygian, lydian to locrian, and a major triad to
+ * the minor triad a fourth above its root. A reflection about any other axis
+ * is this one shifted: about the tonic and its fifth (negative harmony,
+ * quintenzirkel's mirror) it is `shift(mirror(helix), 7)`.
  */
 export function mirror(helix: Helix): Helix {
   const tonic = helix.heights[0]!;

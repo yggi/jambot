@@ -15,7 +15,7 @@ export type Letter = (typeof LETTERS)[number];
 
 export interface Note {
   letter: Letter;
-  /** Semitones added to the natural letter: −2 to +2. */
+  /** Semitones added to the natural letter: −2 to +2 as read, beyond that only when spelled from a tonic that has an accidental (see `spell`). */
   alteration: number;
   pitchClass: number;
   octave?: number;

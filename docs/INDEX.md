@@ -44,10 +44,15 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/scales.ts`, `src/rhythms.ts`: named scales and rhythms
     - `src/words.ts`: how names in words compare (case, ordinals,
       accidentals, abbreviations)
+    - `src/spelling.ts`: `spell` and `genericsOf`, the letter and accidental
+      of each note from a spelled tonic
+    - `src/keys.ts`: `relative` and `parallel` keys, and `chordScale`, the
+      scale a chord implies in a key (#10)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here
-    - `src/second-opinion.test.ts`: the primitive checked against tonal
+    - `src/second-opinion.test.ts`: the primitive, the names and the
+      spelling checked against tonal
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
 - `apps/`

@@ -175,11 +175,12 @@ function chordReadings(text: string, context: ReadContext): Reading[] {
 
 /**
  * An optional tonic without octave, then a scale or a numbered mode of one:
- * "C blues", "D dorian", "major", "A harmonic minor 5". The tonic moves the
- * helix: D dorian's degree 0 stands at 2.
+ * "C blues", "D dorian", "major", "A harmonic minor 5". A colon may stand for
+ * the space, as keys are written in the score ("Db:major"). The tonic moves
+ * the helix: D dorian's degree 0 stands at 2.
  */
 function scaleReadings(text: string): Reading[] {
-  const trimmed = text.trim();
+  const trimmed = text.trim().replace(/^([^:]+):\s*/, '$1 ');
   const whole = parseScale(trimmed);
   if (whole) return [{ kind: 'scale', ...whole }];
   for (let split = trimmed.indexOf(' '); split > 0; split = trimmed.indexOf(' ', split + 1)) {

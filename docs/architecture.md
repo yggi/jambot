@@ -176,14 +176,23 @@ The runtimes differ (TypeScript here, restricted Python there), so the
 projects share **conventions, not code**. These facts stay aligned:
 
 - C4 = 60;
-- the Euclid form (#8);
+- the Euclid form, `even(k, n)` (decided in #8);
 - scale contents and names;
 - the meaning of "mode k": the scale re-rooted on its k-th note (`mode`,
   then a shift back to 0).
 
+Spelling follows Jambot's own rule, in thirds over the chord
+([theory](theory.md#spelling)). quintenzirkel's spellings (`spellDegree`)
+follow from it, and its golden spellings are tests here.
+
 One theory word means something else in a sister project: quintenzirkel's
 "position" is a place on the circle of fifths, a position along the
 generator. Here a position is the chromatic place, height mod cycle.
+
+quintenzirkel's mirror reflects about the axis between the tonic and its
+fifth, so C ionian mirrors to C aeolian. Here `mirror` reflects about degree
+0 (C ionian to C phrygian), and quintenzirkel's is that shifted by a fifth,
+`shift(mirror(helix), 7)`, on the note sets ([theory](theory.md#mirror)).
 
 Two names mean different sets, and Jambot follows the more common use:
 

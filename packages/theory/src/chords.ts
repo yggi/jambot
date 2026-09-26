@@ -63,16 +63,26 @@ export const CHORD_QUALITIES: Record<string, ChordQuality> = {
  */
 export function parseChordQuality(text: string): string | undefined {
   const trimmed = text.trim();
-  const words = withoutKindWord(normalizeWords(trimmed), 'chord');
-  const qualities = Object.entries(CHORD_QUALITIES);
-  const bySymbol = qualities.find(([, named]) => named.symbols.includes(trimmed));
-  if (bySymbol) return bySymbol[0];
-  const byWords = qualities.find(([, named]) =>
-    named.words.some((w) => normalizeWords(w) === words),
+  return (
+    QUALITY_BY_SYMBOL.get(trimmed) ??
+    QUALITY_BY_WORDS.get(withoutKindWord(normalizeWords(trimmed), 'chord')) ??
+    QUALITY_BY_LOWER_SYMBOL.get(trimmed.toLowerCase())
   );
-  if (byWords) return byWords[0];
-  const lower = trimmed.toLowerCase();
-  return qualities.find(([, named]) => named.symbols.some((s) => s.toLowerCase() === lower))?.[0];
+}
+
+/** Each lookup maps to the first quality that claims the key, in table order. */
+const QUALITY_BY_SYMBOL = new Map<string, string>();
+const QUALITY_BY_WORDS = new Map<string, string>();
+const QUALITY_BY_LOWER_SYMBOL = new Map<string, string>();
+const claim = (map: Map<string, string>, key: string, name: string) => {
+  if (!map.has(key)) map.set(key, name);
+};
+for (const [name, named] of Object.entries(CHORD_QUALITIES)) {
+  for (const symbol of named.symbols) {
+    claim(QUALITY_BY_SYMBOL, symbol, name);
+    claim(QUALITY_BY_LOWER_SYMBOL, symbol.toLowerCase(), name);
+  }
+  for (const word of named.words) claim(QUALITY_BY_WORDS, normalizeWords(word), name);
 }
 
 /** The name of the quality with exactly this stack, if any. */

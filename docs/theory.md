@@ -74,6 +74,11 @@ every height and keeps the degrees, so `even(k, n, s)` is
 `shift(even(k, n), s)`. The bossa, `even(5, 16, 6)`, has its degree 0 at
 step 6 and plays from the downbeat all the same.
 
+This is Jambot's Euclid form (#8). The prototype, play-aeiou, quintenzirkel
+and tonal all give exactly these sets. Strudel's Bjorklund form gives the
+same rhythm from another starting point for 46 of the 120 pairs with
+k < n ≤ 16, so a Strudel export shifts the pattern or writes it out.
+
 A helix is **even** (`isEven`) when, for every d, the spans from each degree
 to the d-th next degree take at most two sizes, one apart. Neither a shift
 nor the choice of degree 0 changes that.
@@ -98,6 +103,43 @@ two sizes a semitone apart: Myhill's property, which the maximally even sets
 with coprime k and n have. The terms are Clough and Myerson's.
 
 Tests: `intervals.test.ts`.
+
+## Spelling
+
+A note's letter is its generic interval above the tonic, counted in letters,
+and its accidental is what the specific interval leaves over. So spelling is
+choosing a generic for each height (`genericsOf`), and `spell(tonic,
+heights)` does the rest. The rule is to spell in thirds, as the notes sound
+over their chord:
+
+- a stack of thirds takes a third per note: C E♭ G♭ B♭♭;
+- a 7-note scale takes one letter per degree, which is its thirds stacked:
+  E♭ harmonic minor is E♭ F G♭ A♭ B♭ C♭ D;
+- anything else finds the third and fifth of its chord from the root (a
+  major third, else a minor one; a perfect fifth, else ♯5 over a major third,
+  else ♭5), spells them as 3 and 5, and every other note from low to high as
+  a 9, 11, 13 or 7. A note whose letter is taken by then takes the usual
+  interval of its size, and that makes the blue notes: ♭3 beside the major
+  third, ♭5 beside the fifth. The whole tone scale is C D E F♯ G♯ B♭ (9 ♯11
+  ♯5 ♭7 over 7♯5), the augmented scale C D♯ E G A♭ B (♯9 ♭13 over maj7), and
+  the blues C E♭ F G♭ G B♭.
+
+Every scale of up to 7 notes then uses each letter once, except the two
+blues scales. quintenzirkel's spellings (`spellDegree`) follow, its two
+exceptions included (the ♯4 beside a fifth and no fourth, the ♯5 beside a
+third and no fifth), and its golden spellings are tests here. tonal agrees
+on every chord symbol both read, from 21 roots (840 of 840), and on 25 of
+the 28 scales both know, from 21 tonics. It reads the whole tone and
+augmented scales over other chords (C D E F♯ G♯ A♯, C D♯ E G G♯ B), and it
+spells the altered scale over the 7alt chord it is used on, C D♭ D♯ E F♯ A♭
+B♭, where here it takes one letter per degree, C D♭ E♭ F♭ G♭ A♭ B♭. Which
+the altered scale should follow is open (#12): ultralocrian has the same
+third and fourth, and tonal spells that one by degree.
+
+More than a double accidental comes up only on a tonic that has an
+accidental already: C♭dim7 has a B♭♭♭.
+
+Tests: `spelling.test.ts`, and `second-opinion.test.ts` ("spelling").
 
 ## The generator
 
@@ -127,6 +169,63 @@ brightest stands on position b · g.
   (33).
 
 Tests: `modes.test.ts`.
+
+## Keys
+
+A key is a scale on a tonic. The two keys next to it have their own names in
+music, and a key change is one of them, so nothing jumps:
+
+- `relative(key, scale)` keeps the notes and moves the tonic: C major to A
+  minor. It takes the scale on the position that shares the most notes with
+  the key; ties go to the fewest steps along the key's generator (the fifth),
+  then to the key's own tonic, then to the lowest position. That is the
+  prototype's `pivotRoot`, checked for every key and mode it plays, and for a
+  diatonic mode it is always a mode of the key.
+- `parallel(key, scale)` keeps the tonic and changes the notes: C major to C
+  minor.
+
+Tests: `keys.test.ts`.
+
+### The scale a chord implies
+
+`chordScale(key, chord)` answers #10: the scale that changes the fewest notes
+of the key while holding the chord as stacked thirds, entered at the chord's
+root. So chord tones 1 3 5 7 9 are its degrees 0 2 4 6 8, and 2 4 6 are the
+degrees between them. The candidates are the key and its parallel diatonic
+modes, and the key of each major or minor degree a fifth below the chord's
+root: ionian for a major target, harmonic minor for a minor one. Only a
+dominant fits there. A tie goes to the parallel mode, which keeps the tonic.
+Where none holds the chord, harmonic and then melodic minor on the tonic are
+tried. Otherwise the chord implies no scale, and the line has to state one.
+
+In C major and C minor this gives the usual jazz reading:
+
+| chord            | from                | scale               |
+| ---------------- | ------------------- | ------------------- |
+| ♭III, ♭IIImaj7   | C dorian            | E♭ lydian           |
+| ♭VI, ♭VImaj7     | C aeolian           | A♭ lydian           |
+| ♭VII, ♭VIImaj7   | C mixolydian        | B♭ lydian           |
+| ♭II              | C phrygian          | D♭ lydian           |
+| iv, ivm7         | C aeolian           | F dorian            |
+| V7/ii, V7/vi     | D, A harmonic minor | phrygian dominant   |
+| V7/V             | C lydian (G major)  | D mixolydian        |
+| V, V7 in C minor | C harmonic minor    | G phrygian dominant |
+| III+ in C minor  | C harmonic minor    | E♭ ionian ♯5        |
+| vii°7 in C minor | C harmonic minor    | B ultralocrian      |
+
+Two readings differ from other conventions. ♭VII7 takes B♭ mixolydian from C
+aeolian, where jazz often plays lydian dominant, which is no parallel mode.
+And I in C minor takes C mixolydian (a tie with V of iv keeps the tonic),
+where a Picardy third at a cadence is ionian. A line states its scale where
+it means otherwise.
+
+Over every chord of the grammar (11 qualities on 12 roots in the prototype's
+four modes), 332 imply a scale, and in each the chord tones are its degrees
+0 2 4 6 8 and 2 4 6 fall between them. Every borrowed chord and every
+dominant of a major or minor degree is among them. tonal's
+`Chord.chordScales` lists every one of the 332 scales for its chord.
+
+Tests: `keys.test.ts`, and `second-opinion.test.ts`.
 
 ## Composition: a helix on a helix's degrees
 
@@ -189,9 +288,20 @@ n ≤ 12 and d over three turns.
 
 `mirror(helix)` reflects the helix about degree 0: degree d stands as far
 above degree 0 as degree −d stood below it. The gaps come in reverse order,
-and mirroring twice gives the helix back, for every even helix with n ≤ 16.
-C major mirrored is C phrygian, dorian is its own mirror, and a major triad
-mirrored is a minor one.
+the tonic stays, and mirroring twice gives the helix back, for every even
+helix with n ≤ 16. Across the seven diatonic modes it maps brightness i to
+6 − i: lydian to locrian, ionian to phrygian, and dorian to itself. A major
+triad mirrors to the minor triad a fourth above its root (C major to F
+minor).
+
+A reflection about any other axis is this one shifted, because 2a − x is
+2t − x moved by 2(a − t). About the tonic and its fifth (negative harmony,
+quintenzirkel's mirror) it is `shift(mirror(helix), 7)`. On the note sets
+that takes C ionian to C aeolian and a major triad to the minor one on its
+root, and each diatonic mode of brightness i to the one of brightness 5 − i.
+It needs a perfect fifth over the tonic: locrian has none, and its image
+loses the tonic. As a helix, degree 0 moves to the fifth, so C ionian goes
+to G phrygian.
 
 The relations between helices are comparisons, not names of their own: the
 same positions (relative keys, C major and A minor), the same gaps
@@ -213,7 +323,8 @@ Tests: `intervals.test.ts`.
 `read(name, context)` reads a name as a note, an interval, a degree, a chord,
 a scale or a rhythm, and `readings(name)` lists every reading of an
 ambiguous one. A tonic moves the scale's helix: D dorian's degree 0 stands
-at 2. `nameOf(reading)` writes a short name back. A name and a thing are not
+at 2. Keys read with a space or a colon, from any spelling of the tonic:
+`Db:major`, `D#:minor`, `A:aeolian`. `nameOf(reading)` writes a short name back. A name and a thing are not
 inverses, because a thing has many names, but `read(nameOf(x))` gives back x
 for every reading of every name the tables hold. `dia` is every other degree
 of the scale in context, whatever its number of degrees.

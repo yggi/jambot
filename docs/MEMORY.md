@@ -86,9 +86,11 @@ The full description is in
 
 - Strudel (`@strudel/*`) is AGPL-3.0-or-later. `@strudel/core` 1.2.6 does
   not load under Node 22 (a missing `@kabelsalat/web` export); 1.2.5 does.
-- The prototype's Euclid is the Bresenham form, shared with play-aeiou and
-  quintenzirkel. Strudel's differs for 46 of the 120 `(k,n)` pairs with
-  `k < n ≤ 16`, always by a rotation (#8).
+- Jambot's Euclid is the prototype's form, `even(k, n)`, shared exactly with
+  play-aeiou, quintenzirkel and tonal; that is decided (#8). Strudel's
+  differs for 46 of the 120 `(k,n)` pairs with `k < n ≤ 16`, always by a
+  rotation, so a Strudel export compensates with a shift or writes the
+  pattern out.
 - The sister projects (play-aeiou, lib-aeiou, quintenzirkel) are read-only
   from here, and they share conventions with Jambot, not code. See
   [architecture](architecture.md#related-projects).

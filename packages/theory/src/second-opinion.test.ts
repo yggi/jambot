@@ -14,6 +14,10 @@ import { heightOf, positions, shift } from './helix.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
 import { read } from './read.ts';
 import { SCALES } from './scales.ts';
+import { spell } from './spelling.ts';
+import { chordScale } from './keys.ts';
+import { CHORD_QUALITIES } from './chords.ts';
+import { parseNote } from './notes.ts';
 import { normalizeWords } from './words.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -143,5 +147,103 @@ describe('tonal as a second opinion', () => {
       }
     }
     expect(readNames.length).toBeGreaterThan(50);
+  });
+
+  describe('spelling', () => {
+    const tonics = ['C', 'D', 'E', 'F', 'G', 'A', 'B'].flatMap((l) => [l + 'b', l, l + '#']);
+    const tonalSpelling = (notes: string[]) =>
+      notes.map((n) => {
+        const { letter, alt } = Note.get(n);
+        return `${letter}${alt}`;
+      });
+    const ours = (tonic: string, heights: readonly number[]) =>
+      spell(parseNote(tonic)!, heights).map((n) => `${n.letter}${n.alteration}`);
+
+    /** tonal's name for each scale both know, where tonal spells it by another convention. */
+    const conventions: Record<string, string> = {
+      // Open in #12: tonal spells the altered scale over the 7alt chord it is
+      // used on (♭9 ♯9 3 ♯11 ♭13 ♭7, keeping the chord's third E); here a
+      // 7-note scale takes one letter per degree (C D♭ E♭ F♭ G♭ A♭ B♭).
+      // Ultralocrian has the same third and fourth, and tonal spells that one
+      // by degree.
+      altered: 'open (#12): 7alt reading or one letter per degree',
+      // Both spell in thirds over the chord, one letter per note; tonal reads
+      // the chords differently.
+      'whole tone': 'tonal: C D E F♯ G♯ A♯; here C D E F♯ G♯ B♭ (9 ♯11 ♯5 ♭7 over 7♯5)',
+      augmented: 'tonal: C D♯ E G G♯ B; here C D♯ E G A♭ B (♯9 ♭13 over maj7)',
+    };
+
+    it("agrees with tonal's spelling of every scale both know, from 21 tonics, except where the conventions differ", () => {
+      const tonalByName = new Map(
+        ScaleType.all().flatMap((type) =>
+          [type.name, ...type.aliases].map((n) => [normalizeWords(n), type.name] as const),
+        ),
+      );
+      const differ = new Set<string>();
+      let agreed = 0;
+      for (const [name, { helix }] of Object.entries(SCALES)) {
+        const tonalName = tonalByName.get(normalizeWords(name));
+        if (!tonalName) continue;
+        for (const tonic of tonics) {
+          const theirs = tonalSpelling(Scale.get(`${tonic} ${tonalName}`).notes);
+          if (theirs.join() === ours(tonic, helix.heights).join()) agreed++;
+          else differ.add(name);
+        }
+      }
+      expect([...differ].sort()).toEqual(Object.keys(conventions).sort());
+      expect(agreed).toBe(525);
+    });
+
+    it("agrees with tonal's spelling of every chord symbol both read, from 21 roots", () => {
+      let agreed = 0;
+      for (const [name, quality] of Object.entries(CHORD_QUALITIES)) {
+        for (const symbol of quality.symbols) {
+          for (const root of tonics) {
+            const theirs = Chord.get(root + symbol);
+            if (theirs.empty) continue;
+            expect(ours(root, quality.stack), `${root}${symbol} (${name})`).toEqual(
+              tonalSpelling(theirs.notes),
+            );
+            agreed++;
+          }
+        }
+      }
+      expect(agreed).toBe(840);
+    });
+  });
+
+  it("finds every implied chord scale among tonal's chord scales for that chord", () => {
+    // tonal's Chord.chordScales lists the scales that hold a chord, by its
+    // quality alone. Whatever the key, the implied scale must be one of them.
+    const symbols: Record<string, string> = {
+      major: '',
+      minor: 'm',
+      diminished: 'dim',
+      augmented: 'aug',
+      '7': '7',
+      maj7: 'maj7',
+      m7: 'm7',
+      m7b5: 'm7b5',
+      '9': '9',
+      maj9: 'maj9',
+      m9: 'm9',
+    };
+    let checked = 0;
+    for (const mode of ['aeolian', 'dorian', 'ionian', 'mixolydian'] as const) {
+      for (let root = 0; root < 12; root++) {
+        for (const [quality, symbol] of Object.entries(symbols)) {
+          const chord = CHORD_QUALITIES[quality]!.stack.map((x) => x + root);
+          const scale = chordScale(diatonicMode(mode), chord);
+          if (!scale) continue;
+          const fromRoot = scale.heights.map((x) => x - scale.heights[0]!).join();
+          const theirs = Chord.chordScales('C' + symbol).map((name) =>
+            setOfChroma(ScaleType.get(name).chroma).join(),
+          );
+          expect(theirs, `${mode}: ${root} ${quality} → ${fromRoot}`).toContain(fromRoot);
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBe(332);
   });
 });
