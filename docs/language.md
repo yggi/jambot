@@ -513,6 +513,22 @@ for tests only, a licence call). Lands in: #63 step 4.
 Source: LADSPA's hard-realtime flag, the roadmap. Decided: the roadmap,
 inherited.
 
+**L6. A part is one voice: one MIDI channel, and one line of the score.**
+Witness: `PARTS`, the drums, the bass, the pad, the stab and the lead. The
+comp plays two parts, the pad, held through each chord, and the stab,
+short and rhythmic, as the prototype's text writes them on two lines.
+Counterexample: two voices in one part whose notes cut each other on its
+channel. With pad and stab one part, a stab's note-off cut 1,833 of 6,427
+pads short and silenced 15.6% of pad time (E11, #5). Within a part, stabs
+a step apart and held legato still overlap: 234 of 14,931, each a step
+short on one channel unless the lowering counts note-offs per note (Q1d).
+Test: `events.test.ts`, whose test of `PARTS` cites L6; `band.test.ts`,
+"plays each part as one voice: a pad never starts on a note a pad still
+holds, and a stab only one step after a stab still ringing (L6, Q1d)".
+Source: #5, E11, R4 (`comp` named the machine, its carried state and a
+note's voice). Status: measured. Decided: #7, on measured options (E11).
+Lands in: #24 (the channels).
+
 ### Readers and writers
 
 **R1. A musician reads it like a lead sheet.** Source: spirit. Status:
@@ -682,8 +698,8 @@ Counterexample: a duplicate note-on. The prototype sends one in 163 of
 Test: `drums.test.ts`, "strike each sound at most once per step, in order (F5)";
 `band.test.ts`, "plays each note at most once per step in every part, over
 a tour of the presets (F5)". Open: the louder staying in the pitched parts,
-which never strike a note twice, and a note started while the same note
-still sounds, as a stab inside a held pad (Q1d, E9).
+which never strike a note twice, and a note started while the same note of
+its part still sounds, as a stab a step after a stab (L6, Q1d).
 Source: #37 step 3, Hudak's algebra of polymorphic temporal media (2004).
 Status: measured (drums); measured (every part's note-ons). Lands in: Q1d.
 
@@ -915,11 +931,10 @@ the others have not.
     in 26, 3 and 0. At 3 decimals the articulation alone changes what plays
     in 175 bars and what is written in none; the energy 45 and 2, sync 2
     and 1, harm 1 and 1, swing 7 and 0; tempo and entropy none.
-  - No part strikes a note twice on a step. In 631 bars (22%) a chords
-    note starts while the same note still sounds, 3,370 of 3,927 times a
-    stab inside a held pad: on one MIDI channel the stab's note-off cuts
-    the pad (#5). The events tag the two as `comp: 'pad' | 'stab'` of one
-    part, and the prototype's text writes them as two lines.
+  - No part strikes a note twice on a step. Taken together, the pad and
+    the stab start a note while the same note still sounds in 631 bars
+    (22%), 3,370 of 3,927 times a stab inside a held pad; as two parts
+    (L6), 234 remain, each a stab one step after a stab still ringing.
 - **E10. How a bar's header states its style** (T5, T4, C3; #7's decision
   (f)), in
   [`packages/engine/experiments/header.ts`](../packages/engine/experiments/header.ts)
@@ -940,16 +955,18 @@ the others have not.
 - **E11. Pad and stab** (Q1d, F5, R4; #5; #7's decision (g)), in
   [`packages/engine/experiments/pad-stab.ts`](../packages/engine/experiments/pad-stab.ts)
   (about 1 s), over E9's 2,880 bars.
-  - On one MIDI channel, as the chords part lowers now, a stab's note-off
-    cuts 1,833 of 6,427 pads short (28.5%), and 14,913 of 95,824 steps of
-    pad (15.6%) go silent, in 493 bars.
+  - On one MIDI channel, pad and stab together, as they were one part
+    before L6, a stab's note-off cuts 1,833 of 6,427 pads short (28.5%),
+    and 14,913 of 95,824 steps of pad (15.6%) go silent, in 493 bars.
   - A join in the events, one note per pitch at a time, drops 3,370 of
     14,931 stab notes (22.6%).
-  - Two parts, or two voices of one part on two channels, lose nothing.
-    Two parts take `PARTS` from 4 to 5 and drop the `comp` field from
-    notes, which then names only the machine and its carried state; two
-    voices keep the events and map (part, voice) to a channel when
-    lowering.
+  - Two parts, or two voices of one part on two channels, lose nothing
+    between pad and stab. Two parts, now L6, take `PARTS` from 4 to 5 and
+    drop the `comp` field from notes, which then names only the machine and
+    its carried state; two voices would keep the events and map (part,
+    voice) to a channel when lowering. Within the stab part, 234 of 14,931
+    stabs start a step after a stab still ringing on their note, a step
+    short on one channel (Q1d).
 - **E12. Numerals over any cycle** (P5, U1; #7's decision (h)), in
   [`packages/theory/experiments/cycles.ts`](../packages/theory/experiments/cycles.ts)
   (about 1 s). It reads 45 numerals (7 degrees, flat, natural and sharp,

@@ -64,8 +64,9 @@ function velocityOf(env: BarEnv, written: WrittenNote): number {
       return plan.section.type === 'breakdown'
         ? 70
         : clampVelocity((onTheBeat(step) ? 100 : 84) * (0.75 + 0.25 * energy));
-    case 'chords': {
-      if (written.comp === 'stab') return clampVelocity(70 + 20 * energy);
+    case 'stab':
+      return clampVelocity(70 + 20 * energy);
+    case 'pad': {
       const quiet = plan.section.type === 'breakdown' || energy < 0.3;
       const padWeight = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
       return clampVelocity(48 + 30 * energy * (0.5 + padWeight / 2));
@@ -86,8 +87,10 @@ function lengthOf(env: BarEnv, written: WrittenNote): number {
       return env.plan.section.type === 'breakdown'
         ? length - 0.3
         : Math.max(0.3, length * clamp(1.02 - 0.7 * artic, 0.3, 1));
-    case 'chords':
-      return written.comp === 'stab' ? length * lerp(2.5, 0.45, artic) : length;
+    case 'pad':
+      return length;
+    case 'stab':
+      return length * lerp(2.5, 0.45, artic);
     case 'lead':
       return Math.max(0.3, length * clamp(1.05 - 0.75 * artic, 0.25, 1));
   }
@@ -95,10 +98,9 @@ function lengthOf(env: BarEnv, written: WrittenNote): number {
 
 /** A written note as the bar plays it. */
 export function perform(env: BarEnv, written: WrittenNote): NoteEvent {
-  const { part, comp, step, note } = written;
+  const { part, step, note } = written;
   return {
     part,
-    ...(comp && { comp }),
     step,
     note,
     velocity: velocityOf(env, written),

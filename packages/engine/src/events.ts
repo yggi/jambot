@@ -9,12 +9,13 @@
  * played.
  *
  * Both are bar-relative: they name a step of the bar, and the transport
- * turns bar and step into clock time, adding swing. Their parts are the
- * MIDI channels a band plays on. The chords part plays either as a pad,
- * held through the chord, or as a stab, short and rhythmic.
+ * turns bar and step into clock time, adding swing. A part is one voice:
+ * one MIDI channel, and one line of the score (L6). The comp plays two,
+ * the pad, held through each chord, and the stab, short and rhythmic, so a
+ * stab never cuts a pad that holds its note.
  */
 
-export const PARTS = ['drums', 'bass', 'chords', 'lead'] as const;
+export const PARTS = ['drums', 'bass', 'pad', 'stab', 'lead'] as const;
 export type Part = (typeof PARTS)[number];
 
 /**
@@ -27,8 +28,6 @@ export type DrumRole = (typeof DRUM_ROLES)[number];
 
 export interface WrittenNote {
   readonly part: Part;
-  /** For the chords part only: held through the chord, or short and rhythmic. */
-  readonly comp?: 'pad' | 'stab';
   /** For the drums only: what the hit does in the groove. */
   readonly role?: DrumRole;
   /** The step of the bar it starts on, 0–15. */
@@ -41,8 +40,6 @@ export interface WrittenNote {
 
 export interface NoteEvent {
   readonly part: Part;
-  /** For the chords part only: held through the chord, or short and rhythmic. */
-  readonly comp?: 'pad' | 'stab';
   /** The step of the bar it starts on, 0–15. */
   readonly step: number;
   /** The MIDI note, 0–127, C4 = 60. */
@@ -59,22 +56,19 @@ const isIntegerIn = (x: number, lo: number, hi: number) =>
 /** What is wrong with an event, if anything, one line per problem. */
 export function eventProblems(event: NoteEvent): string[] {
   const problems: string[] = [];
-  const { part, comp, step, note, velocity, length } = event;
+  const { step, note, velocity, length } = event;
   if (!isIntegerIn(step, 0, 15)) problems.push(`step ${step} is not a step 0–15`);
   if (!isIntegerIn(note, 0, 127)) problems.push(`note ${note} is not a MIDI note 0–127`);
   if (!isIntegerIn(velocity, 1, 127)) problems.push(`velocity ${velocity} is not a velocity 1–127`);
   if (!(length > 0 && Number.isFinite(length)))
     problems.push(`length ${length} is not a positive, finite length`);
-  if (part === 'chords' && comp === undefined) problems.push('a chords event is a pad or a stab');
-  if (part !== 'chords' && comp !== undefined)
-    problems.push(`a ${part} event is not a pad or a stab`);
   return problems;
 }
 
 /** What is wrong with a written note, if anything, one line per problem. */
 export function writtenProblems(written: WrittenNote): string[] {
   const problems: string[] = [];
-  const { part, comp, role, step, note, length } = written;
+  const { part, role, step, note, length } = written;
   if (!isIntegerIn(step, 0, 15)) problems.push(`step ${step} is not a step 0–15`);
   if (!isIntegerIn(note, 0, 127)) problems.push(`note ${note} is not a MIDI note 0–127`);
   if (!(Number.isInteger(length) && length > 0))
@@ -84,8 +78,5 @@ export function writtenProblems(written: WrittenNote): string[] {
   if (part === 'drums' && role !== undefined && !DRUM_ROLES.includes(role))
     problems.push(`role ${role} is not a drum role`);
   if (part !== 'drums' && role !== undefined) problems.push(`a ${part} note has no role`);
-  if (part === 'chords' && comp === undefined) problems.push('a chords note is a pad or a stab');
-  if (part !== 'chords' && comp !== undefined)
-    problems.push(`a ${part} note is not a pad or a stab`);
   return problems;
 }

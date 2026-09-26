@@ -1,9 +1,9 @@
 /**
  * The built-in synth's pitched voices, coloured by the bar's sound
  * (`soundOf` in the engine): the bass a filtered saw and triangle, the
- * chords a triangle beside a slightly detuned sine, the lead a filtered
- * square and triangle. Each note is held for its duration, then released.
- * These are the prototype's voices.
+ * chords (the pad and the stab alike) a triangle beside a slightly detuned
+ * sine, the lead a filtered square and triangle. Each note is held for its
+ * duration, then released. These are the prototype's voices.
  */
 
 import type { Part, Sound } from '@jambot/engine';
@@ -74,7 +74,7 @@ export function voices(ctx: BaseAudioContext, out: AudioNode): Voices {
         hold(gain, t, duration, 0.28 * v, 0.005, 0.05);
         oscillator('sawtooth', frequency, saw, filter, t, t + duration + 0.1);
         oscillator('triangle', frequency, triangle, filter, t, t + duration + 0.1);
-      } else if (part === 'chords') {
+      } else if (part === 'pad' || part === 'stab') {
         const { attack, release } = sound.chords;
         hold(gain, t, duration, 0.05 * v, attack, release);
         const stop = t + duration + release + 0.05;

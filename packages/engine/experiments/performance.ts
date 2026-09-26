@@ -12,8 +12,9 @@
  *    composed twice from the same carried state, once with its style
  *    rounded, and how many bars change, in what plays and in what is
  *    written (T4, T5).
- * 3. The chords part: duplicate note-ons, and a note started while the same
- *    note still sounds, as a stab inside a held pad (F5, Q1d, #5).
+ * 3. The comp's two parts, the pad and the stab: duplicate note-ons, and a
+ *    note started while the same note still sounds, within a part and
+ *    across the two, as a stab inside a held pad (F5, Q1d, L6, #5).
  *
  * Run: node --experimental-strip-types --no-warnings packages/engine/experiments/performance.ts
  */
@@ -22,7 +23,6 @@ import {
   type BandCarried,
   type BandEnv,
   type KeyWish,
-  type NoteEvent,
   PRESETS,
   type Style,
   band,
@@ -47,7 +47,6 @@ const envOf = (seed: number, bar: number, style: Style, mode: KeyWish['mode']): 
 });
 
 // 1. Lengths and velocities, with each preset's style held.
-const kind = (e: NoteEvent) => e.comp ?? e.part;
 const parts = new Map<
   string,
   {
@@ -58,18 +57,19 @@ const parts = new Map<
     velocities: Set<number>;
   }
 >();
-// 3. The chords part, over the same runs.
+// 3. The comp's two parts, over the same runs.
 let bars = 0;
 let duplicateBars = 0;
 let overlapBars = 0;
 let overlaps = 0;
 let stabsInPads = 0;
+let withinPart = 0;
 
 for (const seed of SEEDS)
   for (const presetAt of runs) {
     let carried: BandCarried = band.initial;
-    /** Chords notes still sounding into the next bar, in its steps. */
-    let ringing: { note: number; start: number; end: number; comp?: string }[] = [];
+    /** The comp's notes still sounding into the next bar, in its steps. */
+    let ringing: { note: number; start: number; end: number; part: string }[] = [];
     for (const bar of range(BARS)) {
       const preset = presetAt(bar);
       const style = { ...preset.style, entropy: (bar % 32) / 32 };
@@ -82,7 +82,7 @@ for (const seed of SEEDS)
       bars++;
 
       output.events.forEach((e, i) => {
-        const p = parts.get(kind(e)) ?? {
+        const p = parts.get(e.part) ?? {
           events: 0,
           lengths: new Set(),
           offGrid: 0,
@@ -94,7 +94,7 @@ for (const seed of SEEDS)
         p.velocities.add(e.velocity);
         if (!Number.isInteger(e.length * 4)) p.offGrid++;
         if (!Number.isInteger(output.written[i]!.length * 4)) p.writtenOffGrid++;
-        parts.set(kind(e), p);
+        parts.set(e.part, p);
       });
 
       const hits = output.events.map((e) => `${e.part}:${e.step}:${e.note}`);
@@ -103,8 +103,8 @@ for (const seed of SEEDS)
       const sounding = [
         ...ringing,
         ...output.events
-          .filter((e) => e.part === 'chords')
-          .map((e) => ({ note: e.note, start: e.step, end: e.step + e.length, comp: e.comp })),
+          .filter((e) => e.part === 'pad' || e.part === 'stab')
+          .map((e) => ({ note: e.note, start: e.step, end: e.step + e.length, part: e.part })),
       ];
       let overlapped = false;
       for (const a of sounding)
@@ -112,7 +112,8 @@ for (const seed of SEEDS)
           if (a !== b && a.note === b.note && b.start > a.start && b.start < a.end) {
             overlaps++;
             overlapped = true;
-            if (a.comp === 'pad' && b.comp === 'stab') stabsInPads++;
+            if (a.part === 'pad' && b.part === 'stab') stabsInPads++;
+            if (a.part === b.part) withinPart++;
           }
       if (overlapped) overlapBars++;
       ringing = sounding
@@ -197,11 +198,12 @@ console.table(
   ),
 );
 
-console.log('\nE9.3 the chords part');
+console.log("\nE9.3 the comp's two parts, the pad and the stab");
 console.table({
   bars,
   'bars with a duplicate note-on': duplicateBars,
-  'bars where a note starts while it sounds': overlapBars,
+  'bars where a note starts while it sounds, the two parts together': overlapBars,
   overlaps,
   'of them a stab inside a pad': stabsInPads,
+  'of them within one part': withinPart,
 });

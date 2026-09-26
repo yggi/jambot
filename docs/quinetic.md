@@ -75,13 +75,14 @@ Source: F3, T4, #37 step 3. Status: measured. Lands in: #37 (done), #23.
 the same events, and every note-on has its note-off.**
 Witness: none yet.
 Counterexample: the prototype's stab note-offs, which cut sustained pad
-notes on the chords channel (#5). The port keeps them: in 631 of 2,880
-bars (22%) a chords note starts while the same note still sounds, 3,370 of
-3,927 times a stab inside a held pad (E9), and 15.6% of all pad time goes
-silent on one channel (E11). Open: whether pad and stab are
-two parts of the events, or two voices of one part that the lowering puts
-on two channels (R4).
+notes on the chords channel (#5): on one channel, 15.6% of the port's pad
+time went silent (E11). Pad and stab are now two parts, each its own
+channel (L6). Within the stab part, 234 of 14,931 stabs start a step
+after a stab still ringing on their note, so the MIDI writer counts
+note-offs per note, or the second stab loses a step (E9, E11).
 Test: open: every preset's events through a MIDI writer and reader.
+`band.test.ts`, whose test of each part as one voice cites Q1d, holds
+where a part overlaps itself.
 Source: F3, L2, #5. Status: open. Lands in: #24, #25.
 
 **Q1e. Sound and score round-trip: the analyzer run on Jambot's own output

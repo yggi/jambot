@@ -59,7 +59,9 @@ language and the plans. This page covers only the port.
   is still sounding on external gear, and the pad's own note-off arrives
   later as an orphan. This does not affect the built-in synth. **Fix:**
   per-channel note reference counting in the MIDI renderer, or separate
-  channels for pads and stabs.
+  channels for pads and stabs. The port takes both: pad and stab are two
+  parts (L6), and a stab a step after a stab on the same note still needs
+  the counting (Q1d).
 - **Untrusted strings go into `innerHTML`.** MIDI port names, which come
   from the OS or device, are inserted into `<option>` markup and into the
   Muse log without escaping. The risk is low, but a component framework

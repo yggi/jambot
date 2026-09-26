@@ -104,7 +104,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/bass.ts`: the bass, a machine that carries its last note
-    - `src/comp.ts`: the comp, pads and stabs, a machine that carries its
+    - `src/comp.ts`: the comp, the pad and the stab parts, a machine that carries its
       last voicing
     - `src/lead.ts`: the lead, a machine that carries its last note, its
       phrase and its themes' melodies; `leadRests` says where it rests
@@ -120,7 +120,7 @@ Every doc and code area, as a tree. Add a line when you add one.
       outside the pure `src/`
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
         E9, what the port writes and what it plays (lengths, velocities,
-        the header's precision, the chords part's overlaps)
+        the header's precision, the pad's and the stab's overlaps)
       - [`header.ts`](../packages/engine/experiments/header.ts): E10, how a
         bar's header states its style, over the app's own glides
       - [`pad-stab.ts`](../packages/engine/experiments/pad-stab.ts): E11,

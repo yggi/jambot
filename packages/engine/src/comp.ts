@@ -1,18 +1,18 @@
 /**
- * The comp: the chords part, a machine at bar rate that carries its last
- * voicing.
+ * The comp: a machine at bar rate that plays two parts, the pad and the
+ * stab, and carries its last voicing.
  *
  * Each chord is voiced close, in 50–79, from the voicing before: of every
  * inversion on every bottom note from 50 to 63, the one that moves least
  * (`voiceMotion`). A ninth chord drops its fifth. With nothing to lead
  * from, the voicing sits nearest the middle of the range.
  *
- * Articulation splits the part: legato pads each chord, held to the next;
+ * Articulation splits it: legato pads each chord, held to the next;
  * staccato stabs on the beat or, as syncopation rises, off it, and when
  * syncopated anticipates the next bar's chord on its last steps. A
  * breakdown and a quiet bar only pad. Whether a chord is padded, and where
- * the stabs fall, are held draws per section (`heldDraw`), so the part
- * morphs. A pad is written for its chord and a stab for one step; how long
+ * the stabs fall, are held draws per section (`heldDraw`), so the parts
+ * morph. A pad is written for its chord and a stab for one step; how long
  * each sounds, and how loud, is the performance's (`perform.ts`). These are
  * the prototype's rules and weights.
  */
@@ -107,8 +107,7 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
       if (!chance(held(ROLE.pad, step), padWeight * 1.15)) return;
       padded.add(step);
       const end = chords[i + 1]?.slot.step ?? 16;
-      for (const note of voiced[i]!)
-        written.push({ part: 'chords', comp: 'pad', step, note, length: end - step });
+      for (const note of voiced[i]!) written.push({ part: 'pad', step, note, length: end - step });
     });
 
     for (let s = 0; s < 16; s++) {
@@ -120,8 +119,7 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
       const coming = next[0];
       if (s >= 14 && style.sync > 0.5 && coming && !same(coming.chord, chords[here]!.chord))
         notes = voicing(coming.chord, previous);
-      for (const note of notes)
-        written.push({ part: 'chords', comp: 'stab', step: s, note, length: 1 });
+      for (const note of notes) written.push({ part: 'stab', step: s, note, length: 1 });
     }
     return { carried: previous, output: written };
   },

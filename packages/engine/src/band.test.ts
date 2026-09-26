@@ -131,7 +131,7 @@ describe('the band', () => {
       expect(written.filter((e) => e.part === 'bass')).toEqual(bassline.output);
       expect(after.parts.bass).toBe(bassline.carried);
       const comping = comp.advance(read, carried.parts.comp, null);
-      expect(written.filter((e) => e.part === 'chords')).toEqual(comping.output);
+      expect(written.filter((e) => e.part === 'pad' || e.part === 'stab')).toEqual(comping.output);
       expect(after.parts.comp).toEqual(comping.carried);
       const melody = lead.advance(read, carried.parts.lead, null);
       expect(written.filter((e) => e.part === 'lead')).toEqual(melody.output);
@@ -152,10 +152,36 @@ describe('the band', () => {
     expect(bars).toBe(320);
   });
 
+  it('plays each part as one voice: a pad never starts on a note a pad still holds, and a stab only one step after a stab still ringing (L6, Q1d)', () => {
+    let stabs = 0;
+    for (const seed of range(5)) {
+      const song = run(seed).flatMap((b) =>
+        b.events.map((e) => ({
+          ...e,
+          start: b.bar * 16 + e.step,
+          end: b.bar * 16 + e.step + e.length,
+        })),
+      );
+      for (const part of ['pad', 'stab'] as const) {
+        const notes = song.filter((e) => e.part === part);
+        for (const a of notes)
+          for (const b of notes)
+            if (a !== b && a.note === b.note && b.start > a.start && b.start < a.end) {
+              expect(part).toBe('stab');
+              expect(b.start - a.start).toBe(1);
+              stabs++;
+            }
+      }
+    }
+    // Stabs a step apart, held legato, overlap: one MIDI channel needs its
+    // note-offs counted per note (Q1d).
+    expect(stabs).toBeGreaterThan(0);
+  });
+
   it('carries register into the bass and the comp, but a phrase into the lead: what a resumed band loses (S2)', () => {
     // A band that passes 20 bars of every 40, as after a stall, against one
     // that plays them all: the first bar after each pass.
-    const counts = { bass: 0, chords: 0, lead: 0, bars: 0 };
+    const counts = { bass: 0, pad: 0, stab: 0, lead: 0, bars: 0 };
     for (const seed of range(8)) {
       const at = (bar: number): BandEnv => {
         const preset = PRESETS[Math.floor(bar / 16) % PRESETS.length]!;
@@ -181,13 +207,13 @@ describe('the band', () => {
             .map((e) => `${e.step}:${e.length}:${wrap(e.note, 12)}`)
             .sort()
             .join();
-        for (const part of ['bass', 'chords', 'lead'] as const)
+        for (const part of ['bass', 'pad', 'stab', 'lead'] as const)
           if (heard(played.output.events, part) !== heard(back.output.events, part)) counts[part]++;
       }
     }
     // Bass and comp resume in another register only: the same rhythm and
     // pitch classes. The lead resumes from another phrase.
-    expect(counts).toMatchObject({ bars: 80, bass: 0, chords: 0 });
+    expect(counts).toMatchObject({ bars: 80, bass: 0, pad: 0, stab: 0 });
     expect(counts.lead).toBeGreaterThan(40);
   });
 
