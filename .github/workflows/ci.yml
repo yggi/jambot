@@ -1,9 +1,10 @@
 name: CI
 
+# Manual only while the Actions minutes are used up (#4): a run on every
+# push fails in seconds and leaves each pull request red for no reason.
+# `pnpm verify` locally is the check that counts. When minutes return, put
+# back `push: { branches: [main] }` and `pull_request:`.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
