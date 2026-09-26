@@ -4,6 +4,7 @@ export * from './helix.ts';
 export * from './intervals.ts';
 export * from './keys.ts';
 export * from './modes.ts';
+export * from './motifs.ts';
 export * from './notes.ts';
 export * from './numerals.ts';
 export * from './read.ts';

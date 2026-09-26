@@ -1019,6 +1019,28 @@ the others have not.
     spelling at the same pitch, since places n fifths apart coincide (E♯ is
     G♭ in 17 and F♭ in 19), and `numeralOf` writes the canonical one.
 
+- **E13. The lead against the motif operators** (Q5c, S2; #7's decision
+  (d)), in
+  [`packages/engine/experiments/motifs.ts`](../packages/engine/experiments/motifs.ts)
+  (about 1 s), over E1's shape. It reads every lead bar back as key degrees
+  and finds the operator and fragment (`motifs.ts`) whose rhythm is the
+  bar's and whose contour, at the best sequence, differs from it in the
+  fewest notes.
+  - Shape bars: fitting the shape to the chords (a chord tone on the half
+    bar and on a chord's start, an octave fold) changes 131 of 4,476 notes
+    (2.9%), in 13.8% of bars. 37 bars have a note off the key.
+  - Variation bars (927): 12.3% are the shape under an operator exactly,
+    61.2% but for their last note, which the phrase's close sets, 24.1%
+    but for one other note (a nudge or a chord tone), 2.5% two notes or
+    more off. Every one has an operator's rhythm. The operators are the
+    shape itself, up to a sequence (52%, the lift and the bent close),
+    the inversion (25%) and a fragment (18%); retrograde and
+    displacement match 3%, where a short motif is symmetric.
+  - Phrases (457): 51% are a cell and an operator on it in every bar but
+    for the close, 90% allowing one more note a bar. Written as a cell and
+    a reference per bar, with a degree for each note an operator doesn't
+    give, a phrase takes 52% of the tokens it takes as notes.
+
 #7's decisions (a) to (c) are made, as U1 to U3, and (e) to (h) as T4's
 performance maps, C7, L6 and P5. (d), the motif operators, is still open,
 and is checked against this catalogue when it is made.

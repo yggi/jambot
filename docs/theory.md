@@ -390,6 +390,35 @@ modes), and up to reversal (the mirror).
 
 Tests: `helix.test.ts`, "mirror".
 
+## Motifs
+
+A **motif** is a rhythm and a contour: the steps of a bar its notes start on,
+and each note's degree of the key, counted from the motif's reference
+(`Motif`). A note is held to the next, and the last to the first of the
+next time the motif sounds, so the notes go round the bar as arcs.
+
+The operators on motifs are shift and mirror again, on two axes:
+
+- on pitch, T is a **sequence**, the contour moved by some degrees, and I
+  an **inversion** about the reference;
+- on time, T is a **displacement**, the arcs moved round the bar, and I the
+  **retrograde**, the arcs reflected about the bar's start. On the onsets
+  alone, displacement is `shift` of the rhythm's helix, and retrograde is
+  its `mirror`, moved to reflect about the bar's start.
+
+On each axis they are affine maps, x ↦ a ± x, so every chain of them is one
+operator, `{ seq, inv, shift, retro }`. They form a group: the infinite
+dihedral group on pitch, times the dihedral group of the bar on time, with
+R∘R = I∘I = id, R∘I = I∘R and Tₐ∘T_b = Tₐ₊_b. A **fragment**, the first
+notes, loses the rest, so fragments form a monoid beside the group; they
+commute with every operator on pitch. Which of these the score writes is
+#7's decision (d).
+
+Tests: `motifs.test.ts`: the composition over every operator pair with a
+sequence of −2 to 2 on every motif of a 4-step bar (1.6 million cases), the
+laws and each operator's inverse, displacement and retrograde as `shift`
+and `mirror` on a 16-step rhythm, and the fragments' laws (Q5c).
+
 ## Partials
 
 `partial(n)` places the n-th partial of the harmonic series on the nearest
