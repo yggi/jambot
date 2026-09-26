@@ -34,6 +34,32 @@ export function keyedRandom(seed: number, ...keys: number[]): number {
 }
 
 /**
+ * The random streams. The first key of every draw names the decision it
+ * makes, so no two decisions draw the same numbers by accident, and changing
+ * how one decision draws leaves every other where it was. A new decision
+ * gets a new stream here.
+ */
+export const STREAMS = {
+  /** Which section follows, per section. */
+  form: 1,
+  /** Whether a drum sound plays on a step: fixed per section, so rhythms morph. */
+  drumHit: 2,
+  /** The variation of those thresholds on odd bars. */
+  drumVariation: 3,
+  /** The looseness of a drum hit's velocity. */
+  drumVelocity: 4,
+  /** The rotation of the Euclidean percussion, per section. */
+  drumEuclid: 5,
+} as const;
+
+export type Stream = keyof typeof STREAMS;
+
+/** A draw in [0, 1) for one decision, keyed by the seed and its position. */
+export function draw(seed: number, stream: Stream, ...keys: number[]): number {
+  return keyedRandom(seed, STREAMS[stream], ...keys);
+}
+
+/**
  * The grid that probabilities and weights are rounded to before they meet a
  * draw. `+ − × ÷` give the same double on every JavaScript engine, but
  * `Math.pow`, `Math.sin` and their kin may differ in the last bit. Rounding to

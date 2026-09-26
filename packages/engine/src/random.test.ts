@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { QUANTUM, chance, keyedRandom, keyedRng, mulberry32, pick, quantize } from './random.ts';
+import {
+  QUANTUM,
+  STREAMS,
+  chance,
+  draw,
+  keyedRandom,
+  keyedRng,
+  mulberry32,
+  pick,
+  quantize,
+} from './random.ts';
 
 // Known-answer values, recorded from the prototype for orientation.
 describe('mulberry32', () => {
@@ -138,5 +148,18 @@ describe('pick', () => {
     expect(() => pick(0.5, [1, NaN])).toThrow(/negative or not finite/);
     expect(() => pick(1, [1, 1])).toThrow(/outside \[0, 1\)/);
     expect(() => pick(-0.1, [1, 1])).toThrow(/outside \[0, 1\)/);
+  });
+});
+
+describe('draw', () => {
+  it('names every stream with its own id, so no two decisions share their numbers', () => {
+    const ids = Object.values(STREAMS);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) expect(Number.isInteger(id) && id > 0).toBe(true);
+  });
+
+  it('is the keyed draw on the stream’s id', () => {
+    expect(draw(7, 'form', 3)).toBe(keyedRandom(7, STREAMS.form, 3));
+    expect(draw(7, 'form', 3)).not.toBe(draw(7, 'drumHit', 3));
   });
 });
