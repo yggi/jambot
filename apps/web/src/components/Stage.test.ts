@@ -10,6 +10,7 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   key: 'A aeolian',
   chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
   energy: 0.6,
+  lead: 'improvising',
   ...over,
 });
 const style = { preset: 'Synth-pop', glide: null };
@@ -21,6 +22,7 @@ const heard: Hud = {
   next: [bar(10), bar(11), bar(12), bar(13)],
   sections: [],
   style,
+  heading: { tonic: 9, mode: 'aeolian' },
 };
 const opening = bar(0, { section: 'Intro', chords: [{ step: 0, symbol: 'Am', numeral: 'i' }] });
 const idle: Hud = {
@@ -30,6 +32,7 @@ const idle: Hud = {
   next: [bar(1), bar(2), bar(3), bar(4)],
   sections: [],
   style,
+  heading: { tonic: 9, mode: 'aeolian' },
 };
 
 describe('the stage', () => {
@@ -78,5 +81,17 @@ describe('the stage', () => {
     playing.unmount();
     const waiting = render(Stage, { hud: { ...idle, sections }, playing: true });
     expect(waiting.container.querySelectorAll('.bars i.cur')).toHaveLength(0);
+  });
+
+  it('says what the lead is doing in the bar heard, and before the start that the band plays on its own', () => {
+    const idleView = render(Stage, { hud: idle, playing: false });
+    expect(screen.getByText('The band plays on its own once started.')).toBeInTheDocument();
+    idleView.unmount();
+    const improvising = render(Stage, { hud: heard, playing: true });
+    expect(screen.getByText('Lead is improvising.')).toBeInTheDocument();
+    improvising.unmount();
+    const resting = { ...heard, bar: { ...groove, lead: 'resting' as const } };
+    render(Stage, { hud: resting, playing: true });
+    expect(screen.getByText('Lead is resting.')).toBeInTheDocument();
   });
 });

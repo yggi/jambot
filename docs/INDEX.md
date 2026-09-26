@@ -100,7 +100,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/comp.ts`: the comp, pads and stabs, a machine that carries its
       last voicing
     - `src/lead.ts`: the lead, a machine that carries its last note, its
-      phrase and its themes' melodies
+      phrase and its themes' melodies; `leadRests` says where it rests
     - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
       decides the next (`passBar` for a bar it doesn't play), and
@@ -145,8 +145,11 @@ Every doc and code area, as a tree. Add a line when you add one.
         and a line saying where the style is: a preset playing, a glide
         under way, or a custom style
       - `src/components/Stage.svelte`: the section, the bar in it, the key,
-        the chord heard with its numeral, the beats, the song map and the
-        next four bars; before the start, the bar the band opens on
+        the chord heard with its numeral, the beats, the song map, the next
+        four bars and what the lead is doing; before the start, the bar the
+        band opens on
+      - `src/components/KeyPicker.svelte`: a tonic and a mode, showing the
+        key the band is heading for
       - `src/components/NextBars.svelte`: the next four bars, with cues
         where the section or the key changes
       - `src/components/SongMap.svelte`: the section playing and the three
@@ -161,8 +164,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/audio/output.ts`: what the player plays on, and the Web Audio
       one
-    - `src/conductor.ts`: intents (presets, sliders) into glides on the
-      style track
+    - `src/conductor.ts`: intents (presets, sliders, keys) into glides on
+      the style track and the key wished for
     - `src/audio/drums.ts`: the built-in drum kit
     - `src/audio/voices.ts`: the built-in pitched voices: bass, chords and
       lead, coloured by the bar's sound

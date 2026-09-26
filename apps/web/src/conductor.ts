@@ -9,9 +9,11 @@
  * and a beat, at most 20 steps. While the band is stopped, a change is set
  * at once, and the next start plays from it.
  *
- * A preset also wishes for its mode. The band moves its key toward the wish
- * at the next section it plans (`nextKey`), so a new key never cuts into
- * a section.
+ * A preset also wishes for its mode, unless the wish is in that mode
+ * already, so a key picked stays when a preset in its mode follows, as in
+ * the prototype. A key picked is wished for as it is, tonic and mode. The
+ * band moves its key toward the wish at the next section it plans
+ * (`nextKey`), so a new key never cuts into a section.
  */
 
 import {
@@ -28,18 +30,23 @@ import {
 
 export type Intent =
   | { readonly kind: 'preset'; readonly preset: Preset }
-  | { readonly kind: 'axis'; readonly axis: Axis; readonly value: number };
+  | { readonly kind: 'axis'; readonly axis: Axis; readonly value: number }
+  | { readonly kind: 'key'; readonly wish: KeyWish };
 
 /** The track after an intent, gliding from step `at`, or set at once when stopped (`null`). */
 export function conduct(track: StyleTrack, intent: Intent, at: number | null): StyleTrack {
+  if (intent.kind === 'key') return track;
   const targets = intent.kind === 'preset' ? intent.preset.style : { [intent.axis]: intent.value };
   if (at === null) return glideTo(track, targets, 0, 0);
   return glideTo(track, targets, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);
 }
 
-/** The key wished for after an intent: a preset's mode, from any tonic. */
+/** The key wished for after an intent: a key picked, or a preset's mode from any tonic. */
 export function wishAfter(wish: KeyWish, intent: Intent): KeyWish {
-  return intent.kind === 'preset' ? { tonic: null, mode: intent.preset.mode } : wish;
+  if (intent.kind === 'key') return intent.wish;
+  if (intent.kind === 'preset' && intent.preset.mode !== wish.mode)
+    return { tonic: null, mode: intent.preset.mode };
+  return wish;
 }
 
 /**

@@ -4,7 +4,8 @@ import { type BandBar, band } from './band.ts';
 import { chordAt } from './chords.ts';
 import { eventProblems } from './events.ts';
 import { keyHelix } from './key.ts';
-import { LEAD_RANGE, type LeadCarried, lead } from './lead.ts';
+import { LEAD_RANGE, type LeadCarried, lead, leadRests } from './lead.ts';
+import { SECTION_TYPES } from './form.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { PRESETS, type Style } from './style.ts';
 
@@ -258,5 +259,26 @@ describe('the lead', () => {
         .sort((a, b) => Math.abs(a - before.last) - Math.abs(b - before.last) || a - b)[0]!;
       expect(wrap(first.note - nearest, 12)).toBe(0);
     }
+  });
+});
+
+describe('whether the lead rests', () => {
+  it('is what the lead does: it rests in an intro, a breakdown and below energy 0.4, every section and energy', () => {
+    const { bar, after: carried } = playing[0]!;
+    let rests = 0;
+    for (const type of SECTION_TYPES)
+      for (const energy of range(101).map((i) => i / 100)) {
+        const env = {
+          ...bar,
+          barEnergy: energy,
+          plan: { ...bar.plan, section: { ...bar.plan.section, type } },
+        };
+        const next = lead.advance(env, carried, null);
+        const rested = next.carried.phrase === null && next.output.length === 0;
+        expect(rested, `${type} at ${energy}`).toBe(leadRests(type, energy));
+        if (rested) rests++;
+      }
+    // 2 of 6 sections always, and the other 4 below 0.4: 40 of 101 energies.
+    expect(rests).toBe(2 * 101 + 4 * 40);
   });
 });

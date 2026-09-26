@@ -274,4 +274,38 @@ describe('the player', () => {
     expect(player.hud.bar!.bar).toBeGreaterThan(8);
     expect(checked).toBeGreaterThan(500);
   });
+
+  it('opens in a key picked while stopped, and shows it heading there', () => {
+    const { s } = surroundings();
+    const player = new Player(s);
+    player.apply({ kind: 'key', wish: { tonic: 2, mode: 'mixolydian' } });
+    expect(player.hud.bar!.key).toBe('D mixolydian');
+    expect(player.hud.heading).toEqual({ tonic: 2, mode: 'mixolydian' });
+  });
+
+  it('hears a key picked while playing from the next section on, and heads there at once', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    void player.start();
+    world.resolve();
+    await settle();
+    const heard = new Map<number, string>();
+    const play = (seconds: number) => {
+      for (let t = 0; t < seconds; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+        const { bar, beat } = player.hud;
+        if (beat !== null && bar) heard.set(bar.bar, bar.key);
+      }
+    };
+    // Synth-pop at 108 bpm: a bar is 2.2 s.
+    play(3);
+    player.apply({ kind: 'key', wish: { tonic: 7, mode: 'ionian' } });
+    expect(player.hud.heading).toEqual({ tonic: 7, mode: 'ionian' });
+    expect(player.hud.bar!.key).toBe('A aeolian');
+    play(20);
+    for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('A aeolian');
+    expect(heard.get(8)).toBe('G ionian');
+  });
 });

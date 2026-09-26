@@ -11,6 +11,7 @@ import {
   glideTo,
   holding,
   keyName,
+  leadRests,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { NEXT_BARS, SECTIONS, hudOf, presetOf } from './hud.ts';
@@ -86,6 +87,28 @@ describe('the view model', () => {
     expect(hud.bar).toBeNull();
     expect(hud.chord).toBeNull();
     expect(hud.next).toEqual([]);
+  });
+});
+
+describe('the lead and the key ahead', () => {
+  it('says of every bar whether the lead rests or improvises', () => {
+    const seen = new Set<string>();
+    for (const b of bars) {
+      const view = hudOf({ heard: b.bar * 16, bars, track }).bar!;
+      expect(view.lead).toBe(
+        leadRests(b.plan.section.type, b.barEnergy) ? 'resting' : 'improvising',
+      );
+      seen.add(view.lead);
+    }
+    expect(seen).toEqual(new Set(['resting', 'improvising']));
+  });
+
+  it('gives the key the band is heading for: the key of the last bar decided', () => {
+    const d = { tonic: 2, mode: 'dorian' } as const;
+    const moving = bars.map((b) => (b.bar >= 16 ? { ...b, plan: { ...b.plan, key: d } } : b));
+    expect(hudOf({ heard: 16 * 3, bars: moving, track }).heading).toEqual(d);
+    expect(hudOf({ heard: null, bars, track }).heading).toEqual({ tonic: 9, mode: 'aeolian' });
+    expect(hudOf({ heard: null, bars: [], track }).heading).toBeNull();
   });
 });
 
