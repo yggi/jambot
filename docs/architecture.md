@@ -42,8 +42,9 @@ package names things:
 
 `read` reads all of these by name, in long and short forms, and `readings`
 lists every reading of an ambiguous name ("C" is a note and a chord) until a
-kind is given. `nameOf` writes a name back. Every theory name the sister projects use resolves to what they
-mean by it, which a test checks against their tables.
+kind is given. `nameOf` writes a name back. Every theory name the sister
+projects use resolves to what they mean by it, which a test checks against
+their tables.
 
 This primitive is the root of the project and the core of the language
 design (#7).

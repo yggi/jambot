@@ -66,12 +66,16 @@ describe('degreeBelow and degreeAbove', () => {
         const above = (p: number) => degreeAbove(helix, p);
         const ds = range(8 * k).map((d) => d - 4 * k);
         for (const p of range(4 * n + 1).map((x) => x - 2 * n)) {
+          const [lo, hi] = [below(p), above(p)];
           for (const d of ds) {
-            expect(heightOf(helix, d) <= p, `${k} of ${n}, p ${p}, d ${d}`).toBe(d <= below(p));
-            expect(heightOf(helix, d) >= p, `${k} of ${n}, p ${p}, d ${d}`).toBe(d >= above(p));
+            const height = heightOf(helix, d);
+            if (height <= p !== d <= lo || height >= p !== d >= hi)
+              expect([height, d], `${k} of ${n}, p ${p}, below ${lo}, above ${hi}`).toBe(
+                'an adjoint',
+              );
           }
           const onHelix = positions(helix).includes(wrap(p, n));
-          expect(above(p) - below(p), `${k} of ${n}, p ${p}`).toBe(onHelix ? 0 : 1);
+          expect(hi - lo, `${k} of ${n}, p ${p}`).toBe(onHelix ? 0 : 1);
         }
       }
     }

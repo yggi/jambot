@@ -77,6 +77,25 @@ describe('read', () => {
     expect(() => read('dia')).toThrow(/needs a scale/);
   });
 
+  it('builds dia on every other degree of any scale, whatever its number of degrees', () => {
+    // As play-aeiou's dia does: the triad of a key is not only a 7-note idea.
+    const cases: [string, number[], string][] = [
+      ['major pentatonic', [0, 4, 9], 'dia'],
+      ['blues', [0, 5, 7], 'sus4'],
+      ['whole tone', [0, 4, 8], 'augmented'],
+      ['diminished', [0, 3, 6], 'diminished'],
+      ['chromatic', [0, 2, 4], 'dia'],
+    ];
+    for (const [name, stack, quality] of cases)
+      expect(read('dia', { scale: SCALES[name]!.helix }), name).toEqual({
+        kind: 'chord',
+        quality,
+        stack,
+      });
+    for (const scale of Object.values(SCALES))
+      expect(readings('dia', { scale: scale.helix })).toHaveLength(1);
+  });
+
   it('reads the functional names of degrees', () => {
     expect(read('tonic')).toEqual({ kind: 'degree', generic: 0, specific: [0] });
     expect(read('leading tone')).toEqual({ kind: 'degree', generic: 6, specific: [11] });

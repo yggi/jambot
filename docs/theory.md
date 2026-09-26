@@ -212,9 +212,11 @@ Tests: `intervals.test.ts`.
 
 `read(name, context)` reads a name as a note, an interval, a degree, a chord,
 a scale or a rhythm, and `readings(name)` lists every reading of an
-ambiguous one. A tonic moves the scale's helix: D dorian's degree 0 stands at 2. `nameOf(reading)` writes a short name back. A name and a thing are not
+ambiguous one. A tonic moves the scale's helix: D dorian's degree 0 stands
+at 2. `nameOf(reading)` writes a short name back. A name and a thing are not
 inverses, because a thing has many names, but `read(nameOf(x))` gives back x
-for every reading of every name the tables hold.
+for every reading of every name the tables hold. `dia` is every other degree
+of the scale in context, whatever its number of degrees.
 
 Tests: `read.test.ts`.
 

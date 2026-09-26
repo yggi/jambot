@@ -45,8 +45,13 @@ export interface ReadContext {
   scale?: Helix;
 }
 
-/** Chords built on the scale in context rather than a fixed quality: `dia` is its triad. */
-const SCALE_CHORDS: Record<string, Helix> = { dia: { cycle: 7, heights: [0, 2, 4] } };
+/**
+ * Chords built on the scale in context rather than a fixed quality, as the
+ * degrees they take: `dia` is every other degree, the triad of a 7-note scale.
+ * The inner helix's cycle is the scale's number of degrees, so it builds on
+ * any scale.
+ */
+const SCALE_CHORDS: Record<string, readonly number[]> = { dia: [0, 2, 4] };
 
 /** Every reading of a name, in the order note, interval, degree, chord, scale, rhythm. */
 export function readings(text: string, context: ReadContext = {}): Reading[] {
@@ -144,7 +149,8 @@ function chordReadings(text: string, context: ReadContext): Reading[] {
   const built = SCALE_CHORDS[normalizeWords(trimmed)];
   if (built !== undefined) {
     if (!context.scale) return [];
-    const { heights } = compose(built, context.scale);
+    const inner = { cycle: context.scale.heights.length, heights: built };
+    const { heights } = compose(inner, context.scale);
     const stack = heights.map((x) => x - heights[0]!);
     return [{ kind: 'chord', quality: qualityOf(stack) ?? trimmed, stack }];
   }
