@@ -6,6 +6,10 @@
 
 <!-- Closes #…, Part of #…, or "none". -->
 
+## Findings
+
+<!-- What this change found that a catalogue (#7's docs/language.md, #39) doesn't hold yet: a law it needed, a limit it hit, a baseline claim that was false. Or "none". See docs/ratchet.md. -->
+
 ## Checks
 
 - [ ] `pnpm verify` passes locally (CI does not run while #4 is open)

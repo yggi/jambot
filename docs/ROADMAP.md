@@ -23,7 +23,8 @@ These run in parallel:
   mean, and the text format other code builds on. Everything else goes ahead
   now and feeds the design with the invariants and shapes it finds. That is
   better than deciding ahead of the evidence and building around the
-  decision later.
+  decision later. How the tracks feed each other is
+  [the ratchet](ratchet.md).
 - **Rebuild from the prototype**, test-first, with the prototype as a
   baseline for orientation:
   - the theory primitive in `packages/theory` (#28);

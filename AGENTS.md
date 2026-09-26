@@ -65,6 +65,10 @@ These principles come from the prototype
   behaviour through public functions, not internals, so they survive
   refactoring while features settle. Tests sit next to the code as
   `*.test.ts`.
+- **Build and constrain in parallel.** A track that builds and a track that
+  gathers constraints run side by side without waiting for each other. What
+  one finds goes to the other, and a test on `main` holds it. See
+  [`docs/ratchet.md`](docs/ratchet.md).
 - **`pnpm verify` before pushing.** It runs everything CI runs. A fresh
   checkout needs `pnpm install --frozen-lockfile` first (seconds): install,
   never skip the tests. Claude Code sessions do this at start through
