@@ -103,6 +103,13 @@ These principles come from the prototype
   section open and say so.
 - **Small commits, pull requests into `main`.** No ceremony beyond passing
   checks.
+- **Deploy after merging.** Whoever merges a pull request into `main` then
+  runs `pnpm pages deploy` from `main`, so the site at
+  <https://yggi.github.io/jambot/> plays what `main` holds. Nothing else
+  deploys while #4 is open. The deploy refuses a commit that isn't on
+  `origin/main`, runs `pnpm verify`, and checks the live site once Pages
+  has published it. When the build hasn't changed, it pushes nothing and
+  only checks.
 
 ## Keeping the shared memory current
 
