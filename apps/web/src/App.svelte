@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { PRESETS } from '@jambot/engine';
   import Stage from './components/Stage.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import Transport from './components/Transport.svelte';
@@ -7,8 +6,6 @@
 
   const player = new Player();
   const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
-
-  let preset = $state<string>(PRESETS[0]!.name);
 </script>
 
 <main>
@@ -24,9 +21,13 @@
     onintent={(intent) => player.apply(intent)}
   />
 
-  <StylePanel track={player.track} bind:preset onintent={(intent) => player.apply(intent)} />
+  <StylePanel
+    track={player.track}
+    preset={player.hud.style.preset}
+    onintent={(intent) => player.apply(intent)}
+  />
 
-  <Stage position={player.position} playing={player.playing} />
+  <Stage hud={player.hud} playing={player.playing} />
 
   <p class="note">
     The band plays drums, bass, chords and lead. The score, MIDI out and the Muse, which listens to

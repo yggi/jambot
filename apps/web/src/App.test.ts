@@ -31,18 +31,23 @@ describe('the app', () => {
     expect(screen.getByLabelText('Tempo')).toHaveTextContent('148 BPM');
   });
 
-  it('nudges the tempo, and a style slider makes the preset custom', async () => {
+  it('nudges the tempo, and names the style by its preset: energy and entropy keep it, anything else makes it custom', async () => {
     render(App);
+    const synthPop = () => screen.getByRole('button', { name: 'Synth-pop' });
+    for (const name of [/Energy/, /Entropy/]) {
+      await fireEvent.input(screen.getByRole('slider', { name }), { target: { value: '90' } });
+      expect(synthPop()).toHaveAttribute('aria-pressed', 'true');
+    }
     await fireEvent.click(screen.getByRole('button', { name: 'Faster' }));
     expect(screen.getByLabelText('Tempo')).toHaveTextContent('110 BPM');
+    expect(synthPop()).toHaveAttribute('aria-pressed', 'false');
+    await fireEvent.click(screen.getByRole('button', { name: 'Slower' }));
+    expect(synthPop()).toHaveAttribute('aria-pressed', 'true');
     await fireEvent.input(screen.getByRole('slider', { name: /Syncopation/ }), {
       target: { value: '80' },
     });
     expect(screen.getByRole('slider', { name: /Syncopation/ })).toHaveValue('80');
-    expect(screen.getByRole('button', { name: 'Synth-pop' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    expect(synthPop()).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('links to the prototype for what it does not do yet: the score, MIDI out and the Muse', () => {

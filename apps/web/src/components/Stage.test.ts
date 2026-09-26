@@ -1,26 +1,31 @@
 import { render, screen } from '@testing-library/svelte';
 import { describe, expect, it } from 'vitest';
 import Stage from './Stage.svelte';
-import type { Position } from '../player.svelte.ts';
+import type { BarView, Hud } from '../hud.ts';
 
-const position: Position = {
+const groove: BarView = {
   bar: 9,
-  beat: 2,
-  section: 'groove',
-  key: { tonic: 9, mode: 'aeolian' },
-  chord: 'Am7',
+  barInSection: 1,
+  section: 'Groove',
+  key: 'A aeolian',
+  chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
+  energy: 0.6,
 };
+const style = { preset: 'Synth-pop', glide: null };
+const heard: Hud = { bar: groove, beat: 2, chord: groove.chords[0]!, next: [], style };
+const ahead: Hud = { ...heard, beat: null };
 
 describe('the stage', () => {
   it('is ready while stopped, and waits while the band starts', async () => {
-    const { rerender } = render(Stage, { position: null, playing: false });
+    const { rerender } = render(Stage, { hud: ahead, playing: false });
     expect(screen.getByText('Ready')).toBeInTheDocument();
-    await rerender({ position: null, playing: true });
+    expect(screen.queryByText('Am7')).toBeNull();
+    await rerender({ hud: ahead, playing: true });
     expect(screen.getByText('…')).toBeInTheDocument();
   });
 
   it('shows the section, the chord, the key and the bar heard, and the beats up to the one heard', () => {
-    const { container } = render(Stage, { position, playing: true });
+    const { container } = render(Stage, { hud: heard, playing: true });
     expect(screen.getByText('Groove')).toBeInTheDocument();
     expect(screen.getByText('Am7')).toBeInTheDocument();
     expect(screen.getByText('A aeolian')).toBeInTheDocument();

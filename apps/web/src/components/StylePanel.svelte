@@ -1,7 +1,7 @@
 <!--
   The style: the genre presets and the six sliders. The sliders show where
-  each axis is going, not the glide. A style slider makes the preset custom;
-  energy is the one axis a player rides within a genre.
+  each axis is going, not the glide, and the preset pressed is the one the
+  style is at or heading for (`presetOf`), none for a custom style.
 -->
 <script lang="ts">
   import { type Axis, PRESETS, type StyleTrack } from '@jambot/engine';
@@ -9,12 +9,12 @@
 
   interface Props {
     track: StyleTrack;
-    /** The preset chosen, or 'Custom'. */
-    preset: string;
+    /** The preset the style is at or heading for, or null for a custom style. */
+    preset: string | null;
     onintent: (intent: Intent) => void;
   }
 
-  let { track, preset = $bindable(), onintent }: Props = $props();
+  let { track, preset, onintent }: Props = $props();
 
   const SLIDERS: { axis: Axis; label: string; ends: string[] }[] = [
     { axis: 'swing', label: 'Swing', ends: ['straight', 'shuffled', 'swung'] },
@@ -24,22 +24,16 @@
     { axis: 'energy', label: 'Energy', ends: ['sparse', 'dense'] },
     { axis: 'entropy', label: 'Entropy', ends: ['predictable', 'surprising'] },
   ];
-
-  function choose(name: string) {
-    const chosen = PRESETS.find((p) => p.name === name)!;
-    preset = name;
-    onintent({ kind: 'preset', preset: chosen });
-  }
-  function slide(axis: Axis, value: number) {
-    if (axis !== 'energy') preset = 'Custom';
-    onintent({ kind: 'axis', axis, value });
-  }
 </script>
 
 <section class="style" aria-label="Style">
   <div class="presets" role="group" aria-label="Genre presets">
     {#each PRESETS as p (p.name)}
-      <button type="button" aria-pressed={preset === p.name} onclick={() => choose(p.name)}>
+      <button
+        type="button"
+        aria-pressed={preset === p.name}
+        onclick={() => onintent({ kind: 'preset', preset: p })}
+      >
         {p.name}
       </button>
     {/each}
@@ -53,7 +47,8 @@
           min="0"
           max="100"
           value={Math.round(track[s.axis].to * 100)}
-          oninput={(e) => slide(s.axis, +e.currentTarget.value / 100)}
+          oninput={(e) =>
+            onintent({ kind: 'axis', axis: s.axis, value: +e.currentTarget.value / 100 })}
         />
         <span class="ends">
           {#each s.ends as end (end)}<span>{end}</span>{/each}

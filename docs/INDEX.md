@@ -136,10 +136,15 @@ Every doc and code area, as a tree. Add a line when you add one.
       component its props; components take props and send intents
       - `src/components/Transport.svelte`: start and stop, and the tempo
       - `src/components/StylePanel.svelte`: the presets and the style sliders
-      - `src/components/Stage.svelte`: the section, chord, key, bar and beat heard
+      - `src/components/Stage.svelte`: the section, chord, key, bar and beat
+        heard
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
-      and stopped, with a stop that cancels a pending start
+      and stopped, with a stop that cancels a pending start. It keeps the
+      bars decided ahead and shows everything through one snapshot, `hud`
+    - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
+      ahead as `BarView`s, the chord sounding, and the style's preset and
+      glide, as plain data
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/audio/output.ts`: what the player plays on, and the Web Audio
       one

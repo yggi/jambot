@@ -75,6 +75,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   bar on, those composed first, each with the energy it plays at; with
   `carried` null it is the song from bar 0. The track holds glides ahead,
   so the forecast is what plays unless a control moves.
+- The screen reads one snapshot, `player.hud` (`hudOf`, in
+  `apps/web/src/hud.ts`), rebuilt when the step heard, the bars ahead or
+  the track change. Components take slices of it as props and send
+  intents; none reads the engine. A style is named by the preset it
+  matches on every axis the preset sets but energy (`presetOf`), so there
+  is no chosen-preset state: nudging the tempo makes a style custom, and
+  moving energy or entropy doesn't.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a

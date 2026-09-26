@@ -9,38 +9,38 @@
  * The style track and the key wished for live here, and intents go through
  * the conductor.
  *
+ * The player also keeps the bars decided ahead (`forecast`), from the one
+ * heard on, and shows everything through one snapshot, `hud` (`hudOf`).
+ * The forecast is renewed once a bar and whenever a control moves, so it
+ * is what will play. The seed of the next song is drawn while the band is
+ * stopped, so even the bar it opens on is shown truly before the start.
+ *
  * Starting waits for the audio clock, which a browser starts only after a
  * gesture. While it waits the player is starting: another start does
  * nothing, and a stop cancels it.
  */
 
 import {
+  type ForecastBar,
   INITIAL_STYLE,
-  type Key,
   type KeyWish,
   LOOKAHEAD,
   PRESETS,
-  type SectionType,
   type StyleTrack,
   type TransportCarried,
-  chordName,
+  type TransportEnv,
+  forecast,
   holding,
   transport,
 } from '@jambot/engine';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
+import { type Hud, hudOf } from './hud.ts';
 import { startTicker } from './ticker.ts';
 
-/** Where the music is, as heard. */
-export interface Position {
-  readonly bar: number;
-  readonly beat: number;
-  readonly section: SectionType;
-  readonly key: Key;
-  /** The chord sounding, as a lead sheet names it. */
-  readonly chord: string;
-}
+/** How many bars ahead the player keeps decided. */
+export const FORECAST_BARS = 32;
 
 export type Status = 'stopped' | 'starting' | 'playing';
 
@@ -49,6 +49,8 @@ export interface Surroundings {
   output(): Output;
   ticker(tick: () => void): () => void;
   frame(follow: () => void): () => void;
+  /** A seed for the next song. */
+  seed(): number;
 }
 
 const browser: Surroundings = {
@@ -61,13 +63,15 @@ const browser: Surroundings = {
     });
     return () => cancelAnimationFrame(id);
   },
+  seed: () => Math.floor(Math.random() * 2 ** 32),
 };
 
 export class Player {
   status: Status = $state('stopped');
   track: StyleTrack = $state.raw(holding(INITIAL_STYLE));
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode });
-  position: Position | null = $state.raw(null);
+  /** The step heard, or null before anything is. */
+  heard: number | null = $state(null);
 
   #surroundings: Surroundings;
   #output: Output | null = null;
@@ -76,10 +80,19 @@ export class Player {
   #start = 0;
   #stopTicker: (() => void) | null = null;
   #stopFrames: (() => void) | null = null;
-  #heard = new Heard<Position>();
+  #heard = new Heard<number>();
+  /** The bars decided, from the one heard on. */
+  #bars: readonly ForecastBar[] = $state.raw([]);
+  /** The bar the transport composes next, when the bars were last decided. */
+  #decidedAt = -1;
+
+  /** What the screen shows. */
+  readonly hud: Hud = $derived(hudOf({ heard: this.heard, bars: this.#bars, track: this.track }));
 
   constructor(surroundings: Surroundings = browser) {
     this.#surroundings = surroundings;
+    this.#seed = surroundings.seed();
+    this.#decide();
   }
 
   /** Whether the band is playing or about to: the start button reads Stop. */
@@ -96,6 +109,7 @@ export class Player {
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
     this.track = conduct(this.track, intent, at);
     this.wish = wishAfter(this.wish, intent);
+    this.#decide();
   }
 
   async start() {
@@ -105,10 +119,10 @@ export class Player {
     await output.resume();
     if (this.status !== 'starting') return;
     this.status = 'playing';
-    this.#seed = Math.floor(Math.random() * 2 ** 32);
     this.#start = output.currentTime + 0.1;
     this.#carried = null;
     this.#heard.clear();
+    this.#decide();
     this.#tick();
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
     this.#stopFrames = this.#surroundings.frame(() => this.#follow());
@@ -123,37 +137,50 @@ export class Player {
     this.#stopFrames?.();
     this.#stopTicker = this.#stopFrames = null;
     this.track = stopAt(this.track);
-    this.position = null;
+    this.heard = null;
+    this.#seed = this.#surroundings.seed();
+    this.#decide();
     this.#output?.silence();
+  }
+
+  get #env(): TransportEnv {
+    return { seed: this.#seed, start: this.#start, track: this.track, wish: this.wish };
+  }
+
+  /**
+   * Decide the bars ahead again: from the transport while it plays, and from
+   * the song's start while it doesn't. The bar before the first composed
+   * one is kept, as it may still be heard.
+   */
+  #decide() {
+    const carried = this.status === 'playing' ? this.#carried : null;
+    const fresh = forecast(this.#env, carried, FORECAST_BARS);
+    const first = fresh[0]?.bar ?? 0;
+    const kept = carried ? this.#bars.filter((b) => b.bar === first - 1) : [];
+    this.#bars = [...kept, ...fresh];
+    this.#decidedAt = carried?.nextBar ?? -1;
   }
 
   #tick() {
     const output = this.#output;
     if (this.status !== 'playing' || !output) return;
     const now = output.currentTime;
-    const { carried, output: scheduled } = transport.advance(
-      { seed: this.#seed, start: this.#start, track: this.track, wish: this.wish },
-      this.#carried,
-      { now, until: now + LOOKAHEAD },
-    );
+    const { carried, output: scheduled } = transport.advance(this.#env, this.#carried, {
+      now,
+      until: now + LOOKAHEAD,
+    });
     this.#carried = carried;
     for (const { event, seconds, duration, sound } of scheduled.events)
       output.play(event.part, event.note, event.velocity, seconds, duration, sound);
-    for (const { step, section, key, chord, seconds } of scheduled.steps)
-      this.#heard.push(seconds, {
-        bar: Math.floor(step / 16),
-        beat: Math.floor((step % 16) / 4),
-        section: section.type,
-        key,
-        chord: chordName(chord, key),
-      });
+    for (const { step, seconds } of scheduled.steps) this.#heard.push(seconds, step);
     this.#heard.drop(now - 1);
+    if (carried?.nextBar !== this.#decidedAt) this.#decide();
   }
 
   #follow() {
     const output = this.#output;
     if (this.status !== 'playing' || !output) return;
     const latest = this.#heard.take(output.currentTime - output.latency);
-    if (latest) this.position = latest;
+    if (latest !== undefined) this.heard = latest;
   }
 }

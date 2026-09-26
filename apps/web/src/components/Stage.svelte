@@ -3,42 +3,34 @@
   key and the bar, and the beats of the bar so far.
 -->
 <script lang="ts">
-  import { type SectionType, keyName } from '@jambot/engine';
-  import type { Position } from '../player.svelte.ts';
+  import type { Hud } from '../hud.ts';
 
   interface Props {
-    /** What is heard, or null before anything is. */
-    position: Position | null;
+    hud: Hud;
     /** Whether the band is playing or about to. */
     playing: boolean;
   }
 
-  let { position, playing }: Props = $props();
+  let { hud, playing }: Props = $props();
 
-  const SECTION_NAMES: Record<SectionType, string> = {
-    intro: 'Intro',
-    groove: 'Groove',
-    bridge: 'Bridge',
-    build: 'Build',
-    drop: 'Drop',
-    breakdown: 'Breakdown',
-  };
+  /** The bar heard, once something is. */
+  const heard = $derived(hud.beat === null ? null : hud.bar);
 </script>
 
 <section class="stage" aria-label="Conductor">
   <div class="stage-top">
     <span class="section">
-      {position ? SECTION_NAMES[position.section] : playing ? '…' : 'Ready'}
+      {heard ? heard.section : playing ? '…' : 'Ready'}
     </span>
-    {#if position}
-      <span class="chord">{position.chord}</span>
-      <span>{keyName(position.key)}</span>
-      <span>Bar {position.bar + 1}</span>
+    {#if heard}
+      <span class="chord">{hud.chord?.symbol}</span>
+      <span>{heard.key}</span>
+      <span>Bar {heard.bar + 1}</span>
     {/if}
   </div>
   <div class="beats" aria-hidden="true">
     {#each [0, 1, 2, 3] as beat (beat)}
-      <i class:on={position !== null && beat <= position.beat}></i>
+      <i class:on={hud.beat !== null && beat <= hud.beat}></i>
     {/each}
   </div>
 </section>
