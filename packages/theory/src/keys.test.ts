@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { CHORD_QUALITIES, qualityOf } from './chords.ts';
 import { type Helix, heightOf, positions, shift, wrap } from './helix.ts';
-import { chordScale, parallel, relative } from './keys.ts';
+import { chordScale, parallel, relative, spelledTonic } from './keys.ts';
 import { DIATONIC_MODE_NAMES, type DiatonicModeName, diatonicMode } from './modes.ts';
+import { type Note, parseNote } from './notes.ts';
 import { SCALES } from './scales.ts';
+import { spell } from './spelling.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const cMajor = diatonicMode('ionian');
@@ -236,5 +238,104 @@ describe('chordScale', () => {
       maj9: 16,
       m9: 16,
     });
+  });
+});
+
+describe('spelledTonic', () => {
+  const name = (n: Note) =>
+    n.letter + (n.alteration > 0 ? '♯'.repeat(n.alteration) : '♭'.repeat(-n.alteration));
+  /** Sharps minus flats in the key, spelled from this tonic: its key signature. */
+  const signature = (tonic: Note, key: Helix) =>
+    spell(tonic, key.heights).reduce((sum, n) => sum + n.alteration, 0);
+  const tonicsOf = (mode: DiatonicModeName) =>
+    range(12)
+      .map((pc) => name(spelledTonic(shift(diatonicMode(mode), pc))))
+      .join(' ');
+
+  it('names each diatonic key by its fewest accidentals: every tonic in every mode', () => {
+    // Checked with music21 10.5.0: each name has the smallest key signature
+    // of any spelling of its tonic (key.Key(tonic, mode).sharps).
+    const expected: Record<DiatonicModeName, string> = {
+      lydian: 'C D♭ D E♭ E F G♭ G A♭ A B♭ B',
+      ionian: 'C D♭ D E♭ E F F♯ G A♭ A B♭ B',
+      mixolydian: 'C C♯ D E♭ E F F♯ G A♭ A B♭ B',
+      dorian: 'C C♯ D E♭ E F F♯ G A♭ A B♭ B',
+      aeolian: 'C C♯ D E♭ E F F♯ G G♯ A B♭ B',
+      phrygian: 'C C♯ D D♯ E F F♯ G G♯ A B♭ B',
+      locrian: 'C C♯ D D♯ E F F♯ G G♯ A A♯ B',
+    };
+    for (const mode of DIATONIC_MODE_NAMES) {
+      expect(tonicsOf(mode), mode).toBe(expected[mode]);
+      for (const pc of range(12)) {
+        const key = shift(diatonicMode(mode), pc);
+        const tonic = spelledTonic(key);
+        expect(tonic.pitchClass, `${mode} on ${pc}`).toBe(pc);
+        expect(Math.abs(signature(tonic, key)), `${mode} on ${pc}`).toBeLessThanOrEqual(6);
+      }
+    }
+  });
+
+  it('breaks a tie of 6 sharps and 6 flats by the fewest accidentals over the parallel scales', () => {
+    // F♯ major's borrowed chords need no double accidental, G♭ major's need
+    // B♭♭, E♭♭, A♭♭ and D♭♭; E♭ minor raises to D♮, D♯ minor to C𝄪. So a
+    // major tonic takes the sharp and a minor one the flat, as in practice.
+    expect(name(spelledTonic(shift(cMajor, 6)))).toBe('F♯');
+    expect(name(spelledTonic(shift(cMinor, 3)))).toBe('E♭');
+    expect(signature(parseNote('F♯')!, shift(cMajor, 6))).toBe(6);
+    expect(signature(parseNote('G♭')!, shift(cMajor, 6))).toBe(-6);
+    expect(signature(parseNote('D♯')!, shift(cMinor, 3))).toBe(6);
+    expect(signature(parseNote('E♭')!, shift(cMinor, 3))).toBe(-6);
+    // A natural tonic wins a tie with a sharp or flat one: B lydian, not C♭.
+    expect(name(spelledTonic(shift(diatonicMode('lydian'), 11)))).toBe('B');
+    expect(name(spelledTonic(shift(diatonicMode('locrian'), 5)))).toBe('F');
+  });
+
+  it('names a key of any scale by the same rule', () => {
+    expect(name(spelledTonic(shift(shape('harmonic minor'), 8)))).toBe('A♭');
+    expect(name(spelledTonic(shift(shape('harmonic minor'), 1)))).toBe('C♯');
+    expect(name(spelledTonic(shift(shape('major pentatonic'), 6)))).toBe('F♯');
+    expect(name(spelledTonic(shift(shape('altered'), 0)))).toBe('C');
+    for (const [scaleName, { helix }] of Object.entries(SCALES))
+      for (const pc of range(12))
+        expect(spelledTonic(shift(helix, pc)).pitchClass, `${scaleName} on ${pc}`).toBe(pc);
+  });
+});
+
+describe('spelling an implied scale', () => {
+  it('spells the chord tones as the chord spells them, for every chord of the grammar from every spelling of its root', () => {
+    // A 7-note scale takes one letter per degree, and the chord tones are its
+    // degrees 0 2 4 6 8, so the scale and the chord agree note for note.
+    const qualities = [
+      'major',
+      'minor',
+      'diminished',
+      'augmented',
+      '7',
+      'maj7',
+      'm7',
+      'm7b5',
+      '9',
+      'maj9',
+      'm9',
+    ];
+    const spellings = ['C', 'D', 'E', 'F', 'G', 'A', 'B'].flatMap((l) => [l + '♭', l, l + '♯']);
+    let checked = 0;
+    for (const mode of Object.values(PROTOTYPE_MODES))
+      for (const root of range(12))
+        for (const quality of qualities) {
+          const chord = CHORD_QUALITIES[quality]!.stack.map((x) => x + root);
+          const scale = chordScale(diatonicMode(mode), chord);
+          if (!scale) continue;
+          for (const text of spellings) {
+            const tonic = parseNote(text)!;
+            if (tonic.pitchClass !== wrap(root, 12)) continue;
+            const ofScale = spell(tonic, scale.heights);
+            spell(tonic, chord).forEach((n, i) =>
+              expect(ofScale[(2 * i) % 7], `${text} ${quality} in ${mode}`).toEqual(n),
+            );
+            checked++;
+          }
+        }
+    expect(checked).toBe(566);
   });
 });

@@ -7,7 +7,7 @@
  * package's own code.
  */
 
-import { Chord, Mode, Note, RhythmPattern, Scale, ScaleType } from 'tonal';
+import { Chord, Key, Mode, Note, RhythmPattern, Scale, ScaleType } from 'tonal';
 import { describe, expect, it } from 'vitest';
 import { even, isEven } from './even.ts';
 import { heightOf, positions, shift } from './helix.ts';
@@ -15,7 +15,7 @@ import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
 import { read } from './read.ts';
 import { SCALES } from './scales.ts';
 import { spell } from './spelling.ts';
-import { chordScale } from './keys.ts';
+import { chordScale, spelledTonic } from './keys.ts';
 import { CHORD_QUALITIES } from './chords.ts';
 import { parseNote } from './notes.ts';
 import { normalizeWords } from './words.ts';
@@ -161,12 +161,12 @@ describe('tonal as a second opinion', () => {
 
     /** tonal's name for each scale both know, where tonal spells it by another convention. */
     const conventions: Record<string, string> = {
-      // Open in #12: tonal spells the altered scale over the 7alt chord it is
-      // used on (♭9 ♯9 3 ♯11 ♭13 ♭7, keeping the chord's third E); here a
-      // 7-note scale takes one letter per degree (C D♭ E♭ F♭ G♭ A♭ B♭).
-      // Ultralocrian has the same third and fourth, and tonal spells that one
-      // by degree.
-      altered: 'open (#12): 7alt reading or one letter per degree',
+      // tonal spells the altered scale over a 7alt chord (♭9 ♯9 3 ♯11 ♭13 ♭7);
+      // here a 7-note scale takes one letter per degree, as music21 and tonal's
+      // own ultralocrian do. chordScale never implies it over a dominant, and
+      // over any chord it implies a scale for, one letter per degree spells the
+      // chord tones as the chord does (keys.test.ts).
+      altered: 'tonal: C D♭ D♯ E F♯ A♭ B♭; here C D♭ E♭ F♭ G♭ A♭ B♭ (one letter per degree)',
       // Both spell in thirds over the chord, one letter per note; tonal reads
       // the chords differently.
       'whole tone': 'tonal: C D E F♯ G♯ A♯; here C D E F♯ G♯ B♭ (9 ♯11 ♯5 ♭7 over 7♯5)',
@@ -210,6 +210,29 @@ describe('tonal as a second opinion', () => {
       }
       expect(agreed).toBe(840);
     });
+  });
+
+  it("names every major and minor key with tonal's fewest accidentals, and the same key signature", () => {
+    // tonal's Key gives each spelled tonic's signature (sharps positive).
+    const spellings = ['C', 'D', 'E', 'F', 'G', 'A', 'B'].flatMap((l) => [l + 'b', l, l + '#']);
+    for (const [kind, heights, signatureOf] of [
+      ['major', diatonicMode('ionian'), (t: string) => Key.majorKey(t).alteration],
+      ['minor', diatonicMode('aeolian'), (t: string) => Key.minorKey(t).alteration],
+    ] as const) {
+      for (const pc of range(12)) {
+        const tonic = spelledTonic(shift(heights, pc));
+        const ours = `${tonic.letter}${tonic.alteration > 0 ? '#' : tonic.alteration < 0 ? 'b' : ''}`;
+        const fewest = Math.min(
+          ...spellings.filter((t) => Note.chroma(t) === pc).map((t) => Math.abs(signatureOf(t))),
+        );
+        expect(Math.abs(signatureOf(ours)), `${ours} ${kind}`).toBe(fewest);
+        const signature = spell(tonic, shift(heights, pc).heights).reduce(
+          (sum, n) => sum + n.alteration,
+          0,
+        );
+        expect(signature, `${ours} ${kind}`).toBe(signatureOf(ours));
+      }
+    }
   });
 
   it("finds every implied chord scale among tonal's chord scales for that chord", () => {

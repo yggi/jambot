@@ -6,6 +6,7 @@ import { SCALES } from './scales.ts';
 import { genericsOf, spell } from './spelling.ts';
 
 const note = (text: string) => parseNote(text)!;
+const range = (n: number) => [...Array(n).keys()];
 
 /** Spelled notes as text, ♯ and ♭ as quintenzirkel writes them. */
 const text = (notes: readonly Note[]) =>
@@ -120,6 +121,35 @@ describe('spell', () => {
     expect(beyond).toHaveLength(13);
     expect(new Set(beyond)).toEqual(new Set(['Cb', 'Fb', 'E#', 'B#']));
     expect(chord('C♭', 'dim7')).toBe('C♭ E♭♭ G♭♭ B♭♭♭');
+  });
+
+  it('spells every set of up to 7 notes on C with at most a double accidental, its letters in order', () => {
+    // One letter per degree fits a 7-note set only when each degree is an
+    // interval of its own number, at most doubly altered: the cluster
+    // C D♭ D E♭ E F G♭ would reach G♭♭♭, and 307 sets would go beyond a double
+    // accidental. The generics never fall below those of a lower note.
+    let sets = 0;
+    for (let mask = 0; mask < 1 << 11; mask++) {
+      const heights = [
+        0,
+        ...range(11)
+          .filter((i) => mask & (1 << i))
+          .map((i) => i + 1),
+      ];
+      if (heights.length > 7) continue;
+      sets++;
+      const notes = spell(note('C'), heights);
+      expect(
+        Math.max(...notes.map((n) => Math.abs(n.alteration))),
+        text(notes),
+      ).toBeLessThanOrEqual(2);
+      const generics = genericsOf(heights);
+      generics.forEach(
+        (g, i) => i > 0 && expect(g, text(notes)).toBeGreaterThanOrEqual(generics[i - 1]!),
+      );
+    }
+    expect(sets).toBe(1486);
+    expect(text(spell(note('C'), [0, 1, 2, 3, 4, 5, 6]))).toBe('C D♭ D E♭ E F G♭');
   });
 
   it('spells the pitch classes the heights stand on', () => {
