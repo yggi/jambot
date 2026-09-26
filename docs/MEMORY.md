@@ -62,14 +62,23 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   (form, key and theme) per section, the band per bar, the transport per
   tick. The players' key wish is a standing target, not an event: `nextKey`
   applied twice gives what it gave once, so the band can read it at every
-  section boundary.
+  section boundary. The web player only reads the audio clock and plays
+  what the transport schedules, so everything that decides what and when
+  is tested without a browser.
+- The band decides each bar when it composes the bar before: the section's
+  plan at a section's first bar, and the bar's chords. So a part can lead
+  into the next bar's chords (`BarEnv.next`), and they are what plays. A
+  bar the clock has passed is passed (`passBar`), not composed.
+- The e2e checks tell sounds apart by oscillator type and starting
+  frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
+  snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
+  chord note a triangle beside a sine 0.3 % sharp. A new voice keeps these
+  apart or updates `band.e2e.ts`.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A
-  bar's chords come from its theme's slots at the bar's harmony
-  (`barChords`); their colour draws are keyed by theme, bar and slot, so a
-  test that wants a rate must vary the seed or the theme, not the key. The web player only
-  reads the audio clock and plays what the transport schedules, so
-  everything that decides what and when is tested without a browser.
+  bar's chords come from its theme's slots (`barChords`); their colour
+  draws are keyed by theme, bar and slot, so a test that wants a rate must
+  vary the seed or the theme, not the key.
 - Swing is a time map, `swingMap(swing)`, with `played` and `written` as
   exact inverses. The transport plays through it, and player input reads
   back through `written`.

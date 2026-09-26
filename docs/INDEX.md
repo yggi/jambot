@@ -92,10 +92,17 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/plan.ts`: the section plan (form, key and theme), the machine
       at section rate
     - `src/chords.ts`: the chords of a bar, from its theme's slots, the
-      key and the bar's harmony, and their lead-sheet names
+      key and the harmony, and their lead-sheet names
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
-    - `src/band.ts`: the band, the machine at bar rate
+    - `src/bass.ts`: the bass, a machine that carries its last note
+    - `src/comp.ts`: the comp, pads and stabs, a machine that carries its
+      last voicing
+    - `src/lead.ts`: the lead, a machine that carries its last note, its
+      phrase and its themes' melodies
+    - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
+    - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
+      decides the next (`passBar` for a bar it doesn't play)
     - `src/transport.ts`: the transport, the machine at tick rate: it
       composes a beat before each bar and schedules on a clock
 - `tooling/`: tests for the repository's own gates
@@ -131,6 +138,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/conductor.ts`: intents (presets, sliders) into glides on the
       style track
     - `src/audio/drums.ts`: the built-in drum kit
+    - `src/audio/voices.ts`: the built-in pitched voices: bass, chords and
+      lead, coloured by the bar's sound
     - `src/ticker.ts`: the scheduler's tick, from a Worker
     - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
       built app in Chromium with its audio measured

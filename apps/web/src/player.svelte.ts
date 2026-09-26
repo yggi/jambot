@@ -137,8 +137,8 @@ export class Player {
       { now, until: now + LOOKAHEAD },
     );
     this.#carried = carried;
-    for (const { event, seconds } of scheduled.events)
-      output.play(event.note, event.velocity, seconds);
+    for (const { event, seconds, duration, sound } of scheduled.events)
+      output.play(event.part, event.note, event.velocity, seconds, duration, sound);
     for (const { step, section, key, chord, seconds } of scheduled.steps)
       this.#heard.push(seconds, {
         bar: Math.floor(step / 16),
