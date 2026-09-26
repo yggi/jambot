@@ -1,7 +1,8 @@
 <!--
   The on-screen keyboard: C4 to E5, white and black keys positioned in
   percent over the white keys' width (`keyboardLayout`). A pointer holds a
-  note until it lifts, cancels, or the capture is lost.
+  note until it lifts, cancels, or the capture is lost. A dot marks a note
+  of the current scale; amber is the band's own lead heard sounding it.
 -->
 <script lang="ts">
   import { KEYBOARD_HIGH, KEYBOARD_LOW, keyboardLayout } from '../midi/surfaces.ts';
@@ -9,10 +10,14 @@
   interface Props {
     /** Notes currently held, from any source, so a key lights whoever struck it. */
     down: ReadonlySet<number>;
+    /** The current key's notes, as pitch classes 0–11, C = 0. */
+    scale?: readonly number[];
+    /** The band's own lead notes heard sounding right now. */
+    sounding?: readonly number[];
     onnote: (note: number, velocity: number, on: boolean) => void;
   }
 
-  let { down, onnote }: Props = $props();
+  let { down, scale = [], sounding = [], onnote }: Props = $props();
 
   const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
   const nameOf = (note: number) => NAMES[note % 12]! + (Math.floor(note / 12) - 1);
@@ -37,6 +42,8 @@
     <button
       type="button"
       class={key.black ? 'black' : 'white'}
+      class:in-scale={scale.includes(key.note % 12)}
+      class:sounding={sounding.includes(key.note)}
       class:down={down.has(key.note)}
       style="left: {key.left}%; width: {key.width}%"
       aria-label={nameOf(key.note)}
@@ -71,13 +78,33 @@
   }
   .black {
     height: 60%;
-    background: var(--ink);
-    border-color: var(--ink);
+    /* A black key stays dark in both themes, as a piano's does. */
+    background: #14161f;
+    border-color: #14161f;
     border-radius: 0 0 5px 5px;
     z-index: 2;
+  }
+  .in-scale::after {
+    content: '';
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--muted);
+    transform: translateX(-50%);
+  }
+  .sounding {
+    background: var(--amber);
+    border-color: var(--amber);
   }
   .down {
     background: var(--teal);
     border-color: var(--teal);
+  }
+  .sounding.in-scale::after,
+  .down.in-scale::after {
+    background: var(--on-amber);
   }
 </style>

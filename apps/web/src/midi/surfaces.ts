@@ -5,11 +5,15 @@
  * keyboard or port.
  */
 
+import { DRUM_NOTES, type Part } from '@jambot/engine';
+
 /** A note read off a raw MIDI message, or null for anything that isn't one. */
 export interface ParsedNote {
   readonly on: boolean;
   readonly note: number;
   readonly velocity: number;
+  /** The status byte's low nibble, 0–15: channel 1 is 0, channel 10 is 9. */
+  readonly channel: number;
 }
 
 /** Note-on with velocity 0 counts as a note-off, as the spec allows. */
@@ -19,10 +23,18 @@ export function parseMidiMessage(data: ArrayLike<number>): ParsedNote | null {
   const velocity = data[2] ?? 0;
   if (status === undefined || note === undefined) return null;
   const command = status & 0xf0;
-  if (command === 0x90 && velocity > 0) return { on: true, note, velocity };
-  if (command === 0x80 || command === 0x90) return { on: false, note, velocity: 0 };
+  const channel = status & 0x0f;
+  if (command === 0x90 && velocity > 0) return { on: true, note, velocity, channel };
+  if (command === 0x80 || command === 0x90) return { on: false, note, velocity: 0, channel };
   return null;
 }
+
+/** General MIDI's drum channel, 10, counted from 0 as a status byte's nibble is. */
+export const DRUM_CHANNEL = 9;
+
+/** Which instrument a MIDI channel plays: the pads on channel 10, the keyboard on every other. */
+export const partOf = (channel: number): Extract<Part, 'lead' | 'drums'> =>
+  channel === DRUM_CHANNEL ? 'drums' : 'lead';
 
 /** a–l for the white keys, w e t y u o for the black ones, C4 to D5. */
 export const COMPUTER_KEY_MAP: Readonly<Record<string, number>> = {
@@ -41,6 +53,17 @@ export const COMPUTER_KEY_MAP: Readonly<Record<string, number>> = {
   k: 72,
   o: 73,
   l: 74,
+};
+
+/** 1–7 for the pads, kick to ride, as `DrumPads.svelte` lays them out. */
+export const DRUM_KEY_MAP: Readonly<Record<string, number>> = {
+  '1': DRUM_NOTES.kick,
+  '2': DRUM_NOTES.snare,
+  '3': DRUM_NOTES.closedHat,
+  '4': DRUM_NOTES.openHat,
+  '5': DRUM_NOTES.pedalHat,
+  '6': DRUM_NOTES.rim,
+  '7': DRUM_NOTES.ride,
 };
 
 /** Whether a keyboard event should be ignored: a repeat, a modifier chord, or typing into a field. */

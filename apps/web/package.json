@@ -12,7 +12,8 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@jambot/engine": "workspace:*"
+    "@jambot/engine": "workspace:*",
+    "@jambot/theory": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

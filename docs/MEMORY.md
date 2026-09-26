@@ -87,6 +87,15 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   heading for, the last bar decided's (`hud.heading`). A key picked is
   wished for tonic and mode; a preset wishes for its mode only when the
   wish is in another, so a key picked survives a preset in its mode.
+- `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a
+  dot (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own
+  lead and drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never
+  what a person plays along with it. Any note played, from a pointer, a
+  computer key or MIDI, goes through `App.svelte`'s `onHumanNote`, which
+  sounds it at once (`Player.playAlong`) and logs it for the Muse
+  (`Player.humanNoteOn`) alike; `midi/surfaces.ts`'s `partOf` reads a MIDI
+  note's channel to tell the pads from the keyboard, channel 10 the drums'
+  as the prototype's is.
 - The parts are machines at bar rate over one `BarEnv`, and `BandBar` is
   that environment plus the events and the bar's `sound`. The drums carry
   nothing; the bass its last note, the comp its last voicing, the lead its

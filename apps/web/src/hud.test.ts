@@ -47,6 +47,8 @@ describe('the view model', () => {
     expect(hud.bar!.key).toBe('A aeolian');
     expect(hud.chord!.symbol).toMatch(/^Am/);
     expect(hud.chord!.numeral).toMatch(/^i/);
+    // A aeolian is A minor's own notes: A B C D E F G.
+    expect(hud.bar!.scale).toEqual([0, 2, 4, 5, 7, 9, 11]);
   });
 
   it('shows the bar, beat and chord heard, every chord of the bar named and numbered in its key', () => {
@@ -101,6 +103,17 @@ describe('the lead and the key ahead', () => {
       seen.add(view.lead);
     }
     expect(seen).toEqual(new Set(['resting', 'improvising']));
+  });
+
+  it('shows the scale of the bar’s own key, not another', () => {
+    const d = { tonic: 0, mode: 'dorian' } as const;
+    const moved = bars.map((b) => (b.bar >= 16 ? { ...b, plan: { ...b.plan, key: d } } : b));
+    // C dorian: C D E♭ F G A B♭.
+    expect(hudOf({ heard: 16 * 16, bars: moved, track }).bar!.scale).toEqual([
+      0, 2, 3, 5, 7, 9, 10,
+    ]);
+    // A aeolian, unchanged before bar 16: A B C D E F G.
+    expect(hudOf({ heard: 0, bars: moved, track }).bar!.scale).toEqual([0, 2, 4, 5, 7, 9, 11]);
   });
 
   it('gives the key the band is heading for: the key of the last bar decided', () => {

@@ -1,25 +1,44 @@
+import { DRUM_NOTES } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import {
   COMPUTER_KEY_MAP,
+  DRUM_CHANNEL,
+  DRUM_KEY_MAP,
   KEYBOARD_HIGH,
   KEYBOARD_LOW,
   ignoreKeyEvent,
   isBlackKey,
   keyboardLayout,
   parseMidiMessage,
+  partOf,
 } from './surfaces.ts';
 
 describe('parseMidiMessage', () => {
   it('reads a note-on with velocity as an onset', () => {
-    expect(parseMidiMessage([0x90, 60, 100])).toEqual({ on: true, note: 60, velocity: 100 });
+    expect(parseMidiMessage([0x90, 60, 100])).toEqual({
+      on: true,
+      note: 60,
+      velocity: 100,
+      channel: 0,
+    });
   });
 
   it('reads a note-on with velocity 0 as a release, as the spec allows', () => {
-    expect(parseMidiMessage([0x90, 60, 0])).toEqual({ on: false, note: 60, velocity: 0 });
+    expect(parseMidiMessage([0x90, 60, 0])).toEqual({
+      on: false,
+      note: 60,
+      velocity: 0,
+      channel: 0,
+    });
   });
 
   it('reads a note-off as a release whatever its velocity byte', () => {
-    expect(parseMidiMessage([0x80, 60, 64])).toEqual({ on: false, note: 60, velocity: 0 });
+    expect(parseMidiMessage([0x80, 60, 64])).toEqual({
+      on: false,
+      note: 60,
+      velocity: 0,
+      channel: 0,
+    });
   });
 
   it('reads a note-on or note-off on every channel nibble', () => {
@@ -28,11 +47,13 @@ describe('parseMidiMessage', () => {
         on: true,
         note: 60,
         velocity: 100,
+        channel,
       });
       expect(parseMidiMessage([0x80 | channel, 60, 0])).toEqual({
         on: false,
         note: 60,
         velocity: 0,
+        channel,
       });
     }
   });
@@ -41,6 +62,28 @@ describe('parseMidiMessage', () => {
     expect(parseMidiMessage([0xb0, 64, 127])).toBeNull(); // control change
     expect(parseMidiMessage([0xf8])).toBeNull(); // clock
     expect(parseMidiMessage([])).toBeNull();
+  });
+});
+
+describe('partOf', () => {
+  it('plays the pads on channel 10, the keyboard on every other', () => {
+    expect(DRUM_CHANNEL).toBe(9);
+    expect(partOf(9)).toBe('drums');
+    for (const channel of [0, 1, 8, 10, 15]) expect(partOf(channel)).toBe('lead');
+  });
+});
+
+describe('DRUM_KEY_MAP', () => {
+  it('maps 1–7 to the pads, kick to ride', () => {
+    expect(DRUM_KEY_MAP).toEqual({
+      '1': DRUM_NOTES.kick,
+      '2': DRUM_NOTES.snare,
+      '3': DRUM_NOTES.closedHat,
+      '4': DRUM_NOTES.openHat,
+      '5': DRUM_NOTES.pedalHat,
+      '6': DRUM_NOTES.rim,
+      '7': DRUM_NOTES.ride,
+    });
   });
 });
 

@@ -321,7 +321,7 @@ describe('the player', () => {
     it('ignores a note played before anything plays', () => {
       const { s } = surroundings();
       const player = new Player(s);
-      player.humanNoteOn(60, 100, 'test', 0);
+      player.humanNoteOn('lead', 60, 100, 'test', 0);
       expect(player.humanNotes).toEqual([]);
     });
 
@@ -354,10 +354,15 @@ describe('the player', () => {
         world.tickers[0]!.tick();
       }
       const at = world.steps[0]!;
-      player.humanNoteOn(64, 90, 'the computer keys', at.seconds);
+      player.humanNoteOn('lead', 64, 90, 'the computer keys', at.seconds);
       expect(player.humanNotes).toHaveLength(1);
       const note = player.humanNotes[0]!;
-      expect(note).toMatchObject({ note: 64, velocity: 90, source: 'the computer keys' });
+      expect(note).toMatchObject({
+        part: 'lead',
+        note: 64,
+        velocity: 90,
+        source: 'the computer keys',
+      });
       expect(note.bar * 16 + note.step).toBe(Math.round(player.writtenPosition(at.seconds)!));
     });
 
@@ -370,9 +375,44 @@ describe('the player', () => {
       world.currentTime += 1;
       world.tickers[0]!.tick();
       const now = world.currentTime;
-      for (let i = 0; i < 241; i++) player.humanNoteOn(60, 100, 'test', now);
+      for (let i = 0; i < 241; i++) player.humanNoteOn('lead', 60, 100, 'test', now);
       expect(player.humanNotes.length).toBeLessThanOrEqual(240);
       expect(player.humanNotes.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('playing along', () => {
+    it('shows the band’s own lead and drum notes sounding, never past their duration', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      void player.start();
+      world.resolve();
+      await settle();
+      let sawLead = false;
+      let sawDrums = false;
+      for (let t = 0; t < 20; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+        if (player.sounding.lead.length > 0) sawLead = true;
+        if (player.sounding.drums.length > 0) sawDrums = true;
+      }
+      expect(sawLead).toBe(true);
+      expect(sawDrums).toBe(true);
+      player.stop();
+      expect(player.sounding).toEqual({ lead: [], drums: [] });
+    });
+
+    it('plays along at once, on the band’s own output, without joining the band’s own notes', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      const before = world.played;
+      const played = player.playAlong('lead', 64, 100);
+      world.resolve();
+      await played;
+      expect(world.resumes).toBe(1);
+      expect(world.played).toBe(before + 1);
+      expect(player.sounding).toEqual({ lead: [], drums: [] });
     });
   });
 });

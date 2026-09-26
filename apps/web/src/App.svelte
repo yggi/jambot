@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DrumPads from './components/DrumPads.svelte';
   import Keyboard from './components/Keyboard.svelte';
   import KeyPicker from './components/KeyPicker.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
@@ -10,9 +11,9 @@
   import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
   import { type Output, webAudioOutput } from './audio/output.ts';
   import { MidiAccess } from './midi/access.ts';
-  import { COMPUTER_KEY_MAP, ignoreKeyEvent } from './midi/surfaces.ts';
+  import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, partOf } from './midi/surfaces.ts';
   import { MidiSettings } from './midi/settings.svelte.ts';
-  import { Player, browserSurroundings } from './player.svelte.ts';
+  import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
 
   const midiSettings = new MidiSettings();
 
@@ -51,15 +52,33 @@
   let midiMessage = $state(
     'Without MIDI, the built-in synth and the keys below still run the whole loop.',
   );
-  /** Notes currently held, from any source, so the on-screen keyboard lights them too. */
-  const held = new SvelteSet<number>();
+  /** Notes currently held, from any source, so the keyboard and the pads light them too. */
+  const heldLead = new SvelteSet<number>();
+  const heldDrums = new SvelteSet<number>();
 
-  /** What every input source funnels through: the Muse (#2) reads `humanNotes` once it exists. */
-  function onHumanNote(note: number, velocity: number, on: boolean, source: string) {
+  /**
+   * What every input source funnels through: it plays at once, along with
+   * the band, and the Muse (#2) reads `humanNotes` once it exists.
+   */
+  function onHumanNote(
+    part: AlongPart,
+    note: number,
+    velocity: number,
+    on: boolean,
+    source: string,
+  ) {
+    const held = part === 'lead' ? heldLead : heldDrums;
     if (on) held.add(note);
     else held.delete(note);
+    if (on) void player.playAlong(part, note, velocity);
     if (on && player.playing)
-      player.humanNoteOn(note, velocity, source, clockOf().offset.fromDeviceMs(performance.now()));
+      player.humanNoteOn(
+        part,
+        note,
+        velocity,
+        source,
+        clockOf().offset.fromDeviceMs(performance.now()),
+      );
     if (midiSettings.thru) {
       const port = midiAccess?.outputPort(midiSettings.outPortId);
       const channel = (midiSettings.thruChannel - 1) & 15;
@@ -69,7 +88,7 @@
 
   async function connectMidi() {
     const result = await MidiAccess.connect((note, source) =>
-      onHumanNote(note.note, note.velocity, note.on, source),
+      onHumanNote(partOf(note.channel), note.note, note.velocity, note.on, source),
     );
     if (typeof result === 'string') {
       midiMessage = result;
@@ -86,12 +105,17 @@
   $effect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (ignoreKeyEvent(e.target, e.repeat, e.metaKey || e.ctrlKey || e.altKey)) return;
-      const note = COMPUTER_KEY_MAP[e.key.toLowerCase()];
-      if (note !== undefined) onHumanNote(note, 100, true, 'the computer keys');
+      const key = e.key.toLowerCase();
+      const lead = COMPUTER_KEY_MAP[key];
+      if (lead !== undefined) return onHumanNote('lead', lead, 100, true, 'the computer keys');
+      const drum = DRUM_KEY_MAP[e.key];
+      if (drum !== undefined) onHumanNote('drums', drum, 100, true, 'the computer keys');
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      const note = COMPUTER_KEY_MAP[e.key.toLowerCase()];
-      if (note !== undefined) onHumanNote(note, 0, false, 'the computer keys');
+      const lead = COMPUTER_KEY_MAP[e.key.toLowerCase()];
+      if (lead !== undefined) return onHumanNote('lead', lead, 0, false, 'the computer keys');
+      const drum = DRUM_KEY_MAP[e.key];
+      if (drum !== undefined) onHumanNote('drums', drum, 0, false, 'the computer keys');
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -126,8 +150,16 @@
   <Stage hud={player.hud} playing={player.playing} />
 
   <Keyboard
-    down={held}
-    onnote={(note, velocity, on) => onHumanNote(note, velocity, on, 'the on-screen keys')}
+    down={heldLead}
+    scale={player.hud.bar?.scale ?? []}
+    sounding={player.sounding.lead}
+    onnote={(note, velocity, on) => onHumanNote('lead', note, velocity, on, 'the on-screen keys')}
+  />
+
+  <DrumPads
+    down={heldDrums}
+    sounding={player.sounding.drums}
+    onnote={(note, velocity, on) => onHumanNote('drums', note, velocity, on, 'the drum pads')}
   />
 
   <MidiPanel
@@ -138,8 +170,10 @@
   />
 
   <p class="note">
-    The band plays drums, bass, chords and lead, over MIDI or the built-in synth. The score, and the
-    Muse's judgement of what you play, are still in the <a href={prototypeUrl}>prototype</a>.
+    The band plays drums, bass, chords and lead, over MIDI or the built-in synth. Join in on the
+    keyboard or the pads above: a dot marks the current scale, and amber shows what the band's own
+    lead and drums are playing. The score, and the Muse's judgement of what you play, are still in
+    the <a href={prototypeUrl}>prototype</a>.
   </p>
 </main>
 
