@@ -93,6 +93,18 @@ nor the choice of degree 0 changes that.
 
 Tests: `even.test.ts`.
 
+### In Fourier space
+
+Seen as a set of positions in n, `even(k, n)` has the largest k-th Fourier
+magnitude |F_k| of any k of n, and only its shifts reach it: every
+1 ≤ k < n ≤ 16, over every subset. A shift multiplies each coefficient by a
+phase and `mirror` conjugates it, so the magnitudes don't change under
+either. For pitch sets the phase of F_5 is a place on the circle of fifths
+(Amiot, _Music Through Fourier Space_, 2016). The language catalogue uses
+this as P4 ([language](language.md)).
+
+Tests: `even.test.ts`, "even helices in Fourier space".
+
 ## Generic and specific
 
 An interval can be counted in degrees or in height. A **generic** interval
@@ -301,6 +313,10 @@ arrow from k to n is a helix: a strictly rising map f from degrees to heights
 with f(d + k) = f(d) + n. The chromatic helix is the identity. These are the
 injective maps of Fiedorowicz and Loday's paracyclic category; forgetting the
 turn gives the circle.
+
+Tests: `helix.test.ts`, "compose": associativity over all 4,095 chains of
+even helices with n ≤ 12 (three shifts each), and the chromatic helix as
+the identity on both sides.
 
 ### Shift and mode
 

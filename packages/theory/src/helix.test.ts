@@ -231,6 +231,29 @@ describe('compose', () => {
   it('needs the inner cycle to be the number of outer degrees', () => {
     expect(() => compose(even(3, 8), cMajor)).toThrow(/cycle 8.*7 degrees/);
   });
+
+  it('is a category: associative over every chain of even helices with n ≤ 12, and the chromatic helix is the identity (F6, #39 Q5)', () => {
+    let chains = 0;
+    for (let n = 1; n <= 12; n++)
+      for (let m = 1; m <= n; m++)
+        for (let k = 1; k <= m; k++)
+          for (let j = 1; j <= k; j++)
+            for (const t of [0, 1, 5]) {
+              const [a, b, c] = [shift(even(j, k), t), even(k, m, t), shift(even(m, n), t)];
+              expect(compose(compose(a, b), c)).toEqual(compose(a, compose(b, c)));
+              chains++;
+            }
+    expect(chains).toBe(4095);
+    for (let n = 1; n <= 12; n++)
+      for (let k = 1; k <= n; k++)
+        for (const t of range(n)) {
+          const h = shift(even(k, n), t);
+          expect(compose(h, even(n, n))).toEqual(h);
+          expect(compose(even(k, k), h)).toEqual(h);
+        }
+    // A shifted chromatic helix is not the identity: the check can fail.
+    expect(compose(cMajor, shift(even(12, 12), 1))).not.toEqual(cMajor);
+  });
 });
 
 describe('mirror', () => {
