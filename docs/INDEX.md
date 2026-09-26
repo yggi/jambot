@@ -71,6 +71,10 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/band.ts`: the band, the machine at bar rate
     - `src/transport.ts`: the transport, the machine at tick rate: it
       composes a bar ahead and schedules on a clock
+- `tooling/`: tests for the repository's own gates
+  - `lint.test.ts`: each rule that keeps the pure packages pure, shown
+    firing
+  - `hooks.test.ts`: the pre-push hook, blocking and letting through
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
@@ -83,14 +87,20 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
       built app in Chromium with its audio measured
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
-  deploys `main` to GitHub Pages
-- `.claude/settings.json`: the session-start hook, and the checks agents
+  deploys `main` to GitHub Pages; started by hand while #4 is open
+- `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents
   may run without a prompt
-  - `.claude/hooks/session-start.sh`: installs dependencies and warms
-    music21 when an agent session starts or resumes
+  - `.claude/hooks/session-start.sh`: installs dependencies, warms
+    music21 and fetches `origin/main` when an agent session starts or
+    resumes
+  - `.claude/hooks/verify-before-push.sh`: runs `pnpm verify` before an
+    agent's `git push`, and blocks the push if it fails
 - `.claude/skills/`: project skills for agents
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
     theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
     compares the two (`compare.mjs`)
+  - [`review-pr/`](../.claude/skills/review-pr/SKILL.md): reviews a pull
+    request against the house rules; `prepare.sh` fetches it into its own
+    worktree and runs `pnpm verify` there
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md):
   the checklist every pull request fills in

@@ -16,7 +16,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm lint && pnpm format:check && pnpm check && pnpm test && pnpm build && pnpm e2e",
+    "verify": "pnpm lint && pnpm format:check && pnpm check && pnpm test && pnpm build",
     "e2e": "pnpm --filter @jambot/web e2e"
   },
   "devDependencies": {

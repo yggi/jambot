@@ -10,8 +10,8 @@ pnpm install
 pnpm dev          # web app on http://localhost:5173, prototype at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm exec playwright install chromium   # once, for the end-to-end checks
-pnpm verify       # everything CI runs: lint, format check, typecheck, tests, build, e2e
-pnpm e2e          # the end-to-end checks alone: the built app in Chromium
+pnpm verify       # lint, format, typecheck, tests, build: before every push
+pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 ```
 
 ## Toolchain
@@ -39,13 +39,18 @@ pnpm e2e          # the end-to-end checks alone: the built app in Chromium
   output to hear that the band sounds and stops. `@playwright/test` is
   pinned to 1.56.1, the version whose Chromium (build 1194) the cloud
   sessions have installed, so they need no download. Elsewhere,
-  `pnpm exec playwright install chromium` fetches that build once.
+  `pnpm exec playwright install chromium` fetches that build once. They
+  take about 20 s and need a browser, so they are a command of their own,
+  not part of `pnpm verify`; `AGENTS.md` says when to run them.
 - **ESLint + Prettier**, with `eslint-plugin-svelte` and `svelte-check` for
-  types in components.
+  types in components. In the pure packages, lint refuses what their type
+  check lets through: `Math.random`, the clock, timers, the DOM, Web Audio,
+  Node APIs and tonal (tests may use tonal, a random and the clock).
+  `tooling/lint.test.ts` shows each rule firing.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`,
-  `format:check`, `check`, `test`, `build` and `e2e` on every push and pull
-  request.
-  Pushes to `main` deploy to GitHub Pages. The workflow does not run at the
-  moment, because the Actions minutes are used up (#4).
+  `format:check`, `check`, `test`, `e2e` and `build`, and a run on `main`
+  deploys to GitHub Pages. While the Actions minutes are used up (#4), it
+  runs only when started by hand (`workflow_dispatch`); on every push and
+  pull request it would fail in seconds.
 
 The house rules for working on the code are in [`AGENTS.md`](../AGENTS.md).
