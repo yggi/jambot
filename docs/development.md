@@ -9,7 +9,9 @@ Requires Node 22.12 or later and pnpm (the version is pinned in
 pnpm install
 pnpm dev          # web app on http://localhost:5173, prototype at /prototype.html
 pnpm test:watch   # tests, re-run on change
-pnpm verify       # everything CI runs: lint, format check, typecheck, tests, build
+pnpm exec playwright install chromium   # once, for the end-to-end checks
+pnpm verify       # lint, format, typecheck, tests, build: before every push
+pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 ```
 
 ## Toolchain
@@ -30,15 +32,28 @@ pnpm verify       # everything CI runs: lint, format check, typecheck, tests, bu
   dependencies, no heavy frameworks, fonts bundled rather than fetched.
 - **Vitest** runs all tests from the root. The engine tests run in Node,
   and the web tests in jsdom with Testing Library.
+- **Playwright** runs the end-to-end checks (`apps/web/e2e/*.e2e.ts`):
+  the built app in Chromium, with its audio measured. They record every
+  sound source the app starts, with its kind and time, so they check the
+  timing exactly (every onset on the 16th grid, or on thirds of a step when
+  swung, with the triplet offbeat) and that no event plays twice. They tap
+  the output to hear that the band sounds and that Stop silences it at
+  once, and count Workers to see that a quick double click leaves nothing
+  running. Each check has been seen to fail against a broken app. `@playwright/test` is
+  pinned to 1.56.1, the version whose Chromium (build 1194) the cloud
+  sessions have installed, so they need no download. Elsewhere,
+  `pnpm exec playwright install chromium` fetches that build once. They
+  take about 20 s and need a browser, so they are a command of their own,
+  not part of `pnpm verify`; `AGENTS.md` says when to run them.
 - **ESLint + Prettier**, with `eslint-plugin-svelte` and `svelte-check` for
   types in components. In the pure packages, lint refuses what their type
   check lets through: `Math.random`, the clock, timers, the DOM, Web Audio,
   Node APIs and tonal (tests may use tonal, a random and the clock).
   `tooling/lint.test.ts` shows each rule firing.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`,
-  `format:check`, `check`, `test` and `build`, and a run on `main` deploys
-  to GitHub Pages. While the Actions minutes are used up (#4), it runs only
-  when started by hand (`workflow_dispatch`); on every push and pull request
-  it would fail in seconds.
+  `format:check`, `check`, `test`, `e2e` and `build`, and a run on `main`
+  deploys to GitHub Pages. While the Actions minutes are used up (#4), it
+  runs only when started by hand (`workflow_dispatch`); on every push and
+  pull request it would fail in seconds.
 
 The house rules for working on the code are in [`AGENTS.md`](../AGENTS.md).

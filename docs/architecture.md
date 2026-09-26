@@ -14,8 +14,8 @@ no timers and no Node APIs, which lint enforces. They run anywhere
 JavaScript runs: a browser tab, a Worker, or the root node.
 
 The engine is being ported from the [prototype](prototype.md) one module at
-a time (#2). Until the port is done, the web app is a shell that links to the
-prototype.
+a time (#2). The web app plays the drums on the new engine so far, and links
+to the prototype for the full band (#37).
 
 Music theory lives in `packages/theory` (#28). It is built on one primitive,
 `even(k, n, shift)`: k of n placed as evenly as possible, the maximally
@@ -78,13 +78,33 @@ of them. The package is created with its first ported module.
   sent, stored or replayed. It takes the style, the input history and a
   seed, and returns the score text and note events for bar _n_. All
   randomness is keyed by seed and position (see `random.ts`), so the same
-  inputs always give the same music.
+  inputs always give the same music. Its levels share one contract, a
+  Mealy machine (`machine.ts`): `advance(env, carried, input)` reads an
+  environment (the seed, the style and the plan at that position), carries
+  state (only what depends on the path, such as where the voices were),
+  hears an input, and writes an output. `lawBreaks` checks the contract:
+  what it reads, carries and writes is plain data, nothing given is
+  changed, the same arguments give the same result, and advancing from a
+  snapshot gives what the run gave. Until the
+  score package (#13) lands, the engine writes note events and the
+  transport plays them; the text step then goes between the two.
 - **Score text**: the contract between composing and playing. The composer
   writes each bar as text, and only the compiler turns text into notes.
   Overrides, tests and sync all work on this text.
 - **Transport**: owns time. It maps musical positions to clock time and
-  schedules ahead. It is swappable: a local audio clock, a MIDI clock
-  follower, or the root node's clock.
+  schedules ahead. Swing is a time map from written to played positions,
+  and tempo one from positions to seconds, each with its inverse
+  (`swing.ts`, `tempo.ts`), and time maps compose. The transport itself is
+  a pure machine at tick rate (`transport.ts`): given the clock's now, it
+  schedules every step that starts before now plus 120 ms. The band
+  composes each bar on the last beat of the bar before, so a change of
+  style reaches the drums within the rest of the bar and a beat (at most
+  20 steps), while tempo and swing follow it per step and per beat. Once a
+  beat has started, its swing is kept. A bar the clock has wholly passed,
+  after a stall, is not composed. The web app supplies the clock and plays
+  what it schedules (`apps/web/src/player.svelte.ts`). The clock is
+  swappable: a local audio clock, a MIDI clock follower, or the root
+  node's clock.
 - **Renderers**: turn timestamped events into sound or MIDI messages and
   handle channel allocation and note-off bookkeeping.
 - **UI**: reads engine snapshots and sends intents (preset, slider move,

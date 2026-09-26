@@ -19,6 +19,8 @@ was false. Or "none". The ratchet skill gives the form.
 - [ ] `pnpm verify` passes at the head commit: <!-- short SHA, test count -->
       (CI runs only by hand while #4 is open; agents' pushes run it through
       `.claude/hooks/verify-before-push.sh`)
+- [ ] `pnpm e2e` passes, if the change touches what the app plays or when
+      (`AGENTS.md`): <!-- short SHA, or "not needed" and why -->
 - [ ] New behaviour has its test, written against public functions, and a
       new check has a test that shows it firing
 - [ ] `packages/theory` and `packages/engine` stay pure. Lint refuses the

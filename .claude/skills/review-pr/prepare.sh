@@ -40,7 +40,7 @@ echo "Base: origin/main at $(git rev-parse --short origin/main); merge base $(gi
 echo
 git log --oneline "$base..HEAD"
 echo
-git diff --stat "$base...HEAD" | tail -30
+git diff --compact-summary "$base...HEAD"
 echo
 echo "pnpm verify $verdict${tests:+ ($tests)}; full log: $log"
 [ "$verdict" = passes ] || tail -30 "$log"
