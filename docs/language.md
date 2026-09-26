@@ -88,7 +88,9 @@ Lands in: #13.
 **T2. Positions are exact fractions of a cycle, not ticks.**
 Witness: none yet; the port counts steps in floating point.
 Counterexample: a triplet or quintuplet whose position changes on a round
-trip.
+trip. Lengths too: the port's are floats drawn from the articulation, and
+46 of 320 bars of a gliding tour play other lengths when the style they are
+composed from is rounded to 9 decimals (E9).
 Test: open: triplets and quintuplets round-trip exactly through `compile`
 and `encode`.
 Source: Strudel (rational time), play-aeiou ("N steps over B beats").
@@ -102,13 +104,27 @@ Counterexample: a quintuplet 16th, at 19.2 ticks.
 Test: open (E5): which rhythms of a corpus fall off the 96 ticks of a bar.
 Source: MIDI. Status: derived. Lands in: #27.
 
-**T4. Written time and played time are separate, joined by time maps with
-exact inverses.**
-Witness: `swingMap`, `swingOf` and `tempoMap`, composed by
+**T4. What is written and how it is played are separate, joined by
+performance maps: time maps with exact inverses (swing, tempo), dynamics
+(a velocity from the hit, the energy and a seeded looseness) and
+articulation (a played length from a written one).**
+Witness: for time, `swingMap`, `swingOf` and `tempoMap`, composed by
 `composeTimeMaps`. Expressive timing would be one more map, not new syntax.
+For dynamics and articulation, none yet: the port's parts write played
+values into their events. With each preset held, every velocity is a
+function of the bar and the hit (its part, sound and step): the kick is 112
+on steps 0 and 8 and 92 elsewhere, the ghost snare 32 + 14 × sync, each
+scaled by the bar's energy. 91% of the bass's lengths, 95% of the lead's and
+every stab's fall off a quarter step, gated by the articulation (E9). So the
+text needs no velocity and only lengths on the grid, and the performance
+maps give back what plays.
 Counterexample: a written position that doesn't read back from its played
 time. The prototype's `swingDelay` and `unswing` give one: they are off by
-up to 0.04 steps where both swing levels act (swing 0.5–1).
+up to 0.04 steps where both swing levels act (swing 0.5–1). For dynamics and
+articulation, a text that must write a played value for the round trip to
+hold: rounding the style a bar is composed from to 3 decimals changes 175
+of 320 bars of a gliding tour, all in their lengths, and 3 when lengths are
+set aside (E9).
 Test: `swing.test.ts`, "is undone by its inverse, both ways, on and off the
 grid (T4, Q1b)" and "shows that the prototype's delays are not what its
 unswing undoes (T4, Q1b)"; `tempo.test.ts`, "keeps time rising through a
@@ -120,10 +136,15 @@ early, the chain through swing, and a reading of clock time that runs
 backwards. In the built app, `band.e2e.ts`, "swings a swung preset into
 triplet 8ths (T4)": every onset in Chromium lies on a third of a step, the
 triplet offbeat among them.
+Open for dynamics and articulation: #63's round trip, with the text writing
+no velocity and only lengths on the grid.
 Source: time maps (Jaffe, "Ensemble Timing in Computer Music", 1985;
-Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Decided:
-the prototype, inherited (score against performance). Lands in: #37 (done),
-Q1b and Q1c.
+Honing, "From Time to Time", 2001), #37 step 2; the prototype ("the text
+holds what is composed, and the compiler adds how it is played"); #63 step
+2, E9. Status: measured (time); open (dynamics, articulation). Decided: the
+prototype, inherited (score against performance, for time); #7, on measured
+options (dynamics and articulation, E9). Lands in: #37 (done), Q1b and Q1c;
+#63 step 2.
 
 **T5. Any bar renders from its environment (seed, position, style, plan)
 and what it states.**
@@ -138,7 +159,8 @@ one ulp off, either way (T5)": the lead's contour, sin(π/6) times an odd
 span, lies one ulp from a half, so it is quantised before it is rounded.
 Open for the pitched parts' carried state (S2).
 Source: Strudel's query model, spirit. Status: measured (drums); measured,
-failing (the prototype's score, E1). Lands in: #37 step 5.
+failing (the prototype's score, E1). Lands in: #63 step 3, where the
+pitched parts' carried state is S2's key frame.
 
 ### State
 
@@ -258,8 +280,9 @@ slot at a time (C4)", which skips the step where a dominant is raised.
 Source: the prototype README ("rhythm as morphing"), the review of #40,
 and #37 steps 3 and 4. Status: measured (kick, snare, hats, chord tones);
 measured, failing (the rim and the raised dominant, by choice). Open:
-whether named patterns or a nested chain of them serve the music better.
-Lands in: #37 step 5 (the pitched parts' rhythms).
+whether named patterns or a nested chain of them serve the music better,
+and the pitched parts' rhythms, which nothing measures yet. Lands in: #2
+(the pitched parts' rhythms).
 
 **C5. A change is heard within a bound set by the rate it lives at.**
 Witness: the transport. Tempo follows from the next step, swing from the
@@ -344,9 +367,15 @@ between chords, scales and rhythms, and key tracking as the phase of F_5
 
 **P5. No pitch token assumes 12 notes to the cycle.**
 Witness: none yet; the helix takes any cycle, MIDI takes 12.
-Counterexample: a token whose meaning uses 12.
+Counterexample: a token whose meaning uses 12. U1's witness is a candidate:
+`numeralOf` reads an accidental mod 12, `b` and `#` are one step of the
+chromatic cycle, and a secondary's target key is a diatonic mode of 12. The
+engine's parts wrap by 12 and build chords of cycle 12. The theory splits a
+chord at a turn of any cycle (P6), so a failure there is the numerals' or
+the engine's, not the helix's (N3).
 Test: open: every token over a helix of cycle 19 or 31.
-Source: #28, the open threads (tunings other than 12). Status: open.
+Source: #28, the open threads (tunings other than 12), #7 round 3. Status:
+open. Lands in: #63.
 
 **P6. A chord is a helix of one turn plus its tensions, the tones above the
 octave; together they are its stack.**
@@ -440,12 +469,16 @@ Source: architecture. Decided: architecture, inherited.
 Witness: the transport sends both ends of a note through the time map
 (`tempo ∘ swing`), so a note is an interval of written time.
 Counterexample: a legato line that overlaps or gaps under swing, as in the
-prototype, which swings only the start.
+prototype, which swings only the start. A length the text can't write: the
+port's parts gate their lengths by the articulation before the transport
+sees them, so an event's length is already played (E9). Writing a length
+on the grid and gating it is T4's articulation map.
 Test: `transport.test.ts`, "holds a note from its swung start to its swung end
-(L2)". Open: every note-on has its note-off on the MIDI port (#5, Q1d).
-Source: MIDI (no durations), #37 step 3. Status: measured (the port's
+(L2)". Open: every note-on has its note-off on the MIDI port (#5, Q1d), and
+the written length, with T4's articulation.
+Source: MIDI (no durations), #37 step 3, E9. Status: measured (the port's
 lengths); open (note-offs). Decided: #7, ahead of the evidence. Lands in:
-#24.
+#24, #63 step 2.
 
 **L3. A renderer sees only its declared parameters and its event stream.**
 Source: the prototype README, LADSPA. Status: derived.
@@ -631,10 +664,13 @@ relative coordinates whose origin the level above supplies (Lewin's
 generalized interval systems).
 Counterexample: a duplicate note-on. The prototype sends one in 163 of
 2,560 bars, on every preset (`docs/prototype.md`).
-Test: `drums.test.ts`, "strike each sound at most once per step, in order (F5)".
-Open: the pitched parts, and #5's pad and stab overlap.
+Test: `drums.test.ts`, "strike each sound at most once per step, in order (F5)";
+`band.test.ts`, "plays each note at most once per step in every part, over
+a tour of the presets (F5)". Open: the louder staying in the pitched parts,
+which never strike a note twice, and a note started while the same note
+still sounds, as a stab inside a held pad (Q1d, E9).
 Source: #37 step 3, Hudak's algebra of polymorphic temporal media (2004).
-Status: measured (drums). Lands in: #37 step 5.
+Status: measured (drums); measured (every part's note-ons). Lands in: Q1d.
 
 **F6. Helices under `compose` are a category.**
 Witness: `compose`, with the chromatic helix as the identity. It is how a
@@ -788,8 +824,8 @@ with the players converges.
 
 ## Experiments
 
-Each answers one entry, or one of #7's decisions. E1 and E8 have run; the
-others have not.
+Each answers one entry, or one of #7's decisions. E1, E8 and E9 have run;
+the others have not.
 
 - **E1. Cold against warm compile** (S1, S2, F2; Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
@@ -845,6 +881,30 @@ others have not.
     minor, 29 a ♭9 or ♭2 over a dominant, a ninth chord or Imaj7. So `b3`
     names two things, against R4, and with `b` as a flat the composer would
     write no absolute note.
+- **E9. What the port writes and what it plays** (T4, L2, T2, F5, Q1d; #63
+  step 2), in
+  [`packages/engine/experiments/performance.ts`](../packages/engine/experiments/performance.ts)
+  (`node --experimental-strip-types --no-warnings packages/engine/experiments/performance.ts`,
+  about 1 s). It runs the port's band over E1's shape: 5 seeds, each preset
+  held and the tour, 64 bars each, 2,880 bars in all.
+  - Lengths are played: 91% of the bass's lengths, 95% of the lead's and
+    every stab's fall off a quarter step, gated by the articulation. The
+    drums and the pads stay on the grid.
+  - Velocities are played: 104 kinds in the drums, 38 in the bass, each a
+    function of the bar and the hit (part, sound, step), scaled by the
+    energy, with a seeded looseness in the drums. The lead plays two, 100 on
+    the beat and 82 off it.
+  - Over a tour that glides from one preset to the next every 8 bars, a bar
+    composed from its style rounded to 2, 3 and 9 decimals changes in 208,
+    175 and 46 of 320 bars; with lengths set aside, in 26, 3 and 0. The
+    articulation alone changes 175 at 3 decimals, all in lengths; sync,
+    harm and energy one or two each, in the drums; swing, tempo and entropy
+    none.
+  - No part strikes a note twice on a step. In 631 bars (22%) a chords
+    note starts while the same note still sounds, 3,370 of 3,927 times a
+    stab inside a held pad: on one MIDI channel the stab's note-off cuts
+    the pad (#5). The events tag the two as `comp: 'pad' | 'stab'` of one
+    part, and the prototype's text writes them as two lines.
 
 #7's decisions (a) to (c) are made, as U1 to U3. (d), the motif operators,
 is still open, and is checked against this catalogue when it is made.

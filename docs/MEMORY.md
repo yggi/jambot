@@ -181,6 +181,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - To run the prototype headless from Node, load it in jsdom as
   `prototype/experiments/cold-warm.mjs` does, and end with `process.exit`:
   the page's own timers keep the process alive.
+- The port's events carry played values: a length gated by the
+  articulation, a velocity scaled by the energy. The score text writes
+  neither; T4's performance maps give them back (`language.md`, T4 and E9).
+- To measure the port headless, run a script under
+  `packages/engine/experiments/` with
+  `node --experimental-strip-types --no-warnings`; it imports the engine
+  from `../src/index.ts`.
 
 The full description is in
 [`prototype/README.md`](../prototype/README.md#the-score-language-the-ir).
