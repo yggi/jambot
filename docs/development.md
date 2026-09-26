@@ -19,7 +19,7 @@ pnpm verify       # everything CI runs: lint, format check, typecheck, tests, bu
   to 6.0, because typescript-eslint and svelte-check do not support
   TypeScript 7 yet.
 - **pnpm workspaces**, so the engine is its own package with its own lint
-  rules. That boundary keeps it portable to Workers and to a future server.
+  rules. That boundary keeps it portable to Workers and to the root node.
   Packages export their TypeScript sources directly, with no build step
   between workspace packages.
 - **Vite** builds the web app. **Svelte 5** (plain Svelte, not SvelteKit,
@@ -34,21 +34,7 @@ pnpm verify       # everything CI runs: lint, format check, typecheck, tests, bu
   types in components.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`,
   `format:check`, `check`, `test` and `build` on every push and pull request.
-  Pushes to `main` deploy to GitHub Pages. Pages needs its source set to
-  "GitHub Actions" in the repository settings.
+  Pushes to `main` deploy to GitHub Pages. The workflow does not run at the
+  moment, because the Actions minutes are used up (#4).
 
-## Working style
-
-- **Tests first.** A behaviour gets its test before its code. Tests describe
-  behaviour through public functions, not internals, so they survive
-  refactoring while features settle. Tests sit next to the code as
-  `*.test.ts`.
-- **Ported code matches the prototype.** Reference values recorded from the
-  prototype pin behaviour (see [prototype](prototype.md#how-the-port-works)).
-  A deliberate change to the music updates those values in the same commit,
-  and says why.
-- **Docs describe the present.** Here and in code comments, write how things
-  are and why, not a history of changes. When the history explains a
-  choice, it belongs in the reason ("the prototype did X, which caused Y").
-  Update docs in the same commit as the code they describe.
-- **Small commits, pull requests into `main`**, no ceremony beyond green CI.
+The house rules for working on the code are in [`AGENTS.md`](../AGENTS.md).

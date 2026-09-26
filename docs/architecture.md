@@ -10,8 +10,14 @@ Jambot is a pnpm workspace with two packages:
   `/prototype.html`.
 
 The engine is being ported from the [prototype](prototype.md) one module at
-a time. Randomness is ported so far. The web app is a shell that links to the
+a time (#2). Until the port is done, the web app is a shell that links to the
 prototype.
+
+The score core (the grammar, its parser, the encoder and the compiler) goes
+into its own package, `packages/score`, and the engine depends on it. The
+score language is the contract between the composer, the compiler, the
+analyzer (#3) and later the learned models, so it lives apart from any one
+of them. The package is created with its first ported module.
 
 ## Layers
 
@@ -28,7 +34,7 @@ prototype.
             │ bar/step → absolute time; swing applied     │
             └───────┬───────────────┬───────────────┬─────┘
                     │               │               │
-              Web Audio synth   Web MIDI out   network / native MIDI
+              Web Audio synth   Web MIDI out   root node / native MIDI
 ```
 
 - **Engine**: its state is explicit and serialisable, so a snapshot can be
@@ -41,7 +47,7 @@ prototype.
   Overrides, tests and sync all work on this text.
 - **Transport**: owns time. It maps musical positions to clock time and
   schedules ahead. It is swappable: a local audio clock, a MIDI clock
-  follower, or a server clock.
+  follower, or the root node's clock.
 - **Renderers**: turn timestamped events into sound or MIDI messages and
   handle channel allocation and note-off bookkeeping.
 - **UI**: reads engine snapshots and sends intents (preset, slider move,
@@ -51,40 +57,59 @@ This split comes from the prototype, where one shared state object couples
 composing, scheduling and rendering. The reasons are listed in
 [the prototype page](prototype.md#what-the-port-changes).
 
-## Server
+## Languages
 
-A server is planned. It lets several Jambots play in sync and drives MIDI
-interfaces directly, without the browser and Web MIDI in between. Its
-language and design are open, so the engine stays free of I/O to keep every
-option available.
+Conceptually, the languages stack like this, from top to bottom:
 
-Its possible roles, from least to most responsibility:
+1. Jambot's extensions to Strudel
+2. Strudel
+3. MIDI or dough: the "machine language" at the bottom, which a rendering
+   node understands
 
-1. **Clock and relay**: shared tempo and phase, like Ableton Link, and
-   rebroadcast of style changes and overrides.
-2. **MIDI host**: drives hardware through native MIDI (CoreMIDI, ALSA,
-   WinMM) with tighter timing than a browser.
-3. **Authoritative composer**: runs the engine itself and streams score text
-   or events to clients.
+How the score language relates to Strudel is being designed (#7). One idea
+is that it relates to Strudel as TypeScript relates to JavaScript.
 
-Two sync models are possible:
+## Nodes
 
-- **Lockstep**: every node runs the same engine from the same seed and the
-  same ordered input log (each input stamped with the bar it applies to).
-  This needs very little bandwidth but strict cross-platform determinism.
-- **Authoritative**: one node (the server, or a client acting as conductor)
-  composes and sends score text for bar _n + k_. The others only render. This
-  is simpler to get right, and the score text is already the wire format.
+### Web clients
 
-If the server composes, it has to run the engine: a JavaScript runtime
-(Node, Bun or Deno) reuses the package as it is, while another language
-means compiling the engine to WASM or re-implementing it. If the server only
-clocks, relays and drives MIDI, any language works.
+The browser app runs fully on its own: it composes, plays through the
+built-in synth or Web MIDI, and listens to input. At an event it connects to
+the root node.
 
-Open questions:
+### Root node
 
-- Does the server compose, or only clock, relay and drive MIDI?
-- Lockstep or authoritative sync?
-- What latency and jitter budget does MIDI out need? This decides how much
-  the server language matters.
+A dedicated main host appliance and the central composer and conductor at an
+event. It is a full Linux machine (Raspberry Pi class or larger), so it runs
+the TypeScript packages directly on a JavaScript runtime. An embedded root
+node is out of scope. Web clients connect to it.
+
+It has a USB host and physical MIDI inputs and outputs. It drives the
+physical instruments (vintage synths, Eurorack) directly, without a browser
+and Web MIDI in between:
+
+```
+web clients ⇄ root node ─ USB / MIDI ports ─▶ instruments ─▶ digital mixer ─▶ PA
+                  ▲                                             │
+                  └──────────── may listen and control ─────────┘
+```
+
+### Rendering nodes
+
+A rendering node turns the bottom-layer language into sound. A MIDI
+instrument is one; a dough node is another, in parallel to it.
+
+## Timing
+
+Timing and latency are a known issue across the whole system: browsers,
+network, USB and MIDI. A hardware MIDI clock is one mitigation path.
+
+## Open questions
+
+- Which JavaScript runtime runs on the root node (Node, Bun or Deno)?
+- What do connected web clients do: send input and style, show the HUD,
+  render?
+- What latency and jitter budget does MIDI out need?
+- How does the root node talk to the digital mixer?
 - Where do the Muse inputs go when several people play at once?
+- How does the score language relate to Strudel? (#7)

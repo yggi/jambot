@@ -7,21 +7,11 @@ markup and 1,060 of JavaScript in a single IIFE, with no dependencies apart
 from two Google Fonts. The web app build serves it at `/prototype.html`, so
 it stays playable while the port catches up.
 
-This page describes what the prototype does, what the port keeps, and what
-the port changes and why.
-
 ## What it does
 
-- **Style space**: Six continuous axes (swing, syncopation, harmony, articulation, energy, bpm) plus entropy. The eight genre presets are points in this space. Every axis glides on its own over a number of 16th steps, so a preset change takes 8 bars and a slider move takes 1.
-- **Randomness**: Seeded `mulberry32` combined with a key hash (`rng(...keys)`). Randomness is fixed per section and slot, so when the style changes the rhythms _morph_ instead of reshuffling.
-- **Form**: A Markov chain over section types (intro, groove, B section, build, drop, breakdown), 8 bars each, weighted by energy and entropy.
-- **Harmony**: Per-mode transition tables (minor, dorian, major, mixolydian), static vamps at low harmony, and at higher harmony secondary dominants, split bars, 7ths and 9ths. Themes A, B and build return until the style drifts away from them. Key changes wait for the next section and pivot to the closest related root.
-- **Parts**: `drums`, `bass`, `comp` (pad and stab) and `lead` are each a function of the style coordinates. Patterns blend between straight and syncopated grids, walking bass takes over when swing is high, and there is Euclidean percussion. Chords are voice-led by a nearest-distance search. The lead builds phrases from contour shapes, with a phrase grammar: bar 2 of each 4 ends open, bar 4 closes on the root.
-- **Score (IR)**: Each bar is _encoded_ to a text score in a Strudel/Tidal-like mini-notation: Roman numerals for harmony, intervals relative to the chord root for bass and lead, `ch`/`nx` for chords. The score is then _compiled_ back to note events, so the band really does play from the text. Users can override any part line by line.
-- **Audio**: Web Audio synths (kick, snare, noise metals, bass, pad, lead) behind a compressor. The scheduler looks ahead 120 ms on a 25 ms tick driven by a Worker, so it keeps time in background tabs.
-- **MIDI**: Web MIDI out on per-part channels with timestamps mapped from audio time via `getOutputTimestamp`, 24 ppqn clock, start and stop, thru, and hot-plugged ports.
-- **Muse**: Captures notes from the MIDI, on-screen and computer keyboards, removes swing from their timing, and judges each bar (3–12 notes, span of 19 semitones or less). The lead adopts an accepted motif and forgets it after 16 idle bars.
-- **UI**: Conductor HUD with the current chord, the next four bars, a four-section song map with energy bars, the score, a Strudel export, and MIDI routing. Accessible (labels, `aria-live`) and themeable for light and dark.
+[`prototype/README.md`](../prototype/README.md) travels with the prototype.
+It describes the concept, the architecture, the style space, the score
+language and the plans. This page covers only the port.
 
 ## What the port keeps
 
@@ -115,4 +105,4 @@ Deliberate musical changes, such as the MIDI overlap fix, happen after the
 module matches the prototype, and they update the reference values in the
 same commit.
 
-Ported so far: randomness (`packages/engine/src/random.ts`).
+Progress is tracked in #2.
