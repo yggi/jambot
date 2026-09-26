@@ -18,7 +18,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm lint && pnpm format:check && pnpm check && pnpm test && pnpm build",
-    "e2e": "pnpm --filter @jambot/web e2e"
+    "e2e": "pnpm --filter @jambot/web e2e",
+    "ratchet": "node --experimental-strip-types --no-warnings tooling/history.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

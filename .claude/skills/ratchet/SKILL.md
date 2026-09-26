@@ -1,6 +1,6 @@
 ---
 name: ratchet
-description: Run Jambot's ratchet, where a working track (builds code that runs) and a negative track (catalogues constraints) drive each other through claims in Gödel's Dialectica form - witnesses forward, counterexamples back, a test on main as the pawl. Use when a step on a paired track ends and its findings need harvesting; when writing or changing a catalogue entry (#7's docs/language.md, #39); when a decision seems to be needed; when a test fails in code that builds on another layer and the fault has to be placed; when filling a pull request's Findings section; or when pairing issues or commenting on a crossing between them. Both sides apply it.
+description: Run Jambot's ratchet, where a working track (builds code that runs) and a negative track (catalogues constraints) drive each other through claims in Gödel's Dialectica form - witnesses forward, counterexamples back, a test on main as the pawl. Use when a step on a paired track ends and its findings need harvesting; when writing or changing a catalogue entry (#7's docs/language.md, #39's docs/quinetic.md); when a decision seems to be needed; when a test fails in code that builds on another layer and the fault has to be placed; when filling a pull request's Findings section; or when pairing issues or commenting on a crossing between them. Both sides apply it.
 ---
 
 # Ratchet: witnesses forward, counterexamples back
@@ -38,27 +38,57 @@ Every catalogue entry is written in this form:
 Witness: <what makes it true: a function, a machine, a value, a run>.
 Counterexample: <the shape of a case that would refute it>.
 Test: <the decidable check, and where it lives, or "open: how it would run">.
-Source: <issue, probe or finding>. Status: <status>. Lands in: <issue, step>.
+Source: <issue, probe or finding>. Status: <evidence>.
+Decided: <where>, <how>. Lands in: <issue, step>.
 ```
+
+`Decided:` is there only when the claim is a rule, and an entry that is
+only a rule, with no evidence yet, leaves out `Status:`.
+
+The ids are one space across the catalogues (`docs/language.md`,
+`docs/quinetic.md`). A claim another catalogue already makes is written as
+an alias, `**Q2. <claim>.** Same as F4.`, with no status or test of its own,
+so it is tracked once.
 
 A claim of the form "for every x there is a y" becomes "there is a function
 from x to y": the witness is a function. "Every MIDI input has some form"
 (A2) is witnessed by the analyzer itself, and a counterexample is one MIDI
 file.
 
-The status says how far a claim has gone through the game:
+The status is the evidence: how far a claim has gone through the game.
 
 | Status      | In the game                                                                                                         |
 | ----------- | ------------------------------------------------------------------------------------------------------------------- |
 | speculative | There is no decidable test yet. An analogy, kept apart                                                              |
 | open        | The test is written down, but nothing has run it                                                                    |
-| measured    | The test ran: every case passed (exhaustive for a finite part), or one failed, which is written "measured, failing" |
 | derived     | The witness is composed from other witnesses along dependencies                                                     |
-| decided     | The owner took the claim as given. It is a rule now, not a result                                                   |
+| measured    | The test ran: every case passed (exhaustive for a finite part), or one failed, which is written "measured, failing" |
 
-Status only rises. An entry is retired with its reason written next to it,
-as `Status: retired: <reason>`, never removed silently. A status may have
-parts with scopes, such as `measured (drums); open (compile)`.
+A status may have parts with scopes, such as `measured (drums); open
+(compile)`. The evidence only rises.
+
+Whether the owner took the claim as a rule is a separate question, so it is
+a separate field. In the game, a decided claim is an axiom: it holds without
+a witness, and whatever evidence it has is still recorded in its status. T1,
+"the clock never waits", is a rule of the spirit and measured on the
+transport:
+
+```
+Status: measured (transport); open (compile). Decided: spirit, inherited.
+```
+
+`Decided:` says where the rule was taken and how, which makes the field the
+ledger of decisions:
+
+| How                   | The rule                                                                    |
+| --------------------- | --------------------------------------------------------------------------- |
+| inherited             | Came with the spirit, the prototype or the architecture, before the ratchet |
+| dissolved             | The evidence left one option (B3), such as P2 after the theory's work       |
+| on measured options   | The owner chose between measured options (B3), as in #38                    |
+| in the working track  | Was taken while building, under a house rule, such as R4's true name        |
+| ahead of the evidence | Was chosen before anything measured it                                      |
+
+A rule is withdrawn only with `Retired: <reason>`, never removed silently.
 
 ## Dependencies carry both directions
 
@@ -120,8 +150,13 @@ A counterexample is filed where it refutes, never only where it was seen.
   nothing yet. Merge small and often. The pawl check (`tooling/pawl.ts`)
   runs in `pnpm verify`: it refuses a status off the ladder, a named test
   that doesn't exist, a measured entry that names no file, an id cited but
-  not defined or defined twice, and a citing test whose file the entry
-  doesn't name.
+  not defined or defined twice, a citing test whose file the entry
+  doesn't name, "decided" written in a status, and a rule that doesn't say
+  how, and an alias with fields of its own. `tooling/history.ts` adds time:
+  against the merge base with `origin/main` (on `main`, the first parent),
+  no evidence falls, overall or in a scope both versions name, no rule goes
+  and no entry disappears without `Retired:`, and an alias is held to the
+  entry it names. `pnpm ratchet` shows the catalogues over `main`'s history.
 - **B3. Dissolve before deciding.** Before a decision, ask which move would
   measure the options: a witness (W1), a probe (N1) or a pull-back (N3). If
   the options are measured and still pull apart, send them to the owner with
@@ -139,7 +174,7 @@ A **crossing comment**, on both issues of a pair:
 **Crossing (<up | down | back>): <id or short name>.**
 From <issue, step or experiment> to <issue, catalogue section>.
 Claim: <one sentence>. Witness: <…>. Counterexample: <…>.
-Test: <where, or open>. Status: <before> → <after>.
+Test: <where, or open>. Status: <before> → <after>. Decided: <if it is a rule>.
 ```
 
 A pull request's **Findings** section lists the harvest (W4) of the change in
@@ -151,7 +186,7 @@ the same form, or says "none".
       track's issue, in the claim form (W4).
 - [ ] Every counterexample is filed where it refutes (N3).
 - [ ] Every new test cites the entry it holds in a group at the end of its
-      description, such as `(T4, #39 Q1c)`, and the entry names its file.
+      description, such as `(T4, Q1c)`, and the entry names its file.
 - [ ] Every status moved up or stayed, and no entry disappeared.
 - [ ] Every decision taken says whether it dissolved or was made, and with
       which measurements (B3).
