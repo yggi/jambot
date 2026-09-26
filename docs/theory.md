@@ -279,15 +279,16 @@ four modes), 332 imply a scale, and in each the chord tones are its degrees
 dominant triad and seventh of a major or minor degree, is among them. tonal's
 `Chord.chordScales` lists every one of the 332 scales for its chord.
 
-The fewest changed notes are counted over the candidates, and for a ninth
-they are not always the fewest there are (#38). A ninth's seventh implies a
-scale in 102 of the 144 ninths, and setting that scale's degree 1 to the
-ninth keeps it a scale in all 102. chordScale finds the same scale for 89 of
-them, and for 3 it finds one that changes one note more: D9 in C minor and C
-dorian, and G9 in C minor, which the target's melodic minor holds and
-chordScale doesn't try. The other 10 get no scale from chordScale, among
-them every V9 of a minor degree the prototype plays, such as A9 in C major
-(V9/ii), whose natural 9 is not in D harmonic minor.
+A chord with a tension takes the scale its helix implies, with the tension
+set on its own degree: a ninth sets degree 1 (#38, decided). So the ninth
+adds no failure of its own, and a ninth has a scale exactly where its
+seventh has one. `chordScale` still searches five-note stacks, and measured
+against the rule over the 144 ninths it agrees in 89, finds a scale that
+changes one note more in 3 (D9 in C minor and C dorian, and G9 in C minor,
+which the target's melodic minor holds), and finds none in 10 whose seventh
+has one. Among those 10 is every V9 of a minor degree the prototype plays:
+its natural 9 stays, so V9/ii in C takes A mixolydian ♭13, one note from C
+major. The rule replaces the search with the chord type of #37, step 4.
 
 Tests: `keys.test.ts`, and `second-opinion.test.ts`.
 
@@ -311,7 +312,10 @@ even in it, so a ninth chord is a named **stack**, heights above its root,
 not a composition. Every stack splits at the octave: the tones below it are
 a helix of one turn, and the rest lie above them (the ninth in `9`, `maj9`,
 `m9` and `add9`, and four of the harmonics), so a stack is a helix and the
-tones above it, with nothing lost.
+tones above it, with nothing lost. That is what a chord is (#38, decided): a
+helix of one turn, plus its **tensions**, the tones above the octave. The
+helix composes, shifts and mirrors; the tensions ride on it, and a tension
+sets its own degree of the scale the helix implies.
 
 Composition does not keep evenness in general. Of the 165 compositions of
 even helices with n ≤ 12, 35 are even. A triad of the diatonic set is not

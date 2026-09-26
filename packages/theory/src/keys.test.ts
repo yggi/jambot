@@ -240,7 +240,7 @@ describe('chordScale', () => {
     });
   });
 
-  it("gives a ninth its seventh's scale with the 9 set in 89 of the 92 it finds a scale for; the other 3 change one note more (#38)", () => {
+  it("gives a ninth its seventh's scale with the 9 set in 89 of the 92 it finds a scale for; the other 3 change one note more (#38, P7)", () => {
     // Measures the claim: a tension sets its own degree of the scale the
     // chord below it implies. The seventh's scale with degree 1 set to the
     // major ninth, where that is still a scale, against chordScale's search.

@@ -6,7 +6,8 @@
  * diatonic mode gives the same triads and sevenths that way (3 major, 3 minor
  * and 1 diminished triad), and the tests show that the diatonic qualities are
  * exactly those. A stack can span more than one turn, as a ninth does, so it
- * is not a helix.
+ * is not a helix. Split at the octave, it is one: a chord is the helix of its
+ * tones below the octave, plus its tensions, the tones above it (#38).
  */
 
 import { partial } from './intervals.ts';

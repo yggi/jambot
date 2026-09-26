@@ -67,7 +67,7 @@ describe('chords, by composition', () => {
     expect(isEven({ cycle: 7, heights: [0, 1, 2, 4, 6] })).toBe(false); // 0 2 4 6 8, wrapped
   });
 
-  it('split at the octave into a helix and the tones above it, and join back: every quality (#38)', () => {
+  it('split at the octave into a helix and the tones above it, and join back: every quality (#38, P6)', () => {
     // The tones below the octave rise within one turn of 12, so they are a
     // helix; every tone from the octave up comes after them. So a chord read
     // as a helix plus the tones above it loses nothing of its stack.
