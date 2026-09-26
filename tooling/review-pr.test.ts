@@ -1,5 +1,5 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -112,6 +112,18 @@ describe('review-pr prepare.sh', () => {
     expect(prepare(['7', join(root, 'wt')]).stdout).not.toContain('pnpm e2e');
   });
 
+  it('says how to probe the engine from inside its package, where there is one', () => {
+    expect(prepare(['7', join(root, 'wt')]).stdout).not.toContain('Probe:');
+    git(clone, 'checkout', '-q', 'feature');
+    mkdirSync(join(clone, 'packages/engine'), { recursive: true });
+    commit('packages/engine/package.json', '{}\n', 'Step 4: an engine');
+    git(clone, 'push', '-q', 'origin', '+feature:refs/pull/7/head');
+    git(clone, 'checkout', '-q', 'main');
+    const { stdout } = prepare(['7', join(root, 'wt')]);
+    expect(stdout).toContain(`Probe: cd ${join(root, 'wt')}/packages/engine && node `);
+    expect(stdout).toContain("from '@jambot/engine'");
+  });
+
   it('says when verify fails, and shows the end of its output', () => {
     const { status, stdout } = prepare(['7', join(root, 'wt')], 'echo the build broke; exit 1');
     expect(status).toBe(0);
@@ -154,6 +166,18 @@ describe('review-pr prepare.sh', () => {
     for (const run of runs) expect(run.status).toBe(0);
     expect(readFileSync(times, 'utf8')).toBe('start\nend\nstart\nend\n');
     expect(runs.map((run) => run.stderr).join('')).toContain('waiting for another review');
+  }, 20_000);
+
+  it('fetches and checks out only once it holds the lock, since a fetch fails on a worktree still being added', async () => {
+    const lock = join(git(clone, 'rev-parse', '--absolute-git-dir'), 'review-pr.lock');
+    mkdirSync(lock);
+    writeFileSync(join(lock, 'pid'), `${process.pid}\n`);
+    const run = prepareAsync(['7', join(root, 'wt')], passing);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(existsSync(join(root, 'wt'))).toBe(false);
+    expect(() => git(clone, 'rev-parse', '--verify', '-q', 'refs/remotes/origin/pr/7')).toThrow();
+    rmSync(lock, { recursive: true });
+    expect((await run).status).toBe(0);
   }, 20_000);
 
   it('takes over a lock whose review is gone', () => {
