@@ -40,6 +40,10 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 - The style (`packages/engine/src/style.ts`) is a track of glides, one per
   axis, and `styleAt(track, position)` reads it at any step of the song.
   Positions there are steps from the song's start, 16 to a bar.
+- The engine's levels are machines at their own rates: the form per
+  section, the band per bar, the transport per tick. The web player only
+  reads the audio clock and plays what the transport schedules, so
+  everything that decides what and when is tested without a browser.
 - Swing is a time map, `swingMap(swing)`, with `played` and `written` as
   exact inverses. The transport plays through it, and player input reads
   back through `written`.

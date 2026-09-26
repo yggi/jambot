@@ -14,8 +14,8 @@ no timers and no Node APIs, which lint enforces. They run anywhere
 JavaScript runs: a browser tab, a Worker, or the root node.
 
 The engine is being ported from the [prototype](prototype.md) one module at
-a time (#2). Until the port is done, the web app is a shell that links to the
-prototype.
+a time (#2). The web app plays the drums on the new engine so far, and links
+to the prototype for the full band (#37).
 
 Music theory lives in `packages/theory` (#28). It is built on one primitive,
 `even(k, n, shift)`: k of n placed as evenly as possible, the maximally
@@ -92,7 +92,12 @@ of them. The package is created with its first ported module.
   Overrides, tests and sync all work on this text.
 - **Transport**: owns time. It maps musical positions to clock time and
   schedules ahead. Swing is a time map from written to played positions,
-  with its inverse (`swing.ts`), and time maps compose. It is swappable: a local audio clock, a MIDI clock
+  and tempo one from positions to seconds, each with its inverse
+  (`swing.ts`, `tempo.ts`), and time maps compose. The transport itself is
+  a pure machine at tick rate (`transport.ts`): given the clock's now, it
+  schedules every step that starts before now plus 120 ms and keeps the
+  band composing a bar ahead. The web app supplies the clock and plays
+  what it schedules (`apps/web/src/player.svelte.ts`). It is swappable: a local audio clock, a MIDI clock
   follower, or the root node's clock.
 - **Renderers**: turn timestamped events into sound or MIDI messages and
   handle channel allocation and note-off bookkeeping.

@@ -62,10 +62,24 @@ Every doc and code area, as a tree. Add a line when you add one.
       `chance` and `pick`
     - `src/style.ts`: the style axes, their ranges and glide spaces, the
       presets, and glides (`glideTo`, `styleAt`)
-    - `src/swing.ts`: time maps, and swing as one (`swingMap`)
+    - `src/swing.ts`: time maps, and swing as one (`swingMap`, and
+      `swingOf` a style track, per beat)
+    - `src/tempo.ts`: tempo as a time map from positions to seconds
+    - `src/form.ts`: the section chain as a machine, and `barEnergy`
+    - `src/bar.ts`: `BarEnv`, what every part reads for a bar
+    - `src/drums.ts`: the drums, a function of the bar
+    - `src/band.ts`: the band, the machine at bar rate
+    - `src/transport.ts`: the transport, the machine at tick rate: it
+      composes a bar ahead and schedules on a clock
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
+    - `src/player.svelte.ts`: runs the transport on the audio clock and
+      plays its events; the screen follows what is heard
+    - `src/conductor.ts`: intents (presets, sliders) into glides on the
+      style track
+    - `src/audio/drums.ts`: the built-in drum kit
+    - `src/ticker.ts`: the scheduler's tick, from a Worker
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
   deploys `main` to GitHub Pages
 - `.claude/settings.json`: the session-start hook, and the checks agents

@@ -50,6 +50,8 @@ export interface TransportCarried {
 
 export interface ScheduledStep {
   readonly step: number;
+  /** The section the step's bar is in. */
+  readonly section: Section;
   readonly seconds: number;
   /** How long the step lasts, in seconds. */
   readonly length: number;
@@ -106,7 +108,7 @@ export const transport: Machine<
       composeThrough(bar + 1);
       bars = bars.filter((b) => b.bar >= bar);
       const length = stepSeconds(styleAt(track, head.step).bpm);
-      steps.push({ step: head.step, seconds: head.seconds, length });
+      steps.push({ step: head.step, section: bars[0]!.section, seconds: head.seconds, length });
       const clock = composeTimeMaps(swing, tempoMap(track, head));
       for (const event of bars[0]!.events) {
         if (event.step !== head.step % 16) continue;

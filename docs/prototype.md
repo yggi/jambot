@@ -48,8 +48,8 @@ language and the plans. This page covers only the port.
   DOM, so it can be separated cleanly.
 - **Composition happens inside the audio scheduler**, at step 0 of the bar
   it is about to play, only 120 ms before the downbeat. A garbage-collection
-  pause or a slow render can make a bar late. **Target:** compose at least
-  one bar ahead, off the scheduling hot path.
+  pause or a slow render can make a bar late. The port's transport composes
+  bar n + 1 before bar n starts to play (`transport.ts`).
 
 ### Correctness
 
@@ -79,7 +79,23 @@ language and the plans. This page covers only the port.
   prototype: at most 1/36, under 4 ms at 120 bpm.
 - **Two axes don't glide like the rest.** Entropy is set at once, and tempo
   glides linearly although it is heard in ratios. In the port every axis
-  glides, and tempo glides in log space (`style.ts`).
+  glides, and tempo glides in log space (`style.ts`). Every slider,
+  including the tempo buttons, glides over one bar; the prototype's tempo
+  buttons glide over four steps.
+- **A stall is played late, in a burst.** After a stall the scheduler plays
+  every step it missed at once. Time is absolute in the port: events the
+  clock has passed are dropped, and the grid stays where it was.
+- **Swing moves only a note's start.** A note keeps its written length from
+  its swung start, so a legato line under swing overlaps or leaves gaps. In
+  the port both ends of a note go through the time map. Swing is also read
+  per beat, the finest rate at which its map keeps each beat's ends, where
+  the prototype reads it per bar.
+- **The same drum hit is sent twice.** Where two rules place the same drum
+  sound on one step, such as a fill over the backbeat, both note-ons go
+  out: in 163 of 2,560 bars across the presets. In the port a sound strikes
+  at most once per step, and the louder hit stays.
+- **A section is called "shift".** That is the theory's word for a
+  transposition, so the port calls it a bridge.
 
 ### Maintainability
 

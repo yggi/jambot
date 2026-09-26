@@ -44,6 +44,8 @@ describe('the transport', () => {
     steps.forEach((s) =>
       expect(s.length).toBeCloseTo(stepSeconds(styleAt(slowing, s.step).bpm), 12),
     );
+    const sections = new Map(outputs.flatMap((o) => o.composed).map((b) => [b.bar, b.section]));
+    steps.forEach((s) => expect(s.section).toEqual(sections.get(Math.floor(s.step / 16))));
     steps
       .slice(1)
       .forEach((s, i) => expect(s.seconds).toBeCloseTo(steps[i]!.seconds + steps[i]!.length, 9));
