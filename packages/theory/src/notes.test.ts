@@ -19,12 +19,14 @@ const ALTERATIONS: [string, number][] = [
 
 describe('parseNote', () => {
   it('places the natural letters on the C ionian set', () => {
-    expect(LETTERS.map((letter) => parseNote(letter)!.pitchClass)).toEqual(diatonicMode('ionian'));
+    expect(LETTERS.map((letter) => parseNote(letter)!.pitchClass)).toEqual(
+      diatonicMode('ionian').heights,
+    );
   });
 
   it('reads every letter with every accidental, in ASCII and Unicode', () => {
     LETTERS.forEach((letter, i) => {
-      const natural = diatonicMode('ionian')[i]!;
+      const natural = diatonicMode('ionian').heights[i]!;
       for (const [sign, alteration] of ALTERATIONS) {
         for (const spelled of [letter + sign, letter.toLowerCase() + sign]) {
           const note = parseNote(spelled);

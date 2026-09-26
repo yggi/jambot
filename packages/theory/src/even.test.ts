@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { even, gaps, generator, isMaximallyEven, shift } from './even.ts';
+import { even, generator, isEven } from './even.ts';
+import { type Helix, complement, positions, shift } from './helix.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -10,55 +11,49 @@ const allSizes = range(17).flatMap((n) => range(n + 1).map((k) => [k, n] as cons
 describe('even', () => {
   it('gives the diatonic set, the prototype rim pattern and the #8 example', () => {
     // The last two are the prototype's, for orientation: its rim pattern, and
-    // (3,8,2) as its mini-notation plays it. Rotation shifts onsets later.
-    expect(even(7, 12)).toEqual([0, 2, 4, 6, 7, 9, 11]);
-    expect(even(5, 16)).toEqual([0, 4, 7, 10, 13]);
-    expect(even(3, 8, 2)).toEqual([0, 2, 5]);
+    // (3,8,2) as its mini-notation plays it. The shift moves onsets later.
+    expect(even(7, 12)).toEqual({ cycle: 12, heights: [0, 2, 4, 6, 7, 9, 11] });
+    expect(even(5, 16)).toEqual({ cycle: 16, heights: [0, 4, 7, 10, 13] });
+    expect(positions(even(3, 8, 2))).toEqual([0, 2, 5]);
   });
 
-  it('places k of n, sorted, inside 0..n-1', () => {
+  it('places k of n, rising, within one turn from where it is shifted to', () => {
     for (const [k, n] of allSizes) {
-      for (const rotation of range(n)) {
-        const set = even(k, n, rotation);
-        expect(set).toHaveLength(k);
-        expect(set).toEqual([...new Set(set)].sort((a, b) => a - b));
-        expect(set.every((x) => x >= 0 && x < n)).toBe(true);
+      for (const by of range(2 * n + 1).map((r) => r - n)) {
+        const { cycle, heights } = even(k, n, by);
+        expect(cycle).toBe(n);
+        expect(heights).toHaveLength(k);
+        for (const i of range(Math.max(k - 1, 0)))
+          expect(heights[i + 1]!).toBeGreaterThan(heights[i]!);
+        expect(heights.every((x) => x >= by && x < by + n)).toBe(true);
       }
     }
   });
 
-  it('rotates by shifting every position later', () => {
+  it('shifts by moving every height: even(k, n, s) is shift(even(k, n), s)', () => {
     for (const [k, n] of allSizes) {
-      for (const rotation of range(2 * n + 1).map((r) => r - n)) {
-        expect(even(k, n, rotation)).toEqual(shift(even(k, n), rotation, n));
-      }
+      for (const by of range(2 * n + 1).map((r) => r - n))
+        expect(even(k, n, by)).toEqual(shift(even(k, n), by));
+    }
+    // So degree 0 moves with the shift: the bossa's is at step 6.
+    expect(even(5, 16, 6).heights).toEqual([6, 10, 13, 16, 19]);
+  });
+
+  it('is even, and so is its complement', () => {
+    for (const [k, n] of allSizes) {
+      expect(isEven(even(k, n)), `${k} of ${n}`).toBe(true);
+      expect(isEven(complement(even(k, n))), `${k} of ${n}`).toBe(true);
     }
   });
 
-  it('is maximally even, and so is its complement', () => {
+  it('has for its complement even(n − k, n), shifted', () => {
     for (const [k, n] of allSizes) {
-      const set = even(k, n);
-      expect(isMaximallyEven(set, n)).toBe(true);
-      expect(
-        isMaximallyEven(
-          range(n).filter((x) => !set.includes(x)),
-          n,
-        ),
-      ).toBe(true);
-    }
-  });
-
-  it('has for its complement even(n − k, n), shifted: the pentatonic is the black keys', () => {
-    for (const [k, n] of allSizes) {
-      const complement = range(n).filter((x) => !even(k, n).includes(x));
       const shifts = range(Math.max(n, 1)).filter(
-        (by) => shift(even(n - k, n), by, n).join() === complement.join(),
+        (by) =>
+          positions(shift(even(n - k, n), by)).join() === positions(complement(even(k, n))).join(),
       );
       expect(shifts.length, `${k} of ${n}`).toBeGreaterThan(0);
     }
-    // The black keys: the complement of C major is F♯ major pentatonic.
-    const cMajor = [0, 2, 4, 5, 7, 9, 11];
-    expect(range(12).filter((x) => !cMajor.includes(x))).toEqual(shift([0, 2, 4, 7, 9], 6, 12));
   });
 
   it('is the arc stacked from its generator: the circle of fifths for 7 of 12', () => {
@@ -69,7 +64,7 @@ describe('even', () => {
       const arc = range(k)
         .map((p) => (g * p) % n)
         .sort((a, b) => a - b);
-      expect(even(k, n)).toEqual(arc);
+      expect(even(k, n).heights).toEqual(arc);
       checked++;
     }
     expect(checked).toBeGreaterThan(70);
@@ -77,18 +72,18 @@ describe('even', () => {
   });
 });
 
-describe('maximally even sets', () => {
+describe('even helices', () => {
   it('are all shifts of even(k, n): every subset of every n ≤ 12, checked', () => {
     let found = 0;
     for (const n of range(13).filter((x) => x > 0)) {
       for (let bits = 0; bits < 2 ** n; bits++) {
-        const set = range(n).filter((x) => (bits >> x) & 1);
-        if (!isMaximallyEven(set, n)) continue;
+        const heights = range(n).filter((x) => (bits >> x) & 1);
+        if (!isEven({ cycle: n, heights })) continue;
         found++;
         const shifts = range(n).filter(
-          (by) => shift(even(set.length, n), by, n).join() === set.join(),
+          (by) => positions(shift(even(heights.length, n), by)).join() === heights.join(),
         );
-        expect(shifts.length, `${set.join()} in ${n}`).toBeGreaterThan(0);
+        expect(shifts.length, `${heights.join()} in ${n}`).toBeGreaterThan(0);
       }
     }
     expect(found).toBe(474);
@@ -109,20 +104,19 @@ describe('generator', () => {
   });
 });
 
-describe('gaps', () => {
-  it('lists the distances between neighbours, wrapping around', () => {
-    expect(gaps([0, 2, 4, 5, 7, 9, 11], 12)).toEqual([2, 2, 1, 2, 2, 2, 1]);
-    expect(gaps([0, 4, 7, 10, 13], 16)).toEqual([4, 3, 3, 3, 3]);
-    expect(gaps([3], 8)).toEqual([8]);
-    expect(gaps([], 8)).toEqual([]);
+describe('isEven', () => {
+  it('rejects helices that are not as even as possible', () => {
+    const on = (cycle: number, heights: number[]): Helix => ({ cycle, heights });
+    expect(isEven(on(8, [0, 1, 2]))).toBe(false);
+    expect(isEven(on(8, [0, 1, 4]))).toBe(false);
+    expect(isEven(on(12, [0, 2, 4, 5, 7, 9, 10]))).toBe(true);
+    expect(isEven(on(12, [0, 1, 3, 5, 7, 9, 11]))).toBe(false); // two semitone steps side by side
   });
-});
 
-describe('isMaximallyEven', () => {
-  it('rejects sets that are not as even as possible', () => {
-    expect(isMaximallyEven([0, 1, 2], 8)).toBe(false);
-    expect(isMaximallyEven([0, 1, 4], 8)).toBe(false);
-    expect(isMaximallyEven([0, 2, 4, 5, 7, 9, 10], 12)).toBe(true);
-    expect(isMaximallyEven([0, 1, 3, 5, 7, 9, 11], 12)).toBe(false); // two semitone steps side by side
+  it('does not depend on where the helix stands or which degree is 0', () => {
+    const mixolydian = { cycle: 12, heights: [7, 9, 11, 12, 14, 16, 17] };
+    const harmonicMinor = { cycle: 12, heights: [2, 4, 5, 7, 9, 10, 13] };
+    expect(isEven(mixolydian)).toBe(true);
+    expect(isEven(harmonicMinor)).toBe(false);
   });
 });

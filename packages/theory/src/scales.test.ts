@@ -1,25 +1,43 @@
 import { describe, expect, it } from 'vitest';
-import { even, isMaximallyEven } from './even.ts';
-import { DIATONIC_MODE_NAMES, modes, rotate } from './modes.ts';
+import { even, isEven } from './even.ts';
+import { type Helix, heightOf, shift } from './helix.ts';
+import { DIATONIC_MODE_NAMES, diatonicMode, mode } from './modes.ts';
 import { SCALES, parseScale, parseScaleName } from './scales.ts';
+
+const heightsOf = (name: string) => SCALES[name]!.helix.heights;
+
+/** Mode d, shifted so that its degree 0 stands at 0. */
+const fromZero = (helix: Helix, d: number) => shift(mode(helix, d), -heightOf(helix, d));
 
 describe('named scales', () => {
   it('include the seven diatonic modes under their own names', () => {
-    DIATONIC_MODE_NAMES.forEach((name, b) => expect(SCALES[name]!.set).toEqual(modes(7, 12)[b]));
+    for (const name of DIATONIC_MODE_NAMES) expect(SCALES[name]!.helix).toEqual(diatonicMode(name));
   });
 
-  it('take the even ones from the primitive, and say which ones are not even', () => {
-    expect(SCALES['major pentatonic']!.set).toEqual([0, 2, 4, 7, 9]);
-    expect(SCALES['minor pentatonic']!.set).toEqual([0, 3, 5, 7, 10]);
-    expect(SCALES['whole tone']!.set).toEqual(even(6, 12));
-    expect(SCALES['chromatic']!.set).toEqual(even(12, 12));
-    expect(SCALES['diminished']!.set).toEqual([0, 2, 3, 5, 6, 8, 9, 11]);
-    expect(SCALES['blues']!.set).toEqual([0, 3, 5, 6, 7, 10]);
-    expect(SCALES['harmonic minor']!.set).toEqual([0, 2, 3, 5, 7, 8, 11]);
-    expect(SCALES['melodic minor']!.set).toEqual([0, 2, 3, 5, 7, 9, 11]);
+  it('take the even ones from the primitive, and all start on 0', () => {
+    expect(heightsOf('major pentatonic')).toEqual([0, 2, 4, 7, 9]);
+    expect(heightsOf('minor pentatonic')).toEqual([0, 3, 5, 7, 10]);
+    expect(SCALES['whole tone']!.helix).toEqual(even(6, 12));
+    expect(SCALES['chromatic']!.helix).toEqual(even(12, 12));
+    expect(heightsOf('diminished')).toEqual([0, 2, 3, 5, 6, 8, 9, 11]);
+    expect(heightsOf('blues')).toEqual([0, 3, 5, 6, 7, 10]);
+    expect(heightsOf('harmonic minor')).toEqual([0, 2, 3, 5, 7, 8, 11]);
+    expect(heightsOf('melodic minor')).toEqual([0, 2, 3, 5, 7, 9, 11]);
+    expect(Object.keys(SCALES).filter((name) => isEven(SCALES[name]!.helix))).toEqual([
+      ...DIATONIC_MODE_NAMES,
+      'major pentatonic',
+      'suspended pentatonic',
+      'man gong',
+      'ritsusen',
+      'minor pentatonic',
+      'whole tone',
+      'chromatic',
+      'diminished',
+      'half whole diminished',
+    ]);
     for (const [name, scale] of Object.entries(SCALES)) {
-      expect(isMaximallyEven(scale.set, 12), name).toBe(scale.even);
-      expect(scale.set[0], name).toBe(0);
+      expect(scale.helix.cycle, name).toBe(12);
+      expect(scale.helix.heights[0], name).toBe(0);
     }
   });
 
@@ -49,8 +67,9 @@ describe('named scales', () => {
 });
 
 describe('modes of the other scales', () => {
-  const modesOf = (name: string) => SCALES[name]!.set.map((_, d) => rotate(SCALES[name]!.set, d));
-  const named = (names: string[]) => names.map((name) => SCALES[name]!.set);
+  const modesOf = (name: string) =>
+    SCALES[name]!.helix.heights.map((_, d) => fromZero(SCALES[name]!.helix, d));
+  const named = (names: string[]) => names.map((name) => SCALES[name]!.helix);
 
   it('are the rotations of harmonic minor, melodic minor, the pentatonic and the octatonic', () => {
     expect(modesOf('harmonic minor')).toEqual(
@@ -84,29 +103,29 @@ describe('modes of the other scales', () => {
         'minor pentatonic',
       ]),
     );
-    expect(modesOf('blues')[1]).toEqual(SCALES['major blues']!.set);
-    expect(modesOf('diminished')[1]).toEqual(SCALES['half whole diminished']!.set);
+    expect(modesOf('blues')[1]).toEqual(SCALES['major blues']!.helix);
+    expect(modesOf('diminished')[1]).toEqual(SCALES['half whole diminished']!.helix);
   });
 
   it('name each set once', () => {
-    const sets = Object.values(SCALES).map((scale) => scale.set.join());
+    const sets = Object.values(SCALES).map((scale) => scale.helix.heights.join());
     expect(new Set(sets).size).toBe(sets.length);
   });
 });
 
 describe('parseScale', () => {
   it('reads a scale and a number as that mode, called by its own name when it has one', () => {
-    expect(parseScale('major 2')).toEqual({ name: 'dorian', set: SCALES['dorian']!.set });
+    expect(parseScale('major 2')).toEqual({ name: 'dorian', helix: SCALES['dorian']!.helix });
     expect(parseScale('Harm minor 5')).toEqual({
       name: 'phrygian dominant',
-      set: SCALES['phrygian dominant']!.set,
+      helix: SCALES['phrygian dominant']!.helix,
     });
-    expect(parseScale('blues 1')).toEqual({ name: 'blues', set: SCALES['blues']!.set });
+    expect(parseScale('blues 1')).toEqual({ name: 'blues', helix: SCALES['blues']!.helix });
     expect(parseScale('blues 3')).toEqual({
       name: 'blues 3',
-      set: rotate(SCALES['blues']!.set, 2),
+      helix: fromZero(SCALES['blues']!.helix, 2),
     });
-    expect(parseScale('lydian')).toEqual({ name: 'lydian', set: SCALES['lydian']!.set });
+    expect(parseScale('lydian')).toEqual({ name: 'lydian', helix: SCALES['lydian']!.helix });
   });
 
   it('reads a name before a number: "locrian 6" is locrian natural 6, not the sixth mode of locrian', () => {

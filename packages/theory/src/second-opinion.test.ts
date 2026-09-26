@@ -9,9 +9,10 @@
 
 import { Chord, Mode, Note, RhythmPattern, Scale, ScaleType } from 'tonal';
 import { describe, expect, it } from 'vitest';
-import { even, isMaximallyEven, shift } from './even.ts';
-import { lookup } from './lookup.ts';
+import { even, isEven } from './even.ts';
+import { heightOf, positions, shift } from './helix.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
+import { read } from './read.ts';
 import { SCALES } from './scales.ts';
 import { normalizeWords } from './words.ts';
 
@@ -29,10 +30,12 @@ const stackedThirds = (set: readonly number[], d: number, size: number) =>
     .map((i) => set[(d + 2 * i) % set.length]!)
     .sort((a, b) => a - b);
 
+const onTwelve = (heights: number[]) => ({ cycle: 12, heights });
+
 describe('tonal as a second opinion', () => {
   it('has the diatonic modes as ours, and in the same order from bright to dark', () => {
     for (const name of DIATONIC_MODE_NAMES) {
-      expect(setOfChroma(Mode.get(name).chroma)).toEqual(diatonicMode(name));
+      expect(setOfChroma(Mode.get(name).chroma)).toEqual(diatonicMode(name).heights);
     }
     // tonal's `alt` counts accidentals against ionian: −1 for lydian's
     // sharp, +5 for locrian's flats.
@@ -41,7 +44,7 @@ describe('tonal as a second opinion', () => {
 
   it('stacks the same triads and sevenths on every degree of every mode', () => {
     for (const name of DIATONIC_MODE_NAMES) {
-      const mode = diatonicMode(name);
+      const mode = diatonicMode(name).heights;
       const triads = Mode.triads(name, 'C');
       const sevenths = Mode.seventhChords(name, 'C');
       for (const d of range(7)) {
@@ -51,13 +54,13 @@ describe('tonal as a second opinion', () => {
     }
   });
 
-  it('has the pentatonic modes as the rotations of 5 of 12', () => {
+  it('has the pentatonic modes as the modes of 5 of 12', () => {
     const tonalModes = Scale.modeNames('C major pentatonic').map(([, name]) =>
       setOfChroma(Scale.get(`C ${name}`).chroma),
     );
     expect(tonalModes.map((set) => set.join()).sort()).toEqual(
-      modes(5, 12)
-        .map((set) => set.join())
+      modes(even(5, 12))
+        .map((m) => shift(m, -heightOf(m, 0)).heights.join())
         .sort(),
     );
   });
@@ -68,7 +71,7 @@ describe('tonal as a second opinion', () => {
       set: setOfChroma(type.chroma),
     }));
     expect(scales).toHaveLength(92);
-    const evenScales = scales.filter(({ set }) => isMaximallyEven(set, 12));
+    const evenScales = scales.filter(({ set }) => isEven(onTwelve(set)));
     expect(evenScales.map(({ name }) => name).sort()).toEqual([
       'chromatic',
       'diminished',
@@ -92,8 +95,10 @@ describe('tonal as a second opinion', () => {
     // Each of them is a transposition of the primitive, and nothing else is.
     for (const { set } of scales) {
       const k = set.length;
-      const fromPrimitive = range(12).some((t) => shift(even(k, 12), t, 12).join() === set.join());
-      expect(fromPrimitive).toBe(isMaximallyEven(set, 12));
+      const fromPrimitive = range(12).some(
+        (t) => positions(shift(even(k, 12), t)).join() === set.join(),
+      );
+      expect(fromPrimitive).toBe(isEven(onTwelve(set)));
     }
   });
 
@@ -103,7 +108,7 @@ describe('tonal as a second opinion', () => {
     for (const n of range(17).slice(1)) {
       for (const k of range(n + 1).slice(1)) {
         const onsets = RhythmPattern.euclid(n, k).flatMap((beat, i) => (beat ? [i] : []));
-        expect(onsets).toEqual(even(k, n));
+        expect(onsets).toEqual(even(k, n).heights);
       }
     }
   });
@@ -116,7 +121,7 @@ describe('tonal as a second opinion', () => {
     const shared = Object.entries(SCALES).flatMap(([name, scale]) =>
       [name, ...scale.aliases]
         .filter((alias) => tonalByName.has(normalizeWords(alias)))
-        .map((alias) => [alias, scale.set.join()] as const),
+        .map((alias) => [alias, scale.helix.heights.join()] as const),
     );
     expect(shared).toHaveLength(66);
     for (const [alias, set] of shared)
@@ -127,17 +132,16 @@ describe('tonal as a second opinion', () => {
     // Two of tonal's names are something else here: "dominant" is a degree
     // and a chord, and "half-diminished" is a chord.
     const elsewhere = ['dominant', 'half-diminished'];
-    const ours = new Set(Object.values(SCALES).map((scale) => scale.set.join()));
-    const read: string[] = [];
+    const ours = new Set(Object.values(SCALES).map((scale) => scale.helix.heights.join()));
+    const readNames: string[] = [];
     for (const type of ScaleType.all()) {
       const set = setOfChroma(type.chroma);
       if (!ours.has(set.join())) continue;
       for (const name of [type.name, ...type.aliases].filter((n) => !elsewhere.includes(n))) {
-        const reading = lookup(name, { kind: 'scale' });
-        expect(reading.kind === 'scale' && reading.set, name).toEqual(set);
-        read.push(name);
+        expect(read(name, { kind: 'scale' }).helix.heights, name).toEqual(set);
+        readNames.push(name);
       }
     }
-    expect(read.length).toBeGreaterThan(50);
+    expect(readNames.length).toBeGreaterThan(50);
   });
 });

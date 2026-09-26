@@ -1,21 +1,24 @@
 /**
- * Named scales. Where a scale is maximally even it is taken from the
- * primitive (the modes of 7 of 12 and 5 of 12, 6, 8 and 12 of 12); the rest
- * are listed as sets and marked as not even. The modes of a listed scale are
- * its rotations, so only the scale itself is written out.
+ * Named scales, each a helix with its tonic at 0. Where a scale is maximally
+ * even it is taken from the primitive (the modes of 7 of 12 and 5 of 12, 6, 8
+ * and 12 of 12); the rest are listed as heights. The modes of a listed scale
+ * are its modes measured from 0, so only the scale itself is written out.
  */
 
-import { even, shift } from './even.ts';
-import { DIATONIC_MODE_NAMES, modes, rotate } from './modes.ts';
+import { even } from './even.ts';
+import { type Helix, heightOf, shift } from './helix.ts';
+import { DIATONIC_MODE_NAMES, diatonicMode, mode } from './modes.ts';
 import { normalizeWords, withoutKindWord } from './words.ts';
 
 export interface NamedScale {
-  /** Semitones above the tonic, starting with 0. */
-  set: readonly number[];
-  /** True when the set is maximally even, which the tests check. */
-  even: boolean;
+  /** Tonic at 0. */
+  helix: Helix;
   aliases: readonly string[];
 }
+
+/** Mode d, shifted so that its degree 0 stands at 0: the scale re-rooted on its d-th note. */
+const fromZero = (helix: Helix, d: number) => shift(mode(helix, d), -heightOf(helix, d));
+const onTwelve = (heights: number[]): Helix => ({ cycle: 12, heights });
 
 const DIATONIC_ALIASES: Record<string, string[]> = {
   ionian: ['major', 'ION'],
@@ -28,25 +31,21 @@ const DIATONIC_ALIASES: Record<string, string[]> = {
 };
 
 const diatonic = Object.fromEntries(
-  DIATONIC_MODE_NAMES.map((name, b) => [
+  DIATONIC_MODE_NAMES.map((name) => [
     name,
-    { set: modes(7, 12)[b]!, even: true, aliases: DIATONIC_ALIASES[name] ?? [] },
+    { helix: diatonicMode(name), aliases: DIATONIC_ALIASES[name] ?? [] },
   ]),
 );
 
-/** A scale's modes, in scale order, each with its name and aliases; mode 0 is the scale. */
-function modesOf(
-  set: readonly number[],
-  even: boolean,
-  names: [string, string[]][],
-): Record<string, NamedScale> {
+/** A scale's modes, in degree order, each with its name and aliases; mode 0 is the scale. */
+function modesOf(helix: Helix, names: [string, string[]][]): Record<string, NamedScale> {
   return Object.fromEntries(
-    names.map(([name, aliases], d) => [name, { set: rotate(set, d), even, aliases }]),
+    names.map(([name, aliases], d) => [name, { helix: fromZero(helix, d), aliases }]),
   );
 }
 
-const harmonicMinor = [0, 2, 3, 5, 7, 8, 11];
-const melodicMinor = [0, 2, 3, 5, 7, 9, 11];
+/** Degree 3 of 5 of 12 is its major mode: C D E G A. */
+const majorPentatonic = fromZero(even(5, 12), 3);
 const octatonic = even(8, 12);
 
 /**
@@ -58,34 +57,25 @@ const octatonic = even(8, 12);
  */
 export const SCALES: Record<string, NamedScale> = {
   ...diatonic,
-  ...modesOf(modes(5, 12)[4]!, true, [
+  ...modesOf(majorPentatonic, [
     ['major pentatonic', ['pentatonic', 'pentatonic major', 'PENT']],
     ['suspended pentatonic', ['suspended', 'egyptian']],
     ['man gong', ['malkos raga', 'MGNG']],
     ['ritsusen', ['ritusen', 'RITS']],
     ['minor pentatonic', ['pentatonic minor', 'vietnamese 2', 'MPEN']],
   ]),
-  'whole tone': {
-    set: even(6, 12),
-    even: true,
-    aliases: ['wholetone', "messiaen's mode #1", 'WTON'],
-  },
-  chromatic: { set: even(12, 12), even: true, aliases: ['CHR'] },
-  diminished: {
-    set: octatonic,
-    even: true,
-    aliases: ['whole half', 'whole half diminished'],
-  },
+  'whole tone': { helix: even(6, 12), aliases: ['wholetone', "messiaen's mode #1", 'WTON'] },
+  chromatic: { helix: even(12, 12), aliases: ['CHR'] },
+  diminished: { helix: octatonic, aliases: ['whole half', 'whole half diminished'] },
   'half whole diminished': {
-    set: shift(octatonic, -2, 12),
-    even: true,
+    helix: fromZero(octatonic, 1),
     aliases: ['half whole', 'dominant diminished', 'octatonic', "messiaen's mode #2", 'HWD'],
   },
-  ...modesOf([0, 3, 5, 6, 7, 10], false, [
+  ...modesOf(onTwelve([0, 3, 5, 6, 7, 10]), [
     ['blues', ['minor blues', 'BLUE']],
     ['major blues', ['MBLU']],
   ]),
-  ...modesOf(harmonicMinor, false, [
+  ...modesOf(onTwelve([0, 2, 3, 5, 7, 8, 11]), [
     ['harmonic minor', ['HMIN']],
     ['locrian natural 6', ['locrian 6', 'locrian #6', 'LOC6']],
     ['ionian #5', ['ionian augmented', 'major augmented', 'major #5', 'ION5']],
@@ -94,7 +84,7 @@ export const SCALES: Record<string, NamedScale> = {
     ['lydian #2', ['lydian #9', 'LYD2']],
     ['ultralocrian', ['altered diminished', 'superlocrian bb7', 'superlocrian diminished', 'ULOC']],
   ]),
-  ...modesOf(melodicMinor, false, [
+  ...modesOf(onTwelve([0, 2, 3, 5, 7, 9, 11]), [
     ['melodic minor', ['jazz minor', 'MMIN']],
     ['dorian b2', ['phrygian natural 6', 'phrygian #6', 'melodic minor second mode', 'DOR2']],
     ['lydian augmented', ['lydian #5', 'LYD+']],
@@ -113,7 +103,7 @@ export const SCALES: Record<string, NamedScale> = {
       ],
     ],
   ]),
-  augmented: { set: [0, 3, 4, 7, 8, 11], even: false, aliases: [] },
+  augmented: { helix: onTwelve([0, 3, 4, 7, 8, 11]), aliases: [] },
 };
 
 /**
@@ -131,19 +121,22 @@ export function parseScaleName(text: string): string | undefined {
 /**
  * A scale by name, or a scale and a number: "harmonic minor 5" is its fifth
  * mode, the scale re-rooted on its fifth note, as play-aeiou numbers them. A
- * mode is called by its own name when its set has one ("major 2" is dorian),
+ * mode is called by its own name when it has one ("major 2" is dorian),
  * and by the scale's name and the number otherwise ("blues 3"). A name wins
  * over a number: "locrian 6" is locrian ♮6, as it is usually named.
  */
-export function parseScale(text: string): { name: string; set: readonly number[] } | undefined {
+export function parseScale(text: string): { name: string; helix: Helix } | undefined {
   const name = parseScaleName(text);
-  if (name) return { name, set: SCALES[name]!.set };
+  if (name) return { name, helix: SCALES[name]!.helix };
   const numbered = /^(.*\S)\s+(\d+)$/.exec(text.trim());
   if (!numbered) return undefined;
   const scaleName = parseScaleName(numbered[1]!);
   const number = Number(numbered[2]);
-  if (!scaleName || number < 1 || number > SCALES[scaleName]!.set.length) return undefined;
-  const set = rotate(SCALES[scaleName]!.set, number - 1);
-  const own = Object.entries(SCALES).find(([, scale]) => scale.set.join() === set.join());
-  return { name: own?.[0] ?? `${scaleName} ${number}`, set };
+  if (!scaleName || number < 1 || number > SCALES[scaleName]!.helix.heights.length)
+    return undefined;
+  const helix = fromZero(SCALES[scaleName]!.helix, number - 1);
+  const own = Object.entries(SCALES).find(
+    ([, scale]) => scale.helix.heights.join() === helix.heights.join(),
+  );
+  return { name: own?.[0] ?? `${scaleName} ${number}`, helix };
 }

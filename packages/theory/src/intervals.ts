@@ -1,62 +1,67 @@
 /**
- * Intervals, generic and specific.
+ * Intervals, generic and specific (Clough and Myerson's terms).
  *
- * A generic interval counts scale steps (a second is one step, a fifth four).
- * In the diatonic set each generic interval comes in one size or two sizes a
- * semitone apart (a second is 1 or 2 semitones). That is a property of
- * maximally even sets, so the sizes come from the primitive. A specific
- * interval (m2, perfect fifth) names one of those sizes.
+ * A generic interval counts degrees (a second is 1, a fifth 4). A specific
+ * interval counts height: the perfect fifth is 7 semitones. In the diatonic
+ * set each generic interval comes in one size or two sizes a semitone apart (a
+ * second is 1 or 2 semitones). That is a property of maximally even sets, so
+ * the sizes come from the primitive. A specific interval (m2, perfect fifth)
+ * names one of those sizes.
  */
 
-import { degree } from './degrees.ts';
 import { even } from './even.ts';
+import { type Helix, heightOf } from './helix.ts';
 import { normalizeWords } from './words.ts';
 
 export interface Interval {
-  /** Scale steps spanned: 0 is a unison, 7 an octave. */
-  steps: number;
-  /** One size for a specific interval, both sizes for a generic one. */
-  semitones: number[];
+  /** Degrees spanned: 0 is a unison, 7 an octave. */
+  generic: number;
+  /** Heights spanned: one size for a specific interval, every size for a generic one. */
+  specific: number[];
 }
 
-/** The sizes in semitones of a generic interval of `steps` in the diatonic set. */
-export function genericSizes(steps: number): number[] {
-  const diatonic = even(7, 12);
-  const sizes = new Set(diatonic.map((_, d) => degree(diatonic, d + steps) - degree(diatonic, d)));
-  return [...sizes].sort((a, b) => a - b);
+/** The sizes in height of a generic interval on a helix, sorted. */
+export function sizes(helix: Helix, generic: number): number[] {
+  const found = new Set(
+    helix.heights.map((_, d) => heightOf(helix, d + generic) - heightOf(helix, d)),
+  );
+  return [...found].sort((a, b) => a - b);
 }
+
+const diatonic = even(7, 12);
 
 interface NamedInterval extends Interval {
   symbols: readonly string[];
   words: readonly string[];
 }
 
-const specific = (
-  steps: number,
-  semitones: number,
+const named = (
+  generic: number,
+  height: number,
   symbols: string[],
   words: string[],
-): NamedInterval => ({ steps, semitones: [semitones], symbols, words });
+): NamedInterval => ({ generic, specific: [height], symbols, words });
 
 /** The specific intervals up to the octave, by their short symbol. */
 export const INTERVALS: Record<string, NamedInterval> = {
-  P1: specific(0, 0, ['P1'], ['unison', 'perfect unison']),
-  m2: specific(1, 1, ['m2'], ['minor second', 'semitone', 'half step', 'half tone']),
-  M2: specific(1, 2, ['M2'], ['major second', 'whole step', 'whole tone', 'tone']),
-  m3: specific(2, 3, ['m3'], ['minor third']),
-  M3: specific(2, 4, ['M3'], ['major third']),
-  P4: specific(3, 5, ['P4'], ['perfect fourth']),
-  A4: specific(3, 6, ['A4', 'TT'], ['augmented fourth', 'tritone']),
-  d5: specific(4, 6, ['d5'], ['diminished fifth']),
-  P5: specific(4, 7, ['P5'], ['perfect fifth']),
-  m6: specific(5, 8, ['m6'], ['minor sixth']),
-  M6: specific(5, 9, ['M6'], ['major sixth']),
-  m7: specific(6, 10, ['m7'], ['minor seventh']),
-  M7: specific(6, 11, ['M7'], ['major seventh']),
-  P8: specific(7, 12, ['P8'], ['octave', 'perfect octave']),
+  P1: named(0, 0, ['P1'], ['unison', 'perfect unison']),
+  m2: named(1, 1, ['m2'], ['minor second', 'semitone', 'half step', 'half tone']),
+  M2: named(1, 2, ['M2'], ['major second', 'whole step', 'whole tone', 'tone']),
+  m3: named(2, 3, ['m3'], ['minor third']),
+  M3: named(2, 4, ['M3'], ['major third']),
+  P4: named(3, 5, ['P4'], ['perfect fourth']),
+  A4: named(3, 6, ['A4', 'TT'], ['augmented fourth', 'tritone']),
+  d5: named(4, 6, ['d5'], ['diminished fifth']),
+  P5: named(4, 7, ['P5'], ['perfect fifth']),
+  m6: named(5, 8, ['m6'], ['minor sixth']),
+  M6: named(5, 9, ['M6'], ['major sixth']),
+  m7: named(6, 10, ['m7'], ['minor seventh']),
+  M7: named(6, 11, ['M7'], ['major seventh']),
+  P8: named(7, 12, ['P8'], ['octave', 'perfect octave']),
 };
 
-const GENERIC_WORDS: Record<string, number> = {
+/** The generic intervals by their words. */
+export const GENERIC_INTERVALS: Record<string, number> = {
   second: 1,
   third: 2,
   fourth: 3,
@@ -71,10 +76,10 @@ export function parseInterval(text: string): Interval | undefined {
   const word = normalizeWords(trimmed);
   for (const named of Object.values(INTERVALS)) {
     if (named.symbols.includes(trimmed) || named.words.includes(word))
-      return { steps: named.steps, semitones: named.semitones };
+      return { generic: named.generic, specific: named.specific };
   }
-  const steps = GENERIC_WORDS[word];
-  return steps === undefined ? undefined : { steps, semitones: genericSizes(steps) };
+  const generic = GENERIC_INTERVALS[word];
+  return generic === undefined ? undefined : { generic, specific: sizes(diatonic, generic) };
 }
 
 /**
@@ -83,16 +88,16 @@ export function parseInterval(text: string): Interval | undefined {
  * each size, the leading tone a semitone below the octave and the subtonic a
  * whole tone below.
  */
-const DEGREE_NAMES: Record<string, Interval> = {
-  tonic: { steps: 0, semitones: genericSizes(0) },
-  supertonic: { steps: 1, semitones: genericSizes(1) },
-  mediant: { steps: 2, semitones: genericSizes(2) },
-  subdominant: { steps: 3, semitones: genericSizes(3) },
-  dominant: { steps: 4, semitones: genericSizes(4) },
-  submediant: { steps: 5, semitones: genericSizes(5) },
-  'leading tone': { steps: 6, semitones: [11] },
-  'leading note': { steps: 6, semitones: [11] },
-  subtonic: { steps: 6, semitones: [10] },
+export const DEGREE_NAMES: Record<string, Interval> = {
+  tonic: { generic: 0, specific: sizes(diatonic, 0) },
+  supertonic: { generic: 1, specific: sizes(diatonic, 1) },
+  mediant: { generic: 2, specific: sizes(diatonic, 2) },
+  subdominant: { generic: 3, specific: sizes(diatonic, 3) },
+  dominant: { generic: 4, specific: sizes(diatonic, 4) },
+  submediant: { generic: 5, specific: sizes(diatonic, 5) },
+  'leading tone': { generic: 6, specific: [11] },
+  'leading note': { generic: 6, specific: [11] },
+  subtonic: { generic: 6, specific: [10] },
 };
 
 export function parseDegreeName(text: string): Interval | undefined {

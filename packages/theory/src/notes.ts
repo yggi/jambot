@@ -7,7 +7,7 @@
  * in the prototype and the sister projects.
  */
 
-import { mod } from './even.ts';
+import { mod } from './helix.ts';
 import { diatonicMode } from './modes.ts';
 
 export const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
@@ -61,7 +61,7 @@ export function parseNote(text: string): Note | undefined {
     : ACCIDENTAL_SIGNS[accidental!];
   if (alteration === undefined) return undefined;
   const letter = letterText!.toUpperCase() as Letter;
-  const natural = diatonicMode('ionian')[LETTERS.indexOf(letter)]!;
+  const natural = diatonicMode('ionian').heights[LETTERS.indexOf(letter)]!;
   const note: Note = { letter, alteration, pitchClass: mod(natural + alteration, 12) };
   if (octaveText !== undefined) {
     const octave = Number(octaveText);

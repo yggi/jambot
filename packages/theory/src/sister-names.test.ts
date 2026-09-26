@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { even } from './even.ts';
-import { type Kind, type Reading, lookup } from './lookup.ts';
+import { type Reading, type ReadingKind, read } from './read.ts';
 
 /**
  * Every theory name the sister projects use, with what they mean by it, copied
@@ -18,7 +18,7 @@ import { type Kind, type Reading, lookup } from './lookup.ts';
  * Names with no reading on purpose: play-aeiou's chord type `off` (no chord),
  * and its voicings, strum directions and arp patterns, which are ways to play
  * a chord rather than names in the theory. `dia` needs a scale and is tested in
- * lookup.test.ts.
+ * read.test.ts.
  */
 
 const PLAY_AEIOU_CHORD_TYPES: [string, number[]][] = [
@@ -170,7 +170,7 @@ const QUINTENZIRKEL_FIGURES: [string, string, string, string | undefined, number
 ];
 
 /** quintenzirkel's groups, as the kind of reading that holds each. */
-const QUINTENZIRKEL_KIND: Record<string, Record<string, Kind> | Kind> = {
+const QUINTENZIRKEL_KIND: Record<string, Record<string, ReadingKind> | ReadingKind> = {
   Note: { tonic: 'degree', octave: 'interval', harmonics: 'chord' },
   Interval: 'interval',
   Triad: 'chord',
@@ -185,19 +185,19 @@ const pitchClasses = (set: readonly number[]) =>
 function setOf(reading: Reading): readonly number[] {
   switch (reading.kind) {
     case 'chord':
-      return reading.intervals;
+      return reading.stack;
     case 'scale':
-      return reading.set;
+      return reading.helix.heights.map((x) => x - reading.helix.heights[0]!);
     case 'interval':
     case 'degree':
-      return reading.semitones;
+      return reading.specific;
     default:
       throw new Error(`no set for a ${reading.kind}`);
   }
 }
 
-function expectMeans(name: string, kind: Kind, set: readonly number[]) {
-  const reading = lookup(name, { kind });
+function expectMeans(name: string, kind: ReadingKind, set: readonly number[]) {
+  const reading = read(name, { kind });
   expect(reading.kind, name).toBe(kind);
   if (kind === 'interval' || kind === 'degree') expect(setOf(reading), name).toContain(set.at(-1));
   else expect(pitchClasses(setOf(reading)), name).toEqual(pitchClasses(set));
@@ -221,11 +221,10 @@ describe('names from play-aeiou', () => {
 
   it('modes: each is the scale re-rooted, by its name, its short and its number', () => {
     for (const [scaleName, scaleModes] of Object.entries(PLAY_AEIOU_MODES)) {
-      const scale = lookup(scaleName, { kind: 'scale' });
-      if (scale.kind !== 'scale') throw new Error(scaleName);
+      const scale = read(scaleName, { kind: 'scale' }).helix.heights;
       scaleModes.forEach(([name, short], k) => {
-        const root = scale.set[k]!;
-        const rerooted = scale.set.map((x) => (x - root + 12) % 12);
+        const root = scale[k]!;
+        const rerooted = scale.map((x) => (x - root + 12) % 12);
         expectMeans(name, 'scale', rerooted);
         if (!/\d$/.test(short)) expectMeans(short, 'scale', rerooted);
         expectMeans(`${scaleName} ${k + 1}`, 'scale', rerooted);
@@ -259,9 +258,9 @@ describe('names from quintenzirkel', () => {
   });
 
   it('the rhythms its Euclid names: E(5,16) bossa nova, E(7,16) samba, E(3,8) tresillo', () => {
-    expect(lookup('samba')).toEqual({ kind: 'rhythm', steps: 16, onsets: even(7, 16) });
-    expect(lookup('tresillo')).toEqual({ kind: 'rhythm', steps: 8, onsets: even(3, 8) });
-    // The bossa here starts where its clave does: the same necklace, rotated.
-    expect(lookup('bossa nova')).toEqual({ kind: 'rhythm', steps: 16, onsets: even(5, 16, 6) });
+    expect(read('samba')).toEqual({ kind: 'rhythm', helix: even(7, 16) });
+    expect(read('tresillo')).toEqual({ kind: 'rhythm', helix: even(3, 8) });
+    // The bossa here is E(5,16) shifted by 6, so that it plays from where its clave does.
+    expect(read('bossa nova')).toEqual({ kind: 'rhythm', helix: even(5, 16, 6) });
   });
 });

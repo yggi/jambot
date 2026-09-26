@@ -15,13 +15,17 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 - The full prototype is one file: `prototype/jambot-prototype.html`. Open it
   in Chrome or Edge and press _Start the band_. Its code map is in
   [`prototype/README.md`](../prototype/README.md#running-and-hacking).
-- To resolve a musical name, use `lookup` from `@jambot/theory`:
-  `lookup('C blues')`, `lookup('G7', { kind: 'chord' })`, `lookup('clave')`,
-  `lookup('second')`, `lookup('harm minor 5')`. `readings(name)` lists
-  every reading of an ambiguous name. The sister projects' names are all in
+- To resolve a musical name, use `read` from `@jambot/theory`:
+  `read('C blues')`, `read('G7', { kind: 'chord' })`, `read('clave')`,
+  `read('second')`, `read('harm minor 5')`. `readings(name)` lists every
+  reading of an ambiguous name, and `nameOf(reading)` writes one back. The sister projects' names are all in
   `sister-names.test.ts`; a new one goes there first.
 - The theory's core relations, and the test that holds each, are in
   [`theory.md`](theory.md). A new relation gets its test and its line there.
+- In the theory, a set is a `Helix`, `{ cycle, heights }`: the heights of
+  degrees 0 to k − 1, with degree 0 wherever it stands. `positions(helix)` is
+  the sorted view from the circle. `shift` moves heights (transposition) and
+  `mode` moves degrees (same positions, another tonic).
 - To drive the prototype headless, define `window.__JAMBOT_TEST__` before its
   script runs. It is then called with the internals (`S`, `composeBar`,
   `applyPreset`, `evalMini`, `parseRoman`, `checkOverrides`, …).

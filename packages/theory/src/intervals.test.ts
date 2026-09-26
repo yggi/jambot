@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { INTERVALS, genericSizes, parseDegreeName, parseInterval, partial } from './intervals.ts';
+import { even } from './even.ts';
+import { INTERVALS, parseDegreeName, parseInterval, partial, sizes } from './intervals.ts';
 
-describe('genericSizes', () => {
+const diatonic = even(7, 12);
+
+describe('sizes', () => {
   it('comes from the diatonic set: every generic interval has one size or two sizes a semitone apart', () => {
-    expect([0, 1, 2, 3, 4, 5, 6, 7].map(genericSizes)).toEqual([
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map((generic) => sizes(diatonic, generic))).toEqual([
       [0],
       [1, 2],
       [3, 4],
@@ -13,6 +16,11 @@ describe('genericSizes', () => {
       [10, 11],
       [12],
     ]);
+  });
+
+  it('works on any helix: the seconds of the major pentatonic are 2 and 3', () => {
+    expect(sizes({ cycle: 12, heights: [0, 2, 4, 7, 9] }, 1)).toEqual([2, 3]);
+    expect(sizes(even(5, 16), 2)).toEqual([6, 7]);
   });
 });
 
@@ -47,27 +55,28 @@ describe('parseInterval', () => {
       ['P8', 7, 12],
       ['octave', 7, 12],
     ];
-    for (const [text, steps, semitones] of cases)
-      expect(parseInterval(text), text).toEqual({ steps, semitones: [semitones] });
+    for (const [text, generic, specific] of cases)
+      expect(parseInterval(text), text).toEqual({ generic, specific: [specific] });
   });
 
   it('reads generic intervals as both of their sizes', () => {
-    expect(parseInterval('second')).toEqual({ steps: 1, semitones: [1, 2] });
-    expect(parseInterval('3rd')).toEqual({ steps: 2, semitones: [3, 4] });
-    expect(parseInterval('Major 3rd')).toEqual({ steps: 2, semitones: [4] });
-    expect(parseInterval('Fifth')).toEqual({ steps: 4, semitones: [6, 7] });
-    expect(parseInterval('seventh')).toEqual({ steps: 6, semitones: [10, 11] });
+    expect(parseInterval('second')).toEqual({ generic: 1, specific: [1, 2] });
+    expect(parseInterval('3rd')).toEqual({ generic: 2, specific: [3, 4] });
+    expect(parseInterval('Major 3rd')).toEqual({ generic: 2, specific: [4] });
+    expect(parseInterval('Fifth')).toEqual({ generic: 4, specific: [6, 7] });
+    expect(parseInterval('seventh')).toEqual({ generic: 6, specific: [10, 11] });
   });
 
   it('keeps every specific interval inside the sizes of its generic interval', () => {
     for (const interval of Object.values(INTERVALS)) {
-      for (const size of interval.semitones) expect(genericSizes(interval.steps)).toContain(size);
+      for (const size of interval.specific)
+        expect(sizes(diatonic, interval.generic)).toContain(size);
     }
   });
 
   it('tells m and M apart, and rejects what is not an interval', () => {
-    expect(parseInterval('m3')!.semitones).toEqual([3]);
-    expect(parseInterval('M3')!.semitones).toEqual([4]);
+    expect(parseInterval('m3')!.specific).toEqual([3]);
+    expect(parseInterval('M3')!.specific).toEqual([4]);
     for (const text of ['', 'P3', 'M5', 'minor fifth', 'ninth-ish', 'C'])
       expect(parseInterval(text), text).toBeUndefined();
   });
@@ -89,14 +98,14 @@ describe('parseDegreeName', () => {
       ['dominant', 4],
       ['submediant', 5],
     ];
-    for (const [text, steps] of cases)
-      expect(parseDegreeName(text), text).toEqual({ steps, semitones: genericSizes(steps) });
+    for (const [text, generic] of cases)
+      expect(parseDegreeName(text), text).toEqual({ generic, specific: sizes(diatonic, generic) });
   });
 
   it('names the seventh degree by its size', () => {
-    expect(parseDegreeName('leading tone')).toEqual({ steps: 6, semitones: [11] });
-    expect(parseDegreeName('Leading-note')).toEqual({ steps: 6, semitones: [11] });
-    expect(parseDegreeName('subtonic')).toEqual({ steps: 6, semitones: [10] });
+    expect(parseDegreeName('leading tone')).toEqual({ generic: 6, specific: [11] });
+    expect(parseDegreeName('Leading-note')).toEqual({ generic: 6, specific: [11] });
+    expect(parseDegreeName('subtonic')).toEqual({ generic: 6, specific: [10] });
     expect(parseDegreeName('fifth')).toBeUndefined();
   });
 });

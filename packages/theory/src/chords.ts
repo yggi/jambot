@@ -1,34 +1,28 @@
 /**
- * Chords: stacks of every other degree of a scale, and the named qualities.
+ * Chords: the named qualities, each a stack of heights above the root.
  *
- * `stack` builds chords from the primitive: stacking every other degree of a
- * diatonic mode gives its triads and sevenths, and every mode has the same
- * set of them (3 major, 3 minor and 1 diminished triad). The named qualities
- * are interval sets; the tests show that the diatonic ones are exactly those
- * stacks.
+ * A chord of a key is built by composition: every other degree of 7, shifted
+ * to the chord's degree and composed with the key (see `compose`). Every
+ * diatonic mode gives the same triads and sevenths that way (3 major, 3 minor
+ * and 1 diminished triad), and the tests show that the diatonic qualities are
+ * exactly those. A stack can span more than one turn, as a ninth does, so it
+ * is not a helix.
  */
 
-import { degree } from './degrees.ts';
 import { partial } from './intervals.ts';
 import { normalizeWords, withoutKindWord } from './words.ts';
 
-/** Semitones above the chord's lowest degree: every other degree of `set`, `size` of them. */
-export function stack(set: readonly number[], d: number, size: number, n = 12): number[] {
-  const bottom = degree(set, d, n);
-  return Array.from({ length: size }, (_, i) => degree(set, d + 2 * i, n) - bottom);
-}
-
 export interface ChordQuality {
-  /** Semitones above the root, starting with 0. */
-  intervals: readonly number[];
+  /** Heights above the root, starting with 0, in register. */
+  stack: readonly number[];
   /** Case-sensitive, as written after a root: `m7` is not `M7`. */
   symbols: readonly string[];
   /** Case-insensitive; hyphens read as spaces. */
   words: readonly string[];
 }
 
-const quality = (intervals: number[], symbols: string[], words: string[]): ChordQuality => ({
-  intervals,
+const quality = (stack: number[], symbols: string[], words: string[]): ChordQuality => ({
+  stack,
   symbols,
   words,
 });
@@ -81,10 +75,8 @@ export function parseChordQuality(text: string): string | undefined {
   return qualities.find(([, named]) => named.symbols.some((s) => s.toLowerCase() === lower))?.[0];
 }
 
-/** The name of the quality with exactly these intervals, if any. */
-export function qualityOf(intervals: readonly number[]): string | undefined {
-  const wanted = intervals.join();
-  return Object.entries(CHORD_QUALITIES).find(
-    ([, named]) => named.intervals.join() === wanted,
-  )?.[0];
+/** The name of the quality with exactly this stack, if any. */
+export function qualityOf(stack: readonly number[]): string | undefined {
+  const wanted = stack.join();
+  return Object.entries(CHORD_QUALITIES).find(([, named]) => named.stack.join() === wanted)?.[0];
 }

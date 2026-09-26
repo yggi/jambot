@@ -5,7 +5,7 @@ description: Check a music-theory claim against two independent libraries, music
 
 # Music theory: check claims with a second opinion
 
-Jambot derives its theory from one primitive, `even(k, n, rotation)`. A test
+Jambot derives its theory from one primitive, `even(k, n, shift)`. A test
 that checks the primitive against values derived from the primitive proves
 little. Two libraries derive the same facts in other ways, from spelled
 notes, named scales and chord dictionaries:
