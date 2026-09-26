@@ -19,10 +19,12 @@ import { type Helix, heightOf, mod, shift as shiftHelix } from './helix.ts';
  * k of n as evenly as possible: degree 0 at 0, then shifted by `shift`, the
  * degrees kept.
  *
- * Position j is in the unshifted set when j · k mod n < k. This is the form
- * the prototype uses, and play-aeiou and quintenzirkel agree with it.
- * Strudel's Bjorklund form gives the same set up to a rotation, and a
- * different rotation for 46 of the 120 (k, n) pairs with k < n ≤ 16 (#8).
+ * Position j is in the unshifted set when j · k mod n < k. This is Jambot's
+ * Euclid form (#8): the prototype's, and play-aeiou, quintenzirkel and tonal
+ * give exactly the same sets. Strudel's Bjorklund form gives the same set up
+ * to a rotation, and a different rotation for 46 of the 120 (k, n) pairs with
+ * k < n ≤ 16, so a Strudel export writes the pattern with a compensating
+ * shift or in full.
  */
 export function even(k: number, n: number, shift = 0): Helix {
   const heights: number[] = [];

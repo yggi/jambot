@@ -176,7 +176,7 @@ The runtimes differ (TypeScript here, restricted Python there), so the
 projects share **conventions, not code**. These facts stay aligned:
 
 - C4 = 60;
-- the Euclid form (#8);
+- the Euclid form, `even(k, n)` (decided in #8);
 - scale contents and names;
 - the meaning of "mode k": the scale re-rooted on its k-th note (`mode`,
   then a shift back to 0).

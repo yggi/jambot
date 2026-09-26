@@ -74,6 +74,11 @@ every height and keeps the degrees, so `even(k, n, s)` is
 `shift(even(k, n), s)`. The bossa, `even(5, 16, 6)`, has its degree 0 at
 step 6 and plays from the downbeat all the same.
 
+This is Jambot's Euclid form (#8). The prototype, play-aeiou, quintenzirkel
+and tonal all give exactly these sets. Strudel's Bjorklund form gives the
+same rhythm from another starting point for 46 of the 120 pairs with
+k < n ≤ 16, so a Strudel export shifts the pattern or writes it out.
+
 A helix is **even** (`isEven`) when, for every d, the spans from each degree
 to the d-th next degree take at most two sizes, one apart. Neither a shift
 nor the choice of degree 0 changes that.
