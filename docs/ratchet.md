@@ -70,7 +70,7 @@ form to write in and the moves each side makes.
 | T4: written and played time are separate, joined by a time map                                        | down      | `swingMap`, with exact inverses                                                               |
 | The prototype's `swingDelay` and `unswing` are not inverses (up to 0.04 steps)                        | up        | F3 measured, #39 Q1b                                                                          |
 | The README's claim that presets reach both ends of every axis fails for syncopation, energy and tempo | up        | The spans are recorded in a test, as literals                                                 |
-| A chord is a helix, but a ninth chord isn't one                                                       | up        | #38: measured options, sent to the owner, since it touches `9` in #7                          |
+| A chord is a helix, but a ninth chord isn't one                                                       | up        | Decided in #38: a helix plus tensions, and a tension sets its degree of the scale (P6, P7)    |
 | Properties neither track owned alone                                                                  | both      | #39: the quinetic properties, each with its test                                              |
 
 Before that, the theory settled what #7 had been going to decide: the Euclid
