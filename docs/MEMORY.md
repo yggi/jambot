@@ -51,7 +51,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - A random choice in the engine goes through `chance(draw, p)` or
   `pick(draw, weights)`, never a bare `draw < p`: they quantise to 2^-16,
   so a last-bit difference from `Math.pow` or `Math.sin` on another engine
-  does not change the music.
+  does not change the music. A value from them that is rounded is quantised
+  first, `Math.round(quantize(x))`: sin(π/6) times an odd number lies one
+  ulp from a half (`lead.ts`).
 - The style (`packages/engine/src/style.ts`) is a track of glides, one per
   axis, and `styleAt(track, position)` reads it at any step of the song.
   Positions there are steps from the song's start, 16 to a bar. A track
@@ -69,6 +71,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   plan at a section's first bar, and the bar's chords. So a part can lead
   into the next bar's chords (`BarEnv.next`), and they are what plays. A
   bar the clock has passed is passed (`passBar`), not composed.
+- The parts are machines at bar rate over one `BarEnv`, and `BandBar` is
+  that environment plus the events and the bar's `sound`. The drums carry
+  nothing; the bass its last note, the comp its last voicing, the lead its
+  last note, its phrase and its themes' melodies (`BandCarried.parts`). A
+  passed bar leaves the parts where they were, and only the lead's memory
+  reaches more than register (S2). A Muse motif is a lead shape in scale
+  degrees, the first use the machines' `input` channel will have (#2).
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
@@ -239,6 +248,24 @@ The full description is in
   flat seventh without any error, and ignores `maj` in a numeral. tonal
   ignores a numeral's case. The skill's scripts guard against all of these.
 
+### Testing the engine
+
+- A gate is shown to fire by breaking the rule on purpose and watching the
+  test fail: a threshold moved, a range widened, a tie turned. Every part's
+  tests were written that way (#56, #64); a mutant that survives means a
+  missing test, not a lucky one.
+- The preset tour rarely comes near a style threshold or an extreme style.
+  A threshold is tested on both sides by restyling real bars
+  (`bass.test.ts`), and a range over a grid of styles (`lead.test.ts`,
+  where the prototype's octave fold left the range at high energy and
+  entropy).
+- Where the prototype's function is the reference, paste it into the test
+  and compare over every case: `pivotRoot` (`key.test.ts`), `voice`
+  (`comp.test.ts`).
+- A refactor that must not change the music: hash the band's events over a
+  few hundred bars and seeds before and after, in a throwaway test.
+- A test that swaps a global (`Math.sin`) restores it in a `finally`.
+
 ### The ratchet
 
 - The ratchet ([`ratchet.md`](ratchet.md)) is the method for pairs of
@@ -250,6 +277,11 @@ The full description is in
   counterexample against the layer it refutes. The pawl check (`tooling/pawl.ts`, #42) runs in
   `pnpm verify`. A test holds an entry by citing its id at the end of its
   description, as in `(T4, Q1c)`, and the entry then names the test's file.
+  Where two packages have a test file of the same name, the entry names it
+  by its path (`packages/engine/src/chords.test.ts`); a quoted test name is
+  the whole name, with no ellipsis; and only `#` followed by a space starts
+  a heading, so an entry may wrap onto a line that starts with an issue
+  number.
   The catalogues are `language.md` (#7) and `quinetic.md` (#39), with one
   id space; a property `language.md` already holds is an alias there.
 
