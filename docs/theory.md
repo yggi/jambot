@@ -273,19 +273,22 @@ n ≤ 12 and d over three turns.
 
 ## Mirror
 
-`mirror(helix, axis)` reflects the helix about an axis, a height or halfway
-between two: every height x goes to 2 · axis − x, and degree d stands where
-degree −d went, so degree 0 stays degree 0. The gaps come in reverse order,
-and mirroring twice about the same axis gives the helix back, for every even
-helix with n ≤ 16 and several axes.
+`mirror(helix)` reflects the helix about degree 0: degree d stands as far
+above degree 0 as degree −d stood below it. The gaps come in reverse order,
+the tonic stays, and mirroring twice gives the helix back, for every even
+helix with n ≤ 16. Across the seven diatonic modes it maps brightness i to
+6 − i: lydian to locrian, ionian to phrygian, and dorian to itself. A major
+triad mirrors to the minor triad a fourth below its root (C major to F
+minor).
 
-- About degree 0, the default, C major mirrors to C phrygian, dorian is its
-  own mirror, and a major triad mirrors to the minor triad a fourth below
-  its root (C major to F minor).
-- About the tonic and its fifth, `mirror(helix, tonic + 3.5)`, it is
-  quintenzirkel's mirror: C ionian mirrors to C aeolian, each diatonic mode
-  of brightness i to the one of brightness 5 − i, and a major triad to the
-  minor triad on the same root.
+A reflection about any other axis is this one shifted, because 2a − x is
+2t − x moved by 2(a − t). About the tonic and its fifth (negative harmony,
+quintenzirkel's mirror) it is `shift(mirror(helix), 7)`. On the note sets
+that takes C ionian to C aeolian and a major triad to the minor one on its
+root, and each diatonic mode of brightness i to the one of brightness 5 − i.
+It needs a perfect fifth over the tonic: locrian has none, and its image
+loses the tonic. As a helix, degree 0 moves to the fifth, so C ionian goes
+to G phrygian.
 
 The relations between helices are comparisons, not names of their own: the
 same positions (relative keys, C major and A minor), the same gaps

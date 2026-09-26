@@ -189,9 +189,9 @@ One theory word means something else in a sister project: quintenzirkel's
 generator. Here a position is the chromatic place, height mod cycle.
 
 quintenzirkel's mirror reflects about the axis between the tonic and its
-fifth, so C ionian mirrors to C aeolian. Here that is
-`mirror(helix, tonic + 3.5)`; the default axis is degree 0, where C ionian
-mirrors to C phrygian ([theory](theory.md#mirror)).
+fifth, so C ionian mirrors to C aeolian. Here `mirror` reflects about degree
+0 (C ionian to C phrygian), and quintenzirkel's is that shifted by a fifth,
+`shift(mirror(helix), 7)`, on the note sets ([theory](theory.md#mirror)).
 
 Two names mean different sets, and Jambot follows the more common use:
 
