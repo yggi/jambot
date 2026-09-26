@@ -62,7 +62,7 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
-  deploys `main` to GitHub Pages
+  deploys `main` to GitHub Pages; started by hand while #4 is open
 - `.claude/settings.json`: the session-start hook, and the checks agents
   may run without a prompt
   - `.claude/hooks/session-start.sh`: installs dependencies and warms

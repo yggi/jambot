@@ -36,8 +36,9 @@ pnpm verify       # everything CI runs: lint, format check, typecheck, tests, bu
   Node APIs and tonal (tests may use tonal, a random and the clock).
   `tooling/lint.test.ts` shows each rule firing.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`,
-  `format:check`, `check`, `test` and `build` on every push and pull request.
-  Pushes to `main` deploy to GitHub Pages. The workflow does not run at the
-  moment, because the Actions minutes are used up (#4).
+  `format:check`, `check`, `test` and `build`, and a run on `main` deploys
+  to GitHub Pages. While the Actions minutes are used up (#4), it runs only
+  when started by hand (`workflow_dispatch`); on every push and pull request
+  it would fail in seconds.
 
 The house rules for working on the code are in [`AGENTS.md`](../AGENTS.md).

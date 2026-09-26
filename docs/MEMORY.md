@@ -42,9 +42,10 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 
 ### Repository and CI
 
-- The repository is private. GitHub Actions minutes are used up, so CI and
-  the Pages deploy do not run (#4). `pnpm verify` locally is the check that
-  counts.
+- The repository is private. GitHub Actions minutes are used up (#4), so
+  the CI workflow runs only when started by hand, and the Pages deploy does
+  not run. `pnpm verify` locally is the check that counts. A red or missing
+  `check` on a pull request says nothing about the code.
 - `pnpm ci` is a reserved pnpm command, which is why the all-in-one script is
   called `verify`.
 - TypeScript is pinned to 6.0, because typescript-eslint and svelte-check do
