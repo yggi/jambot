@@ -652,7 +652,8 @@ with the players converges.
 
 ## Experiments
 
-Each answers one entry. E1 has run; the others have not.
+Each answers one entry, or one of #7's decisions. E1 and E8 have run; the
+others have not.
 
 - **E1. Cold against warm compile** (S1, S2, F2; Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
@@ -689,8 +690,25 @@ Each answers one entry. E1 has run; the others have not.
 - **E7. The round trips** (F3, F4): for each boundary, up ∘ down against
   the identity, and the idempotence of down ∘ up. The time boundaries are
   measured (T4); the text boundary waits on #13, and the analyzer boundary
-  on #3. All are entries in [`quinetic.md`](quinetic.md), with the other quinetic
-  properties.
+  on #3. All are entries in [`quinetic.md`](quinetic.md), with the other
+  quinetic properties.
+- **E8. What the composer writes** (R4; #7's decisions (a) and (c), #9), in
+  [`prototype/experiments/census.mjs`](../prototype/experiments/census.mjs)
+  (`node prototype/experiments/census.mjs`, about 2 s). It counts the
+  score's tokens over E1's corpus: the numerals in `harm`, and the pitch
+  tokens in `bass` and `lead`.
+  - The keys are minor in 1,080 bars, dorian in 720 and major in 1,080; no
+    mixolydian.
+  - 3,064 numerals of 45 kinds, 110 of them secondaries. None has a `b` or
+    `#`, so the prototype's rule for them never reaches its own output. If
+    `b` and `#` counted from the parallel major, 516 of them (17%), all in
+    minor and dorian bars, would gain a `b`.
+  - 19,956 plain numbers, 314 with `#`, none with `b`, and 56 absolute
+    notes. Every absolute note is a flat the encoder couldn't write, because
+    `b3` and `b9` read as the notes B3 and B9: 27 are the ♭3 over V in A
+    minor, 29 a ♭9 or ♭2 over a dominant, a ninth chord or Imaj7. So `b3`
+    names two things, against R4, and with `b` as a flat the composer would
+    write no absolute note.
 
 The open decisions on #7, (a) to (d), are about meaning, and each is checked
 against this catalogue as it is made.

@@ -41,6 +41,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `experiments/`: measurements on the prototype for the language design
     - [`cold-warm.mjs`](../prototype/experiments/cold-warm.mjs): E1, whether
       a bar's text is self-contained
+    - [`census.mjs`](../prototype/experiments/census.mjs): E8, the numerals
+      and pitch tokens the composer writes
 - `packages/`
   - `theory/`: music theory on one primitive, pure TypeScript (#28)
     - `src/helix.ts`: the `Helix`, its two views (`positions`, `heightOf`,
