@@ -54,7 +54,12 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/second-opinion.test.ts`: the primitive, the names and the
       spelling checked against tonal
   - `engine/`: the musical engine, pure TypeScript
-    - `src/random.ts`: keyed deterministic randomness
+    - `src/machine.ts`: the contract every level keeps,
+      `advance(env, carried, input)`, and `lawBreaks`, which checks it
+    - `src/events.ts`: the note events the engine writes, and
+      `eventProblems`
+    - `src/random.ts`: keyed deterministic randomness, and quantised
+      `chance` and `pick`
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`

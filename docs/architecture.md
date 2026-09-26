@@ -78,7 +78,15 @@ of them. The package is created with its first ported module.
   sent, stored or replayed. It takes the style, the input history and a
   seed, and returns the score text and note events for bar _n_. All
   randomness is keyed by seed and position (see `random.ts`), so the same
-  inputs always give the same music.
+  inputs always give the same music. Its levels share one contract, a
+  Mealy machine (`machine.ts`): `advance(env, carried, input)` reads an
+  environment (the seed, the style and the plan at that position), carries
+  state (only what depends on the path, such as where the voices were),
+  hears an input, and writes an output. `lawBreaks` checks the contract:
+  the same arguments give the same result, the carried state survives
+  JSON, and advancing from a snapshot gives what the run gave. Until the
+  score package (#13) lands, the engine writes note events and the
+  transport plays them; the text step then goes between the two.
 - **Score text**: the contract between composing and playing. The composer
   writes each bar as text, and only the compiler turns text into notes.
   Overrides, tests and sync all work on this text.

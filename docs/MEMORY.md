@@ -30,6 +30,13 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
   `sister-names.test.ts`; a new one goes there first.
 - The theory's core relations, and the test that holds each, are in
   [`theory.md`](theory.md). A new relation gets its test and its line there.
+- An engine level is a `Machine` (`packages/engine/src/machine.ts`). A new
+  one gets a test that `lawBreaks(machine, script)` is empty, and the
+  events it writes a test that `eventProblems` finds none.
+- A random choice in the engine goes through `chance(draw, p)` or
+  `pick(draw, weights)`, never a bare `draw < p`: they quantise to 2^-16,
+  so a last-bit difference from `Math.pow` or `Math.sin` on another engine
+  does not change the music.
 - In the theory, a set is a `Helix`, `{ cycle, heights }`: the heights of
   degrees 0 to k − 1, with degree 0 wherever it stands. `positions(helix)` is
   the sorted view from the circle. `shift` moves heights (transposition) and
