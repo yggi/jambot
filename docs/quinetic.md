@@ -105,14 +105,20 @@ the run.** Same as S2.
 
 **Q5a. Every level is one type, and a slower level's output is held as a
 faster one's environment.**
-Witness: `Machine` at the section rate (`form`), the bar rate (`band`) and
-the tick rate (`transport`); the band holds each section for its eight bars.
+Witness: `Machine` at the section rate (`form`, and `planner`, which writes
+each section's form, key and theme), the bar rate (`band`) and the tick
+rate (`transport`). The band holds each section's plan for its eight bars.
+It does so by carrying the planner's state, whose `before` is the plan the
+planner last wrote, so what the band reads is the planner's output.
 Counterexample: a level that needs its own laws, or reads a slower level's
 state instead of its held output.
 Test: `machine.test.ts`, the laws with a machine that breaks each;
-`band.test.ts`, "holds each section for its eight bars (C3)". Open: the parts and
-the compiler, once each is a machine.
-Source: F1, C3, the law of recursion. Status: measured (form, band,
+`plan.test.ts`, "keeps the machine laws over a tour of the presets and their
+modes (F1, Q4a)"; `band.test.ts`, "holds each section for its eight bars (C3)"
+and "plays each section's plan: its key, and its theme bar by bar, changing
+only at a boundary (C3)", which checks every bar against the planner's
+output. Open: the parts and the compiler, once each is a machine.
+Source: F1, C3, the law of recursion. Status: measured (form, planner, band,
 transport); open (parts, compiler). Lands in: #37 step 5, #13.
 
 **Q5b. Helices under `compose` are a category.** Same as F6.

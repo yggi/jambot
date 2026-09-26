@@ -521,12 +521,20 @@ over 659,594 chains, each helix at every shift below its cycle.
 Source: `docs/theory.md` ("Composition"). Status: measured.
 
 **F7. Every feedback loop passes through a delay.**
-Witness: none yet; in the prototype the Muse judges a bar after it ends and
-plays a motif back two bars later. Pd refuses a signal loop without a delay
-for the same reason.
-Counterexample: a wiring of machines with a delay-free cycle.
-Test: open: a check over the wiring, with a wiring it rejects.
-Source: F1, Pd. Status: derived. Lands in: #25, Q6.
+Witness: the one loop that closes today, the players' key wish. The
+players hear the key and wish for another; the wish enters the band as its
+environment, not its state, and the band reads it only at a section
+boundary (C5, C6), so the loop is delayed by the rest of a section and a
+beat. In the prototype the Muse judges a bar after it ends and plays a
+motif back two bars later. Pd refuses a signal loop without a delay for the
+same reason.
+Counterexample: a wiring of machines with a delay-free cycle, or a wish
+heard inside the section it was sent in.
+Test: `player.test.ts`, "hears a preset's mode from the next section on
+(C5)", for the key wish. Open: a check over the wiring, with a wiring it
+rejects, once the Muse closes a loop inside the engine.
+Source: F1, Pd, #37 step 4. Status: derived; measured (the key wish). Lands
+in: #25, Q6.
 
 **F8. The jam is an infinite stream, made one position at a time.**
 Witness: the transport, whose every advance is bounded (T1). "The clock
