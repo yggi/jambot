@@ -45,8 +45,9 @@ describe('the app', () => {
     );
   });
 
-  it('still links to the prototype for the full band', () => {
+  it('links to the prototype for what it does not do yet: the score, MIDI out and the Muse', () => {
     render(App);
+    expect(screen.getByText(/drums, bass, chords and lead/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'prototype' })).toHaveAttribute(
       'href',
       '/prototype.html',

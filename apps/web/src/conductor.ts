@@ -10,7 +10,7 @@
  * at once, and the next start plays from it.
  *
  * A preset also wishes for its mode. The band moves its key toward the wish
- * at the next section it composes (`nextKey`), so a new key never cuts into
+ * at the next section it plans (`nextKey`), so a new key never cuts into
  * a section.
  */
 

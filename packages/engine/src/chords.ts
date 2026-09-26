@@ -34,7 +34,7 @@ export interface ChordEnv {
   readonly barInSection: number;
   readonly key: Key;
   readonly theme: Theme;
-  /** The harmony where the bar starts. */
+  /** The harmony it is coloured at: where the bar before it starts (`band.ts`). */
   readonly harm: number;
 }
 

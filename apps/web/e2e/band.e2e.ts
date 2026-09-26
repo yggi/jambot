@@ -1,8 +1,10 @@
 import { type Page, expect, test } from '@playwright/test';
 
 interface Start {
-  /** What started: a sine oscillator (a kick), a triangle (a snare's body), or noise. */
+  /** What started: an oscillator's type, or noise. */
   kind: string;
+  /** An oscillator's frequency as it starts: 440 for a kick, whose pitch only glides. */
+  frequency: number | null;
   when: number;
 }
 
@@ -30,8 +32,12 @@ async function listen(page: Page) {
         when = 0,
         ...rest: number[]
       ) {
-        const kind = this instanceof OscillatorNode ? this.type : 'noise';
-        w.starts.push({ kind, when });
+        const osc = this instanceof OscillatorNode ? this : null;
+        w.starts.push({
+          kind: osc?.type ?? 'noise',
+          frequency: osc?.frequency.value ?? null,
+          when,
+        });
         return start.call(this, when, ...rest);
       };
     }
@@ -124,11 +130,17 @@ test('plays every event once', async ({ page }) => {
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
   await page.waitForTimeout(3000);
-  // A kick starts one sine oscillator and a snare one triangle, so two of
-  // either at one instant would be an event played twice.
+  // A kick starts one sine oscillator whose pitch only glides (so it starts
+  // at 440 Hz), and a snare one triangle at 185 Hz, which no MIDI note is.
+  // Two of either at one instant would be an event played twice.
   const all = await starts(page);
-  for (const kind of ['sine', 'triangle']) {
-    const times = all.filter((s) => s.kind === kind).map((s) => s.when);
+  for (const [kind, frequency] of [
+    ['sine', 440],
+    ['triangle', 185],
+  ] as const) {
+    const times = all
+      .filter((s) => s.kind === kind && s.frequency === frequency)
+      .map((s) => s.when);
     expect(times.length).toBeGreaterThan(0);
     expect(new Set(times).size).toBe(times.length);
   }
@@ -174,4 +186,40 @@ test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   const found = new Set(phases(times, 148));
   expect(found.has(NaN)).toBe(false);
   expect(found.has(2 / 3)).toBe(true);
+});
+
+test('plays the full band: bass, chords and lead beside the drums', async ({ page }) => {
+  await listen(page);
+  // Deep house: a groove with harmony, and energy enough for the lead.
+  await page.getByRole('button', { name: 'Deep house' }).click();
+  await page.getByRole('slider', { name: /Energy/ }).fill('100');
+  await start(page);
+  // The intro is 8 bars; the lead joins after it, at 122 bpm about 16 s in.
+  await page.waitForTimeout(20000);
+  const all = await starts(page);
+  const midi = (f: number | null) =>
+    f !== null &&
+    Math.abs(12 * Math.log2(f / 440) + 69 - Math.round(12 * Math.log2(f / 440) + 69)) < 1e-6;
+  // The bass: a saw on a MIDI note in 33–57.
+  const bass = all.filter((s) => s.kind === 'sawtooth');
+  expect(bass.length).toBeGreaterThan(0);
+  for (const s of bass) {
+    expect(midi(s.frequency)).toBe(true);
+    const note = Math.round(12 * Math.log2(s.frequency! / 440) + 69);
+    expect(note).toBeGreaterThanOrEqual(33);
+    expect(note).toBeLessThanOrEqual(57);
+  }
+  // The chords: a sine detuned by 0.3 % beside each triangle.
+  const detuned = all.filter(
+    (s) => s.kind === 'sine' && s.frequency !== 440 && midi(s.frequency! / 1.003),
+  );
+  expect(detuned.length).toBeGreaterThan(0);
+  // The lead: a square on a MIDI note in 60–86.
+  const lead = all.filter((s) => s.kind === 'square');
+  expect(lead.length).toBeGreaterThan(0);
+  for (const s of lead) {
+    const note = Math.round(12 * Math.log2(s.frequency! / 440) + 69);
+    expect(note).toBeGreaterThanOrEqual(60);
+    expect(note).toBeLessThanOrEqual(86);
+  }
 });

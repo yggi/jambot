@@ -4,7 +4,9 @@ import type { BarEnv } from './bar.ts';
 import { DRUM_NOTES, drums } from './drums.ts';
 import { eventProblems } from './events.ts';
 import { SECTION_BARS, SECTION_TYPES, type SectionType, barEnergy } from './form.ts';
+import { INITIAL_KEY } from './key.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
+import { buildTheme, themeKind } from './themes.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const grid = range(11).map((i) => i / 10);
@@ -19,10 +21,24 @@ const envOf = (
 ): BarEnv => ({
   seed,
   bar: index * SECTION_BARS + barInSection,
-  section: { type, index },
+  plan: {
+    section: { type, index },
+    key: INITIAL_KEY,
+    theme: buildTheme({
+      seed,
+      index,
+      kind: themeKind(type),
+      key: INITIAL_KEY,
+      harm: style.harm,
+      entropy: style.entropy,
+      a: null,
+    }),
+  },
   barInSection,
   style,
   barEnergy: energy,
+  chords: [],
+  next: [],
 });
 
 const styles = PRESETS.map((p) => ({ ...p.style, entropy: 0.3 }));
@@ -80,7 +96,7 @@ describe('drums', () => {
   });
 
   it('play no kick in a breakdown', () => {
-    for (const env of sweep.filter((e) => e.section.type === 'breakdown'))
+    for (const env of sweep.filter((e) => e.plan.section.type === 'breakdown'))
       expect(stepsOf(env, [DRUM_NOTES.kick]).size).toBe(0);
   });
 

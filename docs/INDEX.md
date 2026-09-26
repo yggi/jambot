@@ -92,10 +92,17 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/plan.ts`: the section plan (form, key and theme), the machine
       at section rate
     - `src/chords.ts`: the chords of a bar, from its theme's slots, the
-      key and the bar's harmony, and their lead-sheet names
+      key and the harmony, and their lead-sheet names
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
-    - `src/band.ts`: the band, the machine at bar rate
+    - `src/bass.ts`: the bass, a machine that carries its last note
+    - `src/comp.ts`: the comp, pads and stabs, a machine that carries its
+      last voicing
+    - `src/lead.ts`: the lead, a machine that carries its last note, its
+      phrase and its themes' melodies
+    - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
+    - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
+      decides the next (`passBar` for a bar it doesn't play)
     - `src/transport.ts`: the transport, the machine at tick rate: it
       composes a beat before each bar and schedules on a clock
 - `tooling/`: tests for the repository's own gates
@@ -113,6 +120,10 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `licenses.ts`: the license gate over what the web app ships, and the
     `licenses.txt` it writes; `licenses.test.ts` shows it refusing copyleft
     and unknown licenses
+  - `pages.ts`: the GitHub Pages deploy by hand (`pnpm pages`): builds for
+    the sub-path, checks that the site resolves there, commits it to
+    `gh-pages` and checks the live site; `pages.test.ts` shows the check
+    failing on each kind of broken reference
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
@@ -127,11 +138,15 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/conductor.ts`: intents (presets, sliders) into glides on the
       style track
     - `src/audio/drums.ts`: the built-in drum kit
+    - `src/audio/voices.ts`: the built-in pitched voices: bass, chords and
+      lead, coloured by the bar's sound
     - `src/ticker.ts`: the scheduler's tick, from a Worker
     - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
       built app in Chromium with its audio measured
+    - `e2e/pages.e2e.ts`: the app and the prototype on the Pages sub-path,
+      online and offline
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e,
-  build; deploys `main` to GitHub Pages; started by hand while #4 is open
+  build; started by hand while #4 is open
 - `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents
   may run without a prompt
   - `.claude/hooks/session-start.sh`: installs dependencies, warms

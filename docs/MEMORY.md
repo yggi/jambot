@@ -12,6 +12,7 @@ pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
+pnpm pages deploy # publish main to GitHub Pages, and check the live site
 ```
 
 - Agent sessions (Claude Code) install dependencies and Playwright's
@@ -61,14 +62,23 @@ pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
   (form, key and theme) per section, the band per bar, the transport per
   tick. The players' key wish is a standing target, not an event: `nextKey`
   applied twice gives what it gave once, so the band can read it at every
-  section boundary.
+  section boundary. The web player only reads the audio clock and plays
+  what the transport schedules, so everything that decides what and when
+  is tested without a browser.
+- The band decides each bar when it composes the bar before: the section's
+  plan at a section's first bar, and the bar's chords. So a part can lead
+  into the next bar's chords (`BarEnv.next`), and they are what plays. A
+  bar the clock has passed is passed (`passBar`), not composed.
+- The e2e checks tell sounds apart by oscillator type and starting
+  frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
+  snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
+  chord note a triangle beside a sine 0.3 % sharp. A new voice keeps these
+  apart or updates `band.e2e.ts`.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A
-  bar's chords come from its theme's slots at the bar's harmony
-  (`barChords`); their colour draws are keyed by theme, bar and slot, so a
-  test that wants a rate must vary the seed or the theme, not the key. The web player only
-  reads the audio clock and plays what the transport schedules, so
-  everything that decides what and when is tested without a browser.
+  bar's chords come from its theme's slots (`barChords`); their colour
+  draws are keyed by theme, bar and slot, so a test that wants a rate must
+  vary the seed or the theme, not the key.
 - Swing is a time map, `swingMap(swing)`, with `played` and `written` as
   exact inverses. The transport plays through it, and player input reads
   back through `written`.
@@ -85,15 +95,33 @@ pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
 ### Repository and CI
 
 - The repository is private. GitHub Actions minutes are used up (#4), so
-  the CI workflow runs only when started by hand, and the Pages deploy does
-  not run. `pnpm verify` locally is the check that counts. A red or missing
-  `check` on a pull request says nothing about the code.
+  the CI workflow runs only when started by hand. `pnpm verify` locally is
+  the check that counts. A red or missing `check` on a pull request says
+  nothing about the code.
+- GitHub Pages is deployed by hand: `pnpm pages deploy` (`tooling/pages.ts`)
+  runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into
+  `apps/web/dist-pages`, checks that every file the site references resolves
+  there and that nothing is fetched from outside it, commits the build to the
+  `gh-pages` branch and pushes it. It then waits for the live site to serve
+  that build and checks it again. Pages publishes the branch as it is: the
+  repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
+  `pnpm pages build` and `pnpm pages serve` show the site on
+  `http://localhost:4318/jambot/` first, served as Pages serves it (404 for
+  what isn't a file, where `vite preview` would answer with the app).
+- `pnpm deploy` is a reserved pnpm command, which is why the deploy is
+  `pnpm pages deploy`.
 - `pnpm ci` is a reserved pnpm command, which is why the all-in-one script is
   called `verify`.
 - TypeScript is pinned to 6.0, because typescript-eslint and svelte-check do
   not support TypeScript 7 yet.
-- The web app's base path comes from `BASE_PATH` (CI sets `/jambot/` for
-  GitHub Pages). It defaults to `/`.
+- The web app's base path comes from `BASE_PATH` (`pnpm pages` sets
+  `/<repo>/`, from the `origin` remote). It defaults to `/`.
+- The service worker answers every navigation it doesn't precache with the
+  app's `index.html`, so a page it doesn't precache opens as the app, not
+  as itself. `apps/web/e2e/pages.e2e.ts` opens the prototype offline to
+  hold that it is precached.
+- The app and the prototype use system fonts and fetch nothing from
+  outside the site (#58).
 
 ### License
 
@@ -113,8 +141,8 @@ pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
   data, model weights or what the band plays. Lakh MIDI and Groove MIDI are
   CC-BY-4.0 (attribution); POP909 has a license of its own, to read before
   use.
-- Static assets aren't modules, so the gate doesn't see them. The
-  prototype's Google Fonts are #58.
+- Static assets aren't modules, so the gate doesn't see them. None comes
+  from elsewhere: the app and the prototype use system fonts (#58).
 
 ### Prototype
 

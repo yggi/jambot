@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { band } from './band.ts';
+import { type BandBar, band } from './band.ts';
 import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
@@ -87,8 +87,8 @@ describe('the transport', () => {
     const composed = new Map(outputs.flatMap((o) => o.composed).map((b) => [b.bar, b]));
     for (const s of steps) {
       const bar = composed.get(Math.floor(s.step / 16))!;
-      expect(s.section).toEqual(bar.section);
-      expect(s.key).toEqual(bar.key);
+      expect(s.section).toEqual(bar.plan.section);
+      expect(s.key).toEqual(bar.plan.key);
       expect(s.chord).toEqual(chordAt(bar.chords, s.step % 16));
     }
     steps
@@ -168,11 +168,17 @@ describe('the transport', () => {
     const steps = new Map(outputs.flatMap((o) => o.steps).map((s) => [s.step, s]));
     const bars = outputs.flatMap((o) => o.composed);
     const events = outputs.flatMap((o) => o.events);
-    const played = new Set(events.map((e) => `${e.bar}:${e.event.step}:${e.event.note}`));
+    const played = new Set(
+      events.map((e) => `${e.bar}:${e.event.part}:${e.event.step}:${e.event.note}`),
+    );
     // Every bar the steps have wholly passed through is played in full.
     const whole = bars.filter((b) => steps.has(b.bar * 16 + 15));
     for (const b of whole)
-      for (const e of b.events) expect(played.has(`${b.bar}:${e.step}:${e.note}`)).toBe(true);
+      for (const e of b.events)
+        expect(played.has(`${b.bar}:${e.part}:${e.step}:${e.note}`)).toBe(true);
+    // Each event sounds as its bar does.
+    const sounds = new Map(bars.map((b) => [b.bar, b.sound]));
+    for (const e of events) expect(e.sound).toEqual(sounds.get(e.bar));
     expect(events.length).toBe(played.size);
     const swing = swingOf(track);
     for (const e of events) {
@@ -243,16 +249,27 @@ describe('the transport', () => {
     expect(back.output.composed.length).toBeLessThan(3);
     expect(back.output.steps.length).toBeLessThan(4);
     for (const s of back.output.steps) expect(s.seconds + s.length).toBeGreaterThan(now);
-    // The form and the key went on through the stall: the band stands where an unbroken run would.
-    const unbroken = run(far, ticks(0.9, 100)).carried!;
-    let carried = unbroken;
-    while (carried.head.seconds + stepSeconds(styleAt(swung, carried.head.step).bpm) <= now)
-      carried = transport.advance(far, carried, {
+    // The form, the key and the chords went on through the stall: the bars
+    // composed after it are those an unbroken run composes there.
+    const unbroken = new Map<number, BandBar>();
+    let carried = run(far, ticks(0.9, 100)).carried!;
+    while (carried.head.seconds <= now + 1) {
+      const next = transport.advance(far, carried, {
         now: carried.head.seconds,
         until: carried.head.seconds + 4,
-      }).carried!;
-    expect(back.carried!.planned).toEqual(carried.planned);
-    expect(back.carried!.planned.before!.key).toEqual({ tonic: 2, mode: 'mixolydian' });
+      });
+      for (const b of next.output.composed) unbroken.set(b.bar, b);
+      carried = next.carried!;
+    }
+    expect(back.output.composed.length).toBeGreaterThan(0);
+    for (const b of back.output.composed) {
+      const there = unbroken.get(b.bar)!;
+      expect({ plan: b.plan, chords: b.chords }).toEqual({
+        plan: there.plan,
+        chords: there.chords,
+      });
+    }
+    expect(back.output.composed[0]!.plan.key).toEqual({ tonic: 2, mode: 'mixolydian' });
   });
 
   it('keeps the machine laws, with the style gliding under it (F1, Q4a)', () => {

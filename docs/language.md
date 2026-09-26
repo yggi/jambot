@@ -133,7 +133,10 @@ Counterexample: a bar that plays differently from the same environment and
 text. The prototype's score gives 1,949 (S1).
 Test: `drums.test.ts`, "are a function of the bar: the same environment plays
 the same bar (T5)"; `random.test.ts`, "is a pure function of seed and keys
-(T5)". Open for the pitched parts.
+(T5)"; `lead.test.ts`, "plays the same melody on an engine whose Math.sin is
+one ulp off, either way (T5)": the lead's contour, sin(π/6) times an odd
+span, lies one ulp from a half, so it is quantised before it is rounded.
+Open for the pitched parts' carried state (S2).
 Source: Strudel's query model, spirit. Status: measured (drums); measured,
 failing (the prototype's score, E1). Lands in: #37 step 5.
 
@@ -155,19 +158,27 @@ Status: measured. Lands in: Q4b.
 
 **S2. Whatever a bar reads from before it is written at the bar, as a key
 frame.**
-Witness: none yet. A key frame would hold register (an entry pitch per
-melodic part and the voicing), the next chord where `nx` is used, and the
-tempo trajectory. It never needs random state, since every draw names its
-stream.
-Counterexample: a bar that compiles differently cold and warm.
+Witness: none yet. The port's parts say what a key frame would hold: the
+bass's last note and the comp's last voicing (register), and the lead's
+last note, its phrase and its themes' melodies; the band already decides
+the next chord a bar ahead. It never needs random state, since every draw
+names its stream.
+Counterexample: a bar that compiles differently cold and warm. In the
+port's composer, a band resumed after passing bars plays the lead from
+another phrase: memory that is more than register.
 Test: `cold-warm.mjs`, which fails on the prototype today; the port's
 version lands with the pitched parts. `random.test.ts`, "names every stream
 with its own id, so no two decisions share their numbers (S2)" and "keeps
 every stream of every seed apart, neighbouring seeds included (S2)": with
 the stream's id mixed straight into the seed, seed 10's `drumVariation` drew
-exactly seed 11's `drumHit`, so the seed is mixed first.
-Source: T5, S1, #40's review.
-Status: measured, failing (prototype). Lands in: #37 step 5, #13.
+exactly seed 11's `drumHit`, so the seed is mixed first. `band.test.ts`,
+"carries register into the bass and the comp, but a phrase into the lead:
+what a resumed band loses (S2)": over 80 resumptions, the bass and the
+comp play the same rhythm and pitch classes, in another register; the lead
+differs in more than half.
+Source: T5, S1, #40's review, #37 step 5.
+Status: measured, failing (prototype); measured (the port's carried
+state). Lands in: #13.
 
 ### Change
 
@@ -210,17 +221,18 @@ Witness: the port's rates: the section plan per section (`planner`: the
 section kind, the key and the theme), the style for composing per bar
 (`band`), swing per beat (`swingOf`), tempo per step (`tempoMap`),
 scheduling per tick (`transport`, 25 ms). The band holds each section's
-plan for its eight bars.
+plan for its eight bars, and decides a bar, its plan and chords, when it
+composes the bar before, so what a part leads into is what plays.
 Counterexample: a value read at two rates that disagree, such as the
 prototype's tempo, which plays per step and is written once per bar (S1).
 Once a value has been read at its rate, it holds: a change in the middle of
 a beat re-swung the rest of that beat by up to 0.36 steps, so the transport
 keeps a started beat's swing.
 Test: `band.test.ts`, "holds each section for its eight bars (C3)" and
-"plays each section's plan: its key, and its theme's chords bar by bar,
-changing only at a boundary (C3)"; `tempo.test.ts`, "swings each beat by the swing where the beat starts (C3)";
-`transport.test.ts`, "keeps a beat’s swing once the beat has started,
-whatever the style does next (C3)".
+"plays each section's plan and its theme's chords, each decided when the
+bar before it is composed (C3)"; `tempo.test.ts`, "swings each beat by the
+swing where the beat starts (C3)"; `transport.test.ts`, "keeps a beat’s
+swing once the beat has started, whatever the style does next (C3)".
 Source: Pd's control and signal rates, multirate signal processing, #37
 step 3, #40's review. Status: measured (port); open (the rates the IM
 writes). Lands in: #13.
@@ -254,8 +266,10 @@ Witness: the transport. Tempo follows from the next step, swing from the
 next beat, and a composed part from the next bar composed, which is
 composed on the last beat of the bar before (`COMPOSE_AHEAD`, at least
 333 ms at 180 bpm): within the rest of the bar and a beat, at most 20 steps.
-A key, which lives per section, follows from the next section: within the
-rest of the section and a beat.
+What is decided a bar ahead waits a bar more: a chord's colour, from the
+next bar decided, within the rest of the bar, a bar and a beat; a key,
+which lives per section, from the next section planned, within the rest of
+the section, a bar and a beat.
 Counterexample: a change that waits longer. Composing a bar as the bar
 before starts made energy and sync wait 17 to 31 steps, so a slider's
 one-bar glide had ended before the drums heard it.
@@ -560,15 +574,17 @@ functional programming and category theory. Their names are in
 
 **F1. Every level is a Mealy machine, `advance(env, carried, input) →
 { carried', output }`, that keeps the machine laws.**
-Witness: `Machine` and `lawBreaks` (`machine.ts`); the form (section rate),
-the band (bar rate) and the transport (tick rate). A run is a causal stream
+Witness: `Machine` and `lawBreaks` (`machine.ts`); the form and the section
+plan (section rate), the band and its bass, comp and lead (bar rate) and
+the transport (tick rate). A run is a causal stream
 function: output n depends only on inputs up to n (Rutten, "Universal
 Coalgebra", 2000).
 Counterexample: a machine that keeps state out of sight, changes what it
 was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
-`form.test.ts`, `band.test.ts`, `transport.test.ts` and `plan.test.ts`,
-whose tests of the machine laws cite F1.
+`form.test.ts`, `band.test.ts`, `transport.test.ts`, `plan.test.ts`,
+`bass.test.ts`, `comp.test.ts` and `lead.test.ts`, whose tests of the
+machine laws cite F1.
 Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
 track. Lands in: Q4a.
 
@@ -661,9 +677,10 @@ These are where the decisions are.
    Either a bar means its events and the text writes register in (S2), or a
    bar means a step on the carried state and a snapshot reaches any bar
    (F2), or memory becomes named, written objects (motifs and themes as
-   named cells, an open thread). E1 and #37 step 3 narrow it: the drums
-   carry nothing, the band's carried state is one section, and the memory
-   that reaches the events is register alone.
+   named cells, an open thread). E1 and #37 steps 3 and 5 narrow it: the
+   drums carry nothing, the bass and the comp carry register alone, and the
+   lead carries a phrase and its themes' melodies, which reach its rhythm
+   and pitch (S2). So the third option is already how the lead works.
 2. **Discrete tokens against continuous change** (R2, C1). Glides are
    trajectories; the text is tokens sampled per bar.
 3. **Relative against absolute** (P1, A2). Baseband needs a lock, and messy
