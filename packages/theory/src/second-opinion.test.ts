@@ -15,6 +15,7 @@ import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
 import { read } from './read.ts';
 import { SCALES } from './scales.ts';
 import { spell } from './spelling.ts';
+import { chordScale } from './keys.ts';
 import { CHORD_QUALITIES } from './chords.ts';
 import { parseNote } from './notes.ts';
 import { normalizeWords } from './words.ts';
@@ -206,5 +207,40 @@ describe('tonal as a second opinion', () => {
       }
       expect(agreed).toBe(840);
     });
+  });
+
+  it("finds every implied chord scale among tonal's chord scales for that chord", () => {
+    // tonal's Chord.chordScales lists the scales that hold a chord, by its
+    // quality alone. Whatever the key, the implied scale must be one of them.
+    const symbols: Record<string, string> = {
+      major: '',
+      minor: 'm',
+      diminished: 'dim',
+      augmented: 'aug',
+      '7': '7',
+      maj7: 'maj7',
+      m7: 'm7',
+      m7b5: 'm7b5',
+      '9': '9',
+      maj9: 'maj9',
+      m9: 'm9',
+    };
+    let checked = 0;
+    for (const mode of ['aeolian', 'dorian', 'ionian', 'mixolydian'] as const) {
+      for (let root = 0; root < 12; root++) {
+        for (const [quality, symbol] of Object.entries(symbols)) {
+          const chord = CHORD_QUALITIES[quality]!.stack.map((x) => x + root);
+          const scale = chordScale(diatonicMode(mode), chord);
+          if (!scale) continue;
+          const fromRoot = scale.heights.map((x) => x - scale.heights[0]!).join();
+          const theirs = Chord.chordScales('C' + symbol).map((name) =>
+            setOfChroma(ScaleType.get(name).chroma).join(),
+          );
+          expect(theirs, `${mode}: ${root} ${quality} → ${fromRoot}`).toContain(fromRoot);
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBe(332);
   });
 });

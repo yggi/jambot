@@ -157,6 +157,63 @@ brightest stands on position b · g.
 
 Tests: `modes.test.ts`.
 
+## Keys
+
+A key is a scale on a tonic. The two keys next to it have their own names in
+music, and a key change is one of them, so nothing jumps:
+
+- `relative(key, scale)` keeps the notes and moves the tonic: C major to A
+  minor. It takes the scale on the position that shares the most notes with
+  the key; ties go to the fewest steps along the key's generator (the fifth),
+  then to the key's own tonic, then to the lowest position. That is the
+  prototype's `pivotRoot`, checked for every key and mode it plays, and for a
+  diatonic mode it is always a mode of the key.
+- `parallel(key, scale)` keeps the tonic and changes the notes: C major to C
+  minor.
+
+Tests: `keys.test.ts`.
+
+### The scale a chord implies
+
+`chordScale(key, chord)` answers #10: the scale that changes the fewest notes
+of the key while holding the chord as stacked thirds, entered at the chord's
+root. So chord tones 1 3 5 7 9 are its degrees 0 2 4 6 8, and 2 4 6 are the
+degrees between them. The candidates are the key and its parallel diatonic
+modes, and the key of each major or minor degree a fifth below the chord's
+root: ionian for a major target, harmonic minor for a minor one. Only a
+dominant fits there. A tie goes to the parallel mode, which keeps the tonic.
+Where none holds the chord, harmonic and then melodic minor on the tonic are
+tried. Otherwise the chord implies no scale, and the line has to state one.
+
+In C major and C minor this gives the usual jazz reading:
+
+| chord            | from                | scale               |
+| ---------------- | ------------------- | ------------------- |
+| ♭III, ♭IIImaj7   | C dorian            | E♭ lydian           |
+| ♭VI, ♭VImaj7     | C aeolian           | A♭ lydian           |
+| ♭VII, ♭VIImaj7   | C mixolydian        | B♭ lydian           |
+| ♭II              | C phrygian          | D♭ lydian           |
+| iv, ivm7         | C aeolian           | F dorian            |
+| V7/ii, V7/vi     | D, A harmonic minor | phrygian dominant   |
+| V7/V             | C lydian (G major)  | D mixolydian        |
+| V, V7 in C minor | C harmonic minor    | G phrygian dominant |
+| III+ in C minor  | C harmonic minor    | E♭ ionian ♯5        |
+| vii°7 in C minor | C harmonic minor    | B ultralocrian      |
+
+Two readings differ from other conventions. ♭VII7 takes B♭ mixolydian from C
+aeolian, where jazz often plays lydian dominant, which is no parallel mode.
+And I in C minor takes C mixolydian (a tie with V of iv keeps the tonic),
+where a Picardy third at a cadence is ionian. A line states its scale where
+it means otherwise.
+
+Over every chord of the grammar (11 qualities on 12 roots in the prototype's
+four modes), 332 imply a scale, and in each the chord tones are its degrees
+0 2 4 6 8 and 2 4 6 fall between them. Every borrowed chord and every
+dominant of a major or minor degree is among them. tonal's
+`Chord.chordScales` lists every one of the 332 scales for its chord.
+
+Tests: `keys.test.ts`, and `second-opinion.test.ts`.
+
 ## Composition: a helix on a helix's degrees
 
 `compose(inner, outer)` reads the inner heights as degrees of the outer

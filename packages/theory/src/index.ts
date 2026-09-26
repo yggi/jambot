@@ -2,6 +2,7 @@ export * from './chords.ts';
 export * from './even.ts';
 export * from './helix.ts';
 export * from './intervals.ts';
+export * from './keys.ts';
 export * from './modes.ts';
 export * from './notes.ts';
 export * from './read.ts';

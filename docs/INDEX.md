@@ -46,6 +46,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       accidentals, abbreviations)
     - `src/spelling.ts`: `spell` and `genericsOf`, the letter and accidental
       of each note from a spelled tonic
+    - `src/keys.ts`: `relative` and `parallel` keys, and `chordScale`, the
+      scale a chord implies in a key (#10)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here
