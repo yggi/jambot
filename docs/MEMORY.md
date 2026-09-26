@@ -19,6 +19,10 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 - An agent's `git push` runs `pnpm verify` first (`verify-before-push.sh`,
   about 30 s) and is blocked if it fails. It checks the working tree, so
   commit before pushing.
+- To review a pull request, use the `review-pr` skill:
+  `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`,
+  checks it out in its own worktree and runs `pnpm verify` there.
+  `git fetch origin pull/<n>/head` works through the session proxy.
 - To try the theory without a test, run its TypeScript source from the
   repository root, where `tonal` resolves too:
   `node --experimental-strip-types --no-warnings --input-type=module -e "import { read } from './packages/theory/src/index.ts'; console.log(read('C blues'))"`.

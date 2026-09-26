@@ -75,5 +75,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
     theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
     compares the two (`compare.mjs`)
+  - [`review-pr/`](../.claude/skills/review-pr/SKILL.md): reviews a pull
+    request against the house rules; `prepare.sh` fetches it into its own
+    worktree and runs `pnpm verify` there
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md):
   the checklist every pull request fills in
