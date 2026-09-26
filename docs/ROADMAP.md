@@ -19,8 +19,8 @@ The **working shape** (#37) is done: the new app plays the full band
 transport, the synth and minimal controls. It plays the engine's raw
 events, so it did not wait on the language design. What the prototype
 still does that the app doesn't is MIDI out (#24, with #5), inputs and the
-Muse (#25, #2), the score (#63) and most of the HUD (#26), including a key
-picker.
+Muse (#25, #2), the score (#63) and part of the HUD (#26): a key picker and
+the lead's status.
 
 These run in parallel:
 
