@@ -63,7 +63,7 @@ describe('swingMap', () => {
     expect(map.played(3) - 3).toBeCloseTo(1 / 3 - 1 / 36, 12);
   });
 
-  it('is undone by its inverse, both ways, on and off the grid', () => {
+  it('is undone by its inverse, both ways, on and off the grid (T4, Q1b)', () => {
     for (const swing of swings) {
       const map = swingMap(swing);
       for (const x of positions) {
@@ -73,7 +73,7 @@ describe('swingMap', () => {
     }
   });
 
-  it("shows that the prototype's delays are not what its unswing undoes", () => {
+  it("shows that the prototype's delays are not what its unswing undoes (T4, Q1b)", () => {
     // swing 0.75, step 3 (and 11): the prototype plays 3 + 1/3, and unswing
     // reads that back 0.04 steps late.
     expect(swingMap(0.75).written(3 + prototypeDelay(3, 0.75))).toBeCloseTo(3.04, 12);

@@ -8,7 +8,7 @@ import {
   styleAt,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { conduct, stopAt } from './conductor.ts';
+import { conduct, stopAt, wishAfter } from './conductor.ts';
 
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
 
@@ -52,5 +52,17 @@ describe('stopAt', () => {
     expect(styleAt(stopped, 0)).toEqual({ ...funk.style, entropy: INITIAL_STYLE.entropy });
     expect(styleAt(stopped, 1000)).toEqual(styleAt(stopped, 0));
     expect(styleAt(gliding, 16)).not.toEqual(styleAt(stopped, 0));
+  });
+});
+
+describe('wishAfter', () => {
+  it("wishes for a preset's mode, from any tonic, and leaves the wish to a slider", () => {
+    const deepHouse = PRESETS.find((p) => p.name === 'Deep house')!;
+    const wish = { tonic: 4, mode: 'ionian' } as const;
+    expect(wishAfter(wish, { kind: 'preset', preset: deepHouse })).toEqual({
+      tonic: null,
+      mode: 'dorian',
+    });
+    expect(wishAfter(wish, { kind: 'axis', axis: 'harm', value: 0.2 })).toBe(wish);
   });
 });

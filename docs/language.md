@@ -74,10 +74,10 @@ nothing plays late.**
 Witness: the transport, which advances from the head to now + 120 ms and
 drops what a stall made it miss.
 Counterexample: a stall after which events play late, or the grid moves.
-Test: `transport.test.ts`, "never waits: after a stall it drops what it
-missed and keeps the grid where it was" and "catches up after four
-hours’ stall within a lookahead, reporting the missed steps by count". Open
-for compiling: every text that parses compiles, in bounded time.
+Test: `transport.test.ts`, "never waits: after a stall it drops what it missed
+and keeps the grid where it was (T1)" and "catches up after four hours’ stall
+within a lookahead, reporting the missed steps by count (T1)". Open for
+compiling: every text that parses compiles, in bounded time.
 Source: spirit, #37 step 3. Status: measured (transport); open (compile).
 Lands in: #13.
 
@@ -106,13 +106,16 @@ Counterexample: a written position that doesn't read back from its played
 time. The prototype's `swingDelay` and `unswing` give one: they are off by
 up to 0.04 steps where both swing levels act (swing 0.5–1).
 Test: `swing.test.ts`, "is undone by its inverse, both ways, on and off the
-grid" and "shows that the prototype's delays are not what its unswing
-undoes"; `tempo.test.ts`, "keeps time rising through a tempo glide, and
-gives each position back from its time", and the four tests under
-"position and clock time" that cite (T4, Q1c): tempo glides from rest
-between the axis ends and every preset tempo at every length, 60 chains of
-retargets that carry their slope, brake or arrive early, the chain through
-swing, and a reading of clock time that runs backwards.
+grid (T4, Q1b)" and "shows that the prototype's delays are not what its
+unswing undoes (T4, Q1b)"; `tempo.test.ts`, "keeps time rising through a
+tempo glide, and gives each position back from its time (T4, Q1c)", and
+the four tests under "position and clock time" that cite (T4, Q1c):
+tempo glides from rest between the axis ends and every preset tempo at every
+length, 60 chains of retargets that carry their slope, brake or arrive
+early, the chain through swing, and a reading of clock time that runs
+backwards. In the built app, `band.e2e.ts`, "swings a swung preset into
+triplet 8ths (T4)": every onset in Chromium lies on a third of a step, the
+triplet offbeat among them.
 Source: time maps (Jaffe, "Ensemble Timing in Computer Music", 1985;
 Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Lands in:
 #37 (done), Q1b and Q1c.
@@ -123,9 +126,9 @@ Witness: the drums, a function of the bar's environment that carries
 nothing; randomness keyed by seed, position and a named stream.
 Counterexample: a bar that plays differently from the same environment and
 text. The prototype's score gives 1,949 (S1).
-Test: `drums.test.ts`, "are a function of the bar: the same environment
-plays the same bar"; `random.test.ts`, "is a pure function of seed and
-keys". Open for the pitched parts.
+Test: `drums.test.ts`, "are a function of the bar: the same environment plays
+the same bar (T5)"; `random.test.ts`, "is a pure function of seed and keys
+(T5)". Open for the pitched parts.
 Source: Strudel's query model, spirit. Status: measured (drums); measured,
 failing (the prototype's score, E1). Lands in: #37 step 5.
 
@@ -153,19 +156,35 @@ tempo trajectory. It never needs random state, since every draw names its
 stream.
 Counterexample: a bar that compiles differently cold and warm.
 Test: `cold-warm.mjs`, which fails on the prototype today; the port's
-version lands with the pitched parts.
-Source: T5, S1, `random.test.ts` ("names every stream with its own id").
+version lands with the pitched parts. `random.test.ts`, "names every stream
+with its own id, so no two decisions share their numbers (S2)" and "keeps
+every stream of every seed apart, neighbouring seeds included (S2)": with
+the stream's id mixed straight into the seed, seed 10's `drumVariation` drew
+exactly seed 11's `drumHit`, so the seed is mixed first.
+Source: T5, S1, #40's review.
 Status: measured, failing (prototype). Lands in: #37 step 5, #13.
 
 ### Change
 
 **C1. Nothing jumps: a change is a glide from where the value is, as fast
 as it was moving.**
-Witness: `glideTo` in `style.ts`: a glide (from, to, start, length) on an
-S-curve, which carries the running glide's value and rate.
-Counterexample: a new glide that starts from rest or from another value.
+Witness: `glideTo` in `style.ts`: a glide (from, to, start, length) that
+carries the running glide's value and rate. Heading for its target it is a
+cubic Hermite curve, which arrives sooner rather than overshoot
+(Fritsch–Carlson). Sent back, its carried motion brakes within what the glide
+before had left, and soon enough to peak inside the axis.
+Counterexample: a new glide that starts from rest or from another value;
+from rest, a slider drag plays harmony 0.476 at the end of an 8-step drag
+from 0.45 to 1, where carrying the rate plays 0.547. A glide sent back whose
+carry grows with the new length: a slider glide turned by a preset held
+harmony at the axis end for ten bars, with a rate the clamp hid.
 Test: `style.test.ts`, "nothing jumps: a new glide starts from where the
-running one is, and as fast, on every axis".
+running one is, and as fast, on every axis (C1)", "keeps moving while a
+slider is dragged (C1)", "turns back within what the glide before had left,
+whatever the new length (C1)", "stops its carry short of the axis end, when
+a long glide inherits fast motion (C1)" and "never rests at an axis end it
+was not sent to, and its rate is the slope of its value (C1)", the last over
+every order of two intents, every turning step and every axis.
 Source: spirit, Pd's `line~`. Status: measured (style axes); open (how the
 IM writes a glide, tension 2). Lands in: #37 (done), #13.
 
@@ -174,25 +193,84 @@ Witness: the style axes in `style.ts`, each with a range and a linear or
 logarithmic space; tempo glides in log space.
 Counterexample: a glide whose midpoint is not the midpoint of its space.
 The prototype glides every axis linearly.
-Test: `style.test.ts`, "have their ranges and the space they glide in" and
-"passes the midpoint of its space halfway: the mean, or for tempo the
-geometric mean" (104 bpm halfway from 60 to 180).
+Test: `style.test.ts`, "have their ranges and the space they glide in (C2)" and
+"passes the midpoint of its space halfway: the mean, or for tempo the geometric
+mean (C2)" (104 bpm halfway from 60 to 180).
 Source: LADSPA port hints. Status: measured (style axes); open (the `sound`
 parameters, E2). Lands in: #24.
 
 **C3. Each value lives at one rate, the slowest at which it is constant,
 and a slower level's output is held as a faster one's environment.**
-Witness: the port's rates: the section kind per section (`form`), the style
-for composing per bar (`band`), swing per beat (`swingOf`), tempo per step
-(`tempoMap`), scheduling per tick (`transport`, 25 ms). The band holds each
-section for its eight bars.
+Witness: the port's rates: the section plan per section (`planner`: the
+section kind, the key and the theme), the style for composing per bar
+(`band`), swing per beat (`swingOf`), tempo per step (`tempoMap`),
+scheduling per tick (`transport`, 25 ms). The band holds each section's
+plan for its eight bars.
 Counterexample: a value read at two rates that disagree, such as the
 prototype's tempo, which plays per step and is written once per bar (S1).
-Test: `band.test.ts`, "holds each section for its eight bars";
-`tempo.test.ts`, "swings each beat by the swing where the beat starts".
+Once a value has been read at its rate, it holds: a change in the middle of
+a beat re-swung the rest of that beat by up to 0.36 steps, so the transport
+keeps a started beat's swing.
+Test: `band.test.ts`, "holds each section for its eight bars (C3)" and
+"plays each section's plan: its key, and its theme bar by bar, changing
+only at a boundary (C3)"; `tempo.test.ts`, "swings each beat by the swing where the beat starts (C3)";
+`transport.test.ts`, "keeps a beat’s swing once the beat has started,
+whatever the style does next (C3)".
 Source: Pd's control and signal rates, multirate signal processing, #37
-step 3. Status: measured (port); open (the rates the IM writes). Lands in:
-#13.
+step 3, #40's review. Status: measured (port); open (the rates the IM
+writes). Lands in: #13.
+
+**C4. A rhythm morphs: as the style moves, hits come and go one at a time.**
+Witness: the drums, whose threshold per step and sound is drawn once per
+section, so a rising energy only adds kicks, snares and hats.
+Counterexample: a hit that goes as the energy rises. The rim gives one on
+purpose: it plays E(3,16), E(5,16) or E(7,16) as the energy crosses a third
+and two thirds, and the three are not nested, so hits move there (950 of
+192,000 energy steps took hits away in #40's review). The port keeps the
+prototype's named patterns over a nested ranking that would morph.
+Test: `drums.test.ts`, "morph with energy: raising it adds kicks, snares
+and hats, and never takes one away (C4)" and "switch the rim between Euclid
+patterns at energy ⅓ and ⅔, and otherwise only add to it (C4)".
+Source: the prototype README ("rhythm as morphing"), #37 step 3, #40's
+review. Status: measured (kick, snare, hats); measured, failing (the rim,
+by choice). Open: whether named patterns or a nested chain of them serve
+the music better. Lands in: #37 step 5 (the pitched parts' rhythms).
+
+**C5. A change is heard within a bound set by the rate it lives at.**
+Witness: the transport. Tempo follows from the next step, swing from the
+next beat, and a composed part from the next bar composed, which is
+composed on the last beat of the bar before (`COMPOSE_AHEAD`, at least
+333 ms at 180 bpm): within the rest of the bar and a beat, at most 20 steps.
+A key, which lives per section, follows from the next section: within the
+rest of the section and a beat.
+Counterexample: a change that waits longer. Composing a bar as the bar
+before starts made energy and sync wait 17 to 31 steps, so a slider's
+one-bar glide had ended before the drums heard it.
+Test: `transport.test.ts`, "hears a change in the drums within 20 steps:
+the rest of the bar and a beat (C5)", over a change at every step of three
+bars, and "composes each bar on the last beat of the bar before, and not
+sooner (C5)"; `player.test.ts`, "hears a preset's mode from the next
+section on (C5)".
+Source: #40's review, #37 step 4. Status: measured. Open: the lead the
+text step and the models need (L5), which the bound grows by. Lands in:
+#13, #26.
+
+**C6. What the players want is a target the band settles on, not an event
+it consumes: read again, it changes nothing.**
+Witness: the key wish. `nextKey(key, wish)` goes to the wished key in one
+step, pivoting on the most shared notes when only a mode is wished, and
+applied again gives what it gave once. So the band reads the wish at every
+section boundary, and what it plays does not depend on when or how often
+the wish was sent.
+Counterexample: a wish that moves again each time it is read, such as "up
+a fifth", or one consumed as an event, which the prototype must cut its
+plan back for (`replanFuture`) so that it lands at a boundary.
+Test: `key.test.ts`, "settle on a wish in one step: applied again, a wish
+changes nothing (C6)", over every key and wish; `plan.test.ts`, "settles on
+a steady wish: the key moves once, then stays (C6)".
+Source: #37 step 4; fixed points, #39. Status: measured (the key). Open:
+whether style intents read the same way (a glide is a target reached over
+time, C1), and how the IM writes a wish. Lands in: #13, #25, #39.
 
 ### Pitch
 
@@ -286,8 +364,8 @@ Witness: the transport sends both ends of a note through the time map
 (`tempo ∘ swing`), so a note is an interval of written time.
 Counterexample: a legato line that overlaps or gaps under swing, as in the
 prototype, which swings only the start.
-Test: `transport.test.ts`, "holds a note from its swung start to its swung
-end". Open: every note-on has its note-off on the MIDI port (#5, Q1d).
+Test: `transport.test.ts`, "holds a note from its swung start to its swung end
+(L2)". Open: every note-on has its note-off on the MIDI port (#5, Q1d).
 Source: MIDI (no durations), #37 step 3. Status: measured (the port's
 lengths); open (note-offs). Lands in: #24.
 
@@ -367,8 +445,8 @@ Coalgebra", 2000).
 Counterexample: a machine that keeps state out of sight, changes what it
 was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
-`form.test.ts`, `band.test.ts` and `transport.test.ts`, whose tests of the
-machine laws cite F1.
+`form.test.ts`, `band.test.ts`, `transport.test.ts` and `plan.test.ts`,
+whose tests of the machine laws cite F1.
 Source: #37 step 1. Status: measured. Lands in: Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
@@ -414,7 +492,7 @@ relative coordinates whose origin the level above supplies (Lewin's
 generalized interval systems).
 Counterexample: a duplicate note-on. The prototype sends one in 163 of
 2,560 bars, on every preset (`docs/prototype.md`).
-Test: `drums.test.ts`, "strike each sound at most once per step, in order".
+Test: `drums.test.ts`, "strike each sound at most once per step, in order (F5)".
 Open: the pitched parts, and #5's pad and stab overlap.
 Source: #37 step 3, Hudak's algebra of polymorphic temporal media (2004).
 Status: measured (drums). Lands in: #37 step 5.
@@ -563,7 +641,7 @@ with the players converges.
 
 Each answers one entry. E1 has run; the others have not.
 
-- **E1. Cold against warm compile** (S1, S2, F2, Q4b), in
+- **E1. Cold against warm compile** (S1, S2, F2; Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
   (`node prototype/experiments/cold-warm.mjs`, about 3 s). It runs the
   prototype headless for 64 bars in each of the eight presets and in a tour

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { band } from './band.ts';
+import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import {
   INITIAL_STYLE,
@@ -53,7 +54,7 @@ const runChanging = (
   let changedAt: number | null = null;
   const outputs: TransportOutput[] = [];
   for (const input of inputs) {
-    const next = transport.advance({ seed: 11, start: 1, track }, carried, input);
+    const next = transport.advance(env(track), carried, input);
     carried = next.carried;
     outputs.push(next.output);
     if (changedAt === null && carried!.head.step >= at) {
@@ -65,7 +66,10 @@ const runChanging = (
 };
 
 const swung = holding({ ...PRESETS[4]!.style, entropy: 0.3 }); // Lo-fi hip hop, 84 bpm
-const env = (track: StyleTrack = swung): TransportEnv => ({ seed: 11, start: 1, track });
+const env = (
+  track: StyleTrack = swung,
+  wish: KeyWish = { tonic: null, mode: PRESETS[4]!.mode },
+): TransportEnv => ({ seed: 11, start: 1, track, wish });
 
 describe('the transport', () => {
   it('schedules 120 ms ahead', () => expect(LOOKAHEAD).toBe(0.12));
@@ -96,7 +100,7 @@ describe('the transport', () => {
     });
   });
 
-  it('composes each bar on the last beat of the bar before, and not sooner', () => {
+  it('composes each bar on the last beat of the bar before, and not sooner (C5)', () => {
     // A beat is at least 333 ms even at 180 bpm, nearly three lookaheads.
     expect(COMPOSE_AHEAD).toBe(4);
     const { outputs } = run(env(), ticks(0.9, 800));
@@ -109,7 +113,7 @@ describe('the transport', () => {
     expect(composed).toEqual(range(composed.length));
   });
 
-  it('hears a change in the drums within 20 steps: the rest of the bar and a beat', () => {
+  it('hears a change in the drums within 20 steps: the rest of the bar and a beat (C5)', () => {
     // Energy 0.5 plays at 0.2 in the intro, so any rise shows.
     const track = holding({ ...INITIAL_STYLE, energy: 0.5 });
     let longest = 0;
@@ -126,7 +130,7 @@ describe('the transport', () => {
     expect(longest).toBeGreaterThan(16);
   });
 
-  it('keeps a beat’s swing once the beat has started, whatever the style does next', () => {
+  it('keeps a beat’s swing once the beat has started, whatever the style does next (C3)', () => {
     // Swing gliding up, then sent back to straight in the middle of a beat:
     // the rest of that beat plays as it would have. Reading the track again
     // moved it by up to 0.36 steps.
@@ -175,7 +179,7 @@ describe('the transport', () => {
     }
   });
 
-  it('holds a note from its swung start to its swung end', () => {
+  it('holds a note from its swung start to its swung end (L2)', () => {
     // Both ends of a note go through the map, so a legato line stays legato
     // under swing. The prototype swings only the start.
     const { outputs } = run(env(), ticks(0.9, 400));
@@ -193,7 +197,7 @@ describe('the transport', () => {
     }
   });
 
-  it('never waits: after a stall it drops what it missed and keeps the grid where it was', () => {
+  it('never waits: after a stall it drops what it missed and keeps the grid where it was (T1)', () => {
     // Time is absolute. Steps that start while the clock was stalled are not
     // played late in a burst, as in the prototype; the grid stays in place.
     const dense = holding({ ...INITIAL_STYLE, energy: 1 });
@@ -218,12 +222,14 @@ describe('the transport', () => {
     expect(window.length).toBeGreaterThan(0);
   });
 
-  it('catches up after four hours’ stall within a lookahead, reporting the missed steps by count', () => {
-    const before = run(env(), ticks(0.9, 100));
+  it('catches up after four hours’ stall within a lookahead, reporting the missed steps by count (T1)', () => {
+    // A wish for another key, so the stall passes key changes too.
+    const far = env(swung, { tonic: 2, mode: 'mixolydian' });
+    const before = run(far, ticks(0.9, 100));
     // An event's night: four hours with the tab's clock stopped.
     const now = 0.9 + 100 * 0.025 + 4 * 3600;
     const started = Date.now();
-    const back = transport.advance(env(), before.carried, { now, until: now + LOOKAHEAD });
+    const back = transport.advance(far, before.carried, { now, until: now + LOOKAHEAD });
     const took = Date.now() - started;
     expect(took).toBeLessThan(LOOKAHEAD * 1000);
     // 84 bpm is 5.6 steps a second.
@@ -231,15 +237,16 @@ describe('the transport', () => {
     expect(back.output.composed.length).toBeLessThan(3);
     expect(back.output.steps.length).toBeLessThan(4);
     for (const s of back.output.steps) expect(s.seconds + s.length).toBeGreaterThan(now);
-    // The form went on through the stall: the band stands where an unbroken run would.
-    const unbroken = run(env(), ticks(0.9, 100)).carried!;
+    // The form and the key went on through the stall: the band stands where an unbroken run would.
+    const unbroken = run(far, ticks(0.9, 100)).carried!;
     let carried = unbroken;
     while (carried.head.seconds + stepSeconds(styleAt(swung, carried.head.step).bpm) <= now)
-      carried = transport.advance(env(), carried, {
+      carried = transport.advance(far, carried, {
         now: carried.head.seconds,
         until: carried.head.seconds + 4,
       }).carried!;
-    expect(back.carried!.section).toEqual(carried.section);
+    expect(back.carried!.planned).toEqual(carried.planned);
+    expect(back.carried!.planned.before!.key).toEqual({ tonic: 2, mode: 'mixolydian' });
   });
 
   it('keeps the machine laws, with the style gliding under it (F1, Q4a)', () => {
@@ -257,7 +264,7 @@ describe('the transport', () => {
     let carried = band.initial;
     for (const b of outputs.flatMap((o) => o.composed)) {
       const next = band.advance(
-        { seed: 11, bar: b.bar, style: styleAt(track, b.bar * 16) },
+        { seed: 11, bar: b.bar, style: styleAt(track, b.bar * 16), wish: env().wish },
         carried,
         null,
       );

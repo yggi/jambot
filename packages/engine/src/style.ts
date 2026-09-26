@@ -10,7 +10,7 @@
  * Positions are steps of the song, counted from its start, 16 to a bar.
  */
 
-import type { DiatonicModeName } from '@jambot/theory';
+import type { ComposerMode } from './key.ts';
 
 export interface AxisRange {
   readonly min: number;
@@ -70,7 +70,7 @@ export type StyleTrack = Readonly<Record<Axis, Glide>>;
 
 export interface Preset {
   readonly name: string;
-  readonly mode: DiatonicModeName;
+  readonly mode: ComposerMode;
   /** Every axis but entropy, which stays where the players put it. */
   readonly style: Readonly<Record<Exclude<Axis, 'entropy'>, number>>;
 }
@@ -80,7 +80,7 @@ type PresetAxes = [number, number, number, number, number, number];
 
 const preset = (
   name: string,
-  mode: DiatonicModeName,
+  mode: ComposerMode,
   [swing, sync, harm, artic, energy, bpm]: PresetAxes,
 ): Preset => ({ name, mode, style: { swing, sync, harm, artic, energy, bpm } });
 

@@ -57,10 +57,9 @@ position comes back from where it is played, at every swing.**
 Witness: `swingMap` and `swingOf`, exact to 1e-12 on and off the grid.
 Counterexample: the prototype's `swingDelay` read back by its `unswing`,
 0.04 steps off at swing 0.75.
-Test: `swing.test.ts`, "is undone by its inverse, both ways, on and off the
-grid" and "shows that the prototype's delays are not what its unswing
-undoes"; `tempo.test.ts`, "stays in order and invertible across beats that
-swing differently".
+Test: `swing.test.ts`, whose tests of the inverse and of the prototype's
+delays cite Q1b; `tempo.test.ts`, "stays in order and invertible across
+beats that swing differently".
 Source: F3, T4, #37 step 2. Status: measured. Lands in: #37 (done).
 
 **Q1c. Position and clock time round-trip through tempo glides: time rises
@@ -68,9 +67,8 @@ with position, and position comes back from time.**
 Witness: `tempoMap`, composed after `swingOf`.
 Counterexample: seconds read as position × the step length there, which
 runs backwards through a glide from 72 to 148 bpm.
-Test: `tempo.test.ts`, "keeps time rising through a tempo glide, and gives
-each position back from its time", and the tests under "position and clock
-time" that cite Q1c.
+Test: `tempo.test.ts`, whose tests of a glide's round trip, and those under
+"position and clock time", cite Q1c.
 Source: F3, T4, #37 step 3. Status: measured. Lands in: #37 (done), #23.
 
 **Q1d. Events and MIDI round-trip: events sent as MIDI and read back are
@@ -112,7 +110,7 @@ the tick rate (`transport`); the band holds each section for its eight bars.
 Counterexample: a level that needs its own laws, or reads a slower level's
 state instead of its held output.
 Test: `machine.test.ts`, the laws with a machine that breaks each;
-`band.test.ts`, "holds each section for its eight bars". Open: the parts and
+`band.test.ts`, "holds each section for its eight bars (C3)". Open: the parts and
 the compiler, once each is a machine.
 Source: F1, C3, the law of recursion. Status: measured (form, band,
 transport); open (parts, compiler). Lands in: #37 step 5, #13.
@@ -142,13 +140,18 @@ Test: open: the critic's style distance over time, with the loop closed.
 Source: the prototype README. Status: speculative. Lands in: #15, #16.
 
 **Q8. A theme is a fixed point that returns: the section machine writes the
-same plan again.**
-Witness: none yet; the prototype's themes come back until the style drifts.
-Counterexample: a returning theme whose plan differs from its first.
-Test: open: how often themes recur against entropy and style drift, and
-whether a return is exactly the same plan.
-Source: the prototype's Quinetics parallels. Status: speculative. Lands in:
-#37 step 4.
+same theme again while the style stays near it.**
+Witness: `plan`, the section machine. An A or B theme comes back while the
+style stays near it, and is built anew when the harmony has moved more than
+0.2 from it, when the mode changes, or at random, the more often the higher
+the entropy.
+Counterexample: a returning theme that differs from its first while the
+style held, or one that returns after the style has drifted.
+Test: `plan.test.ts`, whose theme-return tests cite Q8. Open: whether a
+return is a fixed point in more than name, such as the melody coming back
+with its harmony (#37 step 5).
+Source: the prototype's Quinetics parallels, #37 step 4. Status: measured
+(the plan); speculative (fixed point). Lands in: #37 step 5.
 
 ## Not a property
 

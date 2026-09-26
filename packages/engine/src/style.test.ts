@@ -21,7 +21,7 @@ const across = (axis: Axis, n = 9) =>
   range(n).map((i) => AXES[axis].min + ((AXES[axis].max - AXES[axis].min) * i) / (n - 1));
 
 describe('the axes', () => {
-  it('have their ranges and the space they glide in', () => {
+  it('have their ranges and the space they glide in (C2)', () => {
     expect(AXIS_NAMES).toEqual(['swing', 'sync', 'harm', 'artic', 'energy', 'entropy', 'bpm']);
     for (const axis of AXIS_NAMES.filter((a) => a !== 'bpm'))
       expect(AXES[axis]).toEqual({ min: 0, max: 1, space: 'linear' });
@@ -100,7 +100,7 @@ describe('valueAt', () => {
     }
   });
 
-  it('passes the midpoint of its space halfway: the mean, or for tempo the geometric mean', () => {
+  it('passes the midpoint of its space halfway: the mean, or for tempo the geometric mean (C2)', () => {
     expect(valueAt('harm', linear, 64)).toBe(0.5);
     expect(valueAt('bpm', tempo, 64)).toBeCloseTo(Math.sqrt(80 * 160), 10);
     expect(
@@ -125,7 +125,7 @@ describe('valueAt', () => {
 });
 
 describe('glideTo', () => {
-  it('nothing jumps: a new glide starts from where the running one is, and as fast, on every axis', () => {
+  it('nothing jumps: a new glide starts from where the running one is, and as fast, on every axis (C1)', () => {
     for (const axis of AXIS_NAMES) {
       let track = holding(INITIAL_STYLE);
       // Retarget again and again, most of the time in the middle of a glide,
@@ -142,7 +142,7 @@ describe('glideTo', () => {
     }
   });
 
-  it('keeps moving while a slider is dragged', () => {
+  it('keeps moving while a slider is dragged (C1)', () => {
     // A drag of harm from 0.45 to 1 over 8 steps (1 s at 120 bpm), sending 30
     // retargets a second, each from the next step to be scheduled. What is
     // played at each step is read from the track as it stands then. Starting
@@ -194,7 +194,7 @@ describe('glideTo', () => {
     }
   });
 
-  it('turns back within what the glide before had left, whatever the new length', () => {
+  it('turns back within what the glide before had left, whatever the new length (C1)', () => {
     // A slider glide (one bar) sent back by a preset (eight bars): the motion
     // it carries dies away within the four steps the slider had left, so the
     // carry past the turn is bounded by slope × 4 × 4/27, not by the preset's
@@ -209,7 +209,7 @@ describe('glideTo', () => {
     expect(harm.at(-1)).toBe(0.3);
   });
 
-  it('stops its carry short of the axis end, when a long glide inherits fast motion', () => {
+  it('stops its carry short of the axis end, when a long glide inherits fast motion (C1)', () => {
     // Quick reversals build up speed that a long glide then inherits: here
     // harm 0.489 moving up at 0.067 a step, with 127 steps of the last glide
     // left, sent to 0. Carried that long, it would pass the axis end by 1.26
@@ -228,7 +228,7 @@ describe('glideTo', () => {
     expect(harm.at(-1)).toBe(0);
   });
 
-  it('never rests at an axis end it was not sent to, and its rate is the slope of its value', () => {
+  it('never rests at an axis end it was not sent to, and its rate is the slope of its value (C1)', () => {
     // Every order of two intents, a slider or a preset and then a slider or
     // a preset, turned at every step of the first, on every axis.
     const lengths = [SLIDER_GLIDE, PRESET_GLIDE];

@@ -50,6 +50,10 @@ export const STREAMS = {
   drumVelocity: 4,
   /** The rotation of the Euclidean percussion, per section. */
   drumEuclid: 5,
+  /** A theme's choices, in order, per section: vamp, degrees, secondaries. */
+  theme: 6,
+  /** Whether a returning theme is built anew all the same, per section. */
+  themeRenewal: 7,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

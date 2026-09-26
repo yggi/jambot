@@ -35,7 +35,7 @@ describe('keyedRng', () => {
     expect(keyedRandom(12345, 11, 0, 3, 7)).toBe(0.9658289530780166);
   });
 
-  it('is a pure function of seed and keys', () => {
+  it('is a pure function of seed and keys (T5)', () => {
     expect(keyedRandom(7, 1, 2, 3)).toBe(keyedRandom(7, 1, 2, 3));
     expect(keyedRandom(7, 1, 2, 3)).not.toBe(keyedRandom(7, 1, 2, 4));
     expect(keyedRandom(7, 1, 2, 3)).not.toBe(keyedRandom(8, 1, 2, 3));
@@ -161,13 +161,13 @@ describe('pick', () => {
 });
 
 describe('draw', () => {
-  it('names every stream with its own id, so no two decisions share their numbers', () => {
+  it('names every stream with its own id, so no two decisions share their numbers (S2)', () => {
     const ids = Object.values(STREAMS);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(Number.isInteger(id) && id > 0).toBe(true);
   });
 
-  it('keeps every stream of every seed apart, neighbouring seeds included', () => {
+  it('keeps every stream of every seed apart, neighbouring seeds included (S2)', () => {
     // With the stream id mixed straight into the seed, seed 10's
     // drumVariation drew exactly seed 11's drumHit.
     const seen = new Map<string, string>();

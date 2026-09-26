@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type Axis, PRESETS, type SectionType } from '@jambot/engine';
+  import { type Axis, PRESETS, type SectionType, keyName } from '@jambot/engine';
   import { Player } from './player.svelte.ts';
 
   const player = new Player();
@@ -95,7 +95,10 @@
       <span class="section">
         {player.position ? SECTION_NAMES[player.position.section] : player.playing ? '…' : 'Ready'}
       </span>
-      {#if player.position}<span>Bar {player.position.bar + 1}</span>{/if}
+      {#if player.position}
+        <span>{keyName(player.position.key)}</span>
+        <span>Bar {player.position.bar + 1}</span>
+      {/if}
     </div>
     <div class="beats" aria-hidden="true">
       {#each [0, 1, 2, 3] as beat (beat)}
