@@ -15,7 +15,9 @@
  * crossfading from the 16th level to the 8th on the way.
  */
 
-/** Positions in steps; a beat is 4 steps. */
+import { type StyleTrack, valueAt } from './style.ts';
+
+/** Positions in steps, a beat being 4, or on a clock in seconds. */
 export interface TimeMap {
   /** Where a written position is played. */
   played(written: number): number;
@@ -43,6 +45,17 @@ export function swingParts(swing: number): { sixteenth: number; eighth: number }
 export function swingMap(swing: number): TimeMap {
   const { sixteenth, eighth } = swingParts(swing);
   return composeTimeMaps(swingLevel(2, sixteenth), swingLevel(4, eighth));
+}
+
+/**
+ * The swing a style track plays: each beat swings by the swing where it
+ * starts. Every beat's map keeps the beat's ends, so beats that swing
+ * differently still join in order, and the whole stays invertible. A beat
+ * is the finest rate at which that holds.
+ */
+export function swingOf(track: StyleTrack): TimeMap {
+  const at = (x: number) => swingMap(valueAt('swing', track.swing, 4 * Math.floor(x / 4)));
+  return { played: (x) => at(x).played(x), written: (y) => at(y).written(y) };
 }
 
 /**

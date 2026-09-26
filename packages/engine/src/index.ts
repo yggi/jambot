@@ -7,3 +7,5 @@ export * from './machine.ts';
 export * from './random.ts';
 export * from './style.ts';
 export * from './swing.ts';
+export * from './tempo.ts';
+export * from './transport.ts';
