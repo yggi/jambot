@@ -54,9 +54,14 @@ export const STREAMS = {
 
 export type Stream = keyof typeof STREAMS;
 
-/** A draw in [0, 1) for one decision, keyed by the seed and its position. */
+/**
+ * A draw in [0, 1) for one decision, keyed by the seed and its position. The
+ * seed is mixed before the stream's id (a first key of 0), so two streams
+ * only share their numbers across seeds that lie far apart at random, never
+ * across neighbouring seeds as `seed ^ id` would.
+ */
 export function draw(seed: number, stream: Stream, ...keys: number[]): number {
-  return keyedRandom(seed, STREAMS[stream], ...keys);
+  return keyedRandom(seed, 0, STREAMS[stream], ...keys);
 }
 
 /**

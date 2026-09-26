@@ -167,8 +167,16 @@ describe('draw', () => {
     for (const id of ids) expect(Number.isInteger(id) && id > 0).toBe(true);
   });
 
-  it('is the keyed draw on the stream’s id', () => {
-    expect(draw(7, 'form', 3)).toBe(keyedRandom(7, STREAMS.form, 3));
+  it('keeps every stream of every seed apart, neighbouring seeds included', () => {
+    // With the stream id mixed straight into the seed, seed 10's
+    // drumVariation drew exactly seed 11's drumHit.
+    const seen = new Map<string, string>();
+    for (let seed = 0; seed < 256; seed++)
+      for (const stream of Object.keys(STREAMS) as (keyof typeof STREAMS)[]) {
+        const draws = [0, 1, 2].map((k) => draw(seed, stream, k, 5)).join();
+        expect(seen.get(draws)).toBeUndefined();
+        seen.set(draws, `${seed} ${stream}`);
+      }
     expect(draw(7, 'form', 3)).not.toBe(draw(7, 'drumHit', 3));
   });
 });

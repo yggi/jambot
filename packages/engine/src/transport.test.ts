@@ -206,13 +206,15 @@ describe('the transport', () => {
     const resumed = 0.9 + 100 * 0.025 + 3;
     const late = stalled.outputs.slice(100).flatMap((o) => o.events);
     for (const e of late) expect(e.seconds).toBeGreaterThanOrEqual(resumed);
-    // The first tick back plays exactly what the steady run plays in its
-    // window: only what the clock passed is dropped.
+    // The first ten ticks back play exactly what the steady run plays in
+    // their span: only what the clock passed is dropped.
     const key = (e: TimedEvent) => `${e.bar}:${e.event.step}:${e.event.note}:${e.seconds}`;
+    const span = resumed + 9 * 0.025 + LOOKAHEAD;
     const window = steady.outputs
       .flatMap((o) => o.events)
-      .filter((e) => e.seconds >= resumed && e.seconds < resumed + LOOKAHEAD);
-    expect(stalled.outputs[100]!.events.map(key)).toEqual(window.map(key));
+      .filter((e) => e.seconds >= resumed && e.seconds < span);
+    const back = stalled.outputs.slice(100, 110).flatMap((o) => o.events);
+    expect(back.map(key)).toEqual(window.map(key));
     expect(window.length).toBeGreaterThan(0);
   });
 
