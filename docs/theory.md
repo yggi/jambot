@@ -93,6 +93,18 @@ nor the choice of degree 0 changes that.
 
 Tests: `even.test.ts`.
 
+### In Fourier space
+
+Seen as a set of positions in n, `even(k, n)` has the largest k-th Fourier
+magnitude |F_k| of any k of n, and only its shifts reach it: every
+1 ≤ k < n ≤ 16, over every subset. A shift multiplies each coefficient by a
+phase and `mirror` conjugates it, so the magnitudes don't change under
+either. For pitch sets the phase of F_5 is a place on the circle of fifths
+(Amiot, _Music Through Fourier Space_, 2016). The language catalogue uses
+this as P4 ([language](language.md)).
+
+Tests: `even.test.ts`, "even helices in Fourier space".
+
 ## Generic and specific
 
 An interval can be counted in degrees or in height. A **generic** interval
