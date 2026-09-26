@@ -8,7 +8,7 @@ description: Review a Jambot pull request. Fetches it into its own worktree, ins
 ## 1. Prepare
 
 ```sh
-.claude/skills/review-pr/prepare.sh <number | branch> [--from <commit>] [worktree directory]
+.claude/skills/review-pr/prepare.sh <number | branch> [--from <commit>] [--against <number | branch>] [worktree directory]
 ```
 
 If your checkout doesn't have the script, your branch is behind `main`;
@@ -28,7 +28,16 @@ worktree (put it in your scratchpad if you have one), runs
   end-to-end tests, the result of `pnpm e2e` with theirs;
 - when `main` has moved on since the pull request branched, how far, and
   the files a merge would conflict in: say so in the review;
+- with `--against`, the files the pull request conflicts in with another
+  one: say so in both reviews;
+- when a check fails, vitest's block of failed tests, or the end of the
+  output where there is none;
 - the commands to read the diff and to remove the worktree.
+
+To review several pull requests, start them all: each one's checks wait
+for the one before, which says so on stderr. Run in parallel, the load
+times out timing-sensitive tests, and the end-to-end runs share port 4317,
+so one could test the other's build.
 
 To review part of a pull request, such as the steps after an earlier
 review, pass `--from <commit>`. The commits and the diff are then what the
