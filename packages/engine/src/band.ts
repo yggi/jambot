@@ -11,7 +11,8 @@
  *
  * It carries the plan's state, the bar it decided, and what its parts carry.
  * The parts play side by side from the same bar: the drums, the bass, the
- * comp and the lead.
+ * comp and the lead. What they write, the band plays through the
+ * performance (`perform.ts`, T4).
  */
 
 import type { BarEnv } from './bar.ts';
@@ -20,10 +21,11 @@ import { bass } from './bass.ts';
 import { comp } from './comp.ts';
 import { type LeadCarried, lead } from './lead.ts';
 import { drums } from './drums.ts';
-import type { NoteEvent } from './events.ts';
+import type { NoteEvent, WrittenNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import type { KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import { perform } from './perform.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
 import { type Sound, soundOf } from './sound.ts';
 import type { Style } from './style.ts';
@@ -63,8 +65,13 @@ export interface BandCarried {
   readonly parts: PartsCarried;
 }
 
-/** One bar as the band plays it: everything its parts read, the events they play, and how they sound. */
+/**
+ * One bar as the band plays it: everything its parts read, the notes they
+ * write, the events those play as, and how they sound.
+ */
 export interface BandBar extends BarEnv {
+  readonly written: readonly WrittenNote[];
+  /** The written notes, each played by the performance. */
   readonly events: readonly NoteEvent[];
   readonly sound: Sound;
 }
@@ -137,8 +144,9 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
     const comping = comp.advance(bar, carried.parts.comp, null);
     const melody = lead.advance(bar, carried.parts.lead, null);
     const parts = { bass: bassline.carried, comp: comping.carried, lead: melody.carried };
-    const events = [...drums(bar), ...bassline.output, ...comping.output, ...melody.output];
+    const written = [...drums(bar), ...bassline.output, ...comping.output, ...melody.output];
+    const events = written.map((note) => perform(bar, note));
     const sound = soundOf(env.style, bar.barEnergy);
-    return { carried: { ...after, parts }, output: { ...bar, events, sound } };
+    return { carried: { ...after, parts }, output: { ...bar, written, events, sound } };
   },
 };

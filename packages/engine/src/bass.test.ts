@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import { BASS_RANGE, bass, bassBlend } from './bass.ts';
 import { chordAt } from './chords.ts';
-import { eventProblems } from './events.ts';
+import { writtenProblems } from './events.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { PRESETS, type Style } from './style.ts';
 
@@ -59,7 +59,7 @@ describe('the bass', () => {
     expect(BASS_RANGE).toEqual([33, 57]);
     for (const { events } of played)
       for (const e of events) {
-        expect(eventProblems(e)).toEqual([]);
+        expect(writtenProblems(e)).toEqual([]);
         expect(e.part).toBe('bass');
         expect(e.note).toBeGreaterThanOrEqual(33);
         expect(e.note).toBeLessThanOrEqual(57);
@@ -130,7 +130,7 @@ describe('the bass', () => {
     }
   });
 
-  it('holds each chord through a breakdown, one root per chord', () => {
+  it('holds each chord through a breakdown, one root per chord, written to the next', () => {
     let breakdowns = 0;
     for (const { bar, events } of played) {
       if (bar.plan.section.type !== 'breakdown') continue;
@@ -138,7 +138,7 @@ describe('the bass', () => {
       expect(events.map((e) => e.step)).toEqual(bar.chords.map((c) => c.slot.step));
       events.forEach((e, i) => {
         const end = bar.chords[i + 1]?.slot.step ?? 16;
-        expect(e.length).toBeCloseTo(end - e.step - 0.3, 9);
+        expect(e.length).toBe(end - e.step);
         expect(wrap(e.note, 12)).toBe(rootOf(chordAt(bar.chords, e.step)));
       });
     }

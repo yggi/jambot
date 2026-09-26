@@ -2,9 +2,10 @@ import { even, positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { BarEnv } from './bar.ts';
 import { DRUM_NOTES, drums } from './drums.ts';
-import { eventProblems } from './events.ts';
+import { DRUM_ROLES, type DrumRole, type WrittenNote, writtenProblems } from './events.ts';
 import { SECTION_BARS, SECTION_TYPES, type SectionType, barEnergy } from './form.ts';
 import { INITIAL_KEY } from './key.ts';
+import { perform } from './perform.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
 import { buildTheme, themeKind } from './themes.ts';
 
@@ -41,6 +42,9 @@ const envOf = (
   next: [],
 });
 
+/** The drums as they play: each written hit through the performance. */
+const played = (env: BarEnv) => drums(env).map((hit) => perform(env, hit));
+
 const styles = PRESETS.map((p) => ({ ...p.style, entropy: 0.3 }));
 
 /** Every environment the tests sweep: presets, sections, bars, seeds. */
@@ -72,10 +76,10 @@ describe('drums', () => {
     for (const env of sweep) for (const e of drums(env)) expect(gm.has(e.note)).toBe(true);
   });
 
-  it('write well-formed drum events', () => {
+  it('write well-formed drum hits, each with its role (T4)', () => {
     for (const env of sweep)
       for (const e of drums(env)) {
-        expect(eventProblems(e)).toEqual([]);
+        expect(writtenProblems(e)).toEqual([]);
         expect(e.part).toBe('drums');
       }
   });
@@ -89,6 +93,41 @@ describe('drums', () => {
       expect(new Set(keys).size).toBe(keys.length);
       expect(keys).toEqual([...keys].sort((a, b) => a - b));
     }
+  });
+
+  it('write one hit where two roles meet on a sound and step, the one that plays louder (F5, T4)', () => {
+    // Only the snare's roles meet: the backbeat and a fill on step 12, a
+    // fill and a ghost on the fill's other steps, from 8 in a build and from
+    // 12 elsewhere. The one listed first in DRUM_ROLES stays, and the
+    // performance plays it at least as loud.
+    const meet = (env: BarEnv): [DrumRole, DrumRole, number[]][] => {
+      const from = env.plan.section.type === 'build' ? 8 : 12;
+      const fill = range(16 - from).map((i) => from + i);
+      return [
+        ['backbeat', 'fill', [12]],
+        ['fill', 'ghost', fill.filter((s) => s !== 12)],
+      ];
+    };
+    const snare = (role: DrumRole, step: number): WrittenNote => ({
+      part: 'drums',
+      role,
+      step,
+      note: DRUM_NOTES.snare,
+      length: 1,
+    });
+    for (const env of sweep.filter((e) => e.plan.section.type !== 'breakdown'))
+      for (const [stronger, weaker, steps] of meet(env)) {
+        expect(DRUM_ROLES.indexOf(stronger)).toBeLessThan(DRUM_ROLES.indexOf(weaker));
+        for (const step of steps)
+          expect(perform(env, snare(stronger, step)).velocity).toBeGreaterThanOrEqual(
+            perform(env, snare(weaker, step)).velocity,
+          );
+      }
+    // And they do meet: a build's fill runs over its backbeat, which stays.
+    const build = envOf(0, 'build', SECTION_BARS - 1, { ...styles[0]!, energy: 1 });
+    expect(drums(build).find((e) => e.step === 12 && e.note === DRUM_NOTES.snare)!.role).toBe(
+      'backbeat',
+    );
   });
 
   it('are a function of the bar: the same environment plays the same bar (T5)', () => {
@@ -109,11 +148,11 @@ describe('drums', () => {
         );
         // Where the fill meets the backbeat, the louder backbeat stays.
         const energy = barEnergy(style.energy, 'build', SECTION_BARS - 1);
-        expect(drums(env).find((e) => e.step === 12 && e.note === DRUM_NOTES.snare)!.velocity).toBe(
-          Math.round(106 * (0.65 + 0.35 * energy)),
-        );
+        expect(
+          played(env).find((e) => e.step === 12 && e.note === DRUM_NOTES.snare)!.velocity,
+        ).toBe(Math.round(106 * (0.65 + 0.35 * energy)));
         // Away from the backbeat, the fill rises. (Straight, so no looseness.)
-        const fill = drums(env).filter((e) => e.note === DRUM_NOTES.snare && e.step > 12);
+        const fill = played(env).filter((e) => e.note === DRUM_NOTES.snare && e.step > 12);
         fill.slice(1).forEach((e, i) => expect(e.velocity).toBeGreaterThan(fill[i]!.velocity));
       }
   });
@@ -205,7 +244,7 @@ describe('drums', () => {
 
   it('play louder with energy', () => {
     const kick = (energy: number) =>
-      drums(envOf(1, 'groove', 0, { ...INITIAL_STYLE, swing: 0 }, energy)).find(
+      played(envOf(1, 'groove', 0, { ...INITIAL_STYLE, swing: 0 }, energy)).find(
         (e) => e.step === 0 && e.note === DRUM_NOTES.kick,
       )!;
     expect(kick(1).velocity).toBe(112);
@@ -214,7 +253,7 @@ describe('drums', () => {
 
   it('loosen their velocities from bar to bar as the swing rises, and not when straight', () => {
     const velocities = (bar: number, swing: number) =>
-      drums(envOf(2, 'groove', bar, { ...INITIAL_STYLE, swing })).map((e) => e.velocity);
+      played(envOf(2, 'groove', bar, { ...INITIAL_STYLE, swing })).map((e) => e.velocity);
     expect(velocities(2, 0)).toEqual(velocities(0, 0));
     expect(velocities(2, 0.3)).not.toEqual(velocities(0, 0.3));
   });

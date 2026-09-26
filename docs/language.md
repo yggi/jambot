@@ -110,21 +110,27 @@ performance maps: time maps with exact inverses (swing, tempo), dynamics
 articulation (a played length from a written one).**
 Witness: for time, `swingMap`, `swingOf` and `tempoMap`, composed by
 `composeTimeMaps`. Expressive timing would be one more map, not new syntax.
-For dynamics and articulation, none yet: the port's parts write played
-values into their events. With each preset held, every velocity is a
-function of the bar and the hit (its part, sound and step): the kick is 112
-on steps 0 and 8 and 92 elsewhere, the ghost snare 32 + 14 × sync, each
-scaled by the bar's energy. 91% of the bass's lengths, 95% of the lead's and
-every stab's fall off a quarter step, gated by the articulation (E9). So the
-text needs no velocity and only lengths on the grid, and the performance
-maps give back what plays.
+For dynamics and articulation, `perform` (`perform.ts`): each part writes
+`WrittenNote`s, a step, a note, a length in whole steps and, for a drum
+hit, its role, and the band plays each through `perform`, which reads the
+rest from the bar. A drum's accent comes from its role and step (the kick
+112 on steps 0 and 8 and 92 elsewhere, the ghost snare 32 + 14 × sync),
+scaled by the energy and loosened by the swing; the bass and the lead
+accent the beat; the bass and the lead gate their lengths by the
+articulation, and a stab sounds from 2.5 steps down to 0.45. Where two drum
+roles meet on a sound and step, one hit is written, the stronger role's, so
+the join of F5 happens in what is written. The split changed nothing that
+plays: every event of 5,760 bars, over every preset held, the tour and a
+gliding tour, came back byte for byte. Written, no length falls off a
+quarter step; played, 91% of the bass's, 95% of the lead's and every stab's
+do (E9).
 Counterexample: a written position that doesn't read back from its played
 time. The prototype's `swingDelay` and `unswing` give one: they are off by
 up to 0.04 steps where both swing levels act (swing 0.5–1). For dynamics and
-articulation, a text that must write a played value for the round trip to
-hold: rounding the style a bar is composed from to 3 decimals changes 175
-of 320 bars of a gliding tour, all in their lengths, and 3 when lengths are
-set aside (E9).
+articulation, a written note that holds a played value, or an event that is
+not its written note performed. Rounding the style a bar is composed from
+to 3 decimals changes what plays in 180 of 320 bars of a gliding tour, and
+what is written in 3 (E9).
 Test: `swing.test.ts`, "is undone by its inverse, both ways, on and off the
 grid (T4, Q1b)" and "shows that the prototype's delays are not what its
 unswing undoes (T4, Q1b)"; `tempo.test.ts`, "keeps time rising through a
@@ -135,13 +141,19 @@ length, 60 chains of retargets that carry their slope, brake or arrive
 early, the chain through swing, and a reading of clock time that runs
 backwards. In the built app, `band.e2e.ts`, "swings a swung preset into
 triplet 8ths (T4)": every onset in Chromium lies on a third of a step, the
-triplet offbeat among them.
-Open for dynamics and articulation: #63's round trip, with the text writing
-no velocity and only lengths on the grid.
+triplet offbeat among them. For dynamics and articulation,
+`perform.test.ts`, whose tests cite T4: every note the band writes is on the
+grid with no velocity, every event is its written note performed, and the
+prototype's accents and gates as literals; `events.test.ts`, whose tests of
+`writtenProblems` cite T4; `drums.test.ts`, "write one hit where two roles
+meet on a sound and step, the one that plays louder (F5, T4)";
+`band.test.ts`, whose test of its parts cites T4. Open: the text, #63's
+round trip.
 Source: time maps (Jaffe, "Ensemble Timing in Computer Music", 1985;
 Honing, "From Time to Time", 2001), #37 step 2; the prototype ("the text
 holds what is composed, and the compiler adds how it is played"); #63 step
-2, E9. Status: measured (time); open (dynamics, articulation). Decided: the
+2, E9. Status: measured (time); measured (the port's dynamics and
+articulation); open (the text). Decided: the
 prototype, inherited (score against performance, for time); #7, on measured
 options (dynamics and articulation, E9). Lands in: #37 (done), Q1b and Q1c;
 #63 step 2.
@@ -466,16 +478,16 @@ read as modal interchange and secondary dominants. Lands in: #7 (b).
 Source: architecture. Decided: architecture, inherited.
 
 **L2. The IM states written lengths; a played duration is derived.**
-Witness: the transport sends both ends of a note through the time map
-(`tempo ∘ swing`), so a note is an interval of written time.
+Witness: the parts write lengths in whole steps (`WrittenNote`), and
+`perform` gates them by the articulation (T4); the transport sends both
+ends of a note through the time map (`tempo ∘ swing`), so a note is an
+interval of written time.
 Counterexample: a legato line that overlaps or gaps under swing, as in the
-prototype, which swings only the start. A length the text can't write: the
-port's parts gate their lengths by the articulation before the transport
-sees them, so an event's length is already played (E9). Writing a length
-on the grid and gating it is T4's articulation map.
+prototype, which swings only the start. A written length off the grid, as
+the port's parts wrote before `perform` took the gate from them (E9).
 Test: `transport.test.ts`, "holds a note from its swung start to its swung end
-(L2)". Open: every note-on has its note-off on the MIDI port (#5, Q1d), and
-the written length, with T4's articulation.
+(L2)"; `perform.test.ts`, whose tests of lengths cite L2. Open: every
+note-on has its note-off on the MIDI port (#5, Q1d).
 Source: MIDI (no durations), #37 step 3, E9. Status: measured (the port's
 lengths); open (note-offs). Decided: #7, ahead of the evidence. Lands in:
 #24, #63 step 2.
@@ -658,8 +670,9 @@ Source: F3. Status: open. Lands in: #3, Q2.
 
 **F5. Within a part, events combine as a join: the same hit twice is one
 hit, and the louder stays. Bars combine in sequence by a shift of origin.**
-Witness: the drums, which strike each sound at most once per step. The
-events are bar-relative, and pitch is chord-relative in the same way:
+Witness: the drums, which write one hit per sound and step: where two
+roles meet, the stronger role's, which the performance plays louder (T4).
+The events are bar-relative, and pitch is chord-relative in the same way:
 relative coordinates whose origin the level above supplies (Lewin's
 generalized interval systems).
 Counterexample: a duplicate note-on. The prototype sends one in 163 of
@@ -887,19 +900,19 @@ the others have not.
   (`node --experimental-strip-types --no-warnings packages/engine/experiments/performance.ts`,
   about 1 s). It runs the port's band over E1's shape: 5 seeds, each preset
   held and the tour, 64 bars each, 2,880 bars in all.
-  - Lengths are played: 91% of the bass's lengths, 95% of the lead's and
-    every stab's fall off a quarter step, gated by the articulation. The
-    drums and the pads stay on the grid.
+  - Lengths: as written, none falls off a quarter step. As played, 91% of
+    the bass's, 95% of the lead's and every stab's do, gated by the
+    articulation (T4). The drums and the pads play as written.
   - Velocities are played: 104 kinds in the drums, 38 in the bass, each a
-    function of the bar and the hit (part, sound, step), scaled by the
-    energy, with a seeded looseness in the drums. The lead plays two, 100 on
-    the beat and 82 off it.
+    function of the bar and the written note (part, role, step), scaled by
+    the energy, with a seeded looseness in the drums. The lead plays two,
+    100 on the beat and 82 off it.
   - Over a tour that glides from one preset to the next every 8 bars, a bar
-    composed from its style rounded to 2, 3 and 9 decimals changes in 208,
-    175 and 46 of 320 bars; with lengths set aside, in 26, 3 and 0. The
-    articulation alone changes 175 at 3 decimals, all in lengths; sync,
-    harm and energy one or two each, in the drums; swing, tempo and entropy
-    none.
+    composed from its style rounded to 2, 3 and 9 decimals plays
+    differently in 233, 180 and 46 of 320 bars, and is written differently
+    in 26, 3 and 0. At 3 decimals the articulation alone changes what plays
+    in 175 bars and what is written in none; the energy 45 and 2, sync 2
+    and 1, harm 1 and 1, swing 7 and 0; tempo and entropy none.
   - No part strikes a note twice on a step. In 631 bars (22%) a chords
     note starts while the same note still sounds, 3,370 of 3,927 times a
     stab inside a held pad: on one MIDI channel the stab's note-off cuts
