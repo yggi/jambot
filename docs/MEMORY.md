@@ -207,6 +207,10 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   reads the velocity and the gated length from the bar (`language.md`, T4
   and E9). A test that reads a velocity or a played length goes through
   `perform`.
+- To show measured options as pictures, draw a page per question from the
+  experiment's JSON and screenshot it with `tooling/screenshot.ts` (the
+  `screenshot` skill). The pages and pictures stay in the scratchpad; the
+  experiment and its numbers are what the repository keeps.
 - To measure the port headless, run a script under
   `packages/engine/experiments/` with
   `node --experimental-strip-types --no-warnings`; it imports the engine

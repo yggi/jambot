@@ -74,6 +74,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       and quintenzirkel use, checked to mean the same here
     - `src/second-opinion.test.ts`: the primitive, the names and the
       spelling checked against tonal
+    - `experiments/`: measurements on the theory for the language design,
+      outside the pure `src/`
+      - [`cycles.ts`](../packages/theory/experiments/cycles.ts): E12, the
+        numerals read over tunings of 12 to 53 notes, against the line of
+        fifths
   - `engine/`: the musical engine, pure TypeScript
     - `src/machine.ts`: the contract every level keeps,
       `advance(env, carried, input)`, and `lawBreaks`, which checks it
@@ -116,6 +121,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
         E9, what the port writes and what it plays (lengths, velocities,
         the header's precision, the chords part's overlaps)
+      - [`header.ts`](../packages/engine/experiments/header.ts): E10, how a
+        bar's header states its style, over the app's own glides
+      - [`pad-stab.ts`](../packages/engine/experiments/pad-stab.ts): E11,
+        what pad and stab lose on one channel, in a join, or on two
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing
@@ -135,6 +144,11 @@ Every doc and code area, as a tree. Add a line when you add one.
     the sub-path, checks that the site resolves there, commits it to
     `gh-pages` and checks the live site; `pages.test.ts` shows the check
     failing on each kind of broken reference
+  - `screenshot.ts`: screenshots of measurement pages in Playwright's
+    Chromium, with `page`, the shared frame and palette, and
+    `inlineModule`, a repository module for a page's script;
+    `screenshot.test.ts` checks the module inlining and
+    `apps/web/e2e/screenshot.e2e.ts` the browser run
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
@@ -194,5 +208,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`review-pr/`](../.claude/skills/review-pr/SKILL.md): reviews a pull
     request against the house rules; `prepare.sh` fetches it into its own
     worktree and runs `pnpm verify` there
+  - [`screenshot/`](../.claude/skills/screenshot/SKILL.md): measured
+    options shown side by side, as screenshots of pages drawn from an
+    experiment's numbers, and as audio through the app's synth
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md):
   the checklist every pull request fills in
