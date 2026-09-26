@@ -98,16 +98,16 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   the CI workflow runs only when started by hand. `pnpm verify` locally is
   the check that counts. A red or missing `check` on a pull request says
   nothing about the code.
-- GitHub Pages is deployed by hand: `pnpm pages deploy` (`tooling/pages.ts`)
-  runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into
-  `apps/web/dist-pages`, checks that every file the site references resolves
-  there and that nothing is fetched from outside it, commits the build to the
-  `gh-pages` branch and pushes it. It then waits for the live site to serve
-  that build and checks it again. Pages publishes the branch as it is: the
-  repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
-  `pnpm pages build` and `pnpm pages serve` show the site on
-  `http://localhost:4318/jambot/` first, served as Pages serves it (404 for
-  what isn't a file, where `vite preview` would answer with the app).
+- GitHub Pages is deployed by hand, after each merge into `main` (`AGENTS.md`):
+  `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for
+  the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the
+  site references resolves there and that nothing is fetched from outside it,
+  commits the build to the `gh-pages` branch and pushes it. It then waits for
+  the live site to serve that build and checks it again. Pages publishes the
+  branch as it is: the repository's Pages source is "Deploy from a branch",
+  `gh-pages`, `/`. `pnpm pages build` and `pnpm pages serve` show the site on
+  `http://localhost:4318/jambot/` first, served as Pages serves it (404 for what
+  isn't a file, where `vite preview` would answer with the app).
 - `pnpm deploy` is a reserved pnpm command, which is why the deploy is
   `pnpm pages deploy`.
 - `pnpm ci` is a reserved pnpm command, which is why the all-in-one script is
