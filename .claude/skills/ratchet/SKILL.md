@@ -154,9 +154,9 @@ A counterexample is filed where it refutes, never only where it was seen.
   doesn't name, "decided" written in a status, and a rule that doesn't say
   how, and an alias with fields of its own. `tooling/history.ts` adds time:
   against the merge base with `origin/main` (on `main`, the first parent),
-  no evidence falls in any scope, no rule goes and no entry disappears
-  without `Retired:`, and an alias is held to the entry it names. `pnpm ratchet` shows the catalogues over `main`'s
-  history.
+  no evidence falls, overall or in a scope both versions name, no rule goes
+  and no entry disappears without `Retired:`, and an alias is held to the
+  entry it names. `pnpm ratchet` shows the catalogues over `main`'s history.
 - **B3. Dissolve before deciding.** Before a decision, ask which move would
   measure the options: a witness (W1), a probe (N1) or a pull-back (N3). If
   the options are measured and still pull apart, send them to the owner with

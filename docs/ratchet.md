@@ -52,8 +52,8 @@ form to write in and the moves each side makes.
    to their tests: evidence on the ladder, rules that say how they were
    decided, named tests that exist, and citations that agree both ways.
    `tooling/history.ts` holds them in time, in `pnpm verify`: no evidence
-   falls, in any scope of a status, no rule goes and no entry disappears
-   without `Retired:`. An entry that becomes an alias is held to the entry
+   falls, overall or in a scope both versions name, no rule goes and no
+   entry disappears without `Retired:`. An entry that becomes an alias is held to the entry
    it names, and one taken out of retirement to what it had. On a branch the
    gate compares with the merge base with `origin/main`, and on `main` with
    the first parent. Without `origin/main` it is skipped locally and fails
