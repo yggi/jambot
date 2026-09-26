@@ -232,9 +232,9 @@ Test: `drums.test.ts`, "morph with energy: raising it adds kicks, snares
 and hats, and never takes one away (C4)" and "switch the rim between Euclid
 patterns at energy ⅓ and ⅔, and otherwise only add to it (C4)".
 Source: the prototype README ("rhythm as morphing"), #37 step 3, #40's
-review. Status: measured (kick, snare, hats); measured, failing by choice
-(the rim). Open: whether named patterns or a nested chain of them serve the
-music better. Lands in: #37 step 5 (the pitched parts' rhythms).
+review. Status: measured (kick, snare, hats); measured, failing (the rim,
+by choice). Open: whether named patterns or a nested chain of them serve
+the music better. Lands in: #37 step 5 (the pitched parts' rhythms).
 
 **C5. A change is heard within a bound set by the rate it lives at.**
 Witness: the transport. Tempo follows from the next step, swing from the
@@ -446,8 +446,8 @@ Coalgebra", 2000).
 Counterexample: a machine that keeps state out of sight, changes what it
 was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
-`form.test.ts`, `band.test.ts` and `transport.test.ts`, whose tests of the
-machine laws cite F1.
+`form.test.ts`, `band.test.ts`, `transport.test.ts` and `plan.test.ts`,
+whose tests of the machine laws cite F1.
 Source: #37 step 1. Status: measured. Lands in: #39 Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**

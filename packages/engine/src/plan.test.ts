@@ -32,7 +32,7 @@ const steady = (seed: number, style: Style, wish: KeyWish, sections = 40): Scrip
 const aeolian: KeyWish = { tonic: null, mode: 'aeolian' };
 
 describe('the section plan', () => {
-  it('keeps the machine laws over a tour of the presets and their modes (F1)', () => {
+  it('keeps the machine laws over a tour of the presets and their modes (F1, #39 Q4a)', () => {
     for (const seed of [1, 2, 3]) expect(lawBreaks(planner, tour(seed))).toEqual([]);
   });
 
