@@ -43,12 +43,14 @@ form to write in and the moves each side makes.
 4. **Constraints come down.** An entry that can bind code says where it lands,
    and it becomes a test in the next step of the working track that touches
    it.
-5. **The pawl is a test on `main`.** Status moves from speculative to open to
-   derived or measured to decided. It moves back only when an entry is retired
-   with the reason written next to it, never silently. A test on an unmerged
-   branch doesn't hold anything yet. The pawl check (`tooling/pawl.ts`, #42)
-   runs in `pnpm verify` and holds the catalogue to its tests: statuses on the
-   ladder, named tests that exist, and citations that agree both ways.
+5. **The pawl is a test on `main`.** The evidence moves from speculative to
+   open to derived to measured. Whether the owner took a claim as a rule is
+   its own field, `Decided:`, which says where and how. Neither moves back
+   except when an entry is retired with its reason written next to it. A
+   test on an unmerged branch doesn't hold anything yet. The pawl check
+   (`tooling/pawl.ts`, #42) runs in `pnpm verify` and holds the catalogues
+   to their tests: evidence on the ladder, rules that say how they were
+   decided, named tests that exist, and citations that agree both ways.
 6. **Seams are identities.** Where the working track needs something the
    negative track hasn't settled, it uses the identity and pins the seam with
    a round-trip test. #37 plays the composer's raw events. The text step goes
@@ -132,8 +134,8 @@ These are not known yet:
   history, so a status that moves down without a reason is not caught yet.
 - **More than two tracks.** The analyzer (#3) and the web client (#22) will
   feed #7 too, and `quinetic.md` (#39) already gathers properties across
-  tracks. Whether the
-  rules above hold unchanged for that is not tested yet.
+  tracks. Whether the rules above hold unchanged for that is not tested
+  yet.
 - **Measuring the ratchet** (#43). Entries by status over the catalogue's
   history, and decisions that dissolved against decisions that were made.
   Nothing measures these yet.

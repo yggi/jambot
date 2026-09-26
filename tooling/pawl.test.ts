@@ -44,33 +44,74 @@ describe('the pawl check', () => {
     expect(pawlProblems(repo(glide, styleTests))).toEqual([]);
   });
 
-  it('refuses an entry without a status, or with one off the ladder (rule 1)', () => {
+  it('refuses an entry with neither evidence nor a rule, or evidence off the ladder (rule 1)', () => {
     expect(pawlProblems(repo('**C1. Nothing jumps.** Source: spirit.'))).toEqual([
-      'docs/language.md:1 C1 has no status',
+      'docs/language.md:1 C1 has no status and is not decided',
     ]);
     expect(pawlProblems(repo('**C1. Nothing jumps.** Status: settled.'))).toEqual([
       'docs/language.md:1 C1 has a status off the ladder: "settled"',
     ]);
-    expect(pawlProblems(repo('**C1. Nothing jumps.** Status: retired.'))).toEqual([
-      'docs/language.md:1 C1 has a status off the ladder: "retired"',
-    ]);
   });
 
-  it('takes every rung of the ladder, with a scope, several parts, and a reason to retire', () => {
+  it('takes every rung of the evidence ladder, with a scope and several parts', () => {
     const statuses = [
       'speculative',
       'open',
+      'derived',
       'measured',
       'measured, failing (prototype)',
-      'derived',
-      'decided (provenance); open (confidence)',
       'measured (drums); measured, failing (the score, E1)',
-      'retired: F9 says it better',
     ];
     for (const status of statuses) {
       const entry = `**C1. Nothing jumps.**\nTest: \`style.test.ts\`.\nStatus: ${status}.`;
       expect(pawlProblems(repo(entry, styleTests)), status).toEqual([]);
     }
+  });
+
+  it('keeps a rule out of the evidence: decided is its own field (rule 1)', () => {
+    expect(pawlProblems(repo('**C1. Nothing jumps.** Status: decided.'))).toEqual([
+      'docs/language.md:1 C1 writes "decided" in its status; a rule goes in Decided:',
+    ]);
+    expect(
+      pawlProblems(repo('**C1. Nothing jumps.** Status: decided (provenance); open.')),
+    ).toEqual([
+      'docs/language.md:1 C1 writes "decided (provenance)" in its status; a rule goes in Decided:',
+    ]);
+  });
+
+  it('takes a rule with where and how it was decided, with or without evidence (rule 8)', () => {
+    const decisions = [
+      'spirit, inherited',
+      'spirit, inherited (the behaviour)',
+      '#38, on measured options',
+      '#7 after #33, dissolved',
+      '#37 step 3, in the working track',
+      '#7, ahead of the evidence',
+    ];
+    for (const decided of decisions) {
+      expect(pawlProblems(repo(`**C1. Nothing jumps.** Decided: ${decided}.`)), decided).toEqual(
+        [],
+      );
+      const measured = `${glide}\nDecided: ${decided}.`;
+      expect(pawlProblems(repo(measured, styleTests)), decided).toEqual([]);
+    }
+  });
+
+  it('refuses a rule that does not say how it was decided (rule 8)', () => {
+    expect(pawlProblems(repo('**C1. Nothing jumps.** Decided: #38.'))).toEqual([
+      'docs/language.md:1 C1 is decided, but not how: say inherited, dissolved, on measured options, in the working track or ahead of the evidence',
+    ]);
+    expect(pawlProblems(repo('**C1. Nothing jumps.** Decided: #38, because.'))).toEqual([
+      'docs/language.md:1 C1 is decided, but not how: say inherited, dissolved, on measured options, in the working track or ahead of the evidence',
+    ]);
+  });
+
+  it('takes a retired entry with its reason, and refuses one without (rule 8)', () => {
+    const retired = '**C1. Nothing jumps.** Status: open. Retired: C9 says it better.';
+    expect(pawlProblems(repo(retired))).toEqual([]);
+    expect(pawlProblems(repo('**C1. Nothing jumps.** Status: open. Retired: .'))).toEqual([
+      'docs/language.md:1 C1 is retired without a reason',
+    ]);
   });
 
   it('refuses a test file that does not exist, or a name that matches two files (rule 2)', () => {
@@ -165,7 +206,7 @@ Status: measured.`;
   });
 
   it('refuses an id defined twice (rule 6)', () => {
-    const twice = `${glide}\n\n**C1. Nothing jumps, again.** Status: decided.`;
+    const twice = `${glide}\n\n**C1. Nothing jumps, again.** Decided: spirit, inherited.`;
     expect(pawlProblems(repo(twice, styleTests))).toEqual([
       'docs/language.md:6 C1 is defined twice, first at line 1',
     ]);
@@ -231,9 +272,15 @@ Status: measured.`;
 describe('the parts of the check', () => {
   it('reads an entry whose fields share a line with its title', () => {
     const [entry] = readCatalogue(
-      '**R1. A musician reads it like a lead sheet.** Source: spirit. Status:\ndecided. Test: open.',
+      '**R1. A musician reads it like a lead sheet.** Source: spirit. Status:\nopen. Test: open. Decided: spirit, inherited.',
     );
-    expect(entry).toMatchObject({ id: 'R1', line: 1, status: 'decided', test: 'open' });
+    expect(entry).toMatchObject({
+      id: 'R1',
+      line: 1,
+      status: 'open',
+      test: 'open',
+      decided: 'spirit, inherited',
+    });
   });
 
   it('reads the names of `it`, `test` and `describe`, in any quotes, and skips `each` tables', () => {

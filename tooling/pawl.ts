@@ -15,21 +15,34 @@ export interface Repo {
 }
 
 /**
- * A catalogue entry: its id, the line it starts on, and its raw fields. An
- * alias (`Same as F4.`) is another name for an entry in any catalogue, and
- * has no status or test of its own.
+ * A catalogue entry: its id, the line it starts on, and its raw fields.
+ * `status` is the evidence, and `decided` the rule, with where and how it
+ * was decided; an entry that is only a rule may have no status. An alias
+ * (`Same as F4.`) is another name for an entry in any catalogue, and has no
+ * fields of its own.
  */
 export interface Entry {
   id: string;
   line: number;
   status: string | undefined;
   test: string | undefined;
+  decided: string | undefined;
+  retired: string | undefined;
   same: string | undefined;
 }
 
-const labels = /\b(?:(Witness|Counterexample|Test|Source|Status|Lands in|Open):|(Same as)) */g;
-const rungs = /^(speculative|open|measured, failing|measured|derived|decided)( \([^()]*\))?$/;
-const retired = /^retired: \S/;
+const labels =
+  /\b(?:(Witness|Counterexample|Test|Source|Status|Decided|Retired|Lands in|Open):|(Same as)) */g;
+const rungs = /^(speculative|open|derived|measured, failing|measured)( \([^()]*\))?$/;
+/** The ways a rule comes to be, which make `Decided:` the ledger of decisions. */
+const ways = [
+  'inherited',
+  'dissolved',
+  'on measured options',
+  'in the working track',
+  'ahead of the evidence',
+];
+const how = new RegExp(`, (${ways.join('|')})\\b`);
 const fileToken = /^[\w@./-]+\.(ts|mjs|js|md|py|html|json)$/;
 const bareId = /^[A-Z]\d+[a-z]?$/;
 const prefixedId = /^#\d+ [A-Z]\d+[a-z]?$/;
@@ -59,8 +72,8 @@ export function readCatalogue(text: string): Entry[] {
   return entries;
 }
 
-/** An entry's Status, Test and Same as fields, without their closing full stops. */
-function fields(text: string): Pick<Entry, 'status' | 'test' | 'same'> {
+/** An entry's fields, without their closing full stops. */
+function fields(text: string): Omit<Entry, 'id' | 'line'> {
   const found: Record<string, string> = {};
   const marks = [...text.matchAll(labels)];
   marks.forEach((mark, n) => {
@@ -68,7 +81,13 @@ function fields(text: string): Pick<Entry, 'status' | 'test' | 'same'> {
     const to = n + 1 < marks.length ? marks[n + 1]!.index : text.length;
     found[mark[1] ?? mark[2]!] = text.slice(from, to).trim().replace(/\.$/, '');
   });
-  return { status: found['Status'], test: found['Test'], same: found['Same as'] };
+  return {
+    status: found['Status'],
+    test: found['Test'],
+    decided: found['Decided'],
+    retired: found['Retired'],
+    same: found['Same as'],
+  };
 }
 
 /** The ids of the catalogue's experiments, `- **E1. …**`. */
@@ -95,6 +114,7 @@ export function citations(name: string): string[] {
 }
 
 const squeeze = (text: string) => text.replace(/\s+/g, ' ').trim();
+const sayWays = `${ways.slice(0, -1).join(', ')} or ${ways.at(-1)}`;
 
 /** The status's parts that are off the ladder. */
 function offLadder(status: string): string[] {
@@ -110,7 +130,7 @@ function offLadder(status: string): string[] {
     } else part += char;
   }
   parts.push(part.trim());
-  return parts.filter((p) => !rungs.test(p) && !retired.test(p));
+  return parts.filter((p) => !rungs.test(p));
 }
 
 /** Everything that keeps the pawl from holding, one line each. */
@@ -149,11 +169,20 @@ export function pawlProblems(repo: Repo): string[] {
 
   const named = new Map<string, Set<string>>();
   for (const entry of entries.filter((e) => e.same === undefined)) {
-    // Rule 1: a status, on the ladder.
-    if (entry.status === undefined) problems.push(`${at(entry)} has no status`);
-    else
-      for (const part of offLadder(entry.status))
-        problems.push(`${at(entry)} has a status off the ladder: "${part}"`);
+    // Rule 1: evidence on the ladder, or a rule; a rule is not evidence.
+    if (entry.status === undefined && entry.decided === undefined && entry.retired === undefined)
+      problems.push(`${at(entry)} has no status and is not decided`);
+    for (const part of entry.status === undefined ? [] : offLadder(entry.status))
+      problems.push(
+        part.startsWith('decided')
+          ? `${at(entry)} writes "${part}" in its status; a rule goes in Decided:`
+          : `${at(entry)} has a status off the ladder: "${part}"`,
+      );
+
+    // Rule 8: a rule says how it was decided, and a retirement why.
+    if (entry.decided !== undefined && !how.test(entry.decided))
+      problems.push(`${at(entry)} is decided, but not how: say ${sayWays}`);
+    if (entry.retired === '') problems.push(`${at(entry)} is retired without a reason`);
 
     // Rule 2: the files the test names exist, and its quotes are tests in them.
     const files = new Set<string>();

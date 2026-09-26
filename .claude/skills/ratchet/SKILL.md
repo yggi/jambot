@@ -38,8 +38,12 @@ Every catalogue entry is written in this form:
 Witness: <what makes it true: a function, a machine, a value, a run>.
 Counterexample: <the shape of a case that would refute it>.
 Test: <the decidable check, and where it lives, or "open: how it would run">.
-Source: <issue, probe or finding>. Status: <status>. Lands in: <issue, step>.
+Source: <issue, probe or finding>. Status: <evidence>.
+Decided: <where>, <how>. Lands in: <issue, step>.
 ```
+
+`Decided:` is there only when the claim is a rule, and an entry that is
+only a rule, with no evidence yet, leaves out `Status:`.
 
 The ids are one space across the catalogues (`docs/language.md`,
 `docs/quinetic.md`). A claim another catalogue already makes is written as
@@ -51,19 +55,40 @@ from x to y": the witness is a function. "Every MIDI input has some form"
 (A2) is witnessed by the analyzer itself, and a counterexample is one MIDI
 file.
 
-The status says how far a claim has gone through the game:
+The status is the evidence: how far a claim has gone through the game.
 
 | Status      | In the game                                                                                                         |
 | ----------- | ------------------------------------------------------------------------------------------------------------------- |
 | speculative | There is no decidable test yet. An analogy, kept apart                                                              |
 | open        | The test is written down, but nothing has run it                                                                    |
-| measured    | The test ran: every case passed (exhaustive for a finite part), or one failed, which is written "measured, failing" |
 | derived     | The witness is composed from other witnesses along dependencies                                                     |
-| decided     | The owner took the claim as given. It is a rule now, not a result                                                   |
+| measured    | The test ran: every case passed (exhaustive for a finite part), or one failed, which is written "measured, failing" |
 
-Status only rises. An entry is retired with its reason written next to it,
-as `Status: retired: <reason>`, never removed silently. A status may have
-parts with scopes, such as `measured (drums); open (compile)`.
+A status may have parts with scopes, such as `measured (drums); open
+(compile)`. The evidence only rises.
+
+Whether the owner took the claim as a rule is a separate question, so it is
+a separate field. In the game, a decided claim is an axiom: it holds without
+a witness, and whatever evidence it has is still recorded in its status. T1,
+"the clock never waits", is a rule of the spirit and measured on the
+transport:
+
+```
+Status: measured (transport); open (compile). Decided: spirit, inherited.
+```
+
+`Decided:` says where the rule was taken and how, which makes the field the
+ledger of decisions:
+
+| How                   | The rule                                                                    |
+| --------------------- | --------------------------------------------------------------------------- |
+| inherited             | Came with the spirit, the prototype or the architecture, before the ratchet |
+| dissolved             | The evidence left one option (B3), such as P2 after the theory's work       |
+| on measured options   | The owner chose between measured options (B3), as in #38                    |
+| in the working track  | Was taken while building, under a house rule, such as R4's true name        |
+| ahead of the evidence | Was chosen before anything measured it                                      |
+
+A rule is withdrawn only with `Retired: <reason>`, never removed silently.
 
 ## Dependencies carry both directions
 
@@ -144,7 +169,7 @@ A **crossing comment**, on both issues of a pair:
 **Crossing (<up | down | back>): <id or short name>.**
 From <issue, step or experiment> to <issue, catalogue section>.
 Claim: <one sentence>. Witness: <…>. Counterexample: <…>.
-Test: <where, or open>. Status: <before> → <after>.
+Test: <where, or open>. Status: <before> → <after>. Decided: <if it is a rule>.
 ```
 
 A pull request's **Findings** section lists the harvest (W4) of the change in

@@ -29,9 +29,12 @@ boundaries, are collected in [`quinetic.md`](quinetic.md) (#39, Q1–Q8).
 2. **Catalogue.** Every entry is a claim in the `ratchet` skill's form
    ([`SKILL.md`](../.claude/skills/ratchet/SKILL.md)): a witness that makes
    it true, the shape of a counterexample that would refute it, a decidable
-   test, a source, a status and where it lands. Its status is one of
-   speculative, open, measured (or measured, failing), derived and decided,
-   and it only rises.
+   test, a source, a status and where it lands. The status is the evidence,
+   one of speculative, open, derived and measured (or measured, failing),
+   and it only rises. A rule the owner took is a separate field,
+   `Decided: <where>, <how>`, which says whether it was inherited,
+   dissolved, chosen on measured options, taken in the working track or
+   chosen ahead of the evidence.
 3. **Tensions.** Where two constraints pull apart, a decision is needed. The
    tensions are the design's agenda.
 4. **Candidates.** Candidate forms are scored against the catalogue. None is
@@ -79,6 +82,7 @@ and keeps the grid where it was (T1)" and "catches up after four hours’ stall
 within a lookahead, reporting the missed steps by count (T1)". Open for
 compiling: every text that parses compiles, in bounded time.
 Source: spirit, #37 step 3. Status: measured (transport); open (compile).
+Decided: spirit, inherited.
 Lands in: #13.
 
 **T2. Positions are exact fractions of a cycle, not ticks.**
@@ -117,8 +121,9 @@ backwards. In the built app, `band.e2e.ts`, "swings a swung preset into
 triplet 8ths (T4)": every onset in Chromium lies on a third of a step, the
 triplet offbeat among them.
 Source: time maps (Jaffe, "Ensemble Timing in Computer Music", 1985;
-Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Lands in:
-#37 (done), Q1b and Q1c.
+Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Decided:
+the prototype, inherited (score against performance). Lands in: #37 (done),
+Q1b and Q1c.
 
 **T5. Any bar renders from its environment (seed, position, style, plan)
 and what it states.**
@@ -186,7 +191,7 @@ a long glide inherits fast motion (C1)" and "never rests at an axis end it
 was not sent to, and its rate is the slope of its value (C1)", the last over
 every order of two intents, every turning step and every axis.
 Source: spirit, Pd's `line~`. Status: measured (style axes); open (how the
-IM writes a glide, tension 2). Lands in: #37 (done), #13.
+IM writes a glide, tension 2). Decided: spirit, inherited (the behaviour). Lands in: #37 (done), #13.
 
 **C2. A parameter declares its range and the space it glides in.**
 Witness: the style axes in `style.ts`, each with a range and a linear or
@@ -282,20 +287,20 @@ than by the transposition.
 Test: open: every bar of a corpus, compiled in two keys, differs by the
 interval between them.
 Source: prototype; in signal terms the key is the carrier and the score is
-baseband. Status: decided. Lands in: #13.
+baseband. Status: open. Decided: the prototype, inherited. Lands in: #13.
 
 **P2. The text carries no spelling; spelling is output only.**
 Witness: `spell`, used for the HUD, the Strudel export and the analyzer's
 key report, never to read a score.
 Counterexample: two spellings of one score that compile differently.
-Source: #7 after #33, #35. Status: decided.
+Source: #7 after #33, #35. Decided: #7 after #33, dissolved.
 
 **P3. Scales and rhythms are one object, the helix.**
 Witness: `Helix` and `even(k, n, shift)`: 7 of 12 is the diatonic set, and
 5 of 16 the prototype's rim pattern.
 Test: `even.test.ts`, "gives the diatonic set, the prototype rim pattern and
 the #8 example".
-Source: #28. Status: decided.
+Source: #28. Status: measured. Decided: #28, inherited.
 
 **P4. Maximal evenness is a Fourier maximum.**
 Witness: `even(k, n)`.
@@ -326,8 +331,8 @@ Counterexample: a quality whose tones below the octave are not a helix, or
 whose parts don't join back into its stack.
 Test: `chords.test.ts`, "split at the octave into a helix and the tones
 above it, and join back: every quality (#38, P6)", all 20 qualities.
-Source: #37 step 1, #38. Status: decided. Lands in: #37 step 4, the chord
-type.
+Source: #37 step 1, #38. Status: measured. Decided: #38, on measured
+options. Lands in: #37 step 4, the chord type.
 
 **P7. A tension sets its own degree of the scale its chord's helix
 implies.**
@@ -341,7 +346,8 @@ scale that holds the chord.
 Test: `keys.test.ts`, whose test of a ninth's scale cites P7. `chordScale`,
 which still searches five-note stacks, agrees in 89, finds a scale one note
 farther in 3 and none in 10.
-Source: #38. Status: decided; measured, failing (chordScale, 13 of 144).
+Source: #38. Status: measured (the rule); measured, failing (chordScale, 13
+of 144). Decided: #38, on measured options.
 Lands in: #37 step 4, where `chordScale` takes the chord type.
 
 **P8. The baseline hears a chord only as pitch classes: register above the
@@ -357,7 +363,7 @@ Source: #38. Status: open.
 ### Lowering
 
 **L1. The bottom is flat: timestamped events, as MIDI and dough carry.**
-Source: architecture. Status: decided.
+Source: architecture. Decided: architecture, inherited.
 
 **L2. The IM states written lengths; a played duration is derived.**
 Witness: the transport sends both ends of a note through the time map
@@ -367,7 +373,8 @@ prototype, which swings only the start.
 Test: `transport.test.ts`, "holds a note from its swung start to its swung end
 (L2)". Open: every note-on has its note-off on the MIDI port (#5, Q1d).
 Source: MIDI (no durations), #37 step 3. Status: measured (the port's
-lengths); open (note-offs). Lands in: #24.
+lengths); open (note-offs). Decided: #7, ahead of the evidence. Lands in:
+#24.
 
 **L3. A renderer sees only its declared parameters and its event stream.**
 Source: the prototype README, LADSPA. Status: derived.
@@ -382,19 +389,21 @@ Test: open: a conformance corpus (#11).
 Source: #11. Status: open. Lands in: #11.
 
 **L5. A stage declares whether it can run on the clock; a model cannot.**
-Source: LADSPA's hard-realtime flag, the roadmap. Status: decided.
+Source: LADSPA's hard-realtime flag, the roadmap. Decided: the roadmap,
+inherited.
 
 ### Readers and writers
 
 **R1. A musician reads it like a lead sheet.** Source: spirit. Status:
-decided. Test: open.
+open. Test: open. Decided: spirit, inherited.
 
 **R2. A small model writes it: shallow nesting, a small vocabulary,
 relative tokens, no arithmetic across tokens, a grammar constrained
-decoding can enforce.** Source: the prototype README. Status: decided.
+decoding can enforce.** Source: the prototype README. Decided: the
+prototype, inherited.
 
 **R3. The unit of editing is a line, which validates on its own.** Source:
-the prototype's takeovers. Status: decided.
+the prototype's takeovers. Decided: the prototype, inherited.
 
 **R4. A word in the score names one thing.**
 Witness: the port names the prototype's `shift` section a bridge, because
@@ -402,7 +411,8 @@ Witness: the port names the prototype's `shift` section a bridge, because
 `bar 12 shift` would read as an operation.
 Counterexample: a score word with two meanings.
 Test: `form.test.ts`, "has six kinds of section, eight bars each".
-Source: the law of true names, #37 step 3. Status: decided.
+Source: the law of true names, #37 step 3. Status: measured. Decided: #37
+step 3, in the working track.
 
 ### Analysis and provenance
 
@@ -419,12 +429,14 @@ Source: prototype. Status: measured (in the prototype). Lands in: #13, Q1a.
 can't say it.**
 Witness: the analyzer. Counterexample: one MIDI file.
 Test: open: the analyzer's corpus, with gaps logged by frequency.
-Source: analyzer brief. Status: decided. Lands in: #3.
+Source: analyzer brief. Status: open. Decided: the analyzer brief,
+inherited. Lands in: #3.
 
 **A3. Every event carries its source, and inferred structure its
 confidence.**
 Source: prototype, SDR (the Muse's gate works like a squelch). Status:
-decided (provenance); open (confidence). Lands in: #3, #25.
+open (confidence). Decided: the prototype, inherited (provenance). Lands in:
+#3, #25.
 
 **A4. Following the players is a loop with a bandwidth.**
 Source: SDR (clock recovery), the Muse's rate limit. Status: speculative.
@@ -447,7 +459,8 @@ was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
 `form.test.ts`, `band.test.ts`, `transport.test.ts` and `plan.test.ts`,
 whose tests of the machine laws cite F1.
-Source: #37 step 1. Status: measured. Lands in: Q4a.
+Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
+track. Lands in: Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
 Witness: the prototype's compiler carries each part's previous pitch and
