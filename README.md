@@ -16,14 +16,35 @@ which you can read and take over part by part.
 
 ## Status
 
-The playable version is the single-file
-[prototype](prototype/jambot-prototype.html). Open it in Chrome or Edge and
-press **Start the band**. The web app also serves it at `/prototype.html`.
-The prototype's own [README](prototype/README.md) explains the concept and
-how it works.
+Two things run today:
 
-The prototype is being ported, test-first, into a typed engine package and a
-Svelte app. Where the project is heading is in the
+- The **[prototype](prototype/jambot-prototype.html)** is where Jambot
+  started and still the fullest playable version: composer, compiler,
+  scheduler and HUD in one self-contained HTML file. Open it in Chrome or
+  Edge and press **Start the band**; the web app also serves it at
+  `/prototype.html`. Its own [README](prototype/README.md) explains the
+  concept, the style space and the score language it plays from.
+- A **typed rebuild** is replacing it, test-first, one module at a time:
+  - [`packages/theory`](packages/theory) is settled. One primitive,
+    `even(k, n, shift)`, gives the Euclidean rhythms and the diatonic scales
+    as the same structure, and the package names notes, intervals, chords,
+    keys and modes around it.
+  - [`packages/engine`](packages/engine) composes the prototype's style
+    space and form as pure, deterministic machines: glides per style axis,
+    swing and tempo as invertible time maps, a section chain that carries a
+    key and its themes, and the drums. Bass, comp and lead voices, and a
+    ported score text, are still ahead.
+  - [`apps/web`](apps/web) is a Svelte PWA that runs the new engine's
+    transport live — presets, sliders, a conductor readout of section, key
+    and bar — with drums as its only voice so far.
+
+  Where the design isn't settled yet, such as the score's text format and
+  its relation to [Strudel](https://strudel.cc), it is worked out as a
+  catalogue of constraints before any syntax: see
+  [`docs/language.md`](docs/language.md) and the method behind it,
+  [`docs/ratchet.md`](docs/ratchet.md).
+
+Where the project is heading, and the two milestones on the way, are in the
 [roadmap](docs/ROADMAP.md).
 
 ## Development
