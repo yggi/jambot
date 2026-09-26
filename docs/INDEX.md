@@ -131,6 +131,11 @@ Every doc and code area, as a tree. Add a line when you add one.
     `/prototype.html`
     - `vite.config.ts`: the build, with the prototype and the license gate
       as plugins
+    - `src/App.svelte`: the page, which holds the player and hands each
+      component its props; components take props and send intents
+      - `src/components/Transport.svelte`: start and stop, and the tempo
+      - `src/components/StylePanel.svelte`: the presets and the style sliders
+      - `src/components/Conductor.svelte`: the section, chord, key, bar and beat heard
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start

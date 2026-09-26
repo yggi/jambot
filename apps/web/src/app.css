@@ -59,3 +59,8 @@ h1 {
 p {
   margin: 0;
 }
+button {
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
