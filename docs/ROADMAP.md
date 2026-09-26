@@ -110,7 +110,8 @@ Listed in full in
 [`prototype/README.md`](../prototype/README.md#open-threads), grouped as
 language, music, system, and a separate speculative track.
 The speculative track's self-reference, fixed points and coarse-graining
-are being turned into tests in #39 (quinetic properties).
+are being turned into claims with tests in
+[`quinetic.md`](quinetic.md) (#39).
 
 ## Dependencies
 

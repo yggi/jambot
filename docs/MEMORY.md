@@ -11,6 +11,7 @@ pnpm dev          # web app with hot reload; the prototype is at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes
+pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
 ```
 
 - Agent sessions (Claude Code) install dependencies and Playwright's
@@ -187,11 +188,13 @@ The full description is in
   tracks: a working track that builds and a negative track that catalogues
   constraints, coupled only by claims with tests. The pairs are on the map,
   #41. The `ratchet` skill writes an entry as a witness, a counterexample and
-  a decidable test, with a status, and files a counterexample against the
-  layer it refutes. The pawl check (`tooling/pawl.ts`, #42) runs in
+  a decidable test; its `Status:` is the evidence, and a rule the owner took
+  is a separate `Decided: <where>, <how>` field. The skill files a
+  counterexample against the layer it refutes. The pawl check (`tooling/pawl.ts`, #42) runs in
   `pnpm verify`. A test holds an entry by citing its id at the end of its
-  description, as in `(T4, #39 Q1c)`, and the entry then names the test's
-  file.
+  description, as in `(T4, Q1c)`, and the entry then names the test's file.
+  The catalogues are `language.md` (#7) and `quinetic.md` (#39), with one
+  id space; a property `language.md` already holds is an alias there.
 
 ### Terms
 

@@ -22,6 +22,9 @@ Every doc and code area, as a tree. Add a line when you add one.
     expression, each a claim with a witness, a counterexample and a test;
     tensions, candidates, experiments, and the names functional programming
     and category theory give its shapes
+  - [`quinetic.md`](quinetic.md): #39's catalogue of quinetic properties
+    (round trips, machine laws, convergence), each a claim with a test, or
+    an alias of the `language.md` entry that already holds it
   - [`ratchet.md`](ratchet.md): how a working track and a negative track
     drive each other, with tests as the pawl (#37 and #7)
   - [`theory.md`](theory.md): the mathematics under `packages/theory`
@@ -92,9 +95,12 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `hooks.test.ts`: the pre-push hook, blocking and letting through
   - `review-pr.test.ts`: the review skill's `prepare.sh`, against a
     throwaway origin
-  - `pawl.ts`: the ratchet's pawl check, which holds `docs/language.md`'s
-    statuses, tests and citations together (#42); `pawl.test.ts` shows each
-    rule firing and runs it over the repository
+  - `pawl.ts`: the ratchet's pawl check, which holds the catalogues'
+    statuses, rules, tests, aliases and citations together (#42);
+    `pawl.test.ts` shows each rule firing and runs it over the repository
+  - `history.ts`: the catalogues read at any version, the gate that
+    evidence only rises and rules go only with a reason, and the report
+    behind `pnpm ratchet` (#43)
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`

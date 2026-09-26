@@ -32,7 +32,7 @@ const steady = (seed: number, style: Style, wish: KeyWish, sections = 40): Scrip
 const aeolian: KeyWish = { tonic: null, mode: 'aeolian' };
 
 describe('the section plan', () => {
-  it('keeps the machine laws over a tour of the presets and their modes (F1, #39 Q4a)', () => {
+  it('keeps the machine laws over a tour of the presets and their modes (F1, Q4a)', () => {
     for (const seed of [1, 2, 3]) expect(lawBreaks(planner, tour(seed))).toEqual([]);
   });
 
@@ -77,7 +77,7 @@ describe('the section plan', () => {
       }
   });
 
-  it('brings a theme back while the style stays near it, but builds each build afresh (#39 Q8)', () => {
+  it('brings a theme back while the style stays near it, but builds each build afresh (Q8)', () => {
     const style = { ...INITIAL_STYLE, energy: 0.8, entropy: 0 };
     for (const seed of range(10)) {
       const plans = run(steady(seed, style, aeolian));
@@ -91,7 +91,7 @@ describe('the section plan', () => {
     }
   });
 
-  it('builds a theme anew when the harmony has moved more than 0.2 from it (#39 Q8)', () => {
+  it('builds a theme anew when the harmony has moved more than 0.2 from it (Q8)', () => {
     for (const seed of range(10))
       for (const [step, fresh] of [
         [0.1875, false],
@@ -111,7 +111,7 @@ describe('the section plan', () => {
       }
   });
 
-  it('builds a theme anew when the mode changes (#39 Q8)', () => {
+  it('builds a theme anew when the mode changes (Q8)', () => {
     for (const seed of range(10)) {
       const script = steady(seed, { ...INITIAL_STYLE, entropy: 0 }, aeolian).map(
         ({ env, input }) => ({
@@ -130,7 +130,7 @@ describe('the section plan', () => {
     }
   });
 
-  it('renews a returning theme at random, the more often the higher the entropy (#39 Q8)', () => {
+  it('renews a returning theme at random, the more often the higher the entropy (Q8)', () => {
     const renewed = (entropy: number) => {
       let returns = 0;
       let fresh = 0;
