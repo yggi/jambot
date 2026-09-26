@@ -228,7 +228,7 @@ describe('the lead', () => {
     expect(phrases).toBeGreaterThan(20);
   });
 
-  it("brings a theme's melody back with its harmony, while the style stays near it", () => {
+  it("brings a theme's melody back with its harmony, while the style stays near it (Q8)", () => {
     // A steady style: every return of a theme plays the shape it played before.
     const steady = (): Style => ({ ...PRESETS[0]!.style, energy: 0.9, entropy: 0 });
     let returns = 0;

@@ -51,7 +51,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - A random choice in the engine goes through `chance(draw, p)` or
   `pick(draw, weights)`, never a bare `draw < p`: they quantise to 2^-16,
   so a last-bit difference from `Math.pow` or `Math.sin` on another engine
-  does not change the music.
+  does not change the music. A value from them that is rounded is quantised
+  first, `Math.round(quantize(x))`: sin(π/6) times an odd number lies one
+  ulp from a half (`lead.ts`).
 - The style (`packages/engine/src/style.ts`) is a track of glides, one per
   axis, and `styleAt(track, position)` reads it at any step of the song.
   Positions there are steps from the song's start, 16 to a bar. A track
@@ -82,6 +84,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   matches on every axis the preset sets but energy (`presetOf`), so there
   is no chosen-preset state: nudging the tempo makes a style custom, and
   moving energy or entropy doesn't.
+- The parts are machines at bar rate over one `BarEnv`, and `BandBar` is
+  that environment plus the events and the bar's `sound`. The drums carry
+  nothing; the bass its last note, the comp its last voicing, the lead its
+  last note, its phrase and its themes' melodies (`BandCarried.parts`). A
+  passed bar leaves the parts where they were, and only the lead's memory
+  reaches more than register (S2). A Muse motif is a lead shape in scale
+  degrees, the first use the machines' `input` channel will have (#2).
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
@@ -115,16 +124,16 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   the CI workflow runs only when started by hand. `pnpm verify` locally is
   the check that counts. A red or missing `check` on a pull request says
   nothing about the code.
-- GitHub Pages is deployed by hand: `pnpm pages deploy` (`tooling/pages.ts`)
-  runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into
-  `apps/web/dist-pages`, checks that every file the site references resolves
-  there and that nothing is fetched from outside it, commits the build to the
-  `gh-pages` branch and pushes it. It then waits for the live site to serve
-  that build and checks it again. Pages publishes the branch as it is: the
-  repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
-  `pnpm pages build` and `pnpm pages serve` show the site on
-  `http://localhost:4318/jambot/` first, served as Pages serves it (404 for
-  what isn't a file, where `vite preview` would answer with the app).
+- GitHub Pages is deployed by hand, after each merge into `main` (`AGENTS.md`):
+  `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for
+  the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the
+  site references resolves there and that nothing is fetched from outside it,
+  commits the build to the `gh-pages` branch and pushes it. It then waits for
+  the live site to serve that build and checks it again. Pages publishes the
+  branch as it is: the repository's Pages source is "Deploy from a branch",
+  `gh-pages`, `/`. `pnpm pages build` and `pnpm pages serve` show the site on
+  `http://localhost:4318/jambot/` first, served as Pages serves it (404 for what
+  isn't a file, where `vite preview` would answer with the app).
 - `pnpm deploy` is a reserved pnpm command, which is why the deploy is
   `pnpm pages deploy`.
 - `pnpm ci` is a reserved pnpm command, which is why the all-in-one script is
@@ -189,6 +198,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - To run the prototype headless from Node, load it in jsdom as
   `prototype/experiments/cold-warm.mjs` does, and end with `process.exit`:
   the page's own timers keep the process alive.
+- The port's events carry played values: a length gated by the
+  articulation, a velocity scaled by the energy. The score text writes
+  neither; T4's performance maps give them back (`language.md`, T4 and E9).
+- To measure the port headless, run a script under
+  `packages/engine/experiments/` with
+  `node --experimental-strip-types --no-warnings`; it imports the engine
+  from `../src/index.ts`.
 
 The full description is in
 [`prototype/README.md`](../prototype/README.md#the-score-language-the-ir).
@@ -256,6 +272,24 @@ The full description is in
   flat seventh without any error, and ignores `maj` in a numeral. tonal
   ignores a numeral's case. The skill's scripts guard against all of these.
 
+### Testing the engine
+
+- A gate is shown to fire by breaking the rule on purpose and watching the
+  test fail: a threshold moved, a range widened, a tie turned. Every part's
+  tests were written that way (#56, #64); a mutant that survives means a
+  missing test, not a lucky one.
+- The preset tour rarely comes near a style threshold or an extreme style.
+  A threshold is tested on both sides by restyling real bars
+  (`bass.test.ts`), and a range over a grid of styles (`lead.test.ts`,
+  where the prototype's octave fold left the range at high energy and
+  entropy).
+- Where the prototype's function is the reference, paste it into the test
+  and compare over every case: `pivotRoot` (`key.test.ts`), `voice`
+  (`comp.test.ts`).
+- A refactor that must not change the music: hash the band's events over a
+  few hundred bars and seeds before and after, in a throwaway test.
+- A test that swaps a global (`Math.sin`) restores it in a `finally`.
+
 ### The ratchet
 
 - The ratchet ([`ratchet.md`](ratchet.md)) is the method for pairs of
@@ -267,6 +301,11 @@ The full description is in
   counterexample against the layer it refutes. The pawl check (`tooling/pawl.ts`, #42) runs in
   `pnpm verify`. A test holds an entry by citing its id at the end of its
   description, as in `(T4, Q1c)`, and the entry then names the test's file.
+  Where two packages have a test file of the same name, the entry names it
+  by its path (`packages/engine/src/chords.test.ts`); a quoted test name is
+  the whole name, with no ellipsis; and only `#` followed by a space starts
+  a heading, so an entry may wrap onto a line that starts with an issue
+  number.
   The catalogues are `language.md` (#7) and `quinetic.md` (#39), with one
   id space; a property `language.md` already holds is an alias there.
 

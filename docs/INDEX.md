@@ -11,9 +11,10 @@ Every doc and code area, as a tree. Add a line when you add one.
     point
   - [`INDEX.md`](INDEX.md): this tree
   - [`ROADMAP.md`](ROADMAP.md): where the project is heading
-  - [`architecture.md`](architecture.md): layers (engine, transport,
-    renderers, UI), languages, nodes (web clients, root node,
-    rendering nodes), related projects, timing
+  - [`architecture.md`](architecture.md): the workspace, the theory,
+    layers (engine and its rates, transport, renderers, UI), delivery,
+    languages, nodes (web clients, root node, rendering nodes), related
+    projects, timing, and what has settled and what is open
   - [`development.md`](development.md): setup, toolchain and why it was
     chosen
   - [`prototype.md`](prototype.md): what the port keeps and changes, and how
@@ -108,6 +109,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       composes a beat before each bar and schedules on a clock, and
       `bandEnvAt` is what the band reads for a bar; `forecast` gives the
       bars ahead, composed or not
+    - `experiments/`: measurements on the port for the language design,
+      outside the pure `src/`
+      - [`performance.ts`](../packages/engine/experiments/performance.ts):
+        E9, what the port writes and what it plays (lengths, velocities,
+        the header's precision, the chords part's overlaps)
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing

@@ -4,18 +4,28 @@ Jambot is a pnpm workspace:
 
 - **`packages/theory`** holds the music theory, built on one primitive (see
   below).
-- **`packages/engine`** holds the musical engine.
+- **`packages/engine`** holds the musical engine: the section plan, the band
+  and its four parts, and the transport.
 - **`apps/web`** is the browser app: Svelte 5, built by Vite, and installable
-  as an offline PWA. It also serves the original prototype at
-  `/prototype.html`.
+  as an offline PWA. It plays the full band on the engine, and also serves
+  the original prototype at `/prototype.html`.
+- **`tooling`** holds the repository's own gates and tools: the lint rules,
+  the agent hooks, the pawl and history checks over the catalogues, the
+  license gate and the Pages deploy.
 
 `theory` and `engine` are pure: plain TypeScript with no DOM, no Web Audio,
 no timers and no Node APIs, which lint enforces. They run anywhere
 JavaScript runs: a browser tab, a Worker, or the root node.
 
-The engine is being ported from the [prototype](prototype.md) one module at
-a time (#2). The web app plays the drums on the new engine so far, and links
-to the prototype for the full band (#37).
+The engine is ported from the [prototype](prototype.md) (#2), and all of it
+but the Muse is in place (#37). The score core (the grammar, its parser, the
+encoder and the compiler) goes into its own package, `packages/score`, which
+builds on the theory, and the engine depends on both. The score language is
+the contract between the composer, the compiler, the analyzer (#3) and later
+the learned models, so it lives apart from any one of them. The package is
+created with its first module, the seam of #63.
+
+## Theory
 
 Music theory lives in `packages/theory` (#28). It is built on one primitive,
 `even(k, n, shift)`: k of n placed as evenly as possible, the maximally
@@ -36,8 +46,11 @@ package names things:
 - notes, with their spelling, and intervals, generic and specific;
 - degrees, counted through a scale or a rhythm alike, and named by function
   (tonic, dominant, leading tone);
-- chords, built by composing every other degree with a key, and the named
-  qualities as stacks above the root;
+- chords: a `Chord` is a helix of one turn plus its tensions, the tones
+  above it (#38), and the named qualities are stacks above the root;
+- the scale a chord implies in a key (`chordScale`), where each tension sets
+  its own degree;
+- Roman numerals, as degrees of the key's own scale (`numerals.ts`);
 - named scales and their modes, and named rhythms.
 
 `read` reads all of these by name, in long and short forms, and `readings`
@@ -49,70 +62,94 @@ their tables.
 This primitive is the root of the project and the core of the language
 design (#7).
 
-The score core (the grammar, its parser, the encoder and the compiler) goes
-into its own package, `packages/score`, which builds on the theory, and the
-engine depends on both. The
-score language is the contract between the composer, the compiler, the
-analyzer (#3) and later the learned models, so it lives apart from any one
-of them. The package is created with its first ported module.
-
 ## Layers
 
 ```
-            ┌─────────────────────────────────────────────┐
-  inputs →  │ engine (pure, deterministic, no I/O)        │
-  (style,   │  style space · form/plan · harmony · parts  │
-   notes,   │  muse · score encoder → score text          │
-   overrides│  score compiler → note events (bar-relative)│
-   seed)    └───────────────┬─────────────────────────────┘
-                            │ events per bar
-            ┌───────────────▼─────────────────────────────┐
-            │ transport (clock, tempo map, lookahead)     │
-            │ bar/step → absolute time; swing applied     │
-            └───────┬───────────────┬───────────────┬─────┘
-                    │               │               │
-              Web Audio synth   Web MIDI out   root node / native MIDI
+              ┌──────────────────────────────────────────────────┐
+  style,      │ engine (pure, deterministic, no I/O)             │
+  key wish,   │  section plan ─ per section: form, key, theme    │
+  seed ─────▶ │  band ──────── per bar: decides the next bar,    │
+  (notes,     │                plays drums · bass · comp · lead  │
+   takeovers  │  [text step: encode → compile, #63]              │
+   later)     └────────────────────────┬─────────────────────────┘
+                                       │ note events per bar, and its sound
+              ┌────────────────────────▼─────────────────────────┐
+              │ transport ─ per tick: written position → time,   │
+              │ through the swing and tempo maps; schedules ahead│
+              └─────────┬──────────────────┬──────────────┬──────┘
+                        │                  │              │
+                Web Audio synth       Web MIDI out    root node /
+                (drums, voices)       (#24)           native MIDI (#20)
 ```
 
-- **Engine**: its state is explicit and serialisable, so a snapshot can be
-  sent, stored or replayed. It takes the style, the input history and a
-  seed, and returns the score text and note events for bar _n_. All
-  randomness is keyed by seed and position (see `random.ts`), so the same
-  inputs always give the same music. Its levels share one contract, a
-  Mealy machine (`machine.ts`): `advance(env, carried, input)` reads an
-  environment (the seed, the style and the plan at that position), carries
-  state (only what depends on the path, such as where the voices were),
-  hears an input, and writes an output. `lawBreaks` checks the contract:
-  what it reads, carries and writes is plain data, nothing given is
-  changed, the same arguments give the same result, and advancing from a
-  snapshot gives what the run gave. Until the
-  score package (#13) lands, the engine writes note events and the
-  transport plays them; the text step then goes between the two.
-- **Score text**: the contract between composing and playing. The composer
-  writes each bar as text, and only the compiler turns text into notes.
-  Overrides, tests and sync all work on this text.
-- **Transport**: owns time. It maps musical positions to clock time and
-  schedules ahead. Swing is a time map from written to played positions,
-  and tempo one from positions to seconds, each with its inverse
-  (`swing.ts`, `tempo.ts`), and time maps compose. The transport itself is
-  a pure machine at tick rate (`transport.ts`): given the clock's now, it
-  schedules every step that starts before now plus 120 ms. The band
-  composes each bar on the last beat of the bar before, so a change of
-  style reaches the drums within the rest of the bar and a beat (at most
-  20 steps), while tempo and swing follow it per step and per beat. Once a
-  beat has started, its swing is kept. A bar the clock has wholly passed,
-  after a stall, is not composed. The web app supplies the clock and plays
-  what it schedules (`apps/web/src/player.svelte.ts`). The clock is
-  swappable: a local audio clock, a MIDI clock follower, or the root
-  node's clock.
-- **Renderers**: turn timestamped events into sound or MIDI messages and
-  handle channel allocation and note-off bookkeeping.
-- **UI**: reads engine snapshots and sends intents (preset, slider move,
-  override, key change). It never mutates engine state directly.
+- **Engine**: every level is a Mealy machine (`machine.ts`):
+  `advance(env, carried, input)` reads an environment (the seed, the style
+  and the plan at that position), carries state (only what depends on the
+  path), hears an input and writes an output. `lawBreaks` checks the
+  contract: what it reads, carries and writes is plain data, nothing given
+  is changed, the same arguments give the same result, and advancing from a
+  JSON snapshot gives what the run gave. All randomness is keyed by seed,
+  position and a named stream (`random.ts`), and probabilities are
+  quantised before they meet a draw, so the same inputs give the same
+  music on every JavaScript engine. The levels, each at its own rate:
+  - **the section plan** (`plan.ts`), per section: the form's next section,
+    the key moved one step toward the players' wish, and the theme, which
+    returns until the style drifts from it;
+  - **the band** (`band.ts`), per bar: it plays a bar and decides the next
+    one, its plan and chords, so what a part leads into is what plays. A bar
+    the clock has passed is passed (`passBar`), not composed;
+  - **the parts**, per bar, over one `BarEnv`: the drums carry nothing, the
+    bass its last note, the comp its last voicing, the lead its last note,
+    its phrase and its themes' melodies;
+  - **the transport**, per tick (below).
+
+  The engine writes note events and the transport plays them. The text step
+  goes between the two once #63 builds it, as a round trip that changes
+  nothing (`compile ∘ encode = id`).
+
+- **Score text**: the contract between composing and playing, readable by a
+  musician. In the design, the composer writes each bar as text, and only
+  the compiler turns text into notes; takeovers, tests and sync work on this
+  text. The prototype works that way. The port does not yet: it plays the
+  engine's events, and #63 builds the seam.
+- **Transport**: owns time (`transport.ts`), a pure machine at tick rate.
+  Given the clock's now, it schedules every step that starts before now
+  plus 120 ms. Swing is a time map from written to played positions, and
+  tempo one from positions to seconds, each with its exact inverse
+  (`swing.ts`, `tempo.ts`), and time maps compose. The band composes each
+  bar on the last beat of the bar before. So a change of style reaches the
+  drums within the rest of the bar and a beat (at most 20 steps), a chord's
+  colour a bar later, and a key wish at the next section the band plans, a
+  bar before that section starts. Tempo and
+  swing follow per step and per beat, and a started beat keeps its swing.
+  After a stall, what the clock has passed is dropped, not played late. The
+  web app supplies the clock and plays what it schedules
+  (`apps/web/src/player.svelte.ts`).
+- **Renderers**: turn timed events into sound or MIDI messages. The web
+  app's output routes an event by its part: the drums to a synthesised kit,
+  the bass, chords and lead to voices that the bar's `sound` colours
+  (`soundOf`, from the style). MIDI out, with channel allocation and
+  note-off bookkeeping, is #24.
+- **UI**: reads what the player has heard and sends intents (a preset,
+  which also wishes for its mode, and a slider move; a key picker and
+  takeovers later). It never mutates engine state.
+  The conductor (`conductor.ts`) turns an intent into glides on the style
+  track and a key wish. How the UI grows into components over a view model
+  is laid out on #26.
 
 This split comes from the prototype, where one shared state object couples
 composing, scheduling and rendering. The reasons are listed in
 [the prototype page](prototype.md#what-the-port-changes).
+
+## Delivery
+
+- `pnpm verify` runs lint, the format check, the type checks, every test
+  (the pawl over the catalogues among them) and the build, whose license
+  gate fails on any shipped package without a permissive license. Agents'
+  pushes run it through a hook. CI runs only by hand (#4).
+- `pnpm e2e` runs the built app in Chromium and measures its audio.
+- `pnpm pages deploy` publishes `main` to GitHub Pages by hand
+  (`tooling/pages.ts`).
 
 ## Languages
 
@@ -123,16 +160,19 @@ Conceptually, the languages stack like this, from top to bottom:
 3. MIDI or dough: the "machine language" at the bottom, which a rendering
    node understands
 
-How the score language relates to Strudel is being designed (#7). One idea
-is that it relates to Strudel as TypeScript relates to JavaScript.
+Strudel is a target, not a dependency: the shared mini-notation should
+behave identically, and no package imports Strudel, which is AGPL (L4 in
+[`language.md`](language.md); the conformance corpus is #11). One idea is
+that the score language relates to Strudel as TypeScript relates to
+JavaScript; that is open (#7).
 
 ## Nodes
 
 ### Web clients
 
-The browser app runs fully on its own: it composes, plays through the
-built-in synth or Web MIDI, and listens to input. At an event it connects to
-the root node.
+The browser app runs fully on its own: it composes and plays through the
+built-in synth. Web MIDI out (#24) and listening to input (#25) are still
+only in the prototype. At an event it connects to the root node (#20).
 
 ### Root node
 
@@ -229,14 +269,49 @@ findings are in #8–#12.
 ## Timing
 
 Timing and latency are a known issue across the whole system: browsers,
-network, USB and MIDI. A hardware MIDI clock is one mitigation path.
+network, USB and MIDI (#27). What holds now: the clock never waits (T1), and
+the transport drops what a stall passed. A hardware MIDI clock is one
+mitigation path, and the MIDI clock is a lossy grid of 96 ticks a bar (T3).
 
-## Open questions
+## What has settled, and what is open
 
-- Which JavaScript runtime runs on the root node (Node, Bun or Deno)?
-- What do connected web clients do: send input and style, show the HUD,
-  render?
-- What latency and jitter budget does MIDI out need?
-- How does the root node talk to the digital mixer?
-- Where do the Muse inputs go when several people play at once?
-- How does the score language relate to Strudel? (#7)
+Settled, each held by tests on `main`:
+
+- **Purity and determinism:** theory and engine are pure; every level is a
+  machine with checked laws; randomness is keyed and quantised.
+- **One primitive:** `even(k, n, shift)` and the helix give scales,
+  rhythms, modes and chords; the Euclid form is `even(k, n)` (#8).
+- **Chords and their scales:** a chord is a helix plus tensions, and a
+  tension sets its own degree of the scale its helix implies (#38).
+- **Numerals, scale lines, pitch tokens:** decided on #7 as U1, U3 and U2,
+  and held in the theory ahead of the score package (`numerals.ts`,
+  `chordScale`); #63 measures them by round trip.
+- **Time:** written and played time are separate, joined by exact time maps
+  (T4); swing per beat, tempo per step, composing a beat ahead, dropping
+  what a stall passed.
+- **Rates:** each value lives at one rate and is held by the faster levels
+  (C3); a key follows the players' wish as a standing target (C6).
+- **The band:** it decides each bar a bar ahead, and plays four parts that
+  each carry their memory.
+- **Licensing:** MIT, a license gate on what the app ships, and Strudel
+  kept out of the packages.
+
+Open:
+
+- **The score's surface and the text step** (#7, #63): the seam builds it
+  and measures the decided surface by round trip.
+- **Random access against musical memory** (#7's tension 1): the bass and
+  the comp carry register alone, but the lead carries a phrase and its
+  themes' melodies (S2). What a key frame holds, or which memory becomes a
+  named cell in the score, is open.
+- **Exact positions** (T2): the port counts steps in floating point, and
+  whether positions become exact fractions is open until the text step.
+- **The Muse and inputs** (#2, #25): where a motif enters the band, and how
+  several players' notes are told apart.
+- **MIDI out, the MIDI clock and its master** (#24, #27).
+- **Latency and jitter budgets** (#27), and whether notes are humanised
+  (the prototype adds random jitter; the port doesn't).
+- **The root node** (#20): its JavaScript runtime (Node, Bun or Deno), what
+  connected web clients do (send input and style, show the HUD, render),
+  and how it talks to the digital mixer.
+- **How the score language relates to Strudel** (#7, #11).

@@ -113,7 +113,7 @@ describe('the band', () => {
     }
   });
 
-  it('plays the drums, the bass, the comp and the lead of each bar, at the energy its section shapes, and reads them the next bar decided', () => {
+  it('plays the drums, the bass, the comp and the lead of each bar, at the energy its section shapes, and reads them the next bar decided (Q5a)', () => {
     let carried = band.initial;
     for (const { env } of script(9)) {
       const { output, carried: after } = band.advance(env, carried, null);
@@ -136,6 +136,17 @@ describe('the band', () => {
       expect(after.parts.lead).toEqual(melody.carried);
       carried = after;
     }
+  });
+
+  it('plays each note at most once per step in every part, over a tour of the presets (F5)', () => {
+    let bars = 0;
+    for (const seed of range(5))
+      for (const { events } of run(seed)) {
+        const hits = events.map((e) => `${e.part}:${e.step}:${e.note}`);
+        expect(new Set(hits).size).toBe(hits.length);
+        bars++;
+      }
+    expect(bars).toBe(320);
   });
 
   it('carries register into the bass and the comp, but a phrase into the lead: what a resumed band loses (S2)', () => {
