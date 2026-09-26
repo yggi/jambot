@@ -43,3 +43,8 @@ House rules are in [AGENTS.md](AGENTS.md). Setup and toolchain are in
 Start at [docs/MEMORY.md](docs/MEMORY.md) (facts and cheatsheet).
 [docs/INDEX.md](docs/INDEX.md) lists every doc and code area. Work is tracked
 in [GitHub issues](https://github.com/yggi/jambot/issues).
+
+## License
+
+[MIT](LICENSE). The built app lists the licenses of the code it ships from
+other packages in `licenses.txt`.

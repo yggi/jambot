@@ -5,6 +5,7 @@ Every doc and code area, as a tree. Add a line when you add one.
 - [`README.md`](../README.md): what Jambot is and how to run it
 - [`AGENTS.md`](../AGENTS.md): house rules and core structure (`CLAUDE.md`
   imports it)
+- [`LICENSE`](../LICENSE): MIT
 - `docs/`
   - [`MEMORY.md`](MEMORY.md): persistent facts and the cheatsheet, the entry
     point
@@ -95,9 +96,14 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `pawl.ts`: the ratchet's pawl check, which holds `docs/language.md`'s
     statuses, tests and citations together (#42); `pawl.test.ts` shows each
     rule firing and runs it over the repository
+  - `licenses.ts`: the license gate over what the web app ships, and the
+    `licenses.txt` it writes; `licenses.test.ts` shows it refusing copyleft
+    and unknown licenses
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
+    - `vite.config.ts`: the build, with the prototype and the license gate
+      as plugins
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start
