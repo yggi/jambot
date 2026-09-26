@@ -19,7 +19,7 @@ This catalogue is the negative track of a ratchet ([`ratchet.md`](ratchet.md)):
 tracks paired with it (#41). Findings from their steps come up into this
 catalogue, and entries that bind code go down as tests in their next step.
 The properties that no single pair owns, such as round trips across several
-boundaries, are collected in #39 (Q1–Q8).
+boundaries, are collected in [`quinetic.md`](quinetic.md) (#39, Q1–Q8).
 
 ## Method
 
@@ -39,7 +39,7 @@ boundaries, are collected in #39 (Q1–Q8).
 
 A test named here lives on `main`, unless the entry says otherwise. A test
 that holds an entry cites its id in a group at the end of its description,
-such as `(F6)` or `(T4, #39 Q1c)`, and the entry names the test's file; it
+such as `(F6)` or `(T4, Q1c)`, and the entry names the test's file; it
 need not quote the test, so the test's wording can change. Tests written
 before the catalogue are named here by file and quoted description. The
 pawl check (`tooling/pawl.ts`, #42) holds all of this in `pnpm verify`: every
@@ -109,13 +109,13 @@ Test: `swing.test.ts`, "is undone by its inverse, both ways, on and off the
 grid" and "shows that the prototype's delays are not what its unswing
 undoes"; `tempo.test.ts`, "keeps time rising through a tempo glide, and
 gives each position back from its time", and the four tests under
-"position and clock time" that cite (T4, #39 Q1c): tempo glides from rest
+"position and clock time" that cite (T4, Q1c): tempo glides from rest
 between the axis ends and every preset tempo at every length, 60 chains of
 retargets that carry their slope, brake or arrive early, the chain through
 swing, and a reading of clock time that runs backwards.
 Source: time maps (Jaffe, "Ensemble Timing in Computer Music", 1985;
 Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Lands in:
-#37 (done), #39 Q1b and Q1c.
+#37 (done), Q1b and Q1c.
 
 **T5. Any bar renders from its environment (seed, position, style, plan)
 and what it states.**
@@ -143,7 +143,7 @@ During the tour's glides the tempo played is up to 8.6 BPM off the bar's
 `bpm=`.
 Source: the prototype's compiler, which reads `S.cs[part].prev`,
 `S.prevVoicing` and the next bar's plan, and its tempo glides in `S.tr`.
-Status: measured. Lands in: #39 Q4b.
+Status: measured. Lands in: Q4b.
 
 **S2. Whatever a bar reads from before it is written at the bar, as a key
 frame.**
@@ -287,7 +287,7 @@ Witness: the transport sends both ends of a note through the time map
 Counterexample: a legato line that overlaps or gaps under swing, as in the
 prototype, which swings only the start.
 Test: `transport.test.ts`, "holds a note from its swung start to its swung
-end". Open: every note-on has its note-off on the MIDI port (#5, #39 Q1d).
+end". Open: every note-on has its note-off on the MIDI port (#5, Q1d).
 Source: MIDI (no durations), #37 step 3. Status: measured (the port's
 lengths); open (note-offs). Lands in: #24.
 
@@ -335,8 +335,7 @@ Counterexample: an event missing, added or changed after the round trip.
 Test: the prototype's run over about 6,000 events (`prototype/README.md`,
 "Tested"); no test in this repository reruns it yet. E1 adds that it holds
 only warm.
-Source: prototype. Status: measured (in the prototype). Lands in: #13, #39
-Q1a.
+Source: prototype. Status: measured (in the prototype). Lands in: #13, Q1a.
 
 **A2. Every MIDI input has an IM, with an escape hatch where the grammar
 can't say it.**
@@ -351,7 +350,7 @@ decided (provenance); open (confidence). Lands in: #3, #25.
 
 **A4. Following the players is a loop with a bandwidth.**
 Source: SDR (clock recovery), the Muse's rate limit. Status: speculative.
-Lands in: #16, #25, #27, #39 Q7.
+Lands in: #16, #25, #27, Q7a.
 
 ### Composition
 
@@ -370,7 +369,7 @@ was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
 `form.test.ts`, `band.test.ts` and `transport.test.ts`, whose tests of the
 machine laws cite F1.
-Source: #37 step 1. Status: measured. Lands in: #39 Q4a.
+Source: #37 step 1. Status: measured. Lands in: Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
 Witness: the prototype's compiler carries each part's previous pitch and
@@ -398,14 +397,14 @@ prototype's swing gives one (T4).
 Test: `swing.test.ts` and `tempo.test.ts`, as for T4 (time); open for text
 (#13) and sound (#3).
 Source: #13, #37. Status: measured (time); open (text, sound). Lands in:
-#39 Q1 and Q3.
+Q1a–Q1e and Q3.
 
 **F4. Analysis settles in one round: `encode(compile(encode(x))) =
 encode(x)`.**
 Witness: the analyzer. Counterexample: a MIDI file whose analysis changes
 on a second pass.
 Test: open: the analyzer's corpus.
-Source: F3. Status: open. Lands in: #3, #39 Q2.
+Source: F3. Status: open. Lands in: #3, Q2.
 
 **F5. Within a part, events combine as a join: the same hit twice is one
 hit, and the louder stays. Bars combine in sequence by a shift of origin.**
@@ -426,7 +425,7 @@ note nests in a chord in a key, and a step in a beat in a bar.
 Counterexample: a chain of three helices whose composites differ by
 bracketing, or a helix changed by the identity.
 Test: `helix.test.ts`, "is a category: associative over every chain of even
-helices with n ≤ 12, and the chromatic helix is the identity (F6, #39 Q5)",
+helices with n ≤ 12, and the chromatic helix is the identity (F6, Q5b)",
 over 659,594 chains, each helix at every shift below its cycle.
 Source: `docs/theory.md` ("Composition"). Status: measured.
 
@@ -436,7 +435,7 @@ plays a motif back two bars later. Pd refuses a signal loop without a delay
 for the same reason.
 Counterexample: a wiring of machines with a delay-free cycle.
 Test: open: a check over the wiring, with a wiring it rejects.
-Source: F1, Pd. Status: derived. Lands in: #25, #39 Q6.
+Source: F1, Pd. Status: derived. Lands in: #25, Q6.
 
 **F8. The jam is an infinite stream, made one position at a time.**
 Witness: the transport, whose every advance is bounded (T1). "The clock
@@ -533,7 +532,8 @@ renames nothing in the code.
 
 ## Strange loops
 
-Each property here, with its test and status, is tracked in #39.
+Each property here, with its test and status, is an entry in
+[`quinetic.md`](quinetic.md) (#39).
 
 Speculative. The prototype's "Quinetics parallels" keep self-reference,
 fixed points and coarse-graining apart as analogies until something
@@ -563,7 +563,7 @@ with the players converges.
 
 Each answers one entry. E1 has run; the others have not.
 
-- **E1. Cold against warm compile** (S1, S2, F2; #39 Q4b), in
+- **E1. Cold against warm compile** (S1, S2, F2, Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
   (`node prototype/experiments/cold-warm.mjs`, about 3 s). It runs the
   prototype headless for 64 bars in each of the eight presets and in a tour
@@ -598,7 +598,8 @@ Each answers one entry. E1 has run; the others have not.
 - **E7. The round trips** (F3, F4): for each boundary, up ∘ down against
   the identity, and the idempotence of down ∘ up. The time boundaries are
   measured (T4); the text boundary waits on #13, and the analyzer boundary
-  on #3. All are tracked in #39, with the other quinetic properties.
+  on #3. All are entries in [`quinetic.md`](quinetic.md), with the other quinetic
+  properties.
 
 The open decisions on #7, (a) to (d), are about meaning, and each is checked
 against this catalogue as it is made.

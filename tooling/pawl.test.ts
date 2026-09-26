@@ -17,8 +17,17 @@ const spec = (...names: string[]) =>
 
 /** A repository holding `catalogue` as docs/language.md, and `files`. */
 function repo(catalogue: string, files: Record<string, string> = {}): Repo {
-  const all: Record<string, string> = { 'docs/language.md': catalogue, ...files };
-  return { catalogue: 'docs/language.md', paths: Object.keys(all), read: (path) => all[path]! };
+  return repoOf({ 'docs/language.md': catalogue }, files);
+}
+
+/** A repository holding each of `catalogues` at its path, and `files`. */
+function repoOf(catalogues: Record<string, string>, files: Record<string, string> = {}): Repo {
+  const all: Record<string, string> = { ...catalogues, ...files };
+  return {
+    catalogues: Object.keys(catalogues),
+    paths: Object.keys(all),
+    read: (path) => all[path]!,
+  };
 }
 
 const glide = `**C1. Nothing jumps.**
@@ -104,7 +113,7 @@ Status: measured.`;
     expect(pawlProblems(repo(open))).toEqual([]);
   });
 
-  it('refuses a test that cites an id no catalogue defines, or a catalogue that is not known (rule 4)', () => {
+  it('refuses a test that cites an id no catalogue defines, or cites it in another form (rule 4)', () => {
     const files = {
       'packages/engine/src/style.test.ts': spec(
         'starts from where the running glide is',
@@ -121,7 +130,16 @@ Status: measured.`;
       ),
     };
     expect(pawlProblems(repo(glide, elsewhere))).toEqual([
-      'packages/engine/src/style.test.ts cites #12 Q1, which is in no known catalogue',
+      'packages/engine/src/style.test.ts cites "#12 Q1"; a citation names the id alone',
+    ]);
+    const loose = {
+      'packages/engine/src/style.test.ts': spec(
+        'starts from where the running glide is',
+        'glides (C1, see below)',
+      ),
+    };
+    expect(pawlProblems(repo(glide, loose))).toEqual([
+      'packages/engine/src/style.test.ts cites "see below"; a citation holds only ids and issue numbers',
     ]);
   });
 
@@ -140,7 +158,7 @@ Status: measured.`;
     const files = {
       'packages/engine/src/style.test.ts': spec(
         'starts from rest (C1)',
-        'keeps its rate (C1, #39 Q5)',
+        'keeps its rate (#38, C1)',
       ),
     };
     expect(pawlProblems(repo(byId, files))).toEqual([]);
@@ -150,6 +168,51 @@ Status: measured.`;
     const twice = `${glide}\n\n**C1. Nothing jumps, again.** Status: decided.`;
     expect(pawlProblems(repo(twice, styleTests))).toEqual([
       'docs/language.md:6 C1 is defined twice, first at line 1',
+    ]);
+  });
+
+  it('refuses an id defined in two catalogues (rule 6)', () => {
+    const catalogues = {
+      'docs/language.md': glide,
+      'docs/quinetic.md': '**C1. Nothing jumps, here too.** Status: open.',
+    };
+    expect(pawlProblems(repoOf(catalogues, styleTests))).toEqual([
+      'docs/quinetic.md:1 C1 is defined twice, first at docs/language.md:1',
+    ]);
+  });
+
+  it('reads an alias as its target: no status of its own, and a citation of it checked against the target (rule 7)', () => {
+    const catalogues = {
+      'docs/language.md': glide,
+      'docs/quinetic.md': '**Q1. Nothing jumps.** Same as C1.',
+    };
+    const files = {
+      'packages/engine/src/style.test.ts': spec(
+        'starts from where the running glide is',
+        'glides (Q1)',
+      ),
+    };
+    expect(pawlProblems(repoOf(catalogues, files))).toEqual([]);
+    const elsewhere = { ...styleTests, 'packages/engine/src/swing.test.ts': spec('swings (Q1)') };
+    expect(pawlProblems(repoOf(catalogues, elsewhere))).toEqual([
+      'packages/engine/src/swing.test.ts cites Q1, whose test does not name that file',
+    ]);
+  });
+
+  it('refuses an alias of an id no catalogue defines, or of another alias (rule 7)', () => {
+    const missing = {
+      'docs/language.md': glide,
+      'docs/quinetic.md': '**Q1. Nothing.** Same as C9.',
+    };
+    expect(pawlProblems(repoOf(missing, styleTests))).toEqual([
+      'docs/quinetic.md:1 Q1 is the same as C9, which no catalogue defines',
+    ]);
+    const chain = {
+      'docs/language.md': glide,
+      'docs/quinetic.md': '**Q1. Nothing.** Same as C1.\n\n**Q2. Still nothing.** Same as Q1.',
+    };
+    expect(pawlProblems(repoOf(chain, styleTests))).toEqual([
+      'docs/quinetic.md:3 Q2 is the same as Q1, which is itself an alias',
     ]);
   });
 
@@ -186,6 +249,8 @@ describe('the parts of the check', () => {
 
   it('reads a citation only from a trailing group of ids', () => {
     expect(citations('keeps time (T4, #39 Q1c)')).toEqual(['T4', '#39 Q1c']);
+    expect(citations('splits at the octave (#38, P6)')).toEqual(['#38', 'P6']);
+    expect(citations('decides it (#38)')).toEqual([]);
     expect(citations('every 1 ≤ k < n ≤ 16 (P4)')).toEqual(['P4']);
     expect(citations('writes a chord (pad or stab)')).toEqual([]);
     expect(citations('writes (C1) in the middle')).toEqual([]);

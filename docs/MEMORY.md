@@ -187,8 +187,9 @@ The full description is in
   a decidable test, with a status, and files a counterexample against the
   layer it refutes. The pawl check (`tooling/pawl.ts`, #42) runs in
   `pnpm verify`. A test holds an entry by citing its id at the end of its
-  description, as in `(T4, #39 Q1c)`, and the entry then names the test's
-  file.
+  description, as in `(T4, Q1c)`, and the entry then names the test's file.
+  The catalogues are `language.md` (#7) and `quinetic.md` (#39), with one
+  id space; a property `language.md` already holds is an alias there.
 
 ### Terms
 

@@ -1,6 +1,6 @@
 ---
 name: ratchet
-description: Run Jambot's ratchet, where a working track (builds code that runs) and a negative track (catalogues constraints) drive each other through claims in Gödel's Dialectica form - witnesses forward, counterexamples back, a test on main as the pawl. Use when a step on a paired track ends and its findings need harvesting; when writing or changing a catalogue entry (#7's docs/language.md, #39); when a decision seems to be needed; when a test fails in code that builds on another layer and the fault has to be placed; when filling a pull request's Findings section; or when pairing issues or commenting on a crossing between them. Both sides apply it.
+description: Run Jambot's ratchet, where a working track (builds code that runs) and a negative track (catalogues constraints) drive each other through claims in Gödel's Dialectica form - witnesses forward, counterexamples back, a test on main as the pawl. Use when a step on a paired track ends and its findings need harvesting; when writing or changing a catalogue entry (#7's docs/language.md, #39's docs/quinetic.md); when a decision seems to be needed; when a test fails in code that builds on another layer and the fault has to be placed; when filling a pull request's Findings section; or when pairing issues or commenting on a crossing between them. Both sides apply it.
 ---
 
 # Ratchet: witnesses forward, counterexamples back
@@ -40,6 +40,11 @@ Counterexample: <the shape of a case that would refute it>.
 Test: <the decidable check, and where it lives, or "open: how it would run">.
 Source: <issue, probe or finding>. Status: <status>. Lands in: <issue, step>.
 ```
+
+The ids are one space across the catalogues (`docs/language.md`,
+`docs/quinetic.md`). A claim another catalogue already makes is written as
+an alias, `**Q2. <claim>.** Same as F4.`, with no status or test of its own,
+so it is tracked once.
 
 A claim of the form "for every x there is a y" becomes "there is a function
 from x to y": the witness is a function. "Every MIDI input has some form"
@@ -151,7 +156,7 @@ the same form, or says "none".
       track's issue, in the claim form (W4).
 - [ ] Every counterexample is filed where it refutes (N3).
 - [ ] Every new test cites the entry it holds in a group at the end of its
-      description, such as `(T4, #39 Q1c)`, and the entry names its file.
+      description, such as `(T4, Q1c)`, and the entry names its file.
 - [ ] Every status moved up or stayed, and no entry disappeared.
 - [ ] Every decision taken says whether it dissolved or was made, and with
       which measurements (B3).

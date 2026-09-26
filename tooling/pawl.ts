@@ -1,39 +1,39 @@
 /**
- * The ratchet's pawl check (#42): the catalogue's statuses, the tests its
+ * The ratchet's pawl check (#42): the catalogues' statuses, the tests their
  * entries name and the ids that tests cite have to agree, so an entry can't
- * slip back without `pnpm verify` saying so (`docs/ratchet.md`).
+ * slip back without `pnpm verify` saying so (`docs/ratchet.md`). The ids are
+ * one space across all catalogues.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
 
-/** A repository as the check sees it: its catalogue, its file paths, and a reader. */
+/** A repository as the check sees it: its catalogues, its file paths, and a reader. */
 export interface Repo {
-  catalogue: string;
+  catalogues: string[];
   paths: string[];
   read(path: string): string;
 }
 
-/** A catalogue entry: its id, the line it starts on, and its raw fields. */
+/**
+ * A catalogue entry: its id, the line it starts on, and its raw fields. An
+ * alias (`Same as F4.`) is another name for an entry in any catalogue, and
+ * has no status or test of its own.
+ */
 export interface Entry {
   id: string;
   line: number;
   status: string | undefined;
   test: string | undefined;
+  same: string | undefined;
 }
 
-/**
- * Catalogues outside the repository that tests may cite with an issue
- * prefix, and the form of their ids. #39's properties live in the issue, so
- * only the form of a citation is checked there.
- */
-const outside: Record<string, RegExp> = { '#39': /^Q\d+[a-z]?$/ };
-
-const labels = /\b(Witness|Counterexample|Test|Source|Status|Lands in|Open):\s*/g;
+const labels = /\b(?:(Witness|Counterexample|Test|Source|Status|Lands in|Open):|(Same as)) */g;
 const rungs = /^(speculative|open|measured, failing|measured|derived|decided)( \([^()]*\))?$/;
 const retired = /^retired: \S/;
 const fileToken = /^[\w@./-]+\.(ts|mjs|js|md|py|html|json)$/;
 const bareId = /^[A-Z]\d+[a-z]?$/;
-const prefixedId = /^(#\d+) ([A-Z]\d+[a-z]?)$/;
+const prefixedId = /^#\d+ [A-Z]\d+[a-z]?$/;
+const issue = /^#\d+$/;
 
 /**
  * The entries of a catalogue: each `**X9. …**` title with everything up to
@@ -59,16 +59,16 @@ export function readCatalogue(text: string): Entry[] {
   return entries;
 }
 
-/** An entry's Status and Test fields, without their closing full stops. */
-function fields(text: string): Pick<Entry, 'status' | 'test'> {
+/** An entry's Status, Test and Same as fields, without their closing full stops. */
+function fields(text: string): Pick<Entry, 'status' | 'test' | 'same'> {
   const found: Record<string, string> = {};
   const marks = [...text.matchAll(labels)];
   marks.forEach((mark, n) => {
     const from = mark.index + mark[0].length;
     const to = n + 1 < marks.length ? marks[n + 1]!.index : text.length;
-    found[mark[1]!] = text.slice(from, to).trim().replace(/\.$/, '');
+    found[mark[1] ?? mark[2]!] = text.slice(from, to).trim().replace(/\.$/, '');
   });
-  return { status: found['Status'], test: found['Test'] };
+  return { status: found['Status'], test: found['Test'], same: found['Same as'] };
 }
 
 /** The ids of the catalogue's experiments, `- **E1. …**`. */
@@ -82,12 +82,16 @@ export function testNames(source: string): string[] {
   return [...source.matchAll(calls)].map((m) => m[2]!.replace(/\\(.)/g, '$1'));
 }
 
-/** The ids a test name cites: a trailing group such as `(T4, #39 Q1c)`. */
+/**
+ * The items of a test name's citation: a trailing group that holds at least
+ * one id, such as `(T4, Q1c)` or `(#38, P6)`. The check refuses an item
+ * that is neither an id nor an issue number.
+ */
 export function citations(name: string): string[] {
   const group = /\(([^()]*)\)$/.exec(name.trim());
   if (!group) return [];
   const items = group[1]!.split(',').map((item) => item.trim());
-  return items.every((item) => bareId.test(item) || prefixedId.test(item)) ? items : [];
+  return items.some((item) => bareId.test(item) || prefixedId.test(item)) ? items : [];
 }
 
 const squeeze = (text: string) => text.replace(/\s+/g, ' ').trim();
@@ -112,25 +116,39 @@ function offLadder(status: string): string[] {
 /** Everything that keeps the pawl from holding, one line each. */
 export function pawlProblems(repo: Repo): string[] {
   const problems: string[] = [];
-  const text = repo.read(repo.catalogue);
-  const entries = readCatalogue(text);
-  const at = (entry: Entry) => `${repo.catalogue}:${entry.line} ${entry.id}`;
+  const entries = repo.catalogues.flatMap((catalogue) =>
+    readCatalogue(repo.read(catalogue)).map((entry) => ({ ...entry, catalogue })),
+  );
+  type Placed = (typeof entries)[number];
+  const where = (entry: Placed) => `${entry.catalogue}:${entry.line}`;
+  const at = (entry: Placed) => `${where(entry)} ${entry.id}`;
 
   const resolve = (token: string): string[] =>
     token.includes('/')
       ? repo.paths.filter((path) => path === token)
       : repo.paths.filter((path) => posix.basename(path) === token);
 
-  // Rule 6: an id is defined once.
-  const byId = new Map<string, Entry>();
+  // Rule 6: an id is defined once, across every catalogue.
+  const byId = new Map<string, Placed>();
   for (const entry of entries) {
     const first = byId.get(entry.id);
-    if (first) problems.push(`${at(entry)} is defined twice, first at line ${first.line}`);
-    else byId.set(entry.id, entry);
+    if (!first) byId.set(entry.id, entry);
+    else if (first.catalogue === entry.catalogue)
+      problems.push(`${at(entry)} is defined twice, first at line ${first.line}`);
+    else problems.push(`${at(entry)} is defined twice, first at ${where(first)}`);
+  }
+
+  // Rule 7: an alias names an entry that is not itself an alias.
+  for (const entry of entries.filter((e) => e.same !== undefined)) {
+    const target = byId.get(entry.same!);
+    if (!target)
+      problems.push(`${at(entry)} is the same as ${entry.same}, which no catalogue defines`);
+    else if (target.same !== undefined)
+      problems.push(`${at(entry)} is the same as ${entry.same}, which is itself an alias`);
   }
 
   const named = new Map<string, Set<string>>();
-  for (const entry of entries) {
+  for (const entry of entries.filter((e) => e.same === undefined)) {
     // Rule 1: a status, on the ladder.
     if (entry.status === undefined) problems.push(`${at(entry)} has no status`);
     else
@@ -163,27 +181,35 @@ export function pawlProblems(repo: Repo): string[] {
           problems.push(`${at(entry)} quotes "${quote}", which is no test in ${current}`);
       }
     }
-    named.set(entry.id, files);
+    if (!named.has(entry.id)) named.set(entry.id, files);
 
     // Rule 3: a measured entry names a file for its test.
     if (entry.status?.includes('measured') && !namesAFile)
       problems.push(`${at(entry)} is measured but its test names no file`);
   }
 
-  // Rules 4 and 5: a cited id exists, and its entry names the citing file.
-  const ids = new Set([...byId.keys(), ...experiments(text)]);
+  // Rules 4 and 5: a cited id exists, and its entry, or the entry an alias
+  // names, names the citing file.
+  const ids = new Set([
+    ...byId.keys(),
+    ...repo.catalogues.flatMap((catalogue) => experiments(repo.read(catalogue))),
+  ]);
   for (const path of repo.paths.filter((p) => p.endsWith('.test.ts')).sort()) {
     for (const name of testNames(repo.read(path))) {
-      for (const id of citations(name)) {
-        const prefixed = prefixedId.exec(id);
-        if (prefixed) {
-          const form = outside[prefixed[1]!];
-          if (!form?.test(prefixed[2]!))
-            problems.push(`${path} cites ${id}, which is in no known catalogue`);
-        } else if (!ids.has(id))
-          problems.push(`${path} cites ${id}, which the catalogue does not define`);
-        else if (byId.has(id) && !named.get(id)!.has(path))
-          problems.push(`${path} cites ${id}, whose test does not name that file`);
+      for (const item of citations(name)) {
+        if (issue.test(item)) continue;
+        if (prefixedId.test(item))
+          problems.push(`${path} cites "${item}"; a citation names the id alone`);
+        else if (!bareId.test(item))
+          problems.push(`${path} cites "${item}"; a citation holds only ids and issue numbers`);
+        else if (!ids.has(item))
+          problems.push(`${path} cites ${item}, which the catalogue does not define`);
+        else {
+          const entry = byId.get(item);
+          const held = entry && named.get(entry.same ?? entry.id);
+          if (held && !held.has(path))
+            problems.push(`${path} cites ${item}, whose test does not name that file`);
+        }
       }
     }
   }
@@ -200,7 +226,10 @@ const skipped = new Set([
   'playwright-report',
 ]);
 
-/** The repository at `root`, with `docs/language.md` as its catalogue. */
+/** The catalogues: #7's negative shape, and #39's quinetic properties. */
+export const CATALOGUES = ['docs/language.md', 'docs/quinetic.md'];
+
+/** The repository at `root`, with its catalogues. */
 export function repoOnDisk(root: string): Repo {
   const paths: string[] = [];
   const walk = (dir: string) => {
@@ -213,7 +242,7 @@ export function repoOnDisk(root: string): Repo {
   };
   walk('');
   return {
-    catalogue: 'docs/language.md',
+    catalogues: CATALOGUES,
     paths,
     read: (path) => readFileSync(join(root, path), 'utf8'),
   };

@@ -25,7 +25,7 @@ const run = (seed: number, bars = 64) => {
 };
 
 describe('the band', () => {
-  it('keeps the machine laws over a tour of the presets (F1, #39 Q4a)', () => {
+  it('keeps the machine laws over a tour of the presets (F1, Q4a)', () => {
     for (const seed of [1, 2, 3]) expect(lawBreaks(band, script(seed))).toEqual([]);
   });
 

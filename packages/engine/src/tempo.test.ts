@@ -109,7 +109,7 @@ describe('position and clock time', () => {
   };
   const holds = { order: undefined, error: expect.any(Number) as number };
 
-  it('holds from rest between any two of the axis ends and the presets’ tempos, at every glide length (T4, #39 Q1c)', () => {
+  it('holds from rest between any two of the axis ends and the presets’ tempos, at every glide length (T4, Q1c)', () => {
     for (const track of fromRest.flat()) {
       const found = breaks(tempoMap(track, anchor));
       expect(found).toEqual(holds);
@@ -117,7 +117,7 @@ describe('position and clock time', () => {
     }
   });
 
-  it('holds through glides retargeted while they move, which carry their slope and may brake (T4, #39 Q1c)', () => {
+  it('holds through glides retargeted while they move, which carry their slope and may brake (T4, Q1c)', () => {
     const glides = retargeted.map((t) => t.bpm);
     // The sample holds what it claims: glides leaving at speed, braking before
     // they arrive, and arriving early rather than overshoot.
@@ -131,7 +131,7 @@ describe('position and clock time', () => {
     }
   });
 
-  it('fails when clock time is read as position × the step length there (T4, #39 Q1c)', () => {
+  it('fails when clock time is read as position × the step length there (T4, Q1c)', () => {
     // From 72 to 148 bpm over a slider glide, time runs backwards.
     const fast = fromRest[1]!.find((t) => t.bpm.from === 72 && t.bpm.to === 148)!;
     const naive: TimeMap = {
@@ -141,7 +141,7 @@ describe('position and clock time', () => {
     expect(breaks(naive).order).toBeDefined();
   });
 
-  it('takes a written position to its second through swing, then tempo, and back, with both gliding (T4, #39 Q1c)', () => {
+  it('takes a written position to its second through swing, then tempo, and back, with both gliding (T4, Q1c)', () => {
     const swings = [
       [0.3, 1],
       [1, 0],
