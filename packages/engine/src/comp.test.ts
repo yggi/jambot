@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import type { BarChord } from './chords.ts';
 import { COMP_RANGE, comp, voiceMotion, voicing } from './comp.ts';
-import { eventProblems } from './events.ts';
+import { writtenProblems } from './events.ts';
 import { COMPOSER_MODES, keyHelix } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { PRESETS, type Style } from './style.ts';
@@ -178,7 +178,7 @@ describe('the comp', () => {
       const voiced = bar.chords.map((c) => (previous = voicing(c.chord, previous)));
       expect(carried).toEqual(voiced.at(-1));
       for (const e of output) {
-        expect(eventProblems(e)).toEqual([]);
+        expect(writtenProblems(e)).toEqual([]);
         expect(e.part).toBe('chords');
         expect(e.note).toBeGreaterThanOrEqual(50);
         expect(e.note).toBeLessThanOrEqual(79);
@@ -209,7 +209,8 @@ describe('the comp', () => {
     const staccato = with_(1);
     expect(staccato.every((e) => e.comp === 'stab')).toBe(true);
     expect(staccato.length).toBeGreaterThan(0);
-    for (const e of staccato) expect(e.length).toBeCloseTo(0.45, 9);
+    // A stab is written for one step; the performance makes it short (T4).
+    for (const e of staccato) expect(e.length).toBe(1);
   });
 
   it('pads quietly through a breakdown and at low energy, and stabs there never', () => {

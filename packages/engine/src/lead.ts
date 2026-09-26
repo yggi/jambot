@@ -18,15 +18,17 @@
  *
  * A theme's melody comes back with its harmony: the shape a theme was
  * first played with returns while the syncopation and the energy stay near
- * it. The lead rests in an intro, a breakdown and below energy 0.4. These
+ * it. The lead rests in an intro, a breakdown and below energy 0.4. A note
+ * is written to the next one, or to the end of the bar; the performance
+ * gates it by the articulation, and accents the beat (`perform.ts`). These
  * are the prototype's rules and weights.
  */
 
 import { type Chord, even, heightOf, joinChord, positions, wrap } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { chordAt } from './chords.ts';
+import type { WrittenNote } from './events.ts';
 import type { SectionType } from './form.ts';
-import type { NoteEvent } from './events.ts';
 import { keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick, quantize } from './random.ts';
@@ -40,7 +42,6 @@ export interface LeadShape {
   readonly steps: readonly number[];
   /** Degrees of the key, counted from the phrase's first note. */
   readonly degrees: readonly number[];
-  readonly velocities: readonly number[];
   /** The syncopation and energy it was made at, which a return has to stay near. */
   readonly sync: number;
   readonly energy: number;
@@ -74,7 +75,6 @@ const CONTOURS = [
 ];
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
 /** A new shape for a phrase: its draws are keyed by the section and the half of it. */
 function shapeOf(env: BarEnv): LeadShape {
@@ -120,7 +120,6 @@ function shapeOf(env: BarEnv): LeadShape {
   return {
     steps,
     degrees,
-    velocities: steps.map((s) => (s % 4 === 0 ? 100 : 82)),
     sync: style.sync,
     energy,
   };
@@ -132,7 +131,6 @@ function varied(shape: LeadShape, seed: number, bar: number, entropy: number): L
   const next = () => draw(seed, 'leadVariation', bar, n++);
   let degrees = [...shape.degrees];
   const steps = [...shape.steps];
-  const velocities = [...shape.velocities];
   // Turn it over, lift it, bend its last note, or drop it.
   const way = pick(next(), [0.3, 0.25, 0.25, 0.2]);
   if (way === 0) degrees = degrees.map((d) => -d);
@@ -144,7 +142,6 @@ function varied(shape: LeadShape, seed: number, bar: number, entropy: number): L
   } else if (steps.length > 2) {
     steps.pop();
     degrees.pop();
-    velocities.pop();
   }
   if (chance(next(), entropy * 0.5) && steps.length > 1) {
     const i =
@@ -155,7 +152,7 @@ function varied(shape: LeadShape, seed: number, bar: number, entropy: number): L
       );
     degrees[i]! += chance(next(), 0.5) ? -1 : 1;
   }
-  return { ...shape, steps, degrees, velocities };
+  return { ...shape, steps, degrees };
 }
 
 /** The nearest note to `near` among a chord's tones, within a tritone; ties go down. */
@@ -201,7 +198,7 @@ export function leadRests(section: SectionType, barEnergy: number): boolean {
   return barEnergy < 0.4 || section === 'breakdown' || section === 'intro';
 }
 
-export const lead: Machine<BarEnv, LeadCarried, null, NoteEvent[]> = {
+export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
   initial: { last: 69, phrase: null, melodies: {} },
   advance(env, carried) {
     const { seed, bar, plan, style, barEnergy: energy, barInSection, chords } = env;
@@ -262,14 +259,12 @@ export const lead: Machine<BarEnv, LeadCarried, null, NoteEvent[]> = {
     }
     notes = intoRange(notes);
 
-    const gate = Math.max(0.25, Math.min(1, 1.05 - 0.75 * style.artic));
-    const events: NoteEvent[] = shape.steps.map((s, i) => ({
+    const written: WrittenNote[] = shape.steps.map((s, i) => ({
       part: 'lead',
       step: s,
       note: notes[i]!,
-      velocity: clampVelocity(shape.velocities[i]!),
-      length: Math.max(0.3, ((shape.steps[i + 1] ?? 16) - s) * gate),
+      length: (shape.steps[i + 1] ?? 16) - s,
     }));
-    return { carried: { last: notes.at(-1)!, phrase, melodies }, output: events };
+    return { carried: { last: notes.at(-1)!, phrase, melodies }, output: written };
   },
 };

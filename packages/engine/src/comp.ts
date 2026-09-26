@@ -12,13 +12,15 @@
  * syncopated anticipates the next bar's chord on its last steps. A
  * breakdown and a quiet bar only pad. Whether a chord is padded, and where
  * the stabs fall, are held draws per section (`heldDraw`), so the part
- * morphs. These are the prototype's rules and weights.
+ * morphs. A pad is written for its chord and a stab for one step; how long
+ * each sounds, and how loud, is the performance's (`perform.ts`). These are
+ * the prototype's rules and weights.
  */
 
 import { type Chord, joinChord, wrap } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { chordAt } from './chords.ts';
-import type { NoteEvent } from './events.ts';
+import type { WrittenNote } from './events.ts';
 import type { Machine } from './machine.ts';
 import { type Stream, chance, heldDraw } from './random.ts';
 import { swingParts } from './swing.ts';
@@ -37,7 +39,6 @@ const HELD: readonly [Stream, Stream] = ['compHit', 'compVariation'];
 const ROLE = { pad: 0, stab: 1 } as const;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
 /**
  * How far a voicing moves from the one before: each new note's distance to
@@ -84,7 +85,7 @@ export function voicing(chord: Chord, previous: readonly number[] | null): numbe
 
 const same = (a: Chord, b: Chord) => joinChord(a).join() === joinChord(b).join();
 
-export const comp: Machine<BarEnv, readonly number[] | null, null, NoteEvent[]> = {
+export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]> = {
   initial: null,
   advance(env, last) {
     const { seed, bar, plan, style, barEnergy: energy, chords, next } = env;
@@ -99,19 +100,17 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, NoteEvent[]> 
 
     let previous = last;
     const voiced = chords.map((c) => (previous = voicing(c.chord, previous)));
-    const events: NoteEvent[] = [];
+    const written: WrittenNote[] = [];
     const padded = new Set<number>();
     chords.forEach((c, i) => {
       const step = c.slot.step;
       if (!chance(held(ROLE.pad, step), padWeight * 1.15)) return;
       padded.add(step);
       const end = chords[i + 1]?.slot.step ?? 16;
-      const velocity = clampVelocity(48 + 30 * energy * (0.5 + padWeight / 2));
       for (const note of voiced[i]!)
-        events.push({ part: 'chords', comp: 'pad', step, note, velocity, length: end - step });
+        written.push({ part: 'chords', comp: 'pad', step, note, length: end - step });
     });
 
-    const length = lerp(2.5, 0.45, style.artic);
     for (let s = 0; s < 16; s++) {
       if (padded.has(s)) continue;
       const p = lerp(STABS_STRAIGHT[s]!, STABS_SYNCOPATED[s]!, style.sync) * stabDensity;
@@ -121,10 +120,9 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, NoteEvent[]> 
       const coming = next[0];
       if (s >= 14 && style.sync > 0.5 && coming && !same(coming.chord, chords[here]!.chord))
         notes = voicing(coming.chord, previous);
-      const velocity = clampVelocity(70 + 20 * energy);
       for (const note of notes)
-        events.push({ part: 'chords', comp: 'stab', step: s, note, velocity, length });
+        written.push({ part: 'chords', comp: 'stab', step: s, note, length: 1 });
     }
-    return { carried: previous, output: events };
+    return { carried: previous, output: written };
   },
 };

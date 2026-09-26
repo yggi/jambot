@@ -10,6 +10,7 @@ import type { NoteEvent } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
+import { perform } from './perform.ts';
 import { planner } from './plan.ts';
 import { soundOf } from './sound.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
@@ -113,7 +114,7 @@ describe('the band', () => {
     }
   });
 
-  it('plays the drums, the bass, the comp and the lead of each bar, at the energy its section shapes, and reads them the next bar decided (Q5a)', () => {
+  it('plays the drums, the bass, the comp and the lead of each bar, at the energy its section shapes, and reads them the next bar decided (Q5a, T4)', () => {
     let carried = band.initial;
     for (const { env } of script(9)) {
       const { output, carried: after } = band.advance(env, carried, null);
@@ -124,16 +125,18 @@ describe('the band', () => {
         barEnergy(env.style.energy, bar.plan.section.type, bar.barInSection),
       );
       expect(bar.next).toEqual(after.next!.chords);
-      expect(events.filter((e) => e.part === 'drums')).toEqual(drums(bar));
-      const bassline = bass.advance(bar, carried.parts.bass, null);
-      expect(events.filter((e) => e.part === 'bass')).toEqual(bassline.output);
+      const { written, ...read } = bar;
+      expect(written.filter((e) => e.part === 'drums')).toEqual(drums(read));
+      const bassline = bass.advance(read, carried.parts.bass, null);
+      expect(written.filter((e) => e.part === 'bass')).toEqual(bassline.output);
       expect(after.parts.bass).toBe(bassline.carried);
-      const comping = comp.advance(bar, carried.parts.comp, null);
-      expect(events.filter((e) => e.part === 'chords')).toEqual(comping.output);
+      const comping = comp.advance(read, carried.parts.comp, null);
+      expect(written.filter((e) => e.part === 'chords')).toEqual(comping.output);
       expect(after.parts.comp).toEqual(comping.carried);
-      const melody = lead.advance(bar, carried.parts.lead, null);
-      expect(events.filter((e) => e.part === 'lead')).toEqual(melody.output);
+      const melody = lead.advance(read, carried.parts.lead, null);
+      expect(written.filter((e) => e.part === 'lead')).toEqual(melody.output);
       expect(after.parts.lead).toEqual(melody.carried);
+      expect(events).toEqual(written.map((note) => perform(read, note)));
       carried = after;
     }
   });

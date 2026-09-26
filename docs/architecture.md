@@ -103,9 +103,12 @@ design (#7).
     its phrase and its themes' melodies;
   - **the transport**, per tick (below).
 
-  The engine writes note events and the transport plays them. The text step
-  goes between the two once #63 builds it, as a round trip that changes
-  nothing (`compile ∘ encode = id`).
+  The parts write notes: a step, a note and a length in whole steps, and a
+  drum hit's role. The band plays each through the performance
+  (`perform.ts`), which reads its velocity and the length it sounds from
+  the bar, and the transport plays the events. The text step goes between
+  what is written and what is played once #63 builds it, as a round trip
+  that changes nothing (`compile ∘ encode = id`).
 
 - **Score text**: the contract between composing and playing, readable by a
   musician. In the design, the composer writes each bar as text, and only
