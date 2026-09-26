@@ -57,6 +57,12 @@ export interface Glide {
    * space (for tempo, in log bpm per step). A glide from rest has slope 0.
    */
   readonly slope: number;
+  /**
+   * Over how many steps that motion dies away, at most `length`. Heading for
+   * the target it is `length`; heading away, it is no longer than the motion
+   * had left, and short enough to stay inside the axis.
+   */
+  readonly brake: number;
 }
 
 /** Where each axis is going: one glide per axis. Plain data, so it can be carried. */
@@ -100,33 +106,42 @@ export const INITIAL_STYLE: Style = { ...PRESETS[0]!.style, entropy: 0.3 };
 const inSpace = (axis: Axis, x: number) => (AXES[axis].space === 'log' ? Math.log(x) : x);
 
 /**
- * The value of one axis at a position, as its glide has it. The glide is a
- * cubic Hermite curve in the axis's space: it leaves `from` at `slope` and
- * arrives at `to` at rest. From rest it is smoothstep, an S-curve. Where it
- * leaves heading away from its target, it carries on for a moment before it
- * turns, and stays inside its axis.
+ * The value of one axis at a position, as its glide has it, in the axis's
+ * space: a smoothstep from `from` to `to` over `length`, plus the motion the
+ * glide left with, `slope`, dying away over `brake` steps. Where the brake is
+ * the length, the sum is a cubic Hermite curve from `from` at `slope` to `to`
+ * at rest; from rest it is the smoothstep alone.
  */
 export function valueAt(axis: Axis, glide: Glide, position: number): number {
-  const { from, to, start, length, slope } = glide;
+  const { from, to, start, length } = glide;
   if (position >= start + length) return to;
   if (position <= start) return from;
   const u = (position - start) / length;
   const toward = u * u * (3 - 2 * u);
-  const onward = slope * length * u * (1 - u) * (1 - u);
+  const onward = carried(glide, position);
   const value =
     AXES[axis].space === 'log'
       ? from * Math.pow(to / from, toward) * Math.exp(onward)
       : from * (1 - toward) + to * toward + onward;
+  // Only rounding can take a glide past its axis (see glideTo).
   return Math.max(AXES[axis].min, Math.min(AXES[axis].max, value));
+}
+
+/** The motion a glide left with, as far as it has carried the value by a position. */
+function carried({ start, slope, brake }: Glide, position: number): number {
+  const s = (position - start) / brake;
+  return brake > 0 && s < 1 ? slope * brake * s * (1 - s) * (1 - s) : 0;
 }
 
 /** How fast one axis is moving at a position, per step, in the axis's space. */
 export function rateAt(axis: Axis, glide: Glide, position: number): number {
-  const { from, to, start, length, slope } = glide;
+  const { from, to, start, length, slope, brake } = glide;
   if (position < start || position >= start + length) return 0;
   const u = (position - start) / length;
+  const s = brake > 0 ? (position - start) / brake : 1;
   const distance = inSpace(axis, to) - inSpace(axis, from);
-  return slope * (1 - u) * (1 - 3 * u) + (distance * 6 * u * (1 - u)) / length;
+  const onward = s < 1 ? slope * (1 - s) * (1 - 3 * s) : 0;
+  return onward + (distance * 6 * u * (1 - u)) / length;
 }
 
 /** The whole style at a position. */
@@ -141,7 +156,7 @@ export function holding(style: Style): StyleTrack {
   return Object.fromEntries(
     AXIS_NAMES.map((axis) => [
       axis,
-      { from: style[axis], to: style[axis], start: 0, length: 0, slope: 0 },
+      { from: style[axis], to: style[axis], start: 0, length: 0, slope: 0, brake: 0 },
     ]),
   ) as StyleTrack;
 }
@@ -150,11 +165,18 @@ export function holding(style: Style): StyleTrack {
  * The track with the given axes gliding towards their targets from `start`.
  * Each glide leaves from the value its axis has there, and as fast, so
  * nothing jumps, not even the rate: a slider dragged with many retargets
- * keeps moving. A glide already heading for its target arrives sooner rather
- * than overshoot it: its length is at most 3 × distance / slope, which keeps
- * the curve monotone (Fritsch and Carlson). A target outside its axis is
- * clamped into it. A length of 0 sets the values at `start`, for when the
- * band is not playing.
+ * keeps moving.
+ *
+ * - A glide heading for its target arrives sooner rather than overshoot it:
+ *   its length is at most 3 × distance / slope, which keeps the curve
+ *   monotone (Fritsch and Carlson).
+ * - A glide sent the other way carries on for a moment and turns. Its motion
+ *   dies away no later than the glide it came from would have ended, and
+ *   soon enough to peak inside the axis (the carry peaks at
+ *   slope × brake × 4/27), however long the new glide is.
+ *
+ * A target outside its axis is clamped into it. A length of 0 sets the
+ * values at `start`, for when the band is not playing.
  */
 export function glideTo(
   track: StyleTrack,
@@ -169,16 +191,26 @@ export function glideTo(
     if (!Number.isFinite(target)) throw new Error(`glideTo: ${axis}: ${target} is not a value`);
     const { min, max } = AXES[axis];
     const to = Math.max(min, Math.min(max, target));
-    const from = valueAt(axis, track[axis], start);
-    if (length === 0) {
-      next[axis] = { from, to, start, length, slope: 0 };
+    const old = track[axis];
+    const from = valueAt(axis, old, start);
+    const slope = length === 0 ? 0 : rateAt(axis, old, start);
+    if (slope === 0) {
+      next[axis] = { from, to, start, length, slope: 0, brake: 0 };
       continue;
     }
-    const slope = rateAt(axis, track[axis], start);
     const distance = inSpace(axis, to) - inSpace(axis, from);
-    const heading = slope * distance > 0;
-    const arrival = heading ? Math.min(length, (3 * distance) / slope) : length;
-    next[axis] = { from, to, start, length: arrival, slope };
+    if (slope * distance > 0) {
+      const arrival = Math.min(length, (3 * distance) / slope);
+      next[axis] = { from, to, start, length: arrival, slope, brake: arrival };
+      continue;
+    }
+    const room =
+      slope > 0
+        ? inSpace(axis, max) - inSpace(axis, from)
+        : inSpace(axis, from) - inSpace(axis, min);
+    const left = old.start + old.length - start;
+    const brake = Math.min(length, left, (27 * room) / (4 * Math.abs(slope)));
+    next[axis] = { from, to, start, length, slope, brake };
   }
   return next;
 }

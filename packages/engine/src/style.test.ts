@@ -74,8 +74,8 @@ describe('the presets', () => {
 });
 
 describe('valueAt', () => {
-  const linear: Glide = { from: 0.2, to: 0.8, start: 32, length: 64, slope: 0 };
-  const tempo: Glide = { from: 80, to: 160, start: 32, length: 64, slope: 0 };
+  const linear: Glide = { from: 0.2, to: 0.8, start: 32, length: 64, slope: 0, brake: 0 };
+  const tempo: Glide = { from: 80, to: 160, start: 32, length: 64, slope: 0, brake: 0 };
 
   it('holds before the glide, reaches the target at its end, and stays there', () => {
     for (const [axis, glide] of [
@@ -103,10 +103,9 @@ describe('valueAt', () => {
   it('passes the midpoint of its space halfway: the mean, or for tempo the geometric mean', () => {
     expect(valueAt('harm', linear, 64)).toBe(0.5);
     expect(valueAt('bpm', tempo, 64)).toBeCloseTo(Math.sqrt(80 * 160), 10);
-    expect(valueAt('bpm', { from: 60, to: 180, start: 0, length: 16, slope: 0 }, 8)).toBeCloseTo(
-      103.923,
-      3,
-    );
+    expect(
+      valueAt('bpm', { from: 60, to: 180, start: 0, length: 16, slope: 0, brake: 0 }, 8),
+    ).toBeCloseTo(103.923, 3);
     // From rest, the curve is smoothstep: a quarter of the way in, 5/32 of the way.
     expect(valueAt('harm', linear, 48)).toBeCloseTo(0.2 + 0.6 * (5 / 32), 12);
   });
@@ -114,7 +113,7 @@ describe('valueAt', () => {
   it('never moves faster than the S-curve allows: 1.5 times the average rate', () => {
     for (const axis of AXIS_NAMES) {
       const [lo, hi] = [AXES[axis].min, AXES[axis].max];
-      const glide = { from: lo, to: hi, start: 0, length: 16, slope: 0 };
+      const glide = { from: lo, to: hi, start: 0, length: 16, slope: 0, brake: 0 };
       const space = AXES[axis].space === 'log' ? Math.log : (x: number) => x;
       const rate = (space(hi) - space(lo)) / 16;
       for (const i of range(16 * 64)) {
@@ -193,6 +192,90 @@ describe('glideTo', () => {
           }
         }
     }
+  });
+
+  it('turns back within what the glide before had left, whatever the new length', () => {
+    // A slider glide (one bar) sent back by a preset (eight bars): the motion
+    // it carries dies away within the four steps the slider had left, so the
+    // carry past the turn is bounded by slope × 4 × 4/27, not by the preset's
+    // length. Letting it scale with the new length held harm at 1 for ten bars.
+    let track = glideTo(holding({ ...INITIAL_STYLE, harm: 0.2 }), { harm: 1 }, 0, SLIDER_GLIDE);
+    const rate = rateAt('harm', track.harm, 12);
+    track = glideTo(track, { harm: 0.3 }, 12, PRESET_GLIDE);
+    const harm = range(PRESET_GLIDE + 1).map((i) => styleAt(track, 12 + i).harm);
+    const peak = Math.max(...harm);
+    expect(peak).toBeGreaterThan(harm[0]!);
+    expect(peak - harm[0]!).toBeLessThanOrEqual(rate * 4 * (4 / 27) + 1e-12);
+    expect(harm.at(-1)).toBe(0.3);
+  });
+
+  it('stops its carry short of the axis end, when a long glide inherits fast motion', () => {
+    // Quick reversals build up speed that a long glide then inherits: here
+    // harm 0.489 moving up at 0.067 a step, with 127 steps of the last glide
+    // left, sent to 0. Carried that long, it would pass the axis end by 1.26
+    // and rest there; the brake stops it inside.
+    let track = holding({ ...INITIAL_STYLE, harm: 0.5 });
+    for (const [at, harm, length] of [
+      [0, 1, 128],
+      [6, 0.947171276876317, 4],
+      [8, 0.19909047996582951, 4],
+      [10, 0.6105198364753834, 128],
+      [11, 0, 128],
+    ] as const)
+      track = glideTo(track, { harm }, at, length);
+    const harm = range(129).map((i) => styleAt(track, 11 + i).harm);
+    expect(Math.max(...harm)).toBeLessThan(1);
+    expect(harm.at(-1)).toBe(0);
+  });
+
+  it('never rests at an axis end it was not sent to, and its rate is the slope of its value', () => {
+    // Every order of two intents, a slider or a preset and then a slider or
+    // a preset, turned at every step of the first, on every axis.
+    const lengths = [SLIDER_GLIDE, PRESET_GLIDE];
+    const problems: string[] = [];
+    for (const axis of AXIS_NAMES) {
+      const { min, max } = AXES[axis];
+      const at = (f: number) => min * Math.pow(max / min, f);
+      const value = AXES[axis].space === 'log' ? at : (f: number) => min + (max - min) * f;
+      const space = AXES[axis].space === 'log' ? Math.log : (x: number) => x;
+      for (const first of lengths)
+        for (const second of lengths)
+          for (const [a, b, c] of [
+            [0.1, 0.95, 0.2],
+            [0.9, 0.05, 0.8],
+            [0.4, 1, 0],
+            [0.6, 0, 1],
+            [0.2, 0.8, 0.8],
+          ] as const)
+            for (let turn = 1; turn < first; turn += first / 16) {
+              const started = glideTo(
+                holding({ ...INITIAL_STYLE, [axis]: value(a) }),
+                { [axis]: value(b) },
+                0,
+                first,
+              );
+              const glide = glideTo(started, { [axis]: value(c) }, turn, second)[axis];
+              let resting = 0;
+              for (let p = turn; p <= turn + second; p += 0.5) {
+                const v = valueAt(axis, glide, p);
+                const where = `${axis} ${first}→${second} ${a}→${b}→${c} turned at ${turn}, at ${p}`;
+                if (v < min || v > max) problems.push(`${where}: ${v} outside the axis`);
+                resting = (v === min || v === max) && v !== value(c) ? resting + 1 : 0;
+                if (resting > 1) problems.push(`${where}: resting at ${v}`);
+                if (p > turn && p < turn + second) {
+                  const h = 1e-4;
+                  const slope =
+                    (space(valueAt(axis, glide, p + h)) - space(valueAt(axis, glide, p - h))) /
+                    (2 * h);
+                  // 1e-5: where the carried motion ends, the curvature jumps,
+                  // which costs a central difference about h × jump / 4.
+                  if (Math.abs(rateAt(axis, glide, p) - slope) > 1e-5)
+                    problems.push(`${where}: rate ${rateAt(axis, glide, p)}, slope ${slope}`);
+                }
+              }
+            }
+    }
+    expect(problems.slice(0, 5)).toEqual([]);
   });
 
   it('turns back when it is sent the other way, and never leaves its axis', () => {
