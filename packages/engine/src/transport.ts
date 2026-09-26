@@ -24,6 +24,7 @@ import type { NoteEvent } from './events.ts';
 import type { Section } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import type { Sound } from './sound.ts';
 import { type StyleTrack, styleAt, valueAt } from './style.ts';
 import { swingMap, swingOf } from './swing.ts';
 import { type Anchor, stepSeconds, tempoMap } from './tempo.ts';
@@ -81,6 +82,8 @@ export interface ScheduledStep {
 export interface TimedEvent {
   readonly bar: number;
   readonly event: NoteEvent;
+  /** How its bar sounds. */
+  readonly sound: Sound;
   /** When it sounds, on the clock. */
   readonly seconds: number;
   /** How long it sounds, in seconds. */
@@ -173,6 +176,7 @@ export const transport: Machine<
         events.push({
           bar,
           event,
+          sound: bars[0]!.sound,
           seconds,
           duration: clock(head.step + event.length) - seconds,
         });

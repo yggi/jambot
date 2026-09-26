@@ -155,19 +155,27 @@ Status: measured. Lands in: Q4b.
 
 **S2. Whatever a bar reads from before it is written at the bar, as a key
 frame.**
-Witness: none yet. A key frame would hold register (an entry pitch per
-melodic part and the voicing), the next chord where `nx` is used, and the
-tempo trajectory. It never needs random state, since every draw names its
-stream.
-Counterexample: a bar that compiles differently cold and warm.
+Witness: none yet. The port's parts say what a key frame would hold: the
+bass's last note and the comp's last voicing (register), and the lead's
+last note, its phrase and its themes' melodies; the band already decides
+the next chord a bar ahead. It never needs random state, since every draw
+names its stream.
+Counterexample: a bar that compiles differently cold and warm. In the
+port's composer, a band resumed after passing bars plays the lead from
+another phrase: memory that is more than register.
 Test: `cold-warm.mjs`, which fails on the prototype today; the port's
 version lands with the pitched parts. `random.test.ts`, "names every stream
 with its own id, so no two decisions share their numbers (S2)" and "keeps
 every stream of every seed apart, neighbouring seeds included (S2)": with
 the stream's id mixed straight into the seed, seed 10's `drumVariation` drew
-exactly seed 11's `drumHit`, so the seed is mixed first.
-Source: T5, S1, #40's review.
-Status: measured, failing (prototype). Lands in: #37 step 5, #13.
+exactly seed 11's `drumHit`, so the seed is mixed first. `band.test.ts`,
+"carries register into the bass and the comp, but a phrase into the lead:
+what a resumed band loses (S2)": over 80 resumptions, the bass and the
+comp play the same rhythm and pitch classes, in another register; the lead
+differs in more than half.
+Source: T5, S1, #40's review, #37 step 5.
+Status: measured, failing (prototype); measured (the port's carried
+state). Lands in: #13.
 
 ### Change
 
@@ -604,9 +612,10 @@ These are where the decisions are.
    Either a bar means its events and the text writes register in (S2), or a
    bar means a step on the carried state and a snapshot reaches any bar
    (F2), or memory becomes named, written objects (motifs and themes as
-   named cells, an open thread). E1 and #37 step 3 narrow it: the drums
-   carry nothing, the band's carried state is one section, and the memory
-   that reaches the events is register alone.
+   named cells, an open thread). E1 and #37 steps 3 and 5 narrow it: the
+   drums carry nothing, the bass and the comp carry register alone, and the
+   lead carries a phrase and its themes' melodies, which reach its rhythm
+   and pitch (S2). So the third option is already how the lead works.
 2. **Discrete tokens against continuous change** (R2, C1). Glides are
    trajectories; the text is tokens sampled per bar.
 3. **Relative against absolute** (P1, A2). Baseband needs a lock, and messy

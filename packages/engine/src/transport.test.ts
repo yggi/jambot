@@ -168,11 +168,17 @@ describe('the transport', () => {
     const steps = new Map(outputs.flatMap((o) => o.steps).map((s) => [s.step, s]));
     const bars = outputs.flatMap((o) => o.composed);
     const events = outputs.flatMap((o) => o.events);
-    const played = new Set(events.map((e) => `${e.bar}:${e.event.step}:${e.event.note}`));
+    const played = new Set(
+      events.map((e) => `${e.bar}:${e.event.part}:${e.event.step}:${e.event.note}`),
+    );
     // Every bar the steps have wholly passed through is played in full.
     const whole = bars.filter((b) => steps.has(b.bar * 16 + 15));
     for (const b of whole)
-      for (const e of b.events) expect(played.has(`${b.bar}:${e.step}:${e.note}`)).toBe(true);
+      for (const e of b.events)
+        expect(played.has(`${b.bar}:${e.part}:${e.step}:${e.note}`)).toBe(true);
+    // Each event sounds as its bar does.
+    const sounds = new Map(bars.map((b) => [b.bar, b.sound]));
+    for (const e of events) expect(e.sound).toEqual(sounds.get(e.bar));
     expect(events.length).toBe(played.size);
     const swing = swingOf(track);
     for (const e of events) {

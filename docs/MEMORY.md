@@ -68,6 +68,11 @@ pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
   plan at a section's first bar, and the bar's chords. So a part can lead
   into the next bar's chords (`BarEnv.next`), and they are what plays. A
   bar the clock has passed is passed (`passBar`), not composed.
+- The e2e checks tell sounds apart by oscillator type and starting
+  frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
+  snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
+  chord note a triangle beside a sine 0.3 % sharp. A new voice keeps these
+  apart or updates `band.e2e.ts`.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A
   bar's chords come from its theme's slots (`barChords`); their colour

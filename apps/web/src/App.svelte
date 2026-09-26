@@ -109,9 +109,8 @@
   </section>
 
   <p class="note">
-    The new app plays the drums so far. The full band, with harmony, melody and the Muse, is in the <a
-      href={prototypeUrl}>prototype</a
-    >.
+    The band plays drums, bass, chords and lead. The score, MIDI out and the Muse, which listens to
+    players, are still in the <a href={prototypeUrl}>prototype</a>.
   </p>
 </main>
 

@@ -1,11 +1,12 @@
 /**
- * Where the band sounds: an audio clock, the drum kit, and a way to silence
- * what is already scheduled. The player needs only this, so a test can
+ * Where the band sounds: an audio clock, the drum kit and the pitched
+ * voices, and a way to silence what is already scheduled. The player needs only this, so a test can
  * stand in for Web Audio.
  */
 
-import type { Part } from '@jambot/engine';
+import type { Part, Sound } from '@jambot/engine';
 import { drumKit } from './drums.ts';
+import { voices } from './voices.ts';
 
 export interface Output {
   /** The clock events are scheduled on, in seconds. */
@@ -15,18 +16,22 @@ export interface Output {
   /** Let the clock run: a browser starts audio only after a gesture. */
   resume(): Promise<void>;
   /**
-   * Play a part's note at a time on the clock, for a duration in seconds.
-   * The drums play General MIDI drum notes.
+   * Play a part's note at a time on the clock, for a duration in seconds,
+   * as its bar sounds. The drums play General MIDI drum notes.
    */
-  play(part: Part, note: number, velocity: number, seconds: number, duration: number): void;
+  play(
+    part: Part,
+    note: number,
+    velocity: number,
+    seconds: number,
+    duration: number,
+    sound: Sound,
+  ): void;
   /** Fade out everything scheduled so far, and play on afresh. */
   silence(): void;
 }
 
-/**
- * The built-in synth on Web Audio: the drum kit through a compressor. The
- * pitched parts have no voices here yet, so they are not heard.
- */
+/** The built-in synth on Web Audio: the drum kit and the voices through a compressor. */
 export function webAudioOutput(): Output {
   const ctx = new AudioContext();
   const out = ctx.createDynamicsCompressor();
@@ -35,7 +40,7 @@ export function webAudioOutput(): Output {
     const bus = ctx.createGain();
     bus.gain.value = 0.8;
     bus.connect(out);
-    return { bus, kit: drumKit(ctx, bus) };
+    return { bus, kit: drumKit(ctx, bus), voices: voices(ctx, bus) };
   };
   let current = openBus();
   return {
@@ -46,8 +51,9 @@ export function webAudioOutput(): Output {
       return ctx.outputLatency || ctx.baseLatency || 0;
     },
     resume: () => ctx.resume(),
-    play(part, note, velocity, seconds) {
+    play(part, note, velocity, seconds, duration, sound) {
       if (part === 'drums') current.kit.play(note, velocity, seconds);
+      else current.voices.play(part, note, velocity, seconds, duration, sound);
     },
     silence() {
       const old = current.bus;

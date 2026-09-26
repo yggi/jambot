@@ -1,3 +1,4 @@
+import { wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandEnv, band, passBar } from './band.ts';
 import { bass } from './bass.ts';
@@ -5,10 +6,12 @@ import { barChords } from './chords.ts';
 import { comp } from './comp.ts';
 import { lead } from './lead.ts';
 import { drums } from './drums.ts';
+import type { NoteEvent } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { planner } from './plan.ts';
+import { soundOf } from './sound.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -114,7 +117,8 @@ describe('the band', () => {
     let carried = band.initial;
     for (const { env } of script(9)) {
       const { output, carried: after } = band.advance(env, carried, null);
-      const { events, ...bar } = output;
+      const { events, sound, ...bar } = output;
+      expect(sound).toEqual(soundOf(env.style, bar.barEnergy));
       expect(bar).toMatchObject({ seed: 9, bar: env.bar, style: env.style });
       expect(bar.barEnergy).toBe(
         barEnergy(env.style.energy, bar.plan.section.type, bar.barInSection),
@@ -132,6 +136,45 @@ describe('the band', () => {
       expect(after.parts.lead).toEqual(melody.carried);
       carried = after;
     }
+  });
+
+  it('carries register into the bass and the comp, but a phrase into the lead: what a resumed band loses (S2)', () => {
+    // A band that passes 20 bars of every 40, as after a stall, against one
+    // that plays them all: the first bar after each pass.
+    const counts = { bass: 0, chords: 0, lead: 0, bars: 0 };
+    for (const seed of range(8)) {
+      const at = (bar: number): BandEnv => {
+        const preset = PRESETS[Math.floor(bar / 16) % PRESETS.length]!;
+        const style = { ...preset.style, energy: 0.8, entropy: 0.3 };
+        return { seed, bar, style, wish: { tonic: null, mode: preset.mode } };
+      };
+      let whole = band.initial;
+      let resumed = band.initial;
+      for (const bar of range(400)) {
+        const played = band.advance(at(bar), whole, null);
+        whole = played.carried;
+        if (bar % 40 < 20) {
+          resumed = passBar(at(bar), resumed);
+          continue;
+        }
+        const back = band.advance(at(bar), resumed, null);
+        resumed = back.carried;
+        if (bar % 40 !== 20) continue;
+        counts.bars++;
+        const heard = (events: readonly NoteEvent[], part: string) =>
+          events
+            .filter((e) => e.part === part)
+            .map((e) => `${e.step}:${e.length}:${wrap(e.note, 12)}`)
+            .sort()
+            .join();
+        for (const part of ['bass', 'chords', 'lead'] as const)
+          if (heard(played.output.events, part) !== heard(back.output.events, part)) counts[part]++;
+      }
+    }
+    // Bass and comp resume in another register only: the same rhythm and
+    // pitch classes. The lead resumes from another phrase.
+    expect(counts).toMatchObject({ bars: 80, bass: 0, chords: 0 });
+    expect(counts.lead).toBeGreaterThan(40);
   });
 
   it('refuses to play any bar but the one it decided next, or to start past bar 0', () => {
