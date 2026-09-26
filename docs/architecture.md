@@ -174,8 +174,12 @@ JavaScript; that is open (#7).
 ### Web clients
 
 The browser app runs fully on its own: it composes and plays through the
-built-in synth. Web MIDI out (#24) and listening to input (#25) are still
-only in the prototype. At an event it connects to the root node (#20).
+built-in synth, Web MIDI, or both, with the note-off bookkeeping below for
+a channel pads and stabs share (#24, #5). It also listens: Web MIDI in,
+the on-screen keys and the computer keys all reach a common note capture,
+quantised to the grid and kept for the Muse (#25). The Muse's judgement of
+what it captured is still only in the prototype (#2). At an event it
+connects to the root node (#20).
 
 ### Root node
 
@@ -309,9 +313,11 @@ Open:
   named cell in the score, is open.
 - **Exact positions** (T2): the port counts steps in floating point, and
   whether positions become exact fractions is open until the text step.
-- **The Muse and inputs** (#2, #25): where a motif enters the band, and how
-  several players' notes are told apart.
-- **MIDI out, the MIDI clock and its master** (#24, #27).
+- **The Muse** (#2): where a motif enters the band, once judgement exists.
+  Inputs already tag every note with its source (#25); whether an arpeggio
+  of a held chord can be told from mashing (play-aeiou) is still open.
+- **The MIDI clock's master** (#27): whether a web client or the root node
+  drives it when both exist.
 - **Latency and jitter budgets** (#27), and whether notes are humanised
   (the prototype adds random jitter; the port doesn't).
 - **The root node** (#20): its JavaScript runtime (Node, Bun or Deno), what

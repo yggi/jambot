@@ -17,10 +17,13 @@ Where Jambot is heading. The concept and the reasoning behind it are in
 The **working shape** (#37) is done: the new app plays the full band
 (drums, bass, chords and lead) on its own, from the ported engine, a
 transport, the synth and minimal controls. It plays the engine's raw
-events, so it did not wait on the language design. What the prototype
-still does that the app doesn't is MIDI out (#24, with #5), inputs and the
-Muse (#25, #2), the score (#63) and most of the HUD (#26), including a key
-picker.
+events, so it did not wait on the language design. MIDI out (#24, with #5
+fixed) and capturing what players play — Web MIDI in, the on-screen keys
+and the computer keys (#25) — are done too, quantised and kept for
+whenever the Muse reads them. What the prototype still does that the app
+doesn't is the Muse's judgement of what is captured (#2), the score (#63),
+and the rest of the HUD (#26): the Muse panel, the score and Strudel
+panels.
 
 These run in parallel:
 

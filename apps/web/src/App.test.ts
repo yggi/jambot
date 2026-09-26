@@ -50,7 +50,7 @@ describe('the app', () => {
     expect(synthPop()).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('links to the prototype for what it does not do yet: the score, MIDI out and the Muse', () => {
+  it('links to the prototype for what it does not do yet: the score and the Muse’s judgement', () => {
     render(App);
     expect(screen.getByText(/drums, bass, chords and lead/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'prototype' })).toHaveAttribute(

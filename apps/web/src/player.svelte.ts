@@ -31,6 +31,8 @@ import {
   type TransportEnv,
   forecast,
   holding,
+  swingOf,
+  tempoMap,
   transport,
 } from '@jambot/engine';
 import { type Output, webAudioOutput } from './audio/output.ts';
@@ -48,6 +50,22 @@ export const FORECAST_BARS = (SECTIONS + 1) * 8;
 
 export type Status = 'stopped' | 'starting' | 'playing';
 
+/**
+ * A note a player struck, quantised to the grid it landed nearest: bar-
+ * relative like a `NoteEvent`, but not yet judged. The Muse (#2) is what
+ * reads these; until it exists, the player only keeps them.
+ */
+export interface HumanNote {
+  readonly note: number;
+  readonly velocity: number;
+  readonly bar: number;
+  readonly step: number;
+  readonly source: string;
+}
+
+/** How many notes are kept before the oldest half is dropped, as the prototype does. */
+const HUMAN_NOTES_MAX = 240;
+
 /** What the player runs on; a test can stand in for each. */
 export interface Surroundings {
   output(): Output;
@@ -57,18 +75,23 @@ export interface Surroundings {
   seed(): number;
 }
 
-const browser: Surroundings = {
-  output: webAudioOutput,
-  ticker: startTicker,
-  frame(follow) {
-    let id = requestAnimationFrame(function loop() {
-      follow();
-      id = requestAnimationFrame(loop);
-    });
-    return () => cancelAnimationFrame(id);
-  },
-  seed: () => Math.floor(Math.random() * 2 ** 32),
-};
+/** The real browser's ticker, frame and seed, with a given way to make the output. */
+export function browserSurroundings(output: () => Output = webAudioOutput): Surroundings {
+  return {
+    output,
+    ticker: startTicker,
+    frame(follow) {
+      let id = requestAnimationFrame(function loop() {
+        follow();
+        id = requestAnimationFrame(loop);
+      });
+      return () => cancelAnimationFrame(id);
+    },
+    seed: () => Math.floor(Math.random() * 2 ** 32),
+  };
+}
+
+const browser: Surroundings = browserSurroundings();
 
 export class Player {
   status: Status = $state('stopped');
@@ -76,6 +99,8 @@ export class Player {
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode });
   /** The step heard, or null before anything is. */
   heard: number | null = $state(null);
+  /** Notes players struck while the band listened, waiting for the Muse (#2). */
+  humanNotes: readonly HumanNote[] = $state.raw([]);
 
   #surroundings: Surroundings;
   #output: Output | null = null;
@@ -116,6 +141,38 @@ export class Player {
     this.#decide();
   }
 
+  /**
+   * `seconds` on the output's clock, as a position on the grid: the
+   * transport's swing and tempo maps, inverted from the song's start (the
+   * one anchor always behind a moment just played). Null before the band
+   * plays, or for a time before it started.
+   */
+  writtenPosition(seconds: number): number | null {
+    if (this.status !== 'playing' || seconds < this.#start) return null;
+    const anchor = { step: 0, seconds: this.#start };
+    return swingOf(this.track).written(tempoMap(this.track, anchor).written(seconds));
+  }
+
+  /**
+   * A note played at `seconds` on the output's clock, from `source`:
+   * quantised to the nearest step and kept for whenever the Muse (#2)
+   * reads it. Judging what was played is not this class's to do.
+   */
+  humanNoteOn(note: number, velocity: number, source: string, seconds: number) {
+    const position = this.writtenPosition(seconds);
+    if (position === null) return;
+    const abs = Math.round(position);
+    if (abs < 0) return;
+    const kept =
+      this.humanNotes.length >= HUMAN_NOTES_MAX
+        ? this.humanNotes.slice(this.humanNotes.length - HUMAN_NOTES_MAX / 2)
+        : this.humanNotes;
+    this.humanNotes = [
+      ...kept,
+      { note, velocity, bar: Math.floor(abs / 16), step: abs % 16, source },
+    ];
+  }
+
   async start() {
     if (this.status !== 'stopped') return;
     this.status = 'starting';
@@ -124,6 +181,7 @@ export class Player {
     if (this.status !== 'starting') return;
     this.status = 'playing';
     this.#start = output.currentTime + 0.1;
+    output.starting?.(this.#start);
     this.#carried = null;
     this.#heard.clear();
     this.#decide();
@@ -178,6 +236,7 @@ export class Player {
     this.#carried = carried;
     for (const { event, seconds, duration, sound } of scheduled.events)
       output.play(event.part, event.note, event.velocity, seconds, duration, sound);
+    output.tick?.(scheduled.steps);
     for (const { step, seconds } of scheduled.steps) this.#heard.push(seconds, step);
     this.#heard.drop(now - 1);
     if (carried?.nextBar !== this.#decidedAt) this.#decide();
