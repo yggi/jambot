@@ -12,6 +12,14 @@ pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 ```
 
+- Agent sessions (Claude Code) install dependencies and warm music21 at
+  start through `.claude/hooks/session-start.sh`, and `.claude/settings.json`
+  allows the checks and the music-theory scripts without a prompt. Other
+  agents run `pnpm install --frozen-lockfile` first.
+- To try the theory without a test, run its TypeScript source from the
+  repository root, where `tonal` resolves too:
+  `node --experimental-strip-types --no-warnings --input-type=module -e "import { read } from './packages/theory/src/index.ts'; console.log(read('C blues'))"`.
+
 - The full prototype is one file: `prototype/jambot-prototype.html`. Open it
   in Chrome or Edge and press _Start the band_. Its code map is in
   [`prototype/README.md`](../prototype/README.md#running-and-hacking).
