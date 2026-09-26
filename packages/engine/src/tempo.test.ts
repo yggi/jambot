@@ -109,13 +109,19 @@ describe('position and clock time', () => {
   };
   const holds = { order: undefined, error: expect.any(Number) as number };
 
-  it('holds from rest between any two of the axis ends and the presets’ tempos, at every glide length (T4, #39 Q1c)', () => {
-    for (const track of fromRest.flat()) {
-      const found = breaks(tempoMap(track, anchor));
-      expect(found).toEqual(holds);
-      expect(found.error).toBeLessThan(1e-9);
-    }
-  });
+  // Every pair at every length takes about 5 s on a slow machine, past
+  // Vitest's default limit.
+  it(
+    'holds from rest between any two of the axis ends and the presets’ tempos, at every glide length (T4, #39 Q1c)',
+    { timeout: 30_000 },
+    () => {
+      for (const track of fromRest.flat()) {
+        const found = breaks(tempoMap(track, anchor));
+        expect(found).toEqual(holds);
+        expect(found.error).toBeLessThan(1e-9);
+      }
+    },
+  );
 
   it('holds through glides retargeted while they move, which carry their slope and may brake (T4, #39 Q1c)', () => {
     const glides = retargeted.map((t) => t.bpm);
