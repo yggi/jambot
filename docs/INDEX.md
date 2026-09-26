@@ -90,8 +90,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/ticker.ts`: the scheduler's tick, from a Worker
     - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
       built app in Chromium with its audio measured
-- `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
-  deploys `main` to GitHub Pages; started by hand while #4 is open
+- `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e,
+  build; deploys `main` to GitHub Pages; started by hand while #4 is open
 - `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents
   may run without a prompt
   - `.claude/hooks/session-start.sh`: installs dependencies, warms

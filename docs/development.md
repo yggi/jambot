@@ -33,10 +33,13 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 - **Vitest** runs all tests from the root. The engine tests run in Node,
   and the web tests in jsdom with Testing Library.
 - **Playwright** runs the end-to-end checks (`apps/web/e2e/*.e2e.ts`):
-  the built app in Chromium, with its audio measured. They record the time
-  every sound source starts, so they check the timing exactly (every onset
-  on the 16th grid, or on thirds of a step when swung), and they tap the
-  output to hear that the band sounds and stops. `@playwright/test` is
+  the built app in Chromium, with its audio measured. They record every
+  sound source the app starts, with its kind and time, so they check the
+  timing exactly (every onset on the 16th grid, or on thirds of a step when
+  swung, with the triplet offbeat) and that no event plays twice. They tap
+  the output to hear that the band sounds and that Stop silences it at
+  once, and count Workers to see that a quick double click leaves nothing
+  running. Each check has been seen to fail against a broken app. `@playwright/test` is
   pinned to 1.56.1, the version whose Chromium (build 1194) the cloud
   sessions have installed, so they need no download. Elsewhere,
   `pnpm exec playwright install chromium` fetches that build once. They

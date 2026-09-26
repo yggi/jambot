@@ -13,12 +13,13 @@ export default defineConfig({
   reporter: 'list',
   use: {
     ...devices['Desktop Chrome'],
-    baseURL: 'http://localhost:4173',
+    baseURL: 'http://localhost:4317',
     launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] },
   },
+  // A port of its own, so a `pnpm preview` left running on 4173 is no clash.
   webServer: {
-    command: 'pnpm build && pnpm preview --port 4173 --strictPort',
-    url: 'http://localhost:4173',
+    command: 'pnpm build && pnpm preview --port 4317 --strictPort',
+    url: 'http://localhost:4317',
     reuseExistingServer: false,
     env: { BASE_PATH: '/' },
   },
