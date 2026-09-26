@@ -302,6 +302,10 @@ with f(d + k) = f(d) + n. The chromatic helix is the identity. These are the
 injective maps of Fiedorowicz and Loday's paracyclic category; forgetting the
 turn gives the circle.
 
+Tests: `helix.test.ts`, "compose": associativity over all 659,594 chains of
+even helices with n ≤ 12, each helix at every shift below its cycle, and the
+chromatic helix as the identity on both sides of every even helix.
+
 ### Shift and mode
 
 The two operations move one coordinate each:
