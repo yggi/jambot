@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { even, gaps } from './even.ts';
+import { degree } from './degrees.ts';
+import { even, gaps, mod } from './even.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, modes, rotate } from './modes.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -122,5 +123,79 @@ describe('rotate', () => {
       const byDegree = range(k).map((d) => rotate(even(k, n), d, n).join());
       expect(new Set(byDegree), `${k} of ${n}`).toEqual(new Set(byGenerator));
     }
+  });
+});
+
+/**
+ * On the helix, a set is one turn of heights: the heights of degrees 0 to
+ * k − 1, with degree 0 wherever it stands, read across turns by `degree`. A
+ * shift moves the heights and keeps the degrees: a transposition. A mode moves
+ * the degrees and keeps the heights: the same positions, another tonic. Each is
+ * composition with a translation, the shift on the outside and the mode on the
+ * inside. Neither has its own function yet (#31): `shift` sorts positions, and
+ * `rotate` moves the mode back to 0.
+ */
+interface Helix {
+  cycle: number;
+  heights: readonly number[];
+}
+const helix = (cycle: number, heights: readonly number[]): Helix => ({ cycle, heights });
+const shiftHelix = (t: Helix, by: number) =>
+  helix(
+    t.cycle,
+    t.heights.map((x) => x + by),
+  );
+const modeOf = (t: Helix, d: number) =>
+  helix(
+    t.cycle,
+    t.heights.map((_, e) => degree(t.heights, e + d, t.cycle)),
+  );
+/** The inner helix's heights read as degrees of the outer helix. */
+const compose = (inner: Helix, outer: Helix) =>
+  helix(
+    outer.cycle,
+    inner.heights.map((e) => degree(outer.heights, e, outer.cycle)),
+  );
+const positions = (t: Helix) => t.heights.map((x) => mod(x, t.cycle)).sort((a, b) => a - b);
+
+describe('shift and mode, on heights', () => {
+  const cMajor = helix(12, diatonicMode('ionian'));
+
+  it('a mode keeps the positions and changes the tonic: mode 1 of C major is D dorian', () => {
+    expect(modeOf(cMajor, 1).heights).toEqual([2, 4, 5, 7, 9, 11, 12]);
+    expect(positions(modeOf(cMajor, 1))).toEqual(positions(cMajor));
+    expect(shiftHelix(cMajor, 7).heights).toEqual([7, 9, 11, 12, 14, 16, 18]); // G major
+  });
+
+  it('rotate is a mode, then a shift back to 0, for every coprime k of n', () => {
+    for (const [k, n] of coprimeSizes) {
+      const set = even(k, n);
+      for (const d of range(3 * k).map((x) => x - k)) {
+        const moved = shiftHelix(modeOf(helix(n, set), d), -degree(set, d, n));
+        expect(moved.heights, `${k} of ${n}, d ${d}`).toEqual(rotate(set, d, n));
+      }
+    }
+  });
+
+  it('a shift inside is a mode outside, for every even pair with n ≤ 12', () => {
+    // compose(shift(inner, d), outer) = compose(inner, mode(outer, d))
+    for (let n = 1; n <= 12; n++)
+      for (let m = 1; m <= n; m++)
+        for (let k = 1; k <= m; k++) {
+          const inner = helix(m, even(k, m));
+          const outer = helix(n, even(m, n));
+          for (const d of range(3 * m).map((x) => x - m))
+            expect(compose(shiftHelix(inner, d), outer), `${k} of ${m} of ${n}, d ${d}`).toEqual(
+              compose(inner, modeOf(outer, d)),
+            );
+        }
+  });
+
+  it('gives Roman numerals: V7 of C major is four even degrees of 7, shifted to degree 4', () => {
+    const seventh = helix(7, even(4, 7));
+    expect(compose(shiftHelix(seventh, 4), cMajor).heights).toEqual([7, 11, 14, 17]);
+    expect(compose(seventh, modeOf(cMajor, 4)).heights).toEqual([7, 11, 14, 17]);
+    // The law needs the mode to keep its heights: rotate moves it back to 0.
+    expect(compose(seventh, helix(12, rotate(cMajor.heights, 4))).heights).toEqual([0, 4, 7, 10]);
   });
 });

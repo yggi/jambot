@@ -5,11 +5,11 @@ relate, and which test holds each relation. Every relation here is checked
 over every case in its range, not over samples. The names in code are the
 current ones; the naming itself is open (see [Open](#open)).
 
-## Cycles, positions and sets
+## The circle, positions and sets
 
-A **cycle** has n positions, 0 to n − 1, and counting past the end wraps
-around (`mod`). Twelve semitones are a cycle; so are the sixteen steps of a
-bar. A **set** is k of those positions, sorted.
+A **circle** has n positions, 0 to n − 1, and counting past the end wraps
+around (`mod`). n is its **cycle**. Twelve semitones are a circle; so are the
+sixteen steps of a bar. A **set** is k of those positions, sorted.
 
 `even(k, n, rotation)` places k of n as evenly as possible: position j is in
 the set when ((j − rotation) mod n) · k mod n < k. A set is **maximally
@@ -27,50 +27,62 @@ take at most two sizes, one apart (`isMaximallyEven`).
 
 Tests: `even.test.ts`.
 
-## The ladder
+## The helix
 
-`degree(set, d, n)` reads a set as a **ladder**. The degrees are its
-**rungs**, counted 0, 1, 2, … and on past the last member. The positions are
-their heights. The ladder repeats: k rungs up is one cycle up,
+`degree(set, d, n)` reads a set as a **helix**, a spiral staircase. Its
+steps are the degrees, counted 0, 1, 2, … and on past the last member, and
+each stands at a **height**. k degrees up is one turn up:
 
     degree(set, d + k) = degree(set, d) + n.
 
-So it is a spiral stair, a **helix**. Seen from above (height mod n), every
-turn stands on the same k places: pitch classes, or steps of a bar. Seen from
-the side it climbs: MIDI notes, or steps of a song. This is the pitch helix,
-with pitch class going round and the octave going up. The same ladder counts
-the onsets of a rhythm on through the bars.
+The helix has two views, and both are used:
 
-Two pictures follow, and both are used. On the **cycle**, going once round
-brings you back to where you started. On the **helix**, it brings you to the
-same place one turn up. Forgetting the turn (height mod n) goes from the
-helix to the cycle. Going back needs a choice of turn: the score language's
-nearest octave, `^` and `v`, and each part's home range are rules for that
-choice.
+- **From above** it is the circle. Every turn stands on the same k
+  positions: pitch classes, or steps of a bar. Going once round brings you
+  back to where you started.
+- **From the side** it is a staircase. It climbs without end: MIDI notes, or
+  steps of a song. Going once round brings you to the same position one turn
+  up.
 
-### Rungs from heights
+This is the pitch helix, with pitch class going round and the octave going
+up. The same helix counts the onsets of a rhythm on through the bars.
 
-The ladder rises strictly, so every height p has a rung just below it and a
-rung just above it:
+Forgetting the turn, height mod n, takes a height to its position: **wrap**.
+Going back, **lift**, needs a choice of turn: the score language's nearest
+octave, `^` and `v`, and each part's home range are rules for that choice.
 
-- `below`: the highest rung whose height is at most p;
-- `above`: the lowest rung whose height is at least p.
+The two views do not carry the same information. The circle loses which
+position is degree 0. A set sorted from 0 keeps it only while degree 0
+stands at 0, which is why scales are stored above their tonic.
 
-For every rung d, degree(d) ≤ p exactly when d ≤ below, and degree(d) ≥ p
+### Degrees from heights
+
+The helix rises strictly, so every height p has a degree just below it and a
+degree just above it:
+
+- `below`: the highest degree whose height is at most p;
+- `above`: the lowest degree whose height is at least p.
+
+For every degree d, degree(d) ≤ p exactly when d ≤ below, and degree(d) ≥ p
 exactly when d ≥ above. These are the two adjoints of `degree`, a Galois
-connection. They are the same rung when p is on the ladder, and neighbours
+connection. They are the same degree when p is on the helix, and neighbours
 when it is not.
 
 `nearestDegree` always answers one of the two: nearest is a choice between
 them, and ties go down. play-aeiou's `degree_of` is `above`.
+
+For `even(k, n)`, `below` is ⌊p · k/n⌋. Seen from the side, the even set is
+the staircase closest to the line of slope k/n. Only the even set as it
+starts follows the line: for 7 of 12 that is Lydian, and Ionian, one of its
+modes, reaches F a semitone early.
 
 Tests: `degrees.test.ts`, "degree, read as an order", for every even set with
 n ≤ 16 and every height over four turns.
 
 ## Generic and specific
 
-An interval can be counted in rungs or in height. A **generic** interval
-counts rungs: a fifth is 4. A **specific** interval counts height: a perfect
+An interval can be counted in degrees or in height. A **generic** interval
+counts degrees: a fifth is 4. A **specific** interval counts height: a perfect
 fifth is 7 semitones. In the diatonic set every generic interval comes in one
 size or in two sizes a semitone apart (`genericSizes`): Myhill's property,
 which the maximally even sets with coprime k and n have. The terms are Clough and Myerson's.
@@ -98,24 +110,24 @@ Tests: `even.test.ts`.
   from Lydian (39) to Locrian (33).
 
 `rotate(set, d)` re-roots the set on its d-th member. This is "mode k" as the
-sister projects use it: `rotate(ionian, 1)` is Dorian. On the ladder it is
-standing on rung d and measuring every height from there. It gives the same
-sets as `modes`, in scale order.
+sister projects use it: `rotate(ionian, 1)` is Dorian. On the helix it is
+standing on degree d and measuring every height from there. It gives the
+same sets as `modes`, in scale order.
 
 Tests: `modes.test.ts`.
 
-## Composition: a ladder on a ladder's rungs
+## Composition: a helix on a helix's degrees
 
-A k-of-m set, read as rungs of an m-of-n set, gives a k-of-n set: inner rung
-e stands at height `degree(outer, e)`. This is how the levels nest:
+A k-of-m set, read as degrees of an m-of-n set, gives a k-of-n set: inner
+degree e stands at height `degree(outer, e)`. This is how the levels nest:
 
 - a note in a chord, a chord in a key, a key in a section (the score
   language's layers refer upward);
 - steps, beats and bars in meter: the backbeat is `even(2, 4, 1)` of the
   beats of `even(4, 16)`, which is steps 4 and 12.
 
-`stack(set, d, size)` is composition with every other rung, {0, 2, 4, …}.
-For three and four notes those rungs are even in 7. So every triad and every
+`stack(set, d, size)` is composition with every other degree, {0, 2, 4, …}.
+For three and four notes those degrees are even in 7. So every triad and every
 seventh of every diatonic mode is `even(3 or 4, 7)` composed with the mode:
 98 of 98. Five stacked thirds are not even in 7, and the ninth is where this
 stops.
@@ -128,10 +140,40 @@ qualities instead of coming from `even(3, 12)`.
 Tests: `chords.test.ts`, "stack, as composition".
 
 Sets with a starting point, under this composition, form a category. The
-objects are cycles, and an arrow from k to n is a ladder: a strictly rising
-map f from rungs to heights with f(d + k) = f(d) + n. The chromatic ladder
+objects are cycles, and an arrow from k to n is a helix: a strictly rising
+map f from degrees to heights with f(d + k) = f(d) + n. The chromatic helix
 is the identity. These are the injective maps of Fiedorowicz and Loday's
-paracyclic category; forgetting the turn gives the cyclic picture.
+paracyclic category; forgetting the turn gives the circle.
+
+### Shift and mode, on heights
+
+On the helix a set is one turn of heights: the heights of degrees 0 to
+k − 1, with degree 0 wherever it stands. Two operations then move one
+coordinate each:
+
+- a **shift** by t adds t to every height and keeps the degrees: a
+  transposition. C major shifted by 7 is G major, at 7 9 11 12 14 16 18;
+- a **mode** d renumbers degree e + d as e and keeps the heights: the same
+  positions, another tonic. Mode 1 of C major is D dorian, at
+  2 4 5 7 9 11 12.
+
+Each is composition with a translation, the shift on the outside and the
+mode on the inside, so
+
+    compose(shift(inner, d), outer) = compose(inner, mode(outer, d)).
+
+This is how a Roman numeral reads: V7 of C major is four even degrees of 7,
+`even(4, 7)`, shifted to degree 4 and composed with the key, at 7 11 14 17.
+The law needs the mode to keep its heights. `rotate` is a mode followed by a
+shift back to 0, and with it in place of the mode the V7 lands on 0.
+
+On a set sorted from 0 the two cannot be told apart: `shift` sorts, so
+shifting C major by 7 gives the positions of G major read from C, which is
+C Lydian.
+
+Tests: `modes.test.ts`, "shift and mode, on heights": the law for every even
+pair with n ≤ 12 and d over three turns, and `rotate` as a mode and a shift
+back for every coprime k of n ≤ 16.
 
 ## Partials
 
@@ -145,9 +187,10 @@ Tests: `intervals.test.ts`.
 
 The names of these objects and operations are being decided in
 [#31](https://github.com/yggi/jambot/issues/31). So is which relations get a
-function of their own: composition, the two adjoints, brightness and
-complement are tested here through the current functions, and none of them
-has its own function yet.
+function of their own: composition, the two adjoints, brightness,
+complement, and shift and mode on heights are tested here through the
+current functions and test helpers, and none of them has its own function
+yet.
 
 ## Sources
 

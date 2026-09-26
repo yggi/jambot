@@ -54,6 +54,22 @@ describe('degree, read as an order', () => {
     }
   });
 
+  it('follows the line of slope k/n for even(k, n): the degree just below p is ⌊p · k/n⌋', () => {
+    // Seen from the side, the even set is the staircase closest to that line.
+    const below = (set: readonly number[], n: number, p: number) => {
+      const ds = range(8 * set.length).map((d) => d - 4 * set.length);
+      return Math.max(...ds.filter((d) => degree(set, d, n) <= p));
+    };
+    for (const [k, n] of cases) {
+      for (const p of range(4 * n + 1).map((x) => x - 2 * n))
+        expect(below(even(k, n), n, p), `${k} of ${n}, p ${p}`).toBe(Math.floor((p * k) / n));
+    }
+    // Only the even set as it starts, lydian for 7 of 12, follows the line.
+    // Ionian, one of its modes, reaches F a semitone early: degree 3 at 5, where ⌊5 · 7/12⌋ is 2.
+    expect(below(diatonicMode('lydian'), 12, 5)).toBe(2);
+    expect(below(diatonicMode('ionian'), 12, 5)).toBe(3);
+  });
+
   it("gives play-aeiou's degree_of as the degree just above", () => {
     // degree_of counts the members below the position's class, plus k per cycle.
     for (const [k, n] of cases) {
