@@ -385,8 +385,10 @@ chromatic cycle, and a secondary's target key is a diatonic mode of 12. The
 engine's parts wrap by 12 and build chords of cycle 12. The theory splits a
 chord at a turn of any cycle (P6), so a failure there is the numerals' or
 the engine's, not the helix's (N3).
-Test: open: every token over a helix of cycle 19 or 31.
-Source: #28, the open threads (tunings other than 12), #7 round 3. Status:
+Test: open: every token over a helix of cycle 19 or 31. E12 reads the
+numerals over six tunings: as they are, they fail from 19 on, and with a
+flat worth the key's larger step less its smaller, none does.
+Source: #28, the open threads (tunings other than 12), #7 round 3, E12. Status:
 open. Lands in: #63.
 
 **P6. A chord is a helix of one turn plus its tensions, the tones above the
@@ -918,6 +920,51 @@ the others have not.
     stab inside a held pad: on one MIDI channel the stab's note-off cuts
     the pad (#5). The events tag the two as `comp: 'pad' | 'stab'` of one
     part, and the prototype's text writes them as two lines.
+- **E10. How a bar's header states its style** (T5, T4, C3; #7's decision
+  (f)), in
+  [`packages/engine/experiments/header.ts`](../packages/engine/experiments/header.ts)
+  (about 2 s). It runs the band over the app's own glides, a new preset
+  every 8 bars with `PRESET_GLIDE`, 5 seeds × 64 bars.
+  - Written in full, the style takes 109 characters a bar on average and
+    145 at most, against 80 on a grid of 3 decimals. Only the tempo runs
+    long, since it glides in log space (C2); the other axes glide to short
+    values.
+  - If the band reads its style on a grid of 3 decimals, 4 of 320 bars are
+    written otherwise than now, each by one hit (a hat that opens, a bass
+    note that goes), and 174 play otherwise, by at most 1 in velocity and
+    0.005 steps in length. On a grid of 2 decimals, 55 and 215, by 1 and
+    0.05 steps.
+  - A grid of 3 decimals written but not read gives back 316 of 320 bars;
+    the other 4 are the round trip's counterexamples.
+- **E11. Pad and stab** (Q1d, F5, R4; #5; #7's decision (g)), in
+  [`packages/engine/experiments/pad-stab.ts`](../packages/engine/experiments/pad-stab.ts)
+  (about 1 s), over E9's 2,880 bars.
+  - On one MIDI channel, as the chords part lowers now, a stab's note-off
+    cuts 1,833 of 6,427 pads short (28.5%), and 14,913 of 95,824 steps of
+    pad (15.6%) go silent, in 493 bars.
+  - A join in the events, one note per pitch at a time, drops 3,370 of
+    14,931 stab notes (22.6%).
+  - Two parts, or two voices of one part on two channels, lose nothing.
+    Two parts take `PARTS` from 4 to 5 and drop the `comp` field from
+    notes, which then names only the machine and its carried state; two
+    voices keep the events and map (part, voice) to a channel when
+    lowering.
+- **E12. Numerals over any cycle** (P5, U1; #7's decision (h)), in
+  [`packages/theory/experiments/cycles.ts`](../packages/theory/experiments/cycles.ts)
+  (about 1 s). It reads 45 numerals (7 degrees, flat, natural and sharp,
+  and V7 and VII7 of 12 targets) in 13 tonics × 7 modes of six tunings
+  whose diatonic set is a chain of fifths, 12, 17, 19, 22, 31 and 53 notes,
+  against the line of fifths: a spelled note stands at a place on it and
+  sounds at place × fifth, mod n.
+  - `chordOfNumeral` reads 100% right in 12, 49% in 19 (every secondary
+    fails, from `diatonicMode`'s 12), and 17–20% in 17, 22, 31 and 53,
+    where a flat is more than one step.
+  - Read with `b` and `#` worth L − s of the key's helix (its larger step
+    less its smaller: 1 in 12 and 19, 2 in 17 and 31, 3 in 22, 5 in 53) and
+    a secondary's key taken from the key's own set, every tuning reads
+    100%.
+  - Only in 12 and 19 is the diatonic set `even(7, n)`; in the others it is
+    a helix whose steps differ by more than one.
 
 #7's decisions (a) to (c) are made, as U1 to U3. (d), the motif operators,
 is still open, and is checked against this catalogue when it is made.

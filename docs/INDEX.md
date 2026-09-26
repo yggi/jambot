@@ -74,6 +74,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       and quintenzirkel use, checked to mean the same here
     - `src/second-opinion.test.ts`: the primitive, the names and the
       spelling checked against tonal
+    - `experiments/`: measurements on the theory for the language design,
+      outside the pure `src/`
+      - [`cycles.ts`](../packages/theory/experiments/cycles.ts): E12, the
+        numerals read over tunings of 12 to 53 notes, against the line of
+        fifths
   - `engine/`: the musical engine, pure TypeScript
     - `src/machine.ts`: the contract every level keeps,
       `advance(env, carried, input)`, and `lawBreaks`, which checks it
@@ -113,6 +118,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
         E9, what the port writes and what it plays (lengths, velocities,
         the header's precision, the chords part's overlaps)
+      - [`header.ts`](../packages/engine/experiments/header.ts): E10, how a
+        bar's header states its style, over the app's own glides
+      - [`pad-stab.ts`](../packages/engine/experiments/pad-stab.ts): E11,
+        what pad and stab lose on one channel, in a join, or on two
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing
