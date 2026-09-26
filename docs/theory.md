@@ -114,7 +114,10 @@ over their chord:
 
 - a stack of thirds takes a third per note: C E♭ G♭ B♭♭;
 - a 7-note scale takes one letter per degree, which is its thirds stacked:
-  E♭ harmonic minor is E♭ F G♭ A♭ B♭ C♭ D;
+  E♭ harmonic minor is E♭ F G♭ A♭ B♭ C♭ D. A scale here is 7 notes in which
+  each degree is an interval of its own number, at most doubly diminished or
+  augmented. Every named 7-note scale is one; a cluster such as
+  C D♭ D E♭ E F G♭ is not, and takes the next rule;
 - anything else finds the third and fifth of its chord from the root (a
   major third, else a minor one; a perfect fifth, else ♯5 over a major third,
   else ♭5), spells them as 3 and 5, and every other note from low to high as
@@ -131,13 +134,19 @@ third and no fifth), and its golden spellings are tests here. tonal agrees
 on every chord symbol both read, from 21 roots (840 of 840), and on 25 of
 the 28 scales both know, from 21 tonics. It reads the whole tone and
 augmented scales over other chords (C D E F♯ G♯ A♯, C D♯ E G G♯ B), and it
-spells the altered scale over the 7alt chord it is used on, C D♭ D♯ E F♯ A♭
-B♭, where here it takes one letter per degree, C D♭ E♭ F♭ G♭ A♭ B♭. Which
-the altered scale should follow is open (#12): ultralocrian has the same
-third and fourth, and tonal spells that one by degree.
+spells the altered scale over a 7alt chord, C D♭ D♯ E F♯ A♭ B♭, where here
+it takes one letter per degree, C D♭ E♭ F♭ G♭ A♭ B♭, as music21 does and as
+tonal spells ultralocrian, which has the same third and fourth. One letter
+per degree is the rule that keeps a scale and its chord in agreement: for
+every chord that implies a scale (below), spelled from any spelling of its
+root, the scale spells the chord tones exactly as the chord does (566
+cases). The altered scale is never implied over a dominant; it comes in only
+by name.
 
 More than a double accidental comes up only on a tonic that has an
-accidental already: C♭dim7 has a B♭♭♭.
+accidental already: C♭dim7 has a B♭♭♭. From C, every set of up to 7 notes
+spells with at most a double accidental, and no note takes a letter below
+that of a lower note (all 1,486 sets).
 
 Tests: `spelling.test.ts`, and `second-opinion.test.ts` ("spelling").
 
@@ -184,7 +193,40 @@ music, and a key change is one of them, so nothing jumps:
 - `parallel(key, scale)` keeps the tonic and changes the notes: C major to C
   minor.
 
-Tests: `keys.test.ts`.
+`spelledTonic(key)` names a key's tonic when only its pitch class is known,
+as for a key the analyzer finds: the spelling with the fewest accidentals in
+the key, D♭ major (5 flats) and not C♯ major (7 sharps). That is the spelling
+nearest C along the circle of fifths. A tie is 6 sharps against 6 flats, or a
+natural tonic against an altered one (B lydian, C♭ lydian), and it goes to
+the spelling with the fewest accidentals over the tonic's parallel scales,
+the ones `chordScale` borrows from (the seven diatonic modes, harmonic and
+melodic minor):
+
+- F♯ major over G♭ major: F♯'s parallel scales need no double accidental,
+  G♭'s need B♭♭, E♭♭, A♭♭ and D♭♭. A major key borrows lowered notes, so it
+  wants the sharp side.
+- E♭ minor over D♯ minor: E♭ minor raises to D♮, D♯ minor to C𝄪. A minor key
+  raises its leading tone, so it wants the flat side.
+
+That leaves no named scale with a tie, and it gives each tonic one spelling
+on a tie: C♯, E♭, F♯, A♭, B♭, which are the prototype's key names. So the
+diatonic keys are named:
+
+| mode       | tonics on C to B             |
+| ---------- | ---------------------------- |
+| lydian     | C D♭ D E♭ E F G♭ G A♭ A B♭ B |
+| ionian     | C D♭ D E♭ E F F♯ G A♭ A B♭ B |
+| mixolydian | C C♯ D E♭ E F F♯ G A♭ A B♭ B |
+| dorian     | C C♯ D E♭ E F F♯ G A♭ A B♭ B |
+| aeolian    | C C♯ D E♭ E F F♯ G G♯ A B♭ B |
+| phrygian   | C C♯ D D♯ E F F♯ G G♯ A B♭ B |
+| locrian    | C C♯ D D♯ E F F♯ G G♯ A A♯ B |
+
+Each has the smallest key signature of any spelling of its tonic, as music21
+and tonal count it. A relative key change can respell: F♯ major's relative
+minor is named E♭ minor. The notes stay, and so do the sounds.
+
+Tests: `keys.test.ts`, and `second-opinion.test.ts`.
 
 ### The scale a chord implies
 

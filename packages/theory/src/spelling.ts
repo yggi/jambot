@@ -9,7 +9,10 @@
  *
  * - a stack of thirds takes a third per note: C E♭ G♭ B♭♭;
  * - a 7-note scale takes one letter per degree, which is its thirds
- *   stacked: E♭ harmonic minor;
+ *   stacked: E♭ harmonic minor. A scale here is 7 notes in which each
+ *   degree is an interval of its own number, at most doubly diminished or
+ *   augmented; a cluster such as C D♭ D E♭ E F G♭ is not one, and one letter
+ *   per degree would reach G♭♭♭;
  * - anything else finds the third and fifth of its chord from the root (a
  *   major third, else a minor one; a perfect fifth, else ♯5 over a major
  *   third, else ♭5), spells them as 3 and 5, and every other note from low
@@ -42,7 +45,8 @@ export function genericsOf(heights: readonly number[]): number[] {
   const gaps = above.slice(1).map((x, i) => x - above[i]!);
   if (gaps.length > 0 && gaps.every((gap) => gap === 3 || gap === 4))
     return above.map((_, i) => 2 * i);
-  if (above.length === 7 && above[6]! < 12) return above.map((_, d) => d);
+  if (above.length === 7 && above.every((x, d) => Math.abs(x - NATURALS[d]!) <= 2))
+    return above.map((_, d) => d);
   const bySize = genericsOverChord(new Set(above.map((x) => mod(x, 12))));
   return above.map((x) => bySize.get(mod(x, 12))! + 7 * Math.floor(x / 12));
 }

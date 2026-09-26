@@ -10,12 +10,17 @@
  * A chord implies the scale that changes the fewest notes of the key while
  * holding the chord as stacked thirds: the key itself for a diatonic chord,
  * a parallel mode for a borrowed one, the key it points to for a dominant.
+ *
+ * A key's tonic is spelled with the fewest accidentals in the key, and the
+ * fewest over its parallel scales on a tie.
  */
 
 import { generator } from './even.ts';
 import { type Helix, compose, heightOf, lift, positions, shift, wrap } from './helix.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, mode } from './modes.ts';
 import { qualityOf } from './chords.ts';
+import { LETTERS, type Note } from './notes.ts';
+import { spell } from './spelling.ts';
 
 /** The scale moved so that its degree 0 stands on the key's: C major to C minor. */
 export function parallel(key: Helix, scale: Helix): Helix {
@@ -86,6 +91,41 @@ export function chordScale(key: Helix, chord: readonly number[]): Helix | undefi
   }
   return undefined;
 }
+
+/**
+ * The key's tonic, spelled so the key has the fewest accidentals: D♭ major
+ * (5 flats), not C♯ major (7 sharps). On a tie, which is 6 sharps against 6
+ * flats or a natural tonic against an altered one, it takes the spelling
+ * with the fewest accidentals over the tonic's parallel scales, the ones
+ * `chordScale` borrows from: F♯ major, whose borrowed chords need no double
+ * accidental where G♭ major's do, but E♭ minor, which raises to D♮ where D♯
+ * minor raises to C𝄪. No named scale is left with a tie.
+ */
+export function spelledTonic(key: Helix): Note {
+  const pitchClass = wrap(key.heights[0]!, 12);
+  const candidates = LETTERS.flatMap((letter, i) =>
+    [0, -1, 1]
+      .filter((alteration) => wrap(NATURALS[i]! + alteration, 12) === pitchClass)
+      .map((alteration): Note => ({ letter, alteration, pitchClass })),
+  );
+  const accidentals = (tonic: Note, heights: readonly number[]) =>
+    spell(tonic, heights).reduce((sum, n) => sum + Math.abs(n.alteration), 0);
+  const parallels = [
+    ...DIATONIC_MODE_NAMES.map(diatonicMode),
+    MINOR_FORMS.harmonic,
+    MINOR_FORMS.melodic,
+  ];
+  const ranked = candidates.map((tonic) => ({
+    tonic,
+    inKey: accidentals(tonic, key.heights),
+    around: parallels.reduce((sum, scale) => sum + accidentals(tonic, scale.heights), 0),
+  }));
+  ranked.sort((a, b) => a.inKey - b.inKey || a.around - b.around);
+  return ranked[0]!.tonic;
+}
+
+/** Semitones from C to each natural letter. */
+const NATURALS = diatonicMode('ionian').heights;
 
 const MINOR_FORMS = {
   harmonic: { cycle: 12, heights: [0, 2, 3, 5, 7, 8, 11] },
