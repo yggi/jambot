@@ -1,0 +1,58 @@
+import { describe, expect, it } from 'vitest';
+import { degree, nearestDegree } from './degrees.ts';
+import { even } from './even.ts';
+import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
+
+const range = (n: number) => [...Array(n).keys()];
+
+describe('degree', () => {
+  it('counts through the scale and on into the next octaves, in both directions', () => {
+    const ionian = diatonicMode('ionian');
+    expect(range(9).map((d) => degree(ionian, d))).toEqual([0, 2, 4, 5, 7, 9, 11, 12, 14]);
+    expect([-1, -2, -7, -8].map((d) => degree(ionian, d))).toEqual([-1, -3, -12, -13]);
+  });
+
+  it('works on rhythms too: the d-th onset, counted on through the bars', () => {
+    const rim = even(5, 16);
+    expect(range(7).map((d) => degree(rim, d, 16))).toEqual([0, 4, 7, 10, 13, 16, 20]);
+  });
+
+  it('rises strictly, one scale step at a time, for every mode', () => {
+    for (const scale of [...modes(7, 12), ...modes(5, 12)]) {
+      for (const d of range(40).map((x) => x - 20))
+        expect(degree(scale, d + 1)).toBeGreaterThan(degree(scale, d));
+    }
+  });
+});
+
+describe('nearestDegree', () => {
+  it('inverts degree exactly for every note of the scale', () => {
+    for (const scale of [...modes(7, 12), ...modes(5, 12)]) {
+      for (const d of range(60).map((x) => x - 30))
+        expect(nearestDegree(scale, degree(scale, d))).toBe(d);
+    }
+  });
+
+  it('finds the nearest degree for every MIDI note, ties going down', () => {
+    for (const scale of [...modes(7, 12), ...modes(5, 12)]) {
+      for (const semitones of range(128)) {
+        const d = nearestDegree(scale, semitones);
+        const distance = Math.abs(degree(scale, d) - semitones);
+        expect(Math.abs(degree(scale, d - 1) - semitones)).toBeGreaterThan(distance);
+        expect(Math.abs(degree(scale, d + 1) - semitones)).toBeGreaterThanOrEqual(distance);
+      }
+    }
+  });
+
+  it('agrees with the prototype on its example: A4 over C major is degree 40', () => {
+    // The prototype's toDegK counts octave · 7 + index, as here.
+    expect(nearestDegree(diatonicMode('ionian'), 69)).toBe(40);
+    expect(DIATONIC_MODE_NAMES).toContain('ionian');
+  });
+
+  it('wraps to the next octave when that is nearer', () => {
+    // The major pentatonic tops out at 9, so 11 is nearer the next octave's 12.
+    // The prototype's toDegK does not wrap and would answer 9.
+    expect(nearestDegree([0, 2, 4, 7, 9], 11)).toBe(5);
+  });
+});
