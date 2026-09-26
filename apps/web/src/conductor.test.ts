@@ -65,4 +65,24 @@ describe('wishAfter', () => {
     });
     expect(wishAfter(wish, { kind: 'axis', axis: 'harm', value: 0.2 })).toBe(wish);
   });
+
+  it('wishes for a key picked, tonic and mode', () => {
+    const picked = { tonic: 2, mode: 'mixolydian' } as const;
+    expect(wishAfter({ tonic: null, mode: 'aeolian' }, { kind: 'key', wish: picked })).toBe(picked);
+  });
+
+  it('keeps a key picked when a preset in the same mode follows, as the prototype does', () => {
+    // Funk is dorian: E dorian, picked, stays E dorian rather than pivoting.
+    const picked = { tonic: 4, mode: 'dorian' } as const;
+    expect(wishAfter(picked, { kind: 'preset', preset: funk })).toBe(picked);
+  });
+});
+
+describe('conduct, for a key', () => {
+  it('leaves the style as it is', () => {
+    const track = holding(INITIAL_STYLE);
+    const wish = { tonic: 2, mode: 'dorian' } as const;
+    expect(conduct(track, { kind: 'key', wish }, 40)).toBe(track);
+    expect(conduct(track, { kind: 'key', wish }, null)).toBe(track);
+  });
 });

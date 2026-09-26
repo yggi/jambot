@@ -83,7 +83,10 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   intents; none reads the engine. A style is named by the preset it
   matches on every axis the preset sets but energy (`presetOf`), so there
   is no chosen-preset state: nudging the tempo makes a style custom, and
-  moving energy or entropy doesn't.
+  moving energy or entropy doesn't. The key picker shows the key the band is
+  heading for, the last bar decided's (`hud.heading`). A key picked is
+  wished for tonic and mode; a preset wishes for its mode only when the
+  wish is in another, so a key picked survives a preset in its mode.
 - The parts are machines at bar rate over one `BarEnv`, and `BandBar` is
   that environment plus the events and the bar's `sound`. The drums carry
   nothing; the bass its last note, the comp its last voicing, the lead its

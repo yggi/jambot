@@ -20,6 +20,7 @@
 import {
   type Axis,
   type ForecastBar,
+  type Key,
   PRESETS,
   type SectionType,
   type Style,
@@ -28,6 +29,7 @@ import {
   chordName,
   chordNumeral,
   keyName,
+  leadRests,
   styleAt,
 } from '@jambot/engine';
 
@@ -56,6 +58,8 @@ export interface BarView {
   readonly chords: readonly ChordView[];
   /** The energy it plays at, 0 to 1. */
   readonly energy: number;
+  /** Whether the lead rests in it or improvises (`leadRests`). */
+  readonly lead: 'resting' | 'improvising';
 }
 
 export interface SectionView {
@@ -93,6 +97,8 @@ export interface Hud {
   /** Its section and those after, up to `SECTIONS`, as far as the bars reach them in full. */
   readonly sections: readonly SectionView[];
   readonly style: StyleView;
+  /** The key the band is heading for: the last bar decided's, since a wish is met in one step. */
+  readonly heading: Key | null;
 }
 
 export interface HudInput {
@@ -135,6 +141,7 @@ export function hudOf({ heard, bars, track }: HudInput): Hud {
     next: here ? bars.slice(at + 1, at + 1 + NEXT_BARS).map(barView) : [],
     sections: here ? sectionViews(bars, Math.floor(here.bar / 8)) : [],
     style: styleView(track, heard ?? 0),
+    heading: bars.at(-1)?.plan.key ?? null,
   };
 }
 
@@ -177,6 +184,7 @@ function barView(bar: ForecastBar): BarView {
     key: keyName(bar.plan.key),
     chords: bar.chords.map((c) => chordView(c, bar)),
     energy: bar.barEnergy,
+    lead: leadRests(bar.plan.section.type, bar.barEnergy) ? 'resting' : 'improvising',
   };
 }
 

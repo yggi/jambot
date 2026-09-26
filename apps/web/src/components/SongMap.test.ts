@@ -13,6 +13,7 @@ const section = (index: number, over: Partial<SectionView> = {}): SectionView =>
     key,
     chords: [{ step: 0, symbol: ['Am', 'F', 'C', 'G'][i % 4]!, numeral: 'i' }],
     energy: i / 7,
+    lead: 'improvising' as const,
   }));
   return { index, section: name, key, newKey: false, bars, ...over };
 };
