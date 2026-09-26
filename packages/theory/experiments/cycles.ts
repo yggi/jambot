@@ -22,6 +22,9 @@
  *   cycle.
  * And whether `numeralOf` writes each oracle chord back as its numeral.
  *
+ * The any-cycle rule is now `numerals.ts`'s own (P5, decided on #7 on
+ * these measurements), so its "now" column reads as its rule does.
+ *
  * Run: node --experimental-strip-types --no-warnings packages/theory/experiments/cycles.ts [out.json]
  */
 

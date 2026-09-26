@@ -12,10 +12,17 @@
  * minor seventh in any key. The suffixes are the theory's qualities, each
  * written one way, so a numeral reads back as the chord it was written from.
  * `V7/ii` reads its numeral in the major or minor key on the target's root.
+ *
+ * Nothing here assumes 12 notes to the octave (P5, decided on #7): a key is
+ * any helix of seven degrees, `b` and `#` move a degree by the key's
+ * chromatic step, its larger step less its smaller (1 in 12, 2 in 31), and
+ * a secondary's key is a mode of the key's own set. So a numeral means the
+ * note the line of fifths spells for it in any tuning whose diatonic set is
+ * a chain of fifths.
  */
 
-import { type Helix, heightOf, mod, shift, wrap } from './helix.ts';
-import { diatonicMode } from './modes.ts';
+import { type Helix, gaps, heightOf, shift, wrap } from './helix.ts';
+import { mode } from './modes.ts';
 
 /** A chord in a key: its root as a position on the circle, and its quality. */
 export interface KeyChord {
@@ -112,18 +119,42 @@ export function formatNumeral(numeral: Numeral): string {
   return `${text}/${sign(numeral.of.accidental)}${numeral.of.minor ? target.toLowerCase() : target}`;
 }
 
+/** The step a `b` or `#` moves by: the key's larger step less its smaller. */
+function chromaticStep(key: Helix): number {
+  const steps = gaps(key);
+  return Math.max(...steps) - Math.min(...steps);
+}
+
+/** The major and minor modes as their large (L) and small (s) steps. */
+const STEPS = { ionian: 'LLsLLLs', aeolian: 'LsLLsLL' } as const;
+
+/** The key's own set entered as a major or minor mode, on a root. */
+function modeOn(key: Helix, name: keyof typeof STEPS, root: number): Helix {
+  const steps = gaps(key);
+  const large = Math.max(...steps);
+  const shape = steps.map((g) => (g === large ? 'L' : 's')).join('');
+  const degree = [0, 1, 2, 3, 4, 5, 6].find(
+    (d) => shape.slice(d) + shape.slice(0, d) === STEPS[name],
+  )!;
+  const entered = mode(key, degree);
+  return shift(entered, root - entered.heights[0]!);
+}
+
 /** The key a numeral is read in: the key itself, or its target's major or minor key. */
 function keyOf(key: Helix, of: Target | undefined): Helix {
   if (!of) return key;
-  const root = heightOf(key, of.degree) + of.accidental;
-  return shift(diatonicMode(of.minor ? 'aeolian' : 'ionian'), root);
+  const root = heightOf(key, of.degree) + of.accidental * chromaticStep(key);
+  return modeOn(key, of.minor ? 'aeolian' : 'ionian', root);
 }
 
 /** The chord a numeral means in a key of seven degrees. */
 export function chordOfNumeral(key: Helix, numeral: Numeral): KeyChord {
   const home = keyOf(key, numeral.of);
   return {
-    root: wrap(heightOf(home, numeral.degree) + numeral.accidental, home.cycle),
+    root: wrap(
+      heightOf(home, numeral.degree) + numeral.accidental * chromaticStep(key),
+      home.cycle,
+    ),
     quality: numeral.quality,
   };
 }
@@ -138,8 +169,11 @@ export function chordOfNumeral(key: Helix, numeral: Numeral): KeyChord {
 export function numeralOf(key: Helix, chord: KeyChord, of?: Target): Numeral | undefined {
   if (!(chord.quality in SUFFIXES) || key.heights.length !== 7) return undefined;
   const home = keyOf(key, of);
-  const major = shift(diatonicMode('ionian'), home.heights[0]!);
+  const major = modeOn(key, 'ionian', home.heights[0]!);
+  const step = chromaticStep(key);
   const at = (helix: Helix, degree: number) => wrap(heightOf(helix, degree), helix.cycle);
+  const altered = (degree: number, accidental: number) =>
+    wrap(at(home, degree) + accidental * step, home.cycle);
   const degrees = [0, 1, 2, 3, 4, 5, 6];
   const numeral = (degree: number, accidental: number): Numeral => ({
     degree,
@@ -151,12 +185,11 @@ export function numeralOf(key: Helix, chord: KeyChord, of?: Target): Numeral | u
   const plain = degrees.find((d) => at(home, d) === chord.root);
   if (plain !== undefined) return numeral(plain, 0);
   const inMajor = degrees.find((d) => at(major, d) === chord.root);
-  if (inMajor !== undefined) {
-    const accidental = mod(chord.root - at(home, inMajor) + 6, 12) - 6;
-    if (Math.abs(accidental) === 1) return numeral(inMajor, accidental);
-  }
-  const below = degrees.find((d) => wrap(at(home, d) - 1, home.cycle) === chord.root);
+  if (inMajor !== undefined)
+    for (const accidental of [-1, 1])
+      if (altered(inMajor, accidental) === chord.root) return numeral(inMajor, accidental);
+  const below = degrees.find((d) => altered(d, -1) === chord.root);
   if (below !== undefined) return numeral(below, -1);
-  const above = degrees.find((d) => wrap(at(home, d) + 1, home.cycle) === chord.root);
+  const above = degrees.find((d) => altered(d, 1) === chord.root);
   return above === undefined ? undefined : numeral(above, 1);
 }

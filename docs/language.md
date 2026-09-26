@@ -396,18 +396,24 @@ between chords, scales and rhythms, and key tracking as the phase of F_5
 (E4).
 
 **P5. No pitch token assumes 12 notes to the cycle.**
-Witness: none yet; the helix takes any cycle, MIDI takes 12.
-Counterexample: a token whose meaning uses 12. U1's witness is a candidate:
-`numeralOf` reads an accidental mod 12, `b` and `#` are one step of the
-chromatic cycle, and a secondary's target key is a diatonic mode of 12. The
-engine's parts wrap by 12 and build chords of cycle 12. The theory splits a
-chord at a turn of any cycle (P6), so a failure there is the numerals' or
-the engine's, not the helix's (N3).
-Test: open: every token over a helix of cycle 19 or 31. E12 reads the
-numerals over six tunings: as they are, they fail from 19 on, and with a
-flat worth the key's larger step less its smaller, none does.
-Source: #28, the open threads (tunings other than 12), #7 round 3, E12. Status:
-open. Lands in: #63.
+Witness: the numerals (U1): a key is any helix of seven degrees, `b` and
+`#` move a degree by the key's chromatic step, its larger step less its
+smaller (1 in 12 and 19, 2 in 17 and 31, 3 in 22, 5 in 53), and a
+secondary's key is a mode of the key's own set. The helix takes any cycle,
+and splits a chord at a turn of it (P6). The engine and MIDI stay in 12
+(L1): the claim binds the score's tokens, not the notes they compile to.
+Counterexample: a token whose meaning uses 12. The numerals read an
+accidental as one step and a secondary's key as a diatonic mode of 12, so
+from 17 notes on they failed: in 19 every secondary, in 17, 22, 31 and 53
+about 80% (E12).
+Test: `numerals.test.ts`, "read every numeral over any cycle whose
+diatonic set is a chain of fifths, as the line of fifths spells it, and
+write each chord back (P5, U1)": 93 numerals × 13 tonics × 7 modes in 12,
+17, 19, 22, 31 and 53, against the line of fifths. Open: a line's pitch
+tokens (U2), once the score reads them.
+Source: #28, the open threads (tunings other than 12), #7 round 3, E12.
+Status: measured (the numerals); open (a line's pitch tokens). Decided: #7,
+on measured options (E12). Lands in: #63.
 
 **P6. A chord is a helix of one turn plus its tensions, the tones above the
 octave; together they are its stack.**
@@ -581,7 +587,9 @@ Witness: `numerals.ts`: `parseNumeral` and `formatNumeral`, and
 `chordOfNumeral` and `numeralOf` between a numeral and a chord of its key.
 It is P7's rule one level up: a numeral counts degrees of the key's scale,
 as a pitch number counts degrees of the chord's. `V7/ii` reads its numeral
-in the target's major or minor key.
+in the target's major or minor key, a mode of the key's own set, and `b`
+and `#` move by the key's chromatic step, so a numeral reads in any cycle
+(P5).
 Counterexample: a numeral that reads back as another chord, or a chord of a
 diatonic key that no numeral writes. Counting from the parallel major, the
 other option, makes `VI` in A minor F♯ and fails the tests.
@@ -1004,6 +1012,13 @@ the others have not.
     100%.
   - Only in 12 and 19 is the diatonic set `even(7, n)`; in the others it is
     a helix whose steps differ by more than one.
+  - The any-cycle rule is now `numerals.ts`'s (P5, decided on #7), so
+    `chordOfNumeral` reads 100% in every tuning, and the script's "now"
+    column reads the same as its rule. Written back, a chord reads as
+    itself everywhere; in 12, 17 and 19 an altered numeral can have a twin
+    spelling at the same pitch, since places n fifths apart coincide (E♯ is
+    G♭ in 17 and F♭ in 19), and `numeralOf` writes the canonical one.
 
-#7's decisions (a) to (c) are made, as U1 to U3. (d), the motif operators,
-is still open, and is checked against this catalogue when it is made.
+#7's decisions (a) to (c) are made, as U1 to U3, and (e) to (h) as T4's
+performance maps, C7, L6 and P5. (d), the motif operators, is still open,
+and is checked against this catalogue when it is made.
