@@ -77,8 +77,10 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `engine/`: the musical engine, pure TypeScript
     - `src/machine.ts`: the contract every level keeps,
       `advance(env, carried, input)`, and `lawBreaks`, which checks it
-    - `src/events.ts`: the note events the engine writes, and
-      `eventProblems`
+    - `src/events.ts`: written notes (`WrittenNote`, the drum roles,
+      `writtenProblems`) and the note events they play as (`eventProblems`)
+    - `src/perform.ts`: the performance, how a written note is played: its
+      velocity and the length it sounds, read from the bar (T4)
     - `src/random.ts`: keyed deterministic randomness, and quantised
       `chance` and `pick`
     - `src/style.ts`: the style axes, their ranges and glide spaces, the

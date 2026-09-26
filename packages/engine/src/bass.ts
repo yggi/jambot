@@ -12,13 +12,15 @@
  *
  * Each note goes to the nearest octave of its pitch class, from the last
  * note, within 33–52, and an octave jump may take it to 57. So the last
- * note is all it carries. These are the prototype's patterns and weights.
+ * note is all it carries. A note is written to the next one, or to the end
+ * of the bar; the performance gates it by the articulation (`perform.ts`).
+ * These are the prototype's patterns and weights.
  */
 
 import { type Chord, wrap } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { type BarChord, chordAt } from './chords.ts';
-import type { NoteEvent } from './events.ts';
+import type { WrittenNote } from './events.ts';
 import type { Machine } from './machine.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { swingParts } from './swing.ts';
@@ -45,7 +47,6 @@ const ROLE = { hit: 0, anticipate: 1 } as const;
 const NOTE = { approach: 0, walkTone: 1, ornament: 2 } as const;
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
 /** How much of each pattern the style asks for, at the bar's energy. */
 export function bassBlend(style: Style, energy: number): Record<BassPattern, number> {
@@ -72,12 +73,12 @@ function nearest(pitchClass: number, last: number): number {
   return best;
 }
 
-export const bass: Machine<BarEnv, number, null, NoteEvent[]> = {
+export const bass: Machine<BarEnv, number, null, WrittenNote[]> = {
   initial: 40,
   advance(env, last) {
     const { seed, bar, plan, style, barEnergy: energy, chords, next } = env;
     const section = plan.section.index;
-    const events: NoteEvent[] = [];
+    const notes: WrittenNote[] = [];
     const startsAt = (step: number) => chords.some((c) => c.slot.step === step);
     const nextAfter = (step: number): BarChord =>
       chords.find((c) => c.slot.step > step) ?? next[0] ?? chordAt(chords, step);
@@ -86,15 +87,9 @@ export const bass: Machine<BarEnv, number, null, NoteEvent[]> = {
       chords.forEach((c, i) => {
         const end = chords[i + 1]?.slot.step ?? 16;
         last = nearest(rootOf(c.chord), last);
-        events.push({
-          part: 'bass',
-          step: c.slot.step,
-          note: last,
-          velocity: 70,
-          length: end - c.slot.step - 0.3,
-        });
+        notes.push({ part: 'bass', step: c.slot.step, note: last, length: end - c.slot.step });
       });
-      return { carried: last, output: events };
+      return { carried: last, output: notes };
     }
 
     const blend = bassBlend(style, energy);
@@ -113,7 +108,6 @@ export const bass: Machine<BarEnv, number, null, NoteEvent[]> = {
     }
     if (onsets.length === 0) onsets.push(0);
 
-    const gate = Math.max(0.3, Math.min(1, 1.02 - 0.7 * style.artic));
     onsets.forEach((s, i) => {
       const chord = chordAt(chords, s).chord;
       const end = onsets[i + 1] ?? 16;
@@ -147,14 +141,13 @@ export const bass: Machine<BarEnv, number, null, NoteEvent[]> = {
         }
       }
       last = nearest(pitchClass, last);
-      events.push({
+      notes.push({
         part: 'bass',
         step: s,
         note: up && last + 12 <= BASS_RANGE[1] ? last + 12 : last,
-        velocity: clampVelocity((s % 4 === 0 ? 100 : 84) * (0.75 + 0.25 * energy)),
-        length: Math.max(0.3, (end - s) * gate),
+        length: end - s,
       });
     });
-    return { carried: last, output: events };
+    return { carried: last, output: notes };
   },
 };

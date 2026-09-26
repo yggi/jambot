@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { type NoteEvent, PARTS, eventProblems } from './events.ts';
+import {
+  DRUM_ROLES,
+  type DrumRole,
+  type NoteEvent,
+  PARTS,
+  type WrittenNote,
+  eventProblems,
+  writtenProblems,
+} from './events.ts';
 
 const range = (from: number, to: number) => [...Array(to - from + 1).keys()].map((i) => from + i);
 
@@ -54,5 +62,62 @@ describe('eventProblems', () => {
 
   it('reports every problem at once', () => {
     expect(eventProblems({ ...kick, step: 16, note: 128, velocity: 0, length: 0 })).toHaveLength(4);
+  });
+});
+
+const hit: WrittenNote = { part: 'drums', role: 'kick', step: 0, note: 36, length: 1 };
+const chord: WrittenNote = { part: 'chords', comp: 'pad', step: 0, note: 60, length: 16 };
+
+describe('writtenProblems', () => {
+  it('finds none in a well-formed written note of every part, and every drum role (T4)', () => {
+    for (const part of PARTS) {
+      const note: WrittenNote =
+        part === 'chords' ? chord : part === 'drums' ? hit : { part, step: 0, note: 40, length: 4 };
+      expect(writtenProblems(note)).toEqual([]);
+    }
+    for (const role of DRUM_ROLES) expect(writtenProblems({ ...hit, role })).toEqual([]);
+  });
+
+  it('wants every step of the bar and nothing outside it', () => {
+    for (const step of range(0, 15)) expect(writtenProblems({ ...hit, step })).toEqual([]);
+    for (const step of [-1, 16, 2.5, NaN])
+      expect(writtenProblems({ ...hit, step })).toEqual([`step ${step} is not a step 0–15`]);
+  });
+
+  it('accepts every MIDI note and nothing outside them', () => {
+    for (const note of range(0, 127)) expect(writtenProblems({ ...hit, note })).toEqual([]);
+    for (const note of [-1, 128, 60.5])
+      expect(writtenProblems({ ...hit, note })).toEqual([`note ${note} is not a MIDI note 0–127`]);
+  });
+
+  it('wants a length in whole steps: a played length is the performance’s (T4)', () => {
+    for (const length of [1, 2, 16, 40]) expect(writtenProblems({ ...hit, length })).toEqual([]);
+    for (const length of [0, -1, 0.3, 2.5, Infinity, NaN])
+      expect(writtenProblems({ ...hit, length })).toEqual([
+        `length ${length} is not a whole number of steps`,
+      ]);
+  });
+
+  it('wants no velocity: how loud a note plays is the performance’s (T4)', () => {
+    const loud = { ...hit, velocity: 100 } as WrittenNote;
+    expect(writtenProblems(loud)).toEqual(['a written note has no velocity']);
+  });
+
+  it('wants a role on a drum hit and on nothing else, and pad or stab on a chord and on nothing else', () => {
+    const bare: WrittenNote = { part: 'drums', step: 0, note: 36, length: 1 };
+    expect(writtenProblems(bare)).toEqual(['a drum hit has a role']);
+    expect(writtenProblems({ ...hit, role: 'cowbell' as DrumRole })).toEqual([
+      'role cowbell is not a drum role',
+    ]);
+    expect(writtenProblems({ ...chord, role: 'kick' })).toEqual(['a chords note has no role']);
+    const plain: WrittenNote = { part: 'chords', step: 0, note: 60, length: 16 };
+    expect(writtenProblems(plain)).toEqual(['a chords note is a pad or a stab']);
+    expect(writtenProblems({ ...hit, comp: 'stab' })).toEqual([
+      'a drums note is not a pad or a stab',
+    ]);
+  });
+
+  it('reports every problem at once', () => {
+    expect(writtenProblems({ ...hit, step: 16, note: 128, length: 0.5 })).toHaveLength(3);
   });
 });

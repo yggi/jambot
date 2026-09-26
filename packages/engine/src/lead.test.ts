@@ -2,7 +2,7 @@ import { joinChord, positions, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import { chordAt } from './chords.ts';
-import { eventProblems } from './events.ts';
+import { writtenProblems } from './events.ts';
 import { keyHelix } from './key.ts';
 import { LEAD_RANGE, type LeadCarried, lead } from './lead.ts';
 import { type Script, lawBreaks } from './machine.ts';
@@ -59,7 +59,7 @@ describe('the lead', () => {
     expect(playing.length).toBeGreaterThan(200);
     for (const { events } of playing)
       for (const e of events) {
-        expect(eventProblems(e)).toEqual([]);
+        expect(writtenProblems(e)).toEqual([]);
         expect(e.part).toBe('lead');
         expect(e.note).toBeGreaterThanOrEqual(60);
         expect(e.note).toBeLessThanOrEqual(86);
@@ -162,17 +162,13 @@ describe('the lead', () => {
     expect(at(0.39).every((events) => events.length === 0)).toBe(true);
   });
 
-  it('plays at least three notes in a shape, two in a variation, in order, each held until the next under the gate', () => {
+  it('plays at least three notes in a shape, two in a variation, in order, each written to the next', () => {
     for (const { bar, events } of playing) {
       expect(events.length).toBeGreaterThanOrEqual(bar.barInSection % 2 === 0 ? 3 : 2);
       const steps = events.map((e) => e.step);
       expect([...steps].sort((a, b) => a - b)).toEqual(steps);
       expect(new Set(steps).size).toBe(steps.length);
-      const gate = Math.max(0.25, Math.min(1, 1.05 - 0.75 * bar.style.artic));
-      events.forEach((e, i) => {
-        const end = events[i + 1]?.step ?? 16;
-        expect(e.length).toBeCloseTo(Math.max(0.3, (end - e.step) * gate), 9);
-      });
+      events.forEach((e, i) => expect(e.length).toBe((events[i + 1]?.step ?? 16) - e.step));
     }
   });
 

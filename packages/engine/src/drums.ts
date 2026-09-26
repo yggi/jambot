@@ -15,13 +15,16 @@
  * patterns are not nested, so at those crossings hits move. Within a third,
  * and at one rotation, the rim only gains hits as the energy rises.
  *
- * The drums carry nothing from bar to bar, so any bar plays from its
- * environment alone.
+ * Each hit is written with its role in the groove (kick, backbeat, fill,
+ * ghost, hat, pedal or euclid), and the performance sets its accent from it
+ * (`perform.ts`). Where two roles land on one sound and step, one hit is
+ * written, the stronger role's. The drums carry nothing from bar to bar, so
+ * any bar plays from its environment alone.
  */
 
 import { even, positions } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
-import type { NoteEvent } from './events.ts';
+import { DRUM_ROLES, type DrumRole, type WrittenNote } from './events.ts';
 import { SECTION_BARS } from './form.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { swingParts } from './swing.ts';
@@ -64,9 +67,9 @@ const smooth = (u: number) => {
   const x = clamp01(u);
   return x * x * (3 - 2 * x);
 };
-const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
-export function drums(env: BarEnv): NoteEvent[] {
+/** The drum hits a bar writes, in order of step and note. */
+export function drums(env: BarEnv): WrittenNote[] {
   const { seed, bar, barInSection, style, barEnergy: energy } = env;
   const { section } = env.plan;
   const { sync, swing, artic, harm, entropy } = style;
@@ -78,28 +81,21 @@ export function drums(env: BarEnv): NoteEvent[] {
   const plays = (role: keyof typeof ROLE, step: number, p: number) =>
     chance(heldDraw(seed, HELD, ROLE[role], section.index, bar, step, entropy), p);
 
-  const hits = new Map<number, NoteEvent>();
-  /** A hit; where one is already on this step and note, the louder stays. */
-  const add = (step: number, note: number, velocity: number) => {
-    const looseness = (draw(seed, 'drumVelocity', bar, step, note) - 0.5) * swing * 24;
-    const event: NoteEvent = {
-      part: 'drums',
-      step,
-      note,
-      velocity: clampVelocity(velocity * (0.65 + 0.35 * energy) + looseness),
-      length: 1,
-    };
+  const hits = new Map<number, WrittenNote>();
+  /** A hit; where one is already on this step and note, the stronger role stays. */
+  const add = (step: number, note: number, role: DrumRole) => {
     const key = step * 128 + note;
     const there = hits.get(key);
-    if (!there || there.velocity < event.velocity) hits.set(key, event);
+    if (!there || DRUM_ROLES.indexOf(role) < DRUM_ROLES.indexOf(there.role!))
+      hits.set(key, { part: 'drums', role, step, note, length: 1 });
   };
   const played = () => [...hits.entries()].sort(([a], [b]) => a - b).map(([, e]) => e);
 
   if (section.type === 'breakdown') {
     if (energy > 0.2)
       for (let s = 2; s < 16; s += 4)
-        add(s, eighth > 0.5 ? DRUM_NOTES.ride : DRUM_NOTES.closedHat, 55);
-    if (last) for (let s = 8; s < 16; s++) add(s, DRUM_NOTES.snare, 45 + (s - 8) * 9);
+        add(s, eighth > 0.5 ? DRUM_NOTES.ride : DRUM_NOTES.closedHat, 'hat');
+    if (last) for (let s = 8; s < 16; s++) add(s, DRUM_NOTES.snare, 'fill');
     return played();
   }
 
@@ -113,13 +109,13 @@ export function drums(env: BarEnv): NoteEvent[] {
       lerp(kickStraight[s]!, KICK_SYNCOPATED[s]!, sync) *
       (s === 0 ? 1 : density) *
       (1 - 0.55 * eighth);
-    if (plays('kick', s, kick)) add(s, DRUM_NOTES.kick, s % 8 === 0 ? 112 : 92);
+    if (plays('kick', s, kick)) add(s, DRUM_NOTES.kick, 'kick');
 
     if (s === 4 || s === 12) {
       if (energy > 0.25 && plays('backbeat', s, 1 - 0.8 * eighth))
-        add(s, DRUM_NOTES.snare, s === 12 ? 106 : 100);
+        add(s, DRUM_NOTES.snare, 'backbeat');
     } else if (plays('ghost', s, GHOSTS[s]! * sync * density * 0.9 + eighth * 0.12 * density))
-      add(s, DRUM_NOTES.snare, 32 + 14 * sync);
+      add(s, DRUM_NOTES.snare, 'ghost');
 
     let hat =
       s % 2 === 0 ? clamp01(0.15 + energy * 1.1) : clamp01((energy - 0.55) * 2.5) * (1 - eighth);
@@ -136,10 +132,10 @@ export function drums(env: BarEnv): NoteEvent[] {
         : plays('ride', s, eighth)
           ? DRUM_NOTES.ride
           : DRUM_NOTES.closedHat;
-      add(s, note, s % 4 === 0 ? 78 : s % 2 === 0 ? 66 : 50);
+      add(s, note, 'hat');
     }
     if (eighth > 0.3 && (s === 4 || s === 12) && plays('pedal', s, eighth))
-      add(s, DRUM_NOTES.pedalHat, 58);
+      add(s, DRUM_NOTES.pedalHat, 'pedal');
   }
 
   // Euclidean percussion, E(3,16), E(5,16) (a clave) or E(7,16) by energy,
@@ -147,12 +143,12 @@ export function drums(env: BarEnv): NoteEvent[] {
   if (plays('euclid', 0, sync * density * (1 - 0.7 * eighth) * 1.3)) {
     const k = [3, 5, 7][Math.min(2, Math.floor(energy * 3))]!;
     const rotation = Math.floor(draw(seed, 'drumEuclid', section.index) * 4 * sync);
-    for (const s of positions(even(k, 16, rotation))) add(s, DRUM_NOTES.rim, 72);
+    for (const s of positions(even(k, 16, rotation))) add(s, DRUM_NOTES.rim, 'euclid');
   }
 
   if (last && (section.type === 'build' || plays('fill', 0, 0.35 + 0.3 * sync))) {
     const from = section.type === 'build' ? 8 : 12;
-    for (let s = from; s < 16; s++) add(s, DRUM_NOTES.snare, 50 + (s - from) * (60 / (16 - from)));
+    for (let s = from; s < 16; s++) add(s, DRUM_NOTES.snare, 'fill');
   }
   return played();
 }

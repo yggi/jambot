@@ -198,9 +198,12 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - To run the prototype headless from Node, load it in jsdom as
   `prototype/experiments/cold-warm.mjs` does, and end with `process.exit`:
   the page's own timers keep the process alive.
-- The port's events carry played values: a length gated by the
-  articulation, a velocity scaled by the energy. The score text writes
-  neither; T4's performance maps give them back (`language.md`, T4 and E9).
+- The engine's parts write notes, not events: a `WrittenNote` is a step, a
+  note, a length in whole steps and, for a drum hit, its role, with no
+  velocity. The band plays each through `perform` (`perform.ts`), which
+  reads the velocity and the gated length from the bar (`language.md`, T4
+  and E9). A test that reads a velocity or a played length goes through
+  `perform`.
 - To measure the port headless, run a script under
   `packages/engine/experiments/` with
   `node --experimental-strip-types --no-warnings`; it imports the engine
