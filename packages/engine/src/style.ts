@@ -69,11 +69,14 @@ export interface Preset {
   readonly style: Readonly<Record<Exclude<Axis, 'entropy'>, number>>;
 }
 
+/** A preset's axes in order: swing, sync, harm, artic, energy, bpm. */
+type PresetAxes = [number, number, number, number, number, number];
+
 const preset = (
   name: string,
   mode: DiatonicModeName,
-  [swing, sync, harm, artic, energy, bpm]: number[],
-): Preset => ({ name, mode, style: { swing, sync, harm, artic, energy, bpm } as Preset['style'] });
+  [swing, sync, harm, artic, energy, bpm]: PresetAxes,
+): Preset => ({ name, mode, style: { swing, sync, harm, artic, energy, bpm } });
 
 /** The prototype's presets. */
 export const PRESETS: readonly Preset[] = [

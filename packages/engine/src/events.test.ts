@@ -39,7 +39,9 @@ describe('eventProblems', () => {
   it('wants a positive, finite length in steps', () => {
     for (const length of [0.05, 1, 16, 40]) expect(eventProblems({ ...kick, length })).toEqual([]);
     for (const length of [0, -1, Infinity, NaN])
-      expect(eventProblems({ ...kick, length })).toEqual([`length ${length} is not positive`]);
+      expect(eventProblems({ ...kick, length })).toEqual([
+        `length ${length} is not a positive, finite length`,
+      ]);
   });
 
   it('wants pad or stab on a chords event, and on no other', () => {

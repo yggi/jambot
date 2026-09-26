@@ -74,8 +74,14 @@ export function quantize(x: number): number {
   return Math.round(x / QUANTUM) * QUANTUM;
 }
 
-/** Whether a draw in [0, 1) falls below probability p. */
+/**
+ * Whether a draw in [0, 1) falls below probability p. A p below 0 or above 1
+ * is never or always; a p that is not a number is refused, since it would
+ * silence a part without a word.
+ */
 export function chance(draw: number, p: number): boolean {
+  if (!(draw >= 0 && draw < 1)) throw new Error(`chance: draw ${draw} is outside [0, 1)`);
+  if (!Number.isFinite(p)) throw new Error(`chance: probability ${p} is not a finite number`);
   return draw < quantize(p);
 }
 

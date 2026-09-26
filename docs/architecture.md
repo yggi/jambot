@@ -83,8 +83,9 @@ of them. The package is created with its first ported module.
   environment (the seed, the style and the plan at that position), carries
   state (only what depends on the path, such as where the voices were),
   hears an input, and writes an output. `lawBreaks` checks the contract:
-  the same arguments give the same result, the carried state survives
-  JSON, and advancing from a snapshot gives what the run gave. Until the
+  what it reads, carries and writes is plain data, nothing given is
+  changed, the same arguments give the same result, and advancing from a
+  snapshot gives what the run gave. Until the
   score package (#13) lands, the engine writes note events and the
   transport plays them; the text step then goes between the two.
 - **Score text**: the contract between composing and playing. The composer
@@ -97,8 +98,9 @@ of them. The package is created with its first ported module.
   a pure machine at tick rate (`transport.ts`): given the clock's now, it
   schedules every step that starts before now plus 120 ms and keeps the
   band composing a bar ahead. The web app supplies the clock and plays
-  what it schedules (`apps/web/src/player.svelte.ts`). It is swappable: a local audio clock, a MIDI clock
-  follower, or the root node's clock.
+  what it schedules (`apps/web/src/player.svelte.ts`). The clock is
+  swappable: a local audio clock, a MIDI clock follower, or the root
+  node's clock.
 - **Renderers**: turn timestamped events into sound or MIDI messages and
   handle channel allocation and note-off bookkeeping.
 - **UI**: reads engine snapshots and sends intents (preset, slider move,

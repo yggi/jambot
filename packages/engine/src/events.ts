@@ -34,7 +34,8 @@ export function eventProblems(event: NoteEvent): string[] {
   if (!isIntegerIn(step, 0, 15)) problems.push(`step ${step} is not a step 0–15`);
   if (!isIntegerIn(note, 0, 127)) problems.push(`note ${note} is not a MIDI note 0–127`);
   if (!isIntegerIn(velocity, 1, 127)) problems.push(`velocity ${velocity} is not a velocity 1–127`);
-  if (!(length > 0 && Number.isFinite(length))) problems.push(`length ${length} is not positive`);
+  if (!(length > 0 && Number.isFinite(length)))
+    problems.push(`length ${length} is not a positive, finite length`);
   if (part === 'chords' && comp === undefined) problems.push('a chords event is a pad or a stab');
   if (part !== 'chords' && comp !== undefined)
     problems.push(`a ${part} event is not a pad or a stab`);

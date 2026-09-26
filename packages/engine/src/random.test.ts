@@ -88,6 +88,15 @@ describe('chance', () => {
     expect(chance(0.5, 0.5)).toBe(false);
     expect(chance(0, 0)).toBe(false);
     expect(chance(0.9999, 1)).toBe(true);
+    expect(chance(0.5, -0.2)).toBe(false);
+    expect(chance(0.5, 1.4)).toBe(true);
+  });
+
+  it('refuses a probability that is not a number, and a draw outside [0, 1)', () => {
+    expect(() => chance(0.5, NaN)).toThrow(/probability NaN is not a finite number/);
+    expect(() => chance(0.5, Infinity)).toThrow(/not a finite number/);
+    expect(() => chance(1.5, 0.5)).toThrow(/draw 1.5 is outside \[0, 1\)/);
+    expect(() => chance(-0.1, 0.5)).toThrow(/outside \[0, 1\)/);
   });
 
   it('decides a draw alike on both sides of a one-ulp difference, where a raw comparison does not', () => {
