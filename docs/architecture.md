@@ -13,8 +13,15 @@ The engine is being ported from the [prototype](prototype.md) one module at
 a time (#2). Until the port is done, the web app is a shell that links to the
 prototype.
 
+Music theory goes into `packages/theory` (#28). It is built on one
+primitive, the maximally even set `even(k, n, rot)`, which gives both the
+Euclidean rhythms and the scales and their modes; the circle of fifths is
+the same structure seen from its generator. This primitive is the root of the
+project and the core of the language design (#7).
+
 The score core (the grammar, its parser, the encoder and the compiler) goes
-into its own package, `packages/score`, and the engine depends on it. The
+into its own package, `packages/score`, which builds on the theory, and the
+engine depends on both. The
 score language is the contract between the composer, the compiler, the
 analyzer (#3) and later the learned models, so it lives apart from any one
 of them. The package is created with its first ported module.

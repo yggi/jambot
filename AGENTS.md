@@ -40,6 +40,26 @@ These principles come from the prototype
 
 ## House rules
 
+### Laws
+
+- **The law of meaningful tests.** A gate that never fires is worse than no
+  gate. Every check has a test that shows it can fail. Finite parts, such as
+  every Euclid pair, every mode, or every token over every chord, are tested
+  over every case, not over samples.
+- **The law of true names.** A bare general word stops being a name once it
+  does three jobs. `key` can be a musical key, a map key, a drum key or a
+  keyboard key, so each use gets a name that says which.
+- **The law of generalization.** A contraction is better than an addition or
+  a special case. When something new doesn't fit, look first for the more
+  general form that covers both it and what already exists. One operator,
+  `even(k, n, rot)`, gives both the rhythms and the scales.
+- **The law of recursion and strange loops.** As above, so below. The same
+  forms recur at every level (step, bar, phrase, section, song) and in the
+  loop from players to Muse to composer and back to players. A structure that
+  works at one level is the first candidate at the next.
+
+### Practice
+
 - **Tests first.** A behaviour gets its test before its code. Tests describe
   behaviour through public functions, not internals, so they survive
   refactoring while features settle. Tests sit next to the code as

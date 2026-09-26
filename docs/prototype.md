@@ -94,8 +94,9 @@ output:
    events and the score text as fixtures (#13).
 2. **Engine and theory first, language surface after #7.** The composer
    produces raw events before anything is written as text, so the engine
-   (#2) and the shared music theory (#13) are ported now and pinned to those
-   events. The language surface (parser, tokens, encoder, compiler) waits
+   (#2) is ported now and pinned to those events, on top of
+   `packages/theory` (#28), whose primitive has to reproduce the
+   prototype's tabulated theory. The language surface (parser, tokens, encoder, compiler) waits
    for the language design (#7), and what the port finds feeds that design.
 3. **Audio and MIDI become renderers** that consume timestamped events,
    behind a transport (see [architecture](architecture.md)).

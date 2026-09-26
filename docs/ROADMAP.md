@@ -6,15 +6,18 @@ Where Jambot is heading. The concept and the reasoning behind it are in
 
 ## Targets
 
-- **v0: locally demo-able**, by Thursday, 1 October 2026. Scope: open.
-- **v1: event-ready**, by Christmas 2026. This is the deadline. Scope: open
-  beyond "event-ready".
+- **v0: locally demo-able**, by Thursday, 1 October 2026. v0 is the existing
+  prototype. Anything added on top is a bonus and strengthens the case.
+- **v1: event-ready**, by Christmas 2026. This is the deadline. v1 is the
+  full bucket: everything on this roadmap, the live track and the learning
+  track alike.
 
 ## Now
 
 These run in parallel:
 
-- **Language design** (#7). The score language is well reasoned but somewhat
+- **Language design** (#7), with its core, the theory primitive
+  (`packages/theory`, #28). The score language is well reasoned but somewhat
   ad hoc, and it gets a full refinement pass, including how it relates to
   Strudel. It blocks only the language's surface: its syntax, what tokens
   mean, and the text format other code builds on. Everything else goes ahead
@@ -22,7 +25,9 @@ These run in parallel:
   better than deciding ahead of the evidence and building around the
   decision later.
 - **Port the prototype**, test-first and pinned to the prototype's output:
-  - the recorder and the music theory in `packages/score` (#13);
+  - the recorder in `packages/score` (#13);
+  - the theory primitive in `packages/theory` (#28), which has to reproduce
+    the prototype's tabulated theory;
   - the engine (#2), pinned to the composer's raw events.
 - **Web client** (#22): transport (#23), renderers (#24), inputs (#25) and
   UI (#26). Everything except the score and Strudel panels is independent
@@ -107,6 +112,9 @@ unknown. Dotted lines are not blocking.
 ```mermaid
 graph LR
   L7["#7 language design"] -- "surface only" --> S13["#13 packages/score"]
+  T28["#28 packages/theory"] --> S13
+  T28 --> E2
+  T28 -. "invariants" .-> L7
   S13 -- "text step" --> E2["#2 engine"]
   E2 -. "invariants" .-> L7
   E2 --> A3["#3 analyzer"]
@@ -126,8 +134,13 @@ graph LR
   L7 --> F19["#19 form author"]
 ```
 
-The engine (#2) is the hub. Everything live and everything learned depends
-on it, and it can start now. For v1, the path runs through the engine, the
-web client, the root node and timing. Whether v1 also needs anything from
-the learning track is open, and so is the path to v0, since its scope is
-open.
+The theory primitive (#28) is the root, and the engine (#2) is the hub:
+everything live and everything learned depends on it. Both can start now.
+
+v1 needs the full bucket, so the critical path is the longest chain, the
+learning track. It runs from theory and the language design, through the
+score package and the engine, to the analyzer, then the critic and the Muse
+encoder, with the writers alongside the critic. Training takes time beyond the code, which
+puts this chain first in line. The live track (web client, root node,
+timing) runs in parallel. v0 is the prototype, so nothing is on its critical
+path.
