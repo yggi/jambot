@@ -333,6 +333,24 @@ Source: #37 step 4; fixed points, #39. Status: measured (the key). Open:
 whether style intents read the same way (a glide is a target reached over
 time, C1), and how the IM writes a wish. Lands in: #13, #25, #39.
 
+**C7. The band reads its style as the score writes it, on a grid of 3
+decimals, so a bar's header states exactly the style it was composed
+from.**
+Witness: `writtenStyle` (`STYLE_DECIMALS`), which the band applies to the
+style of every bar it plays, passes or looks ahead to. What plays between
+bar starts, the tempo and the swing, the transport reads from the style
+track itself, continuously (C3).
+Counterexample: a bar whose header, read back, composes another bar. With
+the band reading every float and the header writing 3 decimals, 4 of 320
+bars of the app's glides did (E10).
+Test: `style.test.ts`, whose tests of `writtenStyle` cite C7: every value a
+preset glide passes through lands within half a step of the grid, inside
+its axis, and reads back from its text; `band.test.ts`, "reads its style
+as the score writes it, so a bar states exactly the style it was composed
+from (C7)", over the app's glides, the bars ahead included.
+Source: E10, T5. Status: measured. Decided: #7, on measured options (E10).
+Lands in: #63 step 2 (the header).
+
 ### Pitch
 
 **P1. Pitch is relative: to the chord, the chord to the key; only compiled
@@ -936,10 +954,13 @@ the others have not.
     (22%), 3,370 of 3,927 times a stab inside a held pad; as two parts
     (L6), 234 remain, each a stab one step after a stab still ringing.
 - **E10. How a bar's header states its style** (T5, T4, C3; #7's decision
-  (f)), in
+  (f), taken as C7), in
   [`packages/engine/experiments/header.ts`](../packages/engine/experiments/header.ts)
   (about 2 s). It runs the band over the app's own glides, a new preset
-  every 8 bars with `PRESET_GLIDE`, 5 seeds × 64 bars.
+  every 8 bars with `PRESET_GLIDE`, 5 seeds × 64 bars. The numbers below
+  compare with the band as it read every float, before C7; now that the
+  band reads the grid itself, the script's 3-decimal comparisons read
+  zero.
   - Written in full, the style takes 109 characters a bar on average and
     145 at most, against 80 on a grid of 3 decimals. Between glides the
     values are short; within one, every axis runs long, as a dyadic

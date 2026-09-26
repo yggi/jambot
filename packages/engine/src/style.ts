@@ -102,6 +102,23 @@ export const SLIDER_GLIDE = 16;
 
 export const INITIAL_STYLE: Style = { ...PRESETS[0]!.style, entropy: 0.3 };
 
+/** The decimals the score writes a style with, and the band reads it at (C7). */
+export const STYLE_DECIMALS = 3;
+
+/**
+ * A style as the score writes it: each axis rounded to `STYLE_DECIMALS`.
+ * The band reads its style this way, so a bar's header states exactly the
+ * style it was composed from (C7, decided on #7). A glide passes through
+ * values of any length; what plays between bars, tempo and swing, the
+ * transport reads from the style track itself.
+ */
+export function writtenStyle(style: Style): Style {
+  const grid = 10 ** STYLE_DECIMALS;
+  return Object.fromEntries(
+    AXIS_NAMES.map((axis) => [axis, Math.round(style[axis] * grid) / grid]),
+  ) as Style;
+}
+
 /** The axis's space: where a glide is a straight line (log for tempo). */
 const inSpace = (axis: Axis, x: number) => (AXES[axis].space === 'log' ? Math.log(x) : x);
 

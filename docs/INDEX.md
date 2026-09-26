@@ -89,7 +89,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/random.ts`: keyed deterministic randomness, and quantised
       `chance` and `pick`
     - `src/style.ts`: the style axes, their ranges and glide spaces, the
-      presets, and glides (`glideTo`, `styleAt`)
+      presets, glides (`glideTo`, `styleAt`), and the style as the score
+      writes it and the band reads it (`writtenStyle`, C7)
     - `src/swing.ts`: time maps, and swing as one (`swingMap`, and
       `swingOf` a style track, per beat)
     - `src/tempo.ts`: tempo as a time map from positions to seconds

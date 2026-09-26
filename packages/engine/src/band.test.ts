@@ -13,7 +13,17 @@ import { type Script, lawBreaks } from './machine.ts';
 import { perform } from './perform.ts';
 import { planner } from './plan.ts';
 import { soundOf } from './sound.ts';
-import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
+import {
+  AXIS_NAMES,
+  INITIAL_STYLE,
+  PRESETS,
+  PRESET_GLIDE,
+  type Style,
+  glideTo,
+  holding,
+  styleAt as styleOnTrack,
+  writtenStyle,
+} from './style.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -119,11 +129,10 @@ describe('the band', () => {
     for (const { env } of script(9)) {
       const { output, carried: after } = band.advance(env, carried, null);
       const { events, sound, ...bar } = output;
-      expect(sound).toEqual(soundOf(env.style, bar.barEnergy));
-      expect(bar).toMatchObject({ seed: 9, bar: env.bar, style: env.style });
-      expect(bar.barEnergy).toBe(
-        barEnergy(env.style.energy, bar.plan.section.type, bar.barInSection),
-      );
+      const style = writtenStyle(env.style);
+      expect(sound).toEqual(soundOf(style, bar.barEnergy));
+      expect(bar).toMatchObject({ seed: 9, bar: env.bar, style });
+      expect(bar.barEnergy).toBe(barEnergy(style.energy, bar.plan.section.type, bar.barInSection));
       expect(bar.next).toEqual(after.next!.chords);
       const { written, ...read } = bar;
       expect(written.filter((e) => e.part === 'drums')).toEqual(drums(read));
@@ -150,6 +159,39 @@ describe('the band', () => {
         bars++;
       }
     expect(bars).toBe(320);
+  });
+
+  it('reads its style as the score writes it, so a bar states exactly the style it was composed from (C7)', () => {
+    // The app's own glides: a new preset every 8 bars.
+    let track = holding(INITIAL_STYLE);
+    const styles = range(48).map((bar) => {
+      if (bar % 8 === 0 && bar > 0)
+        track = glideTo(track, PRESETS[bar / 8]!.style, bar * 16, PRESET_GLIDE);
+      return styleOnTrack(track, bar * 16);
+    });
+    const envOf = (seed: number, bar: number, style: Style): BandEnv => ({
+      seed,
+      bar,
+      style,
+      wish: { tonic: null, mode: PRESETS[Math.floor(bar / 8)]!.mode },
+    });
+    let off = 0;
+    for (const seed of range(3)) {
+      let carried = band.initial;
+      styles.forEach((style, bar) => {
+        const played = band.advance(envOf(seed, bar, style), carried, null);
+        const fromText = band.advance(envOf(seed, bar, writtenStyle(style)), carried, null);
+        expect(played.output.style).toEqual(writtenStyle(style));
+        expect(played).toEqual(fromText);
+        expect(lookAhead(carried, (b) => envOf(seed, b, styles[b] ?? style), 2)).toEqual(
+          lookAhead(carried, (b) => envOf(seed, b, writtenStyle(styles[b] ?? style)), 2),
+        );
+        if (AXIS_NAMES.some((axis) => style[axis] !== played.output.style[axis])) off++;
+        carried = played.carried;
+      });
+    }
+    // Mid-glide, the style the band was given is off the grid.
+    expect(off).toBeGreaterThan(50);
   });
 
   it('plays each part as one voice: a pad never starts on a note a pad still holds, and a stab only one step after a stab still ringing (L6, Q1d)', () => {

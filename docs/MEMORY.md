@@ -207,6 +207,11 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   reads the velocity and the gated length from the bar (`language.md`, T4
   and E9). A test that reads a velocity or a played length goes through
   `perform`.
+- The band reads its style on a grid of 3 decimals (`writtenStyle`, C7), so
+  a `BandBar`'s `style` is the written one, not what the track gave. A test
+  that compares a bar's style or energy with its input writes it first.
+- A part is one voice (L6): the comp writes two parts, `pad` and `stab`,
+  and the synth's chords voice plays both.
 - To show measured options as pictures, draw a page per question from the
   experiment's JSON and screenshot it with `tooling/screenshot.ts` (the
   `screenshot` skill). The pages and pictures stay in the scratchpad; the
