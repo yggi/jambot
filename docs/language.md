@@ -217,29 +217,37 @@ Once a value has been read at its rate, it holds: a change in the middle of
 a beat re-swung the rest of that beat by up to 0.36 steps, so the transport
 keeps a started beat's swing.
 Test: `band.test.ts`, "holds each section for its eight bars (C3)" and
-"plays each section's plan: its key, and its theme bar by bar, changing
-only at a boundary (C3)"; `tempo.test.ts`, "swings each beat by the swing where the beat starts (C3)";
+"plays each section's plan: its key, and its theme's chords bar by bar,
+changing only at a boundary (C3)"; `tempo.test.ts`, "swings each beat by the swing where the beat starts (C3)";
 `transport.test.ts`, "keeps a beat’s swing once the beat has started,
 whatever the style does next (C3)".
 Source: Pd's control and signal rates, multirate signal processing, #37
 step 3, #40's review. Status: measured (port); open (the rates the IM
 writes). Lands in: #13.
 
-**C4. A rhythm morphs: as the style moves, hits come and go one at a time.**
+**C4. A part morphs: as the style moves, its hits and tones come and go one
+at a time.**
 Witness: the drums, whose threshold per step and sound is drawn once per
-section, so a rising energy only adds kicks, snares and hats.
-Counterexample: a hit that goes as the energy rises. The rim gives one on
-purpose: it plays E(3,16), E(5,16) or E(7,16) as the energy crosses a third
-and two thirds, and the three are not nested, so hits move there (950 of
-192,000 energy steps took hits away in #40's review). The port keeps the
-prototype's named patterns over a nested ranking that would morph.
-Test: `drums.test.ts`, "morph with energy: raising it adds kicks, snares
-and hats, and never takes one away (C4)" and "switch the rim between Euclid
-patterns at energy ⅓ and ⅔, and otherwise only add to it (C4)".
-Source: the prototype README ("rhythm as morphing"), #37 step 3, #40's
-review. Status: measured (kick, snare, hats); measured, failing (the rim,
-by choice). Open: whether named patterns or a nested chain of them serve
-the music better. Lands in: #37 step 5 (the pitched parts' rhythms).
+section, so a rising energy only adds kicks, snares and hats. The chords,
+whose seventh and ninth are drawn once per theme, bar and slot, so a rising
+harmony only adds chord tones.
+Counterexample: a hit or a tone that goes as its axis rises. The rim gives
+one on purpose: it plays E(3,16), E(5,16) or E(7,16) as the energy crosses a
+third and two thirds, and the three are not nested, so hits move there (950
+of 192,000 energy steps took hits away in #40's review). The port keeps the
+prototype's named patterns over a nested ranking that would morph. The
+raised dominant gives another: above harmony 0.4 the minor v before i
+becomes V, so its third moves.
+Test: `drums.test.ts`, "morph with energy: raising it adds kicks, snares and
+hats, and never takes one away (C4)" and "switch the rim between Euclid
+patterns at energy ⅓ and ⅔, and otherwise only add to it (C4)";
+`packages/engine/src/chords.test.ts`, "only gain tones as harmony rises, one
+slot at a time (C4)", which skips the step where a dominant is raised.
+Source: the prototype README ("rhythm as morphing"), the review of #40,
+and #37 steps 3 and 4. Status: measured (kick, snare, hats, chord tones);
+measured, failing (the rim and the raised dominant, by choice). Open:
+whether named patterns or a nested chain of them serve the music better.
+Lands in: #37 step 5 (the pitched parts' rhythms).
 
 **C5. A change is heard within a bound set by the rate it lives at.**
 Witness: the transport. Tempo follows from the next step, swing from the
@@ -255,10 +263,9 @@ Test: `transport.test.ts`, "hears a change in the drums within 20 steps:
 the rest of the bar and a beat (C5)", over a change at every step of three
 bars, and "composes each bar on the last beat of the bar before, and not
 sooner (C5)"; `player.test.ts`, "hears a preset's mode from the next
-section on (C5)".
-Source: #40's review, #37 step 4. Status: measured. Open: the lead the
-text step and the models need (L5), which the bound grows by. Lands in:
-#13, #26.
+section on, and shows the chords (C5)".
+Source: #40's review, #37 step 4. Status: measured. Open: the lead the text
+step and the models need (L5), which the bound grows by. Lands in: #13, #26.
 
 **C6. What the players want is a target the band settles on, not an event
 it consumes: read again, it changes nothing.**
@@ -291,9 +298,14 @@ baseband. Status: open. Decided: the prototype, inherited. Lands in: #13.
 
 **P2. The text carries no spelling; spelling is output only.**
 Witness: `spell`, used for the HUD, the Strudel export and the analyzer's
-key report, never to read a score.
+key report, never to read a score. The engine carries keys and chords as
+heights and spells them only to name them (`keyName`, `chordName`).
 Counterexample: two spellings of one score that compile differently.
-Source: #7 after #33, #35. Decided: #7 after #33, dissolved.
+Test: `key.test.ts`, "names each key by its tonic, spelled in the key, and
+its mode (P2)"; `packages/engine/src/chords.test.ts`, "are named as lead
+sheets name them, spelled in their key (P2)".
+Source: #7 after #33, #35, #37 step 4. Status: measured. Decided: #7 after
+#33, dissolved.
 
 **P3. Scales and rhythms are one object, the helix.**
 Witness: `Helix` and `even(k, n, shift)`: 7 of 12 is the diatonic set, and
@@ -324,31 +336,51 @@ Source: #28, the open threads (tunings other than 12). Status: open.
 
 **P6. A chord is a helix of one turn plus its tensions, the tones above the
 octave; together they are its stack.**
-Witness: every quality's stack split at the octave. A ninth chord is its
-seventh plus a tension, so "a chord is a helix" holds for what a helix can
-hold, and the ninth is named for what it does.
+Witness: `splitChord` and `joinChord` in `chords.ts`, the theory's `Chord`
+type: a rising stack splits at one turn above its root into the helix below
+and the tensions above, and joins back. A ninth chord is its seventh plus a
+tension, so "a chord is a helix" holds for what a helix can hold, and the
+ninth is named for what it does. The split is at a turn of the helix's own
+cycle, so it assumes no 12 (P5).
 Counterexample: a quality whose tones below the octave are not a helix, or
-whose parts don't join back into its stack.
-Test: `chords.test.ts`, "split at the octave into a helix and the tones
-above it, and join back: every quality (#38, P6)", all 20 qualities.
+whose parts don't join back into its stack. A stack that doesn't rise, such
+as `0 4 14 7`, is no chord.
+Test: `packages/theory/src/chords.test.ts`, "split at the octave into a
+helix and the tones above it, and join back: every quality on every root
+(#38, P6)", "are no chord where the stack does not rise: nothing to split
+(#38, P6)" and "split at a turn of any cycle, not at 12: stacked thirds of 7
+above their turn (#38, P6)"; the engine's chords,
+`packages/engine/src/chords.test.ts`, "are one per slot, on its step, each a
+helix and its tensions (P6)" and "are triads up to harmony 0.25, all
+sevenths from 0.75, and add a major ninth only above 0.75 (P6)".
 Source: #37 step 1, #38. Status: measured. Decided: #38, on measured
-options. Lands in: #37 step 4, the chord type.
+options. Lands in: #37 step 4 (done: the engine's chords are `Chord`s).
 
 **P7. A tension sets its own degree of the scale its chord's helix
 implies.**
-Witness: the seventh's `chordScale` with degree 1 set to the ninth: a scale
-in all 102 of the 144 ninths (3 qualities, 12 roots, the prototype's 4
-modes) whose seventh has one. So a ninth has a scale exactly where its
-seventh has one, and a V9 of a minor degree keeps its natural 9: V9/ii in C
-takes A mixolydian ♭13.
-Counterexample: a chord whose tension's scale is not a scale, or a nearer
-scale that holds the chord.
-Test: `keys.test.ts`, whose test of a ninth's scale cites P7. `chordScale`,
-which still searches five-note stacks, agrees in 89, finds a scale one note
-farther in 3 and none in 10.
-Source: #38. Status: measured (the rule); measured, failing (chordScale, 13
-of 144). Decided: #38, on measured options.
-Lands in: #37 step 4, where `chordScale` takes the chord type.
+Witness: `chordScale`, which takes the scale the helix implies and lets each
+tension set the nearest degree the helix doesn't sound. A ninth sets degree
+1, so a ninth has a scale exactly where its seventh has one: 102 of the 144
+ninths (3 qualities, 12 roots, the prototype's 4 modes), each a named scale
+(mixolydian 25, aeolian 18, lydian 18, dorian 18, ionian 14, mixolydian ♭6
+9). A V9 of a minor degree keeps its natural 9: V9/ii in C takes A
+mixolydian ♭13. A tension that would put the degrees out of order gives no
+scale, as a major 7th over C7 does, and so does one on a degree another
+tension has set, as the ♯9 of G7♭9♯9 would lose its ♭9.
+Counterexample: a ninth whose scale is not its seventh's with degree 1 set,
+or is no named scale. A nearer scale than the helix's is a counterexample to
+the helix's scale, not to the tension's degree, and is filed there (P9).
+Test: `keys.test.ts`, "gives a ninth its seventh's scale with degree 1 set
+to the ninth, and a named scale every time: 102 of 144 (#38, P7)", "keeps
+the natural 9 of a V9 of a minor degree: V9/ii in C takes A mixolydian ♭13
+(#38, P7)" and "lets each tension set the nearest degree its chord does not
+sound, and gives no scale where that breaks the scale (#38, P7)";
+`packages/engine/src/chords.test.ts`, "each imply a scale in their key, so
+the composer never needs to state one (P7, P9)". Against the search over
+five-note stacks it replaced, 10 more ninths have a scale and 3 have one a
+note nearer.
+Source: #38. Status: measured. Decided: #38, on measured options. Lands
+in: #37 step 4 (done in the theory), #7 (b).
 
 **P8. The baseline hears a chord only as pitch classes: register above the
 octave is read only for names.**
@@ -359,6 +391,31 @@ second.
 Test: open: run the prototype headless, as E1 does, with every 14 folded
 to 2, and compare the events.
 Source: #38. Status: open.
+
+**P9. A chord's helix implies the scale nearest the key among `chordScale`'s
+candidates, which is not the nearest named scale that holds it.**
+Witness: `chordScale`'s candidates, nearest first: the key, its parallel
+diatonic modes, the key a dominant points to, then harmonic and melodic
+minor on the tonic.
+Counterexample: a named scale on the chord's root that holds it and changes
+fewer notes of the key. C major in C minor takes C mixolydian, which changes
+E♭ and A♭, where mixolydian ♭6 changes only E♭.
+Test: `keys.test.ts`, "takes the nearest of its candidates, which is not
+always the nearest named scale that holds the chord (P9)", over the 528
+chords of the grammar in the prototype's modes: 241 take the nearest named
+scale, 101 have a nearer one (by one note in 97, by two in 4), and the 186
+that `chordScale` gives no scale are each held by some named scale. None is
+held by none. Every chord the composer writes has a scale among the
+candidates: `packages/engine/src/chords.test.ts`, "each imply a scale in
+their key, so the composer never needs to state one (P7, P9)", over every
+degree, harmony and secondary dominant in every key it plays. So `scale=` is
+needed only for chords the composer doesn't write: a player's, an analyzed
+one, a hand edit.
+Source: #37 step 4, a probe on P7's counterexample (N1). Status: measured,
+failing (over the named scales); measured (the composer's chords). Open:
+whether the default a line's `scale=` overrides should be the nearest named
+scale, which no chord of the grammar lacks, or the candidates, whose choices
+read as modal interchange and secondary dominants. Lands in: #7 (b).
 
 ### Lowering
 

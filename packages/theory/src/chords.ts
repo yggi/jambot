@@ -10,6 +10,7 @@
  * tones below the octave, plus its tensions, the tones above it (#38).
  */
 
+import type { Helix } from './helix.ts';
 import { partial } from './intervals.ts';
 import { normalizeWords, withoutKindWord } from './words.ts';
 
@@ -54,6 +55,35 @@ export const CHORD_QUALITIES: Record<string, ChordQuality> = {
   add9: quality([0, 4, 7, 14], ['add9'], ['add nine', 'added ninth']),
   harmonics: quality([1, 2, 3, 4, 5].map(partial), [], ['harmonics', 'harmonic series']),
 };
+
+/**
+ * A chord: the helix of its tones within one turn of its root, and its
+ * tensions, the tones from one turn above the root up (#38, P6). The helix
+ * composes, shifts and mirrors; the tensions ride on it. Heights are in
+ * register, as in the stack.
+ */
+export interface Chord {
+  readonly helix: Helix;
+  readonly tensions: readonly number[];
+}
+
+/**
+ * A stack of heights split at one turn above its root: the helix below, the
+ * tensions from there up. A stack that doesn't rise is no chord.
+ */
+export function splitChord(stack: readonly number[], cycle = 12): Chord | undefined {
+  if (stack.length === 0 || stack.some((x, i) => i > 0 && x <= stack[i - 1]!)) return undefined;
+  const turn = stack[0]! + cycle;
+  return {
+    helix: { cycle, heights: stack.filter((x) => x < turn) },
+    tensions: stack.filter((x) => x >= turn),
+  };
+}
+
+/** The chord's stack: its helix, then its tensions. `splitChord` undone. */
+export function joinChord(chord: Chord): number[] {
+  return [...chord.helix.heights, ...chord.tensions];
+}
 
 /**
  * The quality named by a symbol or words, if any. A symbol matches as written

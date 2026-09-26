@@ -23,6 +23,7 @@ import {
   type SectionType,
   type StyleTrack,
   type TransportCarried,
+  chordName,
   holding,
   transport,
 } from '@jambot/engine';
@@ -37,6 +38,8 @@ export interface Position {
   readonly beat: number;
   readonly section: SectionType;
   readonly key: Key;
+  /** The chord sounding, as a lead sheet names it. */
+  readonly chord: string;
 }
 
 export type Status = 'stopped' | 'starting' | 'playing';
@@ -136,12 +139,13 @@ export class Player {
     this.#carried = carried;
     for (const { event, seconds } of scheduled.events)
       output.play(event.note, event.velocity, seconds);
-    for (const { step, section, key, seconds } of scheduled.steps)
+    for (const { step, section, key, chord, seconds } of scheduled.steps)
       this.#heard.push(seconds, {
         bar: Math.floor(step / 16),
         beat: Math.floor((step % 16) / 4),
         section: section.type,
         key,
+        chord: chordName(chord, key),
       });
     this.#heard.drop(now - 1);
   }

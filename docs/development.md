@@ -30,6 +30,13 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 - **PWA** via `vite-plugin-pwa`: the app installs and runs offline, which
   matters on stage. Keeping the output lean is a guideline: small
   dependencies, no heavy frameworks, fonts bundled rather than fetched.
+- **The license gate** (`tooling/licenses.ts`) runs in every build. It
+  takes the packages behind the bundle's modules and those of the service
+  worker, fails the build on one whose license isn't permissive or that
+  carries no license text, and writes `licenses.txt` next to the app. The
+  service worker is written after the bundle, so the gate reads its
+  packages from the markers workbox's runtime leaves.
+  `tooling/licenses.test.ts` shows it firing.
 - **Vitest** runs all tests from the root. The engine tests run in Node,
   and the web tests in jsdom with Testing Library.
 - **Playwright** runs the end-to-end checks (`apps/web/e2e/*.e2e.ts`):

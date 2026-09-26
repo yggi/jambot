@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { band } from './band.ts';
+import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import {
@@ -74,7 +75,7 @@ const env = (
 describe('the transport', () => {
   it('schedules 120 ms ahead', () => expect(LOOKAHEAD).toBe(0.12));
 
-  it('schedules every step once, in order, each as long as the tempo where it starts', () => {
+  it('schedules every step once, in order, each as long as the tempo where it starts, with its bar’s section, key and chord', () => {
     const slowing = glideTo(swung, { bpm: 150 }, 20, 64);
     const { outputs } = run(env(slowing), ticks(0.9, 800));
     const steps = outputs.flatMap((o) => o.steps);
@@ -83,8 +84,13 @@ describe('the transport', () => {
     steps.forEach((s) =>
       expect(s.length).toBeCloseTo(stepSeconds(styleAt(slowing, s.step).bpm), 12),
     );
-    const sections = new Map(outputs.flatMap((o) => o.composed).map((b) => [b.bar, b.section]));
-    steps.forEach((s) => expect(s.section).toEqual(sections.get(Math.floor(s.step / 16))));
+    const composed = new Map(outputs.flatMap((o) => o.composed).map((b) => [b.bar, b]));
+    for (const s of steps) {
+      const bar = composed.get(Math.floor(s.step / 16))!;
+      expect(s.section).toEqual(bar.section);
+      expect(s.key).toEqual(bar.key);
+      expect(s.chord).toEqual(chordAt(bar.chords, s.step % 16));
+    }
     steps
       .slice(1)
       .forEach((s, i) => expect(s.seconds).toBeCloseTo(steps[i]!.seconds + steps[i]!.length, 9));
