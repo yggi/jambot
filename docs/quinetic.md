@@ -75,7 +75,11 @@ Source: F3, T4, #37 step 3. Status: measured. Lands in: #37 (done), #23.
 the same events, and every note-on has its note-off.**
 Witness: none yet.
 Counterexample: the prototype's stab note-offs, which cut sustained pad
-notes on the chords channel (#5).
+notes on the chords channel (#5). The port keeps them: in 631 of 2,880
+bars (22%) a chords note starts while the same note still sounds, 3,370 of
+3,927 times a stab inside a held pad (E9). Open: whether pad and stab are
+two parts of the events, or two voices of one part that the lowering puts
+on two channels (R4).
 Test: open: every preset's events through a MIDI writer and reader.
 Source: F3, L2, #5. Status: open. Lands in: #24, #25.
 
@@ -112,14 +116,21 @@ It does so by carrying the planner's state, whose `before` is the plan the
 planner last wrote, so what the band reads is the planner's output.
 Counterexample: a level that needs its own laws, or reads a slower level's
 state instead of its held output.
+The bass, the comp and the lead are each a `Machine` at the bar rate, whose
+environment is the bar the band holds.
 Test: `machine.test.ts`, the laws with a machine that breaks each;
 `plan.test.ts`, "keeps the machine laws over a tour of the presets and their
 modes (F1, Q4a)"; `band.test.ts`, "holds each section for its eight bars (C3)"
 and "plays each section's plan and its theme's chords, each decided when the
 bar before it is composed (C3)", which checks every bar against the
-planner's output. Open: the parts and the compiler, once each is a machine.
-Source: F1, C3, the law of recursion. Status: measured (form, planner, band,
-transport); open (parts, compiler). Lands in: #37 step 5, #13.
+planner's output, and the test of the parts citing Q5a, which checks each
+part's events and carried state against the part's own machine run on the
+bar the band holds; `bass.test.ts`, `comp.test.ts` and `lead.test.ts`,
+whose tests of the machine laws cite F1. Open: the compiler, once it is a
+machine.
+Source: F1, C3, the law of recursion, #37 step 5. Status: measured (form,
+planner, band, transport); measured (parts); open (compiler). Lands in:
+#13.
 
 **Q5b. Helices under `compose` are a category.** Same as F6.
 
@@ -156,10 +167,12 @@ style held, or one that returns after the style has drifted.
 Test: `plan.test.ts`, whose theme-return tests cite Q8. With a steady style
 and no entropy, a returning theme is exactly the same plan. It is renewed
 in none of its returns at entropy 0, in 10–20% at 0.5 and in 25–35% at 1,
-over 200 seeds. Open: whether a return is a fixed point in more than name,
-such as the melody coming back with its harmony (#37 step 5).
-Source: the prototype's Quinetics parallels, #37 step 4. Status: measured
-(the plan); speculative (fixed point). Lands in: #37 step 5.
+over 200 seeds. The lead brings a theme's melody back with its harmony:
+with a steady style and no entropy, each return plays the phrase it played
+the first time (`lead.test.ts`, whose test of a theme's return cites Q8).
+Source: the prototype's Quinetics parallels, #37 steps 4 and 5. Status:
+measured (the plan); measured (the melody). Lands in: #63 step 3, where a
+theme's melody is a named cell of the key frame.
 
 **Q9. A wish settles: read again, it changes nothing.** Same as C6.
 
