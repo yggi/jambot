@@ -129,6 +129,29 @@ describe('drums', () => {
           }
   });
 
+  it('switch the rim between Euclid patterns at energy ⅓ and ⅔, and otherwise only add to it', () => {
+    // E(3,16), E(5,16) and E(7,16) are not nested, so the rim is the one
+    // part that changes pattern as the energy rises: the prototype's choice.
+    const fine = range(101).map((i) => i / 100);
+    let switches = 0;
+    for (const style of styles.map((s) => ({ ...s, sync: 0.9 })))
+      for (const type of SECTION_TYPES.filter((t) => t !== 'breakdown'))
+        for (const seed of range(6)) {
+          let before = new Set<number>();
+          let third = 0;
+          for (const energy of fine) {
+            const now = stepsOf(envOf(seed, type, 2, style, energy), [DRUM_NOTES.rim]);
+            const nowThird = Math.min(2, Math.floor(energy * 3));
+            const lost = [...before].some((s) => !now.has(s));
+            if (nowThird === third) expect(lost).toBe(false);
+            else if (lost) switches++;
+            before = now;
+            third = nowThird;
+          }
+        }
+    expect(switches).toBeGreaterThan(0);
+  });
+
   it('repeat on even bars and vary on odd ones: a groove is a loop', () => {
     for (const style of styles)
       for (const seed of range(5)) {

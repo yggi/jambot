@@ -7,8 +7,13 @@
  * draw is fixed for a whole section, so as the style moves, notes appear
  * and disappear one at a time: rhythms morph instead of reshuffling. Odd bars
  * vary the draws a little, scaled by entropy, so a groove is a loop with
- * variation. A Euclidean rim pattern joins when syncopation is high, and a
- * snare fill ends a build and some other sections.
+ * variation. A snare fill ends a build and some other sections.
+ *
+ * One part switches rather than morphs: the Euclidean rim, which joins when
+ * syncopation is high. It plays E(3,16), E(5,16) or E(7,16) as the energy
+ * crosses a third and two thirds, and syncopation rotates it. The three
+ * patterns are not nested, so at those crossings hits move. Within a third,
+ * and at one rotation, the rim only gains hits as the energy rises.
  *
  * The drums carry nothing from bar to bar, so any bar plays from its
  * environment alone.
