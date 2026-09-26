@@ -102,9 +102,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       phrase and its themes' melodies
     - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
-      decides the next (`passBar` for a bar it doesn't play)
+      decides the next (`passBar` for a bar it doesn't play), and
+      `lookAhead` decides the bars ahead without playing them
     - `src/transport.ts`: the transport, the machine at tick rate: it
-      composes a beat before each bar and schedules on a clock
+      composes a beat before each bar and schedules on a clock, and
+      `bandEnvAt` is what the band reads for a bar
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing

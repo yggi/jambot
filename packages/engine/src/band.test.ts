@@ -1,6 +1,6 @@
 import { wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { type BandEnv, band, passBar } from './band.ts';
+import { type BandEnv, band, lookAhead, passBar } from './band.ts';
 import { bass } from './bass.ts';
 import { barChords } from './chords.ts';
 import { comp } from './comp.ts';
@@ -26,11 +26,11 @@ const wishAt = (bar: number): KeyWish => ({
   tonic: null,
   mode: presetAt(Math.max(0, bar - 3)).mode,
 });
+const envAt =
+  (seed: number) =>
+  (bar: number): BandEnv => ({ seed, bar, style: styleAt(bar), wish: wishAt(bar) });
 const script = (seed: number, bars = 64): Script<BandEnv, null> =>
-  range(bars).map((bar) => ({
-    env: { seed, bar, style: styleAt(bar), wish: wishAt(bar) },
-    input: null,
-  }));
+  range(bars).map((bar) => ({ env: envAt(seed)(bar), input: null }));
 
 const run = (seed: number, bars = 64) => {
   let carried = band.initial;
@@ -194,5 +194,34 @@ describe('the band', () => {
     expect(() => passBar({ ...env, bar: 5 }, first)).toThrow(
       /bar 5, but the band decided bar 1 next/,
     );
+  });
+});
+
+describe('the look-ahead', () => {
+  it('forecasts the plan and chords of the bars the band then plays, from any bar, bar 0 included', () => {
+    // The tour changes preset and wish as it goes, so the forecast has to
+    // read each bar's style and wish, not only the first's.
+    for (const seed of [1, 2, 3]) {
+      const whole = run(seed, 96);
+      let carried = band.initial;
+      for (const { env } of script(seed, 64)) {
+        const forecast = lookAhead(carried, envAt(seed), 32);
+        expect(forecast).toEqual(
+          whole
+            .slice(env.bar, env.bar + 32)
+            .map(({ bar, plan, chords }) => ({ bar, plan, chords })),
+        );
+        carried = band.advance(env, carried, null).carried;
+      }
+      expect(new Set(whole.map((b) => b.plan.key.mode)).size).toBeGreaterThan(1);
+    }
+  });
+
+  it('forecasts without changing what it is given, and forecasts nothing for no bars', () => {
+    const played = band.advance(envAt(4)(0), band.initial, null).carried;
+    const given = JSON.parse(JSON.stringify(played)) as typeof played;
+    lookAhead(played, envAt(4), 16);
+    expect(played).toEqual(given);
+    expect(lookAhead(played, envAt(4), 0)).toEqual([]);
   });
 });
