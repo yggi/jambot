@@ -9,20 +9,20 @@
  * section is planned, and a bar's chords coloured, from the style and the
  * wish where the bar before starts; bar 0 decides itself.
  *
- * It carries the plan's state and the bar it decided. Its parts play side by
- * side from the same bar; for now, that is the drums.
+ * It carries the plan's state, the bar it decided, and what its parts carry.
+ * The parts play side by side from the same bar: the drums and the bass.
  */
 
 import type { BarEnv } from './bar.ts';
 import { type BarChord, barChords } from './chords.ts';
+import { bass } from './bass.ts';
 import { drums } from './drums.ts';
 import type { NoteEvent } from './events.ts';
-import { SECTION_BARS, type Section, barEnergy } from './form.ts';
-import type { Key, KeyWish } from './key.ts';
+import { SECTION_BARS, barEnergy } from './form.ts';
+import type { KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
 import type { Style } from './style.ts';
-import type { Theme } from './themes.ts';
 
 export interface BandEnv {
   readonly seed: number;
@@ -41,27 +41,30 @@ export interface DecidedBar {
   readonly chords: readonly BarChord[];
 }
 
+/** What each part carries from bar to bar. The drums carry nothing. */
+export interface PartsCarried {
+  /** The bass's last note. */
+  readonly bass: number;
+}
+
 export interface BandCarried {
   /** The section plan's carried state: the latest section planned, and the themes. */
   readonly plans: PlanCarried;
   /** The bar the band plays next, decided. */
   readonly next: DecidedBar | null;
+  readonly parts: PartsCarried;
 }
 
-/** One bar as the band plays it: where it stands in the form, its harmony and its events. */
-export interface BandBar {
-  readonly bar: number;
-  readonly section: Section;
-  readonly key: Key;
-  readonly theme: Theme;
-  /** The bar's chords, from its theme's slots. */
-  readonly chords: readonly BarChord[];
-  readonly barInSection: number;
-  readonly barEnergy: number;
+/** One bar as the band plays it: everything its parts read, and the events they play. */
+export interface BandBar extends BarEnv {
   readonly events: readonly NoteEvent[];
 }
 
-const INITIAL: BandCarried = { plans: planner.initial, next: null };
+const INITIAL: BandCarried = {
+  plans: planner.initial,
+  next: null,
+  parts: { bass: bass.initial },
+};
 
 /**
  * Decide a bar from the style and wish where the bar composed now starts:
@@ -93,12 +96,14 @@ function step(env: BandEnv, carried: BandCarried): { here: DecidedBar; carried: 
   } else if (here.bar !== env.bar)
     throw new Error(`band: bar ${env.bar}, but the band decided bar ${here.bar} next`);
   const after = decide(env, env.bar + 1, plans);
-  return { here, carried: { plans: after.plans, next: after.decided } };
+  return { here, carried: { ...carried, plans: after.plans, next: after.decided } };
 }
 
 /**
  * The band past a bar it doesn't play, as when the clock has passed it: the
- * plan and the chords move on as if it had played.
+ * plan and the chords move on as if it had played. The parts don't play it,
+ * so they carry on from where they were: what they carry is register, and
+ * it resumes from the last note heard.
  */
 export function passBar(env: BandEnv, carried: BandCarried): BandCarried {
   return step(env, carried).carried;
@@ -108,7 +113,6 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
   initial: INITIAL,
   advance(env, carried) {
     const { here, carried: after } = step(env, carried);
-    const { section, key, theme } = here.plan;
     const barInSection = env.bar % SECTION_BARS;
     const bar: BarEnv = {
       seed: env.seed,
@@ -116,22 +120,14 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
       plan: here.plan,
       barInSection,
       style: env.style,
-      barEnergy: barEnergy(env.style.energy, section.type, barInSection),
+      barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
       chords: here.chords,
       next: after.next!.chords,
     };
+    const played = bass.advance(bar, carried.parts.bass, null);
     return {
-      carried: after,
-      output: {
-        bar: env.bar,
-        section,
-        key,
-        theme,
-        chords: here.chords,
-        barInSection,
-        barEnergy: bar.barEnergy,
-        events: drums(bar),
-      },
+      carried: { ...after, parts: { bass: played.carried } },
+      output: { ...bar, events: [...drums(bar), ...played.output] },
     };
   },
 };

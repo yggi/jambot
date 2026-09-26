@@ -23,7 +23,7 @@ import { even, positions } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import type { NoteEvent } from './events.ts';
 import { SECTION_BARS } from './form.ts';
-import { chance, draw } from './random.ts';
+import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { swingParts } from './swing.ts';
 
 /** The General MIDI drum notes the band plays. */
@@ -36,6 +36,9 @@ export const DRUM_NOTES = {
   openHat: 46,
   ride: 51,
 } as const;
+
+/** The drums' held draws and their odd-bar variation. */
+const HELD: readonly [Stream, Stream] = ['drumHit', 'drumVariation'];
 
 /** Each decision's key within the drums' streams. */
 const ROLE = {
@@ -72,12 +75,8 @@ export function drums(env: BarEnv): NoteEvent[] {
   const density = smooth((energy - 0.05) / 0.5);
 
   /** Whether a role plays on a step with probability p. */
-  const plays = (role: keyof typeof ROLE, step: number, p: number) => {
-    let x = draw(seed, 'drumHit', ROLE[role], section.index, step);
-    if (barInSection % 2 === 1)
-      x += (draw(seed, 'drumVariation', ROLE[role], bar, step) - 0.5) * (0.12 + 0.4 * entropy);
-    return chance(Math.min(0.9999, Math.max(0.0001, x)), p);
-  };
+  const plays = (role: keyof typeof ROLE, step: number, p: number) =>
+    chance(heldDraw(seed, HELD, ROLE[role], section.index, bar, step, entropy), p);
 
   const hits = new Map<number, NoteEvent>();
   /** A hit; where one is already on this step and note, the louder stays. */

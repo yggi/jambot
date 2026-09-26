@@ -87,8 +87,8 @@ describe('the transport', () => {
     const composed = new Map(outputs.flatMap((o) => o.composed).map((b) => [b.bar, b]));
     for (const s of steps) {
       const bar = composed.get(Math.floor(s.step / 16))!;
-      expect(s.section).toEqual(bar.section);
-      expect(s.key).toEqual(bar.key);
+      expect(s.section).toEqual(bar.plan.section);
+      expect(s.key).toEqual(bar.plan.key);
       expect(s.chord).toEqual(chordAt(bar.chords, s.step % 16));
     }
     steps
@@ -258,13 +258,12 @@ describe('the transport', () => {
     expect(back.output.composed.length).toBeGreaterThan(0);
     for (const b of back.output.composed) {
       const there = unbroken.get(b.bar)!;
-      expect({ section: b.section, key: b.key, chords: b.chords }).toEqual({
-        section: there.section,
-        key: there.key,
+      expect({ plan: b.plan, chords: b.chords }).toEqual({
+        plan: there.plan,
         chords: there.chords,
       });
     }
-    expect(back.output.composed[0]!.key).toEqual({ tonic: 2, mode: 'mixolydian' });
+    expect(back.output.composed[0]!.plan.key).toEqual({ tonic: 2, mode: 'mixolydian' });
   });
 
   it('keeps the machine laws, with the style gliding under it (F1, Q4a)', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type BandEnv, band, passBar } from './band.ts';
+import { bass } from './bass.ts';
 import { barChords } from './chords.ts';
 import { drums } from './drums.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
@@ -45,10 +46,10 @@ describe('the band', () => {
     bars.forEach((b, bar) => {
       expect(b.bar).toBe(bar);
       expect(b.barInSection).toBe(bar % SECTION_BARS);
-      expect(b.section.index).toBe(Math.floor(bar / SECTION_BARS));
-      if (bar % SECTION_BARS) expect(b.section).toEqual(bars[bar - 1]!.section);
+      expect(b.plan.section.index).toBe(Math.floor(bar / SECTION_BARS));
+      if (bar % SECTION_BARS) expect(b.plan.section).toEqual(bars[bar - 1]!.plan.section);
     });
-    expect(bars[0]!.section.type).toBe('intro');
+    expect(bars[0]!.plan.section.type).toBe('intro');
   });
 
   it("plays each section's plan and its theme's chords, each decided when the bar before it is composed (C3)", () => {
@@ -68,8 +69,7 @@ describe('the band', () => {
         carried = next.carried;
         for (const b of range(SECTION_BARS)) {
           const bar = bars[first + b]!;
-          expect(bar.section).toEqual(next.output.section);
-          expect(bar.key).toEqual(next.output.key);
+          expect(bar.plan).toEqual(next.output);
           expect(bar.chords).toEqual(
             barChords({
               seed,
@@ -82,7 +82,7 @@ describe('the band', () => {
         }
       }
       // The wish changes mid-section, and the key follows at the boundary.
-      expect(new Set(bars.map((b) => b.key.mode)).size).toBeGreaterThan(1);
+      expect(new Set(bars.map((b) => b.plan.key.mode)).size).toBeGreaterThan(1);
     }
   });
 
@@ -91,12 +91,15 @@ describe('the band', () => {
       const whole = run(seed, 40);
       let carried = band.initial;
       for (const { env } of script(seed, 40)) {
-        if (env.bar < 21) carried = passBar(env, carried);
-        else {
+        if (env.bar < 21) {
+          const passed = passBar(env, carried);
+          // A bar passed is not played: the parts carry on from where they were.
+          expect(passed.parts).toEqual(carried.parts);
+          carried = passed;
+        } else {
           const played = band.advance(env, carried, null);
           expect(played.output).toMatchObject({
-            section: whole[env.bar]!.section,
-            key: whole[env.bar]!.key,
+            plan: whole[env.bar]!.plan,
             chords: whole[env.bar]!.chords,
           });
           carried = played.carried;
@@ -105,25 +108,20 @@ describe('the band', () => {
     }
   });
 
-  it('plays the drums of each bar, at the energy its section shapes', () => {
+  it('plays the drums and the bass of each bar, at the energy its section shapes, and reads them the next bar decided', () => {
     let carried = band.initial;
     for (const { env } of script(9)) {
       const { output, carried: after } = band.advance(env, carried, null);
-      const energy = barEnergy(env.style.energy, output.section.type, output.barInSection);
-      expect(output.barEnergy).toBe(energy);
-      const plan = { section: output.section, key: output.key, theme: output.theme };
-      expect(output.events.filter((e) => e.part === 'drums')).toEqual(
-        drums({
-          seed: 9,
-          bar: env.bar,
-          plan,
-          barInSection: output.barInSection,
-          style: env.style,
-          barEnergy: energy,
-          chords: output.chords,
-          next: after.next!.chords,
-        }),
+      const { events, ...bar } = output;
+      expect(bar).toMatchObject({ seed: 9, bar: env.bar, style: env.style });
+      expect(bar.barEnergy).toBe(
+        barEnergy(env.style.energy, bar.plan.section.type, bar.barInSection),
       );
+      expect(bar.next).toEqual(after.next!.chords);
+      expect(events.filter((e) => e.part === 'drums')).toEqual(drums(bar));
+      const bassline = bass.advance(bar, carried.parts.bass, null);
+      expect(events.filter((e) => e.part === 'bass')).toEqual(bassline.output);
+      expect(after.parts.bass).toBe(bassline.carried);
       carried = after;
     }
   });

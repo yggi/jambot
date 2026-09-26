@@ -150,7 +150,10 @@ export const transport: Machine<
         composed.push(played.output);
       }
       bars = bars.filter((b) => b.bar >= bar);
-      const { section, key, chords } = bars[0]!;
+      const {
+        plan: { section, key },
+        chords,
+      } = bars[0]!;
       const chord = chordAt(chords, head.step % 16);
       steps.push({ step: head.step, section, key, chord, seconds: head.seconds, length });
 

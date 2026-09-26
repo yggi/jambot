@@ -56,6 +56,12 @@ export const STREAMS = {
   themeRenewal: 7,
   /** Whether a chord takes its seventh, and its ninth, per theme, bar and slot. */
   chordColor: 8,
+  /** Whether the bass plays on a step, and anticipates the next chord: fixed per section. */
+  bassHit: 9,
+  /** The variation of those thresholds on odd bars. */
+  bassVariation: 10,
+  /** Which note the bass plays: a walk's approach and tone, per bar; an octave or fifth, per section. */
+  bassNote: 11,
 } as const;
 
 export type Stream = keyof typeof STREAMS;
@@ -68,6 +74,26 @@ export type Stream = keyof typeof STREAMS;
  */
 export function draw(seed: number, stream: Stream, ...keys: number[]): number {
   return keyedRandom(seed, 0, STREAMS[stream], ...keys);
+}
+
+/**
+ * A part's draw for a step that holds for its whole section, so as the style
+ * moves the part morphs rather than reshuffles (C4). On odd bars it moves a
+ * little, the more the higher the entropy, so a groove is a loop with
+ * variation. Kept inside (0, 1), so every p between 0 and 1 is heard.
+ */
+export function heldDraw(
+  seed: number,
+  [held, variation]: readonly [Stream, Stream],
+  role: number,
+  section: number,
+  bar: number,
+  step: number,
+  entropy: number,
+): number {
+  let x = draw(seed, held, role, section, step);
+  if (bar % 2 === 1) x += (draw(seed, variation, role, bar, step) - 0.5) * (0.12 + 0.4 * entropy);
+  return Math.min(0.9999, Math.max(0.0001, x));
 }
 
 /**

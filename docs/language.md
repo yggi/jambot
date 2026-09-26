@@ -510,15 +510,16 @@ functional programming and category theory. Their names are in
 
 **F1. Every level is a Mealy machine, `advance(env, carried, input) →
 { carried', output }`, that keeps the machine laws.**
-Witness: `Machine` and `lawBreaks` (`machine.ts`); the form (section rate),
-the band (bar rate) and the transport (tick rate). A run is a causal stream
+Witness: `Machine` and `lawBreaks` (`machine.ts`); the form and the section
+plan (section rate), the band and the bass (bar rate) and the transport
+(tick rate). A run is a causal stream
 function: output n depends only on inputs up to n (Rutten, "Universal
 Coalgebra", 2000).
 Counterexample: a machine that keeps state out of sight, changes what it
 was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
-`form.test.ts`, `band.test.ts`, `transport.test.ts` and `plan.test.ts`,
-whose tests of the machine laws cite F1.
+`form.test.ts`, `band.test.ts`, `transport.test.ts`, `plan.test.ts` and
+`bass.test.ts`, whose tests of the machine laws cite F1.
 Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
 track. Lands in: Q4a.
 
