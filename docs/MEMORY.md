@@ -82,6 +82,19 @@ The full description is in
   from here, and they share conventions with Jambot, not code. See
   [architecture](architecture.md#related-projects).
 
+### music21
+
+- music21 (BSD-3-Clause, pinned to 10.5.0) is the second opinion on theory
+  claims, through the `music-theory` skill
+  ([`SKILL.md`](../.claude/skills/music-theory/SKILL.md)). It runs as a
+  Python tool, never as a dependency of a package.
+- music21 cannot read some of the chord symbols Jambot uses, such as `Δ`,
+  `maj9`, `°` and `mMaj7`, and it reads `-` as a flat, so `C-7` is C♭7.
+- It reads `Bb7` as B major with a flat seventh without any error. Pass
+  chord symbols through the skill's script, not to music21 directly.
+- `b` on a Roman numeral lowers the mode's own degree, in music21 and in the
+  prototype alike: `bVII` in G mixolydian is F♭ major.
+
 ### Terms
 
 - **Root node**: the dedicated main host appliance at an event, and the
