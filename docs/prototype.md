@@ -70,6 +70,16 @@ language and the plans. This page covers only the port.
   across JS engines. That is harmless for a single player, but it matters
   for cross-device lockstep sync. The port quantises probabilities and
   weights before they meet a draw (`chance` and `pick` in `random.ts`).
+- **Swing's two functions disagree.** `unswing` inverts the composition of
+  two maps, the 16th level and then the 8th, but `swingDelay` adds their
+  delays instead. Where both levels swing (swing between 0.5 and 1) a played
+  note reads back up to 0.04 steps off the grid. The port keeps the
+  composition, `swingMap` in `swing.ts`, with its exact inverse, so the odd
+  16ths move by eighth × sixteenth / 9 of a step more or less than in the
+  prototype: at most 1/36, under 4 ms at 120 bpm.
+- **Two axes don't glide like the rest.** Entropy is set at once, and tempo
+  glides linearly although it is heard in ratios. In the port every axis
+  glides, and tempo glides in log space (`style.ts`).
 
 ### Maintainability
 

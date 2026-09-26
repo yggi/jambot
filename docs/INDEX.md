@@ -60,6 +60,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       `eventProblems`
     - `src/random.ts`: keyed deterministic randomness, and quantised
       `chance` and `pick`
+    - `src/style.ts`: the style axes, their ranges and glide spaces, the
+      presets, and glides (`glideTo`, `styleAt`)
+    - `src/swing.ts`: time maps, and swing as one (`swingMap`)
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`

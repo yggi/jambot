@@ -37,6 +37,12 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
   `pick(draw, weights)`, never a bare `draw < p`: they quantise to 2^-16,
   so a last-bit difference from `Math.pow` or `Math.sin` on another engine
   does not change the music.
+- The style (`packages/engine/src/style.ts`) is a track of glides, one per
+  axis, and `styleAt(track, position)` reads it at any step of the song.
+  Positions there are steps from the song's start, 16 to a bar.
+- Swing is a time map, `swingMap(swing)`, with `played` and `written` as
+  exact inverses. The transport plays through it, and player input reads
+  back through `written`.
 - In the theory, a set is a `Helix`, `{ cycle, heights }`: the heights of
   degrees 0 to k − 1, with degree 0 wherever it stands. `positions(helix)` is
   the sorted view from the circle. `shift` moves heights (transposition) and
