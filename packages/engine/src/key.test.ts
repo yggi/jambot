@@ -1,14 +1,6 @@
 import { positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import {
-  COMPOSER_MODES,
-  INITIAL_KEY,
-  type Key,
-  TONIC_NAMES,
-  keyHelix,
-  keyName,
-  nextKey,
-} from './key.ts';
+import { COMPOSER_MODES, INITIAL_KEY, type Key, keyHelix, keyName, nextKey } from './key.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -97,11 +89,14 @@ describe('keys', () => {
         }
   });
 
-  it('names each key by its tonic, from C, and its mode', () => {
-    expect(TONIC_NAMES).toHaveLength(12);
-    expect(new Set(TONIC_NAMES).size).toBe(12);
+  it('names each key by its tonic, spelled in the key, and its mode (P2)', () => {
     expect(keyName(INITIAL_KEY)).toBe('A aeolian');
-    expect(keyName({ tonic: 3, mode: 'dorian' })).toBe('E♭ dorian');
-    expect(keyName({ tonic: 6, mode: 'mixolydian' })).toBe('F♯ mixolydian');
+    expect(keyName({ tonic: 3, mode: 'dorian' })).toBe('Eb dorian');
+    expect(keyName({ tonic: 6, mode: 'mixolydian' })).toBe('F# mixolydian');
+    expect(keyName({ tonic: 1, mode: 'ionian' })).toBe('Db ionian');
+    const names = COMPOSER_MODES.flatMap((mode) =>
+      range(12).map((tonic) => keyName({ tonic, mode })),
+    );
+    expect(new Set(names).size).toBe(48);
   });
 });

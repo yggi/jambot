@@ -224,7 +224,8 @@ describe('chordScale', () => {
     // What has no scale: chords on roots no parallel mode, dominant or minor form holds.
     const byQuality: Record<string, number> = {};
     for (const [, , quality] of undefinedChords) byQuality[quality] = (byQuality[quality] ?? 0) + 1;
-    expect(defined).toBe(332);
+    // A ninth has no scale exactly where its seventh has none (P7).
+    expect(defined).toBe(342);
     expect(byQuality).toEqual({
       major: 6,
       minor: 12,
@@ -234,64 +235,143 @@ describe('chordScale', () => {
       maj7: 16,
       m7: 12,
       m7b5: 20,
-      '9': 20,
+      '9': 14,
       maj9: 16,
-      m9: 16,
+      m9: 12,
     });
   });
 
-  it("gives a ninth its seventh's scale with the 9 set in 89 of the 92 it finds a scale for; the other 3 change one note more (#38, P7)", () => {
-    // Measures the claim: a tension sets its own degree of the scale the
-    // chord below it implies. The seventh's scale with degree 1 set to the
-    // major ninth, where that is still a scale, against chordScale's search.
+  it("gives a ninth its seventh's scale with degree 1 set to the ninth, and a named scale every time: 102 of 144 (#38, P7)", () => {
     const sevenths: Record<string, string> = { '9': '7', maj9: 'maj7', m9: 'm7' };
-    const changed = (key: Helix, scale: Helix) =>
-      positions(key).filter((x) => !positions(scale).includes(x)).length;
-    const counts = { agree: 0, nearer: 0, gained: 0, none: 0 };
-    const nearer: string[] = [];
-    const gained: string[] = [];
-    for (const [modeName, mode] of Object.entries(PROTOTYPE_MODES)) {
+    const named: Record<string, number> = {};
+    let none = 0;
+    for (const mode of Object.values(PROTOTYPE_MODES)) {
       const key = diatonicMode(mode);
       for (const root of range(12))
         for (const [ninth, seventh] of Object.entries(sevenths)) {
-          const label = `${modeName}: ${root} ${ninth}`;
-          const searched = chordScale(key, chordOn(root, ninth));
+          const scale = chordScale(key, chordOn(root, ninth));
           const below = chordScale(key, chordOn(root, seventh));
-          const heights = below && [below.heights[0]!, root + 2, ...below.heights.slice(2)];
-          const derived: Helix | undefined =
-            heights && heights[1]! > heights[0]! && heights[2]! > heights[1]!
-              ? { cycle: 12, heights }
-              : undefined;
-          if (!searched && !derived) counts.none++;
-          else if (!searched) {
-            counts.gained++;
-            gained.push(label);
-          } else if (positions(searched).join() === positions(derived!).join()) counts.agree++;
-          else {
-            expect(changed(key, derived!), label).toBe(changed(key, searched) - 1);
-            counts.nearer++;
-            nearer.push(label);
+          // A ninth has a scale exactly where its seventh has one.
+          expect(scale === undefined).toBe(below === undefined);
+          if (!scale || !below) {
+            none++;
+            continue;
           }
+          expect(scale).toEqual({
+            cycle: 12,
+            heights: [below.heights[0]!, root + 2, ...below.heights.slice(2)],
+          });
+          const name = nameOfScale(scale)!;
+          named[name] = (named[name] ?? 0) + 1;
         }
     }
-    expect(counts).toEqual({ agree: 89, nearer: 3, gained: 10, none: 42 });
-    // D9 in C minor and C dorian, and G9 in C minor: the target's melodic
-    // minor, which chordScale doesn't try, holds them one note nearer.
-    expect(nearer).toEqual(['minor: 2 9', 'minor: 7 9', 'dorian: 2 9']);
-    // Among them every V9 of a minor degree that the prototype plays: A9, B9
-    // and E9 in C major, A9 in C dorian, A9 and E9 in C mixolydian.
-    expect(gained).toEqual([
-      'minor: 11 m9',
-      'dorian: 9 9',
-      'dorian: 11 m9',
-      'major: 4 9',
-      'major: 9 9',
-      'major: 11 9',
-      'major: 11 m9',
-      'mixolydian: 4 9',
-      'mixolydian: 9 9',
-      'mixolydian: 11 m9',
-    ]);
+    expect(none).toBe(42);
+    expect(named).toEqual({
+      mixolydian: 25,
+      aeolian: 18,
+      lydian: 18,
+      dorian: 18,
+      ionian: 14,
+      'mixolydian b6': 9,
+    });
+    // The name check can fail: C D♯ E F G A B is no named scale.
+    expect(nameOfScale({ cycle: 12, heights: [0, 3, 4, 5, 7, 9, 11] })).toBeUndefined();
+  });
+
+  it('keeps the natural 9 of a V9 of a minor degree: V9/ii in C takes A mixolydian ♭13 (#38, P7)', () => {
+    expect(nameOfScale(chordScale(cMajor, chordOn(9, '9')))).toBe('mixolydian b6');
+    expect(positions(chordScale(cMajor, chordOn(9, '9'))!)).toEqual([1, 2, 4, 5, 7, 9, 11]);
+    // Every V9 of a minor degree the prototype plays has a scale.
+    for (const [mode, root] of [
+      ['ionian', 9],
+      ['ionian', 11],
+      ['ionian', 4],
+      ['dorian', 9],
+      ['mixolydian', 9],
+      ['mixolydian', 4],
+    ] as const)
+      expect(chordScale(diatonicMode(mode), chordOn(root, '9')), `${mode} ${root}`).toBeDefined();
+  });
+
+  it('lets each tension set the nearest degree its chord does not sound, and gives no scale where that breaks the scale (#38, P7)', () => {
+    // add9 and the harmonics: a triad's scale, the tension already in it.
+    expect(chordScale(cMajor, chordOn(0, 'add9'))).toEqual(cMajor);
+    expect(chordScale(cMajor, chordOn(0, 'harmonics'))).toEqual(cMajor);
+    // ♭13 over C: nearest to 20 are G (19, a chord tone) and A (21), so A
+    // falls to A♭: harmonic major.
+    expect(positions(chordScale(cMajor, [0, 4, 7, 20])!)).toEqual([0, 2, 4, 5, 7, 8, 11]);
+    // ♯9 over C7 sets D to D♯, still rising.
+    expect(chordScale(cMajor, [0, 4, 7, 10, 15])!.heights).toEqual([0, 3, 4, 5, 7, 9, 10]);
+    // A major 7th over C7 would set A to B above B♭: no scale.
+    expect(chordScale(cMajor, [0, 4, 7, 10, 23])).toBeUndefined();
+    // G7♭9♯9: the ♭9 sets degree 1 to A♭, and the ♯9 would set it again,
+    // to A♯, losing the A♭. Two tensions on one degree give no scale.
+    expect(chordScale(cMajor, [7, 11, 14, 17, 20, 22])).toBeUndefined();
+    // Two tensions on two degrees are both kept: over G7, the ♭9 sets A to
+    // A♭ and the ♯11 sets C to C♯, G A♭ B C♯ D E F.
+    expect(positions(chordScale(cMajor, [7, 11, 14, 17, 20, 25])!)).toEqual([1, 2, 4, 5, 7, 8, 11]);
+    // A stack that doesn't rise is no chord.
+    expect(chordScale(cMajor, [0, 4, 14, 7])).toBeUndefined();
+  });
+});
+
+describe('chordScale against every named scale', () => {
+  it('takes the nearest of its candidates, which is not always the nearest named scale that holds the chord (P9)', () => {
+    // Every named 7-note scale on the chord's root that holds its helix as
+    // degrees 0 2 4 6 and its ninth as degree 1: is one nearer the key than
+    // chordScale's, or does one exist where chordScale has none?
+    const qualities = [
+      'major',
+      'minor',
+      'diminished',
+      'augmented',
+      '7',
+      'maj7',
+      'm7',
+      'm7b5',
+      '9',
+      'maj9',
+      'm9',
+    ];
+    const counts = { nearest: 0, nearer: 0, gained: 0, none: 0 };
+    const nearer: Record<string, number> = {};
+    for (const [modeName, mode] of Object.entries(PROTOTYPE_MODES)) {
+      const key = diatonicMode(mode);
+      const changed = (scale: Helix) =>
+        positions(key).filter((x) => !positions(scale).includes(x)).length;
+      for (const root of range(12))
+        for (const quality of qualities) {
+          const chord = chordOn(root, quality);
+          const ours = chordScale(key, chord);
+          let best: { changed: number; name: string } | undefined;
+          for (const [name, { helix }] of Object.entries(SCALES)) {
+            if (helix.heights.length !== 7) continue;
+            const on = shift(helix, root);
+            const holds = chord.every(
+              (x, i) => wrap(heightOf(on, i < 4 ? 2 * i : 1), 12) === wrap(x, 12),
+            );
+            if (holds && (!best || changed(on) < best.changed))
+              best = { changed: changed(on), name };
+          }
+          if (!ours && !best) counts.none++;
+          else if (!ours) counts.gained++;
+          else if (best && best.changed < changed(ours)) {
+            counts.nearer++;
+            nearer[`${modeName}: ${root} ${quality} → ${best.name}`] = changed(ours) - best.changed;
+          } else counts.nearest++;
+        }
+    }
+    // Of the 528 chords of the grammar in the prototype's modes, every one
+    // is held by some named scale: the 186 without a scale from chordScale
+    // too. 101 have a nearer one, by one note in 97 and two in 4.
+    expect(counts).toEqual({ nearest: 241, nearer: 101, gained: 186, none: 0 });
+    const by = Object.values(nearer).reduce<Record<number, number>>(
+      (tally, d) => ({ ...tally, [d]: (tally[d] ?? 0) + 1 }),
+      {},
+    );
+    expect(by).toEqual({ 1: 97, 2: 4 });
+    // C major in C minor: C mixolydian changes E♭ and A♭, mixolydian ♭6 only E♭.
+    expect(nearer['minor: 0 major → mixolydian b6']).toBe(1);
   });
 });
 
@@ -390,6 +470,6 @@ describe('spelling an implied scale', () => {
             checked++;
           }
         }
-    expect(checked).toBe(566);
+    expect(checked).toBe(583);
   });
 });

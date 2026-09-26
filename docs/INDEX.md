@@ -54,14 +54,16 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/notes.ts`, `src/intervals.ts`: note names (spelling, octaves),
       intervals, generic and specific, `sizes`, degree names and partials
     - `src/chords.ts`: the named chord qualities, each a stack above the
-      root
+      root, and the `Chord` type, a helix plus tensions (`splitChord`,
+      `joinChord`)
     - `src/scales.ts`, `src/rhythms.ts`: named scales and rhythms
     - `src/words.ts`: how names in words compare (case, ordinals,
       accidentals, abbreviations)
     - `src/spelling.ts`: `spell` and `genericsOf`, the letter and accidental
       of each note from a spelled tonic
     - `src/keys.ts`: `relative` and `parallel` keys, and `chordScale`, the
-      scale a chord implies in a key (#10)
+      scale a chord implies in a key (#10), its tensions setting their own
+      degrees (#38)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here
@@ -85,6 +87,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/themes.ts`: themes, a section's harmony as degree slots
     - `src/plan.ts`: the section plan (form, key and theme), the machine
       at section rate
+    - `src/chords.ts`: the chords of a bar, from its theme's slots, the
+      key and the bar's harmony, and their lead-sheet names
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/band.ts`: the band, the machine at bar rate

@@ -267,6 +267,6 @@ describe('tonal as a second opinion', () => {
         }
       }
     }
-    expect(checked).toBe(332);
+    expect(checked).toBe(342);
   });
 });

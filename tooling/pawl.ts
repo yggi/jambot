@@ -51,7 +51,8 @@ const issue = /^#\d+$/;
 
 /**
  * The entries of a catalogue: each `**X9. …**` title with everything up to
- * the next entry, experiment or heading, lists included.
+ * the next entry, experiment or heading, lists included. A heading is `#`s
+ * and a space, so a wrapped line that starts with an issue number is read on.
  */
 export function readCatalogue(text: string): Entry[] {
   const entries: Entry[] = [];
@@ -62,7 +63,7 @@ export function readCatalogue(text: string): Entry[] {
     let end = i;
     while (
       end + 1 < lines.length &&
-      !/^(\*\*[A-Z]\d+[a-z]?\. |#|- \*\*E\d+\. )/.test(lines[end + 1]!)
+      !/^(\*\*[A-Z]\d+[a-z]?\. |#{1,6} |- \*\*E\d+\. )/.test(lines[end + 1]!)
     )
       end++;
     const paragraph = lines.slice(i, end + 1).join(' ');
