@@ -12,7 +12,9 @@
  * Each phrase starts from the chord tone nearest where the lead left off.
  * On the half bar and where a chord starts the lead lands on a chord tone,
  * and the phrase grammar closes it: bar 2 ends open, on the third or the
- * fifth, and bar 4 on the root. Notes stay within 60–86, moved by octaves.
+ * fifth, and bar 4 on the root. Notes stay within 60–86: the phrase moves
+ * by the octave that fits it best, and a note that still doesn't fit
+ * folds by octaves on its own.
  *
  * A theme's melody comes back with its harmony: the shape a theme was
  * first played with returns while the syncopation and the energy stay near
@@ -26,7 +28,7 @@ import { chordAt } from './chords.ts';
 import type { NoteEvent } from './events.ts';
 import { keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
-import { draw } from './random.ts';
+import { chance, draw, pick, quantize } from './random.ts';
 import type { ThemeKind } from './themes.ts';
 
 /** The lowest and highest note the lead plays. */
@@ -89,7 +91,7 @@ function shapeOf(env: BarEnv): LeadShape {
   for (let s = 0; s < 16; s++) {
     const groove = lerp(GROOVE_STRAIGHT[s]!, GROOVE_SYNCOPATED[s]!, style.sync) * density;
     const p = lerp(groove, euclid.has(s) ? 0.9 : 0, 0.5);
-    if (draw(seed, 'leadRhythm', section, half, s) < p) steps.push(s);
+    if (chance(draw(seed, 'leadRhythm', section, half, s), p)) steps.push(s);
   }
   for (const s of [0, 8, 4, 12, 6, 10]) {
     if (steps.length >= 3) break;
@@ -98,16 +100,19 @@ function shapeOf(env: BarEnv): LeadShape {
   steps.sort((a, b) => a - b);
 
   const span = 2 + Math.round((energy + style.entropy) * 3);
-  const contour = CONTOURS[Math.floor(next() * CONTOURS.length)]!;
+  const contour = CONTOURS[pick(next(), [1, 1, 1, 1])]!;
   const degrees = [0];
   let move = 0;
   for (let i = 1; i < steps.length; i++) {
-    const target = Math.round(contour(i / Math.max(1, steps.length - 1)) * span);
+    // Quantised before rounding: \`Math.sin\` may differ in its last bit
+    // across engines, and sin(π/6) · 3 lies one ulp from 1.5.
+    const target = Math.round(quantize(contour(i / Math.max(1, steps.length - 1)) * span));
     const here = degrees[i - 1]!;
     let m = Math.sign(target - here) * (Math.abs(target - here) > 2 ? 2 : 1);
     if (Math.abs(move) >= 3) m = -Math.sign(move);
-    else if (next() < 0.2 + 0.3 * style.entropy) m += next() < 0.5 ? -1 : 1;
-    if (style.entropy > 0.5 && next() < style.entropy - 0.5) m += next() < 0.5 ? -3 : 3;
+    else if (chance(next(), 0.2 + 0.3 * style.entropy)) m += chance(next(), 0.5) ? -1 : 1;
+    if (style.entropy > 0.5 && chance(next(), style.entropy - 0.5))
+      m += chance(next(), 0.5) ? -3 : 3;
     degrees.push(here + m);
     move = m;
   }
@@ -127,38 +132,67 @@ function varied(shape: LeadShape, seed: number, bar: number, entropy: number): L
   let degrees = [...shape.degrees];
   const steps = [...shape.steps];
   const velocities = [...shape.velocities];
-  const x = next();
-  if (x < 0.3) degrees = degrees.map((d) => -d);
-  else if (x < 0.55) degrees = degrees.map((d) => d + 2);
-  else if (x < 0.8) {
+  // Turn it over, lift it, bend its last note, or drop it.
+  const way = pick(next(), [0.3, 0.25, 0.25, 0.2]);
+  if (way === 0) degrees = degrees.map((d) => -d);
+  else if (way === 1) degrees = degrees.map((d) => d + 2);
+  else if (way === 2) {
     const i = degrees.length - 1;
     if (i > 0)
-      degrees[i] = degrees[i - 1]! + (next() < 0.5 ? -1 : 1) * (1 + Math.floor(next() * 2));
+      degrees[i] = degrees[i - 1]! + (chance(next(), 0.5) ? -1 : 1) * (1 + pick(next(), [1, 1]));
   } else if (steps.length > 2) {
     steps.pop();
     degrees.pop();
     velocities.pop();
   }
-  if (next() < entropy * 0.5 && steps.length > 1) {
-    const i = 1 + Math.floor(next() * (steps.length - 1));
-    degrees[i]! += next() < 0.5 ? -1 : 1;
+  if (chance(next(), entropy * 0.5) && steps.length > 1) {
+    const i =
+      1 +
+      pick(
+        next(),
+        steps.slice(1).map(() => 1),
+      );
+    degrees[i]! += chance(next(), 0.5) ? -1 : 1;
   }
   return { ...shape, steps, degrees, velocities };
 }
 
 /** The nearest note to `near` among a chord's tones, within a tritone; ties go down. */
-function nearestTone(chord: Chord, near: number): number {
-  const classes = joinChord(chord).map((x) => wrap(x, 12));
-  for (let d = 0; d <= 6; d++)
-    for (const note of [near - d, near + d]) if (classes.includes(wrap(note, 12))) return note;
-  return near;
-}
+const nearestTone = (chord: Chord, near: number) =>
+  nearestOf(
+    joinChord(chord).map((x) => wrap(x, 12)),
+    near,
+  );
 
 /** The note nearest `near` among `classes`, within a tritone; ties go down. */
 function nearestOf(classes: readonly number[], near: number): number {
   for (let d = 0; d <= 6; d++)
     for (const note of [near - d, near + d]) if (classes.includes(wrap(note, 12))) return note;
   return near;
+}
+
+/**
+ * A phrase moved into 60–86: by the octave that puts the most notes in
+ * range (the smallest move on a tie), then any note still outside folded
+ * by octaves on its own. The range is over an octave wide, so every note
+ * fits, and folding by octaves keeps each note's pitch class.
+ */
+function intoRange(notes: readonly number[]): number[] {
+  const [low, high] = LEAD_RANGE;
+  const inside = (shift: number) =>
+    notes.filter((n) => n + shift >= low && n + shift <= high).length;
+  let best = 0;
+  for (let octaves = -4; octaves <= 4; octaves++) {
+    const shift = 12 * octaves;
+    const better = inside(shift) - inside(best);
+    if (better > 0 || (better === 0 && Math.abs(shift) < Math.abs(best))) best = shift;
+  }
+  return notes.map((n) => {
+    let note = n + best;
+    while (note > high) note -= 12;
+    while (note < low) note += 12;
+    return note;
+  });
 }
 
 export const lead: Machine<BarEnv, LeadCarried, null, NoteEvent[]> = {
@@ -220,8 +254,7 @@ export const lead: Machine<BarEnv, LeadCarried, null, NoteEvent[]> = {
         notes[i]!,
       );
     }
-    while (Math.max(...notes) > LEAD_RANGE[1]) notes = notes.map((n) => n - 12);
-    while (Math.min(...notes) < LEAD_RANGE[0]) notes = notes.map((n) => n + 12);
+    notes = intoRange(notes);
 
     const gate = Math.max(0.25, Math.min(1, 1.05 - 0.75 * style.artic));
     const events: NoteEvent[] = shape.steps.map((s, i) => ({

@@ -133,7 +133,10 @@ Counterexample: a bar that plays differently from the same environment and
 text. The prototype's score gives 1,949 (S1).
 Test: `drums.test.ts`, "are a function of the bar: the same environment plays
 the same bar (T5)"; `random.test.ts`, "is a pure function of seed and keys
-(T5)". Open for the pitched parts.
+(T5)"; `lead.test.ts`, "plays the same melody on an engine whose Math.sin is
+one ulp off, either way (T5)": the lead's contour, sin(π/6) times an odd
+span, lies one ulp from a half, so it is quantised before it is rounded.
+Open for the pitched parts' carried state (S2).
 Source: Strudel's query model, spirit. Status: measured (drums); measured,
 failing (the prototype's score, E1). Lands in: #37 step 5.
 
