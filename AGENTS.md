@@ -65,7 +65,10 @@ These principles come from the prototype
   behaviour through public functions, not internals, so they survive
   refactoring while features settle. Tests sit next to the code as
   `*.test.ts`.
-- **`pnpm verify` before pushing.** It runs everything CI runs.
+- **`pnpm verify` before pushing.** It runs everything CI runs. A fresh
+  checkout needs `pnpm install --frozen-lockfile` first (seconds): install,
+  never skip the tests. Claude Code sessions do this at start through
+  `.claude/hooks/session-start.sh`.
 - **Theory and engine stay pure.** `packages/theory` and `packages/engine`
   use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
   randomness goes through `random.ts`, keyed by seed and position.

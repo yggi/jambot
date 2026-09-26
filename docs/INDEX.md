@@ -55,6 +55,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     `/prototype.html`
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
   deploys `main` to GitHub Pages
+- `.claude/hooks/session-start.sh`: installs dependencies when an agent
+  session starts (registered in `.claude/settings.json`)
 - `.claude/skills/`: project skills for agents
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
     theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
