@@ -82,18 +82,26 @@ The full description is in
   from here, and they share conventions with Jambot, not code. See
   [architecture](architecture.md#related-projects).
 
-### music21
+### music21 and tonal
 
-- music21 (BSD-3-Clause, pinned to 10.5.0) is the second opinion on theory
-  claims, through the `music-theory` skill
-  ([`SKILL.md`](../.claude/skills/music-theory/SKILL.md)). It runs as a
-  Python tool, never as a dependency of a package.
-- music21 cannot read some of the chord symbols Jambot uses, such as `Δ`,
-  `maj9`, `°` and `mMaj7`, and it reads `-` as a flat, so `C-7` is C♭7.
-- It reads `Bb7` as B major with a flat seventh without any error. Pass
-  chord symbols through the skill's script, not to music21 directly.
-- `b` on a Roman numeral lowers the mode's own degree, in music21 and in the
-  prototype alike: `bVII` in G mixolydian is F♭ major.
+- Two libraries give second opinions on theory claims, through the
+  `music-theory` skill ([`SKILL.md`](../.claude/skills/music-theory/SKILL.md)):
+  music21 (Python, BSD-3-Clause, pinned to 10.5.0) and tonal (MIT, a dev
+  dependency). Lint keeps tonal to tests, and music21 is never a dependency
+  of a package.
+- They agree on note names, diatonic scales and the triads and sevenths of
+  every mode. On chord symbols they never disagree when both can read one,
+  but each reads names the other can't.
+- tonal's Euclid, `RhythmPattern.euclid(n, k)`, is exactly `even(k, n)`, with
+  the same rotation, for every 1 ≤ k ≤ n ≤ 16. Strudel's is not (#8).
+- Roman numerals follow three conventions. The prototype takes the degree
+  and `b`/`#` from the mode and the quality from the case, as music21 does.
+  It takes `7`, `maj7` and `9` as fixed intervals, as tonal does. So `bVII`
+  in G mixolydian is F♭ major (the mode's own F major is `VII`), and `I7` in
+  C is C E G B♭.
+- music21 reads `-` as a flat (`C-7` is C♭7), reads `Bb7` as B major with a
+  flat seventh without any error, and ignores `maj` in a numeral. tonal
+  ignores a numeral's case. The skill's scripts guard against all of these.
 
 ### Terms
 

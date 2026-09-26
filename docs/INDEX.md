@@ -30,6 +30,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/even.ts`: `even(k, n, rotation)`, the maximally even set, and its
       checks
     - `src/modes.ts`: modes as rotations along the generator
+    - `src/second-opinion.test.ts`: the primitive checked against tonal
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
 - `apps/`
@@ -39,6 +40,7 @@ Every doc and code area, as a tree. Add a line when you add one.
   deploys `main` to GitHub Pages
 - `.claude/skills/`: project skills for agents
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
-    theory claims against music21, a Python tool outside the pnpm toolchain
+    theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
+    compares the two (`compare.mjs`)
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md):
   the checklist every pull request fills in

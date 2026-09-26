@@ -53,7 +53,9 @@ def split_note(text, octave=True):
     letter, accidental, octave_text = match.groups()
     name = letter.upper() + ACCIDENTALS[accidental or ""]
     if octave and octave_text:
-        return name + octave_text, text[match.end():]
+        # music21 would read `C-1` as C-flat in octave 1, so the octave is
+        # passed as a number, never glued to the name.
+        return (name, int(octave_text)), text[match.end():]
     return name, text[match.end(2) if accidental else match.end(1):]
 
 
@@ -71,6 +73,13 @@ def m21_key(text):
     return key.Key(name, mode)
 
 
+def to_pitch(name):
+    """A pitch from `split_note`'s name: a string, or (name, octave)."""
+    if isinstance(name, tuple):
+        return pitch.Pitch(name[0], octave=name[1])
+    return pitch.Pitch(name)
+
+
 def names(pitches):
     return [p.nameWithOctave.replace("-", "b") for p in pitches]
 
@@ -84,9 +93,9 @@ def cmd_note(args):
         name, rest = split_note(text)
         if rest:
             raise Refused(f"{text!r}: {rest!r} is not part of a note name")
-        p = pitch.Pitch(name)
+        p = to_pitch(name)
         out = {"note": text, "pitchClass": p.pitchClass}
-        if p.octave is not None and any(c.isdigit() for c in text):
+        if isinstance(name, tuple):
             out["midi"] = p.midi
         yield out
 
@@ -136,20 +145,20 @@ def cmd_scale(args):
 
 
 def cmd_stack(args):
-    """Stack every other degree of each diatonic mode; count the qualities."""
+    """Stack every other degree of each diatonic mode; count the interval sets."""
     for mode in MODES if args.mode == "all" else [args.mode]:
         sc = key.Key("C", mode).getScale()
         census = {}
         for degree in range(1, 8):
             ps = [sc.pitchFromDegree((degree - 1 + 2 * i) % 7 + 1) for i in range(args.size)]
-            name = chord.Chord(ps).commonName
+            name = ",".join(map(str, relative(ps, ps[0])))
             census[name] = census.get(name, 0) + 1
         yield {"mode": mode, "size": args.size, "census": dict(sorted(census.items()))}
 
 
 def cmd_name(args):
     """Name a set of MIDI notes or note names, e.g. `60 64 67` or `C4 E4 G4`."""
-    ps = [pitch.Pitch(midi=int(t)) if t.isdigit() else pitch.Pitch(split_note(t)[0]) for t in args.items]
+    ps = [pitch.Pitch(midi=int(t)) if t.isdigit() else to_pitch(split_note(t)[0]) for t in args.items]
     c = chord.Chord(ps)
     yield {
         "notes": args.items,
@@ -187,10 +196,14 @@ SELFTEST = [
     (["chord", "Cmaj9"], {"unreadable": "Invalid chord abbreviation 'maj9'"}),
     (["note", "E7"], {"midi": 100}),
     (["note", "Fx3"], {"midi": 55}),
+    (["note", "C-1"], {"midi": 0}),
     # Conventions shared with the prototype: b lowers the mode's own degree.
     (["roman", "A:minor", "bVI"], {"root": "Fb"}),
     (["roman", "G:mixolydian", "VII"], {"root": "F"}),
     (["roman", "A:minor", "V7/iv"], {"pitches": ["A", "C#", "E", "G"]}),
+    # Sevenths and ninths follow the key, and `maj` is silently ignored.
+    (["roman", "C:major", "I7"], {"intervals": [0, 4, 7, 11]}),
+    (["roman", "A:minor", "Imaj7"], {"intervals": [0, 4, 7, 10]}),
 ]
 
 
@@ -229,17 +242,33 @@ def build_parser():
     return parser
 
 
+def answers(args):
+    """One answer per item, so that one refusal does not end the batch."""
+    command = globals()[f"cmd_{args.command}"]
+    if args.command in ("note", "chord", "roman"):
+        for item in args.items:
+            try:
+                yield from command(argparse.Namespace(**{**vars(args), "items": [item]}))
+            except Refused as refusal:
+                args.refusals = True
+                yield {"refused": str(refusal)}
+    else:
+        yield from command(args)
+
+
 def main():
     args = build_parser().parse_args()
-    args.failed = False
+    args.failed = args.refusals = False
     try:
-        for answer in globals()[f"cmd_{args.command}"](args):
+        for answer in answers(args):
             print(json.dumps(answer, ensure_ascii=False))
     except Refused as refusal:
         print(json.dumps({"refused": str(refusal)}, ensure_ascii=False))
         sys.exit(2)
     if args.failed:
         sys.exit(1)
+    if args.refusals:
+        sys.exit(2)
 
 
 if __name__ == "__main__":

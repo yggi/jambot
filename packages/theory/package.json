@@ -8,5 +8,8 @@
   },
   "scripts": {
     "check": "tsc -p ."
+  },
+  "devDependencies": {
+    "tonal": "^6.4.3"
   }
 }
