@@ -55,6 +55,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       spelling checked against tonal
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
+- `tooling/`: tests for the repository's own gates
+  - `lint.test.ts`: each rule that keeps the pure packages pure, shown
+    firing
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
