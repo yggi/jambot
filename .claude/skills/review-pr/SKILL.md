@@ -42,12 +42,11 @@ Read the diff from git, not from the GitHub files API, which returns every
 patch as one large JSON blob.
 
 CI does not run while #4 is open, so this verify run is the check that
-counts. Say in the review which commit you verified and what it gave.
-
-If the pull request touches what the app plays or when (the transport, the
-time maps, the style glides, a part's events, the player, the audio or the
-page; see `AGENTS.md`), also run `pnpm e2e` in the worktree, and say what
-it gave. It needs Playwright's Chromium, which the session hook installs.
+counts. Say in the review which commit you verified and what verify and
+`pnpm e2e` gave. The end-to-end run needs Playwright's Chromium, which the
+session hook installs; without it, `pnpm e2e` fails, and a pull request
+that touches what the app plays or when (see `AGENTS.md`) is then not
+verified.
 
 ## 2. Read against the house rules
 
