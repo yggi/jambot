@@ -8,16 +8,38 @@ description: Review a Jambot pull request. Fetches it into its own worktree, ins
 ## 1. Prepare
 
 ```sh
-.claude/skills/review-pr/prepare.sh <number | branch> [worktree directory]
+.claude/skills/review-pr/prepare.sh <number | branch> [--from <commit>] [worktree directory]
+```
+
+If your checkout doesn't have the script, your branch is behind `main`;
+run `main`'s copy instead:
+
+```sh
+git fetch -q origin main
+git show origin/main:.claude/skills/review-pr/prepare.sh | sh -s -- <number | branch> …
 ```
 
 It fetches the pull request and `main`, checks the head out in its own
 worktree (put it in your scratchpad if you have one), runs
-`pnpm install --frozen-lockfile` and `pnpm verify` there, and prints the
-commits, the diff stat, the verify result with the test count, and the
-commands to read the diff and to remove the worktree. Read the diff from
-git, not from the GitHub files API, which returns every patch as one large
-JSON blob.
+`pnpm install --frozen-lockfile` and `pnpm verify` there, and prints:
+
+- the commits and every changed file;
+- the verify result with its test count and, when the repository has
+  end-to-end tests, the result of `pnpm e2e` with theirs;
+- when `main` has moved on since the pull request branched, how far, and
+  the files a merge would conflict in: say so in the review;
+- the commands to read the diff and to remove the worktree.
+
+To review part of a pull request, such as the steps after an earlier
+review, pass `--from <commit>`. The commits and the diff are then what the
+pull request did after `<commit>`, without what came in from `main` since,
+while verify still runs on the whole head. When `<commit>` doesn't merge
+with `main` cleanly, the diff is limited to the files those commits
+touched, and the summary names the files where `main`'s changes may still
+show.
+
+Read the diff from git, not from the GitHub files API, which returns every
+patch as one large JSON blob.
 
 CI does not run while #4 is open, so this verify run is the check that
 counts. Say in the review which commit you verified and what it gave.

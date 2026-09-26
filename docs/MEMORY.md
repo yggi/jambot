@@ -23,7 +23,11 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
   commit before pushing.
 - To review a pull request, use the `review-pr` skill:
   `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`,
-  checks it out in its own worktree and runs `pnpm verify` there.
+  checks it out in its own worktree and runs `pnpm verify` there. It says
+  when `main` has moved on and where a merge would conflict, and
+  `--from <commit>` scopes it to part of a pull request. A branch behind
+  `main` may not have the script yet: pipe `main`'s copy from
+  `git show origin/main:.claude/skills/review-pr/prepare.sh` to `sh -s --`.
   `git fetch origin pull/<n>/head` works through the session proxy.
 - To try the theory without a test, run its TypeScript source from the
   repository root, where `tonal` resolves too:
