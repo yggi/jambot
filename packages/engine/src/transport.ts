@@ -18,10 +18,18 @@
  * wholly passed is not composed; the form still moves on through it.
  */
 
-import { type BandBar, type BandCarried, type BandEnv, band, passBar } from './band.ts';
+import {
+  type BandBar,
+  type BandCarried,
+  type BandEnv,
+  type DecidedBar,
+  band,
+  lookAhead,
+  passBar,
+} from './band.ts';
 import { type BarChord, chordAt } from './chords.ts';
 import type { NoteEvent } from './events.ts';
-import type { Section } from './form.ts';
+import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import type { Sound } from './sound.ts';
@@ -102,6 +110,42 @@ export interface TransportOutput {
 /** What the band reads for a bar: the style where the bar starts, on the track. */
 export function bandEnvAt({ seed, track, wish }: TransportEnv, bar: number): BandEnv {
   return { seed, bar, style: styleAt(track, bar * 16), wish };
+}
+
+/** A bar decided ahead, and the energy it plays at. */
+export interface ForecastBar extends DecidedBar {
+  readonly barEnergy: number;
+}
+
+/**
+ * The next `count` bars from the head's bar on, as they will play unless a
+ * control moves: those composed, then those the band will decide
+ * (`lookAhead`). Before the start (`carried` null) they are the song from
+ * bar 0.
+ */
+export function forecast(
+  env: TransportEnv,
+  carried: TransportCarried | null,
+  count: number,
+): ForecastBar[] {
+  const head = Math.floor((carried?.head.step ?? 0) / 16);
+  const composed = (carried?.bars ?? [])
+    .filter((b) => b.bar >= head)
+    .slice(0, count)
+    .map(({ bar, plan, chords, barEnergy }) => ({ bar, plan, chords, barEnergy }));
+  const ahead = lookAhead(
+    carried?.band ?? band.initial,
+    (bar) => bandEnvAt(env, bar),
+    count - composed.length,
+  ).map((decided) => ({
+    ...decided,
+    barEnergy: barEnergy(
+      styleAt(env.track, decided.bar * 16).energy,
+      decided.plan.section.type,
+      decided.bar % SECTION_BARS,
+    ),
+  }));
+  return [...composed, ...ahead];
 }
 
 export const transport: Machine<

@@ -92,7 +92,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/plan.ts`: the section plan (form, key and theme), the machine
       at section rate
     - `src/chords.ts`: the chords of a bar, from its theme's slots, the
-      key and the harmony, and their lead-sheet names
+      key and the harmony, their lead-sheet names and their Roman numerals
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/bass.ts`: the bass, a machine that carries its last note
@@ -106,7 +106,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       `lookAhead` decides the bars ahead without playing them
     - `src/transport.ts`: the transport, the machine at tick rate: it
       composes a beat before each bar and schedules on a clock, and
-      `bandEnvAt` is what the band reads for a bar
+      `bandEnvAt` is what the band reads for a bar; `forecast` gives the
+      bars ahead, composed or not
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing

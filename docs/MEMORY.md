@@ -71,10 +71,10 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   bar the clock has passed is passed (`passBar`), not composed.
 - `lookAhead(carried, envAt, count)` forecasts the bars ahead, their plans
   and chords, by running the band's own decisions forward. From the
-  transport, pass it `carried.band` and `bandEnvAt` on the transport's
-  environment: it starts at `carried.nextBar`, and the bars already
-  composed are in `carried.bars`. The track holds glides ahead, so the
-  forecast is what plays unless a control moves.
+  transport, `forecast(env, carried, count)` gives the bars from the head's
+  bar on, those composed first, each with the energy it plays at; with
+  `carried` null it is the song from bar 0. The track holds glides ahead,
+  so the forecast is what plays unless a control moves.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a

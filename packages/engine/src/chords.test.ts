@@ -1,6 +1,22 @@
-import { chordScale, heightOf, joinChord, positions, wrap } from '@jambot/theory';
+import {
+  chordOfNumeral,
+  chordScale,
+  heightOf,
+  joinChord,
+  parseNumeral,
+  positions,
+  qualityOf,
+  wrap,
+} from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { type BarChord, type ChordEnv, barChords, chordAt, chordName } from './chords.ts';
+import {
+  type BarChord,
+  type ChordEnv,
+  barChords,
+  chordAt,
+  chordName,
+  chordNumeral,
+} from './chords.ts';
 import { COMPOSER_MODES, type Key, keyHelix, keyName } from './key.ts';
 import type { Slot, Theme } from './themes.ts';
 
@@ -247,6 +263,57 @@ describe("a bar's chords", () => {
     const eFlat: Key = { tonic: 3, mode: 'ionian' };
     expect(name({ step: 0, degree: 3 }, 0, eFlat)).toBe('Ab');
     expect(name({ step: 0, degree: 6 }, 0, eFlat)).toBe('Ddim');
+  });
+
+  it('each have a Roman numeral that reads back as the chord, a secondary dominant with its target', () => {
+    const secondaries = keys.flatMap((key) =>
+      range(7).flatMap((target) =>
+        [0.3, 0.8, 1].flatMap((harm) =>
+          range(3).map((seed) => {
+            const theme = themeOf(key, [[{ step: 8, dominantOf: target }]]);
+            const env = envOf({ seed, key, theme, harm });
+            return [env, barChords(env)[0]!] as [ChordEnv, BarChord];
+          }),
+        ),
+      ),
+    );
+    const written = new Set<string>();
+    for (const [{ key }, chord] of [...sweep, ...secondaries]) {
+      const text = chordNumeral(chord, key);
+      const numeral = parseNumeral(text);
+      expect(numeral, text).toBeDefined();
+      expect(numeral!.of !== undefined, text).toBe('dominantOf' in chord.slot);
+      const stack = joinChord(chord.chord);
+      expect(chordOfNumeral(keyHelix(key), numeral!), text).toEqual({
+        root: wrap(stack[0]!, 12),
+        quality: qualityOf(stack.map((x) => x - stack[0]!)),
+      });
+      written.add(text);
+    }
+    expect(written.size).toBeGreaterThan(40);
+  });
+
+  it('are written as numerals by the mode, as music21 writes them', () => {
+    // music21: in A minor, V7 is E G# B D, V7/iv is A C# E G, V7/III is
+    // G B D F, iiø7 is B D F A; in C major, V7/ii is A C# E G and V9/V is
+    // D F# A C E.
+    const numeral = (key: Key, slot: Slot, harm: number, seed = 0, next: Slot = slot) =>
+      chordNumeral(
+        barChords(envOf({ seed, key, harm, theme: themeOf(key, [[slot], [next]]) }))[0]!,
+        key,
+      );
+    const aMinor: Key = { tonic: 9, mode: 'aeolian' };
+    expect(numeral(aMinor, { step: 0, degree: 0 }, 0)).toBe('i');
+    expect(numeral(aMinor, { step: 0, degree: 5 }, 0)).toBe('VI');
+    expect(numeral(aMinor, { step: 0, degree: 4 }, 0.8, 0, { step: 0, degree: 0 })).toBe('V7');
+    expect(numeral(aMinor, { step: 0, degree: 1 }, 1)).toBe('iiø7');
+    expect(numeral(aMinor, { step: 8, dominantOf: 3 }, 0.5)).toBe('V7/iv');
+    expect(numeral(aMinor, { step: 8, dominantOf: 2 }, 0.5)).toBe('V7/III');
+    const cMajor: Key = { tonic: 0, mode: 'ionian' };
+    expect(numeral(cMajor, { step: 8, dominantOf: 1 }, 0.5)).toBe('V7/ii');
+    expect(numeral(cMajor, { step: 0, degree: 1 }, 1)).toMatch(/^ii(7|9)$/);
+    const ninths = range(20).map((seed) => numeral(cMajor, { step: 8, dominantOf: 4 }, 1, seed));
+    expect(new Set(ninths)).toEqual(new Set(['V7/V', 'V9/V']));
   });
 
   it('sound from their step until the next one starts', () => {

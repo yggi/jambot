@@ -17,9 +17,11 @@
 import {
   type Chord,
   compose,
+  formatNumeral,
   heightOf,
   joinChord,
   nameOf,
+  numeralOf,
   qualityOf,
   spell,
   spelledTonic,
@@ -101,14 +103,41 @@ export function chordAt(chords: readonly BarChord[], step: number): BarChord {
   return chords.findLast((c) => c.slot.step <= step) ?? chords[0]!;
 }
 
+/** A chord's root, its stack above the root, and the quality that stack names. */
+function rootAndQuality(chord: Chord): { root: number; stack: number[]; quality: string } {
+  const heights = joinChord(chord);
+  const stack = heights.map((x) => x - heights[0]!);
+  const quality = qualityOf(stack);
+  if (!quality) throw new Error(`chords: no quality for ${stack.join(' ')}`);
+  return { root: heights[0]!, stack, quality };
+}
+
 /** A chord's lead-sheet symbol, its root spelled in the key: `Am`, `E7`, `B♭maj9`. */
 export function chordName({ slot, chord }: BarChord, key: Key): string {
   const scale = keyHelix(key);
   const notes = spell(spelledTonic(scale), scale.heights);
   const root = 'degree' in slot ? notes[slot.degree]! : spell(notes[slot.dominantOf]!, [0, 7])[1]!;
-  const stack = joinChord(chord);
-  const aboveRoot = stack.map((x) => x - stack[0]!);
-  const quality = qualityOf(aboveRoot);
-  if (!quality) throw new Error(`chordName: no quality for ${aboveRoot.join(' ')}`);
-  return nameOf({ kind: 'chord', root, quality, stack: aboveRoot });
+  const { stack, quality } = rootAndQuality(chord);
+  return nameOf({ kind: 'chord', root, quality, stack });
+}
+
+/**
+ * A chord's Roman numeral in the key, by the mode (U1): `i`, `VI`, `V7`,
+ * `iiø7`. A secondary dominant names the degree it leads to, read in the
+ * major or minor key its triad makes there: `V7/iv`, `V9/V`.
+ */
+export function chordNumeral({ slot, chord }: BarChord, key: Key): string {
+  const scale = keyHelix(key);
+  const { root, quality } = rootAndQuality(chord);
+  const target =
+    'dominantOf' in slot
+      ? {
+          degree: slot.dominantOf,
+          accidental: 0 as const,
+          minor: heightOf(scale, slot.dominantOf + 2) - heightOf(scale, slot.dominantOf) === 3,
+        }
+      : undefined;
+  const numeral = numeralOf(scale, { root: wrap(root, 12), quality }, target);
+  if (!numeral) throw new Error(`chordNumeral: no numeral for ${quality} on ${root}`);
+  return formatNumeral(numeral);
 }

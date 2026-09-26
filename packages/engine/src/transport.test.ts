@@ -23,6 +23,7 @@ import {
   type TimedEvent,
   type TransportOutput,
   bandEnvAt,
+  forecast,
   transport,
 } from './transport.ts';
 
@@ -335,5 +336,33 @@ describe('the forecast from the transport', () => {
     expect(keys.size).toBeGreaterThan(1);
     expect(composed.get(30)!.style).not.toEqual(composed.get(0)!.style);
     expect(compared).toBeGreaterThan(60);
+  });
+
+  it('reads the bars ahead from any carried state, those composed first, each with the energy it plays at', () => {
+    const track = glideTo(swung, PRESETS[1]!.style, 16 * 16, PRESET_GLIDE);
+    const far = env(track, { tonic: 2, mode: 'mixolydian' });
+    // Before the start, the forecast is the song that then plays.
+    const opening = forecast(far, null, 24);
+    let carried = transport.initial;
+    const composed = new Map<number, BandBar>();
+    const checkpoints: { head: number; bars: ReturnType<typeof forecast> }[] = [];
+    ticks(0.9, 900, 0.1).forEach((input) => {
+      const next = transport.advance(far, carried, input);
+      carried = next.carried;
+      for (const b of next.output.composed) composed.set(b.bar, b);
+      checkpoints.push({
+        head: Math.floor(carried!.head.step / 16),
+        bars: forecast(far, carried, 12),
+      });
+    });
+    const played = (bar: number) => {
+      const b = composed.get(bar);
+      return b && { bar: b.bar, plan: b.plan, chords: b.chords, barEnergy: b.barEnergy };
+    };
+    expect(opening).toEqual(range(24).map(played));
+    for (const { head, bars } of checkpoints) {
+      expect(bars.map((b) => b.bar)).toEqual(range(12).map((i) => head + i));
+      for (const b of bars) if (composed.has(b.bar)) expect(b).toEqual(played(b.bar));
+    }
   });
 });
