@@ -90,6 +90,27 @@ pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
 - The web app's base path comes from `BASE_PATH` (CI sets `/jambot/` for
   GitHub Pages). It defaults to `/`.
 
+### License
+
+- Jambot is MIT ([`LICENSE`](../LICENSE)), as are quintenzirkel and
+  lib-aeiou, so code moves freely between the sister projects. Every
+  `package.json` says so.
+- The build runs a license gate (`tooling/licenses.ts`, wired in
+  `apps/web/vite.config.ts`). It fails on any package the app ships that
+  isn't under a permissive license or lacks its license text, and writes
+  `licenses.txt`: Jambot's license, then each shipped package's. Today that
+  is the Svelte runtime, Vite's preload polyfill, workbox's runtime and the
+  service worker's loader (Apache-2.0).
+- Taking in a copyleft package, such as Strudel, is a decision, not a side
+  effect of an import. MIT code may go into an AGPL build, but that build is
+  then AGPL as a whole. Exporting Strudel code as text is not affected.
+- The license covers the code and the docs. It does not cover training
+  data, model weights or what the band plays. Lakh MIDI and Groove MIDI are
+  CC-BY-4.0 (attribution); POP909 has a license of its own, to read before
+  use.
+- Static assets aren't modules, so the gate doesn't see them. The
+  prototype's Google Fonts are #58.
+
 ### Prototype
 
 - Default MIDI channels: lead 1, bass 2, chords 3, drums 10. They match the
