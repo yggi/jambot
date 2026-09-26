@@ -104,7 +104,11 @@ up to 0.04 steps where both swing levels act (swing 0.5–1).
 Test: `swing.test.ts`, "is undone by its inverse, both ways, on and off the
 grid" and "shows that the prototype's delays are not what its unswing
 undoes"; `tempo.test.ts`, "keeps time rising through a tempo glide, and
-gives each position back from its time".
+gives each position back from its time", and the four tests under
+"position and clock time" that cite (T4, #39 Q1c): tempo glides from rest
+between the axis ends and every preset tempo at every length, 60 chains of
+retargets that carry their slope, brake or arrive early, the chain through
+swing, and a reading of clock time that runs backwards.
 Source: time maps (Jaffe, "Ensemble Timing in Computer Music", 1985;
 Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Lands in:
 #37 (done), #39 Q1b and Q1c.
