@@ -19,6 +19,7 @@
  */
 
 import { type BandBar, band } from './band.ts';
+import { type BarChord, chordAt } from './chords.ts';
 import type { NoteEvent } from './events.ts';
 import { SECTION_BARS, type Section } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
@@ -69,9 +70,10 @@ export interface TransportCarried {
 
 export interface ScheduledStep {
   readonly step: number;
-  /** The section the step's bar is in, and its key. */
+  /** The section the step's bar is in, its key, and the chord sounding. */
   readonly section: Section;
   readonly key: Key;
+  readonly chord: BarChord;
   readonly seconds: number;
   /** How long the step lasts, in seconds. */
   readonly length: number;
@@ -154,8 +156,9 @@ export const transport: Machine<
         composed.push(played.output);
       }
       bars = bars.filter((b) => b.bar >= bar);
-      const { section, key } = bars[0]!;
-      steps.push({ step: head.step, section, key, seconds: head.seconds, length });
+      const { section, key, chords } = bars[0]!;
+      const chord = chordAt(chords, head.step % 16);
+      steps.push({ step: head.step, section, key, chord, seconds: head.seconds, length });
 
       // The beat's swing is read as the beat starts, and kept.
       const index = Math.floor(head.step / 4);

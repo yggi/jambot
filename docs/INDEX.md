@@ -83,6 +83,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/themes.ts`: themes, a section's harmony as degree slots
     - `src/plan.ts`: the section plan (form, key and theme), the machine
       at section rate
+    - `src/chords.ts`: the chords of a bar, from its theme's slots, the
+      key and the bar's harmony, and their lead-sheet names
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/band.ts`: the band, the machine at bar rate

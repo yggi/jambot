@@ -1,5 +1,6 @@
 export * from './band.ts';
 export * from './bar.ts';
+export * from './chords.ts';
 export * from './drums.ts';
 export * from './events.ts';
 export * from './form.ts';

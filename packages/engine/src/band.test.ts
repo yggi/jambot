@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type BandEnv, band } from './band.ts';
+import { barChords } from './chords.ts';
 import { drums } from './drums.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import type { KeyWish } from './key.ts';
@@ -50,7 +51,7 @@ describe('the band', () => {
     expect(bars[0]!.section.type).toBe('intro');
   });
 
-  it("plays each section's plan: its key, and its theme bar by bar, changing only at a boundary (C3)", () => {
+  it("plays each section's plan: its key, and its theme's chords bar by bar, changing only at a boundary (C3)", () => {
     for (const seed of [1, 2, 3]) {
       const bars = run(seed);
       let carried = planner.initial;
@@ -66,7 +67,15 @@ describe('the band', () => {
           const bar = bars[first + b]!;
           expect(bar.section).toEqual(next.output.section);
           expect(bar.key).toEqual(next.output.key);
-          expect(bar.slots).toEqual(next.output.theme.bars[b]);
+          expect(bar.chords).toEqual(
+            barChords({
+              seed,
+              barInSection: b,
+              key: next.output.key,
+              theme: next.output.theme,
+              harm: styleAt(first + b).harm,
+            }),
+          );
         }
       }
       // The wish changes mid-section, and the key follows at the boundary.

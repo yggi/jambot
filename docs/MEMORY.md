@@ -60,7 +60,12 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
   (form, key and theme) per section, the band per bar, the transport per
   tick. The players' key wish is a standing target, not an event: `nextKey`
   applied twice gives what it gave once, so the band can read it at every
-  section boundary. The web player only
+  section boundary.
+- A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
+  register. `joinChord` gives its stack, and `chordScale` takes a stack. A
+  bar's chords come from its theme's slots at the bar's harmony
+  (`barChords`); their colour draws are keyed by theme, bar and slot, so a
+  test that wants a rate must vary the seed or the theme, not the key. The web player only
   reads the audio clock and plays what the transport schedules, so
   everything that decides what and when is tested without a browser.
 - Swing is a time map, `swingMap(swing)`, with `played` and `written` as

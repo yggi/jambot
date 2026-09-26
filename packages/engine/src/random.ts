@@ -54,6 +54,8 @@ export const STREAMS = {
   theme: 6,
   /** Whether a returning theme is built anew all the same, per section. */
   themeRenewal: 7,
+  /** Whether a chord takes its seventh, and its ninth, per theme, bar and slot. */
+  chordColor: 8,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

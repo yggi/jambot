@@ -96,6 +96,7 @@
         {player.position ? SECTION_NAMES[player.position.section] : player.playing ? '…' : 'Ready'}
       </span>
       {#if player.position}
+        <span class="chord">{player.position.chord}</span>
         <span>{keyName(player.position.key)}</span>
         <span>Bar {player.position.bar + 1}</span>
       {/if}
@@ -245,6 +246,10 @@
     font-weight: 800;
     font-size: 20px;
     color: var(--amber);
+  }
+  .chord {
+    font-weight: 700;
+    color: var(--ink);
   }
   .beats {
     display: grid;
