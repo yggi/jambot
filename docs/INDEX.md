@@ -30,6 +30,12 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/even.ts`: `even(k, n, rotation)`, the maximally even set, and its
       checks
     - `src/modes.ts`: modes as rotations along the generator
+    - `src/notes.ts`, `src/intervals.ts`: note names (spelling, octaves) and
+      intervals, generic and specific
+    - `src/degrees.ts`, `src/chords.ts`: counting degrees through a set, and
+      chords as stacks of every other degree, with the named qualities
+    - `src/scales.ts`, `src/rhythms.ts`: named scales and rhythms
+    - `src/lookup.ts`: lookup by name across all of these
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
 - `apps/`

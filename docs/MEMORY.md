@@ -15,6 +15,10 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 - The full prototype is one file: `prototype/jambot-prototype.html`. Open it
   in Chrome or Edge and press _Start the band_. Its code map is in
   [`prototype/README.md`](../prototype/README.md#running-and-hacking).
+- To resolve a musical name, use `lookup` from `@jambot/theory`:
+  `lookup('C blues')`, `lookup('G7', { kind: 'chord' })`, `lookup('clave')`,
+  `lookup('second')`. `readings(name)` lists every reading of an ambiguous
+  name.
 - To drive the prototype headless, define `window.__JAMBOT_TEST__` before its
   script runs. It is then called with the internals (`S`, `composeBar`,
   `applyPreset`, `evalMini`, `parseRoman`, `checkOverrides`, …).

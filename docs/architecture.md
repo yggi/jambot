@@ -28,6 +28,17 @@ even set. It gives both the Euclidean rhythms and the scales:
 - the modes are the set's rotations, ordered along that generator. For the
   diatonic set they run from Lydian to Locrian, one lowered note at a time.
 
+Around the primitive, the theory package names things:
+
+- notes, with their spelling, and intervals;
+- degrees, counted through a scale or a rhythm alike;
+- chords, as stacks of every other degree;
+- named scales and rhythms.
+
+`lookup` reads all of these by name, in long and short forms, and lists
+every reading of an ambiguous name ("C" is a note and a chord) until a kind
+is given.
+
 This primitive is the root of the project and the core of the language
 design (#7).
 
