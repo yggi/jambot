@@ -48,11 +48,12 @@ const ACCIDENTAL_WORDS: Record<string, number> = {
 };
 
 /**
- * Accidental signs are case-sensitive (x is a double sharp, b a flat);
- * accidental words are not.
+ * The letter is upper case, so that a score's pitch token such as `b3`, a
+ * flat third, is never the note B3 (U2, #9). Accidental signs are
+ * case-sensitive (x is a double sharp, b a flat); accidental words are not.
  */
 export function parseNote(text: string): Note | undefined {
-  const match = /^([A-Ga-g])(.*?)\s*(-?\d)?$/u.exec(text.trim());
+  const match = /^([A-G])(.*?)\s*(-?\d)?$/u.exec(text.trim());
   if (!match) return undefined;
   const [, letterText, accidental, octaveText] = match;
   const words = /^[\s-]+(.+)$/.exec(accidental!);

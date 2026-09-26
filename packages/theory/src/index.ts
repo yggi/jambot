@@ -5,6 +5,7 @@ export * from './intervals.ts';
 export * from './keys.ts';
 export * from './modes.ts';
 export * from './notes.ts';
+export * from './numerals.ts';
 export * from './read.ts';
 export * from './rhythms.ts';
 export * from './scales.ts';

@@ -63,6 +63,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       of each note from a spelled tonic
     - `src/keys.ts`: `relative` and `parallel` keys, and `chordScale`, the
       scale a chord implies in a key (#10)
+    - `src/numerals.ts`: Roman numerals, a chord as a degree of its key, read
+      and written (U1)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here

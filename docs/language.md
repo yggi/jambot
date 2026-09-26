@@ -380,13 +380,16 @@ lengths); open (note-offs). Decided: #7, ahead of the evidence. Lands in:
 Source: the prototype README, LADSPA. Status: derived.
 
 **L4. Strudel is a target: the shared mini-notation behaves identically,
-and Strudel is not a dependency.**
+and no package depends on Strudel.**
 Witness: none on `main`. #11's survey ran the prototype's mini-notation
 against `@strudel/mini`: sequence, `[ ]`, `@`, `*`, `< >`, `,` and `~`
-agree; `: ? ! _ . / |` and Euclid differ. Strudel is AGPL-3.0-or-later.
+agree; `: ? ! _ . / |` and Euclid differ. Strudel is AGPL-3.0-or-later, so
+`@strudel/mini` may be a dev dependency for tests only, as the conformance
+oracle, and no package imports it, as with tonal.
 Counterexample: a pattern both read that plays differently.
-Test: open: a conformance corpus (#11).
-Source: #11. Status: open. Lands in: #11.
+Test: open: a conformance corpus against `@strudel/mini` (E3, #11).
+Source: #11. Status: open. Decided: #11, ahead of the evidence (the oracle
+for tests only, a licence call). Lands in: #63 step 4.
 
 **L5. A stage declares whether it can run on the clock; a model cannot.**
 Source: LADSPA's hard-realtime flag, the roadmap. Decided: the roadmap,
@@ -413,6 +416,56 @@ Counterexample: a score word with two meanings.
 Test: `form.test.ts`, "has six kinds of section, eight bars each".
 Source: the law of true names, #37 step 3. Status: measured. Decided: #37
 step 3, in the working track.
+
+### Surface
+
+How the score is written, decided on #7 on measured options (E8) and built
+by its working track, the seam (#63).
+
+**U1. A Roman numeral is a degree of the key's own scale: `b` and `#` alter
+the mode's degree, case sets the quality, and the suffixes are the theory's
+qualities as fixed intervals.**
+Witness: `numerals.ts`: `parseNumeral` and `formatNumeral`, and
+`chordOfNumeral` and `numeralOf` between a numeral and a chord of its key.
+It is P7's rule one level up: a numeral counts degrees of the key's scale,
+as a pitch number counts degrees of the chord's. `V7/ii` reads its numeral
+in the target's major or minor key.
+Counterexample: a numeral that reads back as another chord, or a chord of a
+diatonic key that no numeral writes. Counting from the parallel major, the
+other option, makes `VI` in A minor F♯ and fails the tests.
+Test: `numerals.test.ts`, whose tests cite U1: every numeral written and
+read back (7 degrees, 3 accidentals, 19 qualities, 43 targets), every chord
+of every diatonic key, the prototype's 45 kinds (E8), and roots and cases
+checked with music21. music21 raises the seventh degree of a minor key for
+`vii`; U1 doesn't.
+Source: #7 (a), E8, music21. Status: measured. Decided: #7, on measured
+options. Open: the canonical numeral of a root off the key, written as the
+parallel major has it and otherwise flat, which is ahead of the evidence
+until #63's round trip measures it. Lands in: #63.
+
+**U2. `b` and `#` alter a degree, and an absolute note is written in upper
+case, so no pitch token is a note.**
+Witness: `parseNote`, which reads a letter only in upper case: `b3` is no
+note, and `Bb4` is 70.
+Counterexample: a pitch token that reads as a note. E8 finds 56 absolute
+notes in the prototype's scores, each a flat its encoder couldn't write as
+`b3` or `b9`, because those read as the notes B3 and B9 (#9).
+Test: `notes.test.ts`, whose test of a letter's case cites U2: every token
+from 1 to 9, with `b`, `#`, `bb` or `##`, and `^` or `v`, is no note.
+Source: #9, E8, R4. Status: measured. Decided: #7, on measured options.
+Lands in: #63, where the score reads pitch tokens.
+
+**U3. A line states its scale only where `chordScale`'s candidates imply
+none.**
+Witness: `chordScale`'s candidates: the key, its parallel modes, the key a
+dominant points to, then harmonic and melodic minor (P9, #56). The
+composer writes no chord without a scale.
+Counterexample: a chord the candidates give a scale for whose line still
+needs `scale=`, or one they give none for that the text can't state.
+Test: open: #63's round trip over the port's chords, writing `scale=` only
+where `chordScale` gives none.
+Source: #7 (b), P9. Status: open. Decided: #7, on measured options. Lands
+in: #63.
 
 ### Analysis and provenance
 
@@ -710,5 +763,5 @@ others have not.
     names two things, against R4, and with `b` as a flat the composer would
     write no absolute note.
 
-The open decisions on #7, (a) to (d), are about meaning, and each is checked
-against this catalogue as it is made.
+#7's decisions (a) to (c) are made, as U1 to U3. (d), the motif operators,
+is still open, and is checked against this catalogue when it is made.
