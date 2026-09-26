@@ -37,3 +37,5 @@ Every doc and code area, as a tree. Add a line when you add one.
     `/prototype.html`
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
   deploys `main` to GitHub Pages
+- [`.github/pull_request_template.md`](../.github/pull_request_template.md):
+  the checklist every pull request fills in
