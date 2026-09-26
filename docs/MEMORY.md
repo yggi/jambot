@@ -71,6 +71,17 @@ The full description is in
   "nearest octave" alone made melodies climb forever, so each part now has a
   home range.
 
+### Strudel and the sister projects
+
+- Strudel (`@strudel/*`) is AGPL-3.0-or-later. `@strudel/core` 1.2.6 does
+  not load under Node 22 (a missing `@kabelsalat/web` export); 1.2.5 does.
+- The prototype's Euclid is the Bresenham form, shared with play-aeiou and
+  quintenzirkel; Strudel's differs for many `(k,n)` (#8).
+- Sister projects, all read-only from here: play-aeiou (MIDI instrument),
+  lib-aeiou (shared theory values) and quintenzirkel (circle of fifths).
+  None has Roman numerals, progressions or a text score. What each offers
+  Jambot is in [the survey](log/2026-09-26-sister-projects.md).
+
 ### Terms
 
 - **Root node**: the dedicated main host appliance at an event, and the
