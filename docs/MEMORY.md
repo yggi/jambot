@@ -20,6 +20,8 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
   `lookup('second')`, `lookup('harm minor 5')`. `readings(name)` lists
   every reading of an ambiguous name. The sister projects' names are all in
   `sister-names.test.ts`; a new one goes there first.
+- The theory's core relations, and the test that holds each, are in
+  [`theory.md`](theory.md). A new relation gets its test and its line there.
 - To drive the prototype headless, define `window.__JAMBOT_TEST__` before its
   script runs. It is then called with the internals (`S`, `composeBar`,
   `applyPreset`, `evalMini`, `parseRoman`, `checkOverrides`, …).

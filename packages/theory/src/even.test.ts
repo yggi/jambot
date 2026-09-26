@@ -48,6 +48,19 @@ describe('even', () => {
     }
   });
 
+  it('has for its complement even(n − k, n), shifted: the pentatonic is the black keys', () => {
+    for (const [k, n] of allSizes) {
+      const complement = range(n).filter((x) => !even(k, n).includes(x));
+      const shifts = range(Math.max(n, 1)).filter(
+        (by) => shift(even(n - k, n), by, n).join() === complement.join(),
+      );
+      expect(shifts.length, `${k} of ${n}`).toBeGreaterThan(0);
+    }
+    // The black keys: the complement of C major is F♯ major pentatonic.
+    const cMajor = [0, 2, 4, 5, 7, 9, 11];
+    expect(range(12).filter((x) => !cMajor.includes(x))).toEqual(shift([0, 2, 4, 7, 9], 6, 12));
+  });
+
   it('is the arc stacked from its generator: the circle of fifths for 7 of 12', () => {
     let checked = 0;
     for (const [k, n] of allSizes) {
@@ -61,6 +74,24 @@ describe('even', () => {
     }
     expect(checked).toBeGreaterThan(70);
     expect(generator(7, 12)).toBe(7);
+  });
+});
+
+describe('maximally even sets', () => {
+  it('are all shifts of even(k, n): every subset of every n ≤ 12, checked', () => {
+    let found = 0;
+    for (const n of range(13).filter((x) => x > 0)) {
+      for (let bits = 0; bits < 2 ** n; bits++) {
+        const set = range(n).filter((x) => (bits >> x) & 1);
+        if (!isMaximallyEven(set, n)) continue;
+        found++;
+        const shifts = range(n).filter(
+          (by) => shift(even(set.length, n), by, n).join() === set.join(),
+        );
+        expect(shifts.length, `${set.join()} in ${n}`).toBeGreaterThan(0);
+      }
+    }
+    expect(found).toBe(474);
   });
 });
 

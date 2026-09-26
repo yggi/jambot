@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { degree, nearestDegree } from './degrees.ts';
-import { even } from './even.ts';
+import { even, mod } from './even.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -21,6 +21,48 @@ describe('degree', () => {
     for (const scale of [...modes(7, 12), ...modes(5, 12)]) {
       for (const d of range(40).map((x) => x - 20))
         expect(degree(scale, d + 1)).toBeGreaterThan(degree(scale, d));
+    }
+  });
+});
+
+describe('degree, read as an order', () => {
+  // For every even set and every position p, the degrees at or below p end at
+  // one degree (below) and the degrees at or above p begin at one (above):
+  // degree(d) ≤ p exactly when d ≤ below, and degree(d) ≥ p exactly when
+  // d ≥ above. These are degree's two adjoints (a Galois connection), and
+  // nearestDegree always answers one of them.
+  const cases = range(17).flatMap((n) =>
+    range(n + 1)
+      .filter((k) => k > 0)
+      .map((k) => [k, n] as const),
+  );
+
+  it('has a degree just below and a degree just above every position', () => {
+    for (const [k, n] of cases) {
+      const set = even(k, n);
+      const ds = range(8 * k).map((d) => d - 4 * k);
+      for (const p of range(4 * n + 1).map((x) => x - 2 * n)) {
+        const below = Math.max(...ds.filter((d) => degree(set, d, n) <= p));
+        const above = Math.min(...ds.filter((d) => degree(set, d, n) >= p));
+        for (const d of ds) {
+          expect(degree(set, d, n) <= p, `${k} of ${n}, p ${p}, d ${d}`).toBe(d <= below);
+          expect(degree(set, d, n) >= p, `${k} of ${n}, p ${p}, d ${d}`).toBe(d >= above);
+        }
+        expect([below, above], `${k} of ${n}, p ${p}`).toContain(nearestDegree(set, p, n));
+        expect(above - below, `${k} of ${n}, p ${p}`).toBe(set.includes(mod(p, n)) ? 0 : 1);
+      }
+    }
+  });
+
+  it("gives play-aeiou's degree_of as the degree just above", () => {
+    // degree_of counts the members below the position's class, plus k per cycle.
+    for (const [k, n] of cases) {
+      const set = even(k, n);
+      for (const p of range(4 * n + 1).map((x) => x - 2 * n)) {
+        const degreeOf = k * Math.floor(p / n) + set.filter((x) => x < mod(p, n)).length;
+        expect(degree(set, degreeOf, n), `${k} of ${n}, p ${p}`).toBeGreaterThanOrEqual(p);
+        expect(degree(set, degreeOf - 1, n), `${k} of ${n}, p ${p}`).toBeLessThan(p);
+      }
     }
   });
 });

@@ -17,6 +17,9 @@ Every doc and code area, as a tree. Add a line when you add one.
     chosen
   - [`prototype.md`](prototype.md): what the port keeps and changes, and how
     the port is checked
+  - [`theory.md`](theory.md): the mathematics under `packages/theory`
+    (cycle, ladder, helix, generator, modes, composition), each relation
+    with the test that holds it
   - `briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
 - `prototype/`: the baseline the port is oriented by

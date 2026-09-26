@@ -65,6 +65,16 @@ describe('modes', () => {
     }
   });
 
+  it('lose exactly one from their sum of positions from each mode to the next, for every coprime k of n', () => {
+    // So the order along the generator is the order by the sum, brightest first.
+    const sum = (set: readonly number[]) => set.reduce((a, b) => a + b, 0);
+    for (const [k, n] of coprimeSizes) {
+      const sums = modes(k, n).map(sum);
+      for (const b of range(k - 1)) expect(sums[b]! - sums[b + 1]!, `${k} of ${n}`).toBe(1);
+    }
+    expect(modes(7, 12).map(sum)).toEqual([39, 38, 37, 36, 35, 34, 33]);
+  });
+
   it('get darker one lowered note at a time, for the diatonic modes', () => {
     const all = modes(7, 12);
     for (const b of range(6)) {

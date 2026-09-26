@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHORD_QUALITIES, parseChordQuality, qualityOf, stack } from './chords.ts';
+import { degree } from './degrees.ts';
+import { even, isMaximallyEven, mod } from './even.ts';
 import { partial } from './intervals.ts';
 import { modes } from './modes.ts';
 
@@ -42,6 +44,52 @@ describe('stack', () => {
       expect(tally(3)).toEqual({ major: 3, minor: 3, diminished: 1 });
       expect(tally(4)).toEqual({ maj7: 2, m7: 3, '7': 1, m7b5: 1 });
     }
+  });
+});
+
+/**
+ * Composition: a k-of-m set read as degrees of an m-of-n set gives a k-of-n
+ * set. Degree e of the inner set is placed at degree(outer, e), wrapped.
+ */
+const compose = (inner: readonly number[], outer: readonly number[], n: number) =>
+  inner.map((e) => mod(degree(outer, e, n), n)).sort((a, b) => a - b);
+
+describe('stack, as composition', () => {
+  it('gives every triad and seventh of every diatonic mode as an even set of 7, composed with the mode', () => {
+    for (const mode of modes(7, 12)) {
+      for (const d of range(7)) {
+        for (const size of [3, 4]) {
+          const chord = stack(mode, d, size)
+            .map((x) => mod(x + mode[d]!, 12))
+            .sort((a, b) => a - b);
+          const composed = range(7).map((r) => compose(even(size, 7, r), mode, 12).join());
+          expect(composed, `${mode.join()} degree ${d}, ${size} notes`).toContain(chord.join());
+        }
+      }
+    }
+  });
+
+  it('stops at the ninth: five stacked thirds are not even in 7', () => {
+    expect(isMaximallyEven([0, 2, 4, 6], 7)).toBe(true);
+    expect(isMaximallyEven([0, 1, 2, 4, 6], 7)).toBe(false); // 0 2 4 6 8, wrapped
+  });
+
+  it('does not keep evenness in general: 35 of the 165 compositions of even sets with n ≤ 12 are even', () => {
+    let evenCount = 0;
+    let total = 0;
+    for (let n = 3; n <= 12; n++)
+      for (let m = 2; m < n; m++)
+        for (let k = 2; k < m; k++) {
+          total++;
+          if (isMaximallyEven(compose(even(k, m), even(m, n), n), n)) evenCount++;
+        }
+    expect([evenCount, total]).toEqual([35, 165]);
+    // A triad of the Lydian set, even in 7, is not even in 12.
+    expect(compose(even(3, 7), even(7, 12), 12)).toEqual([0, 6, 9]);
+  });
+
+  it('nests meter the same way: the backbeat is 2 of 4 beats, composed with 4 of 16 steps', () => {
+    expect(compose(even(2, 4, 1), even(4, 16), 16)).toEqual([4, 12]);
   });
 });
 
