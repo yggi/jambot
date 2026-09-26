@@ -285,7 +285,8 @@ ninth sets degree 1 (#38, decided). So the ninth adds no failure of its
 own: a ninth has a scale exactly where its seventh has one, 102 of the 144
 ninths, each a named scale. A V9 of a minor degree keeps its natural 9, so
 V9/ii in C takes A mixolydian ♭13, one note from C major. A tension that
-would put the degrees out of order gives no scale.
+would put the degrees out of order gives no scale, and so do two tensions
+on one degree: the ♯9 of G7♭9♯9 would lose its ♭9.
 
 The candidates are not every scale. Over the named 7-note scales, every
 chord of the grammar is held by one, and 101 of the 528 have one nearer the

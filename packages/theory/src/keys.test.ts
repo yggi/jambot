@@ -304,6 +304,12 @@ describe('chordScale', () => {
     expect(chordScale(cMajor, [0, 4, 7, 10, 15])!.heights).toEqual([0, 3, 4, 5, 7, 9, 10]);
     // A major 7th over C7 would set A to B above B♭: no scale.
     expect(chordScale(cMajor, [0, 4, 7, 10, 23])).toBeUndefined();
+    // G7♭9♯9: the ♭9 sets degree 1 to A♭, and the ♯9 would set it again,
+    // to A♯, losing the A♭. Two tensions on one degree give no scale.
+    expect(chordScale(cMajor, [7, 11, 14, 17, 20, 22])).toBeUndefined();
+    // Two tensions on two degrees are both kept: over G7, the ♭9 sets A to
+    // A♭ and the ♯11 sets C to C♯, G A♭ B C♯ D E F.
+    expect(positions(chordScale(cMajor, [7, 11, 14, 17, 20, 25])!)).toEqual([1, 2, 4, 5, 7, 8, 11]);
     // A stack that doesn't rise is no chord.
     expect(chordScale(cMajor, [0, 4, 14, 7])).toBeUndefined();
   });

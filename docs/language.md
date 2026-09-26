@@ -365,7 +365,8 @@ ninths (3 qualities, 12 roots, the prototype's 4 modes), each a named scale
 (mixolydian 25, aeolian 18, lydian 18, dorian 18, ionian 14, mixolydian ♭6
 9). A V9 of a minor degree keeps its natural 9: V9/ii in C takes A
 mixolydian ♭13. A tension that would put the degrees out of order gives no
-scale, as a major 7th over C7 does.
+scale, as a major 7th over C7 does, and so does one on a degree another
+tension has set, as the ♯9 of G7♭9♯9 would lose its ♭9.
 Counterexample: a ninth whose scale is not its seventh's with degree 1 set,
 or is no named scale. A nearer scale than the helix's is a counterexample to
 the helix's scale, not to the tension's degree, and is filed there (P9).

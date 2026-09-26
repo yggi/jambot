@@ -206,6 +206,33 @@ describe("a bar's chords", () => {
     expect(differ).toBe(true);
   });
 
+  it('each have a name, every chord the composer writes (P2)', () => {
+    // The player names the chord on every step it schedules, so a chord
+    // without a name would stop the band.
+    const unnamed: string[] = [];
+    const named = new Set<string>();
+    const tryName = (chord: BarChord, key: Key) => {
+      const label = `${key.mode} ${key.tonic} ${JSON.stringify(chord.slot)} ${joinChord(chord.chord).join()}`;
+      if (named.has(label)) return;
+      named.add(label);
+      try {
+        chordName(chord, key);
+      } catch {
+        unnamed.push(label);
+      }
+    };
+    for (const [env, chord] of sweep) tryName(chord, env.key);
+    for (const key of keys)
+      for (const target of range(7))
+        for (const harm of harms)
+          for (const seed of range(3)) {
+            const theme = themeOf(key, [[{ step: 8, dominantOf: target }]]);
+            tryName(barChords(envOf({ seed, key, theme, harm }))[0]!, key);
+          }
+    expect(unnamed).toEqual([]);
+    expect(named.size).toBeGreaterThan(1000);
+  });
+
   it('are named as lead sheets name them, spelled in their key (P2)', () => {
     const aMinor: Key = { tonic: 9, mode: 'aeolian' };
     const name = (slot: Slot, harm: number, key = aMinor, next: Slot = { step: 0, degree: 0 }) =>

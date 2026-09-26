@@ -94,8 +94,9 @@ export function chordScale(key: Helix, stack: readonly number[]): Helix | undefi
   const chord = splitChord(stack, key.cycle);
   if (!chord) return undefined;
   let scale = helixScale(key, chord.helix.heights);
+  const set = new Set<number>();
   for (const tension of chord.tensions)
-    scale = scale && withTension(scale, chord.helix.heights.length, tension);
+    scale = scale && withTension(scale, chord.helix.heights.length, tension, set);
   return scale;
 }
 
@@ -124,10 +125,16 @@ function helixScale(key: Helix, chord: readonly number[]): Helix | undefined {
 /**
  * The scale with a tension set on its own degree: the nearest degree the
  * chord's `sounded` tones (degrees 0, 2, 4, …) leave free, ties going down.
- * A tension already in the scale changes nothing; one that would leave the
- * degrees out of order gives no scale.
+ * A tension already in the scale changes nothing. One that would leave the
+ * degrees out of order gives no scale, and so does one on a degree an
+ * earlier tension has `set`, which would lose that tension: G7♭9♯9.
  */
-function withTension(scale: Helix, sounded: number, tension: number): Helix | undefined {
+function withTension(
+  scale: Helix,
+  sounded: number,
+  tension: number,
+  set: Set<number>,
+): Helix | undefined {
   const { cycle, heights } = scale;
   const k = heights.length;
   if (positions(scale).includes(wrap(tension, cycle))) return scale;
@@ -138,10 +145,13 @@ function withTension(scale: Helix, sounded: number, tension: number): Helix | un
   let up = below + 1;
   while (!free(up)) up++;
   if (heightOf(scale, up) - tension < tension - heightOf(scale, d)) d = up;
-  const set = [...heights];
-  set[mod(d, k)] = tension - cycle * Math.floor(d / k);
-  const rising = set.every((x, i) => i === 0 || x > set[i - 1]!) && set[k - 1]! - set[0]! < cycle;
-  return rising ? { cycle, heights: set } : undefined;
+  if (set.has(mod(d, k))) return undefined;
+  set.add(mod(d, k));
+  const moved = [...heights];
+  moved[mod(d, k)] = tension - cycle * Math.floor(d / k);
+  const rising =
+    moved.every((x, i) => i === 0 || x > moved[i - 1]!) && moved[k - 1]! - moved[0]! < cycle;
+  return rising ? { cycle, heights: moved } : undefined;
 }
 
 /**
