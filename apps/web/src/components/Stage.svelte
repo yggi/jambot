@@ -1,7 +1,7 @@
 <!--
   The stage: where the music is, as heard. The section, the bar in it and
   the key; the chord sounding, large, with its numeral; the beats of the bar
-  so far; the song map; and the next four bars. Before anything is heard it shows the bar
+  so far; the song map; the next four bars; and what the lead is doing. Before anything is heard it shows the bar
   the band opens on.
 -->
 <script lang="ts">
@@ -18,6 +18,10 @@
   let { hud, playing }: Props = $props();
 
   const heard = $derived(hud.beat !== null);
+  const lead = $derived.by(() => {
+    if (!heard || !hud.bar) return 'The band plays on its own once started.';
+    return hud.bar.lead === 'resting' ? 'Lead is resting.' : 'Lead is improvising.';
+  });
 </script>
 
 <section class="stage" aria-label="Conductor">
@@ -50,6 +54,7 @@
       <NextBars before={hud.bar} bars={hud.next} />
     </div>
   {/if}
+  <p class="lead" aria-live="polite">{lead}</p>
 </section>
 
 <style>
@@ -89,6 +94,10 @@
   .numeral {
     font-weight: 500;
     font-size: clamp(22px, 6vw, 34px);
+    color: var(--muted);
+  }
+  .lead {
+    font-size: 14px;
     color: var(--muted);
   }
   .caption {

@@ -28,6 +28,7 @@ import { type Chord, even, heightOf, joinChord, positions, wrap } from '@jambot/
 import type { BarEnv } from './bar.ts';
 import { chordAt } from './chords.ts';
 import type { WrittenNote } from './events.ts';
+import type { SectionType } from './form.ts';
 import { keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick, quantize } from './random.ts';
@@ -192,12 +193,17 @@ function intoRange(notes: readonly number[]): number[] {
   });
 }
 
+/** Whether the lead rests in a bar: in an intro, a breakdown, and below energy 0.4. */
+export function leadRests(section: SectionType, barEnergy: number): boolean {
+  return barEnergy < 0.4 || section === 'breakdown' || section === 'intro';
+}
+
 export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
   initial: { last: 69, phrase: null, melodies: {} },
   advance(env, carried) {
     const { seed, bar, plan, style, barEnergy: energy, barInSection, chords } = env;
     const { section, key, theme } = plan;
-    if (energy < 0.4 || section.type === 'breakdown' || section.type === 'intro')
+    if (leadRests(section.type, energy))
       return { carried: { ...carried, phrase: null }, output: [] };
 
     const phase = barInSection % 4;

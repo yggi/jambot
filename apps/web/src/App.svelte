@@ -1,5 +1,6 @@
 <script lang="ts">
   import Stage from './components/Stage.svelte';
+  import KeyPicker from './components/KeyPicker.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import Transport from './components/Transport.svelte';
   import { Player } from './player.svelte.ts';
@@ -26,6 +27,8 @@
     style={player.hud.style}
     onintent={(intent) => player.apply(intent)}
   />
+
+  <KeyPicker heading={player.hud.heading} onintent={(intent) => player.apply(intent)} />
 
   <Stage hud={player.hud} playing={player.playing} />
 

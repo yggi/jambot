@@ -10,6 +10,7 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   key: 'A aeolian',
   chords: [{ step: 0, symbol: 'Am', numeral: 'i' }],
   energy: 0.5,
+  lead: 'improvising',
   ...over,
 });
 
