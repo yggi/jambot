@@ -239,6 +239,60 @@ describe('chordScale', () => {
       m9: 16,
     });
   });
+
+  it("gives a ninth its seventh's scale with the 9 set in 89 of the 92 it finds a scale for; the other 3 change one note more (#38, P7)", () => {
+    // Measures the claim: a tension sets its own degree of the scale the
+    // chord below it implies. The seventh's scale with degree 1 set to the
+    // major ninth, where that is still a scale, against chordScale's search.
+    const sevenths: Record<string, string> = { '9': '7', maj9: 'maj7', m9: 'm7' };
+    const changed = (key: Helix, scale: Helix) =>
+      positions(key).filter((x) => !positions(scale).includes(x)).length;
+    const counts = { agree: 0, nearer: 0, gained: 0, none: 0 };
+    const nearer: string[] = [];
+    const gained: string[] = [];
+    for (const [modeName, mode] of Object.entries(PROTOTYPE_MODES)) {
+      const key = diatonicMode(mode);
+      for (const root of range(12))
+        for (const [ninth, seventh] of Object.entries(sevenths)) {
+          const label = `${modeName}: ${root} ${ninth}`;
+          const searched = chordScale(key, chordOn(root, ninth));
+          const below = chordScale(key, chordOn(root, seventh));
+          const heights = below && [below.heights[0]!, root + 2, ...below.heights.slice(2)];
+          const derived: Helix | undefined =
+            heights && heights[1]! > heights[0]! && heights[2]! > heights[1]!
+              ? { cycle: 12, heights }
+              : undefined;
+          if (!searched && !derived) counts.none++;
+          else if (!searched) {
+            counts.gained++;
+            gained.push(label);
+          } else if (positions(searched).join() === positions(derived!).join()) counts.agree++;
+          else {
+            expect(changed(key, derived!), label).toBe(changed(key, searched) - 1);
+            counts.nearer++;
+            nearer.push(label);
+          }
+        }
+    }
+    expect(counts).toEqual({ agree: 89, nearer: 3, gained: 10, none: 42 });
+    // D9 in C minor and C dorian, and G9 in C minor: the target's melodic
+    // minor, which chordScale doesn't try, holds them one note nearer.
+    expect(nearer).toEqual(['minor: 2 9', 'minor: 7 9', 'dorian: 2 9']);
+    // Among them every V9 of a minor degree that the prototype plays: A9, B9
+    // and E9 in C major, A9 in C dorian, A9 and E9 in C mixolydian.
+    expect(gained).toEqual([
+      'minor: 11 m9',
+      'dorian: 9 9',
+      'dorian: 11 m9',
+      'major: 4 9',
+      'major: 9 9',
+      'major: 11 9',
+      'major: 11 m9',
+      'mixolydian: 4 9',
+      'mixolydian: 9 9',
+      'mixolydian: 11 m9',
+    ]);
+  });
 });
 
 describe('spelledTonic', () => {

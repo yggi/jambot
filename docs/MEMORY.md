@@ -122,9 +122,14 @@ The full description is in
 - Layers refer upward: pitch is relative to the chord, the chord to the key,
   the key to the section. Only compiled events are absolute.
 - `harm`: Roman numerals in the bar's key (minor, dorian, major, mixolydian),
-  with `° ø + 7 maj7 9 maj9`, borrowed `b`/`#` and secondaries `V7/iv`.
-- `bass`, `lead`: interval numbers from the chord root. `1 3 5 7 9` are chord
-  tones, `2 4 6` the scale tones between, and `b`/`#` alter them. A note goes
+  with `° ø + 7 maj7 9 maj9`, borrowed `b`/`#` and secondaries `V7/iv`. A `9`
+  is a tension on the seventh: a chord is a helix of one turn plus the
+  tensions above it (#38).
+- `bass`, `lead`: interval numbers from the chord root, counting degrees of
+  the scale the chord implies. `1 3 5 7` name the chord's helix and `9` a
+  tension over it, `2 4 6` are the scale tones between, and `b`/`#` alter
+  them. A number sounds whether or not the chord holds it, as `7` does over
+  a triad. A note goes
   to the octave nearest the previous one, `^`/`v` force the direction, then
   it folds into the part's range (bass 33–57, lead 60–88, or `range=lo-hi`).
   Absolute notes such as `a4` are an escape hatch.
