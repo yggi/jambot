@@ -139,17 +139,19 @@ Every doc and code area, as a tree. Add a line when you add one.
         and a line saying where the style is: a preset playing, a glide
         under way, or a custom style
       - `src/components/Stage.svelte`: the section, the bar in it, the key,
-        the chord heard with its numeral, and the beats; before the start,
-        the bar the band opens on
+        the chord heard with its numeral, the beats, the song map and the
+        next four bars; before the start, the bar the band opens on
       - `src/components/NextBars.svelte`: the next four bars, with cues
         where the section or the key changes
+      - `src/components/SongMap.svelte`: the section playing and the three
+        after it, their bars as tall as their energy, and their chord loops
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start. It keeps the
       bars decided ahead and shows everything through one snapshot, `hud`
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
-      ahead as `BarView`s, the chord sounding, and the style's preset and
-      glide, as plain data
+      ahead as `BarView`s and the song map's sections of them, the chord
+      sounding, and the style's preset and glide, as plain data
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/audio/output.ts`: what the player plays on, and the Web Audio
       one

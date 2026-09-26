@@ -13,7 +13,7 @@ import {
   keyName,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { NEXT_BARS, hudOf, presetOf } from './hud.ts';
+import { NEXT_BARS, SECTIONS, hudOf, presetOf } from './hud.ts';
 
 const techno = PRESETS.find((p) => p.name === 'Techno')!;
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
@@ -86,6 +86,52 @@ describe('the view model', () => {
     expect(hud.bar).toBeNull();
     expect(hud.chord).toBeNull();
     expect(hud.next).toEqual([]);
+  });
+});
+
+describe('the song map', () => {
+  const long = forecast(env, null, 48);
+
+  it('shows four whole sections from the one heard, each with its eight bars', () => {
+    expect(SECTIONS).toBe(4);
+    const hud = hudOf({ heard: 16 * 10 + 3, bars: long, track });
+    expect(hud.sections.map((s) => s.index)).toEqual([1, 2, 3, 4]);
+    hud.sections.forEach((section, k) => {
+      expect(section.bars.map((b) => b.bar)).toEqual(
+        [0, 1, 2, 3, 4, 5, 6, 7].map((i) => (k + 1) * 8 + i),
+      );
+      for (const b of section.bars) {
+        expect(b.section).toBe(section.section);
+        expect(b.key).toBe(section.key);
+      }
+    });
+    // The section heard shows its bars already played.
+    expect(hud.sections[0]!.bars[0]).toEqual(hudOf({ heard: 16 * 8, bars: long, track }).bar);
+  });
+
+  it('opens on the song’s first four sections before anything is heard', () => {
+    const hud = hudOf({ heard: null, bars, track });
+    expect(hud.sections.map((s) => s.index)).toEqual([0, 1, 2, 3]);
+    expect(hud.sections[0]!.section).toBe('Intro');
+  });
+
+  it('leaves out a section the bars do not reach in full', () => {
+    const hud = hudOf({ heard: 16 * 10, bars, track });
+    expect(hud.sections.map((s) => s.index)).toEqual([1, 2, 3]);
+  });
+
+  it('marks a section whose key differs from the one before it, but never the one heard', () => {
+    const d = { tonic: 2, mode: 'dorian' } as const;
+    const moved = long.map((b) => (b.bar >= 16 ? { ...b, plan: { ...b.plan, key: d } } : b));
+    const hud = hudOf({ heard: 16 * 9, bars: moved, track });
+    expect(hud.sections.map((s) => [s.key, s.newKey])).toEqual([
+      ['A aeolian', false],
+      ['D dorian', true],
+      ['D dorian', false],
+      ['D dorian', false],
+    ]);
+    const later = hudOf({ heard: 16 * 16, bars: moved, track });
+    expect(later.sections[0]!.newKey).toBe(false);
   });
 });
 

@@ -1,12 +1,13 @@
 <!--
   The stage: where the music is, as heard. The section, the bar in it and
   the key; the chord sounding, large, with its numeral; the beats of the bar
-  so far; and the next four bars. Before anything is heard it shows the bar
+  so far; the song map; and the next four bars. Before anything is heard it shows the bar
   the band opens on.
 -->
 <script lang="ts">
   import type { Hud } from '../hud.ts';
   import NextBars from './NextBars.svelte';
+  import SongMap from './SongMap.svelte';
 
   interface Props {
     hud: Hud;
@@ -40,6 +41,9 @@
       <i class:on={hud.beat !== null && beat <= hud.beat}></i>
     {/each}
   </div>
+  {#if hud.sections.length > 0}
+    <SongMap sections={hud.sections} bar={heard ? (hud.bar?.bar ?? null) : null} />
+  {/if}
   {#if hud.bar && hud.next.length > 0}
     <div>
       <p class="caption">Next four bars</p>

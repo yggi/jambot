@@ -36,11 +36,15 @@ import {
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
-import { type Hud, hudOf } from './hud.ts';
+import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { startTicker } from './ticker.ts';
 
-/** How many bars ahead the player keeps decided. */
-export const FORECAST_BARS = 32;
+/**
+ * How many bars ahead the player keeps decided: the song map's sections, and
+ * one more, since the bars are decided while the head is still in the bar
+ * before the one that may start the section heard next.
+ */
+export const FORECAST_BARS = (SECTIONS + 1) * 8;
 
 export type Status = 'stopped' | 'starting' | 'playing';
 
@@ -81,7 +85,7 @@ export class Player {
   #stopTicker: (() => void) | null = null;
   #stopFrames: (() => void) | null = null;
   #heard = new Heard<number>();
-  /** The bars decided, from the one heard on. */
+  /** The bars decided, from the first of the section heard on. */
   #bars: readonly ForecastBar[] = $state.raw([]);
   /** The bar the transport composes next, when the bars were last decided. */
   #decidedAt = -1;
@@ -149,14 +153,16 @@ export class Player {
 
   /**
    * Decide the bars ahead again: from the transport while it plays, and from
-   * the song's start while it doesn't. The bar before the first composed
-   * one is kept, as it may still be heard.
+   * the song's start while it doesn't. The bars before the first composed
+   * one are kept from the start of its section, as the bar before may still
+   * be heard and the song map shows its section whole.
    */
   #decide() {
     const carried = this.status === 'playing' ? this.#carried : null;
     const fresh = forecast(this.#env, carried, FORECAST_BARS);
     const first = fresh[0]?.bar ?? 0;
-    const kept = carried ? this.#bars.filter((b) => b.bar === first - 1) : [];
+    const from = Math.floor((first - 1) / 8) * 8;
+    const kept = carried ? this.#bars.filter((b) => b.bar >= from && b.bar < first) : [];
     this.#bars = [...kept, ...fresh];
     this.#decidedAt = carried?.nextBar ?? -1;
   }

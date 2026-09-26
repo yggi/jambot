@@ -250,4 +250,28 @@ describe('the player', () => {
     }
     expect(bars).toBeGreaterThan(3);
   });
+
+  it('shows the section playing whole in the song map, its past bars included', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    void player.start();
+    world.resolve();
+    await settle();
+    let checked = 0;
+    for (let t = 0; t < 30; t += 0.025) {
+      world.currentTime += 0.025;
+      world.tickers[0]!.tick();
+      world.frames[0]!.follow();
+      const { bar, beat, sections } = player.hud;
+      if (beat === null) continue;
+      expect(sections.map((s) => s.index)).toEqual(
+        [0, 1, 2, 3].map((k) => k + Math.floor(bar!.bar / 8)),
+      );
+      expect(sections[0]!.bars).toHaveLength(8);
+      checked++;
+    }
+    // Synth-pop at 108 bpm: 30 s is into the second section.
+    expect(player.hud.bar!.bar).toBeGreaterThan(8);
+    expect(checked).toBeGreaterThan(500);
+  });
 });

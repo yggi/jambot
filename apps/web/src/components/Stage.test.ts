@@ -19,6 +19,7 @@ const heard: Hud = {
   beat: 2,
   chord: groove.chords[0]!,
   next: [bar(10), bar(11), bar(12), bar(13)],
+  sections: [],
   style,
 };
 const opening = bar(0, { section: 'Intro', chords: [{ step: 0, symbol: 'Am', numeral: 'i' }] });
@@ -27,6 +28,7 @@ const idle: Hud = {
   beat: null,
   chord: opening.chords[0]!,
   next: [bar(1), bar(2), bar(3), bar(4)],
+  sections: [],
   style,
 };
 
@@ -60,5 +62,21 @@ describe('the stage', () => {
     render(Stage, { hud: heard, playing: true });
     expect(screen.getByText('Next four bars')).toBeInTheDocument();
     expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(4);
+  });
+
+  it('shows the song map, ringing the bar heard once something is', () => {
+    const sections = [0, 1, 2, 3].map((index) => ({
+      index: index + 1,
+      section: 'Groove',
+      key: 'A aeolian',
+      newKey: false,
+      bars: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => bar((index + 1) * 8 + i)),
+    }));
+    const playing = render(Stage, { hud: { ...heard, sections }, playing: true });
+    expect(screen.getByRole('list', { name: /Song plan/ })).toBeInTheDocument();
+    expect(playing.container.querySelectorAll('.bars i.cur')).toHaveLength(1);
+    playing.unmount();
+    const waiting = render(Stage, { hud: { ...idle, sections }, playing: true });
+    expect(waiting.container.querySelectorAll('.bars i.cur')).toHaveLength(0);
   });
 });

@@ -6,9 +6,10 @@
  * another screen: names as text, spelled in their key, and quantities as
  * numbers. The components lay it out and read nothing else.
  *
- * Every bar is shown the same way, whether it is heard or ahead: a
- * `BarView`. Before anything is heard, the bar shown is the one the band
- * opens on, from the same forecast that then plays.
+ * Every bar is shown the same way, whether it is heard, ahead or in the
+ * song map: a `BarView`, and a section is its eight. Before anything is
+ * heard, the bar shown is the one the band opens on, from the same
+ * forecast that then plays.
  *
  * A style is named by the preset it matches on every axis the preset sets
  * but energy, which a player rides within a genre. So the name follows the
@@ -33,6 +34,9 @@ import {
 /** How many bars after the one heard are shown. */
 export const NEXT_BARS = 4;
 
+/** How many sections the song map shows, from the one heard. */
+export const SECTIONS = 4;
+
 export interface ChordView {
   /** The step of its bar it starts on. */
   readonly step: number;
@@ -52,6 +56,16 @@ export interface BarView {
   readonly chords: readonly ChordView[];
   /** The energy it plays at, 0 to 1. */
   readonly energy: number;
+}
+
+export interface SectionView {
+  /** Counted from the song's start. */
+  readonly index: number;
+  readonly section: string;
+  readonly key: string;
+  /** Whether its key differs from the section's before it; never for the section heard. */
+  readonly newKey: boolean;
+  readonly bars: readonly BarView[];
 }
 
 /** A glide between styles under way: the preset it left, if any, and its bar heard, from 1, of how many. */
@@ -76,13 +90,15 @@ export interface Hud {
   readonly chord: ChordView | null;
   /** The bars after it, up to `NEXT_BARS`. */
   readonly next: readonly BarView[];
+  /** Its section and those after, up to `SECTIONS`, as far as the bars reach them in full. */
+  readonly sections: readonly SectionView[];
   readonly style: StyleView;
 }
 
 export interface HudInput {
   /** The step heard, or null before anything is. */
   readonly heard: number | null;
-  /** The bars decided, from the one heard on (`forecast`). */
+  /** The bars decided, from the first of the section heard on (`forecast`). */
   readonly bars: readonly ForecastBar[];
   readonly track: StyleTrack;
 }
@@ -117,8 +133,29 @@ export function hudOf({ heard, bars, track }: HudInput): Hud {
     beat: heard === null ? null : Math.floor(step / 4),
     chord: here && sounding ? chordView(sounding, here) : null,
     next: here ? bars.slice(at + 1, at + 1 + NEXT_BARS).map(barView) : [],
+    sections: here ? sectionViews(bars, Math.floor(here.bar / 8)) : [],
     style: styleView(track, heard ?? 0),
   };
+}
+
+/** The sections from `first` on, as far as the bars hold all eight of each. */
+function sectionViews(bars: readonly ForecastBar[], first: number): SectionView[] {
+  const byBar = new Map(bars.map((b) => [b.bar, b]));
+  const sections: SectionView[] = [];
+  for (let index = first; sections.length < SECTIONS; index++) {
+    const own = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => byBar.get(index * 8 + i));
+    if (!own.every((b) => b !== undefined)) break;
+    const views = own.map(barView);
+    const before = sections.at(-1);
+    sections.push({
+      index,
+      section: views[0]!.section,
+      key: views[0]!.key,
+      newKey: before !== undefined && before.key !== views[0]!.key,
+      bars: views,
+    });
+  }
+  return sections;
 }
 
 function chordView(

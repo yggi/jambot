@@ -87,6 +87,10 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
   chord note a triangle beside a sine 0.3 % sharp. A new voice keeps these
   apart or updates `band.e2e.ts`.
+- Section names appear twice on the page, on the stage and in the song
+  map, which names them before anything is heard. So a check that the
+  screen follows what is heard looks for `Bar n of 8`, which only the stage
+  shows.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A
   bar's chords come from its theme's slots (`barChords`); their colour
