@@ -52,18 +52,24 @@ const octatonic = even(8, 12);
 /**
  * Canonical names first, then the aliases. The aliases in capitals are
  * play-aeiou's panel shorts, where they are not already an abbreviation (see
- * `normalizeWords`: `DIM` is "diminished").
+ * `normalizeWords`: `DIM` is "diminished"). The aliases hold every name
+ * tonal has for these sets, except two that are something else here
+ * (second-opinion.test.ts).
  */
 export const SCALES: Record<string, NamedScale> = {
   ...diatonic,
   ...modesOf(modes(5, 12)[4]!, true, [
     ['major pentatonic', ['pentatonic', 'pentatonic major', 'PENT']],
     ['suspended pentatonic', ['suspended', 'egyptian']],
-    ['man gong', ['MGNG']],
-    ['ritsusen', ['RITS']],
-    ['minor pentatonic', ['pentatonic minor', 'MPEN']],
+    ['man gong', ['malkos raga', 'MGNG']],
+    ['ritsusen', ['ritusen', 'RITS']],
+    ['minor pentatonic', ['pentatonic minor', 'vietnamese 2', 'MPEN']],
   ]),
-  'whole tone': { set: even(6, 12), even: true, aliases: ['wholetone', 'WTON'] },
+  'whole tone': {
+    set: even(6, 12),
+    even: true,
+    aliases: ['wholetone', "messiaen's mode #1", 'WTON'],
+  },
   chromatic: { set: even(12, 12), even: true, aliases: ['CHR'] },
   diminished: {
     set: octatonic,
@@ -73,7 +79,7 @@ export const SCALES: Record<string, NamedScale> = {
   'half whole diminished': {
     set: shift(octatonic, -2, 12),
     even: true,
-    aliases: ['half whole', 'dominant diminished', 'octatonic', 'HWD'],
+    aliases: ['half whole', 'dominant diminished', 'octatonic', "messiaen's mode #2", 'HWD'],
   },
   ...modesOf([0, 3, 5, 6, 7, 10], false, [
     ['blues', ['minor blues', 'BLUE']],
@@ -81,21 +87,31 @@ export const SCALES: Record<string, NamedScale> = {
   ]),
   ...modesOf(harmonicMinor, false, [
     ['harmonic minor', ['HMIN']],
-    ['locrian natural 6', ['LOC6']],
-    ['ionian #5', ['ionian augmented', 'ION5']],
-    ['dorian #4', ['ukrainian dorian', 'DOR4']],
-    ['phrygian dominant', ['spanish phrygian', 'PDOM']],
-    ['lydian #2', ['LYD2']],
-    ['ultralocrian', ['altered diminished', 'ULOC']],
+    ['locrian natural 6', ['locrian 6', 'locrian #6', 'LOC6']],
+    ['ionian #5', ['ionian augmented', 'major augmented', 'major #5', 'ION5']],
+    ['dorian #4', ['ukrainian dorian', 'romanian minor', 'altered dorian', 'DOR4']],
+    ['phrygian dominant', ['spanish phrygian', 'spanish', 'phrygian major', 'PDOM']],
+    ['lydian #2', ['lydian #9', 'LYD2']],
+    ['ultralocrian', ['altered diminished', 'superlocrian bb7', 'superlocrian diminished', 'ULOC']],
   ]),
   ...modesOf(melodicMinor, false, [
     ['melodic minor', ['jazz minor', 'MMIN']],
-    ['dorian b2', ['phrygian natural 6', 'DOR2']],
+    ['dorian b2', ['phrygian natural 6', 'phrygian #6', 'melodic minor second mode', 'DOR2']],
     ['lydian augmented', ['lydian #5', 'LYD+']],
-    ['lydian dominant', ['acoustic', 'overtone', 'LDOM']],
-    ['mixolydian b6', ['aeolian dominant', 'MIX6']],
-    ['locrian natural 2', ['aeolian b5', 'LOC2']],
-    ['altered', ['super locrian', 'superlocrian', 'altered dominant', 'ALT']],
+    ['lydian dominant', ['acoustic', 'overtone', 'lydian b7', 'LDOM']],
+    ['mixolydian b6', ['aeolian dominant', 'hindu', 'melodic minor fifth mode', 'MIX6']],
+    ['locrian natural 2', ['aeolian b5', 'locrian #2', 'LOC2']],
+    [
+      'altered',
+      [
+        'super locrian',
+        'superlocrian',
+        'altered dominant',
+        'diminished whole tone',
+        'pomeroy',
+        'ALT',
+      ],
+    ],
   ]),
   augmented: { set: [0, 3, 4, 7, 8, 11], even: false, aliases: [] },
 };
@@ -116,7 +132,8 @@ export function parseScaleName(text: string): string | undefined {
  * A scale by name, or a scale and a number: "harmonic minor 5" is its fifth
  * mode, the scale re-rooted on its fifth note, as play-aeiou numbers them. A
  * mode is called by its own name when its set has one ("major 2" is dorian),
- * and by the scale's name and the number otherwise ("blues 3").
+ * and by the scale's name and the number otherwise ("blues 3"). A name wins
+ * over a number: "locrian 6" is locrian ♮6, as it is usually named.
  */
 export function parseScale(text: string): { name: string; set: readonly number[] } | undefined {
   const name = parseScaleName(text);

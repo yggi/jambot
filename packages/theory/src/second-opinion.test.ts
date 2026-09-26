@@ -10,7 +10,10 @@
 import { Chord, Mode, Note, RhythmPattern, Scale, ScaleType } from 'tonal';
 import { describe, expect, it } from 'vitest';
 import { even, isMaximallyEven, shift } from './even.ts';
+import { lookup } from './lookup.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
+import { SCALES } from './scales.ts';
+import { normalizeWords } from './words.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -103,5 +106,38 @@ describe('tonal as a second opinion', () => {
         expect(onsets).toEqual(even(k, n));
       }
     }
+  });
+
+  it('means the same set by every scale name the two share', () => {
+    const tonalByName = new Map<string, string>();
+    for (const type of ScaleType.all())
+      for (const name of [type.name, ...type.aliases])
+        tonalByName.set(normalizeWords(name), setOfChroma(type.chroma).join());
+    const shared = Object.entries(SCALES).flatMap(([name, scale]) =>
+      [name, ...scale.aliases]
+        .filter((alias) => tonalByName.has(normalizeWords(alias)))
+        .map((alias) => [alias, scale.set.join()] as const),
+    );
+    expect(shared).toHaveLength(66);
+    for (const [alias, set] of shared)
+      expect(tonalByName.get(normalizeWords(alias)), alias).toBe(set);
+  });
+
+  it('reads every name tonal has for a scale we name, as that scale', () => {
+    // Two of tonal's names are something else here: "dominant" is a degree
+    // and a chord, and "half-diminished" is a chord.
+    const elsewhere = ['dominant', 'half-diminished'];
+    const ours = new Set(Object.values(SCALES).map((scale) => scale.set.join()));
+    const read: string[] = [];
+    for (const type of ScaleType.all()) {
+      const set = setOfChroma(type.chroma);
+      if (!ours.has(set.join())) continue;
+      for (const name of [type.name, ...type.aliases].filter((n) => !elsewhere.includes(n))) {
+        const reading = lookup(name, { kind: 'scale' });
+        expect(reading.kind === 'scale' && reading.set, name).toEqual(set);
+        read.push(name);
+      }
+    }
+    expect(read.length).toBeGreaterThan(50);
   });
 });

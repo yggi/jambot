@@ -109,6 +109,11 @@ describe('parseScale', () => {
     expect(parseScale('lydian')).toEqual({ name: 'lydian', set: SCALES['lydian']!.set });
   });
 
+  it('reads a name before a number: "locrian 6" is locrian natural 6, not the sixth mode of locrian', () => {
+    expect(parseScale('locrian 6')!.name).toBe('locrian natural 6');
+    expect(parseScale('locrian 5')!.name).toBe('lydian'); // a number where no name is in the way
+  });
+
   it('rejects a mode the scale does not have', () => {
     for (const text of ['blues 0', 'blues 7', 'chromatic 13', 'sparkly 2', '3'])
       expect(parseScale(text), text).toBeUndefined();

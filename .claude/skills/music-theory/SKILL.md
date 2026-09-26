@@ -58,14 +58,15 @@ behaviour: fix the script before trusting any other answer.
 | Note names, with octaves (C4 = 60)         | 117 / 117 |                                           |
 | Diatonic scales, 4 tonics × 7 modes        | 28 / 28   |                                           |
 | Stacked thirds per mode (triads, sevenths) | 14 / 14   |                                           |
-| Chord symbols, 52 symbols × 4 roots        | 108 / 208 | only one side reads the rest; none differ |
+| Chord symbols, 55 symbols × 4 roots        | 108 / 220 | only one side reads the rest; none differ |
 | Roman numerals, 31 figures × 4 keys        | 56 / 124  | three conventions, below                  |
 | Root of a set of notes                     | 8 / 12    | inversions, sus chords, diminished chords |
 
-On chord symbols the two cover each other: of the 52 symbols Jambot names
-(the table in #30), 27 are read by both, 13 only by tonal (`-`, `°`, `Δ`,
+On chord symbols the two cover each other: of the 55 symbols Jambot names
+(`CHORD_QUALITIES`), 27 are read by both, 13 only by tonal (`-`, `°`, `Δ`,
 `ø`, `maj9`, `mMaj7`, …), 7 only by music21 (`dom7`, `min6`, `ø7`, `M9`, …),
-and 5 by neither (`maj6`, `Δ7`, `m(maj7)`, `minMaj7`, `m7♭5`).
+and 8 by neither (`maj6`, `Δ7`, `m(maj7)`, `minMaj7`, `m7♭5`, and the classical
+`Mm7`, `mm7`, `MM7`).
 
 **Roman numerals follow three conventions**, and Jambot's prototype
 (`parseRoman`) matches neither library throughout:

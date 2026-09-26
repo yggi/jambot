@@ -5,12 +5,14 @@
  * Run with `node .claude/skills/music-theory/compare.mjs [--all]`. `--all`
  * lists every disagreement, not only the first few per kind. The queries are
  * Jambot's vocabulary: the prototype's Roman numerals in its four modes, and
- * the chord symbols Jambot names (the table in #30).
+ * every chord symbol in `CHORD_QUALITIES`, read from the theory package (Node
+ * runs its TypeScript directly).
  */
 
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CHORD_QUALITIES } from '../../../packages/theory/src/chords.ts';
 import { ask } from './tonal.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -35,14 +37,8 @@ function music21(command, args) {
 const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const ACCIDENTALS = ['', '#', 'b', '##', 'bb', 'x', '♯', '♭'];
 const MODES = ['lydian', 'major', 'mixolydian', 'dorian', 'minor', 'phrygian', 'locrian'];
-const CHORD_SYMBOLS = [
-  ...['', 'maj', 'M', 'm', 'min', '-', 'dim', '°', 'o', 'aug', '+'],
-  ...['sus2', 'sus4', 'sus', '5', '6', 'maj6', 'm6', 'min6', '-6'],
-  ...['7', 'dom7', 'maj7', 'M7', 'Δ', 'Δ7', 'ma7', 'm7', 'min7', '-7'],
-  ...['mMaj7', 'm(maj7)', 'mM7', 'minMaj7'],
-  ...['m7b5', 'm7♭5', 'ø', 'ø7', 'min7b5', '-7b5', 'dim7', '°7', 'o7'],
-  ...['9', 'dom9', 'maj9', 'M9', 'Δ9', 'm9', 'min9', '-9', 'add9'],
-];
+/** Every chord symbol Jambot reads, from the theory package itself. */
+const CHORD_SYMBOLS = Object.values(CHORD_QUALITIES).flatMap((quality) => quality.symbols);
 const ROMANS = [
   ...['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', 'i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII'],
   ...['bII', 'bIII', 'bVI', 'bVII', '#IV', 'III+'],
