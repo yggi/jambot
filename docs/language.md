@@ -260,10 +260,10 @@ seventh has one, and a V9 of a minor degree keeps its natural 9: V9/ii in C
 takes A mixolydian ♭13.
 Counterexample: a chord whose tension's scale is not a scale, or a nearer
 scale that holds the chord.
-Test: `keys.test.ts`, "gives a ninth its seventh's scale with the 9 set …
-(#38, P7)". `chordScale`, which still searches five-note stacks, agrees in
-89, finds a scale one note farther in 3 and none in 10.
-Source: #38. Status: decided; measured, failing in `chordScale` (13 of 144).
+Test: `keys.test.ts`, whose test of a ninth's scale cites P7. `chordScale`,
+which still searches five-note stacks, agrees in 89, finds a scale one note
+farther in 3 and none in 10.
+Source: #38. Status: decided; measured, failing (chordScale, 13 of 144).
 Lands in: #37 step 4, where `chordScale` takes the chord type.
 
 **P8. The baseline hears a chord only as pitch classes: register above the
