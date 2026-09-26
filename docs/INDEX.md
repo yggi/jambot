@@ -17,6 +17,11 @@ Every doc and code area, as a tree. Add a line when you add one.
     chosen
   - [`prototype.md`](prototype.md): what the port keeps and changes, and how
     the port is checked
+  - [`language.md`](language.md): the language design (#7) as a negative
+    shape: the catalogue of constraints on Jambot's internal musical
+    expression, each a claim with a witness, a counterexample and a test;
+    tensions, candidates, experiments, and the names functional programming
+    and category theory give its shapes
   - [`ratchet.md`](ratchet.md): how a working track and a negative track
     drive each other, with tests as the pawl (#37 and #7)
   - [`theory.md`](theory.md): the mathematics under `packages/theory`
@@ -30,6 +35,9 @@ Every doc and code area, as a tree. Add a line when you add one.
     threads
   - [`jambot-prototype.html`](../prototype/jambot-prototype.html): the
     playable single-file prototype
+  - `experiments/`: measurements on the prototype for the language design
+    - [`cold-warm.mjs`](../prototype/experiments/cold-warm.mjs): E1, whether
+      a bar's text is self-contained
 - `packages/`
   - `theory/`: music theory on one primitive, pure TypeScript (#28)
     - `src/helix.ts`: the `Helix`, its two views (`positions`, `heightOf`,
