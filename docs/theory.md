@@ -216,11 +216,19 @@ n ≤ 12 and d over three turns.
 
 ## Mirror
 
-`mirror(helix)` reflects the helix about degree 0: degree d stands as far
-above degree 0 as degree −d stood below it. The gaps come in reverse order,
-and mirroring twice gives the helix back, for every even helix with n ≤ 16.
-C major mirrored is C phrygian, dorian is its own mirror, and a major triad
-mirrored is a minor one.
+`mirror(helix, axis)` reflects the helix about an axis, a height or halfway
+between two: every height x goes to 2 · axis − x, and degree d stands where
+degree −d went, so degree 0 stays degree 0. The gaps come in reverse order,
+and mirroring twice about the same axis gives the helix back, for every even
+helix with n ≤ 16 and several axes.
+
+- About degree 0, the default, C major mirrors to C phrygian, dorian is its
+  own mirror, and a major triad mirrors to the minor triad a fourth below
+  its root (C major to F minor).
+- About the tonic and its fifth, `mirror(helix, tonic + 3.5)`, it is
+  quintenzirkel's mirror: C ionian mirrors to C aeolian, each diatonic mode
+  of brightness i to the one of brightness 5 − i, and a major triad to the
+  minor triad on the same root.
 
 The relations between helices are comparisons, not names of their own: the
 same positions (relative keys, C major and A minor), the same gaps

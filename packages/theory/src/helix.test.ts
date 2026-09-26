@@ -15,7 +15,7 @@ import {
   snap,
   wrap,
 } from './helix.ts';
-import { diatonicMode, modes } from './modes.ts';
+import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const cMajor = diatonicMode('ionian');
@@ -253,6 +253,33 @@ describe('mirror', () => {
         expect(mirror(mirror(helix))).toEqual(helix);
       }
     }
+  });
+
+  it('reflects about any axis, on a height or halfway between two, and undoes itself about the same axis', () => {
+    for (const [k, n] of sizes) {
+      const helix = even(k, n, 3);
+      for (const axis of [3, 3.5, 5, 6.5, 10]) {
+        const mirrored = mirror(helix, axis);
+        expect(mirrored.heights[0], `${k} of ${n} about ${axis}`).toBe(2 * axis - 3);
+        expect(gaps(mirrored)).toEqual([...gaps(helix)].reverse());
+        expect(mirror(mirrored, axis), `${k} of ${n} about ${axis}`).toEqual(helix);
+      }
+    }
+    expect(() => mirror(cMajor, 0.25)).toThrow(/axis/);
+  });
+
+  it("gives quintenzirkel's mirror about the tonic and its fifth: ionian to aeolian, a major triad to the minor one on its root", () => {
+    // quintenzirkel reflects p → 2t + 1 − p on the circle of fifths, which is
+    // x → 2t + 7 − x in semitones: the axis t + 3.5. Its golden test: mode i
+    // of brightness reflects to mode 5 − i, locrian aside.
+    DIATONIC_MODE_NAMES.slice(0, 6).forEach((name, i) =>
+      expect(positions(mirror(diatonicMode(name), 3.5)), name).toEqual(
+        positions(diatonicMode(DIATONIC_MODE_NAMES[5 - i]!)),
+      ),
+    );
+    const major: Helix = { cycle: 12, heights: [0, 4, 7] };
+    expect(positions(mirror(major, 3.5))).toEqual([0, 3, 7]);
+    expect(positions(mirror(shift(major, 2), 2 + 3.5))).toEqual([2, 5, 9]); // D major to D minor
   });
 });
 

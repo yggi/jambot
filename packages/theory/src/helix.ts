@@ -88,15 +88,20 @@ export function compose(inner: Helix, outer: Helix): Helix {
 }
 
 /**
- * The helix reflected about degree 0: degree d stands as far above degree 0 as
- * degree −d stood below it. The gaps come in reverse order. The major and
- * minor triads are mirror images, and so are ionian and phrygian.
+ * The helix reflected about `axis`, a height or halfway between two: every
+ * height x goes to 2 · axis − x, and degree d stands where degree −d went, so
+ * degree 0 stays degree 0 and the gaps come in reverse order. The axis is
+ * degree 0 unless given: then ionian and phrygian are mirror images, and a
+ * major triad mirrors to a minor one below it. About the tonic and its fifth,
+ * `mirror(helix, tonic + 3.5)`, it is quintenzirkel's mirror: ionian and
+ * aeolian, and a major triad and the minor one on the same root.
  */
-export function mirror(helix: Helix): Helix {
-  const tonic = helix.heights[0]!;
+export function mirror(helix: Helix, axis = helix.heights[0] ?? 0): Helix {
+  if (!Number.isInteger(2 * axis))
+    throw new Error(`mirror: the axis ${axis} is neither on a height nor halfway between two`);
   return {
     cycle: helix.cycle,
-    heights: helix.heights.map((_, d) => 2 * tonic - heightOf(helix, -d)),
+    heights: helix.heights.map((_, d) => 2 * axis - heightOf(helix, -d)),
   };
 }
 
