@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { falls, readVersion, series, type Version } from './history.ts';
+import { baseOf, falls, readVersion, series, type Version } from './history.ts';
 import { CATALOGUES } from './pawl.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -67,6 +67,36 @@ describe('the evidence only rises (the gate)', () => {
     expect(falls(version(retired), version(other))).toEqual([]);
   });
 
+  it('refuses evidence dropped by becoming an alias of a weaker entry', () => {
+    const before = version(
+      '**C1. X.** Test: `a.test.ts`. Status: measured.\n\n**C2. Y.** Status: speculative.',
+    );
+    const after = version('**C1. X.** Same as C2.\n\n**C2. Y.** Status: speculative.');
+    expect(falls(before, after)).toEqual([
+      'C1: the evidence fell from measured to speculative, as the same as C2, without Retired:',
+    ]);
+    const ruled = version('**C1. X.** Decided: spirit, inherited.\n\n**C2. Y.** Status: open.');
+    const lost = version('**C1. X.** Same as C2.\n\n**C2. Y.** Status: open.');
+    expect(falls(ruled, lost)).toEqual([
+      'C1: the rule "spirit, inherited" was withdrawn, as the same as C2, without Retired:',
+    ]);
+  });
+
+  it('holds an entry taken out of retirement to the evidence it had', () => {
+    const retired = `${measured} Retired: gone.`;
+    expect(falls(version(retired), version(open))).toEqual([
+      'C1: the evidence fell from measured to open without Retired:',
+    ]);
+  });
+
+  it('holds each scope of a status, not only the highest', () => {
+    const both = '**C1. X.** Test: `a.test.ts`. Status: measured (drums); measured (bass).';
+    const fell = '**C1. X.** Test: `a.test.ts`. Status: measured (drums); open (bass).';
+    expect(falls(version(both), version(fell))).toEqual([
+      'C1: the evidence for bass fell from measured to open without Retired:',
+    ]);
+  });
+
   it('lets an entry become an alias, which is a contraction', () => {
     const catalogues = (quinetic: string): Version =>
       readVersion({ 'docs/language.md': measured, 'docs/quinetic.md': quinetic });
@@ -80,6 +110,14 @@ describe('the evidence only rises (the gate)', () => {
       '**T1. The clock never waits.** Test: `transport.test.ts`. Status: measured. Decided: spirit, inherited.',
     );
     expect(falls(before, after)).toEqual([]);
+  });
+});
+
+describe('the base the gate compares with', () => {
+  it('is the merge base on a branch, and the first parent where the branch is main', () => {
+    expect(baseOf('abc', 'def', 'cba')).toBe('abc');
+    expect(baseOf('def', 'def', 'cba')).toBe('cba');
+    expect(baseOf('def', 'def', undefined)).toBe('def');
   });
 });
 
@@ -116,10 +154,10 @@ describe('the report', () => {
   });
 });
 
-/** The merge base with origin/main, or undefined where there is no history to compare. */
-function mergeBase(): string | undefined {
+/** A git revision, or undefined where the checkout doesn't have it. */
+function rev(...args: string[]): string | undefined {
   try {
-    return execFileSync('git', ['merge-base', 'HEAD', 'origin/main'], {
+    return execFileSync('git', args, {
       cwd: root,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -129,7 +167,12 @@ function mergeBase(): string | undefined {
   }
 }
 
-const base = mergeBase();
+const head = rev('rev-parse', 'HEAD');
+const mergeBase = rev('merge-base', 'HEAD', 'origin/main');
+const base =
+  head && mergeBase ? baseOf(mergeBase, head, rev('rev-parse', '--verify', 'HEAD^1')) : undefined;
+/** In CI the gate must run: a checkout without `origin/main` fails it rather than skipping. */
+const skip = base === undefined && !process.env['CI'];
 
 /** The catalogues at `rev`, or as they are on disk. */
 function catalogues(rev?: string): Version {
@@ -151,11 +194,15 @@ function catalogues(rev?: string): Version {
 }
 
 describe('the catalogues on this branch', () => {
-  it.skipIf(base === undefined)(
-    base === undefined
+  it.skipIf(skip)(
+    skip
       ? 'keep their evidence and rules: skipped, as there is no origin/main to compare with'
-      : 'keep their evidence and rules against the merge base with origin/main',
+      : 'keep their evidence and rules against the merge base with origin/main, or on main against the first parent',
     () => {
+      if (base === undefined)
+        throw new Error(
+          'no origin/main to compare with: check out with its history (fetch-depth: 0)',
+        );
       expect(falls(catalogues(base), catalogues())).toEqual([]);
     },
   );

@@ -240,6 +240,23 @@ Status: measured.`;
     ]);
   });
 
+  it('refuses an alias with fields of its own, which would go unchecked (rule 7)', () => {
+    const catalogues = {
+      'docs/language.md': glide,
+      'docs/quinetic.md': '**Q1. Nothing jumps.** Same as C1. Status: bogus rung.',
+    };
+    expect(pawlProblems(repoOf(catalogues, styleTests))).toEqual([
+      'docs/quinetic.md:1 Q1 is the same as C1, so it has no fields of its own',
+    ]);
+  });
+
+  it("reads Same as only as an entry's first field, so prose can't make an alias", () => {
+    const prose = '**C1. Foo.** Status: measured. Test: open. Same as C2 in spirit.';
+    expect(pawlProblems(repo(prose))).toEqual([
+      'docs/language.md:1 C1 is measured but its test names no file',
+    ]);
+  });
+
   it('refuses an alias of an id no catalogue defines, or of another alias (rule 7)', () => {
     const missing = {
       'docs/language.md': glide,

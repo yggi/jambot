@@ -29,10 +29,11 @@ export interface Entry {
   decided: string | undefined;
   retired: string | undefined;
   same: string | undefined;
+  /** Whether an alias also has fields, which the pawl refuses. */
+  ownFields: boolean;
 }
 
-const labels =
-  /\b(?:(Witness|Counterexample|Test|Source|Status|Decided|Retired|Lands in|Open):|(Same as)) */g;
+const labels = /\b(Witness|Counterexample|Test|Source|Status|Decided|Retired|Lands in|Open): */g;
 const rungs = /^(speculative|open|derived|measured, failing|measured)( \([^()]*\))?$/;
 /** The ways a rule comes to be, which make `Decided:` the ledger of decisions. */
 export const ways = [
@@ -66,27 +67,35 @@ export function readCatalogue(text: string): Entry[] {
       end++;
     const paragraph = lines.slice(i, end + 1).join(' ');
     const afterTitle = paragraph.slice(paragraph.indexOf('**', 2) + 2);
-    entries.push({ id: start[1]!, line: i + 1, ...fields(afterTitle) });
+    // An alias says so first, and nothing else: `Same as F4.`
+    const alias = /^\s*Same as ([A-Z]\d+[a-z]?)\.(.*)$/s.exec(afterTitle);
+    const read = fields(alias ? alias[2]! : afterTitle);
+    entries.push({
+      id: start[1]!,
+      line: i + 1,
+      ...read,
+      same: alias?.[1],
+      ownFields: alias !== null && Object.values(read).some((field) => field !== undefined),
+    });
     i = end;
   }
   return entries;
 }
 
 /** An entry's fields, without their closing full stops. */
-function fields(text: string): Omit<Entry, 'id' | 'line'> {
+function fields(text: string): Pick<Entry, 'status' | 'test' | 'decided' | 'retired'> {
   const found: Record<string, string> = {};
   const marks = [...text.matchAll(labels)];
   marks.forEach((mark, n) => {
     const from = mark.index + mark[0].length;
     const to = n + 1 < marks.length ? marks[n + 1]!.index : text.length;
-    found[mark[1] ?? mark[2]!] = text.slice(from, to).trim().replace(/\.$/, '');
+    found[mark[1]!] = text.slice(from, to).trim().replace(/\.$/, '');
   });
   return {
     status: found['Status'],
     test: found['Test'],
     decided: found['Decided'],
     retired: found['Retired'],
-    same: found['Same as'],
   };
 }
 
@@ -158,9 +167,12 @@ export function pawlProblems(repo: Repo): string[] {
     else problems.push(`${at(entry)} is defined twice, first at ${where(first)}`);
   }
 
-  // Rule 7: an alias names an entry that is not itself an alias.
+  // Rule 7: an alias names an entry that is not itself an alias, and has
+  // no fields of its own, which rules 1–3 would never see.
   for (const entry of entries.filter((e) => e.same !== undefined)) {
     const target = byId.get(entry.same!);
+    if (entry.ownFields)
+      problems.push(`${at(entry)} is the same as ${entry.same}, so it has no fields of its own`);
     if (!target)
       problems.push(`${at(entry)} is the same as ${entry.same}, which no catalogue defines`);
     else if (target.same !== undefined)

@@ -152,9 +152,10 @@ A counterexample is filed where it refutes, never only where it was seen.
   that doesn't exist, a measured entry that names no file, an id cited but
   not defined or defined twice, a citing test whose file the entry
   doesn't name, "decided" written in a status, and a rule that doesn't say
-  how. `tooling/history.ts` adds time: against the merge base with
-  `origin/main`, no evidence falls, no rule goes and no entry disappears
-  without `Retired:`. `pnpm ratchet` shows the catalogues over `main`'s
+  how, and an alias with fields of its own. `tooling/history.ts` adds time:
+  against the merge base with `origin/main` (on `main`, the first parent),
+  no evidence falls in any scope, no rule goes and no entry disappears
+  without `Retired:`, and an alias is held to the entry it names. `pnpm ratchet` shows the catalogues over `main`'s
   history.
 - **B3. Dissolve before deciding.** Before a decision, ask which move would
   measure the options: a witness (W1), a probe (N1) or a pull-back (N3). If

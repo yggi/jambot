@@ -51,10 +51,14 @@ form to write in and the moves each side makes.
    (`tooling/pawl.ts`, #42) runs in `pnpm verify` and holds the catalogues
    to their tests: evidence on the ladder, rules that say how they were
    decided, named tests that exist, and citations that agree both ways.
-   `tooling/history.ts` holds them in time: against the merge base with
-   `origin/main`, no evidence falls, no rule goes and no entry disappears
-   without `Retired:`. `pnpm ratchet` reports the catalogues over `main`'s
-   history.
+   `tooling/history.ts` holds them in time, in `pnpm verify`: no evidence
+   falls, in any scope of a status, no rule goes and no entry disappears
+   without `Retired:`. An entry that becomes an alias is held to the entry
+   it names, and one taken out of retirement to what it had. On a branch the
+   gate compares with the merge base with `origin/main`, and on `main` with
+   the first parent. Without `origin/main` it is skipped locally and fails
+   in CI, which checks out the whole history for it. `pnpm ratchet` reports
+   the catalogues over `main`'s history.
 6. **Seams are identities.** Where the working track needs something the
    negative track hasn't settled, it uses the identity and pins the seam with
    a round-trip test. #37 plays the composer's raw events. The text step goes

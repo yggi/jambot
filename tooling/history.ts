@@ -13,9 +13,14 @@ import { CATALOGUES, readCatalogue, ways } from './pawl.ts';
 const ladder = ['none', 'speculative', 'open', 'derived', 'measured'] as const;
 export type Evidence = (typeof ladder)[number];
 
-/** An entry as the history sees it. */
+/**
+ * An entry as the history sees it: its highest rung, the rung of each scope
+ * its status names (`measured (drums); open (compile)`), its rule, and
+ * whether it is retired or an alias.
+ */
 export interface Reading {
   evidence: Evidence;
+  scopes: Map<string, Evidence>;
   failing: boolean;
   rule: string | undefined;
   retired: string | undefined;
@@ -48,6 +53,7 @@ export function readVersion(texts: Record<string, string>): Version {
   for (const text of Object.values(texts)) {
     for (const entry of readCatalogue(text)) {
       let evidence: Evidence = 'none';
+      const scopes = new Map<string, Evidence>();
       let failing = false;
       let rule = entry.decided;
       let retired = entry.retired;
@@ -57,34 +63,61 @@ export function readVersion(texts: Record<string, string>): Version {
         else {
           const rung = ladder.find((r) => r !== 'none' && part.startsWith(r));
           if (rung && ladder.indexOf(rung) > ladder.indexOf(evidence)) evidence = rung;
+          const scope = /\(([^()]*)\)$/.exec(part)?.[1];
+          if (rung && scope !== undefined) scopes.set(scope, rung);
           if (part.startsWith('measured, failing')) failing = true;
         }
       }
-      version.set(entry.id, { evidence, failing, rule, retired, alias: entry.same });
+      version.set(entry.id, { evidence, scopes, failing, rule, retired, alias: entry.same });
     }
   }
   return version;
 }
 
-/** Everything that fell between two versions without a reason, one line each. */
+const below = (a: Evidence, b: Evidence) => ladder.indexOf(a) < ladder.indexOf(b);
+
+/**
+ * Everything that fell between two versions without a reason, one line
+ * each. An entry that became an alias is held to the entry it now names,
+ * and an entry taken out of retirement to what it had before.
+ */
 export function falls(before: Version, after: Version): string[] {
   const problems: string[] = [];
   for (const [id, was] of before) {
+    if (was.alias !== undefined) continue;
     const now = after.get(id);
-    if (was.alias !== undefined || was.retired !== undefined) continue;
     if (!now) {
-      problems.push(`${id}: the entry disappeared without Retired:`);
+      if (was.retired === undefined) problems.push(`${id}: the entry disappeared without Retired:`);
       continue;
     }
-    if (now.retired !== undefined || now.alias !== undefined) continue;
-    if (ladder.indexOf(now.evidence) < ladder.indexOf(was.evidence))
+    if (now.retired !== undefined) continue;
+    const target = now.alias === undefined ? now : after.get(now.alias);
+    if (!target) continue; // The pawl refuses an alias of nothing.
+    const as = now.alias === undefined ? '' : `, as the same as ${now.alias},`;
+    if (below(target.evidence, was.evidence))
       problems.push(
-        `${id}: the evidence fell from ${was.evidence} to ${now.evidence} without Retired:`,
+        `${id}: the evidence fell from ${was.evidence} to ${target.evidence}${as} without Retired:`,
       );
-    if (was.rule !== undefined && now.rule === undefined)
-      problems.push(`${id}: the rule "${was.rule}" was withdrawn without Retired:`);
+    else
+      for (const [scope, rung] of was.scopes) {
+        const kept = target.scopes.get(scope);
+        if (kept !== undefined && below(kept, rung))
+          problems.push(
+            `${id}: the evidence for ${scope} fell from ${rung} to ${kept}${as} without Retired:`,
+          );
+      }
+    if (was.rule !== undefined && target.rule === undefined)
+      problems.push(`${id}: the rule "${was.rule}" was withdrawn${as} without Retired:`);
   }
   return problems;
+}
+
+/**
+ * The version the gate compares with: the merge base with `origin/main`,
+ * or, where that is `HEAD` itself, as on `main`, `HEAD`'s first parent.
+ */
+export function baseOf(mergeBase: string, head: string, parent: string | undefined): string {
+  return mergeBase === head && parent !== undefined ? parent : mergeBase;
 }
 
 /** One version's counts: entries by evidence, rules by how, aliases. */
@@ -190,4 +223,13 @@ function report(rev = 'origin/main'): void {
   });
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) report(process.argv[2]);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const rev = process.argv[2] ?? 'origin/main';
+  try {
+    git('rev-parse', '--verify', `${rev}^{commit}`);
+  } catch {
+    console.error(`no revision ${rev}: fetch it first, as with git fetch origin main`);
+    process.exit(1);
+  }
+  report(rev);
+}
