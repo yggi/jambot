@@ -1,5 +1,5 @@
-import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,8 +37,25 @@ function prepare(args: string[], verify = passing, input?: string, e2e?: string)
     input,
     env: { ...process.env, ...identity, JAMBOT_VERIFY: verify, ...(e2e && { JAMBOT_E2E: e2e }) },
     encoding: 'utf8',
+    // A run left waiting on the lock fails, rather than hang the suite.
+    timeout: 15_000,
   });
   return { status: run.status, stdout: run.stdout, stderr: run.stderr };
+}
+
+/** Runs prepare.sh like `prepare`, without waiting for it. */
+function prepareAsync(args: string[], verify: string) {
+  const run = spawn('sh', [script, ...args], {
+    cwd: clone,
+    env: { ...process.env, ...identity, JAMBOT_VERIFY: verify },
+  });
+  let stdout = '';
+  let stderr = '';
+  run.stdout.on('data', (data: Buffer) => (stdout += data.toString()));
+  run.stderr.on('data', (data: Buffer) => (stderr += data.toString()));
+  return new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) =>
+    run.on('close', (status) => resolve({ status, stdout, stderr })),
+  );
 }
 
 // An origin with main and a pull request #7 (a branch `feature`, also at
@@ -100,6 +117,71 @@ describe('review-pr prepare.sh', () => {
     expect(status).toBe(0);
     expect(stdout).toContain('pnpm verify FAILS');
     expect(stdout).toContain('the build broke');
+  });
+
+  it("shows the failing tests from verify's output, not the lines around them", () => {
+    const verify = [
+      'echo noise before',
+      'echo " FAIL  |engine| src/a.test.ts > breaks"',
+      'echo "⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯"',
+      'echo " FAIL  |engine| src/a.test.ts > breaks"',
+      'echo "Error: Test timed out in 5000ms."',
+      'echo " Test Files  1 failed (1)"',
+      'echo "      Tests  1 failed | 3 passed (4)"',
+      'for i in $(seq 40); do echo noise after; done',
+      'exit 1',
+    ].join('; ');
+    const { stdout } = prepare(['7', join(root, 'wt')], verify);
+    expect(stdout).toContain('pnpm verify FAILS (Tests 1 failed | 3 passed (4))');
+    expect(stdout).toContain('Error: Test timed out in 5000ms.');
+    expect(stdout).not.toContain('noise');
+  });
+
+  it('shows the end of the end-to-end output when only it fails', () => {
+    const e2e = 'echo "  1) band.e2e.ts plays"; echo "  1 failed"; exit 1';
+    const { stdout } = prepare(['7', join(root, 'wt')], 'echo verify noise', undefined, e2e);
+    expect(stdout).toContain('1) band.e2e.ts plays');
+    expect(stdout).not.toContain('verify noise');
+  });
+
+  it('runs one review at a time, so two never share the machine or the end-to-end port', async () => {
+    const times = join(root, 'times');
+    const verify = `echo start >>${times}; sleep 1; echo end >>${times}; ${passing}`;
+    const runs = await Promise.all([
+      prepareAsync(['7', join(root, 'a')], verify),
+      prepareAsync(['feature', join(root, 'b')], verify),
+    ]);
+    for (const run of runs) expect(run.status).toBe(0);
+    expect(readFileSync(times, 'utf8')).toBe('start\nend\nstart\nend\n');
+    expect(runs.map((run) => run.stderr).join('')).toContain('waiting for another review');
+  }, 20_000);
+
+  it('takes over a lock whose review is gone', () => {
+    const lock = join(git(clone, 'rev-parse', '--absolute-git-dir'), 'review-pr.lock');
+    mkdirSync(lock);
+    // A pid that no process has: above the kernel's limit.
+    writeFileSync(join(lock, 'pid'), '99999999\n');
+    const { status, stdout } = prepare(['7', join(root, 'wt')]);
+    expect(status).toBe(0);
+    expect(stdout).toContain('pnpm verify passes');
+  }, 20_000);
+
+  it('names the files it conflicts in with another pull request, with --against', () => {
+    git(clone, 'checkout', '-q', '-b', 'rival', 'main');
+    commit('shared.txt', 'rival\n', 'Rival changes the shared file');
+    git(clone, 'push', '-q', 'origin', 'rival', 'rival:refs/pull/8/head');
+    git(clone, 'checkout', '-q', 'main');
+    const { stdout } = prepare(['7', '--against', '8', join(root, 'wt')]);
+    expect(stdout).toContain('Against 8: conflicts in: shared.txt');
+  });
+
+  it('says it merges cleanly with another branch, with --against', () => {
+    git(clone, 'checkout', '-q', '-b', 'rival', 'main');
+    commit('other.txt', 'rival\n', 'Rival adds another file');
+    git(clone, 'push', '-q', 'origin', 'rival');
+    git(clone, 'checkout', '-q', 'main');
+    const { stdout } = prepare(['7', '--against', 'rival', join(root, 'wt')]);
+    expect(stdout).toContain('Against rival: merges cleanly');
   });
 
   it('warns when main has moved past the merge base, and names the conflicts', () => {
