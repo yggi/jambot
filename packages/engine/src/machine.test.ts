@@ -69,6 +69,29 @@ describe('lawBreaks', () => {
     }
   });
 
+  it('finds an output that is not plain data, and does not mistake it for hidden state', () => {
+    // A Set is the same Set every run, but it is not data a snapshot, the
+    // wire or a reader can take.
+    const sets: Machine<Env, null, unknown, Set<number>> = {
+      initial: null,
+      advance: (env) => ({ carried: null, output: new Set([env.bar]) }),
+    };
+    expect(lawBreaks(sets, script)).toEqual(['advance 0: the output does not survive JSON']);
+  });
+
+  it('finds an environment or an input that is not plain data', () => {
+    const reader: Machine<unknown, null, unknown, null> = {
+      initial: null,
+      advance: () => ({ carried: null, output: null }),
+    };
+    expect(lawBreaks(reader, [{ env: { lookup: new Map() }, input: null }])).toEqual([
+      'advance 0: the environment does not survive JSON',
+    ]);
+    expect(lawBreaks(reader, [{ env: null, input: { at: new Date(0) } }])).toEqual([
+      'advance 0: the input does not survive JSON',
+    ]);
+  });
+
   it('finds a machine that changes what it was given', () => {
     const inPlace: Machine<Env, { last: number }, unknown, null> = {
       initial: { last: 60 },

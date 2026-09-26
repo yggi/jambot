@@ -38,12 +38,16 @@ export type Script<Env, Input> = readonly { readonly env: Env; readonly input: I
  * The machine's laws that a run over the script breaks, once per law, at the
  * first advance that breaks it:
  *
+ * - what it reads, carries and writes is plain data: the environment, the
+ *   input, the carried state and the output each survive JSON unchanged;
  * - advancing leaves the environment, the carried state and the input as
  *   they were;
- * - the carried state survives JSON unchanged;
  * - running the script twice gives the same outputs and carried states;
  * - advancing from a JSON snapshot of the carried state gives what the run
  *   gave.
+ *
+ * The last two compare plain data only. Where a value is not plain, its own
+ * law says so, rather than reporting it as a difference.
  */
 export function lawBreaks<Env, Carried, Input, Output>(
   machine: Machine<Env, Carried, Input, Output>,
@@ -57,10 +61,13 @@ export function lawBreaks<Env, Carried, Input, Output>(
   const run = () => {
     let carried = machine.initial;
     return script.map(({ env, input }, i) => {
+      if (!isPlain(env)) report('env', `advance ${i}: the environment does not survive JSON`);
+      if (!isPlain(input)) report('input', `advance ${i}: the input does not survive JSON`);
       const given = copyData({ env, carried, input });
       const next = machine.advance(env, carried, input);
       if (!sameData(given, { env, carried, input }))
         report('given', `advance ${i}: advancing changed what it was given`);
+      if (!isPlain(next.output)) report('output', `advance ${i}: the output does not survive JSON`);
       const before = carried;
       carried = next.carried;
       return { before, ...next };
@@ -69,8 +76,11 @@ export function lawBreaks<Env, Carried, Input, Output>(
 
   const first = run();
   const second = run();
+  const comparable = (a: { carried: unknown; output: unknown }) =>
+    isPlain(a.carried) && isPlain(a.output);
   first.forEach((advanced, i) => {
-    if (!sameData(advanced, second[i]))
+    const again = second[i]!;
+    if (comparable(advanced) && comparable(again) && !sameData(advanced, again))
       report('same', `advance ${i}: the same inputs gave another output`);
   });
 
@@ -82,7 +92,11 @@ export function lawBreaks<Env, Carried, Input, Output>(
     }
     const { env, input } = script[i]!;
     const resumed = machine.advance(env, snapshot as Carried, input);
-    if (!sameData(resumed, { carried, output }))
+    if (
+      comparable(resumed) &&
+      comparable({ carried, output }) &&
+      !sameData(resumed, { carried, output })
+    )
       report(
         'resume',
         `advance ${i}: advancing from a snapshot of the carried state gave another output`,
@@ -97,6 +111,9 @@ function throughJson(x: unknown): unknown {
   const text = JSON.stringify(x);
   return text === undefined ? Symbol('not JSON') : JSON.parse(text);
 }
+
+/** Whether x is plain data: it survives JSON unchanged. */
+const isPlain = (x: unknown) => sameData(throughJson(x), x);
 
 const isPlainObject = (x: unknown): x is Record<string, unknown> =>
   typeof x === 'object' &&
