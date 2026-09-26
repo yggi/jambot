@@ -19,7 +19,7 @@ This catalogue is the negative track of a ratchet ([`ratchet.md`](ratchet.md)):
 tracks paired with it (#41). Findings from their steps come up into this
 catalogue, and entries that bind code go down as tests in their next step.
 The properties that no single pair owns, such as round trips across several
-boundaries, are collected in #39 (Q1–Q8).
+boundaries, are collected in [`quinetic.md`](quinetic.md) (#39, Q1–Q8).
 
 ## Method
 
@@ -29,9 +29,12 @@ boundaries, are collected in #39 (Q1–Q8).
 2. **Catalogue.** Every entry is a claim in the `ratchet` skill's form
    ([`SKILL.md`](../.claude/skills/ratchet/SKILL.md)): a witness that makes
    it true, the shape of a counterexample that would refute it, a decidable
-   test, a source, a status and where it lands. Its status is one of
-   speculative, open, measured (or measured, failing), derived and decided,
-   and it only rises.
+   test, a source, a status and where it lands. The status is the evidence,
+   one of speculative, open, derived and measured (or measured, failing),
+   and it only rises. A rule the owner took is a separate field,
+   `Decided: <where>, <how>`, which says whether it was inherited,
+   dissolved, chosen on measured options, taken in the working track or
+   chosen ahead of the evidence.
 3. **Tensions.** Where two constraints pull apart, a decision is needed. The
    tensions are the design's agenda.
 4. **Candidates.** Candidate forms are scored against the catalogue. None is
@@ -39,7 +42,7 @@ boundaries, are collected in #39 (Q1–Q8).
 
 A test named here lives on `main`, unless the entry says otherwise. A test
 that holds an entry cites its id in a group at the end of its description,
-such as `(F6)` or `(T4, #39 Q1c)`, and the entry names the test's file; it
+such as `(F6)` or `(T4, Q1c)`, and the entry names the test's file; it
 need not quote the test, so the test's wording can change. Tests written
 before the catalogue are named here by file and quoted description. The
 pawl check (`tooling/pawl.ts`, #42) holds all of this in `pnpm verify`: every
@@ -79,6 +82,7 @@ and keeps the grid where it was (T1)" and "catches up after four hours’ stall
 within a lookahead, reporting the missed steps by count (T1)". Open for
 compiling: every text that parses compiles, in bounded time.
 Source: spirit, #37 step 3. Status: measured (transport); open (compile).
+Decided: spirit, inherited.
 Lands in: #13.
 
 **T2. Positions are exact fractions of a cycle, not ticks.**
@@ -106,10 +110,10 @@ Counterexample: a written position that doesn't read back from its played
 time. The prototype's `swingDelay` and `unswing` give one: they are off by
 up to 0.04 steps where both swing levels act (swing 0.5–1).
 Test: `swing.test.ts`, "is undone by its inverse, both ways, on and off the
-grid (T4, #39 Q1b)" and "shows that the prototype's delays are not what its
-unswing undoes (T4, #39 Q1b)"; `tempo.test.ts`, "keeps time rising through a
-tempo glide, and gives each position back from its time (T4, #39 Q1c)", and
-the four tests under "position and clock time" that cite (T4, #39 Q1c):
+grid (T4, Q1b)" and "shows that the prototype's delays are not what its
+unswing undoes (T4, Q1b)"; `tempo.test.ts`, "keeps time rising through a
+tempo glide, and gives each position back from its time (T4, Q1c)", and
+the four tests under "position and clock time" that cite (T4, Q1c):
 tempo glides from rest between the axis ends and every preset tempo at every
 length, 60 chains of retargets that carry their slope, brake or arrive
 early, the chain through swing, and a reading of clock time that runs
@@ -117,8 +121,9 @@ backwards. In the built app, `band.e2e.ts`, "swings a swung preset into
 triplet 8ths (T4)": every onset in Chromium lies on a third of a step, the
 triplet offbeat among them.
 Source: time maps (Jaffe, "Ensemble Timing in Computer Music", 1985;
-Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Lands in:
-#37 (done), #39 Q1b and Q1c.
+Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Decided:
+the prototype, inherited (score against performance). Lands in: #37 (done),
+Q1b and Q1c.
 
 **T5. Any bar renders from its environment (seed, position, style, plan)
 and what it states.**
@@ -146,7 +151,7 @@ During the tour's glides the tempo played is up to 8.6 BPM off the bar's
 `bpm=`.
 Source: the prototype's compiler, which reads `S.cs[part].prev`,
 `S.prevVoicing` and the next bar's plan, and its tempo glides in `S.tr`.
-Status: measured. Lands in: #39 Q4b.
+Status: measured. Lands in: Q4b.
 
 **S2. Whatever a bar reads from before it is written at the bar, as a key
 frame.**
@@ -186,7 +191,7 @@ a long glide inherits fast motion (C1)" and "never rests at an axis end it
 was not sent to, and its rate is the slope of its value (C1)", the last over
 every order of two intents, every turning step and every axis.
 Source: spirit, Pd's `line~`. Status: measured (style axes); open (how the
-IM writes a glide, tension 2). Lands in: #37 (done), #13.
+IM writes a glide, tension 2). Decided: spirit, inherited (the behaviour). Lands in: #37 (done), #13.
 
 **C2. A parameter declares its range and the space it glides in.**
 Witness: the style axes in `style.ts`, each with a range and a linear or
@@ -289,7 +294,7 @@ than by the transposition.
 Test: open: every bar of a corpus, compiled in two keys, differs by the
 interval between them.
 Source: prototype; in signal terms the key is the carrier and the score is
-baseband. Status: decided. Lands in: #13.
+baseband. Status: open. Decided: the prototype, inherited. Lands in: #13.
 
 **P2. The text carries no spelling; spelling is output only.**
 Witness: `spell`, used for the HUD, the Strudel export and the analyzer's
@@ -299,14 +304,15 @@ Counterexample: two spellings of one score that compile differently.
 Test: `key.test.ts`, "names each key by its tonic, spelled in the key, and
 its mode (P2)"; `packages/engine/src/chords.test.ts`, "are named as lead
 sheets name them, spelled in their key (P2)".
-Source: #7 after #33, #35, #37 step 4. Status: decided.
+Source: #7 after #33, #35, #37 step 4. Status: measured. Decided: #7 after
+#33, dissolved.
 
 **P3. Scales and rhythms are one object, the helix.**
 Witness: `Helix` and `even(k, n, shift)`: 7 of 12 is the diatonic set, and
 5 of 16 the prototype's rim pattern.
 Test: `even.test.ts`, "gives the diatonic set, the prototype rim pattern and
 the #8 example".
-Source: #28. Status: decided.
+Source: #28. Status: measured. Decided: #28, inherited.
 
 **P4. Maximal evenness is a Fourier maximum.**
 Witness: `even(k, n)`.
@@ -347,8 +353,8 @@ above their turn (#38, P6)"; the engine's chords,
 `packages/engine/src/chords.test.ts`, "are one per slot, on its step, each a
 helix and its tensions (P6)" and "are triads up to harmony 0.25, all
 sevenths from 0.75, and add a major ninth only above 0.75 (P6)".
-Source: #37 step 1, #38. Status: decided; measured. Lands in: #37 step 4
-(done: the engine's chords are `Chord`s).
+Source: #37 step 1, #38. Status: measured. Decided: #38, on measured
+options. Lands in: #37 step 4 (done: the engine's chords are `Chord`s).
 
 **P7. A tension sets its own degree of the scale its chord's helix
 implies.**
@@ -372,8 +378,8 @@ sound, and gives no scale where that breaks the scale (#38, P7)";
 the composer never needs to state one (P7, P9)". Against the search over
 five-note stacks it replaced, 10 more ninths have a scale and 3 have one a
 note nearer.
-Source: #38. Status: decided; measured. Lands in: #37 step 4 (done in the
-theory), #7 (b).
+Source: #38. Status: measured. Decided: #38, on measured options. Lands
+in: #37 step 4 (done in the theory), #7 (b).
 
 **P8. The baseline hears a chord only as pitch classes: register above the
 octave is read only for names.**
@@ -413,7 +419,7 @@ read as modal interchange and secondary dominants. Lands in: #7 (b).
 ### Lowering
 
 **L1. The bottom is flat: timestamped events, as MIDI and dough carry.**
-Source: architecture. Status: decided.
+Source: architecture. Decided: architecture, inherited.
 
 **L2. The IM states written lengths; a played duration is derived.**
 Witness: the transport sends both ends of a note through the time map
@@ -421,9 +427,10 @@ Witness: the transport sends both ends of a note through the time map
 Counterexample: a legato line that overlaps or gaps under swing, as in the
 prototype, which swings only the start.
 Test: `transport.test.ts`, "holds a note from its swung start to its swung end
-(L2)". Open: every note-on has its note-off on the MIDI port (#5, #39 Q1d).
+(L2)". Open: every note-on has its note-off on the MIDI port (#5, Q1d).
 Source: MIDI (no durations), #37 step 3. Status: measured (the port's
-lengths); open (note-offs). Lands in: #24.
+lengths); open (note-offs). Decided: #7, ahead of the evidence. Lands in:
+#24.
 
 **L3. A renderer sees only its declared parameters and its event stream.**
 Source: the prototype README, LADSPA. Status: derived.
@@ -438,19 +445,21 @@ Test: open: a conformance corpus (#11).
 Source: #11. Status: open. Lands in: #11.
 
 **L5. A stage declares whether it can run on the clock; a model cannot.**
-Source: LADSPA's hard-realtime flag, the roadmap. Status: decided.
+Source: LADSPA's hard-realtime flag, the roadmap. Decided: the roadmap,
+inherited.
 
 ### Readers and writers
 
 **R1. A musician reads it like a lead sheet.** Source: spirit. Status:
-decided. Test: open.
+open. Test: open. Decided: spirit, inherited.
 
 **R2. A small model writes it: shallow nesting, a small vocabulary,
 relative tokens, no arithmetic across tokens, a grammar constrained
-decoding can enforce.** Source: the prototype README. Status: decided.
+decoding can enforce.** Source: the prototype README. Decided: the
+prototype, inherited.
 
 **R3. The unit of editing is a line, which validates on its own.** Source:
-the prototype's takeovers. Status: decided.
+the prototype's takeovers. Decided: the prototype, inherited.
 
 **R4. A word in the score names one thing.**
 Witness: the port names the prototype's `shift` section a bridge, because
@@ -458,7 +467,8 @@ Witness: the port names the prototype's `shift` section a bridge, because
 `bar 12 shift` would read as an operation.
 Counterexample: a score word with two meanings.
 Test: `form.test.ts`, "has six kinds of section, eight bars each".
-Source: the law of true names, #37 step 3. Status: decided.
+Source: the law of true names, #37 step 3. Status: measured. Decided: #37
+step 3, in the working track.
 
 ### Analysis and provenance
 
@@ -469,23 +479,24 @@ Counterexample: an event missing, added or changed after the round trip.
 Test: the prototype's run over about 6,000 events (`prototype/README.md`,
 "Tested"); no test in this repository reruns it yet. E1 adds that it holds
 only warm.
-Source: prototype. Status: measured (in the prototype). Lands in: #13, #39
-Q1a.
+Source: prototype. Status: measured (in the prototype). Lands in: #13, Q1a.
 
 **A2. Every MIDI input has an IM, with an escape hatch where the grammar
 can't say it.**
 Witness: the analyzer. Counterexample: one MIDI file.
 Test: open: the analyzer's corpus, with gaps logged by frequency.
-Source: analyzer brief. Status: decided. Lands in: #3.
+Source: analyzer brief. Status: open. Decided: the analyzer brief,
+inherited. Lands in: #3.
 
 **A3. Every event carries its source, and inferred structure its
 confidence.**
 Source: prototype, SDR (the Muse's gate works like a squelch). Status:
-decided (provenance); open (confidence). Lands in: #3, #25.
+open (confidence). Decided: the prototype, inherited (provenance). Lands in:
+#3, #25.
 
 **A4. Following the players is a loop with a bandwidth.**
 Source: SDR (clock recovery), the Muse's rate limit. Status: speculative.
-Lands in: #16, #25, #27, #39 Q7.
+Lands in: #16, #25, #27, Q7a.
 
 ### Composition
 
@@ -504,7 +515,8 @@ was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
 `form.test.ts`, `band.test.ts`, `transport.test.ts` and `plan.test.ts`,
 whose tests of the machine laws cite F1.
-Source: #37 step 1. Status: measured. Lands in: #39 Q4a.
+Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
+track. Lands in: Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
 Witness: the prototype's compiler carries each part's previous pitch and
@@ -532,14 +544,14 @@ prototype's swing gives one (T4).
 Test: `swing.test.ts` and `tempo.test.ts`, as for T4 (time); open for text
 (#13) and sound (#3).
 Source: #13, #37. Status: measured (time); open (text, sound). Lands in:
-#39 Q1 and Q3.
+Q1a–Q1e and Q3.
 
 **F4. Analysis settles in one round: `encode(compile(encode(x))) =
 encode(x)`.**
 Witness: the analyzer. Counterexample: a MIDI file whose analysis changes
 on a second pass.
 Test: open: the analyzer's corpus.
-Source: F3. Status: open. Lands in: #3, #39 Q2.
+Source: F3. Status: open. Lands in: #3, Q2.
 
 **F5. Within a part, events combine as a join: the same hit twice is one
 hit, and the louder stays. Bars combine in sequence by a shift of origin.**
@@ -560,7 +572,7 @@ note nests in a chord in a key, and a step in a beat in a bar.
 Counterexample: a chain of three helices whose composites differ by
 bracketing, or a helix changed by the identity.
 Test: `helix.test.ts`, "is a category: associative over every chain of even
-helices with n ≤ 12, and the chromatic helix is the identity (F6, #39 Q5)",
+helices with n ≤ 12, and the chromatic helix is the identity (F6, Q5b)",
 over 659,594 chains, each helix at every shift below its cycle.
 Source: `docs/theory.md` ("Composition"). Status: measured.
 
@@ -570,7 +582,7 @@ plays a motif back two bars later. Pd refuses a signal loop without a delay
 for the same reason.
 Counterexample: a wiring of machines with a delay-free cycle.
 Test: open: a check over the wiring, with a wiring it rejects.
-Source: F1, Pd. Status: derived. Lands in: #25, #39 Q6.
+Source: F1, Pd. Status: derived. Lands in: #25, Q6.
 
 **F8. The jam is an infinite stream, made one position at a time.**
 Witness: the transport, whose every advance is bounded (T1). "The clock
@@ -667,7 +679,8 @@ renames nothing in the code.
 
 ## Strange loops
 
-Each property here, with its test and status, is tracked in #39.
+Each property here, with its test and status, is an entry in
+[`quinetic.md`](quinetic.md) (#39).
 
 Speculative. The prototype's "Quinetics parallels" keep self-reference,
 fixed points and coarse-graining apart as analogies until something
@@ -697,7 +710,7 @@ with the players converges.
 
 Each answers one entry. E1 has run; the others have not.
 
-- **E1. Cold against warm compile** (S1, S2, F2; #39 Q4b), in
+- **E1. Cold against warm compile** (S1, S2, F2; Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
   (`node prototype/experiments/cold-warm.mjs`, about 3 s). It runs the
   prototype headless for 64 bars in each of the eight presets and in a tour
@@ -732,7 +745,8 @@ Each answers one entry. E1 has run; the others have not.
 - **E7. The round trips** (F3, F4): for each boundary, up ∘ down against
   the identity, and the idempotence of down ∘ up. The time boundaries are
   measured (T4); the text boundary waits on #13, and the analyzer boundary
-  on #3. All are tracked in #39, with the other quinetic properties.
+  on #3. All are entries in [`quinetic.md`](quinetic.md), with the other quinetic
+  properties.
 
 The open decisions on #7, (a) to (d), are about meaning, and each is checked
 against this catalogue as it is made.

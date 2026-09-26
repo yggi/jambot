@@ -232,7 +232,7 @@ describe('compose', () => {
     expect(() => compose(even(3, 8), cMajor)).toThrow(/cycle 8.*7 degrees/);
   });
 
-  it('is a category: associative over every chain of even helices with n ≤ 12, and the chromatic helix is the identity (F6, #39 Q5)', () => {
+  it('is a category: associative over every chain of even helices with n ≤ 12, and the chromatic helix is the identity (F6, Q5b)', () => {
     const same = (x: Helix, y: Helix) =>
       x.cycle === y.cycle &&
       x.heights.length === y.heights.length &&
