@@ -100,6 +100,21 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 
 ### Score language
 
+- The language design (#7) collects constraints before syntax, in
+  [`language.md`](language.md). An entry there is a claim in the `ratchet`
+  skill's form: witness, counterexample, test, source, status, where it
+  lands.
+- Jambot's shapes have exact names in functional programming and category
+  theory: a level is a Mealy machine, `compile` and `encode` are a
+  retraction and a section, helices under `compose` are a category. The
+  table is `language.md`, "Nomenclature".
+- The prototype's score is not self-contained: 68% of bars compile
+  differently from their text alone, always in register (octave, voicing),
+  never in harmony or rhythm (`language.md`, S1 and E1).
+- To run the prototype headless from Node, load it in jsdom as
+  `prototype/experiments/cold-warm.mjs` does, and end with `process.exit`:
+  the page's own timers keep the process alive.
+
 The full description is in
 [`prototype/README.md`](../prototype/README.md#the-score-language-the-ir).
 

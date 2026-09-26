@@ -29,7 +29,8 @@ These run in parallel:
   now and feeds the design with the invariants and shapes it finds. That is
   better than deciding ahead of the evidence and building around the
   decision later. How the tracks feed each other is
-  [the ratchet](ratchet.md).
+  [the ratchet](ratchet.md), and the constraints, their tensions and the
+  experiments that measure them are in [`language.md`](language.md).
 - **Rebuild from the prototype**, test-first, with the prototype as a
   baseline for orientation:
   - the theory primitive in `packages/theory` (#28);
@@ -108,6 +109,8 @@ their issues once #7 is decided.
 Listed in full in
 [`prototype/README.md`](../prototype/README.md#open-threads), grouped as
 language, music, system, and a separate speculative track.
+The speculative track's self-reference, fixed points and coarse-graining
+are being turned into tests in #39 (quinetic properties).
 
 ## Dependencies
 

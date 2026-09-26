@@ -90,6 +90,48 @@ describe('even helices', () => {
   });
 });
 
+/** |F_j| of a set of positions in n: the magnitude of its j-th Fourier coefficient. */
+function fourierMagnitude(set: readonly number[], n: number, j: number): number {
+  let re = 0;
+  let im = 0;
+  for (const x of set) {
+    re += Math.cos((2 * Math.PI * j * x) / n);
+    im -= Math.sin((2 * Math.PI * j * x) / n);
+  }
+  return Math.hypot(re, im);
+}
+
+describe('even helices in Fourier space', () => {
+  it('have the largest k-th magnitude of any k of n, and only their shifts reach it: every 1 ≤ k < n ≤ 16 (P4)', () => {
+    const eps = 1e-9;
+    let pairs = 0;
+    for (let n = 2; n <= 16; n++) {
+      const best = new Map<number, { magnitude: number; sets: string[] }>();
+      for (let mask = 1; mask < (1 << n) - 1; mask++) {
+        const set = range(n).filter((i) => (mask >> i) & 1);
+        const k = set.length;
+        const magnitude = fourierMagnitude(set, n, k);
+        const b = best.get(k);
+        if (!b || magnitude > b.magnitude + eps) best.set(k, { magnitude, sets: [set.join()] });
+        else if (Math.abs(magnitude - b.magnitude) <= eps) b.sets.push(set.join());
+      }
+      for (let k = 1; k < n; k++) {
+        const shifts = range(n).map((s) =>
+          positions(shift(even(k, n), s))
+            .map((x) => x % n)
+            .sort((a, b) => a - b)
+            .join(),
+        );
+        expect(best.get(k)!.sets.sort()).toEqual([...new Set(shifts)].sort());
+        pairs++;
+      }
+    }
+    expect(pairs).toBe(120);
+    // The check can fail: the major triad is 3 of 12 but not even, and falls short.
+    expect(fourierMagnitude([0, 4, 7], 12, 3)).toBeLessThan(fourierMagnitude([0, 4, 8], 12, 3));
+  });
+});
+
 describe('generator', () => {
   it('is the inverse of k modulo n', () => {
     for (const [k, n] of allSizes) {
