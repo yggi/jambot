@@ -66,12 +66,22 @@ These principles come from the prototype
   behaviour through public functions, not internals, so they survive
   refactoring while features settle. Tests sit next to the code as
   `*.test.ts`.
-- **`pnpm verify` before pushing.** It runs everything CI runs. A fresh
-  checkout needs `pnpm install --frozen-lockfile` first (seconds): install,
-  never skip the tests. Claude Code sessions do this at start through
+- **`pnpm verify` before pushing.** It runs everything CI runs but the
+  end-to-end checks (below). A fresh checkout needs
+  `pnpm install --frozen-lockfile` first (seconds): install, never skip the
+  tests. Claude Code sessions do this at start through
   `.claude/hooks/session-start.sh`, and `.claude/hooks/verify-before-push.sh`
   runs `pnpm verify` before each of their `git push`es and blocks one that
   fails.
+- **`pnpm e2e` when what the app plays, or when, changes.** The end-to-end
+  checks run the built app in Chromium and measure its audio: the exact
+  time of every onset, and whether the band sounds and stops. They take
+  about 20 s and need a browser, so they are not part of `pnpm verify`.
+  Run them before pushing a change to the transport, the time maps, the
+  style glides, a part's events, the player, the audio or the page, and on
+  a pull request that touches those. A fresh checkout needs
+  `pnpm exec playwright install chromium` once; Claude Code sessions do it
+  at start.
 - **Theory and engine stay pure.** `packages/theory` and `packages/engine`
   use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
   randomness goes through `random.ts`, keyed by seed and position.

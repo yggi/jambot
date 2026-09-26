@@ -48,8 +48,9 @@ language and the plans. This page covers only the port.
   DOM, so it can be separated cleanly.
 - **Composition happens inside the audio scheduler**, at step 0 of the bar
   it is about to play, only 120 ms before the downbeat. A garbage-collection
-  pause or a slow render can make a bar late. **Target:** compose at least
-  one bar ahead, off the scheduling hot path.
+  pause or a slow render can make a bar late. The port's transport composes
+  bar n + 1 on the last beat of bar n, at least 333 ms ahead even at
+  180 bpm (`transport.ts`).
 
 ### Correctness
 
@@ -68,8 +69,39 @@ language and the plans. This page covers only the port.
   performance. More importantly, `Math.pow` and `Math.sin` feed weighted
   choices, and the spec does not guarantee they give bit-identical results
   across JS engines. That is harmless for a single player, but it matters
-  for cross-device lockstep sync. Quantising the weights before sampling
-  would make it safe.
+  for cross-device lockstep sync. The port quantises probabilities and
+  weights before they meet a draw (`chance` and `pick` in `random.ts`).
+- **Swing's two functions disagree.** `unswing` inverts the composition of
+  two maps, the 16th level and then the 8th, but `swingDelay` adds their
+  delays instead. Where both levels swing (swing between 0.5 and 1) a played
+  note reads back up to 0.04 steps off the grid. The port keeps the
+  composition, `swingMap` in `swing.ts`, with its exact inverse, so the odd
+  16ths move by eighth × sixteenth / 9 of a step more or less than in the
+  prototype: at most 1/36, under 4 ms at 120 bpm.
+- **Two axes don't glide like the rest.** Entropy is set at once, and tempo
+  glides linearly although it is heard in ratios. In the port every axis
+  glides, and tempo glides in log space (`style.ts`). Every slider,
+  including the tempo buttons, glides over one bar; the prototype's tempo
+  buttons glide over four steps.
+- **A glide restarts from rest.** Each change starts a new S-curve at rate
+  0, so while a slider is dragged, every retarget stops the axis again: over
+  an 8-step drag of harmony from 0.45 to 1, it plays 0.476 at the end. In
+  the port a glide leaves as fast as the axis was moving (a cubic Hermite
+  curve, which from rest is the same S-curve), and plays 0.547 there.
+- **A stall is played late, in a burst.** After a stall the scheduler plays
+  every step it missed at once. Time is absolute in the port: events the
+  clock has passed are dropped, and the grid stays where it was.
+- **Swing moves only a note's start.** A note keeps its written length from
+  its swung start, so a legato line under swing overlaps or leaves gaps. In
+  the port both ends of a note go through the time map. Swing is also read
+  per beat, the finest rate at which its map keeps each beat's ends, where
+  the prototype reads it per bar.
+- **The same drum hit is sent twice.** Where two rules place the same drum
+  sound on one step, such as a fill over the backbeat, both note-ons go
+  out: in 163 of 2,560 bars across the presets. In the port a sound strikes
+  at most once per step, and the louder hit stays.
+- **A section is called "shift".** That is the theory's word for a
+  transposition, so the port calls it a bridge.
 
 ### Maintainability
 
