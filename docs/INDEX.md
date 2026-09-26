@@ -85,6 +85,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing
   - `hooks.test.ts`: the pre-push hook, blocking and letting through
+  - `review-pr.test.ts`: the review skill's `prepare.sh`, against a
+    throwaway origin
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`

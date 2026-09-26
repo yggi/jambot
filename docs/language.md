@@ -381,7 +381,7 @@ Counterexample: a chain of three helices whose composites differ by
 bracketing, or a helix changed by the identity.
 Test: `helix.test.ts`, "is a category: associative over every chain of even
 helices with n ≤ 12, and the chromatic helix is the identity (F6, #39 Q5)",
-over 4,095 chains.
+over 659,594 chains, each helix at every shift below its cycle.
 Source: `docs/theory.md` ("Composition"). Status: measured.
 
 **F7. Every feedback loop passes through a delay.**

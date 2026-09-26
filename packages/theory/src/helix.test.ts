@@ -233,26 +233,36 @@ describe('compose', () => {
   });
 
   it('is a category: associative over every chain of even helices with n ≤ 12, and the chromatic helix is the identity (F6, #39 Q5)', () => {
+    const same = (x: Helix, y: Helix) =>
+      x.cycle === y.cycle &&
+      x.heights.length === y.heights.length &&
+      x.heights.every((h, d) => h === y.heights[d]);
+    const failures: string[] = [];
     let chains = 0;
     for (let n = 1; n <= 12; n++)
       for (let m = 1; m <= n; m++)
         for (let k = 1; k <= m; k++)
           for (let j = 1; j <= k; j++)
-            for (const t of [0, 1, 5]) {
-              const [a, b, c] = [shift(even(j, k), t), even(k, m, t), shift(even(m, n), t)];
-              expect(compose(compose(a, b), c)).toEqual(compose(a, compose(b, c)));
-              chains++;
-            }
-    expect(chains).toBe(4095);
+            for (const ta of range(k))
+              for (const tb of range(m))
+                for (const tc of range(n)) {
+                  const [a, b, c] = [even(j, k, ta), even(k, m, tb), even(m, n, tc)];
+                  if (!same(compose(compose(a, b), c), compose(a, compose(b, c))))
+                    failures.push(`${j}/${k}+${ta}, ${k}/${m}+${tb}, ${m}/${n}+${tc}`);
+                  chains++;
+                }
+    expect(failures).toEqual([]);
+    expect(chains).toBe(659_594);
     for (let n = 1; n <= 12; n++)
       for (let k = 1; k <= n; k++)
         for (const t of range(n)) {
-          const h = shift(even(k, n), t);
-          expect(compose(h, even(n, n))).toEqual(h);
-          expect(compose(even(k, k), h)).toEqual(h);
+          const h = even(k, n, t);
+          if (!same(compose(h, even(n, n)), h) || !same(compose(even(k, k), h), h))
+            failures.push(`identity on ${k}/${n}+${t}`);
         }
-    // A shifted chromatic helix is not the identity: the check can fail.
-    expect(compose(cMajor, shift(even(12, 12), 1))).not.toEqual(cMajor);
+    expect(failures).toEqual([]);
+    // The comparison can fail: a shifted chromatic helix is not the identity.
+    expect(same(compose(cMajor, shift(even(12, 12), 1)), cMajor)).toBe(false);
   });
 });
 
