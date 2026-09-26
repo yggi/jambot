@@ -181,9 +181,18 @@ projects share **conventions, not code**. These facts stay aligned:
 - the meaning of "mode k": the scale re-rooted on its k-th note (`mode`,
   then a shift back to 0).
 
-One theory word means something else in a sister project: quintenzirkel's
-"position" is a place on the circle of fifths, a position along the
-generator. Here a position is the chromatic place, height mod cycle.
+Spelling follows quintenzirkel's rule (`spellDegree`), and its golden
+spellings are tests here ([theory](theory.md#spelling)).
+
+Two theory words mean something else in a sister project:
+
+- quintenzirkel's "position" is a place on the circle of fifths, a position
+  along the generator. Here a position is the chromatic place, height mod
+  cycle.
+- quintenzirkel's mirror reflects about the axis between the tonic and its
+  fifth, so C ionian mirrors to C aeolian and a major triad to the minor
+  triad on the same root. Here `mirror` reflects about degree 0, so C ionian
+  mirrors to C phrygian and C major to F minor.
 
 Two names mean different sets, and Jambot follows the more common use:
 

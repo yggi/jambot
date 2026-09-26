@@ -99,6 +99,30 @@ with coprime k and n have. The terms are Clough and Myerson's.
 
 Tests: `intervals.test.ts`.
 
+## Spelling
+
+A note's letter is its generic interval above the tonic, counted in letters,
+and its accidental is what the specific interval leaves over. So spelling is
+choosing a generic for each height (`genericsOf`), and `spell(tonic,
+heights)` does the rest:
+
+- a stack of thirds takes a third per note: C E♭ G♭ B♭♭;
+- a 7-note scale takes one letter per degree, whatever accidentals that
+  costs: E♭ harmonic minor is E♭ F G♭ A♭ B♭ C♭ D;
+- anything else takes the usual interval of each size, with two exceptions:
+  the tritone is a ♯4 beside a fifth and no fourth, and 8 semitones are a ♯5
+  beside a third and no fifth. The blues is C E♭ F G♭ G B♭.
+
+This is quintenzirkel's rule (`spellDegree`), and its golden spellings are
+tests here. tonal agrees on every chord symbol both read, from 21 roots
+(840 of 840), and on 25 of the 28 scales both know, from 21 tonics. It
+spells the other three by other conventions: the altered scale as jazz
+alterations, and the whole-tone and augmented scales with one letter per
+note. More than a double accidental comes up only on a tonic that has an
+accidental already: C♭dim7 has a B♭♭♭.
+
+Tests: `spelling.test.ts`, and `second-opinion.test.ts` ("spelling").
+
 ## The generator
 
 For coprime k and n, `generator(k, n)` is g = k⁻¹ mod n, and `even(k, n)` is
@@ -213,7 +237,8 @@ Tests: `intervals.test.ts`.
 `read(name, context)` reads a name as a note, an interval, a degree, a chord,
 a scale or a rhythm, and `readings(name)` lists every reading of an
 ambiguous one. A tonic moves the scale's helix: D dorian's degree 0 stands
-at 2. `nameOf(reading)` writes a short name back. A name and a thing are not
+at 2. Keys read with a space or a colon, from any spelling of the tonic:
+`Db:major`, `D#:minor`, `A:aeolian`. `nameOf(reading)` writes a short name back. A name and a thing are not
 inverses, because a thing has many names, but `read(nameOf(x))` gives back x
 for every reading of every name the tables hold. `dia` is every other degree
 of the scale in context, whatever its number of degrees.

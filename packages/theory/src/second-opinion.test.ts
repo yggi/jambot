@@ -14,6 +14,9 @@ import { heightOf, positions, shift } from './helix.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
 import { read } from './read.ts';
 import { SCALES } from './scales.ts';
+import { spell } from './spelling.ts';
+import { CHORD_QUALITIES } from './chords.ts';
+import { parseNote } from './notes.ts';
 import { normalizeWords } from './words.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -143,5 +146,65 @@ describe('tonal as a second opinion', () => {
       }
     }
     expect(readNames.length).toBeGreaterThan(50);
+  });
+
+  describe('spelling', () => {
+    const tonics = ['C', 'D', 'E', 'F', 'G', 'A', 'B'].flatMap((l) => [l + 'b', l, l + '#']);
+    const tonalSpelling = (notes: string[]) =>
+      notes.map((n) => {
+        const { letter, alt } = Note.get(n);
+        return `${letter}${alt}`;
+      });
+    const ours = (tonic: string, heights: readonly number[]) =>
+      spell(parseNote(tonic)!, heights).map((n) => `${n.letter}${n.alteration}`);
+
+    /** tonal's name for each scale both know, where tonal spells it by another convention. */
+    const conventions: Record<string, string> = {
+      // tonal spells the altered scale as jazz alterations (♭9 ♯9 3 ♯11 ♭13 ♭7), with no 4th
+      // and two letters D; here a 7-note scale takes one letter per degree (super locrian).
+      altered: 'b9, #9 and #11 over one letter per degree',
+      // Not 7 notes: here each height takes its usual interval (quintenzirkel's rule),
+      // tonal one letter per note.
+      'whole tone': 'tonal: C D E F# G# A#; here C D E Gb G# Bb',
+      augmented: 'tonal: C D# E G G# B; here C Eb E G Ab B',
+    };
+
+    it("agrees with tonal's spelling of every scale both know, from 21 tonics, except where the conventions differ", () => {
+      const tonalByName = new Map(
+        ScaleType.all().flatMap((type) =>
+          [type.name, ...type.aliases].map((n) => [normalizeWords(n), type.name] as const),
+        ),
+      );
+      const differ = new Set<string>();
+      let agreed = 0;
+      for (const [name, { helix }] of Object.entries(SCALES)) {
+        const tonalName = tonalByName.get(normalizeWords(name));
+        if (!tonalName) continue;
+        for (const tonic of tonics) {
+          const theirs = tonalSpelling(Scale.get(`${tonic} ${tonalName}`).notes);
+          if (theirs.join() === ours(tonic, helix.heights).join()) agreed++;
+          else differ.add(name);
+        }
+      }
+      expect([...differ].sort()).toEqual(Object.keys(conventions).sort());
+      expect(agreed).toBe(525);
+    });
+
+    it("agrees with tonal's spelling of every chord symbol both read, from 21 roots", () => {
+      let agreed = 0;
+      for (const [name, quality] of Object.entries(CHORD_QUALITIES)) {
+        for (const symbol of quality.symbols) {
+          for (const root of tonics) {
+            const theirs = Chord.get(root + symbol);
+            if (theirs.empty) continue;
+            expect(ours(root, quality.stack), `${root}${symbol} (${name})`).toEqual(
+              tonalSpelling(theirs.notes),
+            );
+            agreed++;
+          }
+        }
+      }
+      expect(agreed).toBe(840);
+    });
   });
 });
