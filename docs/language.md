@@ -2,8 +2,9 @@
 
 Jambot plays from an internal musical expression (IM): whatever composer,
 compiler, analyzer, renderers and later models all read and write. The
-prototype's score text is one candidate for it, not the answer. This doc is
-the design work of #7.
+prototype's score text is one candidate for it, not the answer, and the
+prototype calls it the IR: one letter away, and not the same thing. This doc
+is the design work of #7.
 
 The IM is looked for as a **negative shape**. Rather than drawing the
 language and defending it, the design gathers the constraints and invariants
