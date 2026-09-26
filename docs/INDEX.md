@@ -141,6 +141,11 @@ Every doc and code area, as a tree. Add a line when you add one.
     the sub-path, checks that the site resolves there, commits it to
     `gh-pages` and checks the live site; `pages.test.ts` shows the check
     failing on each kind of broken reference
+  - `screenshot.ts`: screenshots of measurement pages in Playwright's
+    Chromium, with `page`, the shared frame and palette, and
+    `inlineModule`, a repository module for a page's script;
+    `screenshot.test.ts` checks the module inlining and
+    `apps/web/e2e/screenshot.e2e.ts` the browser run
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
@@ -180,5 +185,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`review-pr/`](../.claude/skills/review-pr/SKILL.md): reviews a pull
     request against the house rules; `prepare.sh` fetches it into its own
     worktree and runs `pnpm verify` there
+  - [`screenshot/`](../.claude/skills/screenshot/SKILL.md): measured
+    options shown side by side, as screenshots of pages drawn from an
+    experiment's numbers, and as audio through the app's synth
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md):
   the checklist every pull request fills in

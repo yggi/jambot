@@ -88,8 +88,8 @@ console.table({
   '3 decimals': { mean: mean(grids[1]!), max: Math.max(...grids[1]!) },
   '2 decimals': { mean: mean(grids[0]!), max: Math.max(...grids[0]!) },
 });
-console.log('e.g. bar 12, full:', header(styles[12]!));
-console.log('e.g. bar 12, 3 dp:', header(styles[12]!, 3));
+console.log('e.g. bar 19, full:', header(styles[19]!));
+console.log('e.g. bar 19, 3 dp:', header(styles[19]!, 3));
 
 function mean(xs: number[]) {
   return Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10;
@@ -181,7 +181,7 @@ if (out)
     out,
     JSON.stringify({
       styles,
-      headers: { full: header(styles[12]!), grid3: header(styles[12]!, 3) },
+      headers: { bar: 19, full: header(styles[19]!), grid3: header(styles[19]!, 3) },
       lengths: { full: lengths, grid3: grids[1], grid2: grids[0] },
       report,
       examples: examples.map(({ seed, bar, now, grid }) => ({

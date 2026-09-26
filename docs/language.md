@@ -926,9 +926,10 @@ the others have not.
   (about 2 s). It runs the band over the app's own glides, a new preset
   every 8 bars with `PRESET_GLIDE`, 5 seeds × 64 bars.
   - Written in full, the style takes 109 characters a bar on average and
-    145 at most, against 80 on a grid of 3 decimals. Only the tempo runs
-    long, since it glides in log space (C2); the other axes glide to short
-    values.
+    145 at most, against 80 on a grid of 3 decimals. Between glides the
+    values are short; within one, every axis runs long, as a dyadic
+    fraction (`0.8892578125`) or with float noise (`0.19277343749999998`),
+    and the tempo, which glides in log space (C2), longest.
   - If the band reads its style on a grid of 3 decimals, 4 of 320 bars are
     written otherwise than now, each by one hit (a hat that opens, a bass
     note that goes), and 174 play otherwise, by at most 1 in velocity and
