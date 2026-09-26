@@ -37,11 +37,15 @@ boundaries, are collected in #39 (Q1–Q8).
 4. **Candidates.** Candidate forms are scored against the catalogue. None is
    chosen before the catalogue settles.
 
-A test named here lives on `main`, unless the entry says otherwise. A new
-test that holds an entry cites its id at the end of its description, such as
-`(F6)`. Tests written before the catalogue are named here by file and
-description. The citation syntax, and a check that ids, statuses and tests
-agree, are #42.
+A test named here lives on `main`, unless the entry says otherwise. A test
+that holds an entry cites its id in a group at the end of its description,
+such as `(F6)` or `(T4, #39 Q1c)`, and the entry names the test's file; it
+need not quote the test, so the test's wording can change. Tests written
+before the catalogue are named here by file and quoted description. The
+pawl check (`tooling/pawl.ts`, #42) holds all of this in `pnpm verify`: every
+entry has a status on the ladder, every file an entry names exists and every
+quote is a test in it, a measured entry names a file, every cited id is
+defined once, and an entry names the file of every test that cites it.
 
 ## Probes
 
@@ -323,8 +327,8 @@ Coalgebra", 2000).
 Counterexample: a machine that keeps state out of sight, changes what it
 was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
-`form.test.ts`, `band.test.ts` and `transport.test.ts`, "keeps the machine
-laws".
+`form.test.ts`, `band.test.ts` and `transport.test.ts`, whose tests of the
+machine laws cite F1.
 Source: #37 step 1. Status: measured. Lands in: #39 Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
@@ -350,7 +354,8 @@ Witness: per boundary, a section and a retraction:
 Chained, a score, played and heard, writes itself: a quine.
 Counterexample: a value that doesn't come back through a boundary. The
 prototype's swing gives one (T4).
-Test: T4's tests (time); open for text (#13) and sound (#3).
+Test: `swing.test.ts` and `tempo.test.ts`, as for T4 (time); open for text
+(#13) and sound (#3).
 Source: #13, #37. Status: measured (time); open (text, sound). Lands in:
 #39 Q1 and Q3.
 
