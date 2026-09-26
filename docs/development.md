@@ -19,7 +19,7 @@ pnpm verify       # everything CI runs: lint, format check, typecheck, tests, bu
   to 6.0, because typescript-eslint and svelte-check do not support
   TypeScript 7 yet.
 - **pnpm workspaces**, so the engine is its own package with its own lint
-  rules. That boundary keeps it portable to Workers and to a future server.
+  rules. That boundary keeps it portable to Workers and to the root node.
   Packages export their TypeScript sources directly, with no build step
   between workspace packages.
 - **Vite** builds the web app. **Svelte 5** (plain Svelte, not SvelteKit,

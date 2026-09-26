@@ -43,17 +43,27 @@ solid, the Muse encoder and lead writer plausible, and a fully learned band
 that beats rules plus reranking speculative. The architecture does not
 depend on the last one.
 
-### Server
+### Root node
 
-A server that several Jambots sync to and that drives MIDI interfaces
-directly. Its language and design are open; the options are laid out in
-[architecture](architecture.md#server).
+A dedicated main host appliance that is the central composer and conductor
+at an event. Web clients connect to it, and it drives the physical
+instruments over USB and physical MIDI ports. See [architecture](architecture.md#nodes).
+
+Timing and latency are a known issue across the system. A hardware MIDI
+clock is one mitigation path.
+
+### Languages and rendering
+
+Jambot's extensions to Strudel on top of Strudel, on top of MIDI or dough.
+MIDI instruments and dough nodes are rendering nodes, side by side. See
+[architecture](architecture.md#languages).
 
 ### Open threads
 
 Listed in full in
 [`prototype/README.md`](../prototype/README.md#open-threads), grouped as
-language, music, system, and a separate speculative track.
+language, music, system, and a separate speculative track. Disregard its
+root-box and PicoCalc items (see [memory](MEMORY.md#corrections)).
 
 ## Milestones and dates
 

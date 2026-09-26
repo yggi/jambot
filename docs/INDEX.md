@@ -11,7 +11,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`INDEX.md`](INDEX.md): this tree
   - [`ROADMAP.md`](ROADMAP.md): where the project is heading
   - [`architecture.md`](architecture.md): layers (engine, transport,
-    renderers, UI) and the planned server
+    renderers, UI), languages, nodes (web clients, root node,
+    rendering nodes), timing
   - [`development.md`](development.md): setup, toolchain and why it was
     chosen
   - [`prototype.md`](prototype.md): what the port keeps and changes, and how
