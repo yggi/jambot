@@ -66,8 +66,9 @@ These principles come from the prototype
   refactoring while features settle. Tests sit next to the code as
   `*.test.ts`.
 - **`pnpm verify` before pushing.** It runs everything CI runs. A fresh
-  checkout needs `pnpm install --frozen-lockfile` first (seconds): install,
-  never skip the tests. Claude Code sessions do this at start through
+  checkout needs `pnpm install --frozen-lockfile` and, for the end-to-end
+  checks, `pnpm exec playwright install chromium` first: install, never
+  skip the tests. Claude Code sessions do both at start through
   `.claude/hooks/session-start.sh`.
 - **Theory and engine stay pure.** `packages/theory` and `packages/engine`
   use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All

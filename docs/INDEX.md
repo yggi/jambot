@@ -80,6 +80,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       style track
     - `src/audio/drums.ts`: the built-in drum kit
     - `src/ticker.ts`: the scheduler's tick, from a Worker
+    - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
+      built app in Chromium with its audio measured
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
   deploys `main` to GitHub Pages
 - `.claude/settings.json`: the session-start hook, and the checks agents

@@ -9,7 +9,9 @@ Requires Node 22.12 or later and pnpm (the version is pinned in
 pnpm install
 pnpm dev          # web app on http://localhost:5173, prototype at /prototype.html
 pnpm test:watch   # tests, re-run on change
-pnpm verify       # everything CI runs: lint, format check, typecheck, tests, build
+pnpm exec playwright install chromium   # once, for the end-to-end checks
+pnpm verify       # everything CI runs: lint, format check, typecheck, tests, build, e2e
+pnpm e2e          # the end-to-end checks alone: the built app in Chromium
 ```
 
 ## Toolchain
@@ -30,10 +32,19 @@ pnpm verify       # everything CI runs: lint, format check, typecheck, tests, bu
   dependencies, no heavy frameworks, fonts bundled rather than fetched.
 - **Vitest** runs all tests from the root. The engine tests run in Node,
   and the web tests in jsdom with Testing Library.
+- **Playwright** runs the end-to-end checks (`apps/web/e2e/*.e2e.ts`):
+  the built app in Chromium, with its audio measured. They record the time
+  every sound source starts, so they check the timing exactly (every onset
+  on the 16th grid, or on thirds of a step when swung), and they tap the
+  output to hear that the band sounds and stops. `@playwright/test` is
+  pinned to 1.56.1, the version whose Chromium (build 1194) the cloud
+  sessions have installed, so they need no download. Elsewhere,
+  `pnpm exec playwright install chromium` fetches that build once.
 - **ESLint + Prettier**, with `eslint-plugin-svelte` and `svelte-check` for
   types in components.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`,
-  `format:check`, `check`, `test` and `build` on every push and pull request.
+  `format:check`, `check`, `test`, `build` and `e2e` on every push and pull
+  request.
   Pushes to `main` deploy to GitHub Pages. The workflow does not run at the
   moment, because the Actions minutes are used up (#4).
 

@@ -8,6 +8,7 @@
       "Bash(pnpm check)",
       "Bash(pnpm format:check)",
       "Bash(pnpm build)",
+      "Bash(pnpm e2e)",
       "Bash(uv run .claude/skills/music-theory/oracle.py:*)",
       "Bash(node .claude/skills/music-theory/tonal.mjs:*)",
       "Bash(node .claude/skills/music-theory/compare.mjs:*)"
