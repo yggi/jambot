@@ -60,13 +60,33 @@ describe('spell', () => {
     expect(chord('C', 'mMaj7')).toBe('C E♭ G B');
   });
 
-  it('spells anything else by the usual interval of each size', () => {
+  it('spells anything else in thirds over its chord: third and fifth as 3 and 5, the rest as 9 11 13 7', () => {
     expect(chord('C', '6')).toBe('C E G A');
     expect(chord('C', 'sus4')).toBe('C F G');
     expect(chord('C', 'add9')).toBe('C E G D');
     expect(scale('C', 'major pentatonic')).toBe('C D E G A');
     expect(scale('C', 'half whole diminished')).toBe('C D♭ E♭ E F♯ G A B♭');
     expect(scale('C', 'diminished')).toBe('C D E♭ F G♭ A♭ A B');
+    // Over 7♯5: 9 ♯11 ♯5 ♭7. Over maj7: ♯9 and ♭13.
+    expect(scale('C', 'whole tone')).toBe('C D E F♯ G♯ B♭');
+    expect(scale('C', 'augmented')).toBe('C D♯ E G A♭ B');
+  });
+
+  it('uses each letter once where the notes fit, except for the blue notes', () => {
+    // A tension whose letter is taken is a blue note: ♭3 beside the major
+    // third, ♭5 beside the fifth. Only the two blues scales need one.
+    const repeating: string[] = [];
+    for (const [name, { helix }] of Object.entries(SCALES)) {
+      if (helix.heights.length > 7) continue;
+      for (const tonic of ['C', 'E♭', 'F♯', 'A']) {
+        const letters = spell(note(tonic), helix.heights).map((n) => n.letter);
+        if (new Set(letters).size < letters.length) repeating.push(name);
+      }
+    }
+    expect([...new Set(repeating)].sort()).toEqual(['blues', 'major blues']);
+    expect(scale('C', 'blues')).toBe('C E♭ F G♭ G B♭');
+    expect(scale('C', 'major blues')).toBe('C D E♭ E G A');
+    expect(scale('C', 'chromatic')).toBe('C D♭ D E♭ E F G♭ G A♭ A B♭ B');
   });
 
   it('reads the tritone as ♯4 beside a fifth and no fourth, and 8 as ♯5 beside a third and no fifth', () => {
@@ -97,7 +117,7 @@ describe('spell', () => {
       for (const heights of stacks)
         if (spell(note(tonic), heights).some((n) => Math.abs(n.alteration) > 2)) beyond.push(tonic);
     }
-    expect(beyond).toHaveLength(11);
+    expect(beyond).toHaveLength(13);
     expect(new Set(beyond)).toEqual(new Set(['Cb', 'Fb', 'E#', 'B#']));
     expect(chord('C♭', 'dim7')).toBe('C♭ E♭♭ G♭♭ B♭♭♭');
   });

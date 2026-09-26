@@ -109,21 +109,34 @@ Tests: `intervals.test.ts`.
 A note's letter is its generic interval above the tonic, counted in letters,
 and its accidental is what the specific interval leaves over. So spelling is
 choosing a generic for each height (`genericsOf`), and `spell(tonic,
-heights)` does the rest:
+heights)` does the rest. The rule is to spell in thirds, as the notes sound
+over their chord:
 
 - a stack of thirds takes a third per note: C E♭ G♭ B♭♭;
-- a 7-note scale takes one letter per degree, whatever accidentals that
-  costs: E♭ harmonic minor is E♭ F G♭ A♭ B♭ C♭ D;
-- anything else takes the usual interval of each size, with two exceptions:
-  the tritone is a ♯4 beside a fifth and no fourth, and 8 semitones are a ♯5
-  beside a third and no fifth. The blues is C E♭ F G♭ G B♭.
+- a 7-note scale takes one letter per degree, which is its thirds stacked:
+  E♭ harmonic minor is E♭ F G♭ A♭ B♭ C♭ D;
+- anything else finds the third and fifth of its chord from the root (a
+  major third, else a minor one; a perfect fifth, else ♯5 over a major third,
+  else ♭5), spells them as 3 and 5, and every other note from low to high as
+  a 9, 11, 13 or 7. A note whose letter is taken by then takes the usual
+  interval of its size, and that makes the blue notes: ♭3 beside the major
+  third, ♭5 beside the fifth. The whole tone scale is C D E F♯ G♯ B♭ (9 ♯11
+  ♯5 ♭7 over 7♯5), the augmented scale C D♯ E G A♭ B (♯9 ♭13 over maj7), and
+  the blues C E♭ F G♭ G B♭.
 
-This is quintenzirkel's rule (`spellDegree`), and its golden spellings are
-tests here. tonal agrees on every chord symbol both read, from 21 roots
-(840 of 840), and on 25 of the 28 scales both know, from 21 tonics. It
-spells the other three by other conventions: the altered scale as jazz
-alterations, and the whole-tone and augmented scales with one letter per
-note. More than a double accidental comes up only on a tonic that has an
+Every scale of up to 7 notes then uses each letter once, except the two
+blues scales. quintenzirkel's spellings (`spellDegree`) follow, its two
+exceptions included (the ♯4 beside a fifth and no fourth, the ♯5 beside a
+third and no fifth), and its golden spellings are tests here. tonal agrees
+on every chord symbol both read, from 21 roots (840 of 840), and on 25 of
+the 28 scales both know, from 21 tonics. It reads the whole tone and
+augmented scales over other chords (C D E F♯ G♯ A♯, C D♯ E G G♯ B), and it
+spells the altered scale over the 7alt chord it is used on, C D♭ D♯ E F♯ A♭
+B♭, where here it takes one letter per degree, C D♭ E♭ F♭ G♭ A♭ B♭. Which
+the altered scale should follow is open (#12): ultralocrian has the same
+third and fourth, and tonal spells that one by degree.
+
+More than a double accidental comes up only on a tonic that has an
 accidental already: C♭dim7 has a B♭♭♭.
 
 Tests: `spelling.test.ts`, and `second-opinion.test.ts` ("spelling").

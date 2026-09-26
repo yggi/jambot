@@ -161,13 +161,16 @@ describe('tonal as a second opinion', () => {
 
     /** tonal's name for each scale both know, where tonal spells it by another convention. */
     const conventions: Record<string, string> = {
-      // tonal spells the altered scale as jazz alterations (♭9 ♯9 3 ♯11 ♭13 ♭7), with no 4th
-      // and two letters D; here a 7-note scale takes one letter per degree (super locrian).
-      altered: 'b9, #9 and #11 over one letter per degree',
-      // Not 7 notes: here each height takes its usual interval (quintenzirkel's rule),
-      // tonal one letter per note.
-      'whole tone': 'tonal: C D E F# G# A#; here C D E Gb G# Bb',
-      augmented: 'tonal: C D# E G G# B; here C Eb E G Ab B',
+      // Open in #12: tonal spells the altered scale over the 7alt chord it is
+      // used on (♭9 ♯9 3 ♯11 ♭13 ♭7, keeping the chord's third E); here a
+      // 7-note scale takes one letter per degree (C D♭ E♭ F♭ G♭ A♭ B♭).
+      // Ultralocrian has the same third and fourth, and tonal spells that one
+      // by degree.
+      altered: 'open (#12): 7alt reading or one letter per degree',
+      // Both spell in thirds over the chord, one letter per note; tonal reads
+      // the chords differently.
+      'whole tone': 'tonal: C D E F♯ G♯ A♯; here C D E F♯ G♯ B♭ (9 ♯11 ♯5 ♭7 over 7♯5)',
+      augmented: 'tonal: C D♯ E G G♯ B; here C D♯ E G A♭ B (♯9 ♭13 over maj7)',
     };
 
     it("agrees with tonal's spelling of every scale both know, from 21 tonics, except where the conventions differ", () => {
