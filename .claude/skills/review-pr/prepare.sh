@@ -6,7 +6,7 @@
 # moved on since the pull request branched, with the files a merge would
 # conflict in. When a check fails, it shows the failing tests, or the end of
 # the output where there are none. The worktree stays for reading and
-# probing; the summary says how to remove it.
+# probing; the summary says how to probe it and how to remove it.
 #
 # Usage:
 #   prepare.sh <pull request number | branch> [--from <commit>] [--against <pull request number | branch>] [worktree directory]
@@ -16,9 +16,10 @@
 # --against names the files the pull request conflicts in with another one,
 # for two reviewed side by side.
 #
-# Reviews prepared at the same time run their checks one at a time: in
-# parallel, the load times out timing-sensitive tests, and the end-to-end
-# runs share one port, so one can test the other's build.
+# Reviews prepared at the same time run one at a time: in parallel, the
+# load times out timing-sensitive tests, the end-to-end runs share one
+# port, so one can test the other's build, and a fetch fails on a worktree
+# another review is still adding.
 #
 # A checkout without this script (a branch behind main) can run main's copy:
 #   git show origin/main:.claude/skills/review-pr/prepare.sh | sh -s -- <args>
@@ -63,6 +64,29 @@ case $target in
 esac
 dir=${1:-${TMPDIR:-/tmp}/jambot-review-$name}
 
+# One review at a time, in this repository and its worktrees: its fetch,
+# checkout and checks. A fetch walks every worktree's HEAD, so it fails on
+# one another review is still adding. The lock holds the pid of its
+# review, so one left by a review that died is taken over.
+lock="$(git rev-parse --git-common-dir)/review-pr.lock"
+case $lock in /*) ;; *) lock="$repo/$lock" ;; esac
+waited=''
+until mkdir "$lock" 2>/dev/null; do
+  holder=$(cat "$lock/pid" 2>/dev/null)
+  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
+    rm -rf "$lock"
+    continue
+  fi
+  if [ -z "$waited" ]; then
+    echo "prepare: waiting for another review${holder:+ (pid $holder)}" >&2
+    waited=1
+  fi
+  sleep 1
+done
+echo $$ >"$lock/pid"
+trap 'rm -rf "$lock"' EXIT
+trap 'exit 1' INT TERM
+
 refspecs="main:refs/remotes/origin/main +$source:$ref"
 [ -n "$against" ] && refspecs="$refspecs +$(source_of "$against"):$(ref_of "$against")"
 # shellcheck disable=SC2086
@@ -75,28 +99,6 @@ if [ -e "$dir" ]; then
 else
   git worktree add -q --detach "$dir" "$ref" || exit 1
 fi
-
-# One review's checks at a time, in this repository and its worktrees. The
-# lock holds the pid of its review, so one left by a review that died is
-# taken over.
-lock="$(git rev-parse --git-common-dir)/review-pr.lock"
-case $lock in /*) ;; *) lock="$repo/$lock" ;; esac
-waited=''
-until mkdir "$lock" 2>/dev/null; do
-  holder=$(cat "$lock/pid" 2>/dev/null)
-  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
-    rm -rf "$lock"
-    continue
-  fi
-  if [ -z "$waited" ]; then
-    echo "prepare: waiting for another review's checks${holder:+ (pid $holder)}" >&2
-    waited=1
-  fi
-  sleep 1
-done
-echo $$ >"$lock/pid"
-trap 'rm -rf "$lock"' EXIT
-trap 'exit 1' INT TERM
 
 log="$dir.verify.log"
 cd "$dir" || exit 1
@@ -178,4 +180,8 @@ fi
 [ "${e2e_verdict:-passes}" = passes ] || tail -n +"$((verify_lines + 1))" "$log" | tail -30
 echo
 echo "Diff: git -C $dir diff $range"
+# Bare @jambot/* imports resolve only inside a package; the engine's
+# reaches both the engine and the theory.
+[ -f packages/engine/package.json ] &&
+  echo "Probe: cd $dir/packages/engine && node --experimental-strip-types --no-warnings --input-type=module -e \"import { band } from '@jambot/engine'; import { even } from '@jambot/theory'; …\""
 echo "Done: git worktree remove --force $dir && rm -f $log"

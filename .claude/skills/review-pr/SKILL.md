@@ -32,12 +32,14 @@ worktree (put it in your scratchpad if you have one), runs
   one: say so in both reviews;
 - when a check fails, vitest's block of failed tests, or the end of the
   output where there is none;
-- the commands to read the diff and to remove the worktree.
+- the commands to read the diff, to probe the engine and the theory, and
+  to remove the worktree.
 
-To review several pull requests, start them all: each one's checks wait
-for the one before, which says so on stderr. Run in parallel, the load
-times out timing-sensitive tests, and the end-to-end runs share port 4317,
-so one could test the other's build.
+To review several pull requests, start them all: each one waits for the
+one before, which says so on stderr. Run in parallel, the load times out
+timing-sensitive tests, the end-to-end runs share port 4317, so one could
+test the other's build, and a fetch fails on a worktree another review is
+still adding.
 
 To review part of a pull request, such as the steps after an earlier
 review, pass `--from <commit>`. The commits and the diff are then what the
@@ -81,10 +83,11 @@ Read `AGENTS.md` and the pull request body first. Then, for each change:
   `ROADMAP.md` are updated in the same pull request.
 - **Theory claims** get a second opinion from the `music-theory` skill.
 
-Don't stop at reading: probe. Run the new functions from the worktree with
-`node --experimental-strip-types --no-warnings --input-type=module -e "…"`,
-and try the input that you think breaks them. A finding with a measured
-number beats one without.
+Don't stop at reading: probe. Run the new functions with the `Probe:`
+line `prepare.sh` printed, and try the input that you think breaks them.
+It runs from the worktree's `packages/engine`, since bare `@jambot/*`
+imports resolve only inside a package; a longer probe goes in a file
+there, removed after. A finding with a measured number beats one without.
 
 ## 3. Post
 
