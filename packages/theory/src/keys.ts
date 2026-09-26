@@ -16,9 +16,19 @@
  */
 
 import { generator } from './even.ts';
-import { type Helix, compose, heightOf, lift, positions, shift, wrap } from './helix.ts';
+import {
+  type Helix,
+  compose,
+  degreeBelow,
+  heightOf,
+  lift,
+  mod,
+  positions,
+  shift,
+  wrap,
+} from './helix.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, mode } from './modes.ts';
-import { qualityOf } from './chords.ts';
+import { qualityOf, splitChord } from './chords.ts';
 import { LETTERS, type Note } from './notes.ts';
 import { spell } from './spelling.ts';
 
@@ -57,9 +67,13 @@ export function relative(key: Helix, scale: Helix): Helix {
 }
 
 /**
- * The scale a chord implies in a key, entered at the chord's root: the
- * candidate that changes the fewest of the key's notes and holds the chord's
- * tones as its degrees 0, 2, 4, …. The candidates, nearest first:
+ * The scale a chord implies in a key, entered at the chord's root. The chord
+ * is a stack of heights, split at the octave into its helix and its tensions
+ * (`splitChord`, #38).
+ *
+ * The helix implies the candidate that changes the fewest of the key's notes
+ * and holds the helix's tones as its degrees 0, 2, 4, …. The candidates,
+ * nearest first:
  *
  * - the key itself and its parallel diatonic modes;
  * - the key of each major or minor degree a fifth below the chord's root:
@@ -67,11 +81,26 @@ export function relative(key: Helix, scale: Helix): Helix {
  *   dominant fits there, so V7/ii is A phrygian dominant in C;
  *
  * with a tie going to the parallel mode, which keeps the tonic. Where none
- * holds the chord, harmonic and then melodic minor on the tonic are tried
- * (III+ in minor). Otherwise the chord implies no scale, and the line has to
- * state one.
+ * holds the helix, harmonic and then melodic minor on the tonic are tried
+ * (III+ in minor).
+ *
+ * Then each tension sets its own degree (P7): the degree nearest to it that
+ * the helix doesn't sound, so a ninth sets degree 1, and V9/ii keeps its
+ * natural 9 in A mixolydian ♭13. A ninth has a scale exactly where its
+ * seventh has one. Otherwise the chord implies no scale, and the line has
+ * to state one.
  */
-export function chordScale(key: Helix, chord: readonly number[]): Helix | undefined {
+export function chordScale(key: Helix, stack: readonly number[]): Helix | undefined {
+  const chord = splitChord(stack, key.cycle);
+  if (!chord) return undefined;
+  let scale = helixScale(key, chord.helix.heights);
+  for (const tension of chord.tensions)
+    scale = scale && withTension(scale, chord.helix.heights.length, tension);
+  return scale;
+}
+
+/** The scale a chord's helix implies: the search `chordScale` describes. */
+function helixScale(key: Helix, chord: readonly number[]): Helix | undefined {
   const tonic = key.heights[0]!;
   const nearest: Helix[] = [
     key,
@@ -90,6 +119,29 @@ export function chordScale(key: Helix, chord: readonly number[]): Helix | undefi
     if (entered) return entered;
   }
   return undefined;
+}
+
+/**
+ * The scale with a tension set on its own degree: the nearest degree the
+ * chord's `sounded` tones (degrees 0, 2, 4, …) leave free, ties going down.
+ * A tension already in the scale changes nothing; one that would leave the
+ * degrees out of order gives no scale.
+ */
+function withTension(scale: Helix, sounded: number, tension: number): Helix | undefined {
+  const { cycle, heights } = scale;
+  const k = heights.length;
+  if (positions(scale).includes(wrap(tension, cycle))) return scale;
+  const free = (d: number) => !(mod(d, k) % 2 === 0 && mod(d, k) / 2 < sounded);
+  const below = degreeBelow(scale, tension);
+  let d = below;
+  while (!free(d)) d--;
+  let up = below + 1;
+  while (!free(up)) up++;
+  if (heightOf(scale, up) - tension < tension - heightOf(scale, d)) d = up;
+  const set = [...heights];
+  set[mod(d, k)] = tension - cycle * Math.floor(d / k);
+  const rising = set.every((x, i) => i === 0 || x > set[i - 1]!) && set[k - 1]! - set[0]! < cycle;
+  return rising ? { cycle, heights: set } : undefined;
 }
 
 /**

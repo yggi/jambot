@@ -319,30 +319,44 @@ Source: #28, the open threads (tunings other than 12). Status: open.
 
 **P6. A chord is a helix of one turn plus its tensions, the tones above the
 octave; together they are its stack.**
-Witness: every quality's stack split at the octave. A ninth chord is its
-seventh plus a tension, so "a chord is a helix" holds for what a helix can
-hold, and the ninth is named for what it does.
+Witness: `splitChord` and `joinChord` in `chords.ts`, the theory's `Chord`
+type: a rising stack splits at one turn above its root into the helix below
+and the tensions above, and joins back. A ninth chord is its seventh plus a
+tension, so "a chord is a helix" holds for what a helix can hold, and the
+ninth is named for what it does. The split is at a turn of the helix's own
+cycle, so it assumes no 12 (P5).
 Counterexample: a quality whose tones below the octave are not a helix, or
-whose parts don't join back into its stack.
+whose parts don't join back into its stack. A stack that doesn't rise, such
+as `0 4 14 7`, is no chord.
 Test: `chords.test.ts`, "split at the octave into a helix and the tones
-above it, and join back: every quality (#38, P6)", all 20 qualities.
-Source: #37 step 1, #38. Status: decided. Lands in: #37 step 4, the chord
-type.
+above it, and join back: every quality on every root (#38, P6)", "are no
+chord where the stack does not rise: nothing to split (#38, P6)" and "split
+at a turn of any cycle, not at 12: stacked thirds of 7 above their turn
+(#38, P6)".
+Source: #37 step 1, #38. Status: decided; measured. Lands in: #37 step 4,
+the engine's chords.
 
 **P7. A tension sets its own degree of the scale its chord's helix
 implies.**
-Witness: the seventh's `chordScale` with degree 1 set to the ninth: a scale
-in all 102 of the 144 ninths (3 qualities, 12 roots, the prototype's 4
-modes) whose seventh has one. So a ninth has a scale exactly where its
-seventh has one, and a V9 of a minor degree keeps its natural 9: V9/ii in C
-takes A mixolydian ♭13.
-Counterexample: a chord whose tension's scale is not a scale, or a nearer
-scale that holds the chord.
-Test: `keys.test.ts`, whose test of a ninth's scale cites P7. `chordScale`,
-which still searches five-note stacks, agrees in 89, finds a scale one note
-farther in 3 and none in 10.
-Source: #38. Status: decided; measured, failing (chordScale, 13 of 144).
-Lands in: #37 step 4, where `chordScale` takes the chord type.
+Witness: `chordScale`, which takes the scale the helix implies and lets
+each tension set the nearest degree the helix doesn't sound. A ninth sets
+degree 1, so a ninth has a scale exactly where its seventh has one: 102 of
+the 144 ninths (3 qualities, 12 roots, the prototype's 4 modes), each a
+named scale (mixolydian 25, aeolian 18, lydian 18, dorian 18, ionian 14,
+mixolydian ♭6 9). A V9 of a minor degree keeps its natural 9: V9/ii in C
+takes A mixolydian ♭13. A tension that would put the degrees out of order
+gives no scale, as a major 7th over C7 does.
+Counterexample: a ninth whose scale is not its seventh's with degree 1 set,
+or is no named scale. A nearer scale than the helix's is a counterexample to
+the helix's scale, not to the tension's degree, and is filed there (P9).
+Test: `keys.test.ts`, "gives a ninth its seventh's scale with degree 1 set
+to the ninth, and a named scale every time: 102 of 144 (#38, P7)", "keeps
+the natural 9 of a V9 of a minor degree … (#38, P7)" and "lets each tension
+set the nearest degree its chord does not sound, and gives no scale where
+that breaks the scale (#38, P7)". Against the search over five-note stacks
+it replaced, 10 more ninths have a scale and 3 have one a note nearer.
+Source: #38. Status: decided; measured. Lands in: #37 step 4 (done in the
+theory), #7 (b).
 
 **P8. The baseline hears a chord only as pitch classes: register above the
 octave is read only for names.**
@@ -353,6 +367,26 @@ second.
 Test: open: run the prototype headless, as E1 does, with every 14 folded
 to 2, and compare the events.
 Source: #38. Status: open.
+
+**P9. A chord's helix implies the scale nearest the key among `chordScale`'s
+candidates, which is not the nearest named scale that holds it.**
+Witness: `chordScale`'s candidates, nearest first: the key, its parallel
+diatonic modes, the key a dominant points to, then harmonic and melodic
+minor on the tonic.
+Counterexample: a named scale on the chord's root that holds it and changes
+fewer notes of the key. C major in C minor takes C mixolydian, which changes
+E♭ and A♭, where mixolydian ♭6 changes only E♭.
+Test: `keys.test.ts`, "takes the nearest of its candidates, which is not
+always the nearest named scale that holds the chord (P9)", over the 528
+chords of the grammar in the prototype's modes: 241 take the nearest named
+scale, 101 have a nearer one (by one note in 97, by two in 4), and the 186
+that `chordScale` gives no scale are each held by some named scale. None is
+held by none.
+Source: #37 step 4, a probe on P7's counterexample (N1). Status: measured,
+failing (over the named scales). Open: whether the default a line's
+`scale=` overrides should be the nearest named scale, which no chord of the
+grammar lacks, or the candidates, whose choices read as modal interchange
+and secondary dominants. Lands in: #7 (b).
 
 ### Lowering
 
