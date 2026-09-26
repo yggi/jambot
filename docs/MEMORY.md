@@ -61,7 +61,12 @@ pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
   (form, key and theme) per section, the band per bar, the transport per
   tick. The players' key wish is a standing target, not an event: `nextKey`
   applied twice gives what it gave once, so the band can read it at every
-  section boundary. The web player only
+  section boundary.
+- A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
+  register. `joinChord` gives its stack, and `chordScale` takes a stack. A
+  bar's chords come from its theme's slots at the bar's harmony
+  (`barChords`); their colour draws are keyed by theme, bar and slot, so a
+  test that wants a rate must vary the seed or the theme, not the key. The web player only
   reads the audio clock and plays what the transport schedules, so
   everything that decides what and when is tested without a browser.
 - Swing is a time map, `swingMap(swing)`, with `played` and `written` as
@@ -89,6 +94,27 @@ pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
   not support TypeScript 7 yet.
 - The web app's base path comes from `BASE_PATH` (CI sets `/jambot/` for
   GitHub Pages). It defaults to `/`.
+
+### License
+
+- Jambot is MIT ([`LICENSE`](../LICENSE)), as are quintenzirkel and
+  lib-aeiou, so code moves freely between the sister projects. Every
+  `package.json` says so.
+- The build runs a license gate (`tooling/licenses.ts`, wired in
+  `apps/web/vite.config.ts`). It fails on any package the app ships that
+  isn't under a permissive license or lacks its license text, and writes
+  `licenses.txt`: Jambot's license, then each shipped package's. Today that
+  is the Svelte runtime, Vite's preload polyfill, workbox's runtime and the
+  service worker's loader (Apache-2.0).
+- Taking in a copyleft package, such as Strudel, is a decision, not a side
+  effect of an import. MIT code may go into an AGPL build, but that build is
+  then AGPL as a whole. Exporting Strudel code as text is not affected.
+- The license covers the code and the docs. It does not cover training
+  data, model weights or what the band plays. Lakh MIDI and Groove MIDI are
+  CC-BY-4.0 (attribution); POP909 has a license of its own, to read before
+  use.
+- Static assets aren't modules, so the gate doesn't see them. The
+  prototype's Google Fonts are #58.
 
 ### Prototype
 
@@ -136,7 +162,8 @@ The full description is in
   a triad. A note goes
   to the octave nearest the previous one, `^`/`v` force the direction, then
   it folds into the part's range (bass 33–57, lead 60–88, or `range=lo-hi`).
-  Absolute notes such as `a4` are an escape hatch.
+  Absolute notes such as `A4` are an escape hatch, written in upper case so
+  that `b3` is always a flat third (U2); the prototype still reads `a4`.
 - `pad`, `stab`: `ch` is the current chord and `nx` the next one.
 - `drums`: `bd sd gh rim hh oh rd ph`.
 - Rhythm is mini-notation: sequence, `[sub]`, `<alt per bar>`, `@weight`,
@@ -173,11 +200,13 @@ The full description is in
   but each reads names the other can't.
 - tonal's Euclid, `RhythmPattern.euclid(n, k)`, is exactly `even(k, n)`, with
   the same rotation, for every 1 ≤ k ≤ n ≤ 16. Strudel's is not (#8).
-- Roman numerals follow three conventions. The prototype takes the degree
-  and `b`/`#` from the mode and the quality from the case, as music21 does.
-  It takes `7`, `maj7` and `9` as fixed intervals, as tonal does. So `bVII`
-  in G mixolydian is F♭ major (the mode's own F major is `VII`), and `I7` in
-  C is C E G B♭.
+- Roman numerals follow three conventions. Jambot's is the prototype's,
+  decided as U1 on #7: the degree and `b`/`#` from the mode and the quality
+  from the case, as music21 does, and `7`, `maj7` and `9` as fixed
+  intervals, as tonal does. So `bVII` in G mixolydian is F♭ major (the
+  mode's own F major is `VII`), and `I7` in C is C E G B♭. music21 differs
+  in one more place: it raises the seventh degree of a minor key for `vii`.
+  `parseNumeral` and `chordOfNumeral` in `@jambot/theory` read numerals.
 - music21 reads `-` as a flat (`C-7` is C♭7), reads `Bb7` as B major with a
   flat seventh without any error, and ignores `maj` in a numeral. tonal
   ignores a numeral's case. The skill's scripts guard against all of these.

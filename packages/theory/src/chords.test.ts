@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHORD_QUALITIES, parseChordQuality, qualityOf } from './chords.ts';
+import { CHORD_QUALITIES, joinChord, parseChordQuality, qualityOf, splitChord } from './chords.ts';
 import { even, isEven } from './even.ts';
 import { type Helix, compose, positions, shift } from './helix.ts';
 import { partial } from './intervals.ts';
@@ -67,28 +67,47 @@ describe('chords, by composition', () => {
     expect(isEven({ cycle: 7, heights: [0, 1, 2, 4, 6] })).toBe(false); // 0 2 4 6 8, wrapped
   });
 
-  it('split at the octave into a helix and the tones above it, and join back: every quality (#38, P6)', () => {
+  it('split at the octave into a helix and the tones above it, and join back: every quality on every root (#38, P6)', () => {
     // The tones below the octave rise within one turn of 12, so they are a
-    // helix; every tone from the octave up comes after them. So a chord read
-    // as a helix plus the tones above it loses nothing of its stack.
-    const above: Record<string, number[]> = {};
-    for (const [name, { stack }] of Object.entries(CHORD_QUALITIES)) {
-      const below = stack.filter((x) => x < 12);
-      const rest = stack.filter((x) => x >= 12);
-      expect(
-        below.every((x, i) => i === 0 || x > below[i - 1]!),
-        name,
-      ).toBe(true);
-      expect(below.at(-1)! - below[0]!, name).toBeLessThan(12);
-      expect([...below, ...rest], name).toEqual(stack);
-      if (rest.length > 0) above[name] = rest;
-    }
+    // helix; every tone from the octave up is a tension. So a chord read as
+    // a helix plus its tensions loses nothing of its stack.
+    const above: Record<string, readonly number[]> = {};
+    for (const [name, { stack }] of Object.entries(CHORD_QUALITIES))
+      for (const root of range(12)) {
+        const heights = stack.map((x) => x + root);
+        const chord = splitChord(heights)!;
+        expect(chord, name).toBeDefined();
+        expect(chord.helix.cycle).toBe(12);
+        expect(chord.helix.heights[0]).toBe(heights[0]);
+        expect(chord.helix.heights.at(-1)! - chord.helix.heights[0]!, name).toBeLessThan(12);
+        expect(chord.tensions.every((x) => x >= heights[0]! + 12)).toBe(true);
+        expect(joinChord(chord), name).toEqual(heights);
+        if (root === 0 && chord.tensions.length > 0) above[name] = chord.tensions;
+      }
     expect(above).toEqual({
       '9': [14],
       maj9: [14],
       m9: [14],
       add9: [14],
       harmonics: [12, 19, 24, 28],
+    });
+  });
+
+  it('are no chord where the stack does not rise: nothing to split (#38, P6)', () => {
+    expect(splitChord([0, 4, 14, 7])).toBeUndefined();
+    expect(splitChord([0, 4, 4, 7])).toBeUndefined();
+    expect(splitChord([0, 7, 4])).toBeUndefined();
+    expect(splitChord([])).toBeUndefined();
+  });
+
+  it('split at a turn of any cycle, not at 12: stacked thirds of 7 above their turn (#38, P6)', () => {
+    expect(splitChord([0, 2, 4, 6, 8], 7)).toEqual({
+      helix: { cycle: 7, heights: [0, 2, 4, 6] },
+      tensions: [8],
+    });
+    expect(splitChord([3, 5, 7], 7)).toEqual({
+      helix: { cycle: 7, heights: [3, 5, 7] },
+      tensions: [],
     });
   });
 });

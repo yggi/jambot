@@ -133,7 +133,7 @@ Lands in: #7 (d).
 
 **Q6. Every feedback loop passes through a delay.** Same as F7.
 
-## Convergence (Q7–Q8)
+## Convergence and fixed points (Q7–Q9)
 
 **Q7a. Following the players is a loop with a bandwidth.** Same as A4.
 
@@ -153,11 +153,15 @@ style stays near it, and is built anew when the harmony has moved more than
 the entropy.
 Counterexample: a returning theme that differs from its first while the
 style held, or one that returns after the style has drifted.
-Test: `plan.test.ts`, whose theme-return tests cite Q8. Open: whether a
-return is a fixed point in more than name, such as the melody coming back
-with its harmony (#37 step 5).
+Test: `plan.test.ts`, whose theme-return tests cite Q8. With a steady style
+and no entropy, a returning theme is exactly the same plan. It is renewed
+in none of its returns at entropy 0, in 10–20% at 0.5 and in 25–35% at 1,
+over 200 seeds. Open: whether a return is a fixed point in more than name,
+such as the melody coming back with its harmony (#37 step 5).
 Source: the prototype's Quinetics parallels, #37 step 4. Status: measured
 (the plan); speculative (fixed point). Lands in: #37 step 5.
+
+**Q9. A wish settles: read again, it changes nothing.** Same as C6.
 
 ## Not a property
 

@@ -300,6 +300,20 @@ describe('the parts of the check', () => {
     });
   });
 
+  it('reads on over a wrapped line that starts with an issue number, and stops at a heading', () => {
+    const [entry, next] = readCatalogue(
+      [
+        '**C4. A part morphs.**',
+        'Source: the prototype README and',
+        "#40's review. Status: measured.",
+        '## Pitch',
+        'Status: decided.',
+      ].join('\n'),
+    );
+    expect(entry).toMatchObject({ id: 'C4', status: 'measured' });
+    expect(next).toBeUndefined();
+  });
+
   it('reads the names of `it`, `test` and `describe`, in any quotes, and skips `each` tables', () => {
     const source = [
       "it('one', () => {});",

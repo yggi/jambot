@@ -110,20 +110,22 @@ describe('the player', () => {
     expect(player.position).not.toBeNull();
   });
 
-  it("hears a preset's mode from the next section on (C5)", async () => {
+  it("hears a preset's mode from the next section on, and shows the chords (C5)", async () => {
     const { world, s } = surroundings();
     const player = new Player(s);
     void player.start();
     world.resolve();
     await settle();
     const heard = new Map<number, string>();
+    const chords = new Set<string>();
     const play = (seconds: number) => {
       for (let t = 0; t < seconds; t += 0.025) {
         world.currentTime += 0.025;
         world.tickers[0]!.tick();
         world.frames[0]!.follow();
-        const { bar, key } = player.position ?? {};
+        const { bar, key, chord } = player.position ?? {};
         if (bar !== undefined && key) heard.set(bar, key.mode);
+        if (chord) chords.add(chord);
       }
     };
     // Synth-pop at 108 bpm: a bar is 2.2 s. Deep house is dorian.
@@ -133,5 +135,8 @@ describe('the player', () => {
     play(20);
     for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('aeolian');
     expect(heard.get(8)).toBe('dorian');
+    // Synth-pop's first theme starts on A minor, at its harmony a triad or a
+    // seventh, and the screen names each chord it hears.
+    expect([...chords].some((chord) => /^Am7?$/.test(chord))).toBe(true);
   });
 });

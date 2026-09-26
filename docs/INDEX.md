@@ -5,6 +5,7 @@ Every doc and code area, as a tree. Add a line when you add one.
 - [`README.md`](../README.md): what Jambot is and how to run it
 - [`AGENTS.md`](../AGENTS.md): house rules and core structure (`CLAUDE.md`
   imports it)
+- [`LICENSE`](../LICENSE): MIT
 - `docs/`
   - [`MEMORY.md`](MEMORY.md): persistent facts and the cheatsheet, the entry
     point
@@ -41,6 +42,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `experiments/`: measurements on the prototype for the language design
     - [`cold-warm.mjs`](../prototype/experiments/cold-warm.mjs): E1, whether
       a bar's text is self-contained
+    - [`census.mjs`](../prototype/experiments/census.mjs): E8, the numerals
+      and pitch tokens the composer writes
 - `packages/`
   - `theory/`: music theory on one primitive, pure TypeScript (#28)
     - `src/helix.ts`: the `Helix`, its two views (`positions`, `heightOf`,
@@ -53,14 +56,18 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/notes.ts`, `src/intervals.ts`: note names (spelling, octaves),
       intervals, generic and specific, `sizes`, degree names and partials
     - `src/chords.ts`: the named chord qualities, each a stack above the
-      root
+      root, and the `Chord` type, a helix plus tensions (`splitChord`,
+      `joinChord`)
     - `src/scales.ts`, `src/rhythms.ts`: named scales and rhythms
     - `src/words.ts`: how names in words compare (case, ordinals,
       accidentals, abbreviations)
     - `src/spelling.ts`: `spell` and `genericsOf`, the letter and accidental
       of each note from a spelled tonic
     - `src/keys.ts`: `relative` and `parallel` keys, and `chordScale`, the
-      scale a chord implies in a key (#10)
+      scale a chord implies in a key (#10), its tensions setting their own
+      degrees (#38)
+    - `src/numerals.ts`: Roman numerals, a chord as a degree of its key, read
+      and written (U1)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here
@@ -84,6 +91,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/themes.ts`: themes, a section's harmony as degree slots
     - `src/plan.ts`: the section plan (form, key and theme), the machine
       at section rate
+    - `src/chords.ts`: the chords of a bar, from its theme's slots, the
+      key and the bar's harmony, and their lead-sheet names
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/band.ts`: the band, the machine at bar rate
@@ -101,9 +110,14 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `history.ts`: the catalogues read at any version, the gate that
     evidence only rises and rules go only with a reason, and the report
     behind `pnpm ratchet` (#43)
+  - `licenses.ts`: the license gate over what the web app ships, and the
+    `licenses.txt` it writes; `licenses.test.ts` shows it refusing copyleft
+    and unknown licenses
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
+    - `vite.config.ts`: the build, with the prototype and the license gate
+      as plugins
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start
