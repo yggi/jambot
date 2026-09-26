@@ -111,12 +111,16 @@ export const SCALES: Record<string, NamedScale> = {
  * `normalizeWords`), with or without a trailing "scale".
  */
 export function parseScaleName(text: string): string | undefined {
-  const words = withoutKindWord(normalizeWords(text), 'scale');
-  for (const [name, scale] of Object.entries(SCALES)) {
-    if ([name, ...scale.aliases].some((alias) => normalizeWords(alias) === words)) return name;
-  }
-  return undefined;
+  return SCALE_BY_WORDS.get(withoutKindWord(normalizeWords(text), 'scale'));
 }
+
+/** Every name and alias in words, to its canonical name; the first scale to claim one keeps it. */
+const SCALE_BY_WORDS = new Map<string, string>();
+for (const [name, scale] of Object.entries(SCALES))
+  for (const alias of [name, ...scale.aliases]) {
+    const words = normalizeWords(alias);
+    if (!SCALE_BY_WORDS.has(words)) SCALE_BY_WORDS.set(words, name);
+  }
 
 /**
  * A scale by name, or a scale and a number: "harmonic minor 5" is its fifth
