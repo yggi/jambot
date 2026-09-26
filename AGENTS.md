@@ -33,7 +33,7 @@ These principles come from the prototype
 | `packages/theory/`                                     | Music theory on one primitive, `even(k, n, shift)`: pure TypeScript           |
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
-| `tooling/`                                             | Tests for the repository's own gates, such as its lint rules                  |
+| `tooling/`                                             | Tests for the repository's own gates: lint rules and agent hooks              |
 | `prototype/`                                           | The original single-file prototype and its README: a baseline for orientation |
 | `docs/MEMORY.md`                                       | Persistent facts and a cheatsheet: the entry point                            |
 | `docs/INDEX.md`                                        | Tree of all docs and code areas                                               |
@@ -69,7 +69,9 @@ These principles come from the prototype
 - **`pnpm verify` before pushing.** It runs everything CI runs. A fresh
   checkout needs `pnpm install --frozen-lockfile` first (seconds): install,
   never skip the tests. Claude Code sessions do this at start through
-  `.claude/hooks/session-start.sh`.
+  `.claude/hooks/session-start.sh`, and `.claude/hooks/verify-before-push.sh`
+  runs `pnpm verify` before each of their `git push`es and blocks one that
+  fails.
 - **Theory and engine stay pure.** `packages/theory` and `packages/engine`
   use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
   randomness goes through `random.ts`, keyed by seed and position.

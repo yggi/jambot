@@ -13,9 +13,12 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 ```
 
 - Agent sessions (Claude Code) install dependencies, warm music21 and fetch
-  `origin/main` at start through `.claude/hooks/session-start.sh`, and `.claude/settings.json`
-  allows the checks and the music-theory scripts without a prompt. Other
-  agents run `pnpm install --frozen-lockfile` first.
+  `origin/main` at start through `.claude/hooks/session-start.sh`, and
+  `.claude/settings.json` allows the checks and the music-theory scripts
+  without a prompt. Other agents run `pnpm install --frozen-lockfile` first.
+- An agent's `git push` runs `pnpm verify` first (`verify-before-push.sh`,
+  about 30 s) and is blocked if it fails. It checks the working tree, so
+  commit before pushing.
 - To try the theory without a test, run its TypeScript source from the
   repository root, where `tonal` resolves too:
   `node --experimental-strip-types --no-warnings --input-type=module -e "import { read } from './packages/theory/src/index.ts'; console.log(read('C blues'))"`.
