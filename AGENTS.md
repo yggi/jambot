@@ -69,4 +69,4 @@ These principles come from the prototype
 - A new doc or code area gets a line in `docs/INDEX.md`.
 - A change of direction goes into `docs/ROADMAP.md`.
 - Concrete work goes into an issue. Epics carry a checklist, labelled `epic`;
-  other labels are `bug` and `infra`.
+  other labels are `bug`, `infra` and `design`.

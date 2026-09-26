@@ -74,9 +74,9 @@ The full description is in
 ### Terms
 
 - **Root node**: the dedicated main host appliance at an event, and the
-  central composer and conductor. Linux (Raspberry Pi class) or embedded
-  (ESP32-P4 class), with a USB host and physical MIDI inputs and outputs. See
-  [architecture](architecture.md#root-node).
+  central composer and conductor. A full Linux machine (Raspberry Pi class or
+  larger) with a USB host and physical MIDI inputs and outputs. An embedded
+  root node is out of scope. See [architecture](architecture.md#root-node).
 - **Rendering node**: turns the bottom-layer language into sound, for
   example a MIDI instrument or a dough node.
 - **dough**: a bottom-layer "machine language", parallel to MIDI.
@@ -86,10 +86,3 @@ The full description is in
 At an event, the root node drives the physical instruments (vintage synths,
 Eurorack). They feed a digital mixer, which drives the main PA. The root node
 may also listen to the mixer and control it. Everything else is open.
-
-### Corrections
-
-- `prototype/README.md` mentions a "root-box as clock master" and a
-  "PicoCalc running dough" or "PicoCalc/dough node". These came from mixed-up
-  memories: disregard them. The current picture is in
-  [architecture](architecture.md#nodes).

@@ -66,7 +66,8 @@ Conceptually, the languages stack like this, from top to bottom:
 3. MIDI or dough: the "machine language" at the bottom, which a rendering
    node understands
 
-How the current score language maps onto Strudel extensions is open.
+How the score language relates to Strudel is being designed (#7). One idea
+is that it relates to Strudel as TypeScript relates to JavaScript.
 
 ## Nodes
 
@@ -79,8 +80,9 @@ the root node.
 ### Root node
 
 A dedicated main host appliance and the central composer and conductor at an
-event. It is a full Linux system (Raspberry Pi class) or a powerful embedded
-system (ESP32-P4 class). Web clients connect to it.
+event. It is a full Linux machine (Raspberry Pi class or larger), so it runs
+the TypeScript packages directly on a JavaScript runtime. An embedded root
+node is out of scope. Web clients connect to it.
 
 It has a USB host and physical MIDI inputs and outputs. It drives the
 physical instruments (vintage synths, Eurorack) directly, without a browser
@@ -104,12 +106,10 @@ network, USB and MIDI. A hardware MIDI clock is one mitigation path.
 
 ## Open questions
 
-- How does the engine run on the root node? A JavaScript runtime (Node, Bun,
-  Deno) reuses the TypeScript packages as they are on a Linux system, but not
-  on an ESP32-P4-class device.
+- Which JavaScript runtime runs on the root node (Node, Bun or Deno)?
 - What do connected web clients do: send input and style, show the HUD,
   render?
 - What latency and jitter budget does MIDI out need?
 - How does the root node talk to the digital mixer?
 - Where do the Muse inputs go when several people play at once?
-- How does the score language map onto Strudel extensions?
+- How does the score language relate to Strudel? (#7)

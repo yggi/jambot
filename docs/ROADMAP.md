@@ -6,8 +6,12 @@ Where Jambot is heading. The concept and the reasoning behind it are in
 
 ## Now
 
-**Port the prototype** into the engine package and the web app, test-first
-and pinned to the prototype's output (#2).
+**Language design** (#7). The score language is well reasoned but somewhat
+ad hoc, and it gets a full refinement pass before anything builds on it. This
+includes how it relates to Strudel. It blocks the port.
+
+**Port the prototype** into the score and engine packages and the web app,
+test-first and pinned to the prototype's output (#2).
 
 ## Next
 
@@ -45,8 +49,8 @@ depend on the last one.
 
 ### Root node
 
-A dedicated main host appliance that is the central composer and conductor
-at an event. Web clients connect to it, and it drives the physical
+A dedicated main host appliance, a full Linux machine, that is the central
+composer and conductor at an event. Web clients connect to it, and it drives the physical
 instruments over USB and physical MIDI ports. See [architecture](architecture.md#nodes).
 
 Timing and latency are a known issue across the system. A hardware MIDI
@@ -62,8 +66,7 @@ MIDI instruments and dough nodes are rendering nodes, side by side. See
 
 Listed in full in
 [`prototype/README.md`](../prototype/README.md#open-threads), grouped as
-language, music, system, and a separate speculative track. Disregard its
-root-box and PicoCalc items (see [memory](MEMORY.md#corrections)).
+language, music, system, and a separate speculative track.
 
 ## Milestones and dates
 

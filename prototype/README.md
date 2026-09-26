@@ -93,7 +93,7 @@ sound lead tri=1.26 sq=.30 lpf=2720 att=0.030
 
 **Tested.** Composer events → IR → compiled events is exact across all presets and transitions: about 6,000 events, none missing and none extra, lengths within 0.01 steps. Building it corrected two design mistakes. `c0`-style chord-tone tokens collided with the absolute note C0, which is why pitch became interval numbers. And "nearest octave" alone made melodies climb forever, which is why each part now has a home range.
 
-**Why this shape.** It's readable by musicians (it reads like a lead sheet), parseable to MIDI, and suited to small models: shallow nesting, relative tokens with a small vocabulary, key invariance for free, no arithmetic across tokens, and grammar-constrained decoding guaranteeing valid output. It also splits cleanly across devices: the laptop keeps form, harmony, motifs and style; a PicoCalc running dough would need only the rhythm, events and sound layers.
+**Why this shape.** It's readable by musicians (it reads like a lead sheet), parseable to MIDI, and suited to small models: shallow nesting, relative tokens with a small vocabulary, key invariance for free, no arithmetic across tokens, and grammar-constrained decoding guaranteeing valid output. It also splits cleanly across devices: the root node keeps form, harmony, motifs and style; a rendering node running dough would need only the rhythm, events and sound layers.
 
 **Maximal evenness.** Euclidean rhythms and scales are one operator. Placing 7 in 12 as evenly as possible gives 2 2 1 2 2 2 1, the diatonic scale; its rotations are the modes. 5 in 12 gives the pentatonic scale; 5 in 16 gives the clave-like rim pattern the prototype plays (steps 0, 4, 7, 10, 13). That's Clough and Douthett's theory of maximally even sets, and it deserves to be a language primitive: `even(k, n, rot)`.
 
@@ -140,7 +140,7 @@ Risk levels: analyzer and critic are **solid**; Muse encoder and lead writer are
 **System**
 - The analyzer (brief ready), then the critic and reranking.
 - Muse encoder plus controller: does following the players feel musical or seasick? Test it live.
-- Integration with the planned root-box as clock master; the PicoCalc/dough node as a score-playing peer.
+- The root node: a dedicated Linux host appliance that is the central composer and conductor, drives the physical instruments, and that web clients connect to. Rendering nodes (MIDI instruments, dough nodes) side by side below it.
 - Conductor HUD on audience phones (look-ahead chords for acoustic players), plus audience input as weighted influence.
 - Logging takeovers and ratings at events as training and evaluation data.
 
