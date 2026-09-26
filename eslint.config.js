@@ -26,7 +26,7 @@ const impureGlobals = [
 ].map(([name, message]) => ({ name, message }));
 
 export default defineConfig(
-  { ignores: ['prototype/', '**/dist/', 'coverage/'] },
+  { ignores: ['prototype/', '**/dist/', '**/dist-pages/', 'coverage/'] },
   js.configs.recommended,
   ts.configs.recommended,
   svelte.configs.recommended,

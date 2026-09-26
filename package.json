@@ -11,6 +11,7 @@
     "dev": "pnpm --filter @jambot/web dev",
     "build": "pnpm --filter @jambot/web build",
     "preview": "pnpm --filter @jambot/web preview",
+    "pages": "node --experimental-strip-types --no-warnings tooling/pages.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "pnpm -r run check",

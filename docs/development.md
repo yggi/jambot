@@ -12,6 +12,7 @@ pnpm test:watch   # tests, re-run on change
 pnpm exec playwright install chromium   # once, for the end-to-end checks
 pnpm verify       # lint, format, typecheck, tests, build: before every push
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes
+pnpm pages deploy # publish main to GitHub Pages (see below)
 ```
 
 ## Toolchain
@@ -29,7 +30,8 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
   fine-grained updates, which suits a display that changes every 16th note.
 - **PWA** via `vite-plugin-pwa`: the app installs and runs offline, which
   matters on stage. Keeping the output lean is a guideline: small
-  dependencies, no heavy frameworks, fonts bundled rather than fetched.
+  dependencies, no heavy frameworks, system fonts, nothing fetched from
+  elsewhere.
 - **The license gate** (`tooling/licenses.ts`) runs in every build. It
   takes the packages behind the bundle's modules and those of the service
   worker, fails the build on one whose license isn't permissive or that
@@ -58,9 +60,19 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
   Node APIs and tonal (tests may use tonal, a random and the clock).
   `tooling/lint.test.ts` shows each rule firing.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`,
-  `format:check`, `check`, `test`, `e2e` and `build`, and a run on `main`
-  deploys to GitHub Pages. While the Actions minutes are used up (#4), it
-  runs only when started by hand (`workflow_dispatch`); on every push and
-  pull request it would fail in seconds.
+  `format:check`, `check`, `test`, `e2e` and `build`. While the Actions
+  minutes are used up (#4), it runs only when started by hand
+  (`workflow_dispatch`); on every push and pull request it would fail in
+  seconds.
+- **GitHub Pages** is deployed by hand, with no Actions of ours:
+  `pnpm pages deploy` (`tooling/pages.ts`) builds the app for its
+  sub-path, checks the build, commits it to the `gh-pages` branch and
+  checks the live site once Pages has published it. The check follows every
+  reference from `index.html`, `prototype.html` and `licenses.txt` through HTML, CSS, the
+  web manifest and the service worker, and fails on one that leaves the
+  sub-path, fetches from another host or finds no file.
+  `tooling/pages.test.ts` shows each case failing, and
+  `apps/web/e2e/pages.e2e.ts` opens the app and the prototype on the
+  sub-path in Chromium, online and offline.
 
 The house rules for working on the code are in [`AGENTS.md`](../AGENTS.md).

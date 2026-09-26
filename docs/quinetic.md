@@ -105,14 +105,20 @@ the run.** Same as S2.
 
 **Q5a. Every level is one type, and a slower level's output is held as a
 faster one's environment.**
-Witness: `Machine` at the section rate (`form`), the bar rate (`band`) and
-the tick rate (`transport`); the band holds each section for its eight bars.
+Witness: `Machine` at the section rate (`form`, and `planner`, which writes
+each section's form, key and theme), the bar rate (`band`) and the tick
+rate (`transport`). The band holds each section's plan for its eight bars.
+It does so by carrying the planner's state, whose `before` is the plan the
+planner last wrote, so what the band reads is the planner's output.
 Counterexample: a level that needs its own laws, or reads a slower level's
 state instead of its held output.
 Test: `machine.test.ts`, the laws with a machine that breaks each;
-`band.test.ts`, "holds each section for its eight bars (C3)". Open: the parts and
-the compiler, once each is a machine.
-Source: F1, C3, the law of recursion. Status: measured (form, band,
+`plan.test.ts`, "keeps the machine laws over a tour of the presets and their
+modes (F1, Q4a)"; `band.test.ts`, "holds each section for its eight bars (C3)"
+and "plays each section's plan: its key, and its theme's chords bar by bar,
+changing only at a boundary (C3)", which checks every bar against the
+planner's output. Open: the parts and the compiler, once each is a machine.
+Source: F1, C3, the law of recursion. Status: measured (form, planner, band,
 transport); open (parts, compiler). Lands in: #37 step 5, #13.
 
 **Q5b. Helices under `compose` are a category.** Same as F6.
@@ -127,7 +133,7 @@ Lands in: #7 (d).
 
 **Q6. Every feedback loop passes through a delay.** Same as F7.
 
-## Convergence (Q7–Q8)
+## Convergence and fixed points (Q7–Q9)
 
 **Q7a. Following the players is a loop with a bandwidth.** Same as A4.
 
@@ -147,11 +153,15 @@ style stays near it, and is built anew when the harmony has moved more than
 the entropy.
 Counterexample: a returning theme that differs from its first while the
 style held, or one that returns after the style has drifted.
-Test: `plan.test.ts`, whose theme-return tests cite Q8. Open: whether a
-return is a fixed point in more than name, such as the melody coming back
-with its harmony (#37 step 5).
+Test: `plan.test.ts`, whose theme-return tests cite Q8. With a steady style
+and no entropy, a returning theme is exactly the same plan. It is renewed
+in none of its returns at entropy 0, in 10–20% at 0.5 and in 25–35% at 1,
+over 200 seeds. Open: whether a return is a fixed point in more than name,
+such as the melody coming back with its harmony (#37 step 5).
 Source: the prototype's Quinetics parallels, #37 step 4. Status: measured
 (the plan); speculative (fixed point). Lands in: #37 step 5.
+
+**Q9. A wish settles: read again, it changes nothing.** Same as C6.
 
 ## Not a property
 
