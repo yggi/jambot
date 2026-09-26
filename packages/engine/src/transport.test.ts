@@ -96,7 +96,7 @@ describe('the transport', () => {
     });
   });
 
-  it('composes each bar on the last beat of the bar before, and not sooner', () => {
+  it('composes each bar on the last beat of the bar before, and not sooner (C5)', () => {
     // A beat is at least 333 ms even at 180 bpm, nearly three lookaheads.
     expect(COMPOSE_AHEAD).toBe(4);
     const { outputs } = run(env(), ticks(0.9, 800));
@@ -109,7 +109,7 @@ describe('the transport', () => {
     expect(composed).toEqual(range(composed.length));
   });
 
-  it('hears a change in the drums within 20 steps: the rest of the bar and a beat', () => {
+  it('hears a change in the drums within 20 steps: the rest of the bar and a beat (C5)', () => {
     // Energy 0.5 plays at 0.2 in the intro, so any rise shows.
     const track = holding({ ...INITIAL_STYLE, energy: 0.5 });
     let longest = 0;
@@ -126,7 +126,7 @@ describe('the transport', () => {
     expect(longest).toBeGreaterThan(16);
   });
 
-  it('keeps a beat’s swing once the beat has started, whatever the style does next', () => {
+  it('keeps a beat’s swing once the beat has started, whatever the style does next (C3)', () => {
     // Swing gliding up, then sent back to straight in the middle of a beat:
     // the rest of that beat plays as it would have. Reading the track again
     // moved it by up to 0.36 steps.
@@ -175,7 +175,7 @@ describe('the transport', () => {
     }
   });
 
-  it('holds a note from its swung start to its swung end', () => {
+  it('holds a note from its swung start to its swung end (L2)', () => {
     // Both ends of a note go through the map, so a legato line stays legato
     // under swing. The prototype swings only the start.
     const { outputs } = run(env(), ticks(0.9, 400));
@@ -193,7 +193,7 @@ describe('the transport', () => {
     }
   });
 
-  it('never waits: after a stall it drops what it missed and keeps the grid where it was', () => {
+  it('never waits: after a stall it drops what it missed and keeps the grid where it was (T1)', () => {
     // Time is absolute. Steps that start while the clock was stalled are not
     // played late in a burst, as in the prototype; the grid stays in place.
     const dense = holding({ ...INITIAL_STYLE, energy: 1 });
@@ -218,7 +218,7 @@ describe('the transport', () => {
     expect(window.length).toBeGreaterThan(0);
   });
 
-  it('catches up after four hours’ stall within a lookahead, reporting the missed steps by count', () => {
+  it('catches up after four hours’ stall within a lookahead, reporting the missed steps by count (T1)', () => {
     const before = run(env(), ticks(0.9, 100));
     // An event's night: four hours with the tab's clock stopped.
     const now = 0.9 + 100 * 0.025 + 4 * 3600;
@@ -242,7 +242,7 @@ describe('the transport', () => {
     expect(back.carried!.section).toEqual(carried.section);
   });
 
-  it('keeps the machine laws, with the style gliding under it', () => {
+  it('keeps the machine laws, with the style gliding under it (F1)', () => {
     const track = glideTo(glideTo(swung, PRESETS[1]!.style, 8, 64), { swing: 1 }, 40, 32);
     const script: Script<TransportEnv, TransportInput> = ticks(0.9, 240).map((input) => ({
       env: env(track),

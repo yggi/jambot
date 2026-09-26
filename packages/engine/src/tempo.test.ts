@@ -39,7 +39,7 @@ describe('tempoMap', () => {
     expect(map.played(4.5)).toBe(10.0625);
   });
 
-  it('keeps time rising through a tempo glide, and gives each position back from its time', () => {
+  it('keeps time rising through a tempo glide, and gives each position back from its time (T4, #39 Q1c)', () => {
     for (const track of [steady, slowing, glideTo(steady, { bpm: 180 }, 0, 64)]) {
       const map = tempoMap(track, { step: 0, seconds: 2 });
       const positions = range(64 * 12 + 1).map((i) => i / 12);
@@ -171,7 +171,7 @@ describe('position and clock time', () => {
 });
 
 describe('swingOf', () => {
-  it('swings each beat by the swing where the beat starts', () => {
+  it('swings each beat by the swing where the beat starts (C3)', () => {
     const track = glideTo(holding({ ...INITIAL_STYLE, swing: 0 }), { swing: 1 }, 0, 64);
     const map = swingOf(track);
     for (const beat of range(16)) {

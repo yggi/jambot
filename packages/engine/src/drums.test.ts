@@ -64,7 +64,7 @@ describe('drums', () => {
       }
   });
 
-  it('strike each sound at most once per step, in order', () => {
+  it('strike each sound at most once per step, in order (F5)', () => {
     // Where two rules place the same hit, such as a fill over the backbeat,
     // it is one hit, and the louder one. The prototype sends both.
     for (const env of sweep) {
@@ -75,7 +75,7 @@ describe('drums', () => {
     }
   });
 
-  it('are a function of the bar: the same environment plays the same bar', () => {
+  it('are a function of the bar: the same environment plays the same bar (T5)', () => {
     for (const env of sweep.slice(0, 200)) expect(drums({ ...env })).toEqual(drums(env));
   });
 
@@ -102,7 +102,7 @@ describe('drums', () => {
       }
   });
 
-  it('morph with energy: raising it adds kicks, snares and hats, and never takes one away', () => {
+  it('morph with energy: raising it adds kicks, snares and hats, and never takes one away (C4)', () => {
     // The thresholds stay fixed for a section, so as the energy rises notes
     // appear one at a time instead of reshuffling.
     const hats = [DRUM_NOTES.closedHat, DRUM_NOTES.openHat, DRUM_NOTES.ride];
@@ -129,7 +129,7 @@ describe('drums', () => {
           }
   });
 
-  it('switch the rim between Euclid patterns at energy ⅓ and ⅔, and otherwise only add to it', () => {
+  it('switch the rim between Euclid patterns at energy ⅓ and ⅔, and otherwise only add to it (C4)', () => {
     // E(3,16), E(5,16) and E(7,16) are not nested, so the rim is the one
     // part that changes pattern as the energy rises: the prototype's choice.
     const fine = range(101).map((i) => i / 100);

@@ -102,7 +102,7 @@ describe('the form', () => {
     );
   });
 
-  it('keeps the machine laws, with the style changing under it', () => {
+  it('keeps the machine laws, with the style changing under it (F1)', () => {
     const script: Script<{ seed: number; index: number; style: Style }, null> = range(24).map(
       (index) => ({
         env: { seed: 5, index, style: { ...PRESETS[index % 8]!.style, entropy: index / 24 } },

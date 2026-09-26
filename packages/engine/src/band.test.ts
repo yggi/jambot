@@ -25,11 +25,11 @@ const run = (seed: number, bars = 64) => {
 };
 
 describe('the band', () => {
-  it('keeps the machine laws over a tour of the presets', () => {
+  it('keeps the machine laws over a tour of the presets (F1)', () => {
     for (const seed of [1, 2, 3]) expect(lawBreaks(band, script(seed))).toEqual([]);
   });
 
-  it('holds each section for its eight bars', () => {
+  it('holds each section for its eight bars (C3)', () => {
     const bars = run(7);
     bars.forEach((b, bar) => {
       expect(b.bar).toBe(bar);

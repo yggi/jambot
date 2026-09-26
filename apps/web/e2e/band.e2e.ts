@@ -160,7 +160,7 @@ test('plays a straight preset on the 16th grid', async ({ page }) => {
   expect(new Set(phases(times, 108))).toEqual(new Set([0]));
 });
 
-test('swings a swung preset into triplet 8ths', async ({ page }) => {
+test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   await listen(page);
   await page.getByRole('button', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
