@@ -39,7 +39,10 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
   does not change the music.
 - The style (`packages/engine/src/style.ts`) is a track of glides, one per
   axis, and `styleAt(track, position)` reads it at any step of the song.
-  Positions there are steps from the song's start, 16 to a bar.
+  Positions there are steps from the song's start, 16 to a bar. A track
+  holds only the latest glide per axis, and before that glide's start it
+  reads the glide's `from`. So to see what was played at a step, read the
+  track as it stood when that step was scheduled, not the final track.
 - The engine's levels are machines at their own rates: the form per
   section, the band per bar, the transport per tick. The web player only
   reads the audio clock and plays what the transport schedules, so

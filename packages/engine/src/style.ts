@@ -43,12 +43,20 @@ export const AXIS_NAMES = Object.keys(AXES) as Axis[];
 
 export type Style = Readonly<Record<Axis, number>>;
 
-/** A change of one axis: from a value to a target, over `length` steps from `start`. */
+/**
+ * A change of one axis: from a value to a target, over `length` steps from
+ * `start`, leaving at `slope` and arriving at rest.
+ */
 export interface Glide {
   readonly from: number;
   readonly to: number;
   readonly start: number;
   readonly length: number;
+  /**
+   * How fast the value is moving as the glide starts, per step, in the axis's
+   * space (for tempo, in log bpm per step). A glide from rest has slope 0.
+   */
+  readonly slope: number;
 }
 
 /** Where each axis is going: one glide per axis. Plain data, so it can be carried. */
@@ -85,16 +93,37 @@ export const SLIDER_GLIDE = 16;
 
 export const INITIAL_STYLE: Style = { ...PRESETS[0]!.style, entropy: 0.3 };
 
-/** smoothstep: an S-curve from 0 to 1 that starts and ends at rest. */
-const smooth = (u: number) => u * u * (3 - 2 * u);
+/** The axis's space: where a glide is a straight line (log for tempo). */
+const inSpace = (axis: Axis, x: number) => (AXES[axis].space === 'log' ? Math.log(x) : x);
 
-/** The value of one axis at a position, as its glide has it. */
+/**
+ * The value of one axis at a position, as its glide has it. The glide is a
+ * cubic Hermite curve in the axis's space: it leaves `from` at `slope` and
+ * arrives at `to` at rest. From rest it is smoothstep, an S-curve. Where it
+ * leaves heading away from its target, it carries on for a moment before it
+ * turns, and stays inside its axis.
+ */
 export function valueAt(axis: Axis, glide: Glide, position: number): number {
-  const { from, to, start, length } = glide;
+  const { from, to, start, length, slope } = glide;
   if (position >= start + length) return to;
   if (position <= start) return from;
-  const u = smooth((position - start) / length);
-  return AXES[axis].space === 'log' ? from * Math.pow(to / from, u) : from * (1 - u) + to * u;
+  const u = (position - start) / length;
+  const toward = u * u * (3 - 2 * u);
+  const onward = slope * length * u * (1 - u) * (1 - u);
+  const value =
+    AXES[axis].space === 'log'
+      ? from * Math.pow(to / from, toward) * Math.exp(onward)
+      : from * (1 - toward) + to * toward + onward;
+  return Math.max(AXES[axis].min, Math.min(AXES[axis].max, value));
+}
+
+/** How fast one axis is moving at a position, per step, in the axis's space. */
+export function rateAt(axis: Axis, glide: Glide, position: number): number {
+  const { from, to, start, length, slope } = glide;
+  if (position < start || position >= start + length) return 0;
+  const u = (position - start) / length;
+  const distance = inSpace(axis, to) - inSpace(axis, from);
+  return slope * (1 - u) * (1 - 3 * u) + (distance * 6 * u * (1 - u)) / length;
 }
 
 /** The whole style at a position. */
@@ -107,15 +136,22 @@ export function styleAt(track: StyleTrack, position: number): Style {
 /** A track that holds a style still. */
 export function holding(style: Style): StyleTrack {
   return Object.fromEntries(
-    AXIS_NAMES.map((axis) => [axis, { from: style[axis], to: style[axis], start: 0, length: 0 }]),
+    AXIS_NAMES.map((axis) => [
+      axis,
+      { from: style[axis], to: style[axis], start: 0, length: 0, slope: 0 },
+    ]),
   ) as StyleTrack;
 }
 
 /**
- * The track with the given axes gliding towards their targets from `start`,
- * each from the value it has there, so nothing jumps. A target outside its
- * axis is clamped into it. A length of 0 sets the values at `start`, for
- * when the band is not playing.
+ * The track with the given axes gliding towards their targets from `start`.
+ * Each glide leaves from the value its axis has there, and as fast, so
+ * nothing jumps, not even the rate: a slider dragged with many retargets
+ * keeps moving. A glide already heading for its target arrives sooner rather
+ * than overshoot it: its length is at most 3 × distance / slope, which keeps
+ * the curve monotone (Fritsch and Carlson). A target outside its axis is
+ * clamped into it. A length of 0 sets the values at `start`, for when the
+ * band is not playing.
  */
 export function glideTo(
   track: StyleTrack,
@@ -130,7 +166,16 @@ export function glideTo(
     if (!Number.isFinite(target)) throw new Error(`glideTo: ${axis}: ${target} is not a value`);
     const { min, max } = AXES[axis];
     const to = Math.max(min, Math.min(max, target));
-    next[axis] = { from: valueAt(axis, track[axis], start), to, start, length };
+    const from = valueAt(axis, track[axis], start);
+    if (length === 0) {
+      next[axis] = { from, to, start, length, slope: 0 };
+      continue;
+    }
+    const slope = rateAt(axis, track[axis], start);
+    const distance = inSpace(axis, to) - inSpace(axis, from);
+    const heading = slope * distance > 0;
+    const arrival = heading ? Math.min(length, (3 * distance) / slope) : length;
+    next[axis] = { from, to, start, length: arrival, slope };
   }
   return next;
 }

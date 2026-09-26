@@ -10,6 +10,7 @@ import {
   SLIDER_GLIDE,
   glideTo,
   holding,
+  rateAt,
   styleAt,
   valueAt,
 } from './style.ts';
@@ -73,8 +74,8 @@ describe('the presets', () => {
 });
 
 describe('valueAt', () => {
-  const linear: Glide = { from: 0.2, to: 0.8, start: 32, length: 64 };
-  const tempo: Glide = { from: 80, to: 160, start: 32, length: 64 };
+  const linear: Glide = { from: 0.2, to: 0.8, start: 32, length: 64, slope: 0 };
+  const tempo: Glide = { from: 80, to: 160, start: 32, length: 64, slope: 0 };
 
   it('holds before the glide, reaches the target at its end, and stays there', () => {
     for (const [axis, glide] of [
@@ -102,13 +103,18 @@ describe('valueAt', () => {
   it('passes the midpoint of its space halfway: the mean, or for tempo the geometric mean', () => {
     expect(valueAt('harm', linear, 64)).toBe(0.5);
     expect(valueAt('bpm', tempo, 64)).toBeCloseTo(Math.sqrt(80 * 160), 10);
-    expect(valueAt('bpm', { from: 60, to: 180, start: 0, length: 16 }, 8)).toBeCloseTo(103.923, 3);
+    expect(valueAt('bpm', { from: 60, to: 180, start: 0, length: 16, slope: 0 }, 8)).toBeCloseTo(
+      103.923,
+      3,
+    );
+    // From rest, the curve is smoothstep: a quarter of the way in, 5/32 of the way.
+    expect(valueAt('harm', linear, 48)).toBeCloseTo(0.2 + 0.6 * (5 / 32), 12);
   });
 
   it('never moves faster than the S-curve allows: 1.5 times the average rate', () => {
     for (const axis of AXIS_NAMES) {
       const [lo, hi] = [AXES[axis].min, AXES[axis].max];
-      const glide = { from: lo, to: hi, start: 0, length: 16 };
+      const glide = { from: lo, to: hi, start: 0, length: 16, slope: 0 };
       const space = AXES[axis].space === 'log' ? Math.log : (x: number) => x;
       const rate = (space(hi) - space(lo)) / 16;
       for (const i of range(16 * 64)) {
@@ -120,16 +126,88 @@ describe('valueAt', () => {
 });
 
 describe('glideTo', () => {
-  it('nothing jumps: a new glide starts from where the running one is, on every axis', () => {
+  it('nothing jumps: a new glide starts from where the running one is, and as fast, on every axis', () => {
     for (const axis of AXIS_NAMES) {
       let track = holding(INITIAL_STYLE);
-      // Retarget again and again, most of the time in the middle of a glide.
-      for (const [i, target] of across(axis).entries()) {
+      // Retarget again and again, most of the time in the middle of a glide,
+      // towards targets on both sides.
+      const targets = across(axis);
+      for (const [i, target] of [...targets, ...targets.reverse()].entries()) {
         const at = 5 + i * 7;
-        const before = styleAt(track, at);
-        track = glideTo(track, { [axis]: target }, at, 12);
-        expect(styleAt(track, at)).toEqual(before);
+        const [value, rate] = [styleAt(track, at), rateAt(axis, track[axis], at)];
+        const next = glideTo(track, { [axis]: target }, at, 12);
+        expect(styleAt(next, at)).toEqual(value);
+        expect(rateAt(axis, next[axis], at)).toBe(rate);
+        track = next;
       }
+    }
+  });
+
+  it('keeps moving while a slider is dragged', () => {
+    // A drag of harm from 0.45 to 1 over 8 steps (1 s at 120 bpm), sending 30
+    // retargets a second, each from the next step to be scheduled. What is
+    // played at each step is read from the track as it stands then. Starting
+    // each glide from rest played harm 0.476 at the end of the drag; carrying
+    // the rate plays 0.547, and every step rises.
+    let track = holding({ ...INITIAL_STYLE, harm: 0.45 });
+    let retarget = 0;
+    const played: number[] = [];
+    for (let step = 0; step <= 24; step++) {
+      for (; retarget <= 30 && (retarget / 30) * 8 < step + 1; retarget++) {
+        const harm = 0.45 + 0.55 * Math.min(1, ((retarget / 30) * 8) / 8);
+        track = glideTo(track, { harm }, step, SLIDER_GLIDE);
+      }
+      played.push(styleAt(track, step).harm);
+    }
+    expect(played[8]).toBeCloseTo(0.547, 3);
+    played.slice(1).forEach((h, i) => {
+      if (played[i]! < 1) expect(h).toBeGreaterThan(played[i]!);
+      expect(h).toBeLessThanOrEqual(1);
+    });
+    expect(played[24]).toBe(1);
+  });
+
+  it('arrives sooner when it is already heading for a near target fast, rather than overshoot it', () => {
+    const fast = glideTo(holding({ ...INITIAL_STYLE, harm: 0 }), { harm: 1 }, 0, 4);
+    const near = glideTo(fast, { harm: styleAt(fast, 2).harm + 0.01 }, 2, 16);
+    expect(near.harm.length).toBeLessThan(16);
+    expect(near.harm.length).toBeCloseTo((3 * 0.01) / rateAt('harm', fast.harm, 2), 12);
+  });
+
+  it('glides monotone to its target when it starts heading there, without overshooting', () => {
+    for (const axis of AXIS_NAMES) {
+      const [lo, hi] = [AXES[axis].min, AXES[axis].max];
+      // A fast glide up, retargeted to just above where it is.
+      const fast = glideTo(holding({ ...INITIAL_STYLE, [axis]: lo }), { [axis]: hi }, 0, 4);
+      for (const nudge of [0.001, 0.05, 0.3])
+        for (const at of [1, 2, 3]) {
+          const now = styleAt(fast, at)[axis];
+          const target = Math.min(hi, now + (hi - lo) * nudge);
+          const next = glideTo(fast, { [axis]: target }, at, 16);
+          let last = now;
+          for (let p = at; p <= at + 16; p += 0.25) {
+            const v = styleAt(next, p)[axis];
+            expect(v).toBeGreaterThanOrEqual(last - 1e-12);
+            expect(v).toBeLessThanOrEqual(target + 1e-9 * Math.max(1, target));
+            last = v;
+          }
+        }
+    }
+  });
+
+  it('turns back when it is sent the other way, and never leaves its axis', () => {
+    for (const axis of AXIS_NAMES) {
+      const [lo, hi] = [AXES[axis].min, AXES[axis].max];
+      const up = glideTo(holding({ ...INITIAL_STYLE, [axis]: lo }), { [axis]: hi }, 0, 4);
+      const back = glideTo(up, { [axis]: lo }, 2, 16);
+      const values = range(81).map((i) => styleAt(back, 2 + i / 4)[axis]);
+      for (const v of values) {
+        expect(v).toBeGreaterThanOrEqual(lo);
+        expect(v).toBeLessThanOrEqual(hi);
+      }
+      // It carries on up for a moment, then comes down to the target.
+      expect(values[1]!).toBeGreaterThan(values[0]!);
+      expect(values.at(-1)).toBe(lo);
     }
   });
 

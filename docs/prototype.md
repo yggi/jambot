@@ -82,6 +82,11 @@ language and the plans. This page covers only the port.
   glides, and tempo glides in log space (`style.ts`). Every slider,
   including the tempo buttons, glides over one bar; the prototype's tempo
   buttons glide over four steps.
+- **A glide restarts from rest.** Each change starts a new S-curve at rate
+  0, so while a slider is dragged, every retarget stops the axis again: over
+  an 8-step drag of harmony from 0.45 to 1, it plays 0.476 at the end. In
+  the port a glide leaves as fast as the axis was moving (a cubic Hermite
+  curve, which from rest is the same S-curve), and plays 0.547 there.
 - **A stall is played late, in a burst.** After a stall the scheduler plays
   every step it missed at once. Time is absolute in the port: events the
   clock has passed are dropped, and the grid stays where it was.
