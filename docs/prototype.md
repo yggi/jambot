@@ -4,8 +4,8 @@
 where Jambot started, and it is the baseline the port is oriented by. It is
 not a source of truth. It is one
 self-contained file of about 1,300 lines: roughly 120 lines of CSS, 120 of
-markup and 1,060 of JavaScript in a single IIFE, with no dependencies apart
-from two Google Fonts. The web app build serves it at `/prototype.html`, so
+markup and 1,060 of JavaScript in a single IIFE, with no dependencies. It uses system
+fonts and fetches nothing. The web app build serves it at `/prototype.html`, so
 it stays playable while the port catches up.
 
 ## What it does

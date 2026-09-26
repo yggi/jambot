@@ -11,6 +11,7 @@ pnpm dev          # web app with hot reload; the prototype is at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes
+pnpm pages deploy # publish main to GitHub Pages, and check the live site
 ```
 
 - Agent sessions (Claude Code) install dependencies and Playwright's
@@ -79,15 +80,33 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 ### Repository and CI
 
 - The repository is private. GitHub Actions minutes are used up (#4), so
-  the CI workflow runs only when started by hand, and the Pages deploy does
-  not run. `pnpm verify` locally is the check that counts. A red or missing
-  `check` on a pull request says nothing about the code.
+  the CI workflow runs only when started by hand. `pnpm verify` locally is
+  the check that counts. A red or missing `check` on a pull request says
+  nothing about the code.
+- GitHub Pages is deployed by hand: `pnpm pages deploy` (`tooling/pages.ts`)
+  runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into
+  `apps/web/dist-pages`, checks that every file the site references resolves
+  there and that nothing is fetched from outside it, commits the build to the
+  `gh-pages` branch and pushes it. It then waits for the live site to serve
+  that build and checks it again. Pages publishes the branch as it is: the
+  repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
+  `pnpm pages build` and `pnpm pages serve` show the site on
+  `http://localhost:4318/jambot/` first, served as Pages serves it (404 for
+  what isn't a file, where `vite preview` would answer with the app).
+- `pnpm deploy` is a reserved pnpm command, which is why the deploy is
+  `pnpm pages deploy`.
 - `pnpm ci` is a reserved pnpm command, which is why the all-in-one script is
   called `verify`.
 - TypeScript is pinned to 6.0, because typescript-eslint and svelte-check do
   not support TypeScript 7 yet.
-- The web app's base path comes from `BASE_PATH` (CI sets `/jambot/` for
-  GitHub Pages). It defaults to `/`.
+- The web app's base path comes from `BASE_PATH` (`pnpm pages` sets
+  `/<repo>/`, from the `origin` remote). It defaults to `/`.
+- The service worker answers every navigation it doesn't precache with the
+  app's `index.html`, so a page it doesn't precache opens as the app, not
+  as itself. `apps/web/e2e/pages.e2e.ts` opens the prototype offline to
+  hold that it is precached.
+- The app and the prototype use system fonts and fetch nothing from
+  outside the site (#58).
 
 ### Prototype
 

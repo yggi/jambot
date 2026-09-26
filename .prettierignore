@@ -1,5 +1,6 @@
 prototype/
 dist/
+dist-pages/
 coverage/
 pnpm-lock.yaml
 docs/briefs/

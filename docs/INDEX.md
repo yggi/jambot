@@ -95,6 +95,10 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `pawl.ts`: the ratchet's pawl check, which holds `docs/language.md`'s
     statuses, tests and citations together (#42); `pawl.test.ts` shows each
     rule firing and runs it over the repository
+  - `pages.ts`: the GitHub Pages deploy by hand (`pnpm pages`): builds for
+    the sub-path, checks that the site resolves there, commits it to
+    `gh-pages` and checks the live site; `pages.test.ts` shows the check
+    failing on each kind of broken reference
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
@@ -110,8 +114,10 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/ticker.ts`: the scheduler's tick, from a Worker
     - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
       built app in Chromium with its audio measured
+    - `e2e/pages.e2e.ts`: the app and the prototype on the Pages sub-path,
+      online and offline
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e,
-  build; deploys `main` to GitHub Pages; started by hand while #4 is open
+  build; started by hand while #4 is open
 - `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents
   may run without a prompt
   - `.claude/hooks/session-start.sh`: installs dependencies, warms
