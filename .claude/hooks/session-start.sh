@@ -1,6 +1,7 @@
 #!/bin/sh
 # Installs what `pnpm verify` and the music-theory skill need, so an agent
-# session can test from its first command. Runs when a session starts or
+# session can test from its first command, and fetches `origin/main`, so
+# `git diff origin/main...` works for a review or a pull request. Runs when a session starts or
 # resumes, since a resumed cloud session may get a fresh container (see
 # .claude/settings.json). A no-op in about a second when all is installed.
 # Its stdout goes into the agent's context, so it prints one line.
@@ -21,4 +22,10 @@ if command -v uv >/dev/null; then
   fi
 fi
 rm -f "$log"
-echo "session-start: dependencies installed; $theory"
+# A cloud checkout may hold only its own branch. The explicit refspec makes
+# origin/main exist even then. Failing to fetch is reported, not fatal.
+base='origin/main fetched'
+if ! timeout 30 git fetch -q origin main:refs/remotes/origin/main 2>/dev/null; then
+  base='origin/main not fetched'
+fi
+echo "session-start: dependencies installed; $theory; $base"

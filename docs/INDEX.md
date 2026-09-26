@@ -65,8 +65,9 @@ Every doc and code area, as a tree. Add a line when you add one.
   deploys `main` to GitHub Pages; started by hand while #4 is open
 - `.claude/settings.json`: the session-start hook, and the checks agents
   may run without a prompt
-  - `.claude/hooks/session-start.sh`: installs dependencies and warms
-    music21 when an agent session starts or resumes
+  - `.claude/hooks/session-start.sh`: installs dependencies, warms
+    music21 and fetches `origin/main` when an agent session starts or
+    resumes
 - `.claude/skills/`: project skills for agents
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
     theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
