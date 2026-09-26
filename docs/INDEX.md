@@ -70,7 +70,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/drums.ts`: the drums, a function of the bar
     - `src/band.ts`: the band, the machine at bar rate
     - `src/transport.ts`: the transport, the machine at tick rate: it
-      composes a bar ahead and schedules on a clock
+      composes a beat before each bar and schedules on a clock
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing

@@ -12,7 +12,7 @@
  * then, which the track no longer holds.
  */
 
-import { type StyleTrack, styleAt } from './style.ts';
+import { type StyleTrack, valueAt } from './style.ts';
 import type { TimeMap } from './swing.ts';
 
 /** A step, and the clock time in seconds it starts at. */
@@ -28,7 +28,7 @@ export function stepSeconds(bpm: number): number {
 
 /** Positions in steps from the anchor on, to seconds on the anchor's clock. */
 export function tempoMap(track: StyleTrack, anchor: Anchor): TimeMap {
-  const length = (step: number) => stepSeconds(styleAt(track, step).bpm);
+  const length = (step: number) => stepSeconds(valueAt('bpm', track.bpm, step));
   return {
     played(position) {
       if (position < anchor.step)

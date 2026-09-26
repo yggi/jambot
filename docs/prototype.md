@@ -49,7 +49,8 @@ language and the plans. This page covers only the port.
 - **Composition happens inside the audio scheduler**, at step 0 of the bar
   it is about to play, only 120 ms before the downbeat. A garbage-collection
   pause or a slow render can make a bar late. The port's transport composes
-  bar n + 1 before bar n starts to play (`transport.ts`).
+  bar n + 1 on the last beat of bar n, at least 333 ms ahead even at
+  180 bpm (`transport.ts`).
 
 ### Correctness
 

@@ -96,8 +96,12 @@ of them. The package is created with its first ported module.
   and tempo one from positions to seconds, each with its inverse
   (`swing.ts`, `tempo.ts`), and time maps compose. The transport itself is
   a pure machine at tick rate (`transport.ts`): given the clock's now, it
-  schedules every step that starts before now plus 120 ms and keeps the
-  band composing a bar ahead. The web app supplies the clock and plays
+  schedules every step that starts before now plus 120 ms. The band
+  composes each bar on the last beat of the bar before, so a change of
+  style reaches the drums within the rest of the bar and a beat (at most
+  20 steps), while tempo and swing follow it per step and per beat. Once a
+  beat has started, its swing is kept. A bar the clock has wholly passed,
+  after a stall, is not composed. The web app supplies the clock and plays
   what it schedules (`apps/web/src/player.svelte.ts`). The clock is
   swappable: a local audio clock, a MIDI clock follower, or the root
   node's clock.

@@ -3,7 +3,10 @@
  *
  * While the band plays, a change glides from the next step to be scheduled,
  * so what has been scheduled stays as it is and nothing jumps: a preset over
- * eight bars, a slider over one. While the band is stopped, a change is set
+ * eight bars, a slider over one. Tempo follows it from the next step and
+ * swing from the next beat. The drums hear it from the next bar composed,
+ * which is on the last beat of the bar before: within the rest of the bar
+ * and a beat, at most 20 steps. While the band is stopped, a change is set
  * at once, and the next start plays from it.
  */
 
