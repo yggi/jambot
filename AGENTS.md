@@ -30,7 +30,9 @@ These principles come from the prototype
 
 | Path                                                   | What                                                                          |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `packages/theory/`                                     | Music theory on one primitive, `even(k, n, rotation)`: pure TypeScript        |
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
+| `packages/prototype-reference/`                        | The prototype's own definitions, loaded for tests                             |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
 | `prototype/`                                           | The original single-file prototype and its README, the reference for the port |
 | `docs/MEMORY.md`                                       | Persistent facts and a cheatsheet: the entry point                            |
@@ -65,9 +67,9 @@ These principles come from the prototype
   refactoring while features settle. Tests sit next to the code as
   `*.test.ts`.
 - **`pnpm verify` before pushing.** It runs everything CI runs.
-- **The engine stays pure.** `packages/engine` uses no DOM, Web Audio, timers
-  or Node APIs. All randomness goes through `random.ts`, keyed by seed and
-  position.
+- **Theory and engine stay pure.** `packages/theory` and `packages/engine`
+  use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
+  randomness goes through `random.ts`, keyed by seed and position.
 - **Ported code matches the prototype.** Reference values recorded from the
   prototype pin behaviour. A deliberate change to the music updates those
   values in the same commit and says why.

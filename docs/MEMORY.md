@@ -15,6 +15,10 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 - The full prototype is one file: `prototype/jambot-prototype.html`. Open it
   in Chrome or Edge and press _Start the band_. Its code map is in
   [`prototype/README.md`](../prototype/README.md#running-and-hacking).
+- To compare a port with the prototype in a test, load the prototype's own
+  definitions: `loadPrototype(['euclidHit', 'parseMini', 'evalMini'])` from
+  `@jambot/prototype-reference`. Load everything a definition uses, or pass
+  it as a stub.
 - To drive the prototype headless, define `window.__JAMBOT_TEST__` before its
   script runs. It is then called with the internals (`S`, `composeBar`,
   `applyPreset`, `evalMini`, `parseRoman`, `checkOverrides`, …).

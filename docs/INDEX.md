@@ -26,8 +26,13 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`jambot-prototype.html`](../prototype/jambot-prototype.html): the
     playable single-file prototype
 - `packages/`
+  - `theory/`: music theory on one primitive, pure TypeScript (#28)
+    - `src/even.ts`: `even(k, n, rotation)`, the maximally even set, and its
+      checks
+    - `src/modes.ts`: modes as rotations along the generator
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
+  - `prototype-reference/`: loads the prototype's own definitions for tests
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`

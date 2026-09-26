@@ -78,20 +78,24 @@ language and the plans. This page covers only the port.
 - Inline styles in the markup, and magic numbers such as velocities, ranges
   and weights spread through the part generators.
 - There are no tests in the file, although the `window.__JAMBOT_TEST__` hook
-  shows they existed. That hook is how the port records reference output
-  (see below).
+  shows they existed. The port pins against the prototype in two ways (see
+  below).
 
 ## How the port works
 
 The port is test-first, and it is checked against the prototype's own
 output:
 
-1. **Reference output.** Tests pin values recorded from the prototype, so a
-   seed produces the same music before and after the port. For small units,
-   such as the random generator, the values are recorded once and written
-   into the test. For whole bars, a recorder drives the prototype headless
-   through `__JAMBOT_TEST__` and stores, per preset, both the composer's raw
-   events and the score text as fixtures (#13).
+1. **Reference output.** Tests pin behaviour to the prototype, so a seed
+   produces the same music before and after the port.
+   - For units, tests load the prototype's own definitions with
+     `@jambot/prototype-reference`, unchanged, and compare over every case:
+     the theory package checks `even` against `euclidHit` and against
+     mini-notation's `(k,n,rot)` for every k, n up to 16 and every rotation.
+     Values recorded once, as in the random generator's test, are the
+     fallback. For whole bars, a recorder drives the prototype headless
+     through `__JAMBOT_TEST__` and stores, per preset, both the composer's raw
+     events and the score text as fixtures (#13).
 2. **Engine and theory first, language surface after #7.** The composer
    produces raw events before anything is written as text, so the engine
    (#2) is ported now and pinned to those events, on top of

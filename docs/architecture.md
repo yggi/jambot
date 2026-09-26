@@ -1,23 +1,38 @@
 # Architecture
 
-Jambot is a pnpm workspace with two packages:
+Jambot is a pnpm workspace:
 
-- **`packages/engine`** holds the musical engine: plain TypeScript with no
-  DOM, no Web Audio, no timers and no Node APIs (a lint rule enforces this).
-  It runs anywhere JavaScript runs: a browser tab, a Worker, or a server.
+- **`packages/theory`** holds the music theory, built on one primitive (see
+  below).
+- **`packages/engine`** holds the musical engine.
+- **`packages/prototype-reference`** loads definitions from the prototype
+  file, so tests pin ported code against the prototype itself. It is used by
+  tests only.
 - **`apps/web`** is the browser app: Svelte 5, built by Vite, and installable
   as an offline PWA. It also serves the original prototype at
   `/prototype.html`.
+
+`theory` and `engine` are pure: plain TypeScript with no DOM, no Web Audio,
+no timers and no Node APIs, which lint enforces. They run anywhere
+JavaScript runs: a browser tab, a Worker, or the root node.
 
 The engine is being ported from the [prototype](prototype.md) one module at
 a time (#2). Until the port is done, the web app is a shell that links to the
 prototype.
 
-Music theory goes into `packages/theory` (#28). It is built on one
-primitive, the maximally even set `even(k, n, rot)`, which gives both the
-Euclidean rhythms and the scales and their modes; the circle of fifths is
-the same structure seen from its generator. This primitive is the root of the
-project and the core of the language design (#7).
+Music theory lives in `packages/theory` (#28). It is built on one primitive,
+`even(k, n, rotation)`: k of n placed as evenly as possible, the maximally
+even set. It gives both the Euclidean rhythms and the scales:
+
+- 5 of 16 is the prototype's rim pattern, and 7 of 12 is the diatonic set;
+- for coprime k and n, the set is also the arc of `k⁻¹ mod n` stacked from
+  0, so 7 of 12 is a stack of fifths, and the circle of fifths and the
+  Euclidean rhythm are one structure;
+- the modes are the set's rotations, ordered along that generator. For the
+  diatonic set they run from Lydian to Locrian, one lowered note at a time.
+
+This primitive is the root of the project and the core of the language
+design (#7).
 
 The score core (the grammar, its parser, the encoder and the compiler) goes
 into its own package, `packages/score`, which builds on the theory, and the

@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Node types only for the tests, which read the prototype. Lint keeps
+    // the package's own sources free of Node and DOM APIs.
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
