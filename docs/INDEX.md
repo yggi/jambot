@@ -17,6 +17,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     chosen
   - [`prototype.md`](prototype.md): what the port keeps and changes, and how
     the port is checked
+  - [`ratchet.md`](ratchet.md): how a working track and a negative track
+    drive each other, with tests as the pawl (#37 and #7)
   - [`theory.md`](theory.md): the mathematics under `packages/theory`
     (circle, helix, generator, modes, composition), each relation
     with the test that holds it
@@ -103,6 +105,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
     theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
     compares the two (`compare.mjs`)
+  - [`ratchet/`](../.claude/skills/ratchet/SKILL.md): claims in the
+    Dialectica form and the moves both sides of a ratchet pair make (#41)
   - [`review-pr/`](../.claude/skills/review-pr/SKILL.md): reviews a pull
     request against the house rules; `prepare.sh` fetches it into its own
     worktree and runs `pnpm verify` there

@@ -154,6 +154,16 @@ The full description is in
   flat seventh without any error, and ignores `maj` in a numeral. tonal
   ignores a numeral's case. The skill's scripts guard against all of these.
 
+### The ratchet
+
+- The ratchet ([`ratchet.md`](ratchet.md)) is the method for pairs of
+  tracks: a working track that builds and a negative track that catalogues
+  constraints, coupled only by claims with tests. The pairs are on the map,
+  #41. The `ratchet` skill writes an entry as a witness, a counterexample and
+  a decidable test, with a status, and files a counterexample against the
+  layer it refutes. Nothing checks the catalogues mechanically yet: that is
+  the pawl check, #42.
+
 ### Terms
 
 - **Root node**: the dedicated main host appliance at an event, and the
