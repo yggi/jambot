@@ -14,10 +14,13 @@ Where Jambot is heading. The concept and the reasoning behind it are in
 
 ## Now
 
-First in line is a **working shape** (#37): the new app plays on its own,
-built from the ported engine, a transport, the synth and minimal controls,
-so it no longer falls back on the prototype. It plays the engine's raw
-events, so it does not wait on the language design.
+The **working shape** (#37) is done: the new app plays the full band
+(drums, bass, chords and lead) on its own, from the ported engine, a
+transport, the synth and minimal controls. It plays the engine's raw
+events, so it did not wait on the language design. What the prototype
+still does that the app doesn't is MIDI out (#24, with #5), inputs and the
+Muse (#25, #2), the score (#63) and most of the HUD (#26), including a key
+picker.
 
 These run in parallel:
 
@@ -33,8 +36,8 @@ These run in parallel:
   experiments that measure them are in [`language.md`](language.md).
 - **Rebuild from the prototype**, test-first, with the prototype as a
   baseline for orientation:
-  - the theory primitive in `packages/theory` (#28);
-  - the engine (#2).
+  - the theory primitive in `packages/theory` (#28, done);
+  - the engine (#2): all but the Muse.
 - **Web client** (#22): transport (#23), renderers (#24), inputs (#25) and
   UI (#26). Everything except the score and Strudel panels is independent
   of #7.
