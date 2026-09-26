@@ -13,8 +13,15 @@ The engine is being ported from the [prototype](prototype.md) one module at
 a time (#2). Until the port is done, the web app is a shell that links to the
 prototype.
 
+Music theory goes into `packages/theory` (#28). It is built on one
+primitive, the maximally even set `even(k, n, rot)`, which gives both the
+Euclidean rhythms and the scales and their modes; the circle of fifths is
+the same structure seen from its generator. This primitive is the root of the
+project and the core of the language design (#7).
+
 The score core (the grammar, its parser, the encoder and the compiler) goes
-into its own package, `packages/score`, and the engine depends on it. The
+into its own package, `packages/score`, which builds on the theory, and the
+engine depends on both. The
 score language is the contract between the composer, the compiler, the
 analyzer (#3) and later the learned models, so it lives apart from any one
 of them. The package is created with its first ported module.
@@ -98,6 +105,53 @@ web clients ⇄ root node ─ USB / MIDI ports ─▶ instruments ─▶ digital
 
 A rendering node turns the bottom-layer language into sound. A MIDI
 instrument is one; a dough node is another, in parallel to it.
+
+## Related projects
+
+Three sister projects share Jambot's theory and events, but not its code.
+They are read-only from here.
+
+- **[play-aeiou](https://github.com/yggi/play-aeiou)** is a MIDI instrument
+  on an Atom S3 (CircuitPython): keyboard in, synths out, with a chord
+  processor, an arpeggiator, an LFSR melody source and N-step tracks.
+  - It joins a running MIDI clock instead of restarting it.
+  - At an event it is a likely player, and its notes reach the Muse already
+    transformed. The Muse treats more than 12 notes per bar as mashing, and a
+    1/16 arpeggio produces 16, so provenance has to express "an arpeggio of a
+    held chord" (#25).
+  - Its note-off bookkeeping (owner counts per port) is a worked solution
+    for #5.
+- **[lib-aeiou](https://github.com/yggi/lib-aeiou)** is the pure-values layer
+  shared by play-aeiou and flow3r-aeiou: scales, snapping and note names.
+  - Its rule is _values, never messages_: anything that needs an event type
+    becomes a written contract that each project implements for itself.
+    That is the same shape as Jambot's pure engine with the score text as
+    the contract, and a precedent for how a rendering node can relate to the
+    root node.
+  - Its planned `sync.md` contract (clock, start, continue, stop, song
+    position, who is master, dropped clocks) is the timing question from
+    the instrument's side (#27).
+- **[quintenzirkel](https://github.com/yggi/quintenzirkel)** is a single-file
+  circle-of-fifths app with an improviser.
+  - Its theory is derived rather than tabulated: modes are one arc of seven
+    fifths, and spelling follows the key.
+  - Its improviser has a 16-step bar, Euclidean rhythm, motifs stored as
+    steps, and named style axes, each of which owns one statistic.
+
+None of the three has Roman numerals, harmonic function, progressions, voice
+leading or a text score. Those are Jambot's own. flow3r-aeiou, a CV-based
+modular synth, has not been examined.
+
+The runtimes differ (TypeScript here, restricted Python there), so the
+projects share **conventions, not code**. These facts stay aligned:
+
+- C4 = 60;
+- the Euclid form (#8);
+- scale contents and names;
+- the meaning of "mode k".
+
+Their ideas for the score language are collected on #7. The actionable
+findings are in #8–#12.
 
 ## Timing
 

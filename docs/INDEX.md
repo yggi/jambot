@@ -12,17 +12,13 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`ROADMAP.md`](ROADMAP.md): where the project is heading
   - [`architecture.md`](architecture.md): layers (engine, transport,
     renderers, UI), languages, nodes (web clients, root node,
-    rendering nodes), timing
+    rendering nodes), related projects, timing
   - [`development.md`](development.md): setup, toolchain and why it was
     chosen
   - [`prototype.md`](prototype.md): what the port keeps and changes, and how
     the port is checked
   - `briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
-  - `log/`: dated reports, kept as written
-    - [`2026-09-26-sister-projects.md`](log/2026-09-26-sister-projects.md):
-      play-aeiou, lib-aeiou and quintenzirkel as input for the score
-      language (#7), with measurements against Strudel
 - `prototype/`: the reference for the port
   - [`README.md`](../prototype/README.md): concept, spirit, prototype
     architecture, the score language, the plan for learned models, open
