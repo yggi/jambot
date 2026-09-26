@@ -62,6 +62,10 @@ export const STREAMS = {
   bassVariation: 10,
   /** Which note the bass plays: a walk's approach and tone, per bar; an octave or fifth, per section. */
   bassNote: 11,
+  /** Whether the comp pads a chord or stabs on a step: fixed per section. */
+  compHit: 12,
+  /** The variation of those thresholds on odd bars. */
+  compVariation: 13,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

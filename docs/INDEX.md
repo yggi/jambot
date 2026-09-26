@@ -91,6 +91,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/bass.ts`: the bass, a machine that carries its last note
+    - `src/comp.ts`: the comp, pads and stabs, a machine that carries its
+      last voicing
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
       decides the next (`passBar` for a bar it doesn't play)
     - `src/transport.ts`: the transport, the machine at tick rate: it

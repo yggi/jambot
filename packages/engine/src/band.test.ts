@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { type BandEnv, band, passBar } from './band.ts';
 import { bass } from './bass.ts';
 import { barChords } from './chords.ts';
+import { comp } from './comp.ts';
 import { drums } from './drums.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import type { KeyWish } from './key.ts';
@@ -108,7 +109,7 @@ describe('the band', () => {
     }
   });
 
-  it('plays the drums and the bass of each bar, at the energy its section shapes, and reads them the next bar decided', () => {
+  it('plays the drums, the bass and the comp of each bar, at the energy its section shapes, and reads them the next bar decided', () => {
     let carried = band.initial;
     for (const { env } of script(9)) {
       const { output, carried: after } = band.advance(env, carried, null);
@@ -122,6 +123,9 @@ describe('the band', () => {
       const bassline = bass.advance(bar, carried.parts.bass, null);
       expect(events.filter((e) => e.part === 'bass')).toEqual(bassline.output);
       expect(after.parts.bass).toBe(bassline.carried);
+      const comping = comp.advance(bar, carried.parts.comp, null);
+      expect(events.filter((e) => e.part === 'chords')).toEqual(comping.output);
+      expect(after.parts.comp).toEqual(comping.carried);
       carried = after;
     }
   });

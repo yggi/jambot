@@ -10,12 +10,14 @@
  * wish where the bar before starts; bar 0 decides itself.
  *
  * It carries the plan's state, the bar it decided, and what its parts carry.
- * The parts play side by side from the same bar: the drums and the bass.
+ * The parts play side by side from the same bar: the drums, the bass and
+ * the comp.
  */
 
 import type { BarEnv } from './bar.ts';
 import { type BarChord, barChords } from './chords.ts';
 import { bass } from './bass.ts';
+import { comp } from './comp.ts';
 import { drums } from './drums.ts';
 import type { NoteEvent } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
@@ -45,6 +47,8 @@ export interface DecidedBar {
 export interface PartsCarried {
   /** The bass's last note. */
   readonly bass: number;
+  /** The comp's last voicing. */
+  readonly comp: readonly number[] | null;
 }
 
 export interface BandCarried {
@@ -63,7 +67,7 @@ export interface BandBar extends BarEnv {
 const INITIAL: BandCarried = {
   plans: planner.initial,
   next: null,
-  parts: { bass: bass.initial },
+  parts: { bass: bass.initial, comp: comp.initial },
 };
 
 /**
@@ -124,10 +128,11 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
       chords: here.chords,
       next: after.next!.chords,
     };
-    const played = bass.advance(bar, carried.parts.bass, null);
+    const bassline = bass.advance(bar, carried.parts.bass, null);
+    const comping = comp.advance(bar, carried.parts.comp, null);
     return {
-      carried: { ...after, parts: { bass: played.carried } },
-      output: { ...bar, events: [...drums(bar), ...played.output] },
+      carried: { ...after, parts: { bass: bassline.carried, comp: comping.carried } },
+      output: { ...bar, events: [...drums(bar), ...bassline.output, ...comping.output] },
     };
   },
 };
