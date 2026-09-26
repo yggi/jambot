@@ -19,6 +19,10 @@ Every doc and code area, as a tree. Add a line when you add one.
     the port is checked
   - `briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
+  - `log/`: dated reports, kept as written
+    - [`2026-09-26-sister-projects.md`](log/2026-09-26-sister-projects.md):
+      play-aeiou, lib-aeiou and quintenzirkel as input for the score
+      language (#7), with measurements against Strudel
 - `prototype/`: the reference for the port
   - [`README.md`](../prototype/README.md): concept, spirit, prototype
     architecture, the score language, the plan for learned models, open
@@ -33,3 +37,5 @@ Every doc and code area, as a tree. Add a line when you add one.
     `/prototype.html`
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
   deploys `main` to GitHub Pages
+- [`.github/pull_request_template.md`](../.github/pull_request_template.md):
+  the checklist every pull request fills in
