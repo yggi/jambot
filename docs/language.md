@@ -104,10 +104,14 @@ up to 0.04 steps where both swing levels act (swing 0.5–1).
 Test: `swing.test.ts`, "is undone by its inverse, both ways, on and off the
 grid (T4, #39 Q1b)" and "shows that the prototype's delays are not what its
 unswing undoes (T4, #39 Q1b)"; `tempo.test.ts`, "keeps time rising through a
-tempo glide, and gives each position back from its time (T4, #39 Q1c)". In
-the built app, `band.e2e.ts`, "swings a swung preset into triplet 8ths
-(T4)": every onset in Chromium lies on a third of a step, the triplet
-offbeat among them.
+tempo glide, and gives each position back from its time (T4, #39 Q1c)", and
+the four tests under "position and clock time" that cite (T4, #39 Q1c):
+tempo glides from rest between the axis ends and every preset tempo at every
+length, 60 chains of retargets that carry their slope, brake or arrive
+early, the chain through swing, and a reading of clock time that runs
+backwards. In the built app, `band.e2e.ts`, "swings a swung preset into
+triplet 8ths (T4)": every onset in Chromium lies on a third of a step, the
+triplet offbeat among them.
 Source: time maps (Jaffe, "Ensemble Timing in Computer Music", 1985;
 Honing, "From Time to Time", 2001), #37 step 2. Status: measured. Lands in:
 #37 (done), #39 Q1b and Q1c.
@@ -308,6 +312,43 @@ Witness: none yet; the helix takes any cycle, MIDI takes 12.
 Counterexample: a token whose meaning uses 12.
 Test: open: every token over a helix of cycle 19 or 31.
 Source: #28, the open threads (tunings other than 12). Status: open.
+
+**P6. A chord is a helix of one turn plus its tensions, the tones above the
+octave; together they are its stack.**
+Witness: every quality's stack split at the octave. A ninth chord is its
+seventh plus a tension, so "a chord is a helix" holds for what a helix can
+hold, and the ninth is named for what it does.
+Counterexample: a quality whose tones below the octave are not a helix, or
+whose parts don't join back into its stack.
+Test: `chords.test.ts`, "split at the octave into a helix and the tones
+above it, and join back: every quality (#38, P6)", all 20 qualities.
+Source: #37 step 1, #38. Status: decided. Lands in: #37 step 4, the chord
+type.
+
+**P7. A tension sets its own degree of the scale its chord's helix
+implies.**
+Witness: the seventh's `chordScale` with degree 1 set to the ninth: a scale
+in all 102 of the 144 ninths (3 qualities, 12 roots, the prototype's 4
+modes) whose seventh has one. So a ninth has a scale exactly where its
+seventh has one, and a V9 of a minor degree keeps its natural 9: V9/ii in C
+takes A mixolydian ♭13.
+Counterexample: a chord whose tension's scale is not a scale, or a nearer
+scale that holds the chord.
+Test: `keys.test.ts`, "gives a ninth its seventh's scale with the 9 set …
+(#38, P7)". `chordScale`, which still searches five-note stacks, agrees in
+89, finds a scale one note farther in 3 and none in 10.
+Source: #38. Status: decided; measured, failing in `chordScale` (13 of 144).
+Lands in: #37 step 4, where `chordScale` takes the chord type.
+
+**P8. The baseline hears a chord only as pitch classes: register above the
+octave is read only for names.**
+Witness: the prototype's 13 reads of a chord's intervals, each taken mod 12,
+placed at the nearest octave, or used for a name.
+Counterexample: a bar whose events change when every ninth folds to its
+second.
+Test: open: run the prototype headless, as E1 does, with every 14 folded
+to 2, and compare the events.
+Source: #38. Status: open.
 
 ### Lowering
 
