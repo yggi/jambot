@@ -11,6 +11,7 @@ pnpm dev          # web app with hot reload; the prototype is at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes
+pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
 ```
 
 - Agent sessions (Claude Code) install dependencies and Playwright's

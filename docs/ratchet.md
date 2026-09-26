@@ -51,6 +51,10 @@ form to write in and the moves each side makes.
    (`tooling/pawl.ts`, #42) runs in `pnpm verify` and holds the catalogues
    to their tests: evidence on the ladder, rules that say how they were
    decided, named tests that exist, and citations that agree both ways.
+   `tooling/history.ts` holds them in time: against the merge base with
+   `origin/main`, no evidence falls, no rule goes and no entry disappears
+   without `Retired:`. `pnpm ratchet` reports the catalogues over `main`'s
+   history.
 6. **Seams are identities.** Where the working track needs something the
    negative track hasn't settled, it uses the identity and pins the seam with
    a round-trip test. #37 plays the composer's raw events. The text step goes
@@ -130,14 +134,13 @@ The ratchet is the law of recursion applied to the work itself.
 
 These are not known yet:
 
-- **Status only rises.** The pawl check reads the catalogue as it is, not its
-  history, so a status that moves down without a reason is not caught yet.
 - **More than two tracks.** The analyzer (#3) and the web client (#22) will
   feed #7 too, and `quinetic.md` (#39) already gathers properties across
   tracks. Whether the rules above hold unchanged for that is not tested
   yet.
-- **Measuring the ratchet** (#43). Entries by status over the catalogue's
-  history, and decisions that dissolved against decisions that were made.
-  Nothing measures these yet.
+- **Whether the ratchet makes progress** (#43). `pnpm ratchet` counts
+  entries by evidence and rules by how over `main`'s history, but a few
+  hours of history show no trend yet. Crossings per pair, and how long each
+  takes to land as a test, live in issue comments and are counted by hand.
 - **Convergence.** The Dialectica form is exact for a single claim and its
   test. Whether the design as a whole converges is not claimed.

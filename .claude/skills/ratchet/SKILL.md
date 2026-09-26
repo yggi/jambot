@@ -150,8 +150,12 @@ A counterexample is filed where it refutes, never only where it was seen.
   nothing yet. Merge small and often. The pawl check (`tooling/pawl.ts`)
   runs in `pnpm verify`: it refuses a status off the ladder, a named test
   that doesn't exist, a measured entry that names no file, an id cited but
-  not defined or defined twice, and a citing test whose file the entry
-  doesn't name.
+  not defined or defined twice, a citing test whose file the entry
+  doesn't name, "decided" written in a status, and a rule that doesn't say
+  how. `tooling/history.ts` adds time: against the merge base with
+  `origin/main`, no evidence falls, no rule goes and no entry disappears
+  without `Retired:`. `pnpm ratchet` shows the catalogues over `main`'s
+  history.
 - **B3. Dissolve before deciding.** Before a decision, ask which move would
   measure the options: a witness (W1), a probe (N1) or a pull-back (N3). If
   the options are measured and still pull apart, send them to the owner with

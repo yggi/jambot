@@ -96,8 +96,11 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `review-pr.test.ts`: the review skill's `prepare.sh`, against a
     throwaway origin
   - `pawl.ts`: the ratchet's pawl check, which holds the catalogues'
-    statuses, tests, aliases and citations together (#42); `pawl.test.ts` shows each
-    rule firing and runs it over the repository
+    statuses, rules, tests, aliases and citations together (#42);
+    `pawl.test.ts` shows each rule firing and runs it over the repository
+  - `history.ts`: the catalogues read at any version, the gate that
+    evidence only rises and rules go only with a reason, and the report
+    behind `pnpm ratchet` (#43)
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`

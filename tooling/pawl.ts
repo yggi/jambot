@@ -35,7 +35,7 @@ const labels =
   /\b(?:(Witness|Counterexample|Test|Source|Status|Decided|Retired|Lands in|Open):|(Same as)) */g;
 const rungs = /^(speculative|open|derived|measured, failing|measured)( \([^()]*\))?$/;
 /** The ways a rule comes to be, which make `Decided:` the ledger of decisions. */
-const ways = [
+export const ways = [
   'inherited',
   'dissolved',
   'on measured options',
