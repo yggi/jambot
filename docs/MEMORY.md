@@ -12,10 +12,17 @@ pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 ```
 
-- Agent sessions (Claude Code) install dependencies and warm music21 at
-  start through `.claude/hooks/session-start.sh`, and `.claude/settings.json`
-  allows the checks and the music-theory scripts without a prompt. Other
-  agents run `pnpm install --frozen-lockfile` first.
+- Agent sessions (Claude Code) install dependencies, warm music21 and fetch
+  `origin/main` at start through `.claude/hooks/session-start.sh`, and
+  `.claude/settings.json` allows the checks and the music-theory scripts
+  without a prompt. Other agents run `pnpm install --frozen-lockfile` first.
+- An agent's `git push` runs `pnpm verify` first (`verify-before-push.sh`,
+  about 30 s) and is blocked if it fails. It checks the working tree, so
+  commit before pushing.
+- To review a pull request, use the `review-pr` skill:
+  `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`,
+  checks it out in its own worktree and runs `pnpm verify` there.
+  `git fetch origin pull/<n>/head` works through the session proxy.
 - To try the theory without a test, run its TypeScript source from the
   repository root, where `tonal` resolves too:
   `node --experimental-strip-types --no-warnings --input-type=module -e "import { read } from './packages/theory/src/index.ts'; console.log(read('C blues'))"`.
@@ -42,9 +49,10 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 
 ### Repository and CI
 
-- The repository is private. GitHub Actions minutes are used up, so CI and
-  the Pages deploy do not run (#4). `pnpm verify` locally is the check that
-  counts.
+- The repository is private. GitHub Actions minutes are used up (#4), so
+  the CI workflow runs only when started by hand, and the Pages deploy does
+  not run. `pnpm verify` locally is the check that counts. A red or missing
+  `check` on a pull request says nothing about the code.
 - `pnpm ci` is a reserved pnpm command, which is why the all-in-one script is
   called `verify`.
 - TypeScript is pinned to 6.0, because typescript-eslint and svelte-check do
@@ -126,12 +134,13 @@ The full description is in
 
 ### The ratchet
 
-- Design work runs as pairs: a working track that builds and a negative track
-  that catalogues constraints, coupled only by claims with tests
-  ([`ratchet.md`](ratchet.md)). The pairs are on the map, #41. A catalogue
-  entry is written as a witness, a counterexample and a decidable test, with
-  a status, as the `ratchet` skill says. A counterexample is filed against
-  the layer it refutes.
+- The ratchet ([`ratchet.md`](ratchet.md)) is the method for pairs of
+  tracks: a working track that builds and a negative track that catalogues
+  constraints, coupled only by claims with tests. The pairs are on the map,
+  #41. The `ratchet` skill writes an entry as a witness, a counterexample and
+  a decidable test, with a status, and files a counterexample against the
+  layer it refutes. Nothing checks the catalogues mechanically yet: that is
+  the pawl check, #42.
 
 ### Terms
 

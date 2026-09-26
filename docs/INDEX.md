@@ -57,20 +57,30 @@ Every doc and code area, as a tree. Add a line when you add one.
       spelling checked against tonal
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
+- `tooling/`: tests for the repository's own gates
+  - `lint.test.ts`: each rule that keeps the pure packages pure, shown
+    firing
+  - `hooks.test.ts`: the pre-push hook, blocking and letting through
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
-  deploys `main` to GitHub Pages
-- `.claude/settings.json`: the session-start hook, and the checks agents
+  deploys `main` to GitHub Pages; started by hand while #4 is open
+- `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents
   may run without a prompt
-  - `.claude/hooks/session-start.sh`: installs dependencies and warms
-    music21 when an agent session starts or resumes
+  - `.claude/hooks/session-start.sh`: installs dependencies, warms
+    music21 and fetches `origin/main` when an agent session starts or
+    resumes
+  - `.claude/hooks/verify-before-push.sh`: runs `pnpm verify` before an
+    agent's `git push`, and blocks the push if it fails
 - `.claude/skills/`: project skills for agents
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
     theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
     compares the two (`compare.mjs`)
   - [`ratchet/`](../.claude/skills/ratchet/SKILL.md): claims in the
     Dialectica form and the moves both sides of a ratchet pair make (#41)
+  - [`review-pr/`](../.claude/skills/review-pr/SKILL.md): reviews a pull
+    request against the house rules; `prepare.sh` fetches it into its own
+    worktree and runs `pnpm verify` there
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md):
   the checklist every pull request fills in

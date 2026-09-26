@@ -8,20 +8,29 @@
 
 ## Findings
 
-<!-- What this change found that a catalogue (#7's docs/language.md, #39) doesn't hold yet: a law it needed, a limit it hit, a baseline claim that was false. Or "none". The ratchet skill gives the form. -->
+<!--
+What this change found that a catalogue (#7's docs/language.md, #39)
+doesn't hold yet: a law it needed, a limit it hit, a baseline claim that
+was false. Or "none". The ratchet skill gives the form.
+-->
 
 ## Checks
 
-- [ ] `pnpm verify` passes locally (CI does not run while #4 is open)
-- [ ] New behaviour has its test, written against public functions
-- [ ] `packages/theory` and `packages/engine` stay pure: no DOM, Web Audio,
-      timers or Node APIs; randomness goes through `random.ts`
+- [ ] `pnpm verify` passes at the head commit: <!-- short SHA, test count -->
+      (CI runs only by hand while #4 is open; agents' pushes run it through
+      `.claude/hooks/verify-before-push.sh`)
+- [ ] New behaviour has its test, written against public functions, and a
+      new check has a test that shows it firing
+- [ ] `packages/theory` and `packages/engine` stay pure. Lint refuses the
+      DOM, Web Audio, timers, the clock, Node APIs and `Math.random`; by
+      eye, a random choice goes through `random.ts` (#45)
 - [ ] Differences from the prototype are deliberate and noted below
 - [ ] The score language is unchanged, or the change was asked about first
       (link) and has tests
 - [ ] Docs describe the present and are updated in this PR: `docs/MEMORY.md`
       for lasting facts, `docs/INDEX.md` for new docs or code areas,
-      `docs/ROADMAP.md` for a change of direction
+      `docs/ROADMAP.md` for a change of direction; prose wraps at 80
+      columns (#45)
 
 ## Notes for review
 

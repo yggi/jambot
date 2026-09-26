@@ -9,7 +9,8 @@ Two tracks move each other without waiting. The **working track** builds
 something that runs. The **negative track** gathers what constrains it. What
 crosses between them is written as a claim with a test, and a test on `main`
 holds it, so progress only goes one way. The pattern, the rules and the
-history that shows it working are in [`docs/ratchet.md`](../../../docs/ratchet.md).
+history that shows it working are in
+[`docs/ratchet.md`](../../../docs/ratchet.md).
 The pairs, and which issue plays which side, are in the ratchet map (#41).
 
 This skill gives both sides one form to write in and the moves each side
@@ -115,7 +116,9 @@ A counterexample is filed where it refutes, never only where it was seen.
   entry, an issue comment. A wait that can't be avoided is a dependency, and
   it goes into `docs/ROADMAP.md`'s graph.
 - **B2. The pawl is a test on `main`.** A test on an unmerged branch holds
-  nothing yet. Merge small and often.
+  nothing yet. Merge small and often. Until the pawl check (#42) runs in
+  `pnpm verify`, the ids and statuses are checked by eye, with the
+  end-of-step checklist below.
 - **B3. Dissolve before deciding.** Before a decision, ask which move would
   measure the options: a witness (W1), a probe (N1) or a pull-back (N3). If
   the options are measured and still pull apart, send them to the owner with
