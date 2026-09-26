@@ -30,7 +30,7 @@ These principles come from the prototype
 
 | Path                                                   | What                                                                          |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `packages/theory/`                                     | Music theory on one primitive, `even(k, n, rotation)`: pure TypeScript        |
+| `packages/theory/`                                     | Music theory on one primitive, `even(k, n, shift)`: pure TypeScript           |
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
 | `prototype/`                                           | The original single-file prototype and its README: a baseline for orientation |
@@ -53,7 +53,7 @@ These principles come from the prototype
 - **The law of generalization.** A contraction is better than an addition or
   a special case. When something new doesn't fit, look first for the more
   general form that covers both it and what already exists. One operator,
-  `even(k, n, rot)`, gives both the rhythms and the scales.
+  `even(k, n, shift)`, gives both the rhythms and the scales.
 - **The law of recursion and strange loops.** As above, so below. The same
   forms recur at every level (step, bar, phrase, section, song) and in the
   loop from players to Muse to composer and back to players. A structure that

@@ -88,7 +88,7 @@ say; the prototype orients.
 
 1. **Invariants first.** Tests state what has to hold, over every case of
    the finite parts. For example, the theory package checks `even` for every
-   k ≤ n ≤ 16: size, rotation, maximal evenness, and that the set is the
+   k ≤ n ≤ 16: size, shift, maximal evenness, and that the set is the
    arc of its generator.
 2. **The prototype for orientation.** Where one of its values helps, a test
    records it as a literal: the rim pattern, the four scales, the random

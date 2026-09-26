@@ -18,15 +18,33 @@ a time (#2). Until the port is done, the web app is a shell that links to the
 prototype.
 
 Music theory lives in `packages/theory` (#28). It is built on one primitive,
-`even(k, n, rotation)`: k of n placed as evenly as possible, the maximally
+`even(k, n, shift)`: k of n placed as evenly as possible, the maximally
 even set. It gives both the Euclidean rhythms and the scales:
 
 - 5 of 16 is the prototype's rim pattern, and 7 of 12 is the diatonic set;
 - for coprime k and n, the set is also the arc of `k⁻¹ mod n` stacked from
   0, so 7 of 12 is a stack of fifths, and the circle of fifths and the
   Euclidean rhythm are one structure;
-- the modes are the set's rotations, ordered along that generator. For the
-  diatonic set they run from Lydian to Locrian, one lowered note at a time.
+- sorted by brightness, the modes run along that generator. For the diatonic
+  set they run from Lydian to Locrian, one lowered note at a time.
+
+Every set is a **helix**, `{ cycle, heights }`: degrees going round and up,
+seen from above as positions on the circle and from the side as heights on a
+staircase ([theory](theory.md#the-helix)). Around the primitive, the theory
+package names things:
+
+- notes, with their spelling, and intervals, generic and specific;
+- degrees, counted through a scale or a rhythm alike, and named by function
+  (tonic, dominant, leading tone);
+- chords, built by composing every other degree with a key, and the named
+  qualities as stacks above the root;
+- named scales and their modes, and named rhythms.
+
+`read` reads all of these by name, in long and short forms, and `readings`
+lists every reading of an ambiguous name ("C" is a note and a chord) until a
+kind is given. `nameOf` writes a name back. Every theory name the sister
+projects use resolves to what they mean by it, which a test checks against
+their tables.
 
 This primitive is the root of the project and the core of the language
 design (#7).
@@ -160,7 +178,21 @@ projects share **conventions, not code**. These facts stay aligned:
 - C4 = 60;
 - the Euclid form (#8);
 - scale contents and names;
-- the meaning of "mode k".
+- the meaning of "mode k": the scale re-rooted on its k-th note (`mode`,
+  then a shift back to 0).
+
+One theory word means something else in a sister project: quintenzirkel's
+"position" is a place on the circle of fifths, a position along the
+generator. Here a position is the chromatic place, height mod cycle.
+
+Two names mean different sets, and Jambot follows the more common use:
+
+- lib-aeiou's `augmented` scale is the augmented triad `[0, 4, 8]`. Here that
+  is the augmented chord, and the augmented scale is the hexatonic
+  `[0, 3, 4, 7, 8, 11]`.
+- "octatonic" is quintenzirkel's (and Messiaen's) half-whole form; play-aeiou's
+  and jazz's `diminished` is the whole-half form. They are one collection
+  from two starting points.
 
 Their ideas for the score language are collected on #7. The actionable
 findings are in #8–#12.

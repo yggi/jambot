@@ -31,6 +31,22 @@ export default defineConfig(
     },
   },
   {
+    // tonal is a second opinion in tests, never part of the theory itself.
+    files: pureSources,
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['node:*'], message: 'Pure packages use no Node APIs.' },
+            { group: ['tonal', '@tonaljs/*'], message: 'tonal is for tests only.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.svelte', '**/*.svelte.ts'],
     languageOptions: { parserOptions: { parser: ts.parser } },
   },

@@ -15,6 +15,17 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
 - The full prototype is one file: `prototype/jambot-prototype.html`. Open it
   in Chrome or Edge and press _Start the band_. Its code map is in
   [`prototype/README.md`](../prototype/README.md#running-and-hacking).
+- To resolve a musical name, use `read` from `@jambot/theory`:
+  `read('C blues')`, `read('G7', { kind: 'chord' })`, `read('clave')`,
+  `read('second')`, `read('harm minor 5')`. `readings(name)` lists every
+  reading of an ambiguous name, and `nameOf(reading)` writes one back. The sister projects' names are all in
+  `sister-names.test.ts`; a new one goes there first.
+- The theory's core relations, and the test that holds each, are in
+  [`theory.md`](theory.md). A new relation gets its test and its line there.
+- In the theory, a set is a `Helix`, `{ cycle, heights }`: the heights of
+  degrees 0 to k − 1, with degree 0 wherever it stands. `positions(helix)` is
+  the sorted view from the circle. `shift` moves heights (transposition) and
+  `mode` moves degrees (same positions, another tonic).
 - To drive the prototype headless, define `window.__JAMBOT_TEST__` before its
   script runs. It is then called with the internals (`S`, `composeBar`,
   `applyPreset`, `evalMini`, `parseRoman`, `checkOverrides`, …).
@@ -81,6 +92,27 @@ The full description is in
 - The sister projects (play-aeiou, lib-aeiou, quintenzirkel) are read-only
   from here, and they share conventions with Jambot, not code. See
   [architecture](architecture.md#related-projects).
+
+### music21 and tonal
+
+- Two libraries give second opinions on theory claims, through the
+  `music-theory` skill ([`SKILL.md`](../.claude/skills/music-theory/SKILL.md)):
+  music21 (Python, BSD-3-Clause, pinned to 10.5.0) and tonal (MIT, a dev
+  dependency). Lint keeps tonal to tests, and music21 is never a dependency
+  of a package.
+- They agree on note names, diatonic scales and the triads and sevenths of
+  every mode. On chord symbols they never disagree when both can read one,
+  but each reads names the other can't.
+- tonal's Euclid, `RhythmPattern.euclid(n, k)`, is exactly `even(k, n)`, with
+  the same rotation, for every 1 ≤ k ≤ n ≤ 16. Strudel's is not (#8).
+- Roman numerals follow three conventions. The prototype takes the degree
+  and `b`/`#` from the mode and the quality from the case, as music21 does.
+  It takes `7`, `maj7` and `9` as fixed intervals, as tonal does. So `bVII`
+  in G mixolydian is F♭ major (the mode's own F major is `VII`), and `I7` in
+  C is C E G B♭.
+- music21 reads `-` as a flat (`C-7` is C♭7), reads `Bb7` as B major with a
+  flat seventh without any error, and ignores `maj` in a numeral. tonal
+  ignores a numeral's case. The skill's scripts guard against all of these.
 
 ### Terms
 
