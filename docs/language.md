@@ -640,9 +640,10 @@ motif back two bars later. Pd refuses a signal loop without a delay for the
 same reason.
 Counterexample: a wiring of machines with a delay-free cycle, or a wish
 heard inside the section it was sent in.
-Test: `player.test.ts`, "hears a preset's mode from the next section on
-(C5)", for the key wish. Open: a check over the wiring, with a wiring it
-rejects, once the Muse closes a loop inside the engine.
+Test: `player.test.ts`, "hears a preset's mode from the next section on,
+and shows the chords (C5)", for the key wish. Open: a check over the
+wiring, with a wiring it rejects, once the Muse closes a loop inside the
+engine.
 Source: F1, Pd, #37 step 4. Status: derived; measured (the key wish). Lands
 in: #25, Q6.
 

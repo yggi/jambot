@@ -115,9 +115,9 @@ state instead of its held output.
 Test: `machine.test.ts`, the laws with a machine that breaks each;
 `plan.test.ts`, "keeps the machine laws over a tour of the presets and their
 modes (F1, Q4a)"; `band.test.ts`, "holds each section for its eight bars (C3)"
-and "plays each section's plan: its key, and its theme bar by bar, changing
-only at a boundary (C3)", which checks every bar against the planner's
-output. Open: the parts and the compiler, once each is a machine.
+and "plays each section's plan: its key, and its theme's chords bar by bar,
+changing only at a boundary (C3)", which checks every bar against the
+planner's output. Open: the parts and the compiler, once each is a machine.
 Source: F1, C3, the law of recursion. Status: measured (form, planner, band,
 transport); open (parts, compiler). Lands in: #37 step 5, #13.
 
