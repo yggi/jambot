@@ -43,12 +43,22 @@ form to write in and the moves each side makes.
 4. **Constraints come down.** An entry that can bind code says where it lands,
    and it becomes a test in the next step of the working track that touches
    it.
-5. **The pawl is a test on `main`.** Status moves from speculative to open to
-   derived or measured to decided. It moves back only when an entry is retired
-   with the reason written next to it, never silently. A test on an unmerged
-   branch doesn't hold anything yet. The pawl check (`tooling/pawl.ts`, #42)
-   runs in `pnpm verify` and holds the catalogue to its tests: statuses on the
-   ladder, named tests that exist, and citations that agree both ways.
+5. **The pawl is a test on `main`.** The evidence moves from speculative to
+   open to derived to measured. Whether the owner took a claim as a rule is
+   its own field, `Decided:`, which says where and how. Neither moves back
+   except when an entry is retired with its reason written next to it. A
+   test on an unmerged branch doesn't hold anything yet. The pawl check
+   (`tooling/pawl.ts`, #42) runs in `pnpm verify` and holds the catalogues
+   to their tests: evidence on the ladder, rules that say how they were
+   decided, named tests that exist, and citations that agree both ways.
+   `tooling/history.ts` holds them in time, in `pnpm verify`: no evidence
+   falls, overall or in a scope both versions name, no rule goes and no
+   entry disappears without `Retired:`. An entry that becomes an alias is held to the entry
+   it names, and one taken out of retirement to what it had. On a branch the
+   gate compares with the merge base with `origin/main`, and on `main` with
+   the first parent. Without `origin/main` it is skipped locally and fails
+   in CI, which checks out the whole history for it. `pnpm ratchet` reports
+   the catalogues over `main`'s history.
 6. **Seams are identities.** Where the working track needs something the
    negative track hasn't settled, it uses the identity and pins the seam with
    a round-trip test. #37 plays the composer's raw events. The text step goes
@@ -70,10 +80,10 @@ form to write in and the moves each side makes.
 | E1 (68% of the prototype's bars compile differently cold, only in register) meets #37's carried state | both      | F2: the compiler carries what the composer carries. Tension 1 narrows to two concrete options |
 | C1 and C2: a change is a trajectory, and a parameter declares the space it glides in                  | down      | `style.ts`, with glide spaces tested (tempo's midpoint from 60 to 180 is 104)                 |
 | T4: written and played time are separate, joined by a time map                                        | down      | `swingMap`, with exact inverses                                                               |
-| The prototype's `swingDelay` and `unswing` are not inverses (up to 0.04 steps)                        | up        | F3 measured, #39 Q1b                                                                          |
+| The prototype's `swingDelay` and `unswing` are not inverses (up to 0.04 steps)                        | up        | F3 measured, Q1b                                                                              |
 | The README's claim that presets reach both ends of every axis fails for syncopation, energy and tempo | up        | The spans are recorded in a test, as literals                                                 |
 | A chord is a helix, but a ninth chord isn't one                                                       | up        | Decided in #38: a helix plus tensions, and a tension sets its degree of the scale (P6, P7)    |
-| Properties neither track owned alone                                                                  | both      | #39: the quinetic properties, each with its test                                              |
+| Properties neither track owned alone                                                                  | both      | #39: `quinetic.md`, the quinetic properties, each a claim                                     |
 
 Before that, the theory settled what #7 had been going to decide: the Euclid
 form, key names, modes, the chord vocabulary, and that the score text needs no
@@ -115,7 +125,7 @@ The ratchet is the law of recursion applied to the work itself.
   prototype headless). #37's steps end in "Finding:" bullets, which are small
   negative tracks.
 - **In the product.** The composer writes down (`compile`) and the analyzer
-  reads up (`encode`), with a round trip at the boundary (#39 Q1). A finding
+  reads up (`encode`), with a round trip at the boundary (Q1a–Q1e). A finding
   going up is an `encode`, a constraint coming down is a `compile`, and a
   settled entry is a fixed point: its round trip changes nothing.
 - **In the loop.** Players → Muse → composer → players needs a delay on it to
@@ -128,15 +138,13 @@ The ratchet is the law of recursion applied to the work itself.
 
 These are not known yet:
 
-- **Status only rises.** The pawl check reads the catalogue as it is, not its
-  history, so a status that moves down without a reason is not caught yet.
-- **#39 in the repository.** #39's properties live in the issue, so a
-  citation such as `#39 Q5` is checked for its form only.
 - **More than two tracks.** The analyzer (#3) and the web client (#22) will
-  feed #7 too, and #39 already gathers properties across tracks. Whether the
-  rules above hold unchanged for that is not tested yet.
-- **Measuring the ratchet** (#43). Entries by status over the catalogue's
-  history, and decisions that dissolved against decisions that were made.
-  Nothing measures these yet.
+  feed #7 too, and `quinetic.md` (#39) already gathers properties across
+  tracks. Whether the rules above hold unchanged for that is not tested
+  yet.
+- **Whether the ratchet makes progress** (#43). `pnpm ratchet` counts
+  entries by evidence and rules by how over `main`'s history, but a few
+  hours of history show no trend yet. Crossings per pair, and how long each
+  takes to land as a test, live in issue comments and are counted by hand.
 - **Convergence.** The Dialectica form is exact for a single claim and its
   test. Whether the design as a whole converges is not claimed.
