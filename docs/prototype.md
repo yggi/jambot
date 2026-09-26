@@ -68,8 +68,8 @@ language and the plans. This page covers only the port.
   performance. More importantly, `Math.pow` and `Math.sin` feed weighted
   choices, and the spec does not guarantee they give bit-identical results
   across JS engines. That is harmless for a single player, but it matters
-  for cross-device lockstep sync. Quantising the weights before sampling
-  would make it safe.
+  for cross-device lockstep sync. The port quantises probabilities and
+  weights before they meet a draw (`chance` and `pick` in `random.ts`).
 
 ### Maintainability
 
