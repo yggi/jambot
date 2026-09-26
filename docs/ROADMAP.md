@@ -14,6 +14,11 @@ Where Jambot is heading. The concept and the reasoning behind it are in
 
 ## Now
 
+First in line is a **working shape** (#37): the new app plays on its own,
+built from the ported engine, a transport, the synth and minimal controls,
+so it no longer falls back on the prototype. It plays the engine's raw
+events, so it does not wait on the language design.
+
 These run in parallel:
 
 - **Language design** (#7), with its core, the theory primitive
