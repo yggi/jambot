@@ -46,7 +46,9 @@ form to write in and the moves each side makes.
 5. **The pawl is a test on `main`.** Status moves from speculative to open to
    derived or measured to decided. It moves back only when an entry is retired
    with the reason written next to it, never silently. A test on an unmerged
-   branch doesn't hold anything yet.
+   branch doesn't hold anything yet. The pawl check (`tooling/pawl.ts`, #42)
+   runs in `pnpm verify` and holds the catalogue to its tests: statuses on the
+   ladder, named tests that exist, and citations that agree both ways.
 6. **Seams are identities.** Where the working track needs something the
    negative track hasn't settled, it uses the identity and pins the seam with
    a round-trip test. #37 plays the composer's raw events. The text step goes
@@ -126,10 +128,10 @@ The ratchet is the law of recursion applied to the work itself.
 
 These are not known yet:
 
-- **A pawl check in `pnpm verify`** (#42). Every entry has a status from the
-  ladder. Every measured or decided entry names a test that exists. Every
-  catalogue id cited in a test exists in the catalogue. This waits on the
-  catalogue reaching `main`.
+- **Status only rises.** The pawl check reads the catalogue as it is, not its
+  history, so a status that moves down without a reason is not caught yet.
+- **#39 in the repository.** #39's properties live in the issue, so a
+  citation such as `#39 Q5` is checked for its form only.
 - **More than two tracks.** The analyzer (#3) and the web client (#22) will
   feed #7 too, and #39 already gathers properties across tracks. Whether the
   rules above hold unchanged for that is not tested yet.

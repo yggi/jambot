@@ -242,7 +242,7 @@ describe('the transport', () => {
     expect(back.carried!.section).toEqual(carried.section);
   });
 
-  it('keeps the machine laws, with the style gliding under it', () => {
+  it('keeps the machine laws, with the style gliding under it (F1, #39 Q4a)', () => {
     const track = glideTo(glideTo(swung, PRESETS[1]!.style, 8, 64), { swing: 1 }, 40, 32);
     const script: Script<TransportEnv, TransportInput> = ticks(0.9, 240).map((input) => ({
       env: env(track),
