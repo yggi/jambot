@@ -76,6 +76,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       `swingOf` a style track, per beat)
     - `src/tempo.ts`: tempo as a time map from positions to seconds
     - `src/form.ts`: the section chain as a machine, and `barEnergy`
+    - `src/key.ts`: the four modes the composer knows, and `nextKey`,
+      which moves a key toward the players' wish
+    - `src/themes.ts`: themes, a section's harmony as degree slots
+    - `src/plan.ts`: the section plan (form, key and theme), the machine
+      at section rate
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/band.ts`: the band, the machine at bar rate

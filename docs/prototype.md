@@ -102,6 +102,15 @@ language and the plans. This page covers only the port.
   at most once per step, and the louder hit stays.
 - **A section is called "shift".** That is the theory's word for a
   transposition, so the port calls it a bridge.
+- **A key change throws away the planned sections.** The prototype plans
+  twelve bars ahead, so a preset's new mode is a pending key that it
+  consumes once, after cutting the plan back to the next section boundary
+  (`replanFuture`). The port composes each section at its boundary, a beat
+  ahead, and reads the players' wish as a standing target there, so
+  nothing is replanned (`plan.ts`).
+- **A B vamp moves away from the A vamp by index alone.** Where the A theme
+  is in another mode, the same index is another vamp; the port moves away
+  only within the same mode (`themes.ts`).
 
 ### Maintainability
 

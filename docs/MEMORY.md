@@ -56,8 +56,11 @@ pnpm e2e          # the app in Chromium: when what it plays, or when, changes
   holds only the latest glide per axis, and before that glide's start it
   reads the glide's `from`. So to see what was played at a step, read the
   track as it stood when that step was scheduled, not the final track.
-- The engine's levels are machines at their own rates: the form per
-  section, the band per bar, the transport per tick. The web player only
+- The engine's levels are machines at their own rates: the section plan
+  (form, key and theme) per section, the band per bar, the transport per
+  tick. The players' key wish is a standing target, not an event: `nextKey`
+  applied twice gives what it gave once, so the band can read it at every
+  section boundary. The web player only
   reads the audio clock and plays what the transport schedules, so
   everything that decides what and when is tested without a browser.
 - Swing is a time map, `swingMap(swing)`, with `played` and `written` as

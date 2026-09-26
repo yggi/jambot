@@ -1,3 +1,4 @@
+import { PRESETS } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
 import { Player, type Surroundings } from './player.svelte.ts';
@@ -107,5 +108,30 @@ describe('the player', () => {
     expect(player.backlog).toBeLessThan(20);
     world.frames[0]!.follow();
     expect(player.position).not.toBeNull();
+  });
+
+  it("hears a preset's mode from the next section on (C5)", async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    void player.start();
+    world.resolve();
+    await settle();
+    const heard = new Map<number, string>();
+    const play = (seconds: number) => {
+      for (let t = 0; t < seconds; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+        const { bar, key } = player.position ?? {};
+        if (bar !== undefined && key) heard.set(bar, key.mode);
+      }
+    };
+    // Synth-pop at 108 bpm: a bar is 2.2 s. Deep house is dorian.
+    play(3);
+    player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Deep house')! });
+    expect(player.wish).toEqual({ tonic: null, mode: 'dorian' });
+    play(20);
+    for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('aeolian');
+    expect(heard.get(8)).toBe('dorian');
   });
 });
