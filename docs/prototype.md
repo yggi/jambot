@@ -89,13 +89,14 @@ output:
 1. **Reference output.** Tests pin values recorded from the prototype, so a
    seed produces the same music before and after the port. For small units,
    such as the random generator, the values are recorded once and written
-   into the test. For whole bars, a script drives the prototype headless
-   through `__JAMBOT_TEST__` (`composeBar`, `applyPreset`, `evalMini`,
-   `parseRoman`, …) and stores the score text per preset as fixtures.
-2. **Engine first, module by module**, into pure, typed code in
-   `packages/engine`, in dependency order: randomness → mini-notation →
-   harmony and Roman numerals → score encode and compile → style space →
-   part generators → form and planning → Muse.
+   into the test. For whole bars, a recorder drives the prototype headless
+   through `__JAMBOT_TEST__` and stores, per preset, both the composer's raw
+   events and the score text as fixtures (#13).
+2. **Engine and theory first, language surface after #7.** The composer
+   produces raw events before anything is written as text, so the engine
+   (#2) and the shared music theory (#13) are ported now and pinned to those
+   events. The language surface (parser, tokens, encoder, compiler) waits
+   for the language design (#7), and what the port finds feeds that design.
 3. **Audio and MIDI become renderers** that consume timestamped events,
    behind a transport (see [architecture](architecture.md)).
 4. **The UI comes last**, as Svelte components over a read-only engine

@@ -76,11 +76,11 @@ The full description is in
 - Strudel (`@strudel/*`) is AGPL-3.0-or-later. `@strudel/core` 1.2.6 does
   not load under Node 22 (a missing `@kabelsalat/web` export); 1.2.5 does.
 - The prototype's Euclid is the Bresenham form, shared with play-aeiou and
-  quintenzirkel; Strudel's differs for many `(k,n)` (#8).
-- Sister projects, all read-only from here: play-aeiou (MIDI instrument),
-  lib-aeiou (shared theory values) and quintenzirkel (circle of fifths).
-  None has Roman numerals, progressions or a text score. What each offers
-  Jambot is in [the survey](log/2026-09-26-sister-projects.md).
+  quintenzirkel. Strudel's differs for 46 of the 120 `(k,n)` pairs with
+  `k < n ≤ 16`, always by a rotation (#8).
+- The sister projects (play-aeiou, lib-aeiou, quintenzirkel) are read-only
+  from here, and they share conventions with Jambot, not code. See
+  [architecture](architecture.md#related-projects).
 
 ### Terms
 
