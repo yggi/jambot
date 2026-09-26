@@ -1,9 +1,12 @@
 <!--
-  The stage: where the music is, as heard. The section, the chord, the
-  key and the bar, and the beats of the bar so far.
+  The stage: where the music is, as heard. The section, the bar in it and
+  the key; the chord sounding, large, with its numeral; the beats of the bar
+  so far; and the next four bars. Before anything is heard it shows the bar
+  the band opens on.
 -->
 <script lang="ts">
   import type { Hud } from '../hud.ts';
+  import NextBars from './NextBars.svelte';
 
   interface Props {
     hud: Hud;
@@ -13,26 +16,36 @@
 
   let { hud, playing }: Props = $props();
 
-  /** The bar heard, once something is. */
-  const heard = $derived(hud.beat === null ? null : hud.bar);
+  const heard = $derived(hud.beat !== null);
 </script>
 
 <section class="stage" aria-label="Conductor">
   <div class="stage-top">
     <span class="section">
-      {heard ? heard.section : playing ? '…' : 'Ready'}
+      {heard && hud.bar ? hud.bar.section : playing ? '…' : 'Ready'}
     </span>
-    {#if heard}
-      <span class="chord">{hud.chord?.symbol}</span>
-      <span>{heard.key}</span>
-      <span>Bar {heard.bar + 1}</span>
+    {#if hud.bar}
+      <span>{heard ? `Bar ${hud.bar.barInSection + 1} of 8` : 'Opens on'}</span>
+      <span>{hud.bar.key}</span>
     {/if}
   </div>
+  {#if hud.chord}
+    <div class="chord" role="group" aria-label="Chord">
+      <span class="symbol">{hud.chord.symbol}</span>
+      <span class="numeral">{hud.chord.numeral}</span>
+    </div>
+  {/if}
   <div class="beats" aria-hidden="true">
     {#each [0, 1, 2, 3] as beat (beat)}
       <i class:on={hud.beat !== null && beat <= hud.beat}></i>
     {/each}
   </div>
+  {#if hud.bar && hud.next.length > 0}
+    <div>
+      <p class="caption">Next four bars</p>
+      <NextBars before={hud.bar} bars={hud.next} />
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -58,8 +71,25 @@
     color: var(--amber);
   }
   .chord {
-    font-weight: 700;
-    color: var(--ink);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .symbol {
+    font-weight: 800;
+    font-size: clamp(76px, 22vw, 156px);
+    line-height: 0.9;
+    letter-spacing: -0.035em;
+  }
+  .numeral {
+    font-weight: 500;
+    font-size: clamp(22px, 6vw, 34px);
+    color: var(--muted);
+  }
+  .caption {
+    font-size: 13px;
+    color: var(--muted);
   }
   .beats {
     display: grid;

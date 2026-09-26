@@ -1,20 +1,29 @@
 <!--
   The style: the genre presets and the six sliders. The sliders show where
   each axis is going, not the glide, and the preset pressed is the one the
-  style is at or heading for (`presetOf`), none for a custom style.
+  style is at or heading for (`presetOf`), none for a custom style. A line
+  says where the style is, in the prototype's words.
 -->
 <script lang="ts">
   import { type Axis, PRESETS, type StyleTrack } from '@jambot/engine';
   import type { Intent } from '../conductor.ts';
+  import type { StyleView } from '../hud.ts';
 
   interface Props {
     track: StyleTrack;
-    /** The preset the style is at or heading for, or null for a custom style. */
-    preset: string | null;
+    style: StyleView;
     onintent: (intent: Intent) => void;
   }
 
-  let { track, preset, onintent }: Props = $props();
+  let { track, style, onintent }: Props = $props();
+
+  const moving = $derived(style.preset !== null && style.glide !== null);
+  const status = $derived.by(() => {
+    const { preset, glide } = style;
+    if (preset === null) return 'Custom style. Pick a preset to glide somewhere named.';
+    if (!glide) return `Playing ${preset}.`;
+    return `Moving from ${glide.from ?? 'Custom'} to ${preset}, bar ${glide.bar} of ${glide.bars}.`;
+  });
 
   const SLIDERS: { axis: Axis; label: string; ends: string[] }[] = [
     { axis: 'swing', label: 'Swing', ends: ['straight', 'shuffled', 'swung'] },
@@ -31,13 +40,14 @@
     {#each PRESETS as p (p.name)}
       <button
         type="button"
-        aria-pressed={preset === p.name}
+        aria-pressed={style.preset === p.name}
         onclick={() => onintent({ kind: 'preset', preset: p })}
       >
         {p.name}
       </button>
     {/each}
   </div>
+  <p class="status" class:moving aria-live="polite">{status}</p>
   <div class="sliders">
     {#each SLIDERS as s (s.axis)}
       <label>
@@ -83,6 +93,15 @@
     background: var(--ink);
     border-color: var(--ink);
     color: var(--bg);
+  }
+  .status {
+    font-size: 14px;
+    color: var(--muted);
+    min-height: 20px;
+  }
+  .status.moving {
+    color: var(--amber);
+    font-weight: 500;
   }
   .sliders {
     display: grid;

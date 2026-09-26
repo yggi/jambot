@@ -135,9 +135,14 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/App.svelte`: the page, which holds the player and hands each
       component its props; components take props and send intents
       - `src/components/Transport.svelte`: start and stop, and the tempo
-      - `src/components/StylePanel.svelte`: the presets and the style sliders
-      - `src/components/Stage.svelte`: the section, chord, key, bar and beat
-        heard
+      - `src/components/StylePanel.svelte`: the presets, the style sliders,
+        and a line saying where the style is: a preset playing, a glide
+        under way, or a custom style
+      - `src/components/Stage.svelte`: the section, the bar in it, the key,
+        the chord heard with its numeral, and the beats; before the start,
+        the bar the band opens on
+      - `src/components/NextBars.svelte`: the next four bars, with cues
+        where the section or the key changes
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start. It keeps the

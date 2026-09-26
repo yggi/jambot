@@ -153,7 +153,7 @@ function styleView(track: StyleTrack, step: number): StyleView {
     Object.entries(track).map(([axis, glide]) => [axis, glide.to]),
   ) as Style;
   const moving = NAMING_AXES.map((axis) => track[axis]).filter(
-    (g) => g.length > 0 && step < g.start + g.length,
+    (g) => g.length > 0 && step < g.start + g.length && (g.from !== g.to || g.slope !== 0),
   );
   if (moving.length === 0) return { preset: presetOf(target), glide: null };
   const start = Math.min(...moving.map((g) => g.start));

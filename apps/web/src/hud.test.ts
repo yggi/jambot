@@ -150,6 +150,14 @@ describe('a glide’s progress', () => {
     });
   });
 
+  it('is no glide where the style stays where it is, as when the same preset is chosen again', () => {
+    const again = glideTo(glideTo(track, techno.style, 0, 0), techno.style, 32, PRESET_GLIDE);
+    expect(hudOf({ heard: 40, bars, track: again }).style).toEqual({
+      preset: 'Techno',
+      glide: null,
+    });
+  });
+
   it('ignores energy riding within a genre', () => {
     const ridden = glideTo(track, { energy: 1 }, 32, SLIDER_GLIDE);
     expect(hudOf({ heard: 40, bars, track: ridden }).style).toEqual({

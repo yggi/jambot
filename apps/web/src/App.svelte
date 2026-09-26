@@ -23,7 +23,7 @@
 
   <StylePanel
     track={player.track}
-    preset={player.hud.style.preset}
+    style={player.hud.style}
     onintent={(intent) => player.apply(intent)}
   />
 
