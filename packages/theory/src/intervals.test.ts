@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INTERVALS, genericSizes, parseInterval } from './intervals.ts';
+import { INTERVALS, genericSizes, parseDegreeName, parseInterval, partial } from './intervals.ts';
 
 describe('genericSizes', () => {
   it('comes from the diatonic set: every generic interval has one size or two sizes a semitone apart', () => {
@@ -54,6 +54,7 @@ describe('parseInterval', () => {
   it('reads generic intervals as both of their sizes', () => {
     expect(parseInterval('second')).toEqual({ steps: 1, semitones: [1, 2] });
     expect(parseInterval('3rd')).toEqual({ steps: 2, semitones: [3, 4] });
+    expect(parseInterval('Major 3rd')).toEqual({ steps: 2, semitones: [4] });
     expect(parseInterval('Fifth')).toEqual({ steps: 4, semitones: [6, 7] });
     expect(parseInterval('seventh')).toEqual({ steps: 6, semitones: [10, 11] });
   });
@@ -69,5 +70,33 @@ describe('parseInterval', () => {
     expect(parseInterval('M3')!.semitones).toEqual([4]);
     for (const text of ['', 'P3', 'M5', 'minor fifth', 'ninth-ish', 'C'])
       expect(parseInterval(text), text).toBeUndefined();
+  });
+});
+
+describe('partial', () => {
+  it('places the n-th partial of the harmonic series on the nearest semitone', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8].map(partial)).toEqual([0, 12, 19, 24, 28, 31, 34, 36]);
+  });
+});
+
+describe('parseDegreeName', () => {
+  it('names the degrees by function, as generic intervals above the tonic', () => {
+    const cases: [string, number][] = [
+      ['tonic', 0],
+      ['supertonic', 1],
+      ['mediant', 2],
+      ['subdominant', 3],
+      ['dominant', 4],
+      ['submediant', 5],
+    ];
+    for (const [text, steps] of cases)
+      expect(parseDegreeName(text), text).toEqual({ steps, semitones: genericSizes(steps) });
+  });
+
+  it('names the seventh degree by its size', () => {
+    expect(parseDegreeName('leading tone')).toEqual({ steps: 6, semitones: [11] });
+    expect(parseDegreeName('Leading-note')).toEqual({ steps: 6, semitones: [11] });
+    expect(parseDegreeName('subtonic')).toEqual({ steps: 6, semitones: [10] });
+    expect(parseDegreeName('fifth')).toBeUndefined();
   });
 });

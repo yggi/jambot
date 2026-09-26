@@ -39,6 +39,9 @@ describe('lookup', () => {
     expect(kinds('diminished')).toEqual(['chord', 'scale']);
     expect(kinds('whole tone')).toEqual(['interval', 'scale']);
     expect(kinds('major seventh')).toEqual(['interval', 'chord']);
+    expect(kinds('dominant')).toEqual(['degree', 'chord']);
+    expect(kinds('suspended')).toEqual(['chord', 'scale']);
+    expect(kinds('C major scale')).toEqual(['scale']);
     expect(() => lookup('C')).toThrow(/ambiguous.*note.*chord/);
     expect(lookup('C', { kind: 'chord' })).toMatchObject({ intervals: [0, 4, 7] });
     expect(lookup('E7', { kind: 'note' })).toMatchObject({ note: { midi: 100 } });
@@ -53,44 +56,22 @@ describe('lookup', () => {
     expect(() => lookup('dia')).toThrow(/needs a scale/);
   });
 
+  it('reads the functional names of degrees', () => {
+    expect(lookup('tonic')).toEqual({ kind: 'degree', steps: 0, semitones: [0] });
+    expect(lookup('leading tone')).toEqual({ kind: 'degree', steps: 6, semitones: [11] });
+  });
+
+  it('reads a numbered mode of a scale, with a tonic', () => {
+    expect(lookup('A harmonic minor 5')).toMatchObject({
+      kind: 'scale',
+      tonic: { pitchClass: 9 },
+      name: 'phrygian dominant',
+    });
+  });
+
   it('says so when a name means nothing', () => {
     expect(readings('Hbm')).toEqual([]);
     expect(() => lookup('Hbm')).toThrow(/no reading/);
     expect(() => lookup('C blues', { kind: 'rhythm' })).toThrow(/no reading/);
   });
-});
-
-/**
- * Names the sister projects use. This list holds the names confirmed by the
- * survey of play-aeiou and quintenzirkel (#17, #12). It is not their full
- * tables yet: those are play-aeiou's `CHORD_TYPES` (notes/chords.py) and scale
- * names (core/harmony.py), and quintenzirkel's `FIGURES`
- * (src/0-base/theory/naming.js).
- */
-const SISTER_NAMES = {
-  chord: ['sus2', 'sus4', '5', '6', 'm9', 'C sus4', 'Asus2', 'D5', 'E6', 'Fm9'],
-  scale: [
-    'ionian',
-    'dorian',
-    'phrygian',
-    'lydian',
-    'mixolydian',
-    'aeolian',
-    'locrian',
-    'harmonic minor',
-    'melodic minor',
-    'major pentatonic',
-    'minor pentatonic',
-    'Eb harmonic minor',
-  ],
-  note: ['E♭', 'F', 'G♭', 'A♭', 'B♭', 'C♭', 'D', 'C4', 'A4'],
-} as const;
-
-describe('names from the sister projects', () => {
-  for (const [kind, names] of Object.entries(SISTER_NAMES)) {
-    it(`resolve as ${kind}s`, () => {
-      for (const name of names)
-        expect(lookup(name, { kind: kind as 'chord' }).kind, name).toBe(kind);
-    });
-  }
 });

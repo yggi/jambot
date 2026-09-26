@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHORD_QUALITIES, parseChordQuality, qualityOf, stack } from './chords.ts';
+import { partial } from './intervals.ts';
 import { modes } from './modes.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -67,5 +68,53 @@ describe('chord qualities', () => {
     expect(parseChordQuality('m')).toBe('minor');
     expect(parseChordQuality('M')).toBe('major');
     expect(parseChordQuality('mystery')).toBeUndefined();
+  });
+
+  it('read the classical symbols, where case says the triad and the seventh', () => {
+    expect(parseChordQuality('Mm7')).toBe('7');
+    expect(parseChordQuality('MM7')).toBe('maj7');
+    expect(parseChordQuality('mm7')).toBe('m7');
+    expect(parseChordQuality('mM7')).toBe('mMaj7');
+  });
+
+  it('read a symbol in another case when no symbol matches as written', () => {
+    expect(parseChordQuality('Sus4')).toBe('sus4');
+    expect(parseChordQuality('MAJ7')).toBe('maj7');
+    expect(parseChordQuality('mmaj7')).toBe('mMaj7');
+  });
+
+  it('list every symbol whose case carries meaning in each of its cases', () => {
+    const symbols = Object.values(CHORD_QUALITIES).flatMap((q) => q.symbols);
+    const casings = (s: string): string[] =>
+      s === ''
+        ? ['']
+        : casings(s.slice(1)).flatMap((rest) => [
+            ...new Set([s[0]!.toLowerCase() + rest, s[0]!.toUpperCase() + rest]),
+          ]);
+    for (const symbol of symbols) {
+      const twins = symbols.filter((other) => other.toLowerCase() === symbol.toLowerCase());
+      if (twins.length > 1)
+        for (const casing of casings(symbol))
+          expect(parseChordQuality(casing), `${casing}, a case of ${twins.join(' ')}`).toBe(
+            parseChordQuality(symbols.find((s) => s === casing) ?? '!'),
+          );
+    }
+  });
+
+  it('read abbreviated and ordinal words, and a trailing "chord"', () => {
+    expect(parseChordQuality('Dim 7th')).toBe('dim7');
+    expect(parseChordQuality('half-dim 7th')).toBe('m7b5');
+    expect(parseChordQuality('dom 9th')).toBe('9');
+    expect(parseChordQuality('major chord')).toBe('major');
+    expect(parseChordQuality('chord')).toBeUndefined();
+  });
+});
+
+describe('harmonics', () => {
+  it('is the first five partials over the root: a major triad, voiced by the harmonic series', () => {
+    expect(CHORD_QUALITIES['harmonics']!.intervals).toEqual([1, 2, 3, 4, 5].map(partial));
+    expect(new Set(CHORD_QUALITIES['harmonics']!.intervals.map((x) => x % 12))).toEqual(
+      new Set(CHORD_QUALITIES['major']!.intervals),
+    );
   });
 });

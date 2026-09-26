@@ -8,12 +8,20 @@
  * (Locrian), lowering one note at a time.
  */
 
-import { even, generator, shift } from './even.ts';
+import { even, generator, mod, shift } from './even.ts';
 
 export function modes(k: number, n: number): number[][] {
   const g = generator(k, n);
   const set = even(k, n);
   return set.map((_, b) => shift(set, -g * b, n));
+}
+
+/**
+ * The set re-rooted on its d-th member: the modes in scale order, as "mode k"
+ * means in the sister projects. `rotate(ionian, 1)` is dorian.
+ */
+export function rotate(set: readonly number[], d: number, n = 12): number[] {
+  return shift(set, -set[mod(d, set.length)]!, n);
 }
 
 /** The diatonic modes, in the order of `modes(7, 12)`. */

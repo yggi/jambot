@@ -10,6 +10,7 @@
 
 import { degree } from './degrees.ts';
 import { even } from './even.ts';
+import { normalizeWords } from './words.ts';
 
 export interface Interval {
   /** Scale steps spanned: 0 is a unison, 7 an octave. */
@@ -57,17 +58,11 @@ export const INTERVALS: Record<string, NamedInterval> = {
 
 const GENERIC_WORDS: Record<string, number> = {
   second: 1,
-  '2nd': 1,
   third: 2,
-  '3rd': 2,
   fourth: 3,
-  '4th': 3,
   fifth: 4,
-  '5th': 4,
   sixth: 5,
-  '6th': 5,
   seventh: 6,
-  '7th': 6,
 };
 
 /** Symbols are case-sensitive (m2 is not M2); words are not. */
@@ -82,10 +77,34 @@ export function parseInterval(text: string): Interval | undefined {
   return steps === undefined ? undefined : { steps, semitones: genericSizes(steps) };
 }
 
-/** Lower case, with hyphens and runs of spaces read as one space. */
-export function normalizeWords(text: string): string {
-  return text
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, ' ');
+/**
+ * The degrees named by their function. A degree is a generic interval above
+ * the tonic, so it takes that interval's sizes; only the seventh has a name for
+ * each size, the leading tone a semitone below the octave and the subtonic a
+ * whole tone below.
+ */
+const DEGREE_NAMES: Record<string, Interval> = {
+  tonic: { steps: 0, semitones: genericSizes(0) },
+  supertonic: { steps: 1, semitones: genericSizes(1) },
+  mediant: { steps: 2, semitones: genericSizes(2) },
+  subdominant: { steps: 3, semitones: genericSizes(3) },
+  dominant: { steps: 4, semitones: genericSizes(4) },
+  submediant: { steps: 5, semitones: genericSizes(5) },
+  'leading tone': { steps: 6, semitones: [11] },
+  'leading note': { steps: 6, semitones: [11] },
+  subtonic: { steps: 6, semitones: [10] },
+};
+
+export function parseDegreeName(text: string): Interval | undefined {
+  return DEGREE_NAMES[normalizeWords(text)];
+}
+
+/**
+ * The n-th partial of the harmonic series, in semitones above the
+ * fundamental, on the nearest semitone: 1 is the fundamental, 2 the octave, 3
+ * the twelfth. Partials 1 to 5 are a major triad; the 7th is 31 cents from
+ * the nearest semitone.
+ */
+export function partial(n: number): number {
+  return Math.round(12 * Math.log2(n));
 }

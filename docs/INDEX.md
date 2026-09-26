@@ -29,13 +29,18 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `theory/`: music theory on one primitive, pure TypeScript (#28)
     - `src/even.ts`: `even(k, n, rotation)`, the maximally even set, and its
       checks
-    - `src/modes.ts`: modes as rotations along the generator
-    - `src/notes.ts`, `src/intervals.ts`: note names (spelling, octaves) and
-      intervals, generic and specific
+    - `src/modes.ts`: modes as rotations, along the generator (`modes`) or
+      in scale order (`rotate`)
+    - `src/notes.ts`, `src/intervals.ts`: note names (spelling, octaves),
+      intervals, generic and specific, degree names and partials
     - `src/degrees.ts`, `src/chords.ts`: counting degrees through a set, and
       chords as stacks of every other degree, with the named qualities
     - `src/scales.ts`, `src/rhythms.ts`: named scales and rhythms
+    - `src/words.ts`: how names in words compare (case, ordinals,
+      accidentals, abbreviations)
     - `src/lookup.ts`: lookup by name across all of these
+    - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
+      and quintenzirkel use, checked to mean the same here
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
 - `apps/`

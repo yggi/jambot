@@ -1,12 +1,13 @@
 /**
  * Named scales. Where a scale is maximally even it is taken from the
  * primitive (the modes of 7 of 12 and 5 of 12, 6, 8 and 12 of 12); the rest
- * are listed as sets and marked as not even.
+ * are listed as sets and marked as not even. The modes of a listed scale are
+ * its rotations, so only the scale itself is written out.
  */
 
 import { even, shift } from './even.ts';
-import { normalizeWords } from './intervals.ts';
-import { DIATONIC_MODE_NAMES, modes } from './modes.ts';
+import { DIATONIC_MODE_NAMES, modes, rotate } from './modes.ts';
+import { normalizeWords, withoutKindWord } from './words.ts';
 
 export interface NamedScale {
   /** Semitones above the tonic, starting with 0. */
@@ -17,8 +18,13 @@ export interface NamedScale {
 }
 
 const DIATONIC_ALIASES: Record<string, string[]> = {
-  ionian: ['major'],
-  aeolian: ['minor', 'natural minor'],
+  ionian: ['major', 'ION'],
+  dorian: ['DOR'],
+  phrygian: ['PHR'],
+  lydian: ['LYD'],
+  mixolydian: ['MIX'],
+  aeolian: ['minor', 'natural minor', 'AEO'],
+  locrian: ['LOC'],
 };
 
 const diatonic = Object.fromEntries(
@@ -28,39 +34,99 @@ const diatonic = Object.fromEntries(
   ]),
 );
 
+/** A scale's modes, in scale order, each with its name and aliases; mode 0 is the scale. */
+function modesOf(
+  set: readonly number[],
+  even: boolean,
+  names: [string, string[]][],
+): Record<string, NamedScale> {
+  return Object.fromEntries(
+    names.map(([name, aliases], d) => [name, { set: rotate(set, d), even, aliases }]),
+  );
+}
+
+const harmonicMinor = [0, 2, 3, 5, 7, 8, 11];
+const melodicMinor = [0, 2, 3, 5, 7, 9, 11];
 const octatonic = even(8, 12);
 
+/**
+ * Canonical names first, then the aliases. The aliases in capitals are
+ * play-aeiou's panel shorts, where they are not already an abbreviation (see
+ * `normalizeWords`: `DIM` is "diminished").
+ */
 export const SCALES: Record<string, NamedScale> = {
   ...diatonic,
-  'major pentatonic': {
-    set: modes(5, 12)[4]!,
-    even: true,
-    aliases: ['pentatonic', 'pentatonic major'],
-  },
-  'minor pentatonic': { set: modes(5, 12)[1]!, even: true, aliases: ['pentatonic minor'] },
-  'whole tone': { set: even(6, 12), even: true, aliases: ['wholetone'] },
-  chromatic: { set: even(12, 12), even: true, aliases: [] },
+  ...modesOf(modes(5, 12)[4]!, true, [
+    ['major pentatonic', ['pentatonic', 'pentatonic major', 'PENT']],
+    ['suspended pentatonic', ['suspended', 'egyptian']],
+    ['man gong', ['MGNG']],
+    ['ritsusen', ['RITS']],
+    ['minor pentatonic', ['pentatonic minor', 'MPEN']],
+  ]),
+  'whole tone': { set: even(6, 12), even: true, aliases: ['wholetone', 'WTON'] },
+  chromatic: { set: even(12, 12), even: true, aliases: ['CHR'] },
   diminished: {
     set: octatonic,
     even: true,
-    aliases: ['octatonic', 'whole half', 'whole half diminished'],
+    aliases: ['whole half', 'whole half diminished'],
   },
   'half whole diminished': {
     set: shift(octatonic, -2, 12),
     even: true,
-    aliases: ['half whole', 'dominant diminished'],
+    aliases: ['half whole', 'dominant diminished', 'octatonic', 'HWD'],
   },
-  blues: { set: [0, 3, 5, 6, 7, 10], even: false, aliases: ['blues scale', 'minor blues'] },
-  'harmonic minor': { set: [0, 2, 3, 5, 7, 8, 11], even: false, aliases: [] },
-  'melodic minor': { set: [0, 2, 3, 5, 7, 9, 11], even: false, aliases: ['jazz minor'] },
-  augmented: { set: [0, 3, 4, 7, 8, 11], even: false, aliases: ['augmented scale'] },
+  ...modesOf([0, 3, 5, 6, 7, 10], false, [
+    ['blues', ['minor blues', 'BLUE']],
+    ['major blues', ['MBLU']],
+  ]),
+  ...modesOf(harmonicMinor, false, [
+    ['harmonic minor', ['HMIN']],
+    ['locrian natural 6', ['LOC6']],
+    ['ionian #5', ['ionian augmented', 'ION5']],
+    ['dorian #4', ['ukrainian dorian', 'DOR4']],
+    ['phrygian dominant', ['spanish phrygian', 'PDOM']],
+    ['lydian #2', ['LYD2']],
+    ['ultralocrian', ['altered diminished', 'ULOC']],
+  ]),
+  ...modesOf(melodicMinor, false, [
+    ['melodic minor', ['jazz minor', 'MMIN']],
+    ['dorian b2', ['phrygian natural 6', 'DOR2']],
+    ['lydian augmented', ['lydian #5', 'LYD+']],
+    ['lydian dominant', ['acoustic', 'overtone', 'LDOM']],
+    ['mixolydian b6', ['aeolian dominant', 'MIX6']],
+    ['locrian natural 2', ['aeolian b5', 'LOC2']],
+    ['altered', ['super locrian', 'superlocrian', 'altered dominant', 'ALT']],
+  ]),
+  augmented: { set: [0, 3, 4, 7, 8, 11], even: false, aliases: [] },
 };
 
-/** The canonical name of a scale, from its name or an alias, in any case. */
+/**
+ * The canonical name of a scale, from its name or an alias in words (see
+ * `normalizeWords`), with or without a trailing "scale".
+ */
 export function parseScaleName(text: string): string | undefined {
-  const words = normalizeWords(text);
+  const words = withoutKindWord(normalizeWords(text), 'scale');
   for (const [name, scale] of Object.entries(SCALES)) {
     if ([name, ...scale.aliases].some((alias) => normalizeWords(alias) === words)) return name;
   }
   return undefined;
+}
+
+/**
+ * A scale by name, or a scale and a number: "harmonic minor 5" is its fifth
+ * mode, the scale re-rooted on its fifth note, as play-aeiou numbers them. A
+ * mode is called by its own name when its set has one ("major 2" is dorian),
+ * and by the scale's name and the number otherwise ("blues 3").
+ */
+export function parseScale(text: string): { name: string; set: readonly number[] } | undefined {
+  const name = parseScaleName(text);
+  if (name) return { name, set: SCALES[name]!.set };
+  const numbered = /^(.*\S)\s+(\d+)$/.exec(text.trim());
+  if (!numbered) return undefined;
+  const scaleName = parseScaleName(numbered[1]!);
+  const number = Number(numbered[2]);
+  if (!scaleName || number < 1 || number > SCALES[scaleName]!.set.length) return undefined;
+  const set = rotate(SCALES[scaleName]!.set, number - 1);
+  const own = Object.entries(SCALES).find(([, scale]) => scale.set.join() === set.join());
+  return { name: own?.[0] ?? `${scaleName} ${number}`, set };
 }

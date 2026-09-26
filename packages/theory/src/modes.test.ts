@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { even, gaps } from './even.ts';
-import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
+import { DIATONIC_MODE_NAMES, diatonicMode, modes, rotate } from './modes.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -91,5 +91,26 @@ describe('diatonicMode', () => {
       'locrian',
     ]);
     DIATONIC_MODE_NAMES.forEach((name, b) => expect(diatonicMode(name)).toEqual(modes(7, 12)[b]));
+  });
+});
+
+describe('rotate', () => {
+  it('re-roots a set on its d-th member: the modes in scale order', () => {
+    const ionian = diatonicMode('ionian');
+    expect(range(7).map((d) => rotate(ionian, d))).toEqual(
+      ['ionian', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian'].map((name) =>
+        diatonicMode(name as (typeof DIATONIC_MODE_NAMES)[number]),
+      ),
+    );
+    expect(rotate(ionian, 7)).toEqual(ionian);
+    expect(rotate(ionian, -1)).toEqual(diatonicMode('locrian'));
+  });
+
+  it('gives the same sets as modes, in another order, for every coprime k of n', () => {
+    for (const [k, n] of coprimeSizes) {
+      const byGenerator = modes(k, n).map((m) => m.join());
+      const byDegree = range(k).map((d) => rotate(even(k, n), d, n).join());
+      expect(new Set(byDegree), `${k} of ${n}`).toEqual(new Set(byGenerator));
+    }
   });
 });

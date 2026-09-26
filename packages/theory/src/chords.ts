@@ -9,7 +9,8 @@
  */
 
 import { degree } from './degrees.ts';
-import { normalizeWords } from './intervals.ts';
+import { partial } from './intervals.ts';
+import { normalizeWords, withoutKindWord } from './words.ts';
 
 /** Semitones above the chord's lowest degree: every other degree of `set`, `size` of them. */
 export function stack(set: readonly number[], d: number, size: number, n = 12): number[] {
@@ -42,9 +43,9 @@ export const CHORD_QUALITIES: Record<string, ChordQuality> = {
   '5': quality([0, 7], ['5'], ['power chord', 'power']),
   '6': quality([0, 4, 7, 9], ['6', 'maj6'], ['sixth', 'major sixth']),
   m6: quality([0, 3, 7, 9], ['m6', 'min6', '-6'], ['minor sixth']),
-  '7': quality([0, 4, 7, 10], ['7', 'dom7'], ['seventh', 'dominant seventh', 'dominant']),
-  maj7: quality([0, 4, 7, 11], ['maj7', 'M7', 'Δ', 'Δ7', 'ma7'], ['major seventh']),
-  m7: quality([0, 3, 7, 10], ['m7', 'min7', '-7'], ['minor seventh']),
+  '7': quality([0, 4, 7, 10], ['7', 'dom7', 'Mm7'], ['seventh', 'dominant seventh', 'dominant']),
+  maj7: quality([0, 4, 7, 11], ['maj7', 'M7', 'Δ', 'Δ7', 'ma7', 'MM7'], ['major seventh']),
+  m7: quality([0, 3, 7, 10], ['m7', 'min7', '-7', 'mm7'], ['minor seventh']),
   mMaj7: quality([0, 3, 7, 11], ['mMaj7', 'm(maj7)', 'mM7', 'minMaj7'], ['minor major seventh']),
   m7b5: quality(
     [0, 3, 6, 10],
@@ -56,19 +57,28 @@ export const CHORD_QUALITIES: Record<string, ChordQuality> = {
   maj9: quality([0, 4, 7, 11, 14], ['maj9', 'M9', 'Δ9'], ['major ninth']),
   m9: quality([0, 3, 7, 10, 14], ['m9', 'min9', '-9'], ['minor ninth']),
   add9: quality([0, 4, 7, 14], ['add9'], ['add nine', 'added ninth']),
+  harmonics: quality([1, 2, 3, 4, 5].map(partial), [], ['harmonics', 'harmonic series']),
 };
 
-/** The quality named by a symbol or words, if any. */
+/**
+ * The quality named by a symbol or words, if any. A symbol matches as written
+ * first, then words, then a symbol in another case (`Sus4`, `MAJ7`). Every
+ * symbol whose case carries meaning is listed in each of its cases, the
+ * classical `Mm7` `mm7` `MM7` `mM7` among them, so the last step never reaches
+ * one.
+ */
 export function parseChordQuality(text: string): string | undefined {
   const trimmed = text.trim();
-  const words = normalizeWords(trimmed);
-  for (const [name, named] of Object.entries(CHORD_QUALITIES)) {
-    if (named.symbols.includes(trimmed)) return name;
-  }
-  for (const [name, named] of Object.entries(CHORD_QUALITIES)) {
-    if (named.words.includes(words)) return name;
-  }
-  return undefined;
+  const words = withoutKindWord(normalizeWords(trimmed), 'chord');
+  const qualities = Object.entries(CHORD_QUALITIES);
+  const bySymbol = qualities.find(([, named]) => named.symbols.includes(trimmed));
+  if (bySymbol) return bySymbol[0];
+  const byWords = qualities.find(([, named]) =>
+    named.words.some((w) => normalizeWords(w) === words),
+  );
+  if (byWords) return byWords[0];
+  const lower = trimmed.toLowerCase();
+  return qualities.find(([, named]) => named.symbols.some((s) => s.toLowerCase() === lower))?.[0];
 }
 
 /** The name of the quality with exactly these intervals, if any. */

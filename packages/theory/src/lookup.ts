@@ -1,6 +1,6 @@
 /**
- * Lookup by name: notes, intervals, chords, scales and rhythms, in their long
- * and short forms, resolved to the theory's own representations.
+ * Lookup by name: notes, intervals, degrees, chords, scales and rhythms, in
+ * their long and short forms, resolved to the theory's own representations.
  *
  * One name can have several readings: "C" is a note and a chord, "E7" is E in
  * octave 7 and E dominant seventh, "C major" is a chord and a scale.
@@ -9,16 +9,18 @@
  */
 
 import { CHORD_QUALITIES, parseChordQuality, qualityOf, stack } from './chords.ts';
-import { normalizeWords, parseInterval } from './intervals.ts';
+import { parseDegreeName, parseInterval } from './intervals.ts';
 import { type Note, parseNote } from './notes.ts';
 import { parseRhythm } from './rhythms.ts';
-import { SCALES, parseScaleName } from './scales.ts';
+import { parseScale } from './scales.ts';
+import { normalizeWords } from './words.ts';
 
-export type Kind = 'note' | 'interval' | 'chord' | 'scale' | 'rhythm';
+export type Kind = 'note' | 'interval' | 'degree' | 'chord' | 'scale' | 'rhythm';
 
 export type Reading =
   | { kind: 'note'; note: Note }
   | { kind: 'interval'; steps: number; semitones: number[] }
+  | { kind: 'degree'; steps: number; semitones: number[] }
   | { kind: 'chord'; root?: Note; quality: string; intervals: readonly number[] }
   | { kind: 'scale'; tonic?: Note; name: string; set: readonly number[] }
   | { kind: 'rhythm'; steps: number; onsets: number[] };
@@ -33,13 +35,15 @@ export interface LookupContext {
 /** Chords that are a way of stacking the scale in context rather than a fixed quality. */
 const STACKED_CHORDS: Record<string, number> = { dia: 3 };
 
-/** Every reading of a name, in the order note, interval, chord, scale, rhythm. */
+/** Every reading of a name, in the order note, interval, degree, chord, scale, rhythm. */
 export function readings(text: string, context: LookupContext = {}): Reading[] {
   const found: Reading[] = [];
   const note = parseNote(text);
   if (note) found.push({ kind: 'note', note });
   const interval = parseInterval(text);
   if (interval) found.push({ kind: 'interval', ...interval });
+  const degree = parseDegreeName(text);
+  if (degree) found.push({ kind: 'degree', ...degree });
   found.push(...chordReadings(text, context));
   found.push(...scaleReadings(text));
   const rhythm = parseRhythm(text);
@@ -91,16 +95,18 @@ function chordReadings(text: string, context: LookupContext): Reading[] {
   return found;
 }
 
-/** An optional tonic without octave, then a scale name: "C blues", "D dorian", "major". */
+/**
+ * An optional tonic without octave, then a scale or a numbered mode of one:
+ * "C blues", "D dorian", "major", "A harmonic minor 5".
+ */
 function scaleReadings(text: string): Reading[] {
   const trimmed = text.trim();
-  const whole = parseScaleName(trimmed);
-  if (whole) return [{ kind: 'scale', name: whole, set: SCALES[whole]!.set }];
+  const whole = parseScale(trimmed);
+  if (whole) return [{ kind: 'scale', ...whole }];
   for (let split = trimmed.indexOf(' '); split > 0; split = trimmed.indexOf(' ', split + 1)) {
     const tonic = parseNote(trimmed.slice(0, split));
-    const name = parseScaleName(trimmed.slice(split + 1));
-    if (tonic && tonic.octave === undefined && name)
-      return [{ kind: 'scale', tonic, name, set: SCALES[name]!.set }];
+    const scale = parseScale(trimmed.slice(split + 1));
+    if (tonic && tonic.octave === undefined && scale) return [{ kind: 'scale', tonic, ...scale }];
   }
   return [];
 }

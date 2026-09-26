@@ -6,7 +6,7 @@
  */
 
 import { even } from './even.ts';
-import { normalizeWords } from './intervals.ts';
+import { normalizeWords } from './words.ts';
 
 export interface Rhythm {
   /** Steps in one cycle. */
@@ -37,6 +37,7 @@ export const RHYTHMS: Record<string, NamedRhythm> = {
   },
   'four on the floor': { steps: 16, onsets: even(4, 16), even: true, aliases: [] },
   backbeat: { steps: 16, onsets: even(2, 16, 4), even: true, aliases: ['back beat'] },
+  samba: { steps: 16, onsets: even(7, 16), even: true, aliases: [] },
 };
 
 const EUCLID_PATTERN = /^(?:e|euclid)?\s*\(\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*(-?\d+)\s*)?\)$/i;

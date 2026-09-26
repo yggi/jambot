@@ -7,3 +7,4 @@ export * from './modes.ts';
 export * from './notes.ts';
 export * from './rhythms.ts';
 export * from './scales.ts';
+export * from './words.ts';

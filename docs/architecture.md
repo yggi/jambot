@@ -31,13 +31,15 @@ even set. It gives both the Euclidean rhythms and the scales:
 Around the primitive, the theory package names things:
 
 - notes, with their spelling, and intervals;
-- degrees, counted through a scale or a rhythm alike;
+- degrees, counted through a scale or a rhythm alike, and named by function
+  (tonic, dominant, leading tone);
 - chords, as stacks of every other degree;
-- named scales and rhythms.
+- named scales and their modes, which are rotations, and named rhythms.
 
 `lookup` reads all of these by name, in long and short forms, and lists
 every reading of an ambiguous name ("C" is a note and a chord) until a kind
-is given.
+is given. Every theory name the sister projects use resolves to what they
+mean by it, which a test checks against their tables.
 
 This primitive is the root of the project and the core of the language
 design (#7).
@@ -171,7 +173,16 @@ projects share **conventions, not code**. These facts stay aligned:
 - C4 = 60;
 - the Euclid form (#8);
 - scale contents and names;
-- the meaning of "mode k".
+- the meaning of "mode k": the scale re-rooted on its k-th note (`rotate`).
+
+The names differ in two places, and Jambot follows the more common use:
+
+- lib-aeiou's `augmented` scale is the augmented triad `[0, 4, 8]`. Here that
+  is the augmented chord, and the augmented scale is the hexatonic
+  `[0, 3, 4, 7, 8, 11]`.
+- "octatonic" is quintenzirkel's (and Messiaen's) half-whole form; play-aeiou's
+  and jazz's `diminished` is the whole-half form. They are one collection
+  from two starting points.
 
 Their ideas for the score language are collected on #7. The actionable
 findings are in #8–#12.

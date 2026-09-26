@@ -17,8 +17,9 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
   [`prototype/README.md`](../prototype/README.md#running-and-hacking).
 - To resolve a musical name, use `lookup` from `@jambot/theory`:
   `lookup('C blues')`, `lookup('G7', { kind: 'chord' })`, `lookup('clave')`,
-  `lookup('second')`. `readings(name)` lists every reading of an ambiguous
-  name.
+  `lookup('second')`, `lookup('harm minor 5')`. `readings(name)` lists
+  every reading of an ambiguous name. The sister projects' names are all in
+  `sister-names.test.ts`; a new one goes there first.
 - To drive the prototype headless, define `window.__JAMBOT_TEST__` before its
   script runs. It is then called with the internals (`S`, `composeBar`,
   `applyPreset`, `evalMini`, `parseRoman`, `checkOverrides`, …).
