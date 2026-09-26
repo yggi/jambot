@@ -11,7 +11,10 @@ ahead of the evidence.
 
 The pair this doc is drawn from is #37 (the working shape of the app) and #7
 (the negative shape of the language, catalogued in `docs/language.md`). The
-theory (#28) ran the same way with #7 before it.
+theory (#28) ran the same way with #7 before it. Every pair, and which side
+each issue plays, is in the ratchet map, #41. Both sides apply the `ratchet`
+skill ([`SKILL.md`](../.claude/skills/ratchet/SKILL.md)), which gives them one
+form to write in and the moves each side makes.
 
 ## The parts
 
@@ -27,7 +30,8 @@ theory (#28) ran the same way with #7 before it.
 ## How it runs
 
 1. **Pair the tracks.** A track that builds names the track that constrains
-   it, and the reverse, in their issue bodies.
+   it, and the reverse, in their issue bodies, and the pair goes on the map
+   (#41).
 2. **Neither waits.** Each reads the other's last published state (a commit, a
    catalogue entry, an issue comment) and never waits for the next. A wait
    that can't be avoided is a real dependency, and it goes into the graph in
@@ -73,6 +77,34 @@ Before that, the theory settled what #7 had been going to decide: the Euclid
 form, key names, modes, the chord vocabulary, and that the score text needs no
 spelling (#7, "State after #33").
 
+## Claims in the Dialectica form
+
+Gödel's Dialectica interpretation (1958) reads a statement as a game. One
+side must produce a **witness**, the other tries to produce a
+**counterexample**, and a test without quantifiers decides between them:
+
+```
+claim  =  ∃ witness  ∀ counterexample  test(witness, counterexample)
+```
+
+The working track plays the witness and the negative track the
+counterexample. The test is decidable and can come out false, which is the
+law of meaningful tests. The counterexample is chosen after the witness is
+seen, so probes are aimed at the code that exists. Every catalogue entry is
+written this way, and its status says how far through the game it has gone.
+
+A dependency between claims carries both directions, as a map in de Paiva's
+Dialectica categories does (1989): witnesses go forward, and counterexamples
+come back, each pulled back to a case in the layer below. The helix went
+forward into the engine's chord type, and the ninth chord came back as a
+counterexample to "a chord is a helix" (#38). If the lower layer passes the
+pulled-back case, the fault is in the map between the layers, such as a port or
+a lowering. So a counterexample is filed where it refutes, not only where it
+was seen.
+
+The skill gives the entry form, the moves for each side, a crossing comment
+for the issues, and a checklist for the end of a step.
+
 ## The same shape at every level
 
 The ratchet is the law of recursion applied to the work itself.
@@ -94,13 +126,15 @@ The ratchet is the law of recursion applied to the work itself.
 
 These are not known yet:
 
-- **A pawl check in `pnpm verify`.** Every entry has a status from the ladder.
-  Every measured or decided entry names a test that exists. Every catalogue id
-  cited in a test exists in the catalogue. This waits on the catalogue
-  reaching `main`.
+- **A pawl check in `pnpm verify`** (#42). Every entry has a status from the
+  ladder. Every measured or decided entry names a test that exists. Every
+  catalogue id cited in a test exists in the catalogue. This waits on the
+  catalogue reaching `main`.
 - **More than two tracks.** The analyzer (#3) and the web client (#22) will
   feed #7 too, and #39 already gathers properties across tracks. Whether the
   rules above hold unchanged for that is not tested yet.
-- **Measuring the ratchet.** Entries by status over the catalogue's history,
-  and decisions that dissolved against decisions that were made. Nothing
-  measures these yet.
+- **Measuring the ratchet** (#43). Entries by status over the catalogue's
+  history, and decisions that dissolved against decisions that were made.
+  Nothing measures these yet.
+- **Convergence.** The Dialectica form is exact for a single claim and its
+  test. Whether the design as a whole converges is not claimed.

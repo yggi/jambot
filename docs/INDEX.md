@@ -70,5 +70,7 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
     theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
     compares the two (`compare.mjs`)
+  - [`ratchet/`](../.claude/skills/ratchet/SKILL.md): claims in the
+    Dialectica form and the moves both sides of a ratchet pair make (#41)
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md):
   the checklist every pull request fills in

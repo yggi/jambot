@@ -124,6 +124,15 @@ The full description is in
   flat seventh without any error, and ignores `maj` in a numeral. tonal
   ignores a numeral's case. The skill's scripts guard against all of these.
 
+### The ratchet
+
+- Design work runs as pairs: a working track that builds and a negative track
+  that catalogues constraints, coupled only by claims with tests
+  ([`ratchet.md`](ratchet.md)). The pairs are on the map, #41. A catalogue
+  entry is written as a witness, a counterexample and a decidable test, with
+  a status, as the `ratchet` skill says. A counterexample is filed against
+  the layer it refutes.
+
 ### Terms
 
 - **Root node**: the dedicated main host appliance at an event, and the
