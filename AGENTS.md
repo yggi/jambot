@@ -30,9 +30,10 @@ These principles come from the prototype
 
 | Path                                                   | What                                                                          |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `packages/theory/`                                     | Music theory on one primitive, `even(k, n, rotation)`: pure TypeScript        |
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
-| `prototype/`                                           | The original single-file prototype and its README, the reference for the port |
+| `prototype/`                                           | The original single-file prototype and its README: a baseline for orientation |
 | `docs/MEMORY.md`                                       | Persistent facts and a cheatsheet: the entry point                            |
 | `docs/INDEX.md`                                        | Tree of all docs and code areas                                               |
 | `docs/ROADMAP.md`                                      | Where the project is heading                                                  |
@@ -65,12 +66,13 @@ These principles come from the prototype
   refactoring while features settle. Tests sit next to the code as
   `*.test.ts`.
 - **`pnpm verify` before pushing.** It runs everything CI runs.
-- **The engine stays pure.** `packages/engine` uses no DOM, Web Audio, timers
-  or Node APIs. All randomness goes through `random.ts`, keyed by seed and
-  position.
-- **Ported code matches the prototype.** Reference values recorded from the
-  prototype pin behaviour. A deliberate change to the music updates those
-  values in the same commit and says why.
+- **Theory and engine stay pure.** `packages/theory` and `packages/engine`
+  use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
+  randomness goes through `random.ts`, keyed by seed and position.
+- **The prototype is a baseline, not a source of truth.** It orients the
+  port. Where one of its values helps, a test records it as a literal. What
+  is true is what the tests and the design say, and a deliberate difference
+  from the prototype is fine when it is noted.
 - **The score language changes deliberately**: with tests, and after asking.
   It is the contract between composer, compiler, analyzer and later models.
 - **Docs describe the present.** Here and in code comments, write how things

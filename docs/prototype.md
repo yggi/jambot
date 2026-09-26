@@ -1,7 +1,8 @@
 # The prototype
 
 [`prototype/jambot-prototype.html`](../prototype/jambot-prototype.html) is
-where Jambot started, and it is the reference for the port. It is one
+where Jambot started, and it is the baseline the port is oriented by. It is
+not a source of truth. It is one
 self-contained file of about 1,300 lines: roughly 120 lines of CSS, 120 of
 markup and 1,060 of JavaScript in a single IIFE, with no dependencies apart
 from two Google Fonts. The web app build serves it at `/prototype.html`, so
@@ -78,33 +79,29 @@ language and the plans. This page covers only the port.
 - Inline styles in the markup, and magic numbers such as velocities, ranges
   and weights spread through the part generators.
 - There are no tests in the file, although the `window.__JAMBOT_TEST__` hook
-  shows they existed. That hook is how the port records reference output
-  (see below).
+  shows they existed.
 
 ## How the port works
 
-The port is test-first, and it is checked against the prototype's own
-output:
+The port is test-first. What is true is what the tests and the design (#7)
+say; the prototype orients.
 
-1. **Reference output.** Tests pin values recorded from the prototype, so a
-   seed produces the same music before and after the port. For small units,
-   such as the random generator, the values are recorded once and written
-   into the test. For whole bars, a recorder drives the prototype headless
-   through `__JAMBOT_TEST__` and stores, per preset, both the composer's raw
-   events and the score text as fixtures (#13).
-2. **Engine and theory first, language surface after #7.** The composer
+1. **Invariants first.** Tests state what has to hold, over every case of
+   the finite parts. For example, the theory package checks `even` for every
+   k ≤ n ≤ 16: size, rotation, maximal evenness, and that the set is the
+   arc of its generator.
+2. **The prototype for orientation.** Where one of its values helps, a test
+   records it as a literal: the rim pattern, the four scales, the random
+   generator's first draws. A seed does not have to produce the same music as
+   in the prototype. A deliberate difference is fine when it is noted.
+3. **Theory and engine first, language surface after #7.** The composer
    produces raw events before anything is written as text, so the engine
-   (#2) is ported now and pinned to those events, on top of
-   `packages/theory` (#28), whose primitive has to reproduce the
-   prototype's tabulated theory. The language surface (parser, tokens, encoder, compiler) waits
-   for the language design (#7), and what the port finds feeds that design.
-3. **Audio and MIDI become renderers** that consume timestamped events,
+   (#2) and `packages/theory` (#28) are built now. The language surface
+   (parser, tokens, encoder, compiler) waits for the language design (#7),
+   and what the port finds feeds that design.
+4. **Audio and MIDI become renderers** that consume timestamped events,
    behind a transport (see [architecture](architecture.md)).
-4. **The UI comes last**, as Svelte components over a read-only engine
+5. **The UI comes last**, as Svelte components over a read-only engine
    snapshot.
-
-Deliberate musical changes, such as the MIDI overlap fix, happen after the
-module matches the prototype, and they update the reference values in the
-same commit.
 
 Progress is tracked in #2.

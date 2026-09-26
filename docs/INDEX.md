@@ -19,13 +19,17 @@ Every doc and code area, as a tree. Add a line when you add one.
     the port is checked
   - `briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
-- `prototype/`: the reference for the port
+- `prototype/`: the baseline the port is oriented by
   - [`README.md`](../prototype/README.md): concept, spirit, prototype
     architecture, the score language, the plan for learned models, open
     threads
   - [`jambot-prototype.html`](../prototype/jambot-prototype.html): the
     playable single-file prototype
 - `packages/`
+  - `theory/`: music theory on one primitive, pure TypeScript (#28)
+    - `src/even.ts`: `even(k, n, rotation)`, the maximally even set, and its
+      checks
+    - `src/modes.ts`: modes as rotations along the generator
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
 - `apps/`

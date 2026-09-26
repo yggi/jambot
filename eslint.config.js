@@ -5,6 +5,8 @@ import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
 import ts from 'typescript-eslint';
 
+const pureSources = ['packages/engine/src/**', 'packages/theory/src/**'];
+
 export default defineConfig(
   { ignores: ['prototype/', '**/dist/', 'coverage/'] },
   js.configs.recommended,
@@ -13,13 +15,20 @@ export default defineConfig(
   prettier,
   svelte.configs.prettier,
   {
-    ignores: ['packages/engine/src/**'],
+    ignores: pureSources,
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
-    // The engine runs in browsers, workers and servers alike: no DOM, no Node APIs.
-    files: ['packages/engine/src/**'],
+    // Pure packages run in browsers, workers and on the root node alike: no
+    // DOM, no Node APIs.
+    files: pureSources,
     languageOptions: { globals: globals['shared-node-browser'] },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ group: ['node:*'], message: 'Pure packages use no Node APIs.' }] },
+      ],
+    },
   },
   {
     files: ['**/*.svelte', '**/*.svelte.ts'],
