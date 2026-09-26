@@ -6,7 +6,8 @@
  * is on screen follows what is heard: scheduled steps wait until the audio
  * clock reaches them, and those older than a second, which can no longer be
  * shown, are dropped on every tick, so a hidden tab builds up no backlog.
- * The style track lives here, and intents go through the conductor.
+ * The style track and the key wished for live here, and intents go through
+ * the conductor.
  *
  * Starting waits for the audio clock, which a browser starts only after a
  * gesture. While it waits the player is starting: another start does
@@ -15,7 +16,10 @@
 
 import {
   INITIAL_STYLE,
+  type Key,
+  type KeyWish,
   LOOKAHEAD,
+  PRESETS,
   type SectionType,
   type StyleTrack,
   type TransportCarried,
@@ -23,7 +27,7 @@ import {
   transport,
 } from '@jambot/engine';
 import { type Output, webAudioOutput } from './audio/output.ts';
-import { type Intent, conduct, stopAt } from './conductor.ts';
+import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { startTicker } from './ticker.ts';
 
@@ -32,6 +36,7 @@ export interface Position {
   readonly bar: number;
   readonly beat: number;
   readonly section: SectionType;
+  readonly key: Key;
 }
 
 export type Status = 'stopped' | 'starting' | 'playing';
@@ -58,6 +63,7 @@ const browser: Surroundings = {
 export class Player {
   status: Status = $state('stopped');
   track: StyleTrack = $state.raw(holding(INITIAL_STYLE));
+  wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode });
   position: Position | null = $state.raw(null);
 
   #surroundings: Surroundings;
@@ -86,6 +92,7 @@ export class Player {
   apply(intent: Intent) {
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
     this.track = conduct(this.track, intent, at);
+    this.wish = wishAfter(this.wish, intent);
   }
 
   async start() {
@@ -122,18 +129,19 @@ export class Player {
     if (this.status !== 'playing' || !output) return;
     const now = output.currentTime;
     const { carried, output: scheduled } = transport.advance(
-      { seed: this.#seed, start: this.#start, track: this.track },
+      { seed: this.#seed, start: this.#start, track: this.track, wish: this.wish },
       this.#carried,
       { now, until: now + LOOKAHEAD },
     );
     this.#carried = carried;
     for (const { event, seconds } of scheduled.events)
       output.play(event.note, event.velocity, seconds);
-    for (const { step, section, seconds } of scheduled.steps)
+    for (const { step, section, key, seconds } of scheduled.steps)
       this.#heard.push(seconds, {
         bar: Math.floor(step / 16),
         beat: Math.floor((step % 16) / 4),
         section: section.type,
+        key,
       });
     this.#heard.drop(now - 1);
   }

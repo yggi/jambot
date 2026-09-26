@@ -8,10 +8,15 @@
  * which is on the last beat of the bar before: within the rest of the bar
  * and a beat, at most 20 steps. While the band is stopped, a change is set
  * at once, and the next start plays from it.
+ *
+ * A preset also wishes for its mode. The band moves its key toward the wish
+ * at the next section it composes (`nextKey`), so a new key never cuts into
+ * a section.
  */
 
 import {
   type Axis,
+  type KeyWish,
   PRESET_GLIDE,
   type Preset,
   SLIDER_GLIDE,
@@ -30,6 +35,11 @@ export function conduct(track: StyleTrack, intent: Intent, at: number | null): S
   const targets = intent.kind === 'preset' ? intent.preset.style : { [intent.axis]: intent.value };
   if (at === null) return glideTo(track, targets, 0, 0);
   return glideTo(track, targets, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);
+}
+
+/** The key wished for after an intent: a preset's mode, from any tonic. */
+export function wishAfter(wish: KeyWish, intent: Intent): KeyWish {
+  return intent.kind === 'preset' ? { tonic: null, mode: intent.preset.mode } : wish;
 }
 
 /**

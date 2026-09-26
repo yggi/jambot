@@ -193,17 +193,19 @@ parameters, E2). Lands in: #24.
 
 **C3. Each value lives at one rate, the slowest at which it is constant,
 and a slower level's output is held as a faster one's environment.**
-Witness: the port's rates: the section kind per section (`form`), the style
-for composing per bar (`band`), swing per beat (`swingOf`), tempo per step
-(`tempoMap`), scheduling per tick (`transport`, 25 ms). The band holds each
-section for its eight bars.
+Witness: the port's rates: the section plan per section (`planner`: the
+section kind, the key and the theme), the style for composing per bar
+(`band`), swing per beat (`swingOf`), tempo per step (`tempoMap`),
+scheduling per tick (`transport`, 25 ms). The band holds each section's
+plan for its eight bars.
 Counterexample: a value read at two rates that disagree, such as the
 prototype's tempo, which plays per step and is written once per bar (S1).
 Once a value has been read at its rate, it holds: a change in the middle of
 a beat re-swung the rest of that beat by up to 0.36 steps, so the transport
 keeps a started beat's swing.
-Test: `band.test.ts`, "holds each section for its eight bars (C3)";
-`tempo.test.ts`, "swings each beat by the swing where the beat starts (C3)";
+Test: `band.test.ts`, "holds each section for its eight bars (C3)" and
+"plays each section's plan: its key, and its theme bar by bar, changing
+only at a boundary (C3)"; `tempo.test.ts`, "swings each beat by the swing where the beat starts (C3)";
 `transport.test.ts`, "keeps a beat’s swing once the beat has started,
 whatever the style does next (C3)".
 Source: Pd's control and signal rates, multirate signal processing, #37
@@ -231,15 +233,36 @@ Witness: the transport. Tempo follows from the next step, swing from the
 next beat, and a composed part from the next bar composed, which is
 composed on the last beat of the bar before (`COMPOSE_AHEAD`, at least
 333 ms at 180 bpm): within the rest of the bar and a beat, at most 20 steps.
+A key, which lives per section, follows from the next section: within the
+rest of the section and a beat.
 Counterexample: a change that waits longer. Composing a bar as the bar
 before starts made energy and sync wait 17 to 31 steps, so a slider's
 one-bar glide had ended before the drums heard it.
 Test: `transport.test.ts`, "hears a change in the drums within 20 steps:
 the rest of the bar and a beat (C5)", over a change at every step of three
 bars, and "composes each bar on the last beat of the bar before, and not
-sooner (C5)".
-Source: #40's review. Status: measured. Open: the lead the text step and
-the models need (L5), which the bound grows by. Lands in: #13, #26.
+sooner (C5)"; `player.test.ts`, "hears a preset's mode from the next
+section on (C5)".
+Source: #40's review, #37 step 4. Status: measured. Open: the lead the
+text step and the models need (L5), which the bound grows by. Lands in:
+#13, #26.
+
+**C6. What the players want is a target the band settles on, not an event
+it consumes: read again, it changes nothing.**
+Witness: the key wish. `nextKey(key, wish)` goes to the wished key in one
+step, pivoting on the most shared notes when only a mode is wished, and
+applied again gives what it gave once. So the band reads the wish at every
+section boundary, and what it plays does not depend on when or how often
+the wish was sent.
+Counterexample: a wish that moves again each time it is read, such as "up
+a fifth", or one consumed as an event, which the prototype must cut its
+plan back for (`replanFuture`) so that it lands at a boundary.
+Test: `key.test.ts`, "settle on a wish in one step: applied again, a wish
+changes nothing (C6)", over every key and wish; `plan.test.ts`, "settles on
+a steady wish: the key moves once, then stays (C6)".
+Source: #37 step 4; fixed points, #39. Status: measured (the key). Open:
+whether style intents read the same way (a glide is a target reached over
+time, C1), and how the IM writes a wish. Lands in: #13, #25, #39.
 
 ### Pitch
 

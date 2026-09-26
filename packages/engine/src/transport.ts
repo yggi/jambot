@@ -9,7 +9,8 @@
  * position mapped through swing, then tempo (`swingOf`, `tempoMap`): both
  * ends of a note go through the map, so a legato line stays legato under
  * swing. Once a beat has started, its swing is kept, so a change can't move
- * the rest of it.
+ * the rest of it. A wish for another key is heard at the next section the
+ * band composes.
  *
  * Time is absolute and the clock never waits. A step is laid where the step
  * before it ends, whenever the tick comes; if the clock has stalled past an
@@ -19,8 +20,10 @@
 
 import { type BandBar, band } from './band.ts';
 import type { NoteEvent } from './events.ts';
-import { SECTION_BARS, type Section, form } from './form.ts';
+import { SECTION_BARS, type Section } from './form.ts';
+import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import { type PlanCarried, planner } from './plan.ts';
 import { type StyleTrack, styleAt, valueAt } from './style.ts';
 import { swingMap, swingOf } from './swing.ts';
 import { type Anchor, stepSeconds, tempoMap } from './tempo.ts';
@@ -40,6 +43,8 @@ export interface TransportEnv {
   readonly start: number;
   /** The style: tempo and swing per step, and what the band composes from. */
   readonly track: StyleTrack;
+  /** The key the players wish for, which the band moves toward at a section boundary. */
+  readonly wish: KeyWish;
 }
 
 export interface TransportInput {
@@ -52,8 +57,8 @@ export interface TransportInput {
 export interface TransportCarried {
   /** The next step to schedule, and when it starts. */
   readonly head: Anchor;
-  /** The section the band is in. */
-  readonly section: Section | null;
+  /** The section plan the band is in. */
+  readonly planned: PlanCarried;
   /** The composed bars from the head's bar on. */
   readonly bars: readonly BandBar[];
   /** The next bar the band composes. */
@@ -64,8 +69,9 @@ export interface TransportCarried {
 
 export interface ScheduledStep {
   readonly step: number;
-  /** The section the step's bar is in. */
+  /** The section the step's bar is in, and its key. */
   readonly section: Section;
+  readonly key: Key;
   readonly seconds: number;
   /** How long the step lasts, in seconds. */
   readonly length: number;
@@ -96,9 +102,9 @@ export const transport: Machine<
   TransportOutput
 > = {
   initial: null,
-  advance({ seed, start, track }, carried, { now, until }) {
+  advance({ seed, start, track, wish }, carried, { now, until }) {
     let head = carried?.head ?? { step: 0, seconds: start };
-    let section = carried?.section ?? null;
+    let planned = carried?.planned ?? planner.initial;
     let bars = [...(carried?.bars ?? [])];
     let nextBar = carried?.nextBar ?? 0;
     let beat = carried?.beat ?? null;
@@ -119,11 +125,11 @@ export const transport: Machine<
         const end = tempoMap(track, head).played(head.step + 16);
         if (end <= now) {
           if (bar % SECTION_BARS === 0)
-            section = form.advance(
-              { seed, index: bar / SECTION_BARS, style: styleAt(track, bar * 16) },
-              section,
+            planned = planner.advance(
+              { seed, index: bar / SECTION_BARS, style: styleAt(track, bar * 16), wish },
+              planned,
               null,
-            ).output;
+            ).carried;
           nextBar++;
           missed += 16;
           head = { step: head.step + 16, seconds: end };
@@ -139,16 +145,17 @@ export const transport: Machine<
       // Compose each bar on the last beat of the bar before.
       for (; nextBar <= Math.floor((head.step + COMPOSE_AHEAD) / 16); nextBar++) {
         const played = band.advance(
-          { seed, bar: nextBar, style: styleAt(track, nextBar * 16) },
-          section,
+          { seed, bar: nextBar, style: styleAt(track, nextBar * 16), wish },
+          planned,
           null,
         );
-        section = played.carried;
+        planned = played.carried;
         bars.push(played.output);
         composed.push(played.output);
       }
       bars = bars.filter((b) => b.bar >= bar);
-      steps.push({ step: head.step, section: bars[0]!.section, seconds: head.seconds, length });
+      const { section, key } = bars[0]!;
+      steps.push({ step: head.step, section, key, seconds: head.seconds, length });
 
       // The beat's swing is read as the beat starts, and kept.
       const index = Math.floor(head.step / 4);
@@ -173,7 +180,7 @@ export const transport: Machine<
       head = { step: head.step + 1, seconds: head.seconds + length };
     }
     return {
-      carried: { head, section, bars, nextBar, beat },
+      carried: { head, planned, bars, nextBar, beat },
       output: { steps, events, composed, missed },
     };
   },

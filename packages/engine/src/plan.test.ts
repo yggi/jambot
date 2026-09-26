@@ -1,0 +1,173 @@
+import { describe, expect, it } from 'vitest';
+import { form } from './form.ts';
+import { COMPOSER_MODES, INITIAL_KEY, type KeyWish, nextKey } from './key.ts';
+import { type Script, lawBreaks } from './machine.ts';
+import { type Plan, type PlanEnv, planner } from './plan.ts';
+import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
+import { themeKind } from './themes.ts';
+
+const range = (n: number) => [...Array(n).keys()];
+
+/** A tour: a new preset every section, with entropy rising, wishing for each preset's mode. */
+const tour = (seed: number, sections = 24): Script<PlanEnv, null> =>
+  range(sections).map((index) => {
+    const preset = PRESETS[index % PRESETS.length]!;
+    const style = { ...preset.style, entropy: (index % 4) / 4 };
+    return { env: { seed, index, style, wish: { tonic: null, mode: preset.mode } }, input: null };
+  });
+
+const run = (script: Script<PlanEnv, null>): Plan[] => {
+  let carried = planner.initial;
+  return script.map(({ env, input }) => {
+    const next = planner.advance(env, carried, input);
+    carried = next.carried;
+    return next.output;
+  });
+};
+
+/** One steady style and wish for every section. */
+const steady = (seed: number, style: Style, wish: KeyWish, sections = 40): Script<PlanEnv, null> =>
+  range(sections).map((index) => ({ env: { seed, index, style, wish }, input: null }));
+
+const aeolian: KeyWish = { tonic: null, mode: 'aeolian' };
+
+describe('the section plan', () => {
+  it('keeps the machine laws over a tour of the presets and their modes (F1)', () => {
+    for (const seed of [1, 2, 3]) expect(lawBreaks(planner, tour(seed))).toEqual([]);
+  });
+
+  it('follows the form', () => {
+    for (const seed of [1, 2, 3]) {
+      let before = form.initial;
+      for (const [index, plan] of run(tour(seed)).entries()) {
+        const { style } = tour(seed)[index]!.env;
+        const section = form.advance({ seed, index, style }, before, null).output;
+        expect(plan.section).toEqual(section);
+        before = section;
+      }
+    }
+  });
+
+  it('moves the key toward the wish once per section, from the initial key', () => {
+    for (const seed of [1, 2, 3]) {
+      const script = tour(seed);
+      let key = INITIAL_KEY;
+      for (const [index, plan] of run(script).entries()) {
+        key = nextKey(key, script[index]!.env.wish);
+        expect(plan.key).toEqual(key);
+      }
+    }
+  });
+
+  it('settles on a steady wish: the key moves once, then stays (C6)', () => {
+    for (const mode of COMPOSER_MODES)
+      for (const tonic of [null, 0, 9]) {
+        const plans = run(steady(1, INITIAL_STYLE, { tonic, mode }, 8));
+        for (const plan of plans) expect(plan.key).toEqual(plans[0]!.key);
+        expect(plans[0]!.key.mode).toBe(mode);
+        if (tonic !== null) expect(plans[0]!.key.tonic).toBe(tonic);
+      }
+  });
+
+  it("plays the theme of its section's kind, in its key's mode", () => {
+    for (const seed of [1, 2, 3])
+      for (const plan of run(tour(seed))) {
+        expect(plan.theme.kind).toBe(themeKind(plan.section.type));
+        expect(plan.theme.mode).toBe(plan.key.mode);
+      }
+  });
+
+  it('brings a theme back while the style stays near it, but builds each build afresh', () => {
+    const style = { ...INITIAL_STYLE, energy: 0.8, entropy: 0 };
+    for (const seed of range(10)) {
+      const plans = run(steady(seed, style, aeolian));
+      for (const kind of ['A', 'B'] as const) {
+        const themes = plans.filter((p) => p.theme.kind === kind).map((p) => p.theme);
+        expect(themes.length).toBeGreaterThan(1);
+        for (const theme of themes) expect(theme).toEqual(themes[0]);
+      }
+      for (const plan of plans.filter((p) => p.theme.kind === 'build'))
+        expect(plan.theme.index).toBe(plan.section.index);
+    }
+  });
+
+  it('builds a theme anew when the harmony has moved more than 0.2 from it', () => {
+    for (const seed of range(10))
+      for (const [step, fresh] of [
+        [0.1875, false],
+        [0.25, true],
+      ] as const) {
+        const script = steady(seed, { ...INITIAL_STYLE, harm: 0.375, entropy: 0 }, aeolian).map(
+          ({ env, input }) => ({
+            env: { ...env, style: { ...env.style, harm: 0.375 + (env.index >= 20 ? step : 0) } },
+            input,
+          }),
+        );
+        const plans = run(script);
+        const before = plans.slice(0, 20).findLast((p) => p.theme.kind === 'A')!.theme;
+        const after = plans.slice(20).find((p) => p.theme.kind === 'A')!;
+        expect(after.theme.index === after.section.index).toBe(fresh);
+        if (!fresh) expect(after.theme).toEqual(before);
+      }
+  });
+
+  it('builds a theme anew when the mode changes', () => {
+    for (const seed of range(10)) {
+      const script = steady(seed, { ...INITIAL_STYLE, entropy: 0 }, aeolian).map(
+        ({ env, input }) => ({
+          env: {
+            ...env,
+            wish: env.index >= 20 ? { tonic: null, mode: 'dorian' as const } : env.wish,
+          },
+          input,
+        }),
+      );
+      const after = run(script)
+        .slice(20)
+        .find((p) => p.theme.kind === 'A')!;
+      expect(after.theme.index).toBe(after.section.index);
+      expect(after.theme.mode).toBe('dorian');
+    }
+  });
+
+  it('renews a returning theme at random, the more often the higher the entropy', () => {
+    const renewed = (entropy: number) => {
+      let returns = 0;
+      let fresh = 0;
+      for (const seed of range(200)) {
+        const plans = run(steady(seed, { ...INITIAL_STYLE, energy: 0.8, entropy }, aeolian, 24));
+        const seen = new Set<string>();
+        for (const plan of plans) {
+          const { kind } = plan.theme;
+          if (kind === 'build') continue;
+          if (seen.has(kind)) {
+            returns++;
+            if (plan.theme.index === plan.section.index) fresh++;
+          }
+          seen.add(kind);
+        }
+      }
+      return fresh / returns;
+    };
+    expect(renewed(0)).toBe(0);
+    expect(renewed(0.5)).toBeGreaterThan(0.1);
+    expect(renewed(0.5)).toBeLessThan(0.2);
+    expect(renewed(1)).toBeGreaterThan(0.25);
+    expect(renewed(1)).toBeLessThan(0.35);
+  });
+
+  it("moves a B vamp away from the A theme's vamp", () => {
+    const style = { ...INITIAL_STYLE, harm: 0.2, energy: 0.2, entropy: 0 };
+    let bs = 0;
+    for (const seed of range(50)) {
+      const plans = run(steady(seed, style, aeolian, 24));
+      for (const [i, plan] of plans.entries()) {
+        if (plan.theme.kind !== 'B' || plan.theme.index !== plan.section.index) continue;
+        const a = plans.slice(0, i).findLast((p) => p.theme.kind === 'A')!.theme;
+        expect(plan.theme.vamp).not.toBe(a.vamp);
+        bs++;
+      }
+    }
+    expect(bs).toBeGreaterThan(0);
+  });
+});
