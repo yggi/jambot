@@ -9,6 +9,7 @@ export * from './form.ts';
 export * from './key.ts';
 export * from './lead.ts';
 export * from './machine.ts';
+export * from './perform.ts';
 export * from './plan.ts';
 export * from './random.ts';
 export * from './sound.ts';
