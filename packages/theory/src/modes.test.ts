@@ -1,4 +1,3 @@
-import { loadPrototype } from '@jambot/prototype-reference';
 import { describe, expect, it } from 'vitest';
 import { even, gaps } from './even.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode, modes } from './modes.ts';
@@ -30,13 +29,12 @@ describe('modes', () => {
     expect(gaps(diatonicMode('ionian'), 12)).toEqual([2, 2, 1, 2, 2, 2, 1]);
   });
 
-  it("reproduces the prototype's four scales", () => {
-    const { SCALES } = loadPrototype<{ SCALES: Record<string, number[]> }>(['SCALES']);
-    expect(Object.keys(SCALES).sort()).toEqual(['dorian', 'major', 'minor', 'mixolydian']);
-    expect(SCALES.major).toEqual(diatonicMode('ionian'));
-    expect(SCALES.minor).toEqual(diatonicMode('aeolian'));
-    expect(SCALES.dorian).toEqual(diatonicMode('dorian'));
-    expect(SCALES.mixolydian).toEqual(diatonicMode('mixolydian'));
+  it("gives the prototype's four scales", () => {
+    // The prototype's SCALES table, for orientation.
+    expect(diatonicMode('ionian')).toEqual([0, 2, 4, 5, 7, 9, 11]); // major
+    expect(diatonicMode('aeolian')).toEqual([0, 2, 3, 5, 7, 8, 10]); // minor
+    expect(diatonicMode('dorian')).toEqual([0, 2, 3, 5, 7, 9, 10]);
+    expect(diatonicMode('mixolydian')).toEqual([0, 2, 4, 5, 7, 9, 10]);
   });
 
   it('are the k rotations of the even set, each starting on 0', () => {

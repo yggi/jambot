@@ -20,26 +20,13 @@ export default defineConfig(
   },
   {
     // Pure packages run in browsers, workers and on the root node alike: no
-    // DOM, no Node APIs. Their tests may read the prototype through
-    // @jambot/prototype-reference.
+    // DOM, no Node APIs.
     files: pureSources,
     languageOptions: { globals: globals['shared-node-browser'] },
-  },
-  {
-    files: pureSources,
-    ignores: ['**/*.test.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
-        {
-          patterns: [
-            { group: ['node:*'], message: 'Pure packages use no Node APIs.' },
-            {
-              group: ['@jambot/prototype-reference'],
-              message: 'The prototype is a test reference only.',
-            },
-          ],
-        },
+        { patterns: [{ group: ['node:*'], message: 'Pure packages use no Node APIs.' }] },
       ],
     },
   },

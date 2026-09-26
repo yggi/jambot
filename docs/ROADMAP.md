@@ -24,11 +24,10 @@ These run in parallel:
   now and feeds the design with the invariants and shapes it finds. That is
   better than deciding ahead of the evidence and building around the
   decision later.
-- **Port the prototype**, test-first and pinned to the prototype's output:
-  - the recorder in `packages/score` (#13);
-  - the theory primitive in `packages/theory` (#28), which has to reproduce
-    the prototype's tabulated theory;
-  - the engine (#2), pinned to the composer's raw events.
+- **Rebuild from the prototype**, test-first, with the prototype as a
+  baseline for orientation:
+  - the theory primitive in `packages/theory` (#28);
+  - the engine (#2).
 - **Web client** (#22): transport (#23), renderers (#24), inputs (#25) and
   UI (#26). Everything except the score and Strudel panels is independent
   of #7.

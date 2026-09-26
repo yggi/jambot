@@ -8,8 +8,5 @@
   },
   "scripts": {
     "check": "tsc -p ."
-  },
-  "devDependencies": {
-    "@jambot/prototype-reference": "workspace:*"
   }
 }

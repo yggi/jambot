@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { keyedRandom, keyedRng, mulberry32 } from './random.ts';
 
-// Reference values recorded from prototype/jambot-prototype.html, so songs
-// generated from a seed stay the same across the port.
+// Known-answer values, recorded from the prototype for orientation.
 describe('mulberry32', () => {
   it('produces the prototype sequence', () => {
     const r = mulberry32(1);

@@ -7,9 +7,10 @@
  * - 7 of 12 is the diatonic set, and its rotations are the modes;
  * - 5 of 12 is the pentatonic set.
  *
- * For coprime k and n, the same set is also the arc of k steps of
- * g = k⁻¹ mod n from 0. For 7 of 12, g = 7, so the diatonic set is a stack of
- * fifths: the circle of fifths and the Euclidean rhythm are one structure.
+ * For coprime k and n, the same set is also the arc of k steps of its
+ * generator g = k⁻¹ mod n, stacked from 0. For 7 of 12, g = 7, so the
+ * diatonic set is a stack of fifths: the circle of fifths and the Euclidean
+ * rhythm are one structure.
  *
  * Sets are sorted arrays of positions in 0..n-1: steps of a bar, or pitch
  * classes.
@@ -19,10 +20,10 @@
  * k of n as evenly as possible, starting on 0 and shifted later by
  * `rotation`.
  *
- * This is the prototype's form (`euclidHit`, and `(k,n,rot)` in mini-notation):
- * position j is in the set when ((j − rotation) mod n) · k mod n < k. Strudel's
- * Bjorklund form gives the same set up to a rotation, and a different rotation
- * for 46 of the 120 (k, n) pairs with k < n ≤ 16 (#8).
+ * Position j is in the set when ((j − rotation) mod n) · k mod n < k. This is
+ * the form the prototype uses, and play-aeiou and quintenzirkel agree with
+ * it. Strudel's Bjorklund form gives the same set up to a rotation, and a
+ * different rotation for 46 of the 120 (k, n) pairs with k < n ≤ 16 (#8).
  */
 export function even(k: number, n: number, rotation = 0): number[] {
   const set: number[] = [];
@@ -40,6 +41,15 @@ export function shift(set: readonly number[], by: number, n: number): number[] {
 /** Distances from each member to the next, wrapping around n. */
 export function gaps(set: readonly number[], n: number): number[] {
   return set.map((x, i) => (i + 1 < set.length ? set[i + 1]! - x : set[0]! + n - x));
+}
+
+/**
+ * The step whose stack gives `even(k, n)`: g with g · k ≡ 1 (mod n). It
+ * exists only for coprime k and n. For 7 of 12 it is 7, the fifth.
+ */
+export function generator(k: number, n: number): number {
+  for (let g = 0; g < n; g++) if (mod(g * k, n) === mod(1, n)) return g;
+  throw new Error(`generator: ${k} and ${n} are not coprime, so ${k} of ${n} has no generator`);
 }
 
 /**

@@ -11,9 +11,6 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.11.0)
-      '@types/node':
-        specifier: ^22.20.4
-        version: 22.20.4
       eslint:
         specifier: ^10.11.0
         version: 10.11.0
@@ -84,13 +81,7 @@ importers:
 
   packages/engine: {}
 
-  packages/prototype-reference: {}
-
-  packages/theory:
-    devDependencies:
-      '@jambot/prototype-reference':
-        specifier: workspace:*
-        version: link:../prototype-reference
+  packages/theory: {}
 
 packages:
 

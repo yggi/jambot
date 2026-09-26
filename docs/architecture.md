@@ -5,9 +5,6 @@ Jambot is a pnpm workspace:
 - **`packages/theory`** holds the music theory, built on one primitive (see
   below).
 - **`packages/engine`** holds the musical engine.
-- **`packages/prototype-reference`** loads definitions from the prototype
-  file, so tests pin ported code against the prototype itself. It is used by
-  tests only.
 - **`apps/web`** is the browser app: Svelte 5, built by Vite, and installable
   as an offline PWA. It also serves the original prototype at
   `/prototype.html`.

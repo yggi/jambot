@@ -19,7 +19,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     the port is checked
   - `briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
-- `prototype/`: the reference for the port
+- `prototype/`: the baseline the port is oriented by
   - [`README.md`](../prototype/README.md): concept, spirit, prototype
     architecture, the score language, the plan for learned models, open
     threads
@@ -32,7 +32,6 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/modes.ts`: modes as rotations along the generator
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
-  - `prototype-reference/`: loads the prototype's own definitions for tests
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
