@@ -71,6 +71,19 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   plan at a section's first bar, and the bar's chords. So a part can lead
   into the next bar's chords (`BarEnv.next`), and they are what plays. A
   bar the clock has passed is passed (`passBar`), not composed.
+- `lookAhead(carried, envAt, count)` forecasts the bars ahead, their plans
+  and chords, by running the band's own decisions forward. From the
+  transport, `forecast(env, carried, count)` gives the bars from the head's
+  bar on, those composed first, each with the energy it plays at; with
+  `carried` null it is the song from bar 0. The track holds glides ahead,
+  so the forecast is what plays unless a control moves.
+- The screen reads one snapshot, `player.hud` (`hudOf`, in
+  `apps/web/src/hud.ts`), rebuilt when the step heard, the bars ahead or
+  the track change. Components take slices of it as props and send
+  intents; none reads the engine. A style is named by the preset it
+  matches on every axis the preset sets but energy (`presetOf`), so there
+  is no chosen-preset state: nudging the tempo makes a style custom, and
+  moving energy or entropy doesn't.
 - The parts are machines at bar rate over one `BarEnv`, and `BandBar` is
   that environment plus the events and the bar's `sound`. The drums carry
   nothing; the bass its last note, the comp its last voicing, the lead its
@@ -83,6 +96,10 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
   chord note a triangle beside a sine 0.3 % sharp. A new voice keeps these
   apart or updates `band.e2e.ts`.
+- Section names appear twice on the page, on the stage and in the song
+  map, which names them before anything is heard. So a check that the
+  screen follows what is heard looks for `Bar n of 8`, which only the stage
+  shows.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A
   bar's chords come from its theme's slots (`barChords`); their colour

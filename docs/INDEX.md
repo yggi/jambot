@@ -95,7 +95,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/plan.ts`: the section plan (form, key and theme), the machine
       at section rate
     - `src/chords.ts`: the chords of a bar, from its theme's slots, the
-      key and the harmony, and their lead-sheet names
+      key and the harmony, their lead-sheet names and their Roman numerals
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/bass.ts`: the bass, a machine that carries its last note
@@ -105,9 +105,12 @@ Every doc and code area, as a tree. Add a line when you add one.
       phrase and its themes' melodies
     - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
-      decides the next (`passBar` for a bar it doesn't play)
+      decides the next (`passBar` for a bar it doesn't play), and
+      `lookAhead` decides the bars ahead without playing them
     - `src/transport.ts`: the transport, the machine at tick rate: it
-      composes a beat before each bar and schedules on a clock
+      composes a beat before each bar and schedules on a clock, and
+      `bandEnvAt` is what the band reads for a bar; `forecast` gives the
+      bars ahead, composed or not
     - `experiments/`: measurements on the port for the language design,
       outside the pure `src/`
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
@@ -137,9 +140,26 @@ Every doc and code area, as a tree. Add a line when you add one.
     `/prototype.html`
     - `vite.config.ts`: the build, with the prototype and the license gate
       as plugins
+    - `src/App.svelte`: the page, which holds the player and hands each
+      component its props; components take props and send intents
+      - `src/components/Transport.svelte`: start and stop, and the tempo
+      - `src/components/StylePanel.svelte`: the presets, the style sliders,
+        and a line saying where the style is: a preset playing, a glide
+        under way, or a custom style
+      - `src/components/Stage.svelte`: the section, the bar in it, the key,
+        the chord heard with its numeral, the beats, the song map and the
+        next four bars; before the start, the bar the band opens on
+      - `src/components/NextBars.svelte`: the next four bars, with cues
+        where the section or the key changes
+      - `src/components/SongMap.svelte`: the section playing and the three
+        after it, their bars as tall as their energy, and their chord loops
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
-      and stopped, with a stop that cancels a pending start
+      and stopped, with a stop that cancels a pending start. It keeps the
+      bars decided ahead and shows everything through one snapshot, `hud`
+    - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
+      ahead as `BarView`s and the song map's sections of them, the chord
+      sounding, and the style's preset and glide, as plain data
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/audio/output.ts`: what the player plays on, and the Web Audio
       one

@@ -13,6 +13,10 @@
  * The parts play side by side from the same bar: the drums, the bass, the
  * comp and the lead. What they write, the band plays through the
  * performance (`perform.ts`, T4).
+ *
+ * Since what it decides reads only the seed, the bar, the style and the
+ * wish, the bars ahead can be decided before they play (`lookAhead`): as
+ * long as nobody moves a control, the forecast is what plays.
  */
 
 import type { BarEnv } from './bar.ts';
@@ -123,6 +127,26 @@ function step(env: BandEnv, carried: BandCarried): { here: DecidedBar; carried: 
  */
 export function passBar(env: BandEnv, carried: BandCarried): BandCarried {
   return step(env, carried).carried;
+}
+
+/**
+ * The next `count` bars as the band will decide them, from the bar it
+ * decided next (bar 0 before the song starts): their plans and chords,
+ * without the parts. It runs the band's own decisions forward, as passing
+ * those bars does, reading the environment of each bar from `envAt`.
+ */
+export function lookAhead(
+  carried: BandCarried,
+  envAt: (bar: number) => BandEnv,
+  count: number,
+): DecidedBar[] {
+  const bars: DecidedBar[] = [];
+  for (let bar = carried.next?.bar ?? 0; bars.length < count; bar++) {
+    const { here, carried: after } = step(envAt(bar), carried);
+    bars.push(here);
+    carried = after;
+  }
+  return bars;
 }
 
 export const band: Machine<BandEnv, BandCarried, null, BandBar> = {

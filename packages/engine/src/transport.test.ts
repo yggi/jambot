@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { type BandBar, band } from './band.ts';
+import { type BandBar, band, lookAhead } from './band.ts';
 import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import {
   INITIAL_STYLE,
   PRESETS,
+  PRESET_GLIDE,
   SLIDER_GLIDE,
   type StyleTrack,
   glideTo,
@@ -21,6 +22,8 @@ import {
   type TransportInput,
   type TimedEvent,
   type TransportOutput,
+  bandEnvAt,
+  forecast,
   transport,
 } from './transport.ts';
 
@@ -293,6 +296,73 @@ describe('the transport', () => {
       );
       expect(b).toEqual(next.output);
       carried = next.carried;
+    }
+  });
+});
+
+describe('the forecast from the transport', () => {
+  it('is what the transport then composes, with a glide and a key change still to come', () => {
+    // A preset glide from bar 16, and from tick 300 (about bar 10) a wish
+    // for another key: the forecast reads both ahead of time. A forecast
+    // made before the wish changed would not know it, as nobody can.
+    const track = glideTo(swung, PRESETS[1]!.style, 16 * 16, PRESET_GLIDE);
+    const wished = env(track, { tonic: 2, mode: 'mixolydian' });
+    let carried = transport.initial;
+    const forecasts: { from: number; bars: ReturnType<typeof lookAhead> }[] = [];
+    const composed = new Map<number, BandBar>();
+    ticks(0.9, 900, 0.1).forEach((input, i) => {
+      const now = i < 300 ? env(track) : wished;
+      const next = transport.advance(now, carried, input);
+      carried = next.carried;
+      for (const b of next.output.composed) composed.set(b.bar, b);
+      if (i >= 300 && i % 100 === 0)
+        forecasts.push({
+          from: carried!.nextBar,
+          bars: lookAhead(carried!.band, (bar) => bandEnvAt(now, bar), 16),
+        });
+    });
+    let compared = 0;
+    for (const { from, bars } of forecasts) {
+      expect(bars[0]!.bar).toBe(from);
+      for (const { bar, plan, chords } of bars) {
+        const there = composed.get(bar);
+        if (!there) continue;
+        expect({ plan, chords }).toEqual({ plan: there.plan, chords: there.chords });
+        compared++;
+      }
+    }
+    // The run went through the glide and the key change.
+    const keys = new Set([...composed.values()].map((b) => JSON.stringify(b.plan.key)));
+    expect(keys.size).toBeGreaterThan(1);
+    expect(composed.get(30)!.style).not.toEqual(composed.get(0)!.style);
+    expect(compared).toBeGreaterThan(60);
+  });
+
+  it('reads the bars ahead from any carried state, those composed first, each with the energy it plays at', () => {
+    const track = glideTo(swung, PRESETS[1]!.style, 16 * 16, PRESET_GLIDE);
+    const far = env(track, { tonic: 2, mode: 'mixolydian' });
+    // Before the start, the forecast is the song that then plays.
+    const opening = forecast(far, null, 24);
+    let carried = transport.initial;
+    const composed = new Map<number, BandBar>();
+    const checkpoints: { head: number; bars: ReturnType<typeof forecast> }[] = [];
+    ticks(0.9, 900, 0.1).forEach((input) => {
+      const next = transport.advance(far, carried, input);
+      carried = next.carried;
+      for (const b of next.output.composed) composed.set(b.bar, b);
+      checkpoints.push({
+        head: Math.floor(carried!.head.step / 16),
+        bars: forecast(far, carried, 12),
+      });
+    });
+    const played = (bar: number) => {
+      const b = composed.get(bar);
+      return b && { bar: b.bar, plan: b.plan, chords: b.chords, barEnergy: b.barEnergy };
+    };
+    expect(opening).toEqual(range(24).map(played));
+    for (const { head, bars } of checkpoints) {
+      expect(bars.map((b) => b.bar)).toEqual(range(12).map((i) => head + i));
+      for (const b of bars) if (composed.has(b.bar)) expect(b).toEqual(played(b.bar));
     }
   });
 });
