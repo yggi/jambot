@@ -30,6 +30,7 @@ const built: Record<string, string> = {
     <script id="vite-plugin-pwa:register-sw" src="/jambot/registerSW.js"></script>
     </head><body><a href="#top">top</a></body></html>`,
   'prototype.html': '<!doctype html><style>body{font:15px system-ui}</style><main></main>',
+  'licenses.txt': 'Jambot\n\nMIT License',
   'icon.svg': '<svg/>',
   'icon-192.png': 'png',
   'assets/index-1a.js': 'console.log(1)',
@@ -127,15 +128,19 @@ describe('the site check', () => {
     ]);
   });
 
-  it.each(['prototype.html', 'assets/index-1a.js', 'icon-192.png', 'sw.js', 'workbox-9c.js'])(
-    'fails when %s is missing, and names who references it',
-    async (path) => {
-      const rest = Object.fromEntries(Object.entries(built).filter(([file]) => file !== path));
-      const problems = await siteProblems(siteOf(rest), '/jambot/');
-      expect(problems).toHaveLength(1);
-      expect(problems[0]).toMatch(new RegExp(`^${path.replace('.', '\\.')}, which .* is missing$`));
-    },
-  );
+  it.each([
+    'prototype.html',
+    'licenses.txt',
+    'assets/index-1a.js',
+    'icon-192.png',
+    'sw.js',
+    'workbox-9c.js',
+  ])('fails when %s is missing, and names who references it', async (path) => {
+    const rest = Object.fromEntries(Object.entries(built).filter(([file]) => file !== path));
+    const problems = await siteProblems(siteOf(rest), '/jambot/');
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(new RegExp(`^${path.replace('.', '\\.')}, which .* is missing$`));
+  });
 
   it('reads the markup of a page, not its inline scripts', () => {
     const page = `<script src="/jambot/a.js"></script><script>const src='let id;'; x.href = "b.html";</script>`;

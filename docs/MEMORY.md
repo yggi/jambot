@@ -11,6 +11,7 @@ pnpm dev          # web app with hot reload; the prototype is at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes
+pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
 pnpm pages deploy # publish main to GitHub Pages, and check the live site
 ```
 
@@ -107,6 +108,27 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   hold that it is precached.
 - The app and the prototype use system fonts and fetch nothing from
   outside the site (#58).
+
+### License
+
+- Jambot is MIT ([`LICENSE`](../LICENSE)), as are quintenzirkel and
+  lib-aeiou, so code moves freely between the sister projects. Every
+  `package.json` says so.
+- The build runs a license gate (`tooling/licenses.ts`, wired in
+  `apps/web/vite.config.ts`). It fails on any package the app ships that
+  isn't under a permissive license or lacks its license text, and writes
+  `licenses.txt`: Jambot's license, then each shipped package's. Today that
+  is the Svelte runtime, Vite's preload polyfill, workbox's runtime and the
+  service worker's loader (Apache-2.0).
+- Taking in a copyleft package, such as Strudel, is a decision, not a side
+  effect of an import. MIT code may go into an AGPL build, but that build is
+  then AGPL as a whole. Exporting Strudel code as text is not affected.
+- The license covers the code and the docs. It does not cover training
+  data, model weights or what the band plays. Lakh MIDI and Groove MIDI are
+  CC-BY-4.0 (attribution); POP909 has a license of its own, to read before
+  use.
+- Static assets aren't modules, so the gate doesn't see them. None comes
+  from elsewhere: the app and the prototype use system fonts (#58).
 
 ### Prototype
 
@@ -206,11 +228,13 @@ The full description is in
   tracks: a working track that builds and a negative track that catalogues
   constraints, coupled only by claims with tests. The pairs are on the map,
   #41. The `ratchet` skill writes an entry as a witness, a counterexample and
-  a decidable test, with a status, and files a counterexample against the
-  layer it refutes. The pawl check (`tooling/pawl.ts`, #42) runs in
+  a decidable test; its `Status:` is the evidence, and a rule the owner took
+  is a separate `Decided: <where>, <how>` field. The skill files a
+  counterexample against the layer it refutes. The pawl check (`tooling/pawl.ts`, #42) runs in
   `pnpm verify`. A test holds an entry by citing its id at the end of its
-  description, as in `(T4, #39 Q1c)`, and the entry then names the test's
-  file.
+  description, as in `(T4, Q1c)`, and the entry then names the test's file.
+  The catalogues are `language.md` (#7) and `quinetic.md` (#39), with one
+  id space; a property `language.md` already holds is an alias there.
 
 ### Terms
 

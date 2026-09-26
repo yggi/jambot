@@ -249,7 +249,7 @@ describe('the transport', () => {
     expect(back.carried!.planned.before!.key).toEqual({ tonic: 2, mode: 'mixolydian' });
   });
 
-  it('keeps the machine laws, with the style gliding under it (F1, #39 Q4a)', () => {
+  it('keeps the machine laws, with the style gliding under it (F1, Q4a)', () => {
     const track = glideTo(glideTo(swung, PRESETS[1]!.style, 8, 64), { swing: 1 }, 40, 32);
     const script: Script<TransportEnv, TransportInput> = ticks(0.9, 240).map((input) => ({
       env: env(track),

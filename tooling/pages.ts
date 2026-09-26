@@ -113,7 +113,7 @@ export function resolveReference(
 export type Site = (path: string) => Promise<string | undefined>;
 
 /** The files Pages serves that nothing references: the entry points. */
-export const ENTRIES = ['index.html', 'prototype.html'];
+export const ENTRIES = ['index.html', 'prototype.html', 'licenses.txt'];
 
 /**
  * What keeps the site from working under `base`: each reference that leaves

@@ -5,6 +5,7 @@ Every doc and code area, as a tree. Add a line when you add one.
 - [`README.md`](../README.md): what Jambot is and how to run it
 - [`AGENTS.md`](../AGENTS.md): house rules and core structure (`CLAUDE.md`
   imports it)
+- [`LICENSE`](../LICENSE): MIT
 - `docs/`
   - [`MEMORY.md`](MEMORY.md): persistent facts and the cheatsheet, the entry
     point
@@ -22,6 +23,9 @@ Every doc and code area, as a tree. Add a line when you add one.
     expression, each a claim with a witness, a counterexample and a test;
     tensions, candidates, experiments, and the names functional programming
     and category theory give its shapes
+  - [`quinetic.md`](quinetic.md): #39's catalogue of quinetic properties
+    (round trips, machine laws, convergence), each a claim with a test, or
+    an alias of the `language.md` entry that already holds it
   - [`ratchet.md`](ratchet.md): how a working track and a negative track
     drive each other, with tests as the pawl (#37 and #7)
   - [`theory.md`](theory.md): the mathematics under `packages/theory`
@@ -92,9 +96,15 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `hooks.test.ts`: the pre-push hook, blocking and letting through
   - `review-pr.test.ts`: the review skill's `prepare.sh`, against a
     throwaway origin
-  - `pawl.ts`: the ratchet's pawl check, which holds `docs/language.md`'s
-    statuses, tests and citations together (#42); `pawl.test.ts` shows each
-    rule firing and runs it over the repository
+  - `pawl.ts`: the ratchet's pawl check, which holds the catalogues'
+    statuses, rules, tests, aliases and citations together (#42);
+    `pawl.test.ts` shows each rule firing and runs it over the repository
+  - `history.ts`: the catalogues read at any version, the gate that
+    evidence only rises and rules go only with a reason, and the report
+    behind `pnpm ratchet` (#43)
+  - `licenses.ts`: the license gate over what the web app ships, and the
+    `licenses.txt` it writes; `licenses.test.ts` shows it refusing copyleft
+    and unknown licenses
   - `pages.ts`: the GitHub Pages deploy by hand (`pnpm pages`): builds for
     the sub-path, checks that the site resolves there, commits it to
     `gh-pages` and checks the live site; `pages.test.ts` shows the check
@@ -102,6 +112,8 @@ Every doc and code area, as a tree. Add a line when you add one.
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
+    - `vite.config.ts`: the build, with the prototype and the license gate
+      as plugins
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start

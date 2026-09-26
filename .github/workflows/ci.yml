@@ -20,7 +20,12 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      # The whole history, with origin/main: the ratchet's time gate
+      # (tooling/history.test.ts) compares the catalogues with it, and fails
+      # in CI rather than skipping when it is missing.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
