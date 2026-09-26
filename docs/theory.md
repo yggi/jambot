@@ -263,9 +263,19 @@ it means otherwise.
 
 Over every chord of the grammar (11 qualities on 12 roots in the prototype's
 four modes), 332 imply a scale, and in each the chord tones are its degrees
-0 2 4 6 8 and 2 4 6 fall between them. Every borrowed chord and every
-dominant of a major or minor degree is among them. tonal's
+0 2 4 6 8 and 2 4 6 fall between them. Every borrowed chord, and every
+dominant triad and seventh of a major or minor degree, is among them. tonal's
 `Chord.chordScales` lists every one of the 332 scales for its chord.
+
+The fewest changed notes are counted over the candidates, and for a ninth
+they are not always the fewest there are (#38). A ninth's seventh implies a
+scale in 102 of the 144 ninths, and setting that scale's degree 1 to the
+ninth keeps it a scale in all 102. chordScale finds the same scale for 89 of
+them, and for 3 it finds one that changes one note more: D9 in C minor and C
+dorian, and G9 in C minor, which the target's melodic minor holds and
+chordScale doesn't try. The other 10 get no scale from chordScale, among
+them every V9 of a minor degree the prototype plays, such as A9 in C major
+(V9/ii), whose natural 9 is not in D harmonic minor.
 
 Tests: `keys.test.ts`, and `second-opinion.test.ts`.
 
@@ -286,7 +296,10 @@ For three and four notes those degrees are even in 7. So every triad and
 every seventh of every diatonic mode is `even(3 or 4, 7)` composed with the
 mode: 98 of 98. Five stacked thirds span more than a turn of 7 and are not
 even in it, so a ninth chord is a named **stack**, heights above its root,
-not a composition.
+not a composition. Every stack splits at the octave: the tones below it are
+a helix of one turn, and the rest lie above them (the ninth in `9`, `maj9`,
+`m9` and `add9`, and four of the harmonics), so a stack is a helix and the
+tones above it, with nothing lost.
 
 Composition does not keep evenness in general. Of the 165 compositions of
 even helices with n ≤ 12, 35 are even. A triad of the diatonic set is not

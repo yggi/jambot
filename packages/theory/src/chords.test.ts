@@ -66,6 +66,31 @@ describe('chords, by composition', () => {
     // So a ninth chord is a named stack, not a composition.
     expect(isEven({ cycle: 7, heights: [0, 1, 2, 4, 6] })).toBe(false); // 0 2 4 6 8, wrapped
   });
+
+  it('split at the octave into a helix and the tones above it, and join back: every quality (#38)', () => {
+    // The tones below the octave rise within one turn of 12, so they are a
+    // helix; every tone from the octave up comes after them. So a chord read
+    // as a helix plus the tones above it loses nothing of its stack.
+    const above: Record<string, number[]> = {};
+    for (const [name, { stack }] of Object.entries(CHORD_QUALITIES)) {
+      const below = stack.filter((x) => x < 12);
+      const rest = stack.filter((x) => x >= 12);
+      expect(
+        below.every((x, i) => i === 0 || x > below[i - 1]!),
+        name,
+      ).toBe(true);
+      expect(below.at(-1)! - below[0]!, name).toBeLessThan(12);
+      expect([...below, ...rest], name).toEqual(stack);
+      if (rest.length > 0) above[name] = rest;
+    }
+    expect(above).toEqual({
+      '9': [14],
+      maj9: [14],
+      m9: [14],
+      add9: [14],
+      harmonics: [12, 19, 24, 28],
+    });
+  });
 });
 
 describe('chord qualities', () => {
