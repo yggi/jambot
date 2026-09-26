@@ -10,7 +10,15 @@
  * prototype's pivotRoot), so A minor → D dorian → C major share all seven.
  */
 
-import { type Helix, diatonicMode, relative, shift, wrap } from '@jambot/theory';
+import {
+  type Helix,
+  diatonicMode,
+  nameOf,
+  relative,
+  shift,
+  spelledTonic,
+  wrap,
+} from '@jambot/theory';
 
 export const COMPOSER_MODES = ['aeolian', 'dorian', 'ionian', 'mixolydian'] as const;
 export type ComposerMode = (typeof COMPOSER_MODES)[number];
@@ -45,23 +53,8 @@ export function nextKey(key: Key, wish: KeyWish): Key {
   return { tonic: wrap(pivot.heights[0]!, 12), mode: wish.mode };
 }
 
-/** The twelve tonics as the band names them, from C. */
-export const TONIC_NAMES = [
-  'C',
-  'C♯',
-  'D',
-  'E♭',
-  'E',
-  'F',
-  'F♯',
-  'G',
-  'A♭',
-  'A',
-  'B♭',
-  'B',
-] as const;
-
-/** A key as people read it, such as "A aeolian". */
+/** A key as people read it, its tonic spelled in the key: "A aeolian", "Eb dorian". */
 export function keyName(key: Key): string {
-  return `${TONIC_NAMES[key.tonic]} ${key.mode}`;
+  const scale = keyHelix(key);
+  return nameOf({ kind: 'scale', tonic: spelledTonic(scale), name: key.mode, helix: scale });
 }

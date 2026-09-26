@@ -5,11 +5,13 @@
  * players wish for. At each section boundary it advances the section plan
  * (form, key and theme) and then holds that plan for the section's eight
  * bars, so the plan's carried state is all it carries: the plan's "section
- * before" is the band's "section now" one boundary later. Each bar, its parts
- * play side by side; for now, that is the drums.
+ * before" is the band's "section now" one boundary later. Each bar, the
+ * theme's slots become chords at the bar's harmony, and its parts play side
+ * by side; for now, that is the drums.
  */
 
 import type { BarEnv } from './bar.ts';
+import { type BarChord, barChords } from './chords.ts';
 import { drums } from './drums.ts';
 import type { NoteEvent } from './events.ts';
 import { SECTION_BARS, type Section, barEnergy } from './form.ts';
@@ -17,7 +19,6 @@ import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import { type PlanCarried, planner } from './plan.ts';
 import type { Style } from './style.ts';
-import type { Slot } from './themes.ts';
 
 export interface BandEnv {
   readonly seed: number;
@@ -34,8 +35,8 @@ export interface BandBar {
   readonly bar: number;
   readonly section: Section;
   readonly key: Key;
-  /** The theme's chord slots for this bar. */
-  readonly slots: readonly Slot[];
+  /** The bar's chords, from its theme's slots. */
+  readonly chords: readonly BarChord[];
   readonly barInSection: number;
   readonly barEnergy: number;
   readonly events: readonly NoteEvent[];
@@ -74,7 +75,7 @@ export const band: Machine<BandEnv, PlanCarried, null, BandBar> = {
         bar,
         section,
         key,
-        slots: theme.bars[barInSection]!,
+        chords: barChords({ seed, barInSection, key, theme, harm: style.harm }),
         barInSection,
         barEnergy: env.barEnergy,
         events: drums(env),
