@@ -1,5 +1,5 @@
 <!--
-  The conductor: where the music is, as heard. The section, the chord, the
+  The stage: where the music is, as heard. The section, the chord, the
   key and the bar, and the beats of the bar so far.
 -->
 <script lang="ts">

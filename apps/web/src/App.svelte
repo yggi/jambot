@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PRESETS } from '@jambot/engine';
-  import Conductor from './components/Conductor.svelte';
+  import Stage from './components/Stage.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import Transport from './components/Transport.svelte';
   import { Player } from './player.svelte.ts';
@@ -26,7 +26,7 @@
 
   <StylePanel track={player.track} bind:preset onintent={(intent) => player.apply(intent)} />
 
-  <Conductor position={player.position} playing={player.playing} />
+  <Stage position={player.position} playing={player.playing} />
 
   <p class="note">
     The band plays drums, bass, chords and lead. The score, MIDI out and the Muse, which listens to
