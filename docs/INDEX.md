@@ -92,6 +92,9 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `hooks.test.ts`: the pre-push hook, blocking and letting through
   - `review-pr.test.ts`: the review skill's `prepare.sh`, against a
     throwaway origin
+  - `pawl.ts`: the ratchet's pawl check, which holds `docs/language.md`'s
+    statuses, tests and citations together (#42); `pawl.test.ts` shows each
+    rule firing and runs it over the repository
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`

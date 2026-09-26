@@ -57,7 +57,8 @@ The status says how far a claim has gone through the game:
 | decided     | The owner took the claim as given. It is a rule now, not a result                                                   |
 
 Status only rises. An entry is retired with its reason written next to it,
-never removed silently.
+as `Status: retired: <reason>`, never removed silently. A status may have
+parts with scopes, such as `measured (drums); open (compile)`.
 
 ## Dependencies carry both directions
 
@@ -116,9 +117,11 @@ A counterexample is filed where it refutes, never only where it was seen.
   entry, an issue comment. A wait that can't be avoided is a dependency, and
   it goes into `docs/ROADMAP.md`'s graph.
 - **B2. The pawl is a test on `main`.** A test on an unmerged branch holds
-  nothing yet. Merge small and often. Until the pawl check (#42) runs in
-  `pnpm verify`, the ids and statuses are checked by eye, with the
-  end-of-step checklist below.
+  nothing yet. Merge small and often. The pawl check (`tooling/pawl.ts`)
+  runs in `pnpm verify`: it refuses a status off the ladder, a named test
+  that doesn't exist, a measured entry that names no file, an id cited but
+  not defined or defined twice, and a citing test whose file the entry
+  doesn't name.
 - **B3. Dissolve before deciding.** Before a decision, ask which move would
   measure the options: a witness (W1), a probe (N1) or a pull-back (N3). If
   the options are measured and still pull apart, send them to the owner with
@@ -147,7 +150,8 @@ the same form, or says "none".
 - [ ] Harvested: each finding is an entry, or a comment on the negative
       track's issue, in the claim form (W4).
 - [ ] Every counterexample is filed where it refutes (N3).
-- [ ] Every new test names the entry it holds, by id, in its description.
+- [ ] Every new test cites the entry it holds in a group at the end of its
+      description, such as `(T4, #39 Q1c)`, and the entry names its file.
 - [ ] Every status moved up or stayed, and no entry disappeared.
 - [ ] Every decision taken says whether it dissolved or was made, and with
       which measurements (B3).
