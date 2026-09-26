@@ -44,6 +44,11 @@ patch as one large JSON blob.
 CI does not run while #4 is open, so this verify run is the check that
 counts. Say in the review which commit you verified and what it gave.
 
+If the pull request touches what the app plays or when (the transport, the
+time maps, the style glides, a part's events, the player, the audio or the
+page; see `AGENTS.md`), also run `pnpm e2e` in the worktree, and say what
+it gave. It needs Playwright's Chromium, which the session hook installs.
+
 ## 2. Read against the house rules
 
 Read `AGENTS.md` and the pull request body first. Then, for each change:

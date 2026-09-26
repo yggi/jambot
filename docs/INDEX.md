@@ -54,7 +54,23 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/second-opinion.test.ts`: the primitive, the names and the
       spelling checked against tonal
   - `engine/`: the musical engine, pure TypeScript
-    - `src/random.ts`: keyed deterministic randomness
+    - `src/machine.ts`: the contract every level keeps,
+      `advance(env, carried, input)`, and `lawBreaks`, which checks it
+    - `src/events.ts`: the note events the engine writes, and
+      `eventProblems`
+    - `src/random.ts`: keyed deterministic randomness, and quantised
+      `chance` and `pick`
+    - `src/style.ts`: the style axes, their ranges and glide spaces, the
+      presets, and glides (`glideTo`, `styleAt`)
+    - `src/swing.ts`: time maps, and swing as one (`swingMap`, and
+      `swingOf` a style track, per beat)
+    - `src/tempo.ts`: tempo as a time map from positions to seconds
+    - `src/form.ts`: the section chain as a machine, and `barEnergy`
+    - `src/bar.ts`: `BarEnv`, what every part reads for a bar
+    - `src/drums.ts`: the drums, a function of the bar
+    - `src/band.ts`: the band, the machine at bar rate
+    - `src/transport.ts`: the transport, the machine at tick rate: it
+      composes a beat before each bar and schedules on a clock
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing
@@ -64,8 +80,20 @@ Every doc and code area, as a tree. Add a line when you add one.
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
-- `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
-  deploys `main` to GitHub Pages; started by hand while #4 is open
+    - `src/player.svelte.ts`: runs the transport on the audio clock and
+      plays its events; the screen follows what is heard. Starting, playing
+      and stopped, with a stop that cancels a pending start
+    - `src/heard.ts`: the positions waiting to be heard, bounded
+    - `src/audio/output.ts`: what the player plays on, and the Web Audio
+      one
+    - `src/conductor.ts`: intents (presets, sliders) into glides on the
+      style track
+    - `src/audio/drums.ts`: the built-in drum kit
+    - `src/ticker.ts`: the scheduler's tick, from a Worker
+    - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
+      built app in Chromium with its audio measured
+- `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e,
+  build; deploys `main` to GitHub Pages; started by hand while #4 is open
 - `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents
   may run without a prompt
   - `.claude/hooks/session-start.sh`: installs dependencies, warms

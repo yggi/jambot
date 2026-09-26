@@ -103,7 +103,7 @@ echo
 git log --oneline $commits
 echo
 # shellcheck disable=SC2086
-git diff --stat=100 $range
+git diff --compact-summary --stat=100 $range
 echo
 echo "pnpm verify $verdict${unit:+ ($unit)}; full log: $log"
 [ -n "$e2e" ] && echo "pnpm e2e $e2e_verdict${e2e_tests:+ ($e2e_tests)}"

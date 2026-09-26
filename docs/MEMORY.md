@@ -10,12 +10,14 @@ pnpm install
 pnpm dev          # web app with hot reload; the prototype is at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
+pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 ```
 
-- Agent sessions (Claude Code) install dependencies, warm music21 and fetch
-  `origin/main` at start through `.claude/hooks/session-start.sh`, and
-  `.claude/settings.json` allows the checks and the music-theory scripts
-  without a prompt. Other agents run `pnpm install --frozen-lockfile` first.
+- Agent sessions (Claude Code) install dependencies and Playwright's
+  Chromium, warm music21 and fetch `origin/main` at start through
+  `.claude/hooks/session-start.sh`, and `.claude/settings.json` allows the
+  checks and the music-theory scripts without a prompt. Other agents run
+  `pnpm install --frozen-lockfile` first.
 - An agent's `git push` runs `pnpm verify` first (`verify-before-push.sh`,
   about 30 s) and is blocked if it fails. It checks the working tree, so
   commit before pushing.
@@ -41,6 +43,26 @@ pnpm verify       # lint, format check, typecheck, tests, build: run before push
   `sister-names.test.ts`; a new one goes there first.
 - The theory's core relations, and the test that holds each, are in
   [`theory.md`](theory.md). A new relation gets its test and its line there.
+- An engine level is a `Machine` (`packages/engine/src/machine.ts`). A new
+  one gets a test that `lawBreaks(machine, script)` is empty, and the
+  events it writes a test that `eventProblems` finds none.
+- A random choice in the engine goes through `chance(draw, p)` or
+  `pick(draw, weights)`, never a bare `draw < p`: they quantise to 2^-16,
+  so a last-bit difference from `Math.pow` or `Math.sin` on another engine
+  does not change the music.
+- The style (`packages/engine/src/style.ts`) is a track of glides, one per
+  axis, and `styleAt(track, position)` reads it at any step of the song.
+  Positions there are steps from the song's start, 16 to a bar. A track
+  holds only the latest glide per axis, and before that glide's start it
+  reads the glide's `from`. So to see what was played at a step, read the
+  track as it stood when that step was scheduled, not the final track.
+- The engine's levels are machines at their own rates: the form per
+  section, the band per bar, the transport per tick. The web player only
+  reads the audio clock and plays what the transport schedules, so
+  everything that decides what and when is tested without a browser.
+- Swing is a time map, `swingMap(swing)`, with `played` and `written` as
+  exact inverses. The transport plays through it, and player input reads
+  back through `written`.
 - In the theory, a set is a `Helix`, `{ cycle, heights }`: the heights of
   degrees 0 to k − 1, with degree 0 wherever it stands. `positions(helix)` is
   the sorted view from the circle. `shift` moves heights (transposition) and
