@@ -111,9 +111,10 @@ language and the plans. This page covers only the port.
 - **A section's chords are coloured once, at its start.** The prototype
   draws each chord's seventh and ninth when it plans the section, at the
   harmony there, in sequence with every other draw. The port draws them per
-  theme, bar and slot and reads the bar's harmony (`chords.ts`), so a
-  harmony slider is heard from the next bar, raising it only adds tones,
-  and a returning theme brings its chords back.
+  theme, bar and slot, and decides each bar's chords a bar ahead at the
+  harmony there (`chords.ts`, `band.ts`), so a harmony slider is heard from
+  the bar after next, raising it only adds tones, and a returning theme
+  brings its chords back.
 - **A B vamp moves away from the A vamp by index alone.** Where the A theme
   is in another mode, the same index is another vamp; the port moves away
   only within the same mode (`themes.ts`).

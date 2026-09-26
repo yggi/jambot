@@ -210,17 +210,18 @@ Witness: the port's rates: the section plan per section (`planner`: the
 section kind, the key and the theme), the style for composing per bar
 (`band`), swing per beat (`swingOf`), tempo per step (`tempoMap`),
 scheduling per tick (`transport`, 25 ms). The band holds each section's
-plan for its eight bars.
+plan for its eight bars, and decides a bar, its plan and chords, when it
+composes the bar before, so what a part leads into is what plays.
 Counterexample: a value read at two rates that disagree, such as the
 prototype's tempo, which plays per step and is written once per bar (S1).
 Once a value has been read at its rate, it holds: a change in the middle of
 a beat re-swung the rest of that beat by up to 0.36 steps, so the transport
 keeps a started beat's swing.
 Test: `band.test.ts`, "holds each section for its eight bars (C3)" and
-"plays each section's plan: its key, and its theme's chords bar by bar,
-changing only at a boundary (C3)"; `tempo.test.ts`, "swings each beat by the swing where the beat starts (C3)";
-`transport.test.ts`, "keeps a beat’s swing once the beat has started,
-whatever the style does next (C3)".
+"plays each section's plan and its theme's chords, each decided when the
+bar before it is composed (C3)"; `tempo.test.ts`, "swings each beat by the
+swing where the beat starts (C3)"; `transport.test.ts`, "keeps a beat’s
+swing once the beat has started, whatever the style does next (C3)".
 Source: Pd's control and signal rates, multirate signal processing, #37
 step 3, #40's review. Status: measured (port); open (the rates the IM
 writes). Lands in: #13.
@@ -254,8 +255,10 @@ Witness: the transport. Tempo follows from the next step, swing from the
 next beat, and a composed part from the next bar composed, which is
 composed on the last beat of the bar before (`COMPOSE_AHEAD`, at least
 333 ms at 180 bpm): within the rest of the bar and a beat, at most 20 steps.
-A key, which lives per section, follows from the next section: within the
-rest of the section and a beat.
+What is decided a bar ahead waits a bar more: a chord's colour, from the
+next bar decided, within the rest of the bar, a bar and a beat; a key,
+which lives per section, from the next section planned, within the rest of
+the section, a bar and a beat.
 Counterexample: a change that waits longer. Composing a bar as the bar
 before starts made energy and sync wait 17 to 31 steps, so a slider's
 one-bar glide had ended before the drums heard it.

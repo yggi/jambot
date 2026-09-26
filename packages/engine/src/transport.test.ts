@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { band } from './band.ts';
+import { type BandBar, band } from './band.ts';
 import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
@@ -243,16 +243,28 @@ describe('the transport', () => {
     expect(back.output.composed.length).toBeLessThan(3);
     expect(back.output.steps.length).toBeLessThan(4);
     for (const s of back.output.steps) expect(s.seconds + s.length).toBeGreaterThan(now);
-    // The form and the key went on through the stall: the band stands where an unbroken run would.
-    const unbroken = run(far, ticks(0.9, 100)).carried!;
-    let carried = unbroken;
-    while (carried.head.seconds + stepSeconds(styleAt(swung, carried.head.step).bpm) <= now)
-      carried = transport.advance(far, carried, {
+    // The form, the key and the chords went on through the stall: the bars
+    // composed after it are those an unbroken run composes there.
+    const unbroken = new Map<number, BandBar>();
+    let carried = run(far, ticks(0.9, 100)).carried!;
+    while (carried.head.seconds <= now + 1) {
+      const next = transport.advance(far, carried, {
         now: carried.head.seconds,
         until: carried.head.seconds + 4,
-      }).carried!;
-    expect(back.carried!.planned).toEqual(carried.planned);
-    expect(back.carried!.planned.before!.key).toEqual({ tonic: 2, mode: 'mixolydian' });
+      });
+      for (const b of next.output.composed) unbroken.set(b.bar, b);
+      carried = next.carried!;
+    }
+    expect(back.output.composed.length).toBeGreaterThan(0);
+    for (const b of back.output.composed) {
+      const there = unbroken.get(b.bar)!;
+      expect({ section: b.section, key: b.key, chords: b.chords }).toEqual({
+        section: there.section,
+        key: there.key,
+        chords: there.chords,
+      });
+    }
+    expect(back.output.composed[0]!.key).toEqual({ tonic: 2, mode: 'mixolydian' });
   });
 
   it('keeps the machine laws, with the style gliding under it (F1, Q4a)', () => {

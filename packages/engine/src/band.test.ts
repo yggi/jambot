@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type BandEnv, band } from './band.ts';
+import { type BandEnv, band, passBar } from './band.ts';
 import { barChords } from './chords.ts';
 import { drums } from './drums.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
@@ -51,14 +51,17 @@ describe('the band', () => {
     expect(bars[0]!.section.type).toBe('intro');
   });
 
-  it("plays each section's plan: its key, and its theme's chords bar by bar, changing only at a boundary (C3)", () => {
+  it("plays each section's plan and its theme's chords, each decided when the bar before it is composed (C3)", () => {
+    // The style and wish a decision reads are those of the bar composed
+    // then: the bar before, or bar 0 for itself.
+    const before = (bar: number) => Math.max(0, bar - 1);
     for (const seed of [1, 2, 3]) {
       const bars = run(seed);
       let carried = planner.initial;
       for (const index of range(bars.length / SECTION_BARS)) {
         const first = index * SECTION_BARS;
         const next = planner.advance(
-          { seed, index, style: styleAt(first), wish: wishAt(first) },
+          { seed, index, style: styleAt(before(first)), wish: wishAt(before(first)) },
           carried,
           null,
         );
@@ -73,7 +76,7 @@ describe('the band', () => {
               barInSection: b,
               key: next.output.key,
               theme: next.output.theme,
-              harm: styleAt(first + b).harm,
+              harm: styleAt(before(first + b)).harm,
             }),
           );
         }
@@ -83,38 +86,64 @@ describe('the band', () => {
     }
   });
 
-  it('plays the drums of each bar, at the energy its section shapes', () => {
-    for (const b of run(9)) {
-      const style = styleAt(b.bar);
-      const energy = barEnergy(style.energy, b.section.type, b.barInSection);
-      expect(b.barEnergy).toBe(energy);
-      expect(b.events).toEqual(
-        drums({
-          seed: 9,
-          bar: b.bar,
-          section: b.section,
-          barInSection: b.barInSection,
-          style,
-          barEnergy: energy,
-        }),
-      );
+  it('passes bars without playing them, and plans and decides them as if it had', () => {
+    for (const seed of [1, 2, 3]) {
+      const whole = run(seed, 40);
+      let carried = band.initial;
+      for (const { env } of script(seed, 40)) {
+        if (env.bar < 21) carried = passBar(env, carried);
+        else {
+          const played = band.advance(env, carried, null);
+          expect(played.output).toMatchObject({
+            section: whole[env.bar]!.section,
+            key: whole[env.bar]!.key,
+            chords: whole[env.bar]!.chords,
+          });
+          carried = played.carried;
+        }
+      }
     }
   });
 
-  it('refuses to start inside a section, or to skip one', () => {
+  it('plays the drums of each bar, at the energy its section shapes', () => {
+    let carried = band.initial;
+    for (const { env } of script(9)) {
+      const { output, carried: after } = band.advance(env, carried, null);
+      const energy = barEnergy(env.style.energy, output.section.type, output.barInSection);
+      expect(output.barEnergy).toBe(energy);
+      const plan = { section: output.section, key: output.key, theme: output.theme };
+      expect(output.events.filter((e) => e.part === 'drums')).toEqual(
+        drums({
+          seed: 9,
+          bar: env.bar,
+          plan,
+          barInSection: output.barInSection,
+          style: env.style,
+          barEnergy: energy,
+          chords: output.chords,
+          next: after.next!.chords,
+        }),
+      );
+      carried = after;
+    }
+  });
+
+  it('refuses to play any bar but the one it decided next, or to start past bar 0', () => {
     const env = {
       seed: 1,
       bar: 3,
       style: INITIAL_STYLE,
       wish: { tonic: null, mode: 'aeolian' },
     } as const;
-    expect(() => band.advance(env, band.initial, null)).toThrow(/bar 3 is inside section 0/);
-    const first = band.advance({ ...env, bar: 0 }, band.initial, null).carried;
-    expect(() => band.advance({ ...env, bar: 16 }, first, null)).toThrow(
-      /bar 16 starts section 2, but the band is in section 0/,
+    expect(() => band.advance(env, band.initial, null)).toThrow(
+      /bar 3, but the song starts at bar 0/,
     );
-    expect(() => band.advance({ ...env, bar: 9 }, first, null)).toThrow(
-      /bar 9 is inside section 1, but the band is in section 0/,
+    const first = band.advance({ ...env, bar: 0 }, band.initial, null).carried;
+    expect(() => band.advance({ ...env, bar: 2 }, first, null)).toThrow(
+      /bar 2, but the band decided bar 1 next/,
+    );
+    expect(() => passBar({ ...env, bar: 5 }, first)).toThrow(
+      /bar 5, but the band decided bar 1 next/,
     );
   });
 });

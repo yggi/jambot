@@ -64,7 +64,8 @@ const smooth = (u: number) => {
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
 export function drums(env: BarEnv): NoteEvent[] {
-  const { seed, bar, section, barInSection, style, barEnergy: energy } = env;
+  const { seed, bar, barInSection, style, barEnergy: energy } = env;
+  const { section } = env.plan;
   const { sync, swing, artic, harm, entropy } = style;
   const eighth = swingParts(swing).eighth;
   const last = barInSection === SECTION_BARS - 1;
