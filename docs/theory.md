@@ -291,7 +291,7 @@ above degree 0 as degree −d stood below it. The gaps come in reverse order,
 the tonic stays, and mirroring twice gives the helix back, for every even
 helix with n ≤ 16. Across the seven diatonic modes it maps brightness i to
 6 − i: lydian to locrian, ionian to phrygian, and dorian to itself. A major
-triad mirrors to the minor triad a fourth below its root (C major to F
+triad mirrors to the minor triad a fourth above its root (C major to F
 minor).
 
 A reflection about any other axis is this one shifted, because 2a − x is

@@ -181,8 +181,9 @@ projects share **conventions, not code**. These facts stay aligned:
 - the meaning of "mode k": the scale re-rooted on its k-th note (`mode`,
   then a shift back to 0).
 
-Spelling follows quintenzirkel's rule (`spellDegree`), and its golden
-spellings are tests here ([theory](theory.md#spelling)).
+Spelling follows Jambot's own rule, in thirds over the chord
+([theory](theory.md#spelling)). quintenzirkel's spellings (`spellDegree`)
+follow from it, and its golden spellings are tests here.
 
 One theory word means something else in a sister project: quintenzirkel's
 "position" is a place on the circle of fifths, a position along the
