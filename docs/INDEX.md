@@ -44,6 +44,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/lookup.ts`: lookup by name across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here
+    - `src/second-opinion.test.ts`: the primitive checked against tonal
   - `engine/`: the musical engine, pure TypeScript
     - `src/random.ts`: keyed deterministic randomness
 - `apps/`
@@ -51,5 +52,9 @@ Every doc and code area, as a tree. Add a line when you add one.
     `/prototype.html`
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, build;
   deploys `main` to GitHub Pages
+- `.claude/skills/`: project skills for agents
+  - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks
+    theory claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and
+    compares the two (`compare.mjs`)
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md):
   the checklist every pull request fills in

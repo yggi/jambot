@@ -27,6 +27,7 @@
     "prettier": "^3.9.9",
     "prettier-plugin-svelte": "^4.1.1",
     "svelte": "^5.57.1",
+    "tonal": "^6.4.3",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.70.1",
     "vitest": "^5.0.2"
