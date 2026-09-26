@@ -33,7 +33,7 @@ These principles come from the prototype
 | `packages/theory/`                                     | Music theory on one primitive, `even(k, n, shift)`: pure TypeScript           |
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
-| `tooling/`                                             | The repository's own gates and their tests: lint rules, agent hooks, the pawl |
+| `tooling/`                                             | The repository's own gates and tools: lint rules, hooks, the pawl, the deploy |
 | `prototype/`                                           | The original single-file prototype and its README: a baseline for orientation |
 | `docs/MEMORY.md`                                       | Persistent facts and a cheatsheet: the entry point                            |
 | `docs/INDEX.md`                                        | Tree of all docs and code areas                                               |

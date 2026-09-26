@@ -113,6 +113,10 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `licenses.ts`: the license gate over what the web app ships, and the
     `licenses.txt` it writes; `licenses.test.ts` shows it refusing copyleft
     and unknown licenses
+  - `pages.ts`: the GitHub Pages deploy by hand (`pnpm pages`): builds for
+    the sub-path, checks that the site resolves there, commits it to
+    `gh-pages` and checks the live site; `pages.test.ts` shows the check
+    failing on each kind of broken reference
 - `apps/`
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
@@ -130,8 +134,10 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/ticker.ts`: the scheduler's tick, from a Worker
     - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
       built app in Chromium with its audio measured
+    - `e2e/pages.e2e.ts`: the app and the prototype on the Pages sub-path,
+      online and offline
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e,
-  build; deploys `main` to GitHub Pages; started by hand while #4 is open
+  build; started by hand while #4 is open
 - `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents
   may run without a prompt
   - `.claude/hooks/session-start.sh`: installs dependencies, warms

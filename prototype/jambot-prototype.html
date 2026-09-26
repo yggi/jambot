@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Jambot prototype</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   box-sizing:border-box;
@@ -14,8 +11,8 @@
   padding-bottom:env(safe-area-inset-bottom,0px);
   --bg:#e9ecf3; --surface:#ffffff; --ink:#1b2340; --muted:#59617d; --line:#d3d8e4;
   --amber:#9a6200; --on-amber:#ffffff; --teal:#0f7a6a; --teal-bg:#d8f0eb;
-  --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
-  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --display:var(--body);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
