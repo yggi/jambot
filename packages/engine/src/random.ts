@@ -66,6 +66,12 @@ export const STREAMS = {
   compHit: 12,
   /** The variation of those thresholds on odd bars. */
   compVariation: 13,
+  /** Where a lead shape plays, per section, half and step. */
+  leadRhythm: 14,
+  /** A lead shape's contour and its steps, in order, per section and half. */
+  leadShape: 15,
+  /** How a lead shape is varied, in order, per bar. */
+  leadVariation: 16,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

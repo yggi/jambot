@@ -1,0 +1,190 @@
+import { joinChord, positions, wrap } from '@jambot/theory';
+import { describe, expect, it } from 'vitest';
+import { type BandBar, band } from './band.ts';
+import { chordAt } from './chords.ts';
+import { eventProblems } from './events.ts';
+import { keyHelix } from './key.ts';
+import { LEAD_RANGE, type LeadCarried, lead } from './lead.ts';
+import { type Script, lawBreaks } from './machine.ts';
+import { PRESETS, type Style } from './style.ts';
+
+const range = (n: number) => [...Array(n).keys()];
+
+const styleAt = (bar: number): Style => ({
+  ...PRESETS[Math.floor(bar / 8) % PRESETS.length]!.style,
+  energy: 0.7,
+  entropy: (bar % 32) / 32,
+});
+
+const tour = (seed: number, bars = 160, style = styleAt): BandBar[] => {
+  let carried = band.initial;
+  return range(bars).map((bar) => {
+    const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
+    const next = band.advance(
+      { seed, bar, style: style(bar), wish: { tonic: null, mode: preset.mode } },
+      carried,
+      null,
+    );
+    carried = next.carried;
+    return next.output;
+  });
+};
+
+/** The lead over bars in order, with what it carried into each. */
+const play = (over: readonly BandBar[]) => {
+  let carried: LeadCarried = lead.initial;
+  return over.map((bar) => {
+    const before = carried;
+    const next = lead.advance(bar, carried, null);
+    carried = next.carried;
+    return { bar, before, after: carried, events: next.output };
+  });
+};
+
+const played = [1, 2, 3, 4].flatMap((seed) => play(tour(seed)));
+const playing = played.filter((p) => p.events.length > 0);
+
+const classesOf = (tones: readonly number[]) => tones.map((x) => wrap(x, 12));
+
+describe('the lead', () => {
+  it('keeps the machine laws over a tour of the presets (F1)', () => {
+    for (const seed of [1, 2]) {
+      const script: Script<BandBar, null> = tour(seed, 64).map((env) => ({ env, input: null }));
+      expect(lawBreaks(lead, script)).toEqual([]);
+    }
+  });
+
+  it('writes well-formed lead events, every note in 60–86', () => {
+    expect(LEAD_RANGE).toEqual([60, 86]);
+    expect(playing.length).toBeGreaterThan(200);
+    for (const { events } of playing)
+      for (const e of events) {
+        expect(eventProblems(e)).toEqual([]);
+        expect(e.part).toBe('lead');
+        expect(e.note).toBeGreaterThanOrEqual(60);
+        expect(e.note).toBeLessThanOrEqual(86);
+      }
+  });
+
+  it('rests in an intro, a breakdown and below energy 0.4, and forgets its phrase there', () => {
+    let rests = 0;
+    for (const { bar, events, after } of played) {
+      const resting =
+        bar.plan.section.type === 'intro' ||
+        bar.plan.section.type === 'breakdown' ||
+        bar.barEnergy < 0.4;
+      expect(events.length === 0).toBe(resting);
+      if (resting) {
+        rests++;
+        expect(after.phrase).toBeNull();
+      }
+    }
+    expect(rests).toBeGreaterThan(0);
+  });
+
+  it('plays from energy 0.4 up, and not below', () => {
+    const grooves = playing.map((p) => p.bar).slice(0, 100);
+    const at = (energy: number) =>
+      grooves.map((b) => lead.advance({ ...b, barEnergy: energy }, lead.initial, null).output);
+    expect(at(0.41).every((events) => events.length > 0)).toBe(true);
+    expect(at(0.39).every((events) => events.length === 0)).toBe(true);
+  });
+
+  it('plays at least three notes in a shape, two in a variation, in order, each held until the next under the gate', () => {
+    for (const { bar, events } of playing) {
+      expect(events.length).toBeGreaterThanOrEqual(bar.barInSection % 2 === 0 ? 3 : 2);
+      const steps = events.map((e) => e.step);
+      expect([...steps].sort((a, b) => a - b)).toEqual(steps);
+      expect(new Set(steps).size).toBe(steps.length);
+      const gate = Math.max(0.25, Math.min(1, 1.05 - 0.75 * bar.style.artic));
+      events.forEach((e, i) => {
+        const end = events[i + 1]?.step ?? 16;
+        expect(e.length).toBeCloseTo(Math.max(0.3, (end - e.step) * gate), 9);
+      });
+    }
+  });
+
+  it('lands on a chord tone on the half bar and where a chord starts, and walks the key between', () => {
+    for (const { bar, events } of playing) {
+      const inKey = new Set(positions(keyHelix(bar.plan.key)));
+      for (const e of events) {
+        const chord = chordAt(bar.chords, e.step);
+        const tones = new Set(classesOf(joinChord(chord.chord)));
+        const onChord = e.step % 8 === 0 || bar.chords.some((c) => c.slot.step === e.step);
+        if (onChord) expect(tones.has(wrap(e.note, 12))).toBe(true);
+        else expect(inKey.has(wrap(e.note, 12)) || tones.has(wrap(e.note, 12))).toBe(true);
+      }
+    }
+  });
+
+  it('ends bar 2 of each phrase on the third or fifth, and bar 4 on the root, over every chord it meets', () => {
+    let open = 0;
+    let closed = 0;
+    for (const { bar, events } of playing) {
+      const phase = bar.barInSection % 4;
+      if (phase !== 1 && phase !== 3) continue;
+      const lastNote = events.at(-1)!;
+      const tones = joinChord(chordAt(bar.chords, lastNote.step).chord);
+      const allowed = phase === 3 ? [tones[0]!] : [tones[1]!, tones[2]!];
+      expect(classesOf(allowed)).toContain(wrap(lastNote.note, 12));
+      if (phase === 3) closed++;
+      else open++;
+    }
+    expect(open).toBeGreaterThan(50);
+    expect(closed).toBeGreaterThan(50);
+  });
+
+  it('plays a phrase of four bars: a shape, a variation, the shape again, a variation', () => {
+    let phrases = 0;
+    for (let i = 0; i + 3 < played.length; i++) {
+      const bars = played.slice(i, i + 4);
+      if (bars[0]!.bar.barInSection % 4 !== 0 || bars.some((b) => b.events.length === 0)) continue;
+      if (bars.some((b) => b.bar.plan !== bars[0]!.bar.plan)) continue;
+      phrases++;
+      const shape = bars[0]!.after.phrase!;
+      expect(bars[1]!.after.phrase).toEqual(shape);
+      expect(bars[2]!.after.phrase).toEqual(shape);
+      // Bars 1 and 3 play the shape's rhythm; the variations may drop its last note.
+      for (const b of [bars[0]!, bars[2]!])
+        expect(b.events.map((e) => e.step)).toEqual(shape.steps);
+      for (const b of [bars[1]!, bars[3]!]) {
+        const steps = b.events.map((e) => e.step);
+        expect(shape.steps.slice(0, steps.length)).toEqual(steps);
+        expect(shape.steps.length - steps.length).toBeLessThanOrEqual(1);
+      }
+    }
+    expect(phrases).toBeGreaterThan(20);
+  });
+
+  it("brings a theme's melody back with its harmony, while the style stays near it", () => {
+    // A steady style: every return of a theme plays the shape it played before.
+    const steady = (): Style => ({ ...PRESETS[0]!.style, energy: 0.9, entropy: 0 });
+    let returns = 0;
+    for (const seed of range(6)) {
+      const run = play(tour(seed, 160, steady));
+      const first = new Map<number, unknown>();
+      for (const { bar, after } of run) {
+        if (bar.barInSection !== 0 || !after.phrase) continue;
+        const theme = bar.plan.theme.index;
+        if (first.has(theme)) {
+          expect(after.phrase).toEqual(first.get(theme));
+          returns++;
+        } else first.set(theme, after.phrase);
+      }
+    }
+    expect(returns).toBeGreaterThan(5);
+  });
+
+  it('starts each phrase from the chord tone nearest where it left off', () => {
+    for (const { bar, before, events } of playing) {
+      if (bar.barInSection % 4 !== 0) continue;
+      const first = events[0]!;
+      const tones = classesOf(joinChord(chordAt(bar.chords, first.step).chord));
+      const nearest = range(13)
+        .map((i) => before.last - 6 + i)
+        .filter((n) => tones.includes(wrap(n, 12)))
+        .sort((a, b) => Math.abs(a - before.last) - Math.abs(b - before.last) || a - b)[0]!;
+      expect(wrap(first.note - nearest, 12)).toBe(0);
+    }
+  });
+});
