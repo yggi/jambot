@@ -77,7 +77,8 @@ Witness: none yet.
 Counterexample: the prototype's stab note-offs, which cut sustained pad
 notes on the chords channel (#5). The port keeps them: in 631 of 2,880
 bars (22%) a chords note starts while the same note still sounds, 3,370 of
-3,927 times a stab inside a held pad (E9). Open: whether pad and stab are
+3,927 times a stab inside a held pad (E9), and 15.6% of all pad time goes
+silent on one channel (E11). Open: whether pad and stab are
 two parts of the events, or two voices of one part that the lowering puts
 on two channels (R4).
 Test: open: every preset's events through a MIDI writer and reader.

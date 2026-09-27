@@ -20,10 +20,11 @@ transport, the synth and minimal controls. It plays the engine's raw
 events, so it did not wait on the language design. MIDI out (#24, with #5
 fixed) and capturing what players play — Web MIDI in, the on-screen keys
 and the computer keys (#25) — are done too, quantised and kept for
-whenever the Muse reads them. What the prototype still does that the app
-doesn't is the Muse's judgement of what is captured (#2), the score (#63),
-and the rest of the HUD (#26): the Muse panel, the score and Strudel
-panels.
+whenever the Muse reads them, with their preferences and the MIDI, key and
+sound panel. What the prototype still does that the app doesn't is the
+Muse's judgement of what is captured (#2) and the score (#63). #26's HUD
+is otherwise caught up: what remains there (the Muse panel, the score
+panel, Strudel export) waits on those other issues.
 
 These run in parallel:
 
