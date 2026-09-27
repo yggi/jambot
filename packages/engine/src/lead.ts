@@ -31,13 +31,23 @@
  * prototype's rules and weights.
  */
 
-import { type Chord, even, heightOf, joinChord, positions, wrap } from '@jambot/theory';
+import {
+  type Chord,
+  type Helix,
+  chromaticStep,
+  even,
+  heightOf,
+  joinChord,
+  positions,
+  wrap,
+} from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { chordAt } from './chords.ts';
 import type { WrittenNote } from './events.ts';
 import type { SectionType } from './form.ts';
 import { keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
+import type { Offer } from './muse.ts';
 import { chance, draw, pick, quantize } from './random.ts';
 import type { ThemeKind } from './themes.ts';
 
@@ -207,34 +217,89 @@ export function leadRests(section: SectionType, barEnergy: number): boolean {
   return barEnergy < 0.4 || section === 'breakdown' || section === 'intro';
 }
 
+/** The degree of the key nearest a note: where a phrase starts from. */
+function degreeNear(scale: Helix, note: number): number {
+  const octave = Math.floor((note - scale.heights[0]!) / 12);
+  const within = wrap(note - scale.heights[0]!, 12);
+  let degree = 0;
+  scale.heights.forEach((h, i) => {
+    if (
+      Math.abs(h - scale.heights[0]! - within) <
+      Math.abs(scale.heights[degree]! - scale.heights[0]! - within)
+    )
+      degree = i;
+  });
+  return octave * 7 + degree;
+}
+
+/** The phrase grammar: bar 2 ends open, on the third or fifth, and bar 4 closes on the root. */
+function closed(notes: number[], lastStep: number, chords: BarEnv['chords'], phase: number) {
+  if (phase !== 1 && phase !== 3) return notes;
+  const tones = joinChord(chordAt(chords, lastStep).chord);
+  const allowed = phase === 3 ? [tones[0]!] : [tones[1]!, tones[2]!];
+  return [
+    ...notes.slice(0, -1),
+    nearestOf(
+      allowed.map((x) => wrap(x, 12)),
+      notes.at(-1)!,
+    ),
+  ];
+}
+
+/**
+ * A motif the Muse offers, played whole: its notes from the chord tone
+ * nearest where the lead left off, each altered as written and held to the
+ * next onset, a rest silent, and closed as the phrase grammar closes bars 2
+ * and 4. The lead's own phrase is set aside, so it starts afresh when the
+ * offer goes.
+ */
+function playOffer(env: BarEnv, carried: LeadCarried, offer: Offer) {
+  const { plan, chords, barInSection } = env;
+  const { onsets, degrees, accidentals } = offer.motif;
+  const scale = keyHelix(plan.key);
+  const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
+  const start = nearestTone(chordAt(chords, heard[0]!.step).chord, carried.last);
+  const first = degreeNear(scale, start);
+  const alteration = chromaticStep(scale);
+  let notes = heard.map(
+    ({ i }) => heightOf(scale, first + degrees[i]!) + accidentals[i]! * alteration,
+  );
+  notes = intoRange(closed(notes, heard.at(-1)!.step, chords, barInSection % 4));
+  const written: WrittenNote[] = heard.map(({ step, i }, j) => ({
+    part: 'lead',
+    step,
+    note: notes[j]!,
+    length: (onsets[i + 1] ?? 16) - step,
+  }));
+  return {
+    carried: { ...carried, last: notes.at(-1)!, phrase: null, offered: offer.bar },
+    output: written,
+  };
+}
+
 export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
   initial: { last: 69, phrase: null, melodies: {}, offered: null },
   advance(env, carried) {
     const { seed, bar, plan, style, barEnergy: energy, barInSection, chords, offer } = env;
+    if (offer) return playOffer(env, carried, offer);
     const { section, key, theme } = plan;
-    if (!offer && leadRests(section.type, energy))
+    if (leadRests(section.type, energy))
       return { carried: { ...carried, phrase: null, offered: null }, output: [] };
 
     const phase = barInSection % 4;
     let { phrase, melodies } = carried;
-    const offered = offer?.bar ?? null;
     let shape: LeadShape;
-    if (phase === 0 || !phrase || offered !== carried.offered) {
-      if (offer) {
-        const { steps, degrees } = offer.motif;
-        shape = { steps, degrees, sync: style.sync, energy };
-      } else {
-        const kept = melodies[theme.kind];
-        const returns =
-          kept &&
-          kept.theme === theme.index &&
-          Math.abs(kept.shape.sync - style.sync) < 0.25 &&
-          Math.abs(kept.shape.energy - energy) < 0.3;
-        if (returns) shape = kept.shape;
-        else {
-          shape = shapeOf(env);
-          melodies = { ...melodies, [theme.kind]: { theme: theme.index, shape } };
-        }
+    if (phase === 0 || !phrase) {
+      const kept = melodies[theme.kind];
+      const returns =
+        kept &&
+        kept.theme === theme.index &&
+        Math.abs(kept.shape.sync - style.sync) < 0.25 &&
+        Math.abs(kept.shape.energy - energy) < 0.3;
+      if (returns) shape = kept.shape;
+      else {
+        shape = shapeOf(env);
+        melodies = { ...melodies, [theme.kind]: { theme: theme.index, shape } };
       }
       phrase = shape;
     } else if (phase === 2) shape = phrase;
@@ -244,36 +309,14 @@ export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
     // nearest where the lead left off.
     const scale = keyHelix(key);
     const start = nearestTone(chordAt(chords, shape.steps[0]!).chord, carried.last);
-    const octave = Math.floor((start - scale.heights[0]!) / 12);
-    const within = wrap(start - scale.heights[0]!, 12);
-    let degree = 0;
-    scale.heights.forEach((h, i) => {
-      if (
-        Math.abs(h - scale.heights[0]! - within) <
-        Math.abs(scale.heights[degree]! - scale.heights[0]! - within)
-      )
-        degree = i;
-    });
-    const first = octave * 7 + degree;
+    const first = degreeNear(scale, start);
     let notes = shape.degrees.map((d) => heightOf(scale, first + d));
-    if (!offer)
-      notes = notes.map((note, i) => {
-        const s = shape.steps[i]!;
-        const onChord = s % 8 === 0 || chords.some((c) => c.slot.step === s);
-        return onChord ? nearestTone(chordAt(chords, s).chord, note) : note;
-      });
-
-    // The phrase grammar: bar 2 ends open, bar 4 closes on the root.
-    if (phase === 1 || phase === 3) {
-      const i = notes.length - 1;
-      const tones = joinChord(chordAt(chords, shape.steps[i]!).chord);
-      const allowed = phase === 3 ? [tones[0]!] : [tones[1]!, tones[2]!];
-      notes[i] = nearestOf(
-        allowed.map((x) => wrap(x, 12)),
-        notes[i]!,
-      );
-    }
-    notes = intoRange(notes);
+    notes = notes.map((note, i) => {
+      const s = shape.steps[i]!;
+      const onChord = s % 8 === 0 || chords.some((c) => c.slot.step === s);
+      return onChord ? nearestTone(chordAt(chords, s).chord, note) : note;
+    });
+    notes = intoRange(closed(notes, shape.steps.at(-1)!, chords, phase));
 
     const written: WrittenNote[] = shape.steps.map((s, i) => ({
       part: 'lead',
@@ -281,6 +324,9 @@ export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
       note: notes[i]!,
       length: (shape.steps[i + 1] ?? 16) - s,
     }));
-    return { carried: { last: notes.at(-1)!, phrase, melodies, offered }, output: written };
+    return {
+      carried: { last: notes.at(-1)!, phrase, melodies, offered: null },
+      output: written,
+    };
   },
 };

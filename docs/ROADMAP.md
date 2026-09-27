@@ -24,10 +24,11 @@ it was heard, with its release, for whenever the Muse reads it, with their
 preferences and the MIDI, key and sound panel. The on-screen keyboard and
 a set of drum pads mark the current key's scale and flash for the band's
 own lead and drum notes, and play at once, along with the band, from any
-input source (#25). What the prototype still does that the app doesn't is
-the Muse's judgement of what is captured (#79) and the score (#63). #26's
-HUD is otherwise caught up: what remains there (the Muse panel, the score
-panel, Strudel export) waits on those other issues.
+input source (#25). The Muse hears a motif and the lead plays it back from
+the bar after next (#79). What the prototype still does that the app
+doesn't is the Muse's panel (#79) and the score (#63). #26's HUD is
+otherwise caught up: what remains there (the Muse panel, the score panel,
+Strudel export) waits on those other issues.
 
 These run in parallel:
 

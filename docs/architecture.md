@@ -69,8 +69,9 @@ design (#7).
   style,      │ engine (pure, deterministic, no I/O)             │
   key wish,   │  section plan ─ per section: form, key, theme    │
   seed ─────▶ │  band ──────── per bar: decides the next bar,    │
-  (notes,     │                plays drums · bass · comp · lead  │
-   takeovers  │  [text step: encode → compile, #63]              │
+  notes       │                plays drums · bass · comp · lead  │
+  heard ────▶ │  Muse ──────── per bar: offers a motif heard     │
+  (takeovers  │  [text step: encode → compile, #63]              │
    later)     └────────────────────────┬─────────────────────────┘
                                        │ note events per bar, and its sound
               ┌────────────────────────▼─────────────────────────┐
@@ -101,6 +102,9 @@ design (#7).
   - **the parts**, per bar, over one `BarEnv`: the drums carry nothing, the
     bass its last note, the comp its last voicing, the lead its last note,
     its phrase and its themes' melodies;
+  - **the Muse** (`muse.ts`), per bar: it judges what each player played in
+    a bar into a motif and offers the one it takes, which the band reads as
+    its environment, as it reads the key wish, and the lead plays;
   - **the transport**, per tick (below).
 
   The parts write notes: a step, a note and a length in whole steps, and a
@@ -125,9 +129,12 @@ design (#7).
   colour a bar later, and a key wish at the next section the band plans, a
   bar before that section starts. Tempo and
   swing follow per step and per beat, and a started beat keeps its swing.
-  After a stall, what the clock has passed is dropped, not played late. The
-  web app supplies the clock and plays what it schedules
-  (`apps/web/src/player.svelte.ts`).
+  After a stall, what the clock has passed is dropped, not played late.
+  Notes players play arrive as its input, where they were heard; as the
+  band composes a bar, the Muse judges the bar before the one before it,
+  so a motif heard in bar k plays from bar k + 2 and nothing reaches a bar
+  sooner (F7). The web app supplies the clock and plays what it schedules
+  (`apps/web/src/player.svelte.ts`), and passes on the notes played.
 - **Renderers**: turn timed events into sound or MIDI messages. The web
   app's output routes an event by its part: the drums to a synthesised kit,
   the bass, chords and lead to voices that the bar's `sound` colours
@@ -179,8 +186,8 @@ a channel pads and stabs share (#24, #5). It also listens: Web MIDI in,
 the on-screen keys and the computer keys all reach a common note capture,
 which places each note on the grid where it was heard, through the steps
 as the transport laid them, and keeps it for the Muse (#25). The Muse's
-judgement of what it captured is in the engine (#79), and reaches the band
-with #79's step 3. At an event it connects to the root node (#20).
+judgement of what it captured is in the engine, and the lead plays the
+motif it offers (#79). At an event it connects to the root node (#20).
 
 ### Root node
 
@@ -314,11 +321,10 @@ Open:
   named cell in the score, is open.
 - **Exact positions** (T2): the port counts steps in floating point, and
   whether positions become exact fractions is open until the text step.
-- **The Muse** (#79): its judgement and its machine are in the engine
-  (`muse.ts`), and where its offer enters the band is open until #79
-  step 3. Inputs tag every
-  note with its source (#25); whether an arpeggio of a held chord can be
-  told from mashing (play-aeiou) is still open.
+- **The Muse** (#79): it takes a motif and the lead plays it back whole.
+  How the band develops a motif rather than repeats it, how several
+  players are weighed, whether an arpeggio of a held chord can be told
+  from mashing (play-aeiou), and following the players' style are open.
 - **The MIDI clock's master** (#27): whether a web client or the root node
   drives it when both exist.
 - **Latency and jitter budgets** (#27), and whether notes are humanised

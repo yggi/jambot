@@ -376,7 +376,9 @@ function listening(
   const inputs: TransportInput[] = [];
   let waiting = [...notes];
   for (const [i, tick] of ticks(0.9, count).entries()) {
-    const arrived = waiting.filter((n) => (laid.get(Math.floor(n.position)) ?? Infinity) <= tick.now);
+    const arrived = waiting.filter(
+      (n) => (laid.get(Math.floor(n.position)) ?? Infinity) <= tick.now,
+    );
     waiting = waiting.filter((n) => !arrived.includes(n));
     const input: TransportInput = { ...tick, heard: arrived, forget: i === forgetAt };
     inputs.push(input);
@@ -423,7 +425,8 @@ describe('the transport listening', () => {
     expect(judged).toEqual(range(judged.length));
     expect(judged.length).toBeGreaterThan(8);
     const last = judged.at(-1)!;
-    for (const n of carried!.listening.pending) expect(Math.floor(n.position / 16)).toBeGreaterThan(last);
+    for (const n of carried!.listening.pending)
+      expect(Math.floor(n.position / 16)).toBeGreaterThan(last);
     expect(carried!.listening.unjudged.every((u) => u.bar > last)).toBe(true);
   });
 

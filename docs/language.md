@@ -823,21 +823,25 @@ over 659,594 chains, each helix at every shift below its cycle.
 Source: `docs/theory.md` ("Composition"). Status: measured.
 
 **F7. Every feedback loop passes through a delay.**
-Witness: the one loop that closes today, the players' key wish. The
-players hear the key and wish for another; the wish enters the band as its
-environment, not its state, and the band reads it only at a section
-boundary (C5, C6), so the loop is delayed by the rest of a section and a
-beat. In the prototype the Muse judges a bar after it ends and plays a
-motif back two bars later. Pd refuses a signal loop without a delay for the
-same reason.
+Witness: two loops. The players' key wish: the players hear the key and
+wish for another; the wish enters the band as its environment, not its
+state, and the band reads it only at a section boundary (C5, C6), so the
+loop is delayed by the rest of a section and a beat. The Muse (#79): notes
+played arrive at the transport as input, the Muse judges a bar as the band
+composes the bar after next (`LISTEN_DELAY`), and its offer enters the band
+as its environment, so a motif heard in bar k plays from bar k + 2, as in
+the prototype. Pd refuses a signal loop without a delay for the same
+reason.
 Counterexample: a wiring of machines with a delay-free cycle, or a wish
-heard inside the section it was sent in.
+heard inside the section it was sent in; a note played in a bar that
+changes that bar or the next.
 Test: `player.test.ts`, "hears a preset's mode from the next section on,
-and shows the chords (C5)", for the key wish. Open: a check over the
-wiring, with a wiring it rejects, once the Muse closes a loop inside the
-engine.
-Source: F1, Pd, #37 step 4. Status: derived; measured (the key wish). Lands
-in: #25, Q6.
+and shows the chords (C5)", for the key wish; `transport.test.ts`, whose
+test of a motif played back cites F7: notes in bar k leave every bar before
+k + 2 as it was, and bar k + 2 plays the motif. A wiring that judges a bar
+as the next is composed, a delay of one bar, fails it.
+Source: F1, Pd, #37 step 4, #79 step 3. Status: derived; measured (the key
+wish); measured (the Muse's loop). Lands in: #79, Q6.
 
 **F8. The jam is an infinite stream, made one position at a time.**
 Witness: the transport, whose every advance is bounded (T1). "The clock
