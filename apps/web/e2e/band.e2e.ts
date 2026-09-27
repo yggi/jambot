@@ -160,7 +160,9 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   await expect(page.getByText(/: Took a 3-note motif from the computer keys\./)).toBeVisible({
     timeout: 8000,
   });
-  await expect(page.getByText(/Lead is playing the motif heard in bar \d+\./)).toBeVisible({
+  await expect(
+    page.getByLabel('Conductor').getByText(/Lead is playing the motif heard in bar \d+\./),
+  ).toBeVisible({
     timeout: 8000,
   });
   await page.waitForTimeout(3000);
@@ -259,7 +261,9 @@ for (const input of INPUTS)
     );
     await expect(took).toBeVisible({ timeout: 8000 });
     const heard = /Bar (\d+):/.exec((await took.textContent()) ?? '')![1];
-    await expect(page.getByText(`Lead is playing the motif heard in bar ${heard}.`)).toBeVisible({
+    await expect(
+      page.getByLabel('Conductor').getByText(`Lead is playing the motif heard in bar ${heard}.`),
+    ).toBeVisible({
       timeout: 8000,
     });
     expect(errors).toEqual([]);
