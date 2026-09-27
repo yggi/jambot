@@ -5,8 +5,10 @@
   one held before adopting it.
 -->
 <script lang="ts">
+  import type { DrumSound } from '@jambot/engine';
   import type { MidiAccess } from '../midi/access.ts';
-  import type { Channels } from '../audio/midi-out.ts';
+  import type { Channels, DrumNotes } from '../audio/midi-out.ts';
+  import { DRUM_NOTE_PRESETS, presetNameOf } from '../midi/drum-presets.ts';
   import type { MidiSettings } from '../midi/settings.svelte.ts';
 
   interface Props {
@@ -14,9 +16,11 @@
     access: MidiAccess | null;
     message: string;
     onconnect: () => void;
+    /** All notes off, for hardware left sounding by a suspended tab or a dropped connection. */
+    onpanic?: () => void;
   }
 
-  let { settings, access, message, onconnect }: Props = $props();
+  let { settings, access, message, onconnect, onpanic }: Props = $props();
 
   const PARTS: { key: keyof Channels; label: string }[] = [
     { key: 'lead', label: 'Lead' },
@@ -26,10 +30,30 @@
     { key: 'drums', label: 'Drums' },
   ];
 
+  const DRUM_SOUNDS: { key: DrumSound; label: string }[] = [
+    { key: 'kick', label: 'Kick' },
+    { key: 'rim', label: 'Rim' },
+    { key: 'snare', label: 'Snare' },
+    { key: 'closedHat', label: 'Closed hat' },
+    { key: 'pedalHat', label: 'Pedal hat' },
+    { key: 'openHat', label: 'Open hat' },
+    { key: 'ride', label: 'Ride' },
+  ];
+
   const clampChannel = (value: string) => Math.max(1, Math.min(16, +value || 1));
+  const clampNote = (value: string) => Math.max(0, Math.min(127, +value || 0));
 
   function setChannel(part: keyof Channels, value: string) {
     settings.channels = { ...settings.channels, [part]: clampChannel(value) };
+  }
+
+  function setDrumNote(sound: DrumSound, value: string) {
+    settings.drumNotes = { ...settings.drumNotes, [sound]: clampNote(value) };
+  }
+
+  function setDrumPreset(name: string) {
+    const preset: DrumNotes | undefined = DRUM_NOTE_PRESETS[name];
+    if (preset) settings.drumNotes = { ...preset };
   }
 
   function setOutPort(id: string) {
@@ -50,6 +74,9 @@
       <button type="button" onclick={onconnect}>Connect MIDI</button>
     {/if}
     <p class="message">{message}</p>
+    {#if access && onpanic}
+      <button type="button" onclick={onpanic}>All notes off</button>
+    {/if}
     {#if access}
       <label>
         Listen to input
@@ -83,6 +110,35 @@
               max="16"
               value={settings.channels[p.key]}
               onchange={(e) => setChannel(p.key, e.currentTarget.value)}
+            />
+          </label>
+        {/each}
+      </div>
+    </div>
+    <div class="channels">
+      <p class="label">Drum notes</p>
+      <label>
+        Preset
+        <select
+          value={presetNameOf(settings.drumNotes) ?? ''}
+          onchange={(e) => setDrumPreset(e.currentTarget.value)}
+        >
+          <option value="" disabled>Custom</option>
+          {#each Object.keys(DRUM_NOTE_PRESETS) as name (name)}
+            <option value={name}>{name}</option>
+          {/each}
+        </select>
+      </label>
+      <div class="chs">
+        {#each DRUM_SOUNDS as s (s.key)}
+          <label>
+            {s.label}
+            <input
+              type="number"
+              min="0"
+              max="127"
+              value={settings.drumNotes[s.key]}
+              onchange={(e) => setDrumNote(s.key, e.currentTarget.value)}
             />
           </label>
         {/each}

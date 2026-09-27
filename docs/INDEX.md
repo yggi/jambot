@@ -339,6 +339,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       `connectMidi`, connecting and adopting the ports already chosen
     - `src/midi/settings.svelte.ts`: MIDI preferences, saved to `localStorage`
       on every change
+    - `src/midi/drum-presets.ts`: named drum note maps `MidiPanel` offers (GM,
+      Novation Circuit), and which one a `DrumNotes` matches, if any
     - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
       built app in Chromium with its audio measured
     - `e2e/pages.e2e.ts`: the app and the prototype on the Pages sub-path,

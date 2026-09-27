@@ -13,6 +13,7 @@ function surroundings() {
     played: 0,
     plays: [] as { part: string; note: number; seconds: number }[],
     silenced: 0,
+    panics: 0,
     tickers: [] as { tick: () => void; stopped: boolean }[],
     frames: [] as { follow: () => void; stopped: boolean }[],
     seeds: [] as number[],
@@ -34,6 +35,7 @@ function surroundings() {
       world.plays.push({ part, note, seconds });
     },
     silence: () => void world.silenced++,
+    panic: () => void world.panics++,
     tick: (steps) => world.steps.push(...steps),
   };
   const s: Surroundings = {
@@ -85,6 +87,18 @@ describe('the player', () => {
     expect(player.status).toBe('stopped');
     expect(world.tickers).toHaveLength(0);
     expect(world.played).toBe(0);
+  });
+
+  it('panics the output once it exists, and does nothing before anything could be holding a note', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    player.panicMidi();
+    expect(world.panics).toBe(0);
+    void player.start();
+    world.resolve();
+    await settle();
+    player.panicMidi();
+    expect(world.panics).toBe(1);
   });
 
   it('plays what the transport schedules, and on stop silences it and stops ticking', async () => {

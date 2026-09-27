@@ -8,13 +8,20 @@
  * this class only remembers what was chosen.
  */
 
-import { DEFAULT_CHANNELS, type Channels, type MidiPort } from '../audio/midi-out.ts';
+import {
+  DEFAULT_CHANNELS,
+  DEFAULT_DRUM_NOTES,
+  type Channels,
+  type DrumNotes,
+  type MidiPort,
+} from '../audio/midi-out.ts';
 
 const STORAGE_KEY = 'jambot-midi-v1';
 
 interface StoredPrefs {
   readonly internal: boolean;
   readonly channels: Channels;
+  readonly drumNotes: DrumNotes;
   readonly clock: boolean;
   readonly thru: boolean;
   readonly thruChannel: number;
@@ -26,6 +33,7 @@ interface StoredPrefs {
 const DEFAULTS: StoredPrefs = {
   internal: true,
   channels: DEFAULT_CHANNELS,
+  drumNotes: DEFAULT_DRUM_NOTES,
   clock: false,
   thru: false,
   thruChannel: 1,
@@ -38,7 +46,12 @@ function load(): StoredPrefs {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
     const stored = JSON.parse(raw) as Partial<StoredPrefs>;
-    return { ...DEFAULTS, ...stored, channels: { ...DEFAULTS.channels, ...stored.channels } };
+    return {
+      ...DEFAULTS,
+      ...stored,
+      channels: { ...DEFAULTS.channels, ...stored.channels },
+      drumNotes: { ...DEFAULTS.drumNotes, ...stored.drumNotes },
+    };
   } catch {
     return DEFAULTS;
   }
@@ -47,6 +60,7 @@ function load(): StoredPrefs {
 export class MidiSettings {
   #internal = $state(true);
   #channels: Channels = $state.raw(DEFAULT_CHANNELS);
+  #drumNotes: DrumNotes = $state.raw(DEFAULT_DRUM_NOTES);
   #clock = $state(false);
   #thru = $state(false);
   #thruChannel = $state(1);
@@ -60,6 +74,7 @@ export class MidiSettings {
     const stored = load();
     this.#internal = stored.internal;
     this.#channels = stored.channels;
+    this.#drumNotes = stored.drumNotes;
     this.#clock = stored.clock;
     this.#thru = stored.thru;
     this.#thruChannel = stored.thruChannel;
@@ -80,6 +95,14 @@ export class MidiSettings {
   }
   set channels(value: Channels) {
     this.#channels = value;
+    this.#save();
+  }
+
+  get drumNotes(): DrumNotes {
+    return this.#drumNotes;
+  }
+  set drumNotes(value: DrumNotes) {
+    this.#drumNotes = value;
     this.#save();
   }
 
@@ -127,6 +150,7 @@ export class MidiSettings {
     const stored: StoredPrefs = {
       internal: this.#internal,
       channels: this.#channels,
+      drumNotes: this.#drumNotes,
       clock: this.#clock,
       thru: this.#thru,
       thruChannel: this.#thruChannel,

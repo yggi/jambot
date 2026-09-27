@@ -49,6 +49,7 @@
           internal: () => midiSettings.internal,
           port: () => midiSettings.outPort,
           channels: () => midiSettings.channels,
+          drumNotes: () => midiSettings.drumNotes,
           clock: () => midiSettings.clock,
         },
         base,
@@ -118,6 +119,20 @@
     midiAccess = result.access;
     midiMessage = result.message;
   }
+
+  // A port chosen before is remembered (`MidiSettings`); reconnect to it without
+  // waiting for a click, since a granted Web MIDI permission needs no gesture.
+  if (midiSettings.outPortId !== 'none' || midiSettings.inPortId !== 'none') void connectMidi();
+
+  $effect(() => {
+    // A phone or a tab suspended mid-note can leave hardware sounding one
+    // whose release a frozen clock never got to schedule; silence it on wake.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') player.panicMidi();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  });
 
   $effect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -216,6 +231,7 @@
     access={midiAccess}
     message={midiMessage}
     onconnect={connectMidi}
+    onpanic={() => player.panicMidi()}
   />
 
   <p class="note">

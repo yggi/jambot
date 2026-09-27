@@ -1,5 +1,5 @@
 import { PRESETS } from '@jambot/engine';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.svelte';
@@ -153,6 +153,67 @@ describe('the app', () => {
       await tick();
       expect(screen.getByRole('button', { name: 'E4' })).toHaveClass('down');
 
+      delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
+    });
+
+    it('reconnects on load to a port chosen before, without a click', async () => {
+      const access = { inputs: new Map(), outputs: new Map([['out-1', {}]]), onstatechange: null };
+      const requestMIDIAccess = vi.fn(async () => access);
+      (navigator as unknown as { requestMIDIAccess: unknown }).requestMIDIAccess =
+        requestMIDIAccess;
+      localStorage.setItem('jambot-midi-v1', JSON.stringify({ outPortId: 'out-1' }));
+
+      render(App);
+      await waitFor(() => expect(requestMIDIAccess).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Connect MIDI' })).not.toBeInTheDocument(),
+      );
+      expect(screen.getByLabelText('Send to output')).toHaveValue('out-1');
+
+      delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
+    });
+
+    it('never auto-connects when no port was ever chosen, so a first-time visit asks no permission unprompted', () => {
+      const requestMIDIAccess = vi.fn(async () => ({
+        inputs: new Map(),
+        outputs: new Map(),
+        onstatechange: null,
+      }));
+      (navigator as unknown as { requestMIDIAccess: unknown }).requestMIDIAccess =
+        requestMIDIAccess;
+
+      render(App);
+      expect(requestMIDIAccess).not.toHaveBeenCalled();
+
+      delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
+    });
+
+    it('sends all notes off on waking from a hidden tab, so a suspend never leaves hardware stuck', async () => {
+      const port = { send: vi.fn() };
+      const access = {
+        inputs: new Map(),
+        outputs: new Map([['out-1', port]]),
+        onstatechange: null,
+      };
+      (navigator as unknown as { requestMIDIAccess: unknown }).requestMIDIAccess = vi.fn(
+        async () => access,
+      );
+
+      render(App);
+      await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
+      await fireEvent.change(screen.getByRole('combobox', { name: 'Send to output' }), {
+        target: { value: 'out-1' },
+      });
+      await fireEvent.keyDown(window, { key: 'a' }); // creates the output, sending a note on
+      await tick();
+      port.send.mockClear();
+
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(port.send.mock.calls.some(([data]) => data[1] === 123)).toBe(true); // all notes off
+
+      vi.restoreAllMocks();
       delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
     });
   });
