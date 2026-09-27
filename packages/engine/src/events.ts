@@ -15,6 +15,17 @@
  * stab never cuts a pad that holds its note.
  */
 
+import {
+  type Helix,
+  METERS,
+  type Meter,
+  degreeBelow,
+  heightOf,
+  meterOnSteps,
+  mod,
+  wrap,
+} from '@jambot/theory';
+
 export const PARTS = ['drums', 'bass', 'pad', 'stab', 'lead'] as const;
 export type Part = (typeof PARTS)[number];
 
@@ -43,12 +54,48 @@ export interface WrittenNote {
   readonly accent?: number;
 }
 
+/** The song's meter: 4/4, in every bar. */
+export const SONG_METER: Meter = METERS['4/4'];
+
 /**
- * How many steps a bar has: sixteen 16ths, a bar of 4/4. Every bar the band
- * plays has this many, so a step from the song's start is the bar's times
- * this plus the step in the bar.
+ * The song's clock: its meter on the bar's steps, two to an eighth, whose
+ * degrees are the beats. A bar is one turn of it, a step's place in the bar
+ * a position on it, and a beat a degree, so every reading of bar and beat
+ * below is the helix's own (T10), and a meter other than 4/4 changes them
+ * all at once.
  */
-export const BAR_STEPS = 16;
+export const BEATS: Helix = meterOnSteps(SONG_METER);
+
+/**
+ * How many steps a bar has: one turn of the song's clock, sixteen 16ths in
+ * 4/4. Every bar the band plays has this many, so a step from the song's
+ * start is `barStart` of its bar plus its step in the bar.
+ */
+export const BAR_STEPS = BEATS.cycle;
+
+const BEATS_IN_BAR = BEATS.heights.length;
+
+/** The bar a position is in, counted from the song's start. */
+export const barAt = (position: number): number =>
+  Math.floor(degreeBelow(BEATS, position) / BEATS_IN_BAR);
+
+/** The step a bar starts on, counted from the song's start. */
+export const barStart = (bar: number): number => heightOf(BEATS, bar * BEATS_IN_BAR);
+
+/** A position's place in its bar, from 0 up to `BAR_STEPS`. */
+export const stepInBar = (position: number): number => wrap(position, BAR_STEPS);
+
+/** The beat a position is in, counted from the song's start. */
+export const beatAt = (position: number): number => degreeBelow(BEATS, position);
+
+/** The step a beat starts on, counted from the song's start. */
+export const beatStart = (beat: number): number => heightOf(BEATS, beat);
+
+/** A position's beat in its bar, from 0. */
+export const beatInBar = (position: number): number => mod(beatAt(position), BEATS_IN_BAR);
+
+/** Whether a beat starts at a position. */
+export const onBeat = (position: number): boolean => beatStart(beatAt(position)) === position;
 
 export interface NoteEvent {
   readonly part: Part;

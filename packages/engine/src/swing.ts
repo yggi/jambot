@@ -15,6 +15,7 @@
  * crossfading from the 16th level to the 8th on the way.
  */
 
+import { beatAt, beatStart } from './events.ts';
 import { type StyleTrack, valueAt } from './style.ts';
 
 /** Positions in steps, a beat being 4, or on a clock in seconds. */
@@ -54,7 +55,7 @@ export function swingMap(swing: number): TimeMap {
  * is the finest rate at which that holds.
  */
 export function swingOf(track: StyleTrack): TimeMap {
-  const at = (x: number) => swingMap(valueAt('swing', track.swing, 4 * Math.floor(x / 4)));
+  const at = (x: number) => swingMap(valueAt('swing', track.swing, beatStart(beatAt(x))));
   return { played: (x) => at(x).played(x), written: (y) => at(y).written(y) };
 }
 

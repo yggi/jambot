@@ -20,7 +20,7 @@
 import { type Chord, wrap } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { type BarChord, chordAt } from './chords.ts';
-import type { WrittenNote } from './events.ts';
+import { BAR_STEPS, type WrittenNote, beatAt, beatStart, onBeat } from './events.ts';
 import type { Machine } from './machine.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { swingParts } from './swing.ts';
@@ -85,7 +85,7 @@ export const bass: Machine<BarEnv, number, null, WrittenNote[]> = {
 
     if (plan.section.type === 'breakdown') {
       chords.forEach((c, i) => {
-        const end = chords[i + 1]?.slot.step ?? 16;
+        const end = chords[i + 1]?.slot.step ?? BAR_STEPS;
         last = nearest(rootOf(c.chord), last);
         notes.push({ part: 'bass', step: c.slot.step, note: last, length: end - c.slot.step });
       });
@@ -98,24 +98,26 @@ export const bass: Machine<BarEnv, number, null, WrittenNote[]> = {
     const held = (role: number, step: number) =>
       heldDraw(seed, HELD, role, section, bar, step, style.entropy);
     const onsets: number[] = [];
-    for (let s = 0; s < 16; s++) {
+    for (let s = 0; s < BAR_STEPS; s++) {
       let p = 0;
       for (const pattern of Object.keys(PATTERNS) as BassPattern[])
         p += blend[pattern] * PATTERNS[pattern][s]!;
       p /= total;
-      const forced = (startsAt(s) && blend.pump < 0.45) || (blend.walk > 0.5 && s % 4 === 0);
+      const forced = (startsAt(s) && blend.pump < 0.45) || (blend.walk > 0.5 && onBeat(s));
       if (forced || chance(held(ROLE.hit, s), p * density)) onsets.push(s);
     }
     if (onsets.length === 0) onsets.push(0);
 
     onsets.forEach((s, i) => {
       const chord = chordAt(chords, s).chord;
-      const end = onsets[i + 1] ?? 16;
+      const end = onsets[i + 1] ?? BAR_STEPS;
       let pitchClass = rootOf(chord);
       let up = false;
-      if (blend.walk > 0.5 && s % 4 === 0) {
-        const change = s === 12 || startsAt(s + 4);
-        const target = s === 12 ? (next[0]?.chord ?? chord) : chordAt(chords, s + 4).chord;
+      if (blend.walk > 0.5 && onBeat(s)) {
+        const nextBeat = beatStart(beatAt(s) + 1);
+        const lastBeat = nextBeat >= BAR_STEPS;
+        const change = lastBeat || startsAt(nextBeat);
+        const target = lastBeat ? (next[0]?.chord ?? chord) : chordAt(chords, nextBeat).chord;
         if (startsAt(s)) pitchClass = rootOf(chord);
         else if (change)
           pitchClass =

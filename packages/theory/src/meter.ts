@@ -32,7 +32,7 @@
  */
 
 import { even } from './even.ts';
-import { type Helix } from './helix.ts';
+import { type Helix, compose } from './helix.ts';
 
 export type MeterName = '3/4' | '4/4' | '5/8' | '6/8' | '7/8' | '9/8' | '10/8' | '12/8';
 
@@ -62,4 +62,14 @@ export function meterWeights(meter: Meter): Weight[] {
   return Array.from({ length: meter.cycle }, (_, position) =>
     position === 0 ? 'downbeat' : pulses.has(position) ? 'pulse' : 'subdivision',
   );
+}
+
+/**
+ * A meter on a bar's steps, `stepsPerEighth` to an eighth: its pulses as
+ * steps. The song's 4/4 on its 16 steps is `even(4, 16)`, the beats the
+ * transport plays (T6), and its bar, step in the bar and beat are this
+ * helix's turn, position and degree (T10).
+ */
+export function meterOnSteps(meter: Meter, stepsPerEighth = 2): Helix {
+  return compose(meter, even(meter.cycle, stepsPerEighth * meter.cycle));
 }
