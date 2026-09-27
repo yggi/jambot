@@ -1,10 +1,12 @@
 <!--
-  One band member, collapsed to its label and status, expandable to what it
-  is sounding now and, while the lead plays a motif, whose it is. Reusable
-  and read-only: it takes a `MemberView` and reads nothing else, so the same
-  row shows whether the player hosts, follows, or plays alone.
+  One band member, collapsed to its label and status, expandable to its last
+  bar as a piano roll, what it is sounding now, and, while the lead plays a
+  motif, whose it is. Reusable and read-only: it takes a `MemberView` and
+  reads nothing else, so the same row shows whether the player hosts,
+  follows, or plays alone.
 -->
 <script lang="ts">
+  import PianoRoll from './PianoRoll.svelte';
   import type { MemberView } from '../members.ts';
 
   interface Props {
@@ -23,6 +25,8 @@
     {#if member.source}
       <p class="source">From {member.source}.</p>
     {/if}
+    <p class="caption">Last bar</p>
+    <PianoRoll notes={member.pattern} />
     <p class="sounding" class:silent={member.sounding.length === 0}>
       {member.sounding.length === 0
         ? 'Silent.'
@@ -58,6 +62,7 @@
     gap: 4px;
   }
   .source,
+  .caption,
   .sounding {
     font-size: 13px;
     color: var(--muted);

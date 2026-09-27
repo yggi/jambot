@@ -535,4 +535,22 @@ describe('the player', () => {
       expect(player.sounding).toEqual({ drums: [], bass: [], comp: [], lead: [] });
     });
   });
+
+  describe('the last bar’s pattern', () => {
+    it('gives every track the notes of the last bar it finished, and clears them on stop', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      void player.start();
+      world.resolve();
+      await settle();
+      for (let t = 0; t < 20; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+      for (const part of ['drums', 'bass', 'comp', 'lead'] as const)
+        expect(player.pattern[part].length).toBeGreaterThan(0);
+      player.stop();
+      expect(player.pattern).toEqual({ drums: [], bass: [], comp: [], lead: [] });
+    });
+  });
 });

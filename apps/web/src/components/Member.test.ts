@@ -9,6 +9,7 @@ const view = (over: Partial<MemberView> = {}): MemberView => ({
   status: 'Lead is improvising.',
   source: null,
   sounding: [],
+  pattern: [],
   ...over,
 });
 
@@ -48,5 +49,19 @@ describe('a band member', () => {
     });
     opened(container);
     expect(screen.getByText('From Ada’s keys.')).toBeInTheDocument();
+  });
+
+  it('says nothing played in the last bar when its pattern is empty, once expanded', () => {
+    const { container } = render(Member, { member: view({ pattern: [] }) });
+    opened(container);
+    expect(screen.getByText('Nothing played in the last bar yet.')).toBeInTheDocument();
+  });
+
+  it('draws its last bar as a piano roll when it has one, once expanded', () => {
+    const { container } = render(Member, {
+      member: view({ pattern: [{ step: 0, note: 60, length: 4 }] }),
+    });
+    opened(container);
+    expect(screen.getByRole('img', { name: 'Pattern of 1 notes' })).toBeInTheDocument();
   });
 });

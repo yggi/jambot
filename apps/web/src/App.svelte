@@ -81,7 +81,7 @@
   const heldLead = new SvelteSet<number>();
   const heldDrums = new SvelteSet<number>();
 
-  const members = $derived(membersOf(player.hud, player.sounding));
+  const members = $derived(membersOf(player.hud, player.sounding, player.pattern));
 
   /**
    * A note source for one instrument: `routeNote` holds it, captures it for

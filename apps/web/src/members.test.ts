@@ -31,12 +31,22 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
 
 describe('the stage’s members', () => {
   it('names all four band members in one order, drums, bass, chords, lead', () => {
-    expect(membersOf(hud(), none).map((m) => m.member)).toEqual(['drums', 'bass', 'comp', 'lead']);
-    expect(membersOf(hud(), none).map((m) => m.label)).toEqual(['Drums', 'Bass', 'Chords', 'Lead']);
+    expect(membersOf(hud(), none, none).map((m) => m.member)).toEqual([
+      'drums',
+      'bass',
+      'comp',
+      'lead',
+    ]);
+    expect(membersOf(hud(), none, none).map((m) => m.label)).toEqual([
+      'Drums',
+      'Bass',
+      'Chords',
+      'Lead',
+    ]);
   });
 
   it('gives the lead its own status, and the style’s to every other member', () => {
-    const members = membersOf(hud({ bar: barView({ lead: 'resting' }) }), none);
+    const members = membersOf(hud({ bar: barView({ lead: 'resting' }) }), none, none);
     expect(members.find((m) => m.member === 'lead')!.status).toBe('Lead is resting.');
     for (const member of ['drums', 'bass', 'comp'] as const)
       expect(members.find((m) => m.member === member)!.status).toBe('Playing Techno.');
@@ -47,11 +57,11 @@ describe('the stage’s members', () => {
       bar: barView({ lead: 'motif', motif: 6 }),
       muse: { motif: { source: 'Ada’s computer keys', bar: 6, rows: 1, notes: [] }, log: [] },
     });
-    const members = membersOf(playing, none);
+    const members = membersOf(playing, none, none);
     expect(members.find((m) => m.member === 'lead')!.source).toBe('Ada’s computer keys');
     for (const member of ['drums', 'bass', 'comp'] as const)
       expect(members.find((m) => m.member === member)!.source).toBeNull();
-    const resting = membersOf(hud({ bar: barView({ lead: 'resting' }) }), none);
+    const resting = membersOf(hud({ bar: barView({ lead: 'resting' }) }), none, none);
     expect(resting.find((m) => m.member === 'lead')!.source).toBeNull();
   });
 
@@ -61,13 +71,25 @@ describe('the stage’s members', () => {
       bar: barView({ lead: 'motif', motif: 5 }),
       muse: { motif: { source: 'Bob’s MIDI keyboard', bar: 6, rows: 1, notes: [] }, log: [] },
     });
-    expect(membersOf(movedOn, none).find((m) => m.member === 'lead')!.source).toBeNull();
+    expect(membersOf(movedOn, none, none).find((m) => m.member === 'lead')!.source).toBeNull();
   });
 
   it('gives each member the notes sounding on it, and only those', () => {
     const sounding = { drums: [36], bass: [33], comp: [48, 55], lead: [64] };
-    const members = membersOf(hud(), sounding);
+    const members = membersOf(hud(), sounding, none);
     for (const member of ['drums', 'bass', 'comp', 'lead'] as const)
       expect(members.find((m) => m.member === member)!.sounding).toEqual(sounding[member]);
+  });
+
+  it('gives each member the pattern of the bar it last finished, and only that one', () => {
+    const pattern = {
+      drums: [{ step: 0, note: 36, length: 1 }],
+      bass: [{ step: 0, note: 33, length: 4 }],
+      comp: [],
+      lead: [{ step: 4, note: 64, length: 2 }],
+    };
+    const members = membersOf(hud(), none, pattern);
+    for (const member of ['drums', 'bass', 'comp', 'lead'] as const)
+      expect(members.find((m) => m.member === member)!.pattern).toEqual(pattern[member]);
   });
 });

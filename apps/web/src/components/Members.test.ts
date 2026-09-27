@@ -9,6 +9,7 @@ const member = (over: Partial<MemberView> = {}): MemberView => ({
   status: 'Lead is improvising.',
   source: null,
   sounding: [],
+  pattern: [],
   ...over,
 });
 
