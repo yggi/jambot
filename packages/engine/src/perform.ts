@@ -20,13 +20,12 @@
  */
 
 import type { BarEnv } from './bar.ts';
-import type { DrumRole, NoteEvent, WrittenNote } from './events.ts';
+import { BAR_STEPS, type DrumRole, type NoteEvent, type WrittenNote, onBeat } from './events.ts';
 import { draw } from './random.ts';
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const onTheBeat = (step: number) => step % 4 === 0;
 
 /**
  * The lead's level, which a motif's accents are counted from when it plays:
@@ -47,14 +46,14 @@ function accent(env: BarEnv, role: DrumRole, step: number): number {
     case 'ghost':
       return 32 + 14 * env.style.sync;
     case 'hat':
-      return onTheBeat(step) ? 78 : step % 2 === 0 ? 66 : 50;
+      return onBeat(step) ? 78 : step % 2 === 0 ? 66 : 50;
     case 'pedal':
       return 58;
     case 'euclid':
       return 72;
     case 'fill': {
       const from = type === 'build' ? 8 : 12;
-      return 50 + (step - from) * (60 / (16 - from));
+      return 50 + (step - from) * (60 / (BAR_STEPS - from));
     }
   }
 }
@@ -71,7 +70,7 @@ function velocityOf(env: BarEnv, written: WrittenNote): number {
     case 'bass':
       return plan.section.type === 'breakdown'
         ? 70
-        : clampVelocity((onTheBeat(step) ? 100 : 84) * (0.75 + 0.25 * energy));
+        : clampVelocity((onBeat(step) ? 100 : 84) * (0.75 + 0.25 * energy));
     case 'stab':
       return clampVelocity(70 + 20 * energy);
     case 'pad': {
@@ -81,7 +80,7 @@ function velocityOf(env: BarEnv, written: WrittenNote): number {
     }
     case 'lead':
       if (written.accent !== undefined) return clampVelocity(LEAD_LEVEL + written.accent);
-      return onTheBeat(step) ? 100 : 82;
+      return onBeat(step) ? 100 : 82;
   }
 }
 

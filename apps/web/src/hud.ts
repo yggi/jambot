@@ -22,6 +22,8 @@
  */
 
 import {
+  BAR_STEPS,
+  SECTION_BARS,
   type Axis,
   type ForecastBar,
   type Judgement,
@@ -33,12 +35,15 @@ import {
   type SectionType,
   type Style,
   type StyleTrack,
+  barAt,
+  beatInBar,
   chordAt,
   chordName,
   chordNumeral,
   keyHelix,
   keyName,
   leadRests,
+  stepInBar,
   styleAt,
 } from '@jambot/engine';
 import { positions } from '@jambot/theory';
@@ -206,16 +211,16 @@ export function styleStatus({ preset, glide }: StyleView): string {
 }
 
 export function hudOf({ heard, bars, track, muse }: HudInput): Hud {
-  const at = heard === null ? 0 : bars.findIndex((b) => b.bar === Math.floor(heard / 16));
+  const at = heard === null ? 0 : bars.findIndex((b) => b.bar === barAt(heard));
   const here = at >= 0 ? bars[at] : undefined;
-  const step = heard === null ? 0 : heard % 16;
+  const step = heard === null ? 0 : stepInBar(heard);
   const sounding = here && chordAt(here.chords, step);
   return {
     bar: here ? barView(here) : null,
-    beat: heard === null ? null : Math.floor(step / 4),
+    beat: heard === null ? null : beatInBar(step),
     chord: here && sounding ? chordView(sounding, here) : null,
     next: here ? bars.slice(at + 1, at + 1 + NEXT_BARS).map(barView) : [],
-    sections: here ? sectionViews(bars, Math.floor(here.bar / 8)) : [],
+    sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS)) : [],
     style: styleView(track, heard ?? 0),
     heading: bars.at(-1)?.plan.key ?? null,
     muse: museView(muse),
@@ -346,7 +351,7 @@ function chordView(
 function barView(bar: ForecastBar): BarView {
   return {
     bar: bar.bar,
-    barInSection: bar.bar % 8,
+    barInSection: bar.bar % SECTION_BARS,
     section: SECTION_NAMES[bar.plan.section.type],
     key: keyName(bar.plan.key),
     tonic: bar.plan.key.tonic,
@@ -377,8 +382,8 @@ function styleView(track: StyleTrack, step: number): StyleView {
   if (moving.length === 0) return { preset: presetOf(target), glide: null };
   const start = Math.min(...moving.map((g) => g.start));
   const end = Math.max(...moving.map((g) => g.start + g.length));
-  const bars = Math.ceil((end - start) / 16);
-  const bar = Math.min(bars, Math.max(1, Math.floor((step - start) / 16) + 1));
+  const bars = Math.ceil((end - start) / BAR_STEPS);
+  const bar = Math.min(bars, Math.max(1, Math.floor((step - start) / BAR_STEPS) + 1));
   return {
     preset: presetOf(target),
     glide: { from: presetOf(styleAt(track, start)), bar, bars },

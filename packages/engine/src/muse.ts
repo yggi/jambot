@@ -35,7 +35,7 @@
  */
 
 import { type Motif, alteredDegree, chromaticStep, heightOf, motifProblems } from '@jambot/theory';
-import { BAR_STEPS } from './events.ts';
+import { BAR_STEPS, barAt, barStart } from './events.ts';
 import { type Key, keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 
@@ -73,7 +73,7 @@ export const MUSE = { mashing: 12, fewest: 3, widest: 19, forgetAfter: 16 } as c
 const stepOf = (note: HeardNote) => Math.round(note.position);
 
 /** The bar a note was heard in: the bar its nearest step is in. */
-export const barOf = (note: HeardNote) => Math.floor(stepOf(note) / BAR_STEPS);
+export const barOf = (note: HeardNote) => barAt(stepOf(note));
 
 /** The notes heard in a bar. */
 export function heardIn(notes: readonly HeardNote[], bar: number): HeardNote[] {
@@ -101,7 +101,7 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
   if (heard.length > MUSE.mashing) return { kind: 'mashing', source, count: heard.length };
   const top = new Map<number, HeardNote>();
   for (const n of heard) {
-    const step = stepOf(n) - bar * BAR_STEPS;
+    const step = stepOf(n) - barStart(bar);
     if (n.note > (top.get(step)?.note ?? -Infinity)) top.set(step, n);
   }
   const melody = [...top].sort(([a], [b]) => a - b);
@@ -120,7 +120,7 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
     arcs.push({ onset: step, degree: degree - origin, accidental, accent: n.velocity - level });
     const next = melody[i + 1]?.[0] ?? BAR_STEPS;
     if (n.end === null) return;
-    const released = Math.max(step + 1, Math.round(n.end) - bar * BAR_STEPS);
+    const released = Math.max(step + 1, Math.round(n.end) - barStart(bar));
     if (released < next) arcs.push(rest(released));
   });
   if (arcs[0]!.onset > 0 && arcs.at(-1)!.degree !== null) arcs.unshift(rest(0));

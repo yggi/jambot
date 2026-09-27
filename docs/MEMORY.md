@@ -83,17 +83,31 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   props and send intents; none reads the engine. A style is named by the preset
   it matches on every axis the preset sets but energy (`presetOf`), so there is
   no chosen-preset state: nudging the tempo makes a style custom, and moving
-  energy or entropy doesn't. The key picker shows the key the band is heading
-  for, the last bar decided's (`hud.heading`). A key picked is wished for tonic
-  and mode; a preset wishes for its mode only when the wish is in another, so a
-  key picked survives a preset in its mode. `CircleOfFifths.svelte` draws that
-  same key as a wheel: theory's `fifthsIndex` (built on `generator(7, 12)`) lays
-  the 12 pitch classes out by fifths, and the current scale is a stroke-only
-  figure threaded from the tonic, which alone gets a ring. It is read-only
-  wherever it is given no `mode`/`onintent` (the stage's, from
-  `hud.bar.tonic`/`.scale`); given both, a dot is a button that wishes for its
-  pitch class as tonic, in the mode already playing (the controls' wheel, beside
-  `KeyPicker`'s selects, going through the same `key` intent).
+  energy or entropy doesn't. `KeyPicker.svelte` shows the key the band is
+  heading for, the last bar decided's (`hud.heading`): a mode select, and the
+  circle of fifths, full-sized, as the one tonic picker — a single widget for
+  showing and picking the key, not two. `CircleOfFifths.svelte` draws it:
+  theory's `fifthsIndex` (built on `generator(7, 12)`) lays the 12 pitch classes
+  out by fifths, and the current scale is a stroke-only figure threaded from the
+  tonic, which alone gets a ring. It is read-only wherever it is given no
+  `mode`/`onintent`; given both, a dot is a button that wishes for its pitch
+  class as tonic, in the mode already playing (going through the same `key`
+  intent the mode select does). A key picked is wished for tonic and mode; a
+  preset wishes for its mode only when the wish is in another, so a key picked
+  survives a preset in its mode. A toggle on `KeyPicker` bares an experiment on
+  the same wheel: `history`, one weight per pitch class from
+  `player.harmonicHistory` (`apps/web/src/harmonicHistory.ts`), drawn as a
+  filled radar under the wheel. `HarmonicHistory` sums every note the band
+  actually plays by pitch class, drums excluded, decaying whatever a later bar's
+  first note finds by how many bars passed silently since the last one pushed —
+  so the shape reads as "what has the band been playing lately", not the current
+  scale, and not everything ever played. Stage stays plain text: the key's name
+  and its notes ascending from the tonic (`scaleNoteNames`), no wheel of its
+  own. The toggle sits inside the host-only `.controls` fieldset with the rest
+  of `KeyPicker`, so a client can see the wheel and the radar (fieldset
+  `disabled` hides nothing, only disables the form controls in it) but can't yet
+  flip the toggle themselves — a known seam, not yet worth its own escape from
+  the fieldset (#134).
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot
   (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and
   drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a
@@ -375,15 +389,16 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 The full description is in
 [`prototype/README.md`](../prototype/README.md#the-score-language-the-ir).
 
-- One bar per block, 16 steps per bar, 4/4. This is still true of the song's own
-  grid (the transport, the band, the score): nothing there reads a time
-  signature, and nothing composes in anything but 4/4. The first real meter in
-  the codebase is the client-only metronome (`packages/theory/src/meter.ts`,
-  `packages/engine/src/metronome.ts`): a meter, a `Helix` of pulses over the
-  bar's eighths, on its own bar, independent of the song's. It is a fact worth
-  knowing before assuming "meter" means 4/4 anywhere else in the engine; see
-  #7's comment on the pressure this puts on the score language once the band,
-  not only a click track, might want one.
+- One bar per block, 16 steps per bar, 4/4, and the song reads it from one
+  place: `events.ts`'s `SONG_METER` (4/4) on the steps, `BEATS`, whose readings
+  `barAt`, `barStart`, `stepInBar`, `beatAt`, `beatStart`, `beatInBar` and
+  `onBeat` are what every reader of bar and beat calls (T10). A new reader uses
+  them, never `/ 16`, `% 16` or `/ 4`; tests keep the literals, as a check that
+  4/4 still plays as it did. The rhythms the parts write (the backbeat on steps
+  4 and 12, the 16-long tables) are content on the 16 steps, not readings.
+  Nothing composes in anything but 4/4 yet, and how bars of different lengths
+  join is #122. The metronome (`packages/engine/src/metronome.ts`) plays any
+  named meter on its own bar, independent of the song's.
 - A header's `bpm=` counts the grid, as the engine's `stepSeconds` does: quarter
   notes a minute, a quarter of the step rate, whatever the meter. A pulse rate
   is only derived, for display, and exists only where the pulses are equal (T7).

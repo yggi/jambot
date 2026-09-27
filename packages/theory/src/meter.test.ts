@@ -1,20 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { even, isEven } from './even.ts';
-import {
-  compose,
-  degreeBelow,
-  gaps,
-  heightOf,
-  mirror,
-  mod,
-  positions,
-  shift,
-  wrap,
-} from './helix.ts';
+import { degreeBelow, gaps, heightOf, mirror, mod, positions, shift, wrap } from './helix.ts';
 import { parallel, relative } from './keys.ts';
 import { brightness, modes } from './modes.ts';
 import { chromaticStep } from './numerals.ts';
-import { METERS, type Meter, type MeterName, type Weight, meterWeights } from './meter.ts';
+import {
+  METERS,
+  type Meter,
+  type MeterName,
+  type Weight,
+  meterOnSteps,
+  meterWeights,
+} from './meter.ts';
 
 /** Every named meter's weights, by hand: the ground truth `meterWeights` is checked against. */
 const WEIGHTS: Record<MeterName, Weight[]> = {
@@ -92,9 +89,6 @@ const everyGrouping: Meter[] = Array.from({ length: 15 }, (_, i) => groupings(i 
 
 /** A helix read from its own degree 0: the downbeat at 0. */
 const fromDownbeat = (helix: Meter): Meter => shift(helix, -heightOf(helix, 0));
-
-/** A meter on the bar's steps, two to an eighth, as the song's 4/4 lies on its 16. */
-const onSteps = (meter: Meter): Meter => compose(meter, even(meter.cycle, 2 * meter.cycle));
 
 describe('meter', () => {
   it('gives every named meter as a helix of its pulses over its bar’s eighths', () => {
@@ -236,12 +230,12 @@ describe('meter', () => {
     });
 
     it('is the song’s beat in 4/4: its pulses composed onto a bar of 16 steps, two to an eighth, are `even(4, 16)` (T6)', () => {
-      expect(onSteps(METERS['4/4'])).toEqual(even(4, 16));
+      expect(meterOnSteps(METERS['4/4'])).toEqual(even(4, 16));
     });
   });
 
   describe('as the song’s clock', () => {
-    const beats = onSteps(METERS['4/4']);
+    const beats = meterOnSteps(METERS['4/4']);
     /** Every step of 64 bars either side of the song’s start. */
     const steps = Array.from({ length: 2048 }, (_, i) => i - 1024);
 
@@ -257,7 +251,7 @@ describe('meter', () => {
     it('reads any meter’s bar and pulse from its helix on the steps, where the readers’ literals give 4/4’s alone (finite: every named meter, every step of 128 bars) (T10)', () => {
       const agree: string[] = [];
       for (const [name, meter] of Object.entries(METERS)) {
-        const clock = onSteps(meter);
+        const clock = meterOnSteps(meter);
         const k = clock.heights.length;
         let literal = true;
         for (const step of steps) {
@@ -289,7 +283,7 @@ describe('meter', () => {
     for (const meter of everyGrouping)
       expect(chromaticStep(meter)).toBe(new Set(gaps(meter)).size === 1 ? 0 : 1);
     expect(chromaticStep(METERS['4/4'])).toBe(0);
-    expect(chromaticStep(onSteps(METERS['4/4']))).toBe(0);
+    expect(chromaticStep(meterOnSteps(METERS['4/4']))).toBe(0);
     expect(chromaticStep(METERS['7/8'])).toBe(1);
     expect(chromaticStep(even(7, 12))).toBe(1);
   });
