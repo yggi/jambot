@@ -108,8 +108,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   carries what it offers (an `Offer`: the motif, its source, the bar heard)
   and the last bar anyone played; its output is the log. Where the offer
   enters the band is #79 step 3. A motif may also carry accents, counted
-  from the player's level in the bar (U4); the judgement doesn't write
-  them yet, and carrying the level beside the motif is #79's.
+  from the player's level in the bar and played on the band's own level
+  (U4); the judgement doesn't write them yet, and carrying the player's
+  level beside the motif, as the style reading, is #79's.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a

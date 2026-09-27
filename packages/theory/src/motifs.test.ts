@@ -286,7 +286,7 @@ describe('motif operators', () => {
 });
 
 describe('an accent', () => {
-  it('stays the same accent wherever late and rev move its note, as it is counted from the level the motif plays at, not from the beat, and strans and mirror leave it as it is (U4)', () => {
+  it('stays the same accent wherever late and rev move its note, as it is counted from a level, not from the beat, and strans and mirror leave it as it is (U4)', () => {
     // The lead's accent by the beat, as `perform` gives it: 100 on the beat, 82 off it.
     const beat = (step: number) => (step % 4 === 0 ? 100 : 82);
     const level = 90;

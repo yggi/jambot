@@ -398,8 +398,9 @@ from the motif's origin and altered by a number of chromatic steps, as
 `b3` is. Each onset is held to the next, and the last to the first of the
 next time the motif sounds, so the onsets go round the cycle as arcs; a
 rest is an arc of silence. A motif may carry `accents`: each note's
-velocity less the level it is played at, so an accent moves with its note
-under `late` and `rev`, and `strans` and `mirror` leave it.
+velocity less its player's level in the bar, which the band adds to its own
+level, so an accent moves with its note under `late` and `rev`, and
+`strans` and `mirror` leave it.
 
 The operators on motifs are shift and mirror again, on two axes:
 
