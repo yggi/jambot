@@ -35,6 +35,8 @@ export interface Output {
   ): void;
   /** Fade out everything scheduled so far, and play on afresh. */
   silence(): void;
+  /** Silence anything MIDI might still be holding, without stopping playback. */
+  panic?(): void;
   /** A precise pairing of the clock and `performance.now()`, where the platform gives one. */
   outputTimestamp?():
     { readonly contextTime: number; readonly performanceTime: number } | undefined;

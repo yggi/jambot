@@ -14,8 +14,8 @@
  * already known, without waiting on a message it cannot take back.
  */
 
-import type { Part } from '@jambot/engine';
-import { LOOKAHEAD, PARTS } from '@jambot/engine';
+import type { DrumSound, Part } from '@jambot/engine';
+import { DRUM_NOTES, LOOKAHEAD, PARTS } from '@jambot/engine';
 
 /** The minimum a real `MIDIOutput` gives; a fake stands in for it in tests. */
 export interface MidiPort {
@@ -26,6 +26,17 @@ export interface MidiPort {
 export type Channels = Readonly<Record<Part, number>>;
 
 export const DEFAULT_CHANNELS: Channels = { lead: 1, bass: 2, pad: 3, stab: 3, drums: 10 };
+
+/** The output note each drum sound sends, keyed as `DRUM_NOTES` is: GM by default. */
+export type DrumNotes = Readonly<Record<DrumSound, number>>;
+
+export const DEFAULT_DRUM_NOTES: DrumNotes = DRUM_NOTES;
+
+const DRUM_SOUNDS = Object.keys(DRUM_NOTES) as readonly DrumSound[];
+
+/** The GM note the engine writes for each drum sound, to whatever note `drumNotes` sends it as. */
+const outputNoteOf = (drumNotes: DrumNotes): ReadonlyMap<number, number> =>
+  new Map(DRUM_SOUNDS.map((sound) => [DRUM_NOTES[sound], drumNotes[sound]]));
 
 const NOTE_ON = 0x90;
 const NOTE_OFF = 0x80;
@@ -40,6 +51,9 @@ export const nibble = (channel: number) => (channel - 1) & 15;
 
 const channelsEqual = (a: Channels, b: Channels) => PARTS.every((part) => a[part] === b[part]);
 
+const drumNotesEqual = (a: DrumNotes, b: DrumNotes) =>
+  DRUM_SOUNDS.every((sound) => a[sound] === b[sound]);
+
 interface Holder {
   readonly start: number;
   readonly end: number;
@@ -51,32 +65,61 @@ export class MidiOut {
   #port: MidiPort | null = null;
   #channels: Channels;
   #clock: boolean;
+  #drumNotes: DrumNotes;
+  #drumNoteOf: ReadonlyMap<number, number>;
   /** Notes currently held, by channel and pitch, not yet resolved as released. */
   #open = new Map<string, Holder[]>();
 
-  constructor(channels: Channels = DEFAULT_CHANNELS, clock = false) {
+  constructor(
+    channels: Channels = DEFAULT_CHANNELS,
+    clock = false,
+    drumNotes: DrumNotes = DEFAULT_DRUM_NOTES,
+  ) {
     this.#channels = channels;
     this.#clock = clock;
+    this.#drumNotes = drumNotes;
+    this.#drumNoteOf = outputNoteOf(drumNotes);
   }
 
   setClock(clock: boolean) {
     this.#clock = clock;
   }
 
+  /**
+   * Remap drum sounds to output notes: a hardware drum machine's pads often
+   * don't speak General MIDI (#102). Takes effect on the next note; nothing
+   * already sounding needs silencing, since it was addressed correctly under
+   * the mapping that was live when it was sent.
+   */
+  setDrumNotes(drumNotes: DrumNotes) {
+    if (drumNotesEqual(drumNotes, this.#drumNotes)) return;
+    this.#drumNotes = drumNotes;
+    this.#drumNoteOf = outputNoteOf(drumNotes);
+  }
+
   /** Adopt a port, silencing whatever the old one held first. */
   setPort(port: MidiPort | null, atSeconds: number, toDeviceMs: (seconds: number) => number) {
     if (port === this.#port) return;
-    this.#allNotesOff(atSeconds, toDeviceMs);
-    this.#open.clear();
+    this.panic(atSeconds, toDeviceMs);
     this.#port = port;
   }
 
   /** Remap parts to channels, silencing the channels it leaves first. */
   setChannels(channels: Channels, atSeconds: number, toDeviceMs: (seconds: number) => number) {
     if (channelsEqual(channels, this.#channels)) return;
+    this.panic(atSeconds, toDeviceMs);
+    this.#channels = channels;
+  }
+
+  /**
+   * All notes off on every channel in use, and forget what's held: a manual
+   * panic, or the app's own recovery from a suspended tab or a dropped
+   * connection, where notes already sent may never get the release a
+   * frozen clock never scheduled.
+   */
+  panic(atSeconds: number, toDeviceMs: (seconds: number) => number) {
     this.#allNotesOff(atSeconds, toDeviceMs);
     this.#open.clear();
-    this.#channels = channels;
   }
 
   /**
@@ -92,12 +135,13 @@ export class MidiOut {
     toDeviceMs: (seconds: number) => number,
   ) {
     if (!this.#port) return;
+    const outNote = part === 'drums' ? (this.#drumNoteOf.get(note) ?? note) : note;
     const channel = nibble(this.#channels[part]);
-    const key = holderKey(channel, note);
+    const key = holderKey(channel, outNote);
     const holders = this.#open.get(key) ?? [];
     const held = holders.some((h) => h.start <= seconds && seconds < h.end);
-    if (held) this.#send([NOTE_OFF | channel, note, 0], seconds, toDeviceMs);
-    this.#send([NOTE_ON | channel, note, velocity], seconds, toDeviceMs);
+    if (held) this.#send([NOTE_OFF | channel, outNote, 0], seconds, toDeviceMs);
+    this.#send([NOTE_ON | channel, outNote, velocity], seconds, toDeviceMs);
     this.#open.set(key, [...holders, { start: seconds, end: seconds + duration }]);
   }
 
@@ -139,8 +183,7 @@ export class MidiOut {
    */
   stop(atSeconds: number, toDeviceMs: (seconds: number) => number) {
     if (this.#clock) this.#send([STOP], atSeconds, toDeviceMs);
-    this.#allNotesOff(atSeconds + LOOKAHEAD + 0.4, toDeviceMs);
-    this.#open.clear();
+    this.panic(atSeconds + LOOKAHEAD + 0.4, toDeviceMs);
   }
 
   #allNotesOff(atSeconds: number, toDeviceMs: (seconds: number) => number) {

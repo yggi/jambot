@@ -40,6 +40,9 @@ export const DRUM_NOTES = {
   ride: 51,
 } as const;
 
+/** One of the drums' physical sounds, as `DRUM_NOTES` names it: not a groove `DrumRole`. */
+export type DrumSound = keyof typeof DRUM_NOTES;
+
 /** The drums' held draws and their odd-bar variation. */
 const HELD: readonly [Stream, Stream] = ['drumHit', 'drumVariation'];
 

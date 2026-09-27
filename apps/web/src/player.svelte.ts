@@ -356,6 +356,16 @@ export class Player {
     output.play(part, note, velocity, output.currentTime, ALONG_DURATION[part], sound);
   }
 
+  /**
+   * Silence anything MIDI might still be holding: a tab waking from
+   * suspend can find hardware sounding a note whose release a frozen clock
+   * never scheduled, and a person can ask for this directly. A no-op
+   * before any output exists, since nothing could be holding a note yet.
+   */
+  panicMidi() {
+    this.#output?.panic?.();
+  }
+
   /** Let the output's clock run, as a session needs it to before a song starts. */
   async prepare(): Promise<Output> {
     const output = (this.#output ??= this.#surroundings.output());
