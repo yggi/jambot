@@ -102,7 +102,7 @@ describe('MidiOut', () => {
     expect(sent.map((m) => m.data[1])).toEqual(Object.values(DRUM_NOTES));
   });
 
-  it('remaps a drum sound to its configured output note, leaving other parts untouched', () => {
+  it('remaps a drum sound to its configured output note, leaving other parts untouched (L7)', () => {
     const midi = new MidiOut(DEFAULT_CHANNELS, false, { ...DEFAULT_DRUM_NOTES, kick: 60 });
     const { port, sent } = fakePort();
     midi.setPort(port, 0, toDeviceMs);

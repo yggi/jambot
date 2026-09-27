@@ -199,9 +199,11 @@ rate, whatever the meter. The metronome counts a mean pulse rate
 0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when the meter
 does. Counterexample: an additive meter with a pulse that plays at the written
 tempo. Test: `meter.test.ts`, whose test of pulse tempo cites T7, over every
-well-formed pair up to 16. Open: what `bpm=` counts in a header once a bar has a
-meter. It is the score language's, so the owner's (#7). Source: #98. Status:
-measured (theory). Lands in: #63; #27.
+well-formed pair up to 16. A header's `bpm=` counts the grid, as the engine
+does: quarter-note equivalents, a quarter of the step rate, defined for every
+meter; a pulse rate is derived for display. Source: #98. Status: measured
+(theory). Decided: #7, on measured options (the grid's rate, the pulse rate, a
+rate with a unit). Lands in: #63; #27.
 
 **T8. Once its clock is trusted, a client sounds each moment within its bound of
 the host, half its best round trip give or take each output pair's bound, and
@@ -574,21 +576,33 @@ note's voice). Status: measured. Decided: #7, on measured options (E11). Lands
 in: #24 (the channels).
 
 **L7. What is written survives into what is played, except what a performance
-map replaces.** Witness: `perform` (`perform.ts`), which reads a `WrittenNote`
-and returns a `NoteEvent`: `part`, `step` and `note` pass through unchanged, and
-`velocity` and `length` are what the claim names as replaced, read from the bar
-(T4). Counterexample: a field `perform` drops that names neither a replacement
-nor a pass-through. A drum hit's role (`WrittenNote.role`) is one: `perform`
-reads it once, in `accent`, to help decide the note's velocity, and then drops
-it, so nothing past a `NoteEvent` — MIDI out, the built-in synth, or a display
-over played events, such as the stage's per-member piano roll (#99) — can read
-which groove role a drum hit plays. The same is true of a lead note's `accent`
-(U4). Test: `perform.test.ts`, "drops a drum hit’s role on the way to a
-NoteEvent (L7)" and "drops a lead note’s accent on the way to a NoteEvent (L7)".
+map replaces, and a drum hit's MIDI note is chosen only when lowering to a
+device, by the device's map from its sound.** Witness: `perform` (`perform.ts`),
+which reads a `WrittenNote` and returns a `NoteEvent`: `part`, `step` and `note`
+pass through unchanged, and `velocity` and `length` are what the claim names as
+replaced, read from the bar (T4). For the drums, `DRUM_NOTES` gives every sound
+its own General MIDI note, so a played note names its sound, and `MidiOut`
+(`midi-out.ts`) maps each sound to the note the device plays it on: a Novation
+Circuit's drum tracks answer only 60, 62, 64 and 65 (#106). Counterexample: a
+field `perform` drops that names neither a replacement nor a pass-through. A
+drum hit's role (`WrittenNote.role`) is one: `perform` reads it once, in
+`accent`, to help decide the note's velocity, and then drops it, so nothing past
+a `NoteEvent` — MIDI out, the built-in synth, or a display over played events,
+such as the stage's per-member piano roll (#99) — can read which groove role a
+drum hit plays. The same is true of a lead note's `accent` (U4). For the note:
+two sounds on one General MIDI note, which MIDI out could not tell apart, or a
+device's map applied anywhere before MIDI out. A device map that puts two sounds
+on one pad, as the Circuit preset does with rim and snare, is lossy, and allowed
+only there. Test: `perform.test.ts`, "drops a drum hit’s role on the way to a
+NoteEvent (L7)" and "drops a lead note’s accent on the way to a NoteEvent (L7)";
+`drums.test.ts`, "give every sound its own note, so a played drum note names its
+sound (L7)"; `midi-out.test.ts`, whose test of the drum note map cites L7.
 Source: PR #103's review, a per-member piano roll that can label a pitch but not
-a role. Status: measured, failing (role, accent). Lands in: #99 (a drums member
-named by role, not raw pitch), #79 (a rhythm motif with roles, which wants the
-same field kept past `perform`).
+a role; #106, a Circuit Tracks that plays no General MIDI drum note. Status:
+measured (every sound its own note, the device map in MIDI out); measured,
+failing (role, accent). Decided: #7, ahead of the evidence. Lands in: #99 (a
+drums member named by role, not raw pitch), #79 (a rhythm motif with roles,
+which wants the same field kept past `perform`), #102 (the device's map).
 
 ### Readers and writers
 
@@ -928,7 +942,10 @@ These are where the decisions are.
 6. **The lead sheet against the token stream** (R1, R2). If they conflict, one
    meaning can have two surfaces.
 7. **Twelve against any cycle** (P5, L1).
-8. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
+8. **Expressive against metric accents** (A5). Whether a player's velocities
+   follow the beat decides whether accents are counted from a level, as taken
+   now, or from `perform`.
+9. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
    every meter, and the song holds one: the transport, the Muse's grid and the
    HUD count a bar as 16 steps and a beat as 4.
 

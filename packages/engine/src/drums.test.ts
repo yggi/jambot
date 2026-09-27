@@ -77,6 +77,11 @@ describe('drums', () => {
     for (const env of sweep) for (const e of drums(env)) expect(gm.has(e.note)).toBe(true);
   });
 
+  it('give every sound its own note, so a played drum note names its sound (L7)', () => {
+    const notes = Object.values(DRUM_NOTES);
+    expect(new Set(notes).size).toBe(notes.length);
+  });
+
   it('write well-formed drum hits, each with its role (T4)', () => {
     for (const env of sweep)
       for (const e of drums(env)) {
