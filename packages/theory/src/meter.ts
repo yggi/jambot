@@ -58,7 +58,7 @@ export function meterWeights(meter: Meter): Weight[] {
 
 /**
  * How many subdivisions each of a meter's pulses spans, in order: `[2, 2,
- * 2]` for 4/4, `[3, 3]` for 6/8, `[3, 2]` for 5/8's 3+2, `[3, 2, 2]` for
+ * 2, 2]` for 4/4, `[3, 3]` for 6/8, `[3, 2]` for 5/8's 3+2, `[3, 2, 2]` for
  * 7/8. A simple or compound meter's are all equal; an additive one's
  * aren't, and this is where that shows.
  */
