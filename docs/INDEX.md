@@ -151,6 +151,8 @@ Every doc and code area, as a tree. Add a line when you add one.
         far the lead's variations are the motif operators
   - `session/`: host and client mode, pure TypeScript
     ([brief](briefs/host-mode.md))
+    - `src/lobby.ts`: what an app and a lobby server say (`ToLobby`,
+      `FromLobby`), and how a session's name is compared
     - `src/protocol.ts`: what a host and its clients say (`HostMessage`,
       `ClientMessage`), a bar as written and sent, and the version a join
       names
@@ -189,6 +191,13 @@ Every doc and code area, as a tree. Add a line when you add one.
     `screenshot.test.ts` checks the module inlining and
     `apps/web/e2e/screenshot.e2e.ts` the browser run
 - `apps/`
+  - `lobby/`: the lobby server, sessions found by name and relayed over
+    WebSockets (`pnpm lobby`)
+    - `src/lobby.ts`: `startLobby`; `src/main.ts` runs it
+    - `load.ts`: the load test, sessions of a host and 8 clients
+    - `Dockerfile`: the server as a container, for hosting
+    - `fly.toml`: the server on Fly.io, one machine never stopped
+      (`pnpm lobby:deploy`)
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
     - `vite.config.ts`: the build, with the prototype and the license gate
@@ -246,6 +255,7 @@ Every doc and code area, as a tree. Add a line when you add one.
       - `host.svelte.ts`: `HostSession`, admitting clients and telling them
         what the player does
       - `client.svelte.ts`: `ClientSession`, following a host on its clock
+      - `websocket.ts`: `websocketLobby`, through a lobby server
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
       ahead as `BarView`s and the song map's sections of them, the chord
       sounding, the key's scale, the style's preset and glide, and the

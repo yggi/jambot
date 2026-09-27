@@ -42,6 +42,7 @@ import {
   styleAt,
 } from '@jambot/engine';
 import { positions } from '@jambot/theory';
+import { sourceName } from '@jambot/session';
 
 /** How many bars after the one heard are shown. */
 export const NEXT_BARS = 4;
@@ -155,13 +156,15 @@ export interface HudInput {
   readonly track: StyleTrack;
   /**
    * The motif on offer and the Muse's latest judgements, the latest last,
-   * and the bars judged elsewhere that it dropped; none before anything is
-   * played.
+   * the bars judged elsewhere that it dropped, and in a session each
+   * player's name by id, which its sources are read by; none before
+   * anything is played.
    */
   readonly muse?: {
     readonly offer: Offer | null;
     readonly log: readonly MuseOutput[];
     readonly dropped?: readonly DroppedJudgement[];
+    readonly players?: Readonly<Record<string, string>>;
   };
 }
 
@@ -198,16 +201,26 @@ export function hudOf({ heard, bars, track, muse }: HudInput): Hud {
     sections: here ? sectionViews(bars, Math.floor(here.bar / 8)) : [],
     style: styleView(track, heard ?? 0),
     heading: bars.at(-1)?.plan.key ?? null,
-    muse: {
-      motif: muse?.offer ? motifView(muse.offer) : null,
-      log: [...(muse?.log ?? []).flatMap(museLines), ...(muse?.dropped ?? []).map(droppedLine)]
-        .sort((a, b) => a.bar - b.bar)
-        .reverse(),
-    },
+    muse: museView(muse),
   };
 }
 
-function motifView({ motif, source, bar }: Offer): MotifView {
+/** The Muse's view, each source read by its player's name. */
+function museView(muse: HudInput['muse']): MuseView {
+  const players = muse?.players ?? {};
+  const named = (source: string) => sourceName(source, players);
+  return {
+    motif: muse?.offer ? motifView(muse.offer, named) : null,
+    log: [
+      ...(muse?.log ?? []).flatMap((j) => museLines(j, named)),
+      ...(muse?.dropped ?? []).map((d) => droppedLine(d, named)),
+    ]
+      .sort((a, b) => a.bar - b.bar)
+      .reverse(),
+  };
+}
+
+function motifView({ motif, source, bar }: Offer, named: (source: string) => string): MotifView {
   const { onsets, degrees, accidentals, cycle } = motif;
   const notes = onsets.flatMap((step, i) => {
     const degree = degrees[i];
@@ -219,7 +232,7 @@ function motifView({ motif, source, bar }: Offer): MotifView {
   const lowest = Math.min(...notes.map((n) => n.degree));
   const highest = Math.max(...notes.map((n) => n.degree));
   return {
-    source,
+    source: named(source),
     bar,
     rows: highest - lowest + 1,
     notes: notes.map(({ step, length, degree, altered }) => ({
@@ -246,7 +259,11 @@ function reason(judgement: Judgement): string | null {
 }
 
 /** A bar judged elsewhere that the Muse dropped, and why, so a player can tell. */
-function droppedLine({ bar, judgement: { source }, why }: DroppedJudgement): MuseLine {
+function droppedLine(
+  { bar, judgement, why }: DroppedJudgement,
+  named: (source: string) => string,
+): MuseLine {
+  const source = named(judgement.source);
   const text = {
     late: `What ${source} played came too late to be heard.`,
     ahead: `${source} sent a bar not yet played. Ignored.`,
@@ -256,14 +273,21 @@ function droppedLine({ bar, judgement: { source }, why }: DroppedJudgement): Mus
 }
 
 /** A judged bar's lines, in the order they happened: a forget, then what was taken or why not. */
-function museLines({ bar, judgements, offer, forgot }: MuseOutput): MuseLine[] {
+function museLines(
+  { bar, judgements, offer, forgot }: MuseOutput,
+  named: (source: string) => string,
+): MuseLine[] {
   const lines: MuseLine[] = [];
   if (forgot === 'asked') lines.push({ bar, text: 'Forgot the motif, as asked.', taken: false });
   if (forgot === 'silence')
     lines.push({ bar, text: 'Nobody has played for 16 bars. Back to improvising.', taken: false });
   if (offer?.bar === bar) {
     const notes = offer.motif.degrees.filter((d) => d !== null).length;
-    lines.push({ bar, text: `Took a ${notes}-note motif from ${offer.source}.`, taken: true });
+    lines.push({
+      bar,
+      text: `Took a ${notes}-note motif from ${named(offer.source)}.`,
+      taken: true,
+    });
   } else {
     const why = judgements.map(reason).find((r) => r !== null);
     if (why) lines.push({ bar, text: why, taken: false });

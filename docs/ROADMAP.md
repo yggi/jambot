@@ -33,9 +33,9 @@ export) waits on #63.
 **Host and client mode** ([brief](briefs/host-mode.md)) is under way: an
 app hosts a session under a name, and others join it and play its bars
 with their own synth and MIDI, on its clock, their players heard by its
-Muse. It runs across the tabs and windows of one browser; a WebSocket
-lobby, on a local server and then hosted, takes it across machines next,
-then WebRTC.
+Muse. It runs across the tabs of one browser, and across machines through
+a lobby server (`pnpm lobby`) on the local network. Hosting that server,
+then WebRTC, come next.
 
 These run in parallel:
 

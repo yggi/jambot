@@ -11,6 +11,8 @@
     "dev": "pnpm --filter @jambot/web dev",
     "build": "pnpm --filter @jambot/web build",
     "preview": "pnpm --filter @jambot/web preview",
+    "lobby": "pnpm --filter @jambot/lobby start",
+    "lobby:deploy": "fly deploy . --config apps/lobby/fly.toml --dockerfile apps/lobby/Dockerfile --ha=false",
     "pages": "node --experimental-strip-types --no-warnings tooling/pages.ts",
     "test": "vitest run",
     "test:watch": "vitest",

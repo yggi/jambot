@@ -11,6 +11,8 @@ pnpm dev          # web app with hot reload; the prototype is at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes
+pnpm lobby        # the lobby server for sessions across machines, on 8787
+pnpm lobby:deploy # the lobby server to Fly.io (needs flyctl and the account)
 pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
 pnpm pages deploy # publish main to GitHub Pages, and check the live site
 ```
@@ -151,10 +153,19 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `transportOver(followSource)` in the host's time and plays each event
   `skew` earlier on its own clock; the skew is the host's heard moment
   less its own (`heardNow`), so output latency needs no term of its own.
+  In a session a note's source is a player's id and the instrument
+  (`playerSource`), never a name; screens read it by name through
+  `sourceName` and the players' names the host sends with the Muse.
   An output's clock pairing steps while it starts, so `heardNow` is null
   for its first 0.2 s, and `hostClock` drops a ping that came back before
   it was sent. To try it, open the app in two windows of one browser,
   host in one and join in the other; `session.e2e.ts` measures the two.
+  Across machines, run `pnpm lobby` on one and give its `ws://` address as
+  the lobby server on each; every machine loads the app from its own
+  `localhost`, where Web MIDI works without HTTPS.
+- The web tests resolve `ws` to its Node build (`apps/web/vitest.config.ts`):
+  resolved for the browser it is a stub, and `websocket.test.ts` runs the
+  real lobby server, in Node's environment.
 - `performance.now` read off its object throws ("Illegal invocation" in a
   browser, a TypeError in Node), so a default clock is called on it:
   `deps.now ? deps.now() : performance.now()`, never

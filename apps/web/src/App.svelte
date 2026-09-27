@@ -18,6 +18,7 @@
   import { MidiSettings } from './midi/settings.svelte.ts';
   import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
   import { broadcastLobby } from './session/broadcast.ts';
+  import { websocketLobby } from './session/websocket.ts';
   import { ClientSession } from './session/client.svelte.ts';
   import { HostSession } from './session/host.svelte.ts';
 
@@ -53,7 +54,9 @@
   );
 
   const heardNow = () => heardOn(clockOf().base);
-  const lobby = broadcastLobby();
+  const tabs = broadcastLobby();
+  /** A lobby server by its address, or with none given, the tabs of this browser. */
+  const lobbyAt = (url: string) => (url.trim() === '' ? tabs : websocketLobby(url.trim()));
   const hostSession = new HostSession(player, heardNow);
   const clientSession = new ClientSession(player, heardNow);
 
@@ -134,7 +137,11 @@
 
   <SessionPanel
     mode={player.mode}
-    hosting={{ session: hostSession.session, guests: hostSession.guests }}
+    hosting={{
+      session: hostSession.session,
+      guests: hostSession.guests,
+      ended: hostSession.ended,
+    }}
     following={{
       status: clientSession.status,
       session: clientSession.session,
@@ -144,8 +151,10 @@
       ended: clientSession.ended,
       lacked: player.lacked,
     }}
-    onhost={(session, name) => hostSession.open(lobby, session, name)}
-    onjoin={(session, name) => clientSession.join(lobby, session, name)}
+    lobby={import.meta.env.VITE_LOBBY_URL ?? ''}
+    onhost={(session, name, url) => hostSession.open(lobbyAt(url), session, name)}
+    onjoin={(session, name, url) => clientSession.join(lobbyAt(url), session, name)}
+    onlist={(url) => lobbyAt(url).sessions()}
     onclose={() => hostSession.close()}
     onleave={() => clientSession.leave()}
   />
