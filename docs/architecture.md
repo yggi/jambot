@@ -315,6 +315,18 @@ network, USB and MIDI (#27). What holds now: the clock never waits (T1), and
 the transport drops what a stall passed. A hardware MIDI clock is one
 mitigation path, and the MIDI clock is a lossy grid of 96 ticks a bar (T3).
 
+Every clock the app reads is tested on simulated devices with each fault
+explicit (`packages/session/src/faults.ts`). The transport keeps T1 under
+all of them. `hostClock` keeps a client within half its best round trip of
+its host under each fault alone, and follows a dropped buffer within two
+pings on a quick link. It does not yet where a step is no wider than the
+pings' ranges: a ping answered partway into a drop, or a link whose
+quickest round trips are near a buffer (5 ms legs held up to 20 ms left a
+client 10 ms out for 6 to 7 s). `clockOffset`, which times MIDI out and
+capture, smooths a dropped buffer away over some 23 updates rather than
+following it. Both are #27's next step: one estimator for every clock
+pair.
+
 ## What has settled, and what is open
 
 Settled, each held by tests on `main`:

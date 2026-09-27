@@ -79,7 +79,10 @@ drops what a stall made it miss.
 Counterexample: a stall after which events play late, or the grid moves.
 Test: `transport.test.ts`, "never waits: after a stall it drops what it missed
 and keeps the grid where it was (T1)" and "catches up after four hours’ stall
-within a lookahead, reporting the missed steps by count (T1)". Open for
+within a lookahead, reporting the missed steps by count (T1)"; and
+`faults.test.ts` (`packages/session`), which runs it on a clock with each
+fault #27 lists: drift, a dropped buffer, the render quantum, stalls and a
+client's clock stepping. Open for
 compiling: every text that parses compiles, in bounded time.
 Source: spirit, #37 step 3. Status: measured (transport); open (compile).
 Decided: spirit, inherited.

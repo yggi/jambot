@@ -163,6 +163,18 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   Across machines, run `pnpm lobby` on one and give its `ws://` address as
   the lobby server on each; every machine loads the app from its own
   `localhost`, where Web MIDI works without HTTPS.
+- A test of anything that reads a clock runs it on `simulatedDevice`
+  (`packages/session/src/faults.ts`, #27): real time is the test's, and
+  each fault is named, else off: drift, dropped buffers (the output's
+  clock stands still for the buffer), the render quantum, latency, the
+  pairing's jitter and blips, page stalls, and a link's legs, holds and
+  loss. `device.view(() => t)` gives the `clock` and `now` the app reads.
+  A claim is a bound the component promises, and a test shows its
+  checker firing. Measured here in headless Chromium, the pairing is
+  within about 0.4 ms but a busy machine blips a reading by up to 4 ms,
+  which the next takes back; a dropped buffer steps it for good. Where a
+  component doesn't keep its promise yet, the scene is kept as a known
+  break, a test that finds it (`KNOWN_BREAKS`).
 - The web tests resolve `ws` to its Node build (`apps/web/vitest.config.ts`):
   resolved for the browser it is a stub, and `websocket.test.ts` runs the
   real lobby server, in Node's environment.
