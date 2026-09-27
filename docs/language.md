@@ -938,7 +938,10 @@ These are where the decisions are.
 6. **The lead sheet against the token stream** (R1, R2). If they conflict, one
    meaning can have two surfaces.
 7. **Twelve against any cycle** (P5, L1).
-8. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
+8. **Expressive against metric accents** (A5). Whether a player's velocities
+   follow the beat decides whether accents are counted from a level, as taken
+   now, or from `perform`.
+9. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
    every meter, and the song holds one: the transport, the Muse's grid and the
    HUD count a bar as 16 steps and a beat as 4.
 
