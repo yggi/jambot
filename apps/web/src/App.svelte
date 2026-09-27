@@ -7,7 +7,7 @@
   import SessionPanel from './components/SessionPanel.svelte';
   import Stage from './components/Stage.svelte';
   import StylePanel from './components/StylePanel.svelte';
-  import Tracks from './components/Tracks.svelte';
+  import Members from './components/Members.svelte';
   import Transport from './components/Transport.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { bandOutput } from './audio/band-output.ts';
@@ -18,7 +18,7 @@
   import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, partOf } from './midi/surfaces.ts';
   import { MidiSettings } from './midi/settings.svelte.ts';
   import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
-  import { tracksOf } from './tracks.ts';
+  import { membersOf } from './members.ts';
   import { broadcastLobby } from './session/broadcast.ts';
   import { websocketLobby } from './session/websocket.ts';
   import { ClientSession } from './session/client.svelte.ts';
@@ -72,7 +72,7 @@
   const heldLead = new SvelteSet<number>();
   const heldDrums = new SvelteSet<number>();
 
-  const tracks = $derived(tracksOf(player.hud, player.sounding));
+  const members = $derived(membersOf(player.hud, player.sounding));
 
   /**
    * A note source for one instrument: `routeNote` holds it, captures it for
@@ -183,7 +183,7 @@
 
   <Stage hud={player.hud} playing={player.playing} />
 
-  <Tracks {tracks} />
+  <Members {members} />
 
   <Keyboard
     down={heldLead}

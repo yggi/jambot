@@ -78,7 +78,7 @@ import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
-import { Sounding, type SoundingNotes, trackPartOf } from './sounding.ts';
+import { Sounding, type SoundingNotes, memberOf } from './sounding.ts';
 import { startTicker } from './ticker.ts';
 
 const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
@@ -200,7 +200,7 @@ export class Player {
   offer: Offer | null = $state.raw(null);
   /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
   dropped: readonly DroppedJudgement[] = $state.raw([]);
-  /** The band's own notes heard sounding right now, one track per part. */
+  /** The band's own notes heard sounding right now, one entry per member. */
   sounding: SoundingNotes = $state(SILENT);
   mode: Mode = $state('solo');
   /** How many of the host's bars, as a client, had not arrived when they were due. */
@@ -585,7 +585,7 @@ export class Player {
     for (const { event, seconds, duration, sound } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds - skew, duration, sound);
       this.#sounding.push({
-        part: trackPartOf(event.part),
+        member: memberOf(event.part),
         note: event.note,
         seconds: seconds - skew,
         duration,
