@@ -75,12 +75,21 @@ defined once, and an entry names the file of every test that cites it.
 **T1. The clock never waits: every advance finishes in bounded time, and
 nothing plays late.**
 Witness: the transport, which advances from the head to now + 120 ms and
-drops what a stall made it miss.
-Counterexample: a stall after which events play late, or the grid moves.
+drops what a stall made it miss. What arrives from another app is read by
+its shape before anything is read from it (`readClientMessage`, and
+`admissible` for what a judgement says), and the player takes what arrived
+before the transport reads it, so nothing a client sends can stop the
+host's clock.
+Counterexample: a stall after which events play late, or the grid moves;
+a message that throws on every tick after it arrives.
 Test: `transport.test.ts`, "never waits: after a stall it drops what it missed
-and keeps the grid where it was (T1)" and "catches up after four hours’ stall
-within a lookahead, reporting the missed steps by count (T1)". Open for
-compiling: every text that parses compiles, in bounded time.
+and keeps the grid where it was (T1)", "catches up after four hours’ stall
+within a lookahead, reporting the missed steps by count (T1)" and "drops what
+only claims to be a judgement, and the clock never waits for it (T1)";
+`apps/web/src/session/session.test.ts`, whose test of a garbled judgement
+cites T1: the host keeps playing, and says it dropped it. A Muse that reads
+a judgement without checking its shape fails it. Open for compiling: every
+text that parses compiles, in bounded time.
 Source: spirit, #37 step 3. Status: measured (transport); open (compile).
 Decided: spirit, inherited.
 Lands in: #13.
@@ -669,6 +678,11 @@ which the performance's beat accents replace; a staccato or a dropped note,
 which a note held to the next can't leave silent; a phrase longer than a
 bar, which a fixed 16 can't hold. An accent counted from the beat instead
 of the level is one more: moved off the beat, it plays another velocity.
+Three of the four are answered: the blue note by an altered degree, the
+accents by `accents` (ahead of the evidence, A5), and the staccato by a
+rest. The phrase longer than a bar stands: the Muse judges each bar on its
+own, and a phrase played across a bar line comes back as a motif per bar,
+each taking the place of the one before.
 Test: `motifs.test.ts`, whose tests cite U4: what a motif may be; `head`
 under `rev` is the last notes wherever no note is held over the cycle's
 start; an accent is the same accent wherever `late` and `rev` move its
@@ -761,16 +775,23 @@ confidence.**
 Witness: the Muse's judgement (`muse.ts`): every note heard carries its
 source, each source's bar is judged on its own and the judgement names it,
 and the band takes the motif with the most notes, the first to arrive on
-a tie.
+a tie. In a session (`packages/session`), a client's sources go by its
+player's name and the host's by its own, and a host refuses a player whose
+name someone in the session already goes by, in any case, so two players
+are never one source.
 Counterexample: a judgement that names no source, or two sources' notes
 judged as one, such as one player's chord heard as the top of another's
-melody.
-Test: `muse.test.ts`, whose tests of sources cite A3. Open: confidence,
-which nothing infers yet; the prototype's source with the most notes
-stands in for it.
+melody, or two players of one name.
+Test: `muse.test.ts`, whose tests of sources cite A3;
+`apps/web/src/session/session.test.ts`, whose test of names cites A3: a
+second Ada, or a client named as the host is, is refused. Open:
+confidence, which nothing infers yet; the prototype's source with the most
+notes stands in for it. A session makes it pressing: a player who plays 12
+notes in every bar, the most that isn't mashing, wins every bar, whoever
+else plays.
 Source: prototype, SDR (the Muse's gate works like a squelch). Status:
 measured (the Muse's sources); open (confidence). Decided: the prototype,
-inherited (provenance). Lands in: #3, #25, #79.
+inherited (provenance). Lands in: #3, #25, #79, #16.
 
 **A4. Following the players is a loop with a bandwidth.**
 Source: SDR (clock recovery), the Muse's rate limit. Status: speculative.

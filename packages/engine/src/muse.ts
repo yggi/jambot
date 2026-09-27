@@ -153,6 +153,7 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
  * judgements carry counts the gates would have given.
  */
 export function admissible(judgement: Judgement, key: Key): boolean {
+  if (!shaped(judgement)) return false;
   const count = (n: unknown) => Number.isInteger(n) && (n as number) >= 0;
   switch (judgement.kind) {
     case 'mashing':
@@ -180,7 +181,34 @@ export function admissible(judgement: Judgement, key: Key): boolean {
       };
       return [0, 1, 2, 3, 4, 5, 6].some((origin) => spanFrom(origin) <= MUSE.widest);
     }
+    default:
+      return false;
   }
+}
+
+/**
+ * Whether what arrived has a judgement's shape, before anything is read
+ * from it: it comes off the wire as JSON, so its type is a claim, not a
+ * fact. A motif's lists are checked for their lengths and element types,
+ * which `motifProblems` takes as given.
+ */
+function shaped(judgement: unknown): judgement is Judgement {
+  const j = judgement as Partial<Record<string, unknown>> | null;
+  if (typeof j !== 'object' || j === null || typeof j.source !== 'string') return false;
+  if (j.kind !== 'motif') return true;
+  const motif = j.motif as Partial<Record<keyof Motif, unknown>> | null;
+  if (typeof motif !== 'object' || motif === null || !Array.isArray(motif.onsets)) return false;
+  const n = motif.onsets.length;
+  const list = (xs: unknown, each: (x: unknown) => boolean) =>
+    Array.isArray(xs) && xs.length === n && xs.every(each);
+  const whole = (x: unknown) => Number.isInteger(x);
+  return (
+    typeof motif.cycle === 'number' &&
+    list(motif.onsets, whole) &&
+    list(motif.degrees, (d) => d === null || whole(d)) &&
+    list(motif.accidentals, whole) &&
+    (motif.accents === undefined || list(motif.accents, whole))
+  );
 }
 
 /** A motif the Muse offers the band: what was heard, from whom, and when. */

@@ -24,8 +24,14 @@ it was heard, with its release, for whenever the Muse reads it, with their
 preferences and the MIDI, key and sound panel. The on-screen keyboard and
 a set of drum pads mark the current key's scale and flash for the band's
 own lead and drum notes, and play at once, along with the band, from any
-input source (#25). The Muse hears a motif and the lead plays it back from
-the bar after next, and its panel shows the motif and its log (#79). What
+input source (#25). The Muse hears a motif on any input, or from a
+session's clients, and the lead plays it back from the bar after next, and
+its panel shows the motif and its log (#79, done). Next for the Muse, in
+order: a log of what players play, which A5's question and #16's encoder
+both need; confidence across players (A3), which a session makes pressing;
+the ear's reading of a player's style, and following it (#16, A4); and
+answering a motif through its operators (U5) rather than repeating it.
+What
 the prototype still does that the app doesn't is the score (#63). #26's
 HUD is otherwise caught up: what remains there (the score panel, Strudel
 export) waits on #63.

@@ -204,6 +204,15 @@ refuses another version, since a cached app can be older than its host.
 A host drops a client silent for 3 s. A client gives up if no welcome
 comes within 2 s.
 
+A host reads what any client sends, so it reads each message by the fields
+its kind carries (`readClientMessage`), and what a judgement says by the
+gates it was judged by (`admissible`), before anything is read from it. A
+message that fails either is dropped, not thrown on while the band plays.
+A host refuses a player whose name someone in the session already goes by,
+in any case, the host's own included, so two players are never one source
+to the Muse. A client reads its host's messages by kind alone: it chose
+that host and matched its version.
+
 ## Capacity: an estimate
 
 Measured: a bar as sent is 2.8 KB of JSON on average (3.8 KB at most), the
@@ -273,9 +282,17 @@ e2e` pass unchanged, and a transport over bars the band composed, given
   which the host weighs per source, where A3's confidence belongs. A
   player's notes stay on their device; raw notes can be added for the Muse
   encoder (#16) if it needs them.
-- Whether two clients may join under one name: their judgements then share
-  a source, which the log and a weighing per source can't tell apart.
-- How the host weighs several players' motifs (A3 on #79).
+- How the host weighs several players' motifs (A3 on #79). Today the most
+  notes win, so a player who plays 12 notes in every bar, the most that
+  isn't mashing, wins every bar.
+- Whether any client may ask the Muse to forget, whoever played the motif.
+- How often a bar misses a client over a real link, an estimate until step
+  4 measures it: a bar has a beat from the host composing it to the client
+  laying it (333 ms at 180 bpm, 500 ms at 120), and over WebSocket one lost
+  packet waits a TCP retransmission, commonly 200 ms or more, before it
+  and everything after it arrives. The load test counts `lacked` under
+  loss; if it is high, the host can compose further ahead while hosting,
+  at the cost of a control being heard later.
 - Who masters the MIDI clock when a root node exists (#27).
 - Per-client expression beyond its own instruments and MIDI (humanising, a
   velocity curve), which would make a client's notes its own.

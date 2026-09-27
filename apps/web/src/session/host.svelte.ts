@@ -145,7 +145,12 @@ export class HostSession {
   }
 
   #admit(join: ClientMessage & { kind: 'join' }, from: string) {
-    const refused = refusal(join);
+    // The names others in the session go by: the host's own, and each other client's.
+    const taken = [
+      ...(this.#player.named ? [this.#player.named] : []),
+      ...this.guests.filter((g) => g.id !== from).map((g) => g.name),
+    ];
+    const refused = refusal(join, taken);
     if (refused) return this.#send({ kind: 'refused', reason: refused }, from);
     this.guests = [
       ...this.guests.filter((g) => g.id !== from),

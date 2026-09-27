@@ -201,6 +201,45 @@ describe('a host and a client session', () => {
     expect(lonely.player.mode).toBe('solo');
   });
 
+  it('refuse a player whose name someone in the session already goes by (A3)', async () => {
+    const lobby = memoryLobby();
+    const host = device(0);
+    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    await hosting.open(lobby, 'jam', 'Grace');
+    const answers = async (name: string) => {
+      const heard: HostMessage[] = [];
+      const link = await lobby.join('jam', (m) => heard.push(m));
+      link.send({ kind: 'join', protocol: PROTOCOL, name });
+      return heard[0];
+    };
+    expect(await answers('Ada')).toMatchObject({ kind: 'welcome' });
+    for (const name of [' ada', 'GRACE'])
+      expect(await answers(name)).toMatchObject({
+        kind: 'refused',
+        reason: expect.stringMatching(/already called/),
+      });
+    expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
+  });
+
+  it('keep the host playing through what only claims to be a judgement, and say it dropped it (T1)', async () => {
+    const lobby = memoryLobby();
+    const host = device(0);
+    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    await hosting.open(lobby, 'jam');
+    await host.player.start();
+    const link = await lobby.join('jam', () => {});
+    link.send({ kind: 'join', protocol: PROTOCOL, name: 'Mallory' });
+    await run([host], 3);
+    const bar = Math.floor(host.player.writtenPosition(host.world.currentTime)! / 16);
+    // Its envelope reads as a judgement; what it says doesn't.
+    const garbled = { kind: 'motif', source: 'the computer keys', level: 100 };
+    link.send({ kind: 'judged', bar, judgement: garbled } as unknown as ClientMessage);
+    const before = host.world.plays.length;
+    await run([host], 3);
+    expect(host.world.plays.length).toBeGreaterThan(before + 10);
+    expect(host.player.dropped).toMatchObject([{ bar, why: 'inadmissible' }]);
+  });
+
   it('drop a client that goes silent, and end every client when the host closes', async () => {
     const lobby = memoryLobby();
     const host = device(0);
