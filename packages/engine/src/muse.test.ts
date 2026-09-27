@@ -458,8 +458,8 @@ const phrase = (bar: number, source = 'the computer keys', note = 69): HeardNote
 /** The Muse run over bars from 0, each with the notes heard in it and whether it was asked to forget. */
 function listen(bars: { heard?: HeardNote[]; forget?: boolean }[]) {
   const script: Script<MuseEnv, MuseInput> = bars.map(({ heard = [], forget = false }, bar) => ({
-    env: { bar, key: A_MINOR },
-    input: { heard, forget },
+    env: { bar },
+    input: { judgements: judgeBar(heard, bar, A_MINOR), forget },
   }));
   let carried: MuseCarried = muse.initial;
   const outputs = script.map(({ env, input }) => {

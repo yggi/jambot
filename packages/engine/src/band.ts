@@ -179,8 +179,21 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
     const melody = lead.advance(bar, carried.parts.lead, null);
     const parts = { bass: bassline.carried, comp: comping.carried, lead: melody.carried };
     const written = [...drums(bar), ...bassline.output, ...comping.output, ...melody.output];
-    const events = written.map((note) => perform(bar, note));
-    const sound = soundOf(env.style, bar.barEnergy);
-    return { carried: { ...after, parts }, output: { ...bar, written, events, sound } };
+    return { carried: { ...after, parts }, output: playBar(bar, written) };
   },
 };
+
+/**
+ * A bar's written notes as the band plays them: each through the
+ * performance, and the bar coloured by its style and energy. It is where
+ * writing ends and playing starts, so a bar written elsewhere (a host's)
+ * plays here exactly as the band that wrote it would play it.
+ */
+export function playBar(bar: BarEnv, written: readonly WrittenNote[]): BandBar {
+  return {
+    ...bar,
+    written,
+    events: written.map((note) => perform(bar, note)),
+    sound: soundOf(bar.style, bar.barEnergy),
+  };
+}

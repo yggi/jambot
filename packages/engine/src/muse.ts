@@ -21,7 +21,9 @@
  * Of the motifs, the band takes the one with the most notes, and on a tie
  * the first to arrive.
  *
- * The Muse is a machine at bar rate (`muse`). It offers the motif it took,
+ * The Muse is a machine at bar rate (`muse`) over a bar's judgements, so a
+ * judgement made here and one a client sent a host enter it alike. It
+ * offers the motif it took,
  * with its source and the bar it was heard in, until another is taken, it
  * is asked to forget, or nobody has played for 16 bars: notes that give no
  * motif still count as playing. These are the prototype's rules and
@@ -148,15 +150,14 @@ export interface Offer {
   readonly level: number;
 }
 
-/** The bar the Muse judges, and its key. */
+/** The bar the Muse hears. */
 export interface MuseEnv {
   readonly bar: number;
-  readonly key: Key;
 }
 
 export interface MuseInput {
-  /** Notes heard; only those in the bar judged are read. */
-  readonly heard: readonly HeardNote[];
+  /** Each source's bar judged, in the order they arrived (`judgeBar`). */
+  readonly judgements: readonly Judgement[];
   /** Whether someone asked it to forget what it offers. */
   readonly forget: boolean;
 }
@@ -177,14 +178,13 @@ export interface MuseOutput {
 
 export const muse: Machine<MuseEnv, MuseCarried, MuseInput, MuseOutput> = {
   initial: { offer: null, lastPlayed: null },
-  advance({ bar, key }, carried, { heard, forget }) {
+  advance({ bar }, carried, { judgements, forget }) {
     let { offer, lastPlayed } = carried;
     let forgot: MuseOutput['forgot'] = null;
     if (forget && offer) {
       offer = null;
       forgot = 'asked';
     }
-    const judgements = judgeBar(heard, bar, key);
     if (judgements.length > 0) {
       lastPlayed = bar;
       const best = taken(judgements);
