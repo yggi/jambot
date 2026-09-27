@@ -90,10 +90,19 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   same key as a wheel: theory's `fifthsIndex` (built on `generator(7, 12)`) lays
   the 12 pitch classes out by fifths, and the current scale is a stroke-only
   figure threaded from the tonic, which alone gets a ring. It is read-only
-  wherever it is given no `mode`/`onintent` (the stage's, from
-  `hud.bar.tonic`/`.scale`); given both, a dot is a button that wishes for its
-  pitch class as tonic, in the mode already playing (the controls' wheel, beside
-  `KeyPicker`'s selects, going through the same `key` intent).
+  wherever it is given no `mode`/`onintent`; given both, a dot is a button that
+  wishes for its pitch class as tonic, in the mode already playing (the
+  controls' wheel, beside `KeyPicker`'s selects, going through the same `key`
+  intent). `KeyWheel.svelte` is that same wheel full-sized, read-only, right
+  after the stage: the key the band is heading for, from `hud.bar.tonic`/
+  `.scale`, plain text on the stage itself. A toggle bares an experiment on the
+  wheel: `history`, one weight per pitch class from `player.harmonicHistory`
+  (`apps/web/src/harmonicHistory.ts`), drawn as a filled radar under the wheel.
+  `HarmonicHistory` sums every note the band actually plays by pitch class,
+  drums excluded, decaying whatever a later bar's first note finds by how many
+  bars passed silently since the last one pushed — so the shape reads as "what
+  has the band been playing lately", not the current scale, and not everything
+  ever played.
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot
   (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and
   drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a

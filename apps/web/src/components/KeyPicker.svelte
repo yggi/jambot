@@ -79,5 +79,6 @@
   }
   .wheel {
     grid-column: 1 / -1;
+    max-width: 200px;
   }
 </style>

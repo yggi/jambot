@@ -35,3 +35,8 @@ export function figureOrder(scale: readonly number[], tonic: number): readonly n
   const distance = (pitchClass: number) => mod(fifthsIndex(pitchClass) - tonicIndex, 12);
   return [...scale].sort((a, b) => distance(a) - distance(b));
 }
+
+/** All 12 pitch classes, in wheel order, for a shape that spans the whole wheel. */
+export function wheelOrder(): readonly number[] {
+  return [...Array(12).keys()].sort((a, b) => fifthsIndex(a) - fifthsIndex(b));
+}

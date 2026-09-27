@@ -249,7 +249,12 @@ Every doc and code area, as a tree. Add a line when you add one.
         the band is heading for
       - `src/components/CircleOfFifths.svelte`: the circle of fifths: the
         current scale lit and threaded as a figure from the tonic, the tonic
-        ringed; a dot is also a button when given `onintent` and `mode`
+        ringed; a dot is also a button when given `onintent` and `mode`; with
+        `history`, a filled radar under the wheel shows every pitch class's
+        weight
+      - `src/components/KeyWheel.svelte`: the circle of fifths, full-sized: the
+        key the band is heading for, and a toggle baring the harmonic history
+        over it, an experiment
       - `src/components/MusePanel.svelte`: the Muse: the motif on offer, drawn a
         row per degree, where it came from, Forget, and the log
       - `src/components/NextBars.svelte`: the next four bars, with cues where
@@ -283,9 +288,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       synth, from an instrument, a computer key or MIDI; `sounding` is only the
       band's own notes heard sounding, one entry per band performer, never what
       was played along with it; `pattern` is each performer's last bar finished,
-      for its piano roll. It plays alone, hosts (telling `hosting` what it does)
-      or follows a host (`follow`, and the `follow…` calls), on the host's clock
-      through `skew`
+      for its piano roll; `harmonicHistory` is every pitch class's weight,
+      decaying, for the key wheel's radar. It plays alone, hosts (telling
+      `hosting` what it does) or follows a host (`follow`, and the `follow…`
+      calls), on the host's clock through `skew`
     - `src/session/`: host and client mode in the app
       ([brief](briefs/host-mode.md))
       - `lobby.ts`: `Lobby`, where sessions are found, and the links it gives a
@@ -305,10 +311,15 @@ Every doc and code area, as a tree. Add a line when you add one.
       `styleStatus` are the lead's and the style's status lines, reused by the
       stage's performers
     - `src/circleLayout.ts`: pure geometry for a circle-of-fifths wheel:
-      `wheelAngle`, `wheelPoint` and `figureOrder`, the scale's pitch classes
-      ordered to trace its figure from the tonic
+      `wheelAngle`, `wheelPoint`, `figureOrder` (the scale's pitch classes
+      ordered to trace its figure from the tonic) and `wheelOrder` (all twelve,
+      for a shape spanning the whole wheel)
+    - `src/harmonicHistory.ts`: `HarmonicHistory`, every pitch class's weight
+      from the notes the band has actually played, drums excluded, decaying by
+      the bars silent between one push and the next
     - `src/noteNames.ts`: `TONIC_NAMES`, the twelve pitch classes' names, as the
-      prototype spells them
+      prototype spells them, and `scaleNoteNames`, a key's notes named ascending
+      from its tonic
     - `src/performers.ts`: the stage's performers, `performersOf`: one
       `PerformerView` per band performer, drums, bass, chords and lead, each a
       status line, the Muse's source while the lead plays that same motif
