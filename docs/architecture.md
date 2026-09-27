@@ -313,8 +313,9 @@ Open:
   named cell in the score, is open.
 - **Exact positions** (T2): the port counts steps in floating point, and
   whether positions become exact fractions is open until the text step.
-- **The Muse** (#79): its judgement is in the engine (`muse.ts`), and
-  where a motif enters the band is open until #79 step 3. Inputs tag every
+- **The Muse** (#79): its judgement and its machine are in the engine
+  (`muse.ts`), and where its offer enters the band is open until #79
+  step 3. Inputs tag every
   note with its source (#25); whether an arpeggio of a held chord can be
   told from mashing (play-aeiou) is still open.
 - **The MIDI clock's master** (#27): whether a web client or the root node

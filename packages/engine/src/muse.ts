@@ -14,7 +14,13 @@
  *   the key counted from the first, so the motif follows the key.
  *
  * Of the motifs, the band takes the one with the most notes, and on a tie
- * the first to arrive. These are the prototype's rules and thresholds.
+ * the first to arrive.
+ *
+ * The Muse is a machine at bar rate (`muse`). It offers the motif it took,
+ * with its source and the bar it was heard in, until another is taken, it
+ * is asked to forget, or nobody has played for 16 bars: notes that give no
+ * motif still count as playing. These are the prototype's rules and
+ * thresholds.
  *
  * Two choices are ahead of the evidence, until #7's decision (d) settles
  * what a motif carries: a note off the key goes to the key's nearest
@@ -23,6 +29,7 @@
 
 import { type Motif, snap } from '@jambot/theory';
 import { type Key, keyHelix } from './key.ts';
+import type { Machine } from './machine.ts';
 
 /** A note a player played, heard at an exact position. */
 export interface HeardNote {
@@ -42,8 +49,11 @@ export type Judgement =
   | { readonly kind: 'too few'; readonly source: string; readonly count: number }
   | { readonly kind: 'too wide'; readonly source: string; readonly range: number };
 
-/** The prototype's thresholds: the most notes, the fewest melody notes, the widest range. */
-export const MUSE = { mashing: 12, fewest: 3, widest: 19 } as const;
+/**
+ * The prototype's thresholds: the most notes, the fewest melody notes, the
+ * widest range, and how many silent bars an offer outlasts.
+ */
+export const MUSE = { mashing: 12, fewest: 3, widest: 19, forgetAfter: 16 } as const;
 
 const STEPS = 16;
 
@@ -95,3 +105,60 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
     },
   };
 }
+
+/** A motif the Muse offers the band: what was heard, from whom, and when. */
+export interface Offer {
+  readonly motif: Motif;
+  readonly source: string;
+  /** The bar it was heard in. */
+  readonly bar: number;
+}
+
+/** The bar the Muse judges, and its key. */
+export interface MuseEnv {
+  readonly bar: number;
+  readonly key: Key;
+}
+
+export interface MuseInput {
+  /** Notes heard; only those in the bar judged are read. */
+  readonly heard: readonly HeardNote[];
+  /** Whether someone asked it to forget what it offers. */
+  readonly forget: boolean;
+}
+
+export interface MuseCarried {
+  readonly offer: Offer | null;
+  /** The last bar anyone played in, or null before anyone has. */
+  readonly lastPlayed: number | null;
+}
+
+/** A bar as the Muse heard it: what it judged, what it offers after, and why it forgot, if it did. */
+export interface MuseOutput {
+  readonly bar: number;
+  readonly judgements: readonly Judgement[];
+  readonly offer: Offer | null;
+  readonly forgot: 'asked' | 'silence' | null;
+}
+
+export const muse: Machine<MuseEnv, MuseCarried, MuseInput, MuseOutput> = {
+  initial: { offer: null, lastPlayed: null },
+  advance({ bar, key }, carried, { heard, forget }) {
+    let { offer, lastPlayed } = carried;
+    let forgot: MuseOutput['forgot'] = null;
+    if (forget && offer) {
+      offer = null;
+      forgot = 'asked';
+    }
+    const judgements = judgeBar(heard, bar, key);
+    if (judgements.length > 0) {
+      lastPlayed = bar;
+      const best = taken(judgements);
+      if (best) offer = { motif: best.motif, source: best.source, bar };
+    } else if (offer && lastPlayed !== null && bar - lastPlayed > MUSE.forgetAfter) {
+      offer = null;
+      forgot = 'silence';
+    }
+    return { carried: { offer, lastPlayed }, output: { bar, judgements, offer, forgot } };
+  },
+};

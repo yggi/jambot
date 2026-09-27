@@ -85,9 +85,11 @@ Every doc and code area, as a tree. Add a line when you add one.
   - `engine/`: the musical engine, pure TypeScript
     - `src/machine.ts`: the contract every level keeps,
       `advance(env, carried, input)`, and `lawBreaks`, which checks it
-    - `src/muse.ts`: the Muse's judgement (#79): each source's notes in a
-      bar, heard at exact positions, judged as mashing, too few, too wide
-      or a motif, and the motif the band takes
+    - `src/muse.ts`: the Muse (#79): each source's notes in a bar, heard
+      at exact positions, judged as mashing, too few, too wide or a motif;
+      and `muse`, the machine at bar rate that offers the motif it took
+      until another is taken, it is asked to forget, or 16 bars pass with
+      nobody playing
     - `src/events.ts`: written notes (`WrittenNote`, the drum roles,
       `writtenProblems`) and the note events they play as (`eventProblems`)
     - `src/perform.ts`: the performance, how a written note is played: its

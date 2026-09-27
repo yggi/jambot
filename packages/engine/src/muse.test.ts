@@ -1,7 +1,18 @@
 import { heightOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
-import { type HeardNote, MUSE, heardIn, judgeBar, taken } from './muse.ts';
+import { type Script, lawBreaks } from './machine.ts';
+import {
+  type HeardNote,
+  MUSE,
+  type MuseCarried,
+  type MuseEnv,
+  type MuseInput,
+  heardIn,
+  judgeBar,
+  muse,
+  taken,
+} from './muse.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const keys: Key[] = COMPOSER_MODES.flatMap((mode) => range(12).map((tonic) => ({ tonic, mode })));
@@ -18,8 +29,8 @@ const judgeOne = (notes: HeardNote[], key = A_MINOR) => {
 };
 
 describe('the Muse’s judgement', () => {
-  it('has the prototype’s gates: more than 12 notes is mashing, fewer than 3 too few, a range over 19 too wide', () => {
-    expect(MUSE).toEqual({ mashing: 12, fewest: 3, widest: 19 });
+  it('has the prototype’s gates: more than 12 notes is mashing, fewer than 3 too few, a range over 19 too wide; and forgets after 16 silent bars', () => {
+    expect(MUSE).toEqual({ mashing: 12, fewest: 3, widest: 19, forgetAfter: 16 });
   });
 
   it('takes 12 notes in a bar, and calls 13 mashing, counting a chord’s every note', () => {
@@ -254,5 +265,113 @@ describe('the Muse’s judgement', () => {
     expect(judge(mashing, three)?.source).toBe('three');
     expect(judge(mashing)).toBeNull();
     expect(judge()).toBeNull();
+  });
+});
+
+/** A melody of three notes in `bar`, from `source`, starting on `note`. */
+const phrase = (bar: number, source = 'the computer keys', note = 69): HeardNote[] =>
+  played(
+    [
+      [16 * bar, note],
+      [16 * bar + 4, note + 3],
+      [16 * bar + 8, note + 7],
+    ],
+    source,
+  );
+
+/** The Muse run over bars from 0, each with the notes heard in it and whether it was asked to forget. */
+function listen(bars: { heard?: HeardNote[]; forget?: boolean }[]) {
+  const script: Script<MuseEnv, MuseInput> = bars.map(({ heard = [], forget = false }, bar) => ({
+    env: { bar, key: A_MINOR },
+    input: { heard, forget },
+  }));
+  let carried: MuseCarried = muse.initial;
+  const outputs = script.map(({ env, input }) => {
+    const next = muse.advance(env, carried, input);
+    carried = next.carried;
+    return next.output;
+  });
+  return { script, outputs };
+}
+
+describe('the Muse', () => {
+  it('keeps the machine laws, over playing, silence and a forget (F1)', () => {
+    const { script } = listen([
+      {},
+      { heard: phrase(1) },
+      { heard: played(range(13).map((i) => [32 + i, 60 + i])) },
+      { forget: true },
+      { heard: [...phrase(4, 'a'), ...phrase(4, 'b')] },
+      ...range(20).map(() => ({})),
+    ]);
+    expect(lawBreaks(muse, script)).toEqual([]);
+  });
+
+  it('offers the motif it takes, with the source and the bar it was heard in (A3)', () => {
+    const { outputs } = listen([{}, { heard: phrase(1, 'a MIDI port') }]);
+    expect(outputs[0]).toEqual({ bar: 0, judgements: [], offer: null, forgot: null });
+    expect(outputs[1]).toEqual({
+      bar: 1,
+      judgements: [expect.objectContaining({ kind: 'motif', source: 'a MIDI port' })],
+      offer: {
+        source: 'a MIDI port',
+        bar: 1,
+        motif: { span: 16, steps: [0, 4, 8], degrees: [0, 2, 4] },
+      },
+      forgot: null,
+    });
+  });
+
+  it('keeps its offer through bars that give no motif, and replaces it with the next motif taken', () => {
+    const { outputs } = listen([
+      { heard: phrase(0, 'first') },
+      { heard: played([[16, 60]]) },
+      {},
+      { heard: phrase(3, 'second', 72) },
+    ]);
+    expect(outputs.map((o) => o.offer?.source ?? null)).toEqual([
+      'first',
+      'first',
+      'first',
+      'second',
+    ]);
+    expect(outputs[1]!.judgements).toEqual([
+      { kind: 'too few', source: 'the computer keys', count: 1 },
+    ]);
+    expect(outputs[3]!.offer!.bar).toBe(3);
+  });
+
+  it('forgets its offer once nobody has played for 16 bars, and not a bar sooner', () => {
+    // Notes that give no motif still count as playing.
+    const { outputs } = listen([
+      { heard: phrase(0) },
+      { heard: played([[16, 60]]) },
+      ...range(17).map(() => ({})),
+    ]);
+    const forgotAt = outputs.findIndex((o) => o.forgot !== null);
+    expect(forgotAt).toBe(1 + 17);
+    expect(outputs[forgotAt]).toMatchObject({ offer: null, forgot: 'silence' });
+    expect(outputs[forgotAt - 1]!.offer).not.toBeNull();
+    expect(outputs.slice(forgotAt + 1).every((o) => o.forgot === null)).toBe(true);
+  });
+
+  it('forgets when asked, and still takes a motif heard in the same bar', () => {
+    const { outputs } = listen([
+      { heard: phrase(0, 'first') },
+      { forget: true },
+      { forget: true },
+      { heard: phrase(3, 'second'), forget: true },
+      { heard: phrase(4, 'third'), forget: true },
+    ]);
+    expect(outputs[1]).toMatchObject({ offer: null, forgot: 'asked' });
+    expect(outputs[2]).toMatchObject({ offer: null, forgot: null });
+    expect(outputs[3]).toMatchObject({ offer: { source: 'second' }, forgot: null });
+    expect(outputs[4]).toMatchObject({ offer: { source: 'third' }, forgot: 'asked' });
+  });
+
+  it('judges only the bar it is at, whatever else it is given', () => {
+    const { outputs } = listen([{ heard: [...phrase(0), ...phrase(1)] }, { heard: phrase(0) }]);
+    expect(outputs[0]!.judgements).toHaveLength(1);
+    expect(outputs[1]).toMatchObject({ judgements: [], offer: { bar: 0 } });
   });
 });
