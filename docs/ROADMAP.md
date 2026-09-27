@@ -53,9 +53,10 @@ These run in parallel:
   baseline for orientation:
   - the theory primitive in `packages/theory` (#28, done);
   - the engine (#2), the Muse (#79) included.
-- **Web client** (#22): transport (#23), renderers (#24), inputs (#25) and
-  UI (#26). Everything except the score and Strudel panels is independent
-  of #7.
+- **Web client** (#22): renderers (#24) and inputs (#25) are done and
+  closed. Transport (#23) is down to one open question, whether to
+  humanize timing, which waits on #27's hardware measurements. UI (#26) is
+  down to the score panel and Strudel export, which wait on #7 and #63.
 - **Analyzer** (#3, [brief](briefs/analyzer.md)): the stages that analyse
   without writing score text (loading, grid and swing, part roles, key,
   chords as pitch classes, style metrics). Its closed loop and evaluation run
