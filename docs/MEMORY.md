@@ -305,7 +305,15 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 The full description is in
 [`prototype/README.md`](../prototype/README.md#the-score-language-the-ir).
 
-- One bar per block, 16 steps per bar, 4/4.
+- One bar per block, 16 steps per bar, 4/4. This is still true of the song's own
+  grid (the transport, the band, the score): nothing there reads a time
+  signature, and nothing composes in anything but 4/4. The first real meter in
+  the codebase is the client-only metronome (`packages/theory/src/meter.ts`,
+  `packages/engine/src/metronome.ts`): a meter, `even(pulses, subdivisions, 0)`,
+  on its own bar, independent of the song's. It is a fact worth knowing before
+  assuming "meter" means 4/4 anywhere else in the engine; see #7's comment on
+  the pressure this puts on the score language once the band, not only a click
+  track, might want one.
 - Layers refer upward: pitch is relative to the chord, the chord to the key, the
   key to the section. Only compiled events are absolute.
 - `harm`: Roman numerals in the bar's key (minor, dorian, major, mixolydian),
