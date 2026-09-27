@@ -35,6 +35,7 @@
  */
 
 import { type Motif, alteredDegree, chromaticStep, heightOf, motifProblems } from '@jambot/theory';
+import { BAR_STEPS } from './events.ts';
 import { type Key, keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 
@@ -68,13 +69,11 @@ export type Judgement =
  */
 export const MUSE = { mashing: 12, fewest: 3, widest: 19, forgetAfter: 16 } as const;
 
-const STEPS = 16;
-
 /** The step nearest where a note was heard, from the song's start. */
 const stepOf = (note: HeardNote) => Math.round(note.position);
 
 /** The bar a note was heard in: the bar its nearest step is in. */
-export const barOf = (note: HeardNote) => Math.floor(stepOf(note) / STEPS);
+export const barOf = (note: HeardNote) => Math.floor(stepOf(note) / BAR_STEPS);
 
 /** The notes heard in a bar. */
 export function heardIn(notes: readonly HeardNote[], bar: number): HeardNote[] {
@@ -102,7 +101,7 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
   if (heard.length > MUSE.mashing) return { kind: 'mashing', source, count: heard.length };
   const top = new Map<number, HeardNote>();
   for (const n of heard) {
-    const step = stepOf(n) - bar * STEPS;
+    const step = stepOf(n) - bar * BAR_STEPS;
     if (n.note > (top.get(step)?.note ?? -Infinity)) top.set(step, n);
   }
   const melody = [...top].sort(([a], [b]) => a - b);
@@ -119,14 +118,14 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
   melody.forEach(([step, n], i) => {
     const { degree, accidental } = alteredDegree(scale, n.note)!;
     arcs.push({ onset: step, degree: degree - origin, accidental, accent: n.velocity - level });
-    const next = melody[i + 1]?.[0] ?? STEPS;
+    const next = melody[i + 1]?.[0] ?? BAR_STEPS;
     if (n.end === null) return;
-    const released = Math.max(step + 1, Math.round(n.end) - bar * STEPS);
+    const released = Math.max(step + 1, Math.round(n.end) - bar * BAR_STEPS);
     if (released < next) arcs.push(rest(released));
   });
   if (arcs[0]!.onset > 0 && arcs.at(-1)!.degree !== null) arcs.unshift(rest(0));
   const motif: Motif = {
-    cycle: STEPS,
+    cycle: BAR_STEPS,
     onsets: arcs.map((a) => a.onset),
     degrees: arcs.map((a) => a.degree),
     accidentals: arcs.map((a) => a.accidental),
@@ -165,7 +164,7 @@ export function admissible(judgement: Judgement, key: Key): boolean {
     case 'motif': {
       const { motif, level } = judgement;
       if (!Number.isInteger(level) || level < 0 || level > 127) return false;
-      if (motif.cycle !== STEPS || motifProblems(motif).length > 0) return false;
+      if (motif.cycle !== BAR_STEPS || motifProblems(motif).length > 0) return false;
       if (!motif.onsets.every(Number.isInteger)) return false;
       const notes = motif.degrees.filter((d) => d !== null);
       if (notes.length < MUSE.fewest || notes.length > MUSE.mashing) return false;

@@ -78,8 +78,11 @@ import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
-import { Sounding, type SoundingNotes } from './sounding.ts';
+import { EMPTY_PATTERN, Pattern, type BarPattern } from './pattern.ts';
+import { Sounding, type SoundingNotes, memberOf } from './sounding.ts';
 import { startTicker } from './ticker.ts';
+
+const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
 
 /** A part an instrument, not the band, can play along on. */
 export type AlongPart = Extract<Part, 'lead' | 'drums'>;
@@ -198,8 +201,10 @@ export class Player {
   offer: Offer | null = $state.raw(null);
   /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
   dropped: readonly DroppedJudgement[] = $state.raw([]);
-  /** The band's own notes heard sounding right now: the lead's, the drums'. */
-  sounding: SoundingNotes = $state({ lead: [], drums: [] });
+  /** The band's own notes heard sounding right now, one entry per member. */
+  sounding: SoundingNotes = $state(SILENT);
+  /** The last bar each track finished, for its piano roll. */
+  pattern: BarPattern = $state(EMPTY_PATTERN);
   mode: Mode = $state('solo');
   /** How many of the host's bars, as a client, had not arrived when they were due. */
   lacked = $state(0);
@@ -235,6 +240,7 @@ export class Player {
   #judged: BarJudgement[] = [];
   #follow: Follow | null = null;
   #sounding = new Sounding();
+  #pattern = new Pattern();
   /** The bars decided, from the first of the section heard on. */
   #bars: readonly ForecastBar[] = $state.raw([]);
   /** The bar the transport composes next, when the bars were last decided. */
@@ -491,7 +497,9 @@ export class Player {
     }
     this.#output?.silence();
     this.#sounding.clear();
-    this.sounding = { lead: [], drums: [] };
+    this.sounding = SILENT;
+    this.#pattern.clear();
+    this.pattern = EMPTY_PATTERN;
   }
 
   get #env(): TransportEnv {
@@ -590,16 +598,13 @@ export class Player {
   /** Play what the transport scheduled, and keep its steps for what is heard. */
   #schedule(output: Output, now: number, scheduled: TransportOutput) {
     const skew = this.skew;
-    for (const { event, seconds, duration, sound } of scheduled.events) {
+    for (const { bar, event, seconds, duration, sound } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds - skew, duration, sound);
-      if (event.part === 'lead' || event.part === 'drums')
-        this.#sounding.push({
-          part: event.part,
-          note: event.note,
-          seconds: seconds - skew,
-          duration,
-        });
+      const member = memberOf(event.part);
+      this.#sounding.push({ member, note: event.note, seconds: seconds - skew, duration });
+      this.#pattern.push(member, bar, { step: event.step, note: event.note, length: event.length });
     }
+    if (scheduled.events.length > 0) this.pattern = this.#pattern.get();
     output.tick?.(
       skew === 0
         ? scheduled.steps

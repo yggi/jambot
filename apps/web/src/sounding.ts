@@ -1,24 +1,38 @@
 /**
- * What the band is heard playing right now, for the instruments to show: the
- * lead's notes on the keyboard, the drums' on the pads. A hit sounds from
- * its scheduled time for its duration; `at(seconds)` reads which notes are
- * sounding then, and drops whatever can no longer be, the same way `Heard`
- * drops positions already taken.
+ * What the band is heard playing right now, for the instruments and the
+ * stage's members to show: the lead's notes on the keyboard, the drums' on
+ * the pads, and each of the band's four members on the stage. A hit sounds
+ * from its scheduled time for its duration; `at(seconds)` reads which notes
+ * are sounding then, and drops whatever can no longer be, the same way
+ * `Heard` drops positions already taken.
  */
 
+import type { Part } from '@jambot/engine';
+
+/** One of the band's four members, as the stage and the instruments show it. */
+export type Member = 'drums' | 'bass' | 'comp' | 'lead';
+
+export const MEMBERS: readonly Member[] = ['drums', 'bass', 'comp', 'lead'];
+
+/**
+ * The comp is one machine that writes two parts, `pad` and `stab` (L6, two
+ * parts for one machine's note-off bookkeeping); this view groups both under
+ * the one member a person would call by one name, "chords" (R4).
+ */
+export function memberOf(part: Part): Member {
+  return part === 'pad' || part === 'stab' ? 'comp' : part;
+}
+
 export interface Hit {
-  readonly part: 'lead' | 'drums';
+  readonly member: Member;
   readonly note: number;
   readonly seconds: number;
   readonly duration: number;
 }
 
-export interface SoundingNotes {
-  readonly lead: readonly number[];
-  readonly drums: readonly number[];
-}
+export type SoundingNotes = Readonly<Record<Member, readonly number[]>>;
 
-const NONE: SoundingNotes = { lead: [], drums: [] };
+const NONE: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
 
 export class Sounding {
   #hits: Hit[] = [];
@@ -28,17 +42,21 @@ export class Sounding {
     this.#hits.push(hit);
   }
 
-  /** The lead's and the drums' notes sounding at `seconds`; a hit that ended before it goes. */
+  /** Each member's notes sounding at `seconds`; a hit that ended before it goes. */
   at(seconds: number): SoundingNotes {
     this.#hits = this.#hits.filter((hit) => hit.seconds + hit.duration > seconds);
-    const notesOf = (part: Hit['part']) => [
+    const notesOf = (member: Member) => [
       ...new Set(
-        this.#hits.filter((hit) => hit.part === part && hit.seconds <= seconds).map((h) => h.note),
+        this.#hits
+          .filter((hit) => hit.member === member && hit.seconds <= seconds)
+          .map((h) => h.note),
       ),
     ];
-    const lead = notesOf('lead');
-    const drums = notesOf('drums');
-    return lead.length === 0 && drums.length === 0 ? NONE : { lead, drums };
+    const notes = Object.fromEntries(MEMBERS.map((member) => [member, notesOf(member)])) as Record<
+      Member,
+      number[]
+    >;
+    return MEMBERS.every((member) => notes[member].length === 0) ? NONE : notes;
   }
 
   clear() {

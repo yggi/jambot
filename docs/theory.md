@@ -359,6 +359,59 @@ major read from C are C Lydian.
 Tests: `modes.test.ts`, "shift and mode": the law for every even pair with n ≤
 12 and d over three turns.
 
+## Meter: pulses over a bar, a helix like any rhythm
+
+A **meter** is `pulses` felt over a bar of `subdivisions`, the bar's length in
+eighths: 6 for 3/4 and for 6/8, 8 for 4/4, 5 for 5/8. Where the pulses fall is
+`even(pulses, subdivisions, 0)` (`meter.ts`): the same primitive that gives the
+Euclidean rhythms and the diatonic set, read here as a bar's own circle rather
+than a rhythm's or a scale's.
+
+This is a narrower question than the backbeat above, which picks 2 of a bar's 4
+beats already placed by a meter: a meter needs no subset, and `even` alone gives
+every pulse's position.
+
+One formula covers what genre theory treats as three cases:
+
+- **simple** (3/4, 4/4): `subdivisions` is `2 · pulses`, so `even` divides
+  evenly, 2 subdivisions a pulse;
+- **compound** (6/8, 9/8, 12/8): `subdivisions` is `3 · pulses`, 3 a pulse;
+- **additive** (5/8, 7/8): `pulses` does not divide `subdivisions`, and `even`
+  gives the pulses unequal lengths, the long first: 5/8 as 3+2, 7/8 as 3+2+2.
+  This is the same maximally even spread that gives the bossa clave its shape
+  (`rhythms.ts`, `even(5, 16, 6)`).
+
+So 3/4 and 6/8 sound different at the same pulse tempo even though a bar of
+either holds six subdivisions (grouped in 2s against 3s), and a bar of 5/8 is
+felt long-short without a rule written down for it.
+
+The rest of the helix applies as it does to scales:
+
+- **Well-formed:** every pulse spans 2 or 3 subdivisions exactly when
+  `2 · pulses ≤ subdivisions ≤ 3 · pulses`, for every pair up to 16; this is
+  Lerdahl and Jackendoff's rule that a beat spans two or three of the level
+  below.
+- **Groupings are modes.** 7/8's three groupings, 3+2+2, 2+2+3 and 2+3+2, are
+  the three modes of `even(3, 7)`, and 9/8's aksak 2+2+2+3 is a mode of
+  `even(4, 9)`. `pulseHelix` gives the brightest mode, the long pulse first.
+  `mirror` gives the retrograde: 3+2+2 into 2+2+3.
+- **Not every grouping is maximally even.** Of the 149 groupings into 2s and 3s
+  of up to 16 subdivisions, 79 are modes of `even`; 10/8 as 3+3+2+2 is the first
+  that is not. Such a meter is still a helix, written as its heights, as the son
+  clave is among the rhythms.
+- **The song's 4/4 is one of them.** The 4/4 pulses composed onto a bar of 16
+  steps, two steps to an eighth, are `even(4, 16)`, the beats the transport
+  plays.
+- **A pulse tempo exists only for a simple or compound meter.** An additive
+  meter's pulses differ in length, so at a pulse tempo of 120, 5/8's pulses last
+  0.6 and 0.4 s, and no pulse plays at 120. The subdivision is the one unit
+  every meter shares.
+
+Tests: `meter.test.ts`, over every named meter (3/4, 4/4, 5/8, 6/8, 7/8, 9/8,
+12/8) and every well-formed pair up to 16: the pulses are `isEven`, position 0
+is the only downbeat, the pulse lengths, the modes and the mirror, the 79 of 149
+groupings, the song's beat, and where a pulse tempo exists.
+
 ## Mirror
 
 `mirror(helix)` reflects the helix about degree 0: degree d stands as far above

@@ -29,8 +29,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   - [`ratchet.md`](ratchet.md): how a working track and a negative track drive
     each other, with tests as the pawl (#37 and #7)
   - [`theory.md`](theory.md): the mathematics under `packages/theory` (circle,
-    helix, generator, modes, composition), each relation with the test that
-    holds it
+    helix, generator, modes, composition, meter), each relation with the test
+    that holds it
   - `briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
     - [`host-mode.md`](briefs/host-mode.md): a plan sketch for host and client
@@ -73,6 +73,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       degrees, and the operators on them: `strans`, `mirror`, `late` and `rev`
       as a group, `head` as a monoid, and each result's canonical operator (Q5c,
       U4, U5)
+    - `src/meter.ts`: meter, as `even(pulses, subdivisions, 0)`: one formula for
+      a simple, compound or additive bar (3/4, 6/8, 5/8 as 3+2), `meterWeights`
+      (downbeat, another pulse, or between them) and `pulseLengths`
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou and
       quintenzirkel use, checked to mean the same here
@@ -133,6 +136,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       not; `writtenAt` reads a moment on the clock back through the steps as
       laid; the notes played, and bars judged elsewhere, arrive as its input,
       and it runs the Muse two bars behind the band
+    - `src/metronome.ts`: the metronome, an independent click track at tick rate
+      on its own meter (`@jambot/theory`'s `meterWeights`), since the
+      transport's own bar is always 16 steps in 4/4; reads its tempo live
     - `experiments/`: measurements on the port for the language design, outside
       the pure `src/`
       - [`performance.ts`](../packages/engine/experiments/performance.ts): E9,
@@ -158,6 +164,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       they end, for the host's Muse
     - `src/clock.ts`: `hostClock`, the host's clock as a client reads it from
       pings, filtered by the least delay and slewed
+    - `src/faults.ts`: the fault kit (#27): simulated devices and links with
+      each clock fault explicit, for tests of whatever reads a clock;
+      `faults.test.ts` runs every fault against `hostClock` and the transport,
+      each claim a bound
     - `src/forecast.ts`: the bars ahead, sent as what changed
     - `src/session.test.ts`: a host and a client over a link with delay, jitter
       and loss, playing the same notes at the same moments
@@ -222,6 +232,14 @@ Every doc and code area, as a tree. Add a line when you add one.
         chord heard with its numeral, the beats, the song map, the next four
         bars and what the lead is doing; before the start, the bar the band
         opens on
+      - `src/components/Members.svelte`: one `Member` row per band member,
+        drums, bass, chords and lead
+      - `src/components/Member.svelte`: one band member, collapsed to its
+        status, expandable to its last bar as a `PianoRoll`, what is sounding on
+        it, and, while the lead plays a motif, whose it is
+      - `src/components/PianoRoll.svelte`: a member's last bar, drawn a row per
+        pitch sounding, low at the bottom; generalizes `MusePanel`'s rows of a
+        scale degree to rows of a raw note
       - `src/components/KeyPicker.svelte`: a tonic and a mode, showing the key
         the band is heading for
       - `src/components/MusePanel.svelte`: the Muse: the motif on offer, drawn a
@@ -240,6 +258,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       - `src/components/MidiPanel.svelte`: connecting, the output and input
         ports, the channel each part sends on, and the built-in synth, clock and
         thru toggles
+      - `src/components/MetronomePanel.svelte`: the metronome: on/off, a meter
+        picker, a volume slider, a two-state blinker and a steps-in-bar counter,
+        client-only and independent of the band
       - `src/components/SessionPanel.svelte`: host a session, join one, leave or
         close it; who joined, and how far the host is
     - `src/player.svelte.ts`: runs the transport on the audio clock and plays
@@ -252,10 +273,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       transport, for the Muse (#79), whose log is `museLog`, and `forgetMotif`
       asks it to forget. `playAlong` plays a note at once, on the same clock and
       synth, from an instrument, a computer key or MIDI; `sounding` is only the
-      band's own lead and drum notes heard sounding, never what was played along
-      with it. It plays alone, hosts (telling `hosting` what it does) or follows
-      a host (`follow`, and the `follow…` calls), on the host's clock through
-      `skew`
+      band's own notes heard sounding, one entry per band member, never what was
+      played along with it; `pattern` is each member's last bar finished, for
+      its piano roll. It plays alone, hosts (telling `hosting` what it does) or
+      follows a host (`follow`, and the `follow…` calls), on the host's clock
+      through `skew`
     - `src/session/`: host and client mode in the app
       ([brief](briefs/host-mode.md))
       - `lobby.ts`: `Lobby`, where sessions are found, and the links it gives a
@@ -269,10 +291,20 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars ahead as
       `BarView`s and the song map's sections of them, the chord sounding, the
       key's scale, the style's preset and glide, and the Muse's motif and log in
-      the prototype's words, as plain data
+      the prototype's words, as plain data; `leadStatus` and `styleStatus` are
+      the lead's and the style's status lines, reused by the stage's members
+    - `src/members.ts`: the stage's members, `membersOf`: one `MemberView` per
+      band member, drums, bass, chords and lead, each a status line, the Muse's
+      source while the lead plays that same motif (`hud.bar.motif`, not just any
+      offer the Muse holds now), what is sounding on it and its last bar's
+      pattern, built the same way whether the player hosts, follows or plays
+      alone
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/sounding.ts`: `Sounding`, the band's own notes heard sounding right
-      now, from a hit's scheduled time and duration
+      now on each of its four members, from a hit's scheduled time and duration;
+      `memberOf` maps the comp's `pad` and `stab` onto the one chords member
+    - `src/pattern.ts`: `Pattern`, the last bar each member finished, kept whole
+      once the next bar's first note arrives, for a member's piano roll
     - `src/audio/output.ts`: what the player plays on, and the Web Audio one
     - `src/audio/midi-out.ts`: MIDI out, one channel per part; a note-off is
       answered by its note-on's decision, never by what else is sounding at
@@ -288,6 +320,12 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/audio/drums.ts`: the built-in drum kit
     - `src/audio/voices.ts`: the built-in pitched voices: bass, chords and lead,
       coloured by the bar's sound
+    - `src/audio/metronome-click.ts`: the metronome's click, three oscillator
+      timbres, one per weight (downbeat, pulse, subdivision)
+    - `src/metronome.svelte.ts`: `Metronome`, on its own audio context and
+      ticker, driving the engine's metronome at the band's live tempo; volume
+      and meter saved to `localStorage`; `pulse` and `downbeat` follow what is
+      heard, the way `player.heard` does
     - `src/ticker.ts`: the scheduler's tick, from a Worker
     - `src/midi/surfaces.ts`: the playing surfaces that reach the Muse, as pure
       functions: a raw MIDI message (with its channel), the computer keys' maps

@@ -188,6 +188,21 @@ export function presetOf(style: Style): string | null {
   return preset?.name ?? null;
 }
 
+/** What the lead is doing, in the prototype's words, reused by the stage and its tracks. */
+export function leadStatus(hud: Pick<Hud, 'bar' | 'beat'>): string {
+  if (hud.beat === null || !hud.bar) return 'The band plays on its own once started.';
+  if (hud.bar.lead === 'motif')
+    return `Lead is playing the motif heard in bar ${hud.bar.motif! + 1}.`;
+  return hud.bar.lead === 'resting' ? 'Lead is resting.' : 'Lead is improvising.';
+}
+
+/** Where a style is, in the prototype's words, reused by the style panel and the tracks. */
+export function styleStatus({ preset, glide }: StyleView): string {
+  if (preset === null) return 'Custom style. Pick a preset to glide somewhere named.';
+  if (!glide) return `Playing ${preset}.`;
+  return `Moving from ${glide.from ?? 'Custom'} to ${preset}, bar ${glide.bar} of ${glide.bars}.`;
+}
+
 export function hudOf({ heard, bars, track, muse }: HudInput): Hud {
   const at = heard === null ? 0 : bars.findIndex((b) => b.bar === Math.floor(heard / 16));
   const here = at >= 0 ? bars[at] : undefined;

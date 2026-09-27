@@ -8,7 +8,7 @@
  * Delay varies, and a ping held up on one leg reads wrong by half the hold,
  * so of the latest pings the one with the shortest round trip is trusted
  * (Cristian's method, filtered by the least delay). A ping that came back
- * before it was sent says the client's clock stepped in between, as an
+ * before it was sent says the client's clock jumped in between, as an
  * output's does when it first pairs with the page's clock; it would be the
  * shortest of all, so it is dropped. Delay that is always
  * longer one way than the other can't be seen from either end: the offset
@@ -18,14 +18,14 @@
  * estimated on every ping, and the offset played by moves toward the
  * estimate by at most `CLOCK.slew` a ping.
  *
- * A clock can also step: an output that drops a buffer loses 10 ms at once,
+ * A clock can also jump: an output that drops a buffer loses 10 ms at once,
  * and so does its pairing with the page's clock. A ping says the offset
  * lies within half its round trip of what it read, so two pings whose
- * ranges don't meet (give or take `CLOCK.stepped`, the pairing's own
+ * ranges don't meet (give or take `CLOCK.jumped`, the pairing's own
  * jitter) can't be of the same two clocks. When a ping disagrees so with
- * the one trusted, and the next agrees with it, the clocks stepped: the
+ * the one trusted, and the next agrees with it, the clocks jumped: the
  * pings before are dropped, and the offset follows at once. The sound
- * already moved with the step; following it at once puts it back, where
+ * already moved with the jump; following it at once puts it back, where
  * slewing would leave it out for seconds. A single ping that disagrees
  * is dropped, and a slow ping, whose range meets both, decides nothing.
  *
@@ -45,7 +45,7 @@ export const CLOCK = {
   /** The longest best round trip, in seconds, a host may be away. */
   tooFar: 0.1,
   /** How far, in seconds, two pings' ranges may miss each other and still be of the same clocks. */
-  stepped: 0.003,
+  jumped: 0.003,
 } as const;
 
 /** A ping answered: the client's clock as it sent and received, and the host's as it answered. */
@@ -60,7 +60,7 @@ export interface ClockCarried {
   readonly pings: readonly { readonly trip: number; readonly offset: number }[];
   /** The offset played by, host minus client, once it is trusted. */
   readonly offset: number | null;
-  /** A ping that disagreed with those before it, waiting for the next to say whether the clocks stepped. */
+  /** A ping that disagreed with those before it, waiting for the next to say whether the clocks jumped. */
   readonly doubt: { readonly trip: number; readonly offset: number } | null;
 }
 
@@ -72,9 +72,9 @@ export interface ClockReading {
   readonly tooFar: boolean;
 }
 
-/** Whether two pings could be of the same two clocks: their ranges meet, give or take `CLOCK.stepped`. */
+/** Whether two pings could be of the same two clocks: their ranges meet, give or take `CLOCK.jumped`. */
 const agree = (a: { trip: number; offset: number }, b: { trip: number; offset: number }) =>
-  Math.abs(a.offset - b.offset) <= (a.trip + b.trip) / 2 + CLOCK.stepped;
+  Math.abs(a.offset - b.offset) <= (a.trip + b.trip) / 2 + CLOCK.jumped;
 
 export const hostClock: Machine<null, ClockCarried, Ping, ClockReading> = {
   initial: { pings: [], offset: null, doubt: null },
@@ -89,7 +89,7 @@ export const hostClock: Machine<null, ClockCarried, Ping, ClockReading> = {
         const next = { ...carried, doubt: ping };
         return { carried: next, output: reading(next) };
       }
-      // Two pings against the rest: the clocks stepped. Start again from them.
+      // Two pings against the rest: the clocks jumped. Start again from them.
       const pings = [carried.doubt, ping];
       const offset = carried.offset === null ? null : bestOf(pings)!.offset;
       const next = { pings, offset, doubt: null };

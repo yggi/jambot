@@ -142,16 +142,18 @@ A client plays on the host's clock:
   every device's speakers at once, whatever each output's latency.
 - **Offset.** Of the latest 16 pings, the one with the shortest round trip
   is trusted (`hostClock`). A ping that came back before it was sent is
-  dropped: an output's clock steps as it first pairs.
+  dropped: an output's clock jumps as it first pairs.
 - **Drift.** The offset played by moves toward the estimate by at most
   0.5 ms a ping. Pings go every 50 ms until the clock is trusted (4
   pings), then every 250 ms.
-- **Steps.** An output that drops a buffer moves its clock by 10 ms at
+- **Jumps.** An output that drops a buffer moves its clock by 10 ms at
   once. A ping says the offset lies within half its round trip of what it
   read; two quick pings in a row whose ranges miss the trusted one's (by
-  more than 3 ms, the pairing's own jitter) say the clocks stepped, and
-  the offset follows at once, where slewing would leave the band out for
-  seconds. One such ping alone is dropped.
+  more than 3 ms, `CLOCK.jumped`) say the clocks jumped, and the offset
+  follows at once, where slewing would leave the band out for seconds. One
+  such ping alone is dropped. A jump no wider than the pings' ranges and
+  those 3 ms is not told from drift, so it is slewed; so is one hidden by a
+  ping answered partway into a drop (T8, measured, failing).
 - **Too far.** A host whose best round trip is over 100 ms is dropped: a
   client leaves, saying why.
 - **Measured.** Two pages in one headless Chromium, 30 kicks: the client
@@ -312,10 +314,11 @@ e2e` pass unchanged, and a transport over bars the band composed, given
   against the real server, the session's words each way, a lost lobby, a
   refusal that is no loss, and a host and client session joined through
   it.
-- **Two pages in step** (`session.e2e.ts`): the kicks each sounds, on the
+- **Two pages in step** (`session.e2e.ts`): every note each sounds, on the
   clock both pages share, over the tabs and over the server from another
-  browser context (a median of 0.1 to 0.2 ms, 0.4 ms at worst); the
-  sessions listed; and a client's motif named in the host's Muse.
+  browser context, through a 40 ms hold of one page's audio, a jump of
+  some 30 ms (a median of 0.1 to 0.3 ms, 0.5 ms at worst once settled);
+  the sessions listed; and a client's motif named in the host's Muse.
 
 ## Steps
 

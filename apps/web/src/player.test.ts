@@ -518,25 +518,23 @@ describe('the player', () => {
   });
 
   describe('playing along', () => {
-    it('shows the band’s own lead and drum notes sounding, never past their duration', async () => {
+    it('shows every one of the band’s own tracks sounding, never past its duration', async () => {
       const { world, s } = surroundings();
       const player = new Player(s);
       void player.start();
       world.resolve();
       await settle();
-      let sawLead = false;
-      let sawDrums = false;
+      const seen = { drums: false, bass: false, comp: false, lead: false };
       for (let t = 0; t < 20; t += 0.025) {
         world.currentTime += 0.025;
         world.tickers[0]!.tick();
         world.frames[0]!.follow();
-        if (player.sounding.lead.length > 0) sawLead = true;
-        if (player.sounding.drums.length > 0) sawDrums = true;
+        for (const part of ['drums', 'bass', 'comp', 'lead'] as const)
+          if (player.sounding[part].length > 0) seen[part] = true;
       }
-      expect(sawLead).toBe(true);
-      expect(sawDrums).toBe(true);
+      expect(seen).toEqual({ drums: true, bass: true, comp: true, lead: true });
       player.stop();
-      expect(player.sounding).toEqual({ lead: [], drums: [] });
+      expect(player.sounding).toEqual({ drums: [], bass: [], comp: [], lead: [] });
     });
 
     it('plays along at once, on the band’s own output, without joining the band’s own notes', async () => {
@@ -548,7 +546,25 @@ describe('the player', () => {
       await played;
       expect(world.resumes).toBe(1);
       expect(world.played).toBe(before + 1);
-      expect(player.sounding).toEqual({ lead: [], drums: [] });
+      expect(player.sounding).toEqual({ drums: [], bass: [], comp: [], lead: [] });
+    });
+  });
+
+  describe('the last bar’s pattern', () => {
+    it('gives every track the notes of the last bar it finished, and clears them on stop', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      void player.start();
+      world.resolve();
+      await settle();
+      for (let t = 0; t < 20; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+      for (const part of ['drums', 'bass', 'comp', 'lead'] as const)
+        expect(player.pattern[part].length).toBeGreaterThan(0);
+      player.stop();
+      expect(player.pattern).toEqual({ drums: [], bass: [], comp: [], lead: [] });
     });
   });
 });

@@ -139,6 +139,15 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - Section names appear twice on the page, on the stage and in the song map,
   which names them before anything is heard. So a check that the screen follows
   what is heard looks for `Bar n of 8`, which only the stage shows.
+- The lead's status line (`leadStatus`, `hud.ts`) also appears twice, once on
+  the stage and once on its own row among the stage's members (`members.ts`,
+  `Members.svelte`): a member's row is what the lead-shaped drums, bass and
+  chords rows already look like, and singling the lead's out would be the
+  special case. An `apps/web/e2e/band.e2e.ts` check that reads it scopes to the
+  stage's own `Conductor` region. The stage's four members (drums, bass, chords,
+  lead) are named `Member`, not `Track`: `track` already names `StyleTrack` and
+  the ratchet's working and negative tracks, and a third job would break the law
+  of true names.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A bar's
   chords come from its theme's slots (`barChords`); their colour draws are keyed
@@ -168,9 +177,29 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `heardNow` is null for its first 0.2 s, and `hostClock` drops a ping that came
   back before it was sent. To try it, open the app in two windows of one
   browser, host in one and join in the other; `session.e2e.ts` measures the two.
-  Across machines, run `pnpm lobby` on one and give its `ws://` address as the
-  lobby server on each; every machine loads the app from its own `localhost`,
-  where Web MIDI works without HTTPS.
+  It holds one page's audio (`holdAudio`, a `suspend` and `resume`) for 40 ms, a
+  jump of some 30 ms; holds of 20 ms or less jump the pairing anywhere from −10
+  to +11 ms, as the output settles again. `heard` reads when a note sounded
+  through the pairing sampled as it sounded (a median of five, as a single
+  reading can blip), and `clockJumps` finds each jump of a page's clock, so a
+  check can bound the moments after a jump by the jump, on any machine, rather
+  than count notes out. A clock's discontinuity is a jump, so a step stays the
+  grid's. Across machines, run `pnpm lobby` on one and give its `ws://` address
+  as the lobby server on each; every machine loads the app from its own
+  `localhost`, where Web MIDI works without HTTPS.
+- A test of anything that reads a clock runs it on `simulatedDevice`
+  (`packages/session/src/faults.ts`, #27): real time is the test's, and each
+  fault is named, else off: drift, dropped buffers (the output's clock stands
+  still for the buffer), the render quantum, latency, the pairing's jitter and
+  blips, page stalls, and a link's legs, holds and loss. `device.view(() => t)`
+  gives the `clock` and `now` the app reads, and `{ paired: false }` a platform
+  with no pairing. The quantum reaches only `currentTime`, so a reader of the
+  pairing meets it only on its fallback. A claim is a bound the component
+  promises, and a test shows its checker firing. Measured here in headless
+  Chromium, the pairing is within about 0.4 ms but a busy machine blips a
+  reading by up to 4 ms, which the next takes back; a dropped buffer jumps it
+  for good. Where a component doesn't keep its promise yet, the scene is kept as
+  a known break, a test that finds it (`KNOWN_BREAKS`).
 - The web tests resolve `ws` to its Node build (`apps/web/vitest.config.ts`):
   resolved for the browser it is a stub, and `websocket.test.ts` runs the real
   lobby server, in Node's environment.
@@ -315,7 +344,15 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 The full description is in
 [`prototype/README.md`](../prototype/README.md#the-score-language-the-ir).
 
-- One bar per block, 16 steps per bar, 4/4.
+- One bar per block, 16 steps per bar, 4/4. This is still true of the song's own
+  grid (the transport, the band, the score): nothing there reads a time
+  signature, and nothing composes in anything but 4/4. The first real meter in
+  the codebase is the client-only metronome (`packages/theory/src/meter.ts`,
+  `packages/engine/src/metronome.ts`): a meter, `even(pulses, subdivisions, 0)`,
+  on its own bar, independent of the song's. It is a fact worth knowing before
+  assuming "meter" means 4/4 anywhere else in the engine; see #7's comment on
+  the pressure this puts on the score language once the band, not only a click
+  track, might want one.
 - Layers refer upward: pitch is relative to the chord, the chord to the key, the
   key to the section. Only compiled events are absolute.
 - `harm`: Roman numerals in the bar's key (minor, dorian, major, mixolydian),

@@ -14,7 +14,8 @@ import {
   leadRests,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { NEXT_BARS, SECTIONS, hudOf, presetOf } from './hud.ts';
+import { NEXT_BARS, SECTIONS, hudOf, leadStatus, presetOf, styleStatus } from './hud.ts';
+import type { BarView } from './hud.ts';
 
 const techno = PRESETS.find((p) => p.name === 'Techno')!;
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
@@ -246,6 +247,53 @@ describe('a glide’s progress', () => {
       preset: 'Synth-pop',
       glide: null,
     });
+  });
+});
+
+describe('the lead status line, reused by the stage and its tracks', () => {
+  const barView = (over: Partial<BarView> = {}): BarView => ({
+    bar: 9,
+    barInSection: 1,
+    section: 'Groove',
+    key: 'A aeolian',
+    scale: [0, 2, 4, 5, 7, 9, 11],
+    chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
+    energy: 0.6,
+    lead: 'improvising',
+    motif: null,
+    ...over,
+  });
+
+  it('says the band plays on its own before anything is heard', () => {
+    expect(leadStatus({ bar: barView(), beat: null })).toBe(
+      'The band plays on its own once started.',
+    );
+    expect(leadStatus({ bar: null, beat: 0 })).toBe('The band plays on its own once started.');
+  });
+
+  it('says the lead is resting, improvising, or playing the motif heard in a bar, counted from 1', () => {
+    expect(leadStatus({ bar: barView({ lead: 'resting' }), beat: 0 })).toBe('Lead is resting.');
+    expect(leadStatus({ bar: barView({ lead: 'improvising' }), beat: 0 })).toBe(
+      'Lead is improvising.',
+    );
+    expect(leadStatus({ bar: barView({ lead: 'motif', motif: 6 }), beat: 0 })).toBe(
+      'Lead is playing the motif heard in bar 7.',
+    );
+  });
+});
+
+describe('the style status line, reused by the style panel and the tracks', () => {
+  it('says a preset plays, a glide moves between two, or the style is custom', () => {
+    expect(styleStatus({ preset: 'Techno', glide: null })).toBe('Playing Techno.');
+    expect(styleStatus({ preset: 'Funk', glide: { from: 'Techno', bar: 3, bars: 8 } })).toBe(
+      'Moving from Techno to Funk, bar 3 of 8.',
+    );
+    expect(styleStatus({ preset: 'Funk', glide: { from: null, bar: 1, bars: 8 } })).toBe(
+      'Moving from Custom to Funk, bar 1 of 8.',
+    );
+    expect(styleStatus({ preset: null, glide: { from: 'Techno', bar: 1, bars: 1 } })).toBe(
+      'Custom style. Pick a preset to glide somewhere named.',
+    );
   });
 });
 
