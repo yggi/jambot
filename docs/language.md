@@ -647,9 +647,19 @@ inherited. Lands in: #3.
 
 **A3. Every event carries its source, and inferred structure its
 confidence.**
+Witness: the Muse's judgement (`muse.ts`): every note heard carries its
+source, each source's bar is judged on its own and the judgement names it,
+and the band takes the motif with the most notes, the first to arrive on
+a tie.
+Counterexample: a judgement that names no source, or two sources' notes
+judged as one, such as one player's chord heard as the top of another's
+melody.
+Test: `muse.test.ts`, whose tests of sources cite A3. Open: confidence,
+which nothing infers yet; the prototype's source with the most notes
+stands in for it.
 Source: prototype, SDR (the Muse's gate works like a squelch). Status:
-open (confidence). Decided: the prototype, inherited (provenance). Lands in:
-#3, #25.
+measured (the Muse's sources); open (confidence). Decided: the prototype,
+inherited (provenance). Lands in: #3, #25, #79.
 
 **A4. Following the players is a loop with a bandwidth.**
 Source: SDR (clock recovery), the Muse's rate limit. Status: speculative.

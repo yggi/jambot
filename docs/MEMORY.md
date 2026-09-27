@@ -101,8 +101,10 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   nothing; the bass its last note, the comp its last voicing, the lead its
   last note, its phrase and its themes' melodies (`BandCarried.parts`). A
   passed bar leaves the parts where they were, and only the lead's memory
-  reaches more than register (S2). A Muse motif is a lead shape in scale
-  degrees, the first use the machines' `input` channel will have (#2).
+  reaches more than register (S2). The Muse judges each source's bar into
+  a `Motif` of the theory, steps and degrees of the key (`judgeBar`,
+  `muse.ts`), which the lead's phrase is shaped like; where it enters the
+  band is #79 step 3.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
