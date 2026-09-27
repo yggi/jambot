@@ -192,11 +192,11 @@ transport's bar).
 pulses are equal.** Witness: `pulseLengths`: its lengths are equal exactly when
 the pulses divide the eighths, over every well-formed pair up to 16. The engine
 counts tempo per step (`tempoMap`, C2), so its `bpm` is a quarter of the step
-rate, whatever the meter. The metronome counts pulses a minute
-(`subdivisionSeconds`), which for 5/8 at 120 plays pulses of 0.6 and 0.4 s: no
-pulse is at 120, and the eighth changes speed when the meter does.
-Counterexample: an additive meter with a pulse that plays at the written tempo.
-Test: `meter.test.ts`, whose test of pulse tempo cites T7, over every
+rate, whatever the meter. The metronome counts a mean pulse rate
+(`pulsesPerMinute`, `subdivisionSeconds`), which for 5/8 at 120 plays pulses of
+0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when the meter
+does. Counterexample: an additive meter with a pulse that plays at the written
+tempo. Test: `meter.test.ts`, whose test of pulse tempo cites T7, over every
 well-formed pair up to 16. Open: what `bpm=` counts in a header once a bar has a
 meter. It is the score language's, so the owner's (#7). Source: #98. Status:
 measured (theory). Lands in: #63; #27.

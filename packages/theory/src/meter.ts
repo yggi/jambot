@@ -1,25 +1,33 @@
 /**
  * Meter: how a bar's pulses group its subdivisions, as a helix.
  *
- * A meter is `pulses` felt in a bar of `subdivisions`, the bar's length in
- * eighths (6 for 3/4 and for 6/8, 12 for 12/8, 5 for 5/8). Where the
- * pulses fall is `even(pulses, subdivisions, 0)`: the same primitive that
- * places the backbeat over a bar's steps and the diatonic set over the
- * chromatic circle (`helix.test.ts`, "nests meter the same way").
+ * A meter is `pulses` felt in a bar of `subdivisions` eighths, the one unit
+ * that makes every meter here comparable (6 for 3/4, 8 for 4/4, 5 for 5/8,
+ * 6 for 6/8, and so on). Where the pulses fall is
+ * `even(pulses, subdivisions, 0)`: the same primitive that places the
+ * backbeat over a bar's steps and the diatonic set over the chromatic
+ * circle (`helix.test.ts`, "nests meter the same way").
  *
- * One formula covers every named meter, not three cases: a *simple* meter (3/4, 4/4)
- * divides evenly into 2 subdivisions a pulse, a *compound* one (6/8, 12/8)
- * into 3, and an *additive* one, whose pulses aren't equal (5/8 as 3+2,
- * 7/8 as 3+2+2), is what `even` gives when `pulses` doesn't divide
+ * One formula covers three named cases, not two: a *simple* meter (3/4,
+ * 4/4) divides evenly into 2 subdivisions a pulse, a *compound* one (6/8,
+ * 12/8) into 3, and an *additive* one, whose pulses aren't equal (5/8 as
+ * 3+2, 7/8 as 3+2+2), is what `even` gives when `pulses` doesn't divide
  * `subdivisions` at all — the same maximally even spread that gives the
  * bossa clave its shape (`rhythms.ts`). So 3/4 and 6/8 sound different at
  * the same pulse tempo even though a bar of either holds six subdivisions,
  * and a bar of 5/8 is felt long-short without being told which pulse is
- * which: `even` places it, and places the long pulse first. The other
- * groupings of the same meter, 7/8 as 2+2+3 or 2+3+2, are the modes of its
- * pulse helix, and `mirror` gives the retrograde. A grouping that is not
- * maximally even, 10/8 as 3+3+2+2, is a helix `even` doesn't give, as the
- * son clave is among the rhythms (`meter.test.ts`, T6).
+ * which: `even` places it, and places the long pulse first.
+ *
+ * The other groupings of the same meter, 7/8 as 2+2+3 or 2+3+2, are the
+ * modes of its pulse helix, and `mirror` gives the retrograde. Each pulse
+ * of `even(pulses, subdivisions)` spans 2 or 3 eighths exactly when
+ * `2 · pulses ≤ subdivisions ≤ 3 · pulses` (Lerdahl and Jackendoff's
+ * well-formedness rule), but a grouping of 2s and 3s need not be a mode of
+ * `even`: 10/8's 3+3+2+2 has the pulse lengths `even(4, 10)` gives, but not
+ * their cyclic order (`even` alternates them, 3+2+3+2). Of the 149
+ * groupings of up to 16 eighths into 2s and 3s, 79 are modes of `even`
+ * (`meter.test.ts`, T6). A meter outside this reach needs its own heights,
+ * the way a non-maximally-even clave does in `rhythms.ts`.
  */
 
 import { even } from './even.ts';

@@ -16,9 +16,9 @@ const LOOKAHEAD = 0.12;
 const ticks = (from: number, count: number, every = 0.025): MetronomeInput[] =>
   range(count).map((i) => ({ now: from + i * every, until: from + i * every + LOOKAHEAD }));
 
-const env = (meter = METERS['4/4'], bpm = 120, start = 1): MetronomeEnv => ({
+const env = (meter = METERS['4/4'], pulsesPerMinute = 120, start = 1): MetronomeEnv => ({
   start,
-  bpm,
+  pulsesPerMinute,
   meter,
 });
 
@@ -80,7 +80,7 @@ describe('the metronome', () => {
 
   it('never waits: after a stall it drops what it missed and keeps the grid where it was', () => {
     const e = env();
-    const length = subdivisionSeconds(e.bpm, e.meter);
+    const length = subdivisionSeconds(e.pulsesPerMinute, e.meter);
     const onGrid = (seconds: number) =>
       Math.abs(Math.round((seconds - e.start) / length) - (seconds - e.start) / length) < 1e-9;
     const resumed = 0.9 + 100 * 0.025 + 3;
@@ -101,7 +101,7 @@ describe('the metronome', () => {
     // 120 bpm, 4/4: 4 subdivisions a second.
     expect(back.output.missed).toBeGreaterThan(4 * 3600 * 3.9);
     expect(back.output.clicks.length).toBeLessThan(4);
-    const length = subdivisionSeconds(e.bpm, e.meter);
+    const length = subdivisionSeconds(e.pulsesPerMinute, e.meter);
     for (const c of back.output.clicks) expect(c.seconds + length).toBeGreaterThan(now);
   });
 
@@ -138,7 +138,7 @@ describe('the metronome', () => {
     expect(firstPulse).not.toBeCloseTo(secondPulse, 3);
   });
 
-  it('keeps the machine laws, with bpm and meter changing (F1)', () => {
+  it('keeps the machine laws, with pulsesPerMinute and meter changing (F1)', () => {
     const script: Script<MetronomeEnv, MetronomeInput> = ticks(0.9, 240).map((input, i) => ({
       env: env(i < 120 ? METERS['4/4'] : METERS['6/8'], i < 60 ? 120 : 150),
       input,

@@ -71,7 +71,7 @@ export class Metronome {
   /** Whether the pulse heard now is the bar's downbeat. */
   downbeat = $state(false);
 
-  #bpm: () => number;
+  #pulsesPerMinute: () => number;
   #surroundings: MetronomeSurroundings;
   #output: ClickOutput | null = null;
   #carried: MetronomeCarried | null = null;
@@ -80,8 +80,8 @@ export class Metronome {
   #stopFrames: (() => void) | null = null;
   #heard = new Heard<{ pulse: number; downbeat: boolean }>();
 
-  constructor(bpm: () => number, surroundings: MetronomeSurroundings = browser) {
-    this.#bpm = bpm;
+  constructor(pulsesPerMinute: () => number, surroundings: MetronomeSurroundings = browser) {
+    this.#pulsesPerMinute = pulsesPerMinute;
     this.#surroundings = surroundings;
     const stored = load();
     this.#volume = stored.volume;
@@ -141,7 +141,11 @@ export class Metronome {
     if (!this.on || !output) return;
     const now = output.currentTime;
     if (this.#carried === null) this.#start = now + 0.05;
-    const env: MetronomeEnv = { start: this.#start, bpm: this.#bpm(), meter: METERS[this.#meter] };
+    const env: MetronomeEnv = {
+      start: this.#start,
+      pulsesPerMinute: this.#pulsesPerMinute(),
+      meter: METERS[this.#meter],
+    };
     const { carried, output: scheduled } = metronome.advance(env, this.#carried, {
       now,
       until: now + LOOKAHEAD,
