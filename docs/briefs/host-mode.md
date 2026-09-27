@@ -1,9 +1,10 @@
 # Brief: host and client mode
 
 Host and client mode, from the owner's brief to where it stands. Steps 1
-to 3 below are built: a host and its clients across the tabs and windows
-of one browser. Across machines comes next (step 4). What is measured is
-said so; what is estimated is marked as an estimate.
+to 4 below are built but for hosting the lobby: a host and its clients
+across the tabs of one browser, and across machines through a lobby
+server on the local network. What is measured is said so; what is
+estimated is marked as an estimate.
 
 ## What is asked
 
@@ -150,12 +151,17 @@ options:
 | BroadcastChannel     | Tabs of one browser, no server                                    | One machine only: for tests and demos                          |
 
 - Everything sits behind one `Lobby` (`apps/web/src/session/lobby.ts`): it
-  opens a session under a name or joins one, and gives a link, the host's
-  to its clients or a client's to its host. `broadcastLobby` is the one
-  built.
-- **Next, a WebSocket lobby** that relays, on a local server first, then
-  hosted.
-- **Then WebRTC data channels**, the same lobby signalling: a reliable,
+  lists the open sessions, opens one under a name or joins one, and gives
+  a link, the host's to its clients or a client's to its host, and says
+  when the lobby is lost.
+- **`broadcastLobby`** reaches the tabs and windows of one browser, with
+  no server: what the app uses when no lobby server is given.
+- **`websocketLobby`** reaches a lobby server (`apps/lobby`, `pnpm lobby`)
+  that finds sessions by name and relays, without reading the session's
+  messages. Its own few words (`packages/session/src/lobby.ts`): a name
+  is taken or open, a client joined or left, a host is gone. A socket
+  that misses a ping for 15 s, or falls 512 KB behind, is closed.
+- **Next, WebRTC data channels**, the same lobby signalling: a reliable,
   ordered channel for bars and the track; an unreliable one for pings.
   Traffic stays on the LAN at an event.
 - **Audio later, on WebRTC media tracks**: where RTP arrives.
@@ -177,7 +183,15 @@ It works, with one rule: load the app from `localhost` on every machine.
   unless Chromium is told to trust that origin
   (`--unsafely-treat-insecure-origin-as-secure`).
 - The hosted lobby serves `wss://` with a certificate, and the page on
-  Pages reaches it.
+  Pages reaches it. `apps/lobby/Dockerfile` builds the server for any host
+  that runs a container; it serves plain `ws://` on `$PORT`, and the
+  host's proxy gives it TLS. Which host runs it is still to be chosen, so
+  the app ships with no lobby address of its own: a build names one with
+  `VITE_LOBBY_URL`, and a player can type any.
+
+At an event, one laptop runs `pnpm lobby`, which prints the addresses to
+give; every player runs the app on their own machine and types that
+address as the lobby server.
 
 ### Messages
 
@@ -194,7 +208,7 @@ refuses another version, since a cached app can be older than its host.
 A host drops a client silent for 3 s. A client gives up if no welcome
 comes within 2 s.
 
-## Capacity: an estimate
+## Capacity
 
 Measured: a bar as sent is 2.8 KB of JSON on average (3.8 KB at most), the
 whole forecast 37 KB, and a bar's change to it about 0.5 KB. A client
@@ -202,14 +216,28 @@ pings 4 times a second. At 120 bpm, a bar every 2 s, a client takes about
 2 KB/s (16 kbit/s) and sends about 0.2 KB/s; a preset change sends the
 whole forecast once.
 
-Estimated, not yet measured; step 4 gets a load test:
+**The session manager, measured** (`apps/lobby/load.ts`): the server in a
+process of its own, sessions of a host and 8 clients each, bars and
+changes every 2 s and pings at 4 Hz, 20 s a round, on a 4-core container:
 
-- **The session manager** (a Node WebSocket lobby that relays): the cost
-  is fan-out, 2 KB/s and a few messages a second per client. One small
-  instance (1 vCPU, 512 MB) should carry 1,000 to 2,000 clients at once,
-  across hundreds of sessions, bounded by bandwidth (1,000 clients is
-  about 16 Mbit/s) before the CPU. As signalling only, for WebRTC, it
-  carries ten times as many.
+| Clients | Sessions | Bar to client, p50 / p99 / max | Ping, p50 / p99 | Server CPU | Memory |
+| ------- | -------- | ------------------------------ | --------------- | ---------- | ------ |
+| 100     | 13       | 0.4 / 1.6 / 4.3 ms             | 0.3 / 1.2 ms    | 6 %        | 107 MB |
+| 500     | 63       | 0.3 / 1.0 / 4.6 ms             | 0.3 / 2.1 ms    | 12 %       | 118 MB |
+| 1,000   | 125      | 0.3 / 1.5 / 12 ms              | 0.4 / 3.5 ms    | 19 %       | 133 MB |
+| 2,000   | 250      | 0.4 / 3.2 / 43 ms              | 0.9 / 6.3 ms    | 35 %       | 145 MB |
+| 4,000   | 500      | 0.9 / 14 / 75 ms               | 2.4 / 24 ms     | 62 %       | 254 MB |
+
+The server's CPU grows by about 16 % of a core per 1,000 clients, and it
+runs on one core. The load came from one process on the same machine,
+itself at 66 % by 4,000. So a small instance (1 vCPU, 512 MB) carries
+about 3,000 clients with every bar well inside a beat, and bandwidth is
+then 6 MB/s (50 Mbit/s): on a small host, the bandwidth allowance is the
+bound. Hosting on slower cores will read lower; the load test runs
+against any address to measure it there.
+
+Estimated, not yet measured:
+
 - **A host tab**: composing costs the same for any number of clients. With
   a relaying lobby it sends each bar once; what grows with clients is
   answering pings, 4 a second each, microseconds apiece. It must stay well
@@ -238,8 +266,17 @@ e2e` pass unchanged, and a transport over bars the band composed, given
 - **The app** (`apps/web/src/session/session.test.ts`): a host and a
   client session wired through a lobby in memory, and the BroadcastChannel
   lobby.
+- **The lobby server** (`apps/lobby/src/lobby.test.ts`): names, relaying
+  each way, leaving and going, refusals, and a socket closed for missing
+  pings or falling behind, each shown firing.
+- **The WebSocket lobby** (`apps/web/src/session/websocket.test.ts`):
+  against the real server, the session's words each way, a lost lobby, a
+  refusal that is no loss, and a host and client session joined through
+  it.
 - **Two pages in step** (`session.e2e.ts`): the kicks each sounds, on the
-  clock both pages share, and a client's motif named in the host's Muse.
+  clock both pages share, over the tabs and over the server from another
+  browser context (a median of 0.1 to 0.2 ms, 0.4 ms at worst); the
+  sessions listed; and a client's motif named in the host's Muse.
 
 ## Steps
 
@@ -249,7 +286,8 @@ e2e` pass unchanged, and a transport over bars the band composed, given
    the clock, the forecast's delta, and the simulated-link tests. Built.
 3. The BroadcastChannel lobby, host mode in the app (session name, who
    joined, join by name, leave, close), and the two-page e2e. Built.
-4. The WebSocket lobby: a local server first, then hosted; its load test.
+4. The WebSocket lobby: the server, its load test and its container, and
+   the app reaching it. Built; hosting it is the owner's choice of host.
 5. WebRTC data channels, the lobby as signalling.
 6. The root node speaks the protocol (#20).
 7. Audio over WebRTC media tracks.

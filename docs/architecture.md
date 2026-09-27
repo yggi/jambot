@@ -9,6 +9,8 @@ Jambot is a pnpm workspace:
 - **`packages/session`** holds host and client mode: what a host and its
   clients say, a client's band and ear, and its reading of the host's
   clock ([brief](briefs/host-mode.md)).
+- **`apps/lobby`** is the lobby server: sessions found by name, and relayed
+  between a host and its clients over WebSockets.
 - **`apps/web`** is the browser app: Svelte 5, built by Vite, and installable
   as an offline PWA. It plays the full band on the engine, and also serves
   the original prototype at `/prototype.html`.
@@ -207,8 +209,8 @@ the bars ahead, the style and the Muse. A client plays the host's bars
 with its own synth and MIDI, on the host's clock, set by pings that
 compare the moment each output is heard; its players' bars are judged on
 the client, and the host's Muse takes one motif of all it hears. Sessions
-are found through a lobby; the one built reaches the tabs and windows of
-one browser, and a WebSocket lobby, then WebRTC, reach across machines.
+are found through a lobby: across the tabs of one browser, or through
+the lobby server (`apps/lobby`) across machines; WebRTC comes next.
 
 ### Root node
 

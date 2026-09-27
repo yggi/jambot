@@ -41,6 +41,7 @@ function memoryLobby(): Lobby {
   const clients = new Map<string, Map<string, (message: HostMessage) => void>>();
   let made = 0;
   return {
+    sessions: async () => [...hosts.keys()],
     async host(session, hear) {
       const key = sessionKey(session);
       if (hosts.has(key)) throw new Error('taken');
@@ -205,6 +206,7 @@ describe('the lobby between tabs', () => {
     const toHost: [ClientMessage, string][] = [];
     const host = await lobby.host('Tab Jam', (m, from) => toHost.push([m, from]));
     await expect(lobby.host(' tab jam', () => {})).rejects.toThrow(/already open/);
+    expect(await lobby.sessions()).toEqual(['Tab Jam']);
 
     const toAda: HostMessage[] = [];
     const toBob: HostMessage[] = [];

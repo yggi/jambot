@@ -33,6 +33,8 @@ export class HostSession {
   /** The session's name, while it is open. */
   session: string | null = $state(null);
   guests: readonly Guest[] = $state.raw([]);
+  /** Why the session ended, if it ended on its own. */
+  ended: string | null = $state(null);
 
   #player: Player;
   #heardNow: () => number | null;
@@ -60,8 +62,16 @@ export class HostSession {
 
   /** Open the session under a name. Throws if the lobby refuses it. */
   async open(lobby: Lobby, session: string) {
+    this.ended = null;
     await this.#player.prepare();
-    this.#link = await lobby.host(session, (message, from) => this.#hear(message, from));
+    this.#link = await lobby.host(
+      session,
+      (message, from) => this.#hear(message, from),
+      (why) => {
+        this.close();
+        this.ended = why;
+      },
+    );
     this.session = session.trim();
     this.#player.mode = 'host';
     this.#forecast = this.#player.ahead;

@@ -34,6 +34,7 @@ These principles come from the prototype
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
 | `packages/session/`                                    | Host and client mode: pure TypeScript, no I/O                                 |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
+| `apps/lobby/`                                          | The lobby server: sessions found by name and relayed over WebSockets          |
 | `tooling/`                                             | The repository's own gates and tools: lint rules, hooks, the pawl, the deploy |
 | `prototype/`                                           | The original single-file prototype and its README: a baseline for orientation |
 | `docs/MEMORY.md`                                       | Persistent facts and a cheatsheet: the entry point                            |
