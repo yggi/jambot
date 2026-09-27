@@ -77,8 +77,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       U4, U5)
     - `src/meter.ts`: meter, a helix of pulses over the bar's eighths, most of
       them `even(pulses, eighths)`: one formula for a simple, compound or
-      additive bar (3/4, 6/8, 5/8 as 3+2), 10/8's 3+3+2+2 by its heights, and
-      `meterWeights` (downbeat, another pulse, or between them)
+      additive bar (3/4, 6/8, 5/8 as 3+2), 10/8's 3+3+2+2 by its heights,
+      `meterWeights` (downbeat, another pulse, or between them) and
+      `meterOnSteps`, a meter on a bar's steps
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou and
       quintenzirkel use, checked to mean the same here
@@ -99,7 +100,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       motif it took until another is taken, it is asked to forget, or 16 bars
       pass with nobody playing
     - `src/events.ts`: written notes (`WrittenNote`, the drum roles,
-      `writtenProblems`) and the note events they play as (`eventProblems`)
+      `writtenProblems`) and the note events they play as (`eventProblems`), and
+      the song's clock: its meter on the steps (`SONG_METER`, `BEATS`) and the
+      readings of bar and beat every reader calls (`barAt`, `stepInBar`,
+      `beatAt`, …; T10)
     - `src/perform.ts`: the performance, how a written note is played: its
       velocity and the length it sounds, read from the bar (T4)
     - `src/random.ts`: keyed deterministic randomness, and quantised `chance`

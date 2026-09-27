@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { METERS, meterOnSteps } from '@jambot/theory';
 import {
+  BAR_STEPS,
+  BEATS,
   DRUM_ROLES,
+  SONG_METER,
+  barAt,
+  barStart,
+  beatAt,
+  beatInBar,
+  beatStart,
+  onBeat,
+  stepInBar,
   type DrumRole,
   type NoteEvent,
   PARTS,
@@ -110,5 +121,41 @@ describe('writtenProblems', () => {
 
   it('reports every problem at once', () => {
     expect(writtenProblems({ ...hit, step: 16, note: 128, length: 0.5 })).toHaveLength(3);
+  });
+});
+
+describe('the song’s clock', () => {
+  /** Every step of 64 bars either side of the song’s start, and a quarter-step between each. */
+  const positions = Array.from({ length: 4 * 2048 }, (_, i) => i / 4 - 1024);
+
+  it('is the song’s meter, 4/4, on the bar’s 16 steps: a bar is one turn of its beats (T10)', () => {
+    expect(SONG_METER).toEqual(METERS['4/4']);
+    expect(BEATS).toEqual(meterOnSteps(SONG_METER));
+    expect(BEATS.heights).toEqual([0, 4, 8, 12]);
+    expect(BAR_STEPS).toBe(16);
+  });
+
+  it('reads the bar, the step in the bar and the beat as 16 and 4 did, at every quarter-step of 128 bars (T10)', () => {
+    for (const x of positions) {
+      expect(barAt(x)).toBe(Math.floor(x / 16));
+      expect(stepInBar(x)).toBe(((x % 16) + 16) % 16);
+      expect(beatAt(x)).toBe(Math.floor(x / 4));
+      expect(beatInBar(x)).toBe(Math.floor((((x % 16) + 16) % 16) / 4));
+      expect(beatStart(beatAt(x))).toBe(4 * Math.floor(x / 4));
+      expect(onBeat(x)).toBe(x % 4 === 0);
+    }
+  });
+
+  it('starts each bar where the one before ends, and every position lies in the bar and beat that hold it (T10)', () => {
+    for (let bar = -64; bar < 64; bar++) {
+      expect(barStart(bar + 1) - barStart(bar)).toBe(BAR_STEPS);
+      expect(barAt(barStart(bar))).toBe(bar);
+      expect(stepInBar(barStart(bar))).toBe(0);
+    }
+    for (const x of positions) {
+      expect(barStart(barAt(x)) + stepInBar(x)).toBe(x);
+      expect(beatStart(beatAt(x))).toBeLessThanOrEqual(x);
+      expect(beatStart(beatAt(x) + 1)).toBeGreaterThan(x);
+    }
   });
 });

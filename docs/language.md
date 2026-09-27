@@ -248,25 +248,30 @@ updates to come within a millisecond of a jump. Test: `clock-offset.test.ts`,
 
 **T10. The song's clock is its meter's helix on the steps: the bar is a turn,
 the step in the bar a position, and the beat a degree.** Witness: the helix's
-own readings. For a meter composed onto the steps, two to an eighth,
-`degreeBelow` gives the pulse a step falls in, `Math.floor(pulse / k)` its bar
-and `wrap` its step in the bar, in every meter; for 4/4 they are exactly the
-readers' literals, `Math.floor(step / 16)`, `step % 16` and
-`Math.floor(step % 16 / 4)`. Counterexample: a reader of bar or beat whose
-result in 4/4 differs from the helix's, or one that no helix reading writes.
-Test: `meter.test.ts`, whose tests under "as the song’s clock" cite T10: at
-every step of 128 bars, the 4/4 readings equal the literals, and every named
-meter's readings keep their laws, while the literals give 4/4's alone. The
-readers that still count a bar as 16 steps or a beat as 4: the transport
-(`% 16`, `bar * 16`, `step / 4` for swing's beat), `BAR_STEPS` (the Muse, a
-motif's cycle), the parts' loops over 16 steps (drums, bass, comp, lead),
-`perform`'s fill ramp, `PRESET_GLIDE` (8 bars of 16), the session's host and
-ear, the HUD (`/ 16`, `step / 4`), the piano rolls, the fault kit and MIDI
-clock's 6 ticks a step (T3). A key change keeps the cycle and a meter change
-need not, so a song whose meter changes is a helix only between changes: open
-how bars of different lengths join. Source: #7's tension 9; #105. Status:
-measured (the readings, every named meter); open (the readers, which still use
-the literals). Lands in: #27 (the transport's bar); #63 (a meter per bar).
+own readings. For a meter composed onto the steps, two to an eighth
+(`meterOnSteps`), `degreeBelow` gives the pulse a step falls in,
+`Math.floor(pulse / k)` its bar and `wrap` its step in the bar, in every meter.
+The song reads its clock this way and no other: `events.ts` holds its meter
+(`SONG_METER`, 4/4) on the steps (`BEATS`), and `barAt`, `barStart`,
+`stepInBar`, `beatAt`, `beatStart`, `beatInBar` and `onBeat` are its readings,
+which every reader of bar and beat calls: the transport, the Muse's grid
+(`BAR_STEPS`, a motif's cycle), the parts' loops over the bar, `perform`,
+`PRESET_GLIDE`, swing's beat, the session's host and ear, the HUD and the piano
+rolls. Counterexample: a reader of bar or beat whose result in 4/4 differs from
+the helix's, or one that no helix reading writes. Test: `meter.test.ts`, whose
+tests under "as the song’s clock" cite T10: at every step of 128 bars, the 4/4
+readings equal the literals `Math.floor(step / 16)`, `step % 16` and
+`Math.floor(step % 16 / 4)`, and every named meter's readings keep their laws,
+while the literals give 4/4's alone; `events.test.ts`, whose tests under "the
+song’s clock" cite T10: the song's readings are the literals at every
+quarter-step of 128 bars, and bars and beats tile the song. The rhythms the
+parts write stay on the 16 steps, such as the backbeat on steps 4 and 12: they
+are content, not readings (#123). MIDI clock's 6 ticks a step (T3) counts steps,
+not bars. A key change keeps the cycle and a meter change need not, so a song
+whose meter changes is a helix only between changes: open how bars of different
+lengths join (#122). Source: #7's tension 9; #105; #120. Status: measured (the
+readings, every named meter; the readers, in 4/4). Lands in: #122 (a meter per
+bar); #63 (a meter in the header).
 
 **T11. Swing lives on the pulse, and a performance map can move a written meter
 toward another.** Witness: `swingMap` at full swing plays 4/4's eighths on
@@ -1002,9 +1007,9 @@ These are where the decisions are.
    follow the beat decides whether accents are counted from a level, as taken
    now, or from `perform`.
 9. **One bar of 16 steps against a meter per bar** (T6, T7, T10, T11). The
-   theory holds every meter as a helix, and the song holds one: the transport,
-   the Muse's grid and the HUD count a bar as 16 steps and a beat as 4. Each of
-   those readings is the 4/4 helix's (T10), and swing moves the pulses of every
+   theory holds every meter as a helix, and the song holds one, 4/4, read
+   through its helix by every reader of bar and beat (T10), so a meter other
+   than 4/4 changes them all at once. Swing still moves the pulses of every
    other meter (T11). A key change keeps the cycle and a meter change need not,
    so how bars of different lengths join is open.
 
