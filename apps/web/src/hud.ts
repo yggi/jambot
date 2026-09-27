@@ -66,6 +66,8 @@ export interface BarView {
   readonly barInSection: number;
   readonly section: string;
   readonly key: string;
+  /** The key's tonic, as a pitch class 0–11, C = 0. */
+  readonly tonic: number;
   /** The key's notes, as pitch classes 0–11, C = 0. */
   readonly scale: readonly number[];
   readonly chords: readonly ChordView[];
@@ -347,6 +349,7 @@ function barView(bar: ForecastBar): BarView {
     barInSection: bar.bar % 8,
     section: SECTION_NAMES[bar.plan.section.type],
     key: keyName(bar.plan.key),
+    tonic: bar.plan.key.tonic,
     scale: positions(keyHelix(bar.plan.key)),
     chords: bar.chords.map((c) => chordView(c, bar)),
     energy: bar.barEnergy,
