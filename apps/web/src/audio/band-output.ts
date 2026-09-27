@@ -65,6 +65,9 @@ export function bandOutput(
       base.silence();
       midi.stop(base.currentTime, offset.toDeviceMs);
     },
+    panic() {
+      midi.panic(base.currentTime, offset.toDeviceMs);
+    },
     starting(seconds) {
       midi.start(seconds, offset.toDeviceMs);
     },

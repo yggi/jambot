@@ -167,6 +167,20 @@ describe('bandOutput', () => {
     expect(sent).toEqual([{ data: [0xfa], timestamp: 1998 }]);
   });
 
+  it('panics MIDI alone, without touching the built-in synth or stopping playback', () => {
+    const base = fakeBase();
+    const { settings, state } = fakeSettings();
+    const { port, sent } = fakePort();
+    state.port = port;
+    const output = bandOutput(settings, base.output);
+    void output.currentTime;
+    output.play('lead', 60, 100, 0, 10, sound);
+    sent.length = 0;
+    output.panic?.();
+    expect(base.silenced).toBe(0);
+    expect(sent.some((m) => m.data[1] === 123)).toBe(true); // all notes off (CC 123)
+  });
+
   it('silences the built-in synth and stops MIDI together', () => {
     const base = fakeBase();
     const { settings, state } = fakeSettings();

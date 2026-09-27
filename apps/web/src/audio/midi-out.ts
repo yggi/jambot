@@ -66,17 +66,26 @@ export class MidiOut {
   /** Adopt a port, silencing whatever the old one held first. */
   setPort(port: MidiPort | null, atSeconds: number, toDeviceMs: (seconds: number) => number) {
     if (port === this.#port) return;
-    this.#allNotesOff(atSeconds, toDeviceMs);
-    this.#open.clear();
+    this.panic(atSeconds, toDeviceMs);
     this.#port = port;
   }
 
   /** Remap parts to channels, silencing the channels it leaves first. */
   setChannels(channels: Channels, atSeconds: number, toDeviceMs: (seconds: number) => number) {
     if (channelsEqual(channels, this.#channels)) return;
+    this.panic(atSeconds, toDeviceMs);
+    this.#channels = channels;
+  }
+
+  /**
+   * All notes off on every channel in use, and forget what's held: a manual
+   * panic, or the app's own recovery from a suspended tab or a dropped
+   * connection, where notes already sent may never get the release a
+   * frozen clock never scheduled.
+   */
+  panic(atSeconds: number, toDeviceMs: (seconds: number) => number) {
     this.#allNotesOff(atSeconds, toDeviceMs);
     this.#open.clear();
-    this.#channels = channels;
   }
 
   /**
@@ -139,8 +148,7 @@ export class MidiOut {
    */
   stop(atSeconds: number, toDeviceMs: (seconds: number) => number) {
     if (this.#clock) this.#send([STOP], atSeconds, toDeviceMs);
-    this.#allNotesOff(atSeconds + LOOKAHEAD + 0.4, toDeviceMs);
-    this.#open.clear();
+    this.panic(atSeconds + LOOKAHEAD + 0.4, toDeviceMs);
   }
 
   #allNotesOff(atSeconds: number, toDeviceMs: (seconds: number) => number) {

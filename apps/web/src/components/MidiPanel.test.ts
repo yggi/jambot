@@ -74,6 +74,30 @@ describe('MidiPanel', () => {
     expect(settings.channels.bass).toBe(1);
   });
 
+  it('offers all notes off once connected, and calls it on click', async () => {
+    const { access } = fakeAccess();
+    const onpanic = vi.fn();
+    render(MidiPanel, {
+      settings: new MidiSettings(),
+      access,
+      message: '',
+      onconnect: () => {},
+      onpanic,
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'All notes off' }));
+    expect(onpanic).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no all-notes-off control before connecting', () => {
+    render(MidiPanel, {
+      settings: new MidiSettings(),
+      access: null,
+      message: '',
+      onconnect: () => {},
+    });
+    expect(screen.queryByRole('button', { name: 'All notes off' })).not.toBeInTheDocument();
+  });
+
   it('toggles the built-in synth, clock and thru', async () => {
     const settings = new MidiSettings();
     render(MidiPanel, { settings, access: null, message: '', onconnect: () => {} });

@@ -14,9 +14,11 @@
     access: MidiAccess | null;
     message: string;
     onconnect: () => void;
+    /** All notes off, for hardware left sounding by a suspended tab or a dropped connection. */
+    onpanic?: () => void;
   }
 
-  let { settings, access, message, onconnect }: Props = $props();
+  let { settings, access, message, onconnect, onpanic }: Props = $props();
 
   const PARTS: { key: keyof Channels; label: string }[] = [
     { key: 'lead', label: 'Lead' },
@@ -50,6 +52,9 @@
       <button type="button" onclick={onconnect}>Connect MIDI</button>
     {/if}
     <p class="message">{message}</p>
+    {#if access && onpanic}
+      <button type="button" onclick={onpanic}>All notes off</button>
+    {/if}
     {#if access}
       <label>
         Listen to input

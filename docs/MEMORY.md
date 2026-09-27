@@ -174,6 +174,14 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - The web tests resolve `ws` to its Node build (`apps/web/vitest.config.ts`):
   resolved for the browser it is a stub, and `websocket.test.ts` runs the real
   lobby server, in Node's environment.
+- A port chosen before (`MidiSettings.outPortId`/`inPortId`) is reconnected on
+  load without a click (`App.svelte`), since a Web MIDI permission already
+  granted needs no gesture; a first visit, with no port chosen yet, asks for
+  none. `MidiOut.panic` (`audio/midi-out.ts`) sends all notes off and forgets
+  what it held; `App.svelte` calls it, through `Player.panicMidi`, on waking
+  from a hidden tab, since a suspended tab's frozen clock can leave a release
+  unscheduled and hardware sounding, and offers it as a button in
+  `MidiPanel.svelte` too, for whatever the automatic case misses (#102).
 - The e2e checks play each melody input as a player does: the computer keys
   typed, the on-screen keys pressed, and a MIDI keyboard through a Web MIDI
   stand-in the page gets before it loads (`band.e2e.ts`, `INPUTS`), since

@@ -191,6 +191,21 @@ describe('MidiOut', () => {
     });
   });
 
+  it('panics: sends all notes off on every channel in use and forgets what it held', () => {
+    const midi = new MidiOut();
+    const { port, sent } = fakePort();
+    midi.setPort(port, 0, toDeviceMs);
+    midi.play('lead', 60, 100, 0, 10, toDeviceMs);
+    midi.play('drums', 36, 100, 0, 10, toDeviceMs);
+    midi.panic(1, toDeviceMs);
+    expect(allNotesOffChannels(sent)).toEqual(new Set([0, 1, 2, 9]));
+    // Nothing left held: a note played after panic never emits a leftover release.
+    sent.length = 0;
+    midi.play('lead', 60, 100, 2, 0.1, toDeviceMs);
+    midi.advance(3, toDeviceMs);
+    expect(sent.filter((m) => m.data[0] === (NOTE_OFF | 0)).length).toBe(1);
+  });
+
   it('clamps a timestamp before now to zero, rather than sending it late', () => {
     const midi = new MidiOut();
     const { port, sent } = fakePort();
