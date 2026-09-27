@@ -18,6 +18,8 @@ export interface RouteDeps {
   readonly thru: () => boolean;
   readonly thruPort: () => MidiPort | null;
   readonly thruChannel: () => number;
+  /** Heard at once, along with the band, whenever a note is struck. */
+  readonly playAlong: (note: number, velocity: number) => void;
   readonly now?: () => number;
 }
 
@@ -31,6 +33,7 @@ export function routeNote(
 ): void {
   if (on) deps.held.add(note);
   else deps.held.delete(note);
+  if (on) deps.playAlong(note, velocity);
   if (on && deps.playing())
     deps.humanNoteOn(note, velocity, source, deps.toOutputSeconds((deps.now ?? performance.now)()));
   if (deps.thru()) {

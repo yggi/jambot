@@ -1,7 +1,39 @@
 import { PRESETS } from '@jambot/engine';
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { describe, expect, it } from 'vitest';
+import { tick } from 'svelte';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.svelte';
+
+/**
+ * Just enough of Web Audio for `Player.playAlong` to run without throwing:
+ * every method `webAudioOutput`, `drumKit` and `voices` call, doing
+ * nothing. What matters here is where a note is routed, not what it
+ * sounds like.
+ */
+function fakeAudioContext() {
+  const param = () => ({
+    value: 0,
+    setValueAtTime: () => {},
+    exponentialRampToValueAtTime: () => {},
+    linearRampToValueAtTime: () => {},
+    setTargetAtTime: () => {},
+  });
+  const node = () => ({ connect: (to: unknown) => to });
+  return {
+    sampleRate: 44100,
+    currentTime: 0,
+    outputLatency: 0,
+    baseLatency: 0,
+    destination: node(),
+    createDynamicsCompressor: () => node(),
+    createGain: () => ({ ...node(), gain: param() }),
+    createBiquadFilter: () => ({ ...node(), type: '', Q: param(), frequency: param() }),
+    createOscillator: () => ({ ...node(), type: '', frequency: param(), start() {}, stop() {} }),
+    createBuffer: () => ({ getChannelData: () => new Float32Array(1) }),
+    createBufferSource: () => ({ ...node(), buffer: null, start() {}, stop() {} }),
+    resume: () => Promise.resolve(),
+  };
+}
 
 describe('the app', () => {
   it('offers the band, the presets and the style sliders', () => {
@@ -59,22 +91,69 @@ describe('the app', () => {
     );
   });
 
-  it('lights the on-screen key for a computer key pressed, and unlights it on release', async () => {
-    render(App);
-    const c4 = () => screen.getByRole('button', { name: 'C4' }); // 'a' maps to C4 (60)
-    expect(c4().className).not.toContain('down');
-    await fireEvent.keyDown(window, { key: 'a' });
-    expect(c4().className).toContain('down');
-    await fireEvent.keyUp(window, { key: 'a' });
-    expect(c4().className).not.toContain('down');
-  });
+  describe('routing what is played to the keyboard or the pads', () => {
+    beforeEach(() => {
+      vi.stubGlobal('AudioContext', vi.fn(fakeAudioContext));
+      localStorage.clear();
+    });
 
-  it('ignores a repeated keydown and an unmapped key', async () => {
-    render(App);
-    const c4 = () => screen.getByRole('button', { name: 'C4' });
-    await fireEvent.keyDown(window, { key: 'a', repeat: true });
-    expect(c4().className).not.toContain('down');
-    await fireEvent.keyDown(window, { key: 'z' });
-    expect(c4().className).not.toContain('down');
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      localStorage.clear();
+    });
+
+    it('lights the on-screen key for a computer key pressed, and unlights it on release', async () => {
+      render(App);
+      const c4 = () => screen.getByRole('button', { name: 'C4' }); // 'a' maps to C4 (60)
+      expect(c4().className).not.toContain('down');
+      await fireEvent.keyDown(window, { key: 'a' });
+      expect(c4().className).toContain('down');
+      await fireEvent.keyUp(window, { key: 'a' });
+      expect(c4().className).not.toContain('down');
+    });
+
+    it('ignores a repeated keydown and an unmapped key', async () => {
+      render(App);
+      const c4 = () => screen.getByRole('button', { name: 'C4' });
+      await fireEvent.keyDown(window, { key: 'a', repeat: true });
+      expect(c4().className).not.toContain('down');
+      await fireEvent.keyDown(window, { key: 'z' });
+      expect(c4().className).not.toContain('down');
+    });
+
+    it('sends a computer key to the keyboard or the pads by its own map', async () => {
+      render(App);
+      await fireEvent.keyDown(window, { key: 'a' });
+      expect(screen.getByRole('button', { name: 'C4' })).toHaveClass('down');
+      await fireEvent.keyDown(window, { key: '1' });
+      expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');
+    });
+
+    it('routes a MIDI note by its channel: 10 to the pads, every other to the keyboard', async () => {
+      const port = {
+        name: 'Test Keys',
+        onmidimessage: null as ((e: MIDIMessageEvent) => void) | null,
+      };
+      const access = { inputs: new Map([['1', port]]), outputs: new Map(), onstatechange: null };
+      (navigator as unknown as { requestMIDIAccess: unknown }).requestMIDIAccess = vi.fn(
+        async () => access,
+      );
+
+      render(App);
+      await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
+      await fireEvent.change(screen.getByRole('combobox', { name: 'Listen to input' }), {
+        target: { value: 'all' },
+      });
+
+      port.onmidimessage!({ data: [0x99, 36, 100] } as unknown as MIDIMessageEvent); // channel 10: kick
+      await tick();
+      expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');
+
+      port.onmidimessage!({ data: [0x90, 64, 100] } as unknown as MIDIMessageEvent); // channel 1: E4
+      await tick();
+      expect(screen.getByRole('button', { name: 'E4' })).toHaveClass('down');
+
+      delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
+    });
   });
 });

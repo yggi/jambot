@@ -28,10 +28,12 @@ import {
   chordAt,
   chordName,
   chordNumeral,
+  keyHelix,
   keyName,
   leadRests,
   styleAt,
 } from '@jambot/engine';
+import { positions } from '@jambot/theory';
 
 /** How many bars after the one heard are shown. */
 export const NEXT_BARS = 4;
@@ -55,6 +57,8 @@ export interface BarView {
   readonly barInSection: number;
   readonly section: string;
   readonly key: string;
+  /** The key's notes, as pitch classes 0–11, C = 0. */
+  readonly scale: readonly number[];
   readonly chords: readonly ChordView[];
   /** The energy it plays at, 0 to 1. */
   readonly energy: number;
@@ -182,6 +186,7 @@ function barView(bar: ForecastBar): BarView {
     barInSection: bar.bar % 8,
     section: SECTION_NAMES[bar.plan.section.type],
     key: keyName(bar.plan.key),
+    scale: positions(keyHelix(bar.plan.key)),
     chords: bar.chords.map((c) => chordView(c, bar)),
     energy: bar.barEnergy,
     lead: leadRests(bar.plan.section.type, bar.barEnergy) ? 'resting' : 'improvising',

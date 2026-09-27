@@ -18,6 +18,12 @@
  * Starting waits for the audio clock, which a browser starts only after a
  * gesture. While it waits the player is starting: another start does
  * nothing, and a stop cancels it.
+ *
+ * Playing along shares that clock and that output: `playAlong` is the
+ * instruments' way to be heard, for a finger on the keyboard or the pads, a
+ * computer key or a MIDI note. It plays at once, on the same synth the band
+ * uses, but it is not part of the band: only the band's own notes ever
+ * appear in `sounding`.
  */
 
 import {
@@ -25,7 +31,10 @@ import {
   INITIAL_STYLE,
   type KeyWish,
   LOOKAHEAD,
+  type Part,
   PRESETS,
+  soundOf,
+  styleAt,
   type StyleTrack,
   type TransportCarried,
   type TransportEnv,
@@ -39,7 +48,14 @@ import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
+import { Sounding, type SoundingNotes } from './sounding.ts';
 import { startTicker } from './ticker.ts';
+
+/** A part an instrument, not the band, can play along on. */
+export type AlongPart = Extract<Part, 'lead' | 'drums'>;
+
+/** How long a note played along sounds, in seconds: held for the keyboard, struck for the pads. */
+const ALONG_DURATION: Record<AlongPart, number> = { lead: 0.6, drums: 0.2 };
 
 /**
  * How many bars ahead the player keeps decided: the song map's sections, and
@@ -56,6 +72,7 @@ export type Status = 'stopped' | 'starting' | 'playing';
  * reads these; until it exists, the player only keeps them.
  */
 export interface HumanNote {
+  readonly part: AlongPart;
   readonly note: number;
   readonly velocity: number;
   readonly bar: number;
@@ -101,6 +118,8 @@ export class Player {
   heard: number | null = $state(null);
   /** Notes players struck while the band listened, waiting for the Muse (#2). */
   humanNotes: readonly HumanNote[] = $state.raw([]);
+  /** The band's own notes heard sounding right now: the lead's, the drums'. */
+  sounding: SoundingNotes = $state({ lead: [], drums: [] });
 
   #surroundings: Surroundings;
   #output: Output | null = null;
@@ -110,6 +129,7 @@ export class Player {
   #stopTicker: (() => void) | null = null;
   #stopFrames: (() => void) | null = null;
   #heard = new Heard<number>();
+  #sounding = new Sounding();
   /** The bars decided, from the first of the section heard on. */
   #bars: readonly ForecastBar[] = $state.raw([]);
   /** The bar the transport composes next, when the bars were last decided. */
@@ -158,7 +178,7 @@ export class Player {
    * quantised to the nearest step and kept for whenever the Muse (#2)
    * reads it. Judging what was played is not this class's to do.
    */
-  humanNoteOn(note: number, velocity: number, source: string, seconds: number) {
+  humanNoteOn(part: AlongPart, note: number, velocity: number, source: string, seconds: number) {
     const position = this.writtenPosition(seconds);
     if (position === null) return;
     const abs = Math.round(position);
@@ -169,8 +189,22 @@ export class Player {
         : this.humanNotes;
     this.humanNotes = [
       ...kept,
-      { note, velocity, bar: Math.floor(abs / 16), step: abs % 16, source },
+      { part, note, velocity, bar: Math.floor(abs / 16), step: abs % 16, source },
     ];
+  }
+
+  /**
+   * Play a note along with the band, on the same clock and the same synth,
+   * from a finger on an instrument, a computer key or a MIDI note. It never
+   * appears in `sounding`, which is the band's own notes, not what people
+   * play along with it.
+   */
+  async playAlong(part: AlongPart, note: number, velocity: number) {
+    const output = (this.#output ??= this.#surroundings.output());
+    await output.resume();
+    const energy = this.hud.bar?.energy ?? 0.6;
+    const sound = soundOf(styleAt(this.track, this.heard ?? 0), energy);
+    output.play(part, note, velocity, output.currentTime, ALONG_DURATION[part], sound);
   }
 
   async start() {
@@ -203,6 +237,8 @@ export class Player {
     this.#seed = this.#surroundings.seed();
     this.#decide();
     this.#output?.silence();
+    this.#sounding.clear();
+    this.sounding = { lead: [], drums: [] };
   }
 
   get #env(): TransportEnv {
@@ -234,8 +270,11 @@ export class Player {
       until: now + LOOKAHEAD,
     });
     this.#carried = carried;
-    for (const { event, seconds, duration, sound } of scheduled.events)
+    for (const { event, seconds, duration, sound } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds, duration, sound);
+      if (event.part === 'lead' || event.part === 'drums')
+        this.#sounding.push({ part: event.part, note: event.note, seconds, duration });
+    }
     output.tick?.(scheduled.steps);
     for (const { step, seconds } of scheduled.steps) this.#heard.push(seconds, step);
     this.#heard.drop(now - 1);
@@ -247,5 +286,6 @@ export class Player {
     if (this.status !== 'playing' || !output) return;
     const latest = this.#heard.take(output.currentTime - output.latency);
     if (latest !== undefined) this.heard = latest;
+    this.sounding = this.#sounding.at(output.currentTime - output.latency);
   }
 }

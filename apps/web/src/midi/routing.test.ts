@@ -15,6 +15,7 @@ function fakePort() {
 function deps(overrides: Partial<Omit<Parameters<typeof routeNote>[4], 'held'>> = {}) {
   const held = new Set<number>();
   const humanNoteOn = vi.fn();
+  const playAlong = vi.fn();
   return {
     held,
     humanNoteOn,
@@ -23,6 +24,7 @@ function deps(overrides: Partial<Omit<Parameters<typeof routeNote>[4], 'held'>> 
     thru: () => false,
     thruPort: () => null,
     thruChannel: () => 1,
+    playAlong,
     now: () => 5000,
     ...overrides,
   };
@@ -89,6 +91,22 @@ describe('routeNote', () => {
   it('does nothing over thru when there is no port yet, without throwing', () => {
     const d = deps({ thru: () => true, thruPort: () => null });
     expect(() => routeNote(60, 100, true, 'test', d)).not.toThrow();
+  });
+
+  it('plays along at once when struck, whether or not the band is playing', () => {
+    const playing = deps({ playing: () => true });
+    routeNote(60, 90, true, 'test', playing);
+    expect(playing.playAlong).toHaveBeenCalledWith(60, 90);
+
+    const stopped = deps({ playing: () => false });
+    routeNote(60, 90, true, 'test', stopped);
+    expect(stopped.playAlong).toHaveBeenCalledWith(60, 90);
+  });
+
+  it('never plays along on a release', () => {
+    const d = deps();
+    routeNote(60, 100, false, 'test', d);
+    expect(d.playAlong).not.toHaveBeenCalled();
   });
 });
 

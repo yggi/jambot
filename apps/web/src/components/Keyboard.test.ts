@@ -34,4 +34,16 @@ describe('the on-screen keyboard', () => {
     expect(screen.getByRole('button', { name: 'C4' }).className).toContain('down');
     expect(screen.getByRole('button', { name: 'D4' }).className).not.toContain('down');
   });
+
+  it('marks the notes of the scale it is given, and no others', () => {
+    render(Keyboard, { down: new Set<number>(), scale: [0, 2, 4, 5, 7, 9, 11], onnote: () => {} });
+    expect(screen.getByRole('button', { name: 'C4' })).toHaveClass('in-scale');
+    expect(screen.getByRole('button', { name: 'C♯4' })).not.toHaveClass('in-scale');
+  });
+
+  it('flashes a note the band’s own lead is heard sounding', () => {
+    render(Keyboard, { down: new Set<number>(), sounding: [64], onnote: () => {} });
+    expect(screen.getByRole('button', { name: 'E4' })).toHaveClass('sounding');
+    expect(screen.getByRole('button', { name: 'C4' })).not.toHaveClass('sounding');
+  });
 });

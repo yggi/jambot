@@ -11,6 +11,7 @@ const section = (index: number, over: Partial<SectionView> = {}): SectionView =>
     barInSection: i,
     section: name,
     key,
+    scale: [0, 2, 4, 5, 7, 9, 11],
     chords: [{ step: 0, symbol: ['Am', 'F', 'C', 'G'][i % 4]!, numeral: 'i' }],
     energy: i / 7,
     lead: 'improvising' as const,

@@ -8,6 +8,7 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   barInSection: n % 8,
   section: 'Groove',
   key: 'A aeolian',
+  scale: [0, 2, 4, 5, 7, 9, 11],
   chords: [{ step: 0, symbol: 'Am', numeral: 'i' }],
   energy: 0.5,
   lead: 'improvising',
