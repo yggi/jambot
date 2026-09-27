@@ -310,6 +310,12 @@ Settled, each held by tests on `main`:
   (C3); a key follows the players' wish as a standing target (C6).
 - **The band:** it decides each bar a bar ahead, and plays four parts that
   each carry their memory.
+- **The Muse** (#79): it judges each player's bar into a motif (U4),
+  offers the one it takes as a standing target the band reads as its
+  environment (C6), and the loop from players back to players passes
+  through a delay of two bars (F7). A motif keeps its accents, counted
+  from the player's level, and plays on the band's (U4); the player's level
+  is the reading of their style, kept beside it.
 - **Licensing:** MIT, a license gate on what the app ships, and Strudel
   kept out of the packages.
 
@@ -323,10 +329,11 @@ Open:
   named cell in the score, is open.
 - **Exact positions** (T2): the port counts steps in floating point, and
   whether positions become exact fractions is open until the text step.
-- **The Muse** (#79): it takes a motif and the lead plays it back whole.
-  How the band develops a motif rather than repeats it, how several
-  players are weighed, whether an arpeggio of a held chord can be told
-  from mashing (play-aeiou), and following the players' style are open.
+- **The Muse, beyond repeating** (#79's later list): how the band develops
+  a motif rather than repeats it (U5's operators), how several players are
+  weighed (A3's confidence), whether an arpeggio of a held chord can be
+  told from mashing (play-aeiou), following the players' style (#16, A4),
+  and whether players' accents are expressive or metric (A5).
 - **The MIDI clock's master** (#27): whether a web client or the root node
   drives it when both exist.
 - **Latency and jitter budgets** (#27), and whether notes are humanised

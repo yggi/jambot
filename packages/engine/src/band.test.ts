@@ -266,6 +266,36 @@ describe('the band', () => {
     expect(counts.lead).toBeGreaterThan(40);
   });
 
+  it('plays an offered motif by what it is, not by when, from whom or how loudly it was offered (C6)', () => {
+    // A standing target: what plays follows what is wished for, as the key
+    // wish does, not when or how often or by whom it was sent. The player's
+    // level is their style's reading, never how loud the band plays.
+    const motif = {
+      cycle: 16,
+      onsets: [0, 3, 6, 10],
+      degrees: [0, 2, null, 1],
+      accidentals: [0, -1, 0, 0],
+      accents: [8, -6, 0, 2],
+    };
+    const early = { motif, source: 'the computer keys', bar: 3, level: 110 };
+    const late = { motif, source: 'a MIDI port', bar: 40, level: 35 };
+    let compared = 0;
+    for (const seed of [1, 2]) {
+      let carried = band.initial;
+      for (let bar = 0; bar < 64; bar++) {
+        const env = envAt(seed)(bar);
+        const a = band.advance({ ...env, offer: early }, carried, null);
+        const b = band.advance({ ...env, offer: late }, carried, null);
+        expect(b.output.written).toEqual(a.output.written);
+        expect(b.output.events).toEqual(a.output.events);
+        expect({ ...b.carried.parts.lead, offered: 3 }).toEqual(a.carried.parts.lead);
+        carried = band.advance(env, carried, null).carried;
+        compared++;
+      }
+    }
+    expect(compared).toBe(128);
+  });
+
   it('refuses to play any bar but the one it decided next, or to start past bar 0', () => {
     const env = {
       seed: 1,

@@ -328,16 +328,23 @@ Witness: the key wish. `nextKey(key, wish)` goes to the wished key in one
 step, pivoting on the most shared notes when only a mode is wished, and
 applied again gives what it gave once. So the band reads the wish at every
 section boundary, and what it plays does not depend on when or how often
-the wish was sent.
+the wish was sent. The Muse's offer (#79): the band reads it as its
+environment every bar, and what the lead plays from it follows the motif
+alone, not the bar it was heard in, the player it came from, or how loudly
+they played it.
 Counterexample: a wish that moves again each time it is read, such as "up
 a fifth", or one consumed as an event, which the prototype must cut its
 plan back for (`replanFuture`) so that it lands at a boundary.
 Test: `key.test.ts`, "settle on a wish in one step: applied again, a wish
 changes nothing (C6)", over every key and wish; `plan.test.ts`, "settles on
-a steady wish: the key moves once, then stays (C6)".
-Source: #37 step 4; fixed points, #39. Status: measured (the key). Open:
-whether style intents read the same way (a glide is a target reached over
-time, C1), and how the IM writes a wish. Lands in: #13, #25, #39.
+a steady wish: the key moves once, then stays (C6)"; `band.test.ts`, whose
+test of an offered motif cites C6: two offers of one motif, heard in bars
+3 and 40, from two players at levels 110 and 35, play the same notes and
+velocities over 128 bars.
+Source: #37 step 4; fixed points, #39; #79 step 3. Status: measured (the
+key); measured (the Muse's offer). Open: whether style intents read the
+same way (a glide is a target reached over time, C1), and how the IM
+writes a wish. Lands in: #13, #25, #39, #79.
 
 **C7. The band reads its style as the score writes it, on a grid of 3
 decimals, so a bar's header states exactly the style it was composed
@@ -678,7 +685,10 @@ player plays in any key comes back from the Muse's motif, a note released
 before the next leaves a rest, and each accent is counted from the
 player's level. `lead.test.ts`, `events.test.ts` and `perform.test.ts`,
 whose tests of accents cite U4: a motif's note is written with its accent
-and played on the lead's level, and the lead's own notes keep the beat's.
+and played on the lead's level, and the lead's own notes keep the beat's;
+and `lead.test.ts`'s test of its phrases: the lead's own phrases and its
+themes' melodies are motifs too, a rest first where the bar starts
+silent, which `realize` plays as it plays a player's.
 `transport.test.ts`, whose test of loudness cites U4: one accent pattern
 played loudly or softly plays back the same.
 Source: #7 (d), #79, E13, the names round. Status: measured (12, 17, 19);
@@ -760,7 +770,7 @@ inherited (provenance). Lands in: #3, #25, #79.
 
 **A4. Following the players is a loop with a bandwidth.**
 Source: SDR (clock recovery), the Muse's rate limit. Status: speculative.
-Lands in: #16, #25, #27, Q7a.
+Lands in: #16, #25, #27, #79 (following the style), Q7a.
 
 **A5. A player's velocities are expressive, not metric: where a note
 falls in the beat explains little of how loud it is played.**
