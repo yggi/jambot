@@ -10,7 +10,8 @@
   import { bandOutput } from './audio/band-output.ts';
   import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
   import { type Output, webAudioOutput } from './audio/output.ts';
-  import { MidiAccess } from './midi/access.ts';
+  import { MidiAccess, type NoteHandler } from './midi/access.ts';
+  import { connectMidi as connect, routeNote } from './midi/routing.ts';
   import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, partOf } from './midi/surfaces.ts';
   import { MidiSettings } from './midi/settings.svelte.ts';
   import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
@@ -57,65 +58,53 @@
   const heldDrums = new SvelteSet<number>();
 
   /**
-   * What every input source funnels through: it plays at once, along with
-   * the band, and the Muse (#2) reads `humanNotes` once it exists.
+   * A note source for one instrument: `routeNote` holds it, captures it for
+   * the Muse (#2) and passes it thru, and it plays at once, along with the
+   * band, on the part it belongs to.
    */
-  function onHumanNote(
-    part: AlongPart,
-    note: number,
-    velocity: number,
-    on: boolean,
-    source: string,
-  ) {
-    const held = part === 'lead' ? heldLead : heldDrums;
-    if (on) held.add(note);
-    else held.delete(note);
-    if (on) void player.playAlong(part, note, velocity);
-    if (on && player.playing)
-      player.humanNoteOn(
-        part,
-        note,
-        velocity,
-        source,
-        clockOf().offset.fromDeviceMs(performance.now()),
-      );
-    if (midiSettings.thru) {
-      const port = midiAccess?.outputPort(midiSettings.outPortId);
-      const channel = (midiSettings.thruChannel - 1) & 15;
-      port?.send(on ? [0x90 | channel, note, velocity] : [0x80 | channel, note, 0]);
-    }
+  function routerFor(part: AlongPart, held: SvelteSet<number>) {
+    return (note: number, velocity: number, on: boolean, source: string) =>
+      routeNote(note, velocity, on, source, {
+        held,
+        humanNoteOn: (n, v, s, seconds) => player.humanNoteOn(part, n, v, s, seconds),
+        playing: () => player.playing,
+        toOutputSeconds: (ms) => clockOf().offset.fromDeviceMs(ms),
+        thru: () => midiSettings.thru,
+        thruPort: () => midiAccess?.outputPort(midiSettings.outPortId) ?? null,
+        thruChannel: () => midiSettings.thruChannel,
+        playAlong: (n, v) => void player.playAlong(part, n, v),
+      });
   }
+  const routeToLead = routerFor('lead', heldLead);
+  const routeToDrums = routerFor('drums', heldDrums);
 
   async function connectMidi() {
-    const result = await MidiAccess.connect((note, source) =>
-      onHumanNote(partOf(note.channel), note.note, note.velocity, note.on, source),
-    );
-    if (typeof result === 'string') {
-      midiMessage = result;
-      return;
-    }
-    midiAccess = result;
-    midiSettings.outPort =
-      midiSettings.outPortId === 'none' ? null : midiAccess.outputPort(midiSettings.outPortId);
-    midiAccess.listen(midiSettings.inPortId);
-    const { inputs, outputs } = midiAccess;
-    midiMessage = `MIDI connected: ${inputs.length} input${inputs.length === 1 ? '' : 's'}, ${outputs.length} output${outputs.length === 1 ? '' : 's'}.`;
+    /** Channel 10 plays the pads, every other channel the keyboard (`partOf`). */
+    const onNote: NoteHandler = (note, source) =>
+      (partOf(note.channel) === 'drums' ? routeToDrums : routeToLead)(
+        note.note,
+        note.velocity,
+        note.on,
+        source,
+      );
+    const result = await connect((handler) => MidiAccess.connect(handler), onNote, midiSettings);
+    midiAccess = result.access;
+    midiMessage = result.message;
   }
 
   $effect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (ignoreKeyEvent(e.target, e.repeat, e.metaKey || e.ctrlKey || e.altKey)) return;
-      const key = e.key.toLowerCase();
-      const lead = COMPUTER_KEY_MAP[key];
-      if (lead !== undefined) return onHumanNote('lead', lead, 100, true, 'the computer keys');
+      const lead = COMPUTER_KEY_MAP[e.key.toLowerCase()];
+      if (lead !== undefined) return routeToLead(lead, 100, true, 'the computer keys');
       const drum = DRUM_KEY_MAP[e.key];
-      if (drum !== undefined) onHumanNote('drums', drum, 100, true, 'the computer keys');
+      if (drum !== undefined) routeToDrums(drum, 100, true, 'the computer keys');
     };
     const onKeyUp = (e: KeyboardEvent) => {
       const lead = COMPUTER_KEY_MAP[e.key.toLowerCase()];
-      if (lead !== undefined) return onHumanNote('lead', lead, 0, false, 'the computer keys');
+      if (lead !== undefined) return routeToLead(lead, 0, false, 'the computer keys');
       const drum = DRUM_KEY_MAP[e.key];
-      if (drum !== undefined) onHumanNote('drums', drum, 0, false, 'the computer keys');
+      if (drum !== undefined) routeToDrums(drum, 0, false, 'the computer keys');
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -153,13 +142,13 @@
     down={heldLead}
     scale={player.hud.bar?.scale ?? []}
     sounding={player.sounding.lead}
-    onnote={(note, velocity, on) => onHumanNote('lead', note, velocity, on, 'the on-screen keys')}
+    onnote={(note, velocity, on) => routeToLead(note, velocity, on, 'the on-screen keys')}
   />
 
   <DrumPads
     down={heldDrums}
     sounding={player.sounding.drums}
-    onnote={(note, velocity, on) => onHumanNote('drums', note, velocity, on, 'the drum pads')}
+    onnote={(note, velocity, on) => routeToDrums(note, velocity, on, 'the drum pads')}
   />
 
   <MidiPanel

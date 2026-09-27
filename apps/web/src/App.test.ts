@@ -102,6 +102,25 @@ describe('the app', () => {
       localStorage.clear();
     });
 
+    it('lights the on-screen key for a computer key pressed, and unlights it on release', async () => {
+      render(App);
+      const c4 = () => screen.getByRole('button', { name: 'C4' }); // 'a' maps to C4 (60)
+      expect(c4().className).not.toContain('down');
+      await fireEvent.keyDown(window, { key: 'a' });
+      expect(c4().className).toContain('down');
+      await fireEvent.keyUp(window, { key: 'a' });
+      expect(c4().className).not.toContain('down');
+    });
+
+    it('ignores a repeated keydown and an unmapped key', async () => {
+      render(App);
+      const c4 = () => screen.getByRole('button', { name: 'C4' });
+      await fireEvent.keyDown(window, { key: 'a', repeat: true });
+      expect(c4().className).not.toContain('down');
+      await fireEvent.keyDown(window, { key: 'z' });
+      expect(c4().className).not.toContain('down');
+    });
+
     it('sends a computer key to the keyboard or the pads by its own map', async () => {
       render(App);
       await fireEvent.keyDown(window, { key: 'a' });
