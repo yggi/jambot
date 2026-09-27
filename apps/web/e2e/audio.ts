@@ -196,14 +196,14 @@ export async function pairingSteps(page: Page, by = 1): Promise<PairingStep[]> {
 }
 
 /**
- * Hold a page's audio clock for `ms` milliseconds, as an output that drops
- * buffers does: its clock stands still, and what is scheduled on it sounds
- * that much later from then on.
+ * Hold a page's audio for `ms` milliseconds, as a device whose output drops
+ * buffers does: every audio context's clock stands still, and what is
+ * scheduled on it sounds that much later from then on.
  */
 export const holdAudio = (page: Page, ms: number) =>
   page.evaluate(async (ms) => {
-    const [ctx] = (window as unknown as { contexts: AudioContext[] }).contexts;
-    await ctx!.suspend();
+    const { contexts } = window as unknown as { contexts: AudioContext[] };
+    await Promise.all(contexts.map((ctx) => ctx.suspend()));
     await new Promise((resolve) => setTimeout(resolve, ms));
-    await ctx!.resume();
+    await Promise.all(contexts.map((ctx) => ctx.resume()));
   }, ms);
