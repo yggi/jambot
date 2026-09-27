@@ -170,6 +170,37 @@ Source: Strudel's query model, spirit. Status: measured (drums); measured,
 failing (the prototype's score, E1). Lands in: #63 step 3, where the pitched
 parts' carried state is S2's key frame.
 
+**T6. A meter is a helix of pulses over the bar's eighths, and a grouping is a
+mode of it.** Witness: `pulseHelix` (`meter.ts`),
+`even(pulses, subdivisions, 0)`: simple, compound and additive meters in one
+formula, with 7/8's 3+2+2, 2+2+3 and 2+3+2 the three modes of `even(3, 7)` and
+`mirror` the retrograde. Every pulse spans 2 or 3 eighths exactly when
+`2 · pulses ≤ subdivisions ≤ 3 · pulses`. The song's 4/4 is one meter: its
+pulses composed onto 16 steps, two to an eighth, are `even(4, 16)`, the
+transport's beats. Counterexample: a grouping into 2s and 3s that no mode of
+`even` gives. 10/8 as 3+3+2+2 is the first, and 70 of the 149 groupings of up to
+16 eighths are such; each is still a helix, written as heights, as the son clave
+is among the rhythms. Test: `meter.test.ts`, whose tests under "as a helix" cite
+T6, over every named meter and every pair up to 16. Open for the song: nothing
+reads a meter but the metronome, and the transport's bar is 16 steps
+(`transport.ts`, `% 16`). Source: #98, the metronome. Status: measured (the
+named meters, their modes); measured, failing (every grouping, by `even` alone).
+Lands in: #63 (a meter in the bar's header, beside T5's environment); #27 (the
+transport's bar).
+
+**T7. A tempo is a rate of the grid, and a pulse tempo exists only where the
+pulses are equal.** Witness: `pulseLengths`: its lengths are equal exactly when
+the pulses divide the eighths, over every well-formed pair up to 16. The engine
+counts tempo per step (`tempoMap`, C2), so its `bpm` is a quarter of the step
+rate, whatever the meter. The metronome counts a mean pulse rate
+(`pulsesPerMinute`, `subdivisionSeconds`), which for 5/8 at 120 plays pulses of
+0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when the meter
+does. Counterexample: an additive meter with a pulse that plays at the written
+tempo. Test: `meter.test.ts`, whose test of pulse tempo cites T7, over every
+well-formed pair up to 16. Open: what `bpm=` counts in a header once a bar has a
+meter. It is the score language's, so the owner's (#7). Source: #98. Status:
+measured (theory). Lands in: #63; #27.
+
 ### State
 
 **S1. The prototype's score is not self-contained.** Witness: a bar whose text
@@ -745,9 +776,10 @@ Counterexample: a machine that keeps state out of sight, changes what it was
 given, or can't resume from a JSON snapshot. Test: `machine.test.ts` (each law,
 with a machine that breaks it); `form.test.ts`, `band.test.ts`,
 `transport.test.ts`, `plan.test.ts`, `bass.test.ts`, `comp.test.ts`,
-`lead.test.ts`, `muse.test.ts` and `clock.test.ts`, whose tests of the machine
-laws cite F1. Source: #37 step 1. Status: measured. Decided: #37 step 1, in the
-working track. Lands in: Q4a.
+`lead.test.ts`, `muse.test.ts`, `clock.test.ts` and
+`packages/engine/src/metronome.test.ts`, whose tests of the machine laws cite
+F1. Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
+track. Lands in: Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
 Witness: the prototype's compiler carries each part's previous pitch and the
@@ -861,6 +893,9 @@ These are where the decisions are.
 6. **The lead sheet against the token stream** (R1, R2). If they conflict, one
    meaning can have two surfaces.
 7. **Twelve against any cycle** (P5, L1).
+8. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
+   every meter, and the song holds one: the transport, the Muse's grid and the
+   HUD count a bar as 16 steps and a beat as 4.
 
 ## Semantics before surface
 

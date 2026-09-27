@@ -2,12 +2,13 @@
   import DrumPads from './components/DrumPads.svelte';
   import Keyboard from './components/Keyboard.svelte';
   import KeyPicker from './components/KeyPicker.svelte';
+  import Members from './components/Members.svelte';
+  import MetronomePanel from './components/MetronomePanel.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
   import MusePanel from './components/MusePanel.svelte';
   import SessionPanel from './components/SessionPanel.svelte';
   import Stage from './components/Stage.svelte';
   import StylePanel from './components/StylePanel.svelte';
-  import Members from './components/Members.svelte';
   import Transport from './components/Transport.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { bandOutput } from './audio/band-output.ts';
@@ -17,8 +18,9 @@
   import { connectMidi as connect, routeNote } from './midi/routing.ts';
   import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, partOf } from './midi/surfaces.ts';
   import { MidiSettings } from './midi/settings.svelte.ts';
-  import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
   import { membersOf } from './members.ts';
+  import { Metronome } from './metronome.svelte.ts';
+  import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
   import { broadcastLobby } from './session/broadcast.ts';
   import { websocketLobby } from './session/websocket.ts';
   import { ClientSession } from './session/client.svelte.ts';
@@ -61,6 +63,13 @@
   const lobbyAt = (url: string) => (url.trim() === '' ? tabs : websocketLobby(url.trim()));
   const hostSession = new HostSession(player, heardNow);
   const clientSession = new ClientSession(player, heardNow);
+
+  /**
+   * The metronome: client-only, so it runs on its own next to the band
+   * rather than through it, at whatever tempo the band is set to now — a
+   * client keeps this even while its own controls rest.
+   */
+  const metronome = new Metronome(() => player.track.bpm.to);
 
   const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
 
@@ -184,6 +193,8 @@
   <Stage hud={player.hud} playing={player.playing} />
 
   <Members {members} />
+
+  <MetronomePanel {metronome} />
 
   <Keyboard
     down={heldLead}
