@@ -12,10 +12,12 @@ import { sentBars } from './host.ts';
 import {
   PROTOCOL,
   type SentBar,
+  playerOf,
+  playerSource,
   readClientMessage,
   readHostMessage,
   refusal,
-  sourceOf,
+  sourceName,
 } from './protocol.ts';
 
 /** Every path to a plain value in a value, with the value's type: its shape. */
@@ -88,9 +90,26 @@ describe('the session protocol', () => {
     expect(refusal({ kind: 'join', protocol: PROTOCOL, name: '  ' })).toMatch(/name/);
   });
 
-  it("names a client's note source by its player", () => {
-    expect(sourceOf('Ada', 'the computer keys')).toBe("Ada's computer keys");
-    expect(sourceOf('Ada', 'Launchkey MIDI 1')).toBe("Ada's Launchkey MIDI 1");
+  it('refuses a name a player in the session already goes by, in any case', () => {
+    const join = (name: string) => ({ kind: 'join', protocol: PROTOCOL, name }) as const;
+    expect(refusal(join('Ada'), ['Bo', 'the host'])).toBeNull();
+    expect(refusal(join(' ada '), ['Bo', 'Ada'])).toBe(
+      'A player named ada is already in this session. Pick another name.',
+    );
+  });
+
+  it('keeps a player by id in a source, and reads it out by name', () => {
+    const players = { c7: 'Ada', host: 'Bo' };
+    const keys = playerSource('c7', 'the computer keys');
+    expect(playerOf(keys)).toBe('c7');
+    expect(sourceName(keys, players)).toBe("Ada's computer keys");
+    expect(sourceName(playerSource('host', 'LK Mini/1'), players)).toBe("Bo's LK Mini/1");
+    // Two players of one name would still be two sources; one unknown reads as someone.
+    expect(playerSource('c8', 'the computer keys')).not.toBe(keys);
+    expect(sourceName(playerSource('c9', 'the drum pads'), players)).toBe("someone's drum pads");
+    // Outside a session a source is the bare instrument.
+    expect(playerOf('the computer keys')).toBeNull();
+    expect(sourceName('the computer keys', players)).toBe('the computer keys');
   });
 
   it(`holds the shapes that travel as version ${PROTOCOL} has them: a change bumps PROTOCOL`, () => {

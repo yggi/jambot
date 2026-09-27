@@ -1,4 +1,10 @@
-import { PROTOCOL, type ClientMessage, type HostMessage } from '@jambot/session';
+import {
+  type ClientMessage,
+  HOST_PLAYER,
+  type HostMessage,
+  PROTOCOL,
+  playerSource,
+} from '@jambot/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Output } from '../audio/output.ts';
 import { Player, type Surroundings } from '../player.svelte.ts';
@@ -130,7 +136,7 @@ describe('a host and a client session', () => {
     expect(client.player.status).toBe('stopped');
   });
 
-  it("pass what a client's player played to the host's Muse, named by its player", async () => {
+  it("pass what a client's player played to the host's Muse, by the client's id, read by its name", async () => {
     const lobby = memoryLobby();
     const host = device(10);
     const client = device(3);
@@ -149,10 +155,16 @@ describe('a host and a client session', () => {
     }
     await run([host, client], 6);
     const took = host.player.museLog.find((j) => j.bar === bar)!;
-    expect(took.judgements).toMatchObject([{ kind: 'motif', source: "Ada's computer keys" }]);
-    expect(host.player.offer).toMatchObject({ bar, source: "Ada's computer keys" });
-    // The client shows the host's Muse, not one of its own.
+    const [ada] = hosting.guests;
+    const source = playerSource(ada!.id, 'the computer keys');
+    expect(took.judgements).toMatchObject([{ kind: 'motif', source }]);
+    expect(host.player.offer).toMatchObject({ bar, source });
+    // The client shows the host's Muse, not one of its own, and both read it by name.
     expect(client.player.offer).toEqual(host.player.offer);
+    for (const player of [host.player, client.player])
+      expect(player.hud.muse.log[0]).toMatchObject({
+        text: "Took a 3-note motif from Ada's computer keys.",
+      });
   });
 
   it("name the host's own notes by its player, so a client never reads them as its own", async () => {
@@ -173,12 +185,35 @@ describe('a host and a client session', () => {
     }
     await run([host, client], 6);
     const took = client.player.museLog.find((j) => j.bar === bar)!;
-    expect(took.judgements).toMatchObject([{ kind: 'motif', source: "Bo's computer keys" }]);
+    const source = playerSource(HOST_PLAYER, 'the computer keys');
+    expect(took.judgements).toMatchObject([{ kind: 'motif', source }]);
+    expect(client.player.hud.muse.log[0]).toMatchObject({
+      text: "Took a 3-note motif from Bo's computer keys.",
+    });
     // Without a name, the host's notes are the host's.
     hosting.close();
-    expect(host.player.named).toBeNull();
+    expect(host.player.playerId).toBeNull();
     await hosting.open(lobby, 'jam');
-    expect(host.player.named).toBe('the host');
+    expect(host.player.players).toEqual({ [HOST_PLAYER]: 'the host' });
+  });
+
+  it("refuse a name already in the session, the host's included, in any case", async () => {
+    const lobby = memoryLobby();
+    const host = device(0);
+    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    await hosting.open(lobby, 'jam', 'Bo');
+    const heard: HostMessage[][] = [[], [], []];
+    const links = await Promise.all(heard.map((h) => lobby.join('jam', (m) => h.push(m))));
+    links[0]!.send({ kind: 'join', protocol: PROTOCOL, name: 'Ada' });
+    links[1]!.send({ kind: 'join', protocol: PROTOCOL, name: 'ADA ' });
+    links[2]!.send({ kind: 'join', protocol: PROTOCOL, name: 'bo' });
+    expect(heard[0]![0]).toMatchObject({ kind: 'welcome' });
+    for (const h of [heard[1]!, heard[2]!])
+      expect(h.find((m) => m.kind === 'refused')).toMatchObject({
+        reason: expect.stringMatching(/already in this session/),
+      });
+    expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
+    expect(host.player.players).toEqual({ [HOST_PLAYER]: 'Bo', [hosting.guests[0]!.id]: 'Ada' });
   });
 
   it('refuse a client of another version, and end a client that no host answers', async () => {
