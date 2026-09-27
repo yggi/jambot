@@ -17,6 +17,7 @@
     "@jambot/theory": "workspace:*"
   },
   "devDependencies": {
+    "@jambot/lobby": "workspace:*",
     "@playwright/test": "1.56.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@testing-library/jest-dom": "^7.0.1",

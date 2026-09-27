@@ -72,7 +72,7 @@ import {
   followSource,
   earListen,
   sentBars,
-  sourceOf,
+  playerSource,
 } from '@jambot/session';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
@@ -206,11 +206,12 @@ export class Player {
   /** Told what a host does, while it hosts. */
   hosting: Hosting | null = null;
   /**
-   * The name this player's own notes go by in a session's Muse, while it
-   * hosts: its clients' notes go by their players' names, so the host's go
-   * by one too, and nobody's log reads another's keys as their own.
+   * The player id this device's own notes go by in a session's Muse, while
+   * it hosts (`HOST_PLAYER`); its clients' go by theirs.
    */
-  named: string | null = null;
+  playerId: string | null = null;
+  /** Each player in the session's name by id, to read their sources by. */
+  players: Readonly<Record<string, string>> = $state.raw({});
   /**
    * The host's clock less this output's, while following: a moment the host
    * hears at `t` is heard here at `t - skew`.
@@ -245,7 +246,12 @@ export class Player {
       heard: this.heard,
       bars: this.#bars,
       track: this.track,
-      muse: { offer: this.offer, log: this.museLog, dropped: this.dropped },
+      muse: {
+        offer: this.offer,
+        log: this.museLog,
+        dropped: this.dropped,
+        players: this.players,
+      },
     }),
   );
 
@@ -300,7 +306,7 @@ export class Player {
         : this.humanNotes;
     this.humanNotes = [...kept, { part, note, velocity, source, position, end: null }];
     if (part === 'lead') {
-      const heardAs = this.named === null ? source : sourceOf(this.named, source);
+      const heardAs = this.playerId === null ? source : playerSource(this.playerId, source);
       this.#arrived.push({ note, velocity, source: heardAs, position, end: null });
     }
   }
@@ -435,11 +441,12 @@ export class Player {
     if (this.#follow) this.#bars = bars;
   }
 
-  followMuse({ offer, log, dropped }: MuseState) {
+  followMuse({ offer, log, dropped, players }: MuseState) {
     if (!this.#follow) return;
     this.offer = offer;
     this.museLog = log;
     this.dropped = dropped;
+    this.players = players;
   }
 
   /** Play alone again. */
@@ -452,6 +459,7 @@ export class Player {
     this.museLog = [];
     this.offer = null;
     this.dropped = [];
+    this.players = {};
     this.#decide();
   }
 
@@ -530,7 +538,12 @@ export class Player {
           sentBars(scheduled.composed, scheduled.steps, carried!.head, this.track),
         );
       if (logged.length > 0 || this.offer !== offered || scheduled.dropped.length > 0)
-        this.hosting.muse({ offer: this.offer, log: this.museLog, dropped: this.dropped });
+        this.hosting.muse({
+          offer: this.offer,
+          log: this.museLog,
+          dropped: this.dropped,
+          players: this.players,
+        });
     }
     this.#schedule(output, now, scheduled);
     if (carried?.nextBar !== this.#decidedAt) this.#decide();

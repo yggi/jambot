@@ -8,7 +8,8 @@
  * sent it and, from the host, to whom. A host that opens a name first
  * claims it and waits: a host that holds it answers, and of two claims
  * that cross, the one with the smaller id wins, so two tabs opening one
- * name at once never both get it.
+ * name at once never both get it. Every host also answers on one
+ * directory channel when asked which sessions are open.
  */
 
 import {
@@ -25,8 +26,11 @@ type Post =
   | { readonly kind: 'host'; readonly to?: string; readonly message: HostMessage }
   | { readonly kind: 'client'; readonly from: string; readonly message: ClientMessage };
 
-/** How long, in milliseconds, a host waits to hear whether a name is held. */
+/** How long, in milliseconds, a host waits to hear whether a name is held, and a list for answers. */
 export const CLAIM_WAIT = 150;
+
+type Directory = { readonly kind: 'who' } | { readonly kind: 'here'; readonly name: string };
+const DIRECTORY = 'jambot:sessions';
 
 const channelOf = (session: string) => `jambot:session:${sessionKey(session)}`;
 
@@ -36,6 +40,18 @@ const newId = () =>
 
 export function broadcastLobby(): Lobby {
   return {
+    async sessions() {
+      const directory = new BroadcastChannel(DIRECTORY);
+      const names = new Set<string>();
+      directory.onmessage = ({ data }: MessageEvent<Directory>) => {
+        if (data?.kind === 'here') names.add(data.name);
+      };
+      directory.postMessage({ kind: 'who' } satisfies Directory);
+      await new Promise((resolve) => setTimeout(resolve, CLAIM_WAIT));
+      directory.close();
+      return [...names].sort();
+    },
+
     async host(session, hear) {
       const channel = new BroadcastChannel(channelOf(session));
       const id = newId();
@@ -54,6 +70,11 @@ export function broadcastLobby(): Lobby {
         channel.close();
         throw new Error(`A session named “${session.trim()}” is already open.`);
       }
+      const name = session.trim();
+      const directory = new BroadcastChannel(DIRECTORY);
+      directory.onmessage = ({ data }: MessageEvent<Directory>) => {
+        if (data?.kind === 'who') directory.postMessage({ kind: 'here', name } satisfies Directory);
+      };
       channel.onmessage = ({ data }: MessageEvent<Post>) => {
         if (data?.kind === 'claim') channel.postMessage({ kind: 'held' } satisfies Post);
         if (data?.kind !== 'client') return;
@@ -68,7 +89,10 @@ export function broadcastLobby(): Lobby {
               : { kind: 'host', to, message }) satisfies Post,
           );
         },
-        close: () => channel.close(),
+        close: () => {
+          channel.close();
+          directory.close();
+        },
       } satisfies HostLink;
     },
 

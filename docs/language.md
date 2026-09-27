@@ -775,16 +775,19 @@ confidence.**
 Witness: the Muse's judgement (`muse.ts`): every note heard carries its
 source, each source's bar is judged on its own and the judgement names it,
 and the band takes the motif with the most notes, the first to arrive on
-a tie. In a session (`packages/session`), a client's sources go by its
-player's name and the host's by its own, and a host refuses a player whose
-name someone in the session already goes by, in any case, so two players
-are never one source.
+a tie. In a session (`packages/session`), a source is a player's id and
+the instrument (`playerSource`): a client's id is the one the lobby gave
+its link, which it can't choose, so two players are never one source,
+whatever they are called. Names are for people to read (`sourceName`), and
+a host refuses one already in the session, the host's own included, in
+any case.
 Counterexample: a judgement that names no source, or two sources' notes
 judged as one, such as one player's chord heard as the top of another's
-melody, or two players of one name.
+melody, or two players heard as one because they share a name.
 Test: `muse.test.ts`, whose tests of sources cite A3;
-`apps/web/src/session/session.test.ts`, whose test of names cites A3: a
-second Ada, or a client named as the host is, is refused. Open:
+`apps/web/src/session/session.test.ts`, whose tests of players cite A3: a
+client's judgement reaches the host's Muse by the client's id and reads by
+its name, and a name already in the session is refused. Open:
 confidence, which nothing infers yet; the prototype's source with the most
 notes stands in for it. A session makes it pressing: a player who plays 12
 notes in every bar, the most that isn't mashing, wins every bar, whoever

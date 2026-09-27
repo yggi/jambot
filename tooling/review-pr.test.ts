@@ -124,6 +124,35 @@ describe('review-pr prepare.sh', () => {
     expect(stdout).toContain("from '@jambot/engine'");
   });
 
+  it('starts the probe with an env the band and the transport both run over', () => {
+    git(clone, 'checkout', '-q', 'feature');
+    mkdirSync(join(clone, 'packages/engine'), { recursive: true });
+    commit('packages/engine/package.json', '{}\n', 'Step 4: an engine');
+    git(clone, 'push', '-q', 'origin', '+feature:refs/pull/7/head');
+    git(clone, 'checkout', '-q', 'main');
+    const { stdout } = prepare(['7', join(root, 'wt')]);
+    const probe = /--input-type=module -e "(.*…)"$/m.exec(stdout)![1]!;
+    // Run against this repository's engine, as a reviewer would run it.
+    const engine = fileURLToPath(new URL('../packages/engine', import.meta.url));
+    const body =
+      'const played = transport.advance(env, null, { now: 0, until: 4 }).output.events.length;' +
+      ' const written = band.advance(bandEnvAt(env, 0, null), band.initial, null).output.written.length;' +
+      ' console.log(played > 0 && written > 0 && even(3, 8).heights.length === 3);';
+    const run = spawnSync(
+      'node',
+      [
+        '--experimental-strip-types',
+        '--no-warnings',
+        '--input-type=module',
+        '-e',
+        probe.replace('…', body),
+      ],
+      { cwd: engine, encoding: 'utf8' },
+    );
+    expect(run.stderr).toBe('');
+    expect(run.stdout.trim()).toBe('true');
+  });
+
   it('says when verify fails, and shows the end of its output', () => {
     const { status, stdout } = prepare(['7', join(root, 'wt')], 'echo the build broke; exit 1');
     expect(status).toBe(0);

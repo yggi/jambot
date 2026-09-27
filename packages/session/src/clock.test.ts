@@ -20,10 +20,18 @@ function draws(seed: number) {
  */
 function pings(
   count: number,
-  { offset = 5, drift = 0, there = 0.002, back = 0.002, jitter = 0.01, seed = 1 } = {},
+  {
+    offset = 5,
+    drift = 0,
+    there = 0.002,
+    back = 0.002,
+    jitter = 0.01,
+    seed = 1,
+    step = { at: Infinity, by: 0 },
+  } = {},
 ): { pings: Ping[]; offsetAt: (t: number) => number } {
   const draw = draws(seed);
-  const offsetAt = (t: number) => offset + drift * t;
+  const offsetAt = (t: number) => offset + drift * t + (t >= step.at ? step.by : 0);
   const list: Ping[] = [];
   for (let i = 0; i < count; i++) {
     const sent = i * 0.25;
@@ -86,6 +94,37 @@ describe("the host's clock, as a client reads it", () => {
     for (const r of read(stepped).slice(CLOCK.ready + 1))
       expect(Math.abs(r.offset! - 5)).toBeLessThan(0.001);
     expect(read(stepped)[0]).toEqual({ offset: null, trip: null, tooFar: false });
+  });
+
+  it('follows a clock that steps by a buffer within two pings, as an output that drops one does', () => {
+    // At 5 s one side's output loses a 10 ms buffer, so the clocks move
+    // apart by 10 ms at once. Slewing that back would leave the band 10 ms
+    // out for seconds.
+    const { pings: list } = pings(40, { step: { at: 5, by: -0.01 } });
+    const readings = read(list);
+    const after = list.findIndex((p) => p.sent >= 5);
+    for (const r of readings.slice(after + 2))
+      expect(Math.abs(r.offset! - 4.99)).toBeLessThan(0.001);
+    for (const r of readings.slice(CLOCK.ready, after))
+      expect(Math.abs(r.offset! - 5)).toBeLessThan(0.001);
+  });
+
+  it('keeps its offset through one ping that disagrees, which a second has to confirm', () => {
+    const { pings: list } = pings(30, { jitter: 0 });
+    // One ping reads 10 ms off with a quick round trip; the next ones don't.
+    list[20] = { ...list[20]!, host: list[20]!.host - 0.01 };
+    for (const r of read(list).slice(CLOCK.ready))
+      expect(Math.abs(r.offset! - 5)).toBeLessThan(0.0005);
+  });
+
+  it('sets its offset right when its first pings were read while a clock was still stepping', () => {
+    const { pings: list } = pings(30, { step: { at: 1.1, by: -0.009 } });
+    const readings = read(list);
+    // Trusted after 4 pings at 5.000, then the clocks settle 9 ms apart.
+    const after = list.findIndex((p) => p.sent >= 1.1);
+    expect(readings[CLOCK.ready - 1]!.offset).toBeCloseTo(5, 3);
+    for (const r of readings.slice(after + 2))
+      expect(Math.abs(r.offset! - 4.991)).toBeLessThan(0.001);
   });
 
   it('finds a host too far away when even its best round trip is long', () => {

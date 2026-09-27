@@ -1,9 +1,10 @@
 # Brief: host and client mode
 
 Host and client mode, from the owner's brief to where it stands. Steps 1
-to 3 below are built: a host and its clients across the tabs and windows
-of one browser. Across machines comes next (step 4). What is measured is
-said so; what is estimated is marked as an estimate.
+to 4 below are built but for hosting the lobby: a host and its clients
+across the tabs of one browser, and across machines through a lobby
+server on the local network. What is measured is said so; what is
+estimated is marked as an estimate.
 
 ## What is asked
 
@@ -20,11 +21,13 @@ said so; what is estimated is marked as an estimate.
 
 Decided by the owner:
 
-- **A hosted lobby service**, developed first against a local server.
+- **A hosted lobby service**, developed first against a local server, and
+  hosted on Fly.io.
 - **WebSocket first, then WebRTC**, behind one link abstraction.
 - **Local jamming**: the two-bar delay of the Muse gives the headroom, and
   a host too far away is dropped rather than played with.
 - **No join code**: a session is found by its name alone.
+- **One name per player in a session**, and the Muse keeps players by id.
 - **A bar that did not arrive rests** on the client.
 
 The root node (#20) is the same role as a browser host: a host that is a
@@ -109,9 +112,16 @@ The same form at two levels:
   log, on the host and its clients ("What Ada's computer keys played came
   too late to be heard."), so a player can tell a lost motif from one that
   lost to another.
-- **Every source has a player's name** in a session: a client's by its
-  player, and the host's own by the name its player gives, or "the host",
-  so no client reads the host's keys as its own.
+- **The Muse keeps players by id, not by name.** In a session a source is
+  a player's id and the instrument (`playerSource`): a client's id is the
+  one its link has, which the client doesn't choose, and the host's own is
+  `HOST_PLAYER`. Names are for people: the host keeps each player's name
+  by id, sends it with the Muse's state, and every screen reads a source
+  by it ("Ada's computer keys"; the host's own by the name its player
+  gives, or "the host"). A name is kept after its player leaves, so the
+  log still says who played.
+- **A name is taken once per session**: a join under a name a player
+  already goes by, the host's included and in any case, is refused.
 - A client's forget goes to the host, which forgets.
 
 The client shows the host's Muse: its offer and its log.
@@ -134,8 +144,14 @@ A client plays on the host's clock:
   is trusted (`hostClock`). A ping that came back before it was sent is
   dropped: an output's clock steps as it first pairs.
 - **Drift.** The offset played by moves toward the estimate by at most
-  0.5 ms a ping, so it never jumps. Pings go every 50 ms until the clock
-  is trusted (4 pings), then every 250 ms.
+  0.5 ms a ping. Pings go every 50 ms until the clock is trusted (4
+  pings), then every 250 ms.
+- **Steps.** An output that drops a buffer moves its clock by 10 ms at
+  once. A ping says the offset lies within half its round trip of what it
+  read; two quick pings in a row whose ranges miss the trusted one's (by
+  more than 3 ms, the pairing's own jitter) say the clocks stepped, and
+  the offset follows at once, where slewing would leave the band out for
+  seconds. One such ping alone is dropped.
 - **Too far.** A host whose best round trip is over 100 ms is dropped: a
   client leaves, saying why.
 - **Measured.** Two pages in one headless Chromium, 30 kicks: the client
@@ -160,12 +176,17 @@ options:
 | BroadcastChannel     | Tabs of one browser, no server                                    | One machine only: for tests and demos                          |
 
 - Everything sits behind one `Lobby` (`apps/web/src/session/lobby.ts`): it
-  opens a session under a name or joins one, and gives a link, the host's
-  to its clients or a client's to its host. `broadcastLobby` is the one
-  built.
-- **Next, a WebSocket lobby** that relays, on a local server first, then
-  hosted.
-- **Then WebRTC data channels**, the same lobby signalling: a reliable,
+  lists the open sessions, opens one under a name or joins one, and gives
+  a link, the host's to its clients or a client's to its host, and says
+  when the lobby is lost.
+- **`broadcastLobby`** reaches the tabs and windows of one browser, with
+  no server: what the app uses when no lobby server is given.
+- **`websocketLobby`** reaches a lobby server (`apps/lobby`, `pnpm lobby`)
+  that finds sessions by name and relays, without reading the session's
+  messages. Its own few words (`packages/session/src/lobby.ts`): a name
+  is taken or open, a client joined or left, a host is gone. A socket
+  that misses a ping for 15 s, or falls 512 KB behind, is closed.
+- **Next, WebRTC data channels**, the same lobby signalling: a reliable,
   ordered channel for bars and the track; an unreliable one for pings.
   Traffic stays on the LAN at an event.
 - **Audio later, on WebRTC media tracks**: where RTP arrives.
@@ -187,7 +208,22 @@ It works, with one rule: load the app from `localhost` on every machine.
   unless Chromium is told to trust that origin
   (`--unsafely-treat-insecure-origin-as-secure`).
 - The hosted lobby serves `wss://` with a certificate, and the page on
-  Pages reaches it.
+  Pages reaches it. `apps/lobby/Dockerfile` builds the server for any host
+  that runs a container; it serves plain `ws://` on `$PORT`, and the
+  host's proxy gives it TLS.
+- It is hosted on Fly.io (`apps/lobby/fly.toml`): one machine in Frankfurt
+  (`fra`), never stopped and never two, since a session lives in the one
+  machine's memory; its health checked at `/health`; its connections
+  capped at 3,000, about what the load test puts on one shared CPU. Once,
+  `fly apps create jambot-lobby`; then `pnpm lobby:deploy` from the
+  repository's root, which builds the container remotely. It is reached at
+  `wss://jambot-lobby.fly.dev`. The app names no lobby of its own until it
+  is deployed: a build names one with `VITE_LOBBY_URL`, and a player can
+  type any.
+
+At an event, one laptop runs `pnpm lobby`, which prints the addresses to
+give; every player runs the app on their own machine and types that
+address as the lobby server.
 
 ### Messages
 
@@ -208,12 +244,10 @@ A host reads what any client sends, so it reads each message by the fields
 its kind carries (`readClientMessage`), and what a judgement says by the
 gates it was judged by (`admissible`), before anything is read from it. A
 message that fails either is dropped, not thrown on while the band plays.
-A host refuses a player whose name someone in the session already goes by,
-in any case, the host's own included, so two players are never one source
-to the Muse. A client reads its host's messages by kind alone: it chose
-that host and matched its version.
+A client reads its host's messages by kind alone: it chose that host and
+matched its version.
 
-## Capacity: an estimate
+## Capacity
 
 Measured: a bar as sent is 2.8 KB of JSON on average (3.8 KB at most), the
 whole forecast 37 KB, and a bar's change to it about 0.5 KB. A client
@@ -221,14 +255,28 @@ pings 4 times a second. At 120 bpm, a bar every 2 s, a client takes about
 2 KB/s (16 kbit/s) and sends about 0.2 KB/s; a preset change sends the
 whole forecast once.
 
-Estimated, not yet measured; step 4 gets a load test:
+**The session manager, measured** (`apps/lobby/load.ts`): the server in a
+process of its own, sessions of a host and 8 clients each, bars and
+changes every 2 s and pings at 4 Hz, 20 s a round, on a 4-core container:
 
-- **The session manager** (a Node WebSocket lobby that relays): the cost
-  is fan-out, 2 KB/s and a few messages a second per client. One small
-  instance (1 vCPU, 512 MB) should carry 1,000 to 2,000 clients at once,
-  across hundreds of sessions, bounded by bandwidth (1,000 clients is
-  about 16 Mbit/s) before the CPU. As signalling only, for WebRTC, it
-  carries ten times as many.
+| Clients | Sessions | Bar to client, p50 / p99 / max | Ping, p50 / p99 | Server CPU | Memory |
+| ------- | -------- | ------------------------------ | --------------- | ---------- | ------ |
+| 100     | 13       | 0.4 / 1.6 / 4.3 ms             | 0.3 / 1.2 ms    | 6 %        | 107 MB |
+| 500     | 63       | 0.3 / 1.0 / 4.6 ms             | 0.3 / 2.1 ms    | 12 %       | 118 MB |
+| 1,000   | 125      | 0.3 / 1.5 / 12 ms              | 0.4 / 3.5 ms    | 19 %       | 133 MB |
+| 2,000   | 250      | 0.4 / 3.2 / 43 ms              | 0.9 / 6.3 ms    | 35 %       | 145 MB |
+| 4,000   | 500      | 0.9 / 14 / 75 ms               | 2.4 / 24 ms     | 62 %       | 254 MB |
+
+The server's CPU grows by about 16 % of a core per 1,000 clients, and it
+runs on one core. The load came from one process on the same machine,
+itself at 66 % by 4,000. So a small instance (1 vCPU, 512 MB) carries
+about 3,000 clients with every bar well inside a beat, and bandwidth is
+then 6 MB/s (50 Mbit/s): on a small host, the bandwidth allowance is the
+bound. Hosting on slower cores will read lower; the load test runs
+against any address to measure it there.
+
+Estimated, not yet measured:
+
 - **A host tab**: composing costs the same for any number of clients. With
   a relaying lobby it sends each bar once; what grows with clients is
   answering pings, 4 a second each, microseconds apiece. It must stay well
@@ -257,8 +305,17 @@ e2e` pass unchanged, and a transport over bars the band composed, given
 - **The app** (`apps/web/src/session/session.test.ts`): a host and a
   client session wired through a lobby in memory, and the BroadcastChannel
   lobby.
+- **The lobby server** (`apps/lobby/src/lobby.test.ts`): names, relaying
+  each way, leaving and going, refusals, and a socket closed for missing
+  pings or falling behind, each shown firing.
+- **The WebSocket lobby** (`apps/web/src/session/websocket.test.ts`):
+  against the real server, the session's words each way, a lost lobby, a
+  refusal that is no loss, and a host and client session joined through
+  it.
 - **Two pages in step** (`session.e2e.ts`): the kicks each sounds, on the
-  clock both pages share, and a client's motif named in the host's Muse.
+  clock both pages share, over the tabs and over the server from another
+  browser context (a median of 0.1 to 0.2 ms, 0.4 ms at worst); the
+  sessions listed; and a client's motif named in the host's Muse.
 
 ## Steps
 
@@ -268,7 +325,9 @@ e2e` pass unchanged, and a transport over bars the band composed, given
    the clock, the forecast's delta, and the simulated-link tests. Built.
 3. The BroadcastChannel lobby, host mode in the app (session name, who
    joined, join by name, leave, close), and the two-page e2e. Built.
-4. The WebSocket lobby: a local server first, then hosted; its load test.
+4. The WebSocket lobby: the server, its load test, its container and its
+   Fly.io configuration, and the app reaching it. Built; its first deploy
+   is the owner's, with the Fly.io account.
 5. WebRTC data channels, the lobby as signalling.
 6. The root node speaks the protocol (#20).
 7. Audio over WebRTC media tracks.
@@ -286,13 +345,14 @@ e2e` pass unchanged, and a transport over bars the band composed, given
   notes win, so a player who plays 12 notes in every bar, the most that
   isn't mashing, wins every bar.
 - Whether any client may ask the Muse to forget, whoever played the motif.
-- How often a bar misses a client over a real link, an estimate until step
-  4 measures it: a bar has a beat from the host composing it to the client
-  laying it (333 ms at 180 bpm, 500 ms at 120), and over WebSocket one lost
-  packet waits a TCP retransmission, commonly 200 ms or more, before it
-  and everything after it arrives. The load test counts `lacked` under
-  loss; if it is high, the host can compose further ahead while hosting,
-  at the cost of a control being heard later.
+- How often a bar misses a client over a real link with loss, an estimate:
+  a bar has a beat from the host composing it to the client laying it
+  (333 ms at 180 bpm, 500 ms at 120), and over WebSocket one lost packet
+  waits a TCP retransmission, commonly 200 ms or more, before it and
+  everything after it arrives. The load test measures delivery without
+  loss; under loss, the count to read is the client's `lacked`. If it is
+  high, the host can compose further ahead while hosting, at the cost of a
+  control being heard later.
 - Who masters the MIDI clock when a root node exists (#27).
 - Per-client expression beyond its own instruments and MIDI (humanising, a
   velocity curve), which would make a client's notes its own.

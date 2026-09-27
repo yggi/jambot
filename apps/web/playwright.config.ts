@@ -24,6 +24,12 @@ export default defineConfig({
       reuseExistingServer: false,
       env: { BASE_PATH: '/' },
     },
+    // The lobby server, for sessions across browser contexts (`session.e2e.ts`).
+    {
+      command: 'pnpm --filter @jambot/lobby start --port 4319',
+      url: 'http://localhost:4319/health',
+      reuseExistingServer: false,
+    },
     // The site as GitHub Pages serves it, under a sub-path (`pages.e2e.ts`).
     {
       command:

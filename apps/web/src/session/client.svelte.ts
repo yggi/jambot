@@ -76,7 +76,15 @@ export class ClientSession {
       },
       forget: () => this.#send({ kind: 'forget' }),
     });
-    this.#link = await lobby.join(session, (message) => this.#hear(message));
+    try {
+      this.#link = await lobby.join(
+        session,
+        (message) => this.#hear(message),
+        (why) => this.#end(why),
+      );
+    } catch (e) {
+      return this.#end(e instanceof Error ? e.message : String(e));
+    }
     this.#welcomeWait = setTimeout(
       () => this.#end(`No session named “${this.session}” answered.`),
       WELCOME_WAIT,

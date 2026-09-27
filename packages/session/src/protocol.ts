@@ -50,11 +50,15 @@ export interface Song {
   readonly track: StyleTrack;
 }
 
-/** What the Muse offers, its latest judgements, and the bars judged on clients it dropped. */
+/**
+ * What the Muse offers, its latest judgements, the bars judged on clients
+ * it dropped, and each player's name by id, to read their sources by.
+ */
 export interface MuseState {
   readonly offer: Offer | null;
   readonly log: readonly MuseOutput[];
   readonly dropped: readonly DroppedJudgement[];
+  readonly players: Readonly<Record<string, string>>;
 }
 
 export type HostMessage =
@@ -148,28 +152,49 @@ export function readClientMessage(data: unknown): ClientMessage | null {
 }
 
 /**
- * Why a host refuses a join, or null to admit it: another version, no name,
- * or a name someone in the session already goes by (`taken`), in any case,
- * since two players of one name would be one source to the Muse.
+ * Why a host refuses a join, or null to admit it: another version, no
+ * name, or a name a player in the session already goes by (`inUse`), in
+ * any case.
  */
 export function refusal(
   join: ClientMessage & { kind: 'join' },
-  taken: readonly string[] = [],
+  inUse: readonly string[] = [],
 ): string | null {
   if (join.protocol !== PROTOCOL)
     return `This host speaks version ${PROTOCOL} of the session protocol, and this app ${join.protocol}: reload both.`;
   const name = join.name.trim();
   if (name === '') return 'A player needs a name to join.';
-  const same = (other: string) => other.trim().toLowerCase() === name.toLowerCase();
-  if (taken.some(same))
-    return `Someone in this session is already called ${name}: pick another name.`;
+  if (inUse.some((n) => n.trim().toLowerCase() === name.toLowerCase()))
+    return `A player named ${name} is already in this session. Pick another name.`;
   return null;
 }
 
+/** The id the host's own player goes by in its session; a client goes by the id its link has. */
+export const HOST_PLAYER = 'host';
+
 /**
- * A client's note source as the host's Muse names it: the player's name
- * before the instrument, so its log reads "from Ada's computer keys".
+ * A note source in a session: a player's id and the instrument. The Muse
+ * tells players apart by it, never by a name: a name is for people to
+ * read, and a client's id is the one the lobby gave its link, which the
+ * client doesn't choose. Outside a session a source is the bare instrument.
  */
-export function sourceOf(player: string, source: string): string {
-  return `${player}'s ${source.replace(/^the /, '')}`;
+export function playerSource(player: string, instrument: string): string {
+  return `@${player}/${instrument}`;
+}
+
+/** The player's id in a source, or null for a source outside a session. */
+export function playerOf(source: string): string | null {
+  return /^@([^/]+)\//.exec(source)?.[1] ?? null;
+}
+
+/**
+ * A source as people read it: the player's name before the instrument,
+ * "Ada's computer keys", from each player's name by id; the bare
+ * instrument outside a session.
+ */
+export function sourceName(source: string, players: Readonly<Record<string, string>>): string {
+  const found = /^@([^/]+)\/(.*)$/s.exec(source);
+  if (!found) return source;
+  const [, player, instrument] = found;
+  return `${players[player!] ?? 'someone'}'s ${instrument!.replace(/^the /, '')}`;
 }

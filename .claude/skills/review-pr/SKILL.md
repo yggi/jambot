@@ -86,8 +86,10 @@ Read `AGENTS.md` and the pull request body first. Then, for each change:
 Don't stop at reading: probe. Run the new functions with the `Probe:`
 line `prepare.sh` printed, and try the input that you think breaks them.
 It runs from the worktree's `packages/engine`, since bare `@jambot/*`
-imports resolve only inside a package; a longer probe goes in a file
-there, removed after. A finding with a measured number beats one without.
+imports resolve only inside a package, and starts with an `env` the
+transport runs over (`bandEnvAt(env, bar, null)` gives the band's), which
+a test runs against the engine. A longer probe goes in a file there,
+removed after. A finding with a measured number beats one without.
 
 ## 3. Post
 

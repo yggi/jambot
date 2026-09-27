@@ -181,7 +181,9 @@ fi
 echo
 echo "Diff: git -C $dir diff $range"
 # Bare @jambot/* imports resolve only inside a package; the engine's
-# reaches both the engine and the theory.
+# reaches both the engine and the theory. `env` is one the transport runs
+# over, and `bandEnvAt(env, bar, null)` gives the band's for a bar.
+probe="import { band, bandEnvAt, transport, holding, INITIAL_STYLE, PRESETS } from '@jambot/engine'; import { even } from '@jambot/theory'; const env = { seed: 1, start: 0, track: holding(INITIAL_STYLE), wish: { tonic: null, mode: PRESETS[0].mode } }; …"
 [ -f packages/engine/package.json ] &&
-  echo "Probe: cd $dir/packages/engine && node --experimental-strip-types --no-warnings --input-type=module -e \"import { band } from '@jambot/engine'; import { even } from '@jambot/theory'; …\""
+  echo "Probe: cd $dir/packages/engine && node --experimental-strip-types --no-warnings --input-type=module -e \"$probe\""
 echo "Done: git worktree remove --force $dir && rm -f $log"
