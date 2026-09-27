@@ -16,7 +16,7 @@ const tour = (seed: number, bars = 96): BandBar[] => {
     const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
     const style = { ...preset.style, entropy: (bar % 32) / 32 };
     const next = band.advance(
-      { seed, bar, style, wish: { tonic: null, mode: preset.mode } },
+      { seed, bar, style, wish: { tonic: null, mode: preset.mode }, offer: null },
       carried,
       null,
     );

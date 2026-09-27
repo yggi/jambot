@@ -3,6 +3,7 @@
  */
 
 import type { BarChord } from './chords.ts';
+import type { Offer } from './muse.ts';
 import type { Plan } from './plan.ts';
 import type { Style } from './style.ts';
 
@@ -22,4 +23,6 @@ export interface BarEnv {
   readonly chords: readonly BarChord[];
   /** The next bar's chords, decided with this bar's, so a part can lead into them. */
   readonly next: readonly BarChord[];
+  /** The motif the Muse offers, which the lead settles on while it stands (#79). */
+  readonly offer: Offer | null;
 }

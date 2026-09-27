@@ -12,6 +12,14 @@
  * the rest of it. A wish for another key is heard at the next section the
  * band plans, which it does a bar before the section starts.
  *
+ * It also listens (#79). Notes players played arrive as input, where they
+ * were heard, and wait. As the band composes a bar, the Muse judges the bar
+ * before the one before it, in its key, and what the Muse offers is what the
+ * band composes the bar from. So a motif heard in bar k plays from bar
+ * k + 2, and nothing a player plays reaches a bar sooner: the loop from
+ * players back to players passes through a delay (F7). A forget waits for
+ * the next bar judged.
+ *
  * Time is absolute and the clock never waits. A step is laid where the step
  * before it ends, whenever the tick comes; if the clock has stalled past an
  * event, that event is dropped rather than played late. A bar the clock has
@@ -32,6 +40,14 @@ import type { NoteEvent } from './events.ts';
 import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import {
+  type HeardNote,
+  type MuseCarried,
+  type MuseOutput,
+  type Offer,
+  barOf,
+  muse,
+} from './muse.ts';
 import type { Sound } from './sound.ts';
 import { type StyleTrack, styleAt, valueAt, writtenStyle } from './style.ts';
 import { swingMap, swingOf } from './swing.ts';
@@ -45,6 +61,9 @@ export const LOOKAHEAD = 0.12;
  * least 333 ms even at 180 bpm, nearly three lookaheads.
  */
 export const COMPOSE_AHEAD = 4;
+
+/** How many bars after a bar is heard what it offers is played: it is judged as the bar after next is composed. */
+export const LISTEN_DELAY = 2;
 
 export interface TransportEnv {
   readonly seed: number;
@@ -61,7 +80,24 @@ export interface TransportInput {
   readonly now: number;
   /** Every step that starts before this is scheduled: now plus the lookahead. */
   readonly until: number;
+  /** Notes players played since the tick before, where they were heard. */
+  readonly heard?: readonly HeardNote[];
+  /** Whether someone asked the Muse to forget what it offers. */
+  readonly forget?: boolean;
 }
+
+/** What the transport carries for the Muse: its state, and what waits to be judged. */
+export interface Listening {
+  readonly muse: MuseCarried;
+  /** Notes heard in bars not judged yet. */
+  readonly pending: readonly HeardNote[];
+  /** Whether a forget waits for the next bar judged. */
+  readonly forget: boolean;
+  /** The bars composed and not judged yet, each with its key. */
+  readonly unjudged: readonly { readonly bar: number; readonly key: Key }[];
+}
+
+const LISTENING: Listening = { muse: muse.initial, pending: [], forget: false, unjudged: [] };
 
 export interface TransportCarried {
   /** The next step to schedule, and when it starts. */
@@ -74,6 +110,7 @@ export interface TransportCarried {
   readonly nextBar: number;
   /** The beat being scheduled and the swing it plays with, once it has started. */
   readonly beat: { readonly index: number; readonly swing: number } | null;
+  readonly listening: Listening;
 }
 
 export interface ScheduledStep {
@@ -107,11 +144,32 @@ export interface TransportOutput {
   readonly composed: readonly BandBar[];
   /** How many steps the clock had passed before they could be scheduled. */
   readonly missed: number;
+  /** The bars the Muse judged on this tick: its log. */
+  readonly judged: readonly MuseOutput[];
 }
 
-/** What the band reads for a bar: the style where the bar starts, on the track. */
-export function bandEnvAt({ seed, track, wish }: TransportEnv, bar: number): BandEnv {
-  return { seed, bar, style: styleAt(track, bar * 16), wish };
+/** What the band reads for a bar: the style where the bar starts, on the track, and what the Muse offers. */
+export function bandEnvAt(
+  { seed, track, wish }: TransportEnv,
+  bar: number,
+  offer: Offer | null,
+): BandEnv {
+  return { seed, bar, style: styleAt(track, bar * 16), wish, offer };
+}
+
+/** The Muse judges every bar composed up to `last`, in order, and forgets the notes it judged. */
+function listen(listening: Listening, last: number, judged: MuseOutput[]): Listening {
+  let { muse: carried, pending, forget, unjudged } = listening;
+  while (unjudged.length > 0 && unjudged[0]!.bar <= last) {
+    const { bar, key } = unjudged[0]!;
+    const next = muse.advance({ bar, key }, carried, { heard: pending, forget });
+    carried = next.carried;
+    judged.push(next.output);
+    forget = false;
+    pending = pending.filter((n) => barOf(n) > bar);
+    unjudged = unjudged.slice(1);
+  }
+  return { muse: carried, pending, forget, unjudged };
 }
 
 /** A bar decided ahead, and the energy it plays at. */
@@ -135,9 +193,10 @@ export function forecast(
     .filter((b) => b.bar >= head)
     .slice(0, count)
     .map(({ bar, plan, chords, barEnergy }) => ({ bar, plan, chords, barEnergy }));
+  const offer = carried?.listening.muse.offer ?? null;
   const ahead = lookAhead(
     carried?.band ?? band.initial,
-    (bar) => bandEnvAt(env, bar),
+    (bar) => bandEnvAt(env, bar, offer),
     count - composed.length,
   ).map((decided) => ({
     ...decided,
@@ -180,13 +239,21 @@ export const transport: Machine<
   TransportOutput
 > = {
   initial: null,
-  advance(env, carried, { now, until }) {
+  advance(env, carried, { now, until, heard = [], forget = false }) {
     const { start, track } = env;
     let head = carried?.head ?? { step: 0, seconds: start };
     let playing = carried?.band ?? band.initial;
     let bars = [...(carried?.bars ?? [])];
     let nextBar = carried?.nextBar ?? 0;
     let beat = carried?.beat ?? null;
+    let listening = carried?.listening ?? LISTENING;
+    if (heard.length > 0 || forget)
+      listening = {
+        ...listening,
+        pending: [...listening.pending, ...heard],
+        forget: listening.forget || forget,
+      };
+    const judged: MuseOutput[] = [];
     const steps: ScheduledStep[] = [];
     const events: TimedEvent[] = [];
     const composed: BandBar[] = [];
@@ -203,7 +270,7 @@ export const transport: Machine<
       if (head.step % 16 === 0 && nextBar === bar) {
         const end = tempoMap(track, head).played(head.step + 16);
         if (end <= now) {
-          playing = passBar(bandEnvAt(env, bar), playing);
+          playing = passBar(bandEnvAt(env, bar, listening.muse.offer), playing);
           nextBar++;
           missed += 16;
           head = { step: head.step + 16, seconds: end };
@@ -218,8 +285,11 @@ export const transport: Machine<
 
       // Compose each bar on the last beat of the bar before.
       for (; nextBar <= Math.floor((head.step + COMPOSE_AHEAD) / 16); nextBar++) {
-        const played = band.advance(bandEnvAt(env, nextBar), playing, null);
+        listening = listen(listening, nextBar - LISTEN_DELAY, judged);
+        const played = band.advance(bandEnvAt(env, nextBar, listening.muse.offer), playing, null);
         playing = played.carried;
+        const key = played.output.plan.key;
+        listening = { ...listening, unjudged: [...listening.unjudged, { bar: nextBar, key }] };
         bars.push(played.output);
         composed.push(played.output);
       }
@@ -263,8 +333,8 @@ export const transport: Machine<
       head = { step: head.step + 1, seconds: head.seconds + length };
     }
     return {
-      carried: { head, band: playing, bars, nextBar, beat },
-      output: { steps, events, composed, missed },
+      carried: { head, band: playing, bars, nextBar, beat, listening },
+      output: { steps, events, composed, missed, judged },
     };
   },
 };

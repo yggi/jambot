@@ -11,6 +11,7 @@ function surroundings() {
     resumes: 0,
     resolve: () => {},
     played: 0,
+    plays: [] as { part: string; note: number; seconds: number }[],
     silenced: 0,
     tickers: [] as { tick: () => void; stopped: boolean }[],
     frames: [] as { follow: () => void; stopped: boolean }[],
@@ -28,7 +29,10 @@ function surroundings() {
       world.resumes++;
       return new Promise<void>((resolve) => (world.resolve = resolve));
     },
-    play: () => void world.played++,
+    play: (part, note, _velocity, seconds) => {
+      world.played++;
+      world.plays.push({ part, note, seconds });
+    },
     silence: () => void world.silenced++,
     tick: (steps) => world.steps.push(...steps),
   };
@@ -406,6 +410,60 @@ describe('the player', () => {
         ['a MIDI port', a!.step, null],
         ['the computer keys', b!.step, c!.step],
       ]);
+    });
+
+    /** Play three notes on steps 0, 4 and 8 of `bar`, each as the clock reaches it. */
+    function playMotif(
+      world: ReturnType<typeof surroundings>['world'],
+      player: Player,
+      run: (seconds: number) => void,
+      bar: number,
+      part: 'lead' | 'drums' = 'lead',
+    ) {
+      for (const [i, note] of [69, 72, 76].entries()) {
+        const step = 16 * bar + 4 * i;
+        while (!world.steps.some((s) => s.step === step)) run(0.025);
+        const at = world.steps.find((s) => s.step === step)!.seconds;
+        while (world.currentTime < at) run(0.025);
+        player.humanNoteOn(part, note, 100, 'the computer keys', at);
+      }
+    }
+
+    /** The steps of `bar` the band's lead starts a note on. */
+    const leadSteps = (world: ReturnType<typeof surroundings>['world'], bar: number) => {
+      const steps = world.steps.filter((s) => Math.floor(s.step / 16) === bar);
+      return world.plays
+        .filter((p) => p.part === 'lead')
+        .map((p) => steps.find((s) => Math.abs(s.seconds - p.seconds) < 1e-9)?.step)
+        .filter((step) => step !== undefined)
+        .map((step) => step % 16);
+    };
+
+    it('hears a motif played on the keys, and the lead plays it from the bar after next (#79)', async () => {
+      const { world, player, run } = await playing();
+      playMotif(world, player, run, 2);
+      run(8);
+      expect(leadSteps(world, 4)).toEqual([0, 4, 8]);
+      expect(player.museLog.map((l) => [l.bar, l.offer?.bar ?? null])).toContainEqual([2, 2]);
+    });
+
+    it('judges no note from the drum pads, which are not a melody', async () => {
+      const { world, player, run } = await playing();
+      playMotif(world, player, run, 2, 'drums');
+      run(8);
+      expect(player.humanNotes).toHaveLength(3);
+      expect(player.museLog).toEqual([]);
+    });
+
+    it('forgets the motif when asked, and logs why', async () => {
+      const { world, player, run } = await playing();
+      playMotif(world, player, run, 2);
+      run(8);
+      player.forgetMotif();
+      run(9);
+      expect(player.museLog.at(-1)).toMatchObject({ offer: null, forgot: 'asked' });
+      const after = Math.floor(world.steps.at(-1)!.step / 16) - 1;
+      expect(leadSteps(world, after)).not.toEqual([0, 4, 8]);
     });
 
     it('keeps at most 240 notes, dropping the oldest half once full', async () => {

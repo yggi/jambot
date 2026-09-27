@@ -40,6 +40,7 @@ const envOf = (
   barEnergy: energy,
   chords: [],
   next: [],
+  offer: null,
 });
 
 /** The drums as they play: each written hit through the performance. */

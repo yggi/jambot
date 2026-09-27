@@ -60,9 +60,12 @@ const STEPS = 16;
 /** The step nearest where a note was heard, from the song's start. */
 const stepOf = (note: HeardNote) => Math.round(note.position);
 
-/** The notes heard in a bar: those whose nearest step is in it. */
+/** The bar a note was heard in: the bar its nearest step is in. */
+export const barOf = (note: HeardNote) => Math.floor(stepOf(note) / STEPS);
+
+/** The notes heard in a bar. */
 export function heardIn(notes: readonly HeardNote[], bar: number): HeardNote[] {
-  return notes.filter((n) => Math.floor(stepOf(n) / STEPS) === bar);
+  return notes.filter((n) => barOf(n) === bar);
 }
 
 /** Each source's notes in a bar, judged, in the order their first notes arrived. */

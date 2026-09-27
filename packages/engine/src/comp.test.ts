@@ -20,7 +20,7 @@ const tour = (seed: number, bars = 128): BandBar[] => {
   return range(bars).map((bar) => {
     const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
     const next = band.advance(
-      { seed, bar, style: styleAt(bar), wish: { tonic: null, mode: preset.mode } },
+      { seed, bar, style: styleAt(bar), wish: { tonic: null, mode: preset.mode }, offer: null },
       carried,
       null,
     );

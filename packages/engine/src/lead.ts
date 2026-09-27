@@ -20,8 +20,15 @@
  * first played with returns while the syncopation and the energy stay near
  * it. The lead rests in an intro, a breakdown and below energy 0.4. A note
  * is written to the next one, or to the end of the bar; the performance
- * gates it by the articulation, and accents the beat (`perform.ts`). These
- * are the prototype's rules and weights.
+ * gates it by the articulation, and accents the beat (`perform.ts`).
+ *
+ * A motif the Muse offers (#79) is a standing target: the lead takes it as
+ * its phrase at once, whatever the phase, and plays it while it stands,
+ * even where it would rest. A player's notes are not moved to chord tones,
+ * but the phrase grammar still closes bars 2 and 4, and the variations still
+ * vary it. When the offer goes, the lead goes back to its own phrases at
+ * once, and a motif never becomes a theme's melody. These are the
+ * prototype's rules and weights.
  */
 
 import { type Chord, even, heightOf, joinChord, positions, wrap } from '@jambot/theory';
@@ -56,6 +63,8 @@ export interface LeadCarried {
   readonly melodies: Partial<
     Record<ThemeKind, { readonly theme: number; readonly shape: LeadShape }>
   >;
+  /** The bar the offered motif playing was heard in, or null for the lead's own phrase. */
+  readonly offered: number | null;
 }
 
 /** Where the lead plays, straight and syncopated. */
@@ -199,27 +208,33 @@ export function leadRests(section: SectionType, barEnergy: number): boolean {
 }
 
 export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
-  initial: { last: 69, phrase: null, melodies: {} },
+  initial: { last: 69, phrase: null, melodies: {}, offered: null },
   advance(env, carried) {
-    const { seed, bar, plan, style, barEnergy: energy, barInSection, chords } = env;
+    const { seed, bar, plan, style, barEnergy: energy, barInSection, chords, offer } = env;
     const { section, key, theme } = plan;
-    if (leadRests(section.type, energy))
-      return { carried: { ...carried, phrase: null }, output: [] };
+    if (!offer && leadRests(section.type, energy))
+      return { carried: { ...carried, phrase: null, offered: null }, output: [] };
 
     const phase = barInSection % 4;
     let { phrase, melodies } = carried;
+    const offered = offer?.bar ?? null;
     let shape: LeadShape;
-    if (phase === 0 || !phrase) {
-      const kept = melodies[theme.kind];
-      const returns =
-        kept &&
-        kept.theme === theme.index &&
-        Math.abs(kept.shape.sync - style.sync) < 0.25 &&
-        Math.abs(kept.shape.energy - energy) < 0.3;
-      if (returns) shape = kept.shape;
-      else {
-        shape = shapeOf(env);
-        melodies = { ...melodies, [theme.kind]: { theme: theme.index, shape } };
+    if (phase === 0 || !phrase || offered !== carried.offered) {
+      if (offer) {
+        const { steps, degrees } = offer.motif;
+        shape = { steps, degrees, sync: style.sync, energy };
+      } else {
+        const kept = melodies[theme.kind];
+        const returns =
+          kept &&
+          kept.theme === theme.index &&
+          Math.abs(kept.shape.sync - style.sync) < 0.25 &&
+          Math.abs(kept.shape.energy - energy) < 0.3;
+        if (returns) shape = kept.shape;
+        else {
+          shape = shapeOf(env);
+          melodies = { ...melodies, [theme.kind]: { theme: theme.index, shape } };
+        }
       }
       phrase = shape;
     } else if (phase === 2) shape = phrase;
@@ -241,11 +256,12 @@ export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
     });
     const first = octave * 7 + degree;
     let notes = shape.degrees.map((d) => heightOf(scale, first + d));
-    notes = notes.map((note, i) => {
-      const s = shape.steps[i]!;
-      const onChord = s % 8 === 0 || chords.some((c) => c.slot.step === s);
-      return onChord ? nearestTone(chordAt(chords, s).chord, note) : note;
-    });
+    if (!offer)
+      notes = notes.map((note, i) => {
+        const s = shape.steps[i]!;
+        const onChord = s % 8 === 0 || chords.some((c) => c.slot.step === s);
+        return onChord ? nearestTone(chordAt(chords, s).chord, note) : note;
+      });
 
     // The phrase grammar: bar 2 ends open, bar 4 closes on the root.
     if (phase === 1 || phase === 3) {
@@ -265,6 +281,6 @@ export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
       note: notes[i]!,
       length: (shape.steps[i + 1] ?? 16) - s,
     }));
-    return { carried: { last: notes.at(-1)!, phrase, melodies }, output: written };
+    return { carried: { last: notes.at(-1)!, phrase, melodies, offered }, output: written };
   },
 };

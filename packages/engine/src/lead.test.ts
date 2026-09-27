@@ -1,4 +1,4 @@
-import { joinChord, positions, wrap } from '@jambot/theory';
+import { type Motif, joinChord, positions, snap, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import { chordAt } from './chords.ts';
@@ -7,6 +7,7 @@ import { keyHelix } from './key.ts';
 import { LEAD_RANGE, type LeadCarried, lead, leadRests } from './lead.ts';
 import { SECTION_TYPES } from './form.ts';
 import { type Script, lawBreaks } from './machine.ts';
+import type { Offer } from './muse.ts';
 import { PRESETS, type Style } from './style.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -22,7 +23,7 @@ const tour = (seed: number, bars = 160, style = styleAt): BandBar[] => {
   return range(bars).map((bar) => {
     const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
     const next = band.advance(
-      { seed, bar, style: style(bar), wish: { tonic: null, mode: preset.mode } },
+      { seed, bar, style: style(bar), wish: { tonic: null, mode: preset.mode }, offer: null },
       carried,
       null,
     );
@@ -74,7 +75,7 @@ describe('the lead', () => {
       let carried = band.initial;
       return range(bars).flatMap((bar) => {
         const next = band.advance(
-          { seed, bar, style, wish: { tonic: null, mode: 'aeolian' } },
+          { seed, bar, style, wish: { tonic: null, mode: 'aeolian' }, offer: null },
           carried,
           null,
         );
@@ -276,5 +277,92 @@ describe('whether the lead rests', () => {
       }
     // 2 of 6 sections always, and the other 4 below 0.4: 40 of 101 energies.
     expect(rests).toBe(2 * 101 + 4 * 40);
+  });
+});
+
+describe('the lead with a motif on offer', () => {
+  const motif: Motif = { span: 16, steps: [0, 3, 8, 10, 12], degrees: [0, 1, 3, 2, -1] };
+  const offer = (bar: number): Offer => ({ motif, source: 'the computer keys', bar });
+  const offered = (over: readonly BandBar[], offerAt: (bar: number) => Offer | null) =>
+    over.map((bar) => ({ ...bar, offer: offerAt(bar.bar) }));
+
+  /** Each note's degree of the key, from the first note. */
+  const degreesOf = (bar: BandBar, notes: readonly number[]) => {
+    const scale = keyHelix(bar.plan.key);
+    const first = snap(scale, notes[0]!);
+    return notes.map((n) => snap(scale, n) - first);
+  };
+
+  it('plays it as its phrase: its rhythm, and its degrees of the key, none moved to a chord tone (#79)', () => {
+    let bars = 0;
+    let offChord = 0;
+    for (const seed of [1, 2, 3])
+      for (const { bar, events } of play(offered(tour(seed), () => offer(0)))) {
+        if (bar.barInSection % 2 !== 0) continue; // the shape itself; odd bars vary it
+        expect(events.map((e) => e.step)).toEqual(motif.steps);
+        const notes = events.map((e) => e.note);
+        expect(degreesOf(bar, notes)).toEqual(motif.degrees);
+        const scale = keyHelix(bar.plan.key);
+        for (const n of notes) expect(scale.heights.some((h) => wrap(h - n, 12) === 0)).toBe(true);
+        events.forEach((e) => {
+          const tones = classesOf(joinChord(chordAt(bar.chords, e.step).chord));
+          if ((e.step % 8 === 0 || bar.chords.some((c) => c.slot.step === e.step)) && !tones.includes(wrap(e.note, 12)))
+            offChord++;
+        });
+        bars++;
+      }
+    expect(bars).toBeGreaterThan(200);
+    expect(offChord).toBeGreaterThan(0);
+  });
+
+  it('takes a new one at once, mid-phrase, whole but for the close of bars 2 and 4', () => {
+    let bars = 0;
+    for (const { bar, events, after } of play(offered(tour(4), (b) => offer(b)))) {
+      expect(after.offered).toBe(bar.bar);
+      expect(events.map((e) => e.step)).toEqual(motif.steps);
+      const closes = bar.barInSection % 2 === 1;
+      const degrees = degreesOf(bar, events.map((e) => e.note));
+      expect(closes ? degrees.slice(0, -1) : degrees).toEqual(
+        closes ? motif.degrees.slice(0, -1) : motif.degrees,
+      );
+      bars++;
+    }
+    expect(bars).toBe(160);
+  });
+
+  it('plays it where it would rest: in an intro, a breakdown and below energy 0.4', () => {
+    const { bar, after: carried } = playing[0]!;
+    for (const type of SECTION_TYPES)
+      for (const energy of range(11).map((i) => i / 10)) {
+        const env = {
+          ...bar,
+          offer: offer(0),
+          barEnergy: energy,
+          plan: { ...bar.plan, section: { ...bar.plan.section, type } },
+        };
+        expect(lead.advance(env, carried, null).output.map((e) => e.step)).toEqual(motif.steps);
+      }
+  });
+
+  it('goes back to its own phrases at once when the offer goes, and keeps no motif as a theme’s melody', () => {
+    const over = offered(tour(2), (b) => (b >= 20 && b < 50 ? offer(20) : null));
+    const run = play(over);
+    for (const { bar, after } of run) {
+      expect(after.offered).toBe(bar.bar >= 20 && bar.bar < 50 ? 20 : null);
+      for (const kept of Object.values(after.melodies))
+        expect(kept!.shape.degrees).not.toEqual(motif.degrees);
+    }
+    const back = run.find((p) => p.bar.bar === 50 && p.events.length > 0);
+    if (back) expect(back.after.phrase!.degrees).not.toEqual(motif.degrees);
+    // Where it rests without a motif, it rests again.
+    const resting = run.filter((p) => p.bar.bar >= 50 && leadRests(p.bar.plan.section.type, p.bar.barEnergy));
+    expect(resting.length).toBeGreaterThan(0);
+    for (const p of resting) expect(p.events).toEqual([]);
+  });
+
+  it('keeps the machine laws while motifs come and go (F1)', () => {
+    const over = offered(tour(3, 64), (b) => (b % 24 < 12 ? offer(b - (b % 24)) : null));
+    const script: Script<BandBar, null> = over.map((env) => ({ env, input: null }));
+    expect(lawBreaks(lead, script)).toEqual([]);
   });
 });
