@@ -2,8 +2,9 @@
  * A client's session: the player following a host.
  *
  * It joins a session by name and pings the host from the start. The pings
- * set the player's clock by the host's (`hostClock`), both read as the
- * moment each output is heard (`heardNow`), so a note sounds here as it
+ * set the player's clock by the host's: the network's offset between the
+ * page clocks (`hostClock`), plus the host's output's offset from its page
+ * clock, less this output's (`skewOf`), so a note sounds here as it
  * sounds at the host, whatever each output's latency. A song waits until the clock is trusted, then plays from the bars
  * the host sent. Everything else the host says goes to the player as it
  * comes: bars, the style, the bars ahead and the Muse. What the player's
@@ -22,9 +23,12 @@ import {
   type SentBar,
   type Song,
   applyForecast,
+  type ClockReading,
   hostClock,
+  skewOf,
 } from '@jambot/session';
 import type { Player } from '../player.svelte.ts';
+import type { DeviceClocks } from './clocks.ts';
 import type { ClientLink, Lobby } from './lobby.ts';
 
 /** How long, in milliseconds, a client waits for a host to welcome it. */
@@ -48,19 +52,19 @@ export class ClientSession {
   ended: string | null = $state(null);
 
   #player: Player;
-  #heardNow: () => number | null;
+  #clocks: DeviceClocks;
   #link: ClientLink | null = null;
   #clock = hostClock.initial;
+  #reading: ClockReading | null = null;
   #pinging: ReturnType<typeof setTimeout> | null = null;
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
   #held: ForecastBar[] = [];
   /** A song the host plays, waiting for the clock to be trusted. */
   #pending: { song: Song; bars: SentBar[] } | null = null;
 
-  /** `heardNow` is the moment the output is heard now, on its clock. */
-  constructor(player: Player, heardNow: () => number | null) {
+  constructor(player: Player, clocks: DeviceClocks) {
     this.#player = player;
-    this.#heardNow = heardNow;
+    this.#clocks = clocks;
   }
 
   async join(lobby: Lobby, session: string, name: string) {
@@ -75,6 +79,7 @@ export class ClientSession {
         for (const { bar, judgement } of judged) this.#send({ kind: 'judged', bar, judgement });
       },
       forget: () => this.#send({ kind: 'forget' }),
+      skew: () => this.#skew(),
     });
     try {
       this.#link = await lobby.join(
@@ -105,6 +110,7 @@ export class ClientSession {
     if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
     this.#pinging = this.#welcomeWait = null;
     this.#clock = hostClock.initial;
+    this.#reading = null;
     this.#pending = null;
     this.#held = [];
     this.#player.unfollow();
@@ -119,9 +125,8 @@ export class ClientSession {
   }
 
   #ping() {
-    const sent = this.#heardNow();
-    if (sent !== null) this.#send({ kind: 'ping', sent });
-    const every = this.#clock.offset === null ? PING_EVERY.settling : PING_EVERY.steady;
+    this.#send({ kind: 'ping', sent: this.#clocks.page() });
+    const every = this.#skew() === null ? PING_EVERY.settling : PING_EVERY.steady;
     this.#pinging = setTimeout(() => this.#ping(), every);
   }
 
@@ -141,7 +146,7 @@ export class ClientSession {
       case 'closed':
         return this.#end('The host closed the session.');
       case 'pong':
-        return this.#pong(message.sent, message.host);
+        return this.#pong(message.sent, message.host, message.heard);
       case 'start':
         return this.#play(message.song, []);
       case 'bar':
@@ -174,23 +179,33 @@ export class ClientSession {
 
   #startWhenReady() {
     const pending = this.#pending;
-    if (!pending || this.#clock.offset === null) return;
+    const skew = this.#skew();
+    if (!pending || skew === null) return;
     this.#pending = null;
-    this.#player.skew = this.#clock.offset;
+    this.#player.skew = skew;
     void this.#player.followSong(pending.song, pending.bars);
   }
 
-  #pong(sent: number, host: number) {
-    const received = this.#heardNow();
-    if (received === null) return;
-    const { carried, output } = hostClock.advance(null, this.#clock, { sent, received, host });
+  /** The host's heard moment less this output's, once every clock is trusted. */
+  #skew(): number | null {
+    return this.#reading && skewOf(this.#reading, this.#clocks.heardOffset());
+  }
+
+  #pong(sent: number, host: number, heard: number | null) {
+    const received = this.#clocks.page();
+    const { carried, output } = hostClock.advance(null, this.#clock, {
+      sent,
+      received,
+      host,
+      heard,
+    });
     this.#clock = carried;
+    this.#reading = output;
     if (output.trip !== null) this.trip = Math.round(output.trip * 1000);
     if (output.tooFar)
       return this.#end(
         `The host is ${this.trip} ms away and back: too far to play together. Jambot is played in one room.`,
       );
-    if (output.offset !== null) this.#player.skew = output.offset;
     this.#startWhenReady();
   }
 }

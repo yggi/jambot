@@ -10,7 +10,8 @@
  * The clock offset can be shared with whatever reads human input
  * (`midi/access.ts`, the keyboards): its `fromDeviceMs` is `toDeviceMs`'s
  * inverse, turning a note's `performance.now()` timestamp back into a
- * moment on this same output's clock.
+ * moment on this same output's clock. It reads the clocks once a tick, and
+ * the moment heard it gives (`heard`) is the one the whole device reads.
  */
 
 import { LOOKAHEAD } from '@jambot/engine';
@@ -57,7 +58,6 @@ export function bandOutput(
 
   return {
     get currentTime() {
-      offset.update();
       midi.setClock(settings.clock());
       midi.setChannels(settings.channels(), base.currentTime, offset.toDeviceMs);
       midi.setDrumNotes(settings.drumNotes());
@@ -67,6 +67,7 @@ export function bandOutput(
     get latency() {
       return base.latency;
     },
+    heard: () => offset.heard(),
     resume: () => base.resume(),
     play(part, note, velocity, seconds, duration, sound) {
       if (settings.internal()) base.play(part, note, velocity, seconds, duration, sound);
@@ -83,6 +84,7 @@ export function bandOutput(
       midi.start(seconds, offset.toDeviceMs);
     },
     tick(steps) {
+      offset.update();
       midi.advance(base.currentTime + LOOKAHEAD, offset.toDeviceMs);
       for (const step of steps)
         for (let tick = 0; tick < 6; tick++)
