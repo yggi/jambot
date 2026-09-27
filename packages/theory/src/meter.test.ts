@@ -2,20 +2,55 @@ import { describe, expect, it } from 'vitest';
 import { isEven } from './even.ts';
 import {
   METERS,
-  type Meter,
+  type MeterName,
   type Weight,
   meterWeights,
   pulseHelix,
   pulseLengths,
 } from './meter.ts';
 
-/** The weight of every subdivision, worked out directly from the pulse positions `even` gives. */
-function expectedWeights(meter: Meter): Weight[] {
-  const pulses = new Set(pulseHelix(meter).heights);
-  return Array.from({ length: meter.subdivisions }, (_, position) =>
-    position === 0 ? 'downbeat' : pulses.has(position) ? 'pulse' : 'subdivision',
-  );
-}
+/** Every named meter's weights, by hand: the ground truth `meterWeights` is checked against. */
+const WEIGHTS: Record<MeterName, Weight[]> = {
+  '3/4': ['downbeat', 'subdivision', 'pulse', 'subdivision', 'pulse', 'subdivision'],
+  '4/4': [
+    'downbeat',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'pulse',
+    'subdivision',
+  ],
+  '5/8': ['downbeat', 'subdivision', 'subdivision', 'pulse', 'subdivision'],
+  '6/8': ['downbeat', 'subdivision', 'subdivision', 'pulse', 'subdivision', 'subdivision'],
+  '7/8': ['downbeat', 'subdivision', 'subdivision', 'pulse', 'subdivision', 'pulse', 'subdivision'],
+  '9/8': [
+    'downbeat',
+    'subdivision',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'subdivision',
+  ],
+  '12/8': [
+    'downbeat',
+    'subdivision',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'subdivision',
+  ],
+};
 
 describe('meter', () => {
   it('gives every named meter its pulses and subdivisions', () => {
@@ -40,9 +75,9 @@ describe('meter', () => {
     }
   });
 
-  it('weighs every subdivision of every named meter, matching a direct reading (finite: every meter, every position)', () => {
-    for (const meter of Object.values(METERS))
-      expect(meterWeights(meter)).toEqual(expectedWeights(meter));
+  it('weighs every subdivision of every named meter, against its weights written out by hand (finite: every meter, every position)', () => {
+    for (const [name, meter] of Object.entries(METERS) as [MeterName, (typeof METERS)[MeterName]][])
+      expect(meterWeights(meter)).toEqual(WEIGHTS[name]);
   });
 
   it('marks position 0 the downbeat and no other position, in every meter', () => {

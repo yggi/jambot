@@ -5,13 +5,17 @@
  * metronome that shows 3/4, 6/8, 12/8 or an additive meter like 5/8 needs a
  * bar of its own (`@jambot/theory`'s `meterWeights`, `pulseHelix`). Every
  * subdivision of that bar lasts the same fraction of a pulse's own length,
- * `env.bpm` read live, the way the transport reads the style track: a
- * pulse lasts 60 / bpm seconds, and a bar's worth of pulses divided by its
- * subdivisions gives each one's length, whether the meter splits them
- * evenly or not (5/8's 3+2 plays unequal pulses from equal subdivisions).
- * It is read fresh each tick rather than glided through time, since a
- * click track needs no composed line's swing or legato to survive a
- * tempo change.
+ * `env.pulsesPerMinute` read live, the way the transport reads the style
+ * track: a bar's worth of pulses divided by its subdivisions gives each
+ * subdivision's length, and a pulse is however many subdivisions its own
+ * meter gives it. This is exact for a simple or compound meter, where
+ * every pulse spans the same number of subdivisions, so a pulse there
+ * really does last 60 / pulsesPerMinute seconds; for an additive meter
+ * (5/8's 3+2), pulses aren't equal, so `pulsesPerMinute` is a mean rate
+ * over the bar, not any one pulse's own tempo (`@jambot/theory`'s
+ * `pulseLengths` gives each pulse's share). It is read fresh each tick
+ * rather than glided through time, since a click track needs no composed
+ * line's swing or legato to survive a tempo change.
  *
  * Time is absolute here too: on each tick every subdivision that starts
  * before now plus the lookahead is scheduled, and one the clock has
@@ -24,8 +28,8 @@ import { type Meter, type Weight, degreeBelow, meterWeights, pulseHelix } from '
 export interface MetronomeEnv {
   /** The clock time position 0 starts at, in seconds. */
   readonly start: number;
-  /** Pulses a minute: the tempo of the meter's own beat. */
-  readonly bpm: number;
+  /** The meter's mean pulse rate, exact where its pulses are equal. */
+  readonly pulsesPerMinute: number;
   readonly meter: Meter;
 }
 
@@ -57,9 +61,9 @@ export interface MetronomeCarried {
   readonly head: { readonly position: number; readonly seconds: number };
 }
 
-/** How long one subdivision lasts, in seconds, at a pulse tempo: a bar's pulses over its subdivisions. */
-export function subdivisionSeconds(bpm: number, meter: Meter): number {
-  return (60 / bpm) * (meter.pulses / meter.subdivisions);
+/** How long one subdivision lasts, in seconds: a bar's pulses over its subdivisions, at the mean pulse rate. */
+export function subdivisionSeconds(pulsesPerMinute: number, meter: Meter): number {
+  return (60 / pulsesPerMinute) * (meter.pulses / meter.subdivisions);
 }
 
 export const metronome: Machine<
@@ -73,7 +77,7 @@ export const metronome: Machine<
     const cycle = env.meter.subdivisions;
     const weights = meterWeights(env.meter);
     const pulses = pulseHelix(env.meter);
-    const length = subdivisionSeconds(env.bpm, env.meter);
+    const length = subdivisionSeconds(env.pulsesPerMinute, env.meter);
     let head = carried?.head ?? { position: 0, seconds: env.start };
     const clicks: Click[] = [];
     let missed = 0;
