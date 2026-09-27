@@ -173,35 +173,39 @@ failing (the prototype's score, E1). Lands in: #63 step 3, where the pitched
 parts' carried state is S2's key frame.
 
 **T6. A meter is a helix of pulses over the bar's eighths, and a grouping is a
-mode of it.** Witness: `pulseHelix` (`meter.ts`),
-`even(pulses, subdivisions, 0)`: simple, compound and additive meters in one
-formula, with 7/8's 3+2+2, 2+2+3 and 2+3+2 the three modes of `even(3, 7)` and
-`mirror` the retrograde. Every pulse spans 2 or 3 eighths exactly when
-`2 · pulses ≤ subdivisions ≤ 3 · pulses`. The song's 4/4 is one meter: its
+mode of it.** Witness: `Meter` (`meter.ts`), which is a `Helix`: its cycle is
+the bar's eighths and its heights where its pulses start. `METERS` names eight,
+seven as `even(pulses, eighths)` (simple, compound and additive meters in one
+formula) and 10/8's 3+3+2+2 by its heights. 7/8's 3+2+2, 2+2+3 and 2+3+2 are the
+three modes of `even(3, 7)`, and `mirror` is the retrograde of every grouping. A
+change of grouping is a key change on the time axis: `parallel` keeps the
+downbeat and regroups, `relative` keeps the pulses and moves the downbeat, over
+every grouping and each of its modes. Every pulse spans 2 or 3 eighths exactly
+when `2 · pulses ≤ eighths ≤ 3 · pulses`. The song's 4/4 is one meter: its
 pulses composed onto 16 steps, two to an eighth, are `even(4, 16)`, the
 transport's beats. Counterexample: a grouping into 2s and 3s that no mode of
 `even` gives. 10/8 as 3+3+2+2 is the first, and 70 of the 149 groupings of up to
-16 eighths are such; each is still a helix, written as heights, as the son clave
-is among the rhythms. Test: `meter.test.ts`, whose tests under "as a helix" cite
-T6, over every named meter and every pair up to 16. Open for the song: nothing
-reads a meter but the metronome, and the transport's bar is 16 steps
-(`transport.ts`, `% 16`). Source: #98, the metronome. Status: measured (the
-named meters, their modes); measured, failing (every grouping, by `even` alone).
-Lands in: #63 (a meter in the bar's header, beside T5's environment); #27 (the
-transport's bar).
+16 eighths are such; each is still a helix, given by its heights, as the son
+clave is among the rhythms. Test: `meter.test.ts`, whose tests under "as a
+helix" cite T6, over every named meter and every grouping up to 16. Open for the
+song: nothing reads a meter but the metronome, and the transport's bar is 16
+steps (T10). Source: #98, the metronome; #105. Status: measured (the named
+meters, their modes, every grouping as a helix); measured, failing (every
+grouping, by `even` alone). Lands in: #63 (a meter in the bar's header, beside
+T5's environment); #27 (the transport's bar).
 
 **T7. A tempo is a rate of the grid, and a pulse tempo exists only where the
-pulses are equal.** Witness: `pulseLengths`: its lengths are equal exactly when
-the pulses divide the eighths, over every well-formed pair up to 16. The engine
-counts tempo per step (`tempoMap`, C2), so its `bpm` is a quarter of the step
-rate, whatever the meter. The metronome counts a mean pulse rate
-(`pulsesPerMinute`, `subdivisionSeconds`), which for 5/8 at 120 plays pulses of
-0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when the meter
-does. Counterexample: an additive meter with a pulse that plays at the written
-tempo. Test: `meter.test.ts`, whose test of pulse tempo cites T7, over every
-well-formed pair up to 16. A header's `bpm=` counts the grid, as the engine
-does: quarter-note equivalents, a quarter of the step rate, defined for every
-meter; a pulse rate is derived for display. Source: #98. Status: measured
+pulses are equal.** Witness: a meter's `gaps`, its pulses' lengths: they are
+equal exactly when the pulses divide the eighths, over every well-formed pair up
+to 16. The engine counts tempo per step (`tempoMap`, C2), so its `bpm` is a
+quarter of the step rate, whatever the meter. The metronome counts a mean pulse
+rate (`pulsesPerMinute`, `subdivisionSeconds`), which for 5/8 at 120 plays
+pulses of 0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when
+the meter does. Counterexample: an additive meter with a pulse that plays at the
+written tempo. Test: `meter.test.ts`, whose test of pulse tempo cites T7, over
+every well-formed pair up to 16. A header's `bpm=` counts the grid, as the
+engine does: quarter-note equivalents, a quarter of the step rate, defined for
+every meter; a pulse rate is derived for display. Source: #98. Status: measured
 (theory). Decided: #7, on measured options (the grid's rate, the pulse rate, a
 rate with a unit). Lands in: #63; #27.
 
@@ -233,6 +237,54 @@ jump. Test: `clock-offset.test.ts`, "does not follow a dropped buffer within two
 ticks yet, and is out for some 23 (T9)". Source: #27. Status: measured (drift,
 jitter, blips, the quantum on the fallback); measured, failing (a dropped
 buffer). Lands in: #27, one estimator for every clock pair.
+
+**T10. The song's clock is its meter's helix on the steps: the bar is a turn,
+the step in the bar a position, and the beat a degree.** Witness: the helix's
+own readings. For a meter composed onto the steps, two to an eighth,
+`degreeBelow` gives the pulse a step falls in, `Math.floor(pulse / k)` its bar
+and `wrap` its step in the bar, in every meter; for 4/4 they are exactly the
+readers' literals, `Math.floor(step / 16)`, `step % 16` and
+`Math.floor(step % 16 / 4)`. Counterexample: a reader of bar or beat whose
+result in 4/4 differs from the helix's, or one that no helix reading writes.
+Test: `meter.test.ts`, whose tests under "as the song’s clock" cite T10: at
+every step of 128 bars, the 4/4 readings equal the literals, and every named
+meter's readings keep their laws, while the literals give 4/4's alone. The
+readers that still count a bar as 16 steps or a beat as 4: the transport
+(`% 16`, `bar * 16`, `step / 4` for swing's beat), `BAR_STEPS` (the Muse, a
+motif's cycle), the parts' loops over 16 steps (drums, bass, comp, lead),
+`perform`'s fill ramp, `PRESET_GLIDE` (8 bars of 16), the session's host and
+ear, the HUD (`/ 16`, `step / 4`), the piano rolls, the fault kit and MIDI
+clock's 6 ticks a step (T3). A key change keeps the cycle and a meter change
+need not, so a song whose meter changes is a helix only between changes: open
+how bars of different lengths join. Source: #7's tension 9; #105. Status:
+measured (the readings, every named meter); open (the readers, which still use
+the literals). Lands in: #27 (the transport's bar); #63 (a meter per bar).
+
+**T11. Swing lives on the pulse, and a performance map can move a written meter
+toward another.** Witness: `swingMap` at full swing plays 4/4's eighths on
+12/8's: every offbeat eighth on its pulse's third eighth, when a bar of 12/8
+spans the same 16 steps. Counterexample: a pulse that swing moves. `swingOf`
+swings by beats of 4 steps, so at full swing it keeps every pulse of 3/4 and 4/4
+and moves one late in every other named meter: 6/8's second pulse, at step 6,
+plays at 6⅔. Test: `swing.test.ts`, whose tests under "swing over a meter" cite
+T11, over every named meter and every pulse of 8 bars. Source: #105, the ratchet
+run on the meter. Status: measured (full swing onto 12/8); measured, failing
+(swing by 4-step beats, for 5/8, 6/8, 7/8, 9/8, 10/8 and 12/8). Lands in: #27,
+where the transport learns a meter (T10).
+
+**T12. An onset off the meter is an altered degree of it only where the meter's
+pulses are unequal.** Witness: the numerals' `b` and `#` move by
+`chromaticStep`, a helix's larger step less its smaller (U1, U2, P5). On a meter
+it is one eighth for every additive grouping, 7/8's 3+2+2 among them.
+Counterexample: a meter whose alteration moves nothing. For every simple and
+compound meter, and for the song's 4/4 on its 16 steps, the step is 0, so `b`
+and `#` cannot write a syncopation; one step of the grid the meter is composed
+onto would. In 12 notes to the cycle the two agree for the diatonic set: its
+chromatic step is 1, the grid's own. Test: `meter.test.ts`, whose test of an
+onset's alteration cites T12, over every grouping into 2s and 3s up to 16.
+Source: #7's "one token grammar for pitch and rhythm", #105. Status: measured,
+failing (every simple and compound meter). Lands in: the language's next shape,
+where pitch and time share one token grammar or don't; tension 7.
 
 ### State
 
@@ -941,9 +993,12 @@ These are where the decisions are.
 8. **Expressive against metric accents** (A5). Whether a player's velocities
    follow the beat decides whether accents are counted from a level, as taken
    now, or from `perform`.
-9. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
-   every meter, and the song holds one: the transport, the Muse's grid and the
-   HUD count a bar as 16 steps and a beat as 4.
+9. **One bar of 16 steps against a meter per bar** (T6, T7, T10, T11). The
+   theory holds every meter as a helix, and the song holds one: the transport,
+   the Muse's grid and the HUD count a bar as 16 steps and a beat as 4. Each of
+   those readings is the 4/4 helix's (T10), and swing moves the pulses of every
+   other meter (T11). A key change keeps the cycle and a meter change need not,
+   so how bars of different lengths join is open.
 
 ## Semantics before surface
 

@@ -109,7 +109,7 @@ export class Metronome {
 
   /** Pulses in the current meter's bar: what the steps-in-bar counter counts to. */
   get pulses(): number {
-    return METERS[this.#meter].pulses;
+    return METERS[this.#meter].heights.length;
   }
 
   async start() {

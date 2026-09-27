@@ -348,11 +348,11 @@ The full description is in
   grid (the transport, the band, the score): nothing there reads a time
   signature, and nothing composes in anything but 4/4. The first real meter in
   the codebase is the client-only metronome (`packages/theory/src/meter.ts`,
-  `packages/engine/src/metronome.ts`): a meter, `even(pulses, subdivisions, 0)`,
-  on its own bar, independent of the song's. It is a fact worth knowing before
-  assuming "meter" means 4/4 anywhere else in the engine; see #7's comment on
-  the pressure this puts on the score language once the band, not only a click
-  track, might want one.
+  `packages/engine/src/metronome.ts`): a meter, a `Helix` of pulses over the
+  bar's eighths, on its own bar, independent of the song's. It is a fact worth
+  knowing before assuming "meter" means 4/4 anywhere else in the engine; see
+  #7's comment on the pressure this puts on the score language once the band,
+  not only a click track, might want one.
 - A header's `bpm=` counts the grid, as the engine's `stepSeconds` does: quarter
   notes a minute, a quarter of the step rate, whatever the meter. A pulse rate
   is only derived, for display, and exists only where the pulses are equal (T7).

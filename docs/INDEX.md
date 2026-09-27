@@ -73,9 +73,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       degrees, and the operators on them: `strans`, `mirror`, `late` and `rev`
       as a group, `head` as a monoid, and each result's canonical operator (Q5c,
       U4, U5)
-    - `src/meter.ts`: meter, as `even(pulses, subdivisions, 0)`: one formula for
-      a simple, compound or additive bar (3/4, 6/8, 5/8 as 3+2), `meterWeights`
-      (downbeat, another pulse, or between them) and `pulseLengths`
+    - `src/meter.ts`: meter, a helix of pulses over the bar's eighths, most of
+      them `even(pulses, eighths)`: one formula for a simple, compound or
+      additive bar (3/4, 6/8, 5/8 as 3+2), 10/8's 3+3+2+2 by its heights, and
+      `meterWeights` (downbeat, another pulse, or between them)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou and
       quintenzirkel use, checked to mean the same here
