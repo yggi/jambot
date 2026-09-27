@@ -40,7 +40,7 @@ const START = 0xfa;
 const STOP = 0xfc;
 
 /** A 1–16 MIDI channel to its 0–15 status-byte nibble, wrapping rather than throwing. */
-const nibble = (channel: number) => (channel - 1) & 15;
+export const nibble = (channel: number) => (channel - 1) & 15;
 
 const channelsEqual = (a: Channels, b: Channels) =>
   a.lead === b.lead && a.bass === b.bass && a.chords === b.chords && a.drums === b.drums;

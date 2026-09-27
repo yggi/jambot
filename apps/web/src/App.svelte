@@ -9,7 +9,8 @@
   import { bandOutput } from './audio/band-output.ts';
   import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
   import { type Output, webAudioOutput } from './audio/output.ts';
-  import { MidiAccess } from './midi/access.ts';
+  import { MidiAccess, type NoteHandler } from './midi/access.ts';
+  import { connectMidi as connect, routeNote } from './midi/routing.ts';
   import { COMPUTER_KEY_MAP, ignoreKeyEvent } from './midi/surfaces.ts';
   import { MidiSettings } from './midi/settings.svelte.ts';
   import { Player, browserSurroundings } from './player.svelte.ts';
@@ -56,31 +57,23 @@
 
   /** What every input source funnels through: the Muse (#2) reads `humanNotes` once it exists. */
   function onHumanNote(note: number, velocity: number, on: boolean, source: string) {
-    if (on) held.add(note);
-    else held.delete(note);
-    if (on && player.playing)
-      player.humanNoteOn(note, velocity, source, clockOf().offset.fromDeviceMs(performance.now()));
-    if (midiSettings.thru) {
-      const port = midiAccess?.outputPort(midiSettings.outPortId);
-      const channel = (midiSettings.thruChannel - 1) & 15;
-      port?.send(on ? [0x90 | channel, note, velocity] : [0x80 | channel, note, 0]);
-    }
+    routeNote(note, velocity, on, source, {
+      held,
+      humanNoteOn: (n, v, s, seconds) => player.humanNoteOn(n, v, s, seconds),
+      playing: () => player.playing,
+      toOutputSeconds: (ms) => clockOf().offset.fromDeviceMs(ms),
+      thru: () => midiSettings.thru,
+      thruPort: () => midiAccess?.outputPort(midiSettings.outPortId) ?? null,
+      thruChannel: () => midiSettings.thruChannel,
+    });
   }
 
   async function connectMidi() {
-    const result = await MidiAccess.connect((note, source) =>
-      onHumanNote(note.note, note.velocity, note.on, source),
-    );
-    if (typeof result === 'string') {
-      midiMessage = result;
-      return;
-    }
-    midiAccess = result;
-    midiSettings.outPort =
-      midiSettings.outPortId === 'none' ? null : midiAccess.outputPort(midiSettings.outPortId);
-    midiAccess.listen(midiSettings.inPortId);
-    const { inputs, outputs } = midiAccess;
-    midiMessage = `MIDI connected: ${inputs.length} input${inputs.length === 1 ? '' : 's'}, ${outputs.length} output${outputs.length === 1 ? '' : 's'}.`;
+    const onNote: NoteHandler = (note, source) =>
+      onHumanNote(note.note, note.velocity, note.on, source);
+    const result = await connect((handler) => MidiAccess.connect(handler), onNote, midiSettings);
+    midiAccess = result.access;
+    midiMessage = result.message;
   }
 
   $effect(() => {
