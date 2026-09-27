@@ -32,6 +32,7 @@ These principles come from the prototype
 | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
 | `packages/theory/`                                     | Music theory on one primitive, `even(k, n, shift)`: pure TypeScript           |
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
+| `packages/session/`                                    | Host and client mode: pure TypeScript, no I/O                                 |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
 | `tooling/`                                             | The repository's own gates and tools: lint rules, hooks, the pawl, the deploy |
 | `prototype/`                                           | The original single-file prototype and its README: a baseline for orientation |
@@ -86,8 +87,9 @@ These principles come from the prototype
   a pull request that touches those. A fresh checkout needs
   `pnpm exec playwright install chromium` once; Claude Code sessions do it
   at start.
-- **Theory and engine stay pure.** `packages/theory` and `packages/engine`
-  use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
+- **Theory, engine and session stay pure.** `packages/theory`,
+  `packages/engine` and `packages/session` use no DOM, Web Audio, timers or
+  Node APIs, and lint enforces it. All
   randomness goes through `random.ts`, keyed by seed and position.
 - **The prototype is a baseline, not a source of truth.** It orients the
   port. Where one of its values helps, a test records it as a literal. What

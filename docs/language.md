@@ -793,15 +793,16 @@ functional programming and category theory. Their names are in
 { carried', output }`, that keeps the machine laws.**
 Witness: `Machine` and `lawBreaks` (`machine.ts`); the form and the section
 plan (section rate), the band and its bass, comp and lead, and the Muse
-(bar rate) and the transport (tick rate). A run is a causal stream
+(bar rate), the transport (tick rate), and a client's reading of its
+host's clock (`hostClock`, per ping). A run is a causal stream
 function: output n depends only on inputs up to n (Rutten, "Universal
 Coalgebra", 2000).
 Counterexample: a machine that keeps state out of sight, changes what it
 was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
 `form.test.ts`, `band.test.ts`, `transport.test.ts`, `plan.test.ts`,
-`bass.test.ts`, `comp.test.ts`, `lead.test.ts` and `muse.test.ts`, whose
-tests of the machine laws cite F1.
+`bass.test.ts`, `comp.test.ts`, `lead.test.ts`, `muse.test.ts` and
+`clock.test.ts`, whose tests of the machine laws cite F1.
 Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
 track. Lands in: Q4a.
 

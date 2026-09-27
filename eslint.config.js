@@ -5,7 +5,7 @@ import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
 import ts from 'typescript-eslint';
 
-const pureSources = ['packages/engine/src/**', 'packages/theory/src/**'];
+const pureSources = ['packages/engine/src/**', 'packages/session/src/**', 'packages/theory/src/**'];
 
 // What a pure package's own code may not reach for. Their type check
 // already has no DOM and no Node types, but the clock and Math.random are

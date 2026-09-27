@@ -11,7 +11,11 @@ async function firing(code: string, path: string): Promise<string[]> {
   return result!.messages.map((m) => m.ruleId ?? m.message);
 }
 
-const pureSources = ['packages/engine/src/probe.ts', 'packages/theory/src/probe.ts'];
+const pureSources = [
+  'packages/engine/src/probe.ts',
+  'packages/session/src/probe.ts',
+  'packages/theory/src/probe.ts',
+];
 
 // What keeps the pure packages pure. The type checker already refuses the
 // DOM and Node's timers there (their `lib` is ES2023 and `types` is empty),

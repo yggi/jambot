@@ -6,6 +6,9 @@ Jambot is a pnpm workspace:
   below).
 - **`packages/engine`** holds the musical engine: the section plan, the band
   and its four parts, and the transport.
+- **`packages/session`** holds host and client mode: what a host and its
+  clients say, a client's band and ear, and its reading of the host's
+  clock ([brief](briefs/host-mode.md)).
 - **`apps/web`** is the browser app: Svelte 5, built by Vite, and installable
   as an offline PWA. It plays the full band on the engine, and also serves
   the original prototype at `/prototype.html`.
@@ -13,7 +16,7 @@ Jambot is a pnpm workspace:
   the agent hooks, the pawl and history checks over the catalogues, the
   license gate and the Pages deploy.
 
-`theory` and `engine` are pure: plain TypeScript with no DOM, no Web Audio,
+`theory`, `engine` and `session` are pure: plain TypeScript with no DOM, no Web Audio,
 no timers and no Node APIs, which lint enforces. They run anywhere
 JavaScript runs: a browser tab, a Worker, or the root node.
 
@@ -130,10 +133,16 @@ design (#7).
   bar before that section starts. Tempo and
   swing follow per step and per beat, and a started beat keeps its swing.
   After a stall, what the clock has passed is dropped, not played late.
+  Its bars come from a source (`BarSource`): the band, or a host's bars a
+  client plays (`followSource`), which it takes as it lays each bar's
+  first step, leaving the host's beat for the bar to arrive, and starts
+  where the host said it starts. A bar that hasn't arrived by then is
+  passed, as a stall passes one.
   Notes players play arrive as its input, where they were heard; as the
   band composes a bar, the Muse judges the bar before the one before it,
   so a motif heard in bar k plays from bar k + 2 and nothing reaches a bar
-  sooner (F7). The web app supplies the clock and plays what it schedules
+  sooner (F7). The Muse hears judgements: those of the notes played here,
+  and those a client made of its players' bars and sent (`BarJudgement`). The web app supplies the clock and plays what it schedules
   (`apps/web/src/player.svelte.ts`), and passes on the notes played.
 - **Renderers**: turn timed events into sound or MIDI messages. The web
   app's output routes an event by its part: the drums to a synthesised kit,

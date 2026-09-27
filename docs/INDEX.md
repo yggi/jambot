@@ -91,9 +91,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       `advance(env, carried, input)`, and `lawBreaks`, which checks it
     - `src/muse.ts`: the Muse (#79): each source's notes in a bar, heard
       at exact positions, judged as mashing, too few, too wide or a motif;
-      and `muse`, the machine at bar rate that offers the motif it took
-      until another is taken, it is asked to forget, or 16 bars pass with
-      nobody playing
+      and `muse`, the machine at bar rate over a bar's judgements, which
+      offers the motif it took until another is taken, it is asked to
+      forget, or 16 bars pass with nobody playing
     - `src/events.ts`: written notes (`WrittenNote`, the drum roles,
       `writtenProblems`) and the note events they play as (`eventProblems`)
     - `src/perform.ts`: the performance, how a written note is played: its
@@ -126,13 +126,17 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
       decides the next (`passBar` for a bar it doesn't play), and
-      `lookAhead` decides the bars ahead without playing them
-    - `src/transport.ts`: the transport, the machine at tick rate: it
-      composes a beat before each bar and schedules on a clock, and
+      `lookAhead` decides the bars ahead without playing them; `playBar`
+      plays a bar's written notes, where writing ends and playing starts
+    - `src/transport.ts`: the transport, the machine at tick rate, over a
+      source of bars (`transportOver`, `BarSource`): the band's
+      (`bandSource`) composes a beat before each bar; it schedules on a
+      clock, and
       `bandEnvAt` is what the band reads for a bar; `forecast` gives the
       bars ahead, composed or not; `writtenAt` reads a moment on the clock
-      back through the steps as laid; the notes played arrive as its
-      input, and it runs the Muse two bars behind the band
+      back through the steps as laid; the notes played, and bars judged
+      elsewhere, arrive as its input, and it runs the Muse two bars behind
+      the band
     - `experiments/`: measurements on the port for the language design,
       outside the pure `src/`
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
@@ -144,6 +148,21 @@ Every doc and code area, as a tree. Add a line when you add one.
         what pad and stab lose on one channel, in a join, or on two
       - [`motifs.ts`](../packages/engine/experiments/motifs.ts): E13, how
         far the lead's variations are the motif operators
+  - `session/`: host and client mode, pure TypeScript
+    ([brief](briefs/host-mode.md))
+    - `src/protocol.ts`: what a host and its clients say (`HostMessage`,
+      `ClientMessage`), a bar as written and sent, and the version a join
+      names
+    - `src/host.ts`: the bars a host sends, each with where it starts
+    - `src/follow.ts`: `followSource`, a client's band: it plays the bars a
+      host sent, and passes one that is late
+    - `src/ear.ts`: a client's ear, which judges its players' bars a beat
+      after they end, for the host's Muse
+    - `src/clock.ts`: `hostClock`, the host's clock as a client reads it
+      from pings, filtered by the least delay and slewed
+    - `src/forecast.ts`: the bars ahead, sent as what changed
+    - `src/session.test.ts`: a host and a client over a link with delay,
+      jitter and loss, playing the same notes at the same moments
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing
