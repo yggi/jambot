@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockOffset } from './clock-offset.ts';
+import { PAIRED_AFTER, clockOffset, heardNow } from './clock-offset.ts';
 
 describe('clockOffset', () => {
   it('falls back to now() minus currentTime*1000 when there is no outputTimestamp', () => {
@@ -69,5 +69,32 @@ describe('clockOffset', () => {
     const fallback = clockOffset({ currentTime: 1.512, latency: 0.032 }, () => 1620);
     expect(precise.fromDeviceMs(1620)).toBeCloseTo(1.48, 9);
     expect(fallback.fromDeviceMs(1620)).toBeCloseTo(1.48, 9);
+  });
+});
+
+describe('heardNow', () => {
+  it('reads the moment heard through the pairing, from a fresh sample', () => {
+    const clock = {
+      currentTime: 2.05,
+      latency: 0.03,
+      outputTimestamp: () => ({ contextTime: 2, performanceTime: 7000 }),
+    };
+    expect(heardNow(clock, () => 7010)).toBeCloseTo(2.01, 12);
+  });
+
+  it('is null while a platform that pairs has not paired, or its output has only just started', () => {
+    for (const [contextTime, performanceTime] of [
+      [0, 0],
+      [0, 5000],
+      [PAIRED_AFTER - 0.01, 5000],
+    ] as const) {
+      const clock = { currentTime: 1, outputTimestamp: () => ({ contextTime, performanceTime }) };
+      expect(heardNow(clock, () => 5000)).toBeNull();
+    }
+    expect(heardNow({ currentTime: 1, outputTimestamp: () => undefined })).toBeNull();
+  });
+
+  it('falls back to the clock less its latency where the platform never pairs', () => {
+    expect(heardNow({ currentTime: 3, latency: 0.04 })).toBeCloseTo(2.96, 12);
   });
 });

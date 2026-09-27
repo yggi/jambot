@@ -7,7 +7,10 @@
  * and `host - (sent + received) / 2` is the offset between the two clocks.
  * Delay varies, and a ping held up on one leg reads wrong by half the hold,
  * so of the latest pings the one with the shortest round trip is trusted
- * (Cristian's method, filtered by the least delay). Delay that is always
+ * (Cristian's method, filtered by the least delay). A ping that came back
+ * before it was sent says the client's clock stepped in between, as an
+ * output's does when it first pairs with the page's clock; it would be the
+ * shortest of all, so it is dropped. Delay that is always
  * longer one way than the other can't be seen from either end: the offset
  * is then off by half the difference.
  *
@@ -49,8 +52,8 @@ export interface ClockCarried {
 export interface ClockReading {
   /** The offset to play by: the host's clock minus the client's. Null until enough pings. */
   readonly offset: number | null;
-  /** The shortest round trip of the latest pings. */
-  readonly trip: number;
+  /** The shortest round trip of the latest pings, or null before the first. */
+  readonly trip: number | null;
   readonly tooFar: boolean;
 }
 
@@ -58,17 +61,27 @@ export const hostClock: Machine<null, ClockCarried, Ping, ClockReading> = {
   initial: { pings: [], offset: null },
   advance(_, carried, { sent, received, host }) {
     const trip = received - sent;
+    if (trip < 0) return { carried, output: reading(carried) };
     const pings = [...carried.pings, { trip, offset: host - (sent + received) / 2 }].slice(
       -CLOCK.window,
     );
-    const best = pings.reduce((a, b) => (b.trip < a.trip ? b : a));
+    const best = bestOf(pings)!;
     let offset = carried.offset;
     if (pings.length >= CLOCK.ready)
       offset =
         offset === null
           ? best.offset
           : offset + Math.max(-CLOCK.slew, Math.min(CLOCK.slew, best.offset - offset));
-    const tooFar = pings.length >= CLOCK.ready && best.trip > CLOCK.tooFar;
-    return { carried: { pings, offset }, output: { offset, trip: best.trip, tooFar } };
+    const next = { pings, offset };
+    return { carried: next, output: reading(next) };
   },
 };
+
+const bestOf = (pings: ClockCarried['pings']) =>
+  pings.length === 0 ? null : pings.reduce((a, b) => (b.trip < a.trip ? b : a));
+
+function reading({ pings, offset }: ClockCarried): ClockReading {
+  const trip = bestOf(pings)?.trip ?? null;
+  const tooFar = pings.length >= CLOCK.ready && trip !== null && trip > CLOCK.tooFar;
+  return { offset, trip, tooFar };
+}

@@ -145,6 +145,16 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   exact; rounding it is the Muse's (#79). `clockOffset` gives that moment
   on both its paths, so nothing else takes the latency off again: in
   Chromium the heard moment lags `currentTime` by about the output latency.
+- Host and client mode ([brief](briefs/host-mode.md)): the pure parts are
+  in `packages/session`, the app's in `apps/web/src/session/` (a `Lobby`,
+  `HostSession`, `ClientSession`) and the player's `mode`. A client runs
+  `transportOver(followSource)` in the host's time and plays each event
+  `skew` earlier on its own clock; the skew is the host's heard moment
+  less its own (`heardNow`), so output latency needs no term of its own.
+  An output's clock pairing steps while it starts, so `heardNow` is null
+  for its first 0.2 s, and `hostClock` drops a ping that came back before
+  it was sent. To try it, open the app in two windows of one browser,
+  host in one and join in the other; `session.e2e.ts` measures the two.
 - `performance.now` read off its object throws ("Illegal invocation" in a
   browser, a TypeError in Node), so a default clock is called on it:
   `deps.now ? deps.now() : performance.now()`, never

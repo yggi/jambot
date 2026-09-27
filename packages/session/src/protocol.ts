@@ -60,13 +60,12 @@ export type HostMessage =
   | { readonly kind: 'forecast'; readonly forecast: ForecastDelta }
   | { readonly kind: 'muse'; readonly muse: MuseState }
   | { readonly kind: 'stop' }
-  /** The answer to a ping: the host's clock as it answered, and its output's latency. */
-  | {
-      readonly kind: 'pong';
-      readonly sent: number;
-      readonly host: number;
-      readonly latency: number;
-    }
+  /**
+   * The answer to a ping: the moment the host's output was heard as it
+   * answered, on its clock. A client that sets its clock by what is heard
+   * on both sides sounds with the host, whatever each output's latency.
+   */
+  | { readonly kind: 'pong'; readonly sent: number; readonly host: number }
   | { readonly kind: 'closed' };
 
 export type ClientMessage =

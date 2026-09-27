@@ -78,6 +78,16 @@ describe("the host's clock, as a client reads it", () => {
     expect(read(list).at(-1)!.offset).toBeCloseTo(5 + (0.012 - 0.002) / 2, 9);
   });
 
+  it('drops a ping that came back before it was sent, where the clock stepped', () => {
+    const { pings: list } = pings(20);
+    // As an output first pairs its clock, a ping reads 7 ms quicker than
+    // light, and 16 ms off; it must not become the one trusted.
+    const stepped = [{ sent: 0.0095, received: 0.0028, host: 5 + 0.006 - 0.016 }, ...list];
+    for (const r of read(stepped).slice(CLOCK.ready + 1))
+      expect(Math.abs(r.offset! - 5)).toBeLessThan(0.001);
+    expect(read(stepped)[0]).toEqual({ offset: null, trip: null, tooFar: false });
+  });
+
   it('finds a host too far away when even its best round trip is long', () => {
     expect(read(pings(20, { there: 0.03, back: 0.03 }).pings).at(-1)!.tooFar).toBe(false);
     expect(read(pings(20, { there: 0.06, back: 0.06 }).pings).at(-1)!.tooFar).toBe(true);

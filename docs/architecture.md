@@ -200,6 +200,16 @@ as the transport laid them, and keeps it for the Muse (#25). The Muse's
 judgement of what it captured is in the engine, and the lead plays the
 motif it offers (#79). At an event it connects to the root node (#20).
 
+It also plays with others ([brief](briefs/host-mode.md)). A host opens a
+session under a name, and plays as it does alone while it tells its
+clients what it does: the song, each bar as written with where it starts,
+the bars ahead, the style and the Muse. A client plays the host's bars
+with its own synth and MIDI, on the host's clock, set by pings that
+compare the moment each output is heard; its players' bars are judged on
+the client, and the host's Muse takes one motif of all it hears. Sessions
+are found through a lobby; the one built reaches the tabs and windows of
+one browser, and a WebSocket lobby, then WebRTC, reach across machines.
+
 ### Root node
 
 A dedicated main host appliance and the central composer and conductor at an

@@ -220,6 +220,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       - `src/components/MidiPanel.svelte`: connecting, the output and input
         ports, the channel each part sends on, and the built-in synth,
         clock and thru toggles
+      - `src/components/SessionPanel.svelte`: host a session, join one,
+        leave or close it; who joined, and how far the host is
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start. It keeps the
@@ -231,7 +233,18 @@ Every doc and code area, as a tree. Add a line when you add one.
       `forgetMotif` asks it to forget. `playAlong` plays a note at once, on
       the same clock and synth, from an instrument, a computer key or MIDI;
       `sounding` is only the band's own lead and drum notes heard sounding,
-      never what was played along with it
+      never what was played along with it. It plays alone, hosts (telling
+      `hosting` what it does) or follows a host (`follow`, and the
+      `follow…` calls), on the host's clock through `skew`
+    - `src/session/`: host and client mode in the app
+      ([brief](briefs/host-mode.md))
+      - `lobby.ts`: `Lobby`, where sessions are found, and the links it
+        gives a host and a client
+      - `broadcast.ts`: `broadcastLobby`, across the tabs and windows of
+        one browser
+      - `host.svelte.ts`: `HostSession`, admitting clients and telling them
+        what the player does
+      - `client.svelte.ts`: `ClientSession`, following a host on its clock
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
       ahead as `BarView`s and the song map's sections of them, the chord
       sounding, the key's scale, the style's preset and glide, and the
@@ -246,7 +259,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       at release, so a stab sharing a pad's channel and pitch retriggers
       rather than cutting the pad short (#5)
     - `src/audio/clock-offset.ts`: the smoothed gap between the output's
-      clock and `performance.now()`, for MIDI timestamps and their inverse
+      clock and `performance.now()`, for MIDI timestamps and their inverse;
+      `heardNow`, the moment heard now from a fresh sample, for sessions
     - `src/audio/band-output.ts`: `bandOutput`, the built-in synth and MIDI
       out together or either alone, riding on one shared clock
     - `src/conductor.ts`: intents (presets, sliders, keys) into glides on
@@ -268,6 +282,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       built app in Chromium with its audio measured
     - `e2e/pages.e2e.ts`: the app and the prototype on the Pages sub-path,
       online and offline
+    - `e2e/session.e2e.ts`: two pages on one session, their kicks measured
+      against each other, and a client's motif in the host's Muse
+    - `e2e/audio.ts`: listening to the app in the browser, for the checks
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e,
   build; started by hand while #4 is open
 - `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents

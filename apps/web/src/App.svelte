@@ -4,18 +4,22 @@
   import KeyPicker from './components/KeyPicker.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
   import MusePanel from './components/MusePanel.svelte';
+  import SessionPanel from './components/SessionPanel.svelte';
   import Stage from './components/Stage.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import Transport from './components/Transport.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { bandOutput } from './audio/band-output.ts';
-  import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
+  import { type ClockOffset, clockOffset, heardNow as heardOn } from './audio/clock-offset.ts';
   import { type Output, webAudioOutput } from './audio/output.ts';
   import { MidiAccess, type NoteHandler } from './midi/access.ts';
   import { connectMidi as connect, routeNote } from './midi/routing.ts';
   import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, partOf } from './midi/surfaces.ts';
   import { MidiSettings } from './midi/settings.svelte.ts';
   import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
+  import { broadcastLobby } from './session/broadcast.ts';
+  import { ClientSession } from './session/client.svelte.ts';
+  import { HostSession } from './session/host.svelte.ts';
 
   const midiSettings = new MidiSettings();
 
@@ -47,6 +51,11 @@
       );
     }),
   );
+
+  const heardNow = () => heardOn(clockOf().base);
+  const lobby = broadcastLobby();
+  const hostSession = new HostSession(player, heardNow);
+  const clientSession = new ClientSession(player, heardNow);
 
   const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
 
@@ -123,20 +132,41 @@
     <p>You play, the Muse listens, the band answers.</p>
   </header>
 
-  <Transport
-    playing={player.playing}
-    bpm={Math.round(player.track.bpm.to)}
-    ontoggle={() => (player.playing ? player.stop() : player.start())}
-    onintent={(intent) => player.apply(intent)}
+  <SessionPanel
+    mode={player.mode}
+    hosting={{ session: hostSession.session, guests: hostSession.guests }}
+    following={{
+      status: clientSession.status,
+      session: clientSession.session,
+      name: clientSession.name,
+      hostPlaying: clientSession.hostPlaying,
+      trip: clientSession.trip,
+      ended: clientSession.ended,
+      lacked: player.lacked,
+    }}
+    onhost={(session) => hostSession.open(lobby, session)}
+    onjoin={(session, name) => clientSession.join(lobby, session, name)}
+    onclose={() => hostSession.close()}
+    onleave={() => clientSession.leave()}
   />
 
-  <StylePanel
-    track={player.track}
-    style={player.hud.style}
-    onintent={(intent) => player.apply(intent)}
-  />
+  <!-- A client plays its host's song, style and key: its controls rest. -->
+  <fieldset class="controls" disabled={player.mode === 'client'}>
+    <Transport
+      playing={player.playing}
+      bpm={Math.round(player.track.bpm.to)}
+      ontoggle={() => (player.playing ? player.stop() : player.start())}
+      onintent={(intent) => player.apply(intent)}
+    />
 
-  <KeyPicker heading={player.hud.heading} onintent={(intent) => player.apply(intent)} />
+    <StylePanel
+      track={player.track}
+      style={player.hud.style}
+      onintent={(intent) => player.apply(intent)}
+    />
+
+    <KeyPicker heading={player.hud.heading} onintent={(intent) => player.apply(intent)} />
+  </fieldset>
 
   <Stage hud={player.hud} playing={player.playing} />
 
@@ -185,6 +215,14 @@
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
+  }
+  .controls {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
   }
   header p,
   .note {
