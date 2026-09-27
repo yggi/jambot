@@ -1,5 +1,13 @@
 import { type Page, expect, test } from '@playwright/test';
-import { type ClockJump, type Heard, clockJumps, heard, holdAudio, listen } from './audio.ts';
+import {
+  type ClockJump,
+  type Heard,
+  clockJumps,
+  heard,
+  holdAudio,
+  listen,
+  stalls,
+} from './audio.ts';
 
 /**
  * Host and client mode across two pages of one browser, over the tabs'
@@ -46,10 +54,23 @@ const SETTLE = 500;
  */
 const TOLD = 2;
 const SLEWED = 10 / 1000;
-/** How far apart, in milliseconds, the two pages may sound a note once settled. */
-const IN_STEP = 2;
-/** How long, in milliseconds, the test holds a page's audio: long enough to jump its clock by some 30 ms. */
-const HOLD = 40;
+/**
+ * How far apart, in milliseconds, the two pages may sound a note once
+ * settled: T8's bound in one browser, half a round trip of about a
+ * millisecond, and each output pair's bound and slew (`OUTPUT.paired`,
+ * `OUTPUT.slew`), 0.75 ms each.
+ */
+const IN_STEP = 2.5;
+/**
+ * How long, in milliseconds, a test holds a page's audio: 40 ms jumps its
+ * clock by some 30, and 80 by some 70, past the 50 ms within which a
+ * note is taken for the host's. Held on the host, the client plays by
+ * the old skew until the next answer, so a wide hold there puts notes
+ * that far out every time.
+ */
+const HOLDS = { some: 40, wide: 80 } as const;
+/** How long, in milliseconds, a test stalls the host's main thread, so its transport drops what the stall passes (T1). */
+const STALL = 300;
 
 /** The span, on the wall clock, in which a jump of a page's clock can leave the two pages out. */
 const unsettled = ({ at, by }: ClockJump) => {
@@ -75,7 +96,12 @@ async function inStep(
   page: Page,
   client: Page,
   session: string,
-  { lobby = '', hold }: { lobby?: string; hold: 'host' | 'client' },
+  {
+    lobby = '',
+    hold,
+    holdFor,
+    stallHost = false,
+  }: { lobby?: string; hold: 'host' | 'client'; holdFor: number; stallHost?: boolean },
 ) {
   const hostErrors = await listen(page);
   const clientErrors = await listen(client);
@@ -92,8 +118,15 @@ async function inStep(
   await client.waitForTimeout(6000);
   const held = hold === 'host' ? page : client;
   const heldAt = await held.evaluate(() => performance.timeOrigin + performance.now());
-  await holdAudio(held, HOLD);
-  await client.waitForTimeout(6000);
+  await holdAudio(held, holdFor);
+  await client.waitForTimeout(3000);
+  // The host's page does nothing for a moment, as a busy machine's can.
+  if (stallHost)
+    await page.evaluate((ms) => {
+      const end = performance.now() + ms;
+      while (performance.now() < end);
+    }, STALL);
+  await client.waitForTimeout(3000);
 
   // Each page's notes are read one after the other, and a note is heard
   // only once five pairings after it are sampled, so the last notes of the
@@ -133,24 +166,38 @@ async function inStep(
       );
     return { at: f.heard, gap };
   });
-  // A note one page played and the other dropped, in a stall of a browser
-  // running two bands, has none near it.
-  const matched = gaps.filter((g) => Math.abs(g.gap) < 50);
-  const steady = matched.filter((g) => allowed(g.at) === IN_STEP);
-  const out = matched.filter((g) => Math.abs(g.gap) > allowed(g.at));
+  // A note the client sounded and the host didn't is one the host's
+  // transport dropped, where its page stalled past it (T1): from the stall
+  // on, until a tick came back and an output's latency more. Every other
+  // note has the host's, within what is allowed as it sounds: `IN_STEP`,
+  // and the size of every jump still settling there, however large (a
+  // busy machine's output can drop more than 50 ms at once).
+  const hostStalls = await stalls(page);
+  const dropped = (t: number) => hostStalls.some((s) => t >= s.from && t <= s.to + 100);
+  const judged = gaps.filter((g) => !(Math.abs(g.gap) >= 50 && dropped(g.at)));
+  const out = judged.filter((g) => !(Math.abs(g.gap) <= allowed(g.at)));
+  const wide = judged.filter((g) => Math.abs(g.gap) >= 50);
+  const steady = judged.filter((g) => allowed(g.at) === IN_STEP);
   const sorted = steady.map((g) => Math.abs(g.gap)).sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)]!;
   const since = (t: number) => ((t - heldAt) / 1000).toFixed(2);
   console.log(
-    `${lobby || 'tabs'}, the ${hold} held: ${matched.length} of ${followed.length} notes matched, ` +
+    `${lobby || 'tabs'}, the ${hold} held: ${followed.length} notes, ` +
+      `${gaps.length - judged.length} dropped in the host's ${hostStalls.length} stalls, ` +
+      `${wide.length} out by 50 ms or more in a jump; ` +
       `${steady.length} settled: median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms; ` +
       `clocks jumped ${jumps.map((s) => `${s.by.toFixed(1)} ms at ${since(s.at)} s`).join(', ')} from the hold; ` +
       `out past what is allowed: ${out.map((g) => `${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g.at).toFixed(1)}`).join('; ') || 'none'}`,
   );
-  expect(matched.length).toBeGreaterThanOrEqual(followed.length * 0.95);
+  // Each fault met its path: the stall dropped host notes the client
+  // played, and the wide hold put notes 50 ms or more out.
+  if (stallHost) expect(gaps.length - judged.length).toBeGreaterThan(0);
+  if (holdFor === HOLDS.wide) expect(wide.length).toBeGreaterThan(0);
   expect(steady.length).toBeGreaterThan(40);
   expect(median).toBeLessThan(1);
-  expect(out).toEqual([]);
+  expect(
+    out.map((g) => `${since(g.at)} s: ${g.gap.toFixed(1)} ms, past ${allowed(g.at).toFixed(1)}`),
+  ).toEqual([]);
 
   await client.getByRole('button', { name: 'Leave the session' }).click();
   await expect(page.getByText('Nobody has joined yet.')).toBeVisible();
@@ -158,20 +205,25 @@ async function inStep(
   expect(clientErrors).toEqual([]);
 }
 
-test("a client joins a session and sounds with its host, note for note, through a hold of the client's audio", async ({
+test("a client joins a session and sounds with its host, note for note, through a hold of the host's audio past 50 ms", async ({
   page,
   context,
 }) => {
-  await inStep(page, await context.newPage(), 'e2e jam', { hold: 'client' });
+  await inStep(page, await context.newPage(), 'e2e jam', { hold: 'host', holdFor: HOLDS.wide });
 });
 
-test("a client in another browser context joins through the lobby server, in step through a hold of the host's audio", async ({
+test("a client in another browser context joins through the lobby server, in step through a hold of the client's audio and a stall of the host's page", async ({
   page,
   browser,
 }) => {
   // Contexts share no BroadcastChannel: only the server connects them.
   const elsewhere = await browser.newContext();
-  await inStep(page, await elsewhere.newPage(), 'server jam', { lobby: LOBBY, hold: 'host' });
+  await inStep(page, await elsewhere.newPage(), 'server jam', {
+    lobby: LOBBY,
+    hold: 'client',
+    holdFor: HOLDS.some,
+    stallHost: true,
+  });
   await elsewhere.close();
 });
 
