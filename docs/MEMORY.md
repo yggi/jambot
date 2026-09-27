@@ -357,6 +357,11 @@ The full description is in
   assuming "meter" means 4/4 anywhere else in the engine; see #7's comment on
   the pressure this puts on the score language once the band, not only a click
   track, might want one.
+- A header's `bpm=` counts the grid, as the engine's `stepSeconds` does: quarter
+  notes a minute, a quarter of the step rate, whatever the meter. A pulse rate
+  is only derived, for display, and exists only where the pulses are equal (T7).
+  The metronome's `pulsesPerMinute` is such a derived rate, a mean for 5/8 or
+  7/8.
 - Layers refer upward: pitch is relative to the chord, the chord to the key, the
   key to the section. Only compiled events are absolute.
 - `harm`: Roman numerals in the bar's key (minor, dorian, major, mixolydian),
