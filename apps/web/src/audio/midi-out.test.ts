@@ -36,7 +36,7 @@ describe('MidiOut', () => {
     expect(sent).toEqual([{ data: [NOTE_ON | 1, 43, 100], timestamp: 1000 }]);
   });
 
-  it('sends every part on its default channel (lead 1, bass 2, chords 3, drums 10)', () => {
+  it('sends every part on its default channel (lead 1, bass 2, pad and stab 3, drums 10)', () => {
     const midi = new MidiOut();
     const { port, sent } = fakePort();
     midi.setPort(port, 0, toDeviceMs);
@@ -44,7 +44,7 @@ describe('MidiOut', () => {
     const channelSent = (channel: number) => sent.some((m) => m.data[0] === (NOTE_ON | channel));
     expect(channelSent(0)).toBe(true); // lead, channel 1
     expect(channelSent(1)).toBe(true); // bass, channel 2
-    expect(channelSent(2)).toBe(true); // chords, channel 3
+    expect(channelSent(2)).toBe(true); // pad and stab, channel 3
     expect(channelSent(9)).toBe(true); // drums, channel 10
   });
 
@@ -66,12 +66,12 @@ describe('MidiOut', () => {
       const midi = new MidiOut();
       const { port, sent } = fakePort();
       midi.setPort(port, 0, toDeviceMs);
-      midi.play('chords', 60, 100, 0, 2, toDeviceMs);
-      midi.play('chords', 60, 110, 1, 0.1, toDeviceMs);
+      midi.play('pad', 60, 100, 0, 2, toDeviceMs);
+      midi.play('stab', 60, 110, 1, 0.1, toDeviceMs);
       midi.advance(1.1, toDeviceMs);
       // The stab's own release is due, but the pad still holds the pitch: no note-off yet.
       midi.advance(2, toDeviceMs);
-      const ch = DEFAULT_CHANNELS.chords - 1;
+      const ch = DEFAULT_CHANNELS.pad - 1;
       expect(sent).toEqual([
         { data: [NOTE_ON | ch, 60, 100], timestamp: 0 }, // the pad's attack
         { data: [NOTE_OFF | ch, 60, 0], timestamp: 1000 }, // retrigger: off then on, not a stray cut
