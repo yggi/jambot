@@ -179,8 +179,8 @@ a channel pads and stabs share (#24, #5). It also listens: Web MIDI in,
 the on-screen keys and the computer keys all reach a common note capture,
 which places each note on the grid where it was heard, through the steps
 as the transport laid them, and keeps it for the Muse (#25). The Muse's
-judgement of what it captured is still only in the prototype (#79). At an event it
-connects to the root node (#20).
+judgement of what it captured is in the engine (#79), and reaches the band
+with #79's step 3. At an event it connects to the root node (#20).
 
 ### Root node
 
@@ -314,9 +314,11 @@ Open:
   named cell in the score, is open.
 - **Exact positions** (T2): the port counts steps in floating point, and
   whether positions become exact fractions is open until the text step.
-- **The Muse** (#2): where a motif enters the band, once judgement exists.
-  Inputs already tag every note with its source (#25); whether an arpeggio
-  of a held chord can be told from mashing (play-aeiou) is still open.
+- **The Muse** (#79): its judgement and its machine are in the engine
+  (`muse.ts`), and where its offer enters the band is open until #79
+  step 3. Inputs tag every
+  note with its source (#25); whether an arpeggio of a held chord can be
+  told from mashing (play-aeiou) is still open.
 - **The MIDI clock's master** (#27): whether a web client or the root node
   drives it when both exist.
 - **Latency and jitter budgets** (#27), and whether notes are humanised
