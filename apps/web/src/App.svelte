@@ -2,7 +2,6 @@
   import DrumPads from './components/DrumPads.svelte';
   import Keyboard from './components/Keyboard.svelte';
   import KeyPicker from './components/KeyPicker.svelte';
-  import KeyWheel from './components/KeyWheel.svelte';
   import MetronomePanel from './components/MetronomePanel.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
   import MusePanel from './components/MusePanel.svelte';
@@ -211,18 +210,14 @@
       onintent={(intent) => player.apply(intent)}
     />
 
-    <KeyPicker heading={player.hud.heading} onintent={(intent) => player.apply(intent)} />
+    <KeyPicker
+      heading={player.hud.heading}
+      history={player.harmonicHistory}
+      onintent={(intent) => player.apply(intent)}
+    />
   </fieldset>
 
   <Stage hud={player.hud} playing={player.playing} />
-
-  {#if player.hud.bar}
-    <KeyWheel
-      tonic={player.hud.bar.tonic}
-      scale={player.hud.bar.scale}
-      history={player.harmonicHistory}
-    />
-  {/if}
 
   <Performers {performers} />
 

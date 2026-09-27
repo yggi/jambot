@@ -2,43 +2,27 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import KeyPicker from './KeyPicker.svelte';
 
+const NO_HISTORY = new Array(12).fill(0);
+
 describe('the key picker', () => {
-  it('shows the key the band is heading for, each tonic named as the prototype names it', () => {
-    render(KeyPicker, { heading: { tonic: 3, mode: 'dorian' }, onintent: () => {} });
-    const tonic = screen.getByRole('combobox', { name: 'Key' });
-    expect(tonic).toHaveDisplayValue('E♭');
+  it('shows the key the band is heading for: the mode as a select, the tonic ringed on its wheel', () => {
+    render(KeyPicker, {
+      heading: { tonic: 3, mode: 'dorian' },
+      history: NO_HISTORY,
+      onintent: () => {},
+    });
     expect(screen.getByRole('combobox', { name: 'Mode' })).toHaveDisplayValue('dorian');
-    expect([...(tonic as HTMLSelectElement).options].map((o) => o.text)).toEqual([
-      'C',
-      'C♯',
-      'D',
-      'E♭',
-      'E',
-      'F',
-      'F♯',
-      'G',
-      'A♭',
-      'A',
-      'B♭',
-      'B',
-    ]);
     expect(
       [...(screen.getByRole('combobox', { name: 'Mode' }) as HTMLSelectElement).options].map(
         (o) => o.text,
       ),
     ).toEqual(['aeolian', 'dorian', 'ionian', 'mixolydian']);
+    expect(screen.getByRole('button', { name: 'E♭' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('wishes for the key picked, tonic and mode together', async () => {
+  it('wishes for the mode picked, keeping the tonic', async () => {
     const onintent = vi.fn();
-    render(KeyPicker, { heading: { tonic: 9, mode: 'aeolian' }, onintent });
-    await fireEvent.change(screen.getByRole('combobox', { name: 'Key' }), {
-      target: { value: '2' },
-    });
-    expect(onintent).toHaveBeenLastCalledWith({
-      kind: 'key',
-      wish: { tonic: 2, mode: 'aeolian' },
-    });
+    render(KeyPicker, { heading: { tonic: 9, mode: 'aeolian' }, history: NO_HISTORY, onintent });
     await fireEvent.change(screen.getByRole('combobox', { name: 'Mode' }), {
       target: { value: 'mixolydian' },
     });
@@ -48,15 +32,23 @@ describe('the key picker', () => {
     });
   });
 
-  it('also wishes for a tonic clicked on its circle of fifths, keeping the mode', async () => {
+  it('wishes for the tonic clicked on its circle of fifths, keeping the mode', async () => {
     const onintent = vi.fn();
-    render(KeyPicker, { heading: { tonic: 9, mode: 'aeolian' }, onintent });
-    await fireEvent.click(
-      screen.getByRole('group', { name: 'Circle of fifths' }).querySelector('button')!,
-    );
-    expect(onintent).toHaveBeenCalledWith({
-      kind: 'key',
-      wish: { tonic: expect.any(Number), mode: 'aeolian' },
+    render(KeyPicker, { heading: { tonic: 9, mode: 'dorian' }, history: NO_HISTORY, onintent });
+    await fireEvent.click(screen.getByRole('button', { name: 'D' }));
+    expect(onintent).toHaveBeenCalledWith({ kind: 'key', wish: { tonic: 2, mode: 'dorian' } });
+  });
+
+  it('leaves the harmonic-history radar off until the toggle is checked', async () => {
+    const history = new Array(12).fill(0);
+    history[9] = 3; // A
+    const { container } = render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history,
+      onintent: () => {},
     });
+    expect(container.querySelector('path.history')).toBeNull();
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Harmonic history' }));
+    expect(container.querySelector('path.history')).not.toBeNull();
   });
 });

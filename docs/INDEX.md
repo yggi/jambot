@@ -245,16 +245,15 @@ Every doc and code area, as a tree. Add a line when you add one.
       - `src/components/PianoRoll.svelte`: a performer's last bar, drawn a row
         per pitch sounding, low at the bottom; generalizes `MusePanel`'s rows of
         a scale degree to rows of a raw note
-      - `src/components/KeyPicker.svelte`: a tonic and a mode, showing the key
-        the band is heading for
+      - `src/components/KeyPicker.svelte`: the key the band is heading for: a
+        mode select, and the full-sized circle of fifths as the tonic picker; a
+        toggle bares an experiment, the same wheel as a live radar of the
+        harmonic history over it
       - `src/components/CircleOfFifths.svelte`: the circle of fifths: the
         current scale lit and threaded as a figure from the tonic, the tonic
         ringed; a dot is also a button when given `onintent` and `mode`; with
         `history`, a filled radar under the wheel shows every pitch class's
         weight
-      - `src/components/KeyWheel.svelte`: the circle of fifths, full-sized: the
-        key the band is heading for, and a toggle baring the harmonic history
-        over it, an experiment
       - `src/components/MusePanel.svelte`: the Muse: the motif on offer, drawn a
         row per degree, where it came from, Forget, and the log
       - `src/components/NextBars.svelte`: the next four bars, with cues where
