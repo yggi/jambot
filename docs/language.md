@@ -269,9 +269,9 @@ parts write stay on the 16 steps, such as the backbeat on steps 4 and 12: they
 are content, not readings (#123). MIDI clock's 6 ticks a step (T3) counts steps,
 not bars. A key change keeps the cycle and a meter change need not, so a song
 whose meter changes is a helix only between changes: open how bars of different
-lengths join (#122). Source: #7's tension 9; #105; #120. Status: measured (the
-readings, every named meter; the readers, in 4/4). Lands in: #122 (a meter per
-bar); #63 (a meter in the header).
+lengths join (#122, T13). Source: #7's tension 9; #105; #120. Status: measured
+(the readings, every named meter; the readers, in 4/4). Lands in: #122 (a meter
+per bar); #63 (a meter in the header).
 
 **T11. Swing lives on the pulse, and a performance map can move a written meter
 toward another.** Witness: `swingMap` at full swing plays 4/4's eighths on
@@ -298,6 +298,44 @@ onset's alteration cites T12, over every grouping into 2s and 3s up to 16.
 Source: #7's "one token grammar for pitch and rhythm", #105. Status: measured,
 failing (every simple and compound meter). Lands in: the language's next shape,
 where pitch and time share one token grammar or don't; tension 7.
+
+**T13. A song whose meter changes is a row of helices, each stretch of one meter
+starting where the one before ends, at the running sum of its bars' lengths.**
+Witness: `clockOf` (`events.ts`), a list of meter changes read as the song's
+clock: its bar, step in the bar, beat and bar length, every stretch its meter on
+the steps, two to an eighth. The song's own clock is its constant case
+(`SONG_CLOCK`), so positions stay one number, the step from the song's start,
+and the style track, tempo and capture keep reading them as they do (#122,
+option A). Counterexample: a position read into a bar or beat that does not hold
+it, a beat that straddles a bar line, or a bar whose beats are not its meter's
+pulses. Test: `events.test.ts`, whose tests under "a song whose meter changes"
+cite T13: 4/4 → 7/8 → 4/4 by hand, and every ordered pair of named meters at
+every quarter-step, read into bars and beats and back, and each bar its own
+meter's pulses. Open: nothing plays a meter change yet. The song reads
+`SONG_CLOCK`, 21 readers use `BAR_STEPS` where a bar's own length would do, and
+swing still moves pulses (T11). Source: #122. Status: measured (the clock).
+Lands in: #122, the owner's choice between options A, B and C (#116 question
+(l)).
+
+**T14. A phrase is a motif on the cycle of its bars together, and the motif
+operators are the same group on it.** Witness: `joinBars` and `splitBars`
+(`motifs.ts`): bars in a row as one motif, and back. A bar reads round its own
+cycle, so a rest runs on over a bar line as it runs round into its own start,
+while a note held over a bar line is a tie that bars on their own cannot write:
+such a phrase does not split, and a bar that begins inside its own last note
+does not join. On a phrase, `strans` and `mirror` move each bar, `late` by a bar
+turns them round, `rev` reverses their order and each bar, and a repeated bar is
+a symmetry, `late` by a bar, which `canonicalOp` writes as no operator.
+Counterexample: two bars that join and do not split back, an operator that moves
+a phrase otherwise than its bars, or a law of the group that fails on a cycle of
+whole bars. Test: `motifs.test.ts`, whose tests under "a phrase across bars"
+cite T14, over every pair of 4-step bars with notes on degree 0 or ♭1, and every
+operator of the 8-step cycle on a sample of phrases. The band writes nothing
+across a bar line: every written note lies within its bar (L2), so a phrase
+across bars comes only from a player, whom the Muse hears one bar at a time
+(`BAR_STEPS`). Source: #124; #7, the Muse's open list (a phrase longer than a
+bar). Status: measured (the operators on phrases). Lands in: #124, the Muse's
+phrases; #39 (coarse-graining, the step → bar → phrase level).
 
 ### State
 
@@ -1006,12 +1044,13 @@ These are where the decisions are.
 8. **Expressive against metric accents** (A5). Whether a player's velocities
    follow the beat decides whether accents are counted from a level, as taken
    now, or from `perform`.
-9. **One bar of 16 steps against a meter per bar** (T6, T7, T10, T11). The
+9. **One bar of 16 steps against a meter per bar** (T6, T7, T10, T11, T13). The
    theory holds every meter as a helix, and the song holds one, 4/4, read
    through its helix by every reader of bar and beat (T10), so a meter other
-   than 4/4 changes them all at once. Swing still moves the pulses of every
-   other meter (T11). A key change keeps the cycle and a meter change need not,
-   so how bars of different lengths join is open.
+   than 4/4 changes them all at once. A key change keeps the cycle and a meter
+   change need not: a song of changing meters reads as a row of helices joined
+   at the running sums of their bars (T13), but nothing plays one yet, and swing
+   still moves the pulses of every other meter (T11).
 
 ## Semantics before surface
 
@@ -1273,6 +1312,12 @@ have not run; the others have.
   - Named rhythms: four on the floor and the backbeat are helices on the beats,
     the offbeat hats on the eighths, and every `E(3,16)`, `E(5,16)` and
     `E(7,16)` the rim plays only on the grid.
+  - Tokens, in slots as mini-notation writes a drum line: a line on the grid
+    takes 16; relative to the meter, 4 on the beats or 8 on the eighths, an
+    onset between two eighths an eighth's degree altered by a step, and an
+    eighth that holds two onsets one token more. Relative lines take 43.6% of
+    the grid's tokens: the pad and the backbeat 25%, the bass 42.8%, the lead
+    51.9%, the hats and the fills about 64%.
   - So onsets written relative to the meter would write most of the band in 4 or
     8 slots, and need the grid below for a quarter of its onsets, as a line's
     pitch tokens need `b` and `#` for notes off the chord's scale; how an onset

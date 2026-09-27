@@ -23,7 +23,6 @@ import {
   heightOf,
   meterOnSteps,
   mod,
-  wrap,
 } from '@jambot/theory';
 
 export const PARTS = ['drums', 'bass', 'pad', 'stab', 'lead'] as const;
@@ -73,29 +72,100 @@ export const BEATS: Helix = meterOnSteps(SONG_METER);
  */
 export const BAR_STEPS = BEATS.cycle;
 
-const BEATS_IN_BAR = BEATS.heights.length;
+/** From this bar on, the song is in this meter. */
+export interface MeterChange {
+  readonly bar: number;
+  readonly meter: Meter;
+}
 
-/** The bar a position is in, counted from the song's start. */
-export const barAt = (position: number): number =>
-  Math.floor(degreeBelow(BEATS, position) / BEATS_IN_BAR);
+/** The readings of a song's clock: where bars and beats fall on its steps. */
+export interface SongClock {
+  /** The bar a position is in, counted from the song's start. */
+  readonly barAt: (position: number) => number;
+  /** The step a bar starts on, counted from the song's start. */
+  readonly barStart: (bar: number) => number;
+  /** How many steps a bar has: one turn of its meter's helix. */
+  readonly barSteps: (bar: number) => number;
+  /** A position's place in its bar, from 0 up to its bar's steps. */
+  readonly stepInBar: (position: number) => number;
+  /** The beat a position is in, counted from the song's start. */
+  readonly beatAt: (position: number) => number;
+  /** The step a beat starts on, counted from the song's start. */
+  readonly beatStart: (beat: number) => number;
+  /** A position's beat in its bar, from 0. */
+  readonly beatInBar: (position: number) => number;
+  /** Whether a beat starts at a position. */
+  readonly onBeat: (position: number) => boolean;
+}
 
-/** The step a bar starts on, counted from the song's start. */
-export const barStart = (bar: number): number => heightOf(BEATS, bar * BEATS_IN_BAR);
+/**
+ * The clock of a song whose meter changes: each stretch of one meter is
+ * that meter's helix on the steps, two to an eighth, and each stretch
+ * starts where the one before ends, at the running sum of its bars'
+ * lengths (T13). A key change keeps the cycle and a meter change need not,
+ * so the song is one helix only between changes. The first meter reaches
+ * back before its bar, and every meter's pulses start on its downbeat.
+ */
+export function clockOf(changes: readonly MeterChange[]): SongClock {
+  if (changes.length === 0) throw new Error('clockOf: a song needs a meter');
+  interface Stretch {
+    readonly bar: number;
+    readonly step: number;
+    readonly beat: number;
+    readonly helix: Helix;
+    readonly beats: number;
+  }
+  const stretches: Stretch[] = [];
+  for (const { bar, meter } of [...changes].sort((x, y) => x.bar - y.bar)) {
+    if (meter.heights[0] !== 0) throw new Error('clockOf: a meter starts on its downbeat');
+    const helix = meterOnSteps(meter);
+    const before = stretches.at(-1);
+    const passed = before ? bar - before.bar : bar;
+    stretches.push({
+      bar,
+      step: before ? before.step + passed * before.helix.cycle : passed * helix.cycle,
+      beat: before ? before.beat + passed * before.beats : passed * helix.heights.length,
+      helix,
+      beats: helix.heights.length,
+    });
+  }
+  const last = (from: (s: Stretch) => number, at: number) =>
+    stretches.findLast((s) => from(s) <= at) ?? stretches[0]!;
+  const barStart = (bar: number) => {
+    const s = last((x) => x.bar, bar);
+    return s.step + (bar - s.bar) * s.helix.cycle;
+  };
+  const barAt = (position: number) => {
+    const s = last((x) => x.step, position);
+    return s.bar + Math.floor(degreeBelow(s.helix, position - s.step) / s.beats);
+  };
+  const beatAt = (position: number) => {
+    const s = last((x) => x.step, position);
+    return s.beat + degreeBelow(s.helix, position - s.step);
+  };
+  const beatStart = (beat: number) => {
+    const s = last((x) => x.beat, beat);
+    return s.step + heightOf(s.helix, beat - s.beat);
+  };
+  return {
+    barAt,
+    barStart,
+    barSteps: (bar) => last((x) => x.bar, bar).helix.cycle,
+    stepInBar: (position) => position - barStart(barAt(position)),
+    beatAt,
+    beatStart,
+    beatInBar: (position) => {
+      const s = last((x) => x.step, position);
+      return mod(degreeBelow(s.helix, position - s.step), s.beats);
+    },
+    onBeat: (position) => beatStart(beatAt(position)) === position,
+  };
+}
 
-/** A position's place in its bar, from 0 up to `BAR_STEPS`. */
-export const stepInBar = (position: number): number => wrap(position, BAR_STEPS);
+/** The song's clock: its one meter, from its start (T10). */
+export const SONG_CLOCK: SongClock = clockOf([{ bar: 0, meter: SONG_METER }]);
 
-/** The beat a position is in, counted from the song's start. */
-export const beatAt = (position: number): number => degreeBelow(BEATS, position);
-
-/** The step a beat starts on, counted from the song's start. */
-export const beatStart = (beat: number): number => heightOf(BEATS, beat);
-
-/** A position's beat in its bar, from 0. */
-export const beatInBar = (position: number): number => mod(beatAt(position), BEATS_IN_BAR);
-
-/** Whether a beat starts at a position. */
-export const onBeat = (position: number): boolean => beatStart(beatAt(position)) === position;
+export const { barAt, barStart, stepInBar, beatAt, beatStart, beatInBar, onBeat } = SONG_CLOCK;
 
 export interface NoteEvent {
   readonly part: Part;

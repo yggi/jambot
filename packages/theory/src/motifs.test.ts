@@ -8,9 +8,11 @@ import {
   applyOp,
   canonicalOp,
   head,
+  joinBars,
   motifProblems,
   motion,
   rhythmOf,
+  splitBars,
   stabilizer,
   thenOp,
   undo,
@@ -555,5 +557,85 @@ describe('an altered degree', () => {
       reached[n] = all;
     }
     expect(reached).toEqual({ 12: true, 17: true, 19: true, 22: false, 31: false, 53: false });
+  });
+});
+
+describe('a phrase across bars', () => {
+  /** A bar that joins: one that does not begin inside its own last note. */
+  const joins = (m: Motif) => m.onsets[0] === 0 || m.degrees.at(-1) === null;
+  /** Every 4-step bar that joins, with notes on degree 0 or ♭1, and rests. */
+  const bars = motifsOf(SPAN, [null, [0, 0], [1, -1]]).filter(joins);
+  /** Every pair of them. */
+  const pairs = bars.flatMap((a) => bars.map((b) => [a, b]));
+  const strans = (n: number) => ({ ...NOOP, strans: n });
+
+  it('joins bars into one motif on the cycle of the bars together, and splits it back into the same bars (finite: every pair of 4-step bars that join) (T14)', () => {
+    expect(bars.length).toBeGreaterThan(40);
+    for (const [a, b] of pairs) {
+      const phrase = joinBars([a!, b!])!;
+      expect(motifProblems(phrase)).toEqual([]);
+      expect(phrase.cycle).toBe(2 * SPAN);
+      expect(splitBars(phrase, [SPAN, SPAN])).toEqual([a, b]);
+    }
+  });
+
+  it('holds a note across a bar line, which bars on their own cannot: such a phrase does not split, and a bar that begins inside its own last note does not join (T14)', () => {
+    // The first bar's last note holds on over the line to the second bar's rest.
+    const tied = motif(2 * SPAN, [
+      [0, 0],
+      [3, 1],
+      [6, null],
+    ]);
+    expect(motifProblems(tied)).toEqual([]);
+    expect(splitBars(tied, [SPAN, SPAN])).toBeUndefined();
+    // On its own, a bar whose first onset is late begins inside its last note.
+    const late = motif(SPAN, [
+      [1, 0],
+      [3, 1],
+    ]);
+    expect(joinBars([late, late])).toBeUndefined();
+    expect(motifs.filter((m) => !joins(m)).length).toBeGreaterThan(0);
+    expect(pairs.length).toBe(bars.length ** 2);
+  });
+
+  it('is moved by the operators as its bars are: strans and mirror move each bar, late by a bar turns them round, and rev reverses their order and each bar (finite: every pair of 4-step bars that join) (T14, Q5c)', () => {
+    const mirrorOp = { ...NOOP, mirror: true };
+    const byBar = { ...NOOP, late: SPAN };
+    const rev = { ...NOOP, rev: true };
+    for (const [a, b] of pairs) {
+      const phrase = joinBars([a!, b!])!;
+      for (const op of [strans(-1), strans(2), mirrorOp])
+        expect(applyOp(op, phrase)).toEqual(joinBars([applyOp(op, a!), applyOp(op, b!)]));
+      expect(applyOp(byBar, phrase)).toEqual(joinBars([b!, a!]));
+      expect(applyOp(rev, phrase)).toEqual(joinBars([applyOp(rev, b!), applyOp(rev, a!)]));
+    }
+  });
+
+  it('keeps the group’s laws on a cycle of whole bars: two operators are their composition, and each is undone (finite: every operator of the 8-step cycle on a sample of two-bar phrases) (T14, Q5c)', () => {
+    const phraseOps: MotifOp[] = [-1, 0, 2].flatMap((s) =>
+      [false, true].flatMap((mirror) =>
+        range(2 * SPAN).flatMap((late) =>
+          [false, true].map((rev) => ({ strans: s, mirror, late, rev })),
+        ),
+      ),
+    );
+    const step = Math.floor(pairs.length / 30);
+    const sample = pairs.filter((_, i) => i % step === 0).map(([a, b]) => joinBars([a!, b!])!);
+    expect(sample.length).toBeGreaterThan(20);
+    for (const m of sample)
+      for (const x of phraseOps) {
+        expect(applyOp(thenOp(x, undo(x)), m)).toEqual(m);
+        for (const y of phraseOps.filter((_, i) => i % 7 === 0))
+          expect(applyOp(thenOp(x, y), m)).toEqual(applyOp(y, applyOp(x, m)));
+      }
+  });
+
+  it('turns a repeated bar into a symmetry: late by a bar leaves the phrase as it is, and the canonical operator writes it as no operator at all (finite: every bar that joins) (T14, U5, F3)', () => {
+    const byBar = { ...NOOP, late: SPAN };
+    for (const a of bars) {
+      const twice = joinBars([a, a])!;
+      expect(stabilizer(twice)).toContainEqual(byBar);
+      expect(canonicalOp(byBar, twice)).toEqual(NOOP);
+    }
   });
 });

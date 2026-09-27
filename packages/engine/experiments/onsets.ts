@@ -16,7 +16,12 @@
  *    eighths, or need the grid, which is how many slots the line needs: 4,
  *    8 or 16 in 4/4;
  * 3. of the named rhythms the parts draw on, which are helices composed
- *    onto the meter and which only onto the grid.
+ *    onto the meter and which only onto the grid;
+ * 4. how many tokens a line takes in slots, as mini-notation writes a
+ *    drum line: 16 on the grid, against 4 on the beats or 8 on the
+ *    eighths, where an onset between two eighths is the eighth's degree
+ *    altered by a step, one token, and an eighth that holds two onsets
+ *    takes one token more.
  *
  * Run: node --experimental-strip-types --no-warnings packages/engine/experiments/onsets.ts
  */
@@ -43,6 +48,8 @@ const LEVELS: Level[] = ['beat', 'eighth', 'grid'];
 
 const onsets = new Map<string, Record<Level, number>>();
 const lines = new Map<string, Record<Level, number>>();
+/** Tokens a line takes: on the grid, and relative to the meter. */
+const tokens = new Map<string, { lines: number; grid: number; meter: number }>();
 const count = (table: Map<string, Record<Level, number>>, key: string, level: Level) => {
   const row = table.get(key) ?? { beat: 0, eighth: 0, grid: 0 };
   row[level]++;
@@ -74,11 +81,18 @@ for (const seed of SEEDS)
       }
       for (const [line, steps] of byLine) {
         const levels = [...steps].map(levelOf);
-        count(
-          lines,
-          line,
-          levels.includes('grid') ? 'grid' : levels.includes('eighth') ? 'eighth' : 'beat',
-        );
+        const finest = levels.includes('grid')
+          ? 'grid'
+          : levels.includes('eighth')
+            ? 'eighth'
+            : 'beat';
+        count(lines, line, finest);
+        const both = [...steps].filter((s) => eighths.has(s) && steps.has(s + 1)).length;
+        const row = tokens.get(line) ?? { lines: 0, grid: 0, meter: 0 };
+        row.lines++;
+        row.grid += 16;
+        row.meter += finest === 'beat' ? 4 : 8 + both;
+        tokens.set(line, row);
       }
     }
   }
@@ -120,3 +134,15 @@ const named: [string, number[]][] = [
   ),
 ];
 for (const [name, steps] of named) console.log(`${name.padEnd(22)}${onMeter(steps)}`);
+
+console.log('\n4. Tokens a line takes in slots: on the grid, and relative to the meter');
+let grid = 0;
+let meter = 0;
+for (const [line, row] of [...tokens].sort(([a], [b]) => a.localeCompare(b))) {
+  grid += row.grid;
+  meter += row.meter;
+  console.log(
+    `${line.padEnd(16)}${(row.grid / row.lines).toFixed(1).padStart(7)}${(row.meter / row.lines).toFixed(1).padStart(7)}${pct(row.meter, row.grid)}`,
+  );
+}
+console.log(`${'all'.padEnd(16)}${''.padStart(14)}${pct(meter, grid)}`);

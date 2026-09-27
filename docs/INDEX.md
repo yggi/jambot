@@ -73,8 +73,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       off the key is written, for a numeral's root and a motif's note
     - `src/motifs.ts`: motifs, a rhythm and a contour with rests and altered
       degrees, and the operators on them: `strans`, `mirror`, `late` and `rev`
-      as a group, `head` as a monoid, and each result's canonical operator (Q5c,
-      U4, U5)
+      as a group, `head` as a monoid, each result's canonical operator (Q5c, U4,
+      U5), and `joinBars` and `splitBars`, a phrase across bars as one motif
+      (T14)
     - `src/meter.ts`: meter, a helix of pulses over the bar's eighths, most of
       them `even(pulses, eighths)`: one formula for a simple, compound or
       additive bar (3/4, 6/8, 5/8 as 3+2), 10/8's 3+3+2+2 by its heights,
@@ -103,7 +104,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       `writtenProblems`) and the note events they play as (`eventProblems`), and
       the song's clock: its meter on the steps (`SONG_METER`, `BEATS`) and the
       readings of bar and beat every reader calls (`barAt`, `stepInBar`,
-      `beatAt`, …; T10)
+      `beatAt`, …; T10), and `clockOf`, the clock of a song whose meter changes
+      (T13)
     - `src/perform.ts`: the performance, how a written note is played: its
       velocity and the length it sounds, read from the bar (T4)
     - `src/random.ts`: keyed deterministic randomness, and quantised `chance`
