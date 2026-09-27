@@ -79,7 +79,7 @@ import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EMPTY_PATTERN, Pattern, type BarPattern } from './pattern.ts';
-import { Sounding, type SoundingNotes, memberOf } from './sounding.ts';
+import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
 import { startTicker } from './ticker.ts';
 
 const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
@@ -206,7 +206,7 @@ export class Player {
   offer: Offer | null = $state.raw(null);
   /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
   dropped: readonly DroppedJudgement[] = $state.raw([]);
-  /** The band's own notes heard sounding right now, one entry per member. */
+  /** The band's own notes heard sounding right now, one entry per performer. */
   sounding: SoundingNotes = $state(SILENT);
   /** The last bar each track finished, for its piano roll. */
   pattern: BarPattern = $state(EMPTY_PATTERN);
@@ -608,9 +608,13 @@ export class Player {
     const skew = this.skew;
     for (const { bar, event, seconds, duration, sound } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds - skew, duration, sound);
-      const member = memberOf(event.part);
-      this.#sounding.push({ member, note: event.note, seconds: seconds - skew, duration });
-      this.#pattern.push(member, bar, { step: event.step, note: event.note, length: event.length });
+      const performer = performerOf(event.part);
+      this.#sounding.push({ performer, note: event.note, seconds: seconds - skew, duration });
+      this.#pattern.push(performer, bar, {
+        step: event.step,
+        note: event.note,
+        length: event.length,
+      });
     }
     if (scheduled.events.length > 0) this.pattern = this.#pattern.get();
     output.tick?.(
