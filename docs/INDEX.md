@@ -164,6 +164,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       they end, for the host's Muse
     - `src/clock.ts`: `hostClock`, the host's clock as a client reads it from
       pings, filtered by the least delay and slewed
+    - `src/faults.ts`: the fault kit (#27): simulated devices and links with
+      each clock fault explicit, for tests of whatever reads a clock;
+      `faults.test.ts` runs every fault against `hostClock` and the transport,
+      each claim a bound
     - `src/forecast.ts`: the bars ahead, sent as what changed
     - `src/session.test.ts`: a host and a client over a link with delay, jitter
       and loss, playing the same notes at the same moments

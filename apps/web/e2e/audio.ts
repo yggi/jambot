@@ -1,6 +1,7 @@
 /**
  * Listening to the app in the browser: the sound sources it starts, the
- * Workers it runs, and what reaches the speakers.
+ * Workers it runs, what reaches the speakers, and each audio context's
+ * pairing of its clock with the page's, sampled every few milliseconds.
  */
 
 import type { Page } from '@playwright/test';
@@ -11,13 +12,16 @@ export interface Start {
   /** An oscillator's frequency as it starts: 440 for a kick, whose pitch only glides. */
   frequency: number | null;
   when: number;
-  /**
-   * When it is heard, on the wall clock (`performance.timeOrigin` plus
-   * `performance.now()`), in milliseconds: its audio time through the
-   * context's own pairing of its clock with the page's. Pages in one
-   * browser share this clock, so it compares what two pages sound.
-   */
-  heard: number | null;
+  /** Which of the page's audio contexts started it, in the order they were made. */
+  context: number;
+}
+
+/** A sample of an audio context's pairing (`getOutputTimestamp`), with the wall clock it was read on. */
+interface PairingSample {
+  context: number;
+  contextTime: number;
+  /** `performance.timeOrigin` plus the pairing's `performanceTime`, in milliseconds. */
+  wall: number;
 }
 
 /**
@@ -33,9 +37,32 @@ export async function listen(page: Page, path = '/') {
       starts: Start[];
       workers: { running: number; made: number };
       tap?: AnalyserNode;
+      contexts: AudioContext[];
+      pairings: PairingSample[];
     };
     w.starts = [];
     w.workers = { running: 0, made: 0 };
+    w.contexts = [];
+    w.pairings = [];
+    const Context = AudioContext;
+    window.AudioContext = class extends Context {
+      constructor(...args: ConstructorParameters<typeof AudioContext>) {
+        super(...args);
+        w.contexts.push(this);
+      }
+    };
+    // Every 5 ms, each context's pairing.
+    setInterval(() => {
+      w.contexts.forEach((ctx, context) => {
+        const ts = ctx.getOutputTimestamp?.();
+        if (ts?.contextTime && ts.performanceTime)
+          w.pairings.push({
+            context,
+            contextTime: ts.contextTime,
+            wall: performance.timeOrigin + ts.performanceTime,
+          });
+      });
+    }, 5);
     // Buffer sources (the noise voices) have their own start.
     for (const source of [OscillatorNode, AudioBufferSourceNode]) {
       const start = source.prototype.start as (...args: number[]) => void;
@@ -45,15 +72,11 @@ export async function listen(page: Page, path = '/') {
         ...rest: number[]
       ) {
         const osc = this instanceof OscillatorNode ? this : null;
-        const ts = (this.context as AudioContext).getOutputTimestamp?.();
-        const paired = ts && ts.contextTime !== undefined && ts.performanceTime ? ts : null;
         w.starts.push({
           kind: osc?.type ?? 'noise',
           frequency: osc?.frequency.value ?? null,
           when,
-          heard: paired
-            ? performance.timeOrigin + paired.performanceTime! + (when - paired.contextTime!) * 1000
-            : null,
+          context: w.contexts.indexOf(this.context as AudioContext),
         });
         return start.call(this, when, ...rest);
       };
@@ -103,3 +126,84 @@ export const workers = (page: Page) =>
   page.evaluate(
     () => (window as unknown as { workers: { running: number; made: number } }).workers,
   );
+
+/** A sound source started, and when it was heard. */
+export interface Heard extends Start {
+  /**
+   * When it was heard, on the wall clock (`performance.timeOrigin` plus
+   * `performance.now()`), in milliseconds: its audio time through its
+   * context's pairing as it sounded, so a jump of the clock between
+   * scheduling and sounding is read. A single reading of the pairing can
+   * blip by a few milliseconds on a busy machine and the next takes it
+   * back, so it is read through the median of the five samples from the
+   * first at or after it. Pages in one browser share the wall clock, so it
+   * compares what two pages sound. Null where no samples were taken after.
+   */
+  heard: number | null;
+}
+
+/** Every sound source the page started, each with when it was heard. */
+export async function heard(page: Page): Promise<Heard[]> {
+  const [all, pairings] = await Promise.all([
+    starts(page),
+    page.evaluate(() => (window as unknown as { pairings: PairingSample[] }).pairings),
+  ]);
+  const byContext = new Map<number, PairingSample[]>();
+  for (const p of pairings) byContext.set(p.context, [...(byContext.get(p.context) ?? []), p]);
+  return all.map((start) => {
+    const own = byContext.get(start.context) ?? [];
+    const first = own.findIndex((p) => p.contextTime >= start.when);
+    const samples = first < 0 ? [] : own.slice(first, first + 5);
+    if (samples.length < 5) return { ...start, heard: null };
+    const readings = samples
+      .map((p) => p.wall + (start.when - p.contextTime) * 1000)
+      .sort((a, b) => a - b);
+    return { ...start, heard: readings[2]! };
+  });
+}
+
+/** A jump of a page's audio clock: where, on the wall clock, and by how many milliseconds its pairing moved. */
+export interface ClockJump {
+  at: number;
+  by: number;
+}
+
+/**
+ * Where a page's audio clock jumped: where the median of five samples of
+ * its pairing moved from the median of the five before by more than `by`
+ * milliseconds, as an output's does when it drops a buffer, is held, or
+ * settles after starting. A blip, which the next sample takes back, moves
+ * no median.
+ */
+export async function clockJumps(page: Page, by = 1): Promise<ClockJump[]> {
+  const pairings = await page.evaluate(
+    () => (window as unknown as { pairings: PairingSample[] }).pairings,
+  );
+  const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+  const jumps: ClockJump[] = [];
+  for (const context of new Set(pairings.map((p) => p.context))) {
+    const own = pairings.filter((p) => p.context === context);
+    const gap = own.map((p) => p.wall - p.contextTime * 1000);
+    for (let i = 5; i + 5 <= own.length; i++) {
+      const moved = median(gap.slice(i, i + 5)) - median(gap.slice(i - 5, i));
+      if (Math.abs(moved) > by) {
+        jumps.push({ at: own[i]!.wall, by: moved });
+        i += 4;
+      }
+    }
+  }
+  return jumps.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * Hold a page's audio for `ms` milliseconds, as a device whose output drops
+ * buffers does: every audio context's clock stands still, and what is
+ * scheduled on it sounds that much later from then on.
+ */
+export const holdAudio = (page: Page, ms: number) =>
+  page.evaluate(async (ms) => {
+    const { contexts } = window as unknown as { contexts: AudioContext[] };
+    await Promise.all(contexts.map((ctx) => ctx.suspend()));
+    await new Promise((resolve) => setTimeout(resolve, ms));
+    await Promise.all(contexts.map((ctx) => ctx.resume()));
+  }, ms);
