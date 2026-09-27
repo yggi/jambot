@@ -43,6 +43,13 @@ export interface WrittenNote {
   readonly accent?: number;
 }
 
+/**
+ * How many steps a bar has: sixteen 16ths, a bar of 4/4. Every bar the band
+ * plays has this many, so a step from the song's start is the bar's times
+ * this plus the step in the bar.
+ */
+export const BAR_STEPS = 16;
+
 export interface NoteEvent {
   readonly part: Part;
   /** The step of the bar it starts on, 0–15. */

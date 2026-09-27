@@ -172,6 +172,35 @@ Source: Strudel's query model, spirit. Status: measured (drums); measured,
 failing (the prototype's score, E1). Lands in: #63 step 3, where the pitched
 parts' carried state is S2's key frame.
 
+**T8. Once its clock is trusted, a client sounds each moment within its bound of
+the host, half its best round trip give or take the pairing's jitter, and
+follows a jump of either clock within two pings.** Witness: `hostClock`, which
+trusts the ping of least delay, slews drift, and takes two pings whose ranges
+miss the trusted one's by more than 3 ms (`CLOCK.jumped`) for a jump.
+Counterexample: a jump no two pings tell apart: one no wider than their ranges
+and those 3 ms, which is slewed at 2 ms a second (4.5 ms on a quick link; a
+buffer over 5 ms legs held up to 20 ms, out for 6 to 7 s), or one hidden by a
+ping answered partway into a drop, which agrees with the offsets on either side.
+The pairing's jitter was put at ±2.4 ms on every reading; measured in headless
+Chromium it is within about 0.4 ms, with blips of up to 4 ms that the next
+reading takes back, and a uniform 2.4 ms would make the 3 ms rule take jitter
+for jumps. Test: `faults.test.ts` (`packages/session`), every fault of a clock
+pair against `hostClock`, and the known breaks as tests that find them; the same
+promise in Chromium is `session.e2e.ts`'s, through a 40 ms hold of one page's
+audio. Source: #27, #90. Status: measured (each fault alone, a buffer on a quick
+link); measured, failing (a jump inside the jump rule, a ping answered
+mid-drop). Lands in: #27, one estimator for every clock pair.
+
+**T9. MIDI out and capture follow a dropped buffer within two updates.**
+Witness: `clockOffset`, the gap between the output's clock and the page's, from
+the pairing or, where the platform has none, from `currentTime` less the
+latency, a render quantum coarser. Counterexample: its smoothing, nine parts old
+to one fresh, which takes some 23 updates to come within a millisecond of a
+jump. Test: `clock-offset.test.ts`, "does not follow a dropped buffer within two
+ticks yet, and is out for some 23 (T9)". Source: #27. Status: measured (drift,
+jitter, blips, the quantum on the fallback); measured, failing (a dropped
+buffer). Lands in: #27, one estimator for every clock pair.
+
 ### State
 
 **S1. The prototype's score is not self-contained.** Witness: a bar whose text

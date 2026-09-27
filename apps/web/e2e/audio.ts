@@ -132,7 +132,7 @@ export interface Heard extends Start {
   /**
    * When it was heard, on the wall clock (`performance.timeOrigin` plus
    * `performance.now()`), in milliseconds: its audio time through its
-   * context's pairing as it sounded, so a step of the clock between
+   * context's pairing as it sounded, so a jump of the clock between
    * scheduling and sounding is read. A single reading of the pairing can
    * blip by a few milliseconds on a busy machine and the next takes it
    * back, so it is read through the median of the five samples from the
@@ -162,37 +162,37 @@ export async function heard(page: Page): Promise<Heard[]> {
   });
 }
 
-/** A step of a page's audio clock: where, on the wall clock, and by how many milliseconds its pairing moved. */
-export interface PairingStep {
+/** A jump of a page's audio clock: where, on the wall clock, and by how many milliseconds its pairing moved. */
+export interface ClockJump {
   at: number;
   by: number;
 }
 
 /**
- * Where a page's audio clock stepped: where the median of five samples of
+ * Where a page's audio clock jumped: where the median of five samples of
  * its pairing moved from the median of the five before by more than `by`
  * milliseconds, as an output's does when it drops a buffer, is held, or
  * settles after starting. A blip, which the next sample takes back, moves
  * no median.
  */
-export async function pairingSteps(page: Page, by = 1): Promise<PairingStep[]> {
+export async function clockJumps(page: Page, by = 1): Promise<ClockJump[]> {
   const pairings = await page.evaluate(
     () => (window as unknown as { pairings: PairingSample[] }).pairings,
   );
   const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
-  const steps: PairingStep[] = [];
+  const jumps: ClockJump[] = [];
   for (const context of new Set(pairings.map((p) => p.context))) {
     const own = pairings.filter((p) => p.context === context);
     const gap = own.map((p) => p.wall - p.contextTime * 1000);
     for (let i = 5; i + 5 <= own.length; i++) {
       const moved = median(gap.slice(i, i + 5)) - median(gap.slice(i - 5, i));
       if (Math.abs(moved) > by) {
-        steps.push({ at: own[i]!.wall, by: moved });
+        jumps.push({ at: own[i]!.wall, by: moved });
         i += 4;
       }
     }
   }
-  return steps.sort((a, b) => a.at - b.at);
+  return jumps.sort((a, b) => a.at - b.at);
 }
 
 /**

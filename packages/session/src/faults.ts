@@ -8,13 +8,16 @@
  * a buffer its clock stands still for as long as the buffer, so from then
  * on everything scheduled on it sounds that much later: the clock has lost
  * time, and a clock read against it (the page's, another device's) has
- * stepped. What is heard lags the clock by the output's latency. The page
+ * jumped. What is heard lags the clock by the output's latency. The page
  * has a clock of its own, `performance.now()`, which the platform pairs
  * with the output's (`getOutputTimestamp`). Measured in headless Chromium,
  * a reading of the pairing is off by a few tenths of a millisecond at most,
  * but on a busy machine some readings blip by a few milliseconds and the
  * next is back: the kit has both, as jitter on every reading and blips on
- * a share of them.
+ * a share of them. A reading pairs the two clocks at one moment, so it
+ * carries no render quantum: only `currentTime` moves by quanta, and a
+ * reader of the pairing meets the quantum only where the platform has no
+ * pairing and it falls back on `currentTime`.
  *
  * A link between two devices carries a message each way in at least that
  * leg's time; some messages are held up by up to its jitter, and some are
@@ -41,13 +44,13 @@ export interface Stall {
 }
 
 export interface DeviceFaults {
-  /** The real time the output starts, when its clock reads 0. */
+  /** The real time the output starts, when its clock reads 0. A drop before it drops nothing. */
   readonly started?: number;
   /** How many parts per million the output's clock runs fast; slow if negative. */
   readonly drift?: number;
   /** The buffers the output drops. */
   readonly drops?: readonly Drop[];
-  /** The render quantum, in seconds: the output's clock moves by whole quanta. */
+  /** The render quantum, in seconds: `currentTime` moves by whole quanta. */
   readonly quantum?: number;
   /** How far behind the output's clock what is heard is, in seconds. */
   readonly latency?: number;
@@ -74,7 +77,8 @@ export interface DeviceView {
   readonly clock: {
     readonly currentTime: number;
     readonly latency: number;
-    outputTimestamp(): Pairing;
+    /** The pairing, where the platform gives one. */
+    outputTimestamp?(): Pairing;
   };
   /** The page's clock, in milliseconds. */
   now(): number;
@@ -96,8 +100,12 @@ export interface SimulatedDevice {
   heardNow(t: number): number;
   /** When the page does what it would have done at real time `t`: at once, or when a stall ends. */
   woken(t: number): number;
-  /** The device as the app reads it, at whatever real time `time` says it is. */
-  view(time: () => number): DeviceView;
+  /**
+   * The device as the app reads it, at whatever real time `time` says it
+   * is: on a platform that pairs its clocks, or, with `paired` false, one
+   * that gives no pairing.
+   */
+  view(time: () => number, options?: { paired?: boolean }): DeviceView;
 }
 
 /** A device whose clocks have the faults given, and no others. */
@@ -111,7 +119,7 @@ export function simulatedDevice(faults: DeviceFaults = {}): SimulatedDevice {
     pairingJitter = 0,
     seed = 1,
   } = faults;
-  const drops = [...(faults.drops ?? [])].sort((a, b) => a.at - b.at);
+  const drops = (faults.drops ?? []).filter((d) => d.at >= started).sort((a, b) => a.at - b.at);
   const stalls = [...(faults.stalls ?? [])].sort((a, b) => a.at - b.at);
   const rate = 1 + drift * 1e-6;
   /** The output's clock, not yet in quanta. */
@@ -151,17 +159,15 @@ export function simulatedDevice(faults: DeviceFaults = {}): SimulatedDevice {
       for (const s of stalls) if (t >= s.at && t < s.at + s.for) return s.at + s.for;
       return t;
     },
-    view(time) {
-      return {
-        clock: {
-          get currentTime() {
-            return self.currentTime(time());
-          },
-          latency,
-          outputTimestamp: () => self.pairing(time()),
+    view(time, { paired = true } = {}) {
+      const clock: DeviceView['clock'] = {
+        get currentTime() {
+          return self.currentTime(time());
         },
-        now: () => self.pageNow(time()),
+        latency,
+        ...(paired && { outputTimestamp: () => self.pairing(time()) }),
       };
+      return { clock, now: () => self.pageNow(time()) };
     },
   };
   return self;
@@ -174,7 +180,7 @@ export interface LinkFaults {
   readonly back?: number;
   /** The most a message is held up beyond its leg's time, in seconds. */
   readonly jitter?: number;
-  /** The share of messages held up, from 0 to 1. */
+  /** The share of messages held up, from 0 to 1: every one, unless given. */
   readonly held?: number;
   /** The share of messages lost, from 0 to 1. */
   readonly loss?: number;
@@ -183,7 +189,7 @@ export interface LinkFaults {
 
 /** How long message `index` takes on a leg, or null where it is lost. */
 export function linkDelay(faults: LinkFaults, leg: 'there' | 'back', index: number): number | null {
-  const { there = 0, back = 0, jitter = 0, held = 0.3, loss = 0, seed = 1 } = faults;
+  const { there = 0, back = 0, jitter = 0, held = 1, loss = 0, seed = 1 } = faults;
   const way = leg === 'there' ? 0 : 1;
   const draw = (stream: number) => keyedRandom(seed, index, way, stream);
   if (chance(draw(0), loss)) return null;
