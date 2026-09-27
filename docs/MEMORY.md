@@ -193,16 +193,19 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   steps while it starts, so `clockOffset` reads no pairing for its first 0.2 s
   (`PAIRED_AFTER`). To try it, open the app in two windows of one browser, host
   in one and join in the other; `session.e2e.ts` measures the two. It holds one
-  page's audio (`holdAudio`, a `suspend` and `resume`) for 40 ms, a jump of some
-  30 ms; holds of 20 ms or less jump the pairing anywhere from −10 to +11 ms, as
-  the output settles again. `heard` reads when a note sounded through the
-  pairing sampled as it sounded (a median of five, as a single reading can
-  blip), and `clockJumps` finds each jump of a page's clock, so a check can
-  bound the moments after a jump by the jump, on any machine, rather than count
-  notes out. A clock's discontinuity is a jump, so a step stays the grid's.
-  Across machines, run `pnpm lobby` on one and give its `ws://` address as the
-  lobby server on each; every machine loads the app from its own `localhost`,
-  where Web MIDI works without HTTPS.
+  page's audio (`holdAudio`, a `suspend` and `resume`): 40 ms is a jump of some
+  30 ms, 80 of some 70; holds of 20 ms or less jump the pairing anywhere from
+  −10 to +11 ms, as the output settles again. It stalls a page's main thread
+  with a busy loop. `heard` reads when a note sounded through the pairing
+  sampled as it sounded (a median of five, as a single reading can blip);
+  `clockJumps` finds each jump of a page's clock, and `stalls` each stall of its
+  main thread, from its 5 ms sampler coming late. So a check bounds every note
+  by the jumps settling as it sounds and excuses exactly the notes a host's
+  stall dropped, on any machine, rather than count notes out. A clock's
+  discontinuity is a jump, so a step stays the grid's. Across machines, run
+  `pnpm lobby` on one and give its `ws://` address as the lobby server on each;
+  every machine loads the app from its own `localhost`, where Web MIDI works
+  without HTTPS.
 - A test of anything that reads a clock runs it on `simulatedDevice`
   (`packages/session/src/faults.ts`, #27): real time is the test's, and each
   fault is named, else off: drift, dropped buffers (the output's clock stands
