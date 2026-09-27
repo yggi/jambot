@@ -571,6 +571,7 @@ Q1d)". Source: #5, E11, R4 (`comp` named the machine, its carried state and a
 note's voice). Status: measured. Decided: #7, on measured options (E11). Lands
 in: #24 (the channels).
 
+**L7. What is written survives into what is played, except what a performance
 map replaces, and a drum hit's MIDI note is chosen only when lowering to a
 device, by the device's map from its sound.** Witness: `perform` (`perform.ts`),
 which reads a `WrittenNote` and returns a `NoteEvent`: `part`, `step` and `note`
