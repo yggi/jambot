@@ -294,6 +294,26 @@ Source: #7's "one token grammar for pitch and rhythm", #105. Status: measured,
 failing (every simple and compound meter). Lands in: the language's next shape,
 where pitch and time share one token grammar or don't; tension 7.
 
+**T13. Over a link that keeps order, a bar reaches a client in time exactly when
+the link holds it less than a beat.** Witness: a bar is composed a beat before
+it starts (`COMPOSE_AHEAD`) and sent then, and a client takes it as it lays the
+bar's first step (`followSource`), both within a lookahead, which cancels; what
+misses is passed, never played late (T1). Over TCP, as a WebSocket's, a lost
+message holds up every one behind it until it is sent again, after the
+platform's recovery: some tens of milliseconds where a tail-loss probe fires,
+200 ms at Linux's least retransmission timeout, 1 s at RFC 6298's. So a bar is
+lacked only where a recovery, with the backoff of any loss again, outlasts a
+beat: never below one beat's recovery, and at a 1 s recovery on 2% loss, 8% of
+bars at 120 bpm and 12% at 180 (a model of the stream, not a network).
+Counterexample: a bar held less than a beat and lacked, or held more and played.
+Test: `packages/session/src/session.test.ts`, "lack a bar exactly where the
+stream held it past a beat, at 60, 120 and 180 bpm (T13)" and "lack no bar in
+two minutes where the stream recovers within 200 ms, the least Linux waits, over
+2% loss (T13)"; composing half a beat ahead fails the first. Source: #27, #93.
+Status: measured (the model). Open: each platform's recovery on a room's Wi-Fi,
+which decides whether an unreliable channel is worth building (#93). Lands in:
+#27, #93.
+
 ### State
 
 **S1. The prototype's score is not self-contained.** Witness: a bar whose text
