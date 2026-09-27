@@ -86,7 +86,14 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   energy or entropy doesn't. The key picker shows the key the band is heading
   for, the last bar decided's (`hud.heading`). A key picked is wished for tonic
   and mode; a preset wishes for its mode only when the wish is in another, so a
-  key picked survives a preset in its mode.
+  key picked survives a preset in its mode. `CircleOfFifths.svelte` draws that
+  same key as a wheel: theory's `fifthsIndex` (built on `generator(7, 12)`) lays
+  the 12 pitch classes out by fifths, and the current scale is a stroke-only
+  figure threaded from the tonic, which alone gets a ring. It is read-only
+  wherever it is given no `mode`/`onintent` (the stage's, from
+  `hud.bar.tonic`/`.scale`); given both, a dot is a button that wishes for its
+  pitch class as tonic, in the mode already playing (the controls' wheel, beside
+  `KeyPicker`'s selects, going through the same `key` intent).
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot
   (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and
   drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a
