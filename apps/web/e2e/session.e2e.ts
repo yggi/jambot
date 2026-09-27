@@ -31,17 +31,21 @@ const sounded = async (page: Page) =>
 
 /** How long, in milliseconds, before a jump of a page's clock what is heard can already be out: a lookahead and an output's latency. */
 const AHEAD = 150;
-/** How long after a jump the client's clock follows it: two pings of `PING_EVERY.steady`, one in flight, and a lookahead. */
-const SETTLE = 900;
 /**
- * The smallest jump, in milliseconds, the client's clock tells from drift
- * between pings a millisecond or two apart: `CLOCK.jumped` plus their
- * ranges. A smaller one it slews away, `CLOCK.slew` a ping of
- * `PING_EVERY.steady`: 2 ms a second. Both are T8's known breaks
- * (`faults.test.ts`), for #27's one estimator for every clock pair.
+ * How long after a jump the client's clock follows it: a jump on the host
+ * is followed by the host's output pair within three ticks, told with the
+ * next answer (`PING_EVERY.steady`), and played by from the client's next
+ * tick, after the lookahead scheduled at the old skew. One on the client
+ * is followed sooner, within its own three ticks.
  */
-const TOLD = 6;
-const SLEWED = 2 / 1000;
+const SETTLE = 500;
+/**
+ * The smallest jump, in milliseconds, an output pair tells from drift: two
+ * bounds of its readings (`OUTPUT.paired`) and `OUTPUT.jumped`. A smaller
+ * one it slews away, `OUTPUT.slew` a tick of 25 ms: 10 ms a second (T8).
+ */
+const TOLD = 2;
+const SLEWED = 10 / 1000;
 /** How far apart, in milliseconds, the two pages may sound a note once settled. */
 const IN_STEP = 2;
 /** How long, in milliseconds, the test holds a page's audio: long enough to jump its clock by some 30 ms. */
@@ -91,8 +95,16 @@ async function inStep(
   await holdAudio(held, HOLD);
   await client.waitForTimeout(6000);
 
-  const hosted = await sounded(page);
-  const followed = await sounded(client);
+  // Each page's notes are read one after the other, and a note is heard
+  // only once five pairings after it are sampled, so the last notes of the
+  // later read have none yet at the earlier: compare up to where both have.
+  const hostedAll = await sounded(page);
+  const followedAll = await sounded(client);
+  const horizon =
+    Math.min(...[hostedAll, followedAll].map((notes) => Math.max(...notes.map((n) => n.heard)))) -
+    100;
+  const hosted = hostedAll.filter((n) => n.heard <= horizon + 50);
+  const followed = followedAll.filter((n) => n.heard <= horizon);
   const jumps = [...(await clockJumps(page)), ...(await clockJumps(client))];
   // The hold jumped the held page's clock by more than the client's clock
   // can slew. A median moves a sample or two before the jump, and a

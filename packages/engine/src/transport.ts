@@ -28,7 +28,8 @@
  * Time is absolute and the clock never waits. A step is laid where the step
  * before it ends, whenever the tick comes; if the clock has stalled past an
  * event, that event is dropped rather than played late. A bar the clock has
- * wholly passed is not composed; the form still moves on through it.
+ * wholly passed is not composed; the form still moves on through it, at
+ * most `CATCH_UP` bars an advance, so every advance is bounded work.
  */
 
 import {
@@ -63,6 +64,17 @@ import { type Anchor, stepSeconds, tempoMap } from './tempo.ts';
 
 /** How far ahead of the clock steps are scheduled, in seconds. */
 export const LOOKAHEAD = 0.12;
+
+/**
+ * The most bars one advance passes. Passing a bar walks the form, the key
+ * and the chords through it, some microseconds a bar, so after a long
+ * stall (a laptop shut overnight) one advance that walked every bar passed
+ * would outlast its own lookahead on a slow machine, and play late. Each
+ * advance passes at most this many and schedules nothing, and the ticks
+ * after carry on from the clock as it is then: after a day, some 30,000
+ * bars at 84 bpm, the band is silent for about three seconds of ticks.
+ */
+export const CATCH_UP = 256;
 
 /**
  * How many steps before a bar starts it is composed: a beat. That is at
@@ -376,6 +388,7 @@ export function transportOver<Source, Arrived = never>(
       const events: TimedEvent[] = [];
       const composed: BandBar[] = [];
       let missed = 0;
+      let passed = 0;
       const swing = swingOf(track);
 
       while (head.seconds < until) {
@@ -387,6 +400,9 @@ export function transportOver<Source, Arrived = never>(
         if (head.step % 16 === 0 && nextBar === bar) {
           const end = tempoMap(track, head).played(head.step + 16);
           if (end <= now) {
+            // Enough walking for one advance: the next carries on.
+            if (passed === CATCH_UP) break;
+            passed++;
             playing = source.pass(bandEnvAt(env, bar, listening.muse.offer), playing);
             nextBar++;
             missed += 16;

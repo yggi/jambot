@@ -306,8 +306,10 @@ are in #8–#12.
 
 Timing and latency are a known issue across the whole system: browsers, network,
 USB and MIDI (#27). What holds now: the clock never waits (T1), and the
-transport drops what a stall passed. A hardware MIDI clock is one mitigation
-path, and the MIDI clock is a lossy grid of 96 ticks a bar (T3).
+transport drops what a stall passed, walking the form through at most `CATCH_UP`
+passed bars an advance, so every advance is bounded work. A hardware MIDI clock
+is one mitigation path, and the MIDI clock is a lossy grid of 96 ticks a bar
+(T3).
 
 Every pair of clocks is read by one estimator (`clockPair`): samples each
 bounding the offset, the least bound trusted, drift slewed, and a jump that
@@ -327,9 +329,10 @@ audio for 40 ms mid-run, which jumps its clock by some 30 ms, so every machine
 meets a jump, not only one whose audio drops buffers. It reads each page's
 pairing as a note sounds, finds every jump of either clock from the pairings,
 and asks that every note be within 2 ms of the host's once the clock has settled
-from each: a jump it should follow, within the next answer, and a smaller one at
-the rate it slews. While a jump settles, a note may be out by no more than the
-jump and those 2 ms.
+from each: a jump of 2 ms or more within half a second (the host's output pair,
+the next answer and a lookahead), and a smaller one at the 10 ms a second it
+slews. While a jump settles, a note may be out by no more than the jump and
+those 2 ms.
 
 ## What has settled, and what is open
 

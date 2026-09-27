@@ -20,6 +20,7 @@ import { stepSeconds, tempoMap } from './tempo.ts';
 import {
   type BarJudgement,
   type BarSource,
+  CATCH_UP,
   COMPOSE_AHEAD,
   LOOKAHEAD,
   type ScheduledStep,
@@ -293,42 +294,56 @@ describe('the transport', () => {
     expect(window.length).toBeGreaterThan(0);
   });
 
-  it('catches up after four hours’ stall within a lookahead, reporting the missed steps by count (T1)', () => {
+  it('catches up after four hours’ stall a bounded walk at a time: no advance passes more than CATCH_UP bars, and nothing plays late (T1)', () => {
     // A wish for another key, so the stall passes key changes too.
     const far = env(swung, { tonic: 2, mode: 'mixolydian' });
     const before = run(far, ticks(0.9, 100));
-    // An event's night: four hours with the tab's clock stopped.
-    const now = 0.9 + 100 * 0.025 + 4 * 3600;
-    const started = Date.now();
-    const back = transport.advance(far, before.carried, { now, until: now + LOOKAHEAD });
-    const took = Date.now() - started;
-    expect(took).toBeLessThan(LOOKAHEAD * 1000);
-    // 84 bpm is 5.6 steps a second.
-    expect(back.output.missed).toBeGreaterThan(4 * 3600 * 5.5);
-    expect(back.output.composed.length).toBeLessThan(3);
-    expect(back.output.steps.length).toBeLessThan(4);
-    for (const s of back.output.steps) expect(s.seconds + s.length).toBeGreaterThan(now);
+    // An event's night: four hours with the tab's clock stopped. A walk
+    // through every bar it passed costs some microseconds a bar, so one
+    // advance that walked them all would outlast its own lookahead on a
+    // slow machine; each advance walks at most CATCH_UP bars, and the
+    // ticks after carry on, on the clock as it is then.
+    const woke = 0.9 + 100 * 0.025 + 4 * 3600;
+    let carried = before.carried;
+    let missed = 0;
+    let silent = 0;
+    let back: TransportOutput | null = null;
+    for (let i = 0; !back; i++) {
+      const now = woke + i * 0.025;
+      const next = transport.advance(far, carried, { now, until: now + LOOKAHEAD });
+      carried = next.carried;
+      // CATCH_UP whole bars, and the steps of a part bar on either side.
+      expect(next.output.missed).toBeLessThanOrEqual((CATCH_UP + 2) * 16);
+      for (const e of next.output.events) expect(e.seconds).toBeGreaterThanOrEqual(now);
+      missed += next.output.missed;
+      if (next.output.composed.length > 0) back = next.output;
+      else silent++;
+    }
+    // 84 bpm is 5.6 steps a second, and 4 hours are some 5,040 bars.
+    expect(missed).toBeGreaterThan(4 * 3600 * 5.5);
+    expect(silent).toBe(Math.floor((4 * 3600 * 5.6) / 16 / CATCH_UP));
+    expect(back.composed.length).toBeLessThan(3);
+    expect(back.steps.length).toBeLessThan(4);
     // The form, the key and the chords went on through the stall: the bars
     // composed after it are those an unbroken run composes there.
     const unbroken = new Map<number, BandBar>();
-    let carried = run(far, ticks(0.9, 100)).carried!;
-    while (carried.head.seconds <= now + 1) {
-      const next = transport.advance(far, carried, {
-        now: carried.head.seconds,
-        until: carried.head.seconds + 4,
+    let steady = run(far, ticks(0.9, 100)).carried!;
+    while (steady.head.seconds <= woke + 2) {
+      const next = transport.advance(far, steady, {
+        now: steady.head.seconds,
+        until: steady.head.seconds + 4,
       });
       for (const b of next.output.composed) unbroken.set(b.bar, b);
-      carried = next.carried!;
+      steady = next.carried!;
     }
-    expect(back.output.composed.length).toBeGreaterThan(0);
-    for (const b of back.output.composed) {
+    for (const b of back.composed) {
       const there = unbroken.get(b.bar)!;
       expect({ plan: b.plan, chords: b.chords }).toEqual({
         plan: there.plan,
         chords: there.chords,
       });
     }
-    expect(back.output.composed[0]!.plan.key).toEqual({ tonic: 2, mode: 'mixolydian' });
+    expect(back.composed[0]!.plan.key).toEqual({ tonic: 2, mode: 'mixolydian' });
   });
 
   it('keeps the machine laws, with the style gliding under it (F1, Q4a)', () => {

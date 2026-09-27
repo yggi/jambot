@@ -207,7 +207,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   known break, a test that finds it, until it does.
 - The web tests resolve `ws` to its Node build (`apps/web/vitest.config.ts`):
   resolved for the browser it is a stub, and `websocket.test.ts` runs the real
-  lobby server, in Node's environment.
+  lobby server, in Node's environment. Its devices' clocks are the test's and
+  stand still, so a ping comes back at once and the skew is exact on any
+  machine; the clocks under delay are the pure tests'.
+- A timing claim is tested by the work it bounds, never by the wall clock: an
+  advance of the transport passes at most `CATCH_UP` bars (a day's stall is some
+  30,000), and the ticks after carry on, so no advance outlasts its lookahead on
+  a slow machine (T1).
 - A port chosen before (`MidiSettings.outPortId`/`inPortId`) is reconnected on
   load without a click (`App.svelte`), since a Web MIDI permission already
   granted needs no gesture; a first visit, with no port chosen yet, asks for
