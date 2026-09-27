@@ -67,4 +67,19 @@ describe('lint keeps the pure packages pure', () => {
     const code = 'export const draw = (seed: number) => Math.imul(seed, 2654435761) >>> 0;\n';
     for (const path of pureSources) expect(await firing(code, path)).toEqual([]);
   });
+
+  it('refuses a raw comparison against a draw, and lets chance() and pick() through', async () => {
+    for (const code of [
+      using('draw(1, "form") < 0.5'),
+      using('0.5 > heldDraw(1, ["form", "themeRenewal"], 0, 0, 0, 0, 0)'),
+    ])
+      for (const path of pureSources)
+        expect(await firing(code, path)).toContain('no-restricted-syntax');
+    const code = using(
+      "chance(draw(1, 'form'), 0.5)",
+      "import { chance, draw } from './random.ts';\n",
+    );
+    for (const path of pureSources)
+      expect(await firing(code, path)).not.toContain('no-restricted-syntax');
+  });
 });

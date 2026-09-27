@@ -72,6 +72,18 @@ export default defineConfig(
           message: 'Randomness goes through random.ts, keyed by seed and position.',
         },
       ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          // `chance` and `pick` quantise a draw before it meets a probability
+          // or a weight, which absorbs a last-bit difference `Math.pow` or
+          // `Math.sin` may give on another engine (random.ts). A raw
+          // comparison skips that gate (#45).
+          selector:
+            'BinaryExpression[operator=/^[<>]=?$/] > CallExpression[callee.name=/^(draw|heldDraw)$/]',
+          message: 'A draw goes through chance() or pick(), never a raw comparison.',
+        },
+      ],
     },
   },
   {

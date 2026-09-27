@@ -25,7 +25,7 @@
  * runs under, and every draw is keyed (`keyedRandom`), so a run replays.
  */
 
-import { keyedRandom } from '@jambot/engine';
+import { chance, keyedRandom } from '@jambot/engine';
 import type { Ping } from './clock.ts';
 
 /** From real time `at`, the output's clock stands still for `lost` seconds: a buffer dropped. */
@@ -123,7 +123,7 @@ export function simulatedDevice(faults: DeviceFaults = {}): SimulatedDevice {
   const blips = faults.pairingBlips ?? { share: 0, size: 0 };
   const jitter = (t: number) => {
     const draw = (stream: number) => keyedRandom(seed, Math.round(t * 1e6), stream);
-    const blip = draw(2) < blips.share ? blips.size * (2 * draw(3) - 1) : 0;
+    const blip = chance(draw(2), blips.share) ? blips.size * (2 * draw(3) - 1) : 0;
     return pairingJitter * (2 * draw(1) - 1) + blip;
   };
   const self: SimulatedDevice = {
@@ -186,8 +186,8 @@ export function linkDelay(faults: LinkFaults, leg: 'there' | 'back', index: numb
   const { there = 0, back = 0, jitter = 0, held = 0.3, loss = 0, seed = 1 } = faults;
   const way = leg === 'there' ? 0 : 1;
   const draw = (stream: number) => keyedRandom(seed, index, way, stream);
-  if (draw(0) < loss) return null;
-  const hold = draw(1) < held ? draw(2) * jitter : 0;
+  if (chance(draw(0), loss)) return null;
+  const hold = chance(draw(1), held) ? draw(2) * jitter : 0;
   return (leg === 'there' ? there : back) + hold;
 }
 
