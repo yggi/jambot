@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
-import { type Start, listen, starts } from './audio.ts';
+import { type Heard, type PairingStep, heard, holdAudio, listen, pairingSteps } from './audio.ts';
 
 /**
  * Host and client mode across two pages of one browser, over the tabs'
@@ -25,18 +25,52 @@ const join = async (page: Page, session: string, name: string, lobby = '') => {
   await expect(page.getByText(/^Playing in/)).toBeVisible();
 };
 
-/** A kick is a sine starting at 440 Hz, whose pitch only glides. */
-const kicks = async (page: Page) =>
-  (await starts(page))
-    .filter((s: Start) => s.kind === 'sine' && s.frequency === 440)
-    .map((s) => s.heard!);
+/** What sounded: its kind and frequency, which tell the voices apart, and when it was heard. */
+const sounded = async (page: Page) =>
+  (await heard(page)).filter((h): h is Heard & { heard: number } => h.heard !== null);
+
+/** How long, in milliseconds, before a step of a page's clock what is heard can already be out: a lookahead and an output's latency. */
+const AHEAD = 150;
+/** How long after a step the client's clock follows it: two pings of `PING_EVERY.steady`, one in flight, and a lookahead. */
+const SETTLE = 900;
+/**
+ * The smallest step, in milliseconds, the client's clock tells from drift
+ * between pings a millisecond or two apart: `CLOCK.stepped` plus their
+ * ranges. A smaller one it slews away, `CLOCK.slew` a ping of
+ * `PING_EVERY.steady`: 2 ms a second. Both are known breaks of its promise
+ * (`faults.test.ts`), for #27's next step.
+ */
+const TOLD = 6;
+const SLEWED = 2 / 1000;
+/** How far apart, in milliseconds, the two pages may sound a note once settled. */
+const IN_STEP = 2;
+/** How long, in milliseconds, the test holds a page's audio clock: long enough to step it by some 30 ms. */
+const HOLD = 40;
+
+/** The span, on the wall clock, in which a step of a page's clock can leave the two pages out. */
+const unsettled = ({ at, by }: PairingStep) => {
+  const size = Math.abs(by);
+  const slewing = size >= TOLD ? 0 : Math.max(0, size - IN_STEP) / SLEWED;
+  return [at - AHEAD, at + SETTLE + slewing] as const;
+};
 
 /**
- * The host starts the band at full energy, the client joins, and after
- * twelve seconds each kick the client sounded is set against the host's
- * nearest, on the clock both pages share.
+ * The host starts the band at full energy, the client joins, and six
+ * seconds on, one page's audio clock is held, as an output that drops
+ * buffers is. After twelve seconds each note the client sounded is set
+ * against the host's nearest of the same voice, on the clock both pages
+ * share. Every note must be within `IN_STEP`, but where a step of either
+ * page's clock is still settling: the hold, and any step a busy machine
+ * makes on its own, which the pairings show. So the check asks the same
+ * of every machine, whether its audio drops buffers or not, and a clock
+ * that slews a step it should follow fails it on every machine.
  */
-async function inStep(page: Page, client: Page, session: string, lobby = '') {
+async function inStep(
+  page: Page,
+  client: Page,
+  session: string,
+  { lobby = '', hold }: { lobby?: string; hold: 'host' | 'client' },
+) {
   const hostErrors = await listen(page);
   const clientErrors = await listen(client);
 
@@ -49,38 +83,58 @@ async function inStep(page: Page, client: Page, session: string, lobby = '') {
   // A client's controls rest: the host leads.
   await expect(client.getByRole('button', { name: 'Start the band' })).toBeDisabled();
 
-  await client.waitForTimeout(12000);
-  const hosted = await kicks(page);
-  const followed = await kicks(client);
-  expect([...hosted, ...followed].every((t) => t !== null)).toBe(true);
-  // Each kick the client sounded, against the host's nearest. A kick one
-  // page played and the other dropped, in a stall of a browser running two
-  // bands, has none near it.
-  const gaps = followed
-    .map((t) =>
-      hosted.reduce((best, h) => (Math.abs(t - h) < Math.abs(best) ? t - h : best), Infinity),
-    )
-    .filter((g) => Math.abs(g) < 50);
-  const sorted = gaps.map(Math.abs).sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)]!;
-  console.log(
-    `${lobby || 'tabs'}: client against host, ${gaps.length} of ${followed.length} kicks (the host sounded ${hosted.length}): ` +
-      `median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms, ` +
-      `each ${gaps.map((g) => g.toFixed(1)).join(' ')}`,
+  await client.waitForTimeout(6000);
+  const held = hold === 'host' ? page : client;
+  const heldAt = await held.evaluate(() => performance.timeOrigin + performance.now());
+  await holdAudio(held, HOLD);
+  await client.waitForTimeout(6000);
+
+  const hosted = await sounded(page);
+  const followed = await sounded(client);
+  const steps = [...(await pairingSteps(page)), ...(await pairingSteps(client))];
+  // The hold stepped the held page's clock by more than the client's
+  // clock can slew. A median moves a sample or two before the step, and a
+  // pairing is read a little after the moment it pairs, so the step can
+  // be found some milliseconds before the hold began.
+  const holdSteps = (await pairingSteps(held)).filter(
+    (s) => s.at >= heldAt - 100 && s.at < heldAt + 500,
   );
-  // The client sounds every kick the host sounds from when it joined; how
-  // many that is depends on the song, whose seed each run draws afresh.
-  const since = hosted.filter((h) => h >= followed[0]! - 50);
-  expect(followed.length).toBeGreaterThanOrEqual(5);
-  expect(gaps.length).toBeGreaterThanOrEqual(since.length - 1);
-  expect(gaps.length).toBeGreaterThanOrEqual(followed.length - 1);
-  // Measured in headless Chromium: a median of 0.1 to 0.3 ms, every kick
-  // within 0.7 ms, but where one of two bands in one browser slipped a
-  // buffer (10 ms): the clock follows such a step within two pings
-  // (`hostClock`), so it puts at most the kicks of half a second out.
+  expect(
+    holdSteps.some((s) => Math.abs(s.by) >= TOLD),
+    `steps of the held clock: ${(await pairingSteps(held)).map((s) => `${s.by.toFixed(1)} ms at ${((s.at - heldAt) / 1000).toFixed(3)} s`).join(', ')}`,
+  ).toBe(true);
+  const spans = steps.map(unsettled);
+  const settled = (t: number) => spans.every(([from, to]) => t < from || t > to);
+
+  // Each note the client sounded, against the host's nearest of the same voice.
+  const voice = (h: Heard) => `${h.kind} ${h.frequency}`;
+  const gaps = followed.map((f) => {
+    const gap = hosted
+      .filter((h) => voice(h) === voice(f))
+      .reduce(
+        (best, h) => (Math.abs(f.heard - h.heard) < Math.abs(best) ? f.heard - h.heard : best),
+        Infinity,
+      );
+    return { at: f.heard, gap };
+  });
+  // A note one page played and the other dropped, in a stall of a browser
+  // running two bands, has none near it.
+  const matched = gaps.filter((g) => Math.abs(g.gap) < 50);
+  const steady = matched.filter((g) => settled(g.at));
+  const out = steady.filter((g) => Math.abs(g.gap) > IN_STEP);
+  const sorted = steady.map((g) => Math.abs(g.gap)).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)]!;
+  const since = (t: number) => ((t - heldAt) / 1000).toFixed(2);
+  console.log(
+    `${lobby || 'tabs'}, the ${hold} held: ${matched.length} of ${followed.length} notes matched, ` +
+      `${steady.length} settled: median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms; ` +
+      `clocks stepped ${steps.map((s) => `${s.by.toFixed(1)} ms at ${since(s.at)} s`).join(', ')} from the hold; ` +
+      `out past ${IN_STEP} ms: ${out.map((g) => `${g.gap.toFixed(1)} at ${since(g.at)} s`).join(', ') || 'none'}`,
+  );
+  expect(matched.length).toBeGreaterThanOrEqual(followed.length * 0.95);
+  expect(steady.length).toBeGreaterThan(40);
   expect(median).toBeLessThan(1);
-  expect(sorted.filter((g) => g > 2).length).toBeLessThanOrEqual(2);
-  expect(sorted.at(-1)!).toBeLessThan(15);
+  expect(out).toEqual([]);
 
   await client.getByRole('button', { name: 'Leave the session' }).click();
   await expect(page.getByText('Nobody has joined yet.')).toBeVisible();
@@ -88,20 +142,20 @@ async function inStep(page: Page, client: Page, session: string, lobby = '') {
   expect(clientErrors).toEqual([]);
 }
 
-test('a client joins a session and sounds with its host, kick for kick', async ({
+test("a client joins a session and sounds with its host, note for note, through a hold of the client's audio", async ({
   page,
   context,
 }) => {
-  await inStep(page, await context.newPage(), 'e2e jam');
+  await inStep(page, await context.newPage(), 'e2e jam', { hold: 'client' });
 });
 
-test('a client in another browser context joins through the lobby server, in step', async ({
+test("a client in another browser context joins through the lobby server, in step through a hold of the host's audio", async ({
   page,
   browser,
 }) => {
   // Contexts share no BroadcastChannel: only the server connects them.
   const elsewhere = await browser.newContext();
-  await inStep(page, await elsewhere.newPage(), 'server jam', LOBBY);
+  await inStep(page, await elsewhere.newPage(), 'server jam', { lobby: LOBBY, hold: 'host' });
   await elsewhere.close();
 });
 

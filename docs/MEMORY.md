@@ -160,6 +160,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   for its first 0.2 s, and `hostClock` drops a ping that came back before
   it was sent. To try it, open the app in two windows of one browser,
   host in one and join in the other; `session.e2e.ts` measures the two.
+  It holds one page's audio (`holdAudio`, a `suspend` and `resume`) for
+  40 ms, a step of some 30 ms; holds of 20 ms or less step the pairing
+  anywhere from −10 to +11 ms, as the output settles again. `heard` reads
+  when a note sounded through the pairing sampled as it sounded (a median
+  of five, as a single reading can blip), and `pairingSteps` finds each
+  step of a page's clock, so a check can excuse the moments after a step,
+  on any machine, rather than a count of notes out.
   Across machines, run `pnpm lobby` on one and give its `ws://` address as
   the lobby server on each; every machine loads the app from its own
   `localhost`, where Web MIDI works without HTTPS.

@@ -181,8 +181,14 @@ const KNOWN_BREAKS: Record<string, Scene> = {
     host: { drops: [{ at: 5.998, lost: BUFFER }] },
     link: { there: 0.002, back: 0.002, jitter: 0.004, held: 1, seed: 6 },
   },
-  // Pings whose quickest round trip is near the step read ranges that meet
-  // across it, so a step is slewed back, 0.5 ms a ping: seconds out.
+  // A step no wider than two pings' ranges and the step rule's 3 ms is
+  // taken for drift and slewed back, 0.5 ms a ping: a 4.5 ms step, which
+  // an output settling after a hold makes, leaves a client out for seconds
+  // on a quick link, and a buffer does over a slow one.
+  'a step inside the step rule, on a quick link': {
+    host: { drops: [{ at: 6.1, lost: 0.0045 }] },
+    link: { there: 0.001, back: 0.001 },
+  },
   'a buffer dropped over a link as slow as the buffer': {
     host: { drops: [{ at: 6.1, lost: BUFFER }] },
     link: { there: 0.005, back: 0.005, jitter: 0.02, held: 0.5 },
