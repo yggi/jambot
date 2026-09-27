@@ -9,6 +9,7 @@ const track = (over: Partial<TrackView> = {}): TrackView => ({
   status: 'Lead is improvising.',
   source: null,
   sounding: [],
+  pattern: [],
   ...over,
 });
 

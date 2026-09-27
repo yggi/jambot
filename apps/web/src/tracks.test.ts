@@ -31,12 +31,22 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
 
 describe('the stage’s tracks', () => {
   it('names all four band members in one order, drums, bass, chords, lead', () => {
-    expect(tracksOf(hud(), none).map((t) => t.part)).toEqual(['drums', 'bass', 'comp', 'lead']);
-    expect(tracksOf(hud(), none).map((t) => t.label)).toEqual(['Drums', 'Bass', 'Chords', 'Lead']);
+    expect(tracksOf(hud(), none, none).map((t) => t.part)).toEqual([
+      'drums',
+      'bass',
+      'comp',
+      'lead',
+    ]);
+    expect(tracksOf(hud(), none, none).map((t) => t.label)).toEqual([
+      'Drums',
+      'Bass',
+      'Chords',
+      'Lead',
+    ]);
   });
 
   it('gives the lead its own status, and the style’s to every other track', () => {
-    const tracks = tracksOf(hud({ bar: barView({ lead: 'resting' }) }), none);
+    const tracks = tracksOf(hud({ bar: barView({ lead: 'resting' }) }), none, none);
     expect(tracks.find((t) => t.part === 'lead')!.status).toBe('Lead is resting.');
     for (const part of ['drums', 'bass', 'comp'] as const)
       expect(tracks.find((t) => t.part === part)!.status).toBe('Playing Techno.');
@@ -47,18 +57,30 @@ describe('the stage’s tracks', () => {
       bar: barView({ lead: 'motif', motif: 6 }),
       muse: { motif: { source: 'Ada’s computer keys', bar: 6, rows: 1, notes: [] }, log: [] },
     });
-    const tracks = tracksOf(playing, none);
+    const tracks = tracksOf(playing, none, none);
     expect(tracks.find((t) => t.part === 'lead')!.source).toBe('Ada’s computer keys');
     for (const part of ['drums', 'bass', 'comp'] as const)
       expect(tracks.find((t) => t.part === part)!.source).toBeNull();
-    const resting = tracksOf(hud({ bar: barView({ lead: 'resting' }) }), none);
+    const resting = tracksOf(hud({ bar: barView({ lead: 'resting' }) }), none, none);
     expect(resting.find((t) => t.part === 'lead')!.source).toBeNull();
   });
 
   it('gives each track the notes sounding on it, and only those', () => {
     const sounding = { drums: [36], bass: [33], comp: [48, 55], lead: [64] };
-    const tracks = tracksOf(hud(), sounding);
+    const tracks = tracksOf(hud(), sounding, none);
     for (const part of ['drums', 'bass', 'comp', 'lead'] as const)
       expect(tracks.find((t) => t.part === part)!.sounding).toEqual(sounding[part]);
+  });
+
+  it('gives each track the pattern of the bar it last finished, and only that one', () => {
+    const pattern = {
+      drums: [{ step: 0, note: 36, length: 1 }],
+      bass: [{ step: 0, note: 33, length: 4 }],
+      comp: [],
+      lead: [{ step: 4, note: 64, length: 2 }],
+    };
+    const tracks = tracksOf(hud(), none, pattern);
+    for (const part of ['drums', 'bass', 'comp', 'lead'] as const)
+      expect(tracks.find((t) => t.part === part)!.pattern).toEqual(pattern[part]);
   });
 });

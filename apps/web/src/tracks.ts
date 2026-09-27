@@ -8,10 +8,12 @@
  * A track's status reuses the words the rest of the stage already gives:
  * the lead's from `leadStatus`, the other three's from the style, since only
  * the lead's motif names a source today (#79's "later" list). A track's
- * `source` is the Muse's offer, named, only while the lead plays it.
+ * `source` is the Muse's offer, named, only while the lead plays it. Its
+ * `pattern` is the last bar it finished (`Pattern`), for its piano roll.
  */
 
 import { type Hud, leadStatus, styleStatus } from './hud.ts';
+import type { PatternNote, BarPattern } from './pattern.ts';
 import { type SoundingNotes, TRACK_PARTS, type TrackPart } from './sounding.ts';
 
 export interface TrackView {
@@ -23,6 +25,8 @@ export interface TrackView {
   readonly source: string | null;
   /** The notes sounding on this track right now. */
   readonly sounding: readonly number[];
+  /** The notes of the last bar this track finished. */
+  readonly pattern: readonly PatternNote[];
 }
 
 const LABELS: Readonly<Record<TrackPart, string>> = {
@@ -32,7 +36,11 @@ const LABELS: Readonly<Record<TrackPart, string>> = {
   lead: 'Lead',
 };
 
-export function tracksOf(hud: Hud, sounding: SoundingNotes): readonly TrackView[] {
+export function tracksOf(
+  hud: Hud,
+  sounding: SoundingNotes,
+  pattern: BarPattern,
+): readonly TrackView[] {
   const style = styleStatus(hud.style);
   const lead = leadStatus(hud);
   return TRACK_PARTS.map((part) => ({
@@ -41,5 +49,6 @@ export function tracksOf(hud: Hud, sounding: SoundingNotes): readonly TrackView[
     status: part === 'lead' ? lead : style,
     source: part === 'lead' && hud.bar?.lead === 'motif' ? (hud.muse.motif?.source ?? null) : null,
     sounding: sounding[part],
+    pattern: pattern[part],
   }));
 }

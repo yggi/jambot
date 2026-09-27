@@ -9,6 +9,7 @@ const view = (over: Partial<TrackView> = {}): TrackView => ({
   status: 'Lead is improvising.',
   source: null,
   sounding: [],
+  pattern: [],
   ...over,
 });
 
@@ -37,5 +38,15 @@ describe('a track', () => {
       track: view({ status: 'Lead is playing the motif heard in bar 7.', source: 'Ada’s keys' }),
     });
     expect(screen.getByText('From Ada’s keys.')).toBeInTheDocument();
+  });
+
+  it('says nothing played in the last bar when its pattern is empty', () => {
+    render(Track, { track: view({ pattern: [] }) });
+    expect(screen.getByText('Nothing played in the last bar yet.')).toBeInTheDocument();
+  });
+
+  it('draws its last bar as a piano roll when it has one', () => {
+    render(Track, { track: view({ pattern: [{ step: 0, note: 60, length: 4 }] }) });
+    expect(screen.getByRole('img', { name: 'Pattern of 1 notes' })).toBeInTheDocument();
   });
 });

@@ -225,8 +225,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       - `src/components/Tracks.svelte`: one `Track` per band member, drums,
         bass, chords and lead
       - `src/components/Track.svelte`: one band member's track, collapsed to its
-        status, expandable to what is sounding on it and, while the lead plays a
-        motif, whose it is
+        status, expandable to its last bar as a `PianoRoll`, what is sounding on
+        it, and, while the lead plays a motif, whose it is
+      - `src/components/PianoRoll.svelte`: a track's last bar, drawn a row per
+        pitch sounding, low at the bottom; generalizes `MusePanel`'s rows of a
+        scale degree to rows of a raw note
       - `src/components/KeyPicker.svelte`: a tonic and a mode, showing the key
         the band is heading for
       - `src/components/MusePanel.svelte`: the Muse: the motif on offer, drawn a
@@ -258,9 +261,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       asks it to forget. `playAlong` plays a note at once, on the same clock and
       synth, from an instrument, a computer key or MIDI; `sounding` is only the
       band's own notes heard sounding, one track per band member, never what was
-      played along with it. It plays alone, hosts (telling `hosting` what it
-      does) or follows a host (`follow`, and the `follow…` calls), on the host's
-      clock through `skew`
+      played along with it; `pattern` is each track's last bar finished, for its
+      piano roll. It plays alone, hosts (telling `hosting` what it does) or
+      follows a host (`follow`, and the `follow…` calls), on the host's clock
+      through `skew`
     - `src/session/`: host and client mode in the app
       ([brief](briefs/host-mode.md))
       - `lobby.ts`: `Lobby`, where sessions are found, and the links it gives a
@@ -278,12 +282,15 @@ Every doc and code area, as a tree. Add a line when you add one.
       the lead's and the style's status lines, reused by the stage's tracks
     - `src/tracks.ts`: the stage's tracks, `tracksOf`: one `TrackView` per band
       member, drums, bass, chords and lead, each a status line, the Muse's
-      source while the lead plays its motif, and what is sounding on it, built
-      the same way whether the player hosts, follows or plays alone
+      source while the lead plays its motif, what is sounding on it and its last
+      bar's pattern, built the same way whether the player hosts, follows or
+      plays alone
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/sounding.ts`: `Sounding`, the band's own notes heard sounding right
       now on each of its four tracks, from a hit's scheduled time and duration;
       `trackPartOf` maps the comp's `pad` and `stab` onto the one chords track
+    - `src/pattern.ts`: `Pattern`, the last bar each track finished, kept whole
+      once the next bar's first note arrives, for a track's piano roll
     - `src/audio/output.ts`: what the player plays on, and the Web Audio one
     - `src/audio/midi-out.ts`: MIDI out, one channel per part; a note-off is
       answered by its note-on's decision, never by what else is sounding at
