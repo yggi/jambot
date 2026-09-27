@@ -24,14 +24,27 @@
  * computer key or a MIDI note. It plays at once, on the same synth the band
  * uses, but it is not part of the band: only the band's own notes ever
  * appear in `sounding`.
+ *
+ * It plays alone, hosts a session, or follows a host (`mode`). A host plays
+ * as it does alone and tells its session what it does (`hosting`): the
+ * song it starts, each bar as it composes it, the bars ahead, the style
+ * and the Muse; and its Muse hears the bars its clients judged. A client
+ * plays the host's bars with its own output (`followSource`), on the
+ * host's clock: its transport runs in the host's time, and `skew` maps it
+ * onto this device's clock, so a note sounds here when it sounds at the
+ * host. Its style, bars ahead and Muse are the host's; its players' notes
+ * go to its ear (`earListen`), and what it judges goes to the host.
  */
 
 import {
+  type BarJudgement,
+  type DroppedJudgement,
   type ForecastBar,
   INITIAL_STYLE,
   type KeyWish,
   LOOKAHEAD,
   type HeardNote,
+  type Key,
   type MuseOutput,
   type Offer,
   type Part,
@@ -42,11 +55,25 @@ import {
   type StyleTrack,
   type TransportCarried,
   type TransportEnv,
+  type TransportOutput,
   forecast,
   holding,
   transport,
+  transportOver,
   writtenAt,
 } from '@jambot/engine';
+import {
+  EAR,
+  type EarCarried,
+  type FollowCarried,
+  type MuseState,
+  type SentBar,
+  type Song,
+  followSource,
+  earListen,
+  sentBars,
+  sourceOf,
+} from '@jambot/session';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
@@ -69,6 +96,42 @@ export const FORECAST_BARS = (SECTIONS + 1) * 8;
 
 export type Status = 'stopped' | 'starting' | 'playing';
 
+/** Alone, hosting a session, or following a host. */
+export type Mode = 'solo' | 'host' | 'client';
+
+/** What a host tells its session, as it happens. */
+export interface Hosting {
+  started(song: Song): void;
+  stopped(): void;
+  /** Bars composed, each with where it starts on this clock. */
+  composed(bars: readonly SentBar[]): void;
+  /** The bars ahead, whenever they are decided again. */
+  decided(bars: readonly ForecastBar[]): void;
+  track(track: StyleTrack): void;
+  muse(muse: MuseState): void;
+}
+
+/** What a client tells its host, as it happens. */
+export interface Following {
+  /** Bars its players played in, judged. */
+  judged(judged: readonly BarJudgement[]): void;
+  /** Its players asked the Muse to forget. */
+  forget(): void;
+}
+
+/** A client's state: its transport, the host's bars arrived, and its ear. */
+interface Follow {
+  carried: TransportCarried<FollowCarried> | null;
+  arrived: SentBar[];
+  ear: EarCarried;
+  /** The keys of the bars it played lately, which its ear judges them in. */
+  keys: readonly { readonly bar: number; readonly key: Key }[];
+  told: Following;
+}
+
+/** The transport a client runs: the host's bars, on the host's clock. */
+const follower = transportOver(followSource);
+
 /**
  * A note a player struck, where it was heard on the grid, exactly, on the
  * instrument it was played on. The Muse (#79) judges the keyboard's, and
@@ -90,6 +153,9 @@ const HUMAN_NOTES_MAX = 240;
  * after the moment it was struck.
  */
 const LAID_KEPT = 8;
+
+/** How many bars' keys a client keeps for its ear, which judges a bar a beat after it ends. */
+const KEYS_KEPT = 8;
 
 /** What the player runs on; a test can stand in for each. */
 export interface Surroundings {
@@ -130,8 +196,26 @@ export class Player {
   museLog: readonly MuseOutput[] = $state.raw([]);
   /** The motif the Muse offers now, after the last bar it judged. */
   offer: Offer | null = $state.raw(null);
+  /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
+  dropped: readonly DroppedJudgement[] = $state.raw([]);
   /** The band's own notes heard sounding right now: the lead's, the drums'. */
   sounding: SoundingNotes = $state({ lead: [], drums: [] });
+  mode: Mode = $state('solo');
+  /** How many of the host's bars, as a client, had not arrived when they were due. */
+  lacked = $state(0);
+  /** Told what a host does, while it hosts. */
+  hosting: Hosting | null = null;
+  /**
+   * The name this player's own notes go by in a session's Muse, while it
+   * hosts: its clients' notes go by their players' names, so the host's go
+   * by one too, and nobody's log reads another's keys as their own.
+   */
+  named: string | null = null;
+  /**
+   * The host's clock less this output's, while following: a moment the host
+   * hears at `t` is heard here at `t - skew`.
+   */
+  skew = 0;
 
   #surroundings: Surroundings;
   #output: Output | null = null;
@@ -146,6 +230,9 @@ export class Player {
   /** Melody notes heard since the last tick, for the transport to pass to the Muse. */
   #arrived: HeardNote[] = [];
   #forget = false;
+  /** Bars the host's clients judged since the last tick. */
+  #judged: BarJudgement[] = [];
+  #follow: Follow | null = null;
   #sounding = new Sounding();
   /** The bars decided, from the first of the section heard on. */
   #bars: readonly ForecastBar[] = $state.raw([]);
@@ -158,7 +245,7 @@ export class Player {
       heard: this.heard,
       bars: this.#bars,
       track: this.track,
-      muse: { offer: this.offer, log: this.museLog },
+      muse: { offer: this.offer, log: this.museLog, dropped: this.dropped },
     }),
   );
 
@@ -179,9 +266,11 @@ export class Player {
   }
 
   apply(intent: Intent) {
+    if (this.mode === 'client') return;
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
     this.track = conduct(this.track, intent, at);
     this.wish = wishAfter(this.wish, intent);
+    this.hosting?.track(this.track);
     this.#decide();
   }
 
@@ -192,7 +281,7 @@ export class Player {
    * while the band isn't playing, or for a moment outside the steps kept.
    */
   writtenPosition(seconds: number): number | null {
-    return this.status === 'playing' ? writtenAt(this.#laid, seconds) : null;
+    return this.status === 'playing' ? writtenAt(this.#laid, seconds + this.skew) : null;
   }
 
   /**
@@ -210,12 +299,16 @@ export class Player {
         ? this.humanNotes.slice(this.humanNotes.length - HUMAN_NOTES_MAX / 2)
         : this.humanNotes;
     this.humanNotes = [...kept, { part, note, velocity, source, position, end: null }];
-    if (part === 'lead') this.#arrived.push({ note, velocity, source, position, end: null });
+    if (part === 'lead') {
+      const heardAs = this.named === null ? source : sourceOf(this.named, source);
+      this.#arrived.push({ note, velocity, source: heardAs, position, end: null });
+    }
   }
 
   /** Ask the Muse to forget the motif it offers, from the next bar the band composes. */
   forgetMotif() {
-    this.#forget = true;
+    if (this.#follow) this.#follow.told.forget();
+    else this.#forget = true;
   }
 
   /**
@@ -246,26 +339,120 @@ export class Player {
     output.play(part, note, velocity, output.currentTime, ALONG_DURATION[part], sound);
   }
 
-  async start() {
-    if (this.status !== 'stopped') return;
-    this.status = 'starting';
+  /** Let the output's clock run, as a session needs it to before a song starts. */
+  async prepare(): Promise<Output> {
     const output = (this.#output ??= this.#surroundings.output());
     await output.resume();
+    return output;
+  }
+
+  async start() {
+    if (this.status !== 'stopped' || this.mode === 'client') return;
+    this.status = 'starting';
+    const output = await this.prepare();
     if (this.status !== 'starting') return;
     this.status = 'playing';
     this.#start = output.currentTime + 0.1;
-    output.starting?.(this.#start);
+    this.#begin(output);
+    this.hosting?.started({ seed: this.#seed, start: this.#start, track: this.track });
+    this.#decide();
+    this.#tick();
+  }
+
+  /** Everything a song starts from, and the clocks that run it. */
+  #begin(output: Output) {
+    output.starting?.(this.#start - this.skew);
     this.#carried = null;
     this.#heard.clear();
     this.#laid = [];
     this.#arrived = [];
+    this.#judged = [];
     this.#forget = false;
     this.museLog = [];
     this.offer = null;
-    this.#decide();
-    this.#tick();
+    this.dropped = [];
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
-    this.#stopFrames = this.#surroundings.frame(() => this.#follow());
+    this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
+  }
+
+  /** The bars decided, from the first of the section heard on: the forecast a host sends. */
+  get ahead(): readonly ForecastBar[] {
+    return this.#bars;
+  }
+
+  /** Judgements a client made of its players' bars, for the Muse to hear with its own. */
+  judgedElsewhere(judged: readonly BarJudgement[]) {
+    this.#judged.push(...judged);
+  }
+
+  /** Where the song and the bars composed stand, for a client joining mid-song. */
+  get hosted(): { song: Song; bars: SentBar[] } | null {
+    const carried = this.#carried;
+    if (this.status !== 'playing' || !carried) return null;
+    return {
+      song: { seed: this.#seed, start: this.#start, track: this.track },
+      bars: sentBars(carried.bars, this.#laid, carried.head, this.track),
+    };
+  }
+
+  /** Follow a host from now on: stop playing alone, and wait for its song. */
+  follow(told: Following) {
+    this.stop();
+    this.mode = 'client';
+    this.lacked = 0;
+    this.#follow = { carried: null, arrived: [], ear: EAR, keys: [], told };
+    this.#bars = [];
+  }
+
+  /** Play the host's song from now, with the bars it has composed and not played. */
+  async followSong(song: Song, bars: readonly SentBar[]) {
+    const follow = this.#follow;
+    if (!follow) return;
+    this.stop();
+    Object.assign(follow, { carried: null, arrived: [...bars], ear: EAR, keys: [] });
+    this.status = 'starting';
+    const output = await this.prepare();
+    if (this.status !== 'starting' || this.#follow !== follow) return;
+    this.status = 'playing';
+    this.#seed = song.seed;
+    this.#start = song.start;
+    this.track = song.track;
+    this.#begin(output);
+    this.#tick();
+  }
+
+  /** A bar the host composed. */
+  followBar(sent: SentBar) {
+    this.#follow?.arrived.push(sent);
+  }
+
+  followTrack(track: StyleTrack) {
+    if (this.#follow) this.track = track;
+  }
+
+  /** The host's bars ahead. */
+  followForecast(bars: readonly ForecastBar[]) {
+    if (this.#follow) this.#bars = bars;
+  }
+
+  followMuse({ offer, log, dropped }: MuseState) {
+    if (!this.#follow) return;
+    this.offer = offer;
+    this.museLog = log;
+    this.dropped = dropped;
+  }
+
+  /** Play alone again. */
+  unfollow() {
+    this.stop();
+    this.#follow = null;
+    this.mode = 'solo';
+    this.skew = 0;
+    this.track = holding(INITIAL_STYLE);
+    this.museLog = [];
+    this.offer = null;
+    this.dropped = [];
+    this.#decide();
   }
 
   stop() {
@@ -276,10 +463,14 @@ export class Player {
     this.#stopTicker?.();
     this.#stopFrames?.();
     this.#stopTicker = this.#stopFrames = null;
-    this.track = stopAt(this.track);
     this.heard = null;
-    this.#seed = this.#surroundings.seed();
-    this.#decide();
+    if (!this.#follow) {
+      this.track = stopAt(this.track);
+      this.#seed = this.#surroundings.seed();
+      this.hosting?.stopped();
+      this.hosting?.track(this.track);
+      this.#decide();
+    }
     this.#output?.silence();
     this.#sounding.clear();
     this.sounding = { lead: [], drums: [] };
@@ -296,6 +487,7 @@ export class Player {
    * be heard and the song map shows its section whole.
    */
   #decide() {
+    if (this.#follow) return;
     const carried = this.status === 'playing' ? this.#carried : null;
     const fresh = forecast(this.#env, carried, FORECAST_BARS);
     const first = fresh[0]?.bar ?? 0;
@@ -303,41 +495,98 @@ export class Player {
     const kept = carried ? this.#bars.filter((b) => b.bar >= from && b.bar < first) : [];
     this.#bars = [...kept, ...fresh];
     this.#decidedAt = carried?.nextBar ?? -1;
+    this.hosting?.decided(this.#bars);
   }
 
   #tick() {
     const output = this.#output;
     if (this.status !== 'playing' || !output) return;
+    if (this.#follow) return this.#tickFollowing(output, this.#follow);
     const now = output.currentTime;
     const { carried, output: scheduled } = transport.advance(this.#env, this.#carried, {
       now,
       until: now + LOOKAHEAD,
       heard: this.#arrived,
+      judged: this.#judged,
       forget: this.#forget,
     });
     this.#carried = carried;
     this.#arrived = [];
+    this.#judged = [];
     this.#forget = false;
     const logged = scheduled.judged.filter((j) => j.judgements.length > 0 || j.forgot !== null);
     if (logged.length > 0) this.museLog = [...this.museLog, ...logged].slice(-MUSE_LOG);
     const latest = scheduled.judged.at(-1);
+    const offered = this.offer;
     if (latest) this.offer = latest.offer;
-    for (const { event, seconds, duration, sound } of scheduled.events) {
-      output.play(event.part, event.note, event.velocity, seconds, duration, sound);
-      if (event.part === 'lead' || event.part === 'drums')
-        this.#sounding.push({ part: event.part, note: event.note, seconds, duration });
+    if (scheduled.dropped.length > 0)
+      this.dropped = [...this.dropped, ...scheduled.dropped].slice(-MUSE_LOG);
+    if (this.hosting) {
+      if (scheduled.composed.length > 0)
+        this.hosting.composed(
+          sentBars(scheduled.composed, scheduled.steps, carried!.head, this.track),
+        );
+      if (logged.length > 0 || this.offer !== offered || scheduled.dropped.length > 0)
+        this.hosting.muse({ offer: this.offer, log: this.museLog, dropped: this.dropped });
     }
-    output.tick?.(scheduled.steps);
-    for (const { step, seconds } of scheduled.steps) this.#heard.push(seconds, step);
+    this.#schedule(output, now, scheduled);
+    if (carried?.nextBar !== this.#decidedAt) this.#decide();
+  }
+
+  /**
+   * A client's tick: the host's bars on the host's clock, the new ones that
+   * arrived, and its ear judging the bars its players played.
+   */
+  #tickFollowing(output: Output, follow: Follow) {
+    const now = output.currentTime + this.skew;
+    const { carried, output: scheduled } = follower.advance(this.#env, follow.carried, {
+      now,
+      until: now + LOOKAHEAD,
+      arrived: follow.arrived,
+    });
+    follow.carried = carried;
+    follow.arrived = [];
+    const played = scheduled.composed.map(({ bar, plan }) => ({ bar, key: plan.key }));
+    if (played.length > 0) follow.keys = [...follow.keys, ...played].slice(-KEYS_KEPT);
+    if (carried!.source.lacked !== this.lacked) this.lacked = carried!.source.lacked;
+    this.#schedule(output, now, scheduled);
+    const heard = this.writtenPosition(output.currentTime - output.latency);
+    if (heard !== null) {
+      const keyOf = (bar: number) => follow.keys.find((k) => k.bar === bar)?.key;
+      const ear = earListen(follow.ear, this.#arrived, heard, keyOf);
+      follow.ear = ear.carried;
+      if (ear.judged.length > 0) follow.told.judged(ear.judged);
+    }
+    this.#arrived = [];
+  }
+
+  /** Play what the transport scheduled, and keep its steps for what is heard. */
+  #schedule(output: Output, now: number, scheduled: TransportOutput) {
+    const skew = this.skew;
+    for (const { event, seconds, duration, sound } of scheduled.events) {
+      output.play(event.part, event.note, event.velocity, seconds - skew, duration, sound);
+      if (event.part === 'lead' || event.part === 'drums')
+        this.#sounding.push({
+          part: event.part,
+          note: event.note,
+          seconds: seconds - skew,
+          duration,
+        });
+    }
+    output.tick?.(
+      skew === 0
+        ? scheduled.steps
+        : scheduled.steps.map((s) => ({ ...s, seconds: s.seconds - skew })),
+    );
+    for (const { step, seconds } of scheduled.steps) this.#heard.push(seconds - skew, step);
     this.#laid = [
       ...this.#laid.filter((s) => s.seconds + s.length > now - LAID_KEPT),
       ...scheduled.steps,
     ];
-    this.#heard.drop(now - 1);
-    if (carried?.nextBar !== this.#decidedAt) this.#decide();
+    this.#heard.drop(now - skew - 1);
   }
 
-  #follow() {
+  #followHeard() {
     const output = this.#output;
     if (this.status !== 'playing' || !output) return;
     const latest = this.#heard.take(output.currentTime - output.latency);

@@ -3,7 +3,7 @@ import { type BandBar, band, lookAhead } from './band.ts';
 import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
-import type { HeardNote } from './muse.ts';
+import { type HeardNote, judgeBar } from './muse.ts';
 import {
   INITIAL_STYLE,
   PRESETS,
@@ -18,6 +18,8 @@ import {
 import { swingOf } from './swing.ts';
 import { stepSeconds, tempoMap } from './tempo.ts';
 import {
+  type BarJudgement,
+  type BarSource,
   COMPOSE_AHEAD,
   LOOKAHEAD,
   type ScheduledStep,
@@ -28,6 +30,7 @@ import {
   bandEnvAt,
   forecast,
   transport,
+  transportOver,
   writtenAt,
 } from './transport.ts';
 
@@ -478,6 +481,138 @@ describe('the transport listening', () => {
   });
 });
 
+/**
+ * A source that plays back bars given to it, as a client plays a host's:
+ * each as its first step is laid, none for a bar it lacks, and a bar's start
+ * where one is given.
+ */
+const replay = (
+  bars: readonly BandBar[],
+  starts: ReadonlyMap<number, number> = new Map(),
+): BarSource<null> => ({
+  initial: null,
+  ahead: 0,
+  receive: (carried) => carried,
+  compose(env, carried) {
+    const bar = bars.find((b) => b.bar === env.bar) ?? null;
+    const start = starts.get(env.bar);
+    return start === undefined ? { carried, bar } : { carried, bar, start };
+  },
+  pass: (_, carried) => carried,
+});
+
+describe('the transport over a source of bars', () => {
+  const lively = holding({ ...INITIAL_STYLE, energy: 0.8 });
+  const played = run(env(lively), ticks(0.9, 900));
+  const bars = played.outputs.flatMap((o) => o.composed);
+  const runOver = (source: BarSource<null>, inputs = ticks(0.9, 900)) => {
+    const over = transportOver(source);
+    let carried = over.initial;
+    return inputs.map((input) => {
+      const next = over.advance(env(lively), carried, input);
+      carried = next.carried;
+      return next.output;
+    });
+  };
+
+  it("plays the band's bars, given back, on the same steps at the same times", () => {
+    const again = runOver(replay(bars));
+    expect(again.flatMap((o) => o.events)).toEqual(played.outputs.flatMap((o) => o.events));
+    expect(again.flatMap((o) => o.steps)).toEqual(played.outputs.flatMap((o) => o.steps));
+    expect(bars.length).toBeGreaterThan(8);
+  });
+
+  it('passes a bar it lacks, laying none of its steps, and plays the next as the band did', () => {
+    const again = runOver(replay(bars.filter((b) => b.bar !== 3)));
+    const steps = again.flatMap((o) => o.steps).map((s) => s.step);
+    expect(steps.filter((s) => s >= 48 && s < 64)).toEqual([]);
+    expect(again.reduce((sum, o) => sum + o.missed, 0)).toBe(16);
+    const barFour = (outputs: TransportOutput[]) =>
+      outputs.flatMap((o) => o.events).filter((e) => e.bar === 4);
+    expect(barFour(again).length).toBeGreaterThan(0);
+    expect(barFour(again)).toEqual(barFour(played.outputs));
+  });
+
+  it("lays a bar's first step where the source says the bar starts, and the steps after from there", () => {
+    const laid = played.outputs.flatMap((o) => o.steps);
+    const at = (step: number) => laid.find((s) => s.step === step)!.seconds;
+    const again = runOver(replay(bars, new Map([[2, at(32) + 0.004]]))).flatMap((o) => o.steps);
+    for (const s of again) expect(s.seconds - at(s.step)).toBeCloseTo(s.step < 32 ? 0 : 0.004, 9);
+  });
+
+  it('keeps the machine laws over a source (F1)', () => {
+    const script: Script<TransportEnv, TransportInput> = ticks(0.9, 200).map((input) => ({
+      env: env(lively),
+      input,
+    }));
+    expect(lawBreaks(transportOver(replay(bars.filter((b) => b.bar !== 1))), script)).toEqual([]);
+  });
+});
+
+describe('the transport hearing bars judged elsewhere', () => {
+  const lively = holding({ ...INITIAL_STYLE, energy: 0.8 });
+  const silent = run(env(lively), ticks(0.9, 700));
+  const keyOf = (bar: number) =>
+    silent.outputs.flatMap((o) => o.composed).find((b) => b.bar === bar)!.plan.key;
+  /** The transport with `judged` delivered on the tick given. */
+  const hearing = (judged: readonly BarJudgement[], on: number) =>
+    run(
+      env(lively),
+      ticks(0.9, 700).map((tick, i) => (i === on ? { ...tick, judged } : tick)),
+    ).outputs;
+
+  it('takes a motif judged elsewhere in bar k, and plays it from bar k + 2, as one heard here (F7)', () => {
+    const k = 3;
+    const judgement = judgeBar(motifIn(k, 'a client'), k, keyOf(k))[0]!;
+    // Delivered as bar k + 1 is composed, well before the Muse hears bar k: it waits for it.
+    const on = silent.outputs.findIndex((o) => o.composed.some((b) => b.bar === k + 1));
+    const outputs = hearing([{ bar: k, judgement }], on);
+    expect(outputs.flatMap((o) => o.dropped)).toEqual([]);
+    const heard = outputs.flatMap((o) => o.judged).find((j) => j.bar === k)!;
+    expect(heard.judgements).toEqual([judgement]);
+    const bar = outputs.flatMap((o) => o.composed).find((b) => b.bar === k + 2)!;
+    expect(bar.offer).toMatchObject({ bar: k, source: 'a client' });
+    expect(bar.written.filter((n) => n.part === 'lead').map((n) => n.step)).toEqual([0, 4, 8]);
+  });
+
+  it('drops a judgement that arrives after the Muse has heard its bar, and says so, changing no bar (F7)', () => {
+    const k = 3;
+    const judgement = judgeBar(motifIn(k, 'a client'), k, keyOf(k))[0]!;
+    const heardOn = silent.outputs.findIndex((o) => o.judged.some((j) => j.bar === k));
+    const outputs = hearing([{ bar: k, judgement }], heardOn + 1);
+    expect(outputs.flatMap((o) => o.judged).every((j) => j.judgements.length === 0)).toBe(true);
+    expect(outputs.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
+    expect(outputs.flatMap((o) => o.dropped)).toEqual([{ bar: k, judgement, why: 'late' }]);
+    // Delivered on the tick before, it is heard.
+    const inTime = hearing([{ bar: k, judgement }], heardOn);
+    expect(inTime.flatMap((o) => o.dropped)).toEqual([]);
+    expect(inTime.flatMap((o) => o.judged).find((j) => j.bar === k)!.judgements).toEqual([
+      judgement,
+    ]);
+  });
+
+  it("drops a judgement no ear would have made in its bar's key, and plays on as before", () => {
+    const k = 3;
+    const judgement = judgeBar(motifIn(k, 'a client'), k, keyOf(k))[0]!;
+    if (judgement.kind !== 'motif') throw new Error('a motif');
+    const wild = { ...judgement, motif: { ...judgement.motif, degrees: [0, 7, 14] } };
+    const on = silent.outputs.findIndex((o) => o.composed.some((b) => b.bar === k + 1));
+    const outputs = hearing([{ bar: k, judgement: wild }], on);
+    expect(outputs.flatMap((o) => o.dropped)).toEqual([
+      { bar: k, judgement: wild, why: 'inadmissible' },
+    ]);
+    expect(outputs.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
+  });
+
+  it('drops a judgement of a bar not yet composed, which nobody can have played, and keeps nothing of it', () => {
+    const judgement = judgeBar(motifIn(3, 'a client'), 3, keyOf(3))[0]!;
+    // On tick 10 the band has composed bar 0 alone.
+    const outputs = hearing([{ bar: 40, judgement }], 10);
+    expect(outputs.flatMap((o) => o.dropped)).toEqual([{ bar: 40, judgement, why: 'ahead' }]);
+    expect(outputs.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
+  });
+});
+
 describe('the forecast from the transport', () => {
   it('is what the transport then composes, with a glide and a key change still to come', () => {
     // A preset glide from bar 16, and from tick 300 (about bar 10) a wish
@@ -496,7 +631,7 @@ describe('the forecast from the transport', () => {
       if (i >= 300 && i % 100 === 0)
         forecasts.push({
           from: carried!.nextBar,
-          bars: lookAhead(carried!.band, (bar) => bandEnvAt(now, bar, null), 16),
+          bars: lookAhead(carried!.source, (bar) => bandEnvAt(now, bar, null), 16),
         });
     });
     let compared = 0;

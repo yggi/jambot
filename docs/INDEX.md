@@ -34,6 +34,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     with the test that holds it
   - `briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
+    - [`host-mode.md`](briefs/host-mode.md): a plan sketch for host and
+      client mode: the seams, the Muse on both sides, time, links
 - `prototype/`: the baseline the port is oriented by
   - [`README.md`](../prototype/README.md): concept, spirit, prototype
     architecture, the score language, the plan for learned models, open
@@ -89,9 +91,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       `advance(env, carried, input)`, and `lawBreaks`, which checks it
     - `src/muse.ts`: the Muse (#79): each source's notes in a bar, heard
       at exact positions, judged as mashing, too few, too wide or a motif;
-      and `muse`, the machine at bar rate that offers the motif it took
-      until another is taken, it is asked to forget, or 16 bars pass with
-      nobody playing
+      `admissible`, the same gates checked of a judgement made elsewhere;
+      and `muse`, the machine at bar rate over a bar's judgements, which
+      offers the motif it took until another is taken, it is asked to
+      forget, or 16 bars pass with nobody playing
     - `src/events.ts`: written notes (`WrittenNote`, the drum roles,
       `writtenProblems`) and the note events they play as (`eventProblems`)
     - `src/perform.ts`: the performance, how a written note is played: its
@@ -124,13 +127,17 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
       decides the next (`passBar` for a bar it doesn't play), and
-      `lookAhead` decides the bars ahead without playing them
-    - `src/transport.ts`: the transport, the machine at tick rate: it
-      composes a beat before each bar and schedules on a clock, and
+      `lookAhead` decides the bars ahead without playing them; `playBar`
+      plays a bar's written notes, where writing ends and playing starts
+    - `src/transport.ts`: the transport, the machine at tick rate, over a
+      source of bars (`transportOver`, `BarSource`): the band's
+      (`bandSource`) composes a beat before each bar; it schedules on a
+      clock, and
       `bandEnvAt` is what the band reads for a bar; `forecast` gives the
       bars ahead, composed or not; `writtenAt` reads a moment on the clock
-      back through the steps as laid; the notes played arrive as its
-      input, and it runs the Muse two bars behind the band
+      back through the steps as laid; the notes played, and bars judged
+      elsewhere, arrive as its input, and it runs the Muse two bars behind
+      the band
     - `experiments/`: measurements on the port for the language design,
       outside the pure `src/`
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
@@ -142,6 +149,21 @@ Every doc and code area, as a tree. Add a line when you add one.
         what pad and stab lose on one channel, in a join, or on two
       - [`motifs.ts`](../packages/engine/experiments/motifs.ts): E13, how
         far the lead's variations are the motif operators
+  - `session/`: host and client mode, pure TypeScript
+    ([brief](briefs/host-mode.md))
+    - `src/protocol.ts`: what a host and its clients say (`HostMessage`,
+      `ClientMessage`), a bar as written and sent, and the version a join
+      names
+    - `src/host.ts`: the bars a host sends, each with where it starts
+    - `src/follow.ts`: `followSource`, a client's band: it plays the bars a
+      host sent, and passes one that is late
+    - `src/ear.ts`: a client's ear, which judges its players' bars a beat
+      after they end, for the host's Muse
+    - `src/clock.ts`: `hostClock`, the host's clock as a client reads it
+      from pings, filtered by the least delay and slewed
+    - `src/forecast.ts`: the bars ahead, sent as what changed
+    - `src/session.test.ts`: a host and a client over a link with delay,
+      jitter and loss, playing the same notes at the same moments
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing
@@ -199,6 +221,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       - `src/components/MidiPanel.svelte`: connecting, the output and input
         ports, the channel each part sends on, and the built-in synth,
         clock and thru toggles
+      - `src/components/SessionPanel.svelte`: host a session, join one,
+        leave or close it; who joined, and how far the host is
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start. It keeps the
@@ -210,7 +234,18 @@ Every doc and code area, as a tree. Add a line when you add one.
       `forgetMotif` asks it to forget. `playAlong` plays a note at once, on
       the same clock and synth, from an instrument, a computer key or MIDI;
       `sounding` is only the band's own lead and drum notes heard sounding,
-      never what was played along with it
+      never what was played along with it. It plays alone, hosts (telling
+      `hosting` what it does) or follows a host (`follow`, and the
+      `follow…` calls), on the host's clock through `skew`
+    - `src/session/`: host and client mode in the app
+      ([brief](briefs/host-mode.md))
+      - `lobby.ts`: `Lobby`, where sessions are found, and the links it
+        gives a host and a client
+      - `broadcast.ts`: `broadcastLobby`, across the tabs and windows of
+        one browser
+      - `host.svelte.ts`: `HostSession`, admitting clients and telling them
+        what the player does
+      - `client.svelte.ts`: `ClientSession`, following a host on its clock
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
       ahead as `BarView`s and the song map's sections of them, the chord
       sounding, the key's scale, the style's preset and glide, and the
@@ -225,7 +260,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       at release, so a stab sharing a pad's channel and pitch retriggers
       rather than cutting the pad short (#5)
     - `src/audio/clock-offset.ts`: the smoothed gap between the output's
-      clock and `performance.now()`, for MIDI timestamps and their inverse
+      clock and `performance.now()`, for MIDI timestamps and their inverse;
+      `heardNow`, the moment heard now from a fresh sample, for sessions
     - `src/audio/band-output.ts`: `bandOutput`, the built-in synth and MIDI
       out together or either alone, riding on one shared clock
     - `src/conductor.ts`: intents (presets, sliders, keys) into glides on
@@ -247,6 +283,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       built app in Chromium with its audio measured
     - `e2e/pages.e2e.ts`: the app and the prototype on the Pages sub-path,
       online and offline
+    - `e2e/session.e2e.ts`: two pages on one session, their kicks measured
+      against each other, and a client's motif in the host's Muse
+    - `e2e/audio.ts`: listening to the app in the browser, for the checks
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e,
   build; started by hand while #4 is open
 - `.claude/settings.json`: the session-start and pre-push hooks, and the checks agents

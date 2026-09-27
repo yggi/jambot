@@ -21,7 +21,9 @@
  * Of the motifs, the band takes the one with the most notes, and on a tie
  * the first to arrive.
  *
- * The Muse is a machine at bar rate (`muse`). It offers the motif it took,
+ * The Muse is a machine at bar rate (`muse`) over a bar's judgements, so a
+ * judgement made here and one a client sent a host enter it alike. It
+ * offers the motif it took,
  * with its source and the bar it was heard in, until another is taken, it
  * is asked to forget, or nobody has played for 16 bars: notes that give no
  * motif still count as playing. These are the prototype's rules and
@@ -32,7 +34,7 @@
  * accented and the judgement keeps how loud they played, beside it (U4).
  */
 
-import { type Motif, alteredDegree } from '@jambot/theory';
+import { type Motif, alteredDegree, chromaticStep, heightOf, motifProblems } from '@jambot/theory';
 import { type Key, keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 
@@ -138,6 +140,49 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
   };
 }
 
+/**
+ * Whether a judgement could have come from `judgeBar`, as far as it says
+ * so itself: a judgement made elsewhere, on a client, is checked by the
+ * host with the same gates it was judged by. A motif is well formed
+ * (`motifProblems`) on the bar's 16 steps, of whole degrees each altered by
+ * at most one `b` or `#`; it has between `MUSE.fewest` and `MUSE.mashing`
+ * notes; and in the bar's key it spans at most
+ * `MUSE.widest` semitones from some first note (a motif counts degrees
+ * from its first, and the span in semitones depends a little on which
+ * degree that is). The player's level is a MIDI velocity. The other
+ * judgements carry counts the gates would have given.
+ */
+export function admissible(judgement: Judgement, key: Key): boolean {
+  const count = (n: unknown) => Number.isInteger(n) && (n as number) >= 0;
+  switch (judgement.kind) {
+    case 'mashing':
+      return count(judgement.count) && judgement.count > MUSE.mashing;
+    case 'too few':
+      return count(judgement.count) && judgement.count < MUSE.fewest;
+    case 'too wide':
+      return count(judgement.range) && judgement.range > MUSE.widest;
+    case 'motif': {
+      const { motif, level } = judgement;
+      if (!Number.isInteger(level) || level < 0 || level > 127) return false;
+      if (motif.cycle !== STEPS || motifProblems(motif).length > 0) return false;
+      if (!motif.onsets.every(Number.isInteger)) return false;
+      const notes = motif.degrees.filter((d) => d !== null);
+      if (notes.length < MUSE.fewest || notes.length > MUSE.mashing) return false;
+      if (!notes.every(Number.isInteger)) return false;
+      if (!motif.accidentals.every((a) => a === -1 || a === 0 || a === 1)) return false;
+      const scale = keyHelix(key);
+      const step = chromaticStep(scale);
+      const spanFrom = (origin: number) => {
+        const heights = motif.degrees.flatMap((d, i) =>
+          d === null ? [] : [heightOf(scale, origin + d) + motif.accidentals[i]! * step],
+        );
+        return Math.max(...heights) - Math.min(...heights);
+      };
+      return [0, 1, 2, 3, 4, 5, 6].some((origin) => spanFrom(origin) <= MUSE.widest);
+    }
+  }
+}
+
 /** A motif the Muse offers the band: what was heard, from whom, and when. */
 export interface Offer {
   readonly motif: Motif;
@@ -148,15 +193,14 @@ export interface Offer {
   readonly level: number;
 }
 
-/** The bar the Muse judges, and its key. */
+/** The bar the Muse hears. */
 export interface MuseEnv {
   readonly bar: number;
-  readonly key: Key;
 }
 
 export interface MuseInput {
-  /** Notes heard; only those in the bar judged are read. */
-  readonly heard: readonly HeardNote[];
+  /** Each source's bar judged, in the order they arrived (`judgeBar`). */
+  readonly judgements: readonly Judgement[];
   /** Whether someone asked it to forget what it offers. */
   readonly forget: boolean;
 }
@@ -177,14 +221,13 @@ export interface MuseOutput {
 
 export const muse: Machine<MuseEnv, MuseCarried, MuseInput, MuseOutput> = {
   initial: { offer: null, lastPlayed: null },
-  advance({ bar, key }, carried, { heard, forget }) {
+  advance({ bar }, carried, { judgements, forget }) {
     let { offer, lastPlayed } = carried;
     let forgot: MuseOutput['forgot'] = null;
     if (forget && offer) {
       offer = null;
       forgot = 'asked';
     }
-    const judgements = judgeBar(heard, bar, key);
     if (judgements.length > 0) {
       lastPlayed = bar;
       const best = taken(judgements);

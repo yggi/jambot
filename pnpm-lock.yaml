@@ -50,6 +50,9 @@ importers:
       '@jambot/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@jambot/session':
+        specifier: workspace:*
+        version: link:../../packages/session
       '@jambot/theory':
         specifier: workspace:*
         version: link:../../packages/theory
@@ -90,6 +93,15 @@ importers:
 
   packages/engine:
     dependencies:
+      '@jambot/theory':
+        specifier: workspace:*
+        version: link:../theory
+
+  packages/session:
+    dependencies:
+      '@jambot/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@jambot/theory':
         specifier: workspace:*
         version: link:../theory

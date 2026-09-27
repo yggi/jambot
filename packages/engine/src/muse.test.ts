@@ -9,6 +9,7 @@ import {
   type MuseCarried,
   type MuseEnv,
   type MuseInput,
+  admissible,
   heardIn,
   judgeBar,
   muse,
@@ -51,6 +52,74 @@ const plain = (onsets: number[], degrees: number[]) => ({
   onsets,
   degrees,
   accidentals: onsets.map(() => 0),
+});
+
+describe('what a host takes from a client (admissible)', () => {
+  /** A keyed stand-in for chance. */
+  const draws = (seed: number) => {
+    let x = seed;
+    return () => (x = (Math.imul(x, 1103515245) + 12345) >>> 0) / 2 ** 32;
+  };
+
+  it('admits every judgement judgeBar makes, in every key the composer knows', () => {
+    const draw = draws(9);
+    let motifs = 0;
+    for (const key of keys)
+      for (let bar = 0; bar < 60; bar++) {
+        const count = 1 + Math.floor(draw() * 15);
+        const spread = 6 + Math.floor(draw() * 24);
+        const notes: HeardNote[] = range(count).map(() => ({
+          note: 55 + Math.floor(draw() * spread),
+          velocity: 1 + Math.floor(draw() * 126),
+          source: 'a client',
+          position: draw() * 16,
+          end: draw() < 0.5 ? null : draw() * 16,
+        }));
+        for (const j of judgeBar(notes, 0, key)) {
+          expect(admissible(j, key)).toBe(true);
+          if (j.kind === 'motif') motifs++;
+        }
+      }
+    expect(motifs).toBeGreaterThan(500);
+  });
+
+  it('refuses a motif no ear would write, and counts the gates would not give', () => {
+    const good = judgeOne(
+      played([
+        [0, 69],
+        [4, 72],
+        [8, 76],
+      ]),
+    );
+    expect(admissible(good, A_MINOR)).toBe(true);
+    if (good.kind !== 'motif') throw new Error('a motif');
+    const motif = (m: Partial<typeof good.motif>, level = good.level): Judgement => ({
+      ...good,
+      motif: { ...good.motif, ...m },
+      level,
+    });
+    for (const bad of [
+      motif({ cycle: 12 }),
+      motif({ onsets: [0, 4, 20] }),
+      motif({ onsets: [0, 4, 4] }),
+      motif({ degrees: [0, 2.5, 4] }),
+      motif({ accidentals: [0, 2, 0] }),
+      motif({ onsets: [0, 1], degrees: [0, 2], accidentals: [0, 0] }),
+      motif({
+        onsets: range(13),
+        degrees: range(13).map(() => 0),
+        accidentals: range(13).map(() => 0),
+      }),
+      // Two octaves and more from any first note.
+      motif({ degrees: [0, 7, 14] }),
+      motif({}, 300),
+      { kind: 'mashing', source: 'a client', count: 5 } as Judgement,
+      { kind: 'too few', source: 'a client', count: 9 } as Judgement,
+      { kind: 'too wide', source: 'a client', range: 12 } as Judgement,
+    ])
+      expect(admissible(bad, A_MINOR)).toBe(false);
+    expect(admissible(motif({ degrees: [0, 7, 11] }), A_MINOR)).toBe(true);
+  });
 });
 
 describe('the Muse’s judgement', () => {
@@ -458,8 +527,8 @@ const phrase = (bar: number, source = 'the computer keys', note = 69): HeardNote
 /** The Muse run over bars from 0, each with the notes heard in it and whether it was asked to forget. */
 function listen(bars: { heard?: HeardNote[]; forget?: boolean }[]) {
   const script: Script<MuseEnv, MuseInput> = bars.map(({ heard = [], forget = false }, bar) => ({
-    env: { bar, key: A_MINOR },
-    input: { heard, forget },
+    env: { bar },
+    input: { judgements: judgeBar(heard, bar, A_MINOR), forget },
   }));
   let carried: MuseCarried = muse.initial;
   const outputs = script.map(({ env, input }) => {

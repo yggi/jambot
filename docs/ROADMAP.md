@@ -30,6 +30,13 @@ the prototype still does that the app doesn't is the score (#63). #26's
 HUD is otherwise caught up: what remains there (the score panel, Strudel
 export) waits on #63.
 
+**Host and client mode** ([brief](briefs/host-mode.md)) is under way: an
+app hosts a session under a name, and others join it and play its bars
+with their own synth and MIDI, on its clock, their players heard by its
+Muse. It runs across the tabs and windows of one browser; a WebSocket
+lobby, on a local server and then hosted, takes it across machines next,
+then WebRTC.
+
 These run in parallel:
 
 - **Language design** (#7), with its core, the theory primitive

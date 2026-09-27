@@ -57,3 +57,26 @@ export function clockOffset(
     },
   };
 }
+
+/** How long, in seconds, an output runs before its clock's pairing is trusted. */
+export const PAIRED_AFTER = 0.2;
+
+/**
+ * The moment being heard now, on the output's clock, from one fresh
+ * sample: what a host and its clients set their clocks by. Unsmoothed,
+ * since a client's clock filters its pings by their delay (`hostClock`).
+ * Where the platform pairs the output's clock with `performance.now()`, it
+ * is null until the output has run for `PAIRED_AFTER`: in Chromium the
+ * pairing steps by a buffer at a time while the output starts, and the
+ * fallback, the clock less the output's latency, reads some 10 ms off it,
+ * so a clock set by either would be set wrong.
+ */
+export function heardNow(
+  clock: OutputClock,
+  now: () => number = () => performance.now(),
+): number | null {
+  if (!clock.outputTimestamp) return clock.currentTime - (clock.latency ?? 0);
+  const ts = clock.outputTimestamp();
+  if (!ts || !(ts.contextTime >= PAIRED_AFTER) || !(ts.performanceTime > 0)) return null;
+  return ts.contextTime + (now() - ts.performanceTime) / 1000;
+}
