@@ -359,6 +359,40 @@ major read from C are C Lydian.
 Tests: `modes.test.ts`, "shift and mode": the law for every even pair with n ≤
 12 and d over three turns.
 
+## Meter: pulses over a bar, one formula for simple, compound and additive
+
+A **meter** is `pulses` felt over a bar of `subdivisions` (its numerator, over
+its own denominator: 6 for 6/8, 12 for 12/8, 5 for 5/8). Where the pulses fall
+is `even(pulses, subdivisions, 0)` (`meter.ts`): the same primitive that gives
+the Euclidean rhythms and the diatonic set, read here as a bar's own circle
+rather than a rhythm's or a scale's.
+
+This is a narrower question than the backbeat above, which picks 2 of a bar's 4
+beats already placed by a meter; a meter needs no subset; `even` alone gives
+every pulse's position, with no second helix to compose it with.
+
+One formula covers what genre theory treats as three cases:
+
+- **simple** (3/4, 4/4): `subdivisions` is `2 · pulses`, so `even` divides
+  evenly, 2 subdivisions a pulse;
+- **compound** (6/8, 12/8): `subdivisions` is `3 · pulses`, 3 a pulse;
+- **additive** (5/8, 7/8): `pulses` does not divide `subdivisions` at all, and
+  `even` gives the pulses unequal lengths, long before short: 5/8 as 3+2, 7/8 as
+  3+2+2. This is the same maximally even spread that gives the bossa clave its
+  shape (`rhythms.ts`, `even(5, 16, 6)`): nothing about a bar of 5 or 7 needs
+  telling apart from a bar of 6 or 12, once the meter is a helix rather than a
+  hand-grouped pattern.
+
+So 3/4 and 6/8 sound different at the same pulse tempo even though a bar of
+either holds six subdivisions (grouped in 2s against 3s), and a bar of 5/8 is
+felt long-short without a rule written down for it: `even` places it, the way it
+places every rhythm and every mode.
+
+Tests: `meter.test.ts`, over every named meter (3/4, 4/4, 5/8, 6/8, 7/8, 9/8,
+12/8): the pulses are `isEven`, position 0 is always the only downbeat, and the
+additive meters' pulse lengths sum to the bar and are unequal where a simple or
+compound meter's are equal.
+
 ## Mirror
 
 `mirror(helix)` reflects the helix about degree 0: degree d stands as far above
