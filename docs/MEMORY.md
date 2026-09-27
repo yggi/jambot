@@ -112,7 +112,11 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   stands, even where it would rest. The transport carries the Muse's
   state (`listening`) and judges bar k as it composes bar k + 2
   (`LISTEN_DELAY`); a test that builds a `BandEnv` or `BarEnv` by hand
-  gives `offer: null`.
+  gives `offer: null`. A motif's accents are counted from the player's
+  level in the bar, which the judgement and the offer carry beside it as
+  the style reading, and a motif note plays at the band's level plus its
+  accent (U4): the lead writes it on the note (`WrittenNote.accent`), and
+  `perform` plays it on `LEAD_LEVEL`.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a

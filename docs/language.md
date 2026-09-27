@@ -633,22 +633,34 @@ in: #63.
 
 **U4. A motif is a rhythm and a contour on its own cycle: onsets, each a
 note or a rest, and each note a degree of the key, counted from the
-motif's origin and altered by `b` or `#` as a pitch token is (U2).**
+motif's origin and altered by `b` or `#` as a pitch token is (U2), with an
+accent if it has one.**
 Witness: `Motif` (`motifs.ts`): `cycle`, `onsets`, `degrees` (`null` for a
 rest) and `accidentals`, in chromatic steps of the key (P5). Each onset is
 held to the next, and a rest is an arc of silence. `head` keeps the first
 notes and leaves a rest for the others, so the last notes are `head` under
 `rev`, and need no operator of their own. The origin is the motif's own
 zero, and an anchor, from the level above, pins it to a bar step and a key
-degree, as `tempo.ts`'s anchor pins a step to a second.
+degree, as `tempo.ts`'s anchor pins a step to a second. `accents`, left
+out when there are none, gives each note its velocity less the level the
+motif is played at: the player's level in the bar, which is also the
+reading the Muse's style (#16) needs. An accent moves with its note under
+`late` and `rev`, and `strans` and `mirror` leave it. Played, a motif note
+is its level plus its accent. The Muse's judgement doesn't write accents
+or carry the level yet, and the lead doesn't play them in place of its
+beat accent; both are #79 step 3's.
 Counterexample: something a player plays that no motif gives back. The
-Muse's working track names three (#79, and #7's pressure comment, points 1,
-3 and 4): a blue note, which a whole degree rounds away; a staccato or a
-dropped note, which a note held to the next can't leave silent; a phrase
-longer than a bar, which a fixed 16 can't hold.
+Muse's working track names four (#79, and #7's pressure comment, points 1
+to 4): a blue note, which a whole degree rounds away; a player's accents,
+which the performance's beat accents replace; a staccato or a dropped note,
+which a note held to the next can't leave silent; a phrase longer than a
+bar, which a fixed 16 can't hold. An accent counted from the beat instead
+of the level is one more: moved off the beat, it plays another velocity.
 Test: `motifs.test.ts`, whose tests cite U4: what a motif may be; `head`
 under `rev` is the last notes wherever no note is held over the cycle's
-start; `mirror` reflects an altered degree as the key's helix reflects it
+start; an accent is the same accent wherever `late` and `rev` move its
+note, and one counted from the beat is not; `mirror` reflects an altered
+degree as the key's helix reflects it
 in dorian, its own mirror, only when it turns the accidental over too; and
 one `b` or `#` reaches every pitch of every key of 12, 17 and 19, but not
 of 22, 31 or 53, whose chromatic step is 3, 2 and 5 steps of the cycle.
@@ -661,10 +673,9 @@ released before the next leaves a rest.
 Source: #7 (d), #79, E13, the names round. Status: measured (12, 17, 19);
 measured, failing (22, 31, 53). Decided: #7, on measured options (rests,
 over a note held to the next, whose `head` and `rev` gave the last notes
-in 282 of 768 cases); dissolved (altered degrees: U2 already writes `b3`,
-and P5 says what `b` moves by). Open: whether a motif carries a player's
-accents as roles, as a drum hit does (T4, #79's point 2); until then it
-carries no velocity. Lands in: #79 step 1, #63.
+in 282 of 768 cases; accents, with #79, counted from the level so that the
+operators keep them); dissolved (altered degrees: U2 already writes `b3`,
+and P5 says what `b` moves by). Lands in: #79 steps 1 and 3, #63.
 
 **U5. The motif operators are the theory's `shift` and `mirror` on pitch
 and on time, named `strans`, `mirror`, `late` and `rev`: every chain of
@@ -1133,5 +1144,4 @@ the others have not.
     (U5).
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and
-(e) to (h) as T4's performance maps, C7, L6 and P5. Of (d), whether a
-motif carries a player's accents is still open (U4).
+(e) to (h) as T4's performance maps, C7, L6 and P5.
