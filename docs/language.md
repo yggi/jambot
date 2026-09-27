@@ -728,9 +728,10 @@ Counterexample: a machine that keeps state out of sight, changes what it was
 given, or can't resume from a JSON snapshot. Test: `machine.test.ts` (each law,
 with a machine that breaks it); `form.test.ts`, `band.test.ts`,
 `transport.test.ts`, `plan.test.ts`, `bass.test.ts`, `comp.test.ts`,
-`lead.test.ts`, `muse.test.ts` and `clock.test.ts`, whose tests of the machine
-laws cite F1. Source: #37 step 1. Status: measured. Decided: #37 step 1, in the
-working track. Lands in: Q4a.
+`lead.test.ts`, `muse.test.ts`, `clock.test.ts` and
+`packages/engine/src/metronome.test.ts`, whose tests of the machine laws cite
+F1. Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
+track. Lands in: Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
 Witness: the prototype's compiler carries each part's previous pitch and the
