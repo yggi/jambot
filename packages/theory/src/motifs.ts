@@ -7,9 +7,10 @@
  * (U2). Each note or rest is held to the next onset, and the last to the
  * first of the next time the motif sounds, so the onsets go round the
  * cycle as arcs. A rest is an arc of silence, which is how a motif holds a
- * staccato or a note dropped. A motif may carry accents: each onset's
- * velocity less the level it is played at, so an accent is the same accent
- * wherever the operators move its note.
+ * staccato or a note dropped. A motif may carry accents: each note's
+ * velocity less its player's level in the bar, played back on the band's
+ * own level, so an accent is the same accent wherever the operators move
+ * its note.
  *
  * The operators are the theory's own `shift` (T) and `mirror` (I), on two
  * axes:
@@ -44,8 +45,9 @@ export interface Motif {
   /** Each note's alteration, in chromatic steps of the key (U2): −1 for `b`, 0 for a rest. */
   readonly accidentals: readonly number[];
   /**
-   * Each note's accent: its velocity less the level the motif is played at,
-   * 0 for a rest. Left out when every accent is 0, so a motif has one form.
+   * Each note's accent: its velocity less its player's level in the bar,
+   * which the band adds to its own level for the part and bar; 0 for a
+   * rest. Left out when every accent is 0, so a motif has one form.
    */
   readonly accents?: readonly number[];
 }
