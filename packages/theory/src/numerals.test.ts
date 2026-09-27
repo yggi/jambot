@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CHORD_QUALITIES } from './chords.ts';
-import { type Helix, shift, wrap } from './helix.ts';
+import { type Helix, heightOf, shift, wrap } from './helix.ts';
 import { DIATONIC_MODE_NAMES, type DiatonicModeName, diatonicMode } from './modes.ts';
 import {
+  alteredDegree,
   type Numeral,
   type Target,
   chordOfNumeral,
+  chromaticStep,
   formatNumeral,
   numeralOf,
   parseNumeral,
@@ -253,5 +255,45 @@ describe('Roman numerals (U1)', () => {
     ])
       expect(parseNumeral(text), text).toBeUndefined();
     expect(numeralOf(key(C, 'ionian'), { root: C, quality: 'harmonics' })).toBeUndefined();
+  });
+});
+
+describe('a height as a degree of the key and an alteration (U1, U4)', () => {
+  it('gives back every height of every diatonic key, altered only off the key', () => {
+    for (const name of DIATONIC_MODE_NAMES)
+      for (const tonic of range(12)) {
+        const k = key(tonic, name);
+        for (const height of range(48).map((h) => h + 40)) {
+          const found = alteredDegree(k, height)!;
+          expect(heightOf(k, found.degree) + found.accidental * chromaticStep(k)).toBe(height);
+          const inKey = k.heights.some((h) => wrap(h - height, 12) === 0);
+          expect(found.accidental === 0).toBe(inKey);
+        }
+      }
+  });
+
+  it('writes a note off the key as the parallel major has it, and otherwise flat', () => {
+    const at = (tonic: number, name: DiatonicModeName, height: number) => {
+      const found = alteredDegree(key(tonic, name), height)!;
+      return [wrap(found.degree, 7) + 1, found.accidental];
+    };
+    // C major: the blue notes are the third, fifth and seventh flattened.
+    expect(at(0, 'ionian', 63)).toEqual([3, -1]);
+    expect(at(0, 'ionian', 66)).toEqual([5, -1]);
+    expect(at(0, 'ionian', 70)).toEqual([7, -1]);
+    expect(at(0, 'ionian', 61)).toEqual([2, -1]);
+    // A minor: A major's third, sixth and seventh raise the key's; the flat fifth is flat.
+    expect(at(A, 'aeolian', 73)).toEqual([3, 1]);
+    expect(at(A, 'aeolian', 78)).toEqual([6, 1]);
+    expect(at(A, 'aeolian', 80)).toEqual([7, 1]);
+    expect(at(A, 'aeolian', 75)).toEqual([5, -1]);
+    expect(at(A, 'aeolian', 70)).toEqual([2, -1]);
+  });
+
+  it('counts turns: a degree an octave up is seven more', () => {
+    const c = key(0, 'ionian');
+    expect(alteredDegree(c, 60)).toEqual({ degree: 35, accidental: 0 });
+    expect(alteredDegree(c, 72)).toEqual({ degree: 42, accidental: 0 });
+    expect(alteredDegree(c, 51)).toEqual({ degree: 30, accidental: -1 });
   });
 });

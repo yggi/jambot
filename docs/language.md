@@ -653,6 +653,11 @@ in dorian, its own mirror, only when it turns the accidental over too; and
 one `b` or `#` reaches every pitch of every key of 12, 17 and 19, but not
 of 22, 31 or 53, whose chromatic step is 3, 2 and 5 steps of the cycle.
 The engine and MIDI stay in 12 (L1), where every pitch is reached.
+`numerals.test.ts`, whose tests of `alteredDegree` cite U4: a note is
+written as a numeral writes a root off the key, and every height of every
+diatonic key comes back. `muse.test.ts`, whose tests cite U4: every note a
+player plays in any key comes back from the Muse's motif, and a note
+released before the next leaves a rest.
 Source: #7 (d), #79, E13, the names round. Status: measured (12, 17, 19);
 measured, failing (22, 31, 53). Decided: #7, on measured options (rests,
 over a note held to the next, whose `head` and `rev` gave the last notes
@@ -712,9 +717,19 @@ inherited. Lands in: #3.
 
 **A3. Every event carries its source, and inferred structure its
 confidence.**
+Witness: the Muse's judgement (`muse.ts`): every note heard carries its
+source, each source's bar is judged on its own and the judgement names it,
+and the band takes the motif with the most notes, the first to arrive on
+a tie.
+Counterexample: a judgement that names no source, or two sources' notes
+judged as one, such as one player's chord heard as the top of another's
+melody.
+Test: `muse.test.ts`, whose tests of sources cite A3. Open: confidence,
+which nothing infers yet; the prototype's source with the most notes
+stands in for it.
 Source: prototype, SDR (the Muse's gate works like a squelch). Status:
-open (confidence). Decided: the prototype, inherited (provenance). Lands in:
-#3, #25.
+measured (the Muse's sources); open (confidence). Decided: the prototype,
+inherited (provenance). Lands in: #3, #25, #79.
 
 **A4. Following the players is a loop with a bandwidth.**
 Source: SDR (clock recovery), the Muse's rate limit. Status: speculative.
@@ -729,16 +744,16 @@ functional programming and category theory. Their names are in
 **F1. Every level is a Mealy machine, `advance(env, carried, input) →
 { carried', output }`, that keeps the machine laws.**
 Witness: `Machine` and `lawBreaks` (`machine.ts`); the form and the section
-plan (section rate), the band and its bass, comp and lead (bar rate) and
-the transport (tick rate). A run is a causal stream
+plan (section rate), the band and its bass, comp and lead, and the Muse
+(bar rate) and the transport (tick rate). A run is a causal stream
 function: output n depends only on inputs up to n (Rutten, "Universal
 Coalgebra", 2000).
 Counterexample: a machine that keeps state out of sight, changes what it
 was given, or can't resume from a JSON snapshot.
 Test: `machine.test.ts` (each law, with a machine that breaks it);
 `form.test.ts`, `band.test.ts`, `transport.test.ts`, `plan.test.ts`,
-`bass.test.ts`, `comp.test.ts` and `lead.test.ts`, whose tests of the
-machine laws cite F1.
+`bass.test.ts`, `comp.test.ts`, `lead.test.ts` and `muse.test.ts`, whose
+tests of the machine laws cite F1.
 Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
 track. Lands in: Q4a.
 

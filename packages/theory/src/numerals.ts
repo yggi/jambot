@@ -160,36 +160,55 @@ export function chordOfNumeral(key: Helix, numeral: Numeral): KeyChord {
 }
 
 /**
+ * A height as a degree of a key of seven degrees and an alteration, as a
+ * numeral writes a root (U1) and a motif a note (U4): on its own degree if
+ * the key has it; off the key, altered as the parallel major has it (the
+ * sixth of A major is `#6` in A minor); otherwise a flat on the degree
+ * above, or else a sharp on the degree below. The degree counts turns, so
+ * the height is `heightOf(key, degree) + accidental × chromaticStep(key)`.
+ * Undefined where no single `b` or `#` reaches it.
+ */
+export function alteredDegree(
+  key: Helix,
+  height: number,
+): { degree: number; accidental: -1 | 0 | 1 } | undefined {
+  if (key.heights.length !== 7) return undefined;
+  const major = modeOn(key, 'ionian', key.heights[0]!);
+  const step = chromaticStep(key);
+  const at = (helix: Helix, degree: number) => wrap(heightOf(helix, degree), helix.cycle);
+  const position = wrap(height, key.cycle);
+  const altered = (degree: number, accidental: number) =>
+    wrap(at(key, degree) + accidental * step, key.cycle) === position;
+  const degrees = [0, 1, 2, 3, 4, 5, 6];
+  const found = (degree: number, accidental: -1 | 0 | 1) => {
+    const turn = (height - accidental * step - heightOf(key, degree)) / key.cycle;
+    return { degree: degree + 7 * turn, accidental };
+  };
+  const plain = degrees.find((d) => altered(d, 0));
+  if (plain !== undefined) return found(plain, 0);
+  const inMajor = degrees.find((d) => at(major, d) === position);
+  if (inMajor !== undefined)
+    for (const accidental of [-1, 1] as const)
+      if (altered(inMajor, accidental)) return found(inMajor, accidental);
+  const below = degrees.find((d) => altered(d, -1));
+  if (below !== undefined) return found(below, -1);
+  const above = degrees.find((d) => altered(d, 1));
+  return above === undefined ? undefined : found(above, 1);
+}
+
+/**
  * The numeral that writes a chord in a key of seven degrees, against a
- * target if one is given. A root on a degree of the key is written plain; a
- * root off the key as the parallel major has it (`#VI` in A minor, the sixth
- * of A major); any other as a flat on the degree above (`bVII` in C major).
- * Undefined for a quality no numeral writes.
+ * target if one is given: its root as `alteredDegree` writes it in the key
+ * the numeral is read in. Undefined for a quality no numeral writes.
  */
 export function numeralOf(key: Helix, chord: KeyChord, of?: Target): Numeral | undefined {
   if (!(chord.quality in SUFFIXES) || key.heights.length !== 7) return undefined;
-  const home = keyOf(key, of);
-  const major = modeOn(key, 'ionian', home.heights[0]!);
-  const step = chromaticStep(key);
-  const at = (helix: Helix, degree: number) => wrap(heightOf(helix, degree), helix.cycle);
-  const altered = (degree: number, accidental: number) =>
-    wrap(at(home, degree) + accidental * step, home.cycle);
-  const degrees = [0, 1, 2, 3, 4, 5, 6];
-  const numeral = (degree: number, accidental: number): Numeral => ({
-    degree,
-    accidental: accidental as -1 | 0 | 1,
+  const root = alteredDegree(keyOf(key, of), chord.root);
+  if (!root) return undefined;
+  return {
+    degree: wrap(root.degree, 7),
+    accidental: root.accidental,
     quality: chord.quality,
     ...(of && { of }),
-  });
-
-  const plain = degrees.find((d) => at(home, d) === chord.root);
-  if (plain !== undefined) return numeral(plain, 0);
-  const inMajor = degrees.find((d) => at(major, d) === chord.root);
-  if (inMajor !== undefined)
-    for (const accidental of [-1, 1])
-      if (altered(inMajor, accidental) === chord.root) return numeral(inMajor, accidental);
-  const below = degrees.find((d) => altered(d, -1) === chord.root);
-  if (below !== undefined) return numeral(below, -1);
-  const above = degrees.find((d) => altered(d, 1) === chord.root);
-  return above === undefined ? undefined : numeral(above, 1);
+  };
 }
