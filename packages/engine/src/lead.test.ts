@@ -254,7 +254,7 @@ describe('the lead', () => {
     expect(returns).toBeGreaterThan(5);
   });
 
-  it('carries its phrases and its themes’ melodies as motifs of a bar, a rest first where the bar starts silent', () => {
+  it('carries its phrases and its themes’ melodies as motifs of a bar, a rest first where the bar starts silent (U4)', () => {
     let late = 0;
     for (const { after } of played) {
       const shapes = [after.phrase, ...Object.values(after.melodies).map((m) => m!.shape)];

@@ -45,7 +45,7 @@ These run in parallel:
 - **Rebuild from the prototype**, test-first, with the prototype as a
   baseline for orientation:
   - the theory primitive in `packages/theory` (#28, done);
-  - the engine (#2): all but the Muse.
+  - the engine (#2), the Muse (#79) included.
 - **Web client** (#22): transport (#23), renderers (#24), inputs (#25) and
   UI (#26). Everything except the score and Strudel panels is independent
   of #7.
@@ -148,7 +148,8 @@ graph LR
   A3 --> C15["#15 critic"]
   E2 --> C15
   C15 --> M16["#16 Muse encoder"]
-  E2 --> M16
+  E2 --> M79["#79 the Muse"]
+  M79 --> M16
   A3 --> W18["#18 writers"]
   S13 --> W18
   L7 --> F19["#19 form author"]
