@@ -93,17 +93,18 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   what a person plays along with it. Any note played, from a pointer, a
   computer key or MIDI, goes through `App.svelte`'s `onHumanNote`, which
   sounds it at once (`Player.playAlong`) and logs it for the Muse
-  (`Player.humanNoteOn`, and `humanNoteOff` for its release) alike; `midi/surfaces.ts`'s `partOf` reads a MIDI
-  note's channel to tell the pads from the keyboard, channel 10 the drums'
-  as the prototype's is.
+  (`Player.humanNoteOn`, and `humanNoteOff` for its release) alike;
+  `midi/surfaces.ts`'s `partOf` reads a MIDI note's channel to tell the
+  pads from the keyboard, channel 10 the drums' as the prototype's is.
 - The parts are machines at bar rate over one `BarEnv`, and `BandBar` is
   that environment plus the events and the bar's `sound`. The drums carry
   nothing; the bass its last note, the comp its last voicing, the lead its
   last note, its phrase and its themes' melodies (`BandCarried.parts`). A
   passed bar leaves the parts where they were, and only the lead's memory
   reaches more than register (S2). The Muse judges each source's bar into
-  a `Motif` of the theory, steps and degrees of the key (`judgeBar`,
-  `muse.ts`), which the lead's phrase is shaped like. The `muse` machine
+  a `Motif` (U4, `judgeBar` in `muse.ts`): onsets with rests, where a note
+  was released before the next, and degrees of the key altered by `b` or
+  `#`, written as a numeral writes a root off the key. The `muse` machine
   carries what it offers (an `Offer`: the motif, its source, the bar heard)
   and the last bar anyone played; its output is the log. Where the offer
   enters the band is #79 step 3.
@@ -171,6 +172,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   hold that it is precached.
 - The app and the prototype use system fonts and fetch nothing from
   outside the site (#58).
+- No module exports a function named `then`: a module namespace with a
+  `then` is a thenable, and `await import()` of it never settles. So the
+  score's `then` is `thenOp` in code (U5).
 
 ### License
 
@@ -280,6 +284,11 @@ The full description is in
   differs for 46 of the 120 `(k,n)` pairs with `k < n ≤ 16`, always by a
   rotation, so a Strudel export compensates with a shift or writes the
   pattern out.
+- Strudel's `rev`, `late` and `scaleTranspose` (also `strans`) are the
+  motif operators of those names (U5), so an export writes them as they
+  are. Its `seq` concatenates, its `inv` swaps onsets and rests, and its
+  `take` stretches the notes kept over the cycle, so the score doesn't use
+  those words for motifs.
 - The sister projects (play-aeiou, lib-aeiou, quintenzirkel) are read-only
   from here, and they share conventions with Jambot, not code. See
   [architecture](architecture.md#related-projects).
@@ -303,6 +312,9 @@ The full description is in
   mode's own F major is `VII`), and `I7` in C is C E G B♭. music21 differs
   in one more place: it raises the seventh degree of a minor key for `vii`.
   `parseNumeral` and `chordOfNumeral` in `@jambot/theory` read numerals.
+  `alteredDegree` is the rule that writes a note off the key, for a
+  numeral's root and a motif's note alike: as the parallel major has it,
+  otherwise flat, so blue notes are ♭3, ♭5 and ♭7.
 - music21 reads `-` as a flat (`C-7` is C♭7), reads `Bb7` as B major with a
   flat seventh without any error, and ignores `maj` in a numeral. tonal
   ignores a numeral's case. The skill's scripts guard against all of these.

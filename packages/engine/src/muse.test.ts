@@ -1,9 +1,10 @@
-import { heightOf } from '@jambot/theory';
+import { chromaticStep, heightOf, motifProblems } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import {
   type HeardNote,
+  type Judgement,
   MUSE,
   type MuseCarried,
   type MuseEnv,
@@ -18,15 +19,35 @@ const range = (n: number) => [...Array(n).keys()];
 const keys: Key[] = COMPOSER_MODES.flatMap((mode) => range(12).map((tonic) => ({ tonic, mode })));
 const A_MINOR: Key = { tonic: 9, mode: 'aeolian' };
 
-/** Notes from one source in bar 0, one per `[step, note]`. */
-const played = (notes: [number, number][], source = 'the computer keys'): HeardNote[] =>
-  notes.map(([position, note]) => ({ note, velocity: 100, source, position, end: null }));
+/** Notes from one source in bar 0, one per `[step, note]`, each held until the next or given its release. */
+const played = (notes: [number, number, number?][], source = 'the computer keys'): HeardNote[] =>
+  notes.map(([position, note, end]) => ({
+    note,
+    velocity: 100,
+    source,
+    position,
+    end: end ?? null,
+  }));
+
+/** Every motif the Muse writes is well formed (U4). */
+const wellFormed = (judgements: readonly Judgement[]) => {
+  for (const j of judgements) if (j.kind === 'motif') expect(motifProblems(j.motif)).toEqual([]);
+  return judgements;
+};
 
 const judgeOne = (notes: HeardNote[], key = A_MINOR) => {
-  const judgements = judgeBar(notes, 0, key);
+  const judgements = wellFormed(judgeBar(notes, 0, key));
   expect(judgements).toHaveLength(1);
   return judgements[0]!;
 };
+
+/** A motif of notes only, none altered. */
+const plain = (onsets: number[], degrees: number[]) => ({
+  cycle: 16,
+  onsets,
+  degrees,
+  accidentals: onsets.map(() => 0),
+});
 
 describe('the Muse’s judgement', () => {
   it('has the prototype’s gates: more than 12 notes is mashing, fewer than 3 too few, a range over 19 too wide; and forgets after 16 silent bars', () => {
@@ -102,7 +123,7 @@ describe('the Muse’s judgement', () => {
     expect(judgement).toEqual({
       kind: 'motif',
       source: 'the computer keys',
-      motif: { span: 16, steps: [0, 4, 8], degrees: [0, 2, 1] },
+      motif: plain([0, 4, 8], [0, 2, 1]),
     });
   });
 
@@ -115,16 +136,15 @@ describe('the Muse’s judgement', () => {
       expect(judgement).toEqual({
         kind: 'motif',
         source: 'the computer keys',
-        motif: { span: 16, steps: [0, 3, 6, 9, 12], degrees: shape },
+        motif: plain([0, 3, 6, 9, 12], shape),
       });
     }
   });
 
-  it('gives back every note in the key, and moves every note off it to its nearest degree, ties going down (#7 (d), ahead of the evidence)', () => {
-    // The prototype's rule, taken until (d) decides whether a motif carries
-    // altered degrees: of the 12 notes of an octave, the 5 off a diatonic key
-    // come back as a neighbour. Counted here, so the choice has its measure.
-    let moved = 0;
+  it('gives back every note played, in the key or off it, as a degree and an alteration (U4)', () => {
+    // A blue note comes back as itself: of the 12 notes of an octave, the 5
+    // off a diatonic key are written altered, as a numeral writes a root.
+    let altered = 0;
     for (const key of keys) {
       const scale = keyHelix(key);
       for (const offset of range(12)) {
@@ -139,18 +159,92 @@ describe('the Muse’s judgement', () => {
           key,
         );
         if (judgement.kind !== 'motif') throw new Error(judgement.kind);
-        const back = heightOf(scale, 35 + judgement.motif.degrees[1]!);
+        const { degrees, accidentals } = judgement.motif;
+        const back = heightOf(scale, 35 + degrees[1]!) + accidentals[1]! * chromaticStep(scale);
+        expect(back).toBe(note);
         const inKey = scale.heights.some((h) => (h - note) % 12 === 0);
-        if (inKey) expect(back).toBe(note);
-        else {
-          expect(Math.abs(back - note)).toBe(1);
-          moved++;
-        }
-        const below = heightOf(scale, 35 + judgement.motif.degrees[1]! - 1);
-        if (!inKey && below === note - 1 && back === note + 1) throw new Error('a tie went up');
+        expect(accidentals[1] === 0).toBe(inKey);
+        if (!inKey) altered++;
       }
     }
-    expect(moved).toBe(5 * keys.length);
+    expect(altered).toBe(5 * keys.length);
+  });
+
+  it('counts degrees from the first note, altered or not', () => {
+    // E♭ C E♭ in A minor: a flat fifth, then the third, then the flat fifth.
+    const judgement = judgeOne(
+      played([
+        [0, 75],
+        [4, 72],
+        [8, 75],
+      ]),
+    );
+    expect(judgement).toMatchObject({
+      motif: { onsets: [0, 4, 8], degrees: [0, -2, 0], accidentals: [-1, 0, -1] },
+    });
+  });
+
+  it('leaves a rest where a note was released before the next, and none where it was held over (U4)', () => {
+    const judgement = judgeOne(
+      played([
+        [0, 69, 1.8],
+        [4, 72, 9],
+        [8, 76, 12.4],
+        [14, 74],
+      ]),
+    );
+    expect(judgement).toMatchObject({
+      motif: { onsets: [0, 2, 4, 8, 12, 14], degrees: [0, null, 2, 4, null, 3] },
+    });
+  });
+
+  it('leaves no rest where a note was released just as the next starts, or on the bar line', () => {
+    const judgement = judgeOne(
+      played([
+        [0, 69, 4],
+        [4, 72],
+        [8, 76, 16],
+      ]),
+    );
+    expect(judgement).toMatchObject({ motif: { onsets: [0, 4, 8], degrees: [0, 2, 4] } });
+  });
+
+  it('holds a note released on its own step for one step at least', () => {
+    const judgement = judgeOne(
+      played([
+        [0, 69, 0.2],
+        [4, 72],
+        [8, 76],
+      ]),
+    );
+    expect(judgement).toMatchObject({ motif: { onsets: [0, 1, 4, 8], degrees: [0, null, 2, 4] } });
+  });
+
+  it('starts a bar that starts silent with a rest, unless a rest at its end runs round to its first note', () => {
+    const held = judgeOne(
+      played([
+        [4, 69],
+        [8, 72],
+        [12, 76],
+      ]),
+    );
+    expect(held).toMatchObject({ motif: { onsets: [0, 4, 8, 12], degrees: [null, 0, 2, 4] } });
+    const released = judgeOne(
+      played([
+        [4, 69],
+        [8, 72],
+        [12, 76, 14],
+      ]),
+    );
+    expect(released).toMatchObject({ motif: { onsets: [4, 8, 12, 14], degrees: [0, 2, 4, null] } });
+    const past = judgeOne(
+      played([
+        [4, 69],
+        [8, 72],
+        [12, 76, 17],
+      ]),
+    );
+    expect(past).toMatchObject({ motif: { onsets: [0, 4, 8, 12], degrees: [null, 0, 2, 4] } });
   });
 
   it('puts each note on the step nearest where it was heard', () => {
@@ -162,7 +256,7 @@ describe('the Muse’s judgement', () => {
         [11.49, 74],
       ]),
     );
-    expect(judgement).toMatchObject({ motif: { steps: [0, 4, 8, 11] } });
+    expect(judgement).toMatchObject({ motif: { onsets: [0, 4, 8, 11] } });
   });
 
   it('hears a note in the bar its nearest step is in, so one just before a bar belongs to it', () => {
@@ -188,9 +282,9 @@ describe('the Muse’s judgement', () => {
       [28, 65],
     ]);
     const [first] = judgeBar(notes, 0, A_MINOR);
-    expect(first).toMatchObject({ motif: { steps: [0, 4, 8] } });
+    expect(first).toMatchObject({ motif: { onsets: [0, 4, 8] } });
     const [second] = judgeBar(notes, 1, A_MINOR);
-    expect(second).toMatchObject({ motif: { steps: [0, 4, 8, 12] } });
+    expect(second).toMatchObject({ motif: { onsets: [0, 4, 8, 12] } });
     expect(judgeBar(notes, 2, A_MINOR)).toEqual([]);
   });
 
@@ -217,12 +311,17 @@ describe('the Muse’s judgement', () => {
       {
         kind: 'motif',
         source: 'a MIDI port',
-        motif: { span: 16, steps: [2, 6, 10], degrees: [0, 1, 2] },
+        motif: {
+          cycle: 16,
+          onsets: [0, 2, 6, 10],
+          degrees: [null, 0, 1, 2],
+          accidentals: [0, 0, 0, 0],
+        },
       },
       {
         kind: 'motif',
         source: 'the on-screen keys',
-        motif: { span: 16, steps: [0, 4, 8], degrees: [0, 2, 4] },
+        motif: plain([0, 4, 8], [0, 2, 4]),
       },
     ]);
   });
@@ -316,7 +415,7 @@ describe('the Muse', () => {
       offer: {
         source: 'a MIDI port',
         bar: 1,
-        motif: { span: 16, steps: [0, 4, 8], degrees: [0, 2, 4] },
+        motif: plain([0, 4, 8], [0, 2, 4]),
       },
       forgot: null,
     });
