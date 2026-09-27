@@ -17,7 +17,8 @@ import {
   PROTOCOL,
   forecastDelta,
   refusal,
-  sourceOf,
+  HOST_PLAYER,
+  playerSource,
 } from '@jambot/session';
 import type { Hosting, Player } from '../player.svelte.ts';
 import type { HostLink, Lobby } from './lobby.ts';
@@ -44,7 +45,7 @@ export class HostSession {
   /** When each client was last heard, by its id. */
   #lastHeard: Record<string, number> = {};
   #forecast: readonly ForecastBar[] = [];
-  #muse: MuseState = { offer: null, log: [], dropped: [] };
+  #muse: MuseState = { offer: null, log: [], dropped: [], players: {} };
   #sweep: ReturnType<typeof setInterval> | null = null;
 
   /**
@@ -79,13 +80,16 @@ export class HostSession {
     );
     this.session = session.trim();
     this.#player.mode = 'host';
-    this.#player.named = player.trim() || 'the host';
+    this.#player.playerId = HOST_PLAYER;
+    this.#player.players = {};
     this.#forecast = this.#player.ahead;
     this.#muse = {
       offer: this.#player.offer,
       log: this.#player.museLog,
       dropped: this.#player.dropped,
+      players: {},
     };
+    this.#name(HOST_PLAYER, player.trim() || 'the host');
     this.#player.hosting = this.#hosting();
     this.#sweep = setInterval(() => this.#dropSilent(), 1000);
   }
@@ -97,7 +101,8 @@ export class HostSession {
     if (this.#sweep) clearInterval(this.#sweep);
     this.#sweep = null;
     this.#player.hosting = null;
-    this.#player.named = null;
+    this.#player.playerId = null;
+    this.#player.players = {};
     this.#player.mode = 'solo';
     this.session = null;
     this.guests = [];
@@ -140,9 +145,10 @@ export class HostSession {
         return;
       }
       case 'judged': {
+        // A client's source goes by the id of its link, which it can't choose.
         const judgement = {
           ...message.judgement,
-          source: sourceOf(guest.name, message.judgement.source),
+          source: playerSource(from, message.judgement.source),
         };
         this.#player.judgedElsewhere([{ bar: message.bar, judgement }]);
         return;
@@ -155,12 +161,13 @@ export class HostSession {
   }
 
   #admit(join: ClientMessage & { kind: 'join' }, from: string) {
-    const refused = refusal(join);
+    const others = this.guests.filter((g) => g.id !== from);
+    const inUse = [this.#player.players[HOST_PLAYER] ?? '', ...others.map((g) => g.name)];
+    const refused = refusal(join, inUse);
     if (refused) return this.#send({ kind: 'refused', reason: refused }, from);
-    this.guests = [
-      ...this.guests.filter((g) => g.id !== from),
-      { id: from, name: join.name.trim() },
-    ];
+    const name = join.name.trim();
+    this.guests = [...others, { id: from, name }];
+    this.#name(from, name, false);
     this.#lastHeard[from] = this.#wallNow();
     this.#send(
       {
@@ -175,6 +182,18 @@ export class HostSession {
       },
       from,
     );
+    // Everyone else learns the new player's name.
+    this.#send({ kind: 'muse', muse: this.#muse });
+  }
+
+  /**
+   * Name a player: its sources read by this name on the host and every
+   * client, kept after it leaves, so the log still says who played.
+   */
+  #name(id: string, name: string, tell = true) {
+    this.#player.players = { ...this.#player.players, [id]: name };
+    this.#muse = { ...this.#muse, players: this.#player.players };
+    if (tell) this.#send({ kind: 'muse', muse: this.#muse });
   }
 
   #drop(id: string) {

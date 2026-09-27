@@ -152,6 +152,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `transportOver(followSource)` in the host's time and plays each event
   `skew` earlier on its own clock; the skew is the host's heard moment
   less its own (`heardNow`), so output latency needs no term of its own.
+  In a session a note's source is a player's id and the instrument
+  (`playerSource`), never a name; screens read it by name through
+  `sourceName` and the players' names the host sends with the Muse.
   An output's clock pairing steps while it starts, so `heardNow` is null
   for its first 0.2 s, and `hostClock` drops a ping that came back before
   it was sent. To try it, open the app in two windows of one browser,

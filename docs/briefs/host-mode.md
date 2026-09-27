@@ -26,6 +26,7 @@ Decided by the owner:
 - **Local jamming**: the two-bar delay of the Muse gives the headroom, and
   a host too far away is dropped rather than played with.
 - **No join code**: a session is found by its name alone.
+- **One name per player in a session**, and the Muse keeps players by id.
 - **A bar that did not arrive rests** on the client.
 
 The root node (#20) is the same role as a browser host: a host that is a
@@ -110,9 +111,16 @@ The same form at two levels:
   log, on the host and its clients ("What Ada's computer keys played came
   too late to be heard."), so a player can tell a lost motif from one that
   lost to another.
-- **Every source has a player's name** in a session: a client's by its
-  player, and the host's own by the name its player gives, or "the host",
-  so no client reads the host's keys as its own.
+- **The Muse keeps players by id, not by name.** In a session a source is
+  a player's id and the instrument (`playerSource`): a client's id is the
+  one its link has, which the client doesn't choose, and the host's own is
+  `HOST_PLAYER`. Names are for people: the host keeps each player's name
+  by id, sends it with the Muse's state, and every screen reads a source
+  by it ("Ada's computer keys"; the host's own by the name its player
+  gives, or "the host"). A name is kept after its player leaves, so the
+  log still says who played.
+- **A name is taken once per session**: a join under a name a player
+  already goes by, the host's included and in any case, is refused.
 - A client's forget goes to the host, which forgets.
 
 The client shows the host's Muse: its offer and its log.
@@ -311,8 +319,6 @@ e2e` pass unchanged, and a transport over bars the band composed, given
   which the host weighs per source, where A3's confidence belongs. A
   player's notes stay on their device; raw notes can be added for the Muse
   encoder (#16) if it needs them.
-- Whether two clients may join under one name: their judgements then share
-  a source, which the log and a weighing per source can't tell apart.
 - How the host weighs several players' motifs (A3 on #79).
 - Who masters the MIDI clock when a root node exists (#27).
 - Per-client expression beyond its own instruments and MIDI (humanising, a
