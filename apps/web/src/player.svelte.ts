@@ -33,6 +33,7 @@ import {
   LOOKAHEAD,
   type Part,
   PRESETS,
+  type ScheduledStep,
   soundOf,
   styleAt,
   type StyleTrack,
@@ -40,9 +41,8 @@ import {
   type TransportEnv,
   forecast,
   holding,
-  swingOf,
-  tempoMap,
   transport,
+  writtenAt,
 } from '@jambot/engine';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
@@ -67,21 +67,29 @@ export const FORECAST_BARS = (SECTIONS + 1) * 8;
 export type Status = 'stopped' | 'starting' | 'playing';
 
 /**
- * A note a player struck, quantised to the grid it landed nearest: bar-
- * relative like a `NoteEvent`, but not yet judged. The Muse (#2) is what
- * reads these; until it exists, the player only keeps them.
+ * A note a player struck, where it was heard on the grid, exactly: steps
+ * from the song's start, not rounded, and not yet judged. The Muse (#79)
+ * reads these, and its grid is what rounds them.
  */
 export interface HumanNote {
   readonly part: AlongPart;
   readonly note: number;
   readonly velocity: number;
-  readonly bar: number;
-  readonly step: number;
   readonly source: string;
+  readonly position: number;
+  /** Where it was released, or null while it is held, or if that can't be read. */
+  readonly end: number | null;
 }
 
 /** How many notes are kept before the oldest half is dropped, as the prototype does. */
 const HUMAN_NOTES_MAX = 240;
+
+/**
+ * How long, in seconds, the steps laid are kept for reading played notes
+ * back: a note is placed as it arrives, but its release can come this long
+ * after the moment it was struck.
+ */
+const LAID_KEPT = 8;
 
 /** What the player runs on; a test can stand in for each. */
 export interface Surroundings {
@@ -116,7 +124,7 @@ export class Player {
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode });
   /** The step heard, or null before anything is. */
   heard: number | null = $state(null);
-  /** Notes players struck while the band listened, waiting for the Muse (#2). */
+  /** Notes players struck while the band listened, waiting for the Muse (#79). */
   humanNotes: readonly HumanNote[] = $state.raw([]);
   /** The band's own notes heard sounding right now: the lead's, the drums'. */
   sounding: SoundingNotes = $state({ lead: [], drums: [] });
@@ -129,6 +137,8 @@ export class Player {
   #stopTicker: (() => void) | null = null;
   #stopFrames: (() => void) | null = null;
   #heard = new Heard<number>();
+  /** The steps laid in the last `LAID_KEPT` seconds, which a note heard is read back through. */
+  #laid: ScheduledStep[] = [];
   #sounding = new Sounding();
   /** The bars decided, from the first of the section heard on. */
   #bars: readonly ForecastBar[] = $state.raw([]);
@@ -162,35 +172,48 @@ export class Player {
   }
 
   /**
-   * `seconds` on the output's clock, as a position on the grid: the
-   * transport's swing and tempo maps, inverted from the song's start (the
-   * one anchor always behind a moment just played). Null before the band
-   * plays, or for a time before it started.
+   * A moment on the output's clock, as a position on the grid: through the
+   * steps as the transport laid them (`writtenAt`), with the tempo and the
+   * swing they were laid with, whatever the style track holds by now. Null
+   * while the band isn't playing, or for a moment outside the steps kept.
    */
   writtenPosition(seconds: number): number | null {
-    if (this.status !== 'playing' || seconds < this.#start) return null;
-    const anchor = { step: 0, seconds: this.#start };
-    return swingOf(this.track).written(tempoMap(this.track, anchor).written(seconds));
+    return this.status === 'playing' ? writtenAt(this.#laid, seconds) : null;
   }
 
   /**
-   * A note played at `seconds` on the output's clock, from `source`:
-   * quantised to the nearest step and kept for whenever the Muse (#2)
-   * reads it. Judging what was played is not this class's to do.
+   * A note played at `seconds` on the output's clock, from `source`, kept
+   * where it was heard for whenever the Muse (#79) reads it. A player plays
+   * along with what they hear, which is the output's latency behind its
+   * clock, so the note is placed that much earlier. Judging what was played
+   * is not this class's to do.
    */
   humanNoteOn(part: AlongPart, note: number, velocity: number, source: string, seconds: number) {
-    const position = this.writtenPosition(seconds);
+    const position = this.writtenPosition(seconds - this.#latency);
     if (position === null) return;
-    const abs = Math.round(position);
-    if (abs < 0) return;
     const kept =
       this.humanNotes.length >= HUMAN_NOTES_MAX
         ? this.humanNotes.slice(this.humanNotes.length - HUMAN_NOTES_MAX / 2)
         : this.humanNotes;
-    this.humanNotes = [
-      ...kept,
-      { part, note, velocity, bar: Math.floor(abs / 16), step: abs % 16, source },
-    ];
+    this.humanNotes = [...kept, { part, note, velocity, source, position, end: null }];
+  }
+
+  /**
+   * A note released at `seconds`: the latest of that part, pitch and source
+   * still held ends where it was heard released.
+   */
+  humanNoteOff(part: AlongPart, note: number, source: string, seconds: number) {
+    const i = this.humanNotes.findLastIndex(
+      (n) => n.part === part && n.note === note && n.source === source && n.end === null,
+    );
+    if (i === -1) return;
+    const end = this.writtenPosition(seconds - this.#latency);
+    if (end === null) return;
+    this.humanNotes = this.humanNotes.with(i, { ...this.humanNotes[i]!, end });
+  }
+
+  get #latency(): number {
+    return this.#output?.latency ?? 0;
   }
 
   /**
@@ -218,6 +241,7 @@ export class Player {
     output.starting?.(this.#start);
     this.#carried = null;
     this.#heard.clear();
+    this.#laid = [];
     this.#decide();
     this.#tick();
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
@@ -277,6 +301,10 @@ export class Player {
     }
     output.tick?.(scheduled.steps);
     for (const { step, seconds } of scheduled.steps) this.#heard.push(seconds, step);
+    this.#laid = [
+      ...this.#laid.filter((s) => s.seconds + s.length > now - LAID_KEPT),
+      ...scheduled.steps,
+    ];
     this.#heard.drop(now - 1);
     if (carried?.nextBar !== this.#decidedAt) this.#decide();
   }

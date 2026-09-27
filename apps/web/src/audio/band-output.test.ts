@@ -131,6 +131,7 @@ describe('bandOutput', () => {
         chord: {} as never,
         seconds: 0,
         length: 0.5,
+        swing: 0,
       },
     ]);
     expect(sent).toEqual([]);
@@ -144,6 +145,7 @@ describe('bandOutput', () => {
         chord: {} as never,
         seconds: 0,
         length: 0.5,
+        swing: 0,
       },
     ]);
     expect(sent.filter((m) => m.data[0] === 0xf8)).toHaveLength(6);

@@ -1,5 +1,5 @@
 /**
- * E13: do the motif operators cover the lead? (Q5c, S2; #7's decision (d))
+ * E13: do the motif operators cover the lead? (Q5c, U5, S2; #7's decision (d))
  *
  * The lead plays four-bar phrases: a shape, a variation of it, the shape
  * again, another variation (`lead.ts`). A shape is a motif, a rhythm and a
@@ -13,9 +13,11 @@
  *
  * This runs the band over E1's shape (5 seeds, each preset held and the
  * tour, 64 bars each), reads every lead bar back as key degrees, and finds
- * the operator and fragment (`motifs.ts`) whose rhythm is the bar's and
- * whose contour, at the best sequence, differs from the bar's in the
- * fewest notes. It asks:
+ * the operator and head (`motifs.ts`) whose notes start where the bar's do
+ * and whose contour, at the best `strans`, differs from the bar's in the
+ * fewest notes. A head leaves a rest where it drops notes, and the lead
+ * holds its last note over it to the end of the bar, so only the notes'
+ * onsets are compared. It asks:
  *
  * 1. of a shape bar (the phrase's first and third), how often fitting it to
  *    the chords changed a degree;
@@ -23,13 +25,22 @@
  *    or but for its last note, which the phrase's close sets, or but for one
  *    other note, or not;
  * 3. of a phrase, whether each bar is the shape under an operator, and how
- *    many tokens it takes as notes against as a named cell and references.
+ *    many tokens it takes as notes against as a named cell and references;
+ * 4. how many of the lead's shapes have a symmetry, so that several
+ *    operators give one bar and `canonicalOp` has to choose.
  *
  * Run: node --experimental-strip-types --no-warnings packages/engine/experiments/motifs.ts
  */
 
 import { degreeBelow, heightOf } from '@jambot/theory';
-import { IDENTITY, type Motif, type MotifOp, applyOp, fragment } from '../../theory/src/motifs.ts';
+import {
+  type Motif,
+  type MotifOp,
+  NOOP,
+  applyOp,
+  head,
+  stabilizer,
+} from '../../theory/src/motifs.ts';
 import { type BandCarried, type KeyWish, PRESETS, band, keyHelix } from '../src/index.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -40,37 +51,55 @@ const runs: ((bar: number) => (typeof PRESETS)[number])[] = [
   (bar) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!,
 ];
 
-/** Every operator but a sequence, which the best offset below stands for. */
-const OPS: { name: string; op: MotifOp }[] = [false, true].flatMap((inv) =>
-  [false, true].flatMap((retro) =>
-    range(16).map((shift) => ({
-      name: [inv && 'inv', retro && 'retro', shift && 'shift'].filter(Boolean).join('+') || 'same',
-      op: { ...IDENTITY, inv, retro, shift },
+/** Every operator but a `strans`, which the best offset below stands for. */
+const OPS: { name: string; op: MotifOp }[] = [false, true].flatMap((mirror) =>
+  [false, true].flatMap((rev) =>
+    range(16).map((late) => ({
+      name: [mirror && 'mirror', rev && 'rev', late && 'late'].filter(Boolean).join('+') || 'same',
+      op: { ...NOOP, mirror, rev, late },
     })),
   ),
 );
 
+/** A lead bar or shape as a motif: its notes held to the next, the last to the bar's end. */
+const asMotif = (steps: readonly number[], degrees: readonly number[]): Motif => {
+  const rest = steps[0]! > 0 ? 1 : 0;
+  return {
+    cycle: 16,
+    onsets: [...(rest ? [0] : []), ...steps],
+    degrees: [...(rest ? [null] : []), ...degrees],
+    accidentals: [...(rest ? [0] : []), ...degrees.map(() => 0)],
+  };
+};
+/** A motif's notes: their onsets and degrees, the rests left out. */
+const notesOf = (m: Motif) => {
+  const at = m.degrees.flatMap((d, i) => (d === null ? [] : [i]));
+  return { onsets: at.map((i) => m.onsets[i]!), degrees: at.map((i) => m.degrees[i]!) };
+};
+
 interface Match {
-  /** The operator, `frag` first if the bar is a fragment. */
+  /** The operator, `head` first if the bar is a head. */
   name: string;
   /** Which of the bar's notes differ in degree from the operator's. */
   off: number[];
 }
 
-/** The operator and fragment nearest the bar: the same rhythm, the fewest notes off. */
+/** The operator and head nearest the bar: the same onsets, the fewest notes off. */
 function closest(shape: Motif, heard: Motif): Match | null {
   let best: Match | null = null;
-  for (let keep = shape.steps.length; keep >= 1; keep--)
+  const bar = notesOf(heard);
+  const count = notesOf(shape).onsets.length;
+  for (let keep = count; keep >= 1; keep--)
     for (const { name, op } of OPS) {
-      const m = applyOp(op, fragment(shape, keep));
-      if (m.steps.join() !== heard.steps.join()) continue;
-      // Heard degrees are the key's, counted from its tonic; try a sequence
+      const m = notesOf(applyOp(op, head(shape, keep)));
+      if (m.onsets.join() !== bar.onsets.join()) continue;
+      // Heard degrees are the key's, counted from its tonic; try a strans
       // around the one the first notes suggest.
-      const base = heard.degrees[0]! - m.degrees[0]!;
+      const base = bar.degrees[0]! - m.degrees[0]!;
       for (let offset = base - 7; offset <= base + 7; offset++) {
-        const off = heard.degrees.flatMap((d, i) => (d === m.degrees[i]! + offset ? [] : [i]));
+        const off = bar.degrees.flatMap((d, i) => (d === m.degrees[i]! + offset ? [] : [i]));
         if (!best || off.length < best.off.length)
-          best = { name: keep < shape.steps.length ? `frag+${name}` : name, off };
+          best = { name: keep < count ? `head+${name}` : name, off };
       }
     }
   return best;
@@ -79,6 +108,9 @@ function closest(shape: Motif, heard: Motif): Match | null {
 const tally = new Map<string, number>();
 const count = (key: string, by = 1) => tally.set(key, (tally.get(key) ?? 0) + by);
 const byOperator = new Map<string, number>();
+/** The lead's distinct shapes, and those with a symmetry. */
+const shapes = new Set<string>();
+const symmetric = new Set<string>();
 let notesTokens = 0;
 let cellTokens = 0;
 
@@ -122,19 +154,21 @@ for (const seed of SEEDS)
         phrase.push(null);
         continue;
       }
-      const heard: Motif = {
-        span: 16,
-        steps: notes.map((n) => n.step),
-        degrees: degrees as number[],
-      };
-      const written: Motif = { span: 16, steps: shape.steps, degrees: shape.degrees };
+      const heard = asMotif(
+        notes.map((n) => n.step),
+        degrees as number[],
+      );
+      const written = asMotif(shape.steps, shape.degrees);
+      const id = JSON.stringify(written);
+      shapes.add(id);
+      if (stabilizer(written).length > 1) symmetric.add(id);
       const match = closest(written, heard);
-      phrase.push({ match, notes: heard.steps.length, closes: phase % 2 === 1 });
-      const last = heard.steps.length - 1;
+      phrase.push({ match, notes: notes.length, closes: phase % 2 === 1 });
+      const last = notes.length - 1;
       if (phase === 0 || phase === 2) {
         count('shape bars');
-        count('shape notes', heard.steps.length);
-        count('shape notes fitted to another degree', match?.off.length ?? heard.steps.length);
+        count('shape notes', notes.length);
+        count('shape notes fitted to another degree', match?.off.length ?? notes.length);
         if (match?.off.length) count('shape bars with a note fitted to another degree');
       } else {
         count('variation bars');
@@ -219,3 +253,5 @@ console.table({
 console.log(
   `as notes, ${notesTokens} tokens; as a cell and references, ${cellTokens} (${((100 * cellTokens) / notesTokens).toFixed(0)}%)`,
 );
+console.log('\nE13.4 symmetries: shapes that several operators give');
+console.table({ 'shapes with a symmetry': pct(symmetric.size, shapes.size) });

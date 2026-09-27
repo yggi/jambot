@@ -69,9 +69,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       degrees (#38)
     - `src/numerals.ts`: Roman numerals, a chord as a degree of its key, read
       and written (U1), in a key of any cycle (P5)
-    - `src/motifs.ts`: motifs, a rhythm and a contour, and the operators on
-      them: sequence, inversion, displacement and retrograde as a group, and
-      fragments (Q5c)
+    - `src/motifs.ts`: motifs, a rhythm and a contour with rests and altered
+      degrees, and the operators on them: `strans`, `mirror`, `late` and
+      `rev` as a group, `head` as a monoid, and each result's canonical
+      operator (Q5c, U4, U5)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here
@@ -124,7 +125,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/transport.ts`: the transport, the machine at tick rate: it
       composes a beat before each bar and schedules on a clock, and
       `bandEnvAt` is what the band reads for a bar; `forecast` gives the
-      bars ahead, composed or not
+      bars ahead, composed or not; `writtenAt` reads a moment on the clock
+      back through the steps as laid
     - `experiments/`: measurements on the port for the language design,
       outside the pure `src/`
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
@@ -195,9 +197,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start. It keeps the
       bars decided ahead and shows everything through one snapshot, `hud`.
-      `writtenPosition`/`humanNoteOn` turn a played note's clock time into a
-      quantised bar and step, kept in `humanNotes` for whenever the Muse
-      (#2) reads them. `playAlong` plays a note at once, on the same clock
+      `writtenPosition`, `humanNoteOn` and `humanNoteOff` place a played
+      note where it was heard, through the steps laid in the last seconds,
+      exactly and with its release, kept in `humanNotes` for whenever the
+      Muse (#79) reads them. `playAlong` plays a note at once, on the same clock
       and synth, from an instrument, a computer key or MIDI; `sounding` is
       only the band's own lead and drum notes heard sounding, never what
       was played along with it
