@@ -21,7 +21,8 @@
   const PARTS: { key: keyof Channels; label: string }[] = [
     { key: 'lead', label: 'Lead' },
     { key: 'bass', label: 'Bass' },
-    { key: 'chords', label: 'Chords' },
+    { key: 'pad', label: 'Pad' },
+    { key: 'stab', label: 'Stab' },
     { key: 'drums', label: 'Drums' },
   ];
 

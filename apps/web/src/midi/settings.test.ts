@@ -19,7 +19,7 @@ describe('MidiSettings', () => {
   it('persists every field across instances', () => {
     const settings = new MidiSettings();
     settings.internal = false;
-    settings.channels = { lead: 5, bass: 6, chords: 7, drums: 8 };
+    settings.channels = { lead: 5, bass: 6, pad: 7, stab: 7, drums: 8 };
     settings.clock = true;
     settings.thru = true;
     settings.thruChannel = 3;
@@ -28,7 +28,7 @@ describe('MidiSettings', () => {
 
     const reopened = new MidiSettings();
     expect(reopened.internal).toBe(false);
-    expect(reopened.channels).toEqual({ lead: 5, bass: 6, chords: 7, drums: 8 });
+    expect(reopened.channels).toEqual({ lead: 5, bass: 6, pad: 7, stab: 7, drums: 8 });
     expect(reopened.clock).toBe(true);
     expect(reopened.thru).toBe(true);
     expect(reopened.thruChannel).toBe(3);

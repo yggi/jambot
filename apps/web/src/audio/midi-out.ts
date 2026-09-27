@@ -3,8 +3,8 @@
  * port, one channel per part.
  *
  * A note-off is answered by the decision its note-on got, never by what
- * else is sounding at release (play-aeiou's rule, ported for #5): pads and
- * stabs on the chords part usually share a channel and often a pitch, and a
+ * else is sounding at release (play-aeiou's rule, ported for #5): the pad
+ * and the stab default to the same channel and often share a pitch, and a
  * stab hitting a pad's note must not cut the pad short. A note already held
  * on its channel and pitch retriggers, off then on, rather than merging;
  * a note-off reaches the port only once its last holder's own end arrives
@@ -15,21 +15,17 @@
  */
 
 import type { Part } from '@jambot/engine';
-import { LOOKAHEAD } from '@jambot/engine';
+import { LOOKAHEAD, PARTS } from '@jambot/engine';
 
 /** The minimum a real `MIDIOutput` gives; a fake stands in for it in tests. */
 export interface MidiPort {
   send(data: readonly number[], timestamp?: number): void;
 }
 
-export interface Channels {
-  readonly lead: number;
-  readonly bass: number;
-  readonly chords: number;
-  readonly drums: number;
-}
+/** One channel per part (L6): the pad and the stab default to the same one. */
+export type Channels = Readonly<Record<Part, number>>;
 
-export const DEFAULT_CHANNELS: Channels = { lead: 1, bass: 2, chords: 3, drums: 10 };
+export const DEFAULT_CHANNELS: Channels = { lead: 1, bass: 2, pad: 3, stab: 3, drums: 10 };
 
 const NOTE_ON = 0x90;
 const NOTE_OFF = 0x80;
@@ -42,8 +38,7 @@ const STOP = 0xfc;
 /** A 1–16 MIDI channel to its 0–15 status-byte nibble, wrapping rather than throwing. */
 export const nibble = (channel: number) => (channel - 1) & 15;
 
-const channelsEqual = (a: Channels, b: Channels) =>
-  a.lead === b.lead && a.bass === b.bass && a.chords === b.chords && a.drums === b.drums;
+const channelsEqual = (a: Channels, b: Channels) => PARTS.every((part) => a[part] === b[part]);
 
 interface Holder {
   readonly start: number;
