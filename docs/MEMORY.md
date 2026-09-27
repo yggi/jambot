@@ -182,6 +182,17 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   from a hidden tab, since a suspended tab's frozen clock can leave a release
   unscheduled and hardware sounding, and offers it as a button in
   `MidiPanel.svelte` too, for whatever the automatic case misses (#102).
+- Which output note each drum sound sends is configurable
+  (`MidiSettings.drumNotes`, a `DrumNotes` — one number per `DrumSound`,
+  `packages/engine/src/drums.ts`), not fixed to General MIDI: a Novation
+  Circuit's four Drum tracks (Circuit and Circuit Tracks alike, confirmed
+  identical in both of Novation's Programmer's Reference Guides) never speak GM,
+  only notes 60/62/64/65 on channel 10, each playing whatever sample was loaded
+  onto it. `MidiPanel.svelte` offers named presets (`midi/drum-presets.ts`:
+  `GM`, `Novation Circuit`) plus a number per sound to hand-edit from there;
+  `MidiOut.setDrumNotes` (`audio/midi-out.ts`) remaps a drum part's GM note to
+  its configured one before sending, so two sounds aimed at the same pad
+  retrigger like any other shared note (#102).
 - The e2e checks play each melody input as a player does: the computer keys
   typed, the on-screen keys pressed, and a MIDI keyboard through a Web MIDI
   stand-in the page gets before it loads (`band.e2e.ts`, `INPUTS`), since

@@ -15,7 +15,14 @@
 
 import { LOOKAHEAD } from '@jambot/engine';
 import { type ClockOffset, clockOffset } from './clock-offset.ts';
-import { DEFAULT_CHANNELS, MidiOut, type Channels, type MidiPort } from './midi-out.ts';
+import {
+  DEFAULT_CHANNELS,
+  DEFAULT_DRUM_NOTES,
+  MidiOut,
+  type Channels,
+  type DrumNotes,
+  type MidiPort,
+} from './midi-out.ts';
 import { type Output, webAudioOutput } from './output.ts';
 
 export interface BandOutputSettings {
@@ -24,6 +31,8 @@ export interface BandOutputSettings {
   /** The MIDI port to send to, or null to send nowhere. */
   port(): MidiPort | null;
   channels(): Channels;
+  /** Which output note each drum sound sends: GM by default (#102). */
+  drumNotes(): DrumNotes;
   /** Whether MIDI clock, start and stop are sent. */
   clock(): boolean;
 }
@@ -34,6 +43,7 @@ export function internalOnly(): BandOutputSettings {
     internal: () => true,
     port: () => null,
     channels: () => DEFAULT_CHANNELS,
+    drumNotes: () => DEFAULT_DRUM_NOTES,
     clock: () => false,
   };
 }
@@ -43,13 +53,14 @@ export function bandOutput(
   base: Output = webAudioOutput(),
   offset: ClockOffset = clockOffset(base),
 ): Output {
-  const midi = new MidiOut(settings.channels(), settings.clock());
+  const midi = new MidiOut(settings.channels(), settings.clock(), settings.drumNotes());
 
   return {
     get currentTime() {
       offset.update();
       midi.setClock(settings.clock());
       midi.setChannels(settings.channels(), base.currentTime, offset.toDeviceMs);
+      midi.setDrumNotes(settings.drumNotes());
       midi.setPort(settings.port(), base.currentTime, offset.toDeviceMs);
       return base.currentTime;
     },

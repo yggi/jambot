@@ -2,7 +2,13 @@ import type { Sound } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { bandOutput, type BandOutputSettings } from './band-output.ts';
 import { clockOffset } from './clock-offset.ts';
-import { DEFAULT_CHANNELS, type Channels, type MidiPort } from './midi-out.ts';
+import {
+  DEFAULT_CHANNELS,
+  DEFAULT_DRUM_NOTES,
+  type Channels,
+  type DrumNotes,
+  type MidiPort,
+} from './midi-out.ts';
 import type { Output } from './output.ts';
 
 const NOTE_ON = 0x90;
@@ -42,16 +48,24 @@ function fakePort() {
 }
 
 function fakeSettings() {
-  const state: { internal: boolean; port: MidiPort | null; channels: Channels; clock: boolean } = {
+  const state: {
+    internal: boolean;
+    port: MidiPort | null;
+    channels: Channels;
+    drumNotes: DrumNotes;
+    clock: boolean;
+  } = {
     internal: true,
     port: null,
     channels: DEFAULT_CHANNELS,
+    drumNotes: DEFAULT_DRUM_NOTES,
     clock: false,
   };
   const settings: BandOutputSettings = {
     internal: () => state.internal,
     port: () => state.port,
     channels: () => state.channels,
+    drumNotes: () => state.drumNotes,
     clock: () => state.clock,
   };
   return { settings, state };
@@ -114,6 +128,22 @@ describe('bandOutput', () => {
     expect(sentB).toEqual([]); // the switch itself silences the OLD port, not the new one
     output.play('lead', 62, 100, 1, 1, sound);
     expect(sentB.some((m) => m.data[0] === (NOTE_ON | 0) && m.data[1] === 62)).toBe(true);
+  });
+
+  it('remaps a drum note through the configured drum note map, leaving other parts alone', () => {
+    const base = fakeBase();
+    const { settings, state } = fakeSettings();
+    const { port, sent } = fakePort();
+    state.port = port;
+    state.drumNotes = { ...DEFAULT_DRUM_NOTES, kick: 60 };
+    const output = bandOutput(settings, base.output);
+    void output.currentTime;
+    output.play('drums', DEFAULT_DRUM_NOTES.kick, 100, 0, 0.1, sound);
+    output.play('lead', 60, 100, 0, 1, sound);
+    expect(sent.map((m) => m.data)).toEqual([
+      [NOTE_ON | 9, 60, 100],
+      [NOTE_ON | 0, 60, 100],
+    ]);
   });
 
   it('sends a clock tick per step only when the clock setting is on', () => {

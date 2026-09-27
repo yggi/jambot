@@ -1,6 +1,6 @@
-import { LOOKAHEAD, PARTS } from '@jambot/engine';
+import { DRUM_NOTES, LOOKAHEAD, PARTS } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CHANNELS, MidiOut, type MidiPort } from './midi-out.ts';
+import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES, MidiOut, type MidiPort } from './midi-out.ts';
 
 /** A port that only remembers what it was sent, in order. */
 function fakePort() {
@@ -92,6 +92,61 @@ describe('MidiOut', () => {
       { data: [NOTE_OFF | 0, 64, 0], timestamp: 500 },
       { data: [NOTE_ON | 0, 64, 100], timestamp: 500 },
     ]);
+  });
+
+  it('sends the GM note as-is by default, for every drum sound', () => {
+    const midi = new MidiOut();
+    const { port, sent } = fakePort();
+    midi.setPort(port, 0, toDeviceMs);
+    for (const note of Object.values(DRUM_NOTES)) midi.play('drums', note, 100, 0, 0.1, toDeviceMs);
+    expect(sent.map((m) => m.data[1])).toEqual(Object.values(DRUM_NOTES));
+  });
+
+  it('remaps a drum sound to its configured output note, leaving other parts untouched', () => {
+    const midi = new MidiOut(DEFAULT_CHANNELS, false, { ...DEFAULT_DRUM_NOTES, kick: 60 });
+    const { port, sent } = fakePort();
+    midi.setPort(port, 0, toDeviceMs);
+    midi.play('drums', DRUM_NOTES.kick, 100, 0, 0.1, toDeviceMs);
+    midi.play('lead', DRUM_NOTES.kick, 100, 0, 0.1, toDeviceMs); // the raw GM number, unrelated to drums
+    expect(sent.map((m) => m.data)).toEqual([
+      [NOTE_ON | 9, 60, 100],
+      [NOTE_ON | 0, DRUM_NOTES.kick, 100],
+    ]);
+  });
+
+  it('releases a remapped drum note at its own output note, not the GM one', () => {
+    const midi = new MidiOut(DEFAULT_CHANNELS, false, { ...DEFAULT_DRUM_NOTES, kick: 60 });
+    const { port, sent } = fakePort();
+    midi.setPort(port, 0, toDeviceMs);
+    midi.play('drums', DRUM_NOTES.kick, 100, 0, 0.1, toDeviceMs);
+    midi.advance(0.1, toDeviceMs);
+    expect(sent.at(-1)).toEqual({ data: [NOTE_OFF | 9, 60, 0], timestamp: 100 });
+  });
+
+  it('lets two drum sounds mapped to the same pad retrigger, off then on, as any shared note does', () => {
+    const midi = new MidiOut(DEFAULT_CHANNELS, false, {
+      ...DEFAULT_DRUM_NOTES,
+      rim: 62,
+      snare: 62,
+    });
+    const { port, sent } = fakePort();
+    midi.setPort(port, 0, toDeviceMs);
+    midi.play('drums', DRUM_NOTES.rim, 100, 0, 1, toDeviceMs);
+    sent.length = 0;
+    midi.play('drums', DRUM_NOTES.snare, 110, 0.2, 1, toDeviceMs);
+    expect(sent).toEqual([
+      { data: [NOTE_OFF | 9, 62, 0], timestamp: 200 },
+      { data: [NOTE_ON | 9, 62, 110], timestamp: 200 },
+    ]);
+  });
+
+  it('picks up a new drum note map from setDrumNotes, without touching what is already held', () => {
+    const midi = new MidiOut();
+    const { port, sent } = fakePort();
+    midi.setPort(port, 0, toDeviceMs);
+    midi.setDrumNotes({ ...DEFAULT_DRUM_NOTES, kick: 60 });
+    midi.play('drums', DRUM_NOTES.kick, 100, 0, 0.1, toDeviceMs);
+    expect(sent[0]!.data).toEqual([NOTE_ON | 9, 60, 100]);
   });
 
   it('wraps a channel outside 1–16 rather than throwing', () => {

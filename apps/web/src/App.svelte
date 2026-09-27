@@ -45,6 +45,7 @@
           internal: () => midiSettings.internal,
           port: () => midiSettings.outPort,
           channels: () => midiSettings.channels,
+          drumNotes: () => midiSettings.drumNotes,
           clock: () => midiSettings.clock,
         },
         base,

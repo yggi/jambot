@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_CHANNELS, type MidiPort } from '../audio/midi-out.ts';
+import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES, type MidiPort } from '../audio/midi-out.ts';
 import type { MidiAccess } from '../midi/access.ts';
+import { DRUM_NOTE_PRESETS } from '../midi/drum-presets.ts';
 import { MidiSettings } from '../midi/settings.svelte.ts';
 import MidiPanel from './MidiPanel.svelte';
 
@@ -72,6 +73,34 @@ describe('MidiPanel', () => {
     expect(settings.channels).toEqual({ ...DEFAULT_CHANNELS, lead: 16 });
     await fireEvent.change(screen.getByLabelText('Bass'), { target: { value: '0' } });
     expect(settings.channels.bass).toBe(1);
+  });
+
+  it('opens on the GM drum notes preset, with every sound at its GM number', () => {
+    const settings = new MidiSettings();
+    render(MidiPanel, { settings, access: null, message: '', onconnect: () => {} });
+    expect(screen.getByLabelText('Preset')).toHaveValue('GM');
+    expect(screen.getByLabelText('Kick')).toHaveValue(DEFAULT_DRUM_NOTES.kick);
+    expect(screen.getByLabelText('Ride')).toHaveValue(DEFAULT_DRUM_NOTES.ride);
+  });
+
+  it('sets every drum note from the chosen preset', async () => {
+    const settings = new MidiSettings();
+    render(MidiPanel, { settings, access: null, message: '', onconnect: () => {} });
+    await fireEvent.change(screen.getByLabelText('Preset'), {
+      target: { value: 'Novation Circuit' },
+    });
+    expect(settings.drumNotes).toEqual(DRUM_NOTE_PRESETS['Novation Circuit']);
+    expect(screen.getByLabelText('Kick')).toHaveValue(60);
+  });
+
+  it('clamps a drum note to 0–127, and shows the preset as custom once it no longer matches one', async () => {
+    const settings = new MidiSettings();
+    render(MidiPanel, { settings, access: null, message: '', onconnect: () => {} });
+    await fireEvent.change(screen.getByLabelText('Kick'), { target: { value: '200' } });
+    expect(settings.drumNotes.kick).toBe(127);
+    expect(screen.getByLabelText('Preset')).toHaveValue('');
+    await fireEvent.change(screen.getByLabelText('Snare'), { target: { value: '-5' } });
+    expect(settings.drumNotes.snare).toBe(0);
   });
 
   it('offers all notes off once connected, and calls it on click', async () => {
