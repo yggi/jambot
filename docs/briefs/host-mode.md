@@ -66,7 +66,7 @@ where a host and a client split:
  transport over followSource ◀──── bar: WrittenBar + where it starts
    on the host's clock               start (seed, start, track), track,
    playBar ─▶ synth / MIDI out       forecast (what changed), muse, stop
- hostClock ◀──────────────────────── ping / pong, each output's heard moment
+ hostClock ◀──────────────────────── ping / pong: page clocks, the host's output offset
 ```
 
 ### The engine: a transport over a source of bars
@@ -136,24 +136,25 @@ Whether clients may send wishes that the host weighs is open.
 
 A client plays on the host's clock:
 
-- **Heard moments.** Both sides read the moment their output is heard
-  (`heardNow`, from the output's pairing of its clock with
-  `performance.now()`). A client's pings compare those, so a note leaves
-  every device's speakers at once, whatever each output's latency.
+- **Heard moments.** Each side reads the moment its output is heard against
+  its page clock, `performance.now()` (`outputClock`, from the output's
+  pairing of its clock with the page's, once a tick). A client's pings
+  compare the page clocks, which never jump, and the host answers each with
+  its output's offset too; composed (`skewOf`), a note leaves every device's
+  speakers at once, whatever each output's latency.
 - **Offset.** Of the latest 16 pings, the one with the shortest round trip
   is trusted (`hostClock`). A ping that came back before it was sent is
-  dropped: an output's clock jumps as it first pairs.
+  dropped.
 - **Drift.** The offset played by moves toward the estimate by at most
   0.5 ms a ping. Pings go every 50 ms until the clock is trusted (4
   pings), then every 250 ms.
 - **Jumps.** An output that drops a buffer moves its clock by 10 ms at
-  once. A ping says the offset lies within half its round trip of what it
-  read; two quick pings in a row whose ranges miss the trusted one's (by
-  more than 3 ms, `CLOCK.jumped`) say the clocks jumped, and the offset
-  follows at once, where slewing would leave the band out for seconds. One
-  such ping alone is dropped. A jump no wider than the pings' ranges and
-  those 3 ms is not told from drift, so it is slewed; so is one hidden by a
-  ping answered partway into a drop (T8, measured, failing).
+  once, and only that device's output pair sees it: three readings in a row
+  whose ranges miss the trusted one's say the clocks jumped, and the offset
+  follows at once, where slewing would leave the band out. A client follows
+  its own output's jump within three ticks, and its host's with the next
+  answer after (T8). A jump inside the pair's resolution, about 2 ms, is
+  slewed, a quarter of a millisecond a tick.
 - **Too far.** A host whose best round trip is over 100 ms is dropped: a
   client leaves, saying why.
 - **Measured.** Two pages in one headless Chromium, 30 kicks: the client

@@ -199,38 +199,44 @@ rate, whatever the meter. The metronome counts a mean pulse rate
 0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when the meter
 does. Counterexample: an additive meter with a pulse that plays at the written
 tempo. Test: `meter.test.ts`, whose test of pulse tempo cites T7, over every
-well-formed pair up to 16. Open: what `bpm=` counts in a header once a bar has a
-meter. It is the score language's, so the owner's (#7). Source: #98. Status:
-measured (theory). Lands in: #63; #27.
+well-formed pair up to 16. A header's `bpm=` counts the grid, as the engine
+does: quarter-note equivalents, a quarter of the step rate, defined for every
+meter; a pulse rate is derived for display. Source: #98. Status: measured
+(theory). Decided: #7, on measured options (the grid's rate, the pulse rate, a
+rate with a unit). Lands in: #63; #27.
 
 **T8. Once its clock is trusted, a client sounds each moment within its bound of
-the host, half its best round trip give or take the pairing's jitter, and
-follows a jump of either clock within two pings.** Witness: `hostClock`, which
-trusts the ping of least delay, slews drift, and takes two pings whose ranges
-miss the trusted one's by more than 3 ms (`CLOCK.jumped`) for a jump.
-Counterexample: a jump no two pings tell apart: one no wider than their ranges
-and those 3 ms, which is slewed at 2 ms a second (4.5 ms on a quick link; a
-buffer over 5 ms legs held up to 20 ms, out for 6 to 7 s), or one hidden by a
-ping answered partway into a drop, which agrees with the offsets on either side.
-The pairing's jitter was put at ±2.4 ms on every reading; measured in headless
-Chromium it is within about 0.4 ms, with blips of up to 4 ms that the next
-reading takes back, and a uniform 2.4 ms would make the 3 ms rule take jitter
-for jumps. Test: `faults.test.ts` (`packages/session`), every fault of a clock
-pair against `hostClock`, and the known breaks as tests that find them; the same
-promise in Chromium is `session.e2e.ts`'s, through a 40 ms hold of one page's
-audio. Source: #27, #90. Status: measured (each fault alone, a buffer on a quick
-link); measured, failing (a jump inside the jump rule, a ping answered
-mid-drop). Lands in: #27, one estimator for every clock pair.
+the host, half its best round trip give or take each output pair's bound, and
+follows a jump of either device's output: its own within three ticks, the host's
+with the next answer after.** Witness: three pairs of clocks, one estimator
+(`clockPair`, `clock.ts`): each device's output against its page clock
+(`outputClock`), read from the platform's pairing every tick to half a
+millisecond, and the host's page clock against the client's (`hostClock`), read
+from pings stamped with the page clocks, which never jump; the client plays by
+the three composed (`skewOf`). Counterexample: a jump an output pair can't tell
+from drift, one inside two of its bounds and its 1 ms (`OUTPUT.jumped`), which
+it slews at a quarter of a millisecond a tick; and three blips of the pairing in
+a row that agree. When the pings themselves were stamped with the heard moments,
+a jump no wider than their ranges was slewed (a buffer over 5 ms legs held up to
+20 ms left a client 10 ms out for 6 to 7 s), and a ping answered partway into a
+drop hid one: the pings now never read a jump, and neither does. The pairing's
+jitter was put at ±2.4 ms on every reading; measured in headless Chromium it is
+within about 0.4 ms, with blips of up to 4 ms that the next reading takes back.
+Test: `faults.test.ts` (`packages/session`), every fault of a client's clock,
+alone and at once, each promise's checker shown firing on an output pair that
+only slews, one off partway, and a network that plays by its latest ping;
+`apps/web/src/session/session.test.ts`, a client following its own output at the
+next tick and its host's at the next answer; and in Chromium, `session.e2e.ts`,
+through a 40 ms hold of one page's audio. Source: #27, #90. Status: measured.
 
-**T9. MIDI out and capture follow a dropped buffer within two updates.**
-Witness: `clockOffset`, the gap between the output's clock and the page's, from
-the pairing or, where the platform has none, from `currentTime` less the
-latency, a render quantum coarser. Counterexample: its smoothing, nine parts old
-to one fresh, which takes some 23 updates to come within a millisecond of a
-jump. Test: `clock-offset.test.ts`, "does not follow a dropped buffer within two
-ticks yet, and is out for some 23 (T9)". Source: #27. Status: measured (drift,
-jitter, blips, the quantum on the fallback); measured, failing (a dropped
-buffer). Lands in: #27, one estimator for every clock pair.
+**T9. MIDI out and capture follow a dropped buffer within three readings.**
+Witness: `clockOffset`, the device's output pair (`outputClock`), read once a
+tick from the pairing or, where the platform has none, from `currentTime` less
+the latency, a render quantum coarser, and never the two mixed. Counterexample:
+the smoothing it replaced, nine parts old to one fresh, which took some 23
+updates to come within a millisecond of a jump. Test: `clock-offset.test.ts`,
+"follows a dropped buffer within three readings, again and again (T9)". Source:
+#27. Status: measured.
 
 ### State
 
@@ -570,21 +576,33 @@ note's voice). Status: measured. Decided: #7, on measured options (E11). Lands
 in: #24 (the channels).
 
 **L7. What is written survives into what is played, except what a performance
-map replaces.** Witness: `perform` (`perform.ts`), which reads a `WrittenNote`
-and returns a `NoteEvent`: `part`, `step` and `note` pass through unchanged, and
-`velocity` and `length` are what the claim names as replaced, read from the bar
-(T4). Counterexample: a field `perform` drops that names neither a replacement
-nor a pass-through. A drum hit's role (`WrittenNote.role`) is one: `perform`
-reads it once, in `accent`, to help decide the note's velocity, and then drops
-it, so nothing past a `NoteEvent` — MIDI out, the built-in synth, or a display
-over played events, such as the stage's per-member piano roll (#99) — can read
-which groove role a drum hit plays. The same is true of a lead note's `accent`
-(U4). Test: `perform.test.ts`, "drops a drum hit’s role on the way to a
-NoteEvent (L7)" and "drops a lead note’s accent on the way to a NoteEvent (L7)".
+map replaces, and a drum hit's MIDI note is chosen only when lowering to a
+device, by the device's map from its sound.** Witness: `perform` (`perform.ts`),
+which reads a `WrittenNote` and returns a `NoteEvent`: `part`, `step` and `note`
+pass through unchanged, and `velocity` and `length` are what the claim names as
+replaced, read from the bar (T4). For the drums, `DRUM_NOTES` gives every sound
+its own General MIDI note, so a played note names its sound, and `MidiOut`
+(`midi-out.ts`) maps each sound to the note the device plays it on: a Novation
+Circuit's drum tracks answer only 60, 62, 64 and 65 (#106). Counterexample: a
+field `perform` drops that names neither a replacement nor a pass-through. A
+drum hit's role (`WrittenNote.role`) is one: `perform` reads it once, in
+`accent`, to help decide the note's velocity, and then drops it, so nothing past
+a `NoteEvent` — MIDI out, the built-in synth, or a display over played events,
+such as the stage's per-member piano roll (#99) — can read which groove role a
+drum hit plays. The same is true of a lead note's `accent` (U4). For the note:
+two sounds on one General MIDI note, which MIDI out could not tell apart, or a
+device's map applied anywhere before MIDI out. A device map that puts two sounds
+on one pad, as the Circuit preset does with rim and snare, is lossy, and allowed
+only there. Test: `perform.test.ts`, "drops a drum hit’s role on the way to a
+NoteEvent (L7)" and "drops a lead note’s accent on the way to a NoteEvent (L7)";
+`drums.test.ts`, "give every sound its own note, so a played drum note names its
+sound (L7)"; `midi-out.test.ts`, whose test of the drum note map cites L7.
 Source: PR #103's review, a per-member piano roll that can label a pitch but not
-a role. Status: measured, failing (role, accent). Lands in: #99 (a drums member
-named by role, not raw pitch), #79 (a rhythm motif with roles, which wants the
-same field kept past `perform`).
+a role; #106, a Circuit Tracks that plays no General MIDI drum note. Status:
+measured (every sound its own note, the device map in MIDI out); measured,
+failing (role, accent). Decided: #7, ahead of the evidence. Lands in: #99 (a
+drums member named by role, not raw pitch), #79 (a rhythm motif with roles,
+which wants the same field kept past `perform`), #102 (the device's map).
 
 ### Readers and writers
 
@@ -924,7 +942,10 @@ These are where the decisions are.
 6. **The lead sheet against the token stream** (R1, R2). If they conflict, one
    meaning can have two surfaces.
 7. **Twelve against any cycle** (P5, L1).
-8. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
+8. **Expressive against metric accents** (A5). Whether a player's velocities
+   follow the beat decides whether accents are counted from a level, as taken
+   now, or from `perform`.
+9. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
    every meter, and the song holds one: the transport, the Muse's grid and the
    HUD count a bar as 16 steps and a beat as 4.
 

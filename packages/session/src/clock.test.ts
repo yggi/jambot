@@ -1,6 +1,19 @@
 import { lawBreaks } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { CLOCK, type ClockReading, type Ping, hostClock } from './clock.ts';
+import {
+  CLOCK,
+  type ClockReading,
+  OUTPUT,
+  type PairConfig,
+  type Ping,
+  type Sample,
+  clockPair,
+  hostClock,
+  outputClock,
+  pairingSample,
+  skewOf,
+  unpairedSample,
+} from './clock.ts';
 
 /** A keyed stand-in for chance. */
 function draws(seed: number) {
@@ -39,7 +52,7 @@ function pings(
     const arrives = sent + there + hold();
     const host = arrives + offsetAt(arrives);
     const received = arrives + back + hold();
-    list.push({ sent, received, host });
+    list.push({ sent, received, host, heard: null });
   }
   return { pings: list, offsetAt };
 }
@@ -90,10 +103,19 @@ describe("the host's clock, as a client reads it", () => {
     const { pings: list } = pings(20);
     // As an output first pairs its clock, a ping reads 7 ms quicker than
     // light, and 16 ms off; it must not become the one trusted.
-    const jumped = [{ sent: 0.0095, received: 0.0028, host: 5 + 0.006 - 0.016 }, ...list];
+    const jumped = [
+      { sent: 0.0095, received: 0.0028, host: 5 + 0.006 - 0.016, heard: null },
+      ...list,
+    ];
     for (const r of read(jumped).slice(CLOCK.ready + 1))
       expect(Math.abs(r.offset! - 5)).toBeLessThan(0.001);
-    expect(read(jumped)[0]).toEqual({ offset: null, trip: null, tooFar: false });
+    expect(read(jumped)[0]).toEqual({
+      offset: null,
+      trip: null,
+      tooFar: false,
+      heard: null,
+      jumps: 0,
+    });
   });
 
   it('follows a clock that jumps by a buffer within two pings, as an output that drops one does', () => {
@@ -139,5 +161,123 @@ describe("the host's clock, as a client reads it", () => {
   it('keeps the machine laws (F1)', () => {
     const script = pings(30, { drift: 1e-4 }).pings.map((input) => ({ env: null, input }));
     expect(lawBreaks(hostClock, script)).toEqual([]);
+  });
+});
+
+/** A pair's estimates over samples. */
+function estimates(config: PairConfig, samples: readonly Sample[]) {
+  const pair = clockPair(config);
+  let carried = pair.initial;
+  return samples.map((sample) => {
+    const next = pair.advance(null, carried, sample);
+    carried = next.carried;
+    return next.output;
+  });
+}
+
+const PAIR: PairConfig = { window: 8, ready: 2, slew: 0.0001, jumped: 0.001, confirm: 2 };
+const at = (offset: number, bound = 0.0005): Sample => ({ offset, bound });
+
+describe('a pair of clocks', () => {
+  it('is trusted after `ready` samples, at the sample of least bound, the latest of equals', () => {
+    const read = estimates(PAIR, [at(1.0002, 0.002), at(1, 0.0005), at(1.0001, 0.0005)]);
+    expect(read.map((r) => r.offset === null)).toEqual([true, false, false]);
+    expect(read[1]!.offset).toBe(1);
+    expect(read[1]!.bound).toBe(0.0005);
+    // The latest of equals is trusted, and the offset slews toward it.
+    expect(read[2]!.offset).toBeCloseTo(1.0001, 12);
+  });
+
+  it('follows a jump two samples confirm, and counts it', () => {
+    const before = Array.from({ length: 6 }, () => at(1));
+    const read = estimates(PAIR, [...before, at(0.99), at(0.99), at(0.99)]);
+    expect(read[6]!.offset).toBe(1);
+    expect(read[7]!.offset).toBe(0.99);
+    expect(read[7]!.jumps).toBe(1);
+    expect(read[8]!.jumps).toBe(1);
+  });
+
+  it('drops a sample alone against the rest, as a blip of the pairing', () => {
+    const read = estimates(PAIR, [at(1), at(1), at(1.004), at(1), at(1)]);
+    expect(read.slice(1).map((r) => r.offset)).toEqual([1, 1, 1, 1]);
+    expect(read.at(-1)!.jumps).toBe(0);
+  });
+
+  it('slews a jump inside its resolution, by at most `slew` a sample', () => {
+    // 1.5 ms: within two bounds of 0.5 ms and the 1 ms `jumped`.
+    const read = estimates(PAIR, [at(1), at(1), ...Array.from({ length: 20 }, () => at(0.9985))]);
+    for (const [i, r] of read.entries())
+      if (i > 1)
+        expect(Math.abs(r.offset! - read[i - 1]!.offset!)).toBeLessThanOrEqual(1e-4 + 1e-12);
+    expect(read.at(-1)!.offset).toBeCloseTo(0.9985, 9);
+    expect(read.at(-1)!.jumps).toBe(0);
+  });
+
+  it('reads nothing from a sample with no bound, or a negative one', () => {
+    const read = estimates(PAIR, [at(1), at(5, NaN), at(5, -1), at(1)]);
+    expect(read.map((r) => r.offset)).toEqual([null, null, null, 1]);
+  });
+
+  it('keeps the machine laws (F1)', () => {
+    const samples = [at(1), at(1.0003), at(0.99), at(0.99), at(0.9901, 0.002)];
+    expect(
+      lawBreaks(
+        clockPair(PAIR),
+        samples.map((input) => ({ env: null, input })),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("a device's output against its page", () => {
+  it('reads a pairing as the moment heard less the page clock, to its bound', () => {
+    expect(pairingSample(2, 7010)).toEqual({ offset: 2 - 7.01, bound: OUTPUT.paired });
+    expect(unpairedSample(3, 0.04, 1000)).toEqual({ offset: 3 - 0.04 - 1, bound: OUTPUT.unpaired });
+  });
+
+  it('follows a dropped buffer within three samples, and drops blips, even two in a row', () => {
+    const buffer = 512 / 48000;
+    const read = estimates(OUTPUT, [
+      ...Array.from({ length: 8 }, () => pairingSample(1, 0)),
+      pairingSample(1.004, 0),
+      pairingSample(1, 0),
+      pairingSample(1.003, 0),
+      pairingSample(1.0035, 0),
+      pairingSample(1, 0),
+      pairingSample(1 - buffer, 0),
+      pairingSample(1 - buffer, 0),
+      pairingSample(1 - buffer, 0),
+    ]);
+    expect(read.slice(8, 13).map((r) => r.offset)).toEqual([1, 1, 1, 1, 1]);
+    expect(read[14]!.offset).toBe(1);
+    expect(read[15]!.offset).toBeCloseTo(1 - buffer, 12);
+    expect(read[15]!.jumps).toBe(1);
+    expect(outputClock.initial.offset).toBeNull();
+  });
+});
+
+describe("a client's clock composed from three pairs", () => {
+  it("carries the host's output offset from the latest answer that has one", () => {
+    let carried = hostClock.initial;
+    const heard = [null, 0.03, null, 0.02];
+    const read = heard.map((h, i) => {
+      const next = hostClock.advance(null, carried, {
+        sent: i,
+        received: i + 0.002,
+        host: 10 + i + 0.001,
+        heard: h,
+      });
+      carried = next.carried;
+      return next.output.heard;
+    });
+    expect(read).toEqual([null, 0.03, 0.03, 0.02]);
+  });
+
+  it("is the network's offset, plus the host's output offset, less the client's", () => {
+    const reading: ClockReading = { offset: 10, trip: 0.002, tooFar: false, heard: 0.03, jumps: 0 };
+    expect(skewOf(reading, 0.05)).toBeCloseTo(9.98, 12);
+    expect(skewOf(reading, null)).toBeNull();
+    expect(skewOf({ ...reading, heard: null }, 0.05)).toBeNull();
+    expect(skewOf({ ...reading, offset: null }, 0.05)).toBeNull();
   });
 });

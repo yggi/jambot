@@ -13,10 +13,15 @@ import { ClientSession, WELCOME_WAIT } from './client.svelte.ts';
 import { HostSession, SILENT } from './host.svelte.ts';
 import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
 
-/** A device: an output whose clock the test moves, and the ticks it runs. */
+/**
+ * A device: an output whose clock the test moves, the ticks it runs, and
+ * its output's offset from its page clock, which reads the output's clock:
+ * a buffer the output drops moves the offset.
+ */
 function device(clockAt: number) {
   const world = {
     currentTime: clockAt,
+    heardOffset: 0,
     plays: [] as { part: string; note: number; seconds: number }[],
     tickers: [] as (() => void)[],
   };
@@ -38,7 +43,11 @@ function device(clockAt: number) {
     frame: () => () => {},
     seed: () => 42,
   };
-  return { world, player: new Player(surroundings), heardNow: () => world.currentTime };
+  return {
+    world,
+    player: new Player(surroundings),
+    clocks: { page: () => world.currentTime, heardOffset: () => world.heardOffset },
+  };
 }
 
 /** A lobby in memory: every message delivered at once, as a local link nearly is. */
@@ -88,17 +97,43 @@ describe('a host and a client session', () => {
   beforeEach(() => void vi.useFakeTimers());
   afterEach(() => void vi.useRealTimers());
 
+  it("follow a buffer the client's output drops at its next tick, and one the host's drops at the next answer", async () => {
+    const lobby = memoryLobby();
+    const host = device(105);
+    const client = device(100);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    await host.player.start();
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    await run([host, client], 4);
+    expect(client.player.skew).toBeCloseTo(5, 9);
+
+    // The client's output loses a buffer: what it hears falls behind its page.
+    const buffer = 512 / 48000;
+    client.world.heardOffset -= buffer;
+    await run([host, client], 0.025);
+    expect(client.player.skew).toBeCloseTo(5 + buffer, 9);
+
+    // The host's does: the client plays by it once the host has said so.
+    host.world.heardOffset -= buffer;
+    await run([host, client], 0.3);
+    expect(client.player.skew).toBeCloseTo(5, 9);
+    following.leave();
+    hosting.close();
+  });
+
   it("welcome a client, set its clock by the host, and play the host's notes when the host plays them", async () => {
     const lobby = memoryLobby();
     // The host's output clock reads 5 s ahead of the client's.
     const host = device(105);
     const client = device(100);
-    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'Jam');
     expect(host.player.mode).toBe('host');
     await host.player.start();
 
-    const following = new ClientSession(client.player, client.heardNow);
+    const following = new ClientSession(client.player, client.clocks);
     await following.join(lobby, ' jam ', 'Ada');
     expect(following.status).toBe('joined');
     expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
@@ -141,10 +176,10 @@ describe('a host and a client session', () => {
     const lobby = memoryLobby();
     const host = device(10);
     const client = device(3);
-    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
     await host.player.start();
-    const following = new ClientSession(client.player, client.heardNow);
+    const following = new ClientSession(client.player, client.clocks);
     await following.join(lobby, 'jam', 'Ada');
     await run([host, client], 3);
     const heard = () => client.player.writtenPosition(client.world.currentTime) ?? -1;
@@ -172,10 +207,10 @@ describe('a host and a client session', () => {
     const lobby = memoryLobby();
     const host = device(10);
     const client = device(3);
-    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam', 'Bo');
     await host.player.start();
-    const following = new ClientSession(client.player, client.heardNow);
+    const following = new ClientSession(client.player, client.clocks);
     await following.join(lobby, 'jam', 'Ada');
     await run([host, client], 3);
     const heard = () => host.player.writtenPosition(host.world.currentTime) ?? -1;
@@ -201,7 +236,7 @@ describe('a host and a client session', () => {
   it("refuse a name already in the session, the host's included, in any case (A3)", async () => {
     const lobby = memoryLobby();
     const host = device(0);
-    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam', 'Bo');
     const heard: HostMessage[][] = [[], [], []];
     const links = await Promise.all(heard.map((h) => lobby.join('jam', (m) => h.push(m))));
@@ -220,7 +255,7 @@ describe('a host and a client session', () => {
   it('refuse a client of another version, and end a client that no host answers', async () => {
     const lobby = memoryLobby();
     const host = device(0);
-    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
     const heard: HostMessage[] = [];
     const link = await lobby.join('jam', (m) => heard.push(m));
@@ -229,7 +264,7 @@ describe('a host and a client session', () => {
     expect(hosting.guests).toEqual([]);
 
     const lonely = device(0);
-    const following = new ClientSession(lonely.player, lonely.heardNow);
+    const following = new ClientSession(lonely.player, lonely.clocks);
     await following.join(lobby, 'nobody', 'Ada');
     await vi.advanceTimersByTimeAsync(WELCOME_WAIT);
     expect(following.status).toBe('idle');
@@ -240,7 +275,7 @@ describe('a host and a client session', () => {
   it('keep the host playing through what only claims to be a judgement, and say it dropped it (T1)', async () => {
     const lobby = memoryLobby();
     const host = device(0);
-    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
     await host.player.start();
     const link = await lobby.join('jam', () => {});
@@ -259,7 +294,7 @@ describe('a host and a client session', () => {
   it('drop a client that goes silent, and end every client when the host closes', async () => {
     const lobby = memoryLobby();
     const host = device(0);
-    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
     const heard: HostMessage[] = [];
     const link = await lobby.join('jam', (m) => heard.push(m));
@@ -270,7 +305,7 @@ describe('a host and a client session', () => {
     expect(hosting.guests).toEqual([]);
 
     const client = device(0);
-    const following = new ClientSession(client.player, client.heardNow);
+    const following = new ClientSession(client.player, client.clocks);
     await following.join(lobby, 'jam', 'Ada');
     hosting.close();
     expect(following.status).toBe('idle');

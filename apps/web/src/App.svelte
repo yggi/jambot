@@ -12,7 +12,7 @@
   import Transport from './components/Transport.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { bandOutput } from './audio/band-output.ts';
-  import { type ClockOffset, clockOffset, heardNow as heardOn } from './audio/clock-offset.ts';
+  import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
   import { type Output, webAudioOutput } from './audio/output.ts';
   import { MidiAccess, type NoteHandler } from './midi/access.ts';
   import { connectMidi as connect, routeNote } from './midi/routing.ts';
@@ -58,12 +58,20 @@
     }),
   );
 
-  const heardNow = () => heardOn(clockOf().base);
+  /** The device's clocks, as a session reads them: one output pair, shared with the band's output. */
+  const clocks = {
+    page: () => performance.now() / 1000,
+    heardOffset: () => {
+      const { offset } = clockOf();
+      offset.update();
+      return offset.heardOffset();
+    },
+  };
   const tabs = broadcastLobby();
   /** A lobby server by its address, or with none given, the tabs of this browser. */
   const lobbyAt = (url: string) => (url.trim() === '' ? tabs : websocketLobby(url.trim()));
-  const hostSession = new HostSession(player, heardNow);
-  const clientSession = new ClientSession(player, heardNow);
+  const hostSession = new HostSession(player, clocks);
+  const clientSession = new ClientSession(player, clocks);
 
   /**
    * The metronome: client-only, so it runs on its own next to the band

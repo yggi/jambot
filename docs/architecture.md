@@ -309,26 +309,27 @@ USB and MIDI (#27). What holds now: the clock never waits (T1), and the
 transport drops what a stall passed. A hardware MIDI clock is one mitigation
 path, and the MIDI clock is a lossy grid of 96 ticks a bar (T3).
 
-Every clock the app reads is tested on simulated devices with each fault
-explicit (`packages/session/src/faults.ts`). The transport keeps T1 under all of
-them. `hostClock` keeps a client within half its best round trip of its host
-under each fault alone, and follows a dropped buffer within two pings on a quick
-link (T8). It does not yet where a jump is no wider than the pings' ranges and
-its jump rule's 3 ms, which it slews away at 2 ms a second: a jump of 4 ms on a
-quick link, a buffer over a link whose quickest round trips are near one (5 ms
-legs held up to 20 ms left a client 10 ms out for 6 to 7 s), or a ping answered
-partway into a drop. `clockOffset`, which times MIDI out and capture, smooths a
-dropped buffer away over some 23 updates rather than following it (T9). Both are
-for #27's one estimator for every clock pair.
+Every pair of clocks is read by one estimator (`clockPair`): samples each
+bounding the offset, the least bound trusted, drift slewed, and a jump that
+three readings (two pings) confirm followed at once. A device's output pair
+reads the platform's pairing of its audio with its page clock every tick, so it
+sees its own dropped buffers; a client reads its host's page clock from pings
+stamped with page clocks, which never jump; and it plays by the three composed
+(`skewOf`). Every clock the app reads is tested on simulated devices with each
+fault explicit (`packages/session/src/faults.ts`): the transport keeps T1 under
+all of them, and a client keeps within its bound of its host under each alone
+and all at once, following its own output's jump within three ticks and its
+host's with the next answer (T8). MIDI out and capture read the same output pair
+(T9).
 
 The end-to-end check of host and client mode (`session.e2e.ts`) holds one page's
 audio for 40 ms mid-run, which jumps its clock by some 30 ms, so every machine
 meets a jump, not only one whose audio drops buffers. It reads each page's
 pairing as a note sounds, finds every jump of either clock from the pairings,
 and asks that every note be within 2 ms of the host's once the clock has settled
-from each: a jump it should follow within two pings, a smaller one at the rate
-it slews. While a jump settles, a note may be out by no more than the jump and
-those 2 ms.
+from each: a jump it should follow, within the next answer, and a smaller one at
+the rate it slews. While a jump settles, a note may be out by no more than the
+jump and those 2 ms.
 
 ## What has settled, and what is open
 

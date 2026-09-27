@@ -29,7 +29,7 @@ import type { ForecastDelta } from './forecast.ts';
  * and `WrittenNote` travel as they are, so a change to their shape is a
  * change to the protocol, and bumps it (`protocol.test.ts` holds the shapes).
  */
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 
 /** A bar as a host wrote it: everything its parts read, and the notes they wrote. */
 export interface WrittenBar extends BarEnv {
@@ -79,11 +79,18 @@ export type HostMessage =
   | { readonly kind: 'muse'; readonly muse: MuseState }
   | { readonly kind: 'stop' }
   /**
-   * The answer to a ping: the moment the host's output was heard as it
-   * answered, on its clock. A client that sets its clock by what is heard
-   * on both sides sounds with the host, whatever each output's latency.
+   * The answer to a ping: the host's page clock as it answered, in seconds,
+   * and its output's offset from it, the moment heard less the page clock,
+   * or null before its output is paired. A client that composes the two
+   * with its own (`skewOf`) sounds with the host, whatever each output's
+   * latency, and follows a buffer either output drops.
    */
-  | { readonly kind: 'pong'; readonly sent: number; readonly host: number }
+  | {
+      readonly kind: 'pong';
+      readonly sent: number;
+      readonly host: number;
+      readonly heard: number | null;
+    }
   | { readonly kind: 'closed' };
 
 export type ClientMessage =
@@ -91,7 +98,7 @@ export type ClientMessage =
   /** A bar the client's players played in, judged. */
   | { readonly kind: 'judged'; readonly bar: number; readonly judgement: Judgement }
   | { readonly kind: 'forget' }
-  /** A ping, stamped with the client's clock as it was sent. */
+  /** A ping, stamped with the client's page clock as it was sent, in seconds. */
   | { readonly kind: 'ping'; readonly sent: number }
   | { readonly kind: 'leave' };
 
