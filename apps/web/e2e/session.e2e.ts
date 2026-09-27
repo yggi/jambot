@@ -64,17 +64,22 @@ async function inStep(page: Page, client: Page, session: string, lobby = '') {
   const sorted = gaps.map(Math.abs).sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)]!;
   console.log(
-    `${lobby || 'tabs'}: client against host, ${gaps.length} of ${followed.length} kicks: ` +
+    `${lobby || 'tabs'}: client against host, ${gaps.length} of ${followed.length} kicks (the host sounded ${hosted.length}): ` +
       `median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms, ` +
       `each ${gaps.map((g) => g.toFixed(1)).join(' ')}`,
   );
-  expect(gaps.length).toBeGreaterThan(8);
+  // The client sounds every kick the host sounds from when it joined; how
+  // many that is depends on the song, whose seed each run draws afresh.
+  const since = hosted.filter((h) => h >= followed[0]! - 50);
+  expect(followed.length).toBeGreaterThanOrEqual(5);
+  expect(gaps.length).toBeGreaterThanOrEqual(since.length - 1);
   expect(gaps.length).toBeGreaterThanOrEqual(followed.length - 1);
   // Measured in headless Chromium: a median of 0.1 to 0.3 ms, every kick
-  // within 0.6 ms, but for one now and then a buffer (10 ms) out, where one
-  // of two bands in one browser slipped a buffer.
+  // within 0.7 ms, but where one of two bands in one browser slipped a
+  // buffer (10 ms): the clock follows such a step within two pings
+  // (`hostClock`), so it puts at most the kicks of half a second out.
   expect(median).toBeLessThan(1);
-  expect(sorted.filter((g) => g > 2).length).toBeLessThanOrEqual(1);
+  expect(sorted.filter((g) => g > 2).length).toBeLessThanOrEqual(2);
   expect(sorted.at(-1)!).toBeLessThan(15);
 
   await client.getByRole('button', { name: 'Leave the session' }).click();

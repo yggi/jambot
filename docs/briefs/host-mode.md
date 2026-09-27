@@ -144,8 +144,14 @@ A client plays on the host's clock:
   is trusted (`hostClock`). A ping that came back before it was sent is
   dropped: an output's clock steps as it first pairs.
 - **Drift.** The offset played by moves toward the estimate by at most
-  0.5 ms a ping, so it never jumps. Pings go every 50 ms until the clock
-  is trusted (4 pings), then every 250 ms.
+  0.5 ms a ping. Pings go every 50 ms until the clock is trusted (4
+  pings), then every 250 ms.
+- **Steps.** An output that drops a buffer moves its clock by 10 ms at
+  once. A ping says the offset lies within half its round trip of what it
+  read; two quick pings in a row whose ranges miss the trusted one's (by
+  more than 3 ms, the pairing's own jitter) say the clocks stepped, and
+  the offset follows at once, where slewing would leave the band out for
+  seconds. One such ping alone is dropped.
 - **Too far.** A host whose best round trip is over 100 ms is dropped: a
   client leaves, saying why.
 - **Measured.** Two pages in one headless Chromium, 30 kicks: the client

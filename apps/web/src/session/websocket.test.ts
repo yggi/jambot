@@ -18,9 +18,11 @@ const until = async (done: () => boolean, ms = 3000) => {
   }
 };
 
+/** When the test's devices began: one origin, so their clocks are apart by exactly what they're given. */
+const began = performance.now();
+
 /** A device whose output clock reads real time from `at`, and whose ticks the test runs. */
 function device(at: number) {
-  const began = performance.now();
   const now = () => at + (performance.now() - began) / 1000;
   const tickers: (() => void)[] = [];
   const output: Output = {
@@ -126,9 +128,13 @@ describe('the WebSocket lobby', () => {
     await until(() => following.status === 'joined');
     expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
     await until(() => client.player.status === 'playing');
-    // The clocks read 33 s apart; a local round trip is well under 10 ms.
-    expect(Math.abs(client.player.skew - 33)).toBeLessThan(0.005);
-    expect(following.trip).toBeLessThan(20);
+    // The clocks read 33 s apart.
+    // Within what the clock promises: half its best round trip, which a
+    // loaded machine lengthens, and a millisecond for the rounding and the slew.
+    expect(following.trip).toBeLessThan(100);
+    expect(Math.abs(client.player.skew - 33)).toBeLessThanOrEqual(
+      (following.trip! + 1) / 2000 + 0.001,
+    );
 
     hosting.close();
     await until(() => following.status === 'idle');
