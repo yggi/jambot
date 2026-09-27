@@ -2,6 +2,7 @@ import {
   type Motif,
   alteredDegree,
   chromaticStep,
+  motifProblems,
   heightOf,
   joinChord,
   positions,
@@ -223,12 +224,12 @@ describe('the lead', () => {
       expect(bars[1]!.after.phrase).toEqual(shape);
       expect(bars[2]!.after.phrase).toEqual(shape);
       // Bars 1 and 3 play the shape's rhythm; the variations may drop its last note.
-      for (const b of [bars[0]!, bars[2]!])
-        expect(b.events.map((e) => e.step)).toEqual(shape.steps);
+      const onsets = shape.onsets.filter((_, i) => shape.degrees[i] !== null);
+      for (const b of [bars[0]!, bars[2]!]) expect(b.events.map((e) => e.step)).toEqual(onsets);
       for (const b of [bars[1]!, bars[3]!]) {
         const steps = b.events.map((e) => e.step);
-        expect(shape.steps.slice(0, steps.length)).toEqual(steps);
-        expect(shape.steps.length - steps.length).toBeLessThanOrEqual(1);
+        expect(onsets.slice(0, steps.length)).toEqual(steps);
+        expect(onsets.length - steps.length).toBeLessThanOrEqual(1);
       }
     }
     expect(phrases).toBeGreaterThan(20);
@@ -251,6 +252,23 @@ describe('the lead', () => {
       }
     }
     expect(returns).toBeGreaterThan(5);
+  });
+
+  it('carries its phrases and its themes’ melodies as motifs of a bar, a rest first where the bar starts silent', () => {
+    let late = 0;
+    for (const { after } of played) {
+      const shapes = [after.phrase, ...Object.values(after.melodies).map((m) => m!.shape)];
+      for (const shape of shapes) {
+        if (!shape) continue;
+        expect(motifProblems(shape)).toEqual([]);
+        expect(shape.cycle).toBe(16);
+        expect(shape.accidentals.every((a) => a === 0)).toBe(true);
+        expect(shape.onsets[0]).toBe(0);
+        if (shape.degrees[0] === null) late++;
+        expect(shape.degrees.slice(1).every((d) => d !== null)).toBe(true);
+      }
+    }
+    expect(late).toBeGreaterThan(0);
   });
 
   it('starts each phrase from the chord tone nearest where it left off', () => {

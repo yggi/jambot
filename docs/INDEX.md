@@ -118,8 +118,9 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/comp.ts`: the comp, the pad and the stab parts, a machine that carries its
       last voicing
     - `src/lead.ts`: the lead, a machine that carries its last note, its
-      phrase and its themes' melodies; `leadRests` says where it rests; a
-      motif the Muse offers it plays whole
+      phrase and its themes' melodies, each a motif of one bar (U4);
+      `leadRests` says where it rests; `realize` plays a motif, its own
+      fitted to the chords, and one the Muse offers whole
     - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
       decides the next (`passBar` for a bar it doesn't play), and
