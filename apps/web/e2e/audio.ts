@@ -16,6 +16,12 @@ export interface Start {
   context: number;
 }
 
+/** A span, on the wall clock in milliseconds, in which a page's main thread did nothing. */
+export interface Stall {
+  from: number;
+  to: number;
+}
+
 /** A sample of an audio context's pairing (`getOutputTimestamp`), with the wall clock it was read on. */
 interface PairingSample {
   context: number;
@@ -39,11 +45,13 @@ export async function listen(page: Page, path = '/') {
       tap?: AnalyserNode;
       contexts: AudioContext[];
       pairings: PairingSample[];
+      stalls: Stall[];
     };
     w.starts = [];
     w.workers = { running: 0, made: 0 };
     w.contexts = [];
     w.pairings = [];
+    w.stalls = [];
     const Context = AudioContext;
     window.AudioContext = class extends Context {
       constructor(...args: ConstructorParameters<typeof AudioContext>) {
@@ -51,8 +59,13 @@ export async function listen(page: Page, path = '/') {
         w.contexts.push(this);
       }
     };
-    // Every 5 ms, each context's pairing.
+    // Every 5 ms, each context's pairing; and where the interval came late,
+    // by more than 50 ms, the page stalled.
+    let last = performance.timeOrigin + performance.now();
     setInterval(() => {
+      const now = performance.timeOrigin + performance.now();
+      if (now - last > 50) w.stalls.push({ from: last, to: now });
+      last = now;
       w.contexts.forEach((ctx, context) => {
         const ts = ctx.getOutputTimestamp?.();
         if (ts?.contextTime && ts.performanceTime)
@@ -207,3 +220,11 @@ export const holdAudio = (page: Page, ms: number) =>
     await new Promise((resolve) => setTimeout(resolve, ms));
     await Promise.all(contexts.map((ctx) => ctx.resume()));
   }, ms);
+
+/**
+ * Where a page's main thread stalled, on the wall clock: where its 5 ms
+ * sampler came more than 50 ms late. Its transport ticks there too, so what
+ * the stall passed it dropped rather than played late (T1).
+ */
+export const stalls = (page: Page) =>
+  page.evaluate(() => (window as unknown as { stalls: Stall[] }).stalls);
