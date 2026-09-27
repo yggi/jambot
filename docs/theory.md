@@ -392,32 +392,47 @@ Tests: `helix.test.ts`, "mirror".
 
 ## Motifs
 
-A **motif** is a rhythm and a contour: the steps of a bar its notes start on,
-and each note's degree of the key, counted from the motif's reference
-(`Motif`). A note is held to the next, and the last to the first of the
-next time the motif sounds, so the notes go round the bar as arcs.
+A **motif** is a rhythm and a contour on its own cycle (`Motif`): the
+onsets of its notes and rests, and each note's degree of the key, counted
+from the motif's origin and altered by a number of chromatic steps, as
+`b3` is. Each onset is held to the next, and the last to the first of the
+next time the motif sounds, so the onsets go round the cycle as arcs; a
+rest is an arc of silence.
 
 The operators on motifs are shift and mirror again, on two axes:
 
-- on pitch, T is a **sequence**, the contour moved by some degrees, and I
-  an **inversion** about the reference;
-- on time, T is a **displacement**, the arcs moved round the bar, and I the
-  **retrograde**, the arcs reflected about the bar's start. On the onsets
-  alone, displacement is `shift` of the rhythm's helix, and retrograde is
-  its `mirror`, moved to reflect about the bar's start.
+- on pitch, T is `strans`, the contour moved by some degrees, and I is
+  `mirror`, the contour reflected about the origin, its alterations too;
+- on time, T is `late`, the arcs moved round the cycle, and I is `rev`,
+  the arcs reflected about the origin, so the motif runs backwards. On the
+  onsets alone, `late` is `shift` of the rhythm's helix (`rhythmOf`), and
+  `rev` is its `mirror`, moved to reflect about the cycle's start.
 
-On each axis they are affine maps, x ↦ a ± x, so every chain of them is one
-operator, `{ seq, inv, shift, retro }`. They form a group: the infinite
-dihedral group on pitch, times the dihedral group of the bar on time, with
-R∘R = I∘I = id, R∘I = I∘R and Tₐ∘T_b = Tₐ₊_b. A **fragment**, the first
-notes, loses the rest, so fragments form a monoid beside the group; they
-commute with every operator on pitch. Which of these the score writes is
-#7's decision (d).
+`strans`, `late` and `rev` are Strudel's names for the same operations. On
+each axis they are affine maps, x ↦ a ± x, so every chain of them is one
+operator, `{ strans, mirror, late, rev }`, composed with `thenOp` and
+undone with `undo`. They form a group: the infinite dihedral group on
+pitch, times the dihedral group of the cycle on time. These are all the
+symmetries there are: every map of the cycle that keeps neighbours next to
+each other is a `late` or a `late` after `rev`, and every map of the
+degrees that keeps their distances a `strans` or a `strans` after
+`mirror`.
 
-Tests: `motifs.test.ts`: the composition over every operator pair with a
-sequence of −2 to 2 on every motif of a 4-step bar (1.6 million cases), the
-laws and each operator's inverse, displacement and retrograde as `shift`
-and `mirror` on a 16-step rhythm, and the fragments' laws (Q5c).
+Where a motif has a symmetry (its `stabilizer`), several operators give one
+result, and `canonicalOp` writes it with one of them, the least, so an
+operator read back from what it made is a fixed point.
+
+**`head`**, the first notes, leaves a rest for the rest, so heads form a
+monoid beside the group; they commute with every operator on pitch, and
+the last notes are `head` under `rev`.
+
+Seen as edges, a motif is its rhythm's `gaps` and its `motion`, the steps
+from note to note: `strans` and `late` keep both round the cycle, `mirror`
+negates the motion, and `rev` runs both backwards and negates the motion.
+Two motifs have the same edges exactly when `strans` and `late` take one
+to the other.
+
+Tests: `motifs.test.ts` (Q5c, U4, U5).
 
 ## Partials
 

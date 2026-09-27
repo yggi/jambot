@@ -627,6 +627,67 @@ where `chordScale` gives none.
 Source: #7 (b), P9. Status: open. Decided: #7, on measured options. Lands
 in: #63.
 
+**U4. A motif is a rhythm and a contour on its own cycle: onsets, each a
+note or a rest, and each note a degree of the key, counted from the
+motif's origin and altered by `b` or `#` as a pitch token is (U2).**
+Witness: `Motif` (`motifs.ts`): `cycle`, `onsets`, `degrees` (`null` for a
+rest) and `accidentals`, in chromatic steps of the key (P5). Each onset is
+held to the next, and a rest is an arc of silence. `head` keeps the first
+notes and leaves a rest for the others, so the last notes are `head` under
+`rev`, and need no operator of their own. The origin is the motif's own
+zero, and an anchor, from the level above, pins it to a bar step and a key
+degree, as `tempo.ts`'s anchor pins a step to a second.
+Counterexample: something a player plays that no motif gives back. The
+Muse's working track names three (#79, and #7's pressure comment, points 1,
+3 and 4): a blue note, which a whole degree rounds away; a staccato or a
+dropped note, which a note held to the next can't leave silent; a phrase
+longer than a bar, which a fixed 16 can't hold.
+Test: `motifs.test.ts`, whose tests cite U4: what a motif may be; `head`
+under `rev` is the last notes wherever no note is held over the cycle's
+start; `mirror` reflects an altered degree as the key's helix reflects it
+in dorian, its own mirror, only when it turns the accidental over too; and
+one `b` or `#` reaches every pitch of every key of 12, 17 and 19, but not
+of 22, 31 or 53, whose chromatic step is 3, 2 and 5 steps of the cycle.
+The engine and MIDI stay in 12 (L1), where every pitch is reached.
+Source: #7 (d), #79, E13, the names round. Status: measured (12, 17, 19);
+measured, failing (22, 31, 53). Decided: #7, on measured options (rests,
+over a note held to the next, whose `head` and `rev` gave the last notes
+in 282 of 768 cases); dissolved (altered degrees: U2 already writes `b3`,
+and P5 says what `b` moves by). Open: whether a motif carries a player's
+accents as roles, as a drum hit does (T4, #79's point 2); until then it
+carries no velocity. Lands in: #79 step 1, #63.
+
+**U5. The motif operators are the theory's `shift` and `mirror` on pitch
+and on time, named `strans`, `mirror`, `late` and `rev`: every chain of
+them is one operator, and each result is written with one, the canonical.**
+Witness: `MotifOp`, `applyOp`, `thenOp` (the score's `then`), `undo`,
+`NOOP`, `stabilizer` and `canonicalOp` (`motifs.ts`). The group is the
+infinite dihedral group on pitch times the dihedral group of the cycle
+(Q5c); `head` is a monoid beside it. `strans`, `late` and `rev` are
+Strudel's names for the same operations (`scaleTranspose`, `late`, `rev`),
+so a Strudel export writes them as they are; `mirror` is the theory's.
+Seen as edges, a motif is its rhythm's `gaps` and its `motion`, from note
+to note: `strans` and `late` keep them round the cycle, `mirror` negates
+the motion, and `rev` runs both backwards and negates the motion.
+Counterexample: a symmetry of a motif that no operator gives (not
+complete); two operators that give one motif and write differently (not
+exclusive, and the text no fixed point); a name that does another job in
+the score, in Strudel or in JavaScript (R4): Strudel's `seq` concatenates
+and its `inv` swaps onsets and rests, its `take` stretches the notes kept
+over the cycle, and a module that exports `then` is a thenable, which
+`await import()` never settles.
+Test: `motifs.test.ts`, whose tests cite U5: every map of a cycle of 3 to
+7 steps that keeps neighbours next to each other is one `late` or one
+`late` after `rev`, and every map of the degrees that keeps their
+distances one `strans` or one `strans` after `mirror`; on every motif of a
+4-step cycle, the operators that give one result are one coset of its
+stabilizer, and `canonicalOp` is a function of the result and a fixed
+point; the edges turn as the motif does, and two motifs have the same
+edges exactly when `strans` and `late` take one to the other.
+Source: #7 (d), Lewin's T and I, quintenzirkel's operators, Strudel, the
+names round, E13. Status: measured. Decided: #7, on measured options (E13,
+the names round). Lands in: #79, #63.
+
 ### Analysis and provenance
 
 **A1. The round trip from the composer's events through the text and back
@@ -695,15 +756,18 @@ Witness: per boundary, a section and a retraction:
   (T4);
 - events and text: `encode` and `compile` (A1), with the canonical texts as
   the fixed points of `encode ∘ compile`;
-- sound and score: the analyzer run on Jambot's own output.
+- sound and score: the analyzer run on Jambot's own output;
+- a motif and what an operator makes of it: `canonicalOp` writes each
+  result with one operator, a fixed point (U5).
 
 Chained, a score, played and heard, writes itself: a quine.
 Counterexample: a value that doesn't come back through a boundary. The
 prototype's swing gives one (T4).
-Test: `swing.test.ts` and `tempo.test.ts`, as for T4 (time); open for text
-(#13) and sound (#3).
-Source: #13, #37. Status: measured (time); open (text, sound). Lands in:
-Q1a–Q1e and Q3.
+Test: `swing.test.ts` and `tempo.test.ts`, as for T4 (time);
+`motifs.test.ts`, whose test of the canonical operator cites F3 (motifs);
+open for text (#13) and sound (#3).
+Source: #13, #37. Status: measured (time); measured (motifs); open (text,
+sound). Lands in: Q1a–Q1e and Q3.
 
 **F4. Analysis settles in one round: `encode(compile(encode(x))) =
 encode(x)`.**
@@ -1019,28 +1083,32 @@ the others have not.
     spelling at the same pitch, since places n fifths apart coincide (E♯ is
     G♭ in 17 and F♭ in 19), and `numeralOf` writes the canonical one.
 
-- **E13. The lead against the motif operators** (Q5c, S2; #7's decision
-  (d)), in
+- **E13. The lead against the motif operators** (Q5c, U5, S2; #7's
+  decision (d)), in
   [`packages/engine/experiments/motifs.ts`](../packages/engine/experiments/motifs.ts)
   (about 1 s), over E1's shape. It reads every lead bar back as key degrees
-  and finds the operator and fragment (`motifs.ts`) whose rhythm is the
-  bar's and whose contour, at the best sequence, differs from it in the
-  fewest notes.
+  and finds the operator and `head` (`motifs.ts`) whose notes start where
+  the bar's do and whose contour, at the best `strans`, differs from it in
+  the fewest notes. A `head` leaves a rest, which the lead holds its last
+  note over, so only the notes' onsets are compared.
   - Shape bars: fitting the shape to the chords (a chord tone on the half
     bar and on a chord's start, an octave fold) changes 131 of 4,476 notes
     (2.9%), in 13.8% of bars. 37 bars have a note off the key.
-  - Variation bars (927): 12.3% are the shape under an operator exactly,
-    61.2% but for their last note, which the phrase's close sets, 24.1%
-    but for one other note (a nudge or a chord tone), 2.5% two notes or
+  - Variation bars (927): 12.1% are the shape under an operator exactly,
+    61.7% but for their last note, which the phrase's close sets, 23.8%
+    but for one other note (a nudge or a chord tone), 2.4% two notes or
     more off. Every one has an operator's rhythm. The operators are the
-    shape itself, up to a sequence (52%, the lift and the bent close),
-    the inversion (25%) and a fragment (18%); retrograde and
-    displacement match 3%, where a short motif is symmetric.
-  - Phrases (457): 51% are a cell and an operator on it in every bar but
+    shape itself, up to a `strans` (52%, the lift and the bent close),
+    `mirror` (27%) and a `head` (18%). The lead never uses `rev` or
+    `late`.
+  - Phrases (457): 52% are a cell and an operator on it in every bar but
     for the close, 90% allowing one more note a bar. Written as a cell and
     a reference per bar, with a degree for each note an operator doesn't
     give, a phrase takes 52% of the tokens it takes as notes.
+  - Symmetries: 10 of the lead's 132 shapes have one, so several operators
+    give the same bar, and `canonicalOp` chooses which the score writes
+    (U5).
 
-#7's decisions (a) to (c) are made, as U1 to U3, and (e) to (h) as T4's
-performance maps, C7, L6 and P5. (d), the motif operators, is still open,
-and is checked against this catalogue when it is made.
+#7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and
+(e) to (h) as T4's performance maps, C7, L6 and P5. Of (d), whether a
+motif carries a player's accents is still open (U4).

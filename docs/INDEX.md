@@ -69,9 +69,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       degrees (#38)
     - `src/numerals.ts`: Roman numerals, a chord as a degree of its key, read
       and written (U1), in a key of any cycle (P5)
-    - `src/motifs.ts`: motifs, a rhythm and a contour, and the operators on
-      them: sequence, inversion, displacement and retrograde as a group, and
-      fragments (Q5c)
+    - `src/motifs.ts`: motifs, a rhythm and a contour with rests and altered
+      degrees, and the operators on them: `strans`, `mirror`, `late` and
+      `rev` as a group, `head` as a monoid, and each result's canonical
+      operator (Q5c, U4, U5)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here
