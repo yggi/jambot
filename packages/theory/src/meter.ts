@@ -1,13 +1,13 @@
 /**
  * Meter: how a bar's pulses group its subdivisions, as a helix.
  *
- * A meter is `pulses` felt in a bar of `subdivisions` (its numerator, over
- * its own denominator: 6 for 6/8, 12 for 12/8, 5 for 5/8). Where the
+ * A meter is `pulses` felt in a bar of `subdivisions`, the bar's length in
+ * eighths (6 for 3/4 and for 6/8, 12 for 12/8, 5 for 5/8). Where the
  * pulses fall is `even(pulses, subdivisions, 0)`: the same primitive that
  * places the backbeat over a bar's steps and the diatonic set over the
- * chromatic circle (`helix.test.ts`, "the beats on the steps of a bar").
+ * chromatic circle (`helix.test.ts`, "nests meter the same way").
  *
- * One formula covers every case, not two: a *simple* meter (3/4, 4/4)
+ * One formula covers every named meter, not three cases: a *simple* meter (3/4, 4/4)
  * divides evenly into 2 subdivisions a pulse, a *compound* one (6/8, 12/8)
  * into 3, and an *additive* one, whose pulses aren't equal (5/8 as 3+2,
  * 7/8 as 3+2+2), is what `even` gives when `pulses` doesn't divide
@@ -15,7 +15,11 @@
  * bossa clave its shape (`rhythms.ts`). So 3/4 and 6/8 sound different at
  * the same pulse tempo even though a bar of either holds six subdivisions,
  * and a bar of 5/8 is felt long-short without being told which pulse is
- * which: `even` places it.
+ * which: `even` places it, and places the long pulse first. The other
+ * groupings of the same meter, 7/8 as 2+2+3 or 2+3+2, are the modes of its
+ * pulse helix, and `mirror` gives the retrograde. A grouping that is not
+ * maximally even, 10/8 as 3+3+2+2, is a helix `even` doesn't give, as the
+ * son clave is among the rhythms (`meter.test.ts`, T6).
  */
 
 import { even } from './even.ts';
@@ -26,7 +30,7 @@ export type MeterName = '3/4' | '4/4' | '5/8' | '6/8' | '7/8' | '9/8' | '12/8';
 export interface Meter {
   /** Pulses (beats) in a bar: what a steps-in-bar counter counts. */
   readonly pulses: number;
-  /** The bar's numerator, over its own denominator: 8 for 6/8, 4 for 3/4. */
+  /** The bar's length in eighths: 6 for 3/4 and for 6/8, 8 for 4/4, 5 for 5/8. */
   readonly subdivisions: number;
 }
 

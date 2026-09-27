@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { isEven } from './even.ts';
+import { even, isEven } from './even.ts';
+import { compose, gaps, heightOf, mirror, shift } from './helix.ts';
+import { brightness, modes } from './modes.ts';
 import {
   METERS,
   type Meter,
@@ -97,5 +99,71 @@ describe('meter', () => {
   it('groups an additive meter without being told which pulse is which: 5/8 long-short, 7/8 long-short-short', () => {
     expect(pulseHelix(METERS['5/8']).heights).toEqual([0, 3]);
     expect(pulseHelix(METERS['7/8']).heights).toEqual([0, 3, 5]);
+  });
+
+  describe('as a helix', () => {
+    /** Every way to group n subdivisions into pulses of 2 and 3, from the downbeat. */
+    const groupings = (n: number): number[][] =>
+      n === 0
+        ? [[]]
+        : n < 2
+          ? []
+          : [...groupings(n - 2).map((g) => [2, ...g]), ...groupings(n - 3).map((g) => [3, ...g])];
+    /** A helix's groupings: each of its modes, read from the downbeat. */
+    const modeGroupings = (k: number, n: number): string[] =>
+      modes(even(k, n)).map((m) => gaps(shift(m, -heightOf(m, 0))).join('+'));
+
+    it('groups pulses in 2s and 3s exactly when 2 · pulses ≤ subdivisions ≤ 3 · pulses, and every named meter does (finite: every 2 ≤ k < n ≤ 16) (T6)', () => {
+      for (let n = 3; n <= 16; n++)
+        for (let k = 2; k < n; k++)
+          expect(gaps(even(k, n)).every((g) => g === 2 || g === 3)).toBe(2 * k <= n && n <= 3 * k);
+      for (const meter of Object.values(METERS))
+        expect(pulseLengths(meter).every((l) => l === 2 || l === 3)).toBe(true);
+    });
+
+    it('reads an additive meter’s groupings as the modes of its pulse helix, and `pulseHelix` as the brightest, long first (T6)', () => {
+      expect(modeGroupings(2, 5)).toEqual(['3+2', '2+3']);
+      expect(modeGroupings(3, 7)).toEqual(['3+2+2', '2+2+3', '2+3+2']);
+      expect(modeGroupings(4, 9)).toEqual(['3+2+2+2', '2+2+2+3', '2+2+3+2', '2+3+2+2']);
+      for (const meter of Object.values(METERS)) {
+        const helix = pulseHelix(meter);
+        const brightest = Math.max(
+          ...modes(helix).map((m) => brightness(shift(m, -heightOf(m, 0)))),
+        );
+        expect(brightness(helix)).toBe(brightest);
+      }
+    });
+
+    it('mirrors a grouping into its retrograde: 7/8’s 3+2+2 into 2+2+3 (T6)', () => {
+      for (const meter of Object.values(METERS))
+        expect(gaps(mirror(pulseHelix(meter)))).toEqual([...pulseLengths(meter)].reverse());
+    });
+
+    it('does not reach every grouping: 79 of the 149 groupings into 2s and 3s of up to 16 subdivisions are modes of `even`, and 10/8’s 3+3+2+2 is the first that is not (T6)', () => {
+      let reached = 0;
+      let total = 0;
+      const missed: string[] = [];
+      for (let n = 2; n <= 16; n++)
+        for (const grouping of groupings(n)) {
+          total++;
+          if (modeGroupings(grouping.length, n).includes(grouping.join('+'))) reached++;
+          else missed.push(`${n}:${grouping.join('+')}`);
+        }
+      expect([reached, total]).toEqual([79, 149]);
+      expect(missed.slice(0, 4)).toEqual(['10:2+2+3+3', '10:2+3+3+2', '10:3+2+2+3', '10:3+3+2+2']);
+    });
+
+    it('is the song’s beat in 4/4: its pulses composed onto a bar of 16 steps, two to a subdivision, are `even(4, 16)` (T6)', () => {
+      expect(compose(pulseHelix(METERS['4/4']), even(8, 16))).toEqual(even(4, 16));
+    });
+  });
+
+  it('has a pulse tempo only where every pulse is as long as the next: a simple or compound meter, never an additive one (finite: every well-formed 2 ≤ k < n ≤ 16) (T7)', () => {
+    for (let n = 3; n <= 16; n++)
+      for (let k = 2; k < n; k++) {
+        if (2 * k > n || n > 3 * k) continue;
+        const lengths = pulseLengths({ pulses: k, subdivisions: n });
+        expect(new Set(lengths).size === 1).toBe(n % k === 0);
+      }
   });
 });
