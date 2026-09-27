@@ -21,7 +21,8 @@ estimated is marked as an estimate.
 
 Decided by the owner:
 
-- **A hosted lobby service**, developed first against a local server.
+- **A hosted lobby service**, developed first against a local server, and
+  hosted on Fly.io.
 - **WebSocket first, then WebRTC**, behind one link abstraction.
 - **Local jamming**: the two-bar delay of the Muse gives the headroom, and
   a host too far away is dropped rather than played with.
@@ -203,9 +204,16 @@ It works, with one rule: load the app from `localhost` on every machine.
 - The hosted lobby serves `wss://` with a certificate, and the page on
   Pages reaches it. `apps/lobby/Dockerfile` builds the server for any host
   that runs a container; it serves plain `ws://` on `$PORT`, and the
-  host's proxy gives it TLS. Which host runs it is still to be chosen, so
-  the app ships with no lobby address of its own: a build names one with
-  `VITE_LOBBY_URL`, and a player can type any.
+  host's proxy gives it TLS.
+- It is hosted on Fly.io (`apps/lobby/fly.toml`): one machine in Frankfurt
+  (`fra`), never stopped and never two, since a session lives in the one
+  machine's memory; its health checked at `/health`; its connections
+  capped at 3,000, about what the load test puts on one shared CPU. Once,
+  `fly apps create jambot-lobby`; then `pnpm lobby:deploy` from the
+  repository's root, which builds the container remotely. It is reached at
+  `wss://jambot-lobby.fly.dev`. The app names no lobby of its own until it
+  is deployed: a build names one with `VITE_LOBBY_URL`, and a player can
+  type any.
 
 At an event, one laptop runs `pnpm lobby`, which prints the addresses to
 give; every player runs the app on their own machine and types that
@@ -304,8 +312,9 @@ e2e` pass unchanged, and a transport over bars the band composed, given
    the clock, the forecast's delta, and the simulated-link tests. Built.
 3. The BroadcastChannel lobby, host mode in the app (session name, who
    joined, join by name, leave, close), and the two-page e2e. Built.
-4. The WebSocket lobby: the server, its load test and its container, and
-   the app reaching it. Built; hosting it is the owner's choice of host.
+4. The WebSocket lobby: the server, its load test, its container and its
+   Fly.io configuration, and the app reaching it. Built; its first deploy
+   is the owner's, with the Fly.io account.
 5. WebRTC data channels, the lobby as signalling.
 6. The root node speaks the protocol (#20).
 7. Audio over WebRTC media tracks.

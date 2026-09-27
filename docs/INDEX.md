@@ -196,6 +196,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/lobby.ts`: `startLobby`; `src/main.ts` runs it
     - `load.ts`: the load test, sessions of a host and 8 clients
     - `Dockerfile`: the server as a container, for hosting
+    - `fly.toml`: the server on Fly.io, one machine never stopped
+      (`pnpm lobby:deploy`)
   - `web/`: the browser app (Svelte 5, Vite, PWA); serves the prototype at
     `/prototype.html`
     - `vite.config.ts`: the build, with the prototype and the license gate

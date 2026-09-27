@@ -193,4 +193,22 @@ describe('the lobby', () => {
     expect(lobby.counts()).toEqual({ sessions: 1, sockets: 1 });
     stalled.socket.destroy();
   });
+
+  it('is deployed as it runs: the port and the health check agree across fly.toml and the Dockerfile', async () => {
+    const { readFileSync } = await import('node:fs');
+    const at = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    const fly = at('fly.toml');
+    const docker = at('Dockerfile');
+    const port = fly.match(/internal_port = (\d+)/)?.[1];
+    expect(port).toBeDefined();
+    expect(fly).toContain(`PORT = "${port}"`);
+    expect(docker).toContain(`ENV PORT=${port}`);
+    expect(docker).toContain(`EXPOSE ${port}`);
+    // One machine, never stopped: a session lives in its memory.
+    expect(fly).toMatch(/auto_stop_machines = "off"/);
+    expect(fly).toMatch(/min_machines_running = 1/);
+    const path = fly.match(/path = "([^"]+)"/)?.[1];
+    const health = await fetch(`http://127.0.0.1:${lobby.port}${path}`);
+    expect(health.status).toBe(200);
+  });
 });

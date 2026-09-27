@@ -55,6 +55,7 @@ pnpm dev      # web app with hot reload
 pnpm test     # all tests
 pnpm verify   # lint, format check, typecheck, tests, build
 pnpm lobby    # the lobby server, for sessions across machines
+pnpm lobby:deploy  # the lobby server to Fly.io
 ```
 
 House rules are in [AGENTS.md](AGENTS.md). Setup and toolchain are in
