@@ -24,7 +24,14 @@
 
 import { even, positions } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
-import { DRUM_ROLES, type DrumRole, type WrittenNote } from './events.ts';
+import {
+  BAR_STEPS,
+  DRUM_ROLES,
+  type DrumRole,
+  type WrittenNote,
+  beatStart,
+  onBeat,
+} from './events.ts';
 import { SECTION_BARS } from './form.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { swingParts } from './swing.ts';
@@ -96,9 +103,9 @@ export function drums(env: BarEnv): WrittenNote[] {
 
   if (section.type === 'breakdown') {
     if (energy > 0.2)
-      for (let s = 2; s < 16; s += 4)
-        add(s, eighth > 0.5 ? DRUM_NOTES.ride : DRUM_NOTES.closedHat, 'hat');
-    if (last) for (let s = 8; s < 16; s++) add(s, DRUM_NOTES.snare, 'fill');
+      for (let beat = 0; beatStart(beat) < BAR_STEPS; beat++)
+        add(beatStart(beat) + 2, eighth > 0.5 ? DRUM_NOTES.ride : DRUM_NOTES.closedHat, 'hat');
+    if (last) for (let s = 8; s < BAR_STEPS; s++) add(s, DRUM_NOTES.snare, 'fill');
     return played();
   }
 
@@ -107,7 +114,7 @@ export function drums(env: BarEnv): WrittenNote[] {
   // One and three, with two and four filling in as four on the floor.
   const f = fourOnFloor;
   const kickStraight = [1, 0, 0, 0, f, 0, 0, 0, 0.9, 0, 0, 0, f, 0, 0, 0];
-  for (let s = 0; s < 16; s++) {
+  for (let s = 0; s < BAR_STEPS; s++) {
     const kick =
       lerp(kickStraight[s]!, KICK_SYNCOPATED[s]!, sync) *
       (s === 0 ? 1 : density) *
@@ -123,7 +130,7 @@ export function drums(env: BarEnv): WrittenNote[] {
     let hat =
       s % 2 === 0 ? clamp01(0.15 + energy * 1.1) : clamp01((energy - 0.55) * 2.5) * (1 - eighth);
     if (eighth > 0) {
-      if (s % 4 === 0) hat = Math.max(hat, eighth);
+      if (onBeat(s)) hat = Math.max(hat, eighth);
       if (s === 6 || s === 14) hat = Math.max(hat, eighth * 0.95);
       if (s === 2 || s === 10) hat *= 1 - 0.7 * eighth;
     }
@@ -146,12 +153,12 @@ export function drums(env: BarEnv): WrittenNote[] {
   if (plays('euclid', 0, sync * density * (1 - 0.7 * eighth) * 1.3)) {
     const k = [3, 5, 7][Math.min(2, Math.floor(energy * 3))]!;
     const rotation = Math.floor(draw(seed, 'drumEuclid', section.index) * 4 * sync);
-    for (const s of positions(even(k, 16, rotation))) add(s, DRUM_NOTES.rim, 'euclid');
+    for (const s of positions(even(k, BAR_STEPS, rotation))) add(s, DRUM_NOTES.rim, 'euclid');
   }
 
   if (last && (section.type === 'build' || plays('fill', 0, 0.35 + 0.3 * sync))) {
     const from = section.type === 'build' ? 8 : 12;
-    for (let s = from; s < 16; s++) add(s, DRUM_NOTES.snare, 'fill');
+    for (let s = from; s < BAR_STEPS; s++) add(s, DRUM_NOTES.snare, 'fill');
   }
   return played();
 }

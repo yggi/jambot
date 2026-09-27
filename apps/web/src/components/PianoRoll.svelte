@@ -6,6 +6,7 @@
   alike.
 -->
 <script lang="ts">
+  import { BAR_STEPS } from '@jambot/engine';
   import type { PatternNote } from '../pattern.ts';
 
   interface Props {
@@ -16,7 +17,7 @@
 
   const W = 320;
   const H = 64;
-  const step = W / 16;
+  const step = W / BAR_STEPS;
   const pitches = $derived([...new Set(notes.map((n) => n.note))].sort((a, b) => a - b));
   const rowOf = $derived(new Map(pitches.map((note, row) => [note, row])));
   const rowHeight = $derived(pitches.length > 0 ? Math.min(12, (H - 4) / pitches.length) : 0);

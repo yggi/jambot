@@ -10,6 +10,7 @@
  * Positions are steps of the song, counted from its start, 16 to a bar.
  */
 
+import { barStart } from './events.ts';
 import type { ComposerMode } from './key.ts';
 
 export interface AxisRange {
@@ -97,8 +98,8 @@ export const PRESETS: readonly Preset[] = [
 ];
 
 /** A preset glides over 8 bars, a slider over one. */
-export const PRESET_GLIDE = 8 * 16;
-export const SLIDER_GLIDE = 16;
+export const PRESET_GLIDE = barStart(8);
+export const SLIDER_GLIDE = barStart(1);
 
 export const INITIAL_STYLE: Style = { ...PRESETS[0]!.style, entropy: 0.3 };
 

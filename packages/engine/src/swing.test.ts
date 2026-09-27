@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { METERS, type Meter, compose, even, heightOf } from '@jambot/theory';
+import { METERS, heightOf, meterOnSteps } from '@jambot/theory';
 import { composeTimeMaps, swingMap, swingParts } from './swing.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -109,14 +109,11 @@ describe('composeTimeMaps', () => {
 });
 
 describe('swing over a meter', () => {
-  /** A meter on the bar's steps, two to an eighth, as the song's 4/4 lies on its 16. */
-  const onSteps = (meter: Meter) => compose(meter, even(meter.cycle, 2 * meter.cycle));
-
   it('keeps every pulse of 3/4 and 4/4 where it is, and moves a pulse late in every other named meter, since it swings by beats of 4 steps (finite: every named meter, every pulse of 8 bars) (T11)', () => {
     const full = swingMap(1);
     const kept: string[] = [];
     for (const [name, meter] of Object.entries(METERS)) {
-      const clock = onSteps(meter);
+      const clock = meterOnSteps(meter);
       const pulses = Array.from({ length: 8 * clock.heights.length }, (_, d) => heightOf(clock, d));
       if (pulses.every((step) => full.played(step) === step)) kept.push(name);
     }

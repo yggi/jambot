@@ -20,7 +20,7 @@
 import { type Chord, joinChord, wrap } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { chordAt } from './chords.ts';
-import type { WrittenNote } from './events.ts';
+import { BAR_STEPS, type WrittenNote } from './events.ts';
 import type { Machine } from './machine.ts';
 import { type Stream, chance, heldDraw } from './random.ts';
 import { swingParts } from './swing.ts';
@@ -106,11 +106,11 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
       const step = c.slot.step;
       if (!chance(held(ROLE.pad, step), padWeight * 1.15)) return;
       padded.add(step);
-      const end = chords[i + 1]?.slot.step ?? 16;
+      const end = chords[i + 1]?.slot.step ?? BAR_STEPS;
       for (const note of voiced[i]!) written.push({ part: 'pad', step, note, length: end - step });
     });
 
-    for (let s = 0; s < 16; s++) {
+    for (let s = 0; s < BAR_STEPS; s++) {
       if (padded.has(s)) continue;
       const p = lerp(STABS_STRAIGHT[s]!, STABS_SYNCOPATED[s]!, style.sync) * stabDensity;
       if (!chance(held(ROLE.stab, s), p)) continue;
