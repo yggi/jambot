@@ -15,6 +15,9 @@
  * is what will play. The seed of the next song is drawn while the band is
  * stopped, so even the bar it opens on is shown truly before the start.
  *
+ * It counts its timing as it plays (`timing`, `timedTick`), each tick timed
+ * on the page's clock, from each song's start until the next.
+ *
  * Starting waits for the audio clock, which a browser starts only after a
  * gesture. While it waits the player is starting: another start does
  * nothing, and a stop cancels it.
@@ -70,7 +73,10 @@ import {
   type MuseState,
   type SentBar,
   type Song,
+  TRANSPORT_TIMING,
+  type TransportTiming,
   followSource,
+  timedTick,
   earListen,
   sentBars,
   playerSource,
@@ -170,6 +176,8 @@ export interface Surroundings {
   frame(follow: () => void): () => void;
   /** A seed for the next song. */
   seed(): number;
+  /** The page's clock, in seconds, which the ticks are timed on. */
+  page(): number;
 }
 
 /** The real browser's ticker, frame and seed, with a given way to make the output. */
@@ -185,6 +193,7 @@ export function browserSurroundings(output: () => Output = webAudioOutput): Surr
       return () => cancelAnimationFrame(id);
     },
     seed: () => Math.floor(Math.random() * 2 ** 32),
+    page: () => performance.now() / 1000,
   };
 }
 
@@ -245,6 +254,7 @@ export class Player {
   /** Bars the host's clients judged since the last tick. */
   #judged: BarJudgement[] = [];
   #follow: Follow | null = null;
+  #timing: TransportTiming = TRANSPORT_TIMING;
   #sounding = new Sounding();
   #pattern = new Pattern();
   /** The bars decided, from the first of the section heard on. */
@@ -276,6 +286,11 @@ export class Player {
   /** Whether the band is playing or about to: the start button reads Stop. */
   get playing(): boolean {
     return this.status !== 'stopped';
+  }
+
+  /** The transport's timing counters since the song started (`timedTick`). */
+  get timing(): TransportTiming {
+    return this.#timing;
   }
 
   /** How many scheduled positions wait to be heard. */
@@ -392,6 +407,7 @@ export class Player {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
     this.#heard.clear();
+    this.#timing = TRANSPORT_TIMING;
     this.#laid = [];
     this.#arrived = [];
     this.#judged = [];
@@ -604,9 +620,10 @@ export class Player {
     this.#arrived = [];
   }
 
-  /** Play what the transport scheduled, and keep its steps for what is heard. */
+  /** Play what the transport scheduled, count it, and keep its steps for what is heard. */
   #schedule(output: Output, now: number, scheduled: TransportOutput) {
     const skew = this.skew;
+    this.#timing = timedTick(this.#timing, { at: this.#surroundings.page(), now, scheduled });
     for (const { bar, event, seconds, duration, sound } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds - skew, duration, sound);
       const performer = performerOf(event.part);

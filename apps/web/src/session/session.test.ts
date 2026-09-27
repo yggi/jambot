@@ -42,6 +42,7 @@ function device(clockAt: number) {
     },
     frame: () => () => {},
     seed: () => 42,
+    page: () => world.currentTime,
   };
   return {
     world,
@@ -120,6 +121,27 @@ describe('a host and a client session', () => {
     await run([host, client], 0.3);
     expect(client.player.skew).toBeCloseTo(5, 9);
     following.leave();
+    hosting.close();
+  });
+
+  it("count a client's round trips and its clock while it is joined, and none once it leaves (#27)", async () => {
+    const lobby = memoryLobby();
+    const host = device(105);
+    const client = device(100);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    const following = new ClientSession(client.player, client.clocks);
+    expect(following.timing).toBeNull();
+    await following.join(lobby, 'Jam', 'Ada');
+    await run([host, client], 2);
+    const timing = following.timing!;
+    // Pings every 50 ms until the clock is trusted, then every 250 ms; each answered at once.
+    expect(timing.trips.count).toBeGreaterThan(8);
+    expect(timing.trips.most).toBe(0);
+    expect(timing.reading?.trip).toBe(0);
+    expect(timing.skew).toBeCloseTo(5, 9);
+    following.leave();
+    expect(following.timing).toBeNull();
     hosting.close();
   });
 

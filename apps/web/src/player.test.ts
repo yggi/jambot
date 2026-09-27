@@ -7,6 +7,8 @@ import { Player, type Surroundings } from './player.svelte.ts';
 function surroundings() {
   const world = {
     currentTime: 0,
+    /** The page's clock, in seconds: the audio's, but where a test moves it alone. */
+    page: 0,
     latency: 0,
     resumes: 0,
     resolve: () => {},
@@ -54,6 +56,7 @@ function surroundings() {
       world.seeds.push(7 + world.seeds.length);
       return world.seeds.at(-1)!;
     },
+    page: () => world.page,
   };
   return { world, s };
 }
@@ -120,6 +123,37 @@ describe('the player', () => {
     const played = world.played;
     world.tickers[0]!.tick();
     expect(world.played).toBe(played);
+  });
+
+  it('counts its timing while it plays, a stall included, and afresh each song (#27)', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    void player.start();
+    world.resolve();
+    await settle();
+    for (let i = 0; i < 200; i++) {
+      // The page stalls half a second at tick 100; its audio stands still for a tick at 150.
+      const passed = i === 100 ? 0.5 : 0.025;
+      world.page += passed;
+      if (i !== 150) world.currentTime += passed;
+      world.tickers[0]!.tick();
+    }
+    const { ticks, margins, laid, missed } = player.timing;
+    // The first tick comes as it starts, the rest from the ticker, each timed on the page's clock.
+    expect(ticks.count).toBe(200);
+    expect(ticks.least).toBeCloseTo(25, 6);
+    expect(ticks.most).toBeCloseTo(500, 6);
+    expect(margins.count).toBe(world.played);
+    expect(laid).toBe(world.steps.length);
+    expect(missed).toBeGreaterThan(0);
+    player.stop();
+    const before = world.steps.length;
+    void player.start();
+    world.resolve();
+    await settle();
+    expect(player.timing.laid).toBe(world.steps.length - before);
+    expect(player.timing.ticks.count).toBe(0);
+    expect(player.timing.missed).toBe(0);
   });
 
   it('builds up no backlog while no frame shows, as in a hidden tab', async () => {

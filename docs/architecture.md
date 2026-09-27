@@ -336,6 +336,16 @@ answer and a lookahead), and a smaller one at the 10 ms a second it slews. While
 a jump settles, a note may be out by no more than the jump and those 2.5 ms, and
 a note the host dropped in a stall (T1) is excused.
 
+Each device counts its timing as it plays (`timedTick`, `timingReport`): how far
+apart its ticks came on the page clock, how far ahead of the clock each event
+was scheduled, the steps it laid and missed, its output pair's jumps, which are
+its dropped buffers, and on a client, every round trip, the skew and the bars
+too late. `?timing` shows them, and Export saves them as a file, so a timing
+report carries numbers rather than a symptom. In Chromium, `timing.e2e.ts` finds
+the export agrees with the harness: an 80 ms hold of the audio is one buffer
+dropped, and a 400 ms stall one tick some 420 ms after the last, with the steps
+it passed missed.
+
 ## What has settled, and what is open
 
 Settled, each held by tests on `main`:

@@ -224,6 +224,16 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   lobby server, in Node's environment. Its devices' clocks are the test's and
   stand still, so a ping comes back at once and the skew is exact on any
   machine; the clocks under delay are the pure tests'.
+- `?timing` in the address shows the timing panel (`TimingPanel.svelte`, #27):
+  the transport's tick intervals on the page clock, how far ahead of the clock
+  each event was scheduled, the steps laid and missed, the output pair's jumps
+  (its dropped buffers), a client's round trips and skew, bars too late and
+  judgements dropped. Export saves them as `jambot-timing-….json`
+  (`timingReport`), the file to attach to a timing issue. They count from the
+  song's start, and a client's clock from its join, and are kept after a stop
+  until the next start. A spread keeps whole-millisecond bins up to a second, so
+  a quantile is good to half a millisecond at any length of run. `timing.e2e.ts`
+  holds the export to what the harness measures of the same page.
 - A timing claim is tested by the work it bounds, never by the wall clock: an
   advance of the transport passes at most `CATCH_UP` bars (a day's stall is some
   30,000), and the ticks after carry on, so no advance outlasts its lookahead on

@@ -44,6 +44,7 @@ function device(at: number, heardOffset: number) {
     },
     frame: () => () => {},
     seed: () => 1,
+    page: now,
   };
   return {
     player: new Player(surroundings),

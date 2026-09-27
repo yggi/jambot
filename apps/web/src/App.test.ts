@@ -91,6 +91,34 @@ describe('the app', () => {
     );
   });
 
+  it('shows the timing panel only with ?timing in the address, and exports it as a file (#27)', async () => {
+    const { unmount } = render(App);
+    expect(screen.queryByRole('region', { name: 'Timing' })).toBeNull();
+    unmount();
+    history.replaceState(null, '', '/?timing');
+    const { createObjectURL, revokeObjectURL } = URL;
+    try {
+      const created = vi.fn<(blob: Blob) => string>(() => 'blob:timing');
+      Object.assign(URL, { createObjectURL: created, revokeObjectURL: () => {} });
+      const clicked = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      render(App);
+      const panel = screen.getByRole('region', { name: 'Timing' });
+      expect(panel).toHaveTextContent('Steps laid, missed');
+      await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+      expect(clicked).toHaveBeenCalledOnce();
+      expect(clicked.mock.contexts[0]).toHaveProperty(
+        'download',
+        expect.stringMatching(/^jambot-timing-.*\.json$/),
+      );
+      const report = JSON.parse(await created.mock.calls[0]![0].text());
+      expect(report).toMatchObject({ report: 'jambot timing', version: 1, mode: 'solo' });
+    } finally {
+      Object.assign(URL, { createObjectURL, revokeObjectURL });
+      vi.restoreAllMocks();
+      history.replaceState(null, '', '/');
+    }
+  });
+
   describe('routing what is played to the keyboard or the pads', () => {
     beforeEach(() => {
       vi.stubGlobal('AudioContext', vi.fn(fakeAudioContext));
