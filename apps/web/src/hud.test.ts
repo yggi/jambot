@@ -117,6 +117,13 @@ describe('the lead and the key ahead', () => {
     expect(hudOf({ heard: 0, bars: moved, track }).bar!.scale).toEqual([0, 2, 4, 5, 7, 9, 11]);
   });
 
+  it('gives the bar’s own tonic, not another', () => {
+    const d = { tonic: 0, mode: 'dorian' } as const;
+    const moved = bars.map((b) => (b.bar >= 16 ? { ...b, plan: { ...b.plan, key: d } } : b));
+    expect(hudOf({ heard: 16 * 16, bars: moved, track }).bar!.tonic).toBe(0);
+    expect(hudOf({ heard: 0, bars: moved, track }).bar!.tonic).toBe(9);
+  });
+
   it('gives the key the band is heading for: the key of the last bar decided', () => {
     const d = { tonic: 2, mode: 'dorian' } as const;
     const moving = bars.map((b) => (b.bar >= 16 ? { ...b, plan: { ...b.plan, key: d } } : b));
@@ -256,6 +263,7 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     barInSection: 1,
     section: 'Groove',
     key: 'A aeolian',
+    tonic: 9,
     scale: [0, 2, 4, 5, 7, 9, 11],
     chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
     energy: 0.6,

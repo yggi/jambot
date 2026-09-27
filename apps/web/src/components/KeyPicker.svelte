@@ -4,8 +4,17 @@
   The tonics are named as the prototype names them.
 -->
 <script lang="ts">
-  import { COMPOSER_MODES, type ComposerMode, INITIAL_KEY, type Key } from '@jambot/engine';
+  import {
+    COMPOSER_MODES,
+    type ComposerMode,
+    INITIAL_KEY,
+    type Key,
+    keyHelix,
+  } from '@jambot/engine';
+  import { positions } from '@jambot/theory';
   import type { Intent } from '../conductor.ts';
+  import { TONIC_NAMES } from '../noteNames.ts';
+  import CircleOfFifths from './CircleOfFifths.svelte';
 
   interface Props {
     /** The key the band is heading for. */
@@ -15,8 +24,8 @@
 
   let { heading, onintent }: Props = $props();
 
-  const TONICS = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
   const key = $derived(heading ?? INITIAL_KEY);
+  const scale = $derived(positions(keyHelix(key)));
 
   const wish = (tonic: number, mode: ComposerMode) =>
     onintent({ kind: 'key', wish: { tonic, mode } });
@@ -26,7 +35,7 @@
   <label>
     Key
     <select value={key.tonic} onchange={(e) => wish(+e.currentTarget.value, key.mode)}>
-      {#each TONICS as name, tonic (tonic)}
+      {#each TONIC_NAMES as name, tonic (tonic)}
         <option value={tonic}>{name}</option>
       {/each}
     </select>
@@ -42,6 +51,9 @@
       {/each}
     </select>
   </label>
+  <div class="wheel">
+    <CircleOfFifths tonic={key.tonic} {scale} mode={key.mode} {onintent} />
+  </div>
 </div>
 
 <style>
@@ -49,6 +61,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 6px 18px;
+    align-items: start;
   }
   label {
     display: grid;
@@ -63,5 +76,8 @@
     border-radius: 8px;
     min-height: 38px;
     padding: 0 8px;
+  }
+  .wheel {
+    grid-column: 1 / -1;
   }
 </style>
