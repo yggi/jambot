@@ -307,6 +307,9 @@ function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
     step,
     note: notes[j]!,
     length: (onsets[i + 1] ?? motif.cycle) - step,
+    // An offered motif's every note carries an accent, 0 included: \`perform\`
+    // plays a note with one on the lead's level, and one without on the
+    // beat's, so leaving out a 0 would change how it plays.
     ...(fit ? {} : { accent: motif.accents?.[i] ?? 0 }),
   }));
   return { written, last: notes.at(-1)! };
