@@ -86,7 +86,14 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   energy or entropy doesn't. The key picker shows the key the band is heading
   for, the last bar decided's (`hud.heading`). A key picked is wished for tonic
   and mode; a preset wishes for its mode only when the wish is in another, so a
-  key picked survives a preset in its mode.
+  key picked survives a preset in its mode. `CircleOfFifths.svelte` draws that
+  same key as a wheel: theory's `fifthsIndex` (built on `generator(7, 12)`) lays
+  the 12 pitch classes out by fifths, and the current scale is a stroke-only
+  figure threaded from the tonic, which alone gets a ring. It is read-only
+  wherever it is given no `mode`/`onintent` (the stage's, from
+  `hud.bar.tonic`/`.scale`); given both, a dot is a button that wishes for its
+  pitch class as tonic, in the mode already playing (the controls' wheel, beside
+  `KeyPicker`'s selects, going through the same `key` intent).
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot
   (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and
   drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a
@@ -164,29 +171,34 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   that was being heard as it was played, kept exact; rounding it is the Muse's
   (#79). `clockOffset` gives that moment on both its paths, so nothing else
   takes the latency off again: in Chromium the heard moment lags `currentTime`
-  by about the output latency.
+  by about the output latency. It is the device's one heard clock: MIDI out,
+  capture, the HUD, a client's ear (`Output.heard`) and a session all read it,
+  and `bandOutput` reads the clocks for it once a tick.
 - Host and client mode ([brief](briefs/host-mode.md)): the pure parts are in
   `packages/session`, the app's in `apps/web/src/session/` (a `Lobby`,
   `HostSession`, `ClientSession`) and the player's `mode`. A client runs
   `transportOver(followSource)` in the host's time and plays each event `skew`
-  earlier on its own clock; the skew is the host's heard moment less its own
-  (`heardNow`), so output latency needs no term of its own. In a session a
-  note's source is a player's id and the instrument (`playerSource`), never a
-  name; screens read it by name through `sourceName` and the players' names the
-  host sends with the Muse. An output's clock pairing steps while it starts, so
-  `heardNow` is null for its first 0.2 s, and `hostClock` drops a ping that came
-  back before it was sent. To try it, open the app in two windows of one
-  browser, host in one and join in the other; `session.e2e.ts` measures the two.
-  It holds one page's audio (`holdAudio`, a `suspend` and `resume`) for 40 ms, a
-  jump of some 30 ms; holds of 20 ms or less jump the pairing anywhere from −10
-  to +11 ms, as the output settles again. `heard` reads when a note sounded
-  through the pairing sampled as it sounded (a median of five, as a single
-  reading can blip), and `clockJumps` finds each jump of a page's clock, so a
-  check can bound the moments after a jump by the jump, on any machine, rather
-  than count notes out. A clock's discontinuity is a jump, so a step stays the
-  grid's. Across machines, run `pnpm lobby` on one and give its `ws://` address
-  as the lobby server on each; every machine loads the app from its own
-  `localhost`, where Web MIDI works without HTTPS.
+  earlier on its own clock; the skew is the host's heard moment less its own, so
+  output latency needs no term of its own. It is three pairs of clocks composed
+  (`skewOf`): pings are stamped with the page clocks, which never jump, and each
+  side adds its output's offset from its page clock, which follows a dropped
+  buffer within three ticks. The player reads the skew every tick while
+  following. In a session a note's source is a player's id and the instrument
+  (`playerSource`), never a name; screens read it by name through `sourceName`
+  and the players' names the host sends with the Muse. An output's clock pairing
+  steps while it starts, so `clockOffset` reads no pairing for its first 0.2 s
+  (`PAIRED_AFTER`). To try it, open the app in two windows of one browser, host
+  in one and join in the other; `session.e2e.ts` measures the two. It holds one
+  page's audio (`holdAudio`, a `suspend` and `resume`) for 40 ms, a jump of some
+  30 ms; holds of 20 ms or less jump the pairing anywhere from −10 to +11 ms, as
+  the output settles again. `heard` reads when a note sounded through the
+  pairing sampled as it sounded (a median of five, as a single reading can
+  blip), and `clockJumps` finds each jump of a page's clock, so a check can
+  bound the moments after a jump by the jump, on any machine, rather than count
+  notes out. A clock's discontinuity is a jump, so a step stays the grid's.
+  Across machines, run `pnpm lobby` on one and give its `ws://` address as the
+  lobby server on each; every machine loads the app from its own `localhost`,
+  where Web MIDI works without HTTPS.
 - A test of anything that reads a clock runs it on `simulatedDevice`
   (`packages/session/src/faults.ts`, #27): real time is the test's, and each
   fault is named, else off: drift, dropped buffers (the output's clock stands
@@ -198,8 +210,8 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   promises, and a test shows its checker firing. Measured here in headless
   Chromium, the pairing is within about 0.4 ms but a busy machine blips a
   reading by up to 4 ms, which the next takes back; a dropped buffer jumps it
-  for good. Where a component doesn't keep its promise yet, the scene is kept as
-  a known break, a test that finds it (`KNOWN_BREAKS`).
+  for good. Where a component doesn't keep its promise, the scene is kept as a
+  known break, a test that finds it, until it does.
 - The web tests resolve `ws` to its Node build (`apps/web/vitest.config.ts`):
   resolved for the browser it is a stub, and `websocket.test.ts` runs the real
   lobby server, in Node's environment.

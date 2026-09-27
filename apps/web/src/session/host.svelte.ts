@@ -5,7 +5,8 @@
  * with a name, and welcomes it with where the song stands: the song, the
  * bars composed and not yet played, the bars ahead and the Muse. From then
  * on it tells every client what the player does (`Hosting`), answers each
- * ping with the moment its output is heard, and passes what clients judged
+ * ping with its page clock and its output's offset from it (`DeviceClocks`),
+ * and passes what clients judged
  * to the player's Muse. A client silent for `SILENT` seconds is gone.
  */
 
@@ -21,6 +22,7 @@ import {
   playerSource,
 } from '@jambot/session';
 import type { Hosting, Player } from '../player.svelte.ts';
+import type { DeviceClocks } from './clocks.ts';
 import type { HostLink, Lobby } from './lobby.ts';
 
 /** How long, in seconds, a client may be silent before it is taken to have gone. */
@@ -39,7 +41,7 @@ export class HostSession {
   ended: string | null = $state(null);
 
   #player: Player;
-  #heardNow: () => number | null;
+  #clocks: DeviceClocks;
   #wallNow: () => number;
   #link: HostLink | null = null;
   /** When each client was last heard, by its id. */
@@ -49,16 +51,16 @@ export class HostSession {
   #sweep: ReturnType<typeof setInterval> | null = null;
 
   /**
-   * `heardNow` is the moment the output is heard now, on its clock, which
-   * clients set their clocks by; `wallNow`, in seconds, times their silence.
+   * `clocks` are what clients set their clocks by; `wallNow`, in seconds,
+   * times their silence.
    */
   constructor(
     player: Player,
-    heardNow: () => number | null,
+    clocks: DeviceClocks,
     wallNow: () => number = () => performance.now() / 1000,
   ) {
     this.#player = player;
-    this.#heardNow = heardNow;
+    this.#clocks = clocks;
     this.#wallNow = wallNow;
   }
 
@@ -139,9 +141,8 @@ export class HostSession {
     this.#lastHeard[from] = this.#wallNow();
     switch (message.kind) {
       case 'ping': {
-        // Unanswered until the output's clock can say what it is hearing.
-        const host = this.#heardNow();
-        if (host !== null) this.#send({ kind: 'pong', sent: message.sent, host }, from);
+        const heard = this.#clocks.heardOffset();
+        this.#send({ kind: 'pong', sent: message.sent, host: this.#clocks.page(), heard }, from);
         return;
       }
       case 'judged': {

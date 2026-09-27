@@ -1,4 +1,5 @@
 export * from './chords.ts';
+export * from './circle.ts';
 export * from './even.ts';
 export * from './helix.ts';
 export * from './intervals.ts';

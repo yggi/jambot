@@ -210,33 +210,37 @@ every meter; a pulse rate is derived for display. Source: #98. Status: measured
 rate with a unit). Lands in: #63; #27.
 
 **T8. Once its clock is trusted, a client sounds each moment within its bound of
-the host, half its best round trip give or take the pairing's jitter, and
-follows a jump of either clock within two pings.** Witness: `hostClock`, which
-trusts the ping of least delay, slews drift, and takes two pings whose ranges
-miss the trusted one's by more than 3 ms (`CLOCK.jumped`) for a jump.
-Counterexample: a jump no two pings tell apart: one no wider than their ranges
-and those 3 ms, which is slewed at 2 ms a second (4.5 ms on a quick link; a
-buffer over 5 ms legs held up to 20 ms, out for 6 to 7 s), or one hidden by a
-ping answered partway into a drop, which agrees with the offsets on either side.
-The pairing's jitter was put at ±2.4 ms on every reading; measured in headless
-Chromium it is within about 0.4 ms, with blips of up to 4 ms that the next
-reading takes back, and a uniform 2.4 ms would make the 3 ms rule take jitter
-for jumps. Test: `faults.test.ts` (`packages/session`), every fault of a clock
-pair against `hostClock`, and the known breaks as tests that find them; the same
-promise in Chromium is `session.e2e.ts`'s, through a 40 ms hold of one page's
-audio. Source: #27, #90. Status: measured (each fault alone, a buffer on a quick
-link); measured, failing (a jump inside the jump rule, a ping answered
-mid-drop). Lands in: #27, one estimator for every clock pair.
+the host, half its best round trip give or take each output pair's bound, and
+follows a jump of either device's output: its own within three ticks, the host's
+with the next answer after.** Witness: three pairs of clocks, one estimator
+(`clockPair`, `clock.ts`): each device's output against its page clock
+(`outputClock`), read from the platform's pairing every tick to half a
+millisecond, and the host's page clock against the client's (`hostClock`), read
+from pings stamped with the page clocks, which never jump; the client plays by
+the three composed (`skewOf`). Counterexample: a jump an output pair can't tell
+from drift, one inside two of its bounds and its 1 ms (`OUTPUT.jumped`), which
+it slews at a quarter of a millisecond a tick; and three blips of the pairing in
+a row that agree. When the pings themselves were stamped with the heard moments,
+a jump no wider than their ranges was slewed (a buffer over 5 ms legs held up to
+20 ms left a client 10 ms out for 6 to 7 s), and a ping answered partway into a
+drop hid one: the pings now never read a jump, and neither does. The pairing's
+jitter was put at ±2.4 ms on every reading; measured in headless Chromium it is
+within about 0.4 ms, with blips of up to 4 ms that the next reading takes back.
+Test: `faults.test.ts` (`packages/session`), every fault of a client's clock,
+alone and at once, each promise's checker shown firing on an output pair that
+only slews, one off partway, and a network that plays by its latest ping;
+`apps/web/src/session/session.test.ts`, a client following its own output at the
+next tick and its host's at the next answer; and in Chromium, `session.e2e.ts`,
+through a 40 ms hold of one page's audio. Source: #27, #90. Status: measured.
 
-**T9. MIDI out and capture follow a dropped buffer within two updates.**
-Witness: `clockOffset`, the gap between the output's clock and the page's, from
-the pairing or, where the platform has none, from `currentTime` less the
-latency, a render quantum coarser. Counterexample: its smoothing, nine parts old
-to one fresh, which takes some 23 updates to come within a millisecond of a
-jump. Test: `clock-offset.test.ts`, "does not follow a dropped buffer within two
-ticks yet, and is out for some 23 (T9)". Source: #27. Status: measured (drift,
-jitter, blips, the quantum on the fallback); measured, failing (a dropped
-buffer). Lands in: #27, one estimator for every clock pair.
+**T9. MIDI out and capture follow a dropped buffer within three readings.**
+Witness: `clockOffset`, the device's output pair (`outputClock`), read once a
+tick from the pairing or, where the platform has none, from `currentTime` less
+the latency, a render quantum coarser, and never the two mixed. Counterexample:
+the smoothing it replaced, nine parts old to one fresh, which took some 23
+updates to come within a millisecond of a jump. Test: `clock-offset.test.ts`,
+"follows a dropped buffer within three readings, again and again (T9)". Source:
+#27. Status: measured.
 
 **T10. The song's clock is its meter's helix on the steps: the bar is a turn,
 the step in the bar a position, and the beat a degree.** Witness: the helix's

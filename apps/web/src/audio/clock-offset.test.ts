@@ -1,62 +1,71 @@
-import { type DeviceFaults, simulatedDevice } from '@jambot/session';
+import { type DeviceFaults, OUTPUT, simulatedDevice } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
-import { PAIRED_AFTER, clockOffset, heardNow } from './clock-offset.ts';
+import { PAIRED_AFTER, clockOffset } from './clock-offset.ts';
+
+/** A clock whose output time the test moves, and its pairing, where it has one. */
+function clockAt(currentTime: number, pairing?: { contextTime: number; performanceTime: number }) {
+  const clock = {
+    currentTime,
+    latency: 0,
+    ...(pairing && { outputTimestamp: () => clock.pairing }),
+    pairing,
+  };
+  return clock;
+}
 
 describe('clockOffset', () => {
-  it('falls back to now() minus currentTime*1000 when there is no outputTimestamp', () => {
-    const clock = { currentTime: 2 };
-    const offset = clockOffset(clock, () => 3000);
+  it('reads the output clock less its latency where the platform has no pairing', () => {
+    const clock = { currentTime: 2, latency: 0.04 };
+    let now = 3000;
+    const offset = clockOffset(clock, () => now);
     offset.update();
-    // now=3000, currentTime=2s -> offset = 3000 - 2000 = 1000
-    expect(offset.toDeviceMs(5)).toBe(5 * 1000 + 1000);
+    clock.currentTime = 2.025;
+    now = 3025;
+    offset.update();
+    // The moment heard, 1.96 s, is 3000 ms on the page's clock.
+    expect(offset.toDeviceMs(1.96)).toBeCloseTo(3000, 9);
+    expect(offset.heardOffset()).toBeCloseTo(1.96 - 3, 12);
   });
 
-  it('prefers a precise outputTimestamp over the now() fallback', () => {
-    const clock = {
-      currentTime: 2,
-      outputTimestamp: () => ({ contextTime: 2, performanceTime: 2500 }),
-    };
+  it("reads the platform's pairing where there is one, and never the clock less its latency", () => {
+    const clock = clockAt(2, { contextTime: 1.965, performanceTime: 2500 });
     const offset = clockOffset(clock, () => 999999);
     offset.update();
-    // offset = 2500 - 2*1000 = 500, ignoring the fallback's now()
-    expect(offset.toDeviceMs(0)).toBe(500);
-  });
-
-  it('ignores an outputTimestamp that is not yet valid (zero or negative)', () => {
-    const clock = {
-      currentTime: 2,
-      outputTimestamp: () => ({ contextTime: 0, performanceTime: 0 }),
-    };
-    const offset = clockOffset(clock, () => 3000);
+    clock.pairing = { contextTime: 1.99, performanceTime: 2525 };
     offset.update();
-    expect(offset.toDeviceMs(0)).toBe(1000);
+    expect(offset.toDeviceMs(1.965)).toBeCloseTo(2500, 9);
   });
 
-  it('smooths across updates, nine parts old to one part fresh', () => {
-    let now = 1000;
-    const clock = { currentTime: 0 };
-    const offset = clockOffset(clock, () => now);
-    offset.update(); // offset = 1000
-    now = 2000;
-    offset.update(); // offset = 1000*0.9 + 2000*0.1 = 1100
-    expect(offset.toDeviceMs(0)).toBe(1100);
+  it('reads no pairing before the output has run for PAIRED_AFTER, and none twice', () => {
+    const clock = clockAt(0.1, { contextTime: PAIRED_AFTER - 0.01, performanceTime: 5000 });
+    const offset = clockOffset(clock, () => 5000);
+    offset.update();
+    offset.update();
+    expect(offset.heardOffset()).toBeNull();
+    clock.pairing = { contextTime: 0.3, performanceTime: 5100 };
+    offset.update();
+    offset.update();
+    // One reading, read twice, is one reading: not yet trusted.
+    expect(offset.heardOffset()).toBeNull();
+    clock.pairing = { contextTime: 0.325, performanceTime: 5125 };
+    offset.update();
+    expect(offset.heardOffset()).toBeCloseTo(0.3 - 5.1, 12);
   });
 
-  it('samples fresh when read before any update', () => {
-    const clock = { currentTime: 4 };
-    const offset = clockOffset(clock, () => 4500);
-    expect(offset.toDeviceMs(0)).toBe(500);
+  it('reads a single pairing, or the clock, before it has an estimate', () => {
+    expect(clockOffset({ currentTime: 4 }, () => 4500).toDeviceMs(0)).toBe(500);
+    const early = clockAt(1, { contextTime: 0.05, performanceTime: 2000 });
+    expect(clockOffset(early, () => 0).toDeviceMs(0.05)).toBeCloseTo(2000, 9);
   });
 
   it('inverts toDeviceMs, for a note timestamped on performance.now()', () => {
     const clock = { currentTime: 2 };
     const offset = clockOffset(clock, () => 3000);
-    offset.update(); // offset = 1000
     expect(offset.fromDeviceMs(4500)).toBe(3.5);
     expect(offset.fromDeviceMs(offset.toDeviceMs(7))).toBeCloseTo(7, 9);
   });
 
-  it('maps to the moment being heard on both paths: the fallback takes the output latency off currentTime', () => {
+  it('reads the moment heard now on both paths: the fallback takes the output latency off currentTime', () => {
     // Chromium, measured: the time getOutputTimestamp says is heard lags
     // currentTime by about the output latency (35 ms against 32).
     const precise = clockOffset(
@@ -68,35 +77,9 @@ describe('clockOffset', () => {
       () => 1620,
     );
     const fallback = clockOffset({ currentTime: 1.512, latency: 0.032 }, () => 1620);
+    expect(precise.heard()).toBeCloseTo(1.48, 9);
+    expect(fallback.heard()).toBeCloseTo(1.48, 9);
     expect(precise.fromDeviceMs(1620)).toBeCloseTo(1.48, 9);
-    expect(fallback.fromDeviceMs(1620)).toBeCloseTo(1.48, 9);
-  });
-});
-
-describe('heardNow', () => {
-  it('reads the moment heard through the pairing, from a fresh sample', () => {
-    const clock = {
-      currentTime: 2.05,
-      latency: 0.03,
-      outputTimestamp: () => ({ contextTime: 2, performanceTime: 7000 }),
-    };
-    expect(heardNow(clock, () => 7010)).toBeCloseTo(2.01, 12);
-  });
-
-  it('is null while a platform that pairs has not paired, or its output has only just started', () => {
-    for (const [contextTime, performanceTime] of [
-      [0, 0],
-      [0, 5000],
-      [PAIRED_AFTER - 0.01, 5000],
-    ] as const) {
-      const clock = { currentTime: 1, outputTimestamp: () => ({ contextTime, performanceTime }) };
-      expect(heardNow(clock, () => 5000)).toBeNull();
-    }
-    expect(heardNow({ currentTime: 1, outputTimestamp: () => undefined })).toBeNull();
-  });
-
-  it('falls back to the clock less its latency where the platform never pairs', () => {
-    expect(heardNow({ currentTime: 3, latency: 0.04 })).toBeCloseTo(2.96, 12);
   });
 });
 
@@ -195,47 +178,54 @@ describe('clockOffset under every fault of its clocks (#27, T9)', () => {
     expect(offsetBreaks({ quantum: QUANTUM }, { paired: false }).length).toBeGreaterThan(0);
   });
 
-  // A dropped buffer jumps the pairing by the buffer at once, and nine
-  // parts in ten of the old offset are kept on every update: the offset
-  // takes some 23 updates to come within a millisecond, and MIDI out and
-  // capture are that far out meanwhile. A clock that follows a jump would
-  // be back within two (#27: one estimator for every clock pair).
-  it('does not follow a dropped buffer within two ticks yet, and is out for some 23 (T9)', () => {
-    const breaks = offsetBreaks({ drops: [{ at: 6, lost: BUFFER }] }, { settle: 2 * 0.025 });
-    expect(breaks.length).toBeGreaterThan(15);
-    expect(breaks.length).toBeLessThan(25);
+  // A dropped buffer jumps the pairing by the buffer at once. The output
+  // pair takes it for a jump on its third reading after, and follows it:
+  // a note is timestamped out for two ticks at most.
+  it('follows a dropped buffer within three readings, again and again (T9)', () => {
+    const settle = (OUTPUT.confirm - 1) * 0.025;
+    expect(offsetBreaks({ drops: [{ at: 6, lost: BUFFER }] }, { settle })).toEqual([]);
+    const drops = Array.from({ length: 6 }, (_, i) => ({ at: 2 + i * 1.7, lost: BUFFER }));
+    expect(offsetBreaks({ drops }, { settle })).toEqual([]);
+    expect(offsetBreaks({ drops }, { settle: settle - 0.025 }).length).toBeGreaterThan(0);
   });
 });
 
-describe('heardNow under every fault of its clocks (#27)', () => {
-  // Where the platform pairs, `heardNow` reads one sample of the pairing,
-  // which carries no quantum; where it doesn't, the clock less its latency,
-  // which carries one.
+describe('the moment heard, under every fault of its clocks (#27)', () => {
+  // Where the platform pairs, the moment heard is read through the output
+  // pair's estimate, within the pairing's jitter, blips dropped; where it
+  // doesn't, through the clock less its latency, which carries a quantum.
   const scenes: Record<string, [DeviceFaults, boolean, number]> = {
     'no fault': [{}, true, 0],
-    'drift, 100 ppm': [{ drift: 100 }, true, 0],
+    'drift, 100 ppm': [{ drift: 100 }, true, 0.0001],
     'a dropped buffer': [{ drops: [{ at: 6, lost: BUFFER }] }, true, 0],
     "the pairing's jitter": [{ pairingJitter: PAIRING_JITTER }, true, PAIRING_JITTER],
     "the pairing's blips": [
       { pairingJitter: PAIRING_JITTER, pairingBlips: PAIRING_BLIPS },
       true,
-      PAIRING_JITTER + PAIRING_BLIPS.size,
+      PAIRING_JITTER + OUTPUT.slew,
     ],
     'the render quantum, with no pairing': [{ quantum: QUANTUM }, false, QUANTUM],
     'a dropped buffer, with no pairing': [{ drops: [{ at: 6, lost: BUFFER }] }, false, 0],
   };
-  /** How far, in seconds, `heardNow` reads from the moment heard, at worst, every tick. */
+  /** How far, in seconds, the moment heard is read off, at worst, every tick but the three after a drop. */
   const worst = (faults: DeviceFaults, paired: boolean) => {
     const d = simulatedDevice({ latency: 0.03, pageOrigin: -12, seed: 3, ...faults });
+    const drops = faults.drops ?? [];
     let t = 0;
     let most = 0;
     const { clock, now } = d.view(() => t, { paired });
-    for (t = 0.3; t < 12; t += 0.025)
-      most = Math.max(most, Math.abs(heardNow(clock, now)! - d.heard(t)));
+    const offset = clockOffset(clock, now);
+    for (t = 0.3; t < 12; t += 0.025) {
+      offset.update();
+      if (drops.some((drop) => t >= drop.at && t < drop.at + drop.lost + OUTPUT.confirm * 0.025))
+        continue;
+      if (offset.heardOffset() !== null)
+        most = Math.max(most, Math.abs(offset.heard() - d.heard(t)));
+    }
     return most;
   };
   for (const [name, [faults, paired, bound]] of Object.entries(scenes))
-    it(`reads the moment heard from one sample, off by no more than that sample: ${name}`, () => {
+    it(`reads the moment heard within the reading's own error: ${name}`, () => {
       expect(worst(faults, paired)).toBeLessThanOrEqual(bound + 1e-9);
     });
 
@@ -244,12 +234,15 @@ describe('heardNow under every fault of its clocks (#27)', () => {
     expect(worst({ quantum: QUANTUM }, true)).toBeLessThan(1e-9);
   });
 
-  it('is null until the output has run for PAIRED_AFTER, however late it starts', () => {
+  it('has no offset until the output has run for PAIRED_AFTER, however late it starts', () => {
     const d = simulatedDevice({ started: 1 });
     let t = 0;
     const { clock, now } = d.view(() => t);
-    for (t = 0; t < 2; t += 0.025)
-      if (Math.abs(t - 1 - PAIRED_AFTER) > 0.01)
-        expect(heardNow(clock, now) === null).toBe(t < 1 + PAIRED_AFTER);
+    const offset = clockOffset(clock, now);
+    for (t = 0; t < 2; t += 0.025) {
+      offset.update();
+      if (Math.abs(t - 1 - PAIRED_AFTER) > 0.06)
+        expect(offset.heardOffset() === null).toBe(t < 1 + PAIRED_AFTER);
+    }
   });
 });

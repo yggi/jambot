@@ -153,9 +153,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 1, as a minute of the band and two judgements show them. */
+/** The shapes of version 2, as a minute of the band and two judgements show them. */
 const SHAPES = {
-  protocol: 1,
+  protocol: 2,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
