@@ -177,8 +177,9 @@ The browser app runs fully on its own: it composes and plays through the
 built-in synth, Web MIDI, or both, with the note-off bookkeeping below for
 a channel pads and stabs share (#24, #5). It also listens: Web MIDI in,
 the on-screen keys and the computer keys all reach a common note capture,
-quantised to the grid and kept for the Muse (#25). The Muse's judgement of
-what it captured is still only in the prototype (#2). At an event it
+which places each note on the grid where it was heard, through the steps
+as the transport laid them, and keeps it for the Muse (#25). The Muse's
+judgement of what it captured is still only in the prototype (#79). At an event it
 connects to the root node (#20).
 
 ### Root node

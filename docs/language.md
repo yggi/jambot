@@ -139,7 +139,11 @@ the four tests under "position and clock time" that cite (T4, Q1c):
 tempo glides from rest between the axis ends and every preset tempo at every
 length, 60 chains of retargets that carry their slope, brake or arrive
 early, the chain through swing, and a reading of clock time that runs
-backwards. In the built app, `band.e2e.ts`, "swings a swung preset into
+backwards. `transport.test.ts`, "reads every onset back as its written
+position, through the tempo and swing it was laid with (T4, Q1c)": every
+onset of a run through four glides of tempo and swing, where the track
+inverted from the song's start misses by more than a bar (#78). In the
+built app, `band.e2e.ts`, "swings a swung preset into
 triplet 8ths (T4)": every onset in Chromium lies on a third of a step, the
 triplet offbeat among them. For dynamics and articulation,
 `perform.test.ts`, whose tests cite T4: every note the band writes is on the

@@ -59,7 +59,7 @@
 
   /**
    * A note source for one instrument: `routeNote` holds it, captures it for
-   * the Muse (#2) and passes it thru, and it plays at once, along with the
+   * the Muse (#79) and passes it thru, and it plays at once, along with the
    * band, on the part it belongs to.
    */
   function routerFor(part: AlongPart, held: SvelteSet<number>) {
@@ -67,6 +67,7 @@
       routeNote(note, velocity, on, source, {
         held,
         humanNoteOn: (n, v, s, seconds) => player.humanNoteOn(part, n, v, s, seconds),
+        humanNoteOff: (n, s, seconds) => player.humanNoteOff(part, n, s, seconds),
         playing: () => player.playing,
         toOutputSeconds: (ms) => clockOf().offset.fromDeviceMs(ms),
         thru: () => midiSettings.thru,

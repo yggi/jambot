@@ -93,7 +93,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   what a person plays along with it. Any note played, from a pointer, a
   computer key or MIDI, goes through `App.svelte`'s `onHumanNote`, which
   sounds it at once (`Player.playAlong`) and logs it for the Muse
-  (`Player.humanNoteOn`) alike; `midi/surfaces.ts`'s `partOf` reads a MIDI
+  (`Player.humanNoteOn`, and `humanNoteOff` for its release) alike; `midi/surfaces.ts`'s `partOf` reads a MIDI
   note's channel to tell the pads from the keyboard, channel 10 the drums'
   as the prototype's is.
 - The parts are machines at bar rate over one `BarEnv`, and `BandBar` is
@@ -120,6 +120,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - Swing is a time map, `swingMap(swing)`, with `played` and `written` as
   exact inverses. The transport plays through it, and player input reads
   back through `written`.
+- A moment on the clock reads back onto the grid through the steps the
+  transport laid (`writtenAt`), never through the style track: the track
+  holds only its latest glide per axis, so inverting it from the song's
+  start put a note 18 bars early after two tempo changes (#78). Each
+  `ScheduledStep` carries the swing its beat was held at for this. A played
+  note is placed where it was heard, the output's latency before it
+  arrived, and kept exact; rounding it is the Muse's (#79).
 - In the theory, a set is a `Helix`, `{ cycle, heights }`: the heights of
   degrees 0 to k − 1, with degree 0 wherever it stands. `positions(helix)` is
   the sorted view from the circle. `shift` moves heights (transposition) and
