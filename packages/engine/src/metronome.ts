@@ -2,12 +2,16 @@
  * The metronome: an independent click track, not the song's own clock.
  *
  * The transport's bar is always 16 steps in 4/4 (`transport.ts`); a
- * metronome that shows 3/4, 6/8 or 12/8 needs a bar of its own
- * (`@jambot/theory`'s `meterWeights`). Its pulse is read live, as `env.bpm`,
- * the way the transport reads the style track: a pulse lasts 60 / bpm
- * seconds, split evenly into its meter's subdivisions. It is read fresh
- * each tick rather than glided through time, since a click track needs no
- * composed line's swing or legato to survive a tempo change.
+ * metronome that shows 3/4, 6/8, 12/8 or an additive meter like 5/8 needs a
+ * bar of its own (`@jambot/theory`'s `meterWeights`, `pulseHelix`). Every
+ * subdivision of that bar lasts the same fraction of a pulse's own length,
+ * `env.bpm` read live, the way the transport reads the style track: a
+ * pulse lasts 60 / bpm seconds, and a bar's worth of pulses divided by its
+ * subdivisions gives each one's length, whether the meter splits them
+ * evenly or not (5/8's 3+2 plays unequal pulses from equal subdivisions).
+ * It is read fresh each tick rather than glided through time, since a
+ * click track needs no composed line's swing or legato to survive a
+ * tempo change.
  *
  * Time is absolute here too: on each tick every subdivision that starts
  * before now plus the lookahead is scheduled, and one the clock has
@@ -15,7 +19,7 @@
  */
 
 import type { Machine } from './machine.ts';
-import { type Meter, type Weight, meterWeights } from '@jambot/theory';
+import { type Meter, type Weight, degreeBelow, meterWeights, pulseHelix } from '@jambot/theory';
 
 export interface MetronomeEnv {
   /** The clock time position 0 starts at, in seconds. */
@@ -53,9 +57,9 @@ export interface MetronomeCarried {
   readonly head: { readonly position: number; readonly seconds: number };
 }
 
-/** How long one subdivision lasts, in seconds, at a pulse tempo. */
-export function subdivisionSeconds(bpm: number, subdivision: number): number {
-  return 60 / bpm / subdivision;
+/** How long one subdivision lasts, in seconds, at a pulse tempo: a bar's pulses over its subdivisions. */
+export function subdivisionSeconds(bpm: number, meter: Meter): number {
+  return (60 / bpm) * (meter.pulses / meter.subdivisions);
 }
 
 export const metronome: Machine<
@@ -66,10 +70,10 @@ export const metronome: Machine<
 > = {
   initial: null,
   advance(env, carried, { now, until }) {
-    const { pulses, subdivision } = env.meter;
-    const cycle = pulses * subdivision;
+    const cycle = env.meter.subdivisions;
     const weights = meterWeights(env.meter);
-    const length = subdivisionSeconds(env.bpm, subdivision);
+    const pulses = pulseHelix(env.meter);
+    const length = subdivisionSeconds(env.bpm, env.meter);
     let head = carried?.head ?? { position: 0, seconds: env.start };
     const clicks: Click[] = [];
     let missed = 0;
@@ -83,7 +87,7 @@ export const metronome: Machine<
       const inBar = head.position % cycle;
       clicks.push({
         position: inBar,
-        pulse: Math.floor(inBar / subdivision),
+        pulse: degreeBelow(pulses, inBar),
         weight: weights[inBar]!,
         seconds: head.seconds,
       });

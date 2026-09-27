@@ -41,7 +41,7 @@ describe('the metronome', () => {
     const { clicks } = run(e, ticks(0.9, 400));
     expect(clicks.map((c) => c.position)).toEqual(clicks.map((_, i) => i % 8));
     expect(clicks[0]!.seconds).toBe(1);
-    const length = subdivisionSeconds(120, 2);
+    const length = subdivisionSeconds(120, METERS['4/4']);
     clicks
       .slice(1)
       .forEach((c, i) => expect(c.seconds).toBeCloseTo(clicks[i]!.seconds + length, 9));
@@ -80,7 +80,7 @@ describe('the metronome', () => {
 
   it('never waits: after a stall it drops what it missed and keeps the grid where it was', () => {
     const e = env();
-    const length = subdivisionSeconds(e.bpm, e.meter.subdivision);
+    const length = subdivisionSeconds(e.bpm, e.meter);
     const onGrid = (seconds: number) =>
       Math.abs(Math.round((seconds - e.start) / length) - (seconds - e.start) / length) < 1e-9;
     const resumed = 0.9 + 100 * 0.025 + 3;
@@ -101,7 +101,7 @@ describe('the metronome', () => {
     // 120 bpm, 4/4: 4 subdivisions a second.
     expect(back.output.missed).toBeGreaterThan(4 * 3600 * 3.9);
     expect(back.output.clicks.length).toBeLessThan(4);
-    const length = subdivisionSeconds(e.bpm, e.meter.subdivision);
+    const length = subdivisionSeconds(e.bpm, e.meter);
     for (const c of back.output.clicks) expect(c.seconds + length).toBeGreaterThan(now);
   });
 
@@ -117,6 +117,25 @@ describe('the metronome', () => {
     // again as slowly.
     expect(barLength(METERS['3/4'])).toBeCloseTo(1.5, 9);
     expect(barLength(METERS['6/8'])).toBeCloseTo(1, 9);
+  });
+
+  it('plays an additive meter’s pulses at unequal lengths from equal subdivisions: 5/8’s 3+2', () => {
+    const { clicks } = run(env(METERS['5/8'], 120), ticks(0.9, 60));
+    const first5 = clicks.slice(0, 5);
+    expect(first5.map((c) => c.pulse)).toEqual([0, 0, 0, 1, 1]);
+    expect(first5.map((c) => c.weight)).toEqual([
+      'downbeat',
+      'subdivision',
+      'subdivision',
+      'pulse',
+      'subdivision',
+    ]);
+    const subdivision = subdivisionSeconds(120, METERS['5/8']);
+    const firstPulse = first5[3]!.seconds - first5[0]!.seconds; // 3 subdivisions
+    const secondPulse = first5[0]!.seconds + 5 * subdivision - first5[3]!.seconds; // 2, to the next downbeat
+    expect(firstPulse).toBeCloseTo(3 * subdivision, 9);
+    expect(secondPulse).toBeCloseTo(2 * subdivision, 9);
+    expect(firstPulse).not.toBeCloseTo(secondPulse, 3);
   });
 
   it('keeps the machine laws, with bpm and meter changing (F1)', () => {

@@ -1,37 +1,48 @@
 /**
  * Meter: how a bar's pulses group its subdivisions, as a helix.
  *
- * A meter's pulses are `even(pulses, pulses, 0)` (every pulse, in order)
- * composed with `even(pulses, pulses * subdivision)` (the pulses spread
- * evenly over the bar's subdivisions): the same composition that nests the
- * backbeat over a bar's steps (`helix.test.ts`, "the beats on the steps of
- * a bar"). A simple meter splits each pulse into 2 subdivisions, a compound
- * one into 3, so 3/4 and 6/8 sound different at the same pulse tempo even
- * though a bar of either holds six subdivisions.
+ * A meter is `pulses` felt in a bar of `subdivisions` (its numerator, over
+ * its own denominator: 6 for 6/8, 12 for 12/8, 5 for 5/8). Where the
+ * pulses fall is `even(pulses, subdivisions, 0)`: the same primitive that
+ * places the backbeat over a bar's steps and the diatonic set over the
+ * chromatic circle (`helix.test.ts`, "the beats on the steps of a bar").
+ *
+ * One formula covers every case, not two: a *simple* meter (3/4, 4/4)
+ * divides evenly into 2 subdivisions a pulse, a *compound* one (6/8, 12/8)
+ * into 3, and an *additive* one, whose pulses aren't equal (5/8 as 3+2,
+ * 7/8 as 3+2+2), is what `even` gives when `pulses` doesn't divide
+ * `subdivisions` at all — the same maximally even spread that gives the
+ * bossa clave its shape (`rhythms.ts`). So 3/4 and 6/8 sound different at
+ * the same pulse tempo even though a bar of either holds six subdivisions,
+ * and a bar of 5/8 is felt long-short without being told which pulse is
+ * which: `even` places it.
  */
 
 import { even } from './even.ts';
-import { compose, type Helix } from './helix.ts';
+import { type Helix } from './helix.ts';
 
-export type MeterName = '3/4' | '4/4' | '6/8' | '12/8';
+export type MeterName = '3/4' | '4/4' | '5/8' | '6/8' | '7/8' | '9/8' | '12/8';
 
 export interface Meter {
   /** Pulses (beats) in a bar: what a steps-in-bar counter counts. */
   readonly pulses: number;
-  /** Subdivisions per pulse: 2 for a simple meter, 3 for a compound one. */
-  readonly subdivision: number;
+  /** The bar's numerator, over its own denominator: 8 for 6/8, 4 for 3/4. */
+  readonly subdivisions: number;
 }
 
 export const METERS: Record<MeterName, Meter> = {
-  '3/4': { pulses: 3, subdivision: 2 },
-  '4/4': { pulses: 4, subdivision: 2 },
-  '6/8': { pulses: 2, subdivision: 3 },
-  '12/8': { pulses: 4, subdivision: 3 },
+  '3/4': { pulses: 3, subdivisions: 6 },
+  '4/4': { pulses: 4, subdivisions: 8 },
+  '5/8': { pulses: 2, subdivisions: 5 }, // 3+2
+  '6/8': { pulses: 2, subdivisions: 6 },
+  '7/8': { pulses: 3, subdivisions: 7 }, // 3+2+2
+  '9/8': { pulses: 3, subdivisions: 9 },
+  '12/8': { pulses: 4, subdivisions: 12 },
 };
 
 /** Where a meter's pulses fall among its bar's subdivisions. */
-export function pulseHelix({ pulses, subdivision }: Meter): Helix {
-  return compose(even(pulses, pulses, 0), even(pulses, pulses * subdivision));
+export function pulseHelix({ pulses, subdivisions }: Meter): Helix {
+  return even(pulses, subdivisions, 0);
 }
 
 /** A subdivision's weight: the bar's first pulse, another pulse, or between them. */
@@ -40,7 +51,18 @@ export type Weight = 'downbeat' | 'pulse' | 'subdivision';
 /** Every subdivision of a meter's bar, in order, and its weight. */
 export function meterWeights(meter: Meter): Weight[] {
   const pulses = new Set(pulseHelix(meter).heights);
-  return Array.from({ length: meter.pulses * meter.subdivision }, (_, position) =>
+  return Array.from({ length: meter.subdivisions }, (_, position) =>
     position === 0 ? 'downbeat' : pulses.has(position) ? 'pulse' : 'subdivision',
   );
+}
+
+/**
+ * How many subdivisions each of a meter's pulses spans, in order: `[2, 2,
+ * 2]` for 4/4, `[3, 3]` for 6/8, `[3, 2]` for 5/8's 3+2, `[3, 2, 2]` for
+ * 7/8. A simple or compound meter's are all equal; an additive one's
+ * aren't, and this is where that shows.
+ */
+export function pulseLengths(meter: Meter): number[] {
+  const heights = pulseHelix(meter).heights;
+  return heights.map((h, i) => (i + 1 < heights.length ? heights[i + 1]! : meter.subdivisions) - h);
 }
