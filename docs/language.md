@@ -642,13 +642,15 @@ notes and leaves a rest for the others, so the last notes are `head` under
 `rev`, and need no operator of their own. The origin is the motif's own
 zero, and an anchor, from the level above, pins it to a bar step and a key
 degree, as `tempo.ts`'s anchor pins a step to a second. `accents`, left
-out when there are none, gives each note its velocity less the level the
-motif is played at: the player's level in the bar, which is also the
-reading the Muse's style (#16) needs. An accent moves with its note under
-`late` and `rev`, and `strans` and `mirror` leave it. Played, a motif note
-is its level plus its accent. The Muse's judgement doesn't write accents
-or carry the level yet, and the lead doesn't play them in place of its
-beat accent; both are #79 step 3's.
+out when there are none, gives each note its velocity less its player's
+level in the bar. An accent moves with its note under `late` and `rev`,
+and `strans` and `mirror` leave it. Played, a motif note is the band's
+level for its part and bar plus its accent, never the player's level:
+that is the Muse's style reading (#16), which reaches the band only
+through following, with its bandwidth (A4). The Muse's judgement doesn't
+write accents or carry the player's level yet, and the lead has no level
+of its own (its `perform` gives 100 on the beat and 82 off it); both are
+#79 step 3's.
 Counterexample: something a player plays that no motif gives back. The
 Muse's working track names four (#79, and #7's pressure comment, points 1
 to 4): a blue note, which a whole degree rounds away; a player's accents,
@@ -660,8 +662,8 @@ Test: `motifs.test.ts`, whose tests cite U4: what a motif may be; `head`
 under `rev` is the last notes wherever no note is held over the cycle's
 start; an accent is the same accent wherever `late` and `rev` move its
 note, and one counted from the beat is not; `mirror` reflects an altered
-degree as the key's helix reflects it
-in dorian, its own mirror, only when it turns the accidental over too; and
+degree as the key's helix reflects it in dorian, its own mirror, only
+when it turns the accidental over too; and
 one `b` or `#` reaches every pitch of every key of 12, 17 and 19, but not
 of 22, 31 or 53, whose chromatic step is 3, 2 and 5 steps of the cycle.
 The engine and MIDI stay in 12 (L1), where every pitch is reached.
@@ -673,9 +675,13 @@ released before the next leaves a rest.
 Source: #7 (d), #79, E13, the names round. Status: measured (12, 17, 19);
 measured, failing (22, 31, 53). Decided: #7, on measured options (rests,
 over a note held to the next, whose `head` and `rev` gave the last notes
-in 282 of 768 cases; accents, with #79, counted from the level so that the
-operators keep them); dissolved (altered degrees: U2 already writes `b3`,
-and P5 says what `b` moves by). Lands in: #79 steps 1 and 3, #63.
+in 282 of 768 cases); dissolved (altered degrees: U2 already writes `b3`,
+and P5 says what `b` moves by); #7, ahead of the evidence (accents counted
+from a level, not from the beat: the test shows only that such an accent
+moves with its note, by construction, and whether players' velocities are
+expressive or metric is A5's, open; nothing that plays yet moves a note
+across a beat, E13, so it is the easier choice to reverse). Lands in: #79
+steps 1 and 3, #63.
 
 **U5. The motif operators are the theory's `shift` and `mirror` on pitch
 and on time, named `strans`, `mirror`, `late` and `rev`: every chain of
@@ -745,6 +751,17 @@ inherited (provenance). Lands in: #3, #25, #79.
 **A4. Following the players is a loop with a bandwidth.**
 Source: SDR (clock recovery), the Muse's rate limit. Status: speculative.
 Lands in: #16, #25, #27, Q7a.
+
+**A5. A player's velocities are expressive, not metric: where a note
+falls in the beat explains little of how loud it is played.**
+Witness: none yet.
+Counterexample: played melodies loud on the beat and soft off it, as
+`perform` plays the lead. Then the metric part is performance (T4), and an
+accent is counted from `perform`, not from the player's level (U4).
+Test: open: over performed melodies (POP909's, then the Muse's own
+captures once they are logged), the share of each bar's velocity variance
+that the beat class explains.
+Source: #84, #79. Status: open. Lands in: #3 (which loads POP909), #79.
 
 ### Composition
 
