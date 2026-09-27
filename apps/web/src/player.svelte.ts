@@ -78,8 +78,10 @@ import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
-import { Sounding, type SoundingNotes } from './sounding.ts';
+import { Sounding, type SoundingNotes, memberOf } from './sounding.ts';
 import { startTicker } from './ticker.ts';
+
+const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
 
 /** A part an instrument, not the band, can play along on. */
 export type AlongPart = Extract<Part, 'lead' | 'drums'>;
@@ -198,8 +200,8 @@ export class Player {
   offer: Offer | null = $state.raw(null);
   /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
   dropped: readonly DroppedJudgement[] = $state.raw([]);
-  /** The band's own notes heard sounding right now: the lead's, the drums'. */
-  sounding: SoundingNotes = $state({ lead: [], drums: [] });
+  /** The band's own notes heard sounding right now, one entry per member. */
+  sounding: SoundingNotes = $state(SILENT);
   mode: Mode = $state('solo');
   /** How many of the host's bars, as a client, had not arrived when they were due. */
   lacked = $state(0);
@@ -481,7 +483,7 @@ export class Player {
     }
     this.#output?.silence();
     this.#sounding.clear();
-    this.sounding = { lead: [], drums: [] };
+    this.sounding = SILENT;
   }
 
   get #env(): TransportEnv {
@@ -582,13 +584,12 @@ export class Player {
     const skew = this.skew;
     for (const { event, seconds, duration, sound } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds - skew, duration, sound);
-      if (event.part === 'lead' || event.part === 'drums')
-        this.#sounding.push({
-          part: event.part,
-          note: event.note,
-          seconds: seconds - skew,
-          duration,
-        });
+      this.#sounding.push({
+        member: memberOf(event.part),
+        note: event.note,
+        seconds: seconds - skew,
+        duration,
+      });
     }
     output.tick?.(
       skew === 0

@@ -7,7 +7,7 @@
 <script lang="ts">
   import { type Axis, PRESETS, type StyleTrack } from '@jambot/engine';
   import type { Intent } from '../conductor.ts';
-  import type { StyleView } from '../hud.ts';
+  import { type StyleView, styleStatus } from '../hud.ts';
 
   interface Props {
     track: StyleTrack;
@@ -18,12 +18,7 @@
   let { track, style, onintent }: Props = $props();
 
   const moving = $derived(style.preset !== null && style.glide !== null);
-  const status = $derived.by(() => {
-    const { preset, glide } = style;
-    if (preset === null) return 'Custom style. Pick a preset to glide somewhere named.';
-    if (!glide) return `Playing ${preset}.`;
-    return `Moving from ${glide.from ?? 'Custom'} to ${preset}, bar ${glide.bar} of ${glide.bars}.`;
-  });
+  const status = $derived(styleStatus(style));
 
   const SLIDERS: { axis: Axis; label: string; ends: string[] }[] = [
     { axis: 'swing', label: 'Swing', ends: ['straight', 'shuffled', 'swung'] },
