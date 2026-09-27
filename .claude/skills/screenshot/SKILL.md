@@ -14,9 +14,9 @@ sent. The tool is `tooling/screenshot.ts`; its checks are
 ## 1. The numbers: an experiment writes them
 
 An experiment under `packages/*/experiments/` prints its tables and, given a
-path, writes what a picture needs as JSON: E10, E11 and E12 take
-`[out.json]`. The experiment is committed and cited in the catalogue; the
-page that draws it is not.
+path, writes what a picture needs as JSON: E10, E11 and E12 take `[out.json]`.
+The experiment is committed and cited in the catalogue; the page that draws it
+is not.
 
 ```sh
 S=<your scratchpad>
@@ -25,37 +25,40 @@ node --experimental-strip-types --no-warnings packages/engine/experiments/pad-st
 
 ## 2. The page: one per question, built in the scratchpad
 
-A small script in the scratchpad reads the JSON and writes one HTML page
-per question, with `page(title, body)` from the tool, which frames the body
-with the shared layout and the palette:
+A small script in the scratchpad reads the JSON and writes one HTML page per
+question, with `page(title, body)` from the tool, which frames the body with the
+shared layout and the palette:
 
 ```js
-import { page, inlineModule, shoot } from '/home/user/jambot/tooling/screenshot.ts';
+import {
+  page,
+  inlineModule,
+  shoot,
+} from '/home/user/jambot/tooling/screenshot.ts';
 ```
 
 Run such a script with `node --experimental-strip-types --no-warnings`.
 
 - **Inline SVG, no libraries.** A roll is rects on a step grid, a chart a
   polyline, a tuning a circle of steps. Draw from the JSON, not by hand.
-- **Colour by role, from `PAGE_CSS`.** `--s1`–`--s3` for the options or
-  voices compared (they hold apart for colour-blind readers), `--bad` for
-  what an option loses and `--good` for what holds, each only beside a word
-  or a sign (✗, −, +). Hatch what is lost. The dataviz skill has the method.
-- **A page answers one question.** Its title is the question, its subtitle
-  the experiment, its corpus and its file. The options sit in the same
-  order in every table and panel. The table of costs carries the numbers;
-  the pictures show an example.
-- **Pick the example by a measure**, such as the bar with the most
-  overlaps, and say which bar it is.
+- **Colour by role, from `PAGE_CSS`.** `--s1`–`--s3` for the options or voices
+  compared (they hold apart for colour-blind readers), `--bad` for what an
+  option loses and `--good` for what holds, each only beside a word or a sign
+  (✗, −, +). Hatch what is lost. The dataviz skill has the method.
+- **A page answers one question.** Its title is the question, its subtitle the
+  experiment, its corpus and its file. The options sit in the same order in
+  every table and panel. The table of costs carries the numbers; the pictures
+  show an example.
+- **Pick the example by a measure**, such as the bar with the most overlaps, and
+  say which bar it is.
 
 ### Audio through the app's synth
 
-Where the difference is heard, render it. `inlineModule` returns a
-repository module as JavaScript for a `<script type="module">`, if its
-imports are types only: `apps/web/src/audio/voices.ts` is one. In the page,
-play the notes into an `OfflineAudioContext`, draw what you measure from
-the buffer (an RMS envelope in 20 ms windows), and hand the audio back as
-WAV:
+Where the difference is heard, render it. `inlineModule` returns a repository
+module as JavaScript for a `<script type="module">`, if its imports are types
+only: `apps/web/src/audio/voices.ts` is one. In the page, play the notes into an
+`OfflineAudioContext`, draw what you measure from the buffer (an RMS envelope in
+20 ms windows), and hand the audio back as WAV:
 
 ```js
 page('Pad and stab (g)', body, { wait: true }); // the body is data-wait
@@ -70,37 +73,37 @@ window.__done = true;
 node --experimental-strip-types --no-warnings tooling/screenshot.ts $S/f.html $S/g.html $S/h.html
 ```
 
-Each page becomes `<name>.png` beside it, at twice its CSS pixels, and
-whatever it handed back is written beside it too. Any error on a page, or a
-page that never sets `window.__done`, fails the run.
+Each page becomes `<name>.png` beside it, at twice its CSS pixels, and whatever
+it handed back is written beside it too. Any error on a page, or a page that
+never sets `window.__done`, fails the run.
 
 ## 4. Look before sending
 
 Read every PNG. A validator can't see these:
 
-- **Labels that collide**: the ends of lines that finish close together, an
-  axis title over a tick.
-- **Panels that overflow**: a table beside a drawing in a half-width panel;
-  give its cells `class="nw"` and shrink the drawing.
+- **Labels that collide**: the ends of lines that finish close together, an axis
+  title over a tick.
+- **Panels that overflow**: a table beside a drawing in a half-width panel; give
+  its cells `class="nw"` and shrink the drawing.
 - **Claims the numbers don't make.** Every sentence on the page is checked
-  against the JSON. "Only the tempo runs long" read true at the example bar
-  and false across the run.
-- **Marks that invert their meaning**: shading by percentage makes 80%
-  darker than 100%. Mark pass and fail with words and signs instead.
+  against the JSON. "Only the tempo runs long" read true at the example bar and
+  false across the run.
+- **Marks that invert their meaning**: shading by percentage makes 80% darker
+  than 100%. Mark pass and fail with words and signs instead.
 
 ## 5. Send, and where things go
 
-Send the PNGs with `SendUserFile` (`display: render`), and audio as
-attachments. The pages, pictures and audio stay in the scratchpad: they are
-views of numbers the repository already holds. The issue gets the numbers
-as tables in the comment, since a comment can't carry a local image.
+Send the PNGs with `SendUserFile` (`display: render`), and audio as attachments.
+The pages, pictures and audio stay in the scratchpad: they are views of numbers
+the repository already holds. The issue gets the numbers as tables in the
+comment, since a comment can't carry a local image.
 
 ## Pitfalls
 
-- `Math.max(...array)` over a buffer throws `RangeError` in Chromium past
-  about 100,000 items. Loop instead.
+- `Math.max(...array)` over a buffer throws `RangeError` in Chromium past about
+  100,000 items. Loop instead.
 - `page.evaluate` in the tool takes expression strings, so `tooling`'s type
   check never needs the DOM.
-- Playwright is resolved from `apps/web`, whose checks pin it; a fresh
-  checkout needs `cd apps/web && pnpm exec playwright install chromium`
-  once, which Claude Code sessions do at start.
+- Playwright is resolved from `apps/web`, whose checks pin it; a fresh checkout
+  needs `cd apps/web && pnpm exec playwright install chromium` once, which
+  Claude Code sessions do at start.

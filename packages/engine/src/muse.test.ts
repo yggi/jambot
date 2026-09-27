@@ -120,6 +120,46 @@ describe('what a host takes from a client (admissible)', () => {
       expect(admissible(bad, A_MINOR)).toBe(false);
     expect(admissible(motif({ degrees: [0, 7, 11] }), A_MINOR)).toBe(true);
   });
+
+  it('refuses what is not a judgement at all, as it may arrive off the wire, without throwing', () => {
+    const good = judgeOne(
+      played([
+        [0, 69],
+        [4, 72],
+        [8, 76],
+      ]),
+    );
+    if (good.kind !== 'motif') throw new Error('a motif');
+    const { motif } = good;
+    const shapes: unknown[] = [
+      null,
+      undefined,
+      42,
+      'motif',
+      [],
+      {},
+      { kind: 'motif' },
+      { kind: 'motif', source: 'a client', level: 100 },
+      { kind: 'motif', source: 'a client', level: 100, motif: null },
+      { kind: 'motif', source: 'a client', level: 100, motif: { cycle: 16 } },
+      { ...good, motif: { ...motif, onsets: 'x' } },
+      { ...good, motif: { ...motif, degrees: [0, 2] } },
+      { ...good, motif: { ...motif, degrees: [0, '2', 4] } },
+      { ...good, motif: { ...motif, accidentals: undefined } },
+      { ...good, motif: { ...motif, accents: [0, 'x', 0] } },
+      { ...good, motif: { ...motif, accents: [0, 0] } },
+      { ...good, source: undefined },
+      { ...good, source: 7 },
+      { ...good, kind: 'a motif, trust me' },
+      { kind: 'mashing', source: 'a client', count: '13' },
+      { kind: 'too wide', source: 'a client' },
+    ];
+    for (const shape of shapes)
+      expect(() => admissible(shape as Judgement, A_MINOR), JSON.stringify(shape)).not.toThrow();
+    for (const shape of shapes)
+      expect(admissible(shape as Judgement, A_MINOR), JSON.stringify(shape)).toBe(false);
+    expect(admissible({ ...good, motif: { ...motif, accents: [0, 12, -9] } }, A_MINOR)).toBe(true);
+  });
 });
 
 describe('the Muse’s judgement', () => {

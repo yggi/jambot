@@ -181,3 +181,86 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   expect(Math.abs(steps(band[0]!, band[3]!) - 16)).toBeLessThan(1e-6);
   expect(errors).toEqual([]);
 });
+
+/**
+ * The other inputs a melody comes from. Each is played as a player plays
+ * it: the on-screen keys pressed, and a MIDI keyboard's messages arriving
+ * on an input the page listens to (Web MIDI stood in for, since a headless
+ * browser has no ports).
+ */
+const INPUTS: {
+  name: string;
+  source: string;
+  ready(page: Page): Promise<void>;
+  play(page: Page, note: number, on: boolean): Promise<unknown>;
+}[] = [
+  {
+    name: 'the on-screen keys',
+    source: 'the on-screen keys',
+    ready: async () => {},
+    play: (page, note, on) =>
+      page
+        .getByRole('group', { name: 'On-screen keyboard' })
+        .getByRole('button', { name: { 69: 'A4', 72: 'C5', 76: 'E5' }[note]!, exact: true })
+        .dispatchEvent(on ? 'pointerdown' : 'pointerup', { pointerId: 1 }),
+  },
+  {
+    name: 'a MIDI keyboard',
+    source: 'Test keyboard',
+    ready: async (page) => {
+      await page.getByText('MIDI, key and sound').click();
+      await page.getByRole('button', { name: 'Connect MIDI' }).click();
+      await page.getByLabel('Listen to input').selectOption({ label: 'Test keyboard' });
+    },
+    play: (page, note, on) =>
+      page.evaluate(
+        (bytes) => (window as unknown as { midiIn(b: number[]): void }).midiIn(bytes),
+        on ? [0x90, note, 100] : [0x80, note, 0],
+      ),
+  },
+];
+
+for (const input of INPUTS)
+  test(`takes a motif played on ${input.name}, and the lead plays it from the bar after next (#79)`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const port = { id: 'test-in', name: 'Test keyboard', onmidimessage: null } as {
+        id: string;
+        name: string;
+        onmidimessage: ((event: { data: Uint8Array }) => void) | null;
+      };
+      const access = {
+        inputs: new Map([[port.id, port]]),
+        outputs: new Map(),
+        onstatechange: null,
+      };
+      Object.assign(navigator, { requestMIDIAccess: () => Promise.resolve(access) });
+      Object.assign(window, {
+        midiIn: (bytes: number[]) => port.onmidimessage?.({ data: new Uint8Array(bytes) }),
+      });
+    });
+    const errors = await listen(page);
+    await page.getByRole('slider', { name: /Energy/ }).fill('0');
+    await input.ready(page);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await start(page);
+    await expect(page.getByText('Bar 2 of 8')).toBeVisible({ timeout: 5000 });
+    // Synth-pop at 108 bpm: three notes four steps apart, in one bar.
+    const step = 15 / 108;
+    for (const note of [69, 72, 76]) {
+      await input.play(page, note, true);
+      await page.waitForTimeout(60);
+      await input.play(page, note, false);
+      await page.waitForTimeout(step * 4 * 1000 - 60);
+    }
+    const took = page.getByText(
+      new RegExp(`Bar (\\d+): Took a 3-note motif from ${input.source}\\.`),
+    );
+    await expect(took).toBeVisible({ timeout: 8000 });
+    const heard = /Bar (\d+):/.exec((await took.textContent()) ?? '')![1];
+    await expect(page.getByText(`Lead is playing the motif heard in bar ${heard}.`)).toBeVisible({
+      timeout: 8000,
+    });
+    expect(errors).toEqual([]);
+  });

@@ -137,7 +137,7 @@ describe('a host and a client session', () => {
     expect(client.player.status).toBe('stopped');
   });
 
-  it("pass what a client's player played to the host's Muse, by the client's id, read by its name", async () => {
+  it("pass what a client's player played to the host's Muse, by the client's id, read by its name (A3)", async () => {
     const lobby = memoryLobby();
     const host = device(10);
     const client = device(3);
@@ -198,7 +198,7 @@ describe('a host and a client session', () => {
     expect(host.player.players).toEqual({ [HOST_PLAYER]: 'the host' });
   });
 
-  it("refuse a name already in the session, the host's included, in any case", async () => {
+  it("refuse a name already in the session, the host's included, in any case (A3)", async () => {
     const lobby = memoryLobby();
     const host = device(0);
     const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
@@ -235,6 +235,25 @@ describe('a host and a client session', () => {
     expect(following.status).toBe('idle');
     expect(following.ended).toMatch(/No session named “nobody”/);
     expect(lonely.player.mode).toBe('solo');
+  });
+
+  it('keep the host playing through what only claims to be a judgement, and say it dropped it (T1)', async () => {
+    const lobby = memoryLobby();
+    const host = device(0);
+    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    await hosting.open(lobby, 'jam');
+    await host.player.start();
+    const link = await lobby.join('jam', () => {});
+    link.send({ kind: 'join', protocol: PROTOCOL, name: 'Mallory' });
+    await run([host], 3);
+    const bar = Math.floor(host.player.writtenPosition(host.world.currentTime)! / 16);
+    // Its envelope reads as a judgement; what it says doesn't.
+    const garbled = { kind: 'motif', source: 'the computer keys', level: 100 };
+    link.send({ kind: 'judged', bar, judgement: garbled } as unknown as ClientMessage);
+    const before = host.world.plays.length;
+    await run([host], 3);
+    expect(host.world.plays.length).toBeGreaterThan(before + 10);
+    expect(host.player.dropped).toMatchObject([{ bar, why: 'inadmissible' }]);
   });
 
   it('drop a client that goes silent, and end every client when the host closes', async () => {

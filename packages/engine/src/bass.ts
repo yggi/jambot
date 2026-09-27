@@ -119,7 +119,7 @@ export const bass: Machine<BarEnv, number, null, WrittenNote[]> = {
         if (startsAt(s)) pitchClass = rootOf(chord);
         else if (change)
           pitchClass =
-            rootOf(target) + (draw(seed, 'bassNote', NOTE.approach, bar, s) < 0.5 ? -1 : 1);
+            rootOf(target) + (chance(draw(seed, 'bassNote', NOTE.approach, bar, s), 0.5) ? -1 : 1);
         else {
           const [, third, fifth, seventh] = intervals(chord);
           const tones = [third!, fifth!, seventh ?? fifth!];
