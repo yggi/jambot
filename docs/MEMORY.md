@@ -193,16 +193,19 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   steps while it starts, so `clockOffset` reads no pairing for its first 0.2 s
   (`PAIRED_AFTER`). To try it, open the app in two windows of one browser, host
   in one and join in the other; `session.e2e.ts` measures the two. It holds one
-  page's audio (`holdAudio`, a `suspend` and `resume`) for 40 ms, a jump of some
-  30 ms; holds of 20 ms or less jump the pairing anywhere from −10 to +11 ms, as
-  the output settles again. `heard` reads when a note sounded through the
-  pairing sampled as it sounded (a median of five, as a single reading can
-  blip), and `clockJumps` finds each jump of a page's clock, so a check can
-  bound the moments after a jump by the jump, on any machine, rather than count
-  notes out. A clock's discontinuity is a jump, so a step stays the grid's.
-  Across machines, run `pnpm lobby` on one and give its `ws://` address as the
-  lobby server on each; every machine loads the app from its own `localhost`,
-  where Web MIDI works without HTTPS.
+  page's audio (`holdAudio`, a `suspend` and `resume`): 40 ms is a jump of some
+  30 ms, 80 of some 70; holds of 20 ms or less jump the pairing anywhere from
+  −10 to +11 ms, as the output settles again. It stalls a page's main thread
+  with a busy loop. `heard` reads when a note sounded through the pairing
+  sampled as it sounded (a median of five, as a single reading can blip);
+  `clockJumps` finds each jump of a page's clock, and `stalls` each stall of its
+  main thread, from its 5 ms sampler coming late. So a check bounds every note
+  by the jumps settling as it sounds and excuses exactly the notes a host's
+  stall dropped, on any machine, rather than count notes out. A clock's
+  discontinuity is a jump, so a step stays the grid's. Across machines, run
+  `pnpm lobby` on one and give its `ws://` address as the lobby server on each;
+  every machine loads the app from its own `localhost`, where Web MIDI works
+  without HTTPS.
 - A test of anything that reads a clock runs it on `simulatedDevice`
   (`packages/session/src/faults.ts`, #27): real time is the test's, and each
   fault is named, else off: drift, dropped buffers (the output's clock stands
@@ -344,7 +347,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   back every bar the band writes (Q1a). A chord `chordScale` gives no scale for,
   such as `Isus4`, is refused until the score can write `scale=` (U3).
 - In the port's drums only the snare needs its role written: every other sound
-  has one role (E15). Where the backbeat and a fill meet, the backbeat stays.
+  has one role (E16). Where the backbeat and a fill meet, the backbeat stays.
 - The prototype's score is not self-contained: 68% of bars compile differently
   from their text alone, always in register (octave, voicing), never in harmony
   or rhythm (`language.md`, S1 and E1).
@@ -373,15 +376,16 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 The full description is in
 [`prototype/README.md`](../prototype/README.md#the-score-language-the-ir).
 
-- One bar per block, 16 steps per bar, 4/4. This is still true of the song's own
-  grid (the transport, the band, the score): nothing there reads a time
-  signature, and nothing composes in anything but 4/4. The first real meter in
-  the codebase is the client-only metronome (`packages/theory/src/meter.ts`,
-  `packages/engine/src/metronome.ts`): a meter, a `Helix` of pulses over the
-  bar's eighths, on its own bar, independent of the song's. It is a fact worth
-  knowing before assuming "meter" means 4/4 anywhere else in the engine; see
-  #7's comment on the pressure this puts on the score language once the band,
-  not only a click track, might want one.
+- One bar per block, 16 steps per bar, 4/4, and the song reads it from one
+  place: `events.ts`'s `SONG_METER` (4/4) on the steps, `BEATS`, whose readings
+  `barAt`, `barStart`, `stepInBar`, `beatAt`, `beatStart`, `beatInBar` and
+  `onBeat` are what every reader of bar and beat calls (T10). A new reader uses
+  them, never `/ 16`, `% 16` or `/ 4`; tests keep the literals, as a check that
+  4/4 still plays as it did. The rhythms the parts write (the backbeat on steps
+  4 and 12, the 16-long tables) are content on the 16 steps, not readings.
+  Nothing composes in anything but 4/4 yet, and how bars of different lengths
+  join is #122. The metronome (`packages/engine/src/metronome.ts`) plays any
+  named meter on its own bar, independent of the song's.
 - A header's `bpm=` counts the grid, as the engine's `stepSeconds` does: quarter
   notes a minute, a quarter of the step rate, whatever the meter. A pulse rate
   is only derived, for display, and exists only where the pulses are equal (T7).

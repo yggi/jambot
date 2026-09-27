@@ -328,15 +328,17 @@ and all at once, following its own output's jump within three ticks and its
 host's with the next answer (T8). MIDI out and capture read the same output pair
 (T9).
 
-The end-to-end check of host and client mode (`session.e2e.ts`) holds one page's
-audio for 40 ms mid-run, which jumps its clock by some 30 ms, so every machine
-meets a jump, not only one whose audio drops buffers. It reads each page's
-pairing as a note sounds, finds every jump of either clock from the pairings,
-and asks that every note be within 2 ms of the host's once the clock has settled
-from each: a jump of 2 ms or more within half a second (the host's output pair,
-the next answer and a lookahead), and a smaller one at the 10 ms a second it
-slews. While a jump settles, a note may be out by no more than the jump and
-those 2 ms.
+The end-to-end checks of host and client mode (`session.e2e.ts`) hold one page's
+audio mid-run: the host's for 80 ms, a jump of some 70 ms, and the client's for
+40, some 30, with the host's page stalled for 300 ms. So every machine meets a
+jump and a stall, not only one whose audio drops buffers. They read each page's
+pairing as a note sounds, find every jump of either clock and every stall of
+either page, and ask that every note the client sounds be within 2.5 ms of the
+host's (T8's bound in one browser) once the clock has settled from each jump: a
+jump of 2 ms or more within half a second (the host's output pair, the next
+answer and a lookahead), and a smaller one at the 10 ms a second it slews. While
+a jump settles, a note may be out by no more than the jump and those 2.5 ms, and
+a note the host dropped in a stall (T1) is excused.
 
 ## What has settled, and what is open
 

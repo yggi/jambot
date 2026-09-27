@@ -1,5 +1,5 @@
 /**
- * E15: how the score's drum line writes a hit's role (#63 step 2b; L7, T4, F5)
+ * E16: how the score's drum line writes a hit's role (#63 step 2b; L7, T4, F5)
  *
  * The drums write each hit as a sound on a step with its role in the groove
  * (`drums.ts`), and the performance reads the role for the hit's accent
@@ -107,8 +107,8 @@ const nested = <A, B>(pairs: [A, B][]) => {
 const pct = (a: number, b: number) => `${a} of ${b} (${((100 * a) / b).toFixed(1)}%)`;
 const sounds = Object.keys(DRUM_NOTES) as DrumSound[];
 
-console.log(`E15 the drum line (5 seeds × 9 runs × 64 bars: ${bars.length} drum bars)\n`);
-console.log('E15.1 the census: hits by sound (rows) and role (columns)');
+console.log(`E16 the drum line (5 seeds × 9 runs × 64 bars: ${bars.length} drum bars)\n`);
+console.log('E16.1 the census: hits by sound (rows) and role (columns)');
 const bySound = nested(all.map((h) => [h.sound, h.role]));
 console.table(
   Object.fromEntries(
@@ -124,7 +124,7 @@ for (const s of sounds) console.log(`  ${s}: ${[...(bySound.get(s)?.keys() ?? []
 console.log('sounds by role:');
 for (const r of DRUM_ROLES) console.log(`  ${r}: ${[...(byRole.get(r)?.keys() ?? [])].join(', ')}`);
 
-console.log('\nE15.2 what determines the role: hits on a key seen with more than one role');
+console.log('\nE16.2 what determines the role: hits on a key seen with more than one role');
 const keys: [string, (h: (typeof all)[number]) => string][] = [
   ['sound', (h) => h.sound],
   ['sound, step', (h) => `${h.sound} ${h.step}`],
@@ -147,7 +147,7 @@ for (const [k, r] of lastKey)
   if (r.size > 1)
     console.log(`  still split: ${k}: ${[...r].map(([x, n]) => `${x} ${n}`).join(', ')}`);
 
-console.log('\nE15.3 forms of the line');
+console.log('\nE16.3 forms of the line');
 /** Tokens for one line's hits: its name, a token per hit, one per run of empty steps. */
 const lineTokens = (steps: number[]) => {
   const on = new Set(steps);
@@ -200,7 +200,7 @@ for (const s of sounds) {
   );
 }
 
-console.log('\nE15.4 euclid: bars whose euclid hits are one even(k, 16, shift)');
+console.log('\nE16.4 euclid: bars whose euclid hits are one even(k, 16, shift)');
 const euclidBars = bars.map((b) => b.hits.filter((h) => h.role === 'euclid').map((h) => h.step));
 const withEuclid = euclidBars.filter((s) => s.length);
 const shapes = nested(
@@ -227,7 +227,7 @@ for (const [k, s] of shapes)
   );
 
 console.log(
-  '\nE15.5 overlaps: the snare on the backbeat steps, 4 and 12, in last bars with a fill',
+  '\nE16.5 overlaps: the snare on the backbeat steps, 4 and 12, in last bars with a fill',
 );
 const fillBars = bars.filter((b) => b.last && b.hits.some((h) => h.role === 'fill'));
 const onBackbeat = (b: Bar, step: number) =>

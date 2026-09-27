@@ -46,7 +46,7 @@ import {
 } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { chordAt } from './chords.ts';
-import type { WrittenNote } from './events.ts';
+import { BAR_STEPS, type WrittenNote } from './events.ts';
 import type { SectionType } from './form.ts';
 import { keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
@@ -79,7 +79,7 @@ function shapeFrom(
 ): LeadShape {
   const rest = steps[0]! > 0;
   return {
-    cycle: 16,
+    cycle: BAR_STEPS,
     onsets: rest ? [0, ...steps] : [...steps],
     degrees: rest ? [null, ...degrees] : [...degrees],
     accidentals: [...(rest ? [0] : []), ...steps.map(() => 0)],
@@ -135,10 +135,10 @@ function shapeOf(env: BarEnv): LeadShape {
 
   const density = 0.25 + 0.5 * energy;
   const euclid = new Set(
-    positions(even(Math.round(3 + 5 * energy), 16, Math.round(style.sync * 3))),
+    positions(even(Math.round(3 + 5 * energy), BAR_STEPS, Math.round(style.sync * 3))),
   );
   const steps: number[] = [];
-  for (let s = 0; s < 16; s++) {
+  for (let s = 0; s < BAR_STEPS; s++) {
     const groove = lerp(GROOVE_STRAIGHT[s]!, GROOVE_SYNCOPATED[s]!, style.sync) * density;
     const p = lerp(groove, euclid.has(s) ? 0.9 : 0, 0.5);
     if (chance(draw(seed, 'leadRhythm', section, half, s), p)) steps.push(s);

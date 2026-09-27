@@ -49,6 +49,7 @@ import {
   type Offer,
   type Part,
   PRESETS,
+  SECTION_BARS,
   type ScheduledStep,
   soundOf,
   styleAt,
@@ -522,7 +523,7 @@ export class Player {
     const carried = this.status === 'playing' ? this.#carried : null;
     const fresh = forecast(this.#env, carried, FORECAST_BARS);
     const first = fresh[0]?.bar ?? 0;
-    const from = Math.floor((first - 1) / 8) * 8;
+    const from = Math.floor((first - 1) / SECTION_BARS) * SECTION_BARS;
     const kept = carried ? this.#bars.filter((b) => b.bar >= from && b.bar < first) : [];
     this.#bars = [...kept, ...fresh];
     this.#decidedAt = carried?.nextBar ?? -1;

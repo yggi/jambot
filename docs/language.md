@@ -254,26 +254,33 @@ updates to come within a millisecond of a jump. Test: `clock-offset.test.ts`,
 
 **T10. The song's clock is its meter's helix on the steps: the bar is a turn,
 the step in the bar a position, and the beat a degree.** Witness: the helix's
-own readings. For a meter composed onto the steps, two to an eighth,
-`degreeBelow` gives the pulse a step falls in, `Math.floor(pulse / k)` its bar
-and `wrap` its step in the bar, in every meter; for 4/4 they are exactly the
-readers' literals, `Math.floor(step / 16)`, `step % 16` and
-`Math.floor(step % 16 / 4)`. Counterexample: a reader of bar or beat whose
-result in 4/4 differs from the helix's, or one that no helix reading writes.
-Test: `meter.test.ts`, whose tests under "as the song’s clock" cite T10: at
-every step of 128 bars, the 4/4 readings equal the literals, and every named
-meter's readings keep their laws, while the literals give 4/4's alone. The
-readers that still count a bar as 16 steps or a beat as 4: the transport
-(`% 16`, `bar * 16`, `step / 4` for swing's beat), `BAR_STEPS` (the Muse, a
-motif's cycle), the parts' loops over 16 steps (drums, bass, comp, lead),
-`perform`'s fill ramp, `PRESET_GLIDE` (8 bars of 16), the session's host and
-ear, the HUD (`/ 16`, `step / 4`), the piano rolls, the fault kit, MIDI clock's
-6 ticks a step (T3) and the score's `STEPS_OF_4_4`, the bar of a header that
-states no meter. A key change keeps the cycle and a meter change need not, so a
-song whose meter changes is a helix only between changes: open how bars of
-different lengths join. Source: #7's tension 9; #105. Status: measured (the
-readings, every named meter); open (the readers, which still use the literals).
-Lands in: #27 (the transport's bar); #63 (a meter per bar).
+own readings. For a meter composed onto the steps, two to an eighth
+(`meterOnSteps`), `degreeBelow` gives the pulse a step falls in,
+`Math.floor(pulse / k)` its bar and `wrap` its step in the bar, in every meter.
+The song reads its clock this way and no other: `events.ts` holds its meter
+(`SONG_METER`, 4/4) on the steps (`BEATS`), and `barAt`, `barStart`,
+`stepInBar`, `beatAt`, `beatStart`, `beatInBar` and `onBeat` are its readings,
+which every reader of bar and beat calls: the transport, the Muse's grid
+(`BAR_STEPS`, a motif's cycle), the parts' loops over the bar, `perform`,
+`PRESET_GLIDE`, swing's beat, the session's host and ear, the HUD and the piano
+rolls. A score header that states no meter reads its bar the same way, from the
+theory's 4/4 (`UNSTATED_METER`, `meterOnSteps`, in `packages/score`).
+Counterexample: a reader of bar or beat whose result in 4/4 differs from the
+helix's, or one that no helix reading writes. Test: `meter.test.ts`, whose tests
+under "as the song’s clock" cite T10: at every step of 128 bars, the 4/4
+readings equal the literals `Math.floor(step / 16)`, `step % 16` and
+`Math.floor(step % 16 / 4)`, and every named meter's readings keep their laws,
+while the literals give 4/4's alone; `events.test.ts`, whose tests under "the
+song’s clock" cite T10: the song's readings are the literals at every
+quarter-step of 128 bars, and bars and beats tile the song; `seam.test.ts`
+(`packages/score`), whose test of the meter cites T10: a header that states no
+meter is in the song's. The rhythms the parts write stay on the 16 steps, such
+as the backbeat on steps 4 and 12: they are content, not readings (#123). MIDI
+clock's 6 ticks a step (T3) counts steps, not bars. A key change keeps the cycle
+and a meter change need not, so a song whose meter changes is a helix only
+between changes: open how bars of different lengths join (#122). Source: #7's
+tension 9; #105; #120. Status: measured (the readings, every named meter; the
+readers, in 4/4). Lands in: #122 (a meter per bar); #63 (a meter in the header).
 
 **T11. Swing lives on the pulse, and a performance map can move a written meter
 toward another.** Witness: `swingMap` at full swing plays 4/4's eighths on
@@ -460,9 +467,10 @@ its style as the score writes it, so a bar states exactly the style it was
 composed from (C7)", over the app's glides, the bars ahead included;
 `score.test.ts` (`packages/score`), whose test of the style's grid cites C7:
 every value on the grid, each unit axis's 1,001 and `bpm`'s 120,001, is written
-and read back as itself, and a value off it is refused both ways. Source: E10,
-T5. Status: measured. Decided: #7, on measured options (E10). Lands in: #63 step
-2 (the header).
+and read back as itself, and a value off it is refused both ways.
+`seam.test.ts`, whose test of the axes cites C7: the score's axes, their order
+and its grid are the band's. Source: E10, T5. Status: measured. Decided: #7, on
+measured options (E10). Lands in: #63 step 2 (the header).
 
 ### Pitch
 
@@ -1034,9 +1042,9 @@ These are where the decisions are.
    follow the beat decides whether accents are counted from a level, as taken
    now, or from `perform`.
 9. **One bar of 16 steps against a meter per bar** (T6, T7, T10, T11). The
-   theory holds every meter as a helix, and the song holds one: the transport,
-   the Muse's grid and the HUD count a bar as 16 steps and a beat as 4. Each of
-   those readings is the 4/4 helix's (T10), and swing moves the pulses of every
+   theory holds every meter as a helix, and the song holds one, 4/4, read
+   through its helix by every reader of bar and beat (T10), so a meter other
+   than 4/4 changes them all at once. Swing still moves the pulses of every
    other meter (T11). A key change keeps the cycle and a meter change need not,
    so how bars of different lengths join is open.
 
@@ -1130,8 +1138,8 @@ the players converges.
 
 ## Experiments
 
-Each answers one entry, or one of #7's decisions. E1, E8 and E9 have run; the
-others have not.
+Each answers one entry, or one of #7's and #116's decisions. E2 to E7 and E14
+have not run; the others have.
 
 - **E1. Cold against warm compile** (S1, S2, F2; Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
@@ -1284,7 +1292,28 @@ others have not.
   - Symmetries: 10 of the lead's 132 shapes have one, so several operators give
     the same bar, and `canonicalOp` chooses which the score writes (U5).
 
-- **E15. How the score's drum line writes a hit's role** (L7, T4, F5; #63 step
+- **E15. The band's onsets against the meter** (T10, T12; #116's question (k),
+  #123), in
+  [`packages/engine/experiments/onsets.ts`](../packages/engine/experiments/onsets.ts)
+  (about 1 s), over E1's shape. It sorts every onset the parts write by the
+  level of the 4/4 meter it falls on: a beat, an eighth between beats, or only
+  the step grid.
+  - Onsets (82,984): 45.6% on a beat, 30.1% on an eighth, 24.3% only on the
+    grid. The pad, the backbeat and the pedal hat are all beats; the ghosts
+    (92.8%), the fills (56.2%), the Euclidean rim (47.8%) and the lead (44.9%)
+    are most of the grid's.
+  - Lines, a part in a bar (18,108): 36.0% need only the beats (4 slots in 4/4),
+    21.1% the eighths (8), and 42.9% the grid (16). Every rim and fill line,
+    97.5% of ghost lines and 92.3% of lead lines need the grid.
+  - Named rhythms: four on the floor and the backbeat are helices on the beats,
+    the offbeat hats on the eighths, and every `E(3,16)`, `E(5,16)` and
+    `E(7,16)` the rim plays only on the grid.
+  - So onsets written relative to the meter would write most of the band in 4 or
+    8 slots, and need the grid below for a quarter of its onsets, as a line's
+    pitch tokens need `b` and `#` for notes off the chord's scale; how an onset
+    off the meter is written is T12's.
+
+- **E16. How the score's drum line writes a hit's role** (L7, T4, F5; #63 step
   2b), in
   [`packages/engine/experiments/drum-line.ts`](../packages/engine/experiments/drum-line.ts)
   (about 1 s), over E1's shape: 2,628 drum bars and 42,535 hits.

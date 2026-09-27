@@ -42,7 +42,7 @@ import {
   passBar,
 } from './band.ts';
 import { type BarChord, chordAt } from './chords.ts';
-import type { NoteEvent } from './events.ts';
+import { type NoteEvent, barAt, barStart, beatAt, beatStart, stepInBar } from './events.ts';
 import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
@@ -245,7 +245,7 @@ export function bandEnvAt(
   bar: number,
   offer: Offer | null,
 ): BandEnv {
-  return { seed, bar, style: styleAt(track, bar * 16), wish, offer };
+  return { seed, bar, style: styleAt(track, barStart(bar)), wish, offer };
 }
 
 /**
@@ -290,7 +290,7 @@ export function forecast(
   carried: TransportCarried | null,
   count: number,
 ): ForecastBar[] {
-  const head = Math.floor((carried?.head.step ?? 0) / 16);
+  const head = barAt(carried?.head.step ?? 0);
   const composed = (carried?.bars ?? [])
     .filter((b) => b.bar >= head)
     .slice(0, count)
@@ -304,7 +304,7 @@ export function forecast(
     ...decided,
     offer,
     barEnergy: barEnergy(
-      writtenStyle(styleAt(env.track, decided.bar * 16)).energy,
+      writtenStyle(styleAt(env.track, barStart(decided.bar))).energy,
       decided.plan.section.type,
       decided.bar % SECTION_BARS,
     ),
@@ -392,21 +392,22 @@ export function transportOver<Source, Arrived = never>(
       const swing = swingOf(track);
 
       while (head.seconds < until) {
-        const bar = Math.floor(head.step / 16);
+        const bar = barAt(head.step);
 
         // Steps the clock has passed are not scheduled, and a bar it has
         // wholly passed is not composed: the source passes it, the band
         // deciding the bar after as it would have.
-        if (head.step % 16 === 0 && nextBar === bar) {
-          const end = tempoMap(track, head).played(head.step + 16);
+        if (stepInBar(head.step) === 0 && nextBar === bar) {
+          const next = barStart(bar + 1);
+          const end = tempoMap(track, head).played(next);
           if (end <= now) {
             // Enough walking for one advance: the next carries on.
             if (passed === CATCH_UP) break;
             passed++;
             playing = source.pass(bandEnvAt(env, bar, listening.muse.offer), playing);
             nextBar++;
-            missed += 16;
-            head = { step: head.step + 16, seconds: end };
+            missed += next - head.step;
+            head = { step: next, seconds: end };
             continue;
           }
         }
@@ -419,7 +420,7 @@ export function transportOver<Source, Arrived = never>(
 
         // Compose each bar `ahead` steps before it starts: the band on the
         // last beat of the bar before.
-        for (; nextBar <= Math.floor((head.step + source.ahead) / 16); nextBar++) {
+        for (; nextBar <= barAt(head.step + source.ahead); nextBar++) {
           listening = listen(listening, nextBar - LISTEN_DELAY, judged);
           const made = source.compose(bandEnvAt(env, nextBar, listening.muse.offer), playing);
           playing = made.carried;
@@ -428,7 +429,7 @@ export function transportOver<Source, Arrived = never>(
           listening = { ...listening, unjudged: [...listening.unjudged, { bar: nextBar, key }] };
           bars.push(made.bar);
           composed.push(made.bar);
-          if (made.start !== undefined && head.step === nextBar * 16)
+          if (made.start !== undefined && head.step === barStart(nextBar))
             head = { step: head.step, seconds: made.start };
         }
         bars = bars.filter((b) => b.bar >= bar);
@@ -442,11 +443,11 @@ export function transportOver<Source, Arrived = never>(
           plan: { section, key },
           chords,
         } = current;
-        const chord = chordAt(chords, head.step % 16);
+        const chord = chordAt(chords, stepInBar(head.step));
 
         // The beat's swing is read as the beat starts, and kept.
-        const index = Math.floor(head.step / 4);
-        if (beat?.index !== index) beat = { index, swing: styleAt(track, index * 4).swing };
+        const index = beatAt(head.step);
+        if (beat?.index !== index) beat = { index, swing: styleAt(track, beatStart(index)).swing };
         const held = beat;
         steps.push({
           step: head.step,
@@ -458,12 +459,12 @@ export function transportOver<Source, Arrived = never>(
           swing: held.swing,
         });
         const swung = (x: number) =>
-          Math.floor(x / 4) === held.index ? swingMap(held.swing).played(x) : swing.played(x);
+          beatAt(x) === held.index ? swingMap(held.swing).played(x) : swing.played(x);
         const tempo = tempoMap(track, head);
         const clock = (x: number) => tempo.played(swung(x));
 
         for (const event of current.events) {
-          if (event.step !== head.step % 16) continue;
+          if (event.step !== stepInBar(head.step)) continue;
           const seconds = clock(head.step);
           if (seconds < now) continue;
           events.push({

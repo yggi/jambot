@@ -5,6 +5,7 @@
   Its words are the prototype's.
 -->
 <script lang="ts">
+  import { BAR_STEPS } from '@jambot/engine';
   import type { MuseView } from '../hud.ts';
 
   interface Props {
@@ -16,7 +17,7 @@
 
   const W = 320;
   const H = 64;
-  const step = W / 16;
+  const step = W / BAR_STEPS;
   const rowHeight = $derived(muse.motif ? Math.min(12, (H - 4) / muse.motif.rows) : 0);
 </script>
 

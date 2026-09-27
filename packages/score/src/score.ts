@@ -24,8 +24,9 @@
  *   chord the score writes implies one (U3), and one that doesn't is
  *   refused until the score can write `scale=`.
  *
- * A header that states no meter is a bar of 4/4 on 16 steps; a `meter=`
- * comes with #63 step 6, once the song reads its bar from the meter (T10).
+ * A header that states no meter is a bar of 4/4, read from its helix on
+ * the steps as the song reads its bars (T10); a `meter=` comes with #63
+ * step 6.
  */
 
 import {
@@ -34,12 +35,15 @@ import {
   DIATONIC_MODE_NAMES,
   type DiatonicModeName,
   type Helix,
+  METERS,
+  type Meter,
   type Numeral,
   chordOfNumeral,
   chordScale,
   diatonicMode,
   formatNumeral,
   joinChord,
+  meterOnSteps,
   parseNote,
   parseNumeral,
   shift,
@@ -68,8 +72,11 @@ export type StyleAxis = (typeof STYLE_AXES)[number];
 /** The decimals `style` writes a value with, the grid the band reads it on (C7). */
 export const STYLE_DECIMALS = 3;
 
-/** The steps of a bar whose header states no meter: 4/4 (T10). */
-export const STEPS_OF_4_4 = 16;
+/** The meter of a bar whose header states none: 4/4, the song's (T10). */
+export const UNSTATED_METER: Meter = METERS['4/4'];
+
+/** The steps of a bar whose header states no meter: its helix on the steps, two to an eighth. */
+const UNSTATED_STEPS = meterOnSteps(UNSTATED_METER).cycle;
 
 /** What a bar's text states. */
 export interface ScoreBar {
@@ -142,7 +149,7 @@ export function encodeBar(bar: ScoreBar): string {
   const style = STYLE_AXES.map((axis) => `${axis}=${writeStyleValue(bar.style[axis])}`).join(' ');
   const harm = writeSequence(
     bar.harm.map(({ step, numeral }) => ({ step, word: formatNumeral(numeral) })),
-    STEPS_OF_4_4,
+    UNSTATED_STEPS,
   );
   return [
     `bar ${bar.bar} ${bar.section} key=${writeKey(bar.key)} theme=${bar.theme}`,
@@ -270,7 +277,7 @@ function readStyle(rest: string): Read<Record<StyleAxis, number>> {
 function readHarm(rest: string, key: ScoreKey | undefined): Read<HarmChord[]> {
   const quoted = /^"(.*)"$/u.exec(rest);
   if (!quoted) return { problems: [`harm ${rest} is not a quoted sequence, such as harm "i VI"`] };
-  const read = readSequence(quoted[1]!, STEPS_OF_4_4);
+  const read = readSequence(quoted[1]!, UNSTATED_STEPS);
   if ('problems' in read) return { problems: read.problems.map((p) => `harm: ${p}`) };
   const problems: string[] = [];
   const harm = read.placed.map(({ word, step }) => {

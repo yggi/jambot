@@ -14,6 +14,9 @@ import {
   PRESETS,
   PRESET_GLIDE,
   SECTION_BARS,
+  SONG_METER,
+  STYLE_DECIMALS as ENGINE_STYLE_DECIMALS,
+  AXIS_NAMES,
   type Style,
   band,
   barEnergy,
@@ -25,7 +28,15 @@ import {
 } from '@jambot/engine';
 import { chordScale, joinChord, parseNumeral, positions, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { type ScoreBar, STYLE_AXES, compileBar, encodeBar, lowerNumeral } from './score.ts';
+import {
+  type ScoreBar,
+  STYLE_AXES,
+  STYLE_DECIMALS,
+  UNSTATED_METER,
+  compileBar,
+  encodeBar,
+  lowerNumeral,
+} from './score.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const BARS = 64;
@@ -91,6 +102,15 @@ const stated = (bar: BandBar): ScoreBar => ({
 });
 
 describe('the seam, over the bars the band writes', () => {
+  it("reads the band's own style axes, in order, on the band's grid (C7)", () => {
+    expect([...STYLE_AXES]).toEqual(AXIS_NAMES);
+    expect(STYLE_DECIMALS).toBe(ENGINE_STYLE_DECIMALS);
+  });
+
+  it("reads a header that states no meter in the song's meter (T10)", () => {
+    expect(UNSTATED_METER).toEqual(SONG_METER);
+  });
+
   it('has bars to read: every preset, the tour and the glides, five seeds', () => {
     expect(BAND_BARS).toHaveLength(5 * (PRESETS.length + 2) * BARS);
     expect(new Set(BAND_BARS.map((b) => b.plan.section.type)).size).toBeGreaterThan(4);
