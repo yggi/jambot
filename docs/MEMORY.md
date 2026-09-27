@@ -139,6 +139,15 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - Section names appear twice on the page, on the stage and in the song map,
   which names them before anything is heard. So a check that the screen follows
   what is heard looks for `Bar n of 8`, which only the stage shows.
+- The lead's status line (`leadStatus`, `hud.ts`) also appears twice, once on
+  the stage and once on its own row among the stage's members (`members.ts`,
+  `Members.svelte`): a member's row is what the lead-shaped drums, bass and
+  chords rows already look like, and singling the lead's out would be the
+  special case. An `apps/web/e2e/band.e2e.ts` check that reads it scopes to the
+  stage's own `Conductor` region. The stage's four members (drums, bass, chords,
+  lead) are named `Member`, not `Track`: `track` already names `StyleTrack` and
+  the ratchet's working and negative tracks, and a third job would break the law
+  of true names.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A bar's
   chords come from its theme's slots (`barChords`); their colour draws are keyed
