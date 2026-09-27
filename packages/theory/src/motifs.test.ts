@@ -18,7 +18,8 @@ import {
 import { chromaticStep } from './numerals.ts';
 
 const range = (n: number) => [...Array(n).keys()];
-const text = (m: Motif) => `${m.onsets.join()}|${m.degrees.join()}|${m.accidentals.join()}`;
+const text = (m: Motif) =>
+  `${m.onsets.join()}|${m.degrees.join()}|${m.accidentals.join()}|${m.accents?.join() ?? ''}`;
 
 /** A note or rest: a degree and its accidental, or null for a rest. */
 type Value = readonly [number, number] | null;
@@ -45,6 +46,12 @@ function motifsOf(cycle: number, values: readonly Value[]): Motif[] {
 /** Every motif of a 4-step cycle whose notes are degree 0, 1 or ♭1, with rests. */
 const SPAN = 4;
 const motifs = motifsOf(SPAN, [null, [0, 0], [1, 0], [1, -1]]);
+/** The same motifs with each note accented differently, so an accent shows where its note went. */
+const accented: Motif[] = motifs.map((m) => ({
+  ...m,
+  accents: m.degrees.map((d, i) => (d === null ? 0 : 5 * (i + 1))),
+}));
+const both = [...motifs, ...accented];
 
 /** Every operator with a sequence of −1, 0 or 2, either mirror, any displacement, either reversal. */
 const ops: MotifOp[] = [-1, 0, 2].flatMap((strans) =>
@@ -113,6 +120,20 @@ describe('a motif', () => {
     expect(motifProblems({ ...motif(16, [[0, 0]]), accidentals: [] })).toEqual([
       'onsets, degrees and accidentals differ in length',
     ]);
+    const two = motif(16, [
+      [0, 0],
+      [4, null],
+    ]);
+    expect(motifProblems({ ...two, accents: [12, 0] })).toEqual([]);
+    expect(motifProblems({ ...two, accents: [12] })).toEqual(['the accents differ in length']);
+    expect(motifProblems({ ...two, accents: [1.5, 0] })).toEqual([
+      'an accent is not a whole number',
+    ]);
+    expect(motifProblems({ ...two, accents: [12, 3] })).toEqual(['a rest is accented']);
+    expect(motifProblems({ ...two, accents: [0, 0] })).toEqual([
+      'the accents are all 0, and are left out',
+    ]);
+    expect(accented.every((m) => motifProblems(m).length === 0)).toBe(true);
     // Per set of k onsets, 3 values a note, and rests never next to each
     // other round the cycle: 3, 15, 54 and 207 motifs for k = 1 to 4.
     expect(motifs).toHaveLength(4 * 3 + 6 * 15 + 4 * 54 + 207);
@@ -135,12 +156,12 @@ describe('motif operators', () => {
   // A million cases take a few seconds: compared as text rather than with
   // toEqual, a fifth of the time.
   it(
-    'act on every motif of a bar, rests and alterations too, as a group does: two operators are their composition, and the identity changes nothing (Q5c)',
+    'act on every motif of a bar, rests, alterations and accents too, as a group does: two operators are their composition, and the identity changes nothing (Q5c)',
     { timeout: 30_000 },
     () => {
       expect(ops).toHaveLength(48);
       const wrong: string[] = [];
-      for (const m of motifs) {
+      for (const m of both) {
         if (text(applyOp(NOOP, m)) !== text(m)) wrong.push(`identity on ${text(m)}`);
         for (const a of ops) {
           const once = applyOp(a, m);
@@ -158,7 +179,7 @@ describe('motif operators', () => {
     const i = { ...NOOP, mirror: true };
     const strans = (n: number) => ({ ...NOOP, strans: n });
     const late = (n: number) => ({ ...NOOP, late: n });
-    for (const m of motifs) {
+    for (const m of both) {
       expect(applyOp(thenOp(r, r), m)).toEqual(m);
       expect(applyOp(thenOp(i, i), m)).toEqual(m);
       expect(applyOp(thenOp(r, i), m)).toEqual(applyOp(thenOp(i, r), m));
@@ -264,6 +285,40 @@ describe('motif operators', () => {
   });
 });
 
+describe('an accent', () => {
+  it('stays the same accent wherever late and rev move its note, as it is counted from the level the motif plays at, not from the beat, and strans and mirror leave it as it is (U4)', () => {
+    // The lead's accent by the beat, as `perform` gives it: 100 on the beat, 82 off it.
+    const beat = (step: number) => (step % 4 === 0 ? 100 : 82);
+    const level = 90;
+    let againstLevel = 0;
+    let againstBeat = 0;
+    for (const m of accented)
+      for (const late of range(SPAN))
+        for (const rev of [false, true]) {
+          const moved = applyOp({ ...NOOP, late, rev }, m);
+          m.onsets.forEach((start, i) => {
+            if (m.degrees[i] === null) return;
+            // Where the note goes: its arc moved, or reflected, round the cycle.
+            const end = m.onsets[i + 1] ?? m.onsets[0]! + SPAN;
+            const onset = wrap(rev ? late - end : late + start, SPAN);
+            const j = moved.onsets.indexOf(onset);
+            const accent = m.accents![i]!;
+            expect(moved.accents![j]).toBe(accent);
+            // Played: the level and the accent, or the beat and the accent.
+            if (level + moved.accents![j]! !== level + accent) againstLevel++;
+            if (beat(onset) + moved.accents![j]! !== beat(start) + accent) againstBeat++;
+          });
+        }
+    expect(againstLevel).toBe(0);
+    // An accent is loudness, not pitch: turning the contour over leaves it.
+    for (const m of accented)
+      for (const op of ops.filter((o) => o.late === 0 && !o.rev))
+        expect(applyOp(op, m).accents).toEqual(m.accents);
+    // Counted from the beat, an accent moved off the beat plays another velocity.
+    expect(againstBeat).toBeGreaterThan(0);
+  });
+});
+
 describe('the motif operators are the symmetries there are', () => {
   it('on time: every map of the cycle that keeps its steps next to each other is one late, or one late after rev (U5)', () => {
     for (const cycle of [3, 4, 5, 6, 7]) {
@@ -323,61 +378,67 @@ describe('the motif operators are the symmetries there are', () => {
     expect(isometries).toHaveLength(22);
   });
 
-  it('give one motif from several operators only where the motif has a symmetry, and write each result with one canonical operator, a fixed point (U5, F3)', () => {
-    // Every operator with a sequence of −2 to 2, and a wider set that holds every symmetry.
-    const all = [-2, -1, 0, 1, 2].flatMap((strans) =>
-      [false, true].flatMap((mirror) =>
-        range(SPAN).flatMap((late) => [false, true].map((rev) => ({ strans, mirror, late, rev }))),
-      ),
-    );
-    const wide = range(9).flatMap((s) =>
-      [false, true].flatMap((mirror) =>
-        range(SPAN).flatMap((late) =>
-          [false, true].map((rev) => ({ strans: s - 4, mirror, late, rev })),
+  it(
+    'give one motif from several operators only where the motif has a symmetry, and write each result with one canonical operator, a fixed point (U5, F3)',
+    { timeout: 30_000 },
+    () => {
+      // Every operator with a sequence of −2 to 2, and a wider set that holds every symmetry.
+      const all = [-2, -1, 0, 1, 2].flatMap((strans) =>
+        [false, true].flatMap((mirror) =>
+          range(SPAN).flatMap((late) =>
+            [false, true].map((rev) => ({ strans, mirror, late, rev })),
+          ),
         ),
-      ),
-    );
-    const key = (op: MotifOp) => JSON.stringify(op);
-    let symmetric = 0;
-    for (const m of motifs) {
-      const found = stabilizer(m).map(key).sort();
-      expect(found).toEqual(
-        wide
-          .filter((op) => text(applyOp(op, m)) === text(m))
-          .map(key)
-          .sort(),
       );
-      if (found.length > 1) symmetric++;
-      // The operators giving each result, and the canonical operator of each.
-      const results = new Map<string, Set<string>>();
-      for (const op of all) {
-        const made = text(applyOp(op, m));
-        const canonical = canonicalOp(op, m);
-        expect(text(applyOp(canonical, m))).toBe(made);
-        expect(canonicalOp(canonical, m)).toEqual(canonical);
-        results.set(made, (results.get(made) ?? new Set()).add(key(canonical)));
+      const wide = range(9).flatMap((s) =>
+        [false, true].flatMap((mirror) =>
+          range(SPAN).flatMap((late) =>
+            [false, true].map((rev) => ({ strans: s - 4, mirror, late, rev })),
+          ),
+        ),
+      );
+      const key = (op: MotifOp) => JSON.stringify(op);
+      let symmetric = 0;
+      for (const m of both) {
+        const found = stabilizer(m).map(key).sort();
+        expect(found).toEqual(
+          wide
+            .filter((op) => text(applyOp(op, m)) === text(m))
+            .map(key)
+            .sort(),
+        );
+        if (found.length > 1 && !m.accents) symmetric++;
+        // The operators giving each result, and the canonical operator of each.
+        const results = new Map<string, Set<string>>();
+        for (const op of all) {
+          const made = text(applyOp(op, m));
+          const canonical = canonicalOp(op, m);
+          expect(text(applyOp(canonical, m))).toBe(made);
+          expect(canonicalOp(canonical, m)).toEqual(canonical);
+          results.set(made, (results.get(made) ?? new Set()).add(key(canonical)));
+        }
+        // One canonical operator per result, and no two results share one.
+        expect([...results.values()].every((s) => s.size === 1)).toBe(true);
+        const canonicals = [...results.values()].map((s) => [...s][0]);
+        expect(new Set(canonicals).size).toBe(results.size);
       }
-      // One canonical operator per result, and no two results share one.
-      expect([...results.values()].every((s) => s.size === 1)).toBe(true);
-      const canonicals = [...results.values()].map((s) => [...s][0]);
-      expect(new Set(canonicals).size).toBe(results.size);
-    }
-    // A motif with no symmetry tells every operator apart. On a cycle this
-    // short, more than half have one.
-    expect(symmetric).toBe(285);
-    const plain = motif(SPAN, [
-      [0, 0],
-      [1, 1],
-      [3, 1, -1],
-    ]);
-    expect(stabilizer(plain)).toEqual([NOOP]);
-    expect(new Set(all.map((op) => text(applyOp(op, plain)))).size).toBe(all.length);
-  });
+      // A motif with no symmetry tells every operator apart. On a cycle this
+      // short, more than half have one.
+      expect(symmetric).toBe(285);
+      const plain = motif(SPAN, [
+        [0, 0],
+        [1, 1],
+        [3, 1, -1],
+      ]);
+      expect(stabilizer(plain)).toEqual([NOOP]);
+      expect(new Set(all.map((op) => text(applyOp(op, plain)))).size).toBe(all.length);
+    },
+  );
 });
 
 describe('head', () => {
   it('forms a monoid beside the group: heads of heads are the shorter, pitch commutes with them, and two motifs can share one (Q5c)', () => {
-    for (const m of motifs) {
+    for (const m of both) {
       const notes = m.degrees.filter((d) => d !== null).length;
       for (const a of range(notes).map((i) => i + 1)) {
         expect(motifProblems(head(m, a))).toEqual([]);
@@ -419,11 +480,14 @@ describe('head', () => {
         onsets: [...m.onsets.slice(0, rest), ...m.onsets.slice(from)],
         degrees: [...Array<null>(rest).fill(null), ...m.degrees.slice(from)],
         accidentals: [...Array<number>(rest).fill(0), ...m.accidentals.slice(from)],
+        ...(m.accents && {
+          accents: [...Array<number>(rest).fill(0), ...m.accents.slice(from)],
+        }),
       };
     };
     const rev = { ...NOOP, rev: true };
     let held = 0;
-    for (const m of motifs) {
+    for (const m of both) {
       // A note held over the start: the first onset is late, and the last is a note.
       const over = m.onsets[0] !== 0 && m.degrees.at(-1) !== null;
       const notes = m.degrees.filter((d) => d !== null).length;

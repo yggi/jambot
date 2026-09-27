@@ -102,8 +102,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   last note, its phrase and its themes' melodies (`BandCarried.parts`). A
   passed bar leaves the parts where they were, and only the lead's memory
   reaches more than register (S2). A Muse motif is a `Motif` (U4): onsets
-  with rests, and degrees of the key altered by `b` or `#`. Where it
-  enters the band is #79's to decide.
+  with rests, degrees of the key altered by `b` or `#`, and accents counted
+  from the player's level in the bar, which the judgement carries beside
+  it. Where it enters the band is #79's to decide.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
