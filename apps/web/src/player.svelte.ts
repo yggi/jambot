@@ -83,6 +83,7 @@ import {
 } from '@jambot/session';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
+import { EMPTY_HISTORY, HarmonicHistory, type HarmonicWeights } from './harmonicHistory.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EMPTY_PATTERN, Pattern, type BarPattern } from './pattern.ts';
@@ -220,6 +221,8 @@ export class Player {
   sounding: SoundingNotes = $state(SILENT);
   /** The last bar each track finished, for its piano roll. */
   pattern: BarPattern = $state(EMPTY_PATTERN);
+  /** Which pitch classes the band has actually sounded lately, weighted and decaying. */
+  harmonicHistory: HarmonicWeights = $state(EMPTY_HISTORY);
   mode: Mode = $state('solo');
   /** How many of the host's bars, as a client, had not arrived when they were due. */
   lacked = $state(0);
@@ -257,6 +260,7 @@ export class Player {
   #timing: TransportTiming = TRANSPORT_TIMING;
   #sounding = new Sounding();
   #pattern = new Pattern();
+  #harmonicHistory = new HarmonicHistory();
   /** The bars decided, from the first of the section heard on. */
   #bars: readonly ForecastBar[] = $state.raw([]);
   /** The bar the transport composes next, when the bars were last decided. */
@@ -522,6 +526,8 @@ export class Player {
     this.sounding = SILENT;
     this.#pattern.clear();
     this.pattern = EMPTY_PATTERN;
+    this.#harmonicHistory.clear();
+    this.harmonicHistory = EMPTY_HISTORY;
   }
 
   get #env(): TransportEnv {
@@ -633,8 +639,12 @@ export class Player {
         note: event.note,
         length: event.length,
       });
+      this.#harmonicHistory.push(performer, bar, event.note);
     }
-    if (scheduled.events.length > 0) this.pattern = this.#pattern.get();
+    if (scheduled.events.length > 0) {
+      this.pattern = this.#pattern.get();
+      this.harmonicHistory = this.#harmonicHistory.get();
+    }
     output.tick?.(
       skew === 0
         ? scheduled.steps

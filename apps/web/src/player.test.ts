@@ -601,4 +601,22 @@ describe('the player', () => {
       expect(player.pattern).toEqual({ drums: [], bass: [], comp: [], lead: [] });
     });
   });
+
+  describe('the harmonic history', () => {
+    it('weighs the pitch classes actually played, and clears them on stop', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      void player.start();
+      world.resolve();
+      await settle();
+      for (let t = 0; t < 20; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+      expect(player.harmonicHistory.some((w) => w > 0)).toBe(true);
+      expect(player.harmonicHistory).toHaveLength(12);
+      player.stop();
+      expect(player.harmonicHistory).toEqual(new Array(12).fill(0));
+    });
+  });
 });

@@ -239,7 +239,11 @@
       onintent={(intent) => player.apply(intent)}
     />
 
-    <KeyPicker heading={player.hud.heading} onintent={(intent) => player.apply(intent)} />
+    <KeyPicker
+      heading={player.hud.heading}
+      history={player.harmonicHistory}
+      onintent={(intent) => player.apply(intent)}
+    />
   </fieldset>
 
   <Stage hud={player.hud} playing={player.playing} />

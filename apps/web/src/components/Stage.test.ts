@@ -46,9 +46,9 @@ describe('the stage', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
     expect(screen.getByText('Opens on')).toBeInTheDocument();
     expect(screen.getByText('A aeolian')).toBeInTheDocument();
+    expect(screen.getByText('A B C D E F G')).toBeInTheDocument();
     expect(screen.getByText('Am')).toHaveClass('symbol');
     expect(screen.getByText('i')).toHaveClass('numeral');
-    expect(screen.getByRole('group', { name: 'Circle of fifths' })).toBeInTheDocument();
   });
 
   it('waits while the band starts', () => {
