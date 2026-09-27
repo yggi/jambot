@@ -3,16 +3,22 @@
  * port's timestamps are read against.
  *
  * `Output.currentTime` runs on an audio context's clock; a MIDI message's
- * timestamp is read against `performance.now()`. Where the platform can
- * relate the two precisely (`outputTimestamp`), the gap is taken from that;
- * otherwise it falls back to comparing `now()` with `currentTime` directly,
- * which drifts by the two clocks' rounding but is close enough to start
- * from. Repeated samples are smoothed, nine parts kept to one part fresh,
+ * timestamp is read against `performance.now()`. Both are related through
+ * the moment being heard: a MIDI note goes out when the audio scheduled
+ * with it is heard, and a note played is placed at what was heard as it was
+ * played. Where the platform relates the two precisely (`outputTimestamp`),
+ * its context time is that moment; otherwise the fallback compares `now()`
+ * with `currentTime` less the output's latency, which drifts by the two
+ * clocks' rounding but is close enough to start from. In Chromium the
+ * precise heard moment lags `currentTime` by about the output latency (35
+ * ms against 32). Repeated samples are smoothed, nine parts kept to one part fresh,
  * so a single noisy sample cannot move a scheduled note far.
  */
 
 export interface OutputClock {
   readonly currentTime: number;
+  /** How far behind `currentTime` what is heard is, in seconds. */
+  readonly latency?: number;
   /** A precise pairing of the two clocks, where the platform gives one. */
   outputTimestamp?():
     { readonly contextTime: number; readonly performanceTime: number } | undefined;
@@ -36,7 +42,7 @@ export function clockOffset(
     const ts = clock.outputTimestamp?.();
     if (ts && ts.contextTime > 0 && ts.performanceTime > 0)
       return ts.performanceTime - ts.contextTime * 1000;
-    return now() - clock.currentTime * 1000;
+    return now() - (clock.currentTime - (clock.latency ?? 0)) * 1000;
   };
   return {
     update() {

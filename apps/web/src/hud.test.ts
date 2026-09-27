@@ -248,3 +248,69 @@ describe('a glide’s progress', () => {
     });
   });
 });
+
+describe('the view of the Muse', () => {
+  const motif = {
+    cycle: 16,
+    onsets: [0, 4, 6, 8],
+    degrees: [0, 2, null, -1],
+    accidentals: [0, -1, 0, 0],
+  };
+  const offer = { motif, source: 'the computer keys', bar: 5, level: 90 };
+  const offered = bars.map((b) => ({ ...b, offer: b.bar >= 7 ? offer : null }));
+
+  it('says the lead plays the motif, and from which bar, where a bar has one on offer', () => {
+    expect(hudOf({ heard: 16 * 6, bars: offered, track }).bar).toMatchObject({
+      lead: leadRests(offered[6]!.plan.section.type, offered[6]!.barEnergy)
+        ? 'resting'
+        : 'improvising',
+      motif: null,
+    });
+    expect(hudOf({ heard: 16 * 7, bars: offered, track }).bar).toMatchObject({
+      lead: 'motif',
+      motif: 5,
+    });
+  });
+
+  it('draws the motif on offer: each note’s step, length and row from its lowest, a rest left out', () => {
+    const hud = hudOf({ heard: 0, bars, track, muse: { offer, log: [] } });
+    expect(hud.muse.motif).toEqual({
+      source: 'the computer keys',
+      bar: 5,
+      rows: 4,
+      notes: [
+        { step: 0, length: 4, row: 1, altered: false },
+        { step: 4, length: 2, row: 3, altered: true },
+        { step: 8, length: 8, row: 0, altered: false },
+      ],
+    });
+    expect(hudOf({ heard: 0, bars, track }).muse).toEqual({ motif: null, log: [] });
+  });
+
+  it('writes the log as the prototype does, the latest first, what was taken marked', () => {
+    const judged = (
+      bar: number,
+      judgements: unknown[],
+      taken: boolean,
+      forgot: string | null = null,
+    ) => ({ bar, judgements, offer: taken ? { ...offer, bar } : null, forgot }) as never;
+    const log = [
+      judged(1, [{ kind: 'too few', source: 's', count: 1 }], false),
+      judged(2, [{ kind: 'too few', source: 's', count: 2 }], false),
+      judged(3, [{ kind: 'mashing', source: 's', count: 14 }], false),
+      judged(4, [{ kind: 'too wide', source: 's', range: 21 }], false),
+      judged(5, [{ kind: 'motif', source: 'the computer keys', motif }], true),
+      judged(9, [], false, 'asked'),
+      judged(30, [], false, 'silence'),
+    ];
+    expect(hudOf({ heard: 0, bars, track, muse: { offer: null, log } }).muse.log).toEqual([
+      { bar: 30, text: 'Nobody has played for 16 bars. Back to improvising.', taken: false },
+      { bar: 9, text: 'Forgot the motif, as asked.', taken: false },
+      { bar: 5, text: 'Took a 3-note motif from the computer keys.', taken: true },
+      { bar: 4, text: 'The leaps span 21 semitones, too wide to reuse.', taken: false },
+      { bar: 3, text: '14 notes in one bar reads as mashing. Ignored.', taken: false },
+      { bar: 2, text: 'Heard 2 notes. A motif needs at least 3.', taken: false },
+      { bar: 1, text: 'Heard 1 note. A motif needs at least 3.', taken: false },
+    ]);
+  });
+});

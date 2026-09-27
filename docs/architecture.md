@@ -141,8 +141,10 @@ design (#7).
   (`soundOf`, from the style). MIDI out, with channel allocation and
   note-off bookkeeping, is #24.
 - **UI**: reads what the player has heard and sends intents (a preset,
-  which also wishes for its mode, and a slider move; a key picker and
-  takeovers later). It never mutates engine state.
+  which also wishes for its mode, a slider move, a key picked, a motif
+  forgotten; takeovers later). It never mutates engine state. The Muse
+  panel draws the motif on offer and the Muse's log, and the stage says
+  when the lead plays it.
   The conductor (`conductor.ts`) turns an intent into glides on the style
   track and a key wish. How the UI grows into components over a view model
   is laid out on #26.

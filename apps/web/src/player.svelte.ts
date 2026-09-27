@@ -33,6 +33,7 @@ import {
   LOOKAHEAD,
   type HeardNote,
   type MuseOutput,
+  type Offer,
   type Part,
   PRESETS,
   type ScheduledStep,
@@ -127,6 +128,8 @@ export class Player {
   humanNotes: readonly HumanNote[] = $state.raw([]);
   /** The Muse's latest judgements, of bars someone played in or of a forget, the latest last. */
   museLog: readonly MuseOutput[] = $state.raw([]);
+  /** The motif the Muse offers now, after the last bar it judged. */
+  offer: Offer | null = $state.raw(null);
   /** The band's own notes heard sounding right now: the lead's, the drums'. */
   sounding: SoundingNotes = $state({ lead: [], drums: [] });
 
@@ -150,7 +153,14 @@ export class Player {
   #decidedAt = -1;
 
   /** What the screen shows. */
-  readonly hud: Hud = $derived(hudOf({ heard: this.heard, bars: this.#bars, track: this.track }));
+  readonly hud: Hud = $derived(
+    hudOf({
+      heard: this.heard,
+      bars: this.#bars,
+      track: this.track,
+      muse: { offer: this.offer, log: this.museLog },
+    }),
+  );
 
   constructor(surroundings: Surroundings = browser) {
     this.#surroundings = surroundings;
@@ -186,14 +196,14 @@ export class Player {
   }
 
   /**
-   * A note played at `seconds` on the output's clock, from `source`, kept
-   * where it was heard for whenever the Muse (#79) reads it. A player plays
-   * along with what they hear, which is the output's latency behind its
-   * clock, so the note is placed that much earlier. Judging what was played
-   * is not this class's to do.
+   * A note played from `source`, at `seconds`: the moment on the output's
+   * clock that was being heard as it was played, which the clock offset
+   * gives (`clockOffset`). A player plays along with what they hear, so the
+   * note is kept there, for whenever the Muse (#79) reads it. Judging what
+   * was played is not this class's to do.
    */
   humanNoteOn(part: AlongPart, note: number, velocity: number, source: string, seconds: number) {
-    const position = this.writtenPosition(seconds - this.#latency);
+    const position = this.writtenPosition(seconds);
     if (position === null) return;
     const kept =
       this.humanNotes.length >= HUMAN_NOTES_MAX
@@ -217,13 +227,9 @@ export class Player {
       (n) => n.part === part && n.note === note && n.source === source && n.end === null,
     );
     if (i === -1) return;
-    const end = this.writtenPosition(seconds - this.#latency);
+    const end = this.writtenPosition(seconds);
     if (end === null) return;
     this.humanNotes = this.humanNotes.with(i, { ...this.humanNotes[i]!, end });
-  }
-
-  get #latency(): number {
-    return this.#output?.latency ?? 0;
   }
 
   /**
@@ -255,6 +261,7 @@ export class Player {
     this.#arrived = [];
     this.#forget = false;
     this.museLog = [];
+    this.offer = null;
     this.#decide();
     this.#tick();
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
@@ -313,6 +320,8 @@ export class Player {
     this.#forget = false;
     const logged = scheduled.judged.filter((j) => j.judgements.length > 0 || j.forgot !== null);
     if (logged.length > 0) this.museLog = [...this.museLog, ...logged].slice(-MUSE_LOG);
+    const latest = scheduled.judged.at(-1);
+    if (latest) this.offer = latest.offer;
     for (const { event, seconds, duration, sound } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds, duration, sound);
       if (event.part === 'lead' || event.part === 'drums')

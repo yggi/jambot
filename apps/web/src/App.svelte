@@ -3,6 +3,7 @@
   import Keyboard from './components/Keyboard.svelte';
   import KeyPicker from './components/KeyPicker.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
+  import MusePanel from './components/MusePanel.svelte';
   import Stage from './components/Stage.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import Transport from './components/Transport.svelte';
@@ -152,6 +153,8 @@
     onnote={(note, velocity, on) => routeToDrums(note, velocity, on, 'the drum pads')}
   />
 
+  <MusePanel muse={player.hud.muse} onforget={() => player.forgetMotif()} />
+
   <MidiPanel
     settings={midiSettings}
     access={midiAccess}
@@ -162,8 +165,9 @@
   <p class="note">
     The band plays drums, bass, chords and lead, over MIDI or the built-in synth. Join in on the
     keyboard or the pads above: a dot marks the current scale, and amber shows what the band's own
-    lead and drums are playing. The score, and the Muse's judgement of what you play, are still in
-    the <a href={prototypeUrl}>prototype</a>.
+    lead and drums are playing. Play a few notes within a bar on the keyboard, and the Muse takes
+    them as a motif the lead plays back from the bar after next. The score is still in the
+    <a href={prototypeUrl}>prototype</a>.
   </p>
 </main>
 

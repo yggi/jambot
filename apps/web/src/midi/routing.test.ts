@@ -47,6 +47,20 @@ describe('routeNote', () => {
     expect(d.humanNoteOn).toHaveBeenCalledWith(64, 90, 'the computer keys', 5);
   });
 
+  it('reads the clock itself when not given one, as in the browser', () => {
+    const humanNoteOn = vi.fn();
+    const humanNoteOff = vi.fn();
+    const browser = deps({ humanNoteOn, humanNoteOff, toOutputSeconds: (ms) => ms / 1000 });
+    delete (browser as Partial<typeof browser>).now;
+    const before = performance.now() / 1000;
+    routeNote(64, 90, true, 'the computer keys', browser);
+    routeNote(64, 0, false, 'the computer keys', browser);
+    const on = humanNoteOn.mock.calls[0]![3] as number;
+    const off = humanNoteOff.mock.calls[0]![2] as number;
+    expect(on).toBeGreaterThanOrEqual(before);
+    expect(off).toBeGreaterThanOrEqual(on);
+  });
+
   it('captures a release as a release, at the mapped time, and never as a note', () => {
     const d = deps({ playing: () => true, now: () => 5500, toOutputSeconds: (ms) => ms / 1000 });
     routeNote(60, 0, false, 'the computer keys', d);

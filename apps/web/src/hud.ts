@@ -11,6 +11,10 @@
  * heard, the bar shown is the one the band opens on, from the same
  * forecast that then plays.
  *
+ * The Muse's view is the motif on offer, as notes to draw, and its log in
+ * the prototype's words; the judgement's reasons are data, and this is
+ * where they become sentences.
+ *
  * A style is named by the preset it matches on every axis the preset sets
  * but energy, which a player rides within a genre. So the name follows the
  * track alone: a preset chosen names itself at once, and any other move
@@ -20,7 +24,10 @@
 import {
   type Axis,
   type ForecastBar,
+  type Judgement,
   type Key,
+  type MuseOutput,
+  type Offer,
   PRESETS,
   type SectionType,
   type Style,
@@ -62,8 +69,10 @@ export interface BarView {
   readonly chords: readonly ChordView[];
   /** The energy it plays at, 0 to 1. */
   readonly energy: number;
-  /** Whether the lead rests in it or improvises (`leadRests`). */
-  readonly lead: 'resting' | 'improvising';
+  /** Whether the lead rests in it, improvises (`leadRests`), or plays a motif the Muse offers. */
+  readonly lead: 'resting' | 'improvising' | 'motif';
+  /** The bar the motif it plays was heard in, counted from the song's start, or null. */
+  readonly motif: number | null;
 }
 
 export interface SectionView {
@@ -89,6 +98,37 @@ export interface StyleView {
   readonly glide: GlideView | null;
 }
 
+/** A motif on offer, as the Muse panel draws it. */
+export interface MotifView {
+  readonly source: string;
+  /** The bar it was heard in, counted from the song's start. */
+  readonly bar: number;
+  /** How many rows of degrees it spans. */
+  readonly rows: number;
+  /** Each note: its step, how long it is held, its row from the lowest, and whether it is altered. */
+  readonly notes: readonly {
+    readonly step: number;
+    readonly length: number;
+    readonly row: number;
+    readonly altered: boolean;
+  }[];
+}
+
+/** One line of the Muse's log. */
+export interface MuseLine {
+  /** The bar it is about, counted from the song's start. */
+  readonly bar: number;
+  readonly text: string;
+  /** Whether a motif was taken. */
+  readonly taken: boolean;
+}
+
+export interface MuseView {
+  readonly motif: MotifView | null;
+  /** The latest first. */
+  readonly log: readonly MuseLine[];
+}
+
 export interface Hud {
   /** The bar heard, or before anything is heard the bar the band plays first; null past the forecast. */
   readonly bar: BarView | null;
@@ -103,6 +143,7 @@ export interface Hud {
   readonly style: StyleView;
   /** The key the band is heading for: the last bar decided's, since a wish is met in one step. */
   readonly heading: Key | null;
+  readonly muse: MuseView;
 }
 
 export interface HudInput {
@@ -111,6 +152,8 @@ export interface HudInput {
   /** The bars decided, from the first of the section heard on (`forecast`). */
   readonly bars: readonly ForecastBar[];
   readonly track: StyleTrack;
+  /** The motif on offer and the Muse's latest judgements, the latest last; none before anything is played. */
+  readonly muse?: { readonly offer: Offer | null; readonly log: readonly MuseOutput[] };
 }
 
 const SECTION_NAMES: Record<SectionType, string> = {
@@ -133,7 +176,7 @@ export function presetOf(style: Style): string | null {
   return preset?.name ?? null;
 }
 
-export function hudOf({ heard, bars, track }: HudInput): Hud {
+export function hudOf({ heard, bars, track, muse }: HudInput): Hud {
   const at = heard === null ? 0 : bars.findIndex((b) => b.bar === Math.floor(heard / 16));
   const here = at >= 0 ? bars[at] : undefined;
   const step = heard === null ? 0 : heard % 16;
@@ -146,7 +189,65 @@ export function hudOf({ heard, bars, track }: HudInput): Hud {
     sections: here ? sectionViews(bars, Math.floor(here.bar / 8)) : [],
     style: styleView(track, heard ?? 0),
     heading: bars.at(-1)?.plan.key ?? null,
+    muse: {
+      motif: muse?.offer ? motifView(muse.offer) : null,
+      log: (muse?.log ?? []).flatMap(museLines).reverse(),
+    },
   };
+}
+
+function motifView({ motif, source, bar }: Offer): MotifView {
+  const { onsets, degrees, accidentals, cycle } = motif;
+  const notes = onsets.flatMap((step, i) => {
+    const degree = degrees[i];
+    if (degree === null || degree === undefined) return [];
+    return [
+      { step, length: (onsets[i + 1] ?? cycle) - step, degree, altered: accidentals[i] !== 0 },
+    ];
+  });
+  const lowest = Math.min(...notes.map((n) => n.degree));
+  const highest = Math.max(...notes.map((n) => n.degree));
+  return {
+    source,
+    bar,
+    rows: highest - lowest + 1,
+    notes: notes.map(({ step, length, degree, altered }) => ({
+      step,
+      length,
+      row: degree - lowest,
+      altered,
+    })),
+  };
+}
+
+/** Why a bar gave no motif, as the prototype says it. */
+function reason(judgement: Judgement): string | null {
+  switch (judgement.kind) {
+    case 'mashing':
+      return `${judgement.count} notes in one bar reads as mashing. Ignored.`;
+    case 'too few':
+      return `Heard ${judgement.count} note${judgement.count === 1 ? '' : 's'}. A motif needs at least 3.`;
+    case 'too wide':
+      return `The leaps span ${judgement.range} semitones, too wide to reuse.`;
+    case 'motif':
+      return null;
+  }
+}
+
+/** A judged bar's lines, in the order they happened: a forget, then what was taken or why not. */
+function museLines({ bar, judgements, offer, forgot }: MuseOutput): MuseLine[] {
+  const lines: MuseLine[] = [];
+  if (forgot === 'asked') lines.push({ bar, text: 'Forgot the motif, as asked.', taken: false });
+  if (forgot === 'silence')
+    lines.push({ bar, text: 'Nobody has played for 16 bars. Back to improvising.', taken: false });
+  if (offer?.bar === bar) {
+    const notes = offer.motif.degrees.filter((d) => d !== null).length;
+    lines.push({ bar, text: `Took a ${notes}-note motif from ${offer.source}.`, taken: true });
+  } else {
+    const why = judgements.map(reason).find((r) => r !== null);
+    if (why) lines.push({ bar, text: why, taken: false });
+  }
+  return lines;
 }
 
 /** The sections from `first` on, as far as the bars hold all eight of each. */
@@ -189,7 +290,12 @@ function barView(bar: ForecastBar): BarView {
     scale: positions(keyHelix(bar.plan.key)),
     chords: bar.chords.map((c) => chordView(c, bar)),
     energy: bar.barEnergy,
-    lead: leadRests(bar.plan.section.type, bar.barEnergy) ? 'resting' : 'improvising',
+    lead: bar.offer
+      ? 'motif'
+      : leadRests(bar.plan.section.type, bar.barEnergy)
+        ? 'resting'
+        : 'improvising',
+    motif: bar.offer?.bar ?? null,
   };
 }
 

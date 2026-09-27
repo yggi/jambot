@@ -121,7 +121,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
   chord note a triangle beside a sine 0.3 % sharp. A new voice keeps these
-  apart or updates `band.e2e.ts`.
+  apart or updates `band.e2e.ts`. A note played along is a square too, but
+  starts at once, off the grid; at energy 0 the lead rests, so a square on
+  the grid is a motif the Muse offered.
 - Section names appear twice on the page, on the stage and in the song
   map, which names them before anything is heard. So a check that the
   screen follows what is heard looks for `Bar n of 8`, which only the stage
@@ -139,8 +141,15 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   holds only its latest glide per axis, so inverting it from the song's
   start put a note 18 bars early after two tempo changes (#78). Each
   `ScheduledStep` carries the swing its beat was held at for this. A played
-  note is placed where it was heard, the output's latency before it
-  arrived, and kept exact; rounding it is the Muse's (#79).
+  note is placed at the moment that was being heard as it was played, kept
+  exact; rounding it is the Muse's (#79). `clockOffset` gives that moment
+  on both its paths, so nothing else takes the latency off again: in
+  Chromium the heard moment lags `currentTime` by about the output latency.
+- `performance.now` read off its object throws ("Illegal invocation" in a
+  browser, a TypeError in Node), so a default clock is called on it:
+  `deps.now ? deps.now() : performance.now()`, never
+  `(deps.now ?? performance.now)()`. That broke every note played in the
+  browser, after it had sounded, until an e2e check typed one (#79).
 - In the theory, a set is a `Helix`, `{ cycle, heights }`: the heights of
   degrees 0 to k − 1, with degree 0 wherever it stands. `positions(helix)` is
   the sorted view from the circle. `shift` moves heights (transposition) and

@@ -373,13 +373,15 @@ describe('the player', () => {
       expect(player.writtenPosition(late.seconds)).toBeCloseTo(late.step, 9);
     });
 
-    it('logs a note played at its exact position, where it was heard: the output’s latency earlier', async () => {
+    it('logs a note played at its exact position, at the moment it was heard, whatever the latency', async () => {
+      // The clock offset already maps a key's time to the moment being heard
+      // (\`clockOffset\`), so the player takes the latency off no second time.
       const { world, player, run } = await playing();
       run(5);
       world.latency = 0.05;
       const step = world.steps.at(-20)!;
       const heard = step.seconds + 0.3 * step.length;
-      player.humanNoteOn('lead', 64, 90, 'the computer keys', heard + world.latency);
+      player.humanNoteOn('lead', 64, 90, 'the computer keys', heard);
       expect(player.humanNotes).toEqual([
         {
           part: 'lead',
@@ -397,7 +399,7 @@ describe('the player', () => {
       run(5);
       world.latency = 0.05;
       const [a, b, c] = [-30, -25, -20].map((i) => world.steps.at(i)!);
-      const at = (step: { seconds: number }) => step.seconds + world.latency;
+      const at = (step: { seconds: number }) => step.seconds;
       player.humanNoteOn('lead', 64, 90, 'the computer keys', at(a!));
       player.humanNoteOn('lead', 64, 90, 'a MIDI port', at(a!));
       player.humanNoteOff('lead', 64, 'the computer keys', at(b!));
@@ -445,6 +447,26 @@ describe('the player', () => {
       run(8);
       expect(leadSteps(world, 4)).toEqual([0, 4, 8]);
       expect(player.museLog.map((l) => [l.bar, l.offer?.bar ?? null])).toContainEqual([2, 2]);
+    });
+
+    it('shows the Muse on the screen: the motif on offer, the log, and the lead playing it (#79)', async () => {
+      const { world, player, run } = await playing();
+      expect(player.hud.muse).toEqual({ motif: null, log: [] });
+      playMotif(world, player, run, 2);
+      run(8);
+      world.frames[0]!.follow();
+      expect(player.hud.muse.motif).toMatchObject({ source: 'the computer keys', bar: 2 });
+      expect(player.hud.muse.log[0]).toEqual({
+        bar: 2,
+        text: 'Took a 3-note motif from the computer keys.',
+        taken: true,
+      });
+      expect(player.hud.bar).toMatchObject({ lead: 'motif', motif: 2 });
+      player.forgetMotif();
+      run(9);
+      world.frames[0]!.follow();
+      expect(player.hud.muse.motif).toBeNull();
+      expect(player.hud.bar).toMatchObject({ motif: null });
     });
 
     it('judges no note from the drum pads, which are not a melody', async () => {
