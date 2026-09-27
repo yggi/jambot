@@ -338,6 +338,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   theory: a level is a Mealy machine, `compile` and `encode` are a retraction
   and a section, helices under `compose` are a category. The table is
   `language.md`, "Nomenclature".
+- `packages/score` writes a bar as text and reads it back (`encodeBar`,
+  `compileBar`), so far its header, `style` and `harm`. Its `ScoreBar` is its
+  own type: the engine is only a dev dependency, for `seam.test.ts`, which reads
+  back every bar the band writes (Q1a). A chord `chordScale` gives no scale for,
+  such as `Isus4`, is refused until the score can write `scale=` (U3).
+- In the port's drums only the snare needs its role written: every other sound
+  has one role (E15). Where the backbeat and a fill meet, the backbeat stays.
 - The prototype's score is not self-contained: 68% of bars compile differently
   from their text alone, always in register (octave, voicing), never in harmony
   or rhythm (`language.md`, S1 and E1).

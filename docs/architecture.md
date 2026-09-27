@@ -18,17 +18,21 @@ Jambot is a pnpm workspace:
   agent hooks, the pawl and history checks over the catalogues, the license gate
   and the Pages deploy.
 
-`theory`, `engine` and `session` are pure: plain TypeScript with no DOM, no Web
-Audio, no timers and no Node APIs, which lint enforces. They run anywhere
-JavaScript runs: a browser tab, a Worker, or the root node.
+`theory`, `engine`, `score` and `session` are pure: plain TypeScript with no
+DOM, no Web Audio, no timers and no Node APIs, which lint enforces. They run
+anywhere JavaScript runs: a browser tab, a Worker, or the root node.
 
 The engine is ported from the [prototype](prototype.md) (#2), and all of it but
 the Muse is in place (#37). The score core (the grammar, its parser, the encoder
 and the compiler) goes into its own package, `packages/score`, which builds on
 the theory, and the engine depends on both. The score language is the contract
 between the composer, the compiler, the analyzer (#3) and later the learned
-models, so it lives apart from any one of them. The package is created with its
-first module, the seam of #63.
+models, so it lives apart from any one of them. It holds its own type for what a
+bar's text states (`ScoreBar`), which the engine's bar fits without being
+imported: the score depends on the theory alone, and on the engine only in its
+tests, until the text step puts it between the band and `playBar` (#63 step 5).
+So far it writes and reads a bar's header, its style and its harmony, and its
+round trip holds over every bar the band writes (Q1a).
 
 ## Theory
 
