@@ -168,4 +168,16 @@ describe('the performance', () => {
     expect(stab(0)).toBe(2.5);
     expect(stab(1)).toBeCloseTo(0.45, 9);
   });
+
+  it('drops a drum hit’s role on the way to a NoteEvent (L7)', () => {
+    const env = barOf('groove', 1, {});
+    const event = perform(env, hit('backbeat', 4));
+    expect('role' in event).toBe(false);
+  });
+
+  it('drops a lead note’s accent on the way to a NoteEvent (L7)', () => {
+    const env = barOf('groove', 1, {});
+    const event = perform(env, { part: 'lead', step: 0, note: 64, length: 4, accent: 6 });
+    expect('accent' in event).toBe(false);
+  });
 });

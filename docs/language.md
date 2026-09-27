@@ -172,6 +172,37 @@ Source: Strudel's query model, spirit. Status: measured (drums); measured,
 failing (the prototype's score, E1). Lands in: #63 step 3, where the pitched
 parts' carried state is S2's key frame.
 
+**T6. A meter is a helix of pulses over the bar's eighths, and a grouping is a
+mode of it.** Witness: `pulseHelix` (`meter.ts`),
+`even(pulses, subdivisions, 0)`: simple, compound and additive meters in one
+formula, with 7/8's 3+2+2, 2+2+3 and 2+3+2 the three modes of `even(3, 7)` and
+`mirror` the retrograde. Every pulse spans 2 or 3 eighths exactly when
+`2 · pulses ≤ subdivisions ≤ 3 · pulses`. The song's 4/4 is one meter: its
+pulses composed onto 16 steps, two to an eighth, are `even(4, 16)`, the
+transport's beats. Counterexample: a grouping into 2s and 3s that no mode of
+`even` gives. 10/8 as 3+3+2+2 is the first, and 70 of the 149 groupings of up to
+16 eighths are such; each is still a helix, written as heights, as the son clave
+is among the rhythms. Test: `meter.test.ts`, whose tests under "as a helix" cite
+T6, over every named meter and every pair up to 16. Open for the song: nothing
+reads a meter but the metronome, and the transport's bar is 16 steps
+(`transport.ts`, `% 16`). Source: #98, the metronome. Status: measured (the
+named meters, their modes); measured, failing (every grouping, by `even` alone).
+Lands in: #63 (a meter in the bar's header, beside T5's environment); #27 (the
+transport's bar).
+
+**T7. A tempo is a rate of the grid, and a pulse tempo exists only where the
+pulses are equal.** Witness: `pulseLengths`: its lengths are equal exactly when
+the pulses divide the eighths, over every well-formed pair up to 16. The engine
+counts tempo per step (`tempoMap`, C2), so its `bpm` is a quarter of the step
+rate, whatever the meter. The metronome counts a mean pulse rate
+(`pulsesPerMinute`, `subdivisionSeconds`), which for 5/8 at 120 plays pulses of
+0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when the meter
+does. Counterexample: an additive meter with a pulse that plays at the written
+tempo. Test: `meter.test.ts`, whose test of pulse tempo cites T7, over every
+well-formed pair up to 16. Open: what `bpm=` counts in a header once a bar has a
+meter. It is the score language's, so the owner's (#7). Source: #98. Status:
+measured (theory). Lands in: #63; #27.
+
 **T8. Once its clock is trusted, a client sounds each moment within its bound of
 the host, half its best round trip give or take the pairing's jitter, and
 follows a jump of either clock within two pings.** Witness: `hostClock`, which
@@ -538,6 +569,23 @@ Q1d)". Source: #5, E11, R4 (`comp` named the machine, its carried state and a
 note's voice). Status: measured. Decided: #7, on measured options (E11). Lands
 in: #24 (the channels).
 
+**L7. What is written survives into what is played, except what a performance
+map replaces.** Witness: `perform` (`perform.ts`), which reads a `WrittenNote`
+and returns a `NoteEvent`: `part`, `step` and `note` pass through unchanged, and
+`velocity` and `length` are what the claim names as replaced, read from the bar
+(T4). Counterexample: a field `perform` drops that names neither a replacement
+nor a pass-through. A drum hit's role (`WrittenNote.role`) is one: `perform`
+reads it once, in `accent`, to help decide the note's velocity, and then drops
+it, so nothing past a `NoteEvent` — MIDI out, the built-in synth, or a display
+over played events, such as the stage's per-member piano roll (#99) — can read
+which groove role a drum hit plays. The same is true of a lead note's `accent`
+(U4). Test: `perform.test.ts`, "drops a drum hit’s role on the way to a
+NoteEvent (L7)" and "drops a lead note’s accent on the way to a NoteEvent (L7)".
+Source: PR #103's review, a per-member piano roll that can label a pitch but not
+a role. Status: measured, failing (role, accent). Lands in: #99 (a drums member
+named by role, not raw pitch), #79 (a rhythm motif with roles, which wants the
+same field kept past `perform`).
+
 ### Readers and writers
 
 **R1. A musician reads it like a lead sheet.** Source: spirit. Status: open.
@@ -876,6 +924,9 @@ These are where the decisions are.
 6. **The lead sheet against the token stream** (R1, R2). If they conflict, one
    meaning can have two surfaces.
 7. **Twelve against any cycle** (P5, L1).
+8. **One bar of 16 steps against a meter per bar** (T6, T7). The theory holds
+   every meter, and the song holds one: the transport, the Muse's grid and the
+   HUD count a bar as 16 steps and a beat as 4.
 
 ## Semantics before surface
 

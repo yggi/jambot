@@ -2,6 +2,7 @@
   import DrumPads from './components/DrumPads.svelte';
   import Keyboard from './components/Keyboard.svelte';
   import KeyPicker from './components/KeyPicker.svelte';
+  import Members from './components/Members.svelte';
   import MetronomePanel from './components/MetronomePanel.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
   import MusePanel from './components/MusePanel.svelte';
@@ -17,6 +18,7 @@
   import { connectMidi as connect, routeNote } from './midi/routing.ts';
   import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, partOf } from './midi/surfaces.ts';
   import { MidiSettings } from './midi/settings.svelte.ts';
+  import { membersOf } from './members.ts';
   import { Metronome } from './metronome.svelte.ts';
   import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
   import { broadcastLobby } from './session/broadcast.ts';
@@ -78,6 +80,8 @@
   /** Notes currently held, from any source, so the keyboard and the pads light them too. */
   const heldLead = new SvelteSet<number>();
   const heldDrums = new SvelteSet<number>();
+
+  const members = $derived(membersOf(player.hud, player.sounding, player.pattern));
 
   /**
    * A note source for one instrument: `routeNote` holds it, captures it for
@@ -187,6 +191,8 @@
   </fieldset>
 
   <Stage hud={player.hud} playing={player.playing} />
+
+  <Members {members} />
 
   <MetronomePanel {metronome} />
 
