@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { METERS, type Meter, compose, even, heightOf } from '@jambot/theory';
 import { composeTimeMaps, swingMap, swingParts } from './swing.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -104,5 +105,33 @@ describe('composeTimeMaps', () => {
     expect(both.played(3)).toBe(7);
     expect(both.written(7)).toBe(3);
     expect(composeTimeMaps(later, double).played(3)).toBe(8);
+  });
+});
+
+describe('swing over a meter', () => {
+  /** A meter on the bar's steps, two to an eighth, as the song's 4/4 lies on its 16. */
+  const onSteps = (meter: Meter) => compose(meter, even(meter.cycle, 2 * meter.cycle));
+
+  it('keeps every pulse of 3/4 and 4/4 where it is, and moves a pulse late in every other named meter, since it swings by beats of 4 steps (finite: every named meter, every pulse of 8 bars) (T11)', () => {
+    const full = swingMap(1);
+    const kept: string[] = [];
+    for (const [name, meter] of Object.entries(METERS)) {
+      const clock = onSteps(meter);
+      const pulses = Array.from({ length: 8 * clock.heights.length }, (_, d) => heightOf(clock, d));
+      if (pulses.every((step) => full.played(step) === step)) kept.push(name);
+    }
+    expect(kept).toEqual(['3/4', '4/4']);
+    expect(full.played(6)).toBeCloseTo(6 + 2 / 3, 12); // 6/8's second pulse, a third of a step late
+  });
+
+  it('plays 4/4’s eighths at full swing on 12/8’s: each offbeat eighth on its pulse’s third eighth, where a bar of 12/8 lies on the same 16 steps (T11)', () => {
+    const full = swingMap(1);
+    /** Where 12/8's eighth j lies when its bar spans the 16 steps: 12 eighths to 16 steps. */
+    const twelveEighth = (j: number) => (j * 16) / 12;
+    for (let eighth = 0; eighth < 8; eighth++) {
+      const pulse = Math.floor(eighth / 2);
+      const third = eighth % 2 === 0 ? 0 : 2;
+      expect(full.played(2 * eighth)).toBeCloseTo(twelveEighth(3 * pulse + third), 12);
+    }
   });
 });

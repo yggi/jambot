@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
   import { type Hud, leadStatus } from '../hud.ts';
+  import CircleOfFifths from './CircleOfFifths.svelte';
   import NextBars from './NextBars.svelte';
   import SongMap from './SongMap.svelte';
 
@@ -23,12 +24,19 @@
 
 <section class="stage" aria-label="Conductor">
   <div class="stage-top">
-    <span class="section">
-      {heard && hud.bar ? hud.bar.section : playing ? '…' : 'Ready'}
-    </span>
+    <div class="stage-top-text">
+      <span class="section">
+        {heard && hud.bar ? hud.bar.section : playing ? '…' : 'Ready'}
+      </span>
+      {#if hud.bar}
+        <span>{heard ? `Bar ${hud.bar.barInSection + 1} of 8` : 'Opens on'}</span>
+        <span>{hud.bar.key}</span>
+      {/if}
+    </div>
     {#if hud.bar}
-      <span>{heard ? `Bar ${hud.bar.barInSection + 1} of 8` : 'Opens on'}</span>
-      <span>{hud.bar.key}</span>
+      <div class="key-wheel">
+        <CircleOfFifths tonic={hud.bar.tonic} scale={hud.bar.scale} />
+      </div>
     {/if}
   </div>
   {#if hud.chord}
@@ -65,11 +73,21 @@
   }
   .stage-top {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .stage-top-text {
+    display: flex;
     flex-wrap: wrap;
     gap: 4px 14px;
     align-items: baseline;
     color: var(--muted);
     font-size: 14px;
+  }
+  .key-wheel {
+    width: 100px;
+    flex-shrink: 0;
   }
   .section {
     font-weight: 800;

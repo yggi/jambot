@@ -52,6 +52,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       `mirror` and `complement`
     - `src/even.ts`: `even(k, n, shift)`, the maximally even set, `isEven` and
       `generator`
+    - `src/circle.ts`: `fifthsIndex`, a pitch class's place on the circle of
+      fifths, built on `generator(7, 12)`
     - `src/modes.ts`: `mode`, `modes`, `brightness`, and the diatonic modes by
       name
     - `src/notes.ts`, `src/intervals.ts`: note names (spelling, octaves),
@@ -73,9 +75,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       degrees, and the operators on them: `strans`, `mirror`, `late` and `rev`
       as a group, `head` as a monoid, and each result's canonical operator (Q5c,
       U4, U5)
-    - `src/meter.ts`: meter, as `even(pulses, subdivisions, 0)`: one formula for
-      a simple, compound or additive bar (3/4, 6/8, 5/8 as 3+2), `meterWeights`
-      (downbeat, another pulse, or between them) and `pulseLengths`
+    - `src/meter.ts`: meter, a helix of pulses over the bar's eighths, most of
+      them `even(pulses, eighths)`: one formula for a simple, compound or
+      additive bar (3/4, 6/8, 5/8 as 3+2), 10/8's 3+3+2+2 by its heights, and
+      `meterWeights` (downbeat, another pulse, or between them)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou and
       quintenzirkel use, checked to mean the same here
@@ -234,16 +237,19 @@ Every doc and code area, as a tree. Add a line when you add one.
         chord heard with its numeral, the beats, the song map, the next four
         bars and what the lead is doing; before the start, the bar the band
         opens on
-      - `src/components/Members.svelte`: one `Member` row per band member,
-        drums, bass, chords and lead
-      - `src/components/Member.svelte`: one band member, collapsed to its
+      - `src/components/Performers.svelte`: one `Performer` row per band
+        performer, drums, bass, chords and lead
+      - `src/components/Performer.svelte`: one band performer, collapsed to its
         status, expandable to its last bar as a `PianoRoll`, what is sounding on
         it, and, while the lead plays a motif, whose it is
-      - `src/components/PianoRoll.svelte`: a member's last bar, drawn a row per
-        pitch sounding, low at the bottom; generalizes `MusePanel`'s rows of a
-        scale degree to rows of a raw note
+      - `src/components/PianoRoll.svelte`: a performer's last bar, drawn a row
+        per pitch sounding, low at the bottom; generalizes `MusePanel`'s rows of
+        a scale degree to rows of a raw note
       - `src/components/KeyPicker.svelte`: a tonic and a mode, showing the key
         the band is heading for
+      - `src/components/CircleOfFifths.svelte`: the circle of fifths: the
+        current scale lit and threaded as a figure from the tonic, the tonic
+        ringed; a dot is also a button when given `onintent` and `mode`
       - `src/components/MusePanel.svelte`: the Muse: the motif on offer, drawn a
         row per degree, where it came from, Forget, and the log
       - `src/components/NextBars.svelte`: the next four bars, with cues where
@@ -275,10 +281,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       transport, for the Muse (#79), whose log is `museLog`, and `forgetMotif`
       asks it to forget. `playAlong` plays a note at once, on the same clock and
       synth, from an instrument, a computer key or MIDI; `sounding` is only the
-      band's own notes heard sounding, one entry per band member, never what was
-      played along with it; `pattern` is each member's last bar finished, for
-      its piano roll. It plays alone, hosts (telling `hosting` what it does) or
-      follows a host (`follow`, and the `follow…` calls), on the host's clock
+      band's own notes heard sounding, one entry per band performer, never what
+      was played along with it; `pattern` is each performer's last bar finished,
+      for its piano roll. It plays alone, hosts (telling `hosting` what it does)
+      or follows a host (`follow`, and the `follow…` calls), on the host's clock
       through `skew`
     - `src/session/`: host and client mode in the app
       ([brief](briefs/host-mode.md))
@@ -294,21 +300,28 @@ Every doc and code area, as a tree. Add a line when you add one.
       - `websocket.ts`: `websocketLobby`, through a lobby server
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars ahead as
       `BarView`s and the song map's sections of them, the chord sounding, the
-      key's scale, the style's preset and glide, and the Muse's motif and log in
-      the prototype's words, as plain data; `leadStatus` and `styleStatus` are
-      the lead's and the style's status lines, reused by the stage's members
-    - `src/members.ts`: the stage's members, `membersOf`: one `MemberView` per
-      band member, drums, bass, chords and lead, each a status line, the Muse's
-      source while the lead plays that same motif (`hud.bar.motif`, not just any
-      offer the Muse holds now), what is sounding on it and its last bar's
-      pattern, built the same way whether the player hosts, follows or plays
-      alone
+      key's tonic and scale, the style's preset and glide, and the Muse's motif
+      and log in the prototype's words, as plain data; `leadStatus` and
+      `styleStatus` are the lead's and the style's status lines, reused by the
+      stage's performers
+    - `src/circleLayout.ts`: pure geometry for a circle-of-fifths wheel:
+      `wheelAngle`, `wheelPoint` and `figureOrder`, the scale's pitch classes
+      ordered to trace its figure from the tonic
+    - `src/noteNames.ts`: `TONIC_NAMES`, the twelve pitch classes' names, as the
+      prototype spells them
+    - `src/performers.ts`: the stage's performers, `performersOf`: one
+      `PerformerView` per band performer, drums, bass, chords and lead, each a
+      status line, the Muse's source while the lead plays that same motif
+      (`hud.bar.motif`, not just any offer the Muse holds now), what is sounding
+      on it and its last bar's pattern, built the same way whether the player
+      hosts, follows or plays alone
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/sounding.ts`: `Sounding`, the band's own notes heard sounding right
-      now on each of its four members, from a hit's scheduled time and duration;
-      `memberOf` maps the comp's `pad` and `stab` onto the one chords member
-    - `src/pattern.ts`: `Pattern`, the last bar each member finished, kept whole
-      once the next bar's first note arrives, for a member's piano roll
+      now on each of its four performers, from a hit's scheduled time and
+      duration; `performerOf` maps the comp's `pad` and `stab` onto the one
+      chords performer
+    - `src/pattern.ts`: `Pattern`, the last bar each performer finished, kept
+      whole once the next bar's first note arrives, for a performer's piano roll
     - `src/audio/output.ts`: what the player plays on, and the Web Audio one
     - `src/audio/midi-out.ts`: MIDI out, one channel per part; a note-off is
       answered by its note-on's decision, never by what else is sounding at

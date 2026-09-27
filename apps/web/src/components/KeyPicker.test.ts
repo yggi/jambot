@@ -47,4 +47,16 @@ describe('the key picker', () => {
       wish: { tonic: 9, mode: 'mixolydian' },
     });
   });
+
+  it('also wishes for a tonic clicked on its circle of fifths, keeping the mode', async () => {
+    const onintent = vi.fn();
+    render(KeyPicker, { heading: { tonic: 9, mode: 'aeolian' }, onintent });
+    await fireEvent.click(
+      screen.getByRole('group', { name: 'Circle of fifths' }).querySelector('button')!,
+    );
+    expect(onintent).toHaveBeenCalledWith({
+      kind: 'key',
+      wish: { tonic: expect.any(Number), mode: 'aeolian' },
+    });
+  });
 });

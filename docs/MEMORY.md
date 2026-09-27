@@ -86,7 +86,14 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   energy or entropy doesn't. The key picker shows the key the band is heading
   for, the last bar decided's (`hud.heading`). A key picked is wished for tonic
   and mode; a preset wishes for its mode only when the wish is in another, so a
-  key picked survives a preset in its mode.
+  key picked survives a preset in its mode. `CircleOfFifths.svelte` draws that
+  same key as a wheel: theory's `fifthsIndex` (built on `generator(7, 12)`) lays
+  the 12 pitch classes out by fifths, and the current scale is a stroke-only
+  figure threaded from the tonic, which alone gets a ring. It is read-only
+  wherever it is given no `mode`/`onintent` (the stage's, from
+  `hud.bar.tonic`/`.scale`); given both, a dot is a button that wishes for its
+  pitch class as tonic, in the mode already playing (the controls' wheel, beside
+  `KeyPicker`'s selects, going through the same `key` intent).
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot
   (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and
   drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a
@@ -140,14 +147,18 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   which names them before anything is heard. So a check that the screen follows
   what is heard looks for `Bar n of 8`, which only the stage shows.
 - The lead's status line (`leadStatus`, `hud.ts`) also appears twice, once on
-  the stage and once on its own row among the stage's members (`members.ts`,
-  `Members.svelte`): a member's row is what the lead-shaped drums, bass and
-  chords rows already look like, and singling the lead's out would be the
-  special case. An `apps/web/e2e/band.e2e.ts` check that reads it scopes to the
-  stage's own `Conductor` region. The stage's four members (drums, bass, chords,
-  lead) are named `Member`, not `Track`: `track` already names `StyleTrack` and
-  the ratchet's working and negative tracks, and a third job would break the law
-  of true names.
+  the stage and once on its own row among the stage's performers
+  (`performers.ts`, `Performers.svelte`): a performer's row is what the
+  lead-shaped drums, bass and chords rows already look like, and singling the
+  lead's out would be the special case. An `apps/web/e2e/band.e2e.ts` check that
+  reads it scopes to the stage's own `Conductor` region. The stage's four rows
+  (drums, bass, chords, lead) are named `Performer`, not `Track` or `Member`:
+  `track` already names `StyleTrack` and the ratchet's working and negative
+  tracks, and `Performer` names what each row is precisely — the composer writes
+  what a performer plays, and a performer is the band's own voice or a human at
+  that voice's instrument, the same word family as `perform.ts` (T4), which is
+  how a performer plays it. Decided in the working track, on the owner's naming
+  call.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A bar's
   chords come from its theme's slots (`barChords`); their colour draws are keyed
@@ -359,11 +370,11 @@ The full description is in
   grid (the transport, the band, the score): nothing there reads a time
   signature, and nothing composes in anything but 4/4. The first real meter in
   the codebase is the client-only metronome (`packages/theory/src/meter.ts`,
-  `packages/engine/src/metronome.ts`): a meter, `even(pulses, subdivisions, 0)`,
-  on its own bar, independent of the song's. It is a fact worth knowing before
-  assuming "meter" means 4/4 anywhere else in the engine; see #7's comment on
-  the pressure this puts on the score language once the band, not only a click
-  track, might want one.
+  `packages/engine/src/metronome.ts`): a meter, a `Helix` of pulses over the
+  bar's eighths, on its own bar, independent of the song's. It is a fact worth
+  knowing before assuming "meter" means 4/4 anywhere else in the engine; see
+  #7's comment on the pressure this puts on the score language once the band,
+  not only a click track, might want one.
 - A header's `bpm=` counts the grid, as the engine's `stepSeconds` does: quarter
   notes a minute, a quarter of the step rate, whatever the meter. A pulse rate
   is only derived, for display, and exists only where the pulses are equal (T7).

@@ -8,6 +8,7 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   barInSection: n % 8,
   section: 'Groove',
   key: 'A aeolian',
+  tonic: 9,
   scale: [0, 2, 4, 5, 7, 9, 11],
   chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
   energy: 0.6,
@@ -47,6 +48,7 @@ describe('the stage', () => {
     expect(screen.getByText('A aeolian')).toBeInTheDocument();
     expect(screen.getByText('Am')).toHaveClass('symbol');
     expect(screen.getByText('i')).toHaveClass('numeral');
+    expect(screen.getByRole('group', { name: 'Circle of fifths' })).toBeInTheDocument();
   });
 
   it('waits while the band starts', () => {
