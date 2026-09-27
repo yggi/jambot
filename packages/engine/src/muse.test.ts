@@ -254,25 +254,67 @@ describe('the Muse’s judgement', () => {
   });
 
   it('counts each note’s accent from the player’s level in the bar, the rounded mean of the melody (U4)', () => {
-    const judgement = judgeOne(struck(played([[0, 69], [4, 72], [8, 76]]), [100, 81, 90]));
+    const judgement = judgeOne(
+      struck(
+        played([
+          [0, 69],
+          [4, 72],
+          [8, 76],
+        ]),
+        [100, 81, 90],
+      ),
+    );
     expect(judgement).toMatchObject({ level: 90, motif: { accents: [10, -9, 0] } });
   });
 
   it('writes no accents where every note is at the level, and none on a rest', () => {
-    const even = judgeOne(struck(played([[0, 69], [4, 72], [8, 76]]), [70, 70, 70]));
+    const even = judgeOne(
+      struck(
+        played([
+          [0, 69],
+          [4, 72],
+          [8, 76],
+        ]),
+        [70, 70, 70],
+      ),
+    );
     expect(even).toMatchObject({ level: 70 });
     expect(even.kind === 'motif' && 'accents' in even.motif).toBe(false);
-    const rested = judgeOne(struck(played([[0, 69, 1.8], [4, 72], [8, 76]]), [100, 80, 90]));
-    expect(rested).toMatchObject({ level: 90, motif: { onsets: [0, 2, 4, 8], accents: [10, 0, -10, 0] } });
+    const rested = judgeOne(
+      struck(
+        played([
+          [0, 69, 1.8],
+          [4, 72],
+          [8, 76],
+        ]),
+        [100, 80, 90],
+      ),
+    );
+    expect(rested).toMatchObject({
+      level: 90,
+      motif: { onsets: [0, 2, 4, 8], accents: [10, 0, -10, 0] },
+    });
   });
 
   it('hears a chord’s loudness in its top note only', () => {
-    const notes = struck(played([[0, 57], [0, 69], [4, 72], [8, 76]]), [20, 100, 80, 90]);
+    const notes = struck(
+      played([
+        [0, 57],
+        [0, 69],
+        [4, 72],
+        [8, 76],
+      ]),
+      [20, 100, 80, 90],
+    );
     expect(judgeOne(notes)).toMatchObject({ level: 90, motif: { accents: [10, -10, 0] } });
   });
 
   it('writes the same motif for the same accents played louder or softer; only the level moves', () => {
-    const notes = played([[0, 69], [4, 72], [8, 76]]);
+    const notes = played([
+      [0, 69],
+      [4, 72],
+      [8, 76],
+    ]);
     const loud = judgeOne(struck(notes, [120, 100, 110]));
     const soft = judgeOne(struck(notes, [50, 30, 40]));
     if (loud.kind !== 'motif' || soft.kind !== 'motif') throw new Error('not motifs');

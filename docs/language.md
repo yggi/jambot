@@ -116,8 +116,10 @@ hit, its role, and the band plays each through `perform`, which reads the
 rest from the bar. A drum's accent comes from its role and step (the kick
 112 on steps 0 and 8 and 92 elsewhere, the ghost snare 32 + 14 × sync),
 scaled by the energy and loosened by the swing; the bass and the lead
-accent the beat; the bass and the lead gate their lengths by the
-articulation, and a stab sounds from 2.5 steps down to 0.45. Where two drum
+accent the beat, but for a lead note from a motif, written with its
+accent, which plays on the lead's level (U4); the bass and the lead gate
+their lengths by the articulation, and a stab sounds from 2.5 steps down
+to 0.45. Where two drum
 roles meet on a sound and step, one hit is written, the stronger role's, so
 the join of F5 happens in what is written. The split changed nothing that
 plays: every event of 5,760 bars, over every preset held, the tour and a
@@ -647,10 +649,12 @@ level in the bar. An accent moves with its note under `late` and `rev`,
 and `strans` and `mirror` leave it. Played, a motif note is the band's
 level for its part and bar plus its accent, never the player's level:
 that is the Muse's style reading (#16), which reaches the band only
-through following, with its bandwidth (A4). The Muse's judgement doesn't
-write accents or carry the player's level yet, and the lead has no level
-of its own (its `perform` gives 100 on the beat and 82 off it); both are
-#79 step 3's.
+through following, with its bandwidth (A4). The Muse's judgement counts
+the player's level as the rounded mean of the melody's velocities and
+carries it beside the motif (`level` on the judgement and the offer). A
+lead note from a motif is written with its accent (`WrittenNote.accent`),
+and `perform` plays it on the lead's level, `LEAD_LEVEL`, in place of the
+beat's accent.
 Counterexample: something a player plays that no motif gives back. The
 Muse's working track names four (#79, and #7's pressure comment, points 1
 to 4): a blue note, which a whole degree rounds away; a player's accents,
@@ -670,8 +674,13 @@ The engine and MIDI stay in 12 (L1), where every pitch is reached.
 `numerals.test.ts`, whose tests of `alteredDegree` cite U4: a note is
 written as a numeral writes a root off the key, and every height of every
 diatonic key comes back. `muse.test.ts`, whose tests cite U4: every note a
-player plays in any key comes back from the Muse's motif, and a note
-released before the next leaves a rest.
+player plays in any key comes back from the Muse's motif, a note released
+before the next leaves a rest, and each accent is counted from the
+player's level. `lead.test.ts`, `events.test.ts` and `perform.test.ts`,
+whose tests of accents cite U4: a motif's note is written with its accent
+and played on the lead's level, and the lead's own notes keep the beat's.
+`transport.test.ts`, whose test of loudness cites U4: one accent pattern
+played loudly or softly plays back the same.
 Source: #7 (d), #79, E13, the names round. Status: measured (12, 17, 19);
 measured, failing (22, 31, 53). Decided: #7, on measured options (rests,
 over a note held to the next, whose `head` and `rev` gave the last notes
@@ -680,8 +689,9 @@ and P5 says what `b` moves by); #7, ahead of the evidence (accents counted
 from a level, not from the beat: the test shows only that such an accent
 moves with its note, by construction, and whether players' velocities are
 expressive or metric is A5's, open; nothing that plays yet moves a note
-across a beat, E13, so it is the easier choice to reverse). Lands in: #79
-steps 1 and 3, #63.
+across a beat, E13, so it is the easier choice to reverse); #79 step 3,
+ahead of the evidence (the lead's level, 91, the midpoint of its accents on
+and off the beat, 100 and 82). Lands in: #79 steps 1 and 3, #63.
 
 **U5. The motif operators are the theory's `shift` and `mirror` on pitch
 and on time, named `strans`, `mirror`, `late` and `rev`: every chain of

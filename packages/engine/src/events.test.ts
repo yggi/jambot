@@ -91,11 +91,11 @@ describe('writtenProblems', () => {
   it('takes a whole accent on a lead note, as written, and on nothing else (T4, U4)', () => {
     const lead: WrittenNote = { part: 'lead', step: 0, note: 72, length: 2 };
     for (const accent of [-20, 0, 15]) expect(writtenProblems({ ...lead, accent })).toEqual([]);
-    expect(writtenProblems({ ...lead, accent: 2.5 })).toEqual([
-      'accent 2.5 is not a whole number',
-    ]);
+    expect(writtenProblems({ ...lead, accent: 2.5 })).toEqual(['accent 2.5 is not a whole number']);
     for (const part of PARTS.filter((p) => p !== 'lead' && p !== 'drums'))
-      expect(writtenProblems({ ...lead, part, accent: 3 })).toEqual([`a ${part} note has no accent`]);
+      expect(writtenProblems({ ...lead, part, accent: 3 })).toEqual([
+        `a ${part} note has no accent`,
+      ]);
   });
 
   it('wants a role on a drum hit and on nothing else', () => {
