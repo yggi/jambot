@@ -3,6 +3,7 @@ import { type BandBar, band, lookAhead } from './band.ts';
 import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
+import type { HeardNote } from './muse.ts';
 import {
   INITIAL_STYLE,
   PRESETS,
@@ -342,13 +343,126 @@ describe('the transport', () => {
     let carried = band.initial;
     for (const b of outputs.flatMap((o) => o.composed)) {
       const next = band.advance(
-        { seed: 11, bar: b.bar, style: styleAt(track, b.bar * 16), wish: env().wish },
+        {
+          seed: 11,
+          bar: b.bar,
+          style: styleAt(track, b.bar * 16),
+          wish: env().wish,
+          offer: null,
+        },
         carried,
         null,
       );
       expect(b).toEqual(next.output);
       carried = next.carried;
     }
+  });
+});
+
+/**
+ * The transport over ticks, each note played delivered on the first tick
+ * whose clock has reached the step it was played on, as a player's note
+ * arrives; and a forget on the tick given.
+ */
+function listening(
+  track: StyleTrack,
+  count: number,
+  notes: readonly HeardNote[],
+  forgetAt: number | null = null,
+) {
+  let carried = transport.initial;
+  const laid = new Map<number, number>();
+  const outputs: TransportOutput[] = [];
+  const inputs: TransportInput[] = [];
+  let waiting = [...notes];
+  for (const [i, tick] of ticks(0.9, count).entries()) {
+    const arrived = waiting.filter(
+      (n) => (laid.get(Math.floor(n.position)) ?? Infinity) <= tick.now,
+    );
+    waiting = waiting.filter((n) => !arrived.includes(n));
+    const input: TransportInput = { ...tick, heard: arrived, forget: i === forgetAt };
+    inputs.push(input);
+    const next = transport.advance(env(track), carried, input);
+    carried = next.carried;
+    outputs.push(next.output);
+    for (const step of next.output.steps) laid.set(step.step, step.seconds);
+  }
+  return { outputs, inputs, carried, bars: outputs.flatMap((o) => o.composed) };
+}
+
+/** A three-note motif played in `bar`, on its steps 0, 4 and 8. */
+const motifIn = (bar: number, source = 'the computer keys'): HeardNote[] =>
+  [69, 72, 76].map((note, i) => ({
+    note,
+    velocity: 100,
+    source,
+    position: 16 * bar + 4 * i,
+    end: null,
+  }));
+
+describe('the transport listening', () => {
+  const lively = holding({ ...INITIAL_STYLE, energy: 0.8 });
+
+  it('plays a motif heard in bar k from bar k + 2, and nothing before bar k + 2 changes (F7)', () => {
+    // Every loop passes through a delay: the Muse judges bar k as the band
+    // composes bar k + 2, so what bar k + 1 plays can't depend on bar k.
+    const silent = listening(lively, 1400, []);
+    for (const k of [2, 5, 9]) {
+      const heard = listening(lively, 1400, motifIn(k));
+      const before = (r: typeof heard) => r.bars.filter((b) => b.bar < k + 2);
+      expect(before(heard)).toEqual(before(silent));
+      const judged = heard.outputs.flatMap((o) => o.judged);
+      expect(judged.find((j) => j.bar === k)).toMatchObject({ offer: { bar: k } });
+      const played = heard.bars.find((b) => b.bar === k + 2)!;
+      expect(played.offer).toMatchObject({ bar: k, source: 'the computer keys' });
+      expect(played.written.filter((n) => n.part === 'lead').map((n) => n.step)).toEqual([0, 4, 8]);
+    }
+  });
+
+  it('plays a motif played loudly or softly the same, on the lead’s level plus its accents (U4)', () => {
+    // The player's level is the reading of their style, not the band's.
+    const at = (velocities: number[]) => {
+      const notes = motifIn(2).map((n, i) => ({ ...n, velocity: velocities[i]! }));
+      const bar = listening(lively, 600, notes).bars.find((b) => b.bar === 4)!;
+      return bar.events.filter((e) => e.part === 'lead').map((e) => e.velocity);
+    };
+    expect(at([120, 100, 110])).toEqual([101, 81, 91]);
+    expect(at([50, 30, 40])).toEqual([101, 81, 91]);
+  });
+
+  it('judges each bar it composed once, in order, and keeps no note it has judged', () => {
+    const { outputs, carried } = listening(lively, 900, [...motifIn(3), ...motifIn(7)]);
+    const judged = outputs.flatMap((o) => o.judged).map((j) => j.bar);
+    expect(judged).toEqual(range(judged.length));
+    expect(judged.length).toBeGreaterThan(8);
+    const last = judged.at(-1)!;
+    for (const n of carried!.listening.pending)
+      expect(Math.floor(n.position / 16)).toBeGreaterThan(last);
+    expect(carried!.listening.unjudged.every((u) => u.bar > last)).toBe(true);
+  });
+
+  it('forgets the motif when asked, from the next bar it composes', () => {
+    // A motif in bar 2 plays from bar 4; a forget while bar 8 is composed
+    // takes it away from bar 9; the next motif, in bar 11, plays from bar 13
+    // and stays: the forget is used up.
+    const notes = [...motifIn(2), ...motifIn(11)];
+    const offered = listening(lively, 1800, notes);
+    const tick = offered.outputs.findIndex((o) => o.composed.some((b) => b.bar === 8));
+    const forgot = listening(lively, 1800, notes, tick + 1);
+    const judged = forgot.outputs.flatMap((o) => o.judged);
+    expect(judged.filter((j) => j.forgot === 'asked').map((j) => j.bar)).toEqual([7]);
+    expect(forgot.bars.at(-1)!.bar).toBeGreaterThan(18);
+    for (const b of forgot.bars)
+      expect(b.offer?.bar ?? null).toBe(b.bar >= 13 ? 11 : b.bar >= 4 && b.bar < 9 ? 2 : null);
+  });
+
+  it('keeps the machine laws with notes arriving and a forget (F1)', () => {
+    const { inputs } = listening(lively, 600, [...motifIn(2), ...motifIn(5, 'a MIDI port')], 400);
+    const script: Script<TransportEnv, TransportInput> = inputs.map((input) => ({
+      env: env(lively),
+      input,
+    }));
+    expect(lawBreaks(transport, script)).toEqual([]);
   });
 });
 
@@ -370,7 +484,7 @@ describe('the forecast from the transport', () => {
       if (i >= 300 && i % 100 === 0)
         forecasts.push({
           from: carried!.nextBar,
-          bars: lookAhead(carried!.band, (bar) => bandEnvAt(now, bar), 16),
+          bars: lookAhead(carried!.band, (bar) => bandEnvAt(now, bar, null), 16),
         });
     });
     let compared = 0;

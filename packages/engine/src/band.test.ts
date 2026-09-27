@@ -39,7 +39,13 @@ const wishAt = (bar: number): KeyWish => ({
 });
 const envAt =
   (seed: number) =>
-  (bar: number): BandEnv => ({ seed, bar, style: styleAt(bar), wish: wishAt(bar) });
+  (bar: number): BandEnv => ({
+    seed,
+    bar,
+    style: styleAt(bar),
+    wish: wishAt(bar),
+    offer: null,
+  });
 const script = (seed: number, bars = 64): Script<BandEnv, null> =>
   range(bars).map((bar) => ({ env: envAt(seed)(bar), input: null }));
 
@@ -174,6 +180,7 @@ describe('the band', () => {
       bar,
       style,
       wish: { tonic: null, mode: PRESETS[Math.floor(bar / 8)]!.mode },
+      offer: null,
     });
     let off = 0;
     for (const seed of range(3)) {
@@ -228,7 +235,7 @@ describe('the band', () => {
       const at = (bar: number): BandEnv => {
         const preset = PRESETS[Math.floor(bar / 16) % PRESETS.length]!;
         const style = { ...preset.style, energy: 0.8, entropy: 0.3 };
-        return { seed, bar, style, wish: { tonic: null, mode: preset.mode } };
+        return { seed, bar, style, wish: { tonic: null, mode: preset.mode }, offer: null };
       };
       let whole = band.initial;
       let resumed = band.initial;
@@ -265,6 +272,7 @@ describe('the band', () => {
       bar: 3,
       style: INITIAL_STYLE,
       wish: { tonic: null, mode: 'aeolian' },
+      offer: null,
     } as const;
     expect(() => band.advance(env, band.initial, null)).toThrow(
       /bar 3, but the song starts at bar 0/,

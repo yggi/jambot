@@ -7,8 +7,9 @@
  *
  * - dynamics: a drum's accent by its role and step, scaled by the bar's
  *   energy and loosened by a seeded draw as the swing rises; the bass and
- *   the lead by the beat; the comp by the energy, a pad the softer the more
- *   the articulation leans to stabs;
+ *   the lead by the beat, except a lead note from a motif, which plays on
+ *   the lead's level plus the accent it is written with (U4); the comp by
+ *   the energy, a pad the softer the more the articulation leans to stabs;
  * - articulation: the bass and the lead gate their written lengths by the
  *   articulation, a stab sounds from 2.5 steps down to 0.45 as it rises, a
  *   pad is held for its written length, and a breakdown's bass lets go 0.3
@@ -26,6 +27,13 @@ const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const onTheBeat = (step: number) => step % 4 === 0;
+
+/**
+ * The lead's level, which a motif's accents are counted from when it plays:
+ * the midpoint of its accents on and off the beat, 100 and 82. Ahead of the
+ * evidence (#79).
+ */
+export const LEAD_LEVEL = 91;
 
 /** A drum hit's accent, before the energy scales it. */
 function accent(env: BarEnv, role: DrumRole, step: number): number {
@@ -72,6 +80,7 @@ function velocityOf(env: BarEnv, written: WrittenNote): number {
       return clampVelocity(48 + 30 * energy * (0.5 + padWeight / 2));
     }
     case 'lead':
+      if (written.accent !== undefined) return clampVelocity(LEAD_LEVEL + written.accent);
       return onTheBeat(step) ? 100 : 82;
   }
 }

@@ -31,6 +31,7 @@ import type { NoteEvent, WrittenNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import type { KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import type { Offer } from './muse.ts';
 import { perform } from './perform.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
 import { type Sound, soundOf } from './sound.ts';
@@ -44,6 +45,8 @@ export interface BandEnv {
   readonly style: Style;
   /** The key the players wish for, which a section boundary moves toward. */
   readonly wish: KeyWish;
+  /** The motif the Muse offers, which the lead settles on (#79). */
+  readonly offer: Offer | null;
 }
 
 /** A bar as decided the bar before: its section's plan and its chords. */
@@ -169,6 +172,7 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
       barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
       chords: here.chords,
       next: after.next!.chords,
+      offer: env.offer,
     };
     const bassline = bass.advance(bar, carried.parts.bass, null);
     const comping = comp.advance(bar, carried.parts.comp, null);

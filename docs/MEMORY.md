@@ -106,11 +106,17 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   was released before the next, and degrees of the key altered by `b` or
   `#`, written as a numeral writes a root off the key. The `muse` machine
   carries what it offers (an `Offer`: the motif, its source, the bar heard)
-  and the last bar anyone played; its output is the log. Where the offer
-  enters the band is #79 step 3. A motif may also carry accents, counted
-  from the player's level in the bar and played on the band's own level
-  (U4); the judgement doesn't write them yet, and carrying the player's
-  level beside the motif, as the style reading, is #79's.
+  and the last bar anyone played; its output is the log. The offer enters
+  the band as its environment (`BandEnv.offer`, then `BarEnv.offer`), a
+  standing target like the key wish, and the lead plays it whole while it
+  stands, even where it would rest. The transport carries the Muse's
+  state (`listening`) and judges bar k as it composes bar k + 2
+  (`LISTEN_DELAY`); a test that builds a `BandEnv` or `BarEnv` by hand
+  gives `offer: null`. A motif's accents are counted from the player's
+  level in the bar, which the judgement and the offer carry beside it as
+  the style reading, and a motif note plays at the band's level plus its
+  accent (U4): the lead writes it on the note (`WrittenNote.accent`), and
+  `perform` plays it on `LEAD_LEVEL`.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a

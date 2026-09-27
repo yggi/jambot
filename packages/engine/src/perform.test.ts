@@ -4,7 +4,7 @@ import type { BarEnv } from './bar.ts';
 import { DRUM_NOTES } from './drums.ts';
 import { type DrumRole, PARTS, type WrittenNote, writtenProblems } from './events.ts';
 import type { SectionType } from './form.ts';
-import { perform } from './perform.ts';
+import { LEAD_LEVEL, perform } from './perform.ts';
 import { PRESETS, type Style } from './style.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -16,7 +16,7 @@ const tour = (seed: number, bars = 96): BandBar[] => {
     const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
     const style = { ...preset.style, entropy: (bar % 32) / 32 };
     const next = band.advance(
-      { seed, bar, style, wish: { tonic: null, mode: preset.mode } },
+      { seed, bar, style, wish: { tonic: null, mode: preset.mode }, offer: null },
       carried,
       null,
     );
@@ -97,6 +97,21 @@ describe('the performance', () => {
       perform(barOf('breakdown', 1), { part: 'bass', step: 0, note: 48, length: 4 }).velocity,
     ).toBe(70);
     expect(perform(barOf('groove', 0.5), hit('kick', 0)).velocity).toBe(92);
+  });
+
+  it('plays a lead note with an accent on the lead’s level, in place of the beat’s accent (T4, U4)', () => {
+    expect(LEAD_LEVEL).toBe(91);
+    const at = (step: number, accent?: number) =>
+      perform(barOf('groove', 0.5), {
+        part: 'lead',
+        step,
+        note: 72,
+        length: 2,
+        ...(accent === undefined ? {} : { accent }),
+      }).velocity;
+    expect([at(0, 0), at(2, 0), at(0, 12), at(2, -30)]).toEqual([91, 91, 103, 61]);
+    expect([at(0, 60), at(2, -120)]).toEqual([127, 1]);
+    expect([at(0), at(2)]).toEqual([100, 82]);
   });
 
   it('pads the softer the more the articulation leans to stabs, and stabs louder with energy (T4)', () => {

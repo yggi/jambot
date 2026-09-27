@@ -29,6 +29,10 @@ const played = (notes: [number, number, number?][], source = 'the computer keys'
     end: end ?? null,
   }));
 
+/** The same notes, each struck at its velocity. */
+const struck = (notes: HeardNote[], velocities: number[]) =>
+  notes.map((n, i) => ({ ...n, velocity: velocities[i]! }));
+
 /** Every motif the Muse writes is well formed (U4). */
 const wellFormed = (judgements: readonly Judgement[]) => {
   for (const j of judgements) if (j.kind === 'motif') expect(motifProblems(j.motif)).toEqual([]);
@@ -124,6 +128,7 @@ describe('the Muse’s judgement', () => {
       kind: 'motif',
       source: 'the computer keys',
       motif: plain([0, 4, 8], [0, 2, 1]),
+      level: 100,
     });
   });
 
@@ -137,6 +142,7 @@ describe('the Muse’s judgement', () => {
         kind: 'motif',
         source: 'the computer keys',
         motif: plain([0, 3, 6, 9, 12], shape),
+        level: 100,
       });
     }
   });
@@ -247,6 +253,75 @@ describe('the Muse’s judgement', () => {
     expect(past).toMatchObject({ motif: { onsets: [0, 4, 8, 12], degrees: [null, 0, 2, 4] } });
   });
 
+  it('counts each note’s accent from the player’s level in the bar, the rounded mean of the melody (U4)', () => {
+    const judgement = judgeOne(
+      struck(
+        played([
+          [0, 69],
+          [4, 72],
+          [8, 76],
+        ]),
+        [100, 81, 90],
+      ),
+    );
+    expect(judgement).toMatchObject({ level: 90, motif: { accents: [10, -9, 0] } });
+  });
+
+  it('writes no accents where every note is at the level, and none on a rest', () => {
+    const even = judgeOne(
+      struck(
+        played([
+          [0, 69],
+          [4, 72],
+          [8, 76],
+        ]),
+        [70, 70, 70],
+      ),
+    );
+    expect(even).toMatchObject({ level: 70 });
+    expect(even.kind === 'motif' && 'accents' in even.motif).toBe(false);
+    const rested = judgeOne(
+      struck(
+        played([
+          [0, 69, 1.8],
+          [4, 72],
+          [8, 76],
+        ]),
+        [100, 80, 90],
+      ),
+    );
+    expect(rested).toMatchObject({
+      level: 90,
+      motif: { onsets: [0, 2, 4, 8], accents: [10, 0, -10, 0] },
+    });
+  });
+
+  it('hears a chord’s loudness in its top note only', () => {
+    const notes = struck(
+      played([
+        [0, 57],
+        [0, 69],
+        [4, 72],
+        [8, 76],
+      ]),
+      [20, 100, 80, 90],
+    );
+    expect(judgeOne(notes)).toMatchObject({ level: 90, motif: { accents: [10, -10, 0] } });
+  });
+
+  it('writes the same motif for the same accents played louder or softer; only the level moves', () => {
+    const notes = played([
+      [0, 69],
+      [4, 72],
+      [8, 76],
+    ]);
+    const loud = judgeOne(struck(notes, [120, 100, 110]));
+    const soft = judgeOne(struck(notes, [50, 30, 40]));
+    if (loud.kind !== 'motif' || soft.kind !== 'motif') throw new Error('not motifs');
+    expect(loud.motif).toEqual(soft.motif);
+    expect([loud.level, soft.level]).toEqual([110, 40]);
+  });
+
   it('puts each note on the step nearest where it was heard', () => {
     const judgement = judgeOne(
       played([
@@ -317,11 +392,13 @@ describe('the Muse’s judgement', () => {
           degrees: [null, 0, 1, 2],
           accidentals: [0, 0, 0, 0],
         },
+        level: 100,
       },
       {
         kind: 'motif',
         source: 'the on-screen keys',
         motif: plain([0, 4, 8], [0, 2, 4]),
+        level: 100,
       },
     ]);
   });
@@ -416,9 +493,15 @@ describe('the Muse', () => {
         source: 'a MIDI port',
         bar: 1,
         motif: plain([0, 4, 8], [0, 2, 4]),
+        level: 100,
       },
       forgot: null,
     });
+  });
+
+  it('offers the player’s level beside the motif, as the reading of their style', () => {
+    const { outputs } = listen([{ heard: struck(phrase(0), [60, 40, 50]) }]);
+    expect(outputs[0]!.offer).toMatchObject({ level: 50, motif: { accents: [10, -10, 0] } });
   });
 
   it('keeps its offer through bars that give no motif, and replaces it with the next motif taken', () => {

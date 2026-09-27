@@ -118,7 +118,9 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/comp.ts`: the comp, the pad and the stab parts, a machine that carries its
       last voicing
     - `src/lead.ts`: the lead, a machine that carries its last note, its
-      phrase and its themes' melodies; `leadRests` says where it rests
+      phrase and its themes' melodies, each a motif of one bar (U4);
+      `leadRests` says where it rests; `realize` plays a motif, its own
+      fitted to the chords, and one the Muse offers whole
     - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
       decides the next (`passBar` for a bar it doesn't play), and
@@ -127,7 +129,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       composes a beat before each bar and schedules on a clock, and
       `bandEnvAt` is what the band reads for a bar; `forecast` gives the
       bars ahead, composed or not; `writtenAt` reads a moment on the clock
-      back through the steps as laid
+      back through the steps as laid; the notes played arrive as its
+      input, and it runs the Muse two bars behind the band
     - `experiments/`: measurements on the port for the language design,
       outside the pure `src/`
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
@@ -200,11 +203,12 @@ Every doc and code area, as a tree. Add a line when you add one.
       bars decided ahead and shows everything through one snapshot, `hud`.
       `writtenPosition`, `humanNoteOn` and `humanNoteOff` place a played
       note where it was heard, through the steps laid in the last seconds,
-      exactly and with its release, kept in `humanNotes` for whenever the
-      Muse (#79) reads them. `playAlong` plays a note at once, on the same clock
-      and synth, from an instrument, a computer key or MIDI; `sounding` is
-      only the band's own lead and drum notes heard sounding, never what
-      was played along with it
+      exactly and with its release, kept in `humanNotes`; the keyboard's
+      go to the transport, for the Muse (#79), whose log is `museLog`, and
+      `forgetMotif` asks it to forget. `playAlong` plays a note at once, on
+      the same clock and synth, from an instrument, a computer key or MIDI;
+      `sounding` is only the band's own lead and drum notes heard sounding,
+      never what was played along with it
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
       ahead as `BarView`s and the song map's sections of them, the chord
       sounding, the key's scale, and the style's preset and glide, as plain

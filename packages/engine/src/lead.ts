@@ -3,11 +3,13 @@
  * and its themes' melodies.
  *
  * A phrase is four bars: a shape, a variation of it, the shape again, and
- * another variation. A shape is a rhythm, the style's grooves blended with a
- * Euclidean pattern that fills with energy, and a contour over it (an arch,
- * a fall, a rise or a wave) walked in steps of the key, where a leap is
- * followed by a step back and entropy adds turns and leaps. A variation
- * turns the shape over, lifts it, bends its last note or drops it.
+ * another variation. A shape is a motif of one bar (U4), and the lead
+ * `realize`s every motif it plays, its own and the Muse's, the same way. A
+ * shape is a rhythm, the style's grooves blended with a Euclidean pattern
+ * that fills with energy, and a contour over it (an arch, a fall, a rise or
+ * a wave) walked in steps of the key, where a leap is followed by a step
+ * back and entropy adds turns and leaps. A variation turns the shape over,
+ * lifts it, bends its last note or drops it.
  *
  * Each phrase starts from the chord tone nearest where the lead left off.
  * On the half bar and where a chord starts the lead lands on a chord tone,
@@ -20,11 +22,28 @@
  * first played with returns while the syncopation and the energy stay near
  * it. The lead rests in an intro, a breakdown and below energy 0.4. A note
  * is written to the next one, or to the end of the bar; the performance
- * gates it by the articulation, and accents the beat (`perform.ts`). These
- * are the prototype's rules and weights.
+ * gates it by the articulation, and accents the beat (`perform.ts`).
+ *
+ * A motif the Muse offers (#79) is a standing target: the lead takes it as
+ * its phrase at once, whatever the phase, and plays it while it stands,
+ * even where it would rest. A player's notes are not moved to chord tones,
+ * but the phrase grammar still closes bars 2 and 4, and the variations still
+ * vary it. When the offer goes, the lead goes back to its own phrases at
+ * once, and a motif never becomes a theme's melody. These are the
+ * prototype's rules and weights.
  */
 
-import { type Chord, even, heightOf, joinChord, positions, wrap } from '@jambot/theory';
+import {
+  type Chord,
+  type Helix,
+  type Motif,
+  chromaticStep,
+  even,
+  heightOf,
+  joinChord,
+  positions,
+  wrap,
+} from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { chordAt } from './chords.ts';
 import type { WrittenNote } from './events.ts';
@@ -37,14 +56,42 @@ import type { ThemeKind } from './themes.ts';
 /** The lowest and highest note the lead plays. */
 export const LEAD_RANGE = [60, 86] as const;
 
-/** A melody's shape: where it plays, and each note's degree from the first. */
-export interface LeadShape {
-  readonly steps: readonly number[];
-  /** Degrees of the key, counted from the phrase's first note. */
-  readonly degrees: readonly number[];
-  /** The syncopation and energy it was made at, which a return has to stay near. */
+/**
+ * The lead's own phrase: a motif of one bar (U4), its notes unaltered and
+ * each held to the next, the last to the bar's end, and the syncopation and
+ * energy it was made at, which a theme's return has to stay near.
+ */
+export interface LeadShape extends Motif {
   readonly sync: number;
   readonly energy: number;
+}
+
+/**
+ * A shape from its notes' steps and degrees. A bar that starts silent
+ * starts with a rest, so the last note ends at the bar's end rather than
+ * running on into the next time round (U4).
+ */
+function shapeFrom(
+  steps: readonly number[],
+  degrees: readonly number[],
+  sync: number,
+  energy: number,
+): LeadShape {
+  const rest = steps[0]! > 0;
+  return {
+    cycle: 16,
+    onsets: rest ? [0, ...steps] : [...steps],
+    degrees: rest ? [null, ...degrees] : [...degrees],
+    accidentals: [...(rest ? [0] : []), ...steps.map(() => 0)],
+    sync,
+    energy,
+  };
+}
+
+/** A shape's notes: their steps and degrees, its rest left out. */
+function notesOf(shape: LeadShape): { steps: number[]; degrees: number[] } {
+  const at = shape.degrees.flatMap((d, i) => (d === null ? [] : [i]));
+  return { steps: at.map((i) => shape.onsets[i]!), degrees: at.map((i) => shape.degrees[i]!) };
 }
 
 export interface LeadCarried {
@@ -56,6 +103,8 @@ export interface LeadCarried {
   readonly melodies: Partial<
     Record<ThemeKind, { readonly theme: number; readonly shape: LeadShape }>
   >;
+  /** The bar the offered motif playing was heard in, or null for the lead's own phrase. */
+  readonly offered: number | null;
 }
 
 /** Where the lead plays, straight and syncopated. */
@@ -117,20 +166,20 @@ function shapeOf(env: BarEnv): LeadShape {
     degrees.push(here + m);
     move = m;
   }
-  return {
-    steps,
-    degrees,
-    sync: style.sync,
-    energy,
-  };
+  return shapeFrom(steps, degrees, style.sync, energy);
 }
 
-/** A variation of a shape, drawn per bar. */
+/**
+ * A variation of a shape, drawn per bar: turned over, lifted, its last note
+ * bent, or its last note dropped, the note before it then held to the bar's
+ * end. At some entropy one note is nudged a degree.
+ */
 function varied(shape: LeadShape, seed: number, bar: number, entropy: number): LeadShape {
   let n = 0;
   const next = () => draw(seed, 'leadVariation', bar, n++);
-  let degrees = [...shape.degrees];
-  const steps = [...shape.steps];
+  const notes = notesOf(shape);
+  let degrees = notes.degrees;
+  const onsets = notes.steps;
   // Turn it over, lift it, bend its last note, or drop it.
   const way = pick(next(), [0.3, 0.25, 0.25, 0.2]);
   if (way === 0) degrees = degrees.map((d) => -d);
@@ -139,20 +188,20 @@ function varied(shape: LeadShape, seed: number, bar: number, entropy: number): L
     const i = degrees.length - 1;
     if (i > 0)
       degrees[i] = degrees[i - 1]! + (chance(next(), 0.5) ? -1 : 1) * (1 + pick(next(), [1, 1]));
-  } else if (steps.length > 2) {
-    steps.pop();
+  } else if (onsets.length > 2) {
+    onsets.pop();
     degrees.pop();
   }
-  if (chance(next(), entropy * 0.5) && steps.length > 1) {
+  if (chance(next(), entropy * 0.5) && onsets.length > 1) {
     const i =
       1 +
       pick(
         next(),
-        steps.slice(1).map(() => 1),
+        onsets.slice(1).map(() => 1),
       );
     degrees[i]! += chance(next(), 0.5) ? -1 : 1;
   }
-  return { ...shape, steps, degrees };
+  return shapeFrom(onsets, degrees, shape.sync, shape.energy);
 }
 
 /** The nearest note to `near` among a chord's tones, within a tritone; ties go down. */
@@ -198,13 +247,87 @@ export function leadRests(section: SectionType, barEnergy: number): boolean {
   return barEnergy < 0.4 || section === 'breakdown' || section === 'intro';
 }
 
+/** The degree of the key nearest a note: where a phrase starts from. */
+function degreeNear(scale: Helix, note: number): number {
+  const octave = Math.floor((note - scale.heights[0]!) / 12);
+  const within = wrap(note - scale.heights[0]!, 12);
+  let degree = 0;
+  scale.heights.forEach((h, i) => {
+    if (
+      Math.abs(h - scale.heights[0]! - within) <
+      Math.abs(scale.heights[degree]! - scale.heights[0]! - within)
+    )
+      degree = i;
+  });
+  return octave * 7 + degree;
+}
+
+/** The phrase's cadence: bar 2 ends open, on the third or fifth, and bar 4 closes on the root. */
+function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], phase: number) {
+  if (phase !== 1 && phase !== 3) return notes;
+  const tones = joinChord(chordAt(chords, lastStep).chord);
+  const allowed = phase === 3 ? [tones[0]!] : [tones[1]!, tones[2]!];
+  return [
+    ...notes.slice(0, -1),
+    nearestOf(
+      allowed.map((x) => wrap(x, 12)),
+      notes.at(-1)!,
+    ),
+  ];
+}
+
+/**
+ * A motif of one bar realized as the lead's notes: its first note on the
+ * degree of the key nearest the chord tone nearest where the lead left off,
+ * each note altered as written and held to the next onset, a rest silent,
+ * and the last note to the bar's end. (A motif that didn't start on the
+ * bar's first step would hold its last note on over the bar line; the lead's
+ * own and the Muse's always start there, with a rest if the bar starts
+ * silent.) Where `fit`, a note on the half bar or where a chord starts goes
+ * to the nearest chord tone, as the lead's own sketches do; a player's motif
+ * is played as it was heard, each note with its accent, which the
+ * performance plays on the lead's level (U4). Bars 2 and 4 close as the
+ * phrase grammar says, and the phrase moves into the lead's range.
+ */
+function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
+  const { plan, chords, barInSection } = env;
+  const { onsets, degrees, accidentals } = motif;
+  const scale = keyHelix(plan.key);
+  const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
+  const first = degreeNear(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
+  const alteration = chromaticStep(scale);
+  let notes = heard.map(({ step, i }) => {
+    const note = heightOf(scale, first + degrees[i]!) + accidentals[i]! * alteration;
+    const onChord = step % 8 === 0 || chords.some((c) => c.slot.step === step);
+    return fit && onChord ? nearestTone(chordAt(chords, step).chord, note) : note;
+  });
+  notes = intoRange(cadence(notes, heard.at(-1)!.step, chords, barInSection % 4));
+  const written: WrittenNote[] = heard.map(({ step, i }, j) => ({
+    part: 'lead',
+    step,
+    note: notes[j]!,
+    length: (onsets[i + 1] ?? motif.cycle) - step,
+    ...(fit ? {} : { accent: motif.accents?.[i] ?? 0 }),
+  }));
+  return { written, last: notes.at(-1)! };
+}
+
 export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
-  initial: { last: 69, phrase: null, melodies: {} },
+  initial: { last: 69, phrase: null, melodies: {}, offered: null },
   advance(env, carried) {
-    const { seed, bar, plan, style, barEnergy: energy, barInSection, chords } = env;
-    const { section, key, theme } = plan;
+    const { seed, bar, plan, style, barEnergy: energy, barInSection, offer } = env;
+    // A motif the Muse offers is played whole while it stands, even where
+    // the lead would rest, and the lead's own phrase starts afresh after it.
+    if (offer) {
+      const { written, last } = realize(offer.motif, env, carried.last, false);
+      return {
+        carried: { ...carried, last, phrase: null, offered: offer.bar },
+        output: written,
+      };
+    }
+    const { section, theme } = plan;
     if (leadRests(section.type, energy))
-      return { carried: { ...carried, phrase: null }, output: [] };
+      return { carried: { ...carried, phrase: null, offered: null }, output: [] };
 
     const phase = barInSection % 4;
     let { phrase, melodies } = carried;
@@ -225,46 +348,7 @@ export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
     } else if (phase === 2) shape = phrase;
     else shape = varied(phrase, seed, bar, style.entropy);
 
-    // Degrees of the key, from the key's degree nearest the chord tone
-    // nearest where the lead left off.
-    const scale = keyHelix(key);
-    const start = nearestTone(chordAt(chords, shape.steps[0]!).chord, carried.last);
-    const octave = Math.floor((start - scale.heights[0]!) / 12);
-    const within = wrap(start - scale.heights[0]!, 12);
-    let degree = 0;
-    scale.heights.forEach((h, i) => {
-      if (
-        Math.abs(h - scale.heights[0]! - within) <
-        Math.abs(scale.heights[degree]! - scale.heights[0]! - within)
-      )
-        degree = i;
-    });
-    const first = octave * 7 + degree;
-    let notes = shape.degrees.map((d) => heightOf(scale, first + d));
-    notes = notes.map((note, i) => {
-      const s = shape.steps[i]!;
-      const onChord = s % 8 === 0 || chords.some((c) => c.slot.step === s);
-      return onChord ? nearestTone(chordAt(chords, s).chord, note) : note;
-    });
-
-    // The phrase grammar: bar 2 ends open, bar 4 closes on the root.
-    if (phase === 1 || phase === 3) {
-      const i = notes.length - 1;
-      const tones = joinChord(chordAt(chords, shape.steps[i]!).chord);
-      const allowed = phase === 3 ? [tones[0]!] : [tones[1]!, tones[2]!];
-      notes[i] = nearestOf(
-        allowed.map((x) => wrap(x, 12)),
-        notes[i]!,
-      );
-    }
-    notes = intoRange(notes);
-
-    const written: WrittenNote[] = shape.steps.map((s, i) => ({
-      part: 'lead',
-      step: s,
-      note: notes[i]!,
-      length: (shape.steps[i + 1] ?? 16) - s,
-    }));
-    return { carried: { last: notes.at(-1)!, phrase, melodies }, output: written };
+    const { written, last } = realize(shape, env, carried.last, true);
+    return { carried: { last, phrase, melodies, offered: null }, output: written };
   },
 };

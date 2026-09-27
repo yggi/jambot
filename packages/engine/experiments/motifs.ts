@@ -147,7 +147,7 @@ for (const seed of SEEDS)
       });
       if (phase === 0) {
         phrase = [];
-        shapeNotes = shape.steps.length;
+        shapeNotes = notesOf(shape).onsets.length;
       }
       if (degrees.some((d) => d === null)) {
         count('bars with a note off the key');
@@ -158,7 +158,8 @@ for (const seed of SEEDS)
         notes.map((n) => n.step),
         degrees as number[],
       );
-      const written = asMotif(shape.steps, shape.degrees);
+      const { cycle, onsets, degrees: shapeDegrees, accidentals } = shape;
+      const written: Motif = { cycle, onsets, degrees: shapeDegrees, accidentals };
       const id = JSON.stringify(written);
       shapes.add(id);
       if (stabilizer(written).length > 1) symmetric.add(id);

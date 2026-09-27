@@ -31,6 +31,8 @@ import {
   INITIAL_STYLE,
   type KeyWish,
   LOOKAHEAD,
+  type HeardNote,
+  type MuseOutput,
   type Part,
   PRESETS,
   type ScheduledStep,
@@ -67,19 +69,16 @@ export const FORECAST_BARS = (SECTIONS + 1) * 8;
 export type Status = 'stopped' | 'starting' | 'playing';
 
 /**
- * A note a player struck, where it was heard on the grid, exactly: steps
- * from the song's start, not rounded, and not yet judged. The Muse (#79)
- * reads these, and its grid is what rounds them.
+ * A note a player struck, where it was heard on the grid, exactly, on the
+ * instrument it was played on. The Muse (#79) judges the keyboard's, and
+ * its grid is what rounds them.
  */
-export interface HumanNote {
+export interface HumanNote extends HeardNote {
   readonly part: AlongPart;
-  readonly note: number;
-  readonly velocity: number;
-  readonly source: string;
-  readonly position: number;
-  /** Where it was released, or null while it is held, or if that can't be read. */
-  readonly end: number | null;
 }
+
+/** How many of the Muse's judgements the log keeps, as the prototype shows. */
+const MUSE_LOG = 5;
 
 /** How many notes are kept before the oldest half is dropped, as the prototype does. */
 const HUMAN_NOTES_MAX = 240;
@@ -124,8 +123,10 @@ export class Player {
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode });
   /** The step heard, or null before anything is. */
   heard: number | null = $state(null);
-  /** Notes players struck while the band listened, waiting for the Muse (#79). */
+  /** Notes players struck while the band listened. */
   humanNotes: readonly HumanNote[] = $state.raw([]);
+  /** The Muse's latest judgements, of bars someone played in or of a forget, the latest last. */
+  museLog: readonly MuseOutput[] = $state.raw([]);
   /** The band's own notes heard sounding right now: the lead's, the drums'. */
   sounding: SoundingNotes = $state({ lead: [], drums: [] });
 
@@ -139,6 +140,9 @@ export class Player {
   #heard = new Heard<number>();
   /** The steps laid in the last `LAID_KEPT` seconds, which a note heard is read back through. */
   #laid: ScheduledStep[] = [];
+  /** Melody notes heard since the last tick, for the transport to pass to the Muse. */
+  #arrived: HeardNote[] = [];
+  #forget = false;
   #sounding = new Sounding();
   /** The bars decided, from the first of the section heard on. */
   #bars: readonly ForecastBar[] = $state.raw([]);
@@ -196,6 +200,12 @@ export class Player {
         ? this.humanNotes.slice(this.humanNotes.length - HUMAN_NOTES_MAX / 2)
         : this.humanNotes;
     this.humanNotes = [...kept, { part, note, velocity, source, position, end: null }];
+    if (part === 'lead') this.#arrived.push({ note, velocity, source, position, end: null });
+  }
+
+  /** Ask the Muse to forget the motif it offers, from the next bar the band composes. */
+  forgetMotif() {
+    this.#forget = true;
   }
 
   /**
@@ -242,6 +252,9 @@ export class Player {
     this.#carried = null;
     this.#heard.clear();
     this.#laid = [];
+    this.#arrived = [];
+    this.#forget = false;
+    this.museLog = [];
     this.#decide();
     this.#tick();
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
@@ -292,8 +305,14 @@ export class Player {
     const { carried, output: scheduled } = transport.advance(this.#env, this.#carried, {
       now,
       until: now + LOOKAHEAD,
+      heard: this.#arrived,
+      forget: this.#forget,
     });
     this.#carried = carried;
+    this.#arrived = [];
+    this.#forget = false;
+    const logged = scheduled.judged.filter((j) => j.judgements.length > 0 || j.forgot !== null);
+    if (logged.length > 0) this.museLog = [...this.museLog, ...logged].slice(-MUSE_LOG);
     for (const { event, seconds, duration, sound } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds, duration, sound);
       if (event.part === 'lead' || event.part === 'drums')
