@@ -116,18 +116,39 @@ const kindOf = (data: unknown): string | null =>
 
 /**
  * A message from a host, or null for anything that isn't one. It checks the
- * kind only: a session is among people in one room, and a link that
- * crosses the internet checks more.
+ * kind only: a client trusts the host it chose to join, whose version it
+ * matched, where a host reads what any client sends (`readClientMessage`).
  */
 export function readHostMessage(data: unknown): HostMessage | null {
   const kind = kindOf(data);
   return kind !== null && HOST_KINDS.has(kind) ? (data as HostMessage) : null;
 }
 
-/** A message from a client, or null for anything that isn't one. */
+/**
+ * A message from a client, or null for anything that isn't one: its kind,
+ * and the fields that kind carries, of their types. A host reads what any
+ * client sends, and a message it can't read is dropped here rather than
+ * thrown on while the band plays. What a judgement says is checked by the
+ * host's Muse, which knows the bar's key (`admissible`).
+ */
 export function readClientMessage(data: unknown): ClientMessage | null {
   const kind = kindOf(data);
-  return kind !== null && CLIENT_KINDS.has(kind) ? (data as ClientMessage) : null;
+  if (kind === null || !CLIENT_KINDS.has(kind)) return null;
+  const m = data as Partial<Record<string, unknown>>;
+  const judgement = m.judgement as Partial<Record<string, unknown>> | null | undefined;
+  const fits =
+    kind === 'join'
+      ? typeof m.protocol === 'number' && typeof m.name === 'string'
+      : kind === 'judged'
+        ? Number.isInteger(m.bar) &&
+          typeof judgement === 'object' &&
+          judgement !== null &&
+          typeof judgement.kind === 'string' &&
+          typeof judgement.source === 'string'
+        : kind === 'ping'
+          ? Number.isFinite(m.sent)
+          : true;
+  return fits ? (data as ClientMessage) : null;
 }
 
 /**

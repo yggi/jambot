@@ -3,7 +3,7 @@ import { type BandBar, band, lookAhead } from './band.ts';
 import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
-import { type HeardNote, judgeBar } from './muse.ts';
+import { type HeardNote, type Judgement, judgeBar } from './muse.ts';
 import {
   INITIAL_STYLE,
   PRESETS,
@@ -600,6 +600,26 @@ describe('the transport hearing bars judged elsewhere', () => {
     const outputs = hearing([{ bar: k, judgement: wild }], on);
     expect(outputs.flatMap((o) => o.dropped)).toEqual([
       { bar: k, judgement: wild, why: 'inadmissible' },
+    ]);
+    expect(outputs.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
+  });
+
+  it('drops what only claims to be a judgement, and the clock never waits for it (T1)', () => {
+    const k = 3;
+    const on = silent.outputs.findIndex((o) => o.composed.some((b) => b.bar === k + 1));
+    const garbled = [
+      null,
+      { kind: 'motif', source: 'a client', level: 100 },
+      { kind: 'motif', source: 'a client', level: 100, motif: { cycle: 16 } },
+    ] as unknown as Judgement[];
+    const outputs = hearing(
+      garbled.map((judgement) => ({ bar: k, judgement })),
+      on,
+    );
+    expect(outputs.flatMap((o) => o.dropped).map((d) => d.why)).toEqual([
+      'inadmissible',
+      'inadmissible',
+      'inadmissible',
     ]);
     expect(outputs.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
   });

@@ -212,7 +212,9 @@ clients what it does: the song, each bar as written with where it starts,
 the bars ahead, the style and the Muse. A client plays the host's bars
 with its own synth and MIDI, on the host's clock, set by pings that
 compare the moment each output is heard; its players' bars are judged on
-the client, and the host's Muse takes one motif of all it hears. Sessions
+the client, and the host's Muse takes one motif of all it hears, after
+reading each message by its fields and each judgement by the gates it was
+judged by, so nothing a client sends can stop the host's clock. Sessions
 are found through a lobby: across the tabs of one browser, or through
 the lobby server (`apps/lobby`) across machines; WebRTC comes next.
 

@@ -511,17 +511,20 @@ export class Player {
     if (this.status !== 'playing' || !output) return;
     if (this.#follow) return this.#tickFollowing(output, this.#follow);
     const now = output.currentTime;
-    const { carried, output: scheduled } = transport.advance(this.#env, this.#carried, {
-      now,
-      until: now + LOOKAHEAD,
-      heard: this.#arrived,
-      judged: this.#judged,
-      forget: this.#forget,
-    });
-    this.#carried = carried;
+    // What arrived is taken before the transport reads it, so that anything
+    // it can't read costs one tick, not every tick after.
+    const [heard, judged, forget] = [this.#arrived, this.#judged, this.#forget];
     this.#arrived = [];
     this.#judged = [];
     this.#forget = false;
+    const { carried, output: scheduled } = transport.advance(this.#env, this.#carried, {
+      now,
+      until: now + LOOKAHEAD,
+      heard,
+      judged,
+      forget,
+    });
+    this.#carried = carried;
     const logged = scheduled.judged.filter((j) => j.judgements.length > 0 || j.forgot !== null);
     if (logged.length > 0) this.museLog = [...this.museLog, ...logged].slice(-MUSE_LOG);
     const latest = scheduled.judged.at(-1);
@@ -552,13 +555,14 @@ export class Player {
    */
   #tickFollowing(output: Output, follow: Follow) {
     const now = output.currentTime + this.skew;
+    const arrived = follow.arrived;
+    follow.arrived = [];
     const { carried, output: scheduled } = follower.advance(this.#env, follow.carried, {
       now,
       until: now + LOOKAHEAD,
-      arrived: follow.arrived,
+      arrived,
     });
     follow.carried = carried;
-    follow.arrived = [];
     const played = scheduled.composed.map(({ bar, plan }) => ({ bar, key: plan.key }));
     if (played.length > 0) follow.keys = [...follow.keys, ...played].slice(-KEYS_KEPT);
     if (carried!.source.lacked !== this.lacked) this.lacked = carried!.source.lacked;

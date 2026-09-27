@@ -84,6 +84,36 @@ describe('the session protocol', () => {
     expect(readClientMessage({ kind: 'stop' })).toBeNull();
   });
 
+  it("reads a client's message only with the fields its kind carries, of their types", () => {
+    const { judgements } = travelling();
+    const judgement = judgements[0]!;
+    for (const message of [
+      { kind: 'join', protocol: PROTOCOL, name: 'Ada' },
+      { kind: 'judged', bar: 3, judgement },
+      { kind: 'ping', sent: 1.5 },
+      { kind: 'forget' },
+      { kind: 'leave' },
+    ])
+      expect(readClientMessage(message)).toEqual(message);
+    for (const junk of [
+      { kind: 'join', protocol: PROTOCOL },
+      { kind: 'join', name: 'Ada' },
+      { kind: 'join', protocol: String(PROTOCOL), name: 'Ada' },
+      { kind: 'join', protocol: PROTOCOL, name: 7 },
+      { kind: 'judged', judgement },
+      { kind: 'judged', bar: '3', judgement },
+      { kind: 'judged', bar: 3.5, judgement },
+      { kind: 'judged', bar: 3 },
+      { kind: 'judged', bar: 3, judgement: null },
+      { kind: 'judged', bar: 3, judgement: { ...judgement, source: undefined } },
+      { kind: 'judged', bar: 3, judgement: { ...judgement, kind: 7 } },
+      { kind: 'ping' },
+      { kind: 'ping', sent: '1' },
+      { kind: 'ping', sent: Number.NaN },
+    ])
+      expect(readClientMessage(junk), JSON.stringify(junk)).toBeNull();
+  });
+
   it('refuses a client of another version, and one without a name', () => {
     expect(refusal({ kind: 'join', protocol: PROTOCOL, name: 'Ada' })).toBeNull();
     expect(refusal({ kind: 'join', protocol: PROTOCOL + 1, name: 'Ada' })).toMatch(/version/);

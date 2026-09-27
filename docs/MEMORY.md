@@ -119,6 +119,20 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   the style reading, and a motif note plays at the band's level plus its
   accent (U4): the lead writes it on the note (`WrittenNote.accent`), and
   `perform` plays it on `LEAD_LEVEL`.
+- The Muse is two functions and a machine over their results: `judgeBar`
+  judges one source's bar, `taken` takes one motif of all the bar's
+  judgements, and `muse` carries the offer. In a session the same split
+  runs across apps: a client's ear (`earListen`) judges its players' bars
+  and sends the judgements; the host's transport checks each
+  (`admissible`: the gates a motif carries, in the bar's key, and first its
+  shape, since it arrives as JSON) and drops, and logs, one that is late,
+  ahead or inadmissible. `Motif`, `Judgement` and the bars travel as they
+  are, so a change to their shape bumps `PROTOCOL` (`protocol.test.ts`
+  fails until it does). A host reads each client message by its fields
+  (`readClientMessage`) and refuses a name already in the session, in any
+  case; a client reads its host's by kind alone. The player takes what
+  arrived before the transport reads it, so an input it can't read costs
+  one tick, not the song.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
@@ -166,6 +180,10 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - The web tests resolve `ws` to its Node build (`apps/web/vitest.config.ts`):
   resolved for the browser it is a stub, and `websocket.test.ts` runs the
   real lobby server, in Node's environment.
+- The e2e checks play each melody input as a player does: the computer
+  keys typed, the on-screen keys pressed, and a MIDI keyboard through a
+  Web MIDI stand-in the page gets before it loads (`band.e2e.ts`,
+  `INPUTS`), since headless Chromium has no MIDI ports.
 - `performance.now` read off its object throws ("Illegal invocation" in a
   browser, a TypeError in Node), so a default clock is called on it:
   `deps.now ? deps.now() : performance.now()`, never
