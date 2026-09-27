@@ -139,24 +139,23 @@ planner, band, transport); measured (parts); open (compiler). Lands in:
 
 **Q5c. The motif operators are a group acting on motifs: R∘R = id,
 I∘I = id, R∘I = I∘R, and Tₐ∘T_b = Tₐ₊_b.**
-Witness: `motifs.ts`: the theory's T and I on two axes, a sequence and an
-inversion on pitch, a displacement and the retrograde on time, each chain
-of them one operator `{ seq, inv, shift, retro }`, in the infinite
-dihedral group on pitch times the dihedral group of the bar. A fragment is
-not in the group: it loses notes, and fragments form a monoid beside it.
+Witness: `motifs.ts`: the theory's T and I on two axes, `strans` and
+`mirror` on pitch, `late` and `rev` on time, each chain of them one
+operator `{ strans, mirror, late, rev }`, in the infinite dihedral group on
+pitch times the dihedral group of the cycle (U5). `head` is not in the
+group: it drops notes for a rest, and heads form a monoid beside it.
 Counterexample: a motif on which a law fails, or two operators whose
-composition acts otherwise than the one after the other. The fragment gives
-the first kind for the group: two motifs that differ in their last note
-share a fragment, so no operator undoes it.
-Test: `motifs.test.ts`, whose tests cite Q5c: every pair of 80 operators on
-every one of the 255 motifs of a 4-step bar, the laws and each operator's
-inverse, displacement and retrograde as `shift` and `mirror`, and the
-fragments' laws. E13 measures how far the lead's variations are these
-operators: 97% of its variation bars are the shape under one, but for the
-phrase's close and at most one other note.
+composition acts otherwise than the one after the other. `head` gives the
+first kind for the group: two motifs that differ in their last note share
+a head, so no operator undoes it.
+Test: `motifs.test.ts`, whose tests cite Q5c: every pair of 48 operators
+on every one of the 525 motifs of a 4-step cycle, rests and alterations
+included, the laws and `undo`, `late` and `rev` as `shift` and `mirror` of
+the rhythm, and the heads' laws. E13 measures how far the lead's variations
+are these operators: 97% of its variation bars are the shape under one,
+but for the phrase's close and at most one other note.
 Source: quintenzirkel's variation operators, Lewin's T and I, #7 (d).
-Status: measured (the laws); open (which operators the score writes).
-Lands in: #7 (d).
+Status: measured. Lands in: #7 (d), decided as U4 and U5.
 
 **Q6. Every feedback loop passes through a delay.** Same as F7.
 

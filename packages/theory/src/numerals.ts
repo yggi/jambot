@@ -120,7 +120,7 @@ export function formatNumeral(numeral: Numeral): string {
 }
 
 /** The step a `b` or `#` moves by: the key's larger step less its smaller. */
-function chromaticStep(key: Helix): number {
+export function chromaticStep(key: Helix): number {
   const steps = gaps(key);
   return Math.max(...steps) - Math.min(...steps);
 }

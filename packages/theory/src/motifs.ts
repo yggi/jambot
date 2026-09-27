@@ -1,104 +1,192 @@
 /**
- * Motifs and the operators on them (Q5c; #7's decision (d), open).
+ * Motifs and the operators on them (Q5c, U4, U5; #7's decision (d)).
  *
- * A motif is a rhythm and a contour: the steps of a bar its notes start on,
- * and each note's degree of the key, counted from the motif's reference. A
- * note is held to the next, and the last to the first of the next time the
- * motif sounds, so the notes go round the bar as arcs.
+ * A motif is a rhythm and a contour on its own cycle: the onsets of its
+ * notes and rests, and each note's degree of the key, counted from the
+ * motif's origin and altered by a number of chromatic steps, as `b3` is
+ * (U2). Each note or rest is held to the next onset, and the last to the
+ * first of the next time the motif sounds, so the onsets go round the
+ * cycle as arcs. A rest is an arc of silence, which is how a motif holds a
+ * staccato or a note dropped.
  *
- * The operators are the theory's own, `shift` (T) and `mirror` (I), on two
+ * The operators are the theory's own `shift` (T) and `mirror` (I), on two
  * axes:
  *
- * - on pitch, T is a sequence, the contour moved by some degrees, and I an
- *   inversion about the reference;
- * - on time, T is a displacement, the arcs moved round the bar, and I the
- *   retrograde, the arcs reflected about the bar's start.
+ * - on pitch, T is `strans`, the contour moved by some degrees, and I is
+ *   `mirror`, the contour reflected about the origin, its alterations too;
+ * - on time, T is `late`, the arcs moved round the cycle, and I is `rev`,
+ *   the arcs reflected about the origin, so the motif runs backwards.
  *
- * On each axis they make an affine map, x ↦ a ± x, so any chain of them is
- * one operator, `{ seq, inv, shift, retro }`: a sequence of an inversion on
- * pitch, and a displacement of a retrograde on time. They form a group, the
- * infinite dihedral group on pitch times the dihedral group of the bar, and
- * the operator record is each element's one written form. A fragment, the
- * first notes of a motif, loses the rest, so fragments form a monoid beside
- * the group.
+ * `strans`, `late` and `rev` are Strudel's names for the same operations
+ * (`scaleTranspose`, `late` and `rev`). On each axis they make an affine
+ * map, x ↦ a ± x, so any chain of them is one operator,
+ * `{ strans, mirror, late, rev }`: an element of the infinite dihedral group
+ * on pitch times the dihedral group of the cycle. `head` keeps the first
+ * notes and leaves a rest for the others, so heads form a monoid beside the
+ * group, and the last notes are its mirror image under `rev`.
+ *
+ * Where a motif has a symmetry, several operators give one result.
+ * `canonicalOp` writes each result with one of them, the least, so an
+ * operator read back from what it made is a fixed point (F3).
  */
 
-import { mod } from './helix.ts';
+import { type Helix, mod } from './helix.ts';
 
 export interface Motif {
-  /** The steps of a bar: 16. */
-  readonly span: number;
-  /** The step each note starts on, rising, within the bar. */
-  readonly steps: readonly number[];
-  /** Each note's degree of the key, counted from the motif's reference. */
-  readonly degrees: readonly number[];
+  /** The steps of the cycle: 16 for a bar. */
+  readonly cycle: number;
+  /** The step each note or rest starts on, rising, within the cycle. */
+  readonly onsets: readonly number[];
+  /** Each note's degree of the key, counted from the origin; `null` for a rest. */
+  readonly degrees: readonly (number | null)[];
+  /** Each note's alteration, in chromatic steps of the key (U2): −1 for `b`, 0 for a rest. */
+  readonly accidentals: readonly number[];
 }
 
 /**
- * An operator: on pitch, degree d goes to `seq ± d` (minus if `inv`); on
- * time, the arc from step s to step e goes to `shift + s` to `shift + e`,
- * or, if `retro`, to `shift − e` to `shift − s`, round the bar.
+ * An operator: on pitch, degree d goes to `strans ± d` and its accidental
+ * a to `±a` (minus if `mirror`); on time, the arc from step s to step e
+ * goes to `late + s` to `late + e`, or, if `rev`, to `late − e` to
+ * `late − s`, round the cycle.
  */
 export interface MotifOp {
-  readonly seq: number;
-  readonly inv: boolean;
-  readonly shift: number;
-  readonly retro: boolean;
+  readonly strans: number;
+  readonly mirror: boolean;
+  readonly late: number;
+  readonly rev: boolean;
 }
 
-export const IDENTITY: MotifOp = { seq: 0, inv: false, shift: 0, retro: false };
+/** The operator that changes nothing. */
+export const NOOP: MotifOp = { strans: 0, mirror: false, late: 0, rev: false };
 
-/** A sequence: the contour moved by `degrees`. */
-export const seq = (degrees: number): MotifOp => ({ ...IDENTITY, seq: degrees });
-/** An inversion about the motif's reference. */
-export const inv = (): MotifOp => ({ ...IDENTITY, inv: true });
-/** A displacement: the notes moved round the bar by `steps`. */
-export const displace = (steps: number): MotifOp => ({ ...IDENTITY, shift: steps });
-/** The retrograde: the notes reflected about the bar's start, so they run backwards. */
-export const retro = (): MotifOp => ({ ...IDENTITY, retro: true });
+/** The motif's onsets as a helix of its cycle, whose `gaps` are its arcs' lengths. */
+export function rhythmOf(motif: Motif): Helix {
+  return { cycle: motif.cycle, heights: motif.onsets };
+}
+
+/** The steps from each note's degree to the next note's, the last to the first: the contour as edges. */
+export function motion(motif: Motif): number[] {
+  const notes = motif.degrees.filter((d) => d !== null);
+  return notes.map((d, j) => notes[(j + 1) % notes.length]! - d);
+}
+
+/** What is wrong with a motif, if anything. */
+export function motifProblems(motif: Motif): string[] {
+  const { cycle, onsets, degrees, accidentals } = motif;
+  const problems: string[] = [];
+  if (onsets.length !== degrees.length || onsets.length !== accidentals.length)
+    problems.push('onsets, degrees and accidentals differ in length');
+  if (onsets.some((s, i) => s < 0 || s >= cycle || (i > 0 && s <= onsets[i - 1]!)))
+    problems.push('the onsets do not rise within the cycle');
+  if (!degrees.some((d) => d !== null)) problems.push('there is no note');
+  if (degrees.some((d, i) => d === null && degrees[(i + 1) % degrees.length] === null))
+    problems.push('two rests follow each other');
+  if (degrees.some((d, i) => d === null && accidentals[i] !== 0))
+    problems.push('a rest is altered');
+  return problems;
+}
 
 /** A motif under an operator. */
 export function applyOp(op: MotifOp, motif: Motif): Motif {
-  const { span, steps, degrees } = motif;
-  const notes = steps.map((start, i) => {
-    const end = steps[i + 1] ?? steps[0]! + span;
-    const onset = op.retro ? op.shift - end : op.shift + start;
+  const { cycle, onsets, degrees, accidentals } = motif;
+  const arcs = onsets.map((start, i) => {
+    const end = onsets[i + 1] ?? onsets[0]! + cycle;
+    const degree = degrees[i]!;
     return {
-      step: mod(onset, span),
-      degree: op.seq + (op.inv ? -degrees[i]! : degrees[i]!),
+      onset: mod(op.rev ? op.late - end : op.late + start, cycle),
+      degree: degree === null ? null : op.strans + (op.mirror ? -degree : degree),
+      // 0 − a, not −a: a natural stays 0, never −0.
+      accidental: op.mirror ? 0 - accidentals[i]! : accidentals[i]!,
     };
   });
-  notes.sort((a, b) => a.step - b.step);
-  return { span, steps: notes.map((n) => n.step), degrees: notes.map((n) => n.degree) };
+  arcs.sort((a, b) => a.onset - b.onset);
+  return {
+    cycle,
+    onsets: arcs.map((a) => a.onset),
+    degrees: arcs.map((a) => a.degree),
+    accidentals: arcs.map((a) => a.accidental),
+  };
 }
 
-/** One operator for `first` and then `second`. */
+/** One operator for `first`, then `second`. */
 export function thenOp(first: MotifOp, second: MotifOp): MotifOp {
-  const pitch = second.inv ? -1 : 1;
-  const time = second.retro ? -1 : 1;
+  const pitch = second.mirror ? -1 : 1;
+  const time = second.rev ? -1 : 1;
   return {
-    seq: second.seq + pitch * first.seq,
-    inv: first.inv !== second.inv,
-    shift: second.shift + time * first.shift,
-    retro: first.retro !== second.retro,
+    strans: second.strans + pitch * first.strans,
+    mirror: first.mirror !== second.mirror,
+    late: second.late + time * first.late,
+    rev: first.rev !== second.rev,
   };
 }
 
-/** The operator that undoes `op` on a bar of `span` steps. */
-export function inverseOp(op: MotifOp, span: number): MotifOp {
+/** The operator that undoes `op`. */
+export function undo(op: MotifOp): MotifOp {
   return {
-    seq: op.inv ? op.seq : -op.seq,
-    inv: op.inv,
-    shift: mod(op.retro ? op.shift : -op.shift, span),
-    retro: op.retro,
+    strans: op.mirror ? op.strans : 0 - op.strans,
+    mirror: op.mirror,
+    late: op.rev ? op.late : 0 - op.late,
+    rev: op.rev,
   };
 }
 
-/** The first `count` notes of a motif. */
-export function fragment(motif: Motif, count: number): Motif {
-  return {
-    span: motif.span,
-    steps: motif.steps.slice(0, count),
-    degrees: motif.degrees.slice(0, count),
-  };
+/**
+ * The first `count` notes of a motif, and a rest from the next onset to the
+ * end of the cycle for the notes dropped. A rest that follows another joins
+ * it, round the cycle.
+ */
+export function head(motif: Motif, count: number): Motif {
+  if (count < 1) throw new Error('head: a motif keeps at least one note');
+  const { cycle, onsets, degrees, accidentals } = motif;
+  let notes = 0;
+  const kept = onsets.findIndex((_, i) => degrees[i] !== null && ++notes === count);
+  if (kept === -1 || kept === onsets.length - 1) return motif;
+  const take = kept + 1;
+  let o = [...onsets.slice(0, take), onsets[take]!];
+  let d: (number | null)[] = [...degrees.slice(0, take), null];
+  let a = [...accidentals.slice(0, take), 0];
+  // The rest now runs on into the next time round, so a rest at the start joins it.
+  if (d[0] === null) {
+    o = o.slice(1);
+    d = d.slice(1);
+    a = a.slice(1);
+  }
+  return { cycle, onsets: o, degrees: d, accidentals: a };
+}
+
+/** The operators that leave the motif as it is: finite, as the motif has a note. */
+export function stabilizer(motif: Motif): MotifOp[] {
+  const found: MotifOp[] = [];
+  const text = (m: Motif) => `${m.onsets}|${m.degrees.map((d) => d !== null)}|${m.accidentals}`;
+  const { degrees } = motif;
+  const note = degrees.findIndex((d) => d !== null);
+  for (const rev of [false, true])
+    for (const mirror of [false, true])
+      for (let late = 0; late < motif.cycle; late++) {
+        const moved = applyOp({ strans: 0, mirror, late, rev }, motif);
+        if (text(moved) !== text(motif)) continue;
+        // The onsets and rests agree, so the degrees must differ by one sequence.
+        const strans = degrees[note]! - moved.degrees[note]!;
+        if (moved.degrees.every((d, i) => d === null || d + strans === degrees[i]))
+          found.push({ strans, mirror, late, rev });
+      }
+  return found;
+}
+
+/**
+ * The operator that writes what `op` makes of `motif`: of all operators that
+ * give the same motif, the one with the least `rev`, then `mirror`, then
+ * `late` round the cycle. Those operators are `op` after the motif's
+ * symmetries, and no two of them share all three, so the choice is one
+ * operator, and choosing again changes nothing.
+ */
+export function canonicalOp(op: MotifOp, motif: Motif): MotifOp {
+  const rank = (o: MotifOp) => (Number(o.rev) * 2 + Number(o.mirror)) * motif.cycle + o.late;
+  let best: MotifOp | undefined;
+  for (const symmetry of stabilizer(motif)) {
+    const same = thenOp(symmetry, op);
+    const reduced = { ...same, late: mod(same.late, motif.cycle) };
+    if (!best || rank(reduced) < rank(best)) best = reduced;
+  }
+  return best!;
 }

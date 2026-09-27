@@ -101,8 +101,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   nothing; the bass its last note, the comp its last voicing, the lead its
   last note, its phrase and its themes' melodies (`BandCarried.parts`). A
   passed bar leaves the parts where they were, and only the lead's memory
-  reaches more than register (S2). A Muse motif is a lead shape in scale
-  degrees, the first use the machines' `input` channel will have (#2).
+  reaches more than register (S2). A Muse motif is a `Motif` (U4): onsets
+  with rests, and degrees of the key altered by `b` or `#`. Where it
+  enters the band is #79's to decide.
 - The e2e checks tell sounds apart by oscillator type and starting
   frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a
   snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a
@@ -167,6 +168,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   hold that it is precached.
 - The app and the prototype use system fonts and fetch nothing from
   outside the site (#58).
+- No module exports a function named `then`: a module namespace with a
+  `then` is a thenable, and `await import()` of it never settles. So the
+  score's `then` is `thenOp` in code (U5).
 
 ### License
 
@@ -276,6 +280,11 @@ The full description is in
   differs for 46 of the 120 `(k,n)` pairs with `k < n ≤ 16`, always by a
   rotation, so a Strudel export compensates with a shift or writes the
   pattern out.
+- Strudel's `rev`, `late` and `scaleTranspose` (also `strans`) are the
+  motif operators of those names (U5), so an export writes them as they
+  are. Its `seq` concatenates, its `inv` swaps onsets and rests, and its
+  `take` stretches the notes kept over the cycle, so the score doesn't use
+  those words for motifs.
 - The sister projects (play-aeiou, lib-aeiou, quintenzirkel) are read-only
   from here, and they share conventions with Jambot, not code. See
   [architecture](architecture.md#related-projects).
