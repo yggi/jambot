@@ -68,7 +68,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       scale a chord implies in a key (#10), its tensions setting their own
       degrees (#38)
     - `src/numerals.ts`: Roman numerals, a chord as a degree of its key, read
-      and written (U1), in a key of any cycle (P5)
+      and written (U1), in a key of any cycle (P5); `alteredDegree`, how a
+      note off the key is written, for a numeral's root and a motif's note
     - `src/motifs.ts`: motifs, a rhythm and a contour with rests and altered
       degrees, and the operators on them: `strans`, `mirror`, `late` and
       `rev` as a group, `head` as a monoid, and each result's canonical

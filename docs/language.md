@@ -653,6 +653,11 @@ in dorian, its own mirror, only when it turns the accidental over too; and
 one `b` or `#` reaches every pitch of every key of 12, 17 and 19, but not
 of 22, 31 or 53, whose chromatic step is 3, 2 and 5 steps of the cycle.
 The engine and MIDI stay in 12 (L1), where every pitch is reached.
+`numerals.test.ts`, whose tests of `alteredDegree` cite U4: a note is
+written as a numeral writes a root off the key, and every height of every
+diatonic key comes back. `muse.test.ts`, whose tests cite U4: every note a
+player plays in any key comes back from the Muse's motif, and a note
+released before the next leaves a rest.
 Source: #7 (d), #79, E13, the names round. Status: measured (12, 17, 19);
 measured, failing (22, 31, 53). Decided: #7, on measured options (rests,
 over a note held to the next, whose `head` and `rev` gave the last notes
