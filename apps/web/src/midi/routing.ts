@@ -37,7 +37,8 @@ export function routeNote(
   else deps.held.delete(note);
   if (on) deps.playAlong(note, velocity);
   if (deps.playing()) {
-    const seconds = deps.toOutputSeconds((deps.now ?? performance.now)());
+    // `performance.now` read off its object throws, so it is called on it.
+    const seconds = deps.toOutputSeconds(deps.now ? deps.now() : performance.now());
     if (on) deps.humanNoteOn(note, velocity, source, seconds);
     else deps.humanNoteOff(note, source, seconds);
   }

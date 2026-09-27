@@ -183,6 +183,8 @@ Every doc and code area, as a tree. Add a line when you add one.
         band opens on
       - `src/components/KeyPicker.svelte`: a tonic and a mode, showing the
         key the band is heading for
+      - `src/components/MusePanel.svelte`: the Muse: the motif on offer,
+        drawn a row per degree, where it came from, Forget, and the log
       - `src/components/NextBars.svelte`: the next four bars, with cues
         where the section or the key changes
       - `src/components/SongMap.svelte`: the section playing and the three
@@ -211,8 +213,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       never what was played along with it
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
       ahead as `BarView`s and the song map's sections of them, the chord
-      sounding, the key's scale, and the style's preset and glide, as plain
-      data
+      sounding, the key's scale, the style's preset and glide, and the
+      Muse's motif and log in the prototype's words, as plain data
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/sounding.ts`: `Sounding`, the band's own notes heard sounding
       right now, from a hit's scheduled time and duration

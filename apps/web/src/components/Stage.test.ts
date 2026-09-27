@@ -12,6 +12,7 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
   energy: 0.6,
   lead: 'improvising',
+  motif: null,
   ...over,
 });
 const style = { preset: 'Synth-pop', glide: null };
@@ -24,6 +25,7 @@ const heard: Hud = {
   sections: [],
   style,
   heading: { tonic: 9, mode: 'aeolian' },
+  muse: { motif: null, log: [] },
 };
 const opening = bar(0, { section: 'Intro', chords: [{ step: 0, symbol: 'Am', numeral: 'i' }] });
 const idle: Hud = {
@@ -34,6 +36,7 @@ const idle: Hud = {
   sections: [],
   style,
   heading: { tonic: 9, mode: 'aeolian' },
+  muse: { motif: null, log: [] },
 };
 
 describe('the stage', () => {
@@ -94,5 +97,11 @@ describe('the stage', () => {
     const resting = { ...heard, bar: { ...groove, lead: 'resting' as const } };
     render(Stage, { hud: resting, playing: true });
     expect(screen.getByText('Lead is resting.')).toBeInTheDocument();
+  });
+
+  it('says the lead plays the motif and which bar it was heard in, counted from 1', () => {
+    const playingMotif = { ...heard, bar: bar(9, { lead: 'motif', motif: 6 }) };
+    render(Stage, { hud: playingMotif, playing: true });
+    expect(screen.getByText('Lead is playing the motif heard in bar 7.')).toBeInTheDocument();
   });
 });

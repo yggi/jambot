@@ -172,9 +172,11 @@ function listen(listening: Listening, last: number, judged: MuseOutput[]): Liste
   return { muse: carried, pending, forget, unjudged };
 }
 
-/** A bar decided ahead, and the energy it plays at. */
+/** A bar decided ahead, the energy it plays at, and the motif the lead plays in it. */
 export interface ForecastBar extends DecidedBar {
   readonly barEnergy: number;
+  /** A composed bar's own offer; for a bar ahead, the one standing now, which it plays unless another comes. */
+  readonly offer: Offer | null;
 }
 
 /**
@@ -192,7 +194,7 @@ export function forecast(
   const composed = (carried?.bars ?? [])
     .filter((b) => b.bar >= head)
     .slice(0, count)
-    .map(({ bar, plan, chords, barEnergy }) => ({ bar, plan, chords, barEnergy }));
+    .map(({ bar, plan, chords, barEnergy, offer }) => ({ bar, plan, chords, barEnergy, offer }));
   const offer = carried?.listening.muse.offer ?? null;
   const ahead = lookAhead(
     carried?.band ?? band.initial,
@@ -200,6 +202,7 @@ export function forecast(
     count - composed.length,
   ).map((decided) => ({
     ...decided,
+    offer,
     barEnergy: barEnergy(
       writtenStyle(styleAt(env.track, decided.bar * 16)).energy,
       decided.plan.section.type,

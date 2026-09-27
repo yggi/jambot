@@ -430,6 +430,18 @@ describe('the transport listening', () => {
     expect(at([50, 30, 40])).toEqual([101, 81, 91]);
   });
 
+  it('forecasts the bars ahead with the motif on offer now, and the bars composed with their own', () => {
+    const { carried, bars } = listening(lively, 500, motifIn(2));
+    const ahead = forecast(env(lively), carried, 8);
+    expect(ahead.length).toBe(8);
+    const offer = carried!.listening.muse.offer;
+    expect(offer).toMatchObject({ bar: 2 });
+    const composed = new Map(bars.map((b) => [b.bar, b]));
+    for (const b of ahead)
+      expect(b.offer).toEqual(composed.has(b.bar) ? composed.get(b.bar)!.offer : offer);
+    expect(forecast(env(lively), null, 4).every((b) => b.offer === null)).toBe(true);
+  });
+
   it('judges each bar it composed once, in order, and keeps no note it has judged', () => {
     const { outputs, carried } = listening(lively, 900, [...motifIn(3), ...motifIn(7)]);
     const judged = outputs.flatMap((o) => o.judged).map((j) => j.bar);
@@ -523,7 +535,9 @@ describe('the forecast from the transport', () => {
     });
     const played = (bar: number) => {
       const b = composed.get(bar);
-      return b && { bar: b.bar, plan: b.plan, chords: b.chords, barEnergy: b.barEnergy };
+      return (
+        b && { bar: b.bar, plan: b.plan, chords: b.chords, barEnergy: b.barEnergy, offer: b.offer }
+      );
     };
     expect(opening).toEqual(range(24).map(played));
     for (const { head, bars } of checkpoints) {

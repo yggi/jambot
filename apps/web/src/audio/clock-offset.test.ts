@@ -54,4 +54,20 @@ describe('clockOffset', () => {
     expect(offset.fromDeviceMs(4500)).toBe(3.5);
     expect(offset.fromDeviceMs(offset.toDeviceMs(7))).toBeCloseTo(7, 9);
   });
+
+  it('maps to the moment being heard on both paths: the fallback takes the output latency off currentTime', () => {
+    // Chromium, measured: the time getOutputTimestamp says is heard lags
+    // currentTime by about the output latency (35 ms against 32).
+    const precise = clockOffset(
+      {
+        currentTime: 1.512,
+        latency: 0.032,
+        outputTimestamp: () => ({ contextTime: 1.48, performanceTime: 1620 }),
+      },
+      () => 1620,
+    );
+    const fallback = clockOffset({ currentTime: 1.512, latency: 0.032 }, () => 1620);
+    expect(precise.fromDeviceMs(1620)).toBeCloseTo(1.48, 9);
+    expect(fallback.fromDeviceMs(1620)).toBeCloseTo(1.48, 9);
+  });
 });

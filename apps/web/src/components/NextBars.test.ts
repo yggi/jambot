@@ -12,6 +12,7 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   chords: [{ step: 0, symbol: 'Am', numeral: 'i' }],
   energy: 0.5,
   lead: 'improvising',
+  motif: null,
   ...over,
 });
 

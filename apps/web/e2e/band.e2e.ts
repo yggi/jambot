@@ -225,3 +225,45 @@ test('plays the full band: bass, chords and lead beside the drums', async ({ pag
     expect(note).toBeLessThanOrEqual(86);
   }
 });
+
+test('takes a motif typed on the computer keys, and the lead plays it back from the bar after next (#79)', async ({
+  page,
+}) => {
+  const errors = await listen(page);
+  // At energy 0 the lead rests on its own, so a lead note the band plays is the motif.
+  await page.getByRole('slider', { name: /Energy/ }).fill('0');
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await start(page);
+  await expect(page.getByText('Bar 2 of 8')).toBeVisible({ timeout: 5000 });
+  // Synth-pop at 108 bpm: a step is 15 / 108 s. Three notes four steps apart, in one bar.
+  const step = 15 / 108;
+  for (const key of ['a', 'd', 'g']) {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(60);
+    await page.keyboard.up(key);
+    await page.waitForTimeout(step * 4 * 1000 - 60);
+  }
+  await expect(page.getByText(/: Took a 3-note motif from the computer keys\./)).toBeVisible({
+    timeout: 8000,
+  });
+  await expect(page.getByText(/Lead is playing the motif heard in bar \d+\./)).toBeVisible({
+    timeout: 8000,
+  });
+  await page.waitForTimeout(3000);
+
+  // The lead's voice is a square: the first three are the keys played along, at once;
+  // the rest are the band's, on the grid.
+  const squares = (await starts(page)).filter((s) => s.kind === 'square').map((s) => s.when);
+  const along = squares.slice(0, 3);
+  const band = squares.slice(3);
+  expect(band.length).toBeGreaterThanOrEqual(4);
+  const steps = (a: number, b: number) => (b - a) / step;
+  const typed = [steps(along[0]!, along[1]!), steps(along[1]!, along[2]!)];
+  for (const [i, gap] of [steps(band[0]!, band[1]!), steps(band[1]!, band[2]!)].entries()) {
+    expect(Math.abs(gap - Math.round(gap))).toBeLessThan(1e-6);
+    expect(Math.abs(gap - typed[i]!)).toBeLessThan(1.5);
+  }
+  // It plays whole in every bar: the next bar starts it again, a bar later.
+  expect(Math.abs(steps(band[0]!, band[3]!) - 16)).toBeLessThan(1e-6);
+  expect(errors).toEqual([]);
+});

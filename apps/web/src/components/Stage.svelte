@@ -20,6 +20,8 @@
   const heard = $derived(hud.beat !== null);
   const lead = $derived.by(() => {
     if (!heard || !hud.bar) return 'The band plays on its own once started.';
+    if (hud.bar.lead === 'motif')
+      return `Lead is playing the motif heard in bar ${hud.bar.motif! + 1}.`;
     return hud.bar.lead === 'resting' ? 'Lead is resting.' : 'Lead is improvising.';
   });
 </script>
