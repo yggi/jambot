@@ -27,8 +27,9 @@
  * motif still count as playing. These are the prototype's rules and
  * thresholds.
  *
- * A motif keeps no velocity until #7 decides how a player's accents are
- * written (#79).
+ * Each note's accent is its velocity less the player's level in the bar,
+ * the rounded mean of the melody's velocities, so the motif keeps how they
+ * accented and the judgement keeps how loud they played, beside it (U4).
  */
 
 import { type Motif, alteredDegree } from '@jambot/theory';
@@ -48,7 +49,13 @@ export interface HeardNote {
 
 /** What one source played in a bar, judged. */
 export type Judgement =
-  | { readonly kind: 'motif'; readonly source: string; readonly motif: Motif }
+  | {
+      readonly kind: 'motif';
+      readonly source: string;
+      readonly motif: Motif;
+      /** The player's level in the bar, which the motif's accents are counted from. */
+      readonly level: number;
+    }
   | { readonly kind: 'mashing'; readonly source: string; readonly count: number }
   | { readonly kind: 'too few'; readonly source: string; readonly count: number }
   | { readonly kind: 'too wide'; readonly source: string; readonly range: number };
@@ -104,26 +111,30 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
 
   const scale = keyHelix(key);
   const origin = alteredDegree(scale, notes[0]!)!.degree;
-  const arcs: { onset: number; degree: number | null; accidental: number }[] = [];
+  const level = Math.round(melody.reduce((sum, [, n]) => sum + n.velocity, 0) / melody.length);
+  const arcs: { onset: number; degree: number | null; accidental: number; accent: number }[] = [];
+  const rest = (onset: number) => ({ onset, degree: null, accidental: 0, accent: 0 });
   melody.forEach(([step, n], i) => {
     const { degree, accidental } = alteredDegree(scale, n.note)!;
-    arcs.push({ onset: step, degree: degree - origin, accidental });
+    arcs.push({ onset: step, degree: degree - origin, accidental, accent: n.velocity - level });
     const next = melody[i + 1]?.[0] ?? STEPS;
     if (n.end === null) return;
     const released = Math.max(step + 1, Math.round(n.end) - bar * STEPS);
-    if (released < next) arcs.push({ onset: released, degree: null, accidental: 0 });
+    if (released < next) arcs.push(rest(released));
   });
-  if (arcs[0]!.onset > 0 && arcs.at(-1)!.degree !== null)
-    arcs.unshift({ onset: 0, degree: null, accidental: 0 });
+  if (arcs[0]!.onset > 0 && arcs.at(-1)!.degree !== null) arcs.unshift(rest(0));
+  const motif: Motif = {
+    cycle: STEPS,
+    onsets: arcs.map((a) => a.onset),
+    degrees: arcs.map((a) => a.degree),
+    accidentals: arcs.map((a) => a.accidental),
+  };
+  const accents = arcs.map((a) => a.accent);
   return {
     kind: 'motif',
     source,
-    motif: {
-      cycle: STEPS,
-      onsets: arcs.map((a) => a.onset),
-      degrees: arcs.map((a) => a.degree),
-      accidentals: arcs.map((a) => a.accidental),
-    },
+    motif: accents.some((a) => a !== 0) ? { ...motif, accents } : motif,
+    level,
   };
 }
 
@@ -133,6 +144,8 @@ export interface Offer {
   readonly source: string;
   /** The bar it was heard in. */
   readonly bar: number;
+  /** The player's level in that bar: the reading of their style, never what the band plays at. */
+  readonly level: number;
 }
 
 /** The bar the Muse judges, and its key. */
@@ -175,7 +188,7 @@ export const muse: Machine<MuseEnv, MuseCarried, MuseInput, MuseOutput> = {
     if (judgements.length > 0) {
       lastPlayed = bar;
       const best = taken(judgements);
-      if (best) offer = { motif: best.motif, source: best.source, bar };
+      if (best) offer = { motif: best.motif, source: best.source, bar, level: best.level };
     } else if (offer && lastPlayed !== null && bar - lastPlayed > MUSE.forgetAfter) {
       offer = null;
       forgot = 'silence';

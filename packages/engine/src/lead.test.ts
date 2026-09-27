@@ -316,7 +316,7 @@ describe('the lead with a motif on offer', () => {
     accidentals: [0, 0, -1, 0, 0, 0],
   };
   const notesOf = (m: Motif) => m.onsets.filter((_, i) => m.degrees[i] !== null);
-  const offer = (bar: number): Offer => ({ motif, source: 'the computer keys', bar });
+  const offer = (bar: number): Offer => ({ motif, source: 'the computer keys', bar, level: 90 });
   const offered = (over: readonly BandBar[], offerAt: (bar: number) => Offer | null) =>
     over.map((bar) => ({ ...bar, offer: offerAt(bar.bar) }));
 
@@ -356,6 +356,16 @@ describe('the lead with a motif on offer', () => {
       }
     expect(bars).toBe(480);
     expect(offChord).toBeGreaterThan(0);
+  });
+
+  it('writes each note of a motif with its accent, 0 where it has none, and none on its own notes (U4)', () => {
+    const accented: Motif = { ...motif, accents: [12, -8, 0, 5, 0, -3] };
+    const bar = playing[0]!.bar;
+    const at = (m: Motif) =>
+      lead.advance({ ...bar, offer: { ...offer(0), motif: m } }, lead.initial, null).output;
+    expect(at(accented).map((e) => e.accent)).toEqual([12, -8, 0, 5, -3]);
+    expect(at(motif).map((e) => e.accent)).toEqual([0, 0, 0, 0, 0]);
+    for (const { events } of playing) for (const e of events) expect('accent' in e).toBe(false);
   });
 
   it('takes a new one at once, mid-phrase', () => {

@@ -419,6 +419,17 @@ describe('the transport listening', () => {
     }
   });
 
+  it('plays a motif played loudly or softly the same, on the lead’s level plus its accents (U4)', () => {
+    // The player's level is the reading of their style, not the band's.
+    const at = (velocities: number[]) => {
+      const notes = motifIn(2).map((n, i) => ({ ...n, velocity: velocities[i]! }));
+      const bar = listening(lively, 600, notes).bars.find((b) => b.bar === 4)!;
+      return bar.events.filter((e) => e.part === 'lead').map((e) => e.velocity);
+    };
+    expect(at([120, 100, 110])).toEqual([101, 81, 91]);
+    expect(at([50, 30, 40])).toEqual([101, 81, 91]);
+  });
+
   it('judges each bar it composed once, in order, and keeps no note it has judged', () => {
     const { outputs, carried } = listening(lively, 900, [...motifIn(3), ...motifIn(7)]);
     const judged = outputs.flatMap((o) => o.judged).map((j) => j.bar);

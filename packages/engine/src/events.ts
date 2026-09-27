@@ -36,6 +36,11 @@ export interface WrittenNote {
   readonly note: number;
   /** How long it is written, in whole steps; it may run past the bar. */
   readonly length: number;
+  /**
+   * For a lead note from a motif only: its accent, how much louder or
+   * softer than the lead's level it plays, as the motif writes it (U4).
+   */
+  readonly accent?: number;
 }
 
 export interface NoteEvent {
@@ -68,7 +73,7 @@ export function eventProblems(event: NoteEvent): string[] {
 /** What is wrong with a written note, if anything, one line per problem. */
 export function writtenProblems(written: WrittenNote): string[] {
   const problems: string[] = [];
-  const { part, role, step, note, length } = written;
+  const { part, role, step, note, length, accent } = written;
   if (!isIntegerIn(step, 0, 15)) problems.push(`step ${step} is not a step 0–15`);
   if (!isIntegerIn(note, 0, 127)) problems.push(`note ${note} is not a MIDI note 0–127`);
   if (!(Number.isInteger(length) && length > 0))
@@ -78,5 +83,8 @@ export function writtenProblems(written: WrittenNote): string[] {
   if (part === 'drums' && role !== undefined && !DRUM_ROLES.includes(role))
     problems.push(`role ${role} is not a drum role`);
   if (part !== 'drums' && role !== undefined) problems.push(`a ${part} note has no role`);
+  if (accent !== undefined && !Number.isInteger(accent))
+    problems.push(`accent ${accent} is not a whole number`);
+  if (part !== 'lead' && accent !== undefined) problems.push(`a ${part} note has no accent`);
   return problems;
 }

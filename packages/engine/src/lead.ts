@@ -278,15 +278,16 @@ function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], ph
 
 /**
  * A motif of one bar realized as the lead's notes: its first note on the
- * degree of the key nearest the chord tone nearest where the lead left
- * off, each note altered as written and held to the next onset, a rest
- * silent, and the last note to the bar's end. (A motif that didn't start
- * on the bar's first step would hold its last note on over the bar line;
- * the lead's own and the Muse's always start there, with a rest if the
- * bar starts silent.) Where `fit`, a note on the half bar or where a chord starts goes
- * to the nearest chord tone, as the lead's own sketches do; a player's
- * motif is played as it was heard. Bars 2 and 4 close as the phrase grammar
- * says, and the phrase moves into the lead's range.
+ * degree of the key nearest the chord tone nearest where the lead left off,
+ * each note altered as written and held to the next onset, a rest silent,
+ * and the last note to the bar's end. (A motif that didn't start on the
+ * bar's first step would hold its last note on over the bar line; the lead's
+ * own and the Muse's always start there, with a rest if the bar starts
+ * silent.) Where `fit`, a note on the half bar or where a chord starts goes
+ * to the nearest chord tone, as the lead's own sketches do; a player's motif
+ * is played as it was heard, each note with its accent, which the
+ * performance plays on the lead's level (U4). Bars 2 and 4 close as the
+ * phrase grammar says, and the phrase moves into the lead's range.
  */
 function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
   const { plan, chords, barInSection } = env;
@@ -306,6 +307,7 @@ function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
     step,
     note: notes[j]!,
     length: (onsets[i + 1] ?? motif.cycle) - step,
+    ...(fit ? {} : { accent: motif.accents?.[i] ?? 0 }),
   }));
   return { written, last: notes.at(-1)! };
 }
