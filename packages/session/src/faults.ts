@@ -200,25 +200,29 @@ export function linkDelay(faults: LinkFaults, leg: 'there' | 'back', index: numb
 /** A ping answered, where it happened in real time, and the offset its answer should have read. */
 export interface PingRun {
   readonly ping: Ping;
-  /** When the client sent it and read the answer, in real time. */
+  /** When the client sent it, the host answered and the client read the answer, in real time. */
   readonly sentAt: number;
+  readonly answeredAt: number;
   readonly receivedAt: number;
-  /** The true offset, the host's moment heard less the client's, when the answer was read. */
+  /** The true offset, the host's page clock less the client's, in seconds. */
   readonly offset: number;
 }
 
 /**
  * A client's pings to a host, one at each real time given, over the link:
- * each stamped as the pairing reads the moment heard, on the client as it
- * sends and reads the answer and on the host as it answers, where a stall
- * of either page holds it up. Lost ones never come back. The rest are in the
- * order their answers were read, which the link's jitter may shuffle.
+ * each stamped with the page clocks, on the client as it sends and reads
+ * the answer and on the host as it answers, where a stall of either page
+ * holds it up. The answer carries what `heard` says the host's output's
+ * offset from its page clock is, as it answers. Lost ones never come back.
+ * The rest are in the order their answers were read, which the link's
+ * jitter may shuffle.
  */
 export function pingsBetween(
   client: SimulatedDevice,
   host: SimulatedDevice,
   link: LinkFaults,
   times: readonly number[],
+  heard: (answeredAt: number) => number | null = () => null,
 ): PingRun[] {
   const runs: PingRun[] = [];
   times.forEach((sentAt, i) => {
@@ -229,13 +233,15 @@ export function pingsBetween(
     const receivedAt = client.woken(answeredAt + back);
     runs.push({
       ping: {
-        sent: client.heardNow(sentAt),
-        received: client.heardNow(receivedAt),
-        host: host.heardNow(answeredAt),
+        sent: client.pageNow(sentAt) / 1000,
+        received: client.pageNow(receivedAt) / 1000,
+        host: host.pageNow(answeredAt) / 1000,
+        heard: heard(answeredAt),
       },
       sentAt,
+      answeredAt,
       receivedAt,
-      offset: host.heard(receivedAt) - client.heard(receivedAt),
+      offset: (host.pageNow(receivedAt) - client.pageNow(receivedAt)) / 1000,
     });
   });
   return runs.sort((a, b) => a.receivedAt - b.receivedAt);

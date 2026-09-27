@@ -120,6 +120,8 @@ export interface Following {
   judged(judged: readonly BarJudgement[]): void;
   /** Its players asked the Muse to forget. */
   forget(): void;
+  /** The host's heard moment less this output's now, once the clocks are trusted: read every tick. */
+  skew(): number | null;
 }
 
 /** A client's state: its transport, the host's bars arrived, and its ear. */
@@ -186,6 +188,9 @@ export function browserSurroundings(output: () => Output = webAudioOutput): Surr
 }
 
 const browser: Surroundings = browserSurroundings();
+
+/** The moment heard now, on the output's clock: its own estimate, or its clock less its latency. */
+const heardOn = (output: Output) => output.heard?.() ?? output.currentTime - output.latency;
 
 export class Player {
   status: Status = $state('stopped');
@@ -562,6 +567,9 @@ export class Player {
    * arrived, and its ear judging the bars its players played.
    */
   #tickFollowing(output: Output, follow: Follow) {
+    // A jump of either output moves the skew; each tick plays by the latest.
+    const skew = follow.told.skew();
+    if (skew !== null) this.skew = skew;
     const now = output.currentTime + this.skew;
     const arrived = follow.arrived;
     follow.arrived = [];
@@ -575,7 +583,7 @@ export class Player {
     if (played.length > 0) follow.keys = [...follow.keys, ...played].slice(-KEYS_KEPT);
     if (carried!.source.lacked !== this.lacked) this.lacked = carried!.source.lacked;
     this.#schedule(output, now, scheduled);
-    const heard = this.writtenPosition(output.currentTime - output.latency);
+    const heard = this.writtenPosition(heardOn(output));
     if (heard !== null) {
       const keyOf = (bar: number) => follow.keys.find((k) => k.bar === bar)?.key;
       const ear = earListen(follow.ear, this.#arrived, heard, keyOf);
@@ -611,8 +619,9 @@ export class Player {
   #followHeard() {
     const output = this.#output;
     if (this.status !== 'playing' || !output) return;
-    const latest = this.#heard.take(output.currentTime - output.latency);
+    const heard = heardOn(output);
+    const latest = this.#heard.take(heard);
     if (latest !== undefined) this.heard = latest;
-    this.sounding = this.#sounding.at(output.currentTime - output.latency);
+    this.sounding = this.#sounding.at(heard);
   }
 }

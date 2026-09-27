@@ -12,8 +12,20 @@ import {
   transport,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { CLOCK, type ClockCarried, type ClockReading, type Ping, hostClock } from './clock.ts';
 import {
+  type ClockReading,
+  OUTPUT,
+  type PairEstimate,
+  type Ping,
+  type Sample,
+  clockPair,
+  hostClock,
+  outputClock,
+  pairingSample,
+  skewOf,
+} from './clock.ts';
+import {
+  type Drop,
   type SimulatedDevice,
   type DeviceFaults,
   type LinkFaults,
@@ -131,14 +143,16 @@ describe('a device with faults', () => {
     expect(held.every((d) => d > 0.004)).toBe(true);
   });
 
-  it("stamps a ping as each side's pairing reads it, and knows the offset it should read", () => {
+  it("stamps a ping with each side's page clock, carries what the host says it hears, and knows the offset it should read", () => {
     const client = simulatedDevice({ pageOrigin: 1, started: 0.2 });
     const host = simulatedDevice({ pageOrigin: 5, started: 3 });
-    const [run] = pingsBetween(client, host, { there: 0.01, back: 0.002 }, [10]);
-    expect(run!.ping.sent).toBeCloseTo(9.8, 12);
-    expect(run!.ping.host).toBeCloseTo(7.01, 12);
-    expect(run!.ping.received).toBeCloseTo(9.812, 12);
-    expect(run!.offset).toBeCloseTo(-2.8, 9);
+    const [run] = pingsBetween(client, host, { there: 0.01, back: 0.002 }, [10], (t) => t / 100);
+    expect(run!.ping.sent).toBeCloseTo(9, 12);
+    expect(run!.ping.host).toBeCloseTo(5.01, 12);
+    expect(run!.ping.received).toBeCloseTo(9.012, 12);
+    expect(run!.ping.heard).toBeCloseTo(0.1001, 12);
+    expect(run!.answeredAt).toBeCloseTo(10.01, 12);
+    expect(run!.offset).toBeCloseTo(-4, 9);
   });
 });
 
@@ -150,10 +164,11 @@ interface Scene {
 }
 
 /**
- * Each fault #27 lists for a clock pair, alone. The render quantum is not
- * among them: it reaches only `currentTime`, and a clock pair reads the
- * pairing, so it is a scene of the transport's and of the fallbacks that
- * read `currentTime` (`clock-offset.test.ts`).
+ * Each fault #27 lists for a client's clock, alone, and all at once. The
+ * render quantum is not among them: it reaches only `currentTime`, and a
+ * device's output pair reads the pairing, so it is a scene of the
+ * transport's and of the fallbacks that read `currentTime`
+ * (`clock-offset.test.ts`).
  */
 const SCENES: Record<string, Scene> = {
   'no fault': {},
@@ -166,6 +181,24 @@ const SCENES: Record<string, Scene> = {
   },
   'buffers dropped again and again': {
     client: { drops: range(6).map((i) => ({ at: 2 + i * 1.7, lost: BUFFER })) },
+  },
+  // Each device's output pair reads the pairing, good to half a
+  // millisecond, so a jump of 4.5 ms is well past its resolution.
+  'a jump of 4.5 ms on the host, on a quick link': {
+    host: { drops: [{ at: 6.1, lost: 0.0045 }] },
+    link: { there: 0.001, back: 0.001 },
+  },
+  // One inside it, 1.5 ms, is slewed away, a quarter of a millisecond a tick.
+  'a jump of 1.5 ms on the client': { client: { drops: [{ at: 6.1, lost: 0.0015 }] } },
+  // The network's pings are stamped with the page clocks, which don't jump,
+  // so how slow the link is doesn't matter to a jump.
+  'a buffer dropped over a link as slow as the buffer': {
+    host: { drops: [{ at: 6.1, lost: BUFFER }] },
+    link: { there: 0.005, back: 0.005, jitter: 0.02, held: 0.5 },
+  },
+  'a ping answered as the host drops a buffer': {
+    host: { drops: [{ at: 5.998, lost: BUFFER }] },
+    link: { there: 0.002, back: 0.002, jitter: 0.004, held: 1, seed: 6 },
   },
   "the pairing's jitter": {
     client: { pairingJitter: PAIRING_JITTER, seed: 2 },
@@ -182,38 +215,6 @@ const SCENES: Record<string, Scene> = {
     client: { stalls: [{ at: 4, for: 0.3 }] },
     host: { stalls: [{ at: 7, for: 0.3 }] },
     link: { there: 0.002, back: 0.002 },
-  },
-};
-
-/**
- * Where the host's clock does not keep its promise yet (T8, measured,
- * failing), and why. Each test finds the break where it is, after the
- * scene's first drop, so the day a better clock keeps the promise, or
- * breaks it elsewhere, its test says so; a kept promise moves the scene to
- * `SCENES` (#27: one estimator for every clock pair). Each comes from
- * telling a jump by two pings' ranges, which a ping can't do when its
- * range is wider than the jump.
- */
-const KNOWN_BREAKS: Record<string, Scene> = {
-  // The host answers one ping partway into a drop, and the ping reads an
-  // offset between the old and the new. Quick, it becomes the one trusted,
-  // and agrees with the pings on either side: the jump is never told, and
-  // the offset stays some milliseconds out until the ping leaves the window.
-  'a ping answered as the host drops a buffer': {
-    host: { drops: [{ at: 5.998, lost: BUFFER }] },
-    link: { there: 0.002, back: 0.002, jitter: 0.004, held: 1, seed: 6 },
-  },
-  // A jump no wider than two pings' ranges and the jump rule's 3 ms is
-  // taken for drift and slewed back, 0.5 ms a ping: a 4.5 ms jump, which
-  // an output settling after a hold makes, leaves a client out for seconds
-  // on a quick link, and a buffer does over a slow one.
-  'a jump inside the jump rule, on a quick link': {
-    host: { drops: [{ at: 6.1, lost: 0.0045 }] },
-    link: { there: 0.001, back: 0.001 },
-  },
-  'a buffer dropped over a link as slow as the buffer': {
-    host: { drops: [{ at: 6.1, lost: BUFFER }] },
-    link: { there: 0.005, back: 0.005, jitter: 0.02, held: 0.5 },
   },
   'everything at once': {
     client: {
@@ -242,139 +243,179 @@ const KNOWN_BREAKS: Record<string, Scene> = {
   },
 };
 
-/** How often a client pings its host once its clock is trusted (`PING_EVERY.steady`). */
+/** How often each page ticks, and how often a client pings its host once its clock is trusted (`PING_EVERY.steady`). */
+const TICK = 0.025;
 const EVERY = 0.25;
 const PINGS = range(48).map((i) => 0.25 + i * EVERY);
 
-type Estimator = Machine<null, ClockCarried, Ping, ClockReading>;
+/** The estimator of an output pair, whatever it carries. */
+type OutputEstimator = Machine<null, unknown, Sample, PairEstimate>;
+type NetworkEstimator = Machine<null, unknown, Ping, ClockReading>;
 
-/** What a client's clock reads after each answer, and where each answer came in. */
-function follow(estimator: Estimator, runs: readonly PingRun[]) {
-  let state = estimator.initial;
-  return runs.map((run) => {
-    const next = estimator.advance(null, state, run.ping);
-    state = next.carried;
-    return { run, reading: next.output };
-  });
+/**
+ * A device's output pair, fed one reading of its pairing each tick from
+ * `from` to 12 s: its estimate after each, where the page ran the tick.
+ */
+function outputPair(device: SimulatedDevice, estimator: OutputEstimator, from = 0.2) {
+  let carried = estimator.initial;
+  const read: { at: number; offset: number | null }[] = [];
+  for (const { at } of ticksOf(device, from, 12, TICK)) {
+    const { contextTime, performanceTime } = device.pairing(at);
+    if (contextTime <= 0) continue;
+    const next = estimator.advance(null, carried, pairingSample(contextTime, performanceTime));
+    carried = next.carried;
+    read.push({ at, offset: next.output.offset });
+  }
+  return (t: number) => read.findLast((r) => r.at <= t)?.offset ?? null;
 }
 
-/** How late, in seconds, a client sounds the moment its host is heard at real time `t`, reading `offset`. */
-const late = (client: SimulatedDevice, host: SimulatedDevice, t: number, offset: number) =>
-  client.heardAt(host.heard(t) - offset) - t;
-
 /**
- * The real times from each drop until the second ping sent after it has
- * come back: the two a jump takes to be followed (`hostClock`). A ping
- * lost on the way puts that off.
+ * A client's clock set by its host's under a scene, at each of the
+ * client's ticks: each device's output pair fed from its pairing, the
+ * host answering each ping with its page clock and its output pair's
+ * offset, and the client composing the three (`skewOf`). For each tick,
+ * how late the client sounds the moment its host is heard, in seconds.
  */
-const settling = (scene: Scene, runs: readonly PingRun[]) =>
-  [...(scene.client?.drops ?? []), ...(scene.host?.drops ?? [])].map((d) => {
-    const after = runs.filter((r) => r.sentAt >= d.at + d.lost);
-    return [d.at, after[1]?.receivedAt ?? Infinity] as const;
-  });
-
-/**
- * Where a client's clock breaks its promise under a scene: past the moments
- * its clocks are settling from a drop, once it is trusted, a client sounds
- * a moment within half the best round trip of its host (Cristian's bound),
- * give or take the pairing's jitter on each of a ping's three stamps and
- * the drift since its best ping. And its offset moves by more than the
- * slew only where a clock jumped.
- */
-function brokenPromises(estimator: Estimator, scene: Scene): string[] {
+function follow(
+  scene: Scene,
+  { output = outputClock as OutputEstimator, network = hostClock as NetworkEstimator } = {},
+) {
   const client = simulatedDevice(scene.client);
   const host = simulatedDevice(scene.host);
-  const runs = pingsBetween(client, host, scene.link ?? {}, PINGS);
-  const followed = follow(estimator, runs);
-  const jitter = Math.max(scene.client?.pairingJitter ?? 0, scene.host?.pairingJitter ?? 0);
-  const drift = Math.abs((scene.client?.drift ?? 0) - (scene.host?.drift ?? 0)) * 1e-6;
-  const stale = drift * CLOCK.window * EVERY;
-  const settles = settling(scene, runs);
-  const settled = (t: number) => settles.every(([from, to]) => t < from || t > to);
-  const problems: string[] = [];
-  let before: number | null = null;
-  for (const { run, reading } of followed) {
-    const t = run.receivedAt;
-    const { offset, trip } = reading;
-    if (offset === null) continue;
-    const off = late(client, host, t, offset);
-    const bound = trip! / 2 + 3 * jitter + stale + 1e-6;
-    if (settled(t) && Math.abs(off) > bound)
-      problems.push(
-        `at ${t.toFixed(2)} s, ${(off * 1000).toFixed(2)} ms out, past ${bound * 1000}`,
-      );
-    if (before !== null && Math.abs(offset - before) > CLOCK.slew + 1e-9 && settled(t))
-      problems.push(
-        `at ${t.toFixed(2)} s, moves ${((offset - before) * 1000).toFixed(2)} ms at once`,
-      );
-    before = offset;
+  const hostOutput = outputPair(host, output);
+  const clientOutput = outputPair(client, output);
+  const runs = pingsBetween(client, host, scene.link ?? {}, PINGS, hostOutput);
+  let carried = network.initial;
+  let reading: ClockReading | null = null;
+  let answered = 0;
+  const ticks: { at: number; skew: number; late: number; trip: number }[] = [];
+  for (const { at } of ticksOf(client, 0.2, 12, TICK)) {
+    for (; answered < runs.length && runs[answered]!.receivedAt <= at; answered++) {
+      const next = network.advance(null, carried, runs[answered]!.ping);
+      carried = next.carried;
+      reading = next.output;
+    }
+    const skew = reading && skewOf(reading, clientOutput(at));
+    if (skew === null || skew === undefined) continue;
+    ticks.push({
+      at,
+      skew,
+      late: client.heardAt(host.heard(at) - skew) - at,
+      trip: reading!.trip!,
+    });
   }
-  if (followed.every((f) => f.reading.offset === null)) problems.push('never trusted');
-  return problems;
+  return { ticks, runs };
 }
 
-/** The estimator before #90: the best of the latest pings, slewed to. It has no idea of a jump. */
-const slewOnly: Estimator = {
-  initial: hostClock.initial,
-  advance(env, carried, ping) {
-    const trip = ping.received - ping.sent;
-    if (trip < 0) return { carried, output: hostClock.advance(env, carried, ping).output };
-    const pings = [...carried.pings, { trip, offset: ping.host - (ping.sent + ping.received) / 2 }];
-    const window = pings.slice(-CLOCK.window);
-    const best = window.reduce((a, b) => (b.trip < a.trip ? b : a));
-    let offset = carried.offset;
-    if (window.length >= CLOCK.ready)
-      offset =
-        offset === null
-          ? best.offset
-          : offset + Math.max(-CLOCK.slew, Math.min(CLOCK.slew, best.offset - offset));
-    const next = { pings: window, offset, doubt: null };
-    return { carried: next, output: { offset, trip: best.trip, tooFar: false } };
-  },
-};
+/**
+ * The real times from each jump of either device until the client's clock
+ * has followed it. A jump on the client is followed by its output pair
+ * within `OUTPUT.confirm` ticks after it; one on the host, by the host's
+ * output pair as quickly, and then at the client's first tick after the
+ * first answer after that. A jump inside an output pair's resolution, two
+ * bounds and `OUTPUT.jumped`, is slewed, one `OUTPUT.slew` a tick.
+ */
+function settling(scene: Scene, runs: readonly PingRun[]) {
+  const resolution = 2 * OUTPUT.paired + OUTPUT.jumped;
+  const followed = (d: Drop) =>
+    d.at + d.lost + (OUTPUT.confirm + 1 + (d.lost <= resolution ? d.lost / OUTPUT.slew : 0)) * TICK;
+  return [
+    ...(scene.client?.drops ?? []).map((d) => [d.at, followed(d)] as const),
+    ...(scene.host?.drops ?? []).map((d) => {
+      const told = runs.find((r) => r.answeredAt >= followed(d));
+      return [d.at, (told?.receivedAt ?? Infinity) + TICK] as const;
+    }),
+  ];
+}
+
+/**
+ * Where a client's clock breaks its promise under a scene (T8): once it is
+ * trusted and away from the moments it settles from a jump, a client
+ * sounds a moment within half its best round trip of its host (Cristian's
+ * bound), give or take each output pair's bound and slew; and its clock
+ * moves by more than a millisecond at once only where a clock jumped.
+ */
+function brokenPromises(
+  scene: Scene,
+  estimators: { output?: OutputEstimator; network?: NetworkEstimator } = {},
+): string[] {
+  const { ticks, runs } = follow(scene, estimators);
+  const spans = settling(scene, runs);
+  const settled = (t: number) => spans.every(([from, to]) => t < from || t > to);
+  const problems: string[] = [];
+  let before: number | null = null;
+  for (const { at, skew, late, trip } of ticks) {
+    const bound = trip / 2 + 2 * (OUTPUT.paired + OUTPUT.slew) + 1e-6;
+    if (settled(at) && Math.abs(late) > bound)
+      problems.push(
+        `at ${at.toFixed(2)} s, ${(late * 1000).toFixed(2)} ms out, past ${(bound * 1000).toFixed(2)}`,
+      );
+    if (before !== null && Math.abs(skew - before) > 0.001 && settled(at))
+      problems.push(
+        `at ${at.toFixed(2)} s, moves ${((skew - before) * 1000).toFixed(2)} ms at once`,
+      );
+    before = skew;
+  }
+  if (ticks.length === 0) problems.push('never trusted');
+  return problems;
+}
 
 /** When, in real time, a problem `brokenPromises` found happened; NaN for one that has no time. */
 const whenOf = (problem: string) => Number(/^at (\d+\.\d+) s, /.exec(problem)?.[1] ?? NaN);
 
-describe("the host's clock under every fault (#27, T8)", () => {
+/** An output pair before #27's estimator: it slews toward each reading and never follows a jump, as `hostClock` did before #90. */
+const slewOnly = clockPair({ ...OUTPUT, jumped: Infinity });
+
+/** A network pair that claims the quickest ping's bound, of the latest 16, but plays by the latest ping. */
+const latestPing: NetworkEstimator = {
+  initial: [] as number[],
+  advance(_, carried, ping) {
+    const trip = ping.received - ping.sent;
+    const trips = [...(carried as number[]), trip].slice(-16);
+    const offset = ping.host - (ping.sent + ping.received) / 2;
+    return {
+      carried: trips,
+      output: { offset, trip: Math.min(...trips), tooFar: false, heard: ping.heard, jumps: 0 },
+    };
+  },
+};
+
+/** `outputClock`, but 2 ms off from its 200th reading on. */
+const offPartway: OutputEstimator = {
+  initial: { inner: outputClock.initial, read: 0 },
+  advance(env, carried, sample) {
+    const { inner, read } = carried as { inner: typeof outputClock.initial; read: number };
+    const next = outputClock.advance(env, inner, sample);
+    const off = read >= 200 ? 0.002 : 0;
+    const offset = next.output.offset === null ? null : next.output.offset + off;
+    return { carried: { inner: next.carried, read: read + 1 }, output: { ...next.output, offset } };
+  },
+};
+
+describe("a client's clock under every fault (#27, T8)", () => {
   for (const [name, scene] of Object.entries(SCENES))
     it(`keeps its promise: ${name}`, () => {
-      expect(brokenPromises(hostClock, scene)).toEqual([]);
+      expect(brokenPromises(scene)).toEqual([]);
     });
 
-  for (const [name, scene] of Object.entries(KNOWN_BREAKS))
-    it(`does not keep its promise yet, and breaks it only after a drop: ${name}`, () => {
-      const problems = brokenPromises(hostClock, scene);
-      const drops = [...(scene.client?.drops ?? []), ...(scene.host?.drops ?? [])];
-      const first = Math.min(...drops.map((d) => d.at));
+  it('breaks its promise where an output pair only slews, after the drop and not before (#90)', () => {
+    for (const name of ['a buffer dropped on the client', 'a buffer dropped on the host']) {
+      const problems = brokenPromises(SCENES[name]!, { output: slewOnly });
       expect(problems.length).toBeGreaterThan(0);
-      for (const problem of problems) expect(whenOf(problem)).toBeGreaterThanOrEqual(first);
-    });
-
-  it('finds when each broken promise happened, and one that has no time', () => {
-    const problems = brokenPromises(slewOnly, SCENES['a buffer dropped on the client']!);
-    expect(problems.map(whenOf).every((t) => t >= 6 && t <= 12.01)).toBe(true);
+      expect(problems.map(whenOf).every((t) => t >= 6 && t <= 12.01)).toBe(true);
+    }
+    expect(brokenPromises(SCENES['no fault']!, { output: slewOnly })).toEqual([]);
     expect(whenOf('never trusted')).toBeNaN();
   });
 
-  it('breaks its promise where it only slews, as it did before it followed a jump (#90)', () => {
-    expect(brokenPromises(slewOnly, SCENES['a buffer dropped on the client']!)).not.toEqual([]);
-    expect(brokenPromises(slewOnly, SCENES['a buffer dropped on the host']!)).not.toEqual([]);
-    expect(brokenPromises(slewOnly, SCENES['no fault']!)).toEqual([]);
+  it('breaks its promise where the network trusts the latest ping over the quickest', () => {
+    const problems = brokenPromises(SCENES['messages held up']!, { network: latestPing });
+    expect(problems.some((p) => / ms out, past /.test(p))).toBe(true);
+    expect(brokenPromises(SCENES['no fault']!, { network: latestPing })).toEqual([]);
   });
 
-  it('breaks its promise where its offset is off, or moves at once with no clock jumping', () => {
-    /** `hostClock`, but off by 2 ms for pings sent from 6 s on. */
-    const jumpy: Estimator = {
-      initial: hostClock.initial,
-      advance(env, carried, ping) {
-        const next = hostClock.advance(env, carried, ping);
-        const off = ping.sent >= 6 ? 0.002 : 0;
-        const offset = next.output.offset === null ? null : next.output.offset + off;
-        return { carried: next.carried, output: { ...next.output, offset } };
-      },
-    };
-    const problems = brokenPromises(jumpy, SCENES['no fault']!);
+  it('breaks its promise where an output pair is off, or moves at once with no clock jumping', () => {
+    const problems = brokenPromises(SCENES['no fault']!, { output: offPartway });
     expect(problems.some((p) => / ms out, past /.test(p))).toBe(true);
     expect(problems.some((p) => / moves -?\d+\.\d+ ms at once$/.test(p))).toBe(true);
   });

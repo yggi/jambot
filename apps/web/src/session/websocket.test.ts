@@ -43,7 +43,7 @@ function device(at: number) {
     frame: () => () => {},
     seed: () => 1,
   };
-  return { player: new Player(surroundings), heardNow: now, tickers };
+  return { player: new Player(surroundings), clocks: { page: now, heardOffset: () => 0 }, tickers };
 }
 
 describe('the WebSocket lobby', () => {
@@ -120,10 +120,10 @@ describe('the WebSocket lobby', () => {
     const lobby = websocketLobby(url);
     const host = device(40);
     const client = device(7);
-    const hosting = new HostSession(host.player, host.heardNow);
+    const hosting = new HostSession(host.player, host.clocks);
     await hosting.open(lobby, 'jam');
     await host.player.start();
-    const following = new ClientSession(client.player, client.heardNow);
+    const following = new ClientSession(client.player, client.clocks);
     await following.join(lobby, 'jam', 'Ada');
     await until(() => following.status === 'joined');
     expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);

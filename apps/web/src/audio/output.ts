@@ -13,6 +13,12 @@ export interface Output {
   readonly currentTime: number;
   /** How far behind `currentTime` the speakers are, in seconds. */
   readonly latency: number;
+  /**
+   * The moment heard now, on this clock, where the output estimates it
+   * from its pairing with the page's clock (`clockOffset`); without it,
+   * `currentTime` less `latency` stands in.
+   */
+  heard?(): number;
   /** Let the clock run: a browser starts audio only after a gesture. */
   resume(): Promise<void>;
   /**
