@@ -640,8 +640,8 @@ field `perform` drops that names neither a replacement nor a pass-through. A
 drum hit's role (`WrittenNote.role`) is one: `perform` reads it once, in
 `accent`, to help decide the note's velocity, and then drops it, so nothing past
 a `NoteEvent` — MIDI out, the built-in synth, or a display over played events,
-such as the stage's per-member piano roll (#99) — can read which groove role a
-drum hit plays. The same is true of a lead note's `accent` (U4). For the note:
+such as the stage's per-performer piano roll (#99) — can read which groove role
+a drum hit plays. The same is true of a lead note's `accent` (U4). For the note:
 two sounds on one General MIDI note, which MIDI out could not tell apart, or a
 device's map applied anywhere before MIDI out. A device map that puts two sounds
 on one pad, as the Circuit preset does with rim and snare, is lossy, and allowed
@@ -649,11 +649,11 @@ only there. Test: `perform.test.ts`, "drops a drum hit’s role on the way to a
 NoteEvent (L7)" and "drops a lead note’s accent on the way to a NoteEvent (L7)";
 `drums.test.ts`, "give every sound its own note, so a played drum note names its
 sound (L7)"; `midi-out.test.ts`, whose test of the drum note map cites L7.
-Source: PR #103's review, a per-member piano roll that can label a pitch but not
-a role; #106, a Circuit Tracks that plays no General MIDI drum note. Status:
+Source: PR #103's review, a per-performer piano roll that can label a pitch but
+not a role; #106, a Circuit Tracks that plays no General MIDI drum note. Status:
 measured (every sound its own note, the device map in MIDI out); measured,
 failing (role, accent). Decided: #7, ahead of the evidence. Lands in: #99 (a
-drums member named by role, not raw pitch), #79 (a rhythm motif with roles,
+drums performer named by role, not raw pitch), #79 (a rhythm motif with roles,
 which wants the same field kept past `perform`), #102 (the device's map).
 
 ### Readers and writers
