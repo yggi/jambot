@@ -24,6 +24,8 @@ Decided by the owner:
 - **WebSocket first, then WebRTC**, behind one link abstraction.
 - **Local jamming**: the two-bar delay of the Muse gives the headroom, and
   a host too far away is dropped rather than played with.
+- **No join code**: a session is found by its name alone.
+- **A bar that did not arrive rests** on the client.
 
 The root node (#20) is the same role as a browser host: a host that is a
 Linux box with MIDI ports. So the host is pure code where it can be, and
@@ -254,12 +256,9 @@ e2e` pass unchanged, and a transport over bars the band composed, given
 
 ## Open
 
-- Whether sessions need a join code.
 - Whether clients send wishes, and raw notes as well as judgements (for
   the analyzer and the Muse encoder, #16).
 - How the host weighs several players' motifs (A3 on #79).
-- What a client plays for a bar that did not arrive: it rests now; whether
-  something should cover the hole.
 - Who masters the MIDI clock when a root node exists (#27).
 - Per-client expression beyond its own instruments and MIDI (humanising, a
   velocity curve), which would make a client's notes its own.
