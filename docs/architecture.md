@@ -18,9 +18,9 @@ Jambot is a pnpm workspace:
   the agent hooks, the pawl and history checks over the catalogues, the
   license gate and the Pages deploy.
 
-`theory`, `engine` and `session` are pure: plain TypeScript with no DOM, no Web Audio,
-no timers and no Node APIs, which lint enforces. They run anywhere
-JavaScript runs: a browser tab, a Worker, or the root node.
+`theory`, `engine` and `session` are pure: plain TypeScript with no DOM, no
+Web Audio, no timers and no Node APIs, which lint enforces. They run
+anywhere JavaScript runs: a browser tab, a Worker, or the root node.
 
 The engine is ported from the [prototype](prototype.md) (#2), and all of it
 but the Muse is in place (#37). The score core (the grammar, its parser, the
@@ -144,7 +144,11 @@ design (#7).
   band composes a bar, the Muse judges the bar before the one before it,
   so a motif heard in bar k plays from bar k + 2 and nothing reaches a bar
   sooner (F7). The Muse hears judgements: those of the notes played here,
-  and those a client made of its players' bars and sent (`BarJudgement`). The web app supplies the clock and plays what it schedules
+  and those a client made of its players' bars and sent (`BarJudgement`).
+  One that comes after the Muse heard its bar, before the bar was
+  composed, or that no ear would have judged in the bar's key
+  (`admissible`) is dropped, and the transport says so (`dropped`). The
+  web app supplies the clock and plays what it schedules
   (`apps/web/src/player.svelte.ts`), and passes on the notes played.
 - **Renderers**: turn timed events into sound or MIDI messages. The web
   app's output routes an event by its part: the drums to a synthesised kit,

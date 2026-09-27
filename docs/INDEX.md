@@ -91,6 +91,7 @@ Every doc and code area, as a tree. Add a line when you add one.
       `advance(env, carried, input)`, and `lawBreaks`, which checks it
     - `src/muse.ts`: the Muse (#79): each source's notes in a bar, heard
       at exact positions, judged as mashing, too few, too wide or a motif;
+      `admissible`, the same gates checked of a judgement made elsewhere;
       and `muse`, the machine at bar rate over a bar's judgements, which
       offers the motif it took until another is taken, it is asked to
       forget, or 16 bars pass with nobody playing

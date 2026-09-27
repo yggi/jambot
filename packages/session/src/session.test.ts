@@ -1,5 +1,9 @@
 import {
   type BandBar,
+  type BarJudgement,
+  type HeardNote,
+  type Key,
+  type ScheduledStep,
   INITIAL_STYLE,
   LOOKAHEAD,
   SLIDER_GLIDE,
@@ -10,8 +14,11 @@ import {
   holding,
   transport,
   transportOver,
+  writtenAt,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
+import { CLOCK } from './clock.ts';
+import { EAR, earListen } from './ear.ts';
 import { followSource } from './follow.ts';
 import { sentBars } from './host.ts';
 import type { SentBar } from './protocol.ts';
@@ -209,5 +216,90 @@ describe('the bars a host sends', () => {
     expect(composed.length).toBeGreaterThan(8);
     for (const [bar, start] of sent)
       if (laid.has(bar * 16)) expect(start).toBeCloseTo(laid.get(bar * 16)!, 9);
+  });
+});
+
+/**
+ * A client's player plays three notes in bar k, as the client hears the
+ * bar; its ear judges them and sends the judgement over a link with a
+ * one-way delay (`back`, if the way back is slower); the host's Muse hears
+ * it, or drops it as late. Returns the
+ * host's bar k + 2 and what the host dropped. The client's output is 30 ms
+ * behind its clock, as a browser's is, and both tick every 25 ms.
+ */
+function motifOver(bpm: number, delay: number, back = delay, k = 3) {
+  const track = holding({ ...INITIAL_STYLE, energy: 0.8, bpm });
+  const env: TransportEnv = { seed: 5, start: 1, track, wish: { tonic: null, mode: 'aeolian' } };
+  const latency = 0.03;
+  const follower = transportOver(followSource);
+  let hostCarried = transport.initial;
+  let clientCarried = follower.initial;
+  let ear = EAR;
+  const toClient: { at: number; sent: SentBar }[] = [];
+  const toHost: { at: number; judged: BarJudgement }[] = [];
+  const laid: ScheduledStep[] = [];
+  const keys = new Map<number, Key>();
+  const hostBars: BandBar[] = [];
+  const dropped: BarJudgement[] = [];
+  let notes = [69, 72, 76].map((note, i) => ({ note, step: k * 16 + i * 4 }));
+  for (let ms = 900; ms < 30_000; ms += 5) {
+    const t = ms / 1000;
+    if (ms % 25 === 0) {
+      const judged = toHost.filter((m) => m.at <= t);
+      toHost.splice(0, judged.length);
+      const { carried, output } = transport.advance(env, hostCarried, {
+        now: t,
+        until: t + LOOKAHEAD,
+        judged: judged.map((m) => m.judged),
+      });
+      hostCarried = carried;
+      hostBars.push(...output.composed);
+      dropped.push(...output.dropped);
+      for (const sent of sentBars(output.composed, output.steps, carried!.head, track))
+        toClient.push({ at: t + delay, sent });
+    }
+    if (ms % 25 === 10) {
+      const arrived = toClient.filter((m) => m.at <= t).map((m) => m.sent);
+      toClient.splice(0, arrived.length);
+      if (clientCarried === null && arrived.length === 0) continue;
+      const { carried, output } = follower.advance(env, clientCarried, {
+        now: t,
+        until: t + LOOKAHEAD,
+        arrived,
+      });
+      clientCarried = carried;
+      laid.push(...output.steps);
+      for (const b of output.composed) keys.set(b.bar, b.plan.key);
+      // What the player hears now, and plays along with.
+      const heard = writtenAt(laid, t - latency);
+      if (heard === null) continue;
+      const played: HeardNote[] = notes
+        .filter((n) => n.step <= heard)
+        .map(({ note }) => ({ note, velocity: 100, source: 'Ada', position: heard, end: null }));
+      notes = notes.filter((n) => n.step > heard);
+      const listened = earListen(ear, played, heard, (bar) => keys.get(bar));
+      ear = listened.carried;
+      for (const judged of listened.judged) toHost.push({ at: t + back, judged });
+    }
+  }
+  return { bar: hostBars.find((b) => b.bar === k + 2)!, dropped };
+}
+
+describe("a client's motif, over the link", () => {
+  it('reaches the host in time for bar k + 2 at 180 bpm, over the slowest link the clock keeps (F7)', () => {
+    // Half the longest round trip the clock keeps, one way, plus a tick.
+    const delay = CLOCK.tooFar / 2 + 0.025;
+    for (const bpm of [60, 108, 180]) {
+      const { bar, dropped } = motifOver(bpm, delay);
+      expect(dropped).toEqual([]);
+      expect(bar.offer).toMatchObject({ bar: 3, source: 'Ada' });
+      expect(bar.written.filter((n) => n.part === 'lead').map((n) => n.step)).toEqual([0, 4, 8]);
+    }
+  });
+
+  it('is dropped as late, and changes no bar, where its way back takes longer than a bar allows (F7)', () => {
+    const { bar, dropped } = motifOver(180, 0.01, 0.9);
+    expect(dropped.map((d) => d.bar)).toEqual([3]);
+    expect(bar.offer).toBeNull();
   });
 });

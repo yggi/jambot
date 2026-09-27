@@ -156,6 +156,32 @@ describe('a host and a client session', () => {
     expect(client.player.offer).toEqual(host.player.offer);
   });
 
+  it("name the host's own notes by its player, so a client never reads them as its own", async () => {
+    const lobby = memoryLobby();
+    const host = device(10);
+    const client = device(3);
+    const hosting = new HostSession(host.player, host.heardNow, () => host.world.currentTime);
+    await hosting.open(lobby, 'jam', 'Bo');
+    await host.player.start();
+    const following = new ClientSession(client.player, client.heardNow);
+    await following.join(lobby, 'jam', 'Ada');
+    await run([host, client], 3);
+    const heard = () => host.player.writtenPosition(host.world.currentTime) ?? -1;
+    const bar = Math.floor(heard() / 16) + 1;
+    for (const [i, note] of [69, 72, 76].entries()) {
+      while (heard() < bar * 16 + i * 4) await run([host, client], 0.025);
+      host.player.humanNoteOn('lead', note, 100, 'the computer keys', host.world.currentTime);
+    }
+    await run([host, client], 6);
+    const took = client.player.museLog.find((j) => j.bar === bar)!;
+    expect(took.judgements).toMatchObject([{ kind: 'motif', source: "Bo's computer keys" }]);
+    // Without a name, the host's notes are the host's.
+    hosting.close();
+    expect(host.player.named).toBeNull();
+    await hosting.open(lobby, 'jam');
+    expect(host.player.named).toBe('the host');
+  });
+
   it('refuse a client of another version, and end a client that no host answers', async () => {
     const lobby = memoryLobby();
     const host = device(0);
@@ -222,6 +248,13 @@ describe('the lobby between tabs', () => {
     expect(toAda).toEqual([{ kind: 'stop' }, { kind: 'refused', reason: 'only Ada' }]);
     expect(toBob).toEqual([{ kind: 'stop' }]);
     for (const end of [host, ada, bob]) end.close();
+    // Two tabs opening one name at once: one gets it.
+    const opened = await Promise.allSettled([
+      lobby.host('Both', () => {}),
+      lobby.host('both', () => {}),
+    ]);
+    expect(opened.map((o) => o.status).sort()).toEqual(['fulfilled', 'rejected']);
+    for (const o of opened) if (o.status === 'fulfilled') o.value.close();
     // Once closed, the name is free again.
     await new Promise((r) => setTimeout(r, CLAIM_WAIT));
     const again = await lobby.host('tab jam', () => {});

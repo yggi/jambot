@@ -26,6 +26,7 @@ import {
   type ForecastBar,
   type Judgement,
   type Key,
+  type DroppedJudgement,
   type MuseOutput,
   type Offer,
   PRESETS,
@@ -152,8 +153,16 @@ export interface HudInput {
   /** The bars decided, from the first of the section heard on (`forecast`). */
   readonly bars: readonly ForecastBar[];
   readonly track: StyleTrack;
-  /** The motif on offer and the Muse's latest judgements, the latest last; none before anything is played. */
-  readonly muse?: { readonly offer: Offer | null; readonly log: readonly MuseOutput[] };
+  /**
+   * The motif on offer and the Muse's latest judgements, the latest last,
+   * and the bars judged elsewhere that it dropped; none before anything is
+   * played.
+   */
+  readonly muse?: {
+    readonly offer: Offer | null;
+    readonly log: readonly MuseOutput[];
+    readonly dropped?: readonly DroppedJudgement[];
+  };
 }
 
 const SECTION_NAMES: Record<SectionType, string> = {
@@ -191,7 +200,9 @@ export function hudOf({ heard, bars, track, muse }: HudInput): Hud {
     heading: bars.at(-1)?.plan.key ?? null,
     muse: {
       motif: muse?.offer ? motifView(muse.offer) : null,
-      log: (muse?.log ?? []).flatMap(museLines).reverse(),
+      log: [...(muse?.log ?? []).flatMap(museLines), ...(muse?.dropped ?? []).map(droppedLine)]
+        .sort((a, b) => a.bar - b.bar)
+        .reverse(),
     },
   };
 }
@@ -232,6 +243,16 @@ function reason(judgement: Judgement): string | null {
     case 'motif':
       return null;
   }
+}
+
+/** A bar judged elsewhere that the Muse dropped, and why, so a player can tell. */
+function droppedLine({ bar, judgement: { source }, why }: DroppedJudgement): MuseLine {
+  const text = {
+    late: `What ${source} played came too late to be heard.`,
+    ahead: `${source} sent a bar not yet played. Ignored.`,
+    inadmissible: `${source} sent what no ear would have judged. Ignored.`,
+  }[why];
+  return { bar, text, taken: false };
 }
 
 /** A judged bar's lines, in the order they happened: a forget, then what was taken or why not. */

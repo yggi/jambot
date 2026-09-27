@@ -561,11 +561,13 @@ describe('the transport hearing bars judged elsewhere', () => {
       ticks(0.9, 700).map((tick, i) => (i === on ? { ...tick, judged } : tick)),
     ).outputs;
 
-  it('takes a motif judged elsewhere in bar k, and plays it from bar k + 2, as one heard here', () => {
+  it('takes a motif judged elsewhere in bar k, and plays it from bar k + 2, as one heard here (F7)', () => {
     const k = 3;
     const judgement = judgeBar(motifIn(k, 'a client'), k, keyOf(k))[0]!;
-    // Delivered well before the Muse hears bar k: it waits for it.
-    const outputs = hearing([{ bar: k, judgement }], 10);
+    // Delivered as bar k + 1 is composed, well before the Muse hears bar k: it waits for it.
+    const on = silent.outputs.findIndex((o) => o.composed.some((b) => b.bar === k + 1));
+    const outputs = hearing([{ bar: k, judgement }], on);
+    expect(outputs.flatMap((o) => o.dropped)).toEqual([]);
     const heard = outputs.flatMap((o) => o.judged).find((j) => j.bar === k)!;
     expect(heard.judgements).toEqual([judgement]);
     const bar = outputs.flatMap((o) => o.composed).find((b) => b.bar === k + 2)!;
@@ -573,12 +575,40 @@ describe('the transport hearing bars judged elsewhere', () => {
     expect(bar.written.filter((n) => n.part === 'lead').map((n) => n.step)).toEqual([0, 4, 8]);
   });
 
-  it('drops a judgement that arrives after the Muse has heard its bar', () => {
+  it('drops a judgement that arrives after the Muse has heard its bar, and says so, changing no bar (F7)', () => {
     const k = 3;
     const judgement = judgeBar(motifIn(k, 'a client'), k, keyOf(k))[0]!;
     const heardOn = silent.outputs.findIndex((o) => o.judged.some((j) => j.bar === k));
     const outputs = hearing([{ bar: k, judgement }], heardOn + 1);
     expect(outputs.flatMap((o) => o.judged).every((j) => j.judgements.length === 0)).toBe(true);
+    expect(outputs.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
+    expect(outputs.flatMap((o) => o.dropped)).toEqual([{ bar: k, judgement, why: 'late' }]);
+    // Delivered on the tick before, it is heard.
+    const inTime = hearing([{ bar: k, judgement }], heardOn);
+    expect(inTime.flatMap((o) => o.dropped)).toEqual([]);
+    expect(inTime.flatMap((o) => o.judged).find((j) => j.bar === k)!.judgements).toEqual([
+      judgement,
+    ]);
+  });
+
+  it("drops a judgement no ear would have made in its bar's key, and plays on as before", () => {
+    const k = 3;
+    const judgement = judgeBar(motifIn(k, 'a client'), k, keyOf(k))[0]!;
+    if (judgement.kind !== 'motif') throw new Error('a motif');
+    const wild = { ...judgement, motif: { ...judgement.motif, degrees: [0, 7, 14] } };
+    const on = silent.outputs.findIndex((o) => o.composed.some((b) => b.bar === k + 1));
+    const outputs = hearing([{ bar: k, judgement: wild }], on);
+    expect(outputs.flatMap((o) => o.dropped)).toEqual([
+      { bar: k, judgement: wild, why: 'inadmissible' },
+    ]);
+    expect(outputs.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
+  });
+
+  it('drops a judgement of a bar not yet composed, which nobody can have played, and keeps nothing of it', () => {
+    const judgement = judgeBar(motifIn(3, 'a client'), 3, keyOf(3))[0]!;
+    // On tick 10 the band has composed bar 0 alone.
+    const outputs = hearing([{ bar: 40, judgement }], 10);
+    expect(outputs.flatMap((o) => o.dropped)).toEqual([{ bar: 40, judgement, why: 'ahead' }]);
     expect(outputs.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
   });
 });

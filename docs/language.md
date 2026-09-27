@@ -702,6 +702,10 @@ expressive or metric is A5's, open; nothing that plays yet moves a note
 across a beat, E13, so it is the easier choice to reverse); #79 step 3,
 ahead of the evidence (the lead's level, 91, the midpoint of its accents on
 and off the beat, 100 and 82). Lands in: #79 steps 1 and 3, #63.
+A motif also travels between apps as it is, in a client's judgement and a
+host's bar (`packages/session`), so a change to its shape is a change to
+the session protocol and bumps `PROTOCOL`; `protocol.test.ts` holds the
+shape.
 
 **U5. The motif operators are the theory's `shift` and `mirror` on pitch
 and on time, named `strans`, `mirror`, `late` and `rev`: every chain of
@@ -879,8 +883,11 @@ loop is delayed by the rest of a section and a beat. The Muse (#79): notes
 played arrive at the transport as input, the Muse judges a bar as the band
 composes the bar after next (`LISTEN_DELAY`), and its offer enters the band
 as its environment, so a motif heard in bar k plays from bar k + 2, as in
-the prototype. Pd refuses a signal loop without a delay for the same
-reason.
+the prototype. The Muse's loop crosses the network in host mode: a
+client's ear judges bar k a beat after it ends (`EAR_AFTER`) and sends the
+judgement; one that arrives after the host's Muse heard bar k is dropped,
+and says so, so no bar changes sooner and a replay stays exact. Pd
+refuses a signal loop without a delay for the same reason.
 Counterexample: a wiring of machines with a delay-free cycle, or a wish
 heard inside the section it was sent in; a note played in a bar that
 changes that bar or the next.
@@ -888,7 +895,13 @@ Test: `player.test.ts`, "hears a preset's mode from the next section on,
 and shows the chords (C5)", for the key wish; `transport.test.ts`, whose
 test of a motif played back cites F7: notes in bar k leave every bar before
 k + 2 as it was, and bar k + 2 plays the motif. A wiring that judges a bar
-as the next is composed, a delay of one bar, fails it.
+as the next is composed, a delay of one bar, fails it. Its tests of a
+judgement from elsewhere, taken for bar k + 2 or dropped as late, cite F7
+too; and `packages/session/src/session.test.ts`, whose tests of a client's
+motif over the link
+cite F7: at 60, 108 and 180 bpm, over a one-way delay of half
+`CLOCK.tooFar` and a tick, the host's bar k + 2 plays it, and a slower way
+back drops it as late. An ear that waits 12 steps, not 4, fails it.
 Source: F1, Pd, #37 step 4, #79 step 3. Status: derived; measured (the key
 wish); measured (the Muse's loop). Lands in: #79, Q6.
 

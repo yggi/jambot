@@ -12,10 +12,23 @@
  * each bar starts. A client maps them onto its own clock (`clock.ts`).
  */
 
-import type { BarEnv, Judgement, MuseOutput, Offer, StyleTrack, WrittenNote } from '@jambot/engine';
+import type {
+  BarEnv,
+  DroppedJudgement,
+  Judgement,
+  MuseOutput,
+  Offer,
+  StyleTrack,
+  WrittenNote,
+} from '@jambot/engine';
 import type { ForecastDelta } from './forecast.ts';
 
-/** The protocol's version: a host and a client of different versions refuse each other. */
+/**
+ * The protocol's version: a host and a client of different versions refuse
+ * each other. The engine's `Motif`, `Judgement`, `BarEnv` (with its `Offer`)
+ * and `WrittenNote` travel as they are, so a change to their shape is a
+ * change to the protocol, and bumps it (`protocol.test.ts` holds the shapes).
+ */
 export const PROTOCOL = 1;
 
 /** A bar as a host wrote it: everything its parts read, and the notes they wrote. */
@@ -37,10 +50,11 @@ export interface Song {
   readonly track: StyleTrack;
 }
 
-/** What the Muse offers, and its latest judgements. */
+/** What the Muse offers, its latest judgements, and the bars judged on clients it dropped. */
 export interface MuseState {
   readonly offer: Offer | null;
   readonly log: readonly MuseOutput[];
+  readonly dropped: readonly DroppedJudgement[];
 }
 
 export type HostMessage =

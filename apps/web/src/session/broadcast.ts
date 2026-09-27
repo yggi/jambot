@@ -5,10 +5,11 @@
  * end-to-end check that measures how close two clients sound.
  *
  * Everyone on a session's channel hears everything, so each post says who
- * sent it and, from the host, to whom. A host that opens a name first asks
- * whether anyone holds it, and a host that holds it answers. Every host
- * also answers on one directory channel when asked which sessions are
- * open.
+ * sent it and, from the host, to whom. A host that opens a name first
+ * claims it and waits: a host that holds it answers, and of two claims
+ * that cross, the one with the smaller id wins, so two tabs opening one
+ * name at once never both get it. Every host also answers on one
+ * directory channel when asked which sessions are open.
  */
 
 import {
@@ -20,7 +21,7 @@ import {
 import { type ClientLink, type HostLink, type Lobby, sessionKey } from './lobby.ts';
 
 type Post =
-  | { readonly kind: 'claim' }
+  | { readonly kind: 'claim'; readonly id: string }
   | { readonly kind: 'held' }
   | { readonly kind: 'host'; readonly to?: string; readonly message: HostMessage }
   | { readonly kind: 'client'; readonly from: string; readonly message: ClientMessage };
@@ -53,11 +54,17 @@ export function broadcastLobby(): Lobby {
 
     async host(session, hear) {
       const channel = new BroadcastChannel(channelOf(session));
+      const id = newId();
       let held = false;
+      // Of two claims that cross, the smaller id wins: the larger hears it
+      // is held, whichever of the two heard the other's claim.
       channel.onmessage = ({ data }: MessageEvent<Post>) => {
         if (data?.kind === 'held') held = true;
+        if (data?.kind !== 'claim') return;
+        if (data.id < id) held = true;
+        else channel.postMessage({ kind: 'held' } satisfies Post);
       };
-      channel.postMessage({ kind: 'claim' } satisfies Post);
+      channel.postMessage({ kind: 'claim', id } satisfies Post);
       await new Promise((resolve) => setTimeout(resolve, CLAIM_WAIT));
       if (held) {
         channel.close();

@@ -24,7 +24,8 @@
     };
     /** The lobby server to offer when none was typed before. */
     lobby?: string;
-    onhost: (session: string, lobby: string) => Promise<void>;
+    /** Open a session; the host's own notes go by the name, if one is given. */
+    onhost: (session: string, name: string, lobby: string) => Promise<void>;
     onjoin: (session: string, name: string, lobby: string) => Promise<void>;
     onlist: (lobby: string) => Promise<string[]>;
     onclose: () => void;
@@ -70,9 +71,10 @@
   async function host() {
     error = null;
     remember('session', session);
+    remember('name', name);
     remember('lobby', lobby);
     try {
-      await onhost(session, lobby);
+      await onhost(session, name, lobby);
     } catch (e) {
       error = why(e);
     }

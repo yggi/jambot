@@ -51,6 +51,7 @@ import {
   type MuseCarried,
   type MuseOutput,
   type Offer,
+  admissible,
   barOf,
   judgeBar,
   muse,
@@ -88,6 +89,15 @@ export interface BarJudgement {
   readonly judgement: Judgement;
 }
 
+/**
+ * A bar judged elsewhere that the Muse did not hear, and why: it came after
+ * the Muse heard the bar, or before the bar was composed, or it is nothing
+ * an ear would have judged in the bar's key (`admissible`).
+ */
+export interface DroppedJudgement extends BarJudgement {
+  readonly why: 'late' | 'ahead' | 'inadmissible';
+}
+
 export interface TransportInput<Arrived = never> {
   /** The clock now. Nothing is scheduled before it. */
   readonly now: number;
@@ -97,8 +107,10 @@ export interface TransportInput<Arrived = never> {
   readonly heard?: readonly HeardNote[];
   /**
    * Bars judged elsewhere since the tick before. Each joins the judgements
-   * of its bar, after those of the notes heard here; one for a bar the Muse
-   * has already heard is too late, and is dropped.
+   * of its bar, after those of the notes heard here. One for a bar the Muse
+   * has already heard is too late, one for a bar not yet composed can't be
+   * of anything played, and one no ear would have judged is refused: each
+   * is dropped, and says so (`dropped`).
    */
   readonly judged?: readonly BarJudgement[];
   /** Whether someone asked the Muse to forget what it offers. */
@@ -211,6 +223,8 @@ export interface TransportOutput {
   readonly missed: number;
   /** The bars the Muse judged on this tick: its log. */
   readonly judged: readonly MuseOutput[];
+  /** The bars judged elsewhere that arrived on this tick and were dropped. */
+  readonly dropped: readonly DroppedJudgement[];
 }
 
 /** What the band reads for a bar: the style where the bar starts, on the track, and what the Muse offers. */
@@ -332,11 +346,29 @@ export function transportOver<Source, Arrived = never>(
       let nextBar = carried?.nextBar ?? 0;
       let beat = carried?.beat ?? null;
       let listening = carried?.listening ?? LISTENING;
-      if (heard.length > 0 || remote.length > 0 || forget)
+      // What arrives from elsewhere is heard if its bar is composed and not
+      // yet heard, and it passes the gates in the bar's key; it is dropped
+      // otherwise.
+      const unheard = listening.unjudged[0]?.bar ?? nextBar;
+      const dropped: DroppedJudgement[] = [];
+      const kept = remote.filter((r) => {
+        const key = listening.unjudged.find((u) => u.bar === r.bar)?.key;
+        const why =
+          r.bar < unheard
+            ? 'late'
+            : r.bar >= nextBar
+              ? 'ahead'
+              : !key || !admissible(r.judgement, key)
+                ? 'inadmissible'
+                : null;
+        if (why) dropped.push({ ...r, why });
+        return why === null;
+      });
+      if (heard.length > 0 || kept.length > 0 || forget)
         listening = {
           ...listening,
           pending: [...listening.pending, ...heard],
-          remote: [...listening.remote, ...remote],
+          remote: [...listening.remote, ...kept],
           forget: listening.forget || forget,
         };
       const judged: MuseOutput[] = [];
@@ -430,7 +462,7 @@ export function transportOver<Source, Arrived = never>(
       }
       return {
         carried: { head, source: playing, bars, nextBar, beat, listening },
-        output: { steps, events, composed, missed, judged },
+        output: { steps, events, composed, missed, judged, dropped },
       };
     },
   };

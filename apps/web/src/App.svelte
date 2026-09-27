@@ -152,7 +152,7 @@
       lacked: player.lacked,
     }}
     lobby={import.meta.env.VITE_LOBBY_URL ?? ''}
-    onhost={(session, url) => hostSession.open(lobbyAt(url), session)}
+    onhost={(session, name, url) => hostSession.open(lobbyAt(url), session, name)}
     onjoin={(session, name, url) => clientSession.join(lobbyAt(url), session, name)}
     onlist={(url) => lobbyAt(url).sessions()}
     onclose={() => hostSession.close()}
