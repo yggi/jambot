@@ -1,4 +1,4 @@
-import { PRESETS } from '@jambot/engine';
+import { PRESETS, type ScheduledStep } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
 import { Player, type Surroundings } from './player.svelte.ts';
@@ -14,6 +14,7 @@ function surroundings() {
     tickers: [] as { tick: () => void; stopped: boolean }[],
     frames: [] as { follow: () => void; stopped: boolean }[],
     seeds: [] as number[],
+    steps: [] as ScheduledStep[],
   };
   const output: Output = {
     get currentTime() {
@@ -26,6 +27,7 @@ function surroundings() {
     },
     play: () => void world.played++,
     silence: () => void world.silenced++,
+    tick: (steps) => world.steps.push(...steps),
   };
   const s: Surroundings = {
     output: () => output,
@@ -307,5 +309,70 @@ describe('the player', () => {
     play(20);
     for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('A aeolian');
     expect(heard.get(8)).toBe('G ionian');
+  });
+
+  describe('what players play', () => {
+    it('has no written position before anything plays', () => {
+      const { s } = surroundings();
+      const player = new Player(s);
+      expect(player.writtenPosition(0)).toBeNull();
+    });
+
+    it('ignores a note played before anything plays', () => {
+      const { s } = surroundings();
+      const player = new Player(s);
+      player.humanNoteOn(60, 100, 'test', 0);
+      expect(player.humanNotes).toEqual([]);
+    });
+
+    it('turns a step’s own onset back into the step it was scheduled on', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      void player.start();
+      world.resolve();
+      await settle();
+      for (let i = 0; i < 40; i++) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+      expect(world.steps.length).toBeGreaterThan(0);
+      for (const step of world.steps) {
+        const position = player.writtenPosition(step.seconds);
+        expect(position).not.toBeNull();
+        expect(Math.round(position!) % 16).toBe(step.step);
+      }
+    });
+
+    it('logs a note played, quantised to the grid, with its source', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      void player.start();
+      world.resolve();
+      await settle();
+      for (let i = 0; i < 40; i++) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+      const at = world.steps[0]!;
+      player.humanNoteOn(64, 90, 'the computer keys', at.seconds);
+      expect(player.humanNotes).toHaveLength(1);
+      const note = player.humanNotes[0]!;
+      expect(note).toMatchObject({ note: 64, velocity: 90, source: 'the computer keys' });
+      expect(note.bar * 16 + note.step).toBe(Math.round(player.writtenPosition(at.seconds)!));
+    });
+
+    it('keeps at most 240 notes, dropping the oldest half once full', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      void player.start();
+      world.resolve();
+      await settle();
+      world.currentTime += 1;
+      world.tickers[0]!.tick();
+      const now = world.currentTime;
+      for (let i = 0; i < 241; i++) player.humanNoteOn(60, 100, 'test', now);
+      expect(player.humanNotes.length).toBeLessThanOrEqual(240);
+      expect(player.humanNotes.length).toBeGreaterThan(0);
+    });
   });
 });

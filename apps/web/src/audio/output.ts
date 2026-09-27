@@ -4,7 +4,7 @@
  * stand in for Web Audio.
  */
 
-import type { Part, Sound } from '@jambot/engine';
+import type { Part, ScheduledStep, Sound } from '@jambot/engine';
 import { drumKit } from './drums.ts';
 import { voices } from './voices.ts';
 
@@ -29,6 +29,13 @@ export interface Output {
   ): void;
   /** Fade out everything scheduled so far, and play on afresh. */
   silence(): void;
+  /** A precise pairing of the clock and `performance.now()`, where the platform gives one. */
+  outputTimestamp?():
+    { readonly contextTime: number; readonly performanceTime: number } | undefined;
+  /** Playback's start time, once known, before the first step plays. */
+  starting?(seconds: number): void;
+  /** The steps scheduled this tick, for anything that needs the grid rather than single notes. */
+  tick?(steps: readonly ScheduledStep[]): void;
 }
 
 /** The built-in synth on Web Audio: the drum kit and the voices through a compressor. */
@@ -60,6 +67,12 @@ export function webAudioOutput(): Output {
       old.gain.setTargetAtTime(0, ctx.currentTime, 0.03);
       setTimeout(() => old.disconnect(), 400);
       current = openBus();
+    },
+    outputTimestamp() {
+      const ts = ctx.getOutputTimestamp?.();
+      return ts && ts.contextTime !== undefined && ts.performanceTime !== undefined
+        ? { contextTime: ts.contextTime, performanceTime: ts.performanceTime }
+        : undefined;
     },
   };
 }

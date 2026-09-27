@@ -1,12 +1,98 @@
 <script lang="ts">
-  import Stage from './components/Stage.svelte';
+  import Keyboard from './components/Keyboard.svelte';
   import KeyPicker from './components/KeyPicker.svelte';
+  import MidiPanel from './components/MidiPanel.svelte';
+  import Stage from './components/Stage.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import Transport from './components/Transport.svelte';
-  import { Player } from './player.svelte.ts';
+  import { SvelteSet } from 'svelte/reactivity';
+  import { bandOutput } from './audio/band-output.ts';
+  import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
+  import { type Output, webAudioOutput } from './audio/output.ts';
+  import { MidiAccess, type NoteHandler } from './midi/access.ts';
+  import { connectMidi as connect, routeNote } from './midi/routing.ts';
+  import { COMPUTER_KEY_MAP, ignoreKeyEvent } from './midi/surfaces.ts';
+  import { MidiSettings } from './midi/settings.svelte.ts';
+  import { Player, browserSurroundings } from './player.svelte.ts';
 
-  const player = new Player();
+  const midiSettings = new MidiSettings();
+
+  /**
+   * The audio clock and the offset it maps to MIDI's, made only once
+   * something needs them: a browser starts audio only after a gesture, and
+   * a test that never presses play or a key should never need one either.
+   */
+  let sharedBase: Output | null = null;
+  let sharedOffset: ClockOffset | null = null;
+  function clockOf(): { base: Output; offset: ClockOffset } {
+    const base = (sharedBase ??= webAudioOutput());
+    const offset = (sharedOffset ??= clockOffset(base));
+    return { base, offset };
+  }
+
+  const player = new Player(
+    browserSurroundings(() => {
+      const { base, offset } = clockOf();
+      return bandOutput(
+        {
+          internal: () => midiSettings.internal,
+          port: () => midiSettings.outPort,
+          channels: () => midiSettings.channels,
+          clock: () => midiSettings.clock,
+        },
+        base,
+        offset,
+      );
+    }),
+  );
+
   const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
+
+  let midiAccess: MidiAccess | null = $state(null);
+  let midiMessage = $state(
+    'Without MIDI, the built-in synth and the keys below still run the whole loop.',
+  );
+  /** Notes currently held, from any source, so the on-screen keyboard lights them too. */
+  const held = new SvelteSet<number>();
+
+  /** What every input source funnels through: the Muse (#2) reads `humanNotes` once it exists. */
+  function onHumanNote(note: number, velocity: number, on: boolean, source: string) {
+    routeNote(note, velocity, on, source, {
+      held,
+      humanNoteOn: (n, v, s, seconds) => player.humanNoteOn(n, v, s, seconds),
+      playing: () => player.playing,
+      toOutputSeconds: (ms) => clockOf().offset.fromDeviceMs(ms),
+      thru: () => midiSettings.thru,
+      thruPort: () => midiAccess?.outputPort(midiSettings.outPortId) ?? null,
+      thruChannel: () => midiSettings.thruChannel,
+    });
+  }
+
+  async function connectMidi() {
+    const onNote: NoteHandler = (note, source) =>
+      onHumanNote(note.note, note.velocity, note.on, source);
+    const result = await connect((handler) => MidiAccess.connect(handler), onNote, midiSettings);
+    midiAccess = result.access;
+    midiMessage = result.message;
+  }
+
+  $effect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (ignoreKeyEvent(e.target, e.repeat, e.metaKey || e.ctrlKey || e.altKey)) return;
+      const note = COMPUTER_KEY_MAP[e.key.toLowerCase()];
+      if (note !== undefined) onHumanNote(note, 100, true, 'the computer keys');
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      const note = COMPUTER_KEY_MAP[e.key.toLowerCase()];
+      if (note !== undefined) onHumanNote(note, 0, false, 'the computer keys');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  });
 </script>
 
 <main>
@@ -32,9 +118,21 @@
 
   <Stage hud={player.hud} playing={player.playing} />
 
+  <Keyboard
+    down={held}
+    onnote={(note, velocity, on) => onHumanNote(note, velocity, on, 'the on-screen keys')}
+  />
+
+  <MidiPanel
+    settings={midiSettings}
+    access={midiAccess}
+    message={midiMessage}
+    onconnect={connectMidi}
+  />
+
   <p class="note">
-    The band plays drums, bass, chords and lead. The score, MIDI out and the Muse, which listens to
-    players, are still in the <a href={prototypeUrl}>prototype</a>.
+    The band plays drums, bass, chords and lead, over MIDI or the built-in synth. The score, and the
+    Muse's judgement of what you play, are still in the <a href={prototypeUrl}>prototype</a>.
   </p>
 </main>
 

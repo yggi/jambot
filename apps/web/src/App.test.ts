@@ -50,12 +50,31 @@ describe('the app', () => {
     expect(synthPop()).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('links to the prototype for what it does not do yet: the score, MIDI out and the Muse', () => {
+  it('links to the prototype for what it does not do yet: the score and the Muse’s judgement', () => {
     render(App);
     expect(screen.getByText(/drums, bass, chords and lead/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'prototype' })).toHaveAttribute(
       'href',
       '/prototype.html',
     );
+  });
+
+  it('lights the on-screen key for a computer key pressed, and unlights it on release', async () => {
+    render(App);
+    const c4 = () => screen.getByRole('button', { name: 'C4' }); // 'a' maps to C4 (60)
+    expect(c4().className).not.toContain('down');
+    await fireEvent.keyDown(window, { key: 'a' });
+    expect(c4().className).toContain('down');
+    await fireEvent.keyUp(window, { key: 'a' });
+    expect(c4().className).not.toContain('down');
+  });
+
+  it('ignores a repeated keydown and an unmapped key', async () => {
+    render(App);
+    const c4 = () => screen.getByRole('button', { name: 'C4' });
+    await fireEvent.keyDown(window, { key: 'a', repeat: true });
+    expect(c4().className).not.toContain('down');
+    await fireEvent.keyDown(window, { key: 'z' });
+    expect(c4().className).not.toContain('down');
   });
 });

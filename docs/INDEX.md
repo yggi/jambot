@@ -176,22 +176,46 @@ Every doc and code area, as a tree. Add a line when you add one.
         where the section or the key changes
       - `src/components/SongMap.svelte`: the section playing and the three
         after it, their bars as tall as their energy, and their chord loops
+      - `src/components/Keyboard.svelte`: the on-screen keyboard, C4 to E5,
+        laid out over the white keys' width (`midi/surfaces.ts`); a pointer
+        holds a note until it lifts, cancels, or the capture is lost
+      - `src/components/MidiPanel.svelte`: connecting, the output and input
+        ports, the channel each part sends on, and the built-in synth,
+        clock and thru toggles
     - `src/player.svelte.ts`: runs the transport on the audio clock and
       plays its events; the screen follows what is heard. Starting, playing
       and stopped, with a stop that cancels a pending start. It keeps the
-      bars decided ahead and shows everything through one snapshot, `hud`
+      bars decided ahead and shows everything through one snapshot, `hud`.
+      `writtenPosition`/`humanNoteOn` turn a played note's clock time into a
+      quantised bar and step, kept in `humanNotes` for whenever the Muse
+      (#2) reads them
     - `src/hud.ts`: the view model, `hudOf`: the bar heard and the bars
       ahead as `BarView`s and the song map's sections of them, the chord
       sounding, and the style's preset and glide, as plain data
     - `src/heard.ts`: the positions waiting to be heard, bounded
     - `src/audio/output.ts`: what the player plays on, and the Web Audio
       one
+    - `src/audio/midi-out.ts`: MIDI out, one channel per part; a note-off
+      is answered by its note-on's decision, never by what else is sounding
+      at release, so a stab sharing a pad's channel and pitch retriggers
+      rather than cutting the pad short (#5)
+    - `src/audio/clock-offset.ts`: the smoothed gap between the output's
+      clock and `performance.now()`, for MIDI timestamps and their inverse
+    - `src/audio/band-output.ts`: `bandOutput`, the built-in synth and MIDI
+      out together or either alone, riding on one shared clock
     - `src/conductor.ts`: intents (presets, sliders, keys) into glides on
       the style track and the key wished for
     - `src/audio/drums.ts`: the built-in drum kit
     - `src/audio/voices.ts`: the built-in pitched voices: bass, chords and
       lead, coloured by the bar's sound
     - `src/ticker.ts`: the scheduler's tick, from a Worker
+    - `src/midi/surfaces.ts`: the playing surfaces that reach the Muse, as
+      pure functions: a raw MIDI message, the computer keys' map, and the
+      on-screen keyboard's layout
+    - `src/midi/access.ts`: Web MIDI access: connecting, listing ports, and
+      turning what a listened input plays into notes
+    - `src/midi/settings.svelte.ts`: MIDI preferences, saved to
+      `localStorage` on every change
     - `e2e/band.e2e.ts`, `playwright.config.ts`: the end-to-end checks, the
       built app in Chromium with its audio measured
     - `e2e/pages.e2e.ts`: the app and the prototype on the Pages sub-path,
