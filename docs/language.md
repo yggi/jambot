@@ -577,14 +577,14 @@ and returns a `NoteEvent`: `part`, `step` and `note` pass through unchanged, and
 nor a pass-through. A drum hit's role (`WrittenNote.role`) is one: `perform`
 reads it once, in `accent`, to help decide the note's velocity, and then drops
 it, so nothing past a `NoteEvent` — MIDI out, the built-in synth, or a display
-over played events, such as the stage's per-member piano roll (#99) — can read
-which groove role a drum hit plays. The same is true of a lead note's `accent`
-(U4). Test: `perform.test.ts`, "drops a drum hit’s role on the way to a
+over played events, such as the stage's per-performer piano roll (#99) — can
+read which groove role a drum hit plays. The same is true of a lead note's
+`accent` (U4). Test: `perform.test.ts`, "drops a drum hit’s role on the way to a
 NoteEvent (L7)" and "drops a lead note’s accent on the way to a NoteEvent (L7)".
-Source: PR #103's review, a per-member piano roll that can label a pitch but not
-a role. Status: measured, failing (role, accent). Lands in: #99 (a drums member
-named by role, not raw pitch), #79 (a rhythm motif with roles, which wants the
-same field kept past `perform`).
+Source: PR #103's review, a per-performer piano roll that can label a pitch but
+not a role. Status: measured, failing (role, accent). Lands in: #99 (a drums
+performer named by role, not raw pitch), #79 (a rhythm motif with roles, which
+wants the same field kept past `perform`).
 
 ### Readers and writers
 
