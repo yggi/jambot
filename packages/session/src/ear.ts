@@ -34,7 +34,7 @@ export const EAR: EarCarried = { pending: [], next: null };
  * position on the grid: every bar that ended a beat before it judged, each
  * in its key, if the client knows it.
  */
-export function listen(
+export function earListen(
   { pending, next }: EarCarried,
   arrived: readonly HeardNote[],
   heard: number,

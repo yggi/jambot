@@ -144,7 +144,7 @@
       ended: clientSession.ended,
       lacked: player.lacked,
     }}
-    onhost={(session) => hostSession.open(lobby, session)}
+    onhost={(session, name) => hostSession.open(lobby, session, name)}
     onjoin={(session, name) => clientSession.join(lobby, session, name)}
     onclose={() => hostSession.close()}
     onleave={() => clientSession.leave()}

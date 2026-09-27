@@ -21,7 +21,8 @@
       ended: string | null;
       lacked: number;
     };
-    onhost: (session: string) => Promise<void>;
+    /** Open a session; the host's own notes go by the name, if one is given. */
+    onhost: (session: string, name: string) => Promise<void>;
     onjoin: (session: string, name: string) => Promise<void>;
     onclose: () => void;
     onleave: () => void;
@@ -51,8 +52,9 @@
   async function host() {
     error = null;
     remember('session', session);
+    remember('name', name);
     try {
-      await onhost(session);
+      await onhost(session, name);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }

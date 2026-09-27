@@ -313,4 +313,28 @@ describe('the view of the Muse', () => {
       { bar: 1, text: 'Heard 1 note. A motif needs at least 3.', taken: false },
     ]);
   });
+
+  it("says, in the log among the bars, why the Muse didn't hear what a client sent", () => {
+    const judgement = { kind: 'motif', source: "Ada's computer keys", motif } as never;
+    const log = [{ bar: 4, judgements: [], offer: null, forgot: 'asked' }] as never;
+    const dropped = [
+      { bar: 3, judgement, why: 'late' },
+      { bar: 7, judgement, why: 'ahead' },
+      { bar: 5, judgement, why: 'inadmissible' },
+    ] as const;
+    expect(hudOf({ heard: 0, bars, track, muse: { offer: null, log, dropped } }).muse.log).toEqual([
+      { bar: 7, text: "Ada's computer keys sent a bar not yet played. Ignored.", taken: false },
+      {
+        bar: 5,
+        text: "Ada's computer keys sent what no ear would have judged. Ignored.",
+        taken: false,
+      },
+      { bar: 4, text: 'Forgot the motif, as asked.', taken: false },
+      {
+        bar: 3,
+        text: "What Ada's computer keys played came too late to be heard.",
+        taken: false,
+      },
+    ]);
+  });
 });

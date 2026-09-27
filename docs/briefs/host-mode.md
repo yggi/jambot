@@ -102,6 +102,16 @@ The same form at two levels:
   hears bar k as it composes bar k + 2, on the last beat of bar k + 1. A
   client judges bar k a beat after it ends, so a judgement has about half a
   bar to arrive.
+- **The host checks** what it takes. The transport drops a client's
+  judgement that no ear would have made in the bar's key (`admissible`,
+  the same gates `judgeBar` applies), one for a bar not yet composed, and
+  one that comes after the Muse heard its bar. Each is said in the Muse's
+  log, on the host and its clients ("What Ada's computer keys played came
+  too late to be heard."), so a player can tell a lost motif from one that
+  lost to another.
+- **Every source has a player's name** in a session: a client's by its
+  player, and the host's own by the name its player gives, or "the host",
+  so no client reads the host's keys as its own.
 - A client's forget goes to the host, which forgets.
 
 The client shows the host's Muse: its offer and its log.
@@ -256,8 +266,15 @@ e2e` pass unchanged, and a transport over bars the band composed, given
 
 ## Open
 
-- Whether clients send wishes, and raw notes as well as judgements (for
-  the analyzer and the Muse encoder, #16).
+- Whether clients send wishes. A client sends the ear's reading, not raw
+  notes (a position from review on #89): today a judgement; it would grow
+  into the judgement plus the bar's style metrics (density, register,
+  velocity, syncopation: the analyzer's stage 7, #3) run on the client,
+  which the host weighs per source, where A3's confidence belongs. A
+  player's notes stay on their device; raw notes can be added for the Muse
+  encoder (#16) if it needs them.
+- Whether two clients may join under one name: their judgements then share
+  a source, which the log and a weighing per source can't tell apart.
 - How the host weighs several players' motifs (A3 on #79).
 - Who masters the MIDI clock when a root node exists (#27).
 - Per-client expression beyond its own instruments and MIDI (humanising, a

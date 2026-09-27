@@ -33,11 +33,12 @@
  * host's clock: its transport runs in the host's time, and `skew` maps it
  * onto this device's clock, so a note sounds here when it sounds at the
  * host. Its style, bars ahead and Muse are the host's; its players' notes
- * go to its ear (`listen`), and what it judges goes to the host.
+ * go to its ear (`earListen`), and what it judges goes to the host.
  */
 
 import {
   type BarJudgement,
+  type DroppedJudgement,
   type ForecastBar,
   INITIAL_STYLE,
   type KeyWish,
@@ -69,8 +70,9 @@ import {
   type SentBar,
   type Song,
   followSource,
-  listen,
+  earListen,
   sentBars,
+  sourceOf,
 } from '@jambot/session';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
@@ -194,6 +196,8 @@ export class Player {
   museLog: readonly MuseOutput[] = $state.raw([]);
   /** The motif the Muse offers now, after the last bar it judged. */
   offer: Offer | null = $state.raw(null);
+  /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
+  dropped: readonly DroppedJudgement[] = $state.raw([]);
   /** The band's own notes heard sounding right now: the lead's, the drums'. */
   sounding: SoundingNotes = $state({ lead: [], drums: [] });
   mode: Mode = $state('solo');
@@ -201,6 +205,12 @@ export class Player {
   lacked = $state(0);
   /** Told what a host does, while it hosts. */
   hosting: Hosting | null = null;
+  /**
+   * The name this player's own notes go by in a session's Muse, while it
+   * hosts: its clients' notes go by their players' names, so the host's go
+   * by one too, and nobody's log reads another's keys as their own.
+   */
+  named: string | null = null;
   /**
    * The host's clock less this output's, while following: a moment the host
    * hears at `t` is heard here at `t - skew`.
@@ -235,7 +245,7 @@ export class Player {
       heard: this.heard,
       bars: this.#bars,
       track: this.track,
-      muse: { offer: this.offer, log: this.museLog },
+      muse: { offer: this.offer, log: this.museLog, dropped: this.dropped },
     }),
   );
 
@@ -289,7 +299,10 @@ export class Player {
         ? this.humanNotes.slice(this.humanNotes.length - HUMAN_NOTES_MAX / 2)
         : this.humanNotes;
     this.humanNotes = [...kept, { part, note, velocity, source, position, end: null }];
-    if (part === 'lead') this.#arrived.push({ note, velocity, source, position, end: null });
+    if (part === 'lead') {
+      const heardAs = this.named === null ? source : sourceOf(this.named, source);
+      this.#arrived.push({ note, velocity, source: heardAs, position, end: null });
+    }
   }
 
   /** Ask the Muse to forget the motif it offers, from the next bar the band composes. */
@@ -357,6 +370,7 @@ export class Player {
     this.#forget = false;
     this.museLog = [];
     this.offer = null;
+    this.dropped = [];
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
     this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
   }
@@ -421,10 +435,11 @@ export class Player {
     if (this.#follow) this.#bars = bars;
   }
 
-  followMuse({ offer, log }: MuseState) {
+  followMuse({ offer, log, dropped }: MuseState) {
     if (!this.#follow) return;
     this.offer = offer;
     this.museLog = log;
+    this.dropped = dropped;
   }
 
   /** Play alone again. */
@@ -436,6 +451,7 @@ export class Player {
     this.track = holding(INITIAL_STYLE);
     this.museLog = [];
     this.offer = null;
+    this.dropped = [];
     this.#decide();
   }
 
@@ -503,13 +519,15 @@ export class Player {
     const latest = scheduled.judged.at(-1);
     const offered = this.offer;
     if (latest) this.offer = latest.offer;
+    if (scheduled.dropped.length > 0)
+      this.dropped = [...this.dropped, ...scheduled.dropped].slice(-MUSE_LOG);
     if (this.hosting) {
       if (scheduled.composed.length > 0)
         this.hosting.composed(
           sentBars(scheduled.composed, scheduled.steps, carried!.head, this.track),
         );
-      if (logged.length > 0 || this.offer !== offered)
-        this.hosting.muse({ offer: this.offer, log: this.museLog });
+      if (logged.length > 0 || this.offer !== offered || scheduled.dropped.length > 0)
+        this.hosting.muse({ offer: this.offer, log: this.museLog, dropped: this.dropped });
     }
     this.#schedule(output, now, scheduled);
     if (carried?.nextBar !== this.#decidedAt) this.#decide();
@@ -535,7 +553,7 @@ export class Player {
     const heard = this.writtenPosition(output.currentTime - output.latency);
     if (heard !== null) {
       const keyOf = (bar: number) => follow.keys.find((k) => k.bar === bar)?.key;
-      const ear = listen(follow.ear, this.#arrived, heard, keyOf);
+      const ear = earListen(follow.ear, this.#arrived, heard, keyOf);
       follow.ear = ear.carried;
       if (ear.judged.length > 0) follow.told.judged(ear.judged);
     }

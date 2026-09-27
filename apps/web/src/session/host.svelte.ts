@@ -9,10 +9,11 @@
  * to the player's Muse. A client silent for `SILENT` seconds is gone.
  */
 
-import type { ForecastBar, MuseOutput, Offer } from '@jambot/engine';
+import type { ForecastBar } from '@jambot/engine';
 import {
   type ClientMessage,
   type HostMessage,
+  type MuseState,
   PROTOCOL,
   forecastDelta,
   refusal,
@@ -41,7 +42,7 @@ export class HostSession {
   /** When each client was last heard, by its id. */
   #lastHeard: Record<string, number> = {};
   #forecast: readonly ForecastBar[] = [];
-  #muse: { offer: Offer | null; log: readonly MuseOutput[] } = { offer: null, log: [] };
+  #muse: MuseState = { offer: null, log: [], dropped: [] };
   #sweep: ReturnType<typeof setInterval> | null = null;
 
   /**
@@ -58,14 +59,23 @@ export class HostSession {
     this.#wallNow = wallNow;
   }
 
-  /** Open the session under a name. Throws if the lobby refuses it. */
-  async open(lobby: Lobby, session: string) {
+  /**
+   * Open the session under a name, the host's own notes going by its
+   * player's name, or by "the host" without one. Throws if the lobby
+   * refuses it.
+   */
+  async open(lobby: Lobby, session: string, player = '') {
     await this.#player.prepare();
     this.#link = await lobby.host(session, (message, from) => this.#hear(message, from));
     this.session = session.trim();
     this.#player.mode = 'host';
+    this.#player.named = player.trim() || 'the host';
     this.#forecast = this.#player.ahead;
-    this.#muse = { offer: this.#player.offer, log: this.#player.museLog };
+    this.#muse = {
+      offer: this.#player.offer,
+      log: this.#player.museLog,
+      dropped: this.#player.dropped,
+    };
     this.#player.hosting = this.#hosting();
     this.#sweep = setInterval(() => this.#dropSilent(), 1000);
   }
@@ -77,6 +87,7 @@ export class HostSession {
     if (this.#sweep) clearInterval(this.#sweep);
     this.#sweep = null;
     this.#player.hosting = null;
+    this.#player.named = null;
     this.#player.mode = 'solo';
     this.session = null;
     this.guests = [];
