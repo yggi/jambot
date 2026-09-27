@@ -179,11 +179,11 @@ describe('the comp', () => {
       expect(carried).toEqual(voiced.at(-1));
       for (const e of output) {
         expect(writtenProblems(e)).toEqual([]);
-        expect(e.part).toBe('chords');
+        expect(['pad', 'stab']).toContain(e.part);
         expect(e.note).toBeGreaterThanOrEqual(50);
         expect(e.note).toBeLessThanOrEqual(79);
       }
-      for (const e of output.filter((x) => x.comp === 'pad')) {
+      for (const e of output.filter((x) => x.part === 'pad')) {
         const i = bar.chords.findIndex((c) => c.slot.step === e.step);
         expect(voiced[i]).toContain(e.note);
         // A pad holds to the next chord, or to the end of the bar.
@@ -200,14 +200,14 @@ describe('the comp', () => {
         (b) => comp.advance({ ...b, style: { ...b.style, artic } }, null, null).output,
       );
     const legato = with_(0);
-    expect(legato.every((e) => e.comp === 'pad')).toBe(true);
+    expect(legato.every((e) => e.part === 'pad')).toBe(true);
     // At full legato every chord is padded, held to the next.
     for (const b of grooves.slice(0, 50)) {
       const pads = comp.advance({ ...b, style: { ...b.style, artic: 0 } }, null, null).output;
       expect(new Set(pads.map((e) => e.step))).toEqual(new Set(b.chords.map((c) => c.slot.step)));
     }
     const staccato = with_(1);
-    expect(staccato.every((e) => e.comp === 'stab')).toBe(true);
+    expect(staccato.every((e) => e.part === 'stab')).toBe(true);
     expect(staccato.length).toBeGreaterThan(0);
     // A stab is written for one step; the performance makes it short (T4).
     for (const e of staccato) expect(e.length).toBe(1);
@@ -219,7 +219,7 @@ describe('the comp', () => {
     for (const b of quiet)
       for (const artic of [0, 0.5, 1])
         for (const e of comp.advance({ ...b, style: { ...b.style, artic } }, null, null).output)
-          expect(e.comp).toBe('pad');
+          expect(e.part).toBe('pad');
   });
 
   it('anticipates the next bar’s chord on its last steps when syncopated', () => {

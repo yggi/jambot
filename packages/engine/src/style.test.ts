@@ -13,6 +13,7 @@ import {
   rateAt,
   styleAt,
   valueAt,
+  writtenStyle,
 } from './style.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -329,5 +330,48 @@ describe('glideTo', () => {
   it('gives a track that survives JSON, so it can be carried', () => {
     const track = glideTo(holding(INITIAL_STYLE), PRESETS[3]!.style, 10, PRESET_GLIDE);
     expect(JSON.parse(JSON.stringify(track))).toEqual(track);
+  });
+});
+
+describe('writtenStyle', () => {
+  it("puts every axis on the score's grid of 3 decimals, within half a step of it and inside the axis (C7)", () => {
+    // Every value a preset glide passes through, on every axis.
+    let track = holding(INITIAL_STYLE);
+    const values: Record<Axis, number[]> = Object.fromEntries(
+      AXIS_NAMES.map((a) => [a, []]),
+    ) as never;
+    PRESETS.forEach((preset, i) => {
+      track = glideTo(track, preset.style, i * PRESET_GLIDE, PRESET_GLIDE);
+      for (const step of range(PRESET_GLIDE)) {
+        const style = styleAt(track, i * PRESET_GLIDE + step);
+        for (const axis of AXIS_NAMES) values[axis].push(style[axis]);
+      }
+    });
+    let long = 0;
+    for (const axis of AXIS_NAMES)
+      for (const value of values[axis]) {
+        const written = writtenStyle({ ...INITIAL_STYLE, [axis]: value })[axis];
+        expect(String(written)).toMatch(/^\d+(\.\d{1,3})?$/);
+        expect(Math.abs(written - value)).toBeLessThanOrEqual(0.0005 + 1e-12);
+        expect(written).toBeGreaterThanOrEqual(AXES[axis].min);
+        expect(written).toBeLessThanOrEqual(AXES[axis].max);
+        if (String(value).length > String(written).length) long++;
+      }
+    // A glide's values run long; the grid is what makes them short.
+    expect(long).toBeGreaterThan(1000);
+  });
+
+  it('is a fixed point: a style written once is written again unchanged, and reads back from its text (C7)', () => {
+    const style = styleAt(glideTo(holding(INITIAL_STYLE), PRESETS[3]!.style, 0, PRESET_GLIDE), 37);
+    const once = writtenStyle(style);
+    expect(writtenStyle(once)).toEqual(once);
+    const text = AXIS_NAMES.map((axis) => `${axis}=${once[axis]}`).join(' ');
+    const read = Object.fromEntries(
+      text
+        .split(' ')
+        .map((pair) => pair.split('='))
+        .map(([a, v]) => [a, Number(v)]),
+    );
+    expect(read).toEqual(once);
   });
 });

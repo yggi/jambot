@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHORD_QUALITIES } from './chords.ts';
-import { shift } from './helix.ts';
+import { type Helix, shift, wrap } from './helix.ts';
 import { DIATONIC_MODE_NAMES, type DiatonicModeName, diatonicMode } from './modes.ts';
 import {
   type Numeral,
@@ -172,6 +172,66 @@ describe('Roman numerals (U1)', () => {
     expect(formatNumeral(numeralOf(cMajor, { root: A, quality: '7' }, ofii)!)).toBe('V7/ii');
     expect(means(A, 'aeolian', 'V7/v')).toEqual({ root: 11, quality: '7' }); // B7, of E minor
     expect(means(A, 'aeolian', 'V7/VI')).toEqual({ root: 0, quality: '7' }); // C7, of F major
+  });
+
+  it('read every numeral over any cycle whose diatonic set is a chain of fifths, as the line of fifths spells it, and write each chord back (P5, U1)', () => {
+    // The oracle, apart from numerals.ts: a note spelled as a letter and
+    // its accidentals stands at a place on the line of fifths (F −1, C 0,
+    // G 1, …, a sharp 7 further on), and sounds at place × fifth, mod n.
+    const fifths: Record<number, number> = { 12: 7, 17: 10, 19: 11, 22: 13, 31: 18, 53: 31 };
+    /** The place of a mode's degree, its tonic at 0; the brightest mode first. */
+    const placeOf = (rank: number, degree: number) =>
+      range(7)
+        .map((i) => i - rank)
+        .find((p) => (((p * 4) % 7) + 7) % 7 === degree)!;
+    const keyOn = (n: number, tonic: number, rank: number): Helix => {
+      const heights = range(7).map((d) => (tonic + placeOf(rank, d)) * fifths[n]!);
+      return { cycle: n, heights: heights.map((h) => heights[0]! + wrap(h - heights[0]!, n)) };
+    };
+    const numerals: Numeral[] = [
+      ...range(7).flatMap((degree) =>
+        accidentals.map((accidental) => ({ degree, accidental, quality: 'major' })),
+      ),
+      ...range(6).flatMap((t) =>
+        accidentals.flatMap((a) =>
+          [false, true].flatMap((minor) =>
+            [4, 6].map((degree) => ({
+              degree,
+              accidental: 0 as const,
+              quality: '7',
+              of: { degree: t + 1, accidental: a, minor },
+            })),
+          ),
+        ),
+      ),
+    ];
+    let count = 0;
+    for (const n of [12, 17, 19, 22, 31, 53])
+      for (const tonic of range(13).map((i) => i - 6))
+        for (const rank of range(7)) {
+          const k = keyOn(n, tonic, rank);
+          for (const numeral of numerals) {
+            let home = tonic;
+            let homeRank = rank;
+            if (numeral.of) {
+              home = tonic + placeOf(rank, numeral.of.degree) + 7 * numeral.of.accidental;
+              homeRank = numeral.of.minor ? 4 : 1;
+            }
+            const place = home + placeOf(homeRank, numeral.degree) + 7 * numeral.accidental;
+            const chord = { root: wrap(place * fifths[n]!, n), quality: numeral.quality };
+            const text = `${formatNumeral(numeral)} in ${n}, tonic ${tonic}, mode ${rank}`;
+            expect(chordOfNumeral(k, numeral), text).toEqual(chord);
+            // Written back, a chord reads as itself. Places n fifths apart
+            // share a pitch, so in 12, 17 and 19 an altered numeral can have
+            // a twin (E♯ is F in 12, G♭ in 17, F♭ in 19) and is written in
+            // its canonical spelling; from 22 on each is written as itself.
+            const back = numeralOf(k, chord, numeral.of);
+            expect(back && chordOfNumeral(k, back), text).toEqual(chord);
+            if (n >= 22) expect(back, text).toEqual(numeral);
+            count++;
+          }
+        }
+    expect(count).toBe(6 * 13 * 7 * 93);
   });
 
   it('refuse what is not a numeral, and write none for the harmonic series (U1)', () => {

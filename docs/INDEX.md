@@ -68,7 +68,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       scale a chord implies in a key (#10), its tensions setting their own
       degrees (#38)
     - `src/numerals.ts`: Roman numerals, a chord as a degree of its key, read
-      and written (U1)
+      and written (U1), in a key of any cycle (P5)
+    - `src/motifs.ts`: motifs, a rhythm and a contour, and the operators on
+      them: sequence, inversion, displacement and retrograde as a group, and
+      fragments (Q5c)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou
       and quintenzirkel use, checked to mean the same here
@@ -89,7 +92,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/random.ts`: keyed deterministic randomness, and quantised
       `chance` and `pick`
     - `src/style.ts`: the style axes, their ranges and glide spaces, the
-      presets, and glides (`glideTo`, `styleAt`)
+      presets, glides (`glideTo`, `styleAt`), and the style as the score
+      writes it and the band reads it (`writtenStyle`, C7)
     - `src/swing.ts`: time maps, and swing as one (`swingMap`, and
       `swingOf` a style track, per beat)
     - `src/tempo.ts`: tempo as a time map from positions to seconds
@@ -104,7 +108,7 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/bar.ts`: `BarEnv`, what every part reads for a bar
     - `src/drums.ts`: the drums, a function of the bar
     - `src/bass.ts`: the bass, a machine that carries its last note
-    - `src/comp.ts`: the comp, pads and stabs, a machine that carries its
+    - `src/comp.ts`: the comp, the pad and the stab parts, a machine that carries its
       last voicing
     - `src/lead.ts`: the lead, a machine that carries its last note, its
       phrase and its themes' melodies; `leadRests` says where it rests
@@ -120,11 +124,13 @@ Every doc and code area, as a tree. Add a line when you add one.
       outside the pure `src/`
       - [`performance.ts`](../packages/engine/experiments/performance.ts):
         E9, what the port writes and what it plays (lengths, velocities,
-        the header's precision, the chords part's overlaps)
+        the header's precision, the pad's and the stab's overlaps)
       - [`header.ts`](../packages/engine/experiments/header.ts): E10, how a
         bar's header states its style, over the app's own glides
       - [`pad-stab.ts`](../packages/engine/experiments/pad-stab.ts): E11,
         what pad and stab lose on one channel, in a join, or on two
+      - [`motifs.ts`](../packages/engine/experiments/motifs.ts): E13, how
+        far the lead's variations are the motif operators
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown
     firing

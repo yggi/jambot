@@ -100,8 +100,8 @@ describe('the performance', () => {
   });
 
   it('pads the softer the more the articulation leans to stabs, and stabs louder with energy (T4)', () => {
-    const chord = (comp: 'pad' | 'stab', env: BarEnv) =>
-      perform(env, { part: 'chords', comp, step: 0, note: 60, length: 1 }).velocity;
+    const chord = (part: 'pad' | 'stab', env: BarEnv) =>
+      perform(env, { part, step: 0, note: 60, length: 1 }).velocity;
     expect(chord('pad', barOf('groove', 1, { artic: 0 }))).toBe(78);
     expect(chord('pad', barOf('groove', 1, { artic: 0.5 }))).toBe(71);
     // A breakdown pads as if nearly legato, whatever the articulation.
@@ -135,9 +135,7 @@ describe('the performance', () => {
   it('holds a pad and a drum hit as written, sounds a stab from 2.5 steps to 0.45, and lets a breakdown bass go early (T4, L2)', () => {
     for (const artic of [0, 0.5, 1]) {
       const env = barOf('groove', 1, { artic });
-      expect(
-        perform(env, { part: 'chords', comp: 'pad', step: 0, note: 60, length: 8 }).length,
-      ).toBe(8);
+      expect(perform(env, { part: 'pad', step: 0, note: 60, length: 8 }).length).toBe(8);
       expect(perform(env, hit('kick', 0)).length).toBe(1);
       const breakdown = barOf('breakdown', 1, { artic });
       expect(perform(breakdown, { part: 'bass', step: 0, note: 40, length: 8 }).length).toBeCloseTo(
@@ -147,8 +145,7 @@ describe('the performance', () => {
     }
     const stab = (artic: number) =>
       perform(barOf('groove', 1, { artic }), {
-        part: 'chords',
-        comp: 'stab',
+        part: 'stab',
         step: 0,
         note: 60,
         length: 1,

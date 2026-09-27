@@ -33,7 +33,7 @@ import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import type { Sound } from './sound.ts';
-import { type StyleTrack, styleAt, valueAt } from './style.ts';
+import { type StyleTrack, styleAt, valueAt, writtenStyle } from './style.ts';
 import { swingMap, swingOf } from './swing.ts';
 import { type Anchor, stepSeconds, tempoMap } from './tempo.ts';
 
@@ -140,7 +140,7 @@ export function forecast(
   ).map((decided) => ({
     ...decided,
     barEnergy: barEnergy(
-      styleAt(env.track, decided.bar * 16).energy,
+      writtenStyle(styleAt(env.track, decided.bar * 16)).energy,
       decided.plan.section.type,
       decided.bar % SECTION_BARS,
     ),

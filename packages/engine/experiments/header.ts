@@ -15,6 +15,10 @@
  * - a grid of 2 or 3 decimals written, but not read: the bars whose text
  *   no longer composes what played, the round trip's counterexamples.
  *
+ * The band now reads its style on the 3-decimal grid itself (C7, decided
+ * on #7 on these measurements), so its 3-decimal comparisons read zero; the
+ * numbers from before the decision are in `docs/language.md`, E10.
+ *
  * Run: node --experimental-strip-types --no-warnings packages/engine/experiments/header.ts [out.json]
  */
 

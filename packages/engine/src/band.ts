@@ -2,7 +2,9 @@
  * The band: the machine at bar rate.
  *
  * It reads the seed, the bar, the style where the bar starts and the key the
- * players wish for. Each bar it plays one bar and decides the next: its
+ * players wish for. It reads the style as the score writes it, on a grid of
+ * 3 decimals (`writtenStyle`, C7), so a bar states exactly the style it was
+ * composed from. Each bar it plays one bar and decides the next: its
  * section's plan (form, key and theme), advanced when the bar starts a
  * section and held for its eight bars, and its chords. So a part can lead
  * into the next bar's chords, and what it leads into is what plays. A
@@ -32,7 +34,7 @@ import type { Machine } from './machine.ts';
 import { perform } from './perform.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
 import { type Sound, soundOf } from './sound.ts';
-import type { Style } from './style.ts';
+import { type Style, writtenStyle } from './style.ts';
 
 export interface BandEnv {
   readonly seed: number;
@@ -106,6 +108,9 @@ function decide(
   return { plans: next, decided: { bar, plan, chords } };
 }
 
+/** The environment as the band reads it: its style as the score writes it (C7). */
+const read = (env: BandEnv): BandEnv => ({ ...env, style: writtenStyle(env.style) });
+
 /** The bar to play now, and the carried state with the bar after it decided. */
 function step(env: BandEnv, carried: BandCarried): { here: DecidedBar; carried: BandCarried } {
   let { plans } = carried;
@@ -126,7 +131,7 @@ function step(env: BandEnv, carried: BandCarried): { here: DecidedBar; carried: 
  * it resumes from the last note heard.
  */
 export function passBar(env: BandEnv, carried: BandCarried): BandCarried {
-  return step(env, carried).carried;
+  return step(read(env), carried).carried;
 }
 
 /**
@@ -142,7 +147,7 @@ export function lookAhead(
 ): DecidedBar[] {
   const bars: DecidedBar[] = [];
   for (let bar = carried.next?.bar ?? 0; bars.length < count; bar++) {
-    const { here, carried: after } = step(envAt(bar), carried);
+    const { here, carried: after } = step(read(envAt(bar)), carried);
     bars.push(here);
     carried = after;
   }
@@ -151,7 +156,8 @@ export function lookAhead(
 
 export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
   initial: INITIAL,
-  advance(env, carried) {
+  advance(given, carried) {
+    const env = read(given);
     const { here, carried: after } = step(env, carried);
     const barInSection = env.bar % SECTION_BARS;
     const bar: BarEnv = {

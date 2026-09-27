@@ -333,6 +333,24 @@ Source: #37 step 4; fixed points, #39. Status: measured (the key). Open:
 whether style intents read the same way (a glide is a target reached over
 time, C1), and how the IM writes a wish. Lands in: #13, #25, #39.
 
+**C7. The band reads its style as the score writes it, on a grid of 3
+decimals, so a bar's header states exactly the style it was composed
+from.**
+Witness: `writtenStyle` (`STYLE_DECIMALS`), which the band applies to the
+style of every bar it plays, passes or looks ahead to. What plays between
+bar starts, the tempo and the swing, the transport reads from the style
+track itself, continuously (C3).
+Counterexample: a bar whose header, read back, composes another bar. With
+the band reading every float and the header writing 3 decimals, 4 of 320
+bars of the app's glides did (E10).
+Test: `style.test.ts`, whose tests of `writtenStyle` cite C7: every value a
+preset glide passes through lands within half a step of the grid, inside
+its axis, and reads back from its text; `band.test.ts`, "reads its style
+as the score writes it, so a bar states exactly the style it was composed
+from (C7)", over the app's glides, the bars ahead included.
+Source: E10, T5. Status: measured. Decided: #7, on measured options (E10).
+Lands in: #63 step 2 (the header).
+
 ### Pitch
 
 **P1. Pitch is relative: to the chord, the chord to the key; only compiled
@@ -378,18 +396,24 @@ between chords, scales and rhythms, and key tracking as the phase of F_5
 (E4).
 
 **P5. No pitch token assumes 12 notes to the cycle.**
-Witness: none yet; the helix takes any cycle, MIDI takes 12.
-Counterexample: a token whose meaning uses 12. U1's witness is a candidate:
-`numeralOf` reads an accidental mod 12, `b` and `#` are one step of the
-chromatic cycle, and a secondary's target key is a diatonic mode of 12. The
-engine's parts wrap by 12 and build chords of cycle 12. The theory splits a
-chord at a turn of any cycle (P6), so a failure there is the numerals' or
-the engine's, not the helix's (N3).
-Test: open: every token over a helix of cycle 19 or 31. E12 reads the
-numerals over six tunings: as they are, they fail from 19 on, and with a
-flat worth the key's larger step less its smaller, none does.
-Source: #28, the open threads (tunings other than 12), #7 round 3, E12. Status:
-open. Lands in: #63.
+Witness: the numerals (U1): a key is any helix of seven degrees, `b` and
+`#` move a degree by the key's chromatic step, its larger step less its
+smaller (1 in 12 and 19, 2 in 17 and 31, 3 in 22, 5 in 53), and a
+secondary's key is a mode of the key's own set. The helix takes any cycle,
+and splits a chord at a turn of it (P6). The engine and MIDI stay in 12
+(L1): the claim binds the score's tokens, not the notes they compile to.
+Counterexample: a token whose meaning uses 12. The numerals read an
+accidental as one step and a secondary's key as a diatonic mode of 12, so
+from 17 notes on they failed: in 19 every secondary, in 17, 22, 31 and 53
+about 80% (E12).
+Test: `numerals.test.ts`, "read every numeral over any cycle whose
+diatonic set is a chain of fifths, as the line of fifths spells it, and
+write each chord back (P5, U1)": 93 numerals × 13 tonics × 7 modes in 12,
+17, 19, 22, 31 and 53, against the line of fifths. Open: a line's pitch
+tokens (U2), once the score reads them.
+Source: #28, the open threads (tunings other than 12), #7 round 3, E12.
+Status: measured (the numerals); open (a line's pitch tokens). Decided: #7,
+on measured options (E12). Lands in: #63.
 
 **P6. A chord is a helix of one turn plus its tensions, the tones above the
 octave; together they are its stack.**
@@ -513,6 +537,22 @@ for tests only, a licence call). Lands in: #63 step 4.
 Source: LADSPA's hard-realtime flag, the roadmap. Decided: the roadmap,
 inherited.
 
+**L6. A part is one voice: one MIDI channel, and one line of the score.**
+Witness: `PARTS`, the drums, the bass, the pad, the stab and the lead. The
+comp plays two parts, the pad, held through each chord, and the stab,
+short and rhythmic, as the prototype's text writes them on two lines.
+Counterexample: two voices in one part whose notes cut each other on its
+channel. With pad and stab one part, a stab's note-off cut 1,833 of 6,427
+pads short and silenced 15.6% of pad time (E11, #5). Within a part, stabs
+a step apart and held legato still overlap: 234 of 14,931, each a step
+short on one channel unless the lowering counts note-offs per note (Q1d).
+Test: `events.test.ts`, whose test of `PARTS` cites L6; `band.test.ts`,
+"plays each part as one voice: a pad never starts on a note a pad still
+holds, and a stab only one step after a stab still ringing (L6, Q1d)".
+Source: #5, E11, R4 (`comp` named the machine, its carried state and a
+note's voice). Status: measured. Decided: #7, on measured options (E11).
+Lands in: #24 (the channels).
+
 ### Readers and writers
 
 **R1. A musician reads it like a lead sheet.** Source: spirit. Status:
@@ -547,7 +587,9 @@ Witness: `numerals.ts`: `parseNumeral` and `formatNumeral`, and
 `chordOfNumeral` and `numeralOf` between a numeral and a chord of its key.
 It is P7's rule one level up: a numeral counts degrees of the key's scale,
 as a pitch number counts degrees of the chord's. `V7/ii` reads its numeral
-in the target's major or minor key.
+in the target's major or minor key, a mode of the key's own set, and `b`
+and `#` move by the key's chromatic step, so a numeral reads in any cycle
+(P5).
 Counterexample: a numeral that reads back as another chord, or a chord of a
 diatonic key that no numeral writes. Counting from the parallel major, the
 other option, makes `VI` in A minor F♯ and fails the tests.
@@ -682,8 +724,8 @@ Counterexample: a duplicate note-on. The prototype sends one in 163 of
 Test: `drums.test.ts`, "strike each sound at most once per step, in order (F5)";
 `band.test.ts`, "plays each note at most once per step in every part, over
 a tour of the presets (F5)". Open: the louder staying in the pitched parts,
-which never strike a note twice, and a note started while the same note
-still sounds, as a stab inside a held pad (Q1d, E9).
+which never strike a note twice, and a note started while the same note of
+its part still sounds, as a stab a step after a stab (L6, Q1d).
 Source: #37 step 3, Hudak's algebra of polymorphic temporal media (2004).
 Status: measured (drums); measured (every part's note-ons). Lands in: Q1d.
 
@@ -915,16 +957,18 @@ the others have not.
     in 26, 3 and 0. At 3 decimals the articulation alone changes what plays
     in 175 bars and what is written in none; the energy 45 and 2, sync 2
     and 1, harm 1 and 1, swing 7 and 0; tempo and entropy none.
-  - No part strikes a note twice on a step. In 631 bars (22%) a chords
-    note starts while the same note still sounds, 3,370 of 3,927 times a
-    stab inside a held pad: on one MIDI channel the stab's note-off cuts
-    the pad (#5). The events tag the two as `comp: 'pad' | 'stab'` of one
-    part, and the prototype's text writes them as two lines.
+  - No part strikes a note twice on a step. Taken together, the pad and
+    the stab start a note while the same note still sounds in 631 bars
+    (22%), 3,370 of 3,927 times a stab inside a held pad; as two parts
+    (L6), 234 remain, each a stab one step after a stab still ringing.
 - **E10. How a bar's header states its style** (T5, T4, C3; #7's decision
-  (f)), in
+  (f), taken as C7), in
   [`packages/engine/experiments/header.ts`](../packages/engine/experiments/header.ts)
   (about 2 s). It runs the band over the app's own glides, a new preset
-  every 8 bars with `PRESET_GLIDE`, 5 seeds × 64 bars.
+  every 8 bars with `PRESET_GLIDE`, 5 seeds × 64 bars. The numbers below
+  compare with the band as it read every float, before C7; now that the
+  band reads the grid itself, the script's 3-decimal comparisons read
+  zero.
   - Written in full, the style takes 109 characters a bar on average and
     145 at most, against 80 on a grid of 3 decimals. Between glides the
     values are short; within one, every axis runs long, as a dyadic
@@ -940,16 +984,18 @@ the others have not.
 - **E11. Pad and stab** (Q1d, F5, R4; #5; #7's decision (g)), in
   [`packages/engine/experiments/pad-stab.ts`](../packages/engine/experiments/pad-stab.ts)
   (about 1 s), over E9's 2,880 bars.
-  - On one MIDI channel, as the chords part lowers now, a stab's note-off
-    cuts 1,833 of 6,427 pads short (28.5%), and 14,913 of 95,824 steps of
-    pad (15.6%) go silent, in 493 bars.
+  - On one MIDI channel, pad and stab together, as they were one part
+    before L6, a stab's note-off cuts 1,833 of 6,427 pads short (28.5%),
+    and 14,913 of 95,824 steps of pad (15.6%) go silent, in 493 bars.
   - A join in the events, one note per pitch at a time, drops 3,370 of
     14,931 stab notes (22.6%).
-  - Two parts, or two voices of one part on two channels, lose nothing.
-    Two parts take `PARTS` from 4 to 5 and drop the `comp` field from
-    notes, which then names only the machine and its carried state; two
-    voices keep the events and map (part, voice) to a channel when
-    lowering.
+  - Two parts, or two voices of one part on two channels, lose nothing
+    between pad and stab. Two parts, now L6, take `PARTS` from 4 to 5 and
+    drop the `comp` field from notes, which then names only the machine and
+    its carried state; two voices would keep the events and map (part,
+    voice) to a channel when lowering. Within the stab part, 234 of 14,931
+    stabs start a step after a stab still ringing on their note, a step
+    short on one channel (Q1d).
 - **E12. Numerals over any cycle** (P5, U1; #7's decision (h)), in
   [`packages/theory/experiments/cycles.ts`](../packages/theory/experiments/cycles.ts)
   (about 1 s). It reads 45 numerals (7 degrees, flat, natural and sharp,
@@ -966,6 +1012,35 @@ the others have not.
     100%.
   - Only in 12 and 19 is the diatonic set `even(7, n)`; in the others it is
     a helix whose steps differ by more than one.
+  - The any-cycle rule is now `numerals.ts`'s (P5, decided on #7), so
+    `chordOfNumeral` reads 100% in every tuning, and the script's "now"
+    column reads the same as its rule. Written back, a chord reads as
+    itself everywhere; in 12, 17 and 19 an altered numeral can have a twin
+    spelling at the same pitch, since places n fifths apart coincide (E♯ is
+    G♭ in 17 and F♭ in 19), and `numeralOf` writes the canonical one.
 
-#7's decisions (a) to (c) are made, as U1 to U3. (d), the motif operators,
-is still open, and is checked against this catalogue when it is made.
+- **E13. The lead against the motif operators** (Q5c, S2; #7's decision
+  (d)), in
+  [`packages/engine/experiments/motifs.ts`](../packages/engine/experiments/motifs.ts)
+  (about 1 s), over E1's shape. It reads every lead bar back as key degrees
+  and finds the operator and fragment (`motifs.ts`) whose rhythm is the
+  bar's and whose contour, at the best sequence, differs from it in the
+  fewest notes.
+  - Shape bars: fitting the shape to the chords (a chord tone on the half
+    bar and on a chord's start, an octave fold) changes 131 of 4,476 notes
+    (2.9%), in 13.8% of bars. 37 bars have a note off the key.
+  - Variation bars (927): 12.3% are the shape under an operator exactly,
+    61.2% but for their last note, which the phrase's close sets, 24.1%
+    but for one other note (a nudge or a chord tone), 2.5% two notes or
+    more off. Every one has an operator's rhythm. The operators are the
+    shape itself, up to a sequence (52%, the lift and the bent close),
+    the inversion (25%) and a fragment (18%); retrograde and
+    displacement match 3%, where a short motif is symmetric.
+  - Phrases (457): 51% are a cell and an operator on it in every bar but
+    for the close, 90% allowing one more note a bar. Written as a cell and
+    a reference per bar, with a degree for each note an operator doesn't
+    give, a phrase takes 52% of the tokens it takes as notes.
+
+#7's decisions (a) to (c) are made, as U1 to U3, and (e) to (h) as T4's
+performance maps, C7, L6 and P5. (d), the motif operators, is still open,
+and is checked against this catalogue when it is made.
