@@ -32,11 +32,14 @@ Two things run today:
   - [`packages/engine`](packages/engine) composes the prototype's style
     space and form as pure, deterministic machines: glides per style axis,
     swing and tempo as invertible time maps, a section chain that carries a
-    key and its themes, and the drums. Bass, comp and lead voices, and a
-    ported score text, are still ahead.
-  - [`apps/web`](apps/web) is a Svelte PWA that runs the new engine's
-    transport live — presets, sliders, a conductor readout of section, key
-    and bar — with drums as its only voice so far.
+    key and its themes, the full band (drums, bass, comp and lead), and the
+    Muse, which hears players and offers back a motif. A ported score text
+    is still ahead.
+  - [`apps/web`](apps/web) is a Svelte PWA that plays the new engine's full
+    band live — presets, sliders, a conductor readout of section, key and
+    bar, MIDI in and out, on-screen keys and drum pads, and the Muse panel
+    — and can host or join a session across the tabs and windows of one
+    browser.
 
   Where the design isn't settled yet, such as the score's text format and
   its relation to [Strudel](https://strudel.cc), it is worked out as a
