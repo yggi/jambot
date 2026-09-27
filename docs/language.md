@@ -73,23 +73,27 @@ entry names the file of every test that cites it.
 
 **T1. The clock never waits: every advance finishes in bounded time, and nothing
 plays late.** Witness: the transport, which advances from the head to now + 120
-ms and drops what a stall made it miss. What arrives from another app is read by
-its shape before anything is read from it (`readClientMessage`, and `admissible`
-for what a judgement says), and the player takes what arrived before the
-transport reads it, so nothing a client sends can stop the host's clock.
-Counterexample: a stall after which events play late, or the grid moves; a
-message that throws on every tick after it arrives. Test: `transport.test.ts`,
-"never waits: after a stall it drops what it missed and keeps the grid where it
-was (T1)", "catches up after four hours’ stall within a lookahead, reporting the
-missed steps by count (T1)" and "drops what only claims to be a judgement, and
-the clock never waits for it (T1)"; `apps/web/src/session/session.test.ts`,
-whose test of a garbled judgement cites T1: the host keeps playing, and says it
-dropped it. A Muse that reads a judgement without checking its shape fails it.
-And `faults.test.ts` (`packages/session`), which runs the transport on a clock
-with each fault #27 lists: drift, a dropped buffer, the render quantum, stalls
-and a client's clock stepping. Open for compiling: every text that parses
-compiles, in bounded time. Source: spirit, #37 step 3. Status: measured
-(transport); open (compile). Decided: spirit, inherited. Lands in: #13.
+ms and drops what a stall made it miss, walking the form through at most
+`CATCH_UP` passed bars an advance, so an advance is bounded work however long
+the stall: the walk costs some microseconds a bar, and walking a day's bars at
+once outlasted the lookahead (#27). What arrives from another app is read by its
+shape before anything is read from it (`readClientMessage`, and `admissible` for
+what a judgement says), and the player takes what arrived before the transport
+reads it, so nothing a client sends can stop the host's clock. Counterexample: a
+stall after which events play late, or the grid moves; an advance whose work
+grows with the stall; a message that throws on every tick after it arrives.
+Test: `transport.test.ts`, "never waits: after a stall it drops what it missed
+and keeps the grid where it was (T1)", "catches up after four hours’ stall a
+bounded walk at a time: no advance passes more than CATCH_UP bars, and nothing
+plays late (T1)" and "drops what only claims to be a judgement, and the clock
+never waits for it (T1)"; `apps/web/src/session/session.test.ts`, whose test of
+a garbled judgement cites T1: the host keeps playing, and says it dropped it. A
+Muse that reads a judgement without checking its shape fails it. And
+`faults.test.ts` (`packages/session`), which runs the transport on a clock with
+each fault #27 lists: drift, a dropped buffer, the render quantum, stalls and a
+client's clock stepping. Open for compiling: every text that parses compiles, in
+bounded time. Source: spirit, #37 step 3. Status: measured (transport); open
+(compile). Decided: spirit, inherited. Lands in: #13.
 
 **T2. Positions are exact fractions of a cycle, not ticks.** Witness: none yet;
 the port counts steps in floating point. Counterexample: a triplet or quintuplet

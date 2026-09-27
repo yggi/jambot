@@ -18,12 +18,14 @@ const until = async (done: () => boolean, ms = 3000) => {
   }
 };
 
-/** When the test's devices began: one origin, so their clocks are apart by exactly what they're given. */
-const began = performance.now();
-
-/** A device whose output clock reads real time from `at`, and whose ticks the test runs. */
-function device(at: number) {
-  const now = () => at + (performance.now() - began) / 1000;
+/**
+ * A device whose clocks read `at` and stand there: the test's, not the
+ * machine's, so what it reads doesn't depend on how busy the machine is.
+ * The clock under delay is the pure tests' (`faults.test.ts`); this one
+ * carries the stamps over a real socket and composes them.
+ */
+function device(at: number, heardOffset: number) {
+  const now = () => at;
   const tickers: (() => void)[] = [];
   const output: Output = {
     get currentTime() {
@@ -43,7 +45,11 @@ function device(at: number) {
     frame: () => () => {},
     seed: () => 1,
   };
-  return { player: new Player(surroundings), clocks: { page: now, heardOffset: () => 0 }, tickers };
+  return {
+    player: new Player(surroundings),
+    clocks: { page: now, heardOffset: () => heardOffset },
+    tickers,
+  };
 }
 
 describe('the WebSocket lobby', () => {
@@ -118,8 +124,9 @@ describe('the WebSocket lobby', () => {
 
   it('carries a host and a client session: the client joins, sets its clock and follows the song', async () => {
     const lobby = websocketLobby(url);
-    const host = device(40);
-    const client = device(7);
+    // Each output is heard some milliseconds from its page clock.
+    const host = device(40, 0.03);
+    const client = device(7, 0.05);
     const hosting = new HostSession(host.player, host.clocks);
     await hosting.open(lobby, 'jam');
     await host.player.start();
@@ -128,13 +135,11 @@ describe('the WebSocket lobby', () => {
     await until(() => following.status === 'joined');
     expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
     await until(() => client.player.status === 'playing');
-    // The clocks read 33 s apart.
-    // Within what the clock promises: half its best round trip, which a
-    // loaded machine lengthens, and a millisecond for the rounding and the slew.
-    expect(following.trip).toBeLessThan(100);
-    expect(Math.abs(client.player.skew - 33)).toBeLessThanOrEqual(
-      (following.trip! + 1) / 2000 + 0.001,
-    );
+    // The page clocks read 33 s apart, and stand still: every ping comes
+    // back at once on them, so the client reads exactly that, and plays by
+    // it with the host's output offset added and its own taken off.
+    expect(following.trip).toBe(0);
+    expect(client.player.skew).toBeCloseTo(33 + 0.03 - 0.05, 12);
 
     hosting.close();
     await until(() => following.status === 'idle');
