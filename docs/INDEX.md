@@ -157,6 +157,9 @@ Every doc and code area, as a tree. Add a line when you add one.
         pad and stab lose on one channel, in a join, or on two
       - [`motifs.ts`](../packages/engine/experiments/motifs.ts): E13, how far
         the lead's variations are the motif operators
+      - [`onsets.ts`](../packages/engine/experiments/onsets.ts): E15, how many
+        of the band's onsets and lines the meter writes, and how many need the
+        step grid (#123)
     - `src/index.ts`: the package's barrel, everything above re-exported
   - `session/`: host and client mode, pure TypeScript
     ([brief](briefs/host-mode.md))

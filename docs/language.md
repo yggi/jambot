@@ -1103,8 +1103,8 @@ the players converges.
 
 ## Experiments
 
-Each answers one entry, or one of #7's decisions. E1, E8 and E9 have run; the
-others have not.
+Each answers one entry, or one of #7's and #116's decisions. E2 to E7 and E14
+have not run; the others have.
 
 - **E1. Cold against warm compile** (S1, S2, F2; Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
@@ -1256,6 +1256,27 @@ others have not.
     takes 52% of the tokens it takes as notes.
   - Symmetries: 10 of the lead's 132 shapes have one, so several operators give
     the same bar, and `canonicalOp` chooses which the score writes (U5).
+
+- **E15. The band's onsets against the meter** (T10, T12; #116's question (k),
+  #123), in
+  [`packages/engine/experiments/onsets.ts`](../packages/engine/experiments/onsets.ts)
+  (about 1 s), over E1's shape. It sorts every onset the parts write by the
+  level of the 4/4 meter it falls on: a beat, an eighth between beats, or only
+  the step grid.
+  - Onsets (82,984): 45.6% on a beat, 30.1% on an eighth, 24.3% only on the
+    grid. The pad, the backbeat and the pedal hat are all beats; the ghosts
+    (92.8%), the fills (56.2%), the Euclidean rim (47.8%) and the lead (44.9%)
+    are most of the grid's.
+  - Lines, a part in a bar (18,108): 36.0% need only the beats (4 slots in 4/4),
+    21.1% the eighths (8), and 42.9% the grid (16). Every rim and fill line,
+    97.5% of ghost lines and 92.3% of lead lines need the grid.
+  - Named rhythms: four on the floor and the backbeat are helices on the beats,
+    the offbeat hats on the eighths, and every `E(3,16)`, `E(5,16)` and
+    `E(7,16)` the rim plays only on the grid.
+  - So onsets written relative to the meter would write most of the band in 4 or
+    8 slots, and need the grid below for a quarter of its onsets, as a line's
+    pitch tokens need `b` and `#` for notes off the chord's scale; how an onset
+    off the meter is written is T12's.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
