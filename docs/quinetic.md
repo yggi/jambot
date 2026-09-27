@@ -68,7 +68,8 @@ Witness: `tempoMap`, composed after `swingOf`.
 Counterexample: seconds read as position × the step length there, which
 runs backwards through a glide from 72 to 148 bpm.
 Test: `tempo.test.ts`, whose tests of a glide's round trip, and those under
-"position and clock time", cite Q1c.
+"position and clock time", cite Q1c; `transport.test.ts`, whose test of
+reading onsets back through the steps as laid cites Q1c.
 Source: F3, T4, #37 step 3. Status: measured. Lands in: #37 (done), #23.
 
 **Q1d. Events and MIDI round-trip: events sent as MIDI and read back are

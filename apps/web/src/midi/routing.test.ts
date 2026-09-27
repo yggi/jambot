@@ -15,10 +15,12 @@ function fakePort() {
 function deps(overrides: Partial<Omit<Parameters<typeof routeNote>[4], 'held'>> = {}) {
   const held = new Set<number>();
   const humanNoteOn = vi.fn();
+  const humanNoteOff = vi.fn();
   const playAlong = vi.fn();
   return {
     held,
     humanNoteOn,
+    humanNoteOff,
     playing: () => true,
     toOutputSeconds: (ms: number) => ms / 1000,
     thru: () => false,
@@ -45,14 +47,19 @@ describe('routeNote', () => {
     expect(d.humanNoteOn).toHaveBeenCalledWith(64, 90, 'the computer keys', 5);
   });
 
-  it('never captures a release, or a note played while stopped', () => {
-    const playing = deps({ playing: () => true });
-    routeNote(60, 0, false, 'test', playing);
-    expect(playing.humanNoteOn).not.toHaveBeenCalled();
+  it('captures a release as a release, at the mapped time, and never as a note', () => {
+    const d = deps({ playing: () => true, now: () => 5500, toOutputSeconds: (ms) => ms / 1000 });
+    routeNote(60, 0, false, 'the computer keys', d);
+    expect(d.humanNoteOff).toHaveBeenCalledWith(60, 'the computer keys', 5.5);
+    expect(d.humanNoteOn).not.toHaveBeenCalled();
+  });
 
+  it('captures nothing, struck or released, while stopped', () => {
     const stopped = deps({ playing: () => false });
     routeNote(60, 100, true, 'test', stopped);
+    routeNote(60, 0, false, 'test', stopped);
     expect(stopped.humanNoteOn).not.toHaveBeenCalled();
+    expect(stopped.humanNoteOff).not.toHaveBeenCalled();
   });
 
   it('sends nothing over thru when thru is off', () => {
