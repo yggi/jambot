@@ -8,16 +8,18 @@ import {
   PRESETS,
   PRESET_GLIDE,
   SLIDER_GLIDE,
+  type Style,
   type StyleTrack,
   glideTo,
   holding,
   styleAt,
 } from './style.ts';
 import { swingOf } from './swing.ts';
-import { stepSeconds } from './tempo.ts';
+import { stepSeconds, tempoMap } from './tempo.ts';
 import {
   COMPOSE_AHEAD,
   LOOKAHEAD,
+  type ScheduledStep,
   type TransportEnv,
   type TransportInput,
   type TimedEvent,
@@ -25,6 +27,7 @@ import {
   bandEnvAt,
   forecast,
   transport,
+  writtenAt,
 } from './transport.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -210,6 +213,55 @@ describe('the transport', () => {
       if (!steps.has(written + e.event.length)) continue;
       expect(e.seconds + e.duration).toBeCloseTo(at(written + e.event.length), 9);
     }
+  });
+
+  it('reads every onset back as its written position, through the tempo and swing it was laid with (T4, Q1c)', () => {
+    // A player plays along with what they hear, and their notes are read
+    // back onto the grid. The track holds only its latest glide per axis,
+    // so inverting it from the song's start misplaces notes once the tempo
+    // has changed twice (#78); the steps as laid hold what the track forgets.
+    const changes: [number, Partial<Style>][] = [
+      [40, { bpm: 90 }],
+      [150, { swing: 1, bpm: 150 }],
+      [260, { swing: 0.2 }],
+      [330, { bpm: 70, swing: 0.8 }],
+    ];
+    let track = swung;
+    let carried = transport.initial;
+    const laid: ScheduledStep[] = [];
+    const events: TimedEvent[] = [];
+    let next = 0;
+    for (const input of ticks(0.9, 2400)) {
+      const r = transport.advance(env(track), carried, input);
+      carried = r.carried;
+      laid.push(...r.output.steps);
+      events.push(...r.output.events);
+      const head = carried!.head.step;
+      if (next < changes.length && head >= changes[next]![0])
+        track = glideTo(track, changes[next++]![1], head, SLIDER_GLIDE);
+    }
+    expect(next).toBe(changes.length);
+    expect(events.length).toBeGreaterThan(500);
+    for (const e of events)
+      expect(writtenAt(laid, e.seconds)).toBeCloseTo(e.bar * 16 + e.event.step, 9);
+    // Inverting the track as it ends up, from the start, gets them wrong.
+    const fromStart = (seconds: number) =>
+      swingOf(track).written(tempoMap(track, { step: 0, seconds: 1 }).written(seconds));
+    const last = events.at(-1)!;
+    expect(Math.abs(fromStart(last.seconds) - (last.bar * 16 + last.event.step))).toBeGreaterThan(
+      16,
+    );
+  });
+
+  it('reads no position for a time outside the steps laid', () => {
+    const { outputs } = run(env(), ticks(0.9, 40));
+    const laid = outputs.flatMap((o) => o.steps);
+    const end = laid.at(-1)!.seconds + laid.at(-1)!.length;
+    expect(writtenAt(laid, 0.5)).toBeNull();
+    expect(writtenAt(laid, end)).toBeNull();
+    expect(writtenAt(laid.slice(4), laid[2]!.seconds)).toBeNull();
+    expect(writtenAt([], 1)).toBeNull();
+    expect(writtenAt(laid, laid[0]!.seconds)).toBe(0);
   });
 
   it('never waits: after a stall it drops what it missed and keeps the grid where it was (T1)', () => {

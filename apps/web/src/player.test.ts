@@ -7,6 +7,7 @@ import { Player, type Surroundings } from './player.svelte.ts';
 function surroundings() {
   const world = {
     currentTime: 0,
+    latency: 0,
     resumes: 0,
     resolve: () => {},
     played: 0,
@@ -20,7 +21,9 @@ function surroundings() {
     get currentTime() {
       return world.currentTime;
     },
-    latency: 0,
+    get latency() {
+      return world.latency;
+    },
     resume: () => {
       world.resumes++;
       return new Promise<void>((resolve) => (world.resolve = resolve));
@@ -325,45 +328,84 @@ describe('the player', () => {
       expect(player.humanNotes).toEqual([]);
     });
 
-    it('turns a step’s own onset back into the step it was scheduled on', async () => {
+    /** A started player, and a way to run its clock `seconds` on, a tick every 25 ms. */
+    async function playing() {
       const { world, s } = surroundings();
       const player = new Player(s);
       void player.start();
       world.resolve();
       await settle();
-      for (let i = 0; i < 40; i++) {
-        world.currentTime += 0.025;
-        world.tickers[0]!.tick();
+      const run = (seconds: number) => {
+        for (let i = 0; i < Math.round(seconds / 0.025); i++) {
+          world.currentTime += 0.025;
+          world.tickers[0]!.tick();
+        }
+      };
+      return { world, player, run };
+    }
+
+    it('reads each step back where it was laid, after the tempo has changed again and again (#78)', async () => {
+      // The style track keeps only its latest glide per axis, so reading it
+      // back from the song's start put a note 18 bars early after two tempo
+      // changes. The steps as laid keep what the track forgets.
+      const { world, player, run } = await playing();
+      for (const bpm of [90, 150, 70, 130]) {
+        run(10);
+        player.apply({ kind: 'axis', axis: 'bpm', value: bpm });
       }
-      expect(world.steps.length).toBeGreaterThan(0);
-      for (const step of world.steps) {
-        const position = player.writtenPosition(step.seconds);
-        expect(position).not.toBeNull();
-        expect(Math.round(position!) % 16).toBe(step.step);
-      }
+      run(10);
+      const recent = world.steps.filter((step) => step.seconds > world.currentTime - 4);
+      expect(recent.length).toBeGreaterThan(16);
+      for (const step of recent)
+        expect(player.writtenPosition(step.seconds)).toBeCloseTo(step.step, 9);
     });
 
-    it('logs a note played, quantised to the grid, with its source', async () => {
-      const { world, s } = surroundings();
-      const player = new Player(s);
-      void player.start();
-      world.resolve();
-      await settle();
-      for (let i = 0; i < 40; i++) {
-        world.currentTime += 0.025;
-        world.tickers[0]!.tick();
-      }
-      const at = world.steps[0]!;
-      player.humanNoteOn('lead', 64, 90, 'the computer keys', at.seconds);
-      expect(player.humanNotes).toHaveLength(1);
-      const note = player.humanNotes[0]!;
-      expect(note).toMatchObject({
-        part: 'lead',
-        note: 64,
-        velocity: 90,
-        source: 'the computer keys',
-      });
-      expect(note.bar * 16 + note.step).toBe(Math.round(player.writtenPosition(at.seconds)!));
+    it('forgets where steps were laid once no note could still be read against them', async () => {
+      const { world, player, run } = await playing();
+      run(20);
+      const first = world.steps[0]!;
+      const late = world.steps.findLast((step) => step.seconds < world.currentTime - 6)!;
+      expect(player.writtenPosition(first.seconds)).toBeNull();
+      expect(player.writtenPosition(late.seconds)).toBeCloseTo(late.step, 9);
+    });
+
+    it('logs a note played at its exact position, where it was heard: the output’s latency earlier', async () => {
+      const { world, player, run } = await playing();
+      run(5);
+      world.latency = 0.05;
+      const step = world.steps.at(-20)!;
+      const heard = step.seconds + 0.3 * step.length;
+      player.humanNoteOn('lead', 64, 90, 'the computer keys', heard + world.latency);
+      expect(player.humanNotes).toEqual([
+        {
+          part: 'lead',
+          note: 64,
+          velocity: 90,
+          source: 'the computer keys',
+          position: expect.closeTo(step.step + 0.3, 9),
+          end: null,
+        },
+      ]);
+    });
+
+    it('logs where a note was released, on the note from that source still held', async () => {
+      const { world, player, run } = await playing();
+      run(5);
+      world.latency = 0.05;
+      const [a, b, c] = [-30, -25, -20].map((i) => world.steps.at(i)!);
+      const at = (step: { seconds: number }) => step.seconds + world.latency;
+      player.humanNoteOn('lead', 64, 90, 'the computer keys', at(a!));
+      player.humanNoteOn('lead', 64, 90, 'a MIDI port', at(a!));
+      player.humanNoteOff('lead', 64, 'the computer keys', at(b!));
+      player.humanNoteOn('lead', 64, 90, 'the computer keys', at(b!));
+      player.humanNoteOff('lead', 64, 'the computer keys', at(c!));
+      player.humanNoteOff('lead', 64, 'the computer keys', at(c!) + 0.5);
+      player.humanNoteOff('drums', 64, 'the computer keys', at(c!));
+      expect(player.humanNotes.map((n) => [n.source, n.position, n.end])).toEqual([
+        ['the computer keys', a!.step, b!.step],
+        ['a MIDI port', a!.step, null],
+        ['the computer keys', b!.step, c!.step],
+      ]);
     });
 
     it('keeps at most 240 notes, dropping the oldest half once full', async () => {

@@ -85,6 +85,8 @@ export interface ScheduledStep {
   readonly seconds: number;
   /** How long the step lasts, in seconds. */
   readonly length: number;
+  /** The swing its beat plays with, held from where the beat starts. */
+  readonly swing: number;
 }
 
 export interface TimedEvent {
@@ -148,6 +150,29 @@ export function forecast(
   return [...composed, ...ahead];
 }
 
+/**
+ * Where a moment on the clock is written: the inverse of how the steps
+ * were laid, for a note a player plays along with the band. Each step lies
+ * where the step before it ends and lasts its own length, so a moment falls
+ * in one step, the tempo inside it is undone linearly, and the swing its
+ * beat was held at is undone after. That is exactly how the transport
+ * played its events, whatever the style track holds by now: the track keeps
+ * only its latest glide per axis, and the steps as laid keep the rest.
+ * Null for a moment outside the steps given, such as before the first,
+ * after the last, or in steps a stall dropped.
+ */
+export function writtenAt(laid: readonly ScheduledStep[], seconds: number): number | null {
+  for (let i = laid.length - 1; i >= 0; i--) {
+    const step = laid[i]!;
+    if (seconds >= step.seconds + step.length) return null;
+    if (seconds >= step.seconds) {
+      const played = step.step + (seconds - step.seconds) / step.length;
+      return swingMap(step.swing).written(played);
+    }
+  }
+  return null;
+}
+
 export const transport: Machine<
   TransportEnv,
   TransportCarried | null,
@@ -204,12 +229,20 @@ export const transport: Machine<
         chords,
       } = bars[0]!;
       const chord = chordAt(chords, head.step % 16);
-      steps.push({ step: head.step, section, key, chord, seconds: head.seconds, length });
 
       // The beat's swing is read as the beat starts, and kept.
       const index = Math.floor(head.step / 4);
       if (beat?.index !== index) beat = { index, swing: styleAt(track, index * 4).swing };
       const held = beat;
+      steps.push({
+        step: head.step,
+        section,
+        key,
+        chord,
+        seconds: head.seconds,
+        length,
+        swing: held.swing,
+      });
       const swung = (x: number) =>
         Math.floor(x / 4) === held.index ? swingMap(held.swing).played(x) : swing.played(x);
       const tempo = tempoMap(track, head);

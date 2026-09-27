@@ -10,8 +10,10 @@ import type { MidiAccess, NoteHandler } from './access.ts';
 export interface RouteDeps {
   /** Mutated in place: added on, removed off, as the on-screen keyboard lights it. */
   readonly held: { add(note: number): unknown; delete(note: number): unknown };
-  /** The Muse (#2) reads captured notes from here; this only feeds it. */
+  /** The Muse (#79) reads captured notes from here; this only feeds it. */
   readonly humanNoteOn: (note: number, velocity: number, source: string, seconds: number) => void;
+  /** Where a captured note is released. */
+  readonly humanNoteOff: (note: number, source: string, seconds: number) => void;
   readonly playing: () => boolean;
   /** A `performance.now()`-relative timestamp, as seconds on the player's clock. */
   readonly toOutputSeconds: (performanceMs: number) => number;
@@ -34,8 +36,11 @@ export function routeNote(
   if (on) deps.held.add(note);
   else deps.held.delete(note);
   if (on) deps.playAlong(note, velocity);
-  if (on && deps.playing())
-    deps.humanNoteOn(note, velocity, source, deps.toOutputSeconds((deps.now ?? performance.now)()));
+  if (deps.playing()) {
+    const seconds = deps.toOutputSeconds((deps.now ?? performance.now)());
+    if (on) deps.humanNoteOn(note, velocity, source, seconds);
+    else deps.humanNoteOff(note, source, seconds);
+  }
   if (deps.thru()) {
     const channel = nibble(deps.thruChannel());
     deps.thruPort()?.send(on ? [0x90 | channel, note, velocity] : [0x80 | channel, note, 0]);
