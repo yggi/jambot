@@ -34,6 +34,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     with the test that holds it
   - `briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
+    - [`host-mode.md`](briefs/host-mode.md): a plan sketch for host and
+      client mode: the seams, the Muse on both sides, time, links
 - `prototype/`: the baseline the port is oriented by
   - [`README.md`](../prototype/README.md): concept, spirit, prototype
     architecture, the score language, the plan for learned models, open
