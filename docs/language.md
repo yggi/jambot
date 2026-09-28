@@ -471,6 +471,24 @@ the lead differs in more than half. Source: T5, S1, #40's review, #37 step 5.
 Status: measured, failing (prototype); measured (the port's carried state).
 Lands in: #13.
 
+**S3. A performer's own draw never keys on what a resumed band may still differ
+on: a pitched part's note, its register.** Witness:
+`velocityLooseness`/`lengthLooseness` (`performer.ts`) key every pitched part's
+draw by bar and step alone; only the drums, whose note is a sound's identity
+rather than a register, keep the note in the key. Counterexample: a draw keyed
+by the note too, matching `drumVelocity`'s own shape for every part.
+`velocityLooseness`'s first draft did exactly this: a bass or pad note resumed
+in another register then drew a different length looseness than it would have
+before the resume, though S2 says only its register may differ. Test:
+`band.test.ts`, "carries register into the bass and the comp, but a phrase into
+the lead: what a resumed band loses (S2)": fails on the pitch-keyed draft and
+passes the fix; no new test needed, since S2's own already exercises it. Source:
+#147/#154's build, caught by S2's own test. Status: measured. Decided: S2,
+dissolved — S2 already requires it, so a performer's own draws have no real
+choice here, only a bug to avoid, not a new one. Lands in: T17; whatever next
+reads a pitched part's own note into a seeded draw (#107's Open items: voicing,
+which dough keys a performer fills).
+
 ### Change
 
 **C1. Nothing jumps: a change is a glide from where the value is, as fast as it
