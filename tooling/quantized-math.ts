@@ -17,6 +17,7 @@ const CALL = new RegExp(`\\bMath\\.(${RISKY.join('|')})\\(`);
 
 const PURE_SOURCES = [
   'packages/engine/src',
+  'packages/score/src',
   'packages/session/src',
   'packages/theory/src',
 ] as const;

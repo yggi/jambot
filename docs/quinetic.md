@@ -39,12 +39,22 @@ is either one link of that chain or a law about the machines that run it.
 **Q1a. Text and events round-trip: `compile(encode(e)) = e` for the composer's
 events, and `encode ∘ compile` is idempotent on every text that parses,
 takeovers included.** Witness: the prototype's encoder and compiler, exact over
-about 6,000 events when both share the compiler's carried state (A1).
+about 6,000 events when both share the compiler's carried state (A1); in the
+port, `encodeBar` and `compileBar` (`packages/score`), over the written layer
+(`BarEnv` and `WrittenNote`, T4), so far the header, the style and the harmony.
 Counterexample: an event lost, added or changed on the way back, or a text that
 a second pass rewrites. Compiled cold, the prototype gives the first kind in
 1,949 of 2,880 bars (E1). Test: `prototype/experiments/cold-warm.mjs` for the
-prototype; open for the port. Source: F3, A1. Status: measured, failing
-(prototype, cold); open (port). Lands in: #13.
+prototype. For the port, in `packages/score`: `seam.test.ts`, whose test of the
+round trip cites Q1a: 3,200 of the band's bars (five seeds, every preset held,
+the tour and the app's glides, every mode the composer knows) are read back as
+written, and a second pass writes the same text; `score.test.ts`, whose tests
+cite Q1a: every key of every diatonic mode, every value of the style's grid, and
+texts written another way, each written in one form; `mini.test.ts`, whose tests
+cite Q1a: every placing of chords on the 16 steps of a bar, 32,768, read back as
+written. Source: F3, A1. Status: measured, failing (prototype, cold); measured
+(port: the header and harmony); open (port: the parts' lines). Lands in: #13,
+#63.
 
 **Q1b. Written and played time round-trip through swing: every written position
 comes back from where it is played, at every swing.** Witness: `swingMap` and

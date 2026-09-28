@@ -32,6 +32,7 @@ These principles come from the prototype
 | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
 | `packages/theory/`                                     | Music theory on one primitive, `even(k, n, shift)`: pure TypeScript           |
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
+| `packages/score/`                                      | The score: a bar as text and back, pure TypeScript, no I/O                    |
 | `packages/session/`                                    | Host and client mode: pure TypeScript, no I/O                                 |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
 | `apps/lobby/`                                          | The lobby server: sessions found by name and relayed over WebSockets          |
@@ -86,10 +87,10 @@ These principles come from the prototype
   the player, the audio or the page, and on a pull request that touches those. A
   fresh checkout needs `pnpm exec playwright install chromium` once; Claude Code
   sessions do it at start.
-- **Theory, engine and session stay pure.** `packages/theory`, `packages/engine`
-  and `packages/session` use no DOM, Web Audio, timers or Node APIs, and lint
-  enforces it. All randomness goes through `random.ts`, keyed by seed and
-  position.
+- **Theory, engine, score and session stay pure.** `packages/theory`,
+  `packages/engine`, `packages/score` and `packages/session` use no DOM, Web
+  Audio, timers or Node APIs, and lint enforces it. All randomness goes through
+  `random.ts`, keyed by seed and position.
 - **The prototype is a baseline, not a source of truth.** It orients the port.
   Where one of its values helps, a test records it as a literal. What is true is
   what the tests and the design say, and a deliberate difference from the

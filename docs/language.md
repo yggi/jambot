@@ -171,8 +171,14 @@ of the bar: the same environment plays the same bar (T5)"; `random.test.ts`, "is
 a pure function of seed and keys (T5)"; `lead.test.ts`, "plays the same melody
 on an engine whose Math.sin is one ulp off, either way (T5)": the lead's
 contour, sin(π/6) times an odd span, lies one ulp from a half, so it is
-quantised before it is rounded. Open for the pitched parts' carried state (S2).
-Source: Strudel's query model, spirit. Status: measured (drums); measured,
+quantised before it is rounded; `seam.test.ts` (`packages/score`), whose test of
+what a bar states cites T5: over 3,200 of the port's bars, the header and `harm`
+state every field of the bar's plan and chords that its parts read, the section,
+the key, the theme's kind, the style and each chord's step, slot and whether it
+is raised, and `barInSection` and `barEnergy` follow from them. The theme's own
+index is not stated, and the lead reads it to keep each theme's melody (S2).
+Open for the pitched parts' carried state (S2). Source: Strudel's query model,
+spirit. Status: measured (drums); measured (the header and harmony); measured,
 failing (the prototype's score, E1). Lands in: #63 step 3, where the pitched
 parts' carried state is S2's key frame.
 
@@ -257,21 +263,25 @@ The song reads its clock this way and no other: `events.ts` holds its meter
 which every reader of bar and beat calls: the transport, the Muse's grid
 (`BAR_STEPS`, a motif's cycle), the parts' loops over the bar, `perform`,
 `PRESET_GLIDE`, swing's beat, the session's host and ear, the HUD and the piano
-rolls. Counterexample: a reader of bar or beat whose result in 4/4 differs from
-the helix's, or one that no helix reading writes. Test: `meter.test.ts`, whose
-tests under "as the song’s clock" cite T10: at every step of 128 bars, the 4/4
+rolls. A score header that states no meter reads its bar the same way, from the
+theory's 4/4 (`UNSTATED_METER`, `meterOnSteps`, in `packages/score`).
+Counterexample: a reader of bar or beat whose result in 4/4 differs from the
+helix's, or one that no helix reading writes. Test: `meter.test.ts`, whose tests
+under "as the song’s clock" cite T10: at every step of 128 bars, the 4/4
 readings equal the literals `Math.floor(step / 16)`, `step % 16` and
 `Math.floor(step % 16 / 4)`, and every named meter's readings keep their laws,
 while the literals give 4/4's alone; `events.test.ts`, whose tests under "the
 song’s clock" cite T10: the song's readings are the literals at every
-quarter-step of 128 bars, and bars and beats tile the song. The rhythms the
-parts write stay on the 16 steps, such as the backbeat on steps 4 and 12: they
-are content, not readings (#123). MIDI clock's 6 ticks a step (T3) counts steps,
-not bars. A key change keeps the cycle and a meter change need not, so a song
-whose meter changes is a helix only between changes: open how bars of different
-lengths join (#122, T14). Source: #7's tension 9; #105; #120. Status: measured
-(the readings, every named meter; the readers, in 4/4). Lands in: #122 (a meter
-per bar); #63 (a meter in the header).
+quarter-step of 128 bars, and bars and beats tile the song; `seam.test.ts`
+(`packages/score`), whose test of the meter cites T10: a header that states no
+meter is in the song's. The rhythms the parts write stay on the 16 steps, such
+as the backbeat on steps 4 and 12: they are content, not readings (#123). MIDI
+clock's 6 ticks a step (T3) counts steps, not bars. A key change keeps the cycle
+and a meter change need not, so a song whose meter changes is a helix only
+between changes: open how bars of different lengths join (#122, T14). Source:
+#7's tension 9; #105; #120. Status: measured (the readings, every named meter;
+the readers, in 4/4). Lands in: #122 (a meter per bar); #63 (a meter in the
+header).
 
 **T11. Swing lives on the pulse, and a performance map can move a written meter
 toward another.** Witness: `swingMap` at full swing plays 4/4's eighths on
@@ -513,9 +523,13 @@ the app's glides did (E10). Test: `style.test.ts`, whose tests of `writtenStyle`
 cite C7: every value a preset glide passes through lands within half a step of
 the grid, inside its axis, and reads back from its text; `band.test.ts`, "reads
 its style as the score writes it, so a bar states exactly the style it was
-composed from (C7)", over the app's glides, the bars ahead included. Source:
-E10, T5. Status: measured. Decided: #7, on measured options (E10). Lands in: #63
-step 2 (the header).
+composed from (C7)", over the app's glides, the bars ahead included;
+`score.test.ts` (`packages/score`), whose test of the style's grid cites C7:
+every value on the grid, each unit axis's 1,001 and `bpm`'s 120,001, is written
+and read back as itself, and a value off it is refused both ways.
+`seam.test.ts`, whose test of the axes cites C7: the score's axes, their order
+and its grid are the band's. Source: E10, T5. Status: measured. Decided: #7, on
+measured options (E10). Lands in: #63 step 2 (the header).
 
 ### Pitch
 
@@ -761,11 +775,16 @@ option, makes `VI` in A minor F♯ and fails the tests. Test: `numerals.test.ts`
 whose tests cite U1: every numeral written and read back (7 degrees, 3
 accidentals, 19 qualities, 43 targets), every chord of every diatonic key, the
 prototype's 45 kinds (E8), and roots and cases checked with music21. music21
-raises the seventh degree of a minor key for `vii`; U1 doesn't. Source: #7 (a),
-E8, music21. Status: measured. Decided: #7, on measured options. Open: the
-canonical numeral of a root off the key, written as the parallel major has it
-and otherwise flat, which is ahead of the evidence until #63's round trip
-measures it. Lands in: #63.
+raises the seventh degree of a minor key for `vii`; U1 doesn't. `seam.test.ts`
+(`packages/score`), whose test of the port's chords cites U1: every chord the
+band plays over 3,200 bars, 3,352 of them (105 secondary dominants, 178
+dominants raised in minor, 324 with a ninth), is written as a numeral that
+`lowerNumeral` turns back into it, in the key's register. Source: #7 (a), E8,
+music21. Status: measured. Decided: #7, on measured options. Open: the canonical
+numeral of a root off the key, written as the parallel major has it and
+otherwise flat, which is ahead of the evidence: the port writes no root off the
+key (0 of 3,352), so #63's round trip hasn't met one, and a takeover will. Lands
+in: #63.
 
 **U2. `b` and `#` alter a degree, and an absolute note is written in upper case,
 so no pitch token is a note.** Witness: `parseNote`, which reads a letter only
@@ -782,9 +801,17 @@ Witness: `chordScale`'s candidates: the key, its parallel modes, the key a
 dominant points to, then harmonic and melodic minor (P9, #56). The composer
 writes no chord without a scale. Counterexample: a chord the candidates give a
 scale for whose line still needs `scale=`, or one they give none for that the
-text can't state. Test: open: #63's round trip over the port's chords, writing
-`scale=` only where `chordScale` gives none. Source: #7 (b), P9. Status: open.
-Decided: #7, on measured options. Lands in: #63.
+text can't state. `chordScale` reads a chord as a stack of thirds, so five
+qualities a numeral writes, `5`, `6`, `m6`, `sus2` and `sus4`, imply no scale on
+any root of any diatonic key (0 of 84 each), and `augmented`, `mMaj7` and `dim7`
+one in 7 of 84: a takeover's `Isus4` is such a chord. The score can't write
+`scale=` yet, so `encodeBar` and `compileBar` refuse one. Test: `seam.test.ts`
+(`packages/score`), whose test of `scale=` cites U3: every chord the band plays
+over 3,200 bars implies a scale, so `harm` writes none; `score.test.ts`, whose
+test of a chord with no scale cites U3: `Isus4` is refused both ways, and `I` is
+not. Source: #7 (b), P9. Status: measured (the port's chords); open (a chord
+with none, which needs `scale=`). Decided: #7, on measured options. Lands in:
+#63.
 
 **U4. A motif is a rhythm and a contour on its own cycle: onsets, each a note or
 a rest, and each note a degree of the key, counted from the motif's origin and
@@ -881,11 +908,15 @@ measured options (E13, the names round). Lands in: #79, #63.
 ### Analysis and provenance
 
 **A1. The round trip from the composer's events through the text and back is
-exact.** Witness: the prototype's encoder and compiler. Counterexample: an event
-missing, added or changed after the round trip. Test: the prototype's run over
-about 6,000 events (`prototype/README.md`, "Tested"); no test in this repository
-reruns it yet. E1 adds that it holds only warm. Source: prototype. Status:
-measured (in the prototype). Lands in: #13, Q1a.
+exact.** Witness: the prototype's encoder and compiler; in the port, `encodeBar`
+and `compileBar` (`packages/score`), so far for the header, the style and the
+harmony. Counterexample: an event missing, added or changed after the round
+trip. Test: the prototype's run over about 6,000 events (`prototype/README.md`,
+"Tested"), which no test in this repository reruns; E1 adds that it holds only
+warm. `seam.test.ts` (`packages/score`), whose test of the round trip cites A1:
+every one of 3,200 of the port's bars is read back as it was written. Source:
+prototype. Status: measured (in the prototype); measured (the port's header and
+harmony); open (the port's parts). Lands in: #13, Q1a.
 
 **A2. Every MIDI input has an IM, with an escape hatch where the grammar can't
 say it.** Witness: the analyzer. Counterexample: one MIDI file. Test: open: the
@@ -963,8 +994,8 @@ so down ∘ up is idempotent and its fixed points are the canonical forms.**
 Witness: per boundary, a section and a retraction:
 
 - written and played time: `swingMap` and `tempoMap` with their inverses (T4);
-- events and text: `encode` and `compile` (A1), with the canonical texts as the
-  fixed points of `encode ∘ compile`;
+- events and text: `encodeBar` and `compileBar` (A1), with the canonical texts
+  as the fixed points of `encodeBar ∘ compileBar`;
 - sound and score: the analyzer run on Jambot's own output;
 - a motif and what an operator makes of it: `canonicalOp` writes each result
   with one operator, a fixed point (U5).
@@ -972,9 +1003,14 @@ Witness: per boundary, a section and a retraction:
 Chained, a score, played and heard, writes itself: a quine. Counterexample: a
 value that doesn't come back through a boundary. The prototype's swing gives one
 (T4). Test: `swing.test.ts` and `tempo.test.ts`, as for T4 (time);
-`motifs.test.ts`, whose test of the canonical operator cites F3 (motifs); open
-for text (#13) and sound (#3). Source: #13, #37. Status: measured (time);
-measured (motifs); open (text, sound). Lands in: Q1a–Q1e and Q3.
+`motifs.test.ts`, whose test of the canonical operator cites F3 (motifs);
+`mini.test.ts` and `score.test.ts` (`packages/score`), whose tests of the
+written form cite F3: a text written another way (fields in another order, a key
+spelled another way, `.6` for `0.6`, weights not in lowest terms) is written in
+one form, which a second pass leaves as it is (text); open for the parts' lines
+(#63) and sound (#3). Source: #13, #37. Status: measured (time); measured
+(motifs); measured (text: the header and harmony); open (text: the parts' lines;
+sound). Lands in: Q1a–Q1e and Q3.
 
 **F4. Analysis settles in one round: `encode(compile(encode(x))) = encode(x)`.**
 Witness: the analyzer. Counterexample: a MIDI file whose analysis changes on a
@@ -1342,6 +1378,32 @@ have not run; the others have.
     8 slots, and need the grid below for a quarter of its onsets, as a line's
     pitch tokens need `b` and `#` for notes off the chord's scale; how an onset
     off the meter is written is T12's.
+
+- **E16. How the score's drum line writes a hit's role** (L7, T4, F5; #63 step
+  2b), in
+  [`packages/engine/experiments/drum-line.ts`](../packages/engine/experiments/drum-line.ts)
+  (about 1 s), over E1's shape: 2,628 drum bars and 42,535 hits.
+  - Only the snare needs its role written. Every other sound takes one role
+    (kick, rim as euclid, pedal hat as pedal, closed and open hat and ride as
+    hat); the snare takes three: backbeat 4,010, ghost 3,285, fill 1,168.
+  - No context outside the hit gives the snare's role. The sound leaves 19.9% of
+    hits open; the sound and step, 11.3%; with the section's type, 8.9%; with
+    the section's last bar too, 1.3%, all on steps 12 to 15 of a last bar, where
+    the draws of the backbeat and the fill decide.
+  - Where two roles meet, the stronger stays (F5), so the backbeat hides the
+    fill: in a build's last bar, step 12 is written as backbeat 59 times of 64
+    and as fill 5, where the backbeat didn't play. A fill never lands on step 4.
+  - Three forms, in tokens per bar (a line's name, a hit, a run of rests each
+    one token): one line with a role on every hit (`sd:ghost`) takes 20.3 on
+    average and 40 at most; a line per role, 33.0 and 65, writing the sound on
+    the 48.4% of hits that are hats; a line per sound with a default role, 33.1
+    and 66, writing the role on 10.5% of hits, the snare's ghosts and fills. Not
+    measured: one line with a word per sound and role, as the prototype's `gh`
+    is a ghost snare, which takes the first form's tokens with no role written,
+    since the pairs that occur are 9.
+  - Every bar with Euclidean rim hits, 1,080, has exactly the hits of one
+    `even(k, 16, shift)`, with k of 3, 5 or 7 and a shift of 0 to 3, so the line
+    can write them as one Euclid token.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

@@ -162,6 +162,19 @@ Every doc and code area, as a tree. Add a line when you add one.
       - [`onsets.ts`](../packages/engine/experiments/onsets.ts): E15, how many
         of the band's onsets and lines the meter writes, and how many need the
         step grid (#123)
+      - [`drum-line.ts`](../packages/engine/experiments/drum-line.ts): E16, how
+        the score's drum line writes a hit's role
+    - `src/index.ts`: the package's barrel, everything above re-exported
+  - `score/`: the score, a bar as text and the text as a bar, pure TypeScript
+    (#13, the seam of #63); the engine is a dev dependency, for its tests only
+    - `src/score.ts`: `ScoreBar`, what a bar's text states, and `encodeBar` and
+      `compileBar` between the two, so far the header (`bar`, section, `key=`,
+      `theme=`), `style` on C7's grid and `harm` as Roman numerals (U1, U3);
+      `lowerNumeral`, a numeral as a chord in the key's register;
+      `scoreProblems`, what keeps a text from compiling
+    - `src/mini.ts`: the mini-notation a line needs so far, a sequence of words
+      held for their weights (`writeSequence`, `readSequence`)
+    - `src/seam.test.ts`: the round trip over the bars the band writes (Q1a)
     - `src/index.ts`: the package's barrel, everything above re-exported
   - `session/`: host and client mode, pure TypeScript
     ([brief](briefs/host-mode.md))

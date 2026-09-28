@@ -116,6 +116,16 @@ importers:
         specifier: workspace:*
         version: link:../theory
 
+  packages/score:
+    dependencies:
+      '@jambot/theory':
+        specifier: workspace:*
+        version: link:../theory
+    devDependencies:
+      '@jambot/engine':
+        specifier: workspace:*
+        version: link:../engine
+
   packages/session:
     dependencies:
       '@jambot/engine':
