@@ -115,6 +115,9 @@ importers:
       '@jambot/engine':
         specifier: workspace:*
         version: link:../engine
+      '@jambot/score':
+        specifier: workspace:*
+        version: link:../score
       midi-file:
         specifier: ^1.2.4
         version: 1.2.4

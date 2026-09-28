@@ -23,6 +23,13 @@
  *   each held for its weight (`mini.ts`). A chord states no scale: every
  *   chord the score writes implies one (U3), and one that doesn't is
  *   refused until the score can write `scale=`.
+ * - **A drum line**, one per sound that hits in the bar, its word (`bd`,
+ *   `sd`, `hh`, `oh`, `ph`, `rd`, `rim`) starting it: every hit is that
+ *   word, one step long, `~` the rest between (E16, form (iii), decided on
+ *   the owner's measured options). A sound plays the one role it always
+ *   does (kick, pedal, the Euclidean rim, every hi-hat sound); the snare's
+ *   (backbeat, fill or ghost) is E16's still-open remainder, so `sd` is not
+ *   written yet.
  *
  * A header that states no meter is a bar of 4/4, read from its helix on
  * the steps as the song reads its bars (T10); a `meter=` comes with #63
@@ -51,7 +58,7 @@ import {
   splitChord,
   wrap,
 } from '@jambot/theory';
-import { readSequence, writeSequence } from './mini.ts';
+import { type Placed, readSequence, writeSequence } from './mini.ts';
 
 /** A key as the header states it: a tonic's pitch class, 0–11, C = 0, and a mode. */
 export interface ScoreKey {
@@ -64,6 +71,27 @@ export interface HarmChord {
   readonly step: number;
   readonly numeral: Numeral;
 }
+
+/**
+ * A drum sound a line can name, the ones whose role never varies (E16):
+ * the snare's (backbeat, fill or ghost) is still open, so it has no word
+ * here yet.
+ */
+export const DRUM_SOUNDS = ['kick', 'closedHat', 'openHat', 'pedalHat', 'ride', 'rim'] as const;
+export type DrumSound = (typeof DRUM_SOUNDS)[number];
+
+/** The word a sound's line starts with, and every hit on it is written as. */
+export const DRUM_WORDS: Readonly<Record<DrumSound, string>> = {
+  kick: 'bd',
+  closedHat: 'hh',
+  openHat: 'oh',
+  pedalHat: 'ph',
+  ride: 'rd',
+  rim: 'rim',
+};
+
+/** A bar's drum lines: the steps each sound hits on, one line per sound present. */
+export type DrumLines = Readonly<Partial<Record<DrumSound, readonly number[]>>>;
 
 /** The style's axes, in the order `style` writes them: the engine's (`AXES`). */
 export const STYLE_AXES = ['swing', 'sync', 'harm', 'artic', 'energy', 'entropy', 'bpm'] as const;
@@ -89,6 +117,7 @@ export interface ScoreBar {
   readonly theme: string;
   readonly style: Readonly<Record<StyleAxis, number>>;
   readonly harm: readonly HarmChord[];
+  readonly drums: DrumLines;
 }
 
 const WORD = /^[A-Za-z]+$/u;
@@ -142,7 +171,22 @@ function writeKey(key: ScoreKey): string {
   return `${tonic.letter}${sign(tonic.alteration)}:${key.mode}`;
 }
 
-/** A bar's score text: its header, `style` and `harm`, one line each. */
+/** The word a hit's own step holds until, where the next hit doesn't already (E16, form (iii)). */
+const REST = '~';
+
+/** A sound's hits as a sequence: each one step, held to `~` where the next isn't already there. */
+function placeHits(word: string, steps: readonly number[]): Placed[] {
+  const placed: Placed[] = [];
+  if (steps[0] !== 0) placed.push({ word: REST, step: 0 });
+  for (const [i, step] of steps.entries()) {
+    placed.push({ word, step });
+    const next = steps[i + 1] ?? UNSTATED_STEPS;
+    if (step + 1 < next) placed.push({ word: REST, step: step + 1 });
+  }
+  return placed;
+}
+
+/** A bar's score text: its header, `style`, `harm` and a line per sounding drum. */
 export function encodeBar(bar: ScoreBar): string {
   const problems = barProblems(bar);
   if (problems.length) throw new Error(`encodeBar: ${problems.join('; ')}`);
@@ -151,10 +195,17 @@ export function encodeBar(bar: ScoreBar): string {
     bar.harm.map(({ step, numeral }) => ({ step, word: formatNumeral(numeral) })),
     UNSTATED_STEPS,
   );
+  const drums = DRUM_SOUNDS.flatMap((sound) => {
+    const steps = bar.drums[sound];
+    if (!steps || steps.length === 0) return [];
+    const word = DRUM_WORDS[sound];
+    return [`${word} "${writeSequence(placeHits(word, steps), UNSTATED_STEPS)}"`];
+  });
   return [
     `bar ${bar.bar} ${bar.section} key=${writeKey(bar.key)} theme=${bar.theme}`,
     `style ${style}`,
     `harm "${harm}"`,
+    ...drums,
   ].join('\n');
 }
 
@@ -169,6 +220,18 @@ function barProblems(bar: ScoreBar): string[] {
   for (const axis of STYLE_AXES)
     if (!(bar.style[axis] >= 0 && onGrid(bar.style[axis])))
       problems.push(`${axis}=${bar.style[axis]} is off the grid of ${STYLE_DECIMALS} decimals`);
+  for (const sound of DRUM_SOUNDS) {
+    const steps = bar.drums[sound];
+    if (!steps) continue;
+    let previous = -1;
+    for (const step of steps) {
+      if (!(Number.isInteger(step) && step > previous && step < UNSTATED_STEPS))
+        problems.push(
+          `${DRUM_WORDS[sound]}: its steps must rise within the bar's ${UNSTATED_STEPS}`,
+        );
+      previous = step;
+    }
+  }
   if (problems.length) return problems;
   for (const { numeral } of bar.harm)
     if (!impliesScale(bar.key, numeral))
@@ -189,8 +252,14 @@ export function scoreProblems(text: string): string[] {
   return 'problems' in read ? read.problems : [];
 }
 
-/** The lines a bar's text has, each once, in the order `encodeBar` writes them. */
-const LINES: readonly string[] = ['bar', 'style', 'harm'];
+/** The lines every bar's text has, each once, in the order `encodeBar` writes them. */
+const REQUIRED_LINES: readonly string[] = ['bar', 'style', 'harm'];
+
+/** A drum line, present only for a sound that hits in the bar. */
+const DRUM_LINES: readonly string[] = DRUM_SOUNDS.map((sound) => DRUM_WORDS[sound]);
+
+/** Every line a bar's text may have, required or not. */
+const LINES: readonly string[] = [...REQUIRED_LINES, ...DRUM_LINES];
 
 type Header = Pick<ScoreBar, 'bar' | 'section' | 'key' | 'theme'>;
 type Read<T> = { value: T } | { problems: string[] };
@@ -208,15 +277,25 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
     else if (byKind.has(kind)) problems.push(`a bar has one ${kind} line`);
     else byKind.set(kind, line.slice(kind.length).trim());
   }
-  for (const kind of LINES) if (!byKind.has(kind)) problems.push(`the ${kind} line is missing`);
+  for (const kind of REQUIRED_LINES)
+    if (!byKind.has(kind)) problems.push(`the ${kind} line is missing`);
   if (problems.length) return { problems };
 
   const header = readHeader(byKind.get('bar')!);
   const style = readStyle(byKind.get('style')!);
   const harm = readHarm(byKind.get('harm')!, 'value' in header ? header.value.key : undefined);
+  const drumReads = DRUM_SOUNDS.flatMap((sound) => {
+    const rest = byKind.get(DRUM_WORDS[sound]);
+    return rest === undefined ? [] : [{ sound, read: readDrumLine(sound, rest) }];
+  });
   for (const read of [header, style, harm]) if ('problems' in read) problems.push(...read.problems);
-  if (!('value' in header && 'value' in style && 'value' in harm)) return { problems };
-  return { bar: { ...header.value, style: style.value, harm: harm.value } };
+  for (const { read } of drumReads) if ('problems' in read) problems.push(...read.problems);
+  if (!('value' in header && 'value' in style && 'value' in harm) || problems.length)
+    return { problems };
+  const drums = Object.fromEntries(
+    drumReads.map(({ sound, read }) => [sound, (read as { value: readonly number[] }).value]),
+  ) as DrumLines;
+  return { bar: { ...header.value, style: style.value, harm: harm.value, drums } };
 }
 
 function readHeader(rest: string): Read<Header> {
@@ -288,4 +367,24 @@ function readHarm(rest: string, key: ScoreKey | undefined): Read<HarmChord[]> {
     return { step, numeral: numeral! };
   });
   return problems.length ? { problems } : { value: harm };
+}
+
+/** A drum sound's line: every hit is its own word, one step, `~` the rest (E16, form (iii)). */
+function readDrumLine(sound: DrumSound, rest: string): Read<readonly number[]> {
+  const word = DRUM_WORDS[sound];
+  const quoted = /^"(.*)"$/u.exec(rest);
+  if (!quoted)
+    return {
+      problems: [`${word} ${rest} is not a quoted sequence, such as ${word} "${word} ~@3"`],
+    };
+  const read = readSequence(quoted[1]!, UNSTATED_STEPS);
+  if ('problems' in read) return { problems: read.problems.map((p) => `${word}: ${p}`) };
+  const problems: string[] = [];
+  const steps: number[] = [];
+  for (const { word: token, step } of read.placed) {
+    if (token === REST) continue;
+    else if (token !== word) problems.push(`${word}: "${token}" is not ${word} or ${REST}`);
+    else steps.push(step);
+  }
+  return problems.length ? { problems } : { value: steps };
 }

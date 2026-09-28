@@ -374,12 +374,21 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   and a section, helices under `compose` are a category. The table is
   `language.md`, "Nomenclature".
 - `packages/score` writes a bar as text and reads it back (`encodeBar`,
-  `compileBar`), so far its header, `style` and `harm`. Its `ScoreBar` is its
-  own type: the engine is only a dev dependency, for `seam.test.ts`, which reads
-  back every bar the band writes (Q1a). A chord `chordScale` gives no scale for,
-  such as `Isus4`, is refused until the score can write `scale=` (U3).
+  `compileBar`), so far its header, `style`, `harm` and its drums. Its
+  `ScoreBar` is its own type: the engine is only a dev dependency, for
+  `seam.test.ts`, which reads back every bar the band writes (Q1a). A chord
+  `chordScale` gives no scale for, such as `Isus4`, is refused until the score
+  can write `scale=` (U3).
 - In the port's drums only the snare needs its role written: every other sound
   has one role (E16). Where the backbeat and a fill meet, the backbeat stays.
+  E16's own form is decided (owner, on measured options): one line per sound,
+  its own word (`bd`, `hh`, `oh`, `ph`, `rd`, `rim`), each hit held one step,
+  `~` the rest between (L8). A sound with a fixed role writes none; the snare's
+  (backbeat, fill or ghost) is still open, so `sd` has no line yet.
+  `packages/analyzer`'s `notation.ts` carries a parsed hit the rest of the way
+  there: `toDrumNotation` to a `WrittenNote`, `toScoreDrums` to `DrumLines`, and
+  the ladder's rung 0 (#150) round-trips a real kick pattern through actual
+  score text end to end.
 - The prototype's score is not self-contained: 68% of bars compile differently
   from their text alone, always in register (octave, voicing), never in harmony
   or rhythm (`language.md`, S1 and E1).
@@ -580,14 +589,17 @@ The full description is in
   own production code.
 - The ladder is also how #63 gets built from the bottom, not only the parser's
   own measure: `toDrumNotation` (`src/notation.ts`) is the seam between a
-  quantised note and the engine's `WrittenNote`, the shape `packages/score`'s
-  `encodeBar`/`compileBar` read and write. It drops velocity and the microtiming
-  residual (performance, not notation, T4/L7), and writes a drum hit's role only
+  quantised note and the engine's `WrittenNote`; `toScoreDrums` carries it the
+  rest of the way to `@jambot/score`'s own `DrumLines`, the `encodeBar`/
+  `compileBar` field E16 decided (L8). `toDrumNotation` drops velocity and the
+  microtiming residual (performance, not notation, T4/L7) and writes a role only
   where the sound alone settles it (kick, pedal hat, the Euclidean rim, every
-  hi-hat sound); the snare's role (backbeat, fill or ghost) is E16's still-open
-  question on #63, so it's left off rather than guessed. Rung 0's hits are all
-  kicks, so it already reaches a full written bar — the round trip through real
-  score text itself waits only on E16's decision (#63 step 2b), nothing else.
+  hi-hat sound); `toScoreDrums` reads only `note` and `step`, so it needs no
+  role at all. The snare's role (backbeat, fill or ghost) is E16's one remaining
+  open question, so its hits are left out of both rather than guessed. Rung 0's
+  hits are all kicks, so it round-trips through real score text end to end
+  (`experiments/ladder.test.ts`): MIDI, through the parser, through
+  `encodeBar`/`compileBar`, and back.
 
 ### Terms
 
