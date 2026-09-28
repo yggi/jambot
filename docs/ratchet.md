@@ -132,12 +132,11 @@ The ratchet is the law of recursion applied to the work itself.
   would stall.
 - **At the parser's own scale.** The analyzer runs the same pair inside itself,
   a level down from #3's own pairing with #116: a curriculum of engine-generated
-  MIDI is the working track's rungs
-  (`packages/analyzer/ experiments/ladder.ts`), each rung a small negative-track
-  claim (Q10, `docs/quinetic.md`) the next rung can't be attempted before.
-  Saturating the curriculum and turning to an external corpus is B1 again, one
-  level down: a track that waited to disturb itself would only ever confirm what
-  it already generates.
+  MIDI is the working track's rungs (`packages/analyzer/experiments/ladder.ts`),
+  each rung a small negative-track claim (Q10, `docs/quinetic.md`) the next rung
+  can't be attempted before. Saturating the curriculum and turning to an
+  external corpus is B1 again, one level down: a track that waited to disturb
+  itself would only ever confirm what it already generates.
 
 ## Open
 
