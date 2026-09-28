@@ -24,10 +24,20 @@ describe('ticksTimeMap', () => {
     expect(map.played(PPQ)).toBeCloseTo(0.5, 9);
   });
 
-  it('anchors at tick 0 with the first event’s own bpm, where the file states none there', () => {
+  it('anchors at tick 0 with the earliest event’s own bpm, where the file states none there', () => {
     const map = ticksTimeMap(PPQ, [{ ticks: 2 * PPQ, bpm: 60 }]);
     expect(map.played(2 * PPQ)).toBeCloseTo(2, 9);
     expect(map.played(3 * PPQ)).toBeCloseTo(3, 9);
+  });
+
+  it('anchors by the earliest tick, not array order, when events arrive out of order (A6)', () => {
+    const map = ticksTimeMap(PPQ, [
+      { ticks: 4 * PPQ, bpm: 200 },
+      { ticks: 2 * PPQ, bpm: 60 },
+    ]);
+    // The earliest event (tick 2*PPQ, 60bpm) anchors tick 0, not the first
+    // array element (tick 4*PPQ, 200bpm).
+    expect(map.played(2 * PPQ)).toBeCloseTo(2, 9);
   });
 
   it('keeps a later tempo at a repeated tick', () => {

@@ -537,14 +537,17 @@ The full description is in
 ### The analyzer
 
 - `packages/analyzer` (#141) is pure, like `theory`, `engine`, `score` and
-  `session`: it takes an already-parsed MIDI file (ticks, tempo and
-  time-signature events, tracks of notes), never bytes off disk or a parsing
-  library's own object; a loader outside the package does that. `loadMidi` runs
-  the analyzer brief's steps 1–2 only: drop empty and duplicate tracks, split
-  the file into meter spans, and quantise every 4/4 span onto the step grid,
-  through the engine's own `barAt`/`stepInBar` (T10), never `/16` or `%16`
-  again. Every other meter is counted and reported, never forced onto the grid
-  or dropped silently.
+  `session`: `loadMidi` runs the analyzer brief's steps 1–3: drop empty and
+  duplicate tracks, split the file into meter spans, quantise every 4/4 span
+  onto the step grid through the engine's own `barAt`/`stepInBar` (T10, never
+  `/16` or `%16` again), and read each track's part role. Every other meter is
+  counted and reported, never forced onto the grid or dropped silently.
+  `loadMidi`'s own `RawMidi` input, and `parseSmf` (`smf.ts`) that builds one
+  from real Standard MIDI File bytes, both stay in `src/`: `midi-file`, the
+  parser, is itself pure byte-array code (no Node or DOM API), so only reading a
+  file's bytes off disk is a loader outside the package
+  (`experiments/load-file.ts`, milestone 3, run with
+  `node --experimental-strip-types --no-warnings packages/analyzer/experiments/load-file.ts <path>`).
 - Swing is found, not assumed: `estimateSwing` searches the swing axis for the
   value whose `swingMap(swing).written` leaves a 4/4 section's onsets closest to
   integer steps, and `quantiseSection` rounds what is left, keeping the leftover
@@ -552,7 +555,17 @@ The full description is in
   is a `TimeMap` between a file's ticks and seconds built from its own tempo
   events, the same shape (`played`, `written`, exact inverses) the engine's
   `tempo.ts` and `swing.ts` already use, but keyed to the file's clock, not a
-  style track's glide.
+  style track's glide, and anchored at tick 0 by whichever tempo event has the
+  smallest tick, never by array order.
+- Part roles (`roles.ts`, analyzer brief step 3) read channel 10 as drums, a
+  General MIDI convention independent of #108's still-open seat plan (a file's
+  own channel 10 is drums whatever Jambot's own seats turn out to be). Among the
+  rest, a hinted track (its name matching `melody`/`vocal`/`lead`/
+  `voice`/`sing`, or a General MIDI "Synth Lead" program, 80–87) is lead
+  wherever it sits in the register; otherwise the highest monophonic line is
+  lead and the lowest is bass; everything polyphonic, and any monophonic line
+  between, is harmony evidence. Every call carries its own confidence and the
+  rule it used, never a silent guess.
 
 ### Terms
 

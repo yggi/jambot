@@ -1,13 +1,16 @@
 /**
- * The top of the parser's smallest slice (analyzer brief steps 1–2): load
- * and normalise a file's tracks, split it into meter spans, and quantise
- * every 4/4 span onto the step grid. Everything else — other meters, roles,
- * key, chords, encoding to score text — is later work (#3 steps 3–8), and
- * this stage only ever reports what it doesn't reach, never guesses at it.
+ * The top of the parser's slice (analyzer brief steps 1–3): load and
+ * normalise a file's tracks, split it into meter spans, quantise every 4/4
+ * span onto the step grid, and read each track's part role. Everything
+ * else — key, chords, encoding to score text — is later work (#3 steps
+ * 4–8), and this stage only ever reports what it doesn't reach, never
+ * guesses at it.
  */
+import type { TimeMap } from '@jambot/engine';
 import { meterSpans, type TimeSignatureEvent } from './meter.ts';
+import { assignRoles, type RoleAssignment } from './roles.ts';
 import { quantiseSection, type SectionResult } from './swing.ts';
-import type { TempoEvent } from './tempo.ts';
+import { ticksTimeMap, type TempoEvent } from './tempo.ts';
 import { normaliseTracks, type RawTrack } from './tracks.ts';
 
 /** A parsed Standard MIDI File, in the subset this package reads. Reading the bytes off disk is a loader outside this package. */
@@ -28,15 +31,20 @@ export interface MeterCount {
 export interface LoadResult {
   readonly droppedEmptyTracks: number;
   readonly droppedDuplicateTracks: number;
+  /** Ticks to seconds and back, built from the file's own tempo events (A6). */
+  readonly tempoMap: TimeMap;
+  readonly roles: readonly RoleAssignment[];
   readonly otherMeters: readonly MeterCount[];
   readonly sections: readonly SectionResult[];
   readonly confidence: number;
   readonly log: readonly string[];
 }
 
-/** Analyzer brief steps 1–2: load, normalise, and quantise every 4/4 span (A6). */
+/** Analyzer brief steps 1–3: load, normalise, the tempo map, part roles, and quantise every 4/4 span (A6). */
 export function loadMidi(raw: RawMidi): LoadResult {
   const { tracks, droppedEmpty, droppedDuplicate } = normaliseTracks(raw.tracks);
+  const tempoMap = ticksTimeMap(raw.ppq, raw.tempos);
+  const roles = assignRoles(tracks);
   const notes = tracks.flatMap((track) => track.notes);
   const endTicks = notes.reduce((max, note) => Math.max(max, note.ticks + note.durationTicks), 0);
   const spans = meterSpans(raw.timeSignatures, endTicks);
@@ -73,6 +81,8 @@ export function loadMidi(raw: RawMidi): LoadResult {
   return {
     droppedEmptyTracks: droppedEmpty,
     droppedDuplicateTracks: droppedDuplicate,
+    tempoMap,
+    roles,
     otherMeters: [...otherMeters.values()],
     sections,
     confidence,

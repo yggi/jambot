@@ -29,6 +29,21 @@ describe('loadMidi', () => {
     expect(result.sections).toHaveLength(1);
     expect(result.sections[0]!.notes).toHaveLength(16);
     expect(result.log).toEqual([]);
+    // The tempo map is wired in, not just built and left unused.
+    expect(result.tempoMap.played(PPQ)).toBeCloseTo(0.5, 9);
+  });
+
+  it('reads every track’s part role', () => {
+    const drums = note(36, 0);
+    const raw: RawMidi = {
+      ppq: PPQ,
+      tempos: [],
+      timeSignatures: [],
+      tracks: [straightBar(0), { channel: 9, notes: [drums] }],
+    };
+    const result = loadMidi(raw);
+    expect(result.roles).toHaveLength(2);
+    expect(result.roles.find((r) => r.track.channel === 9)?.role).toBe('drums');
   });
 
   it('drops an empty and a duplicate track, and logs both counts', () => {

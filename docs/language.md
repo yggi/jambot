@@ -1080,11 +1080,15 @@ section's onsets closest to the step grid, then round. Counterexample: a tick
 whose `written(played(tick))` differs from itself across a tempo change; a bar
 written at a known swing whose recovered step differs from the one it was
 written at. Test: `packages/analyzer/src/tempo.test.ts` (the round trip, across
-three tempo segments) and `packages/analyzer/src/swing.test.ts` (recovers every
-named swing across a bar tour, in both onbeat and offbeat positions). Source:
-#141, analyzer brief (`docs/briefs/analyzer.md`) steps 1–2. Status: measured
-(the parser's tempo map and 4/4 grid quantisation, on synthetic input); open
-(real MIDI files, other meters, #3). Lands in: #3, F4, Q1e.
+three tempo segments, and anchored by the earliest tempo event regardless of
+array order) and `packages/analyzer/src/swing.test.ts` (recovers every named
+swing across a bar tour, in both onbeat and offbeat positions);
+`packages/analyzer/src/smf.test.ts` (the same, through real Standard MIDI File
+bytes, `parseSmf`, `midi-file`). Source: #141, analyzer brief
+(`docs/briefs/analyzer.md`) steps 1–2. Status: measured (the parser's tempo map
+and 4/4 grid quantisation, on synthetic input, and through real SMF bytes); open
+(real-world MIDI files' content, other meters, #3 steps 4–8). Lands in: #3, F4,
+Q1e.
 
 ### Composition
 

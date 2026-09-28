@@ -211,22 +211,34 @@ Every doc and code area, as a tree. Add a line when you add one.
       and loss, playing the same notes at the same moments
     - `src/index.ts`: the package's barrel, everything above re-exported
   - `analyzer/`: the parser, pure TypeScript (#141, the analyzer brief's steps
-    1–2, `docs/briefs/analyzer.md`)
+    1–3, `docs/briefs/analyzer.md`)
     - `src/tracks.ts`: `normaliseTracks`, dropping an empty track and a later
-      exact duplicate, each counted
+      exact duplicate, each counted; `RawTrack`, `RawNote`, this package's own
+      input shape
     - `src/meter.ts`: `meterSpans`, a file's time-signature events as spans,
       each marked 4/4 or not; only a 4/4 span is quantised, every other one
       reported
     - `src/tempo.ts`: `ticksTimeMap`, a file's own tempo events as a `TimeMap`
-      between ticks and seconds, `played` and `written` exact inverses (A6)
+      between ticks and seconds, `played` and `written` exact inverses, anchored
+      at tick 0 by the earliest event, not array order (A6)
     - `src/swing.ts`: `estimateSwing` and `quantiseSection`, a 4/4 span's onsets
       read back onto the step grid (T10, `barAt`/`stepInBar`, `@jambot/engine`)
       by finding the swing (`swingMap`) that best un-swings them, with the
       leftover kept as microtiming per note (A6)
-    - `src/load.ts`: `loadMidi`, the whole slice: load, normalise, meter report
-      and quantised sections, each with its own confidence, and a log of
-      everything dropped or left unquantised
+    - `src/roles.ts`: `assignRoles`, a file's tracks read as drums (channel 10),
+      bass and lead (the lowest and the highest monophonic line, a name or a
+      General MIDI program hinting lead), and harmony (everything polyphonic,
+      and any monophonic line between); every call names its rule and a
+      confidence (#3 step 3)
+    - `src/smf.ts`: `parseSmf`, a Standard MIDI File's bytes (`midi-file`, pure
+      byte-array code) into this package's own shape
+    - `src/load.ts`: `loadMidi`, the whole slice: load, normalise, the tempo
+      map, part roles and quantised sections, each with its own confidence, and
+      a log of everything dropped or left unquantised
     - `src/index.ts`: the package's barrel, everything above re-exported
+    - `experiments/load-file.ts`: milestone 3, one real file end to end — reads
+      a file's bytes off disk, the one Node-only step this package leaves out,
+      and runs them through `parseSmf` and `loadMidi`
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown firing
   - `docs-wrap.test.ts`: docs wrap at 80 columns (#45), `.prettierrc.json`'s

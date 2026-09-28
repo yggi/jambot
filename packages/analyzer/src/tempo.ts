@@ -21,11 +21,17 @@ interface Segment {
   readonly secondsPerTick: number;
 }
 
+/** The bpm of the tempo event with the smallest tick, or the default with none. */
+function earliestBpm(tempos: readonly TempoEvent[]): number {
+  if (tempos.length === 0) return DEFAULT_BPM;
+  return tempos.reduce((earliest, event) => (event.ticks < earliest.ticks ? event : earliest)).bpm;
+}
+
 /** Tempo events, one per tick, anchored at tick 0, in order. */
 function segments(ppq: number, tempos: readonly TempoEvent[]): Segment[] {
   const byTick = new Map<number, number>();
   for (const event of tempos) byTick.set(event.ticks, event.bpm);
-  if (!byTick.has(0)) byTick.set(0, tempos[0]?.bpm ?? DEFAULT_BPM);
+  if (!byTick.has(0)) byTick.set(0, earliestBpm(tempos));
   const sorted = [...byTick.entries()].sort(([a], [b]) => a - b);
   const out: Segment[] = [];
   let seconds = 0;
