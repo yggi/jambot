@@ -22,6 +22,12 @@ export interface Voices {
 
 const frequencyOf = (note: number) => 440 * Math.pow(2, (note - 69) / 12);
 
+/** A `Timbre` field this part's branch needs: `timbreOf` always fills it for this part. */
+const need = (field: number | undefined): number => {
+  if (field === undefined) throw new Error('voices: the timbre is missing a field this part needs');
+  return field;
+};
+
 export function voices(ctx: BaseAudioContext, out: AudioNode): Voices {
   /** Up to `peak` in `attack`, held through `duration`, released over `release`. */
   const hold = (
@@ -64,31 +70,37 @@ export function voices(ctx: BaseAudioContext, out: AudioNode): Voices {
       gain.connect(out);
       const frequency = frequencyOf(note);
       if (part === 'bass') {
-        const { saw, triangle, cutoff, resonance } = timbre;
+        const saw = need(timbre.saw);
+        const triangle = need(timbre.triangle);
+        const cutoff = need(timbre.cutoff);
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.Q.value = resonance!;
-        filter.frequency.setValueAtTime((300 + v * 900) * cutoff!, t);
+        filter.Q.value = need(timbre.resonance);
+        filter.frequency.setValueAtTime((300 + v * 900) * cutoff, t);
         filter.frequency.exponentialRampToValueAtTime(200, t + Math.max(0.05, duration));
         filter.connect(gain);
         hold(gain, t, duration, 0.28 * v, 0.005, 0.05);
-        oscillator('sawtooth', frequency, saw!, filter, t, t + duration + 0.1);
-        oscillator('triangle', frequency, triangle!, filter, t, t + duration + 0.1);
+        oscillator('sawtooth', frequency, saw, filter, t, t + duration + 0.1);
+        oscillator('triangle', frequency, triangle, filter, t, t + duration + 0.1);
       } else if (part === 'pad' || part === 'stab') {
-        const { attack, release } = timbre;
-        hold(gain, t, duration, 0.05 * v, attack!, release!);
-        const stop = t + duration + release! + 0.05;
+        const attack = need(timbre.attack);
+        const release = need(timbre.release);
+        hold(gain, t, duration, 0.05 * v, attack, release);
+        const stop = t + duration + release + 0.05;
         oscillator('triangle', frequency, 1, gain, t, stop);
         oscillator('sine', frequency * 1.003, 1, gain, t, stop);
       } else {
-        const { triangle, square, cutoff, attack } = timbre;
+        const triangle = need(timbre.triangle);
+        const square = need(timbre.square);
+        const cutoff = need(timbre.cutoff);
+        const attack = need(timbre.attack);
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.value = cutoff!;
+        filter.frequency.value = cutoff;
         filter.connect(gain);
-        hold(gain, t, duration, 0.07 * v, attack!, 0.08);
-        oscillator('square', frequency, square!, filter, t, t + duration + 0.2);
-        oscillator('triangle', frequency, triangle!, filter, t, t + duration + 0.2);
+        hold(gain, t, duration, 0.07 * v, attack, 0.08);
+        oscillator('square', frequency, square, filter, t, t + duration + 0.2);
+        oscillator('triangle', frequency, triangle, filter, t, t + duration + 0.2);
       }
     },
   };
