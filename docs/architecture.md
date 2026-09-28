@@ -311,9 +311,11 @@ are in #8–#12.
 Timing and latency are a known issue across the whole system: browsers, network,
 USB and MIDI (#27). What holds now: the clock never waits (T1), and the
 transport drops what a stall passed, walking the form through at most `CATCH_UP`
-passed bars an advance, so every advance is bounded work. A hardware MIDI clock
-is one mitigation path, and the MIDI clock is a lossy grid of 96 ticks a bar
-(T3).
+passed bars an advance, so every advance is bounded work. Over a WebSocket, a
+bar reaches a client in time exactly when the stream holds it less than a beat
+(T13), so a lost packet costs a bar only where the platform's recovery nears a
+beat. A hardware MIDI clock is one mitigation path, and the MIDI clock is a
+lossy grid of 96 ticks a bar (T3).
 
 Every pair of clocks is read by one estimator (`clockPair`): samples each
 bounding the offset, the least bound trusted, drift slewed, and a jump that

@@ -32,6 +32,7 @@ import {
   type PingRun,
   type PageTick,
   linkDelay,
+  orderedArrival,
   simulatedDevice,
   pingsBetween,
   ticksOf,
@@ -141,6 +142,22 @@ describe('a device with faults', () => {
     // Given jitter and no share, every message is held up.
     const held = range(200).map((i) => linkDelay({ there: 0.004, jitter: 0.03 }, 'there', i)!);
     expect(held.every((d) => d > 0.004)).toBe(true);
+  });
+
+  it('keeps a stream in order: a message lost is sent again after the recovery, doubled each time, and those behind it wait', () => {
+    const quick: LinkFaults = { there: 0.004 };
+    expect(orderedArrival(quick, 0.2, 0, 1, 0)).toBeCloseTo(1.004, 12);
+    // Behind a message that arrives later, a message waits for it.
+    expect(orderedArrival(quick, 0.2, 1, 1.01, 1.3)).toBe(1.3);
+    // Over a lossy link, each arrival is its leg plus 0, 1, 3, 7 … recoveries:
+    // 2^k − 1 for k losses in a row.
+    const lossy: LinkFaults = { there: 0.004, loss: 0.3, seed: 4 };
+    const waits = range(400).map((i) => orderedArrival(lossy, 0.2, i, 0, 0) - 0.004);
+    const recoveries = waits.map((w) => Math.round(w / 0.2));
+    for (const r of recoveries) expect(Number.isInteger(Math.log2(r + 1))).toBe(true);
+    expect(new Set(recoveries).size).toBeGreaterThan(3);
+    for (const [i, w] of waits.entries()) expect(w).toBeCloseTo(recoveries[i]! * 0.2, 12);
+    expect(recoveries.filter((r) => r === 0).length / 400).toBeCloseTo(0.7, 1);
   });
 
   it("stamps a ping with each side's page clock, carries what the host says it hears, and knows the offset it should read", () => {

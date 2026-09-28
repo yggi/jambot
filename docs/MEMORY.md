@@ -83,17 +83,31 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   props and send intents; none reads the engine. A style is named by the preset
   it matches on every axis the preset sets but energy (`presetOf`), so there is
   no chosen-preset state: nudging the tempo makes a style custom, and moving
-  energy or entropy doesn't. The key picker shows the key the band is heading
-  for, the last bar decided's (`hud.heading`). A key picked is wished for tonic
-  and mode; a preset wishes for its mode only when the wish is in another, so a
-  key picked survives a preset in its mode. `CircleOfFifths.svelte` draws that
-  same key as a wheel: theory's `fifthsIndex` (built on `generator(7, 12)`) lays
-  the 12 pitch classes out by fifths, and the current scale is a stroke-only
-  figure threaded from the tonic, which alone gets a ring. It is read-only
-  wherever it is given no `mode`/`onintent` (the stage's, from
-  `hud.bar.tonic`/`.scale`); given both, a dot is a button that wishes for its
-  pitch class as tonic, in the mode already playing (the controls' wheel, beside
-  `KeyPicker`'s selects, going through the same `key` intent).
+  energy or entropy doesn't. `KeyPicker.svelte` shows the key the band is
+  heading for, the last bar decided's (`hud.heading`): a mode select, and the
+  circle of fifths, full-sized, as the one tonic picker — a single widget for
+  showing and picking the key, not two. `CircleOfFifths.svelte` draws it:
+  theory's `fifthsIndex` (built on `generator(7, 12)`) lays the 12 pitch classes
+  out by fifths, and the current scale is a stroke-only figure threaded from the
+  tonic, which alone gets a ring. It is read-only wherever it is given no
+  `mode`/`onintent`; given both, a dot is a button that wishes for its pitch
+  class as tonic, in the mode already playing (going through the same `key`
+  intent the mode select does). A key picked is wished for tonic and mode; a
+  preset wishes for its mode only when the wish is in another, so a key picked
+  survives a preset in its mode. A toggle on `KeyPicker` bares an experiment on
+  the same wheel: `history`, one weight per pitch class from
+  `player.harmonicHistory` (`apps/web/src/harmonicHistory.ts`), drawn as a
+  filled radar under the wheel. `HarmonicHistory` sums every note the band
+  actually plays by pitch class, drums excluded, decaying whatever a later bar's
+  first note finds by how many bars passed silently since the last one pushed —
+  so the shape reads as "what has the band been playing lately", not the current
+  scale, and not everything ever played. Stage stays plain text: the key's name
+  and its notes ascending from the tonic (`scaleNoteNames`), no wheel of its
+  own. The toggle sits inside the host-only `.controls` fieldset with the rest
+  of `KeyPicker`, so a client can see the wheel and the radar (fieldset
+  `disabled` hides nothing, only disables the form controls in it) but can't yet
+  flip the toggle themselves — a known seam, not yet worth its own escape from
+  the fieldset (#134).
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot
   (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and
   drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a
@@ -224,6 +238,12 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   lobby server, in Node's environment. Its devices' clocks are the test's and
   stand still, so a ping comes back at once and the skew is exact on any
   machine; the clocks under delay are the pure tests'.
+- `jam` (`packages/session/src/session.test.ts`) runs a host and a client over a
+  link that drops bars, or, given a `recovery`, keeps order as TCP does
+  (`orderedArrival` in the fault kit): a lost message is sent again after the
+  recovery and holds up everything behind it, and the pings' answers, the bars
+  ahead and the Muse share the stream. A bar is lacked exactly where the stream
+  held it past a beat (T13).
 - A timing claim is tested by the work it bounds, never by the wall clock: an
   advance of the transport passes at most `CATCH_UP` bars (a day's stall is some
   30,000), and the ticks after carry on, so no advance outlasts its lookahead on

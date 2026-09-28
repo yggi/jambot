@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { figureOrder, wheelAngle, wheelPoint } from './circleLayout.ts';
+import { figureOrder, wheelAngle, wheelOrder, wheelPoint } from './circleLayout.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -51,5 +51,16 @@ describe('figureOrder', () => {
     for (const tonic of cIonian) {
       expect(figureOrder(cIonian, tonic)[0]).toBe(tonic);
     }
+  });
+});
+
+describe('wheelOrder', () => {
+  it('is C, G, D, A, E, B, F♯, D♭, A♭, E♭, B♭, F: the standard circle of fifths from C', () => {
+    expect(wheelOrder()).toEqual([0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]);
+  });
+
+  it('is every pitch class exactly once', () => {
+    expect(new Set(wheelOrder())).toEqual(new Set(range(12)));
+    expect(wheelOrder()).toHaveLength(12);
   });
 });
