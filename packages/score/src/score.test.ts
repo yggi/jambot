@@ -1,6 +1,8 @@
 import { DIATONIC_MODE_NAMES, parseNumeral } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
+  DRUM_SOUNDS,
+  type DrumSound,
   type ScoreBar,
   STYLE_AXES,
   compileBar,
@@ -24,6 +26,7 @@ const A_BAR: ScoreBar = {
     { step: 0, numeral: numeral('IVmaj9') },
     { step: 12, numeral: numeral('V7/vi') },
   ],
+  drums: {},
 };
 
 const A_TEXT = [
@@ -170,5 +173,70 @@ describe('a bar as score text', () => {
       'tonic 12 is not a pitch class',
     );
     expect(() => encodeBar({ ...A_BAR, harm: [] })).toThrow('at least one word');
+  });
+});
+
+describe('a drum line (E16, form (iii): one line per sound, a default role)', () => {
+  it('writes no line for a bar with no drum hits', () => {
+    expect(encodeBar(A_BAR)).toBe(A_TEXT);
+  });
+
+  it("writes one line per sounding drum, in the sounds' own canonical order, and reads it back (Q1a)", () => {
+    // Rung 0 (#150): a kick every quarter note.
+    const kick = { ...A_BAR, drums: { kick: [0, 4, 8, 12] } };
+    const text = `${A_TEXT}\nbd "bd ~@3 bd ~@3 bd ~@3 bd ~@3"`;
+    expect(encodeBar(kick)).toBe(text);
+    expect(compileBar(text)).toEqual(kick);
+
+    // Two sounds together, written in DRUM_SOUNDS order regardless of key order on the bar.
+    const both = { ...A_BAR, drums: { ride: [2, 10], kick: [0, 8] } };
+    const bothText = `${A_TEXT}\nbd "bd ~@7 bd ~@7"\nrd "~@2 rd ~@7 rd ~@5"`;
+    expect(encodeBar(both)).toBe(bothText);
+    expect(compileBar(bothText)).toEqual(both);
+  });
+
+  it('holds a hit no longer than one step, even with no gap to the next', () => {
+    const solid = { ...A_BAR, drums: { kick: range(16) } };
+    const text = `${A_TEXT}\nbd "${range(16)
+      .map(() => 'bd')
+      .join(' ')}"`;
+    expect(encodeBar(solid)).toBe(text);
+    expect(compileBar(text)).toEqual(solid);
+  });
+
+  it('holds the last hit of the bar to its own end, with no trailing rest', () => {
+    const last = { ...A_BAR, drums: { kick: [15] } };
+    const text = `${A_TEXT}\nbd "~@15 bd"`;
+    expect(encodeBar(last)).toBe(text);
+    expect(compileBar(text)).toEqual(last);
+  });
+
+  it('writes every text that compiles in one form: a second pass changes nothing (Q1a, F3)', () => {
+    const variant = `${A_TEXT}\nbd "bd@1 ~@3 bd@1 ~@3 bd@1 ~@3 bd@1 ~@3"`;
+    const canonical = `${A_TEXT}\nbd "bd ~@3 bd ~@3 bd ~@3 bd ~@3"`;
+    expect(encodeBar(compileBar(variant))).toBe(canonical);
+    expect(encodeBar(compileBar(canonical))).toBe(canonical);
+  });
+
+  it('reads and writes every one of its supported sounds, each its own word', () => {
+    for (const sound of DRUM_SOUNDS) {
+      const bar = { ...A_BAR, drums: { [sound]: [0] } as Record<DrumSound, number[]> };
+      const compiled = compileBar(encodeBar(bar));
+      expect(compiled.drums).toEqual(bar.drums);
+    }
+  });
+
+  it('refuses a line whose steps are not rising, or whose hit is another sound’s word', () => {
+    expect(() => encodeBar({ ...A_BAR, drums: { kick: [4, 0] } })).toThrow(
+      "bd: its steps must rise within the bar's 16",
+    );
+    expect(() => encodeBar({ ...A_BAR, drums: { kick: [0, 0] } })).toThrow(
+      "bd: its steps must rise within the bar's 16",
+    );
+    expect(scoreProblems(`${A_TEXT}\nbd "sd"`)).toEqual(['bd: "sd" is not bd or ~']);
+    expect(scoreProblems(`${A_TEXT}\nbd bd`)).toEqual([
+      'bd bd is not a quoted sequence, such as bd "bd ~@3"',
+    ]);
+    expect(scoreProblems(`${A_TEXT}\nbd "bd"\nbd "bd"`)).toEqual(['a bar has one bd line']);
   });
 });

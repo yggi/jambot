@@ -1,6 +1,6 @@
-import { DRUM_NOTES } from '@jambot/engine';
+import { DRUM_NOTES, type WrittenNote } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { toDrumNotation } from './notation.ts';
+import { toDrumNotation, toScoreDrums } from './notation.ts';
 import type { QuantisedNote } from './swing.ts';
 
 const note = (midi: number, step: number): QuantisedNote => ({
@@ -26,7 +26,7 @@ describe('toDrumNotation', () => {
     expect(written.map((n) => n.role)).toEqual(['kick', 'pedal', 'euclid', 'hat', 'hat', 'hat']);
   });
 
-  it('leaves the snare’s role open: E16 is not decided, so this doesn’t guess', () => {
+  it('leaves the snare’s role open: its hit-by-hit call is E16’s one still-open part', () => {
     const [written] = toDrumNotation([note(DRUM_NOTES.snare, 4)]);
     expect(written!.role).toBeUndefined();
   });
@@ -47,5 +47,35 @@ describe('toDrumNotation', () => {
   it('keeps the bar-relative step and the length, in whole steps', () => {
     const [written] = toDrumNotation([{ ...note(DRUM_NOTES.kick, 12), length: 2 }]);
     expect(written).toMatchObject({ step: 12, length: 2 });
+  });
+});
+
+const written = (part: WrittenNote['part'], midi: number, step: number): WrittenNote => ({
+  part,
+  step,
+  note: midi,
+  length: 1,
+});
+
+describe('toScoreDrums', () => {
+  it('groups every supported sound’s hits under its own line', () => {
+    const notes = [
+      written('drums', DRUM_NOTES.kick, 0),
+      written('drums', DRUM_NOTES.kick, 8),
+      written('drums', DRUM_NOTES.closedHat, 2),
+    ];
+    expect(toScoreDrums(notes)).toEqual({ kick: [0, 8], closedHat: [2] });
+  });
+
+  it('leaves the snare out: it has no score line yet (E16)', () => {
+    expect(toScoreDrums([written('drums', DRUM_NOTES.snare, 4)])).toEqual({});
+  });
+
+  it('reads only the drums part, not another performer’s notes on the same shape', () => {
+    expect(toScoreDrums([written('bass', DRUM_NOTES.kick, 0)])).toEqual({});
+  });
+
+  it('groups nothing for no notes', () => {
+    expect(toScoreDrums([])).toEqual({});
   });
 });

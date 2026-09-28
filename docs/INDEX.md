@@ -177,9 +177,11 @@ Every doc and code area, as a tree. Add a line when you add one.
     (#13, the seam of #63); the engine is a dev dependency, for its tests only
     - `src/score.ts`: `ScoreBar`, what a bar's text states, and `encodeBar` and
       `compileBar` between the two, so far the header (`bar`, section, `key=`,
-      `theme=`), `style` on C7's grid and `harm` as Roman numerals (U1, U3);
-      `lowerNumeral`, a numeral as a chord in the key's register;
-      `scoreProblems`, what keeps a text from compiling
+      `theme=`), `style` on C7's grid, `harm` as Roman numerals (U1, U3) and a
+      line per sounding drum (`DRUM_SOUNDS`, `DRUM_WORDS`, `DrumLines`, L8): one
+      word per sound, held one step, `~` the rest between, the snare's role
+      still open (E16); `lowerNumeral`, a numeral as a chord in the key's
+      register; `scoreProblems`, what keeps a text from compiling
     - `src/mini.ts`: the mini-notation a line needs so far, a sequence of words
       held for their weights (`writeSequence`, `readSequence`)
     - `src/seam.test.ts`: the round trip over the bars the band writes (Q1a)
@@ -235,9 +237,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       byte-array code) into this package's own shape
     - `src/notation.ts`: `toDrumNotation`, a quantised drum note with its
       performance dropped (velocity, microtiming; T4, L7), into the engine's own
-      `WrittenNote` — the seam `packages/score` reads and writes (#63 step 2b) —
-      with a role only where the sound settles it alone; the snare's is E16's
-      still-open question, left undecided here too
+      `WrittenNote`, a role only where the sound settles it alone; then
+      `toScoreDrums`, written notes grouped into `@jambot/score`'s own
+      `DrumLines` (L8, E16 form (iii)) — the snare's role is E16's one remaining
+      open question, left out of both
     - `src/load.ts`: `loadMidi`, the whole slice: load, normalise, the tempo
       map, part roles and quantised sections, each with its own confidence, and
       a log of everything dropped or left unquantised

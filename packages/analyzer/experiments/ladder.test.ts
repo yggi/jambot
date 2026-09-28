@@ -1,8 +1,21 @@
 import { DRUM_NOTES } from '@jambot/engine';
+import { type ScoreBar, compileBar, encodeBar } from '@jambot/score';
+import { parseNumeral } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { loadMidi } from '../src/load.ts';
-import { toDrumNotation } from '../src/notation.ts';
+import { toDrumNotation, toScoreDrums } from '../src/notation.ts';
 import { metronomeRung } from './ladder.ts';
+
+/** A bar around a drum line: fixed placeholders for what this rung doesn't test. */
+const around = (drums: ScoreBar['drums']): ScoreBar => ({
+  bar: 0,
+  section: 'groove',
+  key: { tonic: 0, mode: 'ionian' },
+  theme: 'A',
+  style: { swing: 0, sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0, bpm: 96 },
+  harm: [{ step: 0, numeral: parseNumeral('I')! }],
+  drums,
+});
 
 describe('metronomeRung (rung 0)', () => {
   it('the parser recovers the engine’s own metronome exactly: role, grid, tempo and swing (Q10)', () => {
@@ -50,11 +63,10 @@ describe('metronomeRung (rung 0)', () => {
     }
   });
 
-  it('reaches the score’s own written notation, one E16 decision short of encodeBar', () => {
+  it('reaches the score’s own written notation (#63 step 2b)', () => {
     // Every rung 0 hit is a kick, the one sound `toDrumNotation` never
-    // leaves open, so this rung meets no part of E16's still-open question
-    // (the snare's role) — it stops here only for want of a decided drums
-    // line to write it into (#63 step 2b), not for want of a role.
+    // leaves open, so this rung meets no part of E16's one remaining
+    // question (the snare's own role).
     const result = loadMidi(metronomeRung(96, 1));
     const written = toDrumNotation(result.sections[0]!.notes);
     expect(written).toEqual([
@@ -63,5 +75,16 @@ describe('metronomeRung (rung 0)', () => {
       { part: 'drums', step: 8, note: DRUM_NOTES.kick, length: 1, role: 'kick' },
       { part: 'drums', step: 12, note: DRUM_NOTES.kick, length: 1, role: 'kick' },
     ]);
+  });
+
+  it('round-trips through real score text: MIDI → parser → encodeBar → compileBar → parser (Q10)', () => {
+    const result = loadMidi(metronomeRung(96, 1));
+    const written = toDrumNotation(result.sections[0]!.notes);
+    const bar = around(toScoreDrums(written));
+
+    const text = encodeBar(bar);
+    expect(text).toContain('bd "bd ~@3 bd ~@3 bd ~@3 bd ~@3"');
+    expect(compileBar(text)).toEqual(bar);
+    expect(encodeBar(compileBar(text))).toBe(text);
   });
 });

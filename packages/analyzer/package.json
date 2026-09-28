@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@jambot/engine": "workspace:*",
+    "@jambot/score": "workspace:*",
     "midi-file": "^1.2.4"
   },
   "devDependencies": {

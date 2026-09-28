@@ -844,6 +844,26 @@ performer). Decided: #7, ahead of the evidence. Lands in: #99 (a drums performer
 named by role, not raw pitch), #79 (a rhythm motif with roles, which now has the
 field kept past `perform`), #102 (the device's map).
 
+**L8. The drum line writes one word per sound, each hit that word held for one
+step, `~` the rest between; a hit's role is the sound's own default, except the
+snare's.** Witness: `packages/score/src/score.ts`'s drum lines (`DRUM_SOUNDS`,
+`DRUM_WORDS`, `placeHits`, wired into `encodeBar`/`compileBar`): a sounding drum
+gets its own line, `<word> "<hits and rests>"`, in the mini-notation `mini.ts`
+already gives every line (E16, form (iii)). Counterexample: two sounds sharing
+one line, or a role written where the sound alone already gives it. Test:
+`score.test.ts`'s drum-line tests, every one of the six supported sounds, a
+solid bar with no rests, the last step held to the bar's own end, and the
+canonical form under a second pass; `seam.test.ts`, whose round trip now carries
+the band's own drum hits — kick, every hi-hat sound, pedal hat, the Euclidean
+rim — over 5 seeds, every preset and the tour;
+`packages/analyzer/experiments/ladder.test.ts`, whose rung 0 round-trips a kick
+pattern through real score text end to end. Source: E16, measured options sent
+to the owner on #63; #150, the parser's ladder, whose rung 0 needed the decision
+to close its own round trip. Status: measured (kick, closed hat, open hat, pedal
+hat, ride, rim); open (the snare, whose role — backbeat, fill or ghost — still
+needs its own hit-by-hit call). Decided: owner, on measured options (E16). Lands
+in: #63 step 2b, Q1a, A1.
+
 ### Readers and writers
 
 **R1. A musician reads it like a lead sheet.** Source: spirit. Status: open.
@@ -1047,14 +1067,15 @@ call). Lands in: #63, #126.
 
 **A1. The round trip from the composer's events through the text and back is
 exact.** Witness: the prototype's encoder and compiler; in the port, `encodeBar`
-and `compileBar` (`packages/score`), so far for the header, the style and the
-harmony. Counterexample: an event missing, added or changed after the round
-trip. Test: the prototype's run over about 6,000 events (`prototype/README.md`,
-"Tested"), which no test in this repository reruns; E1 adds that it holds only
-warm. `seam.test.ts` (`packages/score`), whose test of the round trip cites A1:
-every one of 3,200 of the port's bars is read back as it was written. Source:
-prototype. Status: measured (in the prototype); measured (the port's header and
-harmony); open (the port's parts). Lands in: #13, Q1a.
+and `compileBar` (`packages/score`), so far for the header, the style, the
+harmony and the drums (L8). Counterexample: an event missing, added or changed
+after the round trip. Test: the prototype's run over about 6,000 events
+(`prototype/README.md`, "Tested"), which no test in this repository reruns; E1
+adds that it holds only warm. `seam.test.ts` (`packages/score`), whose test of
+the round trip cites A1: every one of 3,200 of the port's bars is read back as
+it was written. Source: prototype. Status: measured (in the prototype); measured
+(the port's header, harmony and drums, but the snare); open (the port's pitch
+lines). Lands in: #13, Q1a.
 
 **A2. Every MIDI input has an IM, with an escape hatch where the grammar can't
 say it.** Witness: the analyzer. Counterexample: one MIDI file. Test: open: the

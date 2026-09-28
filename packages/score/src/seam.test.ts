@@ -9,6 +9,7 @@ import {
   type BandBar,
   type BandCarried,
   COMPOSER_MODES,
+  DRUM_NOTES,
   INITIAL_STYLE,
   type Key,
   PRESETS,
@@ -29,6 +30,9 @@ import {
 import { chordScale, joinChord, parseNumeral, positions, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
+  DRUM_SOUNDS,
+  type DrumLines,
+  type DrumSound,
   type ScoreBar,
   STYLE_AXES,
   STYLE_DECIMALS,
@@ -37,6 +41,24 @@ import {
   encodeBar,
   lowerNumeral,
 } from './score.ts';
+
+/** The note each drum line's own sound plays, the reverse of the engine's `DRUM_NOTES`. */
+const SOUND_OF_NOTE = new Map<number, DrumSound>(
+  DRUM_SOUNDS.map((sound) => [DRUM_NOTES[sound], sound]),
+);
+
+/** A bar's drum hits, as the lines that carry a sound with no open role (E16): the snare's is still open, so its hits are left out. */
+function statedDrums(bar: BandBar): DrumLines {
+  const bySound = new Map<DrumSound, number[]>();
+  for (const note of bar.written) {
+    if (note.part !== 'drums') continue;
+    const sound = SOUND_OF_NOTE.get(note.note);
+    if (!sound) continue;
+    if (!bySound.has(sound)) bySound.set(sound, []);
+    bySound.get(sound)!.push(note.step);
+  }
+  return Object.fromEntries(bySound);
+}
 
 const range = (n: number) => [...Array(n).keys()];
 const BARS = 64;
@@ -88,7 +110,7 @@ const BAND_BARS: BandBar[] = range(5).flatMap((seed) =>
   }),
 );
 
-/** What a bar the band wrote states: its header, its style and its chords as numerals. */
+/** What a bar the band wrote states: its header, its style, its chords as numerals and its drums. */
 const stated = (bar: BandBar): ScoreBar => ({
   bar: bar.bar,
   section: bar.plan.section.type,
@@ -99,6 +121,7 @@ const stated = (bar: BandBar): ScoreBar => ({
     step: chord.slot.step,
     numeral: parseNumeral(chordNumeral(chord, bar.plan.key))!,
   })),
+  drums: statedDrums(bar),
 });
 
 describe('the seam, over the bars the band writes', () => {
