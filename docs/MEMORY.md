@@ -578,6 +578,16 @@ The full description is in
   same split `packages/score`'s `seam.test.ts` uses for `@jambot/engine`: a
   lower layer brought in to build or check fixtures, not part of the package's
   own production code.
+- The ladder is also how #63 gets built from the bottom, not only the parser's
+  own measure: `toDrumNotation` (`src/notation.ts`) is the seam between a
+  quantised note and the engine's `WrittenNote`, the shape `packages/score`'s
+  `encodeBar`/`compileBar` read and write. It drops velocity and the microtiming
+  residual (performance, not notation, T4/L7), and writes a drum hit's role only
+  where the sound alone settles it (kick, pedal hat, the Euclidean rim, every
+  hi-hat sound); the snare's role (backbeat, fill or ghost) is E16's still-open
+  question on #63, so it's left off rather than guessed. Rung 0's hits are all
+  kicks, so it already reaches a full written bar — the round trip through real
+  score text itself waits only on E16's decision (#63 step 2b), nothing else.
 
 ### Terms
 

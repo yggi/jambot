@@ -1,6 +1,7 @@
 import { DRUM_NOTES } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { loadMidi } from '../src/load.ts';
+import { toDrumNotation } from '../src/notation.ts';
 import { metronomeRung } from './ladder.ts';
 
 describe('metronomeRung (rung 0)', () => {
@@ -47,5 +48,20 @@ describe('metronomeRung (rung 0)', () => {
       expect(result.sections[0]!.notes).toHaveLength(8);
       expect(result.confidence).toBeGreaterThan(0.99);
     }
+  });
+
+  it('reaches the score’s own written notation, one E16 decision short of encodeBar', () => {
+    // Every rung 0 hit is a kick, the one sound `toDrumNotation` never
+    // leaves open, so this rung meets no part of E16's still-open question
+    // (the snare's role) — it stops here only for want of a decided drums
+    // line to write it into (#63 step 2b), not for want of a role.
+    const result = loadMidi(metronomeRung(96, 1));
+    const written = toDrumNotation(result.sections[0]!.notes);
+    expect(written).toEqual([
+      { part: 'drums', step: 0, note: DRUM_NOTES.kick, length: 1, role: 'kick' },
+      { part: 'drums', step: 4, note: DRUM_NOTES.kick, length: 1, role: 'kick' },
+      { part: 'drums', step: 8, note: DRUM_NOTES.kick, length: 1, role: 'kick' },
+      { part: 'drums', step: 12, note: DRUM_NOTES.kick, length: 1, role: 'kick' },
+    ]);
   });
 });

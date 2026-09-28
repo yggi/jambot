@@ -232,6 +232,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       confidence (#3 step 3)
     - `src/smf.ts`: `parseSmf`, a Standard MIDI File's bytes (`midi-file`, pure
       byte-array code) into this package's own shape
+    - `src/notation.ts`: `toDrumNotation`, a quantised drum note with its
+      performance dropped (velocity, microtiming; T4, L7), into the engine's own
+      `WrittenNote` — the seam `packages/score` reads and writes (#63 step 2b) —
+      with a role only where the sound settles it alone; the snare's is E16's
+      still-open question, left undecided here too
     - `src/load.ts`: `loadMidi`, the whole slice: load, normalise, the tempo
       map, part roles and quantised sections, each with its own confidence, and
       a log of everything dropped or left unquantised
