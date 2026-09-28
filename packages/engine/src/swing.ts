@@ -13,8 +13,25 @@
  * the offbeat 16th within each half-beat. The swing axis runs from straight
  * (0) through a full 16th shuffle (0.5) to full triplet 8th swing (1),
  * crossfading from the 16th level to the 8th on the way.
+ *
+ * Swing never moves a pulse's start (T11): the 16th level stays a fixed
+ * 2-step span everywhere, meter-free, and the 8th level is read off the
+ * meter's own pulses. A 2-eighth pulse swings exactly as a 4/4 beat always
+ * has, anchored at its own start rather than a fixed modulus, so a meter
+ * whose pulses aren't all 4 steps still keeps every pulse where it is
+ * written. A pulse of any other length — every named meter's 3-eighth
+ * pulses — plays straight at the 8th level, the easiest option to reverse
+ * until a real performance measures a ternary feel (T16).
  */
 
+import {
+  type Helix,
+  type Meter,
+  METERS,
+  degreeBelow,
+  heightOf,
+  meterOnSteps,
+} from '@jambot/theory';
 import { beatAt, beatStart } from './events.ts';
 import { type StyleTrack, valueAt } from './style.ts';
 
@@ -42,10 +59,13 @@ export function swingParts(swing: number): { sixteenth: number; eighth: number }
   return { sixteenth: clamp01(swing * 2) * (1 - eighth), eighth };
 }
 
-/** The whole swing map for a value on the swing axis: the 16th level, then the 8th. */
-export function swingMap(swing: number): TimeMap {
+/**
+ * The whole swing map for a value on the swing axis, over a meter's pulses
+ * (4/4 unless another is given): the 16th level, then the 8th (T11).
+ */
+export function swingMap(swing: number, meter: Meter = METERS['4/4']): TimeMap {
   const { sixteenth, eighth } = swingParts(swing);
-  return composeTimeMaps(swingLevel(2, sixteenth), swingLevel(4, eighth));
+  return composeTimeMaps(swingLevel(2, sixteenth), pulseLevel(meterOnSteps(meter), eighth));
 }
 
 /**
@@ -59,6 +79,13 @@ export function swingOf(track: StyleTrack): TimeMap {
   return { played: (x) => at(x).played(x), written: (y) => at(y).written(y) };
 }
 
+/** Maps `within` a span through the knots (0, from, span) → (0, to, span), or back. */
+function throughSpan(within: number, from: number, to: number, span: number): number {
+  return within < from
+    ? (within * to) / from
+    : to + ((within - from) * (span - to)) / (span - from);
+}
+
 /**
  * One level: in every span of `span` steps, the midpoint moves late by
  * `amount` / 6 of the span, and the positions between follow linearly.
@@ -66,14 +93,27 @@ export function swingOf(track: StyleTrack): TimeMap {
 function swingLevel(span: number, amount: number): TimeMap {
   const half = span / 2;
   const mid = half + (amount * span) / 6;
-  /** Map x within its span through the knots (0, half, span) → (0, to, span), or back. */
   const through = (x: number, from: number, to: number) => {
     const start = Math.floor(x / span) * span;
-    const within = x - start;
-    return (
-      start +
-      (within < from ? (within * to) / from : to + ((within - from) * (span - to)) / (span - from))
-    );
+    return start + throughSpan(x - start, from, to, span);
+  };
+  return { played: (x) => through(x, half, mid), written: (y) => through(y, mid, half) };
+}
+
+/**
+ * The 8th level over a meter: a 2-eighth pulse of `clock` swings as
+ * `swingLevel(4, amount)` does, anchored at its own start; a pulse of any
+ * other length plays straight (T11, T16). `clock` is the meter composed onto
+ * the bar's steps (`meterOnSteps`), whose heights are the pulse starts.
+ */
+function pulseLevel(clock: Helix, amount: number): TimeMap {
+  const half = 2;
+  const mid = half + (amount * 4) / 6;
+  const through = (x: number, from: number, to: number) => {
+    const degree = degreeBelow(clock, x);
+    const start = heightOf(clock, degree);
+    const length = heightOf(clock, degree + 1) - start;
+    return length === 4 ? start + throughSpan(x - start, from, to, length) : x;
   };
   return { played: (x) => through(x, half, mid), written: (y) => through(y, mid, half) };
 }

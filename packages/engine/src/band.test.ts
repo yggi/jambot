@@ -318,7 +318,7 @@ describe('the band', () => {
 });
 
 describe('the look-ahead', () => {
-  it('forecasts the plan and chords of the bars the band then plays, from any bar, bar 0 included', () => {
+  it('forecasts the plan and chords of the bars the band then plays, from any bar, bar 0 included, any distance ahead (C3)', () => {
     // The tour changes preset and wish as it goes, so the forecast has to
     // read each bar's style and wish, not only the first's.
     for (const seed of [1, 2, 3]) {

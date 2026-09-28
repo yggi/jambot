@@ -283,17 +283,43 @@ between changes: open how bars of different lengths join (#122, T14). Source:
 the readers, in 4/4). Lands in: #122 (a meter per bar); #63 (a meter in the
 header).
 
-**T11. Swing lives on the pulse, and a performance map can move a written meter
-toward another.** Witness: `swingMap` at full swing plays 4/4's eighths on
-12/8's: every offbeat eighth on its pulse's third eighth, when a bar of 12/8
-spans the same 16 steps. Counterexample: a pulse that swing moves. `swingOf`
-swings by beats of 4 steps, so at full swing it keeps every pulse of 3/4 and 4/4
-and moves one late in every other named meter: 6/8's second pulse, at step 6,
-plays at 6⅔. Test: `swing.test.ts`, whose tests under "swing over a meter" cite
-T11, over every named meter and every pulse of 8 bars. Source: #105, the ratchet
-run on the meter. Status: measured (full swing onto 12/8); measured, failing
-(swing by 4-step beats, for 5/8, 6/8, 7/8, 9/8, 10/8 and 12/8). Lands in: #27,
-where the transport learns a meter (T10).
+**T11. Swing never moves a pulse's start, and a 2-eighth pulse swings at the 8th
+level wherever it stands in the meter.** Witness: `swingMap(swing, meter)` reads
+its 8th level off the meter's own pulses (`meterOnSteps`), each swung on its own
+start rather than a fixed 4-step modulus: a 2-eighth pulse gets the same
+midpoint-late transform 4/4's beat always had, and any other pulse length passes
+through unchanged (T16). The 16th level stays the fixed 2-step span it always
+was, meter-free, so it shuffles inside every eighth regardless. Counterexample:
+a pulse start that swing moves, at either level, or a 2-eighth pulse whose 8th
+level doesn't move. Test: `swing.test.ts`, whose tests under "swing over a
+meter" cite T11: every pulse of every named meter kept at every swing sampled; a
+2-eighth pulse's offbeat 8th onto the triplet at full swing, in every meter that
+has one; the round trip, on and off the grid, over every named meter; and 4/4's
+eighths landing on 12/8's third eighths, as before. Source: #105, the ratchet
+run on the meter; #121, decided the easiest option to reverse. Status: measured
+(every named meter, both levels). Decided: #121, on measured options (kept the
+pulse-anchored 8th level, the direct generalisation of 4/4's, over redesigning
+the level itself). Lands in: #27, where the transport learns a meter (T10).
+
+**T16. A pulse of more than two eighths plays straight at the 8th level until a
+real performance says otherwise; its 16ths still swing.** Witness: `swingMap`'s
+8th level passes any pulse but a 2-eighth one through unchanged, so 6/8, 7/8's
+and 9/8's ternary pulses, and 12/8's, swing only at the 16th level; 5/8, 7/8 and
+10/8's 2-eighth pulses still swing at both. Counterexample: a recording whose
+feel needs a ternary pulse's 8th level to move, or a style for which a shared
+axis, not a plain default, should decide it. #121's research (Polak's Jembe and
+Mande fieldwork, Balkan aksak, Weede's drum-computer model, Roger Linn's MPC
+swing) found no one ratio for a ternary or uneven pulse: each tradition keeps
+its own, while every source agrees the 16th level is safe everywhere and the
+beat (here, the pulse) itself stays put outside aksak. So straight is the
+reversible default, not a measured feel: the harder choice, a ternary axis of
+its own or a fold into swing as "rhythmic complexity", waits on real playing,
+not generated data. Test: none yet; `swing.test.ts`'s "swing over a meter" tests
+show the default holds and that its 16ths still shuffle, not that straight is
+right. Source: #121, its research comment. Status: speculative. Decided: #121,
+ahead of the evidence (the easiest option to reverse). Lands in: #144, which
+measures a ternary feel against real playing and asks whether it is performer
+expression, a style axis, or one with swing.
 
 **T12. An onset off the meter is an altered degree of it only where the meter's
 pulses are unequal.** Witness: the numerals' `b` and `#` move by
@@ -437,19 +463,27 @@ slower level's output is held as a faster one's environment.** Witness: the
 port's rates: the section plan per section (`planner`: the section kind, the key
 and the theme), the style for composing per bar (`band`), swing per beat
 (`swingOf`), tempo per step (`tempoMap`), scheduling per tick (`transport`, 25
-ms). The band holds each section's plan for its eight bars, and decides a bar,
+ms). The band holds each section's plan for its eight bars, and commits a bar,
 its plan and chords, when it composes the bar before, so what a part leads into
-is what plays. Counterexample: a value read at two rates that disagree, such as
-the prototype's tempo, which plays per step and is written once per bar (S1).
+is what plays; but nothing it decides reads more than the seed, the bar, the
+style and the wish, so `lookAhead` runs those same decisions forward any
+distance, not only one bar: the harmonic layer needs no key frame beyond the
+plan's own carried state. Counterexample: a value read at two rates that
+disagree, such as the prototype's tempo, which plays per step and is written
+once per bar (S1); or a forecast that disagrees with what the band then plays.
 Once a value has been read at its rate, it holds: a change in the middle of a
 beat re-swung the rest of that beat by up to 0.36 steps, so the transport keeps
 a started beat's swing. Test: `band.test.ts`, "holds each section for its eight
-bars (C3)" and "plays each section's plan and its theme's chords, each decided
-when the bar before it is composed (C3)"; `tempo.test.ts`, "swings each beat by
-the swing where the beat starts (C3)"; `transport.test.ts`, "keeps a beat’s
-swing once the beat has started, whatever the style does next (C3)". Source:
-Pd's control and signal rates, multirate signal processing, #37 step 3, #40's
-review. Status: measured (port); open (the rates the IM writes). Lands in: #13.
+bars (C3)", "plays each section's plan and its theme's chords, each decided when
+the bar before it is composed (C3)" and "forecasts the plan and chords of the
+bars the band then plays, from any bar, bar 0 included, any distance ahead
+(C3)"; `tempo.test.ts`, "swings each beat by the swing where the beat starts
+(C3)"; `transport.test.ts`, "keeps a beat’s swing once the beat has started,
+whatever the style does next (C3)". Source: Pd's control and signal rates,
+multirate signal processing, #37 step 3, #40's review; #7's comment on #26's
+tests, "harmony can be decided any distance ahead"; #131, catalogue upkeep.
+Status: measured (port, committing a bar ahead and forecasting any distance
+ahead); open (the rates the IM writes). Lands in: #13.
 
 **C4. A part morphs: as the style moves, its hits and tones come and go one at a
 time.** Witness: the drums, whose threshold per step and sound is drawn once per
