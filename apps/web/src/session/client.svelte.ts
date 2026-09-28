@@ -24,8 +24,11 @@ import {
   type Song,
   applyForecast,
   type ClockReading,
+  EMPTY_SPREAD,
+  type Spread,
   hostClock,
   skewOf,
+  spreadWith,
 } from '@jambot/session';
 import type { Player } from '../player.svelte.ts';
 import type { DeviceClocks } from './clocks.ts';
@@ -38,6 +41,16 @@ export const WELCOME_WAIT = 2000;
 export const PING_EVERY = { settling: 50, steady: 250 } as const;
 
 export type ClientStatus = 'idle' | 'joining' | 'joined';
+
+/** A client's counters of its clock set by the host's (#27). */
+export interface NetworkTiming {
+  /** Every ping's round trip, in milliseconds. */
+  readonly trips: Spread;
+  /** The clock as read now: its best round trip, the jumps it followed. */
+  readonly reading: ClockReading | null;
+  /** The host's heard moment less this output's, in seconds, once every clock is trusted. */
+  readonly skew: number | null;
+}
 
 export class ClientSession {
   status: ClientStatus = $state('idle');
@@ -56,6 +69,7 @@ export class ClientSession {
   #link: ClientLink | null = null;
   #clock = hostClock.initial;
   #reading: ClockReading | null = null;
+  #trips: Spread = EMPTY_SPREAD;
   #pinging: ReturnType<typeof setTimeout> | null = null;
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
   #held: ForecastBar[] = [];
@@ -65,6 +79,12 @@ export class ClientSession {
   constructor(player: Player, clocks: DeviceClocks) {
     this.#player = player;
     this.#clocks = clocks;
+  }
+
+  /** The counters of this session's clock, while joined or joining. */
+  get timing(): NetworkTiming | null {
+    if (this.status === 'idle') return null;
+    return { trips: this.#trips, reading: this.#reading, skew: this.#skew() };
   }
 
   async join(lobby: Lobby, session: string, name: string) {
@@ -111,6 +131,7 @@ export class ClientSession {
     this.#pinging = this.#welcomeWait = null;
     this.#clock = hostClock.initial;
     this.#reading = null;
+    this.#trips = EMPTY_SPREAD;
     this.#pending = null;
     this.#held = [];
     this.#player.unfollow();
@@ -201,6 +222,7 @@ export class ClientSession {
     });
     this.#clock = carried;
     this.#reading = output;
+    this.#trips = spreadWith(this.#trips, (received - sent) * 1000);
     if (output.trip !== null) this.trip = Math.round(output.trip * 1000);
     if (output.tooFar)
       return this.#end(

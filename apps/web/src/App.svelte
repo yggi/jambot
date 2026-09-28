@@ -9,6 +9,7 @@
   import SessionPanel from './components/SessionPanel.svelte';
   import Stage from './components/Stage.svelte';
   import StylePanel from './components/StylePanel.svelte';
+  import TimingPanel from './components/TimingPanel.svelte';
   import Transport from './components/Transport.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { bandOutput } from './audio/band-output.ts';
@@ -25,6 +26,7 @@
   import { websocketLobby } from './session/websocket.ts';
   import { ClientSession } from './session/client.svelte.ts';
   import { HostSession } from './session/host.svelte.ts';
+  import { type TimingReport, timingFile, timingReport } from './timing.ts';
 
   const midiSettings = new MidiSettings();
 
@@ -79,6 +81,33 @@
    * client keeps this even while its own controls rest.
    */
   const metronome = new Metronome(() => player.track.bpm.to);
+
+  /** The timing counters, read now: shown with `?timing` in the address (#27). */
+  const timingShown = new URLSearchParams(location.search).has('timing');
+  const takeTiming = (): TimingReport =>
+    timingReport(
+      {
+        mode: player.mode,
+        transport: player.timing,
+        output: sharedOffset?.estimate ?? null,
+        network: clientSession.timing,
+        lacked: player.lacked,
+      },
+      { taken: new Date().toISOString(), userAgent: navigator.userAgent },
+    );
+  let timing: TimingReport = $state.raw(takeTiming());
+  $effect(() => {
+    if (!timingShown) return;
+    const id = setInterval(() => (timing = takeTiming()), 500);
+    return () => clearInterval(id);
+  });
+  function exportTiming() {
+    const { name, text } = timingFile(takeTiming());
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const link = Object.assign(document.createElement('a'), { href: url, download: name });
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
 
@@ -237,6 +266,10 @@
   />
 
   <MusePanel muse={player.hud.muse} onforget={() => player.forgetMotif()} />
+
+  {#if timingShown}
+    <TimingPanel report={timing} onexport={exportTiming} />
+  {/if}
 
   <MidiPanel
     settings={midiSettings}

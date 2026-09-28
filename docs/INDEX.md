@@ -196,6 +196,10 @@ Every doc and code area, as a tree. Add a line when you add one.
       `faults.test.ts` runs every fault against a client's clock and the
       transport, each claim a bound
     - `src/forecast.ts`: the bars ahead, sent as what changed
+    - `src/timing.ts`: timing counters (#27): `Spread`, durations in
+      whole-millisecond bins with exact extremes; `timedTick`, the transport's
+      tick intervals, scheduling margins, steps laid and missed, and judgements
+      dropped
     - `src/session.test.ts`: a host and a client over a link with delay, jitter
       and loss, playing the same notes at the same moments
     - `src/index.ts`: the package's barrel, everything above re-exported
@@ -297,6 +301,8 @@ Every doc and code area, as a tree. Add a line when you add one.
         client-only and independent of the band
       - `src/components/SessionPanel.svelte`: host a session, join one, leave or
         close it; who joined, and how far the host is
+      - `src/components/TimingPanel.svelte`: the timing counters, shown with
+        `?timing`, and Export
     - `src/player.svelte.ts`: runs the transport on the audio clock and plays
       its events; the screen follows what is heard. Starting, playing and
       stopped, with a stop that cancels a pending start. It keeps the bars
@@ -312,7 +318,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       for its piano roll; `harmonicHistory` is every pitch class's weight,
       decaying, for the key wheel's radar. It plays alone, hosts (telling
       `hosting` what it does) or follows a host (`follow`, and the `follow…`
-      calls), on the host's clock through `skew`
+      calls), on the host's clock through `skew`; `timing` counts its ticks,
+      margins and steps missed
     - `src/session/`: host and client mode in the app
       ([brief](briefs/host-mode.md))
       - `lobby.ts`: `Lobby`, where sessions are found, and the links it gives a
@@ -364,6 +371,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       offset a session reads
     - `src/audio/band-output.ts`: `bandOutput`, the built-in synth and MIDI out
       together or either alone, riding on one shared clock
+    - `src/timing.ts`: `timingReport`, the device's timing counters in
+      milliseconds, and `timingFile`, the export
     - `src/conductor.ts`: intents (presets, sliders, keys) into glides on the
       style track and the key wished for
     - `src/audio/drums.ts`: the built-in drum kit
@@ -396,6 +405,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       online and offline
     - `e2e/session.e2e.ts`: two pages on one session, their kicks measured
       against each other, and a client's motif in the host's Muse
+    - `e2e/timing.e2e.ts`: the timing export against the harness: a hold of the
+      audio is a buffer dropped, a stall a long tick and steps missed
     - `e2e/audio.ts`: listening to the app in the browser, for the checks
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e, build;
   started by hand while #4 is open
