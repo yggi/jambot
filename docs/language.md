@@ -986,6 +986,37 @@ the motif does, and two motifs have the same edges exactly when `strans` and
 operators, Strudel, the names round, E13. Status: measured. Decided: #7, on
 measured options (E13, the names round). Lands in: #79, #63.
 
+**U6. A note and an onset are one token shape, a degree and an accidental,
+differing only in the step an accidental moves by.** Witness: `alteredHeight`
+(`numerals.ts`) writes a pitch token,
+`heightOf(scale, degree) + accidental * step`, with `step` the key's chromatic
+step (P5); `onsetToken`/`onsetHeight` (`meter.ts`, #125) write a time token the
+same way, with `step` fixed to one grid step, since the bar's eighths are always
+evenly spaced and need no key's unevenness to alter (#125). Both take a degree
+and an accidental in {−1, 0, 1} (time's is only 0 or 1, never below its own
+eighth); neither is a slot sequence with rests, the way the port's rhythm is
+written today. Over the band's own output (E14, #126), every bass and lead note
+has a pitch token (19,091 of 19,091: `chordScale` always gives a scale and
+`alteredDegree` always finds a single accidental for what the composer plays)
+and every onset round-trips through the time token exactly (82,984 of 82,984).
+Written this way instead of on the 16-step grid, a bar's rhythm lines take 76.6%
+fewer tokens (67,890 against 289,728, over 18,108 lines): more than E15's 43.6%,
+since E15 kept a slot sequence at a coarser resolution while this drops the
+rests a token stream never needs, the way a pitch line already doesn't write
+them. Counterexample: a note or onset neither token reaches, or a case the time
+token needs a special rule for that the pitch token doesn't. None found over the
+corpus; #126's open list is where one would be filed. Test:
+`packages/engine/experiments/tokengrammar.ts` (E14), printed, not asserted: the
+corpus is generated, not a fixed suite (#121's caution about generated data
+applies here too). `meter.test.ts`, "is alteredHeight/a generic alteredDegree on
+the eighths, with one grid step and no parallel-major search, since the eighths
+are always evenly spaced and never need one (#125, #126)" holds the shape itself
+as a real test. Source: #7's original speculation (a scale and a rhythm as one
+object), #116 §6, #125, #126 (E14). Status: measured (the shape, and full
+coverage over the generated corpus); open (a real captured corpus, R1's
+musician's read, and whether the score adopts it — #63's call). Lands in: #63,
+#126.
+
 ### Analysis and provenance
 
 **A1. The round trip from the composer's events through the text and back is
@@ -1279,8 +1310,8 @@ the players converges.
 
 ## Experiments
 
-Each answers one entry, or one of #7's and #116's decisions. E2 to E7 and E14
-have not run; the others have.
+Each answers one entry, or one of #7's and #116's decisions. E2 to E7 have not
+run; the others have.
 
 - **E1. Cold against warm compile** (S1, S2, F2; Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
@@ -1432,6 +1463,24 @@ have not run; the others have.
     takes 52% of the tokens it takes as notes.
   - Symmetries: 10 of the lead's 132 shapes have one, so several operators give
     the same bar, and `canonicalOp` chooses which the score writes (U5).
+
+- **E14. One token grammar for pitch and time** (U6; #7, #116 §6, #125, #126),
+  in
+  [`packages/engine/experiments/tokengrammar.ts`](../packages/engine/experiments/tokengrammar.ts)
+  (about 1 s), over E1's shape. It writes every bass and lead note as a pitch
+  token (`alteredHeight`/`alteredDegree` over the bar's chord's implied scale)
+  and every onset as a time token (`onsetToken`/`onsetHeight`, one grid step,
+  #125), the same degree-and-accidental shape either way.
+  - Every one of 19,091 bass and lead notes has a pitch token: `chordScale`
+    always gives a scale and `alteredDegree` always finds it in one accidental,
+    over the corpus.
+  - Every one of 82,984 onsets round-trips through the time token exactly.
+  - Rhythm written as time tokens instead of the 16-step grid takes 76.6% fewer
+    tokens (67,890 against 289,728, over 18,108 lines): more than E15's 43.6%,
+    since a token stream drops the rests a slot sequence still writes.
+  - No case needed a rule the other tower doesn't have, over this corpus. Not
+    yet measured: a real captured corpus rather than the engine's own, and
+    whether a musician reads it as a lead sheet (R1).
 
 - **E15. The band's onsets against the meter** (T10, T12; #116's question (k),
   #123), in
