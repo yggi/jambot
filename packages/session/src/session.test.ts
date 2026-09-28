@@ -19,6 +19,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { CLOCK } from './clock.ts';
 import { EAR, earListen } from './ear.ts';
+import { orderedArrival } from './faults.ts';
 import { followSource } from './follow.ts';
 import { sentBars } from './host.ts';
 import type { SentBar } from './protocol.ts';
@@ -38,8 +39,16 @@ interface Link {
   /** One-way delay, in seconds, and how much more it varies by. */
   delay: number;
   jitter: number;
-  /** The chance a bar is lost. */
+  /** The chance a bar is lost, or where the link keeps order, a message. */
   loss: number;
+  /**
+   * Where given, the link keeps order, as TCP keeps a WebSocket's: a
+   * message lost is sent again after this many seconds, doubled on each
+   * loss after, and every message behind it waits (`orderedArrival`). The
+   * host then also sends what shares its socket: an answer to a ping every
+   * 250 ms, and the bars ahead and the Muse with each bar.
+   */
+  recovery?: number;
 }
 
 interface Run {
@@ -50,6 +59,8 @@ interface Run {
   lacked: number;
   /** The bars the host sent that the link lost. */
   lost: Set<number>;
+  /** How long past its leg's delay the link held each bar, in seconds, where it keeps order. */
+  held: Map<number, number>;
   changedAt: number | null;
 }
 
@@ -63,10 +74,14 @@ interface Run {
  * from the head once its head reaches that step, and the new track reaches
  * the client over the link too.
  */
-function jam(link: Link, seconds: number, change: number | null = null): Run {
+function jam(link: Link, seconds: number, change: number | null = null, bpm?: number): Run {
   const draw = draws(7);
   const offset = 3.2;
-  let hostTrack: StyleTrack = holding({ ...INITIAL_STYLE, energy: 0.8 });
+  let hostTrack: StyleTrack = holding({
+    ...INITIAL_STYLE,
+    energy: 0.8,
+    ...(bpm !== undefined && { bpm }),
+  });
   let clientTrack = hostTrack;
   const env = (track: StyleTrack): TransportEnv => ({
     seed: 11,
@@ -79,12 +94,29 @@ function jam(link: Link, seconds: number, change: number | null = null): Run {
   let hostCarried = transport.initial;
   let clientCarried = follower.initial;
   const wire: { at: number; sent?: SentBar; track?: StyleTrack }[] = [];
+  const stream = { sent: 0, arrived: 0 };
+  const run: Run = {
+    host: [],
+    client: [],
+    late: 0,
+    lacked: 0,
+    lost: new Set(),
+    held: new Map(),
+    changedAt: null,
+  };
   const send = (now: number, message: { sent?: SentBar; track?: StyleTrack }) => {
+    if (link.recovery !== undefined) {
+      const faults = { there: link.delay, jitter: link.jitter, loss: link.loss, seed: 7 };
+      const at = orderedArrival(faults, link.recovery, stream.sent++, now, stream.arrived);
+      stream.arrived = at;
+      if (message.sent) run.held.set(message.sent.bar.bar, at - now - link.delay);
+      wire.push({ at, ...message });
+      return null;
+    }
     if (message.sent && draw() < link.loss) return message.sent.bar.bar;
     wire.push({ at: now + link.delay + draw() * link.jitter, ...message });
     return null;
   };
-  const run: Run = { host: [], client: [], late: 0, lacked: 0, lost: new Set(), changedAt: null };
 
   for (let ms = 900; ms < seconds * 1000; ms += 5) {
     const t = ms / 1000;
@@ -100,7 +132,13 @@ function jam(link: Link, seconds: number, change: number | null = null): Run {
       for (const sent of sentBars(output.composed, output.steps, carried!.head, hostTrack)) {
         const lost = send(t, { sent });
         if (lost !== null) run.lost.add(lost);
+        // The bars ahead and the Muse go with each bar, on the same socket.
+        if (link.recovery !== undefined) {
+          send(t, {});
+          send(t, {});
+        }
       }
+      if (link.recovery !== undefined && ms % 250 === 0) send(t, {});
       if (change !== null && run.changedAt === null && carried!.head.step >= change) {
         run.changedAt = carried!.head.step;
         hostTrack = glideTo(hostTrack, { bpm: 130 }, run.changedAt, SLIDER_GLIDE);
@@ -301,5 +339,42 @@ describe("a client's motif, over the link", () => {
     const { bar, dropped } = motifOver(180, 0.01, 0.9);
     expect(dropped.map((d) => d.bar)).toEqual([3]);
     expect(bar.offer).toBeNull();
+  });
+});
+
+describe('bars over a link that keeps order, as a WebSocket does (#27, T13)', () => {
+  /** How often each side ticks. */
+  const TICK = 0.025;
+
+  it('lack a bar exactly where the stream held it past a beat, at 60, 120 and 180 bpm (T13)', () => {
+    // 5% of messages lost, each sent again after a second: RFC 6298's least
+    // wait, and far more loss than a room's Wi-Fi, so both sides are met.
+    for (const bpm of [60, 120, 180]) {
+      const run = jam({ delay: 0.004, jitter: 0.006, loss: 0.05, recovery: 1 }, 120, null, bpm);
+      const beat = 60 / bpm;
+      const started = barsOf(run.client)[0]!;
+      const last = barsOf(run.host).at(-1)!;
+      const played = new Set(barsOf(run.client));
+      const judged = [...run.held].filter(([bar]) => bar > started && bar < last);
+      const lacked = judged.filter(([bar]) => !played.has(bar));
+      expect(lacked.length).toBeGreaterThan(0);
+      expect(run.late).toBe(0);
+      for (const [bar, held] of judged) {
+        if (held < beat - 2 * TICK) expect(played.has(bar)).toBe(true);
+        if (held > beat + 2 * TICK) expect(played.has(bar)).toBe(false);
+      }
+    }
+  });
+
+  it('lack no bar in two minutes where the stream recovers within 200 ms, the least Linux waits, over 2% loss (T13)', () => {
+    let longest = 0;
+    for (const bpm of [60, 120, 180]) {
+      const run = jam({ delay: 0.004, jitter: 0.006, loss: 0.02, recovery: 0.2 }, 120, null, bpm);
+      longest = Math.max(longest, ...run.held.values());
+      expect(run.lacked).toBe(0);
+      expect(run.late).toBe(0);
+    }
+    // The stream did hold bars up behind a loss, a recovery and more.
+    expect(longest).toBeGreaterThan(0.2);
   });
 });
