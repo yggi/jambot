@@ -6,6 +6,7 @@ import globals from 'globals';
 import ts from 'typescript-eslint';
 
 const pureSources = [
+  'packages/analyzer/src/**',
   'packages/engine/src/**',
   'packages/score/src/**',
   'packages/session/src/**',

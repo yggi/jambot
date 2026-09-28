@@ -34,6 +34,7 @@ These principles come from the prototype
 | `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
 | `packages/score/`                                      | The score: a bar as text and back, pure TypeScript, no I/O                    |
 | `packages/session/`                                    | Host and client mode: pure TypeScript, no I/O                                 |
+| `packages/analyzer/`                                   | The parser: MIDI into the step grid, pure TypeScript, no I/O                  |
 | `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
 | `apps/lobby/`                                          | The lobby server: sessions found by name and relayed over WebSockets          |
 | `tooling/`                                             | The repository's own gates and tools: lint rules, hooks, the pawl, the deploy |

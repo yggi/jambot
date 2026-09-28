@@ -205,6 +205,23 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/session.test.ts`: a host and a client over a link with delay, jitter
       and loss, playing the same notes at the same moments
     - `src/index.ts`: the package's barrel, everything above re-exported
+  - `analyzer/`: the parser, pure TypeScript (#141, the analyzer brief's steps
+    1–2, `docs/briefs/analyzer.md`)
+    - `src/tracks.ts`: `normaliseTracks`, dropping an empty track and a later
+      exact duplicate, each counted
+    - `src/meter.ts`: `meterSpans`, a file's time-signature events as spans,
+      each marked 4/4 or not; only a 4/4 span is quantised, every other one
+      reported
+    - `src/tempo.ts`: `ticksTimeMap`, a file's own tempo events as a `TimeMap`
+      between ticks and seconds, `played` and `written` exact inverses (A6)
+    - `src/swing.ts`: `estimateSwing` and `quantiseSection`, a 4/4 span's onsets
+      read back onto the step grid (T10, `barAt`/`stepInBar`, `@jambot/engine`)
+      by finding the swing (`swingMap`) that best un-swings them, with the
+      leftover kept as microtiming per note (A6)
+    - `src/load.ts`: `loadMidi`, the whole slice: load, normalise, meter report
+      and quantised sections, each with its own confidence, and a log of
+      everything dropped or left unquantised
+    - `src/index.ts`: the package's barrel, everything above re-exported
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown firing
   - `docs-wrap.test.ts`: docs wrap at 80 columns (#45), `.prettierrc.json`'s
