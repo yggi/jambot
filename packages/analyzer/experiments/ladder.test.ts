@@ -1,10 +1,24 @@
 import { DRUM_NOTES } from '@jambot/engine';
 import { type ScoreBar, compileBar, encodeBar } from '@jambot/score';
-import { parseNumeral } from '@jambot/theory';
+import {
+  DIATONIC_MODE_NAMES,
+  type Helix,
+  type Motif,
+  NOOP,
+  alteredDegree,
+  applyOp,
+  canonicalOp,
+  diatonicMode,
+  even,
+  heightOf,
+  parseNumeral,
+  shift,
+} from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { loadMidi } from '../src/load.ts';
 import { toDrumNotation, toScoreDrums } from '../src/notation.ts';
-import { metronomeRung } from './ladder.ts';
+import type { QuantisedNote } from '../src/swing.ts';
+import { metronomeRung, scaleRung } from './ladder.ts';
 
 /** A bar around a drum line: fixed placeholders for what this rung doesn't test. */
 const around = (drums: ScoreBar['drums']): ScoreBar => ({
@@ -86,5 +100,117 @@ describe('metronomeRung (rung 0)', () => {
     expect(text).toContain('bd "bd ~@3 bd ~@3 bd ~@3 bd ~@3"');
     expect(compileBar(text)).toEqual(bar);
     expect(encodeBar(compileBar(text))).toBe(text);
+  });
+});
+
+/** Every key a diatonic scale can start from: 12 tonics, 7 modes, degree 0 in octave 4 (C4 = 60). */
+const EVERY_SCALE = DIATONIC_MODE_NAMES.flatMap((mode) =>
+  Array.from({ length: 12 }, (_, tonic) => ({
+    name: `${tonic} ${mode}`,
+    scale: shift(diatonicMode(mode), 60 + tonic),
+  })),
+);
+
+/** Up an octave and back, the top held twice: 16 quarters, 4 bars. */
+const UP_AND_DOWN = [0, 1, 2, 3, 4, 5, 6, 7, 7, 6, 5, 4, 3, 2, 1, 0];
+
+/** Half of the parsed line, two bars from `from`, as a motif of the key's degrees from the line's first note (U4). */
+function halfAsMotif(notes: readonly QuantisedNote[], key: Helix, from: number): Motif {
+  const half = notes.filter((n) => n.bar >= from && n.bar < from + 2);
+  const read = half.map((n) => alteredDegree(key, n.midi)!);
+  const origin = alteredDegree(key, notes[0]!.midi)!.degree;
+  return {
+    cycle: 32,
+    onsets: half.map((n) => (n.bar - from) * 16 + n.step),
+    degrees: read.map((r) => r.degree - origin),
+    accidentals: read.map((r) => r.accidental),
+  };
+}
+
+describe('scaleRung (rung 1)', () => {
+  it('the parser recovers a scale up and down in every key exactly: role, grid, pitch, tempo and swing (Q10)', () => {
+    for (const { name, scale } of EVERY_SCALE) {
+      const result = loadMidi(scaleRung(scale, 96));
+      expect(result.log, name).toEqual([]);
+      expect(result.roles, name).toEqual([expect.objectContaining({ role: 'lead' })]);
+      expect(result.sections, name).toHaveLength(1);
+      const { notes, swing } = result.sections[0]!;
+      expect(swing, name).toBeCloseTo(0, 2);
+      expect(
+        notes.map((n) => [n.bar, n.step, n.length, n.midi]),
+        name,
+      ).toEqual(
+        UP_AND_DOWN.map((degree, i) => [
+          Math.floor(i / 4),
+          (i % 4) * 4,
+          4,
+          heightOf(scale, degree),
+        ]),
+      );
+      notes.forEach((n) => expect(n.residual, name).toBeCloseTo(0, 6));
+    }
+  });
+
+  it('scales to a slower and a faster tempo without losing a note', () => {
+    const scale = shift(diatonicMode('ionian'), 60);
+    for (const bpm of [40, 96, 220]) {
+      const result = loadMidi(scaleRung(scale, bpm));
+      expect(result.sections[0]!.notes).toHaveLength(16);
+      expect(result.confidence).toBeGreaterThan(0.99);
+    }
+  });
+
+  it('reads back as one index on both towers: note i at beat i and at the scale’s degree i, up and back (Q10, #157)', () => {
+    const beats = even(4, 16);
+    for (const { name, scale } of EVERY_SCALE) {
+      const notes = loadMidi(scaleRung(scale, 96)).sections[0]!.notes;
+      const key = { cycle: 12, heights: scale.heights.map((h) => h - 60) };
+      const read = notes.map((n) => alteredDegree(key, n.midi)!);
+      const origin = read[0]!.degree;
+      expect(
+        notes.map((n) => n.bar * 16 + n.step),
+        name,
+      ).toEqual(UP_AND_DOWN.map((_, i) => heightOf(beats, i)));
+      expect(
+        read.map((r) => [r.degree - origin, r.accidental]),
+        name,
+      ).toEqual(UP_AND_DOWN.map((degree) => [degree, 0]));
+    }
+  });
+
+  it('the descent is the ascent under one operator on either tower, `rev` or `mirror.strans(7)`, and the canonical one is on pitch (U5, #157)', () => {
+    for (const { name, scale } of EVERY_SCALE) {
+      const notes = loadMidi(scaleRung(scale, 96)).sections[0]!.notes;
+      const key = { cycle: 12, heights: scale.heights.map((h) => h - 60) };
+      const up = halfAsMotif(notes, key, 0);
+      const down = halfAsMotif(notes, key, 2);
+      const rev = { ...NOOP, rev: true };
+      const mirrored = { ...NOOP, mirror: true, strans: 7 };
+      expect(applyOp(rev, up), name).toEqual(down);
+      expect(applyOp(mirrored, up), name).toEqual(down);
+      expect(canonicalOp(rev, up), name).toEqual(mirrored);
+    }
+  });
+
+  it('counted in semitones rather than the key’s degrees, the pitch mirror gives the descent in dorian alone (U5)', () => {
+    const holds = DIATONIC_MODE_NAMES.filter((mode) => {
+      const notes = loadMidi(scaleRung(shift(diatonicMode(mode), 60), 96)).sections[0]!.notes;
+      const inSemitones = (from: number): Motif => {
+        const half = notes.filter((n) => n.bar >= from && n.bar < from + 2);
+        return {
+          cycle: 32,
+          onsets: half.map((n) => (n.bar - from) * 16 + n.step),
+          degrees: half.map((n) => n.midi - notes[0]!.midi),
+          accidentals: half.map(() => 0),
+        };
+      };
+      const up = inSemitones(0);
+      const down = inSemitones(2);
+      expect(applyOp({ ...NOOP, rev: true }, up), mode).toEqual(down);
+      return (
+        JSON.stringify(applyOp({ ...NOOP, mirror: true, strans: 12 }, up)) === JSON.stringify(down)
+      );
+    });
+    expect(holds).toEqual(['dorian']);
   });
 });

@@ -1028,7 +1028,11 @@ of 3 to 7 steps that keeps neighbours next to each other is one `late` or one
 operators that give one result are one coset of its stabilizer, and
 `canonicalOp` is a function of the result and a fixed point; the edges turn as
 the motif does, and two motifs have the same edges exactly when `strans` and
-`late` take one to the other. Source: #7 (d), Lewin's T and I, quintenzirkel's
+`late` take one to the other; `packages/analyzer/experiments/ladder.test.ts`,
+whose tests cite U5: read back from MIDI in every key of every diatonic mode, a
+scale's descent is its ascent under `rev` and under `mirror.strans(7)` alike,
+`canonicalOp` writes the second, and counted in semitones the mirror gives the
+descent in dorian alone (Q10). Source: #7 (d), Lewin's T and I, quintenzirkel's
 operators, Strudel, the names round, E13. Status: measured. Decided: #7, on
 measured options (E13, the names round). Lands in: #79, #63.
 
