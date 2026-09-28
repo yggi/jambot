@@ -181,6 +181,93 @@ export function head(motif: Motif, count: number): Motif {
   return withAccents({ cycle, onsets: o, degrees: d, accidentals: a }, x);
 }
 
+/** One note or rest of a motif, and where it starts. */
+interface Element {
+  readonly onset: number;
+  readonly degree: number | null;
+  readonly accidental: number;
+  readonly accent: number;
+}
+
+/** A motif from its elements, rising: a rest after a rest joins it, round the cycle too. */
+function fromElements(cycle: number, elements: readonly Element[], accented: boolean): Motif {
+  let kept = elements.filter((e, i) => e.degree !== null || elements[i - 1]?.degree !== null);
+  if (kept.length > 1 && kept[0]!.degree === null && kept.at(-1)!.degree === null)
+    kept = kept.slice(1);
+  return withAccents(
+    {
+      cycle,
+      onsets: kept.map((e) => e.onset),
+      degrees: kept.map((e) => e.degree),
+      accidentals: kept.map((e) => e.accidental),
+    },
+    accented ? kept.map((e) => e.accent) : undefined,
+  );
+}
+
+const elementsOf = (motif: Motif, at = 0): Element[] =>
+  motif.onsets.map((onset, i) => ({
+    onset: at + onset,
+    degree: motif.degrees[i]!,
+    accidental: motif.accidentals[i]!,
+    accent: motif.accents?.[i] ?? 0,
+  }));
+
+/**
+ * Bars in a row as one motif, a phrase on the cycle of the bars together
+ * (T15). A bar reads round its own cycle, so what sounds before its first
+ * onset is its own last note or rest: a rest runs on into the next bar's
+ * start as it did into its own, but a note would be held from a bar that
+ * isn't there. Undefined when a bar begins inside its own last note.
+ */
+export function joinBars(bars: readonly Motif[]): Motif | undefined {
+  const elements: Element[] = [];
+  let at = 0;
+  for (const bar of bars) {
+    if (bar.onsets[0] !== 0) {
+      if (bar.degrees.at(-1) !== null) return undefined;
+      elements.push({ onset: at, degree: null, accidental: 0, accent: 0 });
+    }
+    elements.push(...elementsOf(bar, at));
+    at += bar.cycle;
+  }
+  return fromElements(
+    at,
+    elements,
+    bars.some((b) => b.accents),
+  );
+}
+
+/**
+ * A phrase back into bars of these cycles: `joinBars` undone. Undefined
+ * where a note is held over a bar line, which bars on their own cannot
+ * write, or where a bar would hold no note.
+ */
+export function splitBars(phrase: Motif, cycles: readonly number[]): Motif[] | undefined {
+  if (cycles.reduce((a, b) => a + b, 0) !== phrase.cycle)
+    throw new Error(
+      `splitBars: bars of ${cycles.join('+')} steps do not make a cycle of ${phrase.cycle}`,
+    );
+  const elements = elementsOf(phrase);
+  const bars: Motif[] = [];
+  let start = 0;
+  for (const cycle of cycles) {
+    const within = elements
+      .filter((e) => e.onset >= start && e.onset < start + cycle)
+      .map((e) => ({ ...e, onset: e.onset - start }));
+    if (within[0]?.onset !== 0) {
+      const sounding = elements.filter((e) => e.onset < start).at(-1) ?? elements.at(-1)!;
+      if (sounding.degree !== null) return undefined;
+      within.unshift({ onset: 0, degree: null, accidental: 0, accent: 0 });
+    }
+    const bar = fromElements(cycle, within, phrase.accents !== undefined);
+    if (!bar.degrees.some((d) => d !== null)) return undefined;
+    bars.push(bar);
+    start += cycle;
+  }
+  return bars;
+}
+
 /** The operators that leave the motif as it is: finite, as the motif has a note. */
 export function stabilizer(motif: Motif): MotifOp[] {
   const found: MotifOp[] = [];

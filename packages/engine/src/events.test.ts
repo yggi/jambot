@@ -10,6 +10,7 @@ import {
   beatAt,
   beatInBar,
   beatStart,
+  clockOf,
   onBeat,
   stepInBar,
   type DrumRole,
@@ -156,6 +157,72 @@ describe('the song’s clock', () => {
       expect(barStart(barAt(x)) + stepInBar(x)).toBe(x);
       expect(beatStart(beatAt(x))).toBeLessThanOrEqual(x);
       expect(beatStart(beatAt(x) + 1)).toBeGreaterThan(x);
+    }
+  });
+});
+
+describe('a song whose meter changes', () => {
+  const names = Object.keys(METERS) as (keyof typeof METERS)[];
+  /** Two bars of one meter, two of another, two of the first again: 4/4 → 7/8 → 4/4. */
+  const song = (a: keyof typeof METERS, b: keyof typeof METERS) =>
+    clockOf([
+      { bar: 0, meter: METERS[a] },
+      { bar: 2, meter: METERS[b] },
+      { bar: 4, meter: METERS[a] },
+    ]);
+
+  it('starts each bar where the one before ends, at the running sum of their lengths: 4/4 → 7/8 → 4/4 (T14)', () => {
+    const clock = song('4/4', '7/8');
+    expect([0, 1, 2, 3, 4, 5, 6].map(clock.barStart)).toEqual([0, 16, 32, 46, 60, 76, 92]);
+    expect([0, 2, 4].map(clock.barSteps)).toEqual([16, 14, 16]);
+    expect([32, 38, 42, 46].map((x) => clock.beatInBar(x))).toEqual([0, 1, 2, 0]);
+    expect([32, 38, 42].map((x) => clock.onBeat(x))).toEqual([true, true, true]);
+    expect(clock.onBeat(36)).toBe(false);
+  });
+
+  it('reads every step into the bar and beat that hold it, and back, for every pair of named meters (finite: every ordered pair, every quarter-step of the song and 8 bars either side) (T14)', () => {
+    for (const a of names)
+      for (const b of names) {
+        const clock = song(a, b);
+        const end = clock.barStart(14);
+        for (let x = clock.barStart(-8); x < end; x += 0.25) {
+          const bar = clock.barAt(x);
+          expect(clock.barStart(bar)).toBeLessThanOrEqual(x);
+          expect(clock.barStart(bar + 1)).toBeGreaterThan(x);
+          expect(clock.barStart(bar) + clock.stepInBar(x)).toBe(x);
+          expect(clock.barStart(bar + 1) - clock.barStart(bar)).toBe(clock.barSteps(bar));
+          const beat = clock.beatAt(x);
+          expect(clock.beatStart(beat)).toBeLessThanOrEqual(x);
+          expect(clock.beatStart(beat + 1)).toBeGreaterThan(x);
+          // A bar's first beat is its start: beats never straddle a bar line.
+          expect(clock.barAt(clock.beatStart(beat))).toBe(bar);
+        }
+      }
+  });
+
+  it('reads each bar as its own meter’s helix: its beats are the meter’s pulses on the steps (finite: every ordered pair of named meters) (T14)', () => {
+    for (const a of names)
+      for (const b of names) {
+        const clock = song(a, b);
+        for (let bar = 0; bar < 6; bar++) {
+          const helix = meterOnSteps(METERS[bar === 2 || bar === 3 ? b : a]);
+          const start = clock.barStart(bar);
+          const beats = Array.from({ length: helix.cycle }, (_, s) => start + s).filter((x) =>
+            clock.onBeat(x),
+          );
+          expect(beats.map((x) => x - start)).toEqual(helix.heights);
+        }
+      }
+  });
+
+  it('is the song’s own clock when its meter never changes (T14, T10)', () => {
+    const constant = clockOf([{ bar: 0, meter: SONG_METER }]);
+    for (let x = -64; x < 64; x += 0.25) {
+      expect(constant.barAt(x)).toBe(barAt(x));
+      expect(constant.stepInBar(x)).toBe(stepInBar(x));
+      expect(constant.beatAt(x)).toBe(beatAt(x));
+      expect(constant.beatInBar(x)).toBe(beatInBar(x));
+      expect(constant.onBeat(x)).toBe(onBeat(x));
     }
   });
 });
