@@ -1016,6 +1016,27 @@ measured (the shape, and full coverage over the generated corpus); open (a real
 captured corpus, R1's musician's read, and whether the score adopts it — #63's
 call). Lands in: #63, #126.
 
+**U7. A drum hit's role is written by substituting a word for its sound, not a
+mark: the plain sound word is that sound's own default role.** Witness: E16
+measured three marked forms (a role on every hit, a line per role, a line per
+sound with the role marked where it isn't the default) and found a fourth,
+unmarked shape cheaper than all three — the prototype's own `gh`, a distinct
+word rather than `sd:ghost` — 20.3 tokens a bar, the least of any form, with no
+mark syntax to design at all. Extended with `fl` for fill, the port's drum line
+takes nine words, one per (sound, role) pair the corpus has:
+`bd sd gh fl rim hh oh rd ph`. Checked against `@strudel/mini` 1.2.5 (L4): every
+word parses as an ordinary sample-name token, so the shared mini-notation needs
+no drum-specific exception for it. A `sound:role` mark was rejected from the
+other side: it parses (`mini('sd:ghost')` gives `["sd","ghost"]`) but lands in
+the slot Strudel reserves for a numeric sample index (`mini('sd:2')` gives
+`["sd",2]`), so it would misplay silently on a real Strudel export rather than
+fail a test that would catch it, and it collides with the language's own
+`:1`–`:9` deviation suffix besides. Counterexample: a (sound, role) pair the
+corpus has no word for. Test: none yet; decided ahead of the encoder, #63 step
+2b writes `packages/score`'s drum line to it. Source: E16 (#63, comment); the
+Strudel check above (L4). Status: open (no code or test yet). Decided: owner, on
+measured options (E16), confirmed against Strudel. Lands in: #63 step 2b.
+
 ### Analysis and provenance
 
 **A1. The round trip from the composer's events through the text and back is
@@ -1555,6 +1576,9 @@ run; the others have.
   - Every bar with Euclidean rim hits, 1,080, has exactly the hits of one
     `even(k, 16, shift)`, with k of 3, 5 or 7 and a shift of 0 to 3, so the line
     can write them as one Euclid token.
+  - **Decided: U7.** The unmeasured fourth form, a word per (sound, role) pair,
+    is the one taken, checked against Strudel and cheaper than all three
+    measured marks.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

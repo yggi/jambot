@@ -438,7 +438,12 @@ The full description is in
   Absolute notes such as `A4` are an escape hatch, written in upper case so that
   `b3` is always a flat third (U2); the prototype still reads `a4`.
 - `pad`, `stab`: `ch` is the current chord and `nx` the next one.
-- `drums`: `bd sd gh rim hh oh rd ph`.
+- `drums`: `bd sd gh fl rim hh oh rd ph`. A hit's role, where the sound doesn't
+  settle it, is a distinct word (`gh` ghost, `fl` fill), never a `sound:role`
+  mark: a mark parses but lands in Strudel's own numeric sample-index slot
+  (`sd:2`) and collides with `:1`–`:9`'s deviation suffix below, silently, not
+  with a test that catches it (U7, decided on E16, checked against
+  `@strudel/mini`).
 - Rhythm is mini-notation: sequence, `[sub]`, `<alt per bar>`, `@weight`, `*n`,
   `(k,n,rot)`, `?`, `,` layers, `~` rest.
 - The text holds what is composed, and the compiler adds how it is played.
