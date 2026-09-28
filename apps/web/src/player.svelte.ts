@@ -54,8 +54,8 @@ import {
   PRESETS,
   SECTION_BARS,
   type ScheduledStep,
-  soundOf,
   styleAt,
+  timbreOf,
   type StyleTrack,
   type TransportCarried,
   type TransportEnv,
@@ -372,8 +372,8 @@ export class Player {
     const output = (this.#output ??= this.#surroundings.output());
     await output.resume();
     const energy = this.hud.bar?.energy ?? 0.6;
-    const sound = soundOf(styleAt(this.track, this.heard ?? 0), energy);
-    output.play(part, note, velocity, output.currentTime, ALONG_DURATION[part], sound);
+    const timbre = timbreOf(part, styleAt(this.track, this.heard ?? 0), energy);
+    output.play(part, note, velocity, output.currentTime, ALONG_DURATION[part], timbre);
   }
 
   /**
@@ -630,8 +630,8 @@ export class Player {
   #schedule(output: Output, now: number, scheduled: TransportOutput) {
     const skew = this.skew;
     this.#timing = timedTick(this.#timing, { at: this.#surroundings.page(), now, scheduled });
-    for (const { bar, event, seconds, duration, sound } of scheduled.events) {
-      output.play(event.part, event.note, event.velocity, seconds - skew, duration, sound);
+    for (const { bar, event, seconds, duration } of scheduled.events) {
+      output.play(event.part, event.note, event.velocity, seconds - skew, duration, event);
       const performer = performerOf(event.part);
       this.#sounding.push({ performer, note: event.note, seconds: seconds - skew, duration });
       this.#pattern.push(performer, bar, {

@@ -6,13 +6,12 @@ import { barChords } from './chords.ts';
 import { comp } from './comp.ts';
 import { lead } from './lead.ts';
 import { drums } from './drums.ts';
-import type { NoteEvent } from './events.ts';
+import type { DoughNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
-import { perform } from './perform.ts';
+import { perform } from './performer.ts';
 import { planner } from './plan.ts';
-import { soundOf } from './sound.ts';
 import {
   AXIS_NAMES,
   INITIAL_STYLE,
@@ -134,9 +133,8 @@ describe('the band', () => {
     let carried = band.initial;
     for (const { env } of script(9)) {
       const { output, carried: after } = band.advance(env, carried, null);
-      const { events, sound, ...bar } = output;
+      const { dough, ...bar } = output;
       const style = writtenStyle(env.style);
-      expect(sound).toEqual(soundOf(style, bar.barEnergy));
       expect(bar).toMatchObject({ seed: 9, bar: env.bar, style });
       expect(bar.barEnergy).toBe(barEnergy(style.energy, bar.plan.section.type, bar.barInSection));
       expect(bar.next).toEqual(after.next!.chords);
@@ -151,7 +149,7 @@ describe('the band', () => {
       const melody = lead.advance(read, carried.parts.lead, null);
       expect(written.filter((e) => e.part === 'lead')).toEqual(melody.output);
       expect(after.parts.lead).toEqual(melody.carried);
-      expect(events).toEqual(written.map((note) => perform(read, note)));
+      expect(dough).toEqual(written.map((note) => perform(read, note)));
       carried = after;
     }
   });
@@ -159,8 +157,8 @@ describe('the band', () => {
   it('plays each note at most once per step in every part, over a tour of the presets (F5)', () => {
     let bars = 0;
     for (const seed of range(5))
-      for (const { events } of run(seed)) {
-        const hits = events.map((e) => `${e.part}:${e.step}:${e.note}`);
+      for (const { dough } of run(seed)) {
+        const hits = dough.map((e) => `${e.part}:${e.step}:${e.note}`);
         expect(new Set(hits).size).toBe(hits.length);
         bars++;
       }
@@ -205,7 +203,7 @@ describe('the band', () => {
     let stabs = 0;
     for (const seed of range(5)) {
       const song = run(seed).flatMap((b) =>
-        b.events.map((e) => ({
+        b.dough.map((e) => ({
           ...e,
           start: b.bar * 16 + e.step,
           end: b.bar * 16 + e.step + e.length,
@@ -250,14 +248,14 @@ describe('the band', () => {
         resumed = back.carried;
         if (bar % 40 !== 20) continue;
         counts.bars++;
-        const heard = (events: readonly NoteEvent[], part: string) =>
-          events
+        const heard = (dough: readonly DoughNote[], part: string) =>
+          dough
             .filter((e) => e.part === part)
             .map((e) => `${e.step}:${e.length}:${wrap(e.note, 12)}`)
             .sort()
             .join();
         for (const part of ['bass', 'pad', 'stab', 'lead'] as const)
-          if (heard(played.output.events, part) !== heard(back.output.events, part)) counts[part]++;
+          if (heard(played.output.dough, part) !== heard(back.output.dough, part)) counts[part]++;
       }
     }
     // Bass and comp resume in another register only: the same rhythm and
@@ -287,7 +285,7 @@ describe('the band', () => {
         const a = band.advance({ ...env, offer: early }, carried, null);
         const b = band.advance({ ...env, offer: late }, carried, null);
         expect(b.output.written).toEqual(a.output.written);
-        expect(b.output.events).toEqual(a.output.events);
+        expect(b.output.dough).toEqual(a.output.dough);
         expect({ ...b.carried.parts.lead, offered: 3 }).toEqual(a.carried.parts.lead);
         carried = band.advance(env, carried, null).carried;
         compared++;

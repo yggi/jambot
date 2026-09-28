@@ -1,12 +1,12 @@
 /**
- * The built-in synth's pitched voices, coloured by the bar's sound
- * (`soundOf` in the engine): the bass a filtered saw and triangle, the
+ * The built-in synth's pitched voices, coloured by a performer's own timbre
+ * (`timbreOf` in the engine): the bass a filtered saw and triangle, the
  * chords (the pad and the stab alike) a triangle beside a slightly detuned
  * sine, the lead a filtered square and triangle. Each note is held for its
  * duration, then released. These are the prototype's voices.
  */
 
-import type { Part, Sound } from '@jambot/engine';
+import type { Part, Timbre } from '@jambot/engine';
 
 export interface Voices {
   /** Play a pitched part's note at a time on the context's clock, for a duration in seconds. */
@@ -16,7 +16,7 @@ export interface Voices {
     velocity: number,
     seconds: number,
     duration: number,
-    sound: Sound,
+    timbre: Timbre,
   ): void;
 }
 
@@ -58,37 +58,37 @@ export function voices(ctx: BaseAudioContext, out: AudioNode): Voices {
   };
 
   return {
-    play(part, note, velocity, t, duration, sound) {
+    play(part, note, velocity, t, duration, timbre) {
       const v = velocity / 127;
       const gain = ctx.createGain();
       gain.connect(out);
       const frequency = frequencyOf(note);
       if (part === 'bass') {
-        const { saw, triangle, cutoff, resonance } = sound.bass;
+        const { saw, triangle, cutoff, resonance } = timbre;
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.Q.value = resonance;
-        filter.frequency.setValueAtTime((300 + v * 900) * cutoff, t);
+        filter.Q.value = resonance!;
+        filter.frequency.setValueAtTime((300 + v * 900) * cutoff!, t);
         filter.frequency.exponentialRampToValueAtTime(200, t + Math.max(0.05, duration));
         filter.connect(gain);
         hold(gain, t, duration, 0.28 * v, 0.005, 0.05);
-        oscillator('sawtooth', frequency, saw, filter, t, t + duration + 0.1);
-        oscillator('triangle', frequency, triangle, filter, t, t + duration + 0.1);
+        oscillator('sawtooth', frequency, saw!, filter, t, t + duration + 0.1);
+        oscillator('triangle', frequency, triangle!, filter, t, t + duration + 0.1);
       } else if (part === 'pad' || part === 'stab') {
-        const { attack, release } = sound.chords;
-        hold(gain, t, duration, 0.05 * v, attack, release);
-        const stop = t + duration + release + 0.05;
+        const { attack, release } = timbre;
+        hold(gain, t, duration, 0.05 * v, attack!, release!);
+        const stop = t + duration + release! + 0.05;
         oscillator('triangle', frequency, 1, gain, t, stop);
         oscillator('sine', frequency * 1.003, 1, gain, t, stop);
       } else {
-        const { triangle, square, cutoff, attack } = sound.lead;
+        const { triangle, square, cutoff, attack } = timbre;
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.value = cutoff;
+        filter.frequency.value = cutoff!;
         filter.connect(gain);
-        hold(gain, t, duration, 0.07 * v, attack, 0.08);
-        oscillator('square', frequency, square, filter, t, t + duration + 0.2);
-        oscillator('triangle', frequency, triangle, filter, t, t + duration + 0.2);
+        hold(gain, t, duration, 0.07 * v, attack!, 0.08);
+        oscillator('square', frequency, square!, filter, t, t + duration + 0.2);
+        oscillator('triangle', frequency, triangle!, filter, t, t + duration + 0.2);
       }
     },
   };

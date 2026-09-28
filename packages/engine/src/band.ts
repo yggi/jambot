@@ -14,7 +14,7 @@
  * It carries the plan's state, the bar it decided, and what its parts carry.
  * The parts play side by side from the same bar: the drums, the bass, the
  * comp and the lead. What they write, the band plays through the
- * performance (`perform.ts`, T4).
+ * performance (`performer.ts`, T4).
  *
  * Since what it decides reads only the seed, the bar, the style and the
  * wish, the bars ahead can be decided before they play (`lookAhead`): as
@@ -27,14 +27,13 @@ import { bass } from './bass.ts';
 import { comp } from './comp.ts';
 import { type LeadCarried, lead } from './lead.ts';
 import { drums } from './drums.ts';
-import type { NoteEvent, WrittenNote } from './events.ts';
+import type { DoughNote, WrittenNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import type { KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import type { Offer } from './muse.ts';
-import { perform } from './perform.ts';
+import { perform } from './performer.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
-import { type Sound, soundOf } from './sound.ts';
 import { type Style, writtenStyle } from './style.ts';
 
 export interface BandEnv {
@@ -76,13 +75,12 @@ export interface BandCarried {
 
 /**
  * One bar as the band plays it: everything its parts read, the notes they
- * write, the events those play as, and how they sound.
+ * write, and each played by a performer, dough-shaped (#107, #129).
  */
 export interface BandBar extends BarEnv {
   readonly written: readonly WrittenNote[];
-  /** The written notes, each played by the performance. */
-  readonly events: readonly NoteEvent[];
-  readonly sound: Sound;
+  /** The written notes, each played by a performer. */
+  readonly dough: readonly DoughNote[];
 }
 
 const INITIAL: BandCarried = {
@@ -184,16 +182,10 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
 };
 
 /**
- * A bar's written notes as the band plays them: each through the
- * performance, and the bar coloured by its style and energy. It is where
- * writing ends and playing starts, so a bar written elsewhere (a host's)
- * plays here exactly as the band that wrote it would play it.
+ * A bar's written notes as the band plays them: each through a performer.
+ * It is where writing ends and playing starts, so a bar written elsewhere
+ * (a host's) plays here exactly as the band that wrote it would play it.
  */
 export function playBar(bar: BarEnv, written: readonly WrittenNote[]): BandBar {
-  return {
-    ...bar,
-    written,
-    events: written.map((note) => perform(bar, note)),
-    sound: soundOf(bar.style, bar.barEnergy),
-  };
+  return { ...bar, written, dough: written.map((note) => perform(bar, note)) };
 }

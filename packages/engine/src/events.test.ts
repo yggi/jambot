@@ -13,54 +13,99 @@ import {
   clockOf,
   onBeat,
   stepInBar,
+  type DoughNote,
   type DrumRole,
-  type NoteEvent,
   PARTS,
   type WrittenNote,
-  eventProblems,
+  doughProblems,
   writtenProblems,
 } from './events.ts';
 
 const range = (from: number, to: number) => [...Array(to - from + 1).keys()].map((i) => from + i);
 
-const kick: NoteEvent = { part: 'drums', step: 0, note: 36, velocity: 112, length: 1 };
+const kick: DoughNote = {
+  part: 'drums',
+  role: 'kick',
+  step: 0,
+  note: 36,
+  velocity: 112,
+  gain: 112 / 127,
+  length: 1,
+};
 
-describe('eventProblems', () => {
-  it('finds none in a well-formed event of every part, each one voice: the pad and the stab apart (L6)', () => {
+describe('doughProblems', () => {
+  it('finds none in a well-formed dough note of every part, each one voice: the pad and the stab apart (L6)', () => {
     expect(PARTS).toEqual(['drums', 'bass', 'pad', 'stab', 'lead']);
-    for (const part of PARTS) expect(eventProblems({ ...kick, part })).toEqual([]);
+    for (const part of PARTS) {
+      const note: DoughNote =
+        part === 'drums'
+          ? kick
+          : { part, step: 0, note: 40, velocity: 100, gain: 100 / 127, length: 4 };
+      expect(doughProblems(note)).toEqual([]);
+    }
   });
 
   it('accepts every step of the bar and nothing outside it', () => {
-    for (const step of range(0, 15)) expect(eventProblems({ ...kick, step })).toEqual([]);
+    for (const step of range(0, 15)) expect(doughProblems({ ...kick, step })).toEqual([]);
     for (const step of [-1, 16, 2.5, NaN])
-      expect(eventProblems({ ...kick, step })).toEqual([`step ${step} is not a step 0–15`]);
+      expect(doughProblems({ ...kick, step })).toEqual([`step ${step} is not a step 0–15`]);
   });
 
   it('accepts every MIDI note and nothing outside them', () => {
-    for (const note of range(0, 127)) expect(eventProblems({ ...kick, note })).toEqual([]);
+    for (const note of range(0, 127)) expect(doughProblems({ ...kick, note })).toEqual([]);
     for (const note of [-1, 128, 60.5])
-      expect(eventProblems({ ...kick, note })).toEqual([`note ${note} is not a MIDI note 0–127`]);
+      expect(doughProblems({ ...kick, note })).toEqual([`note ${note} is not a MIDI note 0–127`]);
   });
 
   it('accepts every sounding velocity, and not 0, which MIDI reads as a note-off', () => {
-    for (const velocity of range(1, 127)) expect(eventProblems({ ...kick, velocity })).toEqual([]);
+    for (const velocity of range(1, 127)) expect(doughProblems({ ...kick, velocity })).toEqual([]);
     for (const velocity of [0, 128, 99.5])
-      expect(eventProblems({ ...kick, velocity })).toEqual([
+      expect(doughProblems({ ...kick, velocity })).toEqual([
         `velocity ${velocity} is not a velocity 1–127`,
       ]);
   });
 
   it('wants a positive, finite length in steps', () => {
-    for (const length of [0.05, 1, 16, 40]) expect(eventProblems({ ...kick, length })).toEqual([]);
+    for (const length of [0.05, 1, 16, 40]) expect(doughProblems({ ...kick, length })).toEqual([]);
     for (const length of [0, -1, Infinity, NaN])
-      expect(eventProblems({ ...kick, length })).toEqual([
+      expect(doughProblems({ ...kick, length })).toEqual([
         `length ${length} is not a positive, finite length`,
       ]);
   });
 
+  it('wants a synth gain between 0 and 1', () => {
+    for (const gain of [0, 0.5, 1]) expect(doughProblems({ ...kick, gain })).toEqual([]);
+    for (const gain of [-0.1, 1.1, NaN])
+      expect(doughProblems({ ...kick, gain })).toEqual([`gain ${gain} is not a gain 0–1`]);
+  });
+
+  it('takes a role on a drum hit and an accent on a lead note, passed through from what was written (L7)', () => {
+    for (const role of DRUM_ROLES) expect(doughProblems({ ...kick, role })).toEqual([]);
+    expect(doughProblems({ ...kick, role: 'cowbell' as DrumRole })).toEqual([
+      'role cowbell is not a drum role',
+    ]);
+    for (const part of PARTS.filter((p) => p !== 'drums'))
+      expect(doughProblems({ ...kick, part, role: 'kick' })).toEqual([
+        `a ${part} note has no role`,
+      ]);
+    const lead: DoughNote = {
+      part: 'lead',
+      step: 0,
+      note: 72,
+      length: 2,
+      velocity: 100,
+      gain: 100 / 127,
+    };
+    for (const accent of [-20, 0, 15]) expect(doughProblems({ ...lead, accent })).toEqual([]);
+    expect(doughProblems({ ...lead, accent: 2.5 })).toEqual(['accent 2.5 is not a whole number']);
+    for (const part of PARTS.filter((p) => p !== 'lead' && p !== 'drums'))
+      expect(doughProblems({ ...lead, part, accent: 3 })).toEqual([`a ${part} note has no accent`]);
+  });
+
   it('reports every problem at once', () => {
-    expect(eventProblems({ ...kick, step: 16, note: 128, velocity: 0, length: 0 })).toHaveLength(4);
+    expect(
+      doughProblems({ ...kick, step: 16, note: 128, velocity: 0, gain: 2, length: 0 }),
+    ).toHaveLength(5);
   });
 });
 
