@@ -17,7 +17,7 @@ import {
   thenOp,
   undo,
 } from './motifs.ts';
-import { chromaticStep } from './numerals.ts';
+import { alteredHeight, chromaticStep } from './numerals.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const text = (m: Motif) =>
@@ -557,6 +557,30 @@ describe('an altered degree', () => {
       reached[n] = all;
     }
     expect(reached).toEqual({ 12: true, 17: true, 19: true, 22: false, 31: false, 53: false });
+  });
+
+  it("gives the minor third the line of fifths spells (place −3 from the tonic) in every cycle P5 names; one step of the grid, the pitch tower's other candidate, gives it only in 12 and 19, where the chromatic step is already 1 (#125)", () => {
+    const minorThird = (n: number) => wrap(-3 * FIFTHS[n]!, n);
+    const chromatic: Record<number, number> = {};
+    const gridStep: Record<number, number> = {};
+    for (const n of Object.keys(FIFTHS).map(Number)) {
+      const key = ionian(n);
+      chromatic[n] = wrap(alteredHeight(key, 2, -1) - key.heights[0]!, n);
+      gridStep[n] = wrap(alteredHeight(key, 2, -1, 1) - key.heights[0]!, n);
+    }
+    const oracle = Object.fromEntries(
+      Object.keys(FIFTHS)
+        .map(Number)
+        .map((n) => [n, minorThird(n)]),
+    );
+    expect(chromatic).toEqual(oracle);
+    expect(gridStep).toEqual({ 12: 3, 17: 5, 19: 5, 22: 7, 31: 9, 53: 17 });
+    // Only where the chromatic step already is 1 does the grid step agree.
+    expect(
+      Object.keys(FIFTHS)
+        .map(Number)
+        .filter((n) => gridStep[n] === oracle[n]),
+    ).toEqual([12, 19]);
   });
 });
 

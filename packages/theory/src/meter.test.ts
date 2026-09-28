@@ -3,7 +3,7 @@ import { even, isEven } from './even.ts';
 import { degreeBelow, gaps, heightOf, mirror, mod, positions, shift, wrap } from './helix.ts';
 import { parallel, relative } from './keys.ts';
 import { brightness, modes } from './modes.ts';
-import { chromaticStep } from './numerals.ts';
+import { alteredHeight, chromaticStep } from './numerals.ts';
 import {
   METERS,
   type Meter,
@@ -286,5 +286,21 @@ describe('meter', () => {
     expect(chromaticStep(meterOnSteps(METERS['4/4']))).toBe(0);
     expect(chromaticStep(METERS['7/8'])).toBe(1);
     expect(chromaticStep(even(7, 12))).toBe(1);
+  });
+
+  it('never moves an onset by one step through the chromatic step, in any grouping, but one step of the grid always can (finite: every grouping into 2s and 3s of up to 16 eighths) (#125)', () => {
+    const byStep = new Map<number, number>();
+    for (const meter of everyGrouping) {
+      const clock = meterOnSteps(meter);
+      const step = chromaticStep(clock);
+      byStep.set(step, (byStep.get(step) ?? 0) + 1);
+      // Whatever the chromatic step does, one step of the grid reaches the
+      // very next step off every pulse, in steps, not eighths.
+      for (let degree = 0; degree < clock.heights.length; degree++)
+        expect(alteredHeight(clock, degree, 1, 1)).toBe(heightOf(clock, degree) + 1);
+    }
+    // On the steps, the chromatic step is never 1: 0 where every pulse is as
+    // long (13 groupings), and 2, a whole eighth, in every additive one (136).
+    expect(Object.fromEntries(byStep)).toEqual({ 0: 13, 2: 136 });
   });
 });

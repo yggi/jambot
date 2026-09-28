@@ -329,11 +329,27 @@ Counterexample: a meter whose alteration moves nothing. For every simple and
 compound meter, and for the song's 4/4 on its 16 steps, the step is 0, so `b`
 and `#` cannot write a syncopation; one step of the grid the meter is composed
 onto would. In 12 notes to the cycle the two agree for the diatonic set: its
-chromatic step is 1, the grid's own. Test: `meter.test.ts`, whose test of an
-onset's alteration cites T12, over every grouping into 2s and 3s up to 16.
-Source: #7's "one token grammar for pitch and rhythm", #105. Status: measured,
-failing (every simple and compound meter). Lands in: the language's next shape,
-where pitch and time share one token grammar or don't; tension 7.
+chromatic step is 1, the grid's own. On the steps rather than the eighths,
+`chromaticStep` is never 1 (#125): 0 in the 13 groupings whose pulses are all as
+long, 2, a whole eighth, in the 136 that aren't, so it can shift an additive
+meter's onset by an eighth but never write a single 16th's syncopation off any
+pulse, in any meter; one step of the grid always can, since it is the grid's own
+unit by construction. Test: `meter.test.ts`, whose test of an onset's alteration
+cites T12, over every grouping into 2s and 3s up to 16, and "never moves an
+onset by one step through the chromatic step, in any grouping, but one step of
+the grid always can (finite: every grouping into 2s and 3s of up to 16 eighths)
+(#125)". Source: #7's "one token grammar for pitch and rhythm", #105; #125.
+Status: measured, failing (every simple and compound meter, at the eighth
+level); measured (the chromatic step is never a single grid step, on any
+grouping). Open: whether the language takes one grid step as the time tower's
+own alteration once it writes onsets at all (#63, #126) — #125 found no reason
+against it, only that it is not `chromaticStep`, unlike the pitch tower, where
+`chromaticStep` is confirmed the musician's interval in every cycle P5 names
+(motifs.test.ts, "gives the minor third the line of fifths spells … (#125)"), so
+the two towers alter differently by necessity, not by an unresolved choice: a
+pitch alteration means a tuning-dependent interval, a time alteration only a
+position on the grid. Lands in: the language's next shape, where pitch and time
+share one token grammar or don't (#126); tension 7; #125.
 
 **T13. Over a link that keeps order, a bar reaches a client in time exactly when
 the link holds it less than a beat.** Witness: a bar is composed a beat before
