@@ -24,7 +24,7 @@
  *   chord the score writes implies one (U3), and one that doesn't is
  *   refused until the score can write `scale=`.
  * - **A drum line**, one per sound that hits in the bar, its word (`bd`,
- *   `sd`, `hh`, `oh`, `ph`, `rd`, `rim`) starting it: every hit is that
+ *   `hh`, `oh`, `ph`, `rd`, `rim`) starting it: every hit is that
  *   word, one step long, `~` the rest between (E16, form (iii), decided on
  *   the owner's measured options). A sound plays the one role it always
  *   does (kick, pedal, the Euclidean rim, every hi-hat sound); the snare's
