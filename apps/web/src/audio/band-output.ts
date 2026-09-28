@@ -69,8 +69,8 @@ export function bandOutput(
     },
     heard: () => offset.heard(),
     resume: () => base.resume(),
-    play(part, note, velocity, seconds, duration, sound) {
-      if (settings.internal()) base.play(part, note, velocity, seconds, duration, sound);
+    play(part, note, velocity, seconds, duration, timbre) {
+      if (settings.internal()) base.play(part, note, velocity, seconds, duration, timbre);
       midi.play(part, note, velocity, seconds, duration, offset.toDeviceMs);
     },
     silence() {

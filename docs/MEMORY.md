@@ -170,9 +170,11 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `track` already names `StyleTrack` and the ratchet's working and negative
   tracks, and `Performer` names what each row is precisely — the composer writes
   what a performer plays, and a performer is the band's own voice or a human at
-  that voice's instrument, the same word family as `perform.ts` (T4), which is
-  how a performer plays it. Decided in the working track, on the owner's naming
-  call.
+  that voice's instrument, the same word family as `performer.ts` (T4, #107),
+  which is how a performer plays it. Decided in the working track, on the
+  owner's naming call. `apps/web`'s `Performer` is this UI row, one per band
+  voice; the engine's own performer, `perform` in `performer.ts`, is a different
+  thing with the same name — it plays a bar, not a screen.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A bar's
   chords come from its theme's slots (`barChords`); their colour draws are keyed
@@ -531,6 +533,26 @@ The full description is in
   heading, so an entry may wrap onto a line that starts with an issue number.
   The catalogues are `language.md` (#7) and `quinetic.md` (#39), with one id
   space; a property `language.md` already holds is an alias there.
+
+### The analyzer
+
+- `packages/analyzer` (#141) is pure, like `theory`, `engine`, `score` and
+  `session`: it takes an already-parsed MIDI file (ticks, tempo and
+  time-signature events, tracks of notes), never bytes off disk or a parsing
+  library's own object; a loader outside the package does that. `loadMidi` runs
+  the analyzer brief's steps 1–2 only: drop empty and duplicate tracks, split
+  the file into meter spans, and quantise every 4/4 span onto the step grid,
+  through the engine's own `barAt`/`stepInBar` (T10), never `/16` or `%16`
+  again. Every other meter is counted and reported, never forced onto the grid
+  or dropped silently.
+- Swing is found, not assumed: `estimateSwing` searches the swing axis for the
+  value whose `swingMap(swing).written` leaves a 4/4 section's onsets closest to
+  integer steps, and `quantiseSection` rounds what is left, keeping the leftover
+  as each note's microtiming (A6). The parser's own tempo map, `ticksTimeMap`,
+  is a `TimeMap` between a file's ticks and seconds built from its own tempo
+  events, the same shape (`played`, `written`, exact inverses) the engine's
+  `tempo.ts` and `swing.ts` already use, but keyed to the file's clock, not a
+  style track's glide.
 
 ### Terms
 

@@ -22,7 +22,7 @@
  * first played with returns while the syncopation and the energy stay near
  * it. The lead rests in an intro, a breakdown and below energy 0.4. A note
  * is written to the next one, or to the end of the bar; the performance
- * gates it by the articulation, and accents the beat (`perform.ts`).
+ * gates it by the articulation, and accents the beat (`performer.ts`).
  *
  * A motif the Muse offers (#79) is a standing target: the lead takes it as
  * its phrase at once, whatever the phase, and plays it while it stands,

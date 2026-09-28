@@ -13,7 +13,7 @@
  * Each note goes to the nearest octave of its pitch class, from the last
  * note, within 33–52, and an octave jump may take it to 57. So the last
  * note is all it carries. A note is written to the next one, or to the end
- * of the bar; the performance gates it by the articulation (`perform.ts`).
+ * of the bar; the performance gates it by the articulation (`performer.ts`).
  * These are the prototype's patterns and weights.
  */
 
