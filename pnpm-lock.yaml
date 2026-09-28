@@ -118,6 +118,10 @@ importers:
       midi-file:
         specifier: ^1.2.4
         version: 1.2.4
+    devDependencies:
+      '@jambot/theory':
+        specifier: workspace:*
+        version: link:../theory
 
   packages/engine:
     dependencies:

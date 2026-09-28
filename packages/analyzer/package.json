@@ -13,5 +13,8 @@
   "dependencies": {
     "@jambot/engine": "workspace:*",
     "midi-file": "^1.2.4"
+  },
+  "devDependencies": {
+    "@jambot/theory": "workspace:*"
   }
 }

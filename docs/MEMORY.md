@@ -566,6 +566,18 @@ The full description is in
   lead and the lowest is bass; everything polyphonic, and any monophonic line
   between, is harmony evidence. Every call carries its own confidence and the
   rule it used, never a silent guess.
+- The parser has its own mini-ratchet, a curriculum (Q10,
+  `packages/analyzer/experiments/ladder.ts`): the engine generates MIDI at
+  rising complexity, and the parser must recover each rung exactly before the
+  next is attempted, before an external corpus (POP909, Groove MIDI, ASAP, Lakh)
+  disturbs the loop with content nothing here wrote. Rung 0, `metronomeRung`,
+  drives the engine's own `metronome` machine and reads its clicks back through
+  `loadMidi`; later rungs (a scale, a real melody, rhythmic patterns, multiple
+  voices, a Bach canon) are #141's continuation. A rung generator that needs
+  `@jambot/theory` directly (rung 0's `METERS`) takes it as a devDependency, the
+  same split `packages/score`'s `seam.test.ts` uses for `@jambot/engine`: a
+  lower layer brought in to build or check fixtures, not part of the package's
+  own production code.
 
 ### Terms
 

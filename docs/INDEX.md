@@ -239,6 +239,10 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `experiments/load-file.ts`: milestone 3, one real file end to end — reads
       a file's bytes off disk, the one Node-only step this package leaves out,
       and runs them through `parseSmf` and `loadMidi`
+    - `experiments/ladder.ts`: the parser's own mini-ratchet (#141, Q10): a
+      curriculum of MIDI the engine itself generates, at rising complexity, each
+      rung a claim the parser must recover exactly; `metronomeRung` is rung 0,
+      the engine's own metronome machine on 4/4, one drum voice
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown firing
   - `docs-wrap.test.ts`: docs wrap at 80 columns (#45), `.prettierrc.json`'s
