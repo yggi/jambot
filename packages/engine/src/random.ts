@@ -72,6 +72,24 @@ export const STREAMS = {
   leadShape: 15,
   /** How a lead shape is varied, in order, per bar. */
   leadVariation: 16,
+  /** The looseness of a bass note's velocity. */
+  bassVelocity: 17,
+  /** The looseness of a pad note's velocity. */
+  padVelocity: 18,
+  /** The looseness of a stab's velocity. */
+  stabVelocity: 19,
+  /** The looseness of a lead note's velocity. */
+  leadVelocity: 20,
+  /** The looseness of a drum hit's length. */
+  drumLength: 21,
+  /** The looseness of a bass note's length. */
+  bassLength: 22,
+  /** The looseness of a pad note's length. */
+  padLength: 23,
+  /** The looseness of a stab's length. */
+  stabLength: 24,
+  /** The looseness of a lead note's length. */
+  leadLength: 25,
 } as const;
 
 export type Stream = keyof typeof STREAMS;
