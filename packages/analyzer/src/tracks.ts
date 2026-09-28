@@ -16,6 +16,8 @@ export interface RawNote {
 /** One track: a channel and its notes, in file order. */
 export interface RawTrack {
   readonly name?: string;
+  /** The General MIDI program its last program-change event named, a hint for `roles.ts`. */
+  readonly program?: number;
   readonly channel: number;
   readonly notes: readonly RawNote[];
 }

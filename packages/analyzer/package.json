@@ -11,6 +11,7 @@
     "check": "tsc -p ."
   },
   "dependencies": {
-    "@jambot/engine": "workspace:*"
+    "@jambot/engine": "workspace:*",
+    "midi-file": "^1.2.4"
   }
 }
