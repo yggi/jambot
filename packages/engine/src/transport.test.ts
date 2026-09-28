@@ -185,11 +185,17 @@ describe('the transport', () => {
     // Every bar the steps have wholly passed through is played in full.
     const whole = bars.filter((b) => steps.has(b.bar * 16 + 15));
     for (const b of whole)
-      for (const e of b.events)
+      for (const e of b.dough)
         expect(played.has(`${b.bar}:${e.part}:${e.step}:${e.note}`)).toBe(true);
-    // Each event sounds as its bar does.
-    const sounds = new Map(bars.map((b) => [b.bar, b.sound]));
-    for (const e of events) expect(e.sound).toEqual(sounds.get(e.bar));
+    // Each event is its bar's own dough note: the transport forwards a
+    // performer's play, it doesn't recompute it.
+    const dough = new Map(
+      bars.flatMap((b) => b.dough.map((d) => [`${b.bar}:${d.part}:${d.step}:${d.note}`, d])),
+    );
+    for (const e of events)
+      expect(e.event).toEqual(
+        dough.get(`${e.bar}:${e.event.part}:${e.event.step}:${e.event.note}`),
+      );
     expect(events.length).toBe(played.size);
     const swing = swingOf(track);
     for (const e of events) {
@@ -442,7 +448,7 @@ describe('the transport listening', () => {
     const at = (velocities: number[]) => {
       const notes = motifIn(2).map((n, i) => ({ ...n, velocity: velocities[i]! }));
       const bar = listening(lively, 600, notes).bars.find((b) => b.bar === 4)!;
-      return bar.events.filter((e) => e.part === 'lead').map((e) => e.velocity);
+      return bar.dough.filter((e) => e.part === 'lead').map((e) => e.velocity);
     };
     expect(at([120, 100, 110])).toEqual([101, 81, 91]);
     expect(at([50, 30, 40])).toEqual([101, 81, 91]);

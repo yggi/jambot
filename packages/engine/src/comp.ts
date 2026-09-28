@@ -13,7 +13,7 @@
  * breakdown and a quiet bar only pad. Whether a chord is padded, and where
  * the stabs fall, are held draws per section (`heldDraw`), so the parts
  * morph. A pad is written for its chord and a stab for one step; how long
- * each sounds, and how loud, is the performance's (`perform.ts`). These are
+ * each sounds, and how loud, is the performance's (`performer.ts`). These are
  * the prototype's rules and weights.
  */
 

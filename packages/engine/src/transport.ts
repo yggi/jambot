@@ -42,7 +42,7 @@ import {
   passBar,
 } from './band.ts';
 import { type BarChord, chordAt } from './chords.ts';
-import { type NoteEvent, barAt, barStart, beatAt, beatStart, stepInBar } from './events.ts';
+import { type DoughNote, barAt, barStart, beatAt, beatStart, stepInBar } from './events.ts';
 import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
@@ -57,7 +57,6 @@ import {
   judgeBar,
   muse,
 } from './muse.ts';
-import type { Sound } from './sound.ts';
 import { type StyleTrack, styleAt, valueAt, writtenStyle } from './style.ts';
 import { swingMap, swingOf } from './swing.ts';
 import { type Anchor, stepSeconds, tempoMap } from './tempo.ts';
@@ -217,9 +216,7 @@ export interface ScheduledStep {
 
 export interface TimedEvent {
   readonly bar: number;
-  readonly event: NoteEvent;
-  /** How its bar sounds. */
-  readonly sound: Sound;
+  readonly event: DoughNote;
   /** When it sounds, on the clock. */
   readonly seconds: number;
   /** How long it sounds, in seconds. */
@@ -463,14 +460,13 @@ export function transportOver<Source, Arrived = never>(
         const tempo = tempoMap(track, head);
         const clock = (x: number) => tempo.played(swung(x));
 
-        for (const event of current.events) {
+        for (const event of current.dough) {
           if (event.step !== stepInBar(head.step)) continue;
           const seconds = clock(head.step);
           if (seconds < now) continue;
           events.push({
             bar,
             event,
-            sound: current.sound,
             seconds,
             duration: clock(head.step + event.length) - seconds,
           });

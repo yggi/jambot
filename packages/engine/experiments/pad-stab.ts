@@ -20,14 +20,7 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import {
-  type BandCarried,
-  type KeyWish,
-  type NoteEvent,
-  PRESETS,
-  type Sound,
-  band,
-} from '../src/index.ts';
+import { type BandCarried, type DoughNote, type KeyWish, PRESETS, band } from '../src/index.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const SEEDS = range(5);
@@ -63,15 +56,15 @@ let example: {
   bar: number;
   overlaps: number;
   notes: Sounding[];
-  /** Each bar's tempo and synth sound, from the bar before the example to the one after. */
-  bars: { bpm: number; sound: Sound }[];
+  /** Each bar's tempo and what it played, from the bar before the example to the one after. */
+  bars: { bpm: number; dough: readonly DoughNote[] }[];
 } | null = null;
 
 for (const seed of SEEDS)
   runs.forEach((presetAt, r) => {
     let carried: BandCarried = band.initial;
     const song: Sounding[] = [];
-    const sounds: { bpm: number; sound: Sound }[] = [];
+    const sounds: { bpm: number; dough: readonly DoughNote[] }[] = [];
     const touched = new Set<number>();
     for (const bar of range(BARS)) {
       const preset = presetAt(bar);
@@ -87,9 +80,9 @@ for (const seed of SEEDS)
       );
       carried = after;
       bars++;
-      sounds.push({ bpm: output.style.bpm, sound: output.sound });
-      const comped = output.events.filter(
-        (e: NoteEvent): e is NoteEvent & { part: 'pad' | 'stab' } =>
+      sounds.push({ bpm: output.style.bpm, dough: output.dough });
+      const comped = output.dough.filter(
+        (e: DoughNote): e is DoughNote & { part: 'pad' | 'stab' } =>
           e.part === 'pad' || e.part === 'stab',
       );
       for (const e of comped)
