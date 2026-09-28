@@ -331,12 +331,27 @@ Counterexample: a meter whose alteration moves nothing. For every simple and
 compound meter, and for the song's 4/4 on its 16 steps, the step is 0, so `b`
 and `#` cannot write a syncopation; one step of the grid the meter is composed
 onto would. In 12 notes to the cycle the two agree for the diatonic set: its
-chromatic step is 1, the grid's own. Test: `packages/theory/src/meter.test.ts`,
-whose test of an onset's alteration cites T12, over every grouping into 2s and
-3s up to 16. Source: #7's "one token grammar for pitch and rhythm", #105.
-Status: measured, failing (every simple and compound meter). Lands in: the
-language's next shape, where pitch and time share one token grammar or don't;
-tension 7.
+chromatic step is 1, the grid's own. On the steps rather than the eighths,
+`chromaticStep` is never 1 (#125): 0 in the 13 groupings whose pulses are all as
+long, 2, a whole eighth, in the 136 that aren't, so it can shift an additive
+meter's onset by an eighth but never write a single 16th's syncopation off any
+pulse, in any meter; one step of the grid always can, since it is the grid's own
+unit by construction. Test: `packages/theory/src/meter.test.ts`, whose test of
+an onset's alteration cites T12, over every grouping into 2s and 3s up to 16,
+and "never moves an onset by one step through the chromatic step, in any
+grouping, but one step of the grid always can (finite: every grouping into 2s
+and 3s of up to 16 eighths) (#125)". Source: #7's "one token grammar for pitch
+and rhythm", #105; #125. Status: measured, failing (every simple and compound
+meter, at the eighth level); measured (the chromatic step is never a single grid
+step, on any grouping). Open: whether the language takes one grid step as the
+time tower's own alteration once it writes onsets at all (#63, #126) — #125
+found no reason against it, only that it is not `chromaticStep`, unlike the
+pitch tower, where `chromaticStep` is confirmed the musician's interval in every
+cycle P5 names (`motifs.test.ts`, "gives the minor third the line of fifths
+spells … (#125)"), so the two towers alter differently by necessity, not by an
+unresolved choice: a pitch alteration means a tuning-dependent interval, a time
+alteration only a position on the grid. Lands in: the language's next shape,
+where pitch and time share one token grammar or don't (#126); tension 7; #125.
 
 **T13. Over a link that keeps order, a bar reaches a client in time exactly when
 the link holds it less than a beat.** Witness: a bar is composed a beat before
@@ -617,10 +632,16 @@ accidental as one step and a secondary's key as a diatonic mode of 12, so from
 (E12). Test: `numerals.test.ts`, "read every numeral over any cycle whose
 diatonic set is a chain of fifths, as the line of fifths spells it, and write
 each chord back (P5, U1)": 93 numerals × 13 tonics × 7 modes in 12, 17, 19, 22,
-31 and 53, against the line of fifths. Open: a line's pitch tokens (U2), once
-the score reads them. Source: #28, the open threads (tunings other than 12), #7
-round 3, E12. Status: measured (the numerals); open (a line's pitch tokens).
-Decided: #7, on measured options (E12). Lands in: #63.
+31 and 53, against the line of fifths. A line's pitch tokens (U2) are the same
+arithmetic as a numeral's, `alteredHeight` (`numerals.ts`), so they reach every
+pitch a numeral does: measured over the key's own scale (#130). Open: over a
+chord's implied scale for anything but a diatonic chord, since that scale is
+`chordScale`'s (P9, P10), whose borrowed and secondary candidates assume 12
+notes (P10's counterexample). Source: #28, the open threads (tunings other than
+12), #7 round 3, E12; #130. Status: measured (the numerals, and a line's tokens
+over the key's own scale); open (a line's tokens over a chord's implied scale,
+outside a diatonic chord). Decided: #7, on measured options (E12). Lands in:
+#63; #130.
 
 **P6. A chord is a helix of one turn plus its tensions, the tones above the
 octave; together they are its stack.** Witness: `splitChord` and `joinChord` in
@@ -693,6 +714,31 @@ chords). Open: whether the default a line's `scale=` overrides should be the
 nearest named scale, which no chord of the grammar lacks, or the candidates,
 whose choices read as modal interchange and secondary dominants. Lands in: #7
 (b).
+
+**P10. `chordScale`'s candidates outside the key itself assume 12 notes to the
+cycle.** Witness: `helixScale`'s search (`keys.ts`) tries the key, then
+`parallel(key, diatonicMode(name))` for each diatonic mode, then
+`targetKeys(key, chord)`, then harmonic and melodic minor on the tonic
+(`MINOR_FORMS`). `diatonicMode` is built once from `even(7, 12)`, `targetKeys`
+returns nothing for `key.cycle !== 12`, and `MINOR_FORMS` are written as
+`{ cycle: 12, … }` literals, so only the first candidate, the key itself, is
+built from `key.cycle`. A diatonic chord always enters there and gives the right
+cycle (P5, U2's reach for a line's tokens follows from it). Counterexample: a
+chord that needs a borrowed or secondary candidate, in a cycle other than 12. A
+minor triad a step flatter than the key's own third — borrowed from the parallel
+minor, as `III+` is in a major key — falls through to a 12-cycle candidate:
+`chordScale` returns a `Helix` of the wrong cycle in 17, 19 and 53, and none at
+all in 22 and 31. Test: `keys.test.ts`, "gives the key itself, entered at the
+root, for a diatonic chord in every cycle P5 names (P10)" and "only holds a
+borrowed chord's scale in its own cycle at 12: its candidates (diatonicMode's
+parallel modes, targetKeys, the minor forms) assume 12 notes, so a triad a step
+flatter than the key's own third gives a wrong-cycle scale in 17, 19 and 53, and
+none in 22 and 31 (P10 counterexample)". Source: #130, probing P5's reach past
+the numerals into `chordScale`. Status: measured (the key itself, every cycle);
+measured, failing (a borrowed or secondary candidate, outside 12). Lands in:
+#130's follow-up, generalizing `diatonicMode`, `targetKeys` and `MINOR_FORMS`
+the way `numerals.test.ts`'s P5 oracle already builds a diatonic set in any
+cycle from its generator.
 
 ### Lowering
 
@@ -938,6 +984,37 @@ the motif does, and two motifs have the same edges exactly when `strans` and
 `late` take one to the other. Source: #7 (d), Lewin's T and I, quintenzirkel's
 operators, Strudel, the names round, E13. Status: measured. Decided: #7, on
 measured options (E13, the names round). Lands in: #79, #63.
+
+**U6. A note and an onset are one token shape, a degree and an accidental,
+differing only in the step an accidental moves by.** Witness: `alteredHeight`
+(`numerals.ts`) writes a pitch token,
+`heightOf(scale, degree) + accidental * step`, with `step` the key's chromatic
+step (P5); `onsetToken`/`onsetHeight` (`meter.ts`, #125) write a time token the
+same way, with `step` fixed to one grid step, since the bar's eighths are always
+evenly spaced and need no key's unevenness to alter (#125). Both take a degree
+and an accidental in {−1, 0, 1} (time's is only 0 or 1, never below its own
+eighth); neither is a slot sequence with rests, the way the port's rhythm is
+written today. Over the band's own output (E14, #126), every bass and lead note
+has a pitch token (19,091 of 19,091: `chordScale` always gives a scale and
+`alteredDegree` always finds a single accidental for what the composer plays)
+and every onset round-trips through the time token exactly (82,984 of 82,984).
+Written this way instead of on the 16-step grid, a bar's rhythm lines take 76.6%
+fewer tokens (67,890 against 289,728, over 18,108 lines): more than E15's 43.6%,
+since E15 kept a slot sequence at a coarser resolution while this drops the
+rests a token stream never needs, the way a pitch line already doesn't write
+them. Counterexample: a note or onset neither token reaches, or a case the time
+token needs a special rule for that the pitch token doesn't. None found over the
+corpus; #126's open list is where one would be filed. Test:
+`packages/engine/experiments/tokengrammar.ts` (E14), printed, not asserted: the
+corpus is generated, not a fixed suite (#121's caution about generated data
+applies here too). `packages/theory/src/meter.test.ts`, "is alteredHeight/a
+generic alteredDegree on the eighths, with one grid step and no parallel-major
+search, since the eighths are always evenly spaced and never need one (#125,
+#126)" holds the shape itself as a real test. Source: #7's original speculation
+(a scale and a rhythm as one object), #116 §6, #125, #126 (E14). Status:
+measured (the shape, and full coverage over the generated corpus); open (a real
+captured corpus, R1's musician's read, and whether the score adopts it — #63's
+call). Lands in: #63, #126.
 
 ### Analysis and provenance
 
@@ -1250,8 +1327,8 @@ the players converges.
 
 ## Experiments
 
-Each answers one entry, or one of #7's and #116's decisions. E2 to E7 and E14
-have not run; the others have.
+Each answers one entry, or one of #7's and #116's decisions. E2 to E7 have not
+run; the others have.
 
 - **E1. Cold against warm compile** (S1, S2, F2; Q4b), in
   [`prototype/experiments/cold-warm.mjs`](../prototype/experiments/cold-warm.mjs)
@@ -1403,6 +1480,24 @@ have not run; the others have.
     takes 52% of the tokens it takes as notes.
   - Symmetries: 10 of the lead's 132 shapes have one, so several operators give
     the same bar, and `canonicalOp` chooses which the score writes (U5).
+
+- **E14. One token grammar for pitch and time** (U6; #7, #116 §6, #125, #126),
+  in
+  [`packages/engine/experiments/tokengrammar.ts`](../packages/engine/experiments/tokengrammar.ts)
+  (about 1 s), over E1's shape. It writes every bass and lead note as a pitch
+  token (`alteredHeight`/`alteredDegree` over the bar's chord's implied scale)
+  and every onset as a time token (`onsetToken`/`onsetHeight`, one grid step,
+  #125), the same degree-and-accidental shape either way.
+  - Every one of 19,091 bass and lead notes has a pitch token: `chordScale`
+    always gives a scale and `alteredDegree` always finds it in one accidental,
+    over the corpus.
+  - Every one of 82,984 onsets round-trips through the time token exactly.
+  - Rhythm written as time tokens instead of the 16-step grid takes 76.6% fewer
+    tokens (67,890 against 289,728, over 18,108 lines): more than E15's 43.6%,
+    since a token stream drops the rests a slot sequence still writes.
+  - No case needed a rule the other tower doesn't have, over this corpus. Not
+    yet measured: a real captured corpus rather than the engine's own, and
+    whether a musician reads it as a lead sheet (R1).
 
 - **E15. The band's onsets against the meter** (T10, T12; #116's question (k),
   #123), in

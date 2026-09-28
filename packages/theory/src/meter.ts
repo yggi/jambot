@@ -73,3 +73,24 @@ export function meterWeights(meter: Meter): Weight[] {
 export function meterOnSteps(meter: Meter, stepsPerEighth = 2): Helix {
   return compose(meter, even(meter.cycle, stepsPerEighth * meter.cycle));
 }
+
+/**
+ * An onset as a degree of the bar's eighths and an accidental: the time
+ * tower's token, the shape of a pitch token's degree and alteration (U2),
+ * once one is needed (#126). An eighth is always exactly two steps from the
+ * next, in any meter (T6): unlike a pitch token, which alters a degree of a
+ * key whose own steps vary (P5), the eighth frame is always this evenly
+ * spaced and needs no meter to read it. A step on an eighth is its own
+ * degree, unaltered; one off it is the eighth below, altered by one grid
+ * step (#125), never the eighth above — a canonical form (F3), since a step
+ * exactly between two eighths is equally close to both, and a token names
+ * one thing (the law of true names, R4).
+ */
+export function onsetToken(step: number): { degree: number; accidental: 0 | 1 } {
+  return { degree: Math.floor(step / 2), accidental: (step % 2) as 0 | 1 };
+}
+
+/** `onsetToken`'s inverse: the step an eighth-degree and an accidental write. */
+export function onsetHeight(token: { degree: number; accidental: 0 | 1 }): number {
+  return token.degree * 2 + token.accidental;
+}

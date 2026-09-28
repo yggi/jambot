@@ -3,7 +3,7 @@ import { even, isEven } from './even.ts';
 import { degreeBelow, gaps, heightOf, mirror, mod, positions, shift, wrap } from './helix.ts';
 import { parallel, relative } from './keys.ts';
 import { brightness, modes } from './modes.ts';
-import { chromaticStep } from './numerals.ts';
+import { alteredHeight, chromaticStep } from './numerals.ts';
 import {
   METERS,
   type Meter,
@@ -11,6 +11,8 @@ import {
   type Weight,
   meterOnSteps,
   meterWeights,
+  onsetHeight,
+  onsetToken,
 } from './meter.ts';
 
 /** Every named meter's weights, by hand: the ground truth `meterWeights` is checked against. */
@@ -286,5 +288,51 @@ describe('meter', () => {
     expect(chromaticStep(meterOnSteps(METERS['4/4']))).toBe(0);
     expect(chromaticStep(METERS['7/8'])).toBe(1);
     expect(chromaticStep(even(7, 12))).toBe(1);
+  });
+
+  it('never moves an onset by one step through the chromatic step, in any grouping, but one step of the grid always can (finite: every grouping into 2s and 3s of up to 16 eighths) (#125)', () => {
+    const byStep = new Map<number, number>();
+    for (const meter of everyGrouping) {
+      const clock = meterOnSteps(meter);
+      const step = chromaticStep(clock);
+      byStep.set(step, (byStep.get(step) ?? 0) + 1);
+      // Whatever the chromatic step does, one step of the grid reaches the
+      // very next step off every pulse, in steps, not eighths.
+      for (let degree = 0; degree < clock.heights.length; degree++)
+        expect(alteredHeight(clock, degree, 1, 1)).toBe(heightOf(clock, degree) + 1);
+    }
+    // On the steps, the chromatic step is never 1: 0 where every pulse is as
+    // long (13 groupings), and 2, a whole eighth, in every additive one (136).
+    expect(Object.fromEntries(byStep)).toEqual({ 0: 13, 2: 136 });
+  });
+});
+
+describe('onsetToken and onsetHeight: the time tower’s token (#126)', () => {
+  it('is the inverse of onsetHeight, over four bars of steps, with an accidental of 0 or 1 only', () => {
+    for (let step = 0; step < 64; step++) {
+      const token = onsetToken(step);
+      expect(onsetHeight(token)).toBe(step);
+      expect([0, 1]).toContain(token.accidental);
+    }
+  });
+
+  it('is alteredHeight/a generic alteredDegree on the eighths, with one grid step and no parallel-major search, since the eighths are always evenly spaced and never need one (#125, #126)', () => {
+    // The independent oracle: every eighth of the song's 4/4 bar on its 16
+    // steps (as `onsets.ts`'s E15 builds it), read through the same
+    // alteredHeight a pitch token uses, one grid step exactly as #125
+    // measured, over four bars (two turns of the helix).
+    const eighths = even(METERS['4/4'].cycle, METERS['4/4'].cycle * 2);
+    for (let step = 0; step < 64; step++) {
+      const token = onsetToken(step);
+      expect(alteredHeight(eighths, token.degree, token.accidental, 1)).toBe(onsetHeight(token));
+    }
+  });
+
+  it('always reads a step off an eighth as the eighth below, sharped, never the eighth above: the canonical form a bar’s round trip needs (#126)', () => {
+    for (let step = 1; step < 16; step += 2) {
+      const token = onsetToken(step);
+      expect(token.accidental).toBe(1);
+      expect(token.degree).toBe((step - 1) / 2); // the eighth below, not the one above
+    }
   });
 });

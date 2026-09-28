@@ -79,8 +79,10 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/meter.ts`: meter, a helix of pulses over the bar's eighths, most of
       them `even(pulses, eighths)`: one formula for a simple, compound or
       additive bar (3/4, 6/8, 5/8 as 3+2), 10/8's 3+3+2+2 by its heights,
-      `meterWeights` (downbeat, another pulse, or between them) and
-      `meterOnSteps`, a meter on a bar's steps
+      `meterWeights` (downbeat, another pulse, or between them), `meterOnSteps`,
+      a meter on a bar's steps, and `onsetToken`/`onsetHeight`, an onset as a
+      degree of the bar's eighths and an accidental, the time tower's token
+      (#125, #126)
     - `src/read.ts`: `read`, `readings` and `nameOf`, across all of these
     - `src/sister-names.test.ts`: every theory name play-aeiou, lib-aeiou and
       quintenzirkel use, checked to mean the same here
@@ -161,6 +163,9 @@ Every doc and code area, as a tree. Add a line when you add one.
         pad and stab lose on one channel, in a join, or on two
       - [`motifs.ts`](../packages/engine/experiments/motifs.ts): E13, how far
         the lead's variations are the motif operators
+      - [`tokengrammar.ts`](../packages/engine/experiments/tokengrammar.ts):
+        E14, whether a degree and an accidental is one token grammar for pitch
+        and time (#126)
       - [`onsets.ts`](../packages/engine/experiments/onsets.ts): E15, how many
         of the band's onsets and lines the meter writes, and how many need the
         step grid (#123)

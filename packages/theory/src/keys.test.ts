@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { CHORD_QUALITIES, qualityOf } from './chords.ts';
-import { type Helix, heightOf, positions, shift, wrap } from './helix.ts';
+import { type Helix, compose, heightOf, positions, shift, wrap } from './helix.ts';
+import { even } from './even.ts';
 import { chordScale, parallel, relative, spelledTonic } from './keys.ts';
-import { DIATONIC_MODE_NAMES, type DiatonicModeName, diatonicMode } from './modes.ts';
+import { DIATONIC_MODE_NAMES, type DiatonicModeName, diatonicMode, mode } from './modes.ts';
 import { type Note, parseNote } from './notes.ts';
 import { SCALES } from './scales.ts';
 import { spell } from './spelling.ts';
@@ -312,6 +313,38 @@ describe('chordScale', () => {
     expect(positions(chordScale(cMajor, [7, 11, 14, 17, 20, 25])!)).toEqual([1, 2, 4, 5, 7, 8, 11]);
     // A stack that doesn't rise is no chord.
     expect(chordScale(cMajor, [0, 4, 14, 7])).toBeUndefined();
+  });
+});
+
+describe('chordScale over any cycle', () => {
+  it('gives the key itself, entered at the root, for a diatonic chord in every cycle P5 names (P10)', () => {
+    for (const n of [12, 17, 19, 22, 31, 53])
+      for (const rank of range(7))
+        for (const tonic of range(n)) {
+          const key = shift(mode(even(7, n), rank), tonic);
+          for (const root of range(7)) {
+            const triad = compose({ cycle: 7, heights: [root, root + 2, root + 4] }, key);
+            const scale = chordScale(key, triad.heights);
+            const label = `n=${n} rank=${rank} tonic=${tonic} root=${root}`;
+            expect(scale, label).toBeDefined();
+            expect(scale!.cycle, label).toBe(n);
+            expect(positions(scale!), label).toEqual(positions(key));
+          }
+        }
+  });
+
+  it("only holds a borrowed chord's scale in its own cycle at 12: its candidates (diatonicMode's parallel modes, targetKeys, the minor forms) assume 12 notes, so a triad a step flatter than the key's own third gives a wrong-cycle scale in 17, 19 and 53, and none in 22 and 31 (P10 counterexample)", () => {
+    const wrongCycle = new Set([17, 19, 53]);
+    const noScale = new Set([22, 31]);
+    for (const n of [17, 19, 22, 31, 53]) {
+      const key = even(7, n);
+      // A minor triad on the key's own third, a step flatter than the key
+      // holds it: borrowed from the parallel minor, as III does in a major key.
+      const root = key.heights[2]! - 1;
+      const scale = chordScale(key, [root, root + 3, root + 7]);
+      if (wrongCycle.has(n)) expect(scale?.cycle, `n=${n}`).toBe(12);
+      if (noScale.has(n)) expect(scale, `n=${n}`).toBeUndefined();
+    }
   });
 });
 
