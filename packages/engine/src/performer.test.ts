@@ -198,4 +198,37 @@ describe('the performer', () => {
     const note = perform(env, { part: 'lead', step: 0, note: 64, length: 4 });
     expect(note.gain).toBeCloseTo(note.velocity / 127, 9);
   });
+
+  it('gives the drums a licence that widens with swing, and no other part or field any licence at all (#147)', () => {
+    // The same written note, over every bar of a tour (drumVelocity's only
+    // key besides step and note), at swing 0 and swing 1: a spread of 0 is
+    // no licence; only the drums' velocity ever moves.
+    const envAt = (bar: number, swing: number): BarEnv => ({
+      ...barOf('groove', 0.7, { swing }),
+      bar,
+    });
+    const spreadOf = (values: readonly number[]) => Math.max(...values) - Math.min(...values);
+    const spreadAt = (written: WrittenNote, swing: number, field: 'velocity' | 'length') =>
+      spreadOf(range(64).map((bar) => perform(envAt(bar, swing), written)[field]));
+
+    const notes: WrittenNote[] = [
+      { part: 'bass', step: 4, note: 60, length: 2 },
+      { part: 'pad', step: 4, note: 60, length: 2 },
+      { part: 'stab', step: 4, note: 60, length: 2 },
+      { part: 'lead', step: 4, note: 60, length: 2 },
+    ];
+    for (const written of notes) {
+      expect(spreadAt(written, 0, 'velocity')).toBe(0);
+      expect(spreadAt(written, 1, 'velocity')).toBe(0);
+    }
+    const drumHit = hit('hat', 4);
+    expect(spreadAt(drumHit, 0, 'velocity')).toBe(0);
+    expect(spreadAt(drumHit, 1, 'velocity')).toBeGreaterThan(0);
+
+    // No part's length ever moves with style: the licence is velocity-only.
+    for (const written of [...notes, drumHit]) {
+      expect(spreadAt(written, 0, 'length')).toBe(0);
+      expect(spreadAt(written, 1, 'length')).toBe(0);
+    }
+  });
 });
