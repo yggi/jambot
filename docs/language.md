@@ -614,10 +614,16 @@ accidental as one step and a secondary's key as a diatonic mode of 12, so from
 (E12). Test: `numerals.test.ts`, "read every numeral over any cycle whose
 diatonic set is a chain of fifths, as the line of fifths spells it, and write
 each chord back (P5, U1)": 93 numerals × 13 tonics × 7 modes in 12, 17, 19, 22,
-31 and 53, against the line of fifths. Open: a line's pitch tokens (U2), once
-the score reads them. Source: #28, the open threads (tunings other than 12), #7
-round 3, E12. Status: measured (the numerals); open (a line's pitch tokens).
-Decided: #7, on measured options (E12). Lands in: #63.
+31 and 53, against the line of fifths. A line's pitch tokens (U2) are the same
+arithmetic as a numeral's, `alteredHeight` (`numerals.ts`), so they reach every
+pitch a numeral does: measured over the key's own scale (#130). Open: over a
+chord's implied scale for anything but a diatonic chord, since that scale is
+`chordScale`'s (P9, P10), whose borrowed and secondary candidates assume 12
+notes (P10's counterexample). Source: #28, the open threads (tunings other than
+12), #7 round 3, E12; #130. Status: measured (the numerals, and a line's tokens
+over the key's own scale); open (a line's tokens over a chord's implied scale,
+outside a diatonic chord). Decided: #7, on measured options (E12). Lands in:
+#63; #130.
 
 **P6. A chord is a helix of one turn plus its tensions, the tones above the
 octave; together they are its stack.** Witness: `splitChord` and `joinChord` in
@@ -690,6 +696,31 @@ chords). Open: whether the default a line's `scale=` overrides should be the
 nearest named scale, which no chord of the grammar lacks, or the candidates,
 whose choices read as modal interchange and secondary dominants. Lands in: #7
 (b).
+
+**P10. `chordScale`'s candidates outside the key itself assume 12 notes to the
+cycle.** Witness: `helixScale`'s search (`keys.ts`) tries the key, then
+`parallel(key, diatonicMode(name))` for each diatonic mode, then
+`targetKeys(key, chord)`, then harmonic and melodic minor on the tonic
+(`MINOR_FORMS`). `diatonicMode` is built once from `even(7, 12)`, `targetKeys`
+returns nothing for `key.cycle !== 12`, and `MINOR_FORMS` are written as
+`{ cycle: 12, … }` literals, so only the first candidate, the key itself, is
+built from `key.cycle`. A diatonic chord always enters there and gives the right
+cycle (P5, U2's reach for a line's tokens follows from it). Counterexample: a
+chord that needs a borrowed or secondary candidate, in a cycle other than 12. A
+minor triad a step flatter than the key's own third — borrowed from the parallel
+minor, as `III+` is in a major key — falls through to a 12-cycle candidate:
+`chordScale` returns a `Helix` of the wrong cycle in 17, 19 and 53, and none at
+all in 22 and 31. Test: `keys.test.ts`, "gives the key itself, entered at the
+root, for a diatonic chord in every cycle P5 names (P10)" and "only holds a
+borrowed chord's scale in its own cycle at 12: its candidates (diatonicMode's
+parallel modes, targetKeys, the minor forms) assume 12 notes, so a triad a step
+flatter than the key's own third gives a wrong-cycle scale in 17, 19 and 53, and
+none in 22 and 31 (P10 counterexample)". Source: #130, probing P5's reach past
+the numerals into `chordScale`. Status: measured (the key itself, every cycle);
+measured, failing (a borrowed or secondary candidate, outside 12). Lands in:
+#130's follow-up, generalizing `diatonicMode`, `targetKeys` and `MINOR_FORMS`
+the way `numerals.test.ts`'s P5 oracle already builds a diatonic set in any
+cycle from its generator.
 
 ### Lowering
 

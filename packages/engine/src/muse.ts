@@ -34,7 +34,7 @@
  * accented and the judgement keeps how loud they played, beside it (U4).
  */
 
-import { type Motif, alteredDegree, chromaticStep, heightOf, motifProblems } from '@jambot/theory';
+import { type Motif, alteredDegree, alteredHeight, motifProblems } from '@jambot/theory';
 import { BAR_STEPS, barAt, barStart } from './events.ts';
 import { type Key, keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
@@ -171,10 +171,9 @@ export function admissible(judgement: Judgement, key: Key): boolean {
       if (!notes.every(Number.isInteger)) return false;
       if (!motif.accidentals.every((a) => a === -1 || a === 0 || a === 1)) return false;
       const scale = keyHelix(key);
-      const step = chromaticStep(scale);
       const spanFrom = (origin: number) => {
         const heights = motif.degrees.flatMap((d, i) =>
-          d === null ? [] : [heightOf(scale, origin + d) + motif.accidentals[i]! * step],
+          d === null ? [] : [alteredHeight(scale, origin + d, motif.accidentals[i]!)],
         );
         return Math.max(...heights) - Math.min(...heights);
       };

@@ -37,9 +37,8 @@ import {
   type Chord,
   type Helix,
   type Motif,
-  chromaticStep,
+  alteredHeight,
   even,
-  heightOf,
   joinChord,
   positions,
   wrap,
@@ -295,9 +294,8 @@ function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
   const scale = keyHelix(plan.key);
   const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
   const first = degreeNear(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
-  const alteration = chromaticStep(scale);
   let notes = heard.map(({ step, i }) => {
-    const note = heightOf(scale, first + degrees[i]!) + accidentals[i]! * alteration;
+    const note = alteredHeight(scale, first + degrees[i]!, accidentals[i]!);
     const onChord = step % 8 === 0 || chords.some((c) => c.slot.step === step);
     return fit && onChord ? nearestTone(chordAt(chords, step).chord, note) : note;
   });

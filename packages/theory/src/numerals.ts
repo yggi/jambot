@@ -143,8 +143,7 @@ function modeOn(key: Helix, name: keyof typeof STEPS, root: number): Helix {
 /** The key a numeral is read in: the key itself, or its target's major or minor key. */
 function keyOf(key: Helix, of: Target | undefined): Helix {
   if (!of) return key;
-  const root = heightOf(key, of.degree) + of.accidental * chromaticStep(key);
-  return modeOn(key, of.minor ? 'aeolian' : 'ionian', root);
+  return modeOn(key, of.minor ? 'aeolian' : 'ionian', alteredHeight(key, of.degree, of.accidental));
 }
 
 /** The chord a numeral means in a key of seven degrees. */
@@ -152,11 +151,28 @@ export function chordOfNumeral(key: Helix, numeral: Numeral): KeyChord {
   const home = keyOf(key, numeral.of);
   return {
     root: wrap(
-      heightOf(home, numeral.degree) + numeral.accidental * chromaticStep(key),
+      alteredHeight(home, numeral.degree, numeral.accidental, chromaticStep(key)),
       home.cycle,
     ),
     quality: numeral.quality,
   };
+}
+
+/**
+ * A degree of a key, altered: `alteredDegree`'s inverse, and the one place a
+ * numeral (U1) and a line's pitch tokens (U2, a motif's note among them)
+ * compute a height from a degree and an accidental. `step` is the amount a
+ * `b` or `#` moves by, the key's own chromatic step unless another is given
+ * (P5; #125 measures the alternative, one step of the grid the key is
+ * composed onto).
+ */
+export function alteredHeight(
+  key: Helix,
+  degree: number,
+  accidental: number,
+  step: number = chromaticStep(key),
+): number {
+  return heightOf(key, degree) + accidental * step;
 }
 
 /**
