@@ -6,10 +6,12 @@
  * and, for a drum hit, its role. How loud it plays and how long it sounds
  * are read from the bar, so the score states neither:
  *
- * - dynamics: each part's accent by its role, step or beat, scaled by the
- *   bar's energy, except a lead note from a motif, which plays on the
- *   lead's level plus the accent it is written with (U4); the comp by the
- *   energy, a pad the softer the more the articulation leans to stabs;
+ * - dynamics: each part's own reading of its role, step or beat, scaled by
+ *   the bar's energy, plus a written accent where one is given — an offset
+ *   on top, never a replacement (#107). A lead note from a motif always
+ *   writes one, counted from the lead's level instead of the beat (U4); the
+ *   comp reads the energy, a pad the softer the more the articulation
+ *   leans to stabs;
  * - articulation: the bass and the lead gate their written lengths by the
  *   articulation, a stab sounds from 2.5 steps down to 0.45 as it rises, a
  *   pad is held for its written length, and a breakdown's bass lets go 0.3
@@ -79,8 +81,8 @@ function lengthLooseness(
  */
 export const LEAD_LEVEL = 91;
 
-/** A drum hit's accent, before the energy scales it. */
-function accent(env: BarEnv, role: DrumRole, step: number): number {
+/** A drum hit's accent by role, before the energy scales it and any written accent adds to it. */
+function roleAccent(env: BarEnv, role: DrumRole, step: number): number {
   const { type } = env.plan.section;
   if (type === 'breakdown') return role === 'fill' ? 45 + (step - 8) * 9 : 55;
   switch (role) {
@@ -106,29 +108,36 @@ function accent(env: BarEnv, role: DrumRole, step: number): number {
 /** How loud a written note plays. */
 function velocityOf(env: BarEnv, written: WrittenNote): number {
   const { seed, bar, style, barEnergy: energy, plan } = env;
-  const { step, note } = written;
+  const { step, note, accent } = written;
   const loose = (stream: Stream) => velocityLooseness(seed, stream, style.swing, bar, step);
   switch (written.part) {
     case 'drums':
       return clampVelocity(
-        accent(env, written.role!, step) * (0.65 + 0.35 * energy) +
+        roleAccent(env, written.role!, step) * (0.65 + 0.35 * energy) +
+          (accent ?? 0) +
           velocityLooseness(seed, 'drumVelocity', style.swing, bar, step, note),
       );
     case 'bass': {
       const base =
         plan.section.type === 'breakdown' ? 70 : (onBeat(step) ? 100 : 84) * (0.75 + 0.25 * energy);
-      return clampVelocity(base + loose('bassVelocity'));
+      return clampVelocity(base + (accent ?? 0) + loose('bassVelocity'));
     }
     case 'stab':
-      return clampVelocity(70 + 20 * energy + loose('stabVelocity'));
+      return clampVelocity(70 + 20 * energy + (accent ?? 0) + loose('stabVelocity'));
     case 'pad': {
       const quiet = plan.section.type === 'breakdown' || energy < 0.3;
       const padWeight = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
-      return clampVelocity(48 + 30 * energy * (0.5 + padWeight / 2) + loose('padVelocity'));
+      return clampVelocity(
+        48 + 30 * energy * (0.5 + padWeight / 2) + (accent ?? 0) + loose('padVelocity'),
+      );
     }
     case 'lead': {
-      const base =
-        written.accent !== undefined ? LEAD_LEVEL + written.accent : onBeat(step) ? 100 : 82;
+      // A motif's accent is counted from the lead's own level (U4), not the
+      // beat: its dynamics are the motif's own, not an offset on a value
+      // the motif never asked for. Every other part adds its accent on top
+      // of what it would have played; the lead's replaces what it would
+      // have played, exactly as U4 already decided.
+      const base = accent !== undefined ? LEAD_LEVEL + accent : onBeat(step) ? 100 : 82;
       return clampVelocity(base + loose('leadVelocity'));
     }
   }

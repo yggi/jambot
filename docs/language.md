@@ -190,6 +190,24 @@ Decided: owner, ahead of the evidence — every part, and timing as well as
 velocity, the way a real musician's and instrument's expression works, still
 derived from swing, no new style axis (#107, #116 §7). Lands in: #147 (closes).
 
+**T18. A written accent is an offset on what a part would otherwise have played,
+not a replacement for it — except a lead note from a motif, whose accent
+replaces the beat's own (U4, already decided).** Witness: `velocityOf`
+(`performer.ts`): every part but the lead adds `written.accent ?? 0` to its own
+reading of role, step, beat or energy, before the licence's looseness; the lead
+alone still reads `LEAD_LEVEL + accent` in place of the beat's own accent, since
+a motif's dynamics are its own, not an offset on a beat it may not even land on.
+Counterexample: a stated accent that changes what a part's own performance maps
+read (energy, beat, role) rather than only its result; a part whose accent the
+licence still jitters differently than it does without one. Test:
+`performer.test.ts`, "adds every other part’s written accent on top of what it
+would have played, never in place of it (#107)": every accent from −30 to 90,
+every non-lead part and a drum hit, clamped to 1–127 exactly as `plain + accent`
+would be; `events.test.ts`, whose `doughProblems`/`writtenProblems` tests now
+take a whole accent on any part, not the lead alone. Source: the owner, on #107.
+Status: measured. Decided: #107, ahead of the evidence. Lands in: whichever
+composer, if any, first writes one for a part besides the lead.
+
 **T5. Any bar renders from its environment (seed, position, style, plan) and
 what it states.** Witness: the drums, a function of the bar's environment that
 carries nothing; randomness keyed by seed, position and a named stream.
@@ -470,6 +488,24 @@ bass and the comp play the same rhythm and pitch classes, in another register;
 the lead differs in more than half. Source: T5, S1, #40's review, #37 step 5.
 Status: measured, failing (prototype); measured (the port's carried state).
 Lands in: #13.
+
+**S3. A performer's own draw never keys on what a resumed band may still differ
+on: a pitched part's note, its register.** Witness:
+`velocityLooseness`/`lengthLooseness` (`performer.ts`) key every pitched part's
+draw by bar and step alone; only the drums, whose note is a sound's identity
+rather than a register, keep the note in the key. Counterexample: a draw keyed
+by the note too, matching `drumVelocity`'s own shape for every part.
+`velocityLooseness`'s first draft did exactly this: a bass or pad note resumed
+in another register then drew a different length looseness than it would have
+before the resume, though S2 says only its register may differ. Test:
+`band.test.ts`, "carries register into the bass and the comp, but a phrase into
+the lead: what a resumed band loses (S2)": fails on the pitch-keyed draft and
+passes the fix; no new test needed, since S2's own already exercises it. Source:
+#147/#154's build, caught by S2's own test. Status: measured. Decided: S2,
+dissolved — S2 already requires it, so a performer's own draws have no real
+choice here, only a bug to avoid, not a new one. Lands in: T17; whatever next
+reads a pitched part's own note into a seeded draw (#107's Open items: voicing,
+which dough keys a performer fills).
 
 ### Change
 

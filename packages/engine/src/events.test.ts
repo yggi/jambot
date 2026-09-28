@@ -79,7 +79,7 @@ describe('doughProblems', () => {
       expect(doughProblems({ ...kick, gain })).toEqual([`gain ${gain} is not a gain 0–1`]);
   });
 
-  it('takes a role on a drum hit and an accent on a lead note, passed through from what was written (L7)', () => {
+  it('takes a role on a drum hit, and nothing else (L7)', () => {
     for (const role of DRUM_ROLES) expect(doughProblems({ ...kick, role })).toEqual([]);
     expect(doughProblems({ ...kick, role: 'cowbell' as DrumRole })).toEqual([
       'role cowbell is not a drum role',
@@ -88,6 +88,9 @@ describe('doughProblems', () => {
       expect(doughProblems({ ...kick, part, role: 'kick' })).toEqual([
         `a ${part} note has no role`,
       ]);
+  });
+
+  it('takes a whole accent on any part, passed through from what was written (L7, #107)', () => {
     const lead: DoughNote = {
       part: 'lead',
       step: 0,
@@ -96,10 +99,11 @@ describe('doughProblems', () => {
       velocity: 100,
       gain: 100 / 127,
     };
-    for (const accent of [-20, 0, 15]) expect(doughProblems({ ...lead, accent })).toEqual([]);
+    for (const part of PARTS.filter((p) => p !== 'drums'))
+      for (const accent of [-20, 0, 15])
+        expect(doughProblems({ ...lead, part, accent })).toEqual([]);
+    for (const accent of [-20, 0, 15]) expect(doughProblems({ ...kick, accent })).toEqual([]);
     expect(doughProblems({ ...lead, accent: 2.5 })).toEqual(['accent 2.5 is not a whole number']);
-    for (const part of PARTS.filter((p) => p !== 'lead' && p !== 'drums'))
-      expect(doughProblems({ ...lead, part, accent: 3 })).toEqual([`a ${part} note has no accent`]);
   });
 
   it('reports every problem at once', () => {
@@ -145,14 +149,13 @@ describe('writtenProblems', () => {
     expect(writtenProblems(loud)).toEqual(['a written note has no velocity']);
   });
 
-  it('takes a whole accent on a lead note, as written, and on nothing else (T4, U4)', () => {
+  it('takes a whole accent on any part, as written: an offset on top, not a replacement (T4, U4, #107)', () => {
     const lead: WrittenNote = { part: 'lead', step: 0, note: 72, length: 2 };
-    for (const accent of [-20, 0, 15]) expect(writtenProblems({ ...lead, accent })).toEqual([]);
+    for (const part of PARTS.filter((p) => p !== 'drums'))
+      for (const accent of [-20, 0, 15])
+        expect(writtenProblems({ ...lead, part, accent })).toEqual([]);
+    for (const accent of [-20, 0, 15]) expect(writtenProblems({ ...hit, accent })).toEqual([]);
     expect(writtenProblems({ ...lead, accent: 2.5 })).toEqual(['accent 2.5 is not a whole number']);
-    for (const part of PARTS.filter((p) => p !== 'lead' && p !== 'drums'))
-      expect(writtenProblems({ ...lead, part, accent: 3 })).toEqual([
-        `a ${part} note has no accent`,
-      ]);
   });
 
   it('wants a role on a drum hit and on nothing else', () => {

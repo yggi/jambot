@@ -115,6 +115,28 @@ describe('the performer', () => {
     expect([at(0), at(2)]).toEqual([100, 82]);
   });
 
+  it('adds every other part’s written accent on top of what it would have played, never in place of it (#107)', () => {
+    const env = barOf('groove', 0.7, {});
+    const notes: WrittenNote[] = [
+      { part: 'bass', step: 2, note: 48, length: 2 },
+      { part: 'pad', step: 2, note: 60, length: 2 },
+      { part: 'stab', step: 2, note: 60, length: 2 },
+    ];
+    for (const written of notes) {
+      const plain = perform(env, written).velocity;
+      for (const accent of [-30, -1, 0, 1, 30, 90])
+        expect(perform(env, { ...written, accent }).velocity).toBe(
+          Math.max(1, Math.min(127, plain + accent)),
+        );
+    }
+    const drumHit = hit('kick', 2);
+    const plainKick = perform(env, drumHit).velocity;
+    for (const accent of [-30, 0, 30])
+      expect(perform(env, { ...drumHit, accent }).velocity).toBe(
+        Math.max(1, Math.min(127, plainKick + accent)),
+      );
+  });
+
   it('pads the softer the more the articulation leans to stabs, and stabs louder with energy (T4)', () => {
     const chord = (part: 'pad' | 'stab', env: BarEnv) =>
       perform(env, { part, step: 0, note: 60, length: 1 }).velocity;
