@@ -566,6 +566,28 @@ The full description is in
   lead and the lowest is bass; everything polyphonic, and any monophonic line
   between, is harmony evidence. Every call carries its own confidence and the
   rule it used, never a silent guess.
+- The parser has its own mini-ratchet, a curriculum (Q10,
+  `packages/analyzer/experiments/ladder.ts`): the engine generates MIDI at
+  rising complexity, and the parser must recover each rung exactly before the
+  next is attempted, before an external corpus (POP909, Groove MIDI, ASAP, Lakh)
+  disturbs the loop with content nothing here wrote. Rung 0, `metronomeRung`,
+  drives the engine's own `metronome` machine and reads its clicks back through
+  `loadMidi`; later rungs (a scale, a real melody, rhythmic patterns, multiple
+  voices, a Bach canon) are #141's continuation. A rung generator that needs
+  `@jambot/theory` directly (rung 0's `METERS`) takes it as a devDependency, the
+  same split `packages/score`'s `seam.test.ts` uses for `@jambot/engine`: a
+  lower layer brought in to build or check fixtures, not part of the package's
+  own production code.
+- The ladder is also how #63 gets built from the bottom, not only the parser's
+  own measure: `toDrumNotation` (`src/notation.ts`) is the seam between a
+  quantised note and the engine's `WrittenNote`, the shape `packages/score`'s
+  `encodeBar`/`compileBar` read and write. It drops velocity and the microtiming
+  residual (performance, not notation, T4/L7), and writes a drum hit's role only
+  where the sound alone settles it (kick, pedal hat, the Euclidean rim, every
+  hi-hat sound); the snare's role (backbeat, fill or ghost) is E16's still-open
+  question on #63, so it's left off rather than guessed. Rung 0's hits are all
+  kicks, so it already reaches a full written bar — the round trip through real
+  score text itself waits only on E16's decision (#63 step 2b), nothing else.
 
 ### Terms
 

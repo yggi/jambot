@@ -232,6 +232,11 @@ Every doc and code area, as a tree. Add a line when you add one.
       confidence (#3 step 3)
     - `src/smf.ts`: `parseSmf`, a Standard MIDI File's bytes (`midi-file`, pure
       byte-array code) into this package's own shape
+    - `src/notation.ts`: `toDrumNotation`, a quantised drum note with its
+      performance dropped (velocity, microtiming; T4, L7), into the engine's own
+      `WrittenNote` — the seam `packages/score` reads and writes (#63 step 2b) —
+      with a role only where the sound settles it alone; the snare's is E16's
+      still-open question, left undecided here too
     - `src/load.ts`: `loadMidi`, the whole slice: load, normalise, the tempo
       map, part roles and quantised sections, each with its own confidence, and
       a log of everything dropped or left unquantised
@@ -239,6 +244,10 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `experiments/load-file.ts`: milestone 3, one real file end to end — reads
       a file's bytes off disk, the one Node-only step this package leaves out,
       and runs them through `parseSmf` and `loadMidi`
+    - `experiments/ladder.ts`: the parser's own mini-ratchet (#141, Q10): a
+      curriculum of MIDI the engine itself generates, at rising complexity, each
+      rung a claim the parser must recover exactly; `metronomeRung` is rung 0,
+      the engine's own metronome machine on 4/4, one drum voice
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown firing
   - `docs-wrap.test.ts`: docs wrap at 80 columns (#45), `.prettierrc.json`'s

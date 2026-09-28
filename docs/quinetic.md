@@ -101,6 +101,39 @@ that loses it. Test: open: over every preset and the preset tour, the fraction
 that comes back exact at each boundary. Source: F3. Status: open. Lands in: #3,
 #2.
 
+## A curriculum toward Q1e and Q3 (Q10)
+
+Q1e and Q3 need the whole analyzer, including text it cannot write yet. A
+curriculum measures what exists today without waiting: a ladder of MIDI the
+engine itself generates, at rising complexity, disturbed by an external corpus
+once it saturates. This is the ratchet applied to itself (`ratchet.md`, "the
+same shape at every level"): the parser's own working track (a rung that passes)
+and negative track (the next rung, chosen to be the smallest that can fail), at
+the parser's own scale rather than the whole app's.
+
+**Q10. A curriculum of engine-generated MIDI, of rising complexity, is recovered
+exactly by the parser at every rung it has reached.** Witness: a generator per
+rung (`packages/analyzer/experiments/ladder.ts`), each a function of the
+engine's own machines into `RawMidi`, read back through `loadMidi` and checked
+against what the generator asked for. The rungs: a metronome on 4/4; a scale up
+and down, a quarter note each; a real melody (_Twinkle, Twinkle, Little Star_);
+rhythmic patterns (the engine's own Euclidean and swung drums); multiple voices
+together (the band's own bass, lead, chords and drums, through the performer,
+#140); imitative polyphony (a Bach canon, chosen to break the register-only
+bass/lead ranking in `roles.ts`, a parser robustness case — not a re-opening of
+_Canon per tonos_ as a property, which stays "Not a property" below).
+Counterexample: a rung whose generated content the parser doesn't recover
+exactly, in role, grid position, tempo or swing; a later rung that silently
+loses a guarantee an earlier one held (the history gate already refuses this for
+the catalogue as a whole). Test: `packages/analyzer/experiments/ladder.test.ts`,
+one description per rung, citing Q10. Source: #141's continuation list, the
+analyzer brief's evaluation section ("closed loop on synthetic music... the most
+important test"). Status: measured (rung 0, a metronome on 4/4, exact role,
+grid, tempo and swing over three tempos); open (a scale, a real melody, rhythmic
+patterns, multiple voices, imitative polyphony); speculative (the
+external-corpus disturbance, until a rung saturates and a corpus is chosen —
+POP909, Groove MIDI, ASAP or Lakh, per the brief). Lands in: #141, #3, Q1e, Q3.
+
 ## Machines (Q4–Q6)
 
 **Q4a. Every level keeps the machine laws.** Same as F1.
