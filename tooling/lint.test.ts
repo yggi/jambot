@@ -12,6 +12,7 @@ async function firing(code: string, path: string): Promise<string[]> {
 }
 
 const pureSources = [
+  'packages/analyzer/src/probe.ts',
   'packages/engine/src/probe.ts',
   'packages/score/src/probe.ts',
   'packages/session/src/probe.ts',

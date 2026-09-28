@@ -134,14 +134,15 @@ that doesn't read back from its played time. The prototype's `swingDelay` and
 (swing 0.5–1). For dynamics and articulation, a written note that holds a played
 value, or an event that is not its written note performed. Rounding the style a
 bar is composed from to 3 decimals changes what plays in 180 of 320 bars of a
-gliding tour, and what is written in 3 (E9). Test: `swing.test.ts`, "is undone
-by its inverse, both ways, on and off the grid (T4, Q1b)" and "shows that the
-prototype's delays are not what its unswing undoes (T4, Q1b)"; `tempo.test.ts`,
-"keeps time rising through a tempo glide, and gives each position back from its
-time (T4, Q1c)", and the four tests under "position and clock time" that cite
-(T4, Q1c): tempo glides from rest between the axis ends and every preset tempo
-at every length, 60 chains of retargets that carry their slope, brake or arrive
-early, the chain through swing, and a reading of clock time that runs backwards.
+gliding tour, and what is written in 3 (E9). Test:
+`packages/engine/src/swing.test.ts`, "is undone by its inverse, both ways, on
+and off the grid (T4, Q1b)" and "shows that the prototype's delays are not what
+its unswing undoes (T4, Q1b)"; `packages/engine/src/tempo.test.ts`, "keeps time
+rising through a tempo glide, and gives each position back from its time (T4,
+Q1c)", and the four tests under "position and clock time" that cite (T4, Q1c):
+tempo glides from rest between the axis ends and every preset tempo at every
+length, 60 chains of retargets that carry their slope, brake or arrive early,
+the chain through swing, and a reading of clock time that runs backwards.
 `transport.test.ts`, "reads every onset back as its written position, through
 the tempo and swing it was laid with (T4, Q1c)": every onset of a run through
 four glides of tempo and swing, where the track inverted from the song's start
@@ -196,13 +197,13 @@ pulses composed onto 16 steps, two to an eighth, are `even(4, 16)`, the
 transport's beats. Counterexample: a grouping into 2s and 3s that no mode of
 `even` gives. 10/8 as 3+3+2+2 is the first, and 70 of the 149 groupings of up to
 16 eighths are such; each is still a helix, given by its heights, as the son
-clave is among the rhythms. Test: `meter.test.ts`, whose tests under "as a
-helix" cite T6, over every named meter and every grouping up to 16. Open for the
-song: nothing reads a meter but the metronome, and the transport's bar is 16
-steps (T10). Source: #98, the metronome; #105. Status: measured (the named
-meters, their modes, every grouping as a helix); measured, failing (every
-grouping, by `even` alone). Lands in: #63 (a meter in the bar's header, beside
-T5's environment); #27 (the transport's bar).
+clave is among the rhythms. Test: `packages/theory/src/meter.test.ts`, whose
+tests under "as a helix" cite T6, over every named meter and every grouping up
+to 16. Open for the song: nothing reads a meter but the metronome, and the
+transport's bar is 16 steps (T10). Source: #98, the metronome; #105. Status:
+measured (the named meters, their modes, every grouping as a helix); measured,
+failing (every grouping, by `even` alone). Lands in: #63 (a meter in the bar's
+header, beside T5's environment); #27 (the transport's bar).
 
 **T7. A tempo is a rate of the grid, and a pulse tempo exists only where the
 pulses are equal.** Witness: a meter's `gaps`, its pulses' lengths: they are
@@ -212,12 +213,12 @@ quarter of the step rate, whatever the meter. The metronome counts a mean pulse
 rate (`pulsesPerMinute`, `subdivisionSeconds`), which for 5/8 at 120 plays
 pulses of 0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when
 the meter does. Counterexample: an additive meter with a pulse that plays at the
-written tempo. Test: `meter.test.ts`, whose test of pulse tempo cites T7, over
-every well-formed pair up to 16. A header's `bpm=` counts the grid, as the
-engine does: quarter-note equivalents, a quarter of the step rate, defined for
-every meter; a pulse rate is derived for display. Source: #98. Status: measured
-(theory). Decided: #7, on measured options (the grid's rate, the pulse rate, a
-rate with a unit). Lands in: #63; #27.
+written tempo. Test: `packages/theory/src/meter.test.ts`, whose test of pulse
+tempo cites T7, over every well-formed pair up to 16. A header's `bpm=` counts
+the grid, as the engine does: quarter-note equivalents, a quarter of the step
+rate, defined for every meter; a pulse rate is derived for display. Source: #98.
+Status: measured (theory). Decided: #7, on measured options (the grid's rate,
+the pulse rate, a rate with a unit). Lands in: #63; #27.
 
 **T8. Once its clock is trusted, a client sounds each moment within its bound of
 the host, half its best round trip give or take each output pair's bound, and
@@ -266,22 +267,22 @@ which every reader of bar and beat calls: the transport, the Muse's grid
 rolls. A score header that states no meter reads its bar the same way, from the
 theory's 4/4 (`UNSTATED_METER`, `meterOnSteps`, in `packages/score`).
 Counterexample: a reader of bar or beat whose result in 4/4 differs from the
-helix's, or one that no helix reading writes. Test: `meter.test.ts`, whose tests
-under "as the song’s clock" cite T10: at every step of 128 bars, the 4/4
-readings equal the literals `Math.floor(step / 16)`, `step % 16` and
-`Math.floor(step % 16 / 4)`, and every named meter's readings keep their laws,
-while the literals give 4/4's alone; `events.test.ts`, whose tests under "the
-song’s clock" cite T10: the song's readings are the literals at every
-quarter-step of 128 bars, and bars and beats tile the song; `seam.test.ts`
-(`packages/score`), whose test of the meter cites T10: a header that states no
-meter is in the song's. The rhythms the parts write stay on the 16 steps, such
-as the backbeat on steps 4 and 12: they are content, not readings (#123). MIDI
-clock's 6 ticks a step (T3) counts steps, not bars. A key change keeps the cycle
-and a meter change need not, so a song whose meter changes is a helix only
-between changes: open how bars of different lengths join (#122, T14). Source:
-#7's tension 9; #105; #120. Status: measured (the readings, every named meter;
-the readers, in 4/4). Lands in: #122 (a meter per bar); #63 (a meter in the
-header).
+helix's, or one that no helix reading writes. Test:
+`packages/theory/src/meter.test.ts`, whose tests under "as the song’s clock"
+cite T10: at every step of 128 bars, the 4/4 readings equal the literals
+`Math.floor(step / 16)`, `step % 16` and `Math.floor(step % 16 / 4)`, and every
+named meter's readings keep their laws, while the literals give 4/4's alone;
+`events.test.ts`, whose tests under "the song’s clock" cite T10: the song's
+readings are the literals at every quarter-step of 128 bars, and bars and beats
+tile the song; `seam.test.ts` (`packages/score`), whose test of the meter cites
+T10: a header that states no meter is in the song's. The rhythms the parts write
+stay on the 16 steps, such as the backbeat on steps 4 and 12: they are content,
+not readings (#123). MIDI clock's 6 ticks a step (T3) counts steps, not bars. A
+key change keeps the cycle and a meter change need not, so a song whose meter
+changes is a helix only between changes: open how bars of different lengths join
+(#122, T14). Source: #7's tension 9; #105; #120. Status: measured (the readings,
+every named meter; the readers, in 4/4). Lands in: #122 (a meter per bar); #63
+(a meter in the header).
 
 **T11. Swing lives on the pulse, and a performance map can move a written meter
 toward another.** Witness: `swingMap` at full swing plays 4/4's eighths on
@@ -289,11 +290,11 @@ toward another.** Witness: `swingMap` at full swing plays 4/4's eighths on
 spans the same 16 steps. Counterexample: a pulse that swing moves. `swingOf`
 swings by beats of 4 steps, so at full swing it keeps every pulse of 3/4 and 4/4
 and moves one late in every other named meter: 6/8's second pulse, at step 6,
-plays at 6⅔. Test: `swing.test.ts`, whose tests under "swing over a meter" cite
-T11, over every named meter and every pulse of 8 bars. Source: #105, the ratchet
-run on the meter. Status: measured (full swing onto 12/8); measured, failing
-(swing by 4-step beats, for 5/8, 6/8, 7/8, 9/8, 10/8 and 12/8). Lands in: #27,
-where the transport learns a meter (T10).
+plays at 6⅔. Test: `packages/engine/src/swing.test.ts`, whose tests under "swing
+over a meter" cite T11, over every named meter and every pulse of 8 bars.
+Source: #105, the ratchet run on the meter. Status: measured (full swing onto
+12/8); measured, failing (swing by 4-step beats, for 5/8, 6/8, 7/8, 9/8, 10/8
+and 12/8). Lands in: #27, where the transport learns a meter (T10).
 
 **T12. An onset off the meter is an altered degree of it only where the meter's
 pulses are unequal.** Witness: the numerals' `b` and `#` move by
@@ -303,11 +304,12 @@ Counterexample: a meter whose alteration moves nothing. For every simple and
 compound meter, and for the song's 4/4 on its 16 steps, the step is 0, so `b`
 and `#` cannot write a syncopation; one step of the grid the meter is composed
 onto would. In 12 notes to the cycle the two agree for the diatonic set: its
-chromatic step is 1, the grid's own. Test: `meter.test.ts`, whose test of an
-onset's alteration cites T12, over every grouping into 2s and 3s up to 16.
-Source: #7's "one token grammar for pitch and rhythm", #105. Status: measured,
-failing (every simple and compound meter). Lands in: the language's next shape,
-where pitch and time share one token grammar or don't; tension 7.
+chromatic step is 1, the grid's own. Test: `packages/theory/src/meter.test.ts`,
+whose test of an onset's alteration cites T12, over every grouping into 2s and
+3s up to 16. Source: #7's "one token grammar for pitch and rhythm", #105.
+Status: measured, failing (every simple and compound meter). Lands in: the
+language's next shape, where pitch and time share one token grammar or don't;
+tension 7.
 
 **T13. Over a link that keeps order, a bar reaches a client in time exactly when
 the link holds it less than a beat.** Witness: a bar is composed a beat before
@@ -445,11 +447,12 @@ Once a value has been read at its rate, it holds: a change in the middle of a
 beat re-swung the rest of that beat by up to 0.36 steps, so the transport keeps
 a started beat's swing. Test: `band.test.ts`, "holds each section for its eight
 bars (C3)" and "plays each section's plan and its theme's chords, each decided
-when the bar before it is composed (C3)"; `tempo.test.ts`, "swings each beat by
-the swing where the beat starts (C3)"; `transport.test.ts`, "keeps a beat’s
-swing once the beat has started, whatever the style does next (C3)". Source:
-Pd's control and signal rates, multirate signal processing, #37 step 3, #40's
-review. Status: measured (port); open (the rates the IM writes). Lands in: #13.
+when the bar before it is composed (C3)"; `packages/engine/src/tempo.test.ts`,
+"swings each beat by the swing where the beat starts (C3)"; `transport.test.ts`,
+"keeps a beat’s swing once the beat has started, whatever the style does next
+(C3)". Source: Pd's control and signal rates, multirate signal processing, #37
+step 3, #40's review. Status: measured (port); open (the rates the IM writes).
+Lands in: #13.
 
 **C4. A part morphs: as the style moves, its hits and tones come and go one at a
 time.** Witness: the drums, whose threshold per step and sound is drawn once per
@@ -958,6 +961,23 @@ performed melodies (POP909's, then the Muse's own captures once they are
 logged), the share of each bar's velocity variance that the beat class explains.
 Source: #84, #79. Status: open. Lands in: #3 (which loads POP909), #79.
 
+**A6. A file's ticks round-trip through the parser's tempo map, and a written
+step round-trips through grid quantisation once its 4/4 section's swing is
+found.** Witness: `ticksTimeMap` (`packages/analyzer/src/tempo.ts`), whose
+`played` and `written` are built as one section/retraction pair per tempo
+segment, the same shape as the engine's own time maps (T4); and
+`estimateSwing`/`quantiseSection` (`packages/analyzer/src/swing.ts`), which
+search the swing axis (`swingMap`) for the value whose inverse leaves a
+section's onsets closest to the step grid, then round. Counterexample: a tick
+whose `written(played(tick))` differs from itself across a tempo change; a bar
+written at a known swing whose recovered step differs from the one it was
+written at. Test: `packages/analyzer/src/tempo.test.ts` (the round trip, across
+three tempo segments) and `packages/analyzer/src/swing.test.ts` (recovers every
+named swing across a bar tour, in both onbeat and offbeat positions). Source:
+#141, analyzer brief (`docs/briefs/analyzer.md`) steps 1–2. Status: measured
+(the parser's tempo map and 4/4 grid quantisation, on synthetic input); open
+(real MIDI files, other meters, #3). Lands in: #3, F4, Q1e.
+
 ### Composition
 
 These come from the engine's contract (#37), the score's round trip (#13),
@@ -1002,15 +1022,16 @@ Witness: per boundary, a section and a retraction:
 
 Chained, a score, played and heard, writes itself: a quine. Counterexample: a
 value that doesn't come back through a boundary. The prototype's swing gives one
-(T4). Test: `swing.test.ts` and `tempo.test.ts`, as for T4 (time);
-`motifs.test.ts`, whose test of the canonical operator cites F3 (motifs);
-`mini.test.ts` and `score.test.ts` (`packages/score`), whose tests of the
-written form cite F3: a text written another way (fields in another order, a key
-spelled another way, `.6` for `0.6`, weights not in lowest terms) is written in
-one form, which a second pass leaves as it is (text); open for the parts' lines
-(#63) and sound (#3). Source: #13, #37. Status: measured (time); measured
-(motifs); measured (text: the header and harmony); open (text: the parts' lines;
-sound). Lands in: Q1a–Q1e and Q3.
+(T4). Test: `packages/engine/src/swing.test.ts` and
+`packages/engine/src/tempo.test.ts`, as for T4 (time); `motifs.test.ts`, whose
+test of the canonical operator cites F3 (motifs); `mini.test.ts` and
+`score.test.ts` (`packages/score`), whose tests of the written form cite F3: a
+text written another way (fields in another order, a key spelled another way,
+`.6` for `0.6`, weights not in lowest terms) is written in one form, which a
+second pass leaves as it is (text); open for the parts' lines (#63) and sound
+(#3). Source: #13, #37. Status: measured (time); measured (motifs); measured
+(text: the header and harmony); open (text: the parts' lines; sound). Lands in:
+Q1a–Q1e and Q3.
 
 **F4. Analysis settles in one round: `encode(compile(encode(x))) = encode(x)`.**
 Witness: the analyzer. Counterexample: a MIDI file whose analysis changes on a

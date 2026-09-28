@@ -16,6 +16,7 @@ const RISKY = ['pow', 'sin', 'cos', 'tan', 'exp', 'log', 'log2', 'asin', 'acos',
 const CALL = new RegExp(`\\bMath\\.(${RISKY.join('|')})\\(`);
 
 const PURE_SOURCES = [
+  'packages/analyzer/src',
   'packages/engine/src',
   'packages/score/src',
   'packages/session/src',
