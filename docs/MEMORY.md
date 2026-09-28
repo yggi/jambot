@@ -238,6 +238,12 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   lobby server, in Node's environment. Its devices' clocks are the test's and
   stand still, so a ping comes back at once and the skew is exact on any
   machine; the clocks under delay are the pure tests'.
+- `jam` (`packages/session/src/session.test.ts`) runs a host and a client over a
+  link that drops bars, or, given a `recovery`, keeps order as TCP does
+  (`orderedArrival` in the fault kit): a lost message is sent again after the
+  recovery and holds up everything behind it, and the pings' answers, the bars
+  ahead and the Muse share the stream. A bar is lacked exactly where the stream
+  held it past a beat (T13).
 - `?timing` in the address shows the timing panel (`TimingPanel.svelte`, #27):
   the transport's tick intervals on the page clock, how far ahead of the clock
   each event was scheduled, the steps laid and missed, the output pair's jumps
