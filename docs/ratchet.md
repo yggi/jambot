@@ -139,8 +139,12 @@ These are not known yet:
   #7 too, and `quinetic.md` (#39) already gathers properties across tracks.
   Whether the rules above hold unchanged for that is not tested yet.
 - **Whether the ratchet makes progress** (#43). `pnpm ratchet` counts entries by
-  evidence and rules by how over `main`'s history, but a few hours of history
-  show no trend yet. Crossings per pair, and how long each takes to land as a
-  test, live in issue comments and are counted by hand.
+  evidence and rules by how over `main`'s history. Three days and 34
+  catalogue-touching commits now show evidence rising from 39 to 72 entries (17
+  to 52 measured) with no falls, and decisions on measured options growing
+  faster than ones taken ahead of the evidence (2:1 at the `Decided:` split,
+  11:3 now). Whether that keeps rising or plateaus is still open. Crossings per
+  pair, and how long each takes to land as a test, live in issue comments and
+  are counted by hand.
 - **Convergence.** The Dialectica form is exact for a single claim and its test.
   Whether the design as a whole converges is not claimed.

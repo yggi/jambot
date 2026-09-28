@@ -109,16 +109,68 @@ describe('composeTimeMaps', () => {
 });
 
 describe('swing over a meter', () => {
-  it('keeps every pulse of 3/4 and 4/4 where it is, and moves a pulse late in every other named meter, since it swings by beats of 4 steps (finite: every named meter, every pulse of 8 bars) (T11)', () => {
-    const full = swingMap(1);
-    const kept: string[] = [];
-    for (const [name, meter] of Object.entries(METERS)) {
+  it('keeps every pulse of every named meter where it is, at every swing (finite: every meter, every pulse of 8 bars, every swing sampled) (T11)', () => {
+    for (const meter of Object.values(METERS)) {
       const clock = meterOnSteps(meter);
       const pulses = Array.from({ length: 8 * clock.heights.length }, (_, d) => heightOf(clock, d));
-      if (pulses.every((step) => full.played(step) === step)) kept.push(name);
+      for (const swing of swings) {
+        const map = swingMap(swing, meter);
+        for (const step of pulses) expect(map.played(step)).toBeCloseTo(step, 12);
+      }
     }
-    expect(kept).toEqual(['3/4', '4/4']);
-    expect(full.played(6)).toBeCloseTo(6 + 2 / 3, 12); // 6/8's second pulse, a third of a step late
+  });
+
+  it('swings a 2-eighth pulse’s offbeat 8th onto the triplet at full swing, in every meter that has one (T11)', () => {
+    for (const meter of Object.values(METERS)) {
+      const clock = meterOnSteps(meter);
+      const full = swingMap(1, meter);
+      for (let d = 0; d < clock.heights.length; d++) {
+        const start = heightOf(clock, d);
+        if (heightOf(clock, d + 1) - start === 4)
+          expect(full.played(start + 2)).toBeCloseTo(start + 2 + 2 / 3, 12);
+      }
+    }
+  });
+
+  it('plays a 3-eighth pulse straight at the 8th level, on every meter that has one, the easiest option until T16 measures a ternary feel (T11, T16)', () => {
+    for (const meter of Object.values(METERS)) {
+      const clock = meterOnSteps(meter);
+      const full = swingMap(1, meter);
+      for (let d = 0; d < clock.heights.length; d++) {
+        const start = heightOf(clock, d);
+        if (heightOf(clock, d + 1) - start === 6)
+          for (const eighth of [1, 2])
+            expect(full.played(start + 2 * eighth)).toBe(start + 2 * eighth);
+      }
+    }
+  });
+
+  it('still shuffles the 16ths inside a 3-eighth pulse, straight or not at the 8th level (T16)', () => {
+    for (const meter of Object.values(METERS)) {
+      const clock = meterOnSteps(meter);
+      const shuffle = swingMap(0.5, meter); // full 16th shuffle, no 8th swing yet
+      for (let d = 0; d < clock.heights.length; d++) {
+        const start = heightOf(clock, d);
+        if (heightOf(clock, d + 1) - start === 6)
+          for (const eighth of [0, 1, 2])
+            expect(shuffle.played(start + 2 * eighth + 1)).toBeCloseTo(
+              start + 2 * eighth + 1 + 1 / 3,
+              12,
+            );
+      }
+    }
+  });
+
+  it('is undone by its inverse, on and off the grid, over every named meter (T11, Q1b)', () => {
+    for (const meter of Object.values(METERS)) {
+      for (const swing of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+        const map = swingMap(swing, meter);
+        for (const x of positions) {
+          expect(map.written(map.played(x))).toBeCloseTo(x, 12);
+          expect(map.played(map.written(x))).toBeCloseTo(x, 12);
+        }
+      }
+    }
   });
 
   it('plays 4/4’s eighths at full swing on 12/8’s: each offbeat eighth on its pulse’s third eighth, where a bar of 12/8 lies on the same 16 steps (T11)', () => {
