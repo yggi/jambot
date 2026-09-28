@@ -103,6 +103,11 @@ These principles come from the prototype
   in the reason. Update docs in the same commit as the code they describe.
 - **Don't speculate in docs.** If something is not known yet, leave the section
   open and say so.
+- **Fix trivial nits, don't report them.** A stray space, a typo, a stale
+  one-line reference: fix it in the branch under review, or leave it alone.
+  Flagging it costs the author a round trip for something that costs less to fix
+  than to describe. Save review comments for what needs a decision or a real
+  change.
 - **Small commits, pull requests into `main`.** No ceremony beyond passing
   checks.
 - **Deploy after merging.** Whoever merges a pull request into `main` then runs

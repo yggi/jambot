@@ -97,8 +97,16 @@ measured number beats one without.
 
 Post one review: create a pending review, add an inline comment per finding on
 the line it is about, then submit it with a summary. Use `COMMENT` unless asked
-to approve or request changes. Put the substantive findings first and mark nits
-as nits. End every comment with the Claude Code footer.
+to approve or request changes. Put the substantive findings first.
+
+Trivial nits (a stray space, a typo, a stale one-line reference) don't get a
+review comment at all: fix them directly in the worktree and let them ride the
+merge, or leave them alone if you can't push to the branch. A comment for one of
+these costs the author a round trip for less than the fix itself would have cost
+(AGENTS.md, "Fix trivial nits, don't report them"). Reserve inline comments for
+findings that need a decision or a real change.
+
+End every comment with the Claude Code footer.
 
 Then report to the user: the verdict, the findings in order of weight, and any
 friction you ran into in the workflow itself, with a concrete fix for each.
