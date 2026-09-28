@@ -190,16 +190,15 @@ Decided: owner, ahead of the evidence — every part, and timing as well as
 velocity, the way a real musician's and instrument's expression works, still
 derived from swing, no new style axis (#107, #116 §7). Lands in: #147 (closes).
 
-**T18. A written accent is an offset on what a part would otherwise have played,
-not a replacement for it — except a lead note from a motif, whose accent
-replaces the beat's own (U4, already decided).** Witness: `velocityOf`
-(`performer.ts`): every part but the lead adds `written.accent ?? 0` to its own
-reading of role, step, beat or energy, before the licence's looseness; the lead
-alone still reads `LEAD_LEVEL + accent` in place of the beat's own accent, since
-a motif's dynamics are its own, not an offset on a beat it may not even land on.
-Counterexample: a stated accent that changes what a part's own performance maps
-read (energy, beat, role) rather than only its result; a part whose accent the
-licence still jitters differently than it does without one. Test:
+**T18. A written accent is an offset on the base, not a replacement for it —
+except a lead note from a motif, whose accent replaces the beat's own (U4,
+already decided).** Witness: `velocityOf` (`performer.ts`): every part but the
+lead adds `written.accent ?? 0` to `baseVelocityOf` (`dynamics.ts`, T19), before
+the licence's looseness; the lead alone still reads `LEAD_LEVEL + accent` in
+place of the base, since a motif's dynamics are its own, not an offset on a beat
+it may not even land on. Counterexample: a stated accent that changes the base
+itself (energy, beat, role) rather than only adding to its result; a part whose
+accent the licence still jitters differently than it does without one. Test:
 `performer.test.ts`, "adds every other part’s written accent on top of what it
 would have played, never in place of it (#107)": every accent from −30 to 90,
 every non-lead part and a drum hit, clamped to 1–127 exactly as `plain + accent`
@@ -207,6 +206,45 @@ would be; `events.test.ts`, whose `doughProblems`/`writtenProblems` tests now
 take a whole accent on any part, not the lead alone. Source: the owner, on #107.
 Status: measured. Decided: #107, ahead of the evidence. Lands in: whichever
 composer, if any, first writes one for a part besides the lead.
+
+**T19. The performer's own contribution to a note's velocity and length is only
+its last draw, the licence; everything computed before it is the ensemble's
+default, not the performer's, wherever it happens to be computed.** Witness:
+`baseVelocityOf`/`baseLengthOf` (`dynamics.ts`), pulled out of `performer.ts` so
+the base is named and owned apart from the performer's own hand: energy, beat,
+drum role, a section's own read on a part and articulation's gate, none of it a
+seeded draw. `velocityOf`/`lengthOf` (`performer.ts`) only ever add a written
+accent (T18) and the licence (T17) on top of the base, the licence last, since
+it alone is the performer's own. Counterexample: a base computed with a seeded
+draw; a licence applied before an accent is read, so an accent could change what
+the licence jitters rather than only its result; a change to the base's formula
+that also has to reseed a licence stream. Test: `performer.test.ts`, "gives
+every part a licence, velocity and length alike, that widens with swing and
+holds still at 0 (#107, #147)" and "adds every other part’s written accent on
+top of what it would have played, never in place of it (#107)", both unbroken by
+pulling the base into `dynamics.ts`: no value changed, since the sum is the
+same, only named in three parts instead of one. Source: the owner, correcting an
+earlier framing that called the base "the performer's own reading" (#107).
+Status: measured. Decided: #107, ahead of the evidence — extracted into its own
+file for the law of true names; no change to any computed value. Lands in: #107,
+#116 (which layer ends up computing the base is still open; `dynamics.ts` is
+only where it lives today).
+
+**T20. Velocity and length may be the end of a longer chain than base, accent
+and licence: a global default, a style vector's own delta, and a composer's
+deliberate dynamic marking at any level of the composition's hierarchy (song,
+section, phrase, bar, note), each its own delta, before the note's own accent
+and the performer's last humanizing draw.** Witness: none yet; today's `energy`
+(`BarEnv.barEnergy`, `form.ts`) is the base's only style-driven term, one scalar
+per bar folded straight into each part's formula, and `written.accent` the only
+per-note delta a composer states — neither separates a global default from a
+style delta, nor reaches above the bar. Counterexample: a dynamic marking stated
+at a level `BarEnv` can't reach (a phrase, a section, the song); a style axis
+whose contribution to the base isn't a delta on a default but folded into one
+formula, the way `energy`'s scaling is today. Test: open — no decidable test
+until the hierarchy of dynamic markings, if any, has a shape. Source: the owner,
+illustrative, not a proposal to build (#107). Status: speculative. Lands in:
+#107, #116, if ever taken up.
 
 **T5. Any bar renders from its environment (seed, position, style, plan) and
 what it states.** Witness: the drums, a function of the bar's environment that

@@ -108,6 +108,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       its meter on the steps (`SONG_METER`, `BEATS`) and the readings of bar and
       beat every reader calls (`barAt`, `stepInBar`, `beatAt`, …; T10), and
       `clockOf`, the clock of a song whose meter changes (T14)
+    - `src/dynamics.ts`: a written note's base velocity and length
+      (`baseVelocityOf`, `baseLengthOf`), the ensemble's own default before a
+      written accent or the performer's own licence touch it (T19)
     - `src/performer.ts`: the performer, how a written note is played: its
       velocity, the length it sounds and its dough note (`perform`), read from
       the bar (T4, #107, #129); every part's licence, a seeded looseness on
