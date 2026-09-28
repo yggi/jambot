@@ -39,23 +39,25 @@ const using = (expression: string, imports = '') =>
   `${imports}export const probe = () => ${expression};\n`;
 const nodeFs = using('readFileSync', "import { readFileSync } from 'node:fs';\n");
 const tonal = using('note', "import { note } from 'tonal';\n");
+const strudel = using('mini', "import { mini } from '@strudel/mini';\n");
 
 describe('lint keeps the pure packages pure', () => {
   it.each(impure)('refuses %s in their sources', async (expression, rule) => {
     for (const path of pureSources) expect(await firing(using(expression), path)).toContain(rule);
   });
 
-  it('refuses Node APIs and tonal in their sources', async () => {
+  it('refuses Node APIs, tonal and @strudel/mini in their sources (#11)', async () => {
     for (const path of pureSources) {
       expect(await firing(nodeFs, path)).toContain('no-restricted-imports');
       expect(await firing(tonal, path)).toContain('no-restricted-imports');
+      expect(await firing(strudel, path)).toContain('no-restricted-imports');
     }
   });
 
-  it('lets their tests use a random, a clock and tonal, but not Node APIs', async () => {
+  it('lets their tests use a random, a clock, tonal and @strudel/mini, but not Node APIs (#11)', async () => {
     // A test may need an unkeyed random, for instance to show a law check fire.
     const test = 'packages/engine/src/probe.test.ts';
-    for (const code of [using('Math.random()'), using('Date.now()'), tonal])
+    for (const code of [using('Math.random()'), using('Date.now()'), tonal, strudel])
       expect(await firing(code, test)).toEqual([]);
     expect(await firing(nodeFs, test)).toContain('no-restricted-imports');
   });

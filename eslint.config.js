@@ -55,8 +55,9 @@ export default defineConfig(
     },
   },
   {
-    // tonal is a second opinion in tests, never part of the theory itself,
-    // and only tests may use an unkeyed random or the clock.
+    // tonal and @strudel/mini are second opinions in tests, never part of a
+    // package itself (L4: Strudel is AGPL, an oracle for conformance tests
+    // only), and only tests may use an unkeyed random or the clock.
     files: pureSources,
     ignores: ['**/*.test.ts'],
     rules: {
@@ -66,6 +67,7 @@ export default defineConfig(
           patterns: [
             { group: ['node:*'], message: 'Pure packages use no Node APIs.' },
             { group: ['tonal', '@tonaljs/*'], message: 'tonal is for tests only.' },
+            { group: ['@strudel/*'], message: '@strudel/mini is for conformance tests only (L4).' },
           ],
         },
       ],

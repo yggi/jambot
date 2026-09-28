@@ -14,6 +14,7 @@
     "@jambot/theory": "workspace:*"
   },
   "devDependencies": {
-    "@jambot/engine": "workspace:*"
+    "@jambot/engine": "workspace:*",
+    "@strudel/mini": "1.2.5"
   }
 }

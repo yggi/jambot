@@ -789,15 +789,25 @@ of the evidence. Lands in: #24, #63 step 2.
 Source: the prototype README, LADSPA. Status: derived.
 
 **L4. Strudel is a target: the shared mini-notation behaves identically, and no
-package depends on Strudel.** Witness: none on `main`. #11's survey ran the
-prototype's mini-notation against `@strudel/mini`: sequence, `[ ]`, `@`, `*`,
-`< >`, `,` and `~` agree; `: ? ! _ . / |` and Euclid differ. Strudel is
-AGPL-3.0-or-later, so `@strudel/mini` may be a dev dependency for tests only, as
-the conformance oracle, and no package imports it, as with tonal.
-Counterexample: a pattern both read that plays differently. Test: open: a
-conformance corpus against `@strudel/mini` (E3, #11). Source: #11. Status: open.
-Decided: #11, ahead of the evidence (the oracle for tests only, a licence call).
-Lands in: #63 step 4.
+package depends on Strudel.** Witness: `writeSequence`'s every placing of a bar
+of 8 agrees with `@strudel/mini` step for step and word for word. #11's earlier
+survey ran the prototype's mini-notation against `@strudel/mini`: sequence,
+`[ ]`, `@`, `*`, `< >`, `,` and `~` agree; `: ? ! _ . / |` and Euclid differ.
+Strudel is AGPL-3.0-or-later, so `@strudel/mini` is a dev dependency of
+`packages/score` for tests only, as the conformance oracle, and no package
+imports it, as with tonal (`eslint.config.js`'s `no-restricted-imports`).
+Counterexample: a pattern both read that plays differently. A mark that reuses
+`:`: Strudel reads `sd:2` as `["sd", 2]`, a sample name and a bank index, never
+a bare word, so `sd:ghost` reads as `["sd", "ghost"]` rather than failing — the
+`:` finding #11 recorded as prose stayed open and unenforced long enough that a
+role notation nearly reused it before E16/L8's word-fused form was chosen
+instead. Test: `strudel.test.ts`, "places every word of a bar of 8 on the step
+and with the word @strudel/mini gives it (L4)"; "reads a word marked with ':' as
+a name and an index, not a word (L4 counterexample)". Source: #11. Status:
+measured (sequence and `@weight`, the shared grammar so far); measured, failing
+(`:`, pinned as a regression test); open (`? ! _ . / |` and Euclid, as the score
+language grows into them, E3). Decided: #11, ahead of the evidence (the oracle
+for tests only, a licence call). Lands in: #63 step 4.
 
 **L5. A stage declares whether it can run on the clock; a model cannot.**
 Source: LADSPA's hard-realtime flag, the roadmap. Decided: the roadmap,
