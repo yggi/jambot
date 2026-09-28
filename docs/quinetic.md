@@ -123,18 +123,26 @@ rhythmic patterns (the engine's own Euclidean and swung drums); multiple voices
 together (the band's own bass, lead, chords and drums, through the performer,
 #140); imitative polyphony (a Bach canon, chosen to break the register-only
 bass/lead ranking in `roles.ts`, a parser robustness case — not a re-opening of
-_Canon per tonos_ as a property, which stays "Not a property" below).
-Counterexample: a rung whose generated content the parser doesn't recover
-exactly, in role, grid position, tempo or swing; a later rung that silently
-loses a guarantee an earlier one held (the history gate already refuses this for
-the catalogue as a whole). Test: `packages/analyzer/experiments/ladder.test.ts`,
-one description per rung, citing Q10. Source: #141's continuation list, the
-analyzer brief's evaluation section ("closed loop on synthetic music... the most
-important test"). Status: measured (rung 0, a metronome on 4/4, exact role,
-grid, tempo and swing over three tempos); open (a scale, a real melody, rhythmic
-patterns, multiple voices, imitative polyphony); speculative (the
-external-corpus disturbance, until a rung saturates and a corpus is chosen —
-POP909, Groove MIDI, ASAP or Lakh, per the brief). Lands in: #141, #3, Q1e, Q3.
+_Canon per tonos_ as a property, which stays "Not a property" below). Rung 1's
+generator reads a scale's helix with its degree number as time (#157): note i
+sounds on beat i at the scale's degree i, up one turn and back. Read back, the
+descent is the ascent under one operator on either tower, `rev` on time or
+`mirror.strans(7)` on pitch, and `canonicalOp` writes it on pitch; counted in
+semitones rather than the key's degrees, the pitch mirror gives the descent in
+dorian alone, the one diatonic mode that is its own mirror (U5). Counterexample:
+a rung whose generated content the parser doesn't recover exactly, in role, grid
+position, pitch, tempo or swing; a later rung that silently loses a guarantee an
+earlier one held (the history gate already refuses this for the catalogue as a
+whole). Test: `packages/analyzer/experiments/ladder.test.ts`, one description
+per rung, citing Q10. Source: #141's continuation list, the analyzer brief's
+evaluation section ("closed loop on synthetic music... the most important
+test"). Status: measured (rung 0, a metronome on 4/4, exact role, grid, tempo
+and swing over three tempos; rung 1, a scale up and down, exact role, grid,
+pitch, tempo and swing in every key of every diatonic mode); open (a real
+melody, rhythmic patterns, multiple voices, imitative polyphony); speculative
+(the external-corpus disturbance, until a rung saturates and a corpus is chosen
+— POP909, Groove MIDI, ASAP or Lakh, per the brief). Lands in: #141, #3, Q1e,
+Q3.
 
 ## Machines (Q4–Q6)
 
