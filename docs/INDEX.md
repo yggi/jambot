@@ -110,7 +110,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       `clockOf`, the clock of a song whose meter changes (T14)
     - `src/performer.ts`: the performer, how a written note is played: its
       velocity, the length it sounds and its dough note (`perform`), read from
-      the bar (T4, #107, #129)
+      the bar (T4, #107, #129); every part's licence, a seeded looseness on
+      velocity and length that widens with the swing (T17)
     - `src/random.ts`: keyed deterministic randomness, and quantised `chance`
       and `pick`
     - `src/style.ts`: the style axes, their ranges and glide spaces, the

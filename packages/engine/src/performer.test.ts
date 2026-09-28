@@ -199,10 +199,10 @@ describe('the performer', () => {
     expect(note.gain).toBeCloseTo(note.velocity / 127, 9);
   });
 
-  it('gives the drums a licence that widens with swing, and no other part or field any licence at all (#147)', () => {
-    // The same written note, over every bar of a tour (drumVelocity's only
-    // key besides step and note), at swing 0 and swing 1: a spread of 0 is
-    // no licence; only the drums' velocity ever moves.
+  it('gives every part a licence, velocity and length alike, that widens with swing and holds still at 0 (#107, #147)', () => {
+    // The same written note, over every bar of a tour (each licence
+    // stream's only key besides step and note), at swing 0 and swing 1: a
+    // spread of 0 is no licence, and every part now has one.
     const envAt = (bar: number, swing: number): BarEnv => ({
       ...barOf('groove', 0.7, { swing }),
       bar,
@@ -217,18 +217,19 @@ describe('the performer', () => {
       { part: 'stab', step: 4, note: 60, length: 2 },
       { part: 'lead', step: 4, note: 60, length: 2 },
     ];
-    for (const written of notes) {
-      expect(spreadAt(written, 0, 'velocity')).toBe(0);
-      expect(spreadAt(written, 1, 'velocity')).toBe(0);
-    }
     const drumHit = hit('hat', 4);
-    expect(spreadAt(drumHit, 0, 'velocity')).toBe(0);
-    expect(spreadAt(drumHit, 1, 'velocity')).toBeGreaterThan(0);
+    for (const written of [...notes, drumHit])
+      for (const field of ['velocity', 'length'] as const) {
+        expect(spreadAt(written, 0, field)).toBe(0);
+        expect(spreadAt(written, 1, field)).toBeGreaterThan(0);
+      }
 
-    // No part's length ever moves with style: the licence is velocity-only.
-    for (const written of [...notes, drumHit]) {
-      expect(spreadAt(written, 0, 'length')).toBe(0);
-      expect(spreadAt(written, 1, 'length')).toBe(0);
-    }
+    // Length only ever gates a little shorter: at swing 1 it never exceeds
+    // what articulation 0 already set, for any part.
+    const at = (written: WrittenNote, bar: number, swing: number) =>
+      perform(envAt(bar, swing), written).length;
+    for (const written of [...notes, drumHit])
+      for (const bar of range(64))
+        expect(at(written, bar, 1)).toBeLessThanOrEqual(at(written, bar, 0));
   });
 });

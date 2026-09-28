@@ -115,7 +115,7 @@ maps: time maps with exact inverses (swing, tempo), dynamics (a velocity from
 the hit, the energy and a seeded looseness) and articulation (a played length
 from a written one).** Witness: for time, `swingMap`, `swingOf` and `tempoMap`,
 composed by `composeTimeMaps`. Expressive timing would be one more map, not new
-syntax. For dynamics and articulation, `perform` (`perform.ts`): each part
+syntax. For dynamics and articulation, `perform` (`performer.ts`): each part
 writes `WrittenNote`s, a step, a note, a length in whole steps and, for a drum
 hit, its role, and the band plays each through `perform`, which reads the rest
 from the bar. A drum's accent comes from its role and step (the kick 112 on
@@ -162,6 +162,33 @@ Status: measured (time); measured (the port's dynamics and articulation); open
 (the text). Decided: the prototype, inherited (score against performance, for
 time); #7, on measured options (dynamics and articulation, E9). Lands in: #37
 (done), Q1b and Q1c; #63 step 2.
+
+**T17. Every part's licence widens with the swing, from no looseness at 0 to a
+bounded width at 1: velocity either way, length only ever a little shorter.**
+Witness: `velocityLooseness` and `lengthLooseness` (`performer.ts`), one seeded
+draw per part and per field, added into `velocityOf`'s and `lengthOf`'s existing
+formulas, exactly as `drumVelocity` already did for drum velocity alone.
+Velocity's width is ±12 around 0, the same 24 drums always had; length's is a
+factor of 1 down to 0.85, so a gated length never grows. Both are 0 at swing 0:
+the draw's contribution is multiplied by it. Over 64 bars of one written note
+per part, at swing 1: bass velocity spans 89–112 (spread 23), pad 53–77 (24),
+stab 78–101 (23), lead 89–112 (23); bass length spans 0.723–0.849 against 0.850
+at swing 0, pad 1.700–1.9997 against 2, stab 1.296–1.512 against 1.515, lead
+0.703–0.824 against 0.825 — every part's swing-1 length maximum sits under its
+swing-0 value. Counterexample: a part or a field whose spread stays 0 at swing 1
+(T4's dynamics and articulation would then still hold cold), or a length that
+exceeds its swing-0 value (the licence would then lengthen, not gate). Keyed by
+bar and step only, never by the note's pitch, for every part but the drums: a
+bass or comp note resumed in another register must draw the same looseness as
+before it was resumed (S2), and only a drum hit's sound, not a register, is its
+identity. Test: `performer.test.ts`, "gives every part a licence, velocity and
+length alike, that widens with swing and holds still at 0 (#107, #147)";
+`band.test.ts`, "carries register into the bass and the comp, but a phrase into
+the lead: what a resumed band loses (S2)", unbroken by this witness. Source:
+#147 (T4's neighbour, which found only drums had one). Status: measured.
+Decided: owner, ahead of the evidence — every part, and timing as well as
+velocity, the way a real musician's and instrument's expression works, still
+derived from swing, no new style axis (#107, #116 §7). Lands in: #147 (closes).
 
 **T5. Any bar renders from its environment (seed, position, style, plan) and
 what it states.** Witness: the drums, a function of the bar's environment that

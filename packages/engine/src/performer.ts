@@ -6,15 +6,19 @@
  * and, for a drum hit, its role. How loud it plays and how long it sounds
  * are read from the bar, so the score states neither:
  *
- * - dynamics: a drum's accent by its role and step, scaled by the bar's
- *   energy and loosened by a seeded draw as the swing rises; the bass and
- *   the lead by the beat, except a lead note from a motif, which plays on
- *   the lead's level plus the accent it is written with (U4); the comp by
- *   the energy, a pad the softer the more the articulation leans to stabs;
+ * - dynamics: each part's accent by its role, step or beat, scaled by the
+ *   bar's energy, except a lead note from a motif, which plays on the
+ *   lead's level plus the accent it is written with (U4); the comp by the
+ *   energy, a pad the softer the more the articulation leans to stabs;
  * - articulation: the bass and the lead gate their written lengths by the
  *   articulation, a stab sounds from 2.5 steps down to 0.45 as it rises, a
  *   pad is held for its written length, and a breakdown's bass lets go 0.3
  *   of a step early;
+ * - the licence: every part's velocity, and every part's length, loosens as
+ *   the swing rises and holds exactly still when it is 0 — a seeded draw
+ *   per part, the same shape drums always had (#147). Width, not direction:
+ *   velocity can land louder or softer; length only ever gates a little
+ *   shorter, never longer than what `articulation` already set;
  * - the instrument's colour, which the style shapes continuously
  *   (`sound.ts`, C1, C2).
  *
@@ -29,12 +33,44 @@
 
 import type { BarEnv } from './bar.ts';
 import { BAR_STEPS, type DoughNote, type DrumRole, type WrittenNote, onBeat } from './events.ts';
-import { draw } from './random.ts';
+import { draw, type Stream } from './random.ts';
 import { timbreOf } from './sound.ts';
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/**
+ * A part's velocity licence: how far a written note's velocity may drift,
+ * up or down, as the swing rises. 0 at swing 0, every part (#107, #147).
+ * Never keyed by the note's pitch for a pitched part: only its register may
+ * differ between a whole and a resumed band (S2), and the licence must not
+ * tell those apart. A drum hit's sound is its identity, not a register, so
+ * it keeps its own note in its key, as it always has.
+ */
+function velocityLooseness(
+  seed: number,
+  stream: Stream,
+  swing: number,
+  ...keys: readonly number[]
+): number {
+  return (draw(seed, stream, ...keys) - 0.5) * swing * 24;
+}
+
+/**
+ * A part's length licence: how much a written note's gated length may gate
+ * a little shorter still, as the swing rises. Never longer than what
+ * articulation already set, and exactly 1 (no change) at swing 0. Keyed the
+ * same way as `velocityLooseness`, for the same reason.
+ */
+function lengthLooseness(
+  seed: number,
+  stream: Stream,
+  swing: number,
+  ...keys: readonly number[]
+): number {
+  return 1 - draw(seed, stream, ...keys) * swing * 0.15;
+}
 
 /**
  * The lead's level, which a motif's accents are counted from when it plays:
@@ -71,45 +107,56 @@ function accent(env: BarEnv, role: DrumRole, step: number): number {
 function velocityOf(env: BarEnv, written: WrittenNote): number {
   const { seed, bar, style, barEnergy: energy, plan } = env;
   const { step, note } = written;
+  const loose = (stream: Stream) => velocityLooseness(seed, stream, style.swing, bar, step);
   switch (written.part) {
-    case 'drums': {
-      const looseness = (draw(seed, 'drumVelocity', bar, step, note) - 0.5) * style.swing * 24;
-      return clampVelocity(accent(env, written.role!, step) * (0.65 + 0.35 * energy) + looseness);
+    case 'drums':
+      return clampVelocity(
+        accent(env, written.role!, step) * (0.65 + 0.35 * energy) +
+          velocityLooseness(seed, 'drumVelocity', style.swing, bar, step, note),
+      );
+    case 'bass': {
+      const base =
+        plan.section.type === 'breakdown' ? 70 : (onBeat(step) ? 100 : 84) * (0.75 + 0.25 * energy);
+      return clampVelocity(base + loose('bassVelocity'));
     }
-    case 'bass':
-      return plan.section.type === 'breakdown'
-        ? 70
-        : clampVelocity((onBeat(step) ? 100 : 84) * (0.75 + 0.25 * energy));
     case 'stab':
-      return clampVelocity(70 + 20 * energy);
+      return clampVelocity(70 + 20 * energy + loose('stabVelocity'));
     case 'pad': {
       const quiet = plan.section.type === 'breakdown' || energy < 0.3;
       const padWeight = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
-      return clampVelocity(48 + 30 * energy * (0.5 + padWeight / 2));
+      return clampVelocity(48 + 30 * energy * (0.5 + padWeight / 2) + loose('padVelocity'));
     }
-    case 'lead':
-      if (written.accent !== undefined) return clampVelocity(LEAD_LEVEL + written.accent);
-      return onBeat(step) ? 100 : 82;
+    case 'lead': {
+      const base =
+        written.accent !== undefined ? LEAD_LEVEL + written.accent : onBeat(step) ? 100 : 82;
+      return clampVelocity(base + loose('leadVelocity'));
+    }
   }
 }
 
 /** How long a written note sounds, in steps. */
 function lengthOf(env: BarEnv, written: WrittenNote): number {
-  const { artic } = env.style;
-  const { length } = written;
+  const { seed, bar, style } = env;
+  const { artic, swing } = style;
+  const { step, note, length } = written;
+  const gate = (gated: number, stream: Stream) =>
+    gated * lengthLooseness(seed, stream, swing, bar, step);
   switch (written.part) {
     case 'drums':
-      return length;
-    case 'bass':
-      return env.plan.section.type === 'breakdown'
-        ? length - 0.3
-        : Math.max(0.3, length * clamp(1.02 - 0.7 * artic, 0.3, 1));
+      return length * lengthLooseness(seed, 'drumLength', swing, bar, step, note);
+    case 'bass': {
+      const gated =
+        env.plan.section.type === 'breakdown'
+          ? length - 0.3
+          : Math.max(0.3, length * clamp(1.02 - 0.7 * artic, 0.3, 1));
+      return gate(gated, 'bassLength');
+    }
     case 'pad':
-      return length;
+      return gate(length, 'padLength');
     case 'stab':
-      return length * lerp(2.5, 0.45, artic);
+      return gate(length * lerp(2.5, 0.45, artic), 'stabLength');
     case 'lead':
-      return Math.max(0.3, length * clamp(1.05 - 0.75 * artic, 0.25, 1));
+      return gate(Math.max(0.3, length * clamp(1.05 - 0.75 * artic, 0.25, 1)), 'leadLength');
   }
 }
 
