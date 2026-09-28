@@ -17,7 +17,7 @@
  *
  * Each hit is written with its role in the groove (kick, backbeat, fill,
  * ghost, hat, pedal or euclid), and the performance sets its accent from it
- * (`perform.ts`). Where two roles land on one sound and step, one hit is
+ * (`performer.ts`). Where two roles land on one sound and step, one hit is
  * written, the stronger role's. The drums carry nothing from bar to bar, so
  * any bar plays from its environment alone.
  */

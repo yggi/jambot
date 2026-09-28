@@ -81,7 +81,7 @@ for (const seed of SEEDS)
       carried = after;
       bars++;
 
-      output.events.forEach((e, i) => {
+      output.dough.forEach((e, i) => {
         const p = parts.get(e.part) ?? {
           events: 0,
           lengths: new Set(),
@@ -97,12 +97,12 @@ for (const seed of SEEDS)
         parts.set(e.part, p);
       });
 
-      const hits = output.events.map((e) => `${e.part}:${e.step}:${e.note}`);
+      const hits = output.dough.map((e) => `${e.part}:${e.step}:${e.note}`);
       if (new Set(hits).size !== hits.length) duplicateBars++;
 
       const sounding = [
         ...ringing,
-        ...output.events
+        ...output.dough
           .filter((e) => e.part === 'pad' || e.part === 'stab')
           .map((e) => ({ note: e.note, start: e.step, end: e.step + e.length, part: e.part })),
       ];
@@ -181,7 +181,7 @@ const precision = (decimals: number, only?: string) => {
         null,
       );
       carried = exact.carried;
-      if (heard(exact.output.events) !== heard(header.output.events)) played++;
+      if (heard(exact.output.dough) !== heard(header.output.dough)) played++;
       if (heard(exact.output.written) !== heard(header.output.written)) written++;
     }
   }

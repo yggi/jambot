@@ -89,7 +89,7 @@ describe('the lead', () => {
           null,
         );
         carried = next.carried;
-        return next.output.events
+        return next.output.dough
           .filter((e) => e.part === 'lead')
           .map((e) => ({ bar, note: e.note }));
       });

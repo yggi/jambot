@@ -145,11 +145,11 @@ for (const decimals of [2, 3]) {
         written++;
         if (decimals === 3) examples.push({ seed, bar, now: b, grid: g });
       }
-      if (!same(b.events, g.events)) played++;
-      if (b.events.length === g.events.length && same(b.written, g.written))
-        b.events.forEach((e, i) => {
-          velocity = Math.max(velocity, Math.abs(e.velocity - g.events[i]!.velocity));
-          length = Math.max(length, Math.abs(e.length - g.events[i]!.length));
+      if (!same(b.dough, g.dough)) played++;
+      if (b.dough.length === g.dough.length && same(b.written, g.written))
+        b.dough.forEach((e, i) => {
+          velocity = Math.max(velocity, Math.abs(e.velocity - g.dough[i]!.velocity));
+          length = Math.max(length, Math.abs(e.length - g.dough[i]!.length));
         });
     });
   }

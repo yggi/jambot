@@ -101,13 +101,14 @@ Every doc and code area, as a tree. Add a line when you add one.
       motif it took until another is taken, it is asked to forget, or 16 bars
       pass with nobody playing
     - `src/events.ts`: written notes (`WrittenNote`, the drum roles,
-      `writtenProblems`) and the note events they play as (`eventProblems`), and
-      the song's clock: its meter on the steps (`SONG_METER`, `BEATS`) and the
-      readings of bar and beat every reader calls (`barAt`, `stepInBar`,
-      `beatAt`, …; T10), and `clockOf`, the clock of a song whose meter changes
-      (T14)
-    - `src/perform.ts`: the performance, how a written note is played: its
-      velocity and the length it sounds, read from the bar (T4)
+      `writtenProblems`), a voice's colour (`Timbre`) and the dough notes they
+      play as (`DoughNote`, `doughProblems`; #107, #129), and the song's clock:
+      its meter on the steps (`SONG_METER`, `BEATS`) and the readings of bar and
+      beat every reader calls (`barAt`, `stepInBar`, `beatAt`, …; T10), and
+      `clockOf`, the clock of a song whose meter changes (T14)
+    - `src/performer.ts`: the performer, how a written note is played: its
+      velocity, the length it sounds and its dough note (`perform`), read from
+      the bar (T4, #107, #129)
     - `src/random.ts`: keyed deterministic randomness, and quantised `chance`
       and `pick`
     - `src/style.ts`: the style axes, their ranges and glide spaces, the
@@ -133,7 +134,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       and its themes' melodies, each a motif of one bar (U4); `leadRests` says
       where it rests; `realize` plays a motif, its own fitted to the chords, and
       one the Muse offers whole
-    - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
+    - `src/sound.ts`: how the style colours a part's voice, a performer's own
+      timbre (`timbreOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
       decides the next (`passBar` for a bar it doesn't play), and `lookAhead`
       decides the bars ahead without playing them; `playBar` plays a bar's
@@ -202,6 +204,23 @@ Every doc and code area, as a tree. Add a line when you add one.
       dropped
     - `src/session.test.ts`: a host and a client over a link with delay, jitter
       and loss, playing the same notes at the same moments
+    - `src/index.ts`: the package's barrel, everything above re-exported
+  - `analyzer/`: the parser, pure TypeScript (#141, the analyzer brief's steps
+    1–2, `docs/briefs/analyzer.md`)
+    - `src/tracks.ts`: `normaliseTracks`, dropping an empty track and a later
+      exact duplicate, each counted
+    - `src/meter.ts`: `meterSpans`, a file's time-signature events as spans,
+      each marked 4/4 or not; only a 4/4 span is quantised, every other one
+      reported
+    - `src/tempo.ts`: `ticksTimeMap`, a file's own tempo events as a `TimeMap`
+      between ticks and seconds, `played` and `written` exact inverses (A6)
+    - `src/swing.ts`: `estimateSwing` and `quantiseSection`, a 4/4 span's onsets
+      read back onto the step grid (T10, `barAt`/`stepInBar`, `@jambot/engine`)
+      by finding the swing (`swingMap`) that best un-swings them, with the
+      leftover kept as microtiming per note (A6)
+    - `src/load.ts`: `loadMidi`, the whole slice: load, normalise, meter report
+      and quantised sections, each with its own confidence, and a log of
+      everything dropped or left unquantised
     - `src/index.ts`: the package's barrel, everything above re-exported
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown firing

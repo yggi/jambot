@@ -3,7 +3,7 @@
  *
  * The drums write each hit as a sound on a step with its role in the groove
  * (`drums.ts`), and the performance reads the role for the hit's accent
- * (`perform.ts`), so the score's drum line has to carry it. Where two roles
+ * (`performer.ts`), so the score's drum line has to carry it. Where two roles
  * land on one sound and step, the stronger stays, so a written role can hide
  * a weaker one. This runs the band over E1's shape (5 seeds, each preset held
  * and the tour, 64 bars each), collects every drum hit with its sound, step,

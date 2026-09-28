@@ -1,5 +1,6 @@
 /**
- * The performance: how a written note is played (T4).
+ * The performer: how a written note is played (T4), as a dough-shaped
+ * event (#107, #129).
  *
  * What a part writes is the score: a step, a note, a length in whole steps
  * and, for a drum hit, its role. How loud it plays and how long it sounds
@@ -13,15 +14,23 @@
  * - articulation: the bass and the lead gate their written lengths by the
  *   articulation, a stab sounds from 2.5 steps down to 0.45 as it rises, a
  *   pad is held for its written length, and a breakdown's bass lets go 0.3
- *   of a step early.
+ *   of a step early;
+ * - the instrument's colour, which the style shapes continuously
+ *   (`sound.ts`, C1, C2).
  *
  * Swing and tempo, the performance of time, are the transport's time maps
  * (`swing.ts`, `tempo.ts`). These are the prototype's accents and gates.
+ *
+ * A drum hit's role and a lead note's written accent pass through onto the
+ * dough note unchanged, for whatever reads a performer's notes (L7);
+ * whether they are notation or the performer's own is #116's open question
+ * (m), not this file's to decide.
  */
 
 import type { BarEnv } from './bar.ts';
-import { BAR_STEPS, type DrumRole, type NoteEvent, type WrittenNote, onBeat } from './events.ts';
+import { BAR_STEPS, type DoughNote, type DrumRole, type WrittenNote, onBeat } from './events.ts';
 import { draw } from './random.ts';
+import { timbreOf } from './sound.ts';
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
@@ -104,14 +113,19 @@ function lengthOf(env: BarEnv, written: WrittenNote): number {
   }
 }
 
-/** A written note as the bar plays it. */
-export function perform(env: BarEnv, written: WrittenNote): NoteEvent {
+/** A written note as a performer plays it. */
+export function perform(env: BarEnv, written: WrittenNote): DoughNote {
   const { part, step, note } = written;
+  const velocity = velocityOf(env, written);
   return {
     part,
     step,
     note,
-    velocity: velocityOf(env, written),
     length: lengthOf(env, written),
+    velocity,
+    gain: velocity / 127,
+    ...timbreOf(part, env.style, env.barEnergy),
+    ...(written.role !== undefined && { role: written.role }),
+    ...(written.accent !== undefined && { accent: written.accent }),
   };
 }
