@@ -141,6 +141,9 @@ importers:
       '@jambot/engine':
         specifier: workspace:*
         version: link:../engine
+      '@strudel/mini':
+        specifier: 1.2.5
+        version: 1.2.5
 
   packages/session:
     dependencies:
@@ -1130,6 +1133,12 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@strudel/core@1.2.5':
+    resolution: {integrity: sha512-XO6ICbfuGfvaQ4sZmfIFsPDcjFez/+AVpNgJnmks5gtMMQNXpr0reuee61tvMiu2k5QYKzxWgzDl2FF9pJeIgA==}
+
+  '@strudel/mini@1.2.5':
+    resolution: {integrity: sha512-GmTWSBt49C3ogBy0hjM3bmf6K12PaJ1JJLsEvQu7j5J+lUd2n7GmLYR1UL6fntY4yVqT8ZwMhfUf6vIgUCTNbw==}
+
   '@sveltejs/acorn-typescript@1.0.13':
     resolution: {integrity: sha512-wgKggnhZVL9Bfx1OaKKTrYY9BFRk6C8UAkQNUcIv1+llzYrIqy+RZm5HPKzn0NpEBvTVhTqB4kQyllZywsRBRQ==}
     peerDependencies:
@@ -1795,6 +1804,9 @@ packages:
   foreground-child@3.3.1:
     resolution: {integrity: sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==}
     engines: {node: '>=14'}
+
+  fraction.js@5.3.4:
+    resolution: {integrity: sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ==}
 
   fs-extra@9.1.0:
     resolution: {integrity: sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ==}
@@ -3980,6 +3992,14 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.63.5':
     optional: true
 
+  '@strudel/core@1.2.5':
+    dependencies:
+      fraction.js: 5.3.4
+
+  '@strudel/mini@1.2.5':
+    dependencies:
+      '@strudel/core': 1.2.5
+
   '@sveltejs/acorn-typescript@1.0.13(acorn@8.18.0)':
     dependencies:
       acorn: 8.18.0
@@ -4817,6 +4837,8 @@ snapshots:
     dependencies:
       cross-spawn: 7.0.6
       signal-exit: 4.1.0
+
+  fraction.js@5.3.4: {}
 
   fs-extra@9.1.0:
     dependencies:

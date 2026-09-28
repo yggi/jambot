@@ -174,7 +174,8 @@ Every doc and code area, as a tree. Add a line when you add one.
         the score's drum line writes a hit's role
     - `src/index.ts`: the package's barrel, everything above re-exported
   - `score/`: the score, a bar as text and the text as a bar, pure TypeScript
-    (#13, the seam of #63); the engine is a dev dependency, for its tests only
+    (#13, the seam of #63); the engine and `@strudel/mini` are dev dependencies,
+    for its tests only (L4)
     - `src/score.ts`: `ScoreBar`, what a bar's text states, and `encodeBar` and
       `compileBar` between the two, so far the header (`bar`, section, `key=`,
       `theme=`), `style` on C7's grid, `harm` as Roman numerals (U1, U3) and a
@@ -185,6 +186,11 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/mini.ts`: the mini-notation a line needs so far, a sequence of words
       held for their weights (`writeSequence`, `readSequence`)
     - `src/seam.test.ts`: the round trip over the bars the band writes (Q1a)
+    - `src/strudel-mini.d.ts`: the surface of `@strudel/mini` a conformance test
+      reads, which ships no types of its own
+    - `src/strudel.test.ts`: a sequence against `@strudel/mini`, on the shared
+      grammar and on `:`'s divergence, pinned as a running test rather than
+      prose (L4)
     - `src/index.ts`: the package's barrel, everything above re-exported
   - `session/`: host and client mode, pure TypeScript
     ([brief](briefs/host-mode.md))
