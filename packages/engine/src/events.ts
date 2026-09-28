@@ -48,8 +48,11 @@ export interface WrittenNote {
   /** How long it is written, in whole steps; it may run past the bar. */
   readonly length: number;
   /**
-   * For a lead note from a motif only: its accent, how much louder or
-   * softer than the lead's level it plays, as the motif writes it (U4).
+   * A deviation from the level a performer would otherwise play, in either
+   * direction: an offset on top of its own reading of the bar, not a
+   * replacement for it (#107). A lead note from a motif writes one always,
+   * counted from the lead's level (U4); any other part may write one too,
+   * where something beyond the bar's own energy and beat needs to be said.
    */
   readonly accent?: number;
 }
@@ -203,10 +206,7 @@ export interface DoughNote extends Timbre {
   readonly note: number;
   /** How long it sounds, in steps; it may run past the bar. */
   readonly length: number;
-  /**
-   * For a lead note from a motif only: its written accent (U4), as
-   * written.
-   */
+  /** The written accent (#107), as written, passed through unchanged. */
   readonly accent?: number;
   /** The MIDI velocity, 1–127. */
   readonly velocity: number;
@@ -233,7 +233,6 @@ export function doughProblems(note: DoughNote): string[] {
   if (part !== 'drums' && role !== undefined) problems.push(`a ${part} note has no role`);
   if (accent !== undefined && !Number.isInteger(accent))
     problems.push(`accent ${accent} is not a whole number`);
-  if (part !== 'lead' && accent !== undefined) problems.push(`a ${part} note has no accent`);
   return problems;
 }
 
@@ -252,6 +251,5 @@ export function writtenProblems(written: WrittenNote): string[] {
   if (part !== 'drums' && role !== undefined) problems.push(`a ${part} note has no role`);
   if (accent !== undefined && !Number.isInteger(accent))
     problems.push(`accent ${accent} is not a whole number`);
-  if (part !== 'lead' && accent !== undefined) problems.push(`a ${part} note has no accent`);
   return problems;
 }

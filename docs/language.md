@@ -190,6 +190,24 @@ Decided: owner, ahead of the evidence — every part, and timing as well as
 velocity, the way a real musician's and instrument's expression works, still
 derived from swing, no new style axis (#107, #116 §7). Lands in: #147 (closes).
 
+**T18. A written accent is an offset on what a part would otherwise have played,
+not a replacement for it — except a lead note from a motif, whose accent
+replaces the beat's own (U4, already decided).** Witness: `velocityOf`
+(`performer.ts`): every part but the lead adds `written.accent ?? 0` to its own
+reading of role, step, beat or energy, before the licence's looseness; the lead
+alone still reads `LEAD_LEVEL + accent` in place of the beat's own accent, since
+a motif's dynamics are its own, not an offset on a beat it may not even land on.
+Counterexample: a stated accent that changes what a part's own performance maps
+read (energy, beat, role) rather than only its result; a part whose accent the
+licence still jitters differently than it does without one. Test:
+`performer.test.ts`, "adds every other part’s written accent on top of what it
+would have played, never in place of it (#107)": every accent from −30 to 90,
+every non-lead part and a drum hit, clamped to 1–127 exactly as `plain + accent`
+would be; `events.test.ts`, whose `doughProblems`/`writtenProblems` tests now
+take a whole accent on any part, not the lead alone. Source: the owner, on #107.
+Status: measured. Decided: #107, ahead of the evidence. Lands in: whichever
+composer, if any, first writes one for a part besides the lead.
+
 **T5. Any bar renders from its environment (seed, position, style, plan) and
 what it states.** Witness: the drums, a function of the bar's environment that
 carries nothing; randomness keyed by seed, position and a named stream.
