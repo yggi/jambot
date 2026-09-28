@@ -1,4 +1,4 @@
-import type { Sound } from '@jambot/engine';
+import type { Timbre } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { bandOutput, type BandOutputSettings } from './band-output.ts';
 import { clockOffset } from './clock-offset.ts';
@@ -13,11 +13,7 @@ import type { Output } from './output.ts';
 
 const NOTE_ON = 0x90;
 
-const sound: Sound = {
-  lead: { triangle: 1, square: 0, cutoff: 1000, attack: 0.01 },
-  bass: { saw: 1, triangle: 0, cutoff: 1, resonance: 4 },
-  chords: { attack: 0.1, release: 0.2 },
-};
+const timbre: Timbre = { triangle: 1, square: 0, cutoff: 1000, attack: 0.01 };
 
 /** A base `Output` a test drives by hand, standing in for Web Audio. */
 function fakeBase() {
@@ -76,8 +72,8 @@ describe('bandOutput', () => {
     const base = fakeBase();
     const { settings } = fakeSettings();
     const output = bandOutput(settings, base.output);
-    output.play('lead', 60, 100, 0, 1, sound);
-    expect(base.plays).toEqual([['lead', 60, 100, 0, 1, sound]]);
+    output.play('lead', 60, 100, 0, 1, timbre);
+    expect(base.plays).toEqual([['lead', 60, 100, 0, 1, timbre]]);
   });
 
   it('sends MIDI once a port is set, alongside the built-in synth', () => {
@@ -87,7 +83,7 @@ describe('bandOutput', () => {
     state.port = port;
     const output = bandOutput(settings, base.output);
     void output.currentTime; // settings are adopted when the clock is read, as the player does each tick
-    output.play('lead', 60, 100, 0, 1, sound);
+    output.play('lead', 60, 100, 0, 1, timbre);
     expect(base.plays).toHaveLength(1);
     expect(sent[0]!.data[0]).toBe(NOTE_ON | 0);
   });
@@ -100,7 +96,7 @@ describe('bandOutput', () => {
     state.internal = false;
     const output = bandOutput(settings, base.output);
     void output.currentTime;
-    output.play('bass', 43, 100, 0, 1, sound);
+    output.play('bass', 43, 100, 0, 1, timbre);
     expect(base.plays).toHaveLength(0);
     expect(sent[0]!.data[0]).toBe(NOTE_ON | 1);
   });
@@ -110,7 +106,7 @@ describe('bandOutput', () => {
     const { settings } = fakeSettings();
     const output = bandOutput(settings, base.output);
     void output.currentTime;
-    output.play('lead', 60, 100, 0, 1, sound);
+    output.play('lead', 60, 100, 0, 1, timbre);
     expect(base.plays).toHaveLength(1);
   });
 
@@ -122,11 +118,11 @@ describe('bandOutput', () => {
     state.port = portA;
     const output = bandOutput(settings, base.output);
     void output.currentTime;
-    output.play('lead', 60, 100, 0, 10, sound);
+    output.play('lead', 60, 100, 0, 10, timbre);
     state.port = portB;
     void output.currentTime;
     expect(sentB).toEqual([]); // the switch itself silences the OLD port, not the new one
-    output.play('lead', 62, 100, 1, 1, sound);
+    output.play('lead', 62, 100, 1, 1, timbre);
     expect(sentB.some((m) => m.data[0] === (NOTE_ON | 0) && m.data[1] === 62)).toBe(true);
   });
 
@@ -138,8 +134,8 @@ describe('bandOutput', () => {
     state.drumNotes = { ...DEFAULT_DRUM_NOTES, kick: 60 };
     const output = bandOutput(settings, base.output);
     void output.currentTime;
-    output.play('drums', DEFAULT_DRUM_NOTES.kick, 100, 0, 0.1, sound);
-    output.play('lead', 60, 100, 0, 1, sound);
+    output.play('drums', DEFAULT_DRUM_NOTES.kick, 100, 0, 0.1, timbre);
+    output.play('lead', 60, 100, 0, 1, timbre);
     expect(sent.map((m) => m.data)).toEqual([
       [NOTE_ON | 9, 60, 100],
       [NOTE_ON | 0, 60, 100],
@@ -204,7 +200,7 @@ describe('bandOutput', () => {
     state.port = port;
     const output = bandOutput(settings, base.output);
     void output.currentTime;
-    output.play('lead', 60, 100, 0, 10, sound);
+    output.play('lead', 60, 100, 0, 10, timbre);
     sent.length = 0;
     output.panic?.();
     expect(base.silenced).toBe(0);

@@ -170,9 +170,11 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `track` already names `StyleTrack` and the ratchet's working and negative
   tracks, and `Performer` names what each row is precisely — the composer writes
   what a performer plays, and a performer is the band's own voice or a human at
-  that voice's instrument, the same word family as `perform.ts` (T4), which is
-  how a performer plays it. Decided in the working track, on the owner's naming
-  call.
+  that voice's instrument, the same word family as `performer.ts` (T4, #107),
+  which is how a performer plays it. Decided in the working track, on the
+  owner's naming call. `apps/web`'s `Performer` is this UI row, one per band
+  voice; the engine's own performer, `perform` in `performer.ts`, is a different
+  thing with the same name — it plays a bar, not a screen.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's
   register. `joinChord` gives its stack, and `chordScale` takes a stack. A bar's
   chords come from its theme's slots (`barChords`); their colour draws are keyed

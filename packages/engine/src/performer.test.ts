@@ -4,7 +4,8 @@ import type { BarEnv } from './bar.ts';
 import { DRUM_NOTES } from './drums.ts';
 import { type DrumRole, PARTS, type WrittenNote, writtenProblems } from './events.ts';
 import type { SectionType } from './form.ts';
-import { LEAD_LEVEL, perform } from './perform.ts';
+import { LEAD_LEVEL, perform } from './performer.ts';
+import { timbreOf } from './sound.ts';
 import { PRESETS, type Style } from './style.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -46,12 +47,12 @@ const hit = (role: DrumRole, step: number): WrittenNote => ({
   length: 1,
 });
 
-describe('the performance', () => {
-  it('plays every note the band writes, each on the grid and with no velocity of its own (T4, L2)', () => {
+describe('the performer', () => {
+  it('plays every note the band writes, each on the grid and with no notation of its own (T4, L2)', () => {
     let notes = 0;
     for (const b of bars) {
       for (const note of b.written) expect(writtenProblems(note)).toEqual([]);
-      expect(b.events).toEqual(b.written.map((note) => perform(b, note)));
+      expect(b.dough).toEqual(b.written.map((note) => perform(b, note)));
       notes += b.written.length;
     }
     expect(new Set(bars.flatMap((b) => b.written.map((n) => n.part)))).toEqual(new Set(PARTS));
@@ -169,15 +170,32 @@ describe('the performance', () => {
     expect(stab(1)).toBeCloseTo(0.45, 9);
   });
 
-  it('drops a drum hit’s role on the way to a NoteEvent (L7)', () => {
-    const env = barOf('groove', 1, {});
-    const event = perform(env, hit('backbeat', 4));
-    expect('role' in event).toBe(false);
+  it('gives every dough note its part’s timbre, the way `timbreOf` colours it', () => {
+    const env = barOf('groove', 0.7, { artic: 0.4, swing: 0.6 });
+    expect(perform(env, { part: 'lead', step: 0, note: 64, length: 4 })).toMatchObject(
+      timbreOf('lead', env.style, env.barEnergy),
+    );
+    expect(perform(env, { part: 'bass', step: 0, note: 40, length: 4 })).toMatchObject(
+      timbreOf('bass', env.style, env.barEnergy),
+    );
+    expect(perform(env, { part: 'pad', step: 0, note: 60, length: 4 })).toMatchObject(
+      timbreOf('pad', env.style, env.barEnergy),
+    );
+    expect(perform(env, hit('kick', 0))).toMatchObject(timbreOf('drums', env.style, env.barEnergy));
   });
 
-  it('drops a lead note’s accent on the way to a NoteEvent (L7)', () => {
+  it('carries a drum hit’s role and a lead note’s accent through to the dough note, unchanged (L7)', () => {
     const env = barOf('groove', 1, {});
-    const event = perform(env, { part: 'lead', step: 0, note: 64, length: 4, accent: 6 });
-    expect('accent' in event).toBe(false);
+    for (const role of ['kick', 'backbeat', 'ghost', 'hat', 'pedal', 'euclid', 'fill'] as const)
+      expect(perform(env, hit(role, 4)).role).toBe(role);
+    expect(perform(env, { part: 'lead', step: 0, note: 64, length: 4, accent: 6 }).accent).toBe(6);
+    expect(perform(env, { part: 'lead', step: 0, note: 64, length: 4 }).accent).toBeUndefined();
+    expect('role' in perform(env, { part: 'lead', step: 0, note: 64, length: 4 })).toBe(false);
+  });
+
+  it('gives the synth gain velocity over 127, the MIDI velocity kept as its own key (#129)', () => {
+    const env = barOf('groove', 1, {});
+    const note = perform(env, { part: 'lead', step: 0, note: 64, length: 4 });
+    expect(note.gain).toBeCloseTo(note.velocity / 127, 9);
   });
 });

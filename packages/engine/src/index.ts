@@ -11,7 +11,7 @@ export * from './lead.ts';
 export * from './machine.ts';
 export * from './metronome.ts';
 export * from './muse.ts';
-export * from './perform.ts';
+export * from './performer.ts';
 export * from './plan.ts';
 export * from './random.ts';
 export * from './sound.ts';

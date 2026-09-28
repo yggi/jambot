@@ -1,12 +1,12 @@
 /**
  * What a host sends of the bars it composes.
  *
- * A bar goes as it was written, without the events it plays as and its
- * sound, which the client makes itself (`playBar`). With it goes where it
- * starts on the host's clock: the host's head is short of the bar when the
- * band composes it, so the bar starts where the tempo map, laid from the
- * head, puts it. A control moved in the beat that is left moves the host's
- * bar too, and the next bar sent says so.
+ * A bar goes as it was written, without a performer's fill (#107): the
+ * dough notes it plays as, which the client makes itself (`playBar`). With
+ * it goes where it starts on the host's clock: the host's head is short of
+ * the bar when the band composes it, so the bar starts where the tempo
+ * map, laid from the head, puts it. A control moved in the beat that is
+ * left moves the host's bar too, and the next bar sent says so.
  */
 
 import {
@@ -21,9 +21,8 @@ import type { SentBar, WrittenBar } from './protocol.ts';
 
 /** A bar as the band played it, as it was written. */
 export function writtenBar(played: BandBar): WrittenBar {
-  const { events, sound, ...bar } = played;
-  void events;
-  void sound;
+  const { dough, ...bar } = played;
+  void dough;
   return bar;
 }
 

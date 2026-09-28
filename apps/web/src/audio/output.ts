@@ -4,7 +4,7 @@
  * stand in for Web Audio.
  */
 
-import type { Part, ScheduledStep, Sound } from '@jambot/engine';
+import type { Part, ScheduledStep, Timbre } from '@jambot/engine';
 import { drumKit } from './drums.ts';
 import { voices } from './voices.ts';
 
@@ -31,7 +31,7 @@ export interface Output {
     velocity: number,
     seconds: number,
     duration: number,
-    sound: Sound,
+    timbre: Timbre,
   ): void;
   /** Fade out everything scheduled so far, and play on afresh. */
   silence(): void;
@@ -66,9 +66,9 @@ export function webAudioOutput(): Output {
       return ctx.outputLatency || ctx.baseLatency || 0;
     },
     resume: () => ctx.resume(),
-    play(part, note, velocity, seconds, duration, sound) {
+    play(part, note, velocity, seconds, duration, timbre) {
       if (part === 'drums') current.kit.play(note, velocity, seconds);
-      else current.voices.play(part, note, velocity, seconds, duration, sound);
+      else current.voices.play(part, note, velocity, seconds, duration, timbre);
     },
     silence() {
       const old = current.bus;

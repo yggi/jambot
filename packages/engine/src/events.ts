@@ -1,12 +1,13 @@
 /**
- * Notes as the engine writes them, and as they are played, one bar at a
- * time.
+ * Notes as the engine writes them, and as a performer plays them, one bar
+ * at a time.
  *
  * A written note is what the score states: a step of the bar, a note and a
  * length in whole steps, and for a drum hit its role in the groove. How it
- * is played, its velocity and the length it sounds, is the performance's
- * (`perform.ts`), read from the bar (T4). A note event is a written note
- * played.
+ * is played, its velocity, the length it sounds and its instrument's
+ * colour, is the performer's (`performer.ts`), read from the bar (T4). A
+ * dough note is a written note played: a performer's own dough-shaped
+ * event (#107, #129), flat, carrying only the keys its part uses.
  *
  * Both are bar-relative: they name a step of the bar, and the transport
  * turns bar and step into clock time, adding swing. A part is one voice:
@@ -167,30 +168,72 @@ export const SONG_CLOCK: SongClock = clockOf([{ bar: 0, meter: SONG_METER }]);
 
 export const { barAt, barStart, stepInBar, beatAt, beatStart, beatInBar, onBeat } = SONG_CLOCK;
 
-export interface NoteEvent {
+/**
+ * A pitched voice's colour, as the style shapes it (C1, C2): only the
+ * fields its part uses, the way `WrittenNote` carries `role` and `accent`.
+ */
+export interface Timbre {
+  /** In seconds, for the lead and the chords. */
+  readonly attack?: number;
+  /** In seconds, for the chords. */
+  readonly release?: number;
+  /** The lowpass filter's cutoff: hertz for the lead, a factor for the bass. */
+  readonly cutoff?: number;
+  /** The filter's Q, for the bass. */
+  readonly resonance?: number;
+  /** The mix of each waveform, where a voice blends more than one. */
+  readonly triangle?: number;
+  readonly square?: number;
+  readonly saw?: number;
+}
+
+/**
+ * A written note as a performer plays it: dough's keys, flat (#129). What
+ * a `WrittenNote` states passes through unchanged (`part`, `step`, `note`,
+ * `role`, `accent`); `length`, `velocity`, `gain` and the timbre are the
+ * performer's own, read from the bar (T4, L7).
+ */
+export interface DoughNote extends Timbre {
   readonly part: Part;
+  /** For the drums only: what the hit does in the groove, as written. */
+  readonly role?: DrumRole;
   /** The step of the bar it starts on, 0–15. */
   readonly step: number;
   /** The MIDI note, 0–127, C4 = 60. */
   readonly note: number;
-  /** The MIDI velocity, 1–127. */
-  readonly velocity: number;
   /** How long it sounds, in steps; it may run past the bar. */
   readonly length: number;
+  /**
+   * For a lead note from a motif only: its written accent (U4), as
+   * written.
+   */
+  readonly accent?: number;
+  /** The MIDI velocity, 1–127. */
+  readonly velocity: number;
+  /** The synth's loudness, 0–1. */
+  readonly gain: number;
 }
 
 const isIntegerIn = (x: number, lo: number, hi: number) =>
   Number.isInteger(x) && x >= lo && x <= hi;
 
-/** What is wrong with an event, if anything, one line per problem. */
-export function eventProblems(event: NoteEvent): string[] {
+/** What is wrong with a dough note, if anything, one line per problem. */
+export function doughProblems(note: DoughNote): string[] {
   const problems: string[] = [];
-  const { step, note, velocity, length } = event;
+  const { part, role, step, note: pitch, length, accent, velocity, gain } = note;
   if (!isIntegerIn(step, 0, 15)) problems.push(`step ${step} is not a step 0–15`);
-  if (!isIntegerIn(note, 0, 127)) problems.push(`note ${note} is not a MIDI note 0–127`);
-  if (!isIntegerIn(velocity, 1, 127)) problems.push(`velocity ${velocity} is not a velocity 1–127`);
+  if (!isIntegerIn(pitch, 0, 127)) problems.push(`note ${pitch} is not a MIDI note 0–127`);
   if (!(length > 0 && Number.isFinite(length)))
     problems.push(`length ${length} is not a positive, finite length`);
+  if (!isIntegerIn(velocity, 1, 127)) problems.push(`velocity ${velocity} is not a velocity 1–127`);
+  if (!(gain >= 0 && gain <= 1)) problems.push(`gain ${gain} is not a gain 0–1`);
+  if (part === 'drums' && role === undefined) problems.push('a drum hit has a role');
+  if (part === 'drums' && role !== undefined && !DRUM_ROLES.includes(role))
+    problems.push(`role ${role} is not a drum role`);
+  if (part !== 'drums' && role !== undefined) problems.push(`a ${part} note has no role`);
+  if (accent !== undefined && !Number.isInteger(accent))
+    problems.push(`accent ${accent} is not a whole number`);
+  if (part !== 'lead' && accent !== undefined) problems.push(`a ${part} note has no accent`);
   return problems;
 }
 

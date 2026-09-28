@@ -101,13 +101,14 @@ Every doc and code area, as a tree. Add a line when you add one.
       motif it took until another is taken, it is asked to forget, or 16 bars
       pass with nobody playing
     - `src/events.ts`: written notes (`WrittenNote`, the drum roles,
-      `writtenProblems`) and the note events they play as (`eventProblems`), and
-      the song's clock: its meter on the steps (`SONG_METER`, `BEATS`) and the
-      readings of bar and beat every reader calls (`barAt`, `stepInBar`,
-      `beatAt`, …; T10), and `clockOf`, the clock of a song whose meter changes
-      (T14)
-    - `src/perform.ts`: the performance, how a written note is played: its
-      velocity and the length it sounds, read from the bar (T4)
+      `writtenProblems`), a voice's colour (`Timbre`) and the dough notes they
+      play as (`DoughNote`, `doughProblems`; #107, #129), and the song's clock:
+      its meter on the steps (`SONG_METER`, `BEATS`) and the readings of bar and
+      beat every reader calls (`barAt`, `stepInBar`, `beatAt`, …; T10), and
+      `clockOf`, the clock of a song whose meter changes (T14)
+    - `src/performer.ts`: the performer, how a written note is played: its
+      velocity, the length it sounds and its dough note (`perform`), read from
+      the bar (T4, #107, #129)
     - `src/random.ts`: keyed deterministic randomness, and quantised `chance`
       and `pick`
     - `src/style.ts`: the style axes, their ranges and glide spaces, the
@@ -133,7 +134,8 @@ Every doc and code area, as a tree. Add a line when you add one.
       and its themes' melodies, each a motif of one bar (U4); `leadRests` says
       where it rests; `realize` plays a motif, its own fitted to the chords, and
       one the Muse offers whole
-    - `src/sound.ts`: how the style colours the synth's voices (`soundOf`)
+    - `src/sound.ts`: how the style colours a part's voice, a performer's own
+      timbre (`timbreOf`)
     - `src/band.ts`: the band, the machine at bar rate: it plays a bar and
       decides the next (`passBar` for a bar it doesn't play), and `lookAhead`
       decides the bars ahead without playing them; `playBar` plays a bar's

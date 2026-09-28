@@ -151,6 +151,25 @@ describe('the session protocol', () => {
       SHAPES,
     );
   });
+
+  it('never carries a performer’s fill on the wire: a bar states only what a WrittenNote holds (#107, #140)', () => {
+    // The check itself can fail: a note with a fill key is caught.
+    expect(shapeOf([{ gain: 0.5 }])).toContain('gain: number');
+    const { bars } = travelling();
+    const shape = shapeOf(bars);
+    for (const key of [
+      'velocity',
+      'gain',
+      'cutoff',
+      'attack',
+      'release',
+      'resonance',
+      'triangle',
+      'square',
+      'saw',
+    ])
+      expect(shape.some((path) => path.endsWith(`.${key}: number`))).toBe(false);
+  });
 });
 
 /** The shapes of version 2, as a minute of the band and two judgements show them. */

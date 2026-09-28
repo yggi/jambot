@@ -5,7 +5,7 @@ import { DRUM_NOTES, drums } from './drums.ts';
 import { DRUM_ROLES, type DrumRole, type WrittenNote, writtenProblems } from './events.ts';
 import { SECTION_BARS, SECTION_TYPES, type SectionType, barEnergy } from './form.ts';
 import { INITIAL_KEY } from './key.ts';
-import { perform } from './perform.ts';
+import { perform } from './performer.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
 import { buildTheme, themeKind } from './themes.ts';
 
