@@ -569,7 +569,7 @@ describe('a phrase across bars', () => {
   const pairs = bars.flatMap((a) => bars.map((b) => [a, b]));
   const strans = (n: number) => ({ ...NOOP, strans: n });
 
-  it('joins bars into one motif on the cycle of the bars together, and splits it back into the same bars (finite: every pair of 4-step bars that join) (T14)', () => {
+  it('joins bars into one motif on the cycle of the bars together, and splits it back into the same bars (finite: every pair of 4-step bars that join) (T15)', () => {
     expect(bars.length).toBeGreaterThan(40);
     for (const [a, b] of pairs) {
       const phrase = joinBars([a!, b!])!;
@@ -579,7 +579,7 @@ describe('a phrase across bars', () => {
     }
   });
 
-  it('holds a note across a bar line, which bars on their own cannot: such a phrase does not split, and a bar that begins inside its own last note does not join (T14)', () => {
+  it('holds a note across a bar line, which bars on their own cannot: such a phrase does not split, and a bar that begins inside its own last note does not join (T15)', () => {
     // The first bar's last note holds on over the line to the second bar's rest.
     const tied = motif(2 * SPAN, [
       [0, 0],
@@ -598,7 +598,7 @@ describe('a phrase across bars', () => {
     expect(pairs.length).toBe(bars.length ** 2);
   });
 
-  it('is moved by the operators as its bars are: strans and mirror move each bar, late by a bar turns them round, and rev reverses their order and each bar (finite: every pair of 4-step bars that join) (T14, Q5c)', () => {
+  it('is moved by the operators as its bars are: strans and mirror move each bar, late by a bar turns them round, and rev reverses their order and each bar (finite: every pair of 4-step bars that join) (T15, Q5c)', () => {
     const mirrorOp = { ...NOOP, mirror: true };
     const byBar = { ...NOOP, late: SPAN };
     const rev = { ...NOOP, rev: true };
@@ -611,7 +611,7 @@ describe('a phrase across bars', () => {
     }
   });
 
-  it('keeps the group’s laws on a cycle of whole bars: two operators are their composition, and each is undone (finite: every operator of the 8-step cycle on a sample of two-bar phrases) (T14, Q5c)', () => {
+  it('keeps the group’s laws on a cycle of whole bars: two operators are their composition, and each is undone (finite: every operator of the 8-step cycle on a sample of two-bar phrases) (T15, Q5c)', () => {
     const phraseOps: MotifOp[] = [-1, 0, 2].flatMap((s) =>
       [false, true].flatMap((mirror) =>
         range(2 * SPAN).flatMap((late) =>
@@ -630,7 +630,7 @@ describe('a phrase across bars', () => {
       }
   });
 
-  it('turns a repeated bar into a symmetry: late by a bar leaves the phrase as it is, and the canonical operator writes it as no operator at all (finite: every bar that joins) (T14, U5, F3)', () => {
+  it('turns a repeated bar into a symmetry: late by a bar leaves the phrase as it is, and the canonical operator writes it as no operator at all (finite: every bar that joins) (T15, U5, F3)', () => {
     const byBar = { ...NOOP, late: SPAN };
     for (const a of bars) {
       const twice = joinBars([a, a])!;

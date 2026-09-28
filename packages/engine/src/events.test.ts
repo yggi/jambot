@@ -171,7 +171,7 @@ describe('a song whose meter changes', () => {
       { bar: 4, meter: METERS[a] },
     ]);
 
-  it('starts each bar where the one before ends, at the running sum of their lengths: 4/4 → 7/8 → 4/4 (T13)', () => {
+  it('starts each bar where the one before ends, at the running sum of their lengths: 4/4 → 7/8 → 4/4 (T14)', () => {
     const clock = song('4/4', '7/8');
     expect([0, 1, 2, 3, 4, 5, 6].map(clock.barStart)).toEqual([0, 16, 32, 46, 60, 76, 92]);
     expect([0, 2, 4].map(clock.barSteps)).toEqual([16, 14, 16]);
@@ -180,7 +180,7 @@ describe('a song whose meter changes', () => {
     expect(clock.onBeat(36)).toBe(false);
   });
 
-  it('reads every step into the bar and beat that hold it, and back, for every pair of named meters (finite: every ordered pair, every quarter-step of the song and 8 bars either side) (T13)', () => {
+  it('reads every step into the bar and beat that hold it, and back, for every pair of named meters (finite: every ordered pair, every quarter-step of the song and 8 bars either side) (T14)', () => {
     for (const a of names)
       for (const b of names) {
         const clock = song(a, b);
@@ -200,7 +200,7 @@ describe('a song whose meter changes', () => {
       }
   });
 
-  it('reads each bar as its own meter’s helix: its beats are the meter’s pulses on the steps (finite: every ordered pair of named meters) (T13)', () => {
+  it('reads each bar as its own meter’s helix: its beats are the meter’s pulses on the steps (finite: every ordered pair of named meters) (T14)', () => {
     for (const a of names)
       for (const b of names) {
         const clock = song(a, b);
@@ -215,7 +215,7 @@ describe('a song whose meter changes', () => {
       }
   });
 
-  it('is the song’s own clock when its meter never changes (T13, T10)', () => {
+  it('is the song’s own clock when its meter never changes (T14, T10)', () => {
     const constant = clockOf([{ bar: 0, meter: SONG_METER }]);
     for (let x = -64; x < 64; x += 0.25) {
       expect(constant.barAt(x)).toBe(barAt(x));

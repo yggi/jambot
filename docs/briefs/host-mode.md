@@ -349,14 +349,17 @@ e2e` pass unchanged, and a transport over bars the band composed, given
   notes win, so a player who plays 12 notes in every bar, the most that
   isn't mashing, wins every bar.
 - Whether any client may ask the Muse to forget, whoever played the motif.
-- How often a bar misses a client over a real link with loss, an estimate:
-  a bar has a beat from the host composing it to the client laying it
-  (333 ms at 180 bpm, 500 ms at 120), and over WebSocket one lost packet
-  waits a TCP retransmission, commonly 200 ms or more, before it and
-  everything after it arrives. The load test measures delivery without
-  loss; under loss, the count to read is the client's `lacked`. If it is
-  high, the host can compose further ahead while hosting, at the cost of a
-  control being heard later.
+- How long each platform takes to recover a lost packet on a room's Wi-Fi.
+  A bar has a beat from the host composing it to the client laying it (333
+  ms at 180 bpm, 500 ms at 120), and over WebSocket one lost packet holds
+  it and everything after it until TCP sends it again. Over a model of that
+  stream, a bar is lacked exactly where it was held past a beat (T13): at
+  200 ms, Linux's least retransmission timeout, no bar in two minutes at up
+  to 180 bpm over 2% loss; at 1 s, RFC 6298's, 8 to 12% of bars at 120 to
+  180 bpm. So an unreliable channel (#93), or the host composing further
+  ahead while hosting, at the cost of a control heard later, is worth it
+  only on a platform whose recovery nears a beat; measuring that, with the
+  client's `lacked`, is the open part.
 - Who masters the MIDI clock when a root node exists (#27).
 - Per-client expression beyond its own instruments and MIDI (humanising, a
   velocity curve), which would make a client's notes its own.

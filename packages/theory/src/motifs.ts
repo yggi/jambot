@@ -215,7 +215,7 @@ const elementsOf = (motif: Motif, at = 0): Element[] =>
 
 /**
  * Bars in a row as one motif, a phrase on the cycle of the bars together
- * (T14). A bar reads round its own cycle, so what sounds before its first
+ * (T15). A bar reads round its own cycle, so what sounds before its first
  * onset is its own last note or rest: a rest runs on into the next bar's
  * start as it did into its own, but a note would be held from a bar that
  * isn't there. Undefined when a bar begins inside its own last note.

@@ -102,7 +102,7 @@ export interface SongClock {
  * The clock of a song whose meter changes: each stretch of one meter is
  * that meter's helix on the steps, two to an eighth, and each stretch
  * starts where the one before ends, at the running sum of its bars'
- * lengths (T13). A key change keeps the cycle and a meter change need not,
+ * lengths (T14). A key change keeps the cycle and a meter change need not,
  * so the song is one helix only between changes. The first meter reaches
  * back before its bar, and every meter's pulses start on its downbeat.
  */

@@ -269,7 +269,7 @@ parts write stay on the 16 steps, such as the backbeat on steps 4 and 12: they
 are content, not readings (#123). MIDI clock's 6 ticks a step (T3) counts steps,
 not bars. A key change keeps the cycle and a meter change need not, so a song
 whose meter changes is a helix only between changes: open how bars of different
-lengths join (#122, T13). Source: #7's tension 9; #105; #120. Status: measured
+lengths join (#122, T14). Source: #7's tension 9; #105; #120. Status: measured
 (the readings, every named meter; the readers, in 4/4). Lands in: #122 (a meter
 per bar); #63 (a meter in the header).
 
@@ -299,7 +299,27 @@ Source: #7's "one token grammar for pitch and rhythm", #105. Status: measured,
 failing (every simple and compound meter). Lands in: the language's next shape,
 where pitch and time share one token grammar or don't; tension 7.
 
-**T13. A song whose meter changes is a row of helices, each stretch of one meter
+**T13. Over a link that keeps order, a bar reaches a client in time exactly when
+the link holds it less than a beat.** Witness: a bar is composed a beat before
+it starts (`COMPOSE_AHEAD`) and sent then, and a client takes it as it lays the
+bar's first step (`followSource`), both within a lookahead, which cancels; what
+misses is passed, never played late (T1). Over TCP, as a WebSocket's, a lost
+message holds up every one behind it until it is sent again, after the
+platform's recovery: some tens of milliseconds where a tail-loss probe fires,
+200 ms at Linux's least retransmission timeout, 1 s at RFC 6298's. So a bar is
+lacked only where a recovery, with the backoff of any loss again, outlasts a
+beat: never below one beat's recovery, and at a 1 s recovery on 2% loss, 8% of
+bars at 120 bpm and 12% at 180 (a model of the stream, not a network).
+Counterexample: a bar held less than a beat and lacked, or held more and played.
+Test: `packages/session/src/session.test.ts`, "lack a bar exactly where the
+stream held it past a beat, at 60, 120 and 180 bpm (T13)" and "lack no bar in
+two minutes where the stream recovers within 200 ms, the least Linux waits, over
+2% loss (T13)"; composing half a beat ahead fails the first. Source: #27, #93.
+Status: measured (the model). Open: each platform's recovery on a room's Wi-Fi,
+which decides whether an unreliable channel is worth building (#93). Lands in:
+#27, #93.
+
+**T14. A song whose meter changes is a row of helices, each stretch of one meter
 starting where the one before ends, at the running sum of its bars' lengths.**
 Witness: `clockOf` (`events.ts`), a list of meter changes read as the song's
 clock: its bar, step in the bar, beat and bar length, every stretch its meter on
@@ -309,7 +329,7 @@ and the style track, tempo and capture keep reading them as they do (#122,
 option A). Counterexample: a position read into a bar or beat that does not hold
 it, a beat that straddles a bar line, or a bar whose beats are not its meter's
 pulses. Test: `events.test.ts`, whose tests under "a song whose meter changes"
-cite T13: 4/4 → 7/8 → 4/4 by hand, and every ordered pair of named meters at
+cite T14: 4/4 → 7/8 → 4/4 by hand, and every ordered pair of named meters at
 every quarter-step, read into bars and beats and back, and each bar its own
 meter's pulses. Open: nothing plays a meter change yet. The song reads
 `SONG_CLOCK`, 21 readers use `BAR_STEPS` where a bar's own length would do, and
@@ -317,7 +337,7 @@ swing still moves pulses (T11). Source: #122. Status: measured (the clock).
 Lands in: #122, the owner's choice between options A, B and C (#116 question
 (l)).
 
-**T14. A phrase is a motif on the cycle of its bars together, and the motif
+**T15. A phrase is a motif on the cycle of its bars together, and the motif
 operators are the same group on it.** Witness: `joinBars` and `splitBars`
 (`motifs.ts`): bars in a row as one motif, and back. A bar reads round its own
 cycle, so a rest runs on over a bar line as it runs round into its own start,
@@ -329,7 +349,7 @@ a symmetry, `late` by a bar, which `canonicalOp` writes as no operator.
 Counterexample: two bars that join and do not split back, an operator that moves
 a phrase otherwise than its bars, or a law of the group that fails on a cycle of
 whole bars. Test: `motifs.test.ts`, whose tests under "a phrase across bars"
-cite T14, over every pair of 4-step bars with notes on degree 0 or ♭1, and every
+cite T15, over every pair of 4-step bars with notes on degree 0 or ♭1, and every
 operator of the 8-step cycle on a sample of phrases. The band writes nothing
 across a bar line: every written note lies within its bar (L2), so a phrase
 across bars comes only from a player, whom the Muse hears one bar at a time
@@ -1044,12 +1064,12 @@ These are where the decisions are.
 8. **Expressive against metric accents** (A5). Whether a player's velocities
    follow the beat decides whether accents are counted from a level, as taken
    now, or from `perform`.
-9. **One bar of 16 steps against a meter per bar** (T6, T7, T10, T11, T13). The
+9. **One bar of 16 steps against a meter per bar** (T6, T7, T10, T11, T14). The
    theory holds every meter as a helix, and the song holds one, 4/4, read
    through its helix by every reader of bar and beat (T10), so a meter other
    than 4/4 changes them all at once. A key change keeps the cycle and a meter
    change need not: a song of changing meters reads as a row of helices joined
-   at the running sums of their bars (T13), but nothing plays one yet, and swing
+   at the running sums of their bars (T14), but nothing plays one yet, and swing
    still moves the pulses of every other meter (T11).
 
 ## Semantics before surface

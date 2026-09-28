@@ -2,13 +2,15 @@
   The circle of fifths: the twelve pitch classes around a wheel, the current
   scale's notes lit and threaded as a figure from the tonic, the tonic ringed.
   With `onintent` and `mode`, a dot is also a button that wishes for its
-  pitch class as the new tonic, in the mode already playing.
+  pitch class as the new tonic, in the mode already playing. With `history`,
+  a filled radar underneath the wheel shows every pitch class's weight, for
+  the harmonic history of what the band has actually played.
 -->
 <script lang="ts">
   import type { ComposerMode } from '@jambot/engine';
   import { fifthsIndex } from '@jambot/theory';
   import type { Intent } from '../conductor.ts';
-  import { figureOrder, wheelPoint } from '../circleLayout.ts';
+  import { figureOrder, wheelOrder, wheelPoint } from '../circleLayout.ts';
   import { TONIC_NAMES } from '../noteNames.ts';
 
   interface Props {
@@ -19,9 +21,11 @@
     /** The current key's mode, kept when a dot wishes for a new tonic. Omit for a read-only wheel. */
     mode?: ComposerMode;
     onintent?: (intent: Intent) => void;
+    /** One weight per pitch class, 0–11, for the harmonic-history radar. Omit or undefined to leave it off. */
+    history?: readonly number[] | undefined;
   }
 
-  let { tonic, scale, mode, onintent }: Props = $props();
+  let { tonic, scale, mode, onintent, history }: Props = $props();
 
   const VIEW = 200;
   const CENTER = 100;
@@ -65,10 +69,25 @@
   const pick = (pitchClass: number) => {
     if (onintent && mode) onintent({ kind: 'key', wish: { tonic: pitchClass, mode } });
   };
+
+  const historyPath = $derived.by(() => {
+    if (!history) return '';
+    const max = Math.max(...history);
+    if (max <= 0) return '';
+    const points = wheelOrder().map((pitchClass) => {
+      const weight = history[pitchClass] ?? 0;
+      const at = wheelPoint(fifthsIndex(pitchClass), R_DOT * (weight / max));
+      return { x: CENTER + at.x, y: CENTER + at.y };
+    });
+    return `${points.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')} Z`;
+  });
 </script>
 
 <div class="wheel" role="group" aria-label="Circle of fifths">
   <svg viewBox="0 0 {VIEW} {VIEW}" aria-hidden="true">
+    {#if historyPath}
+      <path class="history" d={historyPath} />
+    {/if}
     {#if figurePath}
       <path class="figure" d={figurePath} />
     {/if}
@@ -100,13 +119,20 @@
   .wheel {
     position: relative;
     width: 100%;
-    max-width: 220px;
     aspect-ratio: 1;
   }
   svg {
     display: block;
     width: 100%;
     height: 100%;
+  }
+  .history {
+    fill: var(--amber);
+    fill-opacity: 0.25;
+    stroke: var(--amber);
+    stroke-opacity: 0.7;
+    stroke-width: 1;
+    stroke-linejoin: round;
   }
   .dot {
     fill: var(--line);

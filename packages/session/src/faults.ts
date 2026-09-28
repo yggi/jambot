@@ -197,6 +197,29 @@ export function linkDelay(faults: LinkFaults, leg: 'there' | 'back', index: numb
   return (leg === 'there' ? there : back) + hold;
 }
 
+/**
+ * When message `index`, sent at `sentAt`, arrives over a stream that keeps
+ * order, as TCP keeps a WebSocket's: it takes the leg there, held up as the
+ * link holds messages up, and each time it is lost it is sent again after
+ * the stream's `recovery`, which doubles on each loss after the first
+ * (TCP's backoff). Nothing is lost for good, but nothing arrives before the
+ * message sent before it, which arrived at `previous`: one message lost
+ * holds up every message behind it.
+ */
+export function orderedArrival(
+  faults: LinkFaults,
+  recovery: number,
+  index: number,
+  sentAt: number,
+  previous: number,
+): number {
+  const { loss = 0, seed = 1 } = faults;
+  const leg = linkDelay({ ...faults, loss: 0 }, 'there', index)!;
+  let lost = 0;
+  while (lost < 8 && chance(keyedRandom(seed, index, 2, lost), loss)) lost++;
+  return Math.max(previous, sentAt + leg + recovery * (2 ** lost - 1));
+}
+
 /** A ping answered, where it happened in real time, and the offset its answer should have read. */
 export interface PingRun {
   readonly ping: Ping;
