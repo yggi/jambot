@@ -15,11 +15,6 @@ export const METER_NAME: string = Object.entries(METERS).find(
   ([, meter]) => meter === SONG_METER,
 )![0];
 
-/** A value on the swing axis in the words of its ends (`StylePanel`): straight, shuffled, swung. */
-export function swingName(swing: number): 'straight' | 'shuffled' | 'swung' {
-  return swing < 0.25 ? 'straight' : swing < 0.75 ? 'shuffled' : 'swung';
-}
-
 /**
  * A mark on each step of the bar at the place it sounds under this swing.
  * The eighths are the click's, counted 1 & 2 & 3 & 4 &, the downbeat

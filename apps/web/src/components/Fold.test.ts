@@ -8,7 +8,7 @@ const children = createRawSnippet(() => ({ render: () => '<p>the details</p>' })
 describe('a fold', () => {
   it('shows a headline and the line under it, and keeps its details folded until opened', async () => {
     const { container } = render(Fold, {
-      label: 'Thing',
+      heading: 'Thing',
       name: 'C major',
       sub: 'the key',
       children,
@@ -22,7 +22,7 @@ describe('a fold', () => {
   });
 
   it('needs no line under the headline', () => {
-    const { container } = render(Fold, { label: 'Thing', name: 'C major', children });
+    const { container } = render(Fold, { heading: 'Thing', name: 'C major', children });
     expect(container.querySelector('summary .sub')).toBeNull();
   });
 });

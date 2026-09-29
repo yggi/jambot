@@ -35,6 +35,9 @@ function fakeAudioContext() {
   };
 }
 
+/** The tempo played, as the metrum card's headline reads it. */
+const tempo = () => screen.getByLabelText('Metrum').querySelector('summary .name');
+
 describe('the app', () => {
   it('offers the band, the presets and the style sliders', () => {
     render(App);
@@ -49,7 +52,9 @@ describe('the app', () => {
 
   it('lays the music out in the order of the composition, with the settings folded above it', () => {
     const { container } = render(App);
-    const levels = [...container.querySelectorAll('h2')].map((h) => h.textContent);
+    const levels = [...container.querySelectorAll('h2, .card > summary .heading')].map(
+      (h) => h.textContent,
+    );
     expect(levels.slice(0, 6)).toEqual([
       'Transport',
       'Style',
@@ -71,14 +76,14 @@ describe('the app', () => {
       'aria-pressed',
       'true',
     );
-    expect(screen.getByLabelText('Tempo')).toHaveTextContent('108 BPM');
+    expect(tempo()).toHaveTextContent('108 BPM');
     await fireEvent.click(screen.getByRole('button', { name: 'Swing jazz' }));
     expect(screen.getByRole('button', { name: 'Swing jazz' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
     expect(screen.getByRole('slider', { name: /Swing/ })).toHaveValue('100');
-    expect(screen.getByLabelText('Tempo')).toHaveTextContent('148 BPM');
+    expect(tempo()).toHaveTextContent('148 BPM');
   });
 
   it('nudges the tempo within the style’s licence, and names the style by its preset: energy, entropy and the nudge keep it, anything else makes it custom', async () => {
@@ -89,14 +94,13 @@ describe('the app', () => {
       expect(synthPop()).toHaveAttribute('aria-pressed', 'true');
     }
     await fireEvent.click(screen.getByRole('button', { name: 'Faster' }));
-    expect(screen.getByLabelText('Tempo')).toHaveTextContent('111 BPM');
-    expect(screen.getByText(/The style's 108 BPM, nudged \+3 %/)).toBeInTheDocument();
+    expect(tempo()).toHaveTextContent('111 BPM');
     expect(synthPop()).toHaveAttribute('aria-pressed', 'true');
     // A preset brings its own tempo, and the nudge carries over to it.
     await fireEvent.click(screen.getByRole('button', { name: 'Techno' }));
-    expect(screen.getByLabelText('Tempo')).toHaveTextContent('134 BPM');
+    expect(tempo()).toHaveTextContent('134 BPM');
     await fireEvent.click(screen.getByRole('button', { name: 'Slower' }));
-    expect(screen.getByLabelText('Tempo')).toHaveTextContent('130 BPM');
+    expect(tempo()).toHaveTextContent('130 BPM');
     await fireEvent.input(screen.getByRole('slider', { name: /Syncopation/ }), {
       target: { value: '80' },
     });

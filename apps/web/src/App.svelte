@@ -333,7 +333,7 @@
     />
   </Level>
 
-  <Level name="Metrum">
+  <Level>
     <Metrum
       tempo={tempoView(player.track, player.tempoNudge)}
       swing={player.track.swing.to}
@@ -344,7 +344,7 @@
     />
   </Level>
 
-  <Level name="Key">
+  <Level>
     <KeyPicker
       {following}
       heading={player.hud.heading}

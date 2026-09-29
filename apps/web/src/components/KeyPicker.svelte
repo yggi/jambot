@@ -38,6 +38,7 @@
   import type { Intent } from '../conductor.ts';
   import CircleOfFifths from './CircleOfFifths.svelte';
   import Fold from './Fold.svelte';
+  import Nudge from './Nudge.svelte';
   import Ruler from './Ruler.svelte';
   import Segmented from './Segmented.svelte';
 
@@ -98,7 +99,7 @@
     onintent({ kind: 'key', wish: { tonic, mode } });
 </script>
 
-<Fold label="Key" name={keyName(key)} sub="the key the band is heading for">
+<Fold heading="Key" name={keyName(key)} sub="the key the band is heading for">
   <div class="wheel">
     <CircleOfFifths
       tonic={key.tonic}
@@ -109,20 +110,22 @@
       {history}
     />
   </div>
-  <div class="nudge" role="group" aria-label="Nudge the key">
-    <button
-      type="button"
-      title={following ? HOST_SETS : 'A fifth down'}
-      disabled={following || beyond.includes(nudged(-1))}
-      onclick={() => nudge(-1)}>↺ Nudge down</button
-    >
-    <button
-      type="button"
-      title={following ? HOST_SETS : 'A fifth up'}
-      disabled={following || beyond.includes(nudged(1))}
-      onclick={() => nudge(1)}>Nudge up ↻</button
-    >
-  </div>
+  <Nudge
+    label="Nudge the key"
+    down={{
+      name: 'Nudge down',
+      glyph: '↺',
+      title: following ? HOST_SETS : 'A fifth down',
+      disabled: following || beyond.includes(nudged(-1)),
+    }}
+    up={{
+      name: 'Nudge up',
+      glyph: '↻',
+      title: following ? HOST_SETS : 'A fifth up',
+      disabled: following || beyond.includes(nudged(1)),
+    }}
+    onnudge={nudge}>a fifth</Nudge
+  >
   <Segmented
     label="Scale"
     value={key.mode}
@@ -140,27 +143,6 @@
 </Fold>
 
 <style>
-  button {
-    font: inherit;
-    font-size: 14px;
-    color: var(--ink);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    min-height: 44px;
-    padding: 0 16px;
-    border-radius: 22px;
-    cursor: pointer;
-  }
-  button:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-  .nudge {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-  }
   .wheel {
     width: min(360px, 100%);
     margin-inline: auto;

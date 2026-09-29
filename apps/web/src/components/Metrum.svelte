@@ -1,18 +1,20 @@
 <!--
-  The metrum, folded to a header: the tempo the band plays and, under it,
-  the meter and the swing in words. Unfolded, everything about time in one
-  place: the tempo nudged within the style's licence, the bar drawn where the
-  band plays it under the swing (a light mark on each step, the eighths the
-  click's, counted), and the click itself, which is the band's own steps
-  sounded on the song's meter, so it plays only while the band does. The
-  swing is read here and set in the style, where it is one of its axes.
+  The metrum, a card: the tempo the band plays under its heading and, under
+  that, the meter and the swing. Unfolded, everything about time in one
+  place: the tempo nudged within the style's licence, the swing as a gauge,
+  the bar drawn where the band plays it under the swing (a light mark on
+  each step, the eighths the click's, counted), and the click itself, which
+  is the band's own steps sounded on the song's meter, so it plays only
+  while the band does. The swing is read here and set in the style, where it
+  is one of its axes.
 -->
 <script lang="ts">
   import { BAR_STEPS } from '@jambot/engine';
   import type { Intent, TempoView } from '../conductor.ts';
   import type { Metronome } from '../metronome.svelte.ts';
-  import { METER_NAME, barMarks, swingName } from '../metrum.ts';
+  import { METER_NAME, barMarks } from '../metrum.ts';
   import Fold from './Fold.svelte';
+  import Gauge from './Gauge.svelte';
   import Ruler from './Ruler.svelte';
   import TempoNudge from './TempoNudge.svelte';
 
@@ -31,34 +33,33 @@
   let { tempo, swing, metronome, playing, following = false, onintent }: Props = $props();
 
   const marks = $derived(barMarks(swing, metronome.eighth));
-  const word = $derived(swingName(swing));
+  const percent = $derived(Math.round(swing * 100));
   const doing = $derived(
     !metronome.on
-      ? 'Off.'
+      ? 'Off'
       : !playing
-        ? 'On: it clicks when the band plays.'
+        ? 'Waiting for the band'
         : metronome.pulse === null
-          ? 'On.'
+          ? 'On'
           : `Pulse ${metronome.pulse + 1} of ${metronome.pulses}`,
   );
 </script>
 
 <Fold
-  label="Metrum"
+  heading="Metrum"
   name="{Math.round(tempo.bpm)} BPM"
-  sub="{METER_NAME}, {word}{metronome.on ? ', clicking' : ''}"
+  sub="{METER_NAME} · swing {percent} %{metronome.on ? ' · clicking' : ''}"
 >
   <TempoNudge {tempo} disabled={following} {onintent} />
+  <div class="swing">
+    <div class="reading"><span>Swing</span><b>{percent} %</b></div>
+    <Gauge label="Swing {percent} %" from={-1} to={1} centre={0} value={swing} fill />
+  </div>
   <Ruler
-    label="The bar's {BAR_STEPS} steps where the band plays them, {word} ({Math.round(
-      swing * 100,
-    )} %)"
+    label="The bar's {BAR_STEPS} steps where the band plays them, at a swing of {percent} %"
     span={BAR_STEPS}
     {marks}
   />
-  <p class="caption">
-    Swing {Math.round(swing * 100)} %, {word}: set with the style. A mark off its tick plays late.
-  </p>
   <div class="click" role="group" aria-label="Click">
     <button
       type="button"
@@ -79,11 +80,20 @@
       />
     </label>
   </div>
-  <p class="caption" aria-live="polite">{doing}</p>
+  <p class="doing" aria-live="polite">{doing}</p>
 </Fold>
 
 <style>
-  .caption {
+  .swing {
+    display: grid;
+    gap: 8px;
+  }
+  .reading {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+  }
+  .doing {
     font-size: 13px;
     color: var(--muted);
   }

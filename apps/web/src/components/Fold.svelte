@@ -1,28 +1,31 @@
 <!--
-  A fold: a level's view of one thing, folded to a header and unfolded to
-  its details. The header is a headline in large type, what the thing is
-  now, and a line under it saying what that is; the details open under it,
-  spaced alike. The key and the metrum are folds, so the levels of the page
-  read the same way (a `Drawer` folds settings that aren't the music).
+  A card: one thing on the page, folded to a header and unfolded to its
+  details. The header is the card's own heading (what the thing is), a
+  headline in large type (what it is now) and a line under it (what that
+  is), with the chevron at the right of the heading, in the same place on
+  every card. The details open under it, spaced alike. The key and the
+  metrum are cards, so a stack of them reads as one (a `Drawer` folds
+  settings that aren't the music, with the same chevron).
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
   interface Props {
-    /** What names the fold to a screen reader, on the group it opens. */
-    label: string;
+    /** The card's heading, and what names it to a screen reader. */
+    heading: string;
     /** The headline: what the thing is now. */
     name: string;
-    /** The line under it: what that is, or what it is doing. */
+    /** The line under it. */
     sub?: string;
     children: Snippet;
   }
 
-  let { label, name, sub, children }: Props = $props();
+  let { heading, name, sub, children }: Props = $props();
 </script>
 
-<details class="fold" aria-label={label}>
-  <summary>
+<details class="card" aria-label={heading}>
+  <summary class="chevron">
+    <span class="heading">{heading}</span>
     <span class="name">{name}</span>
     {#if sub}<span class="sub">{sub}</span>{/if}
   </summary>
@@ -30,40 +33,41 @@
 </details>
 
 <style>
-  .fold {
+  .card {
     border: 1px solid var(--line);
     border-radius: 12px;
     padding: 12px 16px;
     min-width: 0;
   }
-  .fold > :global(:not(summary)) {
+  .card > :global(:not(summary)) {
     margin-top: 14px;
   }
   summary {
     display: grid;
-    cursor: pointer;
-    list-style: none;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: 10px;
   }
-  summary::-webkit-details-marker {
-    display: none;
+  summary::after {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .heading {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
   .name {
+    grid-column: 1 / -1;
+    margin-top: 4px;
     font-size: 28px;
     font-weight: 700;
     line-height: 1.1;
   }
-  .name::after {
-    content: '▸';
-    margin-left: 10px;
-    font-size: 16px;
-    color: var(--muted);
-    display: inline-block;
-    transition: transform 0.15s;
-  }
-  .fold[open] .name::after {
-    transform: rotate(90deg);
-  }
   .sub {
+    grid-column: 1 / -1;
     font-size: 13px;
     color: var(--muted);
   }

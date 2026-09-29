@@ -18,18 +18,23 @@ const props = (metronome: Metronome, more: Partial<Parameters<typeof render>[1]>
 beforeEach(() => localStorage.clear());
 
 describe('the metrum', () => {
-  it('reads the tempo, the meter and the swing in its header, folded by default', () => {
+  it('reads the tempo, the meter and the swing value in its header, folded by default', () => {
     const { container } = render(Metrum, props(new Metronome(), { swing: 1 }));
     expect(container.querySelector('summary .name')).toHaveTextContent('108 BPM');
-    expect(container.querySelector('summary .sub')).toHaveTextContent('4/4, swung');
+    expect(container.querySelector('summary .sub')).toHaveTextContent('4/4 · swing 100 %');
     expect(container.querySelector('details')).not.toHaveAttribute('open');
+  });
+
+  it('names itself in its own header, over the tempo', () => {
+    const { container } = render(Metrum, props(new Metronome()));
+    expect(container.querySelector('summary .heading')).toHaveTextContent('Metrum');
   });
 
   it('says in its header that the click is on', () => {
     const metronome = new Metronome();
     metronome.on = true;
     const { container } = render(Metrum, props(metronome));
-    expect(container.querySelector('summary .sub')).toHaveTextContent('4/4, straight, clicking');
+    expect(container.querySelector('summary .sub')).toHaveTextContent('4/4 · swing 0 % · clicking');
   });
 
   it('nudges the tempo through the same intent, and a client’s nudges rest', async () => {
@@ -39,6 +44,20 @@ describe('the metrum', () => {
     expect(onintent).toHaveBeenCalledOnce();
     await rerender({ following: true });
     expect(screen.getByRole('button', { name: 'Faster' })).toBeDisabled();
+  });
+
+  it('shows the swing as a gauge, at the centre for none and full to the right for all', () => {
+    const marker = (swing: number) => {
+      const { container, unmount } = render(Metrum, props(new Metronome(), { swing }));
+      const left = (container.querySelector('[aria-label^="Swing"] .value') as HTMLElement).style
+        .left;
+      const reading = screen.getByText(`${Math.round(swing * 100)} %`);
+      expect(reading).toBeInTheDocument();
+      unmount();
+      return left;
+    };
+    expect(marker(0)).toBe('50%');
+    expect(marker(1)).toBe('100%');
   });
 
   it('draws the bar’s 16 steps and moves the offbeat eighths with the swing', () => {
@@ -86,10 +105,10 @@ describe('the metrum', () => {
   it('says what the click is doing: off, waiting for the band, or the pulse counted', async () => {
     const metronome = new Metronome();
     const { rerender } = render(Metrum, props(metronome));
-    expect(screen.getByText('Off.')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
     metronome.on = true;
     await Promise.resolve();
-    expect(screen.getByText('On: it clicks when the band plays.')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for the band')).toBeInTheDocument();
     await rerender({ playing: true });
     metronome.pulse = 2;
     await Promise.resolve();

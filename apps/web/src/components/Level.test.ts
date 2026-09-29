@@ -17,4 +17,9 @@ describe('a level of the composition', () => {
     expect(screen.getByRole('button', { name: 'Pick' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Pick' })).toBeVisible();
   });
+
+  it('has no heading of its own where the card inside carries one', () => {
+    render(Level, { children: aButton });
+    expect(screen.queryByRole('heading')).toBeNull();
+  });
 });

@@ -1,22 +1,9 @@
 import { BAR_STEPS } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { METER_NAME, barMarks, swingName } from './metrum.ts';
+import { METER_NAME, barMarks } from './metrum.ts';
 
 describe('the metrum', () => {
   it('names the song’s meter', () => expect(METER_NAME).toBe('4/4'));
-
-  it('names a swing by the nearest end of the axis: straight, shuffled or swung', () => {
-    const named = [0, 0.24, 0.26, 0.5, 0.74, 0.76, 1].map(swingName);
-    expect(named).toEqual([
-      'straight',
-      'straight',
-      'shuffled',
-      'shuffled',
-      'shuffled',
-      'swung',
-      'swung',
-    ]);
-  });
 
   it('lays a mark on each step of the bar, the eighths counted 1 & 2 & 3 & 4 &, the downbeat accented', () => {
     const marks = barMarks(0, null);

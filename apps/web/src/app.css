@@ -64,3 +64,22 @@ button {
   color: var(--ink);
   cursor: pointer;
 }
+
+/* A folding header's chevron, shared by the cards and the drawers so a stack of them lines up. */
+summary.chevron {
+  cursor: pointer;
+  list-style: none;
+}
+summary.chevron::-webkit-details-marker {
+  display: none;
+}
+summary.chevron::after {
+  content: '▸';
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+details[open] > summary.chevron::after {
+  transform: rotate(90deg);
+}
