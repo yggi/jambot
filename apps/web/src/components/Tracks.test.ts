@@ -87,7 +87,7 @@ describe('the tracks', () => {
     draw(tracks());
     const card = screen.getByLabelText('Tracks');
     expect(card).toHaveAttribute('open');
-    expect(card.querySelector('summary .name')).toHaveTextContent('Lead');
+    expect(card.querySelector('summary .main')).toHaveTextContent('Lead');
     expect(card.querySelector('summary .sub')).toHaveTextContent('Lead is improvising.');
     expect(screen.getByRole('button', { name: 'Lead' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('the lead instrument')).toBeInTheDocument();

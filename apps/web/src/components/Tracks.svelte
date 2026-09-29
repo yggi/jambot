@@ -23,7 +23,7 @@
   import { PATTERN_BARS } from '../pattern.ts';
   import type { Performer } from '../sounding.ts';
   import type { PerformerView, TracksView } from '../tracks.ts';
-  import Fold from './Fold.svelte';
+  import Card from './Card.svelte';
   import Lane from './Lane.svelte';
 
   interface Props {
@@ -58,7 +58,7 @@
   ];
 </script>
 
-<Fold heading="Tracks" name={chosen.label} sub={chosen.status} open>
+<Card title="Tracks" main={chosen.label} sub={chosen.status} open>
   <div class="grid" role="group" aria-label="Tracks grid">
     <ol class="bars" aria-hidden="true">
       {#each bars as bar (bar)}<li>{bar}</li>{/each}
@@ -122,7 +122,7 @@
     <div class="reading"><span>{chosen.label} now</span><b>{now}</b></div>
     {#key selected}{@render instrument(selected)}{/key}
   </div>
-</Fold>
+</Card>
 
 <style>
   .grid {

@@ -14,7 +14,7 @@ async function renderBand() {
 }
 
 /** The tempo played, as the metrum card's headline reads it. */
-const tempo = () => screen.getByLabelText('Metrum').querySelector('summary .name');
+const tempo = () => screen.getByLabelText('Metrum').querySelector('summary .main');
 
 describe('the app', () => {
   beforeEach(() => localStorage.clear());
@@ -149,12 +149,13 @@ describe('the app', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
   });
 
-  it('lays the music out in the order of the composition, with the settings folded above it', async () => {
+  it('lays the page out as cards and levels, the sound folded above the music in the order of the composition', async () => {
     const { container } = await renderBand();
-    const levels = [...container.querySelectorAll('h2, .card > summary .heading')].map(
+    const levels = [...container.querySelectorAll('h2, .card > summary .title')].map(
       (h) => h.textContent,
     );
-    expect(levels.slice(0, 7)).toEqual([
+    expect(levels.slice(0, 8)).toEqual([
+      'MIDI and sound',
       'Transport',
       'Style',
       'Metrum',
@@ -163,10 +164,7 @@ describe('the app', () => {
       'Chords',
       'Tracks',
     ]);
-    const drawers = [...container.querySelectorAll('details.drawer > summary .name')].map(
-      (n) => n.textContent,
-    );
-    expect(drawers).toEqual(['MIDI and sound']);
+    expect(screen.getByLabelText('MIDI and sound')).not.toHaveAttribute('open');
     expect(screen.getByText('Playing with the band on this device.')).toBeInTheDocument();
   });
 

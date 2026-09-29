@@ -10,6 +10,7 @@ const props = (metronome: Metronome, more: Partial<Parameters<typeof render>[1]>
   tempo,
   swing: 0,
   metronome,
+  heard: null,
   playing: false,
   onintent: () => {},
   ...more,
@@ -20,14 +21,14 @@ beforeEach(() => localStorage.clear());
 describe('the metrum', () => {
   it('reads the tempo, the meter and the swing value in its header, folded by default', () => {
     const { container } = render(Metrum, props(new Metronome(), { swing: 1 }));
-    expect(container.querySelector('summary .name')).toHaveTextContent('108 BPM');
+    expect(container.querySelector('summary .main')).toHaveTextContent('108 BPM');
     expect(container.querySelector('summary .sub')).toHaveTextContent('4/4 · swing 100 %');
     expect(container.querySelector('details')).not.toHaveAttribute('open');
   });
 
   it('names itself in its own header, over the tempo', () => {
     const { container } = render(Metrum, props(new Metronome()));
-    expect(container.querySelector('summary .heading')).toHaveTextContent('Metrum');
+    expect(container.querySelector('summary .title')).toHaveTextContent('Metrum');
   });
 
   it('says in its header that the click is on', () => {
@@ -76,14 +77,30 @@ describe('the metrum', () => {
     expect(cx[4]).toBe(Number(straight[4]));
   });
 
-  it('lights the eighth heard', async () => {
-    const metronome = new Metronome();
-    const { container } = render(Metrum, props(metronome, { playing: true }));
-    expect(container.querySelectorAll('svg.ruler circle.lit')).toHaveLength(0);
-    metronome.eighth = 3;
-    metronome.pulse = 1;
-    await Promise.resolve();
-    expect(container.querySelectorAll('svg.ruler circle.lit')).toHaveLength(1);
+  it('lights the eighth heard, on the ruler and on the glyph, click or no click', async () => {
+    const { container, rerender } = render(Metrum, props(new Metronome(), { playing: true }));
+    const lit = (selector: string) => container.querySelectorAll(`${selector} circle.lit`);
+    expect(lit('svg.ruler')).toHaveLength(0);
+    expect(lit('summary svg.glyph')).toHaveLength(0);
+    await rerender({ heard: 6 });
+    expect(lit('svg.ruler')).toHaveLength(1);
+    expect(lit('summary svg.glyph')).toHaveLength(1);
+    await rerender({ heard: null });
+    expect(lit('summary svg.glyph')).toHaveLength(0);
+  });
+
+  it('draws the bar in its summary as a glyph of lamps that moves with the swing', () => {
+    const lamps = (swing: number) => {
+      const { container, unmount } = render(Metrum, props(new Metronome(), { swing }));
+      const drawn = [...container.querySelectorAll('summary svg.glyph circle.lamp')].map((c) =>
+        [c.getAttribute('cx'), c.getAttribute('cy')].join(),
+      );
+      unmount();
+      return drawn;
+    };
+    expect(lamps(0)).toHaveLength(8);
+    expect(lamps(1)[1]).not.toBe(lamps(0)[1]);
+    expect(lamps(1)[2]).toBe(lamps(0)[2]);
   });
 
   it('switches the click on and off, and sets its volume', async () => {

@@ -12,9 +12,11 @@
   import { BAR_STEPS } from '@jambot/engine';
   import type { Intent, TempoView } from '../conductor.ts';
   import type { Metronome } from '../metronome.svelte.ts';
-  import { METER_NAME, barMarks } from '../metrum.ts';
-  import Fold from './Fold.svelte';
+  import { METER_NAME, barMarks, eighthHeard } from '../metrum.ts';
+  import Card from './Card.svelte';
   import Gauge from './Gauge.svelte';
+  import Blinker from './glyphs/Blinker.svelte';
+  import Reading from './Reading.svelte';
   import Ruler from './Ruler.svelte';
   import TempoNudge from './TempoNudge.svelte';
 
@@ -23,6 +25,8 @@
     /** The swing the style is heading for, 0 to 1. */
     swing: number;
     metronome: Metronome;
+    /** The step heard, or null before anything is: the bar's lamps light with it. */
+    heard: number | null;
     /** Whether the band plays: the click sounds with it. */
     playing: boolean;
     /** Whether a client follows its host's tempo, so it can't nudge. */
@@ -30,9 +34,9 @@
     onintent: (intent: Intent) => void;
   }
 
-  let { tempo, swing, metronome, playing, following = false, onintent }: Props = $props();
+  let { tempo, swing, metronome, heard, playing, following = false, onintent }: Props = $props();
 
-  const marks = $derived(barMarks(swing, metronome.eighth));
+  const marks = $derived(barMarks(swing, eighthHeard(heard)));
   const percent = $derived(Math.round(swing * 100));
   const doing = $derived(
     !metronome.on
@@ -45,14 +49,15 @@
   );
 </script>
 
-<Fold
-  heading="Metrum"
-  name="{Math.round(tempo.bpm)} BPM"
+<Card
+  title="Metrum"
+  main="{Math.round(tempo.bpm)} BPM"
   sub="{METER_NAME} · swing {percent} %{metronome.on ? ' · clicking' : ''}"
 >
+  {#snippet glyph()}<Blinker {marks} span={BAR_STEPS} />{/snippet}
   <TempoNudge {tempo} disabled={following} {onintent} />
   <div class="swing">
-    <div class="reading"><span>Swing</span><b>{percent} %</b></div>
+    <Reading label="Swing" value="{percent} %" />
     <Gauge label="Swing {percent} %" from={0} to={1} centre={0} value={swing} fill />
   </div>
   <Ruler
@@ -81,17 +86,12 @@
     </label>
   </div>
   <p class="doing" aria-live="polite">{doing}</p>
-</Fold>
+</Card>
 
 <style>
   .swing {
     display: grid;
     gap: 8px;
-  }
-  .reading {
-    display: flex;
-    justify-content: space-between;
-    font-size: 14px;
   }
   .doing {
     font-size: 13px;

@@ -12,7 +12,7 @@ describe('the key picker', () => {
       reach: 6,
       onintent: () => {},
     });
-    expect(container.querySelector('summary .name')).toHaveTextContent('C major');
+    expect(container.querySelector('summary .main')).toHaveTextContent('C major');
     expect(container.querySelector('details')).not.toHaveAttribute('open');
     cleanup();
     const minor = render(KeyPicker, {
@@ -21,7 +21,7 @@ describe('the key picker', () => {
       reach: 6,
       onintent: () => {},
     });
-    expect(minor.container.querySelector('summary .name')).toHaveTextContent('A minor');
+    expect(minor.container.querySelector('summary .main')).toHaveTextContent('A minor');
   });
 
   it('shows the wheel and the scale together, with no view switch', () => {
