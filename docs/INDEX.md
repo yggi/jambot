@@ -43,7 +43,7 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `packages/theory/src/`: music theory on one primitive, pure TypeScript (#28); its `index.ts` is the barrel
   - `packages/theory/experiments/`: measurements on the theory for the language design, outside the pure `src/` (E12)
   - `packages/engine/src/`: the musical engine, pure TypeScript: the machines of every level, the parts, the Muse, the style and the transport
-  - `packages/engine/experiments/`: measurements on the port for the language design, outside the pure `src/` (E9 to E17)
+  - `packages/engine/experiments/`: measurements on the port for the language design, outside the pure `src/` (E9 to E19)
   - `packages/score/src/`: the score, a bar as text and the text as a bar, pure TypeScript (#13, the seam of #63); the engine and `@strudel/mini` are dev dependencies, for its tests only (L4)
   - `packages/session/src/`: host and client mode, pure TypeScript ([brief](briefs/host-mode.md)): the lobby and session protocols, clocks, the fault kit and timing counters
   - `packages/analyzer/src/`: the parser, pure TypeScript (#141, the analyzer brief's steps 1–3, [brief](briefs/analyzer.md)): MIDI into tracks, tempo, swing, roles and the step grid

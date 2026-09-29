@@ -112,7 +112,7 @@ function recording() {
 }
 
 describe('the band’s keys and homes', () => {
-  it('are the recorded ones, bar for bar, over every preset, three seeds and 24 sections (#210)', () => {
+  it('are the recorded ones, bar for bar, over every preset, three seeds and 24 sections (#210, C9)', () => {
     // The recording pins the history's fold, its centre and the band's own
     // drift, which reads it: a change to either fails here, and a change
     // meant to is re-recorded on purpose, as `JSON.stringify(recording(), null, 2)`.

@@ -15,7 +15,8 @@ The pointers to what holds each are in the sentences.
   The players' key wish is a standing target, not an event: `nextKey` applied twice gives what it gave once, so the band can read it at every section boundary.
   Where the players wish for no tonic and the mode playing, the band moves the key itself (`bandWish`, `plan.ts`, #169): `harmonicReach` (6 × `harm`, rounded) gives how many fifths, the entropy how readily (`KEY_JUMP` × entropy a section), and the harmonic history where to.
   The history (`history.ts`) folds each decided bar's chords, not its notes, so `lookAhead` and a passed bar fold exactly what then plays; the band carries it (`BandCarried.history`) and hands it to the planner at a section's boundary.
-  Nothing hardcodes a return: after a move the key left still weighs most, so the band leans back.
+  The history is a fading memory (`fading.ts`, C9), and both of its leans are there: the home, its centre, and the band's draw, by weight to the fourth power.
+  Nothing hardcodes a return, and nothing makes one: the draw goes back to the key it left in a fifth to a quarter of jumps, and left alone the key ends anywhere round the circle within about 32 sections (E19, Q11).
   The wish also names a melodic scale for the lead (`KeyWish.melodic`, #209), which the plan takes at a section's boundary as it takes the key: the wish's where `licenceOf(style).melodic` reaches it, else `melodicDefault(style)` (`Plan.melodic`).
   It stands once met, as the mode does; the harmony, the themes, the numerals and the Muse keep the key's seven degrees, and only the lead's own phrases walk `melodicHelix(key, scale)`, through `phraseParams`' `scale`.
   A tonic wished for lets go once the band plans it (`released`, applied by the player), so the drift resumes from there.

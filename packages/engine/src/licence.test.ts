@@ -100,14 +100,14 @@ describe('the tempo licence', () => {
     }
   });
 
-  it('plays the style’s tempo unnudged, and a nudge as a ratio of it', () => {
+  it('plays the style’s tempo unnudged, and a nudge as a ratio of it (C9)', () => {
     for (const { style } of EVERY) {
       expect(nudgedTempo(style, 0)).toBe(style.bpm);
       expect(nudgedTempo(style, TEMPO_STEP)).toBeCloseTo(style.bpm * 2 ** TEMPO_STEP, 9);
     }
   });
 
-  it('holds a nudge within its reach, and the tempo within its axis', () => {
+  it('holds a nudge within its reach, and the tempo within its axis (C8)', () => {
     const at = (bpm: number, entropy = 1): Style => ({ ...INITIAL_STYLE, bpm, entropy });
     expect(tempoNudgeWithin(1, at(100))).toBe(TEMPO_REACH);
     expect(tempoNudgeWithin(-1, at(100))).toBe(-TEMPO_REACH);
@@ -172,7 +172,7 @@ describe('the key licence', () => {
     for (const key of KEYS) expect(intoReach(key, INITIAL_KEY, keyReach)).toEqual(key);
   });
 
-  it('pulls a wish beyond its reach back to the nearest key within it, in the wished mode', () => {
+  it('pulls a wish beyond its reach back to the nearest key within it, in the wished mode (C8)', () => {
     for (let reach = 0; reach <= 6; reach++)
       for (const key of KEYS) {
         const held = intoReach(key, INITIAL_KEY, reach);
@@ -251,7 +251,7 @@ describe('the melodic licence', () => {
       }
   });
 
-  it('holds a wished scale within reach: as it is where reached, else the widest the reach holds (#209)', () => {
+  it('holds a wished scale within reach: as it is where reached, else the widest the reach holds (#209, C8)', () => {
     for (const harm of HARMS)
       for (const scale of MELODIC_SCALES) {
         const style = { ...INITIAL_STYLE, harm };

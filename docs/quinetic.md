@@ -194,7 +194,7 @@ one other note. Source: quintenzirkel's variation operators, Lewin's T and I, #7
 
 **Q6. Every feedback loop passes through a delay.** Same as F7.
 
-## Convergence and fixed points (Q7–Q9)
+## Convergence and fixed points (Q7–Q9, Q11)
 
 **Q7a. Following the players is a loop with a bandwidth.** Same as A4.
 
@@ -222,6 +222,18 @@ Source: the prototype's Quinetics parallels, #37 steps 4 and 5. Status: measured
 is a named cell of the key frame.
 
 **Q9. A wish settles: read again, it changes nothing.** Same as C6.
+
+**Q11. Left alone, every default returns to the style's own.**
+Witness: the key at entropy 0, which never moves; the tempo, whose default is the style's own at every bar a nudge isn't held, since nothing remembers the nudge (C9).
+Counterexample: a level whose default, with nobody playing, ends where the style doesn't put it.
+The key is one: above entropy 0 the band moves its own key within its reach, leaning toward where it has been (C9), and nothing pulls it back, since the style holds a reach per jump, not a key.
+Over 32 sections the key ends as far from where it opened as a key drawn at random round the circle, about 3 fifths, and back on it in at most 1 run in 10 (E19).
+So today a level with a memory has no default of its own to return to, and a level with a default of its own, the tempo, has no memory: the homeostat's two loops, a fast one held within bounds around a default and a slow one that moves the default, are never both at one level.
+Test: `key-loop.test.ts` (`packages/engine/experiments`), E19, whose test of the key's drift cites Q11.
+Source: #210 ("left alone, it plays an endless, evolving jam", `AGENTS.md`, as a claim about where the system settles).
+Status: measured (the key at entropy 0); measured, failing (the key above it).
+Open: whether the key should return at all (an endless jam may be meant to wander) or lean toward a key of its own, the song's opening key or one the style names, which is the owner's call (#210).
+Lands in: #210, #195.
 
 ## Not a property
 

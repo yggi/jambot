@@ -179,7 +179,7 @@ describe('wishAfter', () => {
     }
   });
 
-  it('holds a key picked within reach of the home it is given, the harmonic history’s centre, for every home and tonic (#169)', () => {
+  it('holds a key picked within reach of the home it is given, the harmonic history’s centre, for every home and tonic (#169, C8)', () => {
     const style: Style = { ...INITIAL_STYLE, harm: 1 / 6 };
     const { keyReach } = licenceOf(style);
     for (let home = 0; home < 12; home++)
