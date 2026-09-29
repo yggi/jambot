@@ -17,7 +17,7 @@ const snapshot: HostSnapshot = {
   roster: [{ id: 'c0', name: 'Ada', token: 'token-0' }],
   players: { host: 'Bo', c0: 'Ada' },
   track: { energy: { from: 0.5, to: 0.5, at: 0, over: 0 } } as never,
-  wish: { tonic: null, mode: 'aeolian' },
+  wish: { tonic: null, mode: 'aeolian', melodic: null },
   tempoNudge: 0.1,
 };
 

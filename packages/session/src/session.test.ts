@@ -88,7 +88,7 @@ function jam(link: Link, seconds: number, change: number | null = null, bpm?: nu
     // A tenth of a second after the host's first tick, as a player starts a song.
     start: 1,
     track,
-    wish: { tonic: null, mode: 'aeolian' },
+    wish: { tonic: null, mode: 'aeolian', melodic: null },
   });
   const follower = transportOver(followSource);
   let hostCarried = transport.initial;
@@ -238,7 +238,7 @@ describe('the bars a host sends', () => {
       seed: 3,
       start: 0.5,
       track,
-      wish: { tonic: null, mode: 'aeolian' },
+      wish: { tonic: null, mode: 'aeolian', melodic: null },
     };
     const sent = new Map<number, number | null>();
     const laid = new Map<number, number>();
@@ -267,7 +267,12 @@ describe('the bars a host sends', () => {
  */
 function motifOver(bpm: number, delay: number, back = delay, k = 3) {
   const track = holding({ ...INITIAL_STYLE, energy: 0.8, bpm });
-  const env: TransportEnv = { seed: 5, start: 1, track, wish: { tonic: null, mode: 'aeolian' } };
+  const env: TransportEnv = {
+    seed: 5,
+    start: 1,
+    track,
+    wish: { tonic: null, mode: 'aeolian', melodic: null },
+  };
   const latency = 0.03;
   const follower = transportOver(followSource);
   let hostCarried = transport.initial;

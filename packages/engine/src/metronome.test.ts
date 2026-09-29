@@ -12,7 +12,7 @@ function play(preset: number, swing: number | null, seconds: number) {
     seed: 11,
     start: 1,
     track: holding(style),
-    wish: { tonic: null, mode: PRESETS[preset]!.mode },
+    wish: { tonic: null, mode: PRESETS[preset]!.mode, melodic: null },
   };
   let carried = transport.initial;
   const steps: ScheduledStep[] = [];

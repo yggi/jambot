@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { form } from './form.ts';
 import { NO_HISTORY, centre } from './history.ts';
-import { COMPOSER_MODES, INITIAL_KEY, type Key, type KeyWish, nextKey } from './key.ts';
-import { fifthsApart, harmonicReach } from './licence.ts';
+import {
+  COMPOSER_MODES,
+  INITIAL_KEY,
+  type Key,
+  type KeyWish,
+  MELODIC_SCALES,
+  type MelodicScale,
+  nextKey,
+  released,
+} from './key.ts';
+import { fifthsApart, harmonicReach, licenceOf, melodicDefault } from './licence.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { type Plan, type PlanEnv, bandWish, planner } from './plan.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
@@ -16,7 +25,13 @@ const tour = (seed: number, sections = 24): Script<PlanEnv, null> =>
     const preset = PRESETS[index % PRESETS.length]!;
     const style = { ...preset.style, entropy: (index % 4) / 4 };
     return {
-      env: { seed, index, style, wish: { tonic: null, mode: preset.mode }, history: NO_HISTORY },
+      env: {
+        seed,
+        index,
+        style,
+        wish: { tonic: null, mode: preset.mode, melodic: null },
+        history: NO_HISTORY,
+      },
       input: null,
     };
   });
@@ -52,7 +67,7 @@ const drifts = (style: Style, seeds = 200, sections = 24) => {
   return moves / (seeds * (sections - 1));
 };
 
-const aeolian: KeyWish = { tonic: null, mode: 'aeolian' };
+const aeolian: KeyWish = { tonic: null, mode: 'aeolian', melodic: null };
 
 describe('the section plan', () => {
   it('keeps the machine laws over a tour of the presets and their modes (F1, Q4a)', () => {
@@ -85,7 +100,9 @@ describe('the section plan', () => {
   it('settles on a steady wish: the key moves once, then stays (C6)', () => {
     for (const mode of COMPOSER_MODES)
       for (const tonic of [null, 0, 9]) {
-        const plans = run(steady(1, { ...INITIAL_STYLE, harm: 0 }, { tonic, mode }, 8));
+        const plans = run(
+          steady(1, { ...INITIAL_STYLE, harm: 0 }, { tonic, mode, melodic: null }, 8),
+        );
         for (const plan of plans) expect(plan.key).toEqual(plans[0]!.key);
         expect(plans[0]!.key.mode).toBe(mode);
         if (tonic !== null) expect(plans[0]!.key.tonic).toBe(tonic);
@@ -123,10 +140,10 @@ describe('the section plan', () => {
   it('always takes the players’ wish over its own: a tonic, or another mode (#169)', () => {
     const style = { ...INITIAL_STYLE, harm: 1, entropy: 1 };
     for (const seed of range(20)) {
-      for (const plan of run(steady(seed, style, { tonic: 2, mode: 'dorian' }, 12)))
+      for (const plan of run(steady(seed, style, { tonic: 2, mode: 'dorian', melodic: null }, 12)))
         expect(plan.key).toEqual({ tonic: 2, mode: 'dorian' });
       // A mode wished from section 1 on: the band pivots to it, and doesn't move on its own.
-      const ionian = { tonic: null, mode: 'ionian' } as const;
+      const ionian = { tonic: null, mode: 'ionian', melodic: null } as const;
       const script = steady(seed, style, aeolian, 2).map(({ env, input }) => ({
         env: { ...env, wish: env.index === 1 ? ionian : env.wish },
         input,
@@ -199,7 +216,7 @@ describe('the section plan', () => {
         ({ env, input }) => ({
           env: {
             ...env,
-            wish: env.index >= 20 ? { tonic: null, mode: 'dorian' as const } : env.wish,
+            wish: env.index >= 20 ? { ...env.wish, mode: 'dorian' as const } : env.wish,
           },
           input,
         }),
@@ -251,5 +268,76 @@ describe('the section plan', () => {
       }
     }
     expect(bs).toBeGreaterThan(0);
+  });
+});
+
+describe('the melodic scale a section plays', () => {
+  /** Every harm on a grid of 60ths, which holds both thresholds of the melodic reach. */
+  const HARMS = [...Array(61).keys()].map((i) => i / 60);
+  const wishing = (melodic: MelodicScale | null): KeyWish => ({ ...aeolian, melodic });
+
+  it('is the wish where the style reaches it, else the style’s default, at every harm (#209)', () => {
+    for (const harm of HARMS)
+      for (const melodic of [null, ...MELODIC_SCALES]) {
+        const style = { ...INITIAL_STYLE, harm };
+        const reached = melodic !== null && licenceOf(style).melodic.includes(melodic);
+        for (const plan of run(steady(3, style, wishing(melodic), 4)))
+          expect(plan.melodic).toBe(reached ? melodic : melodicDefault(style));
+      }
+    // The default is the plain scale, so a wish beyond the reach plays that.
+    const vampish = { ...INITIAL_STYLE, harm: 0.5 };
+    for (const plan of run(steady(3, vampish, wishing('blues'), 4)))
+      expect(plan.melodic).toBe('plain');
+  });
+
+  it('follows a wish from the next section it plans, and not before (#209)', () => {
+    const style = { ...INITIAL_STYLE, harm: 1 };
+    for (const seed of range(5)) {
+      const script = steady(seed, style, aeolian, 12).map(({ env, input }) => ({
+        env: { ...env, wish: wishing(env.index >= 5 ? 'pentatonic' : null) },
+        input,
+      }));
+      const plans = run(script);
+      expect(plans.map((p) => p.melodic)).toEqual(
+        range(12).map((i) => (i >= 5 ? 'pentatonic' : 'plain')),
+      );
+    }
+  });
+
+  it('stands once met, as the mode does, while a tonic wished for lets go (#209)', () => {
+    // As the player does: after each section, the wish as released by the key planned.
+    for (const seed of range(5)) {
+      let wish: KeyWish = { tonic: 2, mode: 'dorian', melodic: 'blues' };
+      let carried = planner.initial;
+      for (const index of range(12)) {
+        const env = {
+          seed,
+          index,
+          style: { ...INITIAL_STYLE, harm: 1 },
+          wish,
+          history: NO_HISTORY,
+        };
+        const next = planner.advance(env, carried, null);
+        carried = next.carried;
+        expect(next.output.melodic).toBe('blues');
+        wish = released(wish, next.output.key);
+        expect(wish.melodic).toBe('blues');
+        if (index > 0) expect(wish.tonic).toBeNull();
+      }
+    }
+  });
+
+  it('changes nothing else a section plays: its form, key and theme are the plain scale’s (#209)', () => {
+    for (const seed of [1, 2, 3])
+      for (const melodic of MELODIC_SCALES) {
+        const plain = run(tour(seed));
+        const wished = tour(seed).map(({ env, input }) => ({
+          env: { ...env, wish: { ...env.wish, melodic } },
+          input,
+        }));
+        run(wished).forEach((plan, i) => {
+          expect({ ...plan, melodic: 'plain' }).toEqual(plain[i]);
+        });
+      }
   });
 });

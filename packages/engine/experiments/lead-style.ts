@@ -63,7 +63,7 @@ for (const preset of PRESETS) {
     let carried = band.initial;
     for (const bar of range(BARS)) {
       const next = band.advance(
-        { seed, bar, style, wish: { tonic: null, mode: preset.mode }, offer: null },
+        { seed, bar, style, wish: { tonic: null, mode: preset.mode, melodic: null }, offer: null },
         carried,
         null,
       );

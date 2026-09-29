@@ -16,7 +16,7 @@ const env = (track = holding(INITIAL_STYLE)): TransportEnv => ({
   seed: 5,
   start: 0,
   track,
-  wish: { tonic: null, mode: 'aeolian' },
+  wish: { tonic: null, mode: 'aeolian', melodic: null },
 });
 
 /** The forecast of 40 bars, bar by bar as a host renews it, while the band plays. */

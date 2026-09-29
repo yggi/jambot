@@ -29,7 +29,7 @@ import type { ForecastDelta } from './forecast.ts';
  * and `WrittenNote` travel as they are, so a change to their shape is a
  * change to the protocol, and bumps it (`protocol.test.ts` holds the shapes).
  */
-export const PROTOCOL = 3;
+export const PROTOCOL = 4;
 
 /** A bar as a host wrote it: everything its parts read, and the notes they wrote. */
 export interface WrittenBar extends BarEnv {

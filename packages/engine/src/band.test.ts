@@ -9,7 +9,7 @@ import { drums } from './drums.ts';
 import type { DoughNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import { NO_HISTORY, foldBar } from './history.ts';
-import type { KeyWish } from './key.ts';
+import { type KeyWish, MELODIC_SCALES } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { perform } from './performer.ts';
 import { planner } from './plan.ts';
@@ -33,13 +33,15 @@ const historyBefore = (bars: readonly { chords: Parameters<typeof foldBar>[1] }[
 
 /**
  * A tour: a new preset every 8 bars, with entropy rising, wishing for each
- * preset's mode from its fourth bar on.
+ * preset's mode from its fourth bar on, and for each melodic scale in turn,
+ * a new one every third bar.
  */
 const presetAt = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
 const styleAt = (bar: number): Style => ({ ...presetAt(bar).style, entropy: (bar % 32) / 32 });
 const wishAt = (bar: number): KeyWish => ({
   tonic: null,
   mode: presetAt(Math.max(0, bar - 3)).mode,
+  melodic: MELODIC_SCALES[Math.floor(bar / 3) % MELODIC_SCALES.length]!,
 });
 const envAt =
   (seed: number) =>
@@ -113,8 +115,9 @@ describe('the band', () => {
           );
         }
       }
-      // The wish changes mid-section, and the key follows at the boundary.
+      // The wish changes mid-section, and the key and the melodic scale follow at the boundary.
       expect(new Set(bars.map((b) => b.plan.key.mode)).size).toBeGreaterThan(1);
+      expect(new Set(bars.map((b) => b.plan.melodic)).size).toBeGreaterThan(1);
     }
   });
 
@@ -188,7 +191,7 @@ describe('the band', () => {
       seed,
       bar,
       style,
-      wish: { tonic: null, mode: PRESETS[Math.floor(bar / 8)]!.mode },
+      wish: { tonic: null, mode: PRESETS[Math.floor(bar / 8)]!.mode, melodic: null },
       offer: null,
     });
     let off = 0;
@@ -244,7 +247,13 @@ describe('the band', () => {
       const at = (bar: number): BandEnv => {
         const preset = PRESETS[Math.floor(bar / 16) % PRESETS.length]!;
         const style = { ...preset.style, energy: 0.8, entropy: 0.3 };
-        return { seed, bar, style, wish: { tonic: null, mode: preset.mode }, offer: null };
+        return {
+          seed,
+          bar,
+          style,
+          wish: { tonic: null, mode: preset.mode, melodic: null },
+          offer: null,
+        };
       };
       let whole = band.initial;
       let resumed = band.initial;
@@ -310,7 +319,7 @@ describe('the band', () => {
       seed: 1,
       bar: 3,
       style: INITIAL_STYLE,
-      wish: { tonic: null, mode: 'aeolian' },
+      wish: { tonic: null, mode: 'aeolian', melodic: null },
       offer: null,
     } as const;
     expect(() => band.advance(env, band.initial, null)).toThrow(
@@ -352,7 +361,7 @@ describe('the look-ahead', () => {
       seed,
       bar,
       style,
-      wish: { tonic: null, mode: 'aeolian' } as const,
+      wish: { tonic: null, mode: 'aeolian', melodic: null } as const,
       offer: null,
     });
     let moves = 0;

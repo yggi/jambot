@@ -40,7 +40,7 @@ function travelling(): { bars: SentBar[]; judgements: Judgement[] } {
     seed: 3,
     start: 0,
     track: holding({ ...INITIAL_STYLE, energy: 1, harm: 1 }),
-    wish: { tonic: null, mode: 'aeolian' },
+    wish: { tonic: null, mode: 'aeolian', melodic: null },
   };
   const heard = [69, 72, 76, 74].map((note, i) => ({
     note,
@@ -179,9 +179,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 3 (the join and welcome that carry a resume token are read by field, above), as a minute of the band and two judgements show them. */
+/** The shapes of version 4 (the join and welcome that carry a resume token are read by field, above), as a minute of the band and two judgements show them. */
 const SHAPES = {
-  protocol: 3,
+  protocol: 4,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -212,6 +212,7 @@ const SHAPES = {
     'bar.offer: null',
     'bar.plan.key.mode: string',
     'bar.plan.key.tonic: number',
+    'bar.plan.melodic: string',
     'bar.plan.section.index: number',
     'bar.plan.section.type: string',
     'bar.plan.theme.bars[][].degree: number',

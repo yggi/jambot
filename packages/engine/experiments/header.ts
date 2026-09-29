@@ -71,7 +71,12 @@ const run = (seed: number, read: (style: Style) => Style): BandBar[] => {
   let carried: BandCarried = band.initial;
   return range(BARS).map((bar) => {
     const next = band.advance(
-      { seed, bar, style: read(styles[bar]!), wish: { tonic: null, mode: modeAt(bar) } },
+      {
+        seed,
+        bar,
+        style: read(styles[bar]!),
+        wish: { tonic: null, mode: modeAt(bar), melodic: null },
+      },
       carried,
       null,
     );
@@ -127,13 +132,13 @@ for (const decimals of [2, 3]) {
           seed,
           bar,
           style: onGrid(styles[bar]!, decimals),
-          wish: { tonic: null, mode: modeAt(bar) },
+          wish: { tonic: null, mode: modeAt(bar), melodic: null },
         },
         carried,
         null,
       );
       carried = band.advance(
-        { seed, bar, style: styles[bar]!, wish: { tonic: null, mode: modeAt(bar) } },
+        { seed, bar, style: styles[bar]!, wish: { tonic: null, mode: modeAt(bar), melodic: null } },
         carried,
         null,
       ).carried;

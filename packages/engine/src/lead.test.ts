@@ -6,13 +6,14 @@ import {
   heightOf,
   joinChord,
   positions,
+  snap,
   wrap,
 } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import { chordAt } from './chords.ts';
 import { writtenProblems } from './events.ts';
-import { keyHelix } from './key.ts';
+import { COMPOSER_MODES, type Key, MELODIC_SCALES, keyHelix, melodicHelix } from './key.ts';
 import recorded from './lead.fixture.json';
 import { LEAD_RANGE, type LeadCarried, lead, leadRests, phraseParams } from './lead.ts';
 import { SECTION_TYPES } from './form.ts';
@@ -33,7 +34,13 @@ const tour = (seed: number, bars = 160, style = styleAt): BandBar[] => {
   return range(bars).map((bar) => {
     const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
     const next = band.advance(
-      { seed, bar, style: style(bar), wish: { tonic: null, mode: preset.mode }, offer: null },
+      {
+        seed,
+        bar,
+        style: style(bar),
+        wish: { tonic: null, mode: preset.mode, melodic: null },
+        offer: null,
+      },
       carried,
       null,
     );
@@ -90,7 +97,13 @@ describe('the lead', () => {
         let carried = band.initial;
         return range(bars).flatMap((bar) => {
           const next = band.advance(
-            { seed, bar, style, wish: { tonic: null, mode: 'aeolian' }, offer: null },
+            {
+              seed,
+              bar,
+              style,
+              wish: { tonic: null, mode: 'aeolian', melodic: null },
+              offer: null,
+            },
             carried,
             null,
           );
@@ -311,7 +324,7 @@ const recording = () =>
                 seed,
                 bar,
                 style: { ...preset.style, entropy: 0.3 },
-                wish: { tonic: null, mode: preset.mode },
+                wish: { tonic: null, mode: preset.mode, melodic: null },
                 offer: null,
               },
               carried,
@@ -472,6 +485,19 @@ describe('the phrase parameters', () => {
     expect(full).toBeGreaterThan(half);
   });
 
+  it('walk the plan’s melodic scale over its key, and read nothing else of the plan (#209)', () => {
+    for (const { bar } of barsOf)
+      for (const melodic of MELODIC_SCALES) {
+        const plan = { ...bar.plan, melodic };
+        expect(phraseParams({ ...bar, plan }).scale).toEqual(melodicHelix(plan.key, melodic));
+        // The section and the theme don't reach the phrases: only the key and its scale.
+        expect({ ...phraseParams({ ...bar, plan }), scale: null }).toEqual({
+          ...phraseParams(bar),
+          scale: null,
+        });
+      }
+  });
+
   it('read the style’s sync, entropy, harmony and swing and the bar’s energy, and nothing else of the style', () => {
     for (const { bar } of barsOf) {
       const base = phraseParams(bar);
@@ -481,6 +507,107 @@ describe('the phrase parameters', () => {
       const sync = bar.style.sync === 1 ? 0 : 1;
       expect(phraseParams({ ...bar, style: { ...bar.style, sync } })).not.toEqual(base);
     }
+  });
+});
+
+describe('the lead over a melodic scale', () => {
+  /** Every preset in each mode, three seeds of 32 bars, at energy 0.7 so the lead plays. */
+  const runs = PRESETS.flatMap((preset) =>
+    COMPOSER_MODES.flatMap((mode) =>
+      [1, 2, 3].map((seed) => {
+        let carried = band.initial;
+        const bars = range(32).map((bar) => {
+          const next = band.advance(
+            {
+              seed,
+              bar,
+              style: { ...preset.style, energy: 0.7, entropy: 0.3 },
+              wish: { tonic: null, mode, melodic: null },
+              offer: null,
+            },
+            carried,
+            null,
+          );
+          carried = next.carried;
+          return next.output;
+        });
+        return { preset: preset.name, mode, seed, bars };
+      }),
+    ),
+  );
+  /** The bars with the plan's melodic scale set, whatever the style's reach. */
+  const over = (bars: readonly BandBar[], melodic: (typeof MELODIC_SCALES)[number]) =>
+    bars.map((bar) => ({ ...bar, plan: { ...bar.plan, melodic } }));
+
+  it('walks the pentatonic or the blues between the steps it lands on a chord tone at, over every preset, seed and mode (#209)', () => {
+    for (const melodic of ['pentatonic', 'blues'] as const) {
+      let walked = 0;
+      let differ = 0;
+      for (const { bars } of runs) {
+        const plain = play(bars);
+        play(over(bars, melodic)).forEach(({ bar, events }, i) => {
+          const inScale = new Set(positions(melodicHelix(bar.plan.key, melodic)));
+          const { snap: snapped } = phraseParams(bar);
+          // The close of bars 2 and 4 goes to a chord tone, as the phrase grammar says.
+          const closes = bar.barInSection % 2 === 1;
+          events.forEach((e, j) => {
+            if (snapped.includes(e.step) || (closes && j === events.length - 1)) return;
+            expect(inScale.has(wrap(e.note, 12)), `${melodic} ${bar.bar}:${e.step}`).toBe(true);
+            walked++;
+          });
+          if (events.map((e) => e.note).join() !== plain[i]!.events.map((e) => e.note).join())
+            differ++;
+          // The rhythm is the plain scale's: the scale moves the notes, not the steps.
+          expect(events.map((e) => e.step)).toEqual(plain[i]!.events.map((e) => e.step));
+        });
+      }
+      expect(walked).toBeGreaterThan(5000);
+      expect(differ).toBeGreaterThan(500);
+    }
+  });
+
+  it('starts each phrase on the degree of its scale nearest the chord tone nearest where it left off (#209)', () => {
+    let starts = 0;
+    for (const melodic of MELODIC_SCALES)
+      for (const { bars } of runs.filter((r) => r.seed === 1))
+        for (const { bar, before, events } of play(over(bars, melodic))) {
+          if (bar.barInSection % 4 !== 0 || events.length === 0) continue;
+          const first = events[0]!;
+          if (phraseParams(bar).snap.includes(first.step)) continue;
+          const tones = classesOf(joinChord(chordAt(bar.chords, first.step).chord));
+          const tone = range(13)
+            .map((i) => before.last - 6 + i)
+            .filter((n) => tones.includes(wrap(n, 12)))
+            .sort((a, b) => Math.abs(a - before.last) - Math.abs(b - before.last) || a - b)[0]!;
+          const scale = melodicHelix(bar.plan.key, melodic);
+          expect(wrap(first.note, 12)).toBe(wrap(heightOf(scale, snap(scale, tone)), 12));
+          starts++;
+        }
+    expect(starts).toBeGreaterThan(20);
+  });
+
+  it('finds the degree nearest a note on helices of 5, 6 and 7 degrees, ties going down (#209)', () => {
+    // The lead's phrases start from the degree `snap` gives; counting turns
+    // as 7 degrees would put a pentatonic's in the wrong place.
+    const keys: Key[] = COMPOSER_MODES.flatMap((mode) =>
+      range(12).map((tonic) => ({ tonic, mode })),
+    );
+    const sizes = new Set<number>();
+    for (const key of keys)
+      for (const melodic of MELODIC_SCALES) {
+        const scale = melodicHelix(key, melodic);
+        sizes.add(scale.heights.length);
+        // Every height from two turns below 0 to twelve above, around the notes 36 to 96.
+        const heights = range(scale.heights.length * 14).map((d) =>
+          heightOf(scale, d - scale.heights.length * 2),
+        );
+        for (let note = 36; note <= 96; note++) {
+          const nearest = Math.min(...heights.map((h) => Math.abs(h - note)));
+          const lowest = heights.find((h) => Math.abs(h - note) === nearest)!;
+          expect(heightOf(scale, snap(scale, note))).toBe(lowest);
+        }
+      }
+    expect([...sizes].sort()).toEqual([5, 6, 7]);
   });
 });
 
@@ -555,6 +682,17 @@ describe('the lead with a motif on offer', () => {
       }
     expect(bars).toBe(480);
     expect(offChord).toBeGreaterThan(0);
+  });
+
+  it('plays it as heard, on the key’s own degrees, whatever melodic scale the lead walks (#209)', () => {
+    for (const seed of [1, 2, 3]) {
+      const bars = offered(tour(seed, 64), () => offer(0));
+      const plain = play(bars).map((p) => p.events);
+      for (const melodic of MELODIC_SCALES) {
+        const walked = play(bars.map((bar) => ({ ...bar, plan: { ...bar.plan, melodic } })));
+        expect(walked.map((p) => p.events)).toEqual(plain);
+      }
+    }
   });
 
   it('writes each note of a motif with its accent, 0 where it has none, and none on its own notes (U4)', () => {

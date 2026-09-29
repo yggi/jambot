@@ -16,6 +16,8 @@ The pointers to what holds each are in the sentences.
   Where the players wish for no tonic and the mode playing, the band moves the key itself (`bandWish`, `plan.ts`, #169): `harmonicReach` (6 × `harm`, rounded) gives how many fifths, the entropy how readily (`KEY_JUMP` × entropy a section), and the harmonic history where to.
   The history (`history.ts`) folds each decided bar's chords, not its notes, so `lookAhead` and a passed bar fold exactly what then plays; the band carries it (`BandCarried.history`) and hands it to the planner at a section's boundary.
   Nothing hardcodes a return: after a move the key left still weighs most, so the band leans back.
+  The wish also names a melodic scale for the lead (`KeyWish.melodic`, #209), which the plan takes at a section's boundary as it takes the key: the wish's where `licenceOf(style).melodic` reaches it, else `melodicDefault(style)` (`Plan.melodic`).
+  It stands once met, as the mode does; the harmony, the themes, the numerals and the Muse keep the key's seven degrees, and only the lead's own phrases walk `melodicHelix(key, scale)`, through `phraseParams`' `scale`.
   A tonic wished for lets go once the band plans it (`released`, applied by the player), so the drift resumes from there.
   The web player only reads the audio clock and plays what the transport schedules, so everything that decides what and when is tested without a browser.
 - The band decides each bar when it composes the bar before: the section's plan at a section's first bar, and the bar's chords.

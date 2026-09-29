@@ -80,7 +80,7 @@ const runChanging = (
 const swung = holding({ ...PRESETS[4]!.style, entropy: 0.3 }); // Lo-fi hip hop, 84 bpm
 const env = (
   track: StyleTrack = swung,
-  wish: KeyWish = { tonic: null, mode: PRESETS[4]!.mode },
+  wish: KeyWish = { tonic: null, mode: PRESETS[4]!.mode, melodic: null },
 ): TransportEnv => ({ seed: 11, start: 1, track, wish });
 
 describe('the transport', () => {
@@ -307,7 +307,7 @@ describe('the transport', () => {
     { timeout: 30_000 },
     () => {
       // A wish for another key, so the stall passes key changes too.
-      const far = env(swung, { tonic: 2, mode: 'mixolydian' });
+      const far = env(swung, { tonic: 2, mode: 'mixolydian', melodic: null });
       const before = run(far, ticks(0.9, 100));
       // An event's night: four hours with the tab's clock stopped. A walk
       // through every bar it passed costs some microseconds a bar, so one
@@ -668,7 +668,7 @@ describe('the forecast from the transport', () => {
     // for another key: the forecast reads both ahead of time. A forecast
     // made before the wish changed would not know it, as nobody can.
     const track = glideTo(swung, PRESETS[1]!.style, 16 * 16, PRESET_GLIDE);
-    const wished = env(track, { tonic: 2, mode: 'mixolydian' });
+    const wished = env(track, { tonic: 2, mode: 'mixolydian', melodic: null });
     let carried = transport.initial;
     const forecasts: { from: number; bars: ReturnType<typeof lookAhead> }[] = [];
     const composed = new Map<number, BandBar>();
@@ -702,7 +702,7 @@ describe('the forecast from the transport', () => {
 
   it('reads the bars ahead from any carried state, those composed first, each with the energy it plays at', () => {
     const track = glideTo(swung, PRESETS[1]!.style, 16 * 16, PRESET_GLIDE);
-    const far = env(track, { tonic: 2, mode: 'mixolydian' });
+    const far = env(track, { tonic: 2, mode: 'mixolydian', melodic: null });
     // Before the start, the forecast is the song that then plays.
     const opening = forecast(far, null, 24);
     let carried = transport.initial;

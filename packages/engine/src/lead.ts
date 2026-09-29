@@ -11,7 +11,8 @@
  * back and entropy adds turns and leaps. A variation turns the shape over,
  * lifts it, bends its last note or drops it.
  *
- * Each phrase starts from the chord tone nearest where the lead left off.
+ * Each phrase starts from the degree of its scale nearest the chord tone
+ * nearest where the lead left off.
  * Where a chord starts, and on the strong steps the harmony leaves (every
  * beat for a vamp, the half bar below rich harmony), it lands on a chord tone,
  * and the phrase grammar closes it: bar 2 ends open, on the third or the
@@ -20,7 +21,9 @@
  * folds by octaves on its own.
  *
  * The style reaches the lead's phrases in one place, `phraseParams`.
- * From the bar's energy, its chords and the style's sync, entropy, harmony and swing, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
+ * From the bar's energy, its chords, the plan's key and melodic scale, and the style's sync, entropy, harmony and swing, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the scale its contour walks, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
+ * The scale is the plan's melodic scale over its key (#209): the key's seven degrees, its pentatonic or its blues, which the style's harmony reaches and the players pick within.
+ * Only the lead's own phrases walk it: the chord tones they land on and the cadence stay the chords', so ♭6 over VI stands in a pentatonic, and a player's motif plays on the key's own degrees, as heard.
  * The harmony leans the contour from an arch toward a wave, and thins the strong steps a note lands on a chord tone at; the swing lifts the off-beat eighths, the pickups a swung line leans on (#168).
  * The articulation doesn't reach the phrases: it is how a note is played, the performer's gate (T4), not how it is written.
  * What the lead writes over every preset is recorded in `lead.fixture.json`, so a change to it is a deliberate one.
@@ -48,13 +51,14 @@ import {
   even,
   joinChord,
   positions,
+  snap,
   wrap,
 } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { chordAt } from './chords.ts';
 import { BAR_STEPS, type WrittenNote } from './events.ts';
 import type { SectionType } from './form.ts';
-import { keyHelix } from './key.ts';
+import { keyHelix, melodicHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick, quantize } from './random.ts';
 import type { ThemeKind } from './themes.ts';
@@ -152,7 +156,12 @@ export interface PhraseParams {
    * 1, rotated by the sync.
    */
   readonly pulse: readonly number[];
-  /** How many degrees the contour reaches from the first note, 2 to 8, with energy and entropy. */
+  /**
+   * The scale the contour walks: the plan's melodic scale over its key
+   * (`melodicHelix`, #209), seven degrees, or five or six.
+   */
+  readonly scale: Helix;
+  /** How many degrees of the scale the contour reaches from the first note, 2 to 8, with energy and entropy. */
   readonly span: number;
   /**
    * The weight of each contour: an arch, a fall, a rise and a wave. A static
@@ -190,19 +199,22 @@ function strongSteps(harm: number): readonly number[] {
 
 /**
  * The one place the style reaches the lead's phrases: every parameter of a
- * shape, a variation and its realization, from the bar's energy, its chords
- * and the style's sync, entropy, harmony and swing.
+ * shape, a variation and its realization, from the bar's energy, its chords,
+ * the plan's key and melodic scale, and the style's sync, entropy, harmony
+ * and swing.
  */
 export function phraseParams({
   style,
   barEnergy: energy,
   chords,
-}: Pick<BarEnv, 'style' | 'barEnergy' | 'chords'>): PhraseParams {
+  plan,
+}: Pick<BarEnv, 'style' | 'barEnergy' | 'chords' | 'plan'>): PhraseParams {
   return {
     density: 0.25 + 0.5 * energy,
     grooveMix: style.sync,
     pickups: Array.from({ length: BAR_STEPS }, (_, s) => (s % 4 === 2 ? 0.3 * style.swing : 0)),
     pulse: positions(even(Math.round(3 + 5 * energy), BAR_STEPS, Math.round(style.sync * 3))),
+    scale: melodicHelix(plan.key, plan.melodic),
     span: 2 + Math.round((energy + style.entropy) * 3),
     contours: [1 + (1 - style.harm) * (1 - style.entropy), 1, 1, 0.25 + 1.5 * style.harm],
     turn: 0.2 + 0.3 * style.entropy,
@@ -338,21 +350,6 @@ export function leadRests(section: SectionType, barEnergy: number): boolean {
   return barEnergy < 0.4 || section === 'breakdown' || section === 'intro';
 }
 
-/** The degree of the key nearest a note: where a phrase starts from. */
-function degreeNear(scale: Helix, note: number): number {
-  const octave = Math.floor((note - scale.heights[0]!) / 12);
-  const within = wrap(note - scale.heights[0]!, 12);
-  let degree = 0;
-  scale.heights.forEach((h, i) => {
-    if (
-      Math.abs(h - scale.heights[0]! - within) <
-      Math.abs(scale.heights[degree]! - scale.heights[0]! - within)
-    )
-      degree = i;
-  });
-  return octave * 7 + degree;
-}
-
 /** The phrase's cadence: bar 2 ends open, on the third or fifth, and bar 4 closes on the root. */
 function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], phase: number) {
   if (phase !== 1 && phase !== 3) return notes;
@@ -369,27 +366,29 @@ function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], ph
 
 /**
  * A motif of one bar realized as the lead's notes: its first note on the
- * degree of the key nearest the chord tone nearest where the lead left off,
- * each note altered as written and held to the next onset, a rest silent,
- * and the last note to the bar's end. (A motif that didn't start on the
- * bar's first step would hold its last note on over the bar line; the lead's
- * own and the Muse's always start there, with a rest if the bar starts
- * silent.) Where `fit`, a note on a step its phrase parameters snap goes
- * to the nearest chord tone, as the lead's own sketches do; a player's motif
- * is played as it was heard, each note with its accent, which the
- * performance plays on the lead's level (U4). Bars 2 and 4 close as the
- * phrase grammar says, and the phrase moves into the lead's range.
+ * degree of its scale nearest the chord tone nearest where the lead left
+ * off, each note altered as written and held to the next onset, a rest
+ * silent, and the last note to the bar's end. (A motif that didn't start on
+ * the bar's first step would hold its last note on over the bar line; the
+ * lead's own and the Muse's always start there, with a rest if the bar starts
+ * silent.) The lead's `own` motif walks its phrase parameters' scale, and a
+ * note on a step they snap goes to the nearest chord tone; a player's motif
+ * is written in the key's degrees and accidentals (U4), so it is played on
+ * the key's own as it was heard, each note with its accent, which the
+ * performance plays on the lead's level. Bars 2 and 4 close as the phrase
+ * grammar says, and the phrase moves into the lead's range.
  */
-function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
+function realize(motif: Motif, env: BarEnv, last: number, own: boolean) {
   const { plan, chords, barInSection } = env;
-  const { snap, range } = phraseParams(env);
+  const params = phraseParams(env);
+  const { snap: snapped, range } = params;
   const { onsets, degrees, accidentals } = motif;
-  const scale = keyHelix(plan.key);
+  const scale = own ? params.scale : keyHelix(plan.key);
   const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
-  const first = degreeNear(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
+  const first = snap(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
   let notes = heard.map(({ step, i }) => {
     const note = alteredHeight(scale, first + degrees[i]!, accidentals[i]!);
-    return fit && snap.includes(step) ? nearestTone(chordAt(chords, step).chord, note) : note;
+    return own && snapped.includes(step) ? nearestTone(chordAt(chords, step).chord, note) : note;
   });
   notes = intoRange(cadence(notes, heard.at(-1)!.step, chords, barInSection % 4), range);
   const written: WrittenNote[] = heard.map(({ step, i }, j) => ({
@@ -397,10 +396,10 @@ function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
     step,
     note: notes[j]!,
     length: (onsets[i + 1] ?? motif.cycle) - step,
-    // An offered motif's every note carries an accent, 0 included: \`perform\`
+    // An offered motif's every note carries an accent, 0 included: `perform`
     // plays a note with one on the lead's level, and one without on the
     // beat's, so leaving out a 0 would change how it plays.
-    ...(fit ? {} : { accent: motif.accents?.[i] ?? 0 }),
+    ...(own ? {} : { accent: motif.accents?.[i] ?? 0 }),
   }));
   return { written, last: notes.at(-1)! };
 }
