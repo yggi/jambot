@@ -18,8 +18,7 @@
   import StylePanel from '../components/StylePanel.svelte';
   import TempoNudge from '../components/TempoNudge.svelte';
   import Transport from '../components/Transport.svelte';
-  import { KEY_REACH } from '@jambot/engine';
-  import { tempoView } from '../conductor.ts';
+  import { keyReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { performersOf } from '../performers.ts';
@@ -85,7 +84,8 @@
   <KeyPicker
     {following}
     heading={player.hud.heading}
-    reach={KEY_REACH}
+    reach={keyReachOf(player.track)}
+    home={player.home}
     history={player.harmonicHistory}
     onintent={(intent) => player.apply(intent)}
   />
