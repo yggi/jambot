@@ -24,13 +24,14 @@
  * and the nudge carries over to it. The track holds the tempo played, the
  * style's times the nudge, so the transport, the score and a session's
  * clients read one tempo; `baseTempo` reads the style's own back out of it.
- * A key picked is held within the reach the harmony gives of the song's
- * home key, a fifth at a time.
+ * A key picked is held within the reach the harmony gives of the home key,
+ * the centre of the band's harmonic history, a fifth at a time.
  */
 
 import {
   type Axis,
   INITIAL_KEY,
+  type Key,
   type KeyWish,
   PRESET_GLIDE,
   type Preset,
@@ -118,10 +119,16 @@ export function nudgeAfter(nudge: number, intent: Intent, style: Style): number 
 
 /**
  * The key wished for after an intent: a key picked, or a preset's mode from
- * any tonic, and a tonic held within the reach of the home key that the
- * style after the intent leaves (`licenceOf`).
+ * any tonic, and a tonic held within the reach that the style after the
+ * intent leaves (`licenceOf`) of `home`: the band's harmonic history's centre
+ * (`centre`, #169), which is the key the song opens in before anything is heard.
  */
-export function wishAfter(wish: KeyWish, intent: Intent, style: Style): KeyWish {
+export function wishAfter(
+  wish: KeyWish,
+  intent: Intent,
+  style: Style,
+  home: Key = INITIAL_KEY,
+): KeyWish {
   const next =
     intent.kind === 'key'
       ? intent.wish
@@ -130,7 +137,7 @@ export function wishAfter(wish: KeyWish, intent: Intent, style: Style): KeyWish 
         : wish;
   if (next.tonic === null) return next;
   const { keyReach } = licenceOf(style);
-  const held = intoReach({ tonic: next.tonic, mode: next.mode }, INITIAL_KEY, keyReach);
+  const held = intoReach({ tonic: next.tonic, mode: next.mode }, home, keyReach);
   return held.tonic === next.tonic ? next : held;
 }
 

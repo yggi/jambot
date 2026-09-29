@@ -11,7 +11,9 @@
  * section is planned, and a bar's chords coloured, from the style and the
  * wish where the bar before starts; bar 0 decides itself.
  *
- * It carries the plan's state, the bar it decided, and what its parts carry.
+ * It carries the plan's state, the bar it decided, the harmonic history of
+ * the bars it decided (`history.ts`), which a section's plan reads to move
+ * the key itself (#169), and what its parts carry.
  * The parts play side by side from the same bar: the drums, the bass, the
  * comp and the lead. What they write, the band plays through the
  * performance (`performer.ts`, T4).
@@ -29,6 +31,7 @@ import { type LeadCarried, lead } from './lead.ts';
 import { drums } from './drums.ts';
 import type { DoughNote, WrittenNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
+import { type HarmonicWeights, NO_HISTORY, foldBar } from './history.ts';
 import type { KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import type { Offer } from './muse.ts';
@@ -70,6 +73,8 @@ export interface BandCarried {
   readonly plans: PlanCarried;
   /** The bar the band plays next, decided. */
   readonly next: DecidedBar | null;
+  /** The harmonic history, up to and including the bar decided next. */
+  readonly history: HarmonicWeights;
   readonly parts: PartsCarried;
 }
 
@@ -86,27 +91,31 @@ export interface BandBar extends BarEnv {
 const INITIAL: BandCarried = {
   plans: planner.initial,
   next: null,
+  history: NO_HISTORY,
   parts: { bass: bass.initial, comp: comp.initial, lead: lead.initial },
 };
 
 /**
  * Decide a bar from the style and wish where the bar composed now starts:
- * its plan, advanced at a section's first bar, and its chords.
+ * its plan, advanced at a section's first bar from the history so far, and
+ * its chords, which the history then folds in.
  */
 function decide(
   { seed, style, wish }: BandEnv,
   bar: number,
   plans: PlanCarried,
-): { plans: PlanCarried; decided: DecidedBar } {
+  history: HarmonicWeights,
+): { plans: PlanCarried; decided: DecidedBar; history: HarmonicWeights } {
   const barInSection = bar % SECTION_BARS;
   const next =
     barInSection === 0
-      ? planner.advance({ seed, index: bar / SECTION_BARS, style, wish }, plans, null).carried
+      ? planner.advance({ seed, index: bar / SECTION_BARS, style, wish, history }, plans, null)
+          .carried
       : plans;
   const plan = next.before!;
   const { key, theme } = plan;
   const chords = barChords({ seed, barInSection, key, theme, harm: style.harm });
-  return { plans: next, decided: { bar, plan, chords } };
+  return { plans: next, decided: { bar, plan, chords }, history: foldBar(history, chords) };
 }
 
 /** The environment as the band reads it: its style as the score writes it (C7). */
@@ -114,15 +123,18 @@ const read = (env: BandEnv): BandEnv => ({ ...env, style: writtenStyle(env.style
 
 /** The bar to play now, and the carried state with the bar after it decided. */
 function step(env: BandEnv, carried: BandCarried): { here: DecidedBar; carried: BandCarried } {
-  let { plans } = carried;
+  let { plans, history } = carried;
   let here = carried.next;
   if (!here) {
     if (env.bar !== 0) throw new Error(`band: bar ${env.bar}, but the song starts at bar 0`);
-    ({ plans, decided: here } = decide(env, 0, plans));
+    ({ plans, decided: here, history } = decide(env, 0, plans, history));
   } else if (here.bar !== env.bar)
     throw new Error(`band: bar ${env.bar}, but the band decided bar ${here.bar} next`);
-  const after = decide(env, env.bar + 1, plans);
-  return { here, carried: { ...carried, plans: after.plans, next: after.decided } };
+  const after = decide(env, env.bar + 1, plans, history);
+  return {
+    here,
+    carried: { ...carried, plans: after.plans, next: after.decided, history: after.history },
+  };
 }
 
 /**
