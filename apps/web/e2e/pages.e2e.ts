@@ -31,7 +31,7 @@ test('the app and the prototype load under the sub-path, and fetch nothing outsi
 }) => {
   const seen = watch(page);
   await page.goto(site);
-  await expect(page.getByRole('button', { name: 'Start the band' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Play with the band' })).toBeVisible();
   const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
   expect(scope).toBe(site);
 

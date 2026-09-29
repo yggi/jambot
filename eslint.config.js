@@ -98,4 +98,36 @@ export default defineConfig(
     files: ['**/*.svelte', '**/*.svelte.ts'],
     languageOptions: { parserOptions: { parser: ts.parser } },
   },
+  {
+    // The web app's screens, the lobby and the band, are presentational: they
+    // take props and send intents. The page holds the player, the device and
+    // the sessions, and a screen names their types at most, never runs them.
+    files: ['apps/web/src/screens/**/*.svelte'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: './Lobby.svelte', message: 'The lobby and the band do not know each other.' },
+            { name: './Band.svelte', message: 'The lobby and the band do not know each other.' },
+          ],
+          patterns: [
+            {
+              group: [
+                '**/session/*',
+                '**/device.*',
+                '**/instruments.*',
+                '**/metronome.*',
+                '**/player.*',
+                '**/profile.*',
+              ],
+              allowTypeImports: true,
+              message:
+                'A screen takes what it shows as props and sends intents: the page runs the player, the device and the sessions.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

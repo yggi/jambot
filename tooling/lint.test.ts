@@ -87,3 +87,39 @@ describe('lint keeps the pure packages pure', () => {
       expect(await firing(code, path)).not.toContain('no-restricted-syntax');
   });
 });
+
+describe('lint keeps the screens presentational', () => {
+  const lobby = 'apps/web/src/screens/Probe.svelte';
+  const screen = (imports: string) =>
+    `<script lang="ts">\n  ${imports}\n</script>\n\n<p>probe</p>\n`;
+
+  it('refuses a screen that runs the player, the device or the sessions, and one that knows the other', async () => {
+    for (const imports of [
+      "import { Sessions } from '../session/sessions.svelte.ts';",
+      "import { Player } from '../player.svelte.ts';",
+      "import { Device } from '../device.svelte.ts';",
+      "import { Instruments } from '../instruments.svelte.ts';",
+      "import { Metronome } from '../metronome.svelte.ts';",
+      "import { Profile } from '../profile.svelte.ts';",
+      "import Band from './Band.svelte';",
+      "import Lobby from './Lobby.svelte';",
+    ])
+      expect(await firing(screen(imports), lobby), imports).toContain('no-restricted-imports');
+  });
+
+  it('lets a screen name their types, and use the components and the pure helpers', async () => {
+    const imports = [
+      "import type { Player } from '../player.svelte.ts';",
+      "import type { Found } from '../session/sessions.svelte.ts';",
+      "import Level from '../components/Level.svelte';",
+      "import { tempoView } from '../conductor.ts';",
+    ].join('\n  ');
+    expect(await firing(screen(imports), lobby)).not.toContain('no-restricted-imports');
+  });
+
+  it('leaves the page and the components free to run them', async () => {
+    const code = screen("import { Sessions } from '../session/sessions.svelte.ts';");
+    for (const path of ['apps/web/src/Probe.svelte', 'apps/web/src/components/Probe.svelte'])
+      expect(await firing(code, path)).not.toContain('no-restricted-imports');
+  });
+});

@@ -32,6 +32,12 @@ export function nameRefusal(session: string): string | null {
   return null;
 }
 
+/** A session that is open: its name, and how many players are in it, the host counted. */
+export interface OpenSession {
+  readonly name: string;
+  readonly players: number;
+}
+
 export type ToLobby =
   | { readonly op: 'list' }
   /**
@@ -48,7 +54,7 @@ export type ToLobby =
   | { readonly op: 'end' };
 
 export type FromLobby =
-  | { readonly op: 'sessions'; readonly names: readonly string[] }
+  | { readonly op: 'sessions'; readonly sessions: readonly OpenSession[] }
   /** To a host: its session is open, and this secret takes it back if its link drops. */
   | { readonly op: 'hosting'; readonly session: string; readonly reclaim: string }
   | { readonly op: 'joined'; readonly session: string }

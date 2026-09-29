@@ -36,6 +36,12 @@ export interface Output {
     timbre: Timbre,
   ): void;
   /**
+   * The level of what plays, from 0 to 1, reached at once or, given
+   * seconds, gliding to it. What is played after a `silence` opens at it.
+   * Where the output has none, MIDI's volume is the instrument's own.
+   */
+  level?(gain: number, seconds: number): void;
+  /**
    * The metronome's click of a weight at a time on the clock, at a gain from
    * 0 to 1. Only the built-in synth sounds it: never MIDI, so it is heard on
    * this device alone.
@@ -54,14 +60,19 @@ export interface Output {
   tick?(steps: readonly ScheduledStep[]): void;
 }
 
+/** The gain of a bus at full level: headroom under the compressor. */
+export const BUS_GAIN = 0.8;
+
 /** The built-in synth on Web Audio: the drum kit and the voices through a compressor. */
 export function webAudioOutput(): Output {
   const ctx = new AudioContext();
   const out = ctx.createDynamicsCompressor();
   out.connect(ctx.destination);
+  /** The level asked for, from 0 to 1, that each bus opens at. */
+  let wanted = 1;
   const openBus = () => {
     const bus = ctx.createGain();
-    bus.gain.value = 0.8;
+    bus.gain.value = BUS_GAIN * wanted;
     bus.connect(out);
     return { bus, kit: drumKit(ctx, bus), voices: voices(ctx, bus), click: clickVoice(ctx, bus) };
   };
@@ -74,6 +85,12 @@ export function webAudioOutput(): Output {
       return ctx.outputLatency || ctx.baseLatency || 0;
     },
     resume: () => ctx.resume(),
+    level(gain, seconds) {
+      wanted = gain;
+      const bus = current.bus.gain;
+      if (seconds <= 0) bus.setValueAtTime(BUS_GAIN * gain, ctx.currentTime);
+      else bus.setTargetAtTime(BUS_GAIN * gain, ctx.currentTime, seconds / 4);
+    },
     play(part, note, velocity, seconds, duration, timbre) {
       if (part === 'drums') current.kit.play(note, velocity, seconds);
       else current.voices.play(part, note, velocity, seconds, duration, timbre);

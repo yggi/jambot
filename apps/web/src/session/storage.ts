@@ -14,6 +14,7 @@ import {
 } from '@jambot/session';
 import type { ClientKeep } from './client.svelte.ts';
 import type { HostKeep } from './host.svelte.ts';
+import type { Kept } from './sessions.svelte.ts';
 
 export const HOST_KEY = 'jambot:host-session';
 export const CLIENT_KEY = 'jambot:client-session';
@@ -49,6 +50,9 @@ export const clientKeep: ClientKeep = {
   save: (resume) => write(CLIENT_KEY, resume),
   clear: () => remove(CLIENT_KEY),
 };
+
+/** What a page keeps, as `Sessions` takes it. */
+export const browserKept: Kept = { hostKeep, clientKeep, keptHost, keptClient };
 
 /** The host session kept, if one is good at `now` (seconds since the epoch): else it is forgotten. */
 export function keptHost(now: number): HostSnapshot | null {
