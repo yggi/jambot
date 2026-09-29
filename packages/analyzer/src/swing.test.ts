@@ -1,6 +1,6 @@
-import { swingMap } from '@jambot/engine';
+import { estimateSwing, swingMap } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { estimateSwing, quantiseSection } from './swing.ts';
+import { quantiseSection } from './swing.ts';
 import type { RawNote } from './tracks.ts';
 
 const PPQ = 480;

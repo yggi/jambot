@@ -5,7 +5,8 @@
  * some milliseconds, the whole phrase early or late, the tempo drifting over
  * the bar, and each note released short of where it was written. One number,
  * `sloppiness`, is the standard deviation in milliseconds of the onset
- * jitter, of the phrase's offset, of the drift over a bar and of the
+ * jitter, of the phrase's offset, of the drift over a bar (or over the
+ * phrase, if longer) and of the
  * release's jitter; the notes are also held the shorter of their length, the
  * sloppier the player (`gate`). At 0 it plays the bar exactly as written.
  *
@@ -30,6 +31,7 @@ import {
   barStart,
   judgeBar,
   keyedRng,
+  readHeard,
 } from '../src/index.ts';
 
 /** A reader: what the Muse would make of the notes heard, for one bar. */
@@ -71,9 +73,10 @@ export function humanise(
   const offset = normal(phrase) * toSteps;
   const drift = normal(phrase) * toSteps;
   const first = notes[0]?.position ?? 0;
+  const span = Math.max(BAR_STEPS, (notes.at(-1)?.position ?? 0) - first);
   return notes.map((n, i) => {
     const rng = keyedRng(seed, trial, 1 + i);
-    const shift = offset + (drift * (n.position - first)) / BAR_STEPS + normal(rng) * toSteps;
+    const shift = offset + (drift * (n.position - first)) / span + normal(rng) * toSteps;
     const held = n.end === null ? null : (n.end - n.position) * gate(sloppiness);
     return {
       ...n,
@@ -219,4 +222,99 @@ export function readingRate(reader: Reader, sloppiness: number, key: Key, seed =
     }
   }
   return { bars, right, rhythm, causes };
+}
+
+/** A hearing: the notes as the reader takes them, before each bar is judged. The baseline takes them as heard. */
+export type Hearing = (notes: readonly HeardNote[]) => HeardNote[];
+
+/** Each note as heard: judged on the nearest step by `judgeBar` itself. */
+export const AS_HEARD: Hearing = (notes) => [...notes];
+
+/** Each phrase read as one span (`readHeard`, #204 A1). */
+export const AS_PHRASES: Hearing = readHeard;
+
+/** What a hearing made of phrases, over the same bars (E17, A1). */
+export interface PhraseRate {
+  readonly bars: number;
+  /** Bars read back as the target motif exactly. */
+  readonly right: number;
+  /** Bars whose notes all start on the steps they were meant for, whatever the rests. */
+  readonly onsets: number;
+  /** Bars with a note read in another bar than it was meant for. */
+  readonly strayed: number;
+}
+
+/** The bars of phrase `which` of performance `index`: one to three, a pattern each. */
+const phraseBars = (index: number, which: 0 | 1) => 1 + ((index + which) % 3);
+
+/**
+ * A performance: two phrases of one to three bars each, one empty bar
+ * between, from bar 1. Each note's velocity is its number, so where a hearing
+ * puts it can be told from where it was meant.
+ */
+function performance(index: number) {
+  const first = phraseBars(index, 0);
+  const second = phraseBars(index, 1);
+  const bars = [
+    ...range(first).map((j) => ({ bar: 1 + j, pattern: index * 6 + j, phrase: 0 })),
+    ...range(second).map((j) => ({ bar: first + 2 + j, pattern: index * 6 + 3 + j, phrase: 1 })),
+  ];
+  const notes = bars.flatMap(({ bar, pattern: p, phrase }) =>
+    played(pattern(p), bar, p).map((n) => ({ ...n, phrase })),
+  );
+  return notes.map(({ phrase, ...n }, i) => ({ note: { ...n, velocity: 1 + i }, phrase }));
+}
+
+const range = (n: number) => [...Array(n).keys()];
+
+/** The bar-relative steps of a motif's notes. */
+const noteSteps = (m: NonNullable<ReturnType<typeof motifOf>>) =>
+  m.onsets.filter((_, i) => m.degrees[i] !== null).join();
+
+/**
+ * The share of bars a hearing reads as their target, over performances of
+ * two phrases each humanised alone (a phrase's offset and drift are its own).
+ */
+export function phraseRate(hearing: Hearing, sloppiness: number, key: Key, seed = 1): PhraseRate {
+  let bars = 0;
+  let right = 0;
+  let onsets = 0;
+  let strayed = 0;
+  for (let index = 0; index < PATTERNS; index++) {
+    const parts = performance(index);
+    const exact = parts.map((p) => p.note);
+    const intended = new Map(exact.map((n) => [n.velocity, barAt(n.position)]));
+    for (let trial = 0; trial < TRIALS; trial++) {
+      const heard = [0, 1].flatMap((phrase) =>
+        humanise(
+          parts.filter((p) => p.phrase === phrase).map((p) => p.note),
+          sloppiness,
+          seed,
+          (index * TRIALS + trial) * 2 + phrase,
+        ),
+      );
+      const read = hearing(heard);
+      const barsOf = new Set(exact.map((n) => barAt(n.position)));
+      for (const bar of barsOf) {
+        const target = motifOf(judgeBar(exact, bar, key));
+        if (!target) continue;
+        bars++;
+        const got = motifOf(judgeBar(read, bar, key));
+        if (
+          got &&
+          rhythmOf(got) === rhythmOf(target) &&
+          got.degrees.join() === target.degrees.join()
+        )
+          right++;
+        if (got && noteSteps(got) === noteSteps(target)) onsets++;
+        if (
+          read.some(
+            (n) => intended.get(n.velocity) === bar && barAt(Math.round(n.position)) !== bar,
+          )
+        )
+          strayed++;
+      }
+    }
+  }
+  return { bars, right, onsets, strayed };
 }

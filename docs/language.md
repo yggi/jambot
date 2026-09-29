@@ -1197,9 +1197,10 @@ step round-trips through grid quantisation once its 4/4 section's swing is
 found.** Witness: `ticksTimeMap` (`packages/analyzer/src/tempo.ts`), whose
 `played` and `written` are built as one section/retraction pair per tempo
 segment, the same shape as the engine's own time maps (T4); and
-`estimateSwing`/`quantiseSection` (`packages/analyzer/src/swing.ts`), which
-search the swing axis (`swingMap`) for the value whose inverse leaves a
-section's onsets closest to the step grid, then round. Counterexample: a tick
+`estimateSwing`/`readOnsets` (`packages/engine/src/reading.ts`, which
+`quantiseSection` in `packages/analyzer/src/swing.ts` calls, and the Muse reads
+a phrase with), which search the swing axis (`swingMap`) for the value whose
+inverse leaves a section's onsets closest to the step grid, then round. Counterexample: a tick
 whose `written(played(tick))` differs from itself across a tempo change; a bar
 written at a known swing whose recovered step differs from the one it was
 written at. Test: `packages/analyzer/src/tempo.test.ts` (the round trip, across
@@ -1693,6 +1694,14 @@ run; the others have.
   - So the reading's first lesson is not where the notes go but where the rests are: a rest must be a plausible value or nothing (A4), and comes before the note value (A2).
   - The yardstick has both ends: an exact hand is read 100%, and a reader that hears nothing 0%.
     The baseline's numbers are literals in `humanise.test.ts`, to be raised by the step that improves them.
+  - **A1: a phrase read whole** (`readHeard`, `packages/engine/src/phrase.ts`).
+    Two phrases of one to three bars with an empty bar between, each humanised alone: 3,600 bars.
+    A phrase ends at a silence of a bar less a step (`EMPTY_BAR`), is read as one span with the phrase's offset found (shrunk toward none) and its first onset put on the beat where the odds say so (`BEAT_ODDS`, against the hand's own looseness), then cut at the bar lines.
+    Nearest step against a phrase read whole, bars right, and bars whose notes all start where they were meant (rests aside): 20 ms 69.1% and 82.9% against 83.6% and 92.8%; 30 ms 27.3% and 46.5% against 34.0% and 53.9%; 40 ms 9.1% and 23.3% against 10.1% and 26.4%.
+    Bars with a note in the wrong bar at 30 ms: 9.9% against 7.6%.
+  - Reading is no better from 60 ms, and marginally worse in right bars (a handful in 3,600): a hand that loose puts a note past half a step from where it meant, which no prior on the first onset repairs.
+  - A beat prior on every onset, not only the first, at odds of 1.5 to 3, moved the 30 ms numbers by under a point, so it is left out.
+  - What is left is the per-onset jitter of a loose hand and its releases: the equal lengths (A2), their ratios (A3) and the rests (A4).
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

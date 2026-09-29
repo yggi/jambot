@@ -12,7 +12,15 @@
  * Run: node --experimental-strip-types --no-warnings packages/engine/experiments/muse-reading.ts
  */
 
-import { BASELINE, BPM, readingRate, stepMs } from './humanise.ts';
+import {
+  AS_HEARD,
+  AS_PHRASES,
+  BASELINE,
+  BPM,
+  phraseRate,
+  readingRate,
+  stepMs,
+} from './humanise.ts';
 
 const KEY = { tonic: 9, mode: 'aeolian' } as const;
 const pct = (n: number, of: number) => `${((100 * n) / of).toFixed(1)}%`.padStart(6);
@@ -25,5 +33,18 @@ for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
   console.log(
     `${String(sloppiness).padStart(3)} ${String(r.bars).padStart(6)} ${pct(r.right, r.bars)} ${pct(r.rhythm, r.bars)} |` +
       ` ${pct(c.strayed, r.bars)} ${pct(c.noMotif, r.bars)} ${pct(c.rests, r.bars)} ${pct(c.moved, r.bars)} ${pct(c.notes, r.bars)}`,
+  );
+}
+
+// A1: the same hands, playing two phrases of one to three bars with an empty bar between.
+console.log('\nphrases: each row the nearest step (as heard), then read as phrases (#204 A1)');
+console.log('ms     bars | heard: right onsets strayed | read: right onsets strayed');
+for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
+  const a = phraseRate(AS_HEARD, sloppiness, KEY);
+  const b = phraseRate(AS_PHRASES, sloppiness, KEY);
+  console.log(
+    `${String(sloppiness).padStart(3)} ${String(a.bars).padStart(8)} |` +
+      ` ${pct(a.right, a.bars)} ${pct(a.onsets, a.bars)} ${pct(a.strayed, a.bars)} |` +
+      ` ${pct(b.right, b.bars)} ${pct(b.onsets, b.bars)} ${pct(b.strayed, b.bars)}`,
   );
 }
