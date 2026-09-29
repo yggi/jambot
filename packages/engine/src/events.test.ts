@@ -229,23 +229,28 @@ describe('a song whose meter changes', () => {
   });
 
   it('reads every step into the bar and beat that hold it, and back, for every pair of named meters (finite: every ordered pair, every quarter-step of the song and 8 bars either side) (T14)', () => {
+    const wrong: string[] = [];
     for (const a of names)
       for (const b of names) {
         const clock = song(a, b);
         const end = clock.barStart(14);
         for (let x = clock.barStart(-8); x < end; x += 0.25) {
           const bar = clock.barAt(x);
-          expect(clock.barStart(bar)).toBeLessThanOrEqual(x);
-          expect(clock.barStart(bar + 1)).toBeGreaterThan(x);
-          expect(clock.barStart(bar) + clock.stepInBar(x)).toBe(x);
-          expect(clock.barStart(bar + 1) - clock.barStart(bar)).toBe(clock.barSteps(bar));
           const beat = clock.beatAt(x);
-          expect(clock.beatStart(beat)).toBeLessThanOrEqual(x);
-          expect(clock.beatStart(beat + 1)).toBeGreaterThan(x);
-          // A bar's first beat is its start: beats never straddle a bar line.
-          expect(clock.barAt(clock.beatStart(beat))).toBe(bar);
+          // Tallied, not asserted one by one: expect() costs more than the check, a million times over.
+          const holds =
+            clock.barStart(bar) <= x &&
+            clock.barStart(bar + 1) > x &&
+            clock.barStart(bar) + clock.stepInBar(x) === x &&
+            clock.barStart(bar + 1) - clock.barStart(bar) === clock.barSteps(bar) &&
+            clock.beatStart(beat) <= x &&
+            clock.beatStart(beat + 1) > x &&
+            // A bar's first beat is its start: beats never straddle a bar line.
+            clock.barAt(clock.beatStart(beat)) === bar;
+          if (!holds) wrong.push(`${a} then ${b}, step ${x}, bar ${bar}, beat ${beat}`);
         }
       }
+    expect(wrong.slice(0, 5)).toEqual([]);
   });
 
   it('reads each bar as its own meter’s helix: its beats are the meter’s pulses on the steps (finite: every ordered pair of named meters) (T14)', () => {

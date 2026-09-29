@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { Timbre } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { bandOutput, type BandOutputSettings } from './band-output.ts';

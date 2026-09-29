@@ -10,6 +10,10 @@ const ws = createRequire(import.meta.resolve('@jambot/lobby')).resolve('ws');
 export default defineProject({
   plugins: [svelte(), svelteTesting()],
   resolve: { alias: { ws } },
+  // jsdom costs about a second a file, so a test that touches no DOM opts out
+  // with `// @vitest-environment node` on its first line. The player's tests
+  // stay on jsdom: under node Svelte resolves its server build, and they run
+  // twice as slow.
   test: {
     name: 'web',
     environment: 'jsdom',

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { type DeviceFaults, OUTPUT, simulatedDevice } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
 import { PAIRED_AFTER, clockOffset } from './clock-offset.ts';

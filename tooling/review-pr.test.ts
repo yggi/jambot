@@ -1,9 +1,17 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 const script = fileURLToPath(new URL('../.claude/skills/review-pr/prepare.sh', import.meta.url));
 
@@ -59,13 +67,16 @@ function prepareAsync(args: string[], verify: string) {
 }
 
 // An origin with main and a pull request #7 (a branch `feature`, also at
-// refs/pull/7/head as GitHub has it), and a clone of it to run from.
-beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'review-pr-'));
-  const origin = join(root, 'origin.git');
-  clone = join(root, 'clone');
-  git(root, 'init', '-q', '--bare', '-b', 'main', origin);
-  git(root, 'clone', '-q', origin, clone);
+// refs/pull/7/head as GitHub has it), and a clone of it to run from. It is
+// built once and copied for each test, since building it takes half a
+// second of git.
+let template: string;
+beforeAll(() => {
+  template = mkdtempSync(join(tmpdir(), 'review-pr-template-'));
+  const origin = join(template, 'origin.git');
+  clone = join(template, 'clone');
+  git(template, 'init', '-q', '--bare', '-b', 'main', origin);
+  git(template, 'clone', '-q', origin, clone);
   commit('shared.txt', 'one\n', 'Base');
   git(clone, 'push', '-q', 'origin', 'HEAD:main');
   git(clone, 'checkout', '-q', '-b', 'feature');
@@ -76,6 +87,14 @@ beforeEach(() => {
   commit('last.txt', 'last\n', 'Step 3: the last file');
   git(clone, 'push', '-q', 'origin', 'feature', 'feature:refs/pull/7/head');
   git(clone, 'checkout', '-q', 'main');
+});
+afterAll(() => rmSync(template, { recursive: true, force: true }));
+
+beforeEach(() => {
+  root = mkdtempSync(join(tmpdir(), 'review-pr-'));
+  cpSync(template, root, { recursive: true });
+  clone = join(root, 'clone');
+  git(clone, 'remote', 'set-url', 'origin', join(root, 'origin.git'));
 });
 
 afterEach(() => rmSync(root, { recursive: true, force: true }));

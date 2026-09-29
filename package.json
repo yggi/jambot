@@ -18,10 +18,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "pnpm -r run check",
-    "lint": "eslint .",
+    "lint": "eslint --cache --cache-strategy content --cache-location node_modules/.cache/eslint/ .",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "verify": "pnpm lint && pnpm format:check && pnpm check && pnpm test && pnpm build",
+    "format:check": "prettier --check --cache --cache-strategy content .",
+    "verify": "node --experimental-strip-types --no-warnings tooling/verify.ts",
     "e2e": "pnpm --filter @jambot/web e2e",
     "ratchet": "node --experimental-strip-types --no-warnings tooling/history.ts"
   },
