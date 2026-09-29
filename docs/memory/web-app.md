@@ -47,6 +47,8 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   Joining mutes the master, and it rises over `FADE_IN` once the band plays; leaving, closing or going back plays on while it falls over `FADE_OUT`, then the volume is put back for what plays next.
   A new widget goes into the level it belongs to, not into a corner of another.
 - The metrum, the key, the plan and the chords share one card, summary over details: a `Fold` carries its own heading ("Metrum", "Key", "Plan", "Chords") inside it, over a headline in large type and, only for something secondary that changes (the metrum's meter and swing, the plan's keys, what the lead is doing), a line under it, with the chevron at the top right, where a `Drawer`'s is too, so a stack of them lines up (`summary.chevron`, in `app.css`).
+  Svelte 5 sets an element's attributes from props together, so an attribute the page also changes, such as `<details open>`, is set back whenever another of them changes: a card's headline changing folded it shut (#225).
+  A prop that only says how such a thing starts is read once (`untrack`) into the component's own state, bound to the element.
   A level whose card names itself has no `name` and so no heading above it (`Level`).
   The parts under a card are shared too: `Nudge` (two buttons joined in a pill, a step down and up, with what it reaches between them: the tempo's and the key's), `Gauge` (a track with a tick at its centre, a marker, an optional fill from the centre and an optional band of reach: the tempo's licence and the swing), `Segmented` (a row of exclusive segments, the key's scale and the melodic scale) and `Ruler` (a span of steps ticked, with marks laid on it at places that need not be ticks: the scale's notes on the octave's 12 steps, the bar's steps on its 16).
   A new view of one thing builds from these, and a makeover of one changes all.
@@ -93,7 +95,7 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   So a check that the screen follows what is heard looks for `Bar n of 8`, which only the plan's headline says (Playwright's `getByText` matches it in "Groove · bar 2 of 8", ignoring case).
 - The tracks (`Tracks.svelte`, `tracks.ts`) are one phrase on one grid: the last `PATTERN_BARS` bars, the bar heard last, a lane per band performer and, under the performer whose part it plays, a lane per player's source, with the playhead on the step heard (`player.heard`).
   `Pattern` keeps the band's notes of those bars and the one building, fed as events are scheduled, so the bar heard fills in a lookahead before it sounds.
-  The card starts unfolded (`Fold`'s `open`), since the selected track's instrument, the keyboard for the lead and the pads for the drums, is under it; bass and chords only show, since `AlongPart` is the lead and the drums.
+  The card starts unfolded (`Fold`'s `open`, read once), since the selected track's instrument, the keyboard for the lead and the pads for the drums, is under it; bass and chords only show, since `AlongPart` is the lead and the drums.
   The page hands the instrument in as a snippet, so the card reads nothing but what it is given.
 - The lead's status line (`leadStatus`, `hud.ts`) appears twice, under the chords' headline and under the tracks' headline while the lead is selected.
   The `apps/web/e2e/band.e2e.ts` and `session.e2e.ts` checks that read it scope to the `Conductor` region the chords card sits in.
