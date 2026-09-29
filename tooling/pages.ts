@@ -39,6 +39,17 @@ export function pagesTarget(remote: string): Target {
   return { base: `/${repo}/`, url: `${host}${repo}/` };
 }
 
+/**
+ * The lobby the site names by default: the address of the Fly app that
+ * `apps/lobby/fly.toml` names, `wss://<app>.fly.dev`. The name lives in that
+ * one file.
+ */
+export function flyLobbyUrl(flyToml: string): string {
+  const app = /^app\s*=\s*"([^"]+)"/m.exec(flyToml)?.[1];
+  if (!app) throw new Error('the lobby fly.toml names no app');
+  return `wss://${app}.fly.dev`;
+}
+
 const patterns: Record<string, RegExp[]> = {
   '.html': [/\s(?:href|src)\s*=\s*["']([^"']*)["']/g, /url\(\s*["']?([^"')]+)/g],
   '.css': [/url\(\s*["']?([^"')]+)/g],
@@ -244,10 +255,13 @@ function report(what: string, problems: string[]): boolean {
   return false;
 }
 
-/** Builds the web app for `base` into apps/web/dist-pages, and checks it. */
+/** Builds the web app for `base` and the default lobby into apps/web/dist-pages, and checks it. */
 async function build(base: string): Promise<boolean> {
+  // A VITE_LOBBY_URL already in the environment wins, for a build that names another lobby.
+  const lobby = flyLobbyUrl(readFileSync(join(root, 'apps/lobby/fly.toml'), 'utf8'));
   run('pnpm', ['--filter', '@jambot/web', 'exec', 'vite', 'build', '--outDir', 'dist-pages'], {
     BASE_PATH: base,
+    VITE_LOBBY_URL: process.env.VITE_LOBBY_URL ?? lobby,
   });
   // Pages would run the site through Jekyll, which drops files starting with _.
   writeFileSync(join(siteDir, '.nojekyll'), '');

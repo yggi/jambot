@@ -291,9 +291,9 @@ Every doc and code area, as a tree. Add a line when you add one.
     `licenses.txt` it writes; `licenses.test.ts` shows it refusing copyleft and
     unknown licenses
   - `pages.ts`: the GitHub Pages deploy by hand (`pnpm pages`): builds for the
-    sub-path, checks that the site resolves there, commits it to `gh-pages` and
-    checks the live site; `pages.test.ts` shows the check failing on each kind
-    of broken reference
+    sub-path and the lobby `fly.toml` names, checks that the site resolves
+    there, commits it to `gh-pages` and checks the live site; `pages.test.ts`
+    shows the check failing on each kind of broken reference
   - `screenshot.ts`: screenshots of measurement pages in Playwright's Chromium,
     with `page`, the shared frame and palette, and `inlineModule`, a repository
     module for a page's script; `screenshot.test.ts` checks the module inlining
@@ -492,6 +492,8 @@ Every doc and code area, as a tree. Add a line when you add one.
   blocks the push if it fails; refuses a dirty tree, remembers a tree that
   passed, and runs the docs check alone for a markdown-only branch
 - `.claude/skills/`: project skills for agents
+  - [`lobby-deploy/`](../.claude/skills/lobby-deploy/SKILL.md): deploys the
+    lobby to Fly.io from a session, and checks it answers
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks theory
     claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and compares
     the two (`compare.mjs`)

@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   commitSite,
+  flyLobbyUrl,
   localSite,
   pagesTarget,
   references,
@@ -62,6 +63,18 @@ describe('the Pages target', () => {
     ['https://github.com/yggi/yggi.github.io', '/', 'https://yggi.github.io/'],
   ])('of %s is %s at %s', (remote, base, url) => {
     expect(pagesTarget(remote)).toEqual({ base, url });
+  });
+});
+
+describe('the lobby the site names', () => {
+  it("is the address of the lobby server's Fly app, as fly.toml names it", () => {
+    const toml = readFileSync(new URL('../apps/lobby/fly.toml', import.meta.url), 'utf8');
+    expect(flyLobbyUrl(toml)).toBe('wss://jambot-lobby.fly.dev');
+    expect(flyLobbyUrl('# app = "no"\napp = "band-7"\n')).toBe('wss://band-7.fly.dev');
+  });
+
+  it('refuses a fly.toml that names no app, rather than building a site with no lobby', () => {
+    expect(() => flyLobbyUrl('primary_region = "fra"\n')).toThrow(/names no app/);
   });
 });
 
