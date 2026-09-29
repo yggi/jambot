@@ -97,10 +97,11 @@ function ownAccent(
   seed: number,
   part: WrittenNote['part'],
   feel: number,
-  ...keys: readonly number[]
+  bar: number,
+  step: number,
+  ...rest: readonly number[]
 ): number {
-  const [, step] = keys as [number, number];
-  const d = draw(seed, 'ownAccent', PARTS.indexOf(part), ...keys);
+  const d = draw(seed, 'ownAccent', PARTS.indexOf(part), bar, step, ...rest);
   if (step % 2 === 1) return -d * GHOST_DEPTH * feel;
   if (step % 4 === 2) return d * PUSH_HEIGHT * feel;
   return (d - 0.5) * 2 * BEAT_LEAN * feel;
