@@ -76,7 +76,10 @@ describe('the lobby', () => {
       reason: 'A session named “friday jam” is already open.',
     });
     other.send({ op: 'list' });
-    expect(await other.next()).toEqual({ op: 'sessions', names: ['Friday Jam'] });
+    expect(await other.next()).toEqual({
+      op: 'sessions',
+      sessions: [{ name: 'Friday Jam', players: 1 }],
+    });
     for (const name of ['  ', 'x'.repeat(41)]) {
       other.send({ op: 'host', session: name });
       expect(await other.next()).toMatchObject({ op: 'refused' });
@@ -288,7 +291,7 @@ describe('the lobby', () => {
     await settle();
     expect(socket.heard).toEqual([]);
     socket.send({ op: 'list' });
-    expect(await socket.next()).toEqual({ op: 'sessions', names: [] });
+    expect(await socket.next()).toEqual({ op: 'sessions', sessions: [] });
     expect(lobby.counts()).toEqual({ sessions: 0, sockets: 1 });
   });
 

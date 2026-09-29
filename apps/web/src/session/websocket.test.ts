@@ -67,7 +67,7 @@ describe('the WebSocket lobby', () => {
     const toHost: [ClientMessage, string][] = [];
     const host = await lobby.host('Friday Jam', (m, from) => toHost.push([m, from]));
     await expect(lobby.host('friday jam', () => {})).rejects.toThrow(/already open/);
-    expect(await lobby.sessions()).toEqual(['Friday Jam']);
+    expect(await lobby.sessions()).toEqual([{ name: 'Friday Jam', players: 1 }]);
     const lostOnRefusal: string[] = [];
     await expect(
       lobby.join(
@@ -79,6 +79,8 @@ describe('the WebSocket lobby', () => {
 
     const toAda: HostMessage[] = [];
     const ada = await lobby.join('FRIDAY JAM', (m) => toAda.push(m));
+    // The host, and a client that has joined.
+    expect(await lobby.sessions()).toEqual([{ name: 'Friday Jam', players: 2 }]);
     ada.send({ kind: 'join', protocol: PROTOCOL, name: 'Ada' });
     await until(() => toHost.length === 1);
     const [[join, id]] = toHost as [[ClientMessage, string]];
@@ -218,7 +220,8 @@ describe('the WebSocket lobby', () => {
       sockets[hostSockets]!.close();
       await until(() => following.hostAway);
       expect(following.status).toBe('joined');
-      expect(await lobby.sessions()).toEqual(['Friday Jam']);
+      // The host away still counts, with the client that is seated.
+      expect(await lobby.sessions()).toEqual([{ name: 'Friday Jam', players: 2 }]);
 
       // A new page, a new player, what was kept.
       const reloaded = device(90, 0.02);

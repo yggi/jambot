@@ -77,7 +77,8 @@ function memoryLobby(): Lobby & {
         lost?.('Lost the lobby.');
       }
     },
-    sessions: async () => [...hosts.keys()],
+    sessions: async () =>
+      [...hosts.keys()].map((name) => ({ name, players: 1 + (clients.get(name)?.size ?? 0) })),
     async host(session, hear) {
       const key = sessionKey(session);
       if (hosts.has(key)) throw new Error('taken');
@@ -573,7 +574,7 @@ describe('the lobby between tabs', () => {
     const toHost: [ClientMessage, string][] = [];
     const host = await lobby.host('Tab Jam', (m, from) => toHost.push([m, from]));
     await expect(lobby.host(' tab jam', () => {})).rejects.toThrow(/already open/);
-    expect(await lobby.sessions()).toEqual(['Tab Jam']);
+    expect(await lobby.sessions()).toEqual([{ name: 'Tab Jam', players: 1 }]);
 
     const toAda: HostMessage[] = [];
     const toBob: HostMessage[] = [];
@@ -583,6 +584,13 @@ describe('the lobby between tabs', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(toHost).toHaveLength(1);
     const [, adaId] = toHost[0]!;
+    // The host and Ada, who said she joined; Bob has not.
+    expect(await lobby.sessions()).toEqual([{ name: 'Tab Jam', players: 2 }]);
+    ada.send({ kind: 'leave' });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(await lobby.sessions()).toEqual([{ name: 'Tab Jam', players: 1 }]);
+    ada.send({ kind: 'join', protocol: PROTOCOL, name: 'Ada' });
+    await new Promise((r) => setTimeout(r, 20));
     host.send({ kind: 'stop' });
     host.send({ kind: 'refused', reason: 'only Ada' }, adaId);
     await new Promise((r) => setTimeout(r, 20));

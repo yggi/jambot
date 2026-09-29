@@ -9,6 +9,7 @@
   import type { Mode } from '../player.svelte.ts';
   import type { ClientStatus } from '../session/client.svelte.ts';
   import type { Guest } from '../session/host.svelte.ts';
+  import type { OpenSession } from '@jambot/session';
 
   interface Props {
     mode: Mode;
@@ -28,7 +29,7 @@
     /** Open a session; the host's own notes go by the name, if one is given. */
     onhost: (session: string, name: string, lobby: string) => Promise<void>;
     onjoin: (session: string, name: string, lobby: string) => Promise<void>;
-    onlist: (lobby: string) => Promise<string[]>;
+    onlist: (lobby: string) => Promise<OpenSession[]>;
     onclose: () => void;
     onleave: () => void;
   }
@@ -65,7 +66,7 @@
   // svelte-ignore state_referenced_locally
   let lobby = $state(remembered('lobby') || offered);
   let error: string | null = $state(null);
-  let open: string[] | null = $state(null);
+  let open: OpenSession[] | null = $state(null);
 
   const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -167,8 +168,10 @@
         {#if open.length === 0}
           <p class="message">No session is open.</p>
         {:else}
-          {#each open as found (found)}
-            <button type="button" class="found" onclick={() => (session = found)}>{found}</button>
+          {#each open as found (found.name)}
+            <button type="button" class="found" onclick={() => (session = found.name)}
+              >{found.name} ({found.players})</button
+            >
           {/each}
         {/if}
       </div>

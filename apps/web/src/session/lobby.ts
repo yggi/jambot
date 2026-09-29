@@ -10,7 +10,7 @@
  * (`docs/briefs/host-mode.md`).
  */
 
-import type { ClientMessage, HostMessage } from '@jambot/session';
+import type { ClientMessage, HostMessage, OpenSession } from '@jambot/session';
 
 /** A host's end: to one client by its id, or to every client. */
 export interface HostLink {
@@ -34,8 +34,8 @@ export interface ClientLink {
 export type Lost = (why: string) => void;
 
 export interface Lobby {
-  /** The names of the sessions open now. */
-  sessions(): Promise<string[]>;
+  /** The sessions open now, by name, with how many players are in each. */
+  sessions(): Promise<OpenSession[]>;
   /**
    * Open a session under a name, hearing each client's messages with its
    * id. Refused if the name is taken, unless `reclaim` is the secret of a

@@ -102,7 +102,10 @@ export function websocketLobby(url: string): Lobby {
       );
       socket.onclose = null;
       socket.close();
-      return answer.op === 'sessions' ? [...answer.names].sort() : [];
+      // An older server's answer has no `sessions`: it lists none rather than fail.
+      return answer.op === 'sessions' && Array.isArray(answer.sessions)
+        ? [...answer.sessions].sort((a, b) => a.name.localeCompare(b.name))
+        : [];
     },
 
     async host(session, hear, lost, reclaim) {
