@@ -79,7 +79,7 @@ describe('the key picker', () => {
     const marks = [...container.querySelectorAll('svg.ruler circle.mark')];
     expect(marks).toHaveLength(8);
     expect(container.querySelectorAll('svg.ruler line.tick')).toHaveLength(13);
-    expect(marks.filter((m) => m.classList.contains('tonic'))).toHaveLength(2);
+    expect(marks.filter((m) => m.classList.contains('accent'))).toHaveLength(2);
     const ruler = container.querySelector('svg.ruler')!;
     expect(ruler.textContent?.replace(/\s+/g, '')).toBe('ABCDEFGA');
   });

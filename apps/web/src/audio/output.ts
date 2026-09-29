@@ -5,7 +5,9 @@
  */
 
 import type { Part, ScheduledStep, Timbre } from '@jambot/engine';
+import type { Weight } from '@jambot/theory';
 import { drumKit } from './drums.ts';
+import { clickVoice } from './metronome-click.ts';
 import { voices } from './voices.ts';
 
 export interface Output {
@@ -33,6 +35,12 @@ export interface Output {
     duration: number,
     timbre: Timbre,
   ): void;
+  /**
+   * The metronome's click of a weight at a time on the clock, at a gain from
+   * 0 to 1. Only the built-in synth sounds it: never MIDI, so it is heard on
+   * this device alone.
+   */
+  click?(weight: Weight, seconds: number, gain: number): void;
   /** Fade out everything scheduled so far, and play on afresh. */
   silence(): void;
   /** Silence anything MIDI might still be holding, without stopping playback. */
@@ -55,7 +63,7 @@ export function webAudioOutput(): Output {
     const bus = ctx.createGain();
     bus.gain.value = 0.8;
     bus.connect(out);
-    return { bus, kit: drumKit(ctx, bus), voices: voices(ctx, bus) };
+    return { bus, kit: drumKit(ctx, bus), voices: voices(ctx, bus), click: clickVoice(ctx, bus) };
   };
   let current = openBus();
   return {
@@ -69,6 +77,9 @@ export function webAudioOutput(): Output {
     play(part, note, velocity, seconds, duration, timbre) {
       if (part === 'drums') current.kit.play(note, velocity, seconds);
       else current.voices.play(part, note, velocity, seconds, duration, timbre);
+    },
+    click(weight, seconds, gain) {
+      current.click.play(weight, seconds, gain);
     },
     silence() {
       const old = current.bus;

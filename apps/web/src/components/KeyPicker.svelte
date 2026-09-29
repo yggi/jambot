@@ -37,6 +37,9 @@
   } from '../noteNames.ts';
   import type { Intent } from '../conductor.ts';
   import CircleOfFifths from './CircleOfFifths.svelte';
+  import Fold from './Fold.svelte';
+  import Ruler from './Ruler.svelte';
+  import Segmented from './Segmented.svelte';
 
   interface Props {
     /** The key the band is heading for. */
@@ -72,23 +75,30 @@
   const notes = $derived(scaleNoteNames(scale, key.tonic));
   const steps = $derived(scaleSteps(scale, key.tonic));
   const marks = $derived(scaleMarks(scale, key.tonic));
+  /** A mark on each note and the octave, the tonic accented at both ends. */
+  const notesOnRuler = $derived(
+    marks.map((at, i) => ({
+      at,
+      text: notes[i % notes.length],
+      accent: i === 0 || i === marks.length - 1,
+    })),
+  );
   const playable = (mode: string): mode is ComposerMode =>
     (COMPOSER_MODES as readonly string[]).includes(mode);
 
-  /** The ruler's geometry: 12 steps across, a mark on each note. */
-  const RULER = { pad: 14, step: 22 };
-  const at = (semitones: number) => RULER.pad + semitones * RULER.step;
+  /** All seven modes as segments, brightest to darkest; the band plays four. */
+  const shapes = DIATONIC_MODE_NAMES.map((mode) => ({
+    value: mode,
+    text: MODE_SHORT_NAMES[mode],
+    name: MODE_NAMES[mode],
+    disabled: !playable(mode),
+  }));
 
   const wish = (tonic: number, mode: ComposerMode) =>
     onintent({ kind: 'key', wish: { tonic, mode } });
 </script>
 
-<details class="key" aria-label="Key">
-  <summary>
-    <span class="name">{keyName(key)}</span>
-    <span class="sub">the key the band is heading for</span>
-  </summary>
-
+<Fold label="Key" name={keyName(key)} sub="the key the band is heading for">
   <div class="wheel">
     <CircleOfFifths
       tonic={key.tonic}
@@ -113,79 +123,23 @@
       onclick={() => nudge(1)}>Nudge up ↻</button
     >
   </div>
-  <div class="shapes" role="radiogroup" aria-label="Scale">
-    {#each DIATONIC_MODE_NAMES as mode (mode)}
-      <button
-        type="button"
-        role="radio"
-        aria-label={MODE_NAMES[mode]}
-        title={MODE_NAMES[mode]}
-        aria-checked={mode === key.mode}
-        disabled={following || !playable(mode)}
-        onclick={() => playable(mode) && wish(key.tonic, mode)}>{MODE_SHORT_NAMES[mode]}</button
-      >
-    {/each}
-  </div>
-  <svg
-    class="ruler"
-    viewBox="0 0 {2 * RULER.pad + 12 * RULER.step} 50"
-    role="img"
-    aria-label="{keyName(key)}: {notes.join(' ')}, steps {steps
+  <Segmented
+    label="Scale"
+    value={key.mode}
+    options={shapes}
+    disabled={following}
+    onselect={(mode) => playable(mode) && wish(key.tonic, mode)}
+  />
+  <Ruler
+    label="{keyName(key)}: {notes.join(' ')}, steps {steps
       .map((n) => (n === 1 ? 'half' : 'whole'))
       .join(' ')}"
-  >
-    <line class="axis" x1={at(0)} x2={at(12)} y1="16" y2="16" />
-    {#each { length: 13 }, semitone (semitone)}
-      <line class="tick" x1={at(semitone)} x2={at(semitone)} y1="11" y2="21" />
-    {/each}
-    {#each marks as semitone, i (i)}
-      {@const tonic = i === 0 || i === marks.length - 1}
-      <circle class="mark" class:tonic cx={at(semitone)} cy="16" r="7" />
-      <text class="note" class:tonic x={at(semitone)} y="44">
-        {notes[i % notes.length]}
-      </text>
-    {/each}
-  </svg>
-</details>
+    span={12}
+    marks={notesOnRuler}
+  />
+</Fold>
 
 <style>
-  .key {
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 12px 16px;
-    min-width: 0;
-  }
-  .key > :not(summary) {
-    margin-top: 14px;
-  }
-  summary {
-    display: grid;
-    cursor: pointer;
-    list-style: none;
-  }
-  summary::-webkit-details-marker {
-    display: none;
-  }
-  .name {
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1.1;
-  }
-  .name::after {
-    content: '▸';
-    margin-left: 10px;
-    font-size: 16px;
-    color: var(--muted);
-    display: inline-block;
-    transition: transform 0.15s;
-  }
-  .key[open] .name::after {
-    transform: rotate(90deg);
-  }
-  .sub {
-    font-size: 13px;
-    color: var(--muted);
-  }
   button {
     font: inherit;
     font-size: 14px;
@@ -201,59 +155,14 @@
     opacity: 0.4;
     cursor: default;
   }
-  button[aria-checked='true'] {
-    background: var(--teal-bg);
-    border-color: var(--teal);
-  }
   .nudge {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 8px;
   }
-  .shapes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1px;
-    background: var(--line);
-    border: 1px solid var(--line);
-    border-radius: 22px;
-    overflow: hidden;
-  }
-  .shapes button {
-    flex: 1 1 auto;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 0;
-  }
   .wheel {
     width: min(360px, 100%);
     margin-inline: auto;
-  }
-  .ruler {
-    display: block;
-    width: 100%;
-    max-width: 420px;
-    margin-inline: auto;
-  }
-  .axis,
-  .tick {
-    stroke: var(--line);
-    stroke-width: 1;
-  }
-  .mark {
-    fill: var(--amber);
-  }
-  .mark.tonic {
-    fill: var(--teal);
-  }
-  .note {
-    text-anchor: middle;
-    font-size: 12px;
-    fill: var(--ink);
-  }
-  .note.tonic {
-    fill: var(--teal);
-    font-weight: 700;
   }
 </style>

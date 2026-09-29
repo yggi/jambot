@@ -8,13 +8,12 @@
   import Keyboard from './components/Keyboard.svelte';
   import KeyPicker from './components/KeyPicker.svelte';
   import Level from './components/Level.svelte';
-  import MetronomePanel from './components/MetronomePanel.svelte';
+  import Metrum from './components/Metrum.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
   import MusePanel from './components/MusePanel.svelte';
   import Performers from './components/Performers.svelte';
   import SessionPanel from './components/SessionPanel.svelte';
   import Stage from './components/Stage.svelte';
-  import TempoNudge from './components/TempoNudge.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
   import Transport from './components/Transport.svelte';
@@ -53,6 +52,12 @@
     return { base, offset };
   }
 
+  /**
+   * The click: the band's own steps sounded on this device's synth, so it
+   * is client-only and a client keeps it while its other controls rest.
+   */
+  const metronome = new Metronome();
+
   const player = new Player(
     browserSurroundings(() => {
       const { base, offset } = clockOf();
@@ -68,6 +73,7 @@
         offset,
       );
     }),
+    metronome,
   );
 
   /** The device's clocks, as a session reads them: one output pair, shared with the band's output. */
@@ -110,13 +116,6 @@
         lobbyUrl: client.lobby,
       });
   }
-
-  /**
-   * The metronome: client-only, so it runs on its own next to the band
-   * rather than through it, at whatever tempo the band is set to now — a
-   * client keeps this even while its own controls rest.
-   */
-  const metronome = new Metronome(() => player.track.bpm.to);
 
   /** The timing counters, read now: shown with `?timing` in the address (#27). */
   const timingShown = new URLSearchParams(location.search).has('timing');
@@ -317,7 +316,7 @@
   <!--
     The music, in the order of the composition, from the whole song down to
     each note. A client plays its host's song, style and key, so those
-    levels' controls rest; its metronome and instruments are its own.
+    levels' controls rest; its click and instruments are its own.
   -->
   <Level name="Transport" resting={following}>
     <Transport
@@ -335,12 +334,14 @@
   </Level>
 
   <Level name="Metrum">
-    <TempoNudge
+    <Metrum
       tempo={tempoView(player.track, player.tempoNudge)}
-      disabled={following}
+      swing={player.track.swing.to}
+      {metronome}
+      playing={player.playing}
+      {following}
       onintent={(intent) => player.apply(intent)}
     />
-    <MetronomePanel {metronome} />
   </Level>
 
   <Level name="Key">

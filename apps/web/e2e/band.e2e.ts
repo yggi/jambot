@@ -104,6 +104,37 @@ test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   expect(found.has(2 / 3)).toBe(true);
 });
 
+test('clicks the band’s own beats, and the swing moves its offbeats to the band’s (#166)', async ({
+  page,
+}) => {
+  await listen(page);
+  await page.getByRole('button', { name: 'Swing jazz' }).click();
+  await page.getByLabel('Metrum').locator('summary').click();
+  await page.getByRole('button', { name: 'Click' }).click();
+  await start(page);
+  await page.waitForTimeout(4000);
+  const all = await starts(page);
+  // The click tells its weights apart by pitch: a square at 1800 Hz on the
+  // downbeat, a triangle at 1200 on the other pulses, a sine at 800 between.
+  const at = (kind: string, frequency: number) =>
+    all
+      .filter((s) => s.kind === kind && s.frequency === frequency)
+      .map((s) => s.when)
+      .sort((x, y) => x - y);
+  const pulses = [...at('square', 1800), ...at('triangle', 1200)].sort((x, y) => x - y);
+  const offbeats = at('sine', 800);
+  expect(pulses.length).toBeGreaterThan(8);
+  expect(offbeats.length).toBeGreaterThan(8);
+  // Swing jazz: 148 bpm, so a pulse lasts four steps, 60 / 148 s, and the
+  // offbeat eighth lies 2/3 of the way to the next, as the band's ride does.
+  const beat = 60 / 148;
+  pulses.slice(1).forEach((t, i) => expect(t - pulses[i]!).toBeCloseTo(beat, 3));
+  for (const t of offbeats) {
+    const before = pulses.filter((p) => p < t).at(-1);
+    if (before !== undefined) expect((t - before) / beat).toBeCloseTo(2 / 3, 2);
+  }
+});
+
 test('plays the full band: bass, chords and lead beside the drums', async ({ page }) => {
   await listen(page);
   // Deep house: a groove with harmony, and energy enough for the lead.

@@ -24,6 +24,15 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   What isn't the music sits folded above it, one `Drawer` each: Connection (`SessionPanel`) and MIDI and sound (`MidiPanel`), each summary saying what it is set to.
   An e2e check that hosts or joins opens the Connection drawer first (`connection` in `session.e2e.ts`).
   A new widget goes into the level it belongs to, not into a corner of another.
+- The key and the metrum share one style, summary over details: a `Fold` is a headline in large type with a line under it, folded until opened, and the parts under it are shared too — `Segmented` (a row of exclusive segments, the key's scale), `Ruler` (a span of steps ticked, with marks laid on it at places that need not be ticks: the scale's notes on the octave's 12 steps, the bar's steps on its 16), and `TempoNudge`.
+  A new view of one thing builds from these, and a makeover of one changes all.
+- The metrum is the page's one section on time (`Metrum.svelte`, `metrum.ts`): the header reads the tempo, the meter and the swing in words ("108 BPM", "4/4, swung"), and unfolded it holds the tempo nudge, the bar drawn on a `Ruler` and the click.
+  The bar's marks sit where the click sounds under the swing (`barMarks`, on the engine's `clicksOf`): the eighths are the click's, counted 1 & 2 & 3 & 4 &, the sixteenths between are faint, so a light swing shows on them and only a swing past half moves the eighths.
+  The swing is read there and set in the style, where it stays an axis.
+- The click has no clock of its own (#166): the player hands the `Metronome` the steps the transport laid on each tick (`Metronome.lay`), it reads them into clicks on the song's meter through the swing (`clicksOf`, `packages/engine/src/metronome.ts`) and plays them on the player's output (`Output.click`, the built-in synth alone, never MIDI, on the bus `silence` fades).
+  So it starts on the band's downbeat, follows a tempo glide, and rests while the band is stopped: switched on, it waits for the next song (decided in #166).
+  A client clicks its host's steps on its own output at the skew it plays them; the click is the client's own, so it is never in a session and its switch never rests.
+  Only its volume is saved, in `localStorage`; whether it is on never is.
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.
   The style sets the tempo, and `TempoNudge.svelte` (in the metrum) nudges it by a ratio, 2^(1/24) a step, within `tempoLicence`: a third of an octave either way, cut by the tempo axis's ends.
@@ -34,6 +43,7 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a person plays along with it.
   Any note played, from a pointer, a computer key or MIDI, goes through `App.svelte`'s `onHumanNote`, which sounds it at once (`Player.playAlong`) and logs it for the Muse (`Player.humanNoteOn`, and `humanNoteOff` for its release) alike; `midi/surfaces.ts`'s `partOf` reads a MIDI note's channel to tell the pads from the keyboard, channel 10 the drums' as the prototype's is.
 - The e2e checks tell sounds apart by oscillator type and starting frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a chord note a triangle beside a sine 0.3 % sharp.
+  The click is a square at 1800 Hz on the downbeat, a triangle at 1200 on the other pulses and a sine at 800 between (`metronome-click.ts`), each starting at its frequency, which `band.e2e.ts` reads to place them.
   A new voice keeps these apart or updates `band.e2e.ts`.
   A note played along is a square too, but starts at once, off the grid; at energy 0 the lead rests, so a square on the grid is a motif the Muse offered.
 - Section names appear twice on the page, on the stage and in the song map, which names them before anything is heard.
