@@ -268,8 +268,9 @@ describe('the performer', () => {
       }
 
     // Over every note of the tour, the licence's width is the feel's: velocity
-    // within 12 × feel of the base and its accent, length within 15 % × feel
-    // under the base.
+    // within 12 × feel of the base and its accent, widened by the own accent
+    // (14 × feel down, 10 × feel up, #170); length within 15 % × feel under
+    // the base.
     for (const b of bars) {
       const { feel } = licenceOf(b.style);
       for (const written of b.written) {
@@ -280,8 +281,8 @@ describe('the performer', () => {
             ? LEAD_LEVEL + accent
             : baseVelocityOf(b, written) + accent;
         const clamped = (v: number) => Math.max(1, Math.min(127, v));
-        expect(velocity).toBeGreaterThanOrEqual(Math.floor(clamped(base - 12 * feel)));
-        expect(velocity).toBeLessThanOrEqual(Math.ceil(clamped(base + 12 * feel)));
+        expect(velocity).toBeGreaterThanOrEqual(Math.floor(clamped(base - 26 * feel)));
+        expect(velocity).toBeLessThanOrEqual(Math.ceil(clamped(base + 22 * feel)));
         const gated = baseLengthOf(b, written);
         expect(length).toBeLessThanOrEqual(gated);
         expect(length).toBeGreaterThanOrEqual(gated * (1 - 0.15 * feel) - 1e-12);
@@ -296,5 +297,44 @@ describe('the performer', () => {
           const env = envAt(bar, style);
           expect(perform(env, written).length).toBeLessThanOrEqual(baseLengthOf(env, written));
         }
+  });
+
+  it('draws its own accent within the licence: still at feel 0, wider as the feel rises, ghosts off the 16th and a push on the off-8th, in any register (#170, T17)', () => {
+    const still: Partial<Style> = { swing: 0, entropy: 0, artic: 1 };
+    const envAt = (bar: number, style: Partial<Style>): BarEnv => ({
+      ...barOf('groove', 0.7, style),
+      bar,
+    });
+    const deltas = (part: 'bass' | 'lead', step: number, style: Partial<Style>, note = 48) =>
+      range(64).map((bar) => {
+        const env = envAt(bar, style);
+        const written: WrittenNote = { part, step, note, length: 2 };
+        return perform(env, written).velocity - Math.round(baseVelocityOf(env, written));
+      });
+    const spread = (v: number[]) => Math.max(...v) - Math.min(...v);
+    // Still at feel 0; the licence's and the own accent's spread together grows with it.
+    for (const step of [0, 1, 2, 3]) {
+      expect(deltas('bass', step, still)).toEqual(range(64).map(() => 0));
+      const half = spread(deltas('bass', step, { ...still, swing: 0.5 }));
+      const full = spread(deltas('bass', step, { ...still, swing: 1 }));
+      expect(full).toBeGreaterThan(half);
+    }
+    // Ghosts fall and pushes rise, beyond the symmetric licence's reach.
+    const loose: Partial<Style> = { swing: 1, entropy: 1, artic: 1 };
+    const feel = licenceOf({ ...barOf('groove', 1).style, ...loose }).feel;
+    expect(Math.min(...deltas('bass', 1, loose))).toBeLessThan(-12 * feel);
+    expect(Math.max(...deltas('bass', 2, loose))).toBeGreaterThan(12 * feel);
+    // Invariant under register (S2, S3): a pitched note's accent ignores its pitch.
+    for (const part of ['bass', 'lead'] as const)
+      for (const step of range(16))
+        expect(deltas(part, step, loose, 36)).toEqual(deltas(part, step, loose, 84));
+    // A written accent is never lost (T18): it moves the note by exactly itself.
+    const env = envAt(5, loose);
+    const written: WrittenNote = { part: 'bass', step: 6, note: 48, length: 2 };
+    const plain = perform(env, written).velocity;
+    for (const accent of [-20, 0, 15])
+      expect(perform(env, { ...written, accent }).velocity).toBe(
+        Math.max(1, Math.min(127, plain + accent)),
+      );
   });
 });
