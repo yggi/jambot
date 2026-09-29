@@ -58,6 +58,13 @@
     background: var(--surface);
     font-size: 14px;
   }
+  /* The ends take the pill's inner radius, so a pressed segment's ring follows the curve instead of being clipped by it. */
+  button:first-child {
+    border-radius: 21px 0 0 21px;
+  }
+  button:last-child {
+    border-radius: 0 21px 21px 0;
+  }
   button:disabled {
     opacity: 0.4;
     cursor: default;
