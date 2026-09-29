@@ -105,7 +105,7 @@ describe('reading a phrase across bars', () => {
     expect(first('phrases')).toBe(0);
   });
 
-  it('never depends on notes of the bars after the one judged (F7)', () => {
+  it('never depends on notes of the bars after the one judged', () => {
     const draw = (() => {
       let x = 5;
       return () => (x = (Math.imul(x, 1103515245) + 12345) >>> 0) / 2 ** 32;
@@ -698,7 +698,7 @@ describe('the Muse’s judgement', () => {
     expect(judge()).toBeNull();
   });
 
-  it('takes the motif the reading is surest of, though it has fewer notes (A5)', () => {
+  it('takes the motif the reading is surest of, though it has fewer notes', () => {
     const exact = judgeBar(
       played(
         [
@@ -761,7 +761,7 @@ describe('the Muse’s judgement', () => {
   });
 });
 
-describe('the confidence of a judgement (A5)', () => {
+describe('the confidence of a judgement', () => {
   const at = (jitter: number, source = 'a hand') =>
     played(
       range(6).map(
