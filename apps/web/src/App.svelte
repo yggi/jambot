@@ -12,6 +12,7 @@
   import TimingPanel from './components/TimingPanel.svelte';
   import Band from './screens/Band.svelte';
   import Lobby from './screens/Lobby.svelte';
+  import TimingTestScreen from './screens/TimingTest.svelte';
   import { Device } from './device.svelte.ts';
   import { Instruments } from './instruments.svelte.ts';
   import { Metronome } from './metronome.svelte.ts';
@@ -23,6 +24,9 @@
   import { browserKept } from './session/storage.ts';
   import { websocketLobby } from './session/websocket.ts';
   import { type TimingReport, timingFile, timingReport } from './timing.ts';
+  import { runsCsv, runsFile } from './timing-test/run.ts';
+  import { TimingRuns } from './timing-test/runs.ts';
+  import { TimingTest } from './timing-test/session.svelte.ts';
 
   /** How often, in milliseconds, the lobby looks again for open sessions. */
   const LIST_EVERY = 3000;
@@ -41,6 +45,23 @@
     server: websocketLobby,
     address: import.meta.env.VITE_LOBBY_URL ?? '',
     kept: browserKept,
+  });
+  /** The timing test (#204, A7): plays a pattern on this device's synth and keeps every run. */
+  const testing = new TimingTest({
+    audio: () => device.clockOf(),
+    now: () => performance.now(),
+    taken: () => new Date().toISOString(),
+    runs: new TimingRuns(),
+    environment: (info) => ({
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      hardwareConcurrency: navigator.hardwareConcurrency ?? null,
+      sampleRate: info?.sampleRate ?? null,
+      baseLatency: info?.baseLatency ?? null,
+      outputLatency: info?.outputLatency ?? null,
+      midiInputs: device.access?.inputs.map((input) => input.name) ?? [],
+      timeOrigin: performance.timeOrigin,
+    }),
   });
   const hostSession = sessions.asHost;
   const clientSession = sessions.asClient;
@@ -68,16 +89,29 @@
     const id = setInterval(() => (timing = takeTiming()), 500);
     return () => clearInterval(id);
   });
-  function exportTiming() {
-    const { name, text } = timingFile(takeTiming());
-    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  /** Hand a file to the person: what they asked to download. */
+  function download({ name, text }: { name: string; text: string }, type = 'application/json') {
+    const url = URL.createObjectURL(new Blob([text], { type }));
     const link = Object.assign(document.createElement('a'), { href: url, download: name });
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  const exportTiming = () => download(timingFile(takeTiming()));
+  const exportRuns = (kind: 'json' | 'csv') =>
+    kind === 'json'
+      ? download(runsFile(testing.saved))
+      : download(runsCsv(testing.saved), 'text/csv');
 
-  /** MIDI notes in play along with the band, on the instruments. */
-  const connectMidi = () => device.connect(instruments.onMidiNote);
+  /**
+   * MIDI notes in play along with the band, on the instruments, or, at the
+   * timing test, taps timed by the message's own timestamp.
+   */
+  const connectMidi = () =>
+    device.connect((note, source, timeStamp) =>
+      screen === 'timing'
+        ? testing.midi(note, source, timeStamp)
+        : instruments.onMidiNote(note, source),
+    );
 
   // A port chosen before is remembered (`MidiSettings`); reconnect to it without
   // waiting for a click, since a granted Web MIDI permission needs no gesture.
@@ -85,6 +119,9 @@
 
   /** Whether the person chose to play alone: not kept, so a reload lands on the door. */
   let soloChosen = $state(false);
+
+  /** Whether the person chose the timing test: not kept, so a reload lands on the door. */
+  let timingChosen = $state(false);
 
   /** The band is fading out on its way to the door: it stays on screen until it has. */
   let leaving = $state(false);
@@ -97,12 +134,24 @@
           clientStatus: clientSession.status,
           restoring: sessions.restoring,
           soloChosen,
+          timingChosen,
         }),
   );
 
-  // A session takes the place of the choice to play alone.
+  // A session takes the place of the choice to play alone, or to take the test.
   $effect(() => {
-    if (player.mode !== 'solo') soloChosen = false;
+    if (player.mode !== 'solo') {
+      soloChosen = false;
+      timingChosen = false;
+    }
+  });
+
+  // The test runs only on its own screen, and takes the computer's keys there.
+  $effect(() => {
+    if (screen !== 'timing') testing.stop();
+  });
+  $effect(() => {
+    if (screen === 'timing') return testing.listen();
   });
 
   // Back at the door nothing plays on: a session that ended on its own, or
@@ -257,6 +306,11 @@
       }}
       onend={() => void leave()}
     />
+  {:else if screen === 'timing'}
+    <div class="settings">
+      {@render sound()}
+    </div>
+    <TimingTestScreen test={testing} onback={() => (timingChosen = false)} onexport={exportRuns} />
   {:else if screen === 'restoring'}
     <p class="message" role="status">Taking up your session again…</p>
   {:else}
@@ -270,6 +324,7 @@
       joining={clientSession.status === 'joining'}
       notice={sessions.ended}
       onsolo={solo}
+      ontiming={() => (timingChosen = true)}
       onhost={host}
       onjoin={join}
     />

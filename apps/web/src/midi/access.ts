@@ -18,8 +18,12 @@ export function portOptions(
   return [...ports].map(([id, port]) => ({ id, name: port.name ?? 'MIDI' }));
 }
 
-/** A note read from a listened input, and the port's name it came from. */
-export type NoteHandler = (note: ParsedNote, source: string) => void;
+/**
+ * A note read from a listened input, the port's name it came from, and the
+ * message's own timestamp, milliseconds on the page's clock: when the port
+ * saw it, not when the page got to it.
+ */
+export type NoteHandler = (note: ParsedNote, source: string, timeStamp?: number) => void;
 
 /** A live Web MIDI connection: the ports plugged in, and which input is listened to. */
 export class MidiAccess {
@@ -74,7 +78,7 @@ export class MidiAccess {
         id === 'all' || id === portId
           ? (event) => {
               const note = event.data && parseMidiMessage(event.data);
-              if (note) this.#onNote(note, input.name ?? 'MIDI');
+              if (note) this.#onNote(note, input.name ?? 'MIDI', event.timeStamp);
             }
           : null;
   }

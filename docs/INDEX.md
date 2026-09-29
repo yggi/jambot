@@ -52,7 +52,8 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `apps/lobby/src/`: the lobby server, sessions found by name and relayed over WebSockets (`pnpm lobby`); `apps/lobby/` also holds `load.ts` (the load test), `Dockerfile` and `fly.toml` (hosting on Fly.io, `pnpm lobby:deploy`)
   - `apps/web/src/`: the browser app (Svelte 5, Vite, PWA): the page, the player, the screen's view model and the conductor; it serves the prototype at `/prototype.html`
   - `apps/web/src/components/`: the page's components, which take props and send intents
-  - `apps/web/src/screens/`: the lobby at the door and the band behind it, presentational; the page (`App.svelte`) picks between them
+  - `apps/web/src/screens/`: the lobby at the door, the band behind it and the timing test the door leads to, presentational; the page (`App.svelte`) picks between them
+  - `apps/web/src/timing-test/`: the timing test (#204, A7): its patterns, the matching of taps to hits, the run record and its download, the runs kept in the browser, and the container that plays it
   - `apps/web/src/session/`: host and client mode in the app ([brief](briefs/host-mode.md))
   - `apps/web/src/audio/`: the player's outputs: the built-in synth, MIDI out, the device's clock pairing
   - `apps/web/src/midi/`: Web MIDI in, the playing surfaces, routing and settings

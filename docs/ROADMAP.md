@@ -36,7 +36,7 @@ The lead's lane tints a motif's bars in its player's colour, over that player's 
 Next for the Muse (#204), in order: reading a sloppy hand as a musician does, with the beat, equal lengths, their ratios and plausible rests as priors, since today's one rounding to the nearest step reads a hand 30 ms off right in a quarter of its bars, and the Muse's reading of a phrase in 46% (E17; A0 to A6 done: her judgement reads phrases, carries a confidence, and the surest reading is taken).
 The reading is one with the analyzer's `quantiseSection`, a shared reader in the engine, and it hears a phrase, not a bar: she listens across bars until the player leaves a bar empty, and what she does with a phrase (motifs and their order, variations, a composer's memory) is #207;
 a log of what players play, which A5's question and #16's encoder both need;
-what the confidence is worth against real players, and how long she waits on a phrase that runs on (#204); the ear's reading of a player's style, and following it (#16, A4); and answering a motif through its operators (U5) rather than repeating it.
+what the confidence is worth against real players (#204, A7: the lobby's timing test records how people follow a pattern, with every timing detail, to download and analyse), and how long she waits on a phrase that runs on; the ear's reading of a player's style, and following it (#16, A4); and answering a motif through its operators (U5) rather than repeating it.
 What the prototype still
 does that the app doesn't is the score (#63). #26's HUD is otherwise caught up:
 what remains there (the score panel, Strudel export) waits on #63.
