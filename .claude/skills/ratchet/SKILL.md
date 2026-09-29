@@ -1,11 +1,11 @@
 ---
 name: ratchet
-description: Run Jambot's ratchet, where a working track (builds code that runs)
-  and a negative track (catalogues constraints) drive each other through claims
-  in Gödel's Dialectica form - witnesses forward, counterexamples back, a test
-  on main as the pawl. Use when a step on a paired track ends and its findings
-  need harvesting; when writing or changing a catalogue entry (#7's
-  docs/language.md, #39's docs/quinetic.md); when a decision seems to be needed; when a test fails in code that builds on another layer and the fault has to be placed; when filling a pull request's Findings section; or when pairing issues or commenting on a crossing between them. Both sides apply it.
+description: Run Jambot's ratchet, where a working track and a negative track
+  drive each other through claims (witness, counterexample, a test on main as
+  the pawl). Use when writing or changing a catalogue entry in
+  docs/language.md or docs/quinetic.md, when filling a pull request's Findings
+  section, when a step on a paired track ends and its findings need
+  harvesting, or when a failure above must be placed in the layer below.
 ---
 
 # Ratchet: witnesses forward, counterexamples back
@@ -57,39 +57,14 @@ A claim of the form "for every x there is a y" becomes "there is a function from
 x to y": the witness is a function. "Every MIDI input has some form" (A2) is
 witnessed by the analyzer itself, and a counterexample is one MIDI file.
 
-The status is the evidence: how far a claim has gone through the game.
-
-| Status      | In the game                                                                                                         |
-| ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| speculative | There is no decidable test yet. An analogy, kept apart                                                              |
-| open        | The test is written down, but nothing has run it                                                                    |
-| derived     | The witness is composed from other witnesses along dependencies                                                     |
-| measured    | The test ran: every case passed (exhaustive for a finite part), or one failed, which is written "measured, failing" |
-
-A status may have parts with scopes, such as `measured (drums); open (compile)`.
-The evidence only rises.
-
-Whether the owner took the claim as a rule is a separate question, so it is a
-separate field. In the game, a decided claim is an axiom: it holds without a
-witness, and whatever evidence it has is still recorded in its status. T1, "the
-clock never waits", is a rule of the spirit and measured on the transport:
-
-```
-Status: measured (transport); open (compile). Decided: spirit, inherited.
-```
-
-`Decided:` says where the rule was taken and how, which makes the field the
-ledger of decisions:
-
-| How                   | The rule                                                                    |
-| --------------------- | --------------------------------------------------------------------------- |
-| inherited             | Came with the spirit, the prototype or the architecture, before the ratchet |
-| dissolved             | The evidence left one option (B3), such as P2 after the theory's work       |
-| on measured options   | The owner chose between measured options (B3), as in #38                    |
-| in the working track  | Was taken while building, under a house rule, such as R4's true name        |
-| ahead of the evidence | Was chosen before anything measured it                                      |
-
+The **status** is the evidence, and it only rises: `speculative`, `open`,
+`derived` or `measured` (or `measured, failing`), with scopes where they differ,
+such as `measured (drums); open (compile)`.
+`Decided:` says where a rule was taken and how: `inherited`, `dissolved`,
+`on measured options`, `in the working track` or `ahead of the evidence`.
 A rule is withdrawn only with `Retired: <reason>`, never removed silently.
+What each word means, with the tables, is in
+[`reference.md`](reference.md).
 
 ## Dependencies carry both directions
 

@@ -57,9 +57,8 @@ pnpm pages deploy # publish main to GitHub Pages (see below)
   and tonal (tests may use tonal, a random and the clock).
   `tooling/lint.test.ts` shows each rule firing.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`, `format:check`,
-  `check`, `test`, `e2e` and `build`. While the Actions minutes are used up
-  (#4), it runs only when started by hand (`workflow_dispatch`); on every push
-  and pull request it would fail in seconds.
+  `check`, `test`, `e2e` and `build`. It runs only when started by hand
+  (`workflow_dispatch`); why is in `MEMORY.md`, "Repository and CI".
 - **GitHub Pages** is deployed by hand, with no Actions of ours:
   `pnpm pages deploy` (`tooling/pages.ts`) builds the app for its sub-path,
   checks the build, commits it to the `gh-pages` branch and checks the live site

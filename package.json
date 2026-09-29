@@ -8,6 +8,7 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "pnpm --filter @jambot/web dev",
     "build": "pnpm --filter @jambot/web build",
     "preview": "pnpm --filter @jambot/web preview",

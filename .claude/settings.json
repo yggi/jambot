@@ -12,29 +12,27 @@
       "Bash(uv run .claude/skills/music-theory/oracle.py:*)",
       "Bash(node .claude/skills/music-theory/tonal.mjs:*)",
       "Bash(node .claude/skills/music-theory/compare.mjs:*)",
-      "Bash(.claude/skills/review-pr/prepare.sh:*)"
+      "Bash(.claude/skills/review-pr/prepare.sh:*)",
+      "Bash(pnpm ratchet)",
+      "Bash(git fetch origin main)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": [
+      "mcp__github__push_files",
+      "mcp__github__create_or_update_file",
+      "mcp__github__delete_file"
     ]
   },
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume",
+        "matcher": "startup|resume|compact",
         "hooks": [
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/verify-before-push.sh",
-            "timeout": 600
           }
         ]
       }

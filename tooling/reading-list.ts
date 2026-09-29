@@ -1,0 +1,18 @@
+/**
+ * The boot set: what a fresh agent reads before it does anything, `AGENTS.md`
+ * (imported by `CLAUDE.md`) and `docs/MEMORY.md` (which `AGENTS.md` names the
+ * entry point). Its size has a ceiling, so the reading list stays something an
+ * agent takes in whole (#172).
+ * Growth goes elsewhere by default: a fact lives next to what it describes.
+ * Condensing the boot set is its own deliberate change, made when the ceiling
+ * is reached, not a trim tucked into a feature's pull request.
+ */
+export const BOOT_SET = ['AGENTS.md', 'docs/MEMORY.md'];
+
+/** In bytes: about 16k tokens, with headroom over today's 48 KB. */
+export const CEILING = 64 * 1024;
+
+/** The boot set's size in bytes, given a reader of a path's text. */
+export function bootBytes(read: (path: string) => string): number {
+  return BOOT_SET.reduce((sum, path) => sum + Buffer.byteLength(read(path)), 0);
+}
