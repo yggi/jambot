@@ -18,66 +18,23 @@
   import StylePanel from './components/StylePanel.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
   import Transport from './components/Transport.svelte';
-  import { SvelteSet } from 'svelte/reactivity';
   import { KEY_REACH } from '@jambot/engine';
   import { tempoView } from './conductor.ts';
-  import { bandOutput } from './audio/band-output.ts';
-  import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
-  import { type Output, webAudioOutput } from './audio/output.ts';
-  import { MidiAccess, type NoteHandler } from './midi/access.ts';
-  import { connectMidi as connect, routeNote } from './midi/routing.ts';
-  import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, partOf } from './midi/surfaces.ts';
-  import { MidiSettings } from './midi/settings.svelte.ts';
+  import { Device } from './device.svelte.ts';
+  import { Instruments } from './instruments.svelte.ts';
   import { Metronome } from './metronome.svelte.ts';
   import { performersOf } from './performers.ts';
-  import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
+  import { Player } from './player.svelte.ts';
   import { broadcastLobby } from './session/broadcast.ts';
   import { websocketLobby } from './session/websocket.ts';
   import { Sessions } from './session/sessions.svelte.ts';
   import { browserKept } from './session/storage.ts';
   import { type TimingReport, timingFile, timingReport } from './timing.ts';
 
-  const midiSettings = new MidiSettings();
-
-  /**
-   * The audio clock and the offset it maps to MIDI's, made only once
-   * something needs them: a browser starts audio only after a gesture, and
-   * a test that never presses play or a key should never need one either.
-   */
-  let sharedBase: Output | null = null;
-  let sharedOffset: ClockOffset | null = null;
-  function clockOf(): { base: Output; offset: ClockOffset } {
-    const base = (sharedBase ??= webAudioOutput());
-    const offset = (sharedOffset ??= clockOffset(base));
-    return { base, offset };
-  }
-
-  const player = new Player(
-    browserSurroundings(() => {
-      const { base, offset } = clockOf();
-      return bandOutput(
-        {
-          internal: () => midiSettings.internal,
-          port: () => midiSettings.outPort,
-          channels: () => midiSettings.channels,
-          drumNotes: () => midiSettings.drumNotes,
-          clock: () => midiSettings.clock,
-        },
-        base,
-        offset,
-      );
-    }),
-  );
-
-  /** The device's clocks, as a session reads them: one output pair, shared with the band's output. */
-  const clocks = {
-    page: () => performance.now() / 1000,
-    heardOffset: () => {
-      const { offset } = clockOf();
-      offset.update();
-      return offset.heardOffset();
-    },
-  };
+  const device = new Device();
+  const player = new Player(device.surroundings);
+  const instruments = new Instruments(player, device);
+  const { clocks } = device;
   const sessions = new Sessions(player, clocks, {
     tabs: broadcastLobby(),
     server: websocketLobby,
@@ -105,7 +62,7 @@
       {
         mode: player.mode,
         transport: player.timing,
-        output: sharedOffset?.estimate ?? null,
+        output: device.offsetEstimate,
         network: clientSession.timing,
         lacked: player.lacked,
       },
@@ -127,13 +84,12 @@
 
   const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
 
-  let midiAccess: MidiAccess | null = $state(null);
-  let midiMessage = $state(
-    'Without MIDI, the built-in synth and the keys below still run the whole loop.',
-  );
-  /** Notes currently held, from any source, so the keyboard and the pads light them too. */
-  const heldLead = new SvelteSet<number>();
-  const heldDrums = new SvelteSet<number>();
+  /** MIDI notes in play along with the band, on the instruments. */
+  const connectMidi = () => device.connect(instruments.onMidiNote);
+
+  // A port chosen before is remembered (`MidiSettings`); reconnect to it without
+  // waiting for a click, since a granted Web MIDI permission needs no gesture.
+  if (device.remembersPorts) void connectMidi();
 
   /** Whether this device follows a host, whose song, style and key it plays. */
   const following = $derived(player.mode === 'client');
@@ -150,46 +106,6 @@
   const performers = $derived(
     performersOf(player.hud, player.sounding, player.pattern, player.players),
   );
-
-  /**
-   * A note source for one instrument: `routeNote` holds it, captures it for
-   * the Muse (#79) and passes it thru, and it plays at once, along with the
-   * band, on the part it belongs to.
-   */
-  function routerFor(part: AlongPart, held: SvelteSet<number>) {
-    return (note: number, velocity: number, on: boolean, source: string) =>
-      routeNote(note, velocity, on, source, {
-        held,
-        humanNoteOn: (n, v, s, seconds) => player.humanNoteOn(part, n, v, s, seconds),
-        humanNoteOff: (n, s, seconds) => player.humanNoteOff(part, n, s, seconds),
-        playing: () => player.playing,
-        toOutputSeconds: (ms) => clockOf().offset.fromDeviceMs(ms),
-        thru: () => midiSettings.thru,
-        thruPort: () => midiAccess?.outputPort(midiSettings.outPortId) ?? null,
-        thruChannel: () => midiSettings.thruChannel,
-        playAlong: (n, v) => void player.playAlong(part, n, v),
-      });
-  }
-  const routeToLead = routerFor('lead', heldLead);
-  const routeToDrums = routerFor('drums', heldDrums);
-
-  async function connectMidi() {
-    /** Channel 10 plays the pads, every other channel the keyboard (`partOf`). */
-    const onNote: NoteHandler = (note, source) =>
-      (partOf(note.channel) === 'drums' ? routeToDrums : routeToLead)(
-        note.note,
-        note.velocity,
-        note.on,
-        source,
-      );
-    const result = await connect((handler) => MidiAccess.connect(handler), onNote, midiSettings);
-    midiAccess = result.access;
-    midiMessage = result.message;
-  }
-
-  // A port chosen before is remembered (`MidiSettings`); reconnect to it without
-  // waiting for a click, since a granted Web MIDI permission needs no gesture.
-  if (midiSettings.outPortId !== 'none' || midiSettings.inPortId !== 'none') void connectMidi();
 
   $effect(() => {
     // A phone or a tab suspended mid-note can leave hardware sounding one
@@ -215,27 +131,7 @@
     };
   });
 
-  $effect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (ignoreKeyEvent(e.target, e.repeat, e.metaKey || e.ctrlKey || e.altKey)) return;
-      const lead = COMPUTER_KEY_MAP[e.key.toLowerCase()];
-      if (lead !== undefined) return routeToLead(lead, 100, true, 'the computer keys');
-      const drum = DRUM_KEY_MAP[e.key];
-      if (drum !== undefined) routeToDrums(drum, 100, true, 'the computer keys');
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      const lead = COMPUTER_KEY_MAP[e.key.toLowerCase()];
-      if (lead !== undefined) return routeToLead(lead, 0, false, 'the computer keys');
-      const drum = DRUM_KEY_MAP[e.key];
-      if (drum !== undefined) routeToDrums(drum, 0, false, 'the computer keys');
-    };
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-    };
-  });
+  $effect(() => instruments.listen());
 </script>
 
 <main>
@@ -282,11 +178,11 @@
       />
     </Drawer>
 
-    <Drawer name="MIDI and sound" status={midiAccess ? 'MIDI connected' : 'Built-in synth'}>
+    <Drawer name="MIDI and sound" status={device.access ? 'MIDI connected' : 'Built-in synth'}>
       <MidiPanel
-        settings={midiSettings}
-        access={midiAccess}
-        message={midiMessage}
+        settings={device.settings}
+        access={device.access}
+        message={device.message}
         onconnect={connectMidi}
         onpanic={() => player.panicMidi()}
       />
@@ -344,16 +240,16 @@
     <Performers {performers} />
 
     <Keyboard
-      down={heldLead}
+      down={instruments.heldLead}
       scale={player.hud.bar?.scale ?? []}
       sounding={player.sounding.lead}
-      onnote={(note, velocity, on) => routeToLead(note, velocity, on, 'the on-screen keys')}
+      onnote={(note, velocity, on) => instruments.toLead(note, velocity, on, 'the on-screen keys')}
     />
 
     <DrumPads
-      down={heldDrums}
+      down={instruments.heldDrums}
       sounding={player.sounding.drums}
-      onnote={(note, velocity, on) => routeToDrums(note, velocity, on, 'the drum pads')}
+      onnote={(note, velocity, on) => instruments.toDrums(note, velocity, on, 'the drum pads')}
     />
 
     <MusePanel muse={player.hud.muse} onforget={() => player.forgetMotif()} />
