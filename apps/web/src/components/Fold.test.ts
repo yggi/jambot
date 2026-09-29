@@ -44,4 +44,22 @@ describe('a fold', () => {
     });
     expect(container.querySelector('summary .sub')).toHaveAttribute('aria-live', 'polite');
   });
+
+  it('stays as a person left it when its headline changes, folded or unfolded', async () => {
+    const { container, rerender } = render(Fold, { heading: 'Thing', name: 'C major', children });
+    const fold = screen.getByLabelText('Thing');
+    await fireEvent.click(container.querySelector('summary')!);
+    fold.setAttribute('open', '');
+    await rerender({ heading: 'Thing', name: 'G major', sub: 'moved', children });
+    expect(fold).toHaveAttribute('open');
+    fold.removeAttribute('open');
+    await rerender({ heading: 'Thing', name: 'D major', sub: 'moved again', children });
+    expect(fold).not.toHaveAttribute('open');
+  });
+
+  it('stays unfolded where it started so, when its headline changes', async () => {
+    const { rerender } = render(Fold, { heading: 'Thing', name: 'C major', open: true, children });
+    await rerender({ heading: 'Thing', name: 'G major', open: true, children });
+    expect(screen.getByLabelText('Thing')).toHaveAttribute('open');
+  });
 });
