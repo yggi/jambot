@@ -89,8 +89,13 @@ Don't stop at reading: probe. Run the new functions with the `Probe:` line
 the worktree's `packages/engine`, since bare `@jambot/*` imports resolve only
 inside a package, and starts with an `env` the transport runs over
 (`bandEnvAt(env, bar, null)` gives the band's), which a test runs against the
-engine. A longer probe goes in a file there, removed after. A finding with a
-measured number beats one without.
+engine. For the app, the `Probe the app:` line runs from `apps/web` the same
+way: it imports `./src/*.ts` and the engine alike, with `hudOf` and the bars the
+band decides already in hand, so a probe of the view model needs no test file.
+Only a `.svelte` or `.svelte.ts` module needs vitest; there, compare in an
+assertion, since vitest's reporter can swallow a passing test's `console.log`.
+A longer probe goes in a file, removed after. A finding with a measured number
+beats one without.
 
 ## 3. Post
 
