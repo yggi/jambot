@@ -25,6 +25,8 @@ export interface FileRepo {
 }
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'dist-pages', 'coverage', '.git']);
+/** The worktrees Claude Code agents work in: each a whole checkout of its own, not this one's. */
+export const AGENT_WORKTREES = '.claude/worktrees';
 const SKIP_FILES = /\.(test|e2e)\.ts$|\.json$/;
 
 /** A `FileRepo` over the real filesystem, rooted at `base`. */
@@ -35,8 +37,8 @@ export function diskRepo(base: string): FileRepo {
     const out: string[] = [];
     const walk = (dir: string) => {
       for (const name of readdirSync(join(abs, dir))) {
-        if (SKIP_DIRS.has(name)) continue;
         const rel = dir ? `${dir}/${name}` : name;
+        if (SKIP_DIRS.has(name) || `${root}/${rel}` === AGENT_WORKTREES) continue;
         if (statSync(join(abs, rel)).isDirectory()) walk(rel);
         else out.push(`${root}/${rel}`);
       }
