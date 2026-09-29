@@ -1684,6 +1684,12 @@ run; the others have.
   - The swing adds pickups on the off-beat eighths: Swing jazz (swing 1) goes from 0.17 to 0.26 of its notes there, and from 4.30 to 4.77 notes a bar; Deep house (0.3) from 0.14 to 0.18; the presets without swing are unchanged.
   - All three stay, decided by ear (#168).
     The articulation is left out, since the performer already plays it (T4).
+  - The melodic scale (#209) is forced on for every preset, whatever the style's reach, by running the lead alone over the band's bars with the plan's scale set.
+    With the plain scale the lead writes exactly what it wrote without one, so those rows are the baseline.
+    The contour's span counts degrees, so a wider degree widens the line: over all presets the mean interval is 2.36 semitones in the plain scale, 3.26 in the pentatonic (from 3.03 in Lo-fi hip hop to 3.55 in Deep house) and 2.77 in the blues, close to 7/5 and 7/6 of the plain scale's, as the degrees' sizes predict.
+    Notes a bar, the off-beat eighths and the turns stay within 0.03 of the plain scale's, since the scale moves notes, not steps; the beats on a chord tone fall a little, most in the blues (Swing jazz 0.78 to 0.66).
+    The share of notes in the melodic scale is 0.99 in the plain scale, 0.96 in the pentatonic and the blues: the rest are the chord tones the lead lands on and the cadence.
+    The span stays in degrees: whether to scale it by 7 over the scale's size, which would bring the mean interval back to the plain scale's, is left to the ear at the A/B.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
