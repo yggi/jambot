@@ -53,6 +53,16 @@ export function nextKey(key: Key, wish: KeyWish): Key {
   return { tonic: wrap(pivot.heights[0]!, 12), mode: wish.mode };
 }
 
+/**
+ * A wish once the band plays it: a tonic wished for lets go once met, so the
+ * band moves on from there on its own (#169); any other wish stands as it is.
+ */
+export function released(wish: KeyWish, key: Key): KeyWish {
+  return wish.tonic === key.tonic && wish.mode === key.mode
+    ? { tonic: null, mode: wish.mode }
+    : wish;
+}
+
 /** A key as people read it, its tonic spelled in the key: "A aeolian", "Eb dorian". */
 export function keyName(key: Key): string {
   const scale = keyHelix(key);

@@ -18,8 +18,7 @@
   import TimingPanel from './components/TimingPanel.svelte';
   import Transport from './components/Transport.svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { KEY_REACH } from '@jambot/engine';
-  import { tempoView } from './conductor.ts';
+  import { keyReachOf, tempoView } from './conductor.ts';
   import { bandOutput } from './audio/band-output.ts';
   import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
   import { type Output, webAudioOutput } from './audio/output.ts';
@@ -348,7 +347,8 @@
     <KeyPicker
       {following}
       heading={player.hud.heading}
-      reach={KEY_REACH}
+      reach={keyReachOf(player.track)}
+      home={player.home}
       history={player.harmonicHistory}
       onintent={(intent) => player.apply(intent)}
     />

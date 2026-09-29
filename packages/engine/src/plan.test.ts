@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { form } from './form.ts';
-import { COMPOSER_MODES, INITIAL_KEY, type KeyWish, nextKey } from './key.ts';
+import { NO_HISTORY, centre } from './history.ts';
+import { COMPOSER_MODES, INITIAL_KEY, type Key, type KeyWish, nextKey } from './key.ts';
+import { fifthsApart, harmonicReach } from './licence.ts';
 import { type Script, lawBreaks } from './machine.ts';
-import { type Plan, type PlanEnv, planner } from './plan.ts';
+import { type Plan, type PlanEnv, bandWish, planner } from './plan.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
 import { themeKind } from './themes.ts';
 
@@ -13,7 +15,10 @@ const tour = (seed: number, sections = 24): Script<PlanEnv, null> =>
   range(sections).map((index) => {
     const preset = PRESETS[index % PRESETS.length]!;
     const style = { ...preset.style, entropy: (index % 4) / 4 };
-    return { env: { seed, index, style, wish: { tonic: null, mode: preset.mode } }, input: null };
+    return {
+      env: { seed, index, style, wish: { tonic: null, mode: preset.mode }, history: NO_HISTORY },
+      input: null,
+    };
   });
 
 const run = (script: Script<PlanEnv, null>): Plan[] => {
@@ -27,7 +32,25 @@ const run = (script: Script<PlanEnv, null>): Plan[] => {
 
 /** One steady style and wish for every section. */
 const steady = (seed: number, style: Style, wish: KeyWish, sections = 40): Script<PlanEnv, null> =>
-  range(sections).map((index) => ({ env: { seed, index, style, wish }, input: null }));
+  range(sections).map((index) => ({
+    env: { seed, index, style, wish, history: NO_HISTORY },
+    input: null,
+  }));
+
+/** A script whose harmony is a static vamp, so the band never moves the key itself. */
+const vamp = (script: Script<PlanEnv, null>): Script<PlanEnv, null> =>
+  script.map(({ env, input }) => ({ env: { ...env, style: { ...env.style, harm: 0 } }, input }));
+
+/** How many sections change key over `seeds` songs of `sections` in one style, wishing for no tonic. */
+const drifts = (style: Style, seeds = 200, sections = 24) => {
+  let moves = 0;
+  for (const seed of range(seeds)) {
+    const plans = run(steady(seed, style, aeolian, sections));
+    for (let i = 1; i < plans.length; i++)
+      if (plans[i]!.key.tonic !== plans[i - 1]!.key.tonic) moves++;
+  }
+  return moves / (seeds * (sections - 1));
+};
 
 const aeolian: KeyWish = { tonic: null, mode: 'aeolian' };
 
@@ -50,7 +73,7 @@ describe('the section plan', () => {
 
   it('moves the key toward the wish once per section, from the initial key', () => {
     for (const seed of [1, 2, 3]) {
-      const script = tour(seed);
+      const script = vamp(tour(seed));
       let key = INITIAL_KEY;
       for (const [index, plan] of run(script).entries()) {
         key = nextKey(key, script[index]!.env.wish);
@@ -62,11 +85,70 @@ describe('the section plan', () => {
   it('settles on a steady wish: the key moves once, then stays (C6)', () => {
     for (const mode of COMPOSER_MODES)
       for (const tonic of [null, 0, 9]) {
-        const plans = run(steady(1, INITIAL_STYLE, { tonic, mode }, 8));
+        const plans = run(steady(1, { ...INITIAL_STYLE, harm: 0 }, { tonic, mode }, 8));
         for (const plan of plans) expect(plan.key).toEqual(plans[0]!.key);
         expect(plans[0]!.key.mode).toBe(mode);
         if (tonic !== null) expect(plans[0]!.key.tonic).toBe(tonic);
       }
+  });
+
+  it('never moves the key itself where the harmony is a static vamp (harm 0), whatever the entropy (#169)', () => {
+    expect(drifts({ ...INITIAL_STYLE, harm: 0, entropy: 1 })).toBe(0);
+  });
+
+  it('never moves the key itself at entropy 0, and the more often the higher the entropy (#169)', () => {
+    const style = { ...INITIAL_STYLE, harm: 0.5 };
+    expect(drifts({ ...style, entropy: 0 })).toBe(0);
+    const low = drifts({ ...style, entropy: 0.25 });
+    const high = drifts({ ...style, entropy: 1 });
+    expect(low).toBeGreaterThan(0);
+    expect(high).toBeGreaterThan(2 * low);
+  });
+
+  it('moves the key only within the harmony’s reach, in the mode playing, and never in the first section (#169)', () => {
+    for (const harm of [0.1, 0.25, 0.5, 0.75, 1]) {
+      const style = { ...INITIAL_STYLE, harm, entropy: 1 };
+      for (const seed of range(20)) {
+        const plans = run(steady(seed, style, aeolian, 24));
+        expect(plans[0]!.key).toEqual(INITIAL_KEY);
+        for (let i = 1; i < plans.length; i++) {
+          const [before, after] = [plans[i - 1]!.key, plans[i]!.key];
+          expect(after.mode).toBe(before.mode);
+          expect(Math.abs(fifthsApart(after, before))).toBeLessThanOrEqual(harmonicReach(style));
+        }
+      }
+    }
+  });
+
+  it('always takes the players’ wish over its own: a tonic, or another mode (#169)', () => {
+    const style = { ...INITIAL_STYLE, harm: 1, entropy: 1 };
+    for (const seed of range(20)) {
+      for (const plan of run(steady(seed, style, { tonic: 2, mode: 'dorian' }, 12)))
+        expect(plan.key).toEqual({ tonic: 2, mode: 'dorian' });
+      // A mode wished from section 1 on: the band pivots to it, and doesn't move on its own.
+      const ionian = { tonic: null, mode: 'ionian' } as const;
+      const script = steady(seed, style, aeolian, 2).map(({ env, input }) => ({
+        env: { ...env, wish: env.index === 1 ? ionian : env.wish },
+        input,
+      }));
+      const plans = run(script);
+      expect(plans[1]!.key).toEqual(nextKey(plans[0]!.key, ionian));
+    }
+  });
+
+  it('leans toward the key its harmonic history centres on (#169)', () => {
+    // A history of E aeolian's scale, the band in A aeolian, one fifth either way: E or D.
+    const e: Key = { tonic: 4, mode: 'aeolian' };
+    const history = [...NO_HISTORY];
+    for (const pitchClass of [4, 6, 7, 9, 11, 0, 2]) history[pitchClass] = 1;
+    expect(centre(history, INITIAL_KEY)).toEqual(e);
+    const style = { ...INITIAL_STYLE, harm: 1 / 6, entropy: 1 };
+    const wishes = range(400)
+      .map((seed) => bandWish({ seed, index: 1, style, history }, INITIAL_KEY))
+      .filter((w) => w !== null);
+    expect(wishes.length).toBeGreaterThan(100);
+    for (const wish of wishes) expect([2, 4]).toContain(wish.tonic);
+    expect(wishes.filter((w) => w.tonic === 4).length / wishes.length).toBeGreaterThan(0.7);
   });
 
   it("plays the theme of its section's kind, in its key's mode", () => {

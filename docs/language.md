@@ -163,32 +163,19 @@ Status: measured (time); measured (the port's dynamics and articulation); open
 time); #7, on measured options (dynamics and articulation, E9). Lands in: #37
 (done), Q1b and Q1c; #63 step 2.
 
-**T17. Every part's licence widens with the swing, from no looseness at 0 to a
-bounded width at 1: velocity either way, length only ever a little shorter.**
-Witness: `velocityLooseness` and `lengthLooseness` (`performer.ts`), one seeded
-draw per part and per field, added into `velocityOf`'s and `lengthOf`'s existing
-formulas, exactly as `drumVelocity` already did for drum velocity alone.
-Velocity's width is ±12 around 0, the same 24 drums always had; length's is a
-factor of 1 down to 0.85, so a gated length never grows. Both are 0 at swing 0:
-the draw's contribution is multiplied by it. Over 64 bars of one written note
-per part, at swing 1: bass velocity spans 89–112 (spread 23), pad 53–77 (24),
-stab 78–101 (23), lead 89–112 (23); bass length spans 0.723–0.849 against 0.850
-at swing 0, pad 1.700–1.9997 against 2, stab 1.296–1.512 against 1.515, lead
-0.703–0.824 against 0.825 — every part's swing-1 length maximum sits under its
-swing-0 value. Counterexample: a part or a field whose spread stays 0 at swing 1
-(T4's dynamics and articulation would then still hold cold), or a length that
-exceeds its swing-0 value (the licence would then lengthen, not gate). Keyed by
-bar and step only, never by the note's pitch, for every part but the drums: a
-bass or comp note resumed in another register must draw the same looseness as
-before it was resumed (S2), and only a drum hit's sound, not a register, is its
-identity. Test: `performer.test.ts`, "gives every part a licence, velocity and
-length alike, that widens with swing and holds still at 0 (#107, #147)";
-`band.test.ts`, "carries register into the bass and the comp, but a phrase into
-the lead: what a resumed band loses (S2)", unbroken by this witness. Source:
-#147 (T4's neighbour, which found only drums had one). Status: measured.
-Decided: owner, ahead of the evidence — every part, and timing as well as
-velocity, the way a real musician's and instrument's expression works, still
-derived from swing, no new style axis (#107, #116 §7). Lands in: #147 (closes).
+**T17. Every part's licence widens with the style's feel, from no looseness at 0 to a bounded width at 1: velocity either way, length only ever a little shorter.**
+Witness: `licenceOf(style).feel` (`licence.ts`), 0.5 × swing + 0.3 × entropy + 0.2 × (1 − articulation), which reads `velocityLooseness` and `lengthLooseness` (`performer.ts`): one seeded draw per part and per field, added into `velocityOf`'s and `lengthOf`'s existing formulas, exactly as `drumVelocity` already did for drum velocity alone.
+The genre sets the range, swing and articulation, and the players' entropy, which no preset sets, how much of it is used (#176).
+The weights sum to 1, so the feel lies within 0 and 1; it is exactly 0 at swing 0, entropy 0 and articulation 1, and only there, and at any one entropy the presets run from Techno, the tightest, to Swing jazz, the loosest (at entropy 0.3: Techno 0.09, Synth-pop 0.18, Bossa nova 0.20, Funk 0.27, Deep house 0.31, Ambient 0.315, Lo-fi hip hop 0.445, Swing jazz 0.73).
+Velocity's width is ±12 × feel around the base and its accent, the same 24 drums always had at the widest; length's is a factor of 1 down to 1 − 0.15 × feel, so a gated length never grows.
+Over every note of three seeds' 96-bar tours of the presets, entropy rising, every velocity and length lies within those bounds.
+Counterexample: a part or a field whose spread stays 0 when the feel is above 0 (T4's dynamics and articulation would then still hold cold), a spread above 0 when it is 0, or a length that exceeds its base (the licence would then lengthen, not gate).
+Keyed by bar and step only, never by the note's pitch, for every part but the drums: a bass or comp note resumed in another register must draw the same looseness as before it was resumed (S2), and only a drum hit's sound, not a register, is its identity.
+Test: `performer.test.ts`, "gives every part a licence, velocity and length alike, that widens with the feel and holds still at 0 (#107, #147, T17)"; `licence.test.ts`, whose tests of the feel cite T17: its range and its rise along each axis, the exact-zero corner, and the presets' order, over every preset at every tenth of entropy; `drums.test.ts`, "loosen their velocities from bar to bar as the feel rises, and not when held still (T17)"; `band.test.ts`, "carries register into the bass and the comp, but a phrase into the lead: what a resumed band loses (S2)", unbroken by this witness.
+Source: #147 (T4's neighbour, which found only drums had one); #176, which reads the width from the style's feel.
+Status: measured.
+Decided: owner, ahead of the evidence — every part, and timing as well as velocity, the way a real musician's and instrument's expression works, derived from the style, no new style axis (#107, #116 §7); the feel from swing, entropy and legato, with the presets' order as the measure of its weights (#176, #170).
+Lands in: #147 (closes); #176.
 
 **T18. A written accent is an offset on the base, not a replacement for it —
 except a lead note from a motif, whose accent replaces the beat's own (U4,
@@ -219,8 +206,8 @@ it alone is the performer's own. Counterexample: a base computed with a seeded
 draw; a licence applied before an accent is read, so an accent could change what
 the licence jitters rather than only its result; a change to the base's formula
 that also has to reseed a licence stream. Test: `performer.test.ts`, "gives
-every part a licence, velocity and length alike, that widens with swing and
-holds still at 0 (#107, #147)" and "adds every other part’s written accent on
+every part a licence, velocity and length alike, that widens with the feel and
+holds still at 0 (#107, #147, T17)" and "adds every other part’s written accent on
 top of what it would have played, never in place of it (#107)", both unbroken by
 pulling the base into `dynamics.ts`: no value changed, since the sum is the
 same, only named in three parts instead of one. Source: the owner, correcting an

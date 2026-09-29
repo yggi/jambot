@@ -46,6 +46,8 @@ import {
   type BarJudgement,
   type DroppedJudgement,
   type ForecastBar,
+  type HarmonicWeights,
+  INITIAL_KEY,
   INITIAL_STYLE,
   type KeyWish,
   LOOKAHEAD,
@@ -63,8 +65,12 @@ import {
   type TransportCarried,
   type TransportEnv,
   type TransportOutput,
+  NO_HISTORY,
+  centre,
+  foldBar,
   forecast,
   holding,
+  released,
   transport,
   transportOver,
   writtenAt,
@@ -85,8 +91,7 @@ import {
   playerSource,
 } from '@jambot/session';
 import { type Output, webAudioOutput } from './audio/output.ts';
-import { type Intent, baseAfter, conduct, nudgeAfter, stopAt, wishAfter } from './conductor.ts';
-import { EMPTY_HISTORY, HarmonicHistory, type HarmonicWeights } from './harmonicHistory.ts';
+import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EMPTY_BAR, Pattern, type PatternBar } from './pattern.ts';
@@ -228,7 +233,12 @@ export class Player {
   /** The last bar each track finished, for its piano roll, and whose motif the lead played in it. */
   pattern: PatternBar = $state.raw(EMPTY_BAR);
   /** Which pitch classes the band has actually sounded lately, weighted and decaying. */
-  harmonicHistory: HarmonicWeights = $state(EMPTY_HISTORY);
+  /**
+   * The band's harmonic history, which its key follows (#169): the engine's
+   * own while the band plays here, and for a client the same fold over the
+   * host's bars as they arrive.
+   */
+  harmonicHistory: HarmonicWeights = $state.raw(NO_HISTORY);
   mode: Mode = $state('solo');
   /** How many of the host's bars, as a client, had not arrived when they were due. */
   lacked = $state(0);
@@ -267,11 +277,19 @@ export class Player {
   #timing: TransportTiming = TRANSPORT_TIMING;
   #sounding = new Sounding();
   #pattern = new Pattern();
-  #harmonicHistory = new HarmonicHistory();
   /** The bars decided, from the first of the section heard on. */
   #bars: readonly ForecastBar[] = $state.raw([]);
   /** The bar the transport composes next, when the bars were last decided. */
   #decidedAt = -1;
+
+  /**
+   * The home key the players' key licence counts from: the centre of the
+   * band's harmonic history in the mode it is heading for (#169), the key the
+   * song opens in before anything is heard.
+   */
+  get home(): Key {
+    return centre(this.harmonicHistory, this.hud.heading ?? INITIAL_KEY);
+  }
 
   /** What the screen shows. */
   readonly hud: Hud = $derived(
@@ -318,10 +336,10 @@ export class Player {
   apply(intent: Intent) {
     if (this.mode === 'client') return;
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
-    const base = baseAfter(this.track, intent, this.tempoNudge);
+    const style = styleAfter(this.track, intent, this.tempoNudge);
     this.track = conduct(this.track, intent, at, this.tempoNudge);
-    this.tempoNudge = nudgeAfter(this.tempoNudge, intent, base);
-    this.wish = wishAfter(this.wish, intent);
+    this.tempoNudge = nudgeAfter(this.tempoNudge, intent, style);
+    this.wish = wishAfter(this.wish, intent, style, this.home);
     this.hosting?.track(this.track);
     this.#decide();
   }
@@ -555,8 +573,7 @@ export class Player {
     this.sounding = SILENT;
     this.#pattern.clear();
     this.pattern = EMPTY_BAR;
-    this.#harmonicHistory.clear();
-    this.harmonicHistory = EMPTY_HISTORY;
+    this.harmonicHistory = NO_HISTORY;
   }
 
   get #env(): TransportEnv {
@@ -621,7 +638,14 @@ export class Player {
         });
     }
     this.#schedule(output, now, scheduled);
-    if (carried?.nextBar !== this.#decidedAt) this.#decide();
+    const { history, plans } = carried!.source;
+    if (history !== this.harmonicHistory) this.harmonicHistory = history;
+    // A tonic picked lets go once the band has planned it, so the band moves on from there (#169).
+    const wish = plans.before ? released(this.wish, plans.before.key) : this.wish;
+    if (wish !== this.wish) {
+      this.wish = wish;
+      this.#decide();
+    } else if (carried?.nextBar !== this.#decidedAt) this.#decide();
   }
 
   /**
@@ -641,6 +665,11 @@ export class Player {
       arrived,
     });
     follow.carried = carried;
+    if (scheduled.composed.length > 0)
+      this.harmonicHistory = scheduled.composed.reduce(
+        (history, bar) => foldBar(history, bar.chords),
+        this.harmonicHistory,
+      );
     const played = scheduled.composed.map(({ bar, plan }) => ({ bar, key: plan.key }));
     if (played.length > 0) follow.keys = [...follow.keys, ...played].slice(-KEYS_KEPT);
     if (carried!.source.lacked !== this.lacked) this.lacked = carried!.source.lacked;
@@ -669,11 +698,9 @@ export class Player {
         note: event.note,
         length: event.length,
       });
-      this.#harmonicHistory.push(performer, bar, event.note);
     }
     if (scheduled.events.length > 0) {
       this.pattern = this.#pattern.get();
-      this.harmonicHistory = this.#harmonicHistory.get();
     }
     output.tick?.(
       skew === 0
