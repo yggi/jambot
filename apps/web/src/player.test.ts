@@ -509,12 +509,28 @@ describe('the player', () => {
         text: 'Took a 3-note motif from the computer keys.',
         taken: true,
       });
-      expect(player.hud.bar).toMatchObject({ lead: 'motif', motif: 2 });
+      expect(player.hud.bar).toMatchObject({
+        lead: 'motif',
+        motif: { source: 'the computer keys', bar: 2 },
+      });
       player.forgetMotif();
       run(9);
       world.frames[0]!.follow();
       expect(player.hud.muse.motif).toBeNull();
       expect(player.hud.bar).toMatchObject({ motif: null });
+    });
+
+    it('keeps whose motif the lead played with the bar the pattern shows, and none before (#164)', async () => {
+      const { world, player, run } = await playing();
+      playMotif(world, player, run, 2);
+      /** Runs until the pattern shows `bar`, and gives its motif. */
+      const shownAt = (bar: number) => {
+        while (player.pattern.bar !== bar) run(0.025);
+        return player.pattern.motif;
+      };
+      expect(shownAt(3)).toBeNull();
+      expect(shownAt(4)).toEqual({ source: 'the computer keys', bar: 2 });
+      expect(leadSteps(world, 4)).toEqual([0, 4, 8]);
     });
 
     it('judges no note from the drum pads, which are not a melody', async () => {
@@ -596,9 +612,13 @@ describe('the player', () => {
         world.tickers[0]!.tick();
       }
       for (const part of ['drums', 'bass', 'comp', 'lead'] as const)
-        expect(player.pattern[part].length).toBeGreaterThan(0);
+        expect(player.pattern.parts[part].length).toBeGreaterThan(0);
       player.stop();
-      expect(player.pattern).toEqual({ drums: [], bass: [], comp: [], lead: [] });
+      expect(player.pattern).toEqual({
+        bar: null,
+        parts: { drums: [], bass: [], comp: [], lead: [] },
+        motif: null,
+      });
     });
   });
 

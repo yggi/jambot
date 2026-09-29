@@ -280,13 +280,14 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     expect(leadStatus({ bar: null, beat: 0 })).toBe('The band plays on its own once started.');
   });
 
-  it('says the lead is resting, improvising, or playing the motif heard in a bar, counted from 1', () => {
+  it('says the lead is resting, improvising, or playing a motif, whose and heard in which bar, counted from 1', () => {
     expect(leadStatus({ bar: barView({ lead: 'resting' }), beat: 0 })).toBe('Lead is resting.');
     expect(leadStatus({ bar: barView({ lead: 'improvising' }), beat: 0 })).toBe(
       'Lead is improvising.',
     );
-    expect(leadStatus({ bar: barView({ lead: 'motif', motif: 6 }), beat: 0 })).toBe(
-      'Lead is playing the motif heard in bar 7.',
+    const motif = { source: 'Ada’s keys', bar: 6 };
+    expect(leadStatus({ bar: barView({ lead: 'motif', motif }), beat: 0 })).toBe(
+      'Lead is playing the motif from Ada’s keys, heard in bar 7.',
     );
   });
 });
@@ -316,7 +317,7 @@ describe('the view of the Muse', () => {
   const offer = { motif, source: 'the computer keys', bar: 5, level: 90 };
   const offered = bars.map((b) => ({ ...b, offer: b.bar >= 7 ? offer : null }));
 
-  it('says the lead plays the motif, and from which bar, where a bar has one on offer', () => {
+  it('says the lead plays the motif, whose and from which bar, where a bar has one on offer', () => {
     expect(hudOf({ heard: 16 * 6, bars: offered, track }).bar).toMatchObject({
       lead: leadRests(offered[6]!.plan.section.type, offered[6]!.barEnergy)
         ? 'resting'
@@ -325,8 +326,23 @@ describe('the view of the Muse', () => {
     });
     expect(hudOf({ heard: 16 * 7, bars: offered, track }).bar).toMatchObject({
       lead: 'motif',
-      motif: 5,
+      motif: { source: 'the computer keys', bar: 5 },
     });
+  });
+
+  it('names each bar’s motif by its player in a session, the bars ahead and the song map’s alike', () => {
+    const ada = { ...offer, source: '@p1/the computer keys' };
+    const session = bars.map((b) => ({ ...b, offer: b.bar >= 7 ? ada : null }));
+    const hud = hudOf({
+      heard: 16 * 6,
+      bars: session,
+      track,
+      muse: { offer: ada, log: [], players: { p1: 'Ada' } },
+    });
+    const named = { source: "Ada's computer keys", bar: 5 };
+    expect(hud.bar!.motif).toBeNull();
+    expect(hud.next[0]).toMatchObject({ bar: 7, lead: 'motif', motif: named });
+    expect(hud.sections[0]!.bars[7]).toMatchObject({ bar: 7, motif: named });
   });
 
   it('draws the motif on offer: each note’s step, length and row from its lowest, a rest left out', () => {

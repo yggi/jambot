@@ -1,9 +1,16 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { BarView, Hud } from './hud.ts';
+import type { PatternBar } from './pattern.ts';
 import { performersOf } from './performers.ts';
 
 const none = { drums: [], bass: [], comp: [], lead: [] };
+const bar = (over: Partial<PatternBar> = {}): PatternBar => ({
+  bar: 8,
+  parts: none,
+  motif: null,
+  ...over,
+});
 
 const barView = (over: Partial<BarView> = {}): BarView => ({
   bar: 9,
@@ -33,13 +40,13 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
 
 describe('the stage’s performers', () => {
   it('names all four band performers in one order, drums, bass, chords, lead', () => {
-    expect(performersOf(hud(), none, none).map((p) => p.performer)).toEqual([
+    expect(performersOf(hud(), none, bar()).map((p) => p.performer)).toEqual([
       'drums',
       'bass',
       'comp',
       'lead',
     ]);
-    expect(performersOf(hud(), none, none).map((p) => p.label)).toEqual([
+    expect(performersOf(hud(), none, bar()).map((p) => p.label)).toEqual([
       'Drums',
       'Bass',
       'Chords',
@@ -48,39 +55,48 @@ describe('the stage’s performers', () => {
   });
 
   it('gives the lead its own status, and the style’s to every other performer', () => {
-    const performers = performersOf(hud({ bar: barView({ lead: 'resting' }) }), none, none);
+    const performers = performersOf(hud({ bar: barView({ lead: 'resting' }) }), none, bar());
     expect(performers.find((p) => p.performer === 'lead')!.status).toBe('Lead is resting.');
     for (const performer of ['drums', 'bass', 'comp'] as const)
       expect(performers.find((p) => p.performer === performer)!.status).toBe('Playing Techno.');
   });
 
-  it('names the lead’s source only while it plays that same motif, and no other performer’s', () => {
-    const playing = hud({
-      bar: barView({ lead: 'motif', motif: 6 }),
-      muse: { motif: { source: 'Ada’s computer keys', bar: 6, rows: 1, notes: [] }, log: [] },
+  it('names whose motif the lead played in the bar its pattern shows, and no other performer’s', () => {
+    const played = bar({ motif: { source: 'the computer keys', bar: 6 } });
+    const performers = performersOf(hud(), none, played);
+    expect(performers.find((p) => p.performer === 'lead')!.motif).toEqual({
+      source: 'the computer keys',
+      bar: 6,
     });
-    const performers = performersOf(playing, none, none);
-    expect(performers.find((p) => p.performer === 'lead')!.source).toBe('Ada’s computer keys');
     for (const performer of ['drums', 'bass', 'comp'] as const)
-      expect(performers.find((p) => p.performer === performer)!.source).toBeNull();
-    const resting = performersOf(hud({ bar: barView({ lead: 'resting' }) }), none, none);
-    expect(resting.find((p) => p.performer === 'lead')!.source).toBeNull();
+      expect(performers.find((p) => p.performer === performer)!.motif).toBeNull();
+    expect(performersOf(hud(), none, bar()).find((p) => p.performer === 'lead')!.motif).toBeNull();
   });
 
-  it('names no source when the bar’s own motif is not the Muse’s current offer', () => {
-    // Bar 7 was decided while offer bar 5 stood; the Muse has since moved on to bar 6's.
+  it('names a session’s source by its player', () => {
+    const played = bar({ motif: { source: '@p1/the computer keys', bar: 6 } });
+    const lead = performersOf(hud(), none, played, { p1: 'Ada' }).find(
+      (p) => p.performer === 'lead',
+    )!;
+    expect(lead.motif).toEqual({ source: "Ada's computer keys", bar: 6 });
+  });
+
+  it('keeps the motif of the bar it shows, even once the Muse offers another', () => {
+    // The pattern's bar played bar 5's motif; the Muse has since moved on to bar 6's.
     const movedOn = hud({
-      bar: barView({ lead: 'motif', motif: 5 }),
+      bar: barView({ lead: 'motif', motif: { source: 'Bob’s MIDI keyboard', bar: 6 } }),
       muse: { motif: { source: 'Bob’s MIDI keyboard', bar: 6, rows: 1, notes: [] }, log: [] },
     });
-    expect(
-      performersOf(movedOn, none, none).find((p) => p.performer === 'lead')!.source,
-    ).toBeNull();
+    const played = bar({ motif: { source: 'the computer keys', bar: 5 } });
+    expect(performersOf(movedOn, none, played).find((p) => p.performer === 'lead')!.motif).toEqual({
+      source: 'the computer keys',
+      bar: 5,
+    });
   });
 
   it('gives each performer the notes sounding on it, and only those', () => {
     const sounding = { drums: [36], bass: [33], comp: [48, 55], lead: [64] };
-    const performers = performersOf(hud(), sounding, none);
+    const performers = performersOf(hud(), sounding, bar());
     for (const performer of ['drums', 'bass', 'comp', 'lead'] as const)
       expect(performers.find((p) => p.performer === performer)!.sounding).toEqual(
         sounding[performer],
@@ -94,7 +110,7 @@ describe('the stage’s performers', () => {
       comp: [],
       lead: [{ step: 4, note: 64, length: 2 }],
     };
-    const performers = performersOf(hud(), none, pattern);
+    const performers = performersOf(hud(), none, bar({ parts: pattern }));
     for (const performer of ['drums', 'bass', 'comp', 'lead'] as const)
       expect(performers.find((p) => p.performer === performer)!.pattern).toEqual(
         pattern[performer],

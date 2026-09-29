@@ -7,7 +7,7 @@ const performer = (over: Partial<PerformerView> = {}): PerformerView => ({
   performer: 'lead',
   label: 'Lead',
   status: 'Lead is improvising.',
-  source: null,
+  motif: null,
   sounding: [],
   pattern: [],
   ...over,

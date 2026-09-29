@@ -167,7 +167,9 @@
         : 'Solo',
   );
 
-  const performers = $derived(performersOf(player.hud, player.sounding, player.pattern));
+  const performers = $derived(
+    performersOf(player.hud, player.sounding, player.pattern, player.players),
+  );
 
   /**
    * A note source for one instrument: `routeNote` holds it, captures it for
