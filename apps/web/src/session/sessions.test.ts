@@ -41,6 +41,25 @@ function page(tabs: Lobby, servers: Record<string, Lobby> = {}, address = 'ws://
   return { d, kept, sessions };
 }
 
+/** A lobby whose host's answers to its clients wait until released, as they do over a network. */
+function held(lobby: Lobby): Lobby & { release(): void } {
+  const waiting: (() => void)[] = [];
+  let holding = true;
+  return {
+    ...lobby,
+    join: (session, hear, lost) =>
+      lobby.join(
+        session,
+        (message) => (holding ? waiting.push(() => hear(message)) : hear(message)),
+        lost,
+      ),
+    release() {
+      holding = false;
+      for (const answer of waiting.splice(0)) answer();
+    },
+  };
+}
+
 const until = async (done: () => boolean) => {
   for (let i = 0; i < 200 && !done(); i++) await vi.advanceTimersByTimeAsync(25);
   expect(done()).toBe(true);
@@ -181,6 +200,55 @@ describe('the sessions a page can be in', () => {
     await until(() => back.sessions.asClient.status === 'joined');
     expect(back.sessions.restoring).toBe(false);
     expect(back.sessions.asClient.name).toBe('Bo');
+  });
+
+  it('keeps saying it is restoring a kept client session until the host answers, not only until the join is sent', async () => {
+    const tabs = memoryLobby();
+    const host = page(tabs);
+    await host.sessions.host('local', 'Garage', 'Ada');
+    const guest = page(tabs);
+    await guest.sessions.join('local', 'Garage', 'Bo');
+    await until(() => guest.sessions.asClient.status === 'joined');
+    const resume = guest.kept.client!;
+    guest.sessions.asClient.leave();
+
+    const slow = held(tabs);
+    const back = page(slow);
+    back.kept.client = resume;
+    await back.sessions.restore(0);
+    expect(back.sessions.asClient.status).toBe('joining');
+    expect(back.sessions.restoring).toBe(true);
+    slow.release();
+    await until(() => back.sessions.asClient.status === 'joined');
+    expect(back.sessions.restoring).toBe(false);
+  });
+
+  it('reads a join a person starts after a restored client session as a join, not a restore (#202)', async () => {
+    const tabs = memoryLobby();
+    const host = page(tabs);
+    await host.sessions.host('local', 'Garage', 'Ada');
+    const other = page(tabs);
+    await other.sessions.host('local', 'Shed', 'Cy');
+    const guest = page(tabs);
+    await guest.sessions.join('local', 'Garage', 'Bo');
+    await until(() => guest.sessions.asClient.status === 'joined');
+    const resume = guest.kept.client!;
+    guest.sessions.asClient.leave();
+
+    const back = page(tabs);
+    back.kept.client = resume;
+    void back.sessions.restore(0);
+    await until(() => back.sessions.asClient.status === 'joined');
+    back.sessions.asClient.leave();
+
+    const seen: boolean[] = [];
+    const joining = back.sessions.join('local', 'Shed', 'Bo');
+    seen.push(back.sessions.restoring);
+    await joining;
+    seen.push(back.sessions.restoring);
+    await until(() => back.sessions.asClient.status === 'joined');
+    seen.push(back.sessions.restoring);
+    expect(seen).toEqual([false, false, false]);
   });
 
   it('gives up a kept host session it can’t open again, forgets it, and says why', async () => {
