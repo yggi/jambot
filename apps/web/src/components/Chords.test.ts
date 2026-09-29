@@ -96,32 +96,10 @@ describe('the chords', () => {
     expect(waiting.querySelectorAll('.mark.lit')).toHaveLength(0);
   });
 
-  it('spells the scale’s notes in the key heard, from its tonic', () => {
-    const minor = render(Chords, { hud: heard });
-    expect(screen.getByText('A B C D E F G')).toBeInTheDocument();
-    minor.unmount();
-    const flats = bar(9, { key: 'E♭ major', tonic: 3, scale: [3, 5, 7, 8, 10, 0, 2] });
-    const eFlat = render(Chords, { hud: hudOf(flats, 0) });
-    expect(screen.getByText('E♭ F G A♭ B♭ C D')).toBeInTheDocument();
-    eFlat.unmount();
-    const sharps = bar(9, { key: 'G♯ minor', tonic: 8, scale: [8, 10, 11, 1, 3, 4, 6] });
-    render(Chords, { hud: hudOf(sharps, 0) });
-    expect(screen.getByText('G♯ A♯ B C♯ D♯ E F♯')).toBeInTheDocument();
-  });
-
-  it('names the melodic scale the lead walks beside the key where it isn’t plain, and spells the key’s own notes (#209)', () => {
-    const plain = render(Chords, { hud: heard });
-    expect(plain.container.querySelector('.reading span')).toHaveTextContent(/^A minor$/);
-    plain.unmount();
-    for (const melodicName of ['pentatonic', 'blues'] as const) {
-      const walked = bar(9, { melodicName, melodic: [0, 2, 4, 7, 9] });
-      const { container, unmount } = render(Chords, { hud: hudOf(walked, 0) });
-      expect(container.querySelector('.reading span')).toHaveTextContent(
-        new RegExp(`^A minor · ${melodicName}$`),
-      );
-      expect(screen.getByText('A B C D E F G')).toBeInTheDocument();
-      unmount();
-    }
+  it('leaves the key and its notes to the key card', () => {
+    const { container } = render(Chords, { hud: heard });
+    expect(container.querySelector('.reading')).toBeNull();
+    expect(screen.queryByText('A B C D E F G')).toBeNull();
   });
 
   it('says in its Conductor region what the lead is doing in the bar heard, and before the start that the band plays on its own', () => {
