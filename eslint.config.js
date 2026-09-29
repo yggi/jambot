@@ -32,7 +32,8 @@ const impureGlobals = [
 ].map(([name, message]) => ({ name, message }));
 
 export default defineConfig(
-  { ignores: ['prototype/', '**/dist/', '**/dist-pages/', 'coverage/'] },
+  // `.claude/worktrees/` holds the checkouts Claude Code agents work in, each a repository of its own.
+  { ignores: ['prototype/', '**/dist/', '**/dist-pages/', 'coverage/', '.claude/worktrees/'] },
   js.configs.recommended,
   ts.configs.recommended,
   svelte.configs.recommended,

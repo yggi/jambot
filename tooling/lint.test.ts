@@ -87,3 +87,13 @@ describe('lint keeps the pure packages pure', () => {
       expect(await firing(code, path)).not.toContain('no-restricted-syntax');
   });
 });
+
+describe('lint leaves out the worktrees agents work in', () => {
+  it('ignores a whole checkout under .claude/worktrees, and nothing of the same name elsewhere (#192)', async () => {
+    expect(await eslint.isPathIgnored(`${root}/.claude/worktrees/agent-1/apps/web/src/a.ts`)).toBe(
+      true,
+    );
+    expect(await eslint.isPathIgnored(`${root}/apps/web/src/worktrees/a.ts`)).toBe(false);
+    expect(await eslint.isPathIgnored(`${root}/apps/web/src/a.ts`)).toBe(false);
+  });
+});
