@@ -6,7 +6,7 @@
   props and send intents, and know nothing of the sessions or the device.
 -->
 <script lang="ts">
-  import Drawer from './components/Drawer.svelte';
+  import Card from './components/Card.svelte';
   import Fader from './components/Fader.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
@@ -208,7 +208,7 @@
 </script>
 
 {#snippet sound()}
-  <Drawer name="MIDI and sound" status={device.access ? 'MIDI connected' : 'Built-in synth'}>
+  <Card title="MIDI and sound" main={device.access ? 'MIDI connected' : 'Built-in synth'}>
     <MidiPanel
       settings={device.settings}
       access={device.access}
@@ -216,7 +216,7 @@
       onconnect={connectMidi}
       onpanic={() => player.panicMidi()}
     />
-  </Drawer>
+  </Card>
 {/snippet}
 
 <main>

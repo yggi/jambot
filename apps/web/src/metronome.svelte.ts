@@ -38,14 +38,12 @@ function load(): StoredPrefs {
 export class Metronome {
   on = $state(false);
   #volume = $state(load().volume);
-  /** The eighth of the bar heard now, from 0, or null likewise. */
-  eighth: number | null = $state(null);
   /** The pulse heard now, from 0, or null while off, stopped or before anything is heard. */
   pulse: number | null = $state(null);
   /** Whether the pulse heard now is the bar's downbeat. */
   downbeat = $state(false);
 
-  #heard = new Heard<{ eighth: number; pulse: number; downbeat: boolean }>();
+  #heard = new Heard<{ pulse: number; downbeat: boolean }>();
 
   get volume(): number {
     return this.#volume;
@@ -77,7 +75,6 @@ export class Metronome {
       if (seconds < now) continue;
       output.click(click.weight, seconds, this.#volume);
       this.#heard.push(seconds, {
-        eighth: click.eighth,
         pulse: click.pulse,
         downbeat: click.weight === 'downbeat',
       });
@@ -89,7 +86,6 @@ export class Metronome {
   follow(seconds: number) {
     const latest = this.#heard.take(seconds);
     if (latest === undefined) return;
-    this.eighth = latest.eighth;
     this.pulse = latest.pulse;
     this.downbeat = latest.downbeat;
   }
@@ -97,7 +93,6 @@ export class Metronome {
   /** The band stopped: nothing is heard. It stays on, for the next song. */
   rest() {
     this.#heard.clear();
-    this.eighth = null;
     this.pulse = null;
     this.downbeat = false;
   }

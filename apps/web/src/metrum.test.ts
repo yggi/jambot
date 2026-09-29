@@ -1,6 +1,6 @@
 import { BAR_STEPS } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { METER_NAME, barMarks } from './metrum.ts';
+import { METER_NAME, barMarks, eighthHeard } from './metrum.ts';
 
 describe('the metrum', () => {
   it('names the song’s meter', () => expect(METER_NAME).toBe('4/4'));
@@ -39,5 +39,14 @@ describe('the metrum', () => {
     expect(barMarks(0, null).some((m) => m.lit)).toBe(false);
     const lit = barMarks(0, 5).flatMap((m, i) => (m.lit ? [i] : []));
     expect(lit).toEqual([10]);
+  });
+});
+
+describe('the eighth heard', () => {
+  it('is null before anything is heard, else the eighth of the bar the step is in', () => {
+    expect(eighthHeard(null)).toBeNull();
+    const perBar = Array.from({ length: BAR_STEPS }, (_, step) => eighthHeard(step));
+    expect(perBar).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7]);
+    expect(eighthHeard(BAR_STEPS + 5)).toBe(2);
   });
 });

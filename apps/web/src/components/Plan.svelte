@@ -12,7 +12,7 @@
   import { SECTION_BARS } from '@jambot/engine';
   import type { Hud } from '../hud.ts';
   import { keyName } from '../noteNames.ts';
-  import Fold from './Fold.svelte';
+  import Card from './Card.svelte';
   import NextBars from './NextBars.svelte';
   import SongMap from './SongMap.svelte';
 
@@ -25,7 +25,7 @@
   let { hud, playing }: Props = $props();
 
   const heard = $derived(hud.beat !== null);
-  const name = $derived(
+  const main = $derived(
     heard && hud.bar
       ? `${hud.bar.section} · bar ${hud.bar.barInSection + 1} of ${SECTION_BARS}`
       : playing
@@ -42,7 +42,7 @@
   const ahead = $derived(hud.next.length);
 </script>
 
-<Fold heading="Plan" {name} {sub}>
+<Card title="Plan" {main} {sub}>
   {#if hud.sections.length > 0}
     <SongMap sections={hud.sections} bar={heard ? (hud.bar?.bar ?? null) : null} />
   {/if}
@@ -52,7 +52,7 @@
       <NextBars before={hud.bar} bars={hud.next} />
     </div>
   {/if}
-</Fold>
+</Card>
 
 <style>
   .caption {

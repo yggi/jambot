@@ -86,6 +86,7 @@
     tempo={tempoView(player.track, player.tempoNudge)}
     swing={player.track.swing.to}
     {metronome}
+    heard={player.heard}
     playing={player.playing}
     {following}
     onintent={(intent) => player.apply(intent)}
