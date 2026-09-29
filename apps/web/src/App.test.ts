@@ -47,6 +47,24 @@ describe('the app', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
   });
 
+  it('lays the music out in the order of the composition, with the settings folded above it', () => {
+    const { container } = render(App);
+    const levels = [...container.querySelectorAll('h2')].map((h) => h.textContent);
+    expect(levels.slice(0, 6)).toEqual([
+      'Transport',
+      'Style',
+      'Metrum',
+      'Key',
+      'Plan and chords',
+      'Tracks',
+    ]);
+    const drawers = [...container.querySelectorAll('details > summary .name')].map(
+      (n) => n.textContent,
+    );
+    expect(drawers).toEqual(['Connection', 'MIDI and sound']);
+    expect(screen.getByText('Solo')).toBeInTheDocument();
+  });
+
   it('starts from Synth-pop, and a preset sets the sliders and tempo at once while stopped', async () => {
     render(App);
     expect(screen.getByRole('button', { name: 'Synth-pop' })).toHaveAttribute(

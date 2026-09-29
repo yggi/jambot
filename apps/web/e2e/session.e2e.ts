@@ -18,7 +18,15 @@ import {
 /** The lobby server `playwright.config.ts` starts. */
 const LOBBY = 'ws://localhost:4319';
 
+/** Opens the Connection drawer, where a session is hosted or joined, unless it is open. */
+const connection = async (page: Page) => {
+  const drawer = page.locator('details', { has: page.getByText('Connection', { exact: true }) });
+  if ((await drawer.getAttribute('open')) === null)
+    await drawer.getByText('Connection', { exact: true }).click();
+};
+
 const host = async (page: Page, session: string, lobby = '') => {
+  await connection(page);
   await page.getByLabel('Lobby server').fill(lobby);
   await page.getByLabel('Session name').fill(session);
   await page.getByRole('button', { name: 'Host a session' }).click();
@@ -26,6 +34,7 @@ const host = async (page: Page, session: string, lobby = '') => {
 };
 
 const join = async (page: Page, session: string, name: string, lobby = '') => {
+  await connection(page);
   await page.getByLabel('Lobby server').fill(lobby);
   await page.getByLabel('Session name').fill(session);
   await page.getByLabel('Your name').fill(name);
@@ -236,6 +245,7 @@ test('the lobby server lists the sessions open, and refuses a join to none', asy
   const elsewhere = await browser.newContext();
   const other = await elsewhere.newPage();
   await listen(other);
+  await connection(other);
   await other.getByLabel('Lobby server').fill(LOBBY);
   await other.getByRole('button', { name: 'Find sessions' }).click();
   await other.getByRole('button', { name: 'Listed Jam' }).click();
@@ -281,6 +291,7 @@ test('a second host cannot take a session name that is open', async ({ page, con
   const other = await context.newPage();
   await listen(other);
   await host(page, 'taken');
+  await connection(other);
   await other.getByLabel('Session name').fill('Taken ');
   await other.getByRole('button', { name: 'Host a session' }).click();
   await expect(other.getByText('A session named “Taken” is already open.')).toBeVisible();

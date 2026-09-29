@@ -103,11 +103,21 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   so the shape reads as "what has the band been playing lately", not the current
   scale, and not everything ever played. Stage stays plain text: the key's name
   and its notes ascending from the tonic (`scaleNoteNames`), no wheel of its
-  own. The toggle sits inside the host-only `.controls` fieldset with the rest
-  of `KeyPicker`, so a client can see the wheel and the radar (fieldset
-  `disabled` hides nothing, only disables the form controls in it) but can't yet
-  flip the toggle themselves — a known seam, not yet worth its own escape from
-  the fieldset (#134).
+  own. The toggle sits inside the host-only Key level with the rest of
+  `KeyPicker`, so a client can see the wheel and the radar (fieldset `disabled`
+  hides nothing, only disables the form controls in it) but can't yet flip the
+  toggle themselves — a known seam, which #167 dissolves by drawing the history
+  always (#134).
+- The page (`App.svelte`) lays the music out in the order of the composition,
+  top to bottom, one `Level` each: transport, style, metrum, key, plan and
+  chords, tracks (#163). A `Level` is a heading over a fieldset; `resting`
+  disables its controls where a client takes the host's (transport, style, key),
+  and the metrum and the tracks, the client's own, never rest. What isn't the
+  music sits folded above it, one `Drawer` each: Connection (`SessionPanel`) and
+  MIDI and sound (`MidiPanel`), each summary saying what it is set to. An e2e
+  check that hosts or joins opens the Connection drawer first (`connection` in
+  `session.e2e.ts`). A new widget goes into the level it belongs to, not into a
+  corner of another.
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot
   (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and
   drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a

@@ -106,7 +106,7 @@
     display: grid;
     gap: 6px;
     min-width: 0;
-    flex: 1;
+    flex: 1 1 200px;
   }
   .toggle {
     display: flex;

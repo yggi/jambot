@@ -309,7 +309,13 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/test-setup.ts`: `@testing-library/jest-dom`'s matchers, loaded once
       for every component test
     - `src/App.svelte`: the page, which holds the player and hands each
-      component its props; components take props and send intents
+      component its props; components take props and send intents. The music in
+      the order of the composition, a `Level` each, the settings in `Drawer`s
+      above it
+      - `src/components/Level.svelte`: one level of the composition, a heading
+        over its controls, which rest for a client where the host leads
+      - `src/components/Drawer.svelte`: a folded settings card, its name and
+        what it is set to on one line
       - `src/components/Transport.svelte`: start and stop, and the tempo
       - `src/components/StylePanel.svelte`: the presets, the style sliders, and
         a line saying where the style is: a preset playing, a glide under way,
