@@ -56,6 +56,10 @@ else
   stamp=1
 fi
 
+# In a linked worktree git hands the hook GIT_DIR and friends, and a check that
+# makes a repository of its own (the tests do) would talk to this one instead:
+# it once overwrote `main` on the remote.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 log=$(mktemp)
 if ! sh -c "$check" >"$log" 2>&1; then
   tail -40 "$log" >&2

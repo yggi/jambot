@@ -3,7 +3,7 @@
  * under a permissive license and carry its license text, which the build
  * passes on in `licenses.txt`. A copyleft package, such as Strudel
  * (AGPL-3.0-or-later), fails the build instead of arriving unnoticed; taking
- * one in is a decision, not a side effect of an import (`docs/MEMORY.md`).
+ * one in is a decision, not a side effect of an import (`docs/memory/repository-and-ci.md`).
  * `apps/web/vite.config.ts` runs it over the modules of every build.
  */
 import { readdirSync, readFileSync } from 'node:fs';

@@ -148,6 +148,23 @@ describe('pre-push', () => {
     expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
   });
 
+  it('runs its check without the GIT_DIR a linked worktree hands a hook', () => {
+    const dir = repoWith(['a.ts']);
+    const head = git(dir, 'rev-parse', 'HEAD');
+    const run = spawnSync('sh', [`${root}/.githooks/pre-push`, 'origin', 'url'], {
+      cwd: dir,
+      input: `refs/heads/work ${head} refs/heads/work ${zero}\n`,
+      env: {
+        ...process.env,
+        GIT_DIR: join(dir, '.git'),
+        JAMBOT_VERIFY: 'test -z "$GIT_DIR" || { echo GIT_DIR leaked; exit 1; }',
+      },
+      encoding: 'utf8',
+    });
+    expect(run.stderr).not.toContain('GIT_DIR leaked');
+    expect(run.status).toBe(0);
+  });
+
   it('is what a checkout runs: the install points core.hooksPath at it', () => {
     const scripts = JSON.parse(readFileSync(`${root}/package.json`, 'utf8')).scripts;
     expect(scripts.prepare).toContain('core.hooksPath .githooks');
