@@ -145,13 +145,15 @@ These are not known yet:
 - **More than two tracks.** The analyzer (#3) and the web client (#22) will feed
   #7 too, and `quinetic.md` (#39) already gathers properties across tracks.
   Whether the rules above hold unchanged for that is not tested yet.
-- **Whether the ratchet makes progress** (#43). `pnpm ratchet` counts entries by
-  evidence and rules by how over `main`'s history. Three days and 34
-  catalogue-touching commits now show evidence rising from 39 to 72 entries (17
-  to 52 measured) with no falls, and decisions on measured options growing
-  faster than ones taken ahead of the evidence (2:1 at the `Decided:` split,
-  11:3 now). Whether that keeps rising or plateaus is still open. Crossings per
-  pair, and how long each takes to land as a test, live in issue comments and
-  are counted by hand.
+- **Whether the ratchet makes progress** (#43).
+  `pnpm ratchet` counts entries by evidence and rules by how over `main`'s history.
+  Four days show evidence rising from 39 to 83 entries (17 to 62 measured) with no falls, and decisions on measured options growing faster than ones taken ahead of the evidence (13:7).
+  Whether that keeps rising or plateaus is still open: the round that built the licences and the key's history (#171) landed eight catalogue-touching commits and no new entry, so a harvest can lag the work it harvests.
+  Crossings per pair, and how long each takes to land as a test, live in issue comments and are counted by hand.
+- **Whether the ratchet contracts** (#181).
+  The law of generalization prefers a decision dissolved to one taken, so `pnpm ratchet` also prints the rules dissolved against every rule and against the rules made (on measured options or ahead of the evidence): `2/36 2:20` on `main` after #171.
+  A rule counts by how it stands, so one made ahead of the evidence and later dissolved counts as dissolved from then on.
+  A low share is a question, not a failure: most rules so far were inherited, or had options the evidence could not separate.
+  It gates nothing until #43 decides it should.
 - **Convergence.** The Dialectica form is exact for a single claim and its test.
   Whether the design as a whole converges is not claimed.
