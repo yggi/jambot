@@ -113,6 +113,7 @@ test('clicks the band’s own beats, and the swing moves its offbeats to the ban
   page,
 }) => {
   await listen(page);
+  await solo(page);
   await page.getByRole('button', { name: 'Swing jazz' }).click();
   await page.getByLabel('Metrum').locator('summary').click();
   await page.getByRole('button', { name: 'Click' }).click();
