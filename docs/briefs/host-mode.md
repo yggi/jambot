@@ -220,9 +220,12 @@ It works, with one rule: load the app from `localhost` on every machine.
   capped at 3,000, about what the load test puts on one shared CPU. Once,
   `fly apps create jambot-lobby`; then `pnpm lobby:deploy` from the
   repository's root, which builds the container remotely. It is reached at
-  `wss://jambot-lobby.fly.dev`. The app names no lobby of its own until it
-  is deployed: a build names one with `VITE_LOBBY_URL`, and a player can
-  type any.
+  `wss://jambot-lobby.fly.dev`. A session deploys it with the `lobby-deploy`
+  skill, from a `FLY_API_TOKEN` in its environment (a deploy token for this
+  app), since Actions can't while #4 is open. The Pages build names this
+  lobby by default, from the app name in `fly.toml` (`flyLobbyUrl` in
+  `tooling/pages.ts`); `VITE_LOBBY_URL` set for a build names another, and a
+  player can type any.
 
 At an event, one laptop runs `pnpm lobby`, which prints the addresses to
 give; every player runs the app on their own machine and types that

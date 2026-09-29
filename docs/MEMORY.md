@@ -12,7 +12,7 @@ pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes
 pnpm lobby        # the lobby server for sessions across machines, on 8787
-pnpm lobby:deploy # the lobby server to Fly.io (needs flyctl and the account)
+pnpm lobby:deploy # the lobby server to Fly.io (needs flyctl and FLY_API_TOKEN; the lobby-deploy skill)
 pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
 pnpm pages deploy # publish main to GitHub Pages, and check the live site
 ```
