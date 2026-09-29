@@ -13,6 +13,7 @@ import { type BandBar, band } from './band.ts';
 import { chordAt } from './chords.ts';
 import { writtenProblems } from './events.ts';
 import { keyHelix } from './key.ts';
+import recorded from './lead.fixture.json';
 import { LEAD_RANGE, type LeadCarried, lead, leadRests } from './lead.ts';
 import { SECTION_TYPES } from './form.ts';
 import { type Script, lawBreaks } from './machine.ts';
@@ -282,6 +283,59 @@ describe('the lead', () => {
         .sort((a, b) => Math.abs(a - before.last) - Math.abs(b - before.last) || a - b)[0]!;
       expect(wrap(first.note - nearest, 12)).toBe(0);
     }
+  });
+});
+
+/**
+ * What the lead writes over every preset, seeds 1 to 3 and 32 bars from the
+ * song's start, at entropy 0.3: per preset and seed, one string per bar, each
+ * note `step:note:length`, and `:accent` where it has one.
+ */
+const recording = () =>
+  Object.fromEntries(
+    PRESETS.map((preset) => [
+      preset.name,
+      Object.fromEntries(
+        [1, 2, 3].map((seed) => {
+          let carried = band.initial;
+          const bars = range(32).map((bar) => {
+            const next = band.advance(
+              {
+                seed,
+                bar,
+                style: { ...preset.style, entropy: 0.3 },
+                wish: { tonic: null, mode: preset.mode },
+                offer: null,
+              },
+              carried,
+              null,
+            );
+            carried = next.carried;
+            return next.output.written
+              .filter((e) => e.part === 'lead')
+              .map((e) =>
+                [e.step, e.note, e.length, ...('accent' in e ? [e.accent] : [])].join(':'),
+              )
+              .join(' ');
+          });
+          return [String(seed), bars];
+        }),
+      ),
+    ]),
+  );
+
+describe('what the lead writes', () => {
+  it('is the recorded notes, note for note, over every preset, three seeds and 32 bars', () => {
+    // The recording pins every phrase parameter and the order of every draw:
+    // a change to what the lead plays fails here, and a change meant to is
+    // re-recorded on purpose, as `JSON.stringify(recording(), null, 2)`.
+    const notes = (bars: readonly string[]) => bars.join(' ').split(' ').filter(Boolean).length;
+    const playedIn = Object.values(recorded).filter((seeds) =>
+      Object.values(seeds).some((bars) => notes(bars) > 0),
+    );
+    expect(playedIn.length).toBeGreaterThanOrEqual(PRESETS.length - 1);
+    expect(Object.keys(recorded)).toEqual(PRESETS.map((p) => p.name));
+    expect(recording()).toEqual(recorded);
   });
 });
 
