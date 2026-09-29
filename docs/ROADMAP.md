@@ -34,11 +34,15 @@ panel shows the motif and its log (#79, done). The lead's status line and its
 performer row name whose motif it plays, bar by bar, from the bar's own offer,
 for a solo band and for a session's host and client. What is left of that is
 the view: a motif bar tinted in its source's colour, and the players' own rows
-in the tracks grid (#164, #183). Next for the Muse, in order: a
-log of what players play, which A5's question and #16's encoder both need;
-confidence across players (A3), which a session makes pressing; the ear's
-reading of a player's style, and following it (#16, A4); and answering a motif
-through its operators (U5) rather than repeating it. What the prototype still
+in the tracks grid (#164, #183). Next for the Muse (#204), in order: reading a
+sloppy hand as a musician does, with the beat, equal lengths, their ratios and
+plausible rests as priors, since today's one rounding to the nearest step reads
+a hand 30 ms off right in a quarter of its bars (E17, A0 done, A1 to A6 next);
+a log of what players play, which A5's question and #16's encoder both need;
+confidence across players (A3), which a session makes pressing and the reading's
+own confidence feeds; the ear's reading of a player's style, and following it
+(#16, A4); and answering a motif through its operators (U5) rather than
+repeating it. What the prototype still
 does that the app doesn't is the score (#63). #26's HUD is otherwise caught up:
 what remains there (the score panel, Strudel export) waits on #63.
 

@@ -1674,5 +1674,25 @@ run; the others have.
     `even(k, 16, shift)`, with k of 3, 5 or 7 and a shift of 0 to 3, so the line
     can write them as one Euclid token.
 
+- **E17. How well the Muse reads a sloppy hand** (A5's confidence, U4; #204 A0), in
+  [`packages/engine/experiments/muse-reading.ts`](../packages/engine/experiments/muse-reading.ts)
+  and its humaniser and yardstick in `humanise.ts` (about 1 s), over 200 patterns, each played 5 times, 890 bars whose exact playing the Muse takes as a motif.
+  - A pattern fills a bar with one dominant note value (a quarter, an eighth or a sixteenth) that gives way now and then to a longer, shorter or dotted one, with rests.
+  - A hand plays it in bar 1 at 120 bpm (a step is 125 ms).
+    One number, the sloppiness, is the standard deviation in ms of each onset's jitter, of the phrase's offset, of the tempo's drift over the bar and of each release's jitter, and the sloppier the hand the shorter it holds a note (a gate of 1 − sloppiness / 500).
+  - The target is what `judgeBar` makes of the exact playing.
+    The reading that exists rounds each onset and release to the nearest step.
+  - Read exactly at 0 ms, and 99.7% at 10 ms.
+    Then 69.3% at 20 ms, 26.9% at 30, 8.9% at 40, 3.0% at 50, 1.1% at 60, and none at 80 and 100.
+    A good player is at 20 to 40 ms.
+  - The rest is where it goes wrong.
+    Of the bars read wrong at 30 ms, 64% got a rest nobody meant, because a release and the next onset are rounded apart: 1 step of gap out of two noises of a fraction of a step.
+    Without the shorter hold the share at 30 ms is 45.5%, and the bars read right 41.5%, so it is the rounding, not the articulation.
+  - A note struck early or late enough to change bars strays in 11.2% of the bars at 30 ms, 27.1% at 60, and 42.7% at 100: the bar it belongs to loses its first note (A1).
+  - Notes put on another step, a note lost with another on its step, and no motif at all are each under 10% up to 60 ms.
+  - So the reading's first lesson is not where the notes go but where the rests are: a rest must be a plausible value or nothing (A4), and comes before the note value (A2).
+  - The yardstick has both ends: an exact hand is read 100%, and a reader that hears nothing 0%.
+    The baseline's numbers are literals in `humanise.test.ts`, to be raised by the step that improves them.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
