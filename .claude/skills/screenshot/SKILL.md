@@ -48,6 +48,18 @@ Run such a script with `node --experimental-strip-types --no-warnings`.
 - **Pick the example by a measure**, such as the bar with the most overlaps, and
   say which bar it is.
 
+### A change to the page itself
+
+For a change to what the page shows, the picture is the built app, driven:
+`pnpm build`, then `pnpm preview --port 4317` in `apps/web`, and a Playwright
+script that plays what the change is about (a motif typed on the computer keys,
+a preset, a mute) and shoots the card with `locator.screenshot`. Shoot at 390 CSS
+pixels wide and `deviceScaleFactor: 2`, once with `colorScheme: 'light'` and once
+`'dark'`. The script imports `@playwright/test`, which resolves from `apps/web`
+only, so it runs from there while it runs and moves back to the scratchpad
+after; stop the preview by its port (`ss -ltnp | grep 4317`), or `pnpm e2e`
+won't start. The tracks card of #206 was shot so.
+
 ### Audio through the app's synth
 
 Where the difference is heard, render it. `inlineModule` returns a repository
@@ -86,6 +98,9 @@ Read every PNG. A validator can't see these:
   false across the run.
 - **Marks that invert their meaning**: shading by percentage makes 80% darker
   than 100%. Mark pass and fail with words and signs instead.
+- **A range that hides the difference**: rolls over the band's whole range
+  squeezed #209's scales into a band where they looked the same. Zoom onto the
+  part compared, and draw a reference line (every C) to read pitches against.
 
 ## 5. Send, and where things go
 

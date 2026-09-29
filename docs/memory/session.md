@@ -40,4 +40,6 @@ Facts about `packages/session` and the app's sessions: clocks, the fault kit and
   `lost`, `away` and `back` are said by a lobby adapter, never read off the wire (`readClientMessage` and `readHostMessage` refuse them).
   A client's ids are the lobby's per socket (`c0`, `c1`, …), and restart from `c0` with the lobby, so the roster never gives a new player an id an away one holds.
   The web tests' `memoryLobby` has `cut()` to drop every client's link and `refusing` to refuse joins; the real-socket ones wrap `WebSocket` to close one as a phone's system would, without a word.
+  `memoryLobby` answers at once, but a client's `join` returns as soon as the join is sent, before the host's welcome: a test of what shows in between holds the host's answers (`held`, `sessions.test.ts`, #202).
+  The host's kept snapshot and the client's resume have versions of their own (`snapshot.ts`): a change to a shape inside one, such as `KeyWish` in the host's, bumps that one's version alone, so a client can still rejoin across a deploy (#226).
   Explicit close sends `end` to the lobby: without it the name would be held for the grace.
