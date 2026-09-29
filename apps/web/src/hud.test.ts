@@ -13,7 +13,10 @@ import {
   glideTo,
   holding,
   leadRests,
+  MELODIC_SCALES,
+  melodicHelix,
 } from '@jambot/engine';
+import { positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { NEXT_BARS, SECTIONS, hudOf, leadStatus, presetOf, styleStatus } from './hud.ts';
 import type { BarView } from './hud.ts';
@@ -27,7 +30,7 @@ const env: TransportEnv = {
   seed: 5,
   start: 0,
   track,
-  wish: { tonic: null, mode: 'aeolian' },
+  wish: { tonic: null, mode: 'aeolian', melodic: null },
 };
 const bars = forecast(env, null, 32);
 
@@ -128,6 +131,31 @@ describe('the lead and the key ahead', () => {
     ]);
     // A aeolian, unchanged before bar 16: A B C D E F G.
     expect(hudOf({ heard: 0, bars: moved, track }).bar!.scale).toEqual([0, 2, 4, 5, 7, 9, 11]);
+  });
+
+  it('shows the melodic scale of the bar’s own plan, its notes and its name, beside the key’s own notes (#209)', () => {
+    for (const melodic of MELODIC_SCALES) {
+      const moved = bars.map((b) => (b.bar >= 16 ? { ...b, plan: { ...b.plan, melodic } } : b));
+      const at = hudOf({ heard: 16 * 16, bars: moved, track }).bar!;
+      const { key } = moved[16]!.plan;
+      expect(at.melodic).toEqual(positions(melodicHelix(key, melodic)));
+      expect(at.melodicName).toBe(melodic);
+      expect(at.scale).toEqual([0, 2, 4, 5, 7, 9, 11]);
+      const before = hudOf({ heard: 0, bars: moved, track }).bar!;
+      expect([before.melodic, before.melodicName]).toEqual([[0, 2, 4, 5, 7, 9, 11], 'plain']);
+    }
+    // A minor's pentatonic: A C D E G.
+    const penta = bars.map((b) => ({ ...b, plan: { ...b.plan, melodic: 'pentatonic' as const } }));
+    expect(hudOf({ heard: 0, bars: penta, track }).bar!.melodic).toEqual([0, 2, 4, 7, 9]);
+  });
+
+  it('gives the melodic scale the band is heading for: the last bar decided’s (#209)', () => {
+    const moving = bars.map((b) =>
+      b.bar >= 16 ? { ...b, plan: { ...b.plan, melodic: 'blues' as const } } : b,
+    );
+    expect(hudOf({ heard: 16 * 3, bars: moving, track }).headingMelodic).toBe('blues');
+    expect(hudOf({ heard: null, bars, track }).headingMelodic).toBe('plain');
+    expect(hudOf({ heard: null, bars: [], track }).headingMelodic).toBeNull();
   });
 
   it('gives the bar’s own tonic, not another', () => {
@@ -278,6 +306,8 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     key: 'A minor',
     tonic: 9,
     scale: [0, 2, 4, 5, 7, 9, 11],
+    melodic: [0, 2, 4, 5, 7, 9, 11],
+    melodicName: 'plain',
     chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
     energy: 0.6,
     lead: 'improvising',

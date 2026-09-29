@@ -18,7 +18,7 @@
   import StylePanel from '../components/StylePanel.svelte';
   import Tracks from '../components/Tracks.svelte';
   import Transport from '../components/Transport.svelte';
-  import { keyReachOf, tempoView } from '../conductor.ts';
+  import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { toggled } from '../mix.ts';
@@ -98,6 +98,8 @@
     heading={player.hud.heading}
     reach={keyReachOf(player.track)}
     home={player.home}
+    melodic={player.hud.headingMelodic}
+    melodicReach={melodicReachOf(player.track)}
     history={player.harmonicHistory}
     onintent={(intent) => player.apply(intent)}
   />
@@ -120,7 +122,7 @@
       {#if performer === 'lead'}
         <Keyboard
           down={instruments.heldLead}
-          scale={player.hud.bar?.scale ?? []}
+          scale={player.hud.bar?.melodic ?? []}
           sounding={player.sounding.lead}
           onnote={(note, velocity, on) =>
             instruments.toLead(note, velocity, on, 'the on-screen keys')}
@@ -142,10 +144,10 @@
 
 <p class="note">
   The band plays drums, bass, chords and lead, over MIDI or the built-in synth. Join in on the
-  lead's keyboard or the drums' pads, under the track selected: a dot marks the current scale, and
-  amber shows what the band's own lead and drums are playing. Play a few notes within a bar on the
-  keyboard, and the Muse takes them as a motif the lead plays back from the bar after next, in your
-  colour. The score is still in the
+  lead's keyboard or the drums' pads, under the track selected: a dot marks the scale the lead plays
+  over, and amber shows what the band's own lead and drums are playing. Play a few notes within a
+  bar on the keyboard, and the Muse takes them as a motif the lead plays back from the bar after
+  next, in your colour. The score is still in the
   <a href={prototypeUrl}>prototype</a>.
 </p>
 

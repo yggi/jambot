@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import KeyPicker from './KeyPicker.svelte';
 
@@ -44,7 +44,7 @@ describe('the key picker', () => {
       reach: 6,
       onintent: () => {},
     });
-    const radios = screen.getAllByRole('radio');
+    const radios = within(screen.getByRole('radiogroup', { name: 'Scale' })).getAllByRole('radio');
     expect(radios.map((r) => r.textContent)).toEqual([
       'lyd',
       'major',
@@ -202,5 +202,62 @@ describe('the key picker', () => {
     for (const name of ['D', 'A', 'E']) expect(screen.getByRole('button', { name })).toBeEnabled();
     for (const name of ['G', 'B', 'C', 'F♯'])
       expect(screen.getByRole('button', { name })).toBeDisabled();
+  });
+
+  describe('the melodic scale (#209)', () => {
+    const scales = () =>
+      within(screen.getByRole('radiogroup', { name: 'Melodic scale' })).getAllByRole('radio');
+
+    it('offers the plain scale, the pentatonic and the blues, those beyond the style’s reach disabled, the one heading checked', () => {
+      render(KeyPicker, {
+        heading: { tonic: 9, mode: 'aeolian' },
+        history: NO_HISTORY,
+        reach: 6,
+        melodic: 'pentatonic',
+        melodicReach: ['plain', 'pentatonic'],
+        onintent: () => {},
+      });
+      expect(scales().map((r) => r.textContent)).toEqual(['plain', 'pentatonic', 'blues']);
+      expect(scales().map((r) => (r as HTMLButtonElement).disabled)).toEqual([false, false, true]);
+      expect(screen.getByRole('radio', { name: 'pentatonic' })).toBeChecked();
+    });
+
+    it('offers only the plain scale where the style reaches no other, as Techno does, and checks it by default', () => {
+      render(KeyPicker, {
+        heading: { tonic: 9, mode: 'aeolian' },
+        history: NO_HISTORY,
+        reach: 1,
+        onintent: () => {},
+      });
+      expect(scales().map((r) => (r as HTMLButtonElement).disabled)).toEqual([false, true, true]);
+      expect(screen.getByRole('radio', { name: 'plain' })).toBeChecked();
+    });
+
+    it('wishes for the scale picked, and for nothing else of the key', async () => {
+      const onintent = vi.fn();
+      render(KeyPicker, {
+        heading: { tonic: 9, mode: 'aeolian' },
+        history: NO_HISTORY,
+        reach: 6,
+        melodicReach: ['plain', 'pentatonic', 'blues'],
+        onintent,
+      });
+      await fireEvent.click(screen.getByRole('radio', { name: 'blues' }));
+      expect(onintent).toHaveBeenLastCalledWith({ kind: 'key', wish: { melodic: 'blues' } });
+      await fireEvent.click(screen.getByRole('radio', { name: 'pentatonic' }));
+      expect(onintent).toHaveBeenLastCalledWith({ kind: 'key', wish: { melodic: 'pentatonic' } });
+    });
+
+    it('rests on a client, as the key does', () => {
+      render(KeyPicker, {
+        heading: { tonic: 9, mode: 'aeolian' },
+        history: NO_HISTORY,
+        reach: 6,
+        melodicReach: ['plain', 'pentatonic', 'blues'],
+        following: true,
+        onintent: () => {},
+      });
+      for (const radio of scales()) expect(radio).toBeDisabled();
+    });
   });
 });

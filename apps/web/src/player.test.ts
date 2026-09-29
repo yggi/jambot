@@ -203,7 +203,7 @@ describe('the player', () => {
     // Synth-pop at 108 bpm: a bar is 2.2 s. Deep house is dorian.
     play(3);
     player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Deep house')! });
-    expect(player.wish).toEqual({ tonic: null, mode: 'dorian' });
+    expect(player.wish).toEqual({ tonic: null, mode: 'dorian', melodic: null });
     play(20);
     for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('minor');
     expect(heard.get(8)).toBe('dorian');
@@ -379,7 +379,35 @@ describe('the player', () => {
     for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('A minor');
     expect(heard.get(8)).toBe('G major');
     // Once the band plays the key picked, the pick lets go, and the band moves on from there (#169).
-    expect(player.wish).toEqual({ tonic: null, mode: 'ionian' });
+    expect(player.wish).toEqual({ tonic: null, mode: 'ionian', melodic: null });
+  });
+
+  it('hears a melodic scale picked while playing from the next section on, heads there at once, and keeps it (#209)', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    void player.start();
+    world.resolve();
+    await settle();
+    const heard = new Map<number, { name: string; notes: readonly number[] }>();
+    const play = (seconds: number) => {
+      for (let t = 0; t < seconds; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+        const { bar, beat } = player.hud;
+        if (beat !== null && bar) heard.set(bar.bar, { name: bar.melodicName, notes: bar.melodic });
+      }
+    };
+    // Synth-pop at 108 bpm: a bar is 2.2 s, and its harmony reaches the pentatonic.
+    play(3);
+    player.apply({ kind: 'key', wish: { melodic: 'pentatonic' } });
+    expect(player.hud.headingMelodic).toBe('pentatonic');
+    expect(player.hud.bar!.melodicName).toBe('plain');
+    play(20);
+    for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)!.name).toBe('plain');
+    // A minor's pentatonic: A C D E G.
+    expect(heard.get(8)).toEqual({ name: 'pentatonic', notes: [0, 2, 4, 7, 9] });
+    expect(player.wish).toEqual({ tonic: null, mode: 'aeolian', melodic: 'pentatonic' });
   });
 
   describe('what players play', () => {

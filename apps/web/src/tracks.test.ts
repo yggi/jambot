@@ -16,6 +16,8 @@ const barView = (over: Partial<BarView> = {}): BarView => ({
   key: 'A aeolian',
   tonic: 9,
   scale: [0, 2, 4, 5, 7, 9, 11],
+  melodic: [0, 2, 4, 5, 7, 9, 11],
+  melodicName: 'plain',
   chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
   energy: 0.6,
   lead: 'improvising',
@@ -31,6 +33,7 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
   sections: [],
   style: { preset: 'Techno', glide: null },
   heading: { tonic: 9, mode: 'aeolian' },
+  headingMelodic: 'plain',
   muse: { motif: null, log: [] },
   ...over,
 });

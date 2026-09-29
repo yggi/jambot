@@ -12,7 +12,7 @@ const snapshot: HostSnapshot = {
   roster: [],
   players: { host: 'Bo' },
   track: {} as never,
-  wish: { tonic: null, mode: 'aeolian' },
+  wish: { tonic: null, mode: 'aeolian', melodic: null },
   tempoNudge: 0,
 };
 const resume: ClientResume = {

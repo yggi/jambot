@@ -318,3 +318,44 @@ for (const input of INPUTS)
     ).toBeVisible({ timeout: 8000 });
     expect(errors).toEqual([]);
   });
+
+test('offers a melodic scale within the style’s reach, and the keyboard marks it (#209)', async ({
+  page,
+}) => {
+  const errors = await listen(page);
+  await solo(page);
+  const scales = page.getByRole('radiogroup', { name: 'Melodic scale' });
+  /** The on-screen keys marked with a dot. */
+  const marked = async () => {
+    const keys = page.getByRole('group', { name: 'On-screen keyboard' }).getByRole('button');
+    const names: string[] = [];
+    for (const button of await keys.all())
+      if ((await button.getAttribute('class'))?.includes('in-scale'))
+        names.push((await button.getAttribute('aria-label')) ?? '');
+    return names;
+  };
+  /** Unfold the key card, which folds again when the key it names changes. */
+  const unfold = async () => {
+    const card = page.locator('details[aria-label="Key"]');
+    if (!(await card.evaluate((details) => (details as HTMLDetailsElement).open)))
+      await card.locator('summary').click();
+    await expect(scales).toBeVisible();
+  };
+  // Techno's harmony reaches the plain scale alone.
+  await page.getByRole('button', { name: 'Techno' }).click();
+  await unfold();
+  await expect(scales.getByRole('radio', { name: 'plain' })).toBeChecked();
+  await expect(scales.getByRole('radio', { name: 'pentatonic' })).toBeDisabled();
+  await expect(scales.getByRole('radio', { name: 'blues' })).toBeDisabled();
+  // Lo-fi hip hop's reaches the blues. Stopped, a pick is what the band opens on.
+  await page.getByRole('button', { name: 'Lo-fi hip hop' }).click();
+  await unfold();
+  await expect(scales.getByRole('radio', { name: 'blues' })).toBeEnabled();
+  // A minor from C4 to E5: C D E F G A B, twice but for the last B, F and G.
+  expect(await marked()).toHaveLength(17 - 7);
+  await scales.getByRole('radio', { name: 'pentatonic' }).click();
+  await expect(scales.getByRole('radio', { name: 'pentatonic' })).toBeChecked();
+  await expect(page.getByLabel('Conductor').getByText('A minor · pentatonic')).toBeAttached();
+  await expect.poll(marked).toEqual(['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5', 'E5']);
+  expect(errors).toEqual([]);
+});

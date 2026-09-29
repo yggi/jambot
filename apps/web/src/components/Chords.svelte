@@ -5,7 +5,8 @@
   the beats of the bar, one dot per beat of the song's meter, lit up to the
   one heard; the bar's chords on a `Ruler` of its steps, each where it
   starts, the one sounding lit; and the key heard with its notes, spelled in
-  it. The card sits in the `Conductor` region, where the lead's line is read
+  it, and the melodic scale the lead walks over it where it isn't plain
+  ("A minor · pentatonic", #209). The card sits in the `Conductor` region, where the lead's line is read
   (`band.e2e.ts`, `session.e2e.ts`).
 -->
 <script lang="ts">
@@ -54,7 +55,11 @@
       />
     {/if}
     {#if hud.bar}
-      <div class="reading"><span>{hud.bar.key}</span><b>{notes}</b></div>
+      <div class="reading">
+        <span
+          >{hud.bar.key}{hud.bar.melodicName === 'plain' ? '' : ` · ${hud.bar.melodicName}`}</span
+        ><b>{notes}</b>
+      </div>
     {/if}
   </Fold>
 </section>
