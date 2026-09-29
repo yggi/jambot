@@ -187,7 +187,7 @@ undoes it. Test: `motifs.test.ts`, whose tests cite Q5c: every pair of 48
 operators on every one of the 525 motifs of a 4-step cycle, rests and
 alterations included, and on each of them with its notes accented, the laws and
 `undo`, `late` and `rev` as `shift` and `mirror` of the rhythm, and the heads'
-laws. E13 measures how far the lead's variations are these operators: 97% of its
+laws. E13 measures how far the lead's variations are these operators: 96% of its
 variation bars are the shape under one, but for the phrase's close and at most
 one other note. Source: quintenzirkel's variation operators, Lewin's T and I, #7
 (d). Status: measured. Lands in: #7 (d), decided as U4 and U5.

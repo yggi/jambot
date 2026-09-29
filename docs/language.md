@@ -1590,20 +1590,17 @@ run; the others have.
   do and whose contour, at the best `strans`, differs from it in the fewest
   notes. A `head` leaves a rest, which the lead holds its last note over, so
   only the notes' onsets are compared.
-  - Shape bars: fitting the shape to the chords (a chord tone on the half bar
-    and on a chord's start, an octave fold) changes 131 of 4,476 notes (2.9%),
-    in 13.8% of bars. 37 bars have a note off the key.
-  - Variation bars (927): 12.1% are the shape under an operator exactly, 61.7%
-    but for their last note, which the phrase's close sets, 23.8% but for one
-    other note (a nudge or a chord tone), 2.4% two notes or more off. Every one
-    has an operator's rhythm. The operators are the shape itself, up to a
+  - Shape bars: fitting the shape to the chords (a chord tone on a chord's start and on the strong steps the harmony leaves, every beat for a vamp and the half bar below rich harmony, #168; an octave fold) changes 161 of 4,567 notes (3.5%), in 15.2% of bars.
+    32 bars have a note off the key.
+  - Variation bars (931): 11.6% are the shape under an operator exactly, 59.2% but for their last note, which the phrase's close sets, 25.3% but for one other note (a nudge or a chord tone), 3.9% two notes or more off.
+    The vamps' every-beat snap (#168) moves more notes to chord tones than the half bar did, so a few more bars sit two notes off (2.4% before).
+    Every one has an operator's rhythm. The operators are the shape itself, up to a
     `strans` (52%, the lift and the bent close), `mirror` (27%) and a `head`
     (18%). The lead never uses `rev` or `late`.
-  - Phrases (457): 52% are a cell and an operator on it in every bar but for the
-    close, 90% allowing one more note a bar. Written as a cell and a reference
+  - Phrases (457): 48% are a cell and an operator on it in every bar but for the close, 88% allowing one more note a bar. Written as a cell and a reference
     per bar, with a degree for each note an operator doesn't give, a phrase
     takes 52% of the tokens it takes as notes.
-  - Symmetries: 10 of the lead's 132 shapes have one, so several operators give
+  - Symmetries: 10 of the lead's 149 shapes have one, so several operators give
     the same bar, and `canonicalOp` chooses which the score writes (U5).
 
 - **E14. One token grammar for pitch and time** (U6; #7, #116 §6, #125, #126),

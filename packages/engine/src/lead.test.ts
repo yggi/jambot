@@ -190,13 +190,14 @@ describe('the lead', () => {
     }
   });
 
-  it('lands on a chord tone on the half bar and where a chord starts, and walks the key between', () => {
+  it('lands on a chord tone where its phrase parameters snap, and walks the key between', () => {
     for (const { bar, events } of playing) {
       const inKey = new Set(positions(keyHelix(bar.plan.key)));
+      const { snap } = phraseParams(bar);
       for (const e of events) {
         const chord = chordAt(bar.chords, e.step);
         const tones = new Set(classesOf(joinChord(chord.chord)));
-        const onChord = e.step % 8 === 0 || bar.chords.some((c) => c.slot.step === e.step);
+        const onChord = snap.includes(e.step);
         if (onChord) expect(tones.has(wrap(e.note, 12))).toBe(true);
         else expect(inKey.has(wrap(e.note, 12)) || tones.has(wrap(e.note, 12))).toBe(true);
       }
@@ -390,37 +391,91 @@ describe('the phrase parameters', () => {
       }
   });
 
-  it('weigh every contour alike, and the variations 0.3, 0.25, 0.25, 0.2, over every preset', () => {
+  it('lean the contour from the arch toward the wave as the harmony grows, less so with entropy, over every preset (#168)', () => {
+    const share = (p: { contours: readonly number[] }, i: number) =>
+      p.contours[i]! / p.contours.reduce((a, b) => a + b, 0);
+    const withHarm = (bar: BandBar, harm: number, entropy: number) =>
+      phraseParams({ ...bar, style: { ...bar.style, harm, entropy } });
+    for (const { bar } of barsOf)
+      for (const entropy of grid) {
+        const over = grid.map((harm) => withHarm(bar, harm, entropy));
+        const arch = over.map((p) => share(p, 0));
+        const wave = over.map((p) => share(p, 3));
+        expect(ascending(arch.map((x) => -x))).toBe(true);
+        expect(ascending(wave)).toBe(true);
+        expect(wave.at(-1)!).toBeGreaterThan(wave[0]!);
+        // The fall and the rise weigh alike, always.
+        for (const p of over) expect(p.contours[1]).toBe(p.contours[2]);
+      }
+    // A static vamp at no entropy arches most; rich harmony waves most.
+    const [vamp, rich] = [withHarm(barsOf[0]!.bar, 0, 0), withHarm(barsOf[0]!.bar, 1, 0)];
+    expect(share(vamp, 0)).toBeGreaterThan(share(vamp, 3));
+    expect(share(rich, 3)).toBeGreaterThan(share(rich, 0));
+  });
+
+  it('weigh the variations 0.3, 0.25, 0.25, 0.2, in the lead’s range, over every preset', () => {
     for (const { bar } of barsOf)
       for (const energy of grid) {
         const p = at(bar, energy, 0.3);
-        expect(p.contours).toEqual([1, 1, 1, 1]);
         expect(p.variations).toEqual([0.3, 0.25, 0.25, 0.2]);
         expect(p.range).toEqual(LEAD_RANGE);
       }
   });
 
-  it('snap on the half bar and where each of the bar’s chords starts, a chord on every step', () => {
+  it('snap where each chord starts, the half bar below harm 0.6, and every beat below 0.25, over every preset (#168)', () => {
+    const strong = (harm: number) => (harm < 0.25 ? [0, 4, 8, 12] : harm < 0.6 ? [0, 8] : [0]);
     for (const { bar } of barsOf) {
       const starts = bar.chords.map((c) => c.slot.step);
-      expect(phraseParams(bar).snap).toEqual(
-        range(16).filter((s) => s % 8 === 0 || starts.includes(s)),
-      );
+      const over = grid.map((harm) => phraseParams({ ...bar, style: { ...bar.style, harm } }).snap);
+      over.forEach((snap, i) => {
+        expect(snap).toEqual([...new Set([...strong(grid[i]!), ...starts])].sort((a, b) => a - b));
+        // Richer harmony never snaps more, and always snaps where a chord starts.
+        if (i > 0) expect(snap.every((s) => over[i - 1]!.includes(s))).toBe(true);
+        for (const start of starts) expect(snap).toContain(start);
+      });
       // The themes start chords on 0 and 8 only, so a chord is added on each step.
       const chord = bar.chords[0]!;
-      for (const step of range(16)) {
-        const chords = [chord, { ...chord, slot: { ...chord.slot, step } }];
-        expect(phraseParams({ ...bar, chords }).snap).toEqual(
-          [...new Set([0, 8, step])].sort((a, b) => a - b),
-        );
-      }
+      for (const harm of [0, 0.5, 1])
+        for (const step of range(16)) {
+          const chords = [chord, { ...chord, slot: { ...chord.slot, step } }];
+          const style = { ...bar.style, harm };
+          expect(phraseParams({ ...bar, style, chords }).snap).toEqual(
+            [...new Set([...strong(harm), 0, step])].sort((a, b) => a - b),
+          );
+        }
     }
   });
 
-  it('read the style’s sync and entropy and the bar’s energy, and nothing else of the style', () => {
+  it('lift the off-beat eighths with the swing, and nothing else, 0 when straight, over every preset (#168)', () => {
+    for (const { bar } of barsOf) {
+      const over = grid.map(
+        (swing) => phraseParams({ ...bar, style: { ...bar.style, swing } }).pickups,
+      );
+      over.forEach((pickups, i) => {
+        expect(pickups).toHaveLength(16);
+        pickups.forEach((lift, s) => expect(lift).toBe(s % 4 === 2 ? 0.3 * grid[i]! : 0));
+      });
+      expect(over[0]!.every((lift) => lift === 0)).toBe(true);
+    }
+  });
+
+  it('plays more of its notes on the off-beat eighths the more it swings (#168)', () => {
+    const offBeats = (swing: number) => {
+      const bars = [1, 2, 3, 4, 5, 6].flatMap((seed) =>
+        tour(seed, 64, (b) => ({ ...styleAt(b), swing })),
+      );
+      const notes = play(bars).flatMap((p) => p.events);
+      return notes.filter((e) => e.step % 4 === 2).length / notes.length;
+    };
+    const [straight, half, full] = [offBeats(0), offBeats(0.5), offBeats(1)];
+    expect(half).toBeGreaterThan(straight);
+    expect(full).toBeGreaterThan(half);
+  });
+
+  it('read the style’s sync, entropy, harmony and swing and the bar’s energy, and nothing else of the style', () => {
     for (const { bar } of barsOf) {
       const base = phraseParams(bar);
-      for (const axis of ['swing', 'harm', 'artic', 'energy', 'bpm'] as const)
+      for (const axis of ['artic', 'energy', 'bpm'] as const)
         for (const value of [0, 0.5, 1, 90])
           expect(phraseParams({ ...bar, style: { ...bar.style, [axis]: value } })).toEqual(base);
       const sync = bar.style.sync === 1 ? 0 : 1;
