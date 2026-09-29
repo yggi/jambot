@@ -26,7 +26,7 @@ describe('the key’s loop, left alone (E19)', () => {
     }
   });
 
-  it('reads a key held a section or more back from the band’s chords where the harmony is rich, and not always where it is thin (F3, C9)', () => {
+  it('reads a key held a section or more back from the band’s chords where the harmony is rich, and not always where it is thin (F3, C9, Q12)', () => {
     const held = (name: string) => still.find((m) => m.preset === name)!.heldError;
     for (const name of ['Deep house', 'Bossa nova', 'Swing jazz']) expect(held(name), name).toBe(0);
     for (const name of ['Synth-pop', 'Lo-fi hip hop']) expect(held(name), name).toBeLessThan(0.01);
@@ -34,14 +34,14 @@ describe('the key’s loop, left alone (E19)', () => {
       expect(held(name), name).toBeGreaterThan(0.01);
   });
 
-  it('brings the home to a new key in under 4 bars, but not by the section’s end where the harmony is thin (A4, C9)', () => {
+  it('brings the history’s centre to a new key in under 4 bars, but not by the section’s end where the harmony is thin (A4, C9)', () => {
     for (const m of moving.filter((m) => m.reach > 0)) {
-      expect(m.homeLag, m.preset).toBeLessThan(4);
-      expect(m.homeError, m.preset).toBeGreaterThan(0.2);
+      expect(m.centreLag, m.preset).toBeLessThan(4);
+      expect(m.centreError, m.preset).toBeGreaterThan(0.2);
     }
-    expect(named('Swing jazz').homeMissed).toBe(0);
-    expect(named('Bossa nova').homeMissed).toBeLessThan(0.05);
-    expect(named('Funk').homeMissed).toBeGreaterThan(0.2);
-    expect(named('Ambient').homeMissed).toBeGreaterThan(0.4);
+    expect(named('Swing jazz').centreMissed).toBe(0);
+    expect(named('Bossa nova').centreMissed).toBeLessThan(0.05);
+    expect(named('Funk').centreMissed).toBeGreaterThan(0.2);
+    expect(named('Ambient').centreMissed).toBeGreaterThan(0.4);
   });
 });

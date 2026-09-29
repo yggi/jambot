@@ -657,7 +657,7 @@ describe('a phrase across bars', () => {
       }
   });
 
-  it('turns a repeated bar into a symmetry: late by a bar leaves the phrase as it is, and the canonical operator writes it as no operator at all (finite: every bar that joins) (T15, U5, F3)', () => {
+  it('turns a repeated bar into a symmetry: late by a bar leaves the phrase as it is, and the canonical operator writes it as no operator at all (finite: every bar that joins) (T15, U5, F3, Q12)', () => {
     const byBar = { ...NOOP, late: SPAN };
     for (const a of bars) {
       const twice = joinBars([a, a])!;

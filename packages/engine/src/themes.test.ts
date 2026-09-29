@@ -119,6 +119,12 @@ describe('themes', () => {
     }
   });
 
+  it('start an A theme on the tonic at every harmony, vamp or walk, so the chords come home whenever the form brings A back (Q11)', () => {
+    const themes = sweep.filter(([e]) => e.kind === 'A');
+    expect(themes.length).toBe(COMPOSER_MODES.length * harms.length * 3 * 20);
+    for (const [, theme] of themes) expect(walkedOf(theme.bars[0]!)).toBe(0);
+  });
+
   it('lead into a bar only through its secondary dominant, and never toward a diminished chord', () => {
     const DIMINISHED: Record<string, number> = { aeolian: 1, dorian: 5, ionian: 6, mixolydian: 2 };
     let secondaries = 0;

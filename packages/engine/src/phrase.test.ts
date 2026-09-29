@@ -15,7 +15,7 @@ const heard = (positions: number[], end?: (p: number) => number | null): HeardNo
 const positionsOf = (notes: HeardNote[]) => notes.map((n) => n.position);
 
 describe('phrases', () => {
-  it('end at an empty bar and not at a shorter rest', () => {
+  it('end at an empty bar and not at a shorter rest (Q12)', () => {
     const short = heard([0, 4, 4 + EMPTY_BAR - 1]);
     expect(phrasesOf(short)).toHaveLength(1);
     const empty = heard([0, 4, 4 + EMPTY_BAR]);
