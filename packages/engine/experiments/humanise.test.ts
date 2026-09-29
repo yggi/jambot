@@ -137,12 +137,12 @@ describe('the Muse’s baseline reading of a sloppy hand (E17)', () => {
 });
 
 /**
- * Phrases (A1): two phrases of one to three bars with an empty bar between,
+ * Phrases (#204's step 1): two phrases of one to three bars with an empty bar between,
  * each humanised alone. The nearest-step reading is the baseline, and
  * reading each phrase as one span (`readHeard`) must never do worse than it
  * and does better from 20 ms: recorded as literals to ±3 points (E17).
  */
-describe('reading phrases of a sloppy hand (E17, A1)', () => {
+describe('reading phrases of a sloppy hand (E17)', () => {
   const share = (r: { bars: number }, n: number) => n / r.bars;
 
   it('reads an exact hand right both ways, and a hearing of nothing not at all', () => {

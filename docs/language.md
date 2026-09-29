@@ -1696,7 +1696,7 @@ run; the others have.
     The baseline's numbers are literals in `humanise.test.ts`, to be raised by the step that improves them.
   - **A1: a phrase read whole** (`readHeard`, `packages/engine/src/phrase.ts`).
     Two phrases of one to three bars with an empty bar between, each humanised alone: 3,600 bars.
-    A phrase ends at a silence of a bar less a step (`EMPTY_BAR`), is read as one span with the phrase's offset found (shrunk toward none) and its first onset put on the beat where the odds say so (`BEAT_ODDS`, against the hand's own looseness), then cut at the bar lines.
+    A phrase ends at a silence of a bar less a step (`EMPTY_BAR`), is read as one span with the phrase's offset found (shrunk toward none) and its first onset put on the beat where the odds say so (`BEAT_EVIDENCE`, odds of 6 to 1 against the hand's own looseness), then cut at the bar lines.
     Nearest step against a phrase read whole, bars right, and bars whose notes all start where they were meant (rests aside): 20 ms 69.1% and 82.9% against 83.6% and 92.8%; 30 ms 27.3% and 46.5% against 34.0% and 53.9%; 40 ms 9.1% and 23.3% against 10.1% and 26.4%.
     Bars with a note in the wrong bar at 30 ms: 9.9% against 7.6%.
   - Reading is no better from 60 ms, and marginally worse in right bars (a handful in 3,600): a hand that loose puts a note past half a step from where it meant, which no prior on the first onset repairs.

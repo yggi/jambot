@@ -15,7 +15,7 @@
  *   onset may be from the step it meant;
  * - the phrase's start, which very probably is on a beat: a first onset
  *   between a beat and the step nearest it goes where the odds, its
- *   distance weighed by the hand's own looseness against `BEAT_ODDS`, say.
+ *   distance weighed by the hand's own looseness against `BEAT_EVIDENCE`, say.
  *
  * What a phrase was meant to be beyond where its onsets go, the note value,
  * the lengths and the rests, is A2 to A4's.
@@ -32,11 +32,13 @@ import { readOnsets } from './reading.ts';
 export const EMPTY_BAR = BAR_STEPS - 1;
 
 /**
- * How many times likelier a phrase is to start on a beat than on one
- * particular step off it. A phrase starts on a beat very probably, and the
- * beat has three steps beside it to one.
+ * What a phrase starting on a beat is worth against starting on one
+ * particular step off it, as the log of the odds, in nats: about 1.8, odds
+ * of 6 to 1. A phrase starts on a beat very probably, and the beat has
+ * three steps beside it to one. Written as a log so that no transcendental
+ * function decides a step (#45).
  */
-export const BEAT_ODDS = 6;
+export const BEAT_EVIDENCE = 1.8;
 
 /** The least a hand's looseness is taken to be, in steps: a player exact to the ear is not exact to the step. */
 export const LOOSENESS_FLOOR = 0.08;
@@ -95,9 +97,9 @@ export function readPhrase(phrase: readonly HeardNote[]): HeardNote[] {
   const after = beatStart(beatAt(first) + 1);
   const beat = first - before <= after - first ? before : after;
   if (beat !== steps[0]) {
-    const score = (step: number, odds: number) =>
-      Math.log(odds) - (first - step) ** 2 / (2 * looseness ** 2);
-    if (score(beat, BEAT_ODDS) > score(steps[0]!, 1)) steps[0] = beat;
+    const score = (step: number, evidence: number) =>
+      evidence - (first - step) ** 2 / (2 * looseness ** 2);
+    if (score(beat, BEAT_EVIDENCE) > score(steps[0]!, 0)) steps[0] = beat;
   }
   return notes.map((n, i) => ({
     ...n,
