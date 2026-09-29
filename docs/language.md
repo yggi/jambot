@@ -167,12 +167,14 @@ time); #7, on measured options (dynamics and articulation, E9). Lands in: #37
 Witness: `licenceOf(style).feel` (`licence.ts`), 0.5 × swing + 0.3 × entropy + 0.2 × (1 − articulation), which reads `velocityLooseness` and `lengthLooseness` (`performer.ts`): one seeded draw per part and per field, added into `velocityOf`'s and `lengthOf`'s existing formulas, exactly as `drumVelocity` already did for drum velocity alone.
 The genre sets the range, swing and articulation, and the players' entropy, which no preset sets, how much of it is used (#176).
 The weights sum to 1, so the feel lies within 0 and 1; it is exactly 0 at swing 0, entropy 0 and articulation 1, and only there, and at any one entropy the presets run from Techno, the tightest, to Swing jazz, the loosest (at entropy 0.3: Techno 0.09, Synth-pop 0.18, Bossa nova 0.20, Funk 0.27, Deep house 0.31, Ambient 0.315, Lo-fi hip hop 0.445, Swing jazz 0.73).
-Velocity's width is ±12 × feel around the base and its accent, the same 24 drums always had at the widest; length's is a factor of 1 down to 1 − 0.15 × feel, so a gated length never grows.
+The performer also draws its own accent (#170, `ownAccent`, `performer.ts`): a velocity delta from its bar and step, 0 at feel 0, as wide as the feel, and leaning as a player does: a ghost note up to 14 × feel softer on an off-beat 16th, a push up to 10 × feel louder on the off-beat 8th, a lean of 4 × feel either way on the beat.
+It is added on top of the base and any written accent (T18), so a written accent is never lost, and the base's beat reading (`roleAccent`) stays the base's.
+Velocity's width is ±12 × feel around the base and its accent, widened by the own accent to 26 × feel down and 22 × feel up; length's is a factor of 1 down to 1 − 0.15 × feel, so a gated length never grows.
 Over every note of three seeds' 96-bar tours of the presets, entropy rising, every velocity and length lies within those bounds.
 Counterexample: a part or a field whose spread stays 0 when the feel is above 0 (T4's dynamics and articulation would then still hold cold), a spread above 0 when it is 0, or a length that exceeds its base (the licence would then lengthen, not gate).
 Keyed by bar and step only, never by the note's pitch, for every part but the drums: a bass or comp note resumed in another register must draw the same looseness as before it was resumed (S2), and only a drum hit's sound, not a register, is its identity.
-Test: `performer.test.ts`, "gives every part a licence, velocity and length alike, that widens with the feel and holds still at 0 (#107, #147, T17)"; `licence.test.ts`, whose tests of the feel cite T17: its range and its rise along each axis, the exact-zero corner, and the presets' order, over every preset at every tenth of entropy; `drums.test.ts`, "loosen their velocities from bar to bar as the feel rises, and not when held still (T17)"; `band.test.ts`, "carries register into the bass and the comp, but a phrase into the lead: what a resumed band loses (S2)", unbroken by this witness.
-Source: #147 (T4's neighbour, which found only drums had one); #176, which reads the width from the style's feel.
+Test: `performer.test.ts`, "gives every part a licence, velocity and length alike, that widens with the feel and holds still at 0 (#107, #147, T17)" and "draws its own accent within the licence: still at feel 0, wider as the feel rises, ghosts off the 16th and a push on the off-8th, in any register (#170, T17)"; `licence.test.ts`, whose tests of the feel cite T17: its range and its rise along each axis, the exact-zero corner, and the presets' order, over every preset at every tenth of entropy; `drums.test.ts`, "loosen their velocities from bar to bar as the feel rises, and not when held still (T17)"; `band.test.ts`, "carries register into the bass and the comp, but a phrase into the lead: what a resumed band loses (S2)", unbroken by this witness.
+Source: #147 (T4's neighbour, which found only drums had one); #170, which leaves accent freedom to the performer; #176, which reads the width from the style's feel.
 Status: measured.
 Decided: owner, ahead of the evidence — every part, and timing as well as velocity, the way a real musician's and instrument's expression works, derived from the style, no new style axis (#107, #116 §7); the feel from swing, entropy and legato, with the presets' order as the measure of its weights (#176, #170).
 Lands in: #147 (closes); #176.
@@ -516,7 +518,7 @@ Lands in: #13.
 
 **S3. A performer's own draw never keys on what a resumed band may still differ
 on: a pitched part's note, its register.** Witness:
-`velocityLooseness`/`lengthLooseness` (`performer.ts`) key every pitched part's
+`velocityLooseness`/`lengthLooseness` and `ownAccent` (`performer.ts`) key every pitched part's
 draw by bar and step alone; only the drums, whose note is a sound's identity
 rather than a register, keep the note in the key. Counterexample: a draw keyed
 by the note too, matching `drumVelocity`'s own shape for every part.
@@ -1729,6 +1731,15 @@ run; the others have.
     So it was taken out, and A3 stands as the nesting alone.
     Not tried: note values that are not a power of two (triplets, whose places are thirds of a beat), and ratios read from the lengths of notes as well as from their onsets.
   - What is left is the per-onset jitter of a loose hand, which the equal lengths (A2) and their ratios (A3) address, and the rests a loose hand can't tell from a release.
+
+- **E18. The lead driven by the style** (T4; #168 step 2), in
+  [`packages/engine/experiments/lead-style.ts`](../packages/engine/experiments/lead-style.ts)
+  (under 1 s): every preset at entropy 0.3, over 5 seeds and 64 bars, run at each of step 2's three commits.
+  - The harmony shapes the contour, from an arch where it is low toward a wave where it is high: the line turns less often in Techno (harmony 0, 0.18 to 0.14 turns a note) and Funk (0.12, 0.14 to 0.11), and more in Lo-fi hip hop (0.75, 0.14 to 0.18) and Bossa nova (0.85, 0.14 to 0.17).
+  - The harmony thins the strong steps a note snaps to a chord tone on, from every beat below 0.25 to the downbeat alone from 0.6: the beats on a chord tone rise where it is low (Techno 0.78 to 1.00, Funk 0.94 to 1.00) and fall a little where it is high (Lo-fi hip hop 0.81 to 0.75).
+  - The swing adds pickups on the off-beat eighths: Swing jazz (swing 1) goes from 0.17 to 0.26 of its notes there, and from 4.30 to 4.77 notes a bar; Deep house (0.3) from 0.14 to 0.18; the presets without swing are unchanged.
+  - All three stay, decided by ear (#168).
+    The articulation is left out, since the performer already plays it (T4).
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

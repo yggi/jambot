@@ -3,7 +3,10 @@
   its eight bars, as tall as their energy, and a chord loop of its first
   four bars' first chords. The section playing is highlighted, its past
   bars filled and the bar heard ringed. A new key is named on the section
-  where it comes. The prototype's layout.
+  where it comes. Under each bar the lead plays a motif in, a mark in its
+  player's colour (`attribution.ts`): filled once heard, only outlined
+  ahead, where it holds the offer standing now, which it plays unless
+  another comes. The prototype's layout.
 -->
 <script lang="ts">
   import type { SectionView } from '../hud.ts';
@@ -36,6 +39,19 @@
             class:cur={k === 0 && b.bar === bar}
             style:height="{Math.round(8 + b.energy * 92)}%"
           ></i>
+        {/each}
+      </span>
+      <span class="credits" aria-hidden="true">
+        {#each section.bars as b (b.bar)}
+          {#if b.lead === 'motif' && b.motif}
+            <i
+              class="credited"
+              class:ahead={bar === null || b.bar > bar}
+              style:--colour="var(--source-{b.motif.colour})"
+            ></i>
+          {:else}
+            <i></i>
+          {/if}
         {/each}
       </span>
       <span class="loop">{loop(section)}</span>
@@ -73,6 +89,23 @@
   }
   .loop {
     margin-top: 4px;
+  }
+  .credits {
+    display: flex;
+    gap: 2px;
+    height: 4px;
+    margin-top: 2px;
+  }
+  .credits i {
+    flex: 1;
+    border-radius: 2px;
+  }
+  .credits i.credited {
+    background: var(--colour);
+  }
+  .credits i.credited.ahead {
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--colour);
   }
   .bars {
     display: flex;

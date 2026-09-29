@@ -260,6 +260,8 @@ describe('the app', () => {
       await renderBand();
       await fireEvent.keyDown(window, { key: 'a' });
       expect(screen.getByRole('button', { name: 'C4' })).toHaveClass('down');
+      // The pads are the drums' instrument, under the drums once selected.
+      await fireEvent.click(screen.getByRole('button', { name: 'Drums' }));
       await fireEvent.keyDown(window, { key: '1' });
       expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');
     });
@@ -280,13 +282,14 @@ describe('the app', () => {
         target: { value: 'all' },
       });
 
-      port.onmidimessage!({ data: [0x99, 36, 100] } as unknown as MIDIMessageEvent); // channel 10: kick
-      await tick();
-      expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');
-
       port.onmidimessage!({ data: [0x90, 64, 100] } as unknown as MIDIMessageEvent); // channel 1: E4
       await tick();
       expect(screen.getByRole('button', { name: 'E4' })).toHaveClass('down');
+
+      await fireEvent.click(screen.getByRole('button', { name: 'Drums' }));
+      port.onmidimessage!({ data: [0x99, 36, 100] } as unknown as MIDIMessageEvent); // channel 10: kick
+      await tick();
+      expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');
 
       delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
     });

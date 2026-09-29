@@ -30,20 +30,14 @@ on-screen keyboard and a set of drum pads mark the current key's scale and flash
 for the band's own lead and drum notes, and play at once, along with the band,
 from any input source (#25). The Muse hears a motif on any input, or from a
 session's clients, and the lead plays it back from the bar after next, and its
-panel shows the motif and its log (#79, done). The lead's status line and its
-performer row name whose motif it plays, bar by bar, from the bar's own offer,
-for a solo band and for a session's host and client. What is left of that is
-the view: a motif bar tinted in its source's colour, and the players' own rows
-in the tracks grid (#164, #183). Next for the Muse (#204), in order: reading a
-sloppy hand as a musician does, with the beat, equal lengths, their ratios and
-plausible rests as priors, since today's one rounding to the nearest step reads
-a hand 30 ms off right in a quarter of its bars, and a phrase read whole in 46% (E17; A0 to A4 done, A5 and A6 next).
+panel shows the motif and its log (#79, done).
+The lead's status line and the tracks grid name whose motif it plays, bar by bar, from the bar's own offer, for a solo band and for a session's host and client (#164, #183, done).
+The lead's lane tints a motif's bars in its player's colour, over that player's own lane, which marks the bar the Muse took.
+Next for the Muse (#204), in order: reading a sloppy hand as a musician does, with the beat, equal lengths, their ratios and plausible rests as priors, since today's one rounding to the nearest step reads a hand 30 ms off right in a quarter of its bars, and a phrase read whole in 46% (E17; A0 to A4 done, A5 and A6 next).
 The reading is one with the analyzer's `quantiseSection`, a shared reader in the engine, and it hears a phrase, not a bar: she listens across bars until the player leaves a bar empty, and what she does with a phrase (motifs and their order, variations, a composer's memory) is #207;
 a log of what players play, which A5's question and #16's encoder both need;
-confidence across players (A3), which a session makes pressing and the reading's
-own confidence feeds; the ear's reading of a player's style, and following it
-(#16, A4); and answering a motif through its operators (U5) rather than
-repeating it. What the prototype still
+confidence across players (A3), which a session makes pressing and the reading's own confidence feeds; the ear's reading of a player's style, and following it (#16, A4); and answering a motif through its operators (U5) rather than repeating it.
+What the prototype still
 does that the app doesn't is the score (#63). #26's HUD is otherwise caught up:
 what remains there (the score panel, Strudel export) waits on #63.
 

@@ -94,7 +94,8 @@ import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
-import { EMPTY_BAR, Pattern, type PatternBar } from './pattern.ts';
+import { EVEN_MIX, type Mix, sounds } from './mix.ts';
+import { Pattern, type PatternBar } from './pattern.ts';
 import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
 import type { Metronome } from './metronome.svelte.ts';
 import { startTicker } from './ticker.ts';
@@ -230,9 +231,13 @@ export class Player {
   dropped: readonly DroppedJudgement[] = $state.raw([]);
   /** The band's own notes heard sounding right now, one entry per performer. */
   sounding: SoundingNotes = $state(SILENT);
-  /** The last bar each track finished, for its piano roll, and whose motif the lead played in it. */
-  pattern: PatternBar = $state.raw(EMPTY_BAR);
-  /** Which pitch classes the band has actually sounded lately, weighted and decaying. */
+  /** The band's last bars, each track's notes in each, and whose motif the lead played in it (`Pattern`). */
+  pattern: readonly PatternBar[] = $state.raw([]);
+  /**
+   * Which of the band's performers this device sounds (`Mix`): this
+   * device's alone, never sent to a session, and kept across songs.
+   */
+  mix: Mix = $state.raw(EVEN_MIX);
   /**
    * The band's harmonic history, which its key follows (#169): the engine's
    * own while the band plays here, and for a client the same fold over the
@@ -572,7 +577,7 @@ export class Player {
     this.#sounding.clear();
     this.sounding = SILENT;
     this.#pattern.clear();
-    this.pattern = EMPTY_BAR;
+    this.pattern = [];
     this.harmonicHistory = NO_HISTORY;
   }
 
@@ -690,9 +695,11 @@ export class Player {
     this.#timing = timedTick(this.#timing, { at: this.#surroundings.page(), now, scheduled });
     for (const { bar, offer } of scheduled.composed) this.#pattern.offered(bar, offer);
     for (const { bar, event, seconds, duration } of scheduled.events) {
-      output.play(event.part, event.note, event.velocity, seconds - skew, duration, event);
       const performer = performerOf(event.part);
-      this.#sounding.push({ performer, note: event.note, seconds: seconds - skew, duration });
+      if (sounds(this.mix, performer)) {
+        output.play(event.part, event.note, event.velocity, seconds - skew, duration, event);
+        this.#sounding.push({ performer, note: event.note, seconds: seconds - skew, duration });
+      }
       this.#pattern.push(performer, bar, {
         step: event.step,
         note: event.note,

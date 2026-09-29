@@ -3,7 +3,9 @@
   smaller where a bar has two. A cue names the section where it changes,
   and the key where that changes, as the prototype does. Four bars to a
   row, each in its place in the row, so a section starts a row and a bar
-  stands under the one four before it.
+  stands under the one four before it. A bar the lead is to play a motif in
+  is marked by a ring in its player's colour (`attribution.ts`): the offer
+  standing now, which it plays unless another comes.
 -->
 <script lang="ts">
   import type { BarView } from '../hud.ts';
@@ -42,6 +44,15 @@
       style:grid-column-start={i === 0 ? (bar.barInSection % ROW) + 1 : undefined}
     >
       <span class="cue-label">{cue}</span>
+      {#if bar.lead === 'motif' && bar.motif}
+        <i
+          class="credited"
+          role="img"
+          aria-label="Motif from {bar.motif.name}, heard in bar {bar.motif.bar + 1}"
+          title="Motif from {bar.motif.name}, heard in bar {bar.motif.bar + 1}"
+          style:--colour="var(--source-{bar.motif.colour})"
+        ></i>
+      {/if}
       <b>{symbols}</b>
       <small>{numerals}</small>
     </li>
@@ -58,9 +69,19 @@
     gap: 8px;
   }
   li {
+    position: relative;
     border-top: 3px solid var(--line);
     padding-top: 4px;
     min-width: 0;
+  }
+  .credited {
+    position: absolute;
+    top: 7px;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 2px var(--colour);
   }
   li.cue {
     border-top-color: var(--amber);

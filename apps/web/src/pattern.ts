@@ -1,13 +1,14 @@
 /**
- * The band's own notes of the last bar it finished, one entry per band
- * performer, for a performer's piano roll. `push` takes each event as it is
- * scheduled, in time order, one bar and performer at a time; once a later
- * bar's first note arrives, the bar before it is kept whole across every
- * performer and `get()` returns it, so a roll never changes mid-bar. Before
- * any bar has finished, `get()` gives the one now filling in.
+ * The band's own notes of its last bars, one entry per band performer, for
+ * the tracks' grid. `push` takes each event as it is scheduled, in time
+ * order, one bar and performer at a time, so the bar now building fills in
+ * a moment before it is heard, and a bar before it is whole. `get()` gives
+ * the last `PATTERN_BARS` bars and the one building, oldest first; the bar
+ * building can run a bar ahead of the bar heard, for as long as the band
+ * schedules ahead (`LOOKAHEAD`).
  *
  * A bar keeps its number and the motif the lead played in it (`offered`,
- * from the bar's own `offer` as the band composed it), so what a roll shows
+ * from the bar's own `offer` as the band composed it), so what a bar shows
  * and whose motif it is are always the same bar's. The lead plays an offer
  * whole while it stands, so naming it per bar is exact for the lead.
  *
@@ -16,8 +17,11 @@
  */
 
 import { barStart, heardStep, heardIn, type HeardNote } from '@jambot/engine';
-import type { Attribution } from './hud.ts';
+import type { Attribution } from './attribution.ts';
 import type { Performer } from './sounding.ts';
+
+/** How many bars the tracks show: one phrase. */
+export const PATTERN_BARS = 4;
 
 export interface PatternNote {
   /** The step of the bar it starts on, 0–15. */
@@ -34,36 +38,33 @@ export const EMPTY_PATTERN: BarPattern = { drums: [], bass: [], comp: [], lead: 
 
 /** A bar of the band's notes, the bar it is, and the motif the lead played in it. */
 export interface PatternBar {
-  /** Counted from the song's start, or null before any note. */
-  readonly bar: number | null;
+  /** Counted from the song's start. */
+  readonly bar: number;
   readonly parts: BarPattern;
   /** The source of the motif the lead played in it, by id, and the bar it was heard in; or null. */
   readonly motif: Attribution | null;
 }
-
-export const EMPTY_BAR: PatternBar = { bar: null, parts: EMPTY_PATTERN, motif: null };
 
 function empty(): Record<Performer, PatternNote[]> {
   return { drums: [], bass: [], comp: [], lead: [] };
 }
 
 export class Pattern {
-  #bar: number | null = null;
-  #building = empty();
-  #last: PatternBar | null = null;
-  /** The motif offered for each bar composed and not yet finished. */
+  /** The bars kept, by number, oldest first; the last is the one building. */
+  #bars = new Map<number, Record<Performer, PatternNote[]>>();
+  /** The motif offered for each bar composed and still kept or ahead. */
   #offers = new Map<number, Attribution | null>();
 
-  /** A note of `performer`'s `bar`, in time order; one of a bar already finished is ignored. */
+  /** A note of `performer`'s `bar`, in time order; one of a bar before the one building is ignored. */
   push(performer: Performer, bar: number, note: PatternNote) {
-    this.#bar ??= bar;
-    if (bar > this.#bar) {
-      this.#last = this.#view(this.#bar, this.#building);
-      for (const b of this.#offers.keys()) if (b <= this.#bar) this.#offers.delete(b);
-      this.#building = empty();
-      this.#bar = bar;
+    const building = [...this.#bars.keys()].at(-1);
+    if (building !== undefined && bar < building) return;
+    if (bar !== building) {
+      this.#bars.set(bar, empty());
+      for (const b of this.#bars.keys()) if (b < bar - PATTERN_BARS) this.#bars.delete(b);
+      for (const b of this.#offers.keys()) if (b < bar - PATTERN_BARS) this.#offers.delete(b);
     }
-    if (bar === this.#bar) this.#building[performer] = [...this.#building[performer], note];
+    this.#bars.get(bar)![performer].push(note);
   }
 
   /** A bar composed, with the offer the lead plays in it, or null; kept by source and bar heard alone. */
@@ -71,22 +72,23 @@ export class Pattern {
     this.#offers.set(bar, offer && { source: offer.source, bar: offer.bar });
   }
 
-  /** The last bar finished in full, or the one now filling in before any bar has. */
-  get(): PatternBar {
-    if (this.#last) return this.#last;
-    if (this.#bar === null) return EMPTY_BAR;
-    return this.#view(this.#bar, this.#building);
+  /** The last `PATTERN_BARS` bars and the one building, oldest first; none before any note. */
+  get(): readonly PatternBar[] {
+    return [...this.#bars].map(([bar, parts]) => ({
+      bar,
+      parts: {
+        drums: [...parts.drums],
+        bass: [...parts.bass],
+        comp: [...parts.comp],
+        lead: [...parts.lead],
+      },
+      motif: this.#offers.get(bar) ?? null,
+    }));
   }
 
   clear() {
-    this.#bar = null;
-    this.#building = empty();
-    this.#last = null;
+    this.#bars.clear();
     this.#offers.clear();
-  }
-
-  #view(bar: number, parts: BarPattern): PatternBar {
-    return { bar, parts: { ...parts }, motif: this.#offers.get(bar) ?? null };
   }
 }
 
