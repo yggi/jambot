@@ -1,7 +1,6 @@
 ---
 name: lobby-deploy
-description:
-  Deploy the lobby server (`apps/lobby`) to Fly.io from a Claude Code session,
+description: Deploy the lobby server (`apps/lobby`) to Fly.io from a Claude Code session,
   and check that it answers. Use when asked to deploy, redeploy or check the
   hosted lobby, or after a merge into `main` that changes `apps/lobby` or the
   packages it runs (`session`, `theory`, `engine`).
