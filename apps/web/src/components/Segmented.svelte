@@ -42,7 +42,6 @@
 <style>
   .segmented {
     display: flex;
-    flex-wrap: wrap;
     gap: 1px;
     background: var(--line);
     border: 1px solid var(--line);
@@ -51,8 +50,9 @@
   }
   button {
     flex: 1 1 auto;
+    min-width: 0;
     min-height: 44px;
-    padding: 0 12px;
+    padding: 0 6px;
     border: 0;
     border-radius: 0;
     background: var(--surface);

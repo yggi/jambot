@@ -57,8 +57,7 @@
     {marks}
   />
   <p class="caption">
-    Swing {Math.round(swing * 100)} %, {word}: set with the style. A mark off its tick is the band
-    playing that step late.
+    Swing {Math.round(swing * 100)} %, {word}: set with the style. A mark off its tick plays late.
   </p>
   <div class="click" role="group" aria-label="Click">
     <button
