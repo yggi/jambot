@@ -9,6 +9,9 @@
 #   tracked tree is refused: commit first, and push the branch checked out.
 # - A tree that passed is remembered by its hash (in the git directory), so a
 #   push retried after a network failure does not run the tests again.
+# - A check that failed leaves its whole output in the git directory
+#   (`jambot-verify-failed.log`), named in the message: the last 40 lines
+#   shown may not reach the failure.
 # - A branch that differs from `origin/main` in `*.md` files alone runs the
 #   format check and the tooling tests (the pawl over the catalogues among
 #   them) instead of everything.
@@ -62,9 +65,12 @@ fi
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 log=$(mktemp)
 if ! sh -c "$check" >"$log" 2>&1; then
-  tail -40 "$log" >&2
-  rm -f "$log"
+  # The whole output is kept, since its last lines may miss the failure.
+  kept="$(git rev-parse --absolute-git-dir)/jambot-verify-failed.log"
+  mv "$log" "$kept"
+  tail -40 "$kept" >&2
   echo 'pre-push: the check failed, so the push was blocked. Fix it, commit, and push again.' >&2
+  echo "pre-push: full log: $kept" >&2
   exit 1
 fi
 rm -f "$log"

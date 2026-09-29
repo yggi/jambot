@@ -27,6 +27,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
   It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
   A tree that passed is remembered, so a retried push does not rerun it.
+  A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
   A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone.
   The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
 - To review a pull request, use the `review-pr` skill: `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`, checks it out in its own worktree and runs `pnpm verify` there.

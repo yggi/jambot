@@ -172,6 +172,44 @@ describe('review-pr prepare.sh', () => {
     expect(run.stdout.trim()).toBe('true');
   });
 
+  it('says how to probe the app from inside it, where there is one', () => {
+    expect(prepare(['7', join(root, 'wt')]).stdout).not.toContain('Probe the app:');
+    git(clone, 'checkout', '-q', 'feature');
+    mkdirSync(join(clone, 'apps/web'), { recursive: true });
+    commit('apps/web/package.json', '{}\n', 'Step 4: an app');
+    git(clone, 'push', '-q', 'origin', '+feature:refs/pull/7/head');
+    git(clone, 'checkout', '-q', 'main');
+    const { stdout } = prepare(['7', join(root, 'wt')]);
+    expect(stdout).toContain(`Probe the app: cd ${join(root, 'wt')}/apps/web && node `);
+    expect(stdout).toContain("from './src/hud.ts'");
+  });
+
+  it('starts the app’s probe with the view model over bars the band decided, and runs', () => {
+    git(clone, 'checkout', '-q', 'feature');
+    mkdirSync(join(clone, 'apps/web'), { recursive: true });
+    commit('apps/web/package.json', '{}\n', 'Step 4: an app');
+    git(clone, 'push', '-q', 'origin', '+feature:refs/pull/7/head');
+    git(clone, 'checkout', '-q', 'main');
+    const { stdout } = prepare(['7', join(root, 'wt')]);
+    const probe = /^Probe the app: .*--input-type=module -e "(.*…)"$/m.exec(stdout)![1]!;
+    // Run against this repository's app, as a reviewer would run it.
+    const app = fileURLToPath(new URL('../apps/web', import.meta.url));
+    const body = 'console.log(hudOf({ heard: null, bars, track: env.track }).bar.bar === 0);';
+    const run = spawnSync(
+      'node',
+      [
+        '--experimental-strip-types',
+        '--no-warnings',
+        '--input-type=module',
+        '-e',
+        probe.replace('…', body),
+      ],
+      { cwd: app, encoding: 'utf8' },
+    );
+    expect(run.stderr).toBe('');
+    expect(run.stdout.trim()).toBe('true');
+  });
+
   it('says when verify fails, and shows the end of its output', () => {
     const { status, stdout } = prepare(['7', join(root, 'wt')], 'echo the build broke; exit 1');
     expect(status).toBe(0);
