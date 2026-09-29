@@ -7,6 +7,9 @@
  * first instance: pitch classes are the alphabet, a bar's chords the
  * readings. A reading held every fold settles at the reading times the time
  * constant, 1 / (1 − decay), and a memory left alone fades to nothing.
+ * It also forgets where it started: fed the same readings, two memories
+ * draw together by the decay each fold, so one folded from a late start
+ * needs no snapshot to come to the other.
  *
  * The lean comes in two forms, and both are here: the centre, the candidate
  * that weighs most (the home the players' key licence counts from), and a

@@ -44,6 +44,30 @@ describe('a fading memory', () => {
         expect(memory[0]).toBeCloseTo(0.5 * timeConstant(decay), 9);
       }
   });
+
+  it('forgets where it started: fed the same readings, two memories draw together by the decay each fold (C9)', () => {
+    // So a client that joins late and folds the bars it hears from nothing
+    // comes to the host's memory without being sent it.
+    const readings: [number, number][][] = [
+      [[0, 1]],
+      [],
+      [
+        [1, 0.5],
+        [2, 0.25],
+      ],
+      [[0, 0.75]],
+    ];
+    for (const decay of DECAYS) {
+      let a: readonly number[] = [0, 0, 0];
+      let b: readonly number[] = [9, 3, 6];
+      for (let n = 1; n <= 40; n++) {
+        const reading = readings[n % readings.length]!;
+        [a, b] = [fold(a, decay, reading), fold(b, decay, reading)];
+        const gap = Math.max(...a.map((w, i) => Math.abs(w - b[i]!)));
+        expect(gap).toBeCloseTo(9 * decay ** n, 9);
+      }
+    }
+  });
 });
 
 describe('leaning on a memory', () => {
