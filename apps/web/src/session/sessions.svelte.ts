@@ -166,6 +166,12 @@ export class Sessions {
     await this.asClient.join(lobby, session, name, { lobbyUrl: url });
   }
 
+  /** Forget what a page keeps to come back to a session: a reload after this finds none. */
+  forget() {
+    this.#kept.hostKeep.clear();
+    this.#kept.clientKeep.clear();
+  }
+
   /** Close the session if hosting it, leave it if playing in it. */
   end() {
     if (this.asHost.session !== null) this.asHost.close();

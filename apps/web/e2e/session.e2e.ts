@@ -289,6 +289,61 @@ test('the door lists the sessions open with their players, local and global apar
   await elsewhere.close();
 });
 
+/** The loudest sample at the speakers, every 10 ms for `ms` milliseconds, with the time it was read. */
+const record = (page: Page, ms: number) =>
+  page.evaluate(
+    (ms) =>
+      new Promise<{ t: number; level: number }[]>((resolve) => {
+        const tap = (window as unknown as { tap: AnalyserNode }).tap;
+        const data = new Float32Array(tap.fftSize);
+        const out: { t: number; level: number }[] = [];
+        const began = performance.now();
+        const id = setInterval(() => {
+          tap.getFloatTimeDomainData(data);
+          const t = performance.now() - began;
+          out.push({ t, level: Math.max(...data.map(Math.abs)) });
+          if (t > ms) {
+            clearInterval(id);
+            resolve(out);
+          }
+        }, 10);
+      }),
+    ms,
+  );
+
+test('a session joined comes in on a fade, not at full volume, and leaving fades it out', async ({
+  page,
+  context,
+}) => {
+  await listen(page);
+  const client = await context.newPage();
+  await listen(client);
+  await host(page, 'fade jam');
+  await page.getByRole('slider', { name: /Energy/ }).fill('100');
+  await page.getByRole('button', { name: 'Start the band' }).click();
+  await client.getByLabel('Your name').fill('Ada');
+  await listed(client, 'fade jam').click({ timeout: 8000 });
+  const trace = await record(client, 9000);
+
+  // From the first sound heard, the first 150 ms are well under what comes later.
+  const first = trace.find((s) => s.level > 0.01)!;
+  expect(first).toBeDefined();
+  const within = (from: number, to: number) =>
+    Math.max(
+      ...trace.filter((s) => s.t >= first.t + from && s.t < first.t + to).map((s) => s.level),
+    );
+  expect(within(0, 150)).toBeLessThan(within(3000, 6000) * 0.6);
+
+  // Leaving fades the band out: it plays on while it does, and the door comes once it is quiet.
+  const leaving = record(client, 1500);
+  const clicked = Date.now();
+  await end(client, 'Leave session', 'Yes, leave');
+  await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  expect(Date.now() - clicked).toBeGreaterThanOrEqual(400);
+  const after = await leaving;
+  expect(Math.max(...after.filter((s) => s.t > 1000).map((s) => s.level))).toBeLessThan(0.0005);
+});
+
 test('one tap does not end a session: closing or leaving asks first', async ({ page, context }) => {
   await listen(page);
   const client = await context.newPage();

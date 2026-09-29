@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import Drawer from './components/Drawer.svelte';
+  import Fader from './components/Fader.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
   import Band from './screens/Band.svelte';
@@ -87,13 +88,18 @@
   /** Whether the person chose to play alone: not kept, so a reload lands on the door. */
   let soloChosen = $state(false);
 
+  /** The band is fading out on its way to the door: it stays on screen until it has. */
+  let leaving = $state(false);
+
   const screen = $derived(
-    screenOf({
-      mode: player.mode,
-      clientStatus: clientSession.status,
-      restoring: sessions.restoring,
-      soloChosen,
-    }),
+    leaving
+      ? 'band'
+      : screenOf({
+          mode: player.mode,
+          clientStatus: clientSession.status,
+          restoring: sessions.restoring,
+          soloChosen,
+        }),
   );
 
   // A session takes the place of the choice to play alone.
@@ -132,17 +138,48 @@
     return profile.name.trim();
   };
 
+  /**
+   * A session was joined and the band isn't heard yet: the master stays down
+   * until it plays, then rises, so it doesn't come in at full volume. The
+   * click that joins is what lets the browser play audio at all.
+   */
+  let comingIn = $state(false);
+  $effect(() => {
+    if (comingIn && player.status === 'playing') {
+      comingIn = false;
+      device.fadeIn();
+    }
+  });
+
   const host = (where: Where, session: string) => sessions.host(where, session, named());
-  const join = (where: Where, session: string) => void sessions.join(where, session, named());
+  const join = (where: Where, session: string) => {
+    device.mute();
+    comingIn = true;
+    void sessions.join(where, session, named());
+  };
   const solo = () => {
     sessions.dismiss();
     soloChosen = true;
   };
-  /** Close the session, leave it, or go back from solo to the lobby. */
-  const leave = () => {
+  /**
+   * Close the session, leave it, or go back from solo to the lobby. What a
+   * reload would come back to is forgotten at once, and a host's clients are
+   * told; the band fades out, and the volume is back for what plays next.
+   */
+  async function leave() {
+    if (leaving) return;
+    leaving = true;
+    comingIn = false;
+    sessions.forget();
+    if (hostSession.session !== null) sessions.end();
+    if (player.playing) await device.fadeOut();
     sessions.end();
+    player.stop();
+    metronome.stop();
+    device.restore();
     soloChosen = false;
-  };
+    leaving = false;
+  }
 
   $effect(() => {
     // A phone or a tab suspended mid-note can leave hardware sounding one
@@ -192,6 +229,15 @@
     <p>You play, the Muse listens, the band answers.</p>
   </header>
 
+  <!-- The volume of this device's synth: the container's, so it is here whichever screen shows. -->
+  <section class="master" aria-label="Master volume">
+    <Fader
+      label="Master volume"
+      value={device.volume}
+      onchange={(volume) => (device.volume = volume)}
+    />
+  </section>
+
   {#if screen === 'band'}
     <!-- What isn't the music: how this device sounds, folded until wanted. -->
     <div class="settings">
@@ -213,7 +259,7 @@
           lacked: player.lacked,
         },
       }}
-      onend={leave}
+      onend={() => void leave()}
     />
   {:else if screen === 'restoring'}
     <p class="message" role="status">Taking up your session again…</p>
@@ -260,6 +306,11 @@
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
+  }
+  .master {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 4px 14px;
   }
   .settings {
     display: grid;

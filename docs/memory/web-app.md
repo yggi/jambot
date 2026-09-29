@@ -36,6 +36,11 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   The keyboard and the pads are the band's, behind the door; MIDI and sound are on both sides of it.
   The computer's keys play only behind the door.
   Back at the lobby nothing plays on: the page stops the player and the metronome.
+  The master volume (`Device.volume`, a `Fader`) is the container's too, above both screens: local, kept, and the square of its position is the synth's gain (`taper`).
+  It scales the built-in synth only (`Output.level`, on the bus that `silence` replaces), not MIDI out and not the metronome, which has its own.
+  A `Fader` holds no value and is the level a mixer's tracks will share.
+  The click that joins or hosts is the gesture that lets the browser play audio: `Sessions` asks for it before its first await, and a test holds it there.
+  Joining mutes the master, and it rises over `FADE_IN` once the band plays; leaving, closing or going back plays on while it falls over `FADE_OUT`, then the volume is put back for what plays next.
   A new widget goes into the level it belongs to, not into a corner of another.
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.

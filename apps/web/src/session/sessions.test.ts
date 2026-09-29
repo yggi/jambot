@@ -50,6 +50,18 @@ describe('the sessions a page can be in', () => {
   beforeEach(() => void vi.useFakeTimers());
   afterEach(() => void vi.useRealTimers());
 
+  it('asks for the audio in the very turn of the click that hosts or joins, since a browser allows it only there', async () => {
+    const tabs = memoryLobby();
+    const a = page(tabs);
+    const hosted = a.sessions.host('local', 'Garage', 'Ada');
+    expect(a.d.world.resumed).toBe(1);
+    await hosted;
+    const b = page(tabs);
+    const joined = b.sessions.join('local', 'Garage', 'Bo');
+    expect(b.d.world.resumed).toBe(1);
+    await joined;
+  });
+
   it('hosts locally in the tabs lobby, and globally in the server, each listed as where it is', async () => {
     const tabs = memoryLobby();
     const server = memoryLobby();
@@ -122,6 +134,15 @@ describe('the sessions a page can be in', () => {
     c.sessions.end();
     expect(c.d.player.mode).toBe('solo');
     expect(c.kept.client).toBeNull();
+  });
+
+  it('forgets what it kept to come back to, without ending the session it is in', async () => {
+    const a = page(memoryLobby());
+    await a.sessions.host('local', 'Garage', 'Ada');
+    expect(a.kept.host).not.toBeNull();
+    a.sessions.forget();
+    expect(a.kept.host).toBeNull();
+    expect(a.d.player.mode).toBe('host');
   });
 
   it('gives a join that is refused as its reason, and stays out of a session', async () => {

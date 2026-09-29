@@ -17,6 +17,8 @@ export function device(clockAt: number) {
   const world = {
     currentTime: clockAt,
     heardOffset: 0,
+    /** How many times the output was asked to let its clock run. */
+    resumed: 0,
     plays: [] as { part: string; note: number; seconds: number }[],
     tickers: [] as (() => void)[],
   };
@@ -25,7 +27,10 @@ export function device(clockAt: number) {
       return world.currentTime;
     },
     latency: 0,
-    resume: () => Promise.resolve(),
+    resume: () => {
+      world.resumed++;
+      return Promise.resolve();
+    },
     play: (part, note, _velocity, seconds) => void world.plays.push({ part, note, seconds }),
     silence: () => {},
   };

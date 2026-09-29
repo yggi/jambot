@@ -3,37 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import App from './App.svelte';
-
-/**
- * Just enough of Web Audio for `Player.playAlong` to run without throwing:
- * every method `webAudioOutput`, `drumKit` and `voices` call, doing
- * nothing. What matters here is where a note is routed, not what it
- * sounds like.
- */
-function fakeAudioContext() {
-  const param = () => ({
-    value: 0,
-    setValueAtTime: () => {},
-    exponentialRampToValueAtTime: () => {},
-    linearRampToValueAtTime: () => {},
-    setTargetAtTime: () => {},
-  });
-  const node = () => ({ connect: (to: unknown) => to });
-  return {
-    sampleRate: 44100,
-    currentTime: 0,
-    outputLatency: 0,
-    baseLatency: 0,
-    destination: node(),
-    createDynamicsCompressor: () => node(),
-    createGain: () => ({ ...node(), gain: param() }),
-    createBiquadFilter: () => ({ ...node(), type: '', Q: param(), frequency: param() }),
-    createOscillator: () => ({ ...node(), type: '', frequency: param(), start() {}, stop() {} }),
-    createBuffer: () => ({ getChannelData: () => new Float32Array(1) }),
-    createBufferSource: () => ({ ...node(), buffer: null, start() {}, stop() {} }),
-    resume: () => Promise.resolve(),
-  };
-}
+import { fakeAudioContext } from './audio/fake-context.ts';
+import { FADE_OUT } from './device.svelte.ts';
 
 /** The page past its door: solo chosen, the band behind it. */
 async function renderBand() {
@@ -76,7 +47,12 @@ describe('the app', () => {
     });
 
     it('hosts a session locally, closes it only when sure, and lands back at the door', async () => {
-      vi.stubGlobal('AudioContext', vi.fn(fakeAudioContext));
+      vi.stubGlobal(
+        'AudioContext',
+        vi.fn(function () {
+          return fakeAudioContext().context;
+        }),
+      );
       onTestFinished(() => void vi.unstubAllGlobals());
       render(App);
       await fireEvent.input(screen.getByLabelText('Session name'), { target: { value: 'Garage' } });
@@ -88,6 +64,42 @@ describe('the app', () => {
       await fireEvent.click(screen.getByRole('button', { name: 'Yes, close it' }));
       expect(await screen.findByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
       expect(localStorage.getItem('jambot:host-session')).toBeNull();
+    });
+
+    it('fades the band out when leaving, and has the volume back for the next time', async () => {
+      const fake = fakeAudioContext();
+      vi.stubGlobal(
+        'AudioContext',
+        vi.fn(function () {
+          return fake.context;
+        }),
+      );
+      onTestFinished(() => void vi.unstubAllGlobals());
+      await renderBand();
+      await fireEvent.click(screen.getByRole('button', { name: 'Start the band' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument());
+      const bus = () => fake.gains.filter((g) => g.connections.includes(fake.compressors[0]));
+      await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
+      // The band plays on while it fades: the door has not come yet.
+      expect(screen.queryByRole('button', { name: 'Play with the band' })).toBeNull();
+      expect(bus()[0]!.gain.events.at(-1)).toEqual(['setTargetAtTime', 0, 0, FADE_OUT / 4]);
+      expect(
+        await screen.findByRole('button', { name: 'Play with the band' }, { timeout: 2000 }),
+      ).toBeInTheDocument();
+      // What plays next opens at the volume again, not at the silence the fade left.
+      expect(bus().at(-1)!.gain.events.at(-1)).toEqual(['setValueAtTime', 0.8, 0]);
+    });
+
+    it('keeps the volume a person set, on both sides of the door', async () => {
+      const { unmount } = render(App);
+      await fireEvent.input(screen.getByRole('slider', { name: /Master volume/ }), {
+        target: { value: '40' },
+      });
+      await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+      expect(screen.getByRole('slider', { name: /Master volume/ })).toHaveValue('40');
+      unmount();
+      render(App);
+      expect(screen.getByRole('slider', { name: /Master volume/ })).toHaveValue('40');
     });
 
     it('keeps the name a person gave for next time', async () => {
@@ -206,7 +218,12 @@ describe('the app', () => {
 
   describe('routing what is played to the keyboard or the pads', () => {
     beforeEach(() => {
-      vi.stubGlobal('AudioContext', vi.fn(fakeAudioContext));
+      vi.stubGlobal(
+        'AudioContext',
+        vi.fn(function () {
+          return fakeAudioContext().context;
+        }),
+      );
       localStorage.clear();
     });
 
