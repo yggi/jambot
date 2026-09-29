@@ -1,27 +1,60 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import KeyPicker from './KeyPicker.svelte';
 
 const NO_HISTORY = new Array(12).fill(0);
 
 describe('the key picker', () => {
-  it('shows the key the band is heading for: the mode as a select, the tonic ringed on its wheel', () => {
+  it('reads the key in common terms in its header, folded by default', () => {
+    const { container } = render(KeyPicker, {
+      heading: { tonic: 0, mode: 'ionian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    expect(container.querySelector('summary .name')).toHaveTextContent('C major');
+    expect(container.querySelector('details')).not.toHaveAttribute('open');
+    cleanup();
+    const minor = render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    expect(minor.container.querySelector('summary .name')).toHaveTextContent('A minor');
+  });
+
+  it('shows the tonic ringed on the wheel, and the scales by common names in the scale view', async () => {
     render(KeyPicker, {
       heading: { tonic: 3, mode: 'dorian' },
       history: NO_HISTORY,
       reach: 6,
       onintent: () => {},
     });
-    expect(screen.getByRole('combobox', { name: 'Mode' })).toHaveDisplayValue('dorian');
-    expect(
-      [...(screen.getByRole('combobox', { name: 'Mode' }) as HTMLSelectElement).options].map(
-        (o) => o.text,
-      ),
-    ).toEqual(['aeolian', 'dorian', 'ionian', 'mixolydian']);
     expect(screen.getByRole('button', { name: 'E♭' })).toHaveAttribute('aria-pressed', 'true');
+    await fireEvent.click(screen.getByRole('button', { name: 'Scale' }));
+    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual([
+      'minor',
+      'dorian',
+      'major',
+      'mixolydian',
+    ]);
+    expect(screen.getByRole('radio', { name: 'dorian' })).toBeChecked();
   });
 
-  it('wishes for the mode picked, keeping the tonic', async () => {
+  it('lays the scale out in a line: notes from the tonic and whole or half steps between', async () => {
+    const { container } = render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Scale' }));
+    const line = container.querySelector('ol.line')!;
+    expect(line.textContent?.replace(/\s+/g, '')).toBe('AWBHCWDWEHFWGWA');
+  });
+
+  it('wishes for the scale picked, keeping the tonic', async () => {
     const onintent = vi.fn();
     render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },
@@ -29,9 +62,8 @@ describe('the key picker', () => {
       reach: 6,
       onintent,
     });
-    await fireEvent.change(screen.getByRole('combobox', { name: 'Mode' }), {
-      target: { value: 'mixolydian' },
-    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Scale' }));
+    await fireEvent.click(screen.getByRole('radio', { name: 'mixolydian' }));
     expect(onintent).toHaveBeenLastCalledWith({
       kind: 'key',
       wish: { tonic: 9, mode: 'mixolydian' },
@@ -88,7 +120,7 @@ describe('the key picker', () => {
     expect(screen.getByRole('button', { name: /Nudge down/ })).toBeDisabled();
   });
 
-  it('lets a client nudge but not set: no mode select, no tonic buttons', () => {
+  it('lets a client nudge but not set: no shape choice, no tonic buttons', async () => {
     render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },
       history: NO_HISTORY,
@@ -96,10 +128,11 @@ describe('the key picker', () => {
       following: true,
       onintent: () => {},
     });
-    expect(screen.getByRole('combobox', { name: 'Mode' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'D' })).toBeNull();
     expect(screen.getByRole('button', { name: /Nudge up/ })).toBeEnabled();
     expect(screen.getByRole('button', { name: /Nudge down/ })).toBeEnabled();
+    await fireEvent.click(screen.getByRole('button', { name: 'Scale' }));
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
   });
 
   it('reaches every tonic when the licence is wide, and dims those beyond a narrow one', () => {

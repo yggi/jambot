@@ -1,11 +1,15 @@
 <!--
-  The key picker: the mode, and the circle of fifths, showing the key the
-  band is heading for over the harmonic history: every pitch class actually
-  played lately, weighted and fading. The host, or a band playing alone, sets
-  the key: a dot wishes for its tonic, the mode select for its mode. A client
-  only nudges it a fifth up or down. Either way it is a wish, heard from the
-  next section the band plans, and held within the style's licence of the
-  song's home key (`licence.ts`), so the tonics beyond it are dimmed.
+  The key picker, folded to a header: the key the band is heading for, in
+  common terms ("C major"). Unfolded, two views of the one key that complement
+  each other. The circle of fifths selects and nudges the tonic and shows the
+  scale's shape on it, over the harmonic history: every pitch class actually
+  played lately, weighted and fading. The scale view selects the shape, the
+  mode, and lays the scale out in a line, its notes and the steps between them
+  from the tonic. Changing the shape keeps the tonic, and nudging the tonic
+  keeps the shape. The host, or a band playing alone, sets the key; a client
+  only nudges the tonic a fifth up or down. Either way it is a wish, heard
+  from the next section the band plans, and held within the style's licence of
+  the song's home key (`licence.ts`), so the tonics beyond it are dimmed.
 -->
 <script lang="ts">
   import {
@@ -17,6 +21,7 @@
     keyHelix,
   } from '@jambot/engine';
   import { mod, positions } from '@jambot/theory';
+  import { MODE_NAMES, TONIC_NAMES, keyName, scaleNoteNames, scaleSteps } from '../noteNames.ts';
   import type { Intent } from '../conductor.ts';
   import CircleOfFifths from './CircleOfFifths.svelte';
 
@@ -48,24 +53,31 @@
   const nudge = (by: 1 | -1) =>
     onintent({ kind: 'key', wish: { tonic: nudged(by), mode: key.mode } });
 
+  let view = $state<'circle' | 'scale'>('circle');
+
+  const notes = $derived(scaleNoteNames(scale, key.tonic));
+  const steps = $derived(scaleSteps(scale, key.tonic));
+
   const wish = (tonic: number, mode: ComposerMode) =>
     onintent({ kind: 'key', wish: { tonic, mode } });
 </script>
 
-<div class="key" role="group" aria-label="Key">
-  <label class="mode">
-    Mode
-    <select
-      disabled={following}
-      value={key.mode}
-      onchange={(e) => wish(key.tonic, e.currentTarget.value as ComposerMode)}
-    >
-      {#each COMPOSER_MODES as mode (mode)}
-        <option value={mode}>{mode}</option>
-      {/each}
-    </select>
-  </label>
-  <div class="wheel-row">
+<details class="key" aria-label="Key">
+  <summary>
+    <span class="name">{keyName(key)}</span>
+    <span class="sub">the key the band is heading for</span>
+  </summary>
+
+  <div class="views" role="group" aria-label="View">
+    <button type="button" aria-pressed={view === 'circle'} onclick={() => (view = 'circle')}>
+      Circle
+    </button>
+    <button type="button" aria-pressed={view === 'scale'} onclick={() => (view = 'scale')}>
+      Scale
+    </button>
+  </div>
+
+  {#if view === 'circle'}
     <div class="wheel">
       <CircleOfFifths
         tonic={key.tonic}
@@ -76,89 +88,165 @@
         {history}
       />
     </div>
-    <div class="side">
-      <div class="nudge" role="group" aria-label="Nudge the key">
-        <button
-          type="button"
-          title="A fifth down"
-          disabled={beyond.includes(nudged(-1))}
-          onclick={() => nudge(-1)}>↺ Nudge down</button
-        >
-        <button
-          type="button"
-          title="A fifth up"
-          disabled={beyond.includes(nudged(1))}
-          onclick={() => nudge(1)}>Nudge up ↻</button
-        >
-      </div>
-      <p class="caption">
-        {following
-          ? 'The host sets the key. Nudge it a fifth either way, within the style’s licence.'
-          : 'Pick a pitch class, or nudge a fifth either way, within the style’s licence.'}
-        The shaded shape is what the band has actually played lately, weighted and fading.
-      </p>
+    <div class="nudge" role="group" aria-label="Nudge the key">
+      <button
+        type="button"
+        title="A fifth down"
+        disabled={beyond.includes(nudged(-1))}
+        onclick={() => nudge(-1)}>↺ Nudge down</button
+      >
+      <button
+        type="button"
+        title="A fifth up"
+        disabled={beyond.includes(nudged(1))}
+        onclick={() => nudge(1)}>Nudge up ↻</button
+      >
     </div>
-  </div>
-</div>
+    <p class="caption">
+      {following
+        ? 'The host sets the key. Nudge it a fifth either way, within the style’s licence.'
+        : 'Pick a pitch class, or nudge a fifth either way, within the style’s licence.'}
+      The shaded shape is what the band has actually played lately, weighted and fading.
+    </p>
+  {:else}
+    <div class="shapes" role="radiogroup" aria-label="Scale">
+      {#each COMPOSER_MODES as mode (mode)}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={mode === key.mode}
+          disabled={following}
+          onclick={() => wish(key.tonic, mode)}>{MODE_NAMES[mode]}</button
+        >
+      {/each}
+    </div>
+    <ol class="line" aria-label="Notes and steps from the tonic">
+      {#each notes as note, i (note)}
+        <li class:tonic={i === 0}>
+          <b>{note}</b>
+          <i>{steps[i] === 1 ? 'H' : 'W'}</i>
+        </li>
+      {/each}
+      <li class="tonic octave"><b>{TONIC_NAMES[key.tonic]}</b></li>
+    </ol>
+    <p class="caption">
+      Whole and half steps from the tonic. Another scale keeps the tonic, {TONIC_NAMES[key.tonic]}.
+    </p>
+  {/if}
+</details>
 
 <style>
   .key {
-    display: grid;
-    gap: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 16px;
+    min-width: 0;
   }
-  .mode {
-    display: grid;
-    gap: 2px;
-    font-size: 14px;
-    max-width: 200px;
+  .key > :not(summary) {
+    margin-top: 14px;
   }
-  select {
+  summary {
+    display: grid;
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  .name {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .name::after {
+    content: '▸';
+    margin-left: 10px;
+    font-size: 16px;
+    color: var(--muted);
+    display: inline-block;
+    transition: transform 0.15s;
+  }
+  .key[open] .name::after {
+    transform: rotate(90deg);
+  }
+  .sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  button {
     font: inherit;
+    font-size: 14px;
     color: var(--ink);
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 8px;
-    min-height: 38px;
-    padding: 0 8px;
-  }
-  .wheel-row {
-    display: flex;
-    gap: 20px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .wheel {
-    width: min(320px, 100%);
-    flex-shrink: 0;
-  }
-  .side {
-    display: grid;
-    gap: 6px;
-    min-width: 0;
-    flex: 1 1 200px;
-  }
-  .nudge {
-    display: flex;
-    gap: 8px;
-  }
-  .nudge button {
     min-height: 44px;
     padding: 0 16px;
     border-radius: 22px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-    font-size: 14px;
     cursor: pointer;
   }
-  .nudge button:disabled {
+  button:disabled {
     opacity: 0.4;
     cursor: default;
+  }
+  button[aria-pressed='true'],
+  button[aria-checked='true'] {
+    background: var(--teal-bg);
+    border-color: var(--teal);
+  }
+  .views,
+  .shapes,
+  .nudge {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .shapes {
+    gap: 6px;
+  }
+  .shapes button {
+    padding: 0 12px;
+  }
+  .wheel {
+    width: min(360px, 100%);
+    margin-inline: auto;
+  }
+  .line {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+  }
+  .line li {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 0;
+    max-width: 56px;
+    padding: 8px 0;
+    border-radius: 8px;
+  }
+  .line b {
+    font-size: 16px;
+  }
+  .line i {
+    font-size: 12px;
+    font-style: normal;
+    color: var(--muted);
+  }
+  .line li.tonic b {
+    color: var(--teal);
+  }
+  .line li.tonic {
+    background: var(--teal-bg);
   }
   .caption {
     margin: 0;
     font-size: 13px;
     color: var(--muted);
+    text-align: center;
   }
 </style>
