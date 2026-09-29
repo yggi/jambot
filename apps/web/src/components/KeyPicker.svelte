@@ -43,7 +43,7 @@
     heading: Key | null;
     /** One weight per pitch class, 0–11, for the harmonic-history radar. */
     history: readonly number[];
-    /** How many fifths from the home key the licence lets the key go (`KEY_REACH`). */
+    /** How many fifths from the home key the licence lets the key go (`licenceOf`'s `keyReach`). */
     reach: number;
     /** Whether a client follows its host: it may nudge the key, not set it. */
     following?: boolean;

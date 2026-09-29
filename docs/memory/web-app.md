@@ -26,10 +26,14 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   A new widget goes into the level it belongs to, not into a corner of another.
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.
-  The style sets the tempo, and `TempoNudge.svelte` (in the metrum) nudges it by a ratio, 2^(1/24) a step, within `tempoLicence`: a third of an octave either way, cut by the tempo axis's ends.
+  `licenceOf(style)` gives all three widths from the style: the performer's feel, the tempo's reach and the key's.
+  The genre sets the range and the players' entropy, which no preset sets, how much of it is used.
+  The conductor reads the licence from where the style is going after an intent (`styleAfter`), so a preset or slider that narrows it takes the nudge and the key wish back within it at once.
+  The style sets the tempo, and `TempoNudge.svelte` (in the metrum) nudges it by a ratio, 2^(1/24) a step, within `tempoLicence`: two steps either way at entropy 0, rising to a third of an octave at entropy 1, cut by the tempo axis's ends.
   The track holds the tempo played, the style's times the nudge, so the transport, the score and a session's clients read one tempo; the player carries the nudge (`Player.tempoNudge`), a preset's tempo takes it over, and `unnudged` reads the style's own back for naming.
-  A key picked is held within `KEY_REACH` fifths of the home key's signature (`intoReach`, `fifthsApart`: relative keys lie 0 apart), and the wheel dims the tonics beyond it.
-  Every style gives the same reach today, every key and a third of an octave; which axes narrow or widen it, and whether a nudge held at an edge should move the style itself, is open (#171).
+  A key picked is held within `keyReach` fifths of the home key's signature (`intoReach`, `fifthsApart`: relative keys lie 0 apart), and the wheel dims the tonics beyond it.
+  The reach is the harmony's, `harmonicReach` (6 × `harm`, rounded), with a floor of one fifth for the players, so Techno gets one and Swing jazz every key; the page reads it from where the track is going (`keyReachOf`), as the conductor does.
+  Whether a nudge held at an edge should move the style itself is open (#176).
   A client doesn't have its host's nudge, so it names a nudged style by the tempo played: a known seam.
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a person plays along with it.
   Any note played, from a pointer, a computer key or MIDI, goes through `App.svelte`'s `onHumanNote`, which sounds it at once (`Player.playAlong`) and logs it for the Muse (`Player.humanNoteOn`, and `humanNoteOff` for its release) alike; `midi/surfaces.ts`'s `partOf` reads a MIDI note's channel to tell the pads from the keyboard, channel 10 the drums' as the prototype's is.
