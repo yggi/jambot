@@ -1,3 +1,4 @@
+import type { MelodicScale } from '@jambot/engine';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import KeyPicker from './KeyPicker.svelte';
@@ -258,6 +259,92 @@ describe('the key picker', () => {
         onintent: () => {},
       });
       for (const radio of scales()) expect(radio).toBeDisabled();
+    });
+  });
+
+  describe('the summary', () => {
+    const base = { history: NO_HISTORY, reach: 6, onintent: () => {} };
+    const aMinor = {
+      key: 'A minor',
+      tonic: 9,
+      scale: [9, 11, 0, 2, 4, 5, 7],
+      melodicName: 'plain' as MelodicScale,
+    };
+
+    it('names the key heard and lists its notes, spelled in it', () => {
+      const { container } = render(KeyPicker, {
+        ...base,
+        heading: { tonic: 9, mode: 'aeolian' },
+        heard: aMinor,
+      });
+      expect(container.querySelector('summary .main')).toHaveTextContent(/^A minor$/);
+      expect(container.querySelector('summary .sub')).toHaveTextContent(/^A B C D E F G$/);
+    });
+
+    it('names the key heard, not the key the band is heading for, where they differ', () => {
+      const { container } = render(KeyPicker, {
+        ...base,
+        heading: { tonic: 7, mode: 'aeolian' },
+        heard: aMinor,
+      });
+      expect(container.querySelector('summary .main')).toHaveTextContent(/^A minor$/);
+    });
+
+    it('reads the key it is heading for before anything is heard', () => {
+      const { container } = render(KeyPicker, {
+        ...base,
+        heading: { tonic: 5, mode: 'ionian' },
+        heard: null,
+      });
+      expect(container.querySelector('summary .main')).toHaveTextContent(/^F major$/);
+      expect(container.querySelector('summary .sub')).toHaveTextContent(/^F G A B♭ C D E$/);
+    });
+
+    it('names the melodic scale the lead walks beside the notes, where it is not plain (#209)', () => {
+      for (const melodicName of ['pentatonic', 'blues'] as const) {
+        const { container, unmount } = render(KeyPicker, {
+          ...base,
+          heading: { tonic: 9, mode: 'aeolian' },
+          heard: { ...aMinor, melodicName },
+        });
+        expect(container.querySelector('summary .sub')).toHaveTextContent(
+          new RegExp(`^A B C D E F G · ${melodicName}$`),
+        );
+        unmount();
+      }
+    });
+
+    it('spells the notes in the key, with flats or sharps as its signature has them', () => {
+      const notes = (key: string, tonic: number, scale: number[]) => {
+        const { container, unmount } = render(KeyPicker, {
+          ...base,
+          heading: { tonic, mode: 'ionian' },
+          heard: { key, tonic, scale, melodicName: 'plain' as const },
+        });
+        const text = container.querySelector('summary .sub')!.textContent;
+        unmount();
+        return text;
+      };
+      expect(notes('E♭ major', 3, [3, 5, 7, 8, 10, 0, 2])).toBe('E♭ F G A♭ B♭ C D');
+      expect(notes('G♯ minor', 8, [8, 10, 11, 1, 3, 4, 6])).toBe('G♯ A♯ B C♯ D♯ E F♯');
+    });
+
+    it('draws the wheel as its glyph, at the key the band is heading for, without labels or buttons', () => {
+      const glyph = (heading: { tonic: number; mode: 'aeolian' | 'ionian' }) => {
+        const { container, unmount } = render(KeyPicker, { ...base, heading, heard: aMinor });
+        const drawn = container.querySelector('summary .glyph')!;
+        const found = {
+          lit: drawn.querySelectorAll('.dot.in-scale').length,
+          ring: drawn.querySelector('.tonic-ring')!.getAttribute('cx'),
+          labels: drawn.querySelectorAll('text').length,
+          buttons: drawn.querySelectorAll('button').length,
+        };
+        unmount();
+        return found;
+      };
+      const aeolian = glyph({ tonic: 9, mode: 'aeolian' });
+      expect(aeolian).toMatchObject({ lit: 7, labels: 0, buttons: 0 });
+      expect(glyph({ tonic: 7, mode: 'aeolian' }).ring).not.toBe(aeolian.ring);
     });
   });
 });

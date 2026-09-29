@@ -355,7 +355,9 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
   expect(await marked()).toHaveLength(17 - 7);
   await scales.getByRole('radio', { name: 'pentatonic' }).click();
   await expect(scales.getByRole('radio', { name: 'pentatonic' })).toBeChecked();
-  await expect(page.getByLabel('Conductor').getByText('A minor · pentatonic')).toBeAttached();
+  await expect(page.locator('details[aria-label="Key"] summary .sub')).toContainText(
+    '· pentatonic',
+  );
   await expect.poll(marked).toEqual(['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5', 'E5']);
   expect(errors).toEqual([]);
 });

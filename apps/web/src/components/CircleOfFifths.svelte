@@ -5,7 +5,9 @@
   wheel. With `onintent` and `mode`, a dot is also a button that wishes for
   its pitch class as the new tonic, in the mode already playing. `history`, a
   filled radar underneath, shows every pitch class's weight: the harmonic
-  history of what the band has actually played.
+  history of what the band has actually played. `compact` draws it small, as
+  a glyph: the figure and the tonic, cropped to the wheel, with no names, no
+  history and no buttons.
 -->
 <script lang="ts">
   import type { ComposerMode } from '@jambot/engine';
@@ -26,9 +28,11 @@
     history?: readonly number[] | undefined;
     /** The pitch classes a nudge can't reach as tonic: dimmed, and not buttons. */
     beyond?: readonly number[];
+    /** Draw it small, as a glyph: no note names, no history, no buttons. */
+    compact?: boolean;
   }
 
-  let { tonic, scale, mode, onintent, history, beyond = [] }: Props = $props();
+  let { tonic, scale, mode, onintent, history, beyond = [], compact = false }: Props = $props();
 
   const VIEW = 200;
   const CENTER = 100;
@@ -36,7 +40,9 @@
   const R_LABEL = 82;
   const R_BUTTON = 72;
 
-  const interactive = $derived(onintent !== undefined && mode !== undefined);
+  const interactive = $derived(!compact && onintent !== undefined && mode !== undefined);
+  /** A compact wheel is cropped to the rim and its dots, which are drawn larger. */
+  const box = $derived(compact ? `${CENTER - 80} ${CENTER - 80} 160 160` : `0 0 ${VIEW} ${VIEW}`);
 
   const dots = $derived(
     TONIC_NAMES.map((name, pitchClass) => {
@@ -87,7 +93,7 @@
   };
 
   const historyPath = $derived.by(() => {
-    if (!history) return '';
+    if (!history || compact) return '';
     const max = Math.max(...history);
     if (max <= 0) return '';
     const points = wheelOrder().map((pitchClass) => {
@@ -100,7 +106,7 @@
 </script>
 
 <div class="wheel" role="group" aria-label="Circle of fifths">
-  <svg viewBox="0 0 {VIEW} {VIEW}" aria-hidden="true">
+  <svg viewBox={box} class:compact aria-hidden="true">
     {#if historyPath}
       <path class="history" d={historyPath} />
     {/if}
@@ -112,19 +118,21 @@
       <path class="figure" d={figure.rim} />
     {/if}
     {#if tonicDot}
-      <circle class="tonic-ring" cx={tonicDot.x} cy={tonicDot.y} r="10" />
+      <circle class="tonic-ring" cx={tonicDot.x} cy={tonicDot.y} r={compact ? 13 : 10} />
     {/if}
     {#each dots as dot (dot.pitchClass)}
-      <circle class="dot" class:in-scale={dot.inScale} cx={dot.x} cy={dot.y} r="5" />
-      <text
-        class="label"
-        class:in-scale={dot.inScale}
-        class:beyond={dot.isBeyond}
-        x={dot.labelX}
-        y={dot.labelY}
-      >
-        {dot.name}
-      </text>
+      <circle class="dot" class:in-scale={dot.inScale} cx={dot.x} cy={dot.y} r={compact ? 8 : 5} />
+      {#if !compact}
+        <text
+          class="label"
+          class:in-scale={dot.inScale}
+          class:beyond={dot.isBeyond}
+          x={dot.labelX}
+          y={dot.labelY}
+        >
+          {dot.name}
+        </text>
+      {/if}
     {/each}
   </svg>
   {#if interactive}
@@ -152,6 +160,15 @@
     display: block;
     width: 100%;
     height: 100%;
+  }
+  svg.compact .rim {
+    stroke-width: 2;
+  }
+  svg.compact .figure {
+    stroke-width: 5;
+  }
+  svg.compact .tonic-ring {
+    stroke-width: 3;
   }
   .history {
     fill: var(--amber);

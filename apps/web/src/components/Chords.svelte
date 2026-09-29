@@ -13,9 +13,7 @@
   import { SONG_METER } from '@jambot/engine';
   import { type Meter, meterOnSteps } from '@jambot/theory';
   import { type Hud, leadStatus } from '../hud.ts';
-  import { scaleNoteNames } from '../noteNames.ts';
   import Card from './Card.svelte';
-  import Reading from './Reading.svelte';
   import Ruler from './Ruler.svelte';
 
   interface Props {
@@ -38,7 +36,6 @@
       lit: heard && chord.step === hud.chord?.step,
     })),
   );
-  const notes = $derived(hud.bar ? scaleNoteNames(hud.bar.scale, hud.bar.tonic).join(' ') : '');
 </script>
 
 <section class="conductor" aria-label="Conductor">
@@ -53,12 +50,6 @@
         label="The bar's chords: {chords.map((chord) => chord.symbol).join(' ')}"
         span={clock.cycle}
         {marks}
-      />
-    {/if}
-    {#if hud.bar}
-      <Reading
-        label="{hud.bar.key}{hud.bar.melodicName === 'plain' ? '' : ` · ${hud.bar.melodicName}`}"
-        value={notes}
       />
     {/if}
   </Card>
