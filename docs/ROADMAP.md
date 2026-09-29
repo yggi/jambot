@@ -9,7 +9,10 @@ Where Jambot is heading. The concept and the reasoning behind it are in
 - **v0: locally demo-able**, by Thursday, 1 October 2026. v0 is the existing
   prototype. Anything added on top is a bonus and strengthens the case. The
   round toward it is #171 (Donnerstag): contractions that bring more of the
-  engine into the app, orthogonal to the language work.
+  engine into the app, orthogonal to the language work. Done so far: the page in
+  the order of the composition (#163), the key picker and the repaired circle of
+  fifths (#167), and the wiring of the Muse's attribution (#164); the rest is on
+  #171's checklist.
 - **v1: event-ready**, by Christmas 2026. This is the deadline. v1 is the full
   bucket: everything on this roadmap, the live track and the learning track
   alike.
@@ -27,7 +30,11 @@ on-screen keyboard and a set of drum pads mark the current key's scale and flash
 for the band's own lead and drum notes, and play at once, along with the band,
 from any input source (#25). The Muse hears a motif on any input, or from a
 session's clients, and the lead plays it back from the bar after next, and its
-panel shows the motif and its log (#79, done). Next for the Muse, in order: a
+panel shows the motif and its log (#79, done). The lead's status line and its
+performer row name whose motif it plays, bar by bar, from the bar's own offer,
+for a solo band and for a session's host and client. What is left of that is
+the view: a motif bar tinted in its source's colour, and the players' own rows
+in the tracks grid (#164, #183). Next for the Muse, in order: a
 log of what players play, which A5's question and #16's encoder both need;
 confidence across players (A3), which a session makes pressing; the ear's
 reading of a player's style, and following it (#16, A4); and answering a motif
@@ -39,8 +46,10 @@ what remains there (the score panel, Strudel export) waits on #63.
 hosts a session under a name, and others join it and play its bars with their
 own synth and MIDI, on its clock, their players heard by its Muse. It runs
 across the tabs of one browser, and across machines through a lobby server
-(`pnpm lobby`) on the local network. Hosting that server, then WebRTC, come
-next.
+(`pnpm lobby`, deployed to Fly.io with `pnpm lobby:deploy`). A dropped link is no
+longer the end of a session: a client rejoins as the same player by a token, the
+lobby holds a session for a host whose link dropped, and a reloaded host keeps
+its session (protocol 3). Hardening the lobby (#92) and WebRTC (#93) come next.
 
 These run in parallel:
 

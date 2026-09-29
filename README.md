@@ -32,11 +32,23 @@ Two things run today:
     and form as pure, deterministic machines: glides per style axis, swing and
     tempo as invertible time maps, a section chain that carries a key and its
     themes, the full band (drums, bass, comp and lead), and the Muse, which
-    hears players and offers back a motif. A ported score text is still ahead.
+    hears players and offers back a motif.
+  - [`packages/score`](packages/score) reads and writes a bar as text, and
+    [`packages/analyzer`](packages/analyzer) loads MIDI files onto the step
+    grid and reads each track's role, swing, key and chords.
+    The score's surface syntax is still open (#7, #63).
+  - [`packages/session`](packages/session) is the pure part of host and client
+    mode: the protocol, the roster, the clocks and the reconnect policy.
   - [`apps/web`](apps/web) is a Svelte PWA that plays the new engine's full band
-    live — presets, sliders, a conductor readout of section, key and bar, MIDI
-    in and out, on-screen keys and drum pads, and the Muse panel — and can host
-    or join a session across the tabs and windows of one browser.
+    live, laid out in the order of the composition: transport, style, metrum,
+    key, plan and chords, tracks.
+    It has presets and sliders, a key picker with the circle of fifths and a
+    scale view, MIDI in and out, on-screen keys and drum pads, and the Muse
+    panel, which names whose motif the lead is playing.
+    It can host or join a session across the tabs of one browser or, through
+    [`apps/lobby`](apps/lobby), across machines.
+    A client whose link drops rejoins as the same player, and a host that
+    reloads keeps its session.
 
   Where the design isn't settled yet, such as the score's text format and its
   relation to [Strudel](https://strudel.cc), it is worked out as a catalogue of
