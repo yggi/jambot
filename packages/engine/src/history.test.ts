@@ -1,8 +1,11 @@
 import { positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
+import { band, lookAhead } from './band.ts';
 import type { BarChord } from './chords.ts';
+import recorded from './history.fixture.json';
 import { HISTORY_DECAY, NO_HISTORY, centre, foldBar, keyWeight } from './history.ts';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
+import { PRESETS } from './style.ts';
 
 /** A chord on `step` of heights `heights` (its helix alone). */
 const chordAt = (step: number, heights: number[]): BarChord => ({
@@ -66,5 +69,58 @@ describe('the harmonic history', () => {
     for (const mode of COMPOSER_MODES)
       for (let tonic = 0; tonic < 12; tonic++)
         expect(centre(NO_HISTORY, { tonic, mode })).toEqual({ tonic, mode });
+  });
+});
+
+/**
+ * The band left alone at entropy 1, where its key moves most, over every
+ * preset, three seeds and 24 sections: each section's tonic and each bar's
+ * home (the history's centre in the bar's mode) as a digit per tonic, in
+ * base 12, and the history after the last bar decided.
+ */
+function recording() {
+  return Object.fromEntries(
+    PRESETS.map((preset) => {
+      const style = { ...preset.style, entropy: 1 };
+      const seeds = [1, 2, 3].map((seed) => {
+        const bars = lookAhead(
+          band.initial,
+          (bar) => ({
+            seed,
+            bar,
+            style,
+            wish: { tonic: null, mode: preset.mode, melodic: null },
+            offer: null,
+          }),
+          24 * 8,
+        );
+        let history = NO_HISTORY;
+        let homes = '';
+        for (const { plan, chords } of bars) {
+          history = foldBar(history, chords);
+          homes += centre(history, plan.key).tonic.toString(12);
+        }
+        const keys = bars
+          .filter((_, bar) => bar % 8 === 0)
+          .map(({ plan }) => plan.key.tonic.toString(12))
+          .join('');
+        return [seed, { keys, homes, history }];
+      });
+      return [preset.name, Object.fromEntries(seeds)];
+    }),
+  );
+}
+
+describe('the band’s keys and homes', () => {
+  it('are the recorded ones, bar for bar, over every preset, three seeds and 24 sections (#210)', () => {
+    // The recording pins the history's fold, its centre and the band's own
+    // drift, which reads it: a change to either fails here, and a change
+    // meant to is re-recorded on purpose, as `JSON.stringify(recording(), null, 2)`.
+    const moved = Object.values(recorded).filter((seeds) =>
+      Object.values(seeds).some(({ keys }) => new Set(keys).size > 1),
+    );
+    expect(moved.length).toBe(PRESETS.length - 1);
+    expect(Object.keys(recorded)).toEqual(PRESETS.map((p) => p.name));
+    expect(recording()).toEqual(recorded);
   });
 });
