@@ -16,13 +16,16 @@
  * (`nextKey`), so a new key never cuts into a section.
  *
  * The players don't select the tempo or the key; they nudge a default the
- * layer above sets, within the licence it leaves (`licence.ts`). The style
- * sets the tempo, and a nudge is a ratio of it, held within the style's
- * reach: a preset brings its own tempo, and the nudge carries over to it. The
- * track holds the tempo played, the style's times the nudge, so the
- * transport, the score and a session's clients read one tempo; `baseTempo`
- * reads the style's own back out of it. A key picked is held within the
- * style's reach of the song's home key, a fifth at a time.
+ * layer above sets, within the licence it leaves (`licenceOf`). The licence
+ * is read from where the style is going after the intent (`styleAfter`), so
+ * a preset or a slider that narrows it takes the nudge and the key wish back
+ * within it at once. The style sets the tempo, and a nudge is a ratio of it,
+ * held within the reach the entropy gives: a preset brings its own tempo,
+ * and the nudge carries over to it. The track holds the tempo played, the
+ * style's times the nudge, so the transport, the score and a session's
+ * clients read one tempo; `baseTempo` reads the style's own back out of it.
+ * A key picked is held within the reach the harmony gives of the song's
+ * home key, a fifth at a time.
  */
 
 import {
@@ -36,8 +39,8 @@ import {
   type StyleTrack,
   glideTo,
   holding,
-  KEY_REACH,
   intoReach,
+  licenceOf,
   nudgedTempo,
   tempoLicence,
   tempoNudgeWithin,
@@ -80,39 +83,45 @@ export function conduct(
   nudge = 0,
 ): StyleTrack {
   if (intent.kind === 'key') return track;
-  const base = baseAfter(track, intent, nudge);
-  const targets: Partial<Style> =
-    intent.kind === 'preset'
-      ? { ...intent.preset.style }
-      : intent.kind === 'axis'
-        ? { [intent.axis]: intent.value }
-        : {};
-  const after = nudgeAfter(nudge, intent, base);
+  const style = styleAfter(track, intent, nudge);
+  const targets = targetsOf(intent);
+  const after = nudgeAfter(nudge, intent, style);
   // Only what moves the tempo glides it: a slider elsewhere leaves a tempo
   // glide under way as it is.
   const moved = 'bpm' in targets || intent.kind === 'tempo' || after !== nudge;
-  const all = moved ? { ...targets, bpm: nudgedTempo(base, after) } : targets;
+  const all = moved ? { ...targets, bpm: nudgedTempo(style, after) } : targets;
   if (at === null) return glideTo(track, all, 0, 0);
   return glideTo(track, all, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);
 }
 
-/** The style's own tempo after an intent: a preset's, one set on the tempo axis, or the one before. */
-export function baseAfter(track: StyleTrack, intent: Intent, nudge: number): number {
-  if (intent.kind === 'preset') return intent.preset.style.bpm;
-  if (intent.kind === 'axis' && intent.axis === 'bpm') return intent.value;
-  return baseTempo(track, nudge);
+/** The axes an intent sets. */
+function targetsOf(intent: Intent): Partial<Style> {
+  if (intent.kind === 'preset') return { ...intent.preset.style };
+  if (intent.kind === 'axis') return { [intent.axis]: intent.value };
+  return {};
 }
 
-/** The players' tempo nudge after an intent, held within the licence around the style's tempo. */
-export function nudgeAfter(nudge: number, intent: Intent, base: number): number {
-  return tempoNudgeWithin(intent.kind === 'tempo' ? intent.nudge : nudge, base);
+/**
+ * Where the style is going after an intent, as the layer above sets it:
+ * the track's targets with the intent's own, and the style's own tempo, a
+ * preset's, one set on the tempo axis, or the one before, unnudged. Its
+ * licence is the one the players nudge within.
+ */
+export function styleAfter(track: StyleTrack, intent: Intent, nudge: number): Style {
+  return { ...unnudged(targetOf(track), nudge), ...targetsOf(intent) };
+}
+
+/** The players' tempo nudge after an intent, held within the licence of the style after it. */
+export function nudgeAfter(nudge: number, intent: Intent, style: Style): number {
+  return tempoNudgeWithin(intent.kind === 'tempo' ? intent.nudge : nudge, style);
 }
 
 /**
  * The key wished for after an intent: a key picked, or a preset's mode from
- * any tonic, and a tonic held within the licence's reach of the home key.
+ * any tonic, and a tonic held within the reach of the home key that the
+ * style after the intent leaves (`licenceOf`).
  */
-export function wishAfter(wish: KeyWish, intent: Intent): KeyWish {
+export function wishAfter(wish: KeyWish, intent: Intent, style: Style): KeyWish {
   const next =
     intent.kind === 'key'
       ? intent.wish
@@ -120,7 +129,8 @@ export function wishAfter(wish: KeyWish, intent: Intent): KeyWish {
         ? { tonic: null, mode: intent.preset.mode }
         : wish;
   if (next.tonic === null) return next;
-  const held = intoReach({ tonic: next.tonic, mode: next.mode }, INITIAL_KEY, KEY_REACH);
+  const { keyReach } = licenceOf(style);
+  const held = intoReach({ tonic: next.tonic, mode: next.mode }, INITIAL_KEY, keyReach);
   return held.tonic === next.tonic ? next : held;
 }
 
@@ -135,8 +145,13 @@ export interface TempoView {
 }
 
 export function tempoView(track: StyleTrack, nudge: number): TempoView {
-  const base = baseTempo(track, nudge);
-  return { bpm: track.bpm.to, base, nudge, ...tempoLicence(base) };
+  const style = unnudged(targetOf(track), nudge);
+  return { bpm: track.bpm.to, base: style.bpm, nudge, ...tempoLicence(style) };
+}
+
+/** How many fifths from the home key the players may take the key, where the style is going. */
+export function keyReachOf(track: StyleTrack): number {
+  return licenceOf(targetOf(track)).keyReach;
 }
 
 /**

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import type { BarEnv } from './bar.ts';
 import { DRUM_NOTES } from './drums.ts';
+import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
 import { type DrumRole, PARTS, type WrittenNote, writtenProblems } from './events.ts';
 import type { SectionType } from './form.ts';
+import { licenceOf } from './licence.ts';
 import { LEAD_LEVEL, perform } from './performer.ts';
 import { timbreOf } from './sound.ts';
 import { PRESETS, type Style } from './style.ts';
@@ -28,16 +30,30 @@ const tour = (seed: number, bars = 96): BandBar[] => {
 
 const bars = [1, 2, 3].flatMap((seed) => tour(seed));
 
-/** A bar of the tour, in another section, at an energy and a style. */
+/**
+ * A bar of the tour, in another section, at an energy and a style: held
+ * still, at feel 0 (swing 0, entropy 0, articulation 1), unless the style
+ * given loosens it.
+ */
 const barOf = (type: SectionType, energy: number, style: Partial<Style> = {}): BarEnv => {
   const b = bars[40]!;
   return {
     ...b,
     plan: { ...b.plan, section: { ...b.plan.section, type } },
     barEnergy: energy,
-    style: { ...b.style, swing: 0, ...style },
+    style: { ...b.style, swing: 0, entropy: 0, artic: 1, ...style },
   };
 };
+
+/**
+ * A written note's base, velocity and length, as the performer plays it at
+ * feel 0: where the articulation is below 1 the feel is never 0, so the
+ * prototype's literals for articulation are the base's (`dynamics.ts`, T19).
+ */
+const baseOf = (env: BarEnv, written: WrittenNote) => ({
+  velocity: Math.max(1, Math.min(127, Math.round(baseVelocityOf(env, written)))),
+  length: baseLengthOf(env, written),
+});
 
 const hit = (role: DrumRole, step: number): WrittenNote => ({
   part: 'drums',
@@ -139,7 +155,7 @@ describe('the performer', () => {
 
   it('pads the softer the more the articulation leans to stabs, and stabs louder with energy (T4)', () => {
     const chord = (part: 'pad' | 'stab', env: BarEnv) =>
-      perform(env, { part, step: 0, note: 60, length: 1 }).velocity;
+      baseOf(env, { part, step: 0, note: 60, length: 1 }).velocity;
     expect(chord('pad', barOf('groove', 1, { artic: 0 }))).toBe(78);
     expect(chord('pad', barOf('groove', 1, { artic: 0.5 }))).toBe(71);
     // A breakdown pads as if nearly legato, whatever the articulation.
@@ -155,7 +171,7 @@ describe('the performer', () => {
       for (const length of range(16).map((i) => i + 1)) {
         const played = artics.map(
           (artic) =>
-            perform(barOf('groove', 1, { artic }), { part, step: 0, note: 60, length }).length,
+            baseOf(barOf('groove', 1, { artic }), { part, step: 0, note: 60, length }).length,
         );
         expect(played[0]).toBe(length);
         played.forEach((p, i) => {
@@ -173,16 +189,16 @@ describe('the performer', () => {
   it('holds a pad and a drum hit as written, sounds a stab from 2.5 steps to 0.45, and lets a breakdown bass go early (T4, L2)', () => {
     for (const artic of [0, 0.5, 1]) {
       const env = barOf('groove', 1, { artic });
-      expect(perform(env, { part: 'pad', step: 0, note: 60, length: 8 }).length).toBe(8);
-      expect(perform(env, hit('kick', 0)).length).toBe(1);
+      expect(baseOf(env, { part: 'pad', step: 0, note: 60, length: 8 }).length).toBe(8);
+      expect(baseOf(env, hit('kick', 0)).length).toBe(1);
       const breakdown = barOf('breakdown', 1, { artic });
-      expect(perform(breakdown, { part: 'bass', step: 0, note: 40, length: 8 }).length).toBeCloseTo(
+      expect(baseOf(breakdown, { part: 'bass', step: 0, note: 40, length: 8 }).length).toBeCloseTo(
         7.7,
         9,
       );
     }
     const stab = (artic: number) =>
-      perform(barOf('groove', 1, { artic }), {
+      baseOf(barOf('groove', 1, { artic }), {
         part: 'stab',
         step: 0,
         note: 60,
@@ -221,17 +237,19 @@ describe('the performer', () => {
     expect(note.gain).toBeCloseTo(note.velocity / 127, 9);
   });
 
-  it('gives every part a licence, velocity and length alike, that widens with swing and holds still at 0 (#107, #147)', () => {
+  it('gives every part a licence, velocity and length alike, that widens with the feel and holds still at 0 (#107, #147, T17)', () => {
     // The same written note, over every bar of a tour (each licence
-    // stream's only key besides step and note), at swing 0 and swing 1: a
-    // spread of 0 is no licence, and every part now has one.
-    const envAt = (bar: number, swing: number): BarEnv => ({
-      ...barOf('groove', 0.7, { swing }),
+    // stream's only key besides step and note), held still and at the
+    // loosest feel: a spread of 0 is no licence, and every part has one.
+    const still: Partial<Style> = { swing: 0, entropy: 0, artic: 1 };
+    const loosest: Partial<Style> = { swing: 1, entropy: 1, artic: 0 };
+    const envAt = (bar: number, style: Partial<Style>): BarEnv => ({
+      ...barOf('groove', 0.7, style),
       bar,
     });
     const spreadOf = (values: readonly number[]) => Math.max(...values) - Math.min(...values);
-    const spreadAt = (written: WrittenNote, swing: number, field: 'velocity' | 'length') =>
-      spreadOf(range(64).map((bar) => perform(envAt(bar, swing), written)[field]));
+    const spreadAt = (written: WrittenNote, style: Partial<Style>, field: 'velocity' | 'length') =>
+      spreadOf(range(64).map((bar) => perform(envAt(bar, style), written)[field]));
 
     const notes: WrittenNote[] = [
       { part: 'bass', step: 4, note: 60, length: 2 },
@@ -242,16 +260,41 @@ describe('the performer', () => {
     const drumHit = hit('hat', 4);
     for (const written of [...notes, drumHit])
       for (const field of ['velocity', 'length'] as const) {
-        expect(spreadAt(written, 0, field)).toBe(0);
-        expect(spreadAt(written, 1, field)).toBeGreaterThan(0);
+        expect(spreadAt(written, still, field)).toBe(0);
+        // Each axis the feel reads loosens it alone, from the still corner.
+        for (const loose of [{ swing: 1 }, { entropy: 1 }, { artic: 0 }])
+          expect(spreadAt(written, { ...still, ...loose }, field)).toBeGreaterThan(0);
+        expect(spreadAt(written, loosest, field)).toBeGreaterThan(0);
       }
 
-    // Length only ever gates a little shorter: at swing 1 it never exceeds
-    // what articulation 0 already set, for any part.
-    const at = (written: WrittenNote, bar: number, swing: number) =>
-      perform(envAt(bar, swing), written).length;
-    for (const written of [...notes, drumHit])
-      for (const bar of range(64))
-        expect(at(written, bar, 1)).toBeLessThanOrEqual(at(written, bar, 0));
+    // Over every note of the tour, the licence's width is the feel's: velocity
+    // within 12 × feel of the base and its accent, length within 15 % × feel
+    // under the base.
+    for (const b of bars) {
+      const { feel } = licenceOf(b.style);
+      for (const written of b.written) {
+        const { velocity, length } = perform(b, written);
+        const accent = written.accent ?? 0;
+        const base =
+          written.part === 'lead' && written.accent !== undefined
+            ? LEAD_LEVEL + accent
+            : baseVelocityOf(b, written) + accent;
+        const clamped = (v: number) => Math.max(1, Math.min(127, v));
+        expect(velocity).toBeGreaterThanOrEqual(Math.floor(clamped(base - 12 * feel)));
+        expect(velocity).toBeLessThanOrEqual(Math.ceil(clamped(base + 12 * feel)));
+        const gated = baseLengthOf(b, written);
+        expect(length).toBeLessThanOrEqual(gated);
+        expect(length).toBeGreaterThanOrEqual(gated * (1 - 0.15 * feel) - 1e-12);
+      }
+    }
+
+    // Length only ever gates a little shorter: it never exceeds what the
+    // base already set, for any part, however loose the feel.
+    for (const style of [loosest, { ...still, artic: 0 }, { ...still, swing: 1 }])
+      for (const written of [...notes, drumHit])
+        for (const bar of range(64)) {
+          const env = envAt(bar, style);
+          expect(perform(env, written).length).toBeLessThanOrEqual(baseLengthOf(env, written));
+        }
   });
 });

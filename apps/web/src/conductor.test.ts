@@ -4,14 +4,28 @@ import {
   PRESETS,
   PRESET_GLIDE,
   SLIDER_GLIDE,
+  type Style,
   TEMPO_REACH,
   TEMPO_STEP,
+  fifthsApart,
   glideTo,
   holding,
+  INITIAL_KEY,
+  licenceOf,
   styleAt,
+  tempoLicence,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { baseTempo, conduct, nudgeAfter, stopAt, tempoView, wishAfter } from './conductor.ts';
+import {
+  baseTempo,
+  conduct,
+  keyReachOf,
+  nudgeAfter,
+  stopAt,
+  styleAfter,
+  tempoView,
+  wishAfter,
+} from './conductor.ts';
 
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
 
@@ -61,23 +75,78 @@ describe('stopAt', () => {
 describe('wishAfter', () => {
   it("wishes for a preset's mode, from any tonic, and leaves the wish to a slider", () => {
     const deepHouse = PRESETS.find((p) => p.name === 'Deep house')!;
-    const wish = { tonic: 4, mode: 'ionian' } as const;
-    expect(wishAfter(wish, { kind: 'preset', preset: deepHouse })).toEqual({
+    // G ionian, one sharp: within the reach of every style below.
+    const wish = { tonic: 7, mode: 'ionian' } as const;
+    const style = { ...INITIAL_STYLE, ...deepHouse.style };
+    expect(wishAfter(wish, { kind: 'preset', preset: deepHouse }, style)).toEqual({
       tonic: null,
       mode: 'dorian',
     });
-    expect(wishAfter(wish, { kind: 'axis', axis: 'harm', value: 0.2 })).toBe(wish);
+    const slider = { kind: 'axis', axis: 'harm', value: 0.2 } as const;
+    expect(wishAfter(wish, slider, { ...INITIAL_STYLE, harm: 0.2 })).toBe(wish);
   });
 
   it('wishes for a key picked, tonic and mode', () => {
     const picked = { tonic: 2, mode: 'mixolydian' } as const;
-    expect(wishAfter({ tonic: null, mode: 'aeolian' }, { kind: 'key', wish: picked })).toBe(picked);
+    expect(
+      wishAfter({ tonic: null, mode: 'aeolian' }, { kind: 'key', wish: picked }, INITIAL_STYLE),
+    ).toBe(picked);
   });
 
   it('keeps a key picked when a preset in the same mode follows, as the prototype does', () => {
-    // Funk is dorian: E dorian, picked, stays E dorian rather than pivoting.
+    // Deep house is dorian: E dorian, picked, stays E dorian rather than
+    // pivoting, two sharps within its reach of three.
+    const deepHouse = PRESETS.find((p) => p.name === 'Deep house')!;
     const picked = { tonic: 4, mode: 'dorian' } as const;
-    expect(wishAfter(picked, { kind: 'preset', preset: funk })).toBe(picked);
+    const style = { ...INITIAL_STYLE, ...deepHouse.style };
+    expect(wishAfter(picked, { kind: 'preset', preset: deepHouse }, style)).toBe(picked);
+  });
+
+  it('holds a key picked within the style’s reach of the home key, for every preset and tonic', () => {
+    for (const p of PRESETS) {
+      const style: Style = { ...INITIAL_STYLE, ...p.style };
+      const { keyReach } = licenceOf(style);
+      for (let tonic = 0; tonic < 12; tonic++) {
+        const picked = { tonic, mode: p.mode };
+        const before = { tonic: null, mode: 'aeolian' } as const;
+        const held = wishAfter(before, { kind: 'key', wish: picked }, style);
+        const apart = Math.abs(fifthsApart(picked, INITIAL_KEY));
+        expect(Math.abs(fifthsApart({ tonic: held.tonic!, mode: held.mode }, INITIAL_KEY))).toBe(
+          Math.min(apart, keyReach),
+        );
+        expect(held.tonic === tonic).toBe(apart <= keyReach);
+      }
+    }
+  });
+
+  it('shows the reach it holds a key to: the style’s where the track is going, for every preset', () => {
+    for (const p of PRESETS) {
+      const intent = { kind: 'preset', preset: p } as const;
+      const track = holding(INITIAL_STYLE);
+      const next = conduct(track, intent, 40);
+      const style = styleAfter(track, intent, 0);
+      expect(keyReachOf(next)).toBe(licenceOf(style).keyReach);
+    }
+    const reachOf = (name: string) =>
+      keyReachOf(
+        conduct(
+          holding(INITIAL_STYLE),
+          { kind: 'preset', preset: PRESETS.find((p) => p.name === name)! },
+          null,
+        ),
+      );
+    expect(reachOf('Techno')).toBe(1);
+    expect(reachOf('Swing jazz')).toBe(6);
+  });
+
+  it('pulls a wish back into a narrower reach when the harmony falls', () => {
+    // E ionian lies four sharps from A minor: within Swing jazz's six, beyond Techno's one.
+    const wish = { tonic: 4, mode: 'ionian' } as const;
+    const jazz = { ...INITIAL_STYLE, harm: 1 };
+    const techno = { ...INITIAL_STYLE, harm: 0 };
+    const lower = { kind: 'axis', axis: 'harm', value: 0 } as const;
+    expect(wishAfter(wish, lower, jazz)).toBe(wish);
+    expect(wishAfter(wish, lower, techno)).toEqual({ tonic: 7, mode: 'ionian' });
   });
 });
 
@@ -102,10 +171,29 @@ describe('conduct, for the tempo', () => {
   });
 
   it('holds the nudge within the licence', () => {
-    expect(nudgeAfter(0, step(100), 108)).toBe(TEMPO_REACH);
-    expect(nudgeAfter(0, step(-100), 108)).toBe(-TEMPO_REACH);
+    const { high, low } = tempoLicence(INITIAL_STYLE);
+    expect(nudgeAfter(0, step(100), INITIAL_STYLE)).toBe(high);
+    expect(nudgeAfter(0, step(-100), INITIAL_STYLE)).toBe(low);
+    const wide = { ...INITIAL_STYLE, entropy: 1 };
+    expect(nudgeAfter(0, step(100), wide)).toBe(TEMPO_REACH);
     const far = conduct(holding(INITIAL_STYLE), step(100), null);
-    expect(styleAt(far, 0).bpm).toBeCloseTo(108 * 2 ** TEMPO_REACH, 9);
+    expect(styleAt(far, 0).bpm).toBeCloseTo(108 * 2 ** high, 9);
+  });
+
+  it('narrows the licence as entropy falls, and takes the tempo played back within it', () => {
+    const nudge = 8 * TEMPO_STEP;
+    const wide = conduct(holding({ ...INITIAL_STYLE, entropy: 1 }), step(8), null);
+    expect(styleAt(wide, 0).bpm).toBeCloseTo(108 * 2 ** nudge, 9);
+    const intent = { kind: 'axis', axis: 'entropy', value: 0 } as const;
+    const style = styleAfter(wide, intent, nudge);
+    expect(style).toEqual({ ...INITIAL_STYLE, entropy: 0 });
+    expect(nudgeAfter(nudge, intent, style)).toBeCloseTo(2 * TEMPO_STEP, 12);
+    const next = conduct(wide, intent, null, nudge);
+    expect(styleAt(next, 0).bpm).toBeCloseTo(108 * 2 ** (2 * TEMPO_STEP), 9);
+    expect(tempoView(next, nudgeAfter(nudge, intent, style))).toMatchObject({
+      base: 108,
+      ...tempoLicence(style),
+    });
   });
 
   it('carries the nudge to a preset’s tempo, and reads every preset’s own back exactly', () => {
@@ -113,7 +201,7 @@ describe('conduct, for the tempo', () => {
       for (let n = -8; n <= 8; n++) {
         const intent = { kind: 'preset', preset: p } as const;
         // A nudge past the tempo axis's end is held at it, as the player holds it.
-        const nudge = nudgeAfter(n * TEMPO_STEP, intent, p.style.bpm);
+        const nudge = nudgeAfter(n * TEMPO_STEP, intent, { ...INITIAL_STYLE, ...p.style });
         const next = conduct(holding(INITIAL_STYLE), intent, null, nudge);
         expect(baseTempo(next, nudge)).toBe(p.style.bpm);
         expect(tempoView(next, nudge)).toMatchObject({ base: p.style.bpm, nudge });

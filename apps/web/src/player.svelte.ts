@@ -82,7 +82,7 @@ import {
   playerSource,
 } from '@jambot/session';
 import { type Output, webAudioOutput } from './audio/output.ts';
-import { type Intent, baseAfter, conduct, nudgeAfter, stopAt, wishAfter } from './conductor.ts';
+import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
 import { EMPTY_HISTORY, HarmonicHistory, type HarmonicWeights } from './harmonicHistory.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
@@ -308,10 +308,10 @@ export class Player {
   apply(intent: Intent) {
     if (this.mode === 'client') return;
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
-    const base = baseAfter(this.track, intent, this.tempoNudge);
+    const style = styleAfter(this.track, intent, this.tempoNudge);
     this.track = conduct(this.track, intent, at, this.tempoNudge);
-    this.tempoNudge = nudgeAfter(this.tempoNudge, intent, base);
-    this.wish = wishAfter(this.wish, intent);
+    this.tempoNudge = nudgeAfter(this.tempoNudge, intent, style);
+    this.wish = wishAfter(this.wish, intent, style);
     this.hosting?.track(this.track);
     this.#decide();
   }
