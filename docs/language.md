@@ -1676,5 +1676,14 @@ run; the others have.
     `even(k, 16, shift)`, with k of 3, 5 or 7 and a shift of 0 to 3, so the line
     can write them as one Euclid token.
 
+- **E18. The lead driven by the style** (T4; #168 step 2), in
+  [`packages/engine/experiments/lead-style.ts`](../packages/engine/experiments/lead-style.ts)
+  (under 1 s): every preset at entropy 0.3, over 5 seeds and 64 bars, run at each of step 2's three commits.
+  - The harmony shapes the contour, from an arch where it is low toward a wave where it is high: the line turns less often in Techno (harmony 0, 0.18 to 0.14 turns a note) and Funk (0.12, 0.14 to 0.11), and more in Lo-fi hip hop (0.75, 0.14 to 0.18) and Bossa nova (0.85, 0.14 to 0.17).
+  - The harmony thins the strong steps a note snaps to a chord tone on, from every beat below 0.25 to the downbeat alone from 0.6: the beats on a chord tone rise where it is low (Techno 0.78 to 1.00, Funk 0.94 to 1.00) and fall a little where it is high (Lo-fi hip hop 0.81 to 0.75).
+  - The swing adds pickups on the off-beat eighths: Swing jazz (swing 1) goes from 0.17 to 0.26 of its notes there, and from 4.30 to 4.77 notes a bar; Deep house (0.3) from 0.14 to 0.18; the presets without swing are unchanged.
+  - All three stay, decided by ear (#168).
+    The articulation is left out, since the performer already plays it (T4).
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

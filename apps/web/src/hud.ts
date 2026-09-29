@@ -47,6 +47,7 @@ import {
 } from '@jambot/engine';
 import { positions } from '@jambot/theory';
 import { sourceName } from '@jambot/session';
+import { type Attribution, type Credit, credit } from './attribution.ts';
 import { targetOf, unnudged } from './conductor.ts';
 import { keyName } from './noteNames.ts';
 
@@ -86,23 +87,11 @@ export interface BarView {
   /** Whether the lead rests in it, improvises (`leadRests`), or plays a motif the Muse offers. */
   readonly lead: 'resting' | 'improvising' | 'motif';
   /**
-   * Whose motif the lead plays in it, named, and the bar it was heard in, or
-   * null. A bar ahead holds the offer standing now, which it plays unless
+   * Whose motif the lead plays in it, credited, and the bar it was heard in,
+   * or null. A bar ahead holds the offer standing now, which it plays unless
    * another comes.
    */
-  readonly motif: Attribution | null;
-}
-
-/**
- * Where a motif the lead plays came from: its source, and the bar it was
- * heard in, counted from the song's start. It is the bar's own `Offer`
- * less the motif itself: the cell and where it was heard, not how the lead
- * realises it. `Pattern` keeps the source's id, and the views name it
- * (`sourceName`), as `BarView` and `PerformerView` do.
- */
-export interface Attribution {
-  readonly source: string;
-  readonly bar: number;
+  readonly motif: Credit | null;
 }
 
 export interface SectionView {
@@ -128,11 +117,8 @@ export interface StyleView {
   readonly glide: GlideView | null;
 }
 
-/** A motif on offer, as the Muse panel draws it. */
-export interface MotifView {
-  readonly source: string;
-  /** The bar it was heard in, counted from the song's start. */
-  readonly bar: number;
+/** A motif on offer, as the Muse panel draws it, credited to its source and the bar it was heard in. */
+export interface MotifView extends Credit {
   /** How many rows of degrees it spans. */
   readonly rows: number;
   /** Each note: its step, how long it is held, its row from the lowest, and whether it is altered. */
@@ -225,7 +211,7 @@ export function presetOf(style: Style): string | null {
 export function leadStatus(hud: Pick<Hud, 'bar' | 'beat'>): string {
   if (hud.beat === null || !hud.bar) return 'The band plays on its own once started.';
   if (hud.bar.lead === 'motif' && hud.bar.motif)
-    return `Lead is playing the motif from ${hud.bar.motif.source}, heard in bar ${hud.bar.motif.bar + 1}.`;
+    return `Lead is playing the motif from ${hud.bar.motif.name}, heard in bar ${hud.bar.motif.bar + 1}.`;
   return hud.bar.lead === 'resting' ? 'Lead is resting.' : 'Lead is improvising.';
 }
 
@@ -239,7 +225,8 @@ export function styleStatus({ preset, glide }: StyleView): string {
 export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): Hud {
   const players = muse?.players ?? {};
   const named = (source: string) => sourceName(source, players);
-  const barView = (bar: ForecastBar) => barViewOf(bar, named);
+  const credited = (attribution: Attribution) => credit(attribution, players);
+  const barView = (bar: ForecastBar) => barViewOf(bar, credited);
   const at = heard === null ? 0 : bars.findIndex((b) => b.bar === barAt(heard));
   const here = at >= 0 ? bars[at] : undefined;
   const step = heard === null ? 0 : stepInBar(heard);
@@ -257,7 +244,7 @@ export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): H
     sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS), barView) : [],
     style: styleView(track, heard ?? 0, tempoNudge),
     heading: bars.at(-1)?.plan.key ?? null,
-    muse: museView(muse, named),
+    muse: museView(muse, named, credited),
   };
 }
 
@@ -265,9 +252,13 @@ export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): H
 const nextSectionEnd = (bar: number) => (Math.floor(bar / SECTION_BARS) + 2) * SECTION_BARS;
 
 /** The Muse's view, each source read by its player's name. */
-function museView(muse: HudInput['muse'], named: (source: string) => string): MuseView {
+function museView(
+  muse: HudInput['muse'],
+  named: (source: string) => string,
+  credited: (attribution: Attribution) => Credit,
+): MuseView {
   return {
-    motif: muse?.offer ? motifView(muse.offer, named) : null,
+    motif: muse?.offer ? motifView(muse.offer, credited) : null,
     log: [
       ...(muse?.log ?? []).flatMap((j) => museLines(j, named)),
       ...(muse?.dropped ?? []).map((d) => droppedLine(d, named)),
@@ -277,7 +268,10 @@ function museView(muse: HudInput['muse'], named: (source: string) => string): Mu
   };
 }
 
-function motifView({ motif, source, bar }: Offer, named: (source: string) => string): MotifView {
+function motifView(
+  { motif, source, bar }: Offer,
+  credited: (attribution: Attribution) => Credit,
+): MotifView {
   const { onsets, degrees, accidentals, cycle } = motif;
   const notes = onsets.flatMap((step, i) => {
     const degree = degrees[i];
@@ -289,8 +283,7 @@ function motifView({ motif, source, bar }: Offer, named: (source: string) => str
   const lowest = Math.min(...notes.map((n) => n.degree));
   const highest = Math.max(...notes.map((n) => n.degree));
   return {
-    source: named(source),
-    bar,
+    ...credited({ source, bar }),
     rows: highest - lowest + 1,
     notes: notes.map(({ step, length, degree, altered }) => ({
       step,
@@ -387,7 +380,7 @@ function chordView(
   };
 }
 
-function barViewOf(bar: ForecastBar, named: (source: string) => string): BarView {
+function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Credit): BarView {
   return {
     bar: bar.bar,
     barInSection: bar.bar % SECTION_BARS,
@@ -402,7 +395,7 @@ function barViewOf(bar: ForecastBar, named: (source: string) => string): BarView
       : leadRests(bar.plan.section.type, bar.barEnergy)
         ? 'resting'
         : 'improvising',
-    motif: bar.offer && { source: named(bar.offer.source), bar: bar.offer.bar },
+    motif: bar.offer && credited(bar.offer),
   };
 }
 

@@ -56,4 +56,21 @@ describe('the bars ahead', () => {
     expect(within(items[2]!).getByText('D dorian')).toBeInTheDocument();
     expect(within(items[3]!).getByText('Bridge, C ionian')).toBeInTheDocument();
   });
+
+  it('mark each bar the lead is to play a motif in, outlined in its player’s colour, as the offer standing now', () => {
+    const ada = { source: '@c1/keys', name: 'Ada’s keys', colour: 4, bar: 3 };
+    render(NextBars, {
+      before: bar(4),
+      bars: [
+        bar(5, { lead: 'motif', motif: ada }),
+        bar(6),
+        bar(7, { lead: 'resting', motif: ada }),
+      ],
+    });
+    const [first, second, third] = screen.getAllByRole('listitem');
+    const mark = within(first!).getByRole('img', { name: 'Motif from Ada’s keys, heard in bar 4' });
+    expect(mark.style.getPropertyValue('--colour')).toBe('var(--source-4)');
+    expect(within(second!).queryByRole('img')).toBeNull();
+    expect(within(third!).queryByRole('img')).toBeNull();
+  });
 });

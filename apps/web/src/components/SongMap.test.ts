@@ -84,4 +84,37 @@ describe('the song map', () => {
     });
     expect(screen.getByText('Groove, D dorian')).toBeInTheDocument();
   });
+
+  it('marks each bar the lead plays a motif in, in its player’s colour, the bars ahead only outlined', () => {
+    const ada = { source: '@c1/keys', name: 'Ada’s keys', colour: 3, bar: 9 };
+    const now = section(1);
+    const credited = {
+      ...now,
+      bars: now.bars.map((b) => (b.bar >= 11 ? { ...b, lead: 'motif' as const, motif: ada } : b)),
+    };
+    const { container } = render(SongMap, { sections: [credited, section(2)], bar: 12 });
+    const marks = [...container.querySelectorAll<HTMLElement>('.credits i.credited')];
+    expect(marks).toHaveLength(5);
+    expect(marks.map((m) => m.style.getPropertyValue('--colour'))).toEqual(
+      Array(5).fill('var(--source-3)'),
+    );
+    expect(marks.map((m) => m.classList.contains('ahead'))).toEqual([
+      false,
+      false,
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it('marks no bar where the lead plays no motif, or rests though one stands', () => {
+    const ada = { source: '@c1/keys', name: 'Ada’s keys', colour: 3, bar: 9 };
+    const now = section(1);
+    const resting = {
+      ...now,
+      bars: now.bars.map((b) => ({ ...b, lead: 'resting' as const, motif: ada })),
+    };
+    const { container } = render(SongMap, { sections: [resting], bar: 12 });
+    expect(container.querySelector('.credits i.credited')).toBeNull();
+  });
 });
