@@ -69,10 +69,13 @@ export function bandOutput(
     },
     heard: () => offset.heard(),
     resume: () => base.resume(),
+    level: (gain, seconds) => base.level?.(gain, seconds),
     play(part, note, velocity, seconds, duration, timbre) {
       if (settings.internal()) base.play(part, note, velocity, seconds, duration, timbre);
       midi.play(part, note, velocity, seconds, duration, offset.toDeviceMs);
     },
+    // The click is this device's own: the built-in synth, whatever `internal` says, never MIDI.
+    click: (weight, seconds, gain) => base.click?.(weight, seconds, gain),
     silence() {
       base.silence();
       midi.stop(base.currentTime, offset.toDeviceMs);

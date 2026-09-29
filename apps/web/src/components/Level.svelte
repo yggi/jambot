@@ -1,16 +1,17 @@
 <!--
   One level of the composition, as the page lays them out top to bottom:
   transport, style, metrum, key, plan and chords, tracks. A heading names
-  it; `resting` disables the controls in it, for a level a client takes
-  from its host rather than wishing for itself. A fieldset only disables
-  its form controls and hides nothing, so a client still sees what it
-  can't change.
+  it, unless it has no `name` because the card inside carries its own
+  heading (`Fold`); `resting` disables the controls in it, for a level a
+  client takes from its host rather than wishing for itself. A fieldset
+  only disables its form controls and hides nothing, so a client still sees
+  what it can't change.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
   interface Props {
-    name: string;
+    name?: string;
     /** Whether its controls rest: a client follows its host's. */
     resting?: boolean;
     children: Snippet;
@@ -20,7 +21,7 @@
 </script>
 
 <div class="level">
-  <h2>{name}</h2>
+  {#if name}<h2>{name}</h2>{/if}
   <fieldset disabled={resting}>
     {@render children()}
   </fieldset>

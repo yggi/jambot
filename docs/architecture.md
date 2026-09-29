@@ -214,6 +214,9 @@ of all it hears, after reading each message by its fields and each judgement by
 the gates it was judged by, so nothing a client sends can stop the host's clock.
 Sessions are found through a lobby: across the tabs of one browser, or through
 the lobby server (`apps/lobby`) across machines; WebRTC comes next.
+In the app the page is the container, and the lobby is the door to the band: the
+page holds the device, the name and the sessions, and shows the lobby or the
+band by what the sessions say.
 
 ### Root node
 

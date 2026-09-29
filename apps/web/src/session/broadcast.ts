@@ -29,7 +29,9 @@ type Post =
 /** How long, in milliseconds, a host waits to hear whether a name is held, and a list for answers. */
 export const CLAIM_WAIT = 150;
 
-type Directory = { readonly kind: 'who' } | { readonly kind: 'here'; readonly name: string };
+type Directory =
+  | { readonly kind: 'who' }
+  | { readonly kind: 'here'; readonly name: string; readonly players: number };
 const DIRECTORY = 'jambot:sessions';
 
 const channelOf = (session: string) => `jambot:session:${sessionKey(session)}`;
@@ -42,14 +44,16 @@ export function broadcastLobby(): Lobby {
   return {
     async sessions() {
       const directory = new BroadcastChannel(DIRECTORY);
-      const names = new Set<string>();
+      const found = new Map<string, number>();
       directory.onmessage = ({ data }: MessageEvent<Directory>) => {
-        if (data?.kind === 'here') names.add(data.name);
+        if (data?.kind === 'here') found.set(data.name, data.players);
       };
       directory.postMessage({ kind: 'who' } satisfies Directory);
       await new Promise((resolve) => setTimeout(resolve, CLAIM_WAIT));
       directory.close();
-      return [...names].sort();
+      return [...found]
+        .map(([name, players]) => ({ name, players }))
+        .sort((a, b) => a.name.localeCompare(b.name));
     },
 
     async host(session, hear) {
@@ -72,14 +76,24 @@ export function broadcastLobby(): Lobby {
       }
       const name = session.trim();
       const directory = new BroadcastChannel(DIRECTORY);
+      // Who has joined, by what each said: a tab that closes without leaving is still counted.
+      const joined = new Set<string>();
       directory.onmessage = ({ data }: MessageEvent<Directory>) => {
-        if (data?.kind === 'who') directory.postMessage({ kind: 'here', name } satisfies Directory);
+        if (data?.kind === 'who')
+          directory.postMessage({
+            kind: 'here',
+            name,
+            players: 1 + joined.size,
+          } satisfies Directory);
       };
       channel.onmessage = ({ data }: MessageEvent<Post>) => {
         if (data?.kind === 'claim') channel.postMessage({ kind: 'held' } satisfies Post);
         if (data?.kind !== 'client') return;
         const message = readClientMessage(data.message);
-        if (message) hear(message, data.from);
+        if (!message) return;
+        if (message.kind === 'join') joined.add(data.from);
+        else if (message.kind === 'leave') joined.delete(data.from);
+        hear(message, data.from);
       };
       return {
         reclaim: null,

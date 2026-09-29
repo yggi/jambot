@@ -15,6 +15,11 @@ Facts about `packages/session` and the app's sessions: clocks, the fault kit and
   So a check bounds every note by the jumps settling as it sounds and excuses exactly the notes a host's stall dropped, on any machine, rather than count notes out.
   A clock's discontinuity is a jump, so a step stays the grid's.
   Across machines, run `pnpm lobby` on one and give its `ws://` address as the lobby server on each; every machine loads the app from its own `localhost`, where Web MIDI works without HTTPS.
+- `Sessions` (`apps/web/src/session/sessions.svelte.ts`) is the page's one place for opening, joining, ending and restoring: a session is `local` (the tabs lobby) or `global` (the lobby server at `address`, kept for next time, empty for none), and a page is in one at a time.
+  It lists both lobbies with each session's players (`list`), and a lobby it can't reach is a `problem` beside the ones it could.
+  The lobby server counts the host and every client socket it holds; a client whose link dropped is not counted while away, and present and away are not told apart.
+  The tabs lobby counts who said they joined and left, so a tab closed without leaving is counted until the session closes.
+  Tested against `memoryLobby` (`session/fixtures.ts`), without a component.
 - A test of anything that reads a clock runs it on `simulatedDevice` (`packages/session/src/faults.ts`, #27): real time is the test's, and each fault is named, else off: drift, dropped buffers (the output's clock stands still for the buffer), the render quantum, latency, the pairing's jitter and blips, page stalls, and a link's legs, holds and loss.
   `device.view(() => t)` gives the `clock` and `now` the app reads, and `{ paired: false }` a platform with no pairing.
   The quantum reaches only `currentTime`, so a reader of the pairing meets it only on its fallback.

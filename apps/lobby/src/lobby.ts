@@ -110,7 +110,13 @@ export async function startLobby({
     const part = parts.get(socket) ?? { kind: 'none' };
     switch (request.op) {
       case 'list':
-        return send(socket, { op: 'sessions', names: [...sessions.values()].map((s) => s.name) });
+        return send(socket, {
+          op: 'sessions',
+          sessions: [...sessions.values()].map((s) => ({
+            name: s.name,
+            players: 1 + s.clients.size,
+          })),
+        });
       case 'host': {
         if (part.kind !== 'none') return;
         const refused = nameRefusal(request.session);

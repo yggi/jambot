@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
-import { level, listen, onsets, starts, workers } from './audio.ts';
+import { level, listen, onsets, solo, starts, workers } from './audio.ts';
 
 /** Where each onset falls after the first, in steps, as the fraction of a step. */
 const phases = (times: number[], bpm: number) =>
@@ -14,6 +14,7 @@ const start = (page: Page) => page.getByRole('button', { name: 'Start the band' 
 
 test('plays, follows on screen, and stops at once, without an error', async ({ page }) => {
   const errors = await listen(page);
+  await solo(page);
   await expect(page.getByText('Ready')).toBeVisible();
   // Swing jazz at full energy: the ride rings 0.45 s, so only the fade on
   // Stop can silence what is scheduled within 300 ms. The fade falls with a
@@ -43,6 +44,7 @@ test('plays, follows on screen, and stops at once, without an error', async ({ p
 
 test('plays every event once', async ({ page }) => {
   await listen(page);
+  await solo(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
   await page.waitForTimeout(3000);
@@ -64,6 +66,7 @@ test('plays every event once', async ({ page }) => {
 
 test('starts and stops on a quick double click, and leaves nothing running', async ({ page }) => {
   await listen(page);
+  await solo(page);
   await page.evaluate(() => {
     const button = [...document.querySelectorAll('button')].find((b) =>
       b.textContent?.includes('Start'),
@@ -79,6 +82,7 @@ test('starts and stops on a quick double click, and leaves nothing running', asy
 
 test('plays a straight preset on the 16th grid', async ({ page }) => {
   await listen(page);
+  await solo(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
   await page.waitForTimeout(3000);
@@ -90,6 +94,7 @@ test('plays a straight preset on the 16th grid', async ({ page }) => {
 
 test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   await listen(page);
+  await solo(page);
   await page.getByRole('button', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
@@ -104,8 +109,41 @@ test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   expect(found.has(2 / 3)).toBe(true);
 });
 
+test('clicks the band’s own beats, and the swing moves its offbeats to the band’s (#166)', async ({
+  page,
+}) => {
+  await listen(page);
+  await solo(page);
+  await page.getByRole('button', { name: 'Swing jazz' }).click();
+  await page.getByLabel('Metrum').locator('summary').click();
+  await page.getByRole('button', { name: 'Click' }).click();
+  await start(page);
+  await page.waitForTimeout(4000);
+  const all = await starts(page);
+  // The click tells its weights apart by pitch: a square at 1800 Hz on the
+  // downbeat, a triangle at 1200 on the other pulses, a sine at 800 between.
+  const at = (kind: string, frequency: number) =>
+    all
+      .filter((s) => s.kind === kind && s.frequency === frequency)
+      .map((s) => s.when)
+      .sort((x, y) => x - y);
+  const pulses = [...at('square', 1800), ...at('triangle', 1200)].sort((x, y) => x - y);
+  const offbeats = at('sine', 800);
+  expect(pulses.length).toBeGreaterThan(8);
+  expect(offbeats.length).toBeGreaterThan(8);
+  // Swing jazz: 148 bpm, so a pulse lasts four steps, 60 / 148 s, and the
+  // offbeat eighth lies 2/3 of the way to the next, as the band's ride does.
+  const beat = 60 / 148;
+  pulses.slice(1).forEach((t, i) => expect(t - pulses[i]!).toBeCloseTo(beat, 3));
+  for (const t of offbeats) {
+    const before = pulses.filter((p) => p < t).at(-1);
+    if (before !== undefined) expect((t - before) / beat).toBeCloseTo(2 / 3, 2);
+  }
+});
+
 test('plays the full band: bass, chords and lead beside the drums', async ({ page }) => {
   await listen(page);
+  await solo(page);
   // Deep house: a groove with harmony, and energy enough for the lead.
   await page.getByRole('button', { name: 'Deep house' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
@@ -144,6 +182,7 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   page,
 }) => {
   const errors = await listen(page);
+  await solo(page);
   // At energy 0 the lead rests on its own, so a lead note the band plays is the motif.
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -245,6 +284,7 @@ for (const input of INPUTS)
       });
     });
     const errors = await listen(page);
+    await solo(page);
     await page.getByRole('slider', { name: /Energy/ }).fill('0');
     await input.ready(page);
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());

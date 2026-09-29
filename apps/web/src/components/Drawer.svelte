@@ -16,7 +16,7 @@
 </script>
 
 <details class="drawer">
-  <summary>
+  <summary class="chevron">
     <span class="name">{name}</span>
     {#if status}<span class="status">{status}</span>{/if}
   </summary>
@@ -28,29 +28,18 @@
 <style>
   .drawer {
     border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 14px;
+    border-radius: 12px;
+    padding: 10px 16px;
     min-width: 0;
   }
   summary {
-    cursor: pointer;
     display: flex;
-    justify-content: space-between;
     align-items: baseline;
     gap: 10px;
   }
   .name {
     font-weight: 600;
-  }
-  .name::before {
-    content: '▸';
-    display: inline-block;
-    width: 1em;
-    color: var(--muted);
-    transition: transform 0.15s;
-  }
-  .drawer[open] .name::before {
-    transform: rotate(90deg);
+    margin-right: auto;
   }
   .status {
     font-size: 13px;
