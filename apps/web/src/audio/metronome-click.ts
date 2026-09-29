@@ -3,7 +3,8 @@
  * tells the bar's downbeat from its other pulses, and either from the
  * subdivisions between them (`@jambot/theory`'s `meterWeights`). Built the
  * same way the drum kit is (`drums.ts`): an oscillator through a percussive
- * envelope, no sample.
+ * envelope, no sample. The built-in synth plays it on the band's own clock
+ * (`output.ts`).
  */
 
 import type { Weight } from '@jambot/theory';
@@ -27,6 +28,7 @@ export function clickVoice(ctx: BaseAudioContext, out: AudioNode): ClickVoice {
       const osc = ctx.createOscillator();
       const amp = ctx.createGain();
       osc.type = type;
+      osc.frequency.value = frequency; // where it starts, which the e2e checks read.
       osc.frequency.setValueAtTime(frequency, t);
       amp.gain.setValueAtTime(0.0001, t);
       amp.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + 0.001);
@@ -35,28 +37,5 @@ export function clickVoice(ctx: BaseAudioContext, out: AudioNode): ClickVoice {
       osc.start(t);
       osc.stop(t + decay + 0.01);
     },
-  };
-}
-
-/** The clock the metronome's own clicks play on: its own audio context, independent of the band's. */
-export interface ClickOutput {
-  readonly currentTime: number;
-  readonly latency: number;
-  resume(): Promise<void>;
-  readonly click: ClickVoice;
-}
-
-export function webAudioClick(): ClickOutput {
-  const ctx = new AudioContext();
-  const click = clickVoice(ctx, ctx.destination);
-  return {
-    get currentTime() {
-      return ctx.currentTime;
-    },
-    get latency() {
-      return ctx.outputLatency || ctx.baseLatency || 0;
-    },
-    resume: () => ctx.resume(),
-    click,
   };
 }

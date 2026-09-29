@@ -18,6 +18,11 @@
  * by the octave that fits it best, and a note that still doesn't fit
  * folds by octaves on its own.
  *
+ * The style reaches the lead's phrases in one place, `phraseParams`.
+ * From the bar's energy, its chords and the style's sync and entropy, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
+ * The style's swing, harm and articulation don't reach the phrases.
+ * What the lead writes over every preset is recorded in `lead.fixture.json`, so a change to it is a deliberate one.
+ *
  * A theme's melody comes back with its harmony: the shape a theme was
  * first played with returns while the syncopation and the energy stay near
  * it. The lead rests in an intro, a breakdown and below energy 0.4. A note
@@ -124,21 +129,79 @@ const CONTOURS = [
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+/**
+ * Everything the lead's phrases take from the style and the bar: how a
+ * shape's rhythm fills, how far and how its contour moves, how a variation
+ * varies it, where its notes go to chord tones and the range it plays in.
+ */
+export interface PhraseParams {
+  /** How much of the grooves a shape's rhythm plays, 0.25 at energy 0 to 0.75 at 1. */
+  readonly density: number;
+  /** How far the grooves lean from straight (0) to syncopated (1): the style's sync. */
+  readonly grooveMix: number;
+  /**
+   * The Euclidean pulse a rhythm is blended with: 3 hits at energy 0 to 8 at
+   * 1, rotated by the sync.
+   */
+  readonly pulse: readonly number[];
+  /** How many degrees the contour reaches from the first note, 2 to 8, with energy and entropy. */
+  readonly span: number;
+  /** The weight of each contour: an arch, a fall, a rise and a wave. */
+  readonly contours: readonly number[];
+  /** How likely a step of the contour turns a degree aside, with entropy. */
+  readonly turn: number;
+  /** How likely a step leaps a fourth aside: none up to entropy 0.5. */
+  readonly leap: number;
+  /** The weight of each variation: turned over, lifted, its last note bent, its last note dropped. */
+  readonly variations: readonly number[];
+  /** How likely a variation nudges one note a degree, with entropy. */
+  readonly nudge: number;
+  /** The steps where a note of the lead's own goes to a chord tone: the half bar and each chord's start. */
+  readonly snap: readonly number[];
+  /** The lowest and highest note. */
+  readonly range: readonly [number, number];
+}
+
+/**
+ * The one place the style reaches the lead's phrases: every parameter of a
+ * shape, a variation and its realization, from the bar's energy, its chords
+ * and the style's sync and entropy.
+ */
+export function phraseParams({
+  style,
+  barEnergy: energy,
+  chords,
+}: Pick<BarEnv, 'style' | 'barEnergy' | 'chords'>): PhraseParams {
+  return {
+    density: 0.25 + 0.5 * energy,
+    grooveMix: style.sync,
+    pulse: positions(even(Math.round(3 + 5 * energy), BAR_STEPS, Math.round(style.sync * 3))),
+    span: 2 + Math.round((energy + style.entropy) * 3),
+    contours: [1, 1, 1, 1],
+    turn: 0.2 + 0.3 * style.entropy,
+    leap: style.entropy > 0.5 ? style.entropy - 0.5 : 0,
+    variations: [0.3, 0.25, 0.25, 0.2],
+    nudge: style.entropy * 0.5,
+    snap: Array.from({ length: BAR_STEPS }, (_, s) => s).filter(
+      (s) => s % 8 === 0 || chords.some((c) => c.slot.step === s),
+    ),
+    range: LEAD_RANGE,
+  };
+}
+
 /** A new shape for a phrase: its draws are keyed by the section and the half of it. */
 function shapeOf(env: BarEnv): LeadShape {
   const { seed, plan, style, barEnergy: energy, barInSection } = env;
+  const { density, grooveMix, pulse, span, contours, turn, leap } = phraseParams(env);
   const section = plan.section.index;
   const half = barInSection >> 2;
   let n = 0;
   const next = () => draw(seed, 'leadShape', section, half, n++);
 
-  const density = 0.25 + 0.5 * energy;
-  const euclid = new Set(
-    positions(even(Math.round(3 + 5 * energy), BAR_STEPS, Math.round(style.sync * 3))),
-  );
+  const euclid = new Set(pulse);
   const steps: number[] = [];
   for (let s = 0; s < BAR_STEPS; s++) {
-    const groove = lerp(GROOVE_STRAIGHT[s]!, GROOVE_SYNCOPATED[s]!, style.sync) * density;
+    const groove = lerp(GROOVE_STRAIGHT[s]!, GROOVE_SYNCOPATED[s]!, grooveMix) * density;
     const p = lerp(groove, euclid.has(s) ? 0.9 : 0, 0.5);
     if (chance(draw(seed, 'leadRhythm', section, half, s), p)) steps.push(s);
   }
@@ -148,8 +211,7 @@ function shapeOf(env: BarEnv): LeadShape {
   }
   steps.sort((a, b) => a - b);
 
-  const span = 2 + Math.round((energy + style.entropy) * 3);
-  const contour = CONTOURS[pick(next(), [1, 1, 1, 1])]!;
+  const contour = CONTOURS[pick(next(), contours)]!;
   const degrees = [0];
   let move = 0;
   for (let i = 1; i < steps.length; i++) {
@@ -159,9 +221,8 @@ function shapeOf(env: BarEnv): LeadShape {
     const here = degrees[i - 1]!;
     let m = Math.sign(target - here) * (Math.abs(target - here) > 2 ? 2 : 1);
     if (Math.abs(move) >= 3) m = -Math.sign(move);
-    else if (chance(next(), 0.2 + 0.3 * style.entropy)) m += chance(next(), 0.5) ? -1 : 1;
-    if (style.entropy > 0.5 && chance(next(), style.entropy - 0.5))
-      m += chance(next(), 0.5) ? -3 : 3;
+    else if (chance(next(), turn)) m += chance(next(), 0.5) ? -1 : 1;
+    if (leap > 0 && chance(next(), leap)) m += chance(next(), 0.5) ? -3 : 3;
     degrees.push(here + m);
     move = m;
   }
@@ -173,14 +234,16 @@ function shapeOf(env: BarEnv): LeadShape {
  * bent, or its last note dropped, the note before it then held to the bar's
  * end. At some entropy one note is nudged a degree.
  */
-function varied(shape: LeadShape, seed: number, bar: number, entropy: number): LeadShape {
+function varied(shape: LeadShape, env: BarEnv): LeadShape {
+  const { seed, bar } = env;
+  const { variations, nudge } = phraseParams(env);
   let n = 0;
   const next = () => draw(seed, 'leadVariation', bar, n++);
   const notes = notesOf(shape);
   let degrees = notes.degrees;
   const onsets = notes.steps;
   // Turn it over, lift it, bend its last note, or drop it.
-  const way = pick(next(), [0.3, 0.25, 0.25, 0.2]);
+  const way = pick(next(), variations);
   if (way === 0) degrees = degrees.map((d) => -d);
   else if (way === 1) degrees = degrees.map((d) => d + 2);
   else if (way === 2) {
@@ -191,7 +254,7 @@ function varied(shape: LeadShape, seed: number, bar: number, entropy: number): L
     onsets.pop();
     degrees.pop();
   }
-  if (chance(next(), entropy * 0.5) && onsets.length > 1) {
+  if (chance(next(), nudge) && onsets.length > 1) {
     const i =
       1 +
       pick(
@@ -218,13 +281,12 @@ function nearestOf(classes: readonly number[], near: number): number {
 }
 
 /**
- * A phrase moved into 60–86: by the octave that puts the most notes in
+ * A phrase moved into a range: by the octave that puts the most notes in
  * range (the smallest move on a tie), then any note still outside folded
- * by octaves on its own. The range is over an octave wide, so every note
- * fits, and folding by octaves keeps each note's pitch class.
+ * by octaves on its own. The lead's range, 60–86, is over an octave wide,
+ * so every note fits, and folding by octaves keeps each note's pitch class.
  */
-function intoRange(notes: readonly number[]): number[] {
-  const [low, high] = LEAD_RANGE;
+function intoRange(notes: readonly number[], [low, high]: PhraseParams['range']): number[] {
   const inside = (shift: number) =>
     notes.filter((n) => n + shift >= low && n + shift <= high).length;
   let best = 0;
@@ -290,16 +352,16 @@ function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], ph
  */
 function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
   const { plan, chords, barInSection } = env;
+  const { snap, range } = phraseParams(env);
   const { onsets, degrees, accidentals } = motif;
   const scale = keyHelix(plan.key);
   const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
   const first = degreeNear(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
   let notes = heard.map(({ step, i }) => {
     const note = alteredHeight(scale, first + degrees[i]!, accidentals[i]!);
-    const onChord = step % 8 === 0 || chords.some((c) => c.slot.step === step);
-    return fit && onChord ? nearestTone(chordAt(chords, step).chord, note) : note;
+    return fit && snap.includes(step) ? nearestTone(chordAt(chords, step).chord, note) : note;
   });
-  notes = intoRange(cadence(notes, heard.at(-1)!.step, chords, barInSection % 4));
+  notes = intoRange(cadence(notes, heard.at(-1)!.step, chords, barInSection % 4), range);
   const written: WrittenNote[] = heard.map(({ step, i }, j) => ({
     part: 'lead',
     step,
@@ -316,7 +378,7 @@ function realize(motif: Motif, env: BarEnv, last: number, fit: boolean) {
 export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
   initial: { last: 69, phrase: null, melodies: {}, offered: null },
   advance(env, carried) {
-    const { seed, bar, plan, style, barEnergy: energy, barInSection, offer } = env;
+    const { plan, style, barEnergy: energy, barInSection, offer } = env;
     // A motif the Muse offers is played whole while it stands, even where
     // the lead would rest, and the lead's own phrase starts afresh after it.
     if (offer) {
@@ -347,7 +409,7 @@ export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
       }
       phrase = shape;
     } else if (phase === 2) shape = phrase;
-    else shape = varied(phrase, seed, bar, style.entropy);
+    else shape = varied(phrase, env);
 
     const { written, last } = realize(shape, env, carried.last, true);
     return { carried: { last, phrase, melodies, offered: null }, output: written };

@@ -1,159 +1,83 @@
 /**
- * The metronome: a click track of its own, next to the band rather than
- * part of it. Client-only, so it never touches MIDI out or a session: every
- * device runs its own, on its own audio context, at whatever tempo it is
- * given. It reads the tempo live, the way `bandOutput` reads its settings,
- * so it follows a tempo change or glide without watching the style track
- * itself; its meter is its own, since the transport's bar is always 16
- * steps in 4/4 (`transport.ts`) and 3/4, 6/8 and 12/8 need a bar the
- * transport doesn't have.
+ * The metronome: the band's own steps, clicked. It has no clock, no audio
+ * context and no ticker of its own: the player, on each tick, hands it the
+ * steps the transport laid (`lay`), and it reads them into clicks on the
+ * song's meter, through the swing (`clicksOf`) and plays them on the
+ * player's output. So it clicks while the band plays, on its beats, and
+ * rests while it is stopped: there is one clock. It is client-only: the
+ * click sounds on this device's synth and never goes to MIDI out or a
+ * session, and a client clicks its host's steps on its own output.
  *
- * Volume and meter are saved to `localStorage`, as `MidiSettings` does;
- * whether it is on is not, since a browser starts audio only after a
- * gesture and a reload should never autoplay a click.
+ * Its volume is saved to `localStorage`, as `MidiSettings` does; whether it
+ * is on is not, since a reload should never surprise the ear.
  */
 
-import { LOOKAHEAD, type MetronomeCarried, type MetronomeEnv, metronome } from '@jambot/engine';
-import { METERS, type MeterName } from '@jambot/theory';
-import { type ClickOutput, webAudioClick } from './audio/metronome-click.ts';
+import { SONG_METER, type ScheduledStep, clicksOf } from '@jambot/engine';
+import type { Output } from './audio/output.ts';
 import { Heard } from './heard.ts';
-import { startTicker } from './ticker.ts';
 
 const STORAGE_KEY = 'jambot-metronome-v1';
 
 interface StoredPrefs {
   readonly volume: number;
-  readonly meter: MeterName;
 }
 
-const DEFAULTS: StoredPrefs = { volume: 0.7, meter: '4/4' };
+const DEFAULTS: StoredPrefs = { volume: 0.7 };
 
 function load(): StoredPrefs {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<StoredPrefs>) };
+    const { volume } = JSON.parse(raw) as Partial<StoredPrefs>;
+    return { volume: typeof volume === 'number' ? volume : DEFAULTS.volume };
   } catch {
     return DEFAULTS;
   }
 }
 
-/** What the metronome runs on; a test can stand in for each. */
-export interface MetronomeSurroundings {
-  output(): ClickOutput;
-  ticker(tick: () => void): () => void;
-  frame(follow: () => void): () => void;
-}
-
-/** The real browser's ticker and frame, with its own audio context. */
-export function browserMetronomeSurroundings(): MetronomeSurroundings {
-  return {
-    output: webAudioClick,
-    ticker: startTicker,
-    frame(follow) {
-      let id = requestAnimationFrame(function loop() {
-        follow();
-        id = requestAnimationFrame(loop);
-      });
-      return () => cancelAnimationFrame(id);
-    },
-  };
-}
-
-const browser: MetronomeSurroundings = browserMetronomeSurroundings();
-
 export class Metronome {
   on = $state(false);
-  #volume = $state(DEFAULTS.volume);
-  #meter: MeterName = $state(DEFAULTS.meter);
-  /** The pulse heard now, from 0, or null while off or before anything is heard. */
+  #volume = $state(load().volume);
+  /** The eighth of the bar heard now, from 0, or null likewise. */
+  eighth: number | null = $state(null);
+  /** The pulse heard now, from 0, or null while off, stopped or before anything is heard. */
   pulse: number | null = $state(null);
   /** Whether the pulse heard now is the bar's downbeat. */
   downbeat = $state(false);
 
-  #pulsesPerMinute: () => number;
-  #surroundings: MetronomeSurroundings;
-  #output: ClickOutput | null = null;
-  #carried: MetronomeCarried | null = null;
-  #start = 0;
-  #stopTicker: (() => void) | null = null;
-  #stopFrames: (() => void) | null = null;
-  #heard = new Heard<{ pulse: number; downbeat: boolean }>();
-
-  constructor(pulsesPerMinute: () => number, surroundings: MetronomeSurroundings = browser) {
-    this.#pulsesPerMinute = pulsesPerMinute;
-    this.#surroundings = surroundings;
-    const stored = load();
-    this.#volume = stored.volume;
-    this.#meter = stored.meter;
-  }
+  #heard = new Heard<{ eighth: number; pulse: number; downbeat: boolean }>();
 
   get volume(): number {
     return this.#volume;
   }
   set volume(value: number) {
     this.#volume = value;
-    this.#save();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ volume: value } satisfies StoredPrefs));
+    } catch {
+      // Storage can be unavailable (private browsing, quota); it just won't persist.
+    }
   }
 
-  get meter(): MeterName {
-    return this.#meter;
-  }
-  set meter(value: MeterName) {
-    this.#meter = value;
-    this.#carried = null; // a new meter starts fresh, from its own downbeat.
-    this.pulse = null;
-    this.downbeat = false;
-    this.#save();
-  }
-
-  /** Pulses in the current meter's bar: what the steps-in-bar counter counts to. */
+  /** Pulses in the song's bar: what the pulse counter counts to. */
   get pulses(): number {
-    return METERS[this.#meter].heights.length;
+    return SONG_METER.heights.length;
   }
 
-  async start() {
-    if (this.on) return;
-    const output = (this.#output ??= this.#surroundings.output());
-    await output.resume();
-    if (this.on) return; // stopped while resuming
-    this.on = true;
-    this.#carried = null;
-    this.#heard.clear();
-    this.pulse = null;
-    this.downbeat = false;
-    this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
-    this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
-  }
-
-  stop() {
-    if (!this.on) return;
-    this.on = false;
-    this.#stopTicker?.();
-    this.#stopFrames?.();
-    this.#stopTicker = this.#stopFrames = null;
-    this.pulse = null;
-    this.downbeat = false;
-  }
-
-  #tick() {
-    const output = this.#output;
-    if (!this.on || !output) return;
+  /**
+   * Click the steps just laid, at `seconds - skew` on the output's clock,
+   * except any that clock has already passed. The player calls this every
+   * tick, so it does nothing while off.
+   */
+  lay(output: Output, steps: readonly ScheduledStep[], skew: number) {
+    if (!this.on || !output.click) return;
     const now = output.currentTime;
-    if (this.#carried === null) this.#start = now + 0.05;
-    const env: MetronomeEnv = {
-      start: this.#start,
-      pulsesPerMinute: this.#pulsesPerMinute(),
-      meter: METERS[this.#meter],
-    };
-    const { carried, output: scheduled } = metronome.advance(env, this.#carried, {
-      now,
-      until: now + LOOKAHEAD,
-    });
-    this.#carried = carried;
-    for (const click of scheduled.clicks) {
-      output.click.play(click.weight, click.seconds, this.#volume);
-      this.#heard.push(click.seconds, {
+    for (const click of clicksOf(steps)) {
+      const seconds = click.seconds - skew;
+      if (seconds < now) continue;
+      output.click(click.weight, seconds, this.#volume);
+      this.#heard.push(seconds, {
+        eighth: click.eighth,
         pulse: click.pulse,
         downbeat: click.weight === 'downbeat',
       });
@@ -161,22 +85,20 @@ export class Metronome {
     this.#heard.drop(now - 1);
   }
 
-  #followHeard() {
-    const output = this.#output;
-    if (!this.on || !output) return;
-    const latest = this.#heard.take(output.currentTime - output.latency);
-    if (latest !== undefined) {
-      this.pulse = latest.pulse;
-      this.downbeat = latest.downbeat;
-    }
+  /** Show the pulse heard by `seconds` on the output's clock. */
+  follow(seconds: number) {
+    const latest = this.#heard.take(seconds);
+    if (latest === undefined) return;
+    this.eighth = latest.eighth;
+    this.pulse = latest.pulse;
+    this.downbeat = latest.downbeat;
   }
 
-  #save() {
-    const stored: StoredPrefs = { volume: this.#volume, meter: this.#meter };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    } catch {
-      // Storage can be unavailable (private browsing, quota); it just won't persist.
-    }
+  /** The band stopped: nothing is heard. It stays on, for the next song. */
+  rest() {
+    this.#heard.clear();
+    this.eighth = null;
+    this.pulse = null;
+    this.downbeat = false;
   }
 }

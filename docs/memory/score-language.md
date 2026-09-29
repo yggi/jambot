@@ -33,10 +33,9 @@ Facts about `packages/score` and the score language (#7).
   A new reader uses them, never `/ 16`, `% 16` or `/ 4`; tests keep the literals, as a check that 4/4 still plays as it did.
   The rhythms the parts write (the backbeat on steps 4 and 12, the 16-long tables) are content on the 16 steps, not readings.
   Nothing composes in anything but 4/4 yet, and how bars of different lengths join is #122.
-  The metronome (`packages/engine/src/metronome.ts`) plays any named meter on its own bar, independent of the song's.
+  The metronome (`packages/engine/src/metronome.ts`) has no bar of its own: it clicks the eighths of the steps the transport laid, on `SONG_METER`, through the swing they were laid with (`clicksOf`).
 - A header's `bpm=` counts the grid, as the engine's `stepSeconds` does: quarter notes a minute, a quarter of the step rate, whatever the meter.
   A pulse rate is only derived, for display, and exists only where the pulses are equal (T7).
-  The metronome's `pulsesPerMinute` is such a derived rate, a mean for 5/8 or 7/8.
 - Layers refer upward: pitch is relative to the chord, the chord to the key, the key to the section.
   Only compiled events are absolute.
 - `harm`: Roman numerals in the bar's key (minor, dorian, major, mixolydian), with `° ø + 7 maj7 9 maj9`, borrowed `b`/`#` and secondaries `V7/iv`.

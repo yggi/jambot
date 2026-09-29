@@ -37,13 +37,25 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   What outlives the door is the container's: `Device` (MIDI settings and connection, the audio clock and output), `Instruments` (the routes of the keys, the pads and MIDI in, and what is held), `Profile` and `Sessions`.
   The keyboard and the pads are the band's, behind the door; MIDI and sound are on both sides of it.
   The computer's keys play only behind the door.
-  Back at the lobby nothing plays on: the page stops the player and the metronome.
+  Back at the lobby nothing plays on: the page stops the player, which rests the click.
   The master volume (`Device.volume`, a `Fader`) is the container's too, above both screens: local, kept, and the square of its position is the synth's gain (`taper`).
-  It scales the built-in synth only (`Output.level`, on the bus that `silence` replaces), not MIDI out and not the metronome, which has its own.
+  It scales the built-in synth only (`Output.level`, on the bus that `silence` replaces), not MIDI out; the click is on the same bus, so it is scaled and faded with the band, on top of its own volume.
   A `Fader` holds no value and is the level a mixer's tracks will share.
   The click that joins or hosts is the gesture that lets the browser play audio: `Sessions` asks for it before its first await, and a test holds it there.
   Joining mutes the master, and it rises over `FADE_IN` once the band plays; leaving, closing or going back plays on while it falls over `FADE_OUT`, then the volume is put back for what plays next.
   A new widget goes into the level it belongs to, not into a corner of another.
+- The key and the metrum share one card, summary over details: a `Fold` carries its own heading ("Key", "Metrum") inside it, over a headline in large type and, only for something secondary that changes (the metrum's meter and swing), a line under it, with the chevron at the top right, where a `Drawer`'s is too, so a stack of them lines up (`summary.chevron`, in `app.css`).
+  A level whose card names itself has no `name` and so no heading above it (`Level`).
+  The parts under a card are shared too: `Nudge` (two buttons joined in a pill, a step down and up, with what it reaches between them: the tempo's and the key's), `Gauge` (a track with a tick at its centre, a marker, an optional fill from the centre and an optional band of reach: the tempo's licence and the swing), `Segmented` (a row of exclusive segments, the key's scale) and `Ruler` (a span of steps ticked, with marks laid on it at places that need not be ticks: the scale's notes on the octave's 12 steps, the bar's steps on its 16).
+  A new view of one thing builds from these, and a makeover of one changes all.
+  A card's details say values, not sentences: "Reaches 117–180", "Swing 62 %", "Pulse 3 of 4".
+- The metrum is the page's one section on time (`Metrum.svelte`, `metrum.ts`): the headline is the tempo, the line under it the meter and the swing value ("4/4 · swing 62 %"), and unfolded it holds the tempo nudge and its licence gauge, the swing gauge (the whole range, none at its start), the bar drawn on a `Ruler` and the click.
+  The bar's marks sit where the click sounds under the swing (`barMarks`, on the engine's `clicksOf`): the eighths are the click's, counted 1 & 2 & 3 & 4 &, the sixteenths between are faint, so a light swing shows on them and only a swing past half moves the eighths.
+  The swing is read there and set in the style, where it stays an axis.
+- The click has no clock of its own (#166): the player hands the `Metronome` the steps the transport laid on each tick (`Metronome.lay`), it reads them into clicks on the song's meter through the swing (`clicksOf`, `packages/engine/src/metronome.ts`) and plays them on the player's output (`Output.click`, the built-in synth alone, never MIDI, on the bus `silence` fades).
+  So it starts on the band's downbeat, follows a tempo glide, and rests while the band is stopped: switched on, it waits for the next song (decided in #166).
+  A client clicks its host's steps on its own output at the skew it plays them; the click is the client's own, so it is never in a session and its switch never rests.
+  Only its volume is saved, in `localStorage`; whether it is on never is.
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.
   `licenceOf(style)` gives all three widths from the style: the performer's feel, the tempo's reach and the key's.
@@ -59,6 +71,7 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a person plays along with it.
   Any note played, from a pointer, a computer key or MIDI, goes through `App.svelte`'s `onHumanNote`, which sounds it at once (`Player.playAlong`) and logs it for the Muse (`Player.humanNoteOn`, and `humanNoteOff` for its release) alike; `midi/surfaces.ts`'s `partOf` reads a MIDI note's channel to tell the pads from the keyboard, channel 10 the drums' as the prototype's is.
 - The e2e checks tell sounds apart by oscillator type and starting frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a chord note a triangle beside a sine 0.3 % sharp.
+  The click is a square at 1800 Hz on the downbeat, a triangle at 1200 on the other pulses and a sine at 800 between (`metronome-click.ts`), each starting at its frequency, which `band.e2e.ts` reads to place them.
   A new voice keeps these apart or updates `band.e2e.ts`.
   A note played along is a square too, but starts at once, off the grid; at energy 0 the lead rests, so a square on the grid is a motif the Muse offered.
 - Section names appear twice on the page, on the stage and in the song map, which names them before anything is heard.

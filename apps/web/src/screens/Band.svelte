@@ -10,13 +10,12 @@
   import Keyboard from '../components/Keyboard.svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
   import Level from '../components/Level.svelte';
-  import MetronomePanel from '../components/MetronomePanel.svelte';
+  import Metrum from '../components/Metrum.svelte';
   import MusePanel from '../components/MusePanel.svelte';
   import Performers from '../components/Performers.svelte';
   import SessionBar from '../components/SessionBar.svelte';
   import Stage from '../components/Stage.svelte';
   import StylePanel from '../components/StylePanel.svelte';
-  import TempoNudge from '../components/TempoNudge.svelte';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
@@ -54,7 +53,7 @@
 <!--
     The music, in the order of the composition, from the whole song down to
     each note. A client plays its host's song, style and key, so those
-    levels' controls rest; its metronome and instruments are its own.
+    levels' controls rest; its click and instruments are its own.
   -->
 <Level name="Transport" resting={following}>
   <Transport
@@ -71,16 +70,18 @@
   />
 </Level>
 
-<Level name="Metrum">
-  <TempoNudge
+<Level>
+  <Metrum
     tempo={tempoView(player.track, player.tempoNudge)}
-    disabled={following}
+    swing={player.track.swing.to}
+    {metronome}
+    playing={player.playing}
+    {following}
     onintent={(intent) => player.apply(intent)}
   />
-  <MetronomePanel {metronome} />
 </Level>
 
-<Level name="Key">
+<Level>
   <KeyPicker
     {following}
     heading={player.hud.heading}

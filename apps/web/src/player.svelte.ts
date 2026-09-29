@@ -22,6 +22,9 @@
  * gesture. While it waits the player is starting: another start does
  * nothing, and a stop cancels it.
  *
+ * The metronome, when one is given, is handed the steps laid on each tick
+ * and clicks them on this output, so it has no clock of its own.
+ *
  * Playing along shares that clock and that output: `playAlong` is the
  * instruments' way to be heard, for a finger on the keyboard or the pads, a
  * computer key or a MIDI note. It plays at once, on the same synth the band
@@ -93,6 +96,7 @@ import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EMPTY_BAR, Pattern, type PatternBar } from './pattern.ts';
 import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
+import type { Metronome } from './metronome.svelte.ts';
 import { startTicker } from './ticker.ts';
 
 const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
@@ -254,6 +258,7 @@ export class Player {
   skew = 0;
 
   #surroundings: Surroundings;
+  #metronome: Metronome | null;
   #output: Output | null = null;
   #carried: TransportCarried | null = null;
   #seed = 0;
@@ -302,8 +307,13 @@ export class Player {
     }),
   );
 
-  constructor(surroundings: Surroundings = browser) {
+  constructor(
+    surroundings: Surroundings = browser,
+    /** Clicks the steps laid, when it is on; this device's own. */
+    metronome: Metronome | null = null,
+  ) {
     this.#surroundings = surroundings;
+    this.#metronome = metronome;
     this.#seed = surroundings.seed();
     this.#decide();
   }
@@ -550,6 +560,7 @@ export class Player {
     this.#stopFrames?.();
     this.#stopTicker = this.#stopFrames = null;
     this.heard = null;
+    this.#metronome?.rest();
     if (!this.#follow) {
       this.track = stopAt(this.track);
       this.#seed = this.#surroundings.seed();
@@ -697,6 +708,7 @@ export class Player {
         : scheduled.steps.map((s) => ({ ...s, seconds: s.seconds - skew })),
     );
     for (const { step, seconds } of scheduled.steps) this.#heard.push(seconds - skew, step);
+    this.#metronome?.lay(output, scheduled.steps, skew);
     this.#laid = [
       ...this.#laid.filter((s) => s.seconds + s.length > now - LAID_KEPT),
       ...scheduled.steps,
@@ -710,6 +722,7 @@ export class Player {
     const heard = heardOn(output);
     const latest = this.#heard.take(heard);
     if (latest !== undefined) this.heard = latest;
+    this.#metronome?.follow(heard);
     this.sounding = this.#sounding.at(heard);
   }
 }

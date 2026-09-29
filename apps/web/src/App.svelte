@@ -28,7 +28,12 @@
   const LIST_EVERY = 3000;
 
   const device = new Device();
-  const player = new Player(device.surroundings);
+  /**
+   * The click: the band's own steps sounded on this device's synth, so it is
+   * client-only and a client keeps it while its other controls rest.
+   */
+  const metronome = new Metronome();
+  const player = new Player(device.surroundings, metronome);
   const instruments = new Instruments(player, device);
   const profile = new Profile();
   const sessions = new Sessions(player, device.clocks, {
@@ -43,13 +48,6 @@
   // A page that was reloaded, or an app a phone closed in the background, takes
   // its session up again.
   void sessions.restore(Date.now() / 1000);
-
-  /**
-   * The metronome: client-only, so it runs on its own next to the band
-   * rather than through it, at whatever tempo the band is set to now — a
-   * client keeps this even while its own controls rest.
-   */
-  const metronome = new Metronome(() => player.track.bpm.to);
 
   /** The timing counters, read now: shown with `?timing` in the address (#27). */
   const timingShown = new URLSearchParams(location.search).has('timing');
@@ -112,7 +110,6 @@
   $effect(() => {
     if (screen !== 'door') return;
     player.stop();
-    metronome.stop();
   });
 
   // The sessions open, while the door shows, and again when the lobby server changes.
@@ -175,7 +172,6 @@
     if (player.playing) await device.fadeOut();
     sessions.end();
     player.stop();
-    metronome.stop();
     device.restore();
     soloChosen = false;
     leaving = false;

@@ -269,8 +269,9 @@ transport's beats. Counterexample: a grouping into 2s and 3s that no mode of
 16 eighths are such; each is still a helix, given by its heights, as the son
 clave is among the rhythms. Test: `packages/theory/src/meter.test.ts`, whose
 tests under "as a helix" cite T6, over every named meter and every grouping up
-to 16. Open for the song: nothing reads a meter but the metronome, and the
-transport's bar is 16 steps (T10). Source: #98, the metronome; #105. Status:
+to 16. Open for the song: the transport's bar is 16 steps (T10), and the
+metronome reads the song's meter from the steps the transport laid (#166).
+Source: #98, the metronome; #105. Status:
 measured (the named meters, their modes, every grouping as a helix); measured,
 failing (every grouping, by `even` alone). Lands in: #63 (a meter in the bar's
 header, beside T5's environment); #27 (the transport's bar).
@@ -279,10 +280,9 @@ header, beside T5's environment); #27 (the transport's bar).
 pulses are equal.** Witness: a meter's `gaps`, its pulses' lengths: they are
 equal exactly when the pulses divide the eighths, over every well-formed pair up
 to 16. The engine counts tempo per step (`tempoMap`, C2), so its `bpm` is a
-quarter of the step rate, whatever the meter. The metronome counts a mean pulse
-rate (`pulsesPerMinute`, `subdivisionSeconds`), which for 5/8 at 120 plays
-pulses of 0.6 and 0.4 s: no pulse is at 120, and the eighth changes speed when
-the meter does. Counterexample: an additive meter with a pulse that plays at the
+quarter of the step rate, whatever the meter. A mean pulse
+rate, which for 5/8 at 120 plays pulses of 0.6 and 0.4 s, is no pulse at 120,
+and the eighth changes speed when the meter does. Counterexample: an additive meter with a pulse that plays at the
 written tempo. Test: `packages/theory/src/meter.test.ts`, whose test of pulse
 tempo cites T7, over every well-formed pair up to 16. A header's `bpm=` counts
 the grid, as the engine does: quarter-note equivalents, a quarter of the step
@@ -1230,10 +1230,8 @@ Counterexample: a machine that keeps state out of sight, changes what it was
 given, or can't resume from a JSON snapshot. Test: `machine.test.ts` (each law,
 with a machine that breaks it); `form.test.ts`, `band.test.ts`,
 `transport.test.ts`, `plan.test.ts`, `bass.test.ts`, `comp.test.ts`,
-`lead.test.ts`, `muse.test.ts`, `clock.test.ts` and
-`packages/engine/src/metronome.test.ts`, whose tests of the machine laws cite
-F1. Source: #37 step 1. Status: measured. Decided: #37 step 1, in the working
-track. Lands in: Q4a.
+`lead.test.ts`, `muse.test.ts` and `clock.test.ts`. Source: #37 step 1.
+Status: measured. Decided: #37 step 1, in the working track. Lands in: Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
 Witness: the prototype's compiler carries each part's previous pitch and the
