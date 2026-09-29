@@ -30,11 +30,10 @@ on-screen keyboard and a set of drum pads mark the current key's scale and flash
 for the band's own lead and drum notes, and play at once, along with the band,
 from any input source (#25). The Muse hears a motif on any input, or from a
 session's clients, and the lead plays it back from the bar after next, and its
-panel shows the motif and its log (#79, done). The lead's status line and its
-performer row name whose motif it plays, bar by bar, from the bar's own offer,
-for a solo band and for a session's host and client. What is left of that is
-the view: a motif bar tinted in its source's colour, and the players' own rows
-in the tracks grid (#164, #183). Next for the Muse, in order: a
+panel shows the motif and its log (#79, done).
+The lead's status line and the tracks grid name whose motif it plays, bar by bar, from the bar's own offer, for a solo band and for a session's host and client (#164, #183, done).
+The lead's lane tints a motif's bars in its player's colour, over that player's own lane, which marks the bar the Muse took.
+Next for the Muse, in order: a
 log of what players play, which A5's question and #16's encoder both need;
 confidence across players (A3), which a session makes pressing; the ear's
 reading of a player's style, and following it (#16, A4); and answering a motif
