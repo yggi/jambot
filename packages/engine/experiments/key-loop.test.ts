@@ -26,6 +26,14 @@ describe('the key’s loop, left alone (E19)', () => {
     }
   });
 
+  it('reads a key held a section or more back from the band’s chords where the harmony is rich, and not always where it is thin (F3, C9)', () => {
+    const held = (name: string) => still.find((m) => m.preset === name)!.heldError;
+    for (const name of ['Deep house', 'Bossa nova', 'Swing jazz']) expect(held(name), name).toBe(0);
+    for (const name of ['Synth-pop', 'Lo-fi hip hop']) expect(held(name), name).toBeLessThan(0.01);
+    for (const name of ['Techno', 'Ambient', 'Funk'])
+      expect(held(name), name).toBeGreaterThan(0.01);
+  });
+
   it('brings the home to a new key in under 4 bars, but not by the section’s end where the harmony is thin (A4, C9)', () => {
     for (const m of moving.filter((m) => m.reach > 0)) {
       expect(m.homeLag, m.preset).toBeLessThan(4);

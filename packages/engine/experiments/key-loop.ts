@@ -16,7 +16,9 @@
  * - the home's lag: at a jump, the bars into the new section before the
  *   home is the band's new key, and the share of jumps it isn't by the
  *   section's end;
- * - the home's error: the share of bars whose home is not the key playing;
+ * - the home's error: the share of bars whose home is not the key playing,
+ *   and of those a section or more after the key last moved, where the
+ *   read after the hold should give the key back (F3);
  * - the drift: how far the key is from the opening key, in fifths, after a
  *   number of sections, and the share of runs back on it.
  *
@@ -94,6 +96,8 @@ export interface KeyLoop {
   readonly homeMissed: number;
   /** The share of bars whose home is not the key playing. */
   readonly homeError: number;
+  /** The same, over bars a whole section or more after the key last moved: the read after the hold (F3). */
+  readonly heldError: number;
   /** The mean distance from the opening key, in fifths, after each of `DRIFT_AT` sections. */
   readonly drift: readonly number[];
   /** The share of runs on the opening key after the last of `DRIFT_AT`. */
@@ -112,6 +116,8 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
   let bars = 0;
   let later = 0;
   let backs = 0;
+  let held = 0;
+  let heldWrong = 0;
   for (const { keys, homes } of runs) {
     let left: Key | null = null;
     for (let bar = SECTION_BARS; bar < keys.length; bar += SECTION_BARS) {
@@ -127,9 +133,16 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
       if (lag === undefined) missed++;
       else lags.push(lag);
     }
+    let moved = 0;
     for (const [bar, key] of keys.entries()) {
       bars++;
-      if (homes[bar]!.tonic !== key.tonic) wrong++;
+      const miss = homes[bar]!.tonic !== key.tonic;
+      if (miss) wrong++;
+      if (bar > 0 && key.tonic !== keys[bar - 1]!.tonic) moved = bar;
+      if (bar - moved >= SECTION_BARS) {
+        held++;
+        if (miss) heldWrong++;
+      }
     }
   }
   const apart = (run: KeyRun, sections: number) =>
@@ -146,6 +159,7 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
     homeLag: mean(lags),
     homeMissed: jumps.length === 0 ? 0 : missed / jumps.length,
     homeError: wrong / bars,
+    heldError: held === 0 ? 0 : heldWrong / held,
     drift: DRIFT_AT.map((sections) => mean(runs.map((run) => apart(run, sections)))),
     back: runs.filter((run) => apart(run, last) === 0).length / runs.length,
   };
@@ -166,10 +180,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(
     `time constant: ${timeConstant(HISTORY_DECAY).toFixed(2)} bars; a section holds ${SECTION_BARS}`,
   );
-  for (const entropy of [0.3, 0.6, 1]) {
+  for (const entropy of [0, 0.3, 0.6, 1]) {
     console.log(`\nentropy ${entropy}, 20 seeds, ${DRIFT_AT.at(-1)! + 1} sections`);
     console.log(
-      'preset          jumps  reach widest mean  back  lag  missed  error  drift after ' +
+      'preset          jumps  reach widest mean  back  lag  missed  error  held  drift after ' +
         DRIFT_AT.join(', ') +
         ' sections  back',
     );
@@ -185,6 +199,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           m.homeLag.toFixed(2),
           (100 * m.homeMissed).toFixed(1).padStart(5) + '%',
           (100 * m.homeError).toFixed(1).padStart(5) + '%',
+          (100 * m.heldError).toFixed(1).padStart(4) + '%',
           '  ' + m.drift.map((d) => d.toFixed(2)).join(' '),
           '  ' + (100 * m.back).toFixed(0) + '%',
         ].join('  '),

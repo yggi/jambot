@@ -1288,7 +1288,10 @@ Witness: per boundary, a section and a retraction:
   as the fixed points of `encodeBar ∘ compileBar`;
 - sound and score: the analyzer run on Jambot's own output;
 - a motif and what an operator makes of it: `canonicalOp` writes each result
-  with one operator, a fixed point (U5).
+  with one operator, a fixed point (U5);
+- a key and the harmony: the band's chords down, and the harmonic history's
+  centre up (C9), which gives a key held a section back where the harmony
+  is rich, but not always where it is thin (E19).
 
 Chained, a score, played and heard, writes itself: a quine. Counterexample: a
 value that doesn't come back through a boundary. The prototype's swing gives one
@@ -1299,9 +1302,16 @@ test of the canonical operator cites F3 (motifs); `mini.test.ts` and
 text written another way (fields in another order, a key spelled another way,
 `.6` for `0.6`, weights not in lowest terms) is written in one form, which a
 second pass leaves as it is (text); open for the parts' lines (#63) and sound
-(#3). Source: #13, #37. Status: measured (time); measured (motifs); measured
-(text: the header and harmony); open (text: the parts' lines; sound). Lands in:
-Q1a–Q1e and Q3.
+(#3); `key-loop.test.ts` (`packages/engine/experiments`), E19, whose test of a
+key held cites F3 (the key).
+The key's counterexample is the fill's, not the read's: the read gives every
+key back from its whole scale (`packages/engine/src/history.test.ts`), and the
+chords of a thin harmony don't sound the notes that tell neighbouring keys
+apart. Whether the round trip may lose there is #157's call, a lossy round trip
+that returns one structure (#158). Source: #13, #37. Status: measured (time);
+measured (motifs); measured (text: the header and harmony); measured, failing
+(the key, where the harmony is thin); open (text: the parts' lines; sound).
+Lands in: Q1a–Q1e and Q3, #158.
 
 **F4. Analysis settles in one round: `encode(compile(encode(x))) = encode(x)`.**
 Witness: the analyzer. Counterexample: a MIDI file whose analysis changes on a
@@ -1820,6 +1830,7 @@ run; the others have.
   - The home follows a jump 1.2 to 3.9 bars into the new section on average, about half a section in every preset that reaches past two fifths.
     Where the harmony is thin it may not follow at all: by the section's end the home is not the band's new key in 50 to 56% of Ambient's jumps and 29 to 31% of Funk's, against 3 to 12% of Synth-pop's, Deep house's and Lo-fi hip hop's, and none or 1% of Bossa nova's and Swing jazz's.
     Their few chords don't hold the notes that tell neighbouring keys apart, so the reading loses what the lean needs.
+  - A key held a section or more is read back from the band's chords in every bar of Deep house, Bossa nova and Swing jazz and all but 0.1% of Synth-pop's and Lo-fi hip hop's, but not in 1.2% of Funk's, 3.8% of Techno's and 5.6% of Ambient's bars, at entropy 0 (F3).
   - Over all bars, the home is not the key playing in 9 to 27% at entropy 0.3 and 25 to 47% at entropy 1, and in up to 4% where the key never moves, from the first bars, before the history holds the scale: after a first bar of A minor alone, the home can be D minor, which holds the chord as well.
   - Left alone, the key doesn't come back.
     At entropy 0.6 the mean distance from the opening key is 0.6 to 1.4 fifths by preset after one section, 1.7 to 2.5 after 8, and 2.3 to 3.3 after 32, where a key drawn at random round the circle lies 3 fifths away; 0 to 15% of runs are back on it after 32 (a random key 8%).
