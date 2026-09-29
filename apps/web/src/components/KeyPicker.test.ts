@@ -168,6 +168,20 @@ describe('the key picker', () => {
     for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
   });
 
+  it('dims the tonics beyond the reach of the home it is given, the harmonic history’s centre (#169)', () => {
+    // Home E aeolian, one fifth either way: A, E and B aeolian, and no further.
+    render(KeyPicker, {
+      heading: { tonic: 4, mode: 'aeolian' },
+      home: { tonic: 4, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 1,
+      onintent: () => {},
+    });
+    for (const name of ['A', 'E', 'B']) expect(screen.getByRole('button', { name })).toBeEnabled();
+    for (const name of ['D', 'F♯', 'C'])
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+  });
+
   it('reaches every tonic when the licence is wide, and dims those beyond a narrow one', () => {
     const { unmount } = render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },

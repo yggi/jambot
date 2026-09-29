@@ -347,6 +347,7 @@
       {following}
       heading={player.hud.heading}
       reach={keyReachOf(player.track)}
+      home={player.home}
       history={player.harmonicHistory}
       onintent={(intent) => player.apply(intent)}
     />

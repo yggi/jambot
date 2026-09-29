@@ -119,6 +119,22 @@ describe('wishAfter', () => {
     }
   });
 
+  it('holds a key picked within reach of the home it is given, the harmonic history’s centre, for every home and tonic (#169)', () => {
+    const style: Style = { ...INITIAL_STYLE, harm: 1 / 6 };
+    const { keyReach } = licenceOf(style);
+    for (let home = 0; home < 12; home++)
+      for (let tonic = 0; tonic < 12; tonic++) {
+        const centre = { tonic: home, mode: 'aeolian' } as const;
+        const picked = { tonic, mode: 'aeolian' } as const;
+        const held = wishAfter(picked, { kind: 'key', wish: picked }, style, centre);
+        const apart = Math.abs(fifthsApart(picked, centre));
+        expect(held.tonic === tonic).toBe(apart <= keyReach);
+        expect(Math.abs(fifthsApart({ tonic: held.tonic!, mode: 'aeolian' }, centre))).toBe(
+          Math.min(apart, keyReach),
+        );
+      }
+  });
+
   it('shows the reach it holds a key to: the style’s where the track is going, for every preset', () => {
     for (const p of PRESETS) {
       const intent = { kind: 'preset', preset: p } as const;

@@ -12,7 +12,8 @@
   Roman numerals the chords below are written in. Changing the shape keeps
   the tonic, and nudging the tonic keeps the shape. The host, or a band
   playing alone, sets the key, heard from the next section the band plans,
-  and held within the style's licence of the song's home key (`licence.ts`),
+  and held within the style's licence of the home key, the band's harmonic
+  history's centre (`licence.ts`, #169),
   so the tonics beyond it are dimmed. A client can't set or nudge it yet: its
   key intents don't reach the host, so its nudges are disabled and say so.
 -->
@@ -45,19 +46,28 @@
     history: readonly number[];
     /** How many fifths from the home key the licence lets the key go (`licenceOf`'s `keyReach`). */
     reach: number;
+    /** The home key the reach counts from: the band's harmonic history's centre (#169). */
+    home?: Key;
     /** Whether a client follows its host: it may nudge the key, not set it. */
     following?: boolean;
     onintent: (intent: Intent) => void;
   }
 
-  let { heading, history, reach, following = false, onintent }: Props = $props();
+  let {
+    heading,
+    history,
+    reach,
+    home = INITIAL_KEY,
+    following = false,
+    onintent,
+  }: Props = $props();
 
   const key = $derived(heading ?? INITIAL_KEY);
   const scale = $derived(positions(keyHelix(key)));
   /** The tonics the licence doesn't reach, in the mode playing. */
   const beyond = $derived(
     [...Array(12).keys()].filter(
-      (tonic) => intoReach({ tonic, mode: key.mode }, INITIAL_KEY, reach).tonic !== tonic,
+      (tonic) => intoReach({ tonic, mode: key.mode }, home, reach).tonic !== tonic,
     ),
   );
 

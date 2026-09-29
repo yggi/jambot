@@ -7,6 +7,12 @@
  * the section's theme. The band holds the plan for the section's eight bars,
  * so a new key or theme arrives only at a boundary.
  *
+ * Where the players wish for no tonic and the mode playing, the band may move
+ * the key itself (#169): the harmony's reach (`harmonicReach`) gives how far,
+ * the entropy how readily, and its harmonic history (`history.ts`) where to,
+ * leaning toward the key the history weighs most. It returns the same way:
+ * after a move the key it left still weighs most, so it leans back.
+ *
  * Themes return: an A theme for the grooves and drops, a B theme for the
  * contrast. A returning theme is built anew when the mode has changed, when
  * the harmony has moved more than 0.2 from the one it was built for, or at
@@ -14,10 +20,13 @@
  * ten). A build is always built afresh.
  */
 
+import { fifthsIndex, mod } from '@jambot/theory';
 import { type Section, form } from './form.ts';
+import { type HarmonicWeights, keyWeight } from './history.ts';
 import { INITIAL_KEY, type Key, type KeyWish, nextKey } from './key.ts';
+import { harmonicReach } from './licence.ts';
 import type { Machine } from './machine.ts';
-import { chance, draw } from './random.ts';
+import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
 import { type Theme, buildTheme, themeKind } from './themes.ts';
 
@@ -28,6 +37,8 @@ export interface PlanEnv {
   readonly style: Style;
   /** The key the players wish for: a mode, and a tonic or none. */
   readonly wish: KeyWish;
+  /** What the band's harmony has sounded lately, which its own moves lean toward. */
+  readonly history: HarmonicWeights;
 }
 
 /** What a section plays: where it stands in the form, its key and its theme. */
@@ -47,11 +58,51 @@ export interface PlanCarried {
 /** How far the harmony may move from a returning theme's before it is built anew. */
 export const THEME_REACH = 0.2;
 
+/** How likely the band is to move the key itself at a section boundary, at entropy 1. */
+export const KEY_JUMP = 0.6;
+
+/**
+ * How sharply the band leans toward the key its history weighs most: each
+ * candidate is picked in proportion to its weight to this power.
+ */
+const LEAN = 4;
+
+/**
+ * Where the band would move the key itself from `key` at section `index`, or
+ * null to stay: with a chance of `KEY_JUMP` times the entropy, to a key in
+ * the same mode within the harmony's reach, each picked by how much its scale
+ * weighs in the history.
+ */
+export function bandWish(
+  { seed, index, style, history }: Pick<PlanEnv, 'seed' | 'index' | 'style' | 'history'>,
+  key: Key,
+): KeyWish | null {
+  const reach = harmonicReach(style);
+  if (reach === 0 || !chance(draw(seed, 'keyJump', index), style.entropy * KEY_JUMP)) return null;
+  // In one mode, keys lie as many fifths apart as their tonics do on the wheel.
+  const home = fifthsIndex(key.tonic);
+  const candidates = [...Array(12).keys()]
+    .filter((tonic) => {
+      const apart = Math.abs(mod(fifthsIndex(tonic) - home + 6, 12) - 6);
+      return apart > 0 && apart <= reach;
+    })
+    .map((tonic) => ({ tonic, mode: key.mode }));
+  const weights = candidates.map((c) => keyWeight(history, c));
+  const most = Math.max(...weights);
+  const leaning = most > 0 ? weights.map((w) => (w / most) ** LEAN) : weights.map(() => 1);
+  return candidates[pick(draw(seed, 'keyJump', index, 1), leaning)]!;
+}
+
 export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
   initial: { before: null, themes: { A: null, B: null } },
-  advance({ seed, index, style, wish }, { before, themes }) {
+  advance(env, { before, themes }) {
+    const { seed, index, style, wish } = env;
     const section = form.advance({ seed, index, style }, before?.section ?? null, null).output;
-    const key = nextKey(before?.key ?? INITIAL_KEY, wish);
+    const from = before?.key ?? INITIAL_KEY;
+    // The players' wish wins: a tonic, or a mode other than the one playing.
+    const own =
+      before && wish.tonic === null && wish.mode === from.mode ? bandWish(env, from) : null;
+    const key = nextKey(from, own ?? wish);
     const kind = themeKind(section.type);
     const held = kind === 'build' ? null : themes[kind];
     const theme =

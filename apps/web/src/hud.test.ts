@@ -20,7 +20,8 @@ import { keyName } from './noteNames.ts';
 
 const techno = PRESETS.find((p) => p.name === 'Techno')!;
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
-const track = holding(INITIAL_STYLE);
+// At entropy 0 the band never moves the key itself (#169), so a test that moves it does so by hand.
+const track = holding({ ...INITIAL_STYLE, entropy: 0 });
 const env: TransportEnv = {
   seed: 5,
   start: 0,
