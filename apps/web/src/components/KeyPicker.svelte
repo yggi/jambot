@@ -6,7 +6,8 @@
   pitch class actually played lately, weighted and fading. Under it the scale
   selects the shape, the mode, from all seven, of which the band plays four
   (the others are dimmed), and lays it out as 8 marks on the 12 steps of the
-  octave, with the notes and the whole or half steps between them. Changing the shape keeps the tonic, and nudging the tonic
+  octave; the gaps between the marks are the steps. Only major and minor keep their
+  full names in the selector, the other modes are numerals with their name as a tooltip. Changing the shape keeps the tonic, and nudging the tonic
   keeps the shape. The host, or a band playing alone, sets the key; a client
   only nudges the tonic a fifth up or down. Either way it is a wish, heard
   from the next section the band plans, and held within the style's licence of
@@ -23,7 +24,14 @@
   } from '@jambot/engine';
   import { mod, positions } from '@jambot/theory';
   import { DIATONIC_MODE_NAMES } from '@jambot/theory';
-  import { MODE_NAMES, keyName, scaleMarks, scaleNoteNames, scaleSteps } from '../noteNames.ts';
+  import {
+    MODE_NAMES,
+    MODE_NUMERALS,
+    keyName,
+    scaleMarks,
+    scaleNoteNames,
+    scaleSteps,
+  } from '../noteNames.ts';
   import type { Intent } from '../conductor.ts';
   import CircleOfFifths from './CircleOfFifths.svelte';
 
@@ -99,50 +107,39 @@
       onclick={() => nudge(1)}>Nudge up ↻</button
     >
   </div>
-  <p class="caption">
-    {following
-      ? 'The host sets the key. Nudge it a fifth either way, within the style’s licence.'
-      : 'Pick a pitch class, or nudge a fifth either way, within the style’s licence.'}
-    The shaded shape is what the band has actually played lately, weighted and fading.
-  </p>
   <div class="shapes" role="radiogroup" aria-label="Scale">
     {#each DIATONIC_MODE_NAMES as mode (mode)}
       <button
         type="button"
         role="radio"
+        aria-label={MODE_NAMES[mode]}
+        title={MODE_NAMES[mode]}
         aria-checked={mode === key.mode}
         disabled={following || !playable(mode)}
-        onclick={() => playable(mode) && wish(key.tonic, mode)}>{MODE_NAMES[mode]}</button
+        onclick={() => playable(mode) && wish(key.tonic, mode)}
+        >{mode === 'ionian' || mode === 'aeolian' ? MODE_NAMES[mode] : MODE_NUMERALS[mode]}</button
       >
     {/each}
   </div>
   <svg
     class="ruler"
-    viewBox="0 0 {2 * RULER.pad + 12 * RULER.step} 72"
+    viewBox="0 0 {2 * RULER.pad + 12 * RULER.step} 50"
     role="img"
     aria-label="{keyName(key)}: {notes.join(' ')}, steps {steps
       .map((n) => (n === 1 ? 'half' : 'whole'))
       .join(' ')}"
   >
-    <line class="axis" x1={at(0)} x2={at(12)} y1="36" y2="36" />
+    <line class="axis" x1={at(0)} x2={at(12)} y1="16" y2="16" />
     {#each { length: 13 }, semitone (semitone)}
-      <line class="tick" x1={at(semitone)} x2={at(semitone)} y1="31" y2="41" />
+      <line class="tick" x1={at(semitone)} x2={at(semitone)} y1="11" y2="21" />
     {/each}
     {#each marks as semitone, i (i)}
-      <circle class="mark" class:tonic={i === 0 || i === 7} cx={at(semitone)} cy="36" r="7" />
-      <text class="note" class:tonic={i === 0 || i === 7} x={at(semitone)} y="62">
+      <circle class="mark" class:tonic={i === 0 || i === 7} cx={at(semitone)} cy="16" r="7" />
+      <text class="note" class:tonic={i === 0 || i === 7} x={at(semitone)} y="44">
         {notes[i % 7]}
       </text>
-      {#if i < 7}
-        <text class="step" x={(at(semitone) + at(marks[i + 1]!)) / 2} y="20">
-          {steps[i] === 1 ? 'H' : 'W'}
-        </text>
-      {/if}
     {/each}
   </svg>
-  <p class="caption">
-    Whole and half steps from the tonic. Another scale keeps the tonic, {notes[0]}.
-  </p>
 </details>
 
 <style>
@@ -244,8 +241,7 @@
   .mark.tonic {
     fill: var(--teal);
   }
-  .note,
-  .step {
+  .note {
     text-anchor: middle;
     font-size: 12px;
     fill: var(--ink);
@@ -253,15 +249,5 @@
   .note.tonic {
     fill: var(--teal);
     font-weight: 700;
-  }
-  .step {
-    fill: var(--muted);
-    font-size: 11px;
-  }
-  .caption {
-    margin: 0;
-    font-size: 13px;
-    color: var(--muted);
-    text-align: center;
   }
 </style>

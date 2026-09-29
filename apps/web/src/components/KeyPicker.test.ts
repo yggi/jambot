@@ -46,6 +46,15 @@ describe('the key picker', () => {
     });
     const radios = screen.getAllByRole('radio');
     expect(radios.map((r) => r.textContent)).toEqual([
+      'IV',
+      'major',
+      'V',
+      'II',
+      'minor',
+      'III',
+      'VII',
+    ]);
+    expect(radios.map((r) => r.getAttribute('title'))).toEqual([
       'lydian',
       'major',
       'mixolydian',
@@ -56,7 +65,7 @@ describe('the key picker', () => {
     ]);
     expect(
       radios.filter((r) => !(r as HTMLButtonElement).disabled).map((r) => r.textContent),
-    ).toEqual(['major', 'mixolydian', 'dorian', 'minor']);
+    ).toEqual(['major', 'V', 'II', 'minor']);
     expect(screen.getByRole('radio', { name: 'dorian' })).toBeChecked();
   });
 
@@ -72,7 +81,7 @@ describe('the key picker', () => {
     expect(container.querySelectorAll('svg.ruler line.tick')).toHaveLength(13);
     expect(marks.filter((m) => m.classList.contains('tonic'))).toHaveLength(2);
     const ruler = container.querySelector('svg.ruler')!;
-    expect(ruler.textContent?.replace(/\s+/g, '')).toBe('AWBHCWDWEHFWGWA');
+    expect(ruler.textContent?.replace(/\s+/g, '')).toBe('ABCDEFGA');
   });
 
   it('wishes for the scale picked, keeping the tonic', async () => {

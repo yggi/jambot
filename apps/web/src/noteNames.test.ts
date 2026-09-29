@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES, keyHelix } from '@jambot/engine';
-import { DIATONIC_MODE_NAMES, positions } from '@jambot/theory';
+import { DIATONIC_MODE_NAMES, diatonicMode, positions, shift } from '@jambot/theory';
 import {
   keyName,
   MODE_NAMES,
+  MODE_NUMERALS,
   scaleNoteNames,
   scaleMarks,
   scaleSteps,
@@ -78,5 +79,20 @@ describe('scaleMarks', () => {
       }
     }
     expect(scaleMarks([9, 11, 0, 2, 4, 5, 7], 9)).toEqual([0, 2, 3, 5, 7, 8, 10, 12]);
+  });
+});
+
+describe('MODE_NUMERALS', () => {
+  it('numbers the seven modes by the degree of the major scale they start on, each once', () => {
+    expect(DIATONIC_MODE_NAMES.map((m) => MODE_NUMERALS[m]).sort()).toEqual(
+      ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'].sort(),
+    );
+    const cMajor = [0, 2, 4, 5, 7, 9, 11];
+    for (const mode of DIATONIC_MODE_NAMES) {
+      const degree = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'].indexOf(MODE_NUMERALS[mode]);
+      expect(positions(shift(diatonicMode(mode), cMajor[degree]!)).sort((a, b) => a - b)).toEqual(
+        cMajor,
+      );
+    }
   });
 });

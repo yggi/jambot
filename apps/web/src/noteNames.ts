@@ -40,6 +40,17 @@ export const MODE_NAMES: Readonly<Record<DiatonicModeName, string>> = {
   locrian: 'locrian',
 };
 
+/** The modes that keep their full name on screen; the rest are shown as numerals, the degree of the major scale they start on. */
+export const MODE_NUMERALS: Readonly<Record<DiatonicModeName, string>> = {
+  ionian: 'I',
+  dorian: 'II',
+  phrygian: 'III',
+  lydian: 'IV',
+  mixolydian: 'V',
+  aeolian: 'VI',
+  locrian: 'VII',
+};
+
 /** A key in common terms: "C major", "A minor", "E♭ dorian". */
 export function keyName(key: Key): string {
   return `${TONIC_NAMES[key.tonic]} ${MODE_NAMES[key.mode]}`;
