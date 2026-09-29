@@ -40,6 +40,8 @@ describe('a card', () => {
     const drawn = container.querySelector('summary .glyph')!;
     expect(drawn).toHaveAttribute('aria-hidden', 'true');
     expect(drawn.querySelector('[data-testid="glyph"]')).not.toBeNull();
+    // It comes first in the summary, so it is at the left in reading order too.
+    expect(container.querySelector('summary')!.firstElementChild).toBe(drawn);
   });
 
   it('announces the sub element as it changes only where asked', () => {

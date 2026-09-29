@@ -15,6 +15,7 @@
   import { type Hud, leadStatus } from '../hud.ts';
   import { scaleNoteNames } from '../noteNames.ts';
   import Card from './Card.svelte';
+  import Reading from './Reading.svelte';
   import Ruler from './Ruler.svelte';
 
   interface Props {
@@ -55,11 +56,10 @@
       />
     {/if}
     {#if hud.bar}
-      <div class="reading">
-        <span
-          >{hud.bar.key}{hud.bar.melodicName === 'plain' ? '' : ` · ${hud.bar.melodicName}`}</span
-        ><b>{notes}</b>
-      </div>
+      <Reading
+        label="{hud.bar.key}{hud.bar.melodicName === 'plain' ? '' : ` · ${hud.bar.melodicName}`}"
+        value={notes}
+      />
     {/if}
   </Card>
 </section>
@@ -80,11 +80,5 @@
   }
   .beats i.on {
     background: var(--amber);
-  }
-  .reading {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    font-size: 14px;
   }
 </style>

@@ -6,7 +6,7 @@
  * through the same swing map, and nothing here decides a time of its own.
  */
 
-import { BAR_STEPS, SONG_METER, clicksOf, soundsAt } from '@jambot/engine';
+import { BAR_STEPS, SONG_METER, clicksOf, soundsAt, stepInBar } from '@jambot/engine';
 import { METERS } from '@jambot/theory';
 import type { Mark } from './components/Ruler.svelte';
 
@@ -41,4 +41,16 @@ export function barMarks(swing: number, heard: number | null): Mark[] {
       lit: click.eighth === heard,
     };
   });
+}
+
+/** The steps in one eighth of the song's bar. */
+const STEPS_PER_EIGHTH = BAR_STEPS / SONG_METER.cycle;
+
+/**
+ * The eighth of the bar the step heard is in, from 0, or null before
+ * anything is heard: what the bar's marks light, whether or not the click is
+ * on, since it is the band that is heard.
+ */
+export function eighthHeard(heard: number | null): number | null {
+  return heard === null ? null : Math.floor(stepInBar(heard) / STEPS_PER_EIGHTH);
 }
