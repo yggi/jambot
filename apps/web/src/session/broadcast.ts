@@ -82,6 +82,7 @@ export function broadcastLobby(): Lobby {
         if (message) hear(message, data.from);
       };
       return {
+        reclaim: null,
         send(message, to) {
           channel.postMessage(
             (to === undefined

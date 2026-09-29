@@ -296,3 +296,45 @@ test('a second host cannot take a session name that is open', async ({ page, con
   await other.getByRole('button', { name: 'Host a session' }).click();
   await expect(other.getByText('A session named “Taken” is already open.')).toBeVisible();
 });
+
+test('a host page that reloads keeps its session and its client, and a client page that reloads joins again as itself', async ({
+  page,
+  browser,
+}) => {
+  const elsewhere = await browser.newContext();
+  const client = await elsewhere.newPage();
+  await listen(page);
+  await listen(client);
+  await host(page, 'reload jam', LOBBY);
+  await page.getByRole('button', { name: 'Start the band' }).click();
+  await join(client, 'reload jam', 'Ada', LOBBY);
+  await expect(client.getByText('The host is playing.')).toBeVisible();
+  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
+
+  // The host's page goes and comes back: the lobby holds the session, the page
+  // reopens it from what it kept, and the client, never disconnected, joins again.
+  await page.reload();
+  await connection(page);
+  await expect(page.getByText(/^Hosting/)).toBeVisible();
+  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
+  await expect(client.getByText(/^Playing in/)).toBeVisible();
+  await expect(client.getByText('The host is stopped.')).toBeVisible();
+  await page.getByRole('button', { name: 'Start the band' }).click();
+  await expect(client.getByText('The host is playing.')).toBeVisible();
+
+  // The client's page goes and comes back: it joins as the player it was, and
+  // the host still lists one Ada, not two.
+  await client.reload();
+  await connection(client);
+  await expect(client.getByText(/^Playing in/)).toBeVisible();
+  await expect(client.getByText('The host is playing.')).toBeVisible();
+  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
+
+  // Closing on purpose leaves nothing to come back to.
+  await page.getByRole('button', { name: 'Close the session' }).click();
+  await page.reload();
+  await connection(page);
+  await expect(page.getByRole('button', { name: 'Host a session' })).toBeVisible();
+  await expect(page.getByText(/^Hosting/)).toHaveCount(0);
+  await elsewhere.close();
+});

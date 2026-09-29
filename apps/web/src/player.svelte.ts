@@ -438,6 +438,19 @@ export class Player {
     this.#judged.push(...judged);
   }
 
+  /**
+   * Set the style, key wish and tempo nudge a host that was reloaded had,
+   * while it is stopped: the style holds where the conductor left it.
+   */
+  restore({ track, wish, tempoNudge }: { track: StyleTrack; wish: KeyWish; tempoNudge: number }) {
+    if (this.status !== 'stopped' || this.mode === 'client') return;
+    this.track = stopAt(track);
+    this.wish = wish;
+    this.tempoNudge = tempoNudge;
+    this.hosting?.track(this.track);
+    this.#decide();
+  }
+
   /** Where the song and the bars composed stand, for a client joining mid-song. */
   get hosted(): { song: Song; bars: SentBar[] } | null {
     const carried = this.#carried;

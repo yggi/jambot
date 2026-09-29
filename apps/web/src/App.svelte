@@ -35,6 +35,7 @@
   import { websocketLobby } from './session/websocket.ts';
   import { ClientSession } from './session/client.svelte.ts';
   import { HostSession } from './session/host.svelte.ts';
+  import { clientKeep, hostKeep, keptClient, keptHost } from './session/storage.ts';
   import { type TimingReport, timingFile, timingReport } from './timing.ts';
 
   const midiSettings = new MidiSettings();
@@ -81,8 +82,34 @@
   const tabs = broadcastLobby();
   /** A lobby server by its address, or with none given, the tabs of this browser. */
   const lobbyAt = (url: string) => (url.trim() === '' ? tabs : websocketLobby(url.trim()));
-  const hostSession = new HostSession(player, clocks);
-  const clientSession = new ClientSession(player, clocks);
+  const hostSession = new HostSession(player, clocks, undefined, { keep: hostKeep });
+  const clientSession = new ClientSession(player, clocks, { keep: clientKeep });
+
+  const whyNot = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+  // A page that was reloaded, or an app a phone closed in the background, takes
+  // its session up again: a host reopens its session by the secret the lobby
+  // gave, and a client joins again as the player it was.
+  {
+    const now = Date.now() / 1000;
+    const host = keptHost(now);
+    const client = host ? null : keptClient(now);
+    if (host)
+      hostSession
+        .open(lobbyAt(host.lobby), host.session, host.player, {
+          restore: host,
+          lobbyUrl: host.lobby,
+        })
+        .catch((e) => {
+          hostKeep.clear();
+          hostSession.ended = whyNot(e);
+        });
+    else if (client)
+      void clientSession.join(lobbyAt(client.lobby), client.session, client.name, {
+        resume: client.token,
+        lobbyUrl: client.lobby,
+      });
+  }
 
   /**
    * The metronome: client-only, so it runs on its own next to the band
@@ -186,10 +213,24 @@
     // A phone or a tab suspended mid-note can leave hardware sounding one
     // whose release a frozen clock never got to schedule; silence it on wake.
     const onVisible = () => {
-      if (document.visibilityState === 'visible') player.panicMidi();
+      if (document.visibilityState === 'visible') {
+        player.panicMidi();
+        // Its sockets may have been closed, or left open and dead, meanwhile.
+        clientSession.wake();
+      } else hostSession.persist();
     };
+    const onWake = () => clientSession.wake();
+    const onGone = () => hostSession.persist();
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    addEventListener('pageshow', onWake);
+    addEventListener('online', onWake);
+    addEventListener('pagehide', onGone);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      removeEventListener('pageshow', onWake);
+      removeEventListener('online', onWake);
+      removeEventListener('pagehide', onGone);
+    };
   });
 
   $effect(() => {
@@ -236,13 +277,20 @@
           session: clientSession.session,
           name: clientSession.name,
           hostPlaying: clientSession.hostPlaying,
+          hostAway: clientSession.hostAway,
           trip: clientSession.trip,
           ended: clientSession.ended,
           lacked: player.lacked,
         }}
         lobby={import.meta.env.VITE_LOBBY_URL ?? ''}
-        onhost={(session, name, url) => hostSession.open(lobbyAt(url), session, name)}
-        onjoin={(session, name, url) => clientSession.join(lobbyAt(url), session, name)}
+        onhost={(session, name, url) => {
+          clientKeep.clear();
+          return hostSession.open(lobbyAt(url), session, name, { lobbyUrl: url.trim() });
+        }}
+        onjoin={(session, name, url) => {
+          hostKeep.clear();
+          return clientSession.join(lobbyAt(url), session, name, { lobbyUrl: url.trim() });
+        }}
         onlist={(url) => lobbyAt(url).sessions()}
         onclose={() => hostSession.close()}
         onleave={() => clientSession.leave()}

@@ -16,6 +16,12 @@ import type { ClientMessage, HostMessage } from '@jambot/session';
 export interface HostLink {
   send(message: HostMessage, to?: string): void;
   close(): void;
+  /**
+   * What takes the session back from the lobby if this link drops and
+   * another host opens the name again (`reclaim`), or null where the lobby
+   * keeps no session for a host that is gone.
+   */
+  readonly reclaim: string | null;
 }
 
 /** A client's end: to its host. */
@@ -32,18 +38,22 @@ export interface Lobby {
   sessions(): Promise<string[]>;
   /**
    * Open a session under a name, hearing each client's messages with its
-   * id. Refused if the name is taken. A client whose link closes is heard
-   * leaving.
+   * id. Refused if the name is taken, unless `reclaim` is the secret of a
+   * session whose host's link dropped, which it takes back. A client whose
+   * link closes is heard leaving (`leave`), or lost if it didn't say so
+   * (`lost`).
    */
   host(
     session: string,
     hear: (message: ClientMessage, from: string) => void,
     lost?: Lost,
+    reclaim?: string,
   ): Promise<HostLink>;
   /**
    * Reach the session under a name, hearing its host's messages. It may be
    * refused at once, where the lobby knows no such session. A host whose
-   * link closes is heard closing.
+   * link closes is heard closing; one whose link dropped and may come back
+   * is heard `away`, and `back` when it has.
    */
   join(session: string, hear: (message: HostMessage) => void, lost?: Lost): Promise<ClientLink>;
 }
