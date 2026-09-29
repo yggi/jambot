@@ -21,8 +21,21 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   Stage stays plain text: the key's name and its notes ascending from the tonic (`scaleNoteNames`), no wheel of its own.
 - The page (`App.svelte`) lays the music out in the order of the composition, top to bottom, one `Level` each: transport, style, metrum, key, plan and chords, tracks (#163).
   A `Level` is a heading over a fieldset; `resting` disables its controls where a client takes the host's (transport, style, key), and the metrum and the tracks, the client's own, never rest.
-  What isn't the music sits folded above it, one `Drawer` each: Connection (`SessionPanel`) and MIDI and sound (`MidiPanel`), each summary saying what it is set to.
-  An e2e check that hosts or joins opens the Connection drawer first (`connection` in `session.e2e.ts`).
+  What isn't the music sits folded above it: MIDI and sound (`MidiPanel`) in a `Drawer`, its summary saying what it is set to.
+  Above the levels the `SessionBar` says who the band plays with and is the way out: Close session for a host, Leave session for a client, Back to the lobby from solo.
+  Closing or leaving asks first, in place (`role="alertdialog"`), and a host's question says how many are playing in the session.
+  An e2e check that plays alone enters the band first (`solo` in `audio.ts`); one that hosts or joins works at the lobby (`host`, `join` in `session.e2e.ts`).
+- The page (`App.svelte`) is the container, and shows one of three screens (`screenOf`, `screen.ts`): the lobby at the door, the band behind it, or a line saying a kept session is taken up again.
+  A cold start shows the lobby (`screens/Lobby.svelte`): a name made up already (`Profile`, kept), Play with the band, the sessions open to join, and Local and Global under one session name to host.
+  A join button shows the players in the session, and is teal for a session in this browser and amber for one through the lobby server, with a tooltip.
+  The lobby server's address is in the Advanced fold, and is given when the field is left.
+  A reload returns to a session still kept, a host's or a client's, and lands on the lobby from anything else, solo included: solo is a choice the page holds and doesn't keep.
+  A client that is still joining stays at the lobby, busy; one whose host closed, or whose link was given up, is back at it, with the reason.
+  The band (`screens/Band.svelte`) is the levels; the screens take props and send intents, and lint keeps them from running the player, the device or the sessions (only their types), or from importing each other.
+  What outlives the door is the container's: `Device` (MIDI settings and connection, the audio clock and output), `Instruments` (the routes of the keys, the pads and MIDI in, and what is held), `Profile` and `Sessions`.
+  The keyboard and the pads are the band's, behind the door; MIDI and sound are on both sides of it.
+  The computer's keys play only behind the door.
+  Back at the lobby nothing plays on: the page stops the player and the metronome.
   A new widget goes into the level it belongs to, not into a corner of another.
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.
