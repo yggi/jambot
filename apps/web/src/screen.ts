@@ -1,6 +1,6 @@
 /**
  * Which screen the page shows: the door (the lobby, where a person picks
- * how to play), the band behind it, the timing test (#204, A7) that the door
+ * how to play), the band behind it, the timing test (#204, H7) that the door
  * leads to, or the moment between, while a session kept from before is
  * taken up again.
  *

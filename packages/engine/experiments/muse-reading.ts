@@ -1,12 +1,12 @@
 /**
- * E17: how well does the Muse read a sloppy hand? (#204, A0)
+ * E17: how well does the Muse read a sloppy hand? (#204, H0)
  *
  * Patterns of one dominant note value with mixed lengths and rests
  * (`humanise.ts`) are played exactly and then as a hand would, from 0 to
  * 100 ms of sloppiness at 120 bpm (a step is 125 ms), and `judgeBar` reads
  * each back. It asks, per sloppiness, what share of bars come back as the
  * motif the exact playing gives, what share have the right rhythm, and why
- * the others don't. This is the baseline every later reading (A1 to A6) is
+ * the others don't. This is the baseline every later reading (H1 to H6) is
  * measured against.
  *
  * Run: node --experimental-strip-types --no-warnings packages/engine/experiments/muse-reading.ts
@@ -41,7 +41,7 @@ for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
   );
 }
 
-// A1 to A4 and A6: the same hands, playing two phrases of one to three bars with an empty bar between.
+// H1 to H4 and H6: the same hands, playing two phrases of one to three bars with an empty bar between.
 // The Muse's own judgement (`judgeBar`) reads a phrase so far, and no note of the bars after the one it judges.
 console.log('\nphrases: bars right, notes on their steps, rests on theirs, notes strayed');
 console.log(
@@ -66,7 +66,7 @@ for (const [name, source] of [
   }
 }
 
-// A5: does the confidence a judgement carries say whether it is right?
+// H5: does the confidence a judgement carries say whether it is right?
 console.log(
   '\nconfidence of a bar read as a motif: mean, right share of the surest third and of the least sure, separation',
 );
@@ -81,7 +81,7 @@ for (const sloppiness of [10, 20, 30, 40, 60]) {
   );
 }
 
-// A5: two players in one bar, and the motif the band takes: the most notes, or the surest reading.
+// H5: two players in one bar, and the motif the band takes: the most notes, or the surest reading.
 console.log('\ntwo players, one bar: the motif taken is one read right');
 console.log('A ms  B ms  pairs | most notes | surest reading');
 for (const [a, b] of [

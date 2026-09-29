@@ -1,5 +1,5 @@
 <!--
-  The timing test (#204, A7): a drum pattern of two sounds, a kick and a
+  The timing test (#204, H7): a drum pattern of two sounds, a kick and a
   snare, plays for eight bars after a count-in, and the person follows every
   hit with any input: the computer's keys, the tap button, a pad or a MIDI
   key. Each tap shows at once how early or late it was, on the bar as it

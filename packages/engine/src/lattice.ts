@@ -1,5 +1,5 @@
 /**
- * Note values: the lattice a phrase's onsets sit on (#204, A2 and A3).
+ * Note values: the lattice a phrase's onsets sit on (#204, H2 and H3).
  *
  * A hand puts an onset a fraction of a step from where it meant, and the
  * nearest step is right only while the hand is within half a step. But a
@@ -8,14 +8,14 @@
  * asks what note value the onsets sit on, a lattice `k·value` of a
  * sixteenth, an eighth, a quarter or a half, and snaps them to it.
  *
- * - **A2, the note value:** notes of about equal length are equal. The
+ * - **H2, the note value:** notes of about equal length are equal. The
  *   value of the phrase is the lattice its onsets fit at the least cost: a
  *   description of where each is (one of a bar's `16 / value` places, in
  *   nats) and how far it is from the place (the hand's looseness, a normal
  *   spread, the one looseness for every lattice). A finer lattice always
  *   fits closer and costs more places, so a coarser one is preferred
  *   whenever the onsets sit on it.
- * - **A3, the hierarchy:** several lengths show their order by their
+ * - **H3, the hierarchy:** several lengths show their order by their
  *   ratios, two eighths in a quarter. The lattices are nested, so every
  *   onset of a longer note is a place of the finer lattice that the
  *   shorter notes ask for: one lattice holds the hierarchy. Letting each

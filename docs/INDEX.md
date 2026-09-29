@@ -54,7 +54,7 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `apps/web/src/components/`: the page's components, which take props and send intents
   - `apps/web/src/components/glyphs/`: the living pictures in the cards' summaries, drawn on `Glyph`'s frame
   - `apps/web/src/screens/`: the lobby at the door, the band behind it and the timing test the door leads to, presentational; the page (`App.svelte`) picks between them
-  - `apps/web/src/timing-test/`: the timing test (#204, A7): its patterns, the matching of taps to hits, the run record and its download, the runs kept in the browser, and the container that plays it
+  - `apps/web/src/timing-test/`: the timing test (#204, H7): its patterns, the matching of taps to hits, the run record and its download, the runs kept in the browser, and the container that plays it
   - `apps/web/src/session/`: host and client mode in the app ([brief](briefs/host-mode.md))
   - `apps/web/src/audio/`: the player's outputs: the built-in synth, MIDI out, the device's clock pairing
   - `apps/web/src/midi/`: Web MIDI in, the playing surfaces, routing and settings

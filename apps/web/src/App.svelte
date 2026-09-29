@@ -46,7 +46,7 @@
     address: import.meta.env.VITE_LOBBY_URL ?? '',
     kept: browserKept,
   });
-  /** The timing test (#204, A7): plays a pattern on this device's synth and keeps every run. */
+  /** The timing test (#204, H7): plays a pattern on this device's synth and keeps every run. */
   const testing = new TimingTest({
     audio: () => device.clockOf(),
     now: () => performance.now(),

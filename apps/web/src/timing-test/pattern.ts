@@ -1,5 +1,5 @@
 /**
- * The timing test's drum patterns (#204, A7): what plays, and when every hit
+ * The timing test's drum patterns (#204, H7): what plays, and when every hit
  * falls.
  *
  * A pattern is a bar of two sounds, a kick and a snare, on the 16-step grid.
