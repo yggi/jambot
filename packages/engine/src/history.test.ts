@@ -75,7 +75,7 @@ describe('the harmonic history', () => {
 /**
  * The band left alone at entropy 1, where its key moves most, over every
  * preset, three seeds and 24 sections: each section's tonic and each bar's
- * home (the history's centre in the bar's mode) as a digit per tonic, in
+ * centre (the history's, in the bar's mode) as a digit per tonic, in
  * base 12, and the history after the last bar decided.
  */
 function recording() {
@@ -95,23 +95,23 @@ function recording() {
           24 * 8,
         );
         let history = NO_HISTORY;
-        let homes = '';
+        let centres = '';
         for (const { plan, chords } of bars) {
           history = foldBar(history, chords);
-          homes += centre(history, plan.key).tonic.toString(12);
+          centres += centre(history, plan.key).tonic.toString(12);
         }
         const keys = bars
           .filter((_, bar) => bar % 8 === 0)
           .map(({ plan }) => plan.key.tonic.toString(12))
           .join('');
-        return [seed, { keys, homes, history }];
+        return [seed, { keys, centres, history }];
       });
       return [preset.name, Object.fromEntries(seeds)];
     }),
   );
 }
 
-describe('the band’s keys and homes', () => {
+describe('the band’s keys and the history’s centres', () => {
   it('are the recorded ones, bar for bar, over every preset, three seeds and 24 sections (#210, C9)', () => {
     // The recording pins the history's fold, its centre and the band's own
     // drift, which reads it: a change to either fails here, and a change

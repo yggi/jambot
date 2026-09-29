@@ -5,7 +5,7 @@
  * holds a reach (`harmonicReach`) and a chance to move (`KEY_JUMP` times
  * the entropy), the band fills it with chords, `foldBar` reads them as
  * pitch-class weights, the history fades by `HISTORY_DECAY` a bar, and two
- * leans read it: the home the players' licence counts from (`centre`), and
+ * leans read it: its centre, the key it holds most (`centre`), and
  * the band's own drift (`bandWish`), a draw by weight to the fourth power.
  *
  * The band is left alone, the players wishing only for its preset's mode,
@@ -13,10 +13,10 @@
  *
  * - the jumps: how often the band moves its own key at a section boundary,
  *   how far, in fifths, and how often back to the key the jump before left;
- * - the home's lag: at a jump, the bars into the new section before the
- *   home is the band's new key, and the share of jumps it isn't by the
- *   section's end;
- * - the home's error: the share of bars whose home is not the key playing,
+ * - the centre's lag: at a jump, the bars into the new section before the
+ *   history's centre is the band's new key, and the share of jumps it isn't
+ *   by the section's end;
+ * - the centre's error: the share of bars whose centre is not the key playing,
  *   and of those a section or more after the key last moved, where the
  *   read after the hold should give the key back (F3);
  * - the drift: how far the key is from the opening key, in fifths, after a
@@ -49,10 +49,10 @@ const range = (n: number) => [...Array(n).keys()];
 const mean = (xs: readonly number[]) =>
   xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
 
-/** One run of the band left alone: each bar's key and its home. */
+/** One run of the band left alone: each bar's key and its history's centre. */
 export interface KeyRun {
   readonly keys: readonly Key[];
-  readonly homes: readonly Key[];
+  readonly centres: readonly Key[];
 }
 
 /** The band left alone at `entropy` for `sections`, the players wishing only for the preset's mode. */
@@ -70,12 +70,12 @@ export function keyRun(preset: Preset, seed: number, entropy: number, sections: 
     sections * SECTION_BARS,
   );
   let history = NO_HISTORY;
-  const homes: Key[] = [];
+  const centres: Key[] = [];
   for (const { plan, chords } of bars) {
     history = foldBar(history, chords);
-    homes.push(centre(history, plan.key));
+    centres.push(centre(history, plan.key));
   }
-  return { keys: bars.map(({ plan }) => plan.key), homes };
+  return { keys: bars.map(({ plan }) => plan.key), centres };
 }
 
 /** What E19 measures of a preset's runs. */
@@ -90,12 +90,12 @@ export interface KeyLoop {
   readonly meanJump: number;
   /** The share of jumps after the first that go back to the key the jump before left. */
   readonly jumpBack: number;
-  /** Bars into the section before the home is the band's new key, over the jumps it is by the section's end. */
-  readonly homeLag: number;
-  /** The share of jumps whose home is not the band's key by the section's end. */
-  readonly homeMissed: number;
-  /** The share of bars whose home is not the key playing. */
-  readonly homeError: number;
+  /** Bars into the section before the centre is the band's new key, over the jumps it is by the section's end. */
+  readonly centreLag: number;
+  /** The share of jumps whose centre is not the band's key by the section's end. */
+  readonly centreMissed: number;
+  /** The share of bars whose centre is not the key playing. */
+  readonly centreError: number;
   /** The same, over bars a whole section or more after the key last moved: the read after the hold (F3). */
   readonly heldError: number;
   /** The mean distance from the opening key, in fifths, after each of `DRIFT_AT` sections. */
@@ -118,7 +118,7 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
   let backs = 0;
   let held = 0;
   let heldWrong = 0;
-  for (const { keys, homes } of runs) {
+  for (const { keys, centres } of runs) {
     let left: Key | null = null;
     for (let bar = SECTION_BARS; bar < keys.length; bar += SECTION_BARS) {
       const [from, to] = [keys[bar - 1]!, keys[bar]!];
@@ -129,14 +129,14 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
         if (left.tonic === to.tonic) backs++;
       }
       left = from;
-      const lag = range(SECTION_BARS).find((n) => homes[bar + n]!.tonic === to.tonic);
+      const lag = range(SECTION_BARS).find((n) => centres[bar + n]!.tonic === to.tonic);
       if (lag === undefined) missed++;
       else lags.push(lag);
     }
     let moved = 0;
     for (const [bar, key] of keys.entries()) {
       bars++;
-      const miss = homes[bar]!.tonic !== key.tonic;
+      const miss = centres[bar]!.tonic !== key.tonic;
       if (miss) wrong++;
       if (bar > 0 && key.tonic !== keys[bar - 1]!.tonic) moved = bar;
       if (bar - moved >= SECTION_BARS) {
@@ -156,9 +156,9 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
     reach: harmonicReach(preset.style),
     meanJump: mean(jumps),
     jumpBack: later === 0 ? 0 : backs / later,
-    homeLag: mean(lags),
-    homeMissed: jumps.length === 0 ? 0 : missed / jumps.length,
-    homeError: wrong / bars,
+    centreLag: mean(lags),
+    centreMissed: jumps.length === 0 ? 0 : missed / jumps.length,
+    centreError: wrong / bars,
     heldError: held === 0 ? 0 : heldWrong / held,
     drift: DRIFT_AT.map((sections) => mean(runs.map((run) => apart(run, sections)))),
     back: runs.filter((run) => apart(run, last) === 0).length / runs.length,
@@ -196,9 +196,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           String(m.widestJump).padStart(6),
           m.meanJump.toFixed(2),
           (100 * m.jumpBack).toFixed(0).padStart(3) + '%',
-          m.homeLag.toFixed(2),
-          (100 * m.homeMissed).toFixed(1).padStart(5) + '%',
-          (100 * m.homeError).toFixed(1).padStart(5) + '%',
+          m.centreLag.toFixed(2),
+          (100 * m.centreMissed).toFixed(1).padStart(5) + '%',
+          (100 * m.centreError).toFixed(1).padStart(5) + '%',
           (100 * m.heldError).toFixed(1).padStart(4) + '%',
           '  ' + m.drift.map((d) => d.toFixed(2)).join(' '),
           '  ' + (100 * m.back).toFixed(0) + '%',

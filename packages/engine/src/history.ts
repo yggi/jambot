@@ -9,8 +9,10 @@
  * forecast (`lookAhead`) folds exactly what the band then plays.
  *
  * Its centre is the key in a mode whose scale weighs most in it: where the
- * band has been, which is the home the players' key licence is measured
- * from, and what the band's own drift leans toward (`bandWish`, `plan.ts`).
+ * band has been, which the band's own drift leans toward (`bandWish`,
+ * `plan.ts`). The players' key licence counts from the plan's key instead,
+ * since the centre trails a key change and may not find it where the
+ * harmony is thin (E19).
  *
  * It is a fading memory (`fading.ts`) over the pitch classes, the first
  * instance of the loop every level may run (#210, C9).
