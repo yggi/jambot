@@ -293,8 +293,9 @@
     <MetronomePanel {metronome} />
   </Level>
 
-  <Level name="Key" resting={following}>
+  <Level name="Key">
     <KeyPicker
+      {following}
       heading={player.hud.heading}
       reach={KEY_REACH}
       history={player.harmonicHistory}

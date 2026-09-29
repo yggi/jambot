@@ -74,3 +74,19 @@ describe('the harmonic-history radar', () => {
     expect(distances.filter((d) => Math.abs(d - rim) < 1)).not.toEqual([]); // the loudest reaches the rim
   });
 });
+
+describe('the scale figure', () => {
+  it('is an open arc along the rim for a diatonic scale, with no chord across the wheel', () => {
+    const { container } = render(CircleOfFifths, { tonic: 9, scale: A_AEOLIAN });
+    const figure = container.querySelector('path.figure')!.getAttribute('d')!;
+    expect(figure.match(/A/g)).toHaveLength(6); // seven notes, six rim segments
+    expect(figure).not.toMatch(/Z|L/);
+    expect(container.querySelector('path.chords')).toBeNull();
+  });
+
+  it('draws a chord over the hole in a scale that is not contiguous in fifths', () => {
+    // A harmonic minor: G♯ sits apart from the other six.
+    const { container } = render(CircleOfFifths, { tonic: 9, scale: [9, 11, 0, 2, 4, 5, 8] });
+    expect(container.querySelector('path.chords')).not.toBeNull();
+  });
+});

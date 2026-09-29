@@ -24,16 +24,27 @@ export function wheelPoint(index: number, radius: number): Point {
   return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
 }
 
+/** How many steps apart two pitch classes sit on the wheel, the short way round: 0 to 6. */
+export function wheelDistance(a: number, b: number): number {
+  const apart = mod(fifthsIndex(a) - fifthsIndex(b), 12);
+  return Math.min(apart, 12 - apart);
+}
+
 /**
- * A scale's pitch classes, ordered to trace the figure from the tonic: by
- * how many wheel steps each is from the tonic, nearest first. A diatonic
- * scale is seven wheel-adjacent positions, so this draws the arc they are,
- * whichever part of the wheel the tonic falls on.
+ * A scale's pitch classes in wheel order, opening the circle at its widest
+ * gap. A diatonic scale is seven contiguous positions, so this is the arc
+ * they are, each next to the last; a scale with a hole in it (harmonic
+ * minor) has consecutive members more than one step apart, and those are
+ * the edges worth drawing as chords.
  */
-export function figureOrder(scale: readonly number[], tonic: number): readonly number[] {
-  const tonicIndex = fifthsIndex(tonic);
-  const distance = (pitchClass: number) => mod(fifthsIndex(pitchClass) - tonicIndex, 12);
-  return [...scale].sort((a, b) => distance(a) - distance(b));
+export function figureArc(scale: readonly number[]): readonly number[] {
+  const ring = [...scale].sort((a, b) => fifthsIndex(a) - fifthsIndex(b));
+  if (ring.length < 2) return ring;
+  const gap = (i: number) =>
+    mod(fifthsIndex(ring[(i + 1) % ring.length]!) - fifthsIndex(ring[i]!), 12);
+  let widest = 0;
+  for (let i = 1; i < ring.length; i++) if (gap(i) > gap(widest)) widest = i;
+  return [...ring.slice(widest + 1), ...ring.slice(0, widest + 1)];
 }
 
 /** All 12 pitch classes, in wheel order, for a shape that spans the whole wheel. */

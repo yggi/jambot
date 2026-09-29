@@ -1,10 +1,11 @@
 <!--
   The key picker: the mode, and the circle of fifths, showing the key the
-  band is heading for. A dot nudges the key there: a wish, heard from the
+  band is heading for over the harmonic history: every pitch class actually
+  played lately, weighted and fading. The host, or a band playing alone, sets
+  the key: a dot wishes for its tonic, the mode select for its mode. A client
+  only nudges it a fifth up or down. Either way it is a wish, heard from the
   next section the band plans, and held within the style's licence of the
-  song's home key (`licence.ts`), so the dots beyond it are dimmed. A toggle bares an experiment on the
-  same wheel: a live radar of the harmonic history, every pitch class
-  actually played lately, weighted and fading, not just the current scale.
+  song's home key (`licence.ts`), so the tonics beyond it are dimmed.
 -->
 <script lang="ts">
   import {
@@ -15,7 +16,7 @@
     intoReach,
     keyHelix,
   } from '@jambot/engine';
-  import { positions } from '@jambot/theory';
+  import { mod, positions } from '@jambot/theory';
   import type { Intent } from '../conductor.ts';
   import CircleOfFifths from './CircleOfFifths.svelte';
 
@@ -26,10 +27,12 @@
     history: readonly number[];
     /** How many fifths from the home key the licence lets the key go (`KEY_REACH`). */
     reach: number;
+    /** Whether a client follows its host: it may nudge the key, not set it. */
+    following?: boolean;
     onintent: (intent: Intent) => void;
   }
 
-  let { heading, history, reach, onintent }: Props = $props();
+  let { heading, history, reach, following = false, onintent }: Props = $props();
 
   const key = $derived(heading ?? INITIAL_KEY);
   const scale = $derived(positions(keyHelix(key)));
@@ -40,7 +43,10 @@
     ),
   );
 
-  let showHistory = $state(false);
+  /** A fifth up the wheel (clockwise) or down (counter-clockwise) from the key heard, in its mode. */
+  const nudged = (by: 1 | -1) => mod(key.tonic + 7 * by, 12);
+  const nudge = (by: 1 | -1) =>
+    onintent({ kind: 'key', wish: { tonic: nudged(by), mode: key.mode } });
 
   const wish = (tonic: number, mode: ComposerMode) =>
     onintent({ kind: 'key', wish: { tonic, mode } });
@@ -50,6 +56,7 @@
   <label class="mode">
     Mode
     <select
+      disabled={following}
       value={key.mode}
       onchange={(e) => wish(key.tonic, e.currentTarget.value as ComposerMode)}
     >
@@ -65,19 +72,30 @@
         {scale}
         mode={key.mode}
         {beyond}
-        {onintent}
-        history={showHistory ? history : undefined}
+        onintent={following ? undefined : onintent}
+        {history}
       />
     </div>
     <div class="side">
-      <label class="toggle">
-        <input type="checkbox" bind:checked={showHistory} />
-        Harmonic history
-      </label>
+      <div class="nudge" role="group" aria-label="Nudge the key">
+        <button
+          type="button"
+          title="A fifth down"
+          disabled={beyond.includes(nudged(-1))}
+          onclick={() => nudge(-1)}>↺ Nudge down</button
+        >
+        <button
+          type="button"
+          title="A fifth up"
+          disabled={beyond.includes(nudged(1))}
+          onclick={() => nudge(1)}>Nudge up ↻</button
+        >
+      </div>
       <p class="caption">
-        {showHistory
-          ? 'Every pitch class the band has actually played lately, weighted and fading — not just the current scale.'
-          : 'Click a pitch class to nudge the key there, within the style’s licence. Toggle to see what the band has actually played.'}
+        {following
+          ? 'The host sets the key. Nudge it a fifth either way, within the style’s licence.'
+          : 'Pick a pitch class, or nudge a fifth either way, within the style’s licence.'}
+        The shaded shape is what the band has actually played lately, weighted and fading.
       </p>
     </div>
   </div>
@@ -119,12 +137,24 @@
     min-width: 0;
     flex: 1 1 200px;
   }
-  .toggle {
+  .nudge {
     display: flex;
-    align-items: center;
     gap: 8px;
+  }
+  .nudge button {
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 22px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
     font-size: 14px;
     cursor: pointer;
+  }
+  .nudge button:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
   .caption {
     margin: 0;

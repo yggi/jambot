@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { figureOrder, wheelAngle, wheelOrder, wheelPoint } from './circleLayout.ts';
+import { COMPOSER_MODES, type ComposerMode, keyHelix } from '@jambot/engine';
+import { positions } from '@jambot/theory';
+import { figureArc, wheelAngle, wheelDistance, wheelOrder, wheelPoint } from './circleLayout.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -24,33 +26,57 @@ describe('wheelAngle and wheelPoint', () => {
   });
 });
 
-describe('figureOrder', () => {
-  it('starts at the tonic and threads the diatonic scale as the arc of wheel-adjacent positions it is', () => {
-    // C ionian: C D E F G A B. On the wheel: C(0) G(1) D(2) A(3) E(4) B(5) F(11, i.e. -1).
-    // From tonic C, wheel-distance order is C, G, D, A, E, B, F.
-    expect(figureOrder([0, 2, 4, 5, 7, 9, 11], 0)).toEqual([0, 7, 2, 9, 4, 11, 5]);
+describe('wheelDistance', () => {
+  it('is the short way round the wheel, symmetric, 0 to 6, for every pair', () => {
+    for (const a of range(12)) {
+      for (const b of range(12)) {
+        expect(wheelDistance(a, b)).toBe(wheelDistance(b, a));
+        expect(wheelDistance(a, b)).toBeLessThanOrEqual(6);
+      }
+      expect(wheelDistance(a, a)).toBe(0);
+    }
+    expect(wheelDistance(0, 7)).toBe(1);
+    expect(wheelDistance(0, 5)).toBe(1);
+    expect(wheelDistance(0, 6)).toBe(6);
+  });
+});
+
+describe('figureArc', () => {
+  const scaleOf = (tonic: number, mode: ComposerMode) => positions(keyHelix({ tonic, mode }));
+
+  it('draws every mode on every tonic as an arc with no edge longer than one step of the wheel', () => {
+    for (const mode of COMPOSER_MODES) {
+      for (const tonic of range(12)) {
+        const arc = figureArc(scaleOf(tonic, mode));
+        expect(arc).toHaveLength(7);
+        for (let i = 1; i < arc.length; i++) {
+          expect(wheelDistance(arc[i - 1]!, arc[i]!), `${mode} on ${tonic}`).toBe(1);
+        }
+      }
+    }
   });
 
-  it('gives the same shape wherever the tonic falls on the wheel, wrapping around 0', () => {
-    // F♯ ionian (tonic 6): F♯ G♯ A♯ B C♯ D♯ E♯(F). Same relative arc as C ionian, from F♯.
-    const scale = [6, 8, 10, 11, 1, 3, 5];
-    expect(figureOrder(scale, 6)).toEqual([6, 1, 8, 3, 10, 5, 11]);
-  });
-
-  it('is a permutation of the scale it orders, for every tonic 0..11', () => {
-    const cIonian = [0, 2, 4, 5, 7, 9, 11];
+  it('is a permutation of the scale it orders', () => {
     for (const tonic of range(12)) {
-      const ordered = figureOrder(cIonian, tonic);
-      expect(new Set(ordered)).toEqual(new Set(cIonian));
-      expect(ordered).toHaveLength(cIonian.length);
+      const scale = scaleOf(tonic, 'aeolian');
+      expect(new Set(figureArc(scale))).toEqual(new Set(scale));
     }
   });
 
-  it('puts the tonic first when the tonic is itself in the scale', () => {
-    const cIonian = [0, 2, 4, 5, 7, 9, 11];
-    for (const tonic of cIonian) {
-      expect(figureOrder(cIonian, tonic)[0]).toBe(tonic);
-    }
+  it('runs from the flat end to the sharp end: C ionian is F C G D A E B', () => {
+    expect(figureArc([0, 2, 4, 5, 7, 9, 11])).toEqual([5, 0, 7, 2, 9, 4, 11]);
+  });
+
+  it('leaves a long edge where a scale is not contiguous: harmonic minor has one', () => {
+    // A harmonic minor: A B C D E F G♯. On the wheel F C G D A E B are seven in a row, but G♯ (8) sits far from the rest.
+    const arc = figureArc([9, 11, 0, 2, 4, 5, 8]);
+    const longest = Math.max(...arc.slice(1).map((pc, i) => wheelDistance(arc[i]!, pc)));
+    expect(longest).toBeGreaterThan(1);
+  });
+
+  it('copes with empty and single-note scales', () => {
+    expect(figureArc([])).toEqual([]);
+    expect(figureArc([3])).toEqual([3]);
   });
 });
 

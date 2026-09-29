@@ -50,7 +50,7 @@ describe('the key picker', () => {
     expect(onintent).toHaveBeenCalledWith({ kind: 'key', wish: { tonic: 2, mode: 'dorian' } });
   });
 
-  it('leaves the harmonic-history radar off until the toggle is checked', async () => {
+  it('always draws the harmonic history under the wheel', () => {
     const history = new Array(12).fill(0);
     history[9] = 3; // A
     const { container } = render(KeyPicker, {
@@ -59,9 +59,47 @@ describe('the key picker', () => {
       reach: 6,
       onintent: () => {},
     });
-    expect(container.querySelector('path.history')).toBeNull();
-    await fireEvent.click(screen.getByRole('checkbox', { name: 'Harmonic history' }));
     expect(container.querySelector('path.history')).not.toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('nudges the key a fifth up or down, keeping the mode', async () => {
+    const onintent = vi.fn();
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'dorian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent,
+    });
+    await fireEvent.click(screen.getByRole('button', { name: /Nudge up/ }));
+    expect(onintent).toHaveBeenLastCalledWith({ kind: 'key', wish: { tonic: 4, mode: 'dorian' } });
+    await fireEvent.click(screen.getByRole('button', { name: /Nudge down/ }));
+    expect(onintent).toHaveBeenLastCalledWith({ kind: 'key', wish: { tonic: 2, mode: 'dorian' } });
+  });
+
+  it('disables a nudge that would leave the licence', () => {
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 0,
+      onintent: () => {},
+    });
+    expect(screen.getByRole('button', { name: /Nudge up/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Nudge down/ })).toBeDisabled();
+  });
+
+  it('lets a client nudge but not set: no mode select, no tonic buttons', () => {
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      following: true,
+      onintent: () => {},
+    });
+    expect(screen.getByRole('combobox', { name: 'Mode' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'D' })).toBeNull();
+    expect(screen.getByRole('button', { name: /Nudge up/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Nudge down/ })).toBeEnabled();
   });
 
   it('reaches every tonic when the licence is wide, and dims those beyond a narrow one', () => {
