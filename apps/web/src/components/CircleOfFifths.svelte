@@ -1,16 +1,17 @@
 <!--
   The circle of fifths: the twelve pitch classes around a wheel, the current
-  scale's notes lit and threaded as a figure from the tonic, the tonic ringed.
-  With `onintent` and `mode`, a dot is also a button that wishes for its
-  pitch class as the new tonic, in the mode already playing. With `history`,
-  a filled radar underneath the wheel shows every pitch class's weight, for
-  the harmonic history of what the band has actually played.
+  scale's notes lit and joined along the rim as an open arc, the tonic ringed.
+  Only where a scale isn't contiguous in fifths does a dashed chord cross the
+  wheel. With `onintent` and `mode`, a dot is also a button that wishes for
+  its pitch class as the new tonic, in the mode already playing. `history`, a
+  filled radar underneath, shows every pitch class's weight: the harmonic
+  history of what the band has actually played.
 -->
 <script lang="ts">
   import type { ComposerMode } from '@jambot/engine';
-  import { fifthsIndex } from '@jambot/theory';
+  import { fifthsIndex, mod } from '@jambot/theory';
   import type { Intent } from '../conductor.ts';
-  import { figureOrder, wheelOrder, wheelPoint } from '../circleLayout.ts';
+  import { figureArc, wheelDistance, wheelOrder, wheelPoint } from '../circleLayout.ts';
   import { TONIC_NAMES } from '../noteNames.ts';
 
   interface Props {
@@ -20,7 +21,7 @@
     scale: readonly number[];
     /** The current key's mode, kept when a dot wishes for a new tonic. Omit for a read-only wheel. */
     mode?: ComposerMode;
-    onintent?: (intent: Intent) => void;
+    onintent?: ((intent: Intent) => void) | undefined;
     /** One weight per pitch class, 0–11, for the harmonic-history radar. Omit or undefined to leave it off. */
     history?: readonly number[] | undefined;
     /** The pitch classes a nudge can't reach as tonic: dimmed, and not buttons. */
@@ -60,13 +61,25 @@
 
   const tonicDot = $derived(dots.find((d) => d.isTonic));
 
-  const figurePath = $derived.by(() => {
-    const points = figureOrder(scale, tonic).map((pitchClass) =>
+  /** The scale's arc along the rim, and the chords over its holes. */
+  const figure = $derived.by(() => {
+    const points = figureArc(scale).map((pitchClass) =>
       dots.find((d) => d.pitchClass === pitchClass)!,
     );
-    if (points.length === 0) return '';
-    const d = points.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
-    return points.length > 2 ? `${d} Z` : d;
+    let rim = '';
+    let chords = '';
+    points.forEach((p, i) => {
+      const last = points[i - 1];
+      if (!last) return;
+      const move = `M${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
+      const to = `${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+      if (wheelDistance(last.pitchClass, p.pitchClass) === 1) {
+        // The clockwise short way along the rim, or counter-clockwise when the pair runs against the wheel.
+        const clockwise = mod(fifthsIndex(p.pitchClass) - fifthsIndex(last.pitchClass), 12) === 1;
+        rim += `${move} A${R_DOT} ${R_DOT} 0 0 ${clockwise ? 1 : 0} ${to} `;
+      } else chords += `${move} L${to} `;
+    });
+    return { rim, chords };
   });
 
   const pick = (pitchClass: number) => {
@@ -91,8 +104,12 @@
     {#if historyPath}
       <path class="history" d={historyPath} />
     {/if}
-    {#if figurePath}
-      <path class="figure" d={figurePath} />
+    <circle class="rim" cx={CENTER} cy={CENTER} r={R_DOT} />
+    {#if figure.chords}
+      <path class="chords" d={figure.chords} />
+    {/if}
+    {#if figure.rim}
+      <path class="figure" d={figure.rim} />
     {/if}
     {#if tonicDot}
       <circle class="tonic-ring" cx={tonicDot.x} cy={tonicDot.y} r="10" />
@@ -155,11 +172,23 @@
     stroke: var(--teal);
     stroke-width: 2;
   }
+  .rim {
+    fill: none;
+    stroke: var(--line);
+    stroke-width: 1;
+  }
   .figure {
     fill: none;
     stroke: var(--teal);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .chords {
+    fill: none;
+    stroke: var(--teal);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0.7;
   }
   .label {
     font-size: 11px;

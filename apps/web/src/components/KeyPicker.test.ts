@@ -1,27 +1,90 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import KeyPicker from './KeyPicker.svelte';
 
 const NO_HISTORY = new Array(12).fill(0);
 
 describe('the key picker', () => {
-  it('shows the key the band is heading for: the mode as a select, the tonic ringed on its wheel', () => {
+  it('reads the key in common terms in its header, folded by default', () => {
+    const { container } = render(KeyPicker, {
+      heading: { tonic: 0, mode: 'ionian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    expect(container.querySelector('summary .name')).toHaveTextContent('C major');
+    expect(container.querySelector('details')).not.toHaveAttribute('open');
+    cleanup();
+    const minor = render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    expect(minor.container.querySelector('summary .name')).toHaveTextContent('A minor');
+  });
+
+  it('shows the wheel and the scale together, with no view switch', () => {
     render(KeyPicker, {
       heading: { tonic: 3, mode: 'dorian' },
       history: NO_HISTORY,
       reach: 6,
       onintent: () => {},
     });
-    expect(screen.getByRole('combobox', { name: 'Mode' })).toHaveDisplayValue('dorian');
-    expect(
-      [...(screen.getByRole('combobox', { name: 'Mode' }) as HTMLSelectElement).options].map(
-        (o) => o.text,
-      ),
-    ).toEqual(['aeolian', 'dorian', 'ionian', 'mixolydian']);
     expect(screen.getByRole('button', { name: 'E♭' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('radiogroup', { name: 'Scale' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Circle' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Scale' })).toBeNull();
   });
 
-  it('wishes for the mode picked, keeping the tonic', async () => {
+  it('offers all seven modes, the four the band plays enabled', () => {
+    render(KeyPicker, {
+      heading: { tonic: 3, mode: 'dorian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((r) => r.textContent)).toEqual([
+      'lyd',
+      'major',
+      'mix',
+      'dor',
+      'minor',
+      'phr',
+      'loc',
+    ]);
+    expect(radios.map((r) => r.getAttribute('title'))).toEqual([
+      'lydian',
+      'major',
+      'mixolydian',
+      'dorian',
+      'minor',
+      'phrygian',
+      'locrian',
+    ]);
+    expect(
+      radios.filter((r) => !(r as HTMLButtonElement).disabled).map((r) => r.textContent),
+    ).toEqual(['major', 'mix', 'dor', 'minor']);
+    expect(screen.getByRole('radio', { name: 'dorian' })).toBeChecked();
+  });
+
+  it('draws a diatonic scale as 8 marks on 12 steps, the tonic and its octave marked', () => {
+    const { container } = render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    const marks = [...container.querySelectorAll('svg.ruler circle.mark')];
+    expect(marks).toHaveLength(8);
+    expect(container.querySelectorAll('svg.ruler line.tick')).toHaveLength(13);
+    expect(marks.filter((m) => m.classList.contains('tonic'))).toHaveLength(2);
+    const ruler = container.querySelector('svg.ruler')!;
+    expect(ruler.textContent?.replace(/\s+/g, '')).toBe('ABCDEFGA');
+  });
+
+  it('wishes for the scale picked, keeping the tonic', async () => {
     const onintent = vi.fn();
     render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },
@@ -29,9 +92,7 @@ describe('the key picker', () => {
       reach: 6,
       onintent,
     });
-    await fireEvent.change(screen.getByRole('combobox', { name: 'Mode' }), {
-      target: { value: 'mixolydian' },
-    });
+    await fireEvent.click(screen.getByRole('radio', { name: 'mixolydian' }));
     expect(onintent).toHaveBeenLastCalledWith({
       kind: 'key',
       wish: { tonic: 9, mode: 'mixolydian' },
@@ -50,7 +111,7 @@ describe('the key picker', () => {
     expect(onintent).toHaveBeenCalledWith({ kind: 'key', wish: { tonic: 2, mode: 'dorian' } });
   });
 
-  it('leaves the harmonic-history radar off until the toggle is checked', async () => {
+  it('always draws the harmonic history under the wheel', () => {
     const history = new Array(12).fill(0);
     history[9] = 3; // A
     const { container } = render(KeyPicker, {
@@ -59,9 +120,52 @@ describe('the key picker', () => {
       reach: 6,
       onintent: () => {},
     });
-    expect(container.querySelector('path.history')).toBeNull();
-    await fireEvent.click(screen.getByRole('checkbox', { name: 'Harmonic history' }));
     expect(container.querySelector('path.history')).not.toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('nudges the key a fifth up or down, keeping the mode', async () => {
+    const onintent = vi.fn();
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'dorian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent,
+    });
+    await fireEvent.click(screen.getByRole('button', { name: /Nudge up/ }));
+    expect(onintent).toHaveBeenLastCalledWith({ kind: 'key', wish: { tonic: 4, mode: 'dorian' } });
+    await fireEvent.click(screen.getByRole('button', { name: /Nudge down/ }));
+    expect(onintent).toHaveBeenLastCalledWith({ kind: 'key', wish: { tonic: 2, mode: 'dorian' } });
+  });
+
+  it('disables a nudge that would leave the licence', () => {
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 0,
+      onintent: () => {},
+    });
+    expect(screen.getByRole('button', { name: /Nudge up/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Nudge down/ })).toBeDisabled();
+  });
+
+  it('lets a client neither set nor nudge the key yet: the host sets it, and says so', async () => {
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      following: true,
+      onintent: () => {},
+    });
+    expect(screen.queryByRole('button', { name: 'D' })).toBeNull();
+    for (const name of [/Nudge up/, /Nudge down/]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+      expect(screen.getByRole('button', { name })).toHaveAttribute(
+        'title',
+        'The host sets the key',
+      );
+    }
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
   });
 
   it('reaches every tonic when the licence is wide, and dims those beyond a narrow one', () => {

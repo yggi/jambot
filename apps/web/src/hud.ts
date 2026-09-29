@@ -41,7 +41,6 @@ import {
   chordName,
   chordNumeral,
   keyHelix,
-  keyName,
   leadRests,
   stepInBar,
   styleAt,
@@ -49,6 +48,7 @@ import {
 import { positions } from '@jambot/theory';
 import { sourceName } from '@jambot/session';
 import { targetOf, unnudged } from './conductor.ts';
+import { keyName } from './noteNames.ts';
 
 /** How many bars after the one heard are shown. */
 export const NEXT_BARS = 4;

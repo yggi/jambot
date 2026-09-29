@@ -58,7 +58,7 @@ describe('the app', () => {
       'Plan and chords',
       'Tracks',
     ]);
-    const drawers = [...container.querySelectorAll('details > summary .name')].map(
+    const drawers = [...container.querySelectorAll('details.drawer > summary .name')].map(
       (n) => n.textContent,
     );
     expect(drawers).toEqual(['Connection', 'MIDI and sound']);
