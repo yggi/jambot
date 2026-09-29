@@ -1,3 +1,7 @@
+<!--
+  The page: it holds the player and hands each component its props; components take props and send intents.
+  The music runs top to bottom in the order of the composition, one `Level` each, and the settings sit in `Drawer`s above it.
+-->
 <script lang="ts">
   import Drawer from './components/Drawer.svelte';
   import DrumPads from './components/DrumPads.svelte';

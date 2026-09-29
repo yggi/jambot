@@ -39,8 +39,9 @@ These principles come from the prototype
 | `apps/lobby/`                                          | The lobby server: sessions found by name and relayed over WebSockets          |
 | `tooling/`                                             | The repository's own gates and tools: lint rules, hooks, the pawl, the deploy |
 | `prototype/`                                           | The original single-file prototype and its README: a baseline for orientation |
-| `docs/MEMORY.md`                                       | Persistent facts and a cheatsheet: the entry point                            |
-| `docs/INDEX.md`                                        | Tree of all docs and code areas                                               |
+| `docs/MEMORY.md`                                       | The cheatsheet and pointers to the topic files: the entry point               |
+| `docs/memory/`                                         | Persistent facts, one file per topic, read on demand                          |
+| `docs/INDEX.md`                                        | Tree of all docs and code directories                                         |
 | `docs/ROADMAP.md`                                      | Where the project is heading                                                  |
 | [GitHub issues](https://github.com/yggi/jambot/issues) | The board: concrete work, bugs, blockers                                      |
 
@@ -118,7 +119,7 @@ These principles come from the prototype
 - **Deploy after merging.** Whoever merges a pull request into `main` then runs
   `pnpm pages deploy` from `main`, so the site at
   <https://yggi.github.io/jambot/> plays what `main` holds. Nothing else deploys
-  (`docs/MEMORY.md`, "Repository and CI"). The deploy refuses a commit that
+  (`docs/memory/repository-and-ci.md`). The deploy refuses a commit that
   isn't on `origin/main`, runs `pnpm verify`, and checks the live site once
   Pages has published it. When the build hasn't changed, it pushes nothing and
   only checks.
@@ -145,9 +146,12 @@ These principles come from the prototype
 
 ## Keeping the shared memory current
 
-- A fact that stays true and saves the next person time goes into
-  `docs/MEMORY.md`.
-- A new doc or code area gets a line in `docs/INDEX.md`.
+- A fact that stays true and saves the next person time goes next to what it describes:
+  a doc comment in the module, or a line in the module's header.
+  A fact that has no module goes to `docs/memory/<topic>.md`, one file per topic, read on demand.
+  `docs/MEMORY.md` keeps only the cheatsheet and a pointer to each topic file, so the boot set stays under its cap.
+- A new doc or directory of code gets a line in `docs/INDEX.md`.
+  A new source file gets a header comment saying what it is instead: `tooling/index-coverage.ts` checks both.
 - A change of direction goes into `docs/ROADMAP.md`.
 - Concrete work goes into an issue. Epics carry a checklist, labelled `epic`;
   other labels are `bug`, `infra` and `design`.

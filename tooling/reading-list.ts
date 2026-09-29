@@ -9,7 +9,7 @@
  */
 export const BOOT_SET = ['AGENTS.md', 'docs/MEMORY.md'];
 
-/** In bytes: about 16k tokens, with headroom over today's 48 KB. */
+/** In bytes: about 16k tokens, with headroom over today's 14 KB. */
 export const CEILING = 64 * 1024;
 
 /** The boot set's size in bytes, given a reader of a path's text. */

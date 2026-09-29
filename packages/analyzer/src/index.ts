@@ -1,3 +1,4 @@
+// The analyzer package's barrel: everything in `src/` re-exported.
 export * from './load.ts';
 export * from './meter.ts';
 export * from './notation.ts';

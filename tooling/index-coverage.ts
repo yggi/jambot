@@ -1,10 +1,13 @@
 /**
- * Docs describe the present, and a new source file gets a line in
+ * Docs describe the present, and a new directory or doc gets a line in
  * `docs/INDEX.md` in the same pull request (`AGENTS.md`, "Keeping the shared
  * memory current"). That rule held only by whoever read the diff, so #45
- * gives it a check: every file under a package's `src`, the app's `src`,
- * `tooling/` and `.claude/` is named somewhere in `INDEX.md`, by its path or
- * its own name.
+ * gives it a check, and #174 moved it from files to directories: every
+ * directory that holds source under a package's `src`, the app's `src`,
+ * `tooling/` and `.claude/` is named in `INDEX.md` by its full path, and every
+ * doc under `docs/` is linked from it. A source file has no line there; its
+ * own header comment says what it is, and this check refuses a `.ts`, `.mjs`
+ * or `.svelte` file that opens with none.
  *
  * Left out: tests (`*.test.ts`, `*.e2e.ts`), which sit beside the code they
  * test rather than getting a line of their own, and config files
@@ -73,18 +76,54 @@ export function sourcePaths(repo: FileRepo, rootPaths: readonly string[]): strin
   return paths.filter((path) => !SKIP_FILES.test(path)).sort();
 }
 
-/** The paths named nowhere in `index`, by their full path or their own file name. */
-export function uncovered(paths: readonly string[], index: string): string[] {
-  return paths.filter((path) => {
-    const name = path.split('/').pop()!;
-    return !index.includes(path) && !index.includes(name);
+/** The directories that hold `paths`, each as its full path. */
+export function directoriesOf(paths: readonly string[]): string[] {
+  return [...new Set(paths.map((path) => path.split('/').slice(0, -1).join('/')))].sort();
+}
+
+/**
+ * The directories named nowhere in `index`. A directory is named by its full
+ * path followed by a `/` that doesn't start a longer path, so a line for
+ * `packages/engine/src/` doesn't name `packages/engine/src/audio/`.
+ */
+export function uncoveredDirectories(dirs: readonly string[], index: string): string[] {
+  return dirs.filter((dir) => {
+    const escaped = dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return !new RegExp(`(^|[^\\w./-])${escaped}/(?![\\w.-])`).test(index);
   });
 }
 
-/** The uncovered paths of the real repository at `base`, against its `docs/INDEX.md`. */
-export function uncoveredInRepo(base: string): string[] {
+/** The docs (`docs/**` `.md`) that `index` doesn't link, by their path under `docs/`. */
+export function unlinkedDocs(docPaths: readonly string[], index: string): string[] {
+  return docPaths.filter((path) => !index.includes(`](${path.slice('docs/'.length)})`));
+}
+
+/** The source files that don't open with a comment saying what they are. */
+export function headless(paths: readonly string[], read: (path: string) => string): string[] {
+  return paths.filter((path) => {
+    if (!/\.(ts|mjs|svelte)$/.test(path)) return false;
+    const text = read(path).trimStart();
+    const opening = path.endsWith('.svelte') ? text.replace(/^<script[^>]*>\s*/, '') : text;
+    return !/^(\/\*|\/\/|<!--)/.test(opening) && !/^<!--/.test(text);
+  });
+}
+
+/** What the real repository at `base` lacks in `docs/INDEX.md` or in its files' headers. */
+export function gapsInRepo(base: string): {
+  directories: string[];
+  docs: string[];
+  headless: string[];
+} {
   const repo = diskRepo(base);
   const paths = sourcePaths(repo, roots(repo));
   const index = repo.read('docs/INDEX.md');
-  return uncovered(paths, index);
+  const docPaths = repo
+    .list('docs')
+    .filter((path) => path.endsWith('.md'))
+    .sort();
+  return {
+    directories: uncoveredDirectories(directoriesOf(paths), index),
+    docs: unlinkedDocs(docPaths, index),
+    headless: headless(paths, repo.read),
+  };
 }

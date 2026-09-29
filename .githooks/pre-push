@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runs `pnpm verify` before any `git push` of a branch, and blocks the push if
-# it fails. CI is off (docs/MEMORY.md), so this is the check that counts. It is
+# it fails. CI is off (docs/memory/repository-and-ci.md), so this is the check that counts. It is
 # git's own pre-push hook, so it holds for a human, an agent and a `sh -c`
 # alike; `pnpm install` and session-start.sh point `core.hooksPath` here.
 # Bypassing it with `--no-verify` is not for agents.

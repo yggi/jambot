@@ -171,7 +171,7 @@ composing, scheduling and rendering. The reasons are listed in
 - `pnpm verify` runs lint, the format check, the type checks, every test (the
   pawl over the catalogues among them) and the build, whose license gate fails
   on any shipped package without a permissive license. Agents' pushes run it
-  through a hook. CI is off (`MEMORY.md`, "Repository and CI").
+  through a hook. CI is off (`docs/memory/repository-and-ci.md`).
 - `pnpm e2e` runs the built app in Chromium and measures its audio.
 - `pnpm pages deploy` publishes `main` to GitHub Pages by hand
   (`tooling/pages.ts`).

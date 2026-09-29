@@ -1,3 +1,4 @@
+// The theory package's barrel: everything in `src/` re-exported.
 export * from './chords.ts';
 export * from './circle.ts';
 export * from './even.ts';

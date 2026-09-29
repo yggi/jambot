@@ -58,7 +58,7 @@ pnpm pages deploy # publish main to GitHub Pages (see below)
   `tooling/lint.test.ts` shows each rule firing.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`, `format:check`,
   `check`, `test`, `e2e` and `build`. It runs only when started by hand
-  (`workflow_dispatch`); why is in `MEMORY.md`, "Repository and CI".
+  (`workflow_dispatch`); why is in `docs/memory/repository-and-ci.md`.
 - **GitHub Pages** is deployed by hand, with no Actions of ours:
   `pnpm pages deploy` (`tooling/pages.ts`) builds the app for its sub-path,
   checks the build, commits it to the `gh-pages` branch and checks the live site

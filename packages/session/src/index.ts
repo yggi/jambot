@@ -1,3 +1,4 @@
+// The session package's barrel: everything in `src/` re-exported.
 export * from './clock.ts';
 export * from './ear.ts';
 export * from './faults.ts';

@@ -24,7 +24,7 @@ Lint, the wrap of prose, the purity of the pure packages and the index of docs
 are checked by `pnpm verify`; tick only what nothing checks for you.
 
 - [ ] `pnpm verify` passes at the head commit: <!-- short SHA, test count -->
-      (CI is off, see `docs/MEMORY.md`; `.githooks/pre-push` runs it before a
+      (CI is off, see `docs/memory/repository-and-ci.md`; `.githooks/pre-push` runs it before a
       push)
 - [ ] `pnpm e2e` passes, if the change touches what the app plays or when
       (`AGENTS.md`): <!-- short SHA, or "not needed" and why -->
@@ -34,8 +34,8 @@ are checked by `pnpm verify`; tick only what nothing checks for you.
 - [ ] Differences from the prototype are deliberate and noted below
 - [ ] The score language is unchanged, or the change was asked about first
       (link) and has tests
-- [ ] Docs describe the present and are updated in this PR: `docs/MEMORY.md` for
-      lasting facts, `docs/ROADMAP.md` for a change of direction
+- [ ] Docs describe the present and are updated in this PR: the cheatsheet in `docs/MEMORY.md` and topic facts in
+      `docs/memory/`, next to the code they describe where they fit; `docs/ROADMAP.md` for a change of direction
 
 ## After merging
 

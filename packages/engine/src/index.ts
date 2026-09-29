@@ -1,3 +1,4 @@
+// The engine package's barrel: everything in `src/` re-exported.
 export * from './band.ts';
 export * from './bar.ts';
 export * from './bass.ts';

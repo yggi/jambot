@@ -27,7 +27,7 @@ const LEAD_PROGRAMS = { from: 80, to: 87 };
 
 const LEAD_NAME_HINT = /melody|vocal|lead|voice|sing/i;
 
-/** Below this average pitch, a lone monophonic line defaults to bass (the engine's own bass range tops out at 57, `MEMORY.md`). */
+/** Below this average pitch, a lone monophonic line defaults to bass (the engine's own bass range tops out at 57, `docs/memory/score-language.md`). */
 const BASS_CEILING = 55;
 
 function isMonophonic(notes: readonly RawNote[]): boolean {

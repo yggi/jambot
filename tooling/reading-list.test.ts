@@ -18,7 +18,7 @@ describe('the boot set', () => {
   it(`stays under ${CEILING / 1024} KB`, () => {
     const bytes = bootBytes((path) => readFileSync(`${root}/${path}`, 'utf8'));
     // Over the ceiling: open an issue labelled `docs` and condense the boot set
-    // as a change of its own (docs/MEMORY.md moves facts to where they are used).
+    // as a change of its own (`docs/MEMORY.md` moves facts to `docs/memory/` and to the modules).
     expect(bytes).toBeLessThanOrEqual(CEILING);
   });
 });
