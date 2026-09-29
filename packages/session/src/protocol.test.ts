@@ -240,6 +240,7 @@ const SHAPES = {
     'start: number',
   ],
   judgement: [
+    'confidence: number',
     'count: number',
     'kind: string',
     'level: number',

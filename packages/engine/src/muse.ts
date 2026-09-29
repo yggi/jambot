@@ -18,8 +18,7 @@
  *   starts with a rest, unless a rest at its end already runs round to its
  *   first note.
  *
- * Of the motifs, the band takes the one with the most notes, and on a tie
- * the first to arrive.
+ * Of the motifs, the band takes the one the reading is surest of (`taken`).
  *
  * The Muse is a machine at bar rate (`muse`) over a bar's judgements, so a
  * judgement made here and one a client sent a host enter it alike. It
@@ -38,6 +37,7 @@ import { type Motif, alteredDegree, alteredHeight, motifProblems } from '@jambot
 import { BAR_STEPS, barAt, barStart } from './events.ts';
 import { type Key, keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
+import { EMPTY_BAR, phrasesOf, readHeardWithMargins } from './phrase.ts';
 
 /** A note a player played, heard at an exact position. */
 export interface HeardNote {
@@ -58,6 +58,13 @@ export type Judgement =
       readonly motif: Motif;
       /** The player's level in the bar, which the motif's accents are counted from. */
       readonly level: number;
+      /**
+       * How sure the reading of the bar is, from 0 to 1: the mean of how near
+       * each note sits to the place it was read on, against the halfway to
+       * the next (`PhraseReading`). Absent where the bar was read by the
+       * nearest step, which has no such measure.
+       */
+      readonly confidence?: number;
     }
   | { readonly kind: 'mashing'; readonly source: string; readonly count: number }
   | { readonly kind: 'too few'; readonly source: string; readonly count: number }
@@ -80,24 +87,118 @@ export function heardIn(notes: readonly HeardNote[], bar: number): HeardNote[] {
   return notes.filter((n) => barOf(n) === bar);
 }
 
-/** Each source's notes in a bar, judged, in the order their first notes arrived. */
-export function judgeBar(notes: readonly HeardNote[], bar: number, key: Key): Judgement[] {
-  const bySource = new Map<string, HeardNote[]>();
-  for (const n of heardIn(notes, bar))
-    bySource.set(n.source, [...(bySource.get(n.source) ?? []), n]);
-  return [...bySource].map(([source, heard]) => judge(source, heard, bar, key));
+/**
+ * How a bar's notes are placed before they are judged: read as phrases
+ * (`readHeard`, the reading of a hand, #204), or each on the step nearest
+ * where it was heard, the prototype's one rounding and the baseline the
+ * reading is measured against (E17).
+ */
+export type Reading = 'phrases' | 'nearest';
+
+/** How many bars of a running phrase the Muse keeps to read it by. */
+export const PHRASE_MEMORY = 16;
+
+/** A source's notes in a bar as the Muse hears them. */
+export interface HeardBar {
+  readonly source: string;
+  /** The notes read into the bar, in time. */
+  readonly notes: HeardNote[];
+  /** How sure the reading is, or undefined for the nearest step's, which has no such measure (`Judgement`'s `confidence`). */
+  readonly confidence?: number;
 }
 
-/** The motif the band takes from a bar's judgements, or none. */
+/**
+ * Each source's notes in a bar as the Muse hears them, in the order their
+ * first notes arrived: a source's notes up to the end of the bar, read as
+ * phrases (`readHeard`), whole phrases so far and no notes of the bars after
+ * the one heard, so that what the band plays never depends on what came
+ * later (F7); then those read into the bar. What a player's lane shows and
+ * what is judged are this.
+ */
+export function heardInBar(
+  notes: readonly HeardNote[],
+  bar: number,
+  reading: Reading = 'phrases',
+): HeardBar[] {
+  const edge = barStart(bar + 1);
+  const upTo = notes.filter((n) => n.position < edge);
+  const sources = [...new Set([...heardIn(upTo, bar), ...upTo].map((n) => n.source))];
+  return sources.flatMap((source): HeardBar[] => {
+    const own = upTo.filter((n) => n.source === source);
+    if (reading === 'nearest') {
+      const heard = heardIn(own, bar);
+      return heard.length === 0 ? [] : [{ source, notes: heard }];
+    }
+    const { notes: read, margins } = readHeardWithMargins(own);
+    const heard = heardIn(read, bar);
+    if (heard.length === 0) return [];
+    const mean = heard.reduce((sum, n) => sum + margins.get(n)!, 0) / heard.length;
+    return [{ source, notes: heard, confidence: Math.round(mean * 100) / 100 }];
+  });
+}
+
+/** Each source's notes in a bar, judged, in the order their first notes arrived (`heardInBar`). */
+export function judgeBar(
+  notes: readonly HeardNote[],
+  bar: number,
+  key: Key,
+  reading: Reading = 'phrases',
+): Judgement[] {
+  return heardInBar(notes, bar, reading).map(({ source, notes: heard, confidence }) =>
+    judge(source, heard, bar, key, confidence),
+  );
+}
+
+/**
+ * The notes still needed once `bar` is judged: those of the bars after it,
+ * and each source's running phrase, one that has not yet been silent for a
+ * bar, which a later bar is read with. What a phrase left more than
+ * `PHRASE_MEMORY` bars back is forgotten.
+ */
+export function keptAfter(notes: readonly HeardNote[], bar: number): HeardNote[] {
+  const edge = barStart(bar + 1);
+  const keep = new Set(notes.filter((n) => barOf(n) > bar));
+  for (const source of new Set(notes.map((n) => n.source))) {
+    const own = notes.filter((n) => n.source === source && n.position < edge);
+    const phrase = phrasesOf(own).at(-1);
+    if (!phrase || edge - Math.max(...phrase.map((n) => n.end ?? n.position)) >= EMPTY_BAR)
+      continue;
+    for (const n of phrase) if (n.position >= edge - PHRASE_MEMORY * BAR_STEPS) keep.add(n);
+  }
+  return notes.filter((n) => keep.has(n));
+}
+
+/**
+ * The motif the band takes from a bar's judgements, or none: the one the
+ * reading is surest of (a judgement without a confidence counts as sure),
+ * and of those the one with the most notes, and of those the first to
+ * arrive. The prototype took the most notes; the reading's confidence
+ * separates the players read right from those read wrong far better than
+ * the number of notes does (E17), so it comes first.
+ */
 export function taken(judgements: readonly Judgement[]): (Judgement & { kind: 'motif' }) | null {
   const notes = (m: Motif) => m.degrees.filter((d) => d !== null).length;
+  const sure = (j: Judgement & { kind: 'motif' }) => j.confidence ?? 1;
   let best: (Judgement & { kind: 'motif' }) | null = null;
-  for (const j of judgements)
-    if (j.kind === 'motif' && (!best || notes(j.motif) > notes(best.motif))) best = j;
+  for (const j of judgements) {
+    if (j.kind !== 'motif') continue;
+    if (
+      best === null ||
+      sure(j) > sure(best) ||
+      (sure(j) === sure(best) && notes(j.motif) > notes(best.motif))
+    )
+      best = j;
+  }
   return best;
 }
 
-function judge(source: string, heard: readonly HeardNote[], bar: number, key: Key): Judgement {
+function judge(
+  source: string,
+  heard: readonly HeardNote[],
+  bar: number,
+  key: Key,
+  confidence?: number,
+): Judgement {
   if (heard.length > MUSE.mashing) return { kind: 'mashing', source, count: heard.length };
   const top = new Map<number, HeardNote>();
   for (const n of heard) {
@@ -136,6 +237,7 @@ function judge(source: string, heard: readonly HeardNote[], bar: number, key: Ke
     source,
     motif: accents.some((a) => a !== 0) ? { ...motif, accents } : motif,
     level,
+    ...(confidence === undefined ? {} : { confidence }),
   };
 }
 
@@ -164,6 +266,8 @@ export function admissible(judgement: Judgement, key: Key): boolean {
     case 'motif': {
       const { motif, level } = judgement;
       if (!Number.isInteger(level) || level < 0 || level > 127) return false;
+      const { confidence } = judgement;
+      if (confidence !== undefined && !(confidence >= 0 && confidence <= 1)) return false;
       if (motif.cycle !== BAR_STEPS || motifProblems(motif).length > 0) return false;
       if (!motif.onsets.every(Number.isInteger)) return false;
       const notes = motif.degrees.filter((d) => d !== null);
@@ -194,6 +298,7 @@ function shaped(judgement: unknown): judgement is Judgement {
   const j = judgement as Partial<Record<string, unknown>> | null;
   if (typeof j !== 'object' || j === null || typeof j.source !== 'string') return false;
   if (j.kind !== 'motif') return true;
+  if (j.confidence !== undefined && typeof j.confidence !== 'number') return false;
   const motif = j.motif as Partial<Record<keyof Motif, unknown>> | null;
   if (typeof motif !== 'object' || motif === null || !Array.isArray(motif.onsets)) return false;
   const n = motif.onsets.length;

@@ -33,11 +33,11 @@ session's clients, and the lead plays it back from the bar after next, and its
 panel shows the motif and its log (#79, done).
 The lead's status line and the tracks grid name whose motif it plays, bar by bar, from the bar's own offer, for a solo band and for a session's host and client (#164, #183, done).
 The lead's lane tints a motif's bars in its player's colour, over that player's own lane, which marks the bar the Muse took.
-Next for the Muse, in order: a
-log of what players play, which A5's question and #16's encoder both need;
-confidence across players (A3), which a session makes pressing; the ear's
-reading of a player's style, and following it (#16, A4); and answering a motif
-through its operators (U5) rather than repeating it. What the prototype still
+Next for the Muse (#204), in order: reading a sloppy hand as a musician does, with the beat, equal lengths, their ratios and plausible rests as priors, since today's one rounding to the nearest step reads a hand 30 ms off right in a quarter of its bars, and the Muse's reading of a phrase in 46% (E17; A0 to A6 done: her judgement reads phrases, carries a confidence, and the surest reading is taken).
+The reading is one with the analyzer's `quantiseSection`, a shared reader in the engine, and it hears a phrase, not a bar: she listens across bars until the player leaves a bar empty, and what she does with a phrase (motifs and their order, variations, a composer's memory) is #207;
+a log of what players play, which A5's question and #16's encoder both need;
+what the confidence is worth against real players, and how long she waits on a phrase that runs on (#204); the ear's reading of a player's style, and following it (#16, A4); and answering a motif through its operators (U5) rather than repeating it.
+What the prototype still
 does that the app doesn't is the score (#63). #26's HUD is otherwise caught up:
 what remains there (the score panel, Strudel export) waits on #63.
 

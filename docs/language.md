@@ -1041,8 +1041,9 @@ held to the next can't leave silent; a phrase longer than a bar, which a fixed
 moved off the beat, it plays another velocity. Three of the four are answered:
 the blue note by an altered degree, the accents by `accents` (ahead of the
 evidence, A5), and the staccato by a rest. The phrase longer than a bar stands:
-the Muse judges each bar on its own, and a phrase played across a bar line comes
-back as a motif per bar, each taking the place of the one before. Test:
+the Muse reads a phrase whole so far (#204, E17), but judges each bar on its
+own, and a phrase played across a bar line comes back as a motif per bar, each
+taking the place of the one before. Test:
 `motifs.test.ts`, whose tests cite U4: what a motif may be; `head` under `rev`
 is the last notes wherever no note is held over the cycle's start; an accent is
 the same accent wherever `late` and `rev` move its note, and one counted from
@@ -1162,7 +1163,8 @@ Status: open. Decided: the analyzer brief, inherited. Lands in: #3.
 **A3. Every event carries its source, and inferred structure its confidence.**
 Witness: the Muse's judgement (`muse.ts`): every note heard carries its source,
 each source's bar is judged on its own and the judgement names it, and the band
-takes the motif with the most notes, the first to arrive on a tie. In a session
+takes the motif the reading is surest of, then the one with the most notes, the
+first to arrive on a tie. In a session
 (`packages/session`), a source is a player's id and the instrument
 (`playerSource`): a client's id is the one the lobby gave its link, which it
 can't choose, so two players are never one source, whatever they are called.
@@ -1173,10 +1175,13 @@ chord heard as the top of another's melody, or two players heard as one because
 they share a name. Test: `muse.test.ts`, whose tests of sources cite A3;
 `apps/web/src/session/session.test.ts`, whose tests of players cite A3: a
 client's judgement reaches the host's Muse by the client's id and reads by its
-name, and a name already in the session is refused. Open: confidence, which
-nothing infers yet; the prototype's source with the most notes stands in for it.
-A session makes it pressing: a player who plays 12 notes in every bar, the most
-that isn't mashing, wins every bar, whoever else plays. Source: prototype, SDR
+name, and a name already in the session is refused. Confidence is the reading's
+own (`confidence` on a motif's judgement, the mean of how near each note sits to
+the place it was read on, E17); the prototype's source with the most notes, which
+stood in for it, let a player who plays 12 notes in every bar, the most that
+isn't mashing, win every bar, whoever else played. Open: whether the most notes
+should count at all beside the confidence, and what the confidence is worth
+against real players. Source: prototype, SDR
 (the Muse's gate works like a squelch). Status: measured (the Muse's sources);
 open (confidence). Decided: the prototype, inherited (provenance). Lands in: #3,
 #25, #79, #16.
@@ -1199,9 +1204,10 @@ step round-trips through grid quantisation once its 4/4 section's swing is
 found.** Witness: `ticksTimeMap` (`packages/analyzer/src/tempo.ts`), whose
 `played` and `written` are built as one section/retraction pair per tempo
 segment, the same shape as the engine's own time maps (T4); and
-`estimateSwing`/`quantiseSection` (`packages/analyzer/src/swing.ts`), which
-search the swing axis (`swingMap`) for the value whose inverse leaves a
-section's onsets closest to the step grid, then round. Counterexample: a tick
+`estimateSwing`/`readOnsets` (`packages/engine/src/reading.ts`, which
+`quantiseSection` in `packages/analyzer/src/swing.ts` calls, and the Muse reads
+a phrase with), which search the swing axis (`swingMap`) for the value whose
+inverse leaves a section's onsets closest to the step grid, then round. Counterexample: a tick
 whose `written(played(tick))` differs from itself across a tempo change; a bar
 written at a known swing whose recovered step differs from the one it was
 written at. Test: `packages/analyzer/src/tempo.test.ts` (the round trip, across
@@ -1675,6 +1681,81 @@ run; the others have.
   - Every bar with Euclidean rim hits, 1,080, has exactly the hits of one
     `even(k, 16, shift)`, with k of 3, 5 or 7 and a shift of 0 to 3, so the line
     can write them as one Euclid token.
+
+- **E17. How well the Muse reads a sloppy hand** (A5's confidence, U4; #204 A0), in
+  [`packages/engine/experiments/muse-reading.ts`](../packages/engine/experiments/muse-reading.ts)
+  and its humaniser and yardstick in `humanise.ts` (about 1 s), over 200 patterns, each played 5 times, 890 bars whose exact playing the Muse takes as a motif.
+  - A pattern fills a bar with one dominant note value (a quarter, an eighth or a sixteenth) that gives way now and then to a longer, shorter or dotted one, with rests.
+  - A hand plays it in bar 1 at 120 bpm (a step is 125 ms).
+    One number, the sloppiness, is the standard deviation in ms of each onset's jitter, of the phrase's offset, of the tempo's drift over the bar and of each release's jitter, and the sloppier the hand the shorter it holds a note (a gate of 1 − sloppiness / 500).
+  - The target is what `judgeBar` makes of the exact playing.
+    The reading that exists rounds each onset and release to the nearest step.
+  - Read exactly at 0 ms, and 99.7% at 10 ms.
+    Then 69.3% at 20 ms, 26.9% at 30, 8.9% at 40, 3.0% at 50, 1.1% at 60, and none at 80 and 100.
+    A good player is at 20 to 40 ms.
+  - The rest is where it goes wrong.
+    Of the bars read wrong at 30 ms, 64% got a rest nobody meant, because a release and the next onset are rounded apart: 1 step of gap out of two noises of a fraction of a step.
+    Without the shorter hold the share at 30 ms is 45.5%, and the bars read right 41.5%, so it is the rounding, not the articulation.
+  - A note struck early or late enough to change bars strays in 11.2% of the bars at 30 ms, 27.1% at 60, and 42.7% at 100: the bar it belongs to loses its first note (A1).
+  - Notes put on another step, a note lost with another on its step, and no motif at all are each under 10% up to 60 ms.
+  - So the reading's first lesson is not where the notes go but where the rests are: a rest must be a plausible value or nothing (A4), and comes before the note value (A2).
+  - The yardstick has both ends: an exact hand is read 100%, and a reader that hears nothing 0%.
+    The baseline's numbers are literals in `humanise.test.ts`, to be raised by the step that improves them.
+  - **A1: a phrase read whole** (`readHeard`, `packages/engine/src/phrase.ts`).
+    Two phrases of one to three bars with an empty bar between, each humanised alone: 3,600 bars.
+    A phrase ends at a silence of a bar less a step (`EMPTY_BAR`), is read as one span with the phrase's offset found (shrunk toward none) and its first onset put on the beat where the odds say so (`BEAT_EVIDENCE`, odds of 6 to 1 against the hand's own looseness), then cut at the bar lines.
+    Nearest step against a phrase read whole, bars right, and bars whose notes all start where they were meant (rests aside): 20 ms 69.1% and 82.9% against 83.6% and 92.8%; 30 ms 27.3% and 46.5% against 34.0% and 53.9%; 40 ms 9.1% and 23.3% against 10.1% and 26.4%.
+    Bars with a note in the wrong bar at 30 ms: 9.9% against 7.6%.
+  - Reading is no better from 60 ms, and marginally worse in right bars (a handful in 3,600): a hand that loose puts a note past half a step from where it meant, which no prior on the first onset repairs.
+  - A beat prior on every onset, not only the first, at odds of 1.5 to 3, moved the 30 ms numbers by under a point, so it is left out.
+  - **A4: rests** (`releasesOf` in `phrase.ts`).
+    A release short of the next onset, or of the bar's end, is the player's articulation, a share of the note's slot that the phrase's own notes leave (their lower quartile, up to 30%), unless the rest of the gap stands out by `REST_MARGIN` (3) times the hand's spread (its looseness, twice over).
+    A rest is then of the plausible length nearest to it (1, 2, 3, 4, 6, 8, 12 or 16 steps) where that is within the spread, and of the whole steps nearest to it otherwise, since a tight hand that leaves five steps meant five.
+    Bars right, bars with their rests where they were meant, nearest step against read whole: 10 ms 99.6% and 99.6% against 99.9% and 99.9%; 20 ms 69.1% and 70.4% against 84.4% and 87.9%; 30 ms 27.3% and 30.2% against 44.0% and 63.5%; 40 ms 9.1% and 11.6% against 20.1% and 43.9%; 60 ms 1.2% and 2.6% against 4.3% and 18.1%.
+  - Two things made the first cut worse than the nearest step at 10 ms (96.2% against 99.6%) and are why it reads as it does.
+    The articulation as the middle of what notes leave is wrong for a phrase that is half rests, where the rests are the middle; the lower quartile is not.
+    Snapping every gap to a plausible rest read a rest of five steps (a quarter and a sixteenth, which the yardstick's cut patterns make) as four; a rest is snapped only where the hand's own spread doesn't rule it out.
+  - The margin was swept on this yardstick, with the lower quartile in: 1.5, 2, 3, 4, 5 and 7 gave 75.4%, 78.0%, 84.4%, 81.3%, 75.8% and 67.3% of bars right at 20 ms, and 29.3%, 37.0%, 44.0%, 42.4%, 39.9% and 35.9% at 30 ms.
+    At 10 ms all but 7 give 99.8% or 99.9%.
+    3 is the best of the sweep, so it is tuned to the yardstick's patterns and to the humaniser, and is a starting value, not a finding.
+    A larger margin declares fewer rests, so it costs a real rest that a loose hand can't tell from a release; the yardstick's rests are a minority, and a phrase that is mostly rests would want it smaller.
+  - A note played staccato throughout is read as a full note (articulation), so a run of staccato eighths comes back as eighths, not as eighths and rests.
+    Only a release that stands out is a rest.
+  - **A2: the note value** (`snapToValues`, `packages/engine/src/lattice.ts`).
+    A phrase's onsets are read on the lattice of a half, a quarter, an eighth or a sixteenth of the bar's own places, the one that describes them at the least cost: a place of the bar each (`16 / value` of them, in nats) and how far each is from it, over the hand's looseness, which is one for every lattice; the coarser wins a tie.
+    Two onsets a step or more apart may not share a place (`MERGE_LIMIT`), which stops a loose hand's sixteenths being read as eighths with two notes on one place.
+    The first onset stays where the beat prior put it.
+    Nearest step, then A4's reading, then A2's, bars right / onsets right: 20 ms 69.1% / 82.9%, 84.4% / 92.8%, 84.8% / 93.2%; 30 ms 27.3% / 46.5%, 44.0% / 53.9%, 46.0% / 56.6%; 40 ms 9.1% / 23.3%, 20.1% / 26.4%, 23.1% / 30.0%; 60 ms 1.2% / 6.8%, 4.3% / 7.3%, 5.0% / 8.6%.
+  - Three first cuts of A2 were worse than A4's, each for one reason.
+    The looseness fitted to each lattice (its own spread) let a coarse lattice explain the noise away: 8.6 points of onsets lost at 20 ms, 4 of them to notes in the wrong bar; one looseness for all lattices, from the phrase's residuals, is right.
+    A lattice anchored at the phrase's first onset misplaces a phrase that starts on an offbeat sixteenth; the bar's own places are right, since the player aims at the band's grid.
+    Without the merge limit, four sixteenths a loose hand played as 24, 24, 26, 26 were read as eighths.
+  - **A3: the hierarchy** is in the nesting: a half, a quarter, an eighth and a sixteenth are each the multiples of the next, so a phrase's one lattice holds its longer notes and the shorter ones ask for.
+    Bars whose beats divide by themselves (a quarter, eighths, sixteenths, a mix; `beatPattern`, 3,875 bars) are the ground where one value for a phrase can't hold: nearest step against A2's, bars right / onsets right: 20 ms 70.0% / 78.9% against 81.6% / 91.7%; 30 ms 25.3% / 37.0% against 34.4% / 44.6%.
+  - Each beat taking a lattice of its own, nested in the phrase's, at 0 to 4 nats to depart from it, was worse than none on those bars (20 ms, 79.5% to 81.6% bars right, 89.1% to 91.7% onsets), and no better on the bars of one value; the more it took to depart, the better it did.
+    So it was taken out, and A3 stands as the nesting alone.
+    Not tried: note values that are not a power of two (triplets, whose places are thirds of a beat), and ratios read from the lengths of notes as well as from their onsets.
+  - **A6: into the judgement** (`judgeBar` in `muse.ts`).
+    The Muse's own judgement of a bar reads that source's notes as phrases (`readHeard`), those heard up to the end of the bar and no later, so what the band plays doesn't depend on what came after (F7): a phrase is read as far as it has gone.
+    The notes kept between bars are each source's running phrase (`keptAfter`, up to `PHRASE_MEMORY` bars), not only the bars not yet judged; a client's ear and the host's transport both keep them, and read alike.
+    The baseline stays as `judgeBar(…, 'nearest')`.
+    Bars right / onsets / rests right by the Muse's own judgement, 3,600 bars: 20 ms 84.6% / 93.4% / 87.3%; 30 ms 45.8% / 57.4% / 62.4%; 40 ms 23.0% / 31.2% / 42.2%; on beats that divide by themselves at 30 ms 34.6% / 44.7% / 53.5%.
+    That is within a point of a phrase read whole with its end known (46.3% at 30 ms), so reading a phrase so far costs nothing worth a point.
+    The judgement of the bar before a phrase's first bar, judged before the phrase is known, still sees a lone early note as a bar of its own: too few, and not offered.
+  - **A5: the confidence a judgement carries.**
+    Each onset has a margin, how near it sits to the place it was read on against halfway to the next (1 on it, 0 halfway; `PhraseReading`); a motif's judgement carries the mean of its bar's notes, in hundredths (`confidence`, absent from the nearest step's reading).
+    It sorts the bars read right from those read wrong: the chance that a right bar carries more than a wrong one is 0.85 at 10 ms, 0.78 at 20, 0.73 at 30, 0.69 at 40, 0.61 at 60.
+    At 30 ms the surest third of the bars are read right 67.3% of the time and the least sure third 24.1%.
+    The mean, the minimum and the lower quartile of the margins were compared, pooled over 20 to 40 ms: 0.78, 0.75 and 0.76, so the mean.
+  - Two players in one bar, one motif taken (`taken`): the prototype took the most notes, and now the surest reading is taken, then the most notes.
+    Right picks, most notes against surest reading, over 790 pairs each: players at 0 and 40 ms 65.4% against 100%; 10 and 30 ms 71.5% against 97.6%; 20 and 40 ms 54.2% against 77.7%; 30 and 30 ms 41.1% against 58.4%; 20 and 60 ms 50.3% against 77.3%.
+    The notes times the confidence, which keeps some richness, was in between (66.5% at 20 and 40 ms).
+    This changes what the band takes, ahead of the evidence about real players: a clean three-note motif now beats a loose ten-note one.
+    It is one comparison in `taken` to reverse.
+  - The tuned constants of A1 to A4 (`BEAT_EVIDENCE`, `REST_MARGIN`, `ARTICULATION_CEILING`, `MERGE_LIMIT`) stay as they are: a posterior that estimated them from this yardstick would learn the humaniser's parameters, not a player's.
+    A5 as one posterior over the reading is not done; the confidence is.
+    That waits on a recording of real playing.
+  - What is left is the per-onset jitter of a loose hand, which the equal lengths (A2) and their ratios (A3) address, and the rests a loose hand can't tell from a release.
 
 - **E18. The lead driven by the style** (T4; #168 step 2), in
   [`packages/engine/experiments/lead-style.ts`](../packages/engine/experiments/lead-style.ts)

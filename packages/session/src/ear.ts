@@ -15,7 +15,7 @@
  */
 
 import type { BarJudgement, HeardNote, Key } from '@jambot/engine';
-import { barOf, barStart, judgeBar } from '@jambot/engine';
+import { barOf, barStart, judgeBar, keptAfter } from '@jambot/engine';
 
 /** How many steps after a bar ends it is judged: a beat. */
 export const EAR_AFTER = 4;
@@ -48,8 +48,7 @@ export function earListen(
     const key = keyOf(next);
     if (key)
       for (const judgement of judgeBar(pending, next, key)) judged.push({ bar: next, judgement });
-    const done = next;
-    pending = pending.filter((n) => barOf(n) > done);
+    pending = keptAfter(pending, next);
   }
   return { carried: { pending, next }, judged };
 }
