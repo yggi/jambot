@@ -34,6 +34,13 @@ A deploy token can deploy the app but not create it. If
 `fly status -a jambot-lobby` says the app doesn't exist, the owner runs
 `fly apps create jambot-lobby` once, from their own machine; then go on.
 
+A new app also has no public IP address, and `jambot-lobby.fly.dev` then doesn't
+resolve, though the machine runs and its check passes.
+`fly ips list -a jambot-lobby` shows it. If it is empty, the owner allocates
+once, from their own machine: `fly ips allocate-v4 --shared -a jambot-lobby`
+(free; not the dedicated one, which costs money) and
+`fly ips allocate-v6 -a jambot-lobby`.
+
 ## 1. flyctl
 
 ```sh

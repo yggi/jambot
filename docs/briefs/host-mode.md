@@ -219,7 +219,10 @@ It works, with one rule: load the app from `localhost` on every machine.
   machine's memory; its health checked at `/health`; its connections
   capped at 3,000, about what the load test puts on one shared CPU. Once,
   `fly apps create jambot-lobby`; then `pnpm lobby:deploy` from the
-  repository's root, which builds the container remotely. It is reached at
+  repository's root, which builds the container remotely. An app made this
+  way has no public address until it gets one, and its name doesn't resolve:
+  once, `fly ips allocate-v4 --shared` (free; a dedicated IPv4 costs money
+  and isn't needed) and `fly ips allocate-v6`. It is reached at
   `wss://jambot-lobby.fly.dev`. A session deploys it with the `lobby-deploy`
   skill, from a `FLY_API_TOKEN` in its environment (a deploy token for this
   app), since Actions can't while #4 is open. The Pages build names this
