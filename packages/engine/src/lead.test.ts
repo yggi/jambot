@@ -440,10 +440,36 @@ describe('the phrase parameters', () => {
     }
   });
 
-  it('read the style’s sync, entropy and harmony and the bar’s energy, and nothing else of the style', () => {
+  it('lift the off-beat eighths with the swing, and nothing else, 0 when straight, over every preset (#168)', () => {
+    for (const { bar } of barsOf) {
+      const over = grid.map(
+        (swing) => phraseParams({ ...bar, style: { ...bar.style, swing } }).pickups,
+      );
+      over.forEach((pickups, i) => {
+        expect(pickups).toHaveLength(16);
+        pickups.forEach((lift, s) => expect(lift).toBe(s % 4 === 2 ? 0.3 * grid[i]! : 0));
+      });
+      expect(over[0]!.every((lift) => lift === 0)).toBe(true);
+    }
+  });
+
+  it('plays more of its notes on the off-beat eighths the more it swings (#168)', () => {
+    const offBeats = (swing: number) => {
+      const bars = [1, 2, 3, 4, 5, 6].flatMap((seed) =>
+        tour(seed, 64, (b) => ({ ...styleAt(b), swing })),
+      );
+      const notes = play(bars).flatMap((p) => p.events);
+      return notes.filter((e) => e.step % 4 === 2).length / notes.length;
+    };
+    const [straight, half, full] = [offBeats(0), offBeats(0.5), offBeats(1)];
+    expect(half).toBeGreaterThan(straight);
+    expect(full).toBeGreaterThan(half);
+  });
+
+  it('read the style’s sync, entropy, harmony and swing and the bar’s energy, and nothing else of the style', () => {
     for (const { bar } of barsOf) {
       const base = phraseParams(bar);
-      for (const axis of ['swing', 'artic', 'energy', 'bpm'] as const)
+      for (const axis of ['artic', 'energy', 'bpm'] as const)
         for (const value of [0, 0.5, 1, 90])
           expect(phraseParams({ ...bar, style: { ...bar.style, [axis]: value } })).toEqual(base);
       const sync = bar.style.sync === 1 ? 0 : 1;
