@@ -1714,6 +1714,20 @@ run; the others have.
     A larger margin declares fewer rests, so it costs a real rest that a loose hand can't tell from a release; the yardstick's rests are a minority, and a phrase that is mostly rests would want it smaller.
   - A note played staccato throughout is read as a full note (articulation), so a run of staccato eighths comes back as eighths, not as eighths and rests.
     Only a release that stands out is a rest.
+  - **A2: the note value** (`snapToValues`, `packages/engine/src/lattice.ts`).
+    A phrase's onsets are read on the lattice of a half, a quarter, an eighth or a sixteenth of the bar's own places, the one that describes them at the least cost: a place of the bar each (`16 / value` of them, in nats) and how far each is from it, over the hand's looseness, which is one for every lattice; the coarser wins a tie.
+    Two onsets a step or more apart may not share a place (`MERGE_LIMIT`), which stops a loose hand's sixteenths being read as eighths with two notes on one place.
+    The first onset stays where the beat prior put it.
+    Nearest step, then A4's reading, then A2's, bars right / onsets right: 20 ms 69.1% / 82.9%, 84.4% / 92.8%, 84.8% / 93.2%; 30 ms 27.3% / 46.5%, 44.0% / 53.9%, 46.0% / 56.6%; 40 ms 9.1% / 23.3%, 20.1% / 26.4%, 23.1% / 30.0%; 60 ms 1.2% / 6.8%, 4.3% / 7.3%, 5.0% / 8.6%.
+  - Three first cuts of A2 were worse than A4's, each for one reason.
+    The looseness fitted to each lattice (its own spread) let a coarse lattice explain the noise away: 8.6 points of onsets lost at 20 ms, 4 of them to notes in the wrong bar; one looseness for all lattices, from the phrase's residuals, is right.
+    A lattice anchored at the phrase's first onset misplaces a phrase that starts on an offbeat sixteenth; the bar's own places are right, since the player aims at the band's grid.
+    Without the merge limit, four sixteenths a loose hand played as 24, 24, 26, 26 were read as eighths.
+  - **A3: the hierarchy** is in the nesting: a half, a quarter, an eighth and a sixteenth are each the multiples of the next, so a phrase's one lattice holds its longer notes and the shorter ones ask for.
+    Bars whose beats divide by themselves (a quarter, eighths, sixteenths, a mix; `beatPattern`, 3,875 bars) are the ground where one value for a phrase can't hold: nearest step against A2's, bars right / onsets right: 20 ms 70.0% / 78.9% against 81.6% / 91.7%; 30 ms 25.3% / 37.0% against 34.4% / 44.6%.
+  - Each beat taking a lattice of its own, nested in the phrase's, at 0 to 4 nats to depart from it, was worse than none on those bars (20 ms, 79.5% to 81.6% bars right, 89.1% to 91.7% onsets), and no better on the bars of one value; the more it took to depart, the better it did.
+    So it was taken out, and A3 stands as the nesting alone.
+    Not tried: note values that are not a power of two (triplets, whose places are thirds of a beat), and ratios read from the lengths of notes as well as from their onsets.
   - What is left is the per-onset jitter of a loose hand, which the equal lengths (A2) and their ratios (A3) address, and the rests a loose hand can't tell from a release.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to

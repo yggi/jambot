@@ -17,16 +17,19 @@
  *   between a beat and the step nearest it goes where the odds, its
  *   distance weighed by the hand's own looseness against `BEAT_EVIDENCE`, say.
  *
+ * - the note value: the lattice of a half, a quarter, an eighth or a
+ *   sixteenth its onsets sit on, and each beat's own, snapped to (`lattice.ts`,
+ *   A2 and A3);
  * - the rests: a release short of the next onset is the player's
  *   articulation unless it stands out from what the phrase's own notes
  *   leave, and then it is a rest of a plausible length (`releasesOf`, A4).
  *
- * What a phrase was meant to be beyond where its onsets and rests go, the
- * note value and the lengths, is A2 and A3's.
+ * What is left, the lengths themselves and how sure the reading is, is A5's.
  */
 
 import { BAR_STEPS, barAt, barStart, beatAt, beatStart } from './events.ts';
 import type { HeardNote } from './muse.ts';
+import { LOOSENESS_FLOOR, snapToValues } from './lattice.ts';
 import { readOnsets } from './reading.ts';
 
 /**
@@ -43,9 +46,6 @@ export const EMPTY_BAR = BAR_STEPS - 1;
  * function decides a step (#45).
  */
 export const BEAT_EVIDENCE = 1.8;
-
-/** The least a hand's looseness is taken to be, in steps: a player exact to the ear is not exact to the step. */
-export const LOOSENESS_FLOOR = 0.08;
 
 /**
  * The lengths of a rest a player plausibly means, in steps: a sixteenth, an
@@ -122,8 +122,13 @@ export function readPhrase(phrase: readonly HeardNote[]): HeardNote[] {
       evidence - (first - step) ** 2 / (2 * looseness ** 2);
     if (score(beat, BEAT_EVIDENCE) > score(steps[0]!, 0)) steps[0] = beat;
   }
-  const ends = releasesOf(notes, steps, offset, looseness);
-  return notes.map((n, i) => ({ ...n, position: steps[i]!, end: ends[i]! }));
+  const on = snapToValues(
+    notes.map((n) => n.position - offset),
+    steps[0]!,
+    looseness,
+  );
+  const ends = releasesOf(notes, on, offset, looseness);
+  return notes.map((n, i) => ({ ...n, position: on[i]!, end: ends[i]! }));
 }
 
 /** The lower quartile of a list, or 0 of none: what most of it is at least. */

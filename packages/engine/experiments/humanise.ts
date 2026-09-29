@@ -122,6 +122,25 @@ export function pattern(index: number): Segment[] {
   return segments;
 }
 
+/** How a beat divides, in steps: a quarter, two eighths, four sixteenths, and mixes of them, one of which is dotted. */
+const BEAT_DIVISIONS = [[4], [2, 2], [1, 1, 1, 1], [2, 1, 1], [1, 1, 2], [3, 1]] as const;
+
+/**
+ * The pattern with index `index` whose beats each divide by themselves: a
+ * bar of four beats, each a quarter, eighths, sixteenths or a mix, so its
+ * note values change from beat to beat (A3's ground). A segment is a rest
+ * one time in ten.
+ */
+export function beatPattern(index: number): Segment[] {
+  const rng = keyedRng(23, index);
+  return range(4).flatMap(() =>
+    BEAT_DIVISIONS[Math.floor(rng() * BEAT_DIVISIONS.length)]!.map((length) => ({
+      length,
+      rest: rng() < 0.1,
+    })),
+  );
+}
+
 /** The notes of a pattern played exactly in `bar`: each held its whole segment, in A minor's pentatonic. */
 export function played(segments: readonly Segment[], bar: number, index: number): HeardNote[] {
   const rng = keyedRng(19, index);
@@ -254,7 +273,7 @@ const phraseBars = (index: number, which: 0 | 1) => 1 + ((index + which) % 3);
  * between, from bar 1. Each note's velocity is its number, so where a hearing
  * puts it can be told from where it was meant.
  */
-function performance(index: number) {
+function performance(index: number, source: (i: number) => Segment[]) {
   const first = phraseBars(index, 0);
   const second = phraseBars(index, 1);
   const bars = [
@@ -262,7 +281,7 @@ function performance(index: number) {
     ...range(second).map((j) => ({ bar: first + 2 + j, pattern: index * 6 + 3 + j, phrase: 1 })),
   ];
   const notes = bars.flatMap(({ bar, pattern: p, phrase }) =>
-    played(pattern(p), bar, p).map((n) => ({ ...n, phrase })),
+    played(source(p), bar, p).map((n) => ({ ...n, phrase })),
   );
   return notes.map(({ phrase, ...n }, i) => ({ note: { ...n, velocity: 1 + i }, phrase }));
 }
@@ -279,16 +298,23 @@ const restSteps = (m: NonNullable<ReturnType<typeof motifOf>>) =>
 
 /**
  * The share of bars a hearing reads as their target, over performances of
- * two phrases each humanised alone (a phrase's offset and drift are its own).
+ * two phrases each, of patterns of one dominant note value (`pattern`) or
+ * of beats that divide by themselves (`beatPattern`), each humanised alone (a phrase's offset and drift are its own).
  */
-export function phraseRate(hearing: Hearing, sloppiness: number, key: Key, seed = 1): PhraseRate {
+export function phraseRate(
+  hearing: Hearing,
+  sloppiness: number,
+  key: Key,
+  seed = 1,
+  source: (index: number) => Segment[] = pattern,
+): PhraseRate {
   let bars = 0;
   let right = 0;
   let onsets = 0;
   let rests = 0;
   let strayed = 0;
   for (let index = 0; index < PATTERNS; index++) {
-    const parts = performance(index);
+    const parts = performance(index, source);
     const exact = parts.map((p) => p.note);
     const intended = new Map(exact.map((n) => [n.velocity, barAt(n.position)]));
     for (let trial = 0; trial < TRIALS; trial++) {

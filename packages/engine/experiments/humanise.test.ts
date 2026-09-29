@@ -5,17 +5,37 @@ import {
   AS_PHRASES,
   BAR,
   BASELINE,
+  type Hearing,
+  type PhraseRate,
+  type Segment,
+  beatPattern,
   PATTERNS,
   TRIALS,
   humanise,
   pattern,
-  phraseRate,
+  phraseRate as measure,
   played,
   readingRate,
   stepMs,
 } from './humanise.ts';
 
 const KEY: Key = { tonic: 9, mode: 'aeolian' };
+
+/** `phraseRate`, measured once for each hearing, sloppiness and kind of pattern: the same numbers are read by several tests. */
+const measured = new Map<Hearing, Map<string, PhraseRate>>();
+function phraseRate(
+  hearing: Hearing,
+  sloppiness: number,
+  key: Key,
+  seed = 1,
+  source: (index: number) => Segment[] = pattern,
+): PhraseRate {
+  const cache = measured.get(hearing) ?? new Map<string, PhraseRate>();
+  measured.set(hearing, cache);
+  const id = `${sloppiness}/${seed}/${source === pattern ? 'unit' : 'beats'}`;
+  if (!cache.has(id)) cache.set(id, measure(hearing, sloppiness, key, seed, source));
+  return cache.get(id)!;
+}
 const range = (n: number) => [...Array(n).keys()];
 const sd = (xs: number[]) => {
   const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -174,9 +194,9 @@ describe('reading phrases of a sloppy hand (E17)', () => {
 
   it.each([
     [10, 0.999, 1, 0.999],
-    [20, 0.844, 0.928, 0.879],
-    [30, 0.44, 0.539, 0.635],
-    [40, 0.201, 0.264, 0.439],
+    [20, 0.848, 0.932, 0.877],
+    [30, 0.46, 0.566, 0.638],
+    [40, 0.231, 0.3, 0.447],
   ])(
     'a phrase read whole, at %i ms, reads %f of the bars, puts %f of their onsets and %f of their rests right',
     (s, right, onsets, rests) => {
@@ -206,6 +226,50 @@ describe('reading phrases of a sloppy hand (E17)', () => {
       expect(read.right / read.bars).toBeGreaterThan(heard.right / heard.bars - 0.01);
       expect(read.onsets / read.bars).toBeGreaterThan(heard.onsets / heard.bars - 0.01);
       expect(read.rests).toBeGreaterThan(heard.rests);
+    }
+  }, 60_000);
+});
+
+/**
+ * Bars whose beats divide by themselves (a quarter, eighths, sixteenths, a
+ * mix): where one note value for a whole phrase can't hold. Recorded as
+ * literals to ±3 points, and the reading must stay no worse than the
+ * nearest step up to 40 ms (E17).
+ */
+describe('reading phrases whose beats divide by themselves (E17)', () => {
+  const rate = (hearing: Hearing, s: number) => phraseRate(hearing, s, KEY, 1, beatPattern);
+
+  it('reads an exact hand right both ways', () => {
+    for (const hearing of [AS_HEARD, AS_PHRASES]) {
+      const r = rate(hearing, 0);
+      expect(r.bars).toBeGreaterThan(3000);
+      expect(r.right).toBe(r.bars);
+    }
+  });
+
+  it.each([
+    [20, AS_HEARD, 0.7, 0.789, 0.713],
+    [30, AS_HEARD, 0.253, 0.37, 0.275],
+    [20, AS_PHRASES, 0.816, 0.917, 0.855],
+    [30, AS_PHRASES, 0.344, 0.446, 0.537],
+  ])(
+    'at %i ms, reads %f of the bars, %f of their onsets and %f of their rests right',
+    (s, hearing, right, onsets, rests) => {
+      const r = rate(hearing, s);
+      expect(Math.abs(r.right / r.bars - right)).toBeLessThan(0.03);
+      expect(Math.abs(r.onsets / r.bars - onsets)).toBeLessThan(0.03);
+      expect(Math.abs(r.rests / r.bars - rests)).toBeLessThan(0.03);
+    },
+    60_000,
+  );
+
+  it('is never worse than the nearest step up to 40 ms', () => {
+    for (const s of [10, 20, 30, 40]) {
+      const heard = rate(AS_HEARD, s);
+      const read = rate(AS_PHRASES, s);
+      expect(read.right).toBeGreaterThanOrEqual(heard.right);
+      expect(read.onsets).toBeGreaterThanOrEqual(heard.onsets);
+      expect(read.strayed).toBeLessThanOrEqual(heard.strayed);
     }
   }, 60_000);
 });

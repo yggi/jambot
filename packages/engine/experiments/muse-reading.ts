@@ -16,6 +16,7 @@ import {
   AS_HEARD,
   AS_PHRASES,
   BASELINE,
+  beatPattern,
   BPM,
   phraseRate,
   readingRate,
@@ -44,6 +45,19 @@ console.log(
 for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
   const a = phraseRate(AS_HEARD, sloppiness, KEY);
   const b = phraseRate(AS_PHRASES, sloppiness, KEY);
+  const row = (r: typeof a) =>
+    `${pct(r.right, r.bars)} ${pct(r.onsets, r.bars)} ${pct(r.rests, r.bars)} ${pct(r.strayed, r.bars)}`;
+  console.log(
+    `${String(sloppiness).padStart(3)} ${String(a.bars).padStart(8)} | ${row(a)} | ${row(b)}`,
+  );
+}
+
+// A3: bars whose beats divide by themselves (a quarter, eighths, sixteenths, a mix).
+console.log('\nbeats that divide by themselves: nearest step | read whole');
+console.log('ms     bars | right onsets  rests strayed | right onsets  rests strayed');
+for (const sloppiness of [0, 10, 20, 30, 40, 50, 60]) {
+  const a = phraseRate(AS_HEARD, sloppiness, KEY, 1, beatPattern);
+  const b = phraseRate(AS_PHRASES, sloppiness, KEY, 1, beatPattern);
   const row = (r: typeof a) =>
     `${pct(r.right, r.bars)} ${pct(r.onsets, r.bars)} ${pct(r.rests, r.bars)} ${pct(r.strayed, r.bars)}`;
   console.log(

@@ -158,6 +158,11 @@ describe('reading a phrase', () => {
     read.forEach((n) => expect(n.end).toBeGreaterThan(n.position));
   });
 
+  it('reads eighths struck 0.6 of a step off, either way, as eighths', () => {
+    const late = heard([16.3, 18.6, 20.4, 22.6, 24.4, 26.6, 28.4]);
+    expect(positionsOf(readPhrase(late))).toEqual([16, 18, 20, 22, 24, 26, 28]);
+  });
+
   it('reads each phrase of a performance on its own offset', () => {
     const both = heard([15.7, 19.7, 23.7, 27.7, 16 * 5 + 0.3, 16 * 5 + 4.3, 16 * 5 + 8.3]);
     expect(positionsOf(readHeard(both))).toEqual([16, 20, 24, 28, 80, 84, 88]);
