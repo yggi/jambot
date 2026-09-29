@@ -964,7 +964,7 @@ describe('the Muse’s memory: repetition confirms a motif, #204 H8 (#204, Q12)'
     const again = (after: number, first: number[]) =>
       listen(
         range(after + 1).map((bar) => ({
-          heard: first.includes(bar) || bar === after ? phrase(bar, 'a') : undefined,
+          heard: first.includes(bar) || bar === after ? phrase(bar, 'a') : [],
         })),
       ).outputs[after]!.recognised.length;
     expect(again(16, [0])).toBe(1);

@@ -42,7 +42,6 @@ import {
 } from '../src/index.ts';
 import { BAR, PATTERNS, TRIALS, humanise, pattern, played } from './humanise.ts';
 
-const range = (n: number) => [...Array(n).keys()];
 const KEY: Key = { tonic: 9, mode: 'aeolian' };
 /** The bar a pattern is played again in: an empty bar after the first. */
 const AGAIN = BAR + 2;
