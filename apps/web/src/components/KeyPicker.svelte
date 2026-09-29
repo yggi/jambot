@@ -1,6 +1,9 @@
 <!--
-  The key picker, folded to a header: the key the band is heading for, in
-  common terms and spelled in the key ("C major", "G♯ minor"). Unfolded, two
+  The key picker, a card. Folded: the key heard, in common terms and spelled
+  in the key ("C major", "G♯ minor"), over its notes and, where the lead walks
+  a melodic scale beside them, its name; the glyph is the wheel at the key the
+  band is heading for, so a modulation shows before it is heard (before
+  anything is, the key heading is the one named). Unfolded, two
   views of the one key, both shown, that complement each other. The circle
   of fifths selects and nudges the tonic and shows the scale's shape on it,
   over the harmonic history: every pitch class actually played lately,
@@ -43,6 +46,7 @@
     scaleSteps,
   } from '../noteNames.ts';
   import type { Intent } from '../conductor.ts';
+  import type { BarView } from '../hud.ts';
   import CircleOfFifths from './CircleOfFifths.svelte';
   import Card from './Card.svelte';
   import Nudge from './Nudge.svelte';
@@ -52,6 +56,8 @@
   interface Props {
     /** The key the band is heading for. */
     heading: Key | null;
+    /** The key heard: the bar heard's, or before anything is, the bar first played; null past the forecast. */
+    heard?: Pick<BarView, 'key' | 'tonic' | 'scale' | 'melodicName'> | null;
     /** One weight per pitch class, 0–11, for the harmonic-history radar. */
     history: readonly number[];
     /** How many fifths from the home key the licence lets the key go (`licenceOf`'s `keyReach`). */
@@ -69,6 +75,7 @@
 
   let {
     heading,
+    heard = null,
     history,
     reach,
     home = INITIAL_KEY,
@@ -96,6 +103,12 @@
     onintent({ kind: 'key', wish: { tonic: nudged(by), mode: key.mode } });
 
   const notes = $derived(scaleNoteNames(scale, key.tonic));
+  /** The key named in the summary: the key heard, else the one the band is heading for. */
+  const named = $derived(heard?.key ?? keyName(key));
+  const namedNotes = $derived(
+    (heard ? scaleNoteNames(heard.scale, heard.tonic) : notes).join(' ') +
+      (heard && heard.melodicName !== 'plain' ? ` · ${heard.melodicName}` : ''),
+  );
   const steps = $derived(scaleSteps(scale, key.tonic));
   const marks = $derived(scaleMarks(scale, key.tonic));
   /** A mark on each note and the octave, the tonic accented at both ends. */
@@ -130,7 +143,8 @@
   );
 </script>
 
-<Card title="Key" main={keyName(key)}>
+<Card title="Key" main={named} sub={namedNotes}>
+  {#snippet glyph()}<CircleOfFifths tonic={key.tonic} {scale} compact />{/snippet}
   <div class="wheel">
     <CircleOfFifths
       tonic={key.tonic}

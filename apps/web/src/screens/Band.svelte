@@ -97,6 +97,7 @@
   <KeyPicker
     {following}
     heading={player.hud.heading}
+    heard={player.hud.bar}
     reach={keyReachOf(player.track)}
     home={player.home}
     melodic={player.hud.headingMelodic}

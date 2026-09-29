@@ -89,4 +89,21 @@ describe('the scale figure', () => {
     const { container } = render(CircleOfFifths, { tonic: 9, scale: [9, 11, 0, 2, 4, 5, 8] });
     expect(container.querySelector('path.chords')).not.toBeNull();
   });
+
+  it('draws small, as a glyph: the figure and the tonic, no note names, no history, no buttons', () => {
+    const { container } = render(CircleOfFifths, {
+      tonic: 0,
+      scale: [0, 2, 4, 5, 7, 9, 11],
+      mode: 'ionian',
+      onintent: () => {},
+      history: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      compact: true,
+    });
+    expect(container.querySelectorAll('text')).toHaveLength(0);
+    expect(container.querySelectorAll('button')).toHaveLength(0);
+    expect(container.querySelector('path.history')).toBeNull();
+    expect(container.querySelectorAll('.dot.in-scale')).toHaveLength(7);
+    expect(container.querySelector('.tonic-ring')).not.toBeNull();
+    expect(container.querySelector('path.figure')).not.toBeNull();
+  });
 });
