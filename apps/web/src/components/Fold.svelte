@@ -1,8 +1,8 @@
 <!--
   A card: one thing on the page, folded to a header and unfolded to its
   details. The header is the card's own heading (what the thing is), a
-  headline in large type (what it is now) and a line under it (what that
-  is), with the chevron at the right of the heading, in the same place on
+  headline in large type (what it is now) and, only where there is
+  something secondary that changes, a line under it, with the chevron at the right of the heading, in the same place on
   every card. The details open under it, spaced alike. The key and the
   metrum are cards, so a stack of them reads as one (a `Drawer` folds
   settings that aren't the music, with the same chevron).
@@ -15,7 +15,7 @@
     heading: string;
     /** The headline: what the thing is now. */
     name: string;
-    /** The line under it. */
+    /** The line under it: secondary and changing, never a fixed explanation. */
     sub?: string;
     children: Snippet;
   }

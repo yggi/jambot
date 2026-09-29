@@ -3,8 +3,8 @@
   rest, and a marker where it stands. It may fill from the centre to the
   marker, and show a band of the track that is within reach. The tempo's
   licence is one (the style's own tempo at the centre, the nudge the marker,
-  the licence the band) and so is the swing (none at the centre, the swing
-  the fill).
+  the licence the band) and so is the swing (the whole range, none at its
+  start, the swing the fill).
 -->
 <script lang="ts">
   interface Props {

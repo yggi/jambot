@@ -109,7 +109,7 @@
     onintent({ kind: 'key', wish: { tonic, mode } });
 </script>
 
-<Fold heading="Key" name={keyName(key)} sub="the key the band is heading for">
+<Fold heading="Key" name={keyName(key)}>
   <div class="wheel">
     <CircleOfFifths
       tonic={key.tonic}

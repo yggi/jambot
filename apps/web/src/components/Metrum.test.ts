@@ -46,7 +46,7 @@ describe('the metrum', () => {
     expect(screen.getByRole('button', { name: 'Faster' })).toBeDisabled();
   });
 
-  it('shows the swing as a gauge, at the centre for none and full to the right for all', () => {
+  it('shows the swing as a gauge, empty at none and full at all', () => {
     const marker = (swing: number) => {
       const { container, unmount } = render(Metrum, props(new Metronome(), { swing }));
       const left = (container.querySelector('[aria-label^="Swing"] .value') as HTMLElement).style
@@ -56,7 +56,7 @@ describe('the metrum', () => {
       unmount();
       return left;
     };
-    expect(marker(0)).toBe('50%');
+    expect(marker(0)).toBe('0%');
     expect(marker(1)).toBe('100%');
   });
 

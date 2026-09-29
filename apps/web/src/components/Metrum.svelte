@@ -53,7 +53,7 @@
   <TempoNudge {tempo} disabled={following} {onintent} />
   <div class="swing">
     <div class="reading"><span>Swing</span><b>{percent} %</b></div>
-    <Gauge label="Swing {percent} %" from={-1} to={1} centre={0} value={swing} fill />
+    <Gauge label="Swing {percent} %" from={0} to={1} centre={0} value={swing} fill />
   </div>
   <Ruler
     label="The bar's {BAR_STEPS} steps where the band plays them, at a swing of {percent} %"
