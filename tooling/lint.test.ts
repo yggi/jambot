@@ -88,6 +88,16 @@ describe('lint keeps the pure packages pure', () => {
   });
 });
 
+describe('lint leaves out the worktrees agents work in', () => {
+  it('ignores a whole checkout under .claude/worktrees, and nothing of the same name elsewhere (#192)', async () => {
+    expect(await eslint.isPathIgnored(`${root}/.claude/worktrees/agent-1/apps/web/src/a.ts`)).toBe(
+      true,
+    );
+    expect(await eslint.isPathIgnored(`${root}/apps/web/src/worktrees/a.ts`)).toBe(false);
+    expect(await eslint.isPathIgnored(`${root}/apps/web/src/a.ts`)).toBe(false);
+  });
+});
+
 describe('lint keeps the screens presentational', () => {
   const lobby = 'apps/web/src/screens/Probe.svelte';
   const screen = (imports: string) =>

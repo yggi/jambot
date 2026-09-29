@@ -78,59 +78,65 @@ describe('the lead', () => {
       }
   });
 
-  it('keeps every note in 60–86 over a grid of styles, where its phrases are widest', () => {
-    // The widest phrases come at high energy and entropy. A phrase that no
-    // octave shift fits folds its stragglers note by note.
-    const run = (seed: number, style: Style, bars: number) => {
-      let carried = band.initial;
-      return range(bars).flatMap((bar) => {
-        const next = band.advance(
-          { seed, bar, style, wish: { tonic: null, mode: 'aeolian' }, offer: null },
-          carried,
-          null,
-        );
-        carried = next.carried;
-        return next.output.dough
-          .filter((e) => e.part === 'lead')
-          .map((e) => ({ bar, note: e.note }));
-      });
-    };
-    // Seed 9, bar 61, which played 86 84 89 79 81 72 69 when the octave
-    // folds undid each other.
-    const repro = {
-      swing: 1,
-      sync: 1 / 3,
-      harm: 0,
-      artic: 1 / 3,
-      energy: 0.8,
-      entropy: 0.9,
-      bpm: 120,
-    };
-    const bar61 = run(9, repro, 62).filter((n) => n.bar === 61);
-    expect(bar61.length).toBeGreaterThan(0);
-    const outside: string[] = [];
-    for (const n of bar61) if (n.note < 60 || n.note > 86) outside.push(`repro: ${n.note}`);
-    const grid = [0, 0.5, 1];
-    let notes = 0;
-    for (const swing of grid)
-      for (const sync of grid)
-        for (const harm of grid)
-          for (const artic of grid)
-            for (const [energy, entropy] of [
-              [0.8, 0.9],
-              [1, 1],
-            ] as const)
-              for (const seed of range(3)) {
-                const style = { swing, sync, harm, artic, energy, entropy, bpm: 120 };
-                for (const n of run(seed, style, 64)) {
-                  notes++;
-                  if (n.note < 60 || n.note > 86)
-                    outside.push(`${JSON.stringify(style)} ${seed}: ${n.note}`);
+  // The grid plays 486 songs of 64 bars: about 3.7 s alone, and past Vitest's
+  // default 5 s when another run shares the machine, as agents' runs do.
+  it(
+    'keeps every note in 60–86 over a grid of styles, where its phrases are widest',
+    { timeout: 30_000 },
+    () => {
+      // The widest phrases come at high energy and entropy. A phrase that no
+      // octave shift fits folds its stragglers note by note.
+      const run = (seed: number, style: Style, bars: number) => {
+        let carried = band.initial;
+        return range(bars).flatMap((bar) => {
+          const next = band.advance(
+            { seed, bar, style, wish: { tonic: null, mode: 'aeolian' }, offer: null },
+            carried,
+            null,
+          );
+          carried = next.carried;
+          return next.output.dough
+            .filter((e) => e.part === 'lead')
+            .map((e) => ({ bar, note: e.note }));
+        });
+      };
+      // Seed 9, bar 61, which played 86 84 89 79 81 72 69 when the octave
+      // folds undid each other.
+      const repro = {
+        swing: 1,
+        sync: 1 / 3,
+        harm: 0,
+        artic: 1 / 3,
+        energy: 0.8,
+        entropy: 0.9,
+        bpm: 120,
+      };
+      const bar61 = run(9, repro, 62).filter((n) => n.bar === 61);
+      expect(bar61.length).toBeGreaterThan(0);
+      const outside: string[] = [];
+      for (const n of bar61) if (n.note < 60 || n.note > 86) outside.push(`repro: ${n.note}`);
+      const grid = [0, 0.5, 1];
+      let notes = 0;
+      for (const swing of grid)
+        for (const sync of grid)
+          for (const harm of grid)
+            for (const artic of grid)
+              for (const [energy, entropy] of [
+                [0.8, 0.9],
+                [1, 1],
+              ] as const)
+                for (const seed of range(3)) {
+                  const style = { swing, sync, harm, artic, energy, entropy, bpm: 120 };
+                  for (const n of run(seed, style, 64)) {
+                    notes++;
+                    if (n.note < 60 || n.note > 86)
+                      outside.push(`${JSON.stringify(style)} ${seed}: ${n.note}`);
+                  }
                 }
-              }
-    expect(outside.slice(0, 5)).toEqual([]);
-    expect(notes).toBeGreaterThan(10000);
-  });
+      expect(outside.slice(0, 5)).toEqual([]);
+      expect(notes).toBeGreaterThan(10000);
+    },
+  );
 
   it('plays the same melody on an engine whose Math.sin is one ulp off, either way (T5)', () => {
     // sin(π/6) times an odd span lies one ulp from a half, so an unquantised
