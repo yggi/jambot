@@ -92,6 +92,8 @@ export const STREAMS = {
   leadLength: 25,
   /** Whether the band moves the key itself, and where to, per section (#169). */
   keyJump: 26,
+  /** The performer's own accent on a note, per part, bar and step (#170). */
+  ownAccent: 27,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

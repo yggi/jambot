@@ -76,6 +76,12 @@ export class Sessions {
 
   #address = $state('');
   #restoringHost = $state(false);
+  /**
+   * Whether the client's join under way is a kept session taken up again.
+   * It can't be reset once `restore` returns: a join returns as it is sent,
+   * and the host answers later, so `restoring` reads it with the join's
+   * status, and a join a person starts clears it.
+   */
   #restoringClient = $state(false);
   #tabs: Lobby;
   #server: (url: string) => Lobby;
@@ -147,6 +153,7 @@ export class Sessions {
 
   /** Join the session under a name; a join that fails leaves its reason in `ended`. */
   async join(where: Where, session: string, name: string) {
+    this.#restoringClient = false;
     this.#kept.hostKeep.clear();
     this.dismiss();
     let url: string;

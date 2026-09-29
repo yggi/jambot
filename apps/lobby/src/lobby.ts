@@ -11,7 +11,10 @@
  * session for everyone in it. A
  * socket that doesn't answer a ping within `LOBBY.heartbeat`, or that falls
  * `LOBBY.backlog` bytes behind, is closed: Jambot is played live, and a
- * link that far behind is no link to play on.
+ * link that far behind is no link to play on. It also refuses beyond
+ * `LOBBY.maxSessions` and `LOBBY.maxClients`, closes a socket sending faster
+ * than `LOBBY.rate` (with a `LOBBY.burst`), and upgrades only pages from
+ * `LOBBY.origins` or localhost.
  *
  * It runs the same on a laptop at an event, over plain `ws://`, and hosted
  * behind a proxy that gives it `wss://`. `GET /health` says it is up, with
@@ -39,6 +42,15 @@ export const LOBBY = {
   backlog: 512 * 1024,
   /** How long, in milliseconds, a session waits for a host whose link dropped. */
   hostGrace: 30_000,
+  /** The most sessions open at once. */
+  maxSessions: 200,
+  /** The most clients in one session: the designed range is 2 to 16. */
+  maxClients: 32,
+  /** Messages a socket may send a second, on average, and in one burst: playing needs a few. */
+  rate: 50,
+  burst: 200,
+  /** Pages allowed to open a socket, besides any on localhost; a request with no origin is not a page. */
+  origins: ['https://yggi.github.io'] as readonly string[],
 } as const;
 
 interface Session {
@@ -72,6 +84,23 @@ export interface LobbyOptions {
   readonly heartbeat?: number;
   readonly backlog?: number;
   readonly hostGrace?: number;
+  readonly maxSessions?: number;
+  readonly maxClients?: number;
+  readonly rate?: number;
+  readonly burst?: number;
+  /** The origins allowed to open a socket, besides localhost; `'*'` allows any. */
+  readonly origins?: readonly string[];
+}
+
+/** Whether a page at `origin` may open a socket: no origin, localhost, or one listed. */
+export function originAllowed(origin: string | undefined, allowed: readonly string[]): boolean {
+  if (origin === undefined || allowed.includes('*') || allowed.includes(origin)) return true;
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  } catch {
+    return false;
+  }
 }
 
 export async function startLobby({
@@ -80,10 +109,27 @@ export async function startLobby({
   heartbeat = LOBBY.heartbeat,
   backlog = LOBBY.backlog,
   hostGrace = LOBBY.hostGrace,
+  maxSessions = LOBBY.maxSessions,
+  maxClients = LOBBY.maxClients,
+  rate = LOBBY.rate,
+  burst = LOBBY.burst,
+  origins = LOBBY.origins,
 }: LobbyOptions = {}): Promise<Lobby> {
   const sessions = new Map<string, Session>();
   const parts = new Map<WebSocket, Part>();
   const alive = new WeakSet<WebSocket>();
+  /** Each socket's allowance of messages, refilled at `rate` a second up to `burst`. */
+  const allowance = new WeakMap<WebSocket, { tokens: number; at: number }>();
+  const allowed = (socket: WebSocket) => {
+    const now = Date.now();
+    const a = allowance.get(socket) ?? { tokens: burst, at: now };
+    a.tokens = Math.min(burst, a.tokens + ((now - a.at) / 1000) * rate);
+    a.at = now;
+    allowance.set(socket, a);
+    if (a.tokens < 1) return false;
+    a.tokens -= 1;
+    return true;
+  };
   let made = 0;
 
   const http = createServer((request, response) => {
@@ -97,7 +143,11 @@ export async function startLobby({
     }
     response.writeHead(404).end();
   });
-  const server = new WebSocketServer({ server: http, maxPayload: LOBBY.maxPayload });
+  const server = new WebSocketServer({
+    server: http,
+    maxPayload: LOBBY.maxPayload,
+    verifyClient: ({ origin }: { origin?: string }) => originAllowed(origin, origins),
+  });
 
   const sendRaw = (socket: WebSocket, data: string) => {
     if (socket.readyState !== socket.OPEN) return;
@@ -142,6 +192,8 @@ export async function startLobby({
           for (const client of held.clients.values()) send(client, { op: 'back' });
           return;
         }
+        if (sessions.size >= maxSessions)
+          return send(socket, { op: 'refused', reason: 'The lobby is full: try again later.' });
         const name = request.session.trim();
         const reclaim = randomUUID();
         sessions.set(key, { name, host: socket, reclaim, clients: new Map(), grace: null });
@@ -162,6 +214,8 @@ export async function startLobby({
             op: 'refused',
             reason: `The host of “${session.name}” has lost its link and may be back in a moment.`,
           });
+        if (session.clients.size >= maxClients)
+          return send(socket, { op: 'refused', reason: `“${session.name}” is full.` });
         const id = `c${(made++).toString(36)}`;
         session.clients.set(id, socket);
         parts.set(socket, { kind: 'client', key, id });
@@ -234,6 +288,7 @@ export async function startLobby({
     socket.on('pong', () => alive.add(socket));
     socket.on('message', (data, binary) => {
       if (binary) return;
+      if (!allowed(socket)) return void socket.close(1008, 'Too many messages.');
       let parsed: unknown;
       try {
         parsed = JSON.parse(data.toString());

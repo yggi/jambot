@@ -7,6 +7,8 @@ const empty: MuseView = { motif: null, log: [] };
 const offered: MuseView = {
   motif: {
     source: 'the computer keys',
+    name: 'the computer keys',
+    colour: 2,
     bar: 5,
     rows: 4,
     notes: [
@@ -34,12 +36,14 @@ describe('the Muse panel', () => {
     expect(screen.queryByRole('img')).toBeNull();
   });
 
-  it('draws the motif on offer, one mark a note, says where it came from, and forgets it when asked', async () => {
+  it('draws the motif on offer, one mark a note in its player’s colour, says where it came from, and forgets it when asked', async () => {
     const onforget = vi.fn();
     const { container } = render(MusePanel, { muse: offered, onforget });
     expect(screen.getByRole('img', { name: 'Motif of 3 notes' })).toBeInTheDocument();
     expect(container.querySelectorAll('rect.note')).toHaveLength(3);
     expect(container.querySelectorAll('rect.altered')).toHaveLength(1);
+    const plain = [...container.querySelectorAll<SVGElement>('rect.note:not(.altered)')];
+    expect(plain.map((r) => r.style.fill)).toEqual(['var(--source-2)', 'var(--source-2)']);
     expect(screen.getByText('Motif from the computer keys, heard in bar 6.')).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: 'Forget motif' }));
     expect(onforget).toHaveBeenCalledOnce();

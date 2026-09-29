@@ -1,6 +1,6 @@
 import type { FromLobby, ToLobby } from '@jambot/session';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { LOBBY, type Lobby, startLobby } from './lobby.ts';
+import { LOBBY, type Lobby, originAllowed, startLobby } from './lobby.ts';
 
 /** A socket to the lobby that keeps what it hears, and waits for what comes next. */
 async function connect(port: number) {
@@ -293,6 +293,54 @@ describe('the lobby', () => {
     socket.send({ op: 'list' });
     expect(await socket.next()).toEqual({ op: 'sessions', sessions: [] });
     expect(lobby.counts()).toEqual({ sessions: 0, sockets: 1 });
+  });
+
+  it("refuses a session beyond its cap, and a client beyond its session's", async () => {
+    await lobby.close();
+    lobby = await startLobby({ port: 0, host: '127.0.0.1', maxSessions: 1, maxClients: 1 });
+    const host = await connect(lobby.port);
+    host.send({ op: 'host', session: 'one' });
+    await host.next();
+    const second = await connect(lobby.port);
+    second.send({ op: 'host', session: 'two' });
+    expect(await second.next()).toMatchObject({ op: 'refused' });
+    const ada = await connect(lobby.port);
+    ada.send({ op: 'join', session: 'one' });
+    expect(await ada.next()).toMatchObject({ op: 'joined' });
+    const bob = await connect(lobby.port);
+    bob.send({ op: 'join', session: 'one' });
+    expect(await bob.next()).toEqual({ op: 'refused', reason: '“one” is full.' });
+    expect(lobby.counts().sessions).toBe(1);
+  });
+
+  it('closes a socket that sends faster than its rate allows, and only that one', async () => {
+    await lobby.close();
+    lobby = await startLobby({ port: 0, host: '127.0.0.1', rate: 1, burst: 3 });
+    const noisy = await connect(lobby.port);
+    const quiet = await connect(lobby.port);
+    for (let i = 0; i < 5; i++) noisy.send({ op: 'list' });
+    await noisy.closed;
+    quiet.send({ op: 'list' });
+    expect(await quiet.next()).toMatchObject({ op: 'sessions' });
+  });
+
+  it('opens a socket only for the pages it names, and localhost', async () => {
+    const site = ['https://yggi.github.io'];
+    expect(originAllowed(undefined, site)).toBe(true);
+    expect(originAllowed('https://yggi.github.io', site)).toBe(true);
+    expect(originAllowed('http://localhost:5173', site)).toBe(true);
+    expect(originAllowed('http://127.0.0.1:8080', site)).toBe(true);
+    expect(originAllowed('https://evil.example', site)).toBe(false);
+    expect(originAllowed('https://yggi.github.io.evil.example', site)).toBe(false);
+    expect(originAllowed('null', site)).toBe(false);
+    expect(originAllowed('http://192.168.1.5:5173', ['*'])).toBe(true);
+    // And on the wire: the upgrade itself is refused.
+    const { WebSocket: Ws } = await import('ws');
+    const refused = new Ws(`ws://127.0.0.1:${lobby.port}`, { origin: 'https://evil.example' });
+    await new Promise<void>((resolve) => refused.on('error', () => resolve()));
+    const welcome = new Ws(`ws://127.0.0.1:${lobby.port}`, { origin: 'http://localhost:5173' });
+    await new Promise<void>((resolve) => welcome.on('open', () => resolve()));
+    welcome.close();
   });
 
   it('says it is up, and how much it holds', async () => {

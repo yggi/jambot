@@ -2,15 +2,18 @@
  * Runs the lobby: `pnpm lobby [--port 8787]`, or with `PORT` set, as a host
  * sets it. It listens on every interface and says the addresses a player on
  * the LAN can give their app.
+ * `ORIGINS` names the pages allowed to connect (localhost always is).
  */
 
 import { networkInterfaces } from 'node:os';
 import { parseArgs } from 'node:util';
-import { startLobby } from './lobby.ts';
+import { LOBBY, startLobby } from './lobby.ts';
 
 const { values } = parseArgs({ options: { port: { type: 'string' } } });
 const port = Number(values.port ?? process.env.PORT ?? 8787);
-const lobby = await startLobby({ port });
+// ORIGINS, comma-separated, replaces the pages allowed to connect: `*` for any, as at an event on a LAN.
+const origins = process.env.ORIGINS?.split(',').map((o) => o.trim()) ?? LOBBY.origins;
+const lobby = await startLobby({ port, origins });
 
 const addresses = Object.values(networkInterfaces())
   .flat()

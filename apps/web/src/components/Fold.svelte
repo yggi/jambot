@@ -2,10 +2,12 @@
   A card: one thing on the page, folded to a header and unfolded to its
   details. The header is the card's own heading (what the thing is), a
   headline in large type (what it is now) and, only where there is
-  something secondary that changes, a line under it, with the chevron at the right of the heading, in the same place on
-  every card. The details open under it, spaced alike. The metrum, the key,
-  the plan and the chords are cards, so a stack of them reads as one (a `Drawer` folds
-  settings that aren't the music, with the same chevron).
+  something secondary that changes, a line under it, with the chevron at
+  the right of the heading, in the same place on every card. The details
+  open under it, spaced alike. A card starts folded, unless its details are
+  what a person plays on, as the tracks' are. The metrum, the key, the plan,
+  the chords and the tracks are cards, so a stack of them reads as one (a
+  `Drawer` folds settings that aren't the music, with the same chevron).
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -19,13 +21,15 @@
     sub?: string;
     /** Whether a screen reader announces the line under it as it changes. */
     live?: boolean;
+    /** Whether it starts unfolded: only where its details are what a person plays on. */
+    open?: boolean;
     children: Snippet;
   }
 
-  let { heading, name, sub, live = false, children }: Props = $props();
+  let { heading, name, sub, live = false, open = false, children }: Props = $props();
 </script>
 
-<details class="card" aria-label={heading}>
+<details class="card" aria-label={heading} {open}>
   <summary class="chevron">
     <span class="heading">{heading}</span>
     <span class="name">{name}</span>

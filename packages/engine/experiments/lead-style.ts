@@ -1,5 +1,5 @@
 /**
- * E17: the lead driven by the style (#168 step 2).
+ * E18: the lead driven by the style (#168 step 2).
  *
  * Step 2 lets three more of the style's axes reach the lead's phrases
  * (`phraseParams`): the harmony leans the contour from an arch toward a
