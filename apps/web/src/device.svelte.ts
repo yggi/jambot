@@ -13,8 +13,8 @@
 import { bandOutput } from './audio/band-output.ts';
 import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
 import { type Output, webAudioOutput } from './audio/output.ts';
-import { MidiAccess, type NoteHandler } from './midi/access.ts';
-import { connectMidi } from './midi/routing.ts';
+import { MidiAccess, type NoteHandler, type PortOption } from './midi/access.ts';
+import { adoptPorts, connectMidi, portsMessage } from './midi/routing.ts';
 import { MidiSettings } from './midi/settings.svelte.ts';
 import { type Surroundings, browserSurroundings } from './player.svelte.ts';
 import type { DeviceClocks } from './session/clocks.ts';
@@ -44,6 +44,8 @@ export class Device {
   readonly settings = new MidiSettings();
   /** The Web MIDI connection, once made. */
   access: MidiAccess | null = $state(null);
+  /** The ports plugged in, as of the last look: at connecting, when one came or went, and when a person asked. */
+  ports: { inputs: PortOption[]; outputs: PortOption[] } = $state.raw({ inputs: [], outputs: [] });
   message = $state('Without MIDI, the built-in synth and the keys still run the whole loop.');
 
   #base: Output | null = null;
@@ -138,12 +140,31 @@ export class Device {
   /** Connect to Web MIDI, notes in going to `onNote`. */
   async connect(onNote: NoteHandler) {
     const result = await connectMidi(
-      (handler) => MidiAccess.connect(handler),
+      (handler) => MidiAccess.connect(handler, () => this.#changed()),
       onNote,
       this.settings,
     );
     this.access = result.access;
     this.message = result.message;
+    this.#listPorts();
+  }
+
+  /** Look at the ports again, on a person's asking: the list, the output and the input as they are now. */
+  refresh() {
+    this.access?.refresh();
+  }
+
+  /** The ports may have changed: adopt the ones chosen again, and list them. */
+  #changed() {
+    const access = this.access;
+    if (access) adoptPorts(access, this.settings);
+    this.#listPorts();
+  }
+
+  #listPorts() {
+    const access = this.access;
+    this.ports = { inputs: access?.inputs ?? [], outputs: access?.outputs ?? [] };
+    if (access) this.message = portsMessage(this.ports);
   }
 
   /** Whether a port was chosen before: a granted permission needs no gesture to connect again. */

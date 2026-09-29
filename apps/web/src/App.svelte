@@ -1,14 +1,15 @@
 <!--
   The page: the container. It holds what belongs to the person and the
-  device whichever screen is showing (their name, the MIDI and sound
-  settings, the player, the sessions) and picks the screen: the lobby, the
+  device whichever screen is showing (their name, how it sounds,
+  the player, the sessions) and picks the screen: the lobby, the
   door, or the band that stands behind it (`screenOf`). The screens take
   props and send intents, and know nothing of the sessions or the device.
 -->
 <script lang="ts">
   import Card from './components/Card.svelte';
   import Fader from './components/Fader.svelte';
-  import MidiPanel from './components/MidiPanel.svelte';
+  import SoundPanel from './components/SoundPanel.svelte';
+  import Equalizer from './components/glyphs/Equalizer.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
   import Band from './screens/Band.svelte';
   import Lobby from './screens/Lobby.svelte';
@@ -18,6 +19,7 @@
   import { Metronome } from './metronome.svelte.ts';
   import { Player } from './player.svelte.ts';
   import { Profile } from './profile.svelte.ts';
+  import { equalizerLevels, soundSummary } from './sound.ts';
   import { screenOf } from './screen.ts';
   import { broadcastLobby } from './session/broadcast.ts';
   import { type Found, Sessions, type Where } from './session/sessions.svelte.ts';
@@ -256,16 +258,13 @@
   });
 </script>
 
-{#snippet sound()}
-  <Card title="MIDI and sound" main={device.access ? 'MIDI connected' : 'Built-in synth'}>
-    <MidiPanel
-      settings={device.settings}
-      access={device.access}
-      message={device.message}
-      onconnect={connectMidi}
-      onpanic={() => player.panicMidi()}
-    />
-  </Card>
+<!-- How this device sounds: the container's, so it is here whichever screen shows. -->
+{#snippet volume()}
+  <Fader label="Volume" value={device.volume} onchange={(volume) => (device.volume = volume)} />
+{/snippet}
+
+{#snippet equalizer()}
+  <Equalizer levels={equalizerLevels(player.sounding, device.volume)} />
 {/snippet}
 
 <main>
@@ -274,20 +273,24 @@
     <p>You play, the Muse listens, the band answers.</p>
   </header>
 
-  <!-- The volume of this device's synth: the container's, so it is here whichever screen shows. -->
-  <section class="master" aria-label="Master volume">
-    <Fader
-      label="Master volume"
-      value={device.volume}
-      onchange={(volume) => (device.volume = volume)}
+  <Card
+    title="Sound"
+    main={volume}
+    sub={soundSummary(device.settings, device.ports, device.access !== null)}
+    glyph={equalizer}
+  >
+    <SoundPanel
+      settings={device.settings}
+      access={device.access}
+      ports={device.ports}
+      message={device.message}
+      onconnect={connectMidi}
+      onrefresh={() => device.refresh()}
+      onpanic={() => player.panicMidi()}
     />
-  </section>
+  </Card>
 
   {#if screen === 'band'}
-    <!-- What isn't the music: how this device sounds, folded until wanted. -->
-    <div class="settings">
-      {@render sound()}
-    </div>
     <Band
       {player}
       {metronome}
@@ -307,9 +310,6 @@
       onend={() => void leave()}
     />
   {:else if screen === 'timing'}
-    <div class="settings">
-      {@render sound()}
-    </div>
     <TimingTestScreen test={testing} onback={() => (timingChosen = false)} onexport={exportRuns} />
   {:else if screen === 'restoring'}
     <p class="message" role="status">Taking up your session again…</p>
@@ -328,9 +328,6 @@
       onhost={host}
       onjoin={join}
     />
-    <div class="settings">
-      {@render sound()}
-    </div>
   {/if}
 
   {#if timingShown}
@@ -357,11 +354,6 @@
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-  }
-  .master {
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 4px 14px;
   }
   .settings {
     display: grid;

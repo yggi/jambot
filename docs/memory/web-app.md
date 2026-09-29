@@ -25,7 +25,7 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   The chords card doesn't name the key: the key card's summary does.
 - The band (`screens/Band.svelte`) lays the music out in the order of the composition, top to bottom, one `Level` each: transport, style, metrum, key, plan, chords, tracks (#163).
   A `Level` is a heading over a fieldset; `resting` disables its controls where a client takes the host's (transport, style, key), and the metrum and the tracks, the client's own, never rest.
-  What isn't the music sits folded above it: MIDI and sound (`MidiPanel`) in a `Card`, its main element saying what it is set to.
+  What isn't the music sits above it: the Sound card (`SoundPanel` in its details), on both sides of the door.
   Above the levels the `SessionBar` says who the band plays with and is the way out: Close session for a host, Leave session for a client, Back to the lobby from solo.
   Closing or leaving asks first, in place (`role="alertdialog"`), and a host's question says how many are playing in the session.
   An e2e check that plays alone enters the band first (`solo` in `audio.ts`); one that hosts or joins works at the lobby (`host`, `join` in `session.e2e.ts`).
@@ -37,18 +37,19 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   A client that is still joining stays at the lobby, busy; one whose host closed, or whose link was given up, is back at it, with the reason.
   The band (`screens/Band.svelte`) is the levels; the screens take props and send intents, and lint keeps them from running the player, the device or the sessions (only their types), or from importing each other.
   What outlives the door is the container's: `Device` (MIDI settings and connection, the audio clock and output), `Instruments` (the routes of the keys, the pads and MIDI in, and what is held), `Profile` and `Sessions`.
-  The keyboard and the pads are the band's, behind the door; MIDI and sound are on both sides of it.
+  The keyboard and the pads are the band's, behind the door; the Sound card is on both sides of it.
   The computer's keys play only behind the door.
   Back at the lobby nothing plays on: the page stops the player, which rests the click.
-  The master volume (`Device.volume`, a `Fader`) is the container's too, above both screens: local, kept, and the square of its position is the synth's gain (`taper`).
+  The master volume (`Device.volume`, a `Fader`) is the container's too, the Sound card's main element, so it is worked from the folded card and is above both screens: local, kept, and the square of its position is the synth's gain (`taper`).
   It scales the built-in synth only (`Output.level`, on the bus that `silence` replaces), not MIDI out; the click is on the same bus, so it is scaled and faded with the band, on top of its own volume.
   A `Fader` holds no value and is the level a mixer's tracks will share.
   The click that joins or hosts is the gesture that lets the browser play audio: `Sessions` asks for it before its first await, and a test holds it there.
   Joining mutes the master, and it rises over `FADE_IN` once the band plays; leaving, closing or going back plays on while it falls over `FADE_OUT`, then the volume is put back for what plays next.
   A new widget goes into the level it belongs to, not into a corner of another.
-- Everything on the band's screen is to become a card (#212), a summary over details (`Card`, replacing `Fold` and `Drawer`); the metrum, the key, the plan, the chords, the tracks and MIDI and sound are cards so far.
+- Everything on the band's screen is to become a card (#212), a summary over details (`Card`, replacing `Fold` and `Drawer`); the metrum, the key, the plan, the chords, the tracks and the sound are cards so far.
   The summary is one row: the title ("Metrum", "Key", "Plan", "Chords"), an optional glyph (a small living picture, decoration, hidden from a screen reader), the main element in large type and, only for something secondary that changes (the metrum's meter and swing, the plan's keys, what the lead is doing), a sub element under it, with the chevron at the top right (`summary.chevron`, in `app.css`), so a stack of them lines up.
-  The details are free to arrange their content.
+  The main element may instead be a control worked from the summary (a snippet: the Sound card's volume fader); a click on it, or on its plain text, never folds or unfolds the card.
+  The details are free to arrange their content, in `Group`s where they have parts (a level 3 group is a section, a level 4 group a part of one).
   A glyph is drawn on `Glyph`'s frame, a 40-unit square that fills `--glyph-size`, in the colour roles `--glyph-lit`, `--glyph-dim` and `--glyph-accent` (`app.css`), and moves only by transitions, which `app.css` stops under `prefers-reduced-motion`; glyphs live in `components/glyphs/` and take a slice of what the card's details already draw, so the two can't disagree.
   `Reading` is a label and its value on one line in the details.
   A card owns whether it is open: `open` is read once (`untrack`) into the card's own state, bound to the element, and only a person's click changes it.
@@ -57,6 +58,10 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   The parts under a card are shared too: `Nudge` (two buttons joined in a pill, a step down and up, with what it reaches between them: the tempo's and the key's), `Gauge` (a track with a tick at its centre, a marker, an optional fill from the centre and an optional band of reach: the tempo's licence and the swing), `Segmented` (a row of exclusive segments, the key's scale and the melodic scale) and `Ruler` (a span of steps ticked, with marks laid on it at places that need not be ticks: the scale's notes on the octave's 12 steps, the bar's steps on its 16).
   A new view of one thing builds from these, and a makeover of one changes all.
   A card's details say values, not sentences: "Reaches 117–180", "Swing 62 %", "Pulse 3 of 4".
+- The Sound card (`App.svelte`, `sound.ts`, `SoundPanel.svelte`) is how this device sounds.
+  Its glyph is an equalizer of four bars (`Equalizer`, `equalizerLevels`): one per performer of the tracks, lifted by the notes it sounds (`player.sounding`) and scaled by the volume, so it is a flat row when stopped or muted; its main element is the volume fader; its sub element says the synth and the MIDI ports chosen (`soundSummary`: "Synth · MIDI out Launchpad, in all inputs").
+  The details are two sections: the built-in synth (one switch) and MIDI, which is the connection (Connect MIDI, then Refresh ports and All notes off) with two parts, the output (port, channels, drum notes, clock) and the input (port, and passing what you play on to the output).
+  The click's volume in the metrum is "Click volume", so "Volume" is the master's alone.
 - The metrum is the page's one section on time (`Metrum.svelte`, `metrum.ts`): the headline is the tempo, the line under it the meter and the swing value ("4/4 · swing 62 %"), its glyph a beacon (`Blinker`: the bar's eighths as lamps round a circle, the downbeat at the top, the offbeats slid later by the swing, the eighth heard lit), and unfolded it holds the tempo nudge and its licence gauge, the swing gauge (the whole range, none at its start), the bar drawn on a `Ruler` and the click.
   The lit mark, on the glyph and on the ruler alike, is the eighth of the step heard (`eighthHeard`), so it follows the band whether or not the click is on.
   The bar's marks sit where the click sounds under the swing (`barMarks`, on the engine's `clicksOf`): the eighths are the click's, counted 1 & 2 & 3 & 4 &, the sixteenths between are faint, so a light swing shows on them and only a swing past half moves the eighths.

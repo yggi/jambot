@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MidiPort } from '../audio/midi-out.ts';
 import type { MidiAccess } from './access.ts';
-import { connectMidi, routeNote } from './routing.ts';
+import { adoptPorts, connectMidi, routeNote } from './routing.ts';
 
 const NOTE_ON = 0x90;
 const NOTE_OFF = 0x80;
@@ -205,5 +205,48 @@ describe('connectMidi', () => {
       },
     );
     expect(result.message).toBe('MIDI connected: 2 inputs, 0 outputs.');
+  });
+});
+
+describe('adopting the ports again', () => {
+  const port = (id: string) => ({ send: () => {}, id });
+  const access = (outputs: Record<string, ReturnType<typeof port>>) => {
+    const listened: string[] = [];
+    return {
+      listened,
+      outputPort: (id: string) => outputs[id] ?? null,
+      listen: (id: string) => listened.push(id),
+    } as unknown as MidiAccess & { listened: string[] };
+  };
+
+  it('finds the output chosen before again, and listens to the input chosen before', () => {
+    const settings = { outPortId: 'out-1', inPortId: 'in-1', outPort: null as MidiPort | null };
+    const live = access({ 'out-1': port('out-1') });
+    adoptPorts(live, settings);
+    expect(settings.outPort).toBe(live.outputPort('out-1'));
+    expect(live.listened).toEqual(['in-1']);
+  });
+
+  it('lets go of an output that is gone, and picks up one plugged in again', () => {
+    const settings = {
+      outPortId: 'out-1',
+      inPortId: 'none',
+      outPort: port('old') as MidiPort | null,
+    };
+    adoptPorts(access({}), settings);
+    expect(settings.outPort).toBeNull();
+    const back = access({ 'out-1': port('out-1') });
+    adoptPorts(back, settings);
+    expect(settings.outPort).toBe(back.outputPort('out-1'));
+  });
+
+  it('has no output where none is chosen', () => {
+    const settings = {
+      outPortId: 'none',
+      inPortId: 'none',
+      outPort: port('old') as MidiPort | null,
+    };
+    adoptPorts(access({ 'out-1': port('out-1') }), settings);
+    expect(settings.outPort).toBeNull();
   });
 });

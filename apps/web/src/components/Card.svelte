@@ -15,8 +15,11 @@
   interface Props {
     /** The card's title, and what names it to a screen reader. */
     title: string;
-    /** What the thing is now, in large type. */
-    main: string;
+    /**
+     * What the thing is now: in large type, or a snippet for a control that is
+     * worked from the summary (a slider, a button), which never folds the card.
+     */
+    main: string | Snippet;
     /** The line under it: secondary and changing, never a fixed explanation. */
     sub?: string;
     /** Whether a screen reader announces the sub element as it changes. */
@@ -45,13 +48,22 @@
    * would fold a card shut each time what it shows changes.
    */
   let unfolded = $state(untrack(() => startsOpen));
+
+  /** A click on a control in the summary is that control's, not a click to fold or unfold the card. */
+  function keepFolding(event: MouseEvent) {
+    if (event.target instanceof Element && event.target.closest('.control')) event.preventDefault();
+  }
 </script>
 
 <details class="card" aria-label={title} bind:open={unfolded}>
-  <summary class="chevron" class:with-glyph={glyph}>
+  <summary class="chevron" class:with-glyph={glyph} onclick={keepFolding}>
     {#if glyph}<span class="glyph" aria-hidden="true">{@render glyph()}</span>{/if}
     <span class="title">{title}</span>
-    <span class="main">{main}</span>
+    {#if typeof main === 'string'}
+      <span class="main">{main}</span>
+    {:else}
+      <span class="main control">{@render main()}</span>
+    {/if}
     {#if sub}<span class="sub" aria-live={live ? 'polite' : undefined}>{sub}</span>{/if}
   </summary>
   {@render children()}
@@ -110,6 +122,12 @@
     font-size: 28px;
     font-weight: 700;
     line-height: 1.1;
+  }
+  .main.control {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: normal;
+    min-width: 0;
   }
   .sub {
     grid-area: sub;
