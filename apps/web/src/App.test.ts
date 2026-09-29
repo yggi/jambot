@@ -1,7 +1,7 @@
 import { PRESETS } from '@jambot/engine';
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { tick } from 'svelte';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import App from './App.svelte';
 
 /**
@@ -35,9 +35,72 @@ function fakeAudioContext() {
   };
 }
 
+/** The page past its door: solo chosen, the band behind it. */
+async function renderBand() {
+  const rendered = render(App);
+  await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+  return rendered;
+}
+
 describe('the app', () => {
-  it('offers the band, the presets and the style sliders', () => {
-    render(App);
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  describe('at the door', () => {
+    it('meets a cold start with the lobby, not the band: a name made up, solo, join and host', () => {
+      render(App);
+      expect(screen.getByLabelText('Your name')).not.toHaveValue('');
+      expect(screen.getByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Join a session' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Local' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Global' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Start the band' })).toBeNull();
+    });
+
+    it('keeps the MIDI and sound settings in reach, on both sides of the door', async () => {
+      render(App);
+      expect(screen.getByText('MIDI and sound')).toBeInTheDocument();
+      await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+      expect(screen.getByText('MIDI and sound')).toBeInTheDocument();
+    });
+
+    it('goes back to the lobby from solo, and a reload from solo lands on the door', async () => {
+      const { unmount } = await renderBand();
+      await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
+      expect(screen.getByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Start the band' })).toBeNull();
+      await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+      unmount();
+      render(App);
+      expect(screen.getByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
+    });
+
+    it('hosts a session locally, closes it only when sure, and lands back at the door', async () => {
+      vi.stubGlobal('AudioContext', vi.fn(fakeAudioContext));
+      onTestFinished(() => void vi.unstubAllGlobals());
+      render(App);
+      await fireEvent.input(screen.getByLabelText('Session name'), { target: { value: 'Garage' } });
+      await fireEvent.click(screen.getByRole('button', { name: 'Local' }));
+      expect(await screen.findByText(/Nobody has joined yet/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
+      await fireEvent.click(screen.getByRole('button', { name: 'Close session' }));
+      expect(screen.getByRole('alertdialog')).toHaveTextContent('Close Garage?');
+      await fireEvent.click(screen.getByRole('button', { name: 'Yes, close it' }));
+      expect(await screen.findByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
+      expect(localStorage.getItem('jambot:host-session')).toBeNull();
+    });
+
+    it('keeps the name a person gave for next time', async () => {
+      const { unmount } = render(App);
+      await fireEvent.input(screen.getByLabelText('Your name'), { target: { value: 'Ada' } });
+      unmount();
+      render(App);
+      expect(screen.getByLabelText('Your name')).toHaveValue('Ada');
+    });
+  });
+
+  it('offers the band, the presets and the style sliders', async () => {
+    await renderBand();
     expect(screen.getByRole('heading', { name: 'Jambot' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
     for (const p of PRESETS)
@@ -47,8 +110,8 @@ describe('the app', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
   });
 
-  it('lays the music out in the order of the composition, with the settings folded above it', () => {
-    const { container } = render(App);
+  it('lays the music out in the order of the composition, with the settings folded above it', async () => {
+    const { container } = await renderBand();
     const levels = [...container.querySelectorAll('h2')].map((h) => h.textContent);
     expect(levels.slice(0, 6)).toEqual([
       'Transport',
@@ -61,12 +124,12 @@ describe('the app', () => {
     const drawers = [...container.querySelectorAll('details.drawer > summary .name')].map(
       (n) => n.textContent,
     );
-    expect(drawers).toEqual(['Connection', 'MIDI and sound']);
-    expect(screen.getByText('Solo')).toBeInTheDocument();
+    expect(drawers).toEqual(['MIDI and sound']);
+    expect(screen.getByText('Playing with the band on this device.')).toBeInTheDocument();
   });
 
   it('starts from Synth-pop, and a preset sets the sliders and tempo at once while stopped', async () => {
-    render(App);
+    await renderBand();
     expect(screen.getByRole('button', { name: 'Synth-pop' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -82,7 +145,7 @@ describe('the app', () => {
   });
 
   it('nudges the tempo within the style’s licence, and names the style by its preset: energy, entropy and the nudge keep it, anything else makes it custom', async () => {
-    render(App);
+    await renderBand();
     const synthPop = () => screen.getByRole('button', { name: 'Synth-pop' });
     for (const name of [/Energy/, /Entropy/]) {
       await fireEvent.input(screen.getByRole('slider', { name }), { target: { value: '90' } });
@@ -104,8 +167,8 @@ describe('the app', () => {
     expect(screen.getByRole('button', { name: 'Techno' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('links to the prototype for what it does not do yet: the score and the Muse’s judgement', () => {
-    render(App);
+  it('links to the prototype for what it does not do yet: the score and the Muse’s judgement', async () => {
+    await renderBand();
     expect(screen.getByText(/drums, bass, chords and lead/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'prototype' })).toHaveAttribute(
       'href',
@@ -153,7 +216,7 @@ describe('the app', () => {
     });
 
     it('lights the on-screen key for a computer key pressed, and unlights it on release', async () => {
-      render(App);
+      await renderBand();
       const c4 = () => screen.getByRole('button', { name: 'C4' }); // 'a' maps to C4 (60)
       expect(c4().className).not.toContain('down');
       await fireEvent.keyDown(window, { key: 'a' });
@@ -163,7 +226,7 @@ describe('the app', () => {
     });
 
     it('ignores a repeated keydown and an unmapped key', async () => {
-      render(App);
+      await renderBand();
       const c4 = () => screen.getByRole('button', { name: 'C4' });
       await fireEvent.keyDown(window, { key: 'a', repeat: true });
       expect(c4().className).not.toContain('down');
@@ -172,7 +235,7 @@ describe('the app', () => {
     });
 
     it('sends a computer key to the keyboard or the pads by its own map', async () => {
-      render(App);
+      await renderBand();
       await fireEvent.keyDown(window, { key: 'a' });
       expect(screen.getByRole('button', { name: 'C4' })).toHaveClass('down');
       await fireEvent.keyDown(window, { key: '1' });
@@ -189,7 +252,7 @@ describe('the app', () => {
         async () => access,
       );
 
-      render(App);
+      await renderBand();
       await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
       await fireEvent.change(screen.getByRole('combobox', { name: 'Listen to input' }), {
         target: { value: 'all' },
@@ -249,7 +312,7 @@ describe('the app', () => {
         async () => access,
       );
 
-      render(App);
+      await renderBand();
       await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
       await fireEvent.change(screen.getByRole('combobox', { name: 'Send to output' }), {
         target: { value: 'out-1' },

@@ -1,41 +1,36 @@
 <!--
-  The page: it holds the player and hands each component its props; components take props and send intents.
-  The music runs top to bottom in the order of the composition, one `Level` each, and the settings sit in `Drawer`s above it.
+  The page: the container. It holds what belongs to the person and the
+  device whichever screen is showing (their name, the MIDI and sound
+  settings, the player, the sessions) and picks the screen: the lobby, the
+  door, or the band that stands behind it (`screenOf`). The screens take
+  props and send intents, and know nothing of the sessions or the device.
 -->
 <script lang="ts">
   import Drawer from './components/Drawer.svelte';
-  import DrumPads from './components/DrumPads.svelte';
-  import Keyboard from './components/Keyboard.svelte';
-  import KeyPicker from './components/KeyPicker.svelte';
-  import Level from './components/Level.svelte';
-  import MetronomePanel from './components/MetronomePanel.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
-  import MusePanel from './components/MusePanel.svelte';
-  import Performers from './components/Performers.svelte';
-  import SessionPanel from './components/SessionPanel.svelte';
-  import Stage from './components/Stage.svelte';
-  import TempoNudge from './components/TempoNudge.svelte';
-  import StylePanel from './components/StylePanel.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
-  import Transport from './components/Transport.svelte';
-  import { KEY_REACH } from '@jambot/engine';
-  import { tempoView } from './conductor.ts';
+  import Band from './screens/Band.svelte';
+  import Lobby from './screens/Lobby.svelte';
   import { Device } from './device.svelte.ts';
   import { Instruments } from './instruments.svelte.ts';
   import { Metronome } from './metronome.svelte.ts';
-  import { performersOf } from './performers.ts';
   import { Player } from './player.svelte.ts';
+  import { Profile } from './profile.svelte.ts';
+  import { screenOf } from './screen.ts';
   import { broadcastLobby } from './session/broadcast.ts';
-  import { websocketLobby } from './session/websocket.ts';
-  import { Sessions } from './session/sessions.svelte.ts';
+  import { type Found, Sessions, type Where } from './session/sessions.svelte.ts';
   import { browserKept } from './session/storage.ts';
+  import { websocketLobby } from './session/websocket.ts';
   import { type TimingReport, timingFile, timingReport } from './timing.ts';
+
+  /** How often, in milliseconds, the lobby looks again for open sessions. */
+  const LIST_EVERY = 3000;
 
   const device = new Device();
   const player = new Player(device.surroundings);
   const instruments = new Instruments(player, device);
-  const { clocks } = device;
-  const sessions = new Sessions(player, clocks, {
+  const profile = new Profile();
+  const sessions = new Sessions(player, device.clocks, {
     tabs: broadcastLobby(),
     server: websocketLobby,
     address: import.meta.env.VITE_LOBBY_URL ?? '',
@@ -82,8 +77,6 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
-
   /** MIDI notes in play along with the band, on the instruments. */
   const connectMidi = () => device.connect(instruments.onMidiNote);
 
@@ -91,21 +84,65 @@
   // waiting for a click, since a granted Web MIDI permission needs no gesture.
   if (device.remembersPorts) void connectMidi();
 
-  /** Whether this device follows a host, whose song, style and key it plays. */
-  const following = $derived(player.mode === 'client');
+  /** Whether the person chose to play alone: not kept, so a reload lands on the door. */
+  let soloChosen = $state(false);
 
-  /** The connection, in one line, for its folded drawer. */
-  const connectionStatus = $derived(
-    player.mode === 'host'
-      ? `Host of ${hostSession.session}`
-      : player.mode === 'client'
-        ? `Guest in ${clientSession.session}`
-        : 'Solo',
+  const screen = $derived(
+    screenOf({
+      mode: player.mode,
+      clientStatus: clientSession.status,
+      restoring: sessions.restoring,
+      soloChosen,
+    }),
   );
 
-  const performers = $derived(
-    performersOf(player.hud, player.sounding, player.pattern, player.players),
-  );
+  // A session takes the place of the choice to play alone.
+  $effect(() => {
+    if (player.mode !== 'solo') soloChosen = false;
+  });
+
+  // Back at the door nothing plays on: a session that ended on its own, or
+  // the way out, leaves the band as it was.
+  $effect(() => {
+    if (screen !== 'door') return;
+    player.stop();
+    metronome.stop();
+  });
+
+  // The sessions open, while the door shows, and again when the lobby server changes.
+  let found: Found | null = $state.raw(null);
+  $effect(() => {
+    if (screen !== 'door') return;
+    let live = true;
+    const look = async () => {
+      const seen = await sessions.list();
+      if (live) found = seen;
+    };
+    void look();
+    const id = setInterval(() => void look(), LIST_EVERY);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  });
+
+  /** The name the person goes by, made up again if they left it empty. */
+  const named = () => {
+    profile.settle();
+    return profile.name.trim();
+  };
+
+  const host = (where: Where, session: string) => sessions.host(where, session, named());
+  const join = (where: Where, session: string) => void sessions.join(where, session, named());
+  const solo = () => {
+    sessions.dismiss();
+    soloChosen = true;
+  };
+  /** Close the session, leave it, or go back from solo to the lobby. */
+  const leave = () => {
+    sessions.end();
+    soloChosen = false;
+  };
 
   $effect(() => {
     // A phone or a tab suspended mid-note can leave hardware sounding one
@@ -131,8 +168,23 @@
     };
   });
 
-  $effect(() => instruments.listen());
+  // The computer's keys play along with the band, behind the door only.
+  $effect(() => {
+    if (screen === 'band') return instruments.listen();
+  });
 </script>
+
+{#snippet sound()}
+  <Drawer name="MIDI and sound" status={device.access ? 'MIDI connected' : 'Built-in synth'}>
+    <MidiPanel
+      settings={device.settings}
+      access={device.access}
+      message={device.message}
+      onconnect={connectMidi}
+      onpanic={() => player.panicMidi()}
+    />
+  </Drawer>
+{/snippet}
 
 <main>
   <header>
@@ -140,128 +192,55 @@
     <p>You play, the Muse listens, the band answers.</p>
   </header>
 
-  <!-- What isn't the music: how this device connects, folded until wanted. -->
-  <div class="settings">
-    <Drawer name="Connection" status={connectionStatus}>
-      <SessionPanel
-        mode={player.mode}
-        hosting={{
-          session: hostSession.session,
-          guests: hostSession.guests,
-          ended: hostSession.ended,
-        }}
-        following={{
+  {#if screen === 'band'}
+    <!-- What isn't the music: how this device sounds, folded until wanted. -->
+    <div class="settings">
+      {@render sound()}
+    </div>
+    <Band
+      {player}
+      {metronome}
+      {instruments}
+      session={{
+        hosting: { session: hostSession.session, guests: hostSession.guests },
+        following: {
           status: clientSession.status,
           session: clientSession.session,
           name: clientSession.name,
           hostPlaying: clientSession.hostPlaying,
           hostAway: clientSession.hostAway,
           trip: clientSession.trip,
-          ended: clientSession.ended,
           lacked: player.lacked,
-        }}
-        lobby={sessions.address}
-        onhost={(session, name, url) => {
-          sessions.address = url;
-          return sessions.host(url.trim() === '' ? 'local' : 'global', session, name);
-        }}
-        onjoin={(session, name, url) => {
-          sessions.address = url;
-          return sessions.join(url.trim() === '' ? 'local' : 'global', session, name);
-        }}
-        onlist={async (url) => {
-          sessions.address = url;
-          return (await sessions.list()).sessions;
-        }}
-        onclose={() => sessions.end()}
-        onleave={() => sessions.end()}
-      />
-    </Drawer>
+        },
+      }}
+      onend={leave}
+    />
+  {:else if screen === 'restoring'}
+    <p class="message" role="status">Taking up your session again…</p>
+  {:else}
+    <Lobby
+      name={profile.name}
+      onname={(name) => (profile.name = name)}
+      onsettle={() => profile.settle()}
+      address={sessions.address}
+      onaddress={(url) => (sessions.address = url)}
+      {found}
+      joining={clientSession.status === 'joining'}
+      notice={sessions.ended}
+      onsolo={solo}
+      onhost={host}
+      onjoin={join}
+    />
+    <div class="settings">
+      {@render sound()}
+    </div>
+  {/if}
 
-    <Drawer name="MIDI and sound" status={device.access ? 'MIDI connected' : 'Built-in synth'}>
-      <MidiPanel
-        settings={device.settings}
-        access={device.access}
-        message={device.message}
-        onconnect={connectMidi}
-        onpanic={() => player.panicMidi()}
-      />
-    </Drawer>
-
-    {#if timingShown}
+  {#if timingShown}
+    <div class="settings">
       <TimingPanel report={timing} onexport={exportTiming} />
-    {/if}
-  </div>
-
-  <!--
-    The music, in the order of the composition, from the whole song down to
-    each note. A client plays its host's song, style and key, so those
-    levels' controls rest; its metronome and instruments are its own.
-  -->
-  <Level name="Transport" resting={following}>
-    <Transport
-      playing={player.playing}
-      ontoggle={() => (player.playing ? player.stop() : player.start())}
-    />
-  </Level>
-
-  <Level name="Style" resting={following}>
-    <StylePanel
-      track={player.track}
-      style={player.hud.style}
-      onintent={(intent) => player.apply(intent)}
-    />
-  </Level>
-
-  <Level name="Metrum">
-    <TempoNudge
-      tempo={tempoView(player.track, player.tempoNudge)}
-      disabled={following}
-      onintent={(intent) => player.apply(intent)}
-    />
-    <MetronomePanel {metronome} />
-  </Level>
-
-  <Level name="Key">
-    <KeyPicker
-      {following}
-      heading={player.hud.heading}
-      reach={KEY_REACH}
-      history={player.harmonicHistory}
-      onintent={(intent) => player.apply(intent)}
-    />
-  </Level>
-
-  <Level name="Plan and chords">
-    <Stage hud={player.hud} playing={player.playing} />
-  </Level>
-
-  <Level name="Tracks">
-    <Performers {performers} />
-
-    <Keyboard
-      down={instruments.heldLead}
-      scale={player.hud.bar?.scale ?? []}
-      sounding={player.sounding.lead}
-      onnote={(note, velocity, on) => instruments.toLead(note, velocity, on, 'the on-screen keys')}
-    />
-
-    <DrumPads
-      down={instruments.heldDrums}
-      sounding={player.sounding.drums}
-      onnote={(note, velocity, on) => instruments.toDrums(note, velocity, on, 'the drum pads')}
-    />
-
-    <MusePanel muse={player.hud.muse} onforget={() => player.forgetMotif()} />
-  </Level>
-
-  <p class="note">
-    The band plays drums, bass, chords and lead, over MIDI or the built-in synth. Join in on the
-    keyboard or the pads above: a dot marks the current scale, and amber shows what the band's own
-    lead and drums are playing. Play a few notes within a bar on the keyboard, and the Muse takes
-    them as a motif the lead plays back from the bar after next. The score is still in the
-    <a href={prototypeUrl}>prototype</a>.
-  </p>
+    </div>
+  {/if}
 </main>
 
 <style>
@@ -288,11 +267,8 @@
     min-width: 0;
   }
   header p,
-  .note {
+  .message {
     color: var(--muted);
     font-size: 14px;
-  }
-  a {
-    color: var(--amber);
   }
 </style>
