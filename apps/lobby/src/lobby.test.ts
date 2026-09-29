@@ -64,7 +64,11 @@ describe('the lobby', () => {
   it('opens a session by name once, in any case, and lists it', async () => {
     const host = await connect(lobby.port);
     host.send({ op: 'host', session: ' Friday Jam ' });
-    expect(await host.next()).toEqual({ op: 'hosting', session: 'Friday Jam' });
+    expect(await host.next()).toEqual({
+      op: 'hosting',
+      session: 'Friday Jam',
+      reclaim: expect.any(String),
+    });
     const other = await connect(lobby.port);
     other.send({ op: 'host', session: 'friday jam' });
     expect(await other.next()).toEqual({
@@ -115,7 +119,9 @@ describe('the lobby', () => {
     });
   });
 
-  it('tells a host when a client leaves, and its clients when it goes, and frees the name', async () => {
+  it('tells a host when a client leaves, and its clients when it goes for good, and frees the name', async () => {
+    await lobby.close();
+    lobby = await startLobby({ port: 0, host: '127.0.0.1', hostGrace: 50 });
     const host = await connect(lobby.port);
     host.send({ op: 'host', session: 'jam' });
     await host.next();
@@ -128,11 +134,149 @@ describe('the lobby', () => {
     ada.close();
     expect(await host.next()).toMatchObject({ op: 'left' });
     host.close();
+    expect(await bob.next()).toEqual({ op: 'away' });
     expect(await bob.next()).toEqual({ op: 'gone' });
     await bob.closed;
     const again = await connect(lobby.port);
     again.send({ op: 'host', session: 'jam' });
-    expect(await again.next()).toEqual({ op: 'hosting', session: 'jam' });
+    expect(await again.next()).toMatchObject({ op: 'hosting', session: 'jam' });
+  });
+
+  describe('a host whose link drops', () => {
+    /** A session with a host and two clients joined, and the host's reclaim secret. */
+    async function session(options: { hostGrace?: number } = {}) {
+      await lobby.close();
+      lobby = await startLobby({ port: 0, host: '127.0.0.1', ...options });
+      const host = await connect(lobby.port);
+      host.send({ op: 'host', session: 'jam' });
+      const hosting = (await host.next()) as FromLobby & { op: 'hosting' };
+      const ada = await connect(lobby.port);
+      const bob = await connect(lobby.port);
+      for (const c of [ada, bob]) {
+        c.send({ op: 'join', session: 'jam' });
+        await c.next();
+      }
+      return { host, ada, bob, reclaim: hosting.reclaim };
+    }
+
+    it('keeps its session for its clients, who hear it is away, and hands it back by its secret', async () => {
+      const { host, ada, bob, reclaim } = await session();
+      host.close();
+      expect(await ada.next()).toEqual({ op: 'away' });
+      expect(await bob.next()).toEqual({ op: 'away' });
+      expect(lobby.counts()).toEqual({ sessions: 1, sockets: 2 });
+
+      const again = await connect(lobby.port);
+      again.send({ op: 'host', session: 'JAM', reclaim });
+      expect(await again.next()).toEqual({ op: 'hosting', session: 'jam', reclaim });
+      expect(await ada.next()).toEqual({ op: 'back' });
+      expect(await bob.next()).toEqual({ op: 'back' });
+      // The relay runs as before, each way, by the ids the clients kept.
+      ada.send({ op: 'tell', message: { kind: 'join', protocol: 3, name: 'Ada' } });
+      const heard = (await again.next()) as FromLobby & { op: 'heard' };
+      expect(heard).toMatchObject({ op: 'heard', message: { kind: 'join', name: 'Ada' } });
+      again.send({ op: 'send', to: heard.from, message: { kind: 'stop' } });
+      expect(await ada.next()).toEqual({ op: 'said', message: { kind: 'stop' } });
+      // The old link's close, late, ended nothing.
+      await settle();
+      expect(lobby.counts()).toEqual({ sessions: 1, sockets: 3 });
+    });
+
+    it('drops what a client tells it while it is away, and refuses a join until it is back', async () => {
+      const { host, ada, reclaim } = await session();
+      host.close();
+      await ada.next();
+      ada.send({ op: 'tell', message: { kind: 'ping', sent: 1 } });
+      const late = await connect(lobby.port);
+      late.send({ op: 'join', session: 'jam' });
+      expect(await late.next()).toEqual({
+        op: 'refused',
+        reason: 'The host of “jam” has lost its link and may be back in a moment.',
+      });
+      const again = await connect(lobby.port);
+      again.send({ op: 'host', session: 'jam', reclaim });
+      await again.next();
+      await settle();
+      // The ping was dropped, not held for the host that came back.
+      expect(again.heard).toEqual([]);
+    });
+
+    it('is not told a client left while away, and hears no more of one that did', async () => {
+      const { host, ada, reclaim } = await session();
+      host.close();
+      await ada.next();
+      ada.close();
+      await settle();
+      const again = await connect(lobby.port);
+      again.send({ op: 'host', session: 'jam', reclaim });
+      await again.next();
+      await settle();
+      expect(again.heard).toEqual([]);
+    });
+
+    it('ends the session at once when its host says so, and frees the name', async () => {
+      const { host, ada } = await session();
+      host.send({ op: 'end' });
+      expect(await ada.next()).toEqual({ op: 'gone' });
+      host.close();
+      await ada.closed;
+      await settle();
+      expect(lobby.counts()).toEqual({ sessions: 0, sockets: 0 });
+      const again = await connect(lobby.port);
+      again.send({ op: 'host', session: 'jam' });
+      expect(await again.next()).toMatchObject({ op: 'hosting' });
+    });
+
+    it('holds the name against another host, and against a wrong secret', async () => {
+      const { host } = await session();
+      host.close();
+      await settle();
+      for (const request of [
+        { op: 'host', session: 'jam' } as const,
+        { op: 'host', session: 'jam', reclaim: 'guess' } as const,
+      ]) {
+        const other = await connect(lobby.port);
+        other.send(request);
+        expect(await other.next()).toEqual({
+          op: 'refused',
+          reason: 'A session named “jam” is already open.',
+        });
+      }
+    });
+
+    it('ends the session for its clients when it is not back within the grace', async () => {
+      const { host, ada, bob, reclaim } = await session({ hostGrace: 60 });
+      host.close();
+      expect(await ada.next()).toEqual({ op: 'away' });
+      expect(await bob.next()).toEqual({ op: 'away' });
+      expect(await ada.next()).toEqual({ op: 'gone' });
+      expect(await bob.next()).toEqual({ op: 'gone' });
+      await Promise.all([ada.closed, bob.closed]);
+      await settle();
+      expect(lobby.counts()).toEqual({ sessions: 0, sockets: 0 });
+      // The secret of a session that is gone opens a new one, as after a restart.
+      const again = await connect(lobby.port);
+      again.send({ op: 'host', session: 'jam', reclaim });
+      const reopened = (await again.next()) as FromLobby & { op: 'hosting' };
+      expect(reopened).toMatchObject({ op: 'hosting', session: 'jam' });
+      expect(reopened.reclaim).not.toBe(reclaim);
+    });
+
+    it('takes the session over from a link the lobby has not yet seen close, and the old one ends nothing later', async () => {
+      const { host, ada, reclaim } = await session();
+      const reloaded = await connect(lobby.port);
+      reloaded.send({ op: 'host', session: 'jam', reclaim });
+      expect(await reloaded.next()).toEqual({ op: 'hosting', session: 'jam', reclaim });
+      expect(await ada.next()).toEqual({ op: 'back' });
+      await host.closed;
+      await settle();
+      expect(ada.heard).toEqual([]);
+      expect(lobby.counts()).toEqual({ sessions: 1, sockets: 3 });
+      // The session is the reloaded host's: a wrong secret takes nothing.
+      const thief = await connect(lobby.port);
+      thief.send({ op: 'host', session: 'jam', reclaim: 'guess' });
+      expect(await thief.next()).toMatchObject({ op: 'refused' });
+    });
   });
 
   it("ignores what isn't a request, and a request out of its part", async () => {

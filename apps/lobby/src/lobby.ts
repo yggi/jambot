@@ -5,7 +5,10 @@
  * It holds nothing but who is where. A host's message goes to one client or
  * to all, serialised once however many there are; a client's goes to its
  * host with the client's id. When a client's socket closes its host hears
- * that it left, and when a host's closes its clients hear it is gone. A
+ * that it left, and when a host's closes its clients hear it is away, and
+ * gone if it isn't back within `LOBBY.hostGrace`, by the secret it was given
+ * when it opened the session, so a page that reloads doesn't end the
+ * session for everyone in it. A
  * socket that doesn't answer a ping within `LOBBY.heartbeat`, or that falls
  * `LOBBY.backlog` bytes behind, is closed: Jambot is played live, and a
  * link that far behind is no link to play on.
@@ -15,6 +18,7 @@
  * how many sessions and sockets it holds.
  */
 
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import {
@@ -33,12 +37,19 @@ export const LOBBY = {
   heartbeat: 15_000,
   /** How far, in bytes, a socket may fall behind before it is closed. */
   backlog: 512 * 1024,
+  /** How long, in milliseconds, a session waits for a host whose link dropped. */
+  hostGrace: 30_000,
 } as const;
 
 interface Session {
   readonly name: string;
-  readonly host: WebSocket;
+  /** The host's link, or null while it is away. */
+  host: WebSocket | null;
+  /** What takes the session back for a host whose link dropped. */
+  readonly reclaim: string;
   readonly clients: Map<string, WebSocket>;
+  /** Ends the session if its host doesn't come back in time. */
+  grace: ReturnType<typeof setTimeout> | null;
 }
 
 type Part =
@@ -60,6 +71,7 @@ export interface LobbyOptions {
   readonly host?: string;
   readonly heartbeat?: number;
   readonly backlog?: number;
+  readonly hostGrace?: number;
 }
 
 export async function startLobby({
@@ -67,6 +79,7 @@ export async function startLobby({
   host = '0.0.0.0',
   heartbeat = LOBBY.heartbeat,
   backlog = LOBBY.backlog,
+  hostGrace = LOBBY.hostGrace,
 }: LobbyOptions = {}): Promise<Lobby> {
   const sessions = new Map<string, Session>();
   const parts = new Map<WebSocket, Part>();
@@ -103,15 +116,31 @@ export async function startLobby({
         const refused = nameRefusal(request.session);
         const key = sessionKey(request.session);
         if (refused) return send(socket, { op: 'refused', reason: refused });
-        if (sessions.has(key))
-          return send(socket, {
-            op: 'refused',
-            reason: `A session named “${request.session.trim()}” is already open.`,
-          });
+        const held = sessions.get(key);
+        if (held) {
+          if (request.reclaim === undefined || request.reclaim !== held.reclaim)
+            return send(socket, {
+              op: 'refused',
+              reason: `A session named “${request.session.trim()}” is already open.`,
+            });
+          // Its host, come back: from a link that dropped, or one not yet seen to close.
+          if (held.grace) clearTimeout(held.grace);
+          held.grace = null;
+          if (held.host) {
+            parts.set(held.host, { kind: 'none' });
+            held.host.terminate();
+          }
+          held.host = socket;
+          parts.set(socket, { kind: 'host', key });
+          send(socket, { op: 'hosting', session: held.name, reclaim: held.reclaim });
+          for (const client of held.clients.values()) send(client, { op: 'back' });
+          return;
+        }
         const name = request.session.trim();
-        sessions.set(key, { name, host: socket, clients: new Map() });
+        const reclaim = randomUUID();
+        sessions.set(key, { name, host: socket, reclaim, clients: new Map(), grace: null });
         parts.set(socket, { kind: 'host', key });
-        return send(socket, { op: 'hosting', session: name });
+        return send(socket, { op: 'hosting', session: name, reclaim });
       }
       case 'join': {
         if (part.kind !== 'none') return;
@@ -121,6 +150,11 @@ export async function startLobby({
           return send(socket, {
             op: 'refused',
             reason: `No session named “${request.session.trim()}” is open.`,
+          });
+        if (!session.host)
+          return send(socket, {
+            op: 'refused',
+            reason: `The host of “${session.name}” has lost its link and may be back in a moment.`,
           });
         const id = `c${(made++).toString(36)}`;
         session.clients.set(id, socket);
@@ -140,10 +174,20 @@ export async function startLobby({
         }
         return;
       }
+      case 'end': {
+        if (part.kind !== 'host') return;
+        const session = sessions.get(part.key);
+        if (session?.host === socket) {
+          if (session.grace) clearTimeout(session.grace);
+          end(part.key, session);
+        }
+        return;
+      }
       case 'tell': {
         if (part.kind !== 'client') return;
         const session = sessions.get(part.key);
-        if (session) send(session.host, { op: 'heard', from: part.id, message: request.message });
+        if (session?.host)
+          send(session.host, { op: 'heard', from: part.id, message: request.message });
         return;
       }
     }
@@ -157,10 +201,20 @@ export async function startLobby({
     if (!session) return;
     if (part.kind === 'client') {
       session.clients.delete(part.id);
-      send(session.host, { op: 'left', from: part.id });
+      if (session.host) send(session.host, { op: 'left', from: part.id });
       return;
     }
-    sessions.delete(part.key);
+    // A host taken over, closing late, has already lost its part.
+    if (session.host !== socket) return;
+    session.host = null;
+    for (const client of session.clients.values()) send(client, { op: 'away' });
+    session.grace = setTimeout(() => end(part.key, session), hostGrace);
+  }
+
+  /** The session is over: its clients hear it, and its name is free. */
+  function end(key: string, session: Session) {
+    if (sessions.get(key) !== session) return;
+    sessions.delete(key);
     for (const client of session.clients.values()) {
       send(client, { op: 'gone' });
       parts.set(client, { kind: 'none' });
@@ -204,6 +258,7 @@ export async function startLobby({
     counts: () => ({ sessions: sessions.size, sockets: parts.size }),
     async close() {
       clearInterval(beat);
+      for (const session of sessions.values()) if (session.grace) clearTimeout(session.grace);
       for (const socket of parts.keys()) socket.terminate();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       await new Promise<void>((resolve) => http.close(() => resolve()));

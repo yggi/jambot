@@ -2,8 +2,8 @@
 // Node's own WebSocket, against the real lobby server.
 
 import { type Lobby as Server, startLobby } from '@jambot/lobby';
-import { type ClientMessage, type HostMessage, PROTOCOL } from '@jambot/session';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type ClientMessage, type HostMessage, type HostSnapshot, PROTOCOL } from '@jambot/session';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Output } from '../audio/output.ts';
 import { Player, type Surroundings } from '../player.svelte.ts';
 import { ClientSession } from './client.svelte.ts';
@@ -90,7 +90,7 @@ describe('the WebSocket lobby', () => {
 
     ada.close();
     await until(() => toHost.length === 2);
-    expect(toHost[1]).toEqual([{ kind: 'leave' }, id]);
+    expect(toHost[1]).toEqual([{ kind: 'lost' }, id]);
 
     const toBob: HostMessage[] = [];
     await lobby.join('friday jam', (m) => toBob.push(m));
@@ -147,5 +147,98 @@ describe('the WebSocket lobby', () => {
     expect(following.ended).toBe('The host closed the session.');
     expect(client.player.mode).toBe('solo');
     host.player.stop();
+  });
+
+  describe('when a link is lost', () => {
+    /** Every socket the page opens, to drop one as a phone's system does: no close frame, no word. */
+    const sockets: WebSocket[] = [];
+    beforeEach(() => {
+      const Real = globalThis.WebSocket;
+      vi.stubGlobal(
+        'WebSocket',
+        class extends Real {
+          constructor(...args: ConstructorParameters<typeof Real>) {
+            super(...args);
+            sockets.push(this);
+          }
+        },
+      );
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      sockets.length = 0;
+    });
+
+    it('seats a client whose socket dropped as the same player, over a new one, while the host plays on', async () => {
+      const lobby = websocketLobby(url);
+      const host = device(40, 0.03);
+      const client = device(7, 0.05);
+      const hosting = new HostSession(host.player, host.clocks);
+      await hosting.open(lobby, 'jam');
+      await host.player.start();
+      const following = new ClientSession(client.player, client.clocks);
+      const before = sockets.length;
+      await following.join(lobby, 'jam', 'Ada');
+      await until(() => following.status === 'joined' && client.player.status === 'playing');
+      const [ada] = hosting.guests;
+      expect(ada).toBeDefined();
+
+      sockets[before]!.close();
+      await until(() => following.status === 'reconnecting');
+      expect(client.player.mode).toBe('client');
+      await until(() => hosting.guests.length === 0);
+      await until(() => following.status === 'joined' && hosting.guests.length === 1);
+      expect(hosting.guests).toEqual([ada]);
+      expect(host.player.players).toMatchObject({ [ada!.id]: 'Ada' });
+      await until(() => client.player.status === 'playing');
+      following.leave();
+      hosting.close();
+      host.player.stop();
+    });
+
+    it('carries a session through a host page that goes and comes back from what it kept: clients stay joined, and seat again', async () => {
+      const lobby = websocketLobby(url);
+      const kept: HostSnapshot[] = [];
+      const host = device(40, 0.03);
+      const client = device(7, 0.05);
+      const first = new HostSession(host.player, host.clocks, undefined, {
+        keep: { save: (s) => void kept.push(s), clear: () => {} },
+      });
+      const hostSockets = sockets.length;
+      await first.open(lobby, 'Friday Jam', 'Bo');
+      await host.player.start();
+      const following = new ClientSession(client.player, client.clocks);
+      await following.join(lobby, 'friday jam', 'Ada');
+      await until(() => following.status === 'joined' && client.player.status === 'playing');
+      const [ada] = first.guests;
+      const snapshot = JSON.parse(JSON.stringify(kept.at(-1))) as HostSnapshot;
+      expect(snapshot.reclaim).toEqual(expect.any(String));
+
+      // The host's page goes: its socket with it, and nothing says goodbye.
+      sockets[hostSockets]!.close();
+      await until(() => following.hostAway);
+      expect(following.status).toBe('joined');
+      expect(await lobby.sessions()).toEqual(['Friday Jam']);
+
+      // A new page, a new player, what was kept.
+      const reloaded = device(90, 0.02);
+      const second = new HostSession(reloaded.player, reloaded.clocks);
+      await second.open(lobby, 'anything', '', { restore: snapshot });
+      await until(() => !following.hostAway && second.guests.length === 1);
+      expect(second.guests).toEqual([ada]);
+      expect(reloaded.player.players).toEqual(snapshot.players);
+      // The new host isn't playing yet, so the client stops with the old song…
+      await until(() => client.player.status === 'stopped');
+      expect(following.status).toBe('joined');
+      // …and follows the new one when it starts.
+      await reloaded.player.start();
+      await until(() => client.player.status === 'playing');
+      expect(client.player.skew).toBeCloseTo(90 + 0.02 - 7 - 0.05, 12);
+
+      following.leave();
+      second.close();
+      reloaded.player.stop();
+      host.player.stop();
+    });
   });
 });

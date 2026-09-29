@@ -13,6 +13,15 @@
  * It leaves when asked, when the host closes or refuses it, when the host
  * is too far away for playing together (`CLOCK.tooFar`), and when no
  * welcome comes within `WELCOME_WAIT`.
+ *
+ * A link that drops is no leaving. The player keeps playing what it has,
+ * and the client joins again with the token its welcome gave, so the host
+ * seats it as the same player (`roster.ts`), trying as `reconnect.ts` says.
+ * A page that wakes from the background (`wake`) joins again at once if its
+ * link has said nothing since it slept. A host that is away, its link
+ * dropped while the lobby holds its session, is waited for; when it is back
+ * the client joins again over the same link. What it needs to come back
+ * after the app was closed is kept as it changes (`ClientKeep`).
  */
 
 import type { ForecastBar } from '@jambot/engine';
@@ -23,12 +32,19 @@ import {
   type SentBar,
   type Song,
   applyForecast,
+  type ClientResume,
   type ClockReading,
   EMPTY_SPREAD,
+  type Outage,
   type Spread,
+  failed,
   hostClock,
+  outage,
+  retry,
   skewOf,
   spreadWith,
+  stale,
+  woken,
 } from '@jambot/session';
 import type { Player } from '../player.svelte.ts';
 import type { DeviceClocks } from './clocks.ts';
@@ -40,7 +56,24 @@ export const WELCOME_WAIT = 2000;
 /** How often, in milliseconds, a client pings: quickly until its clock is trusted, then steadily. */
 export const PING_EVERY = { settling: 50, steady: 250 } as const;
 
-export type ClientStatus = 'idle' | 'joining' | 'joined';
+/** How long, in seconds, a joined client's link may say nothing before it is taken for lost. */
+export const HOST_SILENT = 3;
+
+export type ClientStatus = 'idle' | 'joining' | 'joined' | 'reconnecting';
+
+/** Where a client keeps what it needs to come back after its app was closed. */
+export interface ClientKeep {
+  save(resume: ClientResume): void;
+  clear(): void;
+}
+
+export interface ClientOptions {
+  /** The time, in seconds, that outages and silences are measured by: the page's, which never jumps. */
+  readonly wallNow?: () => number;
+  /** The time, in seconds since the epoch, that a kept record is dated by. */
+  readonly epoch?: () => number;
+  readonly keep?: ClientKeep;
+}
 
 /** A client's counters of its clock set by the host's (#27). */
 export interface NetworkTiming {
@@ -63,6 +96,8 @@ export class ClientSession {
   trip: number | null = $state(null);
   /** Why the session ended, if it ended on its own. */
   ended: string | null = $state(null);
+  /** Whether the host's link dropped and the lobby holds the session for it to come back. */
+  hostAway = $state(false);
 
   #player: Player;
   #clocks: DeviceClocks;
@@ -75,10 +110,35 @@ export class ClientSession {
   #held: ForecastBar[] = [];
   /** A song the host plays, waiting for the clock to be trusted. */
   #pending: { song: Song; bars: SentBar[] } | null = null;
+  #lobby: Lobby | null = null;
+  /** The address of the lobby, to keep with the token. */
+  #lobbyUrl: string | null = null;
+  /** What the host's welcome gave to come back as the same player. */
+  #token: string | null = null;
+  #outage: Outage | null = null;
+  #retrying: ReturnType<typeof setTimeout> | null = null;
+  /** Counts the links made, so a late word from a dropped one is ignored. */
+  #generation = 0;
+  /** When the host was last heard from, by `#wallNow`. */
+  #lastHeard: number | null = null;
+  #wallNow: () => number;
+  #epoch: () => number;
+  #keep: ClientKeep | null;
 
-  constructor(player: Player, clocks: DeviceClocks) {
+  constructor(
+    player: Player,
+    clocks: DeviceClocks,
+    {
+      wallNow = () => performance.now() / 1000,
+      epoch = () => Date.now() / 1000,
+      keep,
+    }: ClientOptions = {},
+  ) {
     this.#player = player;
     this.#clocks = clocks;
+    this.#wallNow = wallNow;
+    this.#epoch = epoch;
+    this.#keep = keep ?? null;
   }
 
   /** The counters of this session's clock, while joined or joining. */
@@ -87,12 +147,25 @@ export class ClientSession {
     return { trips: this.#trips, reading: this.#reading, skew: this.#skew() };
   }
 
-  async join(lobby: Lobby, session: string, name: string) {
+  /**
+   * Join a session by name. Given the token of a session this client was in
+   * (`resume`), and the lobby's address to keep with it, it comes back as the
+   * same player.
+   */
+  async join(
+    lobby: Lobby,
+    session: string,
+    name: string,
+    { resume, lobbyUrl }: { resume?: string; lobbyUrl?: string } = {},
+  ) {
     this.leave();
     this.ended = null;
     this.status = 'joining';
     this.session = session.trim();
     this.name = name.trim();
+    this.#lobby = lobby;
+    this.#lobbyUrl = lobbyUrl ?? null;
+    this.#token = resume ?? null;
     await this.#player.prepare();
     this.#player.follow({
       judged: (judged) => {
@@ -102,11 +175,7 @@ export class ClientSession {
       skew: () => this.#skew(),
     });
     try {
-      this.#link = await lobby.join(
-        session,
-        (message) => this.#hear(message),
-        (why) => this.#end(why),
-      );
+      await this.#connect(lobby);
     } catch (e) {
       return this.#end(e instanceof Error ? e.message : String(e));
     }
@@ -114,7 +183,32 @@ export class ClientSession {
       () => this.#end(`No session named “${this.session}” answered.`),
       WELCOME_WAIT,
     );
-    this.#send({ kind: 'join', protocol: PROTOCOL, name: this.name });
+    this.#sendJoin();
+  }
+
+  /** Open a link to the session, one whose words this client hears while it is the latest. */
+  async #connect(lobby: Lobby) {
+    const generation = ++this.#generation;
+    const link = await lobby.join(
+      this.session ?? '',
+      (message) => {
+        if (generation === this.#generation) this.#hear(message);
+      },
+      (why) => {
+        if (generation === this.#generation) this.#dropped(why);
+      },
+    );
+    if (generation !== this.#generation) return void link.close();
+    this.#link = link;
+  }
+
+  #sendJoin() {
+    this.#send({
+      kind: 'join',
+      protocol: PROTOCOL,
+      name: this.name ?? '',
+      ...(this.#token === null ? {} : { resume: this.#token }),
+    });
   }
 
   leave() {
@@ -123,22 +217,109 @@ export class ClientSession {
     this.#end(null);
   }
 
+  /**
+   * The page woke from the background, or came back to the foreground:
+   * where it was trying again, it tries now, and where it was joined and its
+   * link has said nothing since it slept, it takes the link for dead and
+   * joins again.
+   */
+  wake() {
+    if (this.status === 'reconnecting') {
+      this.#outage = woken(this.#wallNow());
+      return this.#tryNow();
+    }
+    if (this.status === 'joined' && !this.hostAway && stale(this.#lastHeard, this.#wallNow()))
+      this.#dropped('The link went quiet.');
+  }
+
+  /**
+   * The link is gone without the host saying so. A client that was seated
+   * keeps playing what it has and tries to come back; one that never was
+   * ends.
+   */
+  #dropped(why: string) {
+    if (this.status !== 'joined' || this.#token === null || !this.#lobby) return this.#end(why);
+    this.#generation++;
+    this.#link?.close();
+    this.#link = null;
+    if (this.#pinging) clearTimeout(this.#pinging);
+    this.#pinging = null;
+    this.status = 'reconnecting';
+    this.hostAway = false;
+    this.#outage = outage(this.#wallNow());
+    this.#schedule();
+  }
+
+  #schedule() {
+    if (this.#retrying) clearTimeout(this.#retrying);
+    this.#retrying = null;
+    if (!this.#outage) return;
+    const next = retry(this.#outage, this.#wallNow());
+    if (next.kind === 'give-up') return this.#end(`Lost the connection to ${this.session}.`);
+    this.#retrying = setTimeout(() => void this.#attempt(), next.seconds * 1000);
+  }
+
+  #tryNow() {
+    if (this.#retrying) clearTimeout(this.#retrying);
+    this.#retrying = null;
+    void this.#attempt();
+  }
+
+  async #attempt() {
+    this.#retrying = null;
+    const lobby = this.#lobby;
+    if (this.status !== 'reconnecting' || !lobby) return;
+    try {
+      await this.#connect(lobby);
+    } catch {
+      return this.#failed();
+    }
+    if (this.status !== 'reconnecting') return;
+    this.#welcomeWait = setTimeout(() => this.#failed(), WELCOME_WAIT);
+    this.#sendJoin();
+  }
+
+  /** A try that ended without a welcome: the link is dropped, and the next try is waited for. */
+  #failed() {
+    if (this.status !== 'reconnecting' || !this.#outage) return;
+    this.#generation++;
+    this.#link?.close();
+    this.#link = null;
+    if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
+    this.#welcomeWait = null;
+    this.#outage = failed(this.#outage);
+    this.#schedule();
+  }
+
   #end(why: string | null) {
+    this.#generation++;
     this.#link?.close();
     this.#link = null;
     if (this.#pinging) clearTimeout(this.#pinging);
     if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
-    this.#pinging = this.#welcomeWait = null;
+    if (this.#retrying) clearTimeout(this.#retrying);
+    this.#pinging = this.#welcomeWait = this.#retrying = null;
+    this.#outage = null;
+    this.#lobby = null;
+    this.#token = null;
+    this.#keep?.clear();
+    this.#reset();
+    this.#player.unfollow();
+    this.status = 'idle';
+    this.hostPlaying = false;
+    this.hostAway = false;
+    this.trip = null;
+    this.ended = why;
+  }
+
+  /** The clock and what waits for it start over. */
+  #reset() {
     this.#clock = hostClock.initial;
     this.#reading = null;
     this.#trips = EMPTY_SPREAD;
     this.#pending = null;
     this.#held = [];
-    this.#player.unfollow();
-    this.status = 'idle';
-    this.hostPlaying = false;
-    this.trip = null;
-    this.ended = why;
+    this.#lastHeard = null;
   }
 
   #send(message: ClientMessage) {
@@ -146,6 +327,12 @@ export class ClientSession {
   }
 
   #ping() {
+    if (
+      !this.hostAway &&
+      this.#lastHeard !== null &&
+      this.#wallNow() - this.#lastHeard > HOST_SILENT
+    )
+      return this.#dropped('The host went quiet.');
     this.#send({ kind: 'ping', sent: this.#clocks.page() });
     const every = this.#skew() === null ? PING_EVERY.settling : PING_EVERY.steady;
     this.#pinging = setTimeout(() => this.#ping(), every);
@@ -156,10 +343,21 @@ export class ClientSession {
       case 'welcome':
         if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
         this.#welcomeWait = null;
+        if (this.#retrying) clearTimeout(this.#retrying);
+        this.#retrying = null;
+        this.#outage = null;
+        // The host's page clock may be another (it reloaded): read it afresh.
+        this.#reset();
+        this.#lastHeard = this.#wallNow();
         this.status = 'joined';
+        this.hostAway = false;
+        this.#token = message.resume;
+        this.#remember();
         this.#forecast(message.forecast);
         this.#player.followMuse(message.muse);
         if (message.song) this.#play(message.song, message.song.bars);
+        else if (this.hostPlaying) this.#stopped();
+        if (this.#pinging) clearTimeout(this.#pinging);
         this.#ping();
         return;
       case 'refused':
@@ -181,10 +379,33 @@ export class ClientSession {
       case 'muse':
         return this.#player.followMuse(message.muse);
       case 'stop':
-        this.hostPlaying = false;
-        this.#pending = null;
-        return this.#player.stop();
+        return this.#stopped();
+      case 'away':
+        this.hostAway = true;
+        return;
+      case 'back':
+        this.hostAway = false;
+        if (this.status === 'joined') this.#sendJoin();
+        return;
     }
+  }
+
+  #stopped() {
+    this.hostPlaying = false;
+    this.#pending = null;
+    this.#player.stop();
+  }
+
+  #remember() {
+    if (!this.#keep || this.#lobbyUrl === null || this.#token === null) return;
+    this.#keep.save({
+      version: 1,
+      savedAt: this.#epoch(),
+      session: this.session ?? '',
+      name: this.name ?? '',
+      token: this.#token,
+      lobby: this.#lobbyUrl,
+    });
   }
 
   #forecast(delta: Parameters<typeof applyForecast>[1]) {
@@ -213,6 +434,7 @@ export class ClientSession {
   }
 
   #pong(sent: number, host: number, heard: number | null) {
+    this.#lastHeard = this.#wallNow();
     const received = this.#clocks.page();
     const { carried, output } = hostClock.advance(null, this.#clock, {
       sent,

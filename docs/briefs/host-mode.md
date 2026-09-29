@@ -240,14 +240,70 @@ Plain data (`protocol.ts`). A join names the protocol's version, and a host
 refuses another version, since a cached app can be older than its host.
 
 - Host to client: `welcome` (the song, if playing, with the bars composed
-  and not yet played; the bars ahead; the Muse), `refused`, `start`,
-  `track`, `bar`, `forecast` (the bars that changed, `forecastDelta`),
-  `muse`, `stop`, `pong`, `closed`.
-- Client to host: `join` (version, name), `judged` (bar, judgement),
-  `forget`, `ping`, `leave`.
+  and not yet played; the bars ahead; the Muse; the token to come back by),
+  `refused`, `start`, `track`, `bar`, `forecast` (the bars that changed,
+  `forecastDelta`), `muse`, `stop`, `pong`, `closed`.
+- Client to host: `join` (version, name, and the token when it comes back),
+  `judged` (bar, judgement), `forget`, `ping`, `leave`.
+- Said by a lobby, never by a peer, and so never read off the wire: `lost`
+  to a host (a client's link dropped without a `leave`), `away` and `back`
+  to a client (its host's link dropped, and returned).
 
-A host drops a client silent for 3 s. A client gives up if no welcome
-comes within 2 s.
+A host takes a client silent for 3 s to have lost its link. A client gives up
+if no welcome comes within 2 s.
+
+## When a link drops
+
+A phone puts a PWA's sockets to sleep, or closes them, and a laptop's page
+reloads.
+The lobby and the session each keep to their own job:
+the lobby holds who is where for a moment, and the host decides who a player is.
+
+- **A client seat is the host's.**
+  A welcome gives the client a token; `roster.ts` holds each player by id, name
+  and token.
+  A join that carries a token the host issued takes the old id up again, under a
+  name that is free, so the Muse keeps the player's motifs and the log still
+  says who played.
+  A token opens its own player's seat only.
+  A player whose link dropped keeps its seat for `RESUME_WINDOW` (5 minutes); one that
+  said `leave` has none.
+- **A client keeps playing what it has.**
+  A lost link is `reconnecting`, not the end: the band rests the bars that
+  don't arrive (`lacked`) and joins again by `reconnect.ts`, after 0.25, 0.5,
+  1, 2 and then every 4 s, for a minute.
+  A refusal, or the host closing, ends it, as they are answers and no outage.
+  A page that wakes (`visibilitychange`, `pageshow`, `online`) tries at once,
+  and takes a link that has said nothing since it slept for dead, since a
+  socket the system closed under a sleeping page can read open for good.
+- **The lobby holds a session for its host** for `LOBBY.hostGrace` (30 s).
+  The host is given a secret with `hosting`; while its link is down clients
+  hear `away`, and a `host` request with the secret takes the session back,
+  whether the old link has been seen to close or not.
+  Clients hear `back` and join again with their tokens.
+  A join while the host is away is refused ("may be back in a moment"), and
+  what a client tells it is dropped.
+  A host that closes on purpose sends `end`, which frees the name at once.
+  After the grace, or with no secret, the lobby is as before: `gone`.
+- **A host keeps what a reload needs** (`snapshot.ts`, `session/storage.ts`, in
+  `localStorage`): the session's name and lobby, the secret, the roster with tokens,
+  the players' names, and the style, key wish and tempo nudge.
+  Not the bars, which the band composes from its seed, and not the Muse's offer
+  and log, which start afresh with each song.
+  A snapshot is kept for `SAVED_MAX_AGE` (5 minutes).
+  A reloaded page opens its session again from it, its players away until they join
+  again, and a new song starts on the host's Start: the clients stop with the old
+  one, and the audio can't start without a click.
+- **A client keeps** the session, its name, its token and the lobby, and joins
+  again when the app is opened after a phone closed it.
+- **A lobby that restarted** keeps nothing, and needs to: the host opens the session
+  under its name again, since a secret for a session that is gone opens a new
+  one, and its roster is its own, so every client's token still holds.
+  A deploy costs a few seconds of silence, and nothing else.
+- **Not covered:** the tabs' BroadcastChannel lobby holds no session for a host that
+  is gone, so a host reload there ends the session for its tabs; a host whose
+  page is in the background is as asleep as a client is, and a session that
+  wants one on a phone will need a wake lock, which nothing measures yet.
 
 A host reads what any client sends, so it reads each message by the fields
 its kind carries (`readClientMessage`), and what a judgement says by the
@@ -316,7 +372,15 @@ e2e` pass unchanged, and a transport over bars the band composed, given
   lobby.
 - **The lobby server** (`apps/lobby/src/lobby.test.ts`): names, relaying
   each way, leaving and going, refusals, and a socket closed for missing
-  pings or falling behind, each shown firing.
+  pings or falling behind, each shown firing; a host whose link drops
+  (away, back by the secret, the grace running out, a wrong secret, a link
+  taken over) and a host that ends the session.
+- **Coming back** (`roster.test.ts`, `reconnect.test.ts`, `snapshot.test.ts` in
+  `packages/session`; `session.test.ts` and `websocket.test.ts` in the app):
+  a token keeps a player's id and no other's, the delays and the window, what a
+  snapshot reads and refuses, a client seated again over a new link, a host
+  reloaded from what it kept with its clients still joined; `session.e2e.ts`
+  reloads a host page and a client page against the lobby server.
 - **The WebSocket lobby** (`apps/web/src/session/websocket.test.ts`):
   against the real server, the session's words each way, a lost lobby, a
   refusal that is no loss, and a host and client session joined through

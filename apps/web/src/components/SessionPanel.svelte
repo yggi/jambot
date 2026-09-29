@@ -18,6 +18,7 @@
       session: string | null;
       name: string | null;
       hostPlaying: boolean;
+      hostAway: boolean;
       trip: number | null;
       ended: string | null;
       lacked: number;
@@ -114,11 +115,18 @@
     <button type="button" onclick={onclose}>Close the session</button>
   {:else if mode === 'client'}
     <p>
-      {following.status === 'joined' ? 'Playing in' : 'Joining'}
+      {following.status === 'joined'
+        ? 'Playing in'
+        : following.status === 'reconnecting'
+          ? 'Reconnecting to'
+          : 'Joining'}
       <strong>{following.session}</strong> as <strong>{following.name}</strong>.
     </p>
-    {#if following.status === 'joined'}
+    {#if following.status === 'reconnecting'}
+      <p class="message">The link was lost. This band plays on what it has, and joins again.</p>
+    {:else if following.status === 'joined'}
       <p class="message">
+        {#if following.hostAway}The host lost its link and may be back in a moment.{/if}
         {following.hostPlaying ? 'The host is playing.' : 'The host is stopped.'}
         {#if following.trip !== null}Round trip {following.trip} ms.{/if}
         {#if following.lacked > 0}{following.lacked} bars came too late to play.{/if}

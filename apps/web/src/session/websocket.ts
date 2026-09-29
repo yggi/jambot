@@ -7,7 +7,8 @@
  * messages; this end reads each as the session protocol says
  * (`readHostMessage`, `readClientMessage`), and turns what the server says
  * itself into what a session hears: a client that left leaves, a host gone
- * closes. A socket that closes under a session is a lost lobby.
+ * closes; a host whose link dropped, that the lobby holds the session for,
+ * is away, and back. A socket that closes under a session is a lost lobby.
  *
  * A page served over `https://` can reach only a `wss://` lobby, or one on
  * `localhost`; a browser refuses the rest before a byte is sent.
@@ -104,16 +105,16 @@ export function websocketLobby(url: string): Lobby {
       return answer.op === 'sessions' ? [...answer.names].sort() : [];
     },
 
-    async host(session, hear, lost) {
+    async host(session, hear, lost, reclaim) {
       let closing = false;
       const { socket, answer } = await reach(
         url,
-        { op: 'host', session },
+        reclaim === undefined ? { op: 'host', session } : { op: 'host', session, reclaim },
         (said) => {
           if (said.op === 'heard') {
             const message = readClientMessage(said.message);
             if (message) hear(message, said.from);
-          } else if (said.op === 'left') hear({ kind: 'leave' }, said.from);
+          } else if (said.op === 'left') hear({ kind: 'lost' }, said.from);
         },
         () => closing || lostLobby(lost)(),
       );
@@ -126,10 +127,12 @@ export function websocketLobby(url: string): Lobby {
         socket,
         () =>
           ({
+            reclaim: answer.op === 'hosting' ? answer.reclaim : null,
             send: (message, to) =>
               send(to === undefined ? { op: 'send', message } : { op: 'send', to, message }),
             close() {
               closing = true;
+              send({ op: 'end' });
               socket.close();
             },
           }) satisfies HostLink,
@@ -145,7 +148,9 @@ export function websocketLobby(url: string): Lobby {
           if (said.op === 'said') {
             const message = readHostMessage(said.message);
             if (message) hear(message);
-          } else if (said.op === 'gone') {
+          } else if (said.op === 'away') hear({ kind: 'away' });
+          else if (said.op === 'back') hear({ kind: 'back' });
+          else if (said.op === 'gone') {
             closing = true;
             hear({ kind: 'closed' });
           }

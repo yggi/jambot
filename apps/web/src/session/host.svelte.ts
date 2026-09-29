@@ -7,19 +7,30 @@
  * on it tells every client what the player does (`Hosting`), answers each
  * ping with its page clock and its output's offset from it (`DeviceClocks`),
  * and passes what clients judged
- * to the player's Muse. A client silent for `SILENT` seconds is gone.
+ * to the player's Muse. A client silent for `SILENT` seconds has lost its
+ * link. It keeps its seat, and comes back as the same player with the token
+ * its welcome gave (`roster.ts`), as one whose link dropped does. What a
+ * host needs to come back from a reload is kept as it changes
+ * (`snapshot`), and `open` takes it up again.
  */
 
 import type { ForecastBar } from '@jambot/engine';
 import {
   type ClientMessage,
+  HOST_PLAYER,
   type HostMessage,
+  type HostSnapshot,
   type MuseState,
   PROTOCOL,
+  type Roster,
+  admit,
+  expire,
   forecastDelta,
-  refusal,
-  HOST_PLAYER,
+  leave,
+  lose,
+  memberAt,
   playerSource,
+  present,
 } from '@jambot/session';
 import type { Hosting, Player } from '../player.svelte.ts';
 import type { DeviceClocks } from './clocks.ts';
@@ -31,6 +42,21 @@ export const SILENT = 3;
 export interface Guest {
   readonly id: string;
   readonly name: string;
+}
+
+/** Where a host keeps what it needs to come back from a reload. */
+export interface HostKeep {
+  save(snapshot: HostSnapshot): void;
+  clear(): void;
+}
+
+export interface HostOptions {
+  /** A token for a player that joins, which can't be guessed. */
+  readonly mint?: () => string;
+  /** Where a snapshot is kept, if anywhere. */
+  readonly keep?: HostKeep;
+  /** The time, in seconds since the epoch, that a snapshot is dated by. */
+  readonly epoch?: () => number;
 }
 
 export class HostSession {
@@ -46,6 +72,11 @@ export class HostSession {
   #link: HostLink | null = null;
   /** When each client was last heard, by its id. */
   #lastHeard: Record<string, number> = {};
+  #roster: Roster = [];
+  #lobbyUrl = '';
+  #mint: () => string;
+  #keep: HostKeep | null;
+  #epoch: () => number;
   #forecast: readonly ForecastBar[] = [];
   #muse: MuseState = { offer: null, log: [], dropped: [], players: {} };
   #sweep: ReturnType<typeof setInterval> | null = null;
@@ -58,29 +89,43 @@ export class HostSession {
     player: Player,
     clocks: DeviceClocks,
     wallNow: () => number = () => performance.now() / 1000,
+    { mint = () => crypto.randomUUID(), keep, epoch = () => Date.now() / 1000 }: HostOptions = {},
   ) {
     this.#player = player;
     this.#clocks = clocks;
     this.#wallNow = wallNow;
+    this.#mint = mint;
+    this.#keep = keep ?? null;
+    this.#epoch = epoch;
   }
 
   /**
    * Open the session under a name, the host's own notes going by its
    * player's name, or by "the host" without one. Throws if the lobby
-   * refuses it.
+   * refuses it. Given the snapshot of a host that was reloaded, it takes
+   * that session up again: under its name, by the secret the lobby gave,
+   * with the players it had, all away until they come back, and the style
+   * it was set to.
    */
-  async open(lobby: Lobby, session: string, player = '') {
+  async open(
+    lobby: Lobby,
+    session: string,
+    player = '',
+    { restore, lobbyUrl = '' }: { restore?: HostSnapshot; lobbyUrl?: string } = {},
+  ) {
+    this.#lobbyUrl = lobbyUrl;
     this.ended = null;
     await this.#player.prepare();
     this.#link = await lobby.host(
-      session,
+      restore?.session ?? session,
       (message, from) => this.#hear(message, from),
       (why) => {
-        this.close();
+        this.#shutdown();
         this.ended = why;
       },
+      restore?.reclaim ?? undefined,
     );
-    this.session = session.trim();
+    this.session = (restore?.session ?? session).trim();
     this.#player.mode = 'host';
     this.#player.playerId = HOST_PLAYER;
     this.#player.players = {};
@@ -91,13 +136,49 @@ export class HostSession {
       dropped: this.#player.dropped,
       players: {},
     };
-    this.#name(HOST_PLAYER, player.trim() || 'the host');
+    this.#name(HOST_PLAYER, (restore?.player ?? player).trim() || 'the host');
+    if (restore) {
+      const now = this.#wallNow();
+      this.#roster = restore.roster.map((m) => ({ ...m, link: null, awaySince: now }));
+      this.#player.players = {
+        ...restore.players,
+        [HOST_PLAYER]: this.#player.players[HOST_PLAYER]!,
+      };
+      this.#muse = { ...this.#muse, players: this.#player.players };
+      this.#player.restore(restore);
+    }
     this.#player.hosting = this.#hosting();
     this.#sweep = setInterval(() => this.#dropSilent(), 1000);
+    this.persist();
   }
 
+  /** The session is closed on purpose: its clients hear it, and nothing is kept to come back to. */
   close() {
     this.#link?.send({ kind: 'closed' });
+    this.#keep?.clear();
+    this.#shutdown();
+  }
+
+  /** Save what a reload needs, where it is kept: on every change, and as the page goes. */
+  persist() {
+    const link = this.#link;
+    if (!this.#keep || !link || this.session === null) return;
+    this.#keep.save({
+      version: 1,
+      savedAt: this.#epoch(),
+      session: this.session,
+      lobby: this.#lobbyUrl,
+      reclaim: link.reclaim,
+      player: this.#player.players[HOST_PLAYER] ?? '',
+      roster: this.#roster.map(({ id, name, token }) => ({ id, name, token })),
+      players: this.#player.players,
+      track: this.#player.track,
+      wish: this.#player.wish,
+      tempoNudge: this.#player.tempoNudge,
+    });
+  }
+
+  #shutdown() {
     this.#link?.close();
     this.#link = null;
     if (this.#sweep) clearInterval(this.#sweep);
@@ -108,7 +189,14 @@ export class HostSession {
     this.#player.mode = 'solo';
     this.session = null;
     this.guests = [];
+    this.#roster = [];
     this.#lastHeard = {};
+  }
+
+  #seat(roster: Roster) {
+    this.#roster = roster;
+    this.guests = present(roster).map(({ id, name }) => ({ id, name }));
+    this.persist();
   }
 
   #send(message: HostMessage, to?: string) {
@@ -126,7 +214,10 @@ export class HostSession {
         this.#send({ kind: 'forecast', forecast: forecastDelta(this.#forecast, bars) });
         this.#forecast = bars;
       },
-      track: (track) => this.#send({ kind: 'track', track }),
+      track: (track) => {
+        this.#send({ kind: 'track', track });
+        this.persist();
+      },
       muse: (muse) => {
         this.#muse = muse;
         this.#send({ kind: 'muse', muse });
@@ -135,9 +226,9 @@ export class HostSession {
   }
 
   #hear(message: ClientMessage, from: string) {
-    const guest = this.guests.find((g) => g.id === from);
     if (message.kind === 'join') return this.#admit(message, from);
-    if (!guest) return;
+    const member = memberAt(this.#roster, from);
+    if (!member) return;
     this.#lastHeard[from] = this.#wallNow();
     switch (message.kind) {
       case 'ping': {
@@ -149,7 +240,7 @@ export class HostSession {
         // A client's source goes by the id of its link, which it can't choose.
         const judgement = {
           ...message.judgement,
-          source: playerSource(from, message.judgement.source),
+          source: playerSource(member.id, message.judgement.source),
         };
         this.#player.judgedElsewhere([{ bar: message.bar, judgement }]);
         return;
@@ -157,24 +248,32 @@ export class HostSession {
       case 'forget':
         return this.#player.forgetMotif();
       case 'leave':
-        return this.#drop(from);
+        return this.#seat(leave(this.#roster, from));
+      case 'lost':
+        return this.#lose(from);
     }
   }
 
   #admit(join: ClientMessage & { kind: 'join' }, from: string) {
-    const others = this.guests.filter((g) => g.id !== from);
-    const inUse = [this.#player.players[HOST_PLAYER] ?? '', ...others.map((g) => g.name)];
-    const refused = refusal(join, inUse);
-    if (refused) return this.#send({ kind: 'refused', reason: refused }, from);
-    const name = join.name.trim();
-    this.guests = [...others, { id: from, name }];
-    this.#name(from, name, false);
+    const admitted = admit(
+      this.#roster,
+      join,
+      from,
+      this.#mint(),
+      this.#player.players[HOST_PLAYER] ?? '',
+    );
+    if ('refusal' in admitted)
+      return this.#send({ kind: 'refused', reason: admitted.refusal }, from);
+    const { roster, member } = admitted;
+    this.#name(member.id, member.name, false);
+    this.#seat(roster);
     this.#lastHeard[from] = this.#wallNow();
     this.#send(
       {
         kind: 'welcome',
         protocol: PROTOCOL,
         session: this.session ?? '',
+        resume: member.token,
         song: this.#player.hosted
           ? { ...this.#player.hosted.song, bars: this.#player.hosted.bars }
           : null,
@@ -197,14 +296,17 @@ export class HostSession {
     if (tell) this.#send({ kind: 'muse', muse: this.#muse });
   }
 
-  #drop(id: string) {
-    this.guests = this.guests.filter((g) => g.id !== id);
-    delete this.#lastHeard[id];
+  /** A client's link is gone: its seat is kept for it to come back to. */
+  #lose(link: string) {
+    delete this.#lastHeard[link];
+    this.#seat(lose(this.#roster, link, this.#wallNow()));
   }
 
   #dropSilent() {
     const now = this.#wallNow();
-    for (const [id, heard] of Object.entries(this.#lastHeard))
-      if (now - heard > SILENT) this.#drop(id);
+    for (const [link, heard] of Object.entries(this.#lastHeard))
+      if (now - heard > SILENT) this.#lose(link);
+    const kept = expire(this.#roster, now);
+    if (kept.length !== this.#roster.length) this.#seat(kept);
   }
 }

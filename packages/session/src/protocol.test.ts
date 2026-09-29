@@ -79,6 +79,11 @@ describe('the session protocol', () => {
       expect(readHostMessage(junk)).toBeNull();
       expect(readClientMessage(junk)).toBeNull();
     }
+    // A lobby says a link dropped or a host came back; no peer can say it for it.
+    for (const kind of ['lost', 'away', 'back']) {
+      expect(readClientMessage({ kind })).toBeNull();
+      expect(readHostMessage({ kind })).toBeNull();
+    }
     // Each side reads only the other's.
     expect(readHostMessage({ kind: 'ping', sent: 1 })).toBeNull();
     expect(readClientMessage({ kind: 'stop' })).toBeNull();
@@ -89,6 +94,7 @@ describe('the session protocol', () => {
     const judgement = judgements[0]!;
     for (const message of [
       { kind: 'join', protocol: PROTOCOL, name: 'Ada' },
+      { kind: 'join', protocol: PROTOCOL, name: 'Ada', resume: 'token' },
       { kind: 'judged', bar: 3, judgement },
       { kind: 'ping', sent: 1.5 },
       { kind: 'forget' },
@@ -100,6 +106,7 @@ describe('the session protocol', () => {
       { kind: 'join', name: 'Ada' },
       { kind: 'join', protocol: String(PROTOCOL), name: 'Ada' },
       { kind: 'join', protocol: PROTOCOL, name: 7 },
+      { kind: 'join', protocol: PROTOCOL, name: 'Ada', resume: 7 },
       { kind: 'judged', judgement },
       { kind: 'judged', bar: '3', judgement },
       { kind: 'judged', bar: 3.5, judgement },
@@ -172,9 +179,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 2, as a minute of the band and two judgements show them. */
+/** The shapes of version 3 (the join and welcome that carry a resume token are read by field, above), as a minute of the band and two judgements show them. */
 const SHAPES = {
-  protocol: 2,
+  protocol: 3,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',

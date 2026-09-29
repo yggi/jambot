@@ -2,7 +2,10 @@ import {
   type ClientMessage,
   HOST_PLAYER,
   type HostMessage,
+  type HostSnapshot,
   PROTOCOL,
+  RECONNECT,
+  RESUME_WINDOW,
   playerSource,
 } from '@jambot/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -52,11 +55,28 @@ function device(clockAt: number) {
 }
 
 /** A lobby in memory: every message delivered at once, as a local link nearly is. */
-function memoryLobby(): Lobby {
+function memoryLobby(): Lobby & {
+  /** Every client's link of a session drops, as its sockets do: each is told, and the host hears it lost. */
+  cut(session: string): void;
+  /** Whether new joins are refused, as by a lobby whose host is away. */
+  refusing: string | null;
+} {
   const hosts = new Map<string, (message: ClientMessage, from: string) => void>();
-  const clients = new Map<string, Map<string, (message: HostMessage) => void>>();
+  const clients = new Map<
+    string,
+    Map<string, { hear: (message: HostMessage) => void; lost: ((why: string) => void) | undefined }>
+  >();
   let made = 0;
-  return {
+  const lobby = {
+    refusing: null as string | null,
+    cut(session: string) {
+      const key = sessionKey(session);
+      for (const [id, { lost }] of [...clients.get(key)!]) {
+        clients.get(key)!.delete(id);
+        hosts.get(key)?.({ kind: 'lost' }, id);
+        lost?.('Lost the lobby.');
+      }
+    },
     sessions: async () => [...hosts.keys()],
     async host(session, hear) {
       const key = sessionKey(session);
@@ -64,23 +84,27 @@ function memoryLobby(): Lobby {
       hosts.set(key, hear);
       clients.set(key, new Map());
       return {
+        reclaim: null,
         send(message, to) {
-          for (const [id, deliver] of clients.get(key)!)
-            if (to === undefined || to === id) deliver(structuredClone(message));
+          for (const [id, { hear }] of clients.get(key)!)
+            if (to === undefined || to === id) hear(structuredClone(message));
         },
         close: () => void hosts.delete(key),
       } satisfies HostLink;
     },
-    async join(session, hear) {
+    async join(session, hear, lost) {
       const key = sessionKey(session);
+      if (lobby.refusing !== null) throw new Error(lobby.refusing);
+      if (!hosts.has(key)) throw new Error(`No session named “${session.trim()}” is open.`);
       const id = `client-${made++}`;
-      clients.get(key)?.set(id, hear);
+      clients.get(key)?.set(id, { hear, lost });
       return {
         send: (message) => hosts.get(key)?.(structuredClone(message), id),
         close: () => void clients.get(key)?.delete(id),
       };
     },
-  };
+  } satisfies Lobby & { cut(session: string): void; refusing: string | null };
+  return lobby;
 }
 
 /** Both devices a tick on, every 25 ms, for `seconds`. */
@@ -333,6 +357,212 @@ describe('a host and a client session', () => {
     expect(following.status).toBe('idle');
     expect(following.ended).toBe('The host closed the session.');
     expect(host.player.mode).toBe('solo');
+  });
+});
+
+/** A client's words to a host, and its welcome's token. */
+async function joined(lobby: Lobby, session: string, name: string, resume?: string) {
+  const heard: HostMessage[] = [];
+  const link = await lobby.join(session, (m) => heard.push(m));
+  link.send(
+    resume === undefined
+      ? { kind: 'join', protocol: PROTOCOL, name }
+      : { kind: 'join', protocol: PROTOCOL, name, resume },
+  );
+  const welcome = heard.find((m) => m.kind === 'welcome');
+  return { heard, link, token: welcome?.kind === 'welcome' ? welcome.resume : null };
+}
+
+describe('a client whose link drops', () => {
+  beforeEach(() => void vi.useFakeTimers());
+  afterEach(() => void vi.useRealTimers());
+
+  /** A host playing and a client joined, both a few seconds in. */
+  async function playing(options: { keep?: HostSnapshot[] } = {}) {
+    const lobby = memoryLobby();
+    const host = device(105);
+    const client = device(100);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
+      mint: (() => {
+        let n = 0;
+        return () => `token-${n++}`;
+      })(),
+      ...(options.keep && {
+        keep: { save: (s: HostSnapshot) => void options.keep!.push(s), clear: () => {} },
+      }),
+    });
+    await hosting.open(lobby, 'Jam', 'Bo');
+    await host.player.start();
+    const following = new ClientSession(client.player, client.clocks, {
+      wallNow: () => client.world.currentTime,
+    });
+    await following.join(lobby, 'Jam', 'Ada');
+    await run([host, client], 3);
+    expect(following.status).toBe('joined');
+    return { lobby, host, client, hosting, following };
+  }
+
+  it('keeps playing what it has, tries again, and is seated as the same player', async () => {
+    const { lobby, host, client, hosting, following } = await playing();
+    const [ada] = hosting.guests;
+    lobby.cut('Jam');
+    expect(following.status).toBe('reconnecting');
+    expect(hosting.guests).toEqual([]);
+    // Its seat and its name are kept for it.
+    expect(host.player.players[ada!.id]).toBe('Ada');
+    expect(client.player.mode).toBe('client');
+    expect(client.player.status).toBe('playing');
+    await run([host, client], 1);
+    expect(following.status).toBe('joined');
+    expect(hosting.guests).toEqual([ada]);
+    expect(host.player.players).toEqual({ [HOST_PLAYER]: 'Bo', [ada!.id]: 'Ada' });
+    expect(client.player.status).toBe('playing');
+    // It sets its clock afresh, and follows the song again.
+    await run([host, client], 2);
+    expect(client.player.skew).toBeCloseTo(5, 9);
+    following.leave();
+    hosting.close();
+  });
+
+  it('is seated at once when a page wakes, where a link that dropped waits for its next try', async () => {
+    const { lobby, host, client, hosting, following } = await playing();
+    lobby.cut('Jam');
+    following.wake();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(following.status).toBe('joined');
+    expect(hosting.guests).toHaveLength(1);
+    following.leave();
+    hosting.close();
+    void host;
+    void client;
+  });
+
+  it('takes a link that said nothing through a sleep for dead, and joins again over a new one', async () => {
+    const { host, client, hosting, following } = await playing();
+    const [ada] = hosting.guests;
+    // The page slept: its clock ran on, and its timers and sockets did nothing.
+    client.world.currentTime += 60;
+    following.wake();
+    expect(following.status).toBe('reconnecting');
+    await run([host, client], 1);
+    expect(following.status).toBe('joined');
+    expect(hosting.guests).toEqual([ada]);
+    // A link that has been heard on lately is not dropped by a wake.
+    following.wake();
+    expect(following.status).toBe('joined');
+    following.leave();
+    hosting.close();
+  });
+
+  it('gives up when it is not seated within the window, and says so', async () => {
+    const { lobby, client, following } = await playing();
+    lobby.cut('Jam');
+    lobby.refusing = 'The host has lost its link.';
+    await run([client], RECONNECT.window - 1);
+    expect(following.status).toBe('reconnecting');
+    await run([client], 2);
+    expect(following.status).toBe('idle');
+    expect(following.ended).toBe('Lost the connection to Jam.');
+    expect(client.player.mode).toBe('solo');
+  });
+
+  it('is not retried when the host refuses it: a name taken while it was away is an answer, not an outage', async () => {
+    const { lobby, host, client, following } = await playing();
+    lobby.cut('Jam');
+    const other = await joined(lobby, 'Jam', 'Ada');
+    expect(other.token).not.toBeNull();
+    await run([host, client], 1);
+    expect(following.status).toBe('idle');
+    expect(following.ended).toMatch(/already in this session/);
+  });
+
+  it('is not seated again once it left on purpose, or after the window it was kept for', async () => {
+    const { lobby, host, client, hosting, following } = await playing();
+    const token = (await joined(lobby, 'Jam', 'Ada2')).token!;
+    void token;
+    following.leave();
+    expect(hosting.guests.map((g) => g.name)).toEqual(['Ada2']);
+    // A client that dropped and stayed away past the window has no seat to come back to.
+    const cy = await joined(lobby, 'Jam', 'Cy');
+    lobby.cut('Jam');
+    host.world.currentTime += RESUME_WINDOW + 1;
+    await vi.advanceTimersByTimeAsync(1000);
+    const back = await joined(lobby, 'Jam', 'Cy', cy.token!);
+    // Its old id is not given back: it is a new player under a name that is free.
+    expect(hosting.guests.map((g) => g.name)).toEqual(['Cy']);
+    expect(back.heard[0]).toMatchObject({ kind: 'welcome' });
+    void client;
+  });
+});
+
+describe('a host that is reloaded', () => {
+  beforeEach(() => void vi.useFakeTimers());
+  afterEach(() => void vi.useRealTimers());
+
+  it('keeps what a reload needs as it changes, and takes its session up again with its players away until they come back', async () => {
+    const saved: HostSnapshot[] = [];
+    let cleared = 0;
+    const lobby = memoryLobby();
+    const first = device(0);
+    const hosting = new HostSession(first.player, first.clocks, () => first.world.currentTime, {
+      mint: () => 'token-ada',
+      keep: { save: (s) => void saved.push(s), clear: () => void cleared++ },
+      epoch: () => 5000,
+    });
+    await hosting.open(lobby, 'Friday Jam', 'Bo');
+    const ada = await joined(lobby, 'Friday Jam', 'Ada');
+    first.player.tempoNudge = 0.25;
+    hosting.persist();
+    const snapshot = JSON.parse(JSON.stringify(saved.at(-1)));
+    expect(snapshot).toMatchObject({
+      session: 'Friday Jam',
+      player: 'Bo',
+      roster: [{ id: expect.any(String), name: 'Ada', token: 'token-ada' }],
+      tempoNudge: 0.25,
+      savedAt: 5000,
+    });
+    expect(Object.values(snapshot.players).sort()).toEqual(['Ada', 'Bo']);
+
+    // The page goes: nothing closes on purpose. A new page, a new lobby.
+    const second = device(0);
+    const again = new HostSession(second.player, second.clocks, () => second.world.currentTime, {
+      mint: () => 'token-other',
+      keep: { save: (s) => void saved.push(s), clear: () => void cleared++ },
+    });
+    const fresh = memoryLobby();
+    await again.open(fresh, 'ignored', '', { restore: snapshot });
+    expect(again.session).toBe('Friday Jam');
+    expect(again.guests).toEqual([]);
+    expect(second.player.players).toEqual(snapshot.players);
+    expect(second.player.tempoNudge).toBe(0.25);
+
+    const back = await joined(fresh, 'Friday Jam', 'Ada', 'token-ada');
+    expect(back.heard[0]).toMatchObject({ kind: 'welcome', resume: 'token-ada' });
+    expect(again.guests).toEqual([{ id: snapshot.roster[0].id, name: 'Ada' }]);
+    // Nobody else gets Ada's name, or her token.
+    const stranger = await joined(fresh, 'Friday Jam', 'ada', 'guess');
+    expect(stranger.heard[0]).toMatchObject({ kind: 'refused' });
+    void ada;
+
+    // Closing on purpose keeps nothing to come back to.
+    again.close();
+    expect(cleared).toBe(1);
+  });
+
+  it('starts fresh when it is given nothing, and ends what it kept when it closes', async () => {
+    const saved: HostSnapshot[] = [];
+    let cleared = 0;
+    const host = device(0);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
+      keep: { save: (s) => void saved.push(s), clear: () => void cleared++ },
+    });
+    await hosting.open(memoryLobby(), 'jam');
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({ session: 'jam', roster: [], player: 'the host' });
+    hosting.close();
+    expect(cleared).toBe(1);
+    hosting.persist();
+    expect(saved).toHaveLength(1);
   });
 });
 

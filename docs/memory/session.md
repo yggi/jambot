@@ -31,3 +31,8 @@ Facts about `packages/session` and the app's sessions: clocks, the fault kit and
   A spread keeps whole-millisecond bins up to a second, so a quantile is good to half a millisecond at any length of run.
   `timing.e2e.ts` holds the export to what the harness measures of the same page.
 - A timing claim is tested by the work it bounds, never by the wall clock: an advance of the transport passes at most `CATCH_UP` bars (a day's stall is some 30,000), and the ticks after carry on, so no advance outlasts its lookahead on a slow machine (T1).
+- A link that drops is no leaving (`docs/briefs/host-mode.md`, "When a link drops"): the roster (`roster.ts`) seats a player by the token its welcome gave, the lobby holds a session for its host's secret (`LOBBY.hostGrace`), and the host's snapshot (`snapshot.ts`, `session/storage.ts`) is what a reload needs.
+  `lost`, `away` and `back` are said by a lobby adapter, never read off the wire (`readClientMessage` and `readHostMessage` refuse them).
+  A client's ids are the lobby's per socket (`c0`, `c1`, …), and restart from `c0` with the lobby, so the roster never gives a new player an id an away one holds.
+  The web tests' `memoryLobby` has `cut()` to drop every client's link and `refusing` to refuse joins; the real-socket ones wrap `WebSocket` to close one as a phone's system would, without a word.
+  Explicit close sends `end` to the lobby: without it the name would be held for the grace.
