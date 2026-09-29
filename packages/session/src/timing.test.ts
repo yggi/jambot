@@ -72,7 +72,7 @@ const env: TransportEnv = {
   seed: 3,
   start: 0.1,
   track: holding({ ...INITIAL_STYLE, energy: 1 }),
-  wish: { tonic: null, mode: 'aeolian' },
+  wish: { tonic: null, mode: 'aeolian', melodic: null },
 };
 
 /** The transport ticking at each clock time given, and its counters. */

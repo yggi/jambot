@@ -2,7 +2,8 @@
   The on-screen keyboard: C4 to E5, white and black keys positioned in
   percent over the white keys' width (`keyboardLayout`). A pointer holds a
   note until it lifts, cancels, or the capture is lost. A dot marks a note
-  of the current scale; amber is the band's own lead heard sounding it.
+  of the scale it is given, the melodic scale the lead walks over the key
+  (#209); amber is the band's own lead heard sounding it.
 -->
 <script lang="ts">
   import { KEYBOARD_HIGH, KEYBOARD_LOW, keyboardLayout } from '../midi/surfaces.ts';
@@ -10,7 +11,7 @@
   interface Props {
     /** Notes currently held, from any source, so a key lights whoever struck it. */
     down: ReadonlySet<number>;
-    /** The current key's notes, as pitch classes 0–11, C = 0. */
+    /** The notes to mark, as pitch classes 0–11, C = 0: the lead's melodic scale over the key. */
     scale?: readonly number[];
     /** The band's own lead notes heard sounding right now. */
     sounding?: readonly number[];

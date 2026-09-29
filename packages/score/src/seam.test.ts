@@ -100,7 +100,7 @@ const BAND_BARS: BandBar[] = range(5).flatMap((seed) =>
     return range(BARS).map((bar) => {
       const { style, mode } = at(bar);
       const next = band.advance(
-        { seed, bar, style, wish: { tonic: null, mode }, offer: null },
+        { seed, bar, style, wish: { tonic: null, mode, melodic: null }, offer: null },
         carried,
         null,
       );

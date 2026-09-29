@@ -10,6 +10,8 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   key: 'A aeolian',
   tonic: 9,
   scale: [0, 2, 4, 5, 7, 9, 11],
+  melodic: [0, 2, 4, 5, 7, 9, 11],
+  melodicName: 'plain',
   chords: [{ step: 0, symbol: 'Am', numeral: 'i' }],
   energy: 0.5,
   lead: 'improvising',

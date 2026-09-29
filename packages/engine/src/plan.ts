@@ -3,9 +3,11 @@
  *
  * At each section boundary it reads the seed, the section's index, the style
  * where the section starts, and the key the players wish for. It advances
- * the form, moves the key one step toward the wish (`nextKey`), and picks
- * the section's theme. The band holds the plan for the section's eight bars,
- * so a new key or theme arrives only at a boundary.
+ * the form, moves the key one step toward the wish (`nextKey`), picks the
+ * melodic scale the lead walks (the wish's where the style reaches it, else
+ * the style's default, #209), and picks the section's theme. The band holds
+ * the plan for the section's eight bars, so a new key, scale or theme
+ * arrives only at a boundary.
  *
  * Where the players wish for no tonic and the mode playing, the band may move
  * the key itself (#169): the harmony's reach (`harmonicReach`) gives how far,
@@ -23,8 +25,8 @@
 import { fifthsIndex, mod } from '@jambot/theory';
 import { type Section, form } from './form.ts';
 import { type HarmonicWeights, keyWeight } from './history.ts';
-import { INITIAL_KEY, type Key, type KeyWish, nextKey } from './key.ts';
-import { harmonicReach } from './licence.ts';
+import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from './key.ts';
+import { harmonicReach, licenceOf, melodicDefault } from './licence.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
@@ -35,16 +37,17 @@ export interface PlanEnv {
   readonly index: number;
   /** The style where the section starts. */
   readonly style: Style;
-  /** The key the players wish for: a mode, and a tonic or none. */
+  /** The key the players wish for: a mode, and a tonic or none; and a melodic scale or none. */
   readonly wish: KeyWish;
   /** What the band's harmony has sounded lately, which its own moves lean toward. */
   readonly history: HarmonicWeights;
 }
 
-/** What a section plays: where it stands in the form, its key and its theme. */
+/** What a section plays: where it stands in the form, its key, the lead's melodic scale over it, and its theme. */
 export interface Plan {
   readonly section: Section;
   readonly key: Key;
+  readonly melodic: MelodicScale;
   readonly theme: Theme;
 }
 
@@ -76,7 +79,7 @@ const LEAN = 4;
 export function bandWish(
   { seed, index, style, history }: Pick<PlanEnv, 'seed' | 'index' | 'style' | 'history'>,
   key: Key,
-): KeyWish | null {
+): Pick<KeyWish, 'tonic' | 'mode'> | null {
   const reach = harmonicReach(style);
   if (reach === 0 || !chance(draw(seed, 'keyJump', index), style.entropy * KEY_JUMP)) return null;
   // In one mode, keys lie as many fifths apart as their tonics do on the wheel.
@@ -103,6 +106,10 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     const own =
       before && wish.tonic === null && wish.mode === from.mode ? bandWish(env, from) : null;
     const key = nextKey(from, own ?? wish);
+    const melodic =
+      wish.melodic !== null && licenceOf(style).melodic.includes(wish.melodic)
+        ? wish.melodic
+        : melodicDefault(style);
     const kind = themeKind(section.type);
     const held = kind === 'build' ? null : themes[kind];
     const theme =
@@ -120,7 +127,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             entropy: style.entropy,
             a: themes.A,
           });
-    const plan = { section, key, theme };
+    const plan = { section, key, melodic, theme };
     return {
       carried: { before: plan, themes: kind === 'build' ? themes : { ...themes, [kind]: theme } },
       output: plan,

@@ -126,6 +126,32 @@ describe('a host and a client session', () => {
     expect(client.player.status).toBe('stopped');
   });
 
+  it("give a client the host's melodic scale with the bars, which its keyboard marks (#209)", async () => {
+    const lobby = memoryLobby();
+    const host = device(105);
+    const client = device(100);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    // Synth-pop's harmony, 0.45, reaches the pentatonic.
+    host.player.apply({ kind: 'key', wish: { melodic: 'pentatonic' } });
+    await host.player.start();
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    await run([host, client], 6);
+    const bar = client.player.hud.bar!;
+    expect(bar.melodicName).toBe('pentatonic');
+    // A minor's pentatonic: A C D E G, where the key has seven.
+    expect(bar.melodic).toEqual([0, 2, 4, 7, 9]);
+    expect(bar.scale).toEqual([0, 2, 4, 5, 7, 9, 11]);
+    expect(client.player.hud.headingMelodic).toBe('pentatonic');
+    expect(client.player.hud.next).toEqual(host.player.hud.next);
+    // A client's pick does nothing: the host leads.
+    client.player.apply({ kind: 'key', wish: { melodic: 'plain' } });
+    expect(client.player.wish.melodic).toBeNull();
+    following.leave();
+    hosting.close();
+  });
+
   it("pass what a client's player played to the host's Muse, by the client's id, read by its name (A3)", async () => {
     const lobby = memoryLobby();
     const host = device(10);

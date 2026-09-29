@@ -1,11 +1,14 @@
-import { positions } from '@jambot/theory';
+import { SCALES as NAMED_SCALES, gaps, positions, shift } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   COMPOSER_MODES,
   INITIAL_KEY,
   type Key,
+  MELODIC_SCALES,
+  type MelodicScale,
   keyHelix,
   keyName,
+  melodicHelix,
   nextKey,
   released,
 } from './key.ts';
@@ -110,20 +113,86 @@ describe('keys', () => {
 });
 
 describe('a wish once met', () => {
-  it('lets go of its tonic once the band plays the key wished, keeping the mode, for every key (#169)', () => {
+  it('lets go of its tonic once the band plays the key wished, keeping the mode and the melodic scale, for every key (#169, #209)', () => {
     for (const mode of COMPOSER_MODES)
       for (let tonic = 0; tonic < 12; tonic++)
-        expect(released({ tonic, mode }, { tonic, mode })).toEqual({ tonic: null, mode });
+        for (const melodic of [null, ...MELODIC_SCALES])
+          expect(released({ tonic, mode, melodic }, { tonic, mode })).toEqual({
+            tonic: null,
+            mode,
+            melodic,
+          });
   });
 
   it('holds a wish the band has not reached: another tonic, or another mode', () => {
-    const wish = { tonic: 2, mode: 'dorian' } as const;
+    const wish = { tonic: 2, mode: 'dorian', melodic: 'blues' } as const;
     expect(released(wish, { tonic: 9, mode: 'dorian' })).toBe(wish);
     expect(released(wish, { tonic: 2, mode: 'aeolian' })).toBe(wish);
   });
 
-  it('leaves a wish for a mode alone as it is', () => {
-    const wish = { tonic: null, mode: 'ionian' } as const;
+  it('leaves a wish for a mode alone as it is, its melodic scale included', () => {
+    const wish = { tonic: null, mode: 'ionian', melodic: 'pentatonic' } as const;
     expect(released(wish, { tonic: 0, mode: 'ionian' })).toBe(wish);
+  });
+});
+
+describe('the melodic scale', () => {
+  /** The theory's named scale each melodic scale is, over a minor or a major parent. */
+  const NAMED: Record<MelodicScale, { minor: string | null; major: string | null }> = {
+    plain: { minor: null, major: null },
+    pentatonic: { minor: 'minor pentatonic', major: 'major pentatonic' },
+    blues: { minor: 'blues', major: 'major blues' },
+  };
+  /**
+   * The same, as intervals over the tonic, checked with music21 10.5.0 (the
+   * parent's degrees picked and altered, over all 12 tonics and 4 modes) and
+   * tonal 6.4 (`Scale.get('A minor blues')` and the others).
+   */
+  const INTERVALS: Record<Exclude<MelodicScale, 'plain'>, { minor: number[]; major: number[] }> = {
+    pentatonic: { minor: [0, 3, 5, 7, 10], major: [0, 2, 4, 7, 9] },
+    blues: { minor: [0, 3, 5, 6, 7, 10], major: [0, 2, 3, 4, 7, 9] },
+  };
+  const KEYS: Key[] = COMPOSER_MODES.flatMap((mode) => range(12).map((tonic) => ({ tonic, mode })));
+  const minor = (key: Key) => key.mode === 'aeolian' || key.mode === 'dorian';
+
+  it('are the plain mode, pentatonic and blues', () => {
+    expect(MELODIC_SCALES).toEqual(['plain', 'pentatonic', 'blues']);
+  });
+
+  it('is the key itself when plain, exactly', () => {
+    for (const key of KEYS) expect(melodicHelix(key, 'plain')).toEqual(keyHelix(key));
+  });
+
+  it("is the theory's pentatonic and blues, minor or major as the parent mode is, over every tonic and mode", () => {
+    for (const key of KEYS)
+      for (const scale of ['pentatonic', 'blues'] as const) {
+        const side = minor(key) ? 'minor' : 'major';
+        const named = NAMED_SCALES[NAMED[scale][side]!]!.helix;
+        const helix = melodicHelix(key, scale);
+        expect(positions(helix)).toEqual(positions(shift(named, key.tonic)));
+        expect(positions(shift(helix, -key.tonic))).toEqual(INTERVALS[scale][side]);
+      }
+  });
+
+  it('stands on the parent: its tonic where the key has it, rising within one turn, the pentatonic a subset and the blues one note more', () => {
+    for (const key of KEYS) {
+      const parent = keyHelix(key);
+      const inParent = new Set(parent.heights);
+      for (const scale of MELODIC_SCALES) {
+        const helix = melodicHelix(key, scale);
+        expect(helix.cycle).toBe(12);
+        expect(helix.heights[0]).toBe(parent.heights[0]);
+        expect(gaps(helix).every((g) => g > 0)).toBe(true);
+        expect(gaps(helix).reduce((a, b) => a + b, 0)).toBe(12);
+        const off = helix.heights.filter((h) => !inParent.has(h));
+        expect(off).toHaveLength(scale === 'blues' ? 1 : 0);
+      }
+      // The blue note is a semitone under a degree of the pentatonic: the fifth in minor, the third in major.
+      const blue = melodicHelix(key, 'blues').heights.find((h) => !inParent.has(h))!;
+      expect(blue - parent.heights[0]!).toBe(minor(key) ? 6 : 3);
+      expect(melodicHelix(key, 'pentatonic').heights).toEqual(
+        melodicHelix(key, 'blues').heights.filter((h) => h !== blue),
+      );
+    }
   });
 });

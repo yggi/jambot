@@ -11,9 +11,11 @@
  *
  * A preset also wishes for its mode, unless the wish is in that mode
  * already, so a key picked stays when a preset in its mode follows, as in
- * the prototype. A key picked is wished for as it is, tonic and mode. The
- * band moves its key toward the wish at the next section it plans
- * (`nextKey`), so a new key never cuts into a section.
+ * the prototype. A key picked is wished for as it is, tonic and mode, and a
+ * melodic scale picked beside it (#209): a key intent names what it changes
+ * of the wish, and the rest stands. The band moves its key toward the wish,
+ * and takes its melodic scale, at the next section it plans (`nextKey`,
+ * `planner`), so neither cuts into a section.
  *
  * The players don't select the tempo or the key; they nudge a default the
  * layer above sets, within the licence it leaves (`licenceOf`). The licence
@@ -25,7 +27,8 @@
  * style's times the nudge, so the transport, the score and a session's
  * clients read one tempo; `baseTempo` reads the style's own back out of it.
  * A key picked is held within the reach the harmony gives of the home key,
- * the centre of the band's harmonic history, a fifth at a time.
+ * the centre of the band's harmonic history, a fifth at a time; a melodic
+ * scale picked, within the scales the harmony reaches (`melodicWithin`).
  */
 
 import {
@@ -41,7 +44,9 @@ import {
   glideTo,
   holding,
   intoReach,
+  type MelodicScale,
   licenceOf,
+  melodicWithin,
   nudgedTempo,
   tempoLicence,
   tempoNudgeWithin,
@@ -50,7 +55,8 @@ import {
 export type Intent =
   | { readonly kind: 'preset'; readonly preset: Preset }
   | { readonly kind: 'axis'; readonly axis: Axis; readonly value: number }
-  | { readonly kind: 'key'; readonly wish: KeyWish }
+  /** What a key intent changes of the wish: a tonic and mode picked, or a melodic scale. */
+  | { readonly kind: 'key'; readonly wish: Partial<KeyWish> }
   /** A nudge of the style's tempo, in octaves: 0 plays it as it is. */
   | { readonly kind: 'tempo'; readonly nudge: number };
 
@@ -118,10 +124,12 @@ export function nudgeAfter(nudge: number, intent: Intent, style: Style): number 
 }
 
 /**
- * The key wished for after an intent: a key picked, or a preset's mode from
- * any tonic, and a tonic held within the reach that the style after the
- * intent leaves (`licenceOf`) of `home`: the band's harmonic history's centre
- * (`centre`, #169), which is the key the song opens in before anything is heard.
+ * The key wished for after an intent: what a key intent picks, or a
+ * preset's mode from any tonic, the rest of the wish as it was; a tonic held
+ * within the reach that the style after the intent leaves (`licenceOf`) of
+ * `home`: the band's harmonic history's centre (`centre`, #169), which is
+ * the key the song opens in before anything is heard; and a melodic scale
+ * within the scales that style reaches. A wish nothing changes is the same.
  */
 export function wishAfter(
   wish: KeyWish,
@@ -129,16 +137,19 @@ export function wishAfter(
   style: Style,
   home: Key = INITIAL_KEY,
 ): KeyWish {
-  const next =
+  const next: KeyWish =
     intent.kind === 'key'
-      ? intent.wish
+      ? { ...wish, ...intent.wish }
       : intent.kind === 'preset' && intent.preset.mode !== wish.mode
-        ? { tonic: null, mode: intent.preset.mode }
+        ? { ...wish, tonic: null, mode: intent.preset.mode }
         : wish;
-  if (next.tonic === null) return next;
   const { keyReach } = licenceOf(style);
-  const held = intoReach({ tonic: next.tonic, mode: next.mode }, home, keyReach);
-  return held.tonic === next.tonic ? next : held;
+  const tonic =
+    next.tonic === null
+      ? null
+      : intoReach({ tonic: next.tonic, mode: next.mode }, home, keyReach).tonic;
+  const melodic = next.melodic === null ? null : melodicWithin(next.melodic, style);
+  return tonic === next.tonic && melodic === next.melodic ? next : { ...next, tonic, melodic };
 }
 
 /** The tempo as the players see it: played, the style's own, the nudge, and its licence. */
@@ -159,6 +170,11 @@ export function tempoView(track: StyleTrack, nudge: number): TempoView {
 /** How many fifths from the home key the players may take the key, where the style is going. */
 export function keyReachOf(track: StyleTrack): number {
   return licenceOf(targetOf(track)).keyReach;
+}
+
+/** The melodic scales the players may pick, where the style is going (#209). */
+export function melodicReachOf(track: StyleTrack): readonly MelodicScale[] {
+  return licenceOf(targetOf(track)).melodic;
 }
 
 /**

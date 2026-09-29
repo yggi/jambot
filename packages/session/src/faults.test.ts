@@ -443,7 +443,7 @@ const env: TransportEnv = {
   seed: 11,
   start: 1,
   track: dense,
-  wish: { tonic: null, mode: PRESETS[0]!.mode },
+  wish: { tonic: null, mode: PRESETS[0]!.mode, melodic: null },
 };
 
 /** The transport, run on the ticks given, each scheduling a lookahead past the clock it read. */

@@ -216,7 +216,7 @@ const heardOn = (output: Output) => output.heard?.() ?? output.currentTime - out
 export class Player {
   status: Status = $state('stopped');
   track: StyleTrack = $state.raw(holding(INITIAL_STYLE));
-  wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode });
+  wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode, melodic: null });
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
   /** The step heard, or null before anything is. */

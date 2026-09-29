@@ -12,6 +12,8 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   key: 'A minor',
   tonic: 9,
   scale: [0, 2, 4, 5, 7, 9, 11],
+  melodic: [0, 2, 4, 5, 7, 9, 11],
+  melodicName: 'plain',
   chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
   energy: 0.6,
   lead: 'improvising',
@@ -26,6 +28,7 @@ const hudOf = (here: BarView, beat: number | null, over: Partial<Hud> = {}): Hud
   sections: [],
   style: { preset: 'Synth-pop', glide: null },
   heading: { tonic: 9, mode: 'aeolian' },
+  headingMelodic: 'plain',
   muse: { motif: null, log: [] },
   ...over,
 });
@@ -104,6 +107,21 @@ describe('the chords', () => {
     const sharps = bar(9, { key: 'G♯ minor', tonic: 8, scale: [8, 10, 11, 1, 3, 4, 6] });
     render(Chords, { hud: hudOf(sharps, 0) });
     expect(screen.getByText('G♯ A♯ B C♯ D♯ E F♯')).toBeInTheDocument();
+  });
+
+  it('names the melodic scale the lead walks beside the key where it isn’t plain, and spells the key’s own notes (#209)', () => {
+    const plain = render(Chords, { hud: heard });
+    expect(plain.container.querySelector('.reading span')).toHaveTextContent(/^A minor$/);
+    plain.unmount();
+    for (const melodicName of ['pentatonic', 'blues'] as const) {
+      const walked = bar(9, { melodicName, melodic: [0, 2, 4, 7, 9] });
+      const { container, unmount } = render(Chords, { hud: hudOf(walked, 0) });
+      expect(container.querySelector('.reading span')).toHaveTextContent(
+        new RegExp(`^A minor · ${melodicName}$`),
+      );
+      expect(screen.getByText('A B C D E F G')).toBeInTheDocument();
+      unmount();
+    }
   });
 
   it('says in its Conductor region what the lead is doing in the bar heard, and before the start that the band plays on its own', () => {

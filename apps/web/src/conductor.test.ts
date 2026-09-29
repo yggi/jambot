@@ -11,6 +11,7 @@ import {
   glideTo,
   holding,
   INITIAL_KEY,
+  MELODIC_SCALES,
   licenceOf,
   styleAt,
   tempoLicence,
@@ -20,6 +21,7 @@ import {
   baseTempo,
   conduct,
   keyReachOf,
+  melodicReachOf,
   nudgeAfter,
   stopAt,
   styleAfter,
@@ -76,28 +78,86 @@ describe('wishAfter', () => {
   it("wishes for a preset's mode, from any tonic, and leaves the wish to a slider", () => {
     const deepHouse = PRESETS.find((p) => p.name === 'Deep house')!;
     // G ionian, one sharp: within the reach of every style below.
-    const wish = { tonic: 7, mode: 'ionian' } as const;
+    const wish = { tonic: 7, mode: 'ionian', melodic: 'pentatonic' } as const;
     const style = { ...INITIAL_STYLE, ...deepHouse.style };
     expect(wishAfter(wish, { kind: 'preset', preset: deepHouse }, style)).toEqual({
       tonic: null,
       mode: 'dorian',
+      melodic: 'pentatonic',
     });
-    const slider = { kind: 'axis', axis: 'harm', value: 0.2 } as const;
-    expect(wishAfter(wish, slider, { ...INITIAL_STYLE, harm: 0.2 })).toBe(wish);
+    const slider = { kind: 'axis', axis: 'harm', value: 0.5 } as const;
+    expect(wishAfter(wish, slider, { ...INITIAL_STYLE, harm: 0.5 })).toBe(wish);
   });
 
-  it('wishes for a key picked, tonic and mode', () => {
+  it('wishes for a key picked, tonic and mode, keeping the melodic scale wished', () => {
     const picked = { tonic: 2, mode: 'mixolydian' } as const;
-    expect(
-      wishAfter({ tonic: null, mode: 'aeolian' }, { kind: 'key', wish: picked }, INITIAL_STYLE),
-    ).toBe(picked);
+    for (const melodic of [null, 'plain', 'pentatonic'] as const)
+      expect(
+        wishAfter(
+          { tonic: null, mode: 'aeolian', melodic },
+          { kind: 'key', wish: picked },
+          INITIAL_STYLE,
+        ),
+      ).toEqual({ ...picked, melodic });
+  });
+
+  it('wishes for a melodic scale picked, keeping the key wished (#209)', () => {
+    const rich = { ...INITIAL_STYLE, harm: 1 };
+    for (const before of [
+      { tonic: null, mode: 'aeolian', melodic: null },
+      { tonic: 4, mode: 'dorian', melodic: 'blues' },
+    ] as const)
+      for (const melodic of MELODIC_SCALES)
+        expect(wishAfter(before, { kind: 'key', wish: { melodic } }, rich)).toEqual({
+          ...before,
+          melodic,
+        });
+  });
+
+  it('holds a melodic scale picked within the style’s reach, for every preset and scale (#209)', () => {
+    for (const p of PRESETS) {
+      const style: Style = { ...INITIAL_STYLE, ...p.style };
+      const reach = licenceOf(style).melodic;
+      for (const melodic of MELODIC_SCALES) {
+        const before = { tonic: null, mode: p.mode, melodic: null } as const;
+        const held = wishAfter(before, { kind: 'key', wish: { melodic } }, style).melodic;
+        expect(held).toBe(reach.includes(melodic) ? melodic : reach.at(-1));
+      }
+    }
+    // Techno reaches the plain scale alone.
+    const techno = { ...INITIAL_STYLE, ...PRESETS.find((p) => p.name === 'Techno')!.style };
+    const wish = { tonic: null, mode: 'aeolian', melodic: null } as const;
+    expect(wishAfter(wish, { kind: 'key', wish: { melodic: 'blues' } }, techno).melodic).toBe(
+      'plain',
+    );
+  });
+
+  it('pulls a melodic scale back into a narrower reach when the harmony falls, and leaves the style’s default alone (#209)', () => {
+    const wish = { tonic: null, mode: 'aeolian', melodic: 'blues' } as const;
+    const lower = (value: number) => ({ kind: 'axis', axis: 'harm', value }) as const;
+    const at = (harm: number) => wishAfter(wish, lower(harm), { ...INITIAL_STYLE, harm });
+    expect(at(1)).toBe(wish);
+    expect(at(0.5)).toEqual({ ...wish, melodic: 'pentatonic' });
+    expect(at(0)).toEqual({ ...wish, melodic: 'plain' });
+    const none = { ...wish, melodic: null };
+    expect(wishAfter(none, lower(0), { ...INITIAL_STYLE, harm: 0 })).toBe(none);
+  });
+
+  it('shows the melodic scales the style reaches where the track is going, for every preset (#209)', () => {
+    for (const p of PRESETS) {
+      const intent = { kind: 'preset', preset: p } as const;
+      const track = holding(INITIAL_STYLE);
+      expect(melodicReachOf(conduct(track, intent, 40))).toEqual(
+        licenceOf(styleAfter(track, intent, 0)).melodic,
+      );
+    }
   });
 
   it('keeps a key picked when a preset in the same mode follows, as the prototype does', () => {
     // Deep house is dorian: E dorian, picked, stays E dorian rather than
     // pivoting, two sharps within its reach of three.
     const deepHouse = PRESETS.find((p) => p.name === 'Deep house')!;
-    const picked = { tonic: 4, mode: 'dorian' } as const;
+    const picked = { tonic: 4, mode: 'dorian', melodic: null } as const;
     const style = { ...INITIAL_STYLE, ...deepHouse.style };
     expect(wishAfter(picked, { kind: 'preset', preset: deepHouse }, style)).toBe(picked);
   });
@@ -108,7 +168,7 @@ describe('wishAfter', () => {
       const { keyReach } = licenceOf(style);
       for (let tonic = 0; tonic < 12; tonic++) {
         const picked = { tonic, mode: p.mode };
-        const before = { tonic: null, mode: 'aeolian' } as const;
+        const before = { tonic: null, mode: 'aeolian', melodic: null } as const;
         const held = wishAfter(before, { kind: 'key', wish: picked }, style);
         const apart = Math.abs(fifthsApart(picked, INITIAL_KEY));
         expect(Math.abs(fifthsApart({ tonic: held.tonic!, mode: held.mode }, INITIAL_KEY))).toBe(
@@ -125,7 +185,7 @@ describe('wishAfter', () => {
     for (let home = 0; home < 12; home++)
       for (let tonic = 0; tonic < 12; tonic++) {
         const centre = { tonic: home, mode: 'aeolian' } as const;
-        const picked = { tonic, mode: 'aeolian' } as const;
+        const picked = { tonic, mode: 'aeolian', melodic: null } as const;
         const held = wishAfter(picked, { kind: 'key', wish: picked }, style, centre);
         const apart = Math.abs(fifthsApart(picked, centre));
         expect(held.tonic === tonic).toBe(apart <= keyReach);
@@ -157,12 +217,12 @@ describe('wishAfter', () => {
 
   it('pulls a wish back into a narrower reach when the harmony falls', () => {
     // E ionian lies four sharps from A minor: within Swing jazz's six, beyond Techno's one.
-    const wish = { tonic: 4, mode: 'ionian' } as const;
+    const wish = { tonic: 4, mode: 'ionian', melodic: null } as const;
     const jazz = { ...INITIAL_STYLE, harm: 1 };
     const techno = { ...INITIAL_STYLE, harm: 0 };
     const lower = { kind: 'axis', axis: 'harm', value: 0 } as const;
     expect(wishAfter(wish, lower, jazz)).toBe(wish);
-    expect(wishAfter(wish, lower, techno)).toEqual({ tonic: 7, mode: 'ionian' });
+    expect(wishAfter(wish, lower, techno)).toEqual({ tonic: 7, mode: 'ionian', melodic: null });
   });
 });
 

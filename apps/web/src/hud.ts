@@ -29,6 +29,7 @@ import {
   type Judgement,
   type Key,
   type DroppedJudgement,
+  type MelodicScale,
   type MuseOutput,
   type Offer,
   PRESETS,
@@ -42,6 +43,7 @@ import {
   chordNumeral,
   keyHelix,
   leadRests,
+  melodicHelix,
   stepInBar,
   styleAt,
 } from '@jambot/engine';
@@ -81,6 +83,14 @@ export interface BarView {
   readonly tonic: number;
   /** The key's notes, as pitch classes 0–11, C = 0. */
   readonly scale: readonly number[];
+  /**
+   * The notes of the melodic scale the lead walks over the key (#209), as
+   * pitch classes 0–11: the key's own where it is plain, the pentatonic's or
+   * the blues' where not, which are safe notes to play along on.
+   */
+  readonly melodic: readonly number[];
+  /** Which melodic scale that is. */
+  readonly melodicName: MelodicScale;
   readonly chords: readonly ChordView[];
   /** The energy it plays at, 0 to 1. */
   readonly energy: number;
@@ -159,6 +169,8 @@ export interface Hud {
   readonly style: StyleView;
   /** The key the band is heading for: the last bar decided's, since a wish is met in one step. */
   readonly heading: Key | null;
+  /** The melodic scale the band is heading for, the last bar decided's likewise (#209). */
+  readonly headingMelodic: MelodicScale | null;
   readonly muse: MuseView;
 }
 
@@ -244,6 +256,7 @@ export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): H
     sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS), barView) : [],
     style: styleView(track, heard ?? 0, tempoNudge),
     heading: bars.at(-1)?.plan.key ?? null,
+    headingMelodic: bars.at(-1)?.plan.melodic ?? null,
     muse: museView(muse, named, credited),
   };
 }
@@ -388,6 +401,8 @@ function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Cre
     key: keyName(bar.plan.key),
     tonic: bar.plan.key.tonic,
     scale: positions(keyHelix(bar.plan.key)),
+    melodic: positions(melodicHelix(bar.plan.key, bar.plan.melodic)),
+    melodicName: bar.plan.melodic,
     chords: bar.chords.map((c) => chordView(c, bar)),
     energy: bar.barEnergy,
     lead: bar.offer

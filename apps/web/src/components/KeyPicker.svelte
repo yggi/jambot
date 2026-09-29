@@ -14,8 +14,12 @@
   playing alone, sets the key, heard from the next section the band plans,
   and held within the style's licence of the home key, the band's harmonic
   history's centre (`licence.ts`, #169),
-  so the tonics beyond it are dimmed. A client can't set or nudge it yet: its
-  key intents don't reach the host, so its nudges are disabled and say so.
+  so the tonics beyond it are dimmed. Under the scale, the melodic scale the
+  lead walks over the key (#209): the plain scale, the pentatonic or the
+  blues, those beyond the style's reach (`licenceOf`'s `melodic`) dimmed; a
+  pick is wished for as it is, heard from the next section, and changes
+  nothing else of the key. A client can't set or nudge either yet: its key
+  intents don't reach the host, so its nudges are disabled and say so.
 -->
 <script lang="ts">
   import {
@@ -23,6 +27,8 @@
     type ComposerMode,
     INITIAL_KEY,
     type Key,
+    MELODIC_SCALES,
+    type MelodicScale,
     intoReach,
     keyHelix,
   } from '@jambot/engine';
@@ -52,6 +58,10 @@
     reach: number;
     /** The home key the reach counts from: the band's harmonic history's centre (#169). */
     home?: Key;
+    /** The melodic scale the band is heading for (#209). */
+    melodic?: MelodicScale | null;
+    /** The melodic scales the style reaches (`licenceOf`'s `melodic`). */
+    melodicReach?: readonly MelodicScale[];
     /** Whether a client follows its host: it may nudge the key, not set it. */
     following?: boolean;
     onintent: (intent: Intent) => void;
@@ -62,6 +72,8 @@
     history,
     reach,
     home = INITIAL_KEY,
+    melodic = 'plain',
+    melodicReach = ['plain'],
     following = false,
     onintent,
   }: Props = $props();
@@ -107,6 +119,15 @@
 
   const wish = (tonic: number, mode: ComposerMode) =>
     onintent({ kind: 'key', wish: { tonic, mode } });
+
+  /** The melodic scales as segments, those beyond the style's reach dimmed. */
+  const melodics = $derived(
+    MELODIC_SCALES.map((scale) => ({
+      value: scale,
+      text: scale,
+      disabled: !melodicReach.includes(scale),
+    })),
+  );
 </script>
 
 <Fold heading="Key" name={keyName(key)}>
@@ -142,6 +163,13 @@
     options={shapes}
     disabled={following}
     onselect={(mode) => playable(mode) && wish(key.tonic, mode)}
+  />
+  <Segmented
+    label="Melodic scale"
+    value={melodic ?? 'plain'}
+    options={melodics}
+    disabled={following}
+    onselect={(scale) => onintent({ kind: 'key', wish: { melodic: scale } })}
   />
   <Ruler
     label="{keyName(key)}: {notes.join(' ')}, steps {steps

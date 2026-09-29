@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { COMPOSER_MODES, INITIAL_KEY, type Key, keyHelix } from './key.ts';
+import { COMPOSER_MODES, INITIAL_KEY, type Key, MELODIC_SCALES, keyHelix } from './key.ts';
 import {
   TEMPO_REACH,
   TEMPO_STEP,
   fifthsApart,
   harmonicReach,
   intoReach,
+  MELODIC_FROM,
   licenceOf,
+  melodicDefault,
+  melodicWithin,
   nudgedTempo,
   tempoLicence,
   tempoNudgeWithin,
@@ -181,6 +184,82 @@ describe('the key licence', () => {
           expect(Math.sign(fifthsApart(held, INITIAL_KEY))).toBe(
             reach === 0 ? 0 : Math.sign(apart),
           );
+      }
+  });
+});
+
+describe('the melodic licence', () => {
+  /** Every harm on a grid of 60ths, which holds both thresholds exactly, and its ends. */
+  const HARMS = [...Array(61).keys()].map((i) => i / 60);
+
+  it('opens the pentatonic from harm 1/3 and the blues from 2/3, the plain scale always (#209)', () => {
+    expect(MELODIC_FROM).toEqual({ plain: 0, pentatonic: 1 / 3, blues: 2 / 3 });
+    for (const { style } of EVERY)
+      for (const harm of HARMS) {
+        const { melodic } = licenceOf({ ...style, harm });
+        expect(melodic).toEqual(
+          harm >= 2 / 3
+            ? ['plain', 'pentatonic', 'blues']
+            : harm >= 1 / 3
+              ? ['plain', 'pentatonic']
+              : ['plain'],
+        );
+      }
+    // Either side of each threshold, by the least step the score writes a style at.
+    const at = (harm: number) => licenceOf({ ...INITIAL_STYLE, harm }).melodic;
+    expect(at(0.333)).toEqual(['plain']);
+    expect(at(0.334)).toEqual(['plain', 'pentatonic']);
+    expect(at(0.666)).toEqual(['plain', 'pentatonic']);
+    expect(at(0.667)).toEqual(['plain', 'pentatonic', 'blues']);
+  });
+
+  it('never loses a scale as the harmony rises, and reads the harmony alone (#209)', () => {
+    for (const { style } of EVERY) {
+      const over = HARMS.map((harm) => licenceOf({ ...style, harm }).melodic);
+      over.forEach((melodic, i) => {
+        expect(melodic[0]).toBe('plain');
+        if (i > 0) expect(over[i - 1]!.every((s) => melodic.includes(s))).toBe(true);
+      });
+      expect(licenceOf(style).melodic).toEqual(
+        licenceOf({ ...INITIAL_STYLE, harm: style.harm }).melodic,
+      );
+    }
+  });
+
+  it('gives each preset its scales: plain alone in Techno, Funk and Ambient, the pentatonic in Synth-pop and Deep house, the blues from Lo-fi hip hop up (#209)', () => {
+    const reach = Object.fromEntries(
+      presetsAt(0.3).map(({ name, style }) => [name, licenceOf(style).melodic.at(-1)]),
+    );
+    expect(reach).toEqual({
+      'Synth-pop': 'pentatonic',
+      Techno: 'plain',
+      'Deep house': 'pentatonic',
+      Ambient: 'plain',
+      'Lo-fi hip hop': 'blues',
+      Funk: 'plain',
+      'Bossa nova': 'blues',
+      'Swing jazz': 'blues',
+    });
+  });
+
+  it('defaults to the plain scale everywhere, which is always within reach (#209)', () => {
+    for (const { style } of EVERY)
+      for (const harm of HARMS) {
+        const at = { ...style, harm };
+        expect(melodicDefault(at)).toBe('plain');
+        expect(licenceOf(at).melodic).toContain(melodicDefault(at));
+      }
+  });
+
+  it('holds a wished scale within reach: as it is where reached, else the widest the reach holds (#209)', () => {
+    for (const harm of HARMS)
+      for (const scale of MELODIC_SCALES) {
+        const style = { ...INITIAL_STYLE, harm };
+        const { melodic } = licenceOf(style);
+        const held = melodicWithin(scale, style);
+        expect(melodic).toContain(held);
+        if (melodic.includes(scale)) expect(held).toBe(scale);
+        else expect(held).toBe(melodic.at(-1));
       }
   });
 });

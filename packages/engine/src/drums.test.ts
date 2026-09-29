@@ -28,6 +28,7 @@ const envOf = (
   plan: {
     section: { type, index },
     key: INITIAL_KEY,
+    melodic: 'plain',
     theme: buildTheme({
       seed,
       index,
