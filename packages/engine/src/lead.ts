@@ -19,8 +19,9 @@
  * folds by octaves on its own.
  *
  * The style reaches the lead's phrases in one place, `phraseParams`.
- * From the bar's energy, its chords and the style's sync and entropy, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
- * The style's swing, harm and articulation don't reach the phrases.
+ * From the bar's energy, its chords and the style's sync, entropy and harmony, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
+ * The harmony leans the contour from an arch toward a wave (#168).
+ * The style's swing and articulation don't reach the phrases.
  * What the lead writes over every preset is recorded in `lead.fixture.json`, so a change to it is a deliberate one.
  *
  * A theme's melody comes back with its harmony: the shape a theme was
@@ -146,7 +147,12 @@ export interface PhraseParams {
   readonly pulse: readonly number[];
   /** How many degrees the contour reaches from the first note, 2 to 8, with energy and entropy. */
   readonly span: number;
-  /** The weight of each contour: an arch, a fall, a rise and a wave. */
+  /**
+   * The weight of each contour: an arch, a fall, a rise and a wave. A static
+   * vamp arches (`harm` 0: twice the others, the wave a quarter), rich
+   * harmony waves (`harm` 1: the wave 1.75, the arch as the others), and
+   * entropy evens the arch's lead out.
+   */
   readonly contours: readonly number[];
   /** How likely a step of the contour turns a degree aside, with entropy. */
   readonly turn: number;
@@ -165,7 +171,7 @@ export interface PhraseParams {
 /**
  * The one place the style reaches the lead's phrases: every parameter of a
  * shape, a variation and its realization, from the bar's energy, its chords
- * and the style's sync and entropy.
+ * and the style's sync, entropy and harmony.
  */
 export function phraseParams({
   style,
@@ -177,7 +183,7 @@ export function phraseParams({
     grooveMix: style.sync,
     pulse: positions(even(Math.round(3 + 5 * energy), BAR_STEPS, Math.round(style.sync * 3))),
     span: 2 + Math.round((energy + style.entropy) * 3),
-    contours: [1, 1, 1, 1],
+    contours: [1 + (1 - style.harm) * (1 - style.entropy), 1, 1, 0.25 + 1.5 * style.harm],
     turn: 0.2 + 0.3 * style.entropy,
     leap: style.entropy > 0.5 ? style.entropy - 0.5 : 0,
     variations: [0.3, 0.25, 0.25, 0.2],

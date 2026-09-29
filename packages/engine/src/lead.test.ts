@@ -384,11 +384,32 @@ describe('the phrase parameters', () => {
       }
   });
 
-  it('weigh every contour alike, and the variations 0.3, 0.25, 0.25, 0.2, over every preset', () => {
+  it('lean the contour from the arch toward the wave as the harmony grows, less so with entropy, over every preset (#168)', () => {
+    const share = (p: { contours: readonly number[] }, i: number) =>
+      p.contours[i]! / p.contours.reduce((a, b) => a + b, 0);
+    const withHarm = (bar: BandBar, harm: number, entropy: number) =>
+      phraseParams({ ...bar, style: { ...bar.style, harm, entropy } });
+    for (const { bar } of barsOf)
+      for (const entropy of grid) {
+        const over = grid.map((harm) => withHarm(bar, harm, entropy));
+        const arch = over.map((p) => share(p, 0));
+        const wave = over.map((p) => share(p, 3));
+        expect(ascending(arch.map((x) => -x))).toBe(true);
+        expect(ascending(wave)).toBe(true);
+        expect(wave.at(-1)!).toBeGreaterThan(wave[0]!);
+        // The fall and the rise weigh alike, always.
+        for (const p of over) expect(p.contours[1]).toBe(p.contours[2]);
+      }
+    // A static vamp at no entropy arches most; rich harmony waves most.
+    const [vamp, rich] = [withHarm(barsOf[0]!.bar, 0, 0), withHarm(barsOf[0]!.bar, 1, 0)];
+    expect(share(vamp, 0)).toBeGreaterThan(share(vamp, 3));
+    expect(share(rich, 3)).toBeGreaterThan(share(rich, 0));
+  });
+
+  it('weigh the variations 0.3, 0.25, 0.25, 0.2, in the lead’s range, over every preset', () => {
     for (const { bar } of barsOf)
       for (const energy of grid) {
         const p = at(bar, energy, 0.3);
-        expect(p.contours).toEqual([1, 1, 1, 1]);
         expect(p.variations).toEqual([0.3, 0.25, 0.25, 0.2]);
         expect(p.range).toEqual(LEAD_RANGE);
       }
@@ -411,10 +432,10 @@ describe('the phrase parameters', () => {
     }
   });
 
-  it('read the style’s sync and entropy and the bar’s energy, and nothing else of the style', () => {
+  it('read the style’s sync, entropy and harmony and the bar’s energy, and nothing else of the style', () => {
     for (const { bar } of barsOf) {
       const base = phraseParams(bar);
-      for (const axis of ['swing', 'harm', 'artic', 'energy', 'bpm'] as const)
+      for (const axis of ['swing', 'artic', 'energy', 'bpm'] as const)
         for (const value of [0, 0.5, 1, 90])
           expect(phraseParams({ ...bar, style: { ...bar.style, [axis]: value } })).toEqual(base);
       const sync = bar.style.sync === 1 ? 0 : 1;
