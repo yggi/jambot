@@ -11,15 +11,19 @@
  * Its centre is the key in a mode whose scale weighs most in it: where the
  * band has been, which is the home the players' key licence is measured
  * from, and what the band's own drift leans toward (`bandWish`, `plan.ts`).
+ *
+ * It is a fading memory (`fading.ts`) over the pitch classes, the first
+ * instance of the loop every level may run (#210, C9).
  */
 
 import { diatonicMode, joinChord, mod, positions } from '@jambot/theory';
 import { BAR_STEPS } from './events.ts';
 import type { BarChord } from './chords.ts';
+import { type Weights, centreOf, fold } from './fading.ts';
 import { COMPOSER_MODES, type ComposerMode, type Key } from './key.ts';
 
 /** One weight per pitch class, 0–11, C = 0; never negative. */
-export type HarmonicWeights = readonly number[];
+export type HarmonicWeights = Weights;
 
 export const NO_HISTORY: HarmonicWeights = new Array(12).fill(0);
 
@@ -31,13 +35,16 @@ export const HISTORY_DECAY = 0.85;
  * each chord adds its length, in bars, to each pitch class it holds once.
  */
 export function foldBar(history: HarmonicWeights, chords: readonly BarChord[]): HarmonicWeights {
-  const weights = history.map((w) => w * HISTORY_DECAY);
-  chords.forEach(({ slot, chord }, i) => {
+  return fold(history, HISTORY_DECAY, readingsOf(chords));
+}
+
+/** A bar's chords as readings: each chord's length, in bars, to each pitch class it holds once. */
+function* readingsOf(chords: readonly BarChord[]): Generator<[number, number]> {
+  for (const [i, { slot, chord }] of chords.entries()) {
     const length = ((chords[i + 1]?.slot.step ?? BAR_STEPS) - slot.step) / BAR_STEPS;
     for (const pitchClass of new Set(joinChord(chord).map((h) => mod(h, 12))))
-      weights[pitchClass]! += length;
-  });
-  return weights;
+      yield [pitchClass, length];
+  }
 }
 
 /** Each mode's pitch classes on C, read once: a key's are these moved to its tonic. */
@@ -58,13 +65,10 @@ export function keyWeight(history: HarmonicWeights, key: Key): number {
  * heard; among other ties, the nearest to `key` round the tonics.
  */
 export function centre(history: HarmonicWeights, key: Key): Key {
-  let best = key;
-  let most = keyWeight(history, key);
-  for (let apart = 1; apart <= 6; apart++)
-    for (const tonic of [mod(key.tonic + apart, 12), mod(key.tonic - apart, 12)]) {
-      const candidate = { tonic, mode: key.mode };
-      const weight = keyWeight(history, candidate);
-      if (weight > most) [best, most] = [candidate, weight];
-    }
-  return best;
+  const outward = [...Array(6).keys()].flatMap((n) => [n + 1, -(n + 1)]);
+  const candidates = [
+    key,
+    ...outward.map((apart) => ({ tonic: mod(key.tonic + apart, 12), mode: key.mode })),
+  ];
+  return centreOf(candidates, (candidate) => keyWeight(history, candidate));
 }

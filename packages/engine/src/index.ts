@@ -6,6 +6,7 @@ export * from './chords.ts';
 export * from './comp.ts';
 export * from './drums.ts';
 export * from './events.ts';
+export * from './fading.ts';
 export * from './form.ts';
 export * from './key.ts';
 export * from './lattice.ts';
