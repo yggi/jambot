@@ -82,7 +82,7 @@ import {
   playerSource,
 } from '@jambot/session';
 import { type Output, webAudioOutput } from './audio/output.ts';
-import { type Intent, conduct, stopAt, wishAfter } from './conductor.ts';
+import { type Intent, baseAfter, conduct, nudgeAfter, stopAt, wishAfter } from './conductor.ts';
 import { EMPTY_HISTORY, HarmonicHistory, type HarmonicWeights } from './harmonicHistory.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
@@ -207,6 +207,8 @@ export class Player {
   status: Status = $state('stopped');
   track: StyleTrack = $state.raw(holding(INITIAL_STYLE));
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode });
+  /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
+  tempoNudge = $state(0);
   /** The step heard, or null before anything is. */
   heard: number | null = $state(null);
   /** Notes players struck while the band listened. */
@@ -272,6 +274,7 @@ export class Player {
       heard: this.heard,
       bars: this.#bars,
       track: this.track,
+      tempoNudge: this.tempoNudge,
       muse: {
         offer: this.offer,
         log: this.museLog,
@@ -305,7 +308,9 @@ export class Player {
   apply(intent: Intent) {
     if (this.mode === 'client') return;
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
-    this.track = conduct(this.track, intent, at);
+    const base = baseAfter(this.track, intent, this.tempoNudge);
+    this.track = conduct(this.track, intent, at, this.tempoNudge);
+    this.tempoNudge = nudgeAfter(this.tempoNudge, intent, base);
     this.wish = wishAfter(this.wish, intent);
     this.hosting?.track(this.track);
     this.#decide();

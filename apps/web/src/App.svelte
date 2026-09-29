@@ -10,10 +10,13 @@
   import Performers from './components/Performers.svelte';
   import SessionPanel from './components/SessionPanel.svelte';
   import Stage from './components/Stage.svelte';
+  import TempoNudge from './components/TempoNudge.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
   import Transport from './components/Transport.svelte';
   import { SvelteSet } from 'svelte/reactivity';
+  import { KEY_REACH } from '@jambot/engine';
+  import { tempoView } from './conductor.ts';
   import { bandOutput } from './audio/band-output.ts';
   import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
   import { type Output, webAudioOutput } from './audio/output.ts';
@@ -265,9 +268,7 @@
   <Level name="Transport" resting={following}>
     <Transport
       playing={player.playing}
-      bpm={Math.round(player.track.bpm.to)}
       ontoggle={() => (player.playing ? player.stop() : player.start())}
-      onintent={(intent) => player.apply(intent)}
     />
   </Level>
 
@@ -280,12 +281,18 @@
   </Level>
 
   <Level name="Metrum">
+    <TempoNudge
+      tempo={tempoView(player.track, player.tempoNudge)}
+      disabled={following}
+      onintent={(intent) => player.apply(intent)}
+    />
     <MetronomePanel {metronome} />
   </Level>
 
   <Level name="Key" resting={following}>
     <KeyPicker
       heading={player.hud.heading}
+      reach={KEY_REACH}
       history={player.harmonicHistory}
       onintent={(intent) => player.apply(intent)}
     />

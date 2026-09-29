@@ -31,6 +31,10 @@ export const AUDITED: Readonly<Record<string, string>> = {
   'packages/engine/src/lead.ts':
     'Math.sin feeds a contour, quantised then Math.round-ed before it becomes a ' +
     'step (T5), pinned by the ulp test in lead.test.ts.',
+  'packages/engine/src/licence.ts':
+    "Math.log2 bounds a tempo nudge at the tempo axis's ends; clamping to it is " +
+    'continuous (a max or min of two values meets where they are equal), and ' +
+    'the tempo it gives only glides, never reaching a chance(), pick() or round.',
   'packages/engine/src/style.ts':
     "glideTo's Math.pow/Math.exp compute a continuous glide value (tempo's log " +
     'space); nothing rounds or compares it directly, only chance()/pick() ' +

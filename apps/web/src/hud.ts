@@ -48,6 +48,7 @@ import {
 } from '@jambot/engine';
 import { positions } from '@jambot/theory';
 import { sourceName } from '@jambot/session';
+import { targetOf, unnudged } from './conductor.ts';
 
 /** How many bars after the one heard are shown. */
 export const NEXT_BARS = 4;
@@ -162,6 +163,11 @@ export interface HudInput {
   readonly bars: readonly ForecastBar[];
   readonly track: StyleTrack;
   /**
+   * The players' tempo nudge, in octaves (`conductor.ts`): the style is named
+   * by its own tempo, so a nudge within its licence keeps its name.
+   */
+  readonly tempoNudge?: number;
+  /**
    * The motif on offer and the Muse's latest judgements, the latest last,
    * the bars judged elsewhere that it dropped, and in a session each
    * player's name by id, which its sources are read by; none before
@@ -210,7 +216,7 @@ export function styleStatus({ preset, glide }: StyleView): string {
   return `Moving from ${glide.from ?? 'Custom'} to ${preset}, bar ${glide.bar} of ${glide.bars}.`;
 }
 
-export function hudOf({ heard, bars, track, muse }: HudInput): Hud {
+export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): Hud {
   const at = heard === null ? 0 : bars.findIndex((b) => b.bar === barAt(heard));
   const here = at >= 0 ? bars[at] : undefined;
   const step = heard === null ? 0 : stepInBar(heard);
@@ -221,7 +227,7 @@ export function hudOf({ heard, bars, track, muse }: HudInput): Hud {
     chord: here && sounding ? chordView(sounding, here) : null,
     next: here ? bars.slice(at + 1, at + 1 + NEXT_BARS).map(barView) : [],
     sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS)) : [],
-    style: styleView(track, heard ?? 0),
+    style: styleView(track, heard ?? 0, tempoNudge),
     heading: bars.at(-1)?.plan.key ?? null,
     muse: museView(muse),
   };
@@ -372,10 +378,8 @@ function barView(bar: ForecastBar): BarView {
  * name it. A glide counts from its start even where the step heard still
  * lags behind it.
  */
-function styleView(track: StyleTrack, step: number): StyleView {
-  const target = Object.fromEntries(
-    Object.entries(track).map(([axis, glide]) => [axis, glide.to]),
-  ) as Style;
+function styleView(track: StyleTrack, step: number, nudge: number): StyleView {
+  const target = unnudged(targetOf(track), nudge);
   const moving = NAMING_AXES.map((axis) => track[axis]).filter(
     (g) => g.length > 0 && step < g.start + g.length && (g.from !== g.to || g.slope !== 0),
   );
@@ -386,6 +390,6 @@ function styleView(track: StyleTrack, step: number): StyleView {
   const bar = Math.min(bars, Math.max(1, Math.floor((step - start) / BAR_STEPS) + 1));
   return {
     preset: presetOf(target),
-    glide: { from: presetOf(styleAt(track, start)), bar, bars },
+    glide: { from: presetOf(unnudged(styleAt(track, start), nudge)), bar, bars },
   };
 }
