@@ -7,7 +7,7 @@
  * numbers. The components lay it out and read nothing else.
  *
  * Every bar is shown the same way, whether it is heard, ahead or in the
- * song map: a `BarView`, and a section is its eight. Before anything is
+ * song map: a `BarView`, and a section is its `SECTION_BARS`. Before anything is
  * heard, the bar shown is the one the band opens on, from the same
  * forecast that then plays.
  *
@@ -50,8 +50,12 @@ import { sourceName } from '@jambot/session';
 import { targetOf, unnudged } from './conductor.ts';
 import { keyName } from './noteNames.ts';
 
-/** How many bars after the one heard are shown. */
-export const NEXT_BARS = 4;
+/**
+ * The most bars shown after the one heard: they run to the end of the next
+ * section, so from a section's first bar they are its others and the whole
+ * next one.
+ */
+export const NEXT_BARS = 2 * SECTION_BARS - 1;
 
 /** How many sections the song map shows, from the one heard. */
 export const SECTIONS = 4;
@@ -68,7 +72,7 @@ export interface ChordView {
 export interface BarView {
   /** Counted from the song's start. */
   readonly bar: number;
-  /** 0 to 7. */
+  /** From 0 to `SECTION_BARS` - 1. */
   readonly barInSection: number;
   readonly section: string;
   readonly key: string;
@@ -158,11 +162,11 @@ export interface MuseView {
 export interface Hud {
   /** The bar heard, or before anything is heard the bar the band plays first; null past the forecast. */
   readonly bar: BarView | null;
-  /** The beat heard, 0 to 3, or null before anything is heard. */
+  /** The beat heard in its bar, from 0 (`beatInBar`, on the song's meter), or null before anything is heard. */
   readonly beat: number | null;
   /** The chord sounding, or before anything is heard the bar's first. */
   readonly chord: ChordView | null;
-  /** The bars after it, up to `NEXT_BARS`. */
+  /** The bars after it to the end of the next section, at most `NEXT_BARS`, as far as the bars reach. */
   readonly next: readonly BarView[];
   /** Its section and those after, up to `SECTIONS`, as far as the bars reach them in full. */
   readonly sections: readonly SectionView[];
@@ -217,7 +221,7 @@ export function presetOf(style: Style): string | null {
   return preset?.name ?? null;
 }
 
-/** What the lead is doing, in the prototype's words, reused by the stage and its tracks. */
+/** What the lead is doing, in the prototype's words, reused by the chords and the tracks. */
 export function leadStatus(hud: Pick<Hud, 'bar' | 'beat'>): string {
   if (hud.beat === null || !hud.bar) return 'The band plays on its own once started.';
   if (hud.bar.lead === 'motif' && hud.bar.motif)
@@ -244,13 +248,21 @@ export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): H
     bar: here ? barView(here) : null,
     beat: heard === null ? null : beatInBar(step),
     chord: here && sounding ? chordView(sounding, here) : null,
-    next: here ? bars.slice(at + 1, at + 1 + NEXT_BARS).map(barView) : [],
+    next: here
+      ? bars
+          .slice(at + 1)
+          .filter((b) => b.bar < nextSectionEnd(here.bar))
+          .map(barView)
+      : [],
     sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS), barView) : [],
     style: styleView(track, heard ?? 0, tempoNudge),
     heading: bars.at(-1)?.plan.key ?? null,
     muse: museView(muse, named),
   };
 }
+
+/** The bar after the last of the section after a bar's. */
+const nextSectionEnd = (bar: number) => (Math.floor(bar / SECTION_BARS) + 2) * SECTION_BARS;
 
 /** The Muse's view, each source read by its player's name. */
 function museView(muse: HudInput['muse'], named: (source: string) => string): MuseView {
@@ -340,7 +352,7 @@ function museLines(
   return lines;
 }
 
-/** The sections from `first` on, as far as the bars hold all eight of each. */
+/** The sections from `first` on, as far as the bars hold all of each. */
 function sectionViews(
   bars: readonly ForecastBar[],
   first: number,
@@ -349,7 +361,7 @@ function sectionViews(
   const byBar = new Map(bars.map((b) => [b.bar, b]));
   const sections: SectionView[] = [];
   for (let index = first; sections.length < SECTIONS; index++) {
-    const own = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => byBar.get(index * 8 + i));
+    const own = Array.from({ length: SECTION_BARS }, (_, i) => byBar.get(index * SECTION_BARS + i));
     if (!own.every((b) => b !== undefined)) break;
     const views = own.map(barView);
     const before = sections.at(-1);

@@ -1,7 +1,7 @@
 /**
  * What the band is heard playing right now, for the instruments and the
- * stage's performers to show: the lead's notes on the keyboard, the drums'
- * on the pads, and each of the band's four performers on the stage. A hit
+ * tracks' performers to show: the lead's notes on the keyboard, the drums'
+ * on the pads, and each of the band's four performers in the tracks. A hit
  * sounds from its scheduled time for its duration; `at(seconds)` reads
  * which notes are sounding then, and drops whatever can no longer be, the
  * same way `Heard` drops positions already taken.
@@ -10,7 +10,7 @@
 import type { Part } from '@jambot/engine';
 
 /**
- * One of the band's four performers, as the stage and the instruments show
+ * One of the band's four performers, as the tracks and the instruments show
  * it: the composer writes what each plays, and the performer is what plays
  * it — the band's own voice, or a human at that voice's instrument.
  */

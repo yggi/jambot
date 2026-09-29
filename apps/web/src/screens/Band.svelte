@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
   import type { ComponentProps } from 'svelte';
+  import Chords from '../components/Chords.svelte';
   import DrumPads from '../components/DrumPads.svelte';
   import Keyboard from '../components/Keyboard.svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
@@ -13,8 +14,8 @@
   import Metrum from '../components/Metrum.svelte';
   import MusePanel from '../components/MusePanel.svelte';
   import Performers from '../components/Performers.svelte';
+  import Plan from '../components/Plan.svelte';
   import SessionBar from '../components/SessionBar.svelte';
-  import Stage from '../components/Stage.svelte';
   import StylePanel from '../components/StylePanel.svelte';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, tempoView } from '../conductor.ts';
@@ -92,8 +93,12 @@
   />
 </Level>
 
-<Level name="Plan and chords">
-  <Stage hud={player.hud} playing={player.playing} />
+<Level>
+  <Plan hud={player.hud} playing={player.playing} />
+</Level>
+
+<Level>
+  <Chords hud={player.hud} />
 </Level>
 
 <Level name="Tracks">

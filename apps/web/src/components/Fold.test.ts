@@ -25,4 +25,18 @@ describe('a fold', () => {
     const { container } = render(Fold, { heading: 'Thing', name: 'C major', children });
     expect(container.querySelector('summary .sub')).toBeNull();
   });
+
+  it('announces the line under the headline as it changes only where asked', () => {
+    const quiet = render(Fold, { heading: 'Thing', name: 'C major', sub: 'still', children });
+    expect(quiet.container.querySelector('summary .sub')).not.toHaveAttribute('aria-live');
+    quiet.unmount();
+    const { container } = render(Fold, {
+      heading: 'Thing',
+      name: 'C major',
+      sub: 'moving',
+      live: true,
+      children,
+    });
+    expect(container.querySelector('summary .sub')).toHaveAttribute('aria-live', 'polite');
+  });
 });

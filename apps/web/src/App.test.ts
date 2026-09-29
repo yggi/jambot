@@ -130,12 +130,13 @@ describe('the app', () => {
     const levels = [...container.querySelectorAll('h2, .card > summary .heading')].map(
       (h) => h.textContent,
     );
-    expect(levels.slice(0, 6)).toEqual([
+    expect(levels.slice(0, 7)).toEqual([
       'Transport',
       'Style',
       'Metrum',
       'Key',
-      'Plan and chords',
+      'Plan',
+      'Chords',
       'Tracks',
     ]);
     const drawers = [...container.querySelectorAll('details.drawer > summary .name')].map(

@@ -23,7 +23,7 @@ test('plays, follows on screen, and stops at once, without an error', async ({ p
   await page.getByRole('button', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
-  // Only the stage says where in its section the bar heard is: the song map
+  // Only the plan says where in its section the bar heard is: the song map
   // names the intro before anything is heard.
   await expect(page.getByText('Bar 1 of 8')).toBeVisible();
   await expect(page.getByText('Bar 2 of 8')).toBeVisible({ timeout: 5000 });

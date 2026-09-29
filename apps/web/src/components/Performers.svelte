@@ -1,5 +1,5 @@
 <!--
-  The stage's performers: one row per band performer, drums, bass, chords
+  The tracks' performers: one row per band performer, drums, bass, chords
   and lead. Each is a `Performer`, taking only what it is given, so the same
   rows show whichever role the player is in (`docs/briefs/host-mode.md`).
 -->
