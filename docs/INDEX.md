@@ -265,10 +265,12 @@ Every doc and code area, as a tree. Add a line when you add one.
       the engine's own metronome machine on 4/4, one drum voice
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown firing
-  - `docs-wrap.test.ts`: docs wrap at 80 columns (#45), `.prettierrc.json`'s
-    `proseWrap` for `*.md`, shown firing on prose and leaving a table and a code
-    fence at their own width
-  - `hooks.test.ts`: the pre-push hook, blocking and letting through
+  - `docs-lines.test.ts`: docs keep the line breaks their author wrote (#172),
+    `.prettierrc.json`'s `proseWrap: "preserve"` for `*.md`
+  - `reading-list.ts`, `reading-list.test.ts`: the boot set, `AGENTS.md` and
+    `docs/MEMORY.md`, and the size ceiling it stays under
+  - `hooks.test.ts`: the pre-push hook, blocking and letting through, and the
+    branch status line
   - `quantized-math.ts`: the audit of every `Math.pow`, `Math.sin` and similar
     call in the pure packages' own sources, outside tests, with why its result
     is safe from a last-bit difference on another engine (#45);
@@ -478,24 +480,34 @@ Every doc and code area, as a tree. Add a line when you add one.
       audio is a buffer dropped, a stall a long tick and steps missed
     - `e2e/audio.ts`: listening to the app in the browser, for the checks
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e, build;
-  started by hand while #4 is open
-- `.claude/settings.json`: the session-start and pre-push hooks, and the checks
+  started by hand only
+- `.claude/settings.json`: the session-start hook, the GitHub tools denied, and the checks
   agents may run without a prompt
   - `.claude/hooks/session-start.sh`: installs dependencies, warms music21 and
-    fetches `origin/main` when an agent session starts or resumes
-  - `.claude/hooks/verify-before-push.sh`: runs `pnpm verify` before an agent's
-    `git push`, and blocks the push if it fails
+    fetches `origin/main` and the session's branch when an agent session starts,
+    resumes or compacts
+  - `.claude/hooks/branch-status.sh`: how the checkout stands against
+    `origin/main` and its own remote branch
+- `.githooks/pre-push`: runs `pnpm verify` before a `git push` of a branch, and
+  blocks the push if it fails; refuses a dirty tree, remembers a tree that
+  passed, and runs the docs check alone for a markdown-only branch
 - `.claude/skills/`: project skills for agents
   - [`music-theory/`](../.claude/skills/music-theory/SKILL.md): checks theory
     claims against music21 (`oracle.py`) and tonal (`tonal.mjs`), and compares
     the two (`compare.mjs`)
   - [`ratchet/`](../.claude/skills/ratchet/SKILL.md): claims in the Dialectica
     form and the moves both sides of a ratchet pair make (#41)
+    - [`reference.md`](../.claude/skills/ratchet/reference.md): what the status
+      and decision words mean
   - [`review-pr/`](../.claude/skills/review-pr/SKILL.md): reviews a pull request
     against the house rules; `prepare.sh` fetches it into its own worktree and
     runs `pnpm verify` there
+  - [`land/`](../.claude/skills/land/SKILL.md): merges a reviewed pull request,
+    runs the deploy and checks the live site
   - [`screenshot/`](../.claude/skills/screenshot/SKILL.md): measured options
     shown side by side, as screenshots of pages drawn from an experiment's
     numbers, and as audio through the app's synth
+- `.github/ISSUE_TEMPLATE/`: the epic, design, bug and infrastructure issue
+  forms, one per label
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md): the
   checklist every pull request fills in

@@ -1,12 +1,16 @@
 #!/bin/sh
 # Installs what `pnpm verify`, `pnpm e2e` and the music-theory skill need
 # (dependencies, Playwright's Chromium, music21), so an agent session can
-# test from its first command, and fetches `origin/main`, so
-# `git diff origin/main...` works for a review or a pull request. Runs when a session starts or
-# resumes, since a resumed cloud session may get a fresh container (see
+# test from its first command, and fetches `origin/main` and the session's
+# own branch, so `git diff origin/main...` works for a review or a pull
+# request and the checkout's standing is known (branch-status.sh). Runs when a
+# session starts, resumes or compacts, since a resumed cloud session may get a
+# fresh container and a compacted one has lost what it read (see
 # .claude/settings.json). A no-op in about a second when all is installed.
-# Its stdout goes into the agent's context, so it prints one line.
+# Its stdout goes into the agent's context, so it prints two lines.
 cd "$CLAUDE_PROJECT_DIR" || exit 1
+# The pre-push hook (.githooks/pre-push); `pnpm install` sets it too.
+git config core.hooksPath .githooks
 log=$(mktemp)
 if ! pnpm install --frozen-lockfile --prefer-offline >"$log" 2>&1; then
   tail -20 "$log" >&2
@@ -36,4 +40,10 @@ base='origin/main fetched'
 if ! timeout 30 git fetch -q origin main:refs/remotes/origin/main 2>/dev/null; then
   base='origin/main not fetched'
 fi
+branch=$(git symbolic-ref -q --short HEAD)
+if [ -n "$branch" ]; then
+  timeout 30 git fetch -q origin "$branch:refs/remotes/origin/$branch" 2>/dev/null
+fi
+boot=$(cat AGENTS.md docs/MEMORY.md | wc -c)
 echo "session-start: dependencies installed; $browser; $theory; $base"
+echo "$(sh "$(dirname "$0")/branch-status.sh"). Read AGENTS.md, then docs/MEMORY.md ($((boot / 1024)) KB together)."

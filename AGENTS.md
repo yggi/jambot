@@ -77,9 +77,10 @@ These principles come from the prototype
   end-to-end checks (below). A fresh checkout needs
   `pnpm install --frozen-lockfile` first (seconds): install, never skip the
   tests. Claude Code sessions do this at start through
-  `.claude/hooks/session-start.sh`, and `.claude/hooks/verify-before-push.sh`
-  runs `pnpm verify` before each of their `git push`es and blocks one that
-  fails.
+  `.claude/hooks/session-start.sh`.
+  Git's own pre-push hook, `.githooks/pre-push` (`pnpm install` points
+  `core.hooksPath` at it), runs `pnpm verify` before every push of a branch
+  and blocks one that fails. Never bypass it with `--no-verify`.
 - **`pnpm e2e` when what the app plays, or when, changes.** The end-to-end
   checks run the built app in Chromium and measure its audio: the exact time of
   every onset, and whether the band sounds and stops. They take about 20 s and
@@ -98,6 +99,10 @@ These principles come from the prototype
   prototype is fine when it is noted.
 - **The score language changes deliberately**: with tests, and after asking. It
   is the contract between composer, compiler, analyzer and later models.
+- **Docs are written one sentence to a line.**
+  Prettier keeps the line breaks (`proseWrap: "preserve"`), so a changed word
+  touches one line, and two people editing one paragraph seldom conflict.
+  Text already wrapped stays as it is until someone edits it.
 - **Docs describe the present.** Here and in code comments, write how things are
   and why, not a history of changes. When history explains a choice, it belongs
   in the reason. Update docs in the same commit as the code they describe.
@@ -109,13 +114,34 @@ These principles come from the prototype
   than to describe. Save review comments for what needs a decision or a real
   change.
 - **Small commits, pull requests into `main`.** No ceremony beyond passing
-  checks.
+  checks. See "Branches and merging" below.
 - **Deploy after merging.** Whoever merges a pull request into `main` then runs
   `pnpm pages deploy` from `main`, so the site at
   <https://yggi.github.io/jambot/> plays what `main` holds. Nothing else deploys
-  while #4 is open. The deploy refuses a commit that isn't on `origin/main`,
-  runs `pnpm verify`, and checks the live site once Pages has published it. When
-  the build hasn't changed, it pushes nothing and only checks.
+  (`docs/MEMORY.md`, "Repository and CI"). The deploy refuses a commit that
+  isn't on `origin/main`, runs `pnpm verify`, and checks the live site once
+  Pages has published it. When the build hasn't changed, it pushes nothing and
+  only checks.
+
+### Branches and merging
+
+- **Rebase before review, once.**
+  While a branch is yours alone and no review has started, squash its work into coherent commits and rebase it onto `origin/main` at a handoff: before the pull request is opened, or when a change you need has landed.
+  Rebase a branch with one writer only, and push it with `--force-with-lease`.
+  A rebased tree is verified again by the pre-push hook, which is correct.
+- **After review starts, only add commits.**
+  Do not rewrite history, since the `review-pr` skill's `--from <commit>` and the review comments' anchors depend on it.
+  If `main` conflicts, `git merge origin/main` once, at the end.
+  The squash below drops that merge from `main`.
+- **Squash into `main` by default.**
+  The commit message is the pull request's title and summary, so the title reads as a commit message: present tense, what changes.
+  Use GitHub's squash, never its "Update branch" button, which makes the sync merges this rule removes.
+- **A merge commit is the exception.**
+  Use one when a reader of `git log` needs the branch's steps, such as the parser ladder's rungs, and say why in the pull request.
+  Its intermediate commits were never verified, so it gives a readable history, not a bisectable one.
+  One sentence describes the change: squash. Otherwise: merge commit.
+  The size of the branch does not decide it.
+- The `land` skill does the merge, the deploy and the check of the live site.
 
 ## Keeping the shared memory current
 

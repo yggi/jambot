@@ -18,13 +18,23 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 ```
 
 - Agent sessions (Claude Code) install dependencies and Playwright's Chromium,
-  warm music21 and fetch `origin/main` at start through
-  `.claude/hooks/session-start.sh`, and `.claude/settings.json` allows the
-  checks and the music-theory scripts without a prompt. Other agents run
-  `pnpm install --frozen-lockfile` first.
-- An agent's `git push` runs `pnpm verify` first (`verify-before-push.sh`, about
-  30 s) and is blocked if it fails. It checks the working tree, so commit before
-  pushing.
+  warm music21 and fetch `origin/main` and their own branch at start, resume and
+  compaction through `.claude/hooks/session-start.sh`, which also says how far
+  the branch is behind `origin/main`, whether main already holds it, and whether
+  its remote branch moved (`branch-status.sh`). And `.claude/settings.json`
+  allows the checks and the music-theory scripts without a prompt. Other agents
+  run `pnpm install --frozen-lockfile` first.
+- Every `git push` of a branch runs `pnpm verify` first, through git's pre-push
+  hook (`.githooks/pre-push`, about 2 min, the tests 76 s of it), and is blocked
+  if it fails.
+  `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
+  It refuses a dirty tracked tree and a commit other than the one checked out,
+  since it checks the tree, so commit before pushing.
+  A tree that passed is remembered, so a retried push does not rerun it.
+  A diff against `origin/main` of only `*.md` files runs the format check and
+  the tooling tests alone.
+  The GitHub MCP tools that write files (`push_files`, `create_or_update_file`,
+  `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
 - To review a pull request, use the `review-pr` skill:
   `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`, checks
   it out in its own worktree and runs `pnpm verify` there. It says when `main`
@@ -78,8 +88,9 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `forecast(env, carried, count)` gives the bars from the head's bar on, those
   composed first, each with the energy it plays at; with `carried` null it is
   the song from bar 0. The track holds glides ahead, so the forecast is what
-  plays unless a control moves. `apps/web/src/hud.ts`), rebuilt when the step
-  heard, the bars ahead or the track change. Components take slices of it as
+  plays unless a control moves.
+- The screen reads one snapshot, `player.hud` (`hudOf`, in
+  `apps/web/src/hud.ts`), rebuilt when the step heard, the bars ahead or the track change. Components take slices of it as
   props and send intents; none reads the engine. A style is named by the preset
   it matches on every axis the preset sets but energy (`presetOf`), so there is
   no chosen-preset state: moving another axis makes a style custom, and moving
@@ -540,8 +551,7 @@ The full description is in
   hundred bars and seeds before and after, in a throwaway test.
 - A test that swaps a global (`Math.sin`) restores it in a `finally`.
 - Four house rules that only a reviewer held now have their own check (#45):
-  docs wrap at 80 columns (`.prettierrc.json`'s `proseWrap`, checked by
-  `pnpm format:check`); a raw comparison against a draw is refused by lint, in
+  a raw comparison against a draw is refused by lint, in
   favour of `chance`/`pick` (`no-restricted-syntax`, `tooling/lint.test.ts`);
   every risky `Math` call in the pure packages is named in
   `tooling/quantized-math.ts`'s audit, with why it's safe; and every source file

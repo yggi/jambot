@@ -1,7 +1,6 @@
 ---
 name: music-theory
-description:
-  Check a music-theory claim against two independent libraries, music21 and
+description: Check a music-theory claim against two independent libraries, music21 and
   tonal, before it goes into a test, a doc, a PR or an answer. Use when writing
   or reviewing code in packages/theory, the engine's harmony and pitch, or the
   analyzer's key and chord stages; when a table of chords, scales, intervals,
