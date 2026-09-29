@@ -518,7 +518,7 @@ Lands in: #13.
 
 **S3. A performer's own draw never keys on what a resumed band may still differ
 on: a pitched part's note, its register.** Witness:
-`velocityLooseness`/`lengthLooseness` (`performer.ts`) key every pitched part's
+`velocityLooseness`/`lengthLooseness` and `ownAccent` (`performer.ts`) key every pitched part's
 draw by bar and step alone; only the drums, whose note is a sound's identity
 rather than a register, keep the note in the key. Counterexample: a draw keyed
 by the note too, matching `drumVelocity`'s own shape for every part.

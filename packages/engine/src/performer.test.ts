@@ -312,7 +312,7 @@ describe('the performer', () => {
         return perform(env, written).velocity - Math.round(baseVelocityOf(env, written));
       });
     const spread = (v: number[]) => Math.max(...v) - Math.min(...v);
-    // Isolate the own accent from the licence: a step's spread grows with feel.
+    // Still at feel 0; the licence's and the own accent's spread together grows with it.
     for (const step of [0, 1, 2, 3]) {
       expect(deltas('bass', step, still)).toEqual(range(64).map(() => 0));
       const half = spread(deltas('bass', step, { ...still, swing: 0.5 }));
