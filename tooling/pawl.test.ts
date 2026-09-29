@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -338,5 +341,20 @@ describe('the parts of the check', () => {
 describe('the catalogues on main', () => {
   it('keep the pawl: statuses on the ladder, named tests that exist, citations that agree', () => {
     expect(pawlProblems(repoOnDisk(root))).toEqual([]);
+  });
+});
+
+describe('the repository on disk', () => {
+  it('leaves out the worktrees agents work in, so a test named once is found once', () => {
+    const base = mkdtempSync(join(tmpdir(), 'jambot-pawl-'));
+    try {
+      for (const path of ['src/a.test.ts', '.claude/worktrees/agent-1/src/a.test.ts']) {
+        mkdirSync(join(base, path, '..'), { recursive: true });
+        writeFileSync(join(base, path), '\n');
+      }
+      expect(repoOnDisk(base).paths).toEqual(['src/a.test.ts']);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
   });
 });

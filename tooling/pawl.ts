@@ -5,6 +5,7 @@
  * one space across all catalogues.
  */
 import { readdirSync, readFileSync } from 'node:fs';
+import { AGENT_WORKTREES } from './index-coverage.ts';
 import { join, posix } from 'node:path';
 
 /** A repository as the check sees it: its catalogues, its file paths, and a reader. */
@@ -276,8 +277,8 @@ export function repoOnDisk(root: string): Repo {
   const paths: string[] = [];
   const walk = (dir: string) => {
     for (const item of readdirSync(join(root, dir), { withFileTypes: true })) {
-      if (skipped.has(item.name)) continue;
       const path = dir ? `${dir}/${item.name}` : item.name;
+      if (skipped.has(item.name) || path === AGENT_WORKTREES) continue;
       if (item.isDirectory()) walk(path);
       else paths.push(path);
     }

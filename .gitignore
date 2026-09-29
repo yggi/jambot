@@ -9,3 +9,5 @@ coverage/
 !.env.example
 test-results/
 playwright-report/
+# Worktrees Claude Code agents work in, each a checkout of its own.
+.claude/worktrees/

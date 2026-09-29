@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -123,5 +126,20 @@ describe('the real repository', () => {
     const repo = diskRepo(repoRoot);
     expect(repo.list('packages/theory/src')).toContain('packages/theory/src/helix.ts');
     expect(repo.read('docs/INDEX.md')).toContain('# Index');
+  });
+});
+
+describe('the disk as the check reads it', () => {
+  it('leaves out the worktrees agents work in, which are whole checkouts of their own', () => {
+    const base = mkdtempSync(join(tmpdir(), 'jambot-index-'));
+    try {
+      for (const path of ['.claude/skills/a/SKILL.md', '.claude/worktrees/agent-1/tooling/x.ts']) {
+        mkdirSync(join(base, path, '..'), { recursive: true });
+        writeFileSync(join(base, path), '/** x */\n');
+      }
+      expect(diskRepo(base).list('.claude')).toEqual(['.claude/skills/a/SKILL.md']);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
   });
 });
