@@ -47,7 +47,7 @@ Each is a page of facts, one sentence to a line, and `docs/INDEX.md` lists them.
 - [`theory`](memory/theory.md): reading names, the helix, Strudel, music21 and tonal.
 - [`score-language`](memory/score-language.md): the score's layers, drums, meter and pitch syntax.
 - [`analyzer`](memory/analyzer.md): the parser and its ladder.
-- [`testing`](memory/testing.md): showing a gate fire, and the checks behind the house rules.
+- [`testing`](memory/testing.md): showing a gate fire, the checks behind the house rules, and running them beside agents.
 - [`ratchet`](memory/ratchet.md): the method's catalogues and pawl.
 - [`prototype`](memory/prototype.md): running the prototype and what it does.
 - [`repository-and-ci`](memory/repository-and-ci.md): CI, Pages, toolchain pins and the license.
