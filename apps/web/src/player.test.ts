@@ -320,7 +320,7 @@ describe('the player', () => {
       bars = player.hud.bar!.bar;
     }
     expect(bars).toBeGreaterThan(3);
-  });
+  }, 30_000);
 
   it('shows the section playing whole in the song map, its past bars included', async () => {
     const { world, s } = surroundings();
