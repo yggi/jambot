@@ -17,7 +17,12 @@ const all: ScreenState[] = MODES.flatMap((mode) =>
 
 describe('the screen the page shows', () => {
   it('is the door on a cold start, and the band once solo is chosen', () => {
-    const cold = { mode: 'solo', clientStatus: 'idle', restoring: false, soloChosen: false } as const;
+    const cold = {
+      mode: 'solo',
+      clientStatus: 'idle',
+      restoring: false,
+      soloChosen: false,
+    } as const;
     expect(screenOf(cold)).toBe('door');
     expect(screenOf({ ...cold, soloChosen: true })).toBe('band');
   });
@@ -38,7 +43,12 @@ describe('the screen the page shows', () => {
   });
 
   it('keeps a client at the door while it is joining, and after a session ended on its own', () => {
-    const joining = { mode: 'client', clientStatus: 'joining', restoring: false, soloChosen: false } as const;
+    const joining = {
+      mode: 'client',
+      clientStatus: 'joining',
+      restoring: false,
+      soloChosen: false,
+    } as const;
     expect(screenOf(joining)).toBe('door');
     expect(screenOf({ ...joining, mode: 'solo', clientStatus: 'idle' })).toBe('door');
   });

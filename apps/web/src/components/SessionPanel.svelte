@@ -29,7 +29,7 @@
     /** Open a session; the host's own notes go by the name, if one is given. */
     onhost: (session: string, name: string, lobby: string) => Promise<void>;
     onjoin: (session: string, name: string, lobby: string) => Promise<void>;
-    onlist: (lobby: string) => Promise<OpenSession[]>;
+    onlist: (lobby: string) => Promise<readonly OpenSession[]>;
     onclose: () => void;
     onleave: () => void;
   }
@@ -66,7 +66,7 @@
   // svelte-ignore state_referenced_locally
   let lobby = $state(remembered('lobby') || offered);
   let error: string | null = $state(null);
-  let open: OpenSession[] | null = $state(null);
+  let open: readonly OpenSession[] | null = $state.raw(null);
 
   const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 

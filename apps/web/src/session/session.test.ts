@@ -9,104 +9,11 @@ import {
   playerSource,
 } from '@jambot/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Output } from '../audio/output.ts';
-import { Player, type Surroundings } from '../player.svelte.ts';
 import { broadcastLobby, CLAIM_WAIT } from './broadcast.ts';
 import { ClientSession, WELCOME_WAIT } from './client.svelte.ts';
+import { device, memoryLobby } from './fixtures.ts';
+import type { Lobby } from './lobby.ts';
 import { HostSession, SILENT } from './host.svelte.ts';
-import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
-
-/**
- * A device: an output whose clock the test moves, the ticks it runs, and
- * its output's offset from its page clock, which reads the output's clock:
- * a buffer the output drops moves the offset.
- */
-function device(clockAt: number) {
-  const world = {
-    currentTime: clockAt,
-    heardOffset: 0,
-    plays: [] as { part: string; note: number; seconds: number }[],
-    tickers: [] as (() => void)[],
-  };
-  const output: Output = {
-    get currentTime() {
-      return world.currentTime;
-    },
-    latency: 0,
-    resume: () => Promise.resolve(),
-    play: (part, note, _velocity, seconds) => void world.plays.push({ part, note, seconds }),
-    silence: () => {},
-  };
-  const surroundings: Surroundings = {
-    output: () => output,
-    ticker(tick) {
-      world.tickers.push(tick);
-      return () => void world.tickers.splice(world.tickers.indexOf(tick), 1);
-    },
-    frame: () => () => {},
-    seed: () => 42,
-    page: () => world.currentTime,
-  };
-  return {
-    world,
-    player: new Player(surroundings),
-    clocks: { page: () => world.currentTime, heardOffset: () => world.heardOffset },
-  };
-}
-
-/** A lobby in memory: every message delivered at once, as a local link nearly is. */
-function memoryLobby(): Lobby & {
-  /** Every client's link of a session drops, as its sockets do: each is told, and the host hears it lost. */
-  cut(session: string): void;
-  /** Whether new joins are refused, as by a lobby whose host is away. */
-  refusing: string | null;
-} {
-  const hosts = new Map<string, (message: ClientMessage, from: string) => void>();
-  const clients = new Map<
-    string,
-    Map<string, { hear: (message: HostMessage) => void; lost: ((why: string) => void) | undefined }>
-  >();
-  let made = 0;
-  const lobby = {
-    refusing: null as string | null,
-    cut(session: string) {
-      const key = sessionKey(session);
-      for (const [id, { lost }] of [...clients.get(key)!]) {
-        clients.get(key)!.delete(id);
-        hosts.get(key)?.({ kind: 'lost' }, id);
-        lost?.('Lost the lobby.');
-      }
-    },
-    sessions: async () =>
-      [...hosts.keys()].map((name) => ({ name, players: 1 + (clients.get(name)?.size ?? 0) })),
-    async host(session, hear) {
-      const key = sessionKey(session);
-      if (hosts.has(key)) throw new Error('taken');
-      hosts.set(key, hear);
-      clients.set(key, new Map());
-      return {
-        reclaim: null,
-        send(message, to) {
-          for (const [id, { hear }] of clients.get(key)!)
-            if (to === undefined || to === id) hear(structuredClone(message));
-        },
-        close: () => void hosts.delete(key),
-      } satisfies HostLink;
-    },
-    async join(session, hear, lost) {
-      const key = sessionKey(session);
-      if (lobby.refusing !== null) throw new Error(lobby.refusing);
-      if (!hosts.has(key)) throw new Error(`No session named “${session.trim()}” is open.`);
-      const id = `client-${made++}`;
-      clients.get(key)?.set(id, { hear, lost });
-      return {
-        send: (message) => hosts.get(key)?.(structuredClone(message), id),
-        close: () => void clients.get(key)?.delete(id),
-      };
-    },
-  } satisfies Lobby & { cut(session: string): void; refusing: string | null };
-  return lobby;
-}
 
 /** Both devices a tick on, every 25 ms, for `seconds`. */
 async function run(devices: ReturnType<typeof device>[], seconds: number) {

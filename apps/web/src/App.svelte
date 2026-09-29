@@ -33,9 +33,8 @@
   import { type AlongPart, Player, browserSurroundings } from './player.svelte.ts';
   import { broadcastLobby } from './session/broadcast.ts';
   import { websocketLobby } from './session/websocket.ts';
-  import { ClientSession } from './session/client.svelte.ts';
-  import { HostSession } from './session/host.svelte.ts';
-  import { clientKeep, hostKeep, keptClient, keptHost } from './session/storage.ts';
+  import { Sessions } from './session/sessions.svelte.ts';
+  import { browserKept } from './session/storage.ts';
   import { type TimingReport, timingFile, timingReport } from './timing.ts';
 
   const midiSettings = new MidiSettings();
@@ -79,37 +78,18 @@
       return offset.heardOffset();
     },
   };
-  const tabs = broadcastLobby();
-  /** A lobby server by its address, or with none given, the tabs of this browser. */
-  const lobbyAt = (url: string) => (url.trim() === '' ? tabs : websocketLobby(url.trim()));
-  const hostSession = new HostSession(player, clocks, undefined, { keep: hostKeep });
-  const clientSession = new ClientSession(player, clocks, { keep: clientKeep });
-
-  const whyNot = (e: unknown) => (e instanceof Error ? e.message : String(e));
+  const sessions = new Sessions(player, clocks, {
+    tabs: broadcastLobby(),
+    server: websocketLobby,
+    address: import.meta.env.VITE_LOBBY_URL ?? '',
+    kept: browserKept,
+  });
+  const hostSession = sessions.asHost;
+  const clientSession = sessions.asClient;
 
   // A page that was reloaded, or an app a phone closed in the background, takes
-  // its session up again: a host reopens its session by the secret the lobby
-  // gave, and a client joins again as the player it was.
-  {
-    const now = Date.now() / 1000;
-    const host = keptHost(now);
-    const client = host ? null : keptClient(now);
-    if (host)
-      hostSession
-        .open(lobbyAt(host.lobby), host.session, host.player, {
-          restore: host,
-          lobbyUrl: host.lobby,
-        })
-        .catch((e) => {
-          hostKeep.clear();
-          hostSession.ended = whyNot(e);
-        });
-    else if (client)
-      void clientSession.join(lobbyAt(client.lobby), client.session, client.name, {
-        resume: client.token,
-        lobbyUrl: client.lobby,
-      });
-  }
+  // its session up again.
+  void sessions.restore(Date.now() / 1000);
 
   /**
    * The metronome: client-only, so it runs on its own next to the band
@@ -284,18 +264,21 @@
           ended: clientSession.ended,
           lacked: player.lacked,
         }}
-        lobby={import.meta.env.VITE_LOBBY_URL ?? ''}
+        lobby={sessions.address}
         onhost={(session, name, url) => {
-          clientKeep.clear();
-          return hostSession.open(lobbyAt(url), session, name, { lobbyUrl: url.trim() });
+          sessions.address = url;
+          return sessions.host(url.trim() === '' ? 'local' : 'global', session, name);
         }}
         onjoin={(session, name, url) => {
-          hostKeep.clear();
-          return clientSession.join(lobbyAt(url), session, name, { lobbyUrl: url.trim() });
+          sessions.address = url;
+          return sessions.join(url.trim() === '' ? 'local' : 'global', session, name);
         }}
-        onlist={(url) => lobbyAt(url).sessions()}
-        onclose={() => hostSession.close()}
-        onleave={() => clientSession.leave()}
+        onlist={async (url) => {
+          sessions.address = url;
+          return (await sessions.list()).sessions;
+        }}
+        onclose={() => sessions.end()}
+        onleave={() => sessions.end()}
       />
     </Drawer>
 
