@@ -10,12 +10,12 @@ import {
   forecast,
   glideTo,
   holding,
-  keyName,
   leadRests,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { NEXT_BARS, SECTIONS, hudOf, leadStatus, presetOf, styleStatus } from './hud.ts';
 import type { BarView } from './hud.ts';
+import { keyName } from './noteNames.ts';
 
 const techno = PRESETS.find((p) => p.name === 'Techno')!;
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
@@ -45,7 +45,7 @@ describe('the view model', () => {
       symbol: chordName(first.chords[0]!, first.plan.key),
       numeral: chordNumeral(first.chords[0]!, first.plan.key),
     });
-    expect(hud.bar!.key).toBe('A aeolian');
+    expect(hud.bar!.key).toBe('A minor');
     expect(hud.chord!.symbol).toMatch(/^Am/);
     expect(hud.chord!.numeral).toMatch(/^i/);
     // A aeolian is A minor's own notes: A B C D E F G.
@@ -169,7 +169,7 @@ describe('the song map', () => {
     const moved = long.map((b) => (b.bar >= 16 ? { ...b, plan: { ...b.plan, key: d } } : b));
     const hud = hudOf({ heard: 16 * 9, bars: moved, track });
     expect(hud.sections.map((s) => [s.key, s.newKey])).toEqual([
-      ['A aeolian', false],
+      ['A minor', false],
       ['D dorian', true],
       ['D dorian', false],
       ['D dorian', false],
@@ -262,7 +262,7 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     bar: 9,
     barInSection: 1,
     section: 'Groove',
-    key: 'A aeolian',
+    key: 'A minor',
     tonic: 9,
     scale: [0, 2, 4, 5, 7, 9, 11],
     chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],

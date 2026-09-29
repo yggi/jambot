@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { COMPOSER_MODES, keyHelix } from '@jambot/engine';
+import { COMPOSER_MODES, keyHelix, keyName as engineKeyName } from '@jambot/engine';
 import { DIATONIC_MODE_NAMES, diatonicMode, positions, shift } from '@jambot/theory';
 import {
   keyName,
   MODE_NAMES,
-  MODE_NUMERALS,
+  MODE_SHORT_NAMES,
   scaleNoteNames,
   scaleMarks,
   scaleSteps,
-  TONIC_NAMES,
 } from './noteNames.ts';
+
+/** The engine's name with the screen's accidentals: `Eb` → `E♭`, `C#` → `C♯`. */
+const onScreen = (name: string) => name.replace(/(?<=^[A-G])b/, '♭').replace('#', '♯');
 
 describe('scaleNoteNames', () => {
   it('names A aeolian ascending from its tonic: A B C D E F G', () => {
@@ -20,13 +22,37 @@ describe('scaleNoteNames', () => {
     expect(scaleNoteNames([0, 2, 4, 5, 7, 9, 11], 0)).toEqual(['C', 'D', 'E', 'F', 'G', 'A', 'B']);
   });
 
-  it('is a permutation of the scale it names, starting at the tonic, for every tonic in it', () => {
-    const cIonian = [0, 2, 4, 5, 7, 9, 11];
-    for (const tonic of cIonian) {
-      const names = scaleNoteNames(cIonian, tonic);
-      expect(names[0]).toBe(TONIC_NAMES[tonic]);
-      expect(new Set(names)).toEqual(new Set(cIonian.map((pc) => TONIC_NAMES[pc])));
-    }
+  it('spells a key’s notes in the key, as its signature has them: G♯ minor, D♭ major', () => {
+    const scaleOf = (tonic: number, mode: 'aeolian' | 'ionian') =>
+      positions(keyHelix({ tonic, mode }));
+    expect(scaleNoteNames(scaleOf(8, 'aeolian'), 8)).toEqual([
+      'G♯',
+      'A♯',
+      'B',
+      'C♯',
+      'D♯',
+      'E',
+      'F♯',
+    ]);
+    expect(scaleNoteNames(scaleOf(1, 'ionian'), 1)).toEqual([
+      'D♭',
+      'E♭',
+      'F',
+      'G♭',
+      'A♭',
+      'B♭',
+      'C',
+    ]);
+  });
+
+  it('names every mode on every tonic with each letter once, from the tonic', () => {
+    for (const mode of DIATONIC_MODE_NAMES)
+      for (let tonic = 0; tonic < 12; tonic++) {
+        const names = scaleNoteNames(positions(shift(diatonicMode(mode), tonic)), tonic);
+        expect(names.map((n) => n[0]).join(''), `${mode} on ${tonic}`).toBe(
+          'ABCDEFGABCDEFG'.slice('ABCDEFG'.indexOf(names[0]![0]!)).slice(0, 7),
+        );
+      }
   });
 });
 
@@ -40,6 +66,16 @@ describe('keyName', () => {
     expect(keyName({ tonic: 0, mode: 'ionian' })).toBe('C major');
     expect(keyName({ tonic: 9, mode: 'aeolian' })).toBe('A minor');
     expect(keyName({ tonic: 3, mode: 'dorian' })).toBe('E♭ dorian');
+    expect(keyName({ tonic: 8, mode: 'aeolian' })).toBe('G♯ minor');
+    expect(keyName({ tonic: 1, mode: 'ionian' })).toBe('D♭ major');
+  });
+
+  it('spells every key’s tonic as the engine does, so the page names one key one way', () => {
+    for (const mode of COMPOSER_MODES)
+      for (let tonic = 0; tonic < 12; tonic++)
+        expect(keyName({ tonic, mode }).split(' ')[0], `${mode} on ${tonic}`).toBe(
+          onScreen(engineKeyName({ tonic, mode }).split(' ')[0]!),
+        );
   });
 
   it('names every key, mode and tonic, uniquely', () => {
@@ -80,19 +116,25 @@ describe('scaleMarks', () => {
     }
     expect(scaleMarks([9, 11, 0, 2, 4, 5, 7], 9)).toEqual([0, 2, 3, 5, 7, 8, 10, 12]);
   });
+
+  it('puts a mark on each note and the octave of a scale of any size: a pentatonic has 6', () => {
+    expect(scaleMarks([0, 2, 4, 7, 9], 0)).toEqual([0, 2, 4, 7, 9, 12]);
+  });
 });
 
-describe('MODE_NUMERALS', () => {
-  it('numbers the seven modes by the degree of the major scale they start on, each once', () => {
-    expect(DIATONIC_MODE_NAMES.map((m) => MODE_NUMERALS[m]).sort()).toEqual(
-      ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'].sort(),
-    );
-    const cMajor = [0, 2, 4, 5, 7, 9, 11];
-    for (const mode of DIATONIC_MODE_NAMES) {
-      const degree = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'].indexOf(MODE_NUMERALS[mode]);
-      expect(positions(shift(diatonicMode(mode), cMajor[degree]!)).sort((a, b) => a - b)).toEqual(
-        cMajor,
+describe('MODE_SHORT_NAMES', () => {
+  it('names major and minor in full, and the other modes by their first three letters', () => {
+    for (const mode of DIATONIC_MODE_NAMES)
+      expect(MODE_SHORT_NAMES[mode]).toBe(
+        mode === 'ionian' || mode === 'aeolian' ? MODE_NAMES[mode] : mode.slice(0, 3),
       );
-    }
+  });
+
+  it('gives each of the seven modes its own short name', () => {
+    expect(new Set(DIATONIC_MODE_NAMES.map((m) => MODE_SHORT_NAMES[m])).size).toBe(7);
+  });
+
+  it('never reads as a chord numeral, which the chords level below writes in Roman numerals', () => {
+    for (const mode of DIATONIC_MODE_NAMES) expect(MODE_SHORT_NAMES[mode]).not.toMatch(/^[ivIV]+$/);
   });
 });

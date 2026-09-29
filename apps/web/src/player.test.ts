@@ -195,7 +195,7 @@ describe('the player', () => {
     player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Deep house')! });
     expect(player.wish).toEqual({ tonic: null, mode: 'dorian' });
     play(20);
-    for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('aeolian');
+    for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('minor');
     expect(heard.get(8)).toBe('dorian');
     // Synth-pop's first theme starts on A minor, at its harmony a triad or a
     // seventh, and the screen names each chord it hears.
@@ -207,7 +207,7 @@ describe('the player', () => {
     const player = new Player(s);
     const before = player.hud;
     expect(before.beat).toBeNull();
-    expect(before.bar).toMatchObject({ bar: 0, section: 'Intro', key: 'A aeolian' });
+    expect(before.bar).toMatchObject({ bar: 0, section: 'Intro', key: 'A minor' });
     expect(before.next.map((b) => b.bar)).toEqual([1, 2, 3, 4]);
     void player.start();
     world.resolve();
@@ -360,10 +360,10 @@ describe('the player', () => {
     play(3);
     player.apply({ kind: 'key', wish: { tonic: 7, mode: 'ionian' } });
     expect(player.hud.heading).toEqual({ tonic: 7, mode: 'ionian' });
-    expect(player.hud.bar!.key).toBe('A aeolian');
+    expect(player.hud.bar!.key).toBe('A minor');
     play(20);
-    for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('A aeolian');
-    expect(heard.get(8)).toBe('G ionian');
+    for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('A minor');
+    expect(heard.get(8)).toBe('G major');
   });
 
   describe('what players play', () => {

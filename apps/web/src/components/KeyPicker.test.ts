@@ -46,13 +46,13 @@ describe('the key picker', () => {
     });
     const radios = screen.getAllByRole('radio');
     expect(radios.map((r) => r.textContent)).toEqual([
-      'IV',
+      'lyd',
       'major',
-      'V',
-      'II',
+      'mix',
+      'dor',
       'minor',
-      'III',
-      'VII',
+      'phr',
+      'loc',
     ]);
     expect(radios.map((r) => r.getAttribute('title'))).toEqual([
       'lydian',
@@ -65,11 +65,11 @@ describe('the key picker', () => {
     ]);
     expect(
       radios.filter((r) => !(r as HTMLButtonElement).disabled).map((r) => r.textContent),
-    ).toEqual(['major', 'V', 'II', 'minor']);
+    ).toEqual(['major', 'mix', 'dor', 'minor']);
     expect(screen.getByRole('radio', { name: 'dorian' })).toBeChecked();
   });
 
-  it('draws the scale as 8 marks on 12 steps, the tonic and its octave marked', () => {
+  it('draws a diatonic scale as 8 marks on 12 steps, the tonic and its octave marked', () => {
     const { container } = render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },
       history: NO_HISTORY,
@@ -149,7 +149,7 @@ describe('the key picker', () => {
     expect(screen.getByRole('button', { name: /Nudge down/ })).toBeDisabled();
   });
 
-  it('lets a client nudge but not set: no shape choice, no tonic buttons', async () => {
+  it('lets a client neither set nor nudge the key yet: the host sets it, and says so', async () => {
     render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },
       history: NO_HISTORY,
@@ -158,8 +158,13 @@ describe('the key picker', () => {
       onintent: () => {},
     });
     expect(screen.queryByRole('button', { name: 'D' })).toBeNull();
-    expect(screen.getByRole('button', { name: /Nudge up/ })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /Nudge down/ })).toBeEnabled();
+    for (const name of [/Nudge up/, /Nudge down/]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+      expect(screen.getByRole('button', { name })).toHaveAttribute(
+        'title',
+        'The host sets the key',
+      );
+    }
     for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
   });
 

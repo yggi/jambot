@@ -1,10 +1,13 @@
 /**
  * How the screen names notes and keys: the twelve pitch classes as the
- * prototype spells them, a key in common terms, and a scale's notes and steps.
+ * prototype spells them, for the wheel, where a pitch class stands alone;
+ * and in a key, its notes and its name spelled as its signature has them
+ * (the theory's `spelledTonic` and `spell`, as the engine's `keyName`), so
+ * the page names one key one way. Then a scale's steps and marks.
  */
 
-import type { Key } from '@jambot/engine';
-import { type DiatonicModeName, mod } from '@jambot/theory';
+import { type Key, keyHelix } from '@jambot/engine';
+import { type DiatonicModeName, type Note, mod, spell, spelledTonic } from '@jambot/theory';
 
 /** The twelve pitch classes' names, C = 0, spelled as the prototype spells them. */
 export const TONIC_NAMES = [
@@ -22,11 +25,23 @@ export const TONIC_NAMES = [
   'B',
 ] as const;
 
-/** A key's notes, named in ascending order from the tonic, for a plain-text readout. */
+/** A spelled note as the screen writes it: its letter, then ♯ or ♭ for each semitone it is altered. */
+function noteName({ letter, alteration }: Note): string {
+  return letter + (alteration > 0 ? '♯' : '♭').repeat(Math.abs(alteration));
+}
+
+/**
+ * A key's notes, named in ascending order from the tonic and spelled in the
+ * key: G♯ minor is G♯ A♯ B C♯ D♯ E F♯, never with an A♭. A scale without its
+ * tonic in it has no key to spell in, and reads as the wheel names it.
+ */
 export function scaleNoteNames(scale: readonly number[], tonic: number): readonly string[] {
-  const from = scale.indexOf(tonic);
-  const ordered = from < 0 ? scale : [...scale.slice(from), ...scale.slice(0, from)];
-  return ordered.map((pitchClass) => TONIC_NAMES[pitchClass]!);
+  if (!scale.includes(tonic)) return scale.map((pitchClass) => TONIC_NAMES[pitchClass]!);
+  const heights = scale
+    .map((pitchClass) => tonic + mod(pitchClass - tonic, 12))
+    .sort((a, b) => a - b);
+  const helix = { cycle: 12, heights };
+  return spell(spelledTonic(helix), heights).map(noteName);
 }
 
 /** The modes by their common names: the two everyone knows are major and minor. */
@@ -40,20 +55,24 @@ export const MODE_NAMES: Readonly<Record<DiatonicModeName, string>> = {
   locrian: 'locrian',
 };
 
-/** The modes that keep their full name on screen; the rest are shown as numerals, the degree of the major scale they start on. */
-export const MODE_NUMERALS: Readonly<Record<DiatonicModeName, string>> = {
-  ionian: 'I',
-  dorian: 'II',
-  phrygian: 'III',
-  lydian: 'IV',
-  mixolydian: 'V',
-  aeolian: 'VI',
-  locrian: 'VII',
+/**
+ * The modes as the scale selector writes them, where seven must fit a phone's
+ * width: major and minor in full, the others by their first three letters,
+ * never as Roman numerals, which the chords level writes for chords.
+ */
+export const MODE_SHORT_NAMES: Readonly<Record<DiatonicModeName, string>> = {
+  lydian: 'lyd',
+  ionian: 'major',
+  mixolydian: 'mix',
+  dorian: 'dor',
+  aeolian: 'minor',
+  phrygian: 'phr',
+  locrian: 'loc',
 };
 
-/** A key in common terms: "C major", "A minor", "E♭ dorian". */
+/** A key in common terms, its tonic spelled in the key: "C major", "G♯ minor", "E♭ dorian". */
 export function keyName(key: Key): string {
-  return `${TONIC_NAMES[key.tonic]} ${MODE_NAMES[key.mode]}`;
+  return `${noteName(spelledTonic(keyHelix(key)))} ${MODE_NAMES[key.mode]}`;
 }
 
 /** The semitones from each note of a scale to the next, from the tonic round to its octave. */
@@ -62,7 +81,7 @@ export function scaleSteps(scale: readonly number[], tonic: number): readonly nu
   return from.map((pitchClass, i) => mod(from[(i + 1) % from.length]! - pitchClass - 1, 12) + 1);
 }
 
-/** Where each note of a scale, and its octave, falls above the tonic, in semitones: 8 marks on 12 steps. */
+/** Where each note of a scale, and its octave, falls above the tonic, in semitones: a diatonic scale's 8 marks on 12 steps. */
 export function scaleMarks(scale: readonly number[], tonic: number): readonly number[] {
   return [
     0,

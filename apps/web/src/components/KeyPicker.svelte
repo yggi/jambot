@@ -1,17 +1,20 @@
 <!--
   The key picker, folded to a header: the key the band is heading for, in
-  common terms ("C major"). Unfolded, two views of the one key, both shown,
-  that complement each other. The circle of fifths selects and nudges the
-  tonic and shows the scale's shape on it, over the harmonic history: every
-  pitch class actually played lately, weighted and fading. Under it the scale
-  selects the shape, the mode, from all seven, of which the band plays four
-  (the others are dimmed), and lays it out as 8 marks on the 12 steps of the
-  octave; the gaps between the marks are the steps. Only major and minor keep their
-  full names in the selector, the other modes are numerals with their name as a tooltip. Changing the shape keeps the tonic, and nudging the tonic
-  keeps the shape. The host, or a band playing alone, sets the key; a client
-  only nudges the tonic a fifth up or down. Either way it is a wish, heard
-  from the next section the band plans, and held within the style's licence of
-  the song's home key (`licence.ts`), so the tonics beyond it are dimmed.
+  common terms and spelled in the key ("C major", "G♯ minor"). Unfolded, two
+  views of the one key, both shown, that complement each other. The circle
+  of fifths selects and nudges the tonic and shows the scale's shape on it,
+  over the harmonic history: every pitch class actually played lately,
+  weighted and fading. Under it the scale selects the shape, the mode, from
+  all seven, of which the band plays four (the others are dimmed), and lays
+  it out as a mark on each note and the octave, on the 12 steps of the
+  octave; the gaps between the marks are the steps. The selector writes major
+  and minor in full and the others short (`MODE_SHORT_NAMES`), never as the
+  Roman numerals the chords below are written in. Changing the shape keeps
+  the tonic, and nudging the tonic keeps the shape. The host, or a band
+  playing alone, sets the key, heard from the next section the band plans,
+  and held within the style's licence of the song's home key (`licence.ts`),
+  so the tonics beyond it are dimmed. A client can't set or nudge it yet: its
+  key intents don't reach the host, so its nudges are disabled and say so.
 -->
 <script lang="ts">
   import {
@@ -26,7 +29,7 @@
   import { DIATONIC_MODE_NAMES } from '@jambot/theory';
   import {
     MODE_NAMES,
-    MODE_NUMERALS,
+    MODE_SHORT_NAMES,
     keyName,
     scaleMarks,
     scaleNoteNames,
@@ -57,6 +60,9 @@
       (tonic) => intoReach({ tonic, mode: key.mode }, INITIAL_KEY, reach).tonic !== tonic,
     ),
   );
+
+  /** Why a client's nudges are disabled: its key intents don't reach the host yet. */
+  const HOST_SETS = 'The host sets the key';
 
   /** A fifth up the wheel (clockwise) or down (counter-clockwise) from the key heard, in its mode. */
   const nudged = (by: 1 | -1) => mod(key.tonic + 7 * by, 12);
@@ -96,14 +102,14 @@
   <div class="nudge" role="group" aria-label="Nudge the key">
     <button
       type="button"
-      title="A fifth down"
-      disabled={beyond.includes(nudged(-1))}
+      title={following ? HOST_SETS : 'A fifth down'}
+      disabled={following || beyond.includes(nudged(-1))}
       onclick={() => nudge(-1)}>↺ Nudge down</button
     >
     <button
       type="button"
-      title="A fifth up"
-      disabled={beyond.includes(nudged(1))}
+      title={following ? HOST_SETS : 'A fifth up'}
+      disabled={following || beyond.includes(nudged(1))}
       onclick={() => nudge(1)}>Nudge up ↻</button
     >
   </div>
@@ -116,8 +122,7 @@
         title={MODE_NAMES[mode]}
         aria-checked={mode === key.mode}
         disabled={following || !playable(mode)}
-        onclick={() => playable(mode) && wish(key.tonic, mode)}
-        >{mode === 'ionian' || mode === 'aeolian' ? MODE_NAMES[mode] : MODE_NUMERALS[mode]}</button
+        onclick={() => playable(mode) && wish(key.tonic, mode)}>{MODE_SHORT_NAMES[mode]}</button
       >
     {/each}
   </div>
@@ -134,9 +139,10 @@
       <line class="tick" x1={at(semitone)} x2={at(semitone)} y1="11" y2="21" />
     {/each}
     {#each marks as semitone, i (i)}
-      <circle class="mark" class:tonic={i === 0 || i === 7} cx={at(semitone)} cy="16" r="7" />
-      <text class="note" class:tonic={i === 0 || i === 7} x={at(semitone)} y="44">
-        {notes[i % 7]}
+      {@const tonic = i === 0 || i === marks.length - 1}
+      <circle class="mark" class:tonic cx={at(semitone)} cy="16" r="7" />
+      <text class="note" class:tonic x={at(semitone)} y="44">
+        {notes[i % notes.length]}
       </text>
     {/each}
   </svg>
