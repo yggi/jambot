@@ -12,15 +12,17 @@
  * lifts it, bends its last note or drops it.
  *
  * Each phrase starts from the chord tone nearest where the lead left off.
- * On the half bar and where a chord starts the lead lands on a chord tone,
+ * Where a chord starts, and on the strong steps the harmony leaves (every
+ * beat for a vamp, the half bar below rich harmony), it lands on a chord tone,
  * and the phrase grammar closes it: bar 2 ends open, on the third or the
  * fifth, and bar 4 on the root. Notes stay within 60–86: the phrase moves
  * by the octave that fits it best, and a note that still doesn't fit
  * folds by octaves on its own.
  *
  * The style reaches the lead's phrases in one place, `phraseParams`.
- * From the bar's energy, its chords and the style's sync and entropy, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
- * The style's swing, harm and articulation don't reach the phrases.
+ * From the bar's energy, its chords and the style's sync, entropy, harmony and swing, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
+ * The harmony leans the contour from an arch toward a wave, and thins the strong steps a note lands on a chord tone at; the swing lifts the off-beat eighths, the pickups a swung line leans on (#168).
+ * The articulation doesn't reach the phrases: it is how a note is played, the performer's gate (T4), not how it is written.
  * What the lead writes over every preset is recorded in `lead.fixture.json`, so a change to it is a deliberate one.
  *
  * A theme's melody comes back with its harmony: the shape a theme was
@@ -140,13 +142,24 @@ export interface PhraseParams {
   /** How far the grooves lean from straight (0) to syncopated (1): the style's sync. */
   readonly grooveMix: number;
   /**
+   * What each step's chance of a note gains from the swing: the off-beat
+   * eighths (steps 2, 6, 10, 14), the pickups a swung line leans on, by 0.3
+   * times the swing; nothing when straight.
+   */
+  readonly pickups: readonly number[];
+  /**
    * The Euclidean pulse a rhythm is blended with: 3 hits at energy 0 to 8 at
    * 1, rotated by the sync.
    */
   readonly pulse: readonly number[];
   /** How many degrees the contour reaches from the first note, 2 to 8, with energy and entropy. */
   readonly span: number;
-  /** The weight of each contour: an arch, a fall, a rise and a wave. */
+  /**
+   * The weight of each contour: an arch, a fall, a rise and a wave. A static
+   * vamp arches (`harm` 0: twice the others, the wave a quarter), rich
+   * harmony waves (`harm` 1: the wave 1.75, the arch as the others), and
+   * entropy evens the arch's lead out.
+   */
   readonly contours: readonly number[];
   /** How likely a step of the contour turns a degree aside, with entropy. */
   readonly turn: number;
@@ -156,16 +169,29 @@ export interface PhraseParams {
   readonly variations: readonly number[];
   /** How likely a variation nudges one note a degree, with entropy. */
   readonly nudge: number;
-  /** The steps where a note of the lead's own goes to a chord tone: the half bar and each chord's start. */
+  /**
+   * The steps where a note of the lead's own goes to a chord tone: each
+   * chord's start, and strong steps that thin as the harmony grows, so rich
+   * harmony lets a passing or neighbour tone stand where a vamp would not.
+   */
   readonly snap: readonly number[];
   /** The lowest and highest note. */
   readonly range: readonly [number, number];
 }
 
 /**
+ * The strong steps a note of the lead's own lands on a chord tone at: every
+ * beat for a static vamp (below harm 0.25), the half bar up to harm 0.6,
+ * and above it only the downbeat, which a chord always starts on.
+ */
+function strongSteps(harm: number): readonly number[] {
+  return harm < 0.25 ? [0, 4, 8, 12] : harm < 0.6 ? [0, 8] : [0];
+}
+
+/**
  * The one place the style reaches the lead's phrases: every parameter of a
  * shape, a variation and its realization, from the bar's energy, its chords
- * and the style's sync and entropy.
+ * and the style's sync, entropy, harmony and swing.
  */
 export function phraseParams({
   style,
@@ -175,15 +201,16 @@ export function phraseParams({
   return {
     density: 0.25 + 0.5 * energy,
     grooveMix: style.sync,
+    pickups: Array.from({ length: BAR_STEPS }, (_, s) => (s % 4 === 2 ? 0.3 * style.swing : 0)),
     pulse: positions(even(Math.round(3 + 5 * energy), BAR_STEPS, Math.round(style.sync * 3))),
     span: 2 + Math.round((energy + style.entropy) * 3),
-    contours: [1, 1, 1, 1],
+    contours: [1 + (1 - style.harm) * (1 - style.entropy), 1, 1, 0.25 + 1.5 * style.harm],
     turn: 0.2 + 0.3 * style.entropy,
     leap: style.entropy > 0.5 ? style.entropy - 0.5 : 0,
     variations: [0.3, 0.25, 0.25, 0.2],
     nudge: style.entropy * 0.5,
     snap: Array.from({ length: BAR_STEPS }, (_, s) => s).filter(
-      (s) => s % 8 === 0 || chords.some((c) => c.slot.step === s),
+      (s) => strongSteps(style.harm).includes(s) || chords.some((c) => c.slot.step === s),
     ),
     range: LEAD_RANGE,
   };
@@ -192,7 +219,7 @@ export function phraseParams({
 /** A new shape for a phrase: its draws are keyed by the section and the half of it. */
 function shapeOf(env: BarEnv): LeadShape {
   const { seed, plan, style, barEnergy: energy, barInSection } = env;
-  const { density, grooveMix, pulse, span, contours, turn, leap } = phraseParams(env);
+  const { density, grooveMix, pickups, pulse, span, contours, turn, leap } = phraseParams(env);
   const section = plan.section.index;
   const half = barInSection >> 2;
   let n = 0;
@@ -201,7 +228,10 @@ function shapeOf(env: BarEnv): LeadShape {
   const euclid = new Set(pulse);
   const steps: number[] = [];
   for (let s = 0; s < BAR_STEPS; s++) {
-    const groove = lerp(GROOVE_STRAIGHT[s]!, GROOVE_SYNCOPATED[s]!, grooveMix) * density;
+    const groove = Math.min(
+      1,
+      lerp(GROOVE_STRAIGHT[s]!, GROOVE_SYNCOPATED[s]!, grooveMix) * density + pickups[s]!,
+    );
     const p = lerp(groove, euclid.has(s) ? 0.9 : 0, 0.5);
     if (chance(draw(seed, 'leadRhythm', section, half, s), p)) steps.push(s);
   }
@@ -344,7 +374,7 @@ function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], ph
  * and the last note to the bar's end. (A motif that didn't start on the
  * bar's first step would hold its last note on over the bar line; the lead's
  * own and the Muse's always start there, with a rest if the bar starts
- * silent.) Where `fit`, a note on the half bar or where a chord starts goes
+ * silent.) Where `fit`, a note on a step its phrase parameters snap goes
  * to the nearest chord tone, as the lead's own sketches do; a player's motif
  * is played as it was heard, each note with its accent, which the
  * performance plays on the lead's level (U4). Bars 2 and 4 close as the
