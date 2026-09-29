@@ -30,11 +30,25 @@
  *
  * Each note's accent is its velocity less the player's level in the bar,
  * the rounded mean of the melody's velocities, so the motif keeps how they
- * accented and the judgement keeps how loud they played, beside it (U4).
+ * accented and the judgement keeps how loud they played, beside it (U4). *
+ * She remembers the motifs she took as a fading memory (`fading.ts`, C9),
+ * and hears a motif played again, by the same player or another, as it was
+ * or under one operator, as the one remembered (`recognise`, Q12): a
+ * repetition confirms a motif, and a motif confirmed is taken before one
+ * heard once (#204 H8). A motif heard once is remembered for 16 bars, as
+ * long as an offer outlasts silence, and longer each time it is heard again.
  */
 
-import { type Motif, alteredDegree, alteredHeight, motifProblems } from '@jambot/theory';
+import {
+  type Motif,
+  type MotifOp,
+  alteredDegree,
+  alteredHeight,
+  motifProblems,
+  recognise,
+} from '@jambot/theory';
 import { BAR_STEPS, barAt, barStart } from './events.ts';
+import { fold } from './fading.ts';
 import { type Key, keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 import { EMPTY_BAR, phrasesOf, readHeardWithMargins } from './phrase.ts';
@@ -174,18 +188,24 @@ export function keptAfter(notes: readonly HeardNote[], bar: number): HeardNote[]
  * and of those the one with the most notes, and of those the first to
  * arrive. The prototype took the most notes; the reading's confidence
  * separates the players read right from those read wrong far better than
- * the number of notes does (E17), so it comes first.
+ * the number of notes does (E17), so it comes first. Before both comes
+ * whether the motif was `confirmed`, heard before (#204 H8, Q12).
  */
-export function taken(judgements: readonly Judgement[]): (Judgement & { kind: 'motif' }) | null {
+export function taken(
+  judgements: readonly Judgement[],
+  confirmed: ReadonlySet<Judgement> = new Set(),
+): (Judgement & { kind: 'motif' }) | null {
   const notes = (m: Motif) => m.degrees.filter((d) => d !== null).length;
   const sure = (j: Judgement & { kind: 'motif' }) => j.confidence ?? 1;
+  const heard = (j: Judgement) => (confirmed.has(j) ? 1 : 0);
   let best: (Judgement & { kind: 'motif' }) | null = null;
   for (const j of judgements) {
     if (j.kind !== 'motif') continue;
     if (
       best === null ||
-      sure(j) > sure(best) ||
-      (sure(j) === sure(best) && notes(j.motif) > notes(best.motif))
+      heard(j) > heard(best) ||
+      (heard(j) === heard(best) &&
+        (sure(j) > sure(best) || (sure(j) === sure(best) && notes(j.motif) > notes(best.motif))))
     )
       best = j;
   }
@@ -336,10 +356,41 @@ export interface MuseInput {
   readonly forget: boolean;
 }
 
+/**
+ * How much a remembered motif keeps of its weight each bar: its time
+ * constant is under seven bars, so a motif heard often weighs more than one
+ * heard long ago.
+ */
+export const MOTIF_DECAY = 0.85;
+
+/**
+ * The least weight a motif is remembered at: what one heard once weighs
+ * `MUSE.forgetAfter` bars on, and half a bar's fade more, so it is kept as
+ * long as an offer outlasts silence and no longer.
+ */
+const MOTIF_FLOOR = MOTIF_DECAY ** (MUSE.forgetAfter + 0.5);
+
+/** A motif the Muse remembers: as first heard, from whom and when, and how much it weighs now. */
+export interface Remembered {
+  readonly motif: Motif;
+  readonly source: string;
+  readonly bar: number;
+  readonly weight: number;
+}
+
+/** A motif heard as one remembered: who played it, whose it was and when, and under which operator. */
+export interface Recognition {
+  readonly source: string;
+  readonly of: { readonly source: string; readonly bar: number };
+  readonly op: MotifOp;
+}
+
 export interface MuseCarried {
   readonly offer: Offer | null;
   /** The last bar anyone played in, or null before anyone has. */
   readonly lastPlayed: number | null;
+  /** The motifs she took, fading (C9). */
+  readonly memory: readonly Remembered[];
 }
 
 /** A bar as the Muse heard it: what it judged, what it offers after, and why it forgot, if it did. */
@@ -348,10 +399,60 @@ export interface MuseOutput {
   readonly judgements: readonly Judgement[];
   readonly offer: Offer | null;
   readonly forgot: 'asked' | 'silence' | null;
+  /** The motifs of the bar heard as ones remembered from the bars before (Q12). */
+  readonly recognised: readonly Recognition[];
+}
+
+/**
+ * A bar's motifs heard against the memory of the bars before, and the
+ * memory a bar later: faded, each motif heard again weighing more, each new
+ * one remembered, and what has faded below the floor forgotten.
+ */
+function remember(
+  memory: readonly Remembered[],
+  judgements: readonly Judgement[],
+  bar: number,
+): { memory: Remembered[]; recognised: Recognition[]; confirmed: Set<Judgement> } {
+  const faded = fold(
+    memory.map((e) => e.weight),
+    MOTIF_DECAY,
+    [],
+  );
+  const alive = memory
+    .map((e, i) => ({ ...e, weight: faded[i]! }))
+    .filter((e) => e.weight >= MOTIF_FLOOR);
+  const entries = [...alive];
+  const readings: [number, number][] = [];
+  const recognised: Recognition[] = [];
+  const confirmed = new Set<Judgement>();
+  for (const j of judgements) {
+    if (j.kind !== 'motif') continue;
+    let index = -1;
+    let op: MotifOp | null = null;
+    while (op === null && ++index < alive.length) op = recognise(j.motif, alive[index]!.motif);
+    if (op !== null) {
+      const { source, bar: first } = alive[index]!;
+      recognised.push({ source: j.source, of: { source, bar: first }, op });
+      confirmed.add(j);
+    } else {
+      // A unison heard in this bar is one motif, remembered once.
+      index = entries.findIndex((e, i) => i >= alive.length && recognise(j.motif, e.motif));
+      if (index === -1)
+        index = entries.push({ motif: j.motif, source: j.source, bar, weight: 0 }) - 1;
+    }
+    if (!readings.some(([i]) => i === index)) readings.push([index, 1]);
+  }
+  // Faded already: the readings are added as they are.
+  const weights = fold(
+    entries.map((e) => e.weight),
+    1,
+    readings,
+  );
+  return { memory: entries.map((e, i) => ({ ...e, weight: weights[i]! })), recognised, confirmed };
 }
 
 export const muse: Machine<MuseEnv, MuseCarried, MuseInput, MuseOutput> = {
-  initial: { offer: null, lastPlayed: null },
+  initial: { offer: null, lastPlayed: null, memory: [] },
   advance({ bar }, carried, { judgements, forget }) {
     let { offer, lastPlayed } = carried;
     let forgot: MuseOutput['forgot'] = null;
@@ -359,14 +460,18 @@ export const muse: Machine<MuseEnv, MuseCarried, MuseInput, MuseOutput> = {
       offer = null;
       forgot = 'asked';
     }
+    const { memory, recognised, confirmed } = remember(carried.memory, judgements, bar);
     if (judgements.length > 0) {
       lastPlayed = bar;
-      const best = taken(judgements);
+      const best = taken(judgements, confirmed);
       if (best) offer = { motif: best.motif, source: best.source, bar, level: best.level };
     } else if (offer && lastPlayed !== null && bar - lastPlayed > MUSE.forgetAfter) {
       offer = null;
       forgot = 'silence';
     }
-    return { carried: { offer, lastPlayed }, output: { bar, judgements, offer, forgot } };
+    return {
+      carried: { offer, lastPlayed, memory },
+      output: { bar, judgements, offer, forgot, recognised },
+    };
   },
 };
