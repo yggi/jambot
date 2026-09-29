@@ -8,7 +8,7 @@ import {
 } from './snapshot.ts';
 
 const snapshot: HostSnapshot = {
-  version: 1,
+  version: 2,
   savedAt: 1000,
   session: 'Friday Jam',
   lobby: 'wss://example',
@@ -40,7 +40,9 @@ describe('what a host keeps to come back from a reload', () => {
       null,
       'x',
       {},
-      { ...snapshot, version: 2 },
+      { ...snapshot, version: 3 },
+      // Kept before the key wish named a melodic scale (#209): its wish would lack one.
+      { ...snapshot, version: 1 },
       { ...snapshot, savedAt: 'now' },
       { ...snapshot, session: 3 },
       { ...snapshot, session: ' ' },

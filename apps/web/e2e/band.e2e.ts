@@ -347,15 +347,17 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
   await expect(scales.getByRole('radio', { name: 'plain' })).toBeChecked();
   await expect(scales.getByRole('radio', { name: 'pentatonic' })).toBeDisabled();
   await expect(scales.getByRole('radio', { name: 'blues' })).toBeDisabled();
-  // Lo-fi hip hop's reaches the blues. Stopped, a pick is what the band opens on.
+  // Lo-fi hip hop's swing reaches the blues, and where its harmony meets its swing it plays
+  // the pentatonic by default. Stopped, a pick is what the band opens on.
   await page.getByRole('button', { name: 'Lo-fi hip hop' }).click();
   await unfold();
   await expect(scales.getByRole('radio', { name: 'blues' })).toBeEnabled();
-  // A minor from C4 to E5: C D E F G A B, twice but for the last B, F and G.
-  expect(await marked()).toHaveLength(17 - 7);
-  await scales.getByRole('radio', { name: 'pentatonic' }).click();
   await expect(scales.getByRole('radio', { name: 'pentatonic' })).toBeChecked();
   await expect(page.getByLabel('Conductor').getByText('A minor · pentatonic')).toBeAttached();
   await expect.poll(marked).toEqual(['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5', 'E5']);
+  await scales.getByRole('radio', { name: 'plain' }).click();
+  await expect(scales.getByRole('radio', { name: 'plain' })).toBeChecked();
+  // A minor from C4 to E5: C D E F G A B, twice but for the last B, F and G.
+  await expect.poll(async () => (await marked()).length).toBe(17 - 7);
   expect(errors).toEqual([]);
 });

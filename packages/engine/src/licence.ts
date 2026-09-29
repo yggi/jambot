@@ -12,8 +12,9 @@
  * The genre sets the range and the players' entropy sets how much of it is
  * used (#176): presets never set entropy (`style.ts`). So the feel reads
  * swing and articulation, the genre's, and entropy; the tempo's reach reads
- * entropy alone; the key's reach and the melodic scales read the harmony
- * alone, `harm`.
+ * entropy alone; the key's reach reads the harmony alone, `harm`; the
+ * melodic scales read the harmony and the swing, which open the pentatonic
+ * and the blues.
  */
 
 import { diatonicMode, fifthsIndex, mod, relative, wrap } from '@jambot/theory';
@@ -46,39 +47,55 @@ export interface Licence {
 }
 
 /**
- * The harmony each melodic scale is reached from: at a low `harm` the lead
- * keeps the plain major or minor, from a third the pentatonic, from two
- * thirds the blues (#209). So Techno, Funk and Ambient keep the plain scale,
- * Synth-pop and Deep house add the pentatonic, and the rest the blues too.
+ * What opens each melodic scale beyond the plain one (#209).
+ * The pentatonic leaves out the key's two semitones, so no note leans on a
+ * neighbour to resolve and the line floats open over the chords: the
+ * harmony opens it, from `harm` 1/3. The blues adds the blue note, bent
+ * against the beat: the swing opens it, from `swing` 1/4, and with it the
+ * pentatonic the blues holds. So a band that swings reaches the blues at
+ * any harmony, as Funk does.
  */
-export const MELODIC_FROM: Readonly<Record<MelodicScale, number>> = {
-  plain: 0,
-  pentatonic: 1 / 3,
-  blues: 2 / 3,
-};
+export const MELODIC_OPENS = { pentatonic: 1 / 3, blues: 1 / 4 } as const;
 
-/** The melodic scales a style's harmony reaches, in `MELODIC_SCALES`' order. */
-function melodicReach(style: Style): MelodicScale[] {
-  return MELODIC_SCALES.filter((scale) => style.harm >= MELODIC_FROM[scale]);
+/** The melodic scales a style reaches, in `MELODIC_SCALES`' order: its harmony and its swing alone. */
+function melodicReach({ harm, swing }: Style): MelodicScale[] {
+  const blues = swing >= MELODIC_OPENS.blues;
+  const pentatonic = blues || harm >= MELODIC_OPENS.pentatonic;
+  return MELODIC_SCALES.filter((scale) =>
+    scale === 'blues' ? blues : scale === 'pentatonic' ? pentatonic : true,
+  );
 }
 
 /**
- * The melodic scale a style plays where the players wish for none: the
- * narrowest it reaches, which is the plain one everywhere, so a scale other
- * than the key's own is the players' choice until defaults are set by ear.
+ * Where harmony and swing meet, as their product, enough for a scale to be
+ * the default: rich chords under a laid-back swing float the pentatonic
+ * (Lo-fi hip hop, 0.34), and both at full swing the blues (Swing jazz, 1).
  */
-export function melodicDefault(style: Style): MelodicScale {
-  return melodicReach(style)[0]!;
+export const MELODIC_DEFAULT_FROM = { pentatonic: 1 / 4, blues: 2 / 3 } as const;
+
+/**
+ * The melodic scale a style plays where the players wish for none: the
+ * blues or the pentatonic where harmony and swing meet enough
+ * (`MELODIC_DEFAULT_FROM`), else the plain one. A default needs swing, so
+ * it is always within the reach.
+ */
+export function melodicDefault({ harm, swing }: Style): MelodicScale {
+  const meet = harm * swing;
+  return meet >= MELODIC_DEFAULT_FROM.blues
+    ? 'blues'
+    : meet >= MELODIC_DEFAULT_FROM.pentatonic
+      ? 'pentatonic'
+      : 'plain';
 }
 
 /**
  * A wished melodic scale held within the style's reach: itself where the
- * style reaches it, else the widest scale it does reach, as a tonic beyond
- * the key's reach is held at its edge (`intoReach`).
+ * style reaches it, else none, so the style's own default plays
+ * (`melodicDefault`). Not the widest scale it reaches: a style's default is
+ * a scale it chose, which a wish pulled to the plain one would override.
  */
-export function melodicWithin(scale: MelodicScale, style: Style): MelodicScale {
-  const reach = melodicReach(style);
-  return reach.includes(scale) ? scale : reach.at(-1)!;
+export function melodicWithin(scale: MelodicScale | null, style: Style): MelodicScale | null {
+  return scale !== null && melodicReach(style).includes(scale) ? scale : null;
 }
 
 /**

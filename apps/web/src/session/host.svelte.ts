@@ -164,7 +164,7 @@ export class HostSession {
     const link = this.#link;
     if (!this.#keep || !link || this.session === null) return;
     this.#keep.save({
-      version: 1,
+      version: 2,
       savedAt: this.#epoch(),
       session: this.session,
       lobby: this.#lobbyUrl,

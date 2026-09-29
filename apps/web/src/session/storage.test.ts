@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CLIENT_KEY, HOST_KEY, clientKeep, hostKeep, keptClient, keptHost } from './storage.ts';
 
 const snapshot: HostSnapshot = {
-  version: 1,
+  version: 2,
   savedAt: 100,
   session: 'jam',
   lobby: '',

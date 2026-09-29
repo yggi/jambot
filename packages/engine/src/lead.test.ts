@@ -203,9 +203,9 @@ describe('the lead', () => {
     }
   });
 
-  it('lands on a chord tone where its phrase parameters snap, and walks the key between', () => {
+  it('lands on a chord tone where its phrase parameters snap, and walks its melodic scale between', () => {
     for (const { bar, events } of playing) {
-      const inKey = new Set(positions(keyHelix(bar.plan.key)));
+      const inKey = new Set(positions(melodicHelix(bar.plan.key, bar.plan.melodic)));
       const { snap } = phraseParams(bar);
       for (const e of events) {
         const chord = chordAt(bar.chords, e.step);
@@ -292,9 +292,10 @@ describe('the lead', () => {
     expect(late).toBeGreaterThan(0);
   });
 
-  it('starts each phrase from the chord tone nearest where it left off', () => {
+  it('starts each phrase from the chord tone nearest where it left off, in the plain scale', () => {
+    // In a pentatonic or the blues it starts from the scale's degree nearest that tone (#209, below).
     for (const { bar, before, events } of playing) {
-      if (bar.barInSection % 4 !== 0) continue;
+      if (bar.barInSection % 4 !== 0 || bar.plan.melodic !== 'plain') continue;
       const first = events[0]!;
       const tones = classesOf(joinChord(chordAt(bar.chords, first.step).chord));
       const nearest = range(13)
@@ -579,8 +580,12 @@ describe('the lead over a melodic scale', () => {
             .map((i) => before.last - 6 + i)
             .filter((n) => tones.includes(wrap(n, 12)))
             .sort((a, b) => Math.abs(a - before.last) - Math.abs(b - before.last) || a - b)[0]!;
+          // The scale's height nearest the tone, found by trying every degree, ties going down.
           const scale = melodicHelix(bar.plan.key, melodic);
-          expect(wrap(first.note, 12)).toBe(wrap(heightOf(scale, snap(scale, tone)), 12));
+          const nearest = range(80)
+            .map((d) => heightOf(scale, d - 30))
+            .sort((a, b) => Math.abs(a - tone) - Math.abs(b - tone) || a - b)[0]!;
+          expect(wrap(first.note, 12)).toBe(wrap(nearest, 12));
           starts++;
         }
     expect(starts).toBeGreaterThan(20);

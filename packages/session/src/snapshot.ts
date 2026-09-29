@@ -24,13 +24,17 @@ import type { Member } from './roster.ts';
 /** How long, in seconds, a saved record is good for. */
 export const SAVED_MAX_AGE = 300;
 
-const VERSION = 1;
+/** The host's record's shape: 2 since the key wish names a melodic scale (#209). */
+const HOST_VERSION = 2;
+
+/** The client's record's shape. */
+const CLIENT_VERSION = 1;
 
 /** A player of the roster as kept: without a link, which a new page doesn't have. */
 export type SavedMember = Pick<Member, 'id' | 'name' | 'token'>;
 
 export interface HostSnapshot {
-  readonly version: 1;
+  readonly version: 2;
   readonly savedAt: number;
   readonly session: string;
   /** The address of the lobby it opened in, or an empty one for the tabs of the browser. */
@@ -70,7 +74,7 @@ const fresh = (savedAt: unknown, now: number): boolean =>
 
 /** A host's snapshot, or null for anything that isn't a good one at `now`. */
 export function readHostSnapshot(data: unknown, now: number): HostSnapshot | null {
-  if (!isRecord(data) || data.version !== VERSION || !fresh(data.savedAt, now)) return null;
+  if (!isRecord(data) || data.version !== HOST_VERSION || !fresh(data.savedAt, now)) return null;
   const { session, lobby, reclaim, player, roster, players, track, wish, tempoNudge } = data;
   if (!isText(session) || typeof lobby !== 'string' || typeof player !== 'string') return null;
   if (reclaim !== null && typeof reclaim !== 'string') return null;
@@ -90,7 +94,7 @@ export function readHostSnapshot(data: unknown, now: number): HostSnapshot | nul
 
 /** A client's record, or null for anything that isn't a good one at `now`. */
 export function readClientResume(data: unknown, now: number): ClientResume | null {
-  if (!isRecord(data) || data.version !== VERSION || !fresh(data.savedAt, now)) return null;
+  if (!isRecord(data) || data.version !== CLIENT_VERSION || !fresh(data.savedAt, now)) return null;
   const { session, name, token, lobby } = data;
   if (!isText(session) || !isText(name) || !isText(token) || typeof lobby !== 'string') return null;
   return data as unknown as ClientResume;

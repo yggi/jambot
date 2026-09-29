@@ -28,7 +28,8 @@
  * clients read one tempo; `baseTempo` reads the style's own back out of it.
  * A key picked is held within the reach the harmony gives of the home key,
  * the centre of the band's harmonic history, a fifth at a time; a melodic
- * scale picked, within the scales the harmony reaches (`melodicWithin`).
+ * scale picked stands where the style reaches it, and gives way to the
+ * style's own default where it doesn't (`melodicWithin`).
  */
 
 import {
@@ -129,7 +130,8 @@ export function nudgeAfter(nudge: number, intent: Intent, style: Style): number 
  * within the reach that the style after the intent leaves (`licenceOf`) of
  * `home`: the band's harmonic history's centre (`centre`, #169), which is
  * the key the song opens in before anything is heard; and a melodic scale
- * within the scales that style reaches. A wish nothing changes is the same.
+ * where that style reaches it, else none, the style's default. A wish
+ * nothing changes is the same.
  */
 export function wishAfter(
   wish: KeyWish,
@@ -148,7 +150,7 @@ export function wishAfter(
     next.tonic === null
       ? null
       : intoReach({ tonic: next.tonic, mode: next.mode }, home, keyReach).tonic;
-  const melodic = next.melodic === null ? null : melodicWithin(next.melodic, style);
+  const melodic = melodicWithin(next.melodic, style);
   return tonic === next.tonic && melodic === next.melodic ? next : { ...next, tonic, melodic };
 }
 

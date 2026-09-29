@@ -313,7 +313,7 @@ describe('the melodic scale a section plays', () => {
         const env = {
           seed,
           index,
-          style: { ...INITIAL_STYLE, harm: 1 },
+          style: { ...INITIAL_STYLE, harm: 1, swing: 1 },
           wish,
           history: NO_HISTORY,
         };
@@ -327,7 +327,7 @@ describe('the melodic scale a section plays', () => {
     }
   });
 
-  it('changes nothing else a section plays: its form, key and theme are the plain scale’s (#209)', () => {
+  it('changes nothing else a section plays: its form, key and theme are the default scale’s (#209)', () => {
     for (const seed of [1, 2, 3])
       for (const melodic of MELODIC_SCALES) {
         const plain = run(tour(seed));
@@ -336,7 +336,7 @@ describe('the melodic scale a section plays', () => {
           input,
         }));
         run(wished).forEach((plan, i) => {
-          expect({ ...plan, melodic: 'plain' }).toEqual(plain[i]);
+          expect({ ...plan, melodic: plain[i]!.melodic }).toEqual(plain[i]);
         });
       }
   });

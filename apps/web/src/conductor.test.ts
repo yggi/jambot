@@ -102,7 +102,7 @@ describe('wishAfter', () => {
   });
 
   it('wishes for a melodic scale picked, keeping the key wished (#209)', () => {
-    const rich = { ...INITIAL_STYLE, harm: 1 };
+    const rich = { ...INITIAL_STYLE, harm: 1, swing: 1 };
     for (const before of [
       { tonic: null, mode: 'aeolian', melodic: null },
       { tonic: 4, mode: 'dorian', melodic: 'blues' },
@@ -114,33 +114,30 @@ describe('wishAfter', () => {
         });
   });
 
-  it('holds a melodic scale picked within the style’s reach, for every preset and scale (#209)', () => {
+  it('holds a melodic scale picked where the style reaches it, else gives way to the style’s default, for every preset and scale (#209)', () => {
     for (const p of PRESETS) {
       const style: Style = { ...INITIAL_STYLE, ...p.style };
       const reach = licenceOf(style).melodic;
       for (const melodic of MELODIC_SCALES) {
         const before = { tonic: null, mode: p.mode, melodic: null } as const;
         const held = wishAfter(before, { kind: 'key', wish: { melodic } }, style).melodic;
-        expect(held).toBe(reach.includes(melodic) ? melodic : reach.at(-1));
+        expect(held).toBe(reach.includes(melodic) ? melodic : null);
       }
     }
-    // Techno reaches the plain scale alone.
+    // Techno reaches the plain scale alone: the blues picked gives way to its default.
     const techno = { ...INITIAL_STYLE, ...PRESETS.find((p) => p.name === 'Techno')!.style };
     const wish = { tonic: null, mode: 'aeolian', melodic: null } as const;
-    expect(wishAfter(wish, { kind: 'key', wish: { melodic: 'blues' } }, techno).melodic).toBe(
-      'plain',
-    );
+    expect(wishAfter(wish, { kind: 'key', wish: { melodic: 'blues' } }, techno).melodic).toBe(null);
   });
 
-  it('pulls a melodic scale back into a narrower reach when the harmony falls, and leaves the style’s default alone (#209)', () => {
+  it('lets a melodic scale go to the style’s default when the style no longer reaches it, and leaves a wish for the default alone (#209)', () => {
     const wish = { tonic: null, mode: 'aeolian', melodic: 'blues' } as const;
-    const lower = (value: number) => ({ kind: 'axis', axis: 'harm', value }) as const;
-    const at = (harm: number) => wishAfter(wish, lower(harm), { ...INITIAL_STYLE, harm });
+    const swing = (value: number) => ({ kind: 'axis', axis: 'swing', value }) as const;
+    const at = (value: number) => wishAfter(wish, swing(value), { ...INITIAL_STYLE, swing: value });
     expect(at(1)).toBe(wish);
-    expect(at(0.5)).toEqual({ ...wish, melodic: 'pentatonic' });
-    expect(at(0)).toEqual({ ...wish, melodic: 'plain' });
+    expect(at(0)).toEqual({ ...wish, melodic: null });
     const none = { ...wish, melodic: null };
-    expect(wishAfter(none, lower(0), { ...INITIAL_STYLE, harm: 0 })).toBe(none);
+    expect(wishAfter(none, swing(0), { ...INITIAL_STYLE, swing: 0 })).toBe(none);
   });
 
   it('shows the melodic scales the style reaches where the track is going, for every preset (#209)', () => {

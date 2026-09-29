@@ -26,7 +26,7 @@ import { fifthsIndex, mod } from '@jambot/theory';
 import { type Section, form } from './form.ts';
 import { type HarmonicWeights, keyWeight } from './history.ts';
 import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from './key.ts';
-import { harmonicReach, licenceOf, melodicDefault } from './licence.ts';
+import { harmonicReach, melodicDefault, melodicWithin } from './licence.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
@@ -106,10 +106,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     const own =
       before && wish.tonic === null && wish.mode === from.mode ? bandWish(env, from) : null;
     const key = nextKey(from, own ?? wish);
-    const melodic =
-      wish.melodic !== null && licenceOf(style).melodic.includes(wish.melodic)
-        ? wish.melodic
-        : melodicDefault(style);
+    const melodic = melodicWithin(wish.melodic, style) ?? melodicDefault(style);
     const kind = themeKind(section.type);
     const held = kind === 'build' ? null : themes[kind];
     const theme =
