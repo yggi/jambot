@@ -283,18 +283,27 @@ describe("a bar's chords", () => {
         ),
       );
       const written = new Set<string>();
+      // Tallied, not asserted one by one: expect() costs more than the check, tens of thousands of times over.
+      const wrong: string[] = [];
       for (const [{ key }, chord] of [...sweep, ...secondaries]) {
         const text = chordNumeral(chord, key);
         const numeral = parseNumeral(text);
-        expect(numeral, text).toBeDefined();
-        expect(numeral!.of !== undefined, text).toBe('dominantOf' in chord.slot);
+        if (!numeral) {
+          wrong.push(`${text}: not a numeral`);
+          continue;
+        }
+        if ((numeral.of !== undefined) !== 'dominantOf' in chord.slot)
+          wrong.push(`${text}: secondary dominant mismatch`);
         const stack = joinChord(chord.chord);
-        expect(chordOfNumeral(keyHelix(key), numeral!), text).toEqual({
-          root: wrap(stack[0]!, 12),
-          quality: qualityOf(stack.map((x) => x - stack[0]!)),
-        });
+        const back = chordOfNumeral(keyHelix(key), numeral);
+        if (
+          back.root !== wrap(stack[0]!, 12) ||
+          back.quality !== qualityOf(stack.map((x) => x - stack[0]!))
+        )
+          wrong.push(`${text}: reads back as ${JSON.stringify(back)}`);
         written.add(text);
       }
+      expect(wrong.slice(0, 5)).toEqual([]);
       expect(written.size).toBeGreaterThan(40);
     },
   );

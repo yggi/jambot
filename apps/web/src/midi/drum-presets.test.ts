@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DRUM_NOTES } from '../audio/midi-out.ts';
 import { DRUM_NOTE_PRESETS, presetNameOf } from './drum-presets.ts';

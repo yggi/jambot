@@ -402,10 +402,13 @@ describe('the motif operators are the symmetries there are', () => {
       const key = (op: MotifOp) => JSON.stringify(op);
       let symmetric = 0;
       for (const m of both) {
-        const found = stabilizer(m).map(key).sort();
+        // What every operator of the wide set makes of the motif, made once for both checks.
+        const made = new Map(wide.map((op) => [key(op), text(applyOp(op, m))]));
+        const symmetries = stabilizer(m);
+        const found = symmetries.map(key).sort();
         expect(found).toEqual(
           wide
-            .filter((op) => text(applyOp(op, m)) === text(m))
+            .filter((op) => made.get(key(op)) === text(m))
             .map(key)
             .sort(),
         );
@@ -413,11 +416,11 @@ describe('the motif operators are the symmetries there are', () => {
         // The operators giving each result, and the canonical operator of each.
         const results = new Map<string, Set<string>>();
         for (const op of all) {
-          const made = text(applyOp(op, m));
-          const canonical = canonicalOp(op, m);
-          expect(text(applyOp(canonical, m))).toBe(made);
-          expect(canonicalOp(canonical, m)).toEqual(canonical);
-          results.set(made, (results.get(made) ?? new Set()).add(key(canonical)));
+          const result = made.get(key(op))!;
+          const canonical = canonicalOp(op, m, symmetries);
+          expect(text(applyOp(canonical, m))).toBe(result);
+          expect(canonicalOp(canonical, m, symmetries)).toEqual(canonical);
+          results.set(result, (results.get(result) ?? new Set()).add(key(canonical)));
         }
         // One canonical operator per result, and no two results share one.
         expect([...results.values()].every((s) => s.size === 1)).toBe(true);

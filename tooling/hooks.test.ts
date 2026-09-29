@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const failing = 'echo verify ran and failed; exit 1';
@@ -19,17 +19,26 @@ function git(dir: string, ...args: string[]) {
   return run.stdout.trim();
 }
 
+// The base repository is built once and copied, since building one takes
+// most of a test's time in git.
+let base: string;
+beforeAll(() => {
+  base = mkdtempSync(join(tmpdir(), 'jambot-hook-base-'));
+  git(base, 'init', '-q');
+  git(base, 'config', 'user.email', 'hook@test');
+  git(base, 'config', 'user.name', 'hook');
+  writeFileSync(join(base, 'README.md'), 'a\n');
+  git(base, 'add', '.');
+  git(base, 'commit', '-qm', 'base');
+  git(base, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+});
+afterAll(() => rmSync(base, { recursive: true, force: true }));
+
 /** A repository whose `origin/main` holds `README.md`, with `files` committed on top of it. */
 function repoWith(files: string[]) {
   const dir = mkdtempSync(join(tmpdir(), 'jambot-hook-'));
   repos.push(dir);
-  git(dir, 'init', '-q');
-  git(dir, 'config', 'user.email', 'hook@test');
-  git(dir, 'config', 'user.name', 'hook');
-  writeFileSync(join(dir, 'README.md'), 'a\n');
-  git(dir, 'add', '.');
-  git(dir, 'commit', '-qm', 'base');
-  git(dir, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  cpSync(base, dir, { recursive: true });
   for (const file of files) writeFileSync(join(dir, file), 'b\n');
   if (files.length > 0) {
     git(dir, 'add', '.');

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { MidiPort } from '../audio/midi-out.ts';
 import type { MidiAccess } from './access.ts';

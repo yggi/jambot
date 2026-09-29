@@ -6,6 +6,12 @@ const range = (n: number) => [...Array(n).keys()];
 const swings = range(101).map((i) => i / 100);
 /** Positions through two bars in 48ths of a step, plus a few before 0. */
 const positions = range(32 * 48 + 1).map((i) => i / 48 - 4);
+/**
+ * `toBeCloseTo(b, 12)` as a plain comparison. The loops over every swing and
+ * position tally what fails and assert once: expect() costs more than the
+ * check, a million times over.
+ */
+const near = (a: number, b: number) => Math.abs(a - b) < 5e-13;
 
 /** The prototype's `swingDelay`, as a literal: a grid step's delay in steps. */
 const prototypeDelay = (step: number, swing: number) => {
@@ -65,13 +71,14 @@ describe('swingMap', () => {
   });
 
   it('is undone by its inverse, both ways, on and off the grid (T4, Q1b)', () => {
+    const wrong: string[] = [];
     for (const swing of swings) {
       const map = swingMap(swing);
-      for (const x of positions) {
-        expect(map.written(map.played(x))).toBeCloseTo(x, 12);
-        expect(map.played(map.written(x))).toBeCloseTo(x, 12);
-      }
+      for (const x of positions)
+        if (!near(map.written(map.played(x)), x) || !near(map.played(map.written(x)), x))
+          wrong.push(`swing ${swing}, step ${x}`);
     }
+    expect(wrong.slice(0, 5)).toEqual([]);
   });
 
   it("shows that the prototype's delays are not what its unswing undoes (T4, Q1b)", () => {
@@ -81,19 +88,30 @@ describe('swingMap', () => {
   });
 
   it('keeps the beats, keeps the order, and repeats every beat', () => {
+    const wrong: string[] = [];
     for (const swing of swings) {
       const map = swingMap(swing);
       for (const beat of range(8)) expect(map.played(4 * beat)).toBe(4 * beat);
       const played = positions.map((x) => map.played(x));
-      played.slice(1).forEach((y, i) => expect(y).toBeGreaterThan(played[i]!));
-      for (const x of positions) expect(map.played(x + 4)).toBeCloseTo(map.played(x) + 4, 12);
+      played.slice(1).forEach((y, i) => {
+        if (!(y > played[i]!))
+          wrong.push(`swing ${swing}, step ${positions[i + 1]} is not after the last`);
+      });
+      for (const x of positions)
+        if (!near(map.played(x + 4), map.played(x) + 4))
+          wrong.push(`swing ${swing}, step ${x} + 4`);
     }
+    expect(wrong.slice(0, 5)).toEqual([]);
   });
 
   it('delays and never anticipates', () => {
-    for (const swing of swings)
+    const wrong: string[] = [];
+    for (const swing of swings) {
+      const map = swingMap(swing);
       for (const x of positions)
-        expect(swingMap(swing).played(x)).toBeGreaterThanOrEqual(x - 1e-12);
+        if (!(map.played(x) >= x - 1e-12)) wrong.push(`swing ${swing}, step ${x}`);
+    }
+    expect(wrong.slice(0, 5)).toEqual([]);
   });
 });
 
@@ -162,15 +180,16 @@ describe('swing over a meter', () => {
   });
 
   it('is undone by its inverse, on and off the grid, over every named meter (T11, Q1b)', () => {
+    const wrong: string[] = [];
     for (const meter of Object.values(METERS)) {
       for (const swing of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
         const map = swingMap(swing, meter);
-        for (const x of positions) {
-          expect(map.written(map.played(x))).toBeCloseTo(x, 12);
-          expect(map.played(map.written(x))).toBeCloseTo(x, 12);
-        }
+        for (const x of positions)
+          if (!near(map.written(map.played(x)), x) || !near(map.played(map.written(x)), x))
+            wrong.push(`swing ${swing}, step ${x}`);
       }
     }
+    expect(wrong.slice(0, 5)).toEqual([]);
   });
 
   it('plays 4/4’s eighths at full swing on 12/8’s: each offbeat eighth on its pulse’s third eighth, where a bar of 12/8 lies on the same 16 steps (T11)', () => {

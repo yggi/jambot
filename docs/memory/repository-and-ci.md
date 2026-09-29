@@ -12,6 +12,15 @@ How the repository is built, gated, deployed and licensed.
   It then waits for the live site to serve that build and checks it again.
   Pages publishes the branch as it is: the repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
   `pnpm pages build` and `pnpm pages serve` show the site on `http://localhost:4318/jambot/` first, served as Pages serves it (404 for what isn't a file, where `vite preview` would answer with the app).
+- `pnpm verify` (`tooling/verify.ts`) runs the typecheck, lint, format check and build side by side, then the tests, which take every core and would time out timing-sensitive tests if beside them.
+  If a static stage fails, the tests are skipped, and the output ends with the failed stages, whole.
+  Lint and the format check keep a cache by content in `node_modules/.cache`, so a second run checks only the files that changed.
+- What makes the tests slow, on the four cores of a Claude Code session: the machine is CPU-bound, so only less work speeds them up, and parallel stages do not.
+  `expect()` costs more than most of what a finite check compares: about 20 µs a call, and a check over every case makes millions.
+  Such a loop tallies its failures in an array and asserts once at the end (`swing.test.ts`, `events.test.ts`).
+  jsdom costs about a second a file, so a web test that touches no DOM starts with `// @vitest-environment node`.
+  The player's tests keep jsdom: under node Svelte resolves its server build, and they run twice as slow.
+  The tooling tests that need a git repository build it once and copy it for each test.
 - `pnpm deploy` is a reserved pnpm command, which is why the deploy is `pnpm pages deploy`.
 - `pnpm ci` is a reserved pnpm command, which is why the all-in-one script is called `verify`.
 - TypeScript is pinned to 6.0, because typescript-eslint and svelte-check do not support TypeScript 7 yet.

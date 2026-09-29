@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { EMPTY_SPREAD, TRANSPORT_TIMING, hostClock, spreadWith } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
 import { timingFile, timingReport } from './timing.ts';

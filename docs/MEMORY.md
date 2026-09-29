@@ -23,7 +23,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   It also says how far the branch is behind `origin/main`, whether main already holds it, and whether its remote branch moved (`branch-status.sh`).
   And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
   Other agents run `pnpm install --frozen-lockfile` first.
-- Every `git push` of a branch runs `pnpm verify` first, through git's pre-push hook (`.githooks/pre-push`, about 2 min, the tests 76 s of it), and is blocked if it fails.
+- Every `git push` of a branch runs `pnpm verify` first, through git's pre-push hook (`.githooks/pre-push`, about 85 s, the tests 60 s of it), and is blocked if it fails.
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
   It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
   A tree that passed is remembered, so a retried push does not rerun it.

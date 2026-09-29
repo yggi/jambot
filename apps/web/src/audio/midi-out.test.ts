@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { DRUM_NOTES, LOOKAHEAD, PARTS } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES, MidiOut, type MidiPort } from './midi-out.ts';

@@ -294,11 +294,17 @@ export function stabilizer(motif: Motif): MotifOp[] {
  * `late` round the cycle. Those operators are `op` after the motif's
  * symmetries, and no two of them share all three, so the choice is one
  * operator, and choosing again changes nothing.
+ * `symmetries` is the motif's `stabilizer`, for a caller that chooses for
+ * many operators and would otherwise find it again for each.
  */
-export function canonicalOp(op: MotifOp, motif: Motif): MotifOp {
+export function canonicalOp(
+  op: MotifOp,
+  motif: Motif,
+  symmetries: readonly MotifOp[] = stabilizer(motif),
+): MotifOp {
   const rank = (o: MotifOp) => (Number(o.rev) * 2 + Number(o.mirror)) * motif.cycle + o.late;
   let best: MotifOp | undefined;
-  for (const symmetry of stabilizer(motif)) {
+  for (const symmetry of symmetries) {
     const same = thenOp(symmetry, op);
     const reduced = { ...same, late: mod(same.late, motif.cycle) };
     if (!best || rank(reduced) < rank(best)) best = reduced;

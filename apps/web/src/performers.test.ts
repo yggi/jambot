@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { BarView, Hud } from './hud.ts';
 import { performersOf } from './performers.ts';
