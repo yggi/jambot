@@ -252,7 +252,7 @@ Test: `themes.test.ts`, whose test of the A theme's first chord cites Q11: every
 Source: #210 ("left alone, it plays an endless, evolving jam", `AGENTS.md`, as a claim about where the system settles); the owner, on #210.
 Status: measured (the harmony within a key); measured (the key at entropy 0); measured, failing (the key above it).
 Decided: #210, ahead of the evidence: a default comes home in a cycle the level above plans, or drifts, as the licence given and the freedom used balance.
-Lands in: #210, #195, and a planned cycle of keys over the form, which the key does not have yet.
+Lands in: #210, #233 (a planned cycle of keys over the form, which the key does not have yet), #195.
 
 ## Not a property
 
