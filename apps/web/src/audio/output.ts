@@ -54,6 +54,8 @@ export interface Output {
   /** A precise pairing of the clock and `performance.now()`, where the platform gives one. */
   outputTimestamp?():
     { readonly contextTime: number; readonly performanceTime: number } | undefined;
+  /** What the audio context states of itself, for a record of how a device sounded: its sample rate and latencies, in seconds. */
+  info?(): { sampleRate: number; baseLatency: number | null; outputLatency: number | null };
   /** Playback's start time, once known, before the first step plays. */
   starting?(seconds: number): void;
   /** The steps scheduled this tick, for anything that needs the grid rather than single notes. */
@@ -85,6 +87,11 @@ export function webAudioOutput(): Output {
       return ctx.outputLatency || ctx.baseLatency || 0;
     },
     resume: () => ctx.resume(),
+    info: () => ({
+      sampleRate: ctx.sampleRate,
+      baseLatency: ctx.baseLatency ?? null,
+      outputLatency: ctx.outputLatency ?? null,
+    }),
     level(gain, seconds) {
       wanted = gain;
       const bus = current.bus.gain;

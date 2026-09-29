@@ -10,7 +10,15 @@ const STATUSES: ClientStatus[] = ['idle', 'joining', 'joined', 'reconnecting'];
 const all: ScreenState[] = MODES.flatMap((mode) =>
   STATUSES.flatMap((clientStatus) =>
     [false, true].flatMap((restoring) =>
-      [false, true].map((soloChosen) => ({ mode, clientStatus, restoring, soloChosen })),
+      [false, true].flatMap((soloChosen) =>
+        [false, true].map((timingChosen) => ({
+          mode,
+          clientStatus,
+          restoring,
+          soloChosen,
+          timingChosen,
+        })),
+      ),
     ),
   ),
 );
@@ -22,6 +30,7 @@ describe('the screen the page shows', () => {
       clientStatus: 'idle',
       restoring: false,
       soloChosen: false,
+      timingChosen: false,
     } as const;
     expect(screenOf(cold)).toBe('door');
     expect(screenOf({ ...cold, soloChosen: true })).toBe('band');
@@ -32,7 +41,7 @@ describe('the screen the page shows', () => {
   });
 
   it('is the band for a host, and for a client once it has joined, or lost its link and is trying again', () => {
-    for (const state of all.filter((s) => !s.restoring)) {
+    for (const state of all.filter((s) => !s.restoring && !(s.timingChosen && s.mode === 'solo'))) {
       const band =
         state.mode === 'host' ||
         (state.mode === 'client' &&
@@ -48,8 +57,28 @@ describe('the screen the page shows', () => {
       clientStatus: 'joining',
       restoring: false,
       soloChosen: false,
+      timingChosen: false,
     } as const;
     expect(screenOf(joining)).toBe('door');
     expect(screenOf({ ...joining, mode: 'solo', clientStatus: 'idle' })).toBe('door');
+  });
+
+  it('is the timing test for a person on their own who chose it, and a session takes its place', () => {
+    for (const state of all.filter((s) => !s.restoring && s.timingChosen)) {
+      expect(screenOf(state), JSON.stringify(state)).toBe(
+        state.mode === 'solo' ? 'timing' : screenOf({ ...state, timingChosen: false }),
+      );
+    }
+  });
+
+  it('gives way to a session being taken up again, so the door does not flash', () => {
+    const state = {
+      mode: 'solo',
+      clientStatus: 'idle',
+      restoring: true,
+      soloChosen: false,
+      timingChosen: true,
+    } as const;
+    expect(screenOf(state)).toBe('restoring');
   });
 });

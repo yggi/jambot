@@ -83,6 +83,17 @@ describe('MidiAccess', () => {
     expect(notes).toEqual([{ note: 60, source: 'Keys' }]);
   });
 
+  it('hands on the message’s own timestamp, so a note is timed by when the port saw it', async () => {
+    const { access, input } = fakeAccess();
+    navigator.requestMIDIAccess = () => Promise.resolve(asMidiAccess(access));
+    const stamps: (number | undefined)[] = [];
+    const midi = await MidiAccess.connect((_note, _source, timeStamp) => stamps.push(timeStamp));
+    if (typeof midi === 'string') throw new Error('expected a connection');
+    midi.listen('in-1');
+    input.onmidimessage!({ data: [0x90, 60, 100], timeStamp: 1234.5 });
+    expect(stamps).toEqual([1234.5]);
+  });
+
   it('listens to every input when told to listen to all', async () => {
     const { access, input } = fakeAccess();
     navigator.requestMIDIAccess = () => Promise.resolve(asMidiAccess(access));

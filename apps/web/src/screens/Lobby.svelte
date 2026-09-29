@@ -23,6 +23,8 @@
     /** Why the last session ended, or a join failed. */
     notice: string | null;
     onsolo: () => void;
+    /** The timing test (#204, A7). */
+    ontiming: () => void;
     onhost: (where: Where, session: string) => Promise<void>;
     onjoin: (where: Where, session: string) => void;
   }
@@ -37,6 +39,7 @@
     joining,
     notice,
     onsolo,
+    ontiming,
     onhost,
     onjoin,
   }: Props = $props();
@@ -87,6 +90,15 @@
     <button type="button" class="primary" disabled={joining} onclick={onsolo}>
       Play with the band
     </button>
+  </section>
+
+  <section class="card" aria-label="Timing test">
+    <h2>Timing test</h2>
+    <p class="message">
+      A drum pattern plays and you follow it for eight bars, seeing at once how early or late each
+      hit was. The runs are kept in this browser, to download and analyse.
+    </p>
+    <button type="button" disabled={joining} onclick={ontiming}>Timing test</button>
   </section>
 
   <section class="card" aria-label="Join a session">

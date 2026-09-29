@@ -12,6 +12,7 @@ const props = () => ({
   joining: false,
   notice: null,
   onsolo: vi.fn(),
+  ontiming: vi.fn(),
   onhost: vi.fn(() => Promise.resolve()),
   onjoin: vi.fn(),
 });
@@ -33,6 +34,16 @@ describe('the lobby, the door to the band', () => {
     render(Lobby, p);
     await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
     expect(p.onsolo).toHaveBeenCalledOnce();
+  });
+
+  it('opens the timing test, and not while a join is under way', async () => {
+    const p = props();
+    const { unmount } = render(Lobby, p);
+    await fireEvent.click(screen.getByRole('button', { name: 'Timing test' }));
+    expect(p.ontiming).toHaveBeenCalledOnce();
+    unmount();
+    render(Lobby, { ...p, joining: true });
+    expect(screen.getByRole('button', { name: 'Timing test' })).toBeDisabled();
   });
 
   it('joins an open session by a click on it, local and global told apart by a tooltip', async () => {
