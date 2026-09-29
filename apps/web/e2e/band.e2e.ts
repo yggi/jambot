@@ -334,7 +334,7 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
         names.push((await button.getAttribute('aria-label')) ?? '');
     return names;
   };
-  /** Unfold the key card, which folds again when the key it names changes. */
+  /** Unfold the key card where it is folded. */
   const unfold = async () => {
     const card = page.locator('details[aria-label="Key"]');
     if (!(await card.evaluate((details) => (details as HTMLDetailsElement).open)))

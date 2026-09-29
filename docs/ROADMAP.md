@@ -48,7 +48,7 @@ across the tabs of one browser, and across machines through a lobby server
 (`pnpm lobby`, deployed to Fly.io with `pnpm lobby:deploy`). A dropped link is no
 longer the end of a session: a client rejoins as the same player by a token, the
 lobby holds a session for a host whose link dropped, and a reloaded host keeps
-its session (protocol 3). Hardening the lobby (#92) and WebRTC (#93) come next.
+its session. Hardening the lobby (#92) and WebRTC (#93) come next.
 
 These run in parallel:
 
