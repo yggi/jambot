@@ -14,7 +14,7 @@
   import { type Meter, meterOnSteps } from '@jambot/theory';
   import { type Hud, leadStatus } from '../hud.ts';
   import { scaleNoteNames } from '../noteNames.ts';
-  import Fold from './Fold.svelte';
+  import Card from './Card.svelte';
   import Ruler from './Ruler.svelte';
 
   interface Props {
@@ -28,7 +28,7 @@
   /** The bar's steps, two to an eighth, whose degrees are its beats: the song's clock for one bar. */
   const clock = $derived(meterOnSteps(meter));
   const heard = $derived(hud.beat !== null);
-  const name = $derived(hud.chord ? `${hud.chord.symbol} · ${hud.chord.numeral}` : '—');
+  const main = $derived(hud.chord ? `${hud.chord.symbol} · ${hud.chord.numeral}` : '—');
   const chords = $derived(hud.bar?.chords ?? []);
   const marks = $derived(
     chords.map((chord) => ({
@@ -41,7 +41,7 @@
 </script>
 
 <section class="conductor" aria-label="Conductor">
-  <Fold heading="Chords" {name} sub={leadStatus(hud)} live>
+  <Card title="Chords" {main} sub={leadStatus(hud)} live>
     <div class="beats" style:--beats={clock.heights.length} aria-hidden="true">
       {#each { length: clock.heights.length }, beat (beat)}
         <i class:on={hud.beat !== null && beat <= hud.beat}></i>
@@ -61,7 +61,7 @@
         ><b>{notes}</b>
       </div>
     {/if}
-  </Fold>
+  </Card>
 </section>
 
 <style>

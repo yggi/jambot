@@ -13,7 +13,7 @@
   import type { Intent, TempoView } from '../conductor.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { METER_NAME, barMarks } from '../metrum.ts';
-  import Fold from './Fold.svelte';
+  import Card from './Card.svelte';
   import Gauge from './Gauge.svelte';
   import Ruler from './Ruler.svelte';
   import TempoNudge from './TempoNudge.svelte';
@@ -45,9 +45,9 @@
   );
 </script>
 
-<Fold
-  heading="Metrum"
-  name="{Math.round(tempo.bpm)} BPM"
+<Card
+  title="Metrum"
+  main="{Math.round(tempo.bpm)} BPM"
   sub="{METER_NAME} · swing {percent} %{metronome.on ? ' · clicking' : ''}"
 >
   <TempoNudge {tempo} disabled={following} {onintent} />
@@ -81,7 +81,7 @@
     </label>
   </div>
   <p class="doing" aria-live="polite">{doing}</p>
-</Fold>
+</Card>
 
 <style>
   .swing {

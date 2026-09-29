@@ -37,12 +37,12 @@ const heard = hudOf(groove, 2);
 const opening = bar(0, { section: 'Intro', chords: [{ step: 0, symbol: 'Am', numeral: 'i' }] });
 const idle = hudOf(opening, null);
 
-const name = (container: HTMLElement) => container.querySelector('summary .name');
+const name = (container: HTMLElement) => container.querySelector('summary .main');
 
 describe('the chords', () => {
   it('names itself in its own header, folded by default, over the chord sounding and its numeral', () => {
     const { container } = render(Chords, { hud: heard });
-    expect(container.querySelector('summary .heading')).toHaveTextContent('Chords');
+    expect(container.querySelector('summary .title')).toHaveTextContent('Chords');
     expect(name(container)).toHaveTextContent(/^Am7 · i7$/);
     expect(container.querySelector('details')).not.toHaveAttribute('open');
   });

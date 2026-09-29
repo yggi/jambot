@@ -84,7 +84,7 @@ button {
   cursor: pointer;
 }
 
-/* A folding header's chevron, shared by the cards and the drawers so a stack of them lines up. */
+/* A folding header's chevron, shared by the cards so a stack of them lines up. */
 summary.chevron {
   cursor: pointer;
   list-style: none;

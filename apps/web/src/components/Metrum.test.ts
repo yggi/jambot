@@ -20,14 +20,14 @@ beforeEach(() => localStorage.clear());
 describe('the metrum', () => {
   it('reads the tempo, the meter and the swing value in its header, folded by default', () => {
     const { container } = render(Metrum, props(new Metronome(), { swing: 1 }));
-    expect(container.querySelector('summary .name')).toHaveTextContent('108 BPM');
+    expect(container.querySelector('summary .main')).toHaveTextContent('108 BPM');
     expect(container.querySelector('summary .sub')).toHaveTextContent('4/4 · swing 100 %');
     expect(container.querySelector('details')).not.toHaveAttribute('open');
   });
 
   it('names itself in its own header, over the tempo', () => {
     const { container } = render(Metrum, props(new Metronome()));
-    expect(container.querySelector('summary .heading')).toHaveTextContent('Metrum');
+    expect(container.querySelector('summary .title')).toHaveTextContent('Metrum');
   });
 
   it('says in its header that the click is on', () => {

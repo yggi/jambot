@@ -39,13 +39,13 @@ const hudAt = (n: number, over: Partial<Hud> = {}): Hud => ({
 const opening = bar(0, { section: 'Intro' });
 const idle = hudAt(0, { bar: opening, beat: null, chord: opening.chords[0]! });
 
-const name = (container: HTMLElement) => container.querySelector('summary .name');
+const name = (container: HTMLElement) => container.querySelector('summary .main');
 const sub = (container: HTMLElement) => container.querySelector('summary .sub');
 
 describe('the plan', () => {
   it('names itself in its own header, folded by default', () => {
     const { container } = render(Plan, { hud: hudAt(9), playing: true });
-    expect(container.querySelector('summary .heading')).toHaveTextContent('Plan');
+    expect(container.querySelector('summary .title')).toHaveTextContent('Plan');
     expect(container.querySelector('details')).not.toHaveAttribute('open');
   });
 

@@ -2,7 +2,7 @@
   One level of the composition, as the page lays them out top to bottom:
   transport, style, metrum, key, plan, chords, tracks. A heading names
   it, unless it has no `name` because the card inside carries its own
-  heading (`Fold`); `resting` disables the controls in it, for a level a
+  title (`Card`); `resting` disables the controls in it, for a level a
   client takes from its host rather than wishing for itself. A fieldset
   only disables its form controls and hides nothing, so a client still sees
   what it can't change.

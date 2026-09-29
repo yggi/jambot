@@ -44,7 +44,7 @@
   } from '../noteNames.ts';
   import type { Intent } from '../conductor.ts';
   import CircleOfFifths from './CircleOfFifths.svelte';
-  import Fold from './Fold.svelte';
+  import Card from './Card.svelte';
   import Nudge from './Nudge.svelte';
   import Ruler from './Ruler.svelte';
   import Segmented from './Segmented.svelte';
@@ -130,7 +130,7 @@
   );
 </script>
 
-<Fold heading="Key" name={keyName(key)}>
+<Card title="Key" main={keyName(key)}>
   <div class="wheel">
     <CircleOfFifths
       tonic={key.tonic}
@@ -178,7 +178,7 @@
     span={12}
     marks={notesOnRuler}
   />
-</Fold>
+</Card>
 
 <style>
   .wheel {
