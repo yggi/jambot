@@ -1,6 +1,7 @@
 <!--
   The Muse: the motif it offers the band, drawn on the bar's sixteen steps
-  a row per degree, where it came from, and its log, the latest first.
+  a row per degree, in its player's colour (`attribution.ts`), where it came
+  from, and its log, the latest first.
   Forget asks it to let the motif go from the next bar the band composes.
   Its words are the prototype's.
 -->
@@ -42,6 +43,7 @@
         <rect
           class="note"
           class:altered={note.altered}
+          style:fill={note.altered ? undefined : `var(--source-${muse.motif.colour})`}
           x={note.step * step + 1}
           y={H - 2 - (note.row + 1) * rowHeight}
           width={Math.max(2, note.length * step - 2)}
@@ -51,7 +53,7 @@
       {/each}
     </svg>
     <p class="status">
-      Motif from {muse.motif.source}, heard in bar {muse.motif.bar + 1}.
+      Motif from {muse.motif.name}, heard in bar {muse.motif.bar + 1}.
     </p>
   {:else}
     <p class="status">

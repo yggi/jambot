@@ -8,6 +8,13 @@
   --on-amber: #ffffff;
   --teal: #0f7a6a;
   --teal-bg: #d8f0eb;
+  /* The players' colours (`attribution.ts`): the first is the Muse's teal, none is the band's amber. */
+  --source-0: #0f7a6a;
+  --source-1: #6a4fc7;
+  --source-2: #b8336a;
+  --source-3: #2465c9;
+  --source-4: #4d7a12;
+  --source-5: #a13d2d;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -21,6 +28,12 @@
     --on-amber: #131a2e;
     --teal: #6fd3c1;
     --teal-bg: #193a3a;
+    --source-0: #6fd3c1;
+    --source-1: #b3a1ff;
+    --source-2: #ff8fb8;
+    --source-3: #7fb2ff;
+    --source-4: #a8d66b;
+    --source-5: #ff9a85;
   }
 }
 :root[data-theme='dark'] {
@@ -33,6 +46,12 @@
   --on-amber: #131a2e;
   --teal: #6fd3c1;
   --teal-bg: #193a3a;
+  --source-0: #6fd3c1;
+  --source-1: #b3a1ff;
+  --source-2: #ff8fb8;
+  --source-3: #7fb2ff;
+  --source-4: #a8d66b;
+  --source-5: #ff9a85;
 }
 *,
 *::before,

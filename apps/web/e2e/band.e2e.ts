@@ -310,11 +310,11 @@ for (const input of INPUTS)
     ).toBeVisible({
       timeout: 8000,
     });
-    // The lead's row names the same motif once its last bar finished is one that played it (#164).
-    const lead = page.getByLabel('Band performers').locator('details', { hasText: 'Lead' });
-    await lead.locator('summary').click();
-    await expect(lead.getByText(`From ${input.source}, heard in bar ${heard}.`)).toBeVisible({
-      timeout: 8000,
-    });
+    // The lead's lane credits the same motif, in the player's colour, while a bar shown played it (#183).
+    await expect(
+      page
+        .getByRole('group', { name: 'Tracks grid' })
+        .getByText(`from ${input.source}, bar ${heard}`),
+    ).toBeVisible({ timeout: 8000 });
     expect(errors).toEqual([]);
   });

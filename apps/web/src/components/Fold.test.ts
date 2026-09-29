@@ -21,6 +21,11 @@ describe('a fold', () => {
     expect(screen.getByText('the details')).toBeInTheDocument();
   });
 
+  it('starts unfolded where asked', () => {
+    render(Fold, { heading: 'Thing', name: 'C major', open: true, children });
+    expect(screen.getByLabelText('Thing')).toHaveAttribute('open');
+  });
+
   it('needs no line under the headline', () => {
     const { container } = render(Fold, { heading: 'Thing', name: 'C major', children });
     expect(container.querySelector('summary .sub')).toBeNull();

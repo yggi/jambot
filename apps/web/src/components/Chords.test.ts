@@ -120,7 +120,7 @@ describe('the chords', () => {
   });
 
   it('says the lead plays a motif, whose, and which bar it was heard in, counted from 1', () => {
-    const motif = { source: 'the computer keys', bar: 6 };
+    const motif = { source: 'the computer keys', name: 'the computer keys', colour: 0, bar: 6 };
     const playingMotif = { ...heard, bar: bar(9, { lead: 'motif', motif }) };
     render(Chords, { hud: playingMotif });
     expect(
