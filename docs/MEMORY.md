@@ -90,8 +90,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   the song from bar 0. The track holds glides ahead, so the forecast is what
   plays unless a control moves.
 - The screen reads one snapshot, `player.hud` (`hudOf`, in
-  `apps/web/src/hud.ts`), rebuilt when the step
-  heard, the bars ahead or the track change. Components take slices of it as
+  `apps/web/src/hud.ts`), rebuilt when the step heard, the bars ahead or the track change. Components take slices of it as
   props and send intents; none reads the engine. A style is named by the preset
   it matches on every axis the preset sets but energy (`presetOf`), so there is
   no chosen-preset state: moving another axis makes a style custom, and moving
