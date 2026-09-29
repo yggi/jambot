@@ -179,9 +179,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 3 (the join and welcome that carry a resume token are read by field, above), as a minute of the band and two judgements show them. */
+/** The shapes of version 4 (the join and welcome that carry a resume token are read by field, above), as a minute of the band and two judgements show them. */
 const SHAPES = {
-  protocol: 3,
+  protocol: 4,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -239,6 +239,7 @@ const SHAPES = {
     'start: number',
   ],
   judgement: [
+    'confidence: number',
     'count: number',
     'kind: string',
     'level: number',

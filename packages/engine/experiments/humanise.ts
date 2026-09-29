@@ -14,7 +14,7 @@
  * bars it reads back as the motif the pattern was written as. A pattern is
  * played in bar 1, so a note struck early lands in bar 0, where it is lost
  * to the bar that meant it. The target is what the Muse makes of the
- * pattern played exactly (`judgeBar` at sloppiness 0), so the yardstick asks
+ * pattern played exactly (`judgeBar` on the nearest step, at sloppiness 0), so the yardstick asks
  * for nothing the Muse can't already give, and the baseline is the reading
  * that exists.
  *
@@ -32,13 +32,15 @@ import {
   judgeBar,
   keyedRng,
   readHeard,
+  taken,
+  type Reading,
 } from '../src/index.ts';
 
 /** A reader: what the Muse would make of the notes heard, for one bar. */
 export type Reader = (notes: readonly HeardNote[], bar: number, key: Key) => Judgement[];
 
-/** The reading that exists: `judgeBar`. */
-export const BASELINE: Reader = judgeBar;
+/** The reading the Muse began with: `judgeBar`, each note on the nearest step. */
+export const BASELINE: Reader = (notes, bar, key) => judgeBar(notes, bar, key, 'nearest');
 
 /** The tempo the milliseconds are read at, in beats per minute. */
 export const BPM = 120;
@@ -214,7 +216,7 @@ export function readingRate(reader: Reader, sloppiness: number, key: Key, seed =
   const causes = { strayed: 0, noMotif: 0, rests: 0, moved: 0, notes: 0 };
   for (let index = 0; index < PATTERNS; index++) {
     const exact = played(pattern(index), BAR, index);
-    const target = motifOf(judgeBar(exact, BAR, key));
+    const target = motifOf(judgeBar(exact, BAR, key, 'nearest'));
     if (!target) continue;
     for (let trial = 0; trial < TRIALS; trial++) {
       const heard = humanise(exact, sloppiness, seed, index * TRIALS + trial);
@@ -246,7 +248,7 @@ export function readingRate(reader: Reader, sloppiness: number, key: Key, seed =
 /** A hearing: the notes as the reader takes them, before each bar is judged. The baseline takes them as heard. */
 export type Hearing = (notes: readonly HeardNote[]) => HeardNote[];
 
-/** Each note as heard: judged on the nearest step by `judgeBar` itself. */
+/** Each note as heard. */
 export const AS_HEARD: Hearing = (notes) => [...notes];
 
 /** Each phrase read as one span (`readHeard`, #204 A1). */
@@ -298,7 +300,8 @@ const restSteps = (m: NonNullable<ReturnType<typeof motifOf>>) =>
 
 /**
  * The share of bars a hearing reads as their target, over performances of
- * two phrases each, of patterns of one dominant note value (`pattern`) or
+ * two phrases each, judged as `reading` says (the nearest step unless the
+ * Muse's own reading is asked for), of patterns of one dominant note value (`pattern`) or
  * of beats that divide by themselves (`beatPattern`), each humanised alone (a phrase's offset and drift are its own).
  */
 export function phraseRate(
@@ -307,6 +310,7 @@ export function phraseRate(
   key: Key,
   seed = 1,
   source: (index: number) => Segment[] = pattern,
+  reading: Reading = 'nearest',
 ): PhraseRate {
   let bars = 0;
   let right = 0;
@@ -329,10 +333,10 @@ export function phraseRate(
       const read = hearing(heard);
       const barsOf = new Set(exact.map((n) => barAt(n.position)));
       for (const bar of barsOf) {
-        const target = motifOf(judgeBar(exact, bar, key));
+        const target = motifOf(judgeBar(exact, bar, key, 'nearest'));
         if (!target) continue;
         bars++;
-        const got = motifOf(judgeBar(read, bar, key));
+        const got = motifOf(judgeBar(read, bar, key, reading));
         if (
           got &&
           rhythmOf(got) === rhythmOf(target) &&
@@ -351,4 +355,113 @@ export function phraseRate(
     }
   }
   return { bars, right, onsets, rests, strayed };
+}
+
+/** A bar the Muse judged as a motif: how sure it said it was, and whether it read the motif meant. */
+export interface Judged {
+  readonly confidence: number;
+  readonly right: boolean;
+}
+
+/**
+ * The bars of one-bar patterns (`pattern`) that `judgeBar` reads, in its own
+ * reading of a phrase so far, as motifs, at `sloppiness`, each with the
+ * confidence it carries.
+ */
+export function judgedBars(sloppiness: number, key: Key, seed = 1): Judged[] {
+  const out: Judged[] = [];
+  for (let index = 0; index < PATTERNS; index++) {
+    const exact = played(pattern(index), BAR, index);
+    const target = motifOf(judgeBar(exact, BAR, key, 'nearest'));
+    if (!target) continue;
+    for (let trial = 0; trial < TRIALS; trial++) {
+      const heard = humanise(exact, sloppiness, seed, index * TRIALS + trial);
+      const j = judgeBar(heard, BAR, key).find((x) => x.kind === 'motif');
+      if (j?.kind !== 'motif') continue;
+      const same =
+        rhythmOf(j.motif) === rhythmOf(target) && j.motif.degrees.join() === target.degrees.join();
+      out.push({ confidence: j.confidence ?? 1, right: same });
+    }
+  }
+  return out;
+}
+
+/**
+ * The chance that a bar read right carries more confidence than one read
+ * wrong, drawn at random from each (ties half): 0.5 for a confidence that
+ * says nothing, 1 for one that always sorts the right from the wrong.
+ */
+export function separation(bars: readonly Judged[]): number {
+  const right = bars.filter((b) => b.right);
+  const wrong = bars.filter((b) => !b.right);
+  if (right.length === 0 || wrong.length === 0) return 0.5;
+  let wins = 0;
+  for (const r of right)
+    for (const w of wrong)
+      wins += r.confidence > w.confidence ? 1 : r.confidence === w.confidence ? 0.5 : 0;
+  return wins / (right.length * wrong.length);
+}
+
+/** How often the motif the band takes is one read right, of two players' bars. */
+export interface Choice {
+  /** Pairs of players whose bars were both read as motifs. */
+  readonly pairs: number;
+  /** The prototype's rule, the most notes, took a motif read right. */
+  readonly byNotes: number;
+  /** `taken`, the surest reading, took a motif read right. */
+  readonly bySureness: number;
+}
+
+/**
+ * Two players play different patterns in the same bar, one at
+ * `sloppinessA` and one at `sloppinessB`; the Muse judges both, and each
+ * rule takes one. A pick is right where it is the motif its player meant
+ * (the Muse's reading of the exact playing), whichever player it is.
+ */
+export function choiceRate(sloppinessA: number, sloppinessB: number, key: Key, seed = 1): Choice {
+  const notes = (j: Judgement & { kind: 'motif' }) =>
+    j.motif.degrees.filter((d) => d !== null).length;
+  let pairs = 0;
+  let byNotes = 0;
+  let bySureness = 0;
+  for (let i = 0; i < PATTERNS; i++) {
+    const own = [0, 1].map((k) => played(pattern(2 * i + k), BAR, 2 * i + k));
+    const targets = own.map((exact, k) =>
+      motifOf(
+        judgeBar(
+          exact.map((n) => ({ ...n, source: 'ab'[k]! })),
+          BAR,
+          key,
+          'nearest',
+        ),
+      ),
+    );
+    if (!targets[0] || !targets[1]) continue;
+    for (let trial = 0; trial < TRIALS; trial++) {
+      const heard = [sloppinessA, sloppinessB].flatMap((s, k) =>
+        humanise(
+          own[k]!.map((n) => ({ ...n, source: 'ab'[k]! })),
+          s,
+          seed,
+          (i * TRIALS + trial) * 2 + k,
+        ),
+      );
+      const motifs = judgeBar(heard, BAR, key).filter(
+        (j): j is Judgement & { kind: 'motif' } => j.kind === 'motif',
+      );
+      if (motifs.length < 2) continue;
+      pairs++;
+      const right = (j: Judgement & { kind: 'motif' }) => {
+        const target = targets['ab'.indexOf(j.source)]!;
+        return (
+          rhythmOf(j.motif) === rhythmOf(target) && j.motif.degrees.join() === target.degrees.join()
+        );
+      };
+      const byCount = motifs.reduce((best, j) => (notes(j) > notes(best) ? j : best));
+      if (right(byCount)) byNotes++;
+      const sure = taken(motifs);
+      if (sure && right(sure)) bySureness++;
+    }
+  }
+  return { pairs, byNotes, bySureness };
 }

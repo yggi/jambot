@@ -37,7 +37,7 @@ const HALVINGS: Readonly<Record<number, number>> = { 8: 1, 4: 2, 2: 3, 1: 4 };
 export const LOOSENESS_FLOOR = 0.08;
 
 /** The distance from a position to the lattice `k·value`, whose places are the bar's own: a bar starts on a place of every value. */
-function distance(x: number, value: number): number {
+export function distance(x: number, value: number): number {
   return Math.abs(x - value * Math.round(x / value));
 }
 

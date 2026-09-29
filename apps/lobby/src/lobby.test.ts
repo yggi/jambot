@@ -175,7 +175,7 @@ describe('the lobby', () => {
       expect(await ada.next()).toEqual({ op: 'back' });
       expect(await bob.next()).toEqual({ op: 'back' });
       // The relay runs as before, each way, by the ids the clients kept.
-      ada.send({ op: 'tell', message: { kind: 'join', protocol: 3, name: 'Ada' } });
+      ada.send({ op: 'tell', message: { kind: 'join', protocol: 4, name: 'Ada' } });
       const heard = (await again.next()) as FromLobby & { op: 'heard' };
       expect(heard).toMatchObject({ op: 'heard', message: { kind: 'join', name: 'Ada' } });
       again.send({ op: 'send', to: heard.from, message: { kind: 'stop' } });

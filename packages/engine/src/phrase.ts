@@ -29,7 +29,7 @@
 
 import { BAR_STEPS, barAt, barStart, beatAt, beatStart } from './events.ts';
 import type { HeardNote } from './muse.ts';
-import { LOOSENESS_FLOOR, snapToValues } from './lattice.ts';
+import { LOOSENESS_FLOOR, distance, snapToValues, valueOf } from './lattice.ts';
 import { readOnsets } from './reading.ts';
 
 /**
@@ -95,14 +95,29 @@ function offsetOf(residuals: readonly number[]): number {
 }
 
 /**
+ * A phrase read: its notes on the steps they meant, and how sure each
+ * onset's place is.
+ */
+export interface PhraseReading {
+  readonly notes: HeardNote[];
+  /** Per note, in the order of the onsets: 1 where it was struck on its place, 0 halfway to the next. */
+  readonly margins: number[];
+}
+
+/** How far a position is from its place, as a share of the way to the next place of a lattice of `value`: 1 on it, 0 halfway. */
+const margin = (x: number, value: number) => Math.max(0, 1 - (2 * distance(x, value)) / value);
+
+/**
  * A phrase's notes on the steps they meant: the onsets and the releases
  * each less the phrase's offset and rounded, and the first onset put on the
  * beat where the odds say so. The notes keep their pitches, velocities and
- * sources; the order is the order of the onsets.
+ * sources; the order is the order of the onsets. Each onset also gets its
+ * margin (`PhraseReading`): how near it sits to the place it was read on,
+ * against the halfway to the next, which is what the reading is unsure of.
  */
-export function readPhrase(phrase: readonly HeardNote[]): HeardNote[] {
+export function readPhraseWithMargins(phrase: readonly HeardNote[]): PhraseReading {
   const notes = [...phrase].sort((a, b) => a.position - b.position);
-  if (notes.length === 0) return [];
+  if (notes.length === 0) return { notes: [], margins: [] };
   const { residuals } = readOnsets(
     notes.map((n) => n.position),
     0,
@@ -122,13 +137,22 @@ export function readPhrase(phrase: readonly HeardNote[]): HeardNote[] {
       evidence - (first - step) ** 2 / (2 * looseness ** 2);
     if (score(beat, BEAT_EVIDENCE) > score(steps[0]!, 0)) steps[0] = beat;
   }
-  const on = snapToValues(
-    notes.map((n) => n.position - offset),
-    steps[0]!,
-    looseness,
+  const xs = notes.map((n) => n.position - offset);
+  const on = snapToValues(xs, steps[0]!, looseness);
+  const value = valueOf(xs.slice(1), looseness);
+  const margins = xs.map((x, i) =>
+    i === 0 ? margin(x - steps[0]! + on[0]!, 1) : margin(x, value),
   );
   const ends = releasesOf(notes, on, offset, looseness);
-  return notes.map((n, i) => ({ ...n, position: on[i]!, end: ends[i]! }));
+  return {
+    notes: notes.map((n, i) => ({ ...n, position: on[i]!, end: ends[i]! })),
+    margins,
+  };
+}
+
+/** A phrase's notes on the steps they meant (`readPhraseWithMargins`). */
+export function readPhrase(phrase: readonly HeardNote[]): HeardNote[] {
+  return readPhraseWithMargins(phrase).notes;
 }
 
 /** The lower quartile of a list, or 0 of none: what most of it is at least. */
@@ -183,18 +207,18 @@ function releasesOf(
       gap: n.end === null ? null : Math.min(next, barEnd) - (n.end - offset),
     };
   });
-  const share = Math.min(
-    ARTICULATION_CEILING,
-    Math.max(
-      0,
-      lowerQuartile(slots.flatMap((s) => (s.gap === null || s.slot <= 0 ? [] : [s.gap / s.slot]))),
-    ),
-  );
+  const ratios = slots.map((s) => (s.gap === null || s.slot <= 0 ? null : s.gap / s.slot));
+  // A note's own release can't say what the player's articulation is, so it is read from the others.
+  const shareFor = (i: number) =>
+    Math.min(
+      ARTICULATION_CEILING,
+      Math.max(0, lowerQuartile(ratios.filter((r, j): r is number => r !== null && j !== i))),
+    );
   const spread = REST_MARGIN * looseness * Math.SQRT2;
   return notes.map((n, i) => {
     const { boundary, slot, gap } = slots[i]!;
     if (gap === null) return null;
-    const excess = gap - share * slot;
+    const excess = gap - shareFor(i) * slot;
     const rest = excess > spread ? restFor(excess, spread) : 0;
     return Math.max(steps[i]! + 1, boundary - rest);
   });
@@ -203,4 +227,21 @@ function releasesOf(
 /** Everything heard, read phrase by phrase, in time. */
 export function readHeard(notes: readonly HeardNote[]): HeardNote[] {
   return phrasesOf(notes).flatMap(readPhrase);
+}
+
+/**
+ * Everything heard, read phrase by phrase, with each read note's margin,
+ * keyed by the note read.
+ */
+export function readHeardWithMargins(notes: readonly HeardNote[]): {
+  readonly notes: HeardNote[];
+  readonly margins: ReadonlyMap<HeardNote, number>;
+} {
+  const margins = new Map<HeardNote, number>();
+  const read = phrasesOf(notes).flatMap((phrase) => {
+    const reading = readPhraseWithMargins(phrase);
+    reading.notes.forEach((n, i) => margins.set(n, reading.margins[i]!));
+    return reading.notes;
+  });
+  return { notes: read, margins };
 }

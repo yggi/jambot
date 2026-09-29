@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { BAR_STEPS, type HeardNote, type Key } from '../src/index.ts';
+import { BAR_STEPS, type HeardNote, type Key, type Reading } from '../src/index.ts';
 import {
   AS_HEARD,
   AS_PHRASES,
   BAR,
   BASELINE,
+  choiceRate,
+  judgedBars,
+  separation,
   type Hearing,
   type PhraseRate,
   type Segment,
@@ -29,11 +32,12 @@ function phraseRate(
   key: Key,
   seed = 1,
   source: (index: number) => Segment[] = pattern,
+  reading: Reading = 'nearest',
 ): PhraseRate {
   const cache = measured.get(hearing) ?? new Map<string, PhraseRate>();
   measured.set(hearing, cache);
-  const id = `${sloppiness}/${seed}/${source === pattern ? 'unit' : 'beats'}`;
-  if (!cache.has(id)) cache.set(id, measure(hearing, sloppiness, key, seed, source));
+  const id = `${sloppiness}/${seed}/${source === pattern ? 'unit' : 'beats'}/${reading}`;
+  if (!cache.has(id)) cache.set(id, measure(hearing, sloppiness, key, seed, source, reading));
   return cache.get(id)!;
 }
 const range = (n: number) => [...Array(n).keys()];
@@ -270,6 +274,130 @@ describe('reading phrases whose beats divide by themselves (E17)', () => {
       expect(read.right).toBeGreaterThanOrEqual(heard.right);
       expect(read.onsets).toBeGreaterThanOrEqual(heard.onsets);
       expect(read.strayed).toBeLessThanOrEqual(heard.strayed);
+    }
+  }, 60_000);
+});
+
+/**
+ * The Muse's own judgement (A6): `judgeBar` reads a phrase so far, whole
+ * phrases up to the end of the bar it judges and no note of the bars after
+ * it, so what the band plays never depends on what came later (F7). It
+ * loses nothing worth a point to that against reading a phrase whose end is
+ * known, which is what E17's other columns measure. Literals to ±3 points.
+ */
+describe('the Muse’s own judgement of a sloppy hand (E17)', () => {
+  const muse = (s: number, source = pattern) => phraseRate(AS_HEARD, s, KEY, 1, source, 'phrases');
+
+  it.each([
+    [20, pattern, 0.846, 0.934, 0.873],
+    [30, pattern, 0.458, 0.574, 0.624],
+    [30, beatPattern, 0.346, 0.447, 0.535],
+  ])(
+    'at %i ms reads %f of the bars, %f of their onsets and %f of their rests right',
+    (s, source, right, onsets, rests) => {
+      const r = muse(s, source);
+      expect(Math.abs(r.right / r.bars - right)).toBeLessThan(0.03);
+      expect(Math.abs(r.onsets / r.bars - onsets)).toBeLessThan(0.03);
+      expect(Math.abs(r.rests / r.bars - rests)).toBeLessThan(0.03);
+    },
+    60_000,
+  );
+
+  it('reads an exact hand right, and is well ahead of the nearest step from 20 ms', () => {
+    const exact = muse(0);
+    expect(exact.right).toBe(exact.bars);
+    for (const s of [20, 30, 40]) {
+      const now = muse(s);
+      const then = phraseRate(AS_HEARD, s, KEY);
+      expect(now.right / now.bars).toBeGreaterThan(then.right / then.bars + 0.1);
+    }
+  }, 60_000);
+
+  it('is within two points of a phrase read whole, in bars right, up to 40 ms', () => {
+    for (const s of [10, 20, 30, 40]) {
+      const now = muse(s);
+      const whole = phraseRate(AS_PHRASES, s, KEY);
+      expect(Math.abs(now.right - whole.right) / now.bars).toBeLessThan(0.02);
+    }
+  }, 60_000);
+});
+
+/** The confidence a judgement carries (A5) says something: it sorts the bars read right from the bars read wrong. */
+describe('the confidence of a bar read as a motif (E17)', () => {
+  const bars = new Map<number, ReturnType<typeof judgedBars>>();
+  const at = (s: number) => {
+    if (!bars.has(s)) bars.set(s, judgedBars(s, KEY));
+    return bars.get(s)!;
+  };
+
+  it('is 1 for every bar of an exact hand, all of them right', () => {
+    expect(at(0).every((b) => b.confidence === 1 && b.right)).toBe(true);
+  });
+
+  it('gives a right bar more than a wrong one more often than not, at every sloppiness', () => {
+    for (const s of [10, 20, 30, 40, 60]) expect(separation(at(s))).toBeGreaterThan(0.6);
+  });
+
+  it.each([
+    [20, 0.777],
+    [30, 0.726],
+  ])('at %i ms sorts right from wrong with a chance of %f', (s, expected) => {
+    expect(Math.abs(separation(at(s)) - expected)).toBeLessThan(0.03);
+  });
+
+  it('falls, on average, as the hand gets looser', () => {
+    const mean = (s: number) => at(s).reduce((sum, b) => sum + b.confidence, 0) / at(s).length;
+    const means = [0, 10, 20, 30, 40].map(mean);
+    means.forEach((m, i) => i > 0 && expect(m).toBeLessThan(means[i - 1]!));
+  });
+
+  it('separates nothing when nothing is separable, so that the check can fail', () => {
+    expect(separation([])).toBe(0.5);
+    expect(separation([{ confidence: 1, right: true }])).toBe(0.5);
+    expect(
+      separation([
+        { confidence: 0.5, right: true },
+        { confidence: 0.5, right: false },
+      ]),
+    ).toBe(0.5);
+    expect(
+      separation([
+        { confidence: 0.2, right: true },
+        { confidence: 0.9, right: false },
+      ]),
+    ).toBe(0);
+  });
+});
+
+/**
+ * Two players in one bar: the motif the band takes is one read right more
+ * often when it takes the surest reading (`taken`) than when it takes the
+ * most notes, the prototype's rule (E17). Literals to ±3 points.
+ */
+describe('the motif taken of two players (E17)', () => {
+  it.each([
+    [0, 40, 0.654, 1],
+    [20, 40, 0.542, 0.777],
+    [30, 30, 0.411, 0.584],
+  ])(
+    'players at %i and %i ms: the most notes %f, the surest reading %f',
+    (a, b, notes, sure) => {
+      const c = choiceRate(a, b, KEY);
+      expect(c.pairs).toBeGreaterThan(700);
+      expect(Math.abs(c.byNotes / c.pairs - notes)).toBeLessThan(0.03);
+      expect(Math.abs(c.bySureness / c.pairs - sure)).toBeLessThan(0.03);
+    },
+    60_000,
+  );
+
+  it('never takes worse by the surest reading, over a spread of pairs', () => {
+    for (const [a, b] of [
+      [10, 30],
+      [20, 60],
+      [40, 40],
+    ] as const) {
+      const c = choiceRate(a, b, KEY);
+      expect(c.bySureness).toBeGreaterThanOrEqual(c.byNotes);
     }
   }, 60_000);
 });

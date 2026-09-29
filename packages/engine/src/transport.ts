@@ -53,8 +53,8 @@ import {
   type MuseOutput,
   type Offer,
   admissible,
-  barOf,
   judgeBar,
+  keptAfter,
   muse,
 } from './muse.ts';
 import { type StyleTrack, styleAt, valueAt, writtenStyle } from './style.ts';
@@ -262,7 +262,7 @@ function listen(listening: Listening, last: number, judged: MuseOutput[]): Liste
     carried = next.carried;
     judged.push(next.output);
     forget = false;
-    pending = pending.filter((n) => barOf(n) > bar);
+    pending = keptAfter(pending, bar);
     remote = remote.filter((r) => r.bar > bar);
     unjudged = unjudged.slice(1);
   }

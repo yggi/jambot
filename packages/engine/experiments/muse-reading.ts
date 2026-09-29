@@ -17,9 +17,13 @@ import {
   AS_PHRASES,
   BASELINE,
   beatPattern,
+  choiceRate,
+  judgedBars,
+  pattern,
   BPM,
   phraseRate,
   readingRate,
+  separation,
   stepMs,
 } from './humanise.ts';
 
@@ -37,30 +41,58 @@ for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
   );
 }
 
-// A1 and A4: the same hands, playing two phrases of one to three bars with an empty bar between.
+// A1 to A4 and A6: the same hands, playing two phrases of one to three bars with an empty bar between.
+// The Muse's own judgement (`judgeBar`) reads a phrase so far, and no note of the bars after the one it judges.
 console.log('\nphrases: bars right, notes on their steps, rests on theirs, notes strayed');
 console.log(
-  'ms     bars | nearest step: right onsets  rests strayed | read whole: right onsets  rests strayed',
+  'ms     bars | nearest step | read whole, whole phrase known | judgeBar, phrase so far',
 );
-for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
-  const a = phraseRate(AS_HEARD, sloppiness, KEY);
-  const b = phraseRate(AS_PHRASES, sloppiness, KEY);
-  const row = (r: typeof a) =>
-    `${pct(r.right, r.bars)} ${pct(r.onsets, r.bars)} ${pct(r.rests, r.bars)} ${pct(r.strayed, r.bars)}`;
+for (const [name, source] of [
+  ['one dominant note value', pattern],
+  ['beats that divide by themselves', beatPattern],
+] as const) {
+  console.log(`\n${name}`);
+  for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
+    const a = phraseRate(AS_HEARD, sloppiness, KEY, 1, source);
+    const b = phraseRate(AS_PHRASES, sloppiness, KEY, 1, source);
+    const c = phraseRate(AS_HEARD, sloppiness, KEY, 1, source, 'phrases');
+    const row = (r: typeof a) =>
+      `${pct(r.right, r.bars)} ${pct(r.onsets, r.bars)} ${pct(r.rests, r.bars)} ${pct(r.strayed, r.bars)}`;
+    const rowNoStray = (r: typeof a) =>
+      `${pct(r.right, r.bars)} ${pct(r.onsets, r.bars)} ${pct(r.rests, r.bars)}`;
+    console.log(
+      `${String(sloppiness).padStart(3)} ${String(a.bars).padStart(8)} | ${row(a)} | ${row(b)} | ${rowNoStray(c)}`,
+    );
+  }
+}
+
+// A5: does the confidence a judgement carries say whether it is right?
+console.log(
+  '\nconfidence of a bar read as a motif: mean, right share of the surest third and of the least sure, separation',
+);
+console.log('ms   bars   mean | surest third right | least sure right | separation');
+for (const sloppiness of [10, 20, 30, 40, 60]) {
+  const bars = judgedBars(sloppiness, KEY).sort((a, b) => b.confidence - a.confidence);
+  const third = Math.floor(bars.length / 3);
+  const share = (xs: typeof bars) => pct(xs.filter((b) => b.right).length, xs.length);
+  const mean = bars.reduce((sum, b) => sum + b.confidence, 0) / bars.length;
   console.log(
-    `${String(sloppiness).padStart(3)} ${String(a.bars).padStart(8)} | ${row(a)} | ${row(b)}`,
+    `${String(sloppiness).padStart(3)} ${String(bars.length).padStart(6)} ${mean.toFixed(2).padStart(6)} | ${share(bars.slice(0, third))} | ${share(bars.slice(-third))} | ${separation(bars).toFixed(3)}`,
   );
 }
 
-// A3: bars whose beats divide by themselves (a quarter, eighths, sixteenths, a mix).
-console.log('\nbeats that divide by themselves: nearest step | read whole');
-console.log('ms     bars | right onsets  rests strayed | right onsets  rests strayed');
-for (const sloppiness of [0, 10, 20, 30, 40, 50, 60]) {
-  const a = phraseRate(AS_HEARD, sloppiness, KEY, 1, beatPattern);
-  const b = phraseRate(AS_PHRASES, sloppiness, KEY, 1, beatPattern);
-  const row = (r: typeof a) =>
-    `${pct(r.right, r.bars)} ${pct(r.onsets, r.bars)} ${pct(r.rests, r.bars)} ${pct(r.strayed, r.bars)}`;
+// A5: two players in one bar, and the motif the band takes: the most notes, or the surest reading.
+console.log('\ntwo players, one bar: the motif taken is one read right');
+console.log('A ms  B ms  pairs | most notes | surest reading');
+for (const [a, b] of [
+  [0, 40],
+  [10, 30],
+  [20, 40],
+  [30, 30],
+  [20, 60],
+] as const) {
+  const c = choiceRate(a, b, KEY);
   console.log(
-    `${String(sloppiness).padStart(3)} ${String(a.bars).padStart(8)} | ${row(a)} | ${row(b)}`,
+    `${String(a).padStart(4)} ${String(b).padStart(5)} ${String(c.pairs).padStart(6)} | ${pct(c.byNotes, c.pairs)} | ${pct(c.bySureness, c.pairs)}`,
   );
 }

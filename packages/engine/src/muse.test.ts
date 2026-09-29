@@ -1,17 +1,20 @@
 import { chromaticStep, heightOf, motifProblems } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
+import { barStart } from './events.ts';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import {
   type HeardNote,
   type Judgement,
   MUSE,
+  PHRASE_MEMORY,
   type MuseCarried,
   type MuseEnv,
   type MuseInput,
   admissible,
   heardIn,
   judgeBar,
+  keptAfter,
   muse,
   taken,
 } from './muse.ts';
@@ -52,6 +55,118 @@ const plain = (onsets: number[], degrees: number[]) => ({
   onsets,
   degrees,
   accidentals: onsets.map(() => 0),
+});
+
+describe('reading a phrase across bars', () => {
+  /** A phrase of quarters and its bar lines: `first` and on, `count` of them, one source. */
+  const quarters = (
+    first: number,
+    count: number,
+    source: string,
+    jitter: (i: number) => number = () => 0,
+  ) =>
+    range(count).map((i) => ({
+      note: 60 + ((i * 3) % 12),
+      velocity: 100,
+      source,
+      position: first + 4 * i + jitter(i),
+      end: null,
+    }));
+
+  it('puts a first note struck early into the bar it meant, not the bar before', () => {
+    const notes = quarters(16, 4, 'a hand', (i) => [-0.55, -0.3, 0.3, -0.3][i]!);
+    // Judging bar 0 (before anything of bar 1 is known) sees one note in it, as the nearest step does: too few, not offered.
+    expect(judgeBar(notes, 0, A_MINOR)).toEqual(judgeBar(notes, 0, A_MINOR, 'nearest'));
+    // Judging bar 1 reads the phrase so far, the early note included.
+    const near = judgeBar(notes, 1, A_MINOR, 'nearest');
+    expect(near[0]).toMatchObject({ kind: 'motif', motif: { onsets: [0, 4, 8, 12] } });
+    expect(near[0]!.kind === 'motif' && near[0]!.motif.degrees[0]).toBeNull();
+    const bar = judgeBar(notes, 1, A_MINOR);
+    expect(bar).toHaveLength(1);
+    expect(bar[0]).toMatchObject({ kind: 'motif', motif: { onsets: [0, 4, 8, 12] } });
+    expect(bar[0]!.kind === 'motif' && bar[0]!.motif.degrees[0]).not.toBeNull();
+  });
+
+  it('reads a bar by the phrase before it: notes of the bars back count', () => {
+    // Quarters through two bars, the first note of the second struck 0.55 of a step early, mid-phrase, among notes a third of a step off either way:
+    // the phrase's quarters put it on the bar.
+    const notes = quarters(
+      0,
+      8,
+      'a hand',
+      (i) => [0.3, -0.3, 0.3, -0.3, -0.55, -0.3, 0.3, -0.3][i]!,
+    );
+    const first = (reading: 'nearest' | 'phrases') => {
+      const j = judgeBar(notes, 1, A_MINOR, reading)[0];
+      return j?.kind === 'motif' ? j.motif.degrees[0] : undefined;
+    };
+    // The nearest step puts the note in bar 0 and starts bar 1 with a rest; the phrase's quarters put it on the bar.
+    expect(first('nearest')).toBeNull();
+    expect(first('phrases')).toBe(0);
+  });
+
+  it('never depends on notes of the bars after the one judged (F7)', () => {
+    const draw = (() => {
+      let x = 5;
+      return () => (x = (Math.imul(x, 1103515245) + 12345) >>> 0) / 2 ** 32;
+    })();
+    for (let trial = 0; trial < 60; trial++) {
+      const notes = range(12).map(() => ({
+        note: 57 + Math.floor(draw() * 14),
+        velocity: 90,
+        source: draw() < 0.7 ? 'a' : 'b',
+        position: 16 + draw() * 48,
+        end: draw() < 0.5 ? null : 16 + draw() * 48,
+      }));
+      const bar = 1 + Math.floor(draw() * 2);
+      const before = notes.filter((n) => n.position < barStart(bar + 1));
+      expect(judgeBar(before, bar, A_MINOR)).toEqual(judgeBar(notes, bar, A_MINOR));
+    }
+  });
+
+  it('reads each source on its own', () => {
+    const early = quarters(16, 4, 'early', (i) => (i === 0 ? -0.45 : 0.05));
+    const exact = quarters(16, 4, 'exact');
+    const bar = judgeBar([...early, ...exact], 1, A_MINOR);
+    expect(bar.map((j) => j.source).sort()).toEqual(['early', 'exact']);
+    expect(judgeBar([...early], 1, A_MINOR)).toEqual(bar.filter((j) => j.source === 'early'));
+  });
+});
+
+describe('what the Muse keeps once a bar is judged (keptAfter)', () => {
+  const note = (position: number, source = 'a'): HeardNote => ({
+    note: 60,
+    velocity: 100,
+    source,
+    position,
+    end: null,
+  });
+
+  it('keeps the notes of the bars after, and a phrase still running', () => {
+    const notes = [note(2), note(6), note(14), note(20)];
+    expect(keptAfter(notes, 0)).toEqual(notes);
+  });
+
+  it('drops a phrase that has been silent a bar, and keeps what is after it', () => {
+    const notes = [note(2), note(6), note(40)];
+    expect(keptAfter(notes, 1)).toEqual([note(40)]);
+  });
+
+  it('keeps each source’s running phrase and drops another source’s finished one', () => {
+    const notes = [note(2, 'done'), note(30, 'running'), note(34, 'running')];
+    expect(keptAfter(notes, 1)).toEqual([note(30, 'running'), note(34, 'running')]);
+  });
+
+  it('forgets a phrase’s notes more than PHRASE_MEMORY bars back, however long it runs', () => {
+    const notes = range(40 * 4).map((i) => note(i * 4));
+    const kept = keptAfter(notes, 39);
+    expect(kept.length).toBeLessThanOrEqual(PHRASE_MEMORY * 4 + 4);
+    expect(kept.length).toBeGreaterThan((PHRASE_MEMORY - 1) * 4);
+  });
+
+  it('keeps nothing of nothing', () => {
+    expect(keptAfter([], 3)).toEqual([]);
+  });
 });
 
 describe('what a host takes from a client (admissible)', () => {
@@ -113,12 +228,20 @@ describe('what a host takes from a client (admissible)', () => {
       // Two octaves and more from any first note.
       motif({ degrees: [0, 7, 14] }),
       motif({}, 300),
+      { ...good, confidence: 1.5 },
+      { ...good, confidence: -0.1 },
+      { ...good, confidence: Number.NaN },
       { kind: 'mashing', source: 'a client', count: 5 } as Judgement,
       { kind: 'too few', source: 'a client', count: 9 } as Judgement,
       { kind: 'too wide', source: 'a client', range: 12 } as Judgement,
     ])
       expect(admissible(bad, A_MINOR)).toBe(false);
     expect(admissible(motif({ degrees: [0, 7, 11] }), A_MINOR)).toBe(true);
+    expect(admissible({ ...good, confidence: 0 }, A_MINOR)).toBe(true);
+    expect(admissible({ ...good, confidence: 0.5 }, A_MINOR)).toBe(true);
+    const bare: Partial<Judgement & { confidence: number }> = { ...good };
+    delete bare.confidence;
+    expect(admissible(bare as Judgement, A_MINOR)).toBe(true);
   });
 
   it('refuses what is not a judgement at all, as it may arrive off the wire, without throwing', () => {
@@ -148,6 +271,8 @@ describe('what a host takes from a client (admissible)', () => {
       { ...good, motif: { ...motif, accidentals: undefined } },
       { ...good, motif: { ...motif, accents: [0, 'x', 0] } },
       { ...good, motif: { ...motif, accents: [0, 0] } },
+      { ...good, confidence: '1' },
+      { ...good, confidence: null },
       { ...good, source: undefined },
       { ...good, source: 7 },
       { ...good, kind: 'a motif, trust me' },
@@ -238,6 +363,7 @@ describe('the Muse’s judgement', () => {
       source: 'the computer keys',
       motif: plain([0, 4, 8], [0, 2, 1]),
       level: 100,
+      confidence: 1,
     });
   });
 
@@ -252,6 +378,7 @@ describe('the Muse’s judgement', () => {
         source: 'the computer keys',
         motif: plain([0, 3, 6, 9, 12], shape),
         level: 100,
+        confidence: 1,
       });
     }
   });
@@ -431,16 +558,33 @@ describe('the Muse’s judgement', () => {
     expect([loud.level, soft.level]).toEqual([110, 40]);
   });
 
-  it('puts each note on the step nearest where it was heard', () => {
-    const judgement = judgeOne(
+  it('puts each note on the step nearest where it was heard, in the baseline reading', () => {
+    const judgement = judgeBar(
       played([
         [0.4, 69],
         [3.6, 72],
         [8.49, 76],
         [11.49, 74],
       ]),
-    );
+      0,
+      A_MINOR,
+      'nearest',
+    )[0];
     expect(judgement).toMatchObject({ motif: { onsets: [0, 4, 8, 11] } });
+  });
+
+  it('reads a phrase as a hand played it: a note off by a step of a loose hand goes where the phrase says', () => {
+    // Quarters, the last struck 0.6 of a step early, the others a third of a step off either way: the nearest step says 11, the phrase's quarters 12.
+    const notes = played([
+      [0.3, 69],
+      [3.7, 72],
+      [8.3, 76],
+      [11.4, 74],
+    ]);
+    expect(judgeBar(notes, 0, A_MINOR, 'nearest')[0]).toMatchObject({
+      motif: { onsets: [0, 4, 8, 11] },
+    });
+    expect(judgeBar(notes, 0, A_MINOR)[0]).toMatchObject({ motif: { onsets: [0, 4, 8, 12] } });
   });
 
   it('hears a note in the bar its nearest step is in, so one just before a bar belongs to it', () => {
@@ -502,17 +646,19 @@ describe('the Muse’s judgement', () => {
           accidentals: [0, 0, 0, 0],
         },
         level: 100,
+        confidence: 1,
       },
       {
         kind: 'motif',
         source: 'the on-screen keys',
         motif: plain([0, 4, 8], [0, 2, 4]),
         level: 100,
+        confidence: 1,
       },
     ]);
   });
 
-  it('takes the motif with the most notes, the first to arrive on a tie, and none when none is a motif (A3)', () => {
+  it('takes the motif of the most notes when the readings are as sure, the first to arrive on a tie, and none when none is a motif (A3)', () => {
     const three = played(
       [
         [0, 69],
@@ -550,6 +696,105 @@ describe('the Muse’s judgement', () => {
     expect(judge(mashing, three)?.source).toBe('three');
     expect(judge(mashing)).toBeNull();
     expect(judge()).toBeNull();
+  });
+
+  it('takes the motif the reading is surest of, though it has fewer notes (A5)', () => {
+    const exact = judgeBar(
+      played(
+        [
+          [0, 69],
+          [4, 72],
+          [8, 76],
+        ],
+        'exact',
+      ),
+      0,
+      A_MINOR,
+    );
+    const loose = judgeBar(
+      played(
+        [
+          [1.4, 69],
+          [5.3, 72],
+          [9.4, 76],
+          [13.3, 74],
+        ],
+        'loose',
+      ),
+      0,
+      A_MINOR,
+    );
+    const confidence = (js: Judgement[]) => (js[0]!.kind === 'motif' ? js[0]!.confidence! : NaN);
+    expect(confidence(exact)).toBe(1);
+    expect(confidence(loose)).toBeLessThan(1);
+    expect(taken([...loose, ...exact])?.source).toBe('exact');
+    expect(taken([...exact, ...loose])?.source).toBe('exact');
+    // As sure as each other, the notes decide again.
+    const sameSure = loose.map((j) => (j.kind === 'motif' ? { ...j, confidence: 1 } : j));
+    expect(taken([...exact, ...sameSure])?.source).toBe('loose');
+  });
+
+  it('counts a judgement without a confidence, from the nearest step, as sure', () => {
+    const notes = played(
+      [
+        [0, 69],
+        [4, 72],
+        [8, 76],
+      ],
+      'nearest',
+    );
+    const [near] = judgeBar(notes, 0, A_MINOR, 'nearest');
+    expect(near).not.toHaveProperty('confidence');
+    const [read] = judgeBar(
+      played(
+        [
+          [1.4, 69],
+          [5.3, 72],
+          [9.4, 76],
+        ],
+        'read',
+      ),
+      0,
+      A_MINOR,
+    );
+    expect(taken([read!, near!])?.source).toBe('nearest');
+  });
+});
+
+describe('the confidence of a judgement (A5)', () => {
+  const at = (jitter: number, source = 'a hand') =>
+    played(
+      range(6).map(
+        (i) => [4 * i + (i % 2 ? jitter : -jitter), 60 + ((i * 3) % 7)] as [number, number],
+      ),
+      source,
+    ).map((n) => ({ ...n, position: n.position + 16 }));
+  const confidenceOf = (notes: HeardNote[]) => {
+    const j = judgeBar(notes, 1, A_MINOR).find((x) => x.kind === 'motif');
+    return j?.kind === 'motif' ? j.confidence : undefined;
+  };
+
+  it('is 1 for a hand exactly on its places, and absent from the nearest step’s reading', () => {
+    expect(confidenceOf(at(0))).toBe(1);
+    const nearest = judgeBar(at(0), 1, A_MINOR, 'nearest')[0]!;
+    expect(nearest.kind === 'motif' && nearest.confidence).toBeUndefined();
+  });
+
+  it('falls as a hand gets looser, and stays between 0 and 1', () => {
+    const levels = [0, 0.1, 0.2, 0.3, 0.4].map((j) => confidenceOf(at(j))!);
+    levels.forEach((c, i) => {
+      expect(c).toBeGreaterThanOrEqual(0);
+      expect(c).toBeLessThanOrEqual(1);
+      if (i > 0) expect(c).toBeLessThanOrEqual(levels[i - 1]!);
+    });
+    expect(levels[4]!).toBeLessThan(levels[0]!);
+  });
+
+  it('is a whole number of hundredths, so it travels as it was judged', () => {
+    for (const j of [0.13, 0.27, 0.41]) {
+      const c = confidenceOf(at(j))!;
+      expect(Math.round(c * 100) / 100).toBe(c);
+    }
   });
 });
 
