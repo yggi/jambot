@@ -78,6 +78,17 @@ describe('pre-push', () => {
     expect(stderr).toContain('the push was blocked');
   });
 
+  it('keeps the whole output of a failed check, and says where, since its end may miss the failure', () => {
+    const dir = repoWith(['a.ts']);
+    const long = 'echo the first line failed; for i in $(seq 100); do echo noise $i; done; exit 1';
+    const { stderr } = hook(dir, 'head', { verify: long });
+    expect(stderr).not.toContain('the first line failed');
+    const kept = /full log: (\S+)/.exec(stderr)?.[1];
+    expect(kept).toBeDefined();
+    expect(readFileSync(kept!, 'utf8')).toContain('the first line failed');
+    expect(kept!.startsWith(git(dir, 'rev-parse', '--absolute-git-dir'))).toBe(true);
+  });
+
   it('lets a push through when verify passes', () => {
     expect(hook(repoWith(['a.ts'])).status).toBe(0);
   });
