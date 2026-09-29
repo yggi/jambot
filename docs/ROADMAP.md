@@ -37,7 +37,7 @@ the view: a motif bar tinted in its source's colour, and the players' own rows
 in the tracks grid (#164, #183). Next for the Muse (#204), in order: reading a
 sloppy hand as a musician does, with the beat, equal lengths, their ratios and
 plausible rests as priors, since today's one rounding to the nearest step reads
-a hand 30 ms off right in a quarter of its bars (E17, A0 and A1 done, A2 to A6 next).
+a hand 30 ms off right in a quarter of its bars, and a phrase read whole with its rests in 44% (E17, A0, A1 and A4 done, A2, A3, A5 and A6 next).
 The reading is one with the analyzer's `quantiseSection`, a shared reader in the engine, and it hears a phrase, not a bar: she listens across bars until the player leaves a bar empty, and what she does with a phrase (motifs and their order, variations, a composer's memory) is #207;
 a log of what players play, which A5's question and #16's encoder both need;
 confidence across players (A3), which a session makes pressing and the reading's

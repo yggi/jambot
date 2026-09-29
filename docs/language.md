@@ -1701,7 +1701,20 @@ run; the others have.
     Bars with a note in the wrong bar at 30 ms: 9.9% against 7.6%.
   - Reading is no better from 60 ms, and marginally worse in right bars (a handful in 3,600): a hand that loose puts a note past half a step from where it meant, which no prior on the first onset repairs.
   - A beat prior on every onset, not only the first, at odds of 1.5 to 3, moved the 30 ms numbers by under a point, so it is left out.
-  - What is left is the per-onset jitter of a loose hand and its releases: the equal lengths (A2), their ratios (A3) and the rests (A4).
+  - **A4: rests** (`releasesOf` in `phrase.ts`).
+    A release short of the next onset, or of the bar's end, is the player's articulation, a share of the note's slot that the phrase's own notes leave (their lower quartile, up to 30%), unless the rest of the gap stands out by `REST_MARGIN` (3) times the hand's spread (its looseness, twice over).
+    A rest is then of the plausible length nearest to it (1, 2, 3, 4, 6, 8, 12 or 16 steps) where that is within the spread, and of the whole steps nearest to it otherwise, since a tight hand that leaves five steps meant five.
+    Bars right, bars with their rests where they were meant, nearest step against read whole: 10 ms 99.6% and 99.6% against 99.9% and 99.9%; 20 ms 69.1% and 70.4% against 84.4% and 87.9%; 30 ms 27.3% and 30.2% against 44.0% and 63.5%; 40 ms 9.1% and 11.6% against 20.1% and 43.9%; 60 ms 1.2% and 2.6% against 4.3% and 18.1%.
+  - Two things made the first cut worse than the nearest step at 10 ms (96.2% against 99.6%) and are why it reads as it does.
+    The articulation as the middle of what notes leave is wrong for a phrase that is half rests, where the rests are the middle; the lower quartile is not.
+    Snapping every gap to a plausible rest read a rest of five steps (a quarter and a sixteenth, which the yardstick's cut patterns make) as four; a rest is snapped only where the hand's own spread doesn't rule it out.
+  - The margin was swept on this yardstick, with the lower quartile in: 1.5, 2, 3, 4, 5 and 7 gave 75.4%, 78.0%, 84.4%, 81.3%, 75.8% and 67.3% of bars right at 20 ms, and 29.3%, 37.0%, 44.0%, 42.4%, 39.9% and 35.9% at 30 ms.
+    At 10 ms all but 7 give 99.8% or 99.9%.
+    3 is the best of the sweep, so it is tuned to the yardstick's patterns and to the humaniser, and is a starting value, not a finding.
+    A larger margin declares fewer rests, so it costs a real rest that a loose hand can't tell from a release; the yardstick's rests are a minority, and a phrase that is mostly rests would want it smaller.
+  - A note played staccato throughout is read as a full note (articulation), so a run of staccato eighths comes back as eighths, not as eighths and rests.
+    Only a release that stands out is a rest.
+  - What is left is the per-onset jitter of a loose hand, which the equal lengths (A2) and their ratios (A3) address, and the rests a loose hand can't tell from a release.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

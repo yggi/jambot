@@ -139,8 +139,9 @@ describe('the Muse’s baseline reading of a sloppy hand (E17)', () => {
 /**
  * Phrases (#204's step 1): two phrases of one to three bars with an empty bar between,
  * each humanised alone. The nearest-step reading is the baseline, and
- * reading each phrase as one span (`readHeard`) must never do worse than it
- * and does better from 20 ms: recorded as literals to ±3 points (E17).
+ * reading each phrase as one span, with its rests as a player's articulation
+ * or a plausible rest (`readHeard`), must never do worse than it and does
+ * better from 20 ms: recorded as literals to ±3 points (E17).
  */
 describe('reading phrases of a sloppy hand (E17)', () => {
   const share = (r: { bars: number }, n: number) => n / r.bars;
@@ -159,45 +160,52 @@ describe('reading phrases of a sloppy hand (E17)', () => {
   });
 
   it.each([
-    [20, 0.691, 0.829],
-    [30, 0.273, 0.465],
+    [20, 0.691, 0.829, 0.704],
+    [30, 0.273, 0.465, 0.302],
   ])(
-    'the nearest step, at %i ms, reads %f of the bars and puts %f of their onsets right',
-    (s, right, onsets) => {
+    'the nearest step, at %i ms, reads %f of the bars, puts %f of their onsets and %f of their rests right',
+    (s, right, onsets, rests) => {
       const r = phraseRate(AS_HEARD, s, KEY);
       expect(Math.abs(share(r, r.right) - right)).toBeLessThan(0.03);
       expect(Math.abs(share(r, r.onsets) - onsets)).toBeLessThan(0.03);
+      expect(Math.abs(share(r, r.rests) - rests)).toBeLessThan(0.03);
     },
   );
 
   it.each([
-    [20, 0.836, 0.928],
-    [30, 0.34, 0.539],
+    [10, 0.999, 1, 0.999],
+    [20, 0.844, 0.928, 0.879],
+    [30, 0.44, 0.539, 0.635],
+    [40, 0.201, 0.264, 0.439],
   ])(
-    'a phrase read whole, at %i ms, reads %f of the bars and puts %f of their onsets right',
-    (s, right, onsets) => {
+    'a phrase read whole, at %i ms, reads %f of the bars, puts %f of their onsets and %f of their rests right',
+    (s, right, onsets, rests) => {
       const r = phraseRate(AS_PHRASES, s, KEY);
       expect(Math.abs(share(r, r.right) - right)).toBeLessThan(0.03);
       expect(Math.abs(share(r, r.onsets) - onsets)).toBeLessThan(0.03);
+      expect(Math.abs(share(r, r.rests) - rests)).toBeLessThan(0.03);
     },
+    60_000,
   );
 
-  it('is never worse than the nearest step up to 50 ms, in right bars, in onsets or in notes strayed', () => {
+  it('is never worse than the nearest step up to 50 ms, in right bars, onsets, rests or notes strayed', () => {
     for (const s of [10, 20, 30, 40, 50]) {
       const heard = phraseRate(AS_HEARD, s, KEY);
       const read = phraseRate(AS_PHRASES, s, KEY);
       expect(read.right).toBeGreaterThanOrEqual(heard.right);
       expect(read.onsets).toBeGreaterThanOrEqual(heard.onsets);
+      expect(read.rests).toBeGreaterThanOrEqual(heard.rests);
       expect(read.strayed).toBeLessThanOrEqual(heard.strayed);
     }
   }, 60_000);
 
-  it('is no better than the nearest step from 60 ms, where a hand is looser than a step’s half, and no worse by a point', () => {
+  it('is no worse than the nearest step from 60 ms, by a point, in onsets, and better in rests', () => {
     for (const s of [60, 100]) {
       const heard = phraseRate(AS_HEARD, s, KEY);
       const read = phraseRate(AS_PHRASES, s, KEY);
       expect(read.right / read.bars).toBeGreaterThan(heard.right / heard.bars - 0.01);
       expect(read.onsets / read.bars).toBeGreaterThan(heard.onsets / heard.bars - 0.01);
+      expect(read.rests).toBeGreaterThan(heard.rests);
     }
   }, 60_000);
 });

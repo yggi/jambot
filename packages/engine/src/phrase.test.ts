@@ -48,9 +48,77 @@ describe('phrases', () => {
 });
 
 describe('reading a phrase', () => {
-  it('leaves a phrase played exactly exactly as it was', () => {
-    const exact = heard([16, 18, 20, 24, 28, 30, 31], (p) => p + 1);
+  it('leaves a phrase played exactly, each note held to the next, exactly as it was', () => {
+    const at = [16, 18, 20, 24, 28, 30, 31];
+    const exact = heard(at, (p) => (at[at.indexOf(p) + 1] ?? 32) as number);
     expect(readPhrase(exact)).toEqual(exact);
+  });
+
+  it('keeps a rest that is a rest, and only its length', () => {
+    // A quarter note, then a quarter rest, then the rest of the bar legato.
+    const at = [16, 24, 28, 30];
+    const ends = new Map([
+      [16, 20],
+      [24, 28],
+      [28, 30],
+      [30, 32],
+    ]);
+    const exact = heard(at, (p) => ends.get(p)!);
+    expect(readPhrase(exact)).toEqual(exact);
+  });
+
+  it('reads a release short of the next onset as articulation, not a rest, when the player does it throughout', () => {
+    const at = [16, 20, 24, 28];
+    const staccato = heard(at, (p) => p + 3);
+    expect(readPhrase(staccato).map((n) => n.end)).toEqual([20, 24, 28, 32]);
+    // Eighths held a step, the bar's last note aside, whose silence to the bar's end is a rest of its own.
+    const eighths = heard([16, 18, 20, 22], (p) => p + 1);
+    expect(
+      readPhrase(eighths)
+        .map((n) => n.end)
+        ?.slice(0, 3),
+    ).toEqual([18, 20, 22]);
+  });
+
+  it('does not make a rest of a release that is only loose', () => {
+    // Releases and onsets a fraction of a step either side of the next onset.
+    const at = [16.3, 19.8, 24.2, 27.7, 32.3];
+    const ends = [19.5, 24.6, 27.5, 32.4, 35.7];
+    const notes = at.map((position, i) => ({ ...heard([position])[0]!, end: ends[i]! }));
+    const read = readPhrase(notes);
+    expect(read.map((n) => n.position)).toEqual([16, 20, 24, 28, 32]);
+    expect(read.map((n) => n.end)).toEqual([20, 24, 28, 32, 36]);
+  });
+
+  it('makes a rest of a gap that stands out from the rest, of the nearest plausible length', () => {
+    // Legato but for a gap of 4.1 steps after the second note.
+    const notes = [
+      { ...heard([16])[0]!, end: 20 },
+      { ...heard([20])[0]!, end: 23.9 },
+      { ...heard([28])[0]!, end: 32 },
+    ];
+    expect(readPhrase(notes).map((n) => n.end)).toEqual([20, 24, 32]);
+  });
+
+  it('takes an odd gap for what it is from a tight hand, and for a plausible rest from a loose one', () => {
+    // A gap of 4.7 steps after the second note: five, or a quarter?
+    const tight = [
+      { ...heard([16])[0]!, end: 20 },
+      { ...heard([20])[0]!, end: 23.3 },
+      { ...heard([28])[0]!, end: 32 },
+    ];
+    expect(readPhrase(tight).map((n) => n.end)).toEqual([20, 23, 32]);
+    const loose = [
+      { ...heard([16.3])[0]!, end: 19.8 },
+      { ...heard([19.7])[0]!, end: 23.3 },
+      { ...heard([28.3])[0]!, end: 31.7 },
+      { ...heard([31.7])[0]!, end: 34.3 },
+    ];
+    expect(readPhrase(loose)[1]!.end).toBe(24);
+  });
+
+  it('gives a note whose release is unknown none', () => {
+    expect(readPhrase(heard([16, 20, 24])).map((n) => n.end)).toEqual([null, null, null]);
   });
 
   it('puts an early first note on the bar it meant, not the one before', () => {

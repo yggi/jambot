@@ -36,15 +36,17 @@ for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
   );
 }
 
-// A1: the same hands, playing two phrases of one to three bars with an empty bar between.
-console.log('\nphrases: each row the nearest step (as heard), then read as phrases (#204 A1)');
-console.log('ms     bars | heard: right onsets strayed | read: right onsets strayed');
+// A1 and A4: the same hands, playing two phrases of one to three bars with an empty bar between.
+console.log('\nphrases: bars right, notes on their steps, rests on theirs, notes strayed');
+console.log(
+  'ms     bars | nearest step: right onsets  rests strayed | read whole: right onsets  rests strayed',
+);
 for (const sloppiness of [0, 10, 20, 30, 40, 50, 60, 80, 100]) {
   const a = phraseRate(AS_HEARD, sloppiness, KEY);
   const b = phraseRate(AS_PHRASES, sloppiness, KEY);
+  const row = (r: typeof a) =>
+    `${pct(r.right, r.bars)} ${pct(r.onsets, r.bars)} ${pct(r.rests, r.bars)} ${pct(r.strayed, r.bars)}`;
   console.log(
-    `${String(sloppiness).padStart(3)} ${String(a.bars).padStart(8)} |` +
-      ` ${pct(a.right, a.bars)} ${pct(a.onsets, a.bars)} ${pct(a.strayed, a.bars)} |` +
-      ` ${pct(b.right, b.bars)} ${pct(b.onsets, b.bars)} ${pct(b.strayed, b.bars)}`,
+    `${String(sloppiness).padStart(3)} ${String(a.bars).padStart(8)} | ${row(a)} | ${row(b)}`,
   );
 }

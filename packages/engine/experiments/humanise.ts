@@ -240,6 +240,8 @@ export interface PhraseRate {
   readonly right: number;
   /** Bars whose notes all start on the steps they were meant for, whatever the rests. */
   readonly onsets: number;
+  /** Bars whose rests all fall on the steps they were meant for, and no others (A4). */
+  readonly rests: number;
   /** Bars with a note read in another bar than it was meant for. */
   readonly strayed: number;
 }
@@ -271,6 +273,10 @@ const range = (n: number) => [...Array(n).keys()];
 const noteSteps = (m: NonNullable<ReturnType<typeof motifOf>>) =>
   m.onsets.filter((_, i) => m.degrees[i] !== null).join();
 
+/** The bar-relative steps of a motif's rests. */
+const restSteps = (m: NonNullable<ReturnType<typeof motifOf>>) =>
+  m.onsets.filter((_, i) => m.degrees[i] === null).join();
+
 /**
  * The share of bars a hearing reads as their target, over performances of
  * two phrases each humanised alone (a phrase's offset and drift are its own).
@@ -279,6 +285,7 @@ export function phraseRate(hearing: Hearing, sloppiness: number, key: Key, seed 
   let bars = 0;
   let right = 0;
   let onsets = 0;
+  let rests = 0;
   let strayed = 0;
   for (let index = 0; index < PATTERNS; index++) {
     const parts = performance(index);
@@ -307,6 +314,7 @@ export function phraseRate(hearing: Hearing, sloppiness: number, key: Key, seed 
         )
           right++;
         if (got && noteSteps(got) === noteSteps(target)) onsets++;
+        if (got && restSteps(got) === restSteps(target)) rests++;
         if (
           read.some(
             (n) => intended.get(n.velocity) === bar && barAt(Math.round(n.position)) !== bar,
@@ -316,5 +324,5 @@ export function phraseRate(hearing: Hearing, sloppiness: number, key: Key, seed 
       }
     }
   }
-  return { bars, right, onsets, strayed };
+  return { bars, right, onsets, rests, strayed };
 }

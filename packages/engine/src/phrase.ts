@@ -17,11 +17,15 @@
  *   between a beat and the step nearest it goes where the odds, its
  *   distance weighed by the hand's own looseness against `BEAT_EVIDENCE`, say.
  *
- * What a phrase was meant to be beyond where its onsets go, the note value,
- * the lengths and the rests, is A2 to A4's.
+ * - the rests: a release short of the next onset is the player's
+ *   articulation unless it stands out from what the phrase's own notes
+ *   leave, and then it is a rest of a plausible length (`releasesOf`, A4).
+ *
+ * What a phrase was meant to be beyond where its onsets and rests go, the
+ * note value and the lengths, is A2 and A3's.
  */
 
-import { BAR_STEPS, beatAt, beatStart } from './events.ts';
+import { BAR_STEPS, barAt, barStart, beatAt, beatStart } from './events.ts';
 import type { HeardNote } from './muse.ts';
 import { readOnsets } from './reading.ts';
 
@@ -42,6 +46,23 @@ export const BEAT_EVIDENCE = 1.8;
 
 /** The least a hand's looseness is taken to be, in steps: a player exact to the ear is not exact to the step. */
 export const LOOSENESS_FLOOR = 0.08;
+
+/**
+ * The lengths of a rest a player plausibly means, in steps: a sixteenth, an
+ * eighth, a dotted eighth, a quarter and so on up to a bar. A gap between
+ * notes is one of these, or none (A4); a gap between them is the nearest.
+ */
+export const REST_VALUES = [1, 2, 3, 4, 6, 8, 12, 16] as const;
+
+/**
+ * How many times the spread of a release against the next onset a gap must
+ * exceed the player's usual articulation to be a rest at all. The spread is
+ * the hand's looseness, twice over: a release and an onset are each loose.
+ */
+export const REST_MARGIN = 3;
+
+/** The most of a note's slot a player is taken to leave off it, as articulation; more is a rest. */
+export const ARTICULATION_CEILING = 0.3;
 
 const reach = (n: HeardNote) => n.end ?? n.position;
 
@@ -101,11 +122,77 @@ export function readPhrase(phrase: readonly HeardNote[]): HeardNote[] {
       evidence - (first - step) ** 2 / (2 * looseness ** 2);
     if (score(beat, BEAT_EVIDENCE) > score(steps[0]!, 0)) steps[0] = beat;
   }
-  return notes.map((n, i) => ({
-    ...n,
-    position: steps[i]!,
-    end: n.end === null ? null : Math.max(steps[i]! + 1, Math.round(n.end - offset)),
-  }));
+  const ends = releasesOf(notes, steps, offset, looseness);
+  return notes.map((n, i) => ({ ...n, position: steps[i]!, end: ends[i]! }));
+}
+
+/** The lower quartile of a list, or 0 of none: what most of it is at least. */
+function lowerQuartile(xs: readonly number[]): number {
+  if (xs.length === 0) return 0;
+  const sorted = [...xs].sort((a, b) => a - b);
+  return sorted[Math.floor((sorted.length - 1) / 4)]!;
+}
+
+/**
+ * The rest a gap is, in steps: the plausible length nearest to it, the
+ * shorter of two equally near, where that is within `tolerance` of it, and
+ * otherwise the whole steps nearest to it, since a tight hand that leaves a
+ * gap of five steps meant five. 0 where the gap is less than half the
+ * least rest.
+ */
+function restFor(gap: number, tolerance: number): number {
+  if (gap < REST_VALUES[0] / 2) return 0;
+  const nearest = REST_VALUES.reduce((best, v) =>
+    Math.abs(v - gap) < Math.abs(best - gap) ? v : best,
+  );
+  return Math.abs(nearest - gap) <= tolerance ? nearest : Math.round(gap);
+}
+
+/**
+ * Where each note is read as released (A4): a rest, or none. A note is
+ * released before the next one or the bar's end by some gap, and a gap is
+ * either the player's articulation, a share of the note's slot that they
+ * leave off it, or a rest. The share is the phrase's own, the lower
+ * quartile of what its notes leave (what most of them leave at least, so a
+ * phrase that is half rests still shows its articulation), up to
+ * `ARTICULATION_CEILING`.
+ * What a gap is beyond that share and the spread the hand's looseness
+ * makes of it is a rest only where it is more than `REST_MARGIN` times that
+ * spread, and then of the plausible length nearest to it (`REST_VALUES`).
+ * A note not released, or released after what follows, is held to it.
+ */
+function releasesOf(
+  notes: readonly HeardNote[],
+  steps: readonly number[],
+  offset: number,
+  looseness: number,
+): (number | null)[] {
+  const slots = notes.map((n, i) => {
+    const barEnd = barStart(barAt(steps[i]!) + 1);
+    const next = notes[i + 1] ? notes[i + 1]!.position - offset : Infinity;
+    const nextStep = notes[i + 1] ? steps[i + 1]! : Infinity;
+    const start = n.position - offset;
+    return {
+      boundary: Math.min(nextStep, barEnd),
+      slot: Math.min(next, barEnd) - start,
+      gap: n.end === null ? null : Math.min(next, barEnd) - (n.end - offset),
+    };
+  });
+  const share = Math.min(
+    ARTICULATION_CEILING,
+    Math.max(
+      0,
+      lowerQuartile(slots.flatMap((s) => (s.gap === null || s.slot <= 0 ? [] : [s.gap / s.slot]))),
+    ),
+  );
+  const spread = REST_MARGIN * looseness * Math.SQRT2;
+  return notes.map((n, i) => {
+    const { boundary, slot, gap } = slots[i]!;
+    if (gap === null) return null;
+    const excess = gap - share * slot;
+    const rest = excess > spread ? restFor(excess, spread) : 0;
+    return Math.max(steps[i]! + 1, boundary - rest);
+  });
 }
 
 /** Everything heard, read phrase by phrase, in time. */
