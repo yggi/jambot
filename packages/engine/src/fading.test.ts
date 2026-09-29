@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { centreOf, fold, leaning, timeConstant } from './fading.ts';
 
-const range = (n: number) => [...Array(n).keys()];
 const DECAYS = [0, 0.5, 0.85, 0.95];
 
 describe('a fading memory', () => {
@@ -24,7 +23,7 @@ describe('a fading memory', () => {
   it('fades to nothing left alone, never below it, at every decay under 1 (C9)', () => {
     for (const decay of DECAYS) {
       let memory: readonly number[] = [1, 5, 0.25];
-      for (const _ of range(400)) {
+      for (let n = 0; n < 400; n++) {
         const next = fold(memory, decay, []);
         for (const [i, w] of next.entries()) {
           expect(w).toBeGreaterThanOrEqual(0);
@@ -41,7 +40,7 @@ describe('a fading memory', () => {
     for (const decay of DECAYS)
       for (const start of [0, 1, 100]) {
         let memory: readonly number[] = [start];
-        for (const _ of range(800)) memory = fold(memory, decay, [[0, 0.5]]);
+        for (let n = 0; n < 800; n++) memory = fold(memory, decay, [[0, 0.5]]);
         expect(memory[0]).toBeCloseTo(0.5 * timeConstant(decay), 9);
       }
   });

@@ -36,7 +36,7 @@ export function fold(memory: Weights, decay: number, readings: Iterable<Reading>
 
 /** The first of `candidates` that weighs most. */
 export function centreOf<T>(candidates: readonly T[], weigh: (candidate: T) => number): T {
-  let best = candidates[0]!;
+  let best = candidates[0] as T;
   let most = weigh(best);
   for (const candidate of candidates.slice(1)) {
     const weight = weigh(candidate);
