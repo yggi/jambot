@@ -2,10 +2,12 @@ import { type Page, expect, test } from '@playwright/test';
 import {
   type ClockJump,
   type Heard,
+  type Stall,
   clockJumps,
   heard,
   holdAudio,
   listen,
+  masterCalls,
   stalls,
 } from './audio.ts';
 
@@ -91,14 +93,28 @@ const IN_STEP = 2.5;
  * that far out every time.
  */
 const HOLDS = { some: 40, wide: 80 } as const;
-/** How long, in milliseconds, a test stalls the host's main thread, so its transport drops what the stall passes (T1). */
-const STALL = 300;
+/**
+ * How long, in milliseconds, a test stalls the host's main thread, so its
+ * transport drops what the stall passes (T1). The transport schedules
+ * `LOOKAHEAD` (120 ms) ahead, so only the steps of a stall's last part are
+ * dropped: at 300 ms that is about one step of 139 ms, which held a note in
+ * only some runs, and 800 ms drops four or five steps in every run.
+ */
+const STALL = 800;
 
-/** The span, on the wall clock, in which a jump of a page's clock can leave the two pages out. */
-const unsettled = ({ at, by }: ClockJump) => {
+/**
+ * The span, on the wall clock, in which a jump of a page's clock can leave
+ * the two pages out. A jump of the host's clock that a stall of its main
+ * thread begins before the host has told (within `SETTLE` of it) is told to
+ * the client only when the host runs again, so it settles from the stall's
+ * end, not from where the output pair placed it (`stalled`: the host's
+ * stalls; none for the client's jumps).
+ */
+const unsettled = ({ at, by }: ClockJump, stalled: readonly Stall[] = []) => {
   const size = Math.abs(by);
   const slewing = size >= TOLD ? 0 : Math.max(0, size - IN_STEP) / SLEWED;
-  return { from: at - AHEAD, to: at + SETTLE + slewing, size };
+  const told = stalled.find((s) => s.from <= at + SETTLE && s.to >= at)?.to ?? at;
+  return { from: at - AHEAD, to: told + SETTLE + slewing, size };
 };
 
 /**
@@ -160,7 +176,10 @@ async function inStep(
     100;
   const hosted = hostedAll.filter((n) => n.heard <= horizon + 50);
   const followed = followedAll.filter((n) => n.heard <= horizon);
-  const jumps = [...(await clockJumps(page)), ...(await clockJumps(client))];
+  const hostStalls = await stalls(page);
+  const hostJumps = await clockJumps(page);
+  const clientJumps = await clockJumps(client);
+  const jumps = [...hostJumps, ...clientJumps];
   // The hold jumped the held page's clock by more than the client's clock
   // can slew. A median moves a sample or two before the jump, and a
   // pairing is read a little after the moment it pairs, so the jump can be
@@ -172,7 +191,10 @@ async function inStep(
     holdJumps.some((s) => Math.abs(s.by) >= TOLD),
     `jumps of the held clock: ${(await clockJumps(held)).map((s) => `${s.by.toFixed(1)} ms at ${((s.at - heldAt) / 1000).toFixed(3)} s`).join(', ')}`,
   ).toBe(true);
-  const spans = jumps.map(unsettled);
+  const spans = [
+    ...hostJumps.map((j) => unsettled(j, hostStalls)),
+    ...clientJumps.map((j) => unsettled(j)),
+  ];
   /** How far, in milliseconds, a note at `t` may be out: `IN_STEP`, and every jump still settling there. */
   const allowed = (t: number) =>
     IN_STEP + spans.filter((s) => t >= s.from && t <= s.to).reduce((sum, s) => sum + s.size, 0);
@@ -194,7 +216,6 @@ async function inStep(
   // note has the host's, within what is allowed as it sounds: `IN_STEP`,
   // and the size of every jump still settling there, however large (a
   // busy machine's output can drop more than 50 ms at once).
-  const hostStalls = await stalls(page);
   const dropped = (t: number) => hostStalls.some((s) => t >= s.from && t <= s.to + 100);
   const judged = gaps.filter((g) => !(Math.abs(g.gap) >= 50 && dropped(g.at)));
   const out = judged.filter((g) => !(Math.abs(g.gap) <= allowed(g.at)));
@@ -289,11 +310,14 @@ test('the door lists the sessions open with their players, local and global apar
   await elsewhere.close();
 });
 
-/** The loudest sample at the speakers, every 10 ms for `ms` milliseconds, with the time it was read. */
+/**
+ * The loudest sample at the speakers, every 10 ms for `ms` milliseconds,
+ * with the time it was read, and the page clock's time the record began at.
+ */
 const record = (page: Page, ms: number) =>
   page.evaluate(
     (ms) =>
-      new Promise<{ t: number; level: number }[]>((resolve) => {
+      new Promise<{ began: number; samples: { t: number; level: number }[] }>((resolve) => {
         const tap = (window as unknown as { tap: AnalyserNode }).tap;
         const data = new Float32Array(tap.fftSize);
         const out: { t: number; level: number }[] = [];
@@ -304,7 +328,7 @@ const record = (page: Page, ms: number) =>
           out.push({ t, level: Math.max(...data.map(Math.abs)) });
           if (t > ms) {
             clearInterval(id);
-            resolve(out);
+            resolve({ began, samples: out });
           }
         }, 10);
       }),
@@ -323,16 +347,26 @@ test('a session joined comes in on a fade, not at full volume, and leaving fades
   await page.getByRole('button', { name: 'Start the band' }).click();
   await client.getByLabel('Your name').fill('Ada');
   await listed(client, 'fade jam').click({ timeout: 8000 });
-  const trace = await record(client, 9000);
+  const { began, samples: trace } = await record(client, 9000);
 
-  // From the first sound heard, the first 150 ms are well under what comes later.
-  const first = trace.find((s) => s.level > 0.01)!;
-  expect(first).toBeDefined();
-  const within = (from: number, to: number) =>
-    Math.max(
-      ...trace.filter((s) => s.t >= first.t + from && s.t < first.t + to).map((s) => s.level),
-    );
-  expect(within(0, 150)).toBeLessThan(within(3000, 6000) * 0.6);
+  // The master is set to silence at the join and, once the band plays,
+  // rises on a time constant: nothing is heard before the rise begins, and
+  // the band is audible once it is up. What the page asks of the master is
+  // read, not the first 150 ms of sound after the rise: the first note comes
+  // 350 to 500 ms after it, at whatever part of the rise a note happens to
+  // land.
+  const master = await masterCalls(client);
+  const muted = master.find((c) => c.kind === 'set' && c.value === 0);
+  const rise = master.find((c) => c.kind === 'target' && c.value > 0 && c.timeConstant >= 0.3);
+  expect(muted, 'the master is set to silence at the join').toBeDefined();
+  expect(rise, 'the master then rises on a time constant').toBeDefined();
+  expect(muted!.at).toBeLessThan(rise!.at);
+  const levels = (from: number, to: number) =>
+    trace.filter((s) => s.t >= from && s.t < to).map((s) => s.level);
+  expect(Math.max(...levels(0, rise!.at - began))).toBeLessThan(0.001);
+  expect(Math.max(...levels(rise!.at - began + 3000, rise!.at - began + 6000))).toBeGreaterThan(
+    0.1,
+  );
 
   // Leaving fades the band out: it plays on while it does, and the door comes once it is quiet.
   const leaving = record(client, 1500);
@@ -340,7 +374,7 @@ test('a session joined comes in on a fade, not at full volume, and leaving fades
   await end(client, 'Leave session', 'Yes, leave');
   await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
   expect(Date.now() - clicked).toBeGreaterThanOrEqual(400);
-  const after = await leaving;
+  const { samples: after } = await leaving;
   expect(Math.max(...after.filter((s) => s.t > 1000).map((s) => s.level))).toBeLessThan(0.0005);
 });
 

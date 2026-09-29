@@ -22,6 +22,19 @@ export interface Stall {
   to: number;
 }
 
+/**
+ * What the master level was asked to do, at `at` on the page clock, in
+ * milliseconds: to be `value` at once (`set`), or to glide to it on a time
+ * constant, in seconds (`target`). The master is the gain that feeds the
+ * compressor before the speakers.
+ */
+export interface MasterCall {
+  at: number;
+  kind: 'set' | 'target';
+  value: number;
+  timeConstant: number;
+}
+
 /** A sample of an audio context's pairing (`getOutputTimestamp`), with the wall clock it was read on. */
 interface PairingSample {
   context: number;
@@ -46,12 +59,34 @@ export async function listen(page: Page, path = '/') {
       contexts: AudioContext[];
       pairings: PairingSample[];
       stalls: Stall[];
+      master: MasterCall[];
     };
     w.starts = [];
     w.workers = { running: 0, made: 0 };
     w.contexts = [];
     w.pairings = [];
     w.stalls = [];
+    w.master = [];
+    // The master's own level: the gain that feeds the compressor. What it is
+    // asked to do, at once or on a time constant, is a mute and a fade.
+    const masters = new WeakSet<AudioParam>();
+    const set = AudioParam.prototype.setValueAtTime;
+    AudioParam.prototype.setValueAtTime = function (this: AudioParam, value: number, at: number) {
+      if (masters.has(this))
+        w.master.push({ at: performance.now(), kind: 'set', value, timeConstant: 0 });
+      return set.call(this, value, at);
+    };
+    const setTarget = AudioParam.prototype.setTargetAtTime;
+    AudioParam.prototype.setTargetAtTime = function (
+      this: AudioParam,
+      target: number,
+      startTime: number,
+      timeConstant: number,
+    ) {
+      if (masters.has(this))
+        w.master.push({ at: performance.now(), kind: 'target', value: target, timeConstant });
+      return setTarget.call(this, target, startTime, timeConstant);
+    };
     const Context = AudioContext;
     window.AudioContext = class extends Context {
       constructor(...args: ConstructorParameters<typeof AudioContext>) {
@@ -96,6 +131,8 @@ export async function listen(page: Page, path = '/') {
     }
     const connect = AudioNode.prototype.connect as (...args: unknown[]) => unknown;
     AudioNode.prototype.connect = function (this: AudioNode, target: unknown, ...rest: unknown[]) {
+      if (this instanceof GainNode && target instanceof DynamicsCompressorNode)
+        masters.add(this.gain);
       if (target instanceof AudioDestinationNode) {
         w.tap ??= target.context.createAnalyser();
         connect.call(this, w.tap);
@@ -232,3 +269,7 @@ export const holdAudio = (page: Page, ms: number) =>
  */
 export const stalls = (page: Page) =>
   page.evaluate(() => (window as unknown as { stalls: Stall[] }).stalls);
+
+/** What the page asked of the master level, in order. */
+export const masterCalls = (page: Page) =>
+  page.evaluate(() => (window as unknown as { master: MasterCall[] }).master);
