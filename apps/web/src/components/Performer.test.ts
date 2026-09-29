@@ -7,7 +7,7 @@ const view = (over: Partial<PerformerView> = {}): PerformerView => ({
   performer: 'lead',
   label: 'Lead',
   status: 'Lead is improvising.',
-  source: null,
+  motif: null,
   sounding: [],
   pattern: [],
   ...over,
@@ -43,15 +43,15 @@ describe('a band performer', () => {
     expect(one.getByText('1 note sounding.')).toBeInTheDocument();
   });
 
-  it('names the motif’s source only when it is given one, once expanded', () => {
+  it('names whose motif its last bar played, and the bar it was heard in, only when given one', () => {
     const { container } = render(Performer, {
       performer: view({
-        status: 'Lead is playing the motif heard in bar 7.',
-        source: 'Ada’s keys',
+        status: 'Lead is playing the motif from Ada’s keys, heard in bar 7.',
+        motif: { source: 'Ada’s keys', bar: 6 },
       }),
     });
     opened(container);
-    expect(screen.getByText('From Ada’s keys.')).toBeInTheDocument();
+    expect(screen.getByText('From Ada’s keys, heard in bar 7.')).toBeInTheDocument();
   });
 
   it('says nothing played in the last bar when its pattern is empty, once expanded', () => {

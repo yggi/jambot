@@ -86,7 +86,7 @@ import { type Intent, baseAfter, conduct, nudgeAfter, stopAt, wishAfter } from '
 import { EMPTY_HISTORY, HarmonicHistory, type HarmonicWeights } from './harmonicHistory.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
-import { EMPTY_PATTERN, Pattern, type BarPattern } from './pattern.ts';
+import { EMPTY_BAR, Pattern, type PatternBar } from './pattern.ts';
 import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
 import { startTicker } from './ticker.ts';
 
@@ -221,8 +221,8 @@ export class Player {
   dropped: readonly DroppedJudgement[] = $state.raw([]);
   /** The band's own notes heard sounding right now, one entry per performer. */
   sounding: SoundingNotes = $state(SILENT);
-  /** The last bar each track finished, for its piano roll. */
-  pattern: BarPattern = $state(EMPTY_PATTERN);
+  /** The last bar each track finished, for its piano roll, and whose motif the lead played in it. */
+  pattern: PatternBar = $state.raw(EMPTY_BAR);
   /** Which pitch classes the band has actually sounded lately, weighted and decaying. */
   harmonicHistory: HarmonicWeights = $state(EMPTY_HISTORY);
   mode: Mode = $state('solo');
@@ -543,7 +543,7 @@ export class Player {
     this.#sounding.clear();
     this.sounding = SILENT;
     this.#pattern.clear();
-    this.pattern = EMPTY_PATTERN;
+    this.pattern = EMPTY_BAR;
     this.#harmonicHistory.clear();
     this.harmonicHistory = EMPTY_HISTORY;
   }
@@ -648,6 +648,7 @@ export class Player {
   #schedule(output: Output, now: number, scheduled: TransportOutput) {
     const skew = this.skew;
     this.#timing = timedTick(this.#timing, { at: this.#surroundings.page(), now, scheduled });
+    for (const { bar, offer } of scheduled.composed) this.#pattern.offered(bar, offer);
     for (const { bar, event, seconds, duration } of scheduled.events) {
       output.play(event.part, event.note, event.velocity, seconds - skew, duration, event);
       const performer = performerOf(event.part);

@@ -43,6 +43,10 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   The stage's four rows (drums, bass, chords, lead) are named `Performer`, not `Track` or `Member`: `track` already names `StyleTrack` and the ratchet's working and negative tracks, and `Performer` names what each row is precisely — the composer writes what a performer plays, and a performer is the band's own voice or a human at that voice's instrument, the same word family as `performer.ts` (T4, #107), which is how a performer plays it.
   Decided in the working track, on the owner's naming call.
   `apps/web`'s `Performer` is this UI row, one per band voice; the engine's own performer, `perform` in `performer.ts`, is a different thing with the same name — it plays a bar, not a screen.
+- Whose motif the lead plays is the bar's own offer (`BarEnv.offer`), which every composed and forecast bar carries and a client gets with its host's bars, so no attribution crosses the protocol of its own (#164).
+  `BarView.motif` names it (an `Attribution`: source and bar heard) for the bar heard and the bars ahead, where it is the offer standing now.
+  `Pattern` keeps it with the bar its rolls show (`offered`, fed from the bars composed), so a roll and its attribution are always one bar's; its source stays an id, named only by the view (`performersOf`).
+  `playedIn` gives the players' side of a bar, per source, on the Muse's own rounding (`heardIn`, `heardStep`).
 - The e2e checks play each melody input as a player does: the computer keys typed, the on-screen keys pressed, and a MIDI keyboard through a Web MIDI stand-in the page gets before it loads (`band.e2e.ts`, `INPUTS`), since headless Chromium has no MIDI ports.
 - `performance.now` read off its object throws ("Illegal invocation" in a browser, a TypeError in Node), so a default clock is called on it: `deps.now ? deps.now() : performance.now()`, never `(deps.now ?? performance.now)()`.
   That broke every note played in the browser, after it had sounded, until an e2e check typed one (#79).

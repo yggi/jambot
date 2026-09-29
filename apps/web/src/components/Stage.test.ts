@@ -101,9 +101,12 @@ describe('the stage', () => {
     expect(screen.getByText('Lead is resting.')).toBeInTheDocument();
   });
 
-  it('says the lead plays the motif and which bar it was heard in, counted from 1', () => {
-    const playingMotif = { ...heard, bar: bar(9, { lead: 'motif', motif: 6 }) };
+  it('says the lead plays a motif, whose, and which bar it was heard in, counted from 1', () => {
+    const motif = { source: 'the computer keys', bar: 6 };
+    const playingMotif = { ...heard, bar: bar(9, { lead: 'motif', motif }) };
     render(Stage, { hud: playingMotif, playing: true });
-    expect(screen.getByText('Lead is playing the motif heard in bar 7.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Lead is playing the motif from the computer keys, heard in bar 7.'),
+    ).toBeInTheDocument();
   });
 });

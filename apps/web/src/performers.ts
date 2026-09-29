@@ -8,15 +8,16 @@
  *
  * A performer's status reuses the words the rest of the stage already
  * gives: the lead's from `leadStatus`, the other three's from the style,
- * since only the lead's motif names a source today (#79's "later" list). A
- * performer's `source` is the Muse's offer, named, only while the lead
- * plays that same offer — a bar's own decided offer, `hud.bar.motif`, not
- * whatever the Muse is offering now, which can already have moved on. Its
- * `pattern` is the last bar it finished (`Pattern`), for its piano roll.
+ * since only the lead's motif names a source today (#79's "later" list).
+ * Its `pattern` is the last bar it finished (`Pattern`), for its piano
+ * roll, and the lead's `motif` is whose motif it played in that same bar,
+ * named by player: the bar's own offer, as the band composed it, never
+ * whatever the Muse offers now.
  */
 
-import { type Hud, leadStatus, styleStatus } from './hud.ts';
-import type { BarPattern, PatternNote } from './pattern.ts';
+import { sourceName } from '@jambot/session';
+import { type Attribution, type Hud, leadStatus, styleStatus } from './hud.ts';
+import type { PatternBar, PatternNote } from './pattern.ts';
 import { type Performer, PERFORMERS, type SoundingNotes } from './sounding.ts';
 
 export interface PerformerView {
@@ -24,8 +25,8 @@ export interface PerformerView {
   readonly label: string;
   /** One line saying what the performer is playing. */
   readonly status: string;
-  /** The Muse's source for the motif the lead plays now, or null otherwise. */
-  readonly source: string | null;
+  /** For the lead, whose motif it played in the bar of its `pattern`, named; null otherwise. */
+  readonly motif: Attribution | null;
   /** The notes sounding on this performer right now. */
   readonly sounding: readonly number[];
   /** The notes of the last bar this performer finished. */
@@ -39,20 +40,25 @@ const LABELS: Readonly<Record<Performer, string>> = {
   lead: 'Lead',
 };
 
+/** Each band performer's row; `players` names a session's sources, by player id. */
 export function performersOf(
   hud: Hud,
   sounding: SoundingNotes,
-  pattern: BarPattern,
+  pattern: PatternBar,
+  players: Readonly<Record<string, string>> = {},
 ): readonly PerformerView[] {
   const style = styleStatus(hud.style);
   const lead = leadStatus(hud);
-  const playingItsOwnMotif = hud.bar?.lead === 'motif' && hud.muse.motif?.bar === hud.bar.motif;
+  const motif = pattern.motif && {
+    ...pattern.motif,
+    source: sourceName(pattern.motif.source, players),
+  };
   return PERFORMERS.map((performer) => ({
     performer,
     label: LABELS[performer],
     status: performer === 'lead' ? lead : style,
-    source: performer === 'lead' && playingItsOwnMotif ? hud.muse.motif!.source : null,
+    motif: performer === 'lead' ? motif : null,
     sounding: sounding[performer],
-    pattern: pattern[performer],
+    pattern: pattern.parts[performer],
   }));
 }

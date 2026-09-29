@@ -161,7 +161,9 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
     timeout: 8000,
   });
   await expect(
-    page.getByLabel('Conductor').getByText(/Lead is playing the motif heard in bar \d+\./),
+    page
+      .getByLabel('Conductor')
+      .getByText(/Lead is playing the motif from the computer keys, heard in bar \d+\./),
   ).toBeVisible({
     timeout: 8000,
   });
@@ -262,8 +264,16 @@ for (const input of INPUTS)
     await expect(took).toBeVisible({ timeout: 8000 });
     const heard = /Bar (\d+):/.exec((await took.textContent()) ?? '')![1];
     await expect(
-      page.getByLabel('Conductor').getByText(`Lead is playing the motif heard in bar ${heard}.`),
+      page
+        .getByLabel('Conductor')
+        .getByText(`Lead is playing the motif from ${input.source}, heard in bar ${heard}.`),
     ).toBeVisible({
+      timeout: 8000,
+    });
+    // The lead's row names the same motif once its last bar finished is one that played it (#164).
+    const lead = page.getByLabel('Band performers').locator('details', { hasText: 'Lead' });
+    await lead.locator('summary').click();
+    await expect(lead.getByText(`From ${input.source}, heard in bar ${heard}.`)).toBeVisible({
       timeout: 8000,
     });
     expect(errors).toEqual([]);

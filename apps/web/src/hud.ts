@@ -81,8 +81,24 @@ export interface BarView {
   readonly energy: number;
   /** Whether the lead rests in it, improvises (`leadRests`), or plays a motif the Muse offers. */
   readonly lead: 'resting' | 'improvising' | 'motif';
-  /** The bar the motif it plays was heard in, counted from the song's start, or null. */
-  readonly motif: number | null;
+  /**
+   * Whose motif the lead plays in it, named, and the bar it was heard in, or
+   * null. A bar ahead holds the offer standing now, which it plays unless
+   * another comes.
+   */
+  readonly motif: Attribution | null;
+}
+
+/**
+ * Where a motif the lead plays came from: its source, and the bar it was
+ * heard in, counted from the song's start. It is the bar's own `Offer`
+ * less the motif itself: the cell and where it was heard, not how the lead
+ * realises it. `Pattern` keeps the source's id, and the views name it
+ * (`sourceName`), as `BarView` and `PerformerView` do.
+ */
+export interface Attribution {
+  readonly source: string;
+  readonly bar: number;
 }
 
 export interface SectionView {
@@ -204,8 +220,8 @@ export function presetOf(style: Style): string | null {
 /** What the lead is doing, in the prototype's words, reused by the stage and its tracks. */
 export function leadStatus(hud: Pick<Hud, 'bar' | 'beat'>): string {
   if (hud.beat === null || !hud.bar) return 'The band plays on its own once started.';
-  if (hud.bar.lead === 'motif')
-    return `Lead is playing the motif heard in bar ${hud.bar.motif! + 1}.`;
+  if (hud.bar.lead === 'motif' && hud.bar.motif)
+    return `Lead is playing the motif from ${hud.bar.motif.source}, heard in bar ${hud.bar.motif.bar + 1}.`;
   return hud.bar.lead === 'resting' ? 'Lead is resting.' : 'Lead is improvising.';
 }
 
@@ -217,6 +233,9 @@ export function styleStatus({ preset, glide }: StyleView): string {
 }
 
 export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): Hud {
+  const players = muse?.players ?? {};
+  const named = (source: string) => sourceName(source, players);
+  const barView = (bar: ForecastBar) => barViewOf(bar, named);
   const at = heard === null ? 0 : bars.findIndex((b) => b.bar === barAt(heard));
   const here = at >= 0 ? bars[at] : undefined;
   const step = heard === null ? 0 : stepInBar(heard);
@@ -226,17 +245,15 @@ export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): H
     beat: heard === null ? null : beatInBar(step),
     chord: here && sounding ? chordView(sounding, here) : null,
     next: here ? bars.slice(at + 1, at + 1 + NEXT_BARS).map(barView) : [],
-    sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS)) : [],
+    sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS), barView) : [],
     style: styleView(track, heard ?? 0, tempoNudge),
     heading: bars.at(-1)?.plan.key ?? null,
-    muse: museView(muse),
+    muse: museView(muse, named),
   };
 }
 
 /** The Muse's view, each source read by its player's name. */
-function museView(muse: HudInput['muse']): MuseView {
-  const players = muse?.players ?? {};
-  const named = (source: string) => sourceName(source, players);
+function museView(muse: HudInput['muse'], named: (source: string) => string): MuseView {
   return {
     motif: muse?.offer ? motifView(muse.offer, named) : null,
     log: [
@@ -324,7 +341,11 @@ function museLines(
 }
 
 /** The sections from `first` on, as far as the bars hold all eight of each. */
-function sectionViews(bars: readonly ForecastBar[], first: number): SectionView[] {
+function sectionViews(
+  bars: readonly ForecastBar[],
+  first: number,
+  barView: (bar: ForecastBar) => BarView,
+): SectionView[] {
   const byBar = new Map(bars.map((b) => [b.bar, b]));
   const sections: SectionView[] = [];
   for (let index = first; sections.length < SECTIONS; index++) {
@@ -354,7 +375,7 @@ function chordView(
   };
 }
 
-function barView(bar: ForecastBar): BarView {
+function barViewOf(bar: ForecastBar, named: (source: string) => string): BarView {
   return {
     bar: bar.bar,
     barInSection: bar.bar % SECTION_BARS,
@@ -369,7 +390,7 @@ function barView(bar: ForecastBar): BarView {
       : leadRests(bar.plan.section.type, bar.barEnergy)
         ? 'resting'
         : 'improvising',
-    motif: bar.offer?.bar ?? null,
+    motif: bar.offer && { source: named(bar.offer.source), bar: bar.offer.bar },
   };
 }
 

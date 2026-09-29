@@ -22,8 +22,8 @@
     <span class="status">{performer.status}</span>
   </summary>
   <div class="detail">
-    {#if performer.source}
-      <p class="source">From {performer.source}.</p>
+    {#if performer.motif}
+      <p class="source">From {performer.motif.source}, heard in bar {performer.motif.bar + 1}.</p>
     {/if}
     <p class="caption">Last bar</p>
     <PianoRoll notes={performer.pattern} />
