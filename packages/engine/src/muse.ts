@@ -98,34 +98,55 @@ export type Reading = 'phrases' | 'nearest';
 /** How many bars of a running phrase the Muse keeps to read it by. */
 export const PHRASE_MEMORY = 16;
 
+/** A source's notes in a bar as the Muse hears them. */
+export interface HeardBar {
+  readonly source: string;
+  /** The notes read into the bar, in time. */
+  readonly notes: HeardNote[];
+  /** How sure the reading is, or undefined for the nearest step's, which has no such measure (`Judgement`'s `confidence`). */
+  readonly confidence?: number;
+}
+
 /**
- * Each source's notes in a bar, judged, in the order their first notes
- * arrived. A source's notes up to the end of the bar are read as phrases,
- * whole phrases so far and no notes of the bars after, so that what the
- * band plays never depends on what came later (F7); then the notes read
- * into the bar are judged.
+ * Each source's notes in a bar as the Muse hears them, in the order their
+ * first notes arrived: a source's notes up to the end of the bar, read as
+ * phrases (`readHeard`), whole phrases so far and no notes of the bars after
+ * the one heard, so that what the band plays never depends on what came
+ * later (F7); then those read into the bar. What a player's lane shows and
+ * what is judged are this.
  */
+export function heardInBar(
+  notes: readonly HeardNote[],
+  bar: number,
+  reading: Reading = 'phrases',
+): HeardBar[] {
+  const edge = barStart(bar + 1);
+  const upTo = notes.filter((n) => n.position < edge);
+  const sources = [...new Set([...heardIn(upTo, bar), ...upTo].map((n) => n.source))];
+  return sources.flatMap((source): HeardBar[] => {
+    const own = upTo.filter((n) => n.source === source);
+    if (reading === 'nearest') {
+      const heard = heardIn(own, bar);
+      return heard.length === 0 ? [] : [{ source, notes: heard }];
+    }
+    const { notes: read, margins } = readHeardWithMargins(own);
+    const heard = heardIn(read, bar);
+    if (heard.length === 0) return [];
+    const mean = heard.reduce((sum, n) => sum + margins.get(n)!, 0) / heard.length;
+    return [{ source, notes: heard, confidence: Math.round(mean * 100) / 100 }];
+  });
+}
+
+/** Each source's notes in a bar, judged, in the order their first notes arrived (`heardInBar`). */
 export function judgeBar(
   notes: readonly HeardNote[],
   bar: number,
   key: Key,
   reading: Reading = 'phrases',
 ): Judgement[] {
-  const edge = barStart(bar + 1);
-  const upTo = notes.filter((n) => n.position < edge);
-  const sources = [...new Set([...heardIn(upTo, bar), ...upTo].map((n) => n.source))];
-  return sources.flatMap((source) => {
-    const own = upTo.filter((n) => n.source === source);
-    if (reading === 'nearest') {
-      const heard = heardIn(own, bar);
-      return heard.length === 0 ? [] : [judge(source, heard, bar, key)];
-    }
-    const { notes: read, margins } = readHeardWithMargins(own);
-    const heard = heardIn(read, bar);
-    if (heard.length === 0) return [];
-    const mean = heard.reduce((sum, n) => sum + margins.get(n)!, 0) / heard.length;
-    return [judge(source, heard, bar, key, Math.round(mean * 100) / 100)];
-  });
+  return heardInBar(notes, bar, reading).map(({ source, notes: heard, confidence }) =>
+    judge(source, heard, bar, key, confidence),
+  );
 }
 
 /**

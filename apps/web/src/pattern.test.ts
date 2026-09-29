@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { barStart, heardInBar, heardStep } from '@jambot/engine';
 import { EMPTY_PATTERN, PATTERN_BARS, Pattern, playedIn } from './pattern.ts';
 
 describe('the pattern of the last bars', () => {
@@ -123,7 +124,7 @@ describe('what the players played in a bar', () => {
     end,
   });
 
-  it('gives each source a row of its notes in the bar, on the step the Muse rounds them to', () => {
+  it('gives each source a row of its notes in the bar, on the step the Muse reads them on, and as long as she reads them', () => {
     const played = playedIn(
       [
         note('the computer keys', 32.4, 35.6, 69),
@@ -134,19 +135,45 @@ describe('what the players played in a bar', () => {
     );
     expect(played).toEqual({
       'the computer keys': [
-        { step: 0, note: 69, length: 4 },
-        { step: 8, note: 72, length: 4 },
+        { step: 0, note: 69, length: 8 },
+        { step: 8, note: 72, length: 8 },
       ],
       'a MIDI port': [{ step: 4, note: 64, length: 4 }],
     });
   });
 
-  it('counts a note in the bar its nearest step is in, as the Muse does', () => {
-    const played = playedIn([note('keys', 47.6, 49), note('keys', 31.4, 33)], 2);
-    expect(played).toEqual({});
+  it('counts a note in the bar the Muse reads it into', () => {
+    expect(playedIn([note('keys', 47.6, 49)], 2)).toEqual({});
     expect(playedIn([note('keys', 47.6, 49)], 3)).toEqual({
       keys: [{ step: 0, note: 60, length: 1 }],
     });
+    expect(playedIn([note('keys', 31.4, 33)], 2)).toEqual({});
+    expect(playedIn([note('keys', 31.4, 33)], 1)).toEqual({
+      keys: [{ step: 15, note: 60, length: 1 }],
+    });
+  });
+
+  it('shows what the Muse judges: every note of a lane is a note of the motif she takes from it', () => {
+    let x = 11;
+    const draw = () => (x = (Math.imul(x, 1103515245) + 12345) >>> 0) / 2 ** 32;
+    for (let trial = 0; trial < 80; trial++) {
+      const notes = Array.from({ length: 4 + Math.floor(draw() * 6) }, () =>
+        note(
+          draw() < 0.6 ? 'a' : 'b',
+          30 + draw() * 40,
+          draw() < 0.5 ? null : 30 + draw() * 40,
+          60 + Math.floor(draw() * 12),
+        ),
+      );
+      const bar = 2;
+      const rows = playedIn(notes, bar);
+      const heard = heardInBar(notes, bar);
+      expect(Object.keys(rows).sort()).toEqual(heard.map((h) => h.source).sort());
+      for (const { source, notes: read } of heard)
+        expect(rows[source]!.map((n) => n.step)).toEqual(
+          read.map((n) => heardStep(n) - barStart(bar)),
+        );
+    }
   });
 
   it('holds a note still sounding, or released on the step it struck, for one step', () => {

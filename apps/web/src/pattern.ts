@@ -16,7 +16,7 @@
  * in it, placed on the steps the Muse rounds them to.
  */
 
-import { barStart, heardStep, heardIn, type HeardNote } from '@jambot/engine';
+import { barStart, heardInBar, heardStep, type HeardNote } from '@jambot/engine';
 import type { Attribution } from './attribution.ts';
 import type { Performer } from './sounding.ts';
 
@@ -93,9 +93,9 @@ export class Pattern {
 }
 
 /**
- * What each source played in `bar`, as rows of notes, by source id: each in
- * the bar and on the step the Muse rounds it to (`heardIn`, `heardStep`), so
- * the row shows what the Muse heard. A note still held, or released on the
+ * What each source played in `bar`, as rows of notes, by source id: each as
+ * the Muse hears it (`heardInBar`, a phrase read so far), in the bar and on
+ * the step she read it on, so the row shows what she heard. A note still held, or released on the
  * step it was struck, lasts one step.
  */
 export function playedIn(
@@ -104,11 +104,12 @@ export function playedIn(
 ): Readonly<Record<string, readonly PatternNote[]>> {
   const start = barStart(bar);
   const rows: Record<string, PatternNote[]> = {};
-  for (const n of heardIn(notes, bar)) {
-    const step = heardStep(n) - start;
-    const end = n.end === null ? null : heardStep({ position: n.end }) - start;
-    const length = end === null ? 1 : Math.max(1, end - step);
-    (rows[n.source] ??= []).push({ step, note: n.note, length });
-  }
+  for (const { source, notes: heard } of heardInBar(notes, bar))
+    for (const n of heard) {
+      const step = heardStep(n) - start;
+      const end = n.end === null ? null : heardStep({ position: n.end }) - start;
+      const length = end === null ? 1 : Math.max(1, end - step);
+      (rows[source] ??= []).push({ step, note: n.note, length });
+    }
   return rows;
 }
