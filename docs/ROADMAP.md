@@ -8,11 +8,13 @@ Where Jambot is heading. The concept and the reasoning behind it are in
 
 - **v0: locally demo-able**, by Thursday, 1 October 2026. v0 is the existing
   prototype. Anything added on top is a bonus and strengthens the case. The
-  round toward it is #171 (Donnerstag): contractions that bring more of the
-  engine into the app, orthogonal to the language work. Done so far: the page in
-  the order of the composition (#163), the key picker and the repaired circle of
-  fifths (#167), and the wiring of the Muse's attribution (#164); the rest is on
-  #171's checklist.
+  round toward it, #171 (Donnerstag), is done: contractions that brought more of
+  the engine into the app, orthogonal to the language work. The page follows the
+  order of the composition, the key follows the band's harmony, licences come
+  from the style, the lead follows the style and walks a melodic scale, the
+  tracks are one grid, and the Muse reads a sloppy hand.
+  The round after it is #212: the band's screen as cards, a summary over
+  details (`Card`), the metrum first.
 - **v1: event-ready**, by Christmas 2026. This is the deadline. v1 is the full
   bucket: everything on this roadmap, the live track and the learning track
   alike.
