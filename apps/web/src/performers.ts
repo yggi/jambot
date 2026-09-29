@@ -1,12 +1,12 @@
 /**
- * The stage's performers: one per band performer, drums, bass, chords and
+ * The tracks' performers: one per band performer, drums, bass, chords and
  * lead, as one plain snapshot each (`PerformerView`). `performersOf` reads
  * the same `Hud` and `SoundingNotes` every other view reads, and touches
  * neither the engine nor a session: the same performers are built the same
  * way whether the player plays alone, hosts, or follows a host
  * (`docs/briefs/host-mode.md`).
  *
- * A performer's status reuses the words the rest of the stage already
+ * A performer's status reuses the words the rest of the page already
  * gives: the lead's from `leadStatus`, the other three's from the style,
  * since only the lead's motif names a source today (#79's "later" list).
  * Its `pattern` is the last bar it finished (`Pattern`), for its piano

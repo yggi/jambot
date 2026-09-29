@@ -1,7 +1,9 @@
 <!--
-  The next four bars: each bar's chords as symbols over numerals, drawn
+  The bars ahead: each bar's chords as symbols over numerals, drawn
   smaller where a bar has two. A cue names the section where it changes,
-  and the key where that changes, as the prototype does.
+  and the key where that changes, as the prototype does. Four bars to a
+  row, each in its place in the row, so a section starts a row and a bar
+  stands under the one four before it.
 -->
 <script lang="ts">
   import type { BarView } from '../hud.ts';
@@ -13,6 +15,9 @@
   }
 
   let { before, bars }: Props = $props();
+
+  /** How many bars a row holds. */
+  const ROW = 4;
 
   const cue = (bar: BarView, prev: BarView) => {
     const key = bar.key !== prev.key ? bar.key : null;
@@ -29,9 +34,13 @@
   );
 </script>
 
-<ol class="ribbon">
-  {#each shown as { bar, cue, symbols, numerals } (bar.bar)}
-    <li class:cue={cue !== ''} class:two={bar.chords.length > 1}>
+<ol class="ribbon" aria-label="The bars ahead, to the end of the next section">
+  {#each shown as { bar, cue, symbols, numerals }, i (bar.bar)}
+    <li
+      class:cue={cue !== ''}
+      class:two={bar.chords.length > 1}
+      style:grid-column-start={i === 0 ? (bar.barInSection % ROW) + 1 : undefined}
+    >
       <span class="cue-label">{cue}</span>
       <b>{symbols}</b>
       <small>{numerals}</small>
@@ -45,7 +54,7 @@
     padding: 0;
     margin: 6px 0 0;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
   }
   li {

@@ -3,8 +3,8 @@
   details. The header is the card's own heading (what the thing is), a
   headline in large type (what it is now) and, only where there is
   something secondary that changes, a line under it, with the chevron at the right of the heading, in the same place on
-  every card. The details open under it, spaced alike. The key and the
-  metrum are cards, so a stack of them reads as one (a `Drawer` folds
+  every card. The details open under it, spaced alike. The metrum, the key,
+  the plan and the chords are cards, so a stack of them reads as one (a `Drawer` folds
   settings that aren't the music, with the same chevron).
 -->
 <script lang="ts">
@@ -17,17 +17,19 @@
     name: string;
     /** The line under it: secondary and changing, never a fixed explanation. */
     sub?: string;
+    /** Whether a screen reader announces the line under it as it changes. */
+    live?: boolean;
     children: Snippet;
   }
 
-  let { heading, name, sub, children }: Props = $props();
+  let { heading, name, sub, live = false, children }: Props = $props();
 </script>
 
 <details class="card" aria-label={heading}>
   <summary class="chevron">
     <span class="heading">{heading}</span>
     <span class="name">{name}</span>
-    {#if sub}<span class="sub">{sub}</span>{/if}
+    {#if sub}<span class="sub" aria-live={live ? 'polite' : undefined}>{sub}</span>{/if}
   </summary>
   {@render children()}
 </details>

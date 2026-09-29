@@ -17,7 +17,7 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   ...over,
 });
 
-describe('the next four bars', () => {
+describe('the bars ahead', () => {
   it('show each bar’s chords as symbols over numerals', () => {
     const two = [
       { step: 0, symbol: 'Dm', numeral: 'iv' },
@@ -31,6 +31,13 @@ describe('the next four bars', () => {
     expect(within(second!).getByText('Dm E7')).toBeInTheDocument();
     expect(within(second!).getByText('iv V7')).toBeInTheDocument();
     expect(second).toHaveClass('two');
+  });
+
+  it('stand four to a row, the first in its place in the row, so a section starts a row', () => {
+    render(NextBars, { before: bar(9), bars: [bar(10), bar(11), bar(12)] });
+    const [first, second] = screen.getAllByRole('listitem');
+    expect(first!.style.gridColumnStart).toBe('3');
+    expect(second!.style.gridColumnStart).toBe('');
   });
 
   it('cue where the section or the key changes, and nowhere else', () => {
