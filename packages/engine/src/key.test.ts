@@ -1,6 +1,14 @@
 import { positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { COMPOSER_MODES, INITIAL_KEY, type Key, keyHelix, keyName, nextKey } from './key.ts';
+import {
+  COMPOSER_MODES,
+  INITIAL_KEY,
+  type Key,
+  keyHelix,
+  keyName,
+  nextKey,
+  released,
+} from './key.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -98,5 +106,24 @@ describe('keys', () => {
       range(12).map((tonic) => keyName({ tonic, mode })),
     );
     expect(new Set(names).size).toBe(48);
+  });
+});
+
+describe('a wish once met', () => {
+  it('lets go of its tonic once the band plays the key wished, keeping the mode, for every key (#169)', () => {
+    for (const mode of COMPOSER_MODES)
+      for (let tonic = 0; tonic < 12; tonic++)
+        expect(released({ tonic, mode }, { tonic, mode })).toEqual({ tonic: null, mode });
+  });
+
+  it('holds a wish the band has not reached: another tonic, or another mode', () => {
+    const wish = { tonic: 2, mode: 'dorian' } as const;
+    expect(released(wish, { tonic: 9, mode: 'dorian' })).toBe(wish);
+    expect(released(wish, { tonic: 2, mode: 'aeolian' })).toBe(wish);
+  });
+
+  it('leaves a wish for a mode alone as it is', () => {
+    const wish = { tonic: null, mode: 'ionian' } as const;
+    expect(released(wish, { tonic: 0, mode: 'ionian' })).toBe(wish);
   });
 });

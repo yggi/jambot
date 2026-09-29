@@ -90,6 +90,8 @@ export const STREAMS = {
   stabLength: 24,
   /** The looseness of a lead note's length. */
   leadLength: 25,
+  /** Whether the band moves the key itself, and where to, per section (#169). */
+  keyJump: 26,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

@@ -8,6 +8,7 @@ import { lead } from './lead.ts';
 import { drums } from './drums.ts';
 import type { DoughNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
+import { NO_HISTORY, foldBar } from './history.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { perform } from './performer.ts';
@@ -25,6 +26,10 @@ import {
 } from './style.ts';
 
 const range = (n: number) => [...Array(n).keys()];
+
+/** The harmonic history a section starting at bar `first` is planned from: the chords before it. */
+const historyBefore = (bars: readonly { chords: Parameters<typeof foldBar>[1] }[], first: number) =>
+  bars.slice(0, first).reduce((history, b) => foldBar(history, b.chords), NO_HISTORY);
 
 /**
  * A tour: a new preset every 8 bars, with entropy rising, wishing for each
@@ -83,7 +88,13 @@ describe('the band', () => {
       for (const index of range(bars.length / SECTION_BARS)) {
         const first = index * SECTION_BARS;
         const next = planner.advance(
-          { seed, index, style: styleAt(before(first)), wish: wishAt(before(first)) },
+          {
+            seed,
+            index,
+            style: styleAt(before(first)),
+            wish: wishAt(before(first)),
+            history: historyBefore(bars, first),
+          },
           carried,
           null,
         );
@@ -333,6 +344,32 @@ describe('the look-ahead', () => {
       }
       expect(new Set(whole.map((b) => b.plan.key.mode)).size).toBeGreaterThan(1);
     }
+  });
+
+  it('forecasts the keys the band moves to itself, where the players wish for no tonic (#169)', () => {
+    const style = { ...INITIAL_STYLE, harm: 0.5, entropy: 1 };
+    const at = (seed: number) => (bar: number) => ({
+      seed,
+      bar,
+      style,
+      wish: { tonic: null, mode: 'aeolian' } as const,
+      offer: null,
+    });
+    let moves = 0;
+    for (const seed of [1, 2, 3]) {
+      const played = [];
+      let carried = band.initial;
+      const forecast = lookAhead(carried, at(seed), 96);
+      for (const bar of range(96)) {
+        const next = band.advance(at(seed)(bar), carried, null);
+        carried = next.carried;
+        played.push({ bar, plan: next.output.plan, chords: next.output.chords });
+      }
+      expect(forecast).toEqual(played);
+      for (let bar = 1; bar < 96; bar++)
+        if (played[bar]!.plan.key.tonic !== played[bar - 1]!.plan.key.tonic) moves++;
+    }
+    expect(moves).toBeGreaterThan(0);
   });
 
   it('forecasts without changing what it is given, and forecasts nothing for no bars', () => {

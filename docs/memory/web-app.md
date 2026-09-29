@@ -14,10 +14,12 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   `CircleOfFifths.svelte` draws it: theory's `fifthsIndex` (built on `generator(7, 12)`) lays the 12 pitch classes out by fifths, and the current scale is the arc its dots make along the rim, open and in fifths order (`figureArc`), with the tonic alone ringed; only a scale with a hole in it (harmonic minor) gets a dashed chord across the wheel.
   It is read-only wherever it is given no `mode`/`onintent`; given both, a dot is a button that wishes for its pitch class as tonic, in the mode already playing (going through the same `key` intent the mode select does).
   A key picked is wished for tonic and mode; a preset wishes for its mode only when the wish is in another, so a key picked survives a preset in its mode.
-  `history`, always drawn on the same wheel, is one weight per pitch class from `player.harmonicHistory` (`apps/web/src/harmonicHistory.ts`), drawn as a filled radar under the wheel.
+  `history`, always drawn on the same wheel, is one weight per pitch class from `player.harmonicHistory`, drawn as a filled radar under the wheel.
   The host, or a band playing alone, sets the key (the dots and the shape) and nudges it, by the Nudge up and Nudge down buttons, a fifth clockwise or counter-clockwise in the mode heard, within the licence.
   A client's key intent is dropped by `Player.apply` until the host takes nudges over the session, so a client's nudges are disabled, titled "The host sets the key": the buttons are the seam, the transport is open.
-  `HarmonicHistory` sums every note the band actually plays by pitch class, drums excluded, decaying whatever a later bar's first note finds by how many bars passed silently since the last one pushed — so the shape reads as "what has the band been playing lately", not the current scale, and not everything ever played.
+  It is the band's own harmonic history, the one its key follows (`packages/engine/src/history.ts`, #169): each bar decided folds in its chords' pitch classes by their length, after decaying the rest, so the shape reads as "what has the band's harmony been lately", not the current scale.
+  While the band plays here the radar reads the engine's carried history; a client folds the host's bars the same way as they arrive, so after a stall it lacks the bars it never got until they decay away.
+  A tonic picked lets go once the band has planned it (`released`), so the band moves the key on from there by itself.
   Stage stays plain text: the key's name and its notes ascending from the tonic (`scaleNoteNames`), no wheel of its own.
 - The page (`App.svelte`) lays the music out in the order of the composition, top to bottom, one `Level` each: transport, style, metrum, key, plan and chords, tracks (#163).
   A `Level` is a heading over a fieldset; `resting` disables its controls where a client takes the host's (transport, style, key), and the metrum and the tracks, the client's own, never rest.
@@ -44,10 +46,15 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   A new widget goes into the level it belongs to, not into a corner of another.
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.
-  The style sets the tempo, and `TempoNudge.svelte` (in the metrum) nudges it by a ratio, 2^(1/24) a step, within `tempoLicence`: a third of an octave either way, cut by the tempo axis's ends.
+  `licenceOf(style)` gives all three widths from the style: the performer's feel, the tempo's reach and the key's.
+  The genre sets the range and the players' entropy, which no preset sets, how much of it is used.
+  The conductor reads the licence from where the style is going after an intent (`styleAfter`), so a preset or slider that narrows it takes the nudge and the key wish back within it at once.
+  The style sets the tempo, and `TempoNudge.svelte` (in the metrum) nudges it by a ratio, 2^(1/24) a step, within `tempoLicence`: two steps either way at entropy 0, rising to a third of an octave at entropy 1, cut by the tempo axis's ends.
   The track holds the tempo played, the style's times the nudge, so the transport, the score and a session's clients read one tempo; the player carries the nudge (`Player.tempoNudge`), a preset's tempo takes it over, and `unnudged` reads the style's own back for naming.
-  A key picked is held within `KEY_REACH` fifths of the home key's signature (`intoReach`, `fifthsApart`: relative keys lie 0 apart), and the wheel dims the tonics beyond it.
-  Every style gives the same reach today, every key and a third of an octave; which axes narrow or widen it, and whether a nudge held at an edge should move the style itself, is open (#171).
+  A key picked is held within `keyReach` fifths of the home key's signature (`intoReach`, `fifthsApart`: relative keys lie 0 apart), and the wheel dims the tonics beyond it.
+  The home is the centre of the band's harmonic history in the mode it heads for (`player.home`, `centre`, #169), so it follows where the band has been; before anything is heard it is the key the song opens in.
+  The reach is the harmony's, `harmonicReach` (6 × `harm`, rounded), with a floor of one fifth for the players, so Techno gets one and Swing jazz every key; the page reads it from where the track is going (`keyReachOf`), as the conductor does.
+  Whether a nudge held at an edge should move the style itself is open (#176).
   A client doesn't have its host's nudge, so it names a nudged style by the tempo played: a known seam.
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a person plays along with it.
   Any note played, from a pointer, a computer key or MIDI, goes through `App.svelte`'s `onHumanNote`, which sounds it at once (`Player.playAlong`) and logs it for the Muse (`Player.humanNoteOn`, and `humanNoteOff` for its release) alike; `midi/surfaces.ts`'s `partOf` reads a MIDI note's channel to tell the pads from the keyboard, channel 10 the drums' as the prototype's is.

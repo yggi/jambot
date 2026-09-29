@@ -8,6 +8,7 @@ export * from './drums.ts';
 export * from './events.ts';
 export * from './form.ts';
 export * from './key.ts';
+export * from './history.ts';
 export * from './licence.ts';
 export * from './lead.ts';
 export * from './machine.ts';

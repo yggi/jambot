@@ -12,6 +12,9 @@ import { buildTheme, themeKind } from './themes.ts';
 const range = (n: number) => [...Array(n).keys()];
 const grid = range(11).map((i) => i / 10);
 
+/** The axes that hold the performer still, at feel 0 (`licenceOf`, T17). */
+const STILL = { swing: 0, entropy: 0, artic: 1 } as const;
+
 const envOf = (
   seed: number,
   type: SectionType,
@@ -146,7 +149,7 @@ describe('drums', () => {
   });
 
   it('end a build with a snare fill through its last half bar', () => {
-    for (const style of styles.map((s) => ({ ...s, swing: 0 })))
+    for (const style of styles.map((s) => ({ ...s, ...STILL })))
       for (const seed of range(10)) {
         const env = envOf(seed, 'build', SECTION_BARS - 1, style);
         expect([...stepsOf(env, [DRUM_NOTES.snare])].filter((s) => s >= 8)).toEqual(
@@ -157,7 +160,7 @@ describe('drums', () => {
         expect(
           played(env).find((e) => e.step === 12 && e.note === DRUM_NOTES.snare)!.velocity,
         ).toBe(Math.round(106 * (0.65 + 0.35 * energy)));
-        // Away from the backbeat, the fill rises. (Straight, so no looseness.)
+        // Away from the backbeat, the fill rises. (Held still, so no looseness.)
         const fill = played(env).filter((e) => e.note === DRUM_NOTES.snare && e.step > 12);
         fill.slice(1).forEach((e, i) => expect(e.velocity).toBeGreaterThan(fill[i]!.velocity));
       }
@@ -250,17 +253,20 @@ describe('drums', () => {
 
   it('play louder with energy', () => {
     const kick = (energy: number) =>
-      played(envOf(1, 'groove', 0, { ...INITIAL_STYLE, swing: 0 }, energy)).find(
+      played(envOf(1, 'groove', 0, { ...INITIAL_STYLE, ...STILL }, energy)).find(
         (e) => e.step === 0 && e.note === DRUM_NOTES.kick,
       )!;
     expect(kick(1).velocity).toBe(112);
     expect(kick(0.5).velocity).toBe(Math.round(112 * (0.65 + 0.35 * 0.5)));
   });
 
-  it('loosen their velocities from bar to bar as the swing rises, and not when straight', () => {
-    const velocities = (bar: number, swing: number) =>
-      played(envOf(2, 'groove', bar, { ...INITIAL_STYLE, swing })).map((e) => e.velocity);
-    expect(velocities(2, 0)).toEqual(velocities(0, 0));
-    expect(velocities(2, 0.3)).not.toEqual(velocities(0, 0.3));
+  it('loosen their velocities from bar to bar as the feel rises, and not when held still (T17)', () => {
+    const velocities = (bar: number, style: Partial<Style>) =>
+      played(envOf(2, 'groove', bar, { ...INITIAL_STYLE, ...STILL, ...style })).map(
+        (e) => e.velocity,
+      );
+    expect(velocities(2, {})).toEqual(velocities(0, {}));
+    for (const loose of [{ swing: 0.3 }, { entropy: 0.3 }, { artic: 0.7 }])
+      expect(velocities(2, loose)).not.toEqual(velocities(0, loose));
   });
 });

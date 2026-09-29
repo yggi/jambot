@@ -13,6 +13,10 @@ The pointers to what holds each are in the sentences.
   So to see what was played at a step, read the track as it stood when that step was scheduled, not the final track.
 - The engine's levels are machines at their own rates: the section plan (form, key and theme) per section, the band per bar, the transport per tick.
   The players' key wish is a standing target, not an event: `nextKey` applied twice gives what it gave once, so the band can read it at every section boundary.
+  Where the players wish for no tonic and the mode playing, the band moves the key itself (`bandWish`, `plan.ts`, #169): `harmonicReach` (6 × `harm`, rounded) gives how many fifths, the entropy how readily (`KEY_JUMP` × entropy a section), and the harmonic history where to.
+  The history (`history.ts`) folds each decided bar's chords, not its notes, so `lookAhead` and a passed bar fold exactly what then plays; the band carries it (`BandCarried.history`) and hands it to the planner at a section's boundary.
+  Nothing hardcodes a return: after a move the key left still weighs most, so the band leans back.
+  A tonic wished for lets go once the band plans it (`released`, applied by the player), so the drift resumes from there.
   The web player only reads the audio clock and plays what the transport schedules, so everything that decides what and when is tested without a browser.
 - The band decides each bar when it composes the bar before: the section's plan at a section's first bar, and the bar's chords.
   So a part can lead into the next bar's chords (`BarEnv.next`), and they are what plays.
@@ -22,7 +26,7 @@ The pointers to what holds each are in the sentences.
   The track holds glides ahead, so the forecast is what plays unless a control moves.
 - The parts are machines at bar rate over one `BarEnv`, and `BandBar` is that environment plus the events and the bar's `sound`.
   The drums carry nothing; the bass its last note, the comp its last voicing, the lead its last note, its phrase and its themes' melodies (`BandCarried.parts`).
-  A passed bar leaves the parts where they were, and only the lead's memory reaches more than register (S2).
+  A passed bar leaves the parts where they were, and only the lead's memory reaches more than register (S2); the band's harmonic history is the plan's, not a part's.
   The Muse judges each source's bar into a `Motif` (U4, `judgeBar` in `muse.ts`): onsets with rests, where a note was released before the next, and degrees of the key altered by `b` or `#`, written as a numeral writes a root off the key.
   The `muse` machine carries what it offers (an `Offer`: the motif, its source, the bar heard) and the last bar anyone played; its output is the log.
   The offer enters the band as its environment (`BandEnv.offer`, then `BarEnv.offer`), a standing target like the key wish, and the lead plays it whole while it stands, even where it would rest.

@@ -1,4 +1,13 @@
-import { PRESETS, type ScheduledStep } from '@jambot/engine';
+import {
+  type HarmonicWeights,
+  NO_HISTORY,
+  PRESETS,
+  type ScheduledStep,
+  band,
+  bandEnvAt,
+  foldBar,
+  lookAhead,
+} from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
 import { Player, type Surroundings } from './player.svelte.ts';
@@ -364,6 +373,8 @@ describe('the player', () => {
     play(20);
     for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toBe('A minor');
     expect(heard.get(8)).toBe('G major');
+    // Once the band plays the key picked, the pick lets go, and the band moves on from there (#169).
+    expect(player.wish).toEqual({ tonic: null, mode: 'ionian' });
   });
 
   describe('what players play', () => {
@@ -623,6 +634,29 @@ describe('the player', () => {
   });
 
   describe('the harmonic history', () => {
+    it('is the band’s own, the history its key follows, and clears on stop (#169)', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      void player.start();
+      world.resolve();
+      await settle();
+      for (let t = 0; t < 20; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+      // The band's own decisions, run apart from the player: the history is
+      // the fold of the chords of the first bars it decided, however many.
+      const env = { seed: world.seeds.at(-1)!, start: 0, track: player.track, wish: player.wish };
+      const bars = lookAhead(band.initial, (bar) => bandEnvAt(env, bar, null), 32);
+      const folds = bars.reduce<HarmonicWeights[]>(
+        (all, bar) => [...all, foldBar(all.at(-1) ?? NO_HISTORY, bar.chords)],
+        [],
+      );
+      expect(folds.slice(8)).toContainEqual(player.harmonicHistory);
+      player.stop();
+      expect(player.harmonicHistory).toEqual(NO_HISTORY);
+    });
+
     it('weighs the pitch classes actually played, and clears them on stop', async () => {
       const { world, s } = surroundings();
       const player = new Player(s);
