@@ -2,6 +2,7 @@ import { type Page, expect, test } from '@playwright/test';
 import {
   type ClockJump,
   type Heard,
+  type Stall,
   clockJumps,
   heard,
   holdAudio,
@@ -91,14 +92,27 @@ const IN_STEP = 2.5;
  * that far out every time.
  */
 const HOLDS = { some: 40, wide: 80 } as const;
-/** How long, in milliseconds, a test stalls the host's main thread, so its transport drops what the stall passes (T1). */
-const STALL = 300;
+/**
+ * How long, in milliseconds, a test stalls the host's main thread, so its
+ * transport drops what the stall passes (T1). The transport schedules
+ * `LOOKAHEAD` (120 ms) ahead, so only the steps of a stall's last part are
+ * dropped: at 300 ms that is about one step of 139 ms, which held a note in
+ * only some runs, and 800 ms drops four or five steps in every run.
+ */
+const STALL = 800;
 
-/** The span, on the wall clock, in which a jump of a page's clock can leave the two pages out. */
-const unsettled = ({ at, by }: ClockJump) => {
+/**
+ * The span, on the wall clock, in which a jump of a page's clock can leave
+ * the two pages out. A jump of the host's clock in the middle of a stall of
+ * its main thread is told to the client only when the host runs again, so
+ * it settles from the stall's end, not from where the output pair placed it
+ * (`stalled`: the host's stalls; none for the client's jumps).
+ */
+const unsettled = ({ at, by }: ClockJump, stalled: readonly Stall[] = []) => {
   const size = Math.abs(by);
   const slewing = size >= TOLD ? 0 : Math.max(0, size - IN_STEP) / SLEWED;
-  return { from: at - AHEAD, to: at + SETTLE + slewing, size };
+  const told = stalled.find((s) => at >= s.from && at <= s.to)?.to ?? at;
+  return { from: at - AHEAD, to: told + SETTLE + slewing, size };
 };
 
 /**
@@ -160,7 +174,10 @@ async function inStep(
     100;
   const hosted = hostedAll.filter((n) => n.heard <= horizon + 50);
   const followed = followedAll.filter((n) => n.heard <= horizon);
-  const jumps = [...(await clockJumps(page)), ...(await clockJumps(client))];
+  const hostStalls = await stalls(page);
+  const hostJumps = await clockJumps(page);
+  const clientJumps = await clockJumps(client);
+  const jumps = [...hostJumps, ...clientJumps];
   // The hold jumped the held page's clock by more than the client's clock
   // can slew. A median moves a sample or two before the jump, and a
   // pairing is read a little after the moment it pairs, so the jump can be
@@ -172,7 +189,10 @@ async function inStep(
     holdJumps.some((s) => Math.abs(s.by) >= TOLD),
     `jumps of the held clock: ${(await clockJumps(held)).map((s) => `${s.by.toFixed(1)} ms at ${((s.at - heldAt) / 1000).toFixed(3)} s`).join(', ')}`,
   ).toBe(true);
-  const spans = jumps.map(unsettled);
+  const spans = [
+    ...hostJumps.map((j) => unsettled(j, hostStalls)),
+    ...clientJumps.map((j) => unsettled(j)),
+  ];
   /** How far, in milliseconds, a note at `t` may be out: `IN_STEP`, and every jump still settling there. */
   const allowed = (t: number) =>
     IN_STEP + spans.filter((s) => t >= s.from && t <= s.to).reduce((sum, s) => sum + s.size, 0);
@@ -194,7 +214,6 @@ async function inStep(
   // note has the host's, within what is allowed as it sounds: `IN_STEP`,
   // and the size of every jump still settling there, however large (a
   // busy machine's output can drop more than 50 ms at once).
-  const hostStalls = await stalls(page);
   const dropped = (t: number) => hostStalls.some((s) => t >= s.from && t <= s.to + 100);
   const judged = gaps.filter((g) => !(Math.abs(g.gap) >= 50 && dropped(g.at)));
   const out = judged.filter((g) => !(Math.abs(g.gap) <= allowed(g.at)));
