@@ -184,13 +184,14 @@ describe('the lead', () => {
     }
   });
 
-  it('lands on a chord tone on the half bar and where a chord starts, and walks the key between', () => {
+  it('lands on a chord tone where its phrase parameters snap, and walks the key between', () => {
     for (const { bar, events } of playing) {
       const inKey = new Set(positions(keyHelix(bar.plan.key)));
+      const { snap } = phraseParams(bar);
       for (const e of events) {
         const chord = chordAt(bar.chords, e.step);
         const tones = new Set(classesOf(joinChord(chord.chord)));
-        const onChord = e.step % 8 === 0 || bar.chords.some((c) => c.slot.step === e.step);
+        const onChord = snap.includes(e.step);
         if (onChord) expect(tones.has(wrap(e.note, 12))).toBe(true);
         else expect(inKey.has(wrap(e.note, 12)) || tones.has(wrap(e.note, 12))).toBe(true);
       }
@@ -415,20 +416,27 @@ describe('the phrase parameters', () => {
       }
   });
 
-  it('snap on the half bar and where each of the bar’s chords starts, a chord on every step', () => {
+  it('snap where each chord starts, the half bar below harm 0.6, and every beat below 0.25, over every preset (#168)', () => {
+    const strong = (harm: number) => (harm < 0.25 ? [0, 4, 8, 12] : harm < 0.6 ? [0, 8] : [0]);
     for (const { bar } of barsOf) {
       const starts = bar.chords.map((c) => c.slot.step);
-      expect(phraseParams(bar).snap).toEqual(
-        range(16).filter((s) => s % 8 === 0 || starts.includes(s)),
-      );
+      const over = grid.map((harm) => phraseParams({ ...bar, style: { ...bar.style, harm } }).snap);
+      over.forEach((snap, i) => {
+        expect(snap).toEqual([...new Set([...strong(grid[i]!), ...starts])].sort((a, b) => a - b));
+        // Richer harmony never snaps more, and always snaps where a chord starts.
+        if (i > 0) expect(snap.every((s) => over[i - 1]!.includes(s))).toBe(true);
+        for (const start of starts) expect(snap).toContain(start);
+      });
       // The themes start chords on 0 and 8 only, so a chord is added on each step.
       const chord = bar.chords[0]!;
-      for (const step of range(16)) {
-        const chords = [chord, { ...chord, slot: { ...chord.slot, step } }];
-        expect(phraseParams({ ...bar, chords }).snap).toEqual(
-          [...new Set([0, 8, step])].sort((a, b) => a - b),
-        );
-      }
+      for (const harm of [0, 0.5, 1])
+        for (const step of range(16)) {
+          const chords = [chord, { ...chord, slot: { ...chord.slot, step } }];
+          const style = { ...bar.style, harm };
+          expect(phraseParams({ ...bar, style, chords }).snap).toEqual(
+            [...new Set([...strong(harm), 0, step])].sort((a, b) => a - b),
+          );
+        }
     }
   });
 

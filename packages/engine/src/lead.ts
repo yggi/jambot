@@ -12,7 +12,8 @@
  * lifts it, bends its last note or drops it.
  *
  * Each phrase starts from the chord tone nearest where the lead left off.
- * On the half bar and where a chord starts the lead lands on a chord tone,
+ * Where a chord starts, and on the strong steps the harmony leaves (every
+ * beat for a vamp, the half bar below rich harmony), it lands on a chord tone,
  * and the phrase grammar closes it: bar 2 ends open, on the third or the
  * fifth, and bar 4 on the root. Notes stay within 60–86: the phrase moves
  * by the octave that fits it best, and a note that still doesn't fit
@@ -20,7 +21,7 @@
  *
  * The style reaches the lead's phrases in one place, `phraseParams`.
  * From the bar's energy, its chords and the style's sync, entropy and harmony, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
- * The harmony leans the contour from an arch toward a wave (#168).
+ * The harmony leans the contour from an arch toward a wave, and thins the strong steps a note lands on a chord tone at (#168).
  * The style's swing and articulation don't reach the phrases.
  * What the lead writes over every preset is recorded in `lead.fixture.json`, so a change to it is a deliberate one.
  *
@@ -162,10 +163,23 @@ export interface PhraseParams {
   readonly variations: readonly number[];
   /** How likely a variation nudges one note a degree, with entropy. */
   readonly nudge: number;
-  /** The steps where a note of the lead's own goes to a chord tone: the half bar and each chord's start. */
+  /**
+   * The steps where a note of the lead's own goes to a chord tone: each
+   * chord's start, and strong steps that thin as the harmony grows, so rich
+   * harmony lets a passing or neighbour tone stand where a vamp would not.
+   */
   readonly snap: readonly number[];
   /** The lowest and highest note. */
   readonly range: readonly [number, number];
+}
+
+/**
+ * The strong steps a note of the lead's own lands on a chord tone at: every
+ * beat for a static vamp (below harm 0.25), the half bar up to harm 0.6,
+ * and above it only the downbeat, which a chord always starts on.
+ */
+function strongSteps(harm: number): readonly number[] {
+  return harm < 0.25 ? [0, 4, 8, 12] : harm < 0.6 ? [0, 8] : [0];
 }
 
 /**
@@ -189,7 +203,7 @@ export function phraseParams({
     variations: [0.3, 0.25, 0.25, 0.2],
     nudge: style.entropy * 0.5,
     snap: Array.from({ length: BAR_STEPS }, (_, s) => s).filter(
-      (s) => s % 8 === 0 || chords.some((c) => c.slot.step === s),
+      (s) => strongSteps(style.harm).includes(s) || chords.some((c) => c.slot.step === s),
     ),
     range: LEAD_RANGE,
   };
@@ -350,7 +364,7 @@ function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], ph
  * and the last note to the bar's end. (A motif that didn't start on the
  * bar's first step would hold its last note on over the bar line; the lead's
  * own and the Muse's always start there, with a rest if the bar starts
- * silent.) Where `fit`, a note on the half bar or where a chord starts goes
+ * silent.) Where `fit`, a note on a step its phrase parameters snap goes
  * to the nearest chord tone, as the lead's own sketches do; a player's motif
  * is played as it was heard, each note with its accent, which the
  * performance plays on the lead's level (U4). Bars 2 and 4 close as the
