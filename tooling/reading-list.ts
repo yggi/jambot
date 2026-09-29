@@ -9,8 +9,8 @@
  */
 export const BOOT_SET = ['AGENTS.md', 'docs/MEMORY.md'];
 
-/** In bytes: about 16k tokens, with headroom over today's 14 KB. */
-export const CEILING = 64 * 1024;
+/** In bytes: about 6k tokens, with headroom over today's 14 KB. A ceiling far above the size could never fire. */
+export const CEILING = 24 * 1024;
 
 /** The boot set's size in bytes, given a reader of a path's text. */
 export function bootBytes(read: (path: string) => string): number {
