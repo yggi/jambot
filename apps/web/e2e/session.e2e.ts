@@ -103,15 +103,16 @@ const STALL = 800;
 
 /**
  * The span, on the wall clock, in which a jump of a page's clock can leave
- * the two pages out. A jump of the host's clock in the middle of a stall of
- * its main thread is told to the client only when the host runs again, so
- * it settles from the stall's end, not from where the output pair placed it
- * (`stalled`: the host's stalls; none for the client's jumps).
+ * the two pages out. A jump of the host's clock that a stall of its main
+ * thread begins before the host has told (within `SETTLE` of it) is told to
+ * the client only when the host runs again, so it settles from the stall's
+ * end, not from where the output pair placed it (`stalled`: the host's
+ * stalls; none for the client's jumps).
  */
 const unsettled = ({ at, by }: ClockJump, stalled: readonly Stall[] = []) => {
   const size = Math.abs(by);
   const slewing = size >= TOLD ? 0 : Math.max(0, size - IN_STEP) / SLEWED;
-  const told = stalled.find((s) => at >= s.from && at <= s.to)?.to ?? at;
+  const told = stalled.find((s) => s.from <= at + SETTLE && s.to >= at)?.to ?? at;
   return { from: at - AHEAD, to: told + SETTLE + slewing, size };
 };
 
