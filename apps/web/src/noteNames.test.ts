@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES, keyHelix } from '@jambot/engine';
-import { positions } from '@jambot/theory';
-import { keyName, MODE_NAMES, scaleNoteNames, scaleSteps, TONIC_NAMES } from './noteNames.ts';
+import { DIATONIC_MODE_NAMES, positions } from '@jambot/theory';
+import {
+  keyName,
+  MODE_NAMES,
+  scaleNoteNames,
+  scaleMarks,
+  scaleSteps,
+  TONIC_NAMES,
+} from './noteNames.ts';
 
 describe('scaleNoteNames', () => {
   it('names A aeolian ascending from its tonic: A B C D E F G', () => {
@@ -24,12 +31,11 @@ describe('scaleNoteNames', () => {
 
 describe('keyName', () => {
   it('reads ionian as major and aeolian as minor, the other modes by their own name', () => {
-    expect(MODE_NAMES).toEqual({
-      aeolian: 'minor',
-      dorian: 'dorian',
-      ionian: 'major',
-      mixolydian: 'mixolydian',
-    });
+    expect(Object.entries(MODE_NAMES).filter(([mode, name]) => mode !== name)).toEqual([
+      ['ionian', 'major'],
+      ['aeolian', 'minor'],
+    ]);
+    expect(Object.keys(MODE_NAMES)).toEqual([...DIATONIC_MODE_NAMES]);
     expect(keyName({ tonic: 0, mode: 'ionian' })).toBe('C major');
     expect(keyName({ tonic: 9, mode: 'aeolian' })).toBe('A minor');
     expect(keyName({ tonic: 3, mode: 'dorian' })).toBe('E♭ dorian');
@@ -58,5 +64,19 @@ describe('scaleSteps', () => {
         expect(steps, `${mode} on ${tonic}`).toEqual(STEPS[mode]);
       }
     }
+  });
+});
+
+describe('scaleMarks', () => {
+  it('puts 8 marks on 12 steps, from the tonic to its octave, for every mode and tonic', () => {
+    for (const mode of COMPOSER_MODES) {
+      for (let tonic = 0; tonic < 12; tonic++) {
+        const marks = scaleMarks(positions(keyHelix({ tonic, mode })), tonic);
+        expect(marks).toHaveLength(8);
+        expect(marks[0]).toBe(0);
+        expect(marks[7]).toBe(12);
+      }
+    }
+    expect(scaleMarks([9, 11, 0, 2, 4, 5, 7], 9)).toEqual([0, 2, 3, 5, 7, 8, 10, 12]);
   });
 });

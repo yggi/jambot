@@ -24,7 +24,7 @@ describe('the key picker', () => {
     expect(minor.container.querySelector('summary .name')).toHaveTextContent('A minor');
   });
 
-  it('shows the tonic ringed on the wheel, and the scales by common names in the scale view', async () => {
+  it('shows the wheel and the scale together, with no view switch', () => {
     render(KeyPicker, {
       heading: { tonic: 3, mode: 'dorian' },
       history: NO_HISTORY,
@@ -32,26 +32,47 @@ describe('the key picker', () => {
       onintent: () => {},
     });
     expect(screen.getByRole('button', { name: 'E♭' })).toHaveAttribute('aria-pressed', 'true');
-    await fireEvent.click(screen.getByRole('button', { name: 'Scale' }));
-    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual([
-      'minor',
-      'dorian',
+    expect(screen.getByRole('radiogroup', { name: 'Scale' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Circle' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Scale' })).toBeNull();
+  });
+
+  it('offers all seven modes, the four the band plays enabled', () => {
+    render(KeyPicker, {
+      heading: { tonic: 3, mode: 'dorian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((r) => r.textContent)).toEqual([
+      'lydian',
       'major',
       'mixolydian',
+      'dorian',
+      'minor',
+      'phrygian',
+      'locrian',
     ]);
+    expect(
+      radios.filter((r) => !(r as HTMLButtonElement).disabled).map((r) => r.textContent),
+    ).toEqual(['major', 'mixolydian', 'dorian', 'minor']);
     expect(screen.getByRole('radio', { name: 'dorian' })).toBeChecked();
   });
 
-  it('lays the scale out in a line: notes from the tonic and whole or half steps between', async () => {
+  it('draws the scale as 8 marks on 12 steps, the tonic and its octave marked', () => {
     const { container } = render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },
       history: NO_HISTORY,
       reach: 6,
       onintent: () => {},
     });
-    await fireEvent.click(screen.getByRole('button', { name: 'Scale' }));
-    const line = container.querySelector('ol.line')!;
-    expect(line.textContent?.replace(/\s+/g, '')).toBe('AWBHCWDWEHFWGWA');
+    const marks = [...container.querySelectorAll('svg.ruler circle.mark')];
+    expect(marks).toHaveLength(8);
+    expect(container.querySelectorAll('svg.ruler line.tick')).toHaveLength(13);
+    expect(marks.filter((m) => m.classList.contains('tonic'))).toHaveLength(2);
+    const ruler = container.querySelector('svg.ruler')!;
+    expect(ruler.textContent?.replace(/\s+/g, '')).toBe('AWBHCWDWEHFWGWA');
   });
 
   it('wishes for the scale picked, keeping the tonic', async () => {
@@ -62,7 +83,6 @@ describe('the key picker', () => {
       reach: 6,
       onintent,
     });
-    await fireEvent.click(screen.getByRole('button', { name: 'Scale' }));
     await fireEvent.click(screen.getByRole('radio', { name: 'mixolydian' }));
     expect(onintent).toHaveBeenLastCalledWith({
       kind: 'key',
@@ -131,7 +151,6 @@ describe('the key picker', () => {
     expect(screen.queryByRole('button', { name: 'D' })).toBeNull();
     expect(screen.getByRole('button', { name: /Nudge up/ })).toBeEnabled();
     expect(screen.getByRole('button', { name: /Nudge down/ })).toBeEnabled();
-    await fireEvent.click(screen.getByRole('button', { name: 'Scale' }));
     for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
   });
 

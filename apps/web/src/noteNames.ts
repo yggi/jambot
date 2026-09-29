@@ -3,8 +3,8 @@
  * prototype spells them, a key in common terms, and a scale's notes and steps.
  */
 
-import type { ComposerMode, Key } from '@jambot/engine';
-import { mod } from '@jambot/theory';
+import type { Key } from '@jambot/engine';
+import { type DiatonicModeName, mod } from '@jambot/theory';
 
 /** The twelve pitch classes' names, C = 0, spelled as the prototype spells them. */
 export const TONIC_NAMES = [
@@ -30,11 +30,14 @@ export function scaleNoteNames(scale: readonly number[], tonic: number): readonl
 }
 
 /** The modes by their common names: the two everyone knows are major and minor. */
-export const MODE_NAMES: Readonly<Record<ComposerMode, string>> = {
-  aeolian: 'minor',
-  dorian: 'dorian',
+export const MODE_NAMES: Readonly<Record<DiatonicModeName, string>> = {
+  lydian: 'lydian',
   ionian: 'major',
   mixolydian: 'mixolydian',
+  dorian: 'dorian',
+  aeolian: 'minor',
+  phrygian: 'phrygian',
+  locrian: 'locrian',
 };
 
 /** A key in common terms: "C major", "A minor", "E♭ dorian". */
@@ -46,4 +49,15 @@ export function keyName(key: Key): string {
 export function scaleSteps(scale: readonly number[], tonic: number): readonly number[] {
   const from = [...scale].sort((a, b) => mod(a - tonic, 12) - mod(b - tonic, 12));
   return from.map((pitchClass, i) => mod(from[(i + 1) % from.length]! - pitchClass - 1, 12) + 1);
+}
+
+/** Where each note of a scale, and its octave, falls above the tonic, in semitones: 8 marks on 12 steps. */
+export function scaleMarks(scale: readonly number[], tonic: number): readonly number[] {
+  return [
+    0,
+    ...scaleSteps(scale, tonic).reduce<number[]>(
+      (sum, step) => [...sum, (sum.at(-1) ?? 0) + step],
+      [],
+    ),
+  ];
 }
