@@ -10,7 +10,7 @@
   `Drawer` folds settings that aren't the music, with the same chevron).
 -->
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { type Snippet, untrack } from 'svelte';
 
   interface Props {
     /** The card's heading, and what names it to a screen reader. */
@@ -21,15 +21,22 @@
     sub?: string;
     /** Whether a screen reader announces the line under it as it changes. */
     live?: boolean;
-    /** Whether it starts unfolded: only where its details are what a person plays on. */
+    /** Whether it starts unfolded: only where its details are what a person plays on. Read once. */
     open?: boolean;
     children: Snippet;
   }
 
   let { heading, name, sub, live = false, open = false, children }: Props = $props();
+
+  /**
+   * Whether it is unfolded: where it starts, then as a person leaves it. Read
+   * from `open` once, since setting it with the headline's other attributes
+   * would fold a card shut each time its headline changes.
+   */
+  let unfolded = $state(untrack(() => open));
 </script>
 
-<details class="card" aria-label={heading} {open}>
+<details class="card" aria-label={heading} bind:open={unfolded}>
   <summary class="chevron">
     <span class="heading">{heading}</span>
     <span class="name">{name}</span>
