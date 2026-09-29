@@ -14,7 +14,7 @@ import { chordAt } from './chords.ts';
 import { writtenProblems } from './events.ts';
 import { keyHelix } from './key.ts';
 import recorded from './lead.fixture.json';
-import { LEAD_RANGE, type LeadCarried, lead, leadRests } from './lead.ts';
+import { LEAD_RANGE, type LeadCarried, lead, leadRests, phraseParams } from './lead.ts';
 import { SECTION_TYPES } from './form.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import type { Offer } from './muse.ts';
@@ -336,6 +336,90 @@ describe('what the lead writes', () => {
     expect(playedIn.length).toBeGreaterThanOrEqual(PRESETS.length - 1);
     expect(Object.keys(recorded)).toEqual(PRESETS.map((p) => p.name));
     expect(recording()).toEqual(recorded);
+  });
+});
+
+describe('the phrase parameters', () => {
+  const grid = range(21).map((i) => i / 20);
+  const ascending = (xs: readonly number[]) => xs.every((x, i) => i === 0 || x >= xs[i - 1]!);
+  /** A bar of each preset from the band, its chords included. */
+  const barsOf = PRESETS.map((preset) => {
+    const bars = tour(1, 16, () => ({ ...preset.style, entropy: 0.3 }));
+    return { preset, bar: bars.find((b) => b.chords.length > 1) ?? bars[8]! };
+  });
+  const at = (bar: BandBar, energy: number, entropy: number) =>
+    phraseParams({ ...bar, barEnergy: energy, style: { ...bar.style, entropy } });
+
+  it('fill with the bar’s energy: density from 0.25 to 0.75, a pulse of 3 to 8 hits, over every preset', () => {
+    for (const { bar } of barsOf)
+      for (const entropy of grid) {
+        const over = grid.map((energy) => at(bar, energy, entropy));
+        expect(over.map((p) => p.density)).toEqual(grid.map((e) => 0.25 + 0.5 * e));
+        expect(ascending(over.map((p) => p.pulse.length))).toBe(true);
+        expect([over[0]!.pulse.length, over.at(-1)!.pulse.length]).toEqual([3, 8]);
+        for (const p of over) {
+          expect(p.pulse.every((s) => Number.isInteger(s) && s >= 0 && s < 16)).toBe(true);
+          expect(p.grooveMix).toBe(bar.style.sync);
+        }
+      }
+  });
+
+  it('widen the span from 2 to 8 degrees with energy and entropy, over every preset', () => {
+    for (const { bar } of barsOf) {
+      for (const entropy of grid)
+        expect(ascending(grid.map((energy) => at(bar, energy, entropy).span))).toBe(true);
+      for (const energy of grid)
+        expect(ascending(grid.map((entropy) => at(bar, energy, entropy).span))).toBe(true);
+      expect([at(bar, 0, 0).span, at(bar, 1, 1).span]).toEqual([2, 8]);
+    }
+  });
+
+  it('turn and nudge more with entropy, and leap only above 0.5, over every preset', () => {
+    for (const { bar } of barsOf)
+      for (const energy of grid) {
+        const over = grid.map((entropy) => at(bar, energy, entropy));
+        expect(over.map((p) => p.turn)).toEqual(grid.map((e) => 0.2 + 0.3 * e));
+        expect(over.map((p) => p.nudge)).toEqual(grid.map((e) => e * 0.5));
+        expect(over.map((p) => p.leap)).toEqual(grid.map((e) => (e > 0.5 ? e - 0.5 : 0)));
+      }
+  });
+
+  it('weigh every contour alike, and the variations 0.3, 0.25, 0.25, 0.2, over every preset', () => {
+    for (const { bar } of barsOf)
+      for (const energy of grid) {
+        const p = at(bar, energy, 0.3);
+        expect(p.contours).toEqual([1, 1, 1, 1]);
+        expect(p.variations).toEqual([0.3, 0.25, 0.25, 0.2]);
+        expect(p.range).toEqual(LEAD_RANGE);
+      }
+  });
+
+  it('snap on the half bar and where each of the bar’s chords starts, a chord on every step', () => {
+    for (const { bar } of barsOf) {
+      const starts = bar.chords.map((c) => c.slot.step);
+      expect(phraseParams(bar).snap).toEqual(
+        range(16).filter((s) => s % 8 === 0 || starts.includes(s)),
+      );
+      // The themes start chords on 0 and 8 only, so a chord is added on each step.
+      const chord = bar.chords[0]!;
+      for (const step of range(16)) {
+        const chords = [chord, { ...chord, slot: { ...chord.slot, step } }];
+        expect(phraseParams({ ...bar, chords }).snap).toEqual(
+          [...new Set([0, 8, step])].sort((a, b) => a - b),
+        );
+      }
+    }
+  });
+
+  it('read the style’s sync and entropy and the bar’s energy, and nothing else of the style', () => {
+    for (const { bar } of barsOf) {
+      const base = phraseParams(bar);
+      for (const axis of ['swing', 'harm', 'artic', 'energy', 'bpm'] as const)
+        for (const value of [0, 0.5, 1, 90])
+          expect(phraseParams({ ...bar, style: { ...bar.style, [axis]: value } })).toEqual(base);
+      const sync = bar.style.sync === 1 ? 0 : 1;
+      expect(phraseParams({ ...bar, style: { ...bar.style, sync } })).not.toEqual(base);
+    }
   });
 });
 
