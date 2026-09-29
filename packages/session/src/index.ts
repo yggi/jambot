@@ -7,4 +7,7 @@ export * from './forecast.ts';
 export * from './host.ts';
 export * from './lobby.ts';
 export * from './protocol.ts';
+export * from './reconnect.ts';
+export * from './roster.ts';
+export * from './snapshot.ts';
 export * from './timing.ts';

@@ -6,10 +6,12 @@ describe("a lobby's words", () => {
     for (const request of [
       { op: 'list' },
       { op: 'host', session: 'jam' },
+      { op: 'host', session: 'jam', reclaim: 'secret' },
       { op: 'join', session: 'jam' },
       { op: 'send', message: { kind: 'stop' } },
       { op: 'send', to: 'c1', message: { kind: 'stop' } },
       { op: 'tell', message: { kind: 'forget' } },
+      { op: 'end' },
     ])
       expect(readToLobby(request)).toEqual(request);
     for (const junk of [
@@ -17,6 +19,7 @@ describe("a lobby's words", () => {
       'list',
       { op: 'shout' },
       { op: 'host' },
+      { op: 'host', session: 'jam', reclaim: 4 },
       { op: 'join', session: 3 },
       { op: 'send' },
       { op: 'send', to: 4, message: { kind: 'stop' } },
@@ -26,7 +29,8 @@ describe("a lobby's words", () => {
   });
 
   it('reads what a lobby says, and nothing else', () => {
-    expect(readFromLobby({ op: 'gone' })).toEqual({ op: 'gone' });
+    for (const said of [{ op: 'gone' }, { op: 'away' }, { op: 'back' }])
+      expect(readFromLobby(said)).toEqual(said);
     expect(readFromLobby({ op: 'list' })).toBeNull();
     expect(readFromLobby({})).toBeNull();
   });

@@ -7,6 +7,10 @@
  * What it says itself is only what a relay knows: that a name is taken or
  * open, that a client joined or left, that a host is gone.
  *
+ * A host whose link drops has `LOBBY.hostGrace` seconds to take its session
+ * back by the secret it was given, so a page that reloads doesn't end the
+ * session for everyone in it.
+ *
  * Each WebSocket plays one part: it lists the open sessions, or it hosts
  * one, or it joins one.
  */
@@ -30,16 +34,23 @@ export function nameRefusal(session: string): string | null {
 
 export type ToLobby =
   | { readonly op: 'list' }
-  | { readonly op: 'host'; readonly session: string }
+  /**
+   * Open a session, or take back one whose host's link dropped, by the
+   * secret its `hosting` answer gave (`reclaim`).
+   */
+  | { readonly op: 'host'; readonly session: string; readonly reclaim?: string }
   | { readonly op: 'join'; readonly session: string }
   /** From a host: to one client by its id, or to every client. */
   | { readonly op: 'send'; readonly to?: string; readonly message: HostMessage }
   /** From a client: to its host. */
-  | { readonly op: 'tell'; readonly message: ClientMessage };
+  | { readonly op: 'tell'; readonly message: ClientMessage }
+  /** From a host: the session is over, its name free at once, its clients told. */
+  | { readonly op: 'end' };
 
 export type FromLobby =
   | { readonly op: 'sessions'; readonly names: readonly string[] }
-  | { readonly op: 'hosting'; readonly session: string }
+  /** To a host: its session is open, and this secret takes it back if its link drops. */
+  | { readonly op: 'hosting'; readonly session: string; readonly reclaim: string }
   | { readonly op: 'joined'; readonly session: string }
   | { readonly op: 'refused'; readonly reason: string }
   /** To a host: a client's message, with its id. */
@@ -48,10 +59,14 @@ export type FromLobby =
   | { readonly op: 'left'; readonly from: string }
   /** To a client: its host's message. */
   | { readonly op: 'said'; readonly message: HostMessage }
-  /** To a client: its host's link closed. */
-  | { readonly op: 'gone' };
+  /** To a client: its host's link closed for good. */
+  | { readonly op: 'gone' }
+  /** To a client: its host's link dropped, and the lobby holds the session for a while. */
+  | { readonly op: 'away' }
+  /** To a client: its host took the session back. */
+  | { readonly op: 'back' };
 
-const TO_LOBBY: ReadonlySet<string> = new Set(['list', 'host', 'join', 'send', 'tell']);
+const TO_LOBBY: ReadonlySet<string> = new Set(['list', 'host', 'join', 'send', 'tell', 'end']);
 const FROM_LOBBY: ReadonlySet<string> = new Set([
   'sessions',
   'hosting',
@@ -61,6 +76,8 @@ const FROM_LOBBY: ReadonlySet<string> = new Set([
   'left',
   'said',
   'gone',
+  'away',
+  'back',
 ]);
 
 const opOf = (data: unknown): string | null =>
@@ -76,6 +93,7 @@ export function readToLobby(data: unknown): ToLobby | null {
   if ((op === 'host' || op === 'join') && typeof d.session !== 'string') return null;
   if ((op === 'send' || op === 'tell') && (typeof d.message !== 'object' || d.message === null))
     return null;
+  if (op === 'host' && d.reclaim !== undefined && typeof d.reclaim !== 'string') return null;
   if (op === 'send' && d.to !== undefined && typeof d.to !== 'string') return null;
   return data as ToLobby;
 }

@@ -29,7 +29,7 @@ import type { ForecastDelta } from './forecast.ts';
  * and `WrittenNote` travel as they are, so a change to their shape is a
  * change to the protocol, and bumps it (`protocol.test.ts` holds the shapes).
  */
-export const PROTOCOL = 2;
+export const PROTOCOL = 3;
 
 /** A bar as a host wrote it: everything its parts read, and the notes they wrote. */
 export interface WrittenBar extends BarEnv {
@@ -66,6 +66,11 @@ export type HostMessage =
       readonly kind: 'welcome';
       readonly protocol: number;
       readonly session: string;
+      /**
+       * What the player shows to come back as itself after its link drops
+       * (`roster.ts`): sent again in the join that follows.
+       */
+      readonly resume: string;
       /** The song playing, with the bars composed and not yet played, or null while stopped. */
       readonly song: (Song & { readonly bars: readonly SentBar[] }) | null;
       readonly forecast: ForecastDelta;
@@ -91,16 +96,31 @@ export type HostMessage =
       readonly host: number;
       readonly heard: number | null;
     }
-  | { readonly kind: 'closed' };
+  | { readonly kind: 'closed' }
+  /**
+   * Said by a lobby, never by a host: the host's link dropped, and the
+   * session waits for it to come back (`away`), or it has (`back`), when a
+   * client joins again with its token.
+   */
+  | { readonly kind: 'away' }
+  | { readonly kind: 'back' };
 
 export type ClientMessage =
-  | { readonly kind: 'join'; readonly protocol: number; readonly name: string }
+  | {
+      readonly kind: 'join';
+      readonly protocol: number;
+      readonly name: string;
+      /** The token a host's welcome gave, to come back as the same player. */
+      readonly resume?: string;
+    }
   /** A bar the client's players played in, judged. */
   | { readonly kind: 'judged'; readonly bar: number; readonly judgement: Judgement }
   | { readonly kind: 'forget' }
   /** A ping, stamped with the client's page clock as it was sent, in seconds. */
   | { readonly kind: 'ping'; readonly sent: number }
-  | { readonly kind: 'leave' };
+  | { readonly kind: 'leave' }
+  /** Said by a lobby, never by a client: its link dropped without a `leave`. */
+  | { readonly kind: 'lost' };
 
 const HOST_KINDS: ReadonlySet<string> = new Set([
   'welcome',
@@ -145,7 +165,9 @@ export function readClientMessage(data: unknown): ClientMessage | null {
   const judgement = m.judgement as Partial<Record<string, unknown>> | null | undefined;
   const fits =
     kind === 'join'
-      ? typeof m.protocol === 'number' && typeof m.name === 'string'
+      ? typeof m.protocol === 'number' &&
+        typeof m.name === 'string' &&
+        (m.resume === undefined || typeof m.resume === 'string')
       : kind === 'judged'
         ? Number.isInteger(m.bar) &&
           typeof judgement === 'object' &&
