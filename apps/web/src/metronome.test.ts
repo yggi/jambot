@@ -1,131 +1,143 @@
+import { PRESETS } from '@jambot/engine';
 import type { Weight } from '@jambot/theory';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ClickOutput } from './audio/metronome-click.ts';
-import { Metronome, type MetronomeSurroundings } from './metronome.svelte.ts';
+import type { Output } from './audio/output.ts';
+import { Metronome } from './metronome.svelte.ts';
+import { Player, type Surroundings } from './player.svelte.ts';
 
-/** Surroundings a test drives by hand: the clock, the resume, the ticks and frames. */
+/** The player's surroundings a test drives by hand, with a click on the output. */
 function surroundings() {
   const world = {
     currentTime: 0,
     latency: 0,
-    resumes: 0,
     resolve: () => {},
+    plays: [] as { part: string; seconds: number }[],
     clicks: [] as { weight: Weight; seconds: number; gain: number }[],
-    tickers: [] as { tick: () => void; stopped: boolean }[],
-    frames: [] as { follow: () => void; stopped: boolean }[],
+    tickers: [] as (() => void)[],
+    frames: [] as (() => void)[],
   };
-  const output: ClickOutput = {
+  const output: Output = {
     get currentTime() {
       return world.currentTime;
     },
     get latency() {
       return world.latency;
     },
-    resume: () => {
-      world.resumes++;
-      return new Promise<void>((resolve) => (world.resolve = resolve));
-    },
-    click: {
-      play: (weight, seconds, gain) => void world.clicks.push({ weight, seconds, gain }),
-    },
+    resume: () => new Promise<void>((resolve) => (world.resolve = resolve)),
+    play: (part, _note, _velocity, seconds) => void world.plays.push({ part, seconds }),
+    silence: () => {},
+    click: (weight, seconds, gain) => void world.clicks.push({ weight, seconds, gain }),
   };
-  const s: MetronomeSurroundings = {
+  const s: Surroundings = {
     output: () => output,
-    ticker(tick) {
-      const t = { tick, stopped: false };
-      world.tickers.push(t);
-      return () => void (t.stopped = true);
-    },
-    frame(follow) {
-      const f = { follow, stopped: false };
-      world.frames.push(f);
-      return () => void (f.stopped = true);
-    },
+    ticker: (tick) => (world.tickers.push(tick), () => {}),
+    frame: (follow) => (world.frames.push(follow), () => {}),
+    seed: () => 7,
+    page: () => world.currentTime,
   };
   return { world, s };
 }
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
-/** Ticks and follows for `seconds`, in 25 ms steps. */
-async function run(world: ReturnType<typeof surroundings>['world'], seconds: number) {
+async function playing(metronome: Metronome) {
+  const { world, s } = surroundings();
+  const player = new Player(s, metronome);
+  void player.start();
+  world.resolve();
+  await settle();
+  return { world, player };
+}
+
+/** Ticks and follows for `seconds`, in 25 ms steps, as the page does. */
+function run(world: ReturnType<typeof surroundings>['world'], seconds: number) {
   for (let t = 0; t < seconds; t += 0.025) {
     world.currentTime += 0.025;
-    world.tickers[0]!.tick();
-    world.frames[0]!.follow();
+    world.tickers[0]!();
+    world.frames[0]!();
   }
-  await settle();
 }
 
 beforeEach(() => localStorage.clear());
 
 describe('the metronome', () => {
-  it('resumes its own audio context once, and clicks nothing until it does', async () => {
+  it('clicks nothing while it is off', async () => {
+    const { world } = await playing(new Metronome());
+    run(world, 3);
+    expect(world.plays.length).toBeGreaterThan(0);
+    expect(world.clicks).toEqual([]);
+  });
+
+  it('clicks nothing while the band is stopped, though it is on: it has no clock of its own', () => {
+    const metronome = new Metronome();
     const { world, s } = surroundings();
-    const metronome = new Metronome(() => 120, s);
-    void metronome.start();
-    expect(metronome.on).toBe(false);
-    expect(world.resumes).toBe(1);
-    world.resolve();
-    await settle();
+    new Player(s, metronome);
+    metronome.on = true;
+    expect(world.tickers).toEqual([]);
+    expect(world.clicks).toEqual([]);
+    expect(metronome.pulse).toBeNull();
+  });
+
+  it('clicks on the band’s own steps once on: the same clock, the downbeat first, at its volume', async () => {
+    const metronome = new Metronome();
+    metronome.on = true;
+    metronome.volume = 0.4;
+    const { world } = await playing(metronome);
+    run(world, 4);
+    expect(world.clicks.length).toBeGreaterThan(4);
+    expect(world.clicks[0]!.weight).toBe('downbeat');
+    for (const c of world.clicks) expect(c.gain).toBe(0.4);
+    const pulses = world.clicks.filter((c) => c.weight !== 'subdivision');
+    const beat = 60 / PRESETS[0]!.style.bpm;
+    expect(pulses[1]!.seconds - pulses[0]!.seconds).toBeCloseTo(beat, 6);
+  });
+
+  it('starts on the band’s first step, not a moment of its own', async () => {
+    const metronome = new Metronome();
+    metronome.on = true;
+    const { world } = await playing(metronome);
+    run(world, 2);
+    const firstNote = world.plays.find((p) => p.part === 'drums')!;
+    expect(world.clicks[0]!.seconds).toBeLessThanOrEqual(firstNote.seconds + 1e-9);
+    expect(world.clicks[0]!.seconds).toBeCloseTo(0.1, 6);
+  });
+
+  it('joins the band’s steps when switched on mid-song, never playing a click late', async () => {
+    const metronome = new Metronome();
+    const { world } = await playing(metronome);
+    run(world, 3);
+    metronome.on = true;
+    const before = world.currentTime;
+    run(world, 2);
+    expect(world.clicks.length).toBeGreaterThan(0);
+    for (const c of world.clicks) expect(c.seconds).toBeGreaterThanOrEqual(before);
+  });
+
+  it('shows the pulse and the downbeat heard, and rests when the band stops', async () => {
+    const metronome = new Metronome();
+    metronome.on = true;
+    const { world, player } = await playing(metronome);
+    expect(metronome.pulse).toBeNull();
+    run(world, 2);
+    expect(metronome.pulse).not.toBeNull();
+    expect(metronome.downbeat).toBe(metronome.pulse === 0);
+    player.stop();
+    expect(metronome.pulse).toBeNull();
+    expect(metronome.downbeat).toBe(false);
     expect(metronome.on).toBe(true);
   });
 
-  it('clicks on the pulse at the given tempo, downbeat first, and shows the pulse and downbeat heard', async () => {
-    const { world, s } = surroundings();
-    const metronome = new Metronome(() => 120, s);
-    void metronome.start();
-    world.resolve();
-    await settle();
-    await run(world, 3);
-    expect(world.clicks.length).toBeGreaterThan(0);
-    expect(world.clicks[0]!.weight).toBe('downbeat');
-    expect(metronome.pulse).not.toBeNull();
-    expect(metronome.downbeat).toBe(metronome.pulse === 0);
+  it('has a bar of the song’s meter: four pulses, from the clicks it lays', async () => {
+    const metronome = new Metronome();
+    expect(metronome.pulses).toBe(4);
   });
 
-  it('plays every click at the volume set, and none once stopped', async () => {
-    const { world, s } = surroundings();
-    const metronome = new Metronome(() => 120, s);
-    metronome.volume = 0.4;
-    void metronome.start();
-    world.resolve();
-    await settle();
-    await run(world, 1);
-    expect(world.clicks.length).toBeGreaterThan(0);
-    for (const c of world.clicks) expect(c.gain).toBe(0.4);
-    metronome.stop();
-    expect(metronome.pulse).toBeNull();
-    const played = world.clicks.length;
-    world.tickers[0]!.tick();
-    expect(world.clicks.length).toBe(played);
-  });
-
-  it('counts a bar’s pulses by the meter chosen: 3 for 3/4, 4 for 4/4, and clicks that many a bar', async () => {
-    const { world, s } = surroundings();
-    const metronome = new Metronome(() => 180, s);
-    expect(metronome.pulses).toBe(4); // the default
-    metronome.meter = '3/4';
-    expect(metronome.pulses).toBe(3);
-    void metronome.start();
-    world.resolve();
-    await settle();
-    await run(world, 4);
-    const nonDownbeatPulses = world.clicks.filter((c) => c.weight === 'pulse').length;
-    const downbeats = world.clicks.filter((c) => c.weight === 'downbeat').length;
-    expect(downbeats).toBeGreaterThan(1);
-    // 3/4: 2 other pulses for every downbeat, give or take a trailing partial bar.
-    expect(nonDownbeatPulses).toBeGreaterThanOrEqual(downbeats * 2 - 2);
-    expect(nonDownbeatPulses).toBeLessThanOrEqual(downbeats * 2);
-  });
-
-  it('saves volume and meter to localStorage, and reads them back', () => {
-    const { s } = surroundings();
-    const a = new Metronome(() => 120, s);
+  it('saves its volume to localStorage and reads it back; whether it is on is never saved', () => {
+    const a = new Metronome();
     a.volume = 0.3;
-    a.meter = '6/8';
-    const b = new Metronome(() => 120, s);
+    a.on = true;
+    const b = new Metronome();
     expect(b.volume).toBe(0.3);
-    expect(b.meter).toBe('6/8');
+    expect(b.on).toBe(false);
   });
 });

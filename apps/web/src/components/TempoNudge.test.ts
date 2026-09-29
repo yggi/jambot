@@ -12,10 +12,11 @@ const tempo = (nudge: number) => ({
 });
 
 describe('the tempo nudge', () => {
-  it('shows the tempo played, the style’s own, and how far it reaches', () => {
-    render(TempoNudge, { tempo: tempo(2 * TEMPO_STEP), onintent: () => {} });
-    expect(screen.getByLabelText('Tempo')).toHaveTextContent('114 BPM');
-    expect(screen.getByText(/The style's 108 BPM, nudged \+6 %\. Reaches 86–136\./)).toBeVisible();
+  it('says how far the tempo reaches, and draws where the nudge stands in the licence', () => {
+    const { container } = render(TempoNudge, { tempo: tempo(2 * TEMPO_STEP), onintent: () => {} });
+    expect(screen.getByText('Reaches 86–136')).toBeVisible();
+    expect(container.querySelector('.value')).toBeInTheDocument();
+    expect(container.querySelector('.reach')).toBeInTheDocument();
   });
 
   it('nudges a step at a time, as a ratio of the style’s tempo', async () => {
