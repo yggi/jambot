@@ -9,6 +9,7 @@ describe('the key picker', () => {
     render(KeyPicker, {
       heading: { tonic: 3, mode: 'dorian' },
       history: NO_HISTORY,
+      reach: 6,
       onintent: () => {},
     });
     expect(screen.getByRole('combobox', { name: 'Mode' })).toHaveDisplayValue('dorian');
@@ -22,7 +23,12 @@ describe('the key picker', () => {
 
   it('wishes for the mode picked, keeping the tonic', async () => {
     const onintent = vi.fn();
-    render(KeyPicker, { heading: { tonic: 9, mode: 'aeolian' }, history: NO_HISTORY, onintent });
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent,
+    });
     await fireEvent.change(screen.getByRole('combobox', { name: 'Mode' }), {
       target: { value: 'mixolydian' },
     });
@@ -34,7 +40,12 @@ describe('the key picker', () => {
 
   it('wishes for the tonic clicked on its circle of fifths, keeping the mode', async () => {
     const onintent = vi.fn();
-    render(KeyPicker, { heading: { tonic: 9, mode: 'dorian' }, history: NO_HISTORY, onintent });
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'dorian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent,
+    });
     await fireEvent.click(screen.getByRole('button', { name: 'D' }));
     expect(onintent).toHaveBeenCalledWith({ kind: 'key', wish: { tonic: 2, mode: 'dorian' } });
   });
@@ -45,10 +56,33 @@ describe('the key picker', () => {
     const { container } = render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },
       history,
+      reach: 6,
       onintent: () => {},
     });
     expect(container.querySelector('path.history')).toBeNull();
     await fireEvent.click(screen.getByRole('checkbox', { name: 'Harmonic history' }));
     expect(container.querySelector('path.history')).not.toBeNull();
+  });
+
+  it('reaches every tonic when the licence is wide, and dims those beyond a narrow one', () => {
+    const { unmount } = render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      onintent: () => {},
+    });
+    for (const name of ['C', 'E♭', 'F♯', 'A'])
+      expect(screen.getByRole('button', { name })).toBeEnabled();
+    unmount();
+    // One fifth from A aeolian (no sharps or flats): D, A and E aeolian, and no further.
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 1,
+      onintent: () => {},
+    });
+    for (const name of ['D', 'A', 'E']) expect(screen.getByRole('button', { name })).toBeEnabled();
+    for (const name of ['G', 'B', 'C', 'F♯'])
+      expect(screen.getByRole('button', { name })).toBeDisabled();
   });
 });

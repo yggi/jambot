@@ -210,7 +210,7 @@ const INPUTS: {
     name: 'a MIDI keyboard',
     source: 'Test keyboard',
     ready: async (page) => {
-      await page.getByText('MIDI, key and sound').click();
+      await page.getByText('MIDI and sound').click();
       await page.getByRole('button', { name: 'Connect MIDI' }).click();
       await page.getByLabel('Listen to input').selectOption({ label: 'Test keyboard' });
     },

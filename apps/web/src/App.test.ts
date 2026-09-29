@@ -47,6 +47,24 @@ describe('the app', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
   });
 
+  it('lays the music out in the order of the composition, with the settings folded above it', () => {
+    const { container } = render(App);
+    const levels = [...container.querySelectorAll('h2')].map((h) => h.textContent);
+    expect(levels.slice(0, 6)).toEqual([
+      'Transport',
+      'Style',
+      'Metrum',
+      'Key',
+      'Plan and chords',
+      'Tracks',
+    ]);
+    const drawers = [...container.querySelectorAll('details > summary .name')].map(
+      (n) => n.textContent,
+    );
+    expect(drawers).toEqual(['Connection', 'MIDI and sound']);
+    expect(screen.getByText('Solo')).toBeInTheDocument();
+  });
+
   it('starts from Synth-pop, and a preset sets the sliders and tempo at once while stopped', async () => {
     render(App);
     expect(screen.getByRole('button', { name: 'Synth-pop' })).toHaveAttribute(
@@ -63,7 +81,7 @@ describe('the app', () => {
     expect(screen.getByLabelText('Tempo')).toHaveTextContent('148 BPM');
   });
 
-  it('nudges the tempo, and names the style by its preset: energy and entropy keep it, anything else makes it custom', async () => {
+  it('nudges the tempo within the style’s licence, and names the style by its preset: energy, entropy and the nudge keep it, anything else makes it custom', async () => {
     render(App);
     const synthPop = () => screen.getByRole('button', { name: 'Synth-pop' });
     for (const name of [/Energy/, /Entropy/]) {
@@ -71,15 +89,19 @@ describe('the app', () => {
       expect(synthPop()).toHaveAttribute('aria-pressed', 'true');
     }
     await fireEvent.click(screen.getByRole('button', { name: 'Faster' }));
-    expect(screen.getByLabelText('Tempo')).toHaveTextContent('110 BPM');
-    expect(synthPop()).toHaveAttribute('aria-pressed', 'false');
-    await fireEvent.click(screen.getByRole('button', { name: 'Slower' }));
+    expect(screen.getByLabelText('Tempo')).toHaveTextContent('111 BPM');
+    expect(screen.getByText(/The style's 108 BPM, nudged \+3 %/)).toBeInTheDocument();
     expect(synthPop()).toHaveAttribute('aria-pressed', 'true');
+    // A preset brings its own tempo, and the nudge carries over to it.
+    await fireEvent.click(screen.getByRole('button', { name: 'Techno' }));
+    expect(screen.getByLabelText('Tempo')).toHaveTextContent('134 BPM');
+    await fireEvent.click(screen.getByRole('button', { name: 'Slower' }));
+    expect(screen.getByLabelText('Tempo')).toHaveTextContent('130 BPM');
     await fireEvent.input(screen.getByRole('slider', { name: /Syncopation/ }), {
       target: { value: '80' },
     });
     expect(screen.getByRole('slider', { name: /Syncopation/ })).toHaveValue('80');
-    expect(synthPop()).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Techno' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('links to the prototype for what it does not do yet: the score and the Muse’s judgement', () => {

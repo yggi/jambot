@@ -126,6 +126,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/form.ts`: the section chain as a machine, and `barEnergy`
     - `src/key.ts`: the four modes the composer knows, and `nextKey`, which
       moves a key toward the players' wish
+    - `src/licence.ts`: how far the players may nudge what the style sets: the
+      tempo by a ratio, the key around the circle of fifths from home
     - `src/themes.ts`: themes, a section's harmony as degree slots
     - `src/plan.ts`: the section plan (form, key and theme), the machine at
       section rate
@@ -312,8 +314,16 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/test-setup.ts`: `@testing-library/jest-dom`'s matchers, loaded once
       for every component test
     - `src/App.svelte`: the page, which holds the player and hands each
-      component its props; components take props and send intents
-      - `src/components/Transport.svelte`: start and stop, and the tempo
+      component its props; components take props and send intents. The music in
+      the order of the composition, a `Level` each, the settings in `Drawer`s
+      above it
+      - `src/components/Level.svelte`: one level of the composition, a heading
+        over its controls, which rest for a client where the host leads
+      - `src/components/Drawer.svelte`: a folded settings card, its name and
+        what it is set to on one line
+      - `src/components/Transport.svelte`: start and stop
+      - `src/components/TempoNudge.svelte`: the tempo, nudged within the style's
+        licence, drawn as a bar with the style's own tempo in it
       - `src/components/StylePanel.svelte`: the presets, the style sliders, and
         a line saying where the style is: a preset playing, a glide under way,
         or a custom style
@@ -431,8 +441,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       together or either alone, riding on one shared clock
     - `src/timing.ts`: `timingReport`, the device's timing counters in
       milliseconds, and `timingFile`, the export
-    - `src/conductor.ts`: intents (presets, sliders, keys) into glides on the
-      style track and the key wished for
+    - `src/conductor.ts`: intents (presets, sliders, keys, tempo nudges) into
+      glides on the style track, the key wished for and the tempo nudge, each
+      within its licence
     - `src/audio/drums.ts`: the built-in drum kit
     - `src/audio/voices.ts`: the built-in pitched voices: bass, chords and lead,
       coloured by the bar's sound

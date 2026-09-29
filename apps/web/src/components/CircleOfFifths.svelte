@@ -23,9 +23,11 @@
     onintent?: (intent: Intent) => void;
     /** One weight per pitch class, 0–11, for the harmonic-history radar. Omit or undefined to leave it off. */
     history?: readonly number[] | undefined;
+    /** The pitch classes a nudge can't reach as tonic: dimmed, and not buttons. */
+    beyond?: readonly number[];
   }
 
-  let { tonic, scale, mode, onintent, history }: Props = $props();
+  let { tonic, scale, mode, onintent, history, beyond = [] }: Props = $props();
 
   const VIEW = 200;
   const CENTER = 100;
@@ -51,6 +53,7 @@
         buttonTop: ((CENTER + button.y) / VIEW) * 100,
         inScale: scale.includes(pitchClass),
         isTonic: pitchClass === tonic,
+        isBeyond: beyond.includes(pitchClass),
       };
     }),
   );
@@ -96,7 +99,13 @@
     {/if}
     {#each dots as dot (dot.pitchClass)}
       <circle class="dot" class:in-scale={dot.inScale} cx={dot.x} cy={dot.y} r="5" />
-      <text class="label" class:in-scale={dot.inScale} x={dot.labelX} y={dot.labelY}>
+      <text
+        class="label"
+        class:in-scale={dot.inScale}
+        class:beyond={dot.isBeyond}
+        x={dot.labelX}
+        y={dot.labelY}
+      >
         {dot.name}
       </text>
     {/each}
@@ -109,6 +118,7 @@
         style="left: {dot.buttonLeft}%; top: {dot.buttonTop}%"
         aria-label={dot.name}
         aria-pressed={dot.isTonic}
+        disabled={dot.isBeyond}
         onclick={() => pick(dot.pitchClass)}
       ></button>
     {/each}
@@ -160,6 +170,9 @@
   .label.in-scale {
     fill: var(--ink);
   }
+  .label.beyond {
+    opacity: 0.35;
+  }
   .pick {
     position: absolute;
     width: 26px;
@@ -172,7 +185,10 @@
     transform: translate(-50%, -50%);
     cursor: pointer;
   }
-  .pick:hover,
+  .pick:disabled {
+    cursor: default;
+  }
+  .pick:not(:disabled):hover,
   .pick:focus-visible {
     background: var(--teal-bg);
   }

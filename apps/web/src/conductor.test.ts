@@ -3,12 +3,14 @@ import {
   PRESETS,
   PRESET_GLIDE,
   SLIDER_GLIDE,
+  TEMPO_REACH,
+  TEMPO_STEP,
   glideTo,
   holding,
   styleAt,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { conduct, stopAt, wishAfter } from './conductor.ts';
+import { baseTempo, conduct, nudgeAfter, stopAt, tempoView, wishAfter } from './conductor.ts';
 
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
 
@@ -84,5 +86,53 @@ describe('conduct, for a key', () => {
     const wish = { tonic: 2, mode: 'dorian' } as const;
     expect(conduct(track, { kind: 'key', wish }, 40)).toBe(track);
     expect(conduct(track, { kind: 'key', wish }, null)).toBe(track);
+  });
+});
+
+describe('conduct, for the tempo', () => {
+  const step = (n: number) => ({ kind: 'tempo', nudge: n * TEMPO_STEP }) as const;
+
+  it('plays the style’s tempo times the players’ nudge, as a ratio', () => {
+    const track = holding(INITIAL_STYLE);
+    const next = conduct(track, step(2), 40);
+    expect(styleAt(next, 40)).toEqual(INITIAL_STYLE);
+    expect(styleAt(next, 40 + SLIDER_GLIDE).bpm).toBeCloseTo(108 * 2 ** (1 / 12), 9);
+    expect(baseTempo(next, 2 * TEMPO_STEP)).toBe(108);
+  });
+
+  it('holds the nudge within the licence', () => {
+    expect(nudgeAfter(0, step(100), 108)).toBe(TEMPO_REACH);
+    expect(nudgeAfter(0, step(-100), 108)).toBe(-TEMPO_REACH);
+    const far = conduct(holding(INITIAL_STYLE), step(100), null);
+    expect(styleAt(far, 0).bpm).toBeCloseTo(108 * 2 ** TEMPO_REACH, 9);
+  });
+
+  it('carries the nudge to a preset’s tempo, and reads every preset’s own back exactly', () => {
+    for (const p of PRESETS)
+      for (let n = -8; n <= 8; n++) {
+        const intent = { kind: 'preset', preset: p } as const;
+        // A nudge past the tempo axis's end is held at it, as the player holds it.
+        const nudge = nudgeAfter(n * TEMPO_STEP, intent, p.style.bpm);
+        const next = conduct(holding(INITIAL_STYLE), intent, null, nudge);
+        expect(baseTempo(next, nudge)).toBe(p.style.bpm);
+        expect(tempoView(next, nudge)).toMatchObject({ base: p.style.bpm, nudge });
+      }
+  });
+
+  it('leaves a tempo glide under way to a slider on another axis', () => {
+    const gliding = conduct(holding(INITIAL_STYLE), { kind: 'preset', preset: funk }, 0, 0);
+    const next = conduct(gliding, { kind: 'axis', axis: 'energy', value: 1 }, 32, 0);
+    expect(next.bpm).toBe(gliding.bpm);
+    expect(next.energy).not.toBe(gliding.energy);
+  });
+
+  it('sets the style’s own tempo by its axis, and keeps the nudge on it', () => {
+    const next = conduct(
+      holding(INITIAL_STYLE),
+      { kind: 'axis', axis: 'bpm', value: 120 },
+      null,
+      TEMPO_STEP,
+    );
+    expect(styleAt(next, 0).bpm).toBeCloseTo(120 * 2 ** TEMPO_STEP, 9);
   });
 });

@@ -7,7 +7,9 @@ Where Jambot is heading. The concept and the reasoning behind it are in
 ## Targets
 
 - **v0: locally demo-able**, by Thursday, 1 October 2026. v0 is the existing
-  prototype. Anything added on top is a bonus and strengthens the case.
+  prototype. Anything added on top is a bonus and strengthens the case. The
+  round toward it is #171 (Donnerstag): contractions that bring more of the
+  engine into the app, orthogonal to the language work.
 - **v1: event-ready**, by Christmas 2026. This is the deadline. v1 is the full
   bucket: everything on this roadmap, the live track and the learning track
   alike.
