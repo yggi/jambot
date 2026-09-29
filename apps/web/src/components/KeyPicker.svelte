@@ -1,7 +1,8 @@
 <!--
-  The key picker: the mode, and the circle of fifths as the tonic picker,
-  showing the key the band is heading for. A key picked is a wish, heard
-  from the next section the band plans. A toggle bares an experiment on the
+  The key picker: the mode, and the circle of fifths, showing the key the
+  band is heading for. A dot nudges the key there: a wish, heard from the
+  next section the band plans, and held within the style's licence of the
+  song's home key (`licence.ts`), so the dots beyond it are dimmed. A toggle bares an experiment on the
   same wheel: a live radar of the harmonic history, every pitch class
   actually played lately, weighted and fading, not just the current scale.
 -->
@@ -11,6 +12,7 @@
     type ComposerMode,
     INITIAL_KEY,
     type Key,
+    intoReach,
     keyHelix,
   } from '@jambot/engine';
   import { positions } from '@jambot/theory';
@@ -22,13 +24,21 @@
     heading: Key | null;
     /** One weight per pitch class, 0–11, for the harmonic-history radar. */
     history: readonly number[];
+    /** How many fifths from the home key the licence lets the key go (`KEY_REACH`). */
+    reach: number;
     onintent: (intent: Intent) => void;
   }
 
-  let { heading, history, onintent }: Props = $props();
+  let { heading, history, reach, onintent }: Props = $props();
 
   const key = $derived(heading ?? INITIAL_KEY);
   const scale = $derived(positions(keyHelix(key)));
+  /** The tonics the licence doesn't reach, in the mode playing. */
+  const beyond = $derived(
+    [...Array(12).keys()].filter(
+      (tonic) => intoReach({ tonic, mode: key.mode }, INITIAL_KEY, reach).tonic !== tonic,
+    ),
+  );
 
   let showHistory = $state(false);
 
@@ -54,6 +64,7 @@
         tonic={key.tonic}
         {scale}
         mode={key.mode}
+        {beyond}
         {onintent}
         history={showHistory ? history : undefined}
       />
@@ -66,7 +77,7 @@
       <p class="caption">
         {showHistory
           ? 'Every pitch class the band has actually played lately, weighted and fading — not just the current scale.'
-          : 'Click a pitch class to wish for it as the tonic. Toggle to see what the band has actually played.'}
+          : 'Click a pitch class to nudge the key there, within the style’s licence. Toggle to see what the band has actually played.'}
       </p>
     </div>
   </div>
@@ -106,7 +117,7 @@
     display: grid;
     gap: 6px;
     min-width: 0;
-    flex: 1;
+    flex: 1 1 200px;
   }
   .toggle {
     display: flex;

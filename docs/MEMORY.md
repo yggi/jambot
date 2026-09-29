@@ -18,13 +18,23 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 ```
 
 - Agent sessions (Claude Code) install dependencies and Playwright's Chromium,
-  warm music21 and fetch `origin/main` at start through
-  `.claude/hooks/session-start.sh`, and `.claude/settings.json` allows the
-  checks and the music-theory scripts without a prompt. Other agents run
-  `pnpm install --frozen-lockfile` first.
-- An agent's `git push` runs `pnpm verify` first (`verify-before-push.sh`, about
-  30 s) and is blocked if it fails. It checks the working tree, so commit before
-  pushing.
+  warm music21 and fetch `origin/main` and their own branch at start, resume and
+  compaction through `.claude/hooks/session-start.sh`, which also says how far
+  the branch is behind `origin/main`, whether main already holds it, and whether
+  its remote branch moved (`branch-status.sh`). And `.claude/settings.json`
+  allows the checks and the music-theory scripts without a prompt. Other agents
+  run `pnpm install --frozen-lockfile` first.
+- Every `git push` of a branch runs `pnpm verify` first, through git's pre-push
+  hook (`.githooks/pre-push`, about 2 min, the tests 76 s of it), and is blocked
+  if it fails.
+  `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
+  It refuses a dirty tracked tree and a commit other than the one checked out,
+  since it checks the tree, so commit before pushing.
+  A tree that passed is remembered, so a retried push does not rerun it.
+  A diff against `origin/main` of only `*.md` files runs the format check and
+  the tooling tests alone.
+  The GitHub MCP tools that write files (`push_files`, `create_or_update_file`,
+  `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
 - To review a pull request, use the `review-pr` skill:
   `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`, checks
   it out in its own worktree and runs `pnpm verify` there. It says when `main`
@@ -78,36 +88,63 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `forecast(env, carried, count)` gives the bars from the head's bar on, those
   composed first, each with the energy it plays at; with `carried` null it is
   the song from bar 0. The track holds glides ahead, so the forecast is what
-  plays unless a control moves. `apps/web/src/hud.ts`), rebuilt when the step
-  heard, the bars ahead or the track change. Components take slices of it as
+  plays unless a control moves.
+- The screen reads one snapshot, `player.hud` (`hudOf`, in
+  `apps/web/src/hud.ts`), rebuilt when the step heard, the bars ahead or the track change. Components take slices of it as
   props and send intents; none reads the engine. A style is named by the preset
   it matches on every axis the preset sets but energy (`presetOf`), so there is
-  no chosen-preset state: nudging the tempo makes a style custom, and moving
-  energy or entropy doesn't. `KeyPicker.svelte` shows the key the band is
-  heading for, the last bar decided's (`hud.heading`): a mode select, and the
-  circle of fifths, full-sized, as the one tonic picker — a single widget for
-  showing and picking the key, not two. `CircleOfFifths.svelte` draws it:
-  theory's `fifthsIndex` (built on `generator(7, 12)`) lays the 12 pitch classes
-  out by fifths, and the current scale is a stroke-only figure threaded from the
-  tonic, which alone gets a ring. It is read-only wherever it is given no
-  `mode`/`onintent`; given both, a dot is a button that wishes for its pitch
-  class as tonic, in the mode already playing (going through the same `key`
-  intent the mode select does). A key picked is wished for tonic and mode; a
-  preset wishes for its mode only when the wish is in another, so a key picked
-  survives a preset in its mode. A toggle on `KeyPicker` bares an experiment on
-  the same wheel: `history`, one weight per pitch class from
-  `player.harmonicHistory` (`apps/web/src/harmonicHistory.ts`), drawn as a
-  filled radar under the wheel. `HarmonicHistory` sums every note the band
-  actually plays by pitch class, drums excluded, decaying whatever a later bar's
-  first note finds by how many bars passed silently since the last one pushed —
-  so the shape reads as "what has the band been playing lately", not the current
-  scale, and not everything ever played. Stage stays plain text: the key's name
-  and its notes ascending from the tonic (`scaleNoteNames`), no wheel of its
-  own. The toggle sits inside the host-only `.controls` fieldset with the rest
-  of `KeyPicker`, so a client can see the wheel and the radar (fieldset
-  `disabled` hides nothing, only disables the form controls in it) but can't yet
-  flip the toggle themselves — a known seam, not yet worth its own escape from
-  the fieldset (#134).
+  no chosen-preset state: moving another axis makes a style custom, and moving
+  energy or entropy, or nudging the tempo, doesn't. `KeyPicker.svelte` shows the
+  key the band is heading for, the last bar decided's (`hud.heading`): a mode
+  select, and the circle of fifths, full-sized, as the one tonic picker — a
+  single widget for showing and picking the key, not two.
+  `CircleOfFifths.svelte` draws it: theory's `fifthsIndex` (built on
+  `generator(7, 12)`) lays the 12 pitch classes out by fifths, and the current
+  scale is a stroke-only figure threaded from the tonic, which alone gets a
+  ring. It is read-only wherever it is given no `mode`/`onintent`; given both, a
+  dot is a button that wishes for its pitch class as tonic, in the mode already
+  playing (going through the same `key` intent the mode select does). A key
+  picked is wished for tonic and mode; a preset wishes for its mode only when
+  the wish is in another, so a key picked survives a preset in its mode. A
+  toggle on `KeyPicker` bares an experiment on the same wheel: `history`, one
+  weight per pitch class from `player.harmonicHistory`
+  (`apps/web/src/harmonicHistory.ts`), drawn as a filled radar under the wheel.
+  `HarmonicHistory` sums every note the band actually plays by pitch class,
+  drums excluded, decaying whatever a later bar's first note finds by how many
+  bars passed silently since the last one pushed — so the shape reads as "what
+  has the band been playing lately", not the current scale, and not everything
+  ever played. Stage stays plain text: the key's name and its notes ascending
+  from the tonic (`scaleNoteNames`), no wheel of its own. The toggle sits inside
+  the host-only Key level with the rest of `KeyPicker`, so a client can see the
+  wheel and the radar (fieldset `disabled` hides nothing, only disables the form
+  controls in it) but can't yet flip the toggle themselves — a known seam, which
+  #167 dissolves by drawing the history always (#134).
+- The page (`App.svelte`) lays the music out in the order of the composition,
+  top to bottom, one `Level` each: transport, style, metrum, key, plan and
+  chords, tracks (#163). A `Level` is a heading over a fieldset; `resting`
+  disables its controls where a client takes the host's (transport, style, key),
+  and the metrum and the tracks, the client's own, never rest. What isn't the
+  music sits folded above it, one `Drawer` each: Connection (`SessionPanel`) and
+  MIDI and sound (`MidiPanel`), each summary saying what it is set to. An e2e
+  check that hosts or joins opens the Connection drawer first (`connection` in
+  `session.e2e.ts`). A new widget goes into the level it belongs to, not into a
+  corner of another.
+- The players nudge a default the layer above sets; they don't select it. The
+  layer above gives the default and a licence, how far a nudge may move it
+  (`packages/engine/src/licence.ts`): the performer's licence on a note
+  (`performer.ts`, T17) is the same shape one level down. The style sets the
+  tempo, and `TempoNudge.svelte` (in the metrum) nudges it by a ratio, 2^(1/24)
+  a step, within `tempoLicence`: a third of an octave either way, cut by the
+  tempo axis's ends. The track holds the tempo played, the style's times the
+  nudge, so the transport, the score and a session's clients read one tempo; the
+  player carries the nudge (`Player.tempoNudge`), a preset's tempo takes it
+  over, and `unnudged` reads the style's own back for naming. A key picked is
+  held within `KEY_REACH` fifths of the home key's signature (`intoReach`,
+  `fifthsApart`: relative keys lie 0 apart), and the wheel dims the tonics
+  beyond it. Every style gives the same reach today, every key and a third of an
+  octave; which axes narrow or widen it, and whether a nudge held at an edge
+  should move the style itself, is open (#171). A client doesn't have its host's
+  nudge, so it names a nudged style by the tempo played: a known seam.
 - `Keyboard.svelte` and `DrumPads.svelte` mark the current key's scale as a dot
   (`hud.bar.scale`, from `hud.ts`) and flash amber for the band's own lead and
   drum notes (`player.sounding`, `apps/web/src/sounding.ts`), never what a
@@ -514,8 +551,7 @@ The full description is in
   hundred bars and seeds before and after, in a throwaway test.
 - A test that swaps a global (`Math.sin`) restores it in a `finally`.
 - Four house rules that only a reviewer held now have their own check (#45):
-  docs wrap at 80 columns (`.prettierrc.json`'s `proseWrap`, checked by
-  `pnpm format:check`); a raw comparison against a draw is refused by lint, in
+  a raw comparison against a draw is refused by lint, in
   favour of `chance`/`pick` (`no-restricted-syntax`, `tooling/lint.test.ts`);
   every risky `Math` call in the pure packages is named in
   `tooling/quantized-math.ts`'s audit, with why it's safe; and every source file

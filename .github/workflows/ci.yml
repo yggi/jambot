@@ -1,9 +1,7 @@
 name: CI
 
-# Manual only while the Actions minutes are used up (#4): a run on every
-# push fails in seconds and leaves each pull request red for no reason.
-# `pnpm verify` locally is the check that counts. When minutes return, put
-# back `push: { branches: [main] }` and `pull_request:`.
+# Manual only (docs/MEMORY.md, "Repository and CI"). When it can run on
+# every push again, put back `push: { branches: [main] }` and `pull_request:`.
 # GitHub Pages is deployed by hand from the `gh-pages` branch, with
 # `pnpm pages deploy` (`tooling/pages.ts`), not from here.
 on:

@@ -1,17 +1,22 @@
 <script lang="ts">
+  import Drawer from './components/Drawer.svelte';
   import DrumPads from './components/DrumPads.svelte';
   import Keyboard from './components/Keyboard.svelte';
   import KeyPicker from './components/KeyPicker.svelte';
+  import Level from './components/Level.svelte';
   import MetronomePanel from './components/MetronomePanel.svelte';
   import MidiPanel from './components/MidiPanel.svelte';
   import MusePanel from './components/MusePanel.svelte';
   import Performers from './components/Performers.svelte';
   import SessionPanel from './components/SessionPanel.svelte';
   import Stage from './components/Stage.svelte';
+  import TempoNudge from './components/TempoNudge.svelte';
   import StylePanel from './components/StylePanel.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
   import Transport from './components/Transport.svelte';
   import { SvelteSet } from 'svelte/reactivity';
+  import { KEY_REACH } from '@jambot/engine';
+  import { tempoView } from './conductor.ts';
   import { bandOutput } from './audio/band-output.ts';
   import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
   import { type Output, webAudioOutput } from './audio/output.ts';
@@ -119,6 +124,18 @@
   const heldLead = new SvelteSet<number>();
   const heldDrums = new SvelteSet<number>();
 
+  /** Whether this device follows a host, whose song, style and key it plays. */
+  const following = $derived(player.mode === 'client');
+
+  /** The connection, in one line, for its folded drawer. */
+  const connectionStatus = $derived(
+    player.mode === 'host'
+      ? `Host of ${hostSession.session}`
+      : player.mode === 'client'
+        ? `Guest in ${clientSession.session}`
+        : 'Solo',
+  );
+
   const performers = $derived(performersOf(player.hud, player.sounding, player.pattern));
 
   /**
@@ -200,84 +217,109 @@
     <p>You play, the Muse listens, the band answers.</p>
   </header>
 
-  <SessionPanel
-    mode={player.mode}
-    hosting={{
-      session: hostSession.session,
-      guests: hostSession.guests,
-      ended: hostSession.ended,
-    }}
-    following={{
-      status: clientSession.status,
-      session: clientSession.session,
-      name: clientSession.name,
-      hostPlaying: clientSession.hostPlaying,
-      trip: clientSession.trip,
-      ended: clientSession.ended,
-      lacked: player.lacked,
-    }}
-    lobby={import.meta.env.VITE_LOBBY_URL ?? ''}
-    onhost={(session, name, url) => hostSession.open(lobbyAt(url), session, name)}
-    onjoin={(session, name, url) => clientSession.join(lobbyAt(url), session, name)}
-    onlist={(url) => lobbyAt(url).sessions()}
-    onclose={() => hostSession.close()}
-    onleave={() => clientSession.leave()}
-  />
+  <!-- What isn't the music: how this device connects, folded until wanted. -->
+  <div class="settings">
+    <Drawer name="Connection" status={connectionStatus}>
+      <SessionPanel
+        mode={player.mode}
+        hosting={{
+          session: hostSession.session,
+          guests: hostSession.guests,
+          ended: hostSession.ended,
+        }}
+        following={{
+          status: clientSession.status,
+          session: clientSession.session,
+          name: clientSession.name,
+          hostPlaying: clientSession.hostPlaying,
+          trip: clientSession.trip,
+          ended: clientSession.ended,
+          lacked: player.lacked,
+        }}
+        lobby={import.meta.env.VITE_LOBBY_URL ?? ''}
+        onhost={(session, name, url) => hostSession.open(lobbyAt(url), session, name)}
+        onjoin={(session, name, url) => clientSession.join(lobbyAt(url), session, name)}
+        onlist={(url) => lobbyAt(url).sessions()}
+        onclose={() => hostSession.close()}
+        onleave={() => clientSession.leave()}
+      />
+    </Drawer>
 
-  <!-- A client plays its host's song, style and key: its controls rest. -->
-  <fieldset class="controls" disabled={player.mode === 'client'}>
+    <Drawer name="MIDI and sound" status={midiAccess ? 'MIDI connected' : 'Built-in synth'}>
+      <MidiPanel
+        settings={midiSettings}
+        access={midiAccess}
+        message={midiMessage}
+        onconnect={connectMidi}
+        onpanic={() => player.panicMidi()}
+      />
+    </Drawer>
+
+    {#if timingShown}
+      <TimingPanel report={timing} onexport={exportTiming} />
+    {/if}
+  </div>
+
+  <!--
+    The music, in the order of the composition, from the whole song down to
+    each note. A client plays its host's song, style and key, so those
+    levels' controls rest; its metronome and instruments are its own.
+  -->
+  <Level name="Transport" resting={following}>
     <Transport
       playing={player.playing}
-      bpm={Math.round(player.track.bpm.to)}
       ontoggle={() => (player.playing ? player.stop() : player.start())}
-      onintent={(intent) => player.apply(intent)}
     />
+  </Level>
 
+  <Level name="Style" resting={following}>
     <StylePanel
       track={player.track}
       style={player.hud.style}
       onintent={(intent) => player.apply(intent)}
     />
+  </Level>
 
+  <Level name="Metrum">
+    <TempoNudge
+      tempo={tempoView(player.track, player.tempoNudge)}
+      disabled={following}
+      onintent={(intent) => player.apply(intent)}
+    />
+    <MetronomePanel {metronome} />
+  </Level>
+
+  <Level name="Key" resting={following}>
     <KeyPicker
       heading={player.hud.heading}
+      reach={KEY_REACH}
       history={player.harmonicHistory}
       onintent={(intent) => player.apply(intent)}
     />
-  </fieldset>
+  </Level>
 
-  <Stage hud={player.hud} playing={player.playing} />
+  <Level name="Plan and chords">
+    <Stage hud={player.hud} playing={player.playing} />
+  </Level>
 
-  <Performers {performers} />
+  <Level name="Tracks">
+    <Performers {performers} />
 
-  <MetronomePanel {metronome} />
+    <Keyboard
+      down={heldLead}
+      scale={player.hud.bar?.scale ?? []}
+      sounding={player.sounding.lead}
+      onnote={(note, velocity, on) => routeToLead(note, velocity, on, 'the on-screen keys')}
+    />
 
-  <Keyboard
-    down={heldLead}
-    scale={player.hud.bar?.scale ?? []}
-    sounding={player.sounding.lead}
-    onnote={(note, velocity, on) => routeToLead(note, velocity, on, 'the on-screen keys')}
-  />
+    <DrumPads
+      down={heldDrums}
+      sounding={player.sounding.drums}
+      onnote={(note, velocity, on) => routeToDrums(note, velocity, on, 'the drum pads')}
+    />
 
-  <DrumPads
-    down={heldDrums}
-    sounding={player.sounding.drums}
-    onnote={(note, velocity, on) => routeToDrums(note, velocity, on, 'the drum pads')}
-  />
-
-  <MusePanel muse={player.hud.muse} onforget={() => player.forgetMotif()} />
-
-  {#if timingShown}
-    <TimingPanel report={timing} onexport={exportTiming} />
-  {/if}
-
-  <MidiPanel
-    settings={midiSettings}
-    access={midiAccess}
-    message={midiMessage}
-    onconnect={connectMidi}
-    onpanic={() => player.panicMidi()}
-  />
+    <MusePanel muse={player.hud.muse} onforget={() => player.forgetMotif()} />
+  </Level>
 
   <p class="note">
     The band plays drums, bass, chords and lead, over MIDI or the built-in synth. Join in on the
@@ -294,7 +336,10 @@
     margin: 0 auto;
     padding: 14px;
     display: grid;
-    gap: 14px;
+    gap: 22px;
+  }
+  main > * {
+    min-width: 0;
   }
   header {
     display: flex;
@@ -303,13 +348,10 @@
     gap: 12px;
     flex-wrap: wrap;
   }
-  .controls {
+  .settings {
     display: grid;
-    gap: 14px;
+    gap: 8px;
     min-width: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
   }
   header p,
   .note {

@@ -108,6 +108,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       its meter on the steps (`SONG_METER`, `BEATS`) and the readings of bar and
       beat every reader calls (`barAt`, `stepInBar`, `beatAt`, …; T10), and
       `clockOf`, the clock of a song whose meter changes (T14)
+    - `src/dynamics.ts`: a written note's base velocity and length
+      (`baseVelocityOf`, `baseLengthOf`), the ensemble's own default before a
+      written accent or the performer's own licence touch it (T19)
     - `src/performer.ts`: the performer, how a written note is played: its
       velocity, the length it sounds and its dough note (`perform`), read from
       the bar (T4, #107, #129); every part's licence, a seeded looseness on
@@ -123,6 +126,8 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/form.ts`: the section chain as a machine, and `barEnergy`
     - `src/key.ts`: the four modes the composer knows, and `nextKey`, which
       moves a key toward the players' wish
+    - `src/licence.ts`: how far the players may nudge what the style sets: the
+      tempo by a ratio, the key around the circle of fifths from home
     - `src/themes.ts`: themes, a section's harmony as degree slots
     - `src/plan.ts`: the section plan (form, key and theme), the machine at
       section rate
@@ -260,10 +265,12 @@ Every doc and code area, as a tree. Add a line when you add one.
       the engine's own metronome machine on 4/4, one drum voice
 - `tooling/`: tests for the repository's own gates
   - `lint.test.ts`: each rule that keeps the pure packages pure, shown firing
-  - `docs-wrap.test.ts`: docs wrap at 80 columns (#45), `.prettierrc.json`'s
-    `proseWrap` for `*.md`, shown firing on prose and leaving a table and a code
-    fence at their own width
-  - `hooks.test.ts`: the pre-push hook, blocking and letting through
+  - `docs-lines.test.ts`: docs keep the line breaks their author wrote (#172),
+    `.prettierrc.json`'s `proseWrap: "preserve"` for `*.md`
+  - `reading-list.ts`, `reading-list.test.ts`: the boot set, `AGENTS.md` and
+    `docs/MEMORY.md`, and the size ceiling it stays under
+  - `hooks.test.ts`: the pre-push hook, blocking and letting through, and the
+    branch status line
   - `quantized-math.ts`: the audit of every `Math.pow`, `Math.sin` and similar
     call in the pure packages' own sources, outside tests, with why its result
     is safe from a last-bit difference on another engine (#45);
@@ -309,8 +316,16 @@ Every doc and code area, as a tree. Add a line when you add one.
     - `src/test-setup.ts`: `@testing-library/jest-dom`'s matchers, loaded once
       for every component test
     - `src/App.svelte`: the page, which holds the player and hands each
-      component its props; components take props and send intents
-      - `src/components/Transport.svelte`: start and stop, and the tempo
+      component its props; components take props and send intents. The music in
+      the order of the composition, a `Level` each, the settings in `Drawer`s
+      above it
+      - `src/components/Level.svelte`: one level of the composition, a heading
+        over its controls, which rest for a client where the host leads
+      - `src/components/Drawer.svelte`: a folded settings card, its name and
+        what it is set to on one line
+      - `src/components/Transport.svelte`: start and stop
+      - `src/components/TempoNudge.svelte`: the tempo, nudged within the style's
+        licence, drawn as a bar with the style's own tempo in it
       - `src/components/StylePanel.svelte`: the presets, the style sliders, and
         a line saying where the style is: a preset playing, a glide under way,
         or a custom style
@@ -428,8 +443,9 @@ Every doc and code area, as a tree. Add a line when you add one.
       together or either alone, riding on one shared clock
     - `src/timing.ts`: `timingReport`, the device's timing counters in
       milliseconds, and `timingFile`, the export
-    - `src/conductor.ts`: intents (presets, sliders, keys) into glides on the
-      style track and the key wished for
+    - `src/conductor.ts`: intents (presets, sliders, keys, tempo nudges) into
+      glides on the style track, the key wished for and the tempo nudge, each
+      within its licence
     - `src/audio/drums.ts`: the built-in drum kit
     - `src/audio/voices.ts`: the built-in pitched voices: bass, chords and lead,
       coloured by the bar's sound
@@ -464,13 +480,17 @@ Every doc and code area, as a tree. Add a line when you add one.
       audio is a buffer dropped, a stall a long tick and steps missed
     - `e2e/audio.ts`: listening to the app in the browser, for the checks
 - `.github/workflows/ci.yml`: lint, format check, typecheck, tests, e2e, build;
-  started by hand while #4 is open
-- `.claude/settings.json`: the session-start and pre-push hooks, and the checks
+  started by hand only
+- `.claude/settings.json`: the session-start hook, the GitHub tools denied, and the checks
   agents may run without a prompt
   - `.claude/hooks/session-start.sh`: installs dependencies, warms music21 and
-    fetches `origin/main` when an agent session starts or resumes
-  - `.claude/hooks/verify-before-push.sh`: runs `pnpm verify` before an agent's
-    `git push`, and blocks the push if it fails
+    fetches `origin/main` and the session's branch when an agent session starts,
+    resumes or compacts
+  - `.claude/hooks/branch-status.sh`: how the checkout stands against
+    `origin/main` and its own remote branch
+- `.githooks/pre-push`: runs `pnpm verify` before a `git push` of a branch, and
+  blocks the push if it fails; refuses a dirty tree, remembers a tree that
+  passed, and runs the docs check alone for a markdown-only branch
 - `.claude/skills/`: project skills for agents
   - [`lobby-deploy/`](../.claude/skills/lobby-deploy/SKILL.md): deploys the
     lobby to Fly.io from a session, and checks it answers
@@ -479,11 +499,17 @@ Every doc and code area, as a tree. Add a line when you add one.
     the two (`compare.mjs`)
   - [`ratchet/`](../.claude/skills/ratchet/SKILL.md): claims in the Dialectica
     form and the moves both sides of a ratchet pair make (#41)
+    - [`reference.md`](../.claude/skills/ratchet/reference.md): what the status
+      and decision words mean
   - [`review-pr/`](../.claude/skills/review-pr/SKILL.md): reviews a pull request
     against the house rules; `prepare.sh` fetches it into its own worktree and
     runs `pnpm verify` there
+  - [`land/`](../.claude/skills/land/SKILL.md): merges a reviewed pull request,
+    runs the deploy and checks the live site
   - [`screenshot/`](../.claude/skills/screenshot/SKILL.md): measured options
     shown side by side, as screenshots of pages drawn from an experiment's
     numbers, and as audio through the app's synth
+- `.github/ISSUE_TEMPLATE/`: the epic, design, bug and infrastructure issue
+  forms, one per label
 - [`.github/pull_request_template.md`](../.github/pull_request_template.md): the
   checklist every pull request fills in

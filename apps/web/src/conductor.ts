@@ -14,10 +14,20 @@
  * the prototype. A key picked is wished for as it is, tonic and mode. The
  * band moves its key toward the wish at the next section it plans
  * (`nextKey`), so a new key never cuts into a section.
+ *
+ * The players don't select the tempo or the key; they nudge a default the
+ * layer above sets, within the licence it leaves (`licence.ts`). The style
+ * sets the tempo, and a nudge is a ratio of it, held within the style's
+ * reach: a preset brings its own tempo, and the nudge carries over to it. The
+ * track holds the tempo played, the style's times the nudge, so the
+ * transport, the score and a session's clients read one tempo; `baseTempo`
+ * reads the style's own back out of it. A key picked is held within the
+ * style's reach of the song's home key, a fifth at a time.
  */
 
 import {
   type Axis,
+  INITIAL_KEY,
   type KeyWish,
   PRESET_GLIDE,
   type Preset,
@@ -26,27 +36,107 @@ import {
   type StyleTrack,
   glideTo,
   holding,
+  KEY_REACH,
+  intoReach,
+  nudgedTempo,
+  tempoLicence,
+  tempoNudgeWithin,
 } from '@jambot/engine';
 
 export type Intent =
   | { readonly kind: 'preset'; readonly preset: Preset }
   | { readonly kind: 'axis'; readonly axis: Axis; readonly value: number }
-  | { readonly kind: 'key'; readonly wish: KeyWish };
+  | { readonly kind: 'key'; readonly wish: KeyWish }
+  /** A nudge of the style's tempo, in octaves: 0 plays it as it is. */
+  | { readonly kind: 'tempo'; readonly nudge: number };
 
-/** The track after an intent, gliding from step `at`, or set at once when stopped (`null`). */
-export function conduct(track: StyleTrack, intent: Intent, at: number | null): StyleTrack {
-  if (intent.kind === 'key') return track;
-  const targets = intent.kind === 'preset' ? intent.preset.style : { [intent.axis]: intent.value };
-  if (at === null) return glideTo(track, targets, 0, 0);
-  return glideTo(track, targets, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);
+/** Where each axis of a track is going. */
+export const targetOf = (track: StyleTrack): Style =>
+  Object.fromEntries(Object.entries(track).map(([axis, glide]) => [axis, glide.to])) as Style;
+
+/**
+ * A style as the layer above set it: the players' tempo nudge taken back out
+ * of the tempo played, to a millionth of a beat per minute, so a preset's
+ * tempo reads back exactly.
+ */
+export function unnudged(style: Style, nudge: number): Style {
+  return { ...style, bpm: Math.round((style.bpm / 2 ** nudge) * 1e6) / 1e6 };
 }
 
-/** The key wished for after an intent: a key picked, or a preset's mode from any tonic. */
+/** The style's own tempo under a track. */
+export function baseTempo(track: StyleTrack, nudge: number): number {
+  return unnudged(targetOf(track), nudge).bpm;
+}
+
+/**
+ * The track after an intent, gliding from step `at`, or set at once when
+ * stopped (`null`). `nudge` is the players' tempo nudge before the intent;
+ * the tempo played is the style's times the nudge after it (`nudgeAfter`).
+ */
+export function conduct(
+  track: StyleTrack,
+  intent: Intent,
+  at: number | null,
+  nudge = 0,
+): StyleTrack {
+  if (intent.kind === 'key') return track;
+  const base = baseAfter(track, intent, nudge);
+  const targets: Partial<Style> =
+    intent.kind === 'preset'
+      ? { ...intent.preset.style }
+      : intent.kind === 'axis'
+        ? { [intent.axis]: intent.value }
+        : {};
+  const after = nudgeAfter(nudge, intent, base);
+  // Only what moves the tempo glides it: a slider elsewhere leaves a tempo
+  // glide under way as it is.
+  const moved = 'bpm' in targets || intent.kind === 'tempo' || after !== nudge;
+  const all = moved ? { ...targets, bpm: nudgedTempo(base, after) } : targets;
+  if (at === null) return glideTo(track, all, 0, 0);
+  return glideTo(track, all, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);
+}
+
+/** The style's own tempo after an intent: a preset's, one set on the tempo axis, or the one before. */
+export function baseAfter(track: StyleTrack, intent: Intent, nudge: number): number {
+  if (intent.kind === 'preset') return intent.preset.style.bpm;
+  if (intent.kind === 'axis' && intent.axis === 'bpm') return intent.value;
+  return baseTempo(track, nudge);
+}
+
+/** The players' tempo nudge after an intent, held within the licence around the style's tempo. */
+export function nudgeAfter(nudge: number, intent: Intent, base: number): number {
+  return tempoNudgeWithin(intent.kind === 'tempo' ? intent.nudge : nudge, base);
+}
+
+/**
+ * The key wished for after an intent: a key picked, or a preset's mode from
+ * any tonic, and a tonic held within the licence's reach of the home key.
+ */
 export function wishAfter(wish: KeyWish, intent: Intent): KeyWish {
-  if (intent.kind === 'key') return intent.wish;
-  if (intent.kind === 'preset' && intent.preset.mode !== wish.mode)
-    return { tonic: null, mode: intent.preset.mode };
-  return wish;
+  const next =
+    intent.kind === 'key'
+      ? intent.wish
+      : intent.kind === 'preset' && intent.preset.mode !== wish.mode
+        ? { tonic: null, mode: intent.preset.mode }
+        : wish;
+  if (next.tonic === null) return next;
+  const held = intoReach({ tonic: next.tonic, mode: next.mode }, INITIAL_KEY, KEY_REACH);
+  return held.tonic === next.tonic ? next : held;
+}
+
+/** The tempo as the players see it: played, the style's own, the nudge, and its licence. */
+export interface TempoView {
+  readonly bpm: number;
+  readonly base: number;
+  readonly nudge: number;
+  /** How far the nudge may go, in octaves each way (`tempoLicence`). */
+  readonly low: number;
+  readonly high: number;
+}
+
+export function tempoView(track: StyleTrack, nudge: number): TempoView {
+  const base = baseTempo(track, nudge);
+  return { bpm: track.bpm.to, base, nudge, ...tempoLicence(base) };
 }
 
 /**
@@ -55,7 +145,5 @@ export function wishAfter(wish: KeyWish, intent: Intent): KeyWish {
  * plays, and what the page shows as chosen.
  */
 export function stopAt(track: StyleTrack): StyleTrack {
-  return holding(
-    Object.fromEntries(Object.entries(track).map(([axis, glide]) => [axis, glide.to])) as Style,
-  );
+  return holding(targetOf(track));
 }

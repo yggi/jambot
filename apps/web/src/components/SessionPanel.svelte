@@ -104,8 +104,7 @@
       : `${guests.length} joined: ${guests.map((g) => g.name).join(', ')}.`;
 </script>
 
-<section class="card" aria-label="Session">
-  <h2>Session</h2>
+<section class="session" aria-label="Session">
   {#if mode === 'host'}
     <p>Hosting <strong>{hosting.session}</strong>. {players(hosting.guests)}</p>
     <p class="message">
@@ -178,17 +177,9 @@
 </section>
 
 <style>
-  .card {
+  .session {
     display: grid;
     gap: 10px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 14px;
-  }
-  h2 {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 600;
   }
   .fields {
     display: grid;
@@ -198,9 +189,12 @@
   label {
     display: grid;
     gap: 2px;
+    min-width: 0;
     font-size: 14px;
   }
   input {
+    width: 100%;
+    min-width: 0;
     font: inherit;
     padding: 6px 8px;
     border: 1px solid var(--line);

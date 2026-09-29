@@ -30,11 +30,7 @@ question, with `page(title, body)` from the tool, which frames the body with the
 shared layout and the palette:
 
 ```js
-import {
-  page,
-  inlineModule,
-  shoot,
-} from '/home/user/jambot/tooling/screenshot.ts';
+import { page, inlineModule, shoot } from '/home/user/jambot/tooling/screenshot.ts';
 ```
 
 Run such a script with `node --experimental-strip-types --no-warnings`.

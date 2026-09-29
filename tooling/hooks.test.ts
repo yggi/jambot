@@ -1,47 +1,232 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+const failing = 'echo verify ran and failed; exit 1';
 
-/** Runs the pre-push hook on a Bash command, with `verify` standing in for `pnpm verify`. */
-function beforeBash(command: string, verify: string) {
-  const run = spawnSync('sh', [`${root}/.claude/hooks/verify-before-push.sh`], {
-    input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
-    env: { ...process.env, CLAUDE_PROJECT_DIR: root, JAMBOT_VERIFY: verify },
+const repos: string[] = [];
+afterEach(() => {
+  for (const dir of repos.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+function git(dir: string, ...args: string[]) {
+  const run = spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8' });
+  if (run.status !== 0) throw new Error(run.stderr);
+  return run.stdout.trim();
+}
+
+/** A repository whose `origin/main` holds `README.md`, with `files` committed on top of it. */
+function repoWith(files: string[]) {
+  const dir = mkdtempSync(join(tmpdir(), 'jambot-hook-'));
+  repos.push(dir);
+  git(dir, 'init', '-q');
+  git(dir, 'config', 'user.email', 'hook@test');
+  git(dir, 'config', 'user.name', 'hook');
+  writeFileSync(join(dir, 'README.md'), 'a\n');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-qm', 'base');
+  git(dir, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  for (const file of files) writeFileSync(join(dir, file), 'b\n');
+  if (files.length > 0) {
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-qm', 'change');
+  }
+  return dir;
+}
+
+const zero = '0'.repeat(40);
+
+/** Runs git's pre-push hook in `dir` for pushes of `refs`, with the two checks replaced by shell commands. */
+function hook(
+  dir: string,
+  refs: { local?: string; remote?: string } | 'head' = 'head',
+  checks: { verify?: string; docs?: string } = {},
+) {
+  const head = git(dir, 'rev-parse', 'HEAD');
+  const { local = head, remote = 'refs/heads/work' } = refs === 'head' ? {} : refs;
+  const run = spawnSync('sh', [`${root}/.githooks/pre-push`, 'origin', 'url'], {
+    cwd: dir,
+    input: `refs/heads/work ${local} ${remote} ${zero}\n`,
+    env: {
+      ...process.env,
+      JAMBOT_VERIFY: checks.verify ?? 'true',
+      JAMBOT_VERIFY_DOCS: checks.docs ?? 'true',
+    },
     encoding: 'utf8',
   });
   return { status: run.status, stderr: run.stderr };
 }
 
-const failing = 'echo verify ran and failed; exit 1';
-
-describe('verify-before-push', () => {
-  it.each([
-    'git push -u origin claude/some-branch',
-    'git push',
-    'cd /home/user/jambot && git push origin HEAD',
-    'git -C /home/user/jambot push',
-    'pnpm verify; git push --force-with-lease',
-    'GIT_TRACE=1 git push',
-  ])('blocks `%s` when verify fails, and says why', (command) => {
-    const { status, stderr } = beforeBash(command, failing);
-    expect(status).toBe(2);
+describe('pre-push', () => {
+  it('blocks a push when verify fails, and says why', () => {
+    const { status, stderr } = hook(repoWith(['a.ts']), 'head', { verify: failing });
+    expect(status).toBe(1);
     expect(stderr).toContain('verify ran and failed');
-    expect(stderr).toContain('pnpm verify failed');
+    expect(stderr).toContain('the push was blocked');
   });
 
   it('lets a push through when verify passes', () => {
-    expect(beforeBash('git push -u origin main', 'true').status).toBe(0);
+    expect(hook(repoWith(['a.ts'])).status).toBe(0);
   });
 
   it.each([
-    'git status',
-    'git commit -m "push the swing later"',
-    'git log --grep push',
-    'echo git push',
-    'pnpm test',
-  ])('does not run verify for `%s`', (command) => {
-    expect(beforeBash(command, failing)).toEqual({ status: 0, stderr: '' });
+    ['deleting a branch', { local: zero, remote: 'refs/heads/work' }],
+    ['pushing a tag', { remote: 'refs/tags/v1' }],
+    ['the deploy to gh-pages', { remote: 'refs/heads/gh-pages' }],
+  ])('does not run verify for %s', (_, refs) => {
+    expect(hook(repoWith(['a.ts']), refs, { verify: failing })).toEqual({
+      status: 0,
+      stderr: '',
+    });
+  });
+
+  it('refuses to push a commit other than the one checked out', () => {
+    const dir = repoWith(['a.ts']);
+    const other = git(dir, 'rev-parse', 'origin/main');
+    const { status, stderr } = hook(dir, { local: other });
+    expect(status).toBe(1);
+    expect(stderr).toContain('not the checked out commit');
+  });
+
+  it('refuses a push while a tracked file has uncommitted changes', () => {
+    const dir = repoWith(['a.ts']);
+    writeFileSync(join(dir, 'a.ts'), 'edited\n');
+    const { status, stderr } = hook(dir);
+    expect(status).toBe(1);
+    expect(stderr).toContain('uncommitted');
+  });
+
+  it('is not troubled by an untracked file, which the push does not send', () => {
+    const dir = repoWith(['a.ts']);
+    writeFileSync(join(dir, 'scratch.txt'), 'x\n');
+    expect(hook(dir).status).toBe(0);
+  });
+
+  it('does not verify a tree twice, so a retried push is free', () => {
+    const dir = repoWith(['a.ts']);
+    expect(hook(dir).status).toBe(0);
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(0);
+  });
+
+  it('verifies again once the tree changes', () => {
+    const dir = repoWith(['a.ts']);
+    expect(hook(dir).status).toBe(0);
+    writeFileSync(join(dir, 'b.ts'), 'c\n');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-qm', 'more');
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
+  });
+
+  it('does not remember a tree that failed', () => {
+    const dir = repoWith(['a.ts']);
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
+  });
+
+  it('runs only the docs check for a branch that changes markdown alone', () => {
+    const dir = repoWith(['notes.md']);
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(0);
+    expect(hook(dir, 'head', { verify: 'true', docs: failing }).status).toBe(1);
+  });
+
+  it('runs everything once code changes with the markdown', () => {
+    const dir = repoWith(['notes.md', 'a.ts']);
+    expect(hook(dir, 'head', { verify: failing, docs: 'true' }).status).toBe(1);
+  });
+
+  it('does not remember a tree that only the docs check passed', () => {
+    const dir = repoWith(['notes.md']);
+    expect(hook(dir).status).toBe(0);
+    // The branch then gains code: a new tree, and the full check applies.
+    writeFileSync(join(dir, 'a.ts'), 'c\n');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-qm', 'code');
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
+  });
+
+  it('is what a checkout runs: the install points core.hooksPath at it', () => {
+    const scripts = JSON.parse(readFileSync(`${root}/package.json`, 'utf8')).scripts;
+    expect(scripts.prepare).toContain('core.hooksPath .githooks');
+  });
+});
+
+describe('agent settings', () => {
+  const settings = JSON.parse(readFileSync(`${root}/.claude/settings.json`, 'utf8'));
+
+  it.each(['push_files', 'create_or_update_file', 'delete_file'])(
+    'denies the GitHub tool %s, which writes to the remote without the pre-push hook',
+    (name) => {
+      expect(settings.permissions.deny).toContain(`mcp__github__${name}`);
+    },
+  );
+});
+
+/** What branch-status.sh says in `dir`. */
+function branchStatus(dir: string) {
+  const run = spawnSync('sh', [`${root}/.claude/hooks/branch-status.sh`], {
+    cwd: dir,
+    encoding: 'utf8',
+  });
+  return run.stdout.trim();
+}
+
+/** Commits `name` on the current branch. */
+function commit(dir: string, name: string) {
+  writeFileSync(join(dir, name), 'x\n');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-qm', name);
+}
+
+describe('branch-status', () => {
+  it('says how far the branch is ahead of origin/main', () => {
+    const dir = repoWith(['a.ts']);
+    expect(branchStatus(dir)).toMatch(/: 0 behind, 1 ahead of origin\/main \(/);
+    expect(branchStatus(dir)).not.toContain(';');
+  });
+
+  it('tells a branch that is behind and has work to merge main', () => {
+    const dir = repoWith(['a.ts']);
+    git(dir, 'checkout', '-q', '-b', 'other', 'origin/main');
+    commit(dir, 'main-moves.ts');
+    git(dir, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    git(dir, 'checkout', '-q', '-');
+    expect(branchStatus(dir)).toContain('1 behind, 1 ahead');
+    expect(branchStatus(dir)).toContain('merge origin/main before starting');
+  });
+
+  it('tells a branch main already holds to restart from main', () => {
+    const dir = repoWith([]);
+    git(dir, 'checkout', '-q', '-b', 'old');
+    commit(dir, 'merged.ts');
+    git(dir, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    commit(dir, 'later-on-main.ts');
+    git(dir, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    git(dir, 'reset', '-q', '--hard', 'HEAD~1');
+    expect(branchStatus(dir)).toContain('1 behind, 0 ahead');
+    expect(branchStatus(dir)).toContain('git checkout -B old origin/main');
+  });
+
+  it('tells a checkout that the remote branch has moved', () => {
+    const dir = repoWith(['a.ts']);
+    const branch = git(dir, 'branch', '--show-current');
+    const mine = git(dir, 'rev-parse', 'HEAD');
+    commit(dir, 'pushed-elsewhere.ts');
+    git(dir, 'update-ref', `refs/remotes/origin/${branch}`, 'HEAD');
+    git(dir, 'reset', '-q', '--hard', mine);
+    expect(branchStatus(dir)).toContain(
+      `origin/${branch} has 1 commits this checkout lacks: git merge --ff-only`,
+    );
+  });
+
+  it('says so when HEAD is detached or origin/main is not fetched', () => {
+    const dir = repoWith([]);
+    git(dir, 'update-ref', '-d', 'refs/remotes/origin/main');
+    expect(branchStatus(dir)).toContain('origin/main unknown');
+    git(dir, 'checkout', '-q', '--detach');
+    expect(branchStatus(dir)).toBe('branch: detached HEAD');
   });
 });
