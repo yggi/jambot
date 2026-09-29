@@ -10,6 +10,7 @@ import {
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
+import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Surroundings } from './player.svelte.ts';
 
 /** Surroundings a test drives by hand: the clock, the resume, the ticks and frames. */
@@ -535,13 +536,13 @@ describe('the player', () => {
       expect(player.hud.bar).toMatchObject({ motif: null });
     });
 
-    it('keeps whose motif the lead played with the bar the pattern shows, and none before (#164)', async () => {
+    it('keeps whose motif the lead played with each bar of the pattern, and none before (#164)', async () => {
       const { world, player, run } = await playing();
       playMotif(world, player, run, 2);
-      /** Runs until the pattern shows `bar`, and gives its motif. */
+      /** Runs until the pattern holds `bar` whole, and gives its motif. */
       const shownAt = (bar: number) => {
-        while (player.pattern.bar !== bar) run(0.025);
-        return player.pattern.motif;
+        while (!player.pattern.some((b) => b.bar > bar)) run(0.025);
+        return player.pattern.find((b) => b.bar === bar)!.motif;
       };
       expect(shownAt(3)).toBeNull();
       expect(shownAt(4)).toEqual({ source: 'the computer keys', bar: 2 });
@@ -615,8 +616,8 @@ describe('the player', () => {
     });
   });
 
-  describe('the last bar’s pattern', () => {
-    it('gives every track the notes of the last bar it finished, and clears them on stop', async () => {
+  describe('the pattern of the last bars', () => {
+    it('gives every track its notes in the last bars, one after another, and clears them on stop', async () => {
       const { world, s } = surroundings();
       const player = new Player(s);
       void player.start();
@@ -626,14 +627,60 @@ describe('the player', () => {
         world.currentTime += 0.025;
         world.tickers[0]!.tick();
       }
+      const bars = player.pattern.map((b) => b.bar);
+      expect(bars).toEqual(bars.map((_, i) => bars[0]! + i));
+      expect(bars).toHaveLength(PATTERN_BARS + 1);
       for (const part of ['drums', 'bass', 'comp', 'lead'] as const)
-        expect(player.pattern.parts[part].length).toBeGreaterThan(0);
+        expect(
+          player.pattern.some((b) => b.parts[part].length > 0),
+          part,
+        ).toBe(true);
       player.stop();
-      expect(player.pattern).toEqual({
-        bar: null,
-        parts: { drums: [], bass: [], comp: [], lead: [] },
-        motif: null,
-      });
+      expect(player.pattern).toEqual([]);
+    });
+  });
+
+  describe('the local mix', () => {
+    it('keeps a muted performer from the output and from sounding, but not from the pattern (#119)', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      player.mix = { muted: ['drums'], soloed: [] };
+      void player.start();
+      world.resolve();
+      await settle();
+      let drumsSounded = false;
+      for (let t = 0; t < 10; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+        if (player.sounding.drums.length > 0) drumsSounded = true;
+      }
+      expect(drumsSounded).toBe(false);
+      expect(world.plays.filter((p) => p.part === 'drums')).toEqual([]);
+      expect(world.plays.filter((p) => p.part === 'bass').length).toBeGreaterThan(0);
+      expect(player.pattern.at(-2)!.parts.drums.length).toBeGreaterThan(0);
+    });
+
+    it('sounds only what is soloed, and all again once the solo is lifted', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      player.mix = { muted: [], soloed: ['bass'] };
+      void player.start();
+      world.resolve();
+      await settle();
+      const run = (seconds: number) => {
+        for (let t = 0; t < seconds; t += 0.025) {
+          world.currentTime += 0.025;
+          world.tickers[0]!.tick();
+        }
+      };
+      run(10);
+      expect(new Set(world.plays.map((p) => p.part))).toEqual(new Set(['bass']));
+      player.mix = { muted: [], soloed: [] };
+      world.plays = [];
+      run(10);
+      const parts = new Set(world.plays.map((p) => p.part));
+      for (const part of ['drums', 'bass', 'lead']) expect(parts).toContain(part);
     });
   });
 

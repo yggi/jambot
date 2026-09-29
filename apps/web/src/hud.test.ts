@@ -297,7 +297,7 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     expect(leadStatus({ bar: barView({ lead: 'improvising' }), beat: 0 })).toBe(
       'Lead is improvising.',
     );
-    const motif = { source: 'Ada’s keys', bar: 6 };
+    const motif = { source: '@p1/keys', name: 'Ada’s keys', colour: 1, bar: 6 };
     expect(leadStatus({ bar: barView({ lead: 'motif', motif }), beat: 0 })).toBe(
       'Lead is playing the motif from Ada’s keys, heard in bar 7.',
     );
@@ -338,20 +338,25 @@ describe('the view of the Muse', () => {
     });
     expect(hudOf({ heard: 16 * 7, bars: offered, track }).bar).toMatchObject({
       lead: 'motif',
-      motif: { source: 'the computer keys', bar: 5 },
+      motif: { source: 'the computer keys', name: 'the computer keys', colour: 0, bar: 5 },
     });
   });
 
-  it('names each bar’s motif by its player in a session, the bars ahead and the song map’s alike', () => {
+  it('credits each bar’s motif to its player in a session, by name and colour, the bars ahead and the song map’s alike', () => {
     const ada = { ...offer, source: '@p1/the computer keys' };
     const session = bars.map((b) => ({ ...b, offer: b.bar >= 7 ? ada : null }));
     const hud = hudOf({
       heard: 16 * 6,
       bars: session,
       track,
-      muse: { offer: ada, log: [], players: { p1: 'Ada' } },
+      muse: { offer: ada, log: [], players: { host: 'Bo', p1: 'Ada' } },
     });
-    const named = { source: "Ada's computer keys", bar: 5 };
+    const named = {
+      source: '@p1/the computer keys',
+      name: "Ada's computer keys",
+      colour: 1,
+      bar: 5,
+    };
     expect(hud.bar!.motif).toBeNull();
     expect(hud.next[0]).toMatchObject({ bar: 7, lead: 'motif', motif: named });
     expect(hud.sections[0]!.bars[7]).toMatchObject({ bar: 7, motif: named });
@@ -361,6 +366,8 @@ describe('the view of the Muse', () => {
     const hud = hudOf({ heard: 0, bars, track, muse: { offer, log: [] } });
     expect(hud.muse.motif).toEqual({
       source: 'the computer keys',
+      name: 'the computer keys',
+      colour: 0,
       bar: 5,
       rows: 4,
       notes: [

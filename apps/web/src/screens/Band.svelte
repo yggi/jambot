@@ -13,16 +13,17 @@
   import Level from '../components/Level.svelte';
   import Metrum from '../components/Metrum.svelte';
   import MusePanel from '../components/MusePanel.svelte';
-  import Performers from '../components/Performers.svelte';
   import Plan from '../components/Plan.svelte';
   import SessionBar from '../components/SessionBar.svelte';
   import StylePanel from '../components/StylePanel.svelte';
+  import Tracks from '../components/Tracks.svelte';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
-  import { performersOf } from '../performers.ts';
+  import { toggled } from '../mix.ts';
   import type { Player } from '../player.svelte.ts';
+  import { tracksOf } from '../tracks.ts';
 
   interface Props {
     player: Player;
@@ -42,8 +43,17 @@
   /** Whether this device follows a host, whose song, style and key it plays. */
   const following = $derived(player.mode === 'client');
 
-  const performers = $derived(
-    performersOf(player.hud, player.sounding, player.pattern, player.players),
+  const tracks = $derived(
+    tracksOf({
+      hud: player.hud,
+      sounding: player.sounding,
+      pattern: player.pattern,
+      heard: player.heard,
+      humanNotes: player.humanNotes,
+      playerId: player.playerId,
+      players: player.players,
+      mix: player.mix,
+    }),
   );
 
   const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
@@ -101,30 +111,41 @@
   <Chords hud={player.hud} />
 </Level>
 
-<Level name="Tracks">
-  <Performers {performers} />
+<Level>
+  <Tracks
+    {tracks}
+    ontoggle={(which, performer) => (player.mix = toggled(player.mix, which, performer))}
+  >
+    {#snippet instrument(performer)}
+      {#if performer === 'lead'}
+        <Keyboard
+          down={instruments.heldLead}
+          scale={player.hud.bar?.scale ?? []}
+          sounding={player.sounding.lead}
+          onnote={(note, velocity, on) =>
+            instruments.toLead(note, velocity, on, 'the on-screen keys')}
+        />
+      {:else if performer === 'drums'}
+        <DrumPads
+          down={instruments.heldDrums}
+          sounding={player.sounding.drums}
+          onnote={(note, velocity, on) => instruments.toDrums(note, velocity, on, 'the drum pads')}
+        />
+      {/if}
+    {/snippet}
+  </Tracks>
+</Level>
 
-  <Keyboard
-    down={instruments.heldLead}
-    scale={player.hud.bar?.scale ?? []}
-    sounding={player.sounding.lead}
-    onnote={(note, velocity, on) => instruments.toLead(note, velocity, on, 'the on-screen keys')}
-  />
-
-  <DrumPads
-    down={instruments.heldDrums}
-    sounding={player.sounding.drums}
-    onnote={(note, velocity, on) => instruments.toDrums(note, velocity, on, 'the drum pads')}
-  />
-
+<Level>
   <MusePanel muse={player.hud.muse} onforget={() => player.forgetMotif()} />
 </Level>
 
 <p class="note">
   The band plays drums, bass, chords and lead, over MIDI or the built-in synth. Join in on the
-  keyboard or the pads above: a dot marks the current scale, and amber shows what the band's own
-  lead and drums are playing. Play a few notes within a bar on the keyboard, and the Muse takes them
-  as a motif the lead plays back from the bar after next. The score is still in the
+  lead's keyboard or the drums' pads, under the track selected: a dot marks the current scale, and
+  amber shows what the band's own lead and drums are playing. Play a few notes within a bar on the
+  keyboard, and the Muse takes them as a motif the lead plays back from the bar after next, in your
+  colour. The score is still in the
   <a href={prototypeUrl}>prototype</a>.
 </p>
 
