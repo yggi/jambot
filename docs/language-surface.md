@@ -186,7 +186,8 @@ over 3,200 bars implies a scale, so `harm` writes none; `score.test.ts`, whose
 test of a chord with no scale cites U3: `Isus4` is refused both ways, and `I` is
 not. The bass counts its pitch above the chord's root and needs no scale (U6),
 so the refusal stays with `harm` and the lines that read a scale (the lead's,
-#265). Source: #7 (b), P9. Status: measured (the port's chords); open (a chord
+#265). The pad and the stab voice a chord's tones and need none either (#264):
+relaxing the refusal is a change of the language, for the owner. Source: #7 (b), P9. Status: measured (the port's chords); open (a chord
 with none, which needs `scale=`). Decided: #7, on measured options. Lands in:
 #63.
 
@@ -292,6 +293,7 @@ A pitch is a number of the key's steps above the root of the chord in force, `0`
 An onset is a step of the bar, counted from 0 (`0` to `15` in 4/4).
 Witness: `encodeBar` and `compileBar` (`packages/score/src/score.ts`) write the bass as `step=pitch` pairs, `bass 0=0 4=0 7=7 8=0 12=0^ 14=10`, and read them back, with the register the bass reads from in a key frame, `frame bass=E2` (S2).
 A note states no length: it lasts to the next onset or the bar's end, which is what the band writes for every bass note.
+The pad and the stab are the same pairs with a chord for a value, `pad 0=ch 8=ch`, `stab 14=nx`, and the voicing a rule from the frame (#264).
 The form before it wrote a pitch as a degree of the chord's implied scale with an accidental, and an onset as an eighth with a `#` for the step after it.
 That `#` was a kludge for the sixteenths, reached no 32nds, and had no answer for triplets, and a degree token needs a scale, which `chordScale` gives only some chords (U3).
 A plain step is the same token at any depth of the bar's tree: the next power of two is a longer count, and a triplet an exact integer on a grid with a factor of 3 (#275).

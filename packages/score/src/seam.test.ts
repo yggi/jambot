@@ -8,6 +8,7 @@
 import {
   BAR_STEPS,
   BASS_RANGE,
+  COMP_RANGE as ENGINE_COMP_RANGE,
   type BandBar,
   type BandCarried,
   type BandEnv,
@@ -31,12 +32,15 @@ import {
   keyHelix,
   nearest,
   styleAt,
+  voicing,
 } from '@jambot/engine';
 import { chordScale, joinChord, parseNumeral, positions, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_FOLD,
   BASS_TOP,
+  COMP_RANGE,
+  type CompNotes,
   DRUM_SOUNDS,
   type BassLine,
   type BassNote,
@@ -47,6 +51,7 @@ import {
   STYLE_DECIMALS,
   UNSTATED_METER,
   bassNearest,
+  compVoicing,
   compileBar,
   encodeBar,
   lowerNumeral,
@@ -103,19 +108,20 @@ const RUNS: ((bar: number) => { style: Style; mode: Key['mode'] })[] = [
   (bar) => ({ style: glided[bar]!, mode: COMPOSER_MODES[Math.floor(bar / 8) % 4]! }),
 ];
 
-/** A bar the band played: the environment it was played in, the state before it, and the bar. */
+/** A bar the band played: the environment it was played in, the state before it, the bar, and the key of the bar after it. */
 interface Played {
   readonly env: BandEnv;
   readonly before: BandCarried;
   readonly bar: BandBar;
+  readonly nextKey: Key;
 }
 
-/** Every bar of every run, for five seeds. */
+/** Every bar of every run, for five seeds: each run plays one bar more, for the key the last one leads into. */
 const PLAYED: Played[] = range(5).flatMap((seed) =>
   RUNS.flatMap((at) => {
     let carried: BandCarried = band.initial;
-    return range(BARS).map((bar): Played => {
-      const { style, mode } = at(bar);
+    const played = range(BARS + 1).map((bar) => {
+      const { style, mode } = at(Math.min(bar, BARS - 1));
       const env: BandEnv = {
         seed,
         bar,
@@ -128,6 +134,9 @@ const PLAYED: Played[] = range(5).flatMap((seed) =>
       carried = next.carried;
       return { env, before, bar: next.output };
     });
+    return played
+      .slice(0, BARS)
+      .map((one, i): Played => ({ ...one, nextKey: played[i + 1]!.bar.plan.key }));
   }),
 );
 const BAND_BARS: BandBar[] = PLAYED.map((played) => played.bar);
@@ -140,7 +149,44 @@ const statedBass = ({ bar, before }: Played): BassLine => ({
     .map((note): BassNote => ({ step: note.step, note: note.note })),
 });
 
-/** What a bar the band wrote states: its header, its style, its chords as numerals, its drums and its bass. */
+/** The notes a part wrote at each of its steps, low to high, in order of step. */
+const statedHits = (bar: BandBar, part: 'pad' | 'stab'): CompNotes[] => {
+  const byStep = new Map<number, number[]>();
+  for (const note of bar.written)
+    if (note.part === part) byStep.set(note.step, [...(byStep.get(note.step) ?? []), note.note]);
+  return [...byStep].map(([step, notes]) => ({ step, notes: notes.sort((a, b) => a - b) }));
+};
+
+/**
+ * The comp a bar played, as the score states it: its pad and stab, the
+ * voicing it read from before (none at the song's start, and none where it
+ * wrote neither line), and the next bar's chord where a stab played it: a
+ * stab whose notes are not the voicing of the chord in force.
+ */
+const statedComp = (played: Played): Partial<ScoreBar> => {
+  const { bar, before, nextKey } = played;
+  const pad = statedHits(bar, 'pad');
+  const stab = statedHits(bar, 'stab');
+  if (pad.length === 0 && stab.length === 0) return {};
+  let previous = before.parts.comp;
+  const voiced = bar.chords.map((chord) => (previous = voicing(chord.chord, previous)));
+  const leads = stab.some(
+    (hit) =>
+      hit.notes.join() !==
+      voiced[bar.chords.findLastIndex((chord) => chord.slot.step <= hit.step)]!.join(),
+  );
+  const coming = bar.next[0];
+  return {
+    ...(before.parts.comp ? { voicing: before.parts.comp } : {}),
+    ...(pad.length ? { pad } : {}),
+    ...(stab.length ? { stab } : {}),
+    ...(leads && coming
+      ? { next: { key: nextKey, numeral: parseNumeral(chordNumeral(coming, nextKey))! } }
+      : {}),
+  };
+};
+
+/** What a bar the band wrote states: its header, its style, its chords as numerals, its drums, its bass and its comp. */
 const stated = (played: Played): ScoreBar => ({
   bar: played.bar.bar,
   section: played.bar.plan.section.type,
@@ -153,6 +199,7 @@ const stated = (played: Played): ScoreBar => ({
   })),
   drums: statedDrums(played.bar),
   bass: statedBass(played),
+  ...statedComp(played),
 });
 
 describe('the seam, over the bars the band writes', () => {
@@ -284,5 +331,113 @@ describe('the seam, over the bars the band writes', () => {
     expect(resumptions).toBe(80);
     // A resume without the frame changes the register, which is what the frame is for.
     expect(lostTheRegister).toBeGreaterThan(0);
+  });
+  it("takes the engine's voicing: its range, and every chord the band plays led from the voicing before it and from none (S2)", () => {
+    expect(COMP_RANGE).toEqual(ENGINE_COMP_RANGE);
+    let compared = 0;
+    for (const { bar, before } of PLAYED) {
+      let previous = before.parts.comp;
+      for (const chord of bar.chords) {
+        expect(compVoicing(chord.chord, previous)).toEqual(voicing(chord.chord, previous));
+        expect(compVoicing(chord.chord, null)).toEqual(voicing(chord.chord, null));
+        previous = voicing(chord.chord, previous);
+        compared++;
+      }
+    }
+    expect(compared).toBeGreaterThan(3000);
+  });
+
+  it('states the pad on the chords it sounds and the stab on its steps, each played as it was written, and holds a pad to the next chord and a stab one step (U6)', () => {
+    let pads = 0;
+    let stabs = 0;
+    for (const played of PLAYED) {
+      const score = compileBar(encodeBar(stated(played)));
+      const { bar } = played;
+      for (const [part, hits] of [
+        ['pad', score.pad ?? []],
+        ['stab', score.stab ?? []],
+      ] as const) {
+        const written = bar.written.filter((note) => note.part === part);
+        expect(hits.flatMap((hit) => hit.notes.map((note) => `${hit.step}:${note}`))).toEqual(
+          written.map((note) => `${note.step}:${note.note}`),
+        );
+        for (const note of written) {
+          const end =
+            part === 'stab'
+              ? note.step + 1
+              : (bar.chords.find((chord) => chord.slot.step > note.step)?.slot.step ?? BAR_STEPS);
+          expect(note.length).toBe(end - note.step);
+        }
+        if (part === 'pad') pads += hits.length;
+        else stabs += hits.length;
+      }
+    }
+    expect(pads).toBeGreaterThan(1900);
+    expect(stabs).toBeGreaterThan(1000);
+  });
+
+  it('states the next chord exactly where a stab leads into it, in the next bar’s own key: in the bar’s key it is another chord over a key change (T5, U6)', () => {
+    let leads = 0;
+    let keyChanges = 0;
+    let wrongInThisKey = 0;
+    for (const played of PLAYED) {
+      const score = stated(played);
+      if (!score.next) continue;
+      leads++;
+      const text = encodeBar(score);
+      expect(compileBar(text).next).toEqual(score.next);
+      const changed =
+        score.next.key.tonic !== score.key.tonic || score.next.key.mode !== score.key.mode;
+      expect(text.includes(' key=', text.indexOf('\nnext '))).toBe(changed);
+      if (!changed) continue;
+      keyChanges++;
+      const coming = played.bar.next[0]!.chord;
+      const inThisKey = lowerNumeral(
+        score.key,
+        parseNumeral(chordNumeral(played.bar.next[0]!, played.bar.plan.key))!,
+      );
+      if (JSON.stringify(inThisKey) !== JSON.stringify(coming)) wrongInThisKey++;
+    }
+    expect(leads).toBeGreaterThan(100);
+    // Both paths are walked, and stating the numeral in this bar's key would be wrong for some.
+    expect(keyChanges).toBeGreaterThan(0);
+    expect(wrongInThisKey).toBeGreaterThan(0);
+  });
+
+  it('plays the same comp cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, other inversions of the same chords (S2)', () => {
+    let resumptions = 0;
+    let lostTheVoicing = 0;
+    for (const [i, played] of PLAYED.entries()) {
+      if (i % 40 !== 7) continue;
+      resumptions++;
+      const heard = (from: BandCarried) =>
+        band
+          .advance(played.env, from, null)
+          .output.written.filter((note) => note.part === 'pad' || note.part === 'stab')
+          .map((note) => ({ part: note.part, step: note.step, note: note.note }));
+      const warm = heard(played.before);
+      const score = compileBar(encodeBar(stated(played)));
+      const withVoicing = (comp: readonly number[] | null): BandCarried => ({
+        ...played.before,
+        parts: { ...played.before.parts, comp },
+      });
+      expect(heard(withVoicing(score.voicing ?? null))).toEqual(warm);
+      expect(
+        [
+          ...(score.pad ?? []).map((h) => ['pad', h] as const),
+          ...(score.stab ?? []).map((h) => ['stab', h] as const),
+        ]
+          .flatMap(([part, hit]) => hit.notes.map((note) => ({ part, step: hit.step, note })))
+          .sort((a, b) => (a.part < b.part ? 1 : a.part > b.part ? -1 : 0)),
+      ).toEqual([...warm].sort((a, b) => (a.part < b.part ? 1 : a.part > b.part ? -1 : 0)));
+      const cold = heard(withVoicing(null));
+      const classes = (notes: typeof warm) =>
+        notes.map((n) => `${n.part}:${n.step}:${wrap(n.note, 12)}`).sort();
+      expect(classes(cold)).toHaveLength(classes(warm).length);
+      if (JSON.stringify(cold) !== JSON.stringify(warm)) lostTheVoicing++;
+    }
+    expect(resumptions).toBeGreaterThan(70);
+    // A resume without the frame leads from nothing, which is what the frame is for.
+    expect(lostTheVoicing).toBeGreaterThan(0);
   });
 });

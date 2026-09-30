@@ -35,7 +35,9 @@ bass and the comp play the same rhythm and pitch classes, in another register;
 the lead differs in more than half.
 The bass's register is written at its bar: `frame bass=E2` states the note the next bass note is nearest to (the carried `last`, before an octave jump).
 `seam.test.ts` (`packages/score`), "plays the same bass cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, another register (S2)": 80 resumptions given their frame play every note, where the same bars resumed without it play another register, the same pitch classes; `score.test.ts`, "compiles a bar from its own text, with no state before it: the register is in the frame, so cold equals warm (S2)".
-The comp's voicing and the lead's phrase are still open (#264, #265).
+The comp's voicing is written the same way: `frame comp=C4,E4,G4` states the voicing the bar leads its first chord from, and a frame with no `comp=` leads from nothing.
+`seam.test.ts`, "plays the same comp cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, other inversions of the same chords (S2)"; `score.test.ts`, "voices each chord close from the one before it, the first from the frame: the same chords from another voicing are other notes (S2)".
+The lead's phrase is still open (#265).
 Source: T5, S1, #40's review, #37 step 5. Status: measured, failing
 (prototype); measured (the port's carried state, and the bass's frame). Lands
 in: #13, #264, #265.

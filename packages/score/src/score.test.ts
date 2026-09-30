@@ -420,7 +420,7 @@ describe('a bass line (#263: pitch and onset in one line, the register in a key 
     expect(scoreProblems(BASS_TEXT)).toEqual([]);
     const cases: [string, string[]][] = [
       [withBassLine('frame', undefined), ['a bass line needs a frame line, such as frame bass=E2']],
-      [withBassLine('bass', undefined), ['a frame line with no bass line has nothing to carry']],
+      [withBassLine('bass', undefined), ['frame bass= has no bass line to carry into']],
       [`${BASS_TEXT}\nbass 0=0`, ['a bar has one bass line']],
       [`${BASS_TEXT}\nframe bass=E2`, ['a bar has one frame line']],
       [withBassLine('bass', 'bass'), ['bass: the line has no notes']],
@@ -440,7 +440,7 @@ describe('a bass line (#263: pitch and onset in one line, the register in a key 
         withBassLine('frame', 'frame bass=F3'),
         ['frame: bass=F3 is outside 33–52, where the bass register carries'],
       ],
-      [withBassLine('frame', 'frame'), ['bass= is missing']],
+      [withBassLine('frame', 'frame'), ['frame: no field, such as bass=E2 or comp=C4,E4,G4']],
       [withBassLine('frame', 'frame bass=E2 lead=E4'), ['"lead=E4" is not a field here']],
       [withBassLine('bass', 'bass 0=0 4'), ['bass: "4" is not step=pitch, such as 4=0 or 12=0^']],
       [withBassLine('bass', 'bass 0=0v'), ['bass: "0=0v" is not step=pitch, such as 4=0 or 12=0^']],
@@ -501,5 +501,203 @@ describe('a bass line (#263: pitch and onset in one line, the register in a key 
     // An octave above the nearest is a ^; the octave below has no token.
     expect(() => encodeBar(bar([{ step: 0, note: 48 }]))).not.toThrow();
     expect(() => encodeBar(bar([{ step: 4, note: 33 }]))).toThrow('cannot be written');
+  });
+});
+
+/** C major, A minor, F major and G7, each a beat, from a voicing of C: the comp voices each from the one before. */
+const COMP_FRAME = [60, 64, 67];
+const VOICED = [
+  [60, 64, 67],
+  [60, 64, 69],
+  [60, 65, 69],
+  [59, 62, 65, 67],
+];
+
+/** A pad on each chord, a stab between, the last leading into the G major of the next bar, which is in another key. */
+const COMP_BAR: ScoreBar = {
+  ...A_BAR,
+  harm: BASS_CHORDS,
+  voicing: COMP_FRAME,
+  pad: BASS_CHORDS.map(({ step }, i) => ({ step, notes: VOICED[i]! })),
+  stab: [
+    { step: 2, notes: VOICED[0]! },
+    { step: 6, notes: VOICED[1]! },
+    { step: 10, notes: VOICED[2]! },
+    { step: 14, notes: [59, 62, 67] },
+  ],
+  next: { key: { tonic: 7, mode: 'ionian' }, numeral: numeral('I') },
+};
+
+const COMP_TEXT = [
+  ...A_TEXT.split('\n').slice(0, 2),
+  'harm "I vi IV V7"',
+  'frame comp=C4,E4,G4',
+  'pad 0=ch 4=ch 8=ch 12=ch',
+  'stab 2=ch 6=ch 10=ch 14=nx',
+  'next I key=G:ionian',
+].join('\n');
+
+/** The comp bar's text with one line replaced, or taken out with `undefined`. */
+const withCompLine = (kind: string, line: string | undefined) =>
+  COMP_TEXT.split('\n')
+    .flatMap((l) => (l.startsWith(`${kind} `) ? (line === undefined ? [] : [line]) : [l]))
+    .join('\n');
+
+describe('a pad and a stab (#264: two lines, the voicing in the key frame, the next chord stated)', () => {
+  it('writes the voicing in the frame, the onsets as step=ch or step=nx, and the next chord, and reads them back (Q1a, U6)', () => {
+    expect(encodeBar(COMP_BAR)).toBe(COMP_TEXT);
+    expect(compileBar(COMP_TEXT)).toEqual(COMP_BAR);
+  });
+
+  it('voices each chord close from the one before it, the first from the frame: the same chords from another voicing are other notes (S2)', () => {
+    const from = (frame: string) =>
+      compileBar(withCompLine('frame', frame === '' ? undefined : `frame comp=${frame}`)).pad!.map(
+        (hit) => hit.notes,
+      );
+    expect(from('C4,E4,G4')).toEqual(VOICED);
+    // A C major a close voicing lower: other notes, the same pitch classes.
+    const lower = from('G3,C4,E4');
+    expect(lower).not.toEqual(VOICED);
+    expect(lower.map((notes) => new Set(notes.map((n) => n % 12)))).toEqual(
+      VOICED.map((notes) => new Set(notes.map((n) => n % 12))),
+    );
+    // With no frame there is nothing to lead from: the first chord sits nearest the middle.
+    expect(from('')[0]).toEqual([60, 64, 67]);
+  });
+
+  it('states no length: a pad lasts to the next chord and a stab one step, so a line is steps and chords only', () => {
+    const one = compileBar(withCompLine('pad', 'pad 0=ch'));
+    expect(one.pad).toEqual([{ step: 0, notes: VOICED[0]! }]);
+    expect(Object.keys(one.pad![0]!)).toEqual(['step', 'notes']);
+  });
+
+  it('plays the next bar’s first chord on nx, in the key the next line states, and in the bar’s own key where it states none (U6)', () => {
+    const inG = compileBar(COMP_TEXT).stab!.at(-1)!.notes;
+    const inC = compileBar(withCompLine('next', 'next I')).stab!.at(-1)!.notes;
+    expect(inG).toEqual([59, 62, 67]);
+    expect(inC).toEqual([60, 64, 67]);
+    expect(encodeBar(compileBar(withCompLine('next', 'next I')))).toMatch(/\nnext I$/u);
+  });
+
+  it('writes a bar with no pad and no stab exactly as before: no comp frame, no next', () => {
+    expect(encodeBar(A_BAR)).toBe(A_TEXT);
+    const both = encodeBar({ ...BASS_BAR, pad: COMP_BAR.pad!, voicing: COMP_FRAME });
+    expect(both).toContain('\nframe bass=E2 comp=C4,E4,G4\nbass ');
+    expect(compileBar(both).bass).toEqual(BASS_BAR.bass);
+    expect(compileBar(both).voicing).toEqual(COMP_FRAME);
+  });
+
+  it('writes every text that compiles in one form: a second pass changes nothing (Q1a, F3)', () => {
+    const variant = COMP_TEXT.replace('comp=C4,E4,G4', 'comp=B#3,E4,G4').replace(
+      'pad 0=ch 4=ch',
+      'pad  0=ch   4=ch',
+    );
+    expect(encodeBar(compileBar(variant))).toBe(COMP_TEXT);
+    // A next chord in the bar's own key states no key, and a stab that never leads into it needs none.
+    const same = withCompLine('next', 'next I key=C:ionian');
+    expect(encodeBar(compileBar(same))).toBe(withCompLine('next', 'next I'));
+  });
+
+  it('refuses a pad, a stab, a next line or a voicing that is not one, and says why', () => {
+    expect(scoreProblems(COMP_TEXT)).toEqual([]);
+    const cases: [string, string[]][] = [
+      [withCompLine('pad', 'pad'), ['pad: the line has no chords']],
+      [
+        withCompLine('pad', 'pad 0=nx'),
+        ['pad: "0=nx" is not ch: only the chord in force starts a pad'],
+      ],
+      [withCompLine('stab', 'stab 2=x'), ['stab: "2=x" is not step=ch or step=nx']],
+      [withCompLine('stab', 'stab 4=ch 0=ch'), ["stab: its steps must rise within the bar's 16"]],
+      [withCompLine('stab', 'stab 16=ch'), ["stab: its steps must rise within the bar's 16"]],
+      [withCompLine('pad', 'pad 0=ch 0=ch'), ["pad: its steps must rise within the bar's 16"]],
+      [withCompLine('stab', 'stab 2=[ch'), ['stab: "2=[ch" is not written yet (#275)']],
+      [
+        withCompLine('next', undefined),
+        ['a stab plays nx, which needs a next line, such as next V7'],
+      ],
+      [
+        withCompLine('stab', 'stab 2=ch'),
+        ['a next line with no nx in the stab has nothing to voice'],
+      ],
+      [
+        withCompLine('stab', undefined),
+        ['a next line with no nx in the stab has nothing to voice'],
+      ],
+      [`${COMP_TEXT}\nnext V7`, ['a bar has one next line']],
+      [withCompLine('next', 'next X'), ['next: "X" is not a numeral']],
+      [
+        withCompLine('next', 'next I key=g:ionian'),
+        ['key=g:ionian is not a tonic and a mode, such as key=A:aeolian'],
+      ],
+      [withCompLine('next', 'next'), ['next: "" is not <numeral> or <numeral> key=…']],
+      [
+        withCompLine('next', 'next I key=G:ionian extra'),
+        ['next: "I key=G:ionian extra" is not <numeral> or <numeral> key=…'],
+      ],
+      [
+        withCompLine('frame', 'frame comp=C4,X'),
+        ['frame: comp=C4,X is not notes with octaves, such as comp=C4,E4,G4'],
+      ],
+      [
+        withCompLine('frame', 'frame comp=G4,E4'),
+        ['frame: comp=G4,E4 must rise within 50–79, where the comp plays'],
+      ],
+      [
+        withCompLine('frame', 'frame comp=C1,E4'),
+        ['frame: comp=C1,E4 must rise within 50–79, where the comp plays'],
+      ],
+      [withCompLine('frame', 'frame comp=C4,E4 comp=C4'), ['comp= is stated twice']],
+      [
+        [0, 1, 2, 3].map((i) => COMP_TEXT.split('\n')[i]).join('\n'),
+        ['frame comp= has no pad or stab line to carry into'],
+      ],
+    ];
+    for (const [text, problems] of cases) {
+      expect(scoreProblems(text)).toEqual(problems);
+      expect(() => compileBar(text)).toThrow(problems[0]);
+    }
+  });
+
+  it('refuses to write a pad or a stab it could not read back', () => {
+    const bar = (over: Partial<ScoreBar>, ...omit: (keyof ScoreBar)[]): ScoreBar =>
+      Object.fromEntries(
+        Object.entries({ ...COMP_BAR, ...over }).filter(
+          ([key]) => !omit.includes(key as keyof ScoreBar),
+        ),
+      ) as unknown as ScoreBar;
+    expect(() => encodeBar(bar({ pad: [] }))).toThrow('pad: a pad line has at least one chord');
+    expect(() => encodeBar(bar({ stab: [] }))).toThrow('stab: a stab line has at least one chord');
+    expect(() => encodeBar(bar({ pad: [{ step: 0, notes: [60, 64, 68] }] }))).toThrow(
+      "pad: the notes at step 0 are not the chord's voicing from the frame",
+    );
+    expect(() => encodeBar(bar({ stab: [{ step: 2, notes: [60, 64, 68] }] }))).toThrow(
+      "stab: the notes at step 2 are not the chord's voicing or the next chord's from the frame",
+    );
+    expect(() =>
+      encodeBar(
+        bar({
+          pad: [
+            { step: 4, notes: VOICED[1]! },
+            { step: 0, notes: VOICED[0]! },
+          ],
+        }),
+      ),
+    ).toThrow("pad: its steps must rise within the bar's 16");
+    expect(() => encodeBar(bar({ voicing: [55, 60, 64] }))).toThrow('the notes at step 0');
+    expect(() => encodeBar(bar({ voicing: [64, 60] }))).toThrow(
+      'comp: a voicing rises within 50–79',
+    );
+    expect(() => encodeBar(bar({ voicing: [60, 64, 80] }))).toThrow('comp: a voicing rises within');
+    expect(() => encodeBar(bar({}, 'pad', 'stab', 'next'))).toThrow(
+      'comp: a voicing needs a pad or a stab line to carry into',
+    );
+    expect(() => encodeBar(bar({}, 'next'))).toThrow('the notes at step 14');
+    expect(() => encodeBar(bar({ stab: [{ step: 2, notes: VOICED[0]! }] }))).toThrow(
+      'next: no stab plays the next chord',
+    );
+    expect(() => encodeBar(bar({}, 'stab'))).toThrow('next: no stab plays the next chord');
+    expect(() =>
+      encodeBar(bar({ next: { key: { tonic: 12, mode: 'ionian' }, numeral: numeral('I') } })),
+    ).toThrow('next: tonic 12 is not a pitch class');
   });
 });
