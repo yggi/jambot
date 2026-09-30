@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES, keyHelix, keyName as engineKeyName } from '@jambot/engine';
-import { DIATONIC_MODE_NAMES, diatonicMode, positions, shift } from '@jambot/theory';
+import { DIATONIC_MODE_NAMES, diatonicMode, parseNote, positions, shift } from '@jambot/theory';
 import {
   keyName,
   MODE_NAMES,
@@ -9,6 +9,7 @@ import {
   scaleNoteNames,
   scaleMarks,
   scaleSteps,
+  midiNoteName,
 } from './noteNames.ts';
 
 /** The engine's name with the screen's accidentals: `Eb` → `E♭`, `C#` → `C♯`. */
@@ -137,5 +138,24 @@ describe('MODE_SHORT_NAMES', () => {
 
   it('never reads as a chord numeral, which the chords level below writes in Roman numerals', () => {
     for (const mode of DIATONIC_MODE_NAMES) expect(MODE_SHORT_NAMES[mode]).not.toMatch(/^[ivIV]+$/);
+  });
+});
+
+describe('midiNoteName', () => {
+  it('names a note with its octave, C4 = 60, as the theory reads "C4"', () => {
+    expect(midiNoteName(60)).toBe('C4');
+    expect(midiNoteName(69)).toBe('A4');
+    expect(midiNoteName(70)).toBe('B♭4');
+    expect(midiNoteName(21)).toBe('A0');
+    expect(midiNoteName(127)).toBe('G9');
+    expect(midiNoteName(0)).toBe('C-1');
+    expect(midiNoteName(-1)).toBe('B-2');
+  });
+
+  it('agrees with the theory on every note it can read back: the letter, the octave and the height', () => {
+    for (let midi = 0; midi <= 127; midi++) {
+      const read = parseNote(midiNoteName(midi).replace('♯', '#').replace('♭', 'b'));
+      expect(read?.midi, `${midi}`).toBe(midi);
+    }
   });
 });

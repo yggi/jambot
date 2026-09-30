@@ -12,14 +12,17 @@ const all: ScreenState[] = MODES.flatMap((mode) =>
     [false, true].flatMap((restoring) =>
       [false, true].flatMap((soloChosen) =>
         [false, true].flatMap((timingChosen) =>
-          [false, true].map((meterChosen) => ({
-            mode,
-            clientStatus,
-            restoring,
-            soloChosen,
-            timingChosen,
-            meterChosen,
-          })),
+          [false, true].flatMap((meterChosen) =>
+            [false, true].map((tuneChosen) => ({
+              mode,
+              clientStatus,
+              restoring,
+              soloChosen,
+              timingChosen,
+              meterChosen,
+              tuneChosen,
+            })),
+          ),
         ),
       ),
     ),
@@ -35,6 +38,7 @@ describe('the screen the page shows', () => {
       soloChosen: false,
       timingChosen: false,
       meterChosen: false,
+      tuneChosen: false,
     } as const;
     expect(screenOf(cold)).toBe('door');
     expect(screenOf({ ...cold, soloChosen: true })).toBe('band');
@@ -46,7 +50,8 @@ describe('the screen the page shows', () => {
 
   it('is the band for a host, and for a client once it has joined, or lost its link and is trying again', () => {
     for (const state of all.filter(
-      (s) => !s.restoring && !((s.timingChosen || s.meterChosen) && s.mode === 'solo'),
+      (s) =>
+        !s.restoring && !((s.timingChosen || s.meterChosen || s.tuneChosen) && s.mode === 'solo'),
     )) {
       const band =
         state.mode === 'host' ||
@@ -65,6 +70,7 @@ describe('the screen the page shows', () => {
       soloChosen: false,
       timingChosen: false,
       meterChosen: false,
+      tuneChosen: false,
     } as const;
     expect(screenOf(joining)).toBe('door');
     expect(screenOf({ ...joining, mode: 'solo', clientStatus: 'idle' })).toBe('door');
@@ -92,6 +98,29 @@ describe('the screen the page shows', () => {
       );
   });
 
+  it('is the tuner for a person on their own who chose it, after the timing test and the metronome, and a session takes its place', () => {
+    for (const state of all.filter(
+      (s) => !s.restoring && s.tuneChosen && !s.timingChosen && !s.meterChosen,
+    ))
+      expect(screenOf(state), JSON.stringify(state)).toBe(
+        state.mode === 'solo' ? 'tune' : screenOf({ ...state, tuneChosen: false }),
+      );
+    for (const state of all.filter(
+      (s) => !s.restoring && s.tuneChosen && s.meterChosen && !s.timingChosen,
+    ))
+      expect(screenOf(state)).toBe(
+        state.mode === 'solo'
+          ? 'meter'
+          : screenOf({ ...state, meterChosen: false, tuneChosen: false }),
+      );
+    for (const state of all.filter((s) => !s.restoring && s.tuneChosen && s.timingChosen))
+      expect(screenOf(state)).toBe(
+        state.mode === 'solo'
+          ? 'timing'
+          : screenOf({ ...state, timingChosen: false, meterChosen: false, tuneChosen: false }),
+      );
+  });
+
   it('gives way to a session being taken up again, so the door does not flash', () => {
     const state = {
       mode: 'solo',
@@ -100,6 +129,7 @@ describe('the screen the page shows', () => {
       soloChosen: false,
       timingChosen: true,
       meterChosen: false,
+      tuneChosen: false,
     } as const;
     expect(screenOf(state)).toBe('restoring');
   });

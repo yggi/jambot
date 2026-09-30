@@ -38,6 +38,8 @@ The pointers to what holds each are in the sentences.
   4/4 is what it was, bar for bar (`identity.test.ts`); in any meter a hit lands on a step the bar has (`writtenProblems(hit, steps)`).
   The fold loses a hit where two land on one step and the stronger stays; in a bar of two pulses the cycle only reaches the pattern's odd pulses.
   Heard against each other, the owner preferred the cycle, most for the Funk drums in 5/4.
+  The bass and the comp are on the meter too (#260, slice 3): their patterns are `patternsOn` (the root, the eighths and the walk from the grades and the pulses, the pump on the eighth after each pulse, the funk line and the syncopated stabs read by the same rule as the drums' tables) and a theme's chord slots, 0 and the bar's half, are read on the meter (`chordsOn`, `halfOf`).
+  The lead, the Muse and the readers of `BAR_STEPS` (phrase, history, style-reading, dynamics, ending) are still on 4/4's 16.
   The drums carry nothing; the bass its last note, the comp its last voicing, the lead its last note, its phrase and its themes' melodies (`BandCarried.parts`).
   A passed bar leaves the parts where they were, and only the lead's memory reaches more than register (S2); the band's harmonic history is the plan's, not a part's.
   The Muse judges each source's bar into a `Motif` (U4, `judgeBar` in `muse.ts`): onsets with rests, where a note was released before the next, and degrees of the key altered by `b` or `#`, written as a numeral writes a root off the key.

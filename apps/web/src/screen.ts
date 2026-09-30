@@ -1,7 +1,7 @@
 /**
  * Which screen the page shows: the door (the lobby, where a person picks
- * how to play), the band behind it, the timing test (#204, H7) and the
- * metronome (#259) that the door leads to, or the moment between, while a session kept from before is
+ * how to play), the band behind it, the timing test (#204, H7), the
+ * metronome (#259) and the tuner (#269) that the door leads to, or the moment between, while a session kept from before is
  * taken up again.
  *
  * It follows what the domain says and holds no state of its own: a host is
@@ -9,15 +9,15 @@
  * and is trying again, since it plays what it has. A client still joining
  * stays at the door, which shows that it is busy and, if the join fails,
  * why. Solo isn't a session, so the page holds a choice for it: it isn't
- * kept, and a page that reloads from solo lands on the door. The timing test
- * and the metronome are the same: a choice the page holds, for a person on
+ * kept, and a page that reloads from solo lands on the door. The timing test,
+ * the metronome and the tuner are the same: a choice the page holds, for a person on
  * their own, and a session that starts takes its place.
  */
 
 import type { Mode } from './player.svelte.ts';
 import type { ClientStatus } from './session/client.svelte.ts';
 
-export type Screen = 'door' | 'restoring' | 'band' | 'timing' | 'meter';
+export type Screen = 'door' | 'restoring' | 'band' | 'timing' | 'meter' | 'tune';
 
 export interface ScreenState {
   readonly mode: Mode;
@@ -30,6 +30,8 @@ export interface ScreenState {
   readonly timingChosen: boolean;
   /** The person chose the metronome. */
   readonly meterChosen: boolean;
+  /** The person chose the tuner. */
+  readonly tuneChosen: boolean;
 }
 
 export function screenOf({
@@ -39,10 +41,12 @@ export function screenOf({
   soloChosen,
   timingChosen,
   meterChosen,
+  tuneChosen,
 }: ScreenState): Screen {
   if (restoring) return 'restoring';
   if (timingChosen && mode === 'solo') return 'timing';
   if (meterChosen && mode === 'solo') return 'meter';
+  if (tuneChosen && mode === 'solo') return 'tune';
   if (mode === 'host') return 'band';
   if (mode === 'client')
     return clientStatus === 'joined' || clientStatus === 'reconnecting' ? 'band' : 'door';

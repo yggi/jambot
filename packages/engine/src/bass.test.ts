@@ -1,7 +1,7 @@
-import { wrap } from '@jambot/theory';
+import { METERS, type Meter, meterOnSteps, stepsOf, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
-import { BASS_RANGE, bass, bassBlend } from './bass.ts';
+import { BASS_RANGE, bass, bassBlend, patternsOn } from './bass.ts';
 import { chordAt } from './chords.ts';
 import { writtenProblems } from './events.ts';
 import { type Script, lawBreaks } from './machine.ts';
@@ -198,5 +198,52 @@ describe('the bass', () => {
     for (const { bar, before, events } of played.slice(0, 64))
       expect(bass.advance(bar, before, null).output).toEqual(events);
     expect(bass.initial).toBe(40);
+  });
+});
+
+describe('the bass on other meters (#260)', () => {
+  const named = Object.entries(METERS) as [string, Meter][];
+  const someBars = bars.filter((_, i) => i % 3 === 0);
+
+  it('keeps 4/4’s five patterns as they were written (finite: each pattern, every step)', () => {
+    const t = patternsOn(METERS['4/4']);
+    expect(t.root).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0]);
+    expect(t.pump).toEqual([0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    expect(t.eight).toEqual([1, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.9, 0, 0.8, 0, 0.8, 0, 0.8, 0]);
+    expect(t.funk).toEqual([1, 0, 0, 0.7, 0, 0, 0.8, 0.4, 0, 0, 0.7, 0.5, 0, 0.3, 0.8, 0]);
+    expect(t.walk).toEqual([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
+  });
+
+  it('writes every pattern over the meter’s steps, the downbeat on, the walk on the pulses and the pump between them (finite: every meter, every pattern)', () => {
+    for (const [name, meter] of named) {
+      const t = patternsOn(meter, 3);
+      for (const pattern of Object.values(t))
+        expect([name, pattern.length]).toEqual([name, stepsOf(meter)]);
+      expect([name, t.root[0], t.eight[0], t.walk[0]]).toEqual([name, 1, 1, 1]);
+      const walk = t.walk.flatMap((w, step) => (w > 0 ? [step] : []));
+      expect([name, walk]).toEqual([name, meterOnSteps(meter).heights]);
+      for (const s of t.pump.flatMap((w, i) => (w > 0 ? [i] : []))) expect(walk).not.toContain(s);
+    }
+  });
+
+  it('writes a well formed line in every meter, every note within the bar, in range, bar after bar (finite: every meter, every 3rd bar of the tour)', () => {
+    for (const [name, meter] of named) {
+      const steps = stepsOf(meter);
+      let last = bass.initial;
+      for (const bar of someBars) {
+        const out = bass.advance({ ...bar, meter }, last, null);
+        last = out.carried;
+        expect([name, out.output.length > 0]).toEqual([name, true]);
+        let at = -1;
+        for (const n of out.output) {
+          expect([name, n.step, writtenProblems(n, steps)]).toEqual([name, n.step, []]);
+          expect(n.step).toBeGreaterThan(at);
+          at = n.step;
+          expect(n.step + n.length).toBeLessThanOrEqual(steps);
+          expect(n.note).toBeGreaterThanOrEqual(BASS_RANGE[0]);
+          expect(n.note).toBeLessThanOrEqual(BASS_RANGE[1]);
+        }
+      }
+    }
   });
 });

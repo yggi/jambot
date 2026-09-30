@@ -69,6 +69,9 @@ importers:
       '@jambot/session':
         specifier: workspace:*
         version: link:../../packages/session
+      '@jambot/spectrum':
+        specifier: workspace:*
+        version: link:../../packages/spectrum
       '@jambot/theory':
         specifier: workspace:*
         version: link:../../packages/theory
