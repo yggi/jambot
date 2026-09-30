@@ -51,6 +51,16 @@ export const AUDITED: Readonly<Record<string, string>> = {
     "partial()'s Math.log2 is a fixed constant per integer n (a harmonic " +
     "series partial), not a per-play draw, and far from a semitone's rounding " +
     'boundary for the small n in use.',
+  'packages/spectrum/src/corrector.ts':
+    'Math.log2 turns a pitch into a note and Math.exp is the glide toward a snap: ' +
+    'continuous values, moved only by a last bit. The one choice made from them ' +
+    'is the nearest note of a scale, where a tie within 1e-9 is given to the higher, ' +
+    'so a pitch half-way between two notes may go to either on another engine and ' +
+    'either is right. It draws no chance() or pick().',
+  'packages/spectrum/src/psola.ts':
+    'Math.cos shapes the window a pulse is weighted by: a weight, continuous. Marks are ' +
+    'placed by comparing the likeness of candidate places, which differ by far more ' +
+    'than a last bit except where the sound is flat, where either place is as good.',
   'packages/spectrum/src/timbre.ts':
     'Math.log2 turns a peak into cents from its harmonic and a width into cents, and ' +
     'the log10 of a ratio into dB: values to show and to compare by distance. The ' +

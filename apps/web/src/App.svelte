@@ -32,7 +32,9 @@
   import { MeterPlayer } from './meter/meter-player.svelte.ts';
   import { WorkerAnalysis } from './tune/analysis.ts';
   import AnalysisWorker from './tune/analysis.worker.ts?worker';
-  import { withSynth } from './tune/loopback.ts';
+  import { LiveCorrection } from './tune/live-correction.svelte.ts';
+  import correctWorkletUrl from './tune/correct.worklet.ts?worker&url';
+  import { withCorrected, withSynth } from './tune/loopback.ts';
   import { browserMic } from './tune/mic.ts';
   import { ToneSender } from './tune/sender.svelte.ts';
   import { Tuner } from './tune/tuner.svelte.ts';
@@ -80,8 +82,11 @@
   /** The metronome (#259): a bar of any meter on this device's synth. */
   const meterPlayer = new MeterPlayer({ audio: () => device.clockOf() });
   /** The tuner (#269): listens to an input, and looks at its sound in a worker made at the first look. */
+  const inputs = withSynth(browserMic(), () => device.clockOf().base.tap?.());
+  /** The live correction (#298): takes the sound from an input and corrects it toward a scale in a worklet. */
+  const correction = new LiveCorrection({ mic: inputs, moduleUrl: correctWorkletUrl });
   const tuner = new Tuner({
-    mic: withSynth(browserMic(), () => device.clockOf().base.tap?.()),
+    mic: withCorrected(inputs, () => correction.outputTap()),
     analyse: new WorkerAnalysis(() => new AnalysisWorker()).analyse,
   });
   /** The note the tuner's screen holds, on this device's synth or a MIDI port, to tune an instrument by. */
@@ -201,6 +206,7 @@
     if (screen !== 'tune') {
       tuner.stop();
       sender.release();
+      correction.stop();
     }
   });
 
@@ -364,7 +370,7 @@
   {:else if screen === 'meter'}
     <MeterScreen player={meterPlayer} onback={() => (meterChosen = false)} />
   {:else if screen === 'tune'}
-    <TuneScreen {tuner} {sender} onback={() => (tuneChosen = false)} />
+    <TuneScreen {tuner} {sender} {correction} onback={() => (tuneChosen = false)} />
   {:else if screen === 'restoring'}
     <p class="message" role="status">Taking up your session again…</p>
   {:else}
