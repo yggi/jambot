@@ -10,7 +10,7 @@ Facts about `packages/score` and the score language (#7).
   The table is `language.md`, "Nomenclature".
 - `packages/score` writes a bar as text and reads it back (`encodeBar`, `compileBar`), so far its header, `style`, `harm` and its drums.
   Its `ScoreBar` is its own type: the engine is only a dev dependency, for `seam.test.ts`, which reads back every bar the band writes (Q1a).
-  A chord `chordScale` gives no scale for, such as `Isus4`, is refused until the score can write `scale=` (U3).
+  A chord `chordScale` gives no scale for, such as `Isus4`, is written like any other: the score states no scale and no line reads one (U3, vitrified).
 - In the port's drums only the snare needs its role written: every other sound has one role (E16).
   Where the backbeat and a fill meet, the backbeat stays.
   E16's own form is decided (owner, on measured options): one line per sound, its own word (`bd`, `hh`, `oh`, `ph`, `rd`, `rim`), each hit held one step, `~` the rest between (L8).
