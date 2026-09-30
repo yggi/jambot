@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tone, world } from '../tune/fixtures.ts';
+import { correctionWorld, tone, world } from '../tune/fixtures.ts';
 import { TICK_MS, Tuner } from '../tune/tuner.svelte.ts';
 import { MicDenied } from '../tune/mic.ts';
+import { LiveCorrection } from '../tune/live-correction.svelte.ts';
 import { ToneSender } from '../tune/sender.svelte.ts';
 import TuneScreen from './Tune.svelte';
 
@@ -24,13 +25,20 @@ function senders(ports = ['a', 'b']) {
   return { sender, sent, synth };
 }
 
+/** A correction on a fake browser, with what it does kept. */
+function corrections() {
+  const world = correctionWorld();
+  const correction = new LiveCorrection({ mic: world.micSource, moduleUrl: '/correct.js' });
+  return { correction, world };
+}
+
 function shown(signal = tone(440), ports?: string[]) {
   const w = world();
   w.heard.signal = signal;
   const tuner = new Tuner({ mic: w.source, analyse: w.analyseHere });
   const onback = vi.fn();
   const { sender, sent, synth } = senders(ports);
-  render(TuneScreen, { tuner, sender, onback });
+  render(TuneScreen, { tuner, sender, correction: corrections().correction, onback });
   const hear = async (ticks = 1) => {
     await vi.advanceTimersByTimeAsync(TICK_MS * ticks);
   };
@@ -138,7 +146,12 @@ describe('the tuner screen', () => {
       },
       analyse: w.analyseHere,
     });
-    render(TuneScreen, { tuner, sender: senders().sender, onback: vi.fn() });
+    render(TuneScreen, {
+      tuner,
+      sender: senders().sender,
+      correction: corrections().correction,
+      onback: vi.fn(),
+    });
     await vi.advanceTimersByTimeAsync(1);
     expect(screen.getByLabelText('Listen to')).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
@@ -154,7 +167,12 @@ describe('the tuner screen', () => {
       mic: { open: () => Promise.reject(new MicDenied()), devices: () => Promise.resolve([]) },
       analyse: w.analyseHere,
     });
-    render(TuneScreen, { tuner, sender: senders().sender, onback: vi.fn() });
+    render(TuneScreen, {
+      tuner,
+      sender: senders().sender,
+      correction: corrections().correction,
+      onback: vi.fn(),
+    });
     await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(screen.getByRole('status')).toHaveTextContent(/blocked.*site settings/);
     expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
@@ -205,5 +223,90 @@ describe('the tuner screen', () => {
     const send = within(screen.getByRole('region', { name: 'Send a note' }));
     expect(send.getByText(/connect a MIDI port in the Sound card/)).toBeInTheDocument();
     expect(send.getAllByRole('option')).toHaveLength(1);
+  });
+
+  describe('the correction card', () => {
+    function withCorrection() {
+      const made = corrections();
+      const w = world();
+      const tuner = new Tuner({ mic: w.source, analyse: w.analyseHere });
+      render(TuneScreen, {
+        tuner,
+        sender: senders().sender,
+        correction: made.correction,
+        onback: vi.fn(),
+      });
+      return { ...made, tuner };
+    }
+
+    it('is labelled experimental, says it adds a delay, and is quiet until asked: headphones', () => {
+      withCorrection();
+      const card = within(screen.getByRole('region', { name: 'Correct' }));
+      expect(card.getByText('experimental')).toBeInTheDocument();
+      expect(card.getByText(/adds a delay/)).toBeInTheDocument();
+      expect(card.getByText(/wear headphones/)).toBeInTheDocument();
+    });
+
+    it('starts on a press and stops on the next, and says what it does once it runs: how late, the pitch, how far it moves it', async () => {
+      const { world, correction } = withCorrection();
+      const card = within(screen.getByRole('region', { name: 'Correct' }));
+      await fireEvent.click(card.getByRole('button', { name: 'Start correcting' }));
+      expect(correction.status).toBe('running');
+      world.log.nodes[0]!.port.onmessage!({
+        data: { heard: 110.5, offsetCents: -20.25, latency: 2400 },
+      });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(card.getByText(/Adds 50 ms/)).toBeInTheDocument();
+      expect(card.getByText(/Hearing 110.5 Hz, moving it −20.3 cents/)).toBeInTheDocument();
+      world.log.capacity.onupdate!({ averageLoad: 0.03, peakLoad: 0.11, underrunRatio: 0 });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(card.getByText(/3 % on average, 11 % at most/)).toBeInTheDocument();
+      await fireEvent.click(card.getByRole('button', { name: 'Stop correcting' }));
+      expect(correction.status).toBe('off');
+    });
+
+    it('tells the worklet the scale on its root, the retune and whether it is heard, as they change', async () => {
+      const { world, correction } = withCorrection();
+      const card = within(screen.getByRole('region', { name: 'Correct' }));
+      await fireEvent.click(card.getByRole('button', { name: 'Start correcting' }));
+      await fireEvent.change(card.getByLabelText('Scale'), { target: { value: '9' } });
+      await fireEvent.change(card.getByLabelText('Kind of scale'), {
+        target: { value: 'aeolian' },
+      });
+      await fireEvent.click(card.getByRole('button', { name: '50 ms' }));
+      await fireEvent.click(card.getByLabelText('Hear it (headphones)'));
+      const last = world.log.nodes[0]!.port.posted.at(-1);
+      expect(last).toMatchObject({
+        enabled: true,
+        scale: [0, 2, 4, 5, 7, 9, 11],
+        retuneSeconds: 0.05,
+      });
+      expect(correction.monitor).toBe(true);
+      expect(world.log.gains[0]!.gain.value).toBe(1);
+      expect(card.getByRole('button', { name: '50 ms' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('follows the tuner’s reference pitch', async () => {
+      const { world, tuner } = withCorrection();
+      const card = within(screen.getByRole('region', { name: 'Correct' }));
+      await fireEvent.click(card.getByRole('button', { name: 'Start correcting' }));
+      tuner.reference = 432;
+      await vi.advanceTimersByTimeAsync(1);
+      expect(world.log.nodes[0]!.port.posted.at(-1)).toMatchObject({ reference: 432 });
+    });
+
+    it('offers the inputs there are to take the sound from, and keeps to the one chosen while it runs', async () => {
+      const { correction, world } = withCorrection();
+      world.micSource.devices = () => Promise.resolve([{ id: 'a', label: 'Built-in' }]);
+      const card = within(screen.getByRole('region', { name: 'Correct' }));
+      await correction.loadDevices();
+      await vi.advanceTimersByTimeAsync(1);
+      await fireEvent.change(card.getByLabelText('Take the sound from'), {
+        target: { value: 'a' },
+      });
+      expect(correction.inputId).toBe('a');
+      await fireEvent.click(card.getByRole('button', { name: 'Start correcting' }));
+      expect(card.getByLabelText('Take the sound from')).toBeDisabled();
+    });
   });
 });

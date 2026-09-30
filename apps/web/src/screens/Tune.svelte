@@ -11,6 +11,9 @@
   import { octaveMarks, spectrumPath, xOfHz } from '../tune/plot.ts';
   import { midiNoteName } from '../noteNames.ts';
   import type { ToneSender } from '../tune/sender.svelte.ts';
+  import type { LiveCorrection } from '../tune/live-correction.svelte.ts';
+  import { CORRECTION_SCALES } from '../tune/scales.ts';
+  import { TONIC_NAMES } from '../noteNames.ts';
   import type { Tuner } from '../tune/tuner.svelte.ts';
   import { frequencyOf } from '@jambot/theory';
 
@@ -18,11 +21,37 @@
     tuner: Tuner;
     /** Holds a note on the synth or a MIDI port, to tune an instrument against. */
     sender: ToneSender;
+    /** Corrects the sound toward a scale, live. */
+    correction: LiveCorrection;
     /** Back to the lobby. */
     onback: () => void;
   }
 
-  let { tuner, sender, onback }: Props = $props();
+  let { tuner, sender, correction, onback }: Props = $props();
+
+  // The correction is told what to do whenever a setting changes.
+  $effect(() => {
+    correction.reference = tuner.reference;
+    void [
+      correction.root,
+      correction.scaleId,
+      correction.retuneSeconds,
+      correction.limitCents,
+      correction.monitor,
+      correction.reference,
+    ];
+    correction.apply();
+  });
+  $effect(() => {
+    void correction.loadDevices();
+  });
+  const RETUNES: readonly [string, number][] = [
+    ['Hard', 0],
+    ['50 ms', 0.05],
+    ['200 ms', 0.2],
+  ];
+  const running = $derived(correction.status === 'running');
+  const cents = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}`;
 
   $effect(() => {
     void tuner.loadDevices();
@@ -208,6 +237,98 @@
     </div>
     {#if sender.message}
       <p class="notice" role="status">{sender.message}</p>
+    {/if}
+  </section>
+
+  <section class="card" aria-label="Correct">
+    <h3>Correct toward a scale <span class="whose">experimental</span></h3>
+    <p class="message">
+      Pull what is played or sung toward the notes of a scale, live. It adds a delay, and the
+      tracker can be fooled. What comes out is quiet until you ask to hear it: wear headphones,
+      since a microphone that hears its own output feeds back. Choose “The corrected sound” above to
+      read it on the tuner.
+    </p>
+    <button
+      type="button"
+      class="primary"
+      disabled={correction.status === 'starting'}
+      onclick={() => (running ? correction.stop() : void correction.start())}
+    >
+      {running
+        ? 'Stop correcting'
+        : correction.status === 'starting'
+          ? 'Starting…'
+          : 'Start correcting'}
+    </button>
+    {#if correction.message}
+      <p class="notice" role="status">{correction.message}</p>
+    {/if}
+    <div class="field">
+      <label for="correct-input">Take the sound from</label>
+      <select
+        id="correct-input"
+        disabled={running}
+        value={correction.inputId ?? ''}
+        onchange={(e) => (correction.inputId = e.currentTarget.value || undefined)}
+      >
+        <option value="">Default</option>
+        {#each correction.devices as device (device.id)}
+          <option value={device.id}>{device.label}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="field">
+      <label for="correct-root">Scale</label>
+      <select
+        id="correct-root"
+        value={correction.root}
+        onchange={(e) => (correction.root = +e.currentTarget.value)}
+      >
+        {#each TONIC_NAMES as name, pitchClass (pitchClass)}
+          <option value={pitchClass}>{name}</option>
+        {/each}
+      </select>
+      <select
+        aria-label="Kind of scale"
+        value={correction.scaleId}
+        onchange={(e) => (correction.scaleId = e.currentTarget.value)}
+      >
+        {#each CORRECTION_SCALES as scale (scale.id)}
+          <option value={scale.id}>{scale.name}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="field">
+      <span id="retune-label">Retune</span>
+      <span class="presets" role="group" aria-labelledby="retune-label">
+        {#each RETUNES as [name, seconds] (name)}
+          <button
+            type="button"
+            class="toggle"
+            aria-pressed={correction.retuneSeconds === seconds}
+            onclick={() => (correction.retuneSeconds = seconds)}>{name}</button
+          >
+        {/each}
+      </span>
+    </div>
+    <label class="field">
+      <input type="checkbox" bind:checked={correction.monitor} />
+      <span>Hear it (headphones)</span>
+    </label>
+    {#if running}
+      <p class="detail" aria-live="off">
+        {#if correction.latencyMs !== null}Adds {Math.round(correction.latencyMs)} ms.{/if}
+        {#if correction.heard !== null}
+          Hearing {correction.heard.toFixed(1)} Hz, moving it {cents(correction.offsetCents)} cents.
+        {:else}
+          No pitch heard.
+        {/if}
+        {#if correction.load}
+          Audio thread: {Math.round(correction.load.average * 100)} % on average, {Math.round(
+            correction.load.peak * 100,
+          )} % at most.
+        {/if}
+      </p>
     {/if}
   </section>
 

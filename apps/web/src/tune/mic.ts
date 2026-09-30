@@ -14,10 +14,18 @@ export interface Mic {
   readonly sampleRate: number;
   /** What the device calls itself. */
   readonly label: string;
+  /** Where the sound is, in the audio graph, for routing it somewhere else: a live correction takes it from here. */
+  readonly source?: Tap;
   /** The newest `count` samples, oldest first, at most what it holds. */
   latest(count: number): Float32Array;
   /** Let go of the device. */
   stop(): void;
+}
+
+/** A place in an audio graph where a sound can be taken from: its context and the node it leaves by. */
+export interface Tap {
+  readonly context: AudioContext;
+  readonly node: AudioNode;
 }
 
 /** An input device the person can choose. */
@@ -54,6 +62,7 @@ export function listenThrough(
   sampleRate: number,
   label: string,
   release: () => void,
+  source?: Tap,
 ): Mic {
   analyser.fftSize = HELD;
   const held = new Float32Array(HELD);
@@ -61,6 +70,7 @@ export function listenThrough(
   return {
     sampleRate,
     label,
+    ...(source ? { source } : {}),
     latest(count) {
       analyser.getFloatTimeDomainData(held);
       return held.slice(HELD - Math.min(count, HELD));
@@ -94,7 +104,8 @@ export function browserMic(): MicSource {
       }
       const context = new AudioContext();
       const analyser = context.createAnalyser();
-      context.createMediaStreamSource(stream).connect(analyser);
+      const node = context.createMediaStreamSource(stream);
+      node.connect(analyser);
       await context.resume();
       return listenThrough(
         analyser,
@@ -104,6 +115,7 @@ export function browserMic(): MicSource {
           for (const track of stream.getTracks()) track.stop();
           void context.close();
         },
+        { context, node },
       );
     },
 
