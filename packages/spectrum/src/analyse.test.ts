@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyse, PIANO_BANDS } from './analyse.ts';
 import { bandCentres } from './bands.ts';
-import { noise, sine } from './signals.ts';
+import { harmonic, noise, sine } from './signals.ts';
 
 const sampleRate = 48000;
 const indexOfMax = (x: Float64Array) => x.reduce((top, v, i) => (v > x[top]! ? i : top), 0);
@@ -45,5 +45,23 @@ describe('analyse', () => {
     });
     expect(b.bands.length).toBe(49);
     expect(b.frame).toBe(8192);
+  });
+
+  it('says what a pitched sound is made of, over the frame the pitch was read from', () => {
+    const x = harmonic(220, [1, 0.5, 0.25, 0.125], 16384, sampleRate);
+    const a = analyse(x, sampleRate);
+    const { profile, fingerprint } = a.timbre!;
+    expect(profile.harmonics).toHaveLength(12);
+    expect(profile.harmonics[1]!.db!).toBeCloseTo(-6, 0);
+    expect(profile.harmonics[3]!.db!).toBeCloseTo(-18, 0);
+    expect(profile.width).toBeLessThan(3);
+    expect(fingerprint).toHaveLength(12);
+    expect(fingerprint[0]).toBe(0);
+    expect(fingerprint[11]).toBe(-60);
+  });
+
+  it('says nothing of tone where there is no pitch', () => {
+    expect(analyse(new Float64Array(16384), sampleRate).timbre).toBeUndefined();
+    expect(analyse(noise(16384, 2, 0.4), sampleRate).timbre).toBeUndefined();
   });
 });

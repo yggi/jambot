@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tone, world } from '../tune/fixtures.ts';
+import { harmonic } from '@jambot/spectrum';
+import { sampleRate, tone, world } from '../tune/fixtures.ts';
 import { TICK_MS, Tuner } from '../tune/tuner.svelte.ts';
 import { MicDenied } from '../tune/mic.ts';
 import { ToneSender } from '../tune/sender.svelte.ts';
@@ -205,5 +206,40 @@ describe('the tuner screen', () => {
     const send = within(screen.getByRole('region', { name: 'Send a note' }));
     expect(send.getByText(/connect a MIDI port in the Sound card/)).toBeInTheDocument();
     expect(send.getAllByRole('option')).toHaveLength(1);
+  });
+
+  it('shows what the note is made of: a bar for each of twelve harmonics, the missing ones empty, and how wide the note is', async () => {
+    const { hear } = shown(harmonic(220, [1, 0.5, 0.25], 16384, sampleRate));
+    const card = within(screen.getByRole('region', { name: 'Tone' }));
+    expect(card.getByText('Play a note to see its harmonics.')).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await hear();
+    const plot = card.getByRole('img', { name: /Level of each harmonic/ });
+    expect(plot.querySelectorAll('rect.bar')).toHaveLength(12);
+    expect(plot.querySelectorAll('rect.bar.missing')).toHaveLength(9);
+    expect(plot.querySelectorAll('text.tick')).toHaveLength(12);
+    expect(card.getByText(/Steady, with no width/)).toBeInTheDocument();
+    expect(card.getByText('Tone').closest('h3')).toHaveTextContent(/experimental/);
+  });
+
+  it('remembers a tone and says how far the next is from it: the same tone at another pitch is the same, another tone is different', async () => {
+    const w = world();
+    w.heard.signal = harmonic(220, [1, 0.5, 0.25, 0.125], 16384, sampleRate);
+    const tuner = new Tuner({ mic: w.source, analyse: w.analyseHere });
+    render(TuneScreen, { tuner, sender: senders().sender, onback: vi.fn() });
+    const card = within(screen.getByRole('region', { name: 'Tone' }));
+    expect(card.getByRole('button', { name: 'Remember this tone' })).toBeDisabled();
+    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await vi.advanceTimersByTimeAsync(TICK_MS);
+    await fireEvent.click(card.getByRole('button', { name: 'Remember this tone' }));
+    expect(card.getByText(/0\.0 dB from the remembered tone: the same tone/)).toBeInTheDocument();
+    w.heard.signal = harmonic(330, [1, 0.5, 0.25, 0.125], 16384, sampleRate);
+    await vi.advanceTimersByTimeAsync(TICK_MS);
+    expect(card.getByText(/the same tone/)).toBeInTheDocument();
+    w.heard.signal = harmonic(220, [0.2, 0.3, 1, 0.9, 0.8, 0.7, 0.6], 16384, sampleRate);
+    await vi.advanceTimersByTimeAsync(TICK_MS);
+    expect(card.getByText(/a different tone/)).toBeInTheDocument();
+    await fireEvent.click(card.getByRole('button', { name: 'Forget it' }));
+    expect(card.queryByText(/from the remembered tone/)).toBeNull();
   });
 });
