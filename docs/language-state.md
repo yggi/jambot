@@ -170,9 +170,8 @@ a steady wish: the key moves once, then stays (C6)"; `band.test.ts`, whose test
 of an offered motif cites C6: two offers of one motif, heard in bars 3 and 40,
 from two players at levels 110 and 35, play the same notes and velocities over
 128 bars. Source: #37 step 4; fixed points, #39; #79 step 3. Status: measured
-(the key); measured (the Muse's offer). Open: whether style intents read the
-same way (a glide is a target reached over time, C1), and how the IM writes a
-wish. Lands in: #13, #25, #39, #79.
+(the key); measured (the Muse's offer). Open: how the IM writes a wish.
+The style axes' wish is a displacement, not a target (C10), and the key's wish is a target today, so "wish" has two shapes until the key's is read the same way. Lands in: #13, #25, #39, #79.
 
 **C7. The band reads its style as the score writes it, on a grid of 3 decimals,
 so a bar's header states exactly the style it was composed from.** Witness:
@@ -194,7 +193,7 @@ and its grid are the band's. Source: E10, T5. Status: measured. Decided: #7, on
 measured options (E10). Lands in: #63 step 2 (the header).
 
 **C8. A level below moves what the level above sets only within the licence it leaves, and never selects outright.**
-Witness: `licenceOf(style)` (`licence.ts`), one function for the four licences the style leaves: the performer's feel at the note (T17 is this entry at the note), the tempo, which the players nudge by a ratio of the style's (`tempoNudgeWithin`), the key, which they move round the circle of fifths from the home, the key the plan is heading for (`intoReach`, `player.home`), and the melodic scale the lead walks over the key (`melodicWithin`, #209).
+Witness: `licenceOf(style)` (`licence.ts`), one function for the four licences the style leaves: the performer's feel at the note (T17 is this entry at the note), the tempo, which the players nudge by a ratio of the style's (`tempoNudgeWithin`), the key, which they move round the circle of fifths from the home, the key the plan is heading for (`intoReach`, `player.home`), each a displacement from what the level above sets (C10), and the melodic scale the lead walks over the key (`melodicWithin`, #209).
 The genre sets each range (`harm` the key's reach and the melodic scales, `swing` and `artic` the feel), and the players' `entropy`, which no preset sets, how much of it is used (#176).
 A wish beyond a licence is pulled back to its edge, not refused, so what the players ask for moves the band as far as the style allows.
 The composer and the performer read the same style and use it differently: the band's own drift takes the key's reach from `harm` and its readiness to move from `entropy` (C9), the performer takes the feel; the licence is what is given, the entropy how much of it is used.
@@ -219,3 +218,15 @@ Her offer still drops at the cliff, so the memory has no lean yet: #207's select
 Status: measured (the key); measured (the Muse's memory of motifs); measured, failing (the tempo; the Muse's offer); open (the note, #204; the phrase, #207; the style, #195).
 Open: whether a lean is always a centre or sometimes a draw; whether every level needs every arrow (the performer's fill is read by nobody); where each memory lives (S2); and whether a level needs a default of its own to return to (Q11).
 Lands in: #210, #195, #204, #207, #16.
+
+**C10. A wish is a displacement from what the level above sets, in that value's own space, held per player as a running total and settled on the median: read again it changes nothing, and a default that moves under it carries it along.**
+Witness: the tempo, whose nudge is a count of octaves from the style's tempo (`nudgedTempo`: the style's times 2 to the nudge, held within `tempoLicence`), which a preset carries over to its own tempo (`styleAfter`, `conductor.ts`), and the key's licence, counted in fifths from the home (`fifthsApart`, `intoReach`).
+Still to build: the style axes (#217), where a wish is a count of steps of the axis from the style's value, the players' wishes settle on their median, and the style played is the default plus that, within the licence (C8).
+The top of each chain is a point, a preset or a tonic, and everything below it is a displacement: the T of T and I (U5) on the value's own axis, in the space its parameter declares (C2).
+A displacement travels as its running total and never as an increment, so a lost or repeated message changes nothing (C6), and the median lets no one player pull the band further than the middle of the players, which a sum of increments would.
+Counterexample: a wish stored as a target value, so that a preset or a drag of the default has to clear it or lose to it; a wish sent as an increment, which a repeated message moves twice; a median that one player alone can move while others are present; a settled value outside the licence.
+Test: open, and for the style axes the step #217 lists, over every preset and axis: the settled style is within reach, a lone player gets exactly their wish, the order of players changes nothing, a wish applied twice is applied once, and a default moved by a drag moves the wish along with it, held at the axis's ends.
+For the tempo and the key the displacement is already what the code holds, and `licence.test.ts`'s test of the tempo played (the style's own tempo times the nudge, and nothing else, cited under C9) is the nearest test.
+Source: the owner's gut on #217 that everything is a delta; #217's proposal; T18 and T20, the same shape at the note; C1 and C2.
+Status: open.
+Lands in: #217 (the pure wish, then the path), #116.

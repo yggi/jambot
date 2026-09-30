@@ -76,7 +76,7 @@ An entry's id is unique across all of them and `quinetic.md`, and does not chang
 | ------------------------------------------------ | ------------------------------------------------------------------ | -------------- |
 | [Time](language-time.md)                         | the clock, the grid, the meter, swing, written against played time | 20             |
 | [Pitch](language-pitch.md)                       | the helix, keys, modes, chords, numerals, pitch tokens             | 10             |
-| [State and change](language-state.md)            | what a bar carries, glides, trajectories, the style space          | 12             |
+| [State and change](language-state.md)            | what a bar carries, glides, trajectories, the style space          | 13             |
 | [Surface](language-surface.md)                   | lowering to devices, readers and writers, the score text           | 18             |
 | [Analysis and composition](language-analysis.md) | reading the music back, the Muse, composing a band                 | 14             |
 | [Experiments](language-experiments.md)           | the probes that measured the entries                               | 26 experiments |
