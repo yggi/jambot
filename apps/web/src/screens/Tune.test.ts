@@ -360,7 +360,12 @@ describe('the tuner screen', () => {
     const w = world();
     w.heard.signal = harmonic(220, [1, 0.5, 0.25, 0.125], 16384, sampleRate);
     const tuner = new Tuner({ mic: w.source, analyse: w.analyseHere });
-    render(TuneScreen, { tuner, sender: senders().sender, onback: vi.fn() });
+    render(TuneScreen, {
+      tuner,
+      sender: senders().sender,
+      correction: corrections().correction,
+      onback: vi.fn(),
+    });
     const card = within(screen.getByRole('region', { name: 'Tone' }));
     expect(card.getByRole('button', { name: 'Remember this tone' })).toBeDisabled();
     await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
