@@ -139,6 +139,9 @@ The others are neighbours that make different claims, and stay as they are:
 - **P5 and P10, P7 and P9** are a claim and the counterexample filed beside it (P10 refutes P5's open scope, P9 was a probe on P7).
   Filed apart on purpose, since a counterexample lives where it refutes (`ratchet` skill, N3).
 - **S2 and S3:** S3 is `Decided: S2, dissolved`, a rule that stands only if S2 carries it, and S2 carries no rule.
+- **C3 and C5** are the rate a value lives at (C3) and the bound within which a change is heard (C5), which follows from the rates but is measured on its own.
+- **C8 and C9:** C8 is the licence a level below moves within, and C9 is the default, fill and fading memory a level keeps inside it.
+  C9 leans on C8's reach and adds the memory.
 - **Q1b and Q1c** are the round trips of the two time maps, each with its own test.
   F3's time bullet points at them, and T4 is the map's claim.
 - **Q5a and F1:** F1 is the law each level keeps, and Q5a is that a slower level's output is held as the faster one's environment.
