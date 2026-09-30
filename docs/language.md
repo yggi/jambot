@@ -1969,5 +1969,18 @@ run; the others have.
     It lies 0.19 from the axis and covers 0.04 to 0.69 of it, at 0 and at 1, since at harm 1 the composer draws a ninth with a chance of 0.7 at most (`chords.ts`), and the reading's rate is full only when both halves of a bar change.
   - Not measured: chords in the pad-less bars, whose harmony the bass and lead carry; a key (the reading is of roots and qualities, not numerals); real music, where a voicing is not the comp's close one.
 
+- **E25. One voice of the band read alone** (#15 step 4, N3), in
+  [`packages/engine/experiments/voice-reading.ts`](../packages/engine/experiments/voice-reading.ts),
+  held by [`packages/engine/experiments/voice-reading.test.ts`](../packages/engine/experiments/voice-reading.test.ts):
+  `readVoice` (`packages/engine/src/part-reading.ts`) reads the drums, the bass, the comp (pad and stab together) and the lead each from its own notes: its density (its share of the 16 steps), its `sync`, the `artic` of the bass and lead, and the `harm` of the comp.
+  The distance of a voice from a landmark is a root mean square over the axes both have.
+  The presets held, 5 seeds of 32 bars each, against landmarks that are where each voice reads at each preset (5 other seeds).
+  - Every voice says something of the style by itself: the nearest of the eight landmarks, for that voice alone, is the preset that wrote the bar in 0.61 of the bass's bars, 0.49 of the comp's, 0.40 of the lead's and 0.29 of the drums' (chance 0.125).
+    The drums say least although they carry most of the bar's `sync` (E22): their density and `sync` are the two axes they have, and the presets share them.
+  - A voice lies 0.06 (comp), 0.10 (bass), 0.14 (lead) and 0.18 (drums) from its own landmark on average.
+  - A drum fill (a `fill` hit written; 112 of 1,280 bars) reads only a little farther from the drums' landmark than the drums of a bar without: 0.199 against 0.180, and a bar with a fill is the farther of a pair in 0.58 of them (0.5 is chance).
+    So a bar of drums read by density and `sync` cannot tell a fill from the drummer's usual variety; a licence that shrinks when a fill reads far would need a finer reading (the half bar the fill covers, or its role), not this one.
+  - Not measured: the swing and tempo of a voice (they need the voice's onsets on the clock), a fill of the lead, and entropy (step 5).
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
