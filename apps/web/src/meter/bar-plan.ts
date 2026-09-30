@@ -16,8 +16,15 @@
  */
 
 import { DRUM_NOTES } from '@jambot/engine';
-import { METERS, type MeterName, type Weight, meterOnSteps, meterWeights } from '@jambot/theory';
-import { STEPS_PER_EIGHTH } from '../bar.ts';
+import {
+  METERS,
+  type MeterName,
+  STEPS_PER_EIGHTH,
+  type Weight,
+  meterOnSteps,
+  meterWeights,
+  stepsOf,
+} from '@jambot/theory';
 import { gradeGain, gradesOf } from './grades.ts';
 
 export const LAYERS = ['click', 'drums', 'bass'] as const;
@@ -81,7 +88,7 @@ export function barPlan({ name, layers, hemiola, grade, mirror }: Setting): Onse
   const grades = gradesOf(meter, mirror);
   const weights = meterWeights(meter);
   const pulses = meterOnSteps(meter).heights;
-  const barSteps = meter.cycle * STEPS_PER_EIGHTH;
+  const barSteps = stepsOf(meter);
   const gainAt = (step: number) => gradeGain(grades[step / STEPS_PER_EIGHTH]!, grade);
   const onsets: Onset[] = [];
 

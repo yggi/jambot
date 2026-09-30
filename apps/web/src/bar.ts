@@ -11,14 +11,8 @@
  */
 
 import { type TimeMap, swingMap } from '@jambot/engine';
-import { type Meter, degreeBelow, meterWeights } from '@jambot/theory';
+import { type Meter, STEPS_PER_EIGHTH, degreeBelow, meterWeights, stepsOf } from '@jambot/theory';
 import type { Mark } from './components/Ruler.svelte';
-
-/** The steps in one eighth: the grid's step is a sixteenth. */
-export const STEPS_PER_EIGHTH = 2;
-
-/** The steps in a meter's bar. */
-export const barStepsOf = (meter: Meter): number => meter.cycle * STEPS_PER_EIGHTH;
 
 /**
  * A mark on each step of the bar, at the place it sounds. `heard` is the
@@ -32,7 +26,7 @@ export function barMarks(
   played: TimeMap['played'] = swingMap(swing, meter).played,
 ): Mark[] {
   const weights = meterWeights(meter);
-  return Array.from({ length: barStepsOf(meter) }, (_, step): Mark => {
+  return Array.from({ length: stepsOf(meter) }, (_, step): Mark => {
     if (step % STEPS_PER_EIGHTH !== 0) return { at: played(step), faint: true };
     const eighth = step / STEPS_PER_EIGHTH;
     const weight = weights[eighth]!;
@@ -52,6 +46,6 @@ export function barMarks(
  */
 export function eighthHeard(meter: Meter, heard: number | null): number | null {
   if (heard === null) return null;
-  const inBar = ((heard % barStepsOf(meter)) + barStepsOf(meter)) % barStepsOf(meter);
+  const inBar = ((heard % stepsOf(meter)) + stepsOf(meter)) % stepsOf(meter);
   return Math.floor(inBar / STEPS_PER_EIGHTH);
 }

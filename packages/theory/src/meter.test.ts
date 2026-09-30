@@ -9,8 +9,10 @@ import {
   type Meter,
   type MeterName,
   type Weight,
+  STEPS_PER_EIGHTH,
   meterOnSteps,
   meterWeights,
+  stepsOf,
   onsetHeight,
   onsetToken,
 } from './meter.ts';
@@ -132,6 +134,16 @@ describe('meter', () => {
   it('weighs every eighth of every named meter, against its weights written out by hand (finite: every meter, every position)', () => {
     for (const [name, meter] of Object.entries(METERS) as [MeterName, Meter][])
       expect(meterWeights(meter)).toEqual(WEIGHTS[name]);
+  });
+
+  it('counts a bar’s steps as the meter’s eighths, two to each, which is one turn of the meter on the steps (finite: every meter)', () => {
+    for (const [name, meter] of Object.entries(METERS)) {
+      expect([name, stepsOf(meter)]).toEqual([name, meter.cycle * STEPS_PER_EIGHTH]);
+      expect([name, stepsOf(meter)]).toEqual([name, meterOnSteps(meter).cycle]);
+    }
+    expect(stepsOf(METERS['4/4'])).toBe(16);
+    expect(stepsOf(METERS['7/8'])).toBe(14);
+    expect(stepsOf(METERS['4/4'], 1)).toBe(8);
   });
 
   it('marks position 0 the downbeat and no other position, in every meter', () => {
