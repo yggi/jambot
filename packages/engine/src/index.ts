@@ -2,6 +2,7 @@
 export * from './band.ts';
 export * from './bar.ts';
 export * from './bass.ts';
+export * from './chord-reading.ts';
 export * from './chords.ts';
 export * from './comp.ts';
 export * from './drums.ts';

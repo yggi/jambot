@@ -38,17 +38,17 @@ const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((a, b) => a + b, 
 /** The seeds the landmarks are read from, apart from the measured ones. */
 const LANDMARK_SEEDS = [11, 12, 13, 14, 15];
 
-const axesOf = (s: Pick<TimingSample, 'density' | 'sync' | 'artic' | 'bpm' | 'swing'>) =>
+const axesOf = (s: Pick<TimingSample, 'density' | 'sync' | 'artic' | 'bpm' | 'swing' | 'harm'>) =>
   readingAxes(s);
 
 /** The mean reading of some bars: the mean of each axis over the bars that have it. */
 function meanReading(part: readonly TimingSample[]) {
-  const at = (key: 'sync' | 'artic' | 'bpm' | 'swing') =>
+  const at = (key: 'sync' | 'artic' | 'bpm' | 'swing' | 'harm') =>
     part.flatMap((s) => (s[key] === undefined ? [] : [s[key]!]));
-  const [sync, artic, bpm, swing] = (['sync', 'artic', 'bpm', 'swing'] as const).map((k) =>
-    mean(at(k)),
+  const [sync, artic, bpm, swing, harm] = (['sync', 'artic', 'bpm', 'swing', 'harm'] as const).map(
+    (k) => mean(at(k)),
   );
-  return { density: mean(part.map((s) => s.density)), sync, artic, bpm, swing };
+  return { density: mean(part.map((s) => s.density)), sync, artic, bpm, swing, harm };
 }
 
 const landmarkOf = (read: ReturnType<typeof meanReading>): Landmark['at'] => ({
@@ -57,6 +57,7 @@ const landmarkOf = (read: ReturnType<typeof meanReading>): Landmark['at'] => ({
   artic: read.artic!,
   swing: read.swing!,
   bpm: bpmUnit(read.bpm!),
+  harm: read.harm,
 });
 
 /** Where each preset's bars read: its landmark for the critic. */

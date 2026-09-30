@@ -28,6 +28,8 @@ import {
   type ScheduledStep,
   type TimedEvent,
   transport,
+  type ReadChord,
+  readHarm,
   readStyle,
   readTiming,
   PRESETS,
@@ -59,6 +61,8 @@ export interface Sample {
   readonly sync: number | undefined;
   readonly artic: number | undefined;
   readonly density: number;
+  /** The `harm` read from the chords the notes sound (`readHarm`). */
+  readonly harm: number | undefined;
 }
 
 /** The band's bars, each composed at `styleOf(bar)` and read back. */
@@ -217,6 +221,7 @@ export function timingSamples(track: StyleTrack, seed: number, bars: number): Ti
   const laid: ScheduledStep[] = [];
   const events: TimedEvent[] = [];
   const composed = new Map<number, BandBar>();
+  let before: ReadChord | undefined;
   const env = {
     seed,
     start: 1,
@@ -233,10 +238,14 @@ export function timingSamples(track: StyleTrack, seed: number, bars: number): Ti
   return range(bars).map((bar) => {
     const steps = laid.filter((s) => Math.floor(s.step / 16) === bar);
     const onsets = events.filter((e) => e.bar === bar).map((e) => e.seconds);
-    const { density, sync, artic } = readStyle(composed.get(bar)!.dough);
+    const dough = composed.get(bar)!.dough;
+    const { density, sync, artic } = readStyle(dough);
+    const chords = readHarm(dough, before);
+    before = chords?.chords.at(-1) ?? before;
     return {
       style: styleAt(track, barStart(bar)),
       density,
+      harm: chords?.harm,
       sync,
       artic,
       ...readTiming(steps, onsets),
