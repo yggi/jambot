@@ -159,13 +159,22 @@ describe('a bar as score text', () => {
     }
   });
 
-  it('refuses a chord that implies no scale, until the score can write scale= (U3)', () => {
-    const sus = { ...A_BAR, harm: [{ step: 0, numeral: numeral('Isus4') }] };
-    expect(() => encodeBar(sus)).toThrow('Isus4 implies no scale, and needs scale= (U3)');
-    expect(scoreProblems(withLine('harm', 'harm "Isus4"'))).toEqual([
-      'harm: Isus4 implies no scale, and needs scale= (U3)',
-    ]);
-    expect(scoreProblems(withLine('harm', 'harm "I"'))).toEqual([]);
+  it('writes a chord that implies no scale and reads it back, since the score states none: every numeral of every quality on every degree of every mode (Q1a)', () => {
+    // `chordScale` gives `sus2`, `sus4`, `5`, `6` and `m6` no scale on any root; no line reads one.
+    const qualities = ['sus2', 'sus4', '5', '6', 'm6', 'aug', 'dim7'];
+    let written = 0;
+    for (const mode of DIATONIC_MODE_NAMES)
+      for (const tonic of range(12))
+        for (const degree of ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'])
+          for (const quality of qualities) {
+            const parsed = parseNumeral(`${degree}${quality}`);
+            if (!parsed) continue;
+            const bar = { ...A_BAR, key: { tonic, mode }, harm: [{ step: 0, numeral: parsed }] };
+            expect(compileBar(encodeBar(bar))).toEqual(bar);
+            written++;
+          }
+    expect(written).toBeGreaterThan(84 * 7);
+    expect(scoreProblems(withLine('harm', 'harm "Isus4"'))).toEqual([]);
   });
 
   it('refuses to write a bar it could not read back', () => {

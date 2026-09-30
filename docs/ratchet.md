@@ -50,7 +50,9 @@ write in and the moves each side makes.
    the ladder, rules that say how they were decided, named tests that exist, and
    citations that agree both ways. `tooling/history.ts` holds them in time, in
    `pnpm verify`: no evidence falls, overall or in a scope both versions name,
-   no rule goes and no entry disappears without `Retired:`. An entry that
+   no rule goes and no entry disappears without `Retired:`.
+   A retired entry is vitrified: its number is not retaken, the references to it stay valid, and it may be taken out of retirement.
+   An entry that
    becomes an alias is held to the entry it names, and one taken out of
    retirement to what it had. On a branch the gate compares with the merge base
    with `origin/main`, and on `main` with the first parent. Without

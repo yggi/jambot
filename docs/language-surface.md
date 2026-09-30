@@ -171,25 +171,22 @@ Decided: #7, on measured options.
 The bass does not write degree tokens (U6): its pitch is a number of steps above the chord's root, so a degree and an accidental stay a line's where its notes are degrees of a scale, the lead's cells (U4).
 Lands in: #63, where the score reads pitch tokens.
 
-**U3. A line states its scale only where `chordScale`'s candidates imply none.**
-Witness: `chordScale`'s candidates: the key, its parallel modes, the key a
-dominant points to, then harmonic and melodic minor (P9, #56). The composer
-writes no chord without a scale. Counterexample: a chord the candidates give a
-scale for whose line still needs `scale=`, or one they give none for that the
-text can't state. `chordScale` reads a chord as a stack of thirds, so five
-qualities a numeral writes, `5`, `6`, `m6`, `sus2` and `sus4`, imply no scale on
-any root of any diatonic key (0 of 84 each), and `augmented`, `mMaj7` and `dim7`
-one in 7 of 84: a takeover's `Isus4` is such a chord. The score can't write
-`scale=` yet, so `encodeBar` and `compileBar` refuse one. Test: `seam.test.ts`
-(`packages/score`), whose test of `scale=` cites U3: every chord the band plays
-over 3,200 bars implies a scale, so `harm` writes none; `score.test.ts`, whose
-test of a chord with no scale cites U3: `Isus4` is refused both ways, and `I` is
-not. The bass counts its pitch above the chord's root and needs no scale (U6),
-so the refusal stays with `harm` and the lines that read a scale (the lead's,
-#265). The pad and the stab voice a chord's tones and need none either (#264):
-relaxing the refusal is a change of the language, for the owner. Source: #7 (b), P9. Status: measured (the port's chords); open (a chord
-with none, which needs `scale=`). Decided: #7, on measured options. Lands in:
-#63.
+**U3. [vitrified] A line states its scale only where `chordScale`'s candidates imply none.**
+Retired: no line reads a scale, so the score states none and refuses no chord for having none.
+The bass counts its pitch above a chord's root (U6), the pad and the stab voice a chord's tones (#264), and the lead walks the plan's melodic scale over the key (#265); no engine part reads `chordScale`.
+`harm` writes `Isus4` like any other numeral.
+The number is kept, so references to U3 stay valid, and the entry may be taken out of retirement, with its refusal and its tests, should a line need a scale again.
+As it stood:
+Witness: `chordScale`'s candidates: the key, its parallel modes, the key a dominant points to, then harmonic and melodic minor (P9, #56).
+The composer writes no chord without a scale.
+Counterexample: a chord the candidates give a scale for whose line still needs `scale=`, or one they give none for that the text can't state.
+`chordScale` reads a chord as a stack of thirds, so five qualities a numeral writes, `5`, `6`, `m6`, `sus2` and `sus4`, imply no scale on any root of any diatonic key (0 of 84 each), and `augmented`, `mMaj7` and `dim7` one in 7 of 84: a takeover's `Isus4` is such a chord.
+The score refused such a chord, both ways, until it could write `scale=`.
+Test: `score.test.ts` (`packages/score`), "writes a chord that implies no scale and reads it back, since the score states none: every numeral of every quality on every degree of every mode (Q1a)": the chords `chordScale` gives no scale are written and read back; the tests that cited U3, of the band's chords and of the refusal, went with it.
+Source: #7 (b), P9.
+Status: measured (the port's chords).
+Decided: #7, on measured options.
+Lands in: #63.
 
 **U4. A motif is a rhythm and a contour on its own cycle: onsets, each a note or
 a rest, and each note a degree of the key, counted from the motif's origin and
@@ -295,7 +292,7 @@ Witness: `encodeBar` and `compileBar` (`packages/score/src/score.ts`) write the 
 A note states no length: it lasts to the next onset or the bar's end, which is what the band writes for every bass note.
 The pad and the stab are the same pairs with a chord for a value, `pad 0=ch 8=ch`, `stab 14=nx`, and the voicing a rule, each chord led from the one before it (#264).
 The form before it wrote a pitch as a degree of the chord's implied scale with an accidental, and an onset as an eighth with a `#` for the step after it.
-That `#` was a kludge for the sixteenths, reached no 32nds, and had no answer for triplets, and a degree token needs a scale, which `chordScale` gives only some chords (U3).
+That `#` was a kludge for the sixteenths, reached no 32nds, and had no answer for triplets, and a degree token needs a scale, which `chordScale` gives only some chords (U3, vitrified).
 A plain step is the same token at any depth of the bar's tree: the next power of two is a longer count, and a triplet an exact integer on a grid with a factor of 3 (#275).
 Counterexample: a bass note with no token, which the form cannot give, since a pitch above a root always exists; a bar whose text a second pass rewrites; a note that changes register on a resume.
 Test: `seam.test.ts` (`packages/score`), "gives every note the bass plays a token: a pitch above its chord’s root, and a ^ where it jumps an octave (U6)": every bass note of 3,200 bars, every preset, the tour and the glides, has a pair and reads back; "holds every bass note to the next onset and the last to the bar’s end, as the band writes it: a note has no length to state (U6)".
