@@ -1,7 +1,7 @@
-import { DRUM_NOTES } from '@jambot/engine';
+import { DRUM_NOTES, backbeatOf } from '@jambot/engine';
 import { METERS, type MeterName, gaps, meterOnSteps, parallel } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { BACKBEAT, HEMIOLA, LAYERS, type Layer, type Setting, barPlan } from './bar-plan.ts';
+import { HEMIOLA, LAYERS, type Layer, type Setting, barPlan } from './bar-plan.ts';
 
 const names = Object.keys(METERS) as MeterName[];
 const only = (layer: Layer): Record<Layer, boolean> => ({
@@ -58,7 +58,7 @@ describe('the bar’s plan', () => {
   it('gives every meter a backbeat of pulses after the downbeat, in order and inside the bar (finite: every meter)', () => {
     for (const name of names) {
       const pulses = METERS[name].heights.length;
-      const backbeat = BACKBEAT[name];
+      const backbeat = backbeatOf(METERS[name]);
       expect(backbeat.length).toBeGreaterThan(0);
       expect(backbeat).toEqual([...new Set(backbeat)].sort((a, b) => a - b));
       for (const pulse of backbeat) {
@@ -75,7 +75,7 @@ describe('the bar’s plan', () => {
       const drums = barPlan(setting(name, { layers: only('drums') }));
       const at = (note: number) =>
         drums.flatMap((o) => (o.layer === 'drums' && o.note === note ? [o.step] : []));
-      expect(at(DRUM_NOTES.snare)).toEqual(BACKBEAT[name].map((p) => starts[p]!));
+      expect(at(DRUM_NOTES.snare)).toEqual(backbeatOf(METERS[name]).map((p) => starts[p]!));
       expect(at(DRUM_NOTES.kick)[0]).toBe(0);
       expect(at(DRUM_NOTES.closedHat)).toHaveLength(meter.cycle);
     }

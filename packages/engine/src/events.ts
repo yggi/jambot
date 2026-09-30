@@ -217,11 +217,11 @@ export interface DoughNote extends Timbre {
 const isIntegerIn = (x: number, lo: number, hi: number) =>
   Number.isInteger(x) && x >= lo && x <= hi;
 
-/** What is wrong with a dough note, if anything, one line per problem. */
-export function doughProblems(note: DoughNote): string[] {
+/** What is wrong with a dough note, if anything, one line per problem, in a bar of `steps` steps. */
+export function doughProblems(note: DoughNote, steps = BAR_STEPS): string[] {
   const problems: string[] = [];
   const { part, role, step, note: pitch, length, accent, velocity, gain } = note;
-  if (!isIntegerIn(step, 0, 15)) problems.push(`step ${step} is not a step 0–15`);
+  if (!isIntegerIn(step, 0, steps - 1)) problems.push(`step ${step} is not a step 0–${steps - 1}`);
   if (!isIntegerIn(pitch, 0, 127)) problems.push(`note ${pitch} is not a MIDI note 0–127`);
   if (!(length > 0 && Number.isFinite(length)))
     problems.push(`length ${length} is not a positive, finite length`);
@@ -236,11 +236,14 @@ export function doughProblems(note: DoughNote): string[] {
   return problems;
 }
 
-/** What is wrong with a written note, if anything, one line per problem. */
-export function writtenProblems(written: WrittenNote): string[] {
+/**
+ * What is wrong with a written note, if anything, one line per problem. A
+ * bar has `steps` steps: 16 in 4/4, the meter's (`stepsOf`) in another.
+ */
+export function writtenProblems(written: WrittenNote, steps = BAR_STEPS): string[] {
   const problems: string[] = [];
   const { part, role, step, note, length, accent } = written;
-  if (!isIntegerIn(step, 0, 15)) problems.push(`step ${step} is not a step 0–15`);
+  if (!isIntegerIn(step, 0, steps - 1)) problems.push(`step ${step} is not a step 0–${steps - 1}`);
   if (!isIntegerIn(note, 0, 127)) problems.push(`note ${note} is not a MIDI note 0–127`);
   if (!(Number.isInteger(length) && length > 0))
     problems.push(`length ${length} is not a whole number of steps`);
