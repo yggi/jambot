@@ -1876,7 +1876,7 @@ run; the others have.
   - Not measured: another player, another browser, a touch screen, audio latency by a loopback, and whether a hand follows the band the same way as it follows a metronome.
 - **E22. The loop closed with no players** (Q7b, Q12; #237 step 0), in
   [`packages/engine/experiments/loop.ts`](../packages/engine/experiments/loop.ts)
-  (about 50 s with its variants; its test, a sample, about 4 s): the Muse hears the band's own lead as she hears a player, and her offer goes back into the band with F7's delay, so what she hears in bar k plays from bar k + 2.
+  (about 60 s with its variants and rates; its test, a sample, about 5 s): the Muse hears the band's own lead as she hears a player, and her offer goes back into the band with F7's delay, so what she hears in bar k plays from bar k + 2.
   - Two conditions over the same seeds: deaf, the band as it plays alone today, a Muse listening beside it whose offer is not fed back; and hearing, the loop closed.
   - Every preset at entropy 0, 0.3, 0.6 and 1, 3 seeds of 128 bars; the presets ordered by their harmony, which sets the licence's reach (Techno the narrowest, Swing jazz the widest).
   - The lead's notes are on the grid, so the nearest step reads each bar as the transport's phrase reading does, which the test holds on a sample.
@@ -1916,7 +1916,27 @@ run; the others have.
     It still recognises more than the deaf band, 62.1% against 52.1%, and half of that under an operator where the deaf band's is nearly all exact repeats: recognisable, not repetitive, and drifting.
     Whether that is where the owner hears beauty, or past it toward confusing, is for the ear (#237).
   - So a loop that copies what it hears locks on its first pattern, whatever holds or confirms it, and each of the delay's chains needs a transformation of its own to drift: variation on every bar, or an answer under an operator from the Muse (#237 step 4), not a copy.
-  - Not measured: weights for the band's voices beside the players', since no players play here; and the style's distance over time, which needs the critic (#15).
+  - By ear (#237), on seed 1's bars 32 to 47 at entropy 0.3 through the app's synth, the owner placed the conditions by the licence.
+    Techno is good in every condition, the loop that copies included, heard as a gradient from minimal to melodic techno.
+    Deep house is acceptable but leaning boring when it copies, better varied, pretty good varied on every bar, and disconnected deaf.
+    Swing jazz is very boring when it copies, still too boring varied, better deaf, and best by far varied on every bar.
+    So where the loop turns boring moves with the licence, and no condition was heard as confusing.
+  - The rate (`RATES`) generalises the closed conditions: the lead varies the offer ⌊p⌋ times a bar and once more by the chance of the rest (`timesVaried`, its own stream, `offerVariation`), so p = 0 plays as hearing and p = 1 as every bar, which the test holds, and past 1 the variations stack on one bar.
+    Over every preset at entropy 0.3, 3 seeds of 128 bars, p from 0 to 2:
+    - the recognised share falls from 86 to 92% at p = 0 to 52 to 62% at p = 2, the deaf band's level (44 to 62%), with Kendall's tau against p −1 in six presets and −0.90 in Ambient and Bossa nova;
+    - A B A B falls from 50 to 65% to 4 to 10% (tau −1, −0.81 in Ambient);
+    - the exact share drops at once, from 86 to 100% at p = 0 to 48 to 68% at p = 0.25, and stays about half after: a quarter of the bars varied at random already reaches both of the delay's chains, though the first motif still holds up to all of a preset's runs at p = 0.25 and 0.5 (Swing jazz's), and a third or fewer from p = 0.75;
+    - the distinct motifs rise from 7 to 11 a run to 24 to 49 by p = 1, and change little after (24 to 45 at p = 2).
+      So p moves the loop continuously from the locked loop to past the deaf band's recognition.
+  - By ear at p = 0.5, 1.5 and 2, beside the hearing (p = 0) and every-bar (p = 1) clips (#237):
+    - Techno is good at every p, each a different style.
+    - Deep house sounds best at p = 2 and too melodic below it; the owner's guess is that it wants shorter phrases, fewer notes a motif.
+    - Swing jazz sounds worst at p = 0.5, where the first motif still holds two of its three runs, and good at 1.5 and 2, where it holds none.
+      At 2 it is freer but not confusing: the motif is still heard through its variations, as the Muse still recognises 52% of its bars.
+    - So no preset turned confusing by p = 2, and the edge lies past it.
+  - The rate thins the lead, since one of its variations drops a note: over bars 32 to 127 of the same runs, the lead plays 4.3 to 5.7 notes a bar at p = 0 in every preset but Ambient (3.8) and Bossa nova (3.0), and 2.3 to 2.9 at p = 2 in all of them (Deep house 5.0 to 2.9).
+    So Deep house's preference for p = 2 doesn't yet separate more variation from fewer notes a motif.
+  - Not measured: weights for the band's voices beside the players', since no players play here; the style's distance over time, which needs the critic (#15); where past p = 2 the loop turns confusing; and the length of a motif apart from its variation.
 
 - **E23. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
   [`packages/engine/experiments/style-readback.ts`](../packages/engine/experiments/style-readback.ts),

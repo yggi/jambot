@@ -6,8 +6,10 @@ import {
   type LoopMeasure,
   VARIANTS,
   kendall,
+  RATES,
   loopRun,
   loops,
+  timesVaried,
   varyOffer,
 } from './loop.ts';
 
@@ -161,6 +163,51 @@ describe('the variants: the lock is the delay’s, not the hold’s, E22 (#237)'
     expect(column(sample, 'deaf', 'recognised')).toEqual([0.57, 0.63]);
     expect(column(sample, 'deaf', 'exact')).toEqual([0.84, 0.93]);
     expect(column(sample, 'deaf', 'oscillating')).toEqual([0.28, 0.38]);
+  });
+});
+
+describe('the rate the lead varies an offer at, p (E22, #237)', () => {
+  it('varies it ⌊p⌋ times a bar, and once more by the chance of the rest', () => {
+    const times = (p: number) => [...Array(400).keys()].map((bar) => timesVaried(`p=${p}`, 1, bar));
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(new Set(times(0))).toEqual(new Set([0]));
+    expect(new Set(times(1))).toEqual(new Set([1]));
+    expect(new Set(times(2))).toEqual(new Set([2]));
+    expect(new Set(times(1.5))).toEqual(new Set([1, 2]));
+    for (const p of [0.25, 0.5, 0.75, 1.5]) expect(mean(times(p)), `p=${p}`).toBeCloseTo(p, 1);
+  });
+
+  it('recognises less and oscillates less as p rises, from the locked loop to below the deaf band at two variations a bar (E22, Q7b)', () => {
+    /** The rates at entropy 0.3, at the ends of the licence, one seed of 96 bars. */
+    const sample = loops(0.3, 1, 96, ENDS, RATES);
+    const rates = RATES.map((r) => Number(r.slice(2)));
+    const along = (field: keyof LoopMeasure) =>
+      ENDS.map((p) =>
+        RATES.map((r) => {
+          const m = sample.find((m) => m.preset === p.name && m.condition === r)!;
+          return Math.round(100 * (m[field] as number)) / 100;
+        }),
+      );
+    expect(along('recognised')).toEqual([
+      [0.93, 0.72, 0.66, 0.65, 0.63, 0.55, 0.43],
+      [0.84, 0.67, 0.66, 0.63, 0.58, 0.56, 0.39],
+    ]);
+    expect(along('oscillating')).toEqual([
+      [0.62, 0.25, 0.28, 0.17, 0.15, 0.08, 0.08],
+      [0.38, 0.29, 0.3, 0.2, 0.15, 0.08, 0.04],
+    ]);
+    for (const shares of along('recognised')) expect(kendall(rates, shares)).toBe(-1);
+    // A quarter of the bars varied at random reaches both of the delay's chains: the first motif no longer holds Techno.
+    expect(along('firstHeld')).toEqual([
+      [1, 0, 0, 0, 0, 0, 0],
+      [1, 1, 0, 0, 0, 0, 0],
+    ]);
+  });
+
+  it('is the conditions it generalises at its ends: p=0 plays as hearing, p=1 as every bar (E22)', () => {
+    const [narrow] = ENDS;
+    expect(loopRun(narrow!, 1, 0.3, 32, 'p=0')).toEqual(loopRun(narrow!, 1, 0.3, 32, 'hearing'));
+    expect(loopRun(narrow!, 1, 0.3, 32, 'p=1')).toEqual(loopRun(narrow!, 1, 0.3, 32, 'every bar'));
   });
 });
 
