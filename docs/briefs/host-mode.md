@@ -242,7 +242,7 @@ refuses another version, since a cached app can be older than its host.
 - Host to client: `welcome` (the song, if playing, with the bars composed
   and not yet played; the bars ahead; the Muse; the token to come back by),
   `refused`, `start`, `track`, `bar`, `forecast` (the bars that changed,
-  `forecastDelta`), `muse`, `stop`, `pong`, `closed`.
+  `forecastDelta`), `muse`, `stop`, `finale`, `pong`, `closed`.
 - Client to host: `join` (version, name, and the token when it comes back),
   `judged` (bar, judgement), `forget`, `ping`, `leave`.
 - Said by a lobby, never by a peer, and so never read off the wire: `lost`

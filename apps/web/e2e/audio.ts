@@ -162,6 +162,16 @@ export const solo = (page: Page) => page.getByRole('button', { name: 'Solo', exa
 export const starts = (page: Page) =>
   page.evaluate(() => (window as unknown as { starts: Start[] }).starts);
 
+/**
+ * Whether a source is the metronome's click, which tells its weights apart
+ * by pitch: a square at 1800 Hz, a triangle at 1200, a sine at 800. No MIDI
+ * note is any of them. The count-in clicks whether the click is on or not.
+ */
+export const isClick = (s: Start) =>
+  (s.kind === 'square' && s.frequency === 1800) ||
+  (s.kind === 'triangle' && s.frequency === 1200) ||
+  (s.kind === 'sine' && s.frequency === 800);
+
 /** The distinct times sources were started at, in seconds on the audio clock. */
 export const onsets = async (page: Page) =>
   [...new Set((await starts(page)).map((s) => s.when))].sort((a, b) => a - b);

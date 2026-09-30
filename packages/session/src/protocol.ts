@@ -32,7 +32,7 @@ import type { ForecastDelta } from './forecast.ts';
  * travel as they are, so a change to their shape is a change to the
  * protocol, and bumps it (`protocol.test.ts` holds the shapes).
  */
-export const PROTOCOL = 6;
+export const PROTOCOL = 7;
 
 /** A bar as a host wrote it: everything its parts read, and the notes they wrote. */
 export interface WrittenBar extends BarEnv {
@@ -48,7 +48,11 @@ export interface SentBar {
 /** A song a host is playing: what a client needs to lay its steps. */
 export interface Song {
   readonly seed: number;
-  /** The host's clock time step 0 starts at. */
+  /**
+   * The host's clock time step 0 starts at. A host tells it a bar ahead, as
+   * its count-in starts, so a client has that bar to get ready in: to have
+   * its clocks paired and the first bars arrive.
+   */
   readonly start: number;
   readonly track: StyleTrack;
 }
@@ -93,6 +97,12 @@ export type HostMessage =
   | { readonly kind: 'forecast'; readonly forecast: ForecastDelta }
   | { readonly kind: 'muse'; readonly muse: MuseState }
   | { readonly kind: 'stop' }
+  /**
+   * The song ends on this bar, its last: the host composed a finale and
+   * plays through it, and a client does the same, then stops as the host's
+   * band does, with its last chord left to ring.
+   */
+  | { readonly kind: 'finale'; readonly bar: number }
   /**
    * The answer to a ping: the host's page clock as it answered, in seconds,
    * and its output's offset from it, the moment heard less the page clock,
@@ -141,6 +151,7 @@ const HOST_KINDS: ReadonlySet<string> = new Set([
   'forecast',
   'muse',
   'stop',
+  'finale',
   'pong',
   'closed',
 ]);

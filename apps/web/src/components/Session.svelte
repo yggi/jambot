@@ -16,6 +16,7 @@
   import {
     type Following,
     type Hosting,
+    type Phase,
     networkColours,
     sessionMain,
     sessionSub,
@@ -35,6 +36,8 @@
     playerId: string | null;
     /** Whether the band is playing or about to: the transport reads Stop. */
     playing: boolean;
+    /** Whether the song is being counted in, or ending on its last bar. */
+    phase?: Phase | null;
     /** The bar heard, or null before any: the glyph pings on each. */
     bar: number | null;
     ontoggle: () => void;
@@ -42,8 +45,18 @@
     onend: () => void;
   }
 
-  let { mode, hosting, following, players, playerId, playing, bar, ontoggle, onend }: Props =
-    $props();
+  let {
+    mode,
+    hosting,
+    following,
+    players,
+    playerId,
+    playing,
+    phase = null,
+    bar,
+    ontoggle,
+    onend,
+  }: Props = $props();
 
   let asking = $state(false);
 
@@ -70,7 +83,13 @@
       type="button"
       class="play"
       disabled={mode === 'client'}
-      title={mode === 'client' ? 'The host starts and stops the band' : undefined}
+      title={mode === 'client'
+        ? 'The host starts and stops the band'
+        : phase === 'ending'
+          ? 'Stop again to stop now'
+          : playing
+            ? 'Stops on a cadence: the band plays to the end of its next bar'
+            : undefined}
       aria-label={playing ? undefined : 'Start the band'}
       onclick={ontoggle}
     >
@@ -86,7 +105,7 @@
 <Card
   title="Session"
   main={transport}
-  sub={sessionSub(mode, hosting, following)}
+  sub={sessionSub(mode, hosting, following, phase)}
   glyph={network}
   live
 >

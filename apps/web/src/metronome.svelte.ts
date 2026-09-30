@@ -13,6 +13,7 @@
  */
 
 import { SONG_METER, type ScheduledStep, clicksOf } from '@jambot/engine';
+import type { Weight } from '@jambot/theory';
 import type { Output } from './audio/output.ts';
 import { Heard } from './heard.ts';
 
@@ -80,6 +81,19 @@ export class Metronome {
       });
     }
     this.#heard.drop(now - 1);
+  }
+
+  /**
+   * Click the count-in before a song, at each of its clicks' seconds on the
+   * output's clock: on whether the click is or not, since a count-in that
+   * isn't heard is no count-in. It is the same click, at the same volume.
+   */
+  countIn(output: Output, clicks: readonly { seconds: number; weight: Weight; beat: number }[]) {
+    if (!output.click) return;
+    for (const { seconds, weight, beat } of clicks) {
+      output.click(weight, seconds, this.#volume);
+      this.#heard.push(seconds, { pulse: beat, downbeat: weight === 'downbeat' });
+    }
   }
 
   /** Show the pulse heard by `seconds` on the output's clock. */

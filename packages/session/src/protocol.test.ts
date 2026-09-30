@@ -93,6 +93,7 @@ function travelling(): {
 describe('the session protocol', () => {
   it("reads each side's messages, and nothing else", () => {
     expect(readHostMessage({ kind: 'stop' })).toEqual({ kind: 'stop' });
+    expect(readHostMessage({ kind: 'finale', bar: 9 })).toEqual({ kind: 'finale', bar: 9 });
     expect(readClientMessage({ kind: 'ping', sent: 1 })).toEqual({ kind: 'ping', sent: 1 });
     for (const junk of [null, 3, 'stop', {}, { kind: 7 }, { kind: 'play' }]) {
       expect(readHostMessage(junk)).toBeNull();
@@ -204,9 +205,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 6 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them. */
+/** The shapes of version 7 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them. */
 const SHAPES = {
-  protocol: 6,
+  protocol: 7,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',

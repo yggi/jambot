@@ -163,7 +163,7 @@ style delta, nor reaches above the bar. Counterexample: a dynamic marking stated
 at a level `BarEnv` can't reach (a phrase, a section, the song); a style axis
 whose contribution to the base isn't a delta on a default but folded into one
 formula, the way `energy`'s scaling is today. Test: open — no decidable test
-until the hierarchy of dynamic markings, if any, has a shape. Source: the owner,
+until the hierarchy of dynamic markings, if any, has a shape. The style axes' wish (C10) is the same shape one level up: a default, and each player's displacement on it, within a licence. Source: the owner,
 illustrative, not a proposal to build (#107). Status: speculative. Lands in:
 #107, #116, if ever taken up.
 

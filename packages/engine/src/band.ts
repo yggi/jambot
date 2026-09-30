@@ -29,6 +29,7 @@ import { bass } from './bass.ts';
 import { comp } from './comp.ts';
 import { type LeadCarried, lead } from './lead.ts';
 import { drums } from './drums.ts';
+import { cadence, finale } from './ending.ts';
 import type { DoughNote, WrittenNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import { type HarmonicWeights, NO_HISTORY, foldBar } from './history.ts';
@@ -192,6 +193,36 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
     return { carried: { ...after, parts }, output: playBar(bar, written) };
   },
 };
+
+/**
+ * The band's last bar: the one it plays instead of the next, which closes
+ * the song on a cadence (`ending.ts`). It is decided as any bar is, so its
+ * section and key are the plan's, and then its chords are the cadence in
+ * that key. The band goes on from it as from any bar, its plan and history
+ * moved on, so a forecast from the state it leaves still runs; the parts
+ * carry what they did, as the song's end wrote nothing they lead from.
+ */
+export function finaleBar(
+  given: BandEnv,
+  carried: BandCarried,
+): { carried: BandCarried; bar: BandBar } {
+  const env = read(given);
+  const { here, carried: after } = step(env, carried);
+  const barInSection = env.bar % SECTION_BARS;
+  const chords = cadence(here.plan.key);
+  const bar: BarEnv = {
+    seed: env.seed,
+    bar: env.bar,
+    plan: here.plan,
+    barInSection,
+    style: env.style,
+    barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
+    chords,
+    next: [chords[1]!],
+    offer: env.offer,
+  };
+  return { carried: after, bar: playBar(bar, finale(bar, carried.parts)) };
+}
 
 /**
  * A bar's written notes as the band plays them: each through a performer.

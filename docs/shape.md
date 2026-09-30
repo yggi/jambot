@@ -10,25 +10,25 @@ It holds no claim of its own, so every cell points at ids, and the catalogue is 
 The level of an entry is a reading, since the entries name no level: where #116's table names the entry, that is used, and the rest is judged and can be moved.
 An id on this page that no catalogue defines is a mistake (`tooling/pawl.ts` does not check it yet, see "Keeping it").
 
-Counts are `pnpm ratchet` on `main` at 16c105d: 87 entries and 7 aliases, 68 measured (15 failing in some scope), 10 open, 3 derived, 2 speculative, 4 without evidence.
+Counts are `pnpm ratchet` on `main` at 21779fb: 87 entries and 8 aliases, 67 measured (15 failing in some scope), 11 open, 3 derived, 2 speculative, 4 without evidence.
 
 ## The grid of levels
 
 `both` is where an entry binds pitch and time together (a token grammar, a memory, a loop).
 An id in bold has a failing scope.
 
-| Level                | Pitch                    | Time                            | Both                                                 |
-| -------------------- | ------------------------ | ------------------------------- | ---------------------------------------------------- |
-| **grid**             | P5, **P10**              | T2, T3, T7, L1, L8              | C2, C7                                               |
-| **frame**            | P1, U3, **P9**           | **T6**, T10                     | F2                                                   |
-| **change of frame**  | U1                       | T4, T11, T14, T16, Q1b, Q1c, A6 | C1, F3, **Q1a**                                      |
-| **helix on a frame** | P3, P4, P6, P7, F6 (Q5b) | **T12**                         |                                                      |
-| **element**          | U2                       | L6, R4                          | U4, U6, S3, C4, F5                                   |
-| **turn**             | **S2**, Q4b              | T5, T10                         | S1                                                   |
-| **above the turn**   | C6 (Q9), A4 (Q7a), Q11   | T15, C3, C5                     | C8, **C9**, Q7b, Q8, Q12, A3, F1 (Q4a), F7 (Q6), Q5a |
-| **T and I**          | Q5c                      |                                 | U5                                                   |
-| **played through**   |                          | T17, T18, T19, T20, L2, L5      | L7, A1, Q1d, Q1e, Q3, Q10, A2, F4 (Q2)               |
-| **other**            | P2, P8                   | T1, T8, T9, T13, F8, A5         | L3, R1, R2, R3                                       |
+| Level                | Pitch                    | Time                            | Both                                                      |
+| -------------------- | ------------------------ | ------------------------------- | --------------------------------------------------------- |
+| **grid**             | P5, **P10**              | T2, T3, T7, L1, L8              | C2, C7                                                    |
+| **frame**            | P1, U3, **P9**           | **T6**, T10                     | F2                                                        |
+| **change of frame**  | U1                       | T4, T11, T14, T16, Q1b, Q1c, A6 | C1, F3, **Q1a**                                           |
+| **helix on a frame** | P3, P4, P6, P7, F6 (Q5b) | **T12**                         |                                                           |
+| **element**          | U2                       | L6, R4                          | U4, U6, S3, C4, F5                                        |
+| **turn**             | **S2**, Q4b              | T5, T10                         | S1                                                        |
+| **above the turn**   | C6 (Q9), A4 (Q7a), Q11   | T15, C3, C5                     | C8, **C9**, C10, Q7b, Q8, Q12, A3, F1 (Q4a), F7 (Q6), Q5a |
+| **T and I**          | Q5c                      |                                 | U5                                                        |
+| **played through**   |                          | T17, T18, T19, T20, L2, L5      | L7, A1, Q1d, Q1e, Q3, Q10, A2, F4 (Q2)                    |
+| **other**            | P2, P8                   | T1, T8, T9, T13, F8, A5         | L3, R1, R2, R3                                            |
 
 Read the grid for what is missing as much as for what is there:
 
@@ -77,7 +77,7 @@ An entry no test can fail is worse than none (law of meaningful tests).
 Those with no code and no test named:
 
 - **Inherited from the prototype or the brief, unmeasured:** L1, L3, L5, R1, R2, R3, P1, P8.
-- **Open, by name:** T2 (exact fractions), T3 (the 24 ppqn grid against real triplets, E5), A2 (every MIDI input has an IM), A5 (accents), F4 and Q2.
+- **Open, by name:** C10 (the style axes' wish as a displacement, #217), T2 (exact fractions), T3 (the 24 ppqn grid against real triplets, E5), A2 (every MIDI input has an IM), A5 (accents), F4 and Q2.
 - **The quine's own chain:** Q1d (MIDI out and back), Q1e (the analyzer on Jambot's own output), Q3 (a loss pinned to its layer).
   Q10's ladder has two rungs of six, and the external corpus is undecided.
 - **Speculative by design:** T20 (a longer chain of deltas), the analyzer's style following (A4).
