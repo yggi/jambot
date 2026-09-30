@@ -18,6 +18,7 @@ import type {
   Judgement,
   MuseOutput,
   Offer,
+  Remembered,
   StyleTrack,
   WrittenNote,
 } from '@jambot/engine';
@@ -26,11 +27,12 @@ import type { ForecastDelta } from './forecast.ts';
 /**
  * The protocol's version: a host and a client of different versions refuse
  * each other. The engine's `Motif`, `Judgement`, `BarEnv` (with its `Offer`),
- * `WrittenNote` and the Muse's log (`MuseOutput`, with what she recognised)
+ * `WrittenNote`, the Muse's log (`MuseOutput`, with what she recognised)
+ * and her memory (`Remembered`)
  * travel as they are, so a change to their shape is a change to the
  * protocol, and bumps it (`protocol.test.ts` holds the shapes).
  */
-export const PROTOCOL = 5;
+export const PROTOCOL = 6;
 
 /** A bar as a host wrote it: everything its parts read, and the notes they wrote. */
 export interface WrittenBar extends BarEnv {
@@ -53,10 +55,17 @@ export interface Song {
 
 /**
  * What the Muse offers, its latest judgements, the bars judged on clients
- * it dropped, and each player's name by id, to read their sources by.
+ * it dropped, and each player's name by id, to read their sources by; and
+ * the motifs she remembers, weighed as of the last bar she read (`memoryAt`
+ * fades them to a later one), with the last bar anyone played in.
  */
 export interface MuseState {
   readonly offer: Offer | null;
+  readonly memory: readonly Remembered[];
+  /** The bar `memory` is weighed at, or null before she has read one. */
+  readonly asOf: number | null;
+  /** The last bar anyone played in, or null before anyone has. */
+  readonly lastPlayed: number | null;
   readonly log: readonly MuseOutput[];
   readonly dropped: readonly DroppedJudgement[];
   readonly players: Readonly<Record<string, string>>;

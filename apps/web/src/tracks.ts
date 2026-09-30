@@ -26,7 +26,7 @@ import { BAR_STEPS, barAt, barStart } from '@jambot/engine';
 import { playerSource, sourceName } from '@jambot/session';
 import { type Credit, credit, sourceColour } from './attribution.ts';
 import { type Hud, leadStatus, styleStatus } from './hud.ts';
-import { type Mix, sounds } from './mix.ts';
+import { type Mix, level, sounds } from './mix.ts';
 import { PATTERN_BARS, type PatternBar, type PatternNote, playedIn } from './pattern.ts';
 import type { AlongPart, HumanNote } from './player.svelte.ts';
 import { type Performer, PERFORMERS, type SoundingNotes } from './sounding.ts';
@@ -55,6 +55,8 @@ export interface PerformerView {
   readonly soloed: boolean;
   /** Whether it sounds on this device (`Mix`). */
   readonly sounds: boolean;
+  /** Its level on this device, 0 to 1 (`Mix`). */
+  readonly level: number;
 }
 
 /** A player's lane: one source on one part. */
@@ -67,6 +69,8 @@ export interface PlayerView {
   readonly colour: number;
   /** Whether its notes are a cell as the Muse heard it, rows of its degrees, not the notes played. */
   readonly heardAs: boolean;
+  /** Whether this device's player played it, as against a cell heard from another player. */
+  readonly local: boolean;
   readonly notes: readonly LaneNote[];
   /** The bar shown the Muse took from it, from 0, or null. */
   readonly taken: number | null;
@@ -132,6 +136,7 @@ export function tracksOf(input: TracksInput): TracksView {
     muted: mix.muted.includes(performer),
     soloed: mix.soloed.includes(performer),
     sounds: sounds(mix, performer),
+    level: level(mix, performer),
   }));
 
   const motif = hud.muse.motif;
@@ -157,6 +162,7 @@ export function tracksOf(input: TracksInput): TracksView {
             name: sourceName(source, players),
             colour: sourceColour(source, players),
             heardAs: false,
+            local: true,
             notes: [],
             taken: takenFrom(part, source),
           });
@@ -173,6 +179,7 @@ export function tracksOf(input: TracksInput): TracksView {
             name: `${motif.name}, as the Muse heard it`,
             colour: motif.colour,
             heardAs: true,
+            local: false,
             taken: motif.bar - first,
             notes: motif.notes.map((n) => ({
               step: n.step + (motif.bar - first) * BAR_STEPS,

@@ -78,7 +78,15 @@ export class HostSession {
   #keep: HostKeep | null;
   #epoch: () => number;
   #forecast: readonly ForecastBar[] = [];
-  #muse: MuseState = { offer: null, log: [], dropped: [], players: {} };
+  #muse: MuseState = {
+    offer: null,
+    memory: [],
+    asOf: null,
+    lastPlayed: null,
+    log: [],
+    dropped: [],
+    players: {},
+  };
   #sweep: ReturnType<typeof setInterval> | null = null;
 
   /**
@@ -132,6 +140,9 @@ export class HostSession {
     this.#forecast = this.#player.ahead;
     this.#muse = {
       offer: this.#player.offer,
+      memory: this.#player.memory,
+      asOf: this.#player.museBar,
+      lastPlayed: this.#player.lastPlayed,
       log: this.#player.museLog,
       dropped: this.#player.dropped,
       players: {},

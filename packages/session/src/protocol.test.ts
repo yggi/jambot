@@ -3,6 +3,7 @@ import {
   type Judgement,
   LOOKAHEAD,
   type MuseOutput,
+  type Remembered,
   type TransportEnv,
   holding,
   judgeBar,
@@ -36,7 +37,12 @@ const shapeOf = (values: readonly unknown[]) =>
  * motif heard in bar 2 so that bars carry an offer and accents, and the
  * judgements of the notes heard.
  */
-function travelling(): { bars: SentBar[]; judgements: Judgement[]; log: MuseOutput[] } {
+function travelling(): {
+  bars: SentBar[];
+  judgements: Judgement[];
+  log: MuseOutput[];
+  memory: Remembered[];
+} {
   const env: TransportEnv = {
     seed: 3,
     start: 0,
@@ -56,6 +62,7 @@ function travelling(): { bars: SentBar[]; judgements: Judgement[]; log: MuseOutp
   let carried = transport.initial;
   const bars: SentBar[] = [];
   const log: MuseOutput[] = [];
+  let memory: Remembered[] = [];
   for (let t = 0; t < 60; t += 0.025) {
     const due =
       carried && heard.length > 0 && carried.head.step > 16 * (5 - heard.length) + 2
@@ -65,6 +72,9 @@ function travelling(): { bars: SentBar[]; judgements: Judgement[]; log: MuseOutp
     carried = next.carried;
     bars.push(...sentBars(next.output.composed, next.output.steps, carried!.head, env.track));
     log.push(...next.output.judged);
+    // What she remembers while she does: it fades out of a minute's end.
+    const now = carried?.listening.muse.memory ?? [];
+    if (now.length > 0) memory = [...now];
   }
   const notes = [69, 72, 76, 74].map((note, i) => ({
     note,
@@ -77,7 +87,7 @@ function travelling(): { bars: SentBar[]; judgements: Judgement[]; log: MuseOutp
     ...judgeBar(notes, 0, { tonic: 9, mode: 'aeolian' }),
     ...judgeBar(notes.slice(0, 2), 0, { tonic: 9, mode: 'aeolian' }),
   ];
-  return { bars, judgements, log };
+  return { bars, judgements, log, memory };
 }
 
 describe('the session protocol', () => {
@@ -162,13 +172,15 @@ describe('the session protocol', () => {
     // A bar, a judgement and the Muse's log carry the engine's own types. If this fails,
     // their shape changed: bump PROTOCOL, so a host and a client of
     // different builds refuse each other, and record the shape here.
-    const { bars, judgements, log } = travelling();
+    const { bars, judgements, log, memory } = travelling();
+    expect(memory.length).toBeGreaterThan(0);
     expect(log.some((l) => l.recognised.length > 0)).toBe(true);
     expect({
       protocol: PROTOCOL,
       bar: shapeOf(bars),
       judgement: shapeOf(judgements),
       log: shapeOf(log),
+      memory: shapeOf(memory),
     }).toEqual(SHAPES);
   });
 
@@ -192,9 +204,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 5 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them. */
+/** The shapes of version 6 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them. */
 const SHAPES = {
-  protocol: 5,
+  protocol: 6,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -296,5 +308,17 @@ const SHAPES = {
     'recognised[].op.rev: boolean',
     'recognised[].op.strans: number',
     'recognised[].source: string',
+  ],
+  memory: [
+    'bar: number',
+    'heard: number',
+    'motif.accents[]: number',
+    'motif.accidentals[]: number',
+    'motif.cycle: number',
+    'motif.degrees[]: null',
+    'motif.degrees[]: number',
+    'motif.onsets[]: number',
+    'source: string',
+    'weight: number',
   ],
 };

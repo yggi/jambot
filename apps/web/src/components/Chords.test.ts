@@ -33,7 +33,7 @@ const hudOf = (here: BarView, beat: number | null, over: Partial<Hud> = {}): Hud
   },
   heading: { tonic: 9, mode: 'aeolian' },
   headingMelodic: 'plain',
-  muse: { motif: null, log: [] },
+  muse: { motif: null, log: [], memory: [], quiet: null },
   ...over,
 });
 const groove = bar(9);

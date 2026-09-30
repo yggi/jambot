@@ -21,6 +21,10 @@
     /** What names the lane to a screen reader. */
     label: string;
     notes: readonly LaneNote[];
+    /** A backdrop of dim notes under its own, on the same scale: the band's under a player's. */
+    under?: readonly LaneNote[];
+    /** Taller: more room for the notes. */
+    tall?: boolean;
     /** How many steps the lane spans. */
     span: number;
     /** The notes' colour, a player's, or null for the band's own. */
@@ -37,6 +41,8 @@
   let {
     label,
     notes,
+    under = [],
+    tall = false,
     span,
     colour = null,
     credited = [],
@@ -46,12 +52,12 @@
   }: Props = $props();
 
   const W = 640;
-  const H = 30;
+  const H = $derived(tall ? 60 : 30);
   const x = (step: number) => (step / span) * W;
   const bars = $derived(span / BAR_STEPS);
-  const low = $derived(Math.min(...notes.map((n) => n.note)));
-  const high = $derived(Math.max(...notes.map((n) => n.note)));
-  const row = $derived(Math.max(2, Math.min(6, (H - 4) / (high - low + 1))));
+  const low = $derived(Math.min(...[...notes, ...under].map((n) => n.note)));
+  const high = $derived(Math.max(...[...notes, ...under].map((n) => n.note)));
+  const row = $derived(Math.max(2, Math.min(tall ? 10 : 6, (H - 4) / (high - low + 1))));
   const y = (note: number) =>
     high === low ? (H - row) / 2 : 2 + ((high - note) / (high - low)) * (H - 4 - row);
   const creditOf = $derived(new Map(credited.map((c) => [c.at, c.colour])));
@@ -65,6 +71,7 @@
 <svg
   class="lane"
   class:faint={!sounds}
+  class:tall
   viewBox="0 0 {W} {H}"
   preserveAspectRatio="none"
   role="img"
@@ -82,6 +89,16 @@
   {/each}
   {#each { length: span / 4 }, beat (beat)}
     <line class:bar={beat % 4 === 0} x1={x(beat * 4)} x2={x(beat * 4)} y1="0" y2={H} />
+  {/each}
+  {#each under as note, i (i)}
+    <rect
+      class="note under"
+      x={x(note.step) + 0.5}
+      y={y(note.note)}
+      width={Math.max(3, x(note.length) - 1)}
+      height={row}
+      rx="1"
+    />
   {/each}
   {#each notes as note, i (i)}
     <rect
@@ -118,8 +135,15 @@
     background: var(--surface);
     border-radius: 6px;
   }
+  .lane.tall {
+    height: 72px;
+  }
   .faint .note {
     opacity: 0.3;
+  }
+  .note.under {
+    fill: var(--muted);
+    opacity: 0.35;
   }
   line {
     stroke: var(--line);

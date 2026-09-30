@@ -31,8 +31,10 @@ import {
   type DroppedJudgement,
   type MelodicScale,
   type MuseOutput,
+  MUSE,
   type Offer,
   PRESETS,
+  type Remembered,
   type SectionType,
   type Style,
   type StyleTrack,
@@ -43,11 +45,12 @@ import {
   chordNumeral,
   keyHelix,
   leadRests,
+  memoryAt,
   melodicHelix,
   stepInBar,
   styleAt,
 } from '@jambot/engine';
-import { positions } from '@jambot/theory';
+import { positions, recognise } from '@jambot/theory';
 import { sourceName } from '@jambot/session';
 import { type Attribution, type Credit, credit } from './attribution.ts';
 import { targetOf, unnudged } from './conductor.ts';
@@ -160,8 +163,30 @@ export interface MuseLine {
   readonly taken: boolean;
 }
 
+/** A motif the Muse remembers, as the card draws it: whose, how strongly, how often heard. */
+export interface MemoryView extends MotifView {
+  /** How much it weighs, from 0 to 1 (a motif heard twice in a row is near 0.9). */
+  readonly strength: number;
+  /** In how many bars it was heard. */
+  readonly heard: number;
+  /** Heard in two bars or more. */
+  readonly confirmed: boolean;
+  /** Whether it is the motif on offer. */
+  readonly offered: boolean;
+}
+
+/** Bars of silence the Muse has kept an offer through, of the bars she keeps it. */
+export interface QuietView {
+  readonly bars: number;
+  readonly of: number;
+}
+
 export interface MuseView {
   readonly motif: MotifView | null;
+  /** What she remembers, the strongest first. */
+  readonly memory: readonly MemoryView[];
+  /** How long since anyone played, while she holds an offer; null otherwise. */
+  readonly quiet: QuietView | null;
   /** The latest first. */
   readonly log: readonly MuseLine[];
 }
@@ -207,6 +232,11 @@ export interface HudInput {
     readonly log: readonly MuseOutput[];
     readonly dropped?: readonly DroppedJudgement[];
     readonly players?: Readonly<Record<string, string>>;
+    /** The motifs she remembers, weighed as of the bar `asOf` (`memoryAt`). */
+    readonly memory?: readonly Remembered[];
+    readonly asOf?: number | null;
+    /** The last bar anyone played in. */
+    readonly lastPlayed?: number | null;
   };
 }
 
@@ -304,7 +334,7 @@ export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): H
     style: styleView(track, heard ?? 0, tempoNudge),
     heading: bars.at(-1)?.plan.key ?? null,
     headingMelodic: bars.at(-1)?.plan.melodic ?? null,
-    muse: museView(muse, named, credited),
+    muse: museView(muse, named, credited, heard === null ? null : barAt(heard)),
   };
 }
 
@@ -313,9 +343,31 @@ function museView(
   muse: HudInput['muse'],
   named: (source: string) => string,
   credited: (attribution: Attribution) => Credit,
+  heardBar: number | null,
 ): MuseView {
+  const asOf = muse?.asOf ?? null;
+  const offer = muse?.offer ?? null;
+  // Faded to the bar heard, or held at the bar she read while that is ahead.
+  const at = Math.max(asOf ?? 0, heardBar ?? 0);
+  const silent = muse?.lastPlayed == null ? null : Math.max(0, at - muse.lastPlayed);
   return {
-    motif: muse?.offer ? motifView(muse.offer, credited) : null,
+    motif: offer ? motifView(offer, credited) : null,
+    memory:
+      asOf === null
+        ? []
+        : memoryAt(muse?.memory ?? [], asOf, at)
+            .sort((a, b) => b.weight - a.weight)
+            .map((e) => ({
+              ...motifView({ motif: e.motif, source: e.source, bar: e.bar, level: 0 }, credited),
+              strength: Math.min(1, e.weight / 2),
+              heard: e.heard,
+              confirmed: e.heard >= 2,
+              offered: offer !== null && recognise(offer.motif, e.motif) !== null,
+            })),
+    quiet:
+      offer && silent !== null
+        ? { bars: Math.min(silent, MUSE.forgetAfter), of: MUSE.forgetAfter }
+        : null,
     log: [
       ...(muse?.log ?? []).flatMap((j) => museLines(j, named)),
       ...(muse?.dropped ?? []).map((d) => droppedLine(d, named)),

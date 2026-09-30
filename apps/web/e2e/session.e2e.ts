@@ -10,6 +10,7 @@ import {
   masterCalls,
   openStyle,
   stalls,
+  openCard,
 } from './audio.ts';
 
 /**
@@ -451,18 +452,17 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
     await client.waitForTimeout(step * 4 * 1000 - 60);
   }
   const took = /: Took a 3-note motif from Ada's computer keys\./;
+  await openCard(page, 'Muse');
+  await openCard(client, 'Muse');
   await expect(page.getByText(took)).toBeVisible({ timeout: 8000 });
   // The client shows the host's Muse too.
   await expect(client.getByText(took)).toBeVisible();
   // And both show the lead playing it, named by its player: the bars carry it, not a message of its own (#164).
   const playing = /Lead is playing the motif from Ada's computer keys, heard in bar \d+\./;
   for (const screen of [page, client])
-    await expect(screen.locator('details[aria-label="Tracks"] summary .sub')).toContainText(
-      playing,
-      {
-        timeout: 8000,
-      },
-    );
+    await expect(screen.locator('details[aria-label="Band"] summary .sub')).toContainText(playing, {
+      timeout: 8000,
+    });
 });
 
 test('a second host cannot take a session name that is open', async ({ page, context }) => {

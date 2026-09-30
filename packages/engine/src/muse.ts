@@ -370,7 +370,7 @@ export const MOTIF_DECAY = 0.85;
  * `MUSE.forgetAfter` bars on, and half a bar's fade more, so it is kept as
  * long as an offer outlasts silence and no longer.
  */
-const MOTIF_FLOOR = MOTIF_DECAY ** (MUSE.forgetAfter + 0.5);
+export const MOTIF_FLOOR = MOTIF_DECAY ** (MUSE.forgetAfter + 0.5);
 
 /** A motif the Muse remembers: as first heard, from whom and when, and how much it weighs now. */
 export interface Remembered {
@@ -380,6 +380,19 @@ export interface Remembered {
   readonly weight: number;
   /** How many bars it was heard in: twice or more, it is confirmed. */
   readonly heard: number;
+}
+
+/**
+ * The memory as it weighs at `bar`, when it was read at `asOf`: each weight
+ * faded by `MOTIF_DECAY` for the bars between, and what fell below
+ * `MOTIF_FLOOR` forgotten, as the Muse's own next bar would have it. A
+ * screen reads it between her bars.
+ */
+export function memoryAt(memory: readonly Remembered[], asOf: number, bar: number): Remembered[] {
+  const bars = Math.max(0, bar - asOf);
+  return memory
+    .map((e) => ({ ...e, weight: e.weight * MOTIF_DECAY ** bars }))
+    .filter((e) => e.weight >= MOTIF_FLOOR);
 }
 
 /** A motif heard as one remembered: who played it, whose it was and when, and under which operator. */

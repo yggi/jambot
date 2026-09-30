@@ -11,6 +11,7 @@ import {
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
+import { EVEN_MIX, type Mix, withLevel } from './mix.ts';
 import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Surroundings } from './player.svelte.ts';
 
@@ -24,7 +25,7 @@ function surroundings() {
     resumes: 0,
     resolve: () => {},
     played: 0,
-    plays: [] as { part: string; note: number; seconds: number }[],
+    plays: [] as { part: string; note: number; velocity: number; seconds: number }[],
     silenced: 0,
     panics: 0,
     tickers: [] as { tick: () => void; stopped: boolean }[],
@@ -43,9 +44,9 @@ function surroundings() {
       world.resumes++;
       return new Promise<void>((resolve) => (world.resolve = resolve));
     },
-    play: (part, note, _velocity, seconds) => {
+    play: (part, note, velocity, seconds) => {
       world.played++;
-      world.plays.push({ part, note, seconds });
+      world.plays.push({ part, note, velocity, seconds });
     },
     silence: () => void world.silenced++,
     panic: () => void world.panics++,
@@ -541,7 +542,7 @@ describe('the player', () => {
 
     it('shows the Muse on the screen: the motif on offer, the log, and the lead playing it (#79)', async () => {
       const { world, player, run } = await playing();
-      expect(player.hud.muse).toEqual({ motif: null, log: [] });
+      expect(player.hud.muse).toEqual({ motif: null, log: [], memory: [], quiet: null });
       playMotif(world, player, run, 2);
       run(8);
       world.frames[0]!.follow();
@@ -555,6 +556,11 @@ describe('the player', () => {
         lead: 'motif',
         motif: { source: 'the computer keys', bar: 2 },
       });
+      // She remembers it once, offers it, and has heard no silence yet.
+      expect(player.hud.muse.memory).toMatchObject([
+        { source: 'the computer keys', bar: 2, heard: 1, confirmed: false, offered: true },
+      ]);
+      expect(player.hud.muse.quiet).toMatchObject({ of: 16 });
       player.forgetMotif();
       run(9);
       world.frames[0]!.follow();
@@ -670,7 +676,7 @@ describe('the player', () => {
     it('keeps a muted performer from the output and from sounding, but not from the pattern (#119)', async () => {
       const { world, s } = surroundings();
       const player = new Player(s);
-      player.mix = { muted: ['drums'], soloed: [] };
+      player.mix = { ...EVEN_MIX, muted: ['drums'] };
       void player.start();
       world.resolve();
       await settle();
@@ -690,7 +696,7 @@ describe('the player', () => {
     it('sounds only what is soloed, and all again once the solo is lifted', async () => {
       const { world, s } = surroundings();
       const player = new Player(s);
-      player.mix = { muted: [], soloed: ['bass'] };
+      player.mix = { ...EVEN_MIX, soloed: ['bass'] };
       void player.start();
       world.resolve();
       await settle();
@@ -702,11 +708,48 @@ describe('the player', () => {
       };
       run(10);
       expect(new Set(world.plays.map((p) => p.part))).toEqual(new Set(['bass']));
-      player.mix = { muted: [], soloed: [] };
+      player.mix = EVEN_MIX;
       world.plays = [];
       run(10);
       const parts = new Set(world.plays.map((p) => p.part));
       for (const part of ['drums', 'bass', 'lead']) expect(parts).toContain(part);
+    });
+  });
+
+  describe('the level of each performer', () => {
+    const played = async (mix: Mix) => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      player.mix = mix;
+      void player.start();
+      world.resolve();
+      await settle();
+      for (let t = 0; t < 10; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+      return world.plays;
+    };
+
+    it('scales the velocity of one performer’s notes and none other’s, note for note', async () => {
+      const whole = await played(EVEN_MIX);
+      const halved = await played(withLevel(EVEN_MIX, 'bass', 0.5));
+      const of = (plays: typeof whole, part: string) => plays.filter((p) => p.part === part);
+      expect(of(halved, 'bass')).toHaveLength(of(whole, 'bass').length);
+      expect(of(whole, 'bass').length).toBeGreaterThan(0);
+      of(whole, 'bass').forEach((p, i) => {
+        expect(of(halved, 'bass')[i]!.velocity).toBe(Math.max(1, Math.round(p.velocity * 0.5)));
+        expect(of(halved, 'bass')[i]!.note).toBe(p.note);
+      });
+      expect(of(halved, 'drums').map((p) => p.velocity)).toEqual(
+        of(whole, 'drums').map((p) => p.velocity),
+      );
+    });
+
+    it('plays nothing of a performer whose level is none, and all the others', async () => {
+      const plays = await played(withLevel(EVEN_MIX, 'drums', 0));
+      expect(plays.filter((p) => p.part === 'drums')).toEqual([]);
+      expect(plays.filter((p) => p.part === 'bass').length).toBeGreaterThan(0);
     });
   });
 
