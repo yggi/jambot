@@ -14,7 +14,10 @@ Where Jambot is heading. The concept and the reasoning behind it are in
   from the style, the lead follows the style and walks a melodic scale, the
   tracks are one grid, and the Muse reads a sloppy hand.
   The round after it is #212: the band's screen as cards, a summary over
-  details (`Card`), the metrum first.
+  details (`Card`). The style, metrum, key, plan, chords, band, play and Muse
+  cards are in, closed cards are compact on a phone on its side, and the lobby
+  is built of cards under a title card with a theme setting (#254).
+  Left: `Level` removed, and the visual details of Band, Play and Muse.
 - **v1: event-ready**, by Christmas 2026. This is the deadline. v1 is the full
   bucket: everything on this roadmap, the live track and the learning track
   alike.
@@ -66,7 +69,10 @@ These run in parallel:
   ahead of the evidence and building around the decision later. How the tracks
   feed each other is [the ratchet](ratchet.md), and the constraints, their
   tensions and the experiments that measure them are in
-  [`language.md`](language.md).
+  [`language.md`](language.md), whose entries sit in one file per layer (time,
+  pitch, state, surface, analysis). [`shape.md`](shape.md) lays the catalogues
+  over the code, one row per level, and lists what is decided and not yet built
+  (#255).
 - **Rebuild from the prototype**, test-first, with the prototype as a baseline
   for orientation:
   - the theory primitive in `packages/theory` (#28, done);

@@ -45,6 +45,9 @@ Two things run today:
     It has presets and sliders, a key picker with the circle of fifths and a
     scale view, MIDI in and out, on-screen keys and drum pads, and the Muse
     panel, which names whose motif the lead is playing.
+    Every part of the band's screen is a card, a summary over details, and the
+    lobby is built of the same cards under a title card, with a theme (system,
+    dark or light) among its settings.
     It can host or join a session across the tabs of one browser or, through
     [`apps/lobby`](apps/lobby), across machines.
     A client whose link drops rejoins as the same player, and a host that
@@ -52,8 +55,10 @@ Two things run today:
 
   Where the design isn't settled yet, such as the score's text format and its
   relation to [Strudel](https://strudel.cc), it is worked out as a catalogue of
-  constraints before any syntax: see [`docs/language.md`](docs/language.md) and
-  the method behind it, [`docs/ratchet.md`](docs/ratchet.md).
+  constraints before any syntax: see [`docs/language.md`](docs/language.md) (its
+  entries are split by layer), [`docs/shape.md`](docs/shape.md), which sets the
+  catalogues against the code, and the method behind it,
+  [`docs/ratchet.md`](docs/ratchet.md).
 
 Where the project is heading, and the two milestones on the way, are in the
 [roadmap](docs/ROADMAP.md).
