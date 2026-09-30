@@ -5,9 +5,10 @@
  * where the section starts, and the key the players wish for. It advances
  * the form, moves the key one step toward the wish (`nextKey`), picks the
  * melodic scale the lead walks (the wish's where the style reaches it, else
- * the style's default, #209), and picks the section's theme. The band holds
+ * the style's default, #209), takes the meter asked for (#261), and picks
+ * the section's theme. The band holds
  * the plan for the section's eight bars, so a new key, scale or theme
- * arrives only at a boundary.
+ * arrives only at a boundary, as does a new meter.
  *
  * Where the players wish for no tonic and the mode playing, the band may move
  * the key itself (#169): the harmony's reach (`harmonicReach`) gives how far,
@@ -22,12 +23,13 @@
  * ten). A build is always built afresh.
  */
 
-import { fifthsIndex, mod } from '@jambot/theory';
+import { type Meter, fifthsIndex, mod } from '@jambot/theory';
 import { leaning } from './fading.ts';
 import { type Section, form } from './form.ts';
 import { type HarmonicWeights, keyWeight } from './history.ts';
 import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from './key.ts';
 import { harmonicReach, licenceOf, melodicDefault } from './licence.ts';
+import { SONG_METER } from './events.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
@@ -42,12 +44,20 @@ export interface PlanEnv {
   readonly wish: KeyWish;
   /** What the band's harmony has sounded lately, which its own moves lean toward. */
   readonly history: HarmonicWeights;
+  /** The meter asked for, which the plan takes at a section's boundary as it takes the key (#261). */
+  readonly meter?: Meter | undefined;
 }
 
-/** What a section plays: where it stands in the form, its key, the lead's melodic scale over it, and its theme. */
+/**
+ * What a section plays: where it stands in the form, its key and its meter,
+ * the lead's melodic scale over the key, and its theme. The key and the
+ * meter are its two frames (C3), held for its eight bars.
+ */
 export interface Plan {
   readonly section: Section;
   readonly key: Key;
+  /** The meter of each of the section's bars (#261). */
+  readonly meter: Meter;
   readonly melodic: MelodicScale;
   readonly theme: Theme;
 }
@@ -98,7 +108,7 @@ export function bandWish(
 export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
   initial: { before: null, themes: { A: null, B: null } },
   advance(env, { before, themes }) {
-    const { seed, index, style, wish } = env;
+    const { seed, index, style, wish, meter = SONG_METER } = env;
     const section = form.advance({ seed, index, style }, before?.section ?? null, null).output;
     const from = before?.key ?? INITIAL_KEY;
     // The players' wish wins: a tonic, or a mode other than the one playing.
@@ -126,7 +136,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             entropy: style.entropy,
             a: themes.A,
           });
-    const plan = { section, key, melodic, theme };
+    const plan = { section, key, meter, melodic, theme };
     return {
       carried: { before: plan, themes: kind === 'build' ? themes : { ...themes, [kind]: theme } },
       output: plan,

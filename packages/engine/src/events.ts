@@ -92,6 +92,29 @@ export interface MeterChange {
   readonly meter: Meter;
 }
 
+/** Whether two meters are the same: a meter that came over the wire is a copy of the named one. */
+export const sameMeter = (x: Meter, y: Meter): boolean =>
+  x.cycle === y.cycle &&
+  x.heights.length === y.heights.length &&
+  x.heights.every((h, i) => h === y.heights[i]);
+
+/**
+ * The changes with bar `bar` in `meter`: the same where the meter holds, one
+ * more where it changes, and the first replaced where the song starts in
+ * another meter than the default (bar 0 is the first change, always).
+ */
+export function withMeter(
+  changes: readonly MeterChange[],
+  bar: number,
+  meter: Meter,
+): readonly MeterChange[] {
+  const last = changes.at(-1)!;
+  if (sameMeter(last.meter, meter)) return changes;
+  return last.bar === bar
+    ? [...changes.slice(0, -1), { bar, meter }]
+    : [...changes, { bar, meter }];
+}
+
 /** The readings of a song's clock: where bars and beats fall on its steps. */
 export interface SongClock {
   /** The bar a position is in, counted from the song's start. */

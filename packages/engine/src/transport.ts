@@ -54,10 +54,19 @@ import {
   passBar,
 } from './band.ts';
 import { type BarChord, chordAt } from './chords.ts';
-import { type DoughNote, barAt, barStart, beatAt, beatStart, stepInBar } from './events.ts';
+import {
+  type DoughNote,
+  type MeterChange,
+  SONG_CLOCK,
+  SONG_METER,
+  type SongClock,
+  clockOf,
+  withMeter,
+} from './events.ts';
 import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import type { Meter } from '@jambot/theory';
 import {
   type HeardNote,
   type Judgement,
@@ -70,7 +79,7 @@ import {
   muse,
 } from './muse.ts';
 import { type StyleTrack, styleAt, valueAt, writtenStyle } from './style.ts';
-import { swingMap, swingOf } from './swing.ts';
+import { swingMapAt, swingOf } from './swing.ts';
 import { type Anchor, stepSeconds, tempoMap } from './tempo.ts';
 
 /** How far ahead of the clock steps are scheduled, in seconds. */
@@ -104,6 +113,8 @@ export interface TransportEnv {
   readonly track: StyleTrack;
   /** The key the players wish for, which the band moves toward at a section boundary. */
   readonly wish: KeyWish;
+  /** The meter asked for, which the band takes at a section boundary (#261); 4/4 where none is. */
+  readonly meter?: Meter | undefined;
 }
 
 /** A bar a player's notes were judged in elsewhere, such as on a client, and the judgement. */
@@ -180,6 +191,12 @@ export interface BarSource<Carried, Arrived = never> {
   /** The source past a bar the clock has wholly passed. */
   pass(env: BandEnv, carried: Carried): Carried;
   /**
+   * The meter of bar `env.bar` before it is composed, where the source
+   * knows it: the transport needs a bar's length to say whether the clock
+   * has wholly passed it. None where it doesn't, and the meter before holds.
+   */
+  meterOf?(env: BandEnv, carried: Carried): Meter | null;
+  /**
    * The bar `env.bar` as the song's last, closing it, when the source
    * composes the song. A source that only plays what it is sent has none.
    */
@@ -196,6 +213,14 @@ export const bandSource: BarSource<BandCarried> = {
     return { carried: next, bar: output };
   },
   pass: passBar,
+  meterOf: (env, carried) =>
+    carried.next
+      ? carried.next.bar === env.bar
+        ? carried.next.plan.meter
+        : null
+      : env.bar === 0
+        ? (env.meter ?? SONG_METER)
+        : null,
   finale: finaleBar,
 };
 
@@ -233,6 +258,8 @@ export interface TransportCarried<Source = BandCarried> {
   readonly beat: { readonly index: number; readonly swing: number } | null;
   readonly listening: Listening;
   readonly finale: Finale;
+  /** Where the song's meter changes, as far as its bars are composed (#261): the first at bar 0. */
+  readonly meters: readonly MeterChange[];
 }
 
 export interface ScheduledStep {
@@ -246,6 +273,8 @@ export interface ScheduledStep {
   readonly length: number;
   /** The swing its beat plays with, held from where the beat starts. */
   readonly swing: number;
+  /** The beat the step is in, where it starts and how long it is, in steps: what its swing is held over. */
+  readonly pulse: { readonly start: number; readonly length: number };
 }
 
 export interface TimedEvent {
@@ -272,31 +301,45 @@ export interface TransportOutput {
 
 /** What the band reads for a bar: the style where the bar starts, on the track, and what the Muse offers. */
 export function bandEnvAt(
-  { seed, track, wish }: TransportEnv,
+  { seed, track, wish, meter }: TransportEnv,
   bar: number,
   offer: Offer | null,
+  clock: SongClock = SONG_CLOCK,
 ): BandEnv {
-  return { seed, bar, style: styleAt(track, barStart(bar)), wish, offer };
+  return { seed, bar, style: styleAt(track, clock.barStart(bar)), wish, meter, offer };
 }
+
+/** The song's meter changes at the start, before any bar is composed: 4/4 from bar 0. */
+const SONG_METERS: readonly MeterChange[] = [{ bar: 0, meter: SONG_METER }];
+
+/** The song's clock as the transport has laid it: its bars as far as they are composed, and the last meter on. */
+export const clockOfTransport = (
+  carried: { readonly meters: readonly MeterChange[] } | null,
+): SongClock => clockOf(carried?.meters ?? SONG_METERS);
 
 /**
  * The Muse hears every bar composed up to `last`, in order: the notes heard
  * here judged in the bar's key, then the bars judged elsewhere. It forgets
  * the notes and judgements it heard, and those of bars already past.
  */
-function listen(listening: Listening, last: number, judged: MuseOutput[]): Listening {
+function listen(
+  listening: Listening,
+  last: number,
+  judged: MuseOutput[],
+  clock: SongClock,
+): Listening {
   let { muse: carried, pending, remote, forget, unjudged } = listening;
   while (unjudged.length > 0 && unjudged[0]!.bar <= last) {
     const { bar, key } = unjudged[0]!;
     const judgements = [
-      ...judgeBar(pending, bar, key),
+      ...judgeBar(pending, bar, key, 'phrases', clock),
       ...remote.filter((r) => r.bar === bar).map((r) => r.judgement),
     ];
     const next = muse.advance({ bar }, carried, { judgements, forget });
     carried = next.carried;
     judged.push(next.output);
     forget = false;
-    pending = keptAfter(pending, bar);
+    pending = keptAfter(pending, bar, clock);
     remote = remote.filter((r) => r.bar > bar);
     unjudged = unjudged.slice(1);
   }
@@ -321,23 +364,27 @@ export function forecast(
   carried: TransportCarried | null,
   count: number,
 ): ForecastBar[] {
-  const head = barAt(carried?.head.step ?? 0);
+  const meters = carried?.meters ?? SONG_METERS;
+  const head = clockOf(meters).barAt(carried?.head.step ?? 0);
   const composed = (carried?.bars ?? [])
     .filter((b) => b.bar >= head)
     .slice(0, count)
     .map(({ bar, plan, chords, barEnergy, offer }) => ({ bar, plan, chords, barEnergy, offer }));
   const offer = carried?.listening.muse.offer ?? null;
-  const ahead = lookAhead(
+  const decided = lookAhead(
     carried?.source ?? band.initial,
-    (bar) => bandEnvAt(env, bar, offer),
+    (bar, clock) => bandEnvAt(env, bar, offer, clock),
     count - composed.length,
-  ).map((decided) => ({
-    ...decided,
+    meters,
+  );
+  const song = clockOf(decided.reduce((all, d) => withMeter(all, d.bar, d.plan.meter), meters));
+  const ahead = decided.map((bar) => ({
+    ...bar,
     offer,
     barEnergy: barEnergy(
-      writtenStyle(styleAt(env.track, barStart(decided.bar))).energy,
-      decided.plan.section.type,
-      decided.bar % SECTION_BARS,
+      writtenStyle(styleAt(env.track, song.barStart(bar.bar))).energy,
+      bar.plan.section.type,
+      bar.bar % SECTION_BARS,
     ),
   }));
   return [...composed, ...ahead];
@@ -357,13 +404,15 @@ export function foresight(
   carried: TransportCarried | null,
   count: number,
 ): BandBar[] {
-  const head = barAt(carried?.head.step ?? 0);
+  let meters = carried?.meters ?? SONG_METERS;
+  const head = clockOf(meters).barAt(carried?.head.step ?? 0);
   const bars = (carried?.bars ?? []).filter((b) => b.bar >= head).slice(0, count);
   const offer = carried?.listening.muse.offer ?? null;
   let source = carried?.source ?? band.initial;
   for (let bar = carried?.nextBar ?? 0; bars.length < count; bar++) {
-    const made = band.advance(bandEnvAt(env, bar, offer), source, null);
+    const made = band.advance(bandEnvAt(env, bar, offer, clockOf(meters)), source, null);
     source = made.carried;
+    meters = withMeter(meters, bar, made.output.meter);
     bars.push(made.output);
   }
   return bars;
@@ -386,7 +435,7 @@ export function writtenAt(laid: readonly ScheduledStep[], seconds: number): numb
     if (seconds >= step.seconds + step.length) return null;
     if (seconds >= step.seconds) {
       const played = step.step + (seconds - step.seconds) / step.length;
-      return swingMap(step.swing).written(played);
+      return swingMapAt(step.swing, step.pulse.start, step.pulse.length).written(played);
     }
   }
   return null;
@@ -416,6 +465,15 @@ export function transportOver<Source, Arrived = never>(
       let beat = carried?.beat ?? null;
       let listening = carried?.listening ?? LISTENING;
       let finale = carried?.finale ?? NO_FINALE;
+      let meters = carried?.meters ?? SONG_METERS;
+      let song = clockOf(meters);
+      // A bar composed or passed says its meter, and the clock is the song's from it on.
+      const learn = (bar: number, meter: Meter) => {
+        const next = withMeter(meters, bar, meter);
+        if (next === meters) return;
+        meters = next;
+        song = clockOf(meters);
+      };
       if (finish && !finale.asked) finale = { ...finale, asked: true };
       if (ends !== undefined && finale.bar === null) finale = { ...finale, bar: ends };
       // What arrives from elsewhere is heard if its bar is composed and not
@@ -449,16 +507,15 @@ export function transportOver<Source, Arrived = never>(
       const composed: BandBar[] = [];
       let missed = 0;
       let passed = 0;
-      const swing = swingOf(track);
 
       // Compose each bar `ahead` steps before it starts: the band on the
       // last beat of the bar before. A song asked to end composes its
       // finale in place of the next bar, and no bar after it.
       const composeAhead = () => {
-        for (; nextBar <= barAt(head.step + source.ahead); nextBar++) {
+        for (; song.barStart(nextBar) <= head.step + source.ahead; nextBar++) {
           if (finale.bar !== null && nextBar > finale.bar) break;
-          listening = listen(listening, nextBar - LISTEN_DELAY, judged);
-          const barEnv = bandEnvAt(env, nextBar, listening.muse.offer);
+          listening = listen(listening, nextBar - LISTEN_DELAY, judged, song);
+          const barEnv = bandEnvAt(env, nextBar, listening.muse.offer, song);
           const closing = finale.asked && finale.bar === null && source.finale;
           const made: { carried: Source; bar: BandBar | null; start?: number } = closing
             ? source.finale!(barEnv, playing)
@@ -466,34 +523,38 @@ export function transportOver<Source, Arrived = never>(
           playing = made.carried;
           if (closing) finale = { ...finale, bar: nextBar };
           if (!made.bar) continue;
+          learn(nextBar, made.bar.meter);
           const key = made.bar.plan.key;
           listening = { ...listening, unjudged: [...listening.unjudged, { bar: nextBar, key }] };
           bars.push(made.bar);
           composed.push(made.bar);
-          if (made.start !== undefined && head.step === barStart(nextBar))
+          if (made.start !== undefined && head.step === song.barStart(nextBar))
             head = { step: head.step, seconds: made.start };
         }
       };
       if (head.step === 0 && source.ahead > 0) composeAhead();
 
       while (head.seconds < until) {
-        if (finale.bar !== null && head.step >= barStart(finale.bar + 1)) {
+        if (finale.bar !== null && head.step >= song.barStart(finale.bar + 1)) {
           finale = { ...finale, ended: finale.ended ?? head.seconds };
           break;
         }
-        const bar = barAt(head.step);
+        const bar = song.barAt(head.step);
 
         // Steps the clock has passed are not scheduled, and a bar it has
         // wholly passed is not composed: the source passes it, the band
         // deciding the bar after as it would have.
-        if (stepInBar(head.step) === 0 && nextBar === bar) {
-          const next = barStart(bar + 1);
+        if (song.stepInBar(head.step) === 0 && nextBar === bar) {
+          const passing = bandEnvAt(env, bar, listening.muse.offer, song);
+          const known = source.meterOf?.(passing, playing) ?? null;
+          const next = (known ? clockOf(withMeter(meters, bar, known)) : song).barStart(bar + 1);
           const end = tempoMap(track, head).played(next);
           if (end <= now) {
             // Enough walking for one advance: the next carries on.
             if (passed === CATCH_UP) break;
             passed++;
-            playing = source.pass(bandEnvAt(env, bar, listening.muse.offer), playing);
+            playing = source.pass(passing, playing);
+            if (known) learn(bar, known);
             nextBar++;
             missed += next - head.step;
             head = { step: next, seconds: end };
@@ -519,12 +580,15 @@ export function transportOver<Source, Arrived = never>(
           plan: { section, key },
           chords,
         } = current;
-        const chord = chordAt(chords, stepInBar(head.step));
+        const chord = chordAt(chords, song.stepInBar(head.step));
 
         // The beat's swing is read as the beat starts, and kept.
-        const index = beatAt(head.step);
-        if (beat?.index !== index) beat = { index, swing: styleAt(track, beatStart(index)).swing };
+        const index = song.beatAt(head.step);
+        const pulseStart = song.beatStart(index);
+        const pulse = { start: pulseStart, length: song.beatStart(index + 1) - pulseStart };
+        if (beat?.index !== index) beat = { index, swing: styleAt(track, pulseStart).swing };
         const held = beat;
+        const swing = swingOf(track, song);
         steps.push({
           step: head.step,
           section,
@@ -533,14 +597,17 @@ export function transportOver<Source, Arrived = never>(
           seconds: head.seconds,
           length,
           swing: held.swing,
+          pulse,
         });
         const swung = (x: number) =>
-          beatAt(x) === held.index ? swingMap(held.swing).played(x) : swing.played(x);
+          song.beatAt(x) === held.index
+            ? swingMapAt(held.swing, pulse.start, pulse.length).played(x)
+            : swing.played(x);
         const tempo = tempoMap(track, head);
         const clock = (x: number) => tempo.played(swung(x));
 
         for (const event of current.dough) {
-          if (event.step !== stepInBar(head.step)) continue;
+          if (event.step !== song.stepInBar(head.step)) continue;
           const seconds = clock(head.step);
           if (seconds < now) continue;
           events.push({
@@ -553,7 +620,7 @@ export function transportOver<Source, Arrived = never>(
         head = { step: head.step + 1, seconds: head.seconds + length };
       }
       return {
-        carried: { head, source: playing, bars, nextBar, beat, listening, finale },
+        carried: { head, source: playing, bars, nextBar, beat, listening, finale, meters },
         output: { steps, events, composed, missed, judged, dropped },
       };
     },

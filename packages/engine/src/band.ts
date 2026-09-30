@@ -23,6 +23,7 @@
  * long as nobody moves a control, the forecast is what plays.
  */
 
+import type { Meter } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { type BarChord, barChords } from './chords.ts';
 import { bass } from './bass.ts';
@@ -30,7 +31,15 @@ import { comp } from './comp.ts';
 import { type LeadCarried, lead } from './lead.ts';
 import { drums } from './drums.ts';
 import { cadence, finale } from './ending.ts';
-import { type DoughNote, SONG_METER, type WrittenNote } from './events.ts';
+import {
+  type DoughNote,
+  type MeterChange,
+  SONG_METER,
+  type SongClock,
+  type WrittenNote,
+  clockOf,
+  withMeter,
+} from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import { type HarmonicWeights, NO_HISTORY, foldBar } from './history.ts';
 import type { KeyWish } from './key.ts';
@@ -48,6 +57,8 @@ export interface BandEnv {
   readonly style: Style;
   /** The key the players wish for, which a section boundary moves toward. */
   readonly wish: KeyWish;
+  /** The meter asked for, which a section boundary takes (#261); the song's 4/4 where none is. */
+  readonly meter?: Meter | undefined;
   /** The motif the Muse offers, which the lead settles on (#79). */
   readonly offer: Offer | null;
 }
@@ -102,7 +113,7 @@ const INITIAL: BandCarried = {
  * its chords, which the history then folds in.
  */
 function decide(
-  { seed, style, wish }: BandEnv,
+  { seed, style, wish, meter = SONG_METER }: BandEnv,
   bar: number,
   plans: PlanCarried,
   history: HarmonicWeights,
@@ -110,8 +121,11 @@ function decide(
   const barInSection = bar % SECTION_BARS;
   const next =
     barInSection === 0
-      ? planner.advance({ seed, index: bar / SECTION_BARS, style, wish, history }, plans, null)
-          .carried
+      ? planner.advance(
+          { seed, index: bar / SECTION_BARS, style, wish, history, meter },
+          plans,
+          null,
+        ).carried
       : plans;
   const plan = next.before!;
   const { key, theme } = plan;
@@ -152,17 +166,22 @@ export function passBar(env: BandEnv, carried: BandCarried): BandCarried {
  * The next `count` bars as the band will decide them, from the bar it
  * decided next (bar 0 before the song starts): their plans and chords,
  * without the parts. It runs the band's own decisions forward, as passing
- * those bars does, reading the environment of each bar from `envAt`.
+ * those bars does, reading the environment of each bar from `envAt`, given
+ * the song's clock as far as the bars before it are known: `meters` are
+ * those already laid, and each bar decided adds its own (#261).
  */
 export function lookAhead(
   carried: BandCarried,
-  envAt: (bar: number) => BandEnv,
+  envAt: (bar: number, clock: SongClock) => BandEnv,
   count: number,
+  meters: readonly MeterChange[] = [{ bar: 0, meter: SONG_METER }],
 ): DecidedBar[] {
   const bars: DecidedBar[] = [];
+  let changes = meters;
   for (let bar = carried.next?.bar ?? 0; bars.length < count; bar++) {
-    const { here, carried: after } = step(read(envAt(bar)), carried);
+    const { here, carried: after } = step(read(envAt(bar, clockOf(changes))), carried);
     bars.push(here);
+    changes = withMeter(changes, bar, here.plan.meter);
     carried = after;
   }
   return bars;
@@ -177,7 +196,7 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
     const bar: BarEnv = {
       seed: env.seed,
       bar: env.bar,
-      meter: SONG_METER,
+      meter: here.plan.meter,
       plan: here.plan,
       barInSection,
       style: env.style,
@@ -214,7 +233,7 @@ export function finaleBar(
   const bar: BarEnv = {
     seed: env.seed,
     bar: env.bar,
-    meter: SONG_METER,
+    meter: here.plan.meter,
     plan: here.plan,
     barInSection,
     style: env.style,

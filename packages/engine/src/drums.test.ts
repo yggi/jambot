@@ -36,6 +36,7 @@ const envOf = (
   meter,
   plan: {
     section: { type, index },
+    meter,
     key: INITIAL_KEY,
     melodic: 'plain',
     theme: buildTheme({
