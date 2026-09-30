@@ -219,8 +219,8 @@ describe('the player', () => {
     const before = player.hud;
     expect(before.beat).toBeNull();
     expect(before.bar).toMatchObject({ bar: 0, section: 'Intro', key: 'A minor' });
-    // The rest of the intro and the whole section after it.
-    expect(before.next.map((b) => b.bar)).toEqual([...Array(15).keys()].map((i) => i + 1));
+    // The seven bars after the first.
+    expect(before.next.map((b) => b.bar)).toEqual([...Array(7).keys()].map((i) => i + 1));
     void player.start();
     world.resolve();
     await settle();
@@ -234,7 +234,7 @@ describe('the player', () => {
     expect(player.hud.chord).toEqual(before.chord);
   });
 
-  it('shows bars ahead that are the bars then heard, from the one after the bar heard to the end of the next section', async () => {
+  it('shows bars ahead that are the bars then heard, the seven after the bar heard', async () => {
     const { world, s } = surroundings();
     const player = new Player(s);
     void player.start();
@@ -250,10 +250,7 @@ describe('the player', () => {
       if (beat === null) continue;
       if (!bar) throw new Error(`no bar for the step heard, ${player.heard}`);
       heard.set(bar.bar, bar);
-      const end = (Math.floor(bar.bar / 8) + 2) * 8;
-      expect(next.map((b) => b.bar)).toEqual(
-        [...Array(end - bar.bar - 1).keys()].map((i) => bar.bar + 1 + i),
-      );
+      expect(next.map((b) => b.bar)).toEqual([...Array(7).keys()].map((i) => bar.bar + 1 + i));
       for (const b of next) foreseen.set(b.bar, [...(foreseen.get(b.bar) ?? []), b]);
     }
     // Synth-pop at 108 bpm: 40 s is 18 bars.
@@ -337,7 +334,7 @@ describe('the player', () => {
       const { bar, beat, sections } = player.hud;
       if (beat === null) continue;
       expect(sections.map((s) => s.index)).toEqual(
-        [0, 1, 2, 3].map((k) => k + Math.floor(bar!.bar / 8)),
+        [0, 1, 2, 3, 4].map((k) => k + Math.floor(bar!.bar / 8)),
       );
       expect(sections[0]!.bars).toHaveLength(8);
       checked++;

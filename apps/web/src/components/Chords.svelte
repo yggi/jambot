@@ -1,23 +1,24 @@
 <!--
   The chords, a card: what is sounding. Folded, the chord heard and its
-  numeral in its key and, under it, what the lead is doing, announced as it
-  changes; before anything is heard, the chord the band opens on. Unfolded,
-  the beats of the bar, one dot per beat of the song's meter, lit up to the
-  one heard; the bar's chords on a `Ruler` of its steps, each where it
-  starts, the one sounding lit; and the key heard with its notes, spelled in
-  it, and the melodic scale the lead walks over it where it isn't plain
-  ("A minor · pentatonic", #209). The card sits in the `Conductor` region, where the lead's line is read
-  (`band.e2e.ts`, `session.e2e.ts`).
+  numeral in its key ("Am7 · i7") over the chord that comes next ("then G ·
+  VII"), and a glyph of the bar: a block for each of its chords, the one
+  sounding lit, a playhead stepping across with the beat. Before anything is
+  heard it is the chord the band opens on. Unfolded, the bars by chord (the
+  chord grid): the bar heard and the next large, six more smaller, eight in
+  all, a change of section or key labelled at its bar. The key and its notes
+  are the key card's; the lead's status is the tracks'.
 -->
 <script lang="ts">
   import { SONG_METER } from '@jambot/engine';
   import { type Meter, meterOnSteps } from '@jambot/theory';
-  import { type Hud, leadStatus } from '../hud.ts';
+  import type { Hud } from '../hud.ts';
+  import { nextChord } from '../planView.ts';
   import Card from './Card.svelte';
-  import Ruler from './Ruler.svelte';
+  import ChordGrid from './ChordGrid.svelte';
+  import ChordStrip from './glyphs/ChordStrip.svelte';
 
   interface Props {
-    hud: Pick<Hud, 'bar' | 'beat' | 'chord'>;
+    hud: Pick<Hud, 'bar' | 'beat' | 'chord' | 'next'>;
     /** The meter the bar is in: the song's (`SONG_METER`), which the view model counts its beats on. */
     meter?: Meter;
   }
@@ -28,48 +29,25 @@
   const clock = $derived(meterOnSteps(meter));
   const heard = $derived(hud.beat !== null);
   const main = $derived(hud.chord ? `${hud.chord.symbol} · ${hud.chord.numeral}` : '—');
-  const chords = $derived(hud.bar?.chords ?? []);
-  const marks = $derived(
-    chords.map((chord) => ({
-      at: chord.step,
-      text: chord.symbol,
-      lit: heard && chord.step === hud.chord?.step,
-    })),
+  const coming = $derived(nextChord(hud));
+  const sub = $derived(coming ? `then ${coming.symbol} · ${coming.numeral}` : '');
+  const lit = $derived(
+    heard && hud.chord
+      ? (hud.bar?.chords.findIndex((c) => c.step === hud.chord?.step) ?? null)
+      : null,
   );
 </script>
 
-<section class="conductor" aria-label="Conductor">
-  <Card title="Chords" {main} sub={leadStatus(hud)} live>
-    <div class="beats" style:--beats={clock.heights.length} aria-hidden="true">
-      {#each { length: clock.heights.length }, beat (beat)}
-        <i class:on={hud.beat !== null && beat <= hud.beat}></i>
-      {/each}
-    </div>
-    {#if chords.length > 0}
-      <Ruler
-        label="The bar's chords: {chords.map((chord) => chord.symbol).join(' ')}"
-        span={clock.cycle}
-        {marks}
-      />
-    {/if}
-  </Card>
-</section>
+{#snippet strip()}
+  <ChordStrip
+    steps={hud.bar?.chords.map((c) => c.step) ?? []}
+    {lit}
+    beat={hud.beat}
+    span={clock.cycle}
+    beats={meter.heights.length}
+  />
+{/snippet}
 
-<style>
-  .conductor {
-    min-width: 0;
-  }
-  .beats {
-    display: grid;
-    grid-template-columns: repeat(var(--beats), 1fr);
-    gap: 5px;
-  }
-  .beats i {
-    height: 8px;
-    border-radius: 4px;
-    background: var(--line);
-  }
-  .beats i.on {
-    background: var(--amber);
-  }
-</style>
+<Card title="Chords" {main} {sub} glyph={strip}>
+  <ChordGrid heard={hud.bar} next={hud.next} beat={hud.beat} {meter} />
+</Card>

@@ -206,13 +206,11 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   await expect(page.getByText(/: Took a 3-note motif from the computer keys\./)).toBeVisible({
     timeout: 8000,
   });
-  await expect(
-    page
-      .getByLabel('Conductor')
-      .getByText(/Lead is playing the motif from the computer keys, heard in bar \d+\./),
-  ).toBeVisible({
-    timeout: 8000,
-  });
+  // The lead's line is under the tracks' headline while the lead is selected.
+  await expect(page.locator('details[aria-label="Tracks"] summary .sub')).toContainText(
+    /Lead is playing the motif from the computer keys, heard in bar \d+\./,
+    { timeout: 8000 },
+  );
   await page.waitForTimeout(3000);
 
   // The lead's voice is a square: the first three are the keys played along, at once;
@@ -311,13 +309,10 @@ for (const input of INPUTS)
     );
     await expect(took).toBeVisible({ timeout: 8000 });
     const heard = /Bar (\d+):/.exec((await took.textContent()) ?? '')![1];
-    await expect(
-      page
-        .getByLabel('Conductor')
-        .getByText(`Lead is playing the motif from ${input.source}, heard in bar ${heard}.`),
-    ).toBeVisible({
-      timeout: 8000,
-    });
+    await expect(page.locator('details[aria-label="Tracks"] summary .sub')).toContainText(
+      `Lead is playing the motif from ${input.source}, heard in bar ${heard}.`,
+      { timeout: 8000 },
+    );
     // The lead's lane credits the same motif, in the player's colour, while a bar shown played it (#183).
     await expect(
       page

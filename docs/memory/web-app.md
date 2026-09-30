@@ -106,16 +106,21 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   A new voice keeps these apart or updates `band.e2e.ts`.
   A note played along is a square too, but starts at once, off the grid; at energy 0 the lead rests, so a square on the grid is a motif the Muse offered.
 - The plan (`Plan.svelte`) is what the band decided ahead: folded, the section heard and its bar in it ("Groove · bar 3 of 8", counted in `SECTION_BARS`) over the key heard and, where it differs, the key the band is heading for ("A minor → E minor"); before anything is heard, "Ready" (or "…" while the band starts) over what it opens on.
-  Unfolded, the song map (`SongMap`, a new key named on the section where it comes, `newKey`) and the bars ahead to the end of the next section (`hud.next`, at most `NEXT_BARS`, `NextBars`), four to a row, so a section starts a row.
-- The chords (`Chords.svelte`) are what is sounding: folded, the chord heard and its numeral ("Am7 · i7") over the lead's status line; unfolded, one dot per beat of the song's meter (`SONG_METER`, on the song's clock, `meterOnSteps`), lit up to the beat heard, and the bar's chords on a `Ruler` of its steps.
+  Its glyph is the song as a strip (`Sections`): a segment for each section shown, the one playing filled as far as its bar, a teal mark on a section where the key changes.
+  Unfolded, the song map (`SongMap`) in two rows: the section playing and the next, large, every bar with its chord's name, then the three sections after, smaller, with a chord named on their first and last bar only (`planRows`, `NEAR_SECTIONS`, `FAR_SECTIONS`; `hud.sections` holds `SECTIONS` = 5).
+  A block is named by its section, and its key where that changes (`newKey`); the two large blocks stand in a row from 520 px up and one above the other below it.
+- The chords (`Chords.svelte`) are what is sounding: folded, the chord heard and its numeral ("Am7 · i7") over the chord that comes next ("then G · VII", `nextChord`), and as the glyph the bar as a strip of its chords (`ChordStrip`), the one sounding lit and a playhead stepping across with the beat.
+  Unfolded, the bars by chord (`ChordGrid`, `chordTiles`): the bar heard and the next large, six more smaller in two rows of three, eight in all (`CHORD_BARS`; `hud.next` holds `NEXT_BARS` = 7).
+  The bar heard carries the beats of the bar, one dot per beat of the song's meter (`SONG_METER`, on the song's clock, `meterOnSteps`), lit up to the beat heard.
+  A change of section or key is labelled at its bar, in any tile (`cueOf`: "Drop", "D dorian", "Bridge, C major"); the bar heard is labelled only where it starts its section.
 - Section names appear twice on the page, in the plan and in the song map, which names them before anything is heard.
   So a check that the screen follows what is heard looks for `Bar n of 8`, which only the plan's headline says (Playwright's `getByText` matches it in "Groove · bar 2 of 8", ignoring case).
 - The tracks (`Tracks.svelte`, `tracks.ts`) are one phrase on one grid: the last `PATTERN_BARS` bars, the bar heard last, a lane per band performer and, under the performer whose part it plays, a lane per player's source, with the playhead on the step heard (`player.heard`).
   `Pattern` keeps the band's notes of those bars and the one building, fed as events are scheduled, so the bar heard fills in a lookahead before it sounds.
   The card starts unfolded (`Card`'s `open`, read once), since the selected track's instrument, the keyboard for the lead and the pads for the drums, is under it; bass and chords only show, since `AlongPart` is the lead and the drums.
   The page hands the instrument in as a snippet, so the card reads nothing but what it is given.
-- The lead's status line (`leadStatus`, `hud.ts`) appears twice, under the chords' headline and under the tracks' headline while the lead is selected.
-  The `apps/web/e2e/band.e2e.ts` and `session.e2e.ts` checks that read it scope to the `Conductor` region the chords card sits in.
+- The lead's status line (`leadStatus`, `hud.ts`) is under the tracks' headline while the lead is selected, and nowhere else.
+  The `apps/web/e2e/band.e2e.ts` and `session.e2e.ts` checks that read it look at the tracks card's summary.
   The tracks' lanes of the band are named `Performer`, not `Track` or `Member`: `track` already names `StyleTrack` and the ratchet's working and negative tracks, and `Performer` names what each row is precisely — the composer writes what a performer plays, and a performer is the band's own voice or a human at that voice's instrument, the same word family as `performer.ts` (T4, #107), which is how a performer plays it.
   Decided in the working track, on the owner's naming call.
   `apps/web`'s `PerformerView` is this UI lane, one per band voice; the engine's own performer, `perform` in `performer.ts`, is a different thing with the same name — it plays a bar, not a screen.
@@ -126,7 +131,7 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
 - Whose motif the lead plays is the bar's own offer (`BarEnv.offer`), which every composed and forecast bar carries and a client gets with its host's bars, so no attribution crosses the protocol of its own (#164).
   An `Attribution` (`attribution.ts`) keeps the source's id and the bar heard; the views show a `Credit`, which adds the source's name (`sourceName`) and its player's colour (`sourceColour`), so `source` is always the id.
   The colour is the player's place in the session's record of players, which keeps them in the order they joined and after they leave, so every screen gives a player the same colour and six players are told apart; the first is the Muse's teal, none is the band's amber (`--source-0` to `--source-5`, `app.css`).
-  `BarView.motif` credits the bar heard and the bars ahead, where it is the offer standing now; the song map marks such a bar, filled once heard and outlined ahead, and the bars ahead ring it.
+  `BarView.motif` credits the bar heard and the bars ahead, where it is the offer standing now; the song map marks such a bar, filled once heard and outlined ahead, and the chord grid rings it.
   `Pattern` keeps each bar's offer with its notes (`offered`, fed from the bars composed), so the lead's lane tints exactly the bars that played a motif, and says whose under the lane: "from", never "plays exactly".
   `playedIn` gives the players' side of a bar, per source, on the Muse's own rounding (`heardIn`, `heardStep`), and a player's lane outlines the bar the Muse took (`hud.muse.motif`).
   A host never has its clients' notes, only the cells they were judged into, so a source with no notes on this device gets a lane of the cell taken from it, "as the Muse heard it", for as long as its bar is shown.

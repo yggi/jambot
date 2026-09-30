@@ -457,7 +457,12 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
   // And both show the lead playing it, named by its player: the bars carry it, not a message of its own (#164).
   const playing = /Lead is playing the motif from Ada's computer keys, heard in bar \d+\./;
   for (const screen of [page, client])
-    await expect(screen.getByLabel('Conductor').getByText(playing)).toBeVisible({ timeout: 8000 });
+    await expect(screen.locator('details[aria-label="Tracks"] summary .sub')).toContainText(
+      playing,
+      {
+        timeout: 8000,
+      },
+    );
 });
 
 test('a second host cannot take a session name that is open', async ({ page, context }) => {
