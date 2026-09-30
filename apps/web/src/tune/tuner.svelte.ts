@@ -10,7 +10,12 @@
  */
 
 import { A4_HZ, frequencyOf, pitchOf } from '@jambot/theory';
-import type { Analysis } from '@jambot/spectrum';
+import {
+  type Analysis,
+  type Fingerprint,
+  type Harmonic,
+  fingerprintDistance,
+} from '@jambot/spectrum';
 import { midiNoteName } from '../noteNames.ts';
 import type { Analyse } from './analysis.ts';
 import { type InputDevice, type Mic, MicDenied, type MicSource } from './mic.ts';
@@ -49,6 +54,14 @@ export interface Reading {
   clarity: number;
 }
 
+/** What the note is made of, as last heard. */
+export interface Tone {
+  harmonics: readonly Harmonic[];
+  /** How wide the note is, in cents: 0 for a steady sine, about 14 for a pitch that wavers by ±20. */
+  width: number;
+  fingerprint: Fingerprint;
+}
+
 export class Tuner {
   #deps: TunerDeps;
   status: TunerStatus = $state('idle');
@@ -71,6 +84,10 @@ export class Tuner {
 
   /** The pitch last heard, kept while the silence is short. */
   #heard: { hz: number; clarity: number } | null = $state.raw(null);
+  /** The tone last heard, held as the note is. */
+  #tone: Tone | null = $state.raw(null);
+  /** The sound set aside to compare the next with, kept when listening stops. */
+  remembered: Fingerprint | null = $state.raw(null);
   #mic: Mic | null = null;
   #timer: ReturnType<typeof setInterval> | null = null;
   #busy = false;
@@ -103,6 +120,28 @@ export class Tuner {
       clarity: heard.clarity,
     };
   });
+
+  /** What the note heard is made of; null where there is no note. */
+  get tone(): Tone | null {
+    return this.#tone;
+  }
+
+  /** How far the tone is from the remembered one, in dB: near 0 for the same tone, over 6 for another; null where there is none of either. */
+  difference: number | null = $derived.by(() =>
+    this.#tone && this.remembered
+      ? fingerprintDistance(this.#tone.fingerprint, this.remembered)
+      : null,
+  );
+
+  /** Set the tone heard aside, to compare the next with. */
+  remember(): void {
+    if (this.#tone) this.remembered = this.#tone.fingerprint;
+  }
+
+  /** Forget it. */
+  forget(): void {
+    this.remembered = null;
+  }
 
   /** Listen. A press of the person's: a browser asks for the microphone, and plays audio, only after one. */
   async start(): Promise<void> {
@@ -154,6 +193,7 @@ export class Tuner {
     this.sampleRate = 0;
     this.inputName = '';
     this.#heard = null;
+    this.#tone = null;
     this.#quiet = 0;
   }
 
@@ -195,9 +235,16 @@ export class Tuner {
       this.analysis = analysis;
       if (analysis.pitch) {
         this.#heard = { hz: analysis.pitch.hz, clarity: analysis.pitch.clarity };
+        if (analysis.timbre)
+          this.#tone = {
+            harmonics: analysis.timbre.profile.harmonics,
+            width: analysis.timbre.profile.width,
+            fingerprint: analysis.timbre.fingerprint,
+          };
         this.#quiet = 0;
       } else if (++this.#quiet > HOLD_TICKS) {
         this.#heard = null;
+        this.#tone = null;
       }
     } catch {
       // A look that failed, because its worker ended, is one the next makes up for.

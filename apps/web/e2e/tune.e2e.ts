@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { chromium, expect, test } from '@playwright/test';
 import { listen } from './audio.ts';
 
 /**
@@ -172,3 +172,121 @@ test('hears the synth it plays through: a note sent is read within a quarter cen
   await expect.poll(read).toBeCloseTo(-7.85, 0);
   expect(errors).toEqual([]);
 });
+
+/**
+ * The tone (slice 7) on the synth heard through its own output. The lead goes
+ * through a lowpass filter at a fixed frequency, which is a formant in this
+ * sense: its harmonic levels follow that frequency and not the pitch, so its
+ * fingerprint moves with the note (measured here, from A4: 4.5 dB at A3, 4.2
+ * at A2, 9.1 at A5), which is the limit of the claim `timbre.ts` states.
+ */
+test('hears the synth’s lead as one tone near its pitch, and as another an octave up: the limit of the fingerprint', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await page.locator('details[aria-label="Extras"] summary').click();
+  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByLabel('Listen to').selectOption({ label: 'This device’s synth (what it plays)' });
+  await page.getByRole('button', { name: 'Start' }).click();
+  const send = page.getByRole('region', { name: 'Send a note' });
+  const tone = page.getByRole('region', { name: 'Tone' });
+  await send.getByRole('button', { name: 'Hold the note' }).click();
+  await expect(tone.locator('rect.bar')).toHaveCount(12);
+  await page.waitForTimeout(1200);
+  await tone.getByRole('button', { name: 'Remember this tone' }).click();
+  const differenceAt = async (step: string) => {
+    await send.getByRole('button', { name: step }).click();
+    await page.waitForTimeout(1500);
+    const text = await tone.getByText(/dB from the remembered/).innerText();
+    return Number.parseFloat(text);
+  };
+  expect(await differenceAt('−octave')).toBeGreaterThan(3);
+  expect(await differenceAt('+octave')).toBeLessThan(0.5); // back on A4: the same sound
+  const up = await differenceAt('+octave');
+  expect(up).toBeGreaterThan(6);
+  expect(up).toBeLessThan(14);
+});
+
+/** A 16-bit mono WAV of a pitch made of harmonics, which the fake device loops. */
+function wavOfHarmonics(hz: number, levels: number[]): Buffer {
+  const samples = SAMPLE_RATE * 2;
+  const peak = levels.reduce((a, b) => a + b, 0);
+  const data = Buffer.alloc(samples * 2);
+  for (let i = 0; i < samples; i++) {
+    let v = 0;
+    levels.forEach((a, k) => (v += a * Math.sin((2 * Math.PI * hz * (k + 1) * i) / SAMPLE_RATE)));
+    data.writeInt16LE(Math.round((0.6 * 32767 * v) / peak), i * 2);
+  }
+  return Buffer.concat([headerFor(data.length), data]);
+}
+
+function headerFor(bytes: number): Buffer {
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + bytes, 4);
+  header.write('WAVEfmt ', 8);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(SAMPLE_RATE, 24);
+  header.writeUInt32LE(SAMPLE_RATE * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(bytes, 40);
+  return header;
+}
+
+const dir = mkdtempSync(join(tmpdir(), 'jambot-tone-'));
+const sawFile = join(dir, 'saw.wav');
+const squareFile = join(dir, 'square.wav');
+writeFileSync(
+  sawFile,
+  wavOfHarmonics(
+    220,
+    Array.from({ length: 12 }, (_, k) => 1 / (k + 1)),
+  ),
+);
+writeFileSync(
+  squareFile,
+  wavOfHarmonics(
+    220,
+    Array.from({ length: 12 }, (_, k) => ((k + 1) % 2 ? 1 / (k + 1) : 0)),
+  ),
+);
+
+/** Each recording on a browser of its own, since what the fake device plays is a launch option. */
+for (const [name, file, absent] of [
+  ['a saw', sawFile, 0],
+  ['a square wave', squareFile, 6],
+] as const)
+  test(`shows the harmonics of a recording of ${name}: ${absent} of the twelve missing, and a steady note`, async ({
+    baseURL,
+  }) => {
+    const browser = await chromium.launch({
+      args: [
+        '--autoplay-policy=no-user-gesture-required',
+        '--use-fake-ui-for-media-stream',
+        '--use-fake-device-for-media-stream',
+        `--use-file-for-fake-audio-capture=${file}`,
+      ],
+    });
+    try {
+      const context = await browser.newContext({
+        baseURL: baseURL!,
+        permissions: ['microphone'],
+      });
+      const page = await context.newPage();
+      await page.goto('/');
+      await page.locator('details[aria-label="Extras"] summary').click();
+      await page.getByRole('button', { name: 'Tuner' }).click();
+      await page.getByRole('button', { name: 'Start' }).click();
+      const tone = page.getByRole('region', { name: 'Tone' });
+      await expect(tone.getByText(/Steady, with no width/)).toBeVisible({ timeout: 15_000 });
+      await expect(tone.locator('rect.bar')).toHaveCount(12);
+      await expect(tone.locator('rect.bar.missing')).toHaveCount(absent);
+    } finally {
+      await browser.close();
+    }
+  });
