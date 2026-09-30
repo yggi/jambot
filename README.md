@@ -48,6 +48,9 @@ Two things run today:
     Every part of the band's screen is a card, a summary over details, and the
     lobby is built of the same cards under a title card, with a theme (system,
     dark or light) among its settings.
+    Start counts the band in with a bar of clicks, and Stop ends the song on a
+    cadence that rings on, in a session too: the host tells its clients which
+    bar is the last.
     It can host or join a session across the tabs of one browser or, through
     [`apps/lobby`](apps/lobby), across machines.
     A client whose link drops rejoins as the same player, and a host that

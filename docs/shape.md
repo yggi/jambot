@@ -10,7 +10,7 @@ It holds no claim of its own, so every cell points at ids, and the catalogue is 
 The level of an entry is a reading, since the entries name no level: where #116's table names the entry, that is used, and the rest is judged and can be moved.
 An id on this page that no catalogue defines is a mistake (`tooling/pawl.ts` does not check it yet, see "Keeping it").
 
-Counts are `pnpm ratchet` on `main` at 16c105d: 87 entries and 7 aliases, 68 measured (15 failing in some scope), 10 open, 3 derived, 2 speculative, 4 without evidence.
+Counts are `pnpm ratchet` on `main` at 21779fb: 87 entries and 8 aliases, 67 measured (15 failing in some scope), 11 open, 3 derived, 2 speculative, 4 without evidence.
 
 ## The grid of levels
 
