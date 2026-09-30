@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import { energyOf, genreOf, readingAxes, styleDistance } from './genre.ts';
+import { PRESETS } from './style.ts';
+
+const presetPoint = (name: string) => PRESETS.find((p) => p.name === name)!.style;
+
+describe('genre probabilities: nearness to the presets', () => {
+  it('turns the density onto the energy axis: 0 to 1, clamped', () => {
+    expect(energyOf(0)).toBe(0);
+    expect(energyOf(10)).toBe(1);
+    expect(energyOf(0.94)).toBeGreaterThan(energyOf(0.5));
+  });
+
+  it('carries the axes a reading has, and none it lacks', () => {
+    expect(readingAxes({ density: 0 })).toEqual({ energy: 0 });
+    expect(Object.keys(readingAxes({ density: 1, sync: 0.2, artic: 0.3 })).sort()).toEqual([
+      'artic',
+      'energy',
+      'sync',
+    ]);
+  });
+
+  it('measures a distance over the axes read alone, as a root mean square', () => {
+    const style = presetPoint('Techno');
+    expect(styleDistance({ sync: style.sync, artic: style.artic }, style)).toBe(0);
+    expect(styleDistance({ sync: style.sync + 0.2 }, style)).toBeCloseTo(0.2, 12);
+    expect(styleDistance({ sync: style.sync + 0.2, artic: style.artic + 0.2 }, style)).toBeCloseTo(
+      0.2,
+      12,
+    );
+    expect(styleDistance({}, style)).toBe(0);
+  });
+
+  it('gives probabilities that sum to 1, one per preset, in the presets’ order', () => {
+    const genres = genreOf({ sync: 0.4, artic: 0.5, energy: 0.5 });
+    expect(genres.map((g) => g.name)).toEqual(PRESETS.map((p) => p.name));
+    expect(genres.reduce((sum, g) => sum + g.p, 0)).toBeCloseTo(1, 12);
+  });
+
+  it('puts most on a preset’s own point, for every preset at a low temperature', () => {
+    for (const preset of PRESETS) {
+      const { sync, artic, energy } = preset.style;
+      const top = genreOf({ sync, artic, energy }, 0.05).sort((a, b) => b.p - a.p)[0]!;
+      expect(top.name).toBe(preset.name);
+    }
+  });
+
+  it('spreads towards even as the temperature rises, and reads no axis as even', () => {
+    const { sync, artic, energy } = presetPoint('Techno');
+    const near = genreOf({ sync, artic, energy }, 0.02)[1]!.p;
+    const warm = genreOf({ sync, artic, energy }, 10)[1]!.p;
+    expect(near).toBeGreaterThan(0.99);
+    expect(warm).toBeCloseTo(1 / PRESETS.length, 1);
+    for (const g of genreOf({}, 0.1)) expect(g.p).toBeCloseTo(1 / PRESETS.length, 12);
+  });
+});

@@ -1935,5 +1935,19 @@ run; the others have.
   - An axis is read from its own and no other: a sweep of one moves the tau of each other reading by less than 0.05.
   - Not measured: `swing` and `bpm` (the clock's, and `estimateSwing`'s in played time), `harm` (needs the chords, not read from notes yet), per-part readings (step 4), and the real music the analyzer will read.
 
+- **E23. Does Techno land where techno lands?** (#15 step 3, N3), in
+  [`packages/engine/experiments/genre-calibration.ts`](../packages/engine/experiments/genre-calibration.ts),
+  held by [`packages/engine/experiments/genre-calibration.test.ts`](../packages/engine/experiments/genre-calibration.test.ts):
+  the band composes at each preset's point, `readStyle` reads the bars, and `genreOf` (`packages/engine/src/genre.ts`) turns the reading into probabilities over the presets by a softmax over the distances at a temperature.
+  The reading has three axes (`energy` from the density, `sync`, `artic`); the distance is a root mean square over them.
+  5 seeds of 32 bars per preset, temperature 0.1, against two sets of landmarks: the presets' own points, and where the presets' bars read (the mean over 5 other seeds).
+  - Against the presets' points, a single bar lands as its own preset in 0.30 of bars on average (chance 0.125): Ambient 0.93, Swing jazz 0.76 and Deep house 0.56, and Techno 0.07, Synth-pop 0.08, Lo-fi hip hop 0.04, Funk and Bossa nova none.
+    The reading is compressed short of the axes (E22), so a preset far out on one, Techno's `artic` of 1 and Funk's `sync` of 1, has no bar near its point.
+  - Against where the presets read, 0.41: Ambient 0.89, Funk 0.68, Techno 0.60, Swing jazz 0.42, Deep house 0.28, Bossa nova 0.19, Synth-pop 0.17 and Lo-fi hip hop 0.07.
+    So the critic's landmarks are measured, not read off the presets.
+  - The three that stay under a fifth in both, Synth-pop, Lo-fi hip hop and Bossa nova, sit in the middle of the space on the axes read, and differ from their neighbours by `swing`, `harm` and `bpm`, which the reading lacks; Lo-fi is taken for Deep house.
+  - A section's mean of 8 bars lands within 0.15 of a bar: averaging adds little, so what is missing is not noise but axes.
+  - Not measured: the temperature's effect on calibration of `p` beyond the two tried (0.05 and 0.1 rank alike; `p` on the right preset is 0.03 to 0.77 at 0.1), the axes not read, and real music.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
