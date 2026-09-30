@@ -169,14 +169,14 @@ A client plays on the host's clock:
 Browsers cannot send UDP, so RTP as such is out of reach from a tab. The
 options:
 
-| Link                 | Fits                                                              | Against                                                        |
-| -------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------- |
-| WebSocket            | Simplest; any server; works through every NAT and proxy           | TCP: a lost packet holds up the ones after it; all via server  |
-| WebRTC data channels | Peer to peer, so traffic stays on the LAN; unreliable channels    | Needs signalling (a server) to connect; more moving parts      |
-| WebRTC media tracks  | RTP under the hood, Opus, jitter buffers: the audio of later      | Audio only                                                     |
-| WebTransport (QUIC)  | Datagrams, no head-of-line blocking                               | Client to server only, HTTP/3 and a certificate; no P2P        |
-| RTP-MIDI (AppleMIDI) | The standard for MIDI over a network                              | Not in browsers; a root-node concern, for hardware             |
-| BroadcastChannel     | Tabs of one browser, no server                                    | One machine only: for tests and demos                          |
+| Link                 | Fits                                                           | Against                                                       |
+| -------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| WebSocket            | Simplest; any server; works through every NAT and proxy        | TCP: a lost packet holds up the ones after it; all via server |
+| WebRTC data channels | Peer to peer, so traffic stays on the LAN; unreliable channels | Needs signalling (a server) to connect; more moving parts     |
+| WebRTC media tracks  | RTP under the hood, Opus, jitter buffers: the audio of later   | Audio only                                                    |
+| WebTransport (QUIC)  | Datagrams, no head-of-line blocking                            | Client to server only, HTTP/3 and a certificate; no P2P       |
+| RTP-MIDI (AppleMIDI) | The standard for MIDI over a network                           | Not in browsers; a root-node concern, for hardware            |
+| BroadcastChannel     | Tabs of one browser, no server                                 | One machine only: for tests and demos                         |
 
 - Everything sits behind one `Lobby` (`apps/web/src/session/lobby.ts`): it
   lists the open sessions, opens one under a name or joins one, and gives
