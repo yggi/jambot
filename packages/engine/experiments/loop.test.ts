@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { BY_LICENCE, type Condition, type LoopMeasure, kendall, loopRun, loops } from './loop.ts';
+import { type Motif, motifProblems, recognise } from '@jambot/theory';
+import {
+  BY_LICENCE,
+  type Condition,
+  type LoopMeasure,
+  VARIANTS,
+  kendall,
+  loopRun,
+  loops,
+  varyOffer,
+} from './loop.ts';
 
 // The numbers are literals, to be moved by the step that moves them.
 /** E21 at entropy 0.3 over every preset, the narrowest licence first, one seed of 96 bars. */
@@ -116,6 +126,82 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
       [0.93, 0.84],
       [0.89, 0.83],
     ]);
+  });
+});
+
+describe('the variants: the lock is the delay’s, not the hold’s, E21 (#237)', () => {
+  /** The variants at entropy 0.3, at the ends of the licence, one seed of 96 bars, with the deaf band beside them. */
+  const sample = loops(0.3, 1, 96, ENDS, ['deaf', ...VARIANTS]);
+
+  it('still locks without the hold: the first motif it heard is the commonest, all on bars of one parity (E21, Q7b)', () => {
+    expect(column(sample, 'no hold', 'firstHeld')).toEqual([1, 1]);
+    expect(column(sample, 'no hold', 'oneParity')).toEqual([1, 1]);
+    expect(column(sample, 'no hold', 'recognised')).toEqual([0.93, 0.89]);
+    expect(column(sample, 'hearing', 'recognised')).toEqual([0.93, 0.84]);
+  });
+
+  it('recognises less and repeats less exactly when the lead varies an offer on its phrase’s second and fourth bars, but the first motif still holds the other bars (E21, Q7b)', () => {
+    expect(column(sample, 'varied', 'recognised')).toEqual([0.78, 0.76]);
+    expect(column(sample, 'varied', 'exact')).toEqual([0.81, 0.9]);
+    expect(column(sample, 'varied', 'distinct')).toEqual([19, 20]);
+    expect(column(sample, 'varied', 'firstHeld')).toEqual([1, 1]);
+    expect(column(sample, 'varied, no hold', 'firstHeld')).toEqual([1, 1]);
+  });
+
+  it('breaks the lock when the lead varies an offer on every bar: no first motif held, no return, and what it recognises about half under an operator (E21, Q7b, Q12)', () => {
+    for (const condition of ['every bar', 'every bar, no hold'] as const) {
+      expect(column(sample, condition, 'firstHeld'), condition).toEqual([0, 0]);
+      expect(column(sample, condition, 'returns'), condition).toEqual([0, 0]);
+    }
+    expect(column(sample, 'every bar', 'recognised')).toEqual([0.63, 0.58]);
+    expect(column(sample, 'every bar', 'exact')).toEqual([0.48, 0.49]);
+    expect(column(sample, 'every bar', 'oscillating')).toEqual([0.15, 0.15]);
+    expect(column(sample, 'every bar', 'commonest')).toEqual([0.14, 0.1]);
+    // Deaf, beside it: recognised about as much, but nearly all exactly, and oscillating more.
+    expect(column(sample, 'deaf', 'recognised')).toEqual([0.57, 0.63]);
+    expect(column(sample, 'deaf', 'exact')).toEqual([0.84, 0.93]);
+    expect(column(sample, 'deaf', 'oscillating')).toEqual([0.28, 0.38]);
+  });
+});
+
+describe('an offered motif varied as the lead varies its own shapes (E21)', () => {
+  const shape: Motif = {
+    cycle: 16,
+    onsets: [0, 4, 8, 12],
+    degrees: [0, 2, 4, 3],
+    accidentals: [0, 0, 0, 0],
+  };
+  const same = (a: Motif, b: Motif) =>
+    JSON.stringify([a.onsets, a.degrees, a.accidentals]) ===
+    JSON.stringify([b.onsets, b.degrees, b.accidentals]);
+
+  it('turns it over, lifts it, bends its last note or drops it, each by a draw of the bar, and keeps it a motif', () => {
+    const ways = new Set<string>();
+    for (let bar = 0; bar < 200; bar++) {
+      const varied = varyOffer(shape, 1, bar, 0);
+      expect(motifProblems(varied), `bar ${bar}`).toEqual([]);
+      expect(varyOffer(shape, 1, bar, 0)).toEqual(varied);
+      const op = recognise(varied, shape);
+      if (op?.mirror) ways.add('turned over');
+      else if (op && op.strans === 2) ways.add('lifted');
+      else if (varied.degrees.filter((d) => d !== null).length < 4) ways.add('dropped');
+      else if (!same(varied, shape) && varied.degrees.slice(0, 3).join() === '0,2,4')
+        ways.add('bent');
+    }
+    expect([...ways].sort()).toEqual(['bent', 'dropped', 'lifted', 'turned over']);
+  });
+
+  it('nudges one note after the first a degree, by chance, as the entropy rises', () => {
+    const nudged = (entropy: number) =>
+      [...Array(200).keys()].filter((bar) => {
+        const varied = varyOffer(shape, 1, bar, entropy);
+        return (
+          varied.degrees[0] === 0 &&
+          recognise(varied, shape) === null &&
+          varied.degrees.length === 4
+        );
+      }).length;
+    expect(nudged(0)).toBeLessThan(nudged(1));
   });
 });
 

@@ -47,34 +47,134 @@
  * that order, and against the entropy, says whether the share falls
  * monotonically as the licence widens and as the entropy rises (#237).
  *
+ * It then runs the variants (`VARIANTS`): the loop closed without the Muse's
+ * hold, and with the lead varying an offer as it varies its own shapes, on
+ * a phrase's second and fourth bars or on every bar, each with the hold and
+ * without it. They say which part of the loop locks it.
+ *
  * Its cost is mostly the Muse's recognition, every motif heard against every
- * one she remembers: 3 seeds of 128 bars, the default, take about 11 s, and
- * 5 seeds of 256 bars about 40 s.
+ * one she remembers: 3 seeds of 128 bars, the default, take about 50 s with
+ * the variants.
  *
  * node --experimental-strip-types --no-warnings packages/engine/experiments/loop.ts [seeds] [bars]
  */
 
 import { fileURLToPath } from 'node:url';
-import { type Motif, NOOP, recognise } from '@jambot/theory';
+import { type Motif, NOOP, applyOp, head, recognise } from '@jambot/theory';
 import {
   type HeardNote,
   type Judgement,
   type Key,
   LISTEN_DELAY,
   type MuseCarried,
+  type Offer,
   type Reading,
   PRESETS,
   type Preset,
   SECTION_BARS,
   band,
   barStart,
+  chance,
+  draw,
   judgeBar,
   keptAfter,
   muse,
+  pick,
+  taken,
 } from '../src/index.ts';
 
-/** Whether the Muse's offer goes back into the band. */
-export type Condition = 'deaf' | 'hearing';
+/**
+ * Whether the Muse's offer goes back into the band, and how:
+ *
+ * - `deaf`: not at all;
+ * - `hearing`: as the Muse offers it, a confirmed motif held across bars;
+ * - `no hold`: the motif of each bar heard, as the prototype takes it, with
+ *   no confirmation (with only the lead heard, one motif a bar, confirming
+ *   first has nothing to rank, so only the hold differs);
+ * - `varied` and `varied, no hold`: the same, with the lead varying the
+ *   offer on its phrase's second and fourth bars as it varies its own
+ *   shapes (`varyOffer`);
+ * - `every bar` and `every bar, no hold`: the same variation on every bar.
+ *
+ * The delay splits the loop into chains: what the Muse hears in bar k plays
+ * in bar k + 2, so the even bars feed the even bars and the odd the odd. A
+ * phrase's second and fourth bars are odd, so the variants that vary only
+ * there leave the even chain copying itself.
+ */
+export type Condition =
+  | 'deaf'
+  | 'hearing'
+  | 'no hold'
+  | 'varied'
+  | 'varied, no hold'
+  | 'every bar'
+  | 'every bar, no hold';
+
+/** The conditions E21 compares, and its variants. */
+export const CONDITIONS: readonly Condition[] = ['deaf', 'hearing'];
+export const VARIANTS: readonly Condition[] = [
+  'hearing',
+  'no hold',
+  'varied',
+  'varied, no hold',
+  'every bar',
+  'every bar, no hold',
+];
+
+/**
+ * An offered motif varied as the lead varies its own shapes on a phrase's
+ * second and fourth bars (`varied` in `lead.ts`, with `phraseParams`'
+ * weights, 0.3, 0.25, 0.25 and 0.2, and a nudge of half the entropy):
+ * turned over, lifted two degrees, its last note bent a degree or two from
+ * the one before, or its last note dropped for a rest; then, by chance, one
+ * note after the first nudged a degree. The draws are the lead's own
+ * (`leadVariation`, keyed by bar), which it doesn't draw while an offer
+ * stands, so this is the variation the lead would have drawn for the bar.
+ */
+export function varyOffer(motif: Motif, seed: number, bar: number, entropy: number): Motif {
+  let n = 0;
+  const next = () => draw(seed, 'leadVariation', bar, n++);
+  const notes = motif.degrees.filter((d) => d !== null).length;
+  const way = pick(next(), [0.3, 0.25, 0.25, 0.2]);
+  let varied =
+    way === 0
+      ? applyOp({ ...NOOP, mirror: true }, motif)
+      : way === 1
+        ? applyOp({ ...NOOP, strans: 2 }, motif)
+        : way === 3 && notes > 2
+          ? head(motif, notes - 1)
+          : motif;
+  const noteAt = (k: number) =>
+    varied.degrees.map((d, i) => (d === null ? -1 : i)).filter((i) => i >= 0)[k];
+  const moved = (i: number, by: number): Motif => ({
+    ...varied,
+    degrees: varied.degrees.map((d, j) => (j === i && d !== null ? d + by : d)),
+  });
+  if (way === 2 && notes > 1) {
+    const [last, before] = [noteAt(notes - 1)!, noteAt(notes - 2)!];
+    const target =
+      varied.degrees[before]! + (chance(next(), 0.5) ? -1 : 1) * (1 + pick(next(), [1, 1]));
+    varied = moved(last, target - varied.degrees[last]!);
+  }
+  const count = varied.degrees.filter((d) => d !== null).length;
+  if (chance(next(), 0.5 * entropy) && count > 1)
+    varied = moved(
+      noteAt(
+        1 +
+          pick(
+            next(),
+            [...Array(count - 1)].map(() => 1),
+          ),
+      )!,
+      chance(next(), 0.5) ? -1 : 1,
+    );
+  return varied;
+}
+
+/** Whether the lead varies an offer on this bar: its phrase's second or fourth, or every bar. */
+const varies = (condition: Condition, bar: number) =>
+  condition.startsWith('every bar') ||
+  (condition.startsWith('varied') && (bar % 4 === 1 || bar % 4 === 3));
 
 /** The source the lead is heard as. */
 const LEAD = 'the lead';
@@ -117,6 +217,8 @@ export function loopRun(
   let playing = band.initial;
   let listening: MuseCarried = muse.initial;
   let pending: HeardNote[] = [];
+  /** The motif of each bar heard, as the prototype takes it: the `no hold` conditions' offer. */
+  let latest: Offer | null = null;
   const keys: Key[] = [];
   const heard: LoopBar[] = [];
   for (let bar = 0; bar < bars + LISTEN_DELAY; bar++) {
@@ -126,6 +228,8 @@ export function loopRun(
       const next = muse.advance({ bar: judged }, listening, { judgements, forget: false });
       listening = next.carried;
       pending = keptAfter(pending, judged);
+      const best = taken(judgements);
+      if (best) latest = { motif: best.motif, source: best.source, bar: judged, level: best.level };
       const motif = motifIn(judgements);
       const recognition = next.output.recognised.find((r) => r.source === LEAD);
       heard.push({
@@ -141,7 +245,12 @@ export function loopRun(
       });
     }
     if (bar >= bars) continue;
-    const offer = condition === 'hearing' ? listening.offer : null;
+    const held =
+      condition === 'deaf' ? null : condition.endsWith('no hold') ? latest : listening.offer;
+    const offer =
+      held && varies(condition, bar)
+        ? { ...held, motif: varyOffer(held.motif, seed, bar, entropy) }
+        : held;
     const next = band.advance({ seed, bar, style, wish, offer }, playing, null);
     playing = next.carried;
     keys.push(next.output.plan.key);
@@ -281,15 +390,16 @@ export function measure(
   };
 }
 
-/** E21 for `presets` (every preset, the narrowest licence first) at `entropy`, in both conditions, over `seeds` seeds of `bars` bars. */
+/** E21 for `presets` (every preset, the narrowest licence first) at `entropy`, in `conditions`, over `seeds` seeds of `bars` bars. */
 export function loops(
   entropy: number,
   seeds: number,
   bars: number,
   presets: readonly Preset[] = BY_LICENCE,
+  conditions: readonly Condition[] = CONDITIONS,
 ): LoopMeasure[] {
   return presets.flatMap((preset) =>
-    (['deaf', 'hearing'] as const).map((condition) =>
+    conditions.map((condition) =>
       measure(
         preset.name,
         entropy,
@@ -315,32 +425,32 @@ export function kendall(xs: readonly number[], ys: readonly number[]): number {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [seeds = 3, bars = 128] = process.argv.slice(2).map(Number);
   const pct = (x: number) => `${(100 * x).toFixed(1)}%`.padStart(6);
+  const header =
+    'preset         condition           playing   recog   exact  novelty  longest (any)  stalled     osc  return  distinct  commonest  first  parity';
+  const row = (m: LoopMeasure) =>
+    [
+      m.preset.padEnd(14),
+      m.condition.padEnd(18),
+      pct(m.playing).padStart(7),
+      pct(m.recognised),
+      pct(m.exact),
+      m.novelty.toFixed(2).padStart(7),
+      `${m.longestRun.toFixed(1).padStart(7)} (${String(m.longestAny).padStart(3)})`,
+      pct(m.stalled).padStart(7),
+      pct(m.oscillating),
+      pct(m.returns),
+      m.distinct.toFixed(1).padStart(8),
+      pct(m.commonest).padStart(9),
+      pct(m.firstHeld),
+      pct(m.oneParity).padStart(7),
+    ].join('  ');
   const all: LoopMeasure[] = [];
   for (const entropy of [0, 0.3, 0.6, 1]) {
     console.log(`\nentropy ${entropy}, ${seeds} seeds, ${bars} bars`);
-    console.log(
-      'preset         condition  playing   recog   exact  novelty  longest (any)  stalled     osc  return  distinct  commonest  first  parity',
-    );
+    console.log(header);
     for (const m of loops(entropy, seeds, bars)) {
       all.push(m);
-      console.log(
-        [
-          m.preset.padEnd(14),
-          m.condition.padEnd(9),
-          pct(m.playing).padStart(7),
-          pct(m.recognised),
-          pct(m.exact),
-          m.novelty.toFixed(2).padStart(7),
-          `${m.longestRun.toFixed(1).padStart(7)} (${String(m.longestAny).padStart(3)})`,
-          pct(m.stalled).padStart(7),
-          pct(m.oscillating),
-          pct(m.returns),
-          m.distinct.toFixed(1).padStart(8),
-          pct(m.commonest).padStart(9),
-          pct(m.firstHeld),
-          pct(m.oneParity).padStart(7),
-        ].join('  '),
-      );
+      console.log(row(m));
     }
   }
   const licence = BY_LICENCE.map((p) => p.style.harm);
@@ -369,4 +479,30 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           ).toFixed(2)}`;
         }).join('  '),
     );
+  console.log(
+    '\nvariants: the loop closed without the hold, with the lead varying an offer, and both',
+  );
+  const variants: LoopMeasure[] = [];
+  for (const entropy of [0, 0.3, 0.6, 1]) {
+    console.log(`\nentropy ${entropy}, ${seeds} seeds, ${bars} bars`);
+    console.log(header);
+    for (const m of loops(entropy, seeds, bars, BY_LICENCE, VARIANTS)) {
+      variants.push(m);
+      console.log(row(m));
+    }
+  }
+  console.log(
+    '\nthe variants, the mean over every preset and entropy:\ncondition             recog   exact  return     osc  commonest   first  parity  distinct',
+  );
+  for (const condition of VARIANTS) {
+    const rows = variants.filter((m) => m.condition === condition);
+    const avg = (f: (m: LoopMeasure) => number) => pct(mean(rows.map(f)));
+    console.log(
+      `${condition.padEnd(18)} ${avg((m) => m.recognised)}  ${avg((m) => m.exact)}  ${avg((m) => m.returns)}  ${avg((m) => m.oscillating)}     ${avg((m) => m.commonest)}  ${avg((m) => m.firstHeld)}  ${avg((m) => m.oneParity)}  ${mean(
+        rows.map((m) => m.distinct),
+      )
+        .toFixed(1)
+        .padStart(8)}`,
+    );
+  }
 }
