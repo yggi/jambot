@@ -66,7 +66,6 @@ import {
   type TransportEnv,
   type TransportOutput,
   NO_HISTORY,
-  centre,
   foldBar,
   forecast,
   holding,
@@ -288,12 +287,14 @@ export class Player {
   #decidedAt = -1;
 
   /**
-   * The home key the players' key licence counts from: the centre of the
-   * band's harmonic history in the mode it is heading for (#169), the key the
-   * song opens in before anything is heard.
+   * The home key the players' key licence counts from: the plan's, the key
+   * the band is heading for, and the key the song opens in before anything
+   * is decided. Not the harmonic history's centre, which trails a key change
+   * by half a section and may not find it at all where the harmony is thin
+   * (E19); the history shows where the band has been, the plan where it is.
    */
   get home(): Key {
-    return centre(this.harmonicHistory, this.hud.heading ?? INITIAL_KEY);
+    return this.hud.heading ?? INITIAL_KEY;
   }
 
   /** What the screen shows. */

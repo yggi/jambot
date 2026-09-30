@@ -15,8 +15,8 @@
   Roman numerals the chords below are written in. Changing the shape keeps
   the tonic, and nudging the tonic keeps the shape. The host, or a band
   playing alone, sets the key, heard from the next section the band plans,
-  and held within the style's licence of the home key, the band's harmonic
-  history's centre (`licence.ts`, #169),
+  and held within the style's licence of the home key, the key the plan is
+  heading for (`licence.ts`, C8),
   so the tonics beyond it are dimmed. Under the scale, the melodic scale the
   lead walks over the key (#209): the plain scale, the pentatonic or the
   blues, those beyond the style's reach (`licenceOf`'s `melodic`) dimmed; a
@@ -62,7 +62,7 @@
     history: readonly number[];
     /** How many fifths from the home key the licence lets the key go (`licenceOf`'s `keyReach`). */
     reach: number;
-    /** The home key the reach counts from: the band's harmonic history's centre (#169). */
+    /** The home key the reach counts from: the key the plan is heading for (C8). */
     home?: Key;
     /** The melodic scale the band is heading for (#209). */
     melodic?: MelodicScale | null;

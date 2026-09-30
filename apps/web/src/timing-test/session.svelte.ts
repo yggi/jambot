@@ -1,5 +1,5 @@
 /**
- * The timing test, run (#204, A7): the page's container for it, as
+ * The timing test, run (#204, H7): the page's container for it, as
  * `Instruments` is for the band.
  *
  * It plays the pattern on this device's own synth (never MIDI out), all

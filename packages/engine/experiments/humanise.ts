@@ -1,5 +1,5 @@
 /**
- * A humaniser and a yardstick for how the Muse reads a sloppy player (#204, A0).
+ * A humaniser and a yardstick for how the Muse reads a sloppy player (#204, H0).
  *
  * `humanise` plays a bar the way a hand would: each onset off the beat by
  * some milliseconds, the whole phrase early or late, the tempo drifting over
@@ -130,7 +130,7 @@ const BEAT_DIVISIONS = [[4], [2, 2], [1, 1, 1, 1], [2, 1, 1], [1, 1, 2], [3, 1]]
 /**
  * The pattern with index `index` whose beats each divide by themselves: a
  * bar of four beats, each a quarter, eighths, sixteenths or a mix, so its
- * note values change from beat to beat (A3's ground). A segment is a rest
+ * note values change from beat to beat (H3's ground). A segment is a rest
  * one time in ten.
  */
 export function beatPattern(index: number): Segment[] {
@@ -251,17 +251,17 @@ export type Hearing = (notes: readonly HeardNote[]) => HeardNote[];
 /** Each note as heard. */
 export const AS_HEARD: Hearing = (notes) => [...notes];
 
-/** Each phrase read as one span (`readHeard`, #204 A1). */
+/** Each phrase read as one span (`readHeard`, #204 H1). */
 export const AS_PHRASES: Hearing = readHeard;
 
-/** What a hearing made of phrases, over the same bars (E17, A1). */
+/** What a hearing made of phrases, over the same bars (E17, H1). */
 export interface PhraseRate {
   readonly bars: number;
   /** Bars read back as the target motif exactly. */
   readonly right: number;
   /** Bars whose notes all start on the steps they were meant for, whatever the rests. */
   readonly onsets: number;
-  /** Bars whose rests all fall on the steps they were meant for, and no others (A4). */
+  /** Bars whose rests all fall on the steps they were meant for, and no others (H4). */
   readonly rests: number;
   /** Bars with a note read in another bar than it was meant for. */
   readonly strayed: number;

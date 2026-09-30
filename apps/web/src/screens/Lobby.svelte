@@ -23,7 +23,7 @@
     /** Why the last session ended, or a join failed. */
     notice: string | null;
     onsolo: () => void;
-    /** The timing test (#204, A7). */
+    /** The timing test (#204, H7). */
     ontiming: () => void;
     onhost: (where: Where, session: string) => Promise<void>;
     onjoin: (where: Where, session: string) => void;

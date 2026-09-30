@@ -165,6 +165,22 @@ export function series(versions: Version[]): Counts[] {
   });
 }
 
+/**
+ * How many rules were dissolved (#181), against every rule and against the
+ * rules made, `on measured options` or `ahead of the evidence`: whether the
+ * ratchet contracts its decisions or only takes them. A rule counts by how
+ * it stands at the version, so one made ahead of the evidence and later
+ * dissolved counts as dissolved from then on.
+ */
+export function dissolution(counts: Counts): { dissolved: number; decided: number; made: number } {
+  const count = (way: string) => counts.rules[way] ?? 0;
+  return {
+    dissolved: count('dissolved'),
+    decided: Object.values(counts.rules).reduce((sum, n) => sum + n, 0),
+    made: count('on measured options') + count('ahead of the evidence'),
+  };
+}
+
 const git = (...args: string[]) =>
   execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 
@@ -183,8 +199,9 @@ function at(rev: string): Version {
 
 /**
  * `pnpm ratchet [rev]`: every commit on the first-parent line of `rev`
- * (default `origin/main`) that changed a catalogue, with its counts, and
- * what fell between neighbours.
+ * (default `origin/main`) that changed a catalogue, with its counts, the
+ * rules dissolved against every rule and against the rules made, and what
+ * fell between neighbours.
  */
 function report(rev = 'origin/main'): void {
   const commits = git(
@@ -203,7 +220,7 @@ function report(rev = 'origin/main'): void {
   const versions = commits.map((line) => at(line.split(' ')[0]!));
   const rows = series(versions);
   const header =
-    'commit   date        entries  none spec open derv meas fail aliases  rules (by how)';
+    'commit   date        entries  none spec open derv meas fail aliases  dissolved  rules (by how)';
   console.log(header);
   commits.forEach((line, n) => {
     const [sha, date] = line.split(' ');
@@ -214,8 +231,10 @@ function report(rev = 'origin/main'): void {
     const cells = [c.none, c.speculative, c.open, c.derived, c.measured, c.failing].map((v) =>
       String(v).padStart(4),
     );
+    const { dissolved, decided, made } = dissolution(c);
+    const share = `${dissolved}/${decided} ${dissolved}:${made}`.padEnd(9);
     console.log(
-      `${sha!.padEnd(8)} ${date}  ${String(c.entries).padStart(7)} ${cells.join(' ')} ${String(c.aliases).padStart(7)}  ${rules}`,
+      `${sha!.padEnd(8)} ${date}  ${String(c.entries).padStart(7)} ${cells.join(' ')} ${String(c.aliases).padStart(7)}  ${share}  ${rules}`,
     );
     if (n > 0)
       for (const fall of falls(versions[n - 1]!, versions[n]!))

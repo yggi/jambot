@@ -279,7 +279,7 @@ describe('reading phrases whose beats divide by themselves (E17)', () => {
 });
 
 /**
- * The Muse's own judgement (A6): `judgeBar` reads a phrase so far, whole
+ * The Muse's own judgement (#204, H6): `judgeBar` reads a phrase so far, whole
  * phrases up to the end of the bar it judges and no note of the bars after
  * it, so what the band plays never depends on what came later (F7). It
  * loses nothing worth a point to that against reading a phrase whose end is
@@ -322,7 +322,7 @@ describe('the Muse’s own judgement of a sloppy hand (E17)', () => {
   }, 60_000);
 });
 
-/** The confidence a judgement carries (A5) says something: it sorts the bars read right from the bars read wrong. */
+/** The confidence a judgement carries (#204, H5) says something: it sorts the bars read right from the bars read wrong. */
 describe('the confidence of a bar read as a motif (E17)', () => {
   const bars = new Map<number, ReturnType<typeof judgedBars>>();
   const at = (s: number) => {

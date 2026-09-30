@@ -877,7 +877,7 @@ describe('the Muse', () => {
     expect(outputs[3]!.offer!.bar).toBe(3);
   });
 
-  it('forgets its offer once nobody has played for 16 bars, and not a bar sooner', () => {
+  it('forgets its offer once nobody has played for 16 bars, and not a bar sooner (C9)', () => {
     // Notes that give no motif still count as playing.
     const { outputs } = listen([
       { heard: phrase(0) },

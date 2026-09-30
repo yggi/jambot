@@ -673,6 +673,31 @@ and read back as itself, and a value off it is refused both ways.
 and its grid are the band's. Source: E10, T5. Status: measured. Decided: #7, on
 measured options (E10). Lands in: #63 step 2 (the header).
 
+**C8. A level below moves what the level above sets only within the licence it leaves, and never selects outright.**
+Witness: `licenceOf(style)` (`licence.ts`), one function for the four licences the style leaves: the performer's feel at the note (T17 is this entry at the note), the tempo, which the players nudge by a ratio of the style's (`tempoNudgeWithin`), the key, which they move round the circle of fifths from the home, the key the plan is heading for (`intoReach`, `player.home`), and the melodic scale the lead walks over the key (`melodicWithin`, #209).
+The genre sets each range (`harm` the key's reach and the melodic scales, `swing` and `artic` the feel), and the players' `entropy`, which no preset sets, how much of it is used (#176).
+A wish beyond a licence is pulled back to its edge, not refused, so what the players ask for moves the band as far as the style allows.
+The composer and the performer read the same style and use it differently: the band's own drift takes the key's reach from `harm` and its readiness to move from `entropy` (C9), the performer takes the feel; the licence is what is given, the entropy how much of it is used.
+Counterexample: a nudge that takes a value past its licence, such as a key picked six fifths away in Techno; a licence that reads something other than the style; a layer below that sets a value the layer above holds.
+Test: `licence.test.ts`, whose tests of the tempo, the key and the melodic scale held within reach cite C8: every preset and tonic, and every scale at every harmony; `conductor.test.ts` (`apps/web`), whose test of a key held within reach of the plan's key cites C8: every home and tonic; `player.test.ts` (`apps/web`), whose test of the players' home cites C8: the plan's key, whatever the harmonic history weighs.
+Source: #176, #193, #209; the law of recursion.
+Status: measured (the feel, T17; the tempo; the key; the melodic scale).
+Decided: #176, ahead of the evidence: the key's reach from `harm`, the tempo's from `entropy`, and the feel from `swing`, `entropy` and `artic`; #210, on measured options (E19): the key's reach counts from the plan's key, not from the harmonic history's centre, which trails a key change by half a section and may not find it where the harmony is thin.
+Lands in: #176 (closed), #195, #210.
+
+**C9. Every level holds a default and a licence, reads its fill back up, keeps a fading memory of the readings, and leans its default toward the memory's centre, within the licence of the level above.**
+Witness: the key, which has all five arrows (#169, #210).
+It holds the style's reach (C8) and a chance to move of `KEY_JUMP` times the entropy; the band fills it with chords; `foldBar` reads them as a weight per pitch class; the weights fade by `HISTORY_DECAY` a bar, a fading memory (`fading.ts`) whose time constant is 1 / (1 − 0.85), about 6.7 bars; and two leans read it: the centre (`centre`, the key whose scale weighs most, where the band has been), and the band's own drift, a draw among the keys within reach by their weight to the fourth power (`bandWish`, `leaning`), of which the centre is the limit as the power grows.
+E19 measures the loop: every jump stays within the reach, and the centre reaches a new key 1.2 to 3.9 bars into its section, but where the harmony is thin its reading loses what tells neighbouring keys apart, and the centre misses the band's key by the section's end in half of Ambient's jumps and in 3 of 10 of Funk's.
+Read against the memory, the read is recognition, hearing a remembered pattern under an operator (Q12): the key's centre is the shift of the scale that best lays it on what was heard.
+Since a fading memory forgets where it started, a client that joins late and folds the bars it hears from nothing comes to its host's history without being sent it: the history its key card draws agrees with the host's once the gap has faded below what tells two keys apart.
+Counterexample: a level whose fill no one reads, whose default never moves however it is nudged, as the tempo's (`nudgedTempo` reads the style and the nudge alone, #195); a memory that drops at a cliff, not a fade, as the Muse's offer, forgotten whole after `MUSE.forgetAfter` = 16 silent bars (#207); a lean that leaves the licence of the level above.
+Test: `fading.test.ts`, whose tests cite C9: a memory fades to nothing left alone, settles on a held reading at the reading times its time constant, and forgets where it started, two memories fed the same readings drawing together by the decay each fold, at four decays, and each lean leans as it says; `packages/engine/src/history.test.ts`, whose test of the recorded keys and centres cites C9: the band's key per section and its history's centre per bar over every preset, three seeds and 24 sections, as recorded before the history was a fading memory; `plan.test.ts`, whose test of the band's lean toward its history's centre cites C9; `key-loop.test.ts` (`packages/engine/experiments`), E19; `muse.test.ts`, whose test of the offer forgotten after 16 bars cites C9, the cliff; `licence.test.ts`, whose test of the tempo played cites C9: the style's own tempo times the nudge, and nothing else.
+Source: #210; W. Ross Ashby, _Design for a Brain_ (1952), the homeostat; Stafford Beer, _Brain of the Firm_ (1972), the recursion of viable systems.
+Status: measured (the key); measured, failing (the tempo; the Muse's offer); open (the note, #204; the phrase, #207; the style, #195).
+Open: whether a lean is always a centre or sometimes a draw; whether every level needs every arrow (the performer's fill is read by nobody); where each memory lives (S2); and whether a level needs a default of its own to return to (Q11).
+Lands in: #210, #195, #204, #207, #16.
+
 ### Pitch
 
 **P1. Pitch is relative: to the chord, the chord to the key; only compiled
@@ -1186,9 +1211,16 @@ against real players. Source: prototype, SDR
 open (confidence). Decided: the prototype, inherited (provenance). Lands in: #3,
 #25, #79, #16.
 
-**A4. Following the players is a loop with a bandwidth.** Source: SDR (clock
-recovery), the Muse's rate limit. Status: speculative. Lands in: #16, #25, #27,
-#79 (following the style), Q7a.
+**A4. Following the players is a loop with a bandwidth.**
+Witness: the key's loop (C9), which follows the players' key wishes and the band's own chords through a fading memory: its bandwidth is three numbers, a time constant, a gain and a bound.
+The time constant is `timeConstant(HISTORY_DECAY)`, about 6.7 bars, less than the 8 bars a key is held for; a reading held every bar settles at itself times it.
+The bound is the style's reach, per jump (C8).
+The gain of the centre, an argmax, is all or nothing: the centre follows a new key 1.2 to 3.9 bars into its section, or not by its end (E19).
+Counterexample: a loop that runs away (a gain above 1: each reading moves the default further than the one before), or one that never settles on a reading held.
+Test: `fading.test.ts`, whose test of a held reading cites A4; `key-loop.test.ts` (`packages/engine/experiments`), E19, whose tests of the time constant, the bound and the centre's lag cite A4.
+Source: SDR (clock recovery), the Muse's rate limit; #210.
+Status: measured (the key, E19); speculative (the style, following the players' own, #16).
+Lands in: #16, #25, #27, #79 (following the style), #210, Q7a.
 
 **A5. A player's velocities are expressive, not metric: where a note falls in
 the beat explains little of how loud it is played.** Witness: none yet.
@@ -1259,7 +1291,10 @@ Witness: per boundary, a section and a retraction:
   as the fixed points of `encodeBar ∘ compileBar`;
 - sound and score: the analyzer run on Jambot's own output;
 - a motif and what an operator makes of it: `canonicalOp` writes each result
-  with one operator, a fixed point (U5).
+  with one operator, a fixed point (U5);
+- a key and the harmony: the band's chords down, and the harmonic history's
+  centre up (C9), which gives a key held a section back where the harmony
+  is rich, but not always where it is thin (E19).
 
 Chained, a score, played and heard, writes itself: a quine. Counterexample: a
 value that doesn't come back through a boundary. The prototype's swing gives one
@@ -1270,9 +1305,16 @@ test of the canonical operator cites F3 (motifs); `mini.test.ts` and
 text written another way (fields in another order, a key spelled another way,
 `.6` for `0.6`, weights not in lowest terms) is written in one form, which a
 second pass leaves as it is (text); open for the parts' lines (#63) and sound
-(#3). Source: #13, #37. Status: measured (time); measured (motifs); measured
-(text: the header and harmony); open (text: the parts' lines; sound). Lands in:
-Q1a–Q1e and Q3.
+(#3); `key-loop.test.ts` (`packages/engine/experiments`), E19, whose test of a
+key held cites F3 (the key).
+The key's counterexample is the fill's, not the read's: the read gives every
+key back from its whole scale (`packages/engine/src/history.test.ts`), and the
+chords of a thin harmony don't sound the notes that tell neighbouring keys
+apart. Whether the round trip may lose there is #157's call, a lossy round trip
+that returns one structure (#158). Source: #13, #37. Status: measured (time);
+measured (motifs); measured (text: the header and harmony); measured, failing
+(the key, where the harmony is thin); open (text: the parts' lines; sound).
+Lands in: Q1a–Q1e and Q3, #158.
 
 **F4. Analysis settles in one round: `encode(compile(encode(x))) = encode(x)`.**
 Witness: the analyzer. Counterexample: a MIDI file whose analysis changes on a
@@ -1430,6 +1472,12 @@ that can be tested. This table records them; it renames nothing in the code.
 | "layers refer upward"                                  | relative coordinates, the origin given from above     | F5                                                |
 | quintenzirkel's `same transpose sequence invert retro` | identity, T, T on degrees, I, R (retrograde, on time) | a group acting on motifs; laws such as R∘R = id   |
 | a glide                                                | a path in style space                                 | C1                                                |
+| a default and the licence it leaves                    | a bound; a hold with a tolerance                      | C8                                                |
+| the harmonic history, folded bar by bar                | a fading memory; an exponential moving average        | a time constant, 1 / (1 − decay) (C9, A4)         |
+| the history's centre, `centre`                         | the memory's mode (an argmax): a lean                 | C9                                                |
+| the band's own drift, `bandWish`                       | a draw by weight to a power: a lean                   | the centre as its limit (C9)                      |
+| hold, fill, read, remember, lean                       | the homeostat (Ashby); a viable system (Beer)         | C9, Q11                                           |
+| "I got what you did there"                             | recognition: a remembered pattern and its operator    | the quine at every level (Q12)                    |
 
 ## Strange loops
 
@@ -1442,6 +1490,11 @@ composition constraints turn parts of them into claims that can be tested:
 
 - **Self-reference** is the feedback loop of F7. Whether it converges to a
   stable style or oscillates is A4, which the critic will measure.
+- **The loop at every level** (#210) holds a default and a licence, reads the fill back up, remembers it fading, and leans the default toward the memory (C9).
+  The key runs all five, and its bandwidth is A4's first measurement (E19).
+  Left alone, it strays and has no planned cycle to bring it home, as the harmony within a key has (Q11).
+- **Recognition**, "I got what you did there", is the quine at every level: a level hears a pattern from its memory under an operator, and what it answers, heard again, gives them back (Q12).
+  Memory and recognition together are the shape the loop shares with the score's round trip: the key, the motif and the scale already have it, the Muse and the performers not yet.
 - **Fixed points** are the canonical forms of F3: texts that the round trip
   gives back unchanged.
 - **Coarse-graining** is the hierarchy of F1: each level holds its output for
@@ -1455,8 +1508,8 @@ composition constraints turn parts of them into claims that can be tested:
   round and arrives back in its key an octave higher. That is the helix itself:
   `shift` by 2 six times is `shift` by 12, the same positions one turn higher.
 
-Still speculative: themes as fixed points that return, and whether the loop with
-the players converges.
+Still speculative: whether the loop with the players converges on a style (A4 for the style, Q7b).
+Themes as fixed points that return are measured (Q8).
 
 ## Experiments
 
@@ -1682,7 +1735,7 @@ run; the others have.
     `even(k, 16, shift)`, with k of 3, 5 or 7 and a shift of 0 to 3, so the line
     can write them as one Euclid token.
 
-- **E17. How well the Muse reads a sloppy hand** (A5's confidence, U4; #204 A0), in
+- **E17. How well the Muse reads a sloppy hand** (A3's confidence, U4; #204 H0), in
   [`packages/engine/experiments/muse-reading.ts`](../packages/engine/experiments/muse-reading.ts)
   and its humaniser and yardstick in `humanise.ts` (about 1 s), over 200 patterns, each played 5 times, 890 bars whose exact playing the Muse takes as a motif.
   - A pattern fills a bar with one dominant note value (a quarter, an eighth or a sixteenth) that gives way now and then to a longer, shorter or dotted one, with rests.
@@ -1696,19 +1749,19 @@ run; the others have.
   - The rest is where it goes wrong.
     Of the bars read wrong at 30 ms, 64% got a rest nobody meant, because a release and the next onset are rounded apart: 1 step of gap out of two noises of a fraction of a step.
     Without the shorter hold the share at 30 ms is 45.5%, and the bars read right 41.5%, so it is the rounding, not the articulation.
-  - A note struck early or late enough to change bars strays in 11.2% of the bars at 30 ms, 27.1% at 60, and 42.7% at 100: the bar it belongs to loses its first note (A1).
+  - A note struck early or late enough to change bars strays in 11.2% of the bars at 30 ms, 27.1% at 60, and 42.7% at 100: the bar it belongs to loses its first note (H1).
   - Notes put on another step, a note lost with another on its step, and no motif at all are each under 10% up to 60 ms.
-  - So the reading's first lesson is not where the notes go but where the rests are: a rest must be a plausible value or nothing (A4), and comes before the note value (A2).
+  - So the reading's first lesson is not where the notes go but where the rests are: a rest must be a plausible value or nothing (H4), and comes before the note value (H2).
   - The yardstick has both ends: an exact hand is read 100%, and a reader that hears nothing 0%.
     The baseline's numbers are literals in `humanise.test.ts`, to be raised by the step that improves them.
-  - **A1: a phrase read whole** (`readHeard`, `packages/engine/src/phrase.ts`).
+  - **#204 H1: a phrase read whole** (`readHeard`, `packages/engine/src/phrase.ts`).
     Two phrases of one to three bars with an empty bar between, each humanised alone: 3,600 bars.
     A phrase ends at a silence of a bar less a step (`EMPTY_BAR`), is read as one span with the phrase's offset found (shrunk toward none) and its first onset put on the beat where the odds say so (`BEAT_EVIDENCE`, odds of 6 to 1 against the hand's own looseness), then cut at the bar lines.
     Nearest step against a phrase read whole, bars right, and bars whose notes all start where they were meant (rests aside): 20 ms 69.1% and 82.9% against 83.6% and 92.8%; 30 ms 27.3% and 46.5% against 34.0% and 53.9%; 40 ms 9.1% and 23.3% against 10.1% and 26.4%.
     Bars with a note in the wrong bar at 30 ms: 9.9% against 7.6%.
   - Reading is no better from 60 ms, and marginally worse in right bars (a handful in 3,600): a hand that loose puts a note past half a step from where it meant, which no prior on the first onset repairs.
   - A beat prior on every onset, not only the first, at odds of 1.5 to 3, moved the 30 ms numbers by under a point, so it is left out.
-  - **A4: rests** (`releasesOf` in `phrase.ts`).
+  - **#204 H4: rests** (`releasesOf` in `phrase.ts`).
     A release short of the next onset, or of the bar's end, is the player's articulation, a share of the note's slot that the phrase's own notes leave (their lower quartile, up to 30%), unless the rest of the gap stands out by `REST_MARGIN` (3) times the hand's spread (its looseness, twice over).
     A rest is then of the plausible length nearest to it (1, 2, 3, 4, 6, 8, 12 or 16 steps) where that is within the spread, and of the whole steps nearest to it otherwise, since a tight hand that leaves five steps meant five.
     Bars right, bars with their rests where they were meant, nearest step against read whole: 10 ms 99.6% and 99.6% against 99.9% and 99.9%; 20 ms 69.1% and 70.4% against 84.4% and 87.9%; 30 ms 27.3% and 30.2% against 44.0% and 63.5%; 40 ms 9.1% and 11.6% against 20.1% and 43.9%; 60 ms 1.2% and 2.6% against 4.3% and 18.1%.
@@ -1721,28 +1774,28 @@ run; the others have.
     A larger margin declares fewer rests, so it costs a real rest that a loose hand can't tell from a release; the yardstick's rests are a minority, and a phrase that is mostly rests would want it smaller.
   - A note played staccato throughout is read as a full note (articulation), so a run of staccato eighths comes back as eighths, not as eighths and rests.
     Only a release that stands out is a rest.
-  - **A2: the note value** (`snapToValues`, `packages/engine/src/lattice.ts`).
+  - **#204 H2: the note value** (`snapToValues`, `packages/engine/src/lattice.ts`).
     A phrase's onsets are read on the lattice of a half, a quarter, an eighth or a sixteenth of the bar's own places, the one that describes them at the least cost: a place of the bar each (`16 / value` of them, in nats) and how far each is from it, over the hand's looseness, which is one for every lattice; the coarser wins a tie.
     Two onsets a step or more apart may not share a place (`MERGE_LIMIT`), which stops a loose hand's sixteenths being read as eighths with two notes on one place.
     The first onset stays where the beat prior put it.
-    Nearest step, then A4's reading, then A2's, bars right / onsets right: 20 ms 69.1% / 82.9%, 84.4% / 92.8%, 84.8% / 93.2%; 30 ms 27.3% / 46.5%, 44.0% / 53.9%, 46.0% / 56.6%; 40 ms 9.1% / 23.3%, 20.1% / 26.4%, 23.1% / 30.0%; 60 ms 1.2% / 6.8%, 4.3% / 7.3%, 5.0% / 8.6%.
-  - Three first cuts of A2 were worse than A4's, each for one reason.
+    Nearest step, then H4's reading, then H2's, bars right / onsets right: 20 ms 69.1% / 82.9%, 84.4% / 92.8%, 84.8% / 93.2%; 30 ms 27.3% / 46.5%, 44.0% / 53.9%, 46.0% / 56.6%; 40 ms 9.1% / 23.3%, 20.1% / 26.4%, 23.1% / 30.0%; 60 ms 1.2% / 6.8%, 4.3% / 7.3%, 5.0% / 8.6%.
+  - Three first cuts of H2 were worse than H4's, each for one reason.
     The looseness fitted to each lattice (its own spread) let a coarse lattice explain the noise away: 8.6 points of onsets lost at 20 ms, 4 of them to notes in the wrong bar; one looseness for all lattices, from the phrase's residuals, is right.
     A lattice anchored at the phrase's first onset misplaces a phrase that starts on an offbeat sixteenth; the bar's own places are right, since the player aims at the band's grid.
     Without the merge limit, four sixteenths a loose hand played as 24, 24, 26, 26 were read as eighths.
-  - **A3: the hierarchy** is in the nesting: a half, a quarter, an eighth and a sixteenth are each the multiples of the next, so a phrase's one lattice holds its longer notes and the shorter ones ask for.
-    Bars whose beats divide by themselves (a quarter, eighths, sixteenths, a mix; `beatPattern`, 3,875 bars) are the ground where one value for a phrase can't hold: nearest step against A2's, bars right / onsets right: 20 ms 70.0% / 78.9% against 81.6% / 91.7%; 30 ms 25.3% / 37.0% against 34.4% / 44.6%.
+  - **#204 H3: the hierarchy** is in the nesting: a half, a quarter, an eighth and a sixteenth are each the multiples of the next, so a phrase's one lattice holds its longer notes and the shorter ones ask for.
+    Bars whose beats divide by themselves (a quarter, eighths, sixteenths, a mix; `beatPattern`, 3,875 bars) are the ground where one value for a phrase can't hold: nearest step against H2's, bars right / onsets right: 20 ms 70.0% / 78.9% against 81.6% / 91.7%; 30 ms 25.3% / 37.0% against 34.4% / 44.6%.
   - Each beat taking a lattice of its own, nested in the phrase's, at 0 to 4 nats to depart from it, was worse than none on those bars (20 ms, 79.5% to 81.6% bars right, 89.1% to 91.7% onsets), and no better on the bars of one value; the more it took to depart, the better it did.
-    So it was taken out, and A3 stands as the nesting alone.
+    So it was taken out, and H3 stands as the nesting alone.
     Not tried: note values that are not a power of two (triplets, whose places are thirds of a beat), and ratios read from the lengths of notes as well as from their onsets.
-  - **A6: into the judgement** (`judgeBar` in `muse.ts`).
+  - **#204 H6: into the judgement** (`judgeBar` in `muse.ts`).
     The Muse's own judgement of a bar reads that source's notes as phrases (`readHeard`), those heard up to the end of the bar and no later, so what the band plays doesn't depend on what came after (F7): a phrase is read as far as it has gone.
     The notes kept between bars are each source's running phrase (`keptAfter`, up to `PHRASE_MEMORY` bars), not only the bars not yet judged; a client's ear and the host's transport both keep them, and read alike.
     The baseline stays as `judgeBar(…, 'nearest')`.
     Bars right / onsets / rests right by the Muse's own judgement, 3,600 bars: 20 ms 84.6% / 93.4% / 87.3%; 30 ms 45.8% / 57.4% / 62.4%; 40 ms 23.0% / 31.2% / 42.2%; on beats that divide by themselves at 30 ms 34.6% / 44.7% / 53.5%.
     That is within a point of a phrase read whole with its end known (46.3% at 30 ms), so reading a phrase so far costs nothing worth a point.
     The judgement of the bar before a phrase's first bar, judged before the phrase is known, still sees a lone early note as a bar of its own: too few, and not offered.
-  - **A5: the confidence a judgement carries.**
+  - **#204 H5: the confidence a judgement carries.**
     Each onset has a margin, how near it sits to the place it was read on against halfway to the next (1 on it, 0 halfway; `PhraseReading`); a motif's judgement carries the mean of its bar's notes, in hundredths (`confidence`, absent from the nearest step's reading).
     It sorts the bars read right from those read wrong: the chance that a right bar carries more than a wrong one is 0.85 at 10 ms, 0.78 at 20, 0.73 at 30, 0.69 at 40, 0.61 at 60.
     At 30 ms the surest third of the bars are read right 67.3% of the time and the least sure third 24.1%.
@@ -1752,10 +1805,10 @@ run; the others have.
     The notes times the confidence, which keeps some richness, was in between (66.5% at 20 and 40 ms).
     This changes what the band takes, ahead of the evidence about real players: a clean three-note motif now beats a loose ten-note one.
     It is one comparison in `taken` to reverse.
-  - The tuned constants of A1 to A4 (`BEAT_EVIDENCE`, `REST_MARGIN`, `ARTICULATION_CEILING`, `MERGE_LIMIT`) stay as they are: a posterior that estimated them from this yardstick would learn the humaniser's parameters, not a player's.
-    A5 as one posterior over the reading is not done; the confidence is.
+  - The tuned constants of H1 to H4 (`BEAT_EVIDENCE`, `REST_MARGIN`, `ARTICULATION_CEILING`, `MERGE_LIMIT`) stay as they are: a posterior that estimated them from this yardstick would learn the humaniser's parameters, not a player's.
+    H5 as one posterior over the reading is not done; the confidence is.
     That waits on a recording of real playing.
-  - What is left is the per-onset jitter of a loose hand, which the equal lengths (A2) and their ratios (A3) address, and the rests a loose hand can't tell from a release.
+  - What is left is the per-onset jitter of a loose hand, which the equal lengths (H2) and their ratios (H3) address, and the rests a loose hand can't tell from a release.
 
 - **E18. The lead driven by the style** (T4; #168 step 2), in
   [`packages/engine/experiments/lead-style.ts`](../packages/engine/experiments/lead-style.ts)
@@ -1771,6 +1824,25 @@ run; the others have.
     Notes a bar, the off-beat eighths and the turns stay within 0.03 of the plain scale's, since the scale moves notes, not steps; the beats on a chord tone fall a little, most in the blues (Swing jazz 0.78 to 0.66).
     The share of notes in the melodic scale is 0.99 in the plain scale, 0.96 in the pentatonic and the blues: the rest are the chord tones the lead lands on and the cadence.
     The span stays in degrees: whether to scale it by 7 over the scale's size, which would bring the mean interval back to the plain scale's, is left to the ear at the A/B.
+
+- **E19. The key's loop, left alone** (C9, A4, Q11; #210 step 3), in
+  [`packages/engine/experiments/key-loop.ts`](../packages/engine/experiments/key-loop.ts)
+  (under 2 s): every preset, the players wishing only for its mode, at entropy 0.3, 0.6 and 1, over 20 seeds and 33 sections.
+  - The time constant is derived: 1 / (1 − `HISTORY_DECAY`), 6.67 bars, against the 8 bars a section holds its key.
+  - The band moves its own key at a section boundary as often as `KEY_JUMP` times the entropy says (0.20, 0.40 and 0.63 of boundaries), whatever the harmony, and never at entropy 0 or in Techno, whose reach is 0.
+  - Every jump stays within the style's reach of the key before (C8); the mean jump is 1.0 to 1.9 fifths, since the draw leans toward the keys that share most with where the band has been.
+  - The draw leans back, a little: a jump goes back to the key the jump before left in 19 to 30% of jumps where the reach is 3 fifths or more, where an even draw among the keys within reach would in 9 to 17%, and near an even draw's rate where the reach is 1 or 2 (Funk 40 to 56% of 50%, Ambient 36 to 41% of 25%).
+    The key left has faded by then: a section is more than the history's time constant.
+  - The history's centre follows a jump 1.2 to 3.9 bars into the new section on average, about half a section in every preset that reaches past two fifths.
+    Where the harmony is thin it may not follow at all: by the section's end the centre is not the band's new key in 50 to 56% of Ambient's jumps and 29 to 31% of Funk's, against 3 to 12% of Synth-pop's, Deep house's and Lo-fi hip hop's, and none or 1% of Bossa nova's and Swing jazz's.
+    Their few chords don't hold the notes that tell neighbouring keys apart, so the reading loses what the lean needs.
+  - A key held a section or more is read back from the band's chords in every bar of Deep house, Bossa nova and Swing jazz and all but 0.1% of Synth-pop's and Lo-fi hip hop's, but not in 1.2% of Funk's, 3.8% of Techno's and 5.6% of Ambient's bars, at entropy 0 (F3).
+  - Over all bars, the centre is not the key playing in 9 to 27% at entropy 0.3 and 25 to 47% at entropy 1, and in up to 4% where the key never moves, from the first bars, before the history holds the scale: after a first bar of A minor alone, the centre can be D minor, which holds the chord as well.
+  - So the players' home, which their key licence counts from, is the plan's key, not the centre (#210, the owner, on these measurements): the centre shows where the band has been, the plan where it is.
+  - Left alone, the key doesn't come back.
+    At entropy 0.6 the mean distance from the opening key is 0.6 to 1.4 fifths by preset after one section, 1.7 to 2.5 after 8, and 2.3 to 3.3 after 32, where a key drawn at random round the circle lies 3 fifths away; 0 to 15% of runs are back on it after 32 (a random key 8%).
+    It is a walk with a bound on each step and none on where it goes.
+  - Not measured: the gain of the draw, which reads the history to the fourth power (`LEAN`), and whether a key the style names, or the song's opening key, should pull the walk back (Q11, the owner's call).
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

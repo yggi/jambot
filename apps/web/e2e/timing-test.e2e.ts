@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { listen, starts } from './audio.ts';
 
 /**
- * The timing test (#204, A7) in Chromium: it plays its pattern on the
+ * The timing test (#204, H7) in Chromium: it plays its pattern on the
  * built-in synth, takes taps of the computer's keys, keeps the whole run in
  * `localStorage`, and hands every run over as a download.
  */

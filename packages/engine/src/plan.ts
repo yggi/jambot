@@ -23,6 +23,7 @@
  */
 
 import { fifthsIndex, mod } from '@jambot/theory';
+import { leaning } from './fading.ts';
 import { type Section, form } from './form.ts';
 import { type HarmonicWeights, keyWeight } from './history.ts';
 import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from './key.ts';
@@ -91,9 +92,7 @@ export function bandWish(
     })
     .map((tonic) => ({ tonic, mode: key.mode }));
   const weights = candidates.map((c) => keyWeight(history, c));
-  const most = Math.max(...weights);
-  const leaning = most > 0 ? weights.map((w) => (w / most) ** LEAN) : weights.map(() => 1);
-  return candidates[pick(draw(seed, 'keyJump', index, 1), leaning)]!;
+  return candidates[pick(draw(seed, 'keyJump', index, 1), leaning(weights, LEAN))]!;
 }
 
 export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {

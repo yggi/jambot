@@ -178,7 +178,7 @@ describe('scaleRung (rung 1)', () => {
     }
   });
 
-  it('the descent is the ascent under one operator on either tower, `rev` or `mirror.strans(7)`, and the canonical one is on pitch (U5, #157)', () => {
+  it('the descent is the ascent under one operator on either tower, `rev` or `mirror.strans(7)`, and the canonical one is on pitch (U5, #157, Q12)', () => {
     for (const { name, scale } of EVERY_SCALE) {
       const notes = loadMidi(scaleRung(scale, 96)).sections[0]!.notes;
       const key = { cycle: 12, heights: scale.heights.map((h) => h - 60) };

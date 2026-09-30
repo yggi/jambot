@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { baseOf, falls, readVersion, series, type Version } from './history.ts';
+import { baseOf, dissolution, falls, readVersion, series, type Version } from './history.ts';
 import { CATALOGUES } from './pawl.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -151,6 +151,41 @@ describe('the report', () => {
         aliases: 0,
       },
     ]);
+  });
+});
+
+describe('the dissolved share (#181)', () => {
+  const rules = (...hows: string[]) =>
+    version(
+      hows
+        .map((how, n) => `**C${n + 1}. A rule.** Status: open. Decided: #${n + 1}, ${how}.`)
+        .join('\n\n'),
+    );
+  const [before, dissolved, made, later] = series([
+    rules('inherited', 'on measured options', 'ahead of the evidence'),
+    rules('inherited', 'on measured options', 'ahead of the evidence', 'dissolved'),
+    rules('inherited', 'on measured options', 'ahead of the evidence', 'ahead of the evidence'),
+    rules('inherited', 'on measured options', 'dissolved'),
+  ]).map(dissolution);
+
+  it('counts the dissolved rules against every rule, and against the rules made', () => {
+    expect(before).toEqual({ dissolved: 0, decided: 3, made: 2 });
+    expect(dissolved).toEqual({ dissolved: 1, decided: 4, made: 2 });
+  });
+
+  it('rises when a rule is dissolved, and not when one is made', () => {
+    expect(dissolved!.dissolved).toBeGreaterThan(before!.dissolved);
+    expect(made).toEqual({ dissolved: 0, decided: 4, made: 3 });
+  });
+
+  it('rises when a rule made ahead of the evidence is dissolved later', () => {
+    expect(later).toEqual({ dissolved: 1, decided: 3, made: 1 });
+  });
+
+  it('reads the catalogues on disk, whose rules all say how', () => {
+    const [share] = series([catalogues()]).map(dissolution);
+    expect(share!.decided).toBeGreaterThan(0);
+    expect(share!.dissolved).toBeLessThanOrEqual(share!.decided);
   });
 });
 
