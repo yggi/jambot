@@ -51,12 +51,12 @@ Read the grid for what is missing as much as for what is there:
 #116 §1 lists four places where the analogy breaks.
 Here is where each stands in the entries.
 
-| Difference                                                     | Entries      | State                                                                           |
-| -------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------- |
-| The pitch cycle is fixed, the time cycle is not                | T10, T14, T6 | (l): option (A) has a witness, (B) and (C) unmeasured; the owner has not chosen |
-| An alteration means different things on each tower             | T12, P5, U6  | measured, decided for time (one grid step), not wired into any surface          |
-| Onsets were absolute, pitches relative                         | U6, T12      | (k) decided, not wired: the engine's rhythms are still on 16 steps              |
-| A motif's cycle was the bar, a phrase is the turn one level up | T15, U4      | measured on the family, the band writes nothing across a bar line               |
+| Difference                                                     | Entries      | State                                                                                                  |
+| -------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------ |
+| The pitch cycle is fixed, the time cycle is not                | T10, T14, T6 | (l): option (A) has a witness, (B) and (C) unmeasured; the owner has not chosen                        |
+| An alteration means different things on each tower             | T12, P5, U6  | dissolved for time: an onset is a plain step and carries none (U6)                                     |
+| Onsets were absolute, pitches relative                         | U6, T12      | the bass's onsets are steps of the bar in the score (#263); the engine's rhythms are still on 16 steps |
+| A motif's cycle was the bar, a phrase is the turn one level up | T15, U4      | measured on the family, the band writes nothing across a bar line                                      |
 
 ## Decided, and not yet in the code
 
@@ -65,12 +65,12 @@ Each row is a rule the owner took, and the code that would witness it.
 
 | Rule                                                             | Entries          | What is missing in the code                                                                                                    |
 | ---------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| (k) an onset is relative to the meter                            | U6, T12          | #63 steps 3 and 4: the score writes onsets on the grid, and no engine rhythm writer uses `onsetToken`                          |
+| (k) an onset is relative to the meter                            | U6, T12          | #260: the parts write their onsets on the meter; the score writes a bass's as steps of the bar (#263)                          |
 | A meter in the bar's header                                      | T6, T10          | #63 step 6: bars are 4/4 (`SONG_METER`) and the header states no meter                                                         |
 | The signature is the composer's, the metrum the players' licence | T6, T10, T18, C8 | #261: a section carries its meter and the metrum shows it read-only; tempo, swing and the accents' spread are nudged within it |
 | Swing on the pulse                                               | T11, T16         | the transport plays no meter change (T14): `swingMap` is meter-aware, the transport is not                                     |
 | The text step between band and player                            | Q1a, F3          | #63 step 5: `compile(encode(written))` is tested, not in the path of the band                                                  |
-| Pitch lines written and read back                                | U1, U3, S2       | #63 step 3: header, harmony and six drum sounds only; bass, lead, pad, stab and the snare open                                 |
+| Pitch lines written and read back                                | U1, U3, S2       | #63 step 3: header, harmony, six drum sounds and the bass; lead, pad, stab and the snare open                                  |
 
 ## Claims with no witness
 
