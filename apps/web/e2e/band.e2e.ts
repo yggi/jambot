@@ -21,7 +21,7 @@ test('plays, follows on screen, and stops at once, without an error', async ({ p
   // time constant of 30 ms, so by then it leaves about e^-10 of the level;
   // a ride started up to 120 ms after Stop would still ring near 0.005.
   await openStyle(page);
-  await page.getByRole('button', { name: 'Swing jazz' }).click();
+  await page.getByRole('radio', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
   // Only the plan says where in its section the bar heard is: the song map
@@ -99,7 +99,7 @@ test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   await listen(page);
   await solo(page);
   await openStyle(page);
-  await page.getByRole('button', { name: 'Swing jazz' }).click();
+  await page.getByRole('radio', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
   await page.waitForTimeout(3000);
@@ -119,7 +119,7 @@ test('clicks the band’s own beats, and the swing moves its offbeats to the ban
   await listen(page);
   await solo(page);
   await openStyle(page);
-  await page.getByRole('button', { name: 'Swing jazz' }).click();
+  await page.getByRole('radio', { name: 'Swing jazz' }).click();
   await page.getByLabel('Metrum').locator('summary').click();
   await page.getByRole('button', { name: 'Click' }).click();
   await start(page);
@@ -151,7 +151,7 @@ test('plays the full band: bass, chords and lead beside the drums', async ({ pag
   await solo(page);
   // Deep house: a groove with harmony, and energy enough for the lead.
   await openStyle(page);
-  await page.getByRole('button', { name: 'Deep house' }).click();
+  await page.getByRole('radio', { name: 'Deep house' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
   // The intro is 8 bars; the lead joins after it, at 122 bpm about 16 s in.
@@ -351,13 +351,13 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
   };
   // Techno's harmony reaches the plain scale alone.
   await openStyle(page);
-  await page.getByRole('button', { name: 'Techno' }).click();
+  await page.getByRole('radio', { name: 'Techno' }).click();
   await unfold();
   await expect(scales.getByRole('radio', { name: 'plain' })).toBeChecked();
   await expect(scales.getByRole('radio', { name: 'pentatonic' })).toBeDisabled();
   await expect(scales.getByRole('radio', { name: 'blues' })).toBeDisabled();
   // Lo-fi hip hop's reaches the blues. Stopped, a pick is what the band opens on.
-  await page.getByRole('button', { name: 'Lo-fi hip hop' }).click();
+  await page.getByRole('radio', { name: 'Lo-fi hip hop' }).click();
   await unfold();
   await expect(scales.getByRole('radio', { name: 'blues' })).toBeEnabled();
   // A minor from C4 to E5: C D E F G A B, twice but for the last B, F and G.
@@ -371,7 +371,7 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
   expect(errors).toEqual([]);
 });
 
-test('wraps the preset chips inside the style card, at 760 px and at 360 px (#217)', async ({
+test('keeps the preset segments inside the style card, in two rows, at 760 px and at 360 px (#217)', async ({
   page,
 }) => {
   await listen(page);
@@ -381,16 +381,19 @@ test('wraps the preset chips inside the style card, at 760 px and at 360 px (#21
     await solo(page);
     await openStyle(page);
     const card = (await page.locator('details[aria-label="Style"]').boundingBox())!;
-    const chips = await page
-      .getByRole('group', { name: 'Genre presets' })
-      .getByRole('button')
+    const segments = await page
+      .getByRole('radiogroup', { name: 'Genre presets' })
+      .getByRole('radio')
       .all();
-    expect(chips).toHaveLength(8);
-    for (const chip of chips) {
-      const box = (await chip.boundingBox())!;
+    expect(segments).toHaveLength(8);
+    const rows = new Set<number>();
+    for (const segment of segments) {
+      const box = (await segment.boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(card.x);
       expect(box.x + box.width).toBeLessThanOrEqual(card.x + card.width);
+      rows.add(Math.round(box.y));
     }
+    expect(rows.size).toBe(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width,
     );

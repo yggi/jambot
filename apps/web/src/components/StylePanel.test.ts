@@ -70,11 +70,11 @@ describe('the style card', () => {
     expect(screen.getByRole('slider', { name: 'Swing' })).toHaveValue(
       String(Math.round(jazz.style.swing * 100)),
     );
-    expect(screen.getByRole('button', { name: 'Swing jazz' })).toHaveAttribute(
-      'aria-pressed',
+    expect(screen.getByRole('radio', { name: 'Swing jazz' })).toHaveAttribute(
+      'aria-checked',
       'true',
     );
-    expect(screen.getByRole('button', { name: 'Techno' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('radio', { name: 'Techno' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('has a gauge and a nudge for each of the six axes', () => {
@@ -87,13 +87,13 @@ describe('the style card', () => {
   it('presses no preset for a custom style', () => {
     render(StylePanel, { ...props(), style: view({ preset: null }) });
     for (const p of PRESETS)
-      expect(screen.getByRole('button', { name: p.name })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('radio', { name: p.name })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('sends a preset, a drag or a nudge as an intent', async () => {
     const onintent = vi.fn();
     render(StylePanel, props({ onintent }));
-    await fireEvent.click(screen.getByRole('button', { name: 'Swing jazz' }));
+    await fireEvent.click(screen.getByRole('radio', { name: 'Swing jazz' }));
     expect(onintent).toHaveBeenLastCalledWith({ kind: 'preset', preset: jazz });
     await fireEvent.input(screen.getByRole('slider', { name: 'Entropy' }), {
       target: { value: '20' },
@@ -129,7 +129,7 @@ describe('the style card', () => {
   it('rests a client’s drag and presets, disables its nudges with the reason, and says the host sets it', () => {
     const { container } = render(StylePanel, props({ following: true }));
     for (const slider of screen.getAllByRole('slider')) expect(slider).toBeDisabled();
-    for (const p of PRESETS) expect(screen.getByRole('button', { name: p.name })).toBeDisabled();
+    for (const p of PRESETS) expect(screen.getByRole('radio', { name: p.name })).toBeDisabled();
     for (const axis of STYLE_AXES) {
       const label = {
         swing: 'Swing',

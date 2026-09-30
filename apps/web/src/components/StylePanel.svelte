@@ -4,9 +4,9 @@
   what the band is doing (playing it, gliding to it, or for a custom style
   its most telling axes); the glyph is a radar of the six axes drawn from the
   style the band is at (`hud.style.axes`), so a glide moves it. Unfolded, the
-  genre presets as chips that wrap, and each axis as a gauge with a drag and
+  genre presets as a segmented choice in two rows (the same component as the key's scale), and each axis as a gauge with a drag and
   a nudge. The gauge shows where the axis is going, not the glide, and the
-  preset pressed is the one the style is at or heading for, none for a custom
+  preset checked is the one the style is at or heading for, none for a custom
   style. The drag is a transparent range input laid over the gauge, so the
   gauge is what is seen and the input what a keyboard and a finger reach. A
   nudge is a tenth of the axis. The host, or a band playing alone, drags and
@@ -24,6 +24,7 @@
   import Radar from './glyphs/Radar.svelte';
   import Nudge from './Nudge.svelte';
   import Reading from './Reading.svelte';
+  import Segmented from './Segmented.svelte';
 
   interface Props {
     track: StyleTrack;
@@ -58,18 +59,17 @@
 
 <Card title="Style" main={styleName(style)} sub={styleSub(style, following)} live>
   {#snippet glyph()}<Radar values={AXES.map(({ axis }) => style.axes[axis])} />{/snippet}
-  <div class="presets" role="group" aria-label="Genre presets">
-    {#each PRESETS as p (p.name)}
-      <button
-        type="button"
-        aria-pressed={style.preset === p.name}
-        disabled={following}
-        onclick={() => onintent({ kind: 'preset', preset: p })}
-      >
-        {p.name}
-      </button>
-    {/each}
-  </div>
+  <Segmented
+    label="Genre presets"
+    value={style.preset ?? ''}
+    options={PRESETS.map((p) => ({ value: p.name, text: p.name }))}
+    columns={4}
+    disabled={following}
+    onselect={(name) => {
+      const preset = PRESETS.find((p) => p.name === name);
+      if (preset) onintent({ kind: 'preset', preset });
+    }}
+  />
   <div class="axes">
     {#each AXES as a (a.axis)}
       {@const value = track[a.axis].to}
@@ -112,31 +112,6 @@
 </Card>
 
 <style>
-  .presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .presets button {
-    min-height: 38px;
-    padding: 0 14px;
-    border-radius: 19px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    font-size: 14px;
-    font-weight: 500;
-  }
-  .presets button[aria-pressed='true'] {
-    background: var(--ink);
-    border-color: var(--ink);
-    color: var(--bg);
-  }
-  .presets button:disabled {
-    opacity: 0.6;
-  }
-  .presets button[aria-pressed='true']:disabled {
-    opacity: 1;
-  }
   .axes {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
