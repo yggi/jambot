@@ -1,4 +1,5 @@
 import {
+  METERS,
   chordOfNumeral,
   chordScale,
   heightOf,
@@ -16,6 +17,8 @@ import {
   chordAt,
   chordName,
   chordNumeral,
+  chordsOn,
+  slotStepOn,
 } from './chords.ts';
 import { COMPOSER_MODES, type Key, keyHelix, keyName } from './key.ts';
 import type { Slot, Theme } from './themes.ts';
@@ -343,5 +346,45 @@ describe("a bar's chords", () => {
     expect(range(16).map((step) => chordAt(chords, step).slot.step)).toEqual(
       range(16).map((step) => (step < 8 ? 0 : 8)),
     );
+  });
+
+  it('reads a theme’s slot steps, 0 and the bar’s half, on a meter: the same in 4/4, the meter’s half in another (finite: every meter)', () => {
+    const expected: Record<string, number> = {
+      '3/4': 6,
+      '4/4': 8,
+      '5/4': 10,
+      '5/8': 4,
+      '6/8': 6,
+      '7/8': 6,
+      '9/8': 8,
+      '10/8': 10,
+      '12/8': 12,
+    };
+    for (const [name, meter] of Object.entries(METERS)) {
+      expect([name, slotStepOn(meter, 0)]).toEqual([name, 0]);
+      expect([name, slotStepOn(meter, 8)]).toEqual([name, expected[name]]);
+      expect(slotStepOn(meter, 8) % 2).toBe(0);
+    }
+  });
+
+  it('gives a bar’s chords their slots on the meter and leaves everything else of them as it is', () => {
+    const chords = [
+      {
+        slot: { step: 0, degree: 0 },
+        raised: false,
+        chord: { helix: { cycle: 12, heights: [0, 4, 7] }, tensions: [] },
+      },
+      {
+        slot: { step: 8, degree: 4 },
+        raised: false,
+        chord: { helix: { cycle: 12, heights: [7, 11, 14] }, tensions: [] },
+      },
+    ] as const;
+    expect(chordsOn(chords, METERS['4/4'])).toEqual(chords);
+    const six = chordsOn(chords, METERS['6/8']);
+    expect(six.map((c) => c.slot.step)).toEqual([0, 6]);
+    expect(six[1]!.chord).toBe(chords[1]!.chord);
+    expect(chordAt(six, 5).slot.step).toBe(0);
+    expect(chordAt(six, 6).slot.step).toBe(6);
   });
 });
