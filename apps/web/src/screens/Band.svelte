@@ -65,6 +65,7 @@
   players={player.players}
   playerId={player.playerId}
   playing={player.playing}
+  phase={player.counting ? 'counting' : player.ending ? 'ending' : null}
   bar={player.hud.beat === null ? null : (player.hud.bar?.bar ?? null)}
   ontoggle={() => (player.playing ? player.stop() : player.start())}
   {onend}

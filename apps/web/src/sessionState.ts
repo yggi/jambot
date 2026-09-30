@@ -32,16 +32,30 @@ export function sessionMain(mode: Mode, hosting: Hosting, following: Following):
   return 'Solo';
 }
 
-/** Its state in a few words: who has joined, or what the link and the host are doing. */
-export function sessionSub(mode: Mode, hosting: Hosting, following: Following): string {
-  if (mode === 'solo') return 'This device only';
+/** What the transport is between: the count-in before a song, or the last bar before it halts. */
+export type Phase = 'counting' | 'ending';
+
+/**
+ * Its state in a few words: who has joined, or what the link and the host
+ * are doing, and while a song begins or ends, that.
+ */
+export function sessionSub(
+  mode: Mode,
+  hosting: Hosting,
+  following: Following,
+  phase: Phase | null = null,
+): string {
+  const doing = phase === 'counting' ? 'counting in' : 'ending';
+  if (mode === 'solo') return phase ? `Solo · ${doing}` : 'This device only';
   if (mode === 'host') {
+    if (phase) return `Hosting · ${doing}`;
     const n = hosting.guests.length;
     return n === 0 ? 'Hosting · nobody has joined' : `Hosting · ${n} joined`;
   }
   if (following.status === 'reconnecting') return 'Reconnecting · playing on what it has';
   if (following.status !== 'joined') return 'Joining';
   if (following.hostAway) return 'Following · host away';
+  if (phase) return `Following · host ${doing}`;
   return following.hostPlaying ? 'Following · host playing' : 'Following · host stopped';
 }
 

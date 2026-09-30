@@ -218,6 +218,7 @@ export class HostSession {
     return {
       started: (song) => this.#send({ kind: 'start', song }),
       stopped: () => this.#send({ kind: 'stop' }),
+      finale: (bar) => this.#send({ kind: 'finale', bar }),
       composed: (bars) => {
         for (const sent of bars) this.#send({ kind: 'bar', sent });
       },

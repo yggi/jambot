@@ -148,7 +148,7 @@ describe('the WebSocket lobby', () => {
     await until(() => following.status === 'idle');
     expect(following.ended).toBe('The host closed the session.');
     expect(client.player.mode).toBe('solo');
-    host.player.stop();
+    host.player.halt();
   });
 
   describe('when a link is lost', () => {
@@ -195,7 +195,7 @@ describe('the WebSocket lobby', () => {
       await until(() => client.player.status === 'playing');
       following.leave();
       hosting.close();
-      host.player.stop();
+      host.player.halt();
     });
 
     it('carries a session through a host page that goes and comes back from what it kept: clients stay joined, and seat again', async () => {
@@ -240,8 +240,8 @@ describe('the WebSocket lobby', () => {
 
       following.leave();
       second.close();
-      reloaded.player.stop();
-      host.player.stop();
+      reloaded.player.halt();
+      host.player.halt();
     });
   });
 });

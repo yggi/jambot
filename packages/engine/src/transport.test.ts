@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type BandBar, band, lookAhead } from './band.ts';
+import { type BandBar, type BandCarried, band, lookAhead, passBar } from './band.ts';
 import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
@@ -763,5 +763,172 @@ describe('the foresight from the transport', () => {
     expect(bars[0]!.dough.length).toBeGreaterThan(0);
     const composed = run(env(), ticks(0.9, 60, 0.1)).outputs.flatMap((o) => o.composed);
     for (const b of composed) expect(b.dough).toEqual(bars[b.bar]?.dough ?? b.dough);
+  });
+});
+
+describe('the transport ending a song', () => {
+  const inputs = (from: number, count: number) => ticks(from, count);
+  /** Runs `count` ticks from the start, asking to finish on tick `at`. */
+  const finishing = (at: number, count = 1200, track = swung) => {
+    let carried = transport.initial;
+    const outputs: TransportOutput[] = [];
+    let asked: number | null = null;
+    inputs(0.9, count).forEach((input, i) => {
+      const finish = i >= at;
+      const next = transport.advance(env(track), carried, { ...input, finish });
+      if (finish && asked === null) asked = carried?.nextBar ?? 0;
+      carried = next.carried;
+      outputs.push(next.output);
+    });
+    return { outputs, carried: carried!, asked: asked! };
+  };
+
+  it('composes the finale as the next bar not yet composed, and no bar after it', () => {
+    for (const at of [40, 47, 53, 61, 77, 100]) {
+      const { outputs, carried, asked } = finishing(at);
+      const composed = outputs.flatMap((o) => o.composed);
+      expect(carried.finale.asked).toBe(true);
+      expect(carried.finale.bar).toBe(asked);
+      expect(composed.at(-1)!.bar).toBe(asked);
+      expect(composed.map((b) => b.bar)).toEqual(range(asked + 1));
+      expect(composed.at(-1)!.chords.map((c) => c.slot.step)).toEqual([0, 8]);
+    }
+  });
+
+  it('plays only the bars up to the finale, and none of the steps after it', () => {
+    const { outputs, carried } = finishing(60);
+    const last = carried.finale.bar!;
+    const steps = outputs.flatMap((o) => o.steps).map((s) => s.step);
+    expect(steps).toEqual(range((last + 1) * 16));
+    expect(outputs.flatMap((o) => o.events).every((e) => e.bar <= last)).toBe(true);
+  });
+
+  it('says when the last bar ended: where its last step ends, at the tempo it was laid with', () => {
+    const { outputs, carried } = finishing(60);
+    const laid = outputs.flatMap((o) => o.steps);
+    const final = laid.at(-1)!;
+    expect(carried.finale.ended).toBeCloseTo(final.seconds + final.length, 9);
+  });
+
+  it('says nothing of an end until the last bar is laid', () => {
+    let carried = transport.initial;
+    for (const input of inputs(0.9, 60)) {
+      const next = transport.advance(env(), carried, { ...input, finish: true });
+      carried = next.carried;
+      if (carried!.finale.bar !== null && carried!.head.step < (carried!.finale.bar + 1) * 16)
+        expect(carried!.finale.ended).toBeNull();
+    }
+  });
+
+  it('keeps ending once ended: nothing more is composed or scheduled', () => {
+    const { outputs, carried } = finishing(60, 1600);
+    const after = outputs.slice(-100);
+    for (const o of after) {
+      expect(o.steps).toEqual([]);
+      expect(o.events).toEqual([]);
+      expect(o.composed).toEqual([]);
+    }
+    expect(carried.finale.ended).not.toBeNull();
+  });
+
+  it('ends a song asked to finish twice once', () => {
+    const once = finishing(60);
+    const twice = run(
+      env(),
+      inputs(0.9, 1200).map((input, i) => ({ ...input, finish: i >= 60 && i % 2 === 0 })),
+    );
+    expect(twice.carried!.finale).toEqual(once.carried.finale);
+  });
+
+  it('finishes on a bar that is decided as the band would decide it', () => {
+    const { outputs } = finishing(60);
+    const composed = outputs.flatMap((o) => o.composed);
+    const last = composed.at(-1)!;
+    const plain = run(env(), inputs(0.9, 1200)).outputs.flatMap((o) => o.composed);
+    const same = plain.find((b) => b.bar === last.bar)!;
+    expect(last.plan).toEqual(same.plan);
+    expect(last.style).toEqual(same.style);
+    expect(last.chords).not.toEqual(same.chords);
+    expect(composed.slice(0, -1)).toEqual(plain.slice(0, last.bar));
+  });
+
+  it('leaves a state a forecast and a preview can still run from', () => {
+    const { carried } = finishing(60);
+    expect(() => forecast(env(), carried, 8)).not.toThrow();
+    expect(() => foresight(env(), carried, 8)).not.toThrow();
+  });
+
+  it('keeps the machine laws with a finish asked (F1)', () => {
+    const script: Script<TransportEnv, TransportInput> = ticks(0.9, 400).map((input, i) => ({
+      env: env(),
+      input: i > 100 ? { ...input, finish: true } : input,
+    }));
+    expect(lawBreaks(transport, script)).toEqual([]);
+  });
+
+  it('ignores a finish where the source has no finale of its own', () => {
+    const plain = band;
+    const source: BarSource<BandCarried> = {
+      initial: plain.initial,
+      ahead: COMPOSE_AHEAD,
+      receive: (c) => c,
+      compose(e, c) {
+        const { carried, output } = plain.advance(e, c, null);
+        return { carried, bar: output };
+      },
+      pass: passBar,
+    };
+    const over = transportOver(source);
+    let carried = over.initial;
+    for (const input of inputs(0.9, 600))
+      carried = over.advance(env(), carried, { ...input, finish: true }).carried;
+    expect(carried!.finale.bar).toBeNull();
+    expect(carried!.finale.asked).toBe(true);
+    expect(carried!.head.step).toBeGreaterThan(48);
+  });
+
+  it('ends at the bar a client is told, and schedules nothing beyond it', () => {
+    const played = run(env(), ticks(0.9, 900));
+    const bars = played.outputs.flatMap((o) => o.composed);
+    const over = transportOver(replay(bars));
+    let carried = over.initial;
+    const steps: ScheduledStep[] = [];
+    ticks(0.9, 900).forEach((input, i) => {
+      const next = over.advance(env(), carried, { ...input, ends: i > 30 ? 3 : undefined });
+      carried = next.carried;
+      steps.push(...next.output.steps);
+    });
+    expect(steps.at(-1)!.step).toBe(4 * 16 - 1);
+    expect(carried!.finale.ended).toBeCloseTo(steps.at(-1)!.seconds + steps.at(-1)!.length, 9);
+  });
+});
+
+describe('the transport starting after the clock', () => {
+  const later = { ...env(), start: 5 };
+
+  it('composes the first bar as soon as the song is known, when the source is asked ahead', () => {
+    const first = transport.advance(later, transport.initial, { now: 0, until: LOOKAHEAD });
+    expect(first.output.steps).toEqual([]);
+    expect(first.output.composed.map((b) => b.bar)).toEqual([0]);
+    const again = transport.advance(later, first.carried, { now: 0.025, until: 0.025 + LOOKAHEAD });
+    expect(again.output.composed).toEqual([]);
+  });
+
+  it('plays the same song from the start, as if it had started at once, shifted by the wait', () => {
+    const now = run(env(), ticks(0.9, 400));
+    const waiting = run(later, ticks(0.0, 600));
+    const events = (o: TransportOutput[]) => o.flatMap((x) => x.events);
+    const a = events(now.outputs);
+    const b = events(waiting.outputs);
+    expect(b.length).toBeGreaterThan(0);
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+      expect(b[i]!.event).toEqual(a[i]!.event);
+      expect(b[i]!.seconds - a[i]!.seconds).toBeCloseTo(4, 9);
+    }
+  });
+
+  it('schedules nothing before the song starts', () => {
+    const { outputs } = run(later, ticks(0, 200));
+    for (const s of outputs.flatMap((o) => o.steps)) expect(s.seconds).toBeGreaterThanOrEqual(5);
   });
 });

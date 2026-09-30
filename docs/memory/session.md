@@ -15,6 +15,9 @@ Facts about `packages/session` and the app's sessions: clocks, the fault kit and
   So a check bounds every note by the jumps settling as it sounds and excuses exactly the notes a host's stall dropped, on any machine, rather than count notes out.
   A clock's discontinuity is a jump, so a step stays the grid's.
   Across machines, run `pnpm lobby` on one and give its `ws://` address as the lobby server on each; every machine loads the app from its own `localhost`, where Web MIDI works without HTTPS.
+- A host tells its clients the song as its count-in begins, a bar before the song's first step (`start`'s `Song.start` is in that bar's future), so a client has that bar to pair its clocks and to receive bar 0, which the host has composed already; a client clicks the rest of the count-in and plays the song from the host's start.
+  A host that is asked to stop plays through a last bar that closes on a cadence and tells its clients which bar it is (`finale`); a client plays through it too and halts when its ring has run out, as the host does, so nobody lacks a bar past the end, and the host's `stop` follows when it halts.
+  A second stop, or any stop that isn't a person's (leaving a session, following a host), halts at once (`Player.halt`).
 - `Sessions` (`apps/web/src/session/sessions.svelte.ts`) is the page's one place for opening, joining, ending and restoring: a session is `local` (the tabs lobby) or `global` (the lobby server at `address`, kept for next time, empty for none), and a page is in one at a time.
   It lists both lobbies with each session's players (`list`), and a lobby it can't reach is a `problem` beside the ones it could.
   The lobby server counts the host and every client socket it holds; a client whose link dropped is not counted while away, and present and away are not told apart.

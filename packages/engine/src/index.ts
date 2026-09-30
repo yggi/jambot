@@ -6,6 +6,7 @@ export * from './chord-reading.ts';
 export * from './chords.ts';
 export * from './comp.ts';
 export * from './drums.ts';
+export * from './ending.ts';
 export * from './events.ts';
 export * from './fading.ts';
 export * from './genre.ts';

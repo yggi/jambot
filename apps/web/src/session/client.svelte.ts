@@ -378,6 +378,8 @@ export class ClientSession {
         return this.#forecast(message.forecast);
       case 'muse':
         return this.#player.followMuse(message.muse);
+      case 'finale':
+        return this.#player.followEnds(message.bar);
       case 'stop':
         return this.#stopped();
       case 'away':
@@ -393,7 +395,7 @@ export class ClientSession {
   #stopped() {
     this.hostPlaying = false;
     this.#pending = null;
-    this.#player.stop();
+    this.#player.halt();
   }
 
   #remember() {

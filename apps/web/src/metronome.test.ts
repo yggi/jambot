@@ -1,4 +1,4 @@
-import { PRESETS } from '@jambot/engine';
+import { INITIAL_STYLE, PRESETS, countInSeconds, holding } from '@jambot/engine';
 import type { Weight } from '@jambot/theory';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
@@ -40,6 +40,9 @@ function surroundings() {
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
+/** Where the song starts: the player's lead, and then a bar of count-in. */
+const START = 0.1 + countInSeconds(holding(INITIAL_STYLE));
+
 async function playing(metronome: Metronome) {
   const { world, s } = surroundings();
   const player = new Player(s, metronome);
@@ -61,11 +64,12 @@ function run(world: ReturnType<typeof surroundings>['world'], seconds: number) {
 beforeEach(() => localStorage.clear());
 
 describe('the metronome', () => {
-  it('clicks nothing while it is off', async () => {
+  it('clicks nothing but the count-in while it is off', async () => {
     const { world } = await playing(new Metronome());
-    run(world, 3);
+    run(world, 6);
     expect(world.plays.length).toBeGreaterThan(0);
-    expect(world.clicks).toEqual([]);
+    expect(world.clicks).toHaveLength(4);
+    for (const c of world.clicks) expect(c.seconds).toBeLessThan(START);
   });
 
   it('clicks nothing while the band is stopped, though it is on: it has no clock of its own', () => {
@@ -96,18 +100,20 @@ describe('the metronome', () => {
     const metronome = new Metronome();
     metronome.on = true;
     const { world } = await playing(metronome);
-    run(world, 2);
+    run(world, 4);
     const firstNote = world.plays.find((p) => p.part === 'drums')!;
-    expect(world.clicks[0]!.seconds).toBeLessThanOrEqual(firstNote.seconds + 1e-9);
-    expect(world.clicks[0]!.seconds).toBeCloseTo(0.1, 6);
+    const band = world.clicks.filter((c) => c.seconds > START - 0.01);
+    expect(band[0]!.seconds).toBeLessThanOrEqual(firstNote.seconds + 1e-9);
+    expect(band[0]!.seconds).toBeCloseTo(START, 6);
   });
 
   it('joins the band’s steps when switched on mid-song, never playing a click late', async () => {
     const metronome = new Metronome();
     const { world } = await playing(metronome);
-    run(world, 3);
+    run(world, 5);
     metronome.on = true;
     const before = world.currentTime;
+    world.clicks.length = 0;
     run(world, 2);
     expect(world.clicks.length).toBeGreaterThan(0);
     for (const c of world.clicks) expect(c.seconds).toBeGreaterThanOrEqual(before);
@@ -121,7 +127,7 @@ describe('the metronome', () => {
     run(world, 2);
     expect(metronome.pulse).not.toBeNull();
     expect(metronome.downbeat).toBe(metronome.pulse === 0);
-    player.stop();
+    player.halt();
     expect(metronome.pulse).toBeNull();
     expect(metronome.downbeat).toBe(false);
     expect(metronome.on).toBe(true);

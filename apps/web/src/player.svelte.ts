@@ -20,7 +20,16 @@
  *
  * Starting waits for the audio clock, which a browser starts only after a
  * gesture. While it waits the player is starting: another start does
- * nothing, and a stop cancels it.
+ * nothing, and a stop cancels it. The song then starts a bar later, after a
+ * count-in of clicks (`counting`), on the same clock and on this output, so
+ * a client that a host tells has that bar to get ready in (the host says the
+ * start as the count-in begins). A stop cuts a count-in short.
+ *
+ * Stopping a band that plays asks it to end (`stop`, `ending`): the band
+ * composes a last bar that closes on a cadence, plays through it, lets its
+ * last chord ring, and only then halts (`halt`). A second stop halts at
+ * once, and so does anything that isn't a person's stop: leaving a session,
+ * following a host, or the host having stopped.
  *
  * The metronome, when one is given, is handed the steps laid on each tick
  * and clicks them on this output, so it has no clock of its own.
@@ -58,6 +67,7 @@ import {
   type Remembered,
   type Part,
   PRESETS,
+  RING_STEPS,
   SECTION_BARS,
   type ScheduledStep,
   styleAt,
@@ -67,13 +77,17 @@ import {
   type TransportEnv,
   type TransportOutput,
   NO_HISTORY,
+  countIn,
+  countInSeconds,
   foldBar,
   forecast,
   foresight,
   holding,
   released,
+  stepSeconds,
   transport,
   transportOver,
+  valueAt,
   writtenAt,
 } from '@jambot/engine';
 import {
@@ -131,6 +145,8 @@ export interface Hosting {
   decided(bars: readonly ForecastBar[]): void;
   track(track: StyleTrack): void;
   muse(muse: MuseState): void;
+  /** The song ends on this bar, its last, composed. */
+  finale(bar: number): void;
 }
 
 /** What a client tells its host, as it happens. */
@@ -150,6 +166,8 @@ interface Follow {
   ear: EarCarried;
   /** The keys of the bars it played lately, which its ear judges them in. */
   keys: readonly { readonly bar: number; readonly key: Key }[];
+  /** The host's last bar, once it has said which. */
+  ends: number | undefined;
   told: Following;
 }
 
@@ -177,6 +195,9 @@ const HUMAN_NOTES_MAX = 240;
  * after the moment it was struck.
  */
 const LAID_KEPT = 8;
+
+/** How long after `start` is called the song's clock starts, in seconds, before its count-in. */
+const START_LEAD = 0.1;
 
 /** How many bars' keys a client keeps for its ear, which judges a bar a beat after it ends. */
 const KEYS_KEPT = 8;
@@ -220,6 +241,10 @@ export class Player {
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode, melodic: null });
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
+  /** Whether the count-in is before the song: the clicks are heard, the band isn't yet. */
+  counting = $state(false);
+  /** Whether the band was asked to stop and plays on to its last bar. */
+  ending = $state(false);
   /** The step heard, or null before anything is. */
   heard: number | null = $state(null);
   /** Notes players struck while the band listened. */
@@ -290,6 +315,8 @@ export class Player {
   /** Melody notes heard since the last tick, for the transport to pass to the Muse. */
   #arrived: HeardNote[] = [];
   #forget = false;
+  /** Whether a host's clients were told which bar is the last. */
+  #finaleTold = false;
   /** Bars the host's clients judged since the last tick. */
   #judged: BarJudgement[] = [];
   #follow: Follow | null = null;
@@ -463,7 +490,7 @@ export class Player {
     const output = await this.prepare();
     if (this.status !== 'starting') return;
     this.status = 'playing';
-    this.#start = output.currentTime + 0.1;
+    this.#start = output.currentTime + START_LEAD + countInSeconds(this.track);
     this.#begin(output);
     this.hosting?.started({ seed: this.#seed, start: this.#start, track: this.track });
     this.#decide();
@@ -480,12 +507,29 @@ export class Player {
     this.#arrived = [];
     this.#judged = [];
     this.#forget = false;
+    this.#finaleTold = false;
+    this.ending = false;
+    this.#countIn(output);
     this.museLog = [];
     this.offer = null;
     this.#forgetMemory();
     this.dropped = [];
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
     this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
+  }
+
+  /**
+   * The count-in before the song: its clicks, on this output's clock, of
+   * those the clock hasn't passed, so a client that joins during it clicks
+   * the rest and one that joins after it none.
+   */
+  #countIn(output: Output) {
+    const now = output.currentTime;
+    const clicks = countIn(this.track, this.#start)
+      .map((click) => ({ ...click, seconds: click.seconds - this.skew }))
+      .filter((click) => click.seconds >= now);
+    this.counting = this.#start - this.skew > now;
+    this.#metronome?.countIn(output, clicks);
   }
 
   /** The bars decided, from the first of the section heard on: the forecast a host sends. */
@@ -523,10 +567,10 @@ export class Player {
 
   /** Follow a host from now on: stop playing alone, and wait for its song. */
   follow(told: Following) {
-    this.stop();
+    this.halt();
     this.mode = 'client';
     this.lacked = 0;
-    this.#follow = { carried: null, arrived: [], ear: EAR, keys: [], told };
+    this.#follow = { carried: null, arrived: [], ear: EAR, keys: [], ends: undefined, told };
     this.#bars = [];
   }
 
@@ -534,8 +578,14 @@ export class Player {
   async followSong(song: Song, bars: readonly SentBar[]) {
     const follow = this.#follow;
     if (!follow) return;
-    this.stop();
-    Object.assign(follow, { carried: null, arrived: [...bars], ear: EAR, keys: [] });
+    this.halt();
+    Object.assign(follow, {
+      carried: null,
+      arrived: [...bars],
+      ear: EAR,
+      keys: [],
+      ends: undefined,
+    });
     this.status = 'starting';
     const output = await this.prepare();
     if (this.status !== 'starting' || this.#follow !== follow) return;
@@ -550,6 +600,13 @@ export class Player {
   /** A bar the host composed. */
   followBar(sent: SentBar) {
     this.#follow?.arrived.push(sent);
+  }
+
+  /** The host says which bar is the song's last. */
+  followEnds(bar: number) {
+    if (!this.#follow) return;
+    this.#follow.ends = bar;
+    this.ending = true;
   }
 
   followTrack(track: StyleTrack) {
@@ -574,7 +631,7 @@ export class Player {
 
   /** Play alone again. */
   unfollow() {
-    this.stop();
+    this.halt();
     this.#follow = null;
     this.mode = 'solo';
     this.skew = 0;
@@ -587,10 +644,26 @@ export class Player {
     this.#decide();
   }
 
+  /**
+   * Ask the band to stop: it ends on a bar that closes on a cadence, then
+   * halts (`halt`). Asked again, or asked while the song is still to begin
+   * (not started, or counting in), it halts at once, which is the way out
+   * of a wait.
+   */
   stop() {
+    if (this.status === 'stopped') return;
+    if (this.status !== 'playing' || this.mode === 'client' || this.counting || this.ending)
+      return this.halt();
+    this.ending = true;
+  }
+
+  /** Stop now, whatever the band is in the middle of: nothing rings on. */
+  halt() {
     if (this.status === 'stopped') return;
     const wasPlaying = this.status === 'playing';
     this.status = 'stopped';
+    this.ending = false;
+    this.counting = false;
     if (!wasPlaying) return;
     this.#stopTicker?.();
     this.#stopFrames?.();
@@ -635,9 +708,15 @@ export class Player {
     this.hosting?.decided(this.#bars);
   }
 
+  /** The count-in is over once the song's start is heard, read on the ticks, which run in a hidden tab. */
+  #counted(output: Output) {
+    if (this.counting && heardOn(output) + this.skew >= this.#start) this.counting = false;
+  }
+
   #tick() {
     const output = this.#output;
     if (this.status !== 'playing' || !output) return;
+    this.#counted(output);
     if (this.#follow) return this.#tickFollowing(output, this.#follow);
     const now = output.currentTime;
     // What arrived is taken before the transport reads it, so that anything
@@ -652,6 +731,7 @@ export class Player {
       heard,
       judged,
       forget,
+      finish: this.ending,
     });
     this.#carried = carried;
     const logged = scheduled.judged.filter((j) => j.judgements.length > 0 || j.forgot !== null);
@@ -670,6 +750,10 @@ export class Player {
     if (scheduled.dropped.length > 0)
       this.dropped = [...this.dropped, ...scheduled.dropped].slice(-MUSE_LOG);
     if (this.hosting) {
+      if (carried!.finale.bar !== null && !this.#finaleTold) {
+        this.#finaleTold = true;
+        this.hosting.finale(carried!.finale.bar);
+      }
       if (scheduled.composed.length > 0)
         this.hosting.composed(
           sentBars(scheduled.composed, scheduled.steps, carried!.head, this.track),
@@ -699,6 +783,14 @@ export class Player {
       this.wish = wish;
       this.#decide();
     } else if (carried?.nextBar !== this.#decidedAt) this.#decide();
+    if (this.#finished(carried!, now)) this.halt();
+  }
+
+  /** Whether the song's last bar has ended and its last chord has rung out, at `now` on the transport's clock. */
+  #finished({ finale, head }: TransportCarried<unknown>, now: number): boolean {
+    if (finale.ended === null) return false;
+    const ring = RING_STEPS * stepSeconds(valueAt('bpm', this.track.bpm, head.step));
+    return now >= finale.ended + ring;
   }
 
   /**
@@ -716,6 +808,7 @@ export class Player {
       now,
       until: now + LOOKAHEAD,
       arrived,
+      ends: follow.ends,
     });
     follow.carried = carried;
     if (scheduled.composed.length > 0)
@@ -735,6 +828,7 @@ export class Player {
       if (ear.judged.length > 0) follow.told.judged(ear.judged);
     }
     this.#arrived = [];
+    if (this.#finished(carried!, now)) this.halt();
   }
 
   /** Play what the transport scheduled, count it, and keep its steps for what is heard. */

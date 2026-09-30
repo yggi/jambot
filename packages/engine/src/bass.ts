@@ -62,7 +62,7 @@ const rootOf = (chord: Chord) => chord.helix.heights[0]!;
 const intervals = (chord: Chord) => chord.helix.heights.map((x) => x - rootOf(chord));
 
 /** The note of a pitch class nearest the last note, within 33–52; ties go down. */
-function nearest(pitchClass: number, last: number): number {
+export function nearest(pitchClass: number, last: number): number {
   let best = 40;
   let distance = Infinity;
   for (let n = FOLDED[0]; n <= FOLDED[1]; n++)
