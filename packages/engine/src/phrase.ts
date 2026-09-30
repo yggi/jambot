@@ -27,7 +27,7 @@
  * What is left, the lengths themselves and how sure the reading is, is H5's.
  */
 
-import { BAR_STEPS, barAt, barStart, beatAt, beatStart } from './events.ts';
+import { BAR_STEPS, SONG_CLOCK, type SongClock } from './events.ts';
 import type { HeardNote } from './muse.ts';
 import { LOOSENESS_FLOOR, distance, snapToValues, valueOf } from './lattice.ts';
 import { readOnsets } from './reading.ts';
@@ -37,6 +37,14 @@ import { readOnsets } from './reading.ts';
  * doesn't leave a bar empty to the step.
  */
 export const EMPTY_BAR = BAR_STEPS - 1;
+
+/**
+ * The silence that ends a phrase where a note starts: a whole bar, less a
+ * step, of the bar it is in (`EMPTY_BAR` in 4/4). Each reading here takes the
+ * song's clock, 4/4's where none is given, and reads a bar and a beat on it
+ * (#260).
+ */
+const emptyBar = (clock: SongClock, at: number) => clock.barSteps(clock.barAt(at)) - 1;
 
 /**
  * What a phrase starting on a beat is worth against starting on one
@@ -71,12 +79,15 @@ const reach = (n: HeardNote) => n.end ?? n.position;
  * sounds for `EMPTY_BAR` steps: from the last release, or the last onset
  * where the release is not known, to the next onset.
  */
-export function phrasesOf(notes: readonly HeardNote[]): HeardNote[][] {
+export function phrasesOf(
+  notes: readonly HeardNote[],
+  clock: SongClock = SONG_CLOCK,
+): HeardNote[][] {
   const sorted = [...notes].sort((a, b) => a.position - b.position);
   const phrases: HeardNote[][] = [];
   let sounding = -Infinity;
   for (const n of sorted) {
-    if (n.position - sounding >= EMPTY_BAR) phrases.push([]);
+    if (n.position - sounding >= emptyBar(clock, n.position)) phrases.push([]);
     phrases.at(-1)!.push(n);
     sounding = Math.max(sounding, reach(n));
   }
@@ -115,7 +126,10 @@ const margin = (x: number, value: number) => Math.max(0, 1 - (2 * distance(x, va
  * margin (`PhraseReading`): how near it sits to the place it was read on,
  * against the halfway to the next, which is what the reading is unsure of.
  */
-export function readPhraseWithMargins(phrase: readonly HeardNote[]): PhraseReading {
+export function readPhraseWithMargins(
+  phrase: readonly HeardNote[],
+  clock: SongClock = SONG_CLOCK,
+): PhraseReading {
   const notes = [...phrase].sort((a, b) => a.position - b.position);
   if (notes.length === 0) return { notes: [], margins: [] };
   const { residuals } = readOnsets(
@@ -129,8 +143,8 @@ export function readPhraseWithMargins(phrase: readonly HeardNote[]): PhraseReadi
   );
   const steps = notes.map((n) => Math.round(n.position - offset));
   const first = notes[0]!.position - offset;
-  const before = beatStart(beatAt(first));
-  const after = beatStart(beatAt(first) + 1);
+  const before = clock.beatStart(clock.beatAt(first));
+  const after = clock.beatStart(clock.beatAt(first) + 1);
   const beat = first - before <= after - first ? before : after;
   if (beat !== steps[0]) {
     const score = (step: number, evidence: number) =>
@@ -143,7 +157,7 @@ export function readPhraseWithMargins(phrase: readonly HeardNote[]): PhraseReadi
   const margins = xs.map((x, i) =>
     i === 0 ? margin(x - steps[0]! + on[0]!, 1) : margin(x, value),
   );
-  const ends = releasesOf(notes, on, offset, looseness);
+  const ends = releasesOf(notes, on, offset, looseness, clock);
   return {
     notes: notes.map((n, i) => ({ ...n, position: on[i]!, end: ends[i]! })),
     margins,
@@ -151,8 +165,11 @@ export function readPhraseWithMargins(phrase: readonly HeardNote[]): PhraseReadi
 }
 
 /** A phrase's notes on the steps they meant (`readPhraseWithMargins`). */
-export function readPhrase(phrase: readonly HeardNote[]): HeardNote[] {
-  return readPhraseWithMargins(phrase).notes;
+export function readPhrase(
+  phrase: readonly HeardNote[],
+  clock: SongClock = SONG_CLOCK,
+): HeardNote[] {
+  return readPhraseWithMargins(phrase, clock).notes;
 }
 
 /** The lower quartile of a list, or 0 of none: what most of it is at least. */
@@ -195,9 +212,10 @@ function releasesOf(
   steps: readonly number[],
   offset: number,
   looseness: number,
+  clock: SongClock,
 ): (number | null)[] {
   const slots = notes.map((n, i) => {
-    const barEnd = barStart(barAt(steps[i]!) + 1);
+    const barEnd = clock.barStart(clock.barAt(steps[i]!) + 1);
     const next = notes[i + 1] ? notes[i + 1]!.position - offset : Infinity;
     const nextStep = notes[i + 1] ? steps[i + 1]! : Infinity;
     const start = n.position - offset;
@@ -225,21 +243,24 @@ function releasesOf(
 }
 
 /** Everything heard, read phrase by phrase, in time. */
-export function readHeard(notes: readonly HeardNote[]): HeardNote[] {
-  return phrasesOf(notes).flatMap(readPhrase);
+export function readHeard(notes: readonly HeardNote[], clock: SongClock = SONG_CLOCK): HeardNote[] {
+  return phrasesOf(notes, clock).flatMap((phrase) => readPhrase(phrase, clock));
 }
 
 /**
  * Everything heard, read phrase by phrase, with each read note's margin,
  * keyed by the note read.
  */
-export function readHeardWithMargins(notes: readonly HeardNote[]): {
+export function readHeardWithMargins(
+  notes: readonly HeardNote[],
+  clock: SongClock = SONG_CLOCK,
+): {
   readonly notes: HeardNote[];
   readonly margins: ReadonlyMap<HeardNote, number>;
 } {
   const margins = new Map<HeardNote, number>();
-  const read = phrasesOf(notes).flatMap((phrase) => {
-    const reading = readPhraseWithMargins(phrase);
+  const read = phrasesOf(notes, clock).flatMap((phrase) => {
+    const reading = readPhraseWithMargins(phrase, clock);
     reading.notes.forEach((n, i) => margins.set(n, reading.margins[i]!));
     return reading.notes;
   });
