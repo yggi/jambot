@@ -5,6 +5,7 @@ export * from './even.ts';
 export * from './helix.ts';
 export * from './intervals.ts';
 export * from './keys.ts';
+export * from './accents.ts';
 export * from './meter.ts';
 export * from './modes.ts';
 export * from './motifs.ts';

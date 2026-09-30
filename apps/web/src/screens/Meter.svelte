@@ -8,11 +8,10 @@
   heard lit. It takes the player as a prop; the page runs it.
 -->
 <script lang="ts">
-  import { METERS, type MeterName, degreeBelow, gaps } from '@jambot/theory';
+  import { METERS, type MeterName, accentLine, degreeBelow, gaps } from '@jambot/theory';
   import { barMarks } from '../bar.ts';
   import Bar from '../components/Bar.svelte';
   import Segmented from '../components/Segmented.svelte';
-  import { accentLine } from '../meter/grades.ts';
   import { BPM_RANGE, HEMIOLA, LAYERS, type Layer } from '../meter/bar-plan.ts';
   import type { MeterPlayer } from '../meter/meter-player.svelte.ts';
   import { meterMap } from '../meter/ternary.ts';
