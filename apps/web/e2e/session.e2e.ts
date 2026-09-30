@@ -172,7 +172,8 @@ async function inStep(
   await joined(page, 'Ada');
   await expect(state(client)).toContainText('host playing');
   // A client's controls rest: the host leads.
-  await expect(client.getByRole('button', { name: 'Start the band' })).toBeDisabled();
+  // (Its label is Stop once the band sounds, so it is found by its title.)
+  await expect(client.getByTitle('The host starts and stops the band')).toBeDisabled();
 
   await client.waitForTimeout(6000);
   const held = hold === 'host' ? page : client;
