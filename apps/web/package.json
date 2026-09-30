@@ -14,6 +14,7 @@
   "dependencies": {
     "@jambot/engine": "workspace:*",
     "@jambot/session": "workspace:*",
+    "@jambot/spectrum": "workspace:*",
     "@jambot/theory": "workspace:*"
   },
   "devDependencies": {
