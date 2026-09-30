@@ -50,6 +50,12 @@ export const AUDITED: Readonly<Record<string, string>> = {
     "partial()'s Math.log2 is a fixed constant per integer n (a harmonic " +
     "series partial), not a per-play draw, and far from a semitone's rounding " +
     'boundary for the small n in use.',
+  'packages/theory/src/tuning.ts':
+    "pitchOf()'s Math.log2 reaches a Math.round, but only half-way between two " +
+    'notes, where either neighbour is right and the cents it returns (about ±50) ' +
+    'and the note agree either way, so an engine one ulp apart gives a reading ' +
+    "as good; frequencyOf()'s power is a frequency to show or to compare, never a " +
+    'chance(), pick() or a step.',
 };
 
 /** A repository as this check sees it: a reader over paths under a directory. */
