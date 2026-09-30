@@ -49,7 +49,12 @@
    */
   let unfolded = $state(untrack(() => startsOpen));
 
-  /** A click on a control in the summary is that control's, not a click to fold or unfold the card. */
+  /**
+   * A click on a control in the summary is that control's, not a click to fold
+   * or unfold the card. It is kept from folding it with `preventDefault`,
+   * which is right for a slider or a button but would revert a checkbox's
+   * state, so a checkbox does not belong in a summary.
+   */
   function keepFolding(event: MouseEvent) {
     if (event.target instanceof Element && event.target.closest('.control')) event.preventDefault();
   }

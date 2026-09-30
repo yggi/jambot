@@ -27,10 +27,12 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   While the band plays here the radar reads the engine's carried history; a client folds the host's bars the same way as they arrive, so after a stall it lacks the bars it never got until they decay away.
   A tonic picked lets go once the band has planned it (`released`), so the band moves the key on from there by itself.
   The chords card doesn't name the key: the key card's summary does.
-- The band (`screens/Band.svelte`) lays the music out in the order of the composition, top to bottom, one `Level` each: transport, style, metrum, key, plan, chords, tracks (#163).
-  A `Level` is a heading over a fieldset; `resting` disables its controls where a client takes the host's (transport), and the style and the key card their own controls, and the metrum and the tracks, the client's own, never rest.
+- The band (`screens/Band.svelte`) lays the music out in the order of the composition, top to bottom, one card or `Level` each: session, style, metrum, key, plan, chords, tracks (#163).
+  A `Level` is a heading over a fieldset, and its `resting` disables its controls; no level rests now, since the session, style and key cards rest their own controls where a client takes the host's, and the metrum and the tracks, the client's own, never rest.
   What isn't the music sits above it: the Sound card (`SoundPanel` in its details), on both sides of the door.
-  Above the levels the `SessionBar` says who the band plays with and is the way out: Close session for a host, Leave session for a client, Back to the lobby from solo.
+  Above the levels the Session card (`Session.svelte`, `sessionState.ts`) says who the band plays with, holds the transport and is the way out.
+  Its main element is the session by name ("Garage", or "Solo") with Start the band / Stop beside it, which a client's rests (titled "The host starts and stops the band"); its sub element is the state ("Hosting · 2 joined", "Following · host playing", "Reconnecting · playing on what it has", "This device only"); its glyph is the players as a network (`Network`: the host in the middle, the others round it, each in its player's colour, pinging on each bar heard).
+  Its details are the players of a host (`You (host)` and those who joined), or the link of a client (its name, the round trip, the bars that came too late), and the way out: Close session for a host, Leave session for a client, Back to the lobby from solo.
   Closing or leaving asks first, in place (`role="alertdialog"`), and a host's question says how many are playing in the session.
   An e2e check that plays alone enters the band first (`solo` in `audio.ts`); one that hosts or joins works at the lobby (`host`, `join` in `session.e2e.ts`).
   The style card starts folded, so a check that picks a preset or moves a slider unfolds it first (`openStyle` in `audio.ts`).

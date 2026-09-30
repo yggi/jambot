@@ -694,7 +694,9 @@ Since a fading memory forgets where it started, a client that joins late and fol
 Counterexample: a level whose fill no one reads, whose default never moves however it is nudged, as the tempo's (`nudgedTempo` reads the style and the nudge alone, #195); a memory that drops at a cliff, not a fade, as the Muse's offer, forgotten whole after `MUSE.forgetAfter` = 16 silent bars (#207); a lean that leaves the licence of the level above.
 Test: `fading.test.ts`, whose tests cite C9: a memory fades to nothing left alone, settles on a held reading at the reading times its time constant, and forgets where it started, two memories fed the same readings drawing together by the decay each fold, at four decays, and each lean leans as it says; `packages/engine/src/history.test.ts`, whose test of the recorded keys and centres cites C9: the band's key per section and its history's centre per bar over every preset, three seeds and 24 sections, as recorded before the history was a fading memory; `plan.test.ts`, whose test of the band's lean toward its history's centre cites C9; `key-loop.test.ts` (`packages/engine/experiments`), E19; `muse.test.ts`, whose test of the offer forgotten after 16 bars cites C9, the cliff; `licence.test.ts`, whose test of the tempo played cites C9: the style's own tempo times the nudge, and nothing else.
 Source: #210; W. Ross Ashby, _Design for a Brain_ (1952), the homeostat; Stafford Beer, _Brain of the Firm_ (1972), the recursion of viable systems.
-Status: measured (the key); measured, failing (the tempo; the Muse's offer); open (the note, #204; the phrase, #207; the style, #195).
+The Muse remembers the motifs she took the same way (#204 H8, `muse.ts`): a fading memory by `MOTIF_DECAY` a bar, in which a motif heard once is kept for 16 bars, as long as an offer outlasts silence, and longer each time it is heard again, and a motif heard again is taken first (Q12).
+Her offer still drops at the cliff, so the memory has no lean yet: #207's selection is its lean.
+Status: measured (the key); measured (the Muse's memory of motifs); measured, failing (the tempo; the Muse's offer); open (the note, #204; the phrase, #207; the style, #195).
 Open: whether a lean is always a centre or sometimes a draw; whether every level needs every arrow (the performer's fill is read by nobody); where each memory lives (S2); and whether a level needs a default of its own to return to (Q11).
 Lands in: #210, #195, #204, #207, #16.
 
@@ -1843,6 +1845,19 @@ run; the others have.
     At entropy 0.6 the mean distance from the opening key is 0.6 to 1.4 fifths by preset after one section, 1.7 to 2.5 after 8, and 2.3 to 3.3 after 32, where a key drawn at random round the circle lies 3 fifths away; 0 to 15% of runs are back on it after 32 (a random key 8%).
     It is a walk with a bound on each step and none on where it goes.
   - Not measured: the gain of the draw, which reads the history to the fourth power (`LEAN`), and whether a key the style names, or the song's opening key, should pull the walk back (Q11, the owner's call).
+
+- **E20. Does repetition confirm?** (Q12, C9; #204 H8, #207 M1), in
+  [`packages/engine/experiments/recognition.ts`](../packages/engine/experiments/recognition.ts)
+  (under 2 s), over E17's yardstick and the band's lead.
+  - A hand plays each of the yardstick's patterns in bar 1 and again in bar 3, an empty bar between, each playing humanised on its own; the Muse hears both, with the memory of #204 H8.
+  - The repeat is recognised in 100% of the 178 patterns whose exact playing is a motif at 0 ms, 99.4% at 10 ms, 74.7% at 20, 24.7% at 30, 10.7% at 40 and 1.7% at 60.
+    That is as often as both playings are read right (100%, 99.4%, 74.2%, 23.0%, 8.4%, 1.1%): recognition is exact, so it is only as good as the reading under it, and a little better where a hand's two playings are read wrong the same way.
+  - Another pattern played in bar 3 is never heard as the first, of 157 at every looseness: an exact recognition gives no false alarms.
+  - The lead's bars heard as the Muse hears a player, four at a time from each half section, every preset at entropy 0.3, 5 seeds, 64 bars: all 385 phrases join as one motif, and split into cells (`cellsOf`).
+    Of the bars after a phrase's first, 38.4% are heard as an earlier cell, and of those 10.2% under an operator.
+    The orders: `A B A C` 62.3%, `A B C D` 11.4%, `A A A B` 5.5%, `A B A B` 3.9%, `A B A A` 3.6%, `A A' A B` 3.6%, and the lead's own plan, `A A' A A'`, 1.0%.
+  - So the lead returns to its shape in its third bar, and the Muse hears it, but its variations, a shape under an operator and then fitted to the chords, are seldom an exact operator on the shape once fitted; E13 finds most of them one operator but for the close and one note.
+  - Both halves ask for the same next step: recognition with a tolerance, an operator but for a note, whose width would be a licence (C8), so a loose hand's repeat and a fitted variation are heard as what they are.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

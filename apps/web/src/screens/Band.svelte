@@ -1,7 +1,7 @@
 <!--
   The band: what stands behind the lobby's door. The music runs top to
-  bottom in the order of the composition, one `Level` each, under the way out
-  of the session. It shows the player it is given and sends what the person
+  bottom in the order of the composition, one card or `Level` each, under the
+  session. It shows the player it is given and sends what the person
   does; it opens no session and holds no device.
 -->
 <script lang="ts">
@@ -14,10 +14,9 @@
   import Metrum from '../components/Metrum.svelte';
   import MusePanel from '../components/MusePanel.svelte';
   import Plan from '../components/Plan.svelte';
-  import SessionBar from '../components/SessionBar.svelte';
+  import Session from '../components/Session.svelte';
   import StylePanel from '../components/StylePanel.svelte';
   import Tracks from '../components/Tracks.svelte';
-  import Transport from '../components/Transport.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
@@ -29,10 +28,10 @@
     player: Player;
     metronome: Metronome;
     instruments: Instruments;
-    /** What the session bar says; see `SessionBar`. */
+    /** What the session card says; see `Session`. */
     session: {
-      hosting: ComponentProps<typeof SessionBar>['hosting'];
-      following: ComponentProps<typeof SessionBar>['following'];
+      hosting: ComponentProps<typeof Session>['hosting'];
+      following: ComponentProps<typeof Session>['following'];
     };
     /** Close the session, leave it, or go back to the lobby. */
     onend: () => void;
@@ -59,20 +58,23 @@
   const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
 </script>
 
-<SessionBar mode={player.mode} hosting={session.hosting} following={session.following} {onend} />
+<Session
+  mode={player.mode}
+  hosting={session.hosting}
+  following={session.following}
+  players={player.players}
+  playerId={player.playerId}
+  playing={player.playing}
+  bar={player.hud.beat === null ? null : (player.hud.bar?.bar ?? null)}
+  ontoggle={() => (player.playing ? player.stop() : player.start())}
+  {onend}
+/>
 
 <!--
     The music, in the order of the composition, from the whole song down to
     each note. A client plays its host's song, style and key, so those
     levels' controls rest; its click and instruments are its own.
   -->
-<Level name="Transport" resting={following}>
-  <Transport
-    playing={player.playing}
-    ontoggle={() => (player.playing ? player.stop() : player.start())}
-  />
-</Level>
-
 <Level>
   <StylePanel
     track={player.track}

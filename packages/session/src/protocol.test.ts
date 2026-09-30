@@ -2,6 +2,7 @@ import {
   INITIAL_STYLE,
   type Judgement,
   LOOKAHEAD,
+  type MuseOutput,
   type TransportEnv,
   holding,
   judgeBar,
@@ -35,27 +36,35 @@ const shapeOf = (values: readonly unknown[]) =>
  * motif heard in bar 2 so that bars carry an offer and accents, and the
  * judgements of the notes heard.
  */
-function travelling(): { bars: SentBar[]; judgements: Judgement[] } {
+function travelling(): { bars: SentBar[]; judgements: Judgement[]; log: MuseOutput[] } {
   const env: TransportEnv = {
     seed: 3,
     start: 0,
     track: holding({ ...INITIAL_STYLE, energy: 1, harm: 1 }),
     wish: { tonic: null, mode: 'aeolian', melodic: null },
   };
-  const heard = [69, 72, 76, 74].map((note, i) => ({
-    note,
-    velocity: 110 - i * 20,
-    source: 'a client',
-    position: 32 + i * 4,
-    end: i === 3 ? null : 33 + i * 4,
-  }));
+  // The motif in bar 2, and again in bar 3, so the log carries a recognition.
+  const inBar = (bar: number) =>
+    [69, 72, 76, 74].map((note, i) => ({
+      note,
+      velocity: 110 - i * 20,
+      source: 'a client',
+      position: 16 * bar + i * 4,
+      end: i === 3 ? null : 16 * bar + 1 + i * 4,
+    }));
+  const heard = [inBar(2), inBar(3)];
   let carried = transport.initial;
   const bars: SentBar[] = [];
+  const log: MuseOutput[] = [];
   for (let t = 0; t < 60; t += 0.025) {
-    const due = carried && carried.head.step > 50 && heard.length > 0 ? heard.splice(0) : [];
+    const due =
+      carried && heard.length > 0 && carried.head.step > 16 * (5 - heard.length) + 2
+        ? heard.shift()!
+        : [];
     const next = transport.advance(env, carried, { now: t, until: t + LOOKAHEAD, heard: due });
     carried = next.carried;
     bars.push(...sentBars(next.output.composed, next.output.steps, carried!.head, env.track));
+    log.push(...next.output.judged);
   }
   const notes = [69, 72, 76, 74].map((note, i) => ({
     note,
@@ -68,7 +77,7 @@ function travelling(): { bars: SentBar[]; judgements: Judgement[] } {
     ...judgeBar(notes, 0, { tonic: 9, mode: 'aeolian' }),
     ...judgeBar(notes.slice(0, 2), 0, { tonic: 9, mode: 'aeolian' }),
   ];
-  return { bars, judgements };
+  return { bars, judgements, log };
 }
 
 describe('the session protocol', () => {
@@ -150,13 +159,17 @@ describe('the session protocol', () => {
   });
 
   it(`holds the shapes that travel as version ${PROTOCOL} has them: a change bumps PROTOCOL`, () => {
-    // A bar and a judgement carry the engine's own types. If this fails,
+    // A bar, a judgement and the Muse's log carry the engine's own types. If this fails,
     // their shape changed: bump PROTOCOL, so a host and a client of
     // different builds refuse each other, and record the shape here.
-    const { bars, judgements } = travelling();
-    expect({ protocol: PROTOCOL, bar: shapeOf(bars), judgement: shapeOf(judgements) }).toEqual(
-      SHAPES,
-    );
+    const { bars, judgements, log } = travelling();
+    expect(log.some((l) => l.recognised.length > 0)).toBe(true);
+    expect({
+      protocol: PROTOCOL,
+      bar: shapeOf(bars),
+      judgement: shapeOf(judgements),
+      log: shapeOf(log),
+    }).toEqual(SHAPES);
   });
 
   it('never carries a performer’s fill on the wire: a bar states only what a WrittenNote holds (#107, #140)', () => {
@@ -179,9 +192,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 4 (the join and welcome that carry a resume token are read by field, above), as a minute of the band and two judgements show them. */
+/** The shapes of version 5 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them. */
 const SHAPES = {
-  protocol: 4,
+  protocol: 5,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -251,5 +264,37 @@ const SHAPES = {
     'motif.degrees[]: number',
     'motif.onsets[]: number',
     'source: string',
+  ],
+  log: [
+    'bar: number',
+    'forgot: null',
+    'forgot: string',
+    'judgements[].confidence: number',
+    'judgements[].kind: string',
+    'judgements[].level: number',
+    'judgements[].motif.accents[]: number',
+    'judgements[].motif.accidentals[]: number',
+    'judgements[].motif.cycle: number',
+    'judgements[].motif.degrees[]: null',
+    'judgements[].motif.degrees[]: number',
+    'judgements[].motif.onsets[]: number',
+    'judgements[].source: string',
+    'offer.bar: number',
+    'offer.level: number',
+    'offer.motif.accents[]: number',
+    'offer.motif.accidentals[]: number',
+    'offer.motif.cycle: number',
+    'offer.motif.degrees[]: null',
+    'offer.motif.degrees[]: number',
+    'offer.motif.onsets[]: number',
+    'offer.source: string',
+    'offer: null',
+    'recognised[].of.bar: number',
+    'recognised[].of.source: string',
+    'recognised[].op.late: number',
+    'recognised[].op.mirror: boolean',
+    'recognised[].op.rev: boolean',
+    'recognised[].op.strans: number',
+    'recognised[].source: string',
   ],
 };

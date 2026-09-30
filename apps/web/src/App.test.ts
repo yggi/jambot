@@ -84,7 +84,7 @@ describe('the app', () => {
       render(App);
       await fireEvent.input(screen.getByLabelText('Session name'), { target: { value: 'Garage' } });
       await fireEvent.click(screen.getByRole('button', { name: 'Local' }));
-      expect(await screen.findByText(/Nobody has joined yet/)).toBeInTheDocument();
+      expect(await screen.findByText(/nobody has joined/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Close session' }));
       expect(screen.getByRole('alertdialog')).toHaveTextContent('Close Garage?');
@@ -156,7 +156,7 @@ describe('the app', () => {
     );
     expect(levels.slice(0, 8)).toEqual([
       'Sound',
-      'Transport',
+      'Session',
       'Style',
       'Metrum',
       'Key',
@@ -165,7 +165,9 @@ describe('the app', () => {
       'Tracks',
     ]);
     expect(screen.getByLabelText('Sound')).not.toHaveAttribute('open');
-    expect(screen.getByText('Playing with the band on this device.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Session').querySelector('summary .sub')).toHaveTextContent(
+      'This device only',
+    );
   });
 
   it('starts from Synth-pop, and a preset sets the sliders and tempo at once while stopped', async () => {
