@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { harmonic, noise, rms, sine, sum } from './signals.ts';
+import { rms } from './level.ts';
+import { harmonic, noise, sine, sum } from './signals.ts';
 
 describe('sine', () => {
   it('is the length asked for, at the amplitude and phase asked for', () => {

@@ -51,6 +51,10 @@ export const AUDITED: Readonly<Record<string, string>> = {
     "partial()'s Math.log2 is a fixed constant per integer n (a harmonic " +
     "series partial), not a per-play draw, and far from a semitone's rounding " +
     'boundary for the small n in use.',
+  'packages/spectrum/src/bands.ts':
+    'Math.log2 counts the bands that fit between two frequencies, floored: at ' +
+    'an exact boundary a band more or fewer is drawn, nothing is chosen from it, ' +
+    'and the log10 of a magnitude is a height to draw.',
   'packages/spectrum/src/fft.ts':
     "Math.cos and Math.sin build the transform's twiddle factors and the window: " +
     'a last-bit difference moves a magnitude by a last bit, and the only decisions ' +
