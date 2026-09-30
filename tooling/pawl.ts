@@ -101,9 +101,12 @@ function fields(text: string): Pick<Entry, 'status' | 'test' | 'decided' | 'reti
   };
 }
 
-/** The ids of the catalogue's experiments, `- **E1. …**`. */
-function experiments(text: string): string[] {
-  return [...text.matchAll(/^- \*\*(E\d+)\. /gm)].map((m) => m[1]!);
+/** The catalogue's experiments, `- **E1. …**`: each id and the line it is defined on. */
+function experiments(text: string): { id: string; line: number }[] {
+  return text.split('\n').flatMap((line, i) => {
+    const start = /^- \*\*(E\d+)\. /.exec(line);
+    return start ? [{ id: start[1]!, line: i + 1 }] : [];
+  });
 }
 
 /** The names given to `it`, `test` and `describe` in a test file's source. */
@@ -168,6 +171,19 @@ export function pawlProblems(repo: Repo): string[] {
       problems.push(`${at(entry)} is defined twice, first at line ${first.line}`);
     else problems.push(`${at(entry)} is defined twice, first at ${where(first)}`);
   }
+  // Experiments are numbered in the same space, across every catalogue.
+  const byExperiment = new Map<string, { catalogue: string; line: number }>();
+  for (const catalogue of repo.catalogues)
+    for (const { id, line } of experiments(repo.read(catalogue))) {
+      const first = byExperiment.get(id);
+      if (!first) byExperiment.set(id, { catalogue, line });
+      else if (first.catalogue === catalogue)
+        problems.push(`${catalogue}:${line} ${id} is defined twice, first at line ${first.line}`);
+      else
+        problems.push(
+          `${catalogue}:${line} ${id} is defined twice, first at ${first.catalogue}:${first.line}`,
+        );
+    }
 
   // Rule 7: an alias names an entry that is not itself an alias, and has
   // no fields of its own, which rules 1–3 would never see.
@@ -233,10 +249,7 @@ export function pawlProblems(repo: Repo): string[] {
 
   // Rules 4 and 5: a cited id exists, and its entry, or the entry an alias
   // names, names the citing file.
-  const ids = new Set([
-    ...byId.keys(),
-    ...repo.catalogues.flatMap((catalogue) => experiments(repo.read(catalogue))),
-  ]);
+  const ids = new Set([...byId.keys(), ...byExperiment.keys()]);
   for (const path of repo.paths.filter((p) => p.endsWith('.test.ts')).sort()) {
     for (const name of testNames(repo.read(path))) {
       for (const item of citations(name)) {

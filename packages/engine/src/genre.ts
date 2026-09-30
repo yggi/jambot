@@ -32,7 +32,7 @@ export function bpmUnit(bpm: number): number {
 
 /**
  * The density (onsets per step over all parts) at an energy of 0 and of 1,
- * as the band composes them (E22: 0.33 and 1.55, and near-linear between).
+ * as the band composes them (E23: 0.33 and 1.55, and near-linear between).
  */
 const DENSITY_AT_MIN = 0.33;
 const DENSITY_AT_MAX = 1.55;
@@ -87,7 +87,7 @@ export const PRESET_LANDMARKS: readonly Landmark[] = PRESETS.map((p) => ({
 /**
  * A softmax over the negated distances to the landmarks: near 1 for the
  * nearest at a low temperature, even at a high one. The landmarks are the
- * presets' points by default; E23 measures them against where the presets'
+ * presets' points by default; E24 measures them against where the presets'
  * bars actually read.
  */
 export function genreOf(

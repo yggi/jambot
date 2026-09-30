@@ -439,7 +439,7 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
   await page.getByRole('button', { name: 'Start the band' }).click();
   await join(client, 'motif jam', 'Ada');
   await expect(state(client)).toContainText('host playing');
-  await expect(client.getByText('Bar 3 of 8')).toBeVisible({ timeout: 8000 });
+  await expect(client.getByText('Intro 3/8')).toBeVisible({ timeout: 8000 });
 
   // Synth-pop at 108 bpm: three notes four steps apart, in one bar.
   const step = 15 / 108;
@@ -457,7 +457,12 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
   // And both show the lead playing it, named by its player: the bars carry it, not a message of its own (#164).
   const playing = /Lead is playing the motif from Ada's computer keys, heard in bar \d+\./;
   for (const screen of [page, client])
-    await expect(screen.getByLabel('Conductor').getByText(playing)).toBeVisible({ timeout: 8000 });
+    await expect(screen.locator('details[aria-label="Tracks"] summary .sub')).toContainText(
+      playing,
+      {
+        timeout: 8000,
+      },
+    );
 });
 
 test('a second host cannot take a session name that is open', async ({ page, context }) => {

@@ -71,9 +71,10 @@
       class="play"
       disabled={mode === 'client'}
       title={mode === 'client' ? 'The host starts and stops the band' : undefined}
+      aria-label={playing ? undefined : 'Start the band'}
       onclick={ontoggle}
     >
-      {playing ? 'Stop' : 'Start the band'}
+      {playing ? 'Stop' : 'Start'}
     </button>
   </span>
 {/snippet}
@@ -148,16 +149,21 @@
 <style>
   .line {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 6px 14px;
+    gap: 14px;
   }
   .name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-size: 24px;
     font-weight: 700;
     line-height: 1.1;
   }
   .play {
+    flex: none;
     min-height: 44px;
     padding: 0 20px;
     border: 0;

@@ -1918,7 +1918,7 @@ run; the others have.
   - So a loop that copies what it hears locks on its first pattern, whatever holds or confirms it, and each of the delay's chains needs a transformation of its own to drift: variation on every bar, or an answer under an operator from the Muse (#237 step 4), not a copy.
   - Not measured: weights for the band's voices beside the players', since no players play here; and the style's distance over time, which needs the critic (#15).
 
-- **E22. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
+- **E23. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
   [`packages/engine/experiments/style-readback.ts`](../packages/engine/experiments/style-readback.ts),
   held by [`packages/engine/experiments/style-readback.test.ts`](../packages/engine/experiments/style-readback.test.ts):
   bars composed at a style and read back by `readStyle`, per axis: Kendall's tau-b of the reading against the axis, and the mean distance of the two where the reading is on the axis's scale.
@@ -1941,14 +1941,14 @@ run; the others have.
     A sweep of one moves no tau of the other (under 0.05).
   - Not measured: `harm` (needs the chords, not read from notes yet), per-part readings (step 4), and the real music the analyzer will read.
 
-- **E23. Does Techno land where techno lands?** (#15 step 3, N3), in
+- **E24. Does Techno land where techno lands?** (#15 step 3, N3), in
   [`packages/engine/experiments/genre-calibration.ts`](../packages/engine/experiments/genre-calibration.ts),
   held by [`packages/engine/experiments/genre-calibration.test.ts`](../packages/engine/experiments/genre-calibration.test.ts):
   the transport plays each preset's point, `readStyle` and `readTiming` read the bars, and `genreOf` (`packages/engine/src/genre.ts`) turns the reading into probabilities over the presets by a softmax over the distances at a temperature.
   The reading has five axes (`energy` from the density, `sync`, `artic`, `swing`, and `bpm` on its log axis scaled to 0 to 1); the distance is a root mean square over them.
   3 seeds of 32 bars per preset, temperature 0.1, against two sets of landmarks: the presets' own points, and where the presets' bars read (the mean over 5 other seeds).
   - Against the presets' points, a single bar lands as its own preset in 0.61 of bars on average (chance 0.125): Ambient 0.99, Swing jazz 0.91, Synth-pop 0.81, Deep house 0.78, Lo-fi hip hop 0.76 and Techno 0.65, but Funk none and Bossa nova 0.01.
-    The reading is compressed short of the axes (E22), so a preset far out on one, Funk's `sync` of 1, has no bar near its point.
+    The reading is compressed short of the axes (E23), so a preset far out on one, Funk's `sync` of 1, has no bar near its point.
   - Against where the presets read, 0.71: Swing jazz 0.91, Ambient 0.91, Funk 0.72, Bossa nova 0.72, Techno 0.69, Synth-pop 0.65, Lo-fi hip hop 0.63 and Deep house 0.45.
     So the critic's landmarks are measured, not read off the presets.
   - With the three axes of the notes alone (`energy`, `sync`, `artic`) the same round trip landed 0.30 against the points and 0.41 against where the presets read, and Synth-pop, Lo-fi hip hop and Bossa nova stayed under a fifth: they sat in the middle of the space and differ from their neighbours by `swing` and `bpm`.
