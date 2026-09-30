@@ -5,17 +5,8 @@ The frame, the method and the tensions are in [`language.md`](language.md); the 
 
 ## Analysis and provenance
 
-**A1. The round trip from the composer's events through the text and back is
-exact.** Witness: the prototype's encoder and compiler; in the port, `encodeBar`
-and `compileBar` (`packages/score`), so far for the header, the style, the
-harmony and the drums (L8). Counterexample: an event missing, added or changed
-after the round trip. Test: the prototype's run over about 6,000 events
-(`prototype/README.md`, "Tested"), which no test in this repository reruns; E1
-adds that it holds only warm. `seam.test.ts` (`packages/score`), whose test of
-the round trip cites A1: every one of 3,200 of the port's bars is read back as
-it was written. Source: prototype. Status: measured (in the prototype); measured
-(the port's header, harmony and drums, but the snare); open (the port's pitch
-lines). Lands in: #13, Q1a.
+**A1. The round trip from the composer's events through the text and back is exact.**
+Same as Q1a.
 
 **A2. Every MIDI input has an IM, with an escape hatch where the grammar can't
 say it.** Witness: the analyzer. Counterexample: one MIDI file. Test: open: the

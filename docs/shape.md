@@ -127,18 +127,24 @@ The ones a measurement could dissolve soonest, in the order the owner could look
 ## Candidates to contract
 
 The law of generalization prefers one form to several.
-These are entries that overlap.
-Each would be made an alias of the one it repeats, which `history.ts` holds to that entry, so nothing is lost.
-They wait for the condensing pass and the owner's word.
+Each pair that looked like a repeat was read entry against entry, and an alias is only right where the claim is the same.
+Only one pair was: A1 is Q1a's first half, so A1 is an alias of Q1a now, and its prototype facts moved into Q1a's witness.
 
-- **T17, T18, T19 (and T20):** one layering of base, accent and licence in `performer.ts` and `dynamics.ts`.
-- **T8 and T9:** the output-pair clock, seen from the session and from the web app.
-- **P5 and P10; P7 and P9:** the open part of P5 is P10's failing case; P9 restates P7's counterexample.
-- **S2 and S3:** S3 is S2's corollary, held by S2's own test.
-- **C3 and C5; C8 and C9:** rates and bounds on one transport constant; C9 inherits C8's key reach.
-- **A1, Q1a and the text row of F3:** one round trip, one seam test.
-- **Q1b, Q1c and T4's time bullet:** the same time maps.
-- **Q5a and F1:** every level is one type.
+The others are neighbours that make different claims, and stay as they are:
+
+- **T17, T18, T19, T20** are the licence widening with the feel (T17), an accent as an offset on the base (T18), which layer owns the base (T19), and a longer chain of deltas (T20).
+  They are one chain seen from four sides.
+  If T20 is ever taken up, T18 and T19 want a covering entry for the chain, and that is a generalization to make then, with a test.
+- **T8 and T9** are two different clients of `outputClock`: a client's sound against its host, and MIDI out and capture.
+- **P5 and P10, P7 and P9** are a claim and the counterexample filed beside it (P10 refutes P5's open scope, P9 was a probe on P7).
+  Filed apart on purpose, since a counterexample lives where it refutes (`ratchet` skill, N3).
+- **S2 and S3:** S3 is `Decided: S2, dissolved`, a rule that stands only if S2 carries it, and S2 carries no rule.
+- **Q1b and Q1c** are the round trips of the two time maps, each with its own test.
+  F3's time bullet points at them, and T4 is the map's claim.
+- **Q5a and F1:** F1 is the law each level keeps, and Q5a is that a slower level's output is held as the faster one's environment.
+
+What the read did find is that the catalogue names its neighbours in prose ("as for T4", "(A1)") more often than by alias, so a reader has to follow prose to see the chain.
+A "see also" line in an entry's fields would carry it, but that is a change to the form, which the owner takes.
 
 ## Suggestions from tradition and hunch
 
