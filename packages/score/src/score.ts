@@ -40,6 +40,13 @@
  *   onset sounds. The frame is written exactly when the bar has a bass line.
  *   A finer grid, a group in a step, a loop or a rest is the tree of #275, and
  *   refused until then.
+ * - **A pad and a stab** (#264): `pad 0=ch 8=ch` and `stab 4=ch 14=nx` state the
+ *   steps the comp sounds a chord on, `ch` the chord in force and `nx` the
+ *   first chord of the next bar, which `next V7` (and `key=G:ionian` where
+ *   that bar's key differs) states. A chord is voiced close in 50–79, led from
+ *   the voicing before it, so `frame comp=C4,E4,G4` states the voicing the bar
+ *   reads from (S2); a frame with no `comp=` has nothing to lead from. A pad
+ *   lasts to the next chord and a stab one step, so neither states a length.
  *
  * A header that states no meter is a bar of 4/4, read from its helix on
  * the steps as the song reads its bars (T10); a `meter=` comes with #63
@@ -135,6 +142,22 @@ export interface BassLine {
   readonly notes: readonly BassNote[];
 }
 
+/** The lowest and highest note the comp plays, and where a voicing's bottom note may stand: the engine's. */
+export const COMP_RANGE = [50, 79] as const;
+const COMP_BOTTOMS = [50, 63] as const;
+
+/** A voicing the comp sounds at a step: its MIDI notes, low to high. A pad lasts to the next chord, a stab one step. */
+export interface CompNotes {
+  readonly step: number;
+  readonly notes: readonly number[];
+}
+
+/** The first chord of the next bar, which a stab leads into: its numeral in that bar's own key. */
+export interface NextChord {
+  readonly key: ScoreKey;
+  readonly numeral: Numeral;
+}
+
 /** What a bar's text states. */
 export interface ScoreBar {
   /** Counted from the song's start. */
@@ -149,6 +172,14 @@ export interface ScoreBar {
   readonly drums: DrumLines;
   /** Left out where the bar has no bass. */
   readonly bass?: BassLine;
+  /** The voicing the comp reads from before the bar (S2), left out where it has none, or no pad or stab. */
+  readonly voicing?: readonly number[];
+  /** The chords the pad sounds, left out where it sounds none. */
+  readonly pad?: readonly CompNotes[];
+  /** The chords the stab sounds, left out where it sounds none. */
+  readonly stab?: readonly CompNotes[];
+  /** The next bar's first chord, stated exactly where a stab plays it. */
+  readonly next?: NextChord;
 }
 
 const WORD = /^[A-Za-z]+$/u;
@@ -284,6 +315,8 @@ function bassTokens(bar: ScoreBar): { tokens: BassToken[] } | { problems: string
   return problems.length ? { problems } : { tokens };
 }
 
+const sameKey = (a: ScoreKey, b: ScoreKey) => a.tonic === b.tonic && a.mode === b.mode;
+
 const LETTER_PITCH_CLASS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 } as const;
 type NaturalLetter = keyof typeof LETTER_PITCH_CLASS;
 const NATURAL_LETTER = new Map<number, NaturalLetter>(
@@ -327,7 +360,120 @@ function writeRegister(key: ScoreKey, midi: number): string {
   return `${letter}${sign(alteration)}${octave}`;
 }
 
-/** A bar's score text: its header, `style`, `harm`, its `frame` and `bass`, and a line per sounding drum. */
+/**
+ * How far a voicing moves from the one before: each new note's distance to
+ * the nearest old one, and half of each old note's distance to the nearest
+ * new one, so a voice that drops out counts too. The engine's rule.
+ */
+function voiceMotion(from: readonly number[], to: readonly number[]): number {
+  const nearest = (x: number, among: readonly number[]) =>
+    Math.min(...among.map((y) => Math.abs(x - y)));
+  return (
+    to.reduce((sum, x) => sum + nearest(x, from), 0) +
+    0.5 * from.reduce((sum, x) => sum + nearest(x, to), 0)
+  );
+}
+
+/**
+ * A chord voiced close in 50–79, moving least from the voicing before, with
+ * a ninth chord dropping its fifth: the engine's own rule (`comp.ts`), which
+ * the seam's test holds it to, so a bar compiles without the engine.
+ */
+export function compVoicing(chord: Chord, previous: readonly number[] | null): number[] {
+  const tones = joinChord(chord);
+  const kept = tones.length >= 5 ? tones.filter((_, i) => i !== 2) : tones;
+  const classes = kept.map((x) => wrap(x, 12));
+  const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+  let best: number[] | null = null;
+  let bestScore = Infinity;
+  for (let inversion = 0; inversion < classes.length; inversion++) {
+    const order = [...classes.slice(inversion), ...classes.slice(0, inversion)];
+    for (let bottom = COMP_BOTTOMS[0]; bottom <= COMP_BOTTOMS[1]; bottom++) {
+      if (wrap(bottom, 12) !== order[0]) continue;
+      const notes: number[] = [bottom];
+      for (const pc of order.slice(1)) {
+        let n = notes.at(-1)! + 1;
+        while (wrap(n, 12) !== pc) n++;
+        notes.push(n);
+      }
+      if (notes.at(-1)! > COMP_RANGE[1]) continue;
+      const score = previous ? voiceMotion(previous, notes) : Math.abs(mean(notes) - 62);
+      if (score < bestScore) {
+        bestScore = score;
+        best = notes;
+      }
+    }
+  }
+  return best ?? classes.map((pc) => 60 + pc);
+}
+
+const sameNotes = (a: readonly number[], b: readonly number[]) =>
+  a.length === b.length && a.every((note, i) => note === b[i]);
+
+/** The index of the chord in force at a step: the last chord that starts on or before it. */
+const chordIndexAt = (harm: readonly HarmChord[], step: number) =>
+  Math.max(
+    0,
+    harm.findLastIndex((chord) => chord.step <= step),
+  );
+
+/** The voicing of each chord of the bar, each led from the one before, the first from the frame's. */
+function voicedChords(bar: ScoreBar): { voiced: number[][]; end: readonly number[] | null } {
+  let previous: readonly number[] | null = bar.voicing ?? null;
+  const voiced = bar.harm.map(({ numeral }) => {
+    const notes = compVoicing(lowerNumeral(bar.key, numeral), previous);
+    previous = notes;
+    return notes;
+  });
+  return { voiced, end: previous };
+}
+
+/** What a comp line's onset plays: the chord in force, or the next bar's first chord. */
+type CompToken = 'ch' | 'nx';
+
+/** The notes of each onset of a pad or stab line, from the tokens, and what the bar's frame and next state. */
+function compNotesOf(
+  bar: Pick<ScoreBar, 'key' | 'harm' | 'voicing' | 'next'>,
+  hits: readonly { step: number; token: CompToken }[],
+): CompNotes[] {
+  const { voiced, end } = voicedChords(bar as ScoreBar);
+  const coming = bar.next && compVoicing(lowerNumeral(bar.next.key, bar.next.numeral), end);
+  return hits.map(({ step, token }) => ({
+    step,
+    notes: token === 'nx' ? coming! : voiced[chordIndexAt(bar.harm, step)]!,
+  }));
+}
+
+/** A pad or stab line as tokens, or what keeps an onset from having one. */
+function compTokens(
+  bar: ScoreBar,
+  kind: 'pad' | 'stab',
+): { tokens: { step: number; token: CompToken }[] } | { problems: string[] } {
+  const hits = bar[kind]!;
+  const problems: string[] = [];
+  if (hits.length === 0) return { problems: [`${kind}: a ${kind} line has at least one chord`] };
+  const rising = hits.every(
+    ({ step }, i) =>
+      Number.isInteger(step) && step < UNSTATED_STEPS && (i === 0 || step > hits[i - 1]!.step),
+  );
+  if (!rising)
+    return { problems: [`${kind}: its steps must rise within the bar's ${UNSTATED_STEPS}`] };
+  const { voiced, end } = voicedChords(bar);
+  const coming = bar.next && compVoicing(lowerNumeral(bar.next.key, bar.next.numeral), end);
+  const tokens: { step: number; token: CompToken }[] = [];
+  for (const { step, notes } of hits) {
+    if (sameNotes(notes, voiced[chordIndexAt(bar.harm, step)]!)) tokens.push({ step, token: 'ch' });
+    else if (kind === 'stab' && coming && sameNotes(notes, coming))
+      tokens.push({ step, token: 'nx' });
+    else
+      problems.push(
+        `${kind}: the notes at step ${step} are not ${kind === 'stab' ? "the chord's voicing or the next chord's" : "the chord's voicing"} from the frame`,
+      );
+  }
+  return problems.length ? { problems } : { tokens };
+}
+
+/** A bar's score text: its header, `style`, `harm`, its `frame`, `bass`, `pad`, `stab` and `next`, and a line per sounding drum. */
 export function encodeBar(bar: ScoreBar): string {
   const problems = barProblems(bar);
   if (problems.length) throw new Error(`encodeBar: ${problems.join('; ')}`);
@@ -342,21 +488,69 @@ export function encodeBar(bar: ScoreBar): string {
     const word = DRUM_WORDS[sound];
     return [`${word} "${writeSequence(placeHits(word, steps), UNSTATED_STEPS)}"`];
   });
-  const bassLines = bar.bass
+  const frameFields = [
+    ...(bar.bass ? [`bass=${writeRegister(bar.key, bar.bass.register)}`] : []),
+    ...(bar.voicing ? [`comp=${bar.voicing.map((n) => writeRegister(bar.key, n)).join(',')}`] : []),
+  ];
+  const pairs = (tokens: { step: number; token: CompToken }[]) =>
+    tokens.map(({ step, token }) => `${step}=${token}`).join(' ');
+  const comp = (['pad', 'stab'] as const).flatMap((kind) =>
+    bar[kind] ? [`${kind} ${pairs((compTokens(bar, kind) as { tokens: never }).tokens)}`] : [],
+  );
+  const next = bar.next
     ? [
-        `frame bass=${writeRegister(bar.key, bar.bass.register)}`,
-        `bass ${(bassTokens(bar) as { tokens: BassToken[] }).tokens
-          .map(({ step, pitch, jump }) => `${step}=${pitch}${jump ? '^' : ''}`)
-          .join(' ')}`,
+        `next ${formatNumeral(bar.next.numeral)}${
+          sameKey(bar.next.key, bar.key) ? '' : ` key=${writeKey(bar.next.key)}`
+        }`,
       ]
     : [];
   return [
     `bar ${bar.bar} ${bar.section} key=${writeKey(bar.key)} theme=${bar.theme}`,
     `style ${style}`,
     `harm "${harm}"`,
-    ...bassLines,
+    ...(frameFields.length ? [`frame ${frameFields.join(' ')}`] : []),
+    ...(bar.bass
+      ? [
+          `bass ${(bassTokens(bar) as { tokens: BassToken[] }).tokens
+            .map(({ step, pitch, jump }) => `${step}=${pitch}${jump ? '^' : ''}`)
+            .join(' ')}`,
+        ]
+      : []),
+    ...comp,
+    ...next,
     ...drums,
   ].join('\n');
+}
+
+/** What keeps a bar's voicing, pad, stab and next chord from being written, if anything. */
+function compProblems(bar: ScoreBar): string[] {
+  const problems: string[] = [];
+  const { voicing, pad, stab, next } = bar;
+  if (voicing) {
+    const rises = voicing.every(
+      (note, i) =>
+        Number.isInteger(note) &&
+        note >= COMP_RANGE[0] &&
+        note <= COMP_RANGE[1] &&
+        (i === 0 || note > voicing[i - 1]!),
+    );
+    if (voicing.length === 0 || !rises)
+      problems.push(`comp: a voicing rises within ${COMP_RANGE[0]}–${COMP_RANGE[1]}`);
+    if (!pad && !stab) problems.push('comp: a voicing needs a pad or a stab line to carry into');
+  }
+  if (next && !(Number.isInteger(next.key.tonic) && next.key.tonic >= 0 && next.key.tonic < 12))
+    problems.push(`next: tonic ${next.key.tonic} is not a pitch class`);
+  if (problems.length) return problems;
+  const stabTokens = stab && compTokens(bar, 'stab');
+  for (const [kind, hits] of [
+    ['pad', pad && compTokens(bar, 'pad')],
+    ['stab', stabTokens],
+  ] as const)
+    if (hits && 'problems' in hits) problems.push(...hits.problems);
+    else if (kind === 'stab' && next && hits && !hits.tokens.some((h) => h.token === 'nx'))
+      problems.push('next: no stab plays the next chord');
+  if (next && !stab) problems.push('next: no stab plays the next chord');
+  return problems;
 }
 
 /** What keeps a bar from being written, if anything. */
@@ -390,6 +584,7 @@ function barProblems(bar: ScoreBar): string[] {
     const tokens = bassTokens(bar);
     if ('problems' in tokens) problems.push(...tokens.problems);
   }
+  problems.push(...compProblems(bar));
   return problems;
 }
 
@@ -412,11 +607,11 @@ const REQUIRED_LINES: readonly string[] = ['bar', 'style', 'harm'];
 /** A drum line, present only for a sound that hits in the bar. */
 const DRUM_LINES: readonly string[] = DRUM_SOUNDS.map((sound) => DRUM_WORDS[sound]);
 
-/** The bass's lines: a frame and a bass line, each present only with the other (S2). */
-const BASS_LINES: readonly string[] = ['frame', 'bass'];
+/** The pitched lines, each present only where the bar has one: the frame they read from, the bass, the pad and stab, and the next chord a stab leads into (S2). */
+const PITCHED_LINES: readonly string[] = ['frame', 'bass', 'pad', 'stab', 'next'];
 
 /** Every line a bar's text may have, required or not. */
-const LINES: readonly string[] = [...REQUIRED_LINES, ...BASS_LINES, ...DRUM_LINES];
+const LINES: readonly string[] = [...REQUIRED_LINES, ...PITCHED_LINES, ...DRUM_LINES];
 
 type Header = Pick<ScoreBar, 'bar' | 'section' | 'key' | 'theme'>;
 type Read<T> = { value: T } | { problems: string[] };
@@ -436,25 +631,44 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
   }
   for (const kind of REQUIRED_LINES)
     if (!byKind.has(kind)) problems.push(`the ${kind} line is missing`);
-  if (byKind.has('bass') && !byKind.has('frame'))
-    problems.push('a bass line needs a frame line, such as frame bass=E2');
-  if (byKind.has('frame') && !byKind.has('bass'))
-    problems.push('a frame line with no bass line has nothing to carry');
   if (problems.length) return { problems };
 
   const header = readHeader(byKind.get('bar')!);
   const style = readStyle(byKind.get('style')!);
-  const harm = readHarm(byKind.get('harm')!, 'value' in header ? header.value.key : undefined);
+  const key = 'value' in header ? header.value.key : undefined;
+  const harm = readHarm(byKind.get('harm')!, key);
   const drumReads = DRUM_SOUNDS.flatMap((sound) => {
     const rest = byKind.get(DRUM_WORDS[sound]);
     return rest === undefined ? [] : [{ sound, read: readDrumLine(sound, rest) }];
   });
   const frame = byKind.has('frame') ? readFrame(byKind.get('frame')!) : undefined;
+  const framed = frame && 'value' in frame ? frame.value : undefined;
+  if (byKind.has('bass') && !frame)
+    problems.push('a bass line needs a frame line, such as frame bass=E2');
+  else if (byKind.has('bass') && framed && framed.bass === undefined)
+    problems.push('a bass line needs bass= in its frame line, such as frame bass=E2');
+  if (framed?.bass !== undefined && !byKind.has('bass'))
+    problems.push('frame bass= has no bass line to carry into');
+  if (framed?.comp && !byKind.has('pad') && !byKind.has('stab'))
+    problems.push('frame comp= has no pad or stab line to carry into');
+  const ready = key && 'value' in harm;
   const bassLine =
-    byKind.has('bass') && frame && 'value' in frame && 'value' in header && 'value' in harm
-      ? readBassLine(byKind.get('bass')!, header.value.key, harm.value, frame.value)
+    byKind.has('bass') && framed?.bass !== undefined && ready
+      ? readBassLine(byKind.get('bass')!, key, harm.value, framed.bass)
       : undefined;
-  for (const read of [header, style, harm, frame, bassLine])
+  const compReads = (['pad', 'stab'] as const).map((kind) =>
+    byKind.has(kind) ? readCompLine(kind, byKind.get(kind)!) : undefined,
+  );
+  const nextRead = byKind.has('next') && key ? readNext(byKind.get('next')!, key) : undefined;
+  const plays =
+    compReads[1] && 'value' in compReads[1] && compReads[1].value.some((h) => h.token === 'nx');
+  if (plays && !byKind.has('next'))
+    problems.push('a stab plays nx, which needs a next line, such as next V7');
+  else if (byKind.has('next') && compReads[1] && 'value' in compReads[1] && !plays)
+    problems.push('a next line with no nx in the stab has nothing to voice');
+  else if (byKind.has('next') && !byKind.has('stab'))
+    problems.push('a next line with no nx in the stab has nothing to voice');
+  for (const read of [header, style, harm, frame, bassLine, ...compReads, nextRead])
     if (read && 'problems' in read) problems.push(...read.problems);
   for (const { read } of drumReads) if ('problems' in read) problems.push(...read.problems);
   if (!('value' in header && 'value' in style && 'value' in harm) || problems.length)
@@ -463,10 +677,30 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
     drumReads.map(({ sound, read }) => [sound, (read as { value: readonly number[] }).value]),
   ) as DrumLines;
   const bass =
-    frame && bassLine && 'value' in frame && 'value' in bassLine
-      ? { bass: { register: frame.value, notes: bassLine.value } }
+    framed?.bass !== undefined && bassLine && 'value' in bassLine
+      ? { bass: { register: framed.bass, notes: bassLine.value } }
       : {};
-  return { bar: { ...header.value, style: style.value, harm: harm.value, drums, ...bass } };
+  const next = nextRead && 'value' in nextRead ? { next: nextRead.value } : {};
+  const voicing = framed?.comp ? { voicing: framed.comp } : {};
+  const stated = { key: header.value.key, harm: harm.value, ...voicing, ...next };
+  const comp = Object.fromEntries(
+    (['pad', 'stab'] as const).flatMap((kind, i) => {
+      const read = compReads[i];
+      return read && 'value' in read ? [[kind, compNotesOf(stated, read.value)]] : [];
+    }),
+  );
+  return {
+    bar: {
+      ...header.value,
+      style: style.value,
+      harm: harm.value,
+      drums,
+      ...bass,
+      ...voicing,
+      ...comp,
+      ...next,
+    },
+  };
 }
 
 function readHeader(rest: string): Read<Header> {
@@ -485,13 +719,18 @@ function readHeader(rest: string): Read<Header> {
   return { value: { bar: Number(barText), section: section!, key: key.value, theme: theme! } };
 }
 
-/** `name=value` fields, each of the names once and no other. */
-function readFields(text: string, names: readonly string[]): Read<Record<string, string>> {
+/** `name=value` fields: each of the names once, the optional ones at most once, and no other. */
+function readFields(
+  text: string,
+  names: readonly string[],
+  optional: readonly string[] = [],
+): Read<Record<string, string>> {
   const fields: Record<string, string> = {};
   const problems: string[] = [];
   for (const field of text.split(/\s+/u).filter(Boolean)) {
     const match = /^([a-z]+)=(\S+)$/u.exec(field);
-    if (!match || !names.includes(match[1]!)) problems.push(`"${field}" is not a field here`);
+    if (!match || !(names.includes(match[1]!) || optional.includes(match[1]!)))
+      problems.push(`"${field}" is not a field here`);
     else if (match[1]! in fields) problems.push(`${match[1]}= is stated twice`);
     else fields[match[1]!] = match[2]!;
   }
@@ -560,21 +799,48 @@ function readDrumLine(sound: DrumSound, rest: string): Read<readonly number[]> {
   return problems.length ? { problems } : { value: steps };
 }
 
-/** The register a `frame` line states, as a MIDI note: `frame bass=E2`. */
-function readFrame(rest: string): Read<number> {
-  const fields = readFields(rest, ['bass']);
+/** What a `frame` line states: the register the bass reads from, and the voicing the comp does. */
+interface Framed {
+  readonly bass?: number;
+  readonly comp?: number[];
+}
+
+/** A `frame` line: `frame bass=E2 comp=C4,E4,G4`, each field optional, the line stating at least one. */
+function readFrame(rest: string): Read<Framed> {
+  const fields = readFields(rest, [], ['bass', 'comp']);
   if ('problems' in fields) return fields;
-  const text = fields.value.bass!;
-  const note = parseNote(text);
-  if (note?.midi === undefined)
-    return { problems: [`frame: bass=${text} is not a note with an octave, such as bass=E2`] };
-  if (note.midi < BASS_FOLD[0] || note.midi > BASS_FOLD[1])
-    return {
-      problems: [
-        `frame: bass=${text} is outside ${BASS_FOLD[0]}–${BASS_FOLD[1]}, where the bass register carries`,
-      ],
-    };
-  return { value: note.midi };
+  if (Object.keys(fields.value).length === 0)
+    return { problems: ['frame: no field, such as bass=E2 or comp=C4,E4,G4'] };
+  const framed: { bass?: number; comp?: number[] } = {};
+  const problems: string[] = [];
+  const bassText = fields.value.bass;
+  if (bassText !== undefined) {
+    const note = parseNote(bassText);
+    if (note?.midi === undefined)
+      problems.push(`frame: bass=${bassText} is not a note with an octave, such as bass=E2`);
+    else if (note.midi < BASS_FOLD[0] || note.midi > BASS_FOLD[1])
+      problems.push(
+        `frame: bass=${bassText} is outside ${BASS_FOLD[0]}–${BASS_FOLD[1]}, where the bass register carries`,
+      );
+    else framed.bass = note.midi;
+  }
+  const compText = fields.value.comp;
+  if (compText !== undefined) {
+    const midis = compText.split(',').map((text) => parseNote(text)?.midi);
+    if (midis.some((midi) => midi === undefined))
+      problems.push(`frame: comp=${compText} is not notes with octaves, such as comp=C4,E4,G4`);
+    else if (
+      !midis.every(
+        (midi, i) =>
+          midi! >= COMP_RANGE[0] && midi! <= COMP_RANGE[1] && (i === 0 || midi! > midis[i - 1]!),
+      )
+    )
+      problems.push(
+        `frame: comp=${compText} must rise within ${COMP_RANGE[0]}–${COMP_RANGE[1]}, where the comp plays`,
+      );
+    else framed.comp = midis as number[];
+  }
+  return problems.length ? { problems } : { value: framed };
 }
 
 /** What the tree of #275 will write: a loop, a group, a rest, a hold. */
@@ -614,4 +880,41 @@ function readBassLine(
     last = near;
   }
   return problems.length ? { problems } : { value: notes };
+}
+
+/** A pad or stab line's pairs, `step=ch` or `step=nx`, read into what each onset plays. */
+function readCompLine(
+  kind: 'pad' | 'stab',
+  rest: string,
+): Read<{ step: number; token: CompToken }[]> {
+  const words = rest.split(/\s+/u).filter(Boolean);
+  if (words.length === 0) return { problems: [`${kind}: the line has no chords`] };
+  const problems: string[] = [];
+  const hits: { step: number; token: CompToken }[] = [];
+  for (const word of words) {
+    const match = /^(\d+)=(ch|nx)$/u.exec(word);
+    if (NOT_WRITTEN_YET.test(word)) problems.push(`${kind}: "${word}" is not written yet (#275)`);
+    else if (!match) problems.push(`${kind}: "${word}" is not step=ch or step=nx`);
+    else if (kind === 'pad' && match[2] === 'nx')
+      problems.push(`pad: "${word}" is not ch: only the chord in force starts a pad`);
+    else hits.push({ step: Number(match[1]), token: match[2] as CompToken });
+  }
+  if (problems.length) return { problems };
+  const rises = hits.every(
+    ({ step }, i) => step < UNSTATED_STEPS && (i === 0 || step > hits[i - 1]!.step),
+  );
+  return rises
+    ? { value: hits }
+    : { problems: [`${kind}: its steps must rise within the bar's ${UNSTATED_STEPS}`] };
+}
+
+/** A `next` line: the numeral of the next bar's first chord, and its key where that is not the bar's. */
+function readNext(rest: string, key: ScoreKey): Read<NextChord> {
+  const match = /^(\S+)(?:\s+key=(\S+))?$/u.exec(rest);
+  if (!match) return { problems: [`next: "${rest}" is not <numeral> or <numeral> key=…`] };
+  const numeral = parseNumeral(match[1]!);
+  if (!numeral) return { problems: [`next: "${match[1]}" is not a numeral`] };
+  if (match[2] === undefined) return { value: { key, numeral } };
+  const read = readKey(match[2]);
+  return 'problems' in read ? read : { value: { key: read.value, numeral } };
 }

@@ -182,10 +182,15 @@ state every field of the bar's plan and chords that its parts read, the section,
 the key, the theme's kind, the style and each chord's step, slot and whether it
 is raised, and `barInSection` and `barEnergy` follow from them. The theme's own
 index is not stated, and the lead reads it to keep each theme's melody (S2).
-Open for the comp's and the lead's carried state (S2); the bass's is in its frame (#263). Source: Strudel's query model,
+The bass's and the comp's carried state is in the frame (#263, #264), and a
+stab that leads into the next bar's chord states it in a `next` line, in that
+bar's own key, which `seam.test.ts` shows is another chord in this bar's key
+over a key change; open for the lead's (S2). Source: Strudel's query model,
 spirit. Status: measured (drums); measured (the header and harmony); measured,
-failing (the prototype's score, E1). Lands in: #63 step 3, where the pitched
-parts' carried state is S2's key frame.
+failing (the prototype's score, E1). Decided: #63, ahead of the evidence (the
+bar states the next chord; reading the next header instead changes no note a bar
+writes, so this is the option easiest to reverse). Lands in: #63 step 3, where
+the pitched parts' carried state is S2's key frame.
 
 **T6. A meter is a helix of pulses over the bar's eighths, and a grouping is a
 mode of it.** Witness: `Meter` (`meter.ts`), which is a `Helix`: its cycle is

@@ -70,7 +70,7 @@ Each row is a rule the owner took, and the code that would witness it.
 | The signature is the composer's, the metrum the players' licence | T6, T10, T18, C8 | #261: a section carries its meter and the metrum shows it read-only; tempo, swing and the accents' spread are nudged within it |
 | Swing on the pulse                                               | T11, T16         | the transport plays no meter change (T14): `swingMap` is meter-aware, the transport is not                                     |
 | The text step between band and player                            | Q1a, F3          | #63 step 5: `compile(encode(written))` is tested, not in the path of the band                                                  |
-| Pitch lines written and read back                                | U1, U3, S2       | #63 step 3: header, harmony, six drum sounds and the bass; lead, pad, stab and the snare open                                  |
+| Pitch lines written and read back                                | U1, U3, S2       | #63 step 3: header, harmony, six drum sounds, the bass, the pad and the stab; the lead and the snare open                      |
 
 ## Claims with no witness
 
