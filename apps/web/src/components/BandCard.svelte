@@ -3,7 +3,7 @@
   one grid (`tracksOf`), the bars numbered over it and the playhead on the step
   heard. Folded, how many of the four sound on this device over the lead's
   status, and as its glyph a small roll of the phrase. Unfolded, a tall lane
-  for each performer with, on its head, its volume and its mute and solo on
+  for each performer with, on its head, its track slider: mute, volume and solo in one pill, on
   this device (`Mix`), never sent to a session. There is nothing to select
   here: choosing a track to play and its instrument are the play card's, and
   so is the player's own lane. Another player's lane in a session, and the cell
@@ -22,6 +22,7 @@
   import Card from './Card.svelte';
   import Lane from './Lane.svelte';
   import Roll from './glyphs/Roll.svelte';
+  import TrackSlider from './TrackSlider.svelte';
 
   interface Props {
     tracks: TracksView;
@@ -68,29 +69,15 @@
       <div class="track">
         <div class="head">
           <span class="name">{p.label}</span>
-          <input
-            class="level"
-            type="range"
-            min="0"
-            max="100"
-            aria-label="{p.label} volume"
-            value={Math.round(p.level * 100)}
-            oninput={(e) => onlevel(p.performer, +e.currentTarget.value / 100)}
+          <TrackSlider
+            label={p.label}
+            level={p.level}
+            muted={p.muted}
+            soloed={p.soloed}
+            onlevel={(level) => onlevel(p.performer, level)}
+            onmute={() => ontoggle('muted', p.performer)}
+            onsolo={() => ontoggle('soloed', p.performer)}
           />
-          <button
-            type="button"
-            class="mix"
-            aria-label="Mute {p.label}"
-            aria-pressed={p.muted}
-            onclick={() => ontoggle('muted', p.performer)}>M</button
-          >
-          <button
-            type="button"
-            class="mix"
-            aria-label="Solo {p.label}"
-            aria-pressed={p.soloed}
-            onclick={() => ontoggle('soloed', p.performer)}>S</button
-          >
         </div>
         <Lane
           label="{p.label}, {shown}"
@@ -153,20 +140,17 @@
   .head {
     display: flex;
     align-items: center;
-    gap: 8px;
-    min-height: 32px;
+    gap: 12px;
+    min-height: 40px;
+  }
+  .head > :global(.slider) {
+    flex: 1;
   }
   .name {
     flex: none;
     width: 4.6em;
     font-size: 14px;
     font-weight: 600;
-  }
-  .level {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    accent-color: var(--amber);
   }
   .player .name {
     width: auto;
@@ -180,21 +164,5 @@
     margin: 0;
     font-size: 13px;
     font-weight: 600;
-  }
-  .mix {
-    flex: none;
-    width: 32px;
-    height: 30px;
-    border-radius: 6px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--muted);
-  }
-  .mix[aria-pressed='true'] {
-    background: var(--amber);
-    border-color: var(--amber);
-    color: var(--on-amber);
   }
 </style>
