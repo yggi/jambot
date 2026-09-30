@@ -80,53 +80,92 @@ describe('the chords', () => {
     }
   });
 
-  it('lays the bar’s chords on a ruler where each starts, the one sounding lit once heard', () => {
+  it('leaves the key, its notes and the lead’s status to the key card and the tracks', () => {
+    const { container } = render(Chords, { hud: heard });
+    expect(container.querySelector('.reading')).toBeNull();
+    expect(screen.queryByText('A B C D E F G')).toBeNull();
+    expect(screen.queryByText(/^Lead is /)).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Conductor' })).toBeNull();
+  });
+
+  describe('the chord that comes next', () => {
     const two = bar(9, {
       chords: [
         { step: 0, symbol: 'Dm7', numeral: 'iv7' },
         { step: 8, symbol: 'E7', numeral: 'V7' },
       ],
     });
-    const sounding = render(Chords, { hud: { ...hudOf(two, 3), chord: two.chords[1]! } });
-    const ruler = screen.getByRole('img', { name: "The bar's chords: Dm7 E7" });
-    expect([...ruler.querySelectorAll('text')].map((t) => t.textContent)).toEqual(['Dm7', 'E7']);
-    expect([...ruler.querySelectorAll('.mark')].map((m) => m.classList.contains('lit'))).toEqual([
-      false,
-      true,
-    ]);
-    sounding.unmount();
-    render(Chords, { hud: hudOf(two, null) });
-    const waiting = screen.getByRole('img', { name: "The bar's chords: Dm7 E7" });
-    expect(waiting.querySelectorAll('.mark.lit')).toHaveLength(0);
+    const sub = (container: HTMLElement) => container.querySelector('summary .sub');
+
+    it('is said under the chord sounding with the beats until it: the next in the bar, else the first of the next bar', () => {
+      const first = render(Chords, { hud: hudOf(two, 0) });
+      expect(sub(first.container)).toHaveTextContent(/^next E7 · V7 in 2$/);
+      first.unmount();
+      const last = render(Chords, {
+        hud: {
+          ...hudOf(two, 3),
+          chord: two.chords[1]!,
+          next: [bar(10, { chords: [{ step: 0, symbol: 'Gmaj7', numeral: 'VII' }] })],
+        },
+      });
+      expect(sub(last.container)).toHaveTextContent(/^next Gmaj7 · VII in 1$/);
+    });
+
+    it('is said before anything is heard without a count, from the chord the band opens on, and not past what is decided', () => {
+      const before = render(Chords, {
+        hud: { ...idle, next: [bar(1, { chords: [{ step: 0, symbol: 'G', numeral: 'VII' }] })] },
+      });
+      expect(sub(before.container)).toHaveTextContent(/^next G · VII$/);
+      before.unmount();
+      const past = render(Chords, { hud: heard });
+      expect(sub(past.container)).toHaveTextContent('');
+    });
   });
 
-  it('leaves the key and its notes to the key card', () => {
-    const { container } = render(Chords, { hud: heard });
-    expect(container.querySelector('.reading')).toBeNull();
-    expect(screen.queryByText('A B C D E F G')).toBeNull();
+  describe('its glyph', () => {
+    const two = bar(9, {
+      chords: [
+        { step: 0, symbol: 'Dm7', numeral: 'iv7' },
+        { step: 8, symbol: 'E7', numeral: 'V7' },
+      ],
+    });
+
+    it('is a block for each chord of the bar, the one sounding lit once heard', () => {
+      const sounding = render(Chords, { hud: { ...hudOf(two, 3), chord: two.chords[1]! } });
+      const blocks = [...sounding.container.querySelectorAll('summary svg.glyph rect.chord')];
+      expect(blocks.map((b) => b.classList.contains('lit'))).toEqual([false, true]);
+      expect(sounding.container.querySelector('summary svg.glyph line.head')).not.toBeNull();
+      sounding.unmount();
+      const waiting = render(Chords, { hud: hudOf(two, null) });
+      expect(waiting.container.querySelectorAll('summary svg.glyph rect.lit')).toHaveLength(0);
+      expect(waiting.container.querySelector('summary svg.glyph line.head')).toBeNull();
+    });
   });
 
-  it('says in its Conductor region what the lead is doing in the bar heard, and before the start that the band plays on its own', () => {
-    const lead = () => within(screen.getByRole('region', { name: 'Conductor' }));
-    const idleView = render(Chords, { hud: idle });
-    expect(lead().getByText('The band plays on its own once started.')).toBeInTheDocument();
-    idleView.unmount();
-    const improvising = render(Chords, { hud: heard });
-    expect(lead().getByText('Lead is improvising.')).toHaveAttribute('aria-live', 'polite');
-    improvising.unmount();
-    const resting = { ...heard, bar: { ...groove, lead: 'resting' as const } };
-    render(Chords, { hud: resting });
-    expect(lead().getByText('Lead is resting.')).toBeInTheDocument();
-  });
+  describe('its details', () => {
+    const ahead = (n: number, count: number) =>
+      Array.from({ length: count }, (_, i) => bar(n + 1 + i));
 
-  it('says the lead plays a motif, whose, and which bar it was heard in, counted from 1', () => {
-    const motif = { source: 'the computer keys', name: 'the computer keys', colour: 0, bar: 6 };
-    const playingMotif = { ...heard, bar: bar(9, { lead: 'motif', motif }) };
-    render(Chords, { hud: playingMotif });
-    expect(
-      within(screen.getByRole('region', { name: 'Conductor' })).getByText(
-        'Lead is playing the motif from the computer keys, heard in bar 7.',
-      ),
-    ).toBeInTheDocument();
+    it('are the bars by chord: the bar heard and the next large, six more, eight in all', () => {
+      render(Chords, { hud: { ...heard, next: ahead(9, 7) } });
+      const near = within(screen.getByRole('list', { name: 'The bar heard and the next' }));
+      const far = within(screen.getByRole('list', { name: 'The bars after' }));
+      expect(near.getAllByRole('listitem')).toHaveLength(2);
+      expect(far.getAllByRole('listitem')).toHaveLength(6);
+    });
+
+    it('label a change of section at its bar', () => {
+      render(Chords, {
+        hud: {
+          ...heard,
+          next: [
+            bar(10, { barInSection: 7 }),
+            bar(11, { section: 'Drop', barInSection: 0 }),
+            bar(12, { section: 'Drop', barInSection: 1 }),
+          ],
+        },
+      });
+      expect(screen.getAllByText('Drop')).toHaveLength(1);
+    });
   });
 });

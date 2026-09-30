@@ -57,6 +57,12 @@ describe('the session card', () => {
       expect(screen.getByLabelText('Session')).not.toHaveAttribute('open');
     });
 
+    it('says Start on the button, one short word, and Start the band to a screen reader', () => {
+      render(Session, props());
+      const button = screen.getByRole('button', { name: 'Start the band' });
+      expect(button).toHaveTextContent(/^Start$/);
+    });
+
     it('rests for a client, which follows its host’s band, and says so', () => {
       render(Session, props({ mode: 'client' }));
       const button = screen.getByRole('button', { name: 'Start the band' });

@@ -67,13 +67,13 @@ describe('the plan', () => {
   it('heads with the section heard and its bar in it, counted from 1 of the section’s bars (finite: every bar of a section)', () => {
     for (let i = 0; i < SECTION_BARS; i++) {
       const { container, unmount } = render(Plan, { hud: hudAt(SECTION_BARS + i), playing: true });
-      expect(name(container)).toHaveTextContent(`Groove · bar ${i + 1} of ${SECTION_BARS}`);
+      expect(name(container)).toHaveTextContent(`Groove ${i + 1}/${SECTION_BARS}`);
       unmount();
     }
     const { container } = render(Plan, { hud: hudAt(9), playing: true });
-    expect(name(container)).toHaveTextContent('Groove · bar 2 of 8');
+    expect(name(container)).toHaveTextContent('Groove 2/8');
     // The bar in the section is said once on the page, which the end-to-end checks rely on.
-    expect(screen.getAllByText(/bar 2 of 8/i)).toHaveLength(1);
+    expect(screen.getAllByText(/Groove 2\/8/)).toHaveLength(1);
   });
 
   it('says the key heard, and the key the band is heading for where it differs', () => {
@@ -87,31 +87,66 @@ describe('the plan', () => {
     expect(sub(moving.container)).toHaveTextContent(/^A minor → E minor$/);
   });
 
-  it('shows the bars ahead to the end of the next section, whole, wherever in its section the bar heard is (finite: every bar of a section)', () => {
-    for (let i = 0; i < SECTION_BARS; i++) {
-      const hud = hudAt(SECTION_BARS + i);
-      const { unmount } = render(Plan, { hud, playing: true });
-      const ahead = screen.getByRole('list', { name: /bars ahead/ });
-      expect(within(ahead).getAllByRole('listitem')).toHaveLength(2 * SECTION_BARS - 1 - i);
-      unmount();
-    }
+  it('leaves the bars ahead, by chord, to the chords card', () => {
+    render(Plan, { hud: hudAt(9), playing: true });
+    expect(screen.queryByRole('list', { name: /bars ahead|The bar heard/ })).toBeNull();
+    expect(screen.queryByText(/^Next \d+ bars?$/)).toBeNull();
   });
 
-  it('shows the song map, ringing the bar heard once something is, and naming a new key where it comes', () => {
-    const sections: SectionView[] = [1, 2, 3, 4].map((index) => ({
+  const sectionsOf = (indices: number[], newKeyAt = -1): SectionView[] =>
+    indices.map((index) => ({
       index,
       section: 'Groove',
       key: index < 3 ? 'A minor' : 'E minor',
-      newKey: index === 3,
+      newKey: index === newKeyAt,
       bars: Array.from({ length: SECTION_BARS }, (_, i) => bar(index * SECTION_BARS + i)),
     }));
+
+  it('shows the song map in two rows, ringing the bar heard once something is, and naming a new key where it comes', () => {
+    const sections = sectionsOf([1, 2, 3, 4, 5], 3);
     const playing = render(Plan, { hud: hudAt(9, { sections }), playing: true });
-    const map = screen.getByRole('list', { name: /Song plan/ });
-    expect(within(map).getByText('Groove, E minor')).toBeInTheDocument();
-    expect(within(map).getAllByText('Groove')).toHaveLength(3);
+    expect(
+      within(screen.getByRole('list', { name: 'The section playing and the next' })).getAllByRole(
+        'listitem',
+      ),
+    ).toHaveLength(2);
+    expect(
+      within(screen.getByRole('list', { name: 'The sections after' })).getAllByRole('listitem'),
+    ).toHaveLength(3);
+    expect(screen.getByText('Groove, E minor')).toBeInTheDocument();
+    expect(screen.getAllByText('Groove')).toHaveLength(4);
     expect(playing.container.querySelectorAll('.bars i.cur')).toHaveLength(1);
     playing.unmount();
     const waiting = render(Plan, { hud: { ...idle, sections }, playing: true });
     expect(waiting.container.querySelectorAll('.bars i.cur')).toHaveLength(0);
+  });
+
+  describe('its glyph', () => {
+    it('is a segment for each section shown, a mark on the one where the key changes', () => {
+      const sections = sectionsOf([1, 2, 3, 4, 5], 3);
+      const { container } = render(Plan, { hud: hudAt(9, { sections }), playing: true });
+      expect(container.querySelectorAll('summary svg.glyph rect.seg')).toHaveLength(5);
+      expect(container.querySelectorAll('summary svg.glyph circle.key')).toHaveLength(1);
+    });
+
+    it('fills the section playing as far as its bar, and is empty before anything is heard', () => {
+      const sections = sectionsOf([1, 2, 3, 4, 5]);
+      const fill = (n: number, hud: Partial<Hud> = {}) => {
+        const { container, unmount } = render(Plan, {
+          hud: hudAt(n, { sections, ...hud }),
+          playing: true,
+        });
+        const width = container.querySelector('summary svg.glyph rect.fill')?.getAttribute('width');
+        unmount();
+        return width === undefined || width === null ? null : Number(width);
+      };
+      const first = fill(8);
+      const fourth = fill(11);
+      const last = fill(15);
+      expect(first).not.toBeNull();
+      expect(fourth!).toBeCloseTo(first! * 4, 6);
+      expect(last!).toBeCloseTo(first! * 8, 6);
+      expect(fill(0, { bar: opening, beat: null, chord: opening.chords[0]! })).toBeNull();
+    });
   });
 });

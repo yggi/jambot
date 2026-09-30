@@ -57,11 +57,17 @@
  * the variants.
  *
  * node --experimental-strip-types --no-warnings packages/engine/experiments/loop.ts [seeds] [bars]
+ *
+ * Given a path ending in .json instead, it writes the examples to hear
+ * (`examples`): the band as it plays 16 bars in a few presets and
+ * conditions, every part's notes, for a page that plays them.
  */
 
+import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Motif, NOOP, applyOp, head, recognise } from '@jambot/theory';
 import {
+  type DoughNote,
   type HeardNote,
   type Judgement,
   type Key,
@@ -80,6 +86,7 @@ import {
   keptAfter,
   muse,
   pick,
+  swingMap,
   taken,
 } from '../src/index.ts';
 
@@ -211,6 +218,7 @@ export function loopRun(
   bars: number,
   condition: Condition,
   reading: Reading = 'nearest',
+  played?: (bar: number, dough: readonly DoughNote[]) => void,
 ): LoopBar[] {
   const style = { ...preset.style, entropy };
   const wish = { tonic: null, mode: preset.mode, melodic: null };
@@ -253,6 +261,7 @@ export function loopRun(
         : held;
     const next = band.advance({ seed, bar, style, wish, offer }, playing, null);
     playing = next.carried;
+    played?.(bar, next.output.dough);
     keys.push(next.output.plan.key);
     for (const n of next.output.written)
       if (n.part === 'lead')
@@ -422,7 +431,63 @@ export function kendall(xs: readonly number[], ys: readonly number[]): number {
   return pairs === 0 ? 0 : score / pairs;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+/** The bars written out to hear, and the run they come from. */
+export const EXAMPLE = { seed: 1, entropy: 0.3, bars: 64, from: 32, to: 48 } as const;
+/** The presets and conditions written out to hear: a narrow, a middle and a wide licence. */
+const HEARD = {
+  presets: ['Techno', 'Deep house', 'Swing jazz'],
+  conditions: ['deaf', 'hearing', 'varied', 'every bar'],
+} as const;
+
+/**
+ * The examples to hear and draw: per preset and condition, the band as it
+ * plays bars `EXAMPLE.from` to `EXAMPLE.to` of seed `EXAMPLE.seed`, every
+ * part's notes with their step on the example's own grid, and how the Muse
+ * heard the lead in each of those bars, with the preset's tempo and swing.
+ */
+export function examples() {
+  return HEARD.presets.map((name) => {
+    const preset = PRESETS.find((p) => p.name === name)!;
+    return {
+      preset: name,
+      bpm: preset.style.bpm,
+      swing: preset.style.swing,
+      conditions: HEARD.conditions.map((condition) => {
+        const notes: (DoughNote & { at: number; seconds: number; duration: number })[] = [];
+        // Where each note is played, through the swing, and for how long, at the preset's tempo.
+        const swung = swingMap(preset.style.swing);
+        const stepSeconds = 60 / preset.style.bpm / 4;
+        const run = loopRun(
+          preset,
+          EXAMPLE.seed,
+          EXAMPLE.entropy,
+          EXAMPLE.bars,
+          condition,
+          'nearest',
+          (bar, dough) => {
+            if (bar < EXAMPLE.from || bar >= EXAMPLE.to) return;
+            for (const n of dough) {
+              const at = (bar - EXAMPLE.from) * 16 + n.step;
+              const seconds = swung.played(at) * stepSeconds;
+              const duration = (swung.played(at + n.length) - swung.played(at)) * stepSeconds;
+              notes.push({ ...n, at, seconds, duration });
+            }
+          },
+        );
+        return {
+          condition,
+          heardAs: run.slice(EXAMPLE.from, EXAMPLE.to).map((b) => b.heardAs),
+          notes,
+          measure: measure(name, EXAMPLE.entropy, condition, [run]),
+        };
+      }),
+    };
+  });
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2]?.endsWith('.json')) {
+  writeFileSync(process.argv[2], JSON.stringify({ example: EXAMPLE, presets: examples() }));
+} else if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [seeds = 3, bars = 128] = process.argv.slice(2).map(Number);
   const pct = (x: number) => `${(100 * x).toFixed(1)}%`.padStart(6);
   const header =

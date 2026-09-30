@@ -215,6 +215,13 @@ Status: measured.`;
     ]);
   });
 
+  it('refuses an experiment defined twice (rule 6)', () => {
+    const twice = `${glide}\n\n- **E1. One run.** In \`style.ts\`.\n\n- **E1. Another run.** In \`style.ts\`.`;
+    expect(pawlProblems(repo(twice, styleTests))).toEqual([
+      'docs/language.md:8 E1 is defined twice, first at line 6',
+    ]);
+  });
+
   it('refuses an id defined in two catalogues (rule 6)', () => {
     const catalogues = {
       'docs/language.md': glide,
