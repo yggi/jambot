@@ -152,4 +152,100 @@ describe('the live correction', () => {
     expect(broken.message).toContain('no such module');
     expect(x.stopped.count).toBe(1);
   });
+
+  describe('measure', () => {
+    /** An offline context that renders what it is given back, late, and says how it was set up. */
+    function offline(delay: number, pitchShift = 1) {
+      const made = { options: null as unknown, modules: [] as string[], latencyMessage: 2400 };
+      class Offline {
+        audioWorklet = { addModule: (url: string) => (made.modules.push(url), Promise.resolve()) };
+        destination = {};
+        #buffer: Float32Array | null = null;
+        #node: { port: { onmessage: ((e: { data: unknown }) => void) | null } } | null = null;
+        constructor(
+          public channels: number,
+          public length: number,
+          public sampleRate: number,
+        ) {}
+        createBuffer(_c: number, length: number) {
+          const data = new Float32Array(length);
+          return { copyToChannel: (x: Float32Array) => data.set(x), data };
+        }
+        createBufferSource() {
+          const keep = (b: { data: Float32Array }) => void (this.#buffer = b.data);
+          const wire = (to: { port: { onmessage: ((e: { data: unknown }) => void) | null } }) =>
+            void (this.#node = to);
+          return {
+            set buffer(b: { data: Float32Array }) {
+              keep(b);
+            },
+            connect: wire,
+            start() {},
+          };
+        }
+        async startRendering() {
+          this.#node?.port.onmessage?.({ data: { latency: made.latencyMessage } });
+          const out = new Float32Array(this.length);
+          const input = this.#buffer!;
+          for (let i = delay; i < this.length; i++)
+            out[i] = input[Math.round((i - delay) * pitchShift)] ?? 0;
+          return { getChannelData: () => out };
+        }
+      }
+      vi.stubGlobal('OfflineAudioContext', Offline);
+      vi.stubGlobal(
+        'AudioWorkletNode',
+        class {
+          port = { onmessage: null as ((e: { data: unknown }) => void) | null, postMessage() {} };
+          connect() {}
+          constructor(_c: unknown, _n: string, options: unknown) {
+            made.options = options;
+          }
+        },
+      );
+      return made;
+    }
+
+    it('renders a probe through the worklet off-line, and says how fast, how late, and where the pitch came out', async () => {
+      const micSource = browser().micSource;
+      const made = offline(2400);
+      const correction = new LiveCorrection({ mic: micSource, moduleUrl: '/correct.js' });
+      await correction.measure();
+      const m = correction.measurement!;
+      expect(made.modules).toEqual(['/correct.js']);
+      expect(made.options).toMatchObject({
+        processorOptions: {
+          enabled: true,
+          scale: [0, 2, 4, 5, 7, 9, 11],
+          retuneSeconds: 0,
+          limitCents: 300,
+          reference: 440,
+        },
+      });
+      expect(m.audioSeconds).toBe(6);
+      expect(m.factor).toBeGreaterThan(0);
+      expect(m.delayMs).toBeCloseTo(50, 0);
+      expect(m.latencyMs).toBeCloseTo(50, 6);
+      expect(m.probeHz).toBeCloseTo(110 * 2 ** (20 / 1200), 6);
+      // A 20 cents sharp of A2 should come out at A2; this stand-in renders it back as it went in.
+      expect(m.targetHz).toBeCloseTo(110, 6);
+      expect(m.errorCents).toBeCloseTo(20, 0);
+      expect(correction.measuring).toBe(false);
+    });
+
+    it('measures against the target of the scale chosen, and says so when it cannot render', async () => {
+      const micSource = browser().micSource;
+      offline(0);
+      const correction = new LiveCorrection({ mic: micSource, moduleUrl: '/c.js' });
+      correction.scaleId = 'chromatic';
+      await correction.measure();
+      // In a chromatic scale the nearest note to A2 +20 cents is A2 still.
+      expect(correction.measurement!.targetHz).toBeCloseTo(110, 6);
+      vi.stubGlobal('OfflineAudioContext', undefined);
+      const broken = new LiveCorrection({ mic: micSource, moduleUrl: '/c.js' });
+      await broken.measure();
+      expect(broken.message).toMatch(/could not run/);
+      expect(broken.measurement).toBeNull();
+    });
+  });
 });

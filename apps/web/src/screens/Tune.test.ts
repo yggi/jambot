@@ -308,5 +308,36 @@ describe('the tuner screen', () => {
       await fireEvent.click(card.getByRole('button', { name: 'Start correcting' }));
       expect(card.getByLabelText('Take the sound from')).toBeDisabled();
     });
+
+    it('says what a measurement found: how fast, how late, where the pitch came out', async () => {
+      const { correction } = withCorrection();
+      correction.measurement = {
+        audioSeconds: 6,
+        renderMs: 200,
+        factor: 30,
+        delayMs: 49.8,
+        latencyMs: 50,
+        probeHz: 111.3,
+        targetHz: 110,
+        heardHz: 109.9,
+        errorCents: -1.6,
+      };
+      await vi.advanceTimersByTimeAsync(1);
+      const card = within(screen.getByRole('region', { name: 'Correct' }));
+      const text = card.getByLabelText('Measurement').textContent!.replace(/\s+/g, ' ');
+      expect(text).toContain('Rendered 6 s of sound in 200 ms, 30 times real time.');
+      expect(text).toContain('The sound came out 50 ms late.');
+      expect(text).toContain(
+        'A probe at 111.3 Hz came out at 109.9 Hz, −1.6 cents from the note 110.0 Hz.',
+      );
+    });
+
+    it('measures on a press of the button', async () => {
+      const { correction } = withCorrection();
+      const measure = vi.spyOn(correction, 'measure').mockResolvedValue();
+      const card = within(screen.getByRole('region', { name: 'Correct' }));
+      await fireEvent.click(card.getByRole('button', { name: 'Measure this device' }));
+      expect(measure).toHaveBeenCalledOnce();
+    });
   });
 });

@@ -27,7 +27,7 @@ type Channels = Float32Array[][];
 
 declare const sampleRate: number;
 declare const registerProcessor: (name: string, processor: new () => unknown) => void;
-declare const AudioWorkletProcessor: new () => {
+declare const AudioWorkletProcessor: new (options?: unknown) => {
   readonly port: {
     onmessage: ((event: { data: Partial<Settings> }) => void) | null;
     postMessage(data: unknown): void;
@@ -48,8 +48,9 @@ class Correct extends AudioWorkletProcessor {
   #live: LiveCorrector | null = null;
   #blocks = 0;
 
-  constructor() {
+  constructor(options?: { processorOptions?: Partial<Settings> }) {
     super();
+    this.#settings = { ...this.#settings, ...options?.processorOptions };
     this.port.onmessage = ({ data }) => {
       const before = this.#settings.enabled;
       this.#settings = { ...this.#settings, ...data };

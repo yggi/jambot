@@ -11,6 +11,8 @@
  */
 
 import { type InputDevice, type Tap, MicDenied, type Mic, type MicSource } from './mic.ts';
+import { nearestNote } from '@jambot/spectrum';
+import { assess, probeSignal } from './measure.ts';
 import { pitchClassesOf } from './scales.ts';
 
 export type CorrectionStatus = 'off' | 'starting' | 'running' | 'failed';
@@ -34,6 +36,23 @@ interface RenderCapacity {
   stop(): void;
   onupdate:
     ((event: { averageLoad: number; peakLoad: number; underrunRatio: number }) => void) | null;
+}
+
+/** What rendering a probe through the worklet off-line found, on this device. */
+export interface Measurement {
+  /** How much sound was rendered, in seconds, and how long it took, in milliseconds. */
+  audioSeconds: number;
+  renderMs: number;
+  /** How many times faster than real time it rendered: the room the worklet has to spare. */
+  factor: number;
+  /** How late the sound came out, in milliseconds, and what the worklet said its latency is. */
+  delayMs: number | null;
+  latencyMs: number | null;
+  /** The pitch of the probe, the note it should come out at, the pitch it did, and the distance in cents. */
+  probeHz: number;
+  targetHz: number;
+  heardHz: number | null;
+  errorCents: number | null;
 }
 
 /** The contexts the worklet's module has been added to. */
@@ -67,6 +86,9 @@ export class LiveCorrection {
   /** How late the sound comes out, in milliseconds, once the worklet has said. */
   latencyMs: number | null = $state(null);
   load: Load | null = $state.raw(null);
+  /** The last measurement of this device, and whether one is under way. */
+  measurement: Measurement | null = $state.raw(null);
+  measuring = $state(false);
 
   #mic: Mic | null = null;
   #node: AudioWorkletNode | null = null;
@@ -190,6 +212,72 @@ export class LiveCorrection {
     this.offsetCents = 0;
     this.latencyMs = null;
     this.load = null;
+  }
+
+  /**
+   * Render a probe (a sine 20 cents sharp of A2) through the worklet off-line,
+   * with the settings as they are, and keep how fast it went, how late the
+   * sound came out and where its pitch came out. The browser renders faster
+   * than real time, so this says how much room the worklet has on this device.
+   */
+  async measure(): Promise<void> {
+    if (this.measuring) return;
+    this.measuring = true;
+    this.message = '';
+    try {
+      const sampleRate = 48000;
+      const seconds = 6;
+      const probeHz = 110 * 2 ** (20 / 1200);
+      const { signal, silence } = probeSignal({ sampleRate, seconds, hz: probeHz });
+      const note = 69 + 12 * Math.log2(probeHz / this.reference);
+      const targetHz =
+        this.reference *
+        2 ** ((nearestNote(note, pitchClassesOf(this.scaleId, this.root)) - 69) / 12);
+      const offline = new OfflineAudioContext(1, signal.length, sampleRate);
+      await offline.audioWorklet.addModule(this.#deps.moduleUrl);
+      const node = new AudioWorkletNode(offline, 'jambot-correct', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+        processorOptions: {
+          enabled: true,
+          scale: pitchClassesOf(this.scaleId, this.root),
+          retuneSeconds: 0,
+          limitCents: this.limitCents,
+          reference: this.reference,
+        },
+      });
+      let latency: number | null = null;
+      node.port.onmessage = ({ data }) => {
+        latency = (data as { latency: number }).latency;
+      };
+      const buffer = offline.createBuffer(1, signal.length, sampleRate);
+      buffer.copyToChannel(signal, 0);
+      const source = offline.createBufferSource();
+      source.buffer = buffer;
+      source.connect(node);
+      node.connect(offline.destination);
+      source.start();
+      const started = performance.now();
+      const rendered = await offline.startRendering();
+      const renderMs = performance.now() - started;
+      const found = assess(rendered.getChannelData(0), { sampleRate, silence, targetHz });
+      this.measurement = {
+        audioSeconds: seconds,
+        renderMs,
+        factor: (seconds * 1000) / renderMs,
+        delayMs: found.delayMs,
+        latencyMs: latency === null ? null : (latency / sampleRate) * 1000,
+        probeHz,
+        targetHz,
+        heardHz: found.heardHz,
+        errorCents: found.errorCents,
+      };
+    } catch (error) {
+      this.message = `The measurement could not run: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      this.measuring = false;
+    }
   }
 
   /** The corrected sound as a place to take it from, while it runs. */

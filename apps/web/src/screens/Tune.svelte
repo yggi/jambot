@@ -315,6 +315,30 @@
       <input type="checkbox" bind:checked={correction.monitor} />
       <span>Hear it (headphones)</span>
     </label>
+    <div class="sends">
+      <button
+        type="button"
+        disabled={correction.measuring}
+        onclick={() => void correction.measure()}
+      >
+        {correction.measuring ? 'Measuring…' : 'Measure this device'}
+      </button>
+    </div>
+    {#if correction.measurement}
+      {@const m = correction.measurement}
+      <p class="detail" aria-label="Measurement">
+        Rendered {m.audioSeconds} s of sound in {Math.round(m.renderMs)} ms, {m.factor.toFixed(0)} times
+        real time.
+        {#if m.delayMs !== null}The sound came out {m.delayMs.toFixed(0)} ms late.{/if}
+        {#if m.errorCents !== null}
+          A probe at {m.probeHz.toFixed(1)} Hz came out at {m.heardHz?.toFixed(1)} Hz, {cents(
+            m.errorCents,
+          )} cents from the note {m.targetHz.toFixed(1)} Hz.
+        {:else}
+          No pitch came out.
+        {/if}
+      </p>
+    {/if}
     {#if running}
       <p class="detail" aria-live="off">
         {#if correction.latencyMs !== null}Adds {Math.round(correction.latencyMs)} ms.{/if}

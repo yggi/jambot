@@ -62,7 +62,7 @@ test('names a recorded A2, 20 cents sharp, reads it over a frame longer than the
   await page.goto('/');
   await page.locator('details[aria-label="Extras"] summary').click();
   await page.getByRole('button', { name: 'Tuner' }).click();
-  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
 
   const note = page.getByRole('region', { name: 'Note' });
   await expect(note.locator('.name')).toHaveText('A2', { timeout: 15_000 });
@@ -102,8 +102,8 @@ test('names a recorded A2, 20 cents sharp, reads it over a frame longer than the
     3,
   );
 
-  await page.getByRole('button', { name: 'Stop' }).click();
-  await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
   await expect(note.locator('.name')).toHaveText('–');
   expect(errors).toEqual([]);
 });
@@ -112,14 +112,14 @@ test('leaves the microphone when the person goes back to the lobby', async ({ pa
   await page.goto('/');
   await page.locator('details[aria-label="Extras"] summary').click();
   await page.getByRole('button', { name: 'Tuner' }).click();
-  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Note' }).locator('.name')).toHaveText('A2', {
     timeout: 15_000,
   });
   await page.getByRole('button', { name: 'Back to the lobby' }).click();
   await page.locator('details[aria-label="Extras"] summary').click();
   await page.getByRole('button', { name: 'Tuner' }).click();
-  await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
   await expect(page.getByText('Not listening.')).toBeVisible();
 });
 
@@ -139,7 +139,7 @@ test('hears the synth it plays through: a note sent is read within a quarter cen
   await page.locator('details[aria-label="Extras"] summary').click();
   await page.getByRole('button', { name: 'Tuner' }).click();
   await page.getByLabel('Listen to').selectOption({ label: 'This device’s synth (what it plays)' });
-  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
   const send = page.getByRole('region', { name: 'Send a note' });
   const note = page.getByRole('region', { name: 'Note' });
   await send.getByRole('button', { name: 'Hold the note' }).click();
@@ -170,5 +170,70 @@ test('hears the synth it plays through: a note sent is read within a quarter cen
   // The reading is of the sound, not of the note asked for: a reference of 442 Hz puts the same A1 at 7.85 cents flat of its A.
   await page.getByLabel('A4 is').fill('442');
   await expect.poll(read).toBeCloseTo(-7.85, 0);
+  expect(errors).toEqual([]);
+});
+
+/**
+ * The live correction (#298), in Chromium. Measured here, headless Chromium 141
+ * on four cores: the worklet renders 6 s of sound off-line in about 0.5 s (12
+ * times real time); a sound comes out 51 ms late, 49 of them its latency (a
+ * tracker of 1024 samples and 3.25 periods of the lowest note taken, 70 Hz, and
+ * a block); a probe 20 cents sharp of A2 comes out on A2 to a tenth of a cent;
+ * and a recorded A2 20 cents sharp, played through the real graph, is read by
+ * the tuner as A2 within a few cents except at the seam where the fake device
+ * loops its file. The browser's render capacity is not there in this build, so
+ * the load of the live audio thread is not measured: the off-line factor is
+ * what this says of the room there is.
+ */
+test('measures the correcting worklet off-line in Chromium: faster than real time, late by its latency, and on the note', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const errors = await listen(page);
+  await page.goto('/');
+  await page.locator('details[aria-label="Extras"] summary').click();
+  await page.getByRole('button', { name: 'Tuner' }).click();
+  const card = page.getByRole('region', { name: 'Correct' });
+  await card.getByRole('button', { name: 'Measure this device' }).click();
+  const text = (await card.getByLabel('Measurement').innerText()).replace(/\s+/g, ' ');
+  const [, factor] = /(\d+) times real time/.exec(text)!;
+  const [, late] = /came out (\d+) ms late/.exec(text)!;
+  const [, cents] = /Hz, ([+−][\d.]+) cents from the note 110\.0 Hz/.exec(text)!;
+  expect(Number(factor)).toBeGreaterThanOrEqual(3);
+  expect(Number(late)).toBeGreaterThanOrEqual(40);
+  expect(Number(late)).toBeLessThanOrEqual(60);
+  expect(Math.abs(Number(cents!.replace('−', '-')))).toBeLessThan(2);
+  expect(errors).toEqual([]);
+});
+
+test('pulls a recorded A2, 20 cents sharp, onto A2 through the worklet, and the tuner reads the corrected sound', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const errors = await listen(page);
+  await page.goto('/');
+  await page.locator('details[aria-label="Extras"] summary').click();
+  await page.getByRole('button', { name: 'Tuner' }).click();
+  const card = page.getByRole('region', { name: 'Correct' });
+  await card.getByRole('button', { name: 'Start correcting' }).click();
+  await expect(card.getByText(/Hearing 11\d\.\d Hz, moving it −(1\d|2\d)\.\d cents/)).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(card.getByText(/Adds 4\d ms/)).toBeVisible();
+  await page
+    .getByLabel('Listen to')
+    .selectOption({ label: 'The corrected sound (from the correction below)' });
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const note = page.getByRole('region', { name: 'Note' });
+  await expect(note.locator('.name')).toHaveText('A2', { timeout: 15_000 });
+  await page.waitForTimeout(1500);
+  const cents: number[] = [];
+  for (let i = 0; i < 10; i++) {
+    cents.push(Number.parseFloat((await note.locator('.cents').innerText()).replace('−', '-')));
+    await page.waitForTimeout(150);
+  }
+  // The recording is +20 cents: what the tuner reads from the corrected sound is on the note.
+  const onTheNote = cents.filter((c) => Math.abs(c) < 3).length;
+  expect(onTheNote, JSON.stringify(cents)).toBeGreaterThanOrEqual(6);
   expect(errors).toEqual([]);
 });
