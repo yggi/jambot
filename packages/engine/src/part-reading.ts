@@ -12,7 +12,7 @@
  *
  * The distance is taken from a landmark, where the voice reads at a
  * style, since each voice reads short of the axes as the whole bar does
- * (E22, E25).
+ * (E22, E26).
  *
  * Pure: it counts steps and pitch classes and knows no clock, file or key.
  */

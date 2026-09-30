@@ -1,5 +1,5 @@
 /**
- * E25: one voice of the band read alone (#15, step 4).
+ * E26: one voice of the band read alone (#15, step 4).
  *
  * `readVoice` reads the drums, the bass, the comp (pad and stab) and the lead
  * each from its own notes. Three questions, over the presets held, 5 seeds of

@@ -1969,7 +1969,7 @@ run; the others have.
     It lies 0.19 from the axis and covers 0.04 to 0.69 of it, at 0 and at 1, since at harm 1 the composer draws a ninth with a chance of 0.7 at most (`chords.ts`), and the reading's rate is full only when both halves of a bar change.
   - Not measured: chords in the pad-less bars, whose harmony the bass and lead carry; a key (the reading is of roots and qualities, not numerals); real music, where a voicing is not the comp's close one.
 
-- **E25. One voice of the band read alone** (#15 step 4, N3), in
+- **E26. One voice of the band read alone** (#15 step 4, N3), in
   [`packages/engine/experiments/voice-reading.ts`](../packages/engine/experiments/voice-reading.ts),
   held by [`packages/engine/experiments/voice-reading.test.ts`](../packages/engine/experiments/voice-reading.test.ts):
   `readVoice` (`packages/engine/src/part-reading.ts`) reads the drums, the bass, the comp (pad and stab together) and the lead each from its own notes: its density (its share of the 16 steps), its `sync`, the `artic` of the bass and lead, and the `harm` of the comp.
