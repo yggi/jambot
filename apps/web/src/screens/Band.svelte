@@ -12,15 +12,16 @@
   import KeyPicker from '../components/KeyPicker.svelte';
   import Level from '../components/Level.svelte';
   import Metrum from '../components/Metrum.svelte';
-  import MusePanel from '../components/MusePanel.svelte';
+  import Muse from '../components/Muse.svelte';
+  import Play from '../components/Play.svelte';
   import Plan from '../components/Plan.svelte';
   import Session from '../components/Session.svelte';
   import StylePanel from '../components/StylePanel.svelte';
-  import Tracks from '../components/Tracks.svelte';
+  import BandCard from '../components/BandCard.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
-  import { toggled } from '../mix.ts';
+  import { toggled, withLevel } from '../mix.ts';
   import type { Player } from '../player.svelte.ts';
   import { tracksOf } from '../tracks.ts';
 
@@ -119,12 +120,20 @@
 </Level>
 
 <Level>
-  <Tracks
+  <BandCard
     {tracks}
     ontoggle={(which, performer) => (player.mix = toggled(player.mix, which, performer))}
+    onlevel={(performer, level) => (player.mix = withLevel(player.mix, performer, level))}
+  />
+</Level>
+
+<Level>
+  <Play
+    {tracks}
+    held={{ lead: instruments.heldLead.size > 0, drums: instruments.heldDrums.size > 0 }}
   >
-    {#snippet instrument(performer)}
-      {#if performer === 'lead'}
+    {#snippet instrument(part)}
+      {#if part === 'lead'}
         <Keyboard
           down={instruments.heldLead}
           scale={player.hud.bar?.melodic ?? []}
@@ -132,7 +141,7 @@
           onnote={(note, velocity, on) =>
             instruments.toLead(note, velocity, on, 'the on-screen keys')}
         />
-      {:else if performer === 'drums'}
+      {:else}
         <DrumPads
           down={instruments.heldDrums}
           sounding={player.sounding.drums}
@@ -140,21 +149,18 @@
         />
       {/if}
     {/snippet}
-  </Tracks>
+  </Play>
 </Level>
 
 <Level>
-  <MusePanel muse={player.hud.muse} onforget={() => player.forgetMotif()} />
+  <Muse
+    muse={player.hud.muse}
+    pulse={player.humanNotes.length}
+    onforget={() => player.forgetMotif()}
+  />
 </Level>
 
-<p class="note">
-  The band plays drums, bass, chords and lead, over MIDI or the built-in synth. Join in on the
-  lead's keyboard or the drums' pads, under the track selected: a dot marks the scale the lead plays
-  over, and amber shows what the band's own lead and drums are playing. Play a few notes within a
-  bar on the keyboard, and the Muse takes them as a motif the lead plays back from the bar after
-  next, in your colour. The score is still in the
-  <a href={prototypeUrl}>prototype</a>.
-</p>
+<p class="note">The score is still in the <a href={prototypeUrl}>prototype</a>.</p>
 
 <style>
   .note {

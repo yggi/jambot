@@ -1,23 +1,19 @@
 <!--
-  The tracks, a card: one phrase on one grid, a lane per band performer and,
-  under the performer whose part it plays, a lane per player's source
-  (`tracksOf`), the bars numbered over it and the playhead on the step
-  heard. Folded, the track selected and what it plays. Unfolded, the grid
-  and, under it, the selected track: how much it sounds here and the
-  instrument to play it on, which the page gives (`instrument`), so the
-  card reads nothing but what it is given.
-
-  A band performer's lane can be muted or soloed on this device (`Mix`),
-  and selected, one at a time, the lead first; the selection is this
-  card's own and goes nowhere else. The lead's bars that played a motif are
-  tinted in its player's colour and, under its lane, above the player's,
-  say whose: "from", never "plays exactly", since the lead realises the cell
-  its own way. The card starts unfolded:
-  it is where a person plays.
+  The band, a card: its performers, drums, bass, chords and lead, one phrase on
+  one grid (`tracksOf`), the bars numbered over it and the playhead on the step
+  heard. Folded, how many of the four sound on this device over the lead's
+  status, and as its glyph a small roll of the phrase. Unfolded, a tall lane
+  for each performer with, on its head, its volume and its mute and solo on
+  this device (`Mix`), never sent to a session. There is nothing to select
+  here: choosing a track to play and its instrument are the play card's, and
+  so is the player's own lane. Another player's lane in a session, and the cell
+  the Muse took from them, stand under the performer whose part they play. The
+  lead's bars that played a motif are tinted in its player's colour and, under
+  its lane, say whose: "from", never "plays exactly", since the lead realises
+  the cell its own way.
 -->
 <script lang="ts">
   import { BAR_STEPS } from '@jambot/engine';
-  import type { Snippet } from 'svelte';
   import type { Credit } from '../attribution.ts';
   import type { Mix } from '../mix.ts';
   import { PATTERN_BARS } from '../pattern.ts';
@@ -25,32 +21,23 @@
   import type { PerformerView, TracksView } from '../tracks.ts';
   import Card from './Card.svelte';
   import Lane from './Lane.svelte';
+  import Roll from './glyphs/Roll.svelte';
 
   interface Props {
     tracks: TracksView;
     /** Turn a band performer's mute or solo over, on this device. */
-    ontoggle: (which: keyof Mix, performer: Performer) => void;
-    /** The instrument the selected performer's part is played on, if a person can play it. */
-    instrument: Snippet<[Performer]>;
+    ontoggle: (which: keyof Pick<Mix, 'muted' | 'soloed'>, performer: Performer) => void;
+    /** Set a band performer's volume on this device, 0 to 1. */
+    onlevel: (performer: Performer, level: number) => void;
   }
 
-  let { tracks, ontoggle, instrument }: Props = $props();
-
-  let selected = $state<Performer>('lead');
+  let { tracks, ontoggle, onlevel }: Props = $props();
 
   const span = PATTERN_BARS * BAR_STEPS;
-  const chosen = $derived(
-    tracks.performers.find((p) => p.performer === selected) ?? tracks.performers.at(-1)!,
-  );
   const bars = $derived(Array.from({ length: PATTERN_BARS }, (_, i) => tracks.first + i + 1));
   const shown = $derived(`bars ${bars[0]} to ${bars.at(-1)}`);
-  const now = $derived(
-    !chosen.sounds
-      ? 'Muted here'
-      : chosen.sounding.length === 0
-        ? 'Silent'
-        : `${chosen.sounding.length} note${chosen.sounding.length === 1 ? '' : 's'}`,
-  );
+  const sounding = $derived(tracks.performers.filter((p) => p.sounds).length);
+  const lead = $derived(tracks.performers.find((p) => p.performer === 'lead'));
 
   /** Each motif a performer's lane is credited with, once. */
   const credits = (p: PerformerView): Credit[] => [
@@ -58,20 +45,38 @@
   ];
 </script>
 
-<Card title="Tracks" main={chosen.label} sub={chosen.status} open>
-  <div class="grid" role="group" aria-label="Tracks grid">
+{#snippet roll()}
+  <Roll
+    rows={tracks.performers.map((p) => ({ notes: p.notes, sounds: p.sounds }))}
+    {span}
+    playhead={tracks.playhead}
+  />
+{/snippet}
+
+<Card
+  title="Band"
+  main="{sounding} of {tracks.performers.length} sound"
+  sub={lead?.status ?? ''}
+  glyph={roll}
+  open
+>
+  <div class="grid" role="group" aria-label="Band grid">
     <ol class="bars" aria-hidden="true">
       {#each bars as bar (bar)}<li>{bar}</li>{/each}
     </ol>
     {#each tracks.performers as p (p.performer)}
       <div class="track">
         <div class="head">
-          <button
-            type="button"
-            class="name"
-            aria-pressed={p.performer === selected}
-            onclick={() => (selected = p.performer)}>{p.label}</button
-          >
+          <span class="name">{p.label}</span>
+          <input
+            class="level"
+            type="range"
+            min="0"
+            max="100"
+            aria-label="{p.label} volume"
+            value={Math.round(p.level * 100)}
+            oninput={(e) => onlevel(p.performer, +e.currentTarget.value / 100)}
+          />
           <button
             type="button"
             class="mix"
@@ -91,6 +96,7 @@
           label="{p.label}, {shown}"
           notes={p.notes}
           {span}
+          tall
           credited={p.motifs.map((m) => ({ at: m.at, colour: m.credit.colour }))}
           playhead={tracks.playhead}
           sounds={p.sounds}
@@ -101,7 +107,7 @@
           </p>
         {/each}
       </div>
-      {#each tracks.players.filter((lane) => lane.part === p.performer) as lane (lane.source)}
+      {#each tracks.players.filter((lane) => lane.part === p.performer && !lane.local) as lane (lane.source)}
         <div class="track player">
           <div class="head">
             <span class="name" style:color="var(--source-{lane.colour})">{lane.name}</span>
@@ -118,17 +124,13 @@
       {/each}
     {/each}
   </div>
-  <div class="selected">
-    <div class="reading"><span>{chosen.label} now</span><b>{now}</b></div>
-    {#key selected}{@render instrument(selected)}{/key}
-  </div>
 </Card>
 
 <style>
   .grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
+    gap: 14px;
   }
   .bars {
     list-style: none;
@@ -146,50 +148,43 @@
   .track {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 3px;
+    gap: 4px;
   }
   .head {
     display: flex;
     align-items: center;
-    gap: 6px;
-    min-height: 28px;
+    gap: 8px;
+    min-height: 32px;
   }
   .name {
     flex: none;
+    width: 4.6em;
     font-size: 14px;
     font-weight: 600;
   }
-  button.name {
-    min-height: 28px;
-    padding: 0 10px;
-    border-radius: 14px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-  }
-  button.name[aria-pressed='true'] {
-    background: var(--ink);
-    color: var(--surface);
-    border-color: var(--ink);
+  .level {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    accent-color: var(--amber);
   }
   .player .name {
+    width: auto;
+    flex: 1;
     font-size: 13px;
-    padding-left: 11px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
   }
   .credit {
+    margin: 0;
     font-size: 13px;
     font-weight: 600;
   }
-  .name + .mix {
-    margin-left: auto;
-  }
   .mix {
     flex: none;
-    width: 30px;
-    height: 28px;
+    width: 32px;
+    height: 30px;
     border-radius: 6px;
     border: 1px solid var(--line);
     background: var(--surface);
@@ -201,14 +196,5 @@
     background: var(--amber);
     border-color: var(--amber);
     color: var(--on-amber);
-  }
-  .selected {
-    display: grid;
-    gap: 10px;
-  }
-  .reading {
-    display: flex;
-    justify-content: space-between;
-    font-size: 14px;
   }
 </style>

@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
-import { level, listen, onsets, openStyle, solo, starts, workers } from './audio.ts';
+import { level, listen, onsets, openCard, openStyle, solo, starts, workers } from './audio.ts';
 
 /** Where each onset falls after the first, in steps, as the fraction of a step. */
 const phases = (times: number[], bpm: number) =>
@@ -190,6 +190,7 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   const errors = await listen(page);
   await solo(page);
   // At energy 0 the lead rests on its own, so a lead note the band plays is the motif.
+  await openCard(page, 'Muse');
   await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -207,7 +208,7 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
     timeout: 8000,
   });
   // The lead's line is under the tracks' headline while the lead is selected.
-  await expect(page.locator('details[aria-label="Tracks"] summary .sub')).toContainText(
+  await expect(page.locator('details[aria-label="Band"] summary .sub')).toContainText(
     /Lead is playing the motif from the computer keys, heard in bar \d+\./,
     { timeout: 8000 },
   );
@@ -290,6 +291,7 @@ for (const input of INPUTS)
     });
     const errors = await listen(page);
     await solo(page);
+    await openCard(page, 'Muse');
     await openStyle(page);
     await page.getByRole('slider', { name: /Energy/ }).fill('0');
     await input.ready(page);
@@ -309,14 +311,14 @@ for (const input of INPUTS)
     );
     await expect(took).toBeVisible({ timeout: 8000 });
     const heard = /Bar (\d+):/.exec((await took.textContent()) ?? '')![1];
-    await expect(page.locator('details[aria-label="Tracks"] summary .sub')).toContainText(
+    await expect(page.locator('details[aria-label="Band"] summary .sub')).toContainText(
       `Lead is playing the motif from ${input.source}, heard in bar ${heard}.`,
       { timeout: 8000 },
     );
     // The lead's lane credits the same motif, in the player's colour, while a bar shown played it (#183).
     await expect(
       page
-        .getByRole('group', { name: 'Tracks grid' })
+        .getByRole('group', { name: 'Band grid' })
         .getByText(`from ${input.source}, bar ${heard}`),
     ).toBeVisible({ timeout: 8000 });
     expect(errors).toEqual([]);

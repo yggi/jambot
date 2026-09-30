@@ -2,7 +2,7 @@
 import { playerSource } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
 import type { BarView, Hud, MotifView } from './hud.ts';
-import { EVEN_MIX } from './mix.ts';
+import { EVEN_MIX, withLevel } from './mix.ts';
 import { EMPTY_PATTERN, PATTERN_BARS, type PatternBar } from './pattern.ts';
 import type { HumanNote } from './player.svelte.ts';
 import { type TracksInput, tracksOf } from './tracks.ts';
@@ -135,12 +135,27 @@ describe('the tracks', () => {
   });
 
   it('says which performers are muted, soloed, and sound on this device', () => {
-    const tracks = tracksOf(input({ mix: { muted: ['drums', 'bass'], soloed: ['bass', 'lead'] } }));
+    const tracks = tracksOf(
+      input({ mix: { ...EVEN_MIX, muted: ['drums', 'bass'], soloed: ['bass', 'lead'] } }),
+    );
     expect(tracks.performers.map((p) => [p.muted, p.soloed, p.sounds])).toEqual([
       [true, false, false],
       [true, true, true],
       [false, false, false],
       [false, true, true],
+    ]);
+  });
+});
+
+describe('the levels of the performers', () => {
+  it('are whole until set, and each performer’s own after', () => {
+    expect(tracksOf(input()).performers.map((p) => p.level)).toEqual([1, 1, 1, 1]);
+    const set = tracksOf(input({ mix: withLevel(withLevel(EVEN_MIX, 'bass', 0.3), 'lead', 0) }));
+    expect(set.performers.map((p) => [p.performer, p.level])).toEqual([
+      ['drums', 1],
+      ['bass', 0.3],
+      ['comp', 1],
+      ['lead', 0],
     ]);
   });
 });
@@ -164,6 +179,30 @@ describe('the players’ lanes', () => {
     expect(tracks.players[1]!.notes).toEqual([{ step: 16 * 2 + 4, note: 67, length: 2 }]);
     expect(tracks.players[3]!.notes).toEqual([{ step: 16 * 3 + 8, note: 36, length: 2 }]);
     expect(tracks.players.every((p) => !p.heardAs)).toBe(true);
+  });
+
+  it('are this device’s own where they are notes played here, and not where they are a cell heard from another player', () => {
+    const local = tracksOf(
+      input({ humanNotes: [human('the computer keys', 16 * 9)], heard: 16 * 9 + 2 }),
+    );
+    expect(local.players.map((p) => p.local)).toEqual([true]);
+    const motif = {
+      source: '@c2/the computer keys',
+      name: 'Bo’s computer keys',
+      colour: 2,
+      bar: 9,
+      rows: 1,
+      notes: [{ step: 0, length: 4, row: 0, altered: false }],
+    };
+    const heard = tracksOf(
+      input({
+        hud: hud({ muse: { motif, log: [] } }),
+        heard: 16 * 9 + 2,
+        playerId: 'c1',
+        players: {},
+      }),
+    );
+    expect(heard.players.map((p) => [p.heardAs, p.local])).toEqual([[true, false]]);
   });
 
   it('reads a session’s source as the Muse hears it: under the player’s id, named, in the player’s colour', () => {
@@ -226,6 +265,7 @@ describe('the players’ lanes', () => {
         name: "Ada's computer keys, as the Muse heard it",
         colour: 1,
         heardAs: true,
+        local: false,
         taken: 1,
         notes: [
           { step: 16, note: 0, length: 4 },

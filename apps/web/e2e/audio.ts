@@ -270,12 +270,15 @@ export const holdAudio = (page: Page, ms: number) =>
 export const stalls = (page: Page) =>
   page.evaluate(() => (window as unknown as { stalls: Stall[] }).stalls);
 
-/** Unfold the style card, where it is folded: its presets and sliders are in its details. */
-export async function openStyle(page: Page) {
-  const card = page.locator('details[aria-label="Style"]');
+/** Unfold a card by its title, where it is folded. */
+export async function openCard(page: Page, title: string) {
+  const card = page.locator(`details[aria-label="${title}"]`);
   if (!(await card.evaluate((details) => (details as HTMLDetailsElement).open)))
-    await card.locator('summary').click();
+    await card.locator('summary .title').click();
 }
+
+/** Unfold the style card, where it is folded: its presets and sliders are in its details. */
+export const openStyle = (page: Page) => openCard(page, 'Style');
 
 /** What the page asked of the master level, in order. */
 export const masterCalls = (page: Page) =>

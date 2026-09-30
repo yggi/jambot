@@ -117,19 +117,25 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   A change of section or key is labelled at its bar, in any tile (`cueOf`: "Drop", "D dorian", "Bridge, C major"); the bar heard is labelled only where it starts its section.
 - Section names appear twice on the page, in the plan and in the song map, which names them before anything is heard.
   So a check that the screen follows what is heard looks for `Intro n/8`, which only the plan's headline says (Playwright's `getByText` matches it as a substring).
-- The tracks (`Tracks.svelte`, `tracks.ts`) are one phrase on one grid: the last `PATTERN_BARS` bars, the bar heard last, a lane per band performer and, under the performer whose part it plays, a lane per player's source, with the playhead on the step heard (`player.heard`).
+- The band, play and Muse cards (`BandCard.svelte`, `Play.svelte`, `Muse.svelte`; #222, #247, #223) are the last three of the page, in that order; their rough versions are still to be iterated.
+  The band (`tracks.ts`) is one phrase on one grid: the last `PATTERN_BARS` bars, the bar heard last, a tall lane per band performer, with the playhead on the step heard (`player.heard`).
   `Pattern` keeps the band's notes of those bars and the one building, fed as events are scheduled, so the bar heard fills in a lookahead before it sounds.
-  The card starts unfolded (`Card`'s `open`, read once), since the selected track's instrument, the keyboard for the lead and the pads for the drums, is under it; bass and chords only show, since `AlongPart` is the lead and the drums.
-  The page hands the instrument in as a snippet, so the card reads nothing but what it is given.
-- The lead's status line (`leadStatus`, `hud.ts`) is under the tracks' headline while the lead is selected, and nowhere else.
-  The `apps/web/e2e/band.e2e.ts` and `session.e2e.ts` checks that read it look at the tracks card's summary.
-  The tracks' lanes of the band are named `Performer`, not `Track` or `Member`: `track` already names `StyleTrack` and the ratchet's working and negative tracks, and `Performer` names what each row is precisely — the composer writes what a performer plays, and a performer is the band's own voice or a human at that voice's instrument, the same word family as `performer.ts` (T4, #107), which is how a performer plays it.
+  Its summary is how many of the four sound here ("4 of 4 sound") over the lead's status, its glyph a roll of the four rows (`Roll`); each performer's head has its volume, mute and solo.
+  There is nothing to select in it, and the player's own lanes are the play card's; another player's lane in a session (and the cell the Muse took from them, `PlayerView.local` false) stands under the performer whose part it plays.
+  The play card holds the choice of track in its summary, a `Segmented` of Lead and Drums (`AlongPart`), and its glyph is that track's instrument (`Instrument`), lit while a note is held.
+  Its details are a row for each track in play, the lead first: the track chosen, and any other the local player has played on in the phrase shown, so input over MIDI on both the lead and channel 10 shows both, over the instrument the page hands in as a snippet.
+  A row's track is one lane: the band's part dim under (`Lane`'s `under`), the player's own notes bright in the player's colour, on one scale; the card starts unfolded, being where a person plays.
+  The Muse card's summary is "Listening" or "Took a motif" over whose and when, its glyph a ring that pings for each note played (`Ring`); its details are the motif, Forget, the log and the help that was the page's footer, which is now a line linking the prototype.
+- The lead's status line (`leadStatus`, `hud.ts`) is under the band's headline, and nowhere else.
+  The `apps/web/e2e/band.e2e.ts` and `session.e2e.ts` checks that read it look at the band card's summary, and unfold the Muse card to read its log (`openCard`).
+  The band's lanes are named `Performer`, not `Track` or `Member`: `track` already names `StyleTrack` and the ratchet's working and negative tracks, and `Performer` names what each row is precisely — the composer writes what a performer plays, and a performer is the band's own voice or a human at that voice's instrument, the same word family as `performer.ts` (T4, #107), which is how a performer plays it.
   Decided in the working track, on the owner's naming call.
   `apps/web`'s `PerformerView` is this UI lane, one per band voice; the engine's own performer, `perform` in `performer.ts`, is a different thing with the same name — it plays a bar, not a screen.
 - The mix (`mix.ts`, #119) is which band performers this device sounds: mute and solo per lane, as on a mixing desk, where any solo sounds only the soloed.
+  Each performer also has a level, 0 to 1 (`level`, `withLevel`), that scales the velocity of its notes where they reach the output (`velocityFor`, in the player), the built-in synth and MIDI out alike; a level of none plays nothing, since a MIDI note on at velocity 0 is a note off.
   It is local, never sent to a session, and lasts as long as the page, since a mute left from an earlier visit would be a silent band.
   A performer muted is still composed, scheduled and drawn; the player only keeps its notes from the output and from `sounding`.
-  A player's own notes always sound, so taking a part is muting the band's voice on it and playing its instrument: #119's input toggle is the selected track's instrument.
+  A player's own notes always sound, so taking a part is muting the band's voice on it and playing its instrument: #119's input toggle is the play card's selected track and its instrument.
 - Whose motif the lead plays is the bar's own offer (`BarEnv.offer`), which every composed and forecast bar carries and a client gets with its host's bars, so no attribution crosses the protocol of its own (#164).
   An `Attribution` (`attribution.ts`) keeps the source's id and the bar heard; the views show a `Credit`, which adds the source's name (`sourceName`) and its player's colour (`sourceColour`), so `source` is always the id.
   The colour is the player's place in the session's record of players, which keeps them in the order they joined and after they leave, so every screen gives a player the same colour and six players are told apart; the first is the Muse's teal, none is the band's amber (`--source-0` to `--source-5`, `app.css`).

@@ -154,7 +154,7 @@ describe('the app', () => {
     const levels = [...container.querySelectorAll('h2, .card > summary .title')].map(
       (h) => h.textContent,
     );
-    expect(levels.slice(0, 8)).toEqual([
+    expect(levels.slice(0, 10)).toEqual([
       'Sound',
       'Session',
       'Style',
@@ -162,7 +162,9 @@ describe('the app', () => {
       'Key',
       'Plan',
       'Chords',
-      'Tracks',
+      'Band',
+      'Play',
+      'Muse',
     ]);
     expect(screen.getByLabelText('Sound')).not.toHaveAttribute('open');
     expect(screen.getByLabelText('Session').querySelector('summary .sub')).toHaveTextContent(
@@ -210,7 +212,6 @@ describe('the app', () => {
 
   it('links to the prototype for what it does not do yet: the score and the Muse’s judgement', async () => {
     await renderBand();
-    expect(screen.getByText(/drums, bass, chords and lead/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'prototype' })).toHaveAttribute(
       'href',
       '/prototype.html',
@@ -285,7 +286,7 @@ describe('the app', () => {
       await fireEvent.keyDown(window, { key: 'a' });
       expect(screen.getByRole('button', { name: 'C4' })).toHaveClass('down');
       // The pads are the drums' instrument, under the drums once selected.
-      await fireEvent.click(screen.getByRole('button', { name: 'Drums' }));
+      await fireEvent.click(screen.getByRole('radio', { name: 'Drums' }));
       await fireEvent.keyDown(window, { key: '1' });
       expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');
     });
@@ -310,7 +311,7 @@ describe('the app', () => {
       await tick();
       expect(screen.getByRole('button', { name: 'E4' })).toHaveClass('down');
 
-      await fireEvent.click(screen.getByRole('button', { name: 'Drums' }));
+      await fireEvent.click(screen.getByRole('radio', { name: 'Drums' }));
       port.onmidimessage!({ data: [0x99, 36, 100] } as unknown as MIDIMessageEvent); // channel 10: kick
       await tick();
       expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');

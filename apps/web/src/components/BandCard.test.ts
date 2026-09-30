@@ -1,9 +1,8 @@
-import { createRawSnippet } from 'svelte';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import type { Performer } from '../sounding.ts';
 import type { PerformerView, PlayerView, TracksView } from '../tracks.ts';
-import Tracks from './Tracks.svelte';
+import BandCard from './BandCard.svelte';
 
 const performer = (p: Performer, label: string, over: Partial<PerformerView> = {}) => ({
   performer: p,
@@ -15,6 +14,7 @@ const performer = (p: Performer, label: string, over: Partial<PerformerView> = {
   muted: false,
   soloed: false,
   sounds: true,
+  level: 1,
   ...over,
 });
 
@@ -39,26 +39,23 @@ const lane = (over: Partial<PlayerView> = {}): PlayerView => ({
   name: ada.name,
   colour: 1,
   heardAs: false,
+  local: false,
   notes: [{ step: 2, note: 64, length: 2 }],
   taken: null,
   ...over,
 });
 
-/** The instrument a track is played on, named by its performer. */
-const instrument = createRawSnippet((performer: () => Performer) => ({
-  render: () => `<p>the ${performer()} instrument</p>`,
-}));
+const draw = (view: TracksView, ontoggle = vi.fn(), onlevel = vi.fn()) =>
+  render(BandCard, { tracks: view, ontoggle, onlevel });
 
-const draw = (view: TracksView, ontoggle = vi.fn()) =>
-  render(Tracks, { tracks: view, ontoggle, instrument });
-
-describe('the tracks', () => {
-  it('draws a lane for each band performer and each player, a player’s under the part it plays', () => {
+describe('the band', () => {
+  it('draws a lane for each band performer and each other player, a player’s under the part it plays', () => {
     draw(
       tracks({
         players: [
           lane(),
           lane({ part: 'drums', source: '@c1/the drum pads', name: "Ada's drum pads" }),
+          lane({ source: 'the keys', name: 'the keys', local: true }),
         ],
       }),
     );
@@ -83,34 +80,72 @@ describe('the tracks', () => {
     ]);
   });
 
-  it('selects the lead first, with its status in the headline and its instrument below', () => {
+  it('names itself in its own header, open, over how many of the performers sound and the lead’s status', () => {
     draw(tracks());
-    const card = screen.getByLabelText('Tracks');
+    const card = screen.getByLabelText('Band');
     expect(card).toHaveAttribute('open');
-    expect(card.querySelector('summary .main')).toHaveTextContent('Lead');
+    expect(card.querySelector('summary .title')).toHaveTextContent('Band');
+    expect(card.querySelector('summary .main')).toHaveTextContent('4 of 4 sound');
     expect(card.querySelector('summary .sub')).toHaveTextContent('Lead is improvising.');
-    expect(screen.getByRole('button', { name: 'Lead' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('the lead instrument')).toBeInTheDocument();
   });
 
-  it('selects one track at a time, and shows its instrument in place of the one before', async () => {
-    draw(tracks());
-    await fireEvent.click(screen.getByRole('button', { name: 'Drums' }));
-    expect(screen.getByRole('button', { name: 'Drums' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Lead' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByText('the drums instrument')).toBeInTheDocument();
-    expect(screen.queryByText('the lead instrument')).toBeNull();
-  });
-
-  it('says how many notes the selected track sounds here, or that it is muted here', async () => {
-    const { rerender } = draw(
-      tracks({ performers: [performer('lead', 'Lead', { sounding: [60, 64] })] }),
+  it('counts the performers that sound here, a muted one not among them', () => {
+    draw(
+      tracks({
+        performers: [
+          performer('drums', 'Drums', { sounds: false, muted: true }),
+          performer('bass', 'Bass'),
+          performer('comp', 'Chords'),
+          performer('lead', 'Lead', { sounds: false }),
+        ],
+      }),
     );
-    expect(screen.getByText('2 notes')).toBeInTheDocument();
-    await rerender({
-      tracks: tracks({ performers: [performer('lead', 'Lead', { sounds: false })] }),
-    });
-    expect(screen.getByText('Muted here')).toBeInTheDocument();
+    expect(screen.getByLabelText('Band').querySelector('summary .main')).toHaveTextContent(
+      '2 of 4 sound',
+    );
+  });
+
+  it('has nothing to select: a performer is named, not a button, and none is pressed', () => {
+    draw(tracks());
+    for (const label of ['Drums', 'Bass', 'Chords', 'Lead'])
+      expect(screen.queryByRole('button', { name: label })).toBeNull();
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(document.querySelector('.selected')).toBeNull();
+  });
+
+  it('leaves the instrument to the play card', () => {
+    draw(tracks());
+    expect(screen.queryByText(/instrument/)).toBeNull();
+    expect(screen.queryByRole('group', { name: 'On-screen keyboard' })).toBeNull();
+  });
+
+  it('gives each performer a volume slider, showing its level and setting it', async () => {
+    const onlevel = vi.fn();
+    draw(
+      tracks({
+        performers: [performer('drums', 'Drums'), performer('bass', 'Bass', { level: 0.4 })],
+      }),
+      vi.fn(),
+      onlevel,
+    );
+    expect(screen.getByRole('slider', { name: 'Drums volume' })).toHaveValue('100');
+    const bass = screen.getByRole('slider', { name: 'Bass volume' });
+    expect(bass).toHaveValue('40');
+    await fireEvent.input(bass, { target: { value: '75' } });
+    expect(onlevel).toHaveBeenCalledWith('bass', 0.75);
+  });
+
+  it('draws tall lanes, with room for the notes', () => {
+    const { container } = draw(tracks());
+    const lanes = [...container.querySelectorAll('svg.lane')];
+    expect(lanes.length).toBeGreaterThan(0);
+    expect(lanes[0]).toHaveClass('tall');
+  });
+
+  it('draws a small roll of the performers as its glyph, with the playhead', () => {
+    const { container } = draw(tracks());
+    expect(container.querySelectorAll('summary svg.glyph g.row')).toHaveLength(4);
+    expect(container.querySelector('summary svg.glyph line.head')).not.toBeNull();
   });
 
   it('mutes and solos a band performer on this device, and shows which are', async () => {
@@ -174,7 +209,7 @@ describe('the tracks', () => {
 
   it('names a player by name alone in the grid, where no button would select it', () => {
     draw(tracks({ players: [lane()] }));
-    const grid = screen.getByRole('group', { name: 'Tracks grid' });
+    const grid = screen.getByRole('group', { name: 'Band grid' });
     expect(within(grid).getByText("Ada's computer keys")).toBeInTheDocument();
     expect(within(grid).queryByRole('button', { name: "Ada's computer keys" })).toBeNull();
   });

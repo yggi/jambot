@@ -1,34 +1,46 @@
 <!--
-  The Muse: the motif it offers the band, drawn on the bar's sixteen steps
-  a row per degree, in its player's colour (`attribution.ts`), where it came
-  from, and its log, the latest first.
-  Forget asks it to let the motif go from the next bar the band composes.
-  Its words are the prototype's.
+  The Muse, a card: the piece that answers the player. Folded, its state
+  ("Listening", "Took a motif") over whose motif it holds and when ("from
+  Ada's keys · bar 7"), or how to give it one; the glyph is a ring that pings
+  for each note played, holding the motif's contour in its player's colour.
+  Unfolded, the motif it offers the band drawn on the bar's sixteen steps, a
+  row per degree, in its player's colour (`attribution.ts`), where it came
+  from, its log with the latest first, and what to play to give it one. Forget
+  asks it to let the motif go from the next bar the band composes. Its words
+  are the prototype's.
 -->
 <script lang="ts">
   import { BAR_STEPS } from '@jambot/engine';
   import type { MuseView } from '../hud.ts';
+  import Card from './Card.svelte';
+  import Ring from './glyphs/Ring.svelte';
 
   interface Props {
     muse: MuseView;
+    /** How many notes the player has played: the glyph pings for each. */
+    pulse: number;
     onforget: () => void;
   }
 
-  let { muse, onforget }: Props = $props();
+  let { muse, pulse, onforget }: Props = $props();
 
   const W = 320;
   const H = 64;
   const step = W / BAR_STEPS;
   const rowHeight = $derived(muse.motif ? Math.min(12, (H - 4) / muse.motif.rows) : 0);
+  const main = $derived(muse.motif ? 'Took a motif' : 'Listening');
+  const sub = $derived(
+    muse.motif
+      ? `from ${muse.motif.name} · bar ${muse.motif.bar + 1}`
+      : 'Play 3 to 12 notes in one bar',
+  );
 </script>
 
-<section class="muse" aria-label="Muse">
-  <div class="top">
-    <h2>Muse</h2>
-    {#if muse.motif}
-      <button type="button" onclick={onforget}>Forget motif</button>
-    {/if}
-  </div>
+{#snippet ring()}
+  <Ring motif={muse.motif} colour={muse.motif?.colour ?? 0} {pulse} />
+{/snippet}
+
+<Card title="Muse" {main} {sub} glyph={ring}>
   {#if muse.motif}
     <svg
       viewBox="0 0 {W} {H}"
@@ -55,6 +67,7 @@
     <p class="status">
       Motif from {muse.motif.name}, heard in bar {muse.motif.bar + 1}.
     </p>
+    <button type="button" class="forget" onclick={onforget}>Forget motif</button>
   {:else}
     <p class="status">
       Play 3 to 12 notes within one bar. Jambot keeps the shape and plays it back in key from the
@@ -68,25 +81,16 @@
       {/each}
     </ul>
   {/if}
-</section>
+  <p class="help">
+    Play a few notes within a bar on the keys or the pads, and the Muse takes them as a motif the
+    lead plays back from the bar after next, in your colour. A dot on the keys marks the scale the
+    lead plays over; amber shows what the band's own lead and drums are playing.
+  </p>
+</Card>
 
 <style>
-  .muse {
-    display: grid;
-    gap: 6px;
-  }
-  .top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-  }
-  h2 {
-    margin: 0;
-    font-size: 16px;
-    color: var(--teal);
-  }
-  button {
+  .forget {
+    justify-self: start;
     font: inherit;
     font-size: 14px;
     color: var(--ink);
@@ -116,6 +120,11 @@
   .status {
     margin: 0;
     font-size: 14px;
+  }
+  .help {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
   }
   ul {
     list-style: none;

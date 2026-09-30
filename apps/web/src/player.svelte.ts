@@ -93,7 +93,7 @@ import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
-import { EVEN_MIX, type Mix, sounds } from './mix.ts';
+import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
 import { Pattern, type PatternBar } from './pattern.ts';
 import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
 import type { Metronome } from './metronome.svelte.ts';
@@ -697,8 +697,9 @@ export class Player {
     for (const { bar, offer } of scheduled.composed) this.#pattern.offered(bar, offer);
     for (const { bar, event, seconds, duration } of scheduled.events) {
       const performer = performerOf(event.part);
-      if (sounds(this.mix, performer)) {
-        output.play(event.part, event.note, event.velocity, seconds - skew, duration, event);
+      const velocity = velocityFor(this.mix, performer, event.velocity);
+      if (sounds(this.mix, performer) && velocity > 0) {
+        output.play(event.part, event.note, velocity, seconds - skew, duration, event);
         this.#sounding.push({ performer, note: event.note, seconds: seconds - skew, duration });
       }
       this.#pattern.push(performer, bar, {
