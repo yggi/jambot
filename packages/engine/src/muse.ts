@@ -35,8 +35,10 @@
  * and hears a motif played again, by the same player or another, as it was
  * or under one operator, as the one remembered (`recognise`, Q12): a
  * repetition confirms a motif, and a motif confirmed is taken before one
- * heard once (#204 H8). A motif heard once is remembered for 16 bars, as
- * long as an offer outlasts silence, and longer each time it is heard again.
+ * heard once (#204 H8). A confirmed offer holds across bars against a motif
+ * heard once, until a motif is confirmed in turn or she forgets it. A motif
+ * heard once is remembered for 16 bars, as long as an offer outlasts
+ * silence, and longer each time it is heard again.
  */
 
 import {
@@ -376,6 +378,8 @@ export interface Remembered {
   readonly source: string;
   readonly bar: number;
   readonly weight: number;
+  /** How many bars it was heard in: twice or more, it is confirmed. */
+  readonly heard: number;
 }
 
 /** A motif heard as one remembered: who played it, whose it was and when, and under which operator. */
@@ -438,7 +442,7 @@ function remember(
       // A unison heard in this bar is one motif, remembered once.
       index = entries.findIndex((e, i) => i >= alive.length && recognise(j.motif, e.motif));
       if (index === -1)
-        index = entries.push({ motif: j.motif, source: j.source, bar, weight: 0 }) - 1;
+        index = entries.push({ motif: j.motif, source: j.source, bar, weight: 0, heard: 0 }) - 1;
     }
     if (!readings.some(([i]) => i === index)) readings.push([index, 1]);
   }
@@ -448,7 +452,16 @@ function remember(
     1,
     readings,
   );
-  return { memory: entries.map((e, i) => ({ ...e, weight: weights[i]! })), recognised, confirmed };
+  const heard = new Set(readings.map(([i]) => i));
+  return {
+    memory: entries.map((e, i) => ({
+      ...e,
+      weight: weights[i]!,
+      heard: e.heard + (heard.has(i) ? 1 : 0),
+    })),
+    recognised,
+    confirmed,
+  };
 }
 
 export const muse: Machine<MuseEnv, MuseCarried, MuseInput, MuseOutput> = {
@@ -464,7 +477,12 @@ export const muse: Machine<MuseEnv, MuseCarried, MuseInput, MuseOutput> = {
     if (judgements.length > 0) {
       lastPlayed = bar;
       const best = taken(judgements, confirmed);
-      if (best) offer = { motif: best.motif, source: best.source, bar, level: best.level };
+      // A confirmed offer holds against a motif heard once, while she remembers it.
+      const held =
+        offer !== null &&
+        memory.some((e) => e.heard >= 2 && recognise(offer!.motif, e.motif) !== null);
+      if (best && (confirmed.has(best) || !held))
+        offer = { motif: best.motif, source: best.source, bar, level: best.level };
     } else if (offer && lastPlayed !== null && bar - lastPlayed > MUSE.forgetAfter) {
       offer = null;
       forgot = 'silence';

@@ -975,6 +975,50 @@ describe('the Muse’s memory: repetition confirms a motif, #204 H8 (#204, Q12)'
     expect(MOTIF_DECAY).toBeLessThan(1);
   });
 
+  it('holds a confirmed motif across bars against one heard once, and gives it up to a motif confirmed in turn (Q12)', () => {
+    const once = (bar: number, source: string, step: number) =>
+      played(
+        [
+          [16 * bar, 72],
+          [16 * bar + step, 74],
+          [16 * bar + 12, 77],
+        ],
+        source,
+      );
+    const { outputs } = listen([
+      { heard: phrase(0, 'a') },
+      { heard: phrase(1, 'a') },
+      { heard: once(2, 'b', 2) },
+      { heard: once(3, 'b', 2) },
+    ]);
+    expect(outputs.map((o) => o.offer?.source)).toEqual(['a', 'a', 'a', 'b']);
+    expect(outputs[3]!.offer!.bar).toBe(3);
+  });
+
+  it('holds a confirmed motif only while she remembers it: a one-off takes over once it has faded (C9, Q12)', () => {
+    // A motif heard twice, then a note a bar (playing, but no motif), then a one-off.
+    const run = (at: number) =>
+      listen(
+        range(at + 1).map((bar) => ({
+          heard:
+            bar < 2
+              ? phrase(bar, 'a')
+              : bar === at
+                ? played(
+                    [
+                      [16 * bar, 72],
+                      [16 * bar + 2, 74],
+                      [16 * bar + 12, 77],
+                    ],
+                    'b',
+                  )
+                : played([[16 * bar, 60]]),
+        })),
+      ).outputs[at]!.offer!.source;
+    expect(run(21)).toBe('a');
+    expect(run(22)).toBe('b');
+  });
+
   it('takes a motif heard again over one heard once, however many notes that one has (Q12)', () => {
     const four = played(
       [
