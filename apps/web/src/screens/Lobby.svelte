@@ -35,6 +35,8 @@
     ontiming: () => void;
     /** The metronome (#259). */
     onmeter: () => void;
+    /** The tuner (#269). */
+    ontune: () => void;
     onhost: (where: Where, session: string) => Promise<void>;
     onjoin: (where: Where, session: string) => void;
   }
@@ -51,6 +53,7 @@
     onsolo,
     ontiming,
     onmeter,
+    ontune,
     onhost,
     onjoin,
   }: Props = $props();
@@ -220,6 +223,11 @@
       what a meter is.
     </p>
     <button type="button" disabled={joining} onclick={onmeter}>Metronome</button>
+    <p class="message">
+      Listen through a microphone or a line in, and see the spectrum and the nearest note, how many
+      cents and Hz away, to tune an instrument by ear and by eye.
+    </p>
+    <button type="button" disabled={joining} onclick={ontune}>Tuner</button>
   </Card>
 </div>
 

@@ -117,6 +117,15 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   `bar-plan.ts` writes a bar's onsets from the meter alone (click, drums with the engine's backbeat (`backbeatOf`), bass), and the hemiola moves the bass onto the other meter's pulses.
   `accentsOf` (`accents.ts` in `@jambot/theory`, since the drums read it too) grades every eighth by a tree over the meter (the bar's pulses halved by `even(2, p)` from four up, the grade the largest group starting there, counted from the root: `*`, `+`, `-`, `.`; 6/8's second pulse is `+`, 12/8's `-`), `Mirror the grouping` reads 5/4 as 2+3, and the accent slider (`meter/grades.ts`) spreads the grades; `ternary.ts` swings a pulse of three eighths, which the band's swing plays straight, and the slider for it is an experiment's (T16, #144).
   The bar is drawn by `Bar.svelte` (`bar.ts`), the same drawing as the metrum's, on any meter.
+- The tuner is the third extra (#269, `screens/Tune.svelte`, `tune/`): it listens to a microphone or line in, names the note heard against a reference pitch (A4 = 440 Hz, settable) with its distance in cents and Hz, and draws the spectrum on a log axis with the octaves' Cs marked.
+  It is for pitch and never for timing: the input's latency is not measured.
+  `mic.ts` opens the input with echo cancelling, noise suppression and gain control off, listens through an `AnalyserNode` that feeds nothing (so nothing is played back), and gives the newest samples when asked.
+  `tuner.svelte.ts` looks every 50 ms, through `analysis.ts`: a worker (`analysis.worker.ts`, made at the first look) runs `@jambot/spectrum`'s `analyse`, and a look that is still out when the next is due makes that one skipped, never queued, so the page's clock is never waited for.
+  The note is held for six silent looks, and read again from what was last heard when the reference changes.
+  The frame the pitch is read over follows the sound: 16 periods of its lowest strong peak, between 4096 and 16384 samples (`estimateAdaptive`, measured in its header), so a low note is read over 171 ms or 341 ms and a high one over 85 ms.
+  `plot.ts` holds the spectrum's drawing as numbers (an SVG path, a frequency's x, the octave marks); the waterfall (slice 4) will need a canvas.
+  The microphone is let go of on leaving the screen, and a permission the person refused is told in words (`MicDenied`).
+  `e2e/tune.e2e.ts` runs it on Chromium's fake capture device, looping a WAV of a sine 20 cents sharp of A2: the tuner reads A2, +19 to +21 cents, over 171 ms.
 - The e2e checks tell sounds apart by oscillator type and starting frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a chord note a triangle beside a sine 0.3 % sharp.
   The click is a square at 1800 Hz on the downbeat, a triangle at 1200 on the other pulses and a sine at 800 between (`metronome-click.ts`), each starting at its frequency, which `band.e2e.ts` reads to place them.
   A new voice keeps these apart or updates `band.e2e.ts`.

@@ -25,6 +25,11 @@ export const TONIC_NAMES = [
   'B',
 ] as const;
 
+/** A MIDI note as the tuner names it, with its octave, C4 = 60 as everywhere: 60 is C4, 69 is A4, 70 is B♭4. The notes below the keyboard's first go on counting. */
+export function midiNoteName(midi: number): string {
+  return `${TONIC_NAMES[mod(midi, 12)]!}${Math.floor(midi / 12) - 1}`;
+}
+
 /** A spelled note as the screen writes it: its letter, then ♯ or ♭ for each semitone it is altered. */
 function noteName({ letter, alteration }: Note): string {
   return letter + (alteration > 0 ? '♯' : '♭').repeat(Math.abs(alteration));
