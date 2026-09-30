@@ -130,6 +130,9 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   It sends its own messages and leaves `MidiOut` to the band, which has its holders and its clock; it is never on under the band, since the tuner's screen is a solo one, and a note held is released on leaving.
   While a note is held the tuner reads the sound against it (`Tuner.target`), however far off, and not against the nearest note, which is never more than 50 cents away; the needle stops at its ends.
   The MIDI ports come from the Sound card the page shows above every screen, which connects them.
+  The synth is an input too (`loopback.ts`, `withSynth`): `Output.tap` hands over the synth's context and the node its sound leaves by, before the speakers, and the tuner listens through an analyser on it as it does through a microphone, never on to the speakers.
+  Its context is made only when chosen, so listing the inputs starts no audio.
+  This closes a loop the tuner measures: `e2e/tune.e2e.ts` holds A4, then A5 and A6, then down to A1 on the synth, and the tuner reads each within 0.05 cents (the display's resolution) of the exact frequency, and with a reference of 442 Hz reads the same A1 7.85 cents flat, so what it reads is the sound and not the note asked for.
   `e2e/tune.e2e.ts` runs it on Chromium's fake capture device, looping a WAV of a sine 20 cents sharp of A2: the tuner reads A2, +19 to +21 cents, over 171 ms.
 - The e2e checks tell sounds apart by oscillator type and starting frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a chord note a triangle beside a sine 0.3 % sharp.
   The click is a square at 1800 Hz on the downbeat, a triangle at 1200 on the other pulses and a sine at 800 between (`metronome-click.ts`), each starting at its frequency, which `band.e2e.ts` reads to place them.

@@ -24,6 +24,10 @@
 
   let { tuner, sender, onback }: Props = $props();
 
+  $effect(() => {
+    void tuner.loadDevices();
+  });
+
   // The sound is read against the note sent, while one is held.
   $effect(() => {
     tuner.target = sender.holding ? sender.note : null;
@@ -74,9 +78,9 @@
     {#if tuner.message}
       <p class="notice" role="status">{tuner.message}</p>
     {/if}
-    {#if tuner.devices.length > 1}
+    {#if tuner.devices.length > 0}
       <label class="field">
-        <span>Input</span>
+        <span>Listen to</span>
         <select
           value={tuner.deviceId ?? ''}
           onchange={(e) => void tuner.choose(e.currentTarget.value || undefined)}

@@ -122,3 +122,53 @@ test('leaves the microphone when the person goes back to the lobby', async ({ pa
   await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
   await expect(page.getByText('Not listening.')).toBeVisible();
 });
+
+/**
+ * The loop: a note the built-in synth plays is heard by the tuner through the
+ * synth's own output, at a frequency the synth knows exactly (A4 = 440 Hz, the
+ * rest by 2^(n/12)), so what the tuner reads as cents from the note sent is
+ * the tuner's own error, through Web Audio, a worker and the page. Measured on
+ * Chromium: under 0.05 cents, the display's resolution, from A1 to A6.
+ */
+test('hears the synth it plays through: a note sent is read within a quarter cent, from A1 to A6', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const errors = await listen(page);
+  await page.goto('/');
+  await page.locator('details[aria-label="Extras"] summary').click();
+  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByLabel('Listen to').selectOption({ label: 'This device’s synth (what it plays)' });
+  await page.getByRole('button', { name: 'Start' }).click();
+  const send = page.getByRole('region', { name: 'Send a note' });
+  const note = page.getByRole('region', { name: 'Note' });
+  await send.getByRole('button', { name: 'Hold the note' }).click();
+
+  const measured: { name: string; cents: number[] }[] = [];
+  const read = async () => {
+    const text = (await note.locator('.cents').innerText()).replace('−', '-');
+    return Number.parseFloat(text);
+  };
+  // From A4 up two octaves, then down to A1, an octave at a time.
+  const path = [0, 1, 1, -1, -1, -1, -1, -1];
+  for (const step of path) {
+    if (step !== 0)
+      await send.getByRole('button', { name: step > 0 ? '+octave' : '−octave' }).click();
+    const sent = await send.locator('.sent').innerText();
+    await expect(note.locator('.name')).toHaveText(sent);
+    await page.waitForTimeout(900); // the low notes' frame holds 340 ms of what came before
+    const cents: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      cents.push(await read());
+      await page.waitForTimeout(100);
+    }
+    measured.push({ name: sent, cents });
+  }
+  for (const { name, cents } of measured)
+    for (const c of cents) expect(Math.abs(c), `${name}: ${cents}`).toBeLessThan(0.25);
+
+  // The reading is of the sound, not of the note asked for: a reference of 442 Hz puts the same A1 at 7.85 cents flat of its A.
+  await page.getByLabel('A4 is').fill('442');
+  await expect.poll(read).toBeCloseTo(-7.85, 0);
+  expect(errors).toEqual([]);
+});

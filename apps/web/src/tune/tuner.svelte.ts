@@ -133,6 +133,15 @@ export class Tuner {
     });
   }
 
+  /** List the inputs, so one can be chosen before listening. A browser names a microphone only once one is allowed, and lists the synth at once. */
+  async loadDevices(): Promise<void> {
+    try {
+      this.devices = await this.#deps.mic.devices();
+    } catch {
+      // No list: the default input is still there to start.
+    }
+  }
+
   /** Stop listening and let go of the input; what was shown is cleared. */
   stop(): void {
     this.#run++;

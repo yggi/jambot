@@ -125,7 +125,7 @@ describe('the tuner screen', () => {
     expect(onback).toHaveBeenCalledOnce();
   });
 
-  it('offers a choice of input only when there is one, and moves to it', async () => {
+  it('offers a choice of input as soon as there are any, and moves to it', async () => {
     const w = world();
     const tuner = new Tuner({
       mic: {
@@ -139,10 +139,11 @@ describe('the tuner screen', () => {
       analyse: w.analyseHere,
     });
     render(TuneScreen, { tuner, sender: senders().sender, onback: vi.fn() });
-    expect(screen.queryByLabelText('Input')).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(screen.getByLabelText('Listen to')).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     await vi.advanceTimersByTimeAsync(TICK_MS);
-    await fireEvent.change(screen.getByLabelText('Input'), { target: { value: 'b' } });
+    await fireEvent.change(screen.getByLabelText('Listen to'), { target: { value: 'b' } });
     await vi.advanceTimersByTimeAsync(TICK_MS);
     expect(w.log.opened).toEqual([undefined, 'b']);
   });

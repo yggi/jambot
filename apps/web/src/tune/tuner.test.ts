@@ -150,6 +150,17 @@ describe('the tuner', () => {
     expect(w.analysed.length).toBe(looks);
   });
 
+  it('lists the inputs before it listens, so one can be chosen first', async () => {
+    const w = world();
+    const tuner = new Tuner({ mic: w.source, analyse: w.analyseHere });
+    await tuner.loadDevices();
+    expect(tuner.devices).toEqual([{ id: 'a', label: 'Built-in' }]);
+    await tuner.choose('a');
+    expect(tuner.status).toBe('idle');
+    await tuner.start();
+    expect(w.log.opened).toEqual(['a']);
+  });
+
   it('opens the input chosen, and moves to it without a stop by the person', async () => {
     const w = world();
     const tuner = await listen(w);

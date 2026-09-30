@@ -32,6 +32,7 @@
   import { MeterPlayer } from './meter/meter-player.svelte.ts';
   import { WorkerAnalysis } from './tune/analysis.ts';
   import AnalysisWorker from './tune/analysis.worker.ts?worker';
+  import { withSynth } from './tune/loopback.ts';
   import { browserMic } from './tune/mic.ts';
   import { ToneSender } from './tune/sender.svelte.ts';
   import { Tuner } from './tune/tuner.svelte.ts';
@@ -80,7 +81,7 @@
   const meterPlayer = new MeterPlayer({ audio: () => device.clockOf() });
   /** The tuner (#269): listens to an input, and looks at its sound in a worker made at the first look. */
   const tuner = new Tuner({
-    mic: browserMic(),
+    mic: withSynth(browserMic(), () => device.clockOf().base.tap?.()),
     analyse: new WorkerAnalysis(() => new AnalysisWorker()).analyse,
   });
   /** The note the tuner's screen holds, on this device's synth or a MIDI port, to tune an instrument by. */
