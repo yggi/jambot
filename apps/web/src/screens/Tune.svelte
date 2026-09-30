@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import Gauge from '../components/Gauge.svelte';
+  import Waterfall from '../components/Waterfall.svelte';
   import { octaveMarks, spectrumPath, xOfHz } from '../tune/plot.ts';
   import type { Tuner } from '../tune/tuner.svelte.ts';
 
@@ -160,6 +161,7 @@
         />
       {/if}
     </svg>
+    <Waterfall bands={tuner.analysis?.bands ?? null} {listening} />
     <div class="level">
       <span>Level</span>
       <div

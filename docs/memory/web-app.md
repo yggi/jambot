@@ -123,7 +123,8 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   `tuner.svelte.ts` looks every 50 ms, through `analysis.ts`: a worker (`analysis.worker.ts`, made at the first look) runs `@jambot/spectrum`'s `analyse`, and a look that is still out when the next is due makes that one skipped, never queued, so the page's clock is never waited for.
   The note is held for six silent looks, and read again from what was last heard when the reference changes.
   The frame the pitch is read over follows the sound: 16 periods of its lowest strong peak, between 4096 and 16384 samples (`estimateAdaptive`, measured in its header), so a low note is read over 171 ms or 341 ms and a high one over 85 ms.
-  `plot.ts` holds the spectrum's drawing as numbers (an SVG path, a frequency's x, the octave marks); the waterfall (slice 4) will need a canvas.
+  `plot.ts` holds the spectrum's drawing as numbers (an SVG path, a frequency's x, the octave marks).
+  The waterfall under it (`components/Waterfall.svelte`, `waterfall.ts`) keeps the last 100 looks, five seconds, a band a pixel across and the newest look on the top line, in a ramp from near-black through indigo and teal to amber and pale (`shade`), the same in a light theme and a dark one, as a spectrogram is; a canvas, scaled by the page.
   The microphone is let go of on leaving the screen, and a permission the person refused is told in words (`MicDenied`).
   `e2e/tune.e2e.ts` runs it on Chromium's fake capture device, looping a WAV of a sine 20 cents sharp of A2: the tuner reads A2, +19 to +21 cents, over 171 ms.
 - The e2e checks tell sounds apart by oscillator type and starting frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a chord note a triangle beside a sine 0.3 % sharp.

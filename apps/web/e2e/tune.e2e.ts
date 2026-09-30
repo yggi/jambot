@@ -79,6 +79,29 @@ test('names a recorded A2, 20 cents sharp, reads it over a frame longer than the
   expect(await spectrum.locator('path.line').getAttribute('d')).toMatch(/^M0,/);
   await expect(spectrum.locator('line.pitch')).toHaveCount(1);
 
+  // The waterfall: a pixel a band across, the newest look on the top line, and the note's own column bright in it.
+  const top = await page.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+    const { width } = canvas;
+    const line = canvas.getContext('2d')!.getImageData(0, 0, width, 1).data;
+    const light = Array.from(
+      { length: width },
+      (_, x) => line[x * 4]! + line[x * 4 + 1]! + line[x * 4 + 2]!,
+    );
+    return {
+      width,
+      brightest: light.indexOf(Math.max(...light)),
+      max: Math.max(...light),
+      median: [...light].sort((a, b) => a - b)[width >> 1]!,
+    };
+  });
+  expect(top.width).toBe(175);
+  expect(top.max).toBeGreaterThan(450);
+  expect(top.median).toBeLessThan(200);
+  // The bright column is the note's band: a quarter tone each, counted from A0 (27.5 Hz).
+  expect(Math.abs(top.brightest - Math.round(24 * Math.log2(HEARD_HZ / 27.5)))).toBeLessThanOrEqual(
+    3,
+  );
+
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
   await expect(note.locator('.name')).toHaveText('–');
