@@ -11,3 +11,4 @@ export * from './psola.ts';
 export * from './live.ts';
 export * from './signals.ts';
 export * from './tracker.ts';
+export * from './timbre.ts';

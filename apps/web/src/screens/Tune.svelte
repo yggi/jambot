@@ -8,7 +8,7 @@
 <script lang="ts">
   import Gauge from '../components/Gauge.svelte';
   import Waterfall from '../components/Waterfall.svelte';
-  import { octaveMarks, spectrumPath, xOfHz } from '../tune/plot.ts';
+  import { harmonicBars, octaveMarks, spectrumPath, xOfHz } from '../tune/plot.ts';
   import { midiNoteName } from '../noteNames.ts';
   import type { ToneSender } from '../tune/sender.svelte.ts';
   import type { LiveCorrection } from '../tune/live-correction.svelte.ts';
@@ -74,6 +74,23 @@
   let shownWidth = $state(0);
   const plot = $derived({ width: shownWidth || 700, height: 140 });
   const marks = $derived(octaveMarks(plot.width));
+
+  /** Within this many dB of the remembered tone it is the same tone, and past `DIFFERENT_DB` another: what `timbre.ts` measured on synthetic instruments. */
+  const SAME_DB = 3;
+  const DIFFERENT_DB = 6;
+  const BARS = { width: 300, height: 70 };
+  const tone = $derived(tuner.tone);
+  const bars = $derived(tone ? harmonicBars(tone.harmonics, BARS) : []);
+  const difference = $derived(tuner.difference);
+  const verdict = $derived(
+    difference === null
+      ? ''
+      : difference <= SAME_DB
+        ? 'the same tone'
+        : difference <= DIFFERENT_DB
+          ? 'a close tone'
+          : 'a different tone',
+  );
 
   const reading = $derived(tuner.reading);
   const listening = $derived(tuner.status === 'listening');
@@ -356,6 +373,72 @@
     {/if}
   </section>
 
+  <section class="card" aria-label="Tone">
+    <h3>Tone <span class="whose">experimental</span></h3>
+    <p class="message">
+      What the note is made of: each harmonic’s level, how wide the note is, and a fingerprint of
+      the levels to compare one sound with another by. It tells synthetic tones apart; it has not
+      been tried on recorded instruments, and the fingerprint of a voice or of a filtered synth
+      moves with its pitch.
+    </p>
+    <svg
+      class="harmonics"
+      viewBox="0 0 {BARS.width} {BARS.height + 16}"
+      role="img"
+      aria-label="Level of each harmonic, from the fundamental up"
+    >
+      {#each bars as bar (bar.number)}
+        <rect
+          class="bar"
+          class:missing={!bar.present}
+          x={bar.x}
+          y={BARS.height - bar.height}
+          width={bar.width}
+          height={Math.max(bar.height, 1)}
+        />
+        {#if bar.present}
+          <circle
+            class="stretch"
+            cx={bar.x + bar.width / 2 + bar.offset}
+            cy={BARS.height - bar.height - 4}
+            r="2"
+          />
+        {/if}
+        <text class="tick" x={bar.x + bar.width / 2} y={BARS.height + 12}>{bar.number}</text>
+      {/each}
+    </svg>
+    <p class="detail">
+      {#if tone}
+        {tone.width < 3
+          ? 'Steady, with no width to speak of'
+          : `Width ${tone.width.toFixed(0)} cents`}. A dot above a bar is how far sharp or flat of
+        its exact multiple that harmonic is.
+      {:else}
+        Play a note to see its harmonics.
+      {/if}
+    </p>
+    <div class="sends">
+      <button type="button" class="toggle" disabled={!tone} onclick={() => tuner.remember()}>
+        Remember this tone
+      </button>
+      <button
+        type="button"
+        class="quiet"
+        disabled={!tuner.remembered}
+        onclick={() => tuner.forget()}
+      >
+        Forget it
+      </button>
+    </div>
+    {#if difference !== null}
+      <p class="detail" aria-live="off">
+        {difference.toFixed(1)} dB from the remembered tone: {verdict}.
+      </p>
+    {:else if tuner.remembered}
+      <p class="detail">A tone is remembered. Play another to compare.</p>
+    {/if}
+  </section>
+
   <section class="card" aria-label="Spectrum">
     <svg
       viewBox="0 0 {plot.width} {plot.height + 16}"
@@ -565,6 +648,18 @@
   .grid {
     stroke: var(--line);
     stroke-width: 1;
+  }
+  .harmonics {
+    max-width: 420px;
+  }
+  .bar {
+    fill: var(--amber);
+  }
+  .bar.missing {
+    fill: var(--line);
+  }
+  .stretch {
+    fill: var(--teal);
   }
   .tick {
     fill: var(--muted);

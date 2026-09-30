@@ -61,6 +61,11 @@ export const AUDITED: Readonly<Record<string, string>> = {
     'Math.cos shapes the window a pulse is weighted by: a weight, continuous. Marks are ' +
     'placed by comparing the likeness of candidate places, which differ by far more ' +
     'than a last bit except where the sound is flat, where either place is as good.',
+  'packages/spectrum/src/timbre.ts':
+    'Math.log2 turns a peak into cents from its harmonic and a width into cents, and ' +
+    'the log10 of a ratio into dB: values to show and to compare by distance. The ' +
+    'only choice made from one is which peak within 40 cents of a harmonic is the ' +
+    'strongest, by comparing magnitudes, not these results.',
   'packages/spectrum/src/bands.ts':
     'Math.log2 counts the bands that fit between two frequencies, floored: at ' +
     'an exact boundary a band more or fewer is drawn, nothing is chosen from it, ' +
