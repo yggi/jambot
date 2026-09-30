@@ -60,7 +60,7 @@ function song() {
   return { host: host!, client: client!, hostSteps, clientSteps, hostBars, clientBars };
 }
 
-describe('a client following a host whose song changes meter (#261)', () => {
+describe('a client following a host whose song changes meter (T14, #261)', () => {
   const played = song();
 
   it('reaches the host’s clock: the same changes of meter', () => {

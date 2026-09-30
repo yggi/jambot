@@ -397,7 +397,7 @@ cite T14: 4/4 → 7/8 → 4/4 by hand, and every ordered pair of named meters at
 every quarter-step, read into bars and beats and back, and each bar its own
 meter's pulses. The transport plays it (#261): it lays each bar's steps from the clock of the
 bars composed so far and reads it back exactly, with the swing over each bar's
-own pulses. Test: `transport-meters.test.ts` (`packages/engine`), a song in
+own pulses, and `transport-meters.test.ts` (`packages/engine`), a song in
 4/4, 7/8 and 4/4 by section: the steps laid are the clock's positions, each note
 plays where the clock puts it, every played moment reads back to where it is
 written, a pulse start is never moved by swing, a stall that passes the change

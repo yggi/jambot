@@ -62,7 +62,7 @@ const named = (changes: readonly MeterChange[]) =>
     Object.entries(METERS).find(([, m]) => sameMeter(m, meter))![0],
   ]);
 
-describe('the transport over a song that changes meter (#261)', () => {
+describe('the transport over a song that changes meter (T14, #261)', () => {
   const swingless = play(0, 2000);
   const swung = play(1, 2000);
   const expected = clockOf([
