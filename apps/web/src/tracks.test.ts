@@ -3,7 +3,7 @@ import { playerSource } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
 import type { BarView, Hud, MotifView } from './hud.ts';
 import { EVEN_MIX, withLevel } from './mix.ts';
-import { EMPTY_PATTERN, PATTERN_BARS, type PatternBar } from './pattern.ts';
+import { BARS_BEHIND, EMPTY_PATTERN, PATTERN_BARS, type PatternBar } from './pattern.ts';
 import type { HumanNote } from './player.svelte.ts';
 import { type TracksInput, tracksOf } from './tracks.ts';
 
@@ -59,6 +59,7 @@ const input = (over: Partial<TracksInput> = {}): TracksInput => ({
   hud: hud(),
   sounding: none,
   pattern: [],
+  ahead: [],
   heard: null,
   humanNotes: [],
   playerId: null,
@@ -91,15 +92,34 @@ describe('the tracks', () => {
     ]);
   });
 
-  it('shows the bars of one phrase, the bar heard last, each note on its step from the first bar shown', () => {
+  it('centres the bars shown on the bar heard: two behind, it, and two ahead, each note on its step from the first bar shown', () => {
     const heard = 16 * 9 + 5;
-    const tracks = tracksOf(input({ pattern: bars(5, 10), heard }));
-    expect(tracks.first).toBe(9 - PATTERN_BARS + 1);
+    const tracks = tracksOf(input({ pattern: bars(5, 9), ahead: bars(9, 12), heard }));
+    expect(BARS_BEHIND).toBe(2);
+    expect(PATTERN_BARS).toBe(5);
+    expect(tracks.first).toBe(9 - BARS_BEHIND);
+    // Bars 7 and 8 as played, 9 to 11 foreseen; bars 5 and 6 are behind the window and 12 beyond it.
     expect(tracks.performers[0]!.notes).toEqual(
-      [0, 1, 2, 3].map((i) => ({ step: 16 * i, note: 36, length: 1 })),
+      [0, 1, 2, 3, 4].map((i) => ({ step: 16 * i, note: 36, length: 1 })),
     );
-    // Bar 10, scheduled but not yet heard, is left out; so is bar 5, before the phrase.
-    expect(tracks.performers[3]!.notes.map((n) => n.note)).toEqual([61, 62, 63, 64]);
+    expect(tracks.performers[3]!.notes.map((n) => n.note)).toEqual([62, 63, 60, 61, 62]);
+  });
+
+  it('draws the bar heard and those after it from the foreseen bars, and those before from what was played', () => {
+    const played = bars(7, 8, {
+      parts: { ...EMPTY_PATTERN, lead: [{ step: 0, note: 50, length: 1 }] },
+    });
+    const foreseen = bars(7, 11, {
+      parts: { ...EMPTY_PATTERN, lead: [{ step: 0, note: 70, length: 1 }] },
+    });
+    const tracks = tracksOf(input({ pattern: played, ahead: foreseen, heard: 16 * 9 }));
+    // Bars 7 and 8 are behind the bar heard (9): as played; bars 9 to 11: as foreseen.
+    expect(tracks.performers[3]!.notes.map((n) => n.note)).toEqual([50, 50, 70, 70, 70]);
+  });
+
+  it('falls back on the notes played for a bar not foreseen, and shows nothing for one neither has', () => {
+    const tracks = tracksOf(input({ pattern: bars(9, 9), ahead: [], heard: 16 * 9 }));
+    expect(tracks.performers[0]!.notes).toEqual([{ step: 32, note: 36, length: 1 }]);
   });
 
   it('fills the phrase from its first bar until a phrase has been heard', () => {
@@ -128,8 +148,8 @@ describe('the tracks', () => {
     const tracks = tracksOf(input({ pattern, heard: 16 * 9, players }));
     const credit = { source, name: "Ada's computer keys", colour: 1, bar: 6 };
     expect(tracks.performers[3]!.motifs).toEqual([
+      { at: 1, credit },
       { at: 2, credit },
-      { at: 3, credit },
     ]);
     for (const performer of tracks.performers.slice(0, 3)) expect(performer.motifs).toEqual([]);
   });
@@ -176,8 +196,8 @@ describe('the players’ lanes', () => {
       ['lead', 'the computer keys', 'the computer keys', 0],
       ['drums', 'the computer keys', 'the computer keys', 0],
     ]);
-    expect(tracks.players[1]!.notes).toEqual([{ step: 16 * 2 + 4, note: 67, length: 2 }]);
-    expect(tracks.players[3]!.notes).toEqual([{ step: 16 * 3 + 8, note: 36, length: 2 }]);
+    expect(tracks.players[1]!.notes).toEqual([{ step: 16 + 4, note: 67, length: 2 }]);
+    expect(tracks.players[3]!.notes).toEqual([{ step: 16 * 2 + 8, note: 36, length: 2 }]);
     expect(tracks.players.every((p) => !p.heardAs)).toBe(true);
   });
 
@@ -241,7 +261,7 @@ describe('the players’ lanes', () => {
     const tracks = tracksOf(
       input({
         humanNotes,
-        heard: 16 * 10,
+        heard: 16 * 9,
         hud: hud({
           muse: { motif: taken('the computer keys', 8), log: [], memory: [], quiet: null },
         }),
@@ -266,7 +286,7 @@ describe('the players’ lanes', () => {
           hud: hud({ muse: { motif, log: [], memory: [], quiet: null } }),
         }),
       ).players;
-    expect(at(16 * 10)).toEqual([
+    expect(at(16 * 9)).toEqual([
       {
         part: 'lead',
         source,

@@ -69,6 +69,7 @@ import {
   NO_HISTORY,
   foldBar,
   forecast,
+  foresight,
   holding,
   released,
   transport,
@@ -95,7 +96,7 @@ import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from 
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
-import { Pattern, type PatternBar } from './pattern.ts';
+import { PATTERN_BARS, Pattern, type PatternBar, patternBarOf } from './pattern.ts';
 import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
 import type { Metronome } from './metronome.svelte.ts';
 import { startTicker } from './ticker.ts';
@@ -239,6 +240,13 @@ export class Player {
   sounding: SoundingNotes = $state(SILENT);
   /** The band's last bars, each track's notes in each, and whose motif the lead played in it (`Pattern`). */
   pattern: readonly PatternBar[] = $state.raw([]);
+  /**
+   * The bars from the head on with their notes as they will play unless a
+   * control moves (`foresight`), renewed with the forecast: the tracks draw
+   * what is still to come from it. Empty on a client, which has only the bars
+   * its host sent as they arrive.
+   */
+  foreseen: readonly PatternBar[] = $state.raw([]);
   /**
    * Which of the band's performers this device sounds (`Mix`): this
    * device's alone, never sent to a session, and kept across songs.
@@ -622,6 +630,7 @@ export class Player {
     const from = Math.floor((first - 1) / SECTION_BARS) * SECTION_BARS;
     const kept = carried ? this.#bars.filter((b) => b.bar >= from && b.bar < first) : [];
     this.#bars = [...kept, ...fresh];
+    this.foreseen = foresight(this.#env, carried, PATTERN_BARS).map(patternBarOf);
     this.#decidedAt = carried?.nextBar ?? -1;
     this.hosting?.decided(this.#bars);
   }

@@ -23,12 +23,12 @@ import {
 const LOBBY = 'ws://localhost:4319';
 
 /**
- * Through the lobby's Advanced fold: the lobby server's address, given when
+ * Through the title card's settings: the lobby server's address, given when
  * the field is left, as a person does.
  */
 const useLobby = async (page: Page, lobby: string) => {
-  const fold = page.locator('details.advanced');
-  if ((await fold.getAttribute('open')) === null) await fold.getByText('Advanced').click();
+  const fold = page.locator('details[aria-label="Jambot"]');
+  if ((await fold.getAttribute('open')) === null) await fold.locator('summary').click();
   await page.getByLabel('Lobby server').fill(lobby);
   await page.getByLabel('Lobby server').blur();
 };
@@ -56,14 +56,15 @@ const joined = async (page: Page, name: string) => {
 /** Hosts a session at the lobby's door: locally, or, given a lobby server, globally. */
 const host = async (page: Page, session: string, lobby = '') => {
   if (lobby !== '') await useLobby(page, lobby);
-  await page.getByLabel('Session name').fill(session);
-  await page.getByRole('button', { name: lobby === '' ? 'Local' : 'Global' }).click();
+  await page.getByRole('textbox', { name: 'Session name' }).fill(session);
+  await page.getByRole('radio', { name: lobby === '' ? /Local/ : /Global/ }).click();
+  await page.getByRole('button', { name: 'Host', exact: true }).click();
   await expect(state(page)).toContainText('Hosting');
 };
 
 /** The button that joins a session listed at the door. */
 const listed = (page: Page, session: string) =>
-  page.getByRole('region', { name: 'Join a session' }).getByRole('button', { name: session });
+  page.locator('details[aria-label="Join a session"]').getByRole('button', { name: session });
 
 /** Joins a session listed at the lobby's door, as the name given. */
 const join = async (page: Page, session: string, name: string, lobby = '') => {
@@ -268,7 +269,7 @@ async function inStep(
   ).toEqual([]);
 
   await end(client, 'Leave session', 'Yes, leave');
-  await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   await expect(state(page)).toContainText('nobody has joined');
   expect(hostErrors).toEqual([]);
   expect(clientErrors).toEqual([]);
@@ -330,7 +331,7 @@ test('the door lists the sessions open with their players, local and global apar
 
   // The host closes: its client is back at the door, and told why.
   await end(page, 'Close session', 'Yes, close it');
-  await expect(other.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(other.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   await expect(other.getByRole('status')).toHaveText('The host closed the session.');
   await elsewhere.close();
 });
@@ -398,7 +399,7 @@ test('a session joined comes in on a fade, not at full volume, and leaving fades
   const leaving = record(client, 1500);
   const clicked = Date.now();
   await end(client, 'Leave session', 'Yes, leave');
-  await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   expect(Date.now() - clicked).toBeGreaterThanOrEqual(400);
   const { samples: after } = await leaving;
   expect(Math.max(...after.filter((s) => s.t > 1000).map((s) => s.level))).toBeLessThan(0.0005);
@@ -470,8 +471,8 @@ test('a second host cannot take a session name that is open', async ({ page, con
   const other = await context.newPage();
   await listen(other);
   await host(page, 'taken');
-  await other.getByLabel('Session name').fill('Taken ');
-  await other.getByRole('button', { name: 'Local' }).click();
+  await other.getByRole('textbox', { name: 'Session name' }).fill('Taken ');
+  await other.getByRole('button', { name: 'Host', exact: true }).click();
   await expect(other.getByText('A session named “Taken” is already open.')).toBeVisible();
 });
 
@@ -509,13 +510,13 @@ test('a host page that reloads keeps its session and its client, and a client pa
   // Leaving on purpose leaves nothing to come back to: the client's reload lands on the door.
   await end(client, 'Leave session', 'Yes, leave');
   await client.reload();
-  await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   await expect(sessionCard(client)).toHaveCount(0);
 
   // Nor does closing.
   await end(page, 'Close session', 'Yes, close it');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   await expect(sessionCard(page)).toHaveCount(0);
   await elsewhere.close();
 });

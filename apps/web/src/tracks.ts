@@ -7,10 +7,12 @@
  * the player plays alone, hosts, or follows a host
  * (`docs/briefs/host-mode.md`).
  *
- * The grid shows the last `PATTERN_BARS` bars, the bar heard last, with the
- * playhead on the step heard; until a phrase has been heard it fills from
- * the song's first bar. Every note is placed on its step from the first bar
- * shown.
+ * The grid shows `PATTERN_BARS` bars with the bar heard in the middle: two
+ * behind it as they were played, and it and two ahead as foreseen
+ * (`foresight`, from the player), with the playhead on the step heard. The bars
+ * jump on as the bar heard changes, and the playhead moves across them.
+ * Before anything is heard it shows the song from its first bar. Every note
+ * is placed on its step from the first bar shown.
  *
  * The loop of the Muse is drawn on it in the players' colours
  * (`attribution.ts`): the lead's bars that played a motif are credited to
@@ -27,7 +29,13 @@ import { playerSource, sourceName } from '@jambot/session';
 import { type Credit, credit, sourceColour } from './attribution.ts';
 import { type Hud, leadStatus, styleStatus } from './hud.ts';
 import { type Mix, level, sounds } from './mix.ts';
-import { PATTERN_BARS, type PatternBar, type PatternNote, playedIn } from './pattern.ts';
+import {
+  BARS_BEHIND,
+  PATTERN_BARS,
+  type PatternBar,
+  type PatternNote,
+  playedIn,
+} from './pattern.ts';
 import type { AlongPart, HumanNote } from './player.svelte.ts';
 import { type Performer, PERFORMERS, type SoundingNotes } from './sounding.ts';
 
@@ -100,6 +108,8 @@ export interface TracksInput {
   /** A session's players' names, by id. */
   readonly players: Readonly<Record<string, string>>;
   readonly mix: Mix;
+  /** The bars from the head on with their notes, foreseen. */
+  readonly ahead: readonly PatternBar[];
 }
 
 const LABELS: Readonly<Record<Performer, string>> = {
@@ -113,12 +123,19 @@ const PARTS: readonly AlongPart[] = ['lead', 'drums'];
 
 export function tracksOf(input: TracksInput): TracksView {
   const { hud, sounding, pattern, heard, players, mix } = input;
-  const first = heard === null ? 0 : Math.max(0, barAt(heard) - PATTERN_BARS + 1);
+  const now = heard === null ? 0 : barAt(heard);
+  const first = Math.max(0, now - BARS_BEHIND);
   const shown = (bar: number) => bar >= first && bar < first + PATTERN_BARS;
   /** Notes of `bar` placed from the first bar shown. */
   const placed = (bar: number, notes: readonly PatternNote[]) =>
     notes.map((n) => ({ ...n, step: n.step + (bar - first) * BAR_STEPS }));
-  const bars = pattern.filter((b) => shown(b.bar));
+  // The bars from the one heard on are the foreseen ones, whole; those before it are as they were played.
+  const bars = Array.from({ length: PATTERN_BARS }, (_, i) => first + i).flatMap((bar) => {
+    const found =
+      (bar >= now ? input.ahead.find((b) => b.bar === bar) : undefined) ??
+      pattern.find((b) => b.bar === bar);
+    return found ? [found] : [];
+  });
 
   const style = styleStatus(hud.style);
   const performers = PERFORMERS.map((performer) => ({

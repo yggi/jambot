@@ -157,8 +157,7 @@ export async function listen(page: Page, path = '/') {
 }
 
 /** Through the lobby's door into the band, playing alone. */
-export const solo = (page: Page) =>
-  page.getByRole('button', { name: 'Play with the band' }).click();
+export const solo = (page: Page) => page.getByRole('button', { name: 'Solo', exact: true }).click();
 
 export const starts = (page: Page) =>
   page.evaluate(() => (window as unknown as { starts: Start[] }).starts);

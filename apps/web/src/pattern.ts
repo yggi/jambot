@@ -16,12 +16,15 @@
  * in it, placed on the steps the Muse rounds them to.
  */
 
-import { barStart, heardInBar, heardStep, type HeardNote } from '@jambot/engine';
+import { type BandBar, barStart, heardInBar, heardStep, type HeardNote } from '@jambot/engine';
 import type { Attribution } from './attribution.ts';
-import type { Performer } from './sounding.ts';
+import { type Performer, performerOf } from './sounding.ts';
 
-/** How many bars the tracks show: one phrase. */
-export const PATTERN_BARS = 4;
+/** How many bars the tracks show: the bar heard in the middle, with as many behind it as ahead. */
+export const PATTERN_BARS = 5;
+
+/** How many of them come before the bar heard. */
+export const BARS_BEHIND = 2;
 
 export interface PatternNote {
   /** The step of the bar it starts on, 0–15. */
@@ -90,6 +93,21 @@ export class Pattern {
     this.#bars.clear();
     this.#offers.clear();
   }
+}
+
+/**
+ * A bar composed, or foreseen (`foresight`), as the tracks draw it: its
+ * notes under their performers, and the motif the lead plays in it.
+ */
+export function patternBarOf(bar: BandBar): PatternBar {
+  const parts = empty();
+  for (const { part, step, note, length } of bar.dough)
+    parts[performerOf(part)].push({ step, note, length });
+  return {
+    bar: bar.bar,
+    parts,
+    motif: bar.offer && { source: bar.offer.source, bar: bar.offer.bar },
+  };
 }
 
 /**

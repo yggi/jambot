@@ -73,10 +73,10 @@ describe('the play card', () => {
 
   it('shows the track chosen and its instrument, and the other’s in its place when it is chosen', async () => {
     draw(tracks());
-    expect(lanes()).toEqual(['Lead track, bars 7 to 10']);
+    expect(lanes()).toEqual(['Lead track, bars 7 to 11']);
     expect(screen.getByText('the lead instrument')).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('radio', { name: 'Drums' }));
-    expect(lanes()).toEqual(['Drums track, bars 7 to 10']);
+    expect(lanes()).toEqual(['Drums track, bars 7 to 11']);
     expect(screen.getByText('the drums instrument')).toBeInTheDocument();
     expect(screen.queryByText('the lead instrument')).toBeNull();
   });
@@ -104,12 +104,12 @@ describe('the play card', () => {
   describe('its rows', () => {
     it('are the track chosen alone until the player plays on the other', () => {
       draw(tracks({ players: [own('lead')] }));
-      expect(lanes()).toEqual(['Lead track, bars 7 to 10']);
+      expect(lanes()).toEqual(['Lead track, bars 7 to 11']);
     });
 
     it('are both tracks, the lead first and the drums second, when the player has played on both', () => {
       draw(tracks({ players: [own('drums'), own('lead')] }));
-      expect(lanes()).toEqual(['Lead track, bars 7 to 10', 'Drums track, bars 7 to 10']);
+      expect(lanes()).toEqual(['Lead track, bars 7 to 11', 'Drums track, bars 7 to 11']);
       expect(screen.getAllByText(/instrument$/).map((p) => p.textContent)).toEqual([
         'the lead instrument',
         'the drums instrument',
@@ -119,12 +119,12 @@ describe('the play card', () => {
     it('are both when the drums are chosen and the player has played the lead, in the same order', async () => {
       draw(tracks({ players: [own('lead')] }));
       await fireEvent.click(screen.getByRole('radio', { name: 'Drums' }));
-      expect(lanes()).toEqual(['Lead track, bars 7 to 10', 'Drums track, bars 7 to 10']);
+      expect(lanes()).toEqual(['Lead track, bars 7 to 11', 'Drums track, bars 7 to 11']);
     });
 
     it('do not count another player’s cell as this player’s playing', () => {
       draw(tracks({ players: [own('drums', { local: false, heardAs: true })] }));
-      expect(lanes()).toEqual(['Lead track, bars 7 to 10']);
+      expect(lanes()).toEqual(['Lead track, bars 7 to 11']);
     });
   });
 
@@ -174,5 +174,20 @@ describe('the play card', () => {
       await rerender({ held: { lead: false, drums: true } });
       expect(container.querySelector('summary svg.glyph')).toHaveClass('lit');
     });
+  });
+
+  it('unfolds its details when a track is chosen, after a person folded them', async () => {
+    const { container } = render(Play, {
+      tracks: tracks(),
+      instrument,
+      held: { lead: false, drums: false },
+    });
+    const card = screen.getByLabelText('Play');
+    await fireEvent.click(container.querySelector('summary .title')!);
+    expect(card).not.toHaveAttribute('open');
+    // The details element reports its change in a task of its own.
+    await new Promise((resolve) => setTimeout(resolve));
+    await fireEvent.click(screen.getByRole('radio', { name: 'Drums' }));
+    expect(card).toHaveAttribute('open');
   });
 });

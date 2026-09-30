@@ -53,3 +53,28 @@ export function velocityFor(mix: Mix, performer: Performer, velocity: number): n
   const at = level(mix, performer);
   return at === 0 ? 0 : Math.max(1, Math.round(velocity * at));
 }
+
+/**
+ * The level a fader shows for `performer`: its setpoint while it sounds, and
+ * none while it doesn't, muted or left out of a solo. The setpoint is kept
+ * (`level`), so unmuting or ending the solo moves the fader back to it.
+ */
+export const shown = (mix: Mix, performer: Performer): number =>
+  sounds(mix, performer) ? level(mix, performer) : 0;
+
+/**
+ * `mix` with `performer`'s fader dragged to `value`: its setpoint is set, and
+ * a fader brought up is a track brought in, so it is unmuted, and joins the
+ * solo where there is one.
+ */
+export function raised(mix: Mix, performer: Performer, value: number): Mix {
+  const set = withLevel(mix, performer, value);
+  return {
+    ...set,
+    muted: set.muted.filter((p) => p !== performer),
+    soloed:
+      set.soloed.length > 0 && !set.soloed.includes(performer)
+        ? PERFORMERS.filter((p) => p === performer || set.soloed.includes(p))
+        : set.soloed,
+  };
+}

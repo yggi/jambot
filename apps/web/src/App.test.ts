@@ -9,7 +9,7 @@ import { FADE_OUT } from './device.svelte.ts';
 /** The page past its door: solo chosen, the band behind it. */
 async function renderBand() {
   const rendered = render(App);
-  await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Solo' }));
   return rendered;
 }
 
@@ -24,29 +24,28 @@ describe('the app', () => {
     it('meets a cold start with the lobby, not the band: a name made up, solo, join and host', () => {
       render(App);
       expect(screen.getByLabelText('Your name')).not.toHaveValue('');
-      expect(screen.getByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Join a session' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Local' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Global' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Join a session')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Host' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Start the band' })).toBeNull();
     });
 
     it('keeps the sound card in reach, on both sides of the door', async () => {
       render(App);
       expect(screen.getByLabelText('Sound')).toBeInTheDocument();
-      await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+      await fireEvent.click(screen.getByRole('button', { name: 'Solo' }));
       expect(screen.getByLabelText('Sound')).toBeInTheDocument();
     });
 
     it('goes back to the lobby from solo, and a reload from solo lands on the door', async () => {
       const { unmount } = await renderBand();
       await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
-      expect(screen.getByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Start the band' })).toBeNull();
-      await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+      await fireEvent.click(screen.getByRole('button', { name: 'Solo' }));
       unmount();
       render(App);
-      expect(screen.getByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
     });
 
     it('opens the timing test from the lobby, takes a key press for a tap, and goes back', async () => {
@@ -59,6 +58,7 @@ describe('the app', () => {
       );
       onTestFinished(() => void vi.unstubAllGlobals());
       render(App);
+      await fireEvent.click(screen.getByText('Extras'));
       await fireEvent.click(screen.getByRole('button', { name: 'Timing test' }));
       expect(screen.getByRole('region', { name: 'Timing test' })).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Join a session' })).toBeNull();
@@ -69,7 +69,7 @@ describe('the app', () => {
       await fireEvent.keyDown(window, { key: 'Enter' });
       expect(screen.getByText('No hit near that tap')).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
-      expect(screen.getByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Tap along' })).toBeNull();
     });
 
@@ -83,13 +83,13 @@ describe('the app', () => {
       onTestFinished(() => void vi.unstubAllGlobals());
       render(App);
       await fireEvent.input(screen.getByLabelText('Session name'), { target: { value: 'Garage' } });
-      await fireEvent.click(screen.getByRole('button', { name: 'Local' }));
+      await fireEvent.click(screen.getByRole('button', { name: 'Host' }));
       expect(await screen.findByText(/nobody has joined/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Close session' }));
       expect(screen.getByRole('alertdialog')).toHaveTextContent('Close Garage?');
       await fireEvent.click(screen.getByRole('button', { name: 'Yes, close it' }));
-      expect(await screen.findByRole('button', { name: 'Play with the band' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Solo' })).toBeInTheDocument();
       expect(localStorage.getItem('jambot:host-session')).toBeNull();
     });
 
@@ -108,10 +108,10 @@ describe('the app', () => {
       const bus = () => fake.gains.filter((g) => g.connections.includes(fake.compressors[0]));
       await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
       // The band plays on while it fades: the door has not come yet.
-      expect(screen.queryByRole('button', { name: 'Play with the band' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Solo' })).toBeNull();
       expect(bus()[0]!.gain.events.at(-1)).toEqual(['setTargetAtTime', 0, 0, FADE_OUT / 4]);
       expect(
-        await screen.findByRole('button', { name: 'Play with the band' }, { timeout: 2000 }),
+        await screen.findByRole('button', { name: 'Solo' }, { timeout: 2000 }),
       ).toBeInTheDocument();
       // What plays next opens at the volume again, not at the silence the fade left.
       expect(bus().at(-1)!.gain.events.at(-1)).toEqual(['setValueAtTime', 0.8, 0]);
@@ -122,7 +122,7 @@ describe('the app', () => {
       await fireEvent.input(screen.getByRole('slider', { name: /^Volume/ }), {
         target: { value: '40' },
       });
-      await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+      await fireEvent.click(screen.getByRole('button', { name: 'Solo' }));
       expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
       unmount();
       render(App);
@@ -140,7 +140,7 @@ describe('the app', () => {
 
   it('offers the band, the presets and the style sliders', async () => {
     await renderBand();
-    expect(screen.getByRole('heading', { name: 'Jambot' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Jambot')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
     for (const p of PRESETS)
       expect(screen.getByRole('radio', { name: p.name })).toBeInTheDocument();
@@ -210,12 +210,12 @@ describe('the app', () => {
     expect(screen.getByRole('radio', { name: 'Techno' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('links to the prototype for what it does not do yet: the score and the Muse’s judgement', async () => {
+  it('signs the page in its footer, on the band’s screen and at the lobby', async () => {
     await renderBand();
-    expect(screen.getByRole('link', { name: 'prototype' })).toHaveAttribute(
-      'href',
-      '/prototype.html',
+    expect(screen.getByRole('contentinfo')).toHaveTextContent(
+      'all rites reversed kallisti collective, 3192 YOLD',
     );
+    expect(screen.queryByRole('link', { name: 'prototype' })).toBeNull();
   });
 
   it('shows the timing panel only with ?timing in the address, and exports it as a file (#27)', async () => {

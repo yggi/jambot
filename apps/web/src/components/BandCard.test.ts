@@ -61,12 +61,12 @@ describe('the band', () => {
     );
     const lanes = screen.getAllByRole('img').map((l) => l.getAttribute('aria-label'));
     expect(lanes).toEqual([
-      'Drums, bars 7 to 10',
-      "Ada's drum pads, bars 7 to 10",
-      'Bass, bars 7 to 10',
-      'Chords, bars 7 to 10',
-      'Lead, bars 7 to 10',
-      "Ada's computer keys, bars 7 to 10",
+      'Drums, bars 7 to 11',
+      "Ada's drum pads, bars 7 to 11",
+      'Bass, bars 7 to 11',
+      'Chords, bars 7 to 11',
+      'Lead, bars 7 to 11',
+      "Ada's computer keys, bars 7 to 11",
     ]);
   });
 
@@ -77,6 +77,7 @@ describe('the band', () => {
       '8',
       '9',
       '10',
+      '11',
     ]);
   });
 
@@ -119,6 +120,21 @@ describe('the band', () => {
     expect(screen.queryByRole('group', { name: 'On-screen keyboard' })).toBeNull();
   });
 
+  it('shows each performer’s track first, its faders only once the volume glyph is pressed, and back', async () => {
+    draw(tracks());
+    expect(screen.queryByRole('slider')).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Show Bass faders' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await fireEvent.click(toggle);
+    expect(screen.getByRole('slider', { name: 'Bass volume' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Bass, bars 7 to 11' })).toBeNull();
+    // The other tracks keep their lanes: one pill opens, not all.
+    expect(screen.getByRole('img', { name: 'Drums, bars 7 to 11' })).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('button', { name: 'Show Bass track' }));
+    expect(screen.queryByRole('slider')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Bass, bars 7 to 11' })).toBeInTheDocument();
+  });
+
   it('gives each performer a volume slider, showing its level and setting it', async () => {
     const onlevel = vi.fn();
     draw(
@@ -128,6 +144,8 @@ describe('the band', () => {
       vi.fn(),
       onlevel,
     );
+    await fireEvent.click(screen.getByRole('button', { name: 'Show Drums faders' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Show Bass faders' }));
     expect(screen.getByRole('slider', { name: 'Drums volume' })).toHaveValue('100');
     const bass = screen.getByRole('slider', { name: 'Bass volume' });
     expect(bass).toHaveValue('40');
@@ -135,11 +153,27 @@ describe('the band', () => {
     expect(onlevel).toHaveBeenCalledWith('bass', 0.75);
   });
 
-  it('draws tall lanes, with room for the notes', () => {
-    const { container } = draw(tracks());
-    const lanes = [...container.querySelectorAll('svg.lane')];
-    expect(lanes.length).toBeGreaterThan(0);
-    expect(lanes[0]).toHaveClass('tall');
+  it('moves the fader to none while its track is muted or left out of a solo', async () => {
+    draw(
+      tracks({
+        performers: [
+          performer('drums', 'Drums', { level: 0.8, muted: true, sounds: false }),
+          performer('bass', 'Bass', { level: 0.4, sounds: false }),
+          performer('lead', 'Lead', { level: 0.6, soloed: true }),
+        ],
+      }),
+    );
+    for (const name of ['Drums', 'Bass', 'Lead'])
+      await fireEvent.click(screen.getByRole('button', { name: `Show ${name} faders` }));
+    expect(screen.getByRole('slider', { name: 'Drums volume' })).toHaveValue('0');
+    expect(screen.getByRole('slider', { name: 'Bass volume' })).toHaveValue('0');
+    expect(screen.getByRole('slider', { name: 'Lead volume' })).toHaveValue('60');
+  });
+
+  it('draws every track as one row of the same height, in one stack', () => {
+    const { container } = draw(tracks({ players: [lane()] }));
+    expect(container.querySelectorAll('.pill')).toHaveLength(5);
+    expect(container.querySelector('svg.lane.tall')).toBeNull();
   });
 
   it('draws a small roll of the performers as its glyph, with the playhead', () => {
@@ -151,6 +185,7 @@ describe('the band', () => {
   it('mutes and solos a band performer on this device, and shows which are', async () => {
     const ontoggle = vi.fn();
     draw(tracks({ performers: [performer('bass', 'Bass', { muted: true })] }), ontoggle);
+    await fireEvent.click(screen.getByRole('button', { name: 'Show Bass faders' }));
     const mute = screen.getByRole('button', { name: 'Mute Bass' });
     const solo = screen.getByRole('button', { name: 'Solo Bass' });
     expect(mute).toHaveAttribute('aria-pressed', 'true');
@@ -192,14 +227,14 @@ describe('the band', () => {
     const { container } = draw(tracks({ players: [lane({ taken: 1 })] }));
     const taken = container.querySelector('rect.taken') as SVGElement;
     expect(taken.style.stroke).toBe('var(--source-1)');
-    expect(Number(taken.getAttribute('x'))).toBeCloseTo(160 + 1);
+    expect(Number(taken.getAttribute('x'))).toBeCloseTo(128 + 1);
   });
 
   it('puts the playhead on the step heard, in every lane', () => {
     const { container } = draw(tracks({ players: [lane()] }));
     const heads = [...container.querySelectorAll('line.playhead')];
     expect(heads).toHaveLength(5);
-    for (const head of heads) expect(Number(head.getAttribute('x1'))).toBeCloseTo((40 / 64) * 640);
+    for (const head of heads) expect(Number(head.getAttribute('x1'))).toBeCloseTo((40 / 80) * 640);
   });
 
   it('draws no playhead before anything is heard', () => {

@@ -346,5 +346,24 @@ describe('the key picker', () => {
       expect(aeolian).toMatchObject({ lit: 7, labels: 0, buttons: 0 });
       expect(glyph({ tonic: 7, mode: 'aeolian' }).ring).not.toBe(aeolian.ring);
     });
+
+    it('draws the harmonic history as a radar under the wheel of its glyph, and none before there is any', () => {
+      const radar = (history: readonly number[]) => {
+        const { container, unmount } = render(KeyPicker, {
+          ...base,
+          heading: { tonic: 9, mode: 'aeolian' as const },
+          heard: aMinor,
+          history,
+        });
+        const path = container.querySelector('summary .glyph path.history');
+        const d = path?.getAttribute('d') ?? null;
+        unmount();
+        return d;
+      };
+      expect(radar(NO_HISTORY)).toBeNull();
+      const played = radar([3, 0, 1, 0, 2, 1, 0, 3, 0, 2, 0, 1])!;
+      expect(played).toMatch(/^M/);
+      expect(radar([1, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0])).not.toBe(played);
+    });
   });
 });

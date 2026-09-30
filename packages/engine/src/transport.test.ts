@@ -30,6 +30,7 @@ import {
   type TransportOutput,
   bandEnvAt,
   forecast,
+  foresight,
   transport,
   transportOver,
   writtenAt,
@@ -728,5 +729,39 @@ describe('the forecast from the transport', () => {
       expect(bars.map((b) => b.bar)).toEqual(range(12).map((i) => head + i));
       for (const b of bars) if (composed.has(b.bar)) expect(b).toEqual(played(b.bar));
     }
+  });
+});
+
+describe('the foresight from the transport', () => {
+  it('is the bars from the head on with their notes: the bars composed, then what the band composes next, exactly', () => {
+    let carried = transport.initial;
+    const composed = new Map<number, BandBar>();
+    const looks: { from: number; bars: BandBar[] }[] = [];
+    ticks(0.9, 700, 0.1).forEach((input, i) => {
+      const next = transport.advance(env(), carried, input);
+      carried = next.carried;
+      for (const b of next.output.composed) composed.set(b.bar, b);
+      if (i % 100 === 0) looks.push({ from: carried!.nextBar, bars: foresight(env(), carried, 6) });
+    });
+    let compared = 0;
+    for (const { bars } of looks) {
+      expect(bars).toHaveLength(6);
+      bars.forEach((b, i) => expect(b.bar).toBe(bars[0]!.bar + i));
+      for (const b of bars) {
+        const there = composed.get(b.bar);
+        if (!there) continue;
+        expect(b.dough, `bar ${b.bar}`).toEqual(there.dough);
+        compared++;
+      }
+    }
+    expect(compared).toBeGreaterThan(20);
+  });
+
+  it('is the song from its first bar before the start, and leaves the transport as it was', () => {
+    const bars = foresight(env(), null, 5);
+    expect(bars.map((b) => b.bar)).toEqual([0, 1, 2, 3, 4]);
+    expect(bars[0]!.dough.length).toBeGreaterThan(0);
+    const composed = run(env(), ticks(0.9, 60, 0.1)).outputs.flatMap((o) => o.composed);
+    for (const b of composed) expect(b.dough).toEqual(bars[b.bar]?.dough ?? b.dough);
   });
 });

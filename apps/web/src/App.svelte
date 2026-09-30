@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import Card from './components/Card.svelte';
+  import TitleCard from './components/TitleCard.svelte';
   import Fader from './components/Fader.svelte';
   import SoundPanel from './components/SoundPanel.svelte';
   import Equalizer from './components/glyphs/Equalizer.svelte';
@@ -18,7 +19,8 @@
   import { Instruments } from './instruments.svelte.ts';
   import { Metronome } from './metronome.svelte.ts';
   import { Player } from './player.svelte.ts';
-  import { Profile } from './profile.svelte.ts';
+  import { Profile, randomSessionName } from './profile.svelte.ts';
+  import { Theme } from './theme.svelte.ts';
   import { equalizerLevels, soundSummary } from './sound.ts';
   import { screenOf } from './screen.ts';
   import { broadcastLobby } from './session/broadcast.ts';
@@ -42,6 +44,7 @@
   const player = new Player(device.surroundings, metronome);
   const instruments = new Instruments(player, device);
   const profile = new Profile();
+  const theme = new Theme();
   const sessions = new Sessions(player, device.clocks, {
     tabs: broadcastLobby(),
     server: websocketLobby,
@@ -268,10 +271,12 @@
 {/snippet}
 
 <main>
-  <header>
-    <h1>Jambot</h1>
-    <p>You play, the Muse listens, the band answers.</p>
-  </header>
+  <TitleCard
+    theme={theme.name}
+    ontheme={(name) => (theme.name = name)}
+    address={sessions.address}
+    onaddress={(url) => (sessions.address = url)}
+  />
 
   <Card
     title="Sound"
@@ -318,8 +323,8 @@
       name={profile.name}
       onname={(name) => (profile.name = name)}
       onsettle={() => profile.settle()}
-      address={sessions.address}
-      onaddress={(url) => (sessions.address = url)}
+      onregenerate={() => profile.regenerate()}
+      suggest={randomSessionName}
       {found}
       joining={clientSession.status === 'joining'}
       notice={sessions.ended}
@@ -335,6 +340,13 @@
       <TimingPanel report={timing} onexport={exportTiming} />
     </div>
   {/if}
+  <footer>
+    <span>all rites reversed</span>
+    <svg class="pentagon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <polygon points="10,2 18,8 15,17.5 5,17.5 2,8" />
+    </svg>
+    <span>kallisti collective, 3192 YOLD</span>
+  </footer>
 </main>
 
 <style>
@@ -342,25 +354,43 @@
     max-width: 720px;
     margin: 0 auto;
     padding: 14px;
-    display: grid;
-    gap: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* The footer stays at the window's bottom where the content doesn't fill it. */
+    min-height: 100dvh;
+  }
+  /* A phone on its side: tighter, so more of the cards show at once. */
+  @media (max-height: 500px) {
+    main {
+      padding: 8px 14px;
+    }
   }
   main > * {
     min-width: 0;
   }
-  header {
+  footer {
+    margin-top: auto;
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .pentagon {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linejoin: round;
   }
   .settings {
     display: grid;
     gap: 8px;
     min-width: 0;
   }
-  header p,
   .message {
     color: var(--muted);
     font-size: 14px;

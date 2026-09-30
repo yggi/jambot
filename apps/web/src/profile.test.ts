@@ -1,6 +1,14 @@
 import { SESSION_NAME_MAX } from '@jambot/session';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ADJECTIVES, ANIMALS, NAME_KEY, Profile, randomName } from './profile.svelte.ts';
+import {
+  ADJECTIVES,
+  ANIMALS,
+  NAME_KEY,
+  PLACES,
+  Profile,
+  randomName,
+  randomSessionName,
+} from './profile.svelte.ts';
 
 describe('a player’s name', () => {
   afterEach(() => localStorage.clear());
@@ -60,5 +68,37 @@ describe('a player’s name', () => {
     } finally {
       Object.defineProperty(window, 'localStorage', refused);
     }
+  });
+});
+
+describe('a session’s made-up name', () => {
+  it('is every adjective with every place, each within a session’s name length, given a draw', () => {
+    const seen = new Set<string>();
+    for (let a = 0; a < ADJECTIVES.length; a++)
+      for (let n = 0; n < PLACES.length; n++) {
+        const draws = [(a + 0.5) / ADJECTIVES.length, (n + 0.5) / PLACES.length];
+        const name = randomSessionName(() => draws.shift()!);
+        expect(name).toBe(`${ADJECTIVES[a]} ${PLACES[n]}`);
+        expect(name.length).toBeLessThanOrEqual(SESSION_NAME_MAX);
+        seen.add(name);
+      }
+    expect(seen.size).toBe(ADJECTIVES.length * PLACES.length);
+  });
+
+  it('keeps the edge of a draw inside the lists', () => {
+    expect(randomSessionName(() => 0.9999999)).toBe(`${ADJECTIVES.at(-1)} ${PLACES.at(-1)}`);
+  });
+});
+
+describe('regenerating a name', () => {
+  afterEach(() => localStorage.clear());
+
+  it('makes up another and keeps it', () => {
+    const draws = [0, 0, 0.9999, 0.9999];
+    const profile = new Profile(() => draws.shift()!);
+    expect(profile.name).toBe(`${ADJECTIVES[0]} ${ANIMALS[0]}`);
+    profile.regenerate();
+    expect(profile.name).toBe(`${ADJECTIVES.at(-1)} ${ANIMALS.at(-1)}`);
+    expect(localStorage.getItem(NAME_KEY)).toBe(profile.name);
   });
 });

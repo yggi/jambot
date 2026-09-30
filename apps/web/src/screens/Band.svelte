@@ -21,7 +21,7 @@
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
-  import { toggled, withLevel } from '../mix.ts';
+  import { raised, toggled } from '../mix.ts';
   import type { Player } from '../player.svelte.ts';
   import { tracksOf } from '../tracks.ts';
 
@@ -48,6 +48,7 @@
       hud: player.hud,
       sounding: player.sounding,
       pattern: player.pattern,
+      ahead: player.foreseen,
       heard: player.heard,
       humanNotes: player.humanNotes,
       playerId: player.playerId,
@@ -55,8 +56,6 @@
       mix: player.mix,
     }),
   );
-
-  const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
 </script>
 
 <Session
@@ -123,7 +122,7 @@
   <BandCard
     {tracks}
     ontoggle={(which, performer) => (player.mix = toggled(player.mix, which, performer))}
-    onlevel={(performer, level) => (player.mix = withLevel(player.mix, performer, level))}
+    onlevel={(performer, level) => (player.mix = raised(player.mix, performer, level))}
   />
 </Level>
 
@@ -159,15 +158,3 @@
     onforget={() => player.forgetMotif()}
   />
 </Level>
-
-<p class="note">The score is still in the <a href={prototypeUrl}>prototype</a>.</p>
-
-<style>
-  .note {
-    color: var(--muted);
-    font-size: 14px;
-  }
-  a {
-    color: var(--amber);
-  }
-</style>

@@ -1,6 +1,16 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { EVEN_MIX, type Mix, level, sounds, toggled, velocityFor, withLevel } from './mix.ts';
+import {
+  EVEN_MIX,
+  type Mix,
+  level,
+  raised,
+  shown,
+  sounds,
+  toggled,
+  velocityFor,
+  withLevel,
+} from './mix.ts';
 import { PERFORMERS, type Performer } from './sounding.ts';
 
 /** Every subset of the performers. */
@@ -82,6 +92,50 @@ describe('the local mix', () => {
       const mix = withLevel(EVEN_MIX, 'lead', 0.5);
       expect(velocityFor(mix, 'lead', 100)).toBe(50);
       expect(velocityFor(mix, 'bass', 100)).toBe(100);
+    });
+  });
+
+  describe('what a fader shows', () => {
+    it('is the setpoint while a performer sounds, and none while it is muted, for every performer', () => {
+      for (const performer of PERFORMERS) {
+        const set = withLevel(EVEN_MIX, performer, 0.6);
+        expect(shown(set, performer)).toBe(0.6);
+        const muted = toggled(set, 'muted', performer);
+        expect(shown(muted, performer)).toBe(0);
+        expect(shown(toggled(muted, 'muted', performer), performer)).toBe(0.6);
+      }
+    });
+
+    it('moves the others’ faders to none while one is soloed, and back to their setpoints when it is not', () => {
+      const set = withLevel(withLevel(EVEN_MIX, 'bass', 0.4), 'lead', 0.8);
+      const solo = toggled(set, 'soloed', 'lead');
+      expect(shown(solo, 'lead')).toBe(0.8);
+      for (const other of PERFORMERS.filter((p) => p !== 'lead'))
+        expect(shown(solo, other)).toBe(0);
+      const back = toggled(solo, 'soloed', 'lead');
+      expect(shown(back, 'bass')).toBe(0.4);
+      expect(shown(back, 'drums')).toBe(1);
+    });
+  });
+
+  describe('dragging a fader', () => {
+    it('sets the setpoint and unmutes the performer', () => {
+      const muted = toggled(EVEN_MIX, 'muted', 'bass');
+      const raised_ = raised(muted, 'bass', 0.5);
+      expect(raised_.muted).toEqual([]);
+      expect(shown(raised_, 'bass')).toBe(0.5);
+    });
+
+    it('brings a performer left out of a solo into it, and leaves the others', () => {
+      const solo = toggled(EVEN_MIX, 'soloed', 'lead');
+      const mix = raised(solo, 'bass', 0.7);
+      expect(mix.soloed).toEqual(['bass', 'lead']);
+      expect(shown(mix, 'bass')).toBe(0.7);
+      expect(shown(mix, 'drums')).toBe(0);
+    });
+
+    it('starts no solo where there is none', () => {
+      expect(raised(EVEN_MIX, 'bass', 0.3).soloed).toEqual([]);
     });
   });
 });
