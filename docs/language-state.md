@@ -33,13 +33,15 @@ first. `band.test.ts`, "carries register into the bass and the comp, but a
 phrase into the lead: what a resumed band loses (S2)": over 80 resumptions, the
 bass and the comp play the same rhythm and pitch classes, in another register;
 the lead differs in more than half.
-The bass's register is written at its bar: `frame bass=E2` states the note the next bass note is nearest to (the carried `last`, before an octave jump).
-`seam.test.ts` (`packages/score`), "plays the same bass cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, another register (S2)": 80 resumptions given their frame play every note, where the same bars resumed without it play another register, the same pitch classes; `score.test.ts`, "compiles a bar from its own text, with no state before it: the register is in the frame, so cold equals warm (S2)".
-The comp's voicing is written the same way: `frame comp=C4,E4,G4` states the voicing the bar leads its first chord from, and a frame with no `comp=` leads from nothing.
-`seam.test.ts`, "plays the same comp cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, other inversions of the same chords (S2)"; `score.test.ts`, "voices each chord close from the one before it, the first from the frame: the same chords from another voicing are other notes (S2)".
+A sheet leaves the octave and the inversion to the player, so the score pins a hand only where it is not the default: `frame bass=28 comp=12,16,19` states the register the bass reads from (the carried `last`, before an octave jump) and the voicing the comp leads its first chord from.
+Each is an integer above the tonic at or below the part's floor, 33 for the bass and 50 for the comp, so a pin moves with the key.
+A bar whose hand is the default, the bass's E2 and the comp's nothing, states no pin, and a text without one compiles to a performance from that default, which differs from the band's only in register and inversion.
+`seam.test.ts` (`packages/score`), "plays the same bass cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, another register (S2)": 80 resumptions given their pin play every note, where the same bars resumed without it play another register, the same pitch classes; "plays the same comp cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, other inversions of the same chords (S2)".
+`score.test.ts`, "compiles a bar from its own text, with no state before it: the register is the default or in the frame, so cold equals warm (S2)", "pins a register other than the default in a frame, counted from the tonic at or below the bass’s floor, so the pin moves with the key (S2, U6)" and "voices each chord close from the one before it, the first from the frame: the same chords from another voicing are other notes (S2)".
 The lead's phrase is still open (#265).
 Source: T5, S1, #40's review, #37 step 5. Status: measured, failing
-(prototype); measured (the port's carried state, and the bass's frame). Lands
+(prototype); measured (the port's carried state, and the bass's and the comp's pins).
+Decided: the owner, ahead of the evidence: the frame is a pin counted from the tonic, and a text without one compiles from the default hand. Lands
 in: #13, #264, #265.
 
 **S3. A performer's own draw never keys on what a resumed band may still differ

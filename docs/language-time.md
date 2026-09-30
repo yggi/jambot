@@ -182,7 +182,7 @@ state every field of the bar's plan and chords that its parts read, the section,
 the key, the theme's kind, the style and each chord's step, slot and whether it
 is raised, and `barInSection` and `barEnergy` follow from them. The theme's own
 index is not stated, and the lead reads it to keep each theme's melody (S2).
-The bass's and the comp's carried state is in the frame (#263, #264), and a
+The bass's and the comp's carried state is a pin in the frame (#263, #264), and a
 stab that leads into the next bar's chord states it in a `next` line, in that
 bar's own key, which `seam.test.ts` shows is another chord in this bar's key
 over a key change; open for the lead's (S2). Source: Strudel's query model,
