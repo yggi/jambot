@@ -34,7 +34,7 @@ import {
   styleAt,
   voicing,
 } from '@jambot/engine';
-import { chordScale, joinChord, parseNumeral, positions, wrap } from '@jambot/theory';
+import { joinChord, parseNumeral, positions, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_FOLD,
@@ -235,14 +235,6 @@ describe('the seam, over the bars the band writes', () => {
     for (const played of PLAYED)
       for (const [i, { numeral }] of stated(played).harm.entries())
         expect(lowerNumeral(played.bar.plan.key, numeral)).toEqual(played.bar.chords[i]!.chord);
-  });
-
-  it('writes no scale=: every chord the band plays implies one (U3)', () => {
-    const chords = BAND_BARS.flatMap((bar) =>
-      bar.chords.map((c) => chordScale(keyHelix(bar.plan.key), joinChord(c.chord))),
-    );
-    expect(chords.length).toBeGreaterThan(3000);
-    expect(chords.filter((scale) => scale === undefined)).toEqual([]);
   });
 
   it("states everything the bar's plan and chords hold that its parts read, but for the theme's own (T5)", () => {

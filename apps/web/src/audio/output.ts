@@ -56,6 +56,12 @@ export interface Output {
     { readonly contextTime: number; readonly performanceTime: number } | undefined;
   /** What the audio context states of itself, for a record of how a device sounded: its sample rate and latencies, in seconds. */
   info?(): { sampleRate: number; baseLatency: number | null; outputLatency: number | null };
+  /**
+   * What the synth has sounded so far, before it reaches the speakers: its
+   * audio context and the node a listener can connect to. The tuner reads it,
+   * to hear the synth as it hears a microphone.
+   */
+  tap?(): { readonly context: AudioContext; readonly node: AudioNode };
   /** Playback's start time, once known, before the first step plays. */
   starting?(seconds: number): void;
   /** The steps scheduled this tick, for anything that needs the grid rather than single notes. */
@@ -87,6 +93,7 @@ export function webAudioOutput(): Output {
       return ctx.outputLatency || ctx.baseLatency || 0;
     },
     resume: () => ctx.resume(),
+    tap: () => ({ context: ctx, node: out }),
     info: () => ({
       sampleRate: ctx.sampleRate,
       baseLatency: ctx.baseLatency ?? null,

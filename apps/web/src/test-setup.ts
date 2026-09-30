@@ -7,3 +7,6 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+
+// jsdom draws nothing, and says so on every canvas: a test that looks at the drawing spies on this.
+if (typeof HTMLCanvasElement !== 'undefined') HTMLCanvasElement.prototype.getContext = () => null;

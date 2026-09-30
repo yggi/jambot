@@ -3,18 +3,38 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tone, world } from '../tune/fixtures.ts';
 import { TICK_MS, Tuner } from '../tune/tuner.svelte.ts';
 import { MicDenied } from '../tune/mic.ts';
+import { ToneSender } from '../tune/sender.svelte.ts';
 import TuneScreen from './Tune.svelte';
 
-function shown(signal = tone(440)) {
+/** A sender with two MIDI ports, each keeping what it is sent, and a synth that keeps its notes. */
+function senders(ports = ['a', 'b']) {
+  const sent: Record<string, (readonly number[])[]> = Object.fromEntries(
+    ports.map((id) => [id, []]),
+  );
+  const synth = { notes: [] as number[], silenced: 0 };
+  const sender = new ToneSender({
+    ports: () => ports.map((id) => ({ id, name: `Port ${id}` })),
+    port: (id) => (id in sent ? { send: (data) => void sent[id]!.push(data) } : null),
+    synth: () => ({
+      currentTime: 0,
+      play: (_part, note) => void synth.notes.push(note),
+      silence: () => void synth.silenced++,
+    }),
+  });
+  return { sender, sent, synth };
+}
+
+function shown(signal = tone(440), ports?: string[]) {
   const w = world();
   w.heard.signal = signal;
   const tuner = new Tuner({ mic: w.source, analyse: w.analyseHere });
   const onback = vi.fn();
-  render(TuneScreen, { tuner, onback });
+  const { sender, sent, synth } = senders(ports);
+  render(TuneScreen, { tuner, sender, onback });
   const hear = async (ticks = 1) => {
     await vi.advanceTimersByTimeAsync(TICK_MS * ticks);
   };
-  return { ...w, tuner, onback, hear };
+  return { ...w, tuner, onback, hear, sender, sent, synth };
 }
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }));
@@ -105,7 +125,7 @@ describe('the tuner screen', () => {
     expect(onback).toHaveBeenCalledOnce();
   });
 
-  it('offers a choice of input only when there is one, and moves to it', async () => {
+  it('offers a choice of input as soon as there are any, and moves to it', async () => {
     const w = world();
     const tuner = new Tuner({
       mic: {
@@ -118,11 +138,12 @@ describe('the tuner screen', () => {
       },
       analyse: w.analyseHere,
     });
-    render(TuneScreen, { tuner, onback: vi.fn() });
-    expect(screen.queryByLabelText('Input')).toBeNull();
+    render(TuneScreen, { tuner, sender: senders().sender, onback: vi.fn() });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(screen.getByLabelText('Listen to')).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     await vi.advanceTimersByTimeAsync(TICK_MS);
-    await fireEvent.change(screen.getByLabelText('Input'), { target: { value: 'b' } });
+    await fireEvent.change(screen.getByLabelText('Listen to'), { target: { value: 'b' } });
     await vi.advanceTimersByTimeAsync(TICK_MS);
     expect(w.log.opened).toEqual([undefined, 'b']);
   });
@@ -133,9 +154,56 @@ describe('the tuner screen', () => {
       mic: { open: () => Promise.reject(new MicDenied()), devices: () => Promise.resolve([]) },
       analyse: w.analyseHere,
     });
-    render(TuneScreen, { tuner, onback: vi.fn() });
+    render(TuneScreen, { tuner, sender: senders().sender, onback: vi.fn() });
     await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(screen.getByRole('status')).toHaveTextContent(/blocked.*site settings/);
     expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
+  });
+
+  it('holds a note on the synth, and reads the sound against it while it is held', async () => {
+    const { tuner, synth, hear } = shown(tone(440, 30));
+    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await hear();
+    const send = within(screen.getByRole('region', { name: 'Send a note' }));
+    expect(send.getByText('A4')).toBeInTheDocument();
+    expect(send.getByText('440.00 Hz')).toBeInTheDocument();
+    await fireEvent.click(send.getByRole('button', { name: 'Hold the note' }));
+    expect(synth.notes).toEqual([69]);
+    expect(tuner.target).toBe(69);
+    await fireEvent.click(send.getByRole('button', { name: '+semitone' }));
+    expect(synth.notes).toEqual([69, 70]);
+    expect(synth.silenced).toBe(1);
+    await hear();
+    const note = within(screen.getByRole('region', { name: 'Note' }));
+    expect(note.getByText('B♭4')).toBeInTheDocument();
+    expect(note.getByText(/^−70\.\d cents$/)).toBeInTheDocument();
+    await fireEvent.click(send.getByRole('button', { name: 'Release' }));
+    expect(tuner.target).toBeNull();
+    expect(send.getByRole('button', { name: 'Hold the note' })).toBeInTheDocument();
+  });
+
+  it('sends to a MIDI port on a channel, and shows the channel only for a port', async () => {
+    const { sent } = shown();
+    const send = within(screen.getByRole('region', { name: 'Send a note' }));
+    expect(send.queryByLabelText('Channel')).toBeNull();
+    await fireEvent.change(send.getByLabelText('To'), { target: { value: 'b' } });
+    await fireEvent.input(send.getByLabelText('Channel'), { target: { value: '4' } });
+    await fireEvent.click(send.getByRole('button', { name: '−octave' }));
+    await fireEvent.click(send.getByRole('button', { name: 'Hold the note' }));
+    expect(sent.b).toEqual([[0x93, 57, 100]]);
+    await fireEvent.click(send.getByRole('button', { name: 'All notes off' }));
+    expect(sent.b!.slice(1)).toEqual([
+      [0x83, 57, 0],
+      [0xb3, 123, 0],
+      [0xb3, 120, 0],
+    ]);
+    expect(sent.a).toEqual([]);
+  });
+
+  it('says to connect a port when there is none, and keeps the synth to send to', async () => {
+    shown(tone(440), []);
+    const send = within(screen.getByRole('region', { name: 'Send a note' }));
+    expect(send.getByText(/connect a MIDI port in the Sound card/)).toBeInTheDocument();
+    expect(send.getAllByRole('option')).toHaveLength(1);
   });
 });

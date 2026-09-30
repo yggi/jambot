@@ -48,12 +48,14 @@ import {
   alteredHeight,
   motifProblems,
   recognise,
+  METERS,
+  stepsOf,
 } from '@jambot/theory';
-import { BAR_STEPS, barAt, barStart } from './events.ts';
+import { SONG_CLOCK, type SongClock } from './events.ts';
 import { fold } from './fading.ts';
 import { type Key, keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
-import { EMPTY_BAR, phrasesOf, readHeardWithMargins } from './phrase.ts';
+import { phrasesOf, readHeardWithMargins } from './phrase.ts';
 
 /** A note a player played, heard at an exact position. */
 export interface HeardNote {
@@ -92,15 +94,35 @@ export type Judgement =
  */
 export const MUSE = { mashing: 12, fewest: 3, widest: 19, forgetAfter: 16 } as const;
 
+/**
+ * The cycles a judged motif may have: the steps of a bar of a named meter,
+ * which is where it was heard (#260). A motif of 16 is 4/4's, of 12 a bar of
+ * 6/8 or 3/4, of 14 one of 7/8.
+ */
+const BAR_LENGTHS: ReadonlySet<number> = new Set(Object.values(METERS).map((m) => stepsOf(m)));
+
 /** The step nearest where a note was heard, from the song's start: the Muse's one rounding of what it hears. */
 export const heardStep = (note: Pick<HeardNote, 'position'>) => Math.round(note.position);
 
-/** The bar a note was heard in: the bar its nearest step is in. */
-export const barOf = (note: HeardNote) => barAt(heardStep(note));
+/**
+ * The bar a note was heard in: the bar its nearest step is in, on the song's
+ * clock. A song's meter is on its clock (#260), and the Muse's readings take
+ * the clock, 4/4's where none is given: `barOfIn`, `heardIn`, `heardInBar`,
+ * `judgeBar` and `keptAfter`. `barOf` takes the note alone, so it can be
+ * mapped over a list.
+ */
+export const barOf = (note: HeardNote) => SONG_CLOCK.barAt(heardStep(note));
+
+/** The bar a note was heard in, on a song's clock. */
+export const barOfIn = (note: HeardNote, clock: SongClock) => clock.barAt(heardStep(note));
 
 /** The notes heard in a bar. */
-export function heardIn(notes: readonly HeardNote[], bar: number): HeardNote[] {
-  return notes.filter((n) => barOf(n) === bar);
+export function heardIn(
+  notes: readonly HeardNote[],
+  bar: number,
+  clock: SongClock = SONG_CLOCK,
+): HeardNote[] {
+  return notes.filter((n) => barOfIn(n, clock) === bar);
 }
 
 /**
@@ -135,18 +157,19 @@ export function heardInBar(
   notes: readonly HeardNote[],
   bar: number,
   reading: Reading = 'phrases',
+  clock: SongClock = SONG_CLOCK,
 ): HeardBar[] {
-  const edge = barStart(bar + 1);
+  const edge = clock.barStart(bar + 1);
   const upTo = notes.filter((n) => n.position < edge);
-  const sources = [...new Set([...heardIn(upTo, bar), ...upTo].map((n) => n.source))];
+  const sources = [...new Set([...heardIn(upTo, bar, clock), ...upTo].map((n) => n.source))];
   return sources.flatMap((source): HeardBar[] => {
     const own = upTo.filter((n) => n.source === source);
     if (reading === 'nearest') {
-      const heard = heardIn(own, bar);
+      const heard = heardIn(own, bar, clock);
       return heard.length === 0 ? [] : [{ source, notes: heard }];
     }
-    const { notes: read, margins } = readHeardWithMargins(own);
-    const heard = heardIn(read, bar);
+    const { notes: read, margins } = readHeardWithMargins(own, clock);
+    const heard = heardIn(read, bar, clock);
     if (heard.length === 0) return [];
     const mean = heard.reduce((sum, n) => sum + margins.get(n)!, 0) / heard.length;
     return [{ source, notes: heard, confidence: Math.round(mean * 100) / 100 }];
@@ -159,9 +182,10 @@ export function judgeBar(
   bar: number,
   key: Key,
   reading: Reading = 'phrases',
+  clock: SongClock = SONG_CLOCK,
 ): Judgement[] {
-  return heardInBar(notes, bar, reading).map(({ source, notes: heard, confidence }) =>
-    judge(source, heard, bar, key, confidence),
+  return heardInBar(notes, bar, reading, clock).map(({ source, notes: heard, confidence }) =>
+    judge(source, heard, bar, key, clock, confidence),
   );
 }
 
@@ -171,15 +195,23 @@ export function judgeBar(
  * bar, which a later bar is read with. What a phrase left more than
  * `PHRASE_MEMORY` bars back is forgotten.
  */
-export function keptAfter(notes: readonly HeardNote[], bar: number): HeardNote[] {
-  const edge = barStart(bar + 1);
-  const keep = new Set(notes.filter((n) => barOf(n) > bar));
+export function keptAfter(
+  notes: readonly HeardNote[],
+  bar: number,
+  clock: SongClock = SONG_CLOCK,
+): HeardNote[] {
+  const edge = clock.barStart(bar + 1);
+  const keep = new Set(notes.filter((n) => barOfIn(n, clock) > bar));
   for (const source of new Set(notes.map((n) => n.source))) {
     const own = notes.filter((n) => n.source === source && n.position < edge);
-    const phrase = phrasesOf(own).at(-1);
-    if (!phrase || edge - Math.max(...phrase.map((n) => n.end ?? n.position)) >= EMPTY_BAR)
+    const phrase = phrasesOf(own, clock).at(-1);
+    if (
+      !phrase ||
+      edge - Math.max(...phrase.map((n) => n.end ?? n.position)) >= clock.barSteps(bar + 1) - 1
+    )
       continue;
-    for (const n of phrase) if (n.position >= edge - PHRASE_MEMORY * BAR_STEPS) keep.add(n);
+    const memory = clock.barStart(bar + 1 - PHRASE_MEMORY);
+    for (const n of phrase) if (n.position >= memory) keep.add(n);
   }
   return notes.filter((n) => keep.has(n));
 }
@@ -219,12 +251,14 @@ function judge(
   heard: readonly HeardNote[],
   bar: number,
   key: Key,
+  clock: SongClock,
   confidence?: number,
 ): Judgement {
+  const steps = clock.barSteps(bar);
   if (heard.length > MUSE.mashing) return { kind: 'mashing', source, count: heard.length };
   const top = new Map<number, HeardNote>();
   for (const n of heard) {
-    const step = heardStep(n) - barStart(bar);
+    const step = heardStep(n) - clock.barStart(bar);
     if (n.note > (top.get(step)?.note ?? -Infinity)) top.set(step, n);
   }
   const melody = [...top].sort(([a], [b]) => a - b);
@@ -241,14 +275,14 @@ function judge(
   melody.forEach(([step, n], i) => {
     const { degree, accidental } = alteredDegree(scale, n.note)!;
     arcs.push({ onset: step, degree: degree - origin, accidental, accent: n.velocity - level });
-    const next = melody[i + 1]?.[0] ?? BAR_STEPS;
+    const next = melody[i + 1]?.[0] ?? steps;
     if (n.end === null) return;
-    const released = Math.max(step + 1, heardStep({ position: n.end }) - barStart(bar));
+    const released = Math.max(step + 1, heardStep({ position: n.end }) - clock.barStart(bar));
     if (released < next) arcs.push(rest(released));
   });
   if (arcs[0]!.onset > 0 && arcs.at(-1)!.degree !== null) arcs.unshift(rest(0));
   const motif: Motif = {
-    cycle: BAR_STEPS,
+    cycle: steps,
     onsets: arcs.map((a) => a.onset),
     degrees: arcs.map((a) => a.degree),
     accidentals: arcs.map((a) => a.accidental),
@@ -290,7 +324,7 @@ export function admissible(judgement: Judgement, key: Key): boolean {
       if (!Number.isInteger(level) || level < 0 || level > 127) return false;
       const { confidence } = judgement;
       if (confidence !== undefined && !(confidence >= 0 && confidence <= 1)) return false;
-      if (motif.cycle !== BAR_STEPS || motifProblems(motif).length > 0) return false;
+      if (!BAR_LENGTHS.has(motif.cycle) || motifProblems(motif).length > 0) return false;
       if (!motif.onsets.every(Number.isInteger)) return false;
       const notes = motif.degrees.filter((d) => d !== null);
       if (notes.length < MUSE.fewest || notes.length > MUSE.mashing) return false;

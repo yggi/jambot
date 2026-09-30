@@ -1,4 +1,6 @@
 import {
+  METERS,
+  type Meter,
   type Motif,
   alteredDegree,
   chromaticStep,
@@ -7,6 +9,7 @@ import {
   joinChord,
   positions,
   snap,
+  stepsOf,
   wrap,
 } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
@@ -15,7 +18,15 @@ import { chordAt } from './chords.ts';
 import { writtenProblems } from './events.ts';
 import { COMPOSER_MODES, type Key, MELODIC_SCALES, keyHelix, melodicHelix } from './key.ts';
 import recorded from './lead.fixture.json';
-import { LEAD_RANGE, type LeadCarried, lead, leadRests, phraseParams } from './lead.ts';
+import {
+  LEAD_RANGE,
+  type LeadCarried,
+  lead,
+  leadRests,
+  motifInBar,
+  phraseParams,
+  straightGroove,
+} from './lead.ts';
 import { SECTION_TYPES } from './form.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import type { Offer } from './muse.ts';
@@ -752,3 +763,123 @@ describe('the lead with a motif on offer', () => {
     expect(lawBreaks(lead, script)).toEqual([]);
   });
 });
+
+describe('the lead on other meters (#260)', () => {
+  const named = Object.entries(METERS) as [string, Meter][];
+  const bars = tour(1, 96).filter((_, i) => i % 2 === 0);
+  const offer = (motif: Motif): Offer => ({ motif, source: 'keys', bar: 0, level: 80 });
+
+  it('keeps 4/4’s straight groove as it was written (finite: every step)', () => {
+    expect(straightGroove(METERS['4/4'])).toEqual([
+      1, 0.1, 0.4, 0.15, 0.8, 0.1, 0.4, 0.15, 0.9, 0.1, 0.4, 0.15, 0.8, 0.1, 0.4, 0.15,
+    ]);
+  });
+
+  it('gives every meter a straight groove over its steps, the downbeat loudest (finite: every meter)', () => {
+    for (const [name, meter] of named) {
+      const groove = straightGroove(meter);
+      expect([name, groove.length]).toEqual([name, stepsOf(meter)]);
+      expect([name, Math.max(...groove)]).toEqual([name, 1]);
+      expect([name, groove[0]]).toEqual([name, 1]);
+    }
+  });
+
+  it('writes a well formed line in every meter, every note within the bar, in range, bar after bar (finite: every meter, every other bar of the tour)', () => {
+    for (const [name, meter] of named) {
+      const steps = stepsOf(meter);
+      let carried: LeadCarried = lead.initial;
+      let played = 0;
+      for (const bar of bars) {
+        const next = lead.advance({ ...bar, meter }, carried, null);
+        carried = next.carried;
+        let at = -1;
+        for (const n of next.output) {
+          expect([name, n.step, writtenProblems(n, steps)]).toEqual([name, n.step, []]);
+          expect(n.step).toBeGreaterThan(at);
+          at = n.step;
+          expect(n.step + n.length).toBeLessThanOrEqual(steps);
+          expect(n.note).toBeGreaterThanOrEqual(LEAD_RANGE[0]);
+          expect(n.note).toBeLessThanOrEqual(LEAD_RANGE[1]);
+        }
+        played += next.output.length;
+      }
+      expect([name, played > 0]).toEqual([name, true]);
+    }
+  });
+
+  it('plays a motif the Muse offers in every meter, whatever its cycle: within the bar, each note held to the next (finite: every meter, three cycles)', () => {
+    const motifs: Motif[] = [16, 12, 20].map((cycle) => ({
+      cycle,
+      onsets: [0, 3, 6, 10],
+      degrees: [0, 2, 4, 2],
+      accidentals: [0, 0, 0, 0],
+    }));
+    for (const [name, meter] of named)
+      for (const motif of motifs)
+        for (const bar of bars.slice(0, 6)) {
+          const next = lead.advance({ ...bar, meter, offer: offer(motif) }, lead.initial, null);
+          const steps = stepsOf(meter);
+          for (const n of next.output) {
+            expect([name, motif.cycle, n.step, writtenProblems(n, steps)]).toEqual([
+              name,
+              motif.cycle,
+              n.step,
+              [],
+            ]);
+            expect(n.step + n.length).toBeLessThanOrEqual(steps);
+          }
+        }
+  });
+});
+
+describe('a motif read in a bar (#260)', () => {
+  const motif: Motif = {
+    cycle: 16,
+    onsets: [0, 3, 6, 10, 13],
+    degrees: [0, 2, null, 4, 1],
+    accidentals: [0, 1, 0, 0, -1],
+    accents: [0, 5, 0, -4, 2],
+  };
+
+  it('is itself in a bar of its own length, in every bar', () => {
+    for (let bar = 0; bar < 8; bar++) expect(motifInBar(motif, 16, bar)).toEqual(motif);
+  });
+
+  it('runs through bars of another length by the cycle: 16 through 12 gives bars of 0–11, then 12–15 and 0–7, then 8–15 and 0–3', () => {
+    const bar0 = motifInBar(motif, 12, 0);
+    expect(bar0.cycle).toBe(12);
+    expect(bar0.onsets).toEqual([0, 3, 6, 10]);
+    const bar1 = motifInBar(motif, 12, 1);
+    // From step 12: the note on 13, then the motif again from its start (16 is 4 into the bar).
+    expect(bar1.onsets).toEqual([0, 1, 4, 7, 10]);
+    expect(bar1.degrees).toEqual([null, 1, 0, 2, null]);
+    const bar2 = motifInBar(motif, 12, 2);
+    expect(bar2.onsets[0]).toBe(0);
+    expect(bar2.accents).toHaveLength(bar2.onsets.length);
+  });
+
+  it('repeats a motif shorter than the bar, and starts a window between notes with a rest', () => {
+    const short: Motif = { cycle: 8, onsets: [0, 4], degrees: [0, 3], accidentals: [0, 0] };
+    expect(motifInBar(short, 12, 0).onsets).toEqual([0, 4, 8]);
+    const between = motifInBar(short, 12, 1);
+    // From step 12 of the cycle of 8, step 4: the note on 4 is the window's first, on its step 0.
+    expect(between.onsets).toEqual([0, 4, 8]);
+    const odd: Motif = { cycle: 16, onsets: [2, 9], degrees: [0, 1], accidentals: [0, 0] };
+    const rested = motifInBar(odd, 12, 0);
+    expect(rested.onsets).toEqual([0, 2, 9]);
+    expect(rested.degrees[0]).toBeNull();
+  });
+
+  it('keeps every note exactly once over a whole number of cycles of bars (finite: every bar length, both motifs)', () => {
+    for (const steps of [10, 12, 14, 16, 18, 20, 24]) {
+      const bars = 16 / gcd(16, steps);
+      const notes = Array.from({ length: bars }, (_, bar) => motifInBar(motif, steps, bar))
+        .flatMap((m) => m.degrees)
+        .filter((d) => d !== null);
+      const cycles = (bars * steps) / 16;
+      expect([steps, notes.length]).toEqual([steps, cycles * 4]);
+    }
+  });
+});
+
+const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
