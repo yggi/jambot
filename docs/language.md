@@ -1918,7 +1918,7 @@ run; the others have.
   - So a loop that copies what it hears locks on its first pattern, whatever holds or confirms it, and each of the delay's chains needs a transformation of its own to drift: variation on every bar, or an answer under an operator from the Muse (#237 step 4), not a copy.
   - Not measured: weights for the band's voices beside the players', since no players play here; and the style's distance over time, which needs the critic (#15).
 
-- **E22. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
+- **E23. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
   [`packages/engine/experiments/style-readback.ts`](../packages/engine/experiments/style-readback.ts),
   held by [`packages/engine/experiments/style-readback.test.ts`](../packages/engine/experiments/style-readback.test.ts):
   bars composed at a style and read back by `readStyle`, per axis: Kendall's tau-b of the reading against the axis, and the mean distance of the two where the reading is on the axis's scale.

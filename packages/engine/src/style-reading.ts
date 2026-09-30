@@ -6,7 +6,7 @@
  * oracle of the learned critic that comes after. It reads a bar's notes as
  * they sound (`BandBar.dough`): the steps are the written ones, and the
  * lengths are the performer's gate, which is where the articulation lives
- * (T4). The written lengths fill the gap and say none of it (E22). Swing,
+ * (T4). The written lengths fill the gap and say none of it (E23). Swing,
  * which lives in the played time, is `estimateSwing` in `reading.ts`.
  *
  * A reading is raw, not fitted: `sync` and `artic` lie in 0 to 1 as their

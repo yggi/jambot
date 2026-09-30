@@ -11,19 +11,19 @@ const sweeps = {
   energy: readback(sweepSamples('energy', 16)),
 };
 
-describe('the style read back from the notes it wrote (E22)', () => {
-  it('reads the articulation from the gate: it rises with the axis, in the presets, its sweep and the tour (E22)', () => {
+describe('the style read back from the notes it wrote (E23)', () => {
+  it('reads the articulation from the gate: it rises with the axis, in the presets, its sweep and the tour (E23)', () => {
     expect(by(sweeps.artic, 'artic').tau).toBeGreaterThan(0.9);
     expect(by(held, 'artic').tau).toBeGreaterThan(0.9);
     expect(by(tour, 'artic').tau).toBeGreaterThan(0.6);
   });
 
-  it('reads the articulation short of the axis: about 0.16 away, from a sounding that never reaches staccato (E22)', () => {
+  it('reads the articulation short of the axis: about 0.16 away, from a sounding that never reaches staccato (E23)', () => {
     expect(by(sweeps.artic, 'artic').distance).toBeGreaterThan(0.1);
     expect(by(sweeps.artic, 'artic').distance).toBeLessThan(0.25);
   });
 
-  it('reads the syncopation as rising with the axis, but compressed and blurred: the drums carry it, and the chords never leave the grid (E22)', () => {
+  it('reads the syncopation as rising with the axis, but compressed and blurred: the drums carry it, and the chords never leave the grid (E23)', () => {
     expect(by(sweeps.sync, 'sync').tau).toBeGreaterThan(0.25);
     expect(by(held, 'sync').tau).toBeGreaterThan(0.25);
     expect(by(tour, 'sync').tau).toBeGreaterThan(0.1);
@@ -31,13 +31,13 @@ describe('the style read back from the notes it wrote (E22)', () => {
     expect(by(sweeps.sync, 'sync').distance).toBeGreaterThan(0.25);
   });
 
-  it('reads the density as rising with the energy (E22)', () => {
+  it('reads the density as rising with the energy (E23)', () => {
     expect(by(sweeps.energy, 'energy').tau).toBeGreaterThan(0.5);
     expect(by(held, 'energy').tau).toBeGreaterThan(0.4);
     expect(by(tour, 'energy').tau).toBeGreaterThan(0.25);
   });
 
-  it('reads an axis from its own and no other: a sweep of one moves no other reading (E22)', () => {
+  it('reads an axis from its own and no other: a sweep of one moves no other reading (E23)', () => {
     for (const [swept, others] of [
       ['sync', ['artic', 'energy']],
       ['artic', ['sync', 'energy']],
