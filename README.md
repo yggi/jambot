@@ -36,7 +36,9 @@ Two things run today:
   - [`packages/score`](packages/score) reads and writes a bar as text, and
     [`packages/analyzer`](packages/analyzer) loads MIDI files onto the step
     grid and reads each track's role, swing, key and chords.
-    The score's surface syntax is still open (#7, #63).
+    It writes the drums, the bass and the comp as text; the lead, loops and
+    finer grids are still to come.
+    The score's surface syntax is still open (#7, #63, #275).
   - [`packages/session`](packages/session) is the pure part of host and client
     mode: the protocol, the roster, the clocks and the reconnect policy.
   - [`packages/spectrum`](packages/spectrum) reads a frame of audio samples as a
