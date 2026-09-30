@@ -110,6 +110,11 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   The runs download together as one JSON file with all of it, or as a CSV with one row per tap, for analysis elsewhere; a run that is stopped is not kept.
   `e2e/timing-test.e2e.ts` includes a player who strikes a key at the moment each hit is heard by the page's own pairing: 32 of 32 answered, a mean of 2 to 4 ms and a spread under 1 ms over two runs, which is the pipeline's own error (the timer that fires the key is late by a few ms).
   A pairing read once and extrapolated a second later gave 17.5 ms, so the pairing moves (it steps by a buffer as the output starts), and the test reads it again just before each hit.
+- The metronome is the second extra (#259, `screens/Meter.svelte`, `meter/`), for hearing a meter: a bar of any of the nine `METERS`, looped on this device's own synth (never MIDI out), scheduled ahead on the audio clock (`meter-player.svelte.ts`, `MeterPlayer`).
+  Its tempo counts quarters, so 6/8 and 3/4 at one tempo are one bar; a change of meter, tempo, swing or layer takes hold at the next bar.
+  `bar-plan.ts` writes a bar's onsets from the meter alone (click, drums with the backbeat of `BACKBEAT`, bass), and the hemiola moves the bass onto the other meter's pulses.
+  `grades.ts` gives four accent grades (`*` downbeat, `+` half, `-` pulse, `.` between) and the accent slider spreads them; `ternary.ts` swings a pulse of three eighths, which the band's swing plays straight, and the slider for it is an experiment's (T16, #144).
+  The bar is drawn by `Bar.svelte` (`bar.ts`), the same drawing as the metrum's, on any meter.
 - The e2e checks tell sounds apart by oscillator type and starting frequency: a kick is a sine starting at 440 Hz (its pitch only glides), a snare's body a triangle at 185 Hz, the bass a saw, the lead a square, a chord note a triangle beside a sine 0.3 % sharp.
   The click is a square at 1800 Hz on the downbeat, a triangle at 1200 on the other pulses and a sine at 800 between (`metronome-click.ts`), each starting at its frequency, which `band.e2e.ts` reads to place them.
   A new voice keeps these apart or updates `band.e2e.ts`.

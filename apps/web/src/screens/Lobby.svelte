@@ -33,6 +33,8 @@
     onsolo: () => void;
     /** The timing test (#204, H7). */
     ontiming: () => void;
+    /** The metronome (#259). */
+    onmeter: () => void;
     onhost: (where: Where, session: string) => Promise<void>;
     onjoin: (where: Where, session: string) => void;
   }
@@ -48,6 +50,7 @@
     notice,
     onsolo,
     ontiming,
+    onmeter,
     onhost,
     onjoin,
   }: Props = $props();
@@ -212,6 +215,11 @@
       hit was. The runs are kept in this browser, to download and analyse.
     </p>
     <button type="button" disabled={joining} onclick={ontiming}>Timing test</button>
+    <p class="message">
+      A bar of any meter, 3/4 to 12/8, played over and over, with its swing and its accents, to hear
+      what a meter is.
+    </p>
+    <button type="button" disabled={joining} onclick={onmeter}>Metronome</button>
   </Card>
 </div>
 

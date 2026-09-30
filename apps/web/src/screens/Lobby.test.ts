@@ -13,6 +13,7 @@ const props = () => ({
   notice: null,
   onsolo: vi.fn(),
   ontiming: vi.fn(),
+  onmeter: vi.fn(),
   onhost: vi.fn(() => Promise.resolve()),
   onjoin: vi.fn(),
 });
@@ -52,6 +53,17 @@ describe('the lobby, the door to the band', () => {
     unmount();
     render(Lobby, { ...p, joining: true });
     expect(screen.getByRole('button', { name: 'Timing test' })).toBeDisabled();
+  });
+
+  it('opens the metronome, and not while a join is under way', async () => {
+    const p = props();
+    const { unmount } = render(Lobby, p);
+    await fireEvent.click(screen.getByText('Extras'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Metronome' }));
+    expect(p.onmeter).toHaveBeenCalledOnce();
+    unmount();
+    render(Lobby, { ...p, joining: true });
+    expect(screen.getByRole('button', { name: 'Metronome' })).toBeDisabled();
   });
 
   it('joins an open session by a click on it, local and global told apart by a tooltip', async () => {

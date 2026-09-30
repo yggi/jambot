@@ -14,6 +14,7 @@
   import TimingPanel from './components/TimingPanel.svelte';
   import Band from './screens/Band.svelte';
   import Lobby from './screens/Lobby.svelte';
+  import MeterScreen from './screens/Meter.svelte';
   import TimingTestScreen from './screens/TimingTest.svelte';
   import { Device } from './device.svelte.ts';
   import { Instruments } from './instruments.svelte.ts';
@@ -27,6 +28,7 @@
   import { type Found, Sessions, type Where } from './session/sessions.svelte.ts';
   import { browserKept } from './session/storage.ts';
   import { websocketLobby } from './session/websocket.ts';
+  import { MeterPlayer } from './meter/meter-player.svelte.ts';
   import { type TimingReport, timingFile, timingReport } from './timing.ts';
   import { runsCsv, runsFile } from './timing-test/run.ts';
   import { TimingRuns } from './timing-test/runs.ts';
@@ -68,6 +70,8 @@
       timeOrigin: performance.timeOrigin,
     }),
   });
+  /** The metronome (#259): a bar of any meter on this device's synth. */
+  const meterPlayer = new MeterPlayer({ audio: () => device.clockOf() });
   const hostSession = sessions.asHost;
   const clientSession = sessions.asClient;
 
@@ -128,6 +132,9 @@
   /** Whether the person chose the timing test: not kept, so a reload lands on the door. */
   let timingChosen = $state(false);
 
+  /** Whether the person chose the metronome: not kept either. */
+  let meterChosen = $state(false);
+
   /** The band is fading out on its way to the door: it stays on screen until it has. */
   let leaving = $state(false);
 
@@ -140,6 +147,7 @@
           restoring: sessions.restoring,
           soloChosen,
           timingChosen,
+          meterChosen,
         }),
   );
 
@@ -148,6 +156,7 @@
     if (player.mode !== 'solo') {
       soloChosen = false;
       timingChosen = false;
+      meterChosen = false;
     }
   });
 
@@ -157,6 +166,11 @@
   });
   $effect(() => {
     if (screen === 'timing') return testing.listen();
+  });
+
+  // The metronome plays on its own screen only.
+  $effect(() => {
+    if (screen !== 'meter') meterPlayer.stop();
   });
 
   // Back at the door nothing plays on: a session that ended on its own, or
@@ -316,6 +330,8 @@
     />
   {:else if screen === 'timing'}
     <TimingTestScreen test={testing} onback={() => (timingChosen = false)} onexport={exportRuns} />
+  {:else if screen === 'meter'}
+    <MeterScreen player={meterPlayer} onback={() => (meterChosen = false)} />
   {:else if screen === 'restoring'}
     <p class="message" role="status">Taking up your session again…</p>
   {:else}
@@ -330,6 +346,7 @@
       notice={sessions.ended}
       onsolo={solo}
       ontiming={() => (timingChosen = true)}
+      onmeter={() => (meterChosen = true)}
       onhost={host}
       onjoin={join}
     />

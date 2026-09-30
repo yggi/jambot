@@ -73,6 +73,29 @@ describe('the app', () => {
       expect(screen.queryByRole('button', { name: 'Tap along' })).toBeNull();
     });
 
+    it('opens the metronome from the lobby, plays a bar of 6/8, and stops with it at the door', async () => {
+      const fake = fakeAudioContext();
+      vi.stubGlobal(
+        'AudioContext',
+        vi.fn(function () {
+          return fake.context;
+        }),
+      );
+      onTestFinished(() => void vi.unstubAllGlobals());
+      render(App);
+      await fireEvent.click(screen.getByText('Extras'));
+      await fireEvent.click(screen.getByRole('button', { name: 'Metronome' }));
+      expect(screen.getByRole('region', { name: 'Metronome' })).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Join a session' })).toBeNull();
+      await fireEvent.click(screen.getByRole('radio', { name: '6/8' }));
+      expect(screen.getByLabelText('Accents')).toHaveTextContent('* . . - . .');
+      await fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+      expect(await screen.findByRole('button', { name: 'Stop' })).toBeInTheDocument();
+      await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
+      expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+    });
+
     it('hosts a session locally, closes it only when sure, and lands back at the door', async () => {
       vi.stubGlobal(
         'AudioContext',
