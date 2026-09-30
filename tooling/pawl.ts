@@ -162,6 +162,16 @@ export function pawlProblems(repo: Repo): string[] {
       ? repo.paths.filter((path) => path === token)
       : repo.paths.filter((path) => posix.basename(path) === token);
 
+  // Rule 8: a doc that holds entries is a catalogue, so its entries are read.
+  for (const path of repo.paths) {
+    if (!/^docs\/[^/]+\.md$/.test(path) || repo.catalogues.includes(path)) continue;
+    const ids = readCatalogue(repo.read(path)).map((entry) => entry.id);
+    if (ids.length > 0)
+      problems.push(
+        `${path} holds entries (${ids.join(', ')}) but is no catalogue: add it to CATALOGUES in tooling/pawl.ts`,
+      );
+  }
+
   // Rule 6: an id is defined once, across every catalogue.
   const byId = new Map<string, Placed>();
   for (const entry of entries) {
@@ -282,8 +292,21 @@ const skipped = new Set([
   'playwright-report',
 ]);
 
-/** The catalogues: #7's negative shape, and #39's quinetic properties. */
-export const CATALOGUES = ['docs/language.md', 'docs/quinetic.md'];
+/**
+ * The catalogues: #7's negative shape, split by layer (`language.md` keeps the
+ * frame and holds no entries now, but stays listed so history reads it before
+ * the split), and #39's quinetic properties.
+ */
+export const CATALOGUES = [
+  'docs/language.md',
+  'docs/language-time.md',
+  'docs/language-pitch.md',
+  'docs/language-state.md',
+  'docs/language-surface.md',
+  'docs/language-analysis.md',
+  'docs/language-experiments.md',
+  'docs/quinetic.md',
+];
 
 /** The repository at `root`, with its catalogues. */
 export function repoOnDisk(root: string): Repo {

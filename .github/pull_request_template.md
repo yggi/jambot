@@ -9,7 +9,7 @@
 ## Findings
 
 <!--
-What this change found that a catalogue (#7's docs/language.md, #39)
+What this change found that a catalogue (#7's docs/language-*.md, #39)
 doesn't hold yet: a law it needed, a limit it hit, a baseline claim that
 was false. Or "none". The ratchet skill gives the form.
 -->

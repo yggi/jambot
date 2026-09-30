@@ -222,6 +222,26 @@ Status: measured.`;
     ]);
   });
 
+  it('refuses a doc that holds entries and is no catalogue (rule 8)', () => {
+    const repoWithLayer = repoOf({ 'docs/language.md': glide }, styleTests);
+    const layer = '**T1. The clock never waits.** Status: open.';
+    const all: Record<string, string> = {
+      'docs/language-time.md': layer,
+      'docs/ratchet.md': '# The ratchet',
+    };
+    const stray: Repo = {
+      ...repoWithLayer,
+      paths: [...repoWithLayer.paths, ...Object.keys(all)],
+      read: (path) => all[path] ?? repoWithLayer.read(path),
+    };
+    expect(pawlProblems(stray)).toEqual([
+      'docs/language-time.md holds entries (T1) but is no catalogue: add it to CATALOGUES in tooling/pawl.ts',
+    ]);
+    expect(
+      pawlProblems({ ...stray, catalogues: [...stray.catalogues, 'docs/language-time.md'] }),
+    ).toEqual([]);
+  });
+
   it('refuses an id defined in two catalogues (rule 6)', () => {
     const catalogues = {
       'docs/language.md': glide,

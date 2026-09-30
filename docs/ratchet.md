@@ -10,7 +10,7 @@ dissolve into structure that the two tracks find, rather than being made ahead
 of the evidence.
 
 The pair this doc is drawn from is #37 (the working shape of the app) and #7
-(the negative shape of the language, catalogued in `docs/language.md`). The
+(the negative shape of the language, catalogued in `docs/language.md` and the layer files it lists). The
 theory (#28) ran the same way with #7 before it. Every pair, and which side each
 issue plays, is in the ratchet map, #41. Both sides apply the `ratchet` skill
 ([`SKILL.md`](../.claude/skills/ratchet/SKILL.md)), which gives them one form to

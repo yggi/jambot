@@ -3,7 +3,7 @@ name: ratchet
 description: Run Jambot's ratchet, where a working track and a negative track
   drive each other through claims (witness, counterexample, a test on main as
   the pawl). Use when writing or changing a catalogue entry in
-  docs/language.md or docs/quinetic.md, when filling a pull request's Findings
+  docs/language-*.md or docs/quinetic.md, when filling a pull request's Findings
   section, when a step on a paired track ends and its findings need
   harvesting, or when a failure above must be placed in the layer below.
 ---
@@ -48,8 +48,8 @@ Decided: <where>, <how>. Lands in: <issue, step>.
 `Decided:` is there only when the claim is a rule, and an entry that is only a
 rule, with no evidence yet, leaves out `Status:`.
 
-The ids are one space across the catalogues (`docs/language.md`,
-`docs/quinetic.md`). A claim another catalogue already makes is written as an
+The ids are one space across the catalogues (the layer files
+`docs/language-*.md`, indexed in `docs/language.md`, and `docs/quinetic.md`). A claim another catalogue already makes is written as an
 alias, `**Q2. <claim>.** Same as F4.`, with no status or test of its own, so it
 is tracked once.
 
@@ -125,8 +125,8 @@ A counterexample is filed where it refutes, never only where it was seen.
   `pnpm verify`: it refuses a status off the ladder, a named test that doesn't
   exist, a measured entry that names no file, an id cited but not defined or
   defined twice, a citing test whose file the entry doesn't name, "decided"
-  written in a status, and a rule that doesn't say how, and an alias with fields
-  of its own. `tooling/history.ts` adds time: against the merge base with
+  written in a status, a rule that doesn't say how, an alias with fields of its
+  own, and a doc under `docs/` that holds entries but is no catalogue. `tooling/history.ts` adds time: against the merge base with
   `origin/main` (on `main`, the first parent), no evidence falls, overall or in
   a scope both versions name, no rule goes and no entry disappears without
   `Retired:`, and an alias is held to the entry it names. `pnpm ratchet` shows

@@ -17,7 +17,7 @@
  *
  * The band now reads its style on the 3-decimal grid itself (C7, decided
  * on #7 on these measurements), so its 3-decimal comparisons read zero; the
- * numbers from before the decision are in `docs/language.md`, E10.
+ * numbers from before the decision are in `docs/language-experiments.md`, E10.
  *
  * Run: node --experimental-strip-types --no-warnings packages/engine/experiments/header.ts [out.json]
  */
