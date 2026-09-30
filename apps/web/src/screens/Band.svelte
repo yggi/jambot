@@ -21,7 +21,7 @@
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
-  import { toggled, withLevel } from '../mix.ts';
+  import { raised, toggled } from '../mix.ts';
   import type { Player } from '../player.svelte.ts';
   import { tracksOf } from '../tracks.ts';
 
@@ -121,7 +121,7 @@
   <BandCard
     {tracks}
     ontoggle={(which, performer) => (player.mix = toggled(player.mix, which, performer))}
-    onlevel={(performer, level) => (player.mix = withLevel(player.mix, performer, level))}
+    onlevel={(performer, level) => (player.mix = raised(player.mix, performer, level))}
   />
 </Level>
 
