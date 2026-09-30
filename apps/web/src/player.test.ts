@@ -542,7 +542,7 @@ describe('the player', () => {
 
     it('shows the Muse on the screen: the motif on offer, the log, and the lead playing it (#79)', async () => {
       const { world, player, run } = await playing();
-      expect(player.hud.muse).toEqual({ motif: null, log: [] });
+      expect(player.hud.muse).toEqual({ motif: null, log: [], memory: [], quiet: null });
       playMotif(world, player, run, 2);
       run(8);
       world.frames[0]!.follow();
@@ -556,6 +556,11 @@ describe('the player', () => {
         lead: 'motif',
         motif: { source: 'the computer keys', bar: 2 },
       });
+      // She remembers it once, offers it, and has heard no silence yet.
+      expect(player.hud.muse.memory).toMatchObject([
+        { source: 'the computer keys', bar: 2, heard: 1, confirmed: false, offered: true },
+      ]);
+      expect(player.hud.muse.quiet).toMatchObject({ of: 16 });
       player.forgetMotif();
       run(9);
       world.frames[0]!.follow();

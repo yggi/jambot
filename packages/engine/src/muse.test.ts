@@ -7,6 +7,7 @@ import {
   type HeardNote,
   type Judgement,
   MOTIF_DECAY,
+  MOTIF_FLOOR,
   MUSE,
   PHRASE_MEMORY,
   type MuseCarried,
@@ -16,6 +17,7 @@ import {
   heardIn,
   judgeBar,
   keptAfter,
+  memoryAt,
   muse,
   taken,
 } from './muse.ts';
@@ -822,7 +824,7 @@ function listen(bars: { heard?: HeardNote[]; forget?: boolean }[]) {
     carried = next.carried;
     return next.output;
   });
-  return { script, outputs };
+  return { script, outputs, carried };
 }
 
 describe('the Muse', () => {
@@ -1036,5 +1038,27 @@ describe('the Muse’s memory: repetition confirms a motif, #204 H8 (#204, Q12)'
       { heard: [...phrase(1, 'a'), ...four] },
     ]);
     expect(outputs[1]!.offer?.source).toBe('a');
+  });
+});
+
+describe('the memory as it weighs bars later (C9)', () => {
+  const kept = () => {
+    const { carried } = listen([{ heard: phrase(0, 'a') }]);
+    return carried.memory;
+  };
+
+  it('fades each motif by MOTIF_DECAY for each bar since it was read, and reads the same at the bar it was read', () => {
+    const memory = kept();
+    expect(memoryAt(memory, 0, 0)).toEqual(memory);
+    const [now, later] = [memoryAt(memory, 0, 0)[0]!, memoryAt(memory, 0, 3)[0]!];
+    expect(later.weight).toBeCloseTo(now.weight * MOTIF_DECAY ** 3, 12);
+    expect(later.motif).toEqual(now.motif);
+  });
+
+  it('drops what has faded below the floor at the bar the Muse herself forgets it', () => {
+    const memory = kept();
+    expect(memoryAt(memory, 0, MUSE.forgetAfter)).toHaveLength(1);
+    expect(memoryAt(memory, 0, MUSE.forgetAfter + 1)).toHaveLength(0);
+    expect(MOTIF_FLOOR).toBeLessThan(1);
   });
 });

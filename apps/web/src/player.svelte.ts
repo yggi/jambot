@@ -55,6 +55,7 @@ import {
   type Key,
   type MuseOutput,
   type Offer,
+  type Remembered,
   type Part,
   PRESETS,
   SECTION_BARS,
@@ -226,6 +227,12 @@ export class Player {
   museLog: readonly MuseOutput[] = $state.raw([]);
   /** The motif the Muse offers now, after the last bar it judged. */
   offer: Offer | null = $state.raw(null);
+  /** The motifs the Muse remembers, weighed as of the bar she last read (`museBar`). */
+  memory: readonly Remembered[] = $state.raw([]);
+  /** The bar `memory` is weighed at, or null before she has read one. */
+  museBar: number | null = $state.raw(null);
+  /** The last bar anyone played in, or null before anyone has. */
+  lastPlayed: number | null = $state.raw(null);
   /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
   dropped: readonly DroppedJudgement[] = $state.raw([]);
   /** The band's own notes heard sounding right now, one entry per performer. */
@@ -309,6 +316,9 @@ export class Player {
         log: this.museLog,
         dropped: this.dropped,
         players: this.players,
+        memory: this.memory,
+        asOf: this.museBar,
+        lastPlayed: this.lastPlayed,
       },
     }),
   );
@@ -379,6 +389,13 @@ export class Player {
       const heardAs = this.playerId === null ? source : playerSource(this.playerId, source);
       this.#arrived.push({ note, velocity, source: heardAs, position, end: null });
     }
+  }
+
+  /** Nothing remembered: the Muse has read no bar. */
+  #forgetMemory() {
+    this.memory = [];
+    this.museBar = null;
+    this.lastPlayed = null;
   }
 
   /** Ask the Muse to forget the motif it offers, from the next bar the band composes. */
@@ -457,6 +474,7 @@ export class Player {
     this.#forget = false;
     this.museLog = [];
     this.offer = null;
+    this.#forgetMemory();
     this.dropped = [];
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
     this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
@@ -535,9 +553,12 @@ export class Player {
     if (this.#follow) this.#bars = bars;
   }
 
-  followMuse({ offer, log, dropped, players }: MuseState) {
+  followMuse({ offer, log, dropped, players, memory, asOf, lastPlayed }: MuseState) {
     if (!this.#follow) return;
     this.offer = offer;
+    this.memory = memory;
+    this.museBar = asOf;
+    this.lastPlayed = lastPlayed;
     this.museLog = log;
     this.dropped = dropped;
     this.players = players;
@@ -552,6 +573,7 @@ export class Player {
     this.track = holding(INITIAL_STYLE);
     this.museLog = [];
     this.offer = null;
+    this.#forgetMemory();
     this.dropped = [];
     this.players = {};
     this.#decide();
@@ -627,7 +649,15 @@ export class Player {
     if (logged.length > 0) this.museLog = [...this.museLog, ...logged].slice(-MUSE_LOG);
     const latest = scheduled.judged.at(-1);
     const offered = this.offer;
-    if (latest) this.offer = latest.offer;
+    const remembered = this.memory;
+    if (latest) {
+      this.offer = latest.offer;
+      const { memory, lastPlayed } = carried!.listening.muse;
+      // A memory that was empty and is still is no news.
+      if (memory.length > 0 || remembered.length > 0) this.memory = memory;
+      this.museBar = latest.bar;
+      this.lastPlayed = lastPlayed;
+    }
     if (scheduled.dropped.length > 0)
       this.dropped = [...this.dropped, ...scheduled.dropped].slice(-MUSE_LOG);
     if (this.hosting) {
@@ -635,9 +665,17 @@ export class Player {
         this.hosting.composed(
           sentBars(scheduled.composed, scheduled.steps, carried!.head, this.track),
         );
-      if (logged.length > 0 || this.offer !== offered || scheduled.dropped.length > 0)
+      if (
+        logged.length > 0 ||
+        this.offer !== offered ||
+        this.memory !== remembered ||
+        scheduled.dropped.length > 0
+      )
         this.hosting.muse({
           offer: this.offer,
+          memory: this.memory,
+          asOf: this.museBar,
+          lastPlayed: this.lastPlayed,
           log: this.museLog,
           dropped: this.dropped,
           players: this.players,

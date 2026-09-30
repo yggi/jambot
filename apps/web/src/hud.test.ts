@@ -418,7 +418,46 @@ describe('the view of the Muse', () => {
         { step: 8, length: 8, row: 0, altered: false },
       ],
     });
-    expect(hudOf({ heard: 0, bars, track }).muse).toEqual({ motif: null, log: [] });
+    expect(hudOf({ heard: 0, bars, track }).muse).toEqual({
+      motif: null,
+      log: [],
+      memory: [],
+      quiet: null,
+    });
+  });
+
+  it('lists what the Muse remembers, the strongest first, faded to the bar heard, marking the one on offer and what is confirmed', () => {
+    const other = { ...motif, degrees: [2, 0, 4], onsets: [0, 2, 8] };
+    const memory = [
+      { motif: other, source: 'the drum pads', bar: 2, weight: 0.5, heard: 1 },
+      { motif, source: 'the computer keys', bar: 5, weight: 1.85, heard: 2 },
+    ];
+    const hud = hudOf({
+      heard: 16 * 8,
+      bars,
+      track,
+      muse: { offer, log: [], memory, asOf: 6, lastPlayed: 6 },
+    });
+    expect(hud.muse.memory.map((m) => [m.name, m.heard, m.confirmed, m.offered])).toEqual([
+      ['the computer keys', 2, true, true],
+      ['the drum pads', 1, false, false],
+    ]);
+    // Two bars on, each has faded by two bars' worth.
+    expect(hud.muse.memory[0]!.strength).toBeCloseTo(((1.85 * 0.85 ** 2) / 2) * 1, 6);
+    expect(hud.muse.memory[0]!.notes.length).toBeGreaterThan(0);
+    // Bars of silence since it was last played in, of the bars it waits before letting the offer go.
+    expect(hud.muse.quiet).toEqual({ bars: 2, of: 16 });
+  });
+
+  it('counts no silence without an offer to let go, nor before anyone has played', () => {
+    const muse = { log: [], memory: [], asOf: 3 };
+    expect(
+      hudOf({ heard: 16 * 8, bars, track, muse: { ...muse, offer, lastPlayed: null } }).muse.quiet,
+    ).toBeNull();
+    expect(
+      hudOf({ heard: 16 * 8, bars, track, muse: { ...muse, offer: null, lastPlayed: 3 } }).muse
+        .quiet,
+    ).toBeNull();
   });
 
   it('writes the log as the prototype does, the latest first, what was taken marked', () => {

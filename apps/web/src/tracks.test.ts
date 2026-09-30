@@ -38,7 +38,7 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
   },
   heading: { tonic: 9, mode: 'aeolian' },
   headingMelodic: 'plain',
-  muse: { motif: null, log: [] },
+  muse: { motif: null, log: [], memory: [], quiet: null },
   ...over,
 });
 
@@ -196,7 +196,7 @@ describe('the players’ lanes', () => {
     };
     const heard = tracksOf(
       input({
-        hud: hud({ muse: { motif, log: [] } }),
+        hud: hud({ muse: { motif, log: [], memory: [], quiet: null } }),
         heard: 16 * 9 + 2,
         playerId: 'c1',
         players: {},
@@ -242,7 +242,9 @@ describe('the players’ lanes', () => {
       input({
         humanNotes,
         heard: 16 * 10,
-        hud: hud({ muse: { motif: taken('the computer keys', 8), log: [] } }),
+        hud: hud({
+          muse: { motif: taken('the computer keys', 8), log: [], memory: [], quiet: null },
+        }),
       }),
     );
     expect(tracks.players.map((p) => [p.source, p.taken])).toEqual([
@@ -256,8 +258,14 @@ describe('the players’ lanes', () => {
     const source = playerSource('c1', 'the computer keys');
     const motif = { ...taken(source, 8), name: "Ada's computer keys", colour: 1 };
     const at = (heard: number) =>
-      tracksOf(input({ heard, players, playerId: 'host', hud: hud({ muse: { motif, log: [] } }) }))
-        .players;
+      tracksOf(
+        input({
+          heard,
+          players,
+          playerId: 'host',
+          hud: hud({ muse: { motif, log: [], memory: [], quiet: null } }),
+        }),
+      ).players;
     expect(at(16 * 10)).toEqual([
       {
         part: 'lead',
