@@ -1,4 +1,4 @@
-import { compose, joinChord, wrap } from '@jambot/theory';
+import { METERS, type Meter, compose, joinChord, stepsOf, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import type { BarChord } from './chords.ts';
@@ -242,5 +242,41 @@ describe('the comp', () => {
       }
     }
     expect(anticipated).toBeGreaterThan(0);
+  });
+});
+
+describe('the comp on other meters (#260)', () => {
+  const named = Object.entries(METERS) as [string, Meter][];
+  const someBars = bars.filter((_, i) => i % 3 === 0);
+
+  it('writes a well formed line in every meter: pads to the next chord or the bar’s end, stabs one step, every note in range (finite: every meter, every 3rd bar of the tour)', () => {
+    for (const [name, meter] of named) {
+      const steps = stepsOf(meter);
+      let last = comp.initial;
+      for (const bar of someBars) {
+        const out = comp.advance({ ...bar, meter }, last, null);
+        last = out.carried;
+        for (const n of out.output) {
+          expect([name, n.step, writtenProblems(n, steps)]).toEqual([name, n.step, []]);
+          expect(n.step + n.length).toBeLessThanOrEqual(steps);
+          if (n.part === 'stab') expect(n.length).toBe(1);
+          expect(n.note).toBeGreaterThanOrEqual(COMP_RANGE[0]);
+          expect(n.note).toBeLessThanOrEqual(COMP_RANGE[1]);
+        }
+      }
+    }
+  });
+
+  it('plays something in every meter over the tour', () => {
+    for (const [name, meter] of named) {
+      let last = comp.initial;
+      let played = 0;
+      for (const bar of someBars) {
+        const out = comp.advance({ ...bar, meter }, last, null);
+        last = out.carried;
+        played += out.output.length;
+      }
+      expect([name, played > 0]).toEqual([name, true]);
+    }
   });
 });

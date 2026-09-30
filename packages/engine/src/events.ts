@@ -76,6 +76,13 @@ export const BEATS: Helix = meterOnSteps(SONG_METER);
  */
 export const BAR_STEPS = BEATS.cycle;
 
+/**
+ * The step of a bar's second half, on an eighth: 8 of 4/4's 16, 6 of 6/8's
+ * 12, 10 of 5/4's 20. Where the drums' fill starts and a theme's second chord
+ * falls (#260).
+ */
+export const halfOf = (steps: number): number => 2 * Math.floor(steps / 4);
+
 /** From this bar on, the song is in this meter. */
 export interface MeterChange {
   readonly bar: number;
