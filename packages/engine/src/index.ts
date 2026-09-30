@@ -18,6 +18,7 @@ export * from './lead.ts';
 export * from './machine.ts';
 export * from './metronome.ts';
 export * from './muse.ts';
+export * from './part-reading.ts';
 export * from './performer.ts';
 export * from './phrase.ts';
 export * from './plan.ts';
