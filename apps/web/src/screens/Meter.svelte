@@ -71,9 +71,21 @@
     </div>
     <p class="message">
       A bar of any meter, played over and over. The tempo counts quarters, so 6/8 and 3/4 at one
-      tempo are one bar. A meter, its swing and its accents change at the next bar.
+      tempo are one bar. What the composer writes and what the players may bend are kept apart: the
+      signature, then the licence. A change takes hold at the next bar.
     </p>
 
+    <button
+      type="button"
+      class="primary"
+      onclick={() => (player.playing ? player.stop() : void player.start())}
+    >
+      {player.playing ? 'Stop' : 'Play'}
+    </button>
+  </section>
+
+  <section class="card" aria-label="Signature">
+    <h3>Signature <span class="whose">the composer's, written in the score</span></h3>
     <Segmented
       label="Meter"
       value={player.name}
@@ -94,14 +106,6 @@
     >
       Mirror the grouping
     </button>
-
-    <button
-      type="button"
-      class="primary"
-      onclick={() => (player.playing ? player.stop() : void player.start())}
-    >
-      {player.playing ? 'Stop' : 'Play'}
-    </button>
   </section>
 
   <section class="card" aria-label="The bar">
@@ -109,7 +113,8 @@
     <p class="doing" aria-live="off">{doing}</p>
   </section>
 
-  <section class="card" aria-label="Feel">
+  <section class="card" aria-label="Licence">
+    <h3>Licence <span class="whose">the players' to bend, within what is written</span></h3>
     <label class="slider">
       <span>Tempo <output>{Math.round(player.bpm)} BPM</output></span>
       <input
@@ -160,6 +165,23 @@
         oninput={(e) => (player.grade = +e.currentTarget.value / 100)}
       />
     </label>
+    <button
+      type="button"
+      class="toggle"
+      aria-pressed={player.hemiola && partner !== undefined}
+      disabled={partner === undefined}
+      onclick={() => (player.hemiola = !player.hemiola)}
+    >
+      Hemiola
+    </button>
+    <p class="hint">
+      {#if partner}
+        The hemiola puts the bass on {partner}'s pulses, {gaps(METERS[partner]).join('+')}, over the
+        same bar.
+      {:else}
+        The hemiola regroups a bar between 3/4 and 6/8.
+      {/if}
+    </p>
   </section>
 
   <section class="card" aria-label="Sound">
@@ -174,24 +196,7 @@
           {LAYER_TEXT[layer]}
         </button>
       {/each}
-      <button
-        type="button"
-        class="toggle"
-        aria-pressed={player.hemiola && partner !== undefined}
-        disabled={partner === undefined}
-        onclick={() => (player.hemiola = !player.hemiola)}
-      >
-        Hemiola
-      </button>
     </div>
-    <p class="hint">
-      {#if partner}
-        The hemiola puts the bass on {partner}'s pulses, {gaps(METERS[partner]).join('+')}, over the
-        same bar.
-      {:else}
-        The hemiola regroups a bar between 3/4 and 6/8.
-      {/if}
-    </p>
     <label class="slider">
       <span>Click volume <output>{percent(player.volume)}</output></span>
       <input
@@ -225,10 +230,19 @@
     gap: 12px;
     flex-wrap: wrap;
   }
-  h2 {
+  h2,
+  h3 {
     margin: 0;
     font-size: 16px;
     font-weight: 700;
+  }
+  h3 {
+    font-size: 14px;
+  }
+  .whose {
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 6px;
   }
   .message,
   .hint,

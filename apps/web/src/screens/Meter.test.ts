@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEAD_SECONDS, MeterPlayer, TICK_MS } from '../meter/meter-player.svelte.ts';
 import { surroundings } from '../timing-test/fixtures.ts';
@@ -26,6 +26,26 @@ beforeEach(() =>
 afterEach(() => vi.useRealTimers());
 
 describe('the metronome screen', () => {
+  it('keeps what is written apart from what the players may bend: the signature holds the meter and its grouping, the licence the tempo, the swings, the accents and the hemiola, the sound the layers', () => {
+    shown();
+    const signature = within(screen.getByRole('region', { name: 'Signature' }));
+    expect(signature.getAllByRole('radio')).toHaveLength(9);
+    expect(signature.getByRole('button', { name: 'Mirror the grouping' })).toBeInTheDocument();
+    expect(signature.queryByRole('slider')).toBeNull();
+    const licence = within(screen.getByRole('region', { name: 'Licence' }));
+    expect(licence.getAllByRole('slider').map((s) => s.getAttribute('aria-label'))).toEqual([
+      'Tempo',
+      'Swing',
+      'Ternary swing',
+      'Accent grade',
+    ]);
+    expect(licence.getByRole('button', { name: 'Hemiola' })).toBeInTheDocument();
+    expect(licence.queryByRole('radio')).toBeNull();
+    const sound = within(screen.getByRole('region', { name: 'Sound' }));
+    expect(sound.getByRole('button', { name: 'Drums' })).toBeInTheDocument();
+    expect(sound.getByRole('slider', { name: 'Click volume' })).toBeInTheDocument();
+  });
+
   it('offers every named meter, 4/4 chosen, and writes its accents as a line', () => {
     shown();
     const meters = screen.getAllByRole('radio').map((r) => r.textContent?.trim());
