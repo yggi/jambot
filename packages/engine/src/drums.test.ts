@@ -1,7 +1,7 @@
-import { even, positions } from '@jambot/theory';
+import { METERS, type Meter, even, positions, stepsOf as stepsInBar } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { BarEnv } from './bar.ts';
-import { DRUM_NOTES, drums } from './drums.ts';
+import { DRUM_NOTES, backbeatOf, drums } from './drums.ts';
 import {
   DRUM_ROLES,
   type DrumRole,
@@ -28,10 +28,11 @@ const envOf = (
   style: Style,
   energy = barEnergy(style.energy, type, barInSection),
   index = 3,
+  meter: Meter = SONG_METER,
 ): BarEnv => ({
   seed,
   bar: index * SECTION_BARS + barInSection,
-  meter: SONG_METER,
+  meter,
   plan: {
     section: { type, index },
     key: INITIAL_KEY,
@@ -276,5 +277,81 @@ describe('drums', () => {
     expect(velocities(2, {})).toEqual(velocities(0, {}));
     for (const loose of [{ swing: 0.3 }, { entropy: 0.3 }, { artic: 0.7 }])
       expect(velocities(2, loose)).not.toEqual(velocities(0, loose));
+  });
+});
+
+describe('the drums on other meters (#260)', () => {
+  const named = Object.entries(METERS) as [string, Meter][];
+
+  it('puts the backbeat on every pulse after the downbeat of a bar of two or three, and the odd ones from four (finite: every meter)', () => {
+    const expected: Record<string, number[]> = {
+      '3/4': [1, 2],
+      '4/4': [1, 3],
+      '5/4': [1, 3],
+      '5/8': [1],
+      '6/8': [1],
+      '7/8': [1, 2],
+      '9/8': [1, 2],
+      '10/8': [1, 3],
+      '12/8': [1, 3],
+    };
+    for (const [name, meter] of named)
+      expect([name, backbeatOf(meter)]).toEqual([name, expected[name]]);
+  });
+
+  it('writes every hit on a step of the meter’s bar, well formed, in both readings of a pattern (finite: every meter, preset, section type, two bars, two seeds)', () => {
+    for (const [name, meter] of named)
+      for (const style of styles)
+        for (const type of SECTION_TYPES)
+          for (const barInSection of [0, SECTION_BARS - 1])
+            for (const seed of [0, 1])
+              for (const regroup of ['fold', 'cycle'] as const) {
+                const env = envOf(seed, type, barInSection, style, undefined, 3, meter);
+                for (const hit of drums(env, regroup))
+                  expect([name, hit.step, writtenProblems(hit, stepsInBar(meter))]).toEqual([
+                    name,
+                    hit.step,
+                    [],
+                  ]);
+              }
+  });
+
+  it('plays the backbeat snare on the backbeat’s pulse starts and nowhere else (finite: every meter)', () => {
+    for (const [name, meter] of named) {
+      const starts = new Set(backbeatOf(meter).map((pulse) => meter.heights[pulse]! * 2));
+      const style = { ...PRESETS[1]!.style, entropy: 0 };
+      const steps = new Set(
+        range(3).flatMap((seed) =>
+          drums(envOf(seed, 'groove', 2, style, 0.9, 3, meter))
+            .filter((hit) => hit.role === 'backbeat')
+            .map((hit) => hit.step),
+        ),
+      );
+      expect(steps.size).toBeGreaterThan(0);
+      for (const step of steps) expect([name, starts.has(step)]).toEqual([name, true]);
+    }
+  });
+
+  it('reads the two readings differently in a bar that is not 4/4’s, and the same in 4/4', () => {
+    const style = { ...PRESETS[5]!.style, sync: 1, entropy: 0 };
+    const env = (meter: Meter, bar: number) => envOf(0, 'groove', bar, style, 0.9, 3, meter);
+    expect(drums(env(SONG_METER, 1), 'cycle')).toEqual(drums(env(SONG_METER, 1), 'fold'));
+    expect(drums(env(METERS['7/8'], 1), 'cycle')).not.toEqual(drums(env(METERS['7/8'], 1), 'fold'));
+    // The default is the cycle, which the owner heard as the better.
+    expect(drums(env(METERS['7/8'], 1))).toEqual(drums(env(METERS['7/8'], 1), 'cycle'));
+  });
+
+  it('ends a build on a fill that covers the bar’s second half with snares, and starts none before it (finite: every meter)', () => {
+    const style = { ...PRESETS[1]!.style, entropy: 0 };
+    for (const [name, meter] of named) {
+      const steps = stepsInBar(meter);
+      const half = 2 * Math.floor(steps / 4);
+      const hits = drums(envOf(0, 'build', SECTION_BARS - 1, style, 0.9, 3, meter));
+      const snares = new Set(hits.filter((h) => h.note === DRUM_NOTES.snare).map((h) => h.step));
+      for (let step = half; step < steps; step++)
+        expect([name, step, snares.has(step)]).toEqual([name, step, true]);
+      expect([name, hits.filter((h) => h.role === 'fill' && h.step < half)]).toEqual([name, []]);
+    }
+    expect(2 * Math.floor(stepsInBar(SONG_METER) / 4)).toBe(8);
   });
 });

@@ -56,7 +56,7 @@ export class MeterPlayer {
   layers: Record<Layer, boolean> = $state({ click: true, drums: false, bass: false });
   /** The bass takes the other meter's pulses, where there is one. */
   hemiola = $state(false);
-  /** The pulses grouped the other way round, 5 as 2+3 (`gradesOf`). */
+  /** The pulses grouped the other way round, 5 as 2+3 (`accentsOf`). */
   mirror = $state(false);
   /** The click's level, 0 to 1. */
   volume = $state(0.7);

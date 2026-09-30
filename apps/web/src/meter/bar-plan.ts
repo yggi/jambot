@@ -7,7 +7,7 @@
  * eighth; and a bass on the downbeat and the pulses. Each is scaled by its
  * eighth's accent grade (`gradeGain`).
  *
- * A backbeat is a choice of pulses, set out per meter (`BACKBEAT`): the
+ * A backbeat is a choice of pulses, the engine's rule (`backbeatOf`): the
  * formula `compose(even(2, pulses, 1), pulses)` leaves the bar in a meter
  * whose pulses are not four (it reaches the bar's length, the next downbeat,
  * for 3/4, 5/8, 6/8 and 7/8). The hemiola (`HEMIOLA`) keeps the drums and
@@ -15,36 +15,24 @@
  * the same bar regrouped, as `parallel` regroups it (docs/shape.md).
  */
 
-import { DRUM_NOTES } from '@jambot/engine';
+import { DRUM_NOTES, backbeatOf } from '@jambot/engine';
 import {
   METERS,
   type MeterName,
   STEPS_PER_EIGHTH,
   type Weight,
+  accentsOf,
   meterOnSteps,
   meterWeights,
   stepsOf,
 } from '@jambot/theory';
-import { gradeGain, gradesOf } from './grades.ts';
+import { gradeGain } from './grades.ts';
 
 export const LAYERS = ['click', 'drums', 'bass'] as const;
 export type Layer = (typeof LAYERS)[number];
 
 /** The tempos on offer, in quarters a minute. */
 export const BPM_RANGE = { min: 40, max: 208 } as const;
-
-/** The pulses (from 0, the downbeat's) the snare lands on, in each meter. */
-export const BACKBEAT: Record<MeterName, readonly number[]> = {
-  '3/4': [1, 2],
-  '4/4': [1, 3],
-  '5/4': [1, 3],
-  '5/8': [1],
-  '6/8': [1],
-  '7/8': [1, 2],
-  '9/8': [1, 2],
-  '10/8': [2],
-  '12/8': [1, 3],
-};
 
 /** Each meter that has one, and the meter whose pulses regroup its bar. */
 export const HEMIOLA: Partial<Record<MeterName, MeterName>> = { '3/4': '6/8', '6/8': '3/4' };
@@ -56,7 +44,7 @@ export interface Setting {
   readonly hemiola: boolean;
   /** The accent slider, 0 to 1. */
   readonly grade: number;
-  /** The pulses grouped the other way round, 5 as 2+3 (`gradesOf`). */
+  /** The pulses grouped the other way round, 5 as 2+3 (`accentsOf`). */
   readonly mirror: boolean;
 }
 
@@ -85,7 +73,7 @@ const velocity = (base: number, gain: number) =>
 /** What plays in one bar of the meter, in time order. */
 export function barPlan({ name, layers, hemiola, grade, mirror }: Setting): Onset[] {
   const meter = METERS[name];
-  const grades = gradesOf(meter, mirror);
+  const grades = accentsOf(meter, mirror);
   const weights = meterWeights(meter);
   const pulses = meterOnSteps(meter).heights;
   const barSteps = stepsOf(meter);
@@ -113,7 +101,7 @@ export function barPlan({ name, layers, hemiola, grade, mirror }: Setting): Onse
         drum(step, DRUM_NOTES.kick, 118);
       drum(step, DRUM_NOTES.closedHat, 100);
     });
-    for (const pulse of BACKBEAT[name]) drum(pulses[pulse]!, DRUM_NOTES.snare, 108);
+    for (const pulse of backbeatOf(meter)) drum(pulses[pulse]!, DRUM_NOTES.snare, 108);
   }
 
   if (layers.bass) {
