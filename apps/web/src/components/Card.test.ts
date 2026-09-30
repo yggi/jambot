@@ -140,4 +140,10 @@ describe('a card', () => {
     expect(screen.getByRole('group', { name: 'Thing' })).toHaveTextContent('C major');
     expect(container.querySelector('.glyph')).not.toBeNull();
   });
+
+  it('draws no title where it is untitled, and keeps its name for a screen reader', () => {
+    const { container } = render(Card, { title: 'Thing', untitled: true, main: 'Thing', children });
+    expect(container.querySelector('summary .title')).toBeNull();
+    expect(screen.getByLabelText('Thing')).toBeInTheDocument();
+  });
 });

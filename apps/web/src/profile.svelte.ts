@@ -46,6 +46,29 @@ export const ANIMALS = [
   'Yak',
 ] as const;
 
+/** Where a jam is held: the second word of a session's made-up name, after an adjective. */
+export const PLACES = [
+  'Attic',
+  'Barn',
+  'Cellar',
+  'Garage',
+  'Garden',
+  'Loft',
+  'Lounge',
+  'Porch',
+  'Studio',
+  'Treehouse',
+  'Van',
+  'Workshop',
+] as const;
+
+/** A name for a session to host, made of a draw from `[0, 1)` for each of its two words. */
+export function randomSessionName(draw: () => number = Math.random): string {
+  const adjective = ADJECTIVES[Math.floor(draw() * ADJECTIVES.length)]!;
+  const place = PLACES[Math.floor(draw() * PLACES.length)]!;
+  return `${adjective} ${place}`;
+}
+
 /** A name to go by, made of a draw from `[0, 1)` for each of its two words. */
 export function randomName(draw: () => number = Math.random): string {
   const adjective = ADJECTIVES[Math.floor(draw() * ADJECTIVES.length)]!;
@@ -86,6 +109,11 @@ export class Profile {
   set name(name: string) {
     this.#name = name;
     store(name);
+  }
+
+  /** A new made-up name, in place of this one. */
+  regenerate() {
+    this.name = randomName(this.#draw);
   }
 
   /** The person left the field: a name left empty is made up again, so there is always one. */

@@ -1,15 +1,17 @@
 <!--
   The lobby, the door to the band: what a person meets on a cold start, laid
-  out in the band's own cards. Under the hero icon: their name, made up
-  already; playing alone (Solo); joining a session that is open, with the
-  players in it; hosting one of their own, in this browser or through the
+  out in the band's own cards, under the page's title card. Their name, made
+  up already, with a button for another; playing alone (Solo); joining a
+  session that is open, with the players in it; hosting one of their own,
+  named as they like or by a made-up name, in this browser or through the
   lobby server; and the extras, folded at the bottom. It holds no session and knows
   no player: it takes props and sends what the person chose.
 -->
 <script lang="ts">
   import Card from '../components/Card.svelte';
-  import Equalizer from '../components/glyphs/Equalizer.svelte';
-  import LobbyGlyph from '../components/glyphs/Lobby.svelte';
+  import Regenerate from '../components/Regenerate.svelte';
+  import Segmented from '../components/Segmented.svelte';
+  import Lobby from '../components/glyphs/Lobby.svelte';
   import Network from '../components/glyphs/Network.svelte';
   import type { Found, Listed, Where } from '../session/sessions.svelte.ts';
 
@@ -18,9 +20,10 @@
     onname: (name: string) => void;
     /** The name field was left. */
     onsettle: () => void;
-    /** The lobby server's address, empty for none. */
-    address: string;
-    onaddress: (url: string) => void;
+    /** Make up another name. */
+    onregenerate: () => void;
+    /** A name to host a session under, made up: another each time it is asked. */
+    suggest: () => string;
     /** The sessions open and why some couldn't be listed, or null before the first look. */
     found: Found | null;
     /** A join is under way. */
@@ -38,8 +41,8 @@
     name,
     onname,
     onsettle,
-    address,
-    onaddress,
+    onregenerate,
+    suggest,
     found,
     joining,
     notice,
@@ -49,21 +52,27 @@
     onjoin,
   }: Props = $props();
 
-  let session = $state('');
-  let error: string | null = $state(null);
-  // The address as typed; it is given once the person is done (`change`).
   // svelte-ignore state_referenced_locally
-  let typed = $state(address);
-  $effect(() => void (typed = address));
+  let session = $state(suggest());
+  let where = $state<Where>('local');
+  let error: string | null = $state(null);
 
   const WHERE_TITLE: Record<Where, string> = {
     local: 'In this browser: between its tabs and windows.',
     global: 'Through the lobby server: anyone who gives its address can join.',
   };
+  const WHERE_NOTE: Record<Where, string> = {
+    local: 'In this browser: its tabs and windows can join.',
+    global: 'Through the lobby server: others can join.',
+  };
+  const WHERE_OPTIONS = [
+    { value: 'local', text: 'Local', name: 'Local: in this browser', icon: local },
+    { value: 'global', text: 'Global', name: 'Global: others can join', icon: globe },
+  ] as const;
 
   const count = (open: Listed) => `${open.players}`;
 
-  async function host(where: Where) {
+  async function host() {
     error = null;
     try {
       await onhost(where, session);
@@ -73,36 +82,77 @@
   }
 </script>
 
+{#snippet local()}
+  <svg viewBox="0 0 16 16" width="16" height="16" focusable="false">
+    <rect x="1.5" y="3" width="13" height="10" rx="2" />
+    <path d="M1.5 6.5 H14.5" />
+  </svg>
+{/snippet}
+
+{#snippet globe()}
+  <svg viewBox="0 0 16 16" width="16" height="16" focusable="false">
+    <circle cx="8" cy="8" r="6.5" />
+    <ellipse cx="8" cy="8" rx="2.7" ry="6.5" />
+    <path d="M1.5 8 H14.5" />
+  </svg>
+{/snippet}
+
 {#snippet nameField()}
-  <input
-    type="text"
-    aria-label="Your name"
-    value={name}
-    oninput={(e) => onname(e.currentTarget.value)}
-    onblur={onsettle}
-    autocomplete="nickname"
-  />
+  <div class="row">
+    <input
+      type="text"
+      aria-label="Your name"
+      value={name}
+      oninput={(e) => onname(e.currentTarget.value)}
+      onblur={onsettle}
+      autocomplete="nickname"
+    />
+    <Regenerate label="Regenerate name" onclick={onregenerate} />
+  </div>
 {/snippet}
 
 {#snippet solo()}
-  <button type="button" class="primary" disabled={joining} onclick={onsolo}>Solo</button>
+  <span class="play">
+    Play
+    <button type="button" class="primary" disabled={joining} onclick={onsolo}>Solo</button>
+  </span>
 {/snippet}
 
-{#snippet sessionField()}
-  <input
-    type="text"
-    aria-label="Session name"
-    bind:value={session}
-    autocomplete="off"
-    placeholder="Friday jam"
-  />
+{#snippet hosting()}
+  <div class="host">
+    <div class="row">
+      <input
+        type="text"
+        aria-label="Session name"
+        bind:value={session}
+        autocomplete="off"
+        placeholder="Friday jam"
+      />
+      <Regenerate label="Regenerate session name" onclick={() => (session = suggest())} />
+    </div>
+    <div class="row">
+      <Segmented
+        label="Where"
+        value={where}
+        options={WHERE_OPTIONS}
+        onselect={(chosen) => (where = chosen)}
+      />
+      <button
+        type="button"
+        class="primary"
+        disabled={joining || session.trim() === ''}
+        onclick={host}>Host</button
+      >
+    </div>
+    <p class="message" title={WHERE_TITLE[where]}>{WHERE_NOTE[where]}</p>
+  </div>
 {/snippet}
 
-{#snippet nameGlyph()}<LobbyGlyph kind="name" />{/snippet}
-{#snippet soloGlyph()}<Equalizer levels={[0.35, 0.7, 0.5, 0.9]} />{/snippet}
+{#snippet nameGlyph()}<Lobby kind="name" />{/snippet}
+{#snippet soloGlyph()}<Network colours={[0]} bar={null} />{/snippet}
 {#snippet joinGlyph()}<Network colours={[1, 0, 2]} bar={null} />{/snippet}
-{#snippet hostGlyph()}<LobbyGlyph kind="host" />{/snippet}
-{#snippet extrasGlyph()}<LobbyGlyph kind="extras" />{/snippet}
+{#snippet hostGlyph()}<Lobby kind="host" />{/snippet}
+{#snippet extrasGlyph()}<Lobby kind="gear" />{/snippet}
 
 {#snippet openSessions()}
   {#if joining}
@@ -130,13 +180,9 @@
 {/snippet}
 
 <div class="lobby">
-  <div class="hero">
-    <img src="{import.meta.env.BASE_URL}icon.svg" alt="" width="96" height="96" />
-  </div>
-
   <Card title="Name" main={nameField} glyph={nameGlyph} />
 
-  <Card title="Play with the band" main={solo} sub="on this device" glyph={soloGlyph} />
+  <Card title="Play with the band" untitled main={solo} sub="with the band" glyph={soloGlyph} />
 
   {#if found !== null && (found.sessions.length > 0 || found.problem || joining)}
     <Card
@@ -154,47 +200,13 @@
     />
   {/if}
 
-  <Card title="Host a session" main={sessionField} glyph={hostGlyph} open>
-    <div class="actions">
-      <button
-        type="button"
-        class="local"
-        title={WHERE_TITLE.local}
-        disabled={joining || session.trim() === ''}
-        onclick={() => host('local')}>Local</button
-      >
-      <button
-        type="button"
-        class="global"
-        title={WHERE_TITLE.global}
-        disabled={joining || session.trim() === ''}
-        onclick={() => host('global')}>Global</button
-      >
-    </div>
-    <details class="advanced">
-      <summary>Advanced</summary>
-      <label>
-        Lobby server
-        <input
-          type="text"
-          bind:value={typed}
-          onchange={() => onaddress(typed)}
-          placeholder="none: this browser only"
-          autocomplete="off"
-          spellcheck="false"
-        />
-      </label>
-      <p class="message">
-        Every player gives the same lobby server: ws:// on a local network, wss:// when hosted.
-      </p>
-    </details>
-  </Card>
+  <Card title="Host a session" main={hosting} glyph={hostGlyph} />
 
   {#if error ?? notice}
     <p class="notice" role="status">{error ?? notice}</p>
   {/if}
 
-  <Card title="Extras" main="Timing test" glyph={extrasGlyph}>
+  <Card title="Extras" untitled main="Extras" glyph={extrasGlyph}>
     <p class="message">
       A drum pattern plays and you follow it for eight bars, seeing at once how early or late each
       hit was. The runs are kept in this browser, to download and analyse.
@@ -208,23 +220,33 @@
     display: grid;
     gap: 10px;
   }
-  .hero {
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .host {
     display: grid;
-    justify-items: center;
-    padding: 4px 0 8px;
+    gap: 8px;
   }
-  .hero img {
-    border-radius: 22px;
-    box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+  .row > :global(.segmented) {
+    flex: 1 1 auto;
   }
-  /* The lobby's cards are in a column, their details set out the same way. */
-  .open,
-  .actions {
+  .play {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .open {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
   }
   input {
+    flex: 1 1 auto;
     width: 100%;
     min-width: 0;
     font: inherit;
@@ -233,12 +255,6 @@
     border-radius: 6px;
     background: var(--surface);
     color: var(--ink);
-  }
-  label {
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-    font-size: 14px;
   }
   button {
     justify-self: start;
@@ -254,6 +270,7 @@
     opacity: 0.5;
   }
   .primary {
+    flex: none;
     min-height: 44px;
     padding: 0 22px;
     border: 0;
@@ -276,15 +293,10 @@
     font-variant-numeric: tabular-nums;
     color: var(--muted);
   }
-  summary {
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--muted);
-  }
-  .advanced {
-    display: grid;
-    gap: 8px;
-    margin-top: 10px;
+  svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
   }
   .message {
     font-size: 13px;

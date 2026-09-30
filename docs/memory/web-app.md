@@ -38,9 +38,11 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   The page's footer signs every screen: "all rites reversed", a pentagon, "kallisti collective, 3192 YOLD".
   The style card starts folded, so a check that picks a preset or moves a slider unfolds it first (`openStyle` in `audio.ts`).
 - The page (`App.svelte`) is the container, and shows one of three screens (`screenOf`, `screen.ts`): the lobby at the door, the band behind it, or a line saying a kept session is taken up again.
-  A cold start shows the lobby (`screens/Lobby.svelte`), in the band's own cards under a hero icon: a name made up already (`Profile`, kept), Solo, the sessions open to join, Local and Global under one session name to host, and the Extras card, folded, holding the timing test.
+  A cold start shows the lobby (`screens/Lobby.svelte`), in the band's own cards under the page's title card: a name made up already (`Profile`, kept, with a Regenerate button beside it), Play Solo (the session card's single dot as its glyph, "local band"), the sessions open to join, the host card, and the More card, folded, holding the timing test.
+  The host card is its summary alone: the session name (made up by `randomSessionName`, with its own Regenerate button), a Local | Global segmented choice, each with a small glyph, and Host beside it, over a note that says where the session will be ("In this browser: its tabs and windows can join", "Through the lobby server: others can join").
+  The title card (`TitleCard.svelte`, above the sound card on every screen) is the logo glyph, "Jambot" and "play together"; its details are About and Settings: the theme (`theme.svelte.ts`: system, dark or light, kept, set as `data-theme` on the root) and the lobby server's address.
   A join button shows the players in the session, and is teal for a session in this browser and amber for one through the lobby server, with a tooltip.
-  The lobby server's address is in the Advanced fold, and is given when the field is left.
+  The lobby server's address is in the title card's settings, and is given when the field is left.
   A reload returns to a session still kept, a host's or a client's, and lands on the lobby from anything else, solo included: solo is a choice the page holds and doesn't keep.
   A client that is still joining stays at the lobby, busy; one whose host closed, or whose link was given up, is back at it, with the reason.
   The band (`screens/Band.svelte`) is the levels; the screens take props and send intents, and lint keeps them from running the player, the device or the sessions (only their types), or from importing each other.

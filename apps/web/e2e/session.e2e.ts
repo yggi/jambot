@@ -23,12 +23,12 @@ import {
 const LOBBY = 'ws://localhost:4319';
 
 /**
- * Through the lobby's Advanced fold: the lobby server's address, given when
+ * Through the title card's settings: the lobby server's address, given when
  * the field is left, as a person does.
  */
 const useLobby = async (page: Page, lobby: string) => {
-  const fold = page.locator('details.advanced');
-  if ((await fold.getAttribute('open')) === null) await fold.getByText('Advanced').click();
+  const fold = page.locator('details[aria-label="Jambot"]');
+  if ((await fold.getAttribute('open')) === null) await fold.locator('summary').click();
   await page.getByLabel('Lobby server').fill(lobby);
   await page.getByLabel('Lobby server').blur();
 };
@@ -56,8 +56,9 @@ const joined = async (page: Page, name: string) => {
 /** Hosts a session at the lobby's door: locally, or, given a lobby server, globally. */
 const host = async (page: Page, session: string, lobby = '') => {
   if (lobby !== '') await useLobby(page, lobby);
-  await page.getByLabel('Session name').fill(session);
-  await page.getByRole('button', { name: lobby === '' ? 'Local' : 'Global' }).click();
+  await page.getByRole('textbox', { name: 'Session name' }).fill(session);
+  await page.getByRole('radio', { name: lobby === '' ? /Local/ : /Global/ }).click();
+  await page.getByRole('button', { name: 'Host', exact: true }).click();
   await expect(state(page)).toContainText('Hosting');
 };
 
@@ -470,8 +471,8 @@ test('a second host cannot take a session name that is open', async ({ page, con
   const other = await context.newPage();
   await listen(other);
   await host(page, 'taken');
-  await other.getByLabel('Session name').fill('Taken ');
-  await other.getByRole('button', { name: 'Local' }).click();
+  await other.getByRole('textbox', { name: 'Session name' }).fill('Taken ');
+  await other.getByRole('button', { name: 'Host', exact: true }).click();
   await expect(other.getByText('A session named “Taken” is already open.')).toBeVisible();
 });
 

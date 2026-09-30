@@ -21,6 +21,12 @@
     /** The card's title, and what names it to a screen reader. */
     title: string;
     /**
+     * A slim card: the title is not drawn, since the main element says it, and
+     * the summary is one row (glyph, main, sub, chevron). For a card whose
+     * main element already names it, where a title would say it twice.
+     */
+    untitled?: boolean;
+    /**
      * What the thing is now: in large type, or a snippet for a control that is
      * worked from the summary (a slider, a button), which never folds the card.
      */
@@ -43,6 +49,7 @@
 
   let {
     title,
+    untitled = false,
     main,
     sub,
     live = false,
@@ -66,7 +73,7 @@
 
 {#snippet head()}
   {#if glyph}<span class="glyph" aria-hidden="true">{@render glyph()}</span>{/if}
-  <span class="title">{title}</span>
+  {#if !untitled}<span class="title">{title}</span>{/if}
   {#if typeof main === 'string'}
     <span class="main" title={main}><span class="fit">{main}</span></span>
   {:else}
@@ -79,14 +86,14 @@
 
 {#if children}
   <details class="card" aria-label={title} bind:open>
-    <summary class="head chevron" class:with-glyph={glyph} onclick={keepFolding}>
+    <summary class="head chevron" class:with-glyph={glyph} class:untitled onclick={keepFolding}>
       {@render head()}
     </summary>
     {@render children()}
   </details>
 {:else}
   <div class="card" role="group" aria-label={title}>
-    <div class="head" class:with-glyph={glyph}>{@render head()}</div>
+    <div class="head" class:with-glyph={glyph} class:untitled>{@render head()}</div>
   </div>
 {/if}
 
@@ -114,12 +121,35 @@
     column-gap: 10px;
   }
   .head.with-glyph {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: var(--glyph-size) minmax(0, 1fr) auto;
     grid-template-areas:
       'glyph title chevron'
       'glyph main main'
       'glyph sub sub';
     column-gap: 14px;
+  }
+  /* One row: the glyph, the main element and the sub element beside it, the chevron. */
+  .head.untitled {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'main sub chevron';
+    column-gap: 14px;
+  }
+  .head.untitled.with-glyph {
+    grid-template-columns: var(--glyph-size) auto minmax(0, 1fr) auto;
+    grid-template-areas: 'glyph main sub chevron';
+  }
+  .untitled .main {
+    container-type: normal;
+  }
+  .untitled .glyph {
+    width: var(--glyph-compact);
+    height: var(--glyph-compact);
+  }
+  .untitled .fit {
+    font-size: 20px;
+  }
+  .untitled .sub {
+    min-height: 0;
   }
   .head::after {
     grid-area: chevron;
@@ -143,6 +173,8 @@
   }
   .glyph {
     grid-area: glyph;
+    align-self: start;
+    justify-self: center;
     display: grid;
     place-items: center;
     width: var(--glyph-size);
@@ -194,11 +226,14 @@
       column-gap: 10px;
     }
     .head.with-glyph {
-      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      grid-template-columns: var(--glyph-compact) auto minmax(0, 1fr) auto;
       grid-template-areas:
         'glyph title sub chevron'
         'glyph main main main';
       column-gap: 12px;
+    }
+    .head.untitled.with-glyph {
+      grid-template-columns: var(--glyph-compact) auto minmax(0, 1fr) auto;
     }
     .glyph {
       width: var(--glyph-compact);

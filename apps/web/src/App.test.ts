@@ -26,8 +26,7 @@ describe('the app', () => {
       expect(screen.getByLabelText('Your name')).not.toHaveValue('');
       expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
       expect(screen.getByLabelText('Join a session')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Local' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Global' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Host' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Start the band' })).toBeNull();
     });
 
@@ -84,7 +83,7 @@ describe('the app', () => {
       onTestFinished(() => void vi.unstubAllGlobals());
       render(App);
       await fireEvent.input(screen.getByLabelText('Session name'), { target: { value: 'Garage' } });
-      await fireEvent.click(screen.getByRole('button', { name: 'Local' }));
+      await fireEvent.click(screen.getByRole('button', { name: 'Host' }));
       expect(await screen.findByText(/nobody has joined/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Close session' }));
@@ -141,7 +140,7 @@ describe('the app', () => {
 
   it('offers the band, the presets and the style sliders', async () => {
     await renderBand();
-    expect(screen.getByRole('heading', { name: 'Jambot' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Jambot')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
     for (const p of PRESETS)
       expect(screen.getByRole('radio', { name: p.name })).toBeInTheDocument();

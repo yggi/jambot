@@ -1,7 +1,7 @@
 <!--
   The lobby's small pictures, for the cards that have no state to draw: a
   person (the name), a source with its signal going out (hosting a session)
-  and three dots (the extras). They are still figures in the glyph colour
+  and a gear (the extras). They are still figures in the glyph colour
   roles and never move. Joining and playing alone use the network and the
   equalizer glyphs the band's own cards use.
 -->
@@ -9,7 +9,7 @@
   import Glyph from '../Glyph.svelte';
 
   interface Props {
-    kind: 'name' | 'host' | 'extras';
+    kind: 'name' | 'host' | 'gear';
   }
 
   let { kind }: Props = $props();
@@ -24,14 +24,17 @@
     <circle class="dim" cx="20" cy="20" r="9" />
     <circle class="dim faint" cx="20" cy="20" r="15" />
   {:else}
-    <circle class="dim solid" cx="9" cy="20" r="3" />
-    <circle class="dim solid" cx="20" cy="20" r="3" />
-    <circle class="dim solid" cx="31" cy="20" r="3" />
+    <circle class="dim" cx="20" cy="20" r="5" />
+    {#each [0, 45, 90, 135, 180, 225, 270, 315] as turn (turn)}
+      <line class="dim" x1="20" y1="8" x2="20" y2="12" transform="rotate({turn} 20 20)" />
+    {/each}
+    <circle class="dim" cx="20" cy="20" r="9" />
   {/if}
 </Glyph>
 
 <style>
   circle,
+  line,
   path {
     fill: none;
     stroke-width: 2;
@@ -43,14 +46,8 @@
   .dim {
     stroke: var(--glyph-dim);
   }
-  .solid {
-    fill: currentColor;
-  }
   .accent.solid {
     fill: var(--glyph-accent);
-  }
-  .dim.solid {
-    fill: var(--glyph-dim);
   }
   .faint {
     opacity: 0.5;

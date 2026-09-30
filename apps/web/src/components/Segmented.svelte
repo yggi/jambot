@@ -7,6 +7,8 @@
   corner cells curved to the outline so a pressed one's ring follows it.
 -->
 <script lang="ts" generics="Value extends string">
+  import type { Snippet } from 'svelte';
+
   interface Option {
     value: Value;
     /** What the segment says. */
@@ -14,6 +16,8 @@
     /** The full name, as tooltip and accessible name, where `text` is short. */
     name?: string;
     disabled?: boolean;
+    /** A small picture before the text, decoration: the text or `name` says it in words. */
+    icon?: Snippet;
   }
 
   interface Props {
@@ -67,12 +71,19 @@
       title={option.name}
       aria-checked={option.value === value}
       disabled={disabled || option.disabled}
-      onclick={() => onselect(option.value)}>{option.text}</button
+      onclick={() => onselect(option.value)}
+      >{#if option.icon}<span class="icon" aria-hidden="true">{@render option.icon()}</span
+        >{/if}{option.text}</button
     >
   {/each}
 </div>
 
 <style>
+  .icon {
+    display: inline-grid;
+    vertical-align: -3px;
+    margin-right: 6px;
+  }
   .segmented {
     display: flex;
     gap: 1px;
