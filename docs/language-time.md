@@ -285,12 +285,12 @@ named meter's readings keep their laws, while the literals give 4/4's alone;
 readings are the literals at every quarter-step of 128 bars, and bars and beats
 tile the song; `seam.test.ts` (`packages/score`), whose test of the meter cites
 T10: a header that states no meter is in the song's. The rhythms the parts write
-stay on the 16 steps, such as the backbeat on steps 4 and 12: they are content,
-not readings (#123). MIDI clock's 6 ticks a step (T3) counts steps, not bars. A
+are content, not readings (#123): each part writes a bar of its `BarEnv.meter`'s
+steps, which in 4/4 are the 16 (#260). MIDI clock's 6 ticks a step (T3) counts steps, not bars. A
 key change keeps the cycle and a meter change need not, so a song whose meter
 changes is a helix only between changes: open how bars of different lengths join
 (#122, T14). Source: #7's tension 9; #105; #120. Status: measured (the readings,
-every named meter; the readers, in 4/4). Lands in: #122 (a meter per bar); #63
+every named meter; the readers, in 4/4; the parts, every named meter, #260). Lands in: #122 (a meter per bar); #63
 (a meter in the header).
 
 **T11. Swing never moves a pulse's start, and a 2-eighth pulse swings at the 8th
