@@ -55,8 +55,10 @@ Two things run today:
 
   Where the design isn't settled yet, such as the score's text format and its
   relation to [Strudel](https://strudel.cc), it is worked out as a catalogue of
-  constraints before any syntax: see [`docs/language.md`](docs/language.md) and
-  the method behind it, [`docs/ratchet.md`](docs/ratchet.md).
+  constraints before any syntax: see [`docs/language.md`](docs/language.md) (its
+  entries are split by layer), [`docs/shape.md`](docs/shape.md), which sets the
+  catalogues against the code, and the method behind it,
+  [`docs/ratchet.md`](docs/ratchet.md).
 
 Where the project is heading, and the two milestones on the way, are in the
 [roadmap](docs/ROADMAP.md).

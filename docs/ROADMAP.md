@@ -69,7 +69,10 @@ These run in parallel:
   ahead of the evidence and building around the decision later. How the tracks
   feed each other is [the ratchet](ratchet.md), and the constraints, their
   tensions and the experiments that measure them are in
-  [`language.md`](language.md).
+  [`language.md`](language.md), whose entries sit in one file per layer (time,
+  pitch, state, surface, analysis). [`shape.md`](shape.md) lays the catalogues
+  over the code, one row per level, and lists what is decided and not yet built
+  (#255).
 - **Rebuild from the prototype**, test-first, with the prototype as a baseline
   for orientation:
   - the theory primitive in `packages/theory` (#28, done);
