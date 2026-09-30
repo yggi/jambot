@@ -12,7 +12,7 @@ import {
 } from './loop.ts';
 
 // The numbers are literals, to be moved by the step that moves them.
-/** E21 at entropy 0.3 over every preset, the narrowest licence first, one seed of 96 bars. */
+/** E22 at entropy 0.3 over every preset, the narrowest licence first, one seed of 96 bars. */
 const middle = loops(0.3, 1, 96);
 /** The same at entropy 1, at the ends of the licence. */
 const ENDS = [BY_LICENCE[0]!, BY_LICENCE.at(-1)!];
@@ -26,8 +26,8 @@ const exactly = (rows: readonly LoopMeasure[], condition: Condition, of: keyof L
 const column = (rows: readonly LoopMeasure[], condition: Condition, of: keyof LoopMeasure) =>
   exactly(rows, condition, of).map(round);
 
-describe('the loop closed with no players, the Muse hearing the band’s own lead, E21 (#237)', () => {
-  it('orders the presets by their licence, Techno’s the narrowest and Swing jazz’s the widest (E21)', () => {
+describe('the loop closed with no players, the Muse hearing the band’s own lead, E22 (#237)', () => {
+  it('orders the presets by their licence, Techno’s the narrowest and Swing jazz’s the widest (E22)', () => {
     expect(BY_LICENCE.map((p) => p.name)).toEqual([
       'Techno',
       'Funk',
@@ -40,14 +40,14 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
     ]);
   });
 
-  it('hears the lead’s notes on the grid by the nearest step as the transport’s phrase reading hears them (E21)', () => {
+  it('hears the lead’s notes on the grid by the nearest step as the transport’s phrase reading hears them (E22)', () => {
     for (const condition of ['deaf', 'hearing'] as const)
       expect(loopRun(ENDS[0]!, 1, 0.3, 24, condition, 'nearest'), condition).toEqual(
         loopRun(ENDS[0]!, 1, 0.3, 24, condition, 'phrases'),
       );
   });
 
-  it('judges every bar it runs, and none after (E21)', () => {
+  it('judges every bar it runs, and none after (E22)', () => {
     const run = loopRun(ENDS[0]!, 1, 0.3, 24, 'hearing');
     expect(run).toHaveLength(24);
     // The lead rests in the intro, so the Muse judges its first bars silent.
@@ -55,7 +55,7 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
     expect(run.slice(8).every((b) => b.motif !== null)).toBe(true);
   });
 
-  it('recognises nearly every bar once it hears itself, where deaf it recognises about half, and hears a third as many new motifs (E21, Q7b, Q12)', () => {
+  it('recognises nearly every bar once it hears itself, where deaf it recognises about half, and hears a third as many new motifs (E22, Q7b, Q12)', () => {
     expect(column(middle, 'deaf', 'recognised')).toEqual([
       0.57, 0.63, 0.55, 0.52, 0.56, 0.51, 0.53, 0.63,
     ]);
@@ -68,14 +68,14 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
     expect(column(middle, 'hearing', 'novelty')).toEqual([0.5, 0.67, 1, 1, 0.5, 0.83, 0.58, 1.17]);
   });
 
-  it('hears what it recognises of itself mostly as exact repeats, as it does deaf (E21, Q7b, Q12)', () => {
+  it('hears what it recognises of itself mostly as exact repeats, as it does deaf (E22, Q7b, Q12)', () => {
     expect(column(middle, 'hearing', 'exact')).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
     expect(column(middle, 'deaf', 'exact')).toEqual([
       0.84, 0.87, 0.88, 0.87, 0.92, 0.95, 0.89, 0.93,
     ]);
   });
 
-  it('doesn’t stall on one bar, but oscillates: the first motif it heard on every other bar, a few others between (E21, Q7b)', () => {
+  it('doesn’t stall on one bar, but oscillates: the first motif it heard on every other bar, a few others between (E22, Q7b)', () => {
     expect(column(middle, 'hearing', 'longestAny')).toEqual([5, 5, 1, 7, 9, 7, 3, 5]);
     expect(column(middle, 'hearing', 'stalled')).toEqual([0, 0, 0, 0, 0.1, 0, 0, 0]);
     expect(column(middle, 'hearing', 'oscillating')).toEqual([
@@ -101,7 +101,7 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
     ]);
   });
 
-  it('doesn’t drift: once it hears itself, half or more of its last section is heard as its first, where deaf, in most presets, none of it is (E21, Q7b)', () => {
+  it('doesn’t drift: once it hears itself, half or more of its last section is heard as its first, where deaf, in most presets, none of it is (E22, Q7b)', () => {
     expect(column(middle, 'hearing', 'returns')).toEqual([
       0.63, 0.88, 0.88, 0.75, 0.88, 0.5, 0.88, 0.63,
     ]);
@@ -110,7 +110,7 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
     expect(column(middle, 'deaf', 'distinct')).toEqual([37, 31, 14, 45, 32, 41, 37, 31]);
   });
 
-  it('recognises less as the entropy rises, deaf, but not monotonically less as the licence widens (E21, Q7b)', () => {
+  it('recognises less as the entropy rises, deaf, but not monotonically less as the licence widens (E22, Q7b)', () => {
     const licence = BY_LICENCE.map((p) => p.style.harm);
     expect(round(kendall(licence, exactly(middle, 'deaf', 'recognised')))).toBe(-0.18);
     expect(round(kendall(licence, exactly(middle, 'hearing', 'recognised')))).toBe(-0.18);
@@ -129,18 +129,18 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
   });
 });
 
-describe('the variants: the lock is the delay’s, not the hold’s, E21 (#237)', () => {
+describe('the variants: the lock is the delay’s, not the hold’s, E22 (#237)', () => {
   /** The variants at entropy 0.3, at the ends of the licence, one seed of 96 bars, with the deaf band beside them. */
   const sample = loops(0.3, 1, 96, ENDS, ['deaf', ...VARIANTS]);
 
-  it('still locks without the hold: the first motif it heard is the commonest, all on bars of one parity (E21, Q7b)', () => {
+  it('still locks without the hold: the first motif it heard is the commonest, all on bars of one parity (E22, Q7b)', () => {
     expect(column(sample, 'no hold', 'firstHeld')).toEqual([1, 1]);
     expect(column(sample, 'no hold', 'oneParity')).toEqual([1, 1]);
     expect(column(sample, 'no hold', 'recognised')).toEqual([0.93, 0.89]);
     expect(column(sample, 'hearing', 'recognised')).toEqual([0.93, 0.84]);
   });
 
-  it('recognises less and repeats less exactly when the lead varies an offer on its phrase’s second and fourth bars, but the first motif still holds the other bars (E21, Q7b)', () => {
+  it('recognises less and repeats less exactly when the lead varies an offer on its phrase’s second and fourth bars, but the first motif still holds the other bars (E22, Q7b)', () => {
     expect(column(sample, 'varied', 'recognised')).toEqual([0.78, 0.76]);
     expect(column(sample, 'varied', 'exact')).toEqual([0.81, 0.9]);
     expect(column(sample, 'varied', 'distinct')).toEqual([19, 20]);
@@ -148,7 +148,7 @@ describe('the variants: the lock is the delay’s, not the hold’s, E21 (#237)'
     expect(column(sample, 'varied, no hold', 'firstHeld')).toEqual([1, 1]);
   });
 
-  it('breaks the lock when the lead varies an offer on every bar: no first motif held, no return, and what it recognises about half under an operator (E21, Q7b, Q12)', () => {
+  it('breaks the lock when the lead varies an offer on every bar: no first motif held, no return, and what it recognises about half under an operator (E22, Q7b, Q12)', () => {
     for (const condition of ['every bar', 'every bar, no hold'] as const) {
       expect(column(sample, condition, 'firstHeld'), condition).toEqual([0, 0]);
       expect(column(sample, condition, 'returns'), condition).toEqual([0, 0]);
@@ -164,7 +164,7 @@ describe('the variants: the lock is the delay’s, not the hold’s, E21 (#237)'
   });
 });
 
-describe('an offered motif varied as the lead varies its own shapes (E21)', () => {
+describe('an offered motif varied as the lead varies its own shapes (E22)', () => {
   const shape: Motif = {
     cycle: 16,
     onsets: [0, 4, 8, 12],
@@ -205,8 +205,8 @@ describe('an offered motif varied as the lead varies its own shapes (E21)', () =
   });
 });
 
-describe('Kendall’s tau (E21)', () => {
-  it('is 1 for lists that rise together, -1 for one that falls as the other rises, and 0 for none (E21)', () => {
+describe('Kendall’s tau (E22)', () => {
+  it('is 1 for lists that rise together, -1 for one that falls as the other rises, and 0 for none (E22)', () => {
     expect(kendall([1, 2, 3], [4, 5, 9])).toBe(1);
     expect(kendall([1, 2, 3], [9, 5, 4])).toBe(-1);
     expect(kendall([1, 2, 3], [5, 4, 6])).toBeCloseTo(1 / 3);

@@ -116,17 +116,22 @@ describe('the timing test screen', () => {
     expect(screen.getByText(/mean \+20 ms/)).toBeInTheDocument();
   });
 
-  it('takes a tap on its button, timed by the event, and a keyboard press of it too', async () => {
+  it('takes a tap on its button once, when the pointer goes down, and a keyboard press of it too', async () => {
     const { test } = shown();
     await test.start();
     await tick();
     const button = screen.getByRole('button', { name: 'Tap along' });
     await fireEvent.pointerDown(button);
     expect(test.taps.map((t) => [t.kind, t.source])).toEqual([['tap', 'the on-screen tap']]);
-    await fireEvent.click(button, { detail: 1 }); // the click after a pointer: not a second tap
+    // The click that follows a pointer is not a second tap, whether the browser sends it as a
+    // mouse event or, as Firefox and Chrome do, as a pointer event.
+    await fireEvent.click(button, { detail: 1 });
+    button.dispatchEvent(new PointerEvent('click', { detail: 1, bubbles: true }));
+    await tick();
     expect(test.taps).toHaveLength(1);
     await fireEvent.click(button, { detail: 0 }); // from the keyboard
     expect(test.taps).toHaveLength(2);
+    expect(screen.getByText(/2 taps/)).toBeInTheDocument();
   });
 
   it('stops on request, and says nothing was kept', async () => {

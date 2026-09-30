@@ -1,5 +1,5 @@
 /**
- * E21: the loop closed with no players, the Muse hearing the band's own lead
+ * E22: the loop closed with no players, the Muse hearing the band's own lead
  * (#237 step 0, Q7b, Q12).
  *
  * The band is left alone, the players wishing only for its preset's mode.
@@ -110,7 +110,7 @@ export type Condition =
   | 'every bar'
   | 'every bar, no hold';
 
-/** The conditions E21 compares, and its variants. */
+/** The conditions E22 compares, and its variants. */
 export const CONDITIONS: readonly Condition[] = ['deaf', 'hearing'];
 export const VARIANTS: readonly Condition[] = [
   'hearing',
@@ -267,7 +267,7 @@ export function loopRun(
   return heard;
 }
 
-/** What E21 measures of a preset's runs at one entropy and condition. */
+/** What E22 measures of a preset's runs at one entropy and condition. */
 export interface LoopMeasure {
   readonly preset: string;
   readonly entropy: number;
@@ -302,7 +302,7 @@ export interface LoopMeasure {
 const mean = (xs: readonly number[]) =>
   xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
 
-/** E21's measures over runs of one preset, entropy and condition. */
+/** E22's measures over runs of one preset, entropy and condition. */
 export function measure(
   preset: string,
   entropy: number,
@@ -390,7 +390,7 @@ export function measure(
   };
 }
 
-/** E21 for `presets` (every preset, the narrowest licence first) at `entropy`, in `conditions`, over `seeds` seeds of `bars` bars. */
+/** E22 for `presets` (every preset, the narrowest licence first) at `entropy`, in `conditions`, over `seeds` seeds of `bars` bars. */
 export function loops(
   entropy: number,
   seeds: number,

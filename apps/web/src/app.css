@@ -108,9 +108,10 @@ details[open] > summary.chevron::after {
   transform: rotate(90deg);
 }
 
-/* A glyph moves by transitions only, and stops for those who ask for less motion. */
+/* A glyph moves by transitions and short animations, and stops for those who ask for less motion. */
 @media (prefers-reduced-motion: reduce) {
   svg.glyph * {
     transition: none !important;
+    animation: none !important;
   }
 }

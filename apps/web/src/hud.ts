@@ -121,10 +121,21 @@ export interface GlideView {
   readonly bars: number;
 }
 
+/** The six axes a style is drawn and set on: tempo has its own card. */
+export const STYLE_AXES = ['swing', 'sync', 'harm', 'artic', 'energy', 'entropy'] as const;
+export type StyleAxis = (typeof STYLE_AXES)[number];
+export type AxisValues = Readonly<Record<StyleAxis, number>>;
+
+/** The six axes of a style, 0 to 1. */
+export const axesOf = (style: Style): AxisValues =>
+  Object.fromEntries(STYLE_AXES.map((axis) => [axis, style[axis]])) as AxisValues;
+
 export interface StyleView {
   /** The preset the style is at or heading for, or null for a custom style. */
   readonly preset: string | null;
   readonly glide: GlideView | null;
+  /** The six axes where the band is at the step heard, so a glide moves them. */
+  readonly axes: AxisValues;
 }
 
 /** A motif on offer, as the Muse panel draws it, credited to its source and the bar it was heard in. */
@@ -227,7 +238,48 @@ export function leadStatus(hud: Pick<Hud, 'bar' | 'beat'>): string {
   return hud.bar.lead === 'resting' ? 'Lead is resting.' : 'Lead is improvising.';
 }
 
-/** Where a style is, in the prototype's words, reused by the style panel and the tracks. */
+/** The word for an axis at its low or its high end, for a style no preset names. */
+const AXIS_WORDS: Record<StyleAxis, readonly [string, string]> = {
+  swing: ['straight', 'swung'],
+  sync: ['on the beat', 'syncopated'],
+  harm: ['static', 'rich'],
+  artic: ['legato', 'staccato'],
+  energy: ['sparse', 'dense'],
+  entropy: ['predictable', 'surprising'],
+};
+
+/** How near an end an axis is to be worth a word: a quarter of its range. */
+const WORTH_A_WORD = 0.25;
+
+/** The most telling words for a custom style: up to two axes furthest from the middle, in axis order on a tie. */
+export function styleWords(axes: AxisValues): string[] {
+  return STYLE_AXES.map((axis, i) => ({ axis, i, far: Math.abs(axes[axis] - 0.5) }))
+    .filter(({ far }) => far >= 0.5 - WORTH_A_WORD)
+    .sort((a, b) => b.far - a.far || a.i - b.i)
+    .slice(0, 2)
+    .sort((a, b) => a.i - b.i)
+    .map(({ axis }) => AXIS_WORDS[axis][axes[axis] < 0.5 ? 0 : 1]);
+}
+
+/** The style card's main element: the closest named style. */
+export const styleName = ({ preset }: StyleView): string => preset ?? 'Custom';
+
+/**
+ * The style card's sub element: what the band is doing now, or for a client
+ * whose host sets it, that too.
+ */
+export function styleSub(view: StyleView, following = false): string {
+  const { preset, glide, axes } = view;
+  const state =
+    preset === null
+      ? ['Custom', styleWords(axes).join(', ')].filter(Boolean).join(' · ')
+      : glide
+        ? `Gliding to ${preset}`
+        : `Playing ${preset}`;
+  return following ? `${state} · the host sets it` : state;
+}
+
+/** Where a style is, in the prototype's words, reused by the tracks. */
 export function styleStatus({ preset, glide }: StyleView): string {
   if (preset === null) return 'Custom style. Pick a preset to glide somewhere named.';
   if (!glide) return `Playing ${preset}.`;
@@ -424,7 +476,8 @@ function styleView(track: StyleTrack, step: number, nudge: number): StyleView {
   const moving = NAMING_AXES.map((axis) => track[axis]).filter(
     (g) => g.length > 0 && step < g.start + g.length && (g.from !== g.to || g.slope !== 0),
   );
-  if (moving.length === 0) return { preset: presetOf(target), glide: null };
+  const axes = axesOf(styleAt(track, step));
+  if (moving.length === 0) return { preset: presetOf(target), glide: null, axes };
   const start = Math.min(...moving.map((g) => g.start));
   const end = Math.max(...moving.map((g) => g.start + g.length));
   const bars = Math.ceil((end - start) / BAR_STEPS);
@@ -432,5 +485,6 @@ function styleView(track: StyleTrack, step: number, nudge: number): StyleView {
   return {
     preset: presetOf(target),
     glide: { from: presetOf(unnudged(styleAt(track, start), nudge)), bar, bars },
+    axes,
   };
 }

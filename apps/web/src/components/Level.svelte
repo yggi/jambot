@@ -1,6 +1,6 @@
 <!--
   One level of the composition, as the page lays them out top to bottom:
-  transport, style, metrum, key, plan, chords, tracks. A heading names
+  style, metrum, key, plan, chords, tracks. A heading names
   it, unless it has no `name` because the card inside carries its own
   title (`Card`); `resting` disables the controls in it, for a level a
   client takes from its host rather than wishing for itself. A fieldset
