@@ -63,7 +63,7 @@ const host = async (page: Page, session: string, lobby = '') => {
 
 /** The button that joins a session listed at the door. */
 const listed = (page: Page, session: string) =>
-  page.getByRole('region', { name: 'Join a session' }).getByRole('button', { name: session });
+  page.locator('details[aria-label="Join a session"]').getByRole('button', { name: session });
 
 /** Joins a session listed at the lobby's door, as the name given. */
 const join = async (page: Page, session: string, name: string, lobby = '') => {
@@ -268,7 +268,7 @@ async function inStep(
   ).toEqual([]);
 
   await end(client, 'Leave session', 'Yes, leave');
-  await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   await expect(state(page)).toContainText('nobody has joined');
   expect(hostErrors).toEqual([]);
   expect(clientErrors).toEqual([]);
@@ -330,7 +330,7 @@ test('the door lists the sessions open with their players, local and global apar
 
   // The host closes: its client is back at the door, and told why.
   await end(page, 'Close session', 'Yes, close it');
-  await expect(other.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(other.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   await expect(other.getByRole('status')).toHaveText('The host closed the session.');
   await elsewhere.close();
 });
@@ -398,7 +398,7 @@ test('a session joined comes in on a fade, not at full volume, and leaving fades
   const leaving = record(client, 1500);
   const clicked = Date.now();
   await end(client, 'Leave session', 'Yes, leave');
-  await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   expect(Date.now() - clicked).toBeGreaterThanOrEqual(400);
   const { samples: after } = await leaving;
   expect(Math.max(...after.filter((s) => s.t > 1000).map((s) => s.level))).toBeLessThan(0.0005);
@@ -509,13 +509,13 @@ test('a host page that reloads keeps its session and its client, and a client pa
   // Leaving on purpose leaves nothing to come back to: the client's reload lands on the door.
   await end(client, 'Leave session', 'Yes, leave');
   await client.reload();
-  await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   await expect(sessionCard(client)).toHaveCount(0);
 
   // Nor does closing.
   await end(page, 'Close session', 'Yes, close it');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Play with the band' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   await expect(sessionCard(page)).toHaveCount(0);
   await elsewhere.close();
 });

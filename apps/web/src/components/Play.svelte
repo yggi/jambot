@@ -39,6 +39,8 @@
   ] as const;
 
   let selected = $state<AlongPart>('lead');
+  /** Whether the details show: choosing a track unfolds them, since it is their rows a person plays on. */
+  let unfolded = $state(true);
 
   const span = PATTERN_BARS * BAR_STEPS;
   const shown = $derived(`bars ${tracks.first + 1} to ${tracks.first + PATTERN_BARS}`);
@@ -68,7 +70,10 @@
     label="Track"
     value={selected}
     options={OPTIONS}
-    onselect={(part) => (selected = part)}
+    onselect={(part) => {
+      selected = part;
+      unfolded = true;
+    }}
   />
 {/snippet}
 
@@ -76,7 +81,7 @@
   <Instrument part={selected} lit={held[selected]} />
 {/snippet}
 
-<Card title="Play" main={track} {sub} glyph={picture} open>
+<Card title="Play" main={track} {sub} glyph={picture} bind:open={unfolded}>
   <div class="rows">
     {#each rows as part (part)}
       {@const band = performerOf(part)}

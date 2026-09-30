@@ -55,8 +55,6 @@
       mix: player.mix,
     }),
   );
-
-  const prototypeUrl = `${import.meta.env.BASE_URL}prototype.html`;
 </script>
 
 <Session
@@ -159,15 +157,3 @@
     onforget={() => player.forgetMotif()}
   />
 </Level>
-
-<p class="note">The score is still in the <a href={prototypeUrl}>prototype</a>.</p>
-
-<style>
-  .note {
-    color: var(--muted);
-    font-size: 14px;
-  }
-  a {
-    color: var(--amber);
-  }
-</style>

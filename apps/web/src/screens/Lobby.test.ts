@@ -32,13 +32,14 @@ describe('the lobby, the door to the band', () => {
   it('plays with the band alone', async () => {
     const p = props();
     render(Lobby, p);
-    await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Solo' }));
     expect(p.onsolo).toHaveBeenCalledOnce();
   });
 
   it('opens the timing test, and not while a join is under way', async () => {
     const p = props();
     const { unmount } = render(Lobby, p);
+    await fireEvent.click(screen.getByText('Extras'));
     await fireEvent.click(screen.getByRole('button', { name: 'Timing test' }));
     expect(p.ontiming).toHaveBeenCalledOnce();
     unmount();
@@ -73,9 +74,9 @@ describe('the lobby, the door to the band', () => {
   it('says when no session is open, when it is still looking, and why a lobby couldn’t be listed', async () => {
     const p = props();
     const { rerender } = render(Lobby, { ...p, found: null });
-    expect(screen.getByText('Looking for sessions…')).toBeInTheDocument();
+    expect(screen.getByText('Looking…')).toBeInTheDocument();
     await rerender({ found: { sessions: [], problem: null } });
-    expect(screen.getByText('No session is open yet.')).toBeInTheDocument();
+    expect(screen.getByText('None open yet')).toBeInTheDocument();
     await rerender({ found: { sessions: [], problem: "Can't reach the lobby at wss://x." } });
     expect(screen.getByText("Can't reach the lobby at wss://x.")).toBeInTheDocument();
   });
@@ -130,7 +131,7 @@ describe('the lobby, the door to the band', () => {
       found: { sessions: [{ name: 'Garage', players: 2, where: 'local' }], problem: null },
     });
     expect(screen.getByRole('button', { name: /Garage/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Play with the band' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Solo' })).toBeDisabled();
     expect(screen.getByText('Joining…')).toBeInTheDocument();
     void rerender({ joining: false, notice: 'The host closed the session.' });
     expect(screen.getByRole('status')).toHaveTextContent('The host closed the session.');

@@ -175,4 +175,19 @@ describe('the play card', () => {
       expect(container.querySelector('summary svg.glyph')).toHaveClass('lit');
     });
   });
+
+  it('unfolds its details when a track is chosen, after a person folded them', async () => {
+    const { container } = render(Play, {
+      tracks: tracks(),
+      instrument,
+      held: { lead: false, drums: false },
+    });
+    const card = screen.getByLabelText('Play');
+    await fireEvent.click(container.querySelector('summary .title')!);
+    expect(card).not.toHaveAttribute('open');
+    // The details element reports its change in a task of its own.
+    await new Promise((resolve) => setTimeout(resolve));
+    await fireEvent.click(screen.getByRole('radio', { name: 'Drums' }));
+    expect(card).toHaveAttribute('open');
+  });
 });

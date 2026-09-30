@@ -1,11 +1,16 @@
 <!--
-  The lobby, the door to the band: what a person meets on a cold start.
-  Their name, made up already; playing with the band alone; joining a
-  session that is open, with the players in it; or hosting one of their own,
-  in this browser or through the lobby server. It holds no session and knows
+  The lobby, the door to the band: what a person meets on a cold start, laid
+  out in the band's own cards. Under the hero icon: their name, made up
+  already; playing alone (Solo); joining a session that is open, with the
+  players in it; hosting one of their own, in this browser or through the
+  lobby server; and the extras, folded at the bottom. It holds no session and knows
   no player: it takes props and sends what the person chose.
 -->
 <script lang="ts">
+  import Card from '../components/Card.svelte';
+  import Equalizer from '../components/glyphs/Equalizer.svelte';
+  import LobbyGlyph from '../components/glyphs/Lobby.svelte';
+  import Network from '../components/glyphs/Network.svelte';
   import type { Found, Listed, Where } from '../session/sessions.svelte.ts';
 
   interface Props {
@@ -68,77 +73,88 @@
   }
 </script>
 
+{#snippet nameField()}
+  <input
+    type="text"
+    aria-label="Your name"
+    value={name}
+    oninput={(e) => onname(e.currentTarget.value)}
+    onblur={onsettle}
+    autocomplete="nickname"
+  />
+{/snippet}
+
+{#snippet solo()}
+  <button type="button" class="primary" disabled={joining} onclick={onsolo}>Solo</button>
+{/snippet}
+
+{#snippet sessionField()}
+  <input
+    type="text"
+    aria-label="Session name"
+    bind:value={session}
+    autocomplete="off"
+    placeholder="Friday jam"
+  />
+{/snippet}
+
+{#snippet nameGlyph()}<LobbyGlyph kind="name" />{/snippet}
+{#snippet soloGlyph()}<Equalizer levels={[0.35, 0.7, 0.5, 0.9]} />{/snippet}
+{#snippet joinGlyph()}<Network colours={[1, 0, 2]} bar={null} />{/snippet}
+{#snippet hostGlyph()}<LobbyGlyph kind="host" />{/snippet}
+{#snippet extrasGlyph()}<LobbyGlyph kind="extras" />{/snippet}
+
+{#snippet openSessions()}
+  {#if joining}
+    <p class="message">Joining…</p>
+  {/if}
+  {#if found !== null && found.sessions.length > 0}
+    <div class="open">
+      {#each found.sessions as open (`${open.where}:${open.name}`)}
+        <button
+          type="button"
+          class="found {open.where}"
+          title={WHERE_TITLE[open.where]}
+          disabled={joining}
+          onclick={() => onjoin(open.where, open.name)}
+        >
+          {open.name}
+          <span class="count">{count(open)}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+  {#if found?.problem}
+    <p class="message">{found.problem}</p>
+  {/if}
+{/snippet}
+
 <div class="lobby">
-  <section class="welcome" aria-label="Welcome">
-    <h2>Welcome</h2>
-    <p class="message">Enter your name, play with the band, join a session or host your own.</p>
-    <label>
-      Your name
-      <input
-        type="text"
-        value={name}
-        oninput={(e) => onname(e.currentTarget.value)}
-        onblur={onsettle}
-        autocomplete="nickname"
-      />
-    </label>
-  </section>
+  <div class="hero">
+    <img src="{import.meta.env.BASE_URL}icon.svg" alt="" width="96" height="96" />
+  </div>
 
-  <section class="card" aria-label="Play with the band">
-    <h2>Play with the band</h2>
-    <p class="message">The band plays on this device, and you play along.</p>
-    <button type="button" class="primary" disabled={joining} onclick={onsolo}>
-      Play with the band
-    </button>
-  </section>
+  <Card title="Name" main={nameField} glyph={nameGlyph} />
 
-  <section class="card" aria-label="Timing test">
-    <h2>Timing test</h2>
-    <p class="message">
-      A drum pattern plays and you follow it for eight bars, seeing at once how early or late each
-      hit was. The runs are kept in this browser, to download and analyse.
-    </p>
-    <button type="button" disabled={joining} onclick={ontiming}>Timing test</button>
-  </section>
+  <Card title="Play with the band" main={solo} sub="on this device" glyph={soloGlyph} />
 
-  <section class="card" aria-label="Join a session">
-    <h2>Join a session</h2>
-    {#if joining}
-      <p class="message">Joining…</p>
-    {/if}
-    {#if found === null}
-      <p class="message">Looking for sessions…</p>
-    {:else}
-      {#if found.sessions.length === 0}
-        <p class="message">No session is open yet.</p>
-      {:else}
-        <div class="open">
-          {#each found.sessions as open (`${open.where}:${open.name}`)}
-            <button
-              type="button"
-              class="found {open.where}"
-              title={WHERE_TITLE[open.where]}
-              disabled={joining}
-              onclick={() => onjoin(open.where, open.name)}
-            >
-              {open.name}
-              <span class="count">{count(open)}</span>
-            </button>
-          {/each}
-        </div>
-      {/if}
-      {#if found.problem}
-        <p class="message">{found.problem}</p>
-      {/if}
-    {/if}
-  </section>
+  {#if found !== null && (found.sessions.length > 0 || found.problem || joining)}
+    <Card
+      title="Join a session"
+      main="{found.sessions.length} open"
+      glyph={joinGlyph}
+      open
+      children={openSessions}
+    />
+  {:else}
+    <Card
+      title="Join a session"
+      main={found === null ? 'Looking…' : 'None open yet'}
+      glyph={joinGlyph}
+    />
+  {/if}
 
-  <section class="card" aria-label="Host a session">
-    <h2>Host a session</h2>
-    <label>
-      Session name
-      <input type="text" bind:value={session} autocomplete="off" placeholder="Friday jam" />
-    </label>
+  <Card title="Host a session" main={sessionField} glyph={hostGlyph} open>
     <div class="actions">
       <button
         type="button"
@@ -172,36 +188,41 @@
         Every player gives the same lobby server: ws:// on a local network, wss:// when hosted.
       </p>
     </details>
-  </section>
+  </Card>
 
   {#if error ?? notice}
     <p class="notice" role="status">{error ?? notice}</p>
   {/if}
+
+  <Card title="Extras" main="Timing test" glyph={extrasGlyph}>
+    <p class="message">
+      A drum pattern plays and you follow it for eight bars, seeing at once how early or late each
+      hit was. The runs are kept in this browser, to download and analyse.
+    </p>
+    <button type="button" disabled={joining} onclick={ontiming}>Timing test</button>
+  </Card>
 </div>
 
 <style>
   .lobby {
     display: grid;
-    gap: 14px;
-  }
-  .card,
-  .welcome {
-    display: grid;
     gap: 10px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 12px 14px;
   }
-  h2 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-  }
-  label {
+  .hero {
     display: grid;
-    gap: 2px;
-    min-width: 0;
-    font-size: 14px;
+    justify-items: center;
+    padding: 4px 0 8px;
+  }
+  .hero img {
+    border-radius: 22px;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+  }
+  /* The lobby's cards are in a column, their details set out the same way. */
+  .open,
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
   }
   input {
     width: 100%;
@@ -213,11 +234,11 @@
     background: var(--surface);
     color: var(--ink);
   }
-  .open,
-  .actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+  label {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    font-size: 14px;
   }
   button {
     justify-self: start;
@@ -233,10 +254,10 @@
     opacity: 0.5;
   }
   .primary {
-    min-height: 48px;
+    min-height: 44px;
     padding: 0 22px;
     border: 0;
-    border-radius: 24px;
+    border-radius: 22px;
     background: var(--amber);
     color: var(--on-amber);
     font-weight: 600;
@@ -263,6 +284,7 @@
   .advanced {
     display: grid;
     gap: 8px;
+    margin-top: 10px;
   }
   .message {
     font-size: 13px;

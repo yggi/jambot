@@ -330,6 +330,14 @@
     />
   {/if}
 
+  <footer>
+    <span>all rites reversed</span>
+    <svg class="pentagon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <polygon points="10,2 18,8 15,17.5 5,17.5 2,8" />
+    </svg>
+    <span>kallisti collective, 3192 YOLD</span>
+  </footer>
+
   {#if timingShown}
     <div class="settings">
       <TimingPanel report={timing} onexport={exportTiming} />
@@ -361,6 +369,22 @@
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
+  }
+  footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .pentagon {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linejoin: round;
   }
   .settings {
     display: grid;

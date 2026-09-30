@@ -117,17 +117,27 @@ describe('a card', () => {
       );
     });
 
-    it('is worked without folding or unfolding the card', async () => {
+    it('is worked without folding or unfolding the card, but its plain text and the rest of the summary fold it', async () => {
       const { container } = render(Card, { title: 'Thing', main: control, children });
       const card = screen.getByLabelText('Thing');
       await fireEvent.click(screen.getByRole('slider', { name: 'Level' }));
       await fireEvent.click(screen.getByRole('button', { name: 'Go' }));
+      expect(card).not.toHaveAttribute('open');
       await fireEvent.click(screen.getByText('62 %'));
+      expect(card).toHaveAttribute('open');
+      await fireEvent.click(container.querySelector('summary')!);
       expect(card).not.toHaveAttribute('open');
       await fireEvent.click(container.querySelector('summary .title')!);
       expect(card).toHaveAttribute('open');
       await fireEvent.click(screen.getByRole('slider', { name: 'Level' }));
       expect(card).toHaveAttribute('open');
     });
+  });
+
+  it('is only its summary, with no chevron and nothing to fold, where it has no details', () => {
+    const { container } = render(Card, { title: 'Thing', main: 'C major', glyph });
+    expect(container.querySelector('details')).toBeNull();
+    expect(screen.getByRole('group', { name: 'Thing' })).toHaveTextContent('C major');
+    expect(container.querySelector('.glyph')).not.toBeNull();
   });
 });

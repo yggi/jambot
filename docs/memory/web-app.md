@@ -35,9 +35,10 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   Its details are the players of a host (`You (host)` and those who joined), or the link of a client (its name, the round trip, the bars that came too late), and the way out: Close session for a host, Leave session for a client, Back to the lobby from solo.
   Closing or leaving asks first, in place (`role="alertdialog"`), and a host's question says how many are playing in the session.
   An e2e check that plays alone enters the band first (`solo` in `audio.ts`); one that hosts or joins works at the lobby (`host`, `join` in `session.e2e.ts`).
+  The page's footer signs every screen: "all rites reversed", a pentagon, "kallisti collective, 3192 YOLD".
   The style card starts folded, so a check that picks a preset or moves a slider unfolds it first (`openStyle` in `audio.ts`).
 - The page (`App.svelte`) is the container, and shows one of three screens (`screenOf`, `screen.ts`): the lobby at the door, the band behind it, or a line saying a kept session is taken up again.
-  A cold start shows the lobby (`screens/Lobby.svelte`): a name made up already (`Profile`, kept), Play with the band, the sessions open to join, and Local and Global under one session name to host.
+  A cold start shows the lobby (`screens/Lobby.svelte`), in the band's own cards under a hero icon: a name made up already (`Profile`, kept), Solo, the sessions open to join, Local and Global under one session name to host, and the Extras card, folded, holding the timing test.
   A join button shows the players in the session, and is teal for a session in this browser and amber for one through the lobby server, with a tooltip.
   The lobby server's address is in the Advanced fold, and is given when the field is left.
   A reload returns to a session still kept, a host's or a client's, and lands on the lobby from anything else, solo included: solo is a choice the page holds and doesn't keep.
@@ -59,7 +60,9 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   Where the screen is short (`max-height: 500px`, a phone on its side) the summary gives up its third line: the sub element sits beside the title, the glyph shrinks to `--glyph-compact`, and the page's gap and the cards' padding tighten, so a closed card is about 60 px, not 98.
   A check in `band.e2e.ts` holds closed cards to 64 px (80 for the session and sound cards, whose summary carries a touch-size control) and the gaps between them to 12, at 844 x 390 and 667 x 375.
   So a line says little and shortly ("Intro 3/8", not "Intro · bar 3 of 8"), and a check in `band.e2e.ts` samples every card's height for some 20 s of playing at 760 and 360 px and needs each to stay one height.
-  The main element may instead be a control worked from the summary (a snippet: the Sound card's volume fader); a click on it, or on its plain text, never folds or unfolds the card.
+  The main element may instead be a control worked from the summary (a snippet: the Sound card's volume fader, the lobby's name field); a click anywhere on the summary, its edge included (the card's padding is the summary's), folds or unfolds the card unless it lands on an active element (a button, a field, a slider, a link, a label).
+  A card with no details is its summary alone (a `role="group"`, no chevron): the lobby's.
+  `open` is bindable, so a parent can unfold a card: the play card does when a track is chosen.
   The details are free to arrange their content, in `Group`s where they have parts (a level 3 group is a section, a level 4 group a part of one).
   A glyph is drawn on `Glyph`'s frame, a 40-unit square that fills `--glyph-size`, in the colour roles `--glyph-lit`, `--glyph-dim` and `--glyph-accent` (`app.css`), and moves only by transitions, which `app.css` stops under `prefers-reduced-motion`; glyphs live in `components/glyphs/` and take a slice of what the card's details already draw, so the two can't disagree.
   `Reading` is a label and its value on one line in the details.
