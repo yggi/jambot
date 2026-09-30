@@ -113,7 +113,7 @@ describe('the metrum', () => {
     expect(click).toHaveAttribute('aria-pressed', 'true');
     await fireEvent.click(click);
     expect(metronome.on).toBe(false);
-    await fireEvent.input(screen.getByRole('slider', { name: 'Volume' }), {
+    await fireEvent.input(screen.getByRole('slider', { name: 'Click volume' }), {
       target: { value: '30' },
     });
     expect(metronome.volume).toBe(0.3);

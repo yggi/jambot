@@ -1,5 +1,5 @@
 /**
- * Named `DrumNotes` a person can start from in `MidiPanel`, since a
+ * Named `DrumNotes` a person can start from in `SoundPanel`, since a
  * hardware drum machine's pads often don't speak General MIDI (#102).
  *
  * 'GM' is the notes the engine already writes (`DEFAULT_DRUM_NOTES`):

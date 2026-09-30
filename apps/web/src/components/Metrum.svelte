@@ -75,7 +75,7 @@
       Click
     </button>
     <label class="volume">
-      Volume
+      Click volume
       <input
         type="range"
         min="0"

@@ -31,11 +31,11 @@ describe('the app', () => {
       expect(screen.queryByRole('button', { name: 'Start the band' })).toBeNull();
     });
 
-    it('keeps the MIDI and sound settings in reach, on both sides of the door', async () => {
+    it('keeps the sound card in reach, on both sides of the door', async () => {
       render(App);
-      expect(screen.getByText('MIDI and sound')).toBeInTheDocument();
+      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
-      expect(screen.getByText('MIDI and sound')).toBeInTheDocument();
+      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
     });
 
     it('goes back to the lobby from solo, and a reload from solo lands on the door', async () => {
@@ -62,7 +62,7 @@ describe('the app', () => {
       await fireEvent.click(screen.getByRole('button', { name: 'Timing test' }));
       expect(screen.getByRole('region', { name: 'Timing test' })).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Join a session' })).toBeNull();
-      expect(screen.getByText('MIDI and sound')).toBeInTheDocument();
+      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Start the test' }));
       expect(await screen.findByRole('button', { name: 'Tap along' })).toBeInTheDocument();
       await fireEvent.keyDown(window, { key: 'a' });
@@ -119,14 +119,14 @@ describe('the app', () => {
 
     it('keeps the volume a person set, on both sides of the door', async () => {
       const { unmount } = render(App);
-      await fireEvent.input(screen.getByRole('slider', { name: /Master volume/ }), {
+      await fireEvent.input(screen.getByRole('slider', { name: /^Volume/ }), {
         target: { value: '40' },
       });
       await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
-      expect(screen.getByRole('slider', { name: /Master volume/ })).toHaveValue('40');
+      expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
       unmount();
       render(App);
-      expect(screen.getByRole('slider', { name: /Master volume/ })).toHaveValue('40');
+      expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
     });
 
     it('keeps the name a person gave for next time', async () => {
@@ -155,7 +155,7 @@ describe('the app', () => {
       (h) => h.textContent,
     );
     expect(levels.slice(0, 8)).toEqual([
-      'MIDI and sound',
+      'Sound',
       'Transport',
       'Style',
       'Metrum',
@@ -164,7 +164,7 @@ describe('the app', () => {
       'Chords',
       'Tracks',
     ]);
-    expect(screen.getByLabelText('MIDI and sound')).not.toHaveAttribute('open');
+    expect(screen.getByLabelText('Sound')).not.toHaveAttribute('open');
     expect(screen.getByText('Playing with the band on this device.')).toBeInTheDocument();
   });
 

@@ -48,6 +48,37 @@ export function routeNote(
   }
 }
 
+/** The ports chosen, as settings keep them: ids, and the live output they resolve to. */
+export interface ChosenPorts {
+  readonly outPortId: string;
+  readonly inPortId: string;
+  outPort: MidiPort | null;
+}
+
+/**
+ * Adopt the ports chosen from the connection as it is now: the output by its
+ * id, none if it is gone or was never chosen, and the input listened to. A
+ * port unplugged and plugged in again is a new object, so this runs whenever
+ * the ports may have changed.
+ */
+export function adoptPorts(
+  access: Pick<MidiAccess, 'outputPort' | 'listen'>,
+  settings: ChosenPorts,
+): void {
+  settings.outPort = settings.outPortId === 'none' ? null : access.outputPort(settings.outPortId);
+  access.listen(settings.inPortId);
+}
+
+/** What was found, in a line: "MIDI connected: 1 input, 2 outputs." */
+export function portsMessage(ports: {
+  readonly inputs: readonly unknown[];
+  readonly outputs: readonly unknown[];
+}): string {
+  const count = (list: readonly unknown[], noun: string) =>
+    `${list.length} ${noun}${list.length === 1 ? '' : 's'}`;
+  return `MIDI connected: ${count(ports.inputs, 'input')}, ${count(ports.outputs, 'output')}.`;
+}
+
 export interface ConnectResult {
   readonly access: MidiAccess | null;
   readonly message: string;
@@ -61,13 +92,10 @@ export interface ConnectResult {
 export async function connectMidi(
   connect: (onNote: NoteHandler) => Promise<MidiAccess | string>,
   onNote: NoteHandler,
-  settings: { readonly outPortId: string; readonly inPortId: string; outPort: MidiPort | null },
+  settings: ChosenPorts,
 ): Promise<ConnectResult> {
   const result = await connect(onNote);
   if (typeof result === 'string') return { access: null, message: result };
-  settings.outPort = settings.outPortId === 'none' ? null : result.outputPort(settings.outPortId);
-  result.listen(settings.inPortId);
-  const { inputs, outputs } = result;
-  const message = `MIDI connected: ${inputs.length} input${inputs.length === 1 ? '' : 's'}, ${outputs.length} output${outputs.length === 1 ? '' : 's'}.`;
-  return { access: result, message };
+  adoptPorts(result, settings);
+  return { access: result, message: portsMessage(result) };
 }

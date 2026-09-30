@@ -94,3 +94,66 @@ describe('the fades in and out of a session', () => {
     expect(bus().gain.events.at(-1)).toEqual(['setValueAtTime', BUS_GAIN, 0]);
   });
 });
+
+describe('the device’s MIDI ports', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  /** Web MIDI with one input and one output, that a test can plug more into. */
+  function midi() {
+    const input = { id: 'in-1', name: 'Keys', onmidimessage: null as unknown };
+    const output = { id: 'out-1', name: 'Synth', send: vi.fn() };
+    const access = {
+      inputs: new Map([[input.id, input]]),
+      outputs: new Map([[output.id, output]]),
+      onstatechange: null as (() => void) | null,
+    };
+    vi.stubGlobal('navigator', { requestMIDIAccess: () => Promise.resolve(access) });
+    return { access, input, output };
+  }
+
+  it('lists the ports once connected', async () => {
+    midi();
+    const { device: d } = device();
+    expect(d.ports).toEqual({ inputs: [], outputs: [] });
+    await d.connect(() => {});
+    expect(d.ports).toEqual({
+      inputs: [{ id: 'in-1', name: 'Keys' }],
+      outputs: [{ id: 'out-1', name: 'Synth' }],
+    });
+  });
+
+  it('lists a port plugged in later, and picks up the output chosen when it comes back', async () => {
+    const { access } = midi();
+    const { device: d } = device();
+    d.settings.outPortId = 'out-2';
+    await d.connect(() => {});
+    expect(d.settings.outPort).toBeNull();
+    const back = { id: 'out-2', name: 'Launchpad', send: vi.fn() };
+    access.outputs.set(back.id, back);
+    access.onstatechange!();
+    expect(d.ports.outputs.map((p) => p.name)).toEqual(['Synth', 'Launchpad']);
+    expect(d.settings.outPort).toBe(back);
+  });
+
+  it('looks again when a person asks, and lets go of a port that is gone', async () => {
+    const { access } = midi();
+    const { device: d } = device();
+    d.settings.outPortId = 'out-1';
+    await d.connect(() => {});
+    expect(d.settings.outPort).not.toBeNull();
+    access.outputs.delete('out-1'); // gone without a state change reaching the page
+    d.refresh();
+    expect(d.ports.outputs).toEqual([]);
+    expect(d.settings.outPort).toBeNull();
+  });
+
+  it('has nothing to look at before it is connected', () => {
+    const { device: d } = device();
+    expect(() => d.refresh()).not.toThrow();
+    expect(d.ports).toEqual({ inputs: [], outputs: [] });
+  });
+});

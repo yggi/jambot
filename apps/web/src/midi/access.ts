@@ -29,24 +29,31 @@ export type NoteHandler = (note: ParsedNote, source: string, timeStamp?: number)
 export class MidiAccess {
   #access: MIDIAccess;
   #onNote: NoteHandler;
+  #onChange: () => void;
   #listening = 'none';
 
-  private constructor(access: MIDIAccess, onNote: NoteHandler) {
+  private constructor(access: MIDIAccess, onNote: NoteHandler, onChange: () => void) {
     this.#access = access;
     this.#onNote = onNote;
-    access.onstatechange = () => this.listen(this.#listening);
+    this.#onChange = onChange;
+    access.onstatechange = () => this.refresh();
   }
 
   /**
    * Ask for Web MIDI access. The result is the connection, or the browser's
    * reason it couldn't be had: no Web MIDI at all, or access blocked here.
+   * `onChange` is told whenever the ports may have changed: one plugged in or
+   * out, or a person asking to look again (`refresh`).
    */
-  static async connect(onNote: NoteHandler): Promise<MidiAccess | string> {
+  static async connect(
+    onNote: NoteHandler,
+    onChange: () => void = () => {},
+  ): Promise<MidiAccess | string> {
     if (!navigator.requestMIDIAccess)
       return 'This browser has no Web MIDI. Chrome and Edge on desktop or Android have it.';
     try {
       const access = await navigator.requestMIDIAccess({ sysex: false });
-      return new MidiAccess(access, onNote);
+      return new MidiAccess(access, onNote, onChange);
     } catch (err) {
       const name = err instanceof Error ? err.name : 'error';
       return `MIDI access was blocked here (${name}). Allow MIDI for this site, or open the page in its own tab.`;
@@ -68,6 +75,15 @@ export class MidiAccess {
   /** Which input is listened to, refreshed on `onstatechange` as ports come and go. */
   get listening(): string {
     return this.#listening;
+  }
+
+  /**
+   * Look at the ports again: re-apply the input listened to, since a port
+   * plugged in again is a fresh object, and say the ports may have changed.
+   */
+  refresh() {
+    this.listen(this.#listening);
+    this.#onChange();
   }
 
   /** Listen to one input by id, `'all'` of them, or `'none'`. */
