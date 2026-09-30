@@ -4,7 +4,7 @@ import { chordName } from './chords.ts';
 import { DRUM_NOTES } from './drums.ts';
 import { RING_STEPS, cadence, countIn, countInSeconds, finale } from './ending.ts';
 import { METERS, stepsOf } from '@jambot/theory';
-import type { BarEnv } from './band.ts';
+import type { BarEnv } from './bar.ts';
 import { BAR_STEPS, beatStart, doughProblems, writtenProblems } from './events.ts';
 import { COMPOSER_MODES, INITIAL_KEY } from './key.ts';
 import { INITIAL_STYLE, PRESETS, glideTo, holding } from './style.ts';
