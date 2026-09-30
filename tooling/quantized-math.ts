@@ -39,6 +39,10 @@ export const AUDITED: Readonly<Record<string, string>> = {
     "glideTo's Math.pow/Math.exp compute a continuous glide value (tempo's log " +
     'space); nothing rounds or compares it directly, only chance()/pick() ' +
     'downstream, which quantise on their own.',
+  'packages/engine/src/genre.ts':
+    'Math.exp builds the softmax weights of a reading, which is measured and never ' +
+    'drawn from here: a choice made from the probabilities goes through pick(), ' +
+    'which rounds every weight to QUANTUM before it meets a draw.',
   'packages/engine/src/themes.ts':
     'Math.pow builds a weight table that only pick() reads, which rounds every ' +
     'weight to QUANTUM before it meets a draw.',

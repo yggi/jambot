@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { type BandEnv, band } from './band.ts';
 import type { Part, WrittenNote } from './events.ts';
 import { PRESETS, INITIAL_STYLE } from './style.ts';
-import { readStyle } from './style-reading.ts';
+import { readStyle, readTiming } from './style-reading.ts';
+import { swingMap } from './swing.ts';
 
 const note = (part: Part, step: number, length = 1, midi = 60): WrittenNote => ({
   part,
@@ -114,4 +115,36 @@ describe('reading the band', () => {
       }
     },
   );
+});
+
+describe('reading a style from timing: bpm and swing', () => {
+  /** A bar of steps laid straight at `bpm`, and onsets on `steps` played through `swing`. */
+  const bar = (bpm: number, swing: number, steps: readonly number[]) => {
+    const length = 15 / bpm;
+    const laid = range(16).map((step) => ({ step, seconds: 2 + step * length, length }));
+    const onsets = steps.map((s) => 2 + swingMap(swing).played(s) * length);
+    return { laid, onsets };
+  };
+  const EIGHTHS_AND_SIXTEENTHS = range(16);
+
+  it.each([60, 90, 120, 148, 180])(
+    'reads the tempo from how long the steps last: %s bpm',
+    (bpm) => {
+      const { laid, onsets } = bar(bpm, 0, EIGHTHS_AND_SIXTEENTHS);
+      expect(readTiming(laid, onsets).bpm).toBeCloseTo(bpm, 9);
+    },
+  );
+
+  it.each([0, 0.15, 0.3, 0.5, 0.7, 0.85, 1])(
+    'reads the swing from where the offbeat 16ths fall: %s',
+    (swing) => {
+      const { laid, onsets } = bar(120, swing, EIGHTHS_AND_SIXTEENTHS);
+      expect(readTiming(laid, onsets).swing).toBeCloseTo(swing, 2);
+    },
+  );
+
+  it('reads no tempo from no steps and no swing from no onsets', () => {
+    expect(readTiming([], [])).toEqual({});
+    expect(readTiming(bar(120, 0, []).laid, [])).toEqual({ bpm: 120 });
+  });
 });

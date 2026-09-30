@@ -1933,7 +1933,29 @@ run; the others have.
   - The density rises with the energy: tau 0.60 over its sweep, 0.46 over the presets and 0.31 over the tour.
     It has no scale of its own yet (onsets per step over all parts, 0.9 to 1.2 on average), so it has no distance; a fit to the axis is a later step.
   - An axis is read from its own and no other: a sweep of one moves the tau of each other reading by less than 0.05.
-  - Not measured: `swing` and `bpm` (the clock's, and `estimateSwing`'s in played time), `harm` (needs the chords, not read from notes yet), per-part readings (step 4), and the real music the analyzer will read.
+  - The clock is read exactly.
+    `readTiming` finds the tempo from how long the steps last, and the swing by `estimateSwing` over the onsets put back on the steps as played.
+    Over 3 seeds of 16 bars, the tempo has tau 1.00 over the presets and its sweep and an error under 10⁻⁶ bpm, and 0.94 over the tour, 0.06 bpm off, since a glide moves the tempo inside a bar.
+    The swing has tau 0.89 over the presets, 0.92 over its sweep and 0.94 over the tour, and lies 0.02 to 0.03 from the axis, through the seeded looseness of the timing (T17).
+    The tempo is the clock's own number, so its reading proves the reader and not the composer; the swing is a real inference, from notes that carry a licence.
+    A sweep of one moves no tau of the other (under 0.05).
+  - Not measured: `harm` (needs the chords, not read from notes yet), per-part readings (step 4), and the real music the analyzer will read.
+
+- **E24. Does Techno land where techno lands?** (#15 step 3, N3), in
+  [`packages/engine/experiments/genre-calibration.ts`](../packages/engine/experiments/genre-calibration.ts),
+  held by [`packages/engine/experiments/genre-calibration.test.ts`](../packages/engine/experiments/genre-calibration.test.ts):
+  the transport plays each preset's point, `readStyle` and `readTiming` read the bars, and `genreOf` (`packages/engine/src/genre.ts`) turns the reading into probabilities over the presets by a softmax over the distances at a temperature.
+  The reading has five axes (`energy` from the density, `sync`, `artic`, `swing`, and `bpm` on its log axis scaled to 0 to 1); the distance is a root mean square over them.
+  3 seeds of 32 bars per preset, temperature 0.1, against two sets of landmarks: the presets' own points, and where the presets' bars read (the mean over 5 other seeds).
+  - Against the presets' points, a single bar lands as its own preset in 0.61 of bars on average (chance 0.125): Ambient 0.99, Swing jazz 0.91, Synth-pop 0.81, Deep house 0.78, Lo-fi hip hop 0.76 and Techno 0.65, but Funk none and Bossa nova 0.01.
+    The reading is compressed short of the axes (E23), so a preset far out on one, Funk's `sync` of 1, has no bar near its point.
+  - Against where the presets read, 0.71: Swing jazz 0.91, Ambient 0.91, Funk 0.72, Bossa nova 0.72, Techno 0.69, Synth-pop 0.65, Lo-fi hip hop 0.63 and Deep house 0.45.
+    So the critic's landmarks are measured, not read off the presets.
+  - With the three axes of the notes alone (`energy`, `sync`, `artic`) the same round trip landed 0.30 against the points and 0.41 against where the presets read, and Synth-pop, Lo-fi hip hop and Bossa nova stayed under a fifth: they sat in the middle of the space and differ from their neighbours by `swing` and `bpm`.
+    The two axes of the clock lifted them to 0.63 to 0.81 (against the points) and 0.63 to 0.72.
+  - Deep house is the one left behind, 0.45, taken for Funk: what they differ by is `harm`, which the reading still lacks.
+  - A section's mean of 8 bars lands within 0.15 of a bar: averaging adds little, so what is missing is axes, not noise.
+  - Not measured: the temperature's effect on calibration of `p` beyond the two tried (0.05 and 0.1 rank alike; `p` on the right preset is 0.07 to 0.81 at 0.1), `harm`, and real music.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

@@ -21,7 +21,15 @@
 
 import { fileURLToPath } from 'node:url';
 import {
+  AXES,
   type Axis,
+  LOOKAHEAD,
+  type BandBar,
+  type ScheduledStep,
+  type TimedEvent,
+  transport,
+  readStyle,
+  readTiming,
   PRESETS,
   PRESET_GLIDE,
   SECTION_BARS,
@@ -31,7 +39,6 @@ import {
   barStart,
   glideTo,
   holding,
-  readStyle,
   styleAt,
 } from '../src/index.ts';
 
@@ -177,6 +184,124 @@ function main() {
   show('presets held', presetSamples(16));
   for (const [axis] of READ_AXES) show(`sweep of ${axis}`, sweepSamples(axis, 16));
   show('tour', tourSamples(16));
+  const showTiming = (title: string, set: readonly TimingSample[]) => {
+    const r = timingReadback(set);
+    console.log(`\n${title} (${set.length} bars)`);
+    console.log(
+      `  swing n=${r.swing.n} tau=${r.swing.tau.toFixed(3)} distance=${r.swing.distance.toFixed(3)}`,
+    );
+    console.log(
+      `  bpm   n=${r.bpm.n} tau=${r.bpm.tau.toFixed(3)} distance=${r.bpm.distance.toFixed(2)} bpm (${r.bpm.unitDistance.toFixed(4)} of the axis)`,
+    );
+  };
+  showTiming('timing: presets held', timingPresets(16));
+  showTiming('timing: sweep of swing', timingSweep('swing', 16));
+  showTiming('timing: sweep of bpm', timingSweep('bpm', 16));
+  showTiming('timing: tour', timingTour(16));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+
+/** One bar as the clock laid it: the style at its start, and the timing `readTiming` read. */
+export interface TimingSample extends Partial<Pick<Sample, 'sync' | 'artic'>> {
+  readonly style: Style;
+  /** The bar's notes as read by `readStyle`, from the bar the transport composed. */
+  readonly density: number;
+  readonly bpm: number | undefined;
+  readonly swing: number | undefined;
+}
+
+/** The bars of a run through the transport, each read against the style at its start. */
+export function timingSamples(track: StyleTrack, seed: number, bars: number): TimingSample[] {
+  let carried = transport.initial;
+  const laid: ScheduledStep[] = [];
+  const events: TimedEvent[] = [];
+  const composed = new Map<number, BandBar>();
+  const env = {
+    seed,
+    start: 1,
+    track,
+    wish: { tonic: null, mode: 'aeolian', melodic: null },
+  } as const;
+  for (let now = 0.9; laid.length < bars * 16; now += 0.025) {
+    const next = transport.advance(env, carried, { now, until: now + LOOKAHEAD });
+    carried = next.carried;
+    laid.push(...next.output.steps);
+    events.push(...next.output.events);
+    for (const b of next.output.composed) composed.set(b.bar, b);
+  }
+  return range(bars).map((bar) => {
+    const steps = laid.filter((s) => Math.floor(s.step / 16) === bar);
+    const onsets = events.filter((e) => e.bar === bar).map((e) => e.seconds);
+    const { density, sync, artic } = readStyle(composed.get(bar)!.dough);
+    return {
+      style: styleAt(track, barStart(bar)),
+      density,
+      sync,
+      artic,
+      ...readTiming(steps, onsets),
+    };
+  });
+}
+
+/** Tau and distance for swing, and for the tempo on its log axis scaled to 0 to 1. */
+export function timingReadback(set: readonly TimingSample[]) {
+  const unit = (bpm: number) =>
+    (Math.log(bpm) - Math.log(AXES.bpm.min)) / (Math.log(AXES.bpm.max) - Math.log(AXES.bpm.min));
+  const swing = set.filter((s) => s.swing !== undefined);
+  const bpm = set.filter((s) => s.bpm !== undefined);
+  return {
+    swing: {
+      n: swing.length,
+      tau: tau(
+        swing.map((s) => s.style.swing),
+        swing.map((s) => s.swing!),
+      ),
+      distance: mean(swing.map((s) => Math.abs(s.style.swing - s.swing!))),
+    },
+    bpm: {
+      n: bpm.length,
+      tau: tau(
+        bpm.map((s) => s.style.bpm),
+        bpm.map((s) => s.bpm!),
+      ),
+      /** In bpm, and on the log axis scaled to 0 to 1. */
+      distance: mean(bpm.map((s) => Math.abs(s.style.bpm - s.bpm!))),
+      unitDistance: mean(bpm.map((s) => Math.abs(unit(s.style.bpm) - unit(s.bpm!)))),
+    },
+  };
+}
+
+export function timingSweep(axis: 'swing' | 'bpm', bars: number): TimingSample[] {
+  return range(11).flatMap((i) => {
+    const value =
+      axis === 'swing'
+        ? i / 10
+        : Math.exp(Math.log(60) + (i / 10) * (Math.log(180) - Math.log(60)));
+    return SEEDS.slice(0, 3).flatMap((seed) =>
+      timingSamples(holding({ ...MIDDLE, [axis]: value }), seed, bars),
+    );
+  });
+}
+
+export function timingPresets(bars: number): TimingSample[] {
+  return PRESETS.flatMap((p) =>
+    SEEDS.slice(0, 3).flatMap((seed) =>
+      timingSamples(holding({ ...p.style, entropy: 0.3 }), seed, bars),
+    ),
+  );
+}
+
+export function timingTour(sections: number): TimingSample[] {
+  return SEEDS.slice(0, 3).flatMap((seed) => {
+    let track: StyleTrack = holding({ ...PRESETS[0]!.style, entropy: 0.3 });
+    for (let section = 0; section < sections; section++)
+      track = glideTo(
+        track,
+        { ...PRESETS[section % PRESETS.length]!.style },
+        barStart(section * SECTION_BARS),
+        PRESET_GLIDE,
+      );
+    return timingSamples(track, seed, sections * SECTION_BARS);
+  });
+}
