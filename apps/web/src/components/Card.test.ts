@@ -86,4 +86,31 @@ describe('a card', () => {
       expect(screen.getByLabelText('Thing')).not.toHaveAttribute('open');
     });
   });
+
+  describe('a control in its summary', () => {
+    const control = createRawSnippet(() => ({
+      render: () =>
+        '<span><input type="range" aria-label="Level" /><button>Go</button><i>62 %</i></span>',
+    }));
+
+    it('takes a snippet for its main element, in place of the words', () => {
+      const { container } = render(Card, { title: 'Thing', main: control, children });
+      expect(container.querySelector('summary .main')).toContainElement(
+        screen.getByRole('slider', { name: 'Level' }),
+      );
+    });
+
+    it('is worked without folding or unfolding the card', async () => {
+      const { container } = render(Card, { title: 'Thing', main: control, children });
+      const card = screen.getByLabelText('Thing');
+      await fireEvent.click(screen.getByRole('slider', { name: 'Level' }));
+      await fireEvent.click(screen.getByRole('button', { name: 'Go' }));
+      await fireEvent.click(screen.getByText('62 %'));
+      expect(card).not.toHaveAttribute('open');
+      await fireEvent.click(container.querySelector('summary .title')!);
+      expect(card).toHaveAttribute('open');
+      await fireEvent.click(screen.getByRole('slider', { name: 'Level' }));
+      expect(card).toHaveAttribute('open');
+    });
+  });
 });

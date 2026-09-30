@@ -1,6 +1,6 @@
 /**
  * Phrases: what a player plays between two empty bars, read as one span
- * (#204, A1).
+ * (#204, H1).
  *
  * The Muse doesn't listen a bar at a time. A phrase runs until the player
  * leaves a bar empty, and only then is it cut at the bar lines, so a first
@@ -19,12 +19,12 @@
  *
  * - the note value: the lattice of a half, a quarter, an eighth or a
  *   sixteenth its onsets sit on, and each beat's own, snapped to (`lattice.ts`,
- *   A2 and A3);
+ *   H2 and H3);
  * - the rests: a release short of the next onset is the player's
  *   articulation unless it stands out from what the phrase's own notes
- *   leave, and then it is a rest of a plausible length (`releasesOf`, A4).
+ *   leave, and then it is a rest of a plausible length (`releasesOf`, H4).
  *
- * What is left, the lengths themselves and how sure the reading is, is A5's.
+ * What is left, the lengths themselves and how sure the reading is, is H5's.
  */
 
 import { BAR_STEPS, barAt, barStart, beatAt, beatStart } from './events.ts';
@@ -50,7 +50,7 @@ export const BEAT_EVIDENCE = 1.8;
 /**
  * The lengths of a rest a player plausibly means, in steps: a sixteenth, an
  * eighth, a dotted eighth, a quarter and so on up to a bar. A gap between
- * notes is one of these, or none (A4); a gap between them is the nearest.
+ * notes is one of these, or none (H4); a gap between them is the nearest.
  */
 export const REST_VALUES = [1, 2, 3, 4, 6, 8, 12, 16] as const;
 
@@ -178,7 +178,7 @@ function restFor(gap: number, tolerance: number): number {
 }
 
 /**
- * Where each note is read as released (A4): a rest, or none. A note is
+ * Where each note is read as released (H4): a rest, or none. A note is
  * released before the next one or the bar's end by some gap, and a gap is
  * either the player's articulation, a share of the note's slot that they
  * leave off it, or a rest. The share is the phrase's own, the lower

@@ -31,11 +31,11 @@ describe('the app', () => {
       expect(screen.queryByRole('button', { name: 'Start the band' })).toBeNull();
     });
 
-    it('keeps the MIDI and sound settings in reach, on both sides of the door', async () => {
+    it('keeps the sound card in reach, on both sides of the door', async () => {
       render(App);
-      expect(screen.getByText('MIDI and sound')).toBeInTheDocument();
+      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
-      expect(screen.getByText('MIDI and sound')).toBeInTheDocument();
+      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
     });
 
     it('goes back to the lobby from solo, and a reload from solo lands on the door', async () => {
@@ -62,7 +62,7 @@ describe('the app', () => {
       await fireEvent.click(screen.getByRole('button', { name: 'Timing test' }));
       expect(screen.getByRole('region', { name: 'Timing test' })).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Join a session' })).toBeNull();
-      expect(screen.getByText('MIDI and sound')).toBeInTheDocument();
+      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Start the test' }));
       expect(await screen.findByRole('button', { name: 'Tap along' })).toBeInTheDocument();
       await fireEvent.keyDown(window, { key: 'a' });
@@ -84,7 +84,7 @@ describe('the app', () => {
       render(App);
       await fireEvent.input(screen.getByLabelText('Session name'), { target: { value: 'Garage' } });
       await fireEvent.click(screen.getByRole('button', { name: 'Local' }));
-      expect(await screen.findByText(/Nobody has joined yet/)).toBeInTheDocument();
+      expect(await screen.findByText(/nobody has joined/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Close session' }));
       expect(screen.getByRole('alertdialog')).toHaveTextContent('Close Garage?');
@@ -119,14 +119,14 @@ describe('the app', () => {
 
     it('keeps the volume a person set, on both sides of the door', async () => {
       const { unmount } = render(App);
-      await fireEvent.input(screen.getByRole('slider', { name: /Master volume/ }), {
+      await fireEvent.input(screen.getByRole('slider', { name: /^Volume/ }), {
         target: { value: '40' },
       });
       await fireEvent.click(screen.getByRole('button', { name: 'Play with the band' }));
-      expect(screen.getByRole('slider', { name: /Master volume/ })).toHaveValue('40');
+      expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
       unmount();
       render(App);
-      expect(screen.getByRole('slider', { name: /Master volume/ })).toHaveValue('40');
+      expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
     });
 
     it('keeps the name a person gave for next time', async () => {
@@ -143,7 +143,7 @@ describe('the app', () => {
     expect(screen.getByRole('heading', { name: 'Jambot' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
     for (const p of PRESETS)
-      expect(screen.getByRole('button', { name: p.name })).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: p.name })).toBeInTheDocument();
     for (const name of ['Swing', 'Syncopation', 'Harmony', 'Articulation', 'Energy', 'Entropy'])
       expect(screen.getByRole('slider', { name: new RegExp(name) })).toBeInTheDocument();
     expect(screen.getByText('Ready')).toBeInTheDocument();
@@ -155,8 +155,8 @@ describe('the app', () => {
       (h) => h.textContent,
     );
     expect(levels.slice(0, 8)).toEqual([
-      'MIDI and sound',
-      'Transport',
+      'Sound',
+      'Session',
       'Style',
       'Metrum',
       'Key',
@@ -164,20 +164,22 @@ describe('the app', () => {
       'Chords',
       'Tracks',
     ]);
-    expect(screen.getByLabelText('MIDI and sound')).not.toHaveAttribute('open');
-    expect(screen.getByText('Playing with the band on this device.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Sound')).not.toHaveAttribute('open');
+    expect(screen.getByLabelText('Session').querySelector('summary .sub')).toHaveTextContent(
+      'This device only',
+    );
   });
 
   it('starts from Synth-pop, and a preset sets the sliders and tempo at once while stopped', async () => {
     await renderBand();
-    expect(screen.getByRole('button', { name: 'Synth-pop' })).toHaveAttribute(
-      'aria-pressed',
+    expect(screen.getByRole('radio', { name: 'Synth-pop' })).toHaveAttribute(
+      'aria-checked',
       'true',
     );
     expect(tempo()).toHaveTextContent('108 BPM');
-    await fireEvent.click(screen.getByRole('button', { name: 'Swing jazz' }));
-    expect(screen.getByRole('button', { name: 'Swing jazz' })).toHaveAttribute(
-      'aria-pressed',
+    await fireEvent.click(screen.getByRole('radio', { name: 'Swing jazz' }));
+    expect(screen.getByRole('radio', { name: 'Swing jazz' })).toHaveAttribute(
+      'aria-checked',
       'true',
     );
     expect(screen.getByRole('slider', { name: /Swing/ })).toHaveValue('100');
@@ -186,16 +188,16 @@ describe('the app', () => {
 
   it('nudges the tempo within the style’s licence, and names the style by its preset: energy, entropy and the nudge keep it, anything else makes it custom', async () => {
     await renderBand();
-    const synthPop = () => screen.getByRole('button', { name: 'Synth-pop' });
+    const synthPop = () => screen.getByRole('radio', { name: 'Synth-pop' });
     for (const name of [/Energy/, /Entropy/]) {
       await fireEvent.input(screen.getByRole('slider', { name }), { target: { value: '90' } });
-      expect(synthPop()).toHaveAttribute('aria-pressed', 'true');
+      expect(synthPop()).toHaveAttribute('aria-checked', 'true');
     }
     await fireEvent.click(screen.getByRole('button', { name: 'Faster' }));
     expect(tempo()).toHaveTextContent('111 BPM');
-    expect(synthPop()).toHaveAttribute('aria-pressed', 'true');
+    expect(synthPop()).toHaveAttribute('aria-checked', 'true');
     // A preset brings its own tempo, and the nudge carries over to it.
-    await fireEvent.click(screen.getByRole('button', { name: 'Techno' }));
+    await fireEvent.click(screen.getByRole('radio', { name: 'Techno' }));
     expect(tempo()).toHaveTextContent('134 BPM');
     await fireEvent.click(screen.getByRole('button', { name: 'Slower' }));
     expect(tempo()).toHaveTextContent('130 BPM');
@@ -203,7 +205,7 @@ describe('the app', () => {
       target: { value: '80' },
     });
     expect(screen.getByRole('slider', { name: /Syncopation/ })).toHaveValue('80');
-    expect(screen.getByRole('button', { name: 'Techno' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('radio', { name: 'Techno' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('links to the prototype for what it does not do yet: the score and the Muse’s judgement', async () => {

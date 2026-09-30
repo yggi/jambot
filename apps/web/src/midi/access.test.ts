@@ -117,4 +117,35 @@ describe('MidiAccess', () => {
     input.onmidimessage!({ data: [0x90, 60, 100] });
     expect(notes).toEqual([60]);
   });
+
+  it('says so when the ports change, once it has re-applied what is listened to', async () => {
+    const { access, input } = fakeAccess();
+    navigator.requestMIDIAccess = () => Promise.resolve(asMidiAccess(access));
+    const changes: (number | null)[] = [];
+    const midi = await MidiAccess.connect(
+      () => {},
+      () => changes.push(input.onmidimessage === null ? null : 1),
+    );
+    if (typeof midi === 'string') throw new Error('expected a connection');
+    midi.listen('in-1');
+    input.onmidimessage = null;
+    access.onstatechange!();
+    expect(changes).toEqual([1]);
+  });
+
+  it('is told to look again when a person asks: it re-applies what is listened to and says so', async () => {
+    const { access, input } = fakeAccess();
+    navigator.requestMIDIAccess = () => Promise.resolve(asMidiAccess(access));
+    let changes = 0;
+    const midi = await MidiAccess.connect(
+      () => {},
+      () => changes++,
+    );
+    if (typeof midi === 'string') throw new Error('expected a connection');
+    midi.listen('in-1');
+    input.onmidimessage = null;
+    midi.refresh();
+    expect(input.onmidimessage).not.toBeNull();
+    expect(changes).toBe(1);
+  });
 });

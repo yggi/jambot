@@ -18,7 +18,18 @@ import {
 } from '@jambot/engine';
 import { positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { NEXT_BARS, SECTIONS, hudOf, leadStatus, presetOf, styleStatus } from './hud.ts';
+import {
+  NEXT_BARS,
+  SECTIONS,
+  axesOf,
+  hudOf,
+  leadStatus,
+  presetOf,
+  styleName,
+  styleStatus,
+  styleSub,
+  styleWords,
+} from './hud.ts';
 import type { BarView } from './hud.ts';
 import { keyName } from './noteNames.ts';
 
@@ -245,7 +256,7 @@ describe('a glide’s progress', () => {
   it('counts the bars of a preset glide heard, from the preset it left', () => {
     const settled = glideTo(track, techno.style, 0, 0);
     const moving = glideTo(settled, funk.style, 32, PRESET_GLIDE);
-    expect(hudOf({ heard: 32, bars, track: moving }).style).toEqual({
+    expect(hudOf({ heard: 32, bars, track: moving }).style).toMatchObject({
       preset: 'Funk',
       glide: { from: 'Techno', bar: 1, bars: 8 },
     });
@@ -255,7 +266,7 @@ describe('a glide’s progress', () => {
       bars: 8,
     });
     expect(hudOf({ heard: 32 + 16 * 8 - 1, bars, track: moving }).style.glide!.bar).toBe(8);
-    expect(hudOf({ heard: 32 + 16 * 8, bars, track: moving }).style).toEqual({
+    expect(hudOf({ heard: 32 + 16 * 8, bars, track: moving }).style).toMatchObject({
       preset: 'Funk',
       glide: null,
     });
@@ -275,7 +286,7 @@ describe('a glide’s progress', () => {
     const moving = glideTo(custom, funk.style, 32, PRESET_GLIDE);
     expect(hudOf({ heard: 40, bars, track: moving }).style.glide!.from).toBeNull();
     const sliding = glideTo(track, { harm: 0.9 }, 32, SLIDER_GLIDE);
-    expect(hudOf({ heard: 40, bars, track: sliding }).style).toEqual({
+    expect(hudOf({ heard: 40, bars, track: sliding }).style).toMatchObject({
       preset: null,
       glide: { from: 'Synth-pop', bar: 1, bars: 1 },
     });
@@ -283,7 +294,7 @@ describe('a glide’s progress', () => {
 
   it('is no glide where the style stays where it is, as when the same preset is chosen again', () => {
     const again = glideTo(glideTo(track, techno.style, 0, 0), techno.style, 32, PRESET_GLIDE);
-    expect(hudOf({ heard: 40, bars, track: again }).style).toEqual({
+    expect(hudOf({ heard: 40, bars, track: again }).style).toMatchObject({
       preset: 'Techno',
       glide: null,
     });
@@ -291,7 +302,7 @@ describe('a glide’s progress', () => {
 
   it('ignores energy riding within a genre', () => {
     const ridden = glideTo(track, { energy: 1 }, 32, SLIDER_GLIDE);
-    expect(hudOf({ heard: 40, bars, track: ridden }).style).toEqual({
+    expect(hudOf({ heard: 40, bars, track: ridden }).style).toMatchObject({
       preset: 'Synth-pop',
       glide: null,
     });
@@ -334,16 +345,18 @@ describe('the lead status line, reused by the stage and its tracks', () => {
   });
 });
 
-describe('the style status line, reused by the style panel and the tracks', () => {
+const axes = axesOf(INITIAL_STYLE);
+
+describe('the style status line, reused by the tracks', () => {
   it('says a preset plays, a glide moves between two, or the style is custom', () => {
-    expect(styleStatus({ preset: 'Techno', glide: null })).toBe('Playing Techno.');
-    expect(styleStatus({ preset: 'Funk', glide: { from: 'Techno', bar: 3, bars: 8 } })).toBe(
+    expect(styleStatus({ preset: 'Techno', glide: null, axes })).toBe('Playing Techno.');
+    expect(styleStatus({ preset: 'Funk', glide: { from: 'Techno', bar: 3, bars: 8 }, axes })).toBe(
       'Moving from Techno to Funk, bar 3 of 8.',
     );
-    expect(styleStatus({ preset: 'Funk', glide: { from: null, bar: 1, bars: 8 } })).toBe(
+    expect(styleStatus({ preset: 'Funk', glide: { from: null, bar: 1, bars: 8 }, axes })).toBe(
       'Moving from Custom to Funk, bar 1 of 8.',
     );
-    expect(styleStatus({ preset: null, glide: { from: 'Techno', bar: 1, bars: 1 } })).toBe(
+    expect(styleStatus({ preset: null, glide: { from: 'Techno', bar: 1, bars: 1 }, axes })).toBe(
       'Custom style. Pick a preset to glide somewhere named.',
     );
   });
@@ -458,5 +471,65 @@ describe('the view of the Muse', () => {
         taken: false,
       },
     ]);
+  });
+});
+
+describe('the style card’s words', () => {
+  const view = (over: Partial<Parameters<typeof styleSub>[0]> = {}) => ({
+    preset: 'Synth-pop' as string | null,
+    glide: null,
+    axes,
+    ...over,
+  });
+
+  it('names the closest style, and Custom where no preset matches', () => {
+    expect(styleName(view())).toBe('Synth-pop');
+    expect(styleName(view({ preset: null }))).toBe('Custom');
+  });
+
+  it('says a preset playing, a glide under way to a preset, and a custom style by its two most telling axes', () => {
+    expect(styleSub(view())).toBe('Playing Synth-pop');
+    expect(styleSub(view({ preset: 'Ambient', glide: { from: 'Funk', bar: 2, bars: 8 } }))).toBe(
+      'Gliding to Ambient',
+    );
+    const swungSparse = { ...axes, swing: 0.9, energy: 0.1, sync: 0.5, harm: 0.5, artic: 0.5 };
+    expect(styleSub(view({ preset: null, axes: swungSparse }))).toBe('Custom · swung, sparse');
+  });
+
+  it('says a client that the host sets it', () => {
+    expect(styleSub(view(), true)).toBe('Playing Synth-pop · the host sets it');
+  });
+
+  it('gives a word to each end of each axis, the two furthest from the middle, in axis order', () => {
+    const middle = { swing: 0.5, sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5, entropy: 0.5 };
+    expect(styleWords(middle)).toEqual([]);
+    const ends = {
+      swing: ['straight', 'swung'],
+      sync: ['on the beat', 'syncopated'],
+      harm: ['static', 'rich'],
+      artic: ['legato', 'staccato'],
+      energy: ['sparse', 'dense'],
+      entropy: ['predictable', 'surprising'],
+    } as const;
+    for (const [axis, [low, high]] of Object.entries(ends)) {
+      expect(styleWords({ ...middle, [axis]: 0 })).toEqual([low]);
+      expect(styleWords({ ...middle, [axis]: 1 })).toEqual([high]);
+    }
+    expect(styleWords({ ...middle, artic: 1, entropy: 0.9, swing: 0.8 })).toEqual([
+      'staccato',
+      'surprising',
+    ]);
+  });
+});
+
+describe('the axes of the style heard', () => {
+  it('follow a glide, so an intermediate step reads an intermediate value', () => {
+    const settled = glideTo(track, { swing: 0 }, 0, 0);
+    const moving = glideTo(settled, { swing: 1 }, 32, PRESET_GLIDE);
+    const swingAt = (heard: number) => hudOf({ heard, bars, track: moving }).style.axes.swing;
+    expect(swingAt(32)).toBe(0);
+    expect(swingAt(32 + 16 * 4)).toBeGreaterThan(0);
+    expect(swingAt(32 + 16 * 4)).toBeLessThan(1);
+    expect(swingAt(32 + 16 * 8)).toBe(1);
   });
 });

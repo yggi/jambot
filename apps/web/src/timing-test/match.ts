@@ -1,5 +1,5 @@
 /**
- * Following a hit (#204, A7): which hit of the pattern a tap answers, how
+ * Following a hit (#204, H7): which hit of the pattern a tap answers, how
  * far off it was, and how a run of taps adds up.
  *
  * A tap answers the nearest hit not answered yet, within a window of half

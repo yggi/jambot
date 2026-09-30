@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { listen, starts } from './audio.ts';
 
 /**
- * The timing test (#204, A7) in Chromium: it plays its pattern on the
+ * The timing test (#204, H7) in Chromium: it plays its pattern on the
  * built-in synth, takes taps of the computer's keys, keeps the whole run in
  * `localStorage`, and hands every run over as a download.
  */
@@ -156,5 +156,21 @@ test('a player exactly on the heard beat is on time, on every hit', async ({ pag
   expect(Math.abs(run.summary.offsets.mean)).toBeLessThan(15);
   expect(run.summary.offsets.sd).toBeLessThan(15);
   expect(run.summary.offsets.onTime).toBeGreaterThan(0.9);
+  expect(errors).toEqual([]);
+});
+
+/** A click of the tap button is one tap: the browser follows its pointer down with a click, itself a pointer event. */
+test('a click on the tap button is one tap, not two', async ({ page }) => {
+  const errors = await listen(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Timing test' }).click();
+  await page.getByRole('button', { name: 'Start the test' }).click();
+  const tap = page.getByRole('button', { name: 'Tap along' });
+  for (let i = 0; i < 3; i++) {
+    await tap.click();
+    await page.waitForTimeout(300);
+  }
+  await expect(page.getByText(/^3 taps ·/)).toBeVisible();
+  await page.getByRole('button', { name: 'Stop' }).click();
   expect(errors).toEqual([]);
 });

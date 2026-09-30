@@ -34,7 +34,7 @@ idempotent, and its fixed points are the canonical forms (F3). Chained through
 all the layers, a score, played and heard, writes itself: a quine. Each property
 is either one link of that chain or a law about the machines that run it.
 
-## Round trips (Q1–Q3)
+## Round trips (Q1–Q3, Q12)
 
 **Q1a. Text and events round-trip: `compile(encode(e)) = e` for the composer's
 events, and `encode ∘ compile` is idempotent on every text that parses,
@@ -102,6 +102,22 @@ Counterexample: a bar that doesn't come back, with no single boundary (Q1a–Q1e
 that loses it. Test: open: over every preset and the preset tour, the fraction
 that comes back exact at each boundary. Source: F3. Status: open. Lands in: #3,
 #2.
+
+**Q12. I got what you did there: a level hears a pattern from its memory under an operator, and what it answers, heard again, gives that pattern and that operator back.**
+It is the quine at every level: what the band reads, it writes, and what it writes, read, is what it read, a fixed point of reading after playing.
+Memory is half of it: to hear a pattern again, a level has to remember it (C9), and recognition is the read of C9's loop done against the memory rather than against nothing.
+Repetition is the same shape with the player's own memory: a long rest ends a phrase, a motif heard again is confirmed, and a phrase heard again confirms the order of its parts.
+The composer has it at three levels, and whether the performers have it too, a groove heard again as the same groove, is open.
+Witness: the key, where `centre` finds the shift of the mode's scale that best lays it on the pitch classes heard, and a key held and played gives itself back where the harmony is rich (F3, E19); the motif, where `canonicalOp` finds the one operator from a motif to its answer (U5, Q5c), and a bar repeated is a symmetry of its phrase that it writes as no operator at all; the scale, where a descent heard after an ascent is the ascent under one operator on either tower (#150's rung 1, Q10); the phrase, which ends at an empty bar and not at a shorter rest (`readHeard`).
+Counterexample: an answer that, heard again, gives another pattern or another operator; a repetition the reading doesn't hear as one.
+The key is one where the harmony is thin: its chords don't sound what tells its neighbours apart, so a key held is read back as another in 1 to 6% of bars (E19).
+Test: `key-loop.test.ts` (`packages/engine/experiments`), whose test of a key held and read back cites Q12; `motifs.test.ts` (`packages/theory`), whose tests of a repeated bar, of `recognise` and of `cellsOf` cite Q12: every motif of a 4-step cycle under every operator is heard as itself under the canonical operator, a repeat under none, and every pair of bars that join splits into its cells and their order and is rebuilt from them; `muse.test.ts`, whose tests of the Muse's memory cite Q12: a motif played again, by the same player or another, as it was or upside down, is heard as the one remembered, taken first, and held across bars against a motif heard once until it fades; `recognition.test.ts` (`packages/engine/experiments`), E20, whose tests cite Q12; `ladder.test.ts` (`packages/analyzer/experiments`), whose test of the descent cites Q12; `phrase.test.ts`, whose test of where a phrase ends cites Q12.
+Recognition is exact today, so it is only as good as the reading under it: a loose hand's repeat is heard in 75% of patterns at 20 ms and 25% at 30 ms, as often as both playings are read right, and a variation the lead fitted to the chords is rarely an exact operator on its shape (E20).
+Open: recognition with a tolerance, an operator but for a note, as E13 matches the lead, whose tolerance would be a licence (C8); the Muse hearing the band's answer and recognising her own offer in it, which she never hears today, by design (Q7b); the performer's.
+Source: #157 (seed 6, recognition), #210, the owner; Hofstadter, _Gödel, Escher, Bach_ (1979), the quine.
+Status: measured (the key, where the harmony is rich); measured, failing (the key, where it is thin); measured (the motif's operator); measured (the scale); measured (a rest ends a phrase); measured (a repetition confirms a motif, #204 H8); measured (a phrase's cells and their order, #207 M1); measured, failing (a loose hand's repeat; a variation fitted to the chords); speculative (the performer).
+Decided: #210, ahead of the evidence: a long rest ends a phrase, repetition confirms a motif, and a phrase's repetition confirms the phrase order; a confirmed motif holds across bars against one heard once, while it is remembered (#235).
+Lands in: #204, #207, #157, #158.
 
 ## A curriculum toward Q1e and Q3 (Q10)
 
@@ -194,7 +210,7 @@ one other note. Source: quintenzirkel's variation operators, Lewin's T and I, #7
 
 **Q6. Every feedback loop passes through a delay.** Same as F7.
 
-## Convergence and fixed points (Q7–Q9)
+## Convergence and fixed points (Q7–Q9, Q11)
 
 **Q7a. Following the players is a loop with a bandwidth.** Same as A4.
 
@@ -222,6 +238,22 @@ Source: the prototype's Quinetics parallels, #37 steps 4 and 5. Status: measured
 is a named cell of the key frame.
 
 **Q9. A wish settles: read again, it changes nothing.** Same as C6.
+
+**Q11. Left alone, a level's default comes home in a cycle the level above plans, and strays from it as far as the freedom used allows.**
+It may do either: a chord sequence begins and ends on its tonic, a longer part may go through a planned cycle of keys as a classical movement does, or the music may drift openly.
+Which it does is the balance between the licence given (C8) and the freedom used, the entropy, and the composer and the performer read the same style and use it differently.
+Witness: the harmony within a key, whose cycle the form plans: every A theme starts on the tonic, at every harmony, vamp or walk, while B themes and builds start elsewhere for contrast, and the form brings A back (Q8), so the chords come home each time the form does.
+How a theme's last bar comes home, to the tonic or through its dominant, is not measured yet.
+The key at entropy 0, which never leaves the key it opened in; the tempo, which remembers no nudge and so is always the style's own when none is held (C9).
+Counterexample: a level that strays with nothing to bring it home.
+The key above entropy 0 is one: the band moves it within its reach, leaning toward where it has been (C9), and no plan brings it round, since the style holds a reach per jump, not a cycle of keys.
+Over 32 sections the key ends as far from where it opened as a key drawn at random round the circle, about 3 fifths, and back on it in at most 1 run in 10 (E19).
+So at the key the balance has one side: the freedom used moves it, and nothing given plans its way back.
+Test: `themes.test.ts`, whose test of the A theme's first chord cites Q11: every mode, 21 harmonies, three entropies and 20 seeds; `key-loop.test.ts` (`packages/engine/experiments`), E19, whose test of the key's drift cites Q11.
+Source: #210 ("left alone, it plays an endless, evolving jam", `AGENTS.md`, as a claim about where the system settles); the owner, on #210.
+Status: measured (the harmony within a key); measured (the key at entropy 0); measured, failing (the key above it).
+Decided: #210, ahead of the evidence: a default comes home in a cycle the level above plans, or drifts, as the licence given and the freedom used balance.
+Lands in: #210, #233 (a planned cycle of keys over the form, which the key does not have yet), #195.
 
 ## Not a property
 

@@ -179,17 +179,17 @@ describe('wishAfter', () => {
     }
   });
 
-  it('holds a key picked within reach of the home it is given, the harmonic history’s centre, for every home and tonic (#169)', () => {
+  it('holds a key picked within reach of the home it is given, the plan’s key, for every home and tonic (#169, C8)', () => {
     const style: Style = { ...INITIAL_STYLE, harm: 1 / 6 };
     const { keyReach } = licenceOf(style);
     for (let home = 0; home < 12; home++)
       for (let tonic = 0; tonic < 12; tonic++) {
-        const centre = { tonic: home, mode: 'aeolian' } as const;
+        const plan = { tonic: home, mode: 'aeolian' } as const;
         const picked = { tonic, mode: 'aeolian', melodic: null } as const;
-        const held = wishAfter(picked, { kind: 'key', wish: picked }, style, centre);
-        const apart = Math.abs(fifthsApart(picked, centre));
+        const held = wishAfter(picked, { kind: 'key', wish: picked }, style, plan);
+        const apart = Math.abs(fifthsApart(picked, plan));
         expect(held.tonic === tonic).toBe(apart <= keyReach);
-        expect(Math.abs(fifthsApart({ tonic: held.tonic!, mode: 'aeolian' }, centre))).toBe(
+        expect(Math.abs(fifthsApart({ tonic: held.tonic!, mode: 'aeolian' }, plan))).toBe(
           Math.min(apart, keyReach),
         );
       }

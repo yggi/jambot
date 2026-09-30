@@ -7,10 +7,14 @@ import {
   NOOP,
   applyOp,
   canonicalOp,
+  cellsOf,
   head,
   joinBars,
   motifProblems,
   motion,
+  opsBetween,
+  orderText,
+  recognise,
   rhythmOf,
   splitBars,
   stabilizer,
@@ -657,12 +661,154 @@ describe('a phrase across bars', () => {
       }
   });
 
-  it('turns a repeated bar into a symmetry: late by a bar leaves the phrase as it is, and the canonical operator writes it as no operator at all (finite: every bar that joins) (T15, U5, F3)', () => {
+  it('turns a repeated bar into a symmetry: late by a bar leaves the phrase as it is, and the canonical operator writes it as no operator at all (finite: every bar that joins) (T15, U5, F3, Q12)', () => {
     const byBar = { ...NOOP, late: SPAN };
     for (const a of bars) {
       const twice = joinBars([a, a])!;
       expect(stabilizer(twice)).toContainEqual(byBar);
       expect(canonicalOp(byBar, twice)).toEqual(NOOP);
     }
+  });
+});
+
+describe('recognition: a motif heard as a remembered one under an operator (Q12)', () => {
+  const key = (op: MotifOp) => JSON.stringify(op);
+  const plain = (m: Motif): Motif => ({
+    cycle: m.cycle,
+    onsets: m.onsets,
+    degrees: m.degrees,
+    accidentals: m.accidentals,
+  });
+
+  it(
+    'finds every operator from one motif to another as the coset of the first’s symmetries (finite: every motif and operator) (Q5c, Q12)',
+    { timeout: 30_000 },
+    () => {
+      for (const m of both) {
+        expect(opsBetween(m, m).map(key).sort()).toEqual(stabilizer(m).map(key).sort());
+        for (const op of ops) {
+          const found = opsBetween(m, applyOp(op, m)).map((o) => key({ ...o, late: o.late }));
+          const coset = stabilizer(m).map((s) => {
+            const o = thenOp(s, op);
+            return key({ ...o, late: ((o.late % SPAN) + SPAN) % SPAN });
+          });
+          expect(found.sort()).toEqual(coset.sort());
+        }
+      }
+    },
+  );
+
+  it(
+    'hears a motif played again under any operator as the remembered one, and writes it with the canonical operator, a repeat with none (finite: every motif and operator) (Q12)',
+    { timeout: 30_000 },
+    () => {
+      for (const m of both) {
+        expect(recognise(m, m)).toEqual(NOOP);
+        for (const op of ops) {
+          const heard = applyOp(op, m);
+          const found = recognise(heard, m)!;
+          expect(found).toEqual(canonicalOp(op, plain(m)));
+          expect(text(plain(applyOp(found, m)))).toBe(text(plain(heard)));
+        }
+      }
+    },
+  );
+
+  it('hears accents as how a motif was played, not as what it is', () => {
+    const [m, loud] = [motifs[40]!, accented[40]!];
+    expect(recognise(loud, m)).toEqual(NOOP);
+    expect(recognise(m, loud)).toEqual(NOOP);
+  });
+
+  it('hears nothing where no operator takes one motif to the other, or their cycles differ (Q12)', () => {
+    const sample = motifs.filter((_, i) => i % 9 === 0);
+    let strangers = 0;
+    for (const a of sample)
+      for (const b of motifs) {
+        const found = recognise(b, a);
+        if (found === null) strangers++;
+        else expect(text(applyOp(found, a))).toBe(text(b));
+      }
+    expect(strangers).toBeGreaterThan(sample.length * motifs.length * 0.9);
+    const bar = motif(16, [
+      [0, 0],
+      [4, 1],
+    ]);
+    expect(recognise(bar, { ...bar, cycle: 8 })).toBeNull();
+  });
+});
+
+describe('the cells of a phrase and their order, #207 M1 (#207, Q12)', () => {
+  const joins = (m: Motif) => m.onsets[0] === 0 || m.degrees.at(-1) === null;
+  const bars = motifsOf(SPAN, [null, [0, 0], [1, -1]]).filter(joins);
+  const cyclesOf = (n: number) => range(n).map(() => SPAN);
+
+  it('reads a bar that repeats the one before under an operator as the same cell, and writes the operator (finite: every bar that joins, and every operator) (Q12)', () => {
+    for (const a of bars)
+      for (const op of ops) {
+        const b = applyOp(op, a);
+        if (!joins(b)) continue;
+        const phrase = joinBars([a, b])!;
+        const read = cellsOf(phrase, cyclesOf(2))!;
+        expect(read.cells).toEqual([a]);
+        expect(read.order).toEqual([
+          { cell: 0, op: NOOP },
+          { cell: 0, op: canonicalOp(op, a) },
+        ]);
+      }
+  });
+
+  it('keeps a bar that repeats nothing before it as a cell of its own, and rebuilds the phrase from its cells (finite: every pair of bars that join) (Q12)', () => {
+    for (const a of bars)
+      for (const b of bars) {
+        const phrase = joinBars([a, b])!;
+        const read = cellsOf(phrase, cyclesOf(2))!;
+        expect(read.cells.length).toBe(recognise(b, a) === null ? 2 : 1);
+        const rebuilt = joinBars(read.order.map(({ cell, op }) => applyOp(op, read.cells[cell]!)));
+        expect(rebuilt).toEqual(phrase);
+      }
+  });
+
+  it(
+    'gives a phrase moved on pitch the same order of cells, so the phrase heard again confirms its order (a sample of three bars A, A under an operator, B) (Q12)',
+    { timeout: 30_000 },
+    () => {
+      const pitchOps = [-1, 2].flatMap((strans) =>
+        [false, true].map((mirror) => ({ ...NOOP, strans, mirror })),
+      );
+      const sample = bars.filter((_, i) => i % 5 === 0);
+      expect(sample.length).toBeGreaterThan(8);
+      for (const a of sample)
+        for (const b of sample) {
+          const phrase = joinBars([a, applyOp({ ...NOOP, strans: 1 }, a), b])!;
+          const order = cellsOf(phrase, cyclesOf(3))!.order.map((o) => o.cell);
+          for (const op of pitchOps) {
+            const moved = cellsOf(applyOp(op, phrase), cyclesOf(3))!;
+            expect(moved.order.map((o) => o.cell)).toEqual(order);
+            expect(recognise(applyOp(op, phrase), phrase)).toEqual(canonicalOp(op, phrase));
+          }
+        }
+    },
+  );
+
+  it('writes the order as letters, a mark on each cell heard under an operator, and nothing for a phrase that does not split', () => {
+    const a = motif(SPAN, [
+      [0, 0],
+      [1, 1],
+      [3, null],
+    ]);
+    const b = motif(SPAN, [
+      [0, 1],
+      [2, 0],
+    ]);
+    const up = applyOp({ ...NOOP, strans: 2 }, a);
+    const read = cellsOf(joinBars([a, a, b, up])!, cyclesOf(4))!;
+    expect(orderText(read.order)).toBe("A A B A'");
+    const tied = motif(2 * SPAN, [
+      [0, 0],
+      [3, 1],
+      [6, null],
+    ]);
+    expect(cellsOf(tied, cyclesOf(2))).toBeUndefined();
   });
 });

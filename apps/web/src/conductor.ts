@@ -127,8 +127,8 @@ export function nudgeAfter(nudge: number, intent: Intent, style: Style): number 
  * The key wished for after an intent: what a key intent picks, or a
  * preset's mode from any tonic, the rest of the wish as it was; a tonic held
  * within the reach that the style after the intent leaves (`licenceOf`) of
- * `home`: the band's harmonic history's centre (`centre`, #169), which is
- * the key the song opens in before anything is heard; and a melodic scale
+ * `home`: the plan's key, the one the band is heading for, which is the key
+ * the song opens in before anything is decided; and a melodic scale
  * within the scales that style reaches. A wish nothing changes is the same.
  */
 export function wishAfter(

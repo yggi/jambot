@@ -1,5 +1,5 @@
 /**
- * The runs kept in this browser (#204, A7): every finished timing test,
+ * The runs kept in this browser (#204, H7): every finished timing test,
  * saved as it ends, so they can be downloaded together and analysed
  * outside. One key of `localStorage` holds them all as a JSON list; a
  * browser that refuses (a private window, a full quota) keeps them for the

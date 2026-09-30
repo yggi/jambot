@@ -1,5 +1,6 @@
 import {
   type HarmonicWeights,
+  INITIAL_KEY,
   NO_HISTORY,
   PRESETS,
   type ScheduledStep,
@@ -276,7 +277,7 @@ describe('the player', () => {
     player.apply({ kind: 'axis', axis: 'energy', value: 1 });
     expect(player.hud.next.map((b) => b.energy)).not.toEqual(energies);
     player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Funk')! });
-    expect(player.hud.style).toEqual({
+    expect(player.hud.style).toMatchObject({
       preset: 'Funk',
       glide: { from: 'Synth-pop', bar: 1, bars: 8 },
     });
@@ -734,6 +735,25 @@ describe('the player', () => {
       expect(folds.slice(8)).toContainEqual(player.harmonicHistory);
       player.stop();
       expect(player.harmonicHistory).toEqual(NO_HISTORY);
+    });
+
+    it('leaves the players’ home to the plan: the key the band is heading for, whatever the history weighs (C8)', async () => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      expect(player.home).toEqual(INITIAL_KEY);
+      void player.start();
+      world.resolve();
+      await settle();
+      for (let t = 0; t < 20; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+      // A history of another key's scale, a fifth away, where the band is not.
+      const heading = player.hud.heading!;
+      const elsewhere = [...NO_HISTORY];
+      for (const step of [0, 2, 3, 5, 7, 8, 10]) elsewhere[(heading.tonic + 7 + step) % 12] = 1;
+      player.harmonicHistory = elsewhere;
+      expect(player.home).toEqual(heading);
     });
 
     it('weighs the pitch classes actually played, and clears them on stop', async () => {

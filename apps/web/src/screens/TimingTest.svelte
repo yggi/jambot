@@ -1,5 +1,5 @@
 <!--
-  The timing test (#204, A7): a drum pattern of two sounds, a kick and a
+  The timing test (#204, H7): a drum pattern of two sounds, a kick and a
   snare, plays for eight bars after a count-in, and the person follows every
   hit with any input: the computer's keys, the tap button, a pad or a MIDI
   key. Each tap shows at once how early or late it was, on the bar as it
@@ -79,6 +79,7 @@
         : `${last.sound} · ${describeOffset(last.offsetMs)}`,
   );
   const stats = $derived(test.stats);
+  const answered = $derived(test.taps.filter((t) => t.hit !== null).length);
 
   const inputsOf = (run: TimingRun) =>
     [...new Set(run.taps.map((t) => t.source))].join(', ') || 'no taps';
@@ -86,11 +87,17 @@
 
   let confirming = $state(false);
 
-  function tap(e: PointerEvent | MouseEvent) {
-    // A click from the keyboard has no pointer; the computer's keys are taken elsewhere.
-    if (e instanceof MouseEvent && !(e instanceof PointerEvent) && e.detail !== 0) return;
-    if (e instanceof PointerEvent) e.preventDefault();
-    test.tap({ source: TAP_SOURCE, kind: 'tap', eventMs: e.timeStamp });
+  const tapped = (e: Event) => test.tap({ source: TAP_SOURCE, kind: 'tap', eventMs: e.timeStamp });
+
+  /** A tap is the pointer going down, not the click that follows it, which browsers send as a pointer event too. */
+  function pointerDown(e: PointerEvent) {
+    e.preventDefault();
+    tapped(e);
+  }
+
+  /** A click with no pointer behind it (`detail` 0) is a press of the button from the keyboard. */
+  function click(e: MouseEvent) {
+    if (e.detail === 0) tapped(e);
   }
 </script>
 
@@ -165,7 +172,13 @@
       </p>
 
       {#if test.phase === 'playing'}
-        <button type="button" class="tap" onpointerdown={tap} onclick={tap} aria-label="Tap along">
+        <button
+          type="button"
+          class="tap"
+          onpointerdown={pointerDown}
+          onclick={click}
+          aria-label="Tap along"
+        >
           Tap
         </button>
       {/if}
@@ -174,7 +187,7 @@
         {said ?? (test.phase === 'playing' ? 'Waiting for your first tap' : '')}
       </p>
       <p class="figures">
-        {test.taps.filter((t) => t.hit !== null).length} of {plan?.expected.length ?? 0} hits · mean {signed(
+        {test.taps.length} taps · {answered} of {plan?.expected.length ?? 0} hits · mean {signed(
           stats.mean,
         )} · spread {stats.sd === null ? '–' : `${Math.round(stats.sd)} ms`} ·
         {percent(stats.onTime)} within 25 ms

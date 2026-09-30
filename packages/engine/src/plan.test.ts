@@ -153,7 +153,7 @@ describe('the section plan', () => {
     }
   });
 
-  it('leans toward the key its harmonic history centres on (#169)', () => {
+  it('leans toward the key its harmonic history centres on (#169, C9)', () => {
     // A history of E aeolian's scale, the band in A aeolian, one fifth either way: E or D.
     const e: Key = { tonic: 4, mode: 'aeolian' };
     const history = [...NO_HISTORY];

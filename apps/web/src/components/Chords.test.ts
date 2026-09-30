@@ -26,7 +26,11 @@ const hudOf = (here: BarView, beat: number | null, over: Partial<Hud> = {}): Hud
   chord: here.chords[0]!,
   next: [],
   sections: [],
-  style: { preset: 'Synth-pop', glide: null },
+  style: {
+    preset: 'Synth-pop',
+    glide: null,
+    axes: { swing: 0, sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0 },
+  },
   heading: { tonic: 9, mode: 'aeolian' },
   headingMelodic: 'plain',
   muse: { motif: null, log: [] },

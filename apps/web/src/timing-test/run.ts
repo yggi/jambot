@@ -1,5 +1,5 @@
 /**
- * A timing test's record (#204, A7): everything the test saw, in a plain
+ * A timing test's record (#204, H7): everything the test saw, in a plain
  * object that is saved in the browser and downloaded for analysis elsewhere.
  *
  * It keeps what a later matching or a different model of the player would
