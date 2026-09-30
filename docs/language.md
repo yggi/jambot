@@ -1861,7 +1861,7 @@ run; the others have.
 
 - **E21. The loop closed with no players** (Q7b, Q12; #237 step 0), in
   [`packages/engine/experiments/loop.ts`](../packages/engine/experiments/loop.ts)
-  (about 25 s; its test, a sample, about 3 s): the Muse hears the band's own lead as she hears a player, and her offer goes back into the band with F7's delay, so what she hears in bar k plays from bar k + 2.
+  (about 11 s; its test, a sample, about 3 s): the Muse hears the band's own lead as she hears a player, and her offer goes back into the band with F7's delay, so what she hears in bar k plays from bar k + 2.
   - Two conditions over the same seeds: deaf, the band as it plays alone today, a Muse listening beside it whose offer is not fed back; and hearing, the loop closed.
   - Every preset at entropy 0, 0.3, 0.6 and 1, 3 seeds of 128 bars; the presets ordered by their harmony, which sets the licence's reach (Techno the narrowest, Swing jazz the widest).
   - The lead's notes are on the grid, so the nearest step reads each bar as the transport's phrase reading does, which the test holds on a sample.

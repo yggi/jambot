@@ -33,7 +33,7 @@
  * operator read back from what it made is a fixed point (F3).
  */
 
-import { type Helix, mod } from './helix.ts';
+import { type Helix, gaps, mod } from './helix.ts';
 
 export interface Motif {
   /** The steps of the cycle: 16 for a bar. */
@@ -275,14 +275,23 @@ export function splitBars(phrase: Motif, cycles: readonly number[]): Motif[] | u
  */
 export function opsBetween(from: Motif, to: Motif): MotifOp[] {
   const found: MotifOp[] = [];
-  if (from.cycle !== to.cycle) return found;
+  // Every operator keeps a motif's cycle, its rests, and its arcs' lengths
+  // (it moves them round the cycle or runs them backwards), so a motif that
+  // differs in these is no operator on the other.
+  const kept = (m: Motif) =>
+    `${m.degrees.filter((d) => d === null).length}|${[...gaps(rhythmOf(m))].sort((a, b) => a - b)}`;
+  if (from.cycle !== to.cycle || from.onsets.length !== to.onsets.length) return found;
+  if (kept(from) !== kept(to)) return found;
   const text = (m: Motif) =>
     `${m.onsets}|${m.degrees.map((d) => d !== null)}|${m.accidentals}|${m.accents ?? ''}`;
   const target = text(to);
   const note = to.degrees.findIndex((d) => d !== null);
   for (const rev of [false, true])
-    for (const mirror of [false, true])
-      for (let late = 0; late < from.cycle; late++) {
+    for (const mirror of [false, true]) {
+      // Only a displacement that puts an onset on the target's first can match.
+      const unmoved = applyOp({ strans: 0, mirror, late: 0, rev }, from).onsets;
+      const lates = [...new Set(unmoved.map((o) => mod(to.onsets[0]! - o, from.cycle)))];
+      for (const late of lates.sort((a, b) => a - b)) {
         const moved = applyOp({ strans: 0, mirror, late, rev }, from);
         if (text(moved) !== target) continue;
         // The onsets and rests agree, so the degrees must differ by one sequence.
@@ -290,6 +299,7 @@ export function opsBetween(from: Motif, to: Motif): MotifOp[] {
         if (moved.degrees.every((d, i) => d === null || d + strans === to.degrees[i]))
           found.push({ strans, mirror, late, rev });
       }
+    }
   return found;
 }
 

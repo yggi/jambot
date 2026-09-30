@@ -47,9 +47,9 @@
  * that order, and against the entropy, says whether the share falls
  * monotonically as the licence widens and as the entropy rises (#237).
  *
- * Its cost is the Muse's recognition, every motif heard against every one
- * she remembers under every operator: 3 seeds of 128 bars, the default,
- * take about 25 s, and 5 seeds of 256 bars about 85 s.
+ * Its cost is mostly the Muse's recognition, every motif heard against every
+ * one she remembers: 3 seeds of 128 bars, the default, take about 11 s, and
+ * 5 seeds of 256 bars about 40 s.
  *
  * node --experimental-strip-types --no-warnings packages/engine/experiments/loop.ts [seeds] [bars]
  */
