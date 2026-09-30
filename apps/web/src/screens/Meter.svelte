@@ -48,7 +48,9 @@
     barMarks(meter, player.swing, lit, meterMap(meter, player.swing, player.ternary).played),
   );
   const chosen = $derived(METERS[player.name]);
-  const line = $derived(accentLine(chosen));
+  const line = $derived(accentLine(chosen, player.mirror));
+  /** Whether the grouping can be read the other way round: only a run of five pulses or more has two. */
+  const mirrorable = $derived(accentLine(chosen, true) !== accentLine(chosen, false));
   const hasTernary = $derived(gaps(chosen).includes(3));
   const partner = $derived(HEMIOLA[player.name]);
   const percent = (x: number) => `${Math.round(x * 100)} %`;
@@ -81,8 +83,17 @@
     />
     <p class="accents" aria-label="Accents">
       <span class="line">{line}</span>
-      <span class="legend">* downbeat · + half · - pulse · . between</span>
+      <span class="legend">* the bar · + its parts · - their parts · . eighths</span>
     </p>
+    <button
+      type="button"
+      class="toggle"
+      aria-pressed={player.mirror && mirrorable}
+      disabled={!mirrorable}
+      onclick={() => (player.mirror = !player.mirror)}
+    >
+      Mirror the grouping
+    </button>
 
     <button
       type="button"

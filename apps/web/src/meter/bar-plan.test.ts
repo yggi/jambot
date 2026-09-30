@@ -15,6 +15,7 @@ const setting = (name: MeterName, more: Partial<Setting> = {}): Setting => ({
   layers: all,
   hemiola: false,
   grade: 1,
+  mirror: false,
   ...more,
 });
 
@@ -83,6 +84,26 @@ describe('the bar’s plan', () => {
       o.layer === 'drums' && o.note === DRUM_NOTES.kick ? [o.step] : [],
     );
     expect(kicks).toEqual([0, 8]);
+  });
+
+  it('kicks the downbeat alone where the bar has two or three pulses, and the half as well where it has four or more (finite: every meter)', () => {
+    for (const name of names) {
+      const drums = barPlan(setting(name, { layers: only('drums') }));
+      const kicks = drums.flatMap((o) =>
+        o.layer === 'drums' && o.note === DRUM_NOTES.kick ? [o.step] : [],
+      );
+      expect([name, kicks.length]).toEqual([name, METERS[name].heights.length >= 4 ? 2 : 1]);
+    }
+  });
+
+  it('groups 5/4 as 3+2 or 2+3 with the mirror, in what it accents and nowhere else', () => {
+    const hats = (mirror: boolean) =>
+      barPlan(setting('5/4', { layers: only('drums'), mirror })).flatMap((o) =>
+        o.layer === 'drums' && o.note === DRUM_NOTES.closedHat ? [o.velocity] : [],
+      );
+    expect(hats(true)).not.toEqual(hats(false));
+    expect([...hats(true)].sort()).toEqual([...hats(false)].sort());
+    expect(barPlan(setting('6/8', { mirror: true }))).toEqual(barPlan(setting('6/8')));
   });
 
   it('plays the bass on the downbeat and each pulse, each note lasting to the next', () => {

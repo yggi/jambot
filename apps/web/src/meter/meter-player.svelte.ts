@@ -57,6 +57,8 @@ export class MeterPlayer {
   layers: Record<Layer, boolean> = $state({ click: true, drums: false, bass: false });
   /** The bass takes the other meter's pulses, where there is one. */
   hemiola = $state(false);
+  /** The pulses grouped the other way round, 5 as 2+3 (`gradesOf`). */
+  mirror = $state(false);
   /** The click's level, 0 to 1. */
   volume = $state(0.7);
   playing = $state(false);
@@ -108,13 +110,13 @@ export class MeterPlayer {
   }
 
   #layBar(base: Output): void {
-    const { name, bpm, swing, ternary, grade, layers, hemiola, volume } = this;
+    const { name, bpm, swing, ternary, grade, layers, hemiola, mirror, volume } = this;
     const meter = METERS[name];
     const stepSeconds = 60 / bpm / 4;
     const played = meterMap(meter, swing, ternary).played;
     const start = this.#next;
     const at = (step: number) => start + played(step) * stepSeconds;
-    const plan = barPlan({ name, layers: { ...layers }, hemiola, grade });
+    const plan = barPlan({ name, layers: { ...layers }, hemiola, grade, mirror });
     for (const onset of plan) {
       if (onset.layer === 'click') {
         base.click?.(onset.weight, at(onset.step), volume * onset.gain);

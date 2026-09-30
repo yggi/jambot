@@ -2,15 +2,15 @@ import { METERS, type Meter } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { GRADES, accentLine, gradeGain, gradesOf } from './grades.ts';
 
-/** Every named meter's accent line, by hand: the ground truth `accentLine` is checked against. */
+/** Every named meter's accent line, by hand, an eighth to a symbol: the ground truth `accentLine` is checked against. */
 const LINES: Record<keyof typeof METERS, string> = {
-  '3/4': '* . .',
-  '4/4': '* . + .',
-  '5/4': '* . . . .',
-  '5/8': '* . . - .',
-  '6/8': '* . . - . .',
-  '7/8': '* . . - . - .',
-  '9/8': '* . . - . . - . .',
+  '3/4': '* . + . + .',
+  '4/4': '* . - . + . - .',
+  '5/4': '* . - . - . + . - .',
+  '5/8': '* . . + .',
+  '6/8': '* . . + . .',
+  '7/8': '* . . + . + .',
+  '9/8': '* . . + . . + . .',
   '10/8': '* . . - . . + . - .',
   '12/8': '* . . - . . + . . - . .',
 };
@@ -33,12 +33,31 @@ describe('the accent grades', () => {
     }
   });
 
-  it('gives a half only where four pulses or more come in an even count, once', () => {
+  it('gives the bar’s children a half each but the first, as many as it has: a flat root of two or three pulses, two halves of four or more (finite: every meter)', () => {
     for (const [name, meter] of meters) {
       const halves = gradesOf(meter).filter((g) => g === 'half').length;
       const pulses = meter.heights.length;
-      expect([name, halves]).toEqual([name, pulses >= 4 && pulses % 2 === 0 ? 1 : 0]);
+      expect([name, halves]).toEqual([name, pulses <= 3 ? pulses - 1 : 1]);
     }
+  });
+
+  it('counts from the root: the same pulse is a half in 6/8 and a pulse below one in 12/8', () => {
+    expect(gradesOf(METERS['6/8'])[3]).toBe('half');
+    expect(gradesOf(METERS['12/8'])[3]).toBe('pulse');
+    expect(gradesOf(METERS['12/8'])[6]).toBe('half');
+    expect(gradesOf(METERS['3/4'])[2]).toBe('half');
+    expect(gradesOf(METERS['4/4'])[2]).toBe('pulse');
+  });
+
+  it('mirrors the grouping only where a run of five pulses has two ways: 5/4 as 3+2 or 2+3, the grades the same in number (finite: every meter)', () => {
+    for (const [name, meter] of meters) {
+      const same = accentLine(meter, true) === accentLine(meter);
+      expect([name, same]).toEqual([name, name !== '5/4']);
+      const counts = (mirrored: boolean) =>
+        GRADES.map((g) => gradesOf(meter, mirrored).filter((x) => x === g).length);
+      expect(counts(true)).toEqual(counts(false));
+    }
+    expect(accentLine(METERS['5/4'], true)).toBe('* . - . + . - . - .');
   });
 
   it('spreads the grades with the slider: only the downbeat stands out at none, each its own level at all, the downbeat never moving', () => {

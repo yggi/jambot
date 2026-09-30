@@ -88,7 +88,7 @@ describe('the app', () => {
       expect(screen.getByRole('region', { name: 'Metronome' })).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Join a session' })).toBeNull();
       await fireEvent.click(screen.getByRole('radio', { name: '6/8' }));
-      expect(screen.getByLabelText('Accents')).toHaveTextContent('* . . - . .');
+      expect(screen.getByLabelText('Accents')).toHaveTextContent('* . . + . .');
       await fireEvent.click(screen.getByRole('button', { name: 'Play' }));
       expect(await screen.findByRole('button', { name: 'Stop' })).toBeInTheDocument();
       await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));

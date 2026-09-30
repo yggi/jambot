@@ -49,6 +49,8 @@ export interface Setting {
   readonly hemiola: boolean;
   /** The accent slider, 0 to 1. */
   readonly grade: number;
+  /** The pulses grouped the other way round, 5 as 2+3 (`gradesOf`). */
+  readonly mirror: boolean;
 }
 
 export type Onset =
@@ -74,9 +76,9 @@ const velocity = (base: number, gain: number) =>
   Math.max(1, Math.min(127, Math.round(base * gain)));
 
 /** What plays in one bar of the meter, in time order. */
-export function barPlan({ name, layers, hemiola, grade }: Setting): Onset[] {
+export function barPlan({ name, layers, hemiola, grade, mirror }: Setting): Onset[] {
   const meter = METERS[name];
-  const grades = gradesOf(meter);
+  const grades = gradesOf(meter, mirror);
   const weights = meterWeights(meter);
   const pulses = meterOnSteps(meter).heights;
   const barSteps = meter.cycle * STEPS_PER_EIGHTH;
@@ -100,8 +102,9 @@ export function barPlan({ name, layers, hemiola, grade }: Setting): Onset[] {
       });
     grades.forEach((g, eighth) => {
       const step = eighth * STEPS_PER_EIGHTH;
-      if (g === 'downbeat' || g === 'half') drum(step, DRUM_NOTES.kick, 118);
-      drum(step, DRUM_NOTES.closedHat, 84);
+      if (g === 'downbeat' || (g === 'half' && meter.heights.length >= 4))
+        drum(step, DRUM_NOTES.kick, 118);
+      drum(step, DRUM_NOTES.closedHat, 100);
     });
     for (const pulse of BACKBEAT[name]) drum(pulses[pulse]!, DRUM_NOTES.snare, 108);
   }

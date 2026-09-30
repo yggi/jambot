@@ -31,7 +31,7 @@ describe('the metronome screen', () => {
     const meters = screen.getAllByRole('radio').map((r) => r.textContent?.trim());
     expect(meters).toEqual(['3/4', '4/4', '5/4', '5/8', '6/8', '7/8', '9/8', '10/8', '12/8']);
     expect(screen.getByRole('radio', { name: '4/4' })).toBeChecked();
-    expect(screen.getByLabelText('Accents')).toHaveTextContent('* . + .');
+    expect(screen.getByLabelText('Accents')).toHaveTextContent('* . - . + . - .');
   });
 
   it('chooses a meter and draws its bar: a mark on each of its steps', async () => {
@@ -39,7 +39,7 @@ describe('the metronome screen', () => {
     expect(rendered.container.querySelectorAll('svg.ruler circle.mark')).toHaveLength(16);
     await fireEvent.click(screen.getByRole('radio', { name: '5/4' }));
     expect(rendered.container.querySelectorAll('svg.ruler circle.mark')).toHaveLength(20);
-    expect(screen.getByLabelText('Accents')).toHaveTextContent('* . . . .');
+    expect(screen.getByLabelText('Accents')).toHaveTextContent('* . - . - . + . - .');
   });
 
   it('sets the tempo, the swing, the ternary swing and the accent grade on the player', async () => {
@@ -57,6 +57,20 @@ describe('the metronome screen', () => {
       target: { value: '25' },
     });
     expect([player.bpm, player.swing, player.ternary, player.grade]).toEqual([132, 0.6, 0.4, 0.25]);
+  });
+
+  it('mirrors the grouping of 5/4 as 2+3, and offers it nowhere else', async () => {
+    const { player } = shown();
+    const mirror = screen.getByRole('button', { name: 'Mirror the grouping' });
+    expect(mirror).toBeDisabled();
+    await fireEvent.click(screen.getByRole('radio', { name: '5/4' }));
+    expect(mirror).toBeEnabled();
+    await fireEvent.click(mirror);
+    expect(player.mirror).toBe(true);
+    expect(screen.getByLabelText('Accents')).toHaveTextContent('* . - . + . - . - .');
+    await fireEvent.click(screen.getByRole('radio', { name: '6/8' }));
+    expect(mirror).toBeDisabled();
+    expect(mirror).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('says where the ternary swing has nothing to move, and only there', async () => {
