@@ -1918,7 +1918,7 @@ run; the others have.
   - So a loop that copies what it hears locks on its first pattern, whatever holds or confirms it, and each of the delay's chains needs a transformation of its own to drift: variation on every bar, or an answer under an operator from the Muse (#237 step 4), not a copy.
   - Not measured: weights for the band's voices beside the players', since no players play here; and the style's distance over time, which needs the critic (#15).
 
-- **E22. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
+- **E23. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
   [`packages/engine/experiments/style-readback.ts`](../packages/engine/experiments/style-readback.ts),
   held by [`packages/engine/experiments/style-readback.test.ts`](../packages/engine/experiments/style-readback.test.ts):
   bars composed at a style and read back by `readStyle`, per axis: Kendall's tau-b of the reading against the axis, and the mean distance of the two where the reading is on the axis's scale.
@@ -1941,14 +1941,14 @@ run; the others have.
     A sweep of one moves no tau of the other (under 0.05).
   - Not measured: `harm` (needs the chords, not read from notes yet), per-part readings (step 4), and the real music the analyzer will read.
 
-- **E23. Does Techno land where techno lands?** (#15 step 3, N3), in
+- **E24. Does Techno land where techno lands?** (#15 step 3, N3), in
   [`packages/engine/experiments/genre-calibration.ts`](../packages/engine/experiments/genre-calibration.ts),
   held by [`packages/engine/experiments/genre-calibration.test.ts`](../packages/engine/experiments/genre-calibration.test.ts):
   the transport plays each preset's point, `readStyle`, `readTiming` and `readHarm` read the bars, and `genreOf` (`packages/engine/src/genre.ts`) turns the reading into probabilities over the presets by a softmax over the distances at a temperature.
   The reading has six axes (`energy` from the density, `sync`, `artic`, `swing`, `bpm` on its log axis scaled to 0 to 1, and `harm`); the distance is a root mean square over them.
   3 seeds of 32 bars per preset, temperature 0.1, against two sets of landmarks: the presets' own points, and where the presets' bars read (the mean over 5 other seeds).
   - Against the presets' points, a single bar lands as its own preset in 0.64 of bars on average (chance 0.125): Ambient 1.00, Swing jazz 0.91, Techno 0.87, Synth-pop 0.82, Lo-fi hip hop 0.74 and Deep house 0.72, but Funk 0.06 and Bossa nova 0.03.
-    The reading is compressed short of the axes (E22, E24), so a preset far out on one, Funk's `sync` of 1, has no bar near its point.
+    The reading is compressed short of the axes (E23, E25), so a preset far out on one, Funk's `sync` of 1, has no bar near its point.
   - Against where the presets read, 0.80: Ambient 0.92, Swing jazz 0.91, Bossa nova 0.86, Lo-fi hip hop 0.81, Funk 0.78, Techno 0.77, Deep house 0.69 and Synth-pop 0.68.
     So the critic's landmarks are measured, not read off the presets.
   - Each axis added lifted it. On the three axes of the notes alone (`energy`, `sync`, `artic`) it was 0.30 against the points and 0.41 against where the presets read; with the two of the clock (`swing`, `bpm`) 0.61 and 0.71; with `harm` from the chords 0.64 and 0.80.
@@ -1956,7 +1956,7 @@ run; the others have.
   - A section's mean of 8 bars lands within 0.15 of a bar: averaging adds little, so what is missing is axes, not noise.
   - Not measured: the temperature's effect on calibration of `p` beyond the two tried (0.05 and 0.1 rank alike; `p` on the right preset is 0.14 to 0.80 at 0.1), `harm`, and real music.
 
-- **E24. The chords, and `harm`, read back from the notes** (#15, the critic's `harm`; F3 at the harmony level, N3), in
+- **E25. The chords, and `harm`, read back from the notes** (#15, the critic's `harm`; F3 at the harmony level, N3), in
   [`packages/engine/experiments/harm-readback.ts`](../packages/engine/experiments/harm-readback.ts),
   held by [`packages/engine/experiments/harm-readback.test.ts`](../packages/engine/experiments/harm-readback.test.ts):
   `readChords` (`packages/engine/src/chord-reading.ts`) reads a root and a quality for each half of a bar from the pad and stab, and `readHarm` turns the chords into a number: the mean of the chord changes in the bar over 2, and of how far the chords' tones run past a triad (a seventh a half, a ninth a whole).

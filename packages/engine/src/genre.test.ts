@@ -43,7 +43,7 @@ describe('genre probabilities: nearness to the presets', () => {
     expect(styleDistance({}, style)).toBe(0);
   });
 
-  it('puts the tempo on its own axis’s scale, log between its ends: 0 at 60 bpm, 1 at 180 (E23)', () => {
+  it('puts the tempo on its own axis’s scale, log between its ends: 0 at 60 bpm, 1 at 180 (E24)', () => {
     expect(bpmUnit(60)).toBeCloseTo(0, 12);
     expect(bpmUnit(180)).toBeCloseTo(1, 12);
     expect(bpmUnit(Math.sqrt(60 * 180))).toBeCloseTo(0.5, 12);

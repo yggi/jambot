@@ -1,5 +1,5 @@
 /**
- * E22: the style read back from the notes it wrote (#15, step 2; F3 at the
+ * E23: the style read back from the notes it wrote (#15, step 2; F3 at the
  * style level).
  *
  * The composer turns a style into notes and `readStyle` turns notes into a
