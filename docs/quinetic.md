@@ -19,8 +19,8 @@ Entries are in the `ratchet` skill's claim form
 ([`SKILL.md`](../.claude/skills/ratchet/SKILL.md)): a witness, the shape of a
 counterexample, a decidable test, a source, a status and where it lands.
 
-The ids are one space with `language.md`'s, so a test cites either catalogue's
-ids in the same group: `(T4, Q1c)`. Where a property is a claim `language.md`
+The ids are one space with the language catalogue's (`language-*.md`), so a test cites either catalogue's
+ids in the same group: `(T4, Q1c)`. Where a property is a claim a language layer file
 already makes, it is an **alias**, `Same as F4.`, with no status or test of its
 own: the property is tracked once, and a test that cites the alias is checked
 against the entry it names. The pawl check (`tooling/pawl.ts`) reads both

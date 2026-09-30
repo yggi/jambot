@@ -14,8 +14,15 @@ A source file has no line here: its header comment says what it is, and `tooling
   - [`architecture.md`](architecture.md): the workspace, the theory, layers (engine and its rates, transport, renderers, UI), delivery, languages, nodes (web clients, root node, rendering nodes), related projects, timing, and what has settled and what is open
   - [`development.md`](development.md): setup, toolchain and why it was chosen
   - [`prototype.md`](prototype.md): what the port keeps and changes, and how the port is checked
-  - [`language.md`](language.md): the language design (#7) as a negative shape: the catalogue of constraints on Jambot's internal musical expression, each a claim with a witness, a counterexample and a test; tensions, candidates, experiments, and the names functional programming and category theory give its shapes
-  - [`quinetic.md`](quinetic.md): #39's catalogue of quinetic properties (round trips, machine laws, convergence), each a claim with a test, or an alias of the `language.md` entry that already holds it
+  - [`language.md`](language.md): the language design (#7) as a negative shape: the method, the probes, the index of the catalogue, the tensions, candidates and the names functional programming and category theory give its shapes
+    - [`language-time.md`](language-time.md): the time tower's catalogue: the clock, the grid, the meter, swing, written against played time
+    - [`language-pitch.md`](language-pitch.md): the pitch tower's catalogue: the helix, keys, modes, chords, numerals, pitch tokens
+    - [`language-state.md`](language-state.md): what a bar carries from the bars before it, and how a value changes
+    - [`language-surface.md`](language-surface.md): lowering to devices, readers and writers, the score text
+    - [`language-analysis.md`](language-analysis.md): reading the music back, the Muse, composing a band
+    - [`language-experiments.md`](language-experiments.md): the experiments that measured the entries
+  - [`shape.md`](shape.md): the negative and the positive shape of the language side by side, one row per level and one column each for pitch and time: where entries have no witness, where code has no entry, where the towers differ (#255)
+  - [`quinetic.md`](quinetic.md): #39's catalogue of quinetic properties (round trips, machine laws, convergence), each a claim with a test, or an alias of the `language-*.md` entry that already holds it
   - [`ratchet.md`](ratchet.md): how a working track and a negative track drive each other, with tests as the pawl (#37 and #7)
   - [`theory.md`](theory.md): the mathematics under `packages/theory` (circle, helix, generator, modes, composition, meter), each relation with the test that holds it
   - `docs/memory/`: facts that stay true, one file per topic, read on demand (they are not part of the boot set)

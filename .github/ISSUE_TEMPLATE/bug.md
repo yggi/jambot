@@ -16,4 +16,4 @@ labels: bug
 
 ## Which ratchet claim it refutes
 
-<!-- A catalogue id (docs/language.md, docs/quinetic.md) if it is a counterexample, or "none". -->
+<!-- A catalogue id (docs/language-*.md, docs/quinetic.md) if it is a counterexample, or "none". -->

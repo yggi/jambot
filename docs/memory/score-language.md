@@ -19,7 +19,7 @@ Facts about `packages/score` and the score language (#7).
 - The prototype's score is not self-contained: 68% of bars compile differently from their text alone, always in register (octave, voicing), never in harmony or rhythm (`language.md`, S1 and E1).
 - To run the prototype headless from Node, load it in jsdom as `prototype/experiments/cold-warm.mjs` does, and end with `process.exit`: the page's own timers keep the process alive.
 - The engine's parts write notes, not events: a `WrittenNote` is a step, a note, a length in whole steps and, for a drum hit, its role, with no velocity.
-  The band plays each through `perform` (`perform.ts`), which reads the velocity and the gated length from the bar (`language.md`, T4 and E9).
+  The band plays each through `perform` (`perform.ts`), which reads the velocity and the gated length from the bar (`language-time.md`, T4, and `language-experiments.md`, E9).
   A test that reads a velocity or a played length goes through `perform`.
 - The band reads its style on a grid of 3 decimals (`writtenStyle`, C7), so a `BandBar`'s `style` is the written one, not what the track gave.
   A test that compares a bar's style or energy with its input writes it first.
