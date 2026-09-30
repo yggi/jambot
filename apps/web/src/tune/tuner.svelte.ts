@@ -9,7 +9,7 @@
  * pitch changes, so turning it moves the needle at once.
  */
 
-import { A4_HZ, pitchOf } from '@jambot/theory';
+import { A4_HZ, frequencyOf, pitchOf } from '@jambot/theory';
 import type { Analysis } from '@jambot/spectrum';
 import { midiNoteName } from '../noteNames.ts';
 import type { Analyse } from './analysis.ts';
@@ -56,6 +56,8 @@ export class Tuner {
   message = $state('');
   /** The A4 the notes are measured against, in Hz. */
   reference = $state(A4_HZ);
+  /** The note the sound is meant to be, as a MIDI number, while one is sent to tune by; otherwise the nearest note is. */
+  target: number | null = $state(null);
   devices: InputDevice[] = $state.raw([]);
   /** The input chosen; `undefined` is the default. */
   deviceId: string | undefined = $state(undefined);
@@ -80,18 +82,24 @@ export class Tuner {
     this.#deps = deps;
   }
 
-  /** The note heard, read against the reference; null when there is none. */
+  /**
+   * The note heard, read against the reference; null when there is none. Against
+   * the target where there is one, however far off, and otherwise against the
+   * nearest note, never more than 50 cents away.
+   */
   reading: Reading | null = $derived.by(() => {
     const heard = this.#heard;
     const pitch = heard && pitchOf(heard.hz, this.reference);
     if (!heard || !pitch) return null;
+    const midi = this.target ?? pitch.midi;
+    const nearestHz = this.target === null ? pitch.hz : frequencyOf(midi, this.reference);
     return {
-      midi: pitch.midi,
-      name: midiNoteName(pitch.midi),
-      cents: pitch.cents,
+      midi,
+      name: midiNoteName(midi),
+      cents: this.target === null ? pitch.cents : 1200 * Math.log2(heard.hz / nearestHz),
       hz: heard.hz,
-      nearestHz: pitch.hz,
-      offsetHz: pitch.offsetHz,
+      nearestHz,
+      offsetHz: heard.hz - nearestHz,
       clarity: heard.clarity,
     };
   });

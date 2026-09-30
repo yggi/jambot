@@ -33,6 +33,7 @@
   import { WorkerAnalysis } from './tune/analysis.ts';
   import AnalysisWorker from './tune/analysis.worker.ts?worker';
   import { browserMic } from './tune/mic.ts';
+  import { ToneSender } from './tune/sender.svelte.ts';
   import { Tuner } from './tune/tuner.svelte.ts';
   import { type TimingReport, timingFile, timingReport } from './timing.ts';
   import { runsCsv, runsFile } from './timing-test/run.ts';
@@ -81,6 +82,12 @@
   const tuner = new Tuner({
     mic: browserMic(),
     analyse: new WorkerAnalysis(() => new AnalysisWorker()).analyse,
+  });
+  /** The note the tuner's screen holds, on this device's synth or a MIDI port, to tune an instrument by. */
+  const sender = new ToneSender({
+    ports: () => device.ports.outputs,
+    port: (id) => device.access?.outputPort(id) ?? null,
+    synth: () => device.clockOf().base,
   });
   const hostSession = sessions.asHost;
   const clientSession = sessions.asClient;
@@ -188,9 +195,12 @@
     if (screen !== 'meter') meterPlayer.stop();
   });
 
-  // The tuner listens on its own screen only: the microphone is let go of on leaving it.
+  // The tuner listens on its own screen only: the microphone is let go of on leaving it, and a note held on it is released.
   $effect(() => {
-    if (screen !== 'tune') tuner.stop();
+    if (screen !== 'tune') {
+      tuner.stop();
+      sender.release();
+    }
   });
 
   // Back at the door nothing plays on: a session that ended on its own, or
@@ -353,7 +363,7 @@
   {:else if screen === 'meter'}
     <MeterScreen player={meterPlayer} onback={() => (meterChosen = false)} />
   {:else if screen === 'tune'}
-    <TuneScreen {tuner} onback={() => (tuneChosen = false)} />
+    <TuneScreen {tuner} {sender} onback={() => (tuneChosen = false)} />
   {:else if screen === 'restoring'}
     <p class="message" role="status">Taking up your session again…</p>
   {:else}

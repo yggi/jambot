@@ -68,6 +68,29 @@ describe('the tuner', () => {
     expect(tuner.reading!.nearestHz).toBe(432);
   });
 
+  it('reads the sound against the note it is meant to be when it is told one, as far off as it is', async () => {
+    const w = world();
+    w.heard.signal = tone(440, 130);
+    const tuner = await listen(w);
+    expect(tuner.reading!.name).toBe('B♭4');
+    tuner.target = 69;
+    const reading = tuner.reading!;
+    expect(reading.name).toBe('A4');
+    expect(reading.midi).toBe(69);
+    expect(reading.cents).toBeCloseTo(130, 0);
+    expect(reading.nearestHz).toBe(440);
+    expect(reading.offsetHz).toBeCloseTo(reading.hz - 440, 9);
+    tuner.target = 70;
+    expect(tuner.reading!.name).toBe('B♭4');
+    expect(tuner.reading!.cents).toBeCloseTo(30, 0);
+    tuner.reference = 432;
+    expect(tuner.reading!.nearestHz).toBeCloseTo(432 * 2 ** (1 / 12), 6);
+    tuner.target = null;
+    // 474 Hz is 62 cents sharp of the B♭ of a 432 scale and 38 flat of its B.
+    expect(tuner.reading!.name).toBe('B4');
+    expect(tuner.reading!.cents).toBeCloseTo(-38.2, 0);
+  });
+
   it('holds a note through a short gap, and lets it go after a while of silence', async () => {
     const w = world();
     w.heard.signal = tone(440);

@@ -9,15 +9,27 @@
   import Gauge from '../components/Gauge.svelte';
   import Waterfall from '../components/Waterfall.svelte';
   import { octaveMarks, spectrumPath, xOfHz } from '../tune/plot.ts';
+  import { midiNoteName } from '../noteNames.ts';
+  import type { ToneSender } from '../tune/sender.svelte.ts';
   import type { Tuner } from '../tune/tuner.svelte.ts';
+  import { frequencyOf } from '@jambot/theory';
 
   interface Props {
     tuner: Tuner;
+    /** Holds a note on the synth or a MIDI port, to tune an instrument against. */
+    sender: ToneSender;
     /** Back to the lobby. */
     onback: () => void;
   }
 
-  let { tuner, onback }: Props = $props();
+  let { tuner, sender, onback }: Props = $props();
+
+  // The sound is read against the note sent, while one is held.
+  $effect(() => {
+    tuner.target = sender.holding ? sender.note : null;
+  });
+  const ports = $derived(sender.destinations.length - 1);
+  const toSynth = $derived(sender.destination === 'synth');
 
   /** Within this many cents of a note the sound is called in tune. */
   const IN_TUNE_CENTS = 3;
@@ -114,7 +126,7 @@
       from={-50}
       to={50}
       centre={0}
-      value={reading?.cents ?? 0}
+      value={Math.max(-50, Math.min(50, reading?.cents ?? 0))}
       fill
     />
     <div class="scale" aria-hidden="true">
@@ -131,6 +143,68 @@
         Not listening.
       {/if}
     </p>
+  </section>
+
+  <section class="card" aria-label="Send a note">
+    <h3>Send a note <span class="whose">to tune an instrument by</span></h3>
+    <p class="message">
+      Hold a note on this device’s synth or on a channel of a MIDI port, and the tuner reads what
+      comes back against it, however far off.
+    </p>
+    <div class="field">
+      <label for="destination">To</label>
+      <select
+        id="destination"
+        value={sender.destination}
+        onchange={(e) => sender.choose(e.currentTarget.value)}
+      >
+        {#each sender.destinations as destination (destination.id)}
+          <option value={destination.id}>{destination.name}</option>
+        {/each}
+      </select>
+      {#if !toSynth}
+        <label for="channel">Channel</label>
+        <input
+          id="channel"
+          type="number"
+          min="1"
+          max="16"
+          step="1"
+          value={sender.channel}
+          oninput={(e) => sender.setChannel(e.currentTarget.valueAsNumber)}
+        />
+      {/if}
+    </div>
+    {#if ports === 0}
+      <p class="hint">To send to an instrument, connect a MIDI port in the Sound card above.</p>
+    {/if}
+    <div class="sends">
+      <b class="sent">{midiNoteName(sender.note)}</b>
+      <span class="hz">{frequencyOf(sender.note, tuner.reference).toFixed(2)} Hz</span>
+      <span class="steps" role="group" aria-label="Move the note">
+        {#each [-12, -1, 1, 12] as step (step)}
+          <button type="button" onclick={() => sender.move(step)}
+            >{step > 0 ? '+' : '−'}{Math.abs(step) === 12 ? 'octave' : 'semitone'}</button
+          >
+        {/each}
+      </span>
+    </div>
+    <div class="sends">
+      <button
+        type="button"
+        class="toggle"
+        aria-pressed={sender.holding}
+        onclick={() => (sender.holding ? sender.release() : sender.hold())}
+      >
+        {sender.holding ? 'Release' : 'Hold the note'}
+      </button>
+      {#if !toSynth}
+        <button type="button" class="quiet" onclick={() => sender.panic()}>All notes off</button>
+      {/if}
+    </div>
+    {#if sender.message}
+      <p class="notice" role="status">{sender.message}</p>
+    {/if}
   </section>
 
   <section class="card" aria-label="Spectrum">
@@ -280,6 +354,40 @@
     background: var(--amber);
     color: var(--on-amber);
     border-color: var(--amber);
+  }
+  h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .whose {
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+  .sends {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .sent {
+    font-size: 26px;
+    font-variant-numeric: tabular-nums;
+  }
+  .hz {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .steps button {
+    min-height: 34px;
+    padding: 0 12px;
   }
   .note {
     display: flex;
