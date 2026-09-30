@@ -52,16 +52,16 @@ import { sourceName } from '@jambot/session';
 import { type Attribution, type Credit, credit } from './attribution.ts';
 import { targetOf, unnudged } from './conductor.ts';
 import { keyName } from './noteNames.ts';
+import { CHORD_BARS, FAR_SECTIONS, NEAR_SECTIONS } from './planView.ts';
 
 /**
- * The most bars shown after the one heard: they run to the end of the next
- * section, so from a section's first bar they are its others and the whole
- * next one.
+ * The most bars shown after the one heard: the chords card shows `CHORD_BARS`
+ * in all, the one heard and these.
  */
-export const NEXT_BARS = 2 * SECTION_BARS - 1;
+export const NEXT_BARS = CHORD_BARS - 1;
 
-/** How many sections the song map shows, from the one heard. */
-export const SECTIONS = 4;
+/** How many sections the plan shows, from the one heard: its two rows. */
+export const SECTIONS = NEAR_SECTIONS + FAR_SECTIONS;
 
 export interface ChordView {
   /** The step of its bar it starts on. */
@@ -173,7 +173,7 @@ export interface Hud {
   readonly beat: number | null;
   /** The chord sounding, or before anything is heard the bar's first. */
   readonly chord: ChordView | null;
-  /** The bars after it to the end of the next section, at most `NEXT_BARS`, as far as the bars reach. */
+  /** The bars after it, at most `NEXT_BARS`, as far as the bars reach. */
   readonly next: readonly BarView[];
   /** Its section and those after, up to `SECTIONS`, as far as the bars reach them in full. */
   readonly sections: readonly SectionView[];
@@ -299,12 +299,7 @@ export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): H
     bar: here ? barView(here) : null,
     beat: heard === null ? null : beatInBar(step),
     chord: here && sounding ? chordView(sounding, here) : null,
-    next: here
-      ? bars
-          .slice(at + 1)
-          .filter((b) => b.bar < nextSectionEnd(here.bar))
-          .map(barView)
-      : [],
+    next: here ? bars.slice(at + 1, at + 1 + NEXT_BARS).map(barView) : [],
     sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS), barView) : [],
     style: styleView(track, heard ?? 0, tempoNudge),
     heading: bars.at(-1)?.plan.key ?? null,
@@ -312,9 +307,6 @@ export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): H
     muse: museView(muse, named, credited),
   };
 }
-
-/** The bar after the last of the section after a bar's. */
-const nextSectionEnd = (bar: number) => (Math.floor(bar / SECTION_BARS) + 2) * SECTION_BARS;
 
 /** The Muse's view, each source read by its player's name. */
 function museView(

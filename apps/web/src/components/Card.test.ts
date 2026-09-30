@@ -29,6 +29,23 @@ describe('a card', () => {
     expect(screen.getByLabelText('Thing')).toHaveAttribute('open');
   });
 
+  it('keeps the line of an empty sub element, so the card is as tall with nothing to say', () => {
+    const { container } = render(Card, { title: 'Thing', main: 'C major', sub: '', children });
+    expect(container.querySelector('summary .sub')).not.toBeNull();
+    expect(container.querySelector('summary .sub')).toHaveTextContent('');
+  });
+
+  it('gives the full text of the main and sub elements as their tooltip, for when a line is cut short', () => {
+    const { container } = render(Card, {
+      title: 'Thing',
+      main: 'Cmaj7 · IIImaj7',
+      sub: 'then Dm · iv',
+      children,
+    });
+    expect(container.querySelector('summary .main')).toHaveAttribute('title', 'Cmaj7 · IIImaj7');
+    expect(container.querySelector('summary .sub')).toHaveAttribute('title', 'then Dm · iv');
+  });
+
   it('needs no sub element and no glyph', () => {
     const { container } = render(Card, { title: 'Thing', main: 'C major', children });
     expect(container.querySelector('summary .sub')).toBeNull();

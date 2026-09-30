@@ -3,7 +3,6 @@ import {
   INITIAL_STYLE,
   PRESETS,
   PRESET_GLIDE,
-  SECTION_BARS,
   SLIDER_GLIDE,
   type TransportEnv,
   chordAt,
@@ -30,6 +29,7 @@ import {
   styleSub,
   styleWords,
 } from './hud.ts';
+import { CHORD_BARS } from './planView.ts';
 import type { BarView } from './hud.ts';
 import { keyName } from './noteNames.ts';
 
@@ -43,7 +43,7 @@ const env: TransportEnv = {
   track,
   wish: { tonic: null, mode: 'aeolian', melodic: null },
 };
-const bars = forecast(env, null, 32);
+const bars = forecast(env, null, 40);
 
 describe('the view model', () => {
   it('shows the bar the band opens on, and its first chord, before anything is heard', () => {
@@ -88,21 +88,19 @@ describe('the view model', () => {
     }
   });
 
-  it('shows the bars after the one heard to the end of the next section, as far as the forecast reaches (finite: every bar of the forecast)', () => {
+  it('shows the bars after the one heard, seven at most, as far as the forecast reaches (finite: every bar of the forecast)', () => {
     const upTo = (from: number, to: number) =>
       Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
+    expect(NEXT_BARS).toBe(7);
+    expect(NEXT_BARS).toBe(CHORD_BARS - 1);
     for (const here of bars) {
-      const end = (Math.floor(here.bar / SECTION_BARS) + 2) * SECTION_BARS;
       expect(hudOf({ heard: here.bar * 16 + 5, bars, track }).next.map((b) => b.bar)).toEqual(
-        upTo(here.bar + 1, Math.min(end, bars.length)),
+        upTo(here.bar + 1, Math.min(here.bar + 1 + NEXT_BARS, bars.length)),
       );
     }
-    // The most is from a section's first bar: its seven others and the eight of the next.
-    expect(NEXT_BARS).toBe(2 * SECTION_BARS - 1);
-    expect(NEXT_BARS).toBe(15);
-    expect(hudOf({ heard: null, bars, track }).next.map((b) => b.bar)).toEqual(upTo(1, 16));
-    expect(hudOf({ heard: 16 * 3 + 5, bars, track }).next.map((b) => b.bar)).toEqual(upTo(4, 16));
-    expect(hudOf({ heard: 16 * 30, bars, track }).next.map((b) => b.bar)).toEqual([31]);
+    expect(hudOf({ heard: null, bars, track }).next.map((b) => b.bar)).toEqual(upTo(1, 8));
+    expect(hudOf({ heard: 16 * 3 + 5, bars, track }).next.map((b) => b.bar)).toEqual(upTo(4, 11));
+    expect(hudOf({ heard: 16 * 37, bars, track }).next.map((b) => b.bar)).toEqual([38, 39]);
   });
 
   it('names the sections as the page does', () => {
@@ -186,12 +184,12 @@ describe('the lead and the key ahead', () => {
 });
 
 describe('the song map', () => {
-  const long = forecast(env, null, 48);
+  const long = forecast(env, null, 64);
 
-  it('shows four whole sections from the one heard, each with its eight bars', () => {
-    expect(SECTIONS).toBe(4);
+  it('shows five whole sections from the one heard, each with its eight bars', () => {
+    expect(SECTIONS).toBe(5);
     const hud = hudOf({ heard: 16 * 10 + 3, bars: long, track });
-    expect(hud.sections.map((s) => s.index)).toEqual([1, 2, 3, 4]);
+    expect(hud.sections.map((s) => s.index)).toEqual([1, 2, 3, 4, 5]);
     hud.sections.forEach((section, k) => {
       expect(section.bars.map((b) => b.bar)).toEqual(
         [0, 1, 2, 3, 4, 5, 6, 7].map((i) => (k + 1) * 8 + i),
@@ -205,15 +203,15 @@ describe('the song map', () => {
     expect(hud.sections[0]!.bars[0]).toEqual(hudOf({ heard: 16 * 8, bars: long, track }).bar);
   });
 
-  it('opens on the song’s first four sections before anything is heard', () => {
+  it('opens on the song’s first five sections before anything is heard', () => {
     const hud = hudOf({ heard: null, bars, track });
-    expect(hud.sections.map((s) => s.index)).toEqual([0, 1, 2, 3]);
+    expect(hud.sections.map((s) => s.index)).toEqual([0, 1, 2, 3, 4]);
     expect(hud.sections[0]!.section).toBe('Intro');
   });
 
   it('leaves out a section the bars do not reach in full', () => {
     const hud = hudOf({ heard: 16 * 10, bars, track });
-    expect(hud.sections.map((s) => s.index)).toEqual([1, 2, 3]);
+    expect(hud.sections.map((s) => s.index)).toEqual([1, 2, 3, 4]);
   });
 
   it('marks a section whose key differs from the one before it, but never the one heard', () => {
@@ -223,6 +221,7 @@ describe('the song map', () => {
     expect(hud.sections.map((s) => [s.key, s.newKey])).toEqual([
       ['A minor', false],
       ['D dorian', true],
+      ['D dorian', false],
       ['D dorian', false],
       ['D dorian', false],
     ]);

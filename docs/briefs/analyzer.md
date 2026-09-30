@@ -50,8 +50,9 @@ Each stage outputs its result plus a confidence value, and logs its reasons when
    - Bass is the low, mostly monophonic line.
    - Lead is the top voice of the melodic tracks. Use track names and program numbers as hints ("melody", "vocal", "lead").
    - The polyphonic remainder is harmony: it provides chord evidence and becomes `pad`/`stab` lines.
-   
+
    Report the rule used for every assignment and how clear-cut it was.
+
 4. **Key and mode.** Match windowed pitch-class profiles (Krumhansl–Schmuckler or Temperley) against the four modes. Allow modulations, but only past a confidence threshold and after they persist, to avoid flip-flopping.
 5. **Chords.** For each half-bar window, build a pitch-class histogram weighted by duration and beat strength, with the bass note weighted extra. Match it against the qualities the IR supports, then turn the result into a Roman numeral in the current key: diatonic chords first, then secondary dominants (dominant quality whose root is a fifth above a diatonic target), then borrowed chords with `b`/`#`. Smooth across windows with Viterbi and a chord-change penalty. For chords the IR can't express (sus, add6, slash chords), pick the nearest supported label, log the substitution, and count it; these counts decide what the grammar needs next.
 6. **Encode.** Turn each bar into IR with the shared encoder. Pad/stab split: sustained chord hits go to `pad`, short repeated ones to `stab`. Where a line is better written with Euclid or `*n` and still compiles to the same notes, you may compress it, but exact equivalence comes first.
