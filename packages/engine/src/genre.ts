@@ -8,7 +8,7 @@
  *
  * A reading covers `sync`, `artic` and the density, which `energyOf` puts on
  * the energy axis (`readStyle`), and the `swing` and `bpm` of the clock
- * (`readTiming`); it lacks `harm` and `entropy`. So a distance is taken over
+ * (`readTiming`), and `harm` from the chords (`readHarm`); it lacks `entropy`. So a distance is taken over
  * the axes the reading has, as a root mean square, and a reading with none
  * is at the same distance (0) from every genre.
  *
@@ -19,7 +19,7 @@ import { AXES, PRESETS, type Style } from './style.ts';
 import type { StyleReading, TimingReading } from './style-reading.ts';
 
 /** The axes of a reading that sit on the style space's own. */
-export type ReadAxes = Partial<Pick<Style, 'energy' | 'sync' | 'artic' | 'swing' | 'bpm'>>;
+export type ReadAxes = Partial<Pick<Style, 'energy' | 'sync' | 'artic' | 'swing' | 'bpm' | 'harm'>>;
 
 /**
  * The tempo on its own axis's scale, 0 to 1: the axis glides in log space,
@@ -43,10 +43,13 @@ export function energyOf(density: number): number {
 }
 
 /** A reading on the style space's axes: the ones it has. */
-export function readingAxes(reading: StyleReading & TimingReading): ReadAxes {
+export function readingAxes(
+  reading: StyleReading & TimingReading & { readonly harm?: number },
+): ReadAxes {
   return {
     energy: energyOf(reading.density),
     ...(reading.swing === undefined ? {} : { swing: reading.swing }),
+    ...(reading.harm === undefined ? {} : { harm: reading.harm }),
     ...(reading.bpm === undefined ? {} : { bpm: bpmUnit(reading.bpm) }),
     ...(reading.sync === undefined ? {} : { sync: reading.sync }),
     ...(reading.artic === undefined ? {} : { artic: reading.artic }),
@@ -54,7 +57,7 @@ export function readingAxes(reading: StyleReading & TimingReading): ReadAxes {
 }
 
 /** The axes a reading can have. */
-const READ_AXES = ['energy', 'sync', 'artic', 'swing', 'bpm'] as const;
+const READ_AXES = ['energy', 'sync', 'artic', 'swing', 'bpm', 'harm'] as const;
 
 /** The root mean square of the differences, over the axes the reading has. */
 export function styleDistance(read: ReadAxes, at: Landmark['at']): number {
