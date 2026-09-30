@@ -53,14 +53,16 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `packages/engine/experiments/`: measurements on the port for the language design, outside the pure `src/` (E9 to E27)
   - `packages/score/src/`: the score, a bar as text and the text as a bar, pure TypeScript (#13, the seam of #63); the engine and `@strudel/mini` are dev dependencies, for its tests only (L4)
   - `packages/session/src/`: host and client mode, pure TypeScript ([brief](briefs/host-mode.md)): the lobby and session protocols, clocks, the fault kit and timing counters
-<<<<<<< HEAD
+    <<<<<<< HEAD
   - `packages/spectrum/src/`: audio frames into spectrum, peaks and pitch, pure TypeScript (#269): the FFT, the McLeod and YIN estimators, the live correction (a streaming PSOLA, a tracker and a corrector) and the synthetic signals they are tested on
-=======
+    \=======
   - `packages/spectrum/src/`: audio frames into spectrum, peaks and pitch, pure TypeScript (#269): the FFT, the McLeod and YIN estimators and the synthetic signals they are tested on
   - `packages/spectrum/experiments/`: what correcting live audio toward a score's notes would take (#269): two pitch shifters, a live tracker and a corrector, measured on synthetic voices, and the clips it writes to listen to
->>>>>>> origin/main
-  - `packages/analyzer/src/`: the parser, pure TypeScript (#141, the analyzer brief's steps 1–3, [brief](briefs/analyzer.md)): MIDI into tracks, tempo, swing, roles and the step grid
-  - `packages/analyzer/experiments/`: the parser on real files, and its ladder (Q10)
+
+> > > > > > > origin/main
+
+- `packages/analyzer/src/`: the parser, pure TypeScript (#141, the analyzer brief's steps 1–3, [brief](briefs/analyzer.md)): MIDI into tracks, tempo, swing, roles and the step grid
+- `packages/analyzer/experiments/`: the parser on real files, and its ladder (Q10)
 - `apps/`
   - `apps/lobby/src/`: the lobby server, sessions found by name and relayed over WebSockets (`pnpm lobby`); `apps/lobby/` also holds `load.ts` (the load test), `Dockerfile` and `fly.toml` (hosting on Fly.io, `pnpm lobby:deploy`)
   - `apps/web/src/`: the browser app (Svelte 5, Vite, PWA): the page, the player, the screen's view model and the conductor; it serves the prototype at `/prototype.html`
