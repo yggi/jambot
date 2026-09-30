@@ -10,13 +10,15 @@
  * pulse's length, the sixteenth as it is, so every hit lands on a step the
  * target has. Two ways to read the pulse:
  *
- * - `fold`: pulse p is the target's pulse p mod P, so a bar of fewer pulses
- *   folds the later ones onto the earlier, and a bar of more leaves the last
- *   ones empty. Where two hits land on one step the stronger stays.
- * - `cycle`: the four pulses are a cycle run through the bars, so the bar b
- *   reads its pulse j from the cycle's pulse (b·P + j) mod 4, the downbeat's
- *   always the first: the pattern phases against the bar and keeps the
- *   downbeat.
+ * - `cycle`, the default: the four pulses are a cycle run through the bars,
+ *   so the bar b reads its pulse j from the cycle's pulse (b·P + j) mod 4,
+ *   the downbeat's always the first: the pattern phases against the bar and
+ *   keeps the downbeat. Heard against the fold, the owner preferred it, most
+ *   for the Funk drums in 5/4: more variation, progressions that move.
+ * - `fold`, the safe reading: pulse p is the target's pulse p mod P, so a bar
+ *   of fewer pulses folds the later ones onto the earlier, and a bar of more
+ *   leaves the last ones empty. Where two hits land on one step the stronger
+ *   stays.
  *
  * Both give 4/4 its own table, the same. Neither is the rule's last word: the
  * motifs of the Muse, which carry a cycle of their own, are read the same way
@@ -38,7 +40,7 @@ const SOURCE_PULSES = 4;
 export function readOnMeter(
   table: readonly number[],
   meter: Meter,
-  mode: Regroup = 'fold',
+  mode: Regroup = 'cycle',
   bar = 0,
 ): number[] {
   const pulses = meter.heights.length;

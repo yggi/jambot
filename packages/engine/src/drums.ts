@@ -100,7 +100,7 @@ const halfOf = (steps: number) => 2 * Math.floor(steps / 4);
 const lateOf = (steps: number) => 2 * Math.floor((steps * 3) / 8);
 
 /** The drum hits a bar writes, in order of step and note. `regroup` is how a table written on 4/4's steps is read in another meter. */
-export function drums(env: BarEnv, regroup: Regroup = 'fold'): WrittenNote[] {
+export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
   const { seed, bar, barInSection, style, barEnergy: energy, meter } = env;
   const { section } = env.plan;
   const { sync, swing, artic, harm, entropy } = style;

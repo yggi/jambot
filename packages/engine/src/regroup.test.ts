@@ -51,6 +51,16 @@ describe('a rhythm read on another meter', () => {
     expect(new Set(bars).size).toBeGreaterThan(1);
   });
 
+  it('cycles by default, which the owner preferred to the fold', () => {
+    for (const bar of [0, 1, 2, 3])
+      expect(readOnMeter(KICK, METERS['5/4'], undefined, bar)).toEqual(
+        readOnMeter(KICK, METERS['5/4'], 'cycle', bar),
+      );
+    expect(readOnMeter(KICK, METERS['5/4'], undefined, 1)).not.toEqual(
+      readOnMeter(KICK, METERS['5/4'], 'fold', 1),
+    );
+  });
+
   it('fires: a hit moved one step in the source moves in the read', () => {
     const moved = [...KICK];
     moved[6] = 0;

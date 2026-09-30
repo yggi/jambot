@@ -337,6 +337,8 @@ describe('the drums on other meters (#260)', () => {
     const env = (meter: Meter, bar: number) => envOf(0, 'groove', bar, style, 0.9, 3, meter);
     expect(drums(env(SONG_METER, 1), 'cycle')).toEqual(drums(env(SONG_METER, 1), 'fold'));
     expect(drums(env(METERS['7/8'], 1), 'cycle')).not.toEqual(drums(env(METERS['7/8'], 1), 'fold'));
+    // The default is the cycle, which the owner heard as the better.
+    expect(drums(env(METERS['7/8'], 1))).toEqual(drums(env(METERS['7/8'], 1), 'cycle'));
   });
 
   it('ends a build on a fill that covers the bar’s second half with snares, and starts none before it (finite: every meter)', () => {
