@@ -73,10 +73,11 @@
   />
 </Level>
 
-<Level name="Style" resting={following}>
+<Level>
   <StylePanel
     track={player.track}
     style={player.hud.style}
+    {following}
     onintent={(intent) => player.apply(intent)}
   />
 </Level>

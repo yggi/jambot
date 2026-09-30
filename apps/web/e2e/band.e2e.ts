@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
-import { level, listen, onsets, solo, starts, workers } from './audio.ts';
+import { level, listen, onsets, openStyle, solo, starts, workers } from './audio.ts';
 
 /** Where each onset falls after the first, in steps, as the fraction of a step. */
 const phases = (times: number[], bpm: number) =>
@@ -20,6 +20,7 @@ test('plays, follows on screen, and stops at once, without an error', async ({ p
   // Stop can silence what is scheduled within 300 ms. The fade falls with a
   // time constant of 30 ms, so by then it leaves about e^-10 of the level;
   // a ride started up to 120 ms after Stop would still ring near 0.005.
+  await openStyle(page);
   await page.getByRole('button', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
@@ -45,6 +46,7 @@ test('plays, follows on screen, and stops at once, without an error', async ({ p
 test('plays every event once', async ({ page }) => {
   await listen(page);
   await solo(page);
+  await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
   await page.waitForTimeout(3000);
@@ -83,6 +85,7 @@ test('starts and stops on a quick double click, and leaves nothing running', asy
 test('plays a straight preset on the 16th grid', async ({ page }) => {
   await listen(page);
   await solo(page);
+  await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
   await page.waitForTimeout(3000);
@@ -95,6 +98,7 @@ test('plays a straight preset on the 16th grid', async ({ page }) => {
 test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   await listen(page);
   await solo(page);
+  await openStyle(page);
   await page.getByRole('button', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
@@ -114,6 +118,7 @@ test('clicks the band’s own beats, and the swing moves its offbeats to the ban
 }) => {
   await listen(page);
   await solo(page);
+  await openStyle(page);
   await page.getByRole('button', { name: 'Swing jazz' }).click();
   await page.getByLabel('Metrum').locator('summary').click();
   await page.getByRole('button', { name: 'Click' }).click();
@@ -145,6 +150,7 @@ test('plays the full band: bass, chords and lead beside the drums', async ({ pag
   await listen(page);
   await solo(page);
   // Deep house: a groove with harmony, and energy enough for the lead.
+  await openStyle(page);
   await page.getByRole('button', { name: 'Deep house' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
@@ -184,6 +190,7 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   const errors = await listen(page);
   await solo(page);
   // At energy 0 the lead rests on its own, so a lead note the band plays is the motif.
+  await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await start(page);
@@ -285,6 +292,7 @@ for (const input of INPUTS)
     });
     const errors = await listen(page);
     await solo(page);
+    await openStyle(page);
     await page.getByRole('slider', { name: /Energy/ }).fill('0');
     await input.ready(page);
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -342,6 +350,7 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
     await expect(scales).toBeVisible();
   };
   // Techno's harmony reaches the plain scale alone.
+  await openStyle(page);
   await page.getByRole('button', { name: 'Techno' }).click();
   await unfold();
   await expect(scales.getByRole('radio', { name: 'plain' })).toBeChecked();
@@ -360,4 +369,30 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
   );
   await expect.poll(marked).toEqual(['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5', 'E5']);
   expect(errors).toEqual([]);
+});
+
+test('wraps the preset chips inside the style card, at 760 px and at 360 px (#217)', async ({
+  page,
+}) => {
+  await listen(page);
+  for (const width of [760, 360]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await solo(page);
+    await openStyle(page);
+    const card = (await page.locator('details[aria-label="Style"]').boundingBox())!;
+    const chips = await page
+      .getByRole('group', { name: 'Genre presets' })
+      .getByRole('button')
+      .all();
+    expect(chips).toHaveLength(8);
+    for (const chip of chips) {
+      const box = (await chip.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(card.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(card.x + card.width);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    );
+  }
 });

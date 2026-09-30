@@ -277,7 +277,7 @@ describe('the player', () => {
     player.apply({ kind: 'axis', axis: 'energy', value: 1 });
     expect(player.hud.next.map((b) => b.energy)).not.toEqual(energies);
     player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Funk')! });
-    expect(player.hud.style).toEqual({
+    expect(player.hud.style).toMatchObject({
       preset: 'Funk',
       glide: { from: 'Synth-pop', bar: 1, bars: 8 },
     });

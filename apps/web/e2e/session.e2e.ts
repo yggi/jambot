@@ -8,6 +8,7 @@ import {
   holdAudio,
   listen,
   masterCalls,
+  openStyle,
   stalls,
 } from './audio.ts';
 
@@ -145,6 +146,7 @@ async function inStep(
   const clientErrors = await listen(client);
 
   await host(page, session, lobby);
+  await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await page.getByRole('button', { name: 'Start the band' }).click();
   await join(client, session, 'Ada', lobby);
@@ -343,6 +345,7 @@ test('a session joined comes in on a fade, not at full volume, and leaving fades
   const client = await context.newPage();
   await listen(client);
   await host(page, 'fade jam');
+  await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await page.getByRole('button', { name: 'Start the band' }).click();
   await client.getByLabel('Your name').fill('Ada');
@@ -407,6 +410,7 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
   const client = await context.newPage();
   await listen(client);
   await host(page, 'motif jam');
+  await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
   await page.getByRole('button', { name: 'Start the band' }).click();
   await join(client, 'motif jam', 'Ada');
