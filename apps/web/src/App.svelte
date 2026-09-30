@@ -163,7 +163,7 @@
   // the way out, leaves the band as it was.
   $effect(() => {
     if (screen !== 'door') return;
-    player.stop();
+    player.halt();
   });
 
   // The sessions open, while the door shows, and again when the lobby server changes.
@@ -225,7 +225,7 @@
     if (hostSession.session !== null) sessions.end();
     if (player.playing) await device.fadeOut();
     sessions.end();
-    player.stop();
+    player.halt();
     device.restore();
     soloChosen = false;
     leaving = false;

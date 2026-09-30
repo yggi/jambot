@@ -25,6 +25,17 @@
  * playing alone is a host nobody joined. A source may lack a bar; the
  * transport then passes it as it passes a bar a stall passed.
  *
+ * A song ends on request (`finish`): the source composes its last bar in
+ * place of the next it would (`finale`), the transport schedules through
+ * that bar and no further, and says when it ended (`Finale.ended`), so the
+ * player can let the last chord ring and stop. A client is told which bar is
+ * the last (`ends`) and plays through it in the same way.
+ *
+ * A song may start after the clock reaches the transport, as one does with
+ * a count-in. A source that is asked bars ahead (`ahead` above 0) is asked
+ * for the first at once, so what it composes can reach a client while the
+ * count-in plays; one that is asked as a bar's first step is laid waits for it.
+ *
  * Time is absolute and the clock never waits. A step is laid where the step
  * before it ends, whenever the tick comes; if the clock has stalled past an
  * event, that event is dropped rather than played late. A bar the clock has
@@ -38,6 +49,7 @@ import {
   type BandEnv,
   type DecidedBar,
   band,
+  finaleBar,
   lookAhead,
   passBar,
 } from './band.ts';
@@ -128,7 +140,22 @@ export interface TransportInput<Arrived = never> {
   readonly forget?: boolean;
   /** What reached the bar source since the tick before, such as bars a host sent. */
   readonly arrived?: readonly Arrived[];
+  /** Whether someone asked the song to end: on its next bar composed, on a cadence. */
+  readonly finish?: boolean;
+  /** The song's last bar, where it is told from elsewhere, such as by a host. */
+  readonly ends?: number | undefined;
 }
+
+/** How a song ends: whether it was asked to, which bar is its last, and when that bar ended. */
+export interface Finale {
+  readonly asked: boolean;
+  /** The last bar, once composed or told. */
+  readonly bar: number | null;
+  /** When the last bar ended, on the clock, once the transport has laid it. */
+  readonly ended: number | null;
+}
+
+const NO_FINALE: Finale = { asked: false, bar: null, ended: null };
 
 /**
  * Where the transport's bars come from. It carries its own state, takes in
@@ -152,6 +179,11 @@ export interface BarSource<Carried, Arrived = never> {
   ): { readonly carried: Carried; readonly bar: BandBar | null; readonly start?: number };
   /** The source past a bar the clock has wholly passed. */
   pass(env: BandEnv, carried: Carried): Carried;
+  /**
+   * The bar `env.bar` as the song's last, closing it, when the source
+   * composes the song. A source that only plays what it is sent has none.
+   */
+  finale?(env: BandEnv, carried: Carried): { readonly carried: Carried; readonly bar: BandBar };
 }
 
 /** The band as a source of bars: it composes each on the last beat of the bar before. */
@@ -164,6 +196,7 @@ export const bandSource: BarSource<BandCarried> = {
     return { carried: next, bar: output };
   },
   pass: passBar,
+  finale: finaleBar,
 };
 
 /** What the transport carries for the Muse: its state, and what waits to be judged. */
@@ -199,6 +232,7 @@ export interface TransportCarried<Source = BandCarried> {
   /** The beat being scheduled and the swing it plays with, once it has started. */
   readonly beat: { readonly index: number; readonly swing: number } | null;
   readonly listening: Listening;
+  readonly finale: Finale;
 }
 
 export interface ScheduledStep {
@@ -372,7 +406,7 @@ export function transportOver<Source, Arrived = never>(
     advance(
       env,
       carried,
-      { now, until, heard = [], judged: remote = [], forget = false, arrived = [] },
+      { now, until, heard = [], judged: remote = [], forget = false, arrived = [], finish, ends },
     ) {
       const { start, track } = env;
       let head = carried?.head ?? { step: 0, seconds: start };
@@ -381,6 +415,9 @@ export function transportOver<Source, Arrived = never>(
       let nextBar = carried?.nextBar ?? 0;
       let beat = carried?.beat ?? null;
       let listening = carried?.listening ?? LISTENING;
+      let finale = carried?.finale ?? NO_FINALE;
+      if (finish && !finale.asked) finale = { ...finale, asked: true };
+      if (ends !== undefined && finale.bar === null) finale = { ...finale, bar: ends };
       // What arrives from elsewhere is heard if its bar is composed and not
       // yet heard, and it passes the gates in the bar's key; it is dropped
       // otherwise.
@@ -414,7 +451,36 @@ export function transportOver<Source, Arrived = never>(
       let passed = 0;
       const swing = swingOf(track);
 
+      // Compose each bar `ahead` steps before it starts: the band on the
+      // last beat of the bar before. A song asked to end composes its
+      // finale in place of the next bar, and no bar after it.
+      const composeAhead = () => {
+        for (; nextBar <= barAt(head.step + source.ahead); nextBar++) {
+          if (finale.bar !== null && nextBar > finale.bar) break;
+          listening = listen(listening, nextBar - LISTEN_DELAY, judged);
+          const barEnv = bandEnvAt(env, nextBar, listening.muse.offer);
+          const closing = finale.asked && finale.bar === null && source.finale;
+          const made: { carried: Source; bar: BandBar | null; start?: number } = closing
+            ? source.finale!(barEnv, playing)
+            : source.compose(barEnv, playing);
+          playing = made.carried;
+          if (closing) finale = { ...finale, bar: nextBar };
+          if (!made.bar) continue;
+          const key = made.bar.plan.key;
+          listening = { ...listening, unjudged: [...listening.unjudged, { bar: nextBar, key }] };
+          bars.push(made.bar);
+          composed.push(made.bar);
+          if (made.start !== undefined && head.step === barStart(nextBar))
+            head = { step: head.step, seconds: made.start };
+        }
+      };
+      if (head.step === 0 && source.ahead > 0) composeAhead();
+
       while (head.seconds < until) {
+        if (finale.bar !== null && head.step >= barStart(finale.bar + 1)) {
+          finale = { ...finale, ended: finale.ended ?? head.seconds };
+          break;
+        }
         const bar = barAt(head.step);
 
         // Steps the clock has passed are not scheduled, and a bar it has
@@ -441,20 +507,7 @@ export function transportOver<Source, Arrived = never>(
           continue;
         }
 
-        // Compose each bar `ahead` steps before it starts: the band on the
-        // last beat of the bar before.
-        for (; nextBar <= barAt(head.step + source.ahead); nextBar++) {
-          listening = listen(listening, nextBar - LISTEN_DELAY, judged);
-          const made = source.compose(bandEnvAt(env, nextBar, listening.muse.offer), playing);
-          playing = made.carried;
-          if (!made.bar) continue;
-          const key = made.bar.plan.key;
-          listening = { ...listening, unjudged: [...listening.unjudged, { bar: nextBar, key }] };
-          bars.push(made.bar);
-          composed.push(made.bar);
-          if (made.start !== undefined && head.step === barStart(nextBar))
-            head = { step: head.step, seconds: made.start };
-        }
+        composeAhead();
         bars = bars.filter((b) => b.bar >= bar);
         const current = bars[0];
         if (current?.bar !== bar || head.seconds + length <= now) {
@@ -500,7 +553,7 @@ export function transportOver<Source, Arrived = never>(
         head = { step: head.step + 1, seconds: head.seconds + length };
       }
       return {
-        carried: { head, source: playing, bars, nextBar, beat, listening },
+        carried: { head, source: playing, bars, nextBar, beat, listening, finale },
         output: { steps, events, composed, missed, judged, dropped },
       };
     },

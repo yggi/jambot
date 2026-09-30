@@ -126,6 +126,42 @@ describe('a host and a client session', () => {
     expect(client.player.status).toBe('stopped');
   });
 
+  it("start a client a bar before the song and end it on the host's last bar, lacking none of the bars", async () => {
+    const lobby = memoryLobby();
+    const host = device(105);
+    const client = device(100);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    await host.player.start();
+    // The host's count-in is a bar, and the client has been told the song while it plays.
+    expect(following.hostPlaying).toBe(true);
+    await run([host, client], 1);
+    expect(client.player.status).toBe('playing');
+    expect(client.player.counting).toBe(true);
+    expect(client.world.plays).toEqual([]);
+    await run([host, client], 10);
+    expect(client.player.counting).toBe(false);
+    expect(client.world.plays.length).toBeGreaterThan(0);
+
+    host.player.stop();
+    await run([host, client], 1);
+    expect(client.player.status).toBe('playing');
+    await run([host, client], 12);
+    expect(host.player.status).toBe('stopped');
+    expect(client.player.status).toBe('stopped');
+    expect(client.player.lacked).toBe(0);
+    // Both played the whole last bar: what the client played, the host played five seconds later.
+    const hostPlayed = new Set(
+      host.world.plays.map((p) => `${p.part} ${p.note} ${p.seconds.toFixed(6)}`),
+    );
+    for (const p of client.world.plays)
+      expect(hostPlayed).toContain(`${p.part} ${p.note} ${(p.seconds + 5).toFixed(6)}`);
+    following.leave();
+    hosting.close();
+  });
+
   it("give a client the host's melodic scale with the bars, which its keyboard marks (#209)", async () => {
     const lobby = memoryLobby();
     const host = device(105);

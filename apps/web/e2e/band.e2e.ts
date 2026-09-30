@@ -1,5 +1,15 @@
 import { type Page, expect, test } from '@playwright/test';
-import { level, listen, onsets, openCard, openStyle, solo, starts, workers } from './audio.ts';
+import {
+  isClick,
+  level,
+  listen,
+  onsets,
+  openCard,
+  openStyle,
+  solo,
+  starts,
+  workers,
+} from './audio.ts';
 
 /** Where each onset falls after the first, in steps, as the fraction of a step. */
 const phases = (times: number[], bpm: number) =>
@@ -12,14 +22,16 @@ const phases = (times: number[], bpm: number) =>
 
 const start = (page: Page) => page.getByRole('button', { name: 'Start the band' }).click();
 
-test('plays, follows on screen, and stops at once, without an error', async ({ page }) => {
+test('counts in, plays, follows on screen, and stops on a cadence, without an error', async ({
+  page,
+}) => {
   const errors = await listen(page);
   await solo(page);
   await expect(page.getByText('Ready')).toBeVisible();
   // Swing jazz at full energy: the ride rings 0.45 s, so only the fade on
-  // Stop can silence what is scheduled within 300 ms. The fade falls with a
-  // time constant of 30 ms, so by then it leaves about e^-10 of the level;
-  // a ride started up to 120 ms after Stop would still ring near 0.005.
+  // the halt can silence what is scheduled within 300 ms. The fade falls
+  // with a time constant of 30 ms, so by then it leaves about e^-10 of the
+  // level; a ride started up to 120 ms after it would still ring near 0.005.
   await openStyle(page);
   await page.getByRole('radio', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
@@ -35,12 +47,55 @@ test('plays, follows on screen, and stops at once, without an error', async ({ p
   }
   expect(loudest).toBeGreaterThan(0.01);
   expect(await workers(page)).toEqual({ running: 1, made: 1 });
+  // Stop asks the band to end: it plays on, closes on a cadence, and halts
+  // by itself, within two bars and a ring (some 4 s at 148 bpm).
   await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.getByText('Solo · ending')).toBeVisible();
+  await expect(page.getByText('Ready')).toBeVisible({ timeout: 8000 });
   await page.waitForTimeout(300);
   expect(await level(page)).toBeLessThan(0.0005);
-  await expect(page.getByText('Ready')).toBeVisible();
   expect(await workers(page)).toEqual({ running: 0, made: 1 });
   expect(errors).toEqual([]);
+});
+
+test('counts a bar in with the click, whether it is on or not, and the band comes in on the beat after it', async ({
+  page,
+}) => {
+  await listen(page);
+  await solo(page);
+  await start(page);
+  // Synth-pop, 108 bpm: a beat is 60 / 108 s, and a bar of them comes first.
+  await expect(page.getByText('Solo · counting in')).toBeVisible();
+  await page.waitForTimeout(2000);
+  const counted = await starts(page);
+  expect(counted.length).toBe(4);
+  expect(counted.every(isClick)).toBe(true);
+  expect(counted.map((s) => s.kind)).toEqual(['square', 'triangle', 'triangle', 'triangle']);
+  const beat = 60 / 108;
+  counted.slice(1).forEach((s, i) => expect(s.when - counted[i]!.when).toBeCloseTo(beat, 3));
+  await page.waitForTimeout(1500);
+  const band = (await starts(page)).filter((s) => !isClick(s));
+  expect(band.length).toBeGreaterThan(0);
+  // The band's first note falls one beat after the last click.
+  expect(band[0]!.when - counted[3]!.when).toBeCloseTo(beat, 3);
+  await expect(page.getByText('Solo · counting in')).toBeHidden();
+});
+
+test('stops at once when stopped again, or in the count-in', async ({ page }) => {
+  await listen(page);
+  await solo(page);
+  await start(page);
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.getByText('Ready')).toBeVisible({ timeout: 1000 });
+  expect((await starts(page)).filter((s) => !isClick(s))).toEqual([]);
+  await start(page);
+  await expect(page.getByText('Intro 1/8')).toBeVisible({ timeout: 5000 });
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.getByText('Solo · ending')).toBeVisible();
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.getByText('Ready')).toBeVisible({ timeout: 1000 });
+  await page.waitForTimeout(300);
+  expect(await level(page)).toBeLessThan(0.0005);
 });
 
 test('plays every event once', async ({ page }) => {
@@ -123,7 +178,7 @@ test('clicks the band’s own beats, and the swing moves its offbeats to the ban
   await page.getByLabel('Metrum').locator('summary').click();
   await page.getByRole('button', { name: 'Click' }).click();
   await start(page);
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(8000);
   const all = await starts(page);
   // The click tells its weights apart by pitch: a square at 1800 Hz on the
   // downbeat, a triangle at 1200 on the other pulses, a sine at 800 between.
@@ -154,9 +209,10 @@ test('plays the full band: bass, chords and lead beside the drums', async ({ pag
   await page.getByRole('radio', { name: 'Deep house' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
-  // The intro is 8 bars; the lead joins after it, at 122 bpm about 16 s in.
-  await page.waitForTimeout(20000);
-  const all = await starts(page);
+  // The intro is 8 bars; the lead joins after it, at 122 bpm about 16 s in,
+  // and the count-in is 2 s before that.
+  await page.waitForTimeout(24000);
+  const all = (await starts(page)).filter((s) => !isClick(s));
   const midi = (f: number | null) =>
     f !== null &&
     Math.abs(12 * Math.log2(f / 440) + 69 - Math.round(12 * Math.log2(f / 440) + 69)) < 1e-6;
@@ -216,7 +272,9 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
 
   // The lead's voice is a square: the first three are the keys played along, at once;
   // the rest are the band's, on the grid.
-  const squares = (await starts(page)).filter((s) => s.kind === 'square').map((s) => s.when);
+  const squares = (await starts(page))
+    .filter((s) => s.kind === 'square' && !isClick(s))
+    .map((s) => s.when);
   const along = squares.slice(0, 3);
   const band = squares.slice(3);
   expect(band.length).toBeGreaterThanOrEqual(4);

@@ -4,16 +4,22 @@ import {
   NO_HISTORY,
   PRESETS,
   type ScheduledStep,
+  INITIAL_STYLE,
+  RING_STEPS,
   band,
   bandEnvAt,
+  countIn,
+  countInSeconds,
   foldBar,
+  holding,
   lookAhead,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
+import { Metronome } from './metronome.svelte.ts';
 import { EVEN_MIX, type Mix, withLevel } from './mix.ts';
 import { PATTERN_BARS } from './pattern.ts';
-import { Player, type Surroundings } from './player.svelte.ts';
+import { Player, type Hosting, type Surroundings } from './player.svelte.ts';
 
 /** Surroundings a test drives by hand: the clock, the resume, the ticks and frames. */
 function surroundings() {
@@ -32,6 +38,7 @@ function surroundings() {
     frames: [] as { follow: () => void; stopped: boolean }[],
     seeds: [] as number[],
     steps: [] as ScheduledStep[],
+    clicks: [] as { weight: string; seconds: number }[],
   };
   const output: Output = {
     get currentTime() {
@@ -51,6 +58,7 @@ function surroundings() {
     silence: () => void world.silenced++,
     panic: () => void world.panics++,
     tick: (steps) => world.steps.push(...steps),
+    click: (weight, seconds) => void world.clicks.push({ weight, seconds }),
   };
   const s: Surroundings = {
     output: () => output,
@@ -127,7 +135,7 @@ describe('the player', () => {
       world.tickers[0]!.tick();
     }
     expect(world.played).toBeGreaterThan(0);
-    player.stop();
+    player.halt();
     expect(player.status).toBe('stopped');
     expect(world.tickers[0]!.stopped).toBe(true);
     expect(world.frames[0]!.stopped).toBe(true);
@@ -158,7 +166,7 @@ describe('the player', () => {
     expect(margins.count).toBe(world.played);
     expect(laid).toBe(world.steps.length);
     expect(missed).toBeGreaterThan(0);
-    player.stop();
+    player.halt();
     const before = world.steps.length;
     void player.start();
     world.resolve();
@@ -225,7 +233,7 @@ describe('the player', () => {
     void player.start();
     world.resolve();
     await settle();
-    for (let i = 0; i < 20 && player.hud.beat === null; i++) {
+    for (let i = 0; i < 200 && player.hud.beat === null; i++) {
       world.currentTime += 0.025;
       world.tickers[0]!.tick();
       world.frames[0]!.follow();
@@ -294,7 +302,7 @@ describe('the player', () => {
       world.frames[0]!.follow();
     }
     expect(player.hud.bar!.bar).toBeGreaterThan(0);
-    player.stop();
+    player.halt();
     expect(world.seeds).toHaveLength(2);
     expect(player.hud.beat).toBeNull();
     expect(player.hud.bar!.bar).toBe(0);
@@ -468,7 +476,7 @@ describe('the player', () => {
       // The clock offset already maps a key's time to the moment being heard
       // (\`clockOffset\`), so the player takes the latency off no second time.
       const { world, player, run } = await playing();
-      run(5);
+      run(8);
       world.latency = 0.05;
       const step = world.steps.at(-20)!;
       const heard = step.seconds + 0.3 * step.length;
@@ -487,7 +495,7 @@ describe('the player', () => {
 
     it('logs where a note was released, on the note from that source still held', async () => {
       const { world, player, run } = await playing();
-      run(5);
+      run(8);
       world.latency = 0.05;
       const [a, b, c] = [-30, -25, -20].map((i) => world.steps.at(i)!);
       const at = (step: { seconds: number }) => step.seconds;
@@ -606,7 +614,7 @@ describe('the player', () => {
       void player.start();
       world.resolve();
       await settle();
-      world.currentTime += 1;
+      world.currentTime += 4;
       world.tickers[0]!.tick();
       const now = world.currentTime;
       for (let i = 0; i < 241; i++) player.humanNoteOn('lead', 60, 100, 'test', now);
@@ -623,7 +631,7 @@ describe('the player', () => {
       world.resolve();
       await settle();
       const seen = { drums: false, bass: false, comp: false, lead: false };
-      for (let t = 0; t < 20; t += 0.025) {
+      for (let t = 0; t < 24; t += 0.025) {
         world.currentTime += 0.025;
         world.tickers[0]!.tick();
         world.frames[0]!.follow();
@@ -631,7 +639,7 @@ describe('the player', () => {
           if (player.sounding[part].length > 0) seen[part] = true;
       }
       expect(seen).toEqual({ drums: true, bass: true, comp: true, lead: true });
-      player.stop();
+      player.halt();
       expect(player.sounding).toEqual({ drums: [], bass: [], comp: [], lead: [] });
     });
 
@@ -655,7 +663,7 @@ describe('the player', () => {
       void player.start();
       world.resolve();
       await settle();
-      for (let t = 0; t < 20; t += 0.025) {
+      for (let t = 0; t < 24; t += 0.025) {
         world.currentTime += 0.025;
         world.tickers[0]!.tick();
       }
@@ -667,7 +675,7 @@ describe('the player', () => {
           player.pattern.some((b) => b.parts[part].length > 0),
           part,
         ).toBe(true);
-      player.stop();
+      player.halt();
       expect(player.pattern).toEqual([]);
     });
   });
@@ -710,7 +718,7 @@ describe('the player', () => {
       expect(new Set(world.plays.map((p) => p.part))).toEqual(new Set(['bass']));
       player.mix = EVEN_MIX;
       world.plays = [];
-      run(10);
+      run(14);
       const parts = new Set(world.plays.map((p) => p.part));
       for (const part of ['drums', 'bass', 'lead']) expect(parts).toContain(part);
     });
@@ -773,7 +781,7 @@ describe('the player', () => {
         [],
       );
       expect(folds.slice(8)).toContainEqual(player.harmonicHistory);
-      player.stop();
+      player.halt();
       expect(player.harmonicHistory).toEqual(NO_HISTORY);
     });
 
@@ -808,8 +816,218 @@ describe('the player', () => {
       }
       expect(player.harmonicHistory.some((w) => w > 0)).toBe(true);
       expect(player.harmonicHistory).toHaveLength(12);
-      player.stop();
+      player.halt();
       expect(player.harmonicHistory).toEqual(new Array(12).fill(0));
     });
   });
 });
+
+/** A host's session as the player tells it: what it said, in order. */
+function told() {
+  const said: string[] = [];
+  const started: { seed: number; start: number }[] = [];
+  const composed: { bar: number; chords: number[] }[] = [];
+  const finales: number[] = [];
+  const hosting: Hosting = {
+    started: (song) => (said.push('started'), started.push(song)),
+    stopped: () => void said.push('stopped'),
+    composed: (bars) =>
+      bars.forEach(({ bar }) =>
+        composed.push({ bar: bar.bar, chords: bar.chords.map((c) => c.slot.step) }),
+      ),
+    decided: () => {},
+    track: () => {},
+    muse: () => {},
+    finale: (bar) => (said.push('finale'), finales.push(bar)),
+  };
+  return { said, started, composed, finales, hosting };
+}
+
+describe('the count-in', () => {
+  const COUNT_IN = countInSeconds(holdingSynthPop());
+  const START = 0.1 + COUNT_IN;
+
+  async function begun(metronome: Metronome | null = new Metronome()) {
+    const { world, s } = surroundings();
+    const player = new Player(s, metronome);
+    const host = told();
+    player.hosting = host.hosting;
+    void player.start();
+    world.resolve();
+    await settle();
+    const run = (seconds: number) => {
+      for (let t = 0; t < seconds - 1e-9; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+      }
+    };
+    return { world, player, host, run };
+  }
+
+  it('clicks the beats of a bar before the song, the downbeat first, whether the click is on or not', async () => {
+    const { world } = await begun();
+    expect(world.clicks.map((c) => c.weight)).toEqual(['downbeat', 'pulse', 'pulse', 'pulse']);
+    const beat = COUNT_IN / 4;
+    world.clicks.forEach((c, i) => expect(c.seconds).toBeCloseTo(0.1 + i * beat, 9));
+  });
+
+  it('starts the song a bar after the clicks start, and plays nothing of the band before', async () => {
+    const { world, player, run } = await begun();
+    expect(player.counting).toBe(true);
+    run(START - 0.2);
+    expect(world.played).toBe(0);
+    expect(world.steps).toEqual([]);
+    expect(player.counting).toBe(true);
+    run(1);
+    expect(player.counting).toBe(false);
+    expect(world.steps[0]!.seconds).toBeCloseTo(START, 9);
+    for (const p of world.plays) expect(p.seconds).toBeGreaterThanOrEqual(START - 1e-9);
+  });
+
+  it('tells a host’s clients the start, a bar ahead, as the clicks begin, and the first bar with it', async () => {
+    const { host, world } = await begun();
+    expect(host.said).toEqual(['started']);
+    expect(host.started[0]!.start).toBeCloseTo(START, 9);
+    expect(world.currentTime).toBe(0);
+    expect(host.composed.map((b) => b.bar)).toEqual([0]);
+  });
+
+  it('stops at once when stopped in the count-in, with nothing of the band played', async () => {
+    const { world, player, host, run } = await begun();
+    run(1);
+    player.stop();
+    expect(player.status).toBe('stopped');
+    expect(player.counting).toBe(false);
+    expect(player.ending).toBe(false);
+    expect(host.said).toEqual(['started', 'stopped']);
+    expect(world.played).toBe(0);
+  });
+
+  it('clicks the rest of it, and only the rest, for a client that follows a song already counting', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s, new Metronome());
+    player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
+    const song = { seed: 3, start: 5, track: holdingSynthPop() };
+    void player.followSong(song, []);
+    world.resolve();
+    await settle();
+    const clicks = countInBeats(song.start);
+    expect(world.clicks.map((c) => c.seconds)).toEqual(clicks);
+    world.clicks.length = 0;
+    world.currentTime = 4;
+    world.tickers[0]!.tick();
+    const late = new Player(surroundings().s, new Metronome());
+    expect(late.counting).toBe(false);
+  });
+});
+
+describe('stopping on a cadence', () => {
+  async function playingOn() {
+    const { world, s } = surroundings();
+    const player = new Player(s, new Metronome());
+    const host = told();
+    player.hosting = host.hosting;
+    void player.start();
+    world.resolve();
+    await settle();
+    const run = (seconds: number) => {
+      for (let t = 0; t < seconds - 1e-9; t += 0.025) {
+        world.currentTime += 0.025;
+        if (!world.tickers[0]!.stopped) world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+      }
+    };
+    run(9);
+    return { world, player, host, run };
+  }
+
+  it('plays on to a last bar that closes on a cadence, then halts and tells the session', async () => {
+    const { world, player, host, run } = await playingOn();
+    expect(player.counting).toBe(false);
+    const asked = world.currentTime;
+    player.stop();
+    expect(player.status).toBe('playing');
+    expect(player.ending).toBe(true);
+    run(5);
+    expect(host.finales).toHaveLength(1);
+    const last = host.composed.at(-1)!;
+    expect(last.bar).toBe(host.finales[0]);
+    expect(last.chords).toEqual([0, 8]);
+    run(12);
+    expect(player.status).toBe('stopped');
+    expect(player.ending).toBe(false);
+    expect(host.said.filter((m) => m === 'stopped')).toHaveLength(1);
+    expect(host.said.at(-1)).toBe('stopped');
+    // No bar was composed after the last, and nothing was played after its end.
+    expect(host.composed.map((b) => b.bar)).toEqual([...Array(last.bar + 1).keys()]);
+    const end = world.steps.at(-1)!;
+    const ends = end.seconds + end.length;
+    for (const p of world.plays) expect(p.seconds).toBeLessThan(ends);
+    expect(world.currentTime - asked).toBeGreaterThan(0);
+  });
+
+  it('halts within two bars of being asked and a ring, and not before its last bar has played', async () => {
+    const { world, player, run } = await playingOn();
+    const asked = world.currentTime;
+    const bar = (16 * 15) / 108;
+    player.stop();
+    let halted: number | null = null;
+    for (let i = 0; i < 800 && halted === null; i++) {
+      run(0.025);
+      if (player.status === 'stopped') halted = world.currentTime;
+    }
+    const ring = RING_STEPS * (15 / 108);
+    expect(halted).not.toBeNull();
+    expect(halted! - asked).toBeGreaterThan(ring);
+    expect(halted! - asked).toBeLessThan(2 * bar + ring + 0.5);
+  });
+
+  it('halts at once when stopped a second time, silencing what rings', async () => {
+    const { world, player, host } = await playingOn();
+    player.stop();
+    const silenced = world.silenced;
+    player.stop();
+    expect(player.status).toBe('stopped');
+    expect(player.ending).toBe(false);
+    expect(world.silenced).toBe(silenced + 1);
+    expect(host.said.at(-1)).toBe('stopped');
+  });
+
+  it('plays a new song after one has ended, with a count-in again and the ending forgotten', async () => {
+    const { world, player, host, run } = await playingOn();
+    player.stop();
+    run(20);
+    expect(player.status).toBe('stopped');
+    world.clicks.length = 0;
+    void player.start();
+    world.resolve();
+    await settle();
+    expect(player.status).toBe('playing');
+    expect(player.counting).toBe(true);
+    expect(player.ending).toBe(false);
+    expect(world.clicks).toHaveLength(4);
+    expect(host.said.filter((m) => m === 'started')).toHaveLength(2);
+  });
+
+  it('halts a client at once for any stop that is not the host’s ending', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s, new Metronome());
+    player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
+    void player.followSong({ seed: 1, start: 0.2, track: holdingSynthPop() }, []);
+    world.resolve();
+    await settle();
+    player.stop();
+    expect(player.status).toBe('stopped');
+  });
+});
+
+/** The default style, held: what a song opens on. */
+function holdingSynthPop() {
+  return holding(INITIAL_STYLE);
+}
+
+/** The count-in's beats for a song that starts at `start`. */
+function countInBeats(start: number) {
+  return countIn(holdingSynthPop(), start).map((c) => c.seconds);
+}

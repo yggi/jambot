@@ -24,6 +24,11 @@ The pointers to what holds each are in the sentences.
 - The band decides each bar when it composes the bar before: the section's plan at a section's first bar, and the bar's chords.
   So a part can lead into the next bar's chords (`BarEnv.next`), and they are what plays.
   A bar the clock has passed is passed (`passBar`), not composed.
+- A song starts and ends in the engine (`ending.ts`, `transport.ts`).
+  The count-in is one bar of the song's beats before its first step, at the tempo the song opens at (`countIn`, `countInSeconds`): the player lays the clicks and starts the transport's clock a bar later, and a transport whose source is asked bars ahead composes bar 0 at once, so a host can send it during the count-in.
+  A song ends on request (`finish` in the transport's input): the band composes `finaleBar` in place of the next bar it would, the transport schedules through it and no further, and `Finale.ended` says when it ended on the clock; a client is told the last bar (`ends`) and does the same.
+  The final bar is written as any bar is (`finale`): the dominant seventh for two beats, then everything lands on the tonic on the third, the pad and bass held on for `RING_STEPS` past the bar, so the ending is a cadence, not a draw.
+  It is decided as any bar is, so the section, key and history move on from it and a forecast from the state it leaves still runs.
 - `lookAhead(carried, envAt, count)` forecasts the bars ahead, their plans and chords, by running the band's own decisions forward.
   From the transport, `forecast(env, carried, count)` gives the bars from the head's bar on, those composed first, each with the energy it plays at; with `carried` null it is the song from bar 0.
   The track holds glides ahead, so the forecast is what plays unless a control moves.
