@@ -55,8 +55,10 @@ arithmetic as a numeral's, `alteredHeight` (`numerals.ts`), so they reach every
 pitch a numeral does: measured over the key's own scale (#130). Open: over a
 chord's implied scale for anything but a diatonic chord, since that scale is
 `chordScale`'s (P9, P10), whose borrowed and secondary candidates assume 12
-notes (P10's counterexample). Source: #28, the open threads (tunings other than
-12), #7 round 3, E12; #130. Status: measured (the numerals, and a line's tokens
+notes (P10's counterexample). The bass's pitch, steps above a chord's root (U6),
+counts the key's cycle, but the score writes it as `0`–`11` and folds its
+register in 12, so it writes no other cycle yet. Source: #28, the open threads
+(tunings other than 12), #7 round 3, E12; #130. Status: measured (the numerals, and a line's tokens
 over the key's own scale); open (a line's tokens over a chord's implied scale,
 outside a diatonic chord). Decided: #7, on measured options (E12). Lands in:
 #63; #130.

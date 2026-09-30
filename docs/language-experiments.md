@@ -153,23 +153,15 @@ run; the others have.
   - Symmetries: 10 of the lead's 149 shapes have one, so several operators give
     the same bar, and `canonicalOp` chooses which the score writes (U5).
 
-- **E14. One token grammar for pitch and time** (U6; #7, #116 §6, #125, #126),
+- **E14. A pitch as a degree and an accidental** (U2, U6; #7, #116 §6, #125, #126),
   in
   [`packages/engine/experiments/tokengrammar.ts`](../packages/engine/experiments/tokengrammar.ts)
-  (about 1 s), over E1's shape. It writes every bass and lead note as a pitch
-  token (`alteredHeight`/`alteredDegree` over the bar's chord's implied scale)
-  and every onset as a time token (`onsetToken`/`onsetHeight`, one grid step,
-  #125), the same degree-and-accidental shape either way.
-  - Every one of 19,091 bass and lead notes has a pitch token: `chordScale`
-    always gives a scale and `alteredDegree` always finds it in one accidental,
-    over the corpus.
-  - Every one of 82,984 onsets round-trips through the time token exactly.
-  - Rhythm written as time tokens instead of the 16-step grid takes 76.6% fewer
-    tokens (67,890 against 289,728, over 18,108 lines): more than E15's 43.6%,
-    since a token stream drops the rests a slot sequence still writes.
-  - No case needed a rule the other tower doesn't have, over this corpus. Not
-    yet measured: a real captured corpus rather than the engine's own, and
-    whether a musician reads it as a lead sheet (R1).
+  (about 1 s), over E1's shape.
+  It writes every bass and lead note as a pitch token (`alteredHeight`/`alteredDegree` over the bar's chord's implied scale).
+  - Every one of 19,091 bass and lead notes has a pitch token: `chordScale` always gives a scale and `alteredDegree` always finds it in one accidental, over the corpus.
+  - The bass is written as semitones above the chord's root instead (#263, U6), which every note has without a scale, so this is what the degree form would have cost, for the lead's cells (U4) to weigh.
+  - The time half of this experiment, every onset as an eighth with a `#`, went with that token: an onset is a plain step (U6).
+  - Not yet measured: a real captured corpus rather than the engine's own, and whether a musician reads it as a lead sheet (R1).
 
 - **E15. The band's onsets against the meter** (T10, T12; #116's question (k),
   #123), in
@@ -488,6 +480,23 @@ run; the others have.
   - A drum fill (a `fill` hit written; 112 of 1,280 bars) reads only a little farther from the drums' landmark than the drums of a bar without: 0.199 against 0.180, and a bar with a fill is the farther of a pair in 0.58 of them (0.5 is chance).
     So a bar of drums read by density and `sync` cannot tell a fill from the drummer's usual variety; a licence that shrinks when a fill reads far would need a finer reading (the half bar the fill covers, or its role), not this one.
   - Not measured: the swing and tempo of a voice (they need the voice's onsets on the clock), a fill of the lead, and entropy (step 5).
+- **E27. The bass bar as a fold of one tree** (#275 step 1), in
+  [`packages/engine/experiments/tree-forms.ts`](../packages/engine/experiments/tree-forms.ts)
+  (about 2 s), over E1's shape (5 seeds, each preset held and the tour, 64 bars each; 2,880 bass bars).
+  It writes each bass bar three ways: pairs (one token a note, `step=pitch`), dense (one token a cell of the coarsest power-of-two level of 1, 2, 4, 8 or 16 cells that holds every onset, a pitch where a note starts and `_` where none does) and collapsed (the smallest term of words that split a span evenly, `@` weights, `*` tiling, `!` replication and Euclid `x(k,n,rot)`, found by an exact memoised search over the row).
+  A pitch is the semitones above the root of the chord in force, `^` when the note is above the nearest to the register carried.
+  A cost is the number of atoms (a pitch or `_`) a term writes; brackets and suffixes are not counted.
+  Every minimal term is printed, read back by a separate parser and expanded: expand(collapse(row)) = row holds for 2,880 of 2,880 bars.
+  - Tokens (all bars): pairs 10,242; dense 25,915 (253.0% of pairs); collapsed 8,357 (81.6% of pairs). By section, collapsed as a share of pairs: breakdown 98.2% (383 pairs), bridge 82.4% (852), build 77.7% (2,091), drop 78.4% (3,170), groove 84.7% (2,511), intro 84.5% (1,235).
+  - Dense levels: 1 cell 503 bars, 2 cells 76, 4 cells 339, 8 cells 936, 16 cells 1,026.
+  - Folds: the collapsed term is smaller than the pairs in 1,376 bars (47.8%) and smaller than the dense row in 2,129 (73.9%).
+    The other 1,504 bars (52.2%) have no term smaller than their pairs.
+  - Onset sets: 927 bars (32.2%) are exactly `even(k, 16, shift)`, by k: 1 has 510, 2 has 83, 4 has 324, 6 has 9, 8 has 1. 443 bars (15.4%) are a pure loop of onsets (period 1, 2, 4 or 8), and 52 (1.8%) a pure loop with their pitches. 1,186 bars (41.2%) need an `@` weight: the smallest term without weights is larger.
+  - The five patterns' steps: root {0,8}, pump {2,6,10,14}, eight (every even step) and walk {0,4,8,12} are each `even(k, 16, shift)` (k of 2, 4, 8 and 4); funk {0,3,6,7,10,11,13,14} is not.
+    A bar's onset set equals one pattern's steps in 401 bars (13.9%: walk 314, root 76, pump 10, eight 1), is a proper subset of exactly one pattern's in 1,062 (36.9%: eight 622, funk 440), of several without equalling one in 831 (28.9%), and of none in 586 (20.3%).
+    The patterns are chances per step, and a bar adds forced notes at chord changes and anticipations, so a bar's onset set names a pattern only where it fills the pattern's steps, and a short set (a lone onset on step 0) is a subset of several.
+  - Words split by `even(k, n)` with k not dividing n: 9 bars (0.3%) have an onset set that is such a split of the 16 steps, all k = 6, and all are `even(6, 16, 0)`, so the rotation is 0 in this corpus. Allowing such a split as one more piece makes no bar's smallest term smaller (0 of 2,880). These terms are costed, not printed and expanded.
+  - Not measured: captured music (the corpus is the engine's own bass, generated, in five patterns and their ornaments), the lead and drums, a musician's reading of any form, and the cost of a token in characters.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
