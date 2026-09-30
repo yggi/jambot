@@ -158,3 +158,19 @@ test('a player exactly on the heard beat is on time, on every hit', async ({ pag
   expect(run.summary.offsets.onTime).toBeGreaterThan(0.9);
   expect(errors).toEqual([]);
 });
+
+/** A click of the tap button is one tap: the browser follows its pointer down with a click, itself a pointer event. */
+test('a click on the tap button is one tap, not two', async ({ page }) => {
+  const errors = await listen(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Timing test' }).click();
+  await page.getByRole('button', { name: 'Start the test' }).click();
+  const tap = page.getByRole('button', { name: 'Tap along' });
+  for (let i = 0; i < 3; i++) {
+    await tap.click();
+    await page.waitForTimeout(300);
+  }
+  await expect(page.getByText(/^3 taps ·/)).toBeVisible();
+  await page.getByRole('button', { name: 'Stop' }).click();
+  expect(errors).toEqual([]);
+});
