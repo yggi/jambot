@@ -30,7 +30,11 @@ const hudAt = (n: number, over: Partial<Hud> = {}): Hud => ({
   chord: bar(n).chords[0]!,
   next: after(n),
   sections: [],
-  style: { preset: 'Synth-pop', glide: null },
+  style: {
+    preset: 'Synth-pop',
+    glide: null,
+    axes: { swing: 0, sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0 },
+  },
   heading: { tonic: 9, mode: 'aeolian' },
   headingMelodic: 'plain',
   muse: { motif: null, log: [] },

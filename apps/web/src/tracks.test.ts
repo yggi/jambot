@@ -31,7 +31,11 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
   chord: barView().chords[0]!,
   next: [],
   sections: [],
-  style: { preset: 'Techno', glide: null },
+  style: {
+    preset: 'Techno',
+    glide: null,
+    axes: { swing: 0, sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0 },
+  },
   heading: { tonic: 9, mode: 'aeolian' },
   headingMelodic: 'plain',
   muse: { motif: null, log: [] },

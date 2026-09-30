@@ -75,10 +75,11 @@
     each note. A client plays its host's song, style and key, so those
     levels' controls rest; its click and instruments are its own.
   -->
-<Level name="Style" resting={following}>
+<Level>
   <StylePanel
     track={player.track}
     style={player.hud.style}
+    {following}
     onintent={(intent) => player.apply(intent)}
   />
 </Level>
