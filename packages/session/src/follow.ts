@@ -14,7 +14,7 @@
  * transport passes it: the clock doesn't wait for the network.
  */
 
-import { type BarSource, playBar } from '@jambot/engine';
+import { type BarSource, SONG_METER, playBar } from '@jambot/engine';
 import type { SentBar } from './protocol.ts';
 
 export interface FollowCarried {
@@ -40,7 +40,10 @@ export const followSource: BarSource<FollowCarried, SentBar> = {
     const rest = after(inbox, env.bar);
     if (!sent) return { carried: { inbox: rest, lacked: lacked + 1 }, bar: null };
     const { written, ...bar } = sent.bar;
-    const played = { carried: { inbox: rest, lacked }, bar: playBar(bar, written) };
+    const played = {
+      carried: { inbox: rest, lacked },
+      bar: playBar({ ...bar, meter: SONG_METER }, written),
+    };
     return sent.start === null ? played : { ...played, start: sent.start };
   },
   pass: (env, carried) => ({ ...carried, inbox: after(carried.inbox, env.bar) }),

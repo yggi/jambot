@@ -34,8 +34,13 @@ import type { ForecastDelta } from './forecast.ts';
  */
 export const PROTOCOL = 7;
 
-/** A bar as a host wrote it: everything its parts read, and the notes they wrote. */
-export interface WrittenBar extends BarEnv {
+/**
+ * A bar as a host wrote it: everything its parts read, and the notes they
+ * wrote. Its meter does not travel: every bar is the song's 4/4, which the
+ * client gives it (`follow.ts`). When the meter is a section's, the score's
+ * (#261), it travels with the bar, and that bumps the protocol.
+ */
+export interface WrittenBar extends Omit<BarEnv, 'meter'> {
   readonly written: readonly WrittenNote[];
 }
 
