@@ -45,6 +45,9 @@ Two things run today:
     It has presets and sliders, a key picker with the circle of fifths and a
     scale view, MIDI in and out, on-screen keys and drum pads, and the Muse
     panel, which names whose motif the lead is playing.
+    Every part of the band's screen is a card, a summary over details, and the
+    lobby is built of the same cards under a title card, with a theme (system,
+    dark or light) among its settings.
     It can host or join a session across the tabs of one browser or, through
     [`apps/lobby`](apps/lobby), across machines.
     A client whose link drops rejoins as the same player, and a host that

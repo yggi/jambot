@@ -14,7 +14,10 @@ Where Jambot is heading. The concept and the reasoning behind it are in
   from the style, the lead follows the style and walks a melodic scale, the
   tracks are one grid, and the Muse reads a sloppy hand.
   The round after it is #212: the band's screen as cards, a summary over
-  details (`Card`), the metrum first.
+  details (`Card`). The style, metrum, key, plan, chords, band, play and Muse
+  cards are in, closed cards are compact on a phone on its side, and the lobby
+  is built of cards under a title card with a theme setting (#254).
+  Left: `Level` removed, and the visual details of Band, Play and Muse.
 - **v1: event-ready**, by Christmas 2026. This is the deadline. v1 is the full
   bucket: everything on this roadmap, the live track and the learning track
   alike.
