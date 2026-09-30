@@ -31,10 +31,20 @@ import {
   holding,
   keyHelix,
   nearest,
+  slotStepOn,
   styleAt,
   voicing,
 } from '@jambot/engine';
-import { type Chord, compose, joinChord, parseNumeral, positions, wrap } from '@jambot/theory';
+import {
+  type Chord,
+  METERS,
+  compose,
+  joinChord,
+  parseNumeral,
+  positions,
+  stepsOf,
+  wrap,
+} from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_FOLD,
@@ -174,7 +184,9 @@ const statedComp = (played: Played): Partial<ScoreBar> => {
   const leads = stab.some(
     (hit) =>
       hit.notes.join() !==
-      voiced[bar.chords.findLastIndex((chord) => chord.slot.step <= hit.step)]!.join(),
+      voiced[
+        bar.chords.findLastIndex((chord) => slotStepOn(bar.meter, chord.slot.step) <= hit.step)
+      ]!.join(),
   );
   const coming = bar.next[0];
   return {
@@ -192,10 +204,11 @@ const stated = (played: Played): ScoreBar => ({
   bar: played.bar.bar,
   section: played.bar.plan.section.type,
   key: played.bar.plan.key,
+  ...(played.bar.meter === SONG_METER ? {} : { meter: played.bar.meter }),
   theme: played.bar.plan.theme.kind,
   style: played.bar.style,
   harm: played.bar.chords.map((chord) => ({
-    step: chord.slot.step,
+    step: slotStepOn(played.bar.meter, chord.slot.step),
     numeral: parseNumeral(chordNumeral(chord, played.bar.plan.key))!,
   })),
   drums: statedDrums(played.bar),
@@ -463,5 +476,61 @@ describe('the seam, over the bars the band writes', () => {
     expect(resumptions).toBeGreaterThan(70);
     // A resume without the frame leads from nothing, which is what the frame is for.
     expect(lostTheVoicing).toBeGreaterThan(0);
+  });
+});
+
+/** Bars of every named meter: each preset held in it for a section and a half, for two seeds. */
+const METER_PLAYED: Played[] = Object.values(METERS).flatMap((meter) =>
+  range(2).flatMap((seed) =>
+    PRESETS.flatMap((preset) => {
+      let carried: BandCarried = band.initial;
+      const played = range(13).map((bar) => {
+        const env: BandEnv = {
+          seed,
+          bar,
+          style: { ...preset.style, entropy: (bar % 8) / 8 },
+          wish: { tonic: null, mode: preset.mode, melodic: null },
+          meter,
+          offer: null,
+        };
+        const before = carried;
+        const next = band.advance(env, before, null);
+        carried = next.carried;
+        return { env, before, bar: next.output };
+      });
+      return played
+        .slice(0, 12)
+        .map((one, i): Played => ({ ...one, nextKey: played[i + 1]!.bar.plan.key }));
+    }),
+  ),
+);
+
+describe('the seam, over the bars of every named meter (#261)', () => {
+  it('states the meter in the header of every bar not in 4/4, and reads it back: compileBar ∘ encodeBar = id (finite: every meter, every preset)', () => {
+    expect(METER_PLAYED).toHaveLength(Object.keys(METERS).length * 2 * PRESETS.length * 12);
+    for (const played of METER_PLAYED) {
+      const score = stated(played);
+      const text = encodeBar(score);
+      const named = Object.entries(METERS).find(([, m]) => m === played.bar.meter)![0];
+      expect([named, text.split('\n')[0]!.includes(' meter=')]).toEqual([named, named !== '4/4']);
+      expect([named, compileBar(text)]).toEqual([named, score]);
+      expect(encodeBar(compileBar(text))).toBe(text);
+    }
+  });
+
+  it('counts each bar in the steps of its own meter: every note of every line lies in them', () => {
+    for (const played of METER_PLAYED) {
+      const steps = stepsOf(played.bar.meter);
+      const score = compileBar(encodeBar(stated(played)));
+      const all = [
+        ...score.harm.map((h) => h.step),
+        ...Object.values(score.drums).flatMap((hits) => hits ?? []),
+        ...(score.bass?.notes.map((n) => n.step) ?? []),
+        ...(score.pad?.map((n) => n.step) ?? []),
+        ...(score.stab?.map((n) => n.step) ?? []),
+      ];
+      expect(all.length).toBeGreaterThan(3);
+      for (const step of all) expect([steps, step >= 0 && step < steps]).toEqual([steps, true]);
+    }
   });
 });

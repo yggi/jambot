@@ -53,8 +53,11 @@
  *   hand is not the default.
  *
  * A header that states no meter is a bar of 4/4, read from its helix on
- * the steps as the song reads its bars (T10); a `meter=` comes with #63
- * step 6.
+ * the steps as the song reads its bars (T10). A `meter=` beside the key
+ * states another of the named meters (`METERS`), and every line of the bar
+ * then counts that meter's steps, two to an eighth: `bar 8 groove key=C:ionian
+ * meter=7/8 theme=A` is a bar of 14. A bar writes its meter only where it is
+ * not 4/4, so every text from before stays as it was (#261).
  */
 
 import {
@@ -126,6 +129,20 @@ export const UNSTATED_METER: Meter = METERS['4/4'];
 /** The steps of a bar whose header states no meter: its helix on the steps, two to an eighth. */
 const UNSTATED_STEPS = meterOnSteps(UNSTATED_METER).cycle;
 
+/** The name of a named meter, the way a header states it: `7/8`. */
+export function meterName(meter: Meter): string | undefined {
+  return (Object.entries(METERS) as [string, Meter][]).find(
+    ([, named]) =>
+      named.cycle === meter.cycle &&
+      named.heights.length === meter.heights.length &&
+      named.heights.every((h, i) => h === meter.heights[i]),
+  )?.[0];
+}
+
+/** The steps of a bar in a meter, two to an eighth; the unstated 4/4's where it has none. */
+const stepsOfMeter = (meter: Meter | undefined): number =>
+  meter ? meterOnSteps(meter).cycle : UNSTATED_STEPS;
+
 /** Where the bass puts a note before a jump: the carried register is always within it. */
 export const BASS_FOLD = [33, 52] as const;
 
@@ -170,6 +187,11 @@ export interface ScoreBar {
   /** The section's type, a word: `groove`, `build`. */
   readonly section: string;
   readonly key: ScoreKey;
+  /**
+   * The bar's meter, one of the named meters (`METERS`), left out where it is
+   * 4/4: the bar's steps are the meter's, two to an eighth (#261).
+   */
+  readonly meter?: Meter;
   /** The theme the section plays, a word: `A`, `B`, `build`. */
   readonly theme: string;
   readonly style: Readonly<Record<StyleAxis, number>>;
@@ -228,12 +250,12 @@ function writeKey(key: ScoreKey): string {
 const REST = '~';
 
 /** A sound's hits as a sequence: each one step, held to `~` where the next isn't already there. */
-function placeHits(word: string, steps: readonly number[]): Placed[] {
+function placeHits(word: string, steps: readonly number[], barSteps: number): Placed[] {
   const placed: Placed[] = [];
   if (steps[0] !== 0) placed.push({ word: REST, step: 0 });
   for (const [i, step] of steps.entries()) {
     placed.push({ word, step });
-    const next = steps[i + 1] ?? UNSTATED_STEPS;
+    const next = steps[i + 1] ?? barSteps;
     if (step + 1 < next) placed.push({ word: REST, step: step + 1 });
   }
   return placed;
@@ -268,7 +290,8 @@ const rootAt = (harm: readonly HarmChord[], roots: readonly number[], step: numb
     )
   ]!;
 
-const TOKEN_STEPS_RISE = `bass: its steps must rise within the bar's ${UNSTATED_STEPS}`;
+const stepsRise = (kind: string, steps: number) =>
+  `${kind}: its steps must rise within the bar's ${steps}`;
 
 interface BassToken {
   readonly step: number;
@@ -279,6 +302,7 @@ interface BassToken {
 /** A bass line as tokens, or what keeps a note from having one. */
 function bassTokens(bar: ScoreBar): { tokens: BassToken[] } | { problems: string[] } {
   const { register, notes } = bar.bass!;
+  const barSteps = stepsOfMeter(bar.meter);
   const problems: string[] = [];
   if (!(Number.isInteger(register) && register >= BASS_FOLD[0] && register <= BASS_FOLD[1]))
     problems.push(`bass: register ${register} is outside ${BASS_FOLD[0]}–${BASS_FOLD[1]}`);
@@ -286,10 +310,10 @@ function bassTokens(bar: ScoreBar): { tokens: BassToken[] } | { problems: string
   let previous = -1;
   let rising = true;
   for (const { step } of notes) {
-    if (!(Number.isInteger(step) && step > previous && step < UNSTATED_STEPS)) rising = false;
+    if (!(Number.isInteger(step) && step > previous && step < barSteps)) rising = false;
     previous = step;
   }
-  if (!rising) problems.push(TOKEN_STEPS_RISE);
+  if (!rising) problems.push(stepsRise('bass', barSteps));
   if (problems.length) return { problems };
   const roots = rootsOf(bar.key, bar.harm);
   const tokens: BassToken[] = [];
@@ -407,14 +431,14 @@ function compTokens(
   kind: 'pad' | 'stab',
 ): { tokens: { step: number; token: CompToken }[] } | { problems: string[] } {
   const hits = bar[kind]!;
+  const barSteps = stepsOfMeter(bar.meter);
   const problems: string[] = [];
   if (hits.length === 0) return { problems: [`${kind}: a ${kind} line has at least one chord`] };
   const rising = hits.every(
     ({ step }, i) =>
-      Number.isInteger(step) && step < UNSTATED_STEPS && (i === 0 || step > hits[i - 1]!.step),
+      Number.isInteger(step) && step < barSteps && (i === 0 || step > hits[i - 1]!.step),
   );
-  if (!rising)
-    return { problems: [`${kind}: its steps must rise within the bar's ${UNSTATED_STEPS}`] };
+  if (!rising) return { problems: [stepsRise(kind, barSteps)] };
   const { voiced, end } = voicedChords(bar);
   const coming = bar.next && compVoicing(lowerNumeral(bar.next.key, bar.next.numeral), end);
   const tokens: { step: number; token: CompToken }[] = [];
@@ -435,15 +459,16 @@ export function encodeBar(bar: ScoreBar): string {
   const problems = barProblems(bar);
   if (problems.length) throw new Error(`encodeBar: ${problems.join('; ')}`);
   const style = STYLE_AXES.map((axis) => `${axis}=${writeStyleValue(bar.style[axis])}`).join(' ');
+  const barSteps = stepsOfMeter(bar.meter);
   const harm = writeSequence(
     bar.harm.map(({ step, numeral }) => ({ step, word: formatNumeral(numeral) })),
-    UNSTATED_STEPS,
+    barSteps,
   );
   const drums = DRUM_SOUNDS.flatMap((sound) => {
     const steps = bar.drums[sound];
     if (!steps || steps.length === 0) return [];
     const word = DRUM_WORDS[sound];
-    return [`${word} "${writeSequence(placeHits(word, steps), UNSTATED_STEPS)}"`];
+    return [`${word} "${writeSequence(placeHits(word, steps, barSteps), barSteps)}"`];
   });
   const frameFields = [
     ...(bar.bass && bar.bass.register !== BASS_INITIAL
@@ -468,7 +493,9 @@ export function encodeBar(bar: ScoreBar): string {
       ]
     : [];
   return [
-    `bar ${bar.bar} ${bar.section} key=${writeKey(bar.key)} theme=${bar.theme}`,
+    `bar ${bar.bar} ${bar.section} key=${writeKey(bar.key)}${
+      bar.meter && meterName(bar.meter) !== '4/4' ? ` meter=${meterName(bar.meter)}` : ''
+    } theme=${bar.theme}`,
     `style ${style}`,
     `harm "${harm}"`,
     ...(frameFields.length ? [`frame ${frameFields.join(' ')}`] : []),
@@ -519,6 +546,9 @@ function compProblems(bar: ScoreBar): string[] {
 /** What keeps a bar from being written, if anything. */
 function barProblems(bar: ScoreBar): string[] {
   const problems: string[] = [];
+  if (bar.meter && meterName(bar.meter) === undefined)
+    problems.push('the meter is not one of the named meters');
+  const barSteps = stepsOfMeter(bar.meter);
   if (!(Number.isInteger(bar.bar) && bar.bar >= 0)) problems.push(`bar ${bar.bar} is no bar`);
   if (!WORD.test(bar.section)) problems.push(`section "${bar.section}" is not a word`);
   if (!WORD.test(bar.theme)) problems.push(`theme "${bar.theme}" is not a word`);
@@ -532,10 +562,8 @@ function barProblems(bar: ScoreBar): string[] {
     if (!steps) continue;
     let previous = -1;
     for (const step of steps) {
-      if (!(Number.isInteger(step) && step > previous && step < UNSTATED_STEPS))
-        problems.push(
-          `${DRUM_WORDS[sound]}: its steps must rise within the bar's ${UNSTATED_STEPS}`,
-        );
+      if (!(Number.isInteger(step) && step > previous && step < barSteps))
+        problems.push(stepsRise(DRUM_WORDS[sound], barSteps));
       previous = step;
     }
   }
@@ -573,7 +601,7 @@ const PITCHED_LINES: readonly string[] = ['frame', 'bass', 'pad', 'stab', 'next'
 /** Every line a bar's text may have, required or not. */
 const LINES: readonly string[] = [...REQUIRED_LINES, ...PITCHED_LINES, ...DRUM_LINES];
 
-type Header = Pick<ScoreBar, 'bar' | 'section' | 'key' | 'theme'>;
+type Header = Pick<ScoreBar, 'bar' | 'section' | 'key' | 'theme'> & { meter?: Meter };
 type Read<T> = { value: T } | { problems: string[] };
 
 function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
@@ -596,10 +624,11 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
   const header = readHeader(byKind.get('bar')!);
   const style = readStyle(byKind.get('style')!);
   const key = 'value' in header ? header.value.key : undefined;
-  const harm = readHarm(byKind.get('harm')!);
+  const barSteps = stepsOfMeter('value' in header ? header.value.meter : undefined);
+  const harm = readHarm(byKind.get('harm')!, barSteps);
   const drumReads = DRUM_SOUNDS.flatMap((sound) => {
     const rest = byKind.get(DRUM_WORDS[sound]);
-    return rest === undefined ? [] : [{ sound, read: readDrumLine(sound, rest) }];
+    return rest === undefined ? [] : [{ sound, read: readDrumLine(sound, rest, barSteps) }];
   });
   const frame = byKind.has('frame') ? readFrame(byKind.get('frame')!, key) : undefined;
   const framed = frame && 'value' in frame ? frame.value : undefined;
@@ -610,10 +639,10 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
   const ready = key && 'value' in harm;
   const bassLine =
     byKind.has('bass') && ready
-      ? readBassLine(byKind.get('bass')!, key, harm.value, framed?.bass ?? BASS_INITIAL)
+      ? readBassLine(byKind.get('bass')!, key, harm.value, framed?.bass ?? BASS_INITIAL, barSteps)
       : undefined;
   const compReads = (['pad', 'stab'] as const).map((kind) =>
-    byKind.has(kind) ? readCompLine(kind, byKind.get(kind)!) : undefined,
+    byKind.has(kind) ? readCompLine(kind, byKind.get(kind)!, barSteps) : undefined,
   );
   const nextRead = byKind.has('next') && key ? readNext(byKind.get('next')!, key) : undefined;
   const plays =
@@ -645,9 +674,11 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
       return read && 'value' in read ? [[kind, compNotesOf(stated, read.value)]] : [];
     }),
   );
+  const { meter, ...stated4 } = header.value;
   return {
     bar: {
-      ...header.value,
+      ...stated4,
+      ...(meter && meterName(meter) !== '4/4' ? { meter } : {}),
       style: style.value,
       harm: harm.value,
       drums,
@@ -665,14 +696,25 @@ function readHeader(rest: string): Read<Header> {
   const [, barText, section, fieldsText] = match;
   const problems: string[] = [];
   if (!WORD.test(section!)) problems.push(`section "${section}" is not a word`);
-  const fields = readFields(fieldsText!, ['key', 'theme']);
+  const fields = readFields(fieldsText!, ['key', 'theme'], ['meter']);
   if ('problems' in fields) return { problems: [...problems, ...fields.problems] };
-  const { key: keyText, theme } = fields.value;
+  const { key: keyText, theme, meter: meterText } = fields.value;
+  const meter = meterText === undefined ? undefined : METERS[meterText as keyof typeof METERS];
+  if (meterText !== undefined && !meter)
+    problems.push(`meter=${meterText} is not one of ${Object.keys(METERS).join(', ')}`);
   if (!WORD.test(theme!)) problems.push(`theme "${theme}" is not a word`);
   const key = readKey(keyText!);
   if ('problems' in key) problems.push(...key.problems);
   if (problems.length || !('value' in key)) return { problems };
-  return { value: { bar: Number(barText), section: section!, key: key.value, theme: theme! } };
+  return {
+    value: {
+      bar: Number(barText),
+      section: section!,
+      key: key.value,
+      theme: theme!,
+      ...(meter ? { meter } : {}),
+    },
+  };
 }
 
 /** `name=value` fields: each of the names once, the optional ones at most once, and no other. */
@@ -719,10 +761,10 @@ function readStyle(rest: string): Read<Record<StyleAxis, number>> {
   return problems.length ? { problems } : { value: style };
 }
 
-function readHarm(rest: string): Read<HarmChord[]> {
+function readHarm(rest: string, barSteps: number): Read<HarmChord[]> {
   const quoted = /^"(.*)"$/u.exec(rest);
   if (!quoted) return { problems: [`harm ${rest} is not a quoted sequence, such as harm "i VI"`] };
-  const read = readSequence(quoted[1]!, UNSTATED_STEPS);
+  const read = readSequence(quoted[1]!, barSteps);
   if ('problems' in read) return { problems: read.problems.map((p) => `harm: ${p}`) };
   const problems: string[] = [];
   const harm = read.placed.map(({ word, step }) => {
@@ -734,14 +776,14 @@ function readHarm(rest: string): Read<HarmChord[]> {
 }
 
 /** A drum sound's line: every hit is its own word, one step, `~` the rest (E16, form (iii)). */
-function readDrumLine(sound: DrumSound, rest: string): Read<readonly number[]> {
+function readDrumLine(sound: DrumSound, rest: string, barSteps: number): Read<readonly number[]> {
   const word = DRUM_WORDS[sound];
   const quoted = /^"(.*)"$/u.exec(rest);
   if (!quoted)
     return {
       problems: [`${word} ${rest} is not a quoted sequence, such as ${word} "${word} ~@3"`],
     };
-  const read = readSequence(quoted[1]!, UNSTATED_STEPS);
+  const read = readSequence(quoted[1]!, barSteps);
   if ('problems' in read) return { problems: read.problems.map((p) => `${word}: ${p}`) };
   const problems: string[] = [];
   const steps: number[] = [];
@@ -821,6 +863,7 @@ function readBassLine(
   key: ScoreKey,
   harm: readonly HarmChord[],
   register: number,
+  barSteps: number,
 ): Read<BassNote[]> {
   const words = rest.split(/\s+/u).filter(Boolean);
   if (words.length === 0) return { problems: ['bass: the line has no notes'] };
@@ -836,9 +879,9 @@ function readBassLine(
   }
   if (problems.length) return { problems };
   const rises = tokens.every(
-    ({ step }, i) => step < UNSTATED_STEPS && (i === 0 || step > tokens[i - 1]!.step),
+    ({ step }, i) => step < barSteps && (i === 0 || step > tokens[i - 1]!.step),
   );
-  if (!rises) return { problems: [TOKEN_STEPS_RISE] };
+  if (!rises) return { problems: [stepsRise('bass', barSteps)] };
   const roots = rootsOf(key, harm);
   const notes: BassNote[] = [];
   let last = register;
@@ -855,6 +898,7 @@ function readBassLine(
 function readCompLine(
   kind: 'pad' | 'stab',
   rest: string,
+  barSteps: number,
 ): Read<{ step: number; token: CompToken }[]> {
   const words = rest.split(/\s+/u).filter(Boolean);
   if (words.length === 0) return { problems: [`${kind}: the line has no chords`] };
@@ -870,11 +914,9 @@ function readCompLine(
   }
   if (problems.length) return { problems };
   const rises = hits.every(
-    ({ step }, i) => step < UNSTATED_STEPS && (i === 0 || step > hits[i - 1]!.step),
+    ({ step }, i) => step < barSteps && (i === 0 || step > hits[i - 1]!.step),
   );
-  return rises
-    ? { value: hits }
-    : { problems: [`${kind}: its steps must rise within the bar's ${UNSTATED_STEPS}`] };
+  return rises ? { value: hits } : { problems: [stepsRise(kind, barSteps)] };
 }
 
 /** A `next` line: the numeral of the next bar's first chord, and its key where that is not the bar's. */
