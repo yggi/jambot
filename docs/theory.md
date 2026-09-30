@@ -404,6 +404,8 @@ The rest of the helix applies as it does to scales:
   of up to 16 eighths, 79 are modes of `even`; 10/8 as 3+3+2+2 is the first that
   is not. Such a meter is still a helix, given by its heights, as the son clave
   is among the rhythms, and `METERS` names 10/8 so.
+- **The same eighths, other pulses.**
+  5/4 and 10/8 both hold ten eighths, and are told apart by their pulses as 3/4 and 6/8 are: 5/4 is `even(5, 10)`, five pulses of 2, and 10/8 is 3+3+2+2.
 - **The song's 4/4 is one of them.** The 4/4 pulses composed onto a bar of 16
   steps, two steps to an eighth, are `even(4, 16)`, the beats the transport
   plays. Its bar, step in the bar and beat are the helix's own readings: a turn,
@@ -417,8 +419,8 @@ The rest of the helix applies as it does to scales:
   diatonic set in 12 it is 1, the chromatic grid's own step; on a simple or
   compound meter it is 0, and on an additive one, one eighth.
 
-Tests: `meter.test.ts`, over every named meter (3/4, 4/4, 5/8, 6/8, 7/8, 9/8,
-10/8, 12/8), every well-formed pair and every grouping into 2s and 3s up to 16:
+Tests: `meter.test.ts`, over every named meter (3/4, 4/4, 5/4, 5/8, 6/8, 7/8,
+9/8, 10/8, 12/8), every well-formed pair and every grouping into 2s and 3s up to 16:
 the meters as `even` gives them, position 0 the only downbeat, the pulse
 lengths, the modes and the mirror, `parallel` and `relative`, the 79 of 149
 groupings, the song's beat and clock, where a pulse tempo exists, and the

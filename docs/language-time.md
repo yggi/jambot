@@ -189,8 +189,8 @@ parts' carried state is S2's key frame.
 
 **T6. A meter is a helix of pulses over the bar's eighths, and a grouping is a
 mode of it.** Witness: `Meter` (`meter.ts`), which is a `Helix`: its cycle is
-the bar's eighths and its heights where its pulses start. `METERS` names eight,
-seven as `even(pulses, eighths)` (simple, compound and additive meters in one
+the bar's eighths and its heights where its pulses start. `METERS` names nine,
+eight as `even(pulses, eighths)` (simple, compound and additive meters in one
 formula) and 10/8's 3+3+2+2 by its heights. 7/8's 3+2+2, 2+2+3 and 2+3+2 are the
 three modes of `even(3, 7)`, and `mirror` is the retrograde of every grouping. A
 change of grouping is a key change on the time axis: `parallel` keeps the

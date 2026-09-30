@@ -28,6 +28,18 @@ const WEIGHTS: Record<MeterName, Weight[]> = {
     'pulse',
     'subdivision',
   ],
+  '5/4': [
+    'downbeat',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'pulse',
+    'subdivision',
+  ],
   '5/8': ['downbeat', 'subdivision', 'subdivision', 'pulse', 'subdivision'],
   '6/8': ['downbeat', 'subdivision', 'subdivision', 'pulse', 'subdivision', 'subdivision'],
   '7/8': ['downbeat', 'subdivision', 'subdivision', 'pulse', 'subdivision', 'pulse', 'subdivision'],
@@ -97,6 +109,7 @@ describe('meter', () => {
     expect(METERS).toEqual({
       '3/4': { cycle: 6, heights: [0, 2, 4] },
       '4/4': { cycle: 8, heights: [0, 2, 4, 6] },
+      '5/4': { cycle: 10, heights: [0, 2, 4, 6, 8] },
       '5/8': { cycle: 5, heights: [0, 3] },
       '6/8': { cycle: 6, heights: [0, 3] },
       '7/8': { cycle: 7, heights: [0, 3, 5] },
@@ -129,9 +142,10 @@ describe('meter', () => {
     }
   });
 
-  it('gives a simple or compound meter pulses of equal length, as its `gaps` (finite: 3/4, 4/4, 6/8, 9/8, 12/8)', () => {
+  it('gives a simple or compound meter pulses of equal length, as its `gaps` (finite: 3/4, 4/4, 5/4, 6/8, 9/8, 12/8)', () => {
     expect(gaps(METERS['3/4'])).toEqual([2, 2, 2]);
     expect(gaps(METERS['4/4'])).toEqual([2, 2, 2, 2]);
+    expect(gaps(METERS['5/4'])).toEqual([2, 2, 2, 2, 2]);
     expect(gaps(METERS['6/8'])).toEqual([3, 3]);
     expect(gaps(METERS['9/8'])).toEqual([3, 3, 3]);
     expect(gaps(METERS['12/8'])).toEqual([3, 3, 3, 3]);
