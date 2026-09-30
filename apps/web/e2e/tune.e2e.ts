@@ -253,7 +253,7 @@ test('hears the synth’s lead as one tone near its pitch, and as another an oct
   await page.locator('details[aria-label="Extras"] summary').click();
   await page.getByRole('button', { name: 'Tuner' }).click();
   await page.getByLabel('Listen to').selectOption({ label: 'This device’s synth (what it plays)' });
-  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
   const send = page.getByRole('region', { name: 'Send a note' });
   const tone = page.getByRole('region', { name: 'Tone' });
   await send.getByRole('button', { name: 'Hold the note' }).click();
@@ -346,7 +346,7 @@ for (const [name, file, absent] of [
       await page.goto('/');
       await page.locator('details[aria-label="Extras"] summary').click();
       await page.getByRole('button', { name: 'Tuner' }).click();
-      await page.getByRole('button', { name: 'Start' }).click();
+      await page.getByRole('button', { name: 'Start', exact: true }).click();
       const tone = page.getByRole('region', { name: 'Tone' });
       await expect(tone.getByText(/Steady, with no width/)).toBeVisible({ timeout: 15_000 });
       await expect(tone.locator('rect.bar')).toHaveCount(12);
