@@ -1874,6 +1874,49 @@ run; the others have.
     Sparse drum hits are an easier case than the yardstick's melodies, so this is no check of its numbers, only that they are not far off.
   - The first cut of the tap button counted a pointer's click after its own pointerdown as a second tap (a click is a pointer event in Firefox and Chrome), so the two on-screen runs have each tap twice, the second 70 to 100 ms after the first; the analysis drops them, and the button now takes the pointer going down alone.
   - Not measured: another player, another browser, a touch screen, audio latency by a loopback, and whether a hand follows the band the same way as it follows a metronome.
+- **E22. The loop closed with no players** (Q7b, Q12; #237 step 0), in
+  [`packages/engine/experiments/loop.ts`](../packages/engine/experiments/loop.ts)
+  (about 50 s with its variants; its test, a sample, about 4 s): the Muse hears the band's own lead as she hears a player, and her offer goes back into the band with F7's delay, so what she hears in bar k plays from bar k + 2.
+  - Two conditions over the same seeds: deaf, the band as it plays alone today, a Muse listening beside it whose offer is not fed back; and hearing, the loop closed.
+  - Every preset at entropy 0, 0.3, 0.6 and 1, 3 seeds of 128 bars; the presets ordered by their harmony, which sets the licence's reach (Techno the narrowest, Swing jazz the widest).
+  - The lead's notes are on the grid, so the nearest step reads each bar as the transport's phrase reading does, which the test holds on a sample.
+  - Closed, the Muse recognises 83.6 to 94.4% of the lead's motif bars as a motif she remembers, against 37.0 to 63.4% deaf.
+    Of those, 77.9 to 100% are exact repeats, against 86.5 to 96.6% deaf.
+    New motifs fall from 0.8 to 3.5 a section (the fewest Ambient's, whose lead rests most) to 0.4 to 1.2, and the distinct motifs of a run of 128 bars from 11.0 to 53.7 to 5.3 to 12.3.
+  - It doesn't stall on one bar: the longest run of one motif is 1 to 9 bars on average, and runs of a section or more hold at most 7.5% of the motif bars, except in Ambient at entropy 0.6: 24.9%, with a run of 23 bars.
+  - It oscillates: 37.9 to 65.1% of motif bars play the motif of two bars before and not the one before (A B A B), against 20.8 to 44.1% deaf.
+    The run's commonest motif plays in 50.0 to 67.3% of its motif bars, against 9.8 to 47.6% deaf, and in every run closed it is the first motif the lead played, against 0 to 100% of runs deaf.
+    74.6 to 100% of its bars fall on bars of one parity, even or odd, as do 83.3 to 98.6% deaf, where the lead's own phrase puts its shape on a phrase's first and third bars.
+    The reason is in the loop's parts: the delay is two bars, so the loop is two chains, the even bars feeding the even and the odd the odd; and the lead plays the offer whole, but closes a phrase's second and fourth bars, both odd, on the cadence.
+    So the even chain copies itself: the first motif plays back unchanged on every other bar, and its cadenced variants between.
+    The variants below show the Muse's hold is not the cause.
+  - It doesn't drift: 58.3 to 95.8% of the last section's motifs are heard (`recognise`, any operator) as one of the first section's, against 0 to 62.5% deaf, 0% in Synth-pop, Lo-fi hip hop and Bossa nova at every entropy, and at most 16.7% at entropy 0.6 and 1.
+  - Nor does it dissolve: every run closed holds the motif it opened with.
+  - So the loop closed at the motif stalls at the phrase and oscillates at the bar, as the prototype predicted (Q7b), where the key's loop drifts above entropy 0 (E19).
+    The two differ in what varies: the key's jump draws on the entropy, and the offered motif passes through the band unchanged but for the cadence, whatever the entropy.
+  - Monotonicity (#237): Kendall's tau of the recognised share against the licence is +0.07, +0.07, +0.21 and +0.57 deaf at the four entropies, so deaf the share doesn't fall as the licence widens; it rises a little.
+    Closing the loop turns it: −0.18, −0.29, −0.82 and −0.79, falling as the licence widens, most at entropy 0.6 and 1.
+    Against the entropy, deaf, the share falls in every preset (tau −1 in four, −0.67 in three, −0.33 in Bossa nova); closed, it doesn't fall consistently (+0.33 to −1).
+    The test's sample, one seed of 96 bars at entropy 0.3, gives −0.18 against the licence in both conditions: at 0.3 the order is weak either way.
+  - The variants (`VARIANTS`), over the same presets, entropies and seeds, the mean of each measure over them all, beside the deaf band's:
+
+    | condition          | recognised | exact | return | A B A B | commonest | first held | one parity | distinct |
+    | ------------------ | ---------- | ----- | ------ | ------- | --------- | ---------- | ---------- | -------- |
+    | deaf               | 52.1%      | 92.1% | 16.2%  | 35.2%   | 21.4%     | 33.3%      | 93.2%      | 38.6     |
+    | hearing            | 88.4%      | 94.5% | 78.8%  | 53.5%   | 55.5%     | 100%       | 90.6%      | 9.0      |
+    | no hold            | 87.4%      | 99.1% | 73.8%  | 60.5%   | 50.7%     | 100%       | 99.0%      | 10.0     |
+    | varied             | 73.2%      | 88.0% | 62.8%  | 50.5%   | 53.7%     | 100%       | 94.9%      | 24.9     |
+    | varied, no hold    | 69.2%      | 89.8% | 58.1%  | 55.5%   | 52.7%     | 100%       | 98.6%      | 35.5     |
+    | every bar          | 62.1%      | 52.0% | 10.7%  | 11.4%   | 10.9%     | 12.5%      | 67.7%      | 40.9     |
+    | every bar, no hold | 56.6%      | 53.4% | 6.4%   | 16.6%   | 8.0%      | 3.1%       | 70.6%      | 49.6     |
+
+  - Without the Muse's hold, the offer each bar's motif as the prototype takes it (with only the lead heard, one motif a bar, confirming first has nothing to rank), the loop locks as firmly: the first motif is the commonest in every run, all of its bars of one parity.
+  - With the lead varying an offer on its phrase's second and fourth bars as it varies its own shapes (`varyOffer`: turned over, lifted two degrees, its last note bent or dropped, by the lead's own draws), the loop recognises less and hears two and a half times as many distinct motifs, but the first motif still holds every run: the variation falls on odd bars only, and the even chain still copies itself.
+  - With the variation on every bar, the lock breaks: the first motif is the commonest in 12.5% of runs, the last section is heard as the first in 10.7%, and A B A B falls to 11.4%, below the deaf band's 35.2%.
+    It still recognises more than the deaf band, 62.1% against 52.1%, and half of that under an operator where the deaf band's is nearly all exact repeats: recognisable, not repetitive, and drifting.
+    Whether that is where the owner hears beauty, or past it toward confusing, is for the ear (#237).
+  - So a loop that copies what it hears locks on its first pattern, whatever holds or confirms it, and each of the delay's chains needs a transformation of its own to drift: variation on every bar, or an answer under an operator from the Muse (#237 step 4), not a copy.
+  - Not measured: weights for the band's voices beside the players', since no players play here; and the style's distance over time, which needs the critic (#15).
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
