@@ -29,23 +29,28 @@
  *   does (kick, pedal, the Euclidean rim, every hi-hat sound); the snare's
  *   (backbeat, fill or ghost) is E16's still-open remainder, so `sd` is not
  *   written yet.
- * - **A bass line and its frame** (#263): `frame bass=E2` states the note the
- *   bass's next note is nearest to (S2, Q4b), and `bass 0=0 4=0 7=7 12=0^`
- *   its notes as `step=pitch` pairs: the step a note starts on, 0-based on
- *   the bar's steps, and its pitch in semitones above the root of the chord
- *   in force at that step, 0–11 (U2, U6). A note goes to the octave nearest
- *   the last one within 33–52, `^` the octave above it, and lasts to the next
- *   onset or the bar's end, so it states no length. Nothing before the first
- *   onset sounds. The frame is written exactly when the bar has a bass line.
+ * - **A bass line** (#263): `bass 0=0 4=0 7=7 12=0^` states its notes as
+ *   `step=pitch` pairs: the step a note starts on, 0-based on the bar's
+ *   steps, and its pitch in semitones above the root of the chord in force at
+ *   that step, 0–11 (U2, U6). A note goes to the octave nearest the last one
+ *   within 33–52, `^` the octave above it, and lasts to the next onset or
+ *   the bar's end, so it states no length. Nothing before the first onset
+ *   sounds. The bass starts from E2 (40) unless the frame pins a register.
  *   A finer grid, a group in a step, a loop or a rest is the tree of #275, and
  *   refused until then.
  * - **A pad and a stab** (#264): `pad 0=ch 8=ch` and `stab 4=ch 14=nx` state the
  *   steps the comp sounds a chord on, `ch` the chord in force and `nx` the
  *   first chord of the next bar, which `next V7` (and `key=G:ionian` where
  *   that bar's key differs) states. A chord is voiced close in 50–79, led from
- *   the voicing before it, so `frame comp=C4,E4,G4` states the voicing the bar
- *   reads from (S2); a frame with no `comp=` has nothing to lead from. A pad
- *   lasts to the next chord and a stab one step, so neither states a length.
+ *   the voicing before it; a bar with no pin leads its first chord from
+ *   nothing.
+ * - **A frame** pins what a part's hand would otherwise decide (S2, Q4b), the
+ *   way a sheet leaves the octave and the inversion to the player: `frame
+ *   bass=28 comp=12,16,19` states the bass's register and the comp's voicing
+ *   as integers above the tonic at or below the part's floor (33 and 50), so
+ *   a pin moves with the key. A text without one compiles to a performance
+ *   from the default hand, and a bar is written with a pin only where its
+ *   hand is not the default.
  *
  * A header that states no meter is a bar of 4/4, read from its helix on
  * the steps as the song reads its bars (T10); a `meter=` comes with #63
@@ -69,7 +74,6 @@ import {
   parseNote,
   parseNumeral,
   shift,
-  spell,
   spelledTonic,
   splitChord,
   wrap,
@@ -127,6 +131,9 @@ export const BASS_FOLD = [33, 52] as const;
 
 /** The highest note the bass plays, which an octave jump may reach. */
 export const BASS_TOP = 57;
+
+/** The register a bass reads from when its bar pins none: the engine's initial (E2). */
+export const BASS_INITIAL = 40;
 
 /** A bass note as the score states it: its step and its MIDI note, C4 = 60. It lasts to the next onset, or the bar's end. */
 export interface BassNote {
@@ -301,48 +308,11 @@ function bassTokens(bar: ScoreBar): { tokens: BassToken[] } | { problems: string
 
 const sameKey = (a: ScoreKey, b: ScoreKey) => a.tonic === b.tonic && a.mode === b.mode;
 
-const LETTER_PITCH_CLASS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 } as const;
-type NaturalLetter = keyof typeof LETTER_PITCH_CLASS;
-const NATURAL_LETTER = new Map<number, NaturalLetter>(
-  (Object.entries(LETTER_PITCH_CLASS) as [NaturalLetter, number][]).map(([letter, pitchClass]) => [
-    pitchClass,
-    letter,
-  ]),
-);
-
-/** A key's scale as it spells its notes, for the spelling of a register: cached, the keys are finite. */
-const SPELLED_SCALES = new Map<string, ReturnType<typeof spell>>();
-
 /**
- * A MIDI note as a name and an octave: as the key spells it where the key's
- * scale has it, else a natural, else flats in a key whose scale leans flat
- * and sharps otherwise, so the name is one thing for the round trip (F3).
+ * The tonic at or below a floor, a MIDI note: the reference a register is
+ * counted from, so a pin is a plain integer above it and moves with the key.
  */
-function writeRegister(key: ScoreKey, midi: number): string {
-  const asked = `${key.tonic}:${key.mode}`;
-  let scale = SPELLED_SCALES.get(asked);
-  if (!scale) {
-    scale = spell(spelledTonic(keyHelix(key)), keyHelix(key).heights);
-    SPELLED_SCALES.set(asked, scale);
-  }
-  const pitchClass = wrap(midi, 12);
-  let letter: NaturalLetter;
-  let alteration: number;
-  const inKey = scale.find((note) => note.pitchClass === pitchClass);
-  if (inKey) ({ letter, alteration } = inKey);
-  else if (NATURAL_LETTER.has(pitchClass)) {
-    letter = NATURAL_LETTER.get(pitchClass)!;
-    alteration = 0;
-  } else if (scale.reduce((sum, note) => sum + note.alteration, 0) < 0) {
-    letter = NATURAL_LETTER.get(pitchClass + 1)!;
-    alteration = -1;
-  } else {
-    letter = NATURAL_LETTER.get(pitchClass - 1)!;
-    alteration = 1;
-  }
-  const octave = Math.floor((midi - alteration - LETTER_PITCH_CLASS[letter]) / 12) - 1;
-  return `${letter}${sign(alteration)}${octave}`;
-}
+const tonicAtOrBelow = (key: ScoreKey, floor: number) => floor - wrap(floor - key.tonic, 12);
 
 /**
  * How far a voicing moves from the one before: each new note's distance to
@@ -473,8 +443,14 @@ export function encodeBar(bar: ScoreBar): string {
     return [`${word} "${writeSequence(placeHits(word, steps), UNSTATED_STEPS)}"`];
   });
   const frameFields = [
-    ...(bar.bass ? [`bass=${writeRegister(bar.key, bar.bass.register)}`] : []),
-    ...(bar.voicing ? [`comp=${bar.voicing.map((n) => writeRegister(bar.key, n)).join(',')}`] : []),
+    ...(bar.bass && bar.bass.register !== BASS_INITIAL
+      ? [`bass=${bar.bass.register - tonicAtOrBelow(bar.key, BASS_FOLD[0])}`]
+      : []),
+    ...(bar.voicing
+      ? [
+          `comp=${bar.voicing.map((note) => note - tonicAtOrBelow(bar.key, COMP_RANGE[0])).join(',')}`,
+        ]
+      : []),
   ];
   const pairs = (tokens: { step: number; token: CompToken }[]) =>
     tokens.map(({ step, token }) => `${step}=${token}`).join(' ');
@@ -622,20 +598,16 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
     const rest = byKind.get(DRUM_WORDS[sound]);
     return rest === undefined ? [] : [{ sound, read: readDrumLine(sound, rest) }];
   });
-  const frame = byKind.has('frame') ? readFrame(byKind.get('frame')!) : undefined;
+  const frame = byKind.has('frame') ? readFrame(byKind.get('frame')!, key) : undefined;
   const framed = frame && 'value' in frame ? frame.value : undefined;
-  if (byKind.has('bass') && !frame)
-    problems.push('a bass line needs a frame line, such as frame bass=E2');
-  else if (byKind.has('bass') && framed && framed.bass === undefined)
-    problems.push('a bass line needs bass= in its frame line, such as frame bass=E2');
   if (framed?.bass !== undefined && !byKind.has('bass'))
     problems.push('frame bass= has no bass line to carry into');
   if (framed?.comp && !byKind.has('pad') && !byKind.has('stab'))
     problems.push('frame comp= has no pad or stab line to carry into');
   const ready = key && 'value' in harm;
   const bassLine =
-    byKind.has('bass') && framed?.bass !== undefined && ready
-      ? readBassLine(byKind.get('bass')!, key, harm.value, framed.bass)
+    byKind.has('bass') && ready
+      ? readBassLine(byKind.get('bass')!, key, harm.value, framed?.bass ?? BASS_INITIAL)
       : undefined;
   const compReads = (['pad', 'stab'] as const).map((kind) =>
     byKind.has(kind) ? readCompLine(kind, byKind.get(kind)!) : undefined,
@@ -658,8 +630,8 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
     drumReads.map(({ sound, read }) => [sound, (read as { value: readonly number[] }).value]),
   ) as DrumLines;
   const bass =
-    framed?.bass !== undefined && bassLine && 'value' in bassLine
-      ? { bass: { register: framed.bass, notes: bassLine.value } }
+    bassLine && 'value' in bassLine
+      ? { bass: { register: framed?.bass ?? BASS_INITIAL, notes: bassLine.value } }
       : {};
   const next = nextRead && 'value' in nextRead ? { next: nextRead.value } : {};
   const voicing = framed?.comp ? { voicing: framed.comp } : {};
@@ -784,40 +756,55 @@ interface Framed {
   readonly comp?: number[];
 }
 
-/** A `frame` line: `frame bass=E2 comp=C4,E4,G4`, each field optional, the line stating at least one. */
-function readFrame(rest: string): Read<Framed> {
+/**
+ * A `frame` line, `frame bass=16 comp=12,16,19`: the registers the bar reads
+ * from where they are not the default, each counted from the tonic at or
+ * below the part's floor. Each field is optional, the line stating at least
+ * one. Without a key to count from, its numbers are not read.
+ */
+function readFrame(rest: string, key: ScoreKey | undefined): Read<Framed> {
   const fields = readFields(rest, [], ['bass', 'comp']);
   if ('problems' in fields) return fields;
   if (Object.keys(fields.value).length === 0)
-    return { problems: ['frame: no field, such as bass=E2 or comp=C4,E4,G4'] };
+    return { problems: ['frame: no field, such as bass=16 or comp=12,16,19'] };
   const framed: { bass?: number; comp?: number[] } = {};
   const problems: string[] = [];
+  const whole = (text: string) => /^\d+$/u.test(text);
   const bassText = fields.value.bass;
   if (bassText !== undefined) {
-    const note = parseNote(bassText);
-    if (note?.midi === undefined)
-      problems.push(`frame: bass=${bassText} is not a note with an octave, such as bass=E2`);
-    else if (note.midi < BASS_FOLD[0] || note.midi > BASS_FOLD[1])
+    if (!whole(bassText))
       problems.push(
-        `frame: bass=${bassText} is outside ${BASS_FOLD[0]}–${BASS_FOLD[1]}, where the bass register carries`,
+        `frame: bass=${bassText} is not a whole number above the tonic, such as bass=16`,
       );
-    else framed.bass = note.midi;
+    else if (key) {
+      const register = tonicAtOrBelow(key, BASS_FOLD[0]) + Number(bassText);
+      if (register < BASS_FOLD[0] || register > BASS_FOLD[1])
+        problems.push(
+          `frame: bass=${bassText} puts the register outside ${BASS_FOLD[0]}–${BASS_FOLD[1]}, where the bass register carries`,
+        );
+      else framed.bass = register;
+    }
   }
   const compText = fields.value.comp;
   if (compText !== undefined) {
-    const midis = compText.split(',').map((text) => parseNote(text)?.midi);
-    if (midis.some((midi) => midi === undefined))
-      problems.push(`frame: comp=${compText} is not notes with octaves, such as comp=C4,E4,G4`);
-    else if (
-      !midis.every(
-        (midi, i) =>
-          midi! >= COMP_RANGE[0] && midi! <= COMP_RANGE[1] && (i === 0 || midi! > midis[i - 1]!),
-      )
-    )
+    const heights = compText.split(',');
+    if (!heights.every(whole))
       problems.push(
-        `frame: comp=${compText} must rise within ${COMP_RANGE[0]}–${COMP_RANGE[1]}, where the comp plays`,
+        `frame: comp=${compText} is not whole numbers above the tonic, such as comp=12,16,19`,
       );
-    else framed.comp = midis as number[];
+    else if (key) {
+      const notes = heights.map((height) => tonicAtOrBelow(key, COMP_RANGE[0]) + Number(height));
+      if (
+        !notes.every(
+          (note, i) =>
+            note >= COMP_RANGE[0] && note <= COMP_RANGE[1] && (i === 0 || note > notes[i - 1]!),
+        )
+      )
+        problems.push(
+          `frame: comp=${compText} must rise within ${COMP_RANGE[0]}–${COMP_RANGE[1]}, where the comp plays`,
+        );
+      else framed.comp = notes;
+    }
   }
   return problems.length ? { problems } : { value: framed };
 }

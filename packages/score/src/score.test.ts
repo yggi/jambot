@@ -261,7 +261,7 @@ const BASS_CHORDS = [
   { step: 12, numeral: numeral('V7') },
 ];
 
-/** C2, A1, E2 (the fifth over the vi), F2, G3 (an octave jump) and F2 (the seventh of V7), from the register E2. */
+/** C2, A1, E2 (the fifth over the vi), F2, G3 (an octave jump) and F2 (the seventh of V7), from the register E2, the bass's default. */
 const BASS_BAR: ScoreBar = {
   ...A_BAR,
   harm: BASS_CHORDS,
@@ -281,13 +281,20 @@ const BASS_BAR: ScoreBar = {
 const BASS_TEXT = [
   ...A_TEXT.split('\n').slice(0, 2),
   'harm "I vi IV V7"',
-  'frame bass=E2',
   'bass 0=0 4=0 7=7 8=0 12=0^ 14=10',
 ].join('\n');
 
-/** The bass bar's text with one line replaced, or taken out with `undefined`. */
-const withBassLine = (kind: string, line: string | undefined) =>
-  BASS_TEXT.split('\n')
+/** The same bar from another register, pinned: E3 (52) is 28 above the C1 (24) below the bass's floor, in C. */
+const BASS_PIN_TEXT = [
+  ...BASS_TEXT.split('\n').slice(0, 3),
+  'frame bass=28',
+  BASS_TEXT.split('\n')[3],
+].join('\n');
+
+/** A bass bar's text with one line replaced, or taken out with `undefined`. */
+const withBassLine = (kind: string, line: string | undefined, text = BASS_TEXT) =>
+  text
+    .split('\n')
     .flatMap((l) => (l.startsWith(`${kind} `) ? (line === undefined ? [] : [line]) : [l]))
     .join('\n');
 
@@ -305,10 +312,21 @@ const independentNearest = (pitchClass: number, last: number) =>
     .filter((note) => note % 12 === pitchClass)
     .sort((a, b) => Math.abs(a - last) - Math.abs(b - last) || a - b)[0]!;
 
-describe('a bass line (#263: pitch and onset in one line, the register in a key frame)', () => {
-  it('writes the register in a frame line and the notes as step=pitch pairs, and reads them back (Q1a, U6)', () => {
+describe('a bass line (#263: pitch and onset in one line, the register a pin counted from the tonic)', () => {
+  it('writes the notes as step=pitch pairs, with no frame while the register is the default, and reads them back (Q1a, U6)', () => {
     expect(encodeBar(BASS_BAR)).toBe(BASS_TEXT);
     expect(compileBar(BASS_TEXT)).toEqual(BASS_BAR);
+  });
+
+  it('pins a register other than the default in a frame, counted from the tonic at or below the bass’s floor, so the pin moves with the key (S2, U6)', () => {
+    const pinned = compileBar(BASS_PIN_TEXT);
+    expect(pinned.bass!.register).toBe(52);
+    expect(pinned.bass!.notes[0]).toEqual({ step: 0, note: 48 });
+    expect(encodeBar(pinned)).toBe(BASS_PIN_TEXT);
+    // The same register in another key is another count: E3 is 21 above the F1 (31) below the floor, in G.
+    const inG = BASS_PIN_TEXT.replace('key=C:ionian', 'key=G:ionian').replace('bass=28', 'bass=21');
+    expect(compileBar(inG).bass!.register).toBe(52);
+    expect(encodeBar(compileBar(inG))).toBe(inG);
   });
 
   it('writes a bar with no bass exactly as before: no bass line, no frame', () => {
@@ -368,11 +386,11 @@ describe('a bass line (#263: pitch and onset in one line, the register in a key 
         expect(bassNearest(pitchClass, last)).toBe(independentNearest(pitchClass, last));
   });
 
-  it('spells the register as the key spells its notes, and reads every register of every key back (Q1a, F3)', () => {
-    let spelled = 0;
+  it('counts the register from the tonic at or below the floor, and reads every register of every key back (Q1a, F3)', () => {
+    let pinned = 0;
     for (const mode of DIATONIC_MODE_NAMES)
       for (const tonic of range(12))
-        for (let register = BASS_FOLD[0]; register <= BASS_FOLD[1]; register++) {
+        for (let register: number = BASS_FOLD[0]; register <= BASS_FOLD[1]; register++) {
           const bar: ScoreBar = {
             ...A_BAR,
             key: { tonic, mode },
@@ -381,42 +399,41 @@ describe('a bass line (#263: pitch and onset in one line, the register in a key 
           };
           const text = encodeBar(bar);
           expect(compileBar(text)).toEqual(bar);
-          spelled++;
+          if (register !== 40) pinned++;
         }
-    expect(spelled).toBe(84 * 20);
-    const frame = (key: string, register: number) =>
+    expect(pinned).toBe(84 * 19);
+    const frame = (tonic: number, register: number) =>
       encodeBar({
         ...oneChordBar(register),
-        key: { tonic: { C: 0, F: 5, G: 7 }[key]!, mode: 'ionian' },
-        harm: [{ step: 0, numeral: numeral('I') }],
-        bass: {
-          register,
-          notes: [{ step: 0, note: bassNearest({ C: 0, F: 5, G: 7 }[key]!, register) }],
-        },
+        key: { tonic, mode: 'ionian' },
+        bass: { register, notes: [{ step: 0, note: bassNearest(tonic, register) }] },
       })
         .split('\n')
         .find((l) => l.startsWith('frame'));
-    // In the key's own scale by its spelling; off it, flats in a flat key and sharps otherwise.
-    expect(frame('F', 46)).toBe('frame bass=Bb2');
-    expect(frame('G', 42)).toBe('frame bass=F#2');
-    expect(frame('F', 42)).toBe('frame bass=Gb2');
-    expect(frame('C', 34)).toBe('frame bass=A#1');
+    // The tonic at or below 33 is 24 in C, 29 in F and 31 in G, and the count is from there.
+    expect(frame(0, 52)).toBe('frame bass=28');
+    expect(frame(0, 33)).toBe('frame bass=9');
+    expect(frame(5, 46)).toBe('frame bass=17');
+    expect(frame(7, 42)).toBe('frame bass=11');
+    // Register 40, the default, is not written.
+    expect(frame(0, 40)).toBeUndefined();
   });
 
   it('writes every text that compiles in one form: a second pass changes nothing (Q1a, F3)', () => {
     const variant = [
       ...BASS_TEXT.split('\n').slice(0, 3),
       'bass   0=0 4=0  7=7 8=0 12=0^ 14=10',
-      'frame bass=D##2',
+      'frame bass=16',
     ].join('\n');
+    // The default register written out is the same bar: its canonical form has no frame.
     expect(encodeBar(compileBar(variant))).toBe(BASS_TEXT);
     expect(encodeBar(compileBar(BASS_TEXT))).toBe(BASS_TEXT);
   });
 
-  it('compiles a bar from its own text, with no state before it: the register is in the frame, so cold equals warm (S2)', () => {
+  it('compiles a bar from its own text, with no state before it: the register is the default or in the frame, so cold equals warm (S2)', () => {
     // The same pairs from another register are other notes. A frame
     // that compile ignored would make both bars read as one.
-    const other = compileBar(withBassLine('frame', 'frame bass=E3'));
+    const other = compileBar(BASS_PIN_TEXT);
     expect(other.bass!.register).toBe(52);
     expect(other.bass!.notes).not.toEqual(BASS_BAR.bass!.notes);
     expect(other.bass!.notes.map((n) => n.note % 12)).toEqual(
@@ -427,30 +444,35 @@ describe('a bass line (#263: pitch and onset in one line, the register in a key 
 
   it('refuses a bass line or a frame that is not one, and says why', () => {
     expect(scoreProblems(BASS_TEXT)).toEqual([]);
+    expect(scoreProblems(BASS_PIN_TEXT)).toEqual([]);
+    const pin = (kind: string, line: string | undefined) => withBassLine(kind, line, BASS_PIN_TEXT);
     const cases: [string, string[]][] = [
-      [withBassLine('frame', undefined), ['a bass line needs a frame line, such as frame bass=E2']],
-      [withBassLine('bass', undefined), ['frame bass= has no bass line to carry into']],
+      [pin('bass', undefined), ['frame bass= has no bass line to carry into']],
       [`${BASS_TEXT}\nbass 0=0`, ['a bar has one bass line']],
-      [`${BASS_TEXT}\nframe bass=E2`, ['a bar has one frame line']],
-      [withBassLine('bass', 'bass'), ['bass: the line has no notes']],
+      [`${BASS_PIN_TEXT}\nframe bass=28`, ['a bar has one frame line']],
+      [pin('bass', 'bass'), ['bass: the line has no notes']],
       [
-        withBassLine('frame', 'frame bass=E'),
-        ['frame: bass=E is not a note with an octave, such as bass=E2'],
+        pin('frame', 'frame bass=x'),
+        ['frame: bass=x is not a whole number above the tonic, such as bass=16'],
       ],
       [
-        withBassLine('frame', 'frame bass=e2'),
-        ['frame: bass=e2 is not a note with an octave, such as bass=E2'],
+        pin('frame', 'frame bass=-1'),
+        ['frame: bass=-1 is not a whole number above the tonic, such as bass=16'],
       ],
       [
-        withBassLine('frame', 'frame bass=C1'),
-        ['frame: bass=C1 is outside 33–52, where the bass register carries'],
+        pin('frame', 'frame bass=E2'),
+        ['frame: bass=E2 is not a whole number above the tonic, such as bass=16'],
       ],
       [
-        withBassLine('frame', 'frame bass=F3'),
-        ['frame: bass=F3 is outside 33–52, where the bass register carries'],
+        pin('frame', 'frame bass=2'),
+        ['frame: bass=2 puts the register outside 33–52, where the bass register carries'],
       ],
-      [withBassLine('frame', 'frame'), ['frame: no field, such as bass=E2 or comp=C4,E4,G4']],
-      [withBassLine('frame', 'frame bass=E2 lead=E4'), ['"lead=E4" is not a field here']],
+      [
+        pin('frame', 'frame bass=29'),
+        ['frame: bass=29 puts the register outside 33–52, where the bass register carries'],
+      ],
+      [pin('frame', 'frame'), ['frame: no field, such as bass=16 or comp=12,16,19']],
+      [pin('frame', 'frame bass=28 lead=4'), ['"lead=4" is not a field here']],
       [withBassLine('bass', 'bass 0=0 4'), ['bass: "4" is not step=pitch, such as 4=0 or 12=0^']],
       [withBassLine('bass', 'bass 0=0v'), ['bass: "0=0v" is not step=pitch, such as 4=0 or 12=0^']],
       [withBassLine('bass', 'bass x=0'), ['bass: "x=0" is not step=pitch, such as 4=0 or 12=0^']],
@@ -474,7 +496,7 @@ describe('a bass line (#263: pitch and onset in one line, the register in a key 
   });
 
   it('refuses a ^ that passes the top of the bass’s range, which only a register near the top can reach (U6)', () => {
-    const high = withBassLine('frame', 'frame bass=E3').replace('bass 0=0', 'bass 0=0^');
+    const high = BASS_PIN_TEXT.replace('bass 0=0', 'bass 0=0^');
     expect(scoreProblems(high)).toEqual(['bass: step 0 goes above 57']);
   });
 
@@ -540,7 +562,7 @@ const COMP_BAR: ScoreBar = {
 const COMP_TEXT = [
   ...A_TEXT.split('\n').slice(0, 2),
   'harm "I vi IV V7"',
-  'frame comp=C4,E4,G4',
+  'frame comp=12,16,19',
   'pad 0=ch 4=ch 8=ch 12=ch',
   'stab 2=ch 6=ch 10=ch 14=nx',
   'next I key=G:ionian',
@@ -563,9 +585,10 @@ describe('a pad and a stab (#264: two lines, the voicing in the key frame, the n
       compileBar(withCompLine('frame', frame === '' ? undefined : `frame comp=${frame}`)).pad!.map(
         (hit) => hit.notes,
       );
-    expect(from('C4,E4,G4')).toEqual(VOICED);
+    // Counted from the C3 (48) below the comp's floor: C4, E4, G4 are 12, 16 and 19.
+    expect(from('12,16,19')).toEqual(VOICED);
     // A C major a close voicing lower: other notes, the same pitch classes.
-    const lower = from('G3,C4,E4');
+    const lower = from('7,12,16');
     expect(lower).not.toEqual(VOICED);
     expect(lower.map((notes) => new Set(notes.map((n) => n % 12)))).toEqual(
       VOICED.map((notes) => new Set(notes.map((n) => n % 12))),
@@ -591,16 +614,13 @@ describe('a pad and a stab (#264: two lines, the voicing in the key frame, the n
   it('writes a bar with no pad and no stab exactly as before: no comp frame, no next', () => {
     expect(encodeBar(A_BAR)).toBe(A_TEXT);
     const both = encodeBar({ ...BASS_BAR, pad: COMP_BAR.pad!, voicing: COMP_FRAME });
-    expect(both).toContain('\nframe bass=E2 comp=C4,E4,G4\nbass ');
+    expect(both).toContain('\nframe comp=12,16,19\nbass ');
     expect(compileBar(both).bass).toEqual(BASS_BAR.bass);
     expect(compileBar(both).voicing).toEqual(COMP_FRAME);
   });
 
   it('writes every text that compiles in one form: a second pass changes nothing (Q1a, F3)', () => {
-    const variant = COMP_TEXT.replace('comp=C4,E4,G4', 'comp=B#3,E4,G4').replace(
-      'pad 0=ch 4=ch',
-      'pad  0=ch   4=ch',
-    );
+    const variant = COMP_TEXT.replace('pad 0=ch 4=ch', 'pad  0=ch   4=ch');
     expect(encodeBar(compileBar(variant))).toBe(COMP_TEXT);
     // A next chord in the bar's own key states no key, and a stab that never leads into it needs none.
     const same = withCompLine('next', 'next I key=C:ionian');
@@ -644,18 +664,18 @@ describe('a pad and a stab (#264: two lines, the voicing in the key frame, the n
         ['next: "I key=G:ionian extra" is not <numeral> or <numeral> key=…'],
       ],
       [
-        withCompLine('frame', 'frame comp=C4,X'),
-        ['frame: comp=C4,X is not notes with octaves, such as comp=C4,E4,G4'],
+        withCompLine('frame', 'frame comp=12,X'),
+        ['frame: comp=12,X is not whole numbers above the tonic, such as comp=12,16,19'],
       ],
       [
-        withCompLine('frame', 'frame comp=G4,E4'),
-        ['frame: comp=G4,E4 must rise within 50–79, where the comp plays'],
+        withCompLine('frame', 'frame comp=19,16'),
+        ['frame: comp=19,16 must rise within 50–79, where the comp plays'],
       ],
       [
-        withCompLine('frame', 'frame comp=C1,E4'),
-        ['frame: comp=C1,E4 must rise within 50–79, where the comp plays'],
+        withCompLine('frame', 'frame comp=0,16'),
+        ['frame: comp=0,16 must rise within 50–79, where the comp plays'],
       ],
-      [withCompLine('frame', 'frame comp=C4,E4 comp=C4'), ['comp= is stated twice']],
+      [withCompLine('frame', 'frame comp=12,16 comp=12'), ['comp= is stated twice']],
       [
         [0, 1, 2, 3].map((i) => COMP_TEXT.split('\n')[i]).join('\n'),
         ['frame comp= has no pad or stab line to carry into'],

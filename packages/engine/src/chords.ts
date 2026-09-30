@@ -20,11 +20,13 @@ import {
   formatNumeral,
   heightOf,
   joinChord,
+  type Meter,
   nameOf,
   numeralOf,
   qualityOf,
   spell,
   spelledTonic,
+  stepsOf,
   wrap,
 } from '@jambot/theory';
 import { type Key, keyHelix } from './key.ts';
@@ -96,6 +98,19 @@ export function barChords({ seed, barInSection, key, theme, harm }: ChordEnv): B
     const tensions = size === 4 && withNinth && tension - root === 14 ? [tension] : [];
     return { slot, raised: false, chord: { helix: { cycle: 12, heights }, tensions } };
   });
+}
+
+/**
+ * A theme's slot steps are 4/4's: the downbeat, 0, and the bar's half, 8. On a
+ * meter the half is the meter's (`halfOf`): 6 of 6/8's 12, 10 of 5/4's 20.
+ */
+export function slotStepOn(meter: Meter, step: number): number {
+  return step === 0 ? 0 : 2 * Math.floor((step * stepsOf(meter)) / 32);
+}
+
+/** A bar's chords with their slots on the meter's steps, the same chords in 4/4. */
+export function chordsOn(chords: readonly BarChord[], meter: Meter): BarChord[] {
+  return chords.map((c) => ({ ...c, slot: { ...c.slot, step: slotStepOn(meter, c.slot.step) } }));
 }
 
 /** The chord sounding at a step of the bar: the last to start at or before it. */

@@ -15,14 +15,21 @@
  * morph. A pad is written for its chord and a stab for one step; how long
  * each sounds, and how loud, is the performance's (`performer.ts`). These are
  * the prototype's rules and weights.
+ *
+ * They are written on the bar's meter (#260), as the bass is: the straight
+ * stabs take their weights from the pulses and the half, the syncopated ones,
+ * written on 4/4's 16 steps, are read by the rule (`regroup.ts`), and the
+ * chords' slots are read on the meter (`chordsOn`). In 4/4 every bar is what
+ * it was.
  */
 
-import { type Chord, joinChord, wrap } from '@jambot/theory';
+import { type Chord, accentsOf, joinChord, meterOnSteps, stepsOf, wrap } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
-import { chordAt } from './chords.ts';
-import { BAR_STEPS, type WrittenNote } from './events.ts';
+import { chordAt, chordsOn } from './chords.ts';
+import type { WrittenNote } from './events.ts';
 import type { Machine } from './machine.ts';
 import { type Stream, chance, heldDraw } from './random.ts';
+import { readOnMeter } from './regroup.ts';
 import { swingParts } from './swing.ts';
 
 /** The lowest and highest note the comp plays. */
@@ -31,8 +38,7 @@ export const COMP_RANGE = [50, 79] as const;
 /** Where a voicing's bottom note may stand. */
 const BOTTOMS = [50, 63] as const;
 
-/** Where stabs fall, straight and syncopated. */
-const STABS_STRAIGHT = [1, 0, 0, 0, 0.5, 0, 0, 0, 0.9, 0, 0, 0, 0.5, 0, 0, 0];
+/** Where stabs fall syncopated, written on 4/4's 16 steps; the straight ones are the pulses' and the half's. */
 const STABS_SYNCOPATED = [0, 0, 0.9, 0, 0, 0, 0.9, 0.3, 0, 0, 0.9, 0, 0.3, 0, 0.9, 0.3];
 
 const HELD: readonly [Stream, Stream] = ['compHit', 'compVariation'];
@@ -88,8 +94,22 @@ const same = (a: Chord, b: Chord) => joinChord(a).join() === joinChord(b).join()
 export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]> = {
   initial: null,
   advance(env, last) {
-    const { seed, bar, plan, style, barEnergy: energy, chords, next } = env;
+    const { seed, bar, plan, style, barEnergy: energy, next, meter } = env;
     const { eighth } = swingParts(style.swing);
+    const steps = stepsOf(meter);
+    const starts = meterOnSteps(meter).heights;
+    const accents = accentsOf(meter);
+    const chords = chordsOn(env.chords, meter);
+    const straight = Array.from({ length: steps }, (_, s) =>
+      s === 0
+        ? 1
+        : !starts.includes(s)
+          ? 0
+          : accents[s / 2] === 'half' && starts.length >= 4
+            ? 0.9
+            : 0.5,
+    );
+    const syncopated = readOnMeter(STABS_SYNCOPATED, meter, 'cycle', bar);
     const quiet = plan.section.type === 'breakdown' || energy < 0.3;
     const padWeight = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
     const stabDensity = quiet
@@ -106,18 +126,18 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
       const step = c.slot.step;
       if (!chance(held(ROLE.pad, step), padWeight * 1.15)) return;
       padded.add(step);
-      const end = chords[i + 1]?.slot.step ?? BAR_STEPS;
+      const end = chords[i + 1]?.slot.step ?? steps;
       for (const note of voiced[i]!) written.push({ part: 'pad', step, note, length: end - step });
     });
 
-    for (let s = 0; s < BAR_STEPS; s++) {
+    for (let s = 0; s < steps; s++) {
       if (padded.has(s)) continue;
-      const p = lerp(STABS_STRAIGHT[s]!, STABS_SYNCOPATED[s]!, style.sync) * stabDensity;
+      const p = lerp(straight[s]!, syncopated[s]!, style.sync) * stabDensity;
       if (!chance(held(ROLE.stab, s), p)) continue;
       const here = chords.indexOf(chordAt(chords, s));
       let notes = voiced[here]!;
       const coming = next[0];
-      if (s >= 14 && style.sync > 0.5 && coming && !same(coming.chord, chords[here]!.chord))
+      if (s >= steps - 2 && style.sync > 0.5 && coming && !same(coming.chord, chords[here]!.chord))
         notes = voicing(coming.chord, previous);
       for (const note of notes) written.push({ part: 'stab', step: s, note, length: 1 });
     }

@@ -38,6 +38,7 @@ import { joinChord, parseNumeral, positions, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_FOLD,
+  BASS_INITIAL,
   BASS_TOP,
   COMP_RANGE,
   type CompNotes,
@@ -263,6 +264,7 @@ describe('the seam, over the bars the band writes', () => {
   it("takes the engine's register and folds: the bass's range, and the octave nearest a note, for every pitch class on every register (U6)", () => {
     expect(BASS_FOLD[0]).toBe(BASS_RANGE[0]);
     expect(BASS_TOP).toBe(BASS_RANGE[1]);
+    expect(BASS_INITIAL).toBe(bass.initial);
     for (let last = BASS_FOLD[0]; last <= BASS_FOLD[1]; last++)
       for (let pitchClass = 0; pitchClass < 12; pitchClass++)
         expect(bassNearest(pitchClass, last)).toBe(nearest(pitchClass, last));

@@ -79,11 +79,3 @@ export function sum(
   }
   return total;
 }
-
-/** The root mean square of a signal, 0 for none. */
-export function rms(signal: ArrayLike<number>): number {
-  if (signal.length === 0) return 0;
-  let squares = 0;
-  for (let i = 0; i < signal.length; i++) squares += signal[i]! * signal[i]!;
-  return Math.sqrt(squares / signal.length);
-}
