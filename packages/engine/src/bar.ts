@@ -2,6 +2,7 @@
  * What every part reads for one bar: the environment of the bar level.
  */
 
+import type { Meter } from '@jambot/theory';
 import type { BarChord } from './chords.ts';
 import type { Offer } from './muse.ts';
 import type { Plan } from './plan.ts';
@@ -11,6 +12,12 @@ export interface BarEnv {
   readonly seed: number;
   /** Counted from the song's start. */
   readonly bar: number;
+  /**
+   * The meter the bar is in, whose steps it has (`stepsOf`): 16 in 4/4. The band
+   * gives the song's, 4/4, so far: a part reads its bar's steps from here as it
+   * is put on the meter (#260, decision (k)), and until it is, writes 16.
+   */
+  readonly meter: Meter;
   /** The plan of the section the bar is in: its section, key and theme, held for its eight bars. */
   readonly plan: Plan;
   /** 0 to 7. */

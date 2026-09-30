@@ -14,10 +14,9 @@
  * bar's drawing to light.
  */
 
-import { METERS, type MeterName } from '@jambot/theory';
+import { METERS, type MeterName, STEPS_PER_EIGHTH, stepsOf } from '@jambot/theory';
 import type { ClockOffset } from '../audio/clock-offset.ts';
 import type { Output } from '../audio/output.ts';
-import { STEPS_PER_EIGHTH } from '../bar.ts';
 import { Heard } from '../heard.ts';
 import { type Layer, barPlan } from './bar-plan.ts';
 import { meterMap } from './ternary.ts';
@@ -130,6 +129,6 @@ export class MeterPlayer {
     }
     for (let eighth = 0; eighth < meter.cycle; eighth++)
       this.#heard.push(at(eighth * STEPS_PER_EIGHTH), { name, eighth });
-    this.#next = start + meter.cycle * STEPS_PER_EIGHTH * stepSeconds;
+    this.#next = start + stepsOf(meter) * stepSeconds;
   }
 }

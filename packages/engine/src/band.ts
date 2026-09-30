@@ -30,7 +30,7 @@ import { comp } from './comp.ts';
 import { type LeadCarried, lead } from './lead.ts';
 import { drums } from './drums.ts';
 import { cadence, finale } from './ending.ts';
-import type { DoughNote, WrittenNote } from './events.ts';
+import { type DoughNote, SONG_METER, type WrittenNote } from './events.ts';
 import { SECTION_BARS, barEnergy } from './form.ts';
 import { type HarmonicWeights, NO_HISTORY, foldBar } from './history.ts';
 import type { KeyWish } from './key.ts';
@@ -177,6 +177,7 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
     const bar: BarEnv = {
       seed: env.seed,
       bar: env.bar,
+      meter: SONG_METER,
       plan: here.plan,
       barInSection,
       style: env.style,
@@ -213,6 +214,7 @@ export function finaleBar(
   const bar: BarEnv = {
     seed: env.seed,
     bar: env.bar,
+    meter: SONG_METER,
     plan: here.plan,
     barInSection,
     style: env.style,

@@ -1,7 +1,7 @@
 import { BAR_STEPS, SONG_METER, clicksOf, soundsAt } from '@jambot/engine';
-import { METERS, type Meter, meterOnSteps } from '@jambot/theory';
+import { METERS, type Meter, STEPS_PER_EIGHTH, meterOnSteps, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { STEPS_PER_EIGHTH, barMarks, barStepsOf, eighthHeard } from './bar.ts';
+import { barMarks, eighthHeard } from './bar.ts';
 
 const SWINGS = [0, 0.25, 0.5, 0.75, 1];
 const meters = Object.entries(METERS) as [string, Meter][];
@@ -26,7 +26,7 @@ describe('the bar, on any meter', () => {
     for (const [name, meter] of meters) {
       const marks = barMarks(meter, 0, null);
       expect([name, marks.length]).toEqual([name, meter.cycle * STEPS_PER_EIGHTH]);
-      expect([name, marks.length]).toEqual([name, barStepsOf(meter)]);
+      expect([name, marks.length]).toEqual([name, stepsOf(meter)]);
       expect(marks.filter((m) => m.text !== undefined)).toHaveLength(meter.cycle);
     }
   });
@@ -59,7 +59,7 @@ describe('the bar, on any meter', () => {
           expect([name, swing, marks[step]!.at]).toEqual([name, swing, step]);
         for (const mark of marks) {
           expect(mark.at).toBeGreaterThanOrEqual(0);
-          expect(mark.at).toBeLessThan(barStepsOf(meter));
+          expect(mark.at).toBeLessThan(stepsOf(meter));
         }
       }
     }
@@ -85,7 +85,7 @@ describe('the eighth heard, on any meter', () => {
   it('is null before anything is heard, else the eighth of the bar the step is in, bar after bar (finite: every meter, two bars)', () => {
     for (const [, meter] of meters) {
       expect(eighthHeard(meter, null)).toBeNull();
-      const steps = barStepsOf(meter);
+      const steps = stepsOf(meter);
       for (let step = 0; step < 2 * steps; step++)
         expect(eighthHeard(meter, step)).toBe(Math.floor((step % steps) / STEPS_PER_EIGHTH));
     }

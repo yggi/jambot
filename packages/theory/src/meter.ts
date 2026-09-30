@@ -65,13 +65,21 @@ export function meterWeights(meter: Meter): Weight[] {
   );
 }
 
+/** The grid's step is a sixteenth: two to an eighth, in every meter (T6). */
+export const STEPS_PER_EIGHTH = 2;
+
+/** How many steps a meter's bar has: 16 in 4/4, 12 in 6/8, 14 in 7/8. */
+export function stepsOf(meter: Meter, stepsPerEighth = STEPS_PER_EIGHTH): number {
+  return meter.cycle * stepsPerEighth;
+}
+
 /**
  * A meter on a bar's steps, `stepsPerEighth` to an eighth: its pulses as
  * steps. The song's 4/4 on its 16 steps is `even(4, 16)`, the beats the
  * transport plays (T6), and its bar, step in the bar and beat are this
  * helix's turn, position and degree (T10).
  */
-export function meterOnSteps(meter: Meter, stepsPerEighth = 2): Helix {
+export function meterOnSteps(meter: Meter, stepsPerEighth = STEPS_PER_EIGHTH): Helix {
   return compose(meter, even(meter.cycle, stepsPerEighth * meter.cycle));
 }
 

@@ -21,8 +21,9 @@ import type { SentBar, WrittenBar } from './protocol.ts';
 
 /** A bar as the band played it, as it was written. */
 export function writtenBar(played: BandBar): WrittenBar {
-  const { dough, ...bar } = played;
+  const { dough, meter, ...bar } = played;
   void dough;
+  void meter;
   return bar;
 }
 

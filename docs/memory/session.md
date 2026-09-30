@@ -1,3 +1,6 @@
+- A bar's meter does not travel (`BarEnv.meter`, #260): `WrittenBar` leaves it out and the client gives the song's 4/4 back (`follow.ts`), so the protocol stays at 7.
+  When a section's meter is the score's (#261) it travels with the bar, and that bumps the protocol.
+
 # Host and client mode
 
 Facts about `packages/session` and the app's sessions: clocks, the fault kit and the timing panel.
