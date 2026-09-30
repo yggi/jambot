@@ -61,10 +61,8 @@ describe('the chord grid', () => {
     const [first, second] = tiles();
     expect(within(first!).getByText('Am')).toBeInTheDocument();
     expect(within(first!).getByText('i')).toBeInTheDocument();
-    expect(first).not.toHaveClass('two');
     expect(within(second!).getByText('Dm E7')).toBeInTheDocument();
     expect(within(second!).getByText('iv V7')).toBeInTheDocument();
-    expect(second).toHaveClass('two');
   });
 
   it('labels the bar where a section or a key changes, and nowhere else', () => {

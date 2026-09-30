@@ -1,6 +1,6 @@
 <!--
   The plan, a card: what the band decided ahead. Folded, the section heard
-  and its bar in it ("Groove · bar 3 of 8", of `SECTION_BARS`) and, under
+  and its bar in it ("Groove 3/8", of `SECTION_BARS`) and, under
   it, the key heard and the key the band is heading for where that differs;
   the glyph is the song as a strip of its sections, the one playing filled as
   far as its bar. Before anything is heard it is ready, or waiting while the
@@ -28,7 +28,7 @@
   const heard = $derived(hud.beat !== null);
   const main = $derived(
     heard && hud.bar
-      ? `${hud.bar.section} · bar ${hud.bar.barInSection + 1} of ${SECTION_BARS}`
+      ? `${hud.bar.section} ${hud.bar.barInSection + 1}/${SECTION_BARS}`
       : playing
         ? '…'
         : 'Ready',

@@ -1,7 +1,7 @@
 <!--
   The chord grid: the bars by chord, the bar heard and the bars after it,
   eight in all. The bar heard and the next are large, with each bar's chords
-  as symbols over numerals (drawn smaller where a bar has two), and the bar
+  as symbols over numerals (a bar of two chords is one line too, cut short where it doesn't fit), and the bar
   heard carries the beats of the bar, one dot per beat of the song's meter,
   lit up to the beat heard. The six after are smaller, in two rows of three.
   A bar where the section or the key changes carries the change as a label,
@@ -38,7 +38,7 @@
 </script>
 
 {#snippet tile(t: Tile, first: boolean)}
-  <li class:large={t.large} class:cue={t.cue !== ''} class:two={t.bar.chords.length > 1}>
+  <li class:large={t.large} class:cue={t.cue !== ''}>
     <span class="cue-label" title={t.cue}>{t.cue}</span>
     {#if t.bar.lead === 'motif' && t.bar.motif}
       <i
@@ -132,13 +132,6 @@
   li.large b {
     font-size: clamp(22px, 6vw, 32px);
     line-height: 1.05;
-  }
-  li.two b {
-    font-size: 14px;
-    line-height: 1.4;
-  }
-  li.large.two b {
-    font-size: clamp(15px, 4vw, 21px);
   }
   small {
     display: block;

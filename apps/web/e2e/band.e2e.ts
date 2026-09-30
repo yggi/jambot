@@ -26,8 +26,8 @@ test('plays, follows on screen, and stops at once, without an error', async ({ p
   await start(page);
   // Only the plan says where in its section the bar heard is: the song map
   // names the intro before anything is heard.
-  await expect(page.getByText('Bar 1 of 8')).toBeVisible();
-  await expect(page.getByText('Bar 2 of 8')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Intro 1/8')).toBeVisible();
+  await expect(page.getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
   let loudest = 0;
   for (let i = 0; i < 100 && loudest < 0.01; i++) {
     loudest = Math.max(loudest, await level(page));
@@ -194,7 +194,7 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await start(page);
-  await expect(page.getByText('Bar 2 of 8')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
   // Synth-pop at 108 bpm: a step is 15 / 108 s. Three notes four steps apart, in one bar.
   const step = 15 / 108;
   for (const key of ['a', 'd', 'g']) {
@@ -295,7 +295,7 @@ for (const input of INPUTS)
     await input.ready(page);
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await start(page);
-    await expect(page.getByText('Bar 2 of 8')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
     // Synth-pop at 108 bpm: three notes four steps apart, in one bar.
     const step = 15 / 108;
     for (const note of [69, 72, 76]) {
@@ -392,5 +392,43 @@ test('keeps the preset segments inside the style card, in two rows, at 760 px an
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width,
     );
+  }
+});
+
+test('keeps every card the size it is while the band plays, so the layout never shifts, at 760 px and at 360 px', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await listen(page);
+  for (const width of [760, 360]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await solo(page);
+    // The cards whose content follows the band, unfolded.
+    for (const name of ['Plan', 'Chords'])
+      await page.locator(`details[aria-label="${name}"] summary .title`).click();
+    const seen = new Map<string, Set<number>>();
+    const sample = async () => {
+      const sizes = await page
+        .locator('details.card')
+        .evaluateAll((cards) =>
+          cards.map((card) => [
+            card.getAttribute('aria-label')!,
+            card.getBoundingClientRect().height,
+          ]),
+        );
+      for (const [name, height] of sizes as [string, number][])
+        seen.set(name, (seen.get(name) ?? new Set()).add(Math.round(height)));
+    };
+    await sample();
+    await start(page);
+    // Some 20 s: past the first chords, and past the section change at bar 8.
+    for (let t = 0; t < 70; t++) {
+      await page.waitForTimeout(300);
+      await sample();
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(8);
+    for (const [name, heights] of seen)
+      expect([...heights], `${name} at ${width} px`).toHaveLength(1);
   }
 });

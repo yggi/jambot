@@ -118,7 +118,7 @@ describe('the chords', () => {
       expect(sub(before.container)).toHaveTextContent(/^then G · VII$/);
       before.unmount();
       const past = render(Chords, { hud: heard });
-      expect(sub(past.container)).toBeNull();
+      expect(sub(past.container)).toHaveTextContent('');
     });
   });
 

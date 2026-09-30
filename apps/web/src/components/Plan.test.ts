@@ -67,13 +67,13 @@ describe('the plan', () => {
   it('heads with the section heard and its bar in it, counted from 1 of the section’s bars (finite: every bar of a section)', () => {
     for (let i = 0; i < SECTION_BARS; i++) {
       const { container, unmount } = render(Plan, { hud: hudAt(SECTION_BARS + i), playing: true });
-      expect(name(container)).toHaveTextContent(`Groove · bar ${i + 1} of ${SECTION_BARS}`);
+      expect(name(container)).toHaveTextContent(`Groove ${i + 1}/${SECTION_BARS}`);
       unmount();
     }
     const { container } = render(Plan, { hud: hudAt(9), playing: true });
-    expect(name(container)).toHaveTextContent('Groove · bar 2 of 8');
+    expect(name(container)).toHaveTextContent('Groove 2/8');
     // The bar in the section is said once on the page, which the end-to-end checks rely on.
-    expect(screen.getAllByText(/bar 2 of 8/i)).toHaveLength(1);
+    expect(screen.getAllByText(/Groove 2\/8/)).toHaveLength(1);
   });
 
   it('says the key heard, and the key the band is heading for where it differs', () => {
