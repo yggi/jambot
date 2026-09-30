@@ -51,6 +51,9 @@ Two things run today:
     Start counts the band in with a bar of clicks, and Stop ends the song on a
     cadence that rings on, in a session too: the host tells its clients which
     bar is the last.
+    The lobby's Extras card holds a metronome that loops one bar of any named
+    meter, 5/4 to 12/8, with accents graded by a tree over its pulses, to hear
+    a meter before the engine plays one.
     It can host or join a session across the tabs of one browser or, through
     [`apps/lobby`](apps/lobby), across machines.
     A client whose link drops rejoins as the same player, and a host that
