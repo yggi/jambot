@@ -5,7 +5,7 @@
  * place on it is what the keyboard below it would show.
  */
 
-import { PIANO_BANDS } from '@jambot/spectrum';
+import { type Harmonic, PIANO_BANDS } from '@jambot/spectrum';
 import { frequencyOf } from '@jambot/theory';
 
 export interface PlotSize {
@@ -53,5 +53,34 @@ export function octaveMarks(width: number): Mark[] {
   return Array.from({ length: 8 }, (_, i) => ({
     name: `C${i + 1}`,
     x: xOfHz(frequencyOf(12 * (i + 2)), width),
+  }));
+}
+
+/** One harmonic's bar: where it stands, how high, and how far sharp or flat of its exact multiple. */
+export interface HarmonicBar {
+  number: number;
+  x: number;
+  width: number;
+  /** From 0 at the floor (−60 dB) to the plot's height at full (0 dB); 0 where the harmonic is missing. */
+  height: number;
+  present: boolean;
+  /** Sideways from the bar's middle, in the plot's units: ±50 cents is half the bar's width either way. */
+  offset: number;
+}
+
+/** The harmonics as bars, side by side across a plot `width` wide and `height` tall. */
+export function harmonicBars(
+  harmonics: readonly Harmonic[],
+  { width, height }: { width: number; height: number },
+): HarmonicBar[] {
+  const slot = width / Math.max(1, harmonics.length);
+  const barWidth = slot * 0.7;
+  return harmonics.map((h, i) => ({
+    number: h.number,
+    x: i * slot + (slot - barWidth) / 2,
+    width: barWidth,
+    height: h.db === null ? 0 : Math.min(1, Math.max(0, (h.db + 60) / 60)) * height,
+    present: h.db !== null,
+    offset: h.cents === null ? 0 : Math.max(-1, Math.min(1, h.cents / 50)) * (barWidth / 2),
   }));
 }

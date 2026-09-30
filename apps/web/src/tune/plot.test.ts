@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { PIANO_BANDS, bandCentres } from '@jambot/spectrum';
 import { describe, expect, it } from 'vitest';
-import { octaveMarks, spectrumPath, xOfHz } from './plot.ts';
+import { harmonicBars, octaveMarks, spectrumPath, xOfHz } from './plot.ts';
 
 const size = { width: 700, height: 100 };
 const centres = bandCentres(PIANO_BANDS);
@@ -56,5 +56,42 @@ describe('octaveMarks', () => {
       expect(mark.x).toBeGreaterThan(0);
       expect(mark.x).toBeLessThanOrEqual(size.width);
     }
+  });
+});
+
+describe('harmonicBars', () => {
+  const harmonics = [
+    { number: 1, hz: 220, db: 0, cents: 0 },
+    { number: 2, hz: 440, db: -30, cents: 5 },
+    { number: 3, hz: null, db: null, cents: null },
+  ];
+
+  it('gives a bar to each harmonic, side by side, as high as its level: full at 0 dB, the floor at −60, nothing where it is missing', () => {
+    const bars = harmonicBars(harmonics, { width: 300, height: 60 });
+    expect(bars.map((b) => b.number)).toEqual([1, 2, 3]);
+    expect(bars.map((b) => b.height)).toEqual([60, 30, 0]);
+    expect(bars.map((b) => b.present)).toEqual([true, true, false]);
+    for (let i = 1; i < bars.length; i++)
+      expect(bars[i]!.x).toBeGreaterThan(bars[i - 1]!.x + bars[i - 1]!.width - 1e-9);
+    expect(bars.at(-1)!.x + bars.at(-1)!.width).toBeLessThanOrEqual(300);
+  });
+
+  it('keeps a level above 0 or below the floor inside the plot', () => {
+    const bars = harmonicBars(
+      [
+        { number: 1, hz: 1, db: 6, cents: 0 },
+        { number: 2, hz: 2, db: -90, cents: 0 },
+      ],
+      { width: 100, height: 40 },
+    );
+    expect(bars.map((b) => b.height)).toEqual([40, 0]);
+  });
+
+  it('says how far each is from its exact multiple, in a range of ±50 cents mapped to the bar’s own width', () => {
+    const [bar] = harmonicBars([{ number: 1, hz: 1, db: 0, cents: 25 }], {
+      width: 100,
+      height: 40,
+    });
+    expect(bar!.offset).toBeCloseTo(0.5 * (bar!.width / 2), 6);
   });
 });

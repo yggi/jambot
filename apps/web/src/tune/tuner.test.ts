@@ -1,7 +1,7 @@
-import { analyse, noise, sum } from '@jambot/spectrum';
+import { analyse, harmonic, noise, sum } from '@jambot/spectrum';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Analyse } from './analysis.ts';
-import { tone, world } from './fixtures.ts';
+import { sampleRate, tone, world } from './fixtures.ts';
 import { type Mic, MicDenied } from './mic.ts';
 import { HOLD_TICKS, TICK_MS, Tuner } from './tuner.svelte.ts';
 
@@ -223,5 +223,66 @@ describe('the tuner', () => {
     await starting;
     expect(tuner.status).toBe('idle');
     expect(w.log.stopped).toBe(1);
+  });
+
+  describe('the tone', () => {
+    const made = (hz: number, levels: number[]) => harmonic(hz, levels, 16384, sampleRate);
+
+    it('says what the note is made of: the level of each harmonic, and how wide the note is', async () => {
+      const w = world();
+      w.heard.signal = made(220, [1, 0.5, 0.25]);
+      const tuner = await listen(w);
+      const tone = tuner.tone!;
+      expect(tone.harmonics).toHaveLength(12);
+      expect(tone.harmonics[0]!.db).toBeCloseTo(0, 0);
+      expect(tone.harmonics[1]!.db).toBeCloseTo(-6, 0);
+      expect(tone.harmonics[3]!.db).toBeNull();
+      expect(tone.width).toBeLessThan(3);
+      expect(tone.fingerprint).toHaveLength(12);
+    });
+
+    it('holds it as the note is held, and lets it go with it', async () => {
+      const w = world();
+      w.heard.signal = made(220, [1, 0.5]);
+      const tuner = await listen(w);
+      w.heard.signal = new Float64Array(16384);
+      await vi.advanceTimersByTimeAsync(TICK_MS * HOLD_TICKS);
+      expect(tuner.tone).not.toBeNull();
+      await vi.advanceTimersByTimeAsync(TICK_MS);
+      expect(tuner.tone).toBeNull();
+    });
+
+    it('remembers a sound, and says how far from it the next is: the same tone at another pitch is near, another tone is far', async () => {
+      const w = world();
+      w.heard.signal = made(220, [1, 0.5, 0.25, 0.125]);
+      const tuner = await listen(w);
+      expect(tuner.difference).toBeNull();
+      tuner.remember();
+      expect(tuner.remembered).not.toBeNull();
+      expect(tuner.difference).toBeCloseTo(0, 6);
+      w.heard.signal = made(330, [1, 0.5, 0.25, 0.125]);
+      await vi.advanceTimersByTimeAsync(TICK_MS);
+      expect(tuner.difference!).toBeLessThan(3);
+      w.heard.signal = made(220, [0.2, 0.3, 1, 0.9, 0.8, 0.7, 0.6]);
+      await vi.advanceTimersByTimeAsync(TICK_MS);
+      expect(tuner.difference!).toBeGreaterThan(6);
+      tuner.forget();
+      expect(tuner.remembered).toBeNull();
+      expect(tuner.difference).toBeNull();
+    });
+
+    it('has nothing to remember before it hears a note, and keeps the memory when it stops', async () => {
+      const w = world();
+      const tuner = new Tuner({ mic: w.source, analyse: w.analyseHere });
+      tuner.remember();
+      expect(tuner.remembered).toBeNull();
+      w.heard.signal = made(220, [1, 0.5]);
+      await tuner.start();
+      await vi.advanceTimersByTimeAsync(TICK_MS);
+      tuner.remember();
+      tuner.stop();
+      expect(tuner.tone).toBeNull();
+      expect(tuner.remembered).not.toBeNull();
+    });
   });
 });
