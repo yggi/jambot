@@ -20,20 +20,22 @@
  * (`performer.ts`). Where two roles land on one sound and step, one hit is
  * written, the stronger role's. The drums carry nothing from bar to bar, so
  * any bar plays from its environment alone.
+ *
+ * They are written on the bar's meter (#260): its steps (`stepsOf`), its
+ * pulses, and the accent grades of its tree (`accentsOf`), which give the
+ * straight kick its weights (the downbeat, the half, the pulses) as 4/4's
+ * `[1, 0, 0, 0, f, 0, 0, 0, 0.9, …]` had them. The backbeat is the pulses
+ * `backbeatOf` names, the offbeats the eighths between pulses, and the tables
+ * written on 4/4's 16 steps, the syncopated kick and the ghosts, are read in
+ * another meter by the rule (`regroup.ts`). In 4/4 every bar is what it was.
  */
 
-import { even, positions } from '@jambot/theory';
+import { type Meter, even, meterOnSteps, positions, stepsOf, accentsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
-import {
-  BAR_STEPS,
-  DRUM_ROLES,
-  type DrumRole,
-  type WrittenNote,
-  beatStart,
-  onBeat,
-} from './events.ts';
+import { DRUM_ROLES, type DrumRole, type WrittenNote } from './events.ts';
 import { SECTION_BARS } from './form.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
+import { type Regroup, readOnMeter } from './regroup.ts';
 import { swingParts } from './swing.ts';
 
 /** The General MIDI drum notes the band plays. */
@@ -78,9 +80,28 @@ const smooth = (u: number) => {
   return x * x * (3 - 2 * x);
 };
 
-/** The drum hits a bar writes, in order of step and note. */
-export function drums(env: BarEnv): WrittenNote[] {
-  const { seed, bar, barInSection, style, barEnergy: energy } = env;
+/**
+ * The pulses, from 0, the snare's backbeat falls on: every pulse after the
+ * downbeat in a bar of two or three, the odd ones from four up, so 4/4's
+ * second and fourth, 12/8's second and fourth, 6/8's second and 3/4's second
+ * and third.
+ */
+export function backbeatOf(meter: Meter): number[] {
+  const pulses = meter.heights.length;
+  return Array.from({ length: pulses }, (_, pulse) => pulse).filter((pulse) =>
+    pulses <= 3 ? pulse > 0 : pulse % 2 === 1,
+  );
+}
+
+/** The step of a bar's second half, on an eighth: 8 of 4/4's 16. */
+const halfOf = (steps: number) => 2 * Math.floor(steps / 4);
+
+/** The step three quarters through, on an eighth: 12 of 16. */
+const lateOf = (steps: number) => 2 * Math.floor((steps * 3) / 8);
+
+/** The drum hits a bar writes, in order of step and note. `regroup` is how a table written on 4/4's steps is read in another meter. */
+export function drums(env: BarEnv, regroup: Regroup = 'fold'): WrittenNote[] {
+  const { seed, bar, barInSection, style, barEnergy: energy, meter } = env;
   const { section } = env.plan;
   const { sync, swing, artic, harm, entropy } = style;
   const eighth = swingParts(swing).eighth;
@@ -90,6 +111,19 @@ export function drums(env: BarEnv): WrittenNote[] {
   /** Whether a role plays on a step with probability p. */
   const plays = (role: keyof typeof ROLE, step: number, p: number) =>
     chance(heldDraw(seed, HELD, ROLE[role], section.index, bar, step, entropy), p);
+
+  const steps = stepsOf(meter);
+  const starts = meterOnSteps(meter).heights;
+  const pulseAt = new Set(starts);
+  const accents = accentsOf(meter);
+  const backbeat = new Set(backbeatOf(meter).map((pulse) => starts[pulse]!));
+  const offbeatAfter = (on: (step: number) => boolean) =>
+    new Set(starts.filter(on).map((step) => step + 2));
+  const afterBackbeat = offbeatAfter((step) => backbeat.has(step));
+  const afterOthers = offbeatAfter((step) => !backbeat.has(step));
+  const half = halfOf(steps);
+  const kickSyncopated = readOnMeter(KICK_SYNCOPATED, meter, regroup, bar);
+  const ghosts = readOnMeter(GHOSTS, meter, regroup, bar);
 
   const hits = new Map<number, WrittenNote>();
   /** A hit; where one is already on this step and note, the stronger role stays. */
@@ -103,9 +137,9 @@ export function drums(env: BarEnv): WrittenNote[] {
 
   if (section.type === 'breakdown') {
     if (energy > 0.2)
-      for (let beat = 0; beatStart(beat) < BAR_STEPS; beat++)
-        add(beatStart(beat) + 2, eighth > 0.5 ? DRUM_NOTES.ride : DRUM_NOTES.closedHat, 'hat');
-    if (last) for (let s = 8; s < BAR_STEPS; s++) add(s, DRUM_NOTES.snare, 'fill');
+      for (const start of starts)
+        add(start + 2, eighth > 0.5 ? DRUM_NOTES.ride : DRUM_NOTES.closedHat, 'hat');
+    if (last) for (let s = half; s < steps; s++) add(s, DRUM_NOTES.snare, 'fill');
     return played();
   }
 
@@ -113,30 +147,32 @@ export function drums(env: BarEnv): WrittenNote[] {
   const openHat = clamp01(artic * (1 - eighth) * (1 - harm) * 1.3 - 0.25) * density;
   // One and three, with two and four filling in as four on the floor.
   const f = fourOnFloor;
-  const kickStraight = [1, 0, 0, 0, f, 0, 0, 0, 0.9, 0, 0, 0, f, 0, 0, 0];
-  for (let s = 0; s < BAR_STEPS; s++) {
+  const kickStraight = Array.from({ length: steps }, (_, s) =>
+    s === 0 ? 1 : !pulseAt.has(s) ? 0 : accents[s / 2] === 'half' && starts.length >= 4 ? 0.9 : f,
+  );
+  for (let s = 0; s < steps; s++) {
     const kick =
-      lerp(kickStraight[s]!, KICK_SYNCOPATED[s]!, sync) *
+      lerp(kickStraight[s]!, kickSyncopated[s]!, sync) *
       (s === 0 ? 1 : density) *
       (1 - 0.55 * eighth);
     if (plays('kick', s, kick)) add(s, DRUM_NOTES.kick, 'kick');
 
-    if (s === 4 || s === 12) {
+    if (backbeat.has(s)) {
       if (energy > 0.25 && plays('backbeat', s, 1 - 0.8 * eighth))
         add(s, DRUM_NOTES.snare, 'backbeat');
-    } else if (plays('ghost', s, GHOSTS[s]! * sync * density * 0.9 + eighth * 0.12 * density))
+    } else if (plays('ghost', s, ghosts[s]! * sync * density * 0.9 + eighth * 0.12 * density))
       add(s, DRUM_NOTES.snare, 'ghost');
 
     let hat =
       s % 2 === 0 ? clamp01(0.15 + energy * 1.1) : clamp01((energy - 0.55) * 2.5) * (1 - eighth);
     if (eighth > 0) {
-      if (onBeat(s)) hat = Math.max(hat, eighth);
-      if (s === 6 || s === 14) hat = Math.max(hat, eighth * 0.95);
-      if (s === 2 || s === 10) hat *= 1 - 0.7 * eighth;
+      if (pulseAt.has(s)) hat = Math.max(hat, eighth);
+      if (afterBackbeat.has(s)) hat = Math.max(hat, eighth * 0.95);
+      if (afterOthers.has(s)) hat *= 1 - 0.7 * eighth;
     }
     hat *= Math.max(density, eighth * 0.8);
     if (plays('hat', s, hat)) {
-      const open = s % 4 === 2 && plays('open', s, openHat);
+      const open = s % 2 === 0 && !pulseAt.has(s) && plays('open', s, openHat);
       const note = open
         ? DRUM_NOTES.openHat
         : plays('ride', s, eighth)
@@ -144,7 +180,7 @@ export function drums(env: BarEnv): WrittenNote[] {
           : DRUM_NOTES.closedHat;
       add(s, note, 'hat');
     }
-    if (eighth > 0.3 && (s === 4 || s === 12) && plays('pedal', s, eighth))
+    if (eighth > 0.3 && backbeat.has(s) && plays('pedal', s, eighth))
       add(s, DRUM_NOTES.pedalHat, 'pedal');
   }
 
@@ -153,12 +189,12 @@ export function drums(env: BarEnv): WrittenNote[] {
   if (plays('euclid', 0, sync * density * (1 - 0.7 * eighth) * 1.3)) {
     const k = [3, 5, 7][Math.min(2, Math.floor(energy * 3))]!;
     const rotation = Math.floor(draw(seed, 'drumEuclid', section.index) * 4 * sync);
-    for (const s of positions(even(k, BAR_STEPS, rotation))) add(s, DRUM_NOTES.rim, 'euclid');
+    for (const s of positions(even(k, steps, rotation))) add(s, DRUM_NOTES.rim, 'euclid');
   }
 
   if (last && (section.type === 'build' || plays('fill', 0, 0.35 + 0.3 * sync))) {
-    const from = section.type === 'build' ? 8 : 12;
-    for (let s = from; s < BAR_STEPS; s++) add(s, DRUM_NOTES.snare, 'fill');
+    const from = section.type === 'build' ? half : lateOf(steps);
+    for (let s = from; s < steps; s++) add(s, DRUM_NOTES.snare, 'fill');
   }
   return played();
 }

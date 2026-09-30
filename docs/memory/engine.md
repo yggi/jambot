@@ -34,6 +34,9 @@ The pointers to what holds each are in the sentences.
   The track holds glides ahead, so the forecast is what plays unless a control moves.
 - The parts are machines at bar rate over one `BarEnv`, and `BandBar` is that environment plus the events and the bar's `sound`.
   `BarEnv.meter` is the meter the bar is in, whose steps it has (`stepsOf`, from `@jambot/theory`): the band gives the song's 4/4, and no part reads it yet, since each still writes 16 steps (#260, decision (k)); a test that builds a `BarEnv` by hand gives `meter: SONG_METER`.
+  The drums read it (#260, slice 2): a bar's steps are `stepsOf(meter)`, the straight kick takes its weights from the accent tree (`accentsOf`: the downbeat, the half, the pulses), the snare's backbeat is `backbeatOf` (every pulse after the downbeat of two or three, the odd ones from four), and the two tables written on 4/4's 16 steps, the syncopated kick and the ghosts, are read by the rule in another meter (`regroup.ts`, `readOnMeter`: `fold`, the default, or `cycle`).
+  4/4 is what it was, bar for bar (`identity.test.ts`); in any meter a hit lands on a step the bar has (`writtenProblems(hit, steps)`).
+  The fold loses a hit where two land on one step and the stronger stays; in a bar of two pulses the cycle only reaches the pattern's odd pulses.
   The drums carry nothing; the bass its last note, the comp its last voicing, the lead its last note, its phrase and its themes' melodies (`BandCarried.parts`).
   A passed bar leaves the parts where they were, and only the lead's memory reaches more than register (S2); the band's harmonic history is the plan's, not a part's.
   The Muse judges each source's bar into a `Motif` (U4, `judgeBar` in `muse.ts`): onsets with rests, where a note was released before the next, and degrees of the key altered by `b` or `#`, written as a numeral writes a root off the key.
