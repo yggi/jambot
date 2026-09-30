@@ -20,6 +20,7 @@ const PURE_SOURCES = [
   'packages/engine/src',
   'packages/score/src',
   'packages/session/src',
+  'packages/spectrum/src',
   'packages/theory/src',
 ] as const;
 
@@ -50,6 +51,26 @@ export const AUDITED: Readonly<Record<string, string>> = {
     "partial()'s Math.log2 is a fixed constant per integer n (a harmonic " +
     "series partial), not a per-play draw, and far from a semitone's rounding " +
     'boundary for the small n in use.',
+  'packages/spectrum/src/fft.ts':
+    "Math.cos and Math.sin build the transform's twiddle factors and the window: " +
+    'a last-bit difference moves a magnitude by a last bit, and the only decisions ' +
+    'made from them (`peaks.ts`, `pitch.ts`) compare values that differ by far more, ' +
+    'or between two near-equal candidates either of which is a right reading. No ' +
+    'chance(), pick() or step is drawn from them, and a frame is heard, never ' +
+    'replayed to the same bit on two machines.',
+  'packages/spectrum/src/peaks.ts':
+    'Math.log and Math.exp place a peak between bins from the logarithm of three ' +
+    'magnitudes: a continuous value, read as a frequency to show, and a local ' +
+    'maximum is decided by comparing magnitudes, not these results.',
+  'packages/spectrum/src/signals.ts':
+    'Math.sin makes a test signal: samples, not a choice, and the estimators are ' +
+    'tested to a tolerance far above a last bit.',
+  'packages/theory/src/tuning.ts':
+    "pitchOf()'s Math.log2 reaches a Math.round, but only half-way between two " +
+    'notes, where either neighbour is right and the cents it returns (about ±50) ' +
+    'and the note agree either way, so an engine one ulp apart gives a reading ' +
+    "as good; frequencyOf()'s power is a frequency to show or to compare, never a " +
+    'chance(), pick() or a step.',
 };
 
 /** A repository as this check sees it: a reader over paths under a directory. */

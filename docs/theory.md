@@ -502,6 +502,16 @@ seventh partial is 31 cents from the nearest semitone.
 
 Tests: `intervals.test.ts`.
 
+## Tuning
+
+`frequencyOf(midi, reference)` is a note's frequency in equal temperament, A4 (note 69) at 440 Hz unless the reference says otherwise, and the note may be fractional.
+`pitchOf(hz, reference)` reads a frequency the other way, as the nearest note, its distance in cents (sharp positive, from −50 to 50) and in Hz, and the nearest note's own frequency.
+It is the same 12 · log2 that `partial` rounds, so the seventh partial reads 31 cents flat.
+Silence and anything that is not a positive frequency read as no pitch.
+The tuner (#269) shows this reading, from `packages/spectrum`'s frequency.
+
+Tests: `tuning.test.ts` runs every MIDI note at every whole cent between −49 and 49 and four references, against tonal for the frequencies.
+
 ## Names and readings
 
 `read(name, context)` reads a name as a note, an interval, a degree, a chord, a
