@@ -345,6 +345,13 @@
     display: grid;
     gap: 22px;
   }
+  /* A phone on its side: tighter, so more of the cards show at once. */
+  @media (max-height: 500px) {
+    main {
+      padding: 8px 14px;
+      gap: 10px;
+    }
+  }
   main > * {
     min-width: 0;
   }

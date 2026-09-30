@@ -20,6 +20,8 @@
   --glyph-dim: var(--muted);
   --glyph-accent: var(--teal);
   --glyph-size: 52px;
+  /* The glyph's size where height is short (a phone on its side): the two lines of a compact summary. */
+  --glyph-compact: 40px;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {

@@ -85,7 +85,7 @@
   .card {
     border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 12px 16px;
+    padding: 10px 14px;
     min-width: 0;
   }
   .card > :global(:not(summary)) {
@@ -139,7 +139,6 @@
   .main {
     grid-area: main;
     min-width: 0;
-    margin-top: 4px;
     container-type: inline-size;
   }
   /* The type shrinks with the room, so a long chord name fits in one line on a phone. */
@@ -159,6 +158,46 @@
     grid-area: sub;
     min-height: 1.35em;
     font-size: 13px;
+    line-height: 1.3;
     color: var(--muted);
+  }
+  /*
+    A phone on its side has little height and plenty of width, so the summary
+    gives up its third line: the sub element sits beside the title, and the
+    glyph shrinks to the two lines left. A closed card is then about 60 px, and
+    a stack of them fits the screen with room to scroll less.
+  */
+  @media (max-height: 500px) {
+    .card {
+      padding: 8px 12px;
+    }
+    .card > :global(:not(summary)) {
+      margin-top: 10px;
+    }
+    summary {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        'title sub chevron'
+        'main main main';
+      column-gap: 10px;
+    }
+    summary.with-glyph {
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        'glyph title sub chevron'
+        'glyph main main main';
+      column-gap: 12px;
+    }
+    .glyph {
+      width: var(--glyph-compact);
+      height: var(--glyph-compact);
+    }
+    .sub {
+      min-height: 0;
+    }
+    .fit {
+      font-size: clamp(18px, 10cqw, 24px);
+      line-height: 1.1;
+    }
   }
 </style>

@@ -434,3 +434,38 @@ test('keeps every card the size it is while the band plays, so the layout never 
       expect([...heights], `${name} at ${width} px`).toHaveLength(1);
   }
 });
+
+test('keeps a closed card short and the space between cards small on a phone on its side, at 844 x 390 and 667 x 375', async ({
+  page,
+}) => {
+  await listen(page);
+  for (const [width, height] of [
+    [844, 390],
+    [667, 375],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await solo(page);
+    await expect(page.locator('details.card').first()).toBeVisible();
+    const cards = await page.locator('details.card:not([open])').evaluateAll((all) =>
+      all.map((card) => {
+        const box = card.getBoundingClientRect();
+        return { name: card.getAttribute('aria-label')!, top: box.top, bottom: box.bottom };
+      }),
+    );
+    expect(cards.length, `closed cards at ${width} x ${height}`).toBeGreaterThanOrEqual(7);
+    for (const card of cards) {
+      // The session and the sound card carry a control of touch size (44 and 32 px) in the summary.
+      const limit = ['Session', 'Sound'].includes(card.name) ? 80 : 64;
+      expect(card.bottom - card.top, `${card.name} at ${width} x ${height}`).toBeLessThanOrEqual(
+        limit,
+      );
+    }
+    // The cards are listed in page order, so each gap is to the next one shown closed.
+    for (let i = 1; i < cards.length; i++) {
+      const gap = cards[i]!.top - cards[i - 1]!.bottom;
+      if (gap < 40)
+        expect(gap, `${cards[i]!.name} at ${width} x ${height}`).toBeLessThanOrEqual(12);
+    }
+  }
+});
