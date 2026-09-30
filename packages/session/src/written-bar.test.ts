@@ -1,4 +1,4 @@
-import { type BandBar, INITIAL_STYLE, SONG_METER, band, playBar } from '@jambot/engine';
+import { type BandBar, INITIAL_STYLE, band, playBar } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { writtenBar } from './host.ts';
 
@@ -25,19 +25,19 @@ function aBar(): BandBar {
 }
 
 describe('a bar as it travels', () => {
-  it('leaves the meter and the dough behind: the meter is the song’s 4/4, and the client plays the dough itself', () => {
+  it('leaves the bar’s own meter and the dough behind: the meter travels in the plan, and the client plays the dough itself', () => {
     const played = aBar();
-    expect(played.meter).toBe(SONG_METER);
+    expect(played.meter).toBe(played.plan.meter);
     const sent = writtenBar(played);
     expect(Object.keys(sent)).not.toContain('meter');
     expect(Object.keys(sent)).not.toContain('dough');
     expect(Object.keys(JSON.parse(JSON.stringify(sent)) as object)).not.toContain('meter');
   });
 
-  it('plays as the host played it once the client gives the song’s meter back', () => {
+  it('plays as the host played it once the client gives the plan’s meter back', () => {
     const played = aBar();
     const { written, ...rest } = writtenBar(played);
-    const followed = playBar({ ...rest, meter: SONG_METER }, written);
+    const followed = playBar({ ...rest, meter: rest.plan.meter }, written);
     expect(followed).toEqual(played);
   });
 });

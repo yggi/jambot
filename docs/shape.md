@@ -63,14 +63,14 @@ Here is where each stands in the entries.
 The widest gap between the two shapes.
 Each row is a rule the owner took, and the code that would witness it.
 
-| Rule                                                             | Entries          | What is missing in the code                                                                                                    |
-| ---------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| (k) an onset is relative to the meter                            | U6, T12          | the parts write their onsets on the meter (#260); the section's meter reaches the transport (#261)                             |
-| A meter in the bar's header                                      | T6, T10          | #63 step 6: bars are 4/4 (`SONG_METER`) and the header states no meter                                                         |
-| The signature is the composer's, the metrum the players' licence | T6, T10, T18, C8 | #261: a section carries its meter and the metrum shows it read-only; tempo, swing and the accents' spread are nudged within it |
-| Swing on the pulse                                               | T11, T16         | the transport plays no meter change (T14): `swingMap` is meter-aware, the transport is not                                     |
-| The text step between band and player                            | Q1a, F3          | #63 step 5: `compile(encode(written))` is tested, not in the path of the band                                                  |
-| Pitch lines written and read back                                | U1, S2           | #63 step 3: header, harmony, six drum sounds, the bass, the pad and the stab; the lead and the snare open                      |
+| Rule                                                             | Entries          | What is missing in the code                                                                                                                  |
+| ---------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| (k) an onset is relative to the meter                            | U6, T12          | #260: the parts write their onsets on the meter; the score writes a bass's as steps of the bar (#263)                                        |
+| A meter in the bar's header                                      | T6, T10          | #63 step 5: the header states a meter (#261), and nothing reads a text into the band yet                                                     |
+| The signature is the composer's, the metrum the players' licence | T6, T10, T18, C8 | a section carries its meter (#261); the metrum card shows it read-only, and tempo, swing and the accents' spread are nudged within it (#262) |
+| Swing on the pulse                                               | T11, T16         | the transport swings by each bar's pulses (T14); the metronome and the web's readers still assume 4/4 (#262)                                 |
+| The text step between band and player                            | Q1a, F3          | #63 step 5: `compile(encode(written))` is tested, not in the path of the band                                                                |
+| Pitch lines written and read back                                | U1, S2           | #63 step 3: header, harmony, six drum sounds, the bass, the pad and the stab; the lead and the snare open                                    |
 
 ## Claims with no witness
 

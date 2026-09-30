@@ -77,6 +77,7 @@ import {
   type TransportEnv,
   type TransportOutput,
   NO_HISTORY,
+  clockOfTransport,
   countIn,
   countInSeconds,
   foldBar,
@@ -561,7 +562,7 @@ export class Player {
     if (this.status !== 'playing' || !carried) return null;
     return {
       song: { seed: this.#seed, start: this.#start, track: this.track },
-      bars: sentBars(carried.bars, this.#laid, carried.head, this.track),
+      bars: sentBars(carried.bars, this.#laid, carried.head, this.track, clockOfTransport(carried)),
     };
   }
 
@@ -756,7 +757,13 @@ export class Player {
       }
       if (scheduled.composed.length > 0)
         this.hosting.composed(
-          sentBars(scheduled.composed, scheduled.steps, carried!.head, this.track),
+          sentBars(
+            scheduled.composed,
+            scheduled.steps,
+            carried!.head,
+            this.track,
+            clockOfTransport(carried),
+          ),
         );
       if (
         logged.length > 0 ||
@@ -823,7 +830,7 @@ export class Player {
     const heard = this.writtenPosition(heardOn(output));
     if (heard !== null) {
       const keyOf = (bar: number) => follow.keys.find((k) => k.bar === bar)?.key;
-      const ear = earListen(follow.ear, this.#arrived, heard, keyOf);
+      const ear = earListen(follow.ear, this.#arrived, heard, keyOf, clockOfTransport(carried));
       follow.ear = ear.carried;
       if (ear.judged.length > 0) follow.told.judged(ear.judged);
     }

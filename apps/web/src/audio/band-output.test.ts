@@ -159,6 +159,7 @@ describe('bandOutput', () => {
         seconds: 0,
         length: 0.5,
         swing: 0,
+        pulse: { start: 0, length: 4 },
       },
     ]);
     expect(sent).toEqual([]);
@@ -173,6 +174,7 @@ describe('bandOutput', () => {
         seconds: 0,
         length: 0.5,
         swing: 0,
+        pulse: { start: 0, length: 4 },
       },
     ]);
     expect(sent.filter((m) => m.data[0] === 0xf8)).toHaveLength(6);

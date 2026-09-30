@@ -44,8 +44,14 @@ The pointers to what holds each are in the sentences.
   A theme's slot step is scaled by `slotStepOn`, which keeps its parity so an odd slot stays on a sixteenth.
   The dynamics' accents, the style and voice readers (`readStyle`, `readVoice`, given a meter) and the ending (`finale` lands at `slotStepOn(meter, LANDING)`, the count-in clicks once per pulse) follow `BarEnv.meter`.
   The Muse and the phrase readers take a `SongClock` (default `SONG_CLOCK`) for where bars fall, and a judged motif's cycle is the clock's `barSteps`; `BAR_LENGTHS` admits only the steps of a named meter's bar (10, 12, 14, 16, 18, 20, 24).
-  The meter stays off the wire (protocol 7): a client restores `SONG_METER`.
-  The transport, the metronome, the swing, `PRESET_GLIDE` and the web readers still run on the song's 4/4 clock, until a section carries its meter (#261).
+  A section has a meter (#261): the plan holds it (`Plan.meter`) beside the key, taken at the section boundary from the meter asked for (`BandEnv.meter`, `TransportEnv.meter`, 4/4 where none is), and a bar's `BarEnv.meter` is its plan's.
+  The transport lays the bars on the song's clock as far as they are composed: it carries where the meter changes (`TransportCarried.meters`, the first at bar 0) and reads bars and beats from `clockOf` of them (`clockOfTransport`), learning a bar's meter as it composes or passes it (`BarSource.meterOf` gives it before a bar is composed, so a stall can pass a bar of another meter by its length).
+  A bar is composed when the head is within `ahead` steps of where it starts (`barStart(nextBar) <= head + ahead`), which needs only the meters of the bars before it.
+  Swing is read off the clock's beats (`swingOf(track, clock)`, `swingMapAt`): a step keeps the start and length of its pulse (`ScheduledStep.pulse`), which `writtenAt` undoes its swing over.
+  A note that runs into a bar not yet composed ends by the meter before it, which only moves its end where the swing does.
+  `lookAhead`, `forecast` and `foresight` read each bar's environment from the clock of the bars before it, so a preview across a change is what plays.
+  The protocol is 8: the meter travels in the bar's plan, and the client gives it back to the bar (`follow.ts`).
+  The metronome, `PRESET_GLIDE` (a number of steps, not bars) and the web readers still run on the song's 4/4 clock, until the web reads the transport's (#262).
   The drums carry nothing; the bass its last note, the comp its last voicing, the lead its last note, its phrase and its themes' melodies (`BandCarried.parts`).
   A passed bar leaves the parts where they were, and only the lead's memory reaches more than register (S2); the band's harmonic history is the plan's, not a part's.
   The Muse judges each source's bar into a `Motif` (U4, `judgeBar` in `muse.ts`): onsets with rests, where a note was released before the next, and degrees of the key altered by `b` or `#`, written as a numeral writes a root off the key.

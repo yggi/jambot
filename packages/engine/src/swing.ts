@@ -32,7 +32,7 @@ import {
   heightOf,
   meterOnSteps,
 } from '@jambot/theory';
-import { beatAt, beatStart } from './events.ts';
+import { SONG_CLOCK, type SongClock } from './events.ts';
 import { type StyleTrack, valueAt } from './style.ts';
 
 /** Positions in steps, a beat being 4, or on a clock in seconds. */
@@ -69,13 +69,33 @@ export function swingMap(swing: number, meter: Meter = METERS['4/4']): TimeMap {
 }
 
 /**
+ * The swing map of one pulse, which starts at `start` and is `length` steps
+ * long, wherever on the song's steps it stands: the 16th level, then the 8th
+ * over that one pulse (T11). In 4/4 a beat's is `swingMap`'s there.
+ */
+export function swingMapAt(swing: number, start: number, length: number): TimeMap {
+  const { sixteenth, eighth } = swingParts(swing);
+  return composeTimeMaps(swingLevel(2, sixteenth), pulseAt(start, length, eighth));
+}
+
+/**
  * The swing a style track plays: each beat swings by the swing where it
  * starts. Every beat's map keeps the beat's ends, so beats that swing
  * differently still join in order, and the whole stays invertible. A beat
- * is the finest rate at which that holds.
+ * is the finest rate at which that holds. The beats are the song's clock's
+ * (`clock`, 4/4's where none is given), so a bar of another meter swings by
+ * its own pulses, wherever the bar starts (#261).
  */
-export function swingOf(track: StyleTrack): TimeMap {
-  const at = (x: number) => swingMap(valueAt('swing', track.swing, beatStart(beatAt(x))));
+export function swingOf(track: StyleTrack, clock: SongClock = SONG_CLOCK): TimeMap {
+  const at = (x: number) => {
+    const beat = clock.beatAt(x);
+    const start = clock.beatStart(beat);
+    return swingMapAt(
+      valueAt('swing', track.swing, start),
+      start,
+      clock.beatStart(beat + 1) - start,
+    );
+  };
   return { played: (x) => at(x).played(x), written: (y) => at(y).written(y) };
 }
 
@@ -115,5 +135,14 @@ function pulseLevel(clock: Helix, amount: number): TimeMap {
     const length = heightOf(clock, degree + 1) - start;
     return length === 4 ? start + throughSpan(x - start, from, to, length) : x;
   };
+  return { played: (x) => through(x, half, mid), written: (y) => through(y, mid, half) };
+}
+
+/** The 8th level over one pulse, from `start`, `length` steps long: as `pulseLevel` over the pulse that holds the position. */
+function pulseAt(start: number, length: number, amount: number): TimeMap {
+  const half = 2;
+  const mid = half + (amount * 4) / 6;
+  const through = (x: number, from: number, to: number) =>
+    length === 4 ? start + throughSpan(x - start, from, to, length) : x;
   return { played: (x) => through(x, half, mid), written: (y) => through(y, mid, half) };
 }

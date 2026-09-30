@@ -1,5 +1,6 @@
-- A bar's meter does not travel (`BarEnv.meter`, #260): `WrittenBar` leaves it out and the client gives the song's 4/4 back (`follow.ts`), so the protocol stays at 7.
-  When a section's meter is the score's (#261) it travels with the bar, and that bumps the protocol.
+- A bar's meter travels in its plan (`Plan.meter`, #261), so `WrittenBar` leaves `BarEnv.meter` out and the client gives it back from the plan (`follow.ts`); that shape bumped the protocol to 8.
+  A host sends each bar with where it starts from the clock of the bars it composed (`sentBars`, `clockOfTransport`), and a client's ear judges by the same clock (`earListen`).
+  A client's clock is its own transport's, built from the bars it was sent (`followSource.meterOf` gives a bar's meter before it plays).
 
 # Host and client mode
 

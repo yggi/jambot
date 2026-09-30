@@ -1,4 +1,4 @@
-import { DIATONIC_MODE_NAMES, parseNumeral } from '@jambot/theory';
+import { DIATONIC_MODE_NAMES, METERS, parseNumeral, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_FOLD,
@@ -728,5 +728,57 @@ describe('a pad and a stab (#264: two lines, the voicing in the key frame, the n
     expect(() =>
       encodeBar(bar({ next: { key: { tonic: 12, mode: 'ionian' }, numeral: numeral('I') } })),
     ).toThrow('next: tonic 12 is not a pitch class');
+  });
+});
+
+describe('a bar in a meter (#261)', () => {
+  const inMeter = (name: keyof typeof METERS) => ({ ...A_BAR, meter: METERS[name] });
+  const text = (header: string, drums = '') =>
+    [header, A_TEXT.split('\n')[1]!, 'harm "IVmaj9"', ...(drums ? [drums] : [])].join('\n');
+
+  it('states its meter beside the key, only where it is not 4/4, and reads every named meter back (finite: every meter)', () => {
+    expect(encodeBar(A_BAR)).not.toContain('meter=');
+    for (const [name, meter] of Object.entries(METERS)) {
+      const bar = { ...A_BAR, meter, harm: [{ step: 0, numeral: numeral('IVmaj9') }] };
+      const written = encodeBar(bar);
+      expect([
+        name,
+        written.split('\n')[0]!.includes(`key=C:ionian meter=${name} theme=A`),
+      ]).toEqual([name, name !== '4/4']);
+      expect([name, compileBar(written).meter]).toEqual([name, name === '4/4' ? undefined : meter]);
+    }
+  });
+
+  it('reads a header that states 4/4 as the one that states none, in the one canonical form', () => {
+    const stated = text('bar 186 groove key=C:ionian meter=4/4 theme=A');
+    expect(compileBar(stated)).toEqual(compileBar(text('bar 186 groove key=C:ionian theme=A')));
+    expect(encodeBar(compileBar(stated))).not.toContain('meter=');
+  });
+
+  it('counts the bar’s steps in its meter: step 14 is a step of a 4/4 bar, and none of a 7/8 bar (finite: every meter)', () => {
+    for (const [name, meter] of Object.entries(METERS)) {
+      const steps = stepsOf(meter);
+      const last = `bd "~@${steps - 1} bd"`;
+      const header = `bar 1 groove key=C:ionian meter=${name} theme=A`;
+      expect([name, scoreProblems(text(header, last))]).toEqual([name, []]);
+      const over = { ...inMeter(name as keyof typeof METERS), drums: { kick: [steps] } };
+      expect(() => encodeBar(over)).toThrow(`bd: its steps must rise within the bar's ${steps}`);
+    }
+    expect(encodeBar({ ...A_BAR, drums: { kick: [14] } })).toContain('bd');
+    expect(() => encodeBar({ ...inMeter('7/8'), drums: { kick: [14] } })).toThrow(
+      "within the bar's 14",
+    );
+  });
+
+  it('refuses a meter that is not named, in a header and in a bar', () => {
+    expect(scoreProblems(text('bar 1 groove key=C:ionian meter=8/8 theme=A'))).toEqual([
+      'meter=8/8 is not one of 3/4, 4/4, 5/4, 5/8, 6/8, 7/8, 9/8, 10/8, 12/8',
+    ]);
+    expect(() => encodeBar({ ...A_BAR, meter: { cycle: 8, heights: [0, 3, 6] } })).toThrow(
+      'the meter is not one of the named meters',
+    );
+    expect(scoreProblems(text('bar 1 groove key=C:ionian meter=7/8 meter=7/8 theme=A'))).toEqual([
+      'meter= is stated twice',
+    ]);
   });
 });

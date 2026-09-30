@@ -208,8 +208,8 @@ transport's beats. Counterexample: a grouping into 2s and 3s that no mode of
 16 eighths are such; each is still a helix, given by its heights, as the son
 clave is among the rhythms. Test: `packages/theory/src/meter.test.ts`, whose
 tests under "as a helix" cite T6, over every named meter and every grouping up
-to 16. Open for the song: the transport's bar is 16 steps (T10), and the
-metronome reads the song's meter from the steps the transport laid (#166).
+to 16. The transport lays bars of different lengths (T14), and the
+metronome still reads the song's meter from the steps the transport laid (#166, #262).
 Source: #98, the metronome; #105. Status:
 measured (the named meters, their modes, every grouping as a helix); measured,
 failing (every grouping, by `even` alone). Lands in: #63 (a meter in the bar's
@@ -309,7 +309,8 @@ meter; and 4/4's eighths landing on 12/8's third eighths, as before. Source:
 #105, the ratchet run on the meter; #121, decided the easiest option to reverse.
 Status: measured (every named meter, both levels). Decided: #121, on measured
 options (kept the pulse-anchored 8th level, the direct generalisation of 4/4's,
-over redesigning the level itself). Lands in: #27, where the transport learns a
+over redesigning the level itself). The transport reads the swing over the clock's beats, so it
+holds for a song that changes meter (T14). Lands in: #27, where the transport learns a
 meter (T10).
 
 **T16. A pulse of more than two eighths plays straight at the 8th level until a
@@ -394,9 +395,18 @@ it, a beat that straddles a bar line, or a bar whose beats are not its meter's
 pulses. Test: `events.test.ts`, whose tests under "a song whose meter changes"
 cite T14: 4/4 → 7/8 → 4/4 by hand, and every ordered pair of named meters at
 every quarter-step, read into bars and beats and back, and each bar its own
-meter's pulses. Open: nothing plays a meter change yet. The song reads
-`SONG_CLOCK`, 21 readers use `BAR_STEPS` where a bar's own length would do, and
-swing still moves pulses (T11). Source: #122. Status: measured (the clock).
+meter's pulses. The transport plays it (#261): it lays each bar's steps from the clock of the
+bars composed so far and reads it back exactly, with the swing over each bar's
+own pulses, and `transport-meters.test.ts` (`packages/engine`), a song in
+4/4, 7/8 and 4/4 by section: the steps laid are the clock's positions, each note
+plays where the clock puts it, every played moment reads back to where it is
+written, a pulse start is never moved by swing, a stall that passes the change
+keeps the clock, and a preview across it is what plays; `meter-follow.test.ts`
+(`packages/session`): a client following the host through the wire lays every
+step where the host did. Open: the web's readers of the bar's length (#262).
+Source: #122, #261. Status: measured (the clock, the transport, a client's
+clock). Decided: #63, ahead of the evidence (option A, B4); (B) and (C) stay
+unmeasured.
 Lands in: #122, the owner's choice between options A, B and C (#116 question
 (l)).
 

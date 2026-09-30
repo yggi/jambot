@@ -14,7 +14,8 @@ import {
   type BandBar,
   type ScheduledStep,
   type StyleTrack,
-  barStart,
+  SONG_CLOCK,
+  type SongClock,
   tempoMap,
 } from '@jambot/engine';
 import type { SentBar, WrittenBar } from './protocol.ts';
@@ -38,9 +39,10 @@ export function sentBars(
   steps: readonly ScheduledStep[],
   head: Anchor,
   track: StyleTrack,
+  clock: SongClock = SONG_CLOCK,
 ): SentBar[] {
   return composed.map((b) => {
-    const first = barStart(b.bar);
+    const first = clock.barStart(b.bar);
     const laid = steps.find((s) => s.step === first);
     const start = laid
       ? laid.seconds

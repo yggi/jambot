@@ -32,13 +32,12 @@ import type { ForecastDelta } from './forecast.ts';
  * travel as they are, so a change to their shape is a change to the
  * protocol, and bumps it (`protocol.test.ts` holds the shapes).
  */
-export const PROTOCOL = 7;
+export const PROTOCOL = 8;
 
 /**
  * A bar as a host wrote it: everything its parts read, and the notes they
- * wrote. Its meter does not travel: every bar is the song's 4/4, which the
- * client gives it (`follow.ts`). When the meter is a section's, the score's
- * (#261), it travels with the bar, and that bumps the protocol.
+ * wrote. Its meter travels in its plan (`plan.meter`, #261): the section's,
+ * which the client gives back to the bar (`follow.ts`), so a bar holds it once.
  */
 export interface WrittenBar extends Omit<BarEnv, 'meter'> {
   readonly written: readonly WrittenNote[];

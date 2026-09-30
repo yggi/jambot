@@ -205,9 +205,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 7 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them. */
+/** The shapes of version 8 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them. */
 const SHAPES = {
-  protocol: 7,
+  protocol: 8,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -239,6 +239,8 @@ const SHAPES = {
     'bar.plan.key.mode: string',
     'bar.plan.key.tonic: number',
     'bar.plan.melodic: string',
+    'bar.plan.meter.cycle: number',
+    'bar.plan.meter.heights[]: number',
     'bar.plan.section.index: number',
     'bar.plan.section.type: string',
     'bar.plan.theme.bars[][].degree: number',
