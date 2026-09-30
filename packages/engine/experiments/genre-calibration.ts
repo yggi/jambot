@@ -24,38 +24,49 @@ import {
   type Landmark,
   PRESETS,
   PRESET_LANDMARKS,
+  bpmUnit,
+  holding,
   SECTION_BARS,
   energyOf,
   genreOf,
   readingAxes,
 } from '../src/index.ts';
-import { SEEDS, type Sample, samples } from './style-readback.ts';
+import { SEEDS, type TimingSample, timingSamples } from './style-readback.ts';
 
 const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
 /** The seeds the landmarks are read from, apart from the measured ones. */
 const LANDMARK_SEEDS = [11, 12, 13, 14, 15];
 
-const axesOf = (s: Pick<Sample, 'density' | 'sync' | 'artic'>) => readingAxes(s);
+const axesOf = (s: Pick<TimingSample, 'density' | 'sync' | 'artic' | 'bpm' | 'swing'>) =>
+  readingAxes(s);
 
 /** The mean reading of some bars: the mean of each axis over the bars that have it. */
-function meanReading(part: readonly Sample[]) {
-  const at = (key: 'sync' | 'artic') =>
-    mean(part.flatMap((s) => (s[key] === undefined ? [] : [s[key]!])));
-  return { density: mean(part.map((s) => s.density)), sync: at('sync'), artic: at('artic') };
+function meanReading(part: readonly TimingSample[]) {
+  const at = (key: 'sync' | 'artic' | 'bpm' | 'swing') =>
+    part.flatMap((s) => (s[key] === undefined ? [] : [s[key]!]));
+  const [sync, artic, bpm, swing] = (['sync', 'artic', 'bpm', 'swing'] as const).map((k) =>
+    mean(at(k)),
+  );
+  return { density: mean(part.map((s) => s.density)), sync, artic, bpm, swing };
 }
+
+const landmarkOf = (read: ReturnType<typeof meanReading>): Landmark['at'] => ({
+  energy: energyOf(read.density),
+  sync: read.sync!,
+  artic: read.artic!,
+  swing: read.swing!,
+  bpm: bpmUnit(read.bpm!),
+});
 
 /** Where each preset's bars read: its landmark for the critic. */
 export function readLandmarks(bars = 32): Landmark[] {
   return PRESETS.map((preset) => {
     const style = { ...preset.style, entropy: 0.3 };
-    const read = meanReading(LANDMARK_SEEDS.flatMap((seed) => samples(() => style, seed, bars)));
-    const { energy, sync, artic } = {
-      energy: energyOf(read.density),
-      sync: read.sync,
-      artic: read.artic,
-    };
-    return { name: preset.name, at: { energy, sync, artic } };
+    const read = meanReading(
+      LANDMARK_SEEDS.flatMap((seed) => timingSamples(holding(style), seed, bars)),
+    );
+    return { name: preset.name, at: landmarkOf(read) };
   });
 }
 
@@ -76,7 +87,7 @@ export function calibrate(
     genreOf(read, temperature, landmarks).reduce((a, b) => (b.p > a.p ? b : a)).name;
   return PRESETS.map((preset) => {
     const style = { ...preset.style, entropy: 0.3 };
-    const runs = SEEDS.map((seed) => samples(() => style, seed, bars));
+    const runs = SEEDS.map((seed) => timingSamples(holding(style), seed, bars));
     const axes = runs.flat().map(axesOf);
     const barTops = axes.map(top);
     const sections = runs.flatMap((run) =>

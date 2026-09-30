@@ -6,19 +6,29 @@
  * to every preset's point, turned into probabilities by a softmax over the
  * distances. The temperature is one more place entropy may act.
  *
- * A reading (`readStyle`) covers `sync`, `artic` and the density, which
- * `energyOf` puts on the energy axis; it lacks `swing`, `harm` and `bpm`, so
- * a distance is taken over the axes the reading has, as a root mean square,
- * and a reading with none is at the same distance (0) from every genre.
+ * A reading covers `sync`, `artic` and the density, which `energyOf` puts on
+ * the energy axis (`readStyle`), and the `swing` and `bpm` of the clock
+ * (`readTiming`); it lacks `harm` and `entropy`. So a distance is taken over
+ * the axes the reading has, as a root mean square, and a reading with none
+ * is at the same distance (0) from every genre.
  *
  * Pure: it counts and knows no clock, file or key.
  */
 
-import { PRESETS, type Style } from './style.ts';
-import type { StyleReading } from './style-reading.ts';
+import { AXES, PRESETS, type Style } from './style.ts';
+import type { StyleReading, TimingReading } from './style-reading.ts';
 
 /** The axes of a reading that sit on the style space's own. */
-export type ReadAxes = Partial<Pick<Style, 'energy' | 'sync' | 'artic'>>;
+export type ReadAxes = Partial<Pick<Style, 'energy' | 'sync' | 'artic' | 'swing' | 'bpm'>>;
+
+/**
+ * The tempo on its own axis's scale, 0 to 1: the axis glides in log space,
+ * heard in ratios, so its distances are taken there.
+ */
+export function bpmUnit(bpm: number): number {
+  const { min, max } = AXES.bpm;
+  return (Math.log(bpm) - Math.log(min)) / (Math.log(max) - Math.log(min));
+}
 
 /**
  * The density (onsets per step over all parts) at an energy of 0 and of 1,
@@ -33,26 +43,25 @@ export function energyOf(density: number): number {
 }
 
 /** A reading on the style space's axes: the ones it has. */
-export function readingAxes(reading: StyleReading): ReadAxes {
+export function readingAxes(reading: StyleReading & TimingReading): ReadAxes {
   return {
     energy: energyOf(reading.density),
+    ...(reading.swing === undefined ? {} : { swing: reading.swing }),
+    ...(reading.bpm === undefined ? {} : { bpm: bpmUnit(reading.bpm) }),
     ...(reading.sync === undefined ? {} : { sync: reading.sync }),
     ...(reading.artic === undefined ? {} : { artic: reading.artic }),
   };
 }
 
 /** The axes a reading can have. */
-const READ_AXES = ['energy', 'sync', 'artic'] as const;
+const READ_AXES = ['energy', 'sync', 'artic', 'swing', 'bpm'] as const;
 
 /** The root mean square of the differences, over the axes the reading has. */
-export function styleDistance(
-  read: ReadAxes,
-  style: Pick<Style, (typeof READ_AXES)[number]>,
-): number {
+export function styleDistance(read: ReadAxes, at: Landmark['at']): number {
   const axes = READ_AXES.filter((axis) => read[axis] !== undefined);
   if (axes.length === 0) return 0;
   return Math.sqrt(
-    axes.reduce((sum, axis) => sum + (read[axis]! - style[axis]) ** 2, 0) / axes.length,
+    axes.reduce((sum, axis) => sum + (read[axis]! - at[axis]) ** 2, 0) / axes.length,
   );
 }
 
@@ -65,13 +74,14 @@ export interface Genre {
 /** A named point on the axes a reading has. */
 export interface Landmark {
   readonly name: string;
-  readonly at: Pick<Style, (typeof READ_AXES)[number]>;
+  /** The tempo is on its unit scale (`bpmUnit`). */
+  readonly at: Readonly<Record<(typeof READ_AXES)[number], number>>;
 }
 
 /** The presets' own points: where the composer is asked to play. */
 export const PRESET_LANDMARKS: readonly Landmark[] = PRESETS.map((p) => ({
   name: p.name,
-  at: p.style,
+  at: { ...p.style, bpm: bpmUnit(p.style.bpm) },
 }));
 
 /**

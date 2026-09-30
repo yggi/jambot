@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { presetSamples, readback, sweepSamples, tourSamples } from './style-readback.ts';
+import {
+  presetSamples,
+  readback,
+  sweepSamples,
+  timingPresets,
+  timingReadback,
+  timingSweep,
+  timingTour,
+  tourSamples,
+} from './style-readback.ts';
 
 const by = (set: ReturnType<typeof readback>, axis: string) => set.find((r) => r.axis === axis)!;
 
@@ -45,5 +54,35 @@ describe('the style read back from the notes it wrote (E22)', () => {
     ] as const)
       for (const axis of others)
         expect(Math.abs(by(sweeps[swept], axis).tau), `${swept} → ${axis}`).toBeLessThan(0.05);
+  });
+});
+
+describe('the timing read back from the clock it was played on (E22)', () => {
+  const swingSweep = timingReadback(timingSweep('swing', 16));
+  const bpmSweep = timingReadback(timingSweep('bpm', 16));
+  const presets = timingReadback(timingPresets(16));
+  const timingTourRead = timingReadback(timingTour(16));
+
+  it('reads the tempo exactly from how long the steps last, held and in a sweep (E22)', () => {
+    expect(bpmSweep.bpm.tau).toBe(1);
+    expect(bpmSweep.bpm.distance).toBeLessThan(1e-6);
+    expect(presets.bpm.tau).toBe(1);
+  });
+
+  it('reads the tempo of a moving style within a fraction of a bpm: the glide moves inside the bar (E22)', () => {
+    expect(timingTourRead.bpm.tau).toBeGreaterThan(0.9);
+    expect(timingTourRead.bpm.distance).toBeLessThan(0.5);
+  });
+
+  it('reads the swing from where the notes fall, rising with the axis and within 0.03 of it, through the seeded looseness (E22)', () => {
+    expect(swingSweep.swing.tau).toBeGreaterThan(0.9);
+    expect(swingSweep.swing.distance).toBeLessThan(0.05);
+    expect(presets.swing.tau).toBeGreaterThan(0.85);
+    expect(timingTourRead.swing.tau).toBeGreaterThan(0.9);
+  });
+
+  it('reads swing and tempo apart: a sweep of one moves no tau of the other (E22)', () => {
+    expect(Math.abs(swingSweep.bpm.tau)).toBeLessThan(0.05);
+    expect(Math.abs(bpmSweep.swing.tau)).toBeLessThan(0.05);
   });
 });

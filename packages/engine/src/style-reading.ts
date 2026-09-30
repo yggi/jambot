@@ -14,10 +14,12 @@
  * far each lies from the style that wrote the bar is what step 2 measures.
  * An axis with nothing to read in the bar is absent, not zero.
  *
- * Pure: it counts steps and knows no clock, file or key.
+ * Pure: it counts steps and knows no file or key; the clock is what `readTiming` is given.
  */
 
 import { BAR_STEPS, type DoughNote, onBeat } from './events.ts';
+import { estimateSwing } from './reading.ts';
+import type { ScheduledStep } from './transport.ts';
 
 /** The steps in an eighth: the grid is 16ths. */
 const STEPS_PER_EIGHTH = 2;
@@ -72,5 +74,39 @@ export function readStyle(notes: readonly Sounding[]): StyleReading {
         }
       : {}),
     ...(shares.length ? { artic: 1 - median(shares) } : {}),
+  };
+}
+
+/** What a reading needs of a laid step: where it is on the grid and on the clock. */
+export type Laid = Pick<ScheduledStep, 'step' | 'seconds' | 'length'>;
+
+/** The timing a bar's steps and onsets read as: the tempo and the swing. */
+export interface TimingReading {
+  /** Beats per minute, from how long the steps last. */
+  readonly bpm?: number;
+  /** The swing (0 to 1) whose un-swung grid leaves the onsets closest to the steps (`estimateSwing`). */
+  readonly swing?: number;
+}
+
+/**
+ * The tempo and swing of a bar from the clock: its steps as laid (each a
+ * step of the grid with the seconds it starts at and lasts) and the seconds
+ * its notes sound at. The tempo is 60 over the mean length of a beat, four
+ * steps of 16th; swing does not enter it, since it moves notes inside a beat
+ * and leaves the beat whole. The swing is found from the onsets, each put
+ * back on the steps as played, by the one reader `reading.ts` gives the Muse
+ * and the analyzer.
+ */
+export function readTiming(laid: readonly Laid[], onsets: readonly number[]): TimingReading {
+  const bpm = laid.length
+    ? 15 / (laid.reduce((sum, s) => sum + s.length, 0) / laid.length)
+    : undefined;
+  const played = onsets.flatMap((seconds) => {
+    const at = laid.findLast((s) => s.seconds <= seconds);
+    return at ? [at.step + (seconds - at.seconds) / at.length] : [];
+  });
+  return {
+    ...(bpm === undefined ? {} : { bpm }),
+    ...(played.length ? { swing: estimateSwing(played) } : {}),
   };
 }
