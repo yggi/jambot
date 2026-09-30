@@ -20,9 +20,8 @@
  * - **`style`** states every axis on C7's grid of `STYLE_DECIMALS`, `bpm`
  *   counting the grid's rate (T7).
  * - **`harm`** states the bar's chords as Roman numerals of the key (U1),
- *   each held for its weight (`mini.ts`). A chord states no scale: every
- *   chord the score writes implies one (U3), and one that doesn't is
- *   refused until the score can write `scale=`.
+ *   each held for its weight (`mini.ts`). A chord states no scale, and needs
+ *   none: no line reads one (U3, vitrified).
  * - **A drum line**, one per sound that hits in the bar, its word (`bd`,
  *   `hh`, `oh`, `ph`, `rd`, `rim`) starting it: every hit is that
  *   word, one step long, `~` the rest between (E16, form (iii), decided on
@@ -68,7 +67,6 @@ import {
   type Meter,
   type Numeral,
   chordOfNumeral,
-  chordScale,
   diatonicMode,
   formatNumeral,
   joinChord,
@@ -218,20 +216,6 @@ export function lowerNumeral(key: ScoreKey, numeral: Numeral): Chord {
   const inRegister = key.tonic + wrap(root - key.tonic, 12);
   return splitChord(CHORD_QUALITIES[quality]!.stack.map((x) => inRegister + x))!;
 }
-
-/** Whether the numeral's chord implies a scale in the key, which `chordScale` gives (U3). */
-function impliesScale(key: ScoreKey, numeral: Numeral): boolean {
-  const asked = `${key.tonic}:${key.mode}:${formatNumeral(numeral)}`;
-  let implies = IMPLIES_SCALE.get(asked);
-  if (implies === undefined) {
-    implies = chordScale(keyHelix(key), joinChord(lowerNumeral(key, numeral))) !== undefined;
-    IMPLIES_SCALE.set(asked, implies);
-  }
-  return implies;
-}
-
-/** `impliesScale`'s answers: at most every numeral in every key, a finite set. */
-const IMPLIES_SCALE = new Map<string, boolean>();
 
 const sign = (alteration: number) => (alteration < 0 ? 'b' : '#').repeat(Math.abs(alteration));
 
@@ -556,9 +540,6 @@ function barProblems(bar: ScoreBar): string[] {
     }
   }
   if (problems.length) return problems;
-  for (const { numeral } of bar.harm)
-    if (!impliesScale(bar.key, numeral))
-      problems.push(`${formatNumeral(numeral)} implies no scale, and needs scale= (U3)`);
   if (bar.bass) {
     const tokens = bassTokens(bar);
     if ('problems' in tokens) problems.push(...tokens.problems);
@@ -615,7 +596,7 @@ function readBar(text: string): { bar: ScoreBar } | { problems: string[] } {
   const header = readHeader(byKind.get('bar')!);
   const style = readStyle(byKind.get('style')!);
   const key = 'value' in header ? header.value.key : undefined;
-  const harm = readHarm(byKind.get('harm')!, key);
+  const harm = readHarm(byKind.get('harm')!);
   const drumReads = DRUM_SOUNDS.flatMap((sound) => {
     const rest = byKind.get(DRUM_WORDS[sound]);
     return rest === undefined ? [] : [{ sound, read: readDrumLine(sound, rest) }];
@@ -738,7 +719,7 @@ function readStyle(rest: string): Read<Record<StyleAxis, number>> {
   return problems.length ? { problems } : { value: style };
 }
 
-function readHarm(rest: string, key: ScoreKey | undefined): Read<HarmChord[]> {
+function readHarm(rest: string): Read<HarmChord[]> {
   const quoted = /^"(.*)"$/u.exec(rest);
   if (!quoted) return { problems: [`harm ${rest} is not a quoted sequence, such as harm "i VI"`] };
   const read = readSequence(quoted[1]!, UNSTATED_STEPS);
@@ -747,8 +728,6 @@ function readHarm(rest: string, key: ScoreKey | undefined): Read<HarmChord[]> {
   const harm = read.placed.map(({ word, step }) => {
     const numeral = parseNumeral(word);
     if (!numeral) problems.push(`harm: "${word}" is not a numeral`);
-    else if (key && !impliesScale(key, numeral))
-      problems.push(`harm: ${word} implies no scale, and needs scale= (U3)`);
     return { step, numeral: numeral! };
   });
   return problems.length ? { problems } : { value: harm };

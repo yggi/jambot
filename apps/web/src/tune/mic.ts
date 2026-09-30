@@ -45,6 +45,34 @@ export class MicDenied extends Error {
 /** The longest stretch an analyser keeps: 32768 samples, 0.68 s at 48 kHz. */
 const HELD = 32768;
 
+/**
+ * An input read through an analyser, whatever feeds it: the newest samples
+ * when they are wanted, never queued. `release` lets go of what feeds it.
+ */
+export function listenThrough(
+  analyser: AnalyserNode,
+  sampleRate: number,
+  label: string,
+  release: () => void,
+): Mic {
+  analyser.fftSize = HELD;
+  const held = new Float32Array(HELD);
+  let open = true;
+  return {
+    sampleRate,
+    label,
+    latest(count) {
+      analyser.getFloatTimeDomainData(held);
+      return held.slice(HELD - Math.min(count, HELD));
+    },
+    stop() {
+      if (!open) return;
+      open = false;
+      release();
+    },
+  };
+}
+
 export function browserMic(): MicSource {
   return {
     async open(deviceId) {
@@ -66,25 +94,17 @@ export function browserMic(): MicSource {
       }
       const context = new AudioContext();
       const analyser = context.createAnalyser();
-      analyser.fftSize = HELD;
       context.createMediaStreamSource(stream).connect(analyser);
       await context.resume();
-      const held = new Float32Array(HELD);
-      let open = true;
-      return {
-        sampleRate: context.sampleRate,
-        label: stream.getAudioTracks()[0]?.label ?? '',
-        latest(count) {
-          analyser.getFloatTimeDomainData(held);
-          return held.slice(HELD - Math.min(count, HELD));
-        },
-        stop() {
-          if (!open) return;
-          open = false;
+      return listenThrough(
+        analyser,
+        context.sampleRate,
+        stream.getAudioTracks()[0]?.label ?? '',
+        () => {
           for (const track of stream.getTracks()) track.stop();
           void context.close();
         },
-      };
+      );
     },
 
     async devices() {

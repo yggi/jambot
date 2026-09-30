@@ -41,26 +41,39 @@
  * vary it. When the offer goes, the lead goes back to its own phrases at
  * once, and a motif never becomes a theme's melody. These are the
  * prototype's rules and weights.
+ *
+ * It is written on the bar's meter (#260): its steps, its pulses and the
+ * accent tree give the grooves, the strong steps, the pickups and the
+ * snapping steps; the syncopated groove, written on 4/4's 16 steps, is read
+ * by the rule (`regroup.ts`); a chord's slot is read on the meter
+ * (`chordsOn`). A motif has a cycle of its own, and is read in a bar of
+ * another length as the drums' patterns are, by the cycle: its notes run
+ * through the bars (`motifInBar`). In 4/4 every bar is what it was.
  */
 
 import {
   type Chord,
   type Helix,
+  type Meter,
   type Motif,
+  accentsOf,
   alteredHeight,
   even,
   joinChord,
+  meterOnSteps,
   positions,
   snap,
+  stepsOf,
   wrap,
 } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
-import { chordAt } from './chords.ts';
-import { BAR_STEPS, type WrittenNote } from './events.ts';
+import { chordAt, chordsOn } from './chords.ts';
+import { type WrittenNote, halfOf } from './events.ts';
 import type { SectionType } from './form.ts';
 import { keyHelix, melodicHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick, quantize } from './random.ts';
+import { readOnMeter } from './regroup.ts';
 import type { ThemeKind } from './themes.ts';
 
 /** The lowest and highest note the lead plays. */
@@ -86,10 +99,11 @@ function shapeFrom(
   degrees: readonly number[],
   sync: number,
   energy: number,
+  cycle: number,
 ): LeadShape {
   const rest = steps[0]! > 0;
   return {
-    cycle: BAR_STEPS,
+    cycle,
     onsets: rest ? [0, ...steps] : [...steps],
     degrees: rest ? [null, ...degrees] : [...degrees],
     accidentals: [...(rest ? [0] : []), ...steps.map(() => 0)],
@@ -102,6 +116,33 @@ function shapeFrom(
 function notesOf(shape: LeadShape): { steps: number[]; degrees: number[] } {
   const at = shape.degrees.flatMap((d, i) => (d === null ? [] : [i]));
   return { steps: at.map((i) => shape.onsets[i]!), degrees: at.map((i) => shape.degrees[i]!) };
+}
+
+/**
+ * A motif read in a bar of `steps` steps, bar number `bar`: its notes run
+ * through the bars by the cycle, as the drums' patterns do, the bar a window
+ * of `steps` on the motif repeated from its start, so a motif of the bar's
+ * own length is itself, bar after bar, and one of another length phases
+ * against the bar. A bar whose window starts between two notes starts
+ * with a rest.
+ */
+export function motifInBar(motif: Motif, steps: number, bar: number): Motif {
+  const { cycle, onsets, degrees, accidentals, accents } = motif;
+  const from = (bar * steps) % cycle;
+  const notes: { at: number; i: number }[] = [];
+  for (let turn = 0; turn * cycle < from + steps; turn++)
+    onsets.forEach((onset, i) => {
+      const at = turn * cycle + onset - from;
+      if (at >= 0 && at < steps) notes.push({ at, i });
+    });
+  const rest = notes.length > 0 && notes[0]!.at > 0;
+  return {
+    cycle: steps,
+    onsets: [...(rest ? [0] : []), ...notes.map((n) => n.at)],
+    degrees: [...(rest ? [null] : []), ...notes.map((n) => degrees[n.i]!)],
+    accidentals: [...(rest ? [0] : []), ...notes.map((n) => accidentals[n.i]!)],
+    ...(accents ? { accents: [...(rest ? [0] : []), ...notes.map((n) => accents[n.i]!)] } : {}),
+  };
 }
 
 export interface LeadCarried {
@@ -117,13 +158,27 @@ export interface LeadCarried {
   readonly offered: number | null;
 }
 
-/** Where the lead plays, straight and syncopated. */
-const GROOVE_STRAIGHT = [
-  1, 0.1, 0.4, 0.15, 0.8, 0.1, 0.4, 0.15, 0.9, 0.1, 0.4, 0.15, 0.8, 0.1, 0.4, 0.15,
-];
+/** Where the lead plays syncopated, written on 4/4's 16 steps; the straight groove is the pulses' and the half's. */
 const GROOVE_SYNCOPATED = [
   0.5, 0.2, 0.4, 0.8, 0.2, 0.4, 0.8, 0.5, 0.3, 0.2, 0.8, 0.6, 0.2, 0.4, 0.9, 0.4,
 ];
+
+/**
+ * Where the lead plays straight, on a meter's steps: the downbeat, the half
+ * with four pulses or more, the other pulses, the eighths between them, and
+ * the sixteenths, a little more after an eighth between pulses than after a
+ * pulse.
+ */
+export function straightGroove(meter: Meter): number[] {
+  const starts = new Set(meterOnSteps(meter).heights);
+  const accents = accentsOf(meter);
+  return Array.from({ length: stepsOf(meter) }, (_, s) => {
+    if (s % 2 !== 0) return starts.has(s - 1) ? 0.1 : 0.15;
+    if (s === 0) return 1;
+    if (!starts.has(s)) return 0.4;
+    return accents[s / 2] === 'half' && starts.size >= 4 ? 0.9 : 0.8;
+  });
+}
 
 /** The contours a shape follows, over 0 to 1. */
 const CONTOURS = [
@@ -193,8 +248,8 @@ export interface PhraseParams {
  * beat for a static vamp (below harm 0.25), the half bar up to harm 0.6,
  * and above it only the downbeat, which a chord always starts on.
  */
-function strongSteps(harm: number): readonly number[] {
-  return harm < 0.25 ? [0, 4, 8, 12] : harm < 0.6 ? [0, 8] : [0];
+function strongSteps(harm: number, meter: Meter): readonly number[] {
+  return harm < 0.25 ? meterOnSteps(meter).heights : harm < 0.6 ? [0, halfOf(stepsOf(meter))] : [0];
 }
 
 /**
@@ -206,14 +261,20 @@ function strongSteps(harm: number): readonly number[] {
 export function phraseParams({
   style,
   barEnergy: energy,
-  chords,
+  chords: written,
   plan,
-}: Pick<BarEnv, 'style' | 'barEnergy' | 'chords' | 'plan'>): PhraseParams {
+  meter,
+}: Pick<BarEnv, 'style' | 'barEnergy' | 'chords' | 'plan' | 'meter'>): PhraseParams {
+  const steps = stepsOf(meter);
+  const starts = new Set(meterOnSteps(meter).heights);
+  const chords = chordsOn(written, meter);
   return {
     density: 0.25 + 0.5 * energy,
     grooveMix: style.sync,
-    pickups: Array.from({ length: BAR_STEPS }, (_, s) => (s % 4 === 2 ? 0.3 * style.swing : 0)),
-    pulse: positions(even(Math.round(3 + 5 * energy), BAR_STEPS, Math.round(style.sync * 3))),
+    pickups: Array.from({ length: steps }, (_, s) =>
+      s % 2 === 0 && !starts.has(s) ? 0.3 * style.swing : 0,
+    ),
+    pulse: positions(even(Math.round(3 + 5 * energy), steps, Math.round(style.sync * 3))),
     scale: melodicHelix(plan.key, plan.melodic),
     span: 2 + Math.round((energy + style.entropy) * 3),
     contours: [1 + (1 - style.harm) * (1 - style.entropy), 1, 1, 0.25 + 1.5 * style.harm],
@@ -221,8 +282,8 @@ export function phraseParams({
     leap: style.entropy > 0.5 ? style.entropy - 0.5 : 0,
     variations: [0.3, 0.25, 0.25, 0.2],
     nudge: style.entropy * 0.5,
-    snap: Array.from({ length: BAR_STEPS }, (_, s) => s).filter(
-      (s) => strongSteps(style.harm).includes(s) || chords.some((c) => c.slot.step === s),
+    snap: Array.from({ length: steps }, (_, s) => s).filter(
+      (s) => strongSteps(style.harm, meter).includes(s) || chords.some((c) => c.slot.step === s),
     ),
     range: LEAD_RANGE,
   };
@@ -230,36 +291,40 @@ export function phraseParams({
 
 /** A new shape for a phrase: its draws are keyed by the section and the half of it. */
 function shapeOf(env: BarEnv): LeadShape {
-  const { seed, plan, style, barEnergy: energy, barInSection } = env;
+  const { seed, plan, style, barEnergy: energy, barInSection, meter, bar } = env;
   const { density, grooveMix, pickups, pulse, span, contours, turn, leap } = phraseParams(env);
+  const steps = stepsOf(meter);
+  const straight = straightGroove(meter);
+  const syncopated = readOnMeter(GROOVE_SYNCOPATED, meter, 'cycle', bar);
   const section = plan.section.index;
   const half = barInSection >> 2;
   let n = 0;
   const next = () => draw(seed, 'leadShape', section, half, n++);
 
   const euclid = new Set(pulse);
-  const steps: number[] = [];
-  for (let s = 0; s < BAR_STEPS; s++) {
+  const onsets: number[] = [];
+  for (let s = 0; s < steps; s++) {
     const groove = Math.min(
       1,
-      lerp(GROOVE_STRAIGHT[s]!, GROOVE_SYNCOPATED[s]!, grooveMix) * density + pickups[s]!,
+      lerp(straight[s]!, syncopated[s]!, grooveMix) * density + pickups[s]!,
     );
     const p = lerp(groove, euclid.has(s) ? 0.9 : 0, 0.5);
-    if (chance(draw(seed, 'leadRhythm', section, half, s), p)) steps.push(s);
+    if (chance(draw(seed, 'leadRhythm', section, half, s), p)) onsets.push(s);
   }
-  for (const s of [0, 8, 4, 12, 6, 10]) {
-    if (steps.length >= 3) break;
-    if (!steps.includes(s)) steps.push(s);
+  // Too few notes: the downbeat, the half and the pulses make it three.
+  for (const s of [0, halfOf(steps), ...meterOnSteps(meter).heights, 2, 4, 6]) {
+    if (onsets.length >= 3) break;
+    if (!onsets.includes(s) && s < steps) onsets.push(s);
   }
-  steps.sort((a, b) => a - b);
+  onsets.sort((a, b) => a - b);
 
   const contour = CONTOURS[pick(next(), contours)]!;
   const degrees = [0];
   let move = 0;
-  for (let i = 1; i < steps.length; i++) {
+  for (let i = 1; i < onsets.length; i++) {
     // Quantised before rounding: \`Math.sin\` may differ in its last bit
     // across engines, and sin(π/6) · 3 lies one ulp from 1.5.
-    const target = Math.round(quantize(contour(i / Math.max(1, steps.length - 1)) * span));
+    const target = Math.round(quantize(contour(i / Math.max(1, onsets.length - 1)) * span));
     const here = degrees[i - 1]!;
     let m = Math.sign(target - here) * (Math.abs(target - here) > 2 ? 2 : 1);
     if (Math.abs(move) >= 3) m = -Math.sign(move);
@@ -268,7 +333,7 @@ function shapeOf(env: BarEnv): LeadShape {
     degrees.push(here + m);
     move = m;
   }
-  return shapeFrom(steps, degrees, style.sync, energy);
+  return shapeFrom(onsets, degrees, style.sync, energy, steps);
 }
 
 /**
@@ -305,7 +370,7 @@ function varied(shape: LeadShape, env: BarEnv): LeadShape {
       );
     degrees[i]! += chance(next(), 0.5) ? -1 : 1;
   }
-  return shapeFrom(onsets, degrees, shape.sync, shape.energy);
+  return shapeFrom(onsets, degrees, shape.sync, shape.energy, shape.cycle);
 }
 
 /** The nearest note to `near` among a chord's tones, within a tritone; ties go down. */
@@ -379,12 +444,15 @@ function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], ph
  * grammar says, and the phrase moves into the lead's range.
  */
 function realize(motif: Motif, env: BarEnv, last: number, own: boolean) {
-  const { plan, chords, barInSection } = env;
+  const { plan, barInSection, meter, bar } = env;
+  const chords = chordsOn(env.chords, meter);
+  const steps = stepsOf(meter);
   const params = phraseParams(env);
   const { snap: snapped, range } = params;
-  const { onsets, degrees, accidentals } = motif;
+  const { onsets, degrees, accidentals, accents } = motifInBar(motif, steps, bar);
   const scale = own ? params.scale : keyHelix(plan.key);
   const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
+  if (heard.length === 0) return { written: [], last };
   const first = snap(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
   let notes = heard.map(({ step, i }) => {
     const note = alteredHeight(scale, first + degrees[i]!, accidentals[i]!);
@@ -395,11 +463,11 @@ function realize(motif: Motif, env: BarEnv, last: number, own: boolean) {
     part: 'lead',
     step,
     note: notes[j]!,
-    length: (onsets[i + 1] ?? motif.cycle) - step,
+    length: (onsets[i + 1] ?? steps) - step,
     // An offered motif's every note carries an accent, 0 included: `perform`
     // plays a note with one on the lead's level, and one without on the
     // beat's, so leaving out a 0 would change how it plays.
-    ...(own ? {} : { accent: motif.accents?.[i] ?? 0 }),
+    ...(own ? {} : { accent: accents?.[i] ?? 0 }),
   }));
   return { written, last: notes.at(-1)! };
 }

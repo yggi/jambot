@@ -1,6 +1,16 @@
-import { NOOP, chromaticStep, heightOf, motifProblems } from '@jambot/theory';
+import {
+  METERS,
+  type Meter,
+  NOOP,
+  chromaticStep,
+  heightOf,
+  meterOnSteps,
+  motifProblems,
+  stepsOf,
+} from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { barStart } from './events.ts';
+import { barStart, clockOf } from './events.ts';
+import { readHeard } from './phrase.ts';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import {
@@ -16,6 +26,7 @@ import {
   admissible,
   heardIn,
   judgeBar,
+  barOfIn,
   keptAfter,
   memoryAt,
   muse,
@@ -217,7 +228,8 @@ describe('what a host takes from a client (admissible)', () => {
       level,
     });
     for (const bad of [
-      motif({ cycle: 12 }),
+      motif({ cycle: 15 }),
+      motif({ cycle: 0 }),
       motif({ onsets: [0, 4, 20] }),
       motif({ onsets: [0, 4, 4] }),
       motif({ degrees: [0, 2.5, 4] }),
@@ -1060,5 +1072,92 @@ describe('the memory as it weighs bars later (C9)', () => {
     expect(memoryAt(memory, 0, MUSE.forgetAfter)).toHaveLength(1);
     expect(memoryAt(memory, 0, MUSE.forgetAfter + 1)).toHaveLength(0);
     expect(MOTIF_FLOOR).toBeLessThan(1);
+  });
+});
+
+describe('the Muse on other meters (#260)', () => {
+  const named = Object.entries(METERS) as [string, Meter][];
+  const clockIn = (meter: Meter) => clockOf([{ bar: 0, meter }]);
+  /** Three notes of a bar of the meter: on its first three pulse starts or eighths. */
+  const melody = (meter: Meter, bar: number, clock = clockIn(meter)) =>
+    [0, 2, 4].map((step, i) => ({
+      note: 69 + 3 * i,
+      velocity: 100,
+      source: 'the computer keys',
+      position: clock.barStart(bar) + step,
+      end: null,
+    }));
+
+  it('puts a note in the bar of its meter: the bar line’s step is the next bar’s, the step before is the last of the bar (finite: every meter)', () => {
+    for (const [name, meter] of named) {
+      const clock = clockIn(meter);
+      const at = (position: number) =>
+        barOfIn({ note: 60, velocity: 100, source: 'a', position, end: null }, clock);
+      expect([
+        name,
+        at(clock.barStart(1) - 1),
+        at(clock.barStart(1)),
+        at(clock.barStart(2) - 1),
+      ]).toEqual([name, 0, 1, 1]);
+    }
+  });
+
+  it('judges a bar of the meter as a motif of the bar’s steps, which a host admits (finite: every meter, both readings)', () => {
+    for (const [name, meter] of named)
+      for (const reading of ['phrases', 'nearest'] as const)
+        for (const bar of [0, 1, 3]) {
+          const judgements = judgeBar(melody(meter, bar), bar, A_MINOR, reading, clockIn(meter));
+          expect([name, reading, judgements.length]).toEqual([name, reading, 1]);
+          const j = judgements[0]!;
+          if (j.kind !== 'motif') throw new Error('a motif');
+          expect([name, j.motif.cycle]).toEqual([name, stepsOf(meter)]);
+          expect([name, motifProblems(j.motif)]).toEqual([name, []]);
+          expect([name, admissible(j, A_MINOR)]).toEqual([name, true]);
+        }
+  });
+
+  it('judges 4/4 as it always did when no clock is given', () => {
+    const notes = played([
+      [0, 69],
+      [4, 72],
+      [8, 76],
+    ]);
+    expect(judgeBar(notes, 0, A_MINOR)).toEqual(
+      judgeBar(notes, 0, A_MINOR, 'phrases', clockIn(METERS['4/4'])),
+    );
+    const j = judgeBar(notes, 0, A_MINOR)[0]!;
+    if (j.kind !== 'motif') throw new Error('a motif');
+    expect(j.motif.cycle).toBe(16);
+  });
+
+  it('keeps a running phrase across the bar line and drops it a bar of the meter later (finite: every meter)', () => {
+    for (const [name, meter] of named) {
+      const clock = clockIn(meter);
+      const last = clock.barStart(1) - 2;
+      const notes = [{ note: 60, velocity: 100, source: 'a', position: last, end: null }];
+      expect([name, keptAfter(notes, 0, clock).length]).toEqual([name, 1]);
+      expect([name, keptAfter(notes, 1, clock).length]).toEqual([name, 0]);
+    }
+  });
+
+  it('reads notes struck on the meter’s pulses as they are, into the bars they are in (finite: every meter)', () => {
+    for (const [name, meter] of named) {
+      const clock = clockIn(meter);
+      const pulses = meterOnSteps(meter).heights;
+      const notes = [0, 1].flatMap((bar) =>
+        pulses.map((pulse, i) => ({
+          note: 60 + i,
+          velocity: 100,
+          source: 'a',
+          position: clock.barStart(bar) + pulse,
+          end: null,
+        })),
+      );
+      expect([name, readHeard(notes, clock).map((n) => n.position)]).toEqual([
+        name,
+        notes.map((n) => n.position),
+      ]);
+      expect([name, heardIn(notes, 1, clock).length]).toEqual([name, pulses.length]);
+    }
   });
 });

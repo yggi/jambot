@@ -15,14 +15,15 @@
  * An axis with nothing to read in the bar is absent, not zero.
  *
  * Pure: it counts steps and knows no file or key; the clock is what `readTiming` is given.
+ *
+ * A bar is its meter's (#260): `readStyle` takes the meter, the song's 4/4 where none is
+ * given, and counts its steps and its pulses.
  */
 
-import { BAR_STEPS, type DoughNote, onBeat } from './events.ts';
+import { type Meter, STEPS_PER_EIGHTH, meterOnSteps, stepsOf } from '@jambot/theory';
+import { type DoughNote, SONG_METER } from './events.ts';
 import { estimateSwing } from './reading.ts';
 import type { ScheduledStep } from './transport.ts';
-
-/** The steps in an eighth: the grid is 16ths. */
-const STEPS_PER_EIGHTH = 2;
 
 /** What a reading needs of a note: where it starts, in which part, and how long it sounds. */
 export type Sounding = Pick<DoughNote, 'part' | 'step' | 'length'>;
@@ -47,30 +48,37 @@ const median = (values: readonly number[]): number => {
 };
 
 /** The share of its gap to the next onset (or the bar's end) that each note of one line sounds. */
-function soundingShares(line: readonly Sounding[]): number[] {
+function soundingShares(line: readonly Sounding[], steps: number): number[] {
   const starts = [...new Set(line.map((n) => n.step))].sort((a, b) => a - b);
   return starts.map((step, i) => {
-    const gap = (starts[i + 1] ?? BAR_STEPS) - step;
+    const gap = (starts[i + 1] ?? steps) - step;
     const length = Math.max(...line.filter((n) => n.step === step).map((n) => n.length));
     return Math.min(length, gap) / gap;
   });
 }
 
 /** The style a bar's sounding notes read as, on the axes that can be read from notes alone. */
-export function readStyle(notes: readonly Sounding[]): StyleReading {
+export function readStyle(notes: readonly Sounding[], meter: Meter = SONG_METER): StyleReading {
+  const steps = stepsOf(meter);
+  const pulses = meterOnSteps(meter).heights;
   // (part, step) pairs: the same step of two parts is two onsets, a chord's notes are one.
   const onsets = [...new Set(notes.map((n) => `${n.part}:${n.step}`))].map((id) =>
     Number(id.split(':')[1]),
   );
-  const density = onsets.length / BAR_STEPS;
-  const shares = LINES.flatMap((part) => soundingShares(notes.filter((n) => n.part === part)));
+  const density = onsets.length / steps;
+  const shares = LINES.flatMap((part) =>
+    soundingShares(
+      notes.filter((n) => n.part === part),
+      steps,
+    ),
+  );
   return {
     density,
     ...(onsets.length
       ? {
           sync:
-            onsets.filter((step) => !onBeat(step) && step % STEPS_PER_EIGHTH !== 0).length /
-            onsets.length,
+            onsets.filter((step) => !pulses.includes(step) && step % STEPS_PER_EIGHTH !== 0)
+              .length / onsets.length,
         }
       : {}),
     ...(shares.length ? { artic: 1 - median(shares) } : {}),

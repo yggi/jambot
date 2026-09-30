@@ -83,6 +83,9 @@ export const BAR_STEPS = BEATS.cycle;
  */
 export const halfOf = (steps: number): number => 2 * Math.floor(steps / 4);
 
+/** The step three quarters through a bar, on an eighth: 12 of 4/4's 16, where a fill starts. */
+export const lateOf = (steps: number): number => 2 * Math.floor((steps * 3) / 8);
+
 /** From this bar on, the song is in this meter. */
 export interface MeterChange {
   readonly bar: number;

@@ -87,8 +87,8 @@ export function relative(key: Helix, scale: Helix): Helix {
  * Then each tension sets its own degree (P7): the degree nearest to it that
  * the helix doesn't sound, so a ninth sets degree 1, and V9/ii keeps its
  * natural 9 in A mixolydian ♭13. A ninth has a scale exactly where its
- * seventh has one. Otherwise the chord implies no scale, and the line has
- * to state one.
+ * seventh has one. Otherwise the chord implies no scale, which no line of
+ * the score needs (U3, vitrified).
  */
 export function chordScale(key: Helix, stack: readonly number[]): Helix | undefined {
   const chord = splitChord(stack, key.cycle);

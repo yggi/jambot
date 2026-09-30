@@ -1,5 +1,6 @@
+import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { BAR_STEPS } from './events.ts';
+import { BAR_STEPS, clockOf } from './events.ts';
 import type { HeardNote } from './muse.ts';
 import { EMPTY_BAR, phrasesOf, readHeard, readPhrase } from './phrase.ts';
 
@@ -166,5 +167,23 @@ describe('reading a phrase', () => {
   it('reads each phrase of a performance on its own offset', () => {
     const both = heard([15.7, 19.7, 23.7, 27.7, 16 * 5 + 0.3, 16 * 5 + 4.3, 16 * 5 + 8.3]);
     expect(positionsOf(readHeard(both))).toEqual([16, 20, 24, 28, 80, 84, 88]);
+  });
+});
+
+describe('phrases on other meters (#260)', () => {
+  it('end at an empty bar of the meter and not at a shorter rest, 4/4’s 15 steps being the bar less a step only in 4/4 (finite: every meter)', () => {
+    for (const [name, meter] of Object.entries(METERS) as [string, Meter][]) {
+      const clock = clockOf([{ bar: 0, meter }]);
+      const bar = stepsOf(meter) - 1;
+      expect(phrasesOf(heard([0, 4, 4 + bar - 1]), clock).length, name).toBe(1);
+      expect(phrasesOf(heard([0, 4, 4 + bar]), clock).map(positionsOf), name).toEqual([
+        [0, 4],
+        [4 + bar],
+      ]);
+    }
+    // In 4/4 it is the constant it was.
+    expect(
+      phrasesOf(heard([0, 4, 4 + EMPTY_BAR]), clockOf([{ bar: 0, meter: METERS['4/4'] }])),
+    ).toHaveLength(2);
   });
 });
