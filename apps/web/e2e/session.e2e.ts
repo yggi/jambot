@@ -31,12 +31,32 @@ const useLobby = async (page: Page, lobby: string) => {
   await page.getByLabel('Lobby server').blur();
 };
 
+/** The session card, where the session is named and its players and the way out are. */
+const sessionCard = (page: Page) => page.locator('details[aria-label="Session"]');
+
+/** Its state line, folded or not: "Hosting · 1 joined", "Following · host playing". */
+const state = (page: Page) => sessionCard(page).locator('summary .sub');
+
+/** Unfolds the session card, unless it is. */
+const openSession = async (page: Page) => {
+  const card = sessionCard(page);
+  if (!(await card.evaluate((details) => (details as HTMLDetailsElement).open)))
+    await card.locator('summary .title').click();
+};
+
+/** A host has exactly one player joined, by this name. */
+const joined = async (page: Page, name: string) => {
+  await expect(state(page)).toContainText('Hosting · 1 joined');
+  await openSession(page);
+  await expect(page.getByRole('list', { name: 'Players' })).toContainText(name);
+};
+
 /** Hosts a session at the lobby's door: locally, or, given a lobby server, globally. */
 const host = async (page: Page, session: string, lobby = '') => {
   if (lobby !== '') await useLobby(page, lobby);
   await page.getByLabel('Session name').fill(session);
   await page.getByRole('button', { name: lobby === '' ? 'Local' : 'Global' }).click();
-  await expect(page.getByText(/^Hosting/)).toBeVisible();
+  await expect(state(page)).toContainText('Hosting');
 };
 
 /** The button that joins a session listed at the door. */
@@ -48,11 +68,12 @@ const join = async (page: Page, session: string, name: string, lobby = '') => {
   if (lobby !== '') await useLobby(page, lobby);
   await page.getByLabel('Your name').fill(name);
   await listed(page, session).click({ timeout: 8000 });
-  await expect(page.getByText(/^Playing in/)).toBeVisible();
+  await expect(state(page)).toContainText('Following');
 };
 
 /** Ends a session on purpose, past the question that asks whether to. */
 const end = async (page: Page, button: string, sure: string) => {
+  await openSession(page);
   await page.getByRole('button', { name: button }).click();
   await page.getByRole('button', { name: sure }).click();
 };
@@ -148,10 +169,11 @@ async function inStep(
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await page.getByRole('button', { name: 'Start the band' }).click();
   await join(client, session, 'Ada', lobby);
-  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
-  await expect(client.getByText('The host is playing.')).toBeVisible();
+  await joined(page, 'Ada');
+  await expect(state(client)).toContainText('host playing');
   // A client's controls rest: the host leads.
-  await expect(client.getByRole('button', { name: 'Start the band' })).toBeDisabled();
+  // (Its label is Stop once the band sounds, so it is found by its title.)
+  await expect(client.getByTitle('The host starts and stops the band')).toBeDisabled();
 
   await client.waitForTimeout(6000);
   const held = hold === 'host' ? page : client;
@@ -244,7 +266,7 @@ async function inStep(
 
   await end(client, 'Leave session', 'Yes, leave');
   await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
-  await expect(page.getByText('Nobody has joined yet.')).toBeVisible();
+  await expect(state(page)).toContainText('nobody has joined');
   expect(hostErrors).toEqual([]);
   expect(clientErrors).toEqual([]);
 }
@@ -286,8 +308,8 @@ test('the door lists the sessions open with their players, local and global apar
   await expect(found).toHaveText(/1$/);
   await other.getByLabel('Your name').fill('Bob');
   await found.click();
-  await expect(other.getByText(/^Playing in/)).toBeVisible();
-  await expect(page.getByText('1 joined: Bob.')).toBeVisible();
+  await expect(state(other)).toContainText('Following');
+  await joined(page, 'Bob');
 
   // A session between the tabs of a browser is listed as local, and the global one is not listed
   // where no lobby server was given. Its own context: what a page keeps to come back is shared.
@@ -384,19 +406,21 @@ test('one tap does not end a session: closing or leaving asks first', async ({ p
   await listen(client);
   await host(page, 'careful jam');
   await join(client, 'careful jam', 'Ada');
-  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
+  await joined(page, 'Ada');
 
+  await openSession(page);
   await page.getByRole('button', { name: 'Close session' }).click();
   await expect(page.getByRole('alertdialog')).toHaveText(
     /Close careful jam for everyone\? 1 other is playing in it\./,
   );
   await page.getByRole('button', { name: 'Keep playing' }).click();
-  await expect(page.getByText(/^Hosting/)).toBeVisible();
+  await expect(state(page)).toContainText('Hosting');
 
+  await openSession(client);
   await client.getByRole('button', { name: 'Leave session' }).click();
   await client.getByRole('button', { name: 'Stay' }).click();
-  await expect(client.getByText(/^Playing in/)).toBeVisible();
-  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
+  await expect(state(client)).toContainText('Following');
+  await joined(page, 'Ada');
 });
 
 test("a client's motif reaches the host's Muse, and both lead lines, named by its player", async ({
@@ -410,7 +434,7 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
   await page.getByRole('button', { name: 'Start the band' }).click();
   await join(client, 'motif jam', 'Ada');
-  await expect(client.getByText('The host is playing.')).toBeVisible();
+  await expect(state(client)).toContainText('host playing');
   await expect(client.getByText('Bar 3 of 8')).toBeVisible({ timeout: 8000 });
 
   // Synth-pop at 108 bpm: three notes four steps apart, in one bar.
@@ -453,36 +477,36 @@ test('a host page that reloads keeps its session and its client, and a client pa
   await host(page, 'reload jam', LOBBY);
   await page.getByRole('button', { name: 'Start the band' }).click();
   await join(client, 'reload jam', 'Ada', LOBBY);
-  await expect(client.getByText('The host is playing.')).toBeVisible();
-  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
+  await expect(state(client)).toContainText('host playing');
+  await joined(page, 'Ada');
 
   // The host's page goes and comes back: the lobby holds the session, the page
   // reopens it from what it kept, and the client, never disconnected, joins again.
   await page.reload();
-  await expect(page.getByText(/^Hosting/)).toBeVisible();
-  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
-  await expect(client.getByText(/^Playing in/)).toBeVisible();
-  await expect(client.getByText('The host is stopped.')).toBeVisible();
+  await expect(state(page)).toContainText('Hosting');
+  await joined(page, 'Ada');
+  await expect(state(client)).toContainText('Following');
+  await expect(state(client)).toContainText('host stopped');
   await page.getByRole('button', { name: 'Start the band' }).click();
-  await expect(client.getByText('The host is playing.')).toBeVisible();
+  await expect(state(client)).toContainText('host playing');
 
   // The client's page goes and comes back: it joins as the player it was, and
   // the host still lists one Ada, not two.
   await client.reload();
-  await expect(client.getByText(/^Playing in/)).toBeVisible();
-  await expect(client.getByText('The host is playing.')).toBeVisible();
-  await expect(page.getByText('1 joined: Ada.')).toBeVisible();
+  await expect(state(client)).toContainText('Following');
+  await expect(state(client)).toContainText('host playing');
+  await joined(page, 'Ada');
 
   // Leaving on purpose leaves nothing to come back to: the client's reload lands on the door.
   await end(client, 'Leave session', 'Yes, leave');
   await client.reload();
   await expect(client.getByRole('button', { name: 'Play with the band' })).toBeVisible();
-  await expect(client.getByText(/^Playing in/)).toHaveCount(0);
+  await expect(sessionCard(client)).toHaveCount(0);
 
   // Nor does closing.
   await end(page, 'Close session', 'Yes, close it');
   await page.reload();
   await expect(page.getByRole('button', { name: 'Play with the band' })).toBeVisible();
-  await expect(page.getByText(/^Hosting/)).toHaveCount(0);
+  await expect(sessionCard(page)).toHaveCount(0);
   await elsewhere.close();
 });
