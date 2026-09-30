@@ -21,6 +21,7 @@ A source file has no line here: its header comment says what it is, and `tooling
     - [`language-surface.md`](language-surface.md): lowering to devices, readers and writers, the score text
     - [`language-analysis.md`](language-analysis.md): reading the music back, the Muse, composing a band
     - [`language-experiments.md`](language-experiments.md): the experiments that measured the entries
+  - [`shape.md`](shape.md): the negative and the positive shape of the language side by side, one row per level and one column each for pitch and time: where entries have no witness, where code has no entry, where the towers differ (#255)
   - [`quinetic.md`](quinetic.md): #39's catalogue of quinetic properties (round trips, machine laws, convergence), each a claim with a test, or an alias of the `language-*.md` entry that already holds it
   - [`ratchet.md`](ratchet.md): how a working track and a negative track drive each other, with tests as the pawl (#37 and #7)
   - [`theory.md`](theory.md): the mathematics under `packages/theory` (circle, helix, generator, modes, composition, meter), each relation with the test that holds it
