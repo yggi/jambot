@@ -7,3 +7,4 @@ export * from './level.ts';
 export * from './peaks.ts';
 export * from './pitch.ts';
 export * from './signals.ts';
+export * from './timbre.ts';

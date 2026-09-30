@@ -51,6 +51,11 @@ export const AUDITED: Readonly<Record<string, string>> = {
     "partial()'s Math.log2 is a fixed constant per integer n (a harmonic " +
     "series partial), not a per-play draw, and far from a semitone's rounding " +
     'boundary for the small n in use.',
+  'packages/spectrum/src/timbre.ts':
+    'Math.log2 turns a peak into cents from its harmonic and a width into cents, and ' +
+    'the log10 of a ratio into dB: values to show and to compare by distance. The ' +
+    'only choice made from one is which peak within 40 cents of a harmonic is the ' +
+    'strongest, by comparing magnitudes, not these results.',
   'packages/spectrum/src/bands.ts':
     'Math.log2 counts the bands that fit between two frequencies, floored: at ' +
     'an exact boundary a band more or fewer is drawn, nothing is chosen from it, ' +
