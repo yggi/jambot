@@ -7,7 +7,7 @@
  * for each half of the bar, since a theme's chord starts on step 0 or 8. The
  * second turns those chords into a number. The first is the analyzer's chord
  * stage in miniature (brief, stage 5), and is tested on the composer's own
- * chords (E24) before anything is read from it.
+ * chords (E25) before anything is read from it.
  *
  * A chord is the pitch classes the pad and stab sound in its half, matched
  * to the named qualities (`CHORD_QUALITIES`): a quality holds when every

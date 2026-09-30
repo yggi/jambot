@@ -3,7 +3,12 @@
   glyph (a small living picture of the thing) at the left, beside the card's
   title (what it is), the main element (what it is now, in large type) and a
   sub element (secondary and changing), with the chevron at the top right,
-  in the same place on every card. The details open under it, free to arrange their
+  in the same place on every card. Each line of the summary is one line, never
+  wrapped: the main element's type shrinks with the room there is, whatever it
+  says, and any line that still doesn't fit is cut short (its full text is the
+  tooltip), and the sub element keeps its line when it is empty, so a card is
+  as tall when the band is stopped as when it plays and the layout never
+  shifts under a person looking for the next chord. The details open under it, free to arrange their
   content, spaced alike. A card starts folded unless its details are what a
   person plays on, as the tracks' are, and only a person's click changes
   that: the card owns whether it is open, so what it shows changing (a new
@@ -65,11 +70,13 @@
     {#if glyph}<span class="glyph" aria-hidden="true">{@render glyph()}</span>{/if}
     <span class="title">{title}</span>
     {#if typeof main === 'string'}
-      <span class="main">{main}</span>
+      <span class="main" title={main}><span class="fit">{main}</span></span>
     {:else}
       <span class="main control">{@render main()}</span>
     {/if}
-    {#if sub}<span class="sub" aria-live={live ? 'polite' : undefined}>{sub}</span>{/if}
+    {#if sub !== undefined}
+      <span class="sub" title={sub} aria-live={live ? 'polite' : undefined}>{sub}</span>
+    {/if}
   </summary>
   {@render children()}
 </details>
@@ -86,7 +93,7 @@
   }
   summary {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'title chevron'
       'main glyph'
@@ -95,7 +102,7 @@
     column-gap: 10px;
   }
   summary.with-glyph {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
       'glyph title chevron'
       'glyph main main'
@@ -105,6 +112,14 @@
   summary::after {
     grid-area: chevron;
     justify-self: end;
+  }
+  .title,
+  .sub,
+  .fit {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
   .title {
     grid-area: title;
@@ -123,19 +138,26 @@
   }
   .main {
     grid-area: main;
+    min-width: 0;
     margin-top: 4px;
-    font-size: 28px;
+    container-type: inline-size;
+  }
+  /* The type shrinks with the room, so a long chord name fits in one line on a phone. */
+  .fit {
+    display: block;
+    font-size: clamp(18px, 10cqw, 28px);
     font-weight: 700;
-    line-height: 1.1;
+    line-height: 1.15;
   }
   .main.control {
+    container-type: normal;
     font-size: 14px;
     font-weight: 400;
     line-height: normal;
-    min-width: 0;
   }
   .sub {
     grid-area: sub;
+    min-height: 1.35em;
     font-size: 13px;
     color: var(--muted);
   }

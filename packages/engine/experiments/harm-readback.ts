@@ -1,5 +1,5 @@
 /**
- * E24: the chords read back from the notes, and `harm` read from them
+ * E25: the chords read back from the notes, and `harm` read from them
  * (#15, the critic's `harm` axis; F3 at the harmony level, N3).
  *
  * Two questions, in this order, since the second stands on the first:
@@ -9,7 +9,7 @@
  *   composer's (`barChords`, the chord at step 0 and step 8).
  * - Does `readHarm` rise with the `harm` axis, and how far does it lie from it?
  *   Kendall's tau-b and the mean distance, over the presets held and a sweep
- *   of the axis with the others in the middle, as E22 does.
+ *   of the axis with the others in the middle, as E23 does.
  *
  * node --experimental-strip-types --no-warnings packages/engine/experiments/harm-readback.ts
  */

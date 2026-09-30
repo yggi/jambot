@@ -1,5 +1,5 @@
 /**
- * E23: does Techno land where techno lands? (#15, step 3)
+ * E24: does Techno land where techno lands? (#15, step 3)
  *
  * The round trip the critic is calibrated on: the band composes at each
  * preset's point, `readStyle` reads the bars, `genreOf` turns the reading
