@@ -388,7 +388,10 @@ const chordIndexAt = (harm: readonly HarmChord[], step: number) =>
   );
 
 /** The voicing of each chord of the bar, each led from the one before, the first from the frame's. */
-function voicedChords(bar: ScoreBar): { voiced: number[][]; end: readonly number[] | null } {
+function voicedChords(bar: Pick<ScoreBar, 'key' | 'harm' | 'voicing'>): {
+  voiced: number[][];
+  end: readonly number[] | null;
+} {
   let previous: readonly number[] | null = bar.voicing ?? null;
   const voiced = bar.harm.map(({ numeral }) => {
     const notes = compVoicing(lowerNumeral(bar.key, numeral), previous);
@@ -406,7 +409,7 @@ function compNotesOf(
   bar: Pick<ScoreBar, 'key' | 'harm' | 'voicing' | 'next'>,
   hits: readonly { step: number; token: CompToken }[],
 ): CompNotes[] {
-  const { voiced, end } = voicedChords(bar as ScoreBar);
+  const { voiced, end } = voicedChords(bar);
   const coming = bar.next && compVoicing(lowerNumeral(bar.next.key, bar.next.numeral), end);
   return hits.map(({ step, token }) => ({
     step,

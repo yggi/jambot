@@ -34,7 +34,15 @@ import {
   styleAt,
   voicing,
 } from '@jambot/engine';
-import { chordScale, joinChord, parseNumeral, positions, wrap } from '@jambot/theory';
+import {
+  type Chord,
+  chordScale,
+  compose,
+  joinChord,
+  parseNumeral,
+  positions,
+  wrap,
+} from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_FOLD,
@@ -347,6 +355,36 @@ describe('the seam, over the bars the band writes', () => {
       }
     }
     expect(compared).toBeGreaterThan(3000);
+  });
+
+  it('voices every chord the composer can write as the engine does: every triad, seventh and ninth on every degree of every mode, from no voicing and from each chord’s voicing, in every key (S2)', () => {
+    // The engine's own finite test of its voicing, as a pin on the score's copy:
+    // the band plays only some of these chords, and a copy that agreed on them
+    // alone would drift where the band has not been.
+    const chordOf = (heights: readonly number[], tensions: readonly number[] = []): Chord => ({
+      helix: { cycle: 12, heights },
+      tensions,
+    });
+    const chordsIn = (tonic: number): Chord[] =>
+      COMPOSER_MODES.flatMap((mode) =>
+        range(7).flatMap((d) => {
+          const scale = keyHelix({ tonic, mode });
+          const triad = compose({ cycle: 7, heights: [d, d + 2, d + 4] }, scale).heights;
+          const seventh = compose({ cycle: 7, heights: [d, d + 2, d + 4, d + 6] }, scale).heights;
+          return [chordOf(triad), chordOf(seventh), chordOf(seventh, [seventh[0]! + 14])];
+        }),
+      );
+    const home = chordsIn(0);
+    const previous = [null, ...home.map((chord) => voicing(chord, null))];
+    let compared = 0;
+    // Every pair of the 84 chords of one key, and each chord of every key from each of their voicings.
+    for (const tonic of range(12))
+      for (const to of tonic === 0 ? home : chordsIn(tonic))
+        for (const from of previous) {
+          expect(compVoicing(to, from)).toEqual(voicing(to, from));
+          compared++;
+        }
+    expect(compared).toBe(12 * 84 * 85);
   });
 
   it('states the pad on the chords it sounds and the stab on its steps, each played as it was written, and holds a pad to the next chord and a stab one step (U6)', () => {
