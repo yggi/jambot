@@ -1859,5 +1859,30 @@ run; the others have.
   - So the lead returns to its shape in its third bar, and the Muse hears it, but its variations, a shape under an operator and then fitted to the chords, are seldom an exact operator on the shape once fitted; E13 finds most of them one operator but for the close and one note.
   - Both halves ask for the same next step: recognition with a tolerance, an operator but for a note, whose width would be a licence (C8), so a loose hand's repeat and a fitted variation are heard as what they are.
 
+- **E21. The loop closed with no players** (Q7b, Q12; #237 step 0), in
+  [`packages/engine/experiments/loop.ts`](../packages/engine/experiments/loop.ts)
+  (about 25 s; its test, a sample, about 3 s): the Muse hears the band's own lead as she hears a player, and her offer goes back into the band with F7's delay, so what she hears in bar k plays from bar k + 2.
+  - Two conditions over the same seeds: deaf, the band as it plays alone today, a Muse listening beside it whose offer is not fed back; and hearing, the loop closed.
+  - Every preset at entropy 0, 0.3, 0.6 and 1, 3 seeds of 128 bars; the presets ordered by their harmony, which sets the licence's reach (Techno the narrowest, Swing jazz the widest).
+  - The lead's notes are on the grid, so the nearest step reads each bar as the transport's phrase reading does, which the test holds on a sample.
+  - Closed, the Muse recognises 83.6 to 94.4% of the lead's motif bars as a motif she remembers, against 37.0 to 63.4% deaf.
+    Of those, 77.9 to 100% are exact repeats, against 86.5 to 96.6% deaf.
+    New motifs fall from 0.8 to 3.5 a section (the fewest Ambient's, whose lead rests most) to 0.4 to 1.2, and the distinct motifs of a run of 128 bars from 11.0 to 53.7 to 5.3 to 12.3.
+  - It doesn't stall on one bar: the longest run of one motif is 1 to 9 bars on average, and runs of a section or more hold at most 7.5% of the motif bars, except in Ambient at entropy 0.6: 24.9%, with a run of 23 bars.
+  - It oscillates: 37.9 to 65.1% of motif bars play the motif of two bars before and not the one before (A B A B), against 20.8 to 44.1% deaf.
+    The run's commonest motif plays in 50.0 to 67.3% of its motif bars, against 9.8 to 47.6% deaf, and in every run closed it is the first motif the lead played, against 0 to 100% of runs deaf.
+    74.6 to 100% of its bars fall on bars of one parity, even or odd, as do 83.3 to 98.6% deaf, where the lead's own phrase puts its shape on a phrase's first and third bars.
+    The reason is in the loop's parts: the delay is two bars, so bars k and k + 2 are both a phrase's first and third bars or both its second and fourth; the lead plays the offer whole, but closes the second and fourth bars on the cadence; and the Muse takes the motif she heard, confirmed.
+    So the first motif plays back unchanged on every other bar, and its cadenced variants between.
+  - It doesn't drift: 58.3 to 95.8% of the last section's motifs are heard (`recognise`, any operator) as one of the first section's, against 0 to 62.5% deaf, 0% in Synth-pop, Lo-fi hip hop and Bossa nova at every entropy, and at most 16.7% at entropy 0.6 and 1.
+  - Nor does it dissolve: every run closed holds the motif it opened with.
+  - So the loop closed at the motif stalls at the phrase and oscillates at the bar, as the prototype predicted (Q7b), where the key's loop drifts above entropy 0 (E19).
+    The two differ in what varies: the key's jump draws on the entropy, and the offered motif passes through the band unchanged but for the cadence, whatever the entropy.
+  - Monotonicity (#237): Kendall's tau of the recognised share against the licence is +0.07, +0.07, +0.21 and +0.57 deaf at the four entropies, so deaf the share doesn't fall as the licence widens; it rises a little.
+    Closing the loop turns it: −0.18, −0.29, −0.82 and −0.79, falling as the licence widens, most at entropy 0.6 and 1.
+    Against the entropy, deaf, the share falls in every preset (tau −1 in four, −0.67 in three, −0.33 in Bossa nova); closed, it doesn't fall consistently (+0.33 to −1).
+    The test's sample, one seed of 96 bars at entropy 0.3, gives −0.18 against the licence in both conditions: at 0.3 the order is weak either way.
+  - Not measured: weights for the band's voices beside the players', since no players play here; and the style's distance over time, which needs the critic (#15).
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
