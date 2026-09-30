@@ -1918,5 +1918,22 @@ run; the others have.
   - So a loop that copies what it hears locks on its first pattern, whatever holds or confirms it, and each of the delay's chains needs a transformation of its own to drift: variation on every bar, or an answer under an operator from the Muse (#237 step 4), not a copy.
   - Not measured: weights for the band's voices beside the players', since no players play here; and the style's distance over time, which needs the critic (#15).
 
+- **E22. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
+  [`packages/engine/experiments/style-readback.ts`](../packages/engine/experiments/style-readback.ts),
+  held by [`packages/engine/experiments/style-readback.test.ts`](../packages/engine/experiments/style-readback.test.ts):
+  bars composed at a style and read back by `readStyle`, per axis: Kendall's tau-b of the reading against the axis, and the mean distance of the two where the reading is on the axis's scale.
+  Over the eight presets held 16 bars, each axis swept from 0 to 1 in eleven steps with the rest in the middle, and the tour with each preset reached by E10's 8-bar glide; 5 seeds each.
+  - The articulation is not in the written notes.
+    Their lengths fill the gap to the next onset in every bar (reading 0 in all 3,900 bars measured), because the gate is the performer's (T4); it is read from `BandBar.dough`, and then rises with the axis: tau 0.92 over the presets, 0.95 over its sweep and 0.71 over the tour, where the style is moving inside each bar.
+    It lies 0.16 from the axis (0.21 in the tour): the reading tops out short of staccato, since a bass or lead note is never gated below a quarter of its length.
+  - The syncopation rises with the axis but weakly: tau 0.37 over the presets, 0.34 over its sweep and 0.22 over the tour, and the reading covers 0.03 to 0.29 of an axis that spans 0 to 1.
+    It is the drums that carry it (their off-beat share rises from 0.02 to 0.28 with the axis), the bass follows (0 to 0.25), and the pad and stab never leave the grid (0 and 0 to 0.08).
+    The lead is not monotone (0.11, 0.45, 0.18, 0.21, 0.59 at 0, 0.25, 0.5, 0.75, 1).
+    So the axis is a finding against the composer more than against the reader: `sync` moves the drums and the bass, and hardly touches the chords.
+  - The density rises with the energy: tau 0.60 over its sweep, 0.46 over the presets and 0.31 over the tour.
+    It has no scale of its own yet (onsets per step over all parts, 0.9 to 1.2 on average), so it has no distance; a fit to the axis is a later step.
+  - An axis is read from its own and no other: a sweep of one moves the tau of each other reading by less than 0.05.
+  - Not measured: `swing` and `bpm` (the clock's, and `estimateSwing`'s in played time), `harm` (needs the chords, not read from notes yet), per-part readings (step 4), and the real music the analyzer will read.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

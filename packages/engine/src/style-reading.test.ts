@@ -90,11 +90,21 @@ describe('reading the band', () => {
     });
   };
 
+  it('reads the gate and not the written length as the articulation', () => {
+    const at = (artic: number) =>
+      bars({ ...INITIAL_STYLE, artic }, 8).map((b) => [b.written, b.dough] as const);
+    for (const [written, dough] of at(1))
+      if (readStyle(dough).artic !== undefined) {
+        expect(readStyle(written).artic).toBe(0);
+        expect(readStyle(dough).artic).toBeGreaterThan(0);
+      }
+  });
+
   it.each(PRESETS.map((p) => [p.name, p] as const))(
     'reads every axis it reads, in range, from %s',
     (_, preset) => {
       for (const bar of bars({ ...preset.style, entropy: 0.3 })) {
-        const read = readStyle(bar.written);
+        const read = readStyle(bar.dough);
         for (const value of Object.values(read)) {
           expect(Number.isFinite(value)).toBe(true);
           expect(value).toBeGreaterThanOrEqual(0);

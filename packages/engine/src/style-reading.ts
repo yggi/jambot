@@ -3,10 +3,11 @@
  *
  * The composer turns a style into notes; this goes the other way, one axis at
  * a time, by rule. Nothing here is learned, so it can be the baseline and the
- * oracle of the learned critic that comes after. It reads a bar's written
- * notes (`WrittenNote`), so it reads what was meant and not what a hand did to
- * it; swing, which lives in the played time, is `estimateSwing` in
- * `reading.ts`.
+ * oracle of the learned critic that comes after. It reads a bar's notes as
+ * they sound (`BandBar.dough`): the steps are the written ones, and the
+ * lengths are the performer's gate, which is where the articulation lives
+ * (T4). The written lengths fill the gap and say none of it (E22). Swing,
+ * which lives in the played time, is `estimateSwing` in `reading.ts`.
  *
  * A reading is raw, not fitted: `sync` and `artic` lie in 0 to 1 as their
  * axes do, `density` is onsets per step and has no axis to sit on yet. How
@@ -16,10 +17,13 @@
  * Pure: it counts steps and knows no clock, file or key.
  */
 
-import { BAR_STEPS, type WrittenNote, onBeat } from './events.ts';
+import { BAR_STEPS, type DoughNote, onBeat } from './events.ts';
 
 /** The steps in an eighth: the grid is 16ths. */
 const STEPS_PER_EIGHTH = 2;
+
+/** What a reading needs of a note: where it starts, in which part, and how long it sounds. */
+export type Sounding = Pick<DoughNote, 'part' | 'step' | 'length'>;
 
 /** The parts whose length says how the line is played; the others are hits and voicings. */
 const LINES = ['bass', 'lead'] as const;
@@ -41,7 +45,7 @@ const median = (values: readonly number[]): number => {
 };
 
 /** The share of its gap to the next onset (or the bar's end) that each note of one line sounds. */
-function soundingShares(line: readonly WrittenNote[]): number[] {
+function soundingShares(line: readonly Sounding[]): number[] {
   const starts = [...new Set(line.map((n) => n.step))].sort((a, b) => a - b);
   return starts.map((step, i) => {
     const gap = (starts[i + 1] ?? BAR_STEPS) - step;
@@ -50,8 +54,8 @@ function soundingShares(line: readonly WrittenNote[]): number[] {
   });
 }
 
-/** The style a bar's written notes read as, on the axes that can be read from notes alone. */
-export function readStyle(notes: readonly WrittenNote[]): StyleReading {
+/** The style a bar's sounding notes read as, on the axes that can be read from notes alone. */
+export function readStyle(notes: readonly Sounding[]): StyleReading {
   // (part, step) pairs: the same step of two parts is two onsets, a chord's notes are one.
   const onsets = [...new Set(notes.map((n) => `${n.part}:${n.step}`))].map((id) =>
     Number(id.split(':')[1]),
