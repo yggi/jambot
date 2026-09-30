@@ -2,7 +2,13 @@ import { even, positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { BarEnv } from './bar.ts';
 import { DRUM_NOTES, drums } from './drums.ts';
-import { DRUM_ROLES, type DrumRole, type WrittenNote, writtenProblems } from './events.ts';
+import {
+  DRUM_ROLES,
+  type DrumRole,
+  SONG_METER,
+  type WrittenNote,
+  writtenProblems,
+} from './events.ts';
 import { SECTION_BARS, SECTION_TYPES, type SectionType, barEnergy } from './form.ts';
 import { INITIAL_KEY } from './key.ts';
 import { perform } from './performer.ts';
@@ -25,6 +31,7 @@ const envOf = (
 ): BarEnv => ({
   seed,
   bar: index * SECTION_BARS + barInSection,
+  meter: SONG_METER,
   plan: {
     section: { type, index },
     key: INITIAL_KEY,
