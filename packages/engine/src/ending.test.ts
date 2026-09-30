@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { band, finaleBar } from './band.ts';
 import { chordName } from './chords.ts';
 import { DRUM_NOTES } from './drums.ts';
-import { RING_STEPS, cadence, countIn, countInSeconds } from './ending.ts';
+import { RING_STEPS, cadence, countIn, countInSeconds, finale } from './ending.ts';
+import { METERS, stepsOf } from '@jambot/theory';
+import type { BarEnv } from './band.ts';
 import { BAR_STEPS, beatStart, doughProblems, writtenProblems } from './events.ts';
-import { COMPOSER_MODES } from './key.ts';
+import { COMPOSER_MODES, INITIAL_KEY } from './key.ts';
 import { INITIAL_STYLE, PRESETS, glideTo, holding } from './style.ts';
 import { stepSeconds } from './tempo.ts';
 
@@ -138,3 +140,49 @@ describe('the count-in', () => {
     expect(countInSeconds(gliding)).toBeCloseTo(BAR_STEPS * stepSeconds(100), 12);
   });
 });
+
+describe('the ending on other meters (#260)', () => {
+  const named = Object.entries(METERS);
+  const cadenceEnv = (meter: (typeof named)[number][1]) =>
+    ({
+      seed: 5,
+      bar: 0,
+      meter,
+      plan: { key: INITIAL_KEY },
+      chords: cadence(INITIAL_KEY),
+    }) as unknown as BarEnv;
+  const from = { bass: 40, comp: null, lead: { last: 69 } } as never;
+
+  it('writes every note inside the bar and its ring, well formed, landing once on a step of the bar (finite: every meter)', () => {
+    for (const [name, meter] of named) {
+      const steps = stepsOf(meter);
+      const notes = finale(cadenceEnv(meter), from);
+      expect([name, writtenProblems({ ...notes[0]! }, steps + RING_STEPS)]).toEqual([name, []]);
+      for (const note of notes) {
+        expect([name, note.step >= 0 && note.step < steps]).toEqual([name, true]);
+        expect([name, note.step + note.length <= steps + RING_STEPS]).toEqual([name, true]);
+      }
+      const landing = notes.filter((n) => n.part === 'bass').at(-1)!.step;
+      expect([name, landing > 0 && landing < steps && landing % 2 === 0]).toEqual([name, true]);
+      const seen = new Set(
+        notes.filter((n) => n.part === 'drums').map((n) => `${n.step}/${n.note}`),
+      );
+      expect([name, seen.size]).toEqual([name, notes.filter((n) => n.part === 'drums').length]);
+    }
+  });
+
+  it('counts a bar in with one click to each pulse of the meter, the first the downbeat (finite: every meter)', () => {
+    const track = holding({ ...INITIAL_STYLE, bpm: 120 });
+    for (const [name, meter] of named) {
+      const clicks = countIn(track, 10, meter);
+      expect([name, clicks.length]).toEqual([name, meterPulses(meter)]);
+      expect([name, clicks[0]!.weight]).toEqual([name, 'downbeat']);
+      expect([name, countInSeconds(track, meter)]).toEqual([
+        name,
+        expect.closeTo(stepsOf(meter) * stepSeconds(120), 12),
+      ]);
+    }
+  });
+});
+
+const meterPulses = (meter: (typeof METERS)[keyof typeof METERS]) => meter.heights.length;

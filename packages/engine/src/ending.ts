@@ -15,15 +15,28 @@
  * the tempo the song opens at: a click on each beat, the downbeat's marked.
  * It is a reading of the song's clock like the metronome (`metronome.ts`),
  * laid before the song rather than through it.
+ *
+ * The bar is its meter's (#260): the landing is the bar's half, the chords'
+ * second slot read on the meter (`slotStepOn`), the ring follows the bar's
+ * steps, and the count-in is one bar of the meter's pulses. In 4/4 it is
+ * what it was.
  */
 
-import { type Weight, compose, heightOf, wrap } from '@jambot/theory';
+import {
+  type Meter,
+  type Weight,
+  compose,
+  heightOf,
+  meterOnSteps,
+  stepsOf,
+  wrap,
+} from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { nearest } from './bass.ts';
-import type { BarChord } from './chords.ts';
+import { type BarChord, slotStepOn } from './chords.ts';
 import { voicing } from './comp.ts';
 import { DRUM_NOTES } from './drums.ts';
-import { BAR_STEPS, SONG_METER, type WrittenNote, beatStart } from './events.ts';
+import { SONG_METER, type WrittenNote, beatStart } from './events.ts';
 import { type Key, keyHelix } from './key.ts';
 import { LEAD_RANGE, type LeadCarried } from './lead.ts';
 import { type StyleTrack, valueAt } from './style.ts';
@@ -32,7 +45,7 @@ import { stepSeconds } from './tempo.ts';
 /** How many steps the last chord rings on past the final bar. */
 export const RING_STEPS = 8;
 
-/** The step of the final bar the tonic lands on: its third beat. */
+/** The step of a theme's bar the tonic lands on, in 4/4's steps: its third beat. A bar of another meter reads it on its own (`slotStepOn`). */
 const LANDING = beatStart(2);
 
 /** The final bar's chords: the dominant seventh of the key, then its tonic. */
@@ -75,31 +88,35 @@ export function finale(env: BarEnv, from: FinaleFrom): WrittenNote[] {
   const [dominant, tonic] = env.chords as [BarChord, BarChord];
   const scale = keyHelix(env.plan.key);
   const notes: WrittenNote[] = [];
-  const held = BAR_STEPS + RING_STEPS;
+  const landing = slotStepOn(env.meter, LANDING);
+  const held = stepsOf(env.meter) + RING_STEPS;
+  const pulses = meterOnSteps(env.meter).heights;
 
-  // The drums lean in and land: hats, a backbeat, a snare pickup, then kick,
-  // snare and ride together.
-  for (const step of [0, 2, 4, 6]) notes.push(hit(step, DRUM_NOTES.closedHat, 'hat'));
+  // The drums lean in and land: hats, a backbeat on the pulse before the
+  // landing, a snare pickup an eighth before it, then kick, snare and ride
+  // together.
+  for (let step = 0; step < landing; step += 2) notes.push(hit(step, DRUM_NOTES.closedHat, 'hat'));
   notes.push(hit(0, DRUM_NOTES.kick, 'kick'));
-  notes.push(hit(4, DRUM_NOTES.snare, 'backbeat'));
-  notes.push(hit(6, DRUM_NOTES.snare, 'backbeat'));
-  notes.push(hit(LANDING, DRUM_NOTES.kick, 'kick'));
-  notes.push(hit(LANDING, DRUM_NOTES.snare, 'backbeat'));
-  notes.push(hit(LANDING, DRUM_NOTES.ride, 'hat'));
+  for (const step of pulses)
+    if (step > 0 && step < landing) notes.push(hit(step, DRUM_NOTES.snare, 'backbeat'));
+  if (!pulses.includes(landing - 2)) notes.push(hit(landing - 2, DRUM_NOTES.snare, 'backbeat'));
+  notes.push(hit(landing, DRUM_NOTES.kick, 'kick'));
+  notes.push(hit(landing, DRUM_NOTES.snare, 'backbeat'));
+  notes.push(hit(landing, DRUM_NOTES.ride, 'hat'));
 
   const low = nearest(dominant.chord.helix.heights[0]!, from.bass);
-  notes.push({ part: 'bass', step: 0, note: low, length: LANDING });
+  notes.push({ part: 'bass', step: 0, note: low, length: landing });
   notes.push({
     part: 'bass',
-    step: LANDING,
+    step: landing,
     note: nearest(tonic.chord.helix.heights[0]!, low),
-    length: held - LANDING,
+    length: held - landing,
   });
 
   let previous = from.comp;
   for (const [chord, step, length] of [
-    [dominant, 0, LANDING],
-    [tonic, LANDING, held - LANDING],
+    [dominant, 0, landing],
+    [tonic, landing, held - landing],
   ] as const) {
     const voiced = (previous = voicing(chord.chord, previous));
     for (const note of voiced) notes.push({ part: 'pad', step, note, length });
@@ -107,12 +124,12 @@ export function finale(env: BarEnv, from: FinaleFrom): WrittenNote[] {
 
   // The lead sings the second degree over the dominant and resolves to the tonic.
   const second = nearestInLead(heightOf(scale, 1), from.lead.last);
-  notes.push({ part: 'lead', step: 0, note: second, length: LANDING });
+  notes.push({ part: 'lead', step: 0, note: second, length: landing });
   notes.push({
     part: 'lead',
-    step: LANDING,
+    step: landing,
     note: nearestInLead(scale.heights[0]!, second),
-    length: held - LANDING,
+    length: held - landing,
   });
   return notes.sort((a, b) => a.step - b.step || a.note - b.note);
 }
@@ -129,9 +146,9 @@ export interface CountInClick {
   readonly weight: Weight;
 }
 
-/** How long the count-in lasts: one bar at the tempo the song opens at. */
-export function countInSeconds(track: StyleTrack): number {
-  return BAR_STEPS * stepSeconds(valueAt('bpm', track.bpm, 0));
+/** How long the count-in lasts: one bar, of the song's opening meter, at the tempo the song opens at. */
+export function countInSeconds(track: StyleTrack, meter: Meter = SONG_METER): number {
+  return stepsOf(meter) * stepSeconds(valueAt('bpm', track.bpm, 0));
 }
 
 /**
@@ -139,11 +156,16 @@ export function countInSeconds(track: StyleTrack): number {
  * beat of the bar before it, at the tempo the song opens at, the first on
  * the downbeat's weight and the rest on the pulse's.
  */
-export function countIn(track: StyleTrack, start: number): CountInClick[] {
+export function countIn(
+  track: StyleTrack,
+  start: number,
+  meter: Meter = SONG_METER,
+): CountInClick[] {
   const step = stepSeconds(valueAt('bpm', track.bpm, 0));
-  const from = start - countInSeconds(track);
-  return Array.from({ length: SONG_METER.heights.length }, (_, beat) => ({
-    seconds: from + beatStart(beat) * step,
+  const from = start - countInSeconds(track, meter);
+  const pulses = meterOnSteps(meter).heights;
+  return pulses.map((pulse, beat) => ({
+    seconds: from + pulse * step,
     beat,
     weight: beat === 0 ? 'downbeat' : 'pulse',
   }));
