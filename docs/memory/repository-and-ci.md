@@ -19,6 +19,9 @@ How the repository is built, gated, deployed and licensed.
   `expect()` costs more than most of what a finite check compares: about 20 µs a call, and a check over every case makes millions.
   Such a loop tallies its failures in an array and asserts once at the end (`swing.test.ts`, `events.test.ts`).
   jsdom costs about a second a file, so a web test that touches no DOM starts with `// @vitest-environment node`.
+  The web jsdom tests run on `vmThreads`, which creates jsdom once per worker and keeps a context per file: 33 s instead of 15 s.
+  A worker there keeps a compiled module across files, and a node test compiles Svelte's own `.svelte.js` for the server, so a later jsdom test in that worker got props that never updated, under load, about one full run in two.
+  `apps/web/vitest.config.ts` therefore leaves the node tests to a second project, `web-node` (`vitest.node.config.ts`), found by that first line.
   The player's tests keep jsdom: under node Svelte resolves its server build, and they run twice as slow.
   The tooling tests that need a git repository build it once and copy it for each test.
 - `pnpm deploy` is a reserved pnpm command, which is why the deploy is `pnpm pages deploy`.
