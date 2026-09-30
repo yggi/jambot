@@ -10,6 +10,7 @@ const pureSources = [
   'packages/engine/src/**',
   'packages/score/src/**',
   'packages/session/src/**',
+  'packages/spectrum/src/**',
   'packages/theory/src/**',
 ];
 

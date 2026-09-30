@@ -39,6 +39,8 @@ Two things run today:
     The score's surface syntax is still open (#7, #63).
   - [`packages/session`](packages/session) is the pure part of host and client
     mode: the protocol, the roster, the clocks and the reconnect policy.
+  - [`packages/spectrum`](packages/spectrum) reads a frame of audio samples as a
+    spectrum, its peaks and its pitch, for the tuner (#269).
   - [`apps/web`](apps/web) is a Svelte PWA that plays the new engine's full band
     live, laid out in the order of the composition: transport, style, metrum,
     key, plan and chords, tracks.

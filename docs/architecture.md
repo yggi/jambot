@@ -9,6 +9,9 @@ Jambot is a pnpm workspace:
 - **`packages/session`** holds host and client mode: what a host and its clients
   say, a client's band and ear, and its reading of the host's clock
   ([brief](briefs/host-mode.md)).
+- **`packages/spectrum`** holds what listening to audio starts from: the FFT, a
+  frame's spectrum and peaks, and its pitch, on arrays of samples with no notion
+  of where they came from (#269).
 - **`apps/lobby`** is the lobby server: sessions found by name, and relayed
   between a host and its clients over WebSockets.
 - **`apps/web`** is the browser app: Svelte 5, built by Vite, and installable as

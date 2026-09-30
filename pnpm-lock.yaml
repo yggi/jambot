@@ -154,6 +154,8 @@ importers:
         specifier: workspace:*
         version: link:../theory
 
+  packages/spectrum: {}
+
   packages/theory:
     devDependencies:
       tonal:

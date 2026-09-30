@@ -16,6 +16,7 @@ const pureSources = [
   'packages/engine/src/probe.ts',
   'packages/score/src/probe.ts',
   'packages/session/src/probe.ts',
+  'packages/spectrum/src/probe.ts',
   'packages/theory/src/probe.ts',
 ];
 
