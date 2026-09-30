@@ -1,4 +1,4 @@
-import { chromaticStep, heightOf, motifProblems } from '@jambot/theory';
+import { NOOP, chromaticStep, heightOf, motifProblems } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { barStart } from './events.ts';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
@@ -6,6 +6,7 @@ import { type Script, lawBreaks } from './machine.ts';
 import {
   type HeardNote,
   type Judgement,
+  MOTIF_DECAY,
   MUSE,
   PHRASE_MEMORY,
   type MuseCarried,
@@ -839,7 +840,13 @@ describe('the Muse', () => {
 
   it('offers the motif it takes, with the source and the bar it was heard in (A3)', () => {
     const { outputs } = listen([{}, { heard: phrase(1, 'a MIDI port') }]);
-    expect(outputs[0]).toEqual({ bar: 0, judgements: [], offer: null, forgot: null });
+    expect(outputs[0]).toEqual({
+      bar: 0,
+      judgements: [],
+      offer: null,
+      forgot: null,
+      recognised: [],
+    });
     expect(outputs[1]).toEqual({
       bar: 1,
       judgements: [expect.objectContaining({ kind: 'motif', source: 'a MIDI port' })],
@@ -850,6 +857,7 @@ describe('the Muse', () => {
         level: 100,
       },
       forgot: null,
+      recognised: [],
     });
   });
 
@@ -909,5 +917,124 @@ describe('the Muse', () => {
     const { outputs } = listen([{ heard: [...phrase(0), ...phrase(1)] }, { heard: phrase(0) }]);
     expect(outputs[0]!.judgements).toHaveLength(1);
     expect(outputs[1]).toMatchObject({ judgements: [], offer: { bar: 0 } });
+  });
+});
+
+describe('the Muse’s memory: repetition confirms a motif, #204 H8 (#204, Q12)', () => {
+  it('hears a motif played again as the same, and says whose it was, when, and under no operator (C9, Q12)', () => {
+    const { outputs } = listen([{ heard: phrase(0, 'a') }, {}, { heard: phrase(2, 'a') }]);
+    expect(outputs[0]!.recognised).toEqual([]);
+    expect(outputs[2]!.recognised).toEqual([
+      { source: 'a', of: { source: 'a', bar: 0 }, op: NOOP },
+    ]);
+  });
+
+  it('hears another player’s answer a fifth higher as the same motif, since a motif counts from its own first note (Q12)', () => {
+    const { outputs } = listen([{ heard: phrase(0, 'a') }, { heard: phrase(1, 'b', 76) }]);
+    expect(outputs[1]!.recognised).toEqual([
+      { source: 'b', of: { source: 'a', bar: 0 }, op: NOOP },
+    ]);
+  });
+
+  it('hears an answer upside down as the motif under mirror: I got what you did there, but do you get this (Q12)', () => {
+    // A C E, answered A F D: the contour mirrored about its first note.
+    const down = played(
+      [
+        [16, 69],
+        [20, 65],
+        [24, 62],
+      ],
+      'b',
+    );
+    const { outputs } = listen([{ heard: phrase(0, 'a') }, { heard: down }]);
+    expect(outputs[1]!.recognised).toEqual([
+      { source: 'b', of: { source: 'a', bar: 0 }, op: { ...NOOP, mirror: true } },
+    ]);
+  });
+
+  it('hears no repetition in two players playing it in the same bar, a unison, nor in a motif it never took', () => {
+    const { outputs } = listen([
+      { heard: [...phrase(0, 'a'), ...phrase(0, 'b', 57)] },
+      { heard: played([[16, 60]]) },
+    ]);
+    expect(outputs.map((o) => o.recognised)).toEqual([[], []]);
+  });
+
+  it('remembers a motif heard once for 16 bars, as long as it holds an offer, and longer each time it is heard again (C9)', () => {
+    const again = (after: number, first: number[]) =>
+      listen(
+        range(after + 1).map((bar) => ({
+          heard: first.includes(bar) || bar === after ? phrase(bar, 'a') : [],
+        })),
+      ).outputs[after]!.recognised.length;
+    expect(again(16, [0])).toBe(1);
+    expect(again(17, [0])).toBe(0);
+    expect(again(20, [0, 1])).toBe(1);
+    expect(again(22, [0, 1])).toBe(0);
+    expect(MOTIF_DECAY).toBeGreaterThan(0);
+    expect(MOTIF_DECAY).toBeLessThan(1);
+  });
+
+  it('holds a confirmed motif across bars against one heard once, and gives it up to a motif confirmed in turn (Q12)', () => {
+    const once = (bar: number, source: string, step: number) =>
+      played(
+        [
+          [16 * bar, 72],
+          [16 * bar + step, 74],
+          [16 * bar + 12, 77],
+        ],
+        source,
+      );
+    const { outputs } = listen([
+      { heard: phrase(0, 'a') },
+      { heard: phrase(1, 'a') },
+      { heard: once(2, 'b', 2) },
+      { heard: once(3, 'b', 2) },
+    ]);
+    expect(outputs.map((o) => o.offer?.source)).toEqual(['a', 'a', 'a', 'b']);
+    expect(outputs[3]!.offer!.bar).toBe(3);
+  });
+
+  it('holds a confirmed motif only while she remembers it: a one-off takes over once it has faded (C9, Q12)', () => {
+    // A motif heard twice, then a note a bar (playing, but no motif), then a one-off.
+    const run = (at: number) =>
+      listen(
+        range(at + 1).map((bar) => ({
+          heard:
+            bar < 2
+              ? phrase(bar, 'a')
+              : bar === at
+                ? played(
+                    [
+                      [16 * bar, 72],
+                      [16 * bar + 2, 74],
+                      [16 * bar + 12, 77],
+                    ],
+                    'b',
+                  )
+                : played([[16 * bar, 60]]),
+        })),
+      ).outputs[at]!.offer!.source;
+    expect(run(21)).toBe('a');
+    expect(run(22)).toBe('b');
+  });
+
+  it('takes a motif heard again over one heard once, however many notes that one has (Q12)', () => {
+    const four = played(
+      [
+        [16, 72],
+        [20, 74],
+        [24, 76],
+        [28, 77],
+      ],
+      'b',
+    );
+    // Without a memory, the most notes win the bar; with one, the motif confirmed does.
+    expect(taken(judgeBar([...phrase(1, 'a'), ...four], 1, A_MINOR))?.source).toBe('b');
+    const { outputs } = listen([
+      { heard: phrase(0, 'a') },
+      { heard: [...phrase(1, 'a'), ...four] },
+    ]);
+    expect(outputs[1]!.offer?.source).toBe('a');
   });
 });

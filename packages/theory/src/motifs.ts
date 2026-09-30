@@ -268,24 +268,34 @@ export function splitBars(phrase: Motif, cycles: readonly number[]): Motif[] | u
   return bars;
 }
 
-/** The operators that leave the motif as it is: finite, as the motif has a note. */
-export function stabilizer(motif: Motif): MotifOp[] {
+/**
+ * Every operator that takes `from` to `to`: none where their rhythms, rests,
+ * alterations or accents can't be made to agree, and otherwise the coset
+ * of `from`'s symmetries that does. Finite, as a motif has a note.
+ */
+export function opsBetween(from: Motif, to: Motif): MotifOp[] {
   const found: MotifOp[] = [];
+  if (from.cycle !== to.cycle) return found;
   const text = (m: Motif) =>
     `${m.onsets}|${m.degrees.map((d) => d !== null)}|${m.accidentals}|${m.accents ?? ''}`;
-  const { degrees } = motif;
-  const note = degrees.findIndex((d) => d !== null);
+  const target = text(to);
+  const note = to.degrees.findIndex((d) => d !== null);
   for (const rev of [false, true])
     for (const mirror of [false, true])
-      for (let late = 0; late < motif.cycle; late++) {
-        const moved = applyOp({ strans: 0, mirror, late, rev }, motif);
-        if (text(moved) !== text(motif)) continue;
+      for (let late = 0; late < from.cycle; late++) {
+        const moved = applyOp({ strans: 0, mirror, late, rev }, from);
+        if (text(moved) !== target) continue;
         // The onsets and rests agree, so the degrees must differ by one sequence.
-        const strans = degrees[note]! - moved.degrees[note]!;
-        if (moved.degrees.every((d, i) => d === null || d + strans === degrees[i]))
+        const strans = to.degrees[note]! - moved.degrees[note]!;
+        if (moved.degrees.every((d, i) => d === null || d + strans === to.degrees[i]))
           found.push({ strans, mirror, late, rev });
       }
   return found;
+}
+
+/** The operators that leave the motif as it is: finite, as the motif has a note. */
+export function stabilizer(motif: Motif): MotifOp[] {
+  return opsBetween(motif, motif);
 }
 
 /**
@@ -310,4 +320,58 @@ export function canonicalOp(
     if (!best || rank(reduced) < rank(best)) best = reduced;
   }
   return best!;
+}
+
+/** A motif without its accents: what was played, apart from how loudly. */
+function unaccented(motif: Motif): Motif {
+  const { cycle, onsets, degrees, accidentals } = motif;
+  return { cycle, onsets, degrees, accidentals };
+}
+
+/**
+ * A motif heard as a remembered one (Q12): the canonical operator that takes
+ * `remembered` to `heard`, `NOOP` for a repeat, or null where none does.
+ * Accents are how a motif was played, not what it is, so they are left out.
+ */
+export function recognise(heard: Motif, remembered: Motif): MotifOp | null {
+  const from = unaccented(remembered);
+  const [op] = opsBetween(from, unaccented(heard));
+  return op === undefined ? null : canonicalOp(op, from);
+}
+
+/** A phrase as cells and their order: which cell each bar plays, under which operator. */
+export interface Cells {
+  /** Each cell as it was first heard, in the order first heard. */
+  readonly cells: readonly Motif[];
+  readonly order: readonly { readonly cell: number; readonly op: MotifOp }[];
+}
+
+/**
+ * A phrase's cells and their order (#207 M1): its bars of these cycles, each
+ * heard as the first earlier cell it repeats under an operator, or as a new
+ * cell. Undefined where the phrase doesn't split into its bars (`splitBars`).
+ * It is recognition done against the phrase's own bars, so a phrase heard
+ * again under an operator on pitch has the same order, which confirms it.
+ */
+export function cellsOf(phrase: Motif, cycles: readonly number[]): Cells | undefined {
+  const bars = splitBars(phrase, cycles);
+  if (!bars) return undefined;
+  const cells: Motif[] = [];
+  const order: { cell: number; op: MotifOp }[] = [];
+  for (const bar of bars) {
+    let cell = -1;
+    let op: MotifOp | null = null;
+    while (op === null && ++cell < cells.length) op = recognise(bar, cells[cell]!);
+    if (op === null) cells.push(bar);
+    order.push({ cell, op: op ?? NOOP });
+  }
+  return { cells, order };
+}
+
+/** An order written as letters, `A A B A'`: a mark on each cell heard under an operator. */
+export function orderText(order: Cells['order']): string {
+  const same = (op: MotifOp) => op.strans === 0 && !op.mirror && op.late === 0 && !op.rev;
+  return order
+    .map(({ cell, op }) => String.fromCharCode(65 + cell) + (same(op) ? '' : "'"))
+    .join(' ');
 }
