@@ -14,4 +14,5 @@ export * from './read.ts';
 export * from './rhythms.ts';
 export * from './scales.ts';
 export * from './spelling.ts';
+export * from './tuning.ts';
 export * from './words.ts';
