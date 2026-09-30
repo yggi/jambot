@@ -182,7 +182,7 @@ state every field of the bar's plan and chords that its parts read, the section,
 the key, the theme's kind, the style and each chord's step, slot and whether it
 is raised, and `barInSection` and `barEnergy` follow from them. The theme's own
 index is not stated, and the lead reads it to keep each theme's melody (S2).
-Open for the pitched parts' carried state (S2). Source: Strudel's query model,
+Open for the comp's and the lead's carried state (S2); the bass's is in its frame (#263). Source: Strudel's query model,
 spirit. Status: measured (drums); measured (the header and harmony); measured,
 failing (the prototype's score, E1). Lands in: #63 step 3, where the pitched
 parts' carried state is S2's key frame.
@@ -347,15 +347,15 @@ grouping, but one step of the grid always can (finite: every grouping into 2s
 and 3s of up to 16 eighths) (#125)". Source: #7's "one token grammar for pitch
 and rhythm", #105; #125. Status: measured, failing (every simple and compound
 meter, at the eighth level); measured (the chromatic step is never a single grid
-step, on any grouping). Open: whether the language takes one grid step as the
-time tower's own alteration once it writes onsets at all (#63, #126) — #125
-found no reason against it, only that it is not `chromaticStep`, unlike the
-pitch tower, where `chromaticStep` is confirmed the musician's interval in every
+step, on any grouping). Open: nothing in the language: the score writes onsets
+as plain steps of the bar (U6), so the time tower carries no alteration there.
+#125 measured that an alteration of time would be one grid step, and not
+`chromaticStep`, unlike the pitch tower, where `chromaticStep` is confirmed the musician's interval in every
 cycle P5 names (`motifs.test.ts`, "gives the minor third the line of fifths
 spells … (#125)"), so the two towers alter differently by necessity, not by an
 unresolved choice: a pitch alteration means a tuning-dependent interval, a time
-alteration only a position on the grid. Lands in: the language's next shape,
-where pitch and time share one token grammar or don't (#126); tension 7; #125.
+alteration only a position on the grid. Lands in: U6, where pitch and time
+share one shape, a plain integer on each cycle (#126, #263); tension 7; #125.
 
 **T13. Over a link that keeps order, a bar reaches a client in time exactly when
 the link holds it less than a beat.** Witness: a bar is composed a beat before

@@ -153,23 +153,15 @@ run; the others have.
   - Symmetries: 10 of the lead's 149 shapes have one, so several operators give
     the same bar, and `canonicalOp` chooses which the score writes (U5).
 
-- **E14. One token grammar for pitch and time** (U6; #7, #116 §6, #125, #126),
+- **E14. A pitch as a degree and an accidental** (U2, U6; #7, #116 §6, #125, #126),
   in
   [`packages/engine/experiments/tokengrammar.ts`](../packages/engine/experiments/tokengrammar.ts)
-  (about 1 s), over E1's shape. It writes every bass and lead note as a pitch
-  token (`alteredHeight`/`alteredDegree` over the bar's chord's implied scale)
-  and every onset as a time token (`onsetToken`/`onsetHeight`, one grid step,
-  #125), the same degree-and-accidental shape either way.
-  - Every one of 19,091 bass and lead notes has a pitch token: `chordScale`
-    always gives a scale and `alteredDegree` always finds it in one accidental,
-    over the corpus.
-  - Every one of 82,984 onsets round-trips through the time token exactly.
-  - Rhythm written as time tokens instead of the 16-step grid takes 76.6% fewer
-    tokens (67,890 against 289,728, over 18,108 lines): more than E15's 43.6%,
-    since a token stream drops the rests a slot sequence still writes.
-  - No case needed a rule the other tower doesn't have, over this corpus. Not
-    yet measured: a real captured corpus rather than the engine's own, and
-    whether a musician reads it as a lead sheet (R1).
+  (about 1 s), over E1's shape.
+  It writes every bass and lead note as a pitch token (`alteredHeight`/`alteredDegree` over the bar's chord's implied scale).
+  - Every one of 19,091 bass and lead notes has a pitch token: `chordScale` always gives a scale and `alteredDegree` always finds it in one accidental, over the corpus.
+  - The bass is written as semitones above the chord's root instead (#263, U6), which every note has without a scale, so this is what the degree form would have cost, for the lead's cells (U4) to weigh.
+  - The time half of this experiment, every onset as an eighth with a `#`, went with that token: an onset is a plain step (U6).
+  - Not yet measured: a real captured corpus rather than the engine's own, and whether a musician reads it as a lead sheet (R1).
 
 - **E15. The band's onsets against the meter** (T10, T12; #116's question (k),
   #123), in

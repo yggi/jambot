@@ -166,7 +166,9 @@ that reads as a note. E8 finds 56 absolute notes in the prototype's scores, each
 a flat its encoder couldn't write as `b3` or `b9`, because those read as the
 notes B3 and B9 (#9). Test: `notes.test.ts`, whose test of a letter's case cites
 U2: every token from 1 to 9, with `b`, `#`, `bb` or `##`, and `^` or `v`, is no
-note. Source: #9, E8, R4. Status: measured. Decided: #7, on measured options.
+note. Source: #9, E8, R4. Status: measured.
+Decided: #7, on measured options.
+The bass does not write degree tokens (U6): its pitch is a number of steps above the chord's root, so a degree and an accidental stay a line's where its notes are degrees of a scale, the lead's cells (U4).
 Lands in: #63, where the score reads pitch tokens.
 
 **U3. A line states its scale only where `chordScale`'s candidates imply none.**
@@ -182,7 +184,9 @@ one in 7 of 84: a takeover's `Isus4` is such a chord. The score can't write
 (`packages/score`), whose test of `scale=` cites U3: every chord the band plays
 over 3,200 bars implies a scale, so `harm` writes none; `score.test.ts`, whose
 test of a chord with no scale cites U3: `Isus4` is refused both ways, and `I` is
-not. Source: #7 (b), P9. Status: measured (the port's chords); open (a chord
+not. The bass counts its pitch above the chord's root and needs no scale (U6),
+so the refusal stays with `harm` and the lines that read a scale (the lead's,
+#265). Source: #7 (b), P9. Status: measured (the port's chords); open (a chord
 with none, which needs `scale=`). Decided: #7, on measured options. Lands in:
 #63.
 
@@ -283,33 +287,19 @@ descent in dorian alone (Q10). Source: #7 (d), Lewin's T and I, quintenzirkel's
 operators, Strudel, the names round, E13. Status: measured. Decided: #7, on
 measured options (E13, the names round). Lands in: #79, #63.
 
-**U6. A note and an onset are one token shape, a degree and an accidental,
-differing only in the step an accidental moves by.** Witness: `alteredHeight`
-(`numerals.ts`) writes a pitch token,
-`heightOf(scale, degree) + accidental * step`, with `step` the key's chromatic
-step (P5); `onsetToken`/`onsetHeight` (`meter.ts`, #125) write a time token the
-same way, with `step` fixed to one grid step, since the bar's eighths are always
-evenly spaced and need no key's unevenness to alter (#125). Both take a degree
-and an accidental in {−1, 0, 1} (time's is only 0 or 1, never below its own
-eighth); neither is a slot sequence with rests, the way the port's rhythm is
-written today. Over the band's own output (E14, #126), every bass and lead note
-has a pitch token (19,091 of 19,091: `chordScale` always gives a scale and
-`alteredDegree` always finds a single accidental for what the composer plays)
-and every onset round-trips through the time token exactly (82,984 of 82,984).
-Written this way instead of on the 16-step grid, a bar's rhythm lines take 76.6%
-fewer tokens (67,890 against 289,728, over 18,108 lines): more than E15's 43.6%,
-since E15 kept a slot sequence at a coarser resolution while this drops the
-rests a token stream never needs, the way a pitch line already doesn't write
-them. Counterexample: a note or onset neither token reaches, or a case the time
-token needs a special rule for that the pitch token doesn't. None found over the
-corpus; #126's open list is where one would be filed. Test:
-`packages/engine/experiments/tokengrammar.ts` (E14), printed, not asserted: the
-corpus is generated, not a fixed suite (#121's caution about generated data
-applies here too). `packages/theory/src/meter.test.ts`, "is alteredHeight/a
-generic alteredDegree on the eighths, with one grid step and no parallel-major
-search, since the eighths are always evenly spaced and never need one (#125,
-#126)" holds the shape itself as a real test. Source: #7's original speculation
-(a scale and a rhythm as one object), #116 §6, #125, #126 (E14). Status:
-measured (the shape, and full coverage over the generated corpus); open (a real
-captured corpus, R1's musician's read, and whether the score adopts it — #63's
-call). Lands in: #63, #126.
+**U6. A pitch and an onset are each a plain integer on their own cycle, and neither token carries an accidental.**
+A pitch is a number of the key's steps above the root of the chord in force, `0` to `11` in 12, with `^` for the octave above the nearest.
+An onset is a step of the bar, counted from 0 (`0` to `15` in 4/4).
+Witness: `encodeBar` and `compileBar` (`packages/score/src/score.ts`) write the bass as `step=pitch` pairs, `bass 0=0 4=0 7=7 8=0 12=0^ 14=10`, and read them back, with the register the bass reads from in a key frame, `frame bass=E2` (S2).
+A note states no length: it lasts to the next onset or the bar's end, which is what the band writes for every bass note.
+The form before it wrote a pitch as a degree of the chord's implied scale with an accidental, and an onset as an eighth with a `#` for the step after it.
+That `#` was a kludge for the sixteenths, reached no 32nds, and had no answer for triplets, and a degree token needs a scale, which `chordScale` gives only some chords (U3).
+A plain step is the same token at any depth of the bar's tree: the next power of two is a longer count, and a triplet an exact integer on a grid with a factor of 3 (#275).
+Counterexample: a bass note with no token, which the form cannot give, since a pitch above a root always exists; a bar whose text a second pass rewrites; a note that changes register on a resume.
+Test: `seam.test.ts` (`packages/score`), "gives every note the bass plays a token: a pitch above its chord’s root, and a ^ where it jumps an octave (U6)": every bass note of 3,200 bars, every preset, the tour and the glides, has a pair and reads back; "holds every bass note to the next onset and the last to the bar’s end, as the band writes it: a note has no length to state (U6)".
+`score.test.ts`, "takes the octave nearest the register for every pitch on every register, a ^ for the one above, and refuses a ^ past the top (U6)", and a fixture for each refusal.
+Source: #7's original speculation (a scale and a rhythm as one object), #116 §6, #125, #126, E14, the owner on #263.
+Status: measured (the bass).
+Open: the lead, whose cells are degrees of the key with operators on them (U4), which a pitch above a chord's root serves less well; finer grids, groups in a step and loops (#275); a key whose cycle is not 12, where a pitch is `0` to the cycle less one (P5), which the score does not write yet.
+Decided: the owner, on #263, on measured options (the plain step against the degree token and the eighth with a `#`).
+Lands in: #63 step 3a, #275.

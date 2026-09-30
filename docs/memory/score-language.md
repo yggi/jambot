@@ -45,6 +45,10 @@ Facts about `packages/score` and the score language (#7).
   A number sounds whether or not the chord holds it, as `7` does over a triad.
   A note goes to the octave nearest the previous one, `^`/`v` force the direction, then it folds into the part's range (bass 33–57, lead 60–88, or `range=lo-hi`).
   Absolute notes such as `A4` are an escape hatch, written in upper case so that `b3` is always a flat third (U2); the prototype still reads `a4`.
+- The port writes the bass as a `frame bass=E2` line and a `bass` line of `step=pitch` pairs, `bass 0=0 4=0 7=7 12=0^` (U6, #263).
+  A step is a 0-based step of the bar, a pitch the semitones above the root of the chord in force (0–11), and `^` the octave above the nearest to the register.
+  The frame states the register the bass's next note is nearest to, which is the last note before an octave jump, not the last note sounded; it is required exactly with a `bass` line.
+  A note has no length: it lasts to the next onset or the bar's end. A loop, a group, a rest, a hold and a finer grid are refused until the tree of #275.
 - `pad`, `stab`: `ch` is the current chord and `nx` the next one.
 - `drums`: `bd sd gh rim hh oh rd ph`.
 - Rhythm is mini-notation: sequence, `[sub]`, `<alt per bar>`, `@weight`, `*n`, `(k,n,rot)`, `?`, `,` layers, `~` rest.
