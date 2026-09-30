@@ -1859,5 +1859,21 @@ run; the others have.
   - So the lead returns to its shape in its third bar, and the Muse hears it, but its variations, a shape under an operator and then fitted to the chords, are seldom an exact operator on the shape once fitted; E13 finds most of them one operator but for the close and one note.
   - Both halves ask for the same next step: recognition with a tolerance, an operator but for a note, whose width would be a licence (C8), so a loose hand's repeat and a fitted variation are heard as what they are.
 
+- **E21. Real hands following a beat** (#204, A7), in
+  [`packages/engine/experiments/timing-logs.ts`](../packages/engine/experiments/timing-logs.ts),
+  run on a file downloaded from the lobby's timing test: the first, one player (the author), ten runs of a kick and snare pattern (quarters and eighths, at 80, 100 and 120 bpm), Firefox 152 on Linux with an output latency of 51 ms, the computer's keys once, the on-screen tap twice and a MIDI pad controller seven times.
+  - The player sits late against what they heard: a run's mean offset is +5 to +34 ms in nine of the ten runs (median of the means about +13 ms), and a run that lost the beat, at 120 bpm, is −32 ms with a spread of 115.
+    The input's own delay, the audio path's latency the browser doesn't state, and the tapping player's habit of leading the beat all fall in this one number, and one player on one machine can't separate them.
+  - Within a run, but for the one that lost the beat, the spread is 33 to 64 ms (21 to 52 robust); over all the runs of an input it is 34 ms for the on-screen tap, 47 for the keys and 58 for the pads (that run included): about the 30 to 40 ms where the Muse's reading gets 46% and 23% of bars right on the humaniser (E17).
+    The first three bars are the loosest, 62 to 67 ms over the runs, and the others 39 to 66.
+  - The offsets of one run correlate a little from tap to tap (lag 1: 0.14 to 0.44 in nine of ten runs), so there is some slow drift beside independent jitter, which the humaniser's per-phrase offset and drift stand for.
+  - The bias depends on where the hit is: on the eighths pattern the kick on the and of 2 (step 6) is 55 ms late (spread 53) and the kick on 3 (step 8) 15 ms early, against 10 ms late on the snare's beat 2 and 5 ms early on beat 4.
+    The humaniser gives every onset the same offset; a player's offbeats are later than their downbeats.
+  - The Muse on these taps, against the pattern's steps: of 80 bars, 45 have every onset on a step of the pattern by the nearest step and 51 as phrases (`heardInBar`).
+    The five runs with a spread of 33 to 38 ms are read right in 6 to 7 bars of 8 as phrases; the run that lost the beat in 1 bar, and one of eighths with a spread of 64 ms in none.
+    Sparse drum hits are an easier case than the yardstick's melodies, so this is no check of its numbers, only that they are not far off.
+  - The first cut of the tap button counted a pointer's click after its own pointerdown as a second tap (a click is a pointer event in Firefox and Chrome), so the two on-screen runs have each tap twice, the second 70 to 100 ms after the first; the analysis drops them, and the button now takes the pointer going down alone.
+  - Not measured: another player, another browser, a touch screen, audio latency by a loopback, and whether a hand follows the band the same way as it follows a metronome.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
