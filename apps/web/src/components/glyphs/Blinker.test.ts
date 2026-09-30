@@ -48,4 +48,24 @@ describe('the blinker', () => {
     for (const i of [0, 2, 4, 6]) expect(turn(swung[i]!)).toBeCloseTo(turn(straight[i]!), 6);
     for (const i of [1, 3, 5, 7]) expect(turn(swung[i]!)).toBeGreaterThan(turn(straight[i]!));
   });
+
+  it('sends a ring out from the lamp lit, and none before anything is heard', () => {
+    const still = render(Blinker, { marks: barMarks(0, null), span: 16 });
+    expect(still.container.querySelectorAll('circle.halo')).toHaveLength(0);
+    still.unmount();
+    for (const heard of [0, 3, 6]) {
+      const { container, unmount } = render(Blinker, { marks: barMarks(0, heard), span: 16 });
+      const halo = container.querySelectorAll('circle.halo');
+      expect(halo).toHaveLength(1);
+      const lit = container.querySelector('circle.lamp.lit')!;
+      expect(halo[0]!.getAttribute('cx')).toBe(lit.getAttribute('cx'));
+      expect(halo[0]!.getAttribute('cy')).toBe(lit.getAttribute('cy'));
+      unmount();
+    }
+  });
+
+  it('makes the downbeat’s ring the widest one', () => {
+    const { container } = render(Blinker, { marks: barMarks(0, 0), span: 16 });
+    expect(container.querySelector('circle.halo')).toHaveClass('accent');
+  });
 });

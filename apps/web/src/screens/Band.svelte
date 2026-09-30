@@ -48,6 +48,7 @@
       hud: player.hud,
       sounding: player.sounding,
       pattern: player.pattern,
+      ahead: player.foreseen,
       heard: player.heard,
       humanNotes: player.humanNotes,
       playerId: player.playerId,

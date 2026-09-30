@@ -144,7 +144,7 @@
 </script>
 
 <Card title="Key" main={named} sub={namedNotes}>
-  {#snippet glyph()}<CircleOfFifths tonic={key.tonic} {scale} compact />{/snippet}
+  {#snippet glyph()}<CircleOfFifths tonic={key.tonic} {scale} {history} compact />{/snippet}
   <div class="wheel">
     <CircleOfFifths
       tonic={key.tonic}

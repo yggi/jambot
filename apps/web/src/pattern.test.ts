@@ -1,7 +1,15 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { barStart, heardInBar, heardStep } from '@jambot/engine';
-import { EMPTY_PATTERN, PATTERN_BARS, Pattern, playedIn } from './pattern.ts';
+import { INITIAL_STYLE, band, barStart, heardInBar, heardStep } from '@jambot/engine';
+import {
+  EMPTY_PATTERN,
+  PATTERN_BARS,
+  Pattern,
+  type PatternNote,
+  patternBarOf,
+  playedIn,
+} from './pattern.ts';
+import { performerOf } from './sounding.ts';
 
 describe('the pattern of the last bars', () => {
   const at = (pattern: Pattern, bar: number) => pattern.get().find((b) => b.bar === bar);
@@ -35,7 +43,7 @@ describe('the pattern of the last bars', () => {
       pattern.push('drums', bar, { step: 8, note: 38, length: 1 });
     }
     const bars = pattern.get();
-    expect(bars.map((b) => b.bar)).toEqual([4, 5, 6, 7, 8]);
+    expect(bars.map((b) => b.bar)).toEqual([3, 4, 5, 6, 7, 8]);
     expect(bars).toHaveLength(PATTERN_BARS + 1);
     for (const b of bars)
       expect(b.parts).toEqual({
@@ -183,5 +191,35 @@ describe('what the players played in a bar', () => {
         { step: 4, note: 60, length: 1 },
       ],
     });
+  });
+});
+
+describe('a bar composed, drawn as the tracks draw it', () => {
+  it('puts each note under its performer, on its step, and names the motif the lead plays', () => {
+    const composed = band.advance(
+      {
+        seed: 3,
+        bar: 0,
+        style: INITIAL_STYLE,
+        wish: { tonic: null, mode: 'aeolian', melodic: null },
+        offer: null,
+      },
+      band.initial,
+      null,
+    ).output;
+    const bar = patternBarOf(composed);
+    expect(bar.bar).toBe(0);
+    expect(bar.motif).toBeNull();
+    const count = (Object.values(bar.parts) as PatternNote[][]).reduce(
+      (n, notes) => n + notes.length,
+      0,
+    );
+    expect(count).toBe(composed.dough.length);
+    for (const note of composed.dough)
+      expect(bar.parts[performerOf(note.part)]).toContainEqual({
+        step: note.step,
+        note: note.note,
+        length: note.length,
+      });
   });
 });

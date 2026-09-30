@@ -61,12 +61,12 @@ describe('the band', () => {
     );
     const lanes = screen.getAllByRole('img').map((l) => l.getAttribute('aria-label'));
     expect(lanes).toEqual([
-      'Drums, bars 7 to 10',
-      "Ada's drum pads, bars 7 to 10",
-      'Bass, bars 7 to 10',
-      'Chords, bars 7 to 10',
-      'Lead, bars 7 to 10',
-      "Ada's computer keys, bars 7 to 10",
+      'Drums, bars 7 to 11',
+      "Ada's drum pads, bars 7 to 11",
+      'Bass, bars 7 to 11',
+      'Chords, bars 7 to 11',
+      'Lead, bars 7 to 11',
+      "Ada's computer keys, bars 7 to 11",
     ]);
   });
 
@@ -77,6 +77,7 @@ describe('the band', () => {
       '8',
       '9',
       '10',
+      '11',
     ]);
   });
 
@@ -126,12 +127,12 @@ describe('the band', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await fireEvent.click(toggle);
     expect(screen.getByRole('slider', { name: 'Bass volume' })).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: 'Bass, bars 7 to 10' })).toBeNull();
+    expect(screen.queryByRole('img', { name: 'Bass, bars 7 to 11' })).toBeNull();
     // The other tracks keep their lanes: one pill opens, not all.
-    expect(screen.getByRole('img', { name: 'Drums, bars 7 to 10' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Drums, bars 7 to 11' })).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: 'Show Bass track' }));
     expect(screen.queryByRole('slider')).toBeNull();
-    expect(screen.getByRole('img', { name: 'Bass, bars 7 to 10' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Bass, bars 7 to 11' })).toBeInTheDocument();
   });
 
   it('gives each performer a volume slider, showing its level and setting it', async () => {
@@ -226,14 +227,14 @@ describe('the band', () => {
     const { container } = draw(tracks({ players: [lane({ taken: 1 })] }));
     const taken = container.querySelector('rect.taken') as SVGElement;
     expect(taken.style.stroke).toBe('var(--source-1)');
-    expect(Number(taken.getAttribute('x'))).toBeCloseTo(160 + 1);
+    expect(Number(taken.getAttribute('x'))).toBeCloseTo(128 + 1);
   });
 
   it('puts the playhead on the step heard, in every lane', () => {
     const { container } = draw(tracks({ players: [lane()] }));
     const heads = [...container.querySelectorAll('line.playhead')];
     expect(heads).toHaveLength(5);
-    for (const head of heads) expect(Number(head.getAttribute('x1'))).toBeCloseTo((40 / 64) * 640);
+    for (const head of heads) expect(Number(head.getAttribute('x1'))).toBeCloseTo((40 / 80) * 640);
   });
 
   it('draws no playhead before anything is heard', () => {

@@ -6,8 +6,8 @@
   its pitch class as the new tonic, in the mode already playing. `history`, a
   filled radar underneath, shows every pitch class's weight: the harmonic
   history of what the band has actually played. `compact` draws it small, as
-  a glyph: the figure and the tonic, cropped to the wheel, with no names, no
-  history and no buttons.
+  a glyph: the figure, the tonic and the history's radar, cropped to the
+  wheel, with no names and no buttons.
 -->
 <script lang="ts">
   import type { ComposerMode } from '@jambot/engine';
@@ -93,7 +93,7 @@
   };
 
   const historyPath = $derived.by(() => {
-    if (!history || compact) return '';
+    if (!history) return '';
     const max = Math.max(...history);
     if (max <= 0) return '';
     const points = wheelOrder().map((pitchClass) => {
@@ -169,6 +169,10 @@
   }
   svg.compact .tonic-ring {
     stroke-width: 3;
+  }
+  svg.compact .history {
+    stroke-width: 3;
+    fill-opacity: 0.35;
   }
   .history {
     fill: var(--amber);

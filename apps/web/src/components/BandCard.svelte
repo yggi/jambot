@@ -69,7 +69,7 @@
   open
 >
   <div class="grid" role="group" aria-label="Band grid">
-    <ol class="bars" aria-hidden="true">
+    <ol class="bars" aria-hidden="true" style:grid-template-columns="repeat({PATTERN_BARS}, 1fr)">
       {#each bars as bar (bar)}<li>{bar}</li>{/each}
     </ol>
     {#each tracks.performers as p (p.performer)}
@@ -132,7 +132,6 @@
     margin: 0 var(--pill-end) 0 var(--pill-label);
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
     font-size: 12px;
     color: var(--muted);
   }

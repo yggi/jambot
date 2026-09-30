@@ -310,6 +310,32 @@ export function forecast(
 }
 
 /**
+ * The next `count` bars from the head's bar on with their notes, as they
+ * will play unless a control moves or the Muse offers another motif: those
+ * composed already, then those the band will compose, written by running its
+ * own composition forward (`band.advance`) with the motif on offer now, so a
+ * bar composed later plays exactly what the preview drew unless what it reads
+ * changed. Before the start (`carried` null) they are the song from bar 0.
+ * It is a preview for a view to draw: nothing carries on from it.
+ */
+export function foresight(
+  env: TransportEnv,
+  carried: TransportCarried | null,
+  count: number,
+): BandBar[] {
+  const head = barAt(carried?.head.step ?? 0);
+  const bars = (carried?.bars ?? []).filter((b) => b.bar >= head).slice(0, count);
+  const offer = carried?.listening.muse.offer ?? null;
+  let source = carried?.source ?? band.initial;
+  for (let bar = carried?.nextBar ?? 0; bars.length < count; bar++) {
+    const made = band.advance(bandEnvAt(env, bar, offer), source, null);
+    source = made.carried;
+    bars.push(made.output);
+  }
+  return bars;
+}
+
+/**
  * Where a moment on the clock is written: the inverse of how the steps
  * were laid, for a note a player plays along with the band. Each step lies
  * where the step before it ends and lasts its own length, so a moment falls
