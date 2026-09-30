@@ -9,15 +9,15 @@
   is one of its axes.
 -->
 <script lang="ts">
-  import { BAR_STEPS } from '@jambot/engine';
+  import { BAR_STEPS, SONG_METER } from '@jambot/engine';
   import type { Intent, TempoView } from '../conductor.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { METER_NAME, barMarks, eighthHeard } from '../metrum.ts';
+  import Bar from './Bar.svelte';
   import Card from './Card.svelte';
   import Gauge from './Gauge.svelte';
   import Blinker from './glyphs/Blinker.svelte';
   import Reading from './Reading.svelte';
-  import Ruler from './Ruler.svelte';
   import TempoNudge from './TempoNudge.svelte';
 
   interface Props {
@@ -60,11 +60,7 @@
     <Reading label="Swing" value="{percent} %" />
     <Gauge label="Swing {percent} %" from={0} to={1} centre={0} value={swing} fill />
   </div>
-  <Ruler
-    label="The bar's {BAR_STEPS} steps where the band plays them, at a swing of {percent} %"
-    span={BAR_STEPS}
-    {marks}
-  />
+  <Bar meter={SONG_METER} {marks} under="at a swing of {percent} %" />
   <div class="click" role="group" aria-label="Click">
     <button
       type="button"
