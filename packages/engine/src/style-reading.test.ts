@@ -1,3 +1,4 @@
+import { METERS, type Meter, meterOnSteps, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandEnv, band } from './band.ts';
 import type { Part, WrittenNote } from './events.ts';
@@ -146,5 +147,42 @@ describe('reading a style from timing: bpm and swing', () => {
   it('reads no tempo from no steps and no swing from no onsets', () => {
     expect(readTiming([], [])).toEqual({});
     expect(readTiming(bar(120, 0, []).laid, [])).toEqual({ bpm: 120 });
+  });
+});
+
+describe('a style read on other meters (#260)', () => {
+  const named = Object.entries(METERS) as [string, Meter][];
+
+  it('reads a bar’s density over its own steps, and 4/4 as it was (finite: every meter)', () => {
+    for (const [name, meter] of named) {
+      const steps = stepsOf(meter);
+      const onEveryStep = range(steps).map((step) => note('bass', step));
+      expect([name, readStyle(onEveryStep, meter).density]).toEqual([name, 1]);
+      expect([name, readStyle([note('bass', 0)], meter).density]).toEqual([name, 1 / steps]);
+    }
+    expect(readStyle([note('bass', 0)]).density).toBe(1 / 16);
+  });
+
+  it('counts a note off its meter’s pulses and off its eighths as syncopated, and no other (finite: every meter, every step)', () => {
+    for (const [name, meter] of named) {
+      const pulses = meterOnSteps(meter).heights;
+      for (const step of range(stepsOf(meter))) {
+        const onGrid = pulses.includes(step) || step % 2 === 0;
+        expect([name, step, readStyle([note('lead', step)], meter).sync]).toEqual([
+          name,
+          step,
+          onGrid ? 0 : 1,
+        ]);
+      }
+    }
+  });
+
+  it('reads a note’s share of the gap to the bar’s end in the meter’s bar, not 4/4’s', () => {
+    for (const [name, meter] of named) {
+      const steps = stepsOf(meter);
+      // One note held the whole bar sounds all of it; one held half sounds half.
+      expect([name, readStyle([note('bass', 0, steps)], meter).artic]).toEqual([name, 0]);
+      expect([name, readStyle([note('bass', 0, steps / 2)], meter).artic]).toEqual([name, 0.5]);
+    }
   });
 });

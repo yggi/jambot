@@ -7,6 +7,7 @@ import {
   type DrumRole,
   SONG_METER,
   type WrittenNote,
+  doughProblems,
   writtenProblems,
 } from './events.ts';
 import { SECTION_BARS, SECTION_TYPES, type SectionType, barEnergy } from './form.ts';
@@ -353,5 +354,23 @@ describe('the drums on other meters (#260)', () => {
       expect([name, hits.filter((h) => h.role === 'fill' && h.step < half)]).toEqual([name, []]);
     }
     expect(2 * Math.floor(stepsInBar(SONG_METER) / 4)).toBe(8);
+  });
+
+  it('plays every hit of every meter: a dough note in the bar, well formed, loud between 1 and 127, the fill rising to the bar’s end (finite: every meter, preset, section type)', () => {
+    for (const [name, meter] of named)
+      for (const style of styles)
+        for (const type of SECTION_TYPES) {
+          const steps = stepsInBar(meter);
+          const env = envOf(1, type, SECTION_BARS - 1, style, undefined, 3, meter);
+          for (const hit of drums(env)) {
+            const dough = perform(env, hit);
+            expect([name, type, hit.step, doughProblems(dough, steps)]).toEqual([
+              name,
+              type,
+              hit.step,
+              [],
+            ]);
+          }
+        }
   });
 });

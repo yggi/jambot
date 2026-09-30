@@ -32,7 +32,7 @@
 
 import { type Meter, even, meterOnSteps, positions, stepsOf, accentsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
-import { DRUM_ROLES, type DrumRole, type WrittenNote, halfOf } from './events.ts';
+import { DRUM_ROLES, type DrumRole, type WrittenNote, halfOf, lateOf } from './events.ts';
 import { SECTION_BARS } from './form.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { type Regroup, readOnMeter } from './regroup.ts';
@@ -92,9 +92,6 @@ export function backbeatOf(meter: Meter): number[] {
     pulses <= 3 ? pulse > 0 : pulse % 2 === 1,
   );
 }
-
-/** The step three quarters through, on an eighth: 12 of 16. */
-const lateOf = (steps: number) => 2 * Math.floor((steps * 3) / 8);
 
 /** The drum hits a bar writes, in order of step and note. `regroup` is how a table written on 4/4's steps is read in another meter. */
 export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {

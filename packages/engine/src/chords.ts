@@ -102,10 +102,13 @@ export function barChords({ seed, barInSection, key, theme, harm }: ChordEnv): B
 
 /**
  * A theme's slot steps are 4/4's: the downbeat, 0, and the bar's half, 8. On a
- * meter the half is the meter's (`halfOf`): 6 of 6/8's 12, 10 of 5/4's 20.
+ * meter a slot keeps its place in the bar, scaled to its steps, and its
+ * parity: an eighth stays on an eighth, so the half is the meter's (6 of
+ * 6/8's 12, 10 of 5/4's 20, 6 of 7/8's 14). A step of 4/4 is itself.
  */
 export function slotStepOn(meter: Meter, step: number): number {
-  return step === 0 ? 0 : 2 * Math.floor((step * stepsOf(meter)) / 32);
+  const scaled = Math.floor((step * stepsOf(meter)) / 16);
+  return scaled % 2 === step % 2 ? scaled : scaled - 1;
 }
 
 /** A bar's chords with their slots on the meter's steps, the same chords in 4/4. */

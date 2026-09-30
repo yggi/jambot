@@ -6,10 +6,16 @@
  * apart from the performer's own hand, since neither wrote it: it is the
  * ensemble's default, not notation stated by a composer nor expression a
  * performer draws (#107).
+ *
+ * The bar is its meter's (#260): a beat is one of its pulses, its half and its
+ * last backbeat are where the meter puts them, and a fill runs to its end. In
+ * 4/4 every base is what it was.
  */
 
+import { meterOnSteps, stepsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
-import { BAR_STEPS, type DrumRole, type WrittenNote, onBeat } from './events.ts';
+import { backbeatOf } from './drums.ts';
+import { type DrumRole, type WrittenNote, halfOf, lateOf } from './events.ts';
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -17,26 +23,34 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 /** A drum hit's base accent by role, before the energy scales it. */
 function roleAccent(env: BarEnv, role: DrumRole, step: number): number {
   const { type } = env.plan.section;
-  if (type === 'breakdown') return role === 'fill' ? 45 + (step - 8) * 9 : 55;
+  const steps = stepsOf(env.meter);
+  const half = halfOf(steps);
+  if (type === 'breakdown') return role === 'fill' ? 45 + (step - half) * 9 : 55;
   switch (role) {
     case 'kick':
-      return step % 8 === 0 ? 112 : 92;
-    case 'backbeat':
-      return step === 12 ? 106 : 100;
+      return step === 0 || step === half ? 112 : 92;
+    case 'backbeat': {
+      const starts = meterOnSteps(env.meter).heights;
+      return step === starts[backbeatOf(env.meter).at(-1)!] ? 106 : 100;
+    }
     case 'ghost':
       return 32 + 14 * env.style.sync;
     case 'hat':
-      return onBeat(step) ? 78 : step % 2 === 0 ? 66 : 50;
+      return onBeat(env, step) ? 78 : step % 2 === 0 ? 66 : 50;
     case 'pedal':
       return 58;
     case 'euclid':
       return 72;
     case 'fill': {
-      const from = type === 'build' ? 8 : 12;
-      return 50 + (step - from) * (60 / (BAR_STEPS - from));
+      const from = type === 'build' ? half : lateOf(steps);
+      return 50 + (step - from) * (60 / (steps - from));
     }
   }
 }
+
+/** Whether a pulse of the bar's meter starts on a step. */
+const onBeat = (env: BarEnv, step: number): boolean =>
+  meterOnSteps(env.meter).heights.includes(step);
 
 /** How loud a written note plays, before its accent and its performer's own licence. */
 export function baseVelocityOf(env: BarEnv, written: WrittenNote): number {
@@ -48,7 +62,7 @@ export function baseVelocityOf(env: BarEnv, written: WrittenNote): number {
     case 'bass':
       return plan.section.type === 'breakdown'
         ? 70
-        : (onBeat(step) ? 100 : 84) * (0.75 + 0.25 * energy);
+        : (onBeat(env, step) ? 100 : 84) * (0.75 + 0.25 * energy);
     case 'stab':
       return 70 + 20 * energy;
     case 'pad': {
@@ -57,7 +71,7 @@ export function baseVelocityOf(env: BarEnv, written: WrittenNote): number {
       return 48 + 30 * energy * (0.5 + padWeight / 2);
     }
     case 'lead':
-      return onBeat(step) ? 100 : 82;
+      return onBeat(env, step) ? 100 : 82;
   }
 }
 

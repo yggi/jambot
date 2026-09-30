@@ -5,7 +5,7 @@
  * hides which of them says what. A voice is a part read on its own, the
  * pad and stab together as the comp since they play one harmony: `drums`,
  * `bass`, `comp`, `lead`. A voice's reading has the axes the voice can say:
- * its density (its share of the bar's 16 steps, so 0 to 1 by itself), its
+ * its density (its share of the bar's steps, 16 in 4/4, so 0 to 1 by itself), its
  * `sync`, the `artic` of the bass and lead, and the `harm` of the comp. A
  * fill then has a distance from the style of its own, which licence
  * feedback reads (#237).
@@ -18,7 +18,8 @@
  */
 
 import { readHarm } from './chord-reading.ts';
-import type { Part } from './events.ts';
+import type { Meter } from '@jambot/theory';
+import { type Part, SONG_METER } from './events.ts';
 import { type Sounding, readStyle } from './style-reading.ts';
 
 export const VOICES = ['drums', 'bass', 'comp', 'lead'] as const;
@@ -42,9 +43,10 @@ export interface VoiceReading {
 export function readVoice(
   voice: Voice,
   notes: readonly (Sounding & { note?: number })[],
+  meter: Meter = SONG_METER,
 ): VoiceReading {
   const own = notes.filter((n) => voiceOf(n.part) === voice);
-  const { density, sync, artic } = readStyle(own);
+  const { density, sync, artic } = readStyle(own, meter);
   const harm =
     voice === 'comp'
       ? readHarm(notes.filter((n) => voiceOf(n.part) === 'comp' || n.part === 'bass'))?.harm
