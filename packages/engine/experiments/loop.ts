@@ -52,15 +52,22 @@
  * a phrase's second and fourth bars or on every bar, each with the hold and
  * without it. They say which part of the loop locks it.
  *
+ * Last, the rate (`RATES`): the lead varying an offer at a rate p, from 0
+ * (the loop that copies, `hearing`) through 1 (`every bar`) to 2, two
+ * variations on every bar, over every preset at entropy 0.3. Kendall's tau
+ * of the recognised share and of A B A B against p says whether the loop
+ * moves from the locked loop toward the deaf band as p rises (#237).
+ *
  * Its cost is mostly the Muse's recognition, every motif heard against every
- * one she remembers: 3 seeds of 128 bars, the default, take about 50 s with
- * the variants.
+ * one she remembers: 3 seeds of 128 bars, the default, take about 60 s with
+ * the variants and the rates.
  *
  * node --experimental-strip-types --no-warnings packages/engine/experiments/loop.ts [seeds] [bars]
  *
  * Given a path ending in .json instead, it writes the examples to hear
  * (`examples`): the band as it plays 16 bars in a few presets and
- * conditions, every part's notes, for a page that plays them.
+ * conditions, every part's notes, for a page that plays them; conditions
+ * named after the path, such as p=1.5, replace the default ones.
  */
 
 import { writeFileSync } from 'node:fs';
@@ -115,7 +122,19 @@ export type Condition =
   | 'varied'
   | 'varied, no hold'
   | 'every bar'
-  | 'every bar, no hold';
+  | 'every bar, no hold'
+  | Rate;
+
+/**
+ * The lead varying an offer at a rate p, `p=0.5`: ⌊p⌋ times a bar, and once
+ * more by the chance of the rest. It generalises the closed conditions, which
+ * are its points: `p=0` plays as `hearing` and `p=1` as `every bar`, and past
+ * 1 the variations stack on one bar.
+ */
+export type Rate = `p=${number}`;
+
+/** The rates E22 sweeps, from the loop that copies to two variations a bar. */
+export const RATES: readonly Rate[] = ['p=0', 'p=0.25', 'p=0.5', 'p=0.75', 'p=1', 'p=1.5', 'p=2'];
 
 /** The conditions E22 compares, and its variants. */
 export const CONDITIONS: readonly Condition[] = ['deaf', 'hearing'];
@@ -138,9 +157,19 @@ export const VARIANTS: readonly Condition[] = [
  * (`leadVariation`, keyed by bar), which it doesn't draw while an offer
  * stands, so this is the variation the lead would have drawn for the bar.
  */
-export function varyOffer(motif: Motif, seed: number, bar: number, entropy: number): Motif {
+export function varyOffer(
+  motif: Motif,
+  seed: number,
+  bar: number,
+  entropy: number,
+  pass = 0,
+): Motif {
   let n = 0;
-  const next = () => draw(seed, 'leadVariation', bar, n++);
+  // A second pass on one bar (a rate past 1) draws its own numbers.
+  const next = () =>
+    pass === 0
+      ? draw(seed, 'leadVariation', bar, n++)
+      : draw(seed, 'leadVariation', bar, n++, pass);
   const notes = motif.degrees.filter((d) => d !== null).length;
   const way = pick(next(), [0.3, 0.25, 0.25, 0.2]);
   let varied =
@@ -178,10 +207,16 @@ export function varyOffer(motif: Motif, seed: number, bar: number, entropy: numb
   return varied;
 }
 
-/** Whether the lead varies an offer on this bar: its phrase's second or fourth, or every bar. */
-const varies = (condition: Condition, bar: number) =>
-  condition.startsWith('every bar') ||
-  (condition.startsWith('varied') && (bar % 4 === 1 || bar % 4 === 3));
+/** How many times the lead varies an offer on this bar: on its phrase's second and fourth, on every bar, or at a rate. */
+export function timesVaried(condition: Condition, seed: number, bar: number): number {
+  if (condition.startsWith('p=')) {
+    const p = Number(condition.slice(2));
+    const whole = Math.floor(p);
+    return whole + (chance(draw(seed, 'offerVariation', bar), p - whole) ? 1 : 0);
+  }
+  if (condition.startsWith('every bar')) return 1;
+  return condition.startsWith('varied') && (bar % 4 === 1 || bar % 4 === 3) ? 1 : 0;
+}
 
 /** The source the lead is heard as. */
 const LEAD = 'the lead';
@@ -255,10 +290,9 @@ export function loopRun(
     if (bar >= bars) continue;
     const held =
       condition === 'deaf' ? null : condition.endsWith('no hold') ? latest : listening.offer;
-    const offer =
-      held && varies(condition, bar)
-        ? { ...held, motif: varyOffer(held.motif, seed, bar, entropy) }
-        : held;
+    let offer = held;
+    for (let pass = 0; offer && pass < timesVaried(condition, seed, bar); pass++)
+      offer = { ...offer, motif: varyOffer(offer.motif, seed, bar, entropy, pass) };
     const next = band.advance({ seed, bar, style, wish, offer }, playing, null);
     playing = next.carried;
     played?.(bar, next.output.dough);
@@ -445,14 +479,14 @@ const HEARD = {
  * part's notes with their step on the example's own grid, and how the Muse
  * heard the lead in each of those bars, with the preset's tempo and swing.
  */
-export function examples() {
+export function examples(conditions: readonly Condition[] = HEARD.conditions) {
   return HEARD.presets.map((name) => {
     const preset = PRESETS.find((p) => p.name === name)!;
     return {
       preset: name,
       bpm: preset.style.bpm,
       swing: preset.style.swing,
-      conditions: HEARD.conditions.map((condition) => {
+      conditions: conditions.map((condition) => {
         const notes: (DoughNote & { at: number; seconds: number; duration: number })[] = [];
         // Where each note is played, through the swing, and for how long, at the preset's tempo.
         const swung = swingMap(preset.style.swing);
@@ -486,7 +520,11 @@ export function examples() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2]?.endsWith('.json')) {
-  writeFileSync(process.argv[2], JSON.stringify({ example: EXAMPLE, presets: examples() }));
+  const asked = process.argv.slice(3) as Condition[];
+  writeFileSync(
+    process.argv[2],
+    JSON.stringify({ example: EXAMPLE, presets: examples(asked.length ? asked : undefined) }),
+  );
 } else if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [seeds = 3, bars = 128] = process.argv.slice(2).map(Number);
   const pct = (x: number) => `${(100 * x).toFixed(1)}%`.padStart(6);
@@ -568,6 +606,26 @@ if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2]?.endsW
       )
         .toFixed(1)
         .padStart(8)}`,
+    );
+  }
+  console.log(
+    `\nthe rate p the lead varies an offer at, entropy 0.3, ${seeds} seeds, ${bars} bars`,
+  );
+  console.log(header);
+  const rated = loops(0.3, seeds, bars, BY_LICENCE, ['deaf', ...RATES]);
+  for (const m of rated) console.log(row(m));
+  const rates = RATES.map((r) => Number(r.slice(2)));
+  console.log('\nKendall tau against p, per preset: recognised, A B A B');
+  for (const p of BY_LICENCE) {
+    const rows = RATES.map((r) => rated.find((m) => m.preset === p.name && m.condition === r)!);
+    console.log(
+      `${p.name.padEnd(14)} ${kendall(
+        rates,
+        rows.map((m) => m.recognised),
+      ).toFixed(2)}  ${kendall(
+        rates,
+        rows.map((m) => m.oscillating),
+      ).toFixed(2)}`,
     );
   }
 }
