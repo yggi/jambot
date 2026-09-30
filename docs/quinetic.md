@@ -39,7 +39,7 @@ is either one link of that chain or a law about the machines that run it.
 **Q1a. Text and events round-trip: `compile(encode(e)) = e` for the composer's
 events, and `encode ∘ compile` is idempotent on every text that parses,
 takeovers included.** Witness: the prototype's encoder and compiler, exact over
-about 6,000 events when both share the compiler's carried state (A1); in the
+about 6,000 events when both share the compiler's carried state (`prototype/README.md`, "Tested", which no test in this repository reruns; E1 adds that it holds only warm); in the
 port, `encodeBar` and `compileBar` (`packages/score`), over the written layer
 (`BarEnv` and `WrittenNote`, T4), so far the header, the style, the harmony and
 the drums (L8). Counterexample: an event lost, added or changed on the way back,
@@ -53,7 +53,7 @@ pass writes the same text, now including every drum hit but the snare's;
 `score.test.ts`, whose tests cite Q1a: every key of every diatonic mode, every
 value of the style's grid, texts written another way, and a drum line, each
 written in one form; `mini.test.ts`, whose tests cite Q1a: every placing of
-chords on the 16 steps of a bar, 32,768, read back as written. Source: F3, A1.
+chords on the 16 steps of a bar, 32,768, read back as written. Source: F3, the prototype (A1).
 Status: measured, failing (prototype, cold); measured (port: the header, the
 harmony, and every drum sound but the snare); open (port: the snare, and the
 pitch lines). Lands in: #13, #63.
