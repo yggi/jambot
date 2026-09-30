@@ -23,6 +23,7 @@ export * from './random.ts';
 export * from './reading.ts';
 export * from './sound.ts';
 export * from './style.ts';
+export * from './style-reading.ts';
 export * from './swing.ts';
 export * from './tempo.ts';
 export * from './themes.ts';
