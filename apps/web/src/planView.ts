@@ -61,6 +61,28 @@ export function nextChord(hud: Pick<Hud, 'bar' | 'chord' | 'next'>): ChordView |
   return bar.chords[here + 1] ?? next[0]?.chords[0] ?? null;
 }
 
+/**
+ * How many beats until the next chord: counted from the beat heard to the beat
+ * the next chord starts on (or, for one between beats, the next beat after it),
+ * so a bar of one chord counts 4, 3, 2, 1 to the bar after. None before
+ * anything is heard, or past what is decided. `beatSteps` are the steps the
+ * bar's beats fall on, and `span` its steps.
+ */
+export function beatsToNext(
+  hud: Pick<Hud, 'bar' | 'beat' | 'chord' | 'next'>,
+  beatSteps: readonly number[],
+  span: number,
+): number | null {
+  const { bar, beat, chord, next } = hud;
+  if (bar === null || beat === null || chord === null) return null;
+  const here = bar.chords.findIndex((c) => c.step === chord.step);
+  const inBar = bar.chords[here + 1];
+  if (inBar === undefined && next[0]?.chords[0] === undefined) return null;
+  const at = inBar === undefined ? span : inBar.step;
+  const start = beatSteps.findIndex((step) => step >= at);
+  return (start === -1 ? beatSteps.length : start) - beat;
+}
+
 /** The plan's sections in its two rows: the section heard and the next, then those after. */
 export function planRows(sections: readonly SectionView[]): {
   near: SectionView[];

@@ -7,6 +7,7 @@ import {
   blockName,
   chordTiles,
   cueOf,
+  beatsToNext,
   nextChord,
   planRows,
 } from './planView.ts';
@@ -138,5 +139,41 @@ describe('the plan’s two rows', () => {
   it('name a block by its section, and the key where it changes', () => {
     expect(blockName(section(1))).toBe('Groove');
     expect(blockName(section(2, { key: 'D dorian', newKey: true }))).toBe('Groove, D dorian');
+  });
+});
+
+describe('the beats until the next chord', () => {
+  const beatSteps = [0, 4, 8, 12];
+  const span = 16;
+  const one = bar(9);
+  const two = bar(9, { chords: [chord('Dm', 0), chord('E7', 8)] });
+  const hudAt = (here: BarView, beat: number | null, sounding = 0, next = [bar(10)]) => ({
+    bar: here,
+    beat,
+    chord: here.chords[sounding]!,
+    next,
+  });
+
+  it('counts down 4, 3, 2, 1 to the next bar from a bar of one chord (finite: every beat)', () => {
+    expect([0, 1, 2, 3].map((beat) => beatsToNext(hudAt(one, beat), beatSteps, span))).toEqual([
+      4, 3, 2, 1,
+    ]);
+  });
+
+  it('counts to the next chord in the bar while there is one, and to the bar after it', () => {
+    expect([0, 1].map((beat) => beatsToNext(hudAt(two, beat), beatSteps, span))).toEqual([2, 1]);
+    expect([2, 3].map((beat) => beatsToNext(hudAt(two, beat, 1), beatSteps, span))).toEqual([2, 1]);
+  });
+
+  it('is never below 1, and none before anything is heard or past what is decided', () => {
+    for (const beat of [0, 1, 2, 3])
+      expect(beatsToNext(hudAt(one, beat), beatSteps, span)!).toBeGreaterThanOrEqual(1);
+    expect(beatsToNext(hudAt(one, null), beatSteps, span)).toBeNull();
+    expect(beatsToNext(hudAt(one, 1, 0, []), beatSteps, span)).toBeNull();
+  });
+
+  it('counts to the beat a chord starts on or after, for a chord between beats', () => {
+    const off = bar(9, { chords: [chord('Dm', 0), chord('E7', 6)] });
+    expect(beatsToNext(hudAt(off, 0), beatSteps, span)).toBe(2);
   });
 });

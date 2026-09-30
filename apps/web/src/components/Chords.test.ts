@@ -97,9 +97,9 @@ describe('the chords', () => {
     });
     const sub = (container: HTMLElement) => container.querySelector('summary .sub');
 
-    it('is said under the chord sounding: the next in the bar, else the first of the next bar', () => {
+    it('is said under the chord sounding with the beats until it: the next in the bar, else the first of the next bar', () => {
       const first = render(Chords, { hud: hudOf(two, 0) });
-      expect(sub(first.container)).toHaveTextContent(/^then E7 · V7$/);
+      expect(sub(first.container)).toHaveTextContent(/^next E7 · V7 in 2$/);
       first.unmount();
       const last = render(Chords, {
         hud: {
@@ -108,14 +108,14 @@ describe('the chords', () => {
           next: [bar(10, { chords: [{ step: 0, symbol: 'Gmaj7', numeral: 'VII' }] })],
         },
       });
-      expect(sub(last.container)).toHaveTextContent(/^then Gmaj7 · VII$/);
+      expect(sub(last.container)).toHaveTextContent(/^next Gmaj7 · VII in 1$/);
     });
 
-    it('is said before anything is heard, from the chord the band opens on, and not past what is decided', () => {
+    it('is said before anything is heard without a count, from the chord the band opens on, and not past what is decided', () => {
       const before = render(Chords, {
         hud: { ...idle, next: [bar(1, { chords: [{ step: 0, symbol: 'G', numeral: 'VII' }] })] },
       });
-      expect(sub(before.container)).toHaveTextContent(/^then G · VII$/);
+      expect(sub(before.container)).toHaveTextContent(/^next G · VII$/);
       before.unmount();
       const past = render(Chords, { hud: heard });
       expect(sub(past.container)).toHaveTextContent('');
