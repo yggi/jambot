@@ -24,13 +24,15 @@
   /** The references people tune to: baroque, the "verdi" A, and the usual. */
   const REFERENCES = [415, 432, 440];
 
-  const PLOT = { width: 700, height: 140 };
-  const marks = octaveMarks(PLOT.width);
+  /** The plot is drawn at the width it is shown at, so its labels keep their size on a phone. */
+  let shownWidth = $state(0);
+  const plot = $derived({ width: shownWidth || 700, height: 140 });
+  const marks = $derived(octaveMarks(plot.width));
 
   const reading = $derived(tuner.reading);
   const listening = $derived(tuner.status === 'listening');
   const db = $derived(tuner.analysis?.level.db ?? -Infinity);
-  const path = $derived(tuner.analysis ? spectrumPath(tuner.analysis.bands, PLOT) : '');
+  const path = $derived(tuner.analysis ? spectrumPath(tuner.analysis.bands, plot) : '');
   const sign = (x: number, digits: number) => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(digits);
   const frame = $derived(tuner.analysis?.frame ?? 0);
   const window = $derived(
@@ -114,6 +116,9 @@
       value={reading?.cents ?? 0}
       fill
     />
+    <div class="scale" aria-hidden="true">
+      <span>flat</span><span>in tune</span><span>sharp</span>
+    </div>
     <p class="detail" aria-live="off">
       {#if reading}
         {sign(reading.offsetHz, 2)} Hz from {reading.nearestHz.toFixed(2)} Hz · heard
@@ -128,34 +133,46 @@
   </section>
 
   <section class="card" aria-label="Spectrum">
-    <svg viewBox="0 0 {PLOT.width} {PLOT.height + 16}" role="img" aria-label="Spectrum by note">
+    <svg
+      viewBox="0 0 {plot.width} {plot.height + 16}"
+      height={plot.height + 16}
+      bind:clientWidth={shownWidth}
+      role="img"
+      aria-label="Spectrum by note"
+    >
       {#each marks as mark (mark.name)}
-        <line class="grid" x1={mark.x} x2={mark.x} y1="0" y2={PLOT.height} />
-        <text class="tick" x={mark.x} y={PLOT.height + 12}>{mark.name}</text>
+        <line class="grid" x1={mark.x} x2={mark.x} y1="0" y2={plot.height} />
+        <text class="tick" class:end={mark.x > plot.width - 12} x={mark.x} y={plot.height + 12}
+          >{mark.name}</text
+        >
       {/each}
       {#if path}
+        <path class="area" d="{path} L{plot.width},{plot.height} L0,{plot.height} Z" />
         <path class="line" d={path} />
       {/if}
       {#if reading}
         <line
           class="pitch"
-          x1={xOfHz(reading.hz, PLOT.width)}
-          x2={xOfHz(reading.hz, PLOT.width)}
+          x1={xOfHz(reading.hz, plot.width)}
+          x2={xOfHz(reading.hz, plot.width)}
           y1="0"
-          y2={PLOT.height}
+          y2={plot.height}
         />
       {/if}
     </svg>
     <div class="level">
       <span>Level</span>
-      <meter
+      <div
+        class="meter"
+        role="meter"
         aria-label="Input level"
-        min="-90"
-        max="0"
-        low="-60"
-        high="-6"
-        value={Number.isFinite(db) ? db : -90}
-      ></meter>
+        aria-valuemin="-90"
+        aria-valuemax="0"
+        aria-valuenow={Number.isFinite(db) ? Math.round(db) : -90}
+      >
+        <i class:hot={db > -6} style="width: {Math.min(100, Math.max(0, ((db + 90) / 90) * 100))}%"
+        ></i>
+      </div>
       <span class="readout">{Number.isFinite(db) ? `${Math.round(db)} dB` : '–'}</span>
     </div>
     {#if window > 0}
@@ -235,9 +252,18 @@
     gap: 8px;
     font-size: 14px;
   }
+  .field input[type='number'],
+  .field select {
+    min-height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+  }
   .field input[type='number'] {
     width: 6em;
-    min-height: 34px;
     font-variant-numeric: tabular-nums;
   }
   .presets {
@@ -275,7 +301,6 @@
   }
   svg {
     width: 100%;
-    height: auto;
     display: block;
   }
   .grid {
@@ -286,6 +311,14 @@
     fill: var(--muted);
     font-size: 11px;
     text-anchor: middle;
+  }
+  .tick.end {
+    text-anchor: end;
+  }
+  .area {
+    fill: var(--amber);
+    fill-opacity: 0.15;
+    stroke: none;
   }
   .line {
     fill: none;
@@ -304,9 +337,28 @@
     font-size: 13px;
     color: var(--muted);
   }
-  .level meter {
+  .meter {
     flex: 1;
-    height: 10px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .meter i {
+    display: block;
+    height: 100%;
+    background: var(--teal);
+    transition: width 60ms linear;
+  }
+  .meter i.hot {
+    background: var(--amber);
+  }
+  .scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: -4px;
   }
   .readout {
     min-width: 4.5em;
