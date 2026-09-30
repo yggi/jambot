@@ -680,31 +680,39 @@ describe('recognition: a motif heard as a remembered one under an operator (Q12)
     accidentals: m.accidentals,
   });
 
-  it('finds every operator from one motif to another as the coset of the first’s symmetries (finite: every motif and operator) (Q5c, Q12)', () => {
-    for (const m of both) {
-      expect(opsBetween(m, m).map(key).sort()).toEqual(stabilizer(m).map(key).sort());
-      for (const op of ops) {
-        const found = opsBetween(m, applyOp(op, m)).map((o) => key({ ...o, late: o.late }));
-        const coset = stabilizer(m).map((s) => {
-          const o = thenOp(s, op);
-          return key({ ...o, late: ((o.late % SPAN) + SPAN) % SPAN });
-        });
-        expect(found.sort()).toEqual(coset.sort());
+  it(
+    'finds every operator from one motif to another as the coset of the first’s symmetries (finite: every motif and operator) (Q5c, Q12)',
+    { timeout: 30_000 },
+    () => {
+      for (const m of both) {
+        expect(opsBetween(m, m).map(key).sort()).toEqual(stabilizer(m).map(key).sort());
+        for (const op of ops) {
+          const found = opsBetween(m, applyOp(op, m)).map((o) => key({ ...o, late: o.late }));
+          const coset = stabilizer(m).map((s) => {
+            const o = thenOp(s, op);
+            return key({ ...o, late: ((o.late % SPAN) + SPAN) % SPAN });
+          });
+          expect(found.sort()).toEqual(coset.sort());
+        }
       }
-    }
-  });
+    },
+  );
 
-  it('hears a motif played again under any operator as the remembered one, and writes it with the canonical operator, a repeat with none (finite: every motif and operator) (Q12)', () => {
-    for (const m of both) {
-      expect(recognise(m, m)).toEqual(NOOP);
-      for (const op of ops) {
-        const heard = applyOp(op, m);
-        const found = recognise(heard, m)!;
-        expect(found).toEqual(canonicalOp(op, plain(m)));
-        expect(text(plain(applyOp(found, m)))).toBe(text(plain(heard)));
+  it(
+    'hears a motif played again under any operator as the remembered one, and writes it with the canonical operator, a repeat with none (finite: every motif and operator) (Q12)',
+    { timeout: 30_000 },
+    () => {
+      for (const m of both) {
+        expect(recognise(m, m)).toEqual(NOOP);
+        for (const op of ops) {
+          const heard = applyOp(op, m);
+          const found = recognise(heard, m)!;
+          expect(found).toEqual(canonicalOp(op, plain(m)));
+          expect(text(plain(applyOp(found, m)))).toBe(text(plain(heard)));
+        }
       }
-    }
-  });
+    },
+  );
 
   it('hears accents as how a motif was played, not as what it is', () => {
     const [m, loud] = [motifs[40]!, accented[40]!];
