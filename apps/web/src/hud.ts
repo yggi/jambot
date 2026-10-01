@@ -218,6 +218,8 @@ export interface Hud {
   readonly heading: Key | null;
   /** The melodic scale the band is heading for, the last bar decided's likewise (#209). */
   readonly headingMelodic: MelodicScale | null;
+  /** The meter the band is heading for, the last bar decided's likewise: a client's host's asking, as far as it is heard (#305). */
+  readonly headingMeter: Meter | null;
   readonly muse: MuseView;
 }
 
@@ -354,6 +356,7 @@ export function hudOf({
     style: styleView(track, heard ?? 0, tempoNudge, clock),
     heading: bars.at(-1)?.plan.key ?? null,
     headingMelodic: bars.at(-1)?.plan.melodic ?? null,
+    headingMeter: bars.at(-1)?.plan.meter ?? null,
     muse: museView(muse, named, credited, heard === null ? null : clock.barAt(heard), clock),
   };
 }

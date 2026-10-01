@@ -37,7 +37,7 @@ describe('what a host keeps to come back from a reload', () => {
   });
 
   it('reads one saved before it kept a meter, which asks for none (#305)', () => {
-    const { meter: _, ...older } = snapshot;
+    const older = { ...snapshot, meter: undefined };
     expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
   });
 

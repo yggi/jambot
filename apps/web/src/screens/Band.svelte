@@ -118,7 +118,7 @@
   <Plan
     hud={player.hud}
     playing={player.playing}
-    meter={player.meter}
+    meter={following ? (player.hud.headingMeter ?? player.meter) : player.meter}
     {following}
     onmeter={(meter) => player.setMeter(meter)}
   />
