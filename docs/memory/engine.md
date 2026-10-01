@@ -51,7 +51,7 @@ The pointers to what holds each are in the sentences.
   A note that runs into a bar not yet composed ends by the meter before it, which only moves its end where the swing does.
   `lookAhead`, `forecast` and `foresight` read each bar's environment from the clock of the bars before it, so a preview across a change is what plays.
   The protocol is 8: the meter travels in the bar's plan, and the client gives it back to the bar (`follow.ts`).
-  The metronome clicks the pulses of the clock it is given (`clicksOf(steps, clock, subdivision)`, the eighths or sixteenths only where asked), and swings each by its own pulse; `PRESET_GLIDE` (a number of steps, not bars) and the web readers still run on the song's 4/4 clock, until the web reads the transport's (#262).
+  The metronome clicks the pulses of the clock it is given (`clicksOf(steps, clock, subdivision)`, the eighths or sixteenths only where asked), and swings each by its own pulse; `PRESET_GLIDE` is a number of steps, not bars, so it is 8 bars of 4/4 and more in a shorter bar's meter; the web reads the transport's clock (#262).
   The drums carry nothing; the bass its last note, the comp its last voicing, the lead its last note, its phrase and its themes' melodies (`BandCarried.parts`).
   A passed bar leaves the parts where they were, and only the lead's memory reaches more than register (S2); the band's harmonic history is the plan's, not a part's.
   The Muse judges each source's bar into a `Motif` (U4, `judgeBar` in `muse.ts`): onsets with rests, where a note was released before the next, and degrees of the key altered by `b` or `#`, written as a numeral writes a root off the key.
