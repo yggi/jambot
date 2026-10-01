@@ -1,23 +1,37 @@
 <!--
   The metrum, a card: the tempo the band plays under its heading and, under
   that, the meter and the swing. Unfolded, everything about time in one
-  place: the tempo nudged within the style's licence, the swing as a gauge,
-  the bar drawn where the band plays it under the swing (a light mark on
-  each step, the eighths the click's, counted), and the click itself, which
-  is the band's own steps sounded on the song's meter, so it plays only
-  while the band does. The swing is read here and set in the style, where it
-  is one of its axes.
+  place: the tempo nudged within the style's licence, the swing as a gauge
+  and as the shares it gives the eighths and the sixteenths (50 % straight, 67
+  % the triplet), the bar drawn where the band plays it under the swing (a
+  light mark on each step, the eighths counted), and the click itself, which
+  is the band's own steps sounded on the song's clock, the pulses of the bar
+  heard and the eighths or sixteenths between them if asked, so it plays only
+  while the band does. The bar and the pulses are those of the meter the bar
+  heard is in, whatever it is, and the drawing keeps its place when the meter
+  changes. The swing is read here and set in the style, where it is one of
+  its axes.
 -->
 <script lang="ts">
-  import { BAR_STEPS, SONG_METER } from '@jambot/engine';
+  import {
+    SONG_CLOCK,
+    SONG_METER,
+    SUBDIVISIONS,
+    type SongClock,
+    type Subdivision,
+    swingShares,
+  } from '@jambot/engine';
+  import { type Meter, stepsOf } from '@jambot/theory';
+  import { barMarks, eighthHeard } from '../bar.ts';
   import type { Intent, TempoView } from '../conductor.ts';
+  import { meterLabel } from '../meter-choice.ts';
   import type { Metronome } from '../metronome.svelte.ts';
-  import { METER_NAME, barMarks, eighthHeard } from '../metrum.ts';
   import Bar from './Bar.svelte';
   import Card from './Card.svelte';
   import Gauge from './Gauge.svelte';
   import Blinker from './glyphs/Blinker.svelte';
   import Reading from './Reading.svelte';
+  import Segmented from './Segmented.svelte';
   import TempoNudge from './TempoNudge.svelte';
 
   interface Props {
@@ -27,6 +41,9 @@
     metronome: Metronome;
     /** The step heard, or null before anything is: the bar's lamps light with it. */
     heard: number | null;
+    /** The meter of the bar heard (or, before anything is, of the first), and the song's clock that says where its bar starts. */
+    meter?: Meter | undefined;
+    clock?: SongClock;
     /** Whether the band plays: the click sounds with it. */
     playing: boolean;
     /** Whether a client follows its host's tempo, so it can't nudge. */
@@ -34,10 +51,30 @@
     onintent: (intent: Intent) => void;
   }
 
-  let { tempo, swing, metronome, heard, playing, following = false, onintent }: Props = $props();
+  let {
+    tempo,
+    swing,
+    metronome,
+    heard,
+    meter = SONG_METER,
+    clock = SONG_CLOCK,
+    playing,
+    following = false,
+    onintent,
+  }: Props = $props();
 
-  const marks = $derived(barMarks(swing, eighthHeard(heard)));
-  const percent = $derived(Math.round(swing * 100));
+  const marks = $derived(
+    barMarks(meter, swing, eighthHeard(meter, heard === null ? null : clock.stepInBar(heard))),
+  );
+  const shares = $derived(swingShares(swing));
+  /** What the first half of a beat holds, as a percentage: 50 straight, 67 the triplet. */
+  const percent = $derived(Math.round(shares.eighth * 100));
+  const secondary = $derived(Math.round(shares.sixteenth * 100));
+  const SUBDIVISION_TEXT: Record<Subdivision, string> = {
+    pulses: 'Pulses',
+    eighths: 'Eighths',
+    sixteenths: 'Sixteenths',
+  };
   const doing = $derived(
     !metronome.on
       ? 'Off'
@@ -52,15 +89,18 @@
 <Card
   title="Metrum"
   main="{Math.round(tempo.bpm)} BPM"
-  sub="{METER_NAME} · swing {percent} %{metronome.on ? ' · clicking' : ''}"
+  sub="{meterLabel(meter)} · swing {percent} %{secondary !== 50
+    ? ` · 16ths ${secondary} %`
+    : ''}{metronome.on ? ' · clicking' : ''}"
 >
-  {#snippet glyph()}<Blinker {marks} span={BAR_STEPS} />{/snippet}
+  {#snippet glyph()}<Blinker {marks} span={stepsOf(meter)} />{/snippet}
   <TempoNudge {tempo} disabled={following} {onintent} />
   <div class="swing">
     <Reading label="Swing" value="{percent} %" />
-    <Gauge label="Swing {percent} %" from={0} to={1} centre={0} value={swing} fill />
+    <Reading label="Secondary swing" value="{secondary} %" />
+    <Gauge label="Swing axis" from={0} to={1} centre={0} value={swing} fill />
   </div>
-  <Bar meter={SONG_METER} {marks} under="at a swing of {percent} %" />
+  <Bar {meter} {marks} under="at a swing of {percent} %" />
   <div class="click" role="group" aria-label="Click">
     <button
       type="button"
@@ -81,6 +121,13 @@
       />
     </label>
   </div>
+  <Segmented
+    label="Click between the pulses"
+    value={metronome.subdivision}
+    columns={3}
+    options={SUBDIVISIONS.map((value) => ({ value, text: SUBDIVISION_TEXT[value] }))}
+    onselect={(value: Subdivision) => (metronome.subdivision = value)}
+  />
   <p class="doing" aria-live="polite">{doing}</p>
 </Card>
 

@@ -1,6 +1,10 @@
 import { render } from '@testing-library/svelte';
 import { describe, expect, it } from 'vitest';
-import { barMarks } from '../../metrum.ts';
+import { SONG_METER } from '@jambot/engine';
+import { METERS, stepsOf } from '@jambot/theory';
+import { barMarks as marksOf } from '../../bar.ts';
+
+const barMarks = (swing: number, heard: number | null) => marksOf(SONG_METER, swing, heard);
 import Blinker from './Blinker.svelte';
 
 const lamps = (container: HTMLElement) => [...container.querySelectorAll('circle.lamp')];
@@ -67,5 +71,21 @@ describe('the blinker', () => {
   it('makes the downbeat’s ring the widest one', () => {
     const { container } = render(Blinker, { marks: barMarks(0, 0), span: 16 });
     expect(container.querySelector('circle.halo')).toHaveClass('accent');
+  });
+});
+
+describe('the beacon of another meter', () => {
+  it('lays one lamp on a circle for each eighth of the bar, the downbeat first and largest, in every named meter (finite: every meter)', () => {
+    for (const [name, meter] of Object.entries(METERS)) {
+      const marks = marksOf(meter, 0, null);
+      const { container, unmount } = render(Blinker, { marks, span: stepsOf(meter) });
+      const lamps = [...container.querySelectorAll('circle.lamp')];
+      expect([name, lamps.length]).toEqual([name, meter.cycle]);
+      expect([name, lamps.filter((l) => l.classList.contains('accent')).length]).toEqual([name, 1]);
+      // The first lamp is at the top of the circle, and none is on top of another.
+      const spots = lamps.map((l) => `${l.getAttribute('cx')},${l.getAttribute('cy')}`);
+      expect([name, new Set(spots).size]).toEqual([name, lamps.length]);
+      unmount();
+    }
   });
 });

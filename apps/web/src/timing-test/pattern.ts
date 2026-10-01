@@ -10,7 +10,10 @@
  * negative times. Nothing here reads a clock or plays a sound.
  */
 
-import { BAR_STEPS, DRUM_NOTES } from '@jambot/engine';
+import { DRUM_NOTES } from '@jambot/engine';
+
+/** The steps of the test's bar: its own, sixteen, whatever meter a song is in. */
+const PATTERN_STEPS = 16;
 
 export type TestSound = 'kick' | 'snare';
 
@@ -111,7 +114,7 @@ export const patternById = (id: PatternId): TestPattern =>
 export function planTest(id: PatternId, bpm: number, bars = TEST_BARS): TestPlan {
   const pattern = patternById(id);
   const stepSeconds = 60 / bpm / 4;
-  const barSeconds = stepSeconds * BAR_STEPS;
+  const barSeconds = stepSeconds * PATTERN_STEPS;
   const beatSeconds = barSeconds / 4;
   const countIn = Array.from(
     { length: COUNT_IN_BARS * 4 },
@@ -123,7 +126,7 @@ export function planTest(id: PatternId, bpm: number, bars = TEST_BARS): TestPlan
       step,
       sound,
       note: SOUND_NOTES[sound],
-      at: (bar * BAR_STEPS + step) * stepSeconds,
+      at: (bar * PATTERN_STEPS + step) * stepSeconds,
     })),
   )
     .flat()

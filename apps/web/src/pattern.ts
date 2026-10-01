@@ -16,7 +16,14 @@
  * in it, placed on the steps the Muse rounds them to.
  */
 
-import { type BandBar, barStart, heardInBar, heardStep, type HeardNote } from '@jambot/engine';
+import {
+  type BandBar,
+  SONG_CLOCK,
+  type SongClock,
+  heardInBar,
+  heardStep,
+  type HeardNote,
+} from '@jambot/engine';
 import type { Attribution } from './attribution.ts';
 import { type Performer, performerOf } from './sounding.ts';
 
@@ -27,7 +34,7 @@ export const PATTERN_BARS = 5;
 export const BARS_BEHIND = 2;
 
 export interface PatternNote {
-  /** The step of the bar it starts on, 0–15. */
+  /** The step of the bar it starts on, from 0 up to its bar's steps. */
   readonly step: number;
   /** The MIDI note, 0–127, C4 = 60. */
   readonly note: number;
@@ -119,10 +126,11 @@ export function patternBarOf(bar: BandBar): PatternBar {
 export function playedIn(
   notes: readonly HeardNote[],
   bar: number,
+  clock: SongClock = SONG_CLOCK,
 ): Readonly<Record<string, readonly PatternNote[]>> {
-  const start = barStart(bar);
+  const start = clock.barStart(bar);
   const rows: Record<string, PatternNote[]> = {};
-  for (const { source, notes: heard } of heardInBar(notes, bar))
+  for (const { source, notes: heard } of heardInBar(notes, bar, 'phrases', clock))
     for (const n of heard) {
       const step = heardStep(n) - start;
       const end = n.end === null ? null : heardStep({ position: n.end }) - start;

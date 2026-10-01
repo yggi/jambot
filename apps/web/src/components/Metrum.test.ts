@@ -1,4 +1,5 @@
-import { TEMPO_REACH } from '@jambot/engine';
+import { TEMPO_REACH, clockOf } from '@jambot/engine';
+import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Metronome } from '../metronome.svelte.ts';
@@ -22,7 +23,7 @@ describe('the metrum', () => {
   it('reads the tempo, the meter and the swing value in its header, folded by default', () => {
     const { container } = render(Metrum, props(new Metronome(), { swing: 1 }));
     expect(container.querySelector('summary .main')).toHaveTextContent('108 BPM');
-    expect(container.querySelector('summary .sub')).toHaveTextContent('4/4 · swing 100 %');
+    expect(container.querySelector('summary .sub')).toHaveTextContent('4/4 · swing 67 %');
     expect(container.querySelector('details')).not.toHaveAttribute('open');
   });
 
@@ -35,7 +36,9 @@ describe('the metrum', () => {
     const metronome = new Metronome();
     metronome.on = true;
     const { container } = render(Metrum, props(metronome));
-    expect(container.querySelector('summary .sub')).toHaveTextContent('4/4 · swing 0 % · clicking');
+    expect(container.querySelector('summary .sub')).toHaveTextContent(
+      '4/4 · swing 50 % · clicking',
+    );
   });
 
   it('nudges the tempo through the same intent, and a client’s nudges rest', async () => {
@@ -52,13 +55,35 @@ describe('the metrum', () => {
       const { container, unmount } = render(Metrum, props(new Metronome(), { swing }));
       const left = (container.querySelector('[aria-label^="Swing"] .value') as HTMLElement).style
         .left;
-      const reading = screen.getByText(`${Math.round(swing * 100)} %`);
-      expect(reading).toBeInTheDocument();
       unmount();
       return left;
     };
     expect(marker(0)).toBe('0%');
     expect(marker(1)).toBe('100%');
+  });
+
+  it('reads the swing as the share of a beat its first eighth holds, and the secondary swing as the sixteenths’: 50 straight, 67 the triplet', () => {
+    const readings = (swing: number) => {
+      const { container, unmount } = render(Metrum, props(new Metronome(), { swing }));
+      const read = (label: string) =>
+        [...container.querySelectorAll('.reading')]
+          .find((r) => r.textContent?.includes(label))
+          ?.textContent?.replace(label, '')
+          .trim();
+      const found = [read('Swing'), read('Secondary swing')];
+      unmount();
+      return found;
+    };
+    expect(readings(0)).toEqual(['50 %', '50 %']);
+    expect(readings(0.5)).toEqual(['50 %', '67 %']);
+    expect(readings(1)).toEqual(['67 %', '50 %']);
+  });
+
+  it('says in its header where the sixteenths swing too', () => {
+    const { container } = render(Metrum, props(new Metronome(), { swing: 0.5 }));
+    expect(container.querySelector('summary .sub')).toHaveTextContent(
+      '4/4 · swing 50 % · 16ths 67 %',
+    );
   });
 
   it('draws the bar’s 16 steps and moves the offbeat eighths with the swing', () => {
@@ -130,5 +155,58 @@ describe('the metrum', () => {
     metronome.pulse = 2;
     await Promise.resolve();
     expect(screen.getByText('Pulse 3 of 4')).toBeInTheDocument();
+  });
+
+  it('draws the bar of the meter it is given, in the header and on the ruler, and keeps its place (finite: every named meter)', () => {
+    for (const name of Object.keys(METERS) as MeterName[]) {
+      const meter = METERS[name];
+      const { container, unmount } = render(Metrum, props(new Metronome(), { meter }));
+      expect([name, container.querySelector('summary .sub')?.textContent]).toEqual([
+        name,
+        `${name} · swing 50 %`,
+      ]);
+      expect([
+        name,
+        container.querySelectorAll('svg.ruler circle.mark').length,
+        container.querySelectorAll('svg.ruler line.tick').length,
+        container.querySelectorAll('summary svg.glyph circle.lamp').length,
+      ]).toEqual([name, stepsOf(meter), stepsOf(meter) + 1, meter.cycle]);
+      unmount();
+    }
+  });
+
+  it('lights the eighth of the bar heard by the song’s clock, a bar of 7/8 being 14 steps long', async () => {
+    const clock = clockOf([
+      { bar: 0, meter: METERS['4/4'] },
+      { bar: 1, meter: METERS['7/8'] },
+    ]);
+    const { container, rerender } = render(
+      Metrum,
+      props(new Metronome(), { meter: METERS['7/8'], clock, playing: true }),
+    );
+    const lit = () =>
+      [...container.querySelectorAll('svg.ruler circle.mark')].flatMap((m, i) =>
+        m.classList.contains('lit') ? [i] : [],
+      );
+    // 16 steps of 4/4's bar 0, then bar 1 of 7/8: step 16 is its first, step 29 its last.
+    await rerender({ heard: 16 });
+    expect(lit()).toEqual([0]);
+    await rerender({ heard: 16 + 13 });
+    expect(lit()).toEqual([12]);
+    await rerender({ heard: 16 + 14 });
+    expect(lit()).toEqual([0]);
+  });
+
+  it('says what the click sounds between the pulses, the pulses alone to begin with, and sets it', async () => {
+    const metronome = new Metronome();
+    render(Metrum, props(metronome));
+    const group = screen.getByRole('radiogroup', { name: 'Click between the pulses' });
+    expect(screen.getByRole('radio', { name: 'Pulses' })).toBeChecked();
+    expect(group).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('radio', { name: 'Eighths' }));
+    expect(metronome.subdivision).toBe('eighths');
+    expect(screen.getByRole('radio', { name: 'Eighths' })).toBeChecked();
+    await fireEvent.click(screen.getByRole('radio', { name: 'Sixteenths' }));
+    expect(metronome.subdivision).toBe('sixteenths');
   });
 });

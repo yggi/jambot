@@ -12,7 +12,10 @@
  * (`foresight`, from the player), with the playhead on the step heard. The bars
  * jump on as the bar heard changes, and the playhead moves across them.
  * Before anything is heard it shows the song from its first bar. Every note
- * is placed on its step from the first bar shown.
+ * is placed on its step from the first bar shown, on the song's own clock
+ * (`SongClock`): the bars shown may be of different lengths, and the grid's
+ * `frame` says where each starts, how long it is and where its pulses fall,
+ * so a lane draws the bar of the meter it is in (#262).
  *
  * The loop of the Muse is drawn on it in the players' colours
  * (`attribution.ts`): the lead's bars that played a motif are credited to
@@ -24,7 +27,7 @@
  * notes, for as long as its bar is shown.
  */
 
-import { BAR_STEPS, barAt, barStart } from '@jambot/engine';
+import { SONG_CLOCK, type SongClock } from '@jambot/engine';
 import { playerSource, sourceName } from '@jambot/session';
 import { type Credit, credit, sourceColour } from './attribution.ts';
 import { type Hud, leadStatus, styleStatus } from './hud.ts';
@@ -84,9 +87,21 @@ export interface PlayerView {
   readonly taken: number | null;
 }
 
+/** A bar of the grid: where it starts and how long it is, and where its pulses fall, in steps from the first bar shown's start. */
+export interface BarFrame {
+  readonly start: number;
+  readonly steps: number;
+  /** The steps its pulses start on, from the grid's start. */
+  readonly pulses: readonly number[];
+}
+
 export interface TracksView {
   /** The first bar shown, counted from the song's start. */
   readonly first: number;
+  /** The bars shown, each where the song's clock puts it. */
+  readonly frame: readonly BarFrame[];
+  /** The steps the grid spans: the bars shown, end to end. */
+  readonly span: number;
   /** The step heard, counted from the first bar shown's start, or null before anything is heard. */
   readonly playhead: number | null;
   readonly performers: readonly PerformerView[];
@@ -110,6 +125,8 @@ export interface TracksInput {
   readonly mix: Mix;
   /** The bars from the head on with their notes, foreseen. */
   readonly ahead: readonly PatternBar[];
+  /** The song's clock, as far as the bars decided reach; the song's 4/4 where none is given. */
+  readonly clock?: SongClock;
 }
 
 const LABELS: Readonly<Record<Performer, string>> = {
@@ -122,13 +139,25 @@ const LABELS: Readonly<Record<Performer, string>> = {
 const PARTS: readonly AlongPart[] = ['lead', 'drums'];
 
 export function tracksOf(input: TracksInput): TracksView {
-  const { hud, sounding, pattern, heard, players, mix } = input;
-  const now = heard === null ? 0 : barAt(heard);
+  const { hud, sounding, pattern, heard, players, mix, clock = SONG_CLOCK } = input;
+  const now = heard === null ? 0 : clock.barAt(heard);
   const first = Math.max(0, now - BARS_BEHIND);
   const shown = (bar: number) => bar >= first && bar < first + PATTERN_BARS;
+  const origin = clock.barStart(first);
+  /** Where `bar` starts, from the first bar shown's start. */
+  const startOf = (bar: number) => clock.barStart(bar) - origin;
+  const frame = Array.from({ length: PATTERN_BARS }, (_, i): BarFrame => {
+    const bar = first + i;
+    const start = clock.barStart(bar);
+    const end = clock.barStart(bar + 1);
+    const pulses: number[] = [];
+    for (let beat = clock.beatAt(start); clock.beatStart(beat) < end; beat++)
+      pulses.push(clock.beatStart(beat) - origin);
+    return { start: start - origin, steps: end - start, pulses };
+  });
   /** Notes of `bar` placed from the first bar shown. */
   const placed = (bar: number, notes: readonly PatternNote[]) =>
-    notes.map((n) => ({ ...n, step: n.step + (bar - first) * BAR_STEPS }));
+    notes.map((n) => ({ ...n, step: n.step + startOf(bar) }));
   // The bars from the one heard on are the foreseen ones, whole; those before it are as they were played.
   const bars = Array.from({ length: PATTERN_BARS }, (_, i) => first + i).flatMap((bar) => {
     const found =
@@ -168,6 +197,7 @@ export function tracksOf(input: TracksInput): TracksView {
         playedIn(
           input.humanNotes.filter((n) => n.part === part),
           bar,
+          clock,
         ),
       )) {
         const source = input.playerId === null ? played : playerSource(input.playerId, played);
@@ -199,7 +229,7 @@ export function tracksOf(input: TracksInput): TracksView {
             local: false,
             taken: motif.bar - first,
             notes: motif.notes.map((n) => ({
-              step: n.step + (motif.bar - first) * BAR_STEPS,
+              step: n.step + startOf(motif.bar),
               note: n.row,
               length: n.length,
             })),
@@ -209,7 +239,9 @@ export function tracksOf(input: TracksInput): TracksView {
 
   return {
     first,
-    playhead: heard === null ? null : heard - barStart(first),
+    frame,
+    span: frame.reduce((steps, bar) => steps + bar.steps, 0),
+    playhead: heard === null ? null : heard - origin,
     performers,
     players: [...local, ...heardAs],
   };

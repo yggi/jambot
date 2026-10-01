@@ -1,18 +1,28 @@
 <!--
   The metronome (#259): a bar of any meter, played over and over on this
   device's own synth, to hear a meter, its swing and its accents. A meter,
-  a tempo in quarters, the swing, the swing of a pulse of three eighths (which
-  the band's own swing plays straight) and how far the accents are spread;
-  a click, drums and a bass to play, and the hemiola, the bass regrouped onto
-  the other meter's pulses. The bar is drawn where it is played, the eighth
-  heard lit. It takes the player as a prop; the page runs it.
+  a tempo in quarters, the swing of the eighths and the secondary swing of the
+  sixteenths (each the share of its span the first half holds: 50 straight, 67
+  triplet, below 50 early), the lean of a pulse of three eighths (which the
+  band's own swing plays straight) and how far the accents are spread; a
+  click on the pulses, and the eighths or sixteenths if asked, drums and a
+  bass to play, and the hemiola, the bass regrouped onto the other meter's
+  pulses. The bar is drawn where it is played, the eighth heard lit. It takes
+  the player as a prop; the page runs it.
 -->
 <script lang="ts">
   import { METERS, type MeterName, accentLine, degreeBelow, gaps } from '@jambot/theory';
-  import { barMarks } from '../bar.ts';
+  import { marksPlayed } from '../bar.ts';
   import Bar from '../components/Bar.svelte';
   import Segmented from '../components/Segmented.svelte';
-  import { BPM_RANGE, HEMIOLA, LAYERS, type Layer } from '../meter/bar-plan.ts';
+  import {
+    BPM_RANGE,
+    HEMIOLA,
+    LAYERS,
+    type Layer,
+    SUBDIVISIONS,
+    type Subdivision,
+  } from '../meter/bar-plan.ts';
   import type { MeterPlayer } from '../meter/meter-player.svelte.ts';
   import { meterMap } from '../meter/ternary.ts';
 
@@ -44,7 +54,11 @@
   const meter = $derived(METERS[shown]);
   const lit = $derived(player.playing && player.heard?.name === shown ? player.heard.eighth : null);
   const marks = $derived(
-    barMarks(meter, player.swing, lit, meterMap(meter, player.swing, player.ternary).played),
+    marksPlayed(
+      meter,
+      meterMap(meter, { eighth: player.swing, sixteenth: player.secondary }, player.ternary).played,
+      lit,
+    ),
   );
   const chosen = $derived(METERS[player.name]);
   const line = $derived(accentLine(chosen, player.mirror));
@@ -53,6 +67,20 @@
   const hasTernary = $derived(gaps(chosen).includes(3));
   const partner = $derived(HEMIOLA[player.name]);
   const percent = (x: number) => `${Math.round(x * 100)} %`;
+  /** A share as the slider says it: 50 % straight, over it late, under it early. */
+  const SHARE_RANGE = { min: 25, max: 75 } as const;
+  const SUBDIVISION_TEXT: Record<Subdivision, string> = {
+    pulses: 'Pulses',
+    eighths: 'Eighths',
+    sixteenths: 'Sixteenths',
+  };
+  /** What the click leaves out that the swing would move. */
+  const silent = $derived(
+    player.layers.click &&
+      !player.layers.drums &&
+      ((player.subdivision === 'pulses' && (player.swing !== 0.5 || player.secondary !== 0.5)) ||
+        (player.subdivision === 'eighths' && player.secondary !== 0.5)),
+  );
   const doing = $derived(
     !player.playing
       ? 'Stopped'
@@ -108,7 +136,11 @@
   </section>
 
   <section class="card" aria-label="The bar">
-    <Bar {meter} {marks} under="at a swing of {percent(player.swing)}" />
+    <Bar
+      {meter}
+      {marks}
+      under="at a swing of {percent(player.swing)}, secondary {percent(player.secondary)}"
+    />
     <p class="doing" aria-live="off">{doing}</p>
   </section>
 
@@ -131,26 +163,47 @@
       <input
         type="range"
         aria-label="Swing"
-        min="0"
-        max="100"
+        min={SHARE_RANGE.min}
+        max={SHARE_RANGE.max}
         value={Math.round(player.swing * 100)}
         oninput={(e) => (player.swing = +e.currentTarget.value / 100)}
       />
     </label>
     <label class="slider">
-      <span>Ternary swing <output>{percent(player.ternary)}</output></span>
+      <span>Secondary swing <output>{percent(player.secondary)}</output></span>
       <input
         type="range"
-        aria-label="Ternary swing"
-        min="0"
+        aria-label="Secondary swing"
+        min={SHARE_RANGE.min}
+        max={SHARE_RANGE.max}
+        value={Math.round(player.secondary * 100)}
+        oninput={(e) => (player.secondary = +e.currentTarget.value / 100)}
+      />
+    </label>
+    <p class="hint">
+      50 % is straight, 67 % the triplet, 75 % the dotted figure; under 50 % the offbeat comes
+      early. The swing moves the second eighth of a beat, the secondary swing the second sixteenth
+      of each half-beat. A pulse itself never moves.
+    </p>
+    <label class="slider">
+      <span>Ternary lean <output>{Math.round(player.ternary * 100)} %</output></span>
+      <input
+        type="range"
+        aria-label="Ternary lean"
+        min="-100"
         max="100"
         value={Math.round(player.ternary * 100)}
         oninput={(e) => (player.ternary = +e.currentTarget.value / 100)}
       />
     </label>
-    {#if !hasTernary}
+    {#if hasTernary}
       <p class="hint">
-        This meter has no pulse of three eighths: the ternary swing has nothing to move.
+        The lean moves the second and third eighths of a pulse of three together: late, the pulse
+        goes long, short, short; early, short, long, long.
+      </p>
+    {:else}
+      <p class="hint">
+        This meter has no pulse of three eighths: the ternary lean has nothing to move.
       </p>
     {/if}
     <label class="slider">
@@ -196,6 +249,19 @@
         </button>
       {/each}
     </div>
+    <Segmented
+      label="Click between the pulses"
+      value={player.subdivision}
+      columns={3}
+      options={SUBDIVISIONS.map((value) => ({ value, text: SUBDIVISION_TEXT[value] }))}
+      onselect={(value: Subdivision) => (player.subdivision = value)}
+    />
+    {#if silent}
+      <p class="hint">
+        The swing moves what is between the pulses, and the click does not sound it: choose the
+        eighths, or the sixteenths for the secondary swing, to hear it.
+      </p>
+    {/if}
     <label class="slider">
       <span>Click volume <output>{percent(player.volume)}</output></span>
       <input

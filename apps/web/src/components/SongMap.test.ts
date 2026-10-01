@@ -1,3 +1,4 @@
+import { METERS } from '@jambot/theory';
 import { render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it } from 'vitest';
 import SongMap from './SongMap.svelte';
@@ -15,12 +16,23 @@ const section = (index: number, over: Partial<SectionView> = {}): SectionView =>
     scale: [0, 2, 4, 5, 7, 9, 11],
     melodic: [0, 2, 4, 5, 7, 9, 11],
     melodicName: 'plain',
+    meter: METERS['4/4'],
+    meterName: '4/4',
     chords: [{ step: 0, symbol: ['Am', 'F', 'C', 'G'][i % 4]!, numeral: 'i' }],
     energy: i / 7,
     lead: 'improvising' as const,
     motif: null,
   }));
-  return { index, section: name, key, newKey: false, bars, ...over };
+  return {
+    index,
+    section: name,
+    meterName: '4/4',
+    newMeter: false,
+    key,
+    newKey: false,
+    bars,
+    ...over,
+  };
 };
 
 const five = () => [1, 2, 3, 4, 5].map((i) => section(i));

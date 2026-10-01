@@ -1,39 +1,52 @@
 /**
  * The metronome: a reading of the transport's scheduled steps, not a clock
  * of its own. The band's steps are the song's grid, and a click is a step
- * that starts an eighth of the song's meter (`SONG_METER`, two steps to an
- * eighth): the bar's downbeat, another pulse, or a subdivision between them
- * (`@jambot/theory`'s `meterWeights`). It sounds where the band would play
- * a note on that step, through the swing the step's beat was laid with, so
- * the swing is heard in the click too, and at the tempo the band plays,
- * glide and all, since each step is as long as the tempo where it starts.
+ * that starts a pulse of the song's meter: the bar's downbeat or another
+ * pulse. It reads the meter off the song's clock (`SongClock`, the
+ * transport's own, 4/4's where none is given), so a bar of 6/8 clicks its two
+ * dotted quarters and one of 7/8 its three pulses, 3+2+2. The eighths between
+ * the pulses are not clicked unless asked for (`Subdivision`): a click on the
+ * 'and' of a 4/4 bar says the bar is in eighths, which it is not, and a
+ * player counting quarters hears it as a second pulse. It sounds where the
+ * band would play a note on that step, through the swing the step's beat was
+ * laid with, so the swing is heard in the click too once the eighths or the
+ * sixteenths are clicked (a pulse does not move), and at the tempo the band
+ * plays, glide and all, since each step is as long as the tempo where it
+ * starts.
  *
  * Nothing here schedules or waits: the transport decides which steps are
  * laid, and a step the clock has passed is not laid, so a click is never
- * played late. A different meter than 4/4 is the time tower's (#116, #122):
- * when the song's meter changes, this reads it from the song's clock.
+ * played late.
  */
 
-import { type Weight, degreeBelow, meterWeights } from '@jambot/theory';
-import { BAR_STEPS, SONG_METER, stepInBar } from './events.ts';
-import { swingMap } from './swing.ts';
+import type { Weight } from '@jambot/theory';
+import { SONG_CLOCK, type SongClock } from './events.ts';
+import { swingMapAt } from './swing.ts';
 import type { ScheduledStep } from './transport.ts';
 
-/** The steps in one eighth of the song's meter. */
-const STEPS_PER_EIGHTH = BAR_STEPS / SONG_METER.cycle;
+/**
+ * What a click sounds beside the pulses: nothing, the eighths between them
+ * (every second step), or the sixteenths too (every step).
+ */
+export type Subdivision = 'pulses' | 'eighths' | 'sixteenths';
 
-const WEIGHTS = meterWeights(SONG_METER);
+export const SUBDIVISIONS: readonly Subdivision[] = ['pulses', 'eighths', 'sixteenths'];
+
+/** The steps in one eighth: the grid's step is a sixteenth, in every meter. */
+const STEPS_PER_EIGHTH = 2;
 
 /** What a click reads of a scheduled step. */
-export type ClickStep = Pick<ScheduledStep, 'step' | 'seconds' | 'length' | 'swing'>;
+export type ClickStep = Pick<ScheduledStep, 'step' | 'seconds' | 'length' | 'swing' | 'pulse'>;
 
 export interface Click {
   /** Its step, from the song's start. */
   readonly step: number;
-  /** The eighth of the bar it falls on, from 0. */
+  /** The eighth of the bar it falls in, from 0 (a sixteenth after an eighth is in it). */
   readonly eighth: number;
   /** Its pulse in the bar, from 0. */
   readonly pulse: number;
+  /** How many pulses its bar has. */
+  readonly pulses: number;
   readonly weight: Weight;
   /** When it sounds, on the clock the steps were laid on. */
   readonly seconds: number;
@@ -41,24 +54,38 @@ export interface Click {
 
 /**
  * When a step sounds: where it starts, moved by the swing its beat was laid
- * with (`writtenAt` reads this back). A step on the beat does not move.
+ * with, over that beat (`writtenAt` reads this back). A step on the beat does
+ * not move.
  */
-export function soundsAt({ step, seconds, length, swing }: ClickStep): number {
-  return seconds + (swingMap(swing).played(step) - step) * length;
+export function soundsAt({ step, seconds, length, swing, pulse }: ClickStep): number {
+  return seconds + (swingMapAt(swing, pulse.start, pulse.length).played(step) - step) * length;
 }
 
-/** The clicks in the steps laid, in their order: one on each eighth of the bar. */
-export function clicksOf(steps: readonly ClickStep[]): Click[] {
+/**
+ * The clicks in the steps laid, in their order: one on each pulse, and on
+ * each eighth or sixteenth between them where `subdivision` asks.
+ */
+export function clicksOf(
+  steps: readonly ClickStep[],
+  clock: SongClock = SONG_CLOCK,
+  subdivision: Subdivision = 'pulses',
+): Click[] {
   const clicks: Click[] = [];
   for (const laid of steps) {
-    const inBar = stepInBar(laid.step);
-    if (inBar % STEPS_PER_EIGHTH !== 0) continue;
-    const eighth = inBar / STEPS_PER_EIGHTH;
+    const onPulse = clock.onBeat(laid.step);
+    const bar = clock.barAt(laid.step);
+    const inBar = laid.step - clock.barStart(bar);
+    const wanted =
+      onPulse ||
+      subdivision === 'sixteenths' ||
+      (subdivision === 'eighths' && inBar % STEPS_PER_EIGHTH === 0);
+    if (!wanted) continue;
     clicks.push({
       step: laid.step,
-      eighth,
-      pulse: degreeBelow(SONG_METER, eighth),
-      weight: WEIGHTS[eighth]!,
+      eighth: Math.floor(inBar / STEPS_PER_EIGHTH),
+      pulse: clock.beatInBar(laid.step),
+      pulses: clock.beatAt(clock.barStart(bar + 1)) - clock.beatAt(clock.barStart(bar)),
+      weight: inBar === 0 ? 'downbeat' : onPulse ? 'pulse' : 'subdivision',
       seconds: soundsAt(laid),
     });
   }

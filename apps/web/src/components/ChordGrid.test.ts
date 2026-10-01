@@ -1,3 +1,4 @@
+import { METERS } from '@jambot/theory';
 import { render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it } from 'vitest';
 import ChordGrid from './ChordGrid.svelte';
@@ -12,6 +13,8 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   scale: [0, 2, 4, 5, 7, 9, 11],
   melodic: [0, 2, 4, 5, 7, 9, 11],
   melodicName: 'plain',
+  meter: METERS['4/4'],
+  meterName: '4/4',
   chords: [{ step: 0, symbol: 'Am', numeral: 'i' }],
   energy: 0.5,
   lead: 'improvising',

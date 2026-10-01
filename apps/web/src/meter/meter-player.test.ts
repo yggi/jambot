@@ -6,6 +6,8 @@ import { LEAD_SECONDS, MeterPlayer, TICK_MS } from './meter-player.svelte.ts';
 function setup() {
   const world = surroundings();
   const player = new MeterPlayer({ audio: () => ({ base: world.base, offset: world.offset }) });
+  // Most of what is checked here counts the eighths, which the click sounds when asked to.
+  player.subdivision = 'eighths';
   /** Let the page's clock run on `ms`, a tick at a time. */
   const run = (ms: number) => {
     for (let t = 0; t < ms; t += TICK_MS) {
@@ -64,7 +66,7 @@ describe('the meter player', () => {
     expect(first).toHaveLength(8);
     player.name = '7/8';
     player.bpm = 60;
-    player.swing = 1;
+    player.swing = 0.75;
     expect(clicks).toEqual(first);
     run(2000);
     const bar = 8 * (60 / 120 / 2);
@@ -115,5 +117,76 @@ describe('the meter player', () => {
     const laid = clicks.length;
     await player.start();
     expect(clicks.length).toBe(laid);
+  });
+
+  it('clicks the pulses and no more by default: 4/4’s quarters, not its “and”, and 6/8’s two dotted quarters', async () => {
+    for (const [name, pulses] of [
+      ['4/4', 4],
+      ['3/4', 3],
+      ['6/8', 2],
+      ['7/8', 3],
+    ] as const) {
+      const { player, clicks, run } = setup();
+      player.subdivision = 'pulses';
+      player.name = name;
+      player.bpm = 120;
+      await player.start();
+      run(100);
+      expect([name, clicks.length]).toEqual([name, pulses]);
+    }
+  });
+
+  it('clicks the sixteenths too where asked: every step of the bar', async () => {
+    const { player, clicks } = setup();
+    player.subdivision = 'sixteenths';
+    await player.start();
+    expect(clicks).toHaveLength(16);
+  });
+
+  it('puts the offbeat eighth where its share says: 50 % straight, 67 % on the triplet, 75 % dotted, 25 % pulled early', async () => {
+    const offbeat = async (swing: number) => {
+      const { player, clicks } = setup();
+      player.swing = swing;
+      await player.start();
+      return (clicks[1]! - clicks[0]!) / (clicks[2]! - clicks[0]!);
+    };
+    expect(await offbeat(0.5)).toBeCloseTo(1 / 2, 9);
+    expect(await offbeat(2 / 3)).toBeCloseTo(2 / 3, 9);
+    expect(await offbeat(0.75)).toBeCloseTo(3 / 4, 9);
+    expect(await offbeat(0.25)).toBeCloseTo(1 / 4, 9);
+    expect(await offbeat(0.4)).toBeLessThan(1 / 2);
+  });
+
+  it('puts the second sixteenth of each half-beat where the secondary share says, on its own', async () => {
+    const { player, clicks } = setup();
+    player.subdivision = 'sixteenths';
+    player.secondary = 2 / 3;
+    await player.start();
+    const half = (clicks[2]! - clicks[0]!) / 1;
+    expect((clicks[1]! - clicks[0]!) / half).toBeCloseTo(2 / 3, 9);
+    expect((clicks[3]! - clicks[2]!) / half).toBeCloseTo(2 / 3, 9);
+    expect(clicks[2]! - clicks[0]!).toBeCloseTo(60 / 100 / 2, 9); // the eighths do not move
+  });
+
+  it('keeps the pulses where they are at every swing, the secondary swing and the ternary lean', async () => {
+    const barAt = async (swing: number, secondary: number, ternary: number) => {
+      const { player, clicks } = setup();
+      player.subdivision = 'pulses';
+      player.name = '7/8';
+      player.swing = swing;
+      player.secondary = secondary;
+      player.ternary = ternary;
+      await player.start();
+      return clicks.map((seconds) => seconds - clicks[0]!);
+    };
+    const straight = await barAt(0.5, 0.5, 0);
+    for (const [a, b, c] of [
+      [0.25, 0.5, 0],
+      [0.75, 0.75, 1],
+      [2 / 3, 0.25, -1],
+    ] as const) {
+      const moved = await barAt(a, b, c);
+      moved.forEach((seconds, i) => expect(seconds).toBeCloseTo(straight[i]!, 9));
+    }
   });
 });

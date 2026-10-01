@@ -11,6 +11,8 @@ const offered: MuseView = {
     colour: 2,
     bar: 5,
     rows: 4,
+    cycle: 16,
+    pulses: [0, 4, 8, 12],
     notes: [
       { step: 0, length: 4, row: 1, altered: false },
       { step: 4, length: 2, row: 3, altered: true },
@@ -99,7 +101,12 @@ describe('the Muse card', () => {
   });
 
   it('shows what it remembers, a row for each: its weight, the bars it was heard in, confirmed and on offer marked', () => {
-    const roll = { rows: 2, notes: [{ step: 0, length: 4, row: 0, altered: false }] };
+    const roll = {
+      cycle: 16,
+      pulses: [0, 4, 8, 12],
+      rows: 2,
+      notes: [{ step: 0, length: 4, row: 0, altered: false }],
+    };
     const remembered = (name: string, strength: number, heard: number, offeredNow: boolean) => ({
       ...roll,
       source: name,
@@ -144,6 +151,8 @@ describe('the Muse card', () => {
         memory: [
           {
             rows: 1,
+            cycle: 16,
+            pulses: [0, 4, 8, 12],
             notes: [],
             source: 's',
             name: 's',

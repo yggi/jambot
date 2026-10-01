@@ -2,8 +2,16 @@ import { createRawSnippet } from 'svelte';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it } from 'vitest';
 import type { Performer } from '../sounding.ts';
-import type { PerformerView, PlayerView, TracksView } from '../tracks.ts';
+import type { BarFrame, PerformerView, PlayerView, TracksView } from '../tracks.ts';
 import Play from './Play.svelte';
+
+/** `bars` bars of 4/4 laid end to end, as `tracksOf` frames them. */
+const framed = (bars: number): BarFrame[] =>
+  Array.from({ length: bars }, (_, i) => ({
+    start: i * 16,
+    steps: 16,
+    pulses: [0, 4, 8, 12].map((p) => i * 16 + p),
+  }));
 
 const performer = (p: Performer, label: string, over: Partial<PerformerView> = {}) => ({
   performer: p,
@@ -21,6 +29,8 @@ const performer = (p: Performer, label: string, over: Partial<PerformerView> = {
 
 const tracks = (over: Partial<TracksView> = {}): TracksView => ({
   first: 6,
+  frame: framed(5),
+  span: 80,
   playhead: 40,
   performers: [
     performer('drums', 'Drums', { notes: [{ step: 0, note: 36, length: 1 }] }),

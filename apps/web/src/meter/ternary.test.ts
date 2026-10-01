@@ -3,8 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { TERNARY_REACH, meterMap, ternaryMap } from './ternary.ts';
 
 const meters = Object.entries(METERS) as [string, Meter][];
-const AMOUNTS = [0, 0.25, 0.5, 0.75, 1];
-const SWINGS = [0, 0.5, 1];
+const AMOUNTS = [-1, -0.5, 0, 0.25, 0.5, 0.75, 1];
+/** The swing's two levels as shares: straight, early, triplet, dotted, and each level against the other. */
+const SHARES = [
+  { eighth: 0.5, sixteenth: 0.5 },
+  { eighth: 0.25, sixteenth: 0.75 },
+  { eighth: 2 / 3, sixteenth: 0.5 },
+  { eighth: 0.75, sixteenth: 0.25 },
+];
 /** Positions across two bars, a quarter of a step apart. */
 const across = (meter: Meter) => Array.from({ length: 2 * meter.cycle * 2 * 4 }, (_, i) => i / 4);
 
@@ -38,6 +44,20 @@ describe('the ternary swing', () => {
     expect(seven.played(8)).toBe(8);
   });
 
+  it('pulls the eighths of a pulse of three early at a negative amount: short, long, long', () => {
+    const map = ternaryMap(METERS['6/8'], -1);
+    expect(map.played(2)).toBe(2 - TERNARY_REACH);
+    expect(map.played(4)).toBe(4 - TERNARY_REACH / 2);
+    const late = ternaryMap(METERS['6/8'], 1);
+    const lasts = (m: typeof map) => [
+      m.played(2) - m.played(0),
+      m.played(4) - m.played(2),
+      m.played(6) - m.played(4),
+    ];
+    expect(lasts(late)).toEqual([3, 1.5, 1.5]);
+    expect(lasts(map)).toEqual([1, 2.5, 2.5]);
+  });
+
   it('keeps time in order and reads back what it played (finite: every meter, every amount)', () => {
     for (const [name, meter] of meters)
       for (const amount of AMOUNTS) {
@@ -52,15 +72,15 @@ describe('the ternary swing', () => {
 
   it('follows the swing’s, so the swing and the ternary swing together stay ordered and keep the pulse starts', () => {
     for (const [name, meter] of meters)
-      for (const swing of SWINGS)
+      for (const shares of SHARES)
         for (const amount of AMOUNTS) {
-          const map = meterMap(meter, swing, amount);
+          const map = meterMap(meter, shares, amount);
           const xs = across(meter);
           const played = xs.map((x) => map.played(x));
           for (let i = 1; i < played.length; i++)
-            expect([name, swing, amount, i, played[i]! > played[i - 1]!]).toEqual([
+            expect([name, shares, amount, i, played[i]! > played[i - 1]!]).toEqual([
               name,
-              swing,
+              shares,
               amount,
               i,
               true,

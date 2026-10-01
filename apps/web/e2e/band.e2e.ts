@@ -177,6 +177,8 @@ test('clicks the band’s own beats, and the swing moves its offbeats to the ban
   await page.getByRole('radio', { name: 'Swing jazz' }).click();
   await page.getByLabel('Metrum').locator('summary').click();
   await page.getByRole('button', { name: 'Click' }).click();
+  // The click sounds the pulses alone to begin with: the eighths between them are asked for.
+  await page.getByRole('radio', { name: 'Eighths', exact: true }).click();
   await start(page);
   await page.waitForTimeout(8000);
   const all = await starts(page);
@@ -199,6 +201,78 @@ test('clicks the band’s own beats, and the swing moves its offbeats to the ban
     const before = pulses.filter((p) => p < t).at(-1);
     if (before !== undefined) expect((t - before) / beat).toBeCloseTo(2 / 3, 2);
   }
+});
+
+test('clicks the pulses and not the “and”, until the eighths are asked for', async ({ page }) => {
+  await listen(page);
+  await solo(page);
+  await page.getByLabel('Metrum').locator('summary').click();
+  await page.getByRole('button', { name: 'Click' }).click();
+  await start(page);
+  await page.waitForTimeout(8000);
+  const clicks = (await starts(page)).filter(isClick);
+  expect(clicks.length).toBeGreaterThan(8);
+  expect(clicks.filter((s) => s.kind === 'sine')).toEqual([]);
+  // Synth-pop: 108 bpm, a pulse every four steps, the downbeat's square first in each bar of four.
+  const beat = 60 / 108;
+  const times = clicks.map((s) => s.when).sort((x, y) => x - y);
+  times.slice(1).forEach((t, i) => expect(t - times[i]!).toBeCloseTo(beat, 3));
+  expect(clicks.filter((s) => s.kind === 'square')).toHaveLength(Math.ceil(clicks.length / 4));
+});
+
+test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses, the band on the same steps (#262)', async ({
+  page,
+}) => {
+  await listen(page);
+  await solo(page);
+  await openCard(page, 'Plan');
+  await openCard(page, 'Metrum');
+  const height = () => page.evaluate(() => document.documentElement.scrollHeight);
+  const before = await height();
+  await page.getByRole('radio', { name: '7/8', exact: true }).click();
+  // The plan, the metrum and the chords say 7/8, and no card shifts the layout for it.
+  await expect(page.locator('details[aria-label="Metrum"] summary .sub')).toContainText('7/8');
+  expect(await page.locator('details[aria-label="Metrum"] svg.ruler circle.mark').count()).toBe(14);
+  expect(Math.abs((await height()) - before)).toBeLessThanOrEqual(1);
+  await page.getByRole('button', { name: 'Click' }).click();
+  await start(page);
+  await page.waitForTimeout(14000);
+  const all = await starts(page);
+  // Synth-pop: 108 bpm, a step is 15 / 108 s, and a bar of 7/8 holds 14 of them: pulses at 0, 6 and 10.
+  const step = 15 / 108;
+  const clicks = all.filter(isClick);
+  expect(clicks.filter((s) => s.kind === 'sine')).toEqual([]);
+  const downbeats = clicks
+    .filter((s) => s.kind === 'square')
+    .map((s) => s.when)
+    .sort((x, y) => x - y);
+  // The count-in is a bar of 7/8 as well, so its downbeat is the first.
+  expect(downbeats.length).toBeGreaterThan(5);
+  downbeats.slice(1).forEach((t, i) => expect(t - downbeats[i]!).toBeCloseTo(14 * step, 3));
+  const pulses = clicks
+    .filter((s) => s.kind === 'triangle')
+    .map((s) => s.when)
+    .sort((x, y) => x - y);
+  // Two pulses follow each downbeat, the last bar perhaps not yet laid whole.
+  expect(pulses.length).toBeGreaterThanOrEqual(2 * downbeats.length - 2);
+  expect(pulses.length).toBeLessThanOrEqual(2 * downbeats.length);
+  pulses.forEach((t, i) => {
+    const bar = downbeats[Math.floor(i / 2)]!;
+    expect(t - bar).toBeCloseTo((i % 2 === 0 ? 6 : 10) * step, 3);
+  });
+  // The band is on the same grid: every note of it falls on a step of a bar of 14, none past the bar.
+  const band = [...new Set(all.filter((s) => !isClick(s)).map((s) => s.when))].sort(
+    (x, y) => x - y,
+  );
+  expect(band.length).toBeGreaterThan(20);
+  for (const t of band) {
+    const steps = (t - downbeats[0]!) / step;
+    expect(Math.abs(steps - Math.round(steps))).toBeLessThan(1e-3);
+  }
+  // And the click and the band agree: the band's downbeat kick is struck with each click's downbeat.
+  const kicks = all.filter((s) => s.kind === 'sine' && s.frequency === 440).map((s) => s.when);
+  const struck = downbeats.filter((d) => kicks.some((k) => Math.abs(k - d) < 1e-3));
+  expect(struck.length).toBeGreaterThan(downbeats.length / 2);
 });
 
 test('plays the full band: bass, chords and lead beside the drums', async ({ page }) => {

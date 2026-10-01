@@ -11,7 +11,6 @@
   person plays.
 -->
 <script lang="ts">
-  import { BAR_STEPS } from '@jambot/engine';
   import type { Snippet } from 'svelte';
   import { PATTERN_BARS } from '../pattern.ts';
   import type { AlongPart } from '../player.svelte.ts';
@@ -42,7 +41,7 @@
   /** Whether the details show: choosing a track unfolds them, since it is their rows a person plays on. */
   let unfolded = $state(true);
 
-  const span = PATTERN_BARS * BAR_STEPS;
+  const span = $derived(tracks.span);
   const shown = $derived(`bars ${tracks.first + 1} to ${tracks.first + PATTERN_BARS}`);
   const performerOf = (part: AlongPart): PerformerView | undefined =>
     tracks.performers.find((p) => p.performer === part);
@@ -94,6 +93,7 @@
           notes={own.flatMap((lane) => lane.notes)}
           colour={own[0]?.colour ?? null}
           {span}
+          frame={tracks.frame}
           tall
           playhead={tracks.playhead}
         />

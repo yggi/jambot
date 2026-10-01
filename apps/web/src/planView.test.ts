@@ -1,3 +1,4 @@
+import { METERS } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { BarView, ChordView, SectionView } from './hud.ts';
 import {
@@ -22,6 +23,8 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   scale: [0, 2, 4, 5, 7, 9, 11],
   melodic: [0, 2, 4, 5, 7, 9, 11],
   melodicName: 'plain',
+  meter: METERS['4/4'],
+  meterName: '4/4',
   chords: [chord('Am')],
   energy: 0.5,
   lead: 'improvising',
@@ -33,6 +36,8 @@ const section = (index: number, over: Partial<SectionView> = {}): SectionView =>
   section: 'Groove',
   key: 'A minor',
   newKey: false,
+  meterName: '4/4',
+  newMeter: false,
   bars: Array.from({ length: 8 }, (_, i) => bar(index * 8 + i)),
   ...over,
 });

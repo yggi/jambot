@@ -13,6 +13,8 @@ import {
   type TransportCarried,
   type TransportEnv,
   type TransportInput,
+  clockThrough,
+  forecast,
   foresight,
   transport,
   writtenAt,
@@ -210,5 +212,38 @@ describe('the transport over a song that changes meter (T14, #261)', () => {
     expect(preview.some((b) => stepsOf(b.meter) === 14)).toBe(true);
     for (const bar of preview)
       if (composed.has(bar.bar)) expect(composed.get(bar.bar)).toEqual(bar);
+  });
+});
+
+describe('the clock through the bars ahead (#262)', () => {
+  const early = play(0, 120); // a few bars in, all of them 4/4
+  const asked = wished(METERS['7/8'], 0);
+
+  it('reads the bars of a forecast in the meters they will be in, section by section', () => {
+    const ahead = forecast(asked, early.carried, 30);
+    const clock = clockThrough(early.carried, ahead);
+    const head = clock.barAt(early.carried.head.step);
+    for (const bar of ahead) {
+      const meter = bar.plan.meter;
+      expect([bar.bar, clock.barSteps(bar.bar)]).toEqual([bar.bar, stepsOf(meter)]);
+    }
+    // The section the head is in keeps its meter; the next takes the one asked for.
+    expect(clock.barSteps(head)).toBe(16);
+    const next = (Math.floor(head / 8) + 1) * 8;
+    expect([clock.barSteps(next - 1), clock.barSteps(next)]).toEqual([16, 14]);
+    expect(clock.barStart(next + 1) - clock.barStart(next)).toBe(14);
+  });
+
+  it('is the transport’s own clock where nothing is ahead, and the song’s 4/4 before it starts', () => {
+    const own = clockThrough(early.carried, []);
+    const made = clockOf(early.carried.meters);
+    for (const bar of range(6)) expect(own.barStart(bar)).toBe(made.barStart(bar));
+    const before = clockThrough(null, forecast(wished(METERS['4/4'], 0), null, 4));
+    expect(before.barSteps(0)).toBe(16);
+  });
+
+  it('opens a song in the meter asked for: bar 0 is a section’s first, before anything is composed', () => {
+    const clock = clockThrough(null, forecast(asked, null, 20));
+    expect([clock.barSteps(0), clock.barSteps(8), clock.barSteps(16)]).toEqual([14, 14, 14]);
   });
 });

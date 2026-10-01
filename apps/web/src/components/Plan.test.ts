@@ -1,6 +1,8 @@
+import { METERS } from '@jambot/theory';
 import { SECTION_BARS } from '@jambot/engine';
-import { render, screen, within } from '@testing-library/svelte';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { describe, expect, it, vi } from 'vitest';
+import { METER_CHOICES } from '../meter-choice.ts';
 import Plan from './Plan.svelte';
 import type { BarView, Hud, SectionView } from '../hud.ts';
 
@@ -13,6 +15,8 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   scale: [0, 2, 4, 5, 7, 9, 11],
   melodic: [0, 2, 4, 5, 7, 9, 11],
   melodicName: 'plain',
+  meter: METERS['4/4'],
+  meterName: '4/4',
   chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
   energy: 0.6,
   lead: 'improvising',
@@ -78,13 +82,13 @@ describe('the plan', () => {
 
   it('says the key heard, and the key the band is heading for where it differs', () => {
     const same = render(Plan, { hud: hudAt(9), playing: true });
-    expect(sub(same.container)).toHaveTextContent(/^A minor$/);
+    expect(sub(same.container)).toHaveTextContent(/^A minor · 4\/4$/);
     same.unmount();
     const moving = render(Plan, {
       hud: hudAt(9, { heading: { tonic: 4, mode: 'aeolian' } }),
       playing: true,
     });
-    expect(sub(moving.container)).toHaveTextContent(/^A minor → E minor$/);
+    expect(sub(moving.container)).toHaveTextContent(/^A minor → E minor · 4\/4$/);
   });
 
   it('leaves the bars ahead, by chord, to the chords card', () => {
@@ -97,6 +101,8 @@ describe('the plan', () => {
     indices.map((index) => ({
       index,
       section: 'Groove',
+      meterName: '4/4',
+      newMeter: false,
       key: index < 3 ? 'A minor' : 'E minor',
       newKey: index === newKeyAt,
       bars: Array.from({ length: SECTION_BARS }, (_, i) => bar(index * SECTION_BARS + i)),
@@ -148,5 +154,47 @@ describe('the plan', () => {
       expect(last!).toBeCloseTo(first! * 8, 6);
       expect(fill(0, { bar: opening, beat: null, chord: opening.chords[0]! })).toBeNull();
     });
+  });
+
+  it('says the meter of the section heard beside its key', () => {
+    const seven = bar(9, { meter: METERS['7/8'], meterName: '7/8' });
+    const { container } = render(Plan, {
+      hud: hudAt(9, { bar: seven, chord: seven.chords[0]! }),
+      playing: true,
+    });
+    expect(sub(container)).toHaveTextContent(/^A minor · 7\/8$/);
+  });
+
+  it('offers every meter the band can be asked for, the one asked for chosen, and says it takes it at the next section', async () => {
+    const onmeter = vi.fn();
+    render(Plan, { hud: hudAt(9), playing: true, meter: METERS['6/8'], onmeter });
+    const group = within(screen.getByRole('radiogroup', { name: 'Meter for the next section' }));
+    expect(group.getAllByRole('radio').map((r) => r.textContent?.trim())).toEqual(
+      METER_CHOICES.map((c) => c.text),
+    );
+    expect(group.getByRole('radio', { name: '6/8' })).toBeChecked();
+    expect(group.getByRole('radio', { name: '4/4' })).not.toBeChecked();
+    await fireEvent.click(group.getByRole('radio', { name: '7/8 2+2+3' }));
+    expect(onmeter).toHaveBeenCalledOnce();
+    expect(onmeter.mock.calls[0]![0]).toEqual(
+      METER_CHOICES.find((c) => c.text === '7/8 2+2+3')!.meter,
+    );
+  });
+
+  it('rests a client’s choice: it follows its host’s meter', () => {
+    render(Plan, { hud: hudAt(9), playing: true, following: true });
+    for (const radio of within(
+      screen.getByRole('radiogroup', { name: 'Meter for the next section' }),
+    ).getAllByRole('radio'))
+      expect(radio).toBeDisabled();
+  });
+
+  it('names a section where its meter changes, in the song map', () => {
+    const sections = sectionsOf([1, 2, 3]).map((s, i) =>
+      i === 1 ? { ...s, meterName: '7/8', newMeter: true } : s,
+    );
+    const { container } = render(Plan, { hud: hudAt(9, { sections }), playing: true });
+    const names = [...container.querySelectorAll('.sec .name')].map((n) => n.textContent);
+    expect(names).toEqual(['Groove', 'Groove, 7/8', 'Groove']);
   });
 });
