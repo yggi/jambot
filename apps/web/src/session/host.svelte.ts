@@ -186,6 +186,7 @@ export class HostSession {
       track: this.#player.track,
       wish: this.#player.wish,
       tempoNudge: this.#player.tempoNudge,
+      meter: this.#player.meter,
     });
   }
 
@@ -230,6 +231,7 @@ export class HostSession {
         this.#send({ kind: 'track', track });
         this.persist();
       },
+      meter: () => this.persist(),
       muse: (muse) => {
         this.#muse = muse;
         this.#send({ kind: 'muse', muse });

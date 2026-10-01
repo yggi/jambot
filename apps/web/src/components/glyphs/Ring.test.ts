@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import Ring from './Ring.svelte';
 
 const motif = {
+  cycle: 16,
   rows: 3,
   notes: [
     { step: 0, length: 4, row: 0 },
@@ -54,5 +55,22 @@ describe('the Muse’s ring glyph', () => {
         Number(note.getAttribute('y')) + Number(note.getAttribute('height')),
       ).toBeLessThanOrEqual(40);
     }
+  });
+
+  it('spans the ring with a motif of any cycle: a bar of 5/4 ends where a bar of 4/4 does (#305)', () => {
+    const end = (cycle: number) => {
+      const last = { step: cycle - 4, length: 4, row: 0 };
+      const { container, unmount } = render(Ring, {
+        motif: { cycle, rows: 1, notes: [last] },
+        colour: 0,
+        pulse: 0,
+      });
+      const note = container.querySelector('rect.note')!;
+      const x = Number(note.getAttribute('x')) + Number(note.getAttribute('width'));
+      unmount();
+      return x;
+    };
+    expect(end(20)).toBeCloseTo(end(16), 6);
+    expect(end(14)).toBeCloseTo(end(16), 6);
   });
 });

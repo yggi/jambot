@@ -8,8 +8,12 @@
   import Glyph, { GLYPH_SIZE } from '../Glyph.svelte';
 
   interface Props {
-    /** The motif held: its notes on the bar's 16 steps, and how many rows it spans. */
-    motif: { rows: number; notes: readonly { step: number; length: number; row: number }[] } | null;
+    /** The motif held: its notes on its cycle's steps (16 in 4/4, 20 in 5/4), and how many rows it spans. */
+    motif: {
+      cycle: number;
+      rows: number;
+      notes: readonly { step: number; length: number; row: number }[];
+    } | null;
     /** The player's colour, from 0. */
     colour: number;
     /** How many notes have been played: a new one pings. */
@@ -35,9 +39,9 @@
     {#each motif.notes as note, i (i)}
       <rect
         class="note"
-        x={LEFT + (note.step / 16) * WIDE}
+        x={LEFT + (note.step / motif.cycle) * WIDE}
         y={TOP + HIGH - (note.row + 1) * rowHeight}
-        width={Math.max(1.4, (note.length / 16) * WIDE - 0.6)}
+        width={Math.max(1.4, (note.length / motif.cycle) * WIDE - 0.6)}
         height={Math.max(1.4, rowHeight - 0.6)}
         rx="0.7"
         style:fill="var(--source-{colour})"

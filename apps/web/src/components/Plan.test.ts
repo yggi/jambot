@@ -41,6 +41,7 @@ const hudAt = (n: number, over: Partial<Hud> = {}): Hud => ({
   },
   heading: { tonic: 9, mode: 'aeolian' },
   headingMelodic: 'plain',
+  headingMeter: null,
   muse: { motif: null, log: [], memory: [], quiet: null },
   ...over,
 });

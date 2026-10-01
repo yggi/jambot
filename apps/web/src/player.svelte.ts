@@ -150,6 +150,8 @@ export interface Hosting {
   /** The bars ahead, whenever they are decided again. */
   decided(bars: readonly ForecastBar[]): void;
   track(track: StyleTrack): void;
+  /** The meter asked for changed: nothing goes on the wire, since each bar carries its own, but a host keeps it. */
+  meter(meter: Meter): void;
   muse(muse: MuseState): void;
   /** The song ends on this bar, its last, composed. */
   finale(bar: number): void;
@@ -409,6 +411,7 @@ export class Player {
   setMeter(meter: Meter) {
     if (this.mode === 'client') return;
     this.meter = meter;
+    this.hosting?.meter(meter);
     this.#decide();
   }
 
@@ -581,14 +584,26 @@ export class Player {
   }
 
   /**
-   * Set the style, key wish and tempo nudge a host that was reloaded had,
-   * while it is stopped: the style holds where the conductor left it.
+   * Set the style, key wish, tempo nudge and meter a host that was reloaded
+   * had, while it is stopped: the style holds where the conductor left it,
+   * and a record saved before the meter was kept asks for the song's.
    */
-  restore({ track, wish, tempoNudge }: { track: StyleTrack; wish: KeyWish; tempoNudge: number }) {
+  restore({
+    track,
+    wish,
+    tempoNudge,
+    meter = SONG_METER,
+  }: {
+    track: StyleTrack;
+    wish: KeyWish;
+    tempoNudge: number;
+    meter?: Meter | undefined;
+  }) {
     if (this.status !== 'stopped' || this.mode === 'client') return;
     this.track = stopAt(track);
     this.wish = wish;
     this.tempoNudge = tempoNudge;
+    this.meter = meter;
     this.hosting?.track(this.track);
     this.#decide();
   }

@@ -183,6 +183,14 @@ describe('the lead and the key ahead', () => {
     expect(hudOf({ heard: null, bars, track }).heading).toEqual({ tonic: 9, mode: 'aeolian' });
     expect(hudOf({ heard: null, bars: [], track }).heading).toBeNull();
   });
+
+  it('gives the meter the band is heading for, the last bar decided’s, which a client shows as its host’s (#305)', () => {
+    const seven = METERS['7/8'];
+    const moving = bars.map((b) => (b.bar >= 16 ? { ...b, plan: { ...b.plan, meter: seven } } : b));
+    expect(hudOf({ heard: 16 * 3, bars: moving, track }).headingMeter).toEqual(seven);
+    expect(hudOf({ heard: null, bars, track }).headingMeter).toEqual(METERS['4/4']);
+    expect(hudOf({ heard: null, bars: [], track }).headingMeter).toBeNull();
+  });
 });
 
 describe('the song map', () => {
