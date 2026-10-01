@@ -1,8 +1,16 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import type { Performer } from '../sounding.ts';
-import type { PerformerView, PlayerView, TracksView } from '../tracks.ts';
+import type { BarFrame, PerformerView, PlayerView, TracksView } from '../tracks.ts';
 import BandCard from './BandCard.svelte';
+
+/** `bars` bars of 4/4 laid end to end, as `tracksOf` frames them. */
+const framed = (bars: number): BarFrame[] =>
+  Array.from({ length: bars }, (_, i) => ({
+    start: i * 16,
+    steps: 16,
+    pulses: [0, 4, 8, 12].map((p) => i * 16 + p),
+  }));
 
 const performer = (p: Performer, label: string, over: Partial<PerformerView> = {}) => ({
   performer: p,
@@ -22,6 +30,8 @@ const ada = { source: '@c1/the computer keys', name: "Ada's computer keys", colo
 
 const tracks = (over: Partial<TracksView> = {}): TracksView => ({
   first: 6,
+  frame: framed(5),
+  span: 80,
   playhead: 40,
   performers: [
     performer('drums', 'Drums'),
@@ -247,5 +257,22 @@ describe('the band', () => {
     const grid = screen.getByRole('group', { name: 'Band grid' });
     expect(within(grid).getByText("Ada's computer keys")).toBeInTheDocument();
     expect(within(grid).queryByRole('button', { name: "Ada's computer keys" })).toBeNull();
+  });
+
+  it('numbers the bars over the lanes in columns as wide as the bars are long', () => {
+    const frame: BarFrame[] = [
+      { start: 0, steps: 16, pulses: [0, 4, 8, 12] },
+      { start: 16, steps: 14, pulses: [16, 22, 26] },
+      { start: 30, steps: 14, pulses: [30, 36, 40] },
+      { start: 44, steps: 14, pulses: [44, 50, 54] },
+      { start: 58, steps: 14, pulses: [58, 64, 68] },
+    ];
+    const { container } = render(BandCard, {
+      tracks: tracks({ frame, span: 72 }),
+      ontoggle: () => {},
+      onlevel: () => {},
+    });
+    const columns = (container.querySelector('ol.bars') as HTMLElement).style.gridTemplateColumns;
+    expect(columns).toBe('16fr 14fr 14fr 14fr 14fr');
   });
 });

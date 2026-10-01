@@ -1,15 +1,14 @@
 <!--
-  A motif drawn on the bar's sixteen steps, a row per degree, a mark per
+  A motif drawn on its own cycle's steps (sixteen in 4/4), a row per degree, a mark per
   note, in its player's colour (`attribution.ts`); a note the key altered
   keeps the amber. The Muse card draws the motif on offer large and each one
   it remembers small, faded as its weight is.
 -->
 <script lang="ts">
-  import { BAR_STEPS } from '@jambot/engine';
   import type { MotifView } from '../hud.ts';
 
   interface Props {
-    motif: Pick<MotifView, 'rows' | 'notes' | 'colour'>;
+    motif: Pick<MotifView, 'rows' | 'notes' | 'colour' | 'cycle' | 'pulses'>;
     /** Its height in pixels; the width is the container's. */
     height?: number;
     /** With the beats marked as lines behind the notes. */
@@ -22,7 +21,7 @@
   let { motif, height = 64, beats = true, opacity = 1, label }: Props = $props();
 
   const W = 320;
-  const step = W / BAR_STEPS;
+  const step = $derived(W / motif.cycle);
   const rowHeight = $derived(Math.min(12, (height - 4) / motif.rows));
 </script>
 
@@ -35,8 +34,8 @@
   style:opacity
 >
   {#if beats}
-    {#each [4, 8, 12] as beat (beat)}
-      <line x1={beat * step} x2={beat * step} y1="0" y2={height} />
+    {#each motif.pulses.filter((pulse) => pulse > 0) as pulse (pulse)}
+      <line x1={pulse * step} x2={pulse * step} y1="0" y2={height} />
     {/each}
   {/if}
   {#each motif.notes as note (note.step)}

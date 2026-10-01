@@ -20,7 +20,7 @@
   interface Props {
     hud: Pick<Hud, 'bar' | 'beat' | 'chord' | 'next'>;
     /** The meter the bar is in: the song's (`SONG_METER`), which the view model counts its beats on. */
-    meter?: Meter;
+    meter?: Meter | undefined;
   }
 
   let { hud, meter = SONG_METER }: Props = $props();

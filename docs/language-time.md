@@ -294,7 +294,7 @@ every named meter; the readers, in 4/4; the parts, every named meter, #260). Lan
 (a meter in the header).
 
 **T11. Swing never moves a pulse's start, and a 2-eighth pulse swings at the 8th
-level wherever it stands in the meter.** Witness: `swingMap(swing, meter)` reads
+level wherever it stands in the meter.** Witness: `swingMap(swing, meter)`, which is `leanMap` (a signed lean per level, so an offbeat may also be pulled early) over the axis's two levels, reads
 its 8th level off the meter's own pulses (`meterOnSteps`), each swung on its own
 start rather than a fixed 4-step modulus: a 2-eighth pulse gets the same
 midpoint-late transform 4/4's beat always had, and any other pulse length passes
@@ -305,7 +305,9 @@ level doesn't move. Test: `packages/engine/src/swing.test.ts`, whose tests under
 "swing over a meter" cite T11: every pulse of every named meter kept at every
 swing sampled; a 2-eighth pulse's offbeat 8th onto the triplet at full swing, in
 every meter that has one; the round trip, on and off the grid, over every named
-meter; and 4/4's eighths landing on 12/8's third eighths, as before. Source:
+meter; and 4/4's eighths landing on 12/8's third eighths, as before; and
+`packages/engine/src/metronome.test.ts`, whose "swing over a meter, heard in the click"
+test reads the click of a 7/8 bar through it. Source:
 #105, the ratchet run on the meter; #121, decided the easiest option to reverse.
 Status: measured (every named meter, both levels). Decided: #121, on measured
 options (kept the pulse-anchored 8th level, the direct generalisation of 4/4's,
@@ -328,7 +330,9 @@ reversible default, not a measured feel: the harder choice, a ternary axis of
 its own or a fold into swing as "rhythmic complexity", waits on real playing,
 not generated data. Test: none yet; `packages/engine/src/swing.test.ts`'s "swing
 over a meter" tests show the default holds and that its 16ths still shuffle, not
-that straight is right. Source: #121, its research comment. Status: speculative.
+that straight is right; `packages/engine/src/metronome.test.ts`'s "swing over a meter,
+heard in the click" test shows the click of a 7/8 bar's pulse of three plays
+straight. Source: #121, its research comment. Status: speculative.
 Decided: #121, ahead of the evidence (the easiest option to reverse). Lands in:
 #144, which measures a ternary feel against real playing and asks whether it is
 performer expression, a style axis, or one with swing.

@@ -69,7 +69,10 @@ import {
   PRESETS,
   RING_STEPS,
   SECTION_BARS,
+  SONG_CLOCK,
+  SONG_METER,
   type ScheduledStep,
+  type SongClock,
   styleAt,
   timbreOf,
   type StyleTrack,
@@ -78,6 +81,7 @@ import {
   type TransportOutput,
   NO_HISTORY,
   clockOfTransport,
+  clockThrough,
   countIn,
   countInSeconds,
   foldBar,
@@ -106,6 +110,7 @@ import {
   sentBars,
   playerSource,
 } from '@jambot/session';
+import type { Meter } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
@@ -242,6 +247,18 @@ export class Player {
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode, melodic: null });
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
+  /**
+   * The meter asked for, which the band takes at the next section's boundary
+   * (#261): a person's choice, held here as the key wish is. The meter heard
+   * is the song's clock's (`clock`).
+   */
+  meter: Meter = $state.raw(SONG_METER);
+  /**
+   * The song's clock as far as the bars decided reach: where its bars and
+   * beats fall, in the meters they are in (#262). Every view reads bars and
+   * beats off this, never off 4/4.
+   */
+  clock: SongClock = $state.raw(SONG_CLOCK);
   /** Whether the count-in is before the song: the clicks are heard, the band isn't yet. */
   counting = $state(false);
   /** Whether the band was asked to stop and plays on to its last bar. */
@@ -328,6 +345,8 @@ export class Player {
   #bars: readonly ForecastBar[] = $state.raw([]);
   /** The bar the transport composes next, when the bars were last decided. */
   #decidedAt = -1;
+  /** The meters the transport had laid when `clock` was last read from them: a change of them is a change of clock. */
+  #clockMeters: unknown = null;
 
   /**
    * The home key the players' key licence counts from: the plan's, the key
@@ -345,6 +364,7 @@ export class Player {
     hudOf({
       heard: this.heard,
       bars: this.#bars,
+      clock: this.clock,
       track: this.track,
       tempoNudge: this.tempoNudge,
       muse: {
@@ -383,6 +403,13 @@ export class Player {
   /** How many scheduled positions wait to be heard. */
   get backlog(): number {
     return this.#heard.size;
+  }
+
+  /** Ask for a meter from the next section on: the forecast shows it where it will be heard. */
+  setMeter(meter: Meter) {
+    if (this.mode === 'client') return;
+    this.meter = meter;
+    this.#decide();
   }
 
   apply(intent: Intent) {
@@ -491,7 +518,7 @@ export class Player {
     const output = await this.prepare();
     if (this.status !== 'starting') return;
     this.status = 'playing';
-    this.#start = output.currentTime + START_LEAD + countInSeconds(this.track);
+    this.#start = output.currentTime + START_LEAD + countInSeconds(this.track, this.#opening());
     this.#begin(output);
     this.hosting?.started({ seed: this.#seed, start: this.#start, track: this.track });
     this.#decide();
@@ -526,11 +553,21 @@ export class Player {
    */
   #countIn(output: Output) {
     const now = output.currentTime;
-    const clicks = countIn(this.track, this.#start)
+    const clicks = countIn(this.track, this.#start, this.#opening())
       .map((click) => ({ ...click, seconds: click.seconds - this.skew }))
       .filter((click) => click.seconds >= now);
     this.counting = this.#start - this.skew > now;
     this.#metronome?.countIn(output, clicks);
+  }
+
+  /**
+   * The meter the song opens in, which its count-in is a bar of: the meter
+   * asked for, or as a client the one its host's first bar is in once that
+   * has arrived, else the song's.
+   */
+  #opening(): Meter {
+    const first = this.#follow?.arrived.find((sent) => sent.bar.bar === 0);
+    return this.#follow ? (first?.bar.plan.meter ?? SONG_METER) : this.meter;
   }
 
   /** The bars decided, from the first of the section heard on: the forecast a host sends. */
@@ -573,6 +610,7 @@ export class Player {
     this.lacked = 0;
     this.#follow = { carried: null, arrived: [], ear: EAR, keys: [], ends: undefined, told };
     this.#bars = [];
+    this.#thenClock(null);
   }
 
   /** Play the host's song from now, with the bars it has composed and not played. */
@@ -616,7 +654,9 @@ export class Player {
 
   /** The host's bars ahead. */
   followForecast(bars: readonly ForecastBar[]) {
-    if (this.#follow) this.#bars = bars;
+    if (!this.#follow) return;
+    this.#bars = bars;
+    this.#thenClock(this.#follow.carried);
   }
 
   followMuse({ offer, log, dropped, players, memory, asOf, lastPlayed }: MuseState) {
@@ -687,7 +727,13 @@ export class Player {
   }
 
   get #env(): TransportEnv {
-    return { seed: this.#seed, start: this.#start, track: this.track, wish: this.wish };
+    return {
+      seed: this.#seed,
+      start: this.#start,
+      track: this.track,
+      wish: this.wish,
+      meter: this.meter,
+    };
   }
 
   /**
@@ -704,9 +750,16 @@ export class Player {
     const from = Math.floor((first - 1) / SECTION_BARS) * SECTION_BARS;
     const kept = carried ? this.#bars.filter((b) => b.bar >= from && b.bar < first) : [];
     this.#bars = [...kept, ...fresh];
+    this.#thenClock(carried);
     this.foreseen = foresight(this.#env, carried, PATTERN_BARS).map(patternBarOf);
     this.#decidedAt = carried?.nextBar ?? -1;
     this.hosting?.decided(this.#bars);
+  }
+
+  /** Read the song's clock through the bars decided, from the transport as it stands. */
+  #thenClock(carried: Parameters<typeof clockThrough>[0]) {
+    this.#clockMeters = carried?.meters ?? null;
+    this.clock = clockThrough(carried, this.#bars);
   }
 
   /** The count-in is over once the song's start is heard, read on the ticks, which run in a hidden tab. */
@@ -781,7 +834,7 @@ export class Player {
           players: this.players,
         });
     }
-    this.#schedule(output, now, scheduled);
+    this.#schedule(output, now, scheduled, clockOfTransport(carried));
     const { history, plans } = carried!.source;
     if (history !== this.harmonicHistory) this.harmonicHistory = history;
     // A tonic picked lets go once the band has planned it, so the band moves on from there (#169).
@@ -826,7 +879,8 @@ export class Player {
     const played = scheduled.composed.map(({ bar, plan }) => ({ bar, key: plan.key }));
     if (played.length > 0) follow.keys = [...follow.keys, ...played].slice(-KEYS_KEPT);
     if (carried!.source.lacked !== this.lacked) this.lacked = carried!.source.lacked;
-    this.#schedule(output, now, scheduled);
+    this.#schedule(output, now, scheduled, clockOfTransport(carried));
+    if (carried!.meters !== this.#clockMeters) this.#thenClock(carried);
     const heard = this.writtenPosition(heardOn(output));
     if (heard !== null) {
       const keyOf = (bar: number) => follow.keys.find((k) => k.bar === bar)?.key;
@@ -839,7 +893,7 @@ export class Player {
   }
 
   /** Play what the transport scheduled, count it, and keep its steps for what is heard. */
-  #schedule(output: Output, now: number, scheduled: TransportOutput) {
+  #schedule(output: Output, now: number, scheduled: TransportOutput, clock: SongClock) {
     const skew = this.skew;
     this.#timing = timedTick(this.#timing, { at: this.#surroundings.page(), now, scheduled });
     for (const { bar, offer } of scheduled.composed) this.#pattern.offered(bar, offer);
@@ -865,7 +919,7 @@ export class Player {
         : scheduled.steps.map((s) => ({ ...s, seconds: s.seconds - skew })),
     );
     for (const { step, seconds } of scheduled.steps) this.#heard.push(seconds - skew, step);
-    this.#metronome?.lay(output, scheduled.steps, skew);
+    this.#metronome?.lay(output, scheduled.steps, skew, clock);
     this.#laid = [
       ...this.#laid.filter((s) => s.seconds + s.length > now - LAID_KEPT),
       ...scheduled.steps,

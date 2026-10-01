@@ -14,7 +14,6 @@
   the cell its own way.
 -->
 <script lang="ts">
-  import { BAR_STEPS } from '@jambot/engine';
   import type { Credit } from '../attribution.ts';
   import type { Mix } from '../mix.ts';
   import { PATTERN_BARS } from '../pattern.ts';
@@ -35,7 +34,8 @@
 
   let { tracks, ontoggle, onlevel }: Props = $props();
 
-  const span = PATTERN_BARS * BAR_STEPS;
+  const span = $derived(tracks.span);
+  const frame = $derived(tracks.frame);
   /** The performers whose pill shows its faders in place of its track. */
   let faders = $state<readonly Performer[]>([]);
   const flip = (performer: Performer) =>
@@ -69,7 +69,11 @@
   open
 >
   <div class="grid" role="group" aria-label="Band grid">
-    <ol class="bars" aria-hidden="true" style:grid-template-columns="repeat({PATTERN_BARS}, 1fr)">
+    <ol
+      class="bars"
+      aria-hidden="true"
+      style:grid-template-columns={frame.map((bar) => `${bar.steps}fr`).join(' ')}
+    >
       {#each bars as bar (bar)}<li>{bar}</li>{/each}
     </ol>
     {#each tracks.performers as p (p.performer)}
@@ -89,6 +93,7 @@
             label="{p.label}, {shown}"
             notes={p.notes}
             {span}
+            {frame}
             credited={p.motifs.map((m) => ({ at: m.at, colour: m.credit.colour }))}
             playhead={tracks.playhead}
             sounds={p.sounds}
@@ -107,6 +112,7 @@
               label="{lane.name}, {shown}"
               notes={lane.notes}
               {span}
+              {frame}
               colour={lane.colour}
               taken={lane.taken === null ? null : { at: lane.taken, colour: lane.colour }}
               playhead={tracks.playhead}

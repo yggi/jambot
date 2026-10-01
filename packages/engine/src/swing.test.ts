@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { METERS, heightOf, meterOnSteps } from '@jambot/theory';
-import { composeTimeMaps, swingMap, swingParts } from './swing.ts';
+import {
+  LEAN_RANGE,
+  composeTimeMaps,
+  leanMap,
+  leanOfShare,
+  shareOfLean,
+  swingMap,
+  swingParts,
+  swingShares,
+} from './swing.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const swings = range(101).map((i) => i / 100);
@@ -201,5 +210,104 @@ describe('swing over a meter', () => {
       const third = eighth % 2 === 0 ? 0 : 2;
       expect(full.played(2 * eighth)).toBeCloseTo(twelveEighth(3 * pulse + third), 12);
     }
+  });
+});
+
+/** Leans from the early limit to the late one, a twentieth apart, and zero exactly. */
+const leans = range(61).map((i) => (i - 30) / 20);
+
+describe('the lean of a level', () => {
+  it('reads as the share of the span the first half holds: 50 straight, 67 triplet, 75 dotted', () => {
+    expect(shareOfLean(0)).toBe(0.5);
+    expect(shareOfLean(1)).toBeCloseTo(2 / 3, 12);
+    expect(shareOfLean(LEAN_RANGE)).toBeCloseTo(0.75, 12);
+    expect(shareOfLean(-LEAN_RANGE)).toBeCloseTo(0.25, 12);
+    for (const lean of leans) expect(leanOfShare(shareOfLean(lean))).toBeCloseTo(lean, 12);
+  });
+
+  it('is straight at 0, and the offbeat 8th goes late above it and early below it', () => {
+    const straight = leanMap({ eighth: 0, sixteenth: 0 });
+    for (let step = -4; step < 32; step += 0.25) expect(straight.played(step)).toBe(step);
+    expect(leanMap({ eighth: 1, sixteenth: 0 }).played(2)).toBeCloseTo(8 / 3, 12);
+    expect(leanMap({ eighth: LEAN_RANGE, sixteenth: 0 }).played(2)).toBeCloseTo(3, 12);
+    expect(leanMap({ eighth: -1, sixteenth: 0 }).played(2)).toBeCloseTo(4 / 3, 12);
+    expect(leanMap({ eighth: -LEAN_RANGE, sixteenth: 0 }).played(2)).toBeCloseTo(1, 12);
+  });
+
+  it('moves the offbeat 16th of each half-beat the same way, on its own level (the secondary swing)', () => {
+    const late = leanMap({ eighth: 0, sixteenth: 1 });
+    const early = leanMap({ eighth: 0, sixteenth: -1 });
+    for (const eighth of [0, 2])
+      for (const step of [eighth, eighth + 1]) {
+        expect(late.played(eighth)).toBeCloseTo(eighth, 12);
+        expect(early.played(eighth)).toBeCloseTo(eighth, 12);
+        if (step === eighth + 1) {
+          expect(late.played(step)).toBeCloseTo(eighth + 4 / 3, 12);
+          expect(early.played(step)).toBeCloseTo(eighth + 2 / 3, 12);
+        }
+      }
+    expect(late.played(2)).toBeCloseTo(2, 12); // the 8th level is not touched
+  });
+
+  it('keeps every pulse of every named meter where it is, keeps time in order and is undone by its inverse, at every lean of each level (finite: every meter, every lean sampled) (T11)', () => {
+    const wrong: string[] = [];
+    for (const [name, meter] of Object.entries(METERS)) {
+      const clock = meterOnSteps(meter);
+      const starts = Array.from({ length: 4 * clock.heights.length }, (_, d) => heightOf(clock, d));
+      for (const eighth of leans)
+        for (const sixteenth of [-1, 0, 0.5, 1.5]) {
+          const map = leanMap({ eighth, sixteenth }, meter);
+          const tag = `${name} 8th ${eighth} 16th ${sixteenth}`;
+          for (const step of starts)
+            if (!near(map.played(step), step)) wrong.push(`${tag}: pulse ${step}`);
+          const played = positions.map((x) => map.played(x));
+          played.slice(1).forEach((y, i) => {
+            if (!(y > played[i]!)) wrong.push(`${tag}: ${positions[i + 1]} is not after the last`);
+          });
+          for (const x of positions)
+            if (!near(map.written(map.played(x)), x)) wrong.push(`${tag}: step ${x}`);
+        }
+    }
+    expect(wrong.slice(0, 5)).toEqual([]);
+  });
+
+  it('holds a lean to its range, so no offbeat reaches its neighbour', () => {
+    expect(leanMap({ eighth: 9, sixteenth: 0 }).played(2)).toBe(
+      leanMap({ eighth: LEAN_RANGE, sixteenth: 0 }).played(2),
+    );
+    expect(leanMap({ eighth: -9, sixteenth: -9 }).played(2)).toBe(
+      leanMap({ eighth: -LEAN_RANGE, sixteenth: -LEAN_RANGE }).played(2),
+    );
+  });
+
+  it('is the path the swing axis takes: swingMap is leanMap over the axis’s parts, everywhere', () => {
+    for (const swing of swings)
+      for (const meter of [METERS['4/4'], METERS['7/8']]) {
+        const [a, b] = [swingMap(swing, meter), leanMap(swingParts(swing), meter)];
+        for (const x of positions.filter((_, i) => i % 7 === 0))
+          expect(a.played(x)).toBe(b.played(x));
+      }
+  });
+
+  it('never leans the swing axis early (it is a style’s, from straight to swung)', () => {
+    for (const swing of swings) {
+      const { eighth, sixteenth } = swingParts(swing);
+      expect(Math.min(eighth, sixteenth)).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe('the shares of the swing axis', () => {
+  it('is straight at none, a 16th shuffle at half, and the triplet at all', () => {
+    expect(swingShares(0)).toEqual({ eighth: 0.5, sixteenth: 0.5 });
+    expect(swingShares(0.5).eighth).toBe(0.5);
+    expect(swingShares(0.5).sixteenth).toBeCloseTo(2 / 3, 12);
+    expect(swingShares(1).eighth).toBeCloseTo(2 / 3, 12);
+    expect(swingShares(1).sixteenth).toBe(0.5);
+  });
+
+  it('says where the map plays the offbeat: the share of the beat, at every swing', () => {
+    for (const swing of swings)
+      expect(swingMap(swing).played(2) / 4).toBeCloseTo(swingShares(swing).eighth, 12);
   });
 });

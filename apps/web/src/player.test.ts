@@ -14,6 +14,7 @@ import {
   holding,
   lookAhead,
 } from '@jambot/engine';
+import { METERS } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
 import { Metronome } from './metronome.svelte.ts';
@@ -1031,3 +1032,87 @@ function holdingSynthPop() {
 function countInBeats(start: number) {
   return countIn(holdingSynthPop(), start).map((c) => c.seconds);
 }
+
+describe('the meter asked for (#262)', () => {
+  const start = async (more: (player: Player) => void = () => {}) => {
+    const { world, s } = surroundings();
+    const player = new Player(s, new Metronome());
+    more(player);
+    void player.start();
+    world.resolve();
+    await settle();
+    const heard = new Map<number, { meter: string; steps: number }>();
+    const play = (seconds: number) => {
+      for (let t = 0; t < seconds; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+        const { bar, beat } = player.hud;
+        if (beat !== null && bar)
+          heard.set(bar.bar, { meter: bar.meterName, steps: player.clock.barSteps(bar.bar) });
+      }
+    };
+    return { world, player, heard, play };
+  };
+
+  it('is 4/4 until asked, in the view and on the clock', () => {
+    const { s } = surroundings();
+    const player = new Player(s);
+    expect(player.meter).toEqual(METERS['4/4']);
+    expect(player.hud.bar!.meterName).toBe('4/4');
+    expect(player.clock.barSteps(0)).toBe(16);
+  });
+
+  it('opens the song in the meter asked for while stopped, in the view, on the clock and in every section shown', () => {
+    const { s } = surroundings();
+    const player = new Player(s);
+    player.setMeter(METERS['7/8']);
+    expect(player.hud.bar!.meterName).toBe('7/8');
+    expect(player.clock.barSteps(0)).toBe(14);
+    expect(player.clock.barStart(3)).toBe(42);
+    expect(player.hud.sections.map((s) => s.meterName)).toEqual(Array(5).fill('7/8'));
+  });
+
+  it('hears a meter asked for while playing from the next section on, and shows the section after it as the one that changes', async () => {
+    const { player, heard, play } = await start();
+    play(3);
+    player.setMeter(METERS['6/8']);
+    expect(player.hud.bar!.meterName).toBe('4/4');
+    expect(player.hud.sections.map((s) => [s.meterName, s.newMeter])).toEqual([
+      ['4/4', false],
+      ['6/8', true],
+      ['6/8', false],
+      ['6/8', false],
+      ['6/8', false],
+    ]);
+    play(24);
+    for (let bar = 0; bar < 8; bar++) expect(heard.get(bar)).toEqual({ meter: '4/4', steps: 16 });
+    expect(heard.get(8)).toEqual({ meter: '6/8', steps: 12 });
+    expect(heard.get(9)).toEqual({ meter: '6/8', steps: 12 });
+  });
+
+  it('asks again for 4/4 from the next section on, and the clock follows each change', async () => {
+    const { player, heard, play } = await start((p) => p.setMeter(METERS['7/8']));
+    play(3);
+    expect(heard.get(0)).toEqual({ meter: '7/8', steps: 14 });
+    player.setMeter(METERS['4/4']);
+    play(22);
+    expect(heard.get(7)).toEqual({ meter: '7/8', steps: 14 });
+    expect(heard.get(8)).toEqual({ meter: '4/4', steps: 16 });
+    expect(player.clock.barStart(9) - player.clock.barStart(8)).toBe(16);
+    expect(player.clock.barStart(8)).toBe(8 * 14);
+  });
+
+  it('makes the count-in a bar of the song’s opening meter', async () => {
+    const { world } = await start((p) => p.setMeter(METERS['6/8']));
+    expect(world.clicks.map((c) => c.weight)).toEqual(['downbeat', 'pulse']);
+  });
+
+  it('is the host’s to ask: a client follows the meter of its host’s bars, and its own asking rests', () => {
+    const { s } = surroundings();
+    const player = new Player(s);
+    player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
+    player.setMeter(METERS['5/8']);
+    expect(player.meter).toEqual(METERS['4/4']);
+  });
+});

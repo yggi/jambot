@@ -50,6 +50,7 @@
       pattern: player.pattern,
       ahead: player.foreseen,
       heard: player.heard,
+      clock: player.clock,
       humanNotes: player.humanNotes,
       playerId: player.playerId,
       players: player.players,
@@ -91,6 +92,8 @@
     swing={player.track.swing.to}
     {metronome}
     heard={player.heard}
+    meter={player.hud.bar?.meter}
+    clock={player.clock}
     playing={player.playing}
     {following}
     onintent={(intent) => player.apply(intent)}
@@ -112,11 +115,17 @@
 </Level>
 
 <Level>
-  <Plan hud={player.hud} playing={player.playing} />
+  <Plan
+    hud={player.hud}
+    playing={player.playing}
+    meter={player.meter}
+    {following}
+    onmeter={(meter) => player.setMeter(meter)}
+  />
 </Level>
 
 <Level>
-  <Chords hud={player.hud} />
+  <Chords hud={player.hud} meter={player.hud.bar?.meter} />
 </Level>
 
 <Level>

@@ -6,7 +6,9 @@
  * seconds and lays it if so, so nothing depends on the timer's own time. A
  * bar is laid with the settings as they are when it is laid, so a meter, a
  * tempo, a swing or a layer changed while it plays takes hold at the next
- * bar, and nothing jumps.
+ * bar, and nothing jumps. The click sounds the pulses, and the eighths or
+ * sixteenths between them where asked: swing moves only what is between the
+ * pulses, so it is heard once something is.
  *
  * Its tempo counts quarters, four steps each, in every meter: 6/8 and 3/4
  * at one tempo have one bar, so the hemiola regroups the same bar. Each
@@ -18,7 +20,7 @@ import { METERS, type MeterName, STEPS_PER_EIGHTH, stepsOf } from '@jambot/theor
 import type { ClockOffset } from '../audio/clock-offset.ts';
 import type { Output } from '../audio/output.ts';
 import { Heard } from '../heard.ts';
-import { type Layer, barPlan } from './bar-plan.ts';
+import { type Layer, type Subdivision, barPlan } from './bar-plan.ts';
 import { meterMap } from './ternary.ts';
 
 /** How often, in milliseconds, the player looks for the next bar. */
@@ -47,10 +49,18 @@ export class MeterPlayer {
   name: MeterName = $state('4/4');
   /** Quarters a minute. */
   bpm = $state(100);
-  /** The swing, 0 to 1 (`swingMap`). */
-  swing = $state(0);
-  /** The swing of a pulse of three eighths, 0 to 1 (`ternaryMap`). */
+  /**
+   * The swing: the share of a beat its first eighth holds, from 1/4 (the
+   * offbeat pulled early) through 1/2 (straight) and 2/3 (the triplet) to 3/4
+   * (`leanMap`).
+   */
+  swing = $state(0.5);
+  /** The secondary swing: the same of each half-beat's sixteenths, within its eighths. */
+  secondary = $state(0.5);
+  /** The lean of a pulse of three eighths, -1 (early) through 0 (straight) to 1 (late) (`ternaryMap`). */
   ternary = $state(0);
+  /** What the click sounds between the pulses: a pulse does not swing, so an eighth or a sixteenth has to. */
+  subdivision: Subdivision = $state('pulses');
   /** How far the accent grades are spread, 0 to 1 (`gradeGain`). */
   grade = $state(1);
   layers: Record<Layer, boolean> = $state({ click: true, drums: false, bass: false });
@@ -109,13 +119,14 @@ export class MeterPlayer {
   }
 
   #layBar(base: Output): void {
-    const { name, bpm, swing, ternary, grade, layers, hemiola, mirror, volume } = this;
+    const { name, bpm, swing, secondary, ternary, subdivision, grade, layers, hemiola } = this;
+    const { mirror, volume } = this;
     const meter = METERS[name];
     const stepSeconds = 60 / bpm / 4;
-    const played = meterMap(meter, swing, ternary).played;
+    const played = meterMap(meter, { eighth: swing, sixteenth: secondary }, ternary).played;
     const start = this.#next;
     const at = (step: number) => start + played(step) * stepSeconds;
-    const plan = barPlan({ name, layers: { ...layers }, hemiola, grade, mirror });
+    const plan = barPlan({ name, layers: { ...layers }, hemiola, subdivision, grade, mirror });
     for (const onset of plan) {
       if (onset.layer === 'click') {
         base.click?.(onset.weight, at(onset.step), volume * onset.gain);

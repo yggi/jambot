@@ -4,10 +4,12 @@ import {
   PRESETS,
   PRESET_GLIDE,
   SLIDER_GLIDE,
+  SONG_CLOCK,
   type TransportEnv,
   chordAt,
   chordName,
   chordNumeral,
+  clockThrough,
   forecast,
   glideTo,
   holding,
@@ -15,7 +17,7 @@ import {
   MELODIC_SCALES,
   melodicHelix,
 } from '@jambot/engine';
-import { positions } from '@jambot/theory';
+import { METERS, positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   NEXT_BARS,
@@ -29,7 +31,7 @@ import {
   styleSub,
   styleWords,
 } from './hud.ts';
-import { CHORD_BARS } from './planView.ts';
+import { CHORD_BARS, cueOf } from './planView.ts';
 import type { BarView } from './hud.ts';
 import { keyName } from './noteNames.ts';
 
@@ -318,6 +320,8 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     scale: [0, 2, 4, 5, 7, 9, 11],
     melodic: [0, 2, 4, 5, 7, 9, 11],
     melodicName: 'plain',
+    meter: METERS['4/4'],
+    meterName: '4/4',
     chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
     energy: 0.6,
     lead: 'improvising',
@@ -411,6 +415,8 @@ describe('the view of the Muse', () => {
       name: 'the computer keys',
       colour: 0,
       bar: 5,
+      cycle: 16,
+      pulses: [0, 4, 8, 12],
       rows: 4,
       notes: [
         { step: 0, length: 4, row: 1, altered: false },
@@ -569,5 +575,55 @@ describe('the axes of the style heard', () => {
     expect(swingAt(32 + 16 * 4)).toBeGreaterThan(0);
     expect(swingAt(32 + 16 * 4)).toBeLessThan(1);
     expect(swingAt(32 + 16 * 8)).toBe(1);
+  });
+});
+
+describe('the view on a song that changes meter (#262)', () => {
+  // A song asked for 7/8 from its start: its first section takes it, bar 0 being a section's first.
+  const asked: TransportEnv = { ...env, meter: METERS['7/8'] };
+  const ahead = forecast(asked, null, 40);
+  const clock = clockThrough(null, ahead);
+  const named = (bar: number) => ahead.find((b) => b.bar === bar)!;
+
+  it('names the meter of each bar and of each section, and says where it changes', () => {
+    const hud = hudOf({ heard: null, bars: ahead, clock, track });
+    expect(hud.bar!.meterName).toBe('7/8');
+    expect(hud.bar!.meter).toEqual(METERS['7/8']);
+    expect(hud.sections.map((s) => s.meterName)).toEqual(['7/8', '7/8', '7/8', '7/8', '7/8']);
+    expect(hud.sections.map((s) => s.newMeter)).toEqual([false, false, false, false, false]);
+    for (const bar of hud.next) expect(bar.meterName).toBe('7/8');
+  });
+
+  it('reads the beat and the chord heard off the clock, bar after bar, in 7/8’s 14 steps (finite: every step of two bars)', () => {
+    const start = clock.barStart(3);
+    for (let step = 0; step < 28; step++) {
+      const hud = hudOf({ heard: start + step, bars: ahead, clock, track });
+      const inBar = step % 14;
+      expect([step, hud.bar!.bar]).toEqual([step, step < 14 ? 3 : 4]);
+      expect([step, hud.beat]).toEqual([step, inBar < 6 ? 0 : inBar < 10 ? 1 : 2]);
+      const chords = named(hud.bar!.bar).chords;
+      expect([step, hud.chord!.step]).toEqual([step, chordAt(chords, inBar).slot.step]);
+    }
+  });
+
+  it('counts a glide’s bars on the clock’s own bars: 128 steps are 8 bars of 4/4 and 9 and a bit of 7/8', () => {
+    const glide = (heard: number, at: typeof clock) => {
+      const moving = holding({ ...INITIAL_STYLE, entropy: 0 });
+      const to = glideTo(moving, { swing: 1 }, 0, PRESET_GLIDE);
+      return hudOf({ heard, bars: ahead, clock: at, track: to }).style.glide;
+    };
+    expect(glide(0, SONG_CLOCK)).toMatchObject({ bar: 1, bars: 8 });
+    expect(glide(0, clock)).toMatchObject({ bar: 1, bars: 10 });
+  });
+
+  it('marks a bar where the meter changes, in the chords card’s cue and the plan’s block name', () => {
+    const four = hudOf({ heard: null, bars, track }).next;
+    const seven = hudOf({ heard: null, bars: ahead, clock, track }).next;
+    const bar = (b: (typeof four)[number], meterName: string) => ({ ...b, meterName });
+    expect(cueOf(bar(four[0]!, '7/8'), four[0]!)).toBe('7/8');
+    expect(cueOf(bar(seven[0]!, seven[0]!.meterName), seven[0]!)).toBe('');
+    expect(cueOf({ ...bar(four[0]!, '6/8'), section: 'Drop', key: 'D dorian' }, four[0]!)).toBe(
+      'Drop, D dorian, 6/8',
+    );
   });
 });

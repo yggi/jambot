@@ -51,7 +51,7 @@ The pointers to what holds each are in the sentences.
   A note that runs into a bar not yet composed ends by the meter before it, which only moves its end where the swing does.
   `lookAhead`, `forecast` and `foresight` read each bar's environment from the clock of the bars before it, so a preview across a change is what plays.
   The protocol is 8: the meter travels in the bar's plan, and the client gives it back to the bar (`follow.ts`).
-  The metronome, `PRESET_GLIDE` (a number of steps, not bars) and the web readers still run on the song's 4/4 clock, until the web reads the transport's (#262).
+  The metronome clicks the pulses of the clock it is given (`clicksOf(steps, clock, subdivision)`, the eighths or sixteenths only where asked), and swings each by its own pulse; `PRESET_GLIDE` (a number of steps, not bars) and the web readers still run on the song's 4/4 clock, until the web reads the transport's (#262).
   The drums carry nothing; the bass its last note, the comp its last voicing, the lead its last note, its phrase and its themes' melodies (`BandCarried.parts`).
   A passed bar leaves the parts where they were, and only the lead's memory reaches more than register (S2); the band's harmonic history is the plan's, not a part's.
   The Muse judges each source's bar into a `Motif` (U4, `judgeBar` in `muse.ts`): onsets with rests, where a note was released before the next, and degrees of the key altered by `b` or `#`, written as a numeral writes a root off the key.
@@ -80,6 +80,8 @@ The pointers to what holds each are in the sentences.
   `joinChord` gives its stack, and `chordScale` takes a stack.
   A bar's chords come from its theme's slots (`barChords`); their colour draws are keyed by theme, bar and slot, so a test that wants a rate must vary the seed or the theme, not the key.
 - Swing is a time map, `swingMap(swing)`, with `played` and `written` as exact inverses.
+  It is `leanMap` over the swing axis's two levels: a lean per level, signed, 0 straight, 1 the triplet, 1.5 the dotted figure, negative the offbeat early (`shareOfLean` reads a lean as the share of its span the first half holds, 50 % straight).
+  The axis itself, a style's, never leans early; the metronome screen takes the two levels directly.
   The transport plays through it, and player input reads back through `written`.
 - A moment on the clock reads back onto the grid through the steps the transport laid (`writtenAt`), never through the style track: the track holds only its latest glide per axis, so inverting it from the song's start put a note 18 bars early after two tempo changes (#78).
   Each `ScheduledStep` carries the swing its beat was held at for this.

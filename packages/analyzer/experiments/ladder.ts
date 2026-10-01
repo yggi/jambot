@@ -24,7 +24,7 @@ const BEAT_VELOCITY = 90;
 
 /**
  * Rung 0: the engine's own metronome, read over the steps of a straight
- * transport, beats only (not its eighth-note subdivisions), on one drum voice,
+ * transport, its pulses only (`clicksOf`'s default), on one drum voice,
  * for `bars` bars of 4/4 at `bpm`. The
  * downbeat and the other beats keep the metronome's own distinction in
  * velocity, not pitch, so the track stays a single monophonic voice.
@@ -36,17 +36,16 @@ export function metronomeRung(bpm: number, bars: number, ppq: number = DEFAULT_P
     seconds: step * length,
     length,
     swing: 0,
+    pulse: { start: step - (step % 4), length: 4 },
   }));
   const toTicks = ticksTimeMap(ppq, [{ ticks: 0, bpm }]).written;
 
-  const notes: RawNote[] = clicksOf(steps)
-    .filter((click) => click.weight !== 'subdivision')
-    .map((click) => ({
-      midi: DRUM_NOTES.kick,
-      ticks: Math.round(toTicks(click.seconds)),
-      durationTicks: Math.max(1, Math.round(ppq / 8)),
-      velocity: click.weight === 'downbeat' ? DOWNBEAT_VELOCITY : BEAT_VELOCITY,
-    }));
+  const notes: RawNote[] = clicksOf(steps).map((click) => ({
+    midi: DRUM_NOTES.kick,
+    ticks: Math.round(toTicks(click.seconds)),
+    durationTicks: Math.max(1, Math.round(ppq / 8)),
+    velocity: click.weight === 'downbeat' ? DOWNBEAT_VELOCITY : BEAT_VELOCITY,
+  }));
 
   return {
     ppq,

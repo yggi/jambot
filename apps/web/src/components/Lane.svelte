@@ -5,11 +5,11 @@
   its notes drawn in the player's colour, or marked as the bar the Muse took,
   outlined in it. The playhead is the band's amber, on the step heard.
   Generalizes the Muse panel's motif drawing to any track and any number of
-  bars.
+  bars, each of the meter it is in: a bar is as long as its steps, with a line
+  at each of its pulses and a stronger one at its start (#262).
 -->
 <script lang="ts">
-  import { BAR_STEPS } from '@jambot/engine';
-  import type { LaneNote } from '../tracks.ts';
+  import type { BarFrame, LaneNote } from '../tracks.ts';
 
   /** A bar shown, from 0, in a player's colour. */
   interface Marked {
@@ -27,6 +27,8 @@
     tall?: boolean;
     /** How many steps the lane spans. */
     span: number;
+    /** The bars it spans, where each starts and how long it is, and where its pulses fall. */
+    frame: readonly BarFrame[];
     /** The notes' colour, a player's, or null for the band's own. */
     colour?: number | null;
     /** Bars credited to a player: tinted, their notes in its colour. */
@@ -44,6 +46,7 @@
     under = [],
     tall = false,
     span,
+    frame,
     colour = null,
     credited = [],
     taken = null,
@@ -54,15 +57,21 @@
   const W = 640;
   const H = $derived(tall ? 60 : 30);
   const x = (step: number) => (step / span) * W;
-  const bars = $derived(span / BAR_STEPS);
+  const bars = $derived(frame.length);
   const low = $derived(Math.min(...[...notes, ...under].map((n) => n.note)));
   const high = $derived(Math.max(...[...notes, ...under].map((n) => n.note)));
   const row = $derived(Math.max(2, Math.min(tall ? 10 : 6, (H - 4) / (high - low + 1))));
   const y = (note: number) =>
     high === low ? (H - row) / 2 : 2 + ((high - note) / (high - low)) * (H - 4 - row);
   const creditOf = $derived(new Map(credited.map((c) => [c.at, c.colour])));
+  /** The bar shown a step falls in, from 0. */
+  const barOf = (step: number) =>
+    Math.max(
+      0,
+      frame.findLastIndex((bar) => bar.start <= step),
+    );
   const fill = (step: number) => {
-    const credit = creditOf.get(Math.floor(step / BAR_STEPS));
+    const credit = creditOf.get(barOf(step));
     const c = credit ?? colour;
     return c === null ? undefined : `var(--source-${c})`;
   };
@@ -78,17 +87,21 @@
   aria-label={label}
 >
   {#each credited as c (c.at)}
-    <rect
-      class="credited"
-      x={x(c.at * BAR_STEPS)}
-      y="0"
-      width={x(BAR_STEPS)}
-      height={H}
-      style:fill="var(--source-{c.colour})"
-    />
+    {#if frame[c.at]}
+      <rect
+        class="credited"
+        x={x(frame[c.at]!.start)}
+        y="0"
+        width={x(frame[c.at]!.steps)}
+        height={H}
+        style:fill="var(--source-{c.colour})"
+      />
+    {/if}
   {/each}
-  {#each { length: span / 4 }, beat (beat)}
-    <line class:bar={beat % 4 === 0} x1={x(beat * 4)} x2={x(beat * 4)} y1="0" y2={H} />
+  {#each frame as bar (bar.start)}
+    {#each bar.pulses as pulse (pulse)}
+      <line class:bar={pulse === bar.start} x1={x(pulse)} x2={x(pulse)} y1="0" y2={H} />
+    {/each}
   {/each}
   {#each under as note, i (i)}
     <rect
@@ -114,9 +127,9 @@
   {#if taken && taken.at < bars}
     <rect
       class="taken"
-      x={x(taken.at * BAR_STEPS) + 1}
+      x={x(frame[taken.at]!.start) + 1}
       y="1"
-      width={x(BAR_STEPS) - 2}
+      width={x(frame[taken.at]!.steps) - 2}
       height={H - 2}
       rx="3"
       style:stroke="var(--source-{taken.colour})"

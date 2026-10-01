@@ -14,6 +14,7 @@ const setting = (name: MeterName, more: Partial<Setting> = {}): Setting => ({
   name,
   layers: all,
   hemiola: false,
+  subdivision: 'eighths',
   grade: 1,
   mirror: false,
   ...more,
@@ -36,14 +37,44 @@ describe('the bar’s plan', () => {
           }
   });
 
-  it('clicks each eighth once, by weight, and plays nothing of a layer that is off', () => {
+  it('clicks each pulse once and nothing between them by default, the downbeat first (finite: every meter)', () => {
     for (const name of names) {
       const meter = METERS[name];
+      const click = barPlan(setting(name, { layers: only('click'), subdivision: 'pulses' }));
+      expect([name, click.map((o) => o.step)]).toEqual([name, meterOnSteps(meter).heights]);
+      expect(click.every((o) => o.layer === 'click' && o.weight !== 'subdivision')).toBe(true);
+      expect(click[0]).toMatchObject({ weight: 'downbeat' });
+    }
+  });
+
+  it('adds an eighth’s click between the pulses, or a sixteenth’s too, none louder than a pulse’s (finite: every meter, every accent)', () => {
+    for (const name of names)
+      for (const grade of [0, 1]) {
+        const meter = METERS[name];
+        const eighths = barPlan(
+          setting(name, { layers: only('click'), subdivision: 'eighths', grade }),
+        );
+        expect(eighths).toHaveLength(meter.cycle);
+        const sixteenths = barPlan(
+          setting(name, { layers: only('click'), subdivision: 'sixteenths', grade }),
+        );
+        expect(sixteenths).toHaveLength(2 * meter.cycle);
+        const gains = (clicks: typeof eighths, weight: string) =>
+          clicks.flatMap((o) => (o.layer === 'click' && o.weight === weight ? [o.gain] : []));
+        const loudest = Math.max(...gains(sixteenths, 'subdivision'));
+        for (const gain of gains(sixteenths, 'pulse'))
+          expect([name, grade, gain >= loudest]).toEqual([name, grade, true]);
+        for (const o of sixteenths.filter((c) => c.step % 2 === 1))
+          expect([name, o.layer === 'click' && o.weight]).toEqual([name, 'subdivision']);
+      }
+  });
+
+  it('plays nothing of a layer that is off, and each layer alone plays only itself', () => {
+    for (const name of names) {
       const click = barPlan(setting(name, { layers: only('click') }));
-      expect(click).toHaveLength(meter.cycle);
       expect(click.every((o) => o.layer === 'click')).toBe(true);
       expect(click.filter((o) => o.layer === 'click' && o.weight === 'pulse')).toHaveLength(
-        meter.heights.length - 1,
+        METERS[name].heights.length - 1,
       );
       for (const layer of LAYERS)
         expect(

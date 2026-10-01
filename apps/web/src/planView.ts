@@ -22,21 +22,25 @@ export const FAR_SECTIONS = 3;
 
 export interface Tile {
   readonly bar: BarView;
-  /** Where the section or the key changes, at this bar: "Drop", "D dorian", "Bridge, C major". */
+  /** Where the section, key or meter changes, at this bar: "Drop", "D dorian", "Bridge, C major, 7/8". */
   readonly cue: string;
   readonly large: boolean;
 }
 
 /**
- * The label a bar carries where the section or the key changes from the bar
- * before it. The bar heard has none before it, so it is labelled only where it
- * starts its section.
+ * The label a bar carries where the section, the key or the meter changes
+ * from the bar before it. The bar heard has none before it, so it is labelled
+ * only where it starts its section.
  */
 export function cueOf(bar: BarView, before: BarView | null): string {
   if (before === null) return bar.barInSection === 0 ? bar.section : '';
-  const key = bar.key !== before.key ? bar.key : null;
-  if (bar.section !== before.section) return key ? `${bar.section}, ${key}` : bar.section;
-  return key ?? '';
+  return [
+    bar.section !== before.section ? bar.section : null,
+    bar.key !== before.key ? bar.key : null,
+    bar.meterName !== before.meterName ? bar.meterName : null,
+  ]
+    .filter((part) => part !== null)
+    .join(', ');
 }
 
 /** The chords card's bars: the bar heard and those after it, as many as are decided, to `CHORD_BARS`. */
@@ -91,6 +95,12 @@ export function planRows(sections: readonly SectionView[]): {
   return { near: sections.slice(0, NEAR_SECTIONS), far: sections.slice(NEAR_SECTIONS) };
 }
 
-/** A block's name in the plan: its section, and its key where that changes. */
+/** A block's name in the plan: its section, and its key and its meter where they change. */
 export const blockName = (section: SectionView): string =>
-  section.newKey ? `${section.section}, ${section.key}` : section.section;
+  [
+    section.section,
+    section.newKey ? section.key : null,
+    section.newMeter ? section.meterName : null,
+  ]
+    .filter((part) => part !== null)
+    .join(', ');

@@ -36,7 +36,8 @@ describe('the metronome screen', () => {
     expect(licence.getAllByRole('slider').map((s) => s.getAttribute('aria-label'))).toEqual([
       'Tempo',
       'Swing',
-      'Ternary swing',
+      'Secondary swing',
+      'Ternary lean',
       'Accent grade',
     ]);
     expect(licence.getByRole('button', { name: 'Hemiola' })).toBeInTheDocument();
@@ -48,7 +49,8 @@ describe('the metronome screen', () => {
 
   it('offers every named meter, 4/4 chosen, and writes its accents as a line', () => {
     shown();
-    const meters = screen.getAllByRole('radio').map((r) => r.textContent?.trim());
+    const signature = within(screen.getByRole('region', { name: 'Signature' }));
+    const meters = signature.getAllByRole('radio').map((r) => r.textContent?.trim());
     expect(meters).toEqual(['3/4', '4/4', '5/4', '5/8', '6/8', '7/8', '9/8', '10/8', '12/8']);
     expect(screen.getByRole('radio', { name: '4/4' })).toBeChecked();
     expect(screen.getByLabelText('Accents')).toHaveTextContent('* . - . + . - .');
@@ -62,7 +64,7 @@ describe('the metronome screen', () => {
     expect(screen.getByLabelText('Accents')).toHaveTextContent('* . - . - . + . - .');
   });
 
-  it('sets the tempo, the swing, the ternary swing and the accent grade on the player', async () => {
+  it('sets the tempo, the swings, the ternary lean and the accent grade on the player', async () => {
     const { player } = shown();
     await fireEvent.input(screen.getByRole('slider', { name: 'Tempo' }), {
       target: { value: '132' },
@@ -70,13 +72,18 @@ describe('the metronome screen', () => {
     await fireEvent.input(screen.getByRole('slider', { name: 'Swing' }), {
       target: { value: '60' },
     });
-    await fireEvent.input(screen.getByRole('slider', { name: 'Ternary swing' }), {
-      target: { value: '40' },
+    await fireEvent.input(screen.getByRole('slider', { name: 'Secondary swing' }), {
+      target: { value: '55' },
+    });
+    await fireEvent.input(screen.getByRole('slider', { name: 'Ternary lean' }), {
+      target: { value: '-40' },
     });
     await fireEvent.input(screen.getByRole('slider', { name: 'Accent grade' }), {
       target: { value: '25' },
     });
-    expect([player.bpm, player.swing, player.ternary, player.grade]).toEqual([132, 0.6, 0.4, 0.25]);
+    expect([player.bpm, player.swing, player.secondary, player.ternary, player.grade]).toEqual([
+      132, 0.6, 0.55, -0.4, 0.25,
+    ]);
   });
 
   it('mirrors the grouping of 5/4 as 2+3, and offers it nowhere else', async () => {
@@ -93,7 +100,7 @@ describe('the metronome screen', () => {
     expect(mirror).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('says where the ternary swing has nothing to move, and only there', async () => {
+  it('says where the ternary lean has nothing to move, and only there', async () => {
     shown();
     const hint = /no pulse of three eighths/;
     expect(screen.getByText(hint)).toBeInTheDocument();

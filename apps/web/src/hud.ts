@@ -22,8 +22,8 @@
  */
 
 import {
-  BAR_STEPS,
   SECTION_BARS,
+  SONG_CLOCK,
   type Axis,
   type ForecastBar,
   type Judgement,
@@ -36,10 +36,9 @@ import {
   PRESETS,
   type Remembered,
   type SectionType,
+  type SongClock,
   type Style,
   type StyleTrack,
-  barAt,
-  beatInBar,
   chordAt,
   chordName,
   chordNumeral,
@@ -47,13 +46,13 @@ import {
   leadRests,
   memoryAt,
   melodicHelix,
-  stepInBar,
   styleAt,
 } from '@jambot/engine';
-import { positions, recognise } from '@jambot/theory';
+import { type Meter, positions, recognise } from '@jambot/theory';
 import { sourceName } from '@jambot/session';
 import { type Attribution, type Credit, credit } from './attribution.ts';
 import { targetOf, unnudged } from './conductor.ts';
+import { meterLabel } from './meter-choice.ts';
 import { keyName } from './noteNames.ts';
 import { CHORD_BARS, FAR_SECTIONS, NEAR_SECTIONS } from './planView.ts';
 
@@ -81,6 +80,10 @@ export interface BarView {
   /** From 0 to `SECTION_BARS` - 1. */
   readonly barInSection: number;
   readonly section: string;
+  /** The meter it is in, which its bar's steps and pulses are of. */
+  readonly meter: Meter;
+  /** As the screen says it: "4/4", "7/8 2+2+3". */
+  readonly meterName: string;
   readonly key: string;
   /** The key's tonic, as a pitch class 0–11, C = 0. */
   readonly tonic: number;
@@ -111,6 +114,10 @@ export interface SectionView {
   /** Counted from the song's start. */
   readonly index: number;
   readonly section: string;
+  /** The meter it is in, as the screen says it, from its first bar: a section has one (#261). */
+  readonly meterName: string;
+  /** Whether its meter differs from the section's before it; never for the section heard. */
+  readonly newMeter: boolean;
   readonly key: string;
   /** Whether its key differs from the section's before it; never for the section heard. */
   readonly newKey: boolean;
@@ -143,6 +150,10 @@ export interface StyleView {
 
 /** A motif on offer, as the Muse panel draws it, credited to its source and the bar it was heard in. */
 export interface MotifView extends Credit {
+  /** How many steps its cycle has: the bar it was judged in (`Motif.cycle`). */
+  readonly cycle: number;
+  /** The steps its bar's pulses start on, where that bar is known to the clock; else every four steps. */
+  readonly pulses: readonly number[];
   /** How many rows of degrees it spans. */
   readonly rows: number;
   /** Each note: its step, how long it is held, its row from the lowest, and whether it is altered. */
@@ -194,7 +205,7 @@ export interface MuseView {
 export interface Hud {
   /** The bar heard, or before anything is heard the bar the band plays first; null past the forecast. */
   readonly bar: BarView | null;
-  /** The beat heard in its bar, from 0 (`beatInBar`, on the song's meter), or null before anything is heard. */
+  /** The beat heard in its bar, from 0 (`beatInBar`, on the song's clock), or null before anything is heard. */
   readonly beat: number | null;
   /** The chord sounding, or before anything is heard the bar's first. */
   readonly chord: ChordView | null;
@@ -213,6 +224,8 @@ export interface Hud {
 export interface HudInput {
   /** The step heard, or null before anything is. */
   readonly heard: number | null;
+  /** The song's clock as far as the bars reach (`clockThrough`); the song's 4/4 where none is given. */
+  readonly clock?: SongClock;
   /** The bars decided, from the first of the section heard on (`forecast`). */
   readonly bars: readonly ForecastBar[];
   readonly track: StyleTrack;
@@ -316,25 +329,32 @@ export function styleStatus({ preset, glide }: StyleView): string {
   return `Moving from ${glide.from ?? 'Custom'} to ${preset}, bar ${glide.bar} of ${glide.bars}.`;
 }
 
-export function hudOf({ heard, bars, track, tempoNudge = 0, muse }: HudInput): Hud {
+export function hudOf({
+  heard,
+  clock = SONG_CLOCK,
+  bars,
+  track,
+  tempoNudge = 0,
+  muse,
+}: HudInput): Hud {
   const players = muse?.players ?? {};
   const named = (source: string) => sourceName(source, players);
   const credited = (attribution: Attribution) => credit(attribution, players);
   const barView = (bar: ForecastBar) => barViewOf(bar, credited);
-  const at = heard === null ? 0 : bars.findIndex((b) => b.bar === barAt(heard));
+  const at = heard === null ? 0 : bars.findIndex((b) => b.bar === clock.barAt(heard));
   const here = at >= 0 ? bars[at] : undefined;
-  const step = heard === null ? 0 : stepInBar(heard);
+  const step = heard === null ? 0 : clock.stepInBar(heard);
   const sounding = here && chordAt(here.chords, step);
   return {
     bar: here ? barView(here) : null,
-    beat: heard === null ? null : beatInBar(step),
+    beat: heard === null ? null : clock.beatInBar(heard),
     chord: here && sounding ? chordView(sounding, here) : null,
     next: here ? bars.slice(at + 1, at + 1 + NEXT_BARS).map(barView) : [],
     sections: here ? sectionViews(bars, Math.floor(here.bar / SECTION_BARS), barView) : [],
-    style: styleView(track, heard ?? 0, tempoNudge),
+    style: styleView(track, heard ?? 0, tempoNudge, clock),
     heading: bars.at(-1)?.plan.key ?? null,
     headingMelodic: bars.at(-1)?.plan.melodic ?? null,
-    muse: museView(muse, named, credited, heard === null ? null : barAt(heard)),
+    muse: museView(muse, named, credited, heard === null ? null : clock.barAt(heard), clock),
   };
 }
 
@@ -344,6 +364,7 @@ function museView(
   named: (source: string) => string,
   credited: (attribution: Attribution) => Credit,
   heardBar: number | null,
+  clock: SongClock,
 ): MuseView {
   const asOf = muse?.asOf ?? null;
   const offer = muse?.offer ?? null;
@@ -351,14 +372,18 @@ function museView(
   const at = Math.max(asOf ?? 0, heardBar ?? 0);
   const silent = muse?.lastPlayed == null ? null : Math.max(0, at - muse.lastPlayed);
   return {
-    motif: offer ? motifView(offer, credited) : null,
+    motif: offer ? motifView(offer, credited, clock) : null,
     memory:
       asOf === null
         ? []
         : memoryAt(muse?.memory ?? [], asOf, at)
             .sort((a, b) => b.weight - a.weight)
             .map((e) => ({
-              ...motifView({ motif: e.motif, source: e.source, bar: e.bar, level: 0 }, credited),
+              ...motifView(
+                { motif: e.motif, source: e.source, bar: e.bar, level: 0 },
+                credited,
+                clock,
+              ),
               strength: Math.min(1, e.weight / 2),
               heard: e.heard,
               confirmed: e.heard >= 2,
@@ -380,8 +405,16 @@ function museView(
 function motifView(
   { motif, source, bar }: Offer,
   credited: (attribution: Attribution) => Credit,
+  clock: SongClock,
 ): MotifView {
   const { onsets, degrees, accidentals, cycle } = motif;
+  // Its pulses are those of the bar it was heard in, when that bar has the motif's length.
+  const start = clock.barStart(bar);
+  const pulses: number[] = [];
+  if (clock.barStart(bar + 1) - start === cycle)
+    for (let beat = clock.beatAt(start); clock.beatStart(beat) < start + cycle; beat++)
+      pulses.push(clock.beatStart(beat) - start);
+  else for (let step = 0; step < cycle; step += 4) pulses.push(step);
   const notes = onsets.flatMap((step, i) => {
     const degree = degrees[i];
     if (degree === null || degree === undefined) return [];
@@ -393,6 +426,8 @@ function motifView(
   const highest = Math.max(...notes.map((n) => n.degree));
   return {
     ...credited({ source, bar }),
+    cycle,
+    pulses,
     rows: highest - lowest + 1,
     notes: notes.map(({ step, length, degree, altered }) => ({
       step,
@@ -470,6 +505,8 @@ function sectionViews(
     sections.push({
       index,
       section: views[0]!.section,
+      meterName: views[0]!.meterName,
+      newMeter: before !== undefined && before.meterName !== views[0]!.meterName,
       key: views[0]!.key,
       newKey: before !== undefined && before.key !== views[0]!.key,
       bars: views,
@@ -494,6 +531,8 @@ function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Cre
     bar: bar.bar,
     barInSection: bar.bar % SECTION_BARS,
     section: SECTION_NAMES[bar.plan.section.type],
+    meter: bar.plan.meter,
+    meterName: meterLabel(bar.plan.meter),
     key: keyName(bar.plan.key),
     tonic: bar.plan.key.tonic,
     scale: positions(keyHelix(bar.plan.key)),
@@ -515,7 +554,7 @@ function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Cre
  * name it. A glide counts from its start even where the step heard still
  * lags behind it.
  */
-function styleView(track: StyleTrack, step: number, nudge: number): StyleView {
+function styleView(track: StyleTrack, step: number, nudge: number, clock: SongClock): StyleView {
   const target = unnudged(targetOf(track), nudge);
   const moving = NAMING_AXES.map((axis) => track[axis]).filter(
     (g) => g.length > 0 && step < g.start + g.length && (g.from !== g.to || g.slope !== 0),
@@ -524,8 +563,11 @@ function styleView(track: StyleTrack, step: number, nudge: number): StyleView {
   if (moving.length === 0) return { preset: presetOf(target), glide: null, axes };
   const start = Math.min(...moving.map((g) => g.start));
   const end = Math.max(...moving.map((g) => g.start + g.length));
-  const bars = Math.ceil((end - start) / BAR_STEPS);
-  const bar = Math.min(bars, Math.max(1, Math.floor((step - start) / BAR_STEPS) + 1));
+  /** A position as a count of bars, the part of a bar as a fraction of its own length. */
+  const barsAt = (at: number) =>
+    clock.barAt(at) + clock.stepInBar(at) / clock.barSteps(clock.barAt(at));
+  const bars = Math.ceil(barsAt(end) - barsAt(start));
+  const bar = Math.min(bars, Math.max(1, Math.floor(barsAt(step) - barsAt(start)) + 1));
   return {
     preset: presetOf(target),
     glide: { from: presetOf(unnudged(styleAt(track, start), nudge)), bar, bars },

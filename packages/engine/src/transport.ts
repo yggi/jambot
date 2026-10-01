@@ -318,6 +318,23 @@ export const clockOfTransport = (
 ): SongClock => clockOf(carried?.meters ?? SONG_METERS);
 
 /**
+ * The song's clock as far as `bars` reach: the transport's own (`clockOfTransport`),
+ * then each bar decided beyond the bars it has composed, in its own meter, as
+ * a forecast decides them (`forecast`). A view that draws bars ahead reads
+ * bars and beats of them off this, not off the song's 4/4.
+ */
+export function clockThrough(
+  carried: { readonly meters: readonly MeterChange[]; readonly nextBar: number } | null,
+  bars: readonly { readonly bar: number; readonly plan: { readonly meter: Meter } }[],
+): SongClock {
+  const from = carried?.nextBar ?? 0;
+  const ahead = bars.filter((b) => b.bar >= from).toSorted((x, y) => x.bar - y.bar);
+  return clockOf(
+    ahead.reduce((all, b) => withMeter(all, b.bar, b.plan.meter), carried?.meters ?? SONG_METERS),
+  );
+}
+
+/**
  * The Muse hears every bar composed up to `last`, in order: the notes heard
  * here judged in the bar's key, then the bars judged elsewhere. It forgets
  * the notes and judgements it heard, and those of bars already past.

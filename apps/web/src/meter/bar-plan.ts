@@ -1,8 +1,10 @@
 /**
  * One bar of the meter screen, written from a meter alone (#259): what plays
  * on which step. The bar is the meter's own, two steps to an eighth
- * (`meterOnSteps`), and every onset lies on one of its eighths. Three
- * layers: the click on each eighth by weight; drums with the kick on the
+ * (`meterOnSteps`), and every onset lies on one of its eighths, the click's
+ * sixteenths aside. Three layers: the click on each pulse by weight, and on
+ * the eighths or the sixteenths between them where `subdivision` asks (a click
+ * on the 'and' of a bar of quarters says the bar is in eighths); drums with the kick on the
  * downbeat and the half's pulse and the snare on the backbeat, hats on every
  * eighth; and a bass on the downbeat and the pulses. Each is scaled by its
  * eighth's accent grade (`gradeGain`).
@@ -15,7 +17,7 @@
  * the same bar regrouped, as `parallel` regroups it (docs/shape.md).
  */
 
-import { DRUM_NOTES, backbeatOf } from '@jambot/engine';
+import { DRUM_NOTES, SUBDIVISIONS, type Subdivision, backbeatOf } from '@jambot/engine';
 import {
   METERS,
   type MeterName,
@@ -27,6 +29,8 @@ import {
   stepsOf,
 } from '@jambot/theory';
 import { gradeGain } from './grades.ts';
+
+export { SUBDIVISIONS, type Subdivision };
 
 export const LAYERS = ['click', 'drums', 'bass'] as const;
 export type Layer = (typeof LAYERS)[number];
@@ -42,6 +46,8 @@ export interface Setting {
   readonly layers: Readonly<Record<Layer, boolean>>;
   /** The bass takes the other meter's pulses, where there is one. */
   readonly hemiola: boolean;
+  /** What the click sounds between the pulses. */
+  readonly subdivision: Subdivision;
   /** The accent slider, 0 to 1. */
   readonly grade: number;
   /** The pulses grouped the other way round, 5 as 2+3 (`accentsOf`). */
@@ -64,6 +70,9 @@ export type Onset =
       readonly length: number;
     };
 
+/** How much quieter a sixteenth's click is than an eighth's between the pulses. */
+const SIXTEENTH_GAIN = 0.7;
+
 const ROOT = 40;
 const FIFTH = 47;
 
@@ -71,7 +80,7 @@ const velocity = (base: number, gain: number) =>
   Math.max(1, Math.min(127, Math.round(base * gain)));
 
 /** What plays in one bar of the meter, in time order. */
-export function barPlan({ name, layers, hemiola, grade, mirror }: Setting): Onset[] {
+export function barPlan({ name, layers, hemiola, subdivision, grade, mirror }: Setting): Onset[] {
   const meter = METERS[name];
   const grades = accentsOf(meter, mirror);
   const weights = meterWeights(meter);
@@ -80,11 +89,25 @@ export function barPlan({ name, layers, hemiola, grade, mirror }: Setting): Onse
   const gainAt = (step: number) => gradeGain(grades[step / STEPS_PER_EIGHTH]!, grade);
   const onsets: Onset[] = [];
 
-  if (layers.click)
-    weights.forEach((weight, eighth) => {
-      const step = eighth * STEPS_PER_EIGHTH;
-      onsets.push({ layer: 'click', step, weight, gain: gainAt(step) });
-    });
+  if (layers.click) {
+    const finest =
+      subdivision === 'sixteenths' ? 1 : subdivision === 'eighths' ? STEPS_PER_EIGHTH : 0;
+    for (let step = 0; step < barSteps; step++) {
+      const eighth = step / STEPS_PER_EIGHTH;
+      if (pulses.includes(step))
+        onsets.push({ layer: 'click', step, weight: weights[eighth]!, gain: gainAt(step) });
+      else if (finest > 0 && step % finest === 0)
+        onsets.push({
+          layer: 'click',
+          step,
+          weight: 'subdivision',
+          // A sixteenth is a grade below the eighth, which the slider spreads as it does the others.
+          gain: Number.isInteger(eighth)
+            ? gainAt(step)
+            : gradeGain('between', grade) * SIXTEENTH_GAIN,
+        });
+    }
+  }
 
   if (layers.drums) {
     const drum = (step: number, note: number, base: number) =>

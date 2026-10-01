@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { METERS } from '@jambot/theory';
+import { clockOf } from '@jambot/engine';
 import { playerSource } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
 import type { BarView, Hud, MotifView } from './hud.ts';
@@ -18,6 +20,8 @@ const barView = (over: Partial<BarView> = {}): BarView => ({
   scale: [0, 2, 4, 5, 7, 9, 11],
   melodic: [0, 2, 4, 5, 7, 9, 11],
   melodicName: 'plain',
+  meter: METERS['4/4'],
+  meterName: '4/4',
   chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
   energy: 0.6,
   lead: 'improvising',
@@ -212,6 +216,8 @@ describe('the players’ lanes', () => {
       colour: 2,
       bar: 9,
       rows: 1,
+      cycle: 16,
+      pulses: [0, 4, 8, 12],
       notes: [{ step: 0, length: 4, row: 0, altered: false }],
     };
     const heard = tracksOf(
@@ -249,6 +255,8 @@ describe('the players’ lanes', () => {
     colour: 0,
     bar,
     rows: 3,
+    cycle: 16,
+    pulses: [0, 4, 8, 12],
     notes: [
       { step: 0, length: 4, row: 0, altered: false },
       { step: 4, length: 4, row: 2, altered: false },
@@ -303,5 +311,72 @@ describe('the players’ lanes', () => {
       },
     ]);
     expect(at(16 * 12)).toEqual([]);
+  });
+
+  describe('on a song that changes meter (#262)', () => {
+    // 4/4 for bars 0 to 7, then 7/8: bar 8 starts at step 128 and each bar after is 14 steps.
+    const clock = clockOf([
+      { bar: 0, meter: METERS['4/4'] },
+      { bar: 8, meter: METERS['7/8'] },
+    ]);
+    const seven = (from: number, to: number) =>
+      bars(from, to).map((b) => ({
+        ...b,
+        parts: { ...b.parts, lead: [{ step: 6, note: 62, length: 2 }] },
+      }));
+
+    it('frames each bar shown as long as its meter, with its pulses, from the first bar shown', () => {
+      const tracks = tracksOf(
+        input({ pattern: bars(5, 7), ahead: seven(8, 12), heard: 16 * 7 + 3, clock }),
+      );
+      expect(tracks.first).toBe(5);
+      expect(tracks.frame.map((b) => [b.start, b.steps])).toEqual([
+        [0, 16],
+        [16, 16],
+        [32, 16],
+        [48, 14],
+        [62, 14],
+      ]);
+      expect(tracks.frame.map((b) => b.pulses)).toEqual([
+        [0, 4, 8, 12],
+        [16, 20, 24, 28],
+        [32, 36, 40, 44],
+        [48, 54, 58],
+        [62, 68, 72],
+      ]);
+      expect(tracks.span).toBe(76);
+    });
+
+    it('places each note from the first bar shown by where its bar starts, and the playhead on the clock’s step', () => {
+      const tracks = tracksOf(
+        input({ pattern: bars(5, 7), ahead: seven(8, 12), heard: 16 * 8 + 9, clock }),
+      );
+      // First bar shown is 6: bars 6 and 7 of 4/4, 8 to 10 of 7/8.
+      expect(tracks.first).toBe(6);
+      expect(tracks.performers[0]!.notes.map((n) => n.step)).toEqual([0, 16, 32, 46, 60]);
+      expect(tracks.performers[3]!.notes.map((n) => n.step)).toEqual([4 + 0, 4 + 16, 38, 52, 66]);
+      expect(tracks.playhead).toBe(16 * 8 + 9 - 16 * 6);
+    });
+
+    it('credits a bar by its place among the bars shown, whatever its length', () => {
+      const motif = { source: 'the computer keys', bar: 3 };
+      const tracks = tracksOf(
+        input({
+          pattern: bars(5, 7),
+          ahead: seven(8, 12).map((b) => (b.bar === 9 ? { ...b, motif } : b)),
+          heard: 16 * 7 + 3,
+          clock,
+        }),
+      );
+      expect(tracks.performers[3]!.motifs.map((m) => m.at)).toEqual([4]);
+    });
+
+    it('is the song’s 4/4 grid where it is given no clock: five bars of sixteen', () => {
+      const tracks = tracksOf(
+        input({ pattern: bars(5, 9), ahead: bars(9, 12), heard: 16 * 9 + 5 }),
+      );
+      expect(tracks.span).toBe(80);
+      expect(tracks.frame.map((b) => b.steps)).toEqual([16, 16, 16, 16, 16]);
+    });
   });
 });
