@@ -19,6 +19,7 @@ const snapshot: HostSnapshot = {
   track: { energy: { from: 0.5, to: 0.5, at: 0, over: 0 } } as never,
   wish: { tonic: null, mode: 'aeolian', melodic: null },
   tempoNudge: 0.1,
+  meter: { cycle: 10, heights: [0, 2, 4, 6, 8] },
 };
 
 const resume: ClientResume = {
@@ -33,6 +34,11 @@ const resume: ClientResume = {
 describe('what a host keeps to come back from a reload', () => {
   it('reads what it wrote, through JSON', () => {
     expect(readHostSnapshot(JSON.parse(JSON.stringify(snapshot)), 1001)).toEqual(snapshot);
+  });
+
+  it('reads one saved before it kept a meter, which asks for none (#305)', () => {
+    const { meter: _, ...older } = snapshot;
+    expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
   });
 
   it('reads nothing that is not one, or of another version, or too old', () => {
@@ -56,6 +62,14 @@ describe('what a host keeps to come back from a reload', () => {
       { ...snapshot, wish: null },
       { ...snapshot, tempoNudge: 'up' },
       { ...snapshot, tempoNudge: Number.NaN },
+      { ...snapshot, meter: '5/4' },
+      { ...snapshot, meter: null },
+      { ...snapshot, meter: { cycle: 0, heights: [0] } },
+      { ...snapshot, meter: { cycle: 10, heights: [] } },
+      { ...snapshot, meter: { cycle: 10, heights: [2, 4] } },
+      { ...snapshot, meter: { cycle: 10, heights: [0, 4, 4] } },
+      { ...snapshot, meter: { cycle: 10, heights: [0, 10] } },
+      { ...snapshot, meter: { cycle: 10, heights: [0, 2.5] } },
     ])
       expect(readHostSnapshot(junk, 1001), JSON.stringify(junk)).toBeNull();
     expect(readHostSnapshot(snapshot, 1000 + SAVED_MAX_AGE)).toEqual(snapshot);

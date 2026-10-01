@@ -8,6 +8,7 @@ import {
   RESUME_WINDOW,
   playerSource,
 } from '@jambot/session';
+import { METERS } from '@jambot/theory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { broadcastLobby, CLAIM_WAIT } from './broadcast.ts';
 import { ClientSession, WELCOME_WAIT } from './client.svelte.ts';
@@ -482,6 +483,9 @@ describe('a host that is reloaded', () => {
     await hosting.open(lobby, 'Friday Jam', 'Bo');
     const ada = await joined(lobby, 'Friday Jam', 'Ada');
     first.player.tempoNudge = 0.25;
+    first.player.setMeter(METERS['5/4']);
+    // A meter asked for is kept as it is asked, as the style is.
+    expect(saved.at(-1)!.meter).toEqual(METERS['5/4']);
     hosting.persist();
     const snapshot = JSON.parse(JSON.stringify(saved.at(-1)));
     expect(snapshot).toMatchObject({
@@ -489,6 +493,7 @@ describe('a host that is reloaded', () => {
       player: 'Bo',
       roster: [{ id: expect.any(String), name: 'Ada', token: 'token-ada' }],
       tempoNudge: 0.25,
+      meter: METERS['5/4'],
       savedAt: 5000,
     });
     expect(Object.values(snapshot.players).sort()).toEqual(['Ada', 'Bo']);
@@ -505,6 +510,8 @@ describe('a host that is reloaded', () => {
     expect(again.guests).toEqual([]);
     expect(second.player.players).toEqual(snapshot.players);
     expect(second.player.tempoNudge).toBe(0.25);
+    // The meter asked for comes back with it: the song starts again in it (#305).
+    expect(second.player.meter).toEqual(METERS['5/4']);
 
     const back = await joined(fresh, 'Friday Jam', 'Ada', 'token-ada');
     expect(back.heard[0]).toMatchObject({ kind: 'welcome', resume: 'token-ada' });

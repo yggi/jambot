@@ -6,19 +6,22 @@
  * and position, and the Muse starts afresh with each song (`Player#begin`),
  * so a host keeps the session's name and the secret that takes it back
  * from the lobby, who is in it and how they come back (`roster.ts`), the
- * players' names, and the style, the key wish and the tempo nudge the
- * conductor had set, and the lobby it opened in. A client keeps the session,
+ * players' names, the style, the key wish and the tempo nudge the
+ * conductor had set, the meter asked for, and the lobby it opened in. A client keeps the session,
  * its name, its token and the lobby it joined through. A record older than `SAVED_MAX_AGE` is
  * forgotten: a session that long gone has moved on.
  *
  * Reading checks the record's fields and their types, not the engine
  * values (the style track and the key wish) inside: those are the app's
  * own, written by the same build, and a version bump retires a shape that
- * changes. Pure: the app stores and fetches, and gives the time, in
+ * changes. The meter is checked as a meter (its pulses rising from the
+ * downbeat within the bar), since a bar's length is built from it; a record
+ * saved before it was kept has none, and asks for the song's. Pure: the app stores and fetches, and gives the time, in
  * seconds since the epoch.
  */
 
 import type { KeyWish, StyleTrack } from '@jambot/engine';
+import type { Meter } from '@jambot/theory';
 import type { Member } from './roster.ts';
 
 /** How long, in seconds, a saved record is good for. */
@@ -45,6 +48,8 @@ export interface HostSnapshot {
   readonly track: StyleTrack;
   readonly wish: KeyWish;
   readonly tempoNudge: number;
+  /** The meter asked for, which the band takes at a section's start; absent in a record saved before it was kept. */
+  readonly meter?: Meter;
 }
 
 export interface ClientResume {
@@ -61,6 +66,18 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const isText = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
 
+/** Whether a value is a meter: a bar of whole eighths, its pulses rising from the downbeat at 0 within it. */
+const isMeter = (v: unknown): v is Meter =>
+  isRecord(v) &&
+  Number.isInteger(v.cycle) &&
+  (v.cycle as number) > 0 &&
+  Array.isArray(v.heights) &&
+  v.heights[0] === 0 &&
+  v.heights.every(
+    (h, i, all) =>
+      Number.isInteger(h) && h < (v.cycle as number) && (i === 0 || h > (all[i - 1] as number)),
+  );
+
 /** Whether a record saved at `savedAt` is still good at `now`. */
 const fresh = (savedAt: unknown, now: number): boolean =>
   typeof savedAt === 'number' &&
@@ -71,11 +88,12 @@ const fresh = (savedAt: unknown, now: number): boolean =>
 /** A host's snapshot, or null for anything that isn't a good one at `now`. */
 export function readHostSnapshot(data: unknown, now: number): HostSnapshot | null {
   if (!isRecord(data) || data.version !== VERSION || !fresh(data.savedAt, now)) return null;
-  const { session, lobby, reclaim, player, roster, players, track, wish, tempoNudge } = data;
+  const { session, lobby, reclaim, player, roster, players, track, wish, tempoNudge, meter } = data;
   if (!isText(session) || typeof lobby !== 'string' || typeof player !== 'string') return null;
   if (reclaim !== null && typeof reclaim !== 'string') return null;
   if (typeof tempoNudge !== 'number' || !Number.isFinite(tempoNudge)) return null;
   if (!isRecord(track) || !isRecord(wish)) return null;
+  if (meter !== undefined && !isMeter(meter)) return null;
   if (!isRecord(players) || !Object.values(players).every((n) => typeof n === 'string'))
     return null;
   if (

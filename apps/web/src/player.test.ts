@@ -838,6 +838,7 @@ function told() {
       ),
     decided: () => {},
     track: () => {},
+    meter: () => {},
     muse: () => {},
     finale: (bar) => (said.push('finale'), finales.push(bar)),
   };
