@@ -119,6 +119,8 @@ export class ClientSession {
   #retrying: ReturnType<typeof setTimeout> | null = null;
   /** Counts the links made, so a late word from a dropped one is ignored. */
   #generation = 0;
+  /** Counts the joins begun, so one that was left meanwhile does not go on. */
+  #joins = 0;
   /** When the host was last heard from, by `#wallNow`. */
   #lastHeard: number | null = null;
   #wallNow: () => number;
@@ -159,6 +161,7 @@ export class ClientSession {
     { resume, lobbyUrl }: { resume?: string; lobbyUrl?: string } = {},
   ) {
     this.leave();
+    const attempt = ++this.#joins;
     this.ended = null;
     this.status = 'joining';
     this.session = session.trim();
@@ -166,7 +169,9 @@ export class ClientSession {
     this.#lobby = lobby;
     this.#lobbyUrl = lobbyUrl ?? null;
     this.#token = resume ?? null;
-    await this.#player.prepare();
+    await this.#player.prepareWithin();
+    // Left, or joined again, while the output was awaited.
+    if (attempt !== this.#joins || this.status !== 'joining') return;
     this.#player.follow({
       judged: (judged) => {
         for (const { bar, judgement } of judged) this.#send({ kind: 'judged', bar, judgement });
@@ -177,8 +182,10 @@ export class ClientSession {
     try {
       await this.#connect(lobby);
     } catch (e) {
+      if (attempt !== this.#joins || this.status !== 'joining') return;
       return this.#end(e instanceof Error ? e.message : String(e));
     }
+    if (attempt !== this.#joins || this.status !== 'joining') return;
     this.#welcomeWait = setTimeout(
       () => this.#end(`No session named “${this.session}” answered.`),
       WELCOME_WAIT,

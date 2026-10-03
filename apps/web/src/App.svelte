@@ -373,6 +373,7 @@
     <TuneScreen {tuner} {sender} {correction} onback={() => (tuneChosen = false)} />
   {:else if screen === 'restoring'}
     <p class="message" role="status">Taking up your session again…</p>
+    <button type="button" onclick={() => sessions.drop()}>Drop session</button>
   {:else}
     <Lobby
       name={profile.name}

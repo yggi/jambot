@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import App from './App.svelte';
 import { fakeAudioContext } from './audio/fake-context.ts';
 import { FADE_OUT } from './device.svelte.ts';
+import { CLIENT_KEY } from './session/storage.ts';
 
 /** The page past its door: solo chosen, the band behind it. */
 async function renderBand() {
@@ -150,6 +151,32 @@ describe('the app', () => {
       unmount();
       render(App);
       expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
+    });
+
+    it('lets a person drop a kept session that hangs while it is taken up again, and a reload then lands on the door', async () => {
+      vi.stubGlobal(
+        'WebSocket',
+        vi.fn(function () {
+          return { send() {}, close() {} };
+        }),
+      );
+      onTestFinished(() => void vi.unstubAllGlobals());
+      localStorage.setItem(
+        CLIENT_KEY,
+        JSON.stringify({
+          version: 1,
+          savedAt: Date.now() / 1000,
+          session: 'Garage',
+          name: 'Bo',
+          token: 't',
+          lobby: 'ws://silent',
+        }),
+      );
+      render(App);
+      expect(await screen.findByText('Taking up your session again…')).toBeInTheDocument();
+      await fireEvent.click(screen.getByRole('button', { name: 'Drop session' }));
+      expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
+      expect(localStorage.getItem(CLIENT_KEY)).toBeNull();
     });
 
     it('keeps the name a person gave for next time', async () => {

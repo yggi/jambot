@@ -12,7 +12,8 @@
  * A session that ended on its own, a host closing or a link given up,
  * leaves its reason in `ended` until the next session starts or `dismiss`.
  * A page that reloads takes a kept session up again (`restore`), and says it
- * is `restoring` until it is, or gave up and said why.
+ * is `restoring` until it is, or gave up and said why: after `RESTORE_WAIT`,
+ * or when a person `drop`s it.
  */
 
 import type { ClientResume, HostSnapshot, OpenSession } from '@jambot/session';
@@ -57,6 +58,9 @@ export interface SessionsOptions {
   readonly wallNow?: () => number;
 }
 
+/** How long, in milliseconds, taking a kept session up again may take before it is given up. */
+export const RESTORE_WAIT = 10_000;
+
 const ADDRESS_KEY = 'jambot:lobby';
 const NO_SERVER = 'No lobby server is given: open Advanced to set one.';
 
@@ -83,6 +87,8 @@ export class Sessions {
    * status, and a join a person starts clears it.
    */
   #restoringClient = $state(false);
+  /** Counts the restores begun, so one dropped or given up does not go on. */
+  #restores = 0;
   #tabs: Lobby;
   #server: (url: string) => Lobby;
   #kept: Kept;
@@ -130,6 +136,20 @@ export class Sessions {
   dismiss() {
     this.asHost.ended = null;
     this.asClient.ended = null;
+  }
+
+  /**
+   * Let go of a session being taken up again, or any session: what a reload
+   * would come back to is forgotten, the page is at the door, and the reason
+   * left is none. For a restore that hangs, and a person who won't wait.
+   */
+  drop() {
+    this.#restores++;
+    this.#restoringHost = false;
+    this.#restoringClient = false;
+    this.forget();
+    this.end();
+    this.dismiss();
   }
 
   /** The lobby a kept record names: the tabs for none, else the server at that address. */
@@ -213,30 +233,47 @@ export class Sessions {
   async restore(now: number) {
     const host = this.#kept.keptHost(now);
     const client = host ? null : this.#kept.keptClient(now);
-    if (host) {
-      this.#restoringHost = true;
-      try {
-        await this.asHost.open(this.#lobbyAt(host.lobby), host.session, host.player, {
-          restore: host,
-          lobbyUrl: host.lobby,
-        });
-      } catch (e) {
-        this.#kept.hostKeep.clear();
-        this.asHost.ended = why(e);
-      } finally {
-        this.#restoringHost = false;
+    if (!host && !client) return;
+    const attempt = ++this.#restores;
+    const current = () => attempt === this.#restores;
+    // A lobby that takes the connection and never answers is given up, not waited for.
+    const patience = setTimeout(() => {
+      if (!current()) return;
+      this.drop();
+      this.asHost.ended = 'Taking up your session again took too long, so it was let go.';
+    }, RESTORE_WAIT);
+    try {
+      if (host) {
+        this.#restoringHost = true;
+        try {
+          await this.asHost.open(this.#lobbyAt(host.lobby), host.session, host.player, {
+            restore: host,
+            lobbyUrl: host.lobby,
+          });
+          // Dropped or given up meanwhile: it opened too late to be wanted.
+          if (!current()) this.asHost.close();
+        } catch (e) {
+          if (!current()) return;
+          this.#kept.hostKeep.clear();
+          this.asHost.ended = why(e);
+        } finally {
+          if (current()) this.#restoringHost = false;
+        }
+      } else if (client) {
+        this.#restoringClient = true;
+        try {
+          await this.asClient.join(this.#lobbyAt(client.lobby), client.session, client.name, {
+            resume: client.token,
+            lobbyUrl: client.lobby,
+          });
+        } catch (e) {
+          if (!current()) return;
+          this.#kept.clientKeep.clear();
+          this.asClient.ended = why(e);
+        }
       }
-    } else if (client) {
-      this.#restoringClient = true;
-      try {
-        await this.asClient.join(this.#lobbyAt(client.lobby), client.session, client.name, {
-          resume: client.token,
-          lobbyUrl: client.lobby,
-        });
-      } catch (e) {
-        this.#kept.clientKeep.clear();
-        this.asClient.ended = why(e);
-      }
+    } finally {
+      clearTimeout(patience);
     }
   }
 }
