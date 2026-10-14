@@ -123,7 +123,7 @@ export class HostSession {
   ) {
     this.#lobbyUrl = lobbyUrl;
     this.ended = null;
-    await this.#player.prepare();
+    await this.#player.prepareWithin();
     this.#link = await lobby.host(
       restore?.session ?? session,
       (message, from) => this.#hear(message, from),

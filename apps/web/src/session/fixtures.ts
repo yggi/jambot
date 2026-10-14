@@ -19,6 +19,8 @@ export function device(clockAt: number) {
     heardOffset: 0,
     /** How many times the output was asked to let its clock run. */
     resumed: 0,
+    /** Whether the output's clock stays still and its `resume` never answers, as a browser's does before a click. */
+    suspended: false,
     plays: [] as { part: string; note: number; seconds: number }[],
     tickers: [] as (() => void)[],
   };
@@ -29,7 +31,7 @@ export function device(clockAt: number) {
     latency: 0,
     resume: () => {
       world.resumed++;
-      return Promise.resolve();
+      return world.suspended ? new Promise<void>(() => {}) : Promise.resolve();
     },
     play: (part, note, _velocity, seconds) => void world.plays.push({ part, note, seconds }),
     silence: () => {},

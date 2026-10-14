@@ -207,6 +207,13 @@ const LAID_KEPT = 8;
 /** How long after `start` is called the song's clock starts, in seconds, before its count-in. */
 const START_LEAD = 0.1;
 
+/**
+ * How long, in milliseconds, opening or joining a session waits for the
+ * output's clock to run. A browser holds a context suspended until a click,
+ * and `resume` stays pending for good on a page that was reloaded.
+ */
+export const OUTPUT_WAIT = 1500;
+
 /** How many bars' keys a client keeps for its ear, which judges a bar a beat after it ends. */
 const KEYS_KEPT = 8;
 
@@ -513,6 +520,22 @@ export class Player {
     const output = (this.#output ??= this.#surroundings.output());
     await output.resume();
     return output;
+  }
+
+  /**
+   * `prepare`, asked in this very turn, but waited for only `OUTPUT_WAIT`: a
+   * session's clocks and links don't need a running output to begin, and a
+   * song's start waits for it by itself.
+   */
+  async prepareWithin(wait = OUTPUT_WAIT): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const ready = this.prepare().then(() => {});
+    const patience = new Promise<void>((resolve) => (timer = setTimeout(resolve, wait)));
+    try {
+      await Promise.race([ready, patience]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async start() {

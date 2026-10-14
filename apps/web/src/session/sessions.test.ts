@@ -2,7 +2,7 @@ import type { ClientResume, HostSnapshot } from '@jambot/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { device, memoryLobby } from './fixtures.ts';
 import type { Lobby } from './lobby.ts';
-import { type Kept, Sessions } from './sessions.svelte.ts';
+import { RESTORE_WAIT, type Kept, Sessions } from './sessions.svelte.ts';
 
 /** What a page keeps, in memory. */
 function memoryKept(): Kept & { host: HostSnapshot | null; client: ClientResume | null } {
@@ -287,5 +287,117 @@ describe('the sessions a page can be in', () => {
     a.sessions.address = 'wss://elsewhere';
     expect(page(memoryLobby()).sessions.address).toBe('wss://elsewhere');
     localStorage.clear();
+  });
+
+  describe('a restore that hangs', () => {
+    /** A lobby whose host never answers, as a server that took the connection and said nothing. */
+    const silent = (lobby: Lobby): Lobby => ({
+      ...lobby,
+      host: () => new Promise(() => {}),
+    });
+
+    async function keptHostOn(tabs: Lobby) {
+      const first = page(tabs);
+      await first.sessions.host('local', 'Garage', 'Ada');
+      const snapshot = first.kept.host!;
+      first.sessions.end();
+      return snapshot;
+    }
+
+    it('takes a kept host session up although the output is suspended, as a browser leaves it before any click', async () => {
+      const tabs = memoryLobby();
+      const snapshot = await keptHostOn(tabs);
+      const again = page(tabs);
+      again.d.world.suspended = true;
+      again.kept.host = snapshot;
+      void again.sessions.restore(0);
+      await until(() => !again.sessions.restoring);
+      expect(again.d.player.mode).toBe('host');
+      expect(again.sessions.ended).toBeNull();
+    });
+
+    it('takes a kept client session up although the output is suspended', async () => {
+      const tabs = memoryLobby();
+      const host = page(tabs);
+      await host.sessions.host('local', 'Garage', 'Ada');
+      const guest = page(tabs);
+      await guest.sessions.join('local', 'Garage', 'Bo');
+      await until(() => guest.sessions.asClient.status === 'joined');
+      const resume = guest.kept.client!;
+      guest.sessions.asClient.leave();
+      const back = page(tabs);
+      back.d.world.suspended = true;
+      back.kept.client = resume;
+      void back.sessions.restore(0);
+      await until(() => back.sessions.asClient.status === 'joined');
+      expect(back.sessions.restoring).toBe(false);
+    });
+
+    it('gives up a restore that gets no answer within RESTORE_WAIT, forgets it, and says why', async () => {
+      const tabs = memoryLobby();
+      const snapshot = await keptHostOn(tabs);
+      const again = page(silent(tabs));
+      again.kept.host = snapshot;
+      void again.sessions.restore(0);
+      expect(again.sessions.restoring).toBe(true);
+      await vi.advanceTimersByTimeAsync(RESTORE_WAIT - 1);
+      expect(again.sessions.restoring).toBe(true);
+      await vi.advanceTimersByTimeAsync(2);
+      expect(again.sessions.restoring).toBe(false);
+      expect(again.kept.host).toBeNull();
+      expect(again.sessions.ended).toMatch(/too long/i);
+      expect(again.d.player.mode).toBe('solo');
+    });
+
+    it('drops a session being restored on request, forgetting it, and closes one that opens late', async () => {
+      const tabs = memoryLobby();
+      const snapshot = await keptHostOn(tabs);
+      let open!: () => void;
+      const late: Lobby = {
+        ...tabs,
+        host: (...args) =>
+          new Promise((resolve) => {
+            open = () => resolve(tabs.host(...args));
+          }),
+      };
+      const again = page(late);
+      again.kept.host = snapshot;
+      void again.sessions.restore(0);
+      expect(again.sessions.restoring).toBe(true);
+      await vi.advanceTimersByTimeAsync(0);
+      again.sessions.drop();
+      expect(again.sessions.restoring).toBe(false);
+      expect(again.kept.host).toBeNull();
+      expect(again.sessions.ended).toBeNull();
+      open();
+      await vi.advanceTimersByTimeAsync(RESTORE_WAIT * 2);
+      expect(again.d.player.mode).toBe('solo');
+      expect(again.sessions.asHost.session).toBeNull();
+      expect(again.kept.host).toBeNull();
+    });
+
+    it('drops a joining client on request, whatever the host will answer later', async () => {
+      const tabs = memoryLobby();
+      const host = page(tabs);
+      await host.sessions.host('local', 'Garage', 'Ada');
+      const guest = page(tabs);
+      await guest.sessions.join('local', 'Garage', 'Bo');
+      await until(() => guest.sessions.asClient.status === 'joined');
+      const resume = guest.kept.client!;
+      guest.sessions.asClient.leave();
+      const slow = held(tabs);
+      const back = page(slow);
+      back.kept.client = resume;
+      await back.sessions.restore(0);
+      expect(back.sessions.restoring).toBe(true);
+      back.sessions.drop();
+      expect(back.sessions.restoring).toBe(false);
+      expect(back.sessions.asClient.status).toBe('idle');
+      expect(back.kept.client).toBeNull();
+      slow.release();
+      await vi.advanceTimersByTimeAsync(RESTORE_WAIT);
+      expect(back.sessions.asClient.status).toBe('idle');
+      expect(back.d.player.mode).toBe('solo');
+    });
   });
 });

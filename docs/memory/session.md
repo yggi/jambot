@@ -51,3 +51,5 @@ Facts about `packages/session` and the app's sessions: clocks, the fault kit and
   The host's kept snapshot and the client's resume have versions of their own (`snapshot.ts`): a change to a shape inside one, such as `KeyWish` in the host's, bumps that one's version alone, so a client can still rejoin across a deploy (#226).
   A field added that an older record can lack, such as the host's `meter`, keeps the version: reading takes its absence as the default.
   Explicit close sends `end` to the lobby: without it the name would be held for the grace.
+- A browser holds an audio context suspended until a click, and on a reloaded page `resume` stays pending for good, so a restore must not wait for it: opening and joining ask for the output in the click's turn but wait `OUTPUT_WAIT` at most (`Player.prepareWithin`), and a song's start waits for it by itself.
+  A restore that gets no answer is given up after `RESTORE_WAIT`, forgotten, with its reason in `ended`; `Sessions.drop` (the restoring screen's "Drop session") lets a person do the same at once, and a restore or join that was dropped meanwhile closes or ends itself when it arrives.
