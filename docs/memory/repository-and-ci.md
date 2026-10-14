@@ -39,6 +39,7 @@ How the repository is built, gated, deployed and licensed.
 
 - Jambot is MIT ([`LICENSE`](../../LICENSE)), as are quintenzirkel and lib-aeiou, so code moves freely between the sister projects.
   Every `package.json` says so.
+- The cells language, `@yggi/cells` ([yggi/cells](https://github.com/yggi/cells)), is MIT too, and a git dependency on a private repository: `pnpm install` needs read access to it, which a session's git credentials give and a CI run needs a token for (or cells made public).
 - The build runs a license gate (`tooling/licenses.ts`, wired in `apps/web/vite.config.ts`).
   It fails on any package the app ships that isn't under a permissive license or lacks its license text, and writes `licenses.txt`: Jambot's license, then each shipped package's.
   Today that is the Svelte runtime, Vite's preload polyfill, workbox's runtime and the service worker's loader (Apache-2.0).
