@@ -55,7 +55,7 @@ files where `main`'s changes may still show.
 Read the diff from git, not from the GitHub files API, which returns every patch
 as one large JSON blob.
 
-CI is off (`docs/memory/repository-and-ci.md`), so this verify run is the check that counts. Say
+CI is a witness, and may be blocked (`docs/memory/repository-and-ci.md`), so this verify run is the check that counts. Say
 in the review which commit you verified and what verify and `pnpm e2e` gave. The
 end-to-end run needs Playwright's Chromium, which the session hook installs;
 without it, `pnpm e2e` fails, and a pull request that touches what the app plays

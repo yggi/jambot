@@ -4,10 +4,18 @@ How the repository is built, gated, deployed and licensed.
 
 ## Repository and CI
 
-- The repository is private.
-  GitHub Actions minutes are used up (#4), so the CI workflow runs only when started by hand.
-  `pnpm verify` locally is the check that counts.
-  A red or missing `check` on a pull request says nothing about the code.
+- The repository is private, so its Actions runs share the account's monthly minutes with the other private repositories of the family, and once those are used up Actions is blocked for all of them until the month's end (#4).
+  The family's rule for spending them is [CI-BUDGET.md](https://github.com/yggi/music-commons/blob/main/CI-BUDGET.md) in music-commons.
+- The gate is `pnpm verify`, run before every push of a branch by the pre-push hook (`.githooks/pre-push`), where it costs no minutes.
+  The pull request names the commit that passed it, in its Checks section.
+- CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: one job that runs `pnpm verify` on a pull request when it is opened, pushed to, reopened or taken out of draft.
+  A draft runs nothing, and a newer push cancels the run still going, so a pull request stays a draft while it moves.
+  The end-to-end checks run there only by hand (Actions → CI → Run workflow, with `e2e` ticked); otherwise `pnpm e2e` runs locally, as `AGENTS.md` says when.
+  No check is required to merge.
+- While Actions is blocked, a run fails within seconds, with no runner and no step: a red or missing `check` then says nothing about the code.
+  `node tools/measure/actions.mjs --status yggi/jambot`, in music-commons, tells a blocked repository from one where Actions runs.
+  The evidence is the verified commit the pull request names; when minutes are back, one run of a blocked check on a pull request still open is enough.
+  Nothing else waits on Actions: Pages is deployed by hand (below), and the lobby by the `lobby-deploy` skill.
 - GitHub Pages is deployed by hand, after each merge into `main` (`AGENTS.md`): `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
   It then waits for the live site to serve that build and checks it again.
   Pages publishes the branch as it is: the repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
