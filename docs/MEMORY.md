@@ -22,14 +22,15 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - Agent sessions (Claude Code) install dependencies and Playwright's Chromium, warm music21 and fetch `origin/main` and their own branch at start, resume and compaction through `.claude/hooks/session-start.sh`.
   It also says how far the branch is behind `origin/main`, whether main already holds it, and whether its remote branch moved (`branch-status.sh`).
   And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
-  Other agents run `pnpm install --frozen-lockfile` first.
+  Other agents run `pnpm install --frozen-lockfile` first, and so does a git worktree: the hook installs only the checkout the session opened.
 - Every `git push` of a branch runs `pnpm verify` first, through git's pre-push hook (`.githooks/pre-push`, about 85 s, the tests 60 s of it), and is blocked if it fails.
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
   It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
-  A tree that passed is remembered, so a retried push does not rerun it.
+  A tree that passed is remembered, so a retried push does not rerun it; only the hook remembers, so a `pnpm verify` run by hand before a push is run again by it.
   A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
   A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone.
   The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
+- Two gates that show themselves only by failing: a `Math.pow`, `log`, `exp`, `sin` or similar call in a pure package fails until `tooling/quantized-math.ts`'s audit names it with why it is safe ([testing](memory/testing.md)), and a new experiment takes the next E number after the highest in [`language-experiments.md`](language-experiments.md), where its entry goes.
 - To review a pull request, use the `review-pr` skill: `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`, checks it out in its own worktree and runs `pnpm verify` there.
   It says when `main` has moved on and where a merge would conflict, and `--from <commit>` scopes it to part of a pull request.
   A branch behind `main` may not have the script yet: pipe `main`'s copy from `git show origin/main:.claude/skills/review-pr/prepare.sh` to `sh -s --`.
@@ -41,7 +42,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - The direction is to bring the two back together for eternal jam sessions: cells as the score language and its engine as the player, Jambot as the composer, and a shared repository of cell fragments ([brief](briefs/eternal-jam.md)).
 - The language becomes a core of its own, [yggi/cells](https://github.com/yggi/cells), which Jambot and Cell studio consume at a tag (D1 on #309).
 - The music projects (Cell studio, cells, quintenzirkel, play-aeiou, lib-aeiou, flow3r-aeiou, KO-Multitool, ep133-sysex and this one) share a hub, [yggi/music-commons](https://github.com/yggi/music-commons): an atlas, a charter, a glossary and contracts with vectors.
-- Until the handshake (#309) settles the syntax, a new score form (#287, #306, #275, #265) is checked against cells first, and its meaning is kept rather than a spelling of its own.
+- The handshake is ruled (#309; yggi/cells decision 037): a new score form (#287, #306, #275, #265) is said in cells, its meaning kept and no spelling of its own grown here.
 - Its words and Jambot's part in places (`^`, `_`, `shift`, `cycle=`, Euclid's rotation): read [`cell-studio`](memory/cell-studio.md) before porting a form either way.
 
 ## Topics
