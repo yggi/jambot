@@ -11,22 +11,22 @@ The plan that brings the two together is the [eternal jam brief](../briefs/etern
 - It is a browser app (Svelte 5, TypeScript, Tone.js, npm, not pnpm) whose code editor and graph are two views of one text.
 - A piece is a set of cells, one per line: `&name`, attributes, and a braid of steps in Strudel's mini-notation.
   A cell reads through a table (`over=&key`), has its own clock (`step=&bar*4`), and mixes with `+` and `*`.
-- `src/engine/` is pure TypeScript, and a test holds it so.
-  `src/engine/host.ts` takes code and answers with timed events a window at a time, in a worker or in node.
-- It has no license file yet, so `tooling/licenses.ts` would refuse it as a dependency.
+- The language itself, with its engine, examples and docs, is [yggi/cells](https://github.com/yggi/cells), which Cell studio and Jambot both depend on at `v0.1.0`; it is pure TypeScript, held so by a typecheck with no host types.
+  Its `engine/host.ts` takes code and answers with timed events a window at a time, in a worker or in node; a script that imports the package runs under vitest, not node (yggi/cells#11).
+- Cell studio and cells are MIT, as Jambot is (D4 on #309).
 
 ## Reading it
 
 - In a cloud session, add the repository (`add_repo`) and clone it beside this one.
 - Its entry is `AGENTS.md`, then `docs/MEMORY.md` (a cheatsheet of the language and one line per decision).
-- `docs/language/` says what each form means, `docs/language/reference.md` lists every form, and `docs/decisions/` holds the rationale.
-- Its checks are `npm test`, `npm run check`, `npm run lint` and `npm run format:check`; agents open pull requests and never merge.
+- The language's pages (`docs/language/`, every form in `reference.md`) and the decisions about it are in yggi/cells; the workbench's decisions stay in Cell studio's `docs/decisions/`.
+- Its gate is `npm run verify` before a push; agents open pull requests and never merge.
 
 ## What came from here
 
 - Its Web MIDI layer (ports, routing, surfaces, drum maps, MIDI out and clock out), keyboard and drum pads were lifted from `apps/web` and `packages/session` at 8cdb6b8.
   Each lifted file's header names its source.
-- Who owns that code from now on is a question for the handshake (#309).
+- It gets one owner when the two copies are merged (D2 on #309, yggi/cells decision 037).
 
 ## Where the words correspond
 
