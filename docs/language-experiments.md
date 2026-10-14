@@ -539,5 +539,26 @@ run; the others have.
   - At the default no axis glides faster than a quarter of the fastest a preset glide moves it (energy 0.25, tempo 0.13), and with the spreads doubled about half (energy 0.50); walking, entropy glides at 0.10 of a preset glide across its axis, and moves no nearest preset, since a distance has no entropy.
   - Not measured: the music (the band was not run, only the style), a key under the walk (#313 step 4), a meter other than 4/4, and whether a listener hears the station as itself after 10 minutes.
 
+- **E31. The band's drums as cells text** (#309, the seam), in
+  [`packages/score/experiments/drums-in-cells.ts`](../packages/score/experiments/drums-in-cells.ts)
+  (about 2 s, under vitest only: `@yggi/cells` ships TypeScript, which node does not strip under `node_modules`), held by [`packages/score/experiments/drums-in-cells.test.ts`](../packages/score/experiments/drums-in-cells.test.ts):
+  for each preset held (seed 0, entropy 0.3), the first of 32 bars with the most roles, then the most hits, is stated in cells v0.1.0 by a small translator, compiled, and played through cells' own MIDI out (`channelTable`, `router`, `midiNote`).
+  Each witness is a section's last bar, with a fill; the eight hold 144 hits, every role and every sound.
+  The translator uses only forms cells has, and records what it cannot say as a gap, with the bar as witness.
+  - Every hit plays as the band plays it, 144 of 144, with no diagnostic: its General MIDI note, its step, its written length of one step and its velocity.
+  - A role is a line named by it (`&ghost step=&bar*4 ~ ~ ~ ~ ~ ~ ~ &sd:0:.089528 ~ …`), and each line played alone plays that role's hits, so the snare's role, open in the score (E16), is a word in cells.
+  - A velocity v is a hit's level, (v/127)², since cells' MIDI out strikes a note at 127·√level: every velocity from 1 to 127 comes back, as a hit's own level (`&sd:0:.0635`) and as a line of levels (`map=amp`).
+  - The rim is one Euclid token, `&rim(k,16,r)` on a step of the whole bar, with its accents a line of levels the card multiplies it by.
+    Every rim the band can write, `even(k, 16, shift)` for k of 3, 5 and 7 and a shift of 0 to 3, is cells' `euclid(k, 16, shift + c)` with c of 6, 4 and 0: D3's first row ("cells in the text, `even` underneath") in practice.
+  - Gap 1, a drum voice that is only its MIDI note.
+    A cell is a voice only with a sound parameter (`s=`, `lpf=` and the like); `gain=1`, `oneshot` or nothing leaves a kit member no voice, and the line that names it plays nothing.
+    So the text names a sound, `s=white`, that the band never makes.
+    Witness: Synth-pop's bar 23, its voices with `gain=1`: "&kick has no voice", and none of its 12 hits sounds.
+  - Gap 2, a role's accent left to the player.
+    The band writes a role and plays a velocity: the role's accent (`dynamics.ts`) loosened by the licence (`performer.ts`); cells plays the levels a text states.
+    Every line of a role whose accent is one number in a bar (ghost, pedal, euclid) and has two hits or more plays them at more than one velocity, 5 lines of 5; Funk's bar 23 plays its rim's 7 hits at 5.
+    So either the text holds the performance, against D3's ruling that the jam's text holds what is composed (T4), or the accents change: cells has no form for a level read from a line's role and a seeded licence.
+  - Not measured: when a step plays (the swing and a tempo in a glide, which the transport maps), the played length (the licence's gate, a little under a step, where cells holds the whole step), a meter other than 4/4 (the band writes none), more bars than one per preset, and the other parts.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
