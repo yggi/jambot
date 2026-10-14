@@ -14,9 +14,9 @@
  * The lean comes in two forms, and both are here: the centre, the candidate
  * that weighs most (where the band has been), and a
  * draw by weight to a power (the band's own drift, `bandWish`). The centre
- * is the draw's limit as the power grows. A continuous value, such as a
- * tempo, would be a fading mean in place of weights; nothing needs one yet
- * (#195).
+ * is the draw's limit as the power grows. A continuous value fades its
+ * distance from a centre in place of weights: the radio's walk does
+ * (`radio.ts`, #313), with a draw as its reading.
  */
 
 /** One weight per letter of the alphabet; never negative. */

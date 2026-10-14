@@ -23,6 +23,7 @@ export * from './part-reading.ts';
 export * from './performer.ts';
 export * from './phrase.ts';
 export * from './plan.ts';
+export * from './radio.ts';
 export * from './random.ts';
 export * from './reading.ts';
 export * from './sound.ts';
