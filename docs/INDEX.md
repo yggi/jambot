@@ -39,9 +39,11 @@ A source file has no line here: its header comment says what it is, and `tooling
     - [`repository-and-ci.md`](memory/repository-and-ci.md): CI, Pages, toolchain pins and the license
     - [`terms.md`](memory/terms.md): root node, rendering node, dough
     - [`hardware.md`](memory/hardware.md): the live setup
+    - [`cell-studio.md`](memory/cell-studio.md): the sister project and home of the cells language, how to read it, and where its words and Jambot's correspond and part
   - `docs/briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
     - [`host-mode.md`](briefs/host-mode.md): a plan sketch for host and client mode: the seams, the Muse on both sides, time, links
+    - [`eternal-jam.md`](briefs/eternal-jam.md): eternal jam sessions, Jambot and Cell studio back together: the owner's brief, its reading, and the plan
 - `prototype/`: the baseline the port is oriented by
   - [`README.md`](../prototype/README.md): concept, spirit, prototype architecture, the score language, the plan for learned models, open threads
   - [`jambot-prototype.html`](../prototype/jambot-prototype.html): the playable single-file prototype
