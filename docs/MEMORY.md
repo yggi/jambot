@@ -35,6 +35,15 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   A branch behind `main` may not have the script yet: pipe `main`'s copy from `git show origin/main:.claude/skills/review-pr/prepare.sh` to `sh -s --`.
   `git fetch origin pull/<n>/head` works through the session proxy.
 
+## Cell studio, the sister project
+
+- [yggi/cell-studio](https://github.com/yggi/cell-studio) started as a spike out of Jambot, to research and define the language: cells, on top of Strudel.
+- The direction is to bring the two back together for eternal jam sessions: cells as the score language and its engine as the player, Jambot as the composer, and a shared repository of cell fragments ([brief](briefs/eternal-jam.md)).
+- The language becomes a core of its own, [yggi/cells](https://github.com/yggi/cells), which Jambot and Cell studio consume at a tag (D1 on #309).
+- The music projects (Cell studio, cells, quintenzirkel, play-aeiou, lib-aeiou, flow3r-aeiou, KO-Multitool, ep133-sysex and this one) share a hub, [yggi/music-commons](https://github.com/yggi/music-commons): an atlas, a charter, a glossary and contracts with vectors.
+- Until the handshake (#309) settles the syntax, a new score form (#287, #306, #275, #265) is checked against cells first, and its meaning is kept rather than a spelling of its own.
+- Its words and Jambot's part in places (`^`, `_`, `shift`, `cycle=`, Euclid's rotation): read [`cell-studio`](memory/cell-studio.md) before porting a form either way.
+
 ## Topics
 
 Read a topic file when you work in its area.
@@ -52,4 +61,5 @@ Each is a page of facts, one sentence to a line, and `docs/INDEX.md` lists them.
 - [`prototype`](memory/prototype.md): running the prototype and what it does.
 - [`repository-and-ci`](memory/repository-and-ci.md): CI, Pages, toolchain pins and the license.
 - [`terms`](memory/terms.md): root node, rendering node, dough.
+- [`cell-studio`](memory/cell-studio.md): the sister project, how to read it, and where its words and Jambot's correspond and part.
 - [`hardware`](memory/hardware.md): the live setup.

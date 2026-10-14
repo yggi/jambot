@@ -22,6 +22,12 @@ Where Jambot is heading. The concept and the reasoning behind it are in
   bucket: everything on this roadmap, the live track and the learning track
   alike.
 
+## Direction: eternal jam sessions
+
+Jambot and Cell studio come back together ([brief](briefs/eternal-jam.md)).
+Cells, the language Cell studio defined, becomes the score language and its engine the player, as a core of its own, [yggi/cells](https://github.com/yggi/cells), which Jambot and Cell studio consume at a tag; Jambot stays the composer, driven by the style vector; the Muse writes cell fragments to a shared repository and to the composer's fading memory; homeostasis between bored and confusing (#237) is the guide; and left alone, the band is a radio station.
+The order: agree on the handshake (#309; the syntax of #287, #306, #275 and #265 waits on it), a shared base, the seam (#63 step 5 in cells), a first repository, the closed loop, and the homeostat; radio mode (#195, #233) can start now.
+
 ## Now
 
 The **working shape** (#37) is done: the new app plays the full band (drums,

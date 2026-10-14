@@ -245,6 +245,10 @@ is one; a dough node is another, in parallel to it.
 
 ## Related projects
 
+**[Cell studio](https://github.com/yggi/cell-studio)** started as a spike out of Jambot, to research and define the language, and is the home of cells.
+Unlike the three below, its language is being brought back: cells is to become the score language and its engine the player, from a core of its own, [yggi/cells](https://github.com/yggi/cells), consumed at a tag ([brief](briefs/eternal-jam.md), [facts](memory/cell-studio.md)).
+What all the music projects share is in their hub, [yggi/music-commons](https://github.com/yggi/music-commons).
+
 Three sister projects share Jambot's theory and events, but not its code. They
 are read-only from here.
 
