@@ -75,14 +75,13 @@ These principles come from the prototype
   gathers constraints run side by side without waiting for each other. What one
   finds goes to the other, and a test on `main` holds it. See
   [`docs/ratchet.md`](docs/ratchet.md).
-- **`pnpm verify` before pushing.** It runs everything CI runs but the
-  end-to-end checks (below). A fresh checkout needs
-  `pnpm install --frozen-lockfile` first (seconds): install, never skip the
-  tests. Claude Code sessions do this at start through
-  `.claude/hooks/session-start.sh`.
-  Git's own pre-push hook, `.githooks/pre-push` (`pnpm install` points
-  `core.hooksPath` at it), runs `pnpm verify` before every push of a branch
-  and blocks one that fails. Never bypass it with `--no-verify`.
+- **`pnpm verify` before pushing.**
+  It runs everything but the end-to-end checks (below), and it is the gate: the pull request names the commit that passed it.
+  CI runs the same on a ready pull request as a witness, and a run blocked for want of Actions minutes says nothing (`docs/memory/repository-and-ci.md`).
+  A fresh checkout needs `pnpm install --frozen-lockfile` first (seconds): install, never skip the tests.
+  Claude Code sessions do this at start through `.claude/hooks/session-start.sh`.
+  Git's own pre-push hook, `.githooks/pre-push` (`pnpm install` points `core.hooksPath` at it), runs `pnpm verify` before every push of a branch and blocks one that fails.
+  Never bypass it with `--no-verify`.
 - **`pnpm e2e` when what the app plays, or when, changes.** The end-to-end
   checks run the built app in Chromium and measure its audio: the exact time of
   every onset, and whether the band sounds and stops. They take about 20 s and

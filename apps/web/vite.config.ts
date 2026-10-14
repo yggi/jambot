@@ -103,7 +103,7 @@ function licenses(): Plugin {
 }
 
 export default defineConfig({
-  // GitHub Pages serves the site under /<repo>/; CI sets BASE_PATH accordingly.
+  // GitHub Pages serves the site under /<repo>/; `pnpm pages` sets BASE_PATH accordingly.
   base: process.env.BASE_PATH ?? '/',
   plugins: [
     svelte(),

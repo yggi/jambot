@@ -24,8 +24,8 @@ Lint, the wrap of prose, the purity of the pure packages and the index of docs
 are checked by `pnpm verify`; tick only what nothing checks for you.
 
 - [ ] `pnpm verify` passes at the head commit: <!-- short SHA, test count -->
-      (CI is off, see `docs/memory/repository-and-ci.md`; `.githooks/pre-push` runs it before a
-      push)
+      (the gate: `.githooks/pre-push` runs it before a push; CI is a witness, and a run blocked
+      for minutes says nothing, see `docs/memory/repository-and-ci.md`)
 - [ ] `pnpm e2e` passes, if the change touches what the app plays or when
       (`AGENTS.md`): <!-- short SHA, or "not needed" and why -->
 - [ ] New behaviour has its test, written against public functions, and a new

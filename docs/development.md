@@ -56,9 +56,9 @@ pnpm pages deploy # publish main to GitHub Pages (see below)
   lets through: `Math.random`, the clock, timers, the DOM, Web Audio, Node APIs
   and tonal (tests may use tonal, a random and the clock).
   `tooling/lint.test.ts` shows each rule firing.
-- **GitHub Actions** (`.github/workflows/ci.yml`) runs `lint`, `format:check`,
-  `check`, `test`, `e2e` and `build`. It runs only when started by hand
-  (`workflow_dispatch`); why is in `docs/memory/repository-and-ci.md`.
+- **GitHub Actions** (`.github/workflows/ci.yml`) runs `pnpm verify` in one job on a pull request that is ready, not a draft, as a witness: the gate is the same command in the pre-push hook.
+  `pnpm e2e` runs there only by hand (`workflow_dispatch`, with `e2e` ticked).
+  Why, and what a blocked run means, is in `docs/memory/repository-and-ci.md`.
 - **GitHub Pages** is deployed by hand, with no Actions of ours:
   `pnpm pages deploy` (`tooling/pages.ts`) builds the app for its sub-path,
   checks the build, commits it to the `gh-pages` branch and checks the live site
