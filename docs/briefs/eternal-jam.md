@@ -5,6 +5,8 @@ Cell studio ([yggi/cell-studio](https://github.com/yggi/cell-studio)) started as
 It is now time to bring the two back together.
 Facts about Cell studio itself, and how to read it, are in [`memory/cell-studio.md`](../memory/cell-studio.md).
 The live thread is the handshake: #309 here, and [yggi/cell-studio#406](https://github.com/yggi/cell-studio/issues/406) for Cell studio's side.
+The owner ruled where the code lives (D1, 2026-10-14): three repositories, the language a core of its own in [yggi/cells](https://github.com/yggi/cells), extracted by [yggi/cells#1](https://github.com/yggi/cells/issues/1).
+The family of music projects this sits in has a hub, [yggi/music-commons](https://github.com/yggi/music-commons): its atlas, charter, glossary and contracts.
 Cell studio keeps a twin of this page at `docs/notes/eternal-jam.md`.
 
 ## The brief, verbatim
@@ -117,10 +119,11 @@ Each phase depends on the one before, except radio mode, which can start now.
 
 0. **Agree** (the owner's calls).
    The syntax of #287, #306, #275 and #265 waits; their meaning carries over as what cells has to say.
-   Rule on the table above, on who owns the code Cell studio lifted, and on where the code ends up (a package Jambot depends on, or one workspace).
+   Rule on the table above, and on who owns the code Cell studio lifted.
+   Where the code lives is ruled (D1): **yggi/cells** is the shared core, holding the language and the repository's code; **Cell studio** is the workbench and **Jambot** the interactive, multi-user frontend, both consuming cells at a pinned tag.
 1. **A shared base.**
-   Cell studio gets a license (MIT, so it passes `tooling/licenses.ts`).
-   Its pure `src/engine` becomes a package Jambot can import, and the MIDI layer a shared one.
+   Cell studio's pure `src/engine`, with the theory it imports, moves into yggi/cells with its history and is tagged (MIT, so it passes `tooling/licenses.ts`); Jambot depends on the tag, with a test that compiles a cells text and takes its events ([yggi/cells#1](https://github.com/yggi/cells/issues/1)).
+   The MIDI layer gets one owner.
 2. **Radio mode, alongside.**
    A slow mean-reverting walk of the style around an anchor that drifts more slowly still, through the glides (#195).
    It gives Q11's key a home (#233), and a station that runs while the rest is built, to measure the homeostat against.

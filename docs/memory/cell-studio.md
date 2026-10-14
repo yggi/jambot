@@ -6,7 +6,8 @@ The plan that brings the two together is the [eternal jam brief](../briefs/etern
 ## What it is
 
 - [yggi/cell-studio](https://github.com/yggi/cell-studio) started as a spike out of Jambot, to research and define the language.
-- The owner's direction (14 October 2026): cells becomes Jambot's score language, Cell studio's engine its player, and Jambot the composer.
+- The owner's direction (14 October 2026): cells becomes Jambot's score language and the cells engine its player, with Jambot the composer.
+- Where the code lives (D1 on #309): the language moves out into [yggi/cells](https://github.com/yggi/cells), the shared core, which also holds the repository of cell fragments; Cell studio stays the workbench and Jambot the interactive, multi-user frontend, both consuming cells at a tag ([yggi/cells#1](https://github.com/yggi/cells/issues/1)).
 - It is a browser app (Svelte 5, TypeScript, Tone.js, npm, not pnpm) whose code editor and graph are two views of one text.
 - A piece is a set of cells, one per line: `&name`, attributes, and a braid of steps in Strudel's mini-notation.
   A cell reads through a table (`over=&key`), has its own clock (`step=&bar*4`), and mixes with `+` and `*`.
