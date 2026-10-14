@@ -40,6 +40,12 @@ export const AUDITED: Readonly<Record<string, string>> = {
     "glideTo's Math.pow/Math.exp compute a continuous glide value (tempo's log " +
     'space); nothing rounds or compares it directly, only chance()/pick() ' +
     'downstream, which quantise on their own.',
+  'packages/engine/src/radio.ts':
+    "Math.log and Math.exp walk the tempo in its axis's log space; the tempo that " +
+    'comes out is clamped (continuous) and quantised to QUANTUM before it is carried ' +
+    'to the next section, so a last bit cannot compound over a walk, and it only ' +
+    'becomes a glide target. The draws are sums of uniform ones, with no ' +
+    'transcendental call.',
   'packages/engine/src/genre.ts':
     'Math.exp builds the softmax weights of a reading, which is measured and never ' +
     'drawn from here: a choice made from the probabilities goes through pick(), ' +

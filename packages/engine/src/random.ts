@@ -96,6 +96,8 @@ export const STREAMS = {
   ownAccent: 27,
   /** Whether the lead varies an offer it plays once more, per bar (#237). */
   offerVariation: 28,
+  /** The radio's walk: the tip's and the anchor's draws, per section and axis (#313). */
+  radio: 29,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

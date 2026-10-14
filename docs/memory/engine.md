@@ -11,6 +11,10 @@ The pointers to what holds each are in the sentences.
   Positions there are steps from the song's start, 16 to a bar.
   A track holds only the latest glide per axis, and before that glide's start it reads the glide's `from`.
   So to see what was played at a step, read the track as it stood when that step was scheduled, not the final track.
+- The radio (`packages/engine/src/radio.ts`, #313) is the style left alone: `walkRadio(radio, seed, section)` gives the next section's targets, a tip that walks around an anchor that walks around `home`, each pulled back with its own time constant in sections, every axis in its own space.
+  Its state is plain data (`tuneIn(style)` starts it), its draws are `STREAMS.radio` by section and axis, and the app is to glide to each tip with `glideTo`; nothing calls it yet (step 3).
+  A draw is a sum of four uniform ones, so a linear axis meets only arithmetic, and the tempo is quantised after `Math.log` and `Math.exp`.
+  Its parameters (`RADIO`) are speculative until step 2; at them, E30 finds the anchor settled 0.15 from home within the hour, the station nearest its home preset in 84 % of bars, its nearest preset first changing after a median of 37 minutes and about one change in five undone within a section, and no axis gliding faster than a quarter of a preset glide.
 - The engine's levels are machines at their own rates: the section plan (form, key and theme) per section, the band per bar, the transport per tick.
   The players' key wish is a standing target, not an event: `nextKey` applied twice gives what it gave once, so the band can read it at every section boundary.
   Where the players wish for no tonic and the mode playing, the band moves the key itself (`bandWish`, `plan.ts`, #169): `harmonicReach` (6 × `harm`, rounded) gives how many fifths, the entropy how readily (`KEY_JUMP` × entropy a section), and the harmonic history where to.
