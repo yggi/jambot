@@ -372,7 +372,7 @@ describe('session-start', () => {
     return { status: run.status, stdout: run.stdout, stderr: run.stderr };
   }
 
-  it('tells the agent, when the install leaves @yggi/cells missing, that the session lacks yggi/cells and how to attach it', () => {
+  it('tells the agent, when the install leaves @yggi/cells missing, that its fetch failed and to install again', () => {
     const { status, stdout } = sessionStart(
       'echo "fatal: could not read from yggi/cells"; exit 1',
       false,
@@ -381,9 +381,9 @@ describe('session-start', () => {
     expect(status).toBe(0);
     const line = stdout.split('\n')[0]!;
     expect(line).toContain('@yggi/cells is not installed');
-    expect(line).toContain('no access to the private repository yggi/cells');
-    expect(line).toContain('add_repo');
-    expect(line).toContain('pnpm install --frozen-lockfile');
+    expect(line).toContain('a public repository, failed on the network');
+    expect(line).not.toContain('private');
+    expect(line).toContain('run `pnpm install --frozen-lockfile` again');
     expect(stdout).toContain('session-start: dependencies incomplete, @yggi/cells missing');
   });
 

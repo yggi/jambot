@@ -22,7 +22,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - Agent sessions (Claude Code) install dependencies and Playwright's Chromium, warm music21 and fetch `origin/main` and their own branch at start, resume and compaction through `.claude/hooks/session-start.sh`.
   It also says how far the branch is behind `origin/main`, whether main already holds it, and whether its remote branch moved (`branch-status.sh`).
   And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
-  When the install lacks `@yggi/cells`, the session has no access to the private yggi/cells, and the hook's first line says so: attach yggi/cells (add_repo, or select it at the start), then `pnpm install --frozen-lockfile`.
+  When the install lacks `@yggi/cells`, its fetch from the public yggi/cells failed on the network or the proxy, and the hook's first line says so: run `pnpm install --frozen-lockfile` again.
   The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
 - Every `git push` of a branch runs `pnpm verify` first, through git's pre-push hook (`.githooks/pre-push`, about 85 s, the tests 60 s of it), and is blocked if it fails.
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.

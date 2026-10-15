@@ -18,9 +18,10 @@ if ! pnpm install --frozen-lockfile --prefer-offline >"$log" 2>&1; then
   tail -20 "$log" >&2
   installed=
 fi
-# The language, @yggi/cells, comes from a private repository the session may
-# not reach. That cause gets its own line on stdout, which the agent reads, and
-# the session goes on; any other failed install stops here.
+# The language, @yggi/cells, is fetched from its public repository, and a fetch
+# can fail on the network or the proxy. That cause gets its own line on stdout,
+# which the agent reads, and the session goes on; any other failed install
+# stops here.
 deps='dependencies installed'
 if ! sh "$(dirname "$0")/cells-access.sh"; then
   deps='dependencies incomplete, @yggi/cells missing (the line above)'
