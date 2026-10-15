@@ -106,8 +106,9 @@ Nothing checks these; you and the reviewer hold them.
   Where one of its values helps, a test records it as a literal. What is true is
   what the tests and the design say, and a deliberate difference from the
   prototype is fine when it is noted.
-- **The score language changes deliberately**: with tests, and after asking. It
-  is the contract between composer, compiler, analyzer and later models.
+- **The score language changes deliberately**: with tests, and after asking.
+  It is the contract between composer, compiler, analyzer and later models.
+  `packages/score`'s own spelling is frozen: fixes only, no new forms, until the seam (#309) replaces it with cells, since a form grown here would be one more spelling to migrate (D5, cells decision 037).
 - **Docs are written one sentence to a line.**
   Prettier keeps the line breaks (`proseWrap: "preserve"`), so a changed word
   touches one line, and two people editing one paragraph seldom conflict.
