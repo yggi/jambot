@@ -8,7 +8,11 @@
 # - It verifies the working tree, and the push sends the commit, so a dirty
 #   tracked tree is refused: commit first, and push the branch checked out.
 # - A tree that passed is remembered by its hash (in the git directory), so a
-#   push retried after a network failure does not run the tests again.
+#   push retried after a network failure does not run the tests again. `pnpm
+#   verify` run by hand remembers the tree it passed in the same file
+#   (tooling/verify.ts), so a push right after it does not run it again either.
+# - A push it lets through says so in one line, with the count of tests that
+#   passed, for the pull request to quote.
 # - A check that failed leaves its whole output in the git directory
 #   (`jambot-verify-failed.log`), named in the message: the last 40 lines
 #   shown may not reach the failure.
@@ -46,16 +50,20 @@ fi
 
 stamps="$(git rev-parse --absolute-git-dir)/jambot-verified"
 tree=$(git rev-parse 'HEAD^{tree}')
+short=$(git rev-parse --short "$tree")
 if grep -qx "$tree" "$stamps" 2>/dev/null; then
+  echo "pre-push: tree $short passed pnpm verify before, so it is not run again." >&2
   exit 0
 fi
 
 changed=$(git diff --name-only origin/main...HEAD 2>/dev/null) || changed=
 if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$'; then
   check="${JAMBOT_VERIFY_DOCS:-pnpm format:check && pnpm exec vitest run tooling}"
+  name='the docs check (markdown alone changed)'
   stamp=
 else
   check="${JAMBOT_VERIFY:-pnpm verify}"
+  name='pnpm verify'
   stamp=1
 fi
 
@@ -73,6 +81,12 @@ if ! sh -c "$check" >"$log" 2>&1; then
   echo "pre-push: full log: $kept" >&2
   exit 1
 fi
+# vitest's summary line, `Tests  12 passed (12)`, the one review-pr reads too.
+tests=$(sed -n 's/^ *Tests  *\([0-9][0-9]* failed | \)\{0,1\}\([0-9][0-9]*\) passed.*/\2/p' "$log" | tail -1)
 rm -f "$log"
-[ -n "$stamp" ] && echo "$tree" >>"$stamps"
+# verify remembers a tree it passed itself; a check put in its place does not.
+if [ -n "$stamp" ] && ! grep -qx "$tree" "$stamps" 2>/dev/null; then
+  echo "$tree" >>"$stamps"
+fi
+echo "pre-push: $name passed on tree $short${tests:+, $tests tests passed}, so the push goes ahead." >&2
 exit 0

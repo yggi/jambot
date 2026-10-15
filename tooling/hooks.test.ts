@@ -1,9 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { remember, workingTree } from './verify.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const failing = 'echo verify ran and failed; exit 1';
@@ -91,6 +100,43 @@ describe('pre-push', () => {
 
   it('lets a push through when verify passes', () => {
     expect(hook(repoWith(['a.ts'])).status).toBe(0);
+  });
+
+  it('says in one line that verify passed, with the count of tests, for the pull request to quote', () => {
+    const dir = repoWith(['a.ts']);
+    const passing =
+      'echo " Test Files  3 passed (3)"; echo "      Tests  1234 passed | 2 skipped (1236)"';
+    const { status, stderr } = hook(dir, 'head', { verify: passing });
+    expect(status).toBe(0);
+    const short = git(dir, 'rev-parse', '--short', 'HEAD^{tree}');
+    expect(stderr.trim()).toBe(
+      `pre-push: pnpm verify passed on tree ${short}, 1234 tests passed, so the push goes ahead.`,
+    );
+  });
+
+  it('says so for the docs check too, and leaves the count out where there is none', () => {
+    const { stderr } = hook(repoWith(['notes.md']));
+    expect(stderr.trim()).toMatch(
+      /^pre-push: the docs check \(markdown alone changed\) passed on tree \w+, so the push goes ahead\.$/,
+    );
+  });
+
+  it('does not run verify again on a tree a verify by hand passed, and says so', () => {
+    const dir = repoWith(['a.ts']);
+    // What `pnpm verify` does when it passes.
+    remember(dir, workingTree(dir)!);
+    const { status, stderr } = hook(dir, 'head', { verify: failing });
+    expect(status).toBe(0);
+    expect(stderr).toContain('passed pnpm verify before, so it is not run again');
+    expect(stderr).not.toContain('verify ran and failed');
+  });
+
+  it('finds a tree verify passed before its changes were committed', () => {
+    const dir = repoWith(['a.ts']);
+    writeFileSync(join(dir, 'a.ts'), 'edited\n');
+    remember(dir, workingTree(dir)!);
+    git(dir, 'commit', '-qam', 'edit');
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(0);
   });
 
   it.each([
@@ -265,5 +311,71 @@ describe('branch-status', () => {
     expect(branchStatus(dir)).toContain('origin/main unknown');
     git(dir, 'checkout', '-q', '--detach');
     expect(branchStatus(dir)).toBe('branch: detached HEAD');
+  });
+});
+
+describe('session-start', () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  /**
+   * Runs session-start.sh in a fresh repository, with `pnpm` and `uv` replaced
+   * by `pnpm` (shell) and a `uv` that fails, and `@yggi/cells` installed or not.
+   */
+  function sessionStart(pnpm: string, cells: boolean) {
+    const dir = repoWith([]);
+    const bin = mkdtempSync(join(tmpdir(), 'jambot-bin-'));
+    dirs.push(bin);
+    for (const [name, body] of [
+      ['pnpm', pnpm],
+      ['uv', 'exit 1'],
+    ] as const) {
+      writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`);
+      chmodSync(join(bin, name), 0o755);
+    }
+    if (cells) {
+      mkdirSync(join(dir, 'packages/score/node_modules/@yggi/cells'), { recursive: true });
+      writeFileSync(join(dir, 'packages/score/node_modules/@yggi/cells/package.json'), '{}');
+    }
+    writeFileSync(join(dir, 'AGENTS.md'), 'rules\n');
+    mkdirSync(join(dir, 'docs'));
+    writeFileSync(join(dir, 'docs/MEMORY.md'), 'memory\n');
+    const run = spawnSync('sh', [`${root}/.claude/hooks/session-start.sh`], {
+      cwd: dir,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: dir, PATH: `${bin}:${process.env.PATH}` },
+      encoding: 'utf8',
+    });
+    return { status: run.status, stdout: run.stdout, stderr: run.stderr };
+  }
+
+  it('tells the agent, when the install leaves @yggi/cells missing, that the session lacks yggi/cells and how to attach it', () => {
+    const { status, stdout } = sessionStart(
+      'echo "fatal: could not read from yggi/cells"; exit 1',
+      false,
+    );
+    // stdout reaches the agent only when the hook exits 0.
+    expect(status).toBe(0);
+    const line = stdout.split('\n')[0]!;
+    expect(line).toContain('@yggi/cells is not installed');
+    expect(line).toContain('no access to the private repository yggi/cells');
+    expect(line).toContain('add_repo');
+    expect(line).toContain('pnpm install --frozen-lockfile');
+    expect(stdout).toContain('session-start: dependencies incomplete, @yggi/cells missing');
+  });
+
+  it('says nothing of yggi/cells when the install holds it', () => {
+    const { status, stdout } = sessionStart('exit 0', true);
+    expect(status).toBe(0);
+    expect(stdout).not.toContain('yggi/cells');
+    expect(stdout).toContain('session-start: dependencies installed');
+  });
+
+  it('stops on an install that fails for another reason', () => {
+    const { status, stderr } = sessionStart('echo "ERR_PNPM_OUTDATED_LOCKFILE"; exit 1', true);
+    expect(status).toBe(1);
+    expect(stderr).toContain('ERR_PNPM_OUTDATED_LOCKFILE');
+    expect(stderr).toContain('pnpm install failed');
   });
 });

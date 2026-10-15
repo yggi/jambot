@@ -78,10 +78,10 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `.github/workflows/ci.yml`: `pnpm verify` in one job on a ready pull request, a witness to the pre-push hook; e2e by hand
   - `.github/ISSUE_TEMPLATE/`: the epic, design, bug and infrastructure issue forms, one per label
   - [`.github/pull_request_template.md`](../.github/pull_request_template.md): the checklist every pull request fills in
-- `.githooks/pre-push`: runs `pnpm verify` before a `git push` of a branch, and blocks the push if it fails; refuses a dirty tree, remembers a tree that passed, and runs the docs check alone for a markdown-only branch
+- `.githooks/pre-push`: runs `pnpm verify` before a `git push` of a branch, and blocks the push if it fails; refuses a dirty tree, remembers a tree that passed (as `pnpm verify` does), says what passed with its count of tests, and runs the docs check alone for a markdown-only branch
 - `.claude/`
   - `.claude/settings.json`: the session-start hook, the GitHub tools denied, and the checks agents may run without a prompt
-  - `.claude/hooks/`: session start, resume and compaction, and the branch status line
+  - `.claude/hooks/`: session start, resume and compaction, the branch status line, and the check that the install holds `@yggi/cells`
   - `.claude/skills/`: project skills for agents
     - `.claude/skills/lobby-deploy/`: deploys the lobby to Fly.io from a session, and checks it answers
     - `.claude/skills/music-theory/`: checks theory claims against music21 and tonal
