@@ -22,11 +22,13 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - Agent sessions (Claude Code) install dependencies and Playwright's Chromium, warm music21 and fetch `origin/main` and their own branch at start, resume and compaction through `.claude/hooks/session-start.sh`.
   It also says how far the branch is behind `origin/main`, whether main already holds it, and whether its remote branch moved (`branch-status.sh`).
   And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
-  Other agents run `pnpm install --frozen-lockfile` first, and so does a git worktree: the hook installs only the checkout the session opened.
+  When the install lacks `@yggi/cells`, the session has no access to the private yggi/cells, and the hook's first line says so: attach yggi/cells (add_repo, or select it at the start), then `pnpm install --frozen-lockfile`.
+  The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
 - Every `git push` of a branch runs `pnpm verify` first, through git's pre-push hook (`.githooks/pre-push`, about 85 s, the tests 60 s of it), and is blocked if it fails.
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
   It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
-  A tree that passed is remembered, so a retried push does not rerun it; only the hook remembers, so a `pnpm verify` run by hand before a push is run again by it.
+  A tree that passed is remembered in the git directory (`jambot-verified`), by the hook and by a `pnpm verify` run by hand, so neither a retried push nor one right after a verify runs it again.
+  A push it lets through prints one line with the count of tests passed, and verify's last line names it too, for the pull request to quote.
   A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
   A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone.
   The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.

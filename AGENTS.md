@@ -78,7 +78,7 @@ These principles come from the prototype
 - **`pnpm verify` before pushing.**
   It runs everything but the end-to-end checks (below), and it is the gate: the pull request names the commit that passed it.
   CI runs the same on a ready pull request as a witness, and a run blocked for want of Actions minutes says nothing (`docs/memory/repository-and-ci.md`).
-  A fresh checkout needs `pnpm install --frozen-lockfile` first (seconds): install, never skip the tests.
+  A checkout without `node_modules`, such as a fresh git worktree, gets `pnpm install --frozen-lockfile` from `pnpm verify` first (seconds): install, never skip the tests.
   Claude Code sessions do this at start through `.claude/hooks/session-start.sh`.
   Git's own pre-push hook, `.githooks/pre-push` (`pnpm install` points `core.hooksPath` at it), runs `pnpm verify` before every push of a branch and blocks one that fails.
   Never bypass it with `--no-verify`.
