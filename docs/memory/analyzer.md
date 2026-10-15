@@ -4,6 +4,7 @@ Facts about `packages/analyzer`.
 
 ## The analyzer
 
+- Writing a MIDI file as text is the folder's (MIDI → cells text), so yggi/cells' (D2, cells decision 037; yggi/music-commons#14, ruling 5); the analyzer keeps live hearing (the Muse) and its step grid.
 - `packages/analyzer` (#141) is pure, like `theory`, `engine`, `score` and `session`: `loadMidi` runs the analyzer brief's steps 1–3: drop empty and duplicate tracks, split the file into meter spans, quantise every 4/4 span onto the step grid through the engine's own `barAt`/`stepInBar` (T10, never `/16` or `%16` again), and read each track's part role.
   Every other meter is counted and reported, never forced onto the grid or dropped silently.
   `loadMidi`'s own `RawMidi` input, and `parseSmf` (`smf.ts`) that builds one from real Standard MIDI File bytes, both stay in `src/`: `midi-file`, the parser, is itself pure byte-array code (no Node or DOM API), so only reading a file's bytes off disk is a loader outside the package (`experiments/load-file.ts`, milestone 3, run with `node --experimental-strip-types --no-warnings packages/analyzer/experiments/load-file.ts <path>`).
