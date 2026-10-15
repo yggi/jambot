@@ -177,6 +177,10 @@ describe('the player', () => {
     expect(player.timing.missed).toBe(0);
   });
 
+  // Its clock is the test's own, so its time is the CPU's, composing an hour:
+  // 2.4 to 3.1 s alone over 10 runs, 6.0 to 7.4 s beside two full test runs,
+  // and once past 15 s as one of three full runs started together on the same
+  // 4 cores (#320). The timeout is ten times the slowest run alone.
   it('builds up no backlog while no frame shows, as in a hidden tab', async () => {
     // A Worker keeps ticking in a hidden tab, but no animation frame runs.
     const { world, s } = surroundings();
@@ -191,7 +195,7 @@ describe('the player', () => {
     expect(player.backlog).toBeLessThan(20);
     world.frames[0]!.follow();
     expect(player.hud.beat).not.toBeNull();
-  });
+  }, 30_000);
 
   it("hears a preset's mode from the next section on, and shows the chords (C5)", async () => {
     const { world, s } = surroundings();
