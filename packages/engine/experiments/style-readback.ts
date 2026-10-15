@@ -37,6 +37,8 @@ import {
   SECTION_BARS,
   type Style,
   type StyleTrack,
+  type StyleReading,
+  type TimingReading,
   band,
   barStart,
   glideTo,
@@ -61,8 +63,6 @@ export interface Sample {
   readonly sync: number | undefined;
   readonly artic: number | undefined;
   readonly density: number;
-  /** The `harm` read from the chords the notes sound (`readHarm`). */
-  readonly harm: number | undefined;
 }
 
 /** The band's bars, each composed at `styleOf(bar)` and read back. */
@@ -207,12 +207,10 @@ function main() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
 
 /** One bar as the clock laid it: the style at its start, and the timing `readTiming` read. */
-export interface TimingSample extends Partial<Pick<Sample, 'sync' | 'artic'>> {
+export interface TimingSample extends StyleReading, TimingReading {
   readonly style: Style;
-  /** The bar's notes as read by `readStyle`, from the bar the transport composed. */
-  readonly density: number;
-  readonly bpm: number | undefined;
-  readonly swing: number | undefined;
+  /** The `harm` read from the chords the notes sound (`readHarm`). */
+  readonly harm?: number;
 }
 
 /** The bars of a run through the transport, each read against the style at its start. */
@@ -239,15 +237,12 @@ export function timingSamples(track: StyleTrack, seed: number, bars: number): Ti
     const steps = laid.filter((s) => Math.floor(s.step / 16) === bar);
     const onsets = events.filter((e) => e.bar === bar).map((e) => e.seconds);
     const dough = composed.get(bar)!.dough;
-    const { density, sync, artic } = readStyle(dough);
     const chords = readHarm(dough, before);
     before = chords?.chords.at(-1) ?? before;
     return {
       style: styleAt(track, barStart(bar)),
-      density,
-      harm: chords?.harm,
-      sync,
-      artic,
+      ...readStyle(dough),
+      ...(chords === undefined ? {} : { harm: chords.harm }),
       ...readTiming(steps, onsets),
     };
   });

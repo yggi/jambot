@@ -50,7 +50,7 @@ const motifIn = (judgements: readonly Judgement[]): Motif | null => {
   const j = judgements.find((x) => x.kind === 'motif');
   return j?.kind === 'motif' ? j.motif : null;
 };
-const same = (a: Motif | null, b: Motif | null) =>
+const same = (a: object | null, b: object | null) =>
   a !== null && b !== null && JSON.stringify(a) === JSON.stringify(b);
 /** A motif as what was played, apart from how loudly. */
 const plainly = (m: Motif | null) => m && { ...m, accents: undefined };

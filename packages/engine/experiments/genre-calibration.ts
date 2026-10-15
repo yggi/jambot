@@ -44,19 +44,23 @@ const axesOf = (s: Pick<TimingSample, 'density' | 'sync' | 'artic' | 'bpm' | 'sw
 /** The mean reading of some bars: the mean of each axis over the bars that have it. */
 function meanReading(part: readonly TimingSample[]) {
   const at = (key: 'sync' | 'artic' | 'bpm' | 'swing' | 'harm') =>
-    part.flatMap((s) => (s[key] === undefined ? [] : [s[key]!]));
-  const [sync, artic, bpm, swing, harm] = (['sync', 'artic', 'bpm', 'swing', 'harm'] as const).map(
-    (k) => mean(at(k)),
-  );
-  return { density: mean(part.map((s) => s.density)), sync, artic, bpm, swing, harm };
+    mean(part.flatMap((s) => (s[key] === undefined ? [] : [s[key]])));
+  return {
+    density: mean(part.map((s) => s.density)),
+    sync: at('sync'),
+    artic: at('artic'),
+    bpm: at('bpm'),
+    swing: at('swing'),
+    harm: at('harm'),
+  };
 }
 
 const landmarkOf = (read: ReturnType<typeof meanReading>): Landmark['at'] => ({
   energy: energyOf(read.density),
-  sync: read.sync!,
-  artic: read.artic!,
-  swing: read.swing!,
-  bpm: bpmUnit(read.bpm!),
+  sync: read.sync,
+  artic: read.artic,
+  swing: read.swing,
+  bpm: bpmUnit(read.bpm),
   harm: read.harm,
 });
 

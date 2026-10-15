@@ -19,6 +19,14 @@ How a gate is shown to fire, and the checks that back the house rules.
   A test that takes the code under test as its own oracle (`snap` checking `snap`) pins nothing; find the answer by brute force instead, and show it fire by mutation.
 - A sweep of two axes on a grid of 60ths against every style of `EVERY` outruns the 5 s test timeout: sweep the plane over the presets' styles, and show that nothing else is read over `EVERY` once (`licence.test.ts`).
 
+## Experiments
+
+- An experiment is a script under a package's `experiments/`, outside its pure `src/`, with its entry and E number in [`language-experiments.md`](../language-experiments.md).
+- `pnpm verify` typechecks every `packages/*/experiments/*.ts`: tooling's `check` runs `tooling/tsconfig.experiments.json`, with the base config's strictness and Node's types (`tooling/experiments.test.ts`).
+  Node's `--experimental-strip-types` drops types without checking them, so a stale experiment runs on without this.
+- An experiment that reads two packages lives in the `experiments/` of the package whose question it answers, imports that package from `../src/` and the other by its name, and the home package lists the other in its `devDependencies`.
+  E31 states the band's drums in the score's language, so it lives in `packages/score/experiments/` and reads `@jambot/engine`.
+
 ## Running the checks beside agents
 
 - Agents started with `isolation: worktree` work under `.claude/worktrees/`, which the checks leave out (#192, #199).
