@@ -77,10 +77,9 @@ What these say fails a check, usually inside `pnpm verify`; the check's own test
   Claude Code sessions do this at start through `.claude/hooks/session-start.sh`.
   Git's own pre-push hook, `.githooks/pre-push` (`pnpm install` points `core.hooksPath` at it), runs `pnpm verify` before every push of a branch and blocks one that fails.
   Never bypass it with `--no-verify`.
-- **Theory, engine, score, session and spectrum stay pure.** `packages/theory`,
-  `packages/engine`, `packages/score`, `packages/session` and `packages/spectrum`
-  use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
-  randomness goes through `random.ts`, keyed by seed and position.
+- **Theory, engine, score, session, spectrum and the analyzer stay pure.**
+  `packages/theory`, `packages/engine`, `packages/score`, `packages/session`, `packages/spectrum` and `packages/analyzer` use no DOM, Web Audio, timers or Node APIs, and lint enforces it (`pureSources` in `eslint.config.js`).
+  All randomness goes through `random.ts`, keyed by seed and position.
 - **The shared memory's own checks** (below): every doc and directory of code in `docs/INDEX.md` and a header on every source file (`tooling/index-coverage.ts`), the boot set under 24 KB (`tooling/reading-list.ts`).
   And a risky `Math` call in a pure package is named in an audit (`tooling/quantized-math.ts`); Prettier owns whitespace, ESLint has no errors, and the packages, the app, the tooling and the experiments typecheck.
 
