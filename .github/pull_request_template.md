@@ -4,7 +4,11 @@
 
 ## Issues
 
-<!-- Closes #…, Part of #…, or "none". -->
+<!--
+Closes #n for an issue this finishes; Part of #n for one rung of an epic or a
+plan, whose checklist keeps it open (an issue elsewhere: Part of owner/repo#n).
+Or "none".
+-->
 
 ## Findings
 
@@ -23,7 +27,8 @@ generalization), or "nothing seen". -->
 Lint, the wrap of prose, the purity of the pure packages and the index of docs
 are checked by `pnpm verify`; tick only what nothing checks for you.
 
-- [ ] `pnpm verify` passes at the head commit: <!-- short SHA, test count -->
+- [ ] `pnpm verify` passes at the head commit: <!-- short SHA --> with
+      <!-- N --> tests passed, the count the pre-push hook prints
       (the gate: `.githooks/pre-push` runs it before a push; CI is a witness, and a run blocked
       for minutes says nothing, see `docs/memory/repository-and-ci.md`)
 - [ ] `pnpm e2e` passes, if the change touches what the app plays or when
