@@ -486,7 +486,7 @@ const row = (name: string, t: Totals) =>
   `   ${name.padEnd(10)} ${String(t.bars).padStart(5)} bars  pairs ${String(t.pairs).padStart(6)}  dense ${String(t.dense).padStart(6)} (${((100 * t.dense) / t.pairs).toFixed(1)}%)  collapsed ${String(t.collapsed).padStart(6)} (${((100 * t.collapsed) / t.pairs).toFixed(1)}%)`;
 console.log('\n1. Tokens a bar, in three forms');
 console.log(row('all', total));
-for (const [section, t] of sorted(bySection)) console.log(row(section, t));
+for (const [section, t] of sorted(bySection)) console.log(row(String(section), t));
 console.log(`   expand(collapse(row)) = row: ${pct(roundTrips, bars.length)}`);
 console.log(
   `   dense level (cells): ${sorted(denseLevels)

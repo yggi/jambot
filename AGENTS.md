@@ -66,7 +66,27 @@ These principles come from the prototype
   players to Muse to composer and back to players. A structure that works at one
   level is the first candidate at the next.
 
-### Practice
+### Enforced: a check says so
+
+What these say fails a check, usually inside `pnpm verify`; the check's own test shows it firing.
+
+- **`pnpm verify` before pushing.**
+  It runs everything but the end-to-end checks (below), and it is the gate: the pull request names the commit that passed it.
+  CI runs the same on a ready pull request as a witness, and a run blocked for want of Actions minutes says nothing (`docs/memory/repository-and-ci.md`).
+  A checkout without `node_modules`, such as a fresh git worktree, gets `pnpm install --frozen-lockfile` from `pnpm verify` first (seconds): install, never skip the tests.
+  Claude Code sessions do this at start through `.claude/hooks/session-start.sh`.
+  Git's own pre-push hook, `.githooks/pre-push` (`pnpm install` points `core.hooksPath` at it), runs `pnpm verify` before every push of a branch and blocks one that fails.
+  Never bypass it with `--no-verify`.
+- **Theory, engine, score, session and spectrum stay pure.** `packages/theory`,
+  `packages/engine`, `packages/score`, `packages/session` and `packages/spectrum`
+  use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
+  randomness goes through `random.ts`, keyed by seed and position.
+- **The shared memory's own checks** (below): every doc and directory of code in `docs/INDEX.md` and a header on every source file (`tooling/index-coverage.ts`), the boot set under 24 KB (`tooling/reading-list.ts`).
+  And a risky `Math` call in a pure package is named in an audit (`tooling/quantized-math.ts`); Prettier owns whitespace, ESLint has no errors, and the packages, the app, the tooling and the experiments typecheck.
+
+### Judgment: you do
+
+Nothing checks these; you and the reviewer hold them.
 
 - **Tests first.** A behaviour gets its test before its code. Tests describe
   behaviour through public functions, not internals, so they survive refactoring
@@ -75,13 +95,6 @@ These principles come from the prototype
   gathers constraints run side by side without waiting for each other. What one
   finds goes to the other, and a test on `main` holds it. See
   [`docs/ratchet.md`](docs/ratchet.md).
-- **`pnpm verify` before pushing.**
-  It runs everything but the end-to-end checks (below), and it is the gate: the pull request names the commit that passed it.
-  CI runs the same on a ready pull request as a witness, and a run blocked for want of Actions minutes says nothing (`docs/memory/repository-and-ci.md`).
-  A checkout without `node_modules`, such as a fresh git worktree, gets `pnpm install --frozen-lockfile` from `pnpm verify` first (seconds): install, never skip the tests.
-  Claude Code sessions do this at start through `.claude/hooks/session-start.sh`.
-  Git's own pre-push hook, `.githooks/pre-push` (`pnpm install` points `core.hooksPath` at it), runs `pnpm verify` before every push of a branch and blocks one that fails.
-  Never bypass it with `--no-verify`.
 - **`pnpm e2e` when what the app plays, or when, changes.** The end-to-end
   checks run the built app in Chromium and measure its audio: the exact time of
   every onset, and whether the band sounds and stops. They take about 20 s and
@@ -90,10 +103,6 @@ These principles come from the prototype
   the player, the audio or the page, and on a pull request that touches those. A
   fresh checkout needs `pnpm exec playwright install chromium` once; Claude Code
   sessions do it at start.
-- **Theory, engine, score, session and spectrum stay pure.** `packages/theory`,
-  `packages/engine`, `packages/score`, `packages/session` and `packages/spectrum`
-  use no DOM, Web Audio, timers or Node APIs, and lint enforces it. All
-  randomness goes through `random.ts`, keyed by seed and position.
 - **The prototype is a baseline, not a source of truth.** It orients the port.
   Where one of its values helps, a test records it as a literal. What is true is
   what the tests and the design say, and a deliberate difference from the
@@ -109,11 +118,6 @@ These principles come from the prototype
   in the reason. Update docs in the same commit as the code they describe.
 - **Don't speculate in docs.** If something is not known yet, leave the section
   open and say so.
-- **Fix trivial nits, don't report them.** A stray space, a typo, a stale
-  one-line reference: fix it in the branch under review, or leave it alone.
-  Flagging it costs the author a round trip for something that costs less to fix
-  than to describe. Save review comments for what needs a decision or a real
-  change.
 - **Small commits, pull requests into `main`.** No ceremony beyond passing
   checks. See "Branches and merging" below.
 - **Deploy after merging.** Whoever merges a pull request into `main` then runs
@@ -123,6 +127,20 @@ These principles come from the prototype
   isn't on `origin/main`, runs `pnpm verify`, and checks the live site once
   Pages has published it. When the build hasn't changed, it pushes nothing and
   only checks.
+
+### What to do with what you find
+
+<!-- Lifted from yggi/cell-studio AGENTS.md @ 5c7c4da: the split above and this ladder, adapted. -->
+
+Climb only as far as the change needs:
+
+- **Just do, no comment:** a stray space, a typo, a stale one-line reference, a local rename, an added test, a check you broke.
+  Fix it in the branch under review, or leave it alone: flagging it costs the author a round trip for something that costs less to fix than to describe.
+  Save review comments for what needs a decision or a real change.
+- **Do, and say so in the pull request:** a fix beside your change that it needs, or a deliberate difference from the prototype.
+- **File an issue instead of widening the pull request:** anything out of scope you notice.
+- **Stop, push back and recommend:** a change to the score language or to what the band plays beyond the issue, to the purity of the pure packages or the layering, a scope far beyond the issue, and anything irreversible or outward-facing (history on `main`, a permission, a merge nobody asked for).
+  Say what you recommend on the issue, and wait for the answer.
 
 ### Branches and merging
 
@@ -155,3 +173,4 @@ These principles come from the prototype
 - A change of direction goes into `docs/ROADMAP.md`.
 - Concrete work goes into an issue. Epics carry a checklist, labelled `epic`;
   other labels are `bug`, `infra` and `design`.
+- An issue meant for an agent states each bound as a number (how many bars, seeds or files, how long, how far a measure may move), or says "choose it and name it", so the agent picks one and names it in the pull request.

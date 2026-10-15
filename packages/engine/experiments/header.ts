@@ -76,6 +76,7 @@ const run = (seed: number, read: (style: Style) => Style): BandBar[] => {
         bar,
         style: read(styles[bar]!),
         wish: { tonic: null, mode: modeAt(bar), melodic: null },
+        offer: null,
       },
       carried,
       null,
@@ -133,12 +134,19 @@ for (const decimals of [2, 3]) {
           bar,
           style: onGrid(styles[bar]!, decimals),
           wish: { tonic: null, mode: modeAt(bar), melodic: null },
+          offer: null,
         },
         carried,
         null,
       );
       carried = band.advance(
-        { seed, bar, style: styles[bar]!, wish: { tonic: null, mode: modeAt(bar), melodic: null } },
+        {
+          seed,
+          bar,
+          style: styles[bar]!,
+          wish: { tonic: null, mode: modeAt(bar), melodic: null },
+          offer: null,
+        },
         carried,
         null,
       ).carried;

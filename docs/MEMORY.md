@@ -22,15 +22,16 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - Agent sessions (Claude Code) install dependencies and Playwright's Chromium, warm music21 and fetch `origin/main` and their own branch at start, resume and compaction through `.claude/hooks/session-start.sh`.
   It also says how far the branch is behind `origin/main`, whether main already holds it, and whether its remote branch moved (`branch-status.sh`).
   And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
-  When the install lacks `@yggi/cells`, the session has no access to the private yggi/cells, and the hook's first line says so: attach yggi/cells (add_repo, or select it at the start), then `pnpm install --frozen-lockfile`.
+  When the install lacks `@yggi/cells`, its fetch from the public yggi/cells failed on the network or the proxy, and the hook's first line says so: run `pnpm install --frozen-lockfile` again.
   The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
 - Every `git push` of a branch runs `pnpm verify` first, through git's pre-push hook (`.githooks/pre-push`, about 85 s, the tests 60 s of it), and is blocked if it fails.
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
   It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
   A tree that passed is remembered in the git directory (`jambot-verified`), by the hook and by a `pnpm verify` run by hand, so neither a retried push nor one right after a verify runs it again.
+  The tree is that of every file verify saw, untracked ones too, so a commit that leaves out a new file verify passed with is verified again.
   A push it lets through prints one line with the count of tests passed, and verify's last line names it too, for the pull request to quote.
   A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
-  A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone.
+  A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone (`pnpm verify --docs`, which installs first and prints its summary line too).
   The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
 - Two gates that show themselves only by failing: a `Math.pow`, `log`, `exp`, `sin` or similar call in a pure package fails until `tooling/quantized-math.ts`'s audit names it with why it is safe ([testing](memory/testing.md)), and a new experiment takes the next E number after the highest in [`language-experiments.md`](language-experiments.md), where its entry goes.
 - To review a pull request, use the `review-pr` skill: `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`, checks it out in its own worktree and runs `pnpm verify` there.

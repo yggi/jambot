@@ -43,7 +43,8 @@ const envOf = (seed: number, bar: number, style: Style, mode: KeyWish['mode']): 
   seed,
   bar,
   style,
-  wish: { tonic: null, mode },
+  wish: { tonic: null, mode, melodic: null },
+  offer: null,
 });
 
 // 1. Lengths and velocities, with each preset's style held.

@@ -107,7 +107,7 @@ Trivial nits (a stray space, a typo, a stale one-line reference) don't get a
 review comment at all: fix them directly in the worktree and let them ride the
 merge, or leave them alone if you can't push to the branch. A comment for one of
 these costs the author a round trip for less than the fix itself would have cost
-(AGENTS.md, "Fix trivial nits, don't report them"). Reserve inline comments for
+(AGENTS.md, the ladder's first rung, "Just do, no comment"). Reserve inline comments for
 findings that need a decision or a real change.
 
 End every comment with the Claude Code footer.

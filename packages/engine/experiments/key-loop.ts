@@ -153,7 +153,8 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
     preset: preset.name,
     jumpRate: jumps.length / boundaries,
     widestJump: Math.max(0, ...jumps),
-    reach: harmonicReach(preset.style),
+    // The reach reads `harm` alone, so the entropy, which a preset leaves to the players, is moot.
+    reach: harmonicReach({ ...preset.style, entropy: 0 }),
     meanJump: mean(jumps),
     jumpBack: later === 0 ? 0 : backs / later,
     centreLag: mean(lags),

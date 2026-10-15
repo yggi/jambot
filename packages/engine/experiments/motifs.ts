@@ -128,6 +128,7 @@ for (const seed of SEEDS)
           bar,
           style: { ...preset.style, entropy: (bar % 32) / 32 },
           wish: { tonic: null, mode: preset.mode, melodic: null } as KeyWish,
+          offer: null,
         },
         carried,
         null,
