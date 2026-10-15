@@ -71,6 +71,7 @@ entry names the file of every test that cites it.
 
 The catalogue is split by layer, so each file is read alone and follows #116's two towers.
 An entry's id is unique across all of them and `quinetic.md`, and does not change when an entry moves between files.
+The catalogues stay Jambot's as the language moves to [yggi/cells](https://github.com/yggi/cells): they are claims about Jambot's own score format and engine, with ids the pawl's tests cite, and a claim cells adopts gets a cells decision record that cites its id (yggi/music-commons#14, ruling 2).
 
 | File                                             | What it holds                                                      | Entries        |
 | ------------------------------------------------ | ------------------------------------------------------------------ | -------------- |

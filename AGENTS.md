@@ -106,8 +106,9 @@ Nothing checks these; you and the reviewer hold them.
   Where one of its values helps, a test records it as a literal. What is true is
   what the tests and the design say, and a deliberate difference from the
   prototype is fine when it is noted.
-- **The score language changes deliberately**: with tests, and after asking. It
-  is the contract between composer, compiler, analyzer and later models.
+- **The score language changes deliberately**: with tests, and after asking.
+  It is the contract between composer, compiler, analyzer and later models.
+  `packages/score`'s own spelling is frozen: fixes only, no new forms, until the seam (#309) replaces it with cells, since a form grown here would be one more spelling to migrate (D5, cells decision 037).
 - **Docs are written one sentence to a line.**
   Prettier keeps the line breaks (`proseWrap: "preserve"`), so a changed word
   touches one line, and two people editing one paragraph seldom conflict.
@@ -172,4 +173,5 @@ Climb only as far as the change needs:
 - A change of direction goes into `docs/ROADMAP.md`.
 - Concrete work goes into an issue. Epics carry a checklist, labelled `epic`;
   other labels are `bug`, `infra` and `design`.
+- An open question about what the score language means or how it is spelled is filed in [yggi/cells](https://github.com/yggi/cells/issues), not here (D5 on #309, cells decision 037).
 - An issue meant for an agent states each bound as a number (how many bars, seeds or files, how long, how far a measure may move), or says "choose it and name it", so the agent picks one and names it in the pull request.

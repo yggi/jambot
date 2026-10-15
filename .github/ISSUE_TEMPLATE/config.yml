@@ -1,1 +1,5 @@
 blank_issues_enabled: true
+contact_links:
+  - name: A language question → yggi/cells issues
+    url: https://github.com/yggi/cells/issues
+    about: What the score language means or how it is spelled is decided in yggi/cells (D5 on #309, cells decision 037).
