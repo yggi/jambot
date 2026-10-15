@@ -28,6 +28,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
   It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
   A tree that passed is remembered in the git directory (`jambot-verified`), by the hook and by a `pnpm verify` run by hand, so neither a retried push nor one right after a verify runs it again.
+  The tree is that of every file verify saw, untracked ones too, so a commit that leaves out a new file verify passed with is verified again.
   A push it lets through prints one line with the count of tests passed, and verify's last line names it too, for the pull request to quote.
   A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
   A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone.

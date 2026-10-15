@@ -139,6 +139,23 @@ describe('pre-push', () => {
     expect(hook(dir, 'head', { verify: failing }).status).toBe(0);
   });
 
+  it('verifies again a commit that leaves out a file a verify by hand passed with', () => {
+    const dir = repoWith(['a.ts']);
+    writeFileSync(join(dir, 'new.ts'), 'n\n');
+    remember(dir, workingTree(dir)!);
+    const { status, stderr } = hook(dir, 'head', { verify: failing });
+    expect(status).toBe(1);
+    expect(stderr).toContain('verify ran and failed');
+  });
+
+  it("does not remember HEAD's tree when its check saw an untracked file", () => {
+    const dir = repoWith(['a.ts']);
+    writeFileSync(join(dir, 'new.ts'), 'n\n');
+    expect(hook(dir).status).toBe(0);
+    rmSync(join(dir, 'new.ts'));
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
+  });
+
   it.each([
     ['deleting a branch', { local: zero, remote: 'refs/heads/work' }],
     ['pushing a tag', { remote: 'refs/tags/v1' }],

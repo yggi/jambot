@@ -134,10 +134,33 @@ describe('the tree verify passed', () => {
     return dir;
   }
 
-  it("is HEAD's tree when nothing tracked has changed, untracked files aside", () => {
+  it("is HEAD's tree when nothing has changed, ignored files aside", () => {
     const dir = repo();
+    writeFileSync(join(dir, '.gitignore'), 'scratch.txt\n');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-qm', 'ignore');
     writeFileSync(join(dir, 'scratch.txt'), 'x\n');
     expect(workingTree(dir)).toBe(git(dir, 'rev-parse', 'HEAD^{tree}'));
+  });
+
+  it('holds an untracked file, so a commit that leaves it out has another tree, and one that adds it this one', () => {
+    const dir = repo();
+    writeFileSync(join(dir, 'new.ts'), 'n\n');
+    const tree = workingTree(dir);
+    expect(tree).not.toBe(git(dir, 'rev-parse', 'HEAD^{tree}'));
+    git(dir, 'add', 'new.ts');
+    git(dir, 'commit', '-qm', 'new');
+    expect(git(dir, 'rev-parse', 'HEAD^{tree}')).toBe(tree);
+  });
+
+  it('leaves the real index alone', () => {
+    const dir = repo();
+    writeFileSync(join(dir, 'new.ts'), 'n\n');
+    writeFileSync(join(dir, 'a.ts'), 'edited\n');
+    const before = git(dir, 'status', '--porcelain');
+    workingTree(dir);
+    expect(git(dir, 'status', '--porcelain')).toBe(before);
+    expect(before).toContain('?? new.ts');
   });
 
   it('is the tree the commit of the changes on disk will have, so the push of that commit finds it', () => {

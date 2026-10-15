@@ -14,10 +14,20 @@
  * A checkout with no `node_modules`, as a git worktree an agent opens, is
  * installed first (`plan`). A tree that passed is remembered where the
  * pre-push hook (`.githooks/pre-push`) keeps its own, so a push right after a
- * verify by hand doesn't run it again (`workingTree`, `remember`).
+ * verify by hand doesn't run it again (`workingTree`, `remember`). The tree is
+ * that of every file verify saw, untracked ones too, so a commit that leaves
+ * one out is verified again.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -114,30 +124,43 @@ export function report(
   return lines.join('\n');
 }
 
-function git(dir: string, ...args: string[]): string {
-  const run = spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+function git(dir: string, args: readonly string[], env: NodeJS.ProcessEnv = process.env): string {
+  const run = spawnSync('git', args, { cwd: dir, encoding: 'utf8', env });
   if (run.status !== 0) throw new Error(`git ${args.join(' ')}: ${run.stderr}`);
   return run.stdout.trim();
 }
 
 /**
- * The tree of the tracked files as they stand on disk: HEAD's when none has
- * changed, else the tree a commit of every change would have (`git stash
- * create` writes it and moves no ref). Untracked files are not in it, as the
- * pre-push hook doesn't look at them either. Undefined outside a repository
- * or before the first commit.
+ * The tree of every file verify sees, as it stands on disk: tracked or not,
+ * but not ignored, written as a git tree through a scratch index, so the real
+ * index is left alone. A commit of exactly those files has this tree, and the
+ * pre-push hook finds it; a commit that leaves out a new file verify passed
+ * with has another, and is verified again. A copy of the real index keeps its
+ * file stats, so only what changed is hashed again. Undefined outside a
+ * repository.
+ *
+ * Lifted from yggi/cells tools/verified.sh @ 2b4db57 (its `tree`).
  */
 export function workingTree(dir: string): string | undefined {
+  const scratch = mkdtempSync(join(tmpdir(), 'jambot-tree-'));
   try {
-    return git(dir, 'rev-parse', `${git(dir, 'stash', 'create') || 'HEAD'}^{tree}`);
+    const top = git(dir, ['rev-parse', '--show-toplevel']);
+    const index = join(scratch, 'index');
+    const real = resolve(top, git(top, ['rev-parse', '--git-path', 'index']));
+    if (existsSync(real)) copyFileSync(real, index);
+    const env = { ...process.env, GIT_INDEX_FILE: index };
+    git(top, ['add', '-A', '.'], env);
+    return git(top, ['write-tree'], env);
   } catch {
     return undefined;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 }
 
 /** The pre-push hook's record of the trees that passed: one hash to a line, in the git directory. */
 export function stampsPath(dir: string): string {
-  return join(git(dir, 'rev-parse', '--absolute-git-dir'), 'jambot-verified');
+  return join(git(dir, ['rev-parse', '--absolute-git-dir']), 'jambot-verified');
 }
 
 /** Records `tree` as passed, once, where the pre-push hook looks before running verify. */
