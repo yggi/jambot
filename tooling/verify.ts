@@ -53,6 +53,17 @@ export const GROUPS: Stage[][] = [
   [{ name: 'test', command: 'pnpm test' }],
 ];
 
+/**
+ * `pnpm verify --docs`: what the pre-push hook runs for a branch that changes
+ * markdown alone, the format check and then the tooling tests (the pawl over
+ * the catalogues among them). It installs first and reports as verify does,
+ * but remembers no tree, since it is not the whole check.
+ */
+export const DOCS_GROUPS: Stage[][] = [
+  [{ name: 'format', command: 'pnpm format:check' }],
+  [{ name: 'test', command: 'pnpm exec vitest run tooling' }],
+];
+
 /** What a checkout without `node_modules` runs before anything else. */
 export const INSTALL: Stage = { name: 'install', command: 'pnpm install --frozen-lockfile' };
 
@@ -103,6 +114,7 @@ export function report(
   outcomes: readonly Outcome[],
   groups: readonly (readonly Stage[])[] = GROUPS,
   notes: readonly string[] = [],
+  title = 'verify',
 ): string {
   const lines: string[] = [];
   const time = (o: Outcome) => `${o.seconds.toFixed(1)} s`;
@@ -118,8 +130,8 @@ export function report(
   const tests = passedTests(outcomes.find((o) => o.name === 'test')?.output ?? '');
   lines.push(
     failed.length
-      ? `verify failed: ${failed.join(', ')}`
-      : `verify passed${tests === undefined ? '' : `: ${tests} tests passed`}`,
+      ? `${title} failed: ${failed.join(', ')}`
+      : `${title} passed${tests === undefined ? '' : `: ${tests} tests passed`}`,
   );
   return lines.join('\n');
 }
@@ -177,8 +189,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.log(
       'verify: no node_modules in this checkout (a git worktree starts with none), so pnpm install --frozen-lockfile runs first',
     );
-  const groups = plan(installed);
-  const tree = workingTree(root);
+  const docs = process.argv.includes('--docs');
+  const groups = plan(installed, docs ? DOCS_GROUPS : GROUPS);
+  const tree = docs ? undefined : workingTree(root);
   const outcomes = await verify(groups);
   const passed = outcomes.every((o) => o.ok);
   const notes: string[] = [];
@@ -189,6 +202,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       `tree ${tree.slice(0, 7)} remembered, so the pre-push hook doesn't run verify on it again`,
     );
   }
-  console.log(report(outcomes, groups, notes));
+  console.log(report(outcomes, groups, notes, docs ? 'verify --docs' : 'verify'));
   process.exitCode = passed ? 0 : 1;
 }

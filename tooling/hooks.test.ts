@@ -216,6 +216,11 @@ describe('pre-push', () => {
     expect(hook(dir, 'head', { verify: 'true', docs: failing }).status).toBe(1);
   });
 
+  it('runs the docs check through verify, which installs first and ends with its summary', () => {
+    const hookText = readFileSync(`${root}/.githooks/pre-push`, 'utf8');
+    expect(hookText).toContain('check="${JAMBOT_VERIFY_DOCS:-pnpm verify --docs}"');
+  });
+
   it('runs everything once code changes with the markdown', () => {
     const dir = repoWith(['notes.md', 'a.ts']);
     expect(hook(dir, 'head', { verify: failing, docs: 'true' }).status).toBe(1);

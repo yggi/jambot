@@ -22,7 +22,8 @@
 #   shown may not reach the failure.
 # - A branch that differs from `origin/main` in `*.md` files alone runs the
 #   format check and the tooling tests (the pawl over the catalogues among
-#   them) instead of everything.
+#   them) instead of everything: `pnpm verify --docs`, which installs a
+#   checkout without `node_modules` first and ends with the same summary.
 # - Deleting a ref, pushing a tag and the deploy's push to `gh-pages` (which
 #   runs `pnpm verify` itself) are not checked.
 # JAMBOT_VERIFY and JAMBOT_VERIFY_DOCS replace the two checks, for
@@ -62,7 +63,7 @@ fi
 
 changed=$(git diff --name-only origin/main...HEAD 2>/dev/null) || changed=
 if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$'; then
-  check="${JAMBOT_VERIFY_DOCS:-pnpm format:check && pnpm exec vitest run tooling}"
+  check="${JAMBOT_VERIFY_DOCS:-pnpm verify --docs}"
   name='the docs check (markdown alone changed)'
   stamp=
 else

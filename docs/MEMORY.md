@@ -31,7 +31,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
   The tree is that of every file verify saw, untracked ones too, so a commit that leaves out a new file verify passed with is verified again.
   A push it lets through prints one line with the count of tests passed, and verify's last line names it too, for the pull request to quote.
   A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
-  A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone.
+  A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone (`pnpm verify --docs`, which installs first and prints its summary line too).
   The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
 - Two gates that show themselves only by failing: a `Math.pow`, `log`, `exp`, `sin` or similar call in a pure package fails until `tooling/quantized-math.ts`'s audit names it with why it is safe ([testing](memory/testing.md)), and a new experiment takes the next E number after the highest in [`language-experiments.md`](language-experiments.md), where its entry goes.
 - To review a pull request, use the `review-pr` skill: `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`, checks it out in its own worktree and runs `pnpm verify` there.

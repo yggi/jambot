@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  DOCS_GROUPS,
   GROUPS,
   INSTALL,
   passedTests,
@@ -89,6 +90,28 @@ describe('verify', () => {
     expect(plan(true)).toEqual(GROUPS);
     expect(plan(false)).toEqual([[INSTALL], ...GROUPS]);
     expect(INSTALL.command).toBe('pnpm install --frozen-lockfile');
+  });
+
+  it('installs first for the docs check too, a checkout without node_modules being no different', () => {
+    expect(plan(false, DOCS_GROUPS)).toEqual([[INSTALL], ...DOCS_GROUPS]);
+    expect(
+      DOCS_GROUPS.flat()
+        .map((s) => s.command)
+        .sort(),
+    ).toEqual(['pnpm exec vitest run tooling', 'pnpm format:check']);
+  });
+
+  it("ends the docs check's report with its own summary line, naming the count", () => {
+    const outcomes = [
+      { ...stage('format', ''), ok: true, seconds: 1, output: '' },
+      { ...stage('test', ''), ok: true, seconds: 1, output: '      Tests  7 passed (7)' },
+    ];
+    const lines = report(outcomes, DOCS_GROUPS, [], 'verify --docs').split('\n');
+    expect(lines.at(-1)).toBe('verify --docs passed: 7 tests passed');
+    const failed = [{ ...outcomes[0]!, ok: false }];
+    expect(report(failed, DOCS_GROUPS, [], 'verify --docs').split('\n').at(-1)).toBe(
+      'verify --docs failed: format',
+    );
   });
 
   it('runs nothing else when the install fails', async () => {
