@@ -71,8 +71,8 @@ Read `AGENTS.md` and the pull request body first. Then, for each change:
 - **True names.** No bare general word doing three jobs.
 - **Generalization.** Is there a more general form that covers the new case and
   an existing one?
-- **Purity.** `packages/theory` and `packages/engine` use no DOM, timers, clock
-  or Node APIs, and randomness goes through `random.ts`. Lint enforces most of
+- **Purity.** The pure packages (`AGENTS.md` names them) use no DOM, timers,
+  clock or Node APIs, and randomness goes through `random.ts`. Lint enforces most of
   this; look for what it cannot see, such as a choice made with a raw `draw < p`
   instead of `chance`, or a `Math.pow` result compared without quantising.
 - **Nothing jumps.** A change of style, key or preset is a transition. Check the
