@@ -11,6 +11,9 @@ sent. The tool is `tooling/screenshot.ts`; its checks are
 `tooling/screenshot.test.ts` (in `pnpm verify`) and
 `apps/web/e2e/screenshot.e2e.ts` (in `pnpm e2e`, which has the browser).
 
+Two sister projects draw for decisions too: Cell studio's [`gallery`](https://github.com/yggi/cell-studio/blob/main/.claude/skills/gallery/SKILL.md), contact sheets of everything its graph draws in each state, and cells' picture skill, a text's events as a piano roll before and after a language change.
+Borrow the form that fits: a contact sheet when every case of a drawing must be seen at once, a roll when the question is what plays.
+
 ## 1. The numbers: an experiment writes them
 
 An experiment under `packages/*/experiments/` prints its tables and, given a
