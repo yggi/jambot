@@ -172,4 +172,5 @@ Climb only as far as the change needs:
 - A change of direction goes into `docs/ROADMAP.md`.
 - Concrete work goes into an issue. Epics carry a checklist, labelled `epic`;
   other labels are `bug`, `infra` and `design`.
+- An open question about what the score language means or how it is spelled is filed in [yggi/cells](https://github.com/yggi/cells/issues), not here (D5 on #309, cells decision 037).
 - An issue meant for an agent states each bound as a number (how many bars, seeds or files, how long, how far a measure may move), or says "choose it and name it", so the agent picks one and names it in the pull request.
