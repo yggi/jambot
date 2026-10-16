@@ -13,8 +13,7 @@ test('plays a two-sound pattern, follows the taps, keeps the run and downloads i
   test.setTimeout(90_000);
   const errors = await listen(page);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Timing test' }).click();
+  await page.getByRole('tab', { name: 'Timing' }).click();
   await page.getByRole('radio', { name: '120 bpm' }).click();
   await page.getByRole('button', { name: 'Start the test' }).click();
   await expect(page.getByRole('button', { name: 'Tap along' })).toBeVisible();
@@ -78,10 +77,9 @@ test('plays a two-sound pattern, follows the taps, keeps the run and downloads i
 
   // The run is still there after a reload, and the test can go back to the lobby.
   await page.reload();
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Timing test' }).click();
+  await page.getByRole('tab', { name: 'Timing' }).click();
   await expect(page.getByText(/\d+\/32 hits/)).toBeVisible();
-  await page.getByRole('button', { name: 'Back to the lobby' }).click();
+  await page.getByRole('tab', { name: 'Play' }).click();
   await expect(page.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -89,8 +87,7 @@ test('plays a two-sound pattern, follows the taps, keeps the run and downloads i
 test('stops on request and keeps nothing', async ({ page }) => {
   const errors = await listen(page);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Timing test' }).click();
+  await page.getByRole('tab', { name: 'Timing' }).click();
   await page.getByRole('button', { name: 'Start the test' }).click();
   await page.waitForTimeout(1500);
   await page.keyboard.press('s');
@@ -112,8 +109,7 @@ test('a player exactly on the heard beat is on time, on every hit', async ({ pag
   test.setTimeout(90_000);
   const errors = await listen(page);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Timing test' }).click();
+  await page.getByRole('tab', { name: 'Timing' }).click();
   await page.getByRole('radio', { name: '120 bpm' }).click();
   await page.getByRole('button', { name: 'Start the test' }).click();
   await expect(page.getByRole('button', { name: 'Tap along' })).toBeVisible();
@@ -167,8 +163,7 @@ test('a player exactly on the heard beat is on time, on every hit', async ({ pag
 test('a click on the tap button is one tap, not two', async ({ page }) => {
   const errors = await listen(page);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Timing test' }).click();
+  await page.getByRole('tab', { name: 'Timing' }).click();
   await page.getByRole('button', { name: 'Start the test' }).click();
   const tap = page.getByRole('button', { name: 'Tap along' });
   for (let i = 0; i < 3; i++) {

@@ -1,7 +1,7 @@
 <!--
   The band: what stands behind the lobby's door, in the shell (#327). The
   transport heads it; hanging from it, the drawer holds what conducts and
-  sets up the band (Sound, Session, Style, Time, Key, Muse, and Timing where
+  sets up the band (Sound, Session, Style, Time, Key, Muse, and the timing Counters where
   the address asks for it); below, the views are where a person reads and
   plays along: Song (the plan and the chords read from where one plays), Melody (the lead's lane over
   the keys), Rhythm (the drums' over the pads) and Mix (the band's tracks).
@@ -58,7 +58,7 @@
     { id: 'muse', title: 'Muse', icon: 'muse' },
   ];
   const drawer = $derived(
-    timing ? [...DRAWER, { id: 'timing', title: 'Timing', icon: 'timing' } as const] : DRAWER,
+    timing ? [...DRAWER, { id: 'counters', title: 'Counters', icon: 'timing' } as const] : DRAWER,
   );
   const VIEWS: readonly Place[] = [
     { id: 'song', title: 'Song', icon: 'song' },
@@ -192,7 +192,7 @@
       pulse={player.humanNotes.length}
       onforget={() => player.forgetMotif()}
     />
-  {:else if id === 'timing' && timing}
+  {:else if id === 'counters' && timing}
     {@render timing()}
   {/if}
 {/snippet}

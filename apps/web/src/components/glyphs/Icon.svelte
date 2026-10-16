@@ -1,6 +1,6 @@
 <!--
   The shell's icons: a small still picture for each section of its drawer
-  and each of its views, drawn on the glyph's frame in the glyphs' colour
+  and each of its views, the band's and the lobby's, drawn on the glyph's frame in the glyphs' colour
   roles. They name a place to go, so unlike a card's glyph they don't move;
   the live picture is the card's own, in its summary once it is open.
 -->
@@ -16,7 +16,13 @@
     | 'song'
     | 'melody'
     | 'rhythm'
-    | 'mix';
+    | 'mix'
+    | 'you'
+    | 'settings'
+    | 'about'
+    | 'play'
+    | 'tune'
+    | 'meter';
 </script>
 
 <script lang="ts">
@@ -31,6 +37,7 @@
   };
   const HEX = Array.from({ length: 6 }, (_, i) => at(i, 6, 15));
   const SHAPE = [6, 10, 11, 12, 12, 8].map((r, i) => at(i, 6, r));
+  const PENTAGON = Array.from({ length: 5 }, (_, i) => at(i, 5, 15));
   const points = (ps: { x: number; y: number }[]) => ps.map((p) => `${p.x},${p.y}`).join(' ');
 </script>
 
@@ -100,6 +107,36 @@
       <path class="line" d="M{8 + i * 8} 6 V34" />
       <rect class="lit" x={4.5 + i * 8} y={y - 2.5} width="7" height="5" rx="1.5" />
     {/each}
+  {:else if name === 'you'}
+    <circle class="accent" cx="20" cy="13" r="6" />
+    <path class="line" d="M8 34 C8 24 32 24 32 34" />
+  {:else if name === 'settings'}
+    <circle class="line" cx="20" cy="20" r="8" />
+    {#each { length: 8 }, i (i)}
+      {@const p = at(i, 8, 14)}
+      <circle class="dim" cx={p.x} cy={p.y} r="2.5" />
+    {/each}
+    <circle class="lit" cx="20" cy="20" r="3" />
+  {:else if name === 'about'}
+    <polygon class="line" points={points(PENTAGON)} />
+    <circle class="accent" cx="20" cy="21" r="3" />
+  {:else if name === 'play'}
+    <circle class="line" cx="20" cy="20" r="15" />
+    <circle class="accent" cx="20" cy="20" r="7" />
+  {:else if name === 'tune'}
+    <path class="line" d="M6 28 A15 15 0 0 1 34 28" />
+    <path class="needle" d="M20 32 L25 13" />
+    <circle class="accent" cx="20" cy="32" r="3" />
+  {:else if name === 'meter'}
+    {#each { length: 7 }, i (i)}
+      {@const p = at(i, 7, 14)}
+      <circle
+        class={[0, 2, 4].includes(i) ? 'accent' : 'dim'}
+        cx={p.x}
+        cy={p.y}
+        r={[0, 2, 4].includes(i) ? 4 : 2.5}
+      />
+    {/each}
   {/if}
 </Glyph>
 
@@ -125,6 +162,12 @@
     fill: none;
     stroke: var(--glyph-accent);
     stroke-width: 2.5;
+  }
+  .needle {
+    fill: none;
+    stroke: var(--glyph-lit);
+    stroke-width: 2.5;
+    stroke-linecap: round;
   }
   .motif {
     fill: none;

@@ -60,8 +60,7 @@ test('names a recorded A2, 20 cents sharp, reads it over a frame longer than the
 }) => {
   const errors = await listen(page);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByRole('tab', { name: 'Tune' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
 
   const note = page.getByRole('region', { name: 'Note' });
@@ -110,15 +109,13 @@ test('names a recorded A2, 20 cents sharp, reads it over a frame longer than the
 
 test('leaves the microphone when the person goes back to the lobby', async ({ page }) => {
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByRole('tab', { name: 'Tune' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Note' }).locator('.name')).toHaveText('A2', {
     timeout: 15_000,
   });
-  await page.getByRole('button', { name: 'Back to the lobby' }).click();
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByRole('tab', { name: 'Play' }).click();
+  await page.getByRole('tab', { name: 'Tune' }).click();
   await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
   await expect(page.getByText('Not listening.')).toBeVisible();
 });
@@ -136,8 +133,7 @@ test('hears the synth it plays through: a note sent is read within a quarter cen
   test.setTimeout(120_000);
   const errors = await listen(page);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByRole('tab', { name: 'Tune' }).click();
   await page.getByLabel('Listen to').selectOption({ label: 'This device’s synth (what it plays)' });
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   const send = page.getByRole('region', { name: 'Send a note' });
@@ -191,8 +187,7 @@ test('measures the correcting worklet off-line in Chromium: faster than real tim
   test.setTimeout(120_000);
   const errors = await listen(page);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByRole('tab', { name: 'Tune' }).click();
   const card = page.getByRole('region', { name: 'Correct' });
   await card.getByRole('button', { name: 'Measure this device' }).click();
   const text = (await card.getByLabel('Measurement').innerText()).replace(/\s+/g, ' ');
@@ -212,8 +207,7 @@ test('pulls a recorded A2, 20 cents sharp, onto A2 through the worklet, and the 
   test.setTimeout(120_000);
   const errors = await listen(page);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByRole('tab', { name: 'Tune' }).click();
   const card = page.getByRole('region', { name: 'Correct' });
   await card.getByRole('button', { name: 'Start correcting' }).click();
   await expect(card.getByText(/Hearing 11\d\.\d Hz, moving it −(1\d|2\d)\.\d cents/)).toBeVisible({
@@ -250,8 +244,7 @@ test('hears the synth’s lead as one tone near its pitch, and as another an oct
 }) => {
   test.setTimeout(120_000);
   await page.goto('/');
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Tuner' }).click();
+  await page.getByRole('tab', { name: 'Tune' }).click();
   await page.getByLabel('Listen to').selectOption({ label: 'This device’s synth (what it plays)' });
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   const send = page.getByRole('region', { name: 'Send a note' });
@@ -344,8 +337,7 @@ for (const [name, file, absent] of [
       });
       const page = await context.newPage();
       await page.goto('/');
-      await page.locator('details[aria-label="Extras"] summary').click();
-      await page.getByRole('button', { name: 'Tuner' }).click();
+      await page.getByRole('tab', { name: 'Tune' }).click();
       await page.getByRole('button', { name: 'Start', exact: true }).click();
       const tone = page.getByRole('region', { name: 'Tone' });
       await expect(tone.getByText(/Steady, with no width/)).toBeVisible({ timeout: 15_000 });

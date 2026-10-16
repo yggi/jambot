@@ -1,11 +1,11 @@
 <!--
-  The lobby, the door to the band: what a person meets on a cold start, laid
-  out in the band's own cards, under the page's title card. Their name, made
-  up already, with a button for another; playing alone (Solo); joining a
-  session that is open, with the players in it; hosting one of their own,
-  named as they like or by a made-up name, in this browser or through the
-  lobby server; and the extras, folded at the bottom. It holds no session and knows
-  no player: it takes props and sends what the person chose.
+  The lobby, the door to the band: the door's Play view, what a person meets
+  on a cold start, laid out in the band's own cards. Playing alone (Solo);
+  joining a session that is open, with the players in it; hosting one of
+  their own, named as they like or by a made-up name, in this browser or
+  through the lobby server. Their name and the extras are the door's own
+  (`Door.svelte`). It holds no session and knows no player: it takes props
+  and sends what the person chose.
 -->
 <script lang="ts">
   import Card from '../components/Card.svelte';
@@ -16,12 +16,6 @@
   import type { Found, Listed, Where } from '../session/sessions.svelte.ts';
 
   interface Props {
-    name: string;
-    onname: (name: string) => void;
-    /** The name field was left. */
-    onsettle: () => void;
-    /** Make up another name. */
-    onregenerate: () => void;
     /** A name to host a session under, made up: another each time it is asked. */
     suggest: () => string;
     /** The sessions open and why some couldn't be listed, or null before the first look. */
@@ -31,32 +25,11 @@
     /** Why the last session ended, or a join failed. */
     notice: string | null;
     onsolo: () => void;
-    /** The timing test (#204, H7). */
-    ontiming: () => void;
-    /** The metronome (#259). */
-    onmeter: () => void;
-    /** The tuner (#269). */
-    ontune: () => void;
     onhost: (where: Where, session: string) => Promise<void>;
     onjoin: (where: Where, session: string) => void;
   }
 
-  let {
-    name,
-    onname,
-    onsettle,
-    onregenerate,
-    suggest,
-    found,
-    joining,
-    notice,
-    onsolo,
-    ontiming,
-    onmeter,
-    ontune,
-    onhost,
-    onjoin,
-  }: Props = $props();
+  let { suggest, found, joining, notice, onsolo, onhost, onjoin }: Props = $props();
 
   // svelte-ignore state_referenced_locally
   let session = $state(suggest());
@@ -103,20 +76,6 @@
   </svg>
 {/snippet}
 
-{#snippet nameField()}
-  <div class="row">
-    <input
-      type="text"
-      aria-label="Your name"
-      value={name}
-      oninput={(e) => onname(e.currentTarget.value)}
-      onblur={onsettle}
-      autocomplete="nickname"
-    />
-    <Regenerate label="Regenerate name" onclick={onregenerate} />
-  </div>
-{/snippet}
-
 {#snippet solo()}
   <span class="play">
     Play
@@ -154,11 +113,9 @@
   </div>
 {/snippet}
 
-{#snippet nameGlyph()}<Lobby kind="name" />{/snippet}
 {#snippet soloGlyph()}<Network colours={[0]} bar={null} />{/snippet}
 {#snippet joinGlyph()}<Network colours={[1, 0, 2]} bar={null} />{/snippet}
 {#snippet hostGlyph()}<Lobby kind="host" />{/snippet}
-{#snippet extrasGlyph()}<Lobby kind="gear" />{/snippet}
 
 {#snippet openSessions()}
   {#if joining}
@@ -186,8 +143,6 @@
 {/snippet}
 
 <div class="lobby">
-  <Card title="Name" main={nameField} glyph={nameGlyph} />
-
   <Card title="Play with the band" untitled main={solo} sub="with the band" glyph={soloGlyph} />
 
   {#if found !== null && (found.sessions.length > 0 || found.problem || joining)}
@@ -211,24 +166,6 @@
   {#if error ?? notice}
     <p class="notice" role="status">{error ?? notice}</p>
   {/if}
-
-  <Card title="Extras" untitled main="Extras" glyph={extrasGlyph}>
-    <p class="message">
-      A drum pattern plays and you follow it for eight bars, seeing at once how early or late each
-      hit was. The runs are kept in this browser, to download and analyse.
-    </p>
-    <button type="button" disabled={joining} onclick={ontiming}>Timing test</button>
-    <p class="message">
-      A bar of any meter, 3/4 to 12/8, played over and over, with its swing and its accents, to hear
-      what a meter is.
-    </p>
-    <button type="button" disabled={joining} onclick={onmeter}>Metronome</button>
-    <p class="message">
-      Listen through a microphone or a line in, and see the spectrum and the nearest note, how many
-      cents and Hz away, to tune an instrument by ear and by eye.
-    </p>
-    <button type="button" disabled={joining} onclick={ontune}>Tuner</button>
-  </Card>
 </div>
 
 <style>

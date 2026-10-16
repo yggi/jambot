@@ -32,6 +32,41 @@ const impureGlobals = [
   ]),
 ].map(([name, message]) => ({ name, message }));
 
+/** The screens a screen may not import, by the side of the door they are on. */
+const THE_BAND = [
+  { name: './Band.svelte', message: 'The door and the band do not know each other.' },
+];
+const THE_DOOR = [
+  { name: './Door.svelte', message: 'The door and the band do not know each other.' },
+];
+const THE_DOORS_VIEWS = ['Lobby', 'Tune', 'Meter', 'TimingTest'].map((view) => ({
+  name: `./${view}.svelte`,
+  message: 'The lobby and the extras are views of the door, and only the door shows them.',
+}));
+
+/** What keeps a screen presentational: the screens it may not know, and the page's own objects it may only name. */
+const screenImports = (paths) => [
+  'error',
+  {
+    paths,
+    patterns: [
+      {
+        group: [
+          '**/session/*',
+          '**/device.*',
+          '**/instruments.*',
+          '**/metronome.*',
+          '**/player.*',
+          '**/profile.*',
+        ],
+        allowTypeImports: true,
+        message:
+          'A screen takes what it shows as props and sends intents: the page runs the player, the device and the sessions.',
+      },
+    ],
+  },
+];
+
 export default defineConfig(
   // `.claude/worktrees/` holds the checkouts Claude Code agents work in, each a repository of its own.
   { ignores: ['prototype/', '**/dist/', '**/dist-pages/', 'coverage/', '.claude/worktrees/'] },
@@ -101,35 +136,19 @@ export default defineConfig(
     languageOptions: { parserOptions: { parser: ts.parser } },
   },
   {
-    // The web app's screens, the lobby and the band, are presentational: they
+    // The web app's screens, the door and the band, are presentational: they
     // take props and send intents. The page holds the player, the device and
     // the sessions, and a screen names their types at most, never runs them.
+    // The door and the band do not know each other, and the door's views (the
+    // lobby and the extras) are the door's alone.
     files: ['apps/web/src/screens/**/*.svelte'],
+    ignores: ['apps/web/src/screens/Door.svelte'],
     rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            { name: './Lobby.svelte', message: 'The lobby and the band do not know each other.' },
-            { name: './Band.svelte', message: 'The lobby and the band do not know each other.' },
-          ],
-          patterns: [
-            {
-              group: [
-                '**/session/*',
-                '**/device.*',
-                '**/instruments.*',
-                '**/metronome.*',
-                '**/player.*',
-                '**/profile.*',
-              ],
-              allowTypeImports: true,
-              message:
-                'A screen takes what it shows as props and sends intents: the page runs the player, the device and the sessions.',
-            },
-          ],
-        },
-      ],
+      'no-restricted-imports': screenImports([...THE_BAND, ...THE_DOOR, ...THE_DOORS_VIEWS]),
     },
+  },
+  {
+    files: ['apps/web/src/screens/Door.svelte'],
+    rules: { 'no-restricted-imports': screenImports(THE_BAND) },
   },
 );

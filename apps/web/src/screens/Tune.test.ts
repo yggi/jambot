@@ -37,13 +37,12 @@ function shown(signal = tone(440), ports?: string[]) {
   const w = world();
   w.heard.signal = signal;
   const tuner = new Tuner({ mic: w.source, analyse: w.analyseHere });
-  const onback = vi.fn();
   const { sender, sent, synth } = senders(ports);
-  render(TuneScreen, { tuner, sender, correction: corrections().correction, onback });
+  render(TuneScreen, { tuner, sender, correction: corrections().correction });
   const hear = async (ticks = 1) => {
     await vi.advanceTimersByTimeAsync(TICK_MS * ticks);
   };
-  return { ...w, tuner, onback, hear, sender, sent, synth };
+  return { ...w, tuner, hear, sender, sent, synth };
 }
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }));
@@ -52,27 +51,25 @@ afterEach(() => vi.useRealTimers());
 describe('the tuner screen', () => {
   it('waits for a press before it listens, and says so', async () => {
     const { tuner, log } = shown();
-    expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
     expect(screen.getByText('Not listening.')).toBeInTheDocument();
     expect(log.opened).toEqual([]);
     expect(tuner.status).toBe('idle');
   });
 
   it('shows the note heard with its distance in cents and in Hz, and a needle', async () => {
-    const { hear } = shown(tone(440, 12));
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const { tuner, hear } = shown(tone(440, 12));
+    await tuner.start();
     await hear();
     const note = within(screen.getByRole('region', { name: 'Note' }));
     expect(note.getByText('A4')).toBeInTheDocument();
     expect(note.getByText(/^\+12\.\d cents$/)).toBeInTheDocument();
     expect(note.getByText(/\+3\.\d\d Hz from 440\.00 Hz · heard 443\.\d\d Hz/)).toBeInTheDocument();
     expect(note.getByRole('img', { name: 'Distance from the note, in cents' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
   });
 
   it('calls a note in tune only within a few cents, and minus is flat', async () => {
-    const { hear } = shown(tone(440, -2));
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const { tuner, hear } = shown(tone(440, -2));
+    await tuner.start();
     await hear();
     const note = within(screen.getByRole('region', { name: 'Note' }));
     expect(note.getByText(/^−2\.\d cents$/)).toBeInTheDocument();
@@ -80,19 +77,19 @@ describe('the tuner screen', () => {
   });
 
   it('says to play a note when it hears none', async () => {
-    const { hear } = shown(new Float64Array(16384));
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const { tuner, hear } = shown(new Float64Array(16384));
+    await tuner.start();
     await hear();
     expect(screen.getByText('Play a note.')).toBeInTheDocument();
     expect(screen.getByText('–', { selector: '.name' })).toBeInTheDocument();
   });
 
   it('draws the spectrum as a line, marks the octaves and the pitch on it, and shows the level', async () => {
-    const { hear } = shown(tone(440));
+    const { tuner, hear } = shown(tone(440));
     expect(
       screen.getByRole('img', { name: 'Spectrum by note' }).querySelector('path.line'),
     ).toBeNull();
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await tuner.start();
     await hear();
     const plot = screen.getByRole('img', { name: 'Spectrum by note' });
     expect(plot.querySelector('path.line')?.getAttribute('d')).toMatch(/^M0,/);
@@ -103,15 +100,15 @@ describe('the tuner screen', () => {
   });
 
   it('reads a low note over a longer stretch, and says so', async () => {
-    const { hear } = shown(tone(82.41));
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const { tuner, hear } = shown(tone(82.41));
+    await tuner.start();
     await hear();
     expect(screen.getByText(/Pitch read over 341 ms/)).toBeInTheDocument();
   });
 
   it('measures against the reference chosen, typed or picked', async () => {
     const { tuner, hear } = shown(tone(432));
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await tuner.start();
     await hear();
     expect(screen.getByText(/^−31\.\d cents$/)).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: '432' }));
@@ -124,14 +121,12 @@ describe('the tuner screen', () => {
     expect(tuner.reference).toBe(442);
   });
 
-  it('stops on a second press, and goes back to the lobby', async () => {
-    const { tuner, onback, log } = shown();
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    await fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+  it('lets the microphone go when stopped', async () => {
+    const { tuner, log } = shown();
+    await tuner.start();
+    tuner.stop();
     expect(tuner.status).toBe('idle');
     expect(log.stopped).toBe(1);
-    await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
-    expect(onback).toHaveBeenCalledOnce();
   });
 
   it('offers a choice of input as soon as there are any, and moves to it', async () => {
@@ -151,11 +146,10 @@ describe('the tuner screen', () => {
       tuner,
       sender: senders().sender,
       correction: corrections().correction,
-      onback: vi.fn(),
     });
     await vi.advanceTimersByTimeAsync(1);
     expect(screen.getByLabelText('Listen to')).toBeInTheDocument();
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await tuner.start();
     await vi.advanceTimersByTimeAsync(TICK_MS);
     await fireEvent.change(screen.getByLabelText('Listen to'), { target: { value: 'b' } });
     await vi.advanceTimersByTimeAsync(TICK_MS);
@@ -172,16 +166,15 @@ describe('the tuner screen', () => {
       tuner,
       sender: senders().sender,
       correction: corrections().correction,
-      onback: vi.fn(),
     });
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await tuner.start();
     expect(screen.getByRole('status')).toHaveTextContent(/blocked.*site settings/);
-    expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
+    expect(tuner.status).toBe('denied');
   });
 
   it('holds a note on the synth, and reads the sound against it while it is held', async () => {
     const { tuner, synth, hear } = shown(tone(440, 30));
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await tuner.start();
     await hear();
     const send = within(screen.getByRole('region', { name: 'Send a note' }));
     expect(send.getByText('A4')).toBeInTheDocument();
@@ -222,7 +215,7 @@ describe('the tuner screen', () => {
   it('says to connect a port when there is none, and keeps the synth to send to', async () => {
     shown(tone(440), []);
     const send = within(screen.getByRole('region', { name: 'Send a note' }));
-    expect(send.getByText(/connect a MIDI port in the Sound card/)).toBeInTheDocument();
+    expect(send.getByText(/connect a MIDI port under Sound/)).toBeInTheDocument();
     expect(send.getAllByRole('option')).toHaveLength(1);
   });
 
@@ -235,7 +228,6 @@ describe('the tuner screen', () => {
         tuner,
         sender: senders().sender,
         correction: made.correction,
-        onback: vi.fn(),
       });
       return { ...made, tuner };
     }
@@ -343,10 +335,10 @@ describe('the tuner screen', () => {
   });
 
   it('shows what the note is made of: a bar for each of twelve harmonics, the missing ones empty, and how wide the note is', async () => {
-    const { hear } = shown(harmonic(220, [1, 0.5, 0.25], 16384, sampleRate));
+    const { tuner, hear } = shown(harmonic(220, [1, 0.5, 0.25], 16384, sampleRate));
     const card = within(screen.getByRole('region', { name: 'Tone' }));
     expect(card.getByText('Play a note to see its harmonics.')).toBeInTheDocument();
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await tuner.start();
     await hear();
     const plot = card.getByRole('img', { name: /Level of each harmonic/ });
     expect(plot.querySelectorAll('rect.bar')).toHaveLength(12);
@@ -364,11 +356,10 @@ describe('the tuner screen', () => {
       tuner,
       sender: senders().sender,
       correction: corrections().correction,
-      onback: vi.fn(),
     });
     const card = within(screen.getByRole('region', { name: 'Tone' }));
     expect(card.getByRole('button', { name: 'Remember this tone' })).toBeDisabled();
-    await fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await tuner.start();
     await vi.advanceTimersByTimeAsync(TICK_MS);
     await fireEvent.click(card.getByRole('button', { name: 'Remember this tone' }));
     expect(card.getByText(/0\.0 dB from the remembered tone: the same tone/)).toBeInTheDocument();

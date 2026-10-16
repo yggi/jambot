@@ -149,7 +149,7 @@
     position: relative;
     z-index: 4;
   }
-  .header :global(.transport) {
+  .header > :global(section) {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
@@ -288,7 +288,7 @@
       gap: 8px;
       padding: max(4px, env(safe-area-inset-top, 0px)) 8px 4px 0;
     }
-    .header :global(.transport) {
+    .header > :global(section) {
       height: 52px;
       border-radius: 16px;
     }

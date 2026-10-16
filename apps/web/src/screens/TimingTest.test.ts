@@ -9,9 +9,8 @@ import TimingTestScreen from './TimingTest.svelte';
 /** The screen over a test driven by hand, and the callbacks it sends. */
 function shown() {
   const world = setup();
-  const onback = vi.fn();
   const onexport = vi.fn();
-  const rendered = render(TimingTestScreen, { test: world.test, onback, onexport });
+  const rendered = render(TimingTestScreen, { test: world.test, onexport });
   /** Play a whole test through, tapping each of the first `taps` hits `late` milliseconds late. */
   const play = async (taps = 6, late = 20) => {
     await world.test.start();
@@ -27,7 +26,7 @@ function shown() {
     );
     await tick();
   };
-  return { ...world, onback, onexport, rendered, play };
+  return { ...world, onexport, rendered, play };
 }
 
 describe('the timing test screen', () => {
@@ -61,7 +60,6 @@ describe('the timing test screen', () => {
       'aria-checked',
       'true',
     );
-    expect(screen.getByRole('button', { name: 'Start the test' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Tap along' })).toBeNull();
   });
 
@@ -72,18 +70,11 @@ describe('the timing test screen', () => {
     expect([test.pattern, test.bpm]).toEqual(['syncopated', 120]);
   });
 
-  it('goes back to the lobby', async () => {
-    const { onback } = shown();
-    await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
-    expect(onback).toHaveBeenCalledOnce();
-  });
-
-  it('shows the run while it plays: a tap button, a way to stop, and no choices to change', async () => {
+  it('shows the run while it plays: a tap button, and no choices to change', async () => {
     const { test } = shown();
-    await fireEvent.click(screen.getByRole('button', { name: 'Start the test' }));
+    await test.start();
     await waitFor(() => expect(test.phase).toBe('playing'));
     expect(await screen.findByRole('button', { name: 'Tap along' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Pattern' })).toBeNull();
   });
 
@@ -134,17 +125,18 @@ describe('the timing test screen', () => {
     expect(screen.getByText(/2 taps/)).toBeInTheDocument();
   });
 
-  it('stops on request, and says nothing was kept', async () => {
+  it('says nothing was kept of a run stopped', async () => {
     const { test } = shown();
     await test.start();
     await tick();
-    await fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    test.stop();
+    await tick();
     expect(test.phase).toBe('idle');
     expect(screen.getByText(/nothing was kept/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start the test' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Pattern' })).toBeInTheDocument();
   });
 
-  it('gives the result when the run is over, saves it, and offers another', async () => {
+  it('gives the result when the run is over, saves it, and offers the choices again', async () => {
     const { play, test } = shown();
     await play(6, 20);
     expect(test.phase).toBe('done');
@@ -152,7 +144,7 @@ describe('the timing test screen', () => {
     expect(result).toHaveTextContent('6 of 32 hits followed, 26 missed, 0 extra taps');
     expect(result).toHaveTextContent('Mean +20 ms');
     expect(result).toHaveTextContent(`Saved as ${test.finished!.id}`);
-    expect(screen.getByRole('button', { name: 'Run again' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Pattern' })).toBeInTheDocument();
   });
 
   describe('the runs kept', () => {

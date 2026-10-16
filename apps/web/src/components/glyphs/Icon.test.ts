@@ -14,6 +14,12 @@ const NAMES: IconName[] = [
   'melody',
   'rhythm',
   'mix',
+  'you',
+  'settings',
+  'about',
+  'play',
+  'tune',
+  'meter',
 ];
 
 describe('the shell’s icons', () => {

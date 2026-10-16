@@ -1,7 +1,7 @@
 <!--
   The lobby's small pictures, for the cards that have no state to draw: a
   person (the name), a source with its signal going out (hosting a session)
-  and a gear (the extras). They are still figures in the glyph colour
+  and a gear (the settings). They are still figures in the glyph colour
   roles and never move. Joining and playing alone use the network and the
   equalizer glyphs the band's own cards use.
 -->
