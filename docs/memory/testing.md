@@ -28,6 +28,7 @@ How a gate is shown to fire, and the checks that back the house rules.
   Node's `--experimental-strip-types` drops types without checking them, so a stale experiment runs on without this.
 - An experiment that reads two packages lives in the `experiments/` of the package whose question it answers, imports that package from `../src/` and the other by its name, and the home package lists the other in its `devDependencies`.
   E31 states the band's drums in the score's language, so it lives in `packages/score/experiments/` and reads `@jambot/engine`.
+- A test name that ends in a parenthesised id, as `(U1)`, cites a catalogue entry, and the pawl then fails until that entry names the test's file ([ratchet](ratchet.md)); an experiment that only mentions an id writes it inside the name, not at its end.
 
 ## Running the checks beside agents
 
