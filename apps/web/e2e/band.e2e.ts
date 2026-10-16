@@ -9,6 +9,7 @@ import {
   solo,
   starts,
   workers,
+  transport,
 } from './audio.ts';
 
 /** Where each onset falls after the first, in steps, as the fraction of a step. */
@@ -27,7 +28,7 @@ test('counts in, plays, follows on screen, and stops on a cadence, without an er
 }) => {
   const errors = await listen(page);
   await solo(page);
-  await expect(page.getByText('Ready')).toBeVisible();
+  await expect(transport(page).getByText('Ready')).toBeVisible();
   // Swing jazz at full energy: the ride rings 0.45 s, so only the fade on
   // the halt can silence what is scheduled within 300 ms. The fade falls
   // with a time constant of 30 ms, so by then it leaves about e^-10 of the
@@ -38,8 +39,8 @@ test('counts in, plays, follows on screen, and stops on a cadence, without an er
   await start(page);
   // Only the plan says where in its section the bar heard is: the song map
   // names the intro before anything is heard.
-  await expect(page.getByText('Intro 1/8')).toBeVisible();
-  await expect(page.getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
+  await expect(transport(page).getByText('Intro 1/8')).toBeVisible();
+  await expect(transport(page).getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
   let loudest = 0;
   for (let i = 0; i < 100 && loudest < 0.01; i++) {
     loudest = Math.max(loudest, await level(page));
@@ -51,7 +52,7 @@ test('counts in, plays, follows on screen, and stops on a cadence, without an er
   // by itself, within two bars and a ring (some 4 s at 148 bpm).
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(page.getByText('Solo · ending')).toBeVisible();
-  await expect(page.getByText('Ready')).toBeVisible({ timeout: 8000 });
+  await expect(transport(page).getByText('Ready')).toBeVisible({ timeout: 8000 });
   await page.waitForTimeout(300);
   expect(await level(page)).toBeLessThan(0.0005);
   expect(await workers(page)).toEqual({ running: 0, made: 1 });
@@ -86,14 +87,14 @@ test('stops at once when stopped again, or in the count-in', async ({ page }) =>
   await solo(page);
   await start(page);
   await page.getByRole('button', { name: 'Stop' }).click();
-  await expect(page.getByText('Ready')).toBeVisible({ timeout: 1000 });
+  await expect(transport(page).getByText('Ready')).toBeVisible({ timeout: 1000 });
   expect((await starts(page)).filter((s) => !isClick(s))).toEqual([]);
   await start(page);
-  await expect(page.getByText('Intro 1/8')).toBeVisible({ timeout: 5000 });
+  await expect(transport(page).getByText('Intro 1/8')).toBeVisible({ timeout: 5000 });
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(page.getByText('Solo · ending')).toBeVisible();
   await page.getByRole('button', { name: 'Stop' }).click();
-  await expect(page.getByText('Ready')).toBeVisible({ timeout: 1000 });
+  await expect(transport(page).getByText('Ready')).toBeVisible({ timeout: 1000 });
   await page.waitForTimeout(300);
   expect(await level(page)).toBeLessThan(0.0005);
 });
@@ -125,14 +126,14 @@ test('starts and stops on a quick double click, and leaves nothing running', asy
   await listen(page);
   await solo(page);
   await page.evaluate(() => {
-    const button = [...document.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Start'),
+    const button = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Start the band"]',
     )!;
     button.click();
     button.click();
   });
   await page.waitForTimeout(500);
-  await expect(page.getByText('Ready')).toBeVisible();
+  await expect(transport(page).getByText('Ready')).toBeVisible();
   expect(await starts(page)).toEqual([]);
   expect((await workers(page)).running).toBe(0);
 });
@@ -325,7 +326,7 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await start(page);
-  await expect(page.getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
+  await expect(transport(page).getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
   // Synth-pop at 108 bpm: a step is 15 / 108 s. Three notes four steps apart, in one bar.
   const step = 15 / 108;
   for (const key of ['a', 'd', 'g']) {
@@ -429,7 +430,7 @@ for (const input of INPUTS)
     await input.ready(page);
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await start(page);
-    await expect(page.getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
+    await expect(transport(page).getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
     // Synth-pop at 108 bpm: three notes four steps apart, in one bar.
     const step = 15 / 108;
     for (const note of [69, 72, 76]) {

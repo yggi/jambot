@@ -22,9 +22,7 @@ const props = (more: Partial<Props> = {}): Props => ({
   following,
   players: {},
   playerId: null,
-  playing: false,
   bar: null,
-  ontoggle: () => {},
   onend: () => {},
   ...more,
 });
@@ -45,38 +43,9 @@ describe('the session card', () => {
     expect(container.querySelector('details')).not.toHaveAttribute('open');
   });
 
-  describe('the transport, in its summary', () => {
-    it('starts the band, or stops it while it plays, without unfolding the card', async () => {
-      const ontoggle = vi.fn();
-      const { rerender } = render(Session, props({ ontoggle }));
-      await fireEvent.click(screen.getByRole('button', { name: 'Start the band' }));
-      expect(ontoggle).toHaveBeenCalledTimes(1);
-      await rerender({ playing: true });
-      await fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
-      expect(ontoggle).toHaveBeenCalledTimes(2);
-      expect(screen.getByLabelText('Session')).not.toHaveAttribute('open');
-    });
-
-    it('says Start on the button, one short word, and Start the band to a screen reader', () => {
-      render(Session, props());
-      const button = screen.getByRole('button', { name: 'Start the band' });
-      expect(button).toHaveTextContent(/^Start$/);
-    });
-
-    it('rests for a client, which follows its host’s band, and says so', () => {
-      render(Session, props({ mode: 'client' }));
-      const button = screen.getByRole('button', { name: 'Start the band' });
-      expect(button).toBeDisabled();
-      expect(button).toHaveAttribute('title', 'The host starts and stops the band');
-    });
-
-    it('is the solo band’s too', async () => {
-      const ontoggle = vi.fn();
-      const { container } = render(Session, props({ mode: 'solo', ontoggle }));
-      expect(container.querySelector('summary .main')).toHaveTextContent('Solo');
-      await fireEvent.click(screen.getByRole('button', { name: 'Start the band' }));
-      expect(ontoggle).toHaveBeenCalledOnce();
-    });
+  it('names a solo band Solo', () => {
+    const { container } = render(Session, props({ mode: 'solo' }));
+    expect(container.querySelector('summary .main')).toHaveTextContent('Solo');
   });
 
   describe('the players, in its details', () => {

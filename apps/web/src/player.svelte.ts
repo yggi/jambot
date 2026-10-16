@@ -110,7 +110,7 @@ import {
   sentBars,
   playerSource,
 } from '@jambot/session';
-import type { Meter } from '@jambot/theory';
+import { type Meter, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
@@ -272,6 +272,8 @@ export class Player {
   counting = $state(false);
   /** Whether the band was asked to stop and plays on to its last bar. */
   ending = $state(false);
+  /** The step of the count-in's bar heard, from 0, or null outside the count-in: what the transport counts down. */
+  countStep: number | null = $state(null);
   /** The step heard, or null before anything is. */
   heard: number | null = $state(null);
   /** Notes players struck while the band listened. */
@@ -743,6 +745,7 @@ export class Player {
     this.status = 'stopped';
     this.ending = false;
     this.counting = false;
+    this.countStep = null;
     if (!wasPlaying) return;
     this.#stopTicker?.();
     this.#stopFrames?.();
@@ -798,6 +801,16 @@ export class Player {
   #thenClock(carried: Parameters<typeof clockThrough>[0]) {
     this.#clockMeters = carried?.meters ?? null;
     this.clock = clockThrough(carried, this.#bars);
+  }
+
+  /** The step of the count-in's bar at a time heard on this output, or null before its first click. */
+  #countStepAt(heard: number): number | null {
+    const meter = this.#opening();
+    const from = this.#start - countInSeconds(this.track, meter);
+    const step = Math.floor(
+      (heard + this.skew - from) / stepSeconds(valueAt('bpm', this.track.bpm, 0)),
+    );
+    return step >= 0 && step < stepsOf(meter) ? step : null;
   }
 
   /** The count-in is over once the song's start is heard, read on the ticks, which run in a hidden tab. */
@@ -969,6 +982,7 @@ export class Player {
     const output = this.#output;
     if (this.status !== 'playing' || !output) return;
     const heard = heardOn(output);
+    this.countStep = this.counting ? this.#countStepAt(heard) : null;
     const latest = this.#heard.take(heard);
     if (latest !== undefined) this.heard = latest;
     this.#metronome?.follow(heard);

@@ -1,8 +1,7 @@
 <!--
-  The session, a card: who the band plays with and whether it plays. The
-  summary is the session by name (or "Solo") with the transport beside it,
-  Start or Stop, which a client's rests since it follows its host's band; the
-  line under it says the state ("Hosting · 2 joined", "Following · host
+  The session, a card: who the band plays with. The summary is the session
+  by name (or "Solo"); the transport that starts and stops the band is the
+  screen's header (`Transport`). The line under the name says the state ("Hosting · 2 joined", "Following · host
   playing"), and the glyph is the players as a network in their colours,
   pinging with each bar. The details are the players of a host, or the link
   of a client (its name, round trip, bars that came too late), and the way
@@ -34,29 +33,15 @@
     players: Readonly<Record<string, string>>;
     /** This device's own player id, or null outside a session. */
     playerId: string | null;
-    /** Whether the band is playing or about to: the transport reads Stop. */
-    playing: boolean;
     /** Whether the song is being counted in, or ending on its last bar. */
     phase?: Phase | null;
     /** The bar heard, or null before any: the glyph pings on each. */
     bar: number | null;
-    ontoggle: () => void;
     /** End the session, or leave the band for the lobby, whichever this is. */
     onend: () => void;
   }
 
-  let {
-    mode,
-    hosting,
-    following,
-    players,
-    playerId,
-    playing,
-    phase = null,
-    bar,
-    ontoggle,
-    onend,
-  }: Props = $props();
+  let { mode, hosting, following, players, playerId, phase = null, bar, onend }: Props = $props();
 
   let asking = $state(false);
 
@@ -76,35 +61,13 @@
   };
 </script>
 
-{#snippet transport()}
-  <span class="line">
-    <span class="name">{sessionMain(mode, hosting, following)}</span>
-    <button
-      type="button"
-      class="play"
-      disabled={mode === 'client'}
-      title={mode === 'client'
-        ? 'The host starts and stops the band'
-        : phase === 'ending'
-          ? 'Stop again to stop now'
-          : playing
-            ? 'Stops on a cadence: the band plays to the end of its next bar'
-            : undefined}
-      aria-label={playing ? undefined : 'Start the band'}
-      onclick={ontoggle}
-    >
-      {playing ? 'Stop' : 'Start'}
-    </button>
-  </span>
-{/snippet}
-
 {#snippet network()}
   <Network {colours} {bar} />
 {/snippet}
 
 <Card
   title="Session"
-  main={transport}
+  main={sessionMain(mode, hosting, following)}
   sub={sessionSub(mode, hosting, following, phase)}
   glyph={network}
   live
@@ -166,35 +129,6 @@
 </Card>
 
 <style>
-  .line {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .name {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    font-size: 24px;
-    font-weight: 700;
-    line-height: 1.1;
-  }
-  .play {
-    flex: none;
-    min-height: 44px;
-    padding: 0 20px;
-    border: 0;
-    border-radius: 22px;
-    background: var(--amber);
-    color: var(--on-amber);
-    font-weight: 600;
-    font-size: 16px;
-  }
-  .play:disabled {
-    opacity: 0.5;
-  }
   ul {
     display: grid;
     gap: 6px;

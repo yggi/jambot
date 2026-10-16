@@ -11,6 +11,7 @@ import {
   openStyle,
   stalls,
   openCard,
+  transport,
 } from './audio.ts';
 
 /**
@@ -441,7 +442,7 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
   await page.getByRole('button', { name: 'Start the band' }).click();
   await join(client, 'motif jam', 'Ada');
   await expect(state(client)).toContainText('host playing');
-  await expect(client.getByText('Intro 3/8')).toBeVisible({ timeout: 8000 });
+  await expect(transport(client).getByText('Intro 3/8')).toBeVisible({ timeout: 8000 });
 
   // Synth-pop at 108 bpm: three notes four steps apart, in one bar.
   const step = 15 / 108;
