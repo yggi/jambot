@@ -19,6 +19,7 @@ Do the steps in order and stop at the first that fails.
    `git fetch origin main && git checkout main && git merge --ff-only origin/main`.
 4. **Put its issues right.**
    Through the REST API (`gh api repos/yggi/<repo>/issues/<n>`; GraphQL may be refused), and each comment ends with the footer the session gives.
+   **A text the owner wrote is never edited**: the session appends its footer to every body or comment it writes, so an edit would sign the owner's words as Claude's. Where a step below would edit one (a tick in the owner's epic, a reference in the owner's issue), post a comment instead.
    1. **Closed as said:** every `Closes #n` in the merged pull request closed its issue.
       One that didn't (a reference to another repository, a typo) is closed by hand with a comment naming the pull request.
    2. **Ticked:** a `Part of #n` epic's checklist line for this pull request is ticked (`- [x] … (#PR)`).
