@@ -9,6 +9,7 @@ import {
   solo,
   starts,
   workers,
+  showView,
   transport,
 } from './audio.ts';
 
@@ -51,7 +52,7 @@ test('counts in, plays, follows on screen, and stops on a cadence, without an er
   // Stop asks the band to end: it plays on, closes on a cadence, and halts
   // by itself, within two bars and a ring (some 4 s at 148 bpm).
   await page.getByRole('button', { name: 'Stop' }).click();
-  await expect(page.getByText('Solo · ending')).toBeVisible();
+  await expect(transport(page).getByText('Ending · stop again to stop now')).toBeVisible();
   await expect(transport(page).getByText('Ready')).toBeVisible({ timeout: 8000 });
   await page.waitForTimeout(300);
   expect(await level(page)).toBeLessThan(0.0005);
@@ -66,7 +67,7 @@ test('counts a bar in with the click, whether it is on or not, and the band come
   await solo(page);
   await start(page);
   // Synth-pop, 108 bpm: a beat is 60 / 108 s, and a bar of them comes first.
-  await expect(page.getByText('Solo · counting in')).toBeVisible();
+  await expect(transport(page).getByText(/^Count-in/)).toBeVisible();
   await page.waitForTimeout(2000);
   const counted = await starts(page);
   expect(counted.length).toBe(4);
@@ -79,7 +80,7 @@ test('counts a bar in with the click, whether it is on or not, and the band come
   expect(band.length).toBeGreaterThan(0);
   // The band's first note falls one beat after the last click.
   expect(band[0]!.when - counted[3]!.when).toBeCloseTo(beat, 3);
-  await expect(page.getByText('Solo · counting in')).toBeHidden();
+  await expect(transport(page).getByText(/^Count-in/)).toBeHidden();
 });
 
 test('stops at once when stopped again, or in the count-in', async ({ page }) => {
@@ -92,7 +93,7 @@ test('stops at once when stopped again, or in the count-in', async ({ page }) =>
   await start(page);
   await expect(transport(page).getByText('Intro 1/8')).toBeVisible({ timeout: 5000 });
   await page.getByRole('button', { name: 'Stop' }).click();
-  await expect(page.getByText('Solo · ending')).toBeVisible();
+  await expect(transport(page).getByText('Ending · stop again to stop now')).toBeVisible();
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(transport(page).getByText('Ready')).toBeVisible({ timeout: 1000 });
   await page.waitForTimeout(300);
@@ -176,7 +177,7 @@ test('clicks the band’s own beats, and the swing moves its offbeats to the ban
   await solo(page);
   await openStyle(page);
   await page.getByRole('radio', { name: 'Swing jazz' }).click();
-  await page.getByLabel('Metrum').locator('summary').click();
+  await openCard(page, 'Metrum');
   await page.getByRole('button', { name: 'Click' }).click();
   // The click sounds the pulses alone to begin with: the eighths between them are asked for.
   await page.getByRole('radio', { name: 'Eighths', exact: true }).click();
@@ -207,7 +208,7 @@ test('clicks the band’s own beats, and the swing moves its offbeats to the ban
 test('clicks the pulses and not the “and”, until the eighths are asked for', async ({ page }) => {
   await listen(page);
   await solo(page);
-  await page.getByLabel('Metrum').locator('summary').click();
+  await openCard(page, 'Metrum');
   await page.getByRole('button', { name: 'Click' }).click();
   await start(page);
   await page.waitForTimeout(8000);
@@ -227,10 +228,10 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
   await listen(page);
   await solo(page);
   await openCard(page, 'Plan');
-  await openCard(page, 'Metrum');
   const height = () => page.evaluate(() => document.documentElement.scrollHeight);
   const before = await height();
   await page.getByRole('radio', { name: '7/8', exact: true }).click();
+  await openCard(page, 'Metrum');
   // The plan, the metrum and the chords say 7/8, and no card shifts the layout for it.
   await expect(page.locator('details[aria-label="Metrum"] summary .sub')).toContainText('7/8');
   expect(await page.locator('details[aria-label="Metrum"] svg.ruler circle.mark').count()).toBe(14);
@@ -321,9 +322,9 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
   const errors = await listen(page);
   await solo(page);
   // At energy 0 the lead rests on its own, so a lead note the band plays is the motif.
-  await openCard(page, 'Muse');
   await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
+  await openCard(page, 'Muse');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await start(page);
   await expect(transport(page).getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
@@ -379,7 +380,7 @@ const INPUTS: {
   {
     name: 'the on-screen keys',
     source: 'the on-screen keys',
-    ready: async () => {},
+    ready: (page) => showView(page, 'Melody'),
     play: (page, note, on) =>
       page
         .getByRole('group', { name: 'On-screen keyboard' })
@@ -390,7 +391,7 @@ const INPUTS: {
     name: 'a MIDI keyboard',
     source: 'Test keyboard',
     ready: async (page) => {
-      await page.locator('details[aria-label="Sound"] summary .title').click();
+      await openCard(page, 'Sound');
       await page.getByRole('button', { name: 'Connect MIDI' }).click();
       await page.getByLabel('Listen to input').selectOption({ label: 'Test keyboard' });
     },
@@ -424,10 +425,10 @@ for (const input of INPUTS)
     });
     const errors = await listen(page);
     await solo(page);
-    await openCard(page, 'Muse');
     await openStyle(page);
     await page.getByRole('slider', { name: /Energy/ }).fill('0');
     await input.ready(page);
+    await openCard(page, 'Muse');
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await start(page);
     await expect(transport(page).getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
@@ -449,6 +450,7 @@ for (const input of INPUTS)
       { timeout: 8000 },
     );
     // The lead's lane credits the same motif, in the player's colour, while a bar shown played it (#183).
+    await showView(page, 'Mix');
     await expect(
       page
         .getByRole('group', { name: 'Band grid' })
@@ -465,6 +467,7 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
   const scales = page.getByRole('radiogroup', { name: 'Melodic scale' });
   /** The on-screen keys marked with a dot. */
   const marked = async () => {
+    await showView(page, 'Melody');
     const keys = page.getByRole('group', { name: 'On-screen keyboard' }).getByRole('button');
     const names: string[] = [];
     for (const button of await keys.all())
@@ -472,11 +475,9 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
         names.push((await button.getAttribute('aria-label')) ?? '');
     return names;
   };
-  /** Unfold the key card where it is folded. */
+  /** Pull the key's section down, where it isn't. */
   const unfold = async () => {
-    const card = page.locator('details[aria-label="Key"]');
-    if (!(await card.evaluate((details) => (details as HTMLDetailsElement).open)))
-      await card.locator('summary').click();
+    await openCard(page, 'Key');
     await expect(scales).toBeVisible();
   };
   // Techno's harmony reaches the plain scale alone.
@@ -487,11 +488,13 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
   await expect(scales.getByRole('radio', { name: 'pentatonic' })).toBeDisabled();
   await expect(scales.getByRole('radio', { name: 'blues' })).toBeDisabled();
   // Lo-fi hip hop's reaches the blues. Stopped, a pick is what the band opens on.
+  await openStyle(page);
   await page.getByRole('radio', { name: 'Lo-fi hip hop' }).click();
   await unfold();
   await expect(scales.getByRole('radio', { name: 'blues' })).toBeEnabled();
   // A minor from C4 to E5: C D E F G A B, twice but for the last B, F and G.
   expect(await marked()).toHaveLength(17 - 7);
+  await unfold();
   await scales.getByRole('radio', { name: 'pentatonic' }).click();
   await expect(scales.getByRole('radio', { name: 'pentatonic' })).toBeChecked();
   await expect(page.locator('details[aria-label="Key"] summary .sub')).toContainText(
@@ -530,30 +533,36 @@ test('keeps the preset segments inside the style card, in two rows, at 760 px an
   }
 });
 
-test('keeps every card the size it is while the band plays, so the layout never shifts, at 760 px and at 360 px', async ({
+test('keeps the shell’s regions and every card the size they are while the band plays, so nothing moves, at 390 x 844 and 360 x 740', async ({
   page,
 }) => {
   test.setTimeout(120_000);
   await listen(page);
-  for (const width of [760, 360]) {
-    await page.setViewportSize({ width, height: 900 });
+  for (const [width, height] of [
+    [390, 844],
+    [360, 740],
+  ] as const) {
+    await page.setViewportSize({ width, height });
     await page.goto('/');
     await solo(page);
-    // The cards whose content follows the band, unfolded.
-    for (const name of ['Plan', 'Chords'])
-      await page.locator(`details[aria-label="${name}"] summary .title`).click();
+    // The song's view, whose cards follow the band.
+    await showView(page, 'Song');
     const seen = new Map<string, Set<number>>();
     const sample = async () => {
-      const sizes = await page
-        .locator('details.card')
-        .evaluateAll((cards) =>
-          cards.map((card) => [
-            card.getAttribute('aria-label')!,
-            card.getBoundingClientRect().height,
-          ]),
+      const sizes = await page.evaluate(() => {
+        const box = (e: Element | null) => (e ? e.getBoundingClientRect().height : -1);
+        const regions: [string, number][] = [
+          ['transport', box(document.querySelector('.transport'))],
+          ['drawer', box(document.querySelector('nav[aria-label="Drawer"]'))],
+          ['views', box(document.querySelector('[role="tablist"][aria-label="Views"]'))],
+        ];
+        const cards = [...document.querySelectorAll('details.card')].map(
+          (card): [string, number] => [card.getAttribute('aria-label')!, box(card)],
         );
-      for (const [name, height] of sizes as [string, number][])
-        seen.set(name, (seen.get(name) ?? new Set()).add(Math.round(height)));
+        return [...regions, ...cards];
+      });
+      for (const [name, h] of sizes)
+        seen.set(name, (seen.get(name) ?? new Set()).add(Math.round(h)));
     };
     await sample();
     await start(page);
@@ -563,12 +572,20 @@ test('keeps every card the size it is while the band plays, so the layout never 
       await sample();
     }
     expect(seen.size).toBeGreaterThanOrEqual(8);
+    // Rounding may move a box by a pixel; anything more is the layout shifting.
     for (const [name, heights] of seen)
-      expect([...heights], `${name} at ${width} px`).toHaveLength(1);
+      expect(
+        Math.max(...heights) - Math.min(...heights),
+        `${name} at ${width} x ${height}`,
+      ).toBeLessThanOrEqual(1);
+    // The page itself never scrolls: the shell owns the viewport.
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight - innerHeight),
+    ).toBeLessThanOrEqual(0);
   }
 });
 
-test('keeps a closed card short and the space between cards small on a phone on its side, at 844 x 390 and 667 x 375', async ({
+test('puts the views on a rail at the left of a phone on its side, at 844 x 390 and 667 x 375', async ({
   page,
 }) => {
   await listen(page);
@@ -579,26 +596,18 @@ test('keeps a closed card short and the space between cards small on a phone on 
     await page.setViewportSize({ width, height });
     await page.goto('/');
     await solo(page);
-    await expect(page.locator('details.card').first()).toBeVisible();
-    const cards = await page.locator('details.card:not([open])').evaluateAll((all) =>
-      all.map((card) => {
-        const box = card.getBoundingClientRect();
-        return { name: card.getAttribute('aria-label')!, top: box.top, bottom: box.bottom };
-      }),
-    );
-    expect(cards.length, `closed cards at ${width} x ${height}`).toBeGreaterThanOrEqual(7);
-    for (const card of cards) {
-      // The session and the sound card carry a control of touch size (44 and 32 px) in the summary.
-      const limit = ['Session', 'Sound'].includes(card.name) ? 80 : 64;
-      expect(card.bottom - card.top, `${card.name} at ${width} x ${height}`).toBeLessThanOrEqual(
-        limit,
-      );
-    }
-    // The cards are listed in page order, so each gap is to the next one shown closed.
-    for (let i = 1; i < cards.length; i++) {
-      const gap = cards[i]!.top - cards[i - 1]!.bottom;
-      if (gap < 40)
-        expect(gap, `${cards[i]!.name} at ${width} x ${height}`).toBeLessThanOrEqual(12);
-    }
+    const views = (await page.getByRole('tablist', { name: 'Views' }).boundingBox())!;
+    const head = (await transport(page).boundingBox())!;
+    const drawer = (await page.getByRole('navigation', { name: 'Drawer' }).boundingBox())!;
+    expect(views.x, `${width} x ${height}`).toBeLessThan(2);
+    expect(views.width).toBeLessThanOrEqual(80);
+    expect(views.height).toBeGreaterThan(height - 2);
+    // The riders sit beside the transport, on its row.
+    expect(head.height).toBeLessThanOrEqual(56);
+    expect(Math.abs(drawer.y - head.y)).toBeLessThan(8);
+    expect(drawer.x).toBeGreaterThan(head.x + head.width - 1);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight - innerHeight),
+    ).toBeLessThanOrEqual(0);
   }
 });

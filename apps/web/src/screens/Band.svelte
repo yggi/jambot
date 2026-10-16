@@ -1,21 +1,25 @@
 <!--
-  The band: what stands behind the lobby's door. The transport heads it,
-  and the music runs top to bottom in the order of the composition, one card
-  or `Level` each, under the session. It shows the player it is given and sends what the person
-  does; it opens no session and holds no device.
+  The band: what stands behind the lobby's door, in the shell (#327). The
+  transport heads it; hanging from it, the drawer holds what conducts and
+  sets up the band (Sound, Session, Style, Time, Key, Muse, and Timing where
+  the address asks for it); below, the views are where a person reads and
+  plays along: Song (the plan and the chords), Melody (the lead's lane over
+  the keys), Rhythm (the drums' over the pads) and Mix (the band's tracks).
+  It shows the player it is given and sends what the person does; it opens
+  no session and holds no device.
 -->
 <script lang="ts">
-  import type { ComponentProps } from 'svelte';
+  import type { ComponentProps, Snippet } from 'svelte';
   import Chords from '../components/Chords.svelte';
   import DrumPads from '../components/DrumPads.svelte';
   import Keyboard from '../components/Keyboard.svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
-  import Level from '../components/Level.svelte';
   import Metrum from '../components/Metrum.svelte';
   import Muse from '../components/Muse.svelte';
   import Play from '../components/Play.svelte';
   import Plan from '../components/Plan.svelte';
   import Session from '../components/Session.svelte';
+  import Shell, { type Place } from '../components/Shell.svelte';
   import StylePanel from '../components/StylePanel.svelte';
   import BandCard from '../components/BandCard.svelte';
   import Transport from '../components/Transport.svelte';
@@ -23,7 +27,7 @@
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { raised, toggled } from '../mix.ts';
-  import type { Player } from '../player.svelte.ts';
+  import type { AlongPart, Player } from '../player.svelte.ts';
   import { tracksOf } from '../tracks.ts';
   import { transportCells, transportHeard, transportLine } from '../transportView.ts';
 
@@ -38,9 +42,31 @@
     };
     /** Close the session, leave it, or go back to the lobby. */
     onend: () => void;
+    /** How this device sounds: the page's Sound card, which is on both sides of the door. */
+    sound: Snippet;
+    /** The timing counters, where the address asks for them (`?timing`). */
+    timing?: Snippet | undefined;
   }
 
-  let { player, metronome, instruments, session, onend }: Props = $props();
+  let { player, metronome, instruments, session, onend, sound, timing }: Props = $props();
+
+  const DRAWER: readonly Place[] = [
+    { id: 'sound', title: 'Sound', icon: 'sound' },
+    { id: 'session', title: 'Session', icon: 'session' },
+    { id: 'style', title: 'Style', icon: 'style' },
+    { id: 'time', title: 'Time', icon: 'time' },
+    { id: 'key', title: 'Key', icon: 'key' },
+    { id: 'muse', title: 'Muse', icon: 'muse' },
+  ];
+  const drawer = $derived(
+    timing ? [...DRAWER, { id: 'timing', title: 'Timing', icon: 'timing' } as const] : DRAWER,
+  );
+  const VIEWS: readonly Place[] = [
+    { id: 'song', title: 'Song', icon: 'song' },
+    { id: 'melody', title: 'Melody', icon: 'melody' },
+    { id: 'rhythm', title: 'Rhythm', icon: 'rhythm' },
+    { id: 'mix', title: 'Mix', icon: 'mix' },
+  ];
 
   /** Whether this device follows a host, whose song, style and key it plays. */
   const following = $derived(player.mode === 'client');
@@ -84,7 +110,7 @@
   );
 </script>
 
-<div class="head">
+{#snippet header()}
   <Transport
     main={line.main}
     sub={line.sub}
@@ -95,124 +121,105 @@
     {following}
     ontoggle={() => (player.playing ? player.stop() : player.start())}
   />
-</div>
+{/snippet}
 
-<Session
-  mode={player.mode}
-  hosting={session.hosting}
-  following={session.following}
-  players={player.players}
-  playerId={player.playerId}
-  {phase}
-  bar={player.hud.beat === null ? null : (player.hud.bar?.bar ?? null)}
-  {onend}
-/>
+{#snippet instrument(part: AlongPart)}
+  {#if part === 'lead'}
+    <Keyboard
+      down={instruments.heldLead}
+      scale={player.hud.bar?.melodic ?? []}
+      sounding={player.sounding.lead}
+      onnote={(note, velocity, on) => instruments.toLead(note, velocity, on, 'the on-screen keys')}
+    />
+  {:else}
+    <DrumPads
+      down={instruments.heldDrums}
+      sounding={player.sounding.drums}
+      onnote={(note, velocity, on) => instruments.toDrums(note, velocity, on, 'the drum pads')}
+    />
+  {/if}
+{/snippet}
 
-<!--
-    The music, in the order of the composition, from the whole song down to
-    each note. A client plays its host's song, style and key, so those
-    levels' controls rest; its click and instruments are its own.
-  -->
-<Level>
-  <StylePanel
-    track={player.track}
-    style={player.hud.style}
-    {following}
-    onintent={(intent) => player.apply(intent)}
-  />
-</Level>
+{#snippet sheet(id: string)}
+  {#if id === 'sound'}
+    {@render sound()}
+  {:else if id === 'session'}
+    <Session
+      mode={player.mode}
+      hosting={session.hosting}
+      following={session.following}
+      players={player.players}
+      playerId={player.playerId}
+      {phase}
+      bar={player.hud.beat === null ? null : (player.hud.bar?.bar ?? null)}
+      {onend}
+    />
+  {:else if id === 'style'}
+    <StylePanel
+      track={player.track}
+      style={player.hud.style}
+      {following}
+      onintent={(intent) => player.apply(intent)}
+    />
+  {:else if id === 'time'}
+    <Metrum
+      tempo={tempoView(player.track, player.tempoNudge)}
+      swing={player.track.swing.to}
+      {metronome}
+      heard={player.heard}
+      meter={player.hud.bar?.meter}
+      clock={player.clock}
+      playing={player.playing}
+      {following}
+      onintent={(intent) => player.apply(intent)}
+    />
+  {:else if id === 'key'}
+    <KeyPicker
+      {following}
+      heading={player.hud.heading}
+      heard={player.hud.bar}
+      reach={keyReachOf(player.track)}
+      home={player.home}
+      melodic={player.hud.headingMelodic}
+      melodicReach={melodicReachOf(player.track)}
+      history={player.harmonicHistory}
+      onintent={(intent) => player.apply(intent)}
+    />
+  {:else if id === 'muse'}
+    <Muse
+      muse={player.hud.muse}
+      pulse={player.humanNotes.length}
+      onforget={() => player.forgetMotif()}
+    />
+  {:else if id === 'timing' && timing}
+    {@render timing()}
+  {/if}
+{/snippet}
 
-<Level>
-  <Metrum
-    tempo={tempoView(player.track, player.tempoNudge)}
-    swing={player.track.swing.to}
-    {metronome}
-    heard={player.heard}
-    meter={player.hud.bar?.meter}
-    clock={player.clock}
-    playing={player.playing}
-    {following}
-    onintent={(intent) => player.apply(intent)}
-  />
-</Level>
+{#snippet stage(id: string)}
+  {#if id === 'song'}
+    <Plan
+      hud={player.hud}
+      playing={player.playing}
+      meter={following ? (player.hud.headingMeter ?? player.meter) : player.meter}
+      {following}
+      onmeter={(meter) => player.setMeter(meter)}
+    />
+    <Chords hud={player.hud} meter={player.hud.bar?.meter} />
+  {:else if id === 'melody' || id === 'rhythm'}
+    <Play
+      {tracks}
+      part={id === 'melody' ? 'lead' : 'drums'}
+      held={{ lead: instruments.heldLead.size > 0, drums: instruments.heldDrums.size > 0 }}
+      {instrument}
+    />
+  {:else if id === 'mix'}
+    <BandCard
+      {tracks}
+      ontoggle={(which, performer) => (player.mix = toggled(player.mix, which, performer))}
+      onlevel={(performer, level) => (player.mix = raised(player.mix, performer, level))}
+    />
+  {/if}
+{/snippet}
 
-<Level>
-  <KeyPicker
-    {following}
-    heading={player.hud.heading}
-    heard={player.hud.bar}
-    reach={keyReachOf(player.track)}
-    home={player.home}
-    melodic={player.hud.headingMelodic}
-    melodicReach={melodicReachOf(player.track)}
-    history={player.harmonicHistory}
-    onintent={(intent) => player.apply(intent)}
-  />
-</Level>
-
-<Level>
-  <Plan
-    hud={player.hud}
-    playing={player.playing}
-    meter={following ? (player.hud.headingMeter ?? player.meter) : player.meter}
-    {following}
-    onmeter={(meter) => player.setMeter(meter)}
-  />
-</Level>
-
-<Level>
-  <Chords hud={player.hud} meter={player.hud.bar?.meter} />
-</Level>
-
-<Level>
-  <BandCard
-    {tracks}
-    ontoggle={(which, performer) => (player.mix = toggled(player.mix, which, performer))}
-    onlevel={(performer, level) => (player.mix = raised(player.mix, performer, level))}
-  />
-</Level>
-
-<Level>
-  <Play
-    {tracks}
-    held={{ lead: instruments.heldLead.size > 0, drums: instruments.heldDrums.size > 0 }}
-  >
-    {#snippet instrument(part)}
-      {#if part === 'lead'}
-        <Keyboard
-          down={instruments.heldLead}
-          scale={player.hud.bar?.melodic ?? []}
-          sounding={player.sounding.lead}
-          onnote={(note, velocity, on) =>
-            instruments.toLead(note, velocity, on, 'the on-screen keys')}
-        />
-      {:else}
-        <DrumPads
-          down={instruments.heldDrums}
-          sounding={player.sounding.drums}
-          onnote={(note, velocity, on) => instruments.toDrums(note, velocity, on, 'the drum pads')}
-        />
-      {/if}
-    {/snippet}
-  </Play>
-</Level>
-
-<Level>
-  <Muse
-    muse={player.hud.muse}
-    pulse={player.humanNotes.length}
-    onforget={() => player.forgetMotif()}
-  />
-</Level>
-
-<style>
-  /* The transport stays in view while the page scrolls under it. */
-  .head {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    margin: 0 -14px;
-    padding: max(6px, env(safe-area-inset-top, 0px)) 14px 6px;
-    background: var(--bg);
-  }
-</style>
+<Shell {header} {drawer} {sheet} views={VIEWS} {stage} />

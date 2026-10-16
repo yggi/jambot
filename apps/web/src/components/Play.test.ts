@@ -111,6 +111,19 @@ describe('the play card', () => {
     expect(sub()).toHaveTextContent('Lead: muted here');
   });
 
+  it('shows one part alone, with no choice, where it is given one: the lead for Melody, the drums for Rhythm', () => {
+    const { container } = render(Play, {
+      tracks: tracks({ players: [own('lead')] }),
+      instrument,
+      held: { lead: false, drums: false },
+      part: 'drums',
+    });
+    expect(screen.queryByRole('radiogroup', { name: 'Track' })).toBeNull();
+    expect(container.querySelector('summary .main')).toHaveTextContent('Drums');
+    expect(lanes()).toEqual(['Drums track, bars 7 to 11']);
+    expect(screen.getByText('the drums instrument')).toBeInTheDocument();
+  });
+
   describe('its rows', () => {
     it('are the track chosen alone until the player plays on the other', () => {
       draw(tracks({ players: [own('lead')] }));

@@ -321,14 +321,7 @@
   <Equalizer levels={equalizerLevels(player.sounding, device.volume)} />
 {/snippet}
 
-<main>
-  <TitleCard
-    theme={theme.name}
-    ontheme={(name) => (theme.name = name)}
-    address={sessions.address}
-    onaddress={(url) => (sessions.address = url)}
-  />
-
+{#snippet soundCard()}
   <Card
     title="Sound"
     main={volume}
@@ -345,67 +338,90 @@
       onpanic={() => player.panicMidi()}
     />
   </Card>
+{/snippet}
 
-  {#if screen === 'band'}
-    <Band
-      {player}
-      {metronome}
-      {instruments}
-      session={{
-        hosting: { session: hostSession.session, guests: hostSession.guests },
-        following: {
-          status: clientSession.status,
-          session: clientSession.session,
-          name: clientSession.name,
-          hostPlaying: clientSession.hostPlaying,
-          hostAway: clientSession.hostAway,
-          trip: clientSession.trip,
-          lacked: player.lacked,
-        },
-      }}
-      onend={() => void leave()}
-    />
-  {:else if screen === 'timing'}
-    <TimingTestScreen test={testing} onback={() => (timingChosen = false)} onexport={exportRuns} />
-  {:else if screen === 'meter'}
-    <MeterScreen player={meterPlayer} onback={() => (meterChosen = false)} />
-  {:else if screen === 'tune'}
-    <TuneScreen {tuner} {sender} {correction} onback={() => (tuneChosen = false)} />
-  {:else if screen === 'restoring'}
-    <p class="message" role="status">Taking up your session again…</p>
-    <button type="button" onclick={() => sessions.drop()}>Drop session</button>
-  {:else}
-    <Lobby
-      name={profile.name}
-      onname={(name) => (profile.name = name)}
-      onsettle={() => profile.settle()}
-      onregenerate={() => profile.regenerate()}
-      suggest={randomSessionName}
-      {found}
-      joining={clientSession.status === 'joining'}
-      notice={sessions.ended}
-      onsolo={solo}
-      ontiming={() => (timingChosen = true)}
-      onmeter={() => (meterChosen = true)}
-      ontune={() => (tuneChosen = true)}
-      onhost={host}
-      onjoin={join}
-    />
-  {/if}
+{#snippet timingPanel()}
+  <TimingPanel report={timing} onexport={exportTiming} />
+{/snippet}
 
-  {#if timingShown}
-    <div class="settings">
-      <TimingPanel report={timing} onexport={exportTiming} />
-    </div>
-  {/if}
-  <footer>
-    <span>all rites reversed</span>
-    <svg class="pentagon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <polygon points="10,2 18,8 15,17.5 5,17.5 2,8" />
-    </svg>
-    <span>kallisti collective, 3192 YOLD</span>
-  </footer>
-</main>
+{#if screen === 'band'}
+  <Band
+    {player}
+    {metronome}
+    {instruments}
+    session={{
+      hosting: { session: hostSession.session, guests: hostSession.guests },
+      following: {
+        status: clientSession.status,
+        session: clientSession.session,
+        name: clientSession.name,
+        hostPlaying: clientSession.hostPlaying,
+        hostAway: clientSession.hostAway,
+        trip: clientSession.trip,
+        lacked: player.lacked,
+      },
+    }}
+    onend={() => void leave()}
+    sound={soundCard}
+    timing={timingShown ? timingPanel : undefined}
+  />
+{:else}
+  <main>
+    <TitleCard
+      theme={theme.name}
+      ontheme={(name) => (theme.name = name)}
+      address={sessions.address}
+      onaddress={(url) => (sessions.address = url)}
+    />
+
+    {@render soundCard()}
+
+    {#if screen === 'timing'}
+      <TimingTestScreen
+        test={testing}
+        onback={() => (timingChosen = false)}
+        onexport={exportRuns}
+      />
+    {:else if screen === 'meter'}
+      <MeterScreen player={meterPlayer} onback={() => (meterChosen = false)} />
+    {:else if screen === 'tune'}
+      <TuneScreen {tuner} {sender} {correction} onback={() => (tuneChosen = false)} />
+    {:else if screen === 'restoring'}
+      <p class="message" role="status">Taking up your session again…</p>
+      <button type="button" onclick={() => sessions.drop()}>Drop session</button>
+    {:else}
+      <Lobby
+        name={profile.name}
+        onname={(name) => (profile.name = name)}
+        onsettle={() => profile.settle()}
+        onregenerate={() => profile.regenerate()}
+        suggest={randomSessionName}
+        {found}
+        joining={clientSession.status === 'joining'}
+        notice={sessions.ended}
+        onsolo={solo}
+        ontiming={() => (timingChosen = true)}
+        onmeter={() => (meterChosen = true)}
+        ontune={() => (tuneChosen = true)}
+        onhost={host}
+        onjoin={join}
+      />
+    {/if}
+
+    {#if timingShown}
+      <div class="settings">
+        <TimingPanel report={timing} onexport={exportTiming} />
+      </div>
+    {/if}
+    <footer>
+      <span>all rites reversed</span>
+      <svg class="pentagon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <polygon points="10,2 18,8 15,17.5 5,17.5 2,8" />
+      </svg>
+      <span>kallisti collective, 3192 YOLD</span>
+    </footer>
+  </main>
+{/if}
 
 <style>
   main {

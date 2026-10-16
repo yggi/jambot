@@ -40,12 +40,8 @@ const sessionCard = (page: Page) => page.locator('details[aria-label="Session"]'
 /** Its state line, folded or not: "Hosting · 1 joined", "Following · host playing". */
 const state = (page: Page) => sessionCard(page).locator('summary .sub');
 
-/** Unfolds the session card, unless it is. */
-const openSession = async (page: Page) => {
-  const card = sessionCard(page);
-  if (!(await card.evaluate((details) => (details as HTMLDetailsElement).open)))
-    await card.locator('summary .title').click();
-};
+/** Brings the session card into view: its drawer section, pulled down. */
+const openSession = (page: Page) => openCard(page, 'Session');
 
 /** A host has exactly one player joined, by this name. */
 const joined = async (page: Page, name: string) => {

@@ -282,8 +282,35 @@ export const holdAudio = (page: Page, ms: number) =>
 export const stalls = (page: Page) =>
   page.evaluate(() => (window as unknown as { stalls: Stall[] }).stalls);
 
-/** Unfold a card by its title, where it is folded. */
+/** The band's drawer section that holds a card, by the card's title. */
+const DRAWN: Record<string, string> = {
+  Sound: 'Sound',
+  Session: 'Session',
+  Style: 'Style',
+  Metrum: 'Time',
+  Key: 'Key',
+  Muse: 'Muse',
+  Timing: 'Timing',
+};
+/** The band's view that holds a card, by the card's title. */
+const SHOWN: Record<string, string> = { Plan: 'Song', Chords: 'Song', Band: 'Mix', Play: 'Melody' };
+
+/** Shows one of the band's views, as a person taps its tab: the drawer goes up. */
+export const showView = (page: Page, name: string) => page.getByRole('tab', { name }).click();
+
+/**
+ * Brings a card into view by its title: on the band's screen, its drawer
+ * section pulled down or its view shown; elsewhere, unfolded where it is
+ * folded.
+ */
 export async function openCard(page: Page, title: string) {
+  const drawer = page.getByRole('navigation', { name: 'Drawer' });
+  if (DRAWN[title] && (await drawer.count()) > 0) {
+    const rider = drawer.getByRole('button', { name: DRAWN[title], exact: true });
+    if ((await rider.getAttribute('aria-expanded')) !== 'true') await rider.click();
+    return;
+  }
+  if (SHOWN[title] && (await drawer.count()) > 0) return showView(page, SHOWN[title]);
   const card = page.locator(`details[aria-label="${title}"]`);
   if (!(await card.evaluate((details) => (details as HTMLDetailsElement).open)))
     await card.locator('summary .title').click();

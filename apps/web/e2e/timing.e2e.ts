@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { type Page, expect, test } from '@playwright/test';
-import { clockJumps, holdAudio, listen, openStyle, solo, stalls } from './audio.ts';
+import { clockJumps, holdAudio, listen, openCard, openStyle, solo, stalls } from './audio.ts';
 
 /**
  * The timing panel and its export (#27), against what the harness measures
@@ -10,6 +10,7 @@ import { clockJumps, holdAudio, listen, openStyle, solo, stalls } from './audio.
 
 /** The report the panel exports, read back from the file it saves. */
 async function exported(page: Page) {
+  await openCard(page, 'Timing');
   const saving = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export' }).click();
   const download = await saving;
@@ -25,6 +26,7 @@ test('counts a hold of the audio as a buffer dropped, and a stall as a long tick
 }) => {
   const errors = await listen(page, '/?timing');
   await solo(page);
+  await openCard(page, 'Timing');
   await expect(page.getByRole('region', { name: 'Timing' })).toBeVisible();
   await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
