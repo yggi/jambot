@@ -1,0 +1,668 @@
+<title>Jambot Mobile Layouts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a gallery of phone frames, one per fundamental option, each a live mock on one shared clock. Tokens are the app's own (apps/web/src/app.css). */
+:root {
+  --bg: #e9ecf3; --surface: #ffffff; --surface-2: #f3f5fa; --ink: #1b2340; --muted: #59617d; --line: #d3d8e4;
+  --amber: #9a6200; --amber-soft: #f6e6c6; --on-amber: #ffffff; --teal: #0f7a6a; --teal-bg: #d8f0eb;
+  --frame: #1b2340; --page: #dfe3ec; --key-white: #fbfaf6; --key-black: #1b2340;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131a2e; --surface: #1c2440; --surface-2: #18203a; --ink: #ede7da; --muted: #9ba3c0; --line: #2e385c;
+  --amber: #f2b134; --amber-soft: #3a3320; --on-amber: #131a2e; --teal: #6fd3c1; --teal-bg: #193a3a;
+  --frame: #05070d; --page: #0d1222; --key-white: #e6e0d2; --key-black: #10162a; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #131a2e; --surface: #1c2440; --surface-2: #18203a; --ink: #ede7da; --muted: #9ba3c0; --line: #2e385c;
+  --amber: #f2b134; --amber-soft: #3a3320; --on-amber: #131a2e; --teal: #6fd3c1; --teal-bg: #193a3a;
+  --frame: #05070d; --page: #0d1222; --key-white: #e6e0d2; --key-black: #10162a; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.45 var(--font); }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
+button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+.intro { max-width: 1180px; margin: 0 auto; padding-block: 28px 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.intro h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+.intro p { max-width: 68ch; color: var(--muted); margin: 0 0 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chips button { border: 1px solid var(--line); background: var(--surface); padding: 8px 14px; border-radius: 999px; font-weight: 600; }
+.chips button[aria-pressed="true"] { background: var(--teal-bg); border-color: var(--teal); color: var(--teal); }
+
+.gallery { display: flex; gap: 36px; overflow-x: auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); scroll-snap-type: x mandatory; }
+.option { flex: none; scroll-snap-align: center; display: grid; gap: 12px; align-content: start; }
+.option h2 { margin: 0; font-size: 18px; }
+.option h2 small { color: var(--teal); font-weight: 800; margin-right: 6px; }
+.option .gist { max-width: 390px; color: var(--muted); font-size: 13.5px; margin: 0; }
+.option ul { max-width: 390px; margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+.option ul li.plus::marker { content: '+  '; color: var(--teal); font-weight: 800; }
+.option ul li.minus::marker { content: '−  '; color: var(--amber); font-weight: 800; }
+.option.landscape .gist, .option.landscape ul { max-width: 640px; }
+
+/* The phone */
+.phone { width: 390px; height: 844px; border-radius: 46px; border: 10px solid var(--frame); background: var(--bg); overflow: hidden; position: relative; box-shadow: 0 18px 50px rgb(0 0 0 / 0.25); }
+.landscape .phone { width: 844px; height: 390px; }
+.screen { position: absolute; inset: 0; display: grid; overflow: hidden; }
+.statusbar { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.landscape .statusbar { display: none; }
+@media (max-width: 430px) {
+  .gallery { flex-direction: column; overflow: visible; gap: 40px; }
+  .phone { width: 100%; max-width: 390px; height: 780px; border-width: 6px; border-radius: 34px; }
+  .landscape .phone { width: 100%; height: 300px; }
+  .landscape { display: none; }
+}
+body.only { background: var(--bg); }
+body.only .intro, body.only .gist, body.only h2, body.only ul, body.only .notes { display: none; }
+body.only .gallery { padding: 0; }
+body.only .phone { border: 0; border-radius: 0; box-shadow: none; width: 100vw; height: 100vh; }
+
+/* Transport header: the bar's beats are its background */
+.tp { position: relative; height: 64px; margin: 0 10px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 8px; overflow: hidden; }
+.tp .beats { position: absolute; inset: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.tp .beat { position: relative; border-right: 1px solid var(--line); transition: background 0.06s; }
+.tp .beat:last-child { border-right: 0; }
+.tp .beat.on { background: var(--amber-soft); }
+.tp .beat.on.down { background: color-mix(in srgb, var(--amber) 34%, var(--surface)); }
+.tp .beat .ticks { position: absolute; left: 0; right: 0; bottom: 5px; display: flex; justify-content: space-around; }
+.tp .beat .ticks i { width: 4px; height: 4px; border-radius: 50%; background: var(--line); }
+.tp .beat .ticks i.on { background: var(--amber); }
+.tp .beat.left { background: repeating-linear-gradient(135deg, var(--amber-soft) 0 6px, transparent 6px 12px); }
+.tp > :not(.beats) { position: relative; }
+.tp .play { width: 48px; height: 48px; border-radius: 50%; background: var(--amber); color: var(--on-amber); display: grid; place-items: center; flex: none; }
+.tp .play svg { width: 20px; height: 20px; }
+.tp .play.ending { background: var(--surface); color: var(--amber); box-shadow: inset 0 0 0 3px var(--amber); }
+.tp .what { flex: 1; min-width: 0; line-height: 1.15; }
+.tp .what b { display: block; font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.tp .what span { display: block; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp .loop { flex: none; height: 40px; min-width: 52px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--muted); line-height: 1.1; }
+.tp .loop svg { width: 18px; height: 18px; }
+.tp .loop[aria-pressed="true"] { background: var(--teal-bg); color: var(--teal); border-color: var(--teal); }
+.tp.compact { height: 52px; }
+.tp.compact .play { width: 40px; height: 40px; }
+.tp.compact .what b { font-size: 18px; }
+
+/* The dock: play-along chooser, always in the thumb zone */
+.dock { height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+.dock .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.seg button { height: 34px; min-width: 44px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--teal-bg); color: var(--teal); font-weight: 700; }
+.seg button svg { width: 18px; height: 18px; }
+.dock .seg { margin-left: auto; }
+
+/* Tab bars and riders */
+.tabbar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: 18px; }
+.tabbar button { height: 58px; display: grid; justify-items: center; align-content: center; gap: 3px; font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.02em; }
+.tabbar button svg { width: 26px; height: 26px; }
+.tabbar button[aria-selected="true"] { color: var(--amber); }
+.tabbar button[aria-selected="true"] svg { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--amber) 45%, transparent)); }
+
+.riders { display: flex; gap: 8px; overflow-x: auto; padding: 8px 10px; scrollbar-width: none; scroll-snap-type: x proximity; }
+.riders::-webkit-scrollbar { display: none; }
+.rider { flex: none; width: 128px; height: 64px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); display: grid; grid-template-columns: 26px 1fr; grid-template-rows: auto auto; column-gap: 6px; align-items: center; padding: 6px 8px; text-align: left; scroll-snap-align: start; }
+.rider svg { grid-row: span 2; width: 26px; height: 26px; }
+.rider small { font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; align-self: end; }
+.rider b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: start; }
+.rider[aria-selected="true"] { border-color: var(--amber); box-shadow: inset 0 -3px 0 var(--amber); }
+
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px 10px 0; }
+.tile { height: 74px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); padding: 7px 8px; text-align: left; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+.tile .top { display: flex; align-items: center; gap: 5px; }
+.tile .top svg { width: 20px; height: 20px; }
+.tile small { font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+.tile b { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: center; }
+.tile span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile[aria-selected="true"] { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, var(--surface)); }
+
+.rail { display: grid; align-content: start; gap: 2px; padding: 6px; background: var(--surface); border-right: 1px solid var(--line); }
+.rail button { height: 50px; width: 64px; display: grid; justify-items: center; align-content: center; gap: 1px; font-size: 9.5px; font-weight: 700; color: var(--muted); border-radius: 12px; }
+.rail button svg { width: 24px; height: 24px; }
+.rail button[aria-selected="true"] { color: var(--amber); background: var(--amber-soft); }
+
+/* Content panel: fixed region, never resizes with what it shows */
+.panel { overflow: auto; padding: 10px 12px; container-type: size; scrollbar-width: thin; min-height: 0; }
+.panel h3 { margin: 0 0 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.panel h3 em { font-style: normal; color: var(--ink); letter-spacing: 0; text-transform: none; font-size: 12px; font-weight: 600; }
+.panel .stack { display: grid; gap: 12px; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px; }
+
+.headline { display: flex; align-items: baseline; gap: 10px; }
+.headline b { font-size: 28px; line-height: 1; }
+.headline span { color: var(--muted); font-size: 13px; }
+
+.presets { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.presets button { height: 40px; font-size: 12.5px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); line-height: 1.1; padding: 0 4px; }
+.presets button:nth-child(4n) { border-right: 0; }
+.presets button:nth-last-child(-n+4) { border-bottom: 0; }
+.presets button[aria-pressed="true"] { background: var(--teal-bg); color: var(--teal); font-weight: 700; }
+
+.axes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.axis { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 7px 8px 8px; display: grid; gap: 5px; }
+.axis .row { display: flex; justify-content: space-between; font-size: 12.5px; }
+.axis .row b { font-variant-numeric: tabular-nums; }
+.axis .ctl { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; gap: 6px; }
+.axis .ctl button { height: 36px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: 18px; color: var(--muted); }
+.gauge { position: relative; height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); }
+.gauge .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--amber); border-radius: 4px; opacity: 0.85; }
+.gauge .mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); opacity: 0.5; }
+@container (max-height: 470px) { .axis .row span.hint { display: none; } .presets button { height: 34px; } }
+
+.keywrap svg.cof { width: min(100%, 250px); height: auto; margin: 0 auto; display: block; }
+@container (max-height: 470px) { .keywrap svg.cof { width: 150px; } .keywrap { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px; } }
+
+.modes { display: grid; grid-template-columns: repeat(7, 1fr); }
+.modes button { min-width: 0; padding: 0 2px; }
+.modes.three { grid-template-columns: repeat(3, 1fr); }
+.modes button { height: 38px; font-size: 12.5px; }
+.modes button[disabled] { opacity: 0.4; }
+
+.big-tempo { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 8px; }
+.big-tempo button { height: 56px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); font-size: 24px; color: var(--muted); }
+.big-tempo div { text-align: center; }
+.big-tempo b { font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
+.big-tempo span { display: block; font-size: 12px; color: var(--muted); }
+.meters { display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.meters button { height: 34px; font-size: 11.5px; white-space: nowrap; overflow: hidden; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.meters button:nth-child(6n) { border-right: 0; }
+.meters button:nth-last-child(-n+6) { border-bottom: 0; }
+.meters button[aria-pressed="true"] { background: var(--teal-bg); color: var(--teal); font-weight: 700; }
+.ruler { display: flex; justify-content: space-between; align-items: center; padding: 6px 4px 0; }
+.ruler i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.ruler i.p { width: 14px; height: 14px; background: color-mix(in srgb, var(--amber) 50%, var(--line)); }
+.ruler i.on { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
+
+.sections { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.sections div { border-radius: 10px; border: 1px solid var(--line); background: var(--surface); padding: 6px 7px; font-size: 11.5px; position: relative; overflow: hidden; }
+.sections div b { display: block; font-size: 13px; }
+.sections div .prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--amber); }
+.sections div.now { border-color: var(--amber); }
+.sections div.key b::after { content: ' ●'; color: var(--teal); font-size: 9px; vertical-align: middle; }
+.cgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.cgrid > div { border-radius: 10px; background: var(--surface); border: 1px solid var(--line); padding: 6px 7px; min-height: 52px; }
+.cgrid > div b { display: block; font-size: 17px; }
+.cgrid > div span { font-size: 11px; color: var(--muted); }
+.cgrid > div.now { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--surface)); }
+.cgrid > div.big { grid-column: span 2; min-height: 72px; }
+.cgrid > div.big b { font-size: 26px; }
+.cgrid > div em { font-style: normal; font-size: 10px; color: var(--teal); font-weight: 700; display: block; }
+.dots { display: flex; gap: 5px; margin-top: 4px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.dots i.on { background: var(--amber); }
+
+.lanes { display: grid; gap: 6px; }
+.lane { display: grid; grid-template-columns: 58px 1fr 38px 38px; gap: 5px; align-items: center; }
+.lane b { font-size: 13px; }
+.lane .roll { position: relative; height: 38px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.lane .roll svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lane .ph { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--amber); }
+.lane button { height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 12px; font-weight: 800; color: var(--muted); }
+.lane button[aria-pressed="true"] { background: var(--amber); color: var(--on-amber); border-color: var(--amber); }
+.muse { display: flex; align-items: center; gap: 10px; }
+.muse svg { width: 44px; height: 44px; flex: none; }
+
+.kv { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.kv:last-child { border-bottom: 0; }
+.kv .btn { height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); }
+.fader { height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); position: relative; flex: 1; margin: 0 12px; }
+.fader::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 78%; background: var(--amber); border-radius: 5px; }
+.switch { width: 46px; height: 28px; border-radius: 14px; background: var(--teal); position: relative; }
+.switch::after { content: ''; position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); }
+
+/* Footer instruments: one fixed height for all three, so switching between them never moves anything */
+.footer { overflow: hidden; height: 0; transition: height 0.18s ease-out; border-top: 1px solid transparent; }
+.footer.open { height: 184px; border-top-color: var(--line); background: var(--surface-2); }
+.landscape .footer.open { height: auto; }
+.keys { position: relative; height: 100%; display: grid; grid-template-rows: 26px 1fr; }
+.keys .bar { display: flex; justify-content: space-between; align-items: center; padding: 0 10px; font-size: 11.5px; color: var(--muted); }
+.keys .bar button { width: 36px; height: 24px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.keyboard { position: relative; margin: 0 6px 6px; height: calc(100% - 6px); }
+.keyboard .w { position: absolute; top: 0; bottom: 0; border: 1px solid var(--line); border-radius: 0 0 8px 8px; background: var(--key-white); }
+.keyboard .w i { position: absolute; bottom: 10px; left: 50%; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--teal); }
+.keyboard .w.lit { background: color-mix(in srgb, var(--amber) 45%, var(--key-white)); }
+.keyboard .k { position: absolute; top: 0; height: 58%; background: var(--key-black); border-radius: 0 0 6px 6px; z-index: 1; }
+.keyboard .k i { position: absolute; bottom: 8px; left: 50%; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--teal); }
+.pads { height: 100%; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr 1fr; gap: 6px; padding: 8px; }
+.pads button { border-radius: 14px; background: var(--surface); border: 1px solid var(--line); font-size: 12px; font-weight: 700; color: var(--muted); display: grid; place-items: end start; padding: 8px; }
+.pads button.lit { background: var(--amber-soft); border-color: var(--amber); color: var(--amber); }
+.chart { height: 100%; display: grid; grid-template-columns: 1.35fr 1fr; grid-template-rows: 1fr auto; gap: 6px 10px; padding: 10px 14px 8px; }
+.chart .now b { font-size: 64px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; }
+.chart .now span { font-size: 15px; color: var(--muted); margin-left: 6px; }
+.chart .next { border-left: 2px solid var(--line); padding-left: 10px; color: var(--muted); }
+.chart .next small { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; display: block; }
+.chart .next b { font-size: 34px; line-height: 1.05; color: var(--ink); opacity: 0.75; }
+.chart .next .in { display: flex; gap: 5px; margin-top: 6px; }
+.chart .next .in i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--amber); }
+.chart .next .in i.gone { border-color: var(--line); }
+.chart .strip { grid-column: span 2; display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
+.chart .strip div { font-size: 13px; font-weight: 700; text-align: center; padding: 3px 0; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.chart .strip div.now { background: var(--amber); color: var(--on-amber); border-color: var(--amber); }
+.chart .strip div.cue { border-color: var(--teal); color: var(--teal); }
+
+/* Stage (option D) */
+.stage { overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; padding: 10px 14px; min-height: 0; }
+.stage .sec { display: flex; justify-content: space-between; align-items: baseline; }
+.stage .sec b { font-size: 15px; }
+.stage .sec span { font-size: 12.5px; color: var(--muted); }
+.stage .chord { display: grid; place-content: center; text-align: center; }
+.stage .chord b { font-size: 112px; line-height: 0.95; font-weight: 800; letter-spacing: -0.03em; }
+.stage .chord span { font-size: 18px; color: var(--muted); }
+.stage .nextline { display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-size: 15px; margin-top: 12px; }
+.stage .nextline b { font-size: 38px; color: var(--ink); opacity: 0.75; letter-spacing: 0; font-weight: 800; }
+.stage .nextline .in { display: flex; gap: 5px; }
+.stage .nextline .in i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--amber); }
+.stage .nextline .in i.gone { border-color: var(--line); }
+.stage .map { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
+.stage .map div { text-align: center; font-size: 12.5px; font-weight: 700; border-radius: 6px; padding: 5px 0; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.stage .map div.now { background: var(--amber); color: var(--on-amber); border-color: var(--amber); }
+.stage .map div.past { opacity: 0.45; }
+.drawer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; background: var(--surface); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.12); display: grid; grid-template-rows: auto auto; }
+.drawer .handle { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 7px auto 2px; }
+.drawer .icons { display: grid; grid-template-columns: repeat(6, 1fr); padding: 0 6px 18px; }
+.drawer .icons button { height: 52px; display: grid; justify-items: center; align-content: center; gap: 2px; font-size: 10px; font-weight: 700; color: var(--muted); }
+.drawer .icons button svg { width: 24px; height: 24px; }
+.drawer .icons button[aria-selected="true"] { color: var(--amber); }
+.drawer .sheet { height: 0; overflow: hidden; transition: height 0.2s ease-out; }
+.drawer.open .sheet { height: 430px; }
+.drawer .sheet .panel { height: 100%; }
+
+/* Glyph colour roles, as the app's */
+.g-lit { fill: var(--amber); } .g-dim { fill: var(--muted); } .g-acc { fill: var(--teal); }
+.gs-lit { stroke: var(--amber); fill: none; } .gs-dim { stroke: var(--muted); fill: none; } .gs-acc { stroke: var(--teal); fill: none; }
+
+.notes { max-width: 1180px; margin: 0 auto; padding-block: 0 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.notes section { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; min-width: 0; }
+.notes h3 { margin: 0 0 8px; font-size: 15px; }
+.notes ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; display: grid; gap: 5px; }
+.notes b { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="intro">
+  <h1>Jambot on a phone: five layouts</h1>
+  <p>Each frame is a live mock on one shared clock at 108 BPM. All five use the same parts: the transport header with the bar's beats as its background, the same six tab panels and the same play-along footer. Only the arrangement differs. Tap play, stop (twice for a hard stop), loop, the tabs and the play-along chooser.</p>
+  <p>On a phone the frames stack. On a wide screen they scroll sideways.</p>
+  <div class="chips" id="themechips">
+    <button data-theme-set="" aria-pressed="true">System</button>
+    <button data-theme-set="dark" aria-pressed="false">Dark</button>
+    <button data-theme-set="light" aria-pressed="false">Light</button>
+  </div>
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<div class="notes">
+  <section>
+    <h3>Shared by every option</h3>
+    <ul>
+      <li><b>The app shell owns the viewport.</b> The body never scrolls. Header, panel, footer and tab bar are grid rows with fixed heights, so nothing that plays can push anything else.</li>
+      <li><b>One footer height.</b> Keys, pads and chords are all 184 px. Switching between them moves nothing, and opening or closing is one deliberate slide.</li>
+      <li><b>Nudge before drag.</b> Axes and tempo are −/+ buttons with a gauge between them. A drag needs a horizontal start and never shares a gesture with scrolling.</li>
+      <li><b>Live riders.</b> A tab's label can carry its card's live main value (key, chord, BPM), so you don't need to open a tab to read it.</li>
+    </ul>
+  </section>
+  <section>
+    <h3>Platform, no new dependencies</h3>
+    <ul>
+      <li><b>Screen Wake Lock</b> keeps the phone awake while the band plays.</li>
+      <li><b>CSS scroll-snap</b> gives the swipe pager in B. No gesture library.</li>
+      <li><b>Container queries</b> fit each panel to the room it has. The app already uses <code>clamp</code> on container units.</li>
+      <li><b>View Transitions</b> for changing tabs, where the browser has them. Elsewhere the change is a plain swap.</li>
+      <li><b>PWA manifest</b>: <code>display: standalone</code>, and portrait locked where installed.</li>
+    </ul>
+  </section>
+  <section>
+    <h3>Open questions</h3>
+    <ul>
+      <li><b>Loop</b> holds the section: is that a wish the composer honours at the section's end (like a key), or a hard repeat of the bars already decided?</li>
+      <li>Should the <b>chords footer</b> show guitar or ukulele shapes, or only names and numerals?</li>
+      <li>Does a <b>client</b> see the transport's play button resting, or does it hide?</li>
+      <li>Where do the <b>extras</b> (tuner, metronome, timing test) live: the lobby, or a seventh tab?</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ---------- The song the mocks play (a plan of four sections, a chord per bar) ----------
+  const SECTIONS = [
+    { name: 'Intro', key: 'A minor', chords: ['Am', 'F', 'G7', 'Am', 'Am', 'F', 'G', 'Am'] },
+    { name: 'Groove', key: 'A minor', chords: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'Dm', 'E7'] },
+    { name: 'Bridge', key: 'C major', chords: ['F', 'G', 'Em', 'Am', 'F', 'G', 'C', 'C'] },
+    { name: 'Groove', key: 'A minor', chords: ['Am', 'F', 'G', 'Am', 'Dm', 'G', 'Am', 'E7'] },
+  ];
+  const NUMERALS = {
+    'A minor': { Am: 'i', F: 'VI', G: 'VII', G7: 'VII7', Dm: 'iv', E7: 'V7', C: 'III', Em: 'v' },
+    'C major': { F: 'IV', G: 'V', Em: 'iii', Am: 'vi', C: 'I', Dm: 'ii' },
+  };
+  const BARS = SECTIONS.length * 8, BPM = 108, BEATS = 4;
+  const STEP_MS = 60000 / BPM / 4;
+
+  const T = { status: 'play', step: (8 + 2) * 16 + 6, loop: false, count: 0, endBar: null };
+
+  const bar = () => Math.floor(T.step / 16) % BARS;
+  const sectionOf = (b) => Math.floor(b / 8);
+  const chordAt = (b) => SECTIONS[sectionOf(b % BARS)].chords[b % 8];
+  const keyAt = (b) => SECTIONS[sectionOf(b % BARS)].key;
+  const numeral = (b) => NUMERALS[keyAt(b)][chordAt(b)] ?? '';
+  const beat = () => Math.floor((T.step % 16) / 4);
+  const sixteenth = () => T.step % 4;
+
+  function tick() {
+    if (T.status === 'idle') return;
+    if (T.status === 'count') { T.count++; if (T.count >= 16) { T.status = 'play'; T.count = 0; } return; }
+    const before = bar();
+    T.step++;
+    const after = bar();
+    if (T.loop && after !== before && after % 8 === 0) T.step -= 8 * 16;
+    if (T.status === 'end' && after !== before && after === T.endBar) { T.status = 'idle'; T.step = after * 16; }
+    if (T.step >= BARS * 16) T.step = 0;
+  }
+  function toggle() {
+    if (T.status === 'idle') { T.status = 'count'; T.count = 0; T.step = 0; }
+    else if (T.status === 'play') { T.status = 'end'; T.endBar = (bar() + 1) % BARS; }
+    else { T.status = 'idle'; T.step = 0; } // count or end: a second stop halts at once
+    update();
+  }
+
+  // ---------- Glyphs: small figures in the app's colour roles ----------
+  const svg = (inner, vb = '0 0 40 40') => `<svg viewBox="${vb}" aria-hidden="true">${inner}</svg>`;
+  const ring = (n, r, cx = 20, cy = 20) => Array.from({ length: n }, (_, i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / n; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
+  const G = {
+    session: svg(`<line x1="20" y1="20" x2="8" y2="10" class="gs-dim" stroke-width="2"/><line x1="20" y1="20" x2="33" y2="12" class="gs-dim" stroke-width="2"/><line x1="20" y1="20" x2="22" y2="34" class="gs-dim" stroke-width="2"/><circle cx="20" cy="20" r="6" class="g-acc"/><circle cx="8" cy="10" r="4" class="g-lit"/><circle cx="33" cy="12" r="4" class="g-dim"/><circle cx="22" cy="34" r="4" class="g-dim"/>`),
+    style: svg(`<polygon points="${ring(6, 16).map((p) => p.join(',')).join(' ')}" class="gs-dim" stroke-width="2"/><polygon points="${ring(6, 1).map((_, i) => { const r = [6, 10, 11, 12, 12, 8][i]; const a = -Math.PI / 2 + (i * Math.PI) / 3; return [20 + r * Math.cos(a), 20 + r * Math.sin(a)].join(','); }).join(' ')}" class="g-lit" fill-opacity="0.7"/>`),
+    time: svg(ring(8, 14).map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i === 0 ? 4.5 : 3}" class="${i === 0 ? 'g-acc' : 'g-dim'}" data-blink="${i}"/>`).join('')),
+    key: svg(`<circle cx="20" cy="20" r="15" class="gs-dim" stroke-width="2"/>${ring(12, 15).map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${[0, 1, 2, 3, 4, 5, 11].includes(i) ? 3 : 2}" class="${i === 3 ? 'g-acc' : [0, 1, 2, 4, 5, 11].includes(i) ? 'g-lit' : 'g-dim'}"/>`).join('')}`),
+    song: svg([0, 1, 2, 3, 4].map((i) => `<rect x="${3 + i * 7}" y="13" width="5.5" height="14" rx="1.5" class="${i === 1 ? 'g-lit' : 'g-dim'}" ${i > 1 ? 'opacity="0.55"' : ''}/>`).join('') + `<circle cx="17" cy="8" r="2.5" class="g-acc"/>`),
+    band: svg([0, 1, 2, 3].map((i) => `<rect x="4" y="${7 + i * 7.5}" width="${[30, 18, 26, 12][i]}" height="4" rx="2" class="${i === 3 ? 'g-lit' : 'g-dim'}"/>`).join('') + `<rect x="21" y="4" width="2" height="32" class="g-lit"/>`),
+    keys: svg(`<rect x="4" y="8" width="32" height="24" rx="3" class="gs-dim" stroke-width="2"/>${[0, 1, 2, 3].map((i) => `<rect x="${10 + i * 7}" y="9" width="4" height="13" class="g-dim"/>`).join('')}`),
+    pads: svg([0, 1, 2, 3].map((i) => `<rect x="${5 + (i % 2) * 16}" y="${5 + Math.floor(i / 2) * 16}" width="13" height="13" rx="3" class="${i === 0 ? 'g-lit' : 'g-dim'}"/>`).join('')),
+    chords: svg(`<text x="20" y="27" text-anchor="middle" font-size="21" font-weight="800" class="g-dim" font-family="system-ui">Am</text>`),
+    off: svg(`<line x1="10" y1="20" x2="30" y2="20" class="gs-dim" stroke-width="3" stroke-linecap="round"/>`),
+    play: svg(`<path d="M13 9 L31 20 L13 31 Z" fill="currentColor"/>`),
+    stop: svg(`<rect x="11" y="11" width="18" height="18" rx="3" fill="currentColor"/>`),
+    loop: svg(`<path d="M10 16 a8 8 0 0 1 8-8 h6 M30 24 a8 8 0 0 1-8 8 h-6" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M22 3 l4 5 -4 5 M18 27 l-4 5 4 5" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`),
+  };
+
+  const TABS = [
+    ['session', 'Session'], ['style', 'Style'], ['time', 'Time'], ['key', 'Key'], ['song', 'Song'], ['band', 'Band'],
+  ];
+  // The live main value of each tab, as the card summaries say it now.
+  const live = {
+    session: () => 'Solo',
+    style: () => 'Synth-pop',
+    time: () => `${BPM} BPM`,
+    key: () => keyAt(bar()).replace(' major', '').replace(' minor', 'm'),
+    song: () => `${chordAt(bar())} · ${numeral(bar())}`,
+    band: () => '4 of 4',
+  };
+  const liveSub = {
+    session: () => 'This device', style: () => 'Playing', time: () => '4/4 · swing 50 %',
+    key: () => 'A B C D E F G', song: () => `${SECTIONS[sectionOf(bar())].name} ${(bar() % 8) + 1}/8`, band: () => 'Lead resting',
+  };
+
+  // ---------- The shared parts ----------
+  function transport(compact = false) {
+    return `<div class="tp${compact ? ' compact' : ''}" data-tp>
+      <div class="beats">${Array.from({ length: BEATS }, (_, i) => `<div class="beat" data-beat="${i}"><div class="ticks">${'<i></i>'.repeat(4)}</div></div>`).join('')}</div>
+      <button class="play" data-act="toggle" aria-label="Start or stop"></button>
+      <div class="what"><b data-live="tp-main"></b><span data-live="tp-sub"></span></div>
+      <button class="loop" data-act="loop" aria-pressed="false" aria-label="Loop this section">${G.loop}<span>loop</span></button>
+    </div>`;
+  }
+  function dock(st, kinds = ['off', 'keys', 'pads', 'chords']) {
+    const names = { off: 'None', keys: 'Keys', pads: 'Drums', chords: 'Chords' };
+    return `<div class="dock"><span class="lbl">Play along</span><div class="seg" role="group" aria-label="Play along">${kinds
+      .map((k) => `<button data-foot="${k}" aria-pressed="${st.footer === k}" aria-label="${names[k]}">${G[k]}${st.footer === k && k !== 'off' ? names[k] : ''}</button>`)
+      .join('')}</div></div>`;
+  }
+  function footer(st) {
+    const open = st.footer && st.footer !== 'off';
+    return `<div class="footer${open ? ' open' : ''}">${open ? FOOT[st.footer]() : ''}</div>`;
+  }
+
+  const FOOT = {
+    keys() {
+      const whites = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D', 'E'];
+      const scale = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'G']);
+      const blacks = [0, 1, 3, 4, 5, 7, 8];
+      const w = 100 / whites.length;
+      return `<div class="keys"><div class="bar"><button aria-label="Octave down">‹</button><span>A minor · dots mark the scale · C4–E5</span><button aria-label="Octave up">›</button></div>
+        <div class="keyboard">${whites.map((n, i) => `<div class="w${i === 5 ? ' lit' : ''}" style="left:${i * w}%;width:${w}%">${scale.has(n) ? '<i></i>' : ''}</div>`).join('')}${blacks
+        .map((i) => `<div class="k" style="left:${(i + 1) * w - w * 0.3}%;width:${w * 0.6}%"></div>`).join('')}</div></div>`;
+    },
+    pads() {
+      return `<div class="pads">${['Kick', 'Snare', 'Clap', 'Rim', 'Closed hat', 'Open hat', 'Tom', 'Crash'].map((n, i) => `<button data-pad="${i}">${n}</button>`).join('')}</div>`;
+    },
+    chords() {
+      return `<div class="chart"><div class="now"><b data-live="chord-now"></b><span data-live="chord-num"></span></div>
+        <div class="next"><small>Next</small><b data-live="chord-next"></b><div class="in" data-live="chord-in"></div></div>
+        <div class="strip" data-live="strip"></div></div>`;
+    },
+  };
+
+  const PANEL = {
+    session: () => `<div class="stack">
+      <div class="headline"><b>Solo</b><span>This device only</span></div>
+      <div class="box"><h3>Sound</h3>
+        <div class="kv"><span>Volume</span><span class="fader"></span><b>78 %</b></div>
+        <div class="kv"><span>Built-in synth</span><span class="switch"></span></div>
+        <div class="kv"><span>MIDI</span><button class="btn">Connect</button></div></div>
+      <div class="box"><h3>Players</h3><div class="kv"><span>Curious Otter (you)</span><span style="color:var(--teal)">●</span></div></div>
+      <div class="box"><div class="kv"><span>Back to the lobby</span><button class="btn">Leave</button></div></div></div>`,
+    style: () => {
+      const presets = ['Synth-pop', 'Techno', 'Deep house', 'Ambient', 'Lo-fi hip hop', 'Funk', 'Bossa nova', 'Swing jazz'];
+      const axes = [['Swing', 0, 'straight–swung'], ['Syncopation', 30, 'on–off the beat'], ['Harmony', 45, 'vamp–rich'], ['Articulation', 55, 'legato–staccato'], ['Energy', 55, 'sparse–dense'], ['Entropy', 30, 'steady–surprising']];
+      return `<div class="stack"><h3>Style <em>Playing Synth-pop</em></h3>
+        <div class="presets">${presets.map((p, i) => `<button aria-pressed="${i === 0}">${p}</button>`).join('')}</div>
+        <div class="axes">${axes.map(([n, v, h]) => `<div class="axis"><div class="row"><span>${n}</span><b>${v} %</b></div>
+          <div class="ctl"><button aria-label="Less ${n}">−</button><div class="gauge"><div class="fill" style="width:${v}%"></div><div class="mid"></div></div><button aria-label="More ${n}">+</button></div></div>`).join('')}</div></div>`;
+    },
+    time: () => {
+      const meters = ['3/4', '4/4', '5/4', '5/8', '6/8', '7/8', '9/8', '10/8', '12/8', '5/8 2+3', '7/8 2+2+3', '7/8 3+2+2'];
+      return `<div class="stack">
+        <div class="big-tempo"><button aria-label="Slower">−</button><div><b>${BPM}</b><span>BPM · reaches 97–121</span></div><button aria-label="Faster">+</button></div>
+        <div class="box"><h3>Bar <em>4/4 · swing 50 %</em></h3><div class="ruler" data-live="ruler">${Array.from({ length: 8 }, (_, i) => `<i class="${i % 2 ? '' : 'p'}"></i>`).join('')}</div></div>
+        <div><h3>Meter for the next section</h3><div class="meters">${meters.map((m) => `<button aria-pressed="${m === '4/4'}">${m}</button>`).join('')}</div></div>
+        <div><h3>Click</h3><div class="seg" style="display:flex">${['Off', 'Pulses', 'Eighths', '16ths'].map((c, i) => `<button style="flex:1" aria-pressed="${i === 1}">${c}</button>`).join('')}</div></div></div>`;
+    },
+    key: () => {
+      const names = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯', 'A♭', 'E♭', 'B♭', 'F'];
+      const inScale = new Set(['C', 'G', 'D', 'A', 'E', 'B', 'F']);
+      const pts = ring(12, 70, 100, 100), lab = ring(12, 90, 100, 100);
+      const cof = `<svg class="cof" viewBox="0 0 200 200" aria-label="Circle of fifths"><circle cx="100" cy="100" r="70" class="gs-dim" stroke-width="1.5" opacity="0.6"/>
+        <path d="${[11, 0, 1, 2, 3, 4, 5].map((i, j) => `${j ? 'L' : 'M'}${pts[i].join(' ')}`).join(' ')}" class="gs-acc" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+        ${pts.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${inScale.has(names[i]) ? 9 : 6}" class="${inScale.has(names[i]) ? 'g-lit' : 'g-dim'}" ${inScale.has(names[i]) ? '' : 'opacity="0.5"'}/>`).join('')}
+        <circle cx="${pts[3][0]}" cy="${pts[3][1]}" r="14" class="gs-acc" stroke-width="3"/>
+        ${lab.map(([x, y], i) => `<text x="${x}" y="${y + 5}" text-anchor="middle" font-size="14" font-weight="600" style="fill:${inScale.has(names[i]) ? 'var(--ink)' : 'var(--muted)'}" font-family="system-ui">${names[i]}</text>`).join('')}</svg>`;
+      return `<div class="stack"><div class="headline"><b>A minor</b><span>A B C D E F G</span></div>
+        <div class="keywrap">${cof}<div class="big-tempo" style="grid-template-columns:48px 1fr 48px"><button style="height:44px;font-size:18px" aria-label="A fifth down">↺</button><div><span>nudge a fifth</span></div><button style="height:44px;font-size:18px" aria-label="A fifth up">↻</button></div></div>
+        <div class="seg modes">${['lyd', 'major', 'mix', 'dor', 'minor', 'phr', 'loc'].map((m, i) => `<button aria-pressed="${m === 'minor'}" ${[0, 5, 6].includes(i) ? 'disabled' : ''}>${m}</button>`).join('')}</div>
+        <div class="seg modes three">${['plain', 'pentatonic', 'blues'].map((m, i) => `<button aria-pressed="${i === 0}" ${i === 2 ? 'disabled' : ''}>${m}</button>`).join('')}</div>
+        </div>`;
+    },
+    song: () => `<div class="stack"><h3>Plan <em data-live="plan-head"></em></h3>
+      <div class="sections" data-live="sections"></div>
+      <h3>Chords <em data-live="chords-head"></em></h3>
+      <div class="cgrid" data-live="cgrid"></div></div>`,
+    band: () => {
+      const lanes = [['Drums', 'M2 30 h1 M14 10 h1 M26 30 h1 M38 10 h1 M50 30 h1 M62 10 h1 M74 30 h1 M86 10 h1', false], ['Bass', 'M2 26 h10 M26 20 h8 M50 26 h10 M74 14 h8', false], ['Chords', 'M2 12 h46 M2 18 h46 M52 14 h46 M52 22 h46', false], ['Lead', '', true]];
+      return `<div class="stack"><h3>Band <em>4 of 4 sound</em></h3><div class="lanes">${lanes
+        .map(([n, d, mute]) => `<div class="lane"><b>${n}</b><div class="roll"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><path d="${d}" class="gs-dim" stroke-width="3" stroke-linecap="round"/></svg><div class="ph" data-live="ph"></div></div><button aria-pressed="${mute}" aria-label="Mute ${n}">M</button><button aria-pressed="false" aria-label="Solo ${n}">S</button></div>`)
+        .join('')}</div>
+        <div class="box muse">${svg(`<circle cx="20" cy="20" r="15" class="gs-acc" stroke-width="3"/>`)}<div><b>Listening</b><div style="font-size:12.5px;color:var(--muted)">Play 3 to 12 notes in one bar</div></div></div></div>`;
+    },
+  };
+
+  // ---------- The five options ----------
+  const OPTIONS = [
+    {
+      id: 'a', name: 'Bottom tabs', gist: 'A native app: the transport on top, six tabs in the thumb zone at the bottom, and the play-along footer docked above them.',
+      pros: ['Familiar from every phone app; nothing to learn', 'Tabs reachable with one thumb while holding the phone', 'Panel height is fixed, so nothing jumps'],
+      cons: ['Only the open tab is visible; the rest is one tap away', 'Six tabs are the most a phone width holds'],
+      state: { tab: 'style', footer: 'off' },
+      render(st) {
+        return `<div class="screen" style="grid-template-rows:34px 64px 1fr auto 44px auto"><div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+          ${transport()}<div class="panel">${PANEL[st.tab]()}</div>${footer(st)}${dock(st)}
+          <nav class="tabbar" role="tablist">${TABS.map(([id, n]) => `<button role="tab" data-tab="${id}" aria-selected="${st.tab === id}">${G[id]}${n}</button>`).join('')}</nav></div>`;
+      },
+    },
+    {
+      id: 'b', name: 'Live riders', gist: 'The card summaries shrink to riders under the transport, each with its live value. They scroll sideways, and the panel below follows them.',
+      pros: ['Key, chord, BPM and section are readable without opening anything', 'Grows from today’s card summaries (glyph, title, main)', 'Riders scroll, so seven or eight tabs fit'],
+      cons: ['Riders off screen are hidden until you scroll', 'Tabs at the top are a stretch for the thumb'],
+      state: { tab: 'key', footer: 'keys' },
+      render(st) {
+        return `<div class="screen" style="grid-template-rows:34px 64px auto 1fr auto 44px 18px"><div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+          ${transport()}<nav class="riders" role="tablist">${TABS.map(([id, n]) => `<button class="rider" role="tab" data-tab="${id}" aria-selected="${st.tab === id}">${G[id]}<small>${n}</small><b data-live="r-${id}"></b></button>`).join('')}</nav>
+          <div class="panel">${PANEL[st.tab]()}</div>${footer(st)}${dock(st)}<div></div></div>`;
+      },
+    },
+    {
+      id: 'c', name: 'Live tiles and a sheet', gist: 'A dashboard: six live tiles always on screen. Tapping a tile opens its details in the sheet below. The footer shares that space.',
+      pros: ['Everything that matters is always visible: the strongest “show what’s relevant”', 'The tiles are the summaries the cards already have'],
+      cons: ['The tiles take about 170 px, which leaves less room for details and instruments', 'A busy screen while you play'],
+      state: { tab: 'song', footer: 'off' },
+      render(st) {
+        return `<div class="screen" style="grid-template-rows:34px 64px auto 1fr auto 44px 18px"><div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+          ${transport()}<nav class="tiles" role="tablist">${TABS.map(([id, n]) => `<button class="tile" role="tab" data-tab="${id}" aria-selected="${st.tab === id}"><span class="top">${G[id]}<small>${n}</small></span><b data-live="r-${id}"></b><span data-live="s-${id}"></span></button>`).join('')}</nav>
+          <div class="panel">${PANEL[st.tab]()}</div>${footer(st)}${dock(st)}<div></div></div>`;
+      },
+    },
+    {
+      id: 'd', name: 'Stage first', gist: 'For playing along: the screen is a chord chart (now, next, the section’s bars), readable at arm’s length. Conducting is a drawer you pull up.',
+      pros: ['Best for an acoustic player reading while playing', 'The chords “footer” is the whole screen', 'Controls can’t be touched by accident'],
+      cons: ['Conducting takes two taps', 'A second mode to keep in sync with the rest'],
+      state: { tab: null, footer: 'off' },
+      render(st) {
+        return `<div class="screen" style="grid-template-rows:34px 64px 1fr auto 44px 86px"><div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+          ${transport()}<div class="stage"><div class="sec"><b data-live="stage-sec"></b><span data-live="stage-key"></span></div>
+          <div class="chord"><b data-live="chord-now"></b><span data-live="chord-num"></span><div class="nextline">next <b data-live="chord-next"></b><span class="in" data-live="chord-in"></span></div></div>
+          <div class="map" data-live="map"></div></div>
+          ${footer(st)}${dock(st, ['off', 'keys', 'pads'])}
+          <div class="drawer${st.tab ? ' open' : ''}"><div class="handle"></div><div class="sheet">${st.tab ? `<div class="panel">${PANEL[st.tab]()}</div>` : ''}</div>
+          <div class="icons" role="tablist">${TABS.map(([id, n]) => `<button role="tab" data-tab="${id}" data-toggle-tab aria-selected="${st.tab === id}">${G[id]}${n}</button>`).join('')}</div></div></div>`;
+      },
+    },
+    {
+      id: 'e', name: 'Side rail, sideways', landscape: true, gist: 'Option A turned sideways (a phone on its side, a tablet, a desktop): the tabs become a rail, and the instrument takes the right half instead of the bottom.',
+      pros: ['The same tabs and panels as A; only the frame changes', 'The keys get a whole half of the screen'],
+      cons: ['A phone on its side is 390 px tall: a panel must fit in about 280 px'],
+      state: { tab: 'time', footer: 'keys' },
+      render(st) {
+        const open = st.footer && st.footer !== 'off';
+        return `<div class="screen" style="grid-template-columns:76px 1fr ${open ? '1fr' : '0'};grid-template-rows:56px 1fr 44px">
+          <nav class="rail" role="tablist" style="grid-row:span 3">${TABS.map(([id, n]) => `<button role="tab" data-tab="${id}" aria-selected="${st.tab === id}">${G[id]}${n}</button>`).join('')}</nav>
+          <div style="grid-column:span 2;padding-top:4px">${transport(true)}</div>
+          <div class="panel">${PANEL[st.tab]()}</div>
+          <div class="footer${open ? ' open' : ''}" style="border-left:1px solid var(--line);border-top:0">${open ? FOOT[st.footer]() : ''}</div>
+          <div style="grid-column:span 2">${dock(st)}</div></div>`;
+      },
+    },
+  ];
+
+  // ---------- Mounting and the live update ----------
+  const set = (root, sel, fn) => root.querySelectorAll(`[data-live="${sel}"]`).forEach(fn);
+  const params = new URLSearchParams(location.search);
+  const only = params.get('only');
+  if (only) document.body.classList.add('only');
+  const gallery = document.getElementById('gallery');
+  const mounted = [];
+  for (const opt of OPTIONS) {
+    if (only && opt.id !== only) continue;
+    const st = { ...opt.state };
+    if (params.has('tab')) st.tab = params.get('tab') === 'none' ? null : params.get('tab');
+    if (params.has('footer')) st.footer = params.get('footer');
+    const el = document.createElement('article');
+    el.className = 'option' + (opt.landscape ? ' landscape' : '');
+    el.innerHTML = `<h2><small>${opt.id.toUpperCase()}</small>${opt.name}</h2><p class="gist">${opt.gist}</p>
+      <div class="phone"></div><ul>${opt.pros.map((p) => `<li class="plus">${p}</li>`).join('')}${opt.cons.map((c) => `<li class="minus">${c}</li>`).join('')}</ul>`;
+    gallery.append(el);
+    const phone = el.querySelector('.phone');
+    const m = { opt, st, phone };
+    const draw = () => { phone.innerHTML = opt.render(st); update(); };
+    phone.addEventListener('click', (ev) => {
+      const b = ev.target.closest('button'); if (!b) return;
+      if (b.dataset.act === 'toggle') return toggle();
+      if (b.dataset.act === 'loop') { T.loop = !T.loop; return update(); }
+      if (b.dataset.tab) { st.tab = b.hasAttribute('data-toggle-tab') && st.tab === b.dataset.tab ? null : b.dataset.tab; return draw(); }
+      if (b.dataset.foot) { st.footer = b.dataset.foot; return draw(); }
+      if (b.dataset.pad) { b.classList.add('lit'); setTimeout(() => b.classList.remove('lit'), 120); }
+    });
+    m.draw = draw;
+    mounted.push(m);
+    draw();
+  }
+  if (params.has('status')) { T.status = params.get('status'); if (T.status === 'count') T.count = 6; if (T.status === 'end') T.endBar = (bar() + 1) % BARS; }
+  if (params.has('loop')) T.loop = true;
+
+  function update() {
+    const b = bar(), sec = sectionOf(b), s = SECTIONS[sec];
+    const bt = T.status === 'count' ? Math.floor(T.count / 4) : beat();
+    const six = T.status === 'count' ? T.count % 4 : sixteenth();
+    const left = 4 - beat(); // beats until the next bar's chord
+    let main, sub;
+    if (T.status === 'idle') { main = 'Ready'; sub = `Opens on ${SECTIONS[0].name} · ${BPM} BPM · 4/4`; }
+    else if (T.status === 'count') { main = `Count-in · ${4 - bt}`; sub = `${BPM} BPM · 4/4 · ${SECTIONS[0].key}`; }
+    else if (T.status === 'end') { main = `Ending · bar ${(b % 8) + 1}`; sub = 'Stop again to cut it short'; }
+    else { main = `${s.name} ${(b % 8) + 1}/8${T.loop ? ' ⟲' : ''}`; sub = `${BPM} BPM · 4/4 · ${s.key}`; }
+    for (const { phone } of mounted) {
+      phone.querySelectorAll('[data-tp]').forEach((tp) => {
+        tp.querySelectorAll('.beat').forEach((c, i) => {
+          const lit = T.status !== 'idle' && i === bt;
+          c.classList.toggle('on', lit); c.classList.toggle('down', lit && i === 0);
+          c.querySelectorAll('.ticks i').forEach((t, j) => t.classList.toggle('on', lit && j <= six));
+          c.classList.toggle('left', T.status === 'count' && i > bt);
+        });
+        const p = tp.querySelector('.play');
+        p.innerHTML = T.status === 'idle' ? G.play : G.stop;
+        p.classList.toggle('ending', T.status === 'end');
+        tp.querySelector('.loop').setAttribute('aria-pressed', String(T.loop));
+      });
+      set(phone, 'tp-main', (e) => (e.textContent = main));
+      set(phone, 'tp-sub', (e) => (e.textContent = sub));
+      for (const [id] of TABS) {
+        set(phone, `r-${id}`, (e) => (e.textContent = live[id]()));
+        set(phone, `s-${id}`, (e) => (e.textContent = liveSub[id]()));
+      }
+      set(phone, 'chord-now', (e) => (e.textContent = chordAt(b)));
+      set(phone, 'chord-num', (e) => (e.textContent = numeral(b)));
+      set(phone, 'chord-next', (e) => (e.textContent = chordAt(b + 1)));
+      set(phone, 'chord-in', (e) => (e.innerHTML = Array.from({ length: 4 }, (_, i) => `<i class="${i < 4 - left ? 'gone' : ''}"></i>`).join('')));
+      set(phone, 'strip', (e) => (e.innerHTML = Array.from({ length: 8 }, (_, i) => { const x = b + i; const cue = i > 0 && x % 8 === 0; return `<div class="${i === 0 ? 'now' : cue ? 'cue' : ''}">${chordAt(x)}</div>`; }).join('')));
+      set(phone, 'stage-sec', (e) => (e.textContent = `${s.name} · bar ${(b % 8) + 1} of 8`));
+      set(phone, 'stage-key', (e) => (e.textContent = `${s.key} · next ${SECTIONS[(sec + 1) % 4].name}${SECTIONS[(sec + 1) % 4].key !== s.key ? ', ' + SECTIONS[(sec + 1) % 4].key : ''}`));
+      set(phone, 'map', (e) => (e.innerHTML = s.chords.map((c, i) => `<div class="${i === b % 8 ? 'now' : i < b % 8 ? 'past' : ''}">${c}</div>`).join('')));
+      set(phone, 'ruler', (e) => e.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', T.status !== 'idle' && i === Math.floor((T.step % 16) / 2))));
+      set(phone, 'ph', (e) => (e.style.left = `${((T.step % 16) / 16) * 100}%`));
+      set(phone, 'plan-head', (e) => (e.textContent = `${s.name} ${(b % 8) + 1}/8 · ${s.key}`));
+      set(phone, 'sections', (e) => (e.innerHTML = SECTIONS.map((x, i) => `<div class="${i === sec ? 'now' : ''} ${i > 0 && x.key !== SECTIONS[i - 1].key ? 'key' : ''}"><b>${x.name}</b>${x.key}${i === sec ? `<span class="prog" style="width:${(((b % 8) + (T.step % 16) / 16) / 8) * 100}%"></span>` : ''}</div>`).join('')));
+      set(phone, 'chords-head', (e) => (e.textContent = `next ${chordAt(b + 1)} in ${left}`));
+      set(phone, 'cgrid', (e) => (e.innerHTML = Array.from({ length: 6 }, (_, i) => { const x = b + i; const cue = i > 0 && x % 8 === 0 ? `<em>${SECTIONS[sectionOf(x % BARS)].name}${keyAt(x) !== keyAt(x - 1) ? ', ' + keyAt(x) : ''}</em>` : ''; return `<div class="${i < 2 ? 'big' : ''} ${i === 0 ? 'now' : ''}">${cue}<b>${chordAt(x)}</b><span>${numeral(x)}</span>${i === 0 ? `<div class="dots">${Array.from({ length: 4 }, (_, j) => `<i class="${j <= beat() ? 'on' : ''}"></i>`).join('')}</div>` : ''}</div>`; }).join('')));
+      phone.querySelectorAll('[data-blink]').forEach((d) => { const i = +d.dataset.blink; const on = T.status !== 'idle' && i === Math.floor((T.step % 16) / 2); d.setAttribute('class', on ? 'g-lit' : i === 0 ? 'g-acc' : 'g-dim'); });
+    }
+  }
+
+  let last = performance.now(), acc = 0;
+  const frozen = params.has('frozen');
+  function frame(now) {
+    acc += now - last; last = now;
+    let changed = false;
+    while (acc >= STEP_MS) { acc -= STEP_MS; if (!frozen) { tick(); changed = true; } }
+    if (changed) update();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  update();
+
+  // Theme chips
+  document.getElementById('themechips').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    const v = b.dataset.themeSet;
+    if (v) document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme;
+    document.querySelectorAll('#themechips button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  });
+  if (params.has('theme')) document.documentElement.dataset.theme = params.get('theme');
+})();
+</script>
