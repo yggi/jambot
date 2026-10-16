@@ -560,5 +560,24 @@ run; the others have.
     So either the text holds the performance, against D3's ruling that the jam's text holds what is composed (T4), or the accents change: cells has no form for a level read from a line's role and a seeded licence.
   - Not measured: when a step plays (the swing and a tempo in a glide, which the transport maps), the played length (the licence's gate, a little under a step, where cells holds the whole step), a meter other than 4/4 (the band writes none), more bars than one per preset, and the other parts.
 
+- **E32. The band's harmony as cells text** (yggi/cells#50, its first step; #309, the seam), in
+  [`packages/score/experiments/pitch-in-cells.ts`](../packages/score/experiments/pitch-in-cells.ts)
+  (about 4 s, under vitest only, as E31), held by [`packages/score/experiments/pitch-in-cells.test.ts`](../packages/score/experiments/pitch-in-cells.test.ts):
+  every preset held (all 8, seed 0, entropy 0.3, 32 bars: 256 bars, 262 chords, six keys in three modes), each bar's harmony (its key, its chords as numerals, the next chord where a stab plays it, the frame pin) written under three candidate spellings in cells and read back.
+  The three share the key (`&key scale(aeolian, A)`), the rhythm (a token a chord, `step=&bar/2`, `@k`), the next chord as a one-chord cell (`&next`, over the next key where it differs) and the pin as degrees of the key from the part's voice (`&frame over=&key [0,2,5]`, `&frameBass over=&key 5`); they part on the chord.
+  - **stacks** (cells v0.1.0 parses it, as its `chords.cells`): a stack of the key's degrees, `[4,6#,8,10]`.
+  - **shapes** (cells v0.1.0 parses it, as its `tines.cells`): a shape moved up the key, `&c0 [0,2#,4,6]` and `&c0^4` (decisions 015 and 033).
+  - **numerals** (a proposal: cells has no numeral): U1's numeral as a token over the key, `V7/V`; its meaning is the stack it names, and every bar's numerals text lowered by it is that bar's stacks text.
+  - **Characters, and the bars that read back exactly**: the score's own `key=`, `harm`, `next` and `frame` 12,900 and 256; stacks 27,180 and 252; shapes 29,425 and 252 (26,230 with its shapes stated once a preset); numerals 25,577 and 256.
+    The chords' lines alone are 2,936 in the score, 10,123 stacks, 12,368 shapes and 8,520 numerals; the key (5,744) and the pin (11,569) are the same lines in every candidate.
+    Every stacks and shapes text compiles with no diagnostic and plays the band's chords step for step; every pin reads back through cells.
+  - **Every case**: every numeral `numeralOf` writes in the 48 keys of the composer's four modes, 10,944 of them and 4,560 with a root off the key (U1), reads back in every candidate. Every V, V7 and V9 of a major or minor degree, 720, reads back only as a numeral.
+  - Gap 1, a secondary's function: stacks and shapes play V7/V's notes and read back II7 (Swing jazz's bars 2, 6, 10 and 14, the four bars lost; and all 720 secondaries).
+  - Gap 2, a key of another cycle (P5): a cells accidental is a step of the grid, so over a 31-tone major key `[1,3#,5]` plays the 14th step, and the F♯ that U1's chromatic step (2) means is `3##`: a stacks or shapes text says one chord differently in each cycle; a numeral does not, but cells has none. The band writes no other cycle, so this is a probe.
+  - Gap 3, the hand: a pin is data every candidate states and reads back (464 pins, 1,036 notes, 33 off the key), and none says what it is for, the voicing led from it: Synth-pop's bar 2 plays V as 56 59 64 from its pin and 59 64 68 from none.
+  - Gap 4, the next chord is a copy: 19 bars state it again, one in the next key (Funk's bar 23), 6 across a section's end; no candidate refers to the next bar's chord.
+  - Gap 5, a chord's scale as a line's default (U3): no candidate has one, and no line of the band reads one; every chord's implied scale can be stated once on a line, 256 of 262 by cells' own names and 6 (V and V7 in minor) as tonal's `scale("E:phrygian:dominant")`, each playing the scale `chordScale` gives.
+  - Not measured: a section's text as one piece (a pick of the harm line, `&harm[$k]`, could name 13 of the 19 next chords), the bass and comp lines themselves, the numerals' spelling inside cells (`°` and `ø`, and `bVII` against D3's accidental after the number), a key of another cycle in the band, and captured music (the analyzer's roots off the key).
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
