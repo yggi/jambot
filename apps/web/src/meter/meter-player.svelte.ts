@@ -16,6 +16,7 @@
  * bar's drawing to light.
  */
 
+import { INITIAL_STYLE, timbreOf } from '@jambot/engine';
 import { METERS, type MeterName, STEPS_PER_EIGHTH, stepsOf } from '@jambot/theory';
 import type { ClockOffset } from '../audio/clock-offset.ts';
 import type { Output } from '../audio/output.ts';
@@ -31,6 +32,13 @@ export const LOOKAHEAD = 0.25;
 
 /** How long, in seconds, after a press the first bar begins. */
 export const LEAD_SECONDS = 0.1;
+
+/**
+ * The bass's colour: the band's at its first style. The bass voice reads its
+ * saw, triangle, cutoff and resonance from it, and a voice given none of
+ * them is asked for a level that is not a number, which Web Audio refuses.
+ */
+const BASS = timbreOf('bass', INITIAL_STYLE, 0.5);
 
 export interface MeterDeps {
   /** The audio clock and its pairing with the page's, made on first use. */
@@ -135,7 +143,7 @@ export class MeterPlayer {
       } else {
         const seconds = at(onset.step);
         const duration = at(onset.step + onset.length) - seconds;
-        base.play('bass', onset.note, onset.velocity, seconds, duration * 0.9, {});
+        base.play('bass', onset.note, onset.velocity, seconds, duration * 0.9, BASS);
       }
     }
     for (let eighth = 0; eighth < meter.cycle; eighth++)

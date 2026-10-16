@@ -1,14 +1,23 @@
 /**
- * Just enough of Web Audio for the built-in synth to run without throwing:
- * every method `webAudioOutput`, `drumKit` and `voices` call, doing nothing
- * but keep what was set on each gain, and what each node was connected to.
- * Only tests import it.
+ * Just enough of Web Audio for the built-in synth to run: every method
+ * `webAudioOutput`, `drumKit` and `voices` call, doing nothing but keep what
+ * was set on each gain, what each node was connected to, and each
+ * oscillator started. A value that is not a finite number throws, as it does
+ * in Chromium (Web IDL's `float`), so a voice asked for one is heard nowhere
+ * here either. Only tests import it.
  */
 
 export interface FakeParam {
   value: number;
   /** What was scheduled on it, in order: the method and its arguments. */
   readonly events: [string, ...number[]][];
+}
+
+/** An oscillator, its type and frequency as set, and when it was started, if it was. */
+export interface FakeOscillator extends FakeNode {
+  type: string;
+  readonly frequency: FakeParam;
+  started: number | null;
 }
 
 export interface FakeNode {
@@ -20,14 +29,28 @@ export interface FakeNode {
 export function fakeAudioContext() {
   const gains: (FakeNode & { gain: FakeParam })[] = [];
   const compressors: FakeNode[] = [];
+  const oscillators: FakeOscillator[] = [];
+  const finite = (where: string, ...args: number[]) => {
+    if (!args.every(Number.isFinite))
+      throw new TypeError(`${where}: the provided float value is non-finite.`);
+  };
   const param = (): FakeParam & Record<string, unknown> => {
     const events: FakeParam['events'] = [];
+    let value = 0;
     const record =
       (name: string) =>
-      (...args: number[]) =>
-        void events.push([name, ...args]);
+      (...args: number[]) => {
+        finite(name, ...args);
+        events.push([name, ...args]);
+      };
     return {
-      value: 0,
+      get value() {
+        return value;
+      },
+      set value(v: number) {
+        finite('value', v);
+        value = v;
+      },
       events,
       setValueAtTime: record('setValueAtTime'),
       exponentialRampToValueAtTime: record('exponentialRampToValueAtTime'),
@@ -63,10 +86,24 @@ export function fakeAudioContext() {
       return gain;
     },
     createBiquadFilter: () => ({ ...node(), type: '', Q: param(), frequency: param() }),
-    createOscillator: () => ({ ...node(), type: '', frequency: param(), start() {}, stop() {} }),
+    createOscillator: () => {
+      const oscillator: FakeOscillator & { start(t: number): void; stop(t: number): void } = {
+        ...node(),
+        type: '',
+        frequency: param(),
+        started: null,
+        start(t: number) {
+          finite('start', t);
+          oscillator.started = t;
+        },
+        stop: (t: number) => finite('stop', t),
+      };
+      oscillators.push(oscillator);
+      return oscillator;
+    },
     createBuffer: () => ({ getChannelData: () => new Float32Array(1) }),
     createBufferSource: () => ({ ...node(), buffer: null, start() {}, stop() {} }),
     resume: () => Promise.resolve(),
   };
-  return { context, gains, compressors };
+  return { context, gains, compressors, oscillators };
 }
