@@ -159,6 +159,9 @@ export async function listen(page: Page, path = '/') {
 /** Through the lobby's door into the band, playing alone. */
 export const solo = (page: Page) => page.getByRole('button', { name: 'Solo', exact: true }).click();
 
+/** The band screen's header: Start or Stop, and the section and bar heard. */
+export const transport = (page: Page) => page.getByRole('region', { name: 'Transport' });
+
 export const starts = (page: Page) =>
   page.evaluate(() => (window as unknown as { starts: Start[] }).starts);
 

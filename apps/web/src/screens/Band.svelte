@@ -1,7 +1,7 @@
 <!--
-  The band: what stands behind the lobby's door. The music runs top to
-  bottom in the order of the composition, one card or `Level` each, under the
-  session. It shows the player it is given and sends what the person
+  The band: what stands behind the lobby's door. The transport heads it,
+  and the music runs top to bottom in the order of the composition, one card
+  or `Level` each, under the session. It shows the player it is given and sends what the person
   does; it opens no session and holds no device.
 -->
 <script lang="ts">
@@ -18,12 +18,14 @@
   import Session from '../components/Session.svelte';
   import StylePanel from '../components/StylePanel.svelte';
   import BandCard from '../components/BandCard.svelte';
+  import Transport from '../components/Transport.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { raised, toggled } from '../mix.ts';
   import type { Player } from '../player.svelte.ts';
   import { tracksOf } from '../tracks.ts';
+  import { transportCells, transportHeard, transportLine } from '../transportView.ts';
 
   interface Props {
     player: Player;
@@ -43,6 +45,29 @@
   /** Whether this device follows a host, whose song, style and key it plays. */
   const following = $derived(player.mode === 'client');
 
+  const phase = $derived(player.counting ? 'counting' : player.ending ? 'ending' : null);
+  /** The meter of the bar heard, or before anything is, of the bar the song opens on (the count-in's). */
+  const meter = $derived(player.hud.bar?.meter ?? player.meter);
+  const step = $derived(
+    player.counting
+      ? player.countStep
+      : player.heard === null || player.hud.beat === null
+        ? null
+        : player.clock.stepInBar(player.heard),
+  );
+  const line = $derived(
+    transportLine({
+      bpm: player.track.bpm.to,
+      bar: player.hud.bar,
+      phase,
+      playing: player.playing,
+      heard: player.hud.beat !== null,
+      beatsLeft: player.counting
+        ? transportCells(meter).length - (transportHeard(meter, player.countStep)?.cell ?? 0)
+        : null,
+    }),
+  );
+
   const tracks = $derived(
     tracksOf({
       hud: player.hud,
@@ -59,16 +84,27 @@
   );
 </script>
 
+<div class="head">
+  <Transport
+    main={line.main}
+    sub={line.sub}
+    {meter}
+    {step}
+    {phase}
+    playing={player.playing}
+    {following}
+    ontoggle={() => (player.playing ? player.stop() : player.start())}
+  />
+</div>
+
 <Session
   mode={player.mode}
   hosting={session.hosting}
   following={session.following}
   players={player.players}
   playerId={player.playerId}
-  playing={player.playing}
-  phase={player.counting ? 'counting' : player.ending ? 'ending' : null}
+  {phase}
   bar={player.hud.beat === null ? null : (player.hud.bar?.bar ?? null)}
-  ontoggle={() => (player.playing ? player.stop() : player.start())}
   {onend}
 />
 
@@ -168,3 +204,15 @@
     onforget={() => player.forgetMotif()}
   />
 </Level>
+
+<style>
+  /* The transport stays in view while the page scrolls under it. */
+  .head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 -14px;
+    padding: max(6px, env(safe-area-inset-top, 0px)) 14px 6px;
+    background: var(--bg);
+  }
+</style>

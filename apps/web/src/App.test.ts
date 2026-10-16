@@ -1,5 +1,5 @@
 import { PRESETS } from '@jambot/engine';
-import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import App from './App.svelte';
@@ -196,7 +196,9 @@ describe('the app', () => {
       expect(screen.getByRole('radio', { name: p.name })).toBeInTheDocument();
     for (const name of ['Swing', 'Syncopation', 'Harmony', 'Articulation', 'Energy', 'Entropy'])
       expect(screen.getByRole('slider', { name: new RegExp(name) })).toBeInTheDocument();
-    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Transport' })).getByText('Ready'),
+    ).toBeInTheDocument();
   });
 
   it('lays the page out as cards and levels, the sound folded above the music in the order of the composition', async () => {

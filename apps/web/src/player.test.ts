@@ -891,6 +891,19 @@ describe('the count-in', () => {
     for (const p of world.plays) expect(p.seconds).toBeGreaterThanOrEqual(START - 1e-9);
   });
 
+  it('says which step of the count-in bar is heard, and nothing before it or once the song is heard', async () => {
+    const { player, run } = await begun();
+    const step = COUNT_IN / 16;
+    expect(player.countStep).toBe(null);
+    run(0.1 + step * 4.5);
+    expect(player.countStep).toBe(4);
+    run(step * 8);
+    expect(player.countStep).toBe(12);
+    run(COUNT_IN);
+    expect(player.counting).toBe(false);
+    expect(player.countStep).toBe(null);
+  });
+
   it('tells a host’s clients the start, a bar ahead, as the clicks begin, and the first bar with it', async () => {
     const { host, world } = await begun();
     expect(host.said).toEqual(['started']);
