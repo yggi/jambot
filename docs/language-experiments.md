@@ -521,22 +521,27 @@ run; the others have.
   - `snap(grid, n, height)`, the nearest member of a sub-grid with the cycle carried and a tie to the lower, is a member, the nearest, the identity on the grid, and equivariant under transposition, for every one of the 4,095 sub-grids of Z12 at 36 heights. The same function over Z16 snaps a bar's steps to any sub-grid (`even(k, 16)` for k of 1, 2, 3, 4, 5, 7, 8, 16 are checked), the last step going to the next bar's first where that is nearest. A chord is a subset, so snapping to a chord tone and to a scale is one operation.
   - Not measured: the tertian chords as short monotone paths on the 3 × 4 grid (a claim, untested), a snap over the lead (what it does to the recognition of E20 and E28 is step 4), a rhythm snap on a live hand (a note may not move earlier than it was played), and a sub-grid of the triplet levels (Z24 and Z48).
 
-- **E30. The radio's walk over hours of music** (#313 step 1), in
+- **E30. The radio's walk over hours of music** (#313), in
   [`packages/engine/experiments/radio-walk.ts`](../packages/engine/experiments/radio-walk.ts)
-  (about 30 s), held by [`packages/engine/experiments/radio-walk.test.ts`](../packages/engine/experiments/radio-walk.test.ts):
-  the radio (`packages/engine/src/radio.ts`) is tuned in at each preset's point, entropy 0.3, and left alone for 3 hours of music over 10 seeds, each section's tip glided to over `PRESET_GLIDE`; a section lasts about 18 s.
-  Distances are `styleDistance`'s root mean square over the six axes a preset has, tempo on its unit scale; the nearest preset is read at each bar's start.
-  Seven sets of parameters: the default (time constants of 4 and 128 sections), quick (2, 32), slow (8, 256), every spread halved and doubled, a free anchor (a time of 100,000 sections, stepping as far a section as the default's) and the default with entropy walking (spreads 0.03 and 0.1).
-  - The tip stays 0.056 from the anchor at every time constant, and 0.028 and 0.108 at half and double the spreads.
-    Its distance from the anchor keeps 0.75, 0.31 and 0.05 of itself 1, 4 and 16 sections on, on every axis, as a decay of 1 − 1/4 gives.
-  - The anchor is 0.094 from home after 10 minutes, 0.154 after an hour and 0.154 after 3: by the hour it has settled at its spread.
-    The free anchor is 0.105, 0.233 and 0.326, and still rising; quick 0.136, 0.166 and 0.167; slow 0.071, 0.135 and 0.154.
-    The anchor's distance from home keeps 0.79 to 0.87 of itself 16 sections on and 0.41 to 0.58 at 64 (0.88 and 0.61 by the decay alone; a 3-hour run is under 5 time constants, which pulls a pooled estimate down).
-  - The nearest preset first changes after a median of 37 minutes at the default, 13 quick, 64 slow, 5 wide, 25 with the free anchor, and not within 3 hours at half the spreads.
-    It changes 14.5 times an hour at the default (1.2 to 47 over the sets), and 21 to 23 % of changes are undone within a section in every set: the walk runs along the border between two presets.
-    The station plays nearest its home preset in 84 % of bars at the default (99 % narrow, 44 % wide, 50 % with the free anchor) and is nearest 3.6 of the 8 presets some time in 3 hours (1.3 narrow, 6.6 wide, 4.6 free).
-  - The walk holds a tip at an axis's end in 3.3 % of values at the default, 2.3 % narrow and 6.3 % wide, nearly all from a preset that sits on an end (Synth-pop's, Techno's and Bossa nova's swing of 0, Funk's sync of 1).
-  - At the default no axis glides faster than a quarter of the fastest a preset glide moves it (energy 0.25, tempo 0.13), and with the spreads doubled about half (energy 0.50); walking, entropy glides at 0.10 of a preset glide across its axis, and moves no nearest preset, since a distance has no entropy.
+  (about 45 s), held by [`packages/engine/experiments/radio-walk.test.ts`](../packages/engine/experiments/radio-walk.test.ts):
+  the radio (`packages/engine/src/radio.ts`) wanders freely, with no pull, its steps scaled by the entropy and the tempo leaned by the energy, as the owner ruled on #313 (2026-10-16).
+  It is tuned in at each preset's point with a setting's energy and entropy in place of the preset's, and left alone for 3 hours of music over 5 seeds a preset, each section's style glided to over `PRESET_GLIDE`; a section lasts 19.5 s on average.
+  Fifteen settings: entropy 0.15, 0.3, 0.6 and 1 by an energy tuned in at of 0.2, 0.5 and 0.8, energy walking, and entropy 0.3 with energy held at each.
+  Distances are on the unit axes, tempo on its unit scale; the nearest preset is read at each bar's start by `styleDistance`.
+  - The tempo moves at most 1.00 % a section at entropy 1, 0.62 % at 0.6, 0.33 to 0.34 % at 0.3 and 0.17 to 0.19 % at 0.15.
+    In an hour it moves 4.1 % (root mean square) at entropy 0.3 and energy 0.5, 6.7 to 7.3 % at energy 0.2 or 0.8, and 9.5 to 10.0 % at entropy 1; over 3 hours a run spans 10 % at entropy 0.3 and energy 0.5, about 20 % at 0.2 or 0.8, and 25 to 27 % at entropy 1.
+    Energy leans it: tuned in at 0.8 and entropy 0.3, the median run ends at 140 bpm, at 0.2 at 96, and at 0.5 at 115; held at 0.8 a tenth of the runs end at the axis's top, 180, and spend 5 % of their sections within 2 % of it.
+    With energy held at 0.5 the tempo moves 2.3 % an hour, against 4.1 % with energy walking, whose lean the tempo follows.
+  - Each axis walks from where it was tuned in, after 10 minutes, an hour and 3 hours, about 0.07–0.11, 0.15–0.22 and 0.21–0.38 at entropy 0.3, about twice that at 0.6 within the hour, and at entropy 1 0.22–0.30 within 10 minutes and 0.30–0.44 within the hour, where the axis's ends begin to hold it; the tempo, on its unit scale, 0.010, 0.025 and 0.084 at entropy 0.3.
+  - The nearest preset first changes after a median of 72 to 90 minutes at entropy 0.3, 19 to 23 at 0.6 and 9 to 12 at 1, and not within 3 hours in at least half the runs at 0.15.
+    It changes 4.8 to 7.0 times an hour at entropy 0.3, 13 to 15 at 0.6 and 23 to 25 at 1, and about a fifth of changes, 18 to 23 % at every setting, are undone within a section: the walk runs along the border between two presets.
+    The station plays nearest the preset it was tuned in at in 62 to 72 % of bars at entropy 0.3 (89 to 96 % at 0.15, 33 to 38 % at 0.6, 22 to 24 % at 1), and is nearest 2.3 to 2.8 of the 8 presets some time in 3 hours at 0.3 (6.3 at 1).
+  - No axis glides faster than a tenth of the fastest a preset glide moves it, even at entropy 1 (harmony, articulation and energy 0.10); at entropy 0.3, 0.03.
+  - The style's loop with nobody in it, over 4 walks of 100,000 sections at each entropy (#210's three numbers, A4): its time constant, `timeConstant` of each axis's correlation a section later, is 53 to 144 sections on the unit axes at entropy 1 (0.3 to 0.8 hours, 63 to 173 times the key loop's 6.67 bars) and 562 to 1,561 at 0.3 (3.0 to 8.5 hours), a little under the reflected walk's slowest mode, 2 / (π² σ²) sections (61 to 169 at 1); the tempo's is 6,369 sections at entropy 1.
+    It scales as 1 / entropy², so the loop nests under the key's at every entropy above 0.
+    Its gain, the mean step against the distance from the axis's middle inside its middle half, is 0 within twice its error at every entropy (at most 5.4e-4 ± 3.3e-4 a section, where a pull of 1/128 reads −7.8e-3): nothing reads, remembers or leans.
+    Its bound is the axis, reflected, and the step: the largest step is the step the entropy allows (the tempo 0.995 to 1.000 of it), and no value after the first sits on an end.
+  - Entropy, walked under its own temperature (a step of 0.06 scaled by itself), cools from 0.3 to a median of 0.24 in 3 hours, 0.083 in 12 and 0.001 in 48: a multiplicative walk creeps to 0 and freezes there, so entropy holds.
   - Not measured: the music (the band was not run, only the style), a key under the walk (#313 step 4), a meter other than 4/4, and whether a listener hears the station as itself after 10 minutes.
 
 - **E31. The band's drums as cells text** (#309, the seam), in
