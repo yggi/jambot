@@ -12,7 +12,7 @@ Facts about `packages/score` and the score language (#7).
   Its spelling is frozen (yggi/music-commons#14, ruling 4): it takes fixes only, no new forms, until the seam (#309) replaces it with cells, since a form grown here would be one more spelling to migrate.
   A new form is said in cells, as an issue there (D5, cells decision 037).
   Its `ScoreBar` is its own type: the engine is only a dev dependency, for `seam.test.ts`, which reads back every bar the band writes (Q1a).
-  The cells language ([yggi/cells](https://github.com/yggi/cells), `@yggi/cells`, pinned to its tag `v0.1.0`) is a dev dependency too, for `cells.test.ts`: a cells text compiles and plays its events, and cells' Euclid is `even` up to a rotation (#309, phase 1).
+  The cells language ([yggi/cells](https://github.com/yggi/cells), `@yggi/cells`, pinned to its tag `v0.2.0`) is a dev dependency too, for `cells.test.ts`: a cells text compiles and plays its events, and cells' Euclid is `even` up to a rotation (#309, phase 1).
   It is also what `experiments/drums-in-cells.ts` states the band's drums in and plays them by (E31), and `experiments/pitch-in-cells.ts` their harmony (E32); a script that imports it runs under vitest, not node, which strips no types under `node_modules`.
   A chord `chordScale` gives no scale for, such as `Isus4`, is written like any other: the score states no scale and no line reads one (U3, vitrified).
 - In the port's drums only the snare needs its role written: every other sound has one role (E16).
