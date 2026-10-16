@@ -3,11 +3,12 @@
   along, large enough to read at arm's length with an instrument in hand
   (#327). The key heard, and the key the band heads for where it differs;
   the chord sounding, large, with its numeral, and the next with the beats
-  until it; the notes that sit over the bar heard; the section heard bar by
-  bar (those played dim, the one heard filling with its beats, a bar that
-  plays a person's motif ringed in their colour); and the two sections after
-  it as their bars' first chords, a new key or meter named. Every part is one
-  size whatever it says, so nothing moves while a person reads it.
+  until it; the notes that sit over the bar heard; and the sections from the
+  one heard on, each a line of its name (and what changes in it) over its
+  bars in one row, a bar its chords laid as wide as they last (those played
+  dim, the one heard filling with its beats, a bar that plays a person's
+  motif ringed in their colour). Every part is one size whatever it says, so
+  nothing moves while a person reads it.
 -->
 <script lang="ts">
   import { SONG_METER } from '@jambot/engine';
@@ -15,7 +16,7 @@
   import type { Hud } from '../hud.ts';
   import { keyName } from '../noteNames.ts';
   import { beatsToNext, nextChord } from '../planView.ts';
-  import { overThis, sectionBars, sectionsAhead } from '../songView.ts';
+  import { overThis, songSections } from '../songView.ts';
 
   interface Props {
     hud: Pick<Hud, 'bar' | 'beat' | 'chord' | 'next' | 'sections' | 'heading'>;
@@ -40,8 +41,7 @@
         : hud.bar.key
       : '',
   );
-  const bars = $derived(sectionBars(hud.sections, heard ? (hud.bar?.bar ?? null) : null));
-  const ahead = $derived(sectionsAhead(hud.sections));
+  const sections = $derived(songSections(hud.sections, heard ? (hud.bar?.bar ?? null) : null));
   const over = $derived(overThis(hud.bar));
 </script>
 
@@ -69,36 +69,38 @@
 
   <p class="over">Over this: <b title={over}>{over}</b></p>
 
-  <ol class="bars" aria-label="This section, bar by bar">
-    {#each bars as bar (bar.bar)}
-      <li
-        class={bar.state}
-        class:motif={bar.motif !== null}
-        style:--motif={bar.motif ? `var(--source-${bar.motif.colour})` : null}
-      >
-        <span class="number">{bar.number}</span>
-        <b title={bar.chords}>{bar.chords}</b>
-        <span class="numeral">{bar.numeral}</span>
-        {#if bar.state === 'heard' && hud.beat !== null}
-          <i class="progress" style:width="{((hud.beat + 1) / beats) * 100}%"></i>
-        {/if}
-      </li>
-    {/each}
-  </ol>
-
-  <div class="later">
-    {#each ahead as section (section.index)}
-      <div class="section">
+  <div class="sections">
+    {#each sections as section, s (section.index)}
+      <section class="block" aria-label="{section.name}, bar by bar">
         <p class="name">
           <b>{section.name}</b>
-          <small class:change={section.change !== ''}>{section.change || 'same key'}</small>
+          {#if section.change}<small>{section.change}</small>{/if}
         </p>
-        <ol aria-label="{section.name}, bar by bar">
-          {#each section.chords as chord, i (i)}
-            <li title={chord}>{chord}</li>
+        <ol class="bars">
+          {#each section.bars as bar (bar.bar)}
+            <li
+              class={bar.state}
+              class:motif={bar.motif !== null}
+              class:near={s === 0}
+              style:--motif={bar.motif ? `var(--source-${bar.motif.colour})` : null}
+            >
+              {#each bar.chords as chord, c (c)}
+                <span
+                  class="part"
+                  style:flex-grow={chord.share}
+                  title="{chord.symbol} · {chord.numeral}"
+                >
+                  <b>{chord.symbol}</b>
+                  <small>{chord.numeral}</small>
+                </span>
+              {/each}
+              {#if bar.state === 'heard' && hud.beat !== null}
+                <i class="progress" style:width="{((hud.beat + 1) / beats) * 100}%"></i>
+              {/if}
+            </li>
           {/each}
         </ol>
-      </div>
+      </section>
     {/each}
   </div>
 </div>
@@ -107,8 +109,8 @@
   .song {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto minmax(136px, 1fr) auto;
-    grid-template-areas: 'where' 'big' 'over' 'bars' 'later';
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas: 'where' 'big' 'over' 'sections';
     gap: 10px;
     min-height: 100%;
   }
@@ -121,11 +123,8 @@
   .over {
     grid-area: over;
   }
-  .bars {
-    grid-area: bars;
-  }
-  .later {
-    grid-area: later;
+  .sections {
+    grid-area: sections;
   }
   p {
     margin: 0;
@@ -224,42 +223,75 @@
     padding: 0;
     list-style: none;
   }
-  .bars {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-rows: minmax(64px, 1fr);
-    gap: 6px;
-  }
-  .bars li {
-    position: relative;
+  .sections {
     display: grid;
     align-content: start;
-    padding: 6px 8px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--surface);
+    gap: 8px;
   }
-  .bars b {
-    font-size: 22px;
-    line-height: 1.15;
+  .block {
+    display: grid;
+    gap: 3px;
   }
-  .bars .numeral {
+  .name {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
     font-size: 12px;
     color: var(--muted);
   }
-  .bars .number {
-    position: absolute;
-    top: 5px;
-    right: 8px;
+  .name b {
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .name small {
+    color: var(--teal);
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .bars {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 3px;
+  }
+  .bars li {
+    position: relative;
+    display: flex;
+    height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .bars li.near {
+    height: 52px;
+  }
+  .part {
+    flex-basis: 0;
+    display: grid;
+    align-content: center;
+    padding: 0 1px;
+    text-align: center;
+    letter-spacing: -0.01em;
+  }
+  .part + .part {
+    border-left: 1px dashed var(--line);
+  }
+  .part b {
+    font-size: 13px;
+    line-height: 1.15;
+  }
+  .near .part b {
+    font-size: 15px;
+  }
+  .part small {
     font-size: 10px;
     color: var(--muted);
   }
   .bars .played {
-    opacity: 0.5;
+    opacity: 0.45;
   }
   .bars .heard {
     border-color: var(--amber);
-    background: color-mix(in srgb, var(--amber) 12%, var(--surface));
+    background: color-mix(in srgb, var(--amber) 14%, var(--surface));
   }
   .bars .motif {
     box-shadow: inset 0 0 0 2px var(--motif);
@@ -270,54 +302,15 @@
     bottom: 0;
     height: 3px;
     background: var(--amber);
+    border-radius: 0 0 0 8px;
     transition: width 0.1s linear;
-  }
-  .later {
-    display: grid;
-    gap: 6px;
-  }
-  .section {
-    display: grid;
-    grid-template-columns: 80px minmax(0, 1fr);
-    gap: 8px;
-    align-items: center;
-  }
-  .name {
-    display: grid;
-    line-height: 1.15;
-  }
-  .name b {
-    font-size: 13px;
-  }
-  .name small {
-    font-size: 11px;
-    color: var(--muted);
-  }
-  .name small.change {
-    color: var(--teal);
-    font-weight: 700;
-  }
-  .section ol {
-    display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: 3px;
-  }
-  .section li {
-    padding: 4px 0;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--surface);
-    font-size: 12px;
-    font-weight: 700;
-    text-align: center;
-    color: var(--muted);
   }
   /* A phone on its side: the chord at the left, the section and those after it at the right. */
   @media (max-height: 500px) and (orientation: landscape) {
     .song {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-      grid-template-rows: auto minmax(120px, 1fr) auto;
-      grid-template-areas: 'where where' 'big bars' 'over later';
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas: 'where where' 'big sections' 'over sections';
       column-gap: 16px;
     }
     .big {
@@ -329,11 +322,12 @@
       justify-items: start;
       max-width: none;
     }
-    .bars {
-      grid-auto-rows: minmax(52px, 1fr);
+    .sections {
+      gap: 4px;
     }
-    .bars b {
-      font-size: 18px;
+    .bars li,
+    .bars li.near {
+      height: 40px;
     }
   }
 </style>
