@@ -1,12 +1,13 @@
 <!--
   The on-screen keyboard: C4 to E5, white and black keys positioned in
-  percent over the white keys' width (`keyboardLayout`). A pointer holds a
+  percent over the white keys' width (`keyboardLayout`), or the keys it is
+  given, such as a scale's notes alone (`scaleLayout`), named on each. A pointer holds a
   note until it lifts, cancels, or the capture is lost. A dot marks a note
   of the scale it is given, the melodic scale the lead walks over the key
   (#209); amber is the band's own lead heard sounding it.
 -->
 <script lang="ts">
-  import { KEYBOARD_HIGH, KEYBOARD_LOW, keyboardLayout } from '../midi/surfaces.ts';
+  import { KEYBOARD_HIGH, KEYBOARD_LOW, type KeyLayout, keyboardLayout } from '../midi/surfaces.ts';
 
   interface Props {
     /** Notes currently held, from any source, so a key lights whoever struck it. */
@@ -16,13 +17,23 @@
     /** The band's own lead notes heard sounding right now. */
     sounding?: readonly number[];
     onnote: (note: number, velocity: number, on: boolean) => void;
+    /** The keys, where not the piano's from C4 to E5. */
+    keys?: readonly KeyLayout[];
+    /** Whether each key says its note's name. */
+    named?: boolean;
   }
 
-  let { down, scale = [], sounding = [], onnote }: Props = $props();
+  let {
+    down,
+    scale = [],
+    sounding = [],
+    onnote,
+    keys = keyboardLayout(KEYBOARD_LOW, KEYBOARD_HIGH),
+    named = false,
+  }: Props = $props();
 
   const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
   const nameOf = (note: number) => NAMES[note % 12]! + (Math.floor(note / 12) - 1);
-  const layout = keyboardLayout(KEYBOARD_LOW, KEYBOARD_HIGH);
 
   function press(event: PointerEvent, note: number) {
     event.preventDefault();
@@ -39,7 +50,7 @@
 </script>
 
 <div class="keyboard" role="group" aria-label="On-screen keyboard">
-  {#each layout as key (key.note)}
+  {#each keys as key (key.note)}
     <button
       type="button"
       class={key.black ? 'black' : 'white'}
@@ -52,14 +63,15 @@
       onpointerup={() => release(key.note)}
       onpointercancel={() => release(key.note)}
       onlostpointercapture={() => release(key.note)}
-    ></button>
+      >{#if named}<span class="name">{nameOf(key.note)}</span>{/if}</button
+    >
   {/each}
 </div>
 
 <style>
   .keyboard {
     position: relative;
-    height: 100px;
+    height: var(--keys-height, 100px);
     border: 1px solid var(--line);
     border-radius: 8px;
     overflow: hidden;
@@ -95,6 +107,16 @@
     border-radius: 50%;
     background: var(--muted);
     transform: translateX(-50%);
+  }
+  .name {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 22px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    pointer-events: none;
   }
   .sounding {
     background: var(--amber);
