@@ -1,12 +1,12 @@
 <!--
-  The drum pads: the kit's General MIDI notes, one pad per sound, laid out
-  as `DRUM_KEY_MAP` numbers them. A pointer holds a note until it lifts,
+  The drum pads: the kit's General MIDI notes, one pad per sound, in the
+  kit's order (`KIT`), the Rhythm view's grid's rows. A pointer holds a note until it lifts,
   cancels, or the capture is lost, the same way `Keyboard.svelte` does.
   Amber flashes when the band's own drums strike a pad, showing the rhythm
   as it plays.
 -->
 <script lang="ts">
-  import { DRUM_NOTES } from '@jambot/engine';
+  import { KIT } from '../rhythmGrid.ts';
 
   interface Props {
     /** Notes currently held, from any source, so a pad lights whoever struck it. */
@@ -17,16 +17,6 @@
   }
 
   let { down, sounding = [], onnote }: Props = $props();
-
-  const PADS: { note: number; label: string }[] = [
-    { note: DRUM_NOTES.kick, label: 'Kick' },
-    { note: DRUM_NOTES.snare, label: 'Snare' },
-    { note: DRUM_NOTES.closedHat, label: 'Closed hat' },
-    { note: DRUM_NOTES.openHat, label: 'Open hat' },
-    { note: DRUM_NOTES.pedalHat, label: 'Pedal hat' },
-    { note: DRUM_NOTES.rim, label: 'Rim' },
-    { note: DRUM_NOTES.ride, label: 'Ride' },
-  ];
 
   function press(event: PointerEvent, note: number) {
     event.preventDefault();
@@ -43,7 +33,7 @@
 </script>
 
 <div class="pads" role="group" aria-label="Drum pads">
-  {#each PADS as pad (pad.note)}
+  {#each KIT as pad (pad.note)}
     <button
       type="button"
       class="pad"

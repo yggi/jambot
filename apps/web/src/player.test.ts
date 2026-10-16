@@ -904,6 +904,36 @@ describe('the count-in', () => {
     expect(player.countStep).toBe(null);
   });
 
+  it('plays a pattern of one’s own on this device, on the band’s steps, every bar, and logs it as played once heard', async () => {
+    const { world, player, run } = await begun();
+    // A claves (75): no drum the band plays, so every one heard is the pattern's.
+    player.rhythm = [
+      { note: 75, step: 0 },
+      { note: 75, step: 8 },
+    ];
+    player.rhythmPlays = true;
+    run(START + COUNT_IN * 2 + 0.2);
+    const claves = world.plays.filter((p) => p.part === 'drums' && p.note === 75);
+    const bar = COUNT_IN;
+    expect(claves.length).toBeGreaterThanOrEqual(4);
+    claves.slice(0, 4).forEach((p, i) => expect(p.seconds).toBeCloseTo(START + (i * bar) / 2, 6));
+    const logged = player.humanNotes.filter((n) => n.part === 'drums' && n.note === 75);
+    expect(logged.map((n) => n.position).slice(0, 4)).toEqual([0, 8, 16, 24]);
+    expect(logged.every((n) => n.source === 'your pattern' && n.end === n.position + 1)).toBe(true);
+  });
+
+  it('plays nothing of a pattern while it is not asked to, and edits and records it', async () => {
+    const { world, player, run } = await begun();
+    player.toggleHit(75, 4);
+    expect(player.rhythm).toEqual([{ note: 75, step: 4 }]);
+    run(START + COUNT_IN + 0.2);
+    expect(world.plays.filter((p) => p.note === 75)).toEqual([]);
+    player.recordHit(76);
+    expect(player.rhythm.some((h) => h.note === 76)).toBe(true);
+    player.toggleHit(75, 4);
+    expect(player.rhythm.map((h) => h.note)).toEqual([76]);
+  });
+
   it('tells a host’s clients the start, a bar ahead, as the clicks begin, and the first bar with it', async () => {
     const { host, world } = await begun();
     expect(host.said).toEqual(['started']);

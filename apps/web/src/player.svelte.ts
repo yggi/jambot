@@ -112,6 +112,7 @@ import {
 } from '@jambot/session';
 import { type Meter, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
+import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
 import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
@@ -128,6 +129,10 @@ export type AlongPart = Extract<Part, 'lead' | 'drums'>;
 
 /** How long a note played along sounds, in seconds: held for the keyboard, struck for the pads. */
 const ALONG_DURATION: Record<AlongPart, number> = { lead: 0.6, drums: 0.2 };
+
+/** How hard a pattern of one's own strikes, of 127, and the source its hits are logged from. */
+const RHYTHM_VELOCITY = 100;
+const RHYTHM_SOURCE = 'your pattern';
 
 /**
  * How many bars ahead the player keeps decided: the song map's sections, and
@@ -278,6 +283,16 @@ export class Player {
   heard: number | null = $state(null);
   /** Notes players struck while the band listened. */
   humanNotes: readonly HumanNote[] = $state.raw([]);
+  /** A pattern of this player's own, edited or recorded in the Rhythm view: drum hits by their step in the bar. */
+  rhythm: Rhythm = $state.raw([]);
+  /**
+   * Whether it plays here with the band: on this device alone, on the
+   * band's own steps, every bar, and logged as this player's drums once
+   * heard, as a pad struck would be.
+   */
+  rhythmPlays = $state(false);
+  /** The last step whose pattern hits were logged as heard. */
+  #rhythmLogged: number | null = null;
   /** The Muse's latest judgements, of bars someone played in or of a forget, the latest last. */
   museLog: readonly MuseOutput[] = $state.raw([]);
   /** The motif the Muse offers now, after the last bar it judged. */
@@ -455,15 +470,53 @@ export class Player {
   humanNoteOn(part: AlongPart, note: number, velocity: number, source: string, seconds: number) {
     const position = this.writtenPosition(seconds);
     if (position === null) return;
-    const kept =
-      this.humanNotes.length >= HUMAN_NOTES_MAX
-        ? this.humanNotes.slice(this.humanNotes.length - HUMAN_NOTES_MAX / 2)
-        : this.humanNotes;
-    this.humanNotes = [...kept, { part, note, velocity, source, position, end: null }];
+    this.#keepHuman({ part, note, velocity, source, position, end: null });
     if (part === 'lead') {
       const heardAs = this.playerId === null ? source : playerSource(this.playerId, source);
       this.#arrived.push({ note, velocity, source: heardAs, position, end: null });
     }
+  }
+
+  /** Keep a note a player struck, the oldest let go of past `HUMAN_NOTES_MAX`. */
+  #keepHuman(note: HumanNote) {
+    const kept =
+      this.humanNotes.length >= HUMAN_NOTES_MAX
+        ? this.humanNotes.slice(this.humanNotes.length - HUMAN_NOTES_MAX / 2)
+        : this.humanNotes;
+    this.humanNotes = [...kept, note];
+  }
+
+  /** Tap a hit of the pattern in or out, at a step of the bar. */
+  toggleHit(note: number, step: number) {
+    this.rhythm = toggled(this.rhythm, note, step);
+  }
+
+  /** Write a hit into the pattern at the step heard, as a pad struck while it records. */
+  recordHit(note: number) {
+    if (this.heard === null) return;
+    this.rhythm = recorded(this.rhythm, note, this.clock.stepInBar(this.heard));
+  }
+
+  /** The pattern's hits at a step of the song, in its bar. */
+  #rhythmAt(step: number): number[] {
+    const clock = this.clock;
+    return hitsAt(this.rhythm, clock.stepInBar(step), clock.barSteps(clock.barAt(step)));
+  }
+
+  /** Log the pattern's hits of the steps heard since the last logged, as this player's drums. */
+  #logRhythm(heard: number) {
+    const from = this.#rhythmLogged === null ? heard : this.#rhythmLogged + 1;
+    for (let step = from; step <= heard; step++)
+      for (const note of this.#rhythmAt(step))
+        this.#keepHuman({
+          part: 'drums',
+          note,
+          velocity: RHYTHM_VELOCITY,
+          source: RHYTHM_SOURCE,
+          position: step,
+          end: step + 1,
+        });
+    this.#rhythmLogged = heard;
   }
 
   /** Nothing remembered: the Muse has read no bar. */
@@ -565,6 +618,7 @@ export class Player {
     this.#forget = false;
     this.#finaleTold = false;
     this.ending = false;
+    this.#rhythmLogged = null;
     this.#countIn(output);
     this.museLog = [];
     this.offer = null;
@@ -964,6 +1018,16 @@ export class Player {
     if (scheduled.events.length > 0) {
       this.pattern = this.#pattern.get();
     }
+    if (this.rhythmPlays && this.rhythm.length > 0) {
+      const timbre = timbreOf(
+        'drums',
+        styleAt(this.track, this.heard ?? 0),
+        this.hud.bar?.energy ?? 0.6,
+      );
+      for (const { step, seconds } of scheduled.steps)
+        for (const note of this.#rhythmAt(step))
+          output.play('drums', note, RHYTHM_VELOCITY, seconds - skew, ALONG_DURATION.drums, timbre);
+    }
     output.tick?.(
       skew === 0
         ? scheduled.steps
@@ -985,6 +1049,8 @@ export class Player {
     this.countStep = this.counting ? this.#countStepAt(heard) : null;
     const latest = this.#heard.take(heard);
     if (latest !== undefined) this.heard = latest;
+    if (latest !== undefined && this.rhythmPlays && this.rhythm.length > 0) this.#logRhythm(latest);
+    else if (latest !== undefined) this.#rhythmLogged = latest;
     this.#metronome?.follow(heard);
     this.sounding = this.#sounding.at(heard);
   }
