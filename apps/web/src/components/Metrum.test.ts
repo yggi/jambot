@@ -27,6 +27,17 @@ describe('the metrum', () => {
     expect(container.querySelector('details')).not.toHaveAttribute('open');
   });
 
+  it('asks for the meter of the next section, and rests on a client, which follows its host’s', async () => {
+    const onmeter = vi.fn();
+    const { rerender } = render(Metrum, props(new Metronome(), { asked: METERS['4/4'], onmeter }));
+    const choice = screen.getByRole('radiogroup', { name: 'Meter for the next section' });
+    expect(screen.getByRole('radio', { name: '4/4' })).toHaveAttribute('aria-checked', 'true');
+    await fireEvent.click(screen.getByRole('radio', { name: '7/8' }));
+    expect(onmeter).toHaveBeenCalledWith(METERS['7/8']);
+    await rerender({ following: true });
+    expect(choice.querySelectorAll('[role="radio"]:not([disabled])')).toHaveLength(0);
+  });
+
   it('names itself in its own header, over the tempo', () => {
     const { container } = render(Metrum, props(new Metronome()));
     expect(container.querySelector('summary .title')).toHaveTextContent('Metrum');
