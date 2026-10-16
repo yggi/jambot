@@ -227,12 +227,11 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
 }) => {
   await listen(page);
   await solo(page);
-  await openCard(page, 'Plan');
+  await openCard(page, 'Metrum');
   const height = () => page.evaluate(() => document.documentElement.scrollHeight);
   const before = await height();
   await page.getByRole('radio', { name: '7/8', exact: true }).click();
-  await openCard(page, 'Metrum');
-  // The plan, the metrum and the chords say 7/8, and no card shifts the layout for it.
+  // The metrum says 7/8, and nothing shifts the layout for it.
   await expect(page.locator('details[aria-label="Metrum"] summary .sub')).toContainText('7/8');
   expect(await page.locator('details[aria-label="Metrum"] svg.ruler circle.mark').count()).toBe(14);
   expect(Math.abs((await height()) - before)).toBeLessThanOrEqual(1);

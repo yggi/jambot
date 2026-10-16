@@ -3,23 +3,22 @@
   transport heads it; hanging from it, the drawer holds what conducts and
   sets up the band (Sound, Session, Style, Time, Key, Muse, and Timing where
   the address asks for it); below, the views are where a person reads and
-  plays along: Song (the plan and the chords), Melody (the lead's lane over
+  plays along: Song (the plan and the chords read from where one plays), Melody (the lead's lane over
   the keys), Rhythm (the drums' over the pads) and Mix (the band's tracks).
   It shows the player it is given and sends what the person does; it opens
   no session and holds no device.
 -->
 <script lang="ts">
   import type { ComponentProps, Snippet } from 'svelte';
-  import Chords from '../components/Chords.svelte';
   import DrumPads from '../components/DrumPads.svelte';
   import Keyboard from '../components/Keyboard.svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
   import Metrum from '../components/Metrum.svelte';
   import Muse from '../components/Muse.svelte';
   import Play from '../components/Play.svelte';
-  import Plan from '../components/Plan.svelte';
   import Session from '../components/Session.svelte';
   import Shell, { type Place } from '../components/Shell.svelte';
+  import Song from '../components/Song.svelte';
   import StylePanel from '../components/StylePanel.svelte';
   import BandCard from '../components/BandCard.svelte';
   import Transport from '../components/Transport.svelte';
@@ -172,6 +171,8 @@
       playing={player.playing}
       {following}
       onintent={(intent) => player.apply(intent)}
+      asked={following ? (player.hud.headingMeter ?? player.meter) : player.meter}
+      onmeter={(meter) => player.setMeter(meter)}
     />
   {:else if id === 'key'}
     <KeyPicker
@@ -198,14 +199,7 @@
 
 {#snippet stage(id: string)}
   {#if id === 'song'}
-    <Plan
-      hud={player.hud}
-      playing={player.playing}
-      meter={following ? (player.hud.headingMeter ?? player.meter) : player.meter}
-      {following}
-      onmeter={(meter) => player.setMeter(meter)}
-    />
-    <Chords hud={player.hud} meter={player.hud.bar?.meter} />
+    <Song hud={player.hud} meter={player.hud.bar?.meter} />
   {:else if id === 'melody' || id === 'rhythm'}
     <Play
       {tracks}

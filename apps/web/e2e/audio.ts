@@ -293,7 +293,7 @@ const DRAWN: Record<string, string> = {
   Timing: 'Timing',
 };
 /** The band's view that holds a card, by the card's title. */
-const SHOWN: Record<string, string> = { Plan: 'Song', Chords: 'Song', Band: 'Mix', Play: 'Melody' };
+const SHOWN: Record<string, string> = { Band: 'Mix', Play: 'Melody' };
 
 /** Shows one of the band's views, as a person taps its tab: the drawer goes up. */
 export const showView = (page: Page, name: string) => page.getByRole('tab', { name }).click();
