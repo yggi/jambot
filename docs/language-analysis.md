@@ -44,11 +44,13 @@ Witness: the key's loop (C9), which follows the players' key wishes and the band
 The time constant is `timeConstant(HISTORY_DECAY)`, about 6.7 bars, less than the 8 bars a key is held for; a reading held every bar settles at itself times it.
 The bound is the style's reach, per jump (C8).
 The gain of the centre, an argmax, is all or nothing: the centre follows a new key 1.2 to 3.9 bars into its section, or not by its end (E19).
+The style's loop with nobody in it, the radio (#313, C9), has the same three numbers, its gain 0 by the owner's ruling, since nothing is read (E30): a time constant, `timeConstant` of an axis's correlation a section later, of 53 to 144 sections on the unit axes at entropy 1 (0.3 to 0.8 hours, 63 to 173 times the key's 6.67 bars) and about eleven times that at 0.3, as 1 / entropy²; a pull of 0 within twice its error, at most 5.4e-4 a section; and a bound, the axis, reflected, and a step a section that the entropy scales.
+So the loops nest: the style's is slower than the key's at every entropy above 0, and a walk stepped every bar with steps eight times as wide would not be.
 Counterexample: a loop that runs away (a gain above 1: each reading moves the default further than the one before), or one that never settles on a reading held.
-Test: `fading.test.ts`, whose test of a held reading cites A4; `key-loop.test.ts` (`packages/engine/experiments`), E19, whose tests of the time constant, the bound and the centre's lag cite A4.
+Test: `fading.test.ts`, whose test of a held reading cites A4; `key-loop.test.ts` (`packages/engine/experiments`), E19, whose tests of the time constant, the bound and the centre's lag cite A4; `radio.test.ts`, whose test of the radio's time constant against the key's cites A4; `radio-walk.test.ts` (`packages/engine/experiments`), E30, whose test of the style loop's three numbers cites A4.
 Source: SDR (clock recovery), the Muse's rate limit; #210.
-Status: measured (the key, E19); speculative (the style, following the players' own, #16).
-Lands in: #16, #25, #27, #79 (following the style), #210, Q7a.
+Status: measured (the key, E19); measured (the style left alone, the radio, E30); speculative (the style, following the players' own, #16).
+Lands in: #16, #25, #27, #79 (following the style), #210, #313, Q7a.
 
 **A5. A player's velocities are expressive, not metric: where a note falls in
 the beat explains little of how loud it is played.** Witness: none yet.
@@ -90,15 +92,15 @@ functional programming and category theory. Their names are in
 **F1. Every level is a Mealy machine,
 `advance(env, carried, input) → { carried', output }`, that keeps the machine
 laws.** Witness: `Machine` and `lawBreaks` (`machine.ts`); the form and the
-section plan (section rate), the band and its bass, comp and lead, and the Muse
-(bar rate), the transport (tick rate), and a client's reading of its host's
-clock (`hostClock`, per ping). A run is a causal stream function: output n
+section plan (section rate), the radio (section rate, #313), the band and its
+bass, comp and lead, and the Muse (bar rate), the transport (tick rate), and a
+client's reading of its host's clock (`hostClock`, per ping). A run is a causal stream function: output n
 depends only on inputs up to n (Rutten, "Universal Coalgebra", 2000).
 Counterexample: a machine that keeps state out of sight, changes what it was
 given, or can't resume from a JSON snapshot. Test: `machine.test.ts` (each law,
 with a machine that breaks it); `form.test.ts`, `band.test.ts`,
 `transport.test.ts`, `plan.test.ts`, `bass.test.ts`, `comp.test.ts`,
-`lead.test.ts`, `muse.test.ts` and `clock.test.ts`. Source: #37 step 1.
+`lead.test.ts`, `muse.test.ts`, `clock.test.ts` and `radio.test.ts`. Source: #37 step 1.
 Status: measured. Decided: #37 step 1, in the working track. Lands in: Q4a.
 
 **F2. The compiler is a machine too, carrying what the composer carries.**
