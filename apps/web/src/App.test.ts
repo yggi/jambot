@@ -14,6 +14,15 @@ async function renderBand() {
   return rendered;
 }
 
+/** Pull a section of the band's drawer down, as a person taps its rider. */
+const pull = (name: string) =>
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: 'Drawer' })).getByRole('button', { name }),
+  );
+
+/** Show one of the band's views, as a person taps its tab. */
+const view = (name: string) => fireEvent.click(screen.getByRole('tab', { name }));
+
 /** The tempo played, as the metrum card's headline reads it. */
 const tempo = () => screen.getByLabelText('Metrum').querySelector('summary .main');
 
@@ -40,6 +49,7 @@ describe('the app', () => {
 
     it('goes back to the lobby from solo, and a reload from solo lands on the door', async () => {
       const { unmount } = await renderBand();
+      await pull('Session');
       await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
       expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Start the band' })).toBeNull();
@@ -110,6 +120,7 @@ describe('the app', () => {
       await fireEvent.click(screen.getByRole('button', { name: 'Host' }));
       expect(await screen.findByText(/nobody has joined/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
+      await pull('Session');
       await fireEvent.click(screen.getByRole('button', { name: 'Close session' }));
       expect(screen.getByRole('alertdialog')).toHaveTextContent('Close Garage?');
       await fireEvent.click(screen.getByRole('button', { name: 'Yes, close it' }));
@@ -130,6 +141,7 @@ describe('the app', () => {
       await fireEvent.click(screen.getByRole('button', { name: 'Start the band' }));
       await waitFor(() => expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument());
       const bus = () => fake.gains.filter((g) => g.connections.includes(fake.compressors[0]));
+      await pull('Session');
       await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
       // The band plays on while it fades: the door has not come yet.
       expect(screen.queryByRole('button', { name: 'Solo' })).toBeNull();
@@ -147,6 +159,7 @@ describe('the app', () => {
         target: { value: '40' },
       });
       await fireEvent.click(screen.getByRole('button', { name: 'Solo' }));
+      await pull('Sound');
       expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
       unmount();
       render(App);
@@ -190,8 +203,8 @@ describe('the app', () => {
 
   it('offers the band, the presets and the style sliders', async () => {
     await renderBand();
-    expect(screen.getByLabelText('Jambot')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the band' })).toBeInTheDocument();
+    await pull('Style');
     for (const p of PRESETS)
       expect(screen.getByRole('radio', { name: p.name })).toBeInTheDocument();
     for (const name of ['Swing', 'Syncopation', 'Harmony', 'Articulation', 'Energy', 'Entropy'])
@@ -201,31 +214,69 @@ describe('the app', () => {
     ).toBeInTheDocument();
   });
 
-  it('lays the page out as cards and levels, the sound folded above the music in the order of the composition', async () => {
+  it('lays the band out as an app: the transport, a drawer of what conducts it, and the views to play along in', async () => {
     const { container } = await renderBand();
-    const levels = [...container.querySelectorAll('h2, .card > summary .title')].map(
+    const drawer = within(screen.getByRole('navigation', { name: 'Drawer' }));
+    expect(drawer.getAllByRole('button').map((b) => b.textContent?.trim())).toEqual([
+      'Sound',
+      'Session',
+      'Style',
+      'Time',
+      'Key',
+      'Muse',
+    ]);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent?.trim())).toEqual([
+      'Song',
+      'Melody',
+      'Rhythm',
+      'Mix',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Song' })).toHaveAttribute('aria-selected', 'true');
+    // Every card is there, pinned open: the views' in their order, then the drawer's.
+    const cards = [...container.querySelectorAll('.card > summary .title')].map(
       (h) => h.textContent,
     );
-    expect(levels.slice(0, 10)).toEqual([
+    expect(cards).toEqual([
+      'Plan',
+      'Chords',
+      'Play',
+      'Play',
+      'Band',
       'Sound',
       'Session',
       'Style',
       'Metrum',
       'Key',
-      'Plan',
-      'Chords',
-      'Band',
-      'Play',
       'Muse',
     ]);
-    expect(screen.getByLabelText('Sound')).not.toHaveAttribute('open');
+    for (const card of container.querySelectorAll('details.card'))
+      expect(card).toHaveAttribute('open');
     expect(screen.getByLabelText('Session').querySelector('summary .sub')).toHaveTextContent(
       'This device only',
     );
   });
 
+  it('drops one sheet at a time over the views, and a view or the scrim takes it back up', async () => {
+    await renderBand();
+    const rider = (name: string) =>
+      within(screen.getByRole('navigation', { name: 'Drawer' })).getByRole('button', { name });
+    await pull('Style');
+    expect(rider('Style')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('radio', { name: 'Synth-pop' })).toBeVisible();
+    await pull('Key');
+    expect(rider('Style')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('radio', { name: 'Synth-pop' })).toBeNull();
+    await view('Mix');
+    expect(rider('Key')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('tab', { name: 'Mix' })).toHaveAttribute('aria-selected', 'true');
+    await pull('Muse');
+    await fireEvent.click(screen.getByRole('button', { name: 'Close the drawer', hidden: true }));
+    expect(rider('Muse')).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('starts from Synth-pop, and a preset sets the sliders and tempo at once while stopped', async () => {
     await renderBand();
+    await pull('Style');
     expect(screen.getByRole('radio', { name: 'Synth-pop' })).toHaveAttribute(
       'aria-checked',
       'true',
@@ -242,19 +293,24 @@ describe('the app', () => {
 
   it('nudges the tempo within the style’s licence, and names the style by its preset: energy, entropy and the nudge keep it, anything else makes it custom', async () => {
     await renderBand();
-    const synthPop = () => screen.getByRole('radio', { name: 'Synth-pop' });
+    const synthPop = () => screen.getByRole('radio', { name: 'Synth-pop', hidden: true });
+    await pull('Style');
     for (const name of [/Energy/, /Entropy/]) {
       await fireEvent.input(screen.getByRole('slider', { name }), { target: { value: '90' } });
       expect(synthPop()).toHaveAttribute('aria-checked', 'true');
     }
+    await pull('Time');
     await fireEvent.click(screen.getByRole('button', { name: 'Faster' }));
     expect(tempo()).toHaveTextContent('111 BPM');
     expect(synthPop()).toHaveAttribute('aria-checked', 'true');
     // A preset brings its own tempo, and the nudge carries over to it.
+    await pull('Style');
     await fireEvent.click(screen.getByRole('radio', { name: 'Techno' }));
     expect(tempo()).toHaveTextContent('134 BPM');
+    await pull('Time');
     await fireEvent.click(screen.getByRole('button', { name: 'Slower' }));
     expect(tempo()).toHaveTextContent('130 BPM');
+    await pull('Style');
     await fireEvent.input(screen.getByRole('slider', { name: /Syncopation/ }), {
       target: { value: '80' },
     });
@@ -262,8 +318,8 @@ describe('the app', () => {
     expect(screen.getByRole('radio', { name: 'Techno' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('signs the page in its footer, on the band’s screen and at the lobby', async () => {
-    await renderBand();
+  it('signs the page in its footer at the lobby', async () => {
+    render(App);
     expect(screen.getByRole('contentinfo')).toHaveTextContent(
       'all rites reversed kallisti collective, 3192 YOLD',
     );
@@ -316,6 +372,7 @@ describe('the app', () => {
 
     it('lights the on-screen key for a computer key pressed, and unlights it on release', async () => {
       await renderBand();
+      await view('Melody');
       const c4 = () => screen.getByRole('button', { name: 'C4' }); // 'a' maps to C4 (60)
       expect(c4().className).not.toContain('down');
       await fireEvent.keyDown(window, { key: 'a' });
@@ -326,6 +383,7 @@ describe('the app', () => {
 
     it('ignores a repeated keydown and an unmapped key', async () => {
       await renderBand();
+      await view('Melody');
       const c4 = () => screen.getByRole('button', { name: 'C4' });
       await fireEvent.keyDown(window, { key: 'a', repeat: true });
       expect(c4().className).not.toContain('down');
@@ -335,10 +393,11 @@ describe('the app', () => {
 
     it('sends a computer key to the keyboard or the pads by its own map', async () => {
       await renderBand();
+      await view('Melody');
       await fireEvent.keyDown(window, { key: 'a' });
       expect(screen.getByRole('button', { name: 'C4' })).toHaveClass('down');
-      // The pads are the drums' instrument, under the drums once selected.
-      await fireEvent.click(screen.getByRole('radio', { name: 'Drums' }));
+      // The pads are the drums' instrument, in the Rhythm view.
+      await view('Rhythm');
       await fireEvent.keyDown(window, { key: '1' });
       expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');
     });
@@ -354,16 +413,17 @@ describe('the app', () => {
       );
 
       await renderBand();
+      await pull('Sound');
       await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
       await fireEvent.change(screen.getByRole('combobox', { name: 'Listen to input' }), {
         target: { value: 'all' },
       });
 
       port.onmidimessage!({ data: [0x90, 64, 100] } as unknown as MIDIMessageEvent); // channel 1: E4
-      await tick();
+      await view('Melody');
       expect(screen.getByRole('button', { name: 'E4' })).toHaveClass('down');
 
-      await fireEvent.click(screen.getByRole('radio', { name: 'Drums' }));
+      await view('Rhythm');
       port.onmidimessage!({ data: [0x99, 36, 100] } as unknown as MIDIMessageEvent); // channel 10: kick
       await tick();
       expect(screen.getByRole('button', { name: 'Kick' })).toHaveClass('down');
@@ -415,6 +475,7 @@ describe('the app', () => {
       );
 
       await renderBand();
+      await pull('Sound');
       await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
       await fireEvent.change(screen.getByRole('combobox', { name: 'Send to output' }), {
         target: { value: 'out-1' },

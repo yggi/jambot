@@ -12,8 +12,21 @@
   content, spaced alike. A card starts folded unless its details are what a
   person plays on, as the tracks' are, and only a person's click changes
   that: the card owns whether it is open, so what it shows changing (a new
-  chord, a new bar) never folds or unfolds it.
+  chord, a new bar) never folds or unfolds it. Inside the shell (`Shell`), a
+  card is pinned open: its summary heads its details, and a click on it folds
+  nothing, since the shell's drawer and views are what open and close.
 -->
+<script lang="ts" module>
+  import { getContext, setContext } from 'svelte';
+
+  const PINNED = Symbol('cards pinned open');
+
+  /** Pin every card under the calling component open: what the shell's drawer and views hold. */
+  export function pinCards() {
+    setContext(PINNED, true);
+  }
+</script>
+
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
@@ -69,6 +82,12 @@
   function keepFolding(event: MouseEvent) {
     if (event.target instanceof Element && event.target.closest(ACTIVE)) event.preventDefault();
   }
+
+  const pinned = getContext<boolean | undefined>(PINNED) === true;
+  /** A pinned card's summary never folds it; its controls are still theirs. */
+  function keepOpen(event: MouseEvent) {
+    if (!(event.target instanceof Element && event.target.closest(ACTIVE))) event.preventDefault();
+  }
 </script>
 
 {#snippet head()}
@@ -84,7 +103,14 @@
   {/if}
 {/snippet}
 
-{#if children}
+{#if children && pinned}
+  <details class="card pinned" aria-label={title} open>
+    <summary class="head" class:with-glyph={glyph} class:untitled onclick={keepOpen}>
+      {@render head()}
+    </summary>
+    {@render children()}
+  </details>
+{:else if children}
   <details class="card" aria-label={title} bind:open>
     <summary class="head chevron" class:with-glyph={glyph} class:untitled onclick={keepFolding}>
       {@render head()}
@@ -102,6 +128,13 @@
     border: 1px solid var(--line);
     border-radius: 12px;
     min-width: 0;
+  }
+  .pinned > summary {
+    list-style: none;
+    cursor: default;
+  }
+  .pinned > summary::-webkit-details-marker {
+    display: none;
   }
   /* The padding is the summary's, so a click on the card's edge folds it too. */
   .head {
