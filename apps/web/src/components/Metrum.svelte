@@ -10,7 +10,9 @@
   while the band does. The bar and the pulses are those of the meter the bar
   heard is in, whatever it is, and the drawing keeps its place when the meter
   changes. The swing is read here and set in the style, where it is one of
-  its axes.
+  its axes. The meter the next section takes is asked for here too (#262): the
+  band takes it where the next section starts, as it does a key, and a
+  client follows its host's, so its choice rests.
 -->
 <script lang="ts">
   import {
@@ -24,7 +26,7 @@
   import { type Meter, stepsOf } from '@jambot/theory';
   import { barMarks, eighthHeard } from '../bar.ts';
   import type { Intent, TempoView } from '../conductor.ts';
-  import { meterLabel } from '../meter-choice.ts';
+  import { METER_CHOICES, meterLabel } from '../meter-choice.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import Bar from './Bar.svelte';
   import Card from './Card.svelte';
@@ -49,6 +51,9 @@
     /** Whether a client follows its host's tempo, so it can't nudge. */
     following?: boolean;
     onintent: (intent: Intent) => void;
+    /** The meter asked for the next section, which the band takes where it starts. */
+    asked?: Meter;
+    onmeter?: (meter: Meter) => void;
   }
 
   let {
@@ -61,6 +66,8 @@
     playing,
     following = false,
     onintent,
+    asked = SONG_METER,
+    onmeter = () => {},
   }: Props = $props();
 
   const marks = $derived(
@@ -101,6 +108,14 @@
     <Gauge label="Swing axis" from={0} to={1} centre={0} value={swing} fill />
   </div>
   <Bar {meter} {marks} under="at a swing of {percent} %" />
+  <Segmented
+    label="Meter for the next section"
+    value={meterLabel(asked)}
+    columns={4}
+    disabled={following}
+    options={METER_CHOICES.map((choice) => ({ value: choice.text, text: choice.text }))}
+    onselect={(text) => onmeter(METER_CHOICES.find((choice) => choice.text === text)!.meter)}
+  />
   <div class="click" role="group" aria-label="Click">
     <button
       type="button"

@@ -232,13 +232,11 @@ describe('the app', () => {
       'Mix',
     ]);
     expect(screen.getByRole('tab', { name: 'Song' })).toHaveAttribute('aria-selected', 'true');
-    // Every card is there, pinned open: the views' in their order, then the drawer's.
+    // Every card is there, pinned open: the views' in their order (Song is a view, not a card), then the drawer's.
     const cards = [...container.querySelectorAll('.card > summary .title')].map(
       (h) => h.textContent,
     );
     expect(cards).toEqual([
-      'Plan',
-      'Chords',
       'Play',
       'Play',
       'Band',

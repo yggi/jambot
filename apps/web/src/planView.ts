@@ -1,31 +1,21 @@
 /**
- * What the plan and the chords cards lay out, apart from the components: the
- * chords card's bars as tiles (the bar heard, the next, and six more), where a
- * change of section or key is labelled, the chord that comes next, and the
- * plan's sections in its two rows. Each reads what `hudOf` gives and decides
- * nothing of the music.
+ * How far ahead the plan is read, and readings of it apart from the views:
+ * where a change of section, key or meter is labelled, the chord that comes
+ * next and the beats until it, and a section's name with what changes in it.
+ * The Song view (`songView.ts`) reads the plan through these. Each reads what
+ * `hudOf` gives and decides nothing of the music.
  */
 
 import type { BarView, ChordView, Hud, SectionView } from './hud.ts';
 
-/** How many bars the chords card shows, the bar heard among them. */
+/** How many bars the plan is read to, the bar heard among them. */
 export const CHORD_BARS = 8;
 
-/** How many of them are large: the bar heard and the next. */
-export const LARGE_TILES = 2;
-
-/** How many sections the plan's first row shows, large: the section heard and the next. */
+/** How many sections are read near: the section heard and the next. */
 export const NEAR_SECTIONS = 2;
 
-/** How many sections the plan's second row shows, smaller: those after the next. */
+/** How many sections are read after those. */
 export const FAR_SECTIONS = 3;
-
-export interface Tile {
-  readonly bar: BarView;
-  /** Where the section, key or meter changes, at this bar: "Drop", "D dorian", "Bridge, C major, 7/8". */
-  readonly cue: string;
-  readonly large: boolean;
-}
 
 /**
  * The label a bar carries where the section, the key or the meter changes
@@ -41,17 +31,6 @@ export function cueOf(bar: BarView, before: BarView | null): string {
   ]
     .filter((part) => part !== null)
     .join(', ');
-}
-
-/** The chords card's bars: the bar heard and those after it, as many as are decided, to `CHORD_BARS`. */
-export function chordTiles(heard: BarView | null, next: readonly BarView[]): Tile[] {
-  if (heard === null) return [];
-  const bars = [heard, ...next].slice(0, CHORD_BARS);
-  return bars.map((bar, i) => ({
-    bar,
-    cue: cueOf(bar, i === 0 ? null : bars[i - 1]!),
-    large: i < LARGE_TILES,
-  }));
 }
 
 /**
@@ -85,14 +64,6 @@ export function beatsToNext(
   const at = inBar === undefined ? span : inBar.step;
   const start = beatSteps.findIndex((step) => step >= at);
   return (start === -1 ? beatSteps.length : start) - beat;
-}
-
-/** The plan's sections in its two rows: the section heard and the next, then those after. */
-export function planRows(sections: readonly SectionView[]): {
-  near: SectionView[];
-  far: SectionView[];
-} {
-  return { near: sections.slice(0, NEAR_SECTIONS), far: sections.slice(NEAR_SECTIONS) };
 }
 
 /** A block's name in the plan: its section, and its key and its meter where they change. */
