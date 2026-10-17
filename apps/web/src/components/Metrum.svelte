@@ -13,7 +13,10 @@
   set here: each preset names its own, the share glides over a bar from here,
   and a level asked for is taken where the next section starts, as the meter
   asked for here is (#262), and as a key is; a meter swung on the 8ths brings
-  in the jazz kit and the walking bass. A client follows its host's, so its
+  in the jazz kit and the walking bass. With no meter asked for ("By style",
+  as at first), the composer asks cells' repository at each section's start
+  for the meter nearest the style, with its swing (#375); a meter or a swing
+  set here asks for one, and wins. A client follows its host's, so its
   choices rest.
 -->
 <script lang="ts">
@@ -58,9 +61,9 @@
     /** Whether a client follows its host's tempo, so it can't nudge. */
     following?: boolean;
     onintent: (intent: Intent) => void;
-    /** The meter asked for the next section, which the band takes where it starts. */
-    asked?: Meter;
-    onmeter?: (meter: Meter) => void;
+    /** The meter asked for the next section, which the band takes where it starts; null for none, the repository's. */
+    asked?: Meter | null;
+    onmeter?: (meter: Meter | null) => void;
   }
 
   let {
@@ -78,6 +81,8 @@
     onmeter = () => {},
   }: Props = $props();
 
+  /** The choice that asks for no meter: the composer's, from the repository (#375). */
+  const BY_STYLE = 'By style';
   /** The swing as the bar heard plays it: its level, at the share asked for. */
   const heardSwing = $derived({ level, share: swing.share });
   const marks = $derived(
@@ -148,11 +153,15 @@
   <Bar {meter} {marks} under="at a swing of {percent} %" />
   <Segmented
     label="Meter for the next section"
-    value={meterLabel(asked)}
+    value={asked === null ? BY_STYLE : meterLabel(asked)}
     columns={4}
     disabled={following}
-    options={METER_CHOICES.map((choice) => ({ value: choice.text, text: choice.text }))}
-    onselect={(text) => onmeter(METER_CHOICES.find((choice) => choice.text === text)!.meter)}
+    options={[BY_STYLE, ...METER_CHOICES.map((choice) => choice.text)].map((text) => ({
+      value: text,
+      text,
+    }))}
+    onselect={(text) =>
+      onmeter(METER_CHOICES.find((choice) => choice.text === text)?.meter ?? null)}
   />
   <div class="click" role="group" aria-label="Click">
     <button
