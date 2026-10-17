@@ -183,7 +183,8 @@ export class HostSession {
       player: this.#player.players[HOST_PLAYER] ?? '',
       roster: this.#roster.map(({ id, name, token }) => ({ id, name, token })),
       players: this.#player.players,
-      track: this.#player.track,
+      // Its bpm counted in the meter asked for, which a reloaded host opens in (#367).
+      track: this.#player.trackCountedIn(this.#player.meter),
       wish: this.#player.wish,
       tempoNudge: this.#player.tempoNudge,
       meter: this.#player.meter,
@@ -228,8 +229,8 @@ export class HostSession {
         this.#send({ kind: 'forecast', forecast: forecastDelta(this.#forecast, bars) });
         this.#forecast = bars;
       },
-      track: (track, swing) => {
-        this.#send({ kind: 'track', track, swing });
+      track: (track, swing, tempoMeter) => {
+        this.#send({ kind: 'track', track, swing, tempoMeter });
         this.persist();
       },
       meter: () => this.persist(),

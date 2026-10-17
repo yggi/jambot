@@ -38,8 +38,10 @@ Facts about `packages/score` and the score language (#7).
   The rhythms the parts write (the backbeat on steps 4 and 12, the 16-long tables) are content on the 16 steps, not readings.
   Nothing composes in anything but 4/4 yet, and how bars of different lengths join is #122.
   The metronome (`packages/engine/src/metronome.ts`) has no bar of its own: it clicks the eighths of the steps the transport laid, on `SONG_METER`, through the swing they were laid with (`clicksOf`).
-- A header's `bpm=` counts the grid, as the engine's `stepSeconds` does: quarter notes a minute, a quarter of the step rate, whatever the meter.
-  A pulse rate is only derived, for display, and exists only where the pulses are equal (T7).
+- A header's `bpm=` counts its bar's meter's beats, as cells' does (decision 040) and as the engine's `stepSeconds` does: 4/4's quarters, 6/8's dotted quarters, 7/8's three unequal beats (`beatsOf`, T7, #367).
+  A bar lasts beats × 60 / bpm with its steps equal, so its beats keep their proportions, and the seam states the bpm as it is.
+  The style track's bpm counts the beats of the transport's `tempoMeter`, which the player keeps the meter of the bar decided next: when the meter changes, the number converts once (`rebeat`, the felt tempo kept: 108 in 4/4 is 72 in 6/8), before the first bar in the new meter is composed.
+  The Meter screen's metronome still counts quarters.
 - Layers refer upward: pitch is relative to the chord, the chord to the key, the key to the section.
   Only compiled events are absolute.
 - `harm`: Roman numerals in the bar's key (minor, dorian, major, mixolydian), with `° ø + 7 maj7 9 maj9`, borrowed `b`/`#` and secondaries `V7/iv`.

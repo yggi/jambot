@@ -10,7 +10,8 @@
  * 3/4 and 7/8 (3+2+2), seed 0, entropy 0.3, 32 bars each: 384 bars.
  *
  * The bars come from the band's own transport (`transport`, a style held at
- * the preset's, the meter asked for), so each onset has the time the
+ * the preset's, the meter asked for and its bpm counted in that meter's
+ * beats), so each onset has the time the
  * transport gives it. What is compared is what is composed, without the
  * performer's licence (T17): each written note's step, pitch and written
  * length in whole steps, and its velocity as the ensemble's default
@@ -22,9 +23,9 @@
  *
  * The text, one bar, every line on a tap of `&bar`:
  *
- * - the meter, `&bar meter("7/8") step=92.571429bpm`: cells' bpm counts the
- *   meter's beats (decision 040), Jambot's counts quarters whatever the meter,
- *   so a 7/8 tempo is the band's times 3 beats over 3.5 quarters;
+ * - the meter, `&bar meter("7/8") step=108bpm`: cells' bpm counts the
+ *   meter's beats (decision 040), and so does Jambot's (#367), so the text
+ *   states the band's tempo as it is, with no conversion;
  * - the harmony, the key and the chords as stacks of its degrees (E32's
  *   stacks, the owner's choice of 2026-10-17): `&key scale(aeolian, A)`,
  *   `&harm over=&key step=2n [0,2,4] [4,6#,8]`; nothing plays it, and the
@@ -150,6 +151,7 @@ export function runOf({ preset: name, meter }: RunKey): Run {
     swing: holdingSwing(preset.swing),
     wish: { tonic: null, mode: preset.mode, melodic: null },
     meter: METERS[meter],
+    tempoMeter: METERS[meter],
   };
   let carried: TransportCarried | null = transport.initial;
   const events: TimedEvent[] = [];
@@ -179,22 +181,6 @@ export function runOf({ preset: name, meter }: RunKey): Run {
 /** A meter's name, as cells writes it in `meter("…")`. */
 export function meterName(bar: BandBar): MeterName {
   return (Object.keys(METERS) as MeterName[]).find((name) => sameMeter(METERS[name], bar.meter))!;
-}
-
-/** The beats cells counts in each meter here (decision 040's table): what its bpm counts. */
-export const CELLS_BEATS: Readonly<Partial<Record<MeterName, number>>> = {
-  '4/4': 4,
-  '3/4': 3,
-  '7/8': 3,
-};
-
-/** A number as cells reads it: at most six decimals, no trailing zeros. */
-const decimal = (x: number) => String(Number(x.toFixed(6)));
-
-/** The tempo cells writes for the band's: its bpm counts beats, the band's quarters (a step is a 16th). */
-export function cellsBpm(bar: BandBar): string {
-  const quarters = stepsOf(bar.meter) / 4;
-  return decimal((bar.style.bpm * CELLS_BEATS[meterName(bar)]!) / quarters);
 }
 
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
@@ -373,7 +359,7 @@ export function barAsCells(bar: BandBar): BarText {
   const notes = composedNotes(bar);
   const cuts: Cut[] = [];
   const lines: Line[] = [
-    { part: 'meter', text: `&bar meter("${meterName(bar)}") step=${cellsBpm(bar)}bpm` },
+    { part: 'meter', text: `&bar meter("${meterName(bar)}") step=${bar.style.bpm}bpm` },
     { part: 'key', text: `&key ${keyText(key)}` },
   ];
   const chords = statedChords(bar);
@@ -461,7 +447,7 @@ const READING = [
 /** A text played through cells' MIDI out for its first bar, read back; `estimate` is about how long its bar is. */
 export function cellsPlays(text: string, bar: BandBar): Played {
   const steps = stepsOf(bar.meter);
-  const estimate = steps * stepSeconds(bar.style.bpm);
+  const estimate = steps * stepSeconds(bar.style.bpm, bar.meter);
   const plan = planOf(`${text}\n${READING}`);
   const route = router(plan.result, channelTable(plan.result));
   const out = windowAt(plan, 0, estimate * 1.5).events.flatMap((e) =>

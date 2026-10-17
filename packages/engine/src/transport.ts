@@ -132,6 +132,13 @@ export interface TransportEnv {
   readonly wish: KeyWish;
   /** The meter asked for, which the band takes at a section boundary (#261); 4/4 where none is. */
   readonly meter?: Meter | undefined;
+  /**
+   * The meter whose beats the track's bpm counts (#367); 4/4 where none is.
+   * Whoever holds the track keeps it the meter heard, converting the number
+   * when the meter changes (`rebeat`), so the steps of every bar keep their
+   * length across the change.
+   */
+  readonly tempoMeter?: Meter | undefined;
 }
 
 /** A bar a player's notes were judged in elsewhere, such as on a client, and the judgement. */
@@ -506,7 +513,7 @@ export function transportOver<Source, Arrived = never>(
       carried,
       { now, until, heard = [], judged: remote = [], forget = false, arrived = [], finish, ends },
     ) {
-      const { start, track, swing: swingTrack = STRAIGHT_TRACK } = env;
+      const { start, track, tempoMeter, swing: swingTrack = STRAIGHT_TRACK } = env;
       let head = carried?.head ?? { step: 0, seconds: start };
       let playing = source.receive(carried?.source ?? source.initial, arrived);
       let bars = [...(carried?.bars ?? [])];
@@ -597,7 +604,7 @@ export function transportOver<Source, Arrived = never>(
           const passing = bandEnvAt(env, bar, listening.muse.offer, song);
           const known = source.meterOf?.(passing, playing) ?? null;
           const next = (known ? clockOf(withMeter(meters, bar, known)) : song).barStart(bar + 1);
-          const end = tempoMap(track, head).played(next);
+          const end = tempoMap(track, head, tempoMeter).played(next);
           if (end <= now) {
             // Enough walking for one advance: the next carries on.
             if (passed === CATCH_UP) break;
@@ -610,7 +617,7 @@ export function transportOver<Source, Arrived = never>(
             continue;
           }
         }
-        const length = stepSeconds(valueAt('bpm', track.bpm, head.step));
+        const length = stepSeconds(valueAt('bpm', track.bpm, head.step), tempoMeter);
         if (head.seconds + length <= now) {
           missed++;
           head = { step: head.step + 1, seconds: head.seconds + length };
@@ -658,7 +665,7 @@ export function transportOver<Source, Arrived = never>(
           song.beatAt(x) === held.index
             ? swingMapAt(held.swing, pulse.start, pulse.length).played(x)
             : swing.played(x);
-        const tempo = tempoMap(track, head);
+        const tempo = tempoMap(track, head, tempoMeter);
         const clock = (x: number) => tempo.played(swung(x));
 
         for (const event of current.dough) {

@@ -215,19 +215,28 @@ measured (the named meters, their modes, every grouping as a helix); measured,
 failing (every grouping, by `even` alone). Lands in: #63 (a meter in the bar's
 header, beside T5's environment); #27 (the transport's bar).
 
-**T7. A tempo is a rate of the grid, and a pulse tempo exists only where the
-pulses are equal.** Witness: a meter's `gaps`, its pulses' lengths: they are
-equal exactly when the pulses divide the eighths, over every well-formed pair up
-to 16. The engine counts tempo per step (`tempoMap`, C2), so its `bpm` is a
-quarter of the step rate, whatever the meter. A mean pulse
-rate, which for 5/8 at 120 plays pulses of 0.6 and 0.4 s, is no pulse at 120,
-and the eighth changes speed when the meter does. Counterexample: an additive meter with a pulse that plays at the
-written tempo. Test: `packages/theory/src/meter.test.ts`, whose test of pulse
-tempo cites T7, over every well-formed pair up to 16. A header's `bpm=` counts
-the grid, as the engine does: quarter-note equivalents, a quarter of the step
-rate, defined for every meter; a pulse rate is derived for display. Source: #98.
-Status: measured (theory). Decided: #7, on measured options (the grid's rate,
-the pulse rate, a rate with a unit). Lands in: #63; #27.
+**T7. A tempo counts the meter's beats, and the bar's steps stay equal, so
+its beats keep their proportions.** Witness: `stepSeconds(bpm, meter)` and
+`tempoMap` (`tempo.ts`, C2): a bar at `bpm` lasts `beatsOf(meter) × 60 / bpm`
+seconds, its steps equal, as cells' decision 040 counts it (yggi/cells#88), so
+4/4, 3/4 and 5/4 count quarters, 6/8, 9/8 and 12/8 dotted quarters, and 7/8
+three unequal beats of 3, 2 and 2 eighths. A track's bpm counts the beats of
+its `tempoMeter`, which the player keeps the meter of the bar decided next; when
+the meter changes, the number converts once (`rebeat`) and every step keeps its
+length, so the felt tempo carries over (Synth-pop's 108 in 4/4 is 72 in 6/8).
+A beat rate is no pulse rate where the beats are unequal: 7/8 at 90 plays beats
+of 0.857, 0.571 and 0.571 s. Counterexample: a named meter whose bar at some
+bpm lasts other than beats × 60 / bpm, or whose beats' shares of it move; a
+change of meter that moves a step. Test:
+`packages/engine/src/tempo-meters.test.ts`, over every named meter at five
+tempos and every pair of named meters through a glide, and
+`packages/theory/src/meter.test.ts`, whose test of pulse tempo cites T7, over
+every well-formed pair up to 16. A header's `bpm=` counts its bar's beats, as
+cells' does, so the seam states it as it is (E33). Source: #98; #367.
+Status: measured (theory, the engine's tempo). Decided: #7, on measured options
+(the grid's rate, the pulse rate, a rate with a unit); #367, on measured options
+(E33's conversion at the seam), by the owner, 2026-10-17: the beats, as cells.
+Lands in: #63; #27.
 
 **T8. Once its clock is trusted, a client sounds each moment within its bound of
 the host, half its best round trip give or take each output pair's bound, and
