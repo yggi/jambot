@@ -16,14 +16,13 @@ test('the metronome plays its bass when the bass is on: the root on the downbeat
   page,
 }) => {
   const errors = await listen(page);
-  await page.locator('details[aria-label="Extras"] summary').click();
-  await page.getByRole('button', { name: 'Metronome', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meter' }).click();
   await page
     .getByRole('group', { name: 'Layers' })
     .getByRole('button', { name: 'Bass', exact: true })
     .click();
   await page
-    .getByRole('region', { name: 'Metronome' })
+    .getByRole('region', { name: 'Transport' })
     .getByRole('button', { name: 'Play', exact: true })
     .click();
 

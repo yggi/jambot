@@ -3,79 +3,21 @@ import { describe, expect, it, vi } from 'vitest';
 import Lobby from './Lobby.svelte';
 
 const props = () => ({
-  name: 'Jolly Otter',
-  onname: vi.fn(),
-  onsettle: vi.fn(),
-  onregenerate: vi.fn(),
   suggest: vi.fn(() => 'Bright Attic'),
   found: { sessions: [], problem: null },
   joining: false,
   notice: null,
   onsolo: vi.fn(),
-  ontiming: vi.fn(),
-  onmeter: vi.fn(),
-  ontune: vi.fn(),
   onhost: vi.fn(() => Promise.resolve()),
   onjoin: vi.fn(),
 });
 
 describe('the lobby, the door to the band', () => {
-  it('asks for a name first, made up already, and keeps what is typed', async () => {
-    const p = props();
-    render(Lobby, p);
-    const field = screen.getByLabelText('Your name');
-    expect(field).toHaveValue('Jolly Otter');
-    await fireEvent.input(field, { target: { value: 'Ada' } });
-    expect(p.onname).toHaveBeenLastCalledWith('Ada');
-    await fireEvent.blur(field);
-    expect(p.onsettle).toHaveBeenCalledOnce();
-  });
-
-  it('makes up another name on request', async () => {
-    const p = props();
-    render(Lobby, p);
-    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate name' }));
-    expect(p.onregenerate).toHaveBeenCalledOnce();
-  });
-
   it('plays with the band alone', async () => {
     const p = props();
     render(Lobby, p);
     await fireEvent.click(screen.getByRole('button', { name: 'Solo' }));
     expect(p.onsolo).toHaveBeenCalledOnce();
-  });
-
-  it('opens the timing test, and not while a join is under way', async () => {
-    const p = props();
-    const { unmount } = render(Lobby, p);
-    await fireEvent.click(screen.getByText('Extras'));
-    await fireEvent.click(screen.getByRole('button', { name: 'Timing test' }));
-    expect(p.ontiming).toHaveBeenCalledOnce();
-    unmount();
-    render(Lobby, { ...p, joining: true });
-    expect(screen.getByRole('button', { name: 'Timing test' })).toBeDisabled();
-  });
-
-  it('opens the metronome, and not while a join is under way', async () => {
-    const p = props();
-    const { unmount } = render(Lobby, p);
-    await fireEvent.click(screen.getByText('Extras'));
-    await fireEvent.click(screen.getByRole('button', { name: 'Metronome' }));
-    expect(p.onmeter).toHaveBeenCalledOnce();
-    unmount();
-    render(Lobby, { ...p, joining: true });
-    expect(screen.getByRole('button', { name: 'Metronome' })).toBeDisabled();
-  });
-
-  it('opens the tuner, and not while a join is under way', async () => {
-    const p = props();
-    const { unmount } = render(Lobby, p);
-    await fireEvent.click(screen.getByText('Extras'));
-    await fireEvent.click(screen.getByRole('button', { name: 'Tuner' }));
-    expect(p.ontune).toHaveBeenCalledOnce();
-    unmount();
-    render(Lobby, { ...p, joining: true });
-    expect(screen.getByRole('button', { name: 'Tuner' })).toBeDisabled();
   });
 
   it('joins an open session by a click on it, local and global told apart by a tooltip', async () => {

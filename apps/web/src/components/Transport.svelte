@@ -8,6 +8,9 @@
   stops it now. A client's button rests, since its host starts and stops the
   band. The loop toggle is the place for holding a section and is not wired
   yet (#327). It stays one height whatever it says, so nothing under it moves.
+  It is the transport of whatever a screen plays: the lobby's metronome,
+  timing test and tuner use it too, with their own labels, their bar's cells
+  or none, and no loop.
 -->
 <script lang="ts">
   import type { Meter } from '@jambot/theory';
@@ -18,8 +21,8 @@
     /** The line, large, and the one under it (`transportLine`). */
     main: string;
     sub: string;
-    /** The meter of the bar heard, or of the count-in's. */
-    meter: Meter;
+    /** The meter of the bar heard, or of the count-in's; none for what has no bar. */
+    meter: Meter | null;
     /** The step heard, or of the count-in's bar while it counts; null before either. */
     step: number | null;
     phase: Phase | null;
@@ -28,14 +31,35 @@
     /** Whether this device follows a host, whose band it doesn't start or stop. */
     following?: boolean;
     ontoggle: () => void;
+    /** What the button says to a screen reader, stopped and playing. */
+    labels?: { start: string; stop: string };
+    /** Whether Stop asks the band to end on a cadence, as the band's does, and a second stops it now. */
+    cadence?: boolean;
+    /** Whether it has a loop toggle: the band's has. */
+    loop?: boolean;
+    /** Whether the button rests for a moment, as while a microphone is asked for. */
+    busy?: boolean;
   }
 
-  let { main, sub, meter, step, phase, playing, following = false, ontoggle }: Props = $props();
+  let {
+    main,
+    sub,
+    meter,
+    step,
+    phase,
+    playing,
+    following = false,
+    ontoggle,
+    labels = { start: 'Start the band', stop: 'Stop' },
+    cadence = true,
+    loop = true,
+    busy = false,
+  }: Props = $props();
 
   let looping = $state(false);
 
-  const cells = $derived(transportCells(meter));
-  const lit = $derived(transportHeard(meter, step));
+  const cells = $derived(meter ? transportCells(meter) : []);
+  const lit = $derived(meter ? transportHeard(meter, step) : null);
 </script>
 
 <section class="transport" aria-label="Transport">
@@ -63,15 +87,17 @@
     type="button"
     class="play"
     class:ending={phase === 'ending'}
-    disabled={following}
+    disabled={following || busy}
     title={following
       ? 'The host starts and stops the band'
-      : phase === 'ending'
-        ? 'Stop again to stop now'
-        : playing
-          ? 'Stops on a cadence: the band plays to the end of its next bar'
-          : undefined}
-    aria-label={playing ? 'Stop' : 'Start the band'}
+      : !cadence
+        ? undefined
+        : phase === 'ending'
+          ? 'Stop again to stop now'
+          : playing
+            ? 'Stops on a cadence: the band plays to the end of its next bar'
+            : undefined}
+    aria-label={playing ? labels.stop : labels.start}
     onclick={ontoggle}
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -86,19 +112,21 @@
     <b title={main}>{main}</b>
     <span title={sub}>{sub}</span>
   </div>
-  <button
-    type="button"
-    class="loop"
-    aria-pressed={looping}
-    title="Loop this section (not wired yet)"
-    onclick={() => (looping = !looping)}
-  >
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M5 8 a4 4 0 0 1 4-4 h3 M15 12 a4 4 0 0 1-4 4 h-3" />
-      <path d="M11 1.5 l2 2.5 -2 2.5 M9 13.5 l-2 2.5 2 2.5" />
-    </svg>
-    <span>loop</span>
-  </button>
+  {#if loop}
+    <button
+      type="button"
+      class="loop"
+      aria-pressed={looping}
+      title="Loop this section (not wired yet)"
+      onclick={() => (looping = !looping)}
+    >
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M5 8 a4 4 0 0 1 4-4 h3 M15 12 a4 4 0 0 1-4 4 h-3" />
+        <path d="M11 1.5 l2 2.5 -2 2.5 M9 13.5 l-2 2.5 2 2.5" />
+      </svg>
+      <span>loop</span>
+    </button>
+  {/if}
 </section>
 
 <style>

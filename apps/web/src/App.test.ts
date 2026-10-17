@@ -14,13 +14,13 @@ async function renderBand() {
   return rendered;
 }
 
-/** Pull a section of the band's drawer down, as a person taps its rider. */
+/** Pull a section of the drawer down, the band's or the door's, as a person taps its rider. */
 const pull = (name: string) =>
   fireEvent.click(
     within(screen.getByRole('navigation', { name: 'Drawer' })).getByRole('button', { name }),
   );
 
-/** Show one of the band's views, as a person taps its tab. */
+/** Show one of the views, the band's or the door's, as a person taps its tab. */
 const view = (name: string) => fireEvent.click(screen.getByRole('tab', { name }));
 
 /** The tempo played, as the metrum card's headline reads it. */
@@ -42,9 +42,12 @@ describe('the app', () => {
 
     it('keeps the sound card in reach, on both sides of the door', async () => {
       render(App);
-      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
+      await pull('Sound');
+      expect(screen.getByRole('group', { name: 'Sound' })).toBeVisible();
+      await fireEvent.click(screen.getByRole('button', { name: 'Close the drawer' }));
       await fireEvent.click(screen.getByRole('button', { name: 'Solo' }));
-      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
+      await pull('Sound');
+      expect(screen.getByRole('group', { name: 'Sound' })).toBeVisible();
     });
 
     it('goes back to the lobby from solo, and a reload from solo lands on the door', async () => {
@@ -59,7 +62,7 @@ describe('the app', () => {
       expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
     });
 
-    it('opens the timing test from the lobby, takes a key press for a tap, and goes back', async () => {
+    it('opens the timing test from the lobby, takes a key press for a tap, and stops it on going back', async () => {
       const fake = fakeAudioContext();
       vi.stubGlobal(
         'AudioContext',
@@ -69,22 +72,20 @@ describe('the app', () => {
       );
       onTestFinished(() => void vi.unstubAllGlobals());
       render(App);
-      await fireEvent.click(screen.getByText('Extras'));
-      await fireEvent.click(screen.getByRole('button', { name: 'Timing test' }));
-      expect(screen.getByRole('region', { name: 'Timing test' })).toBeInTheDocument();
-      expect(screen.queryByRole('region', { name: 'Join a session' })).toBeNull();
-      expect(screen.getByLabelText('Sound')).toBeInTheDocument();
+      await view('Timing');
+      expect(screen.getByRole('region', { name: 'Timing test' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Solo', hidden: true })).not.toBeVisible();
       await fireEvent.click(screen.getByRole('button', { name: 'Start the test' }));
       expect(await screen.findByRole('button', { name: 'Tap along' })).toBeInTheDocument();
       await fireEvent.keyDown(window, { key: 'a' });
       await fireEvent.keyDown(window, { key: 'Enter' });
-      expect(screen.getByText('No hit near that tap')).toBeInTheDocument();
-      await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
-      expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Tap along' })).toBeNull();
+      expect(screen.getAllByText('No hit near that tap')[0]).toBeInTheDocument();
+      await view('Play');
+      expect(screen.getByRole('button', { name: 'Solo' })).toBeVisible();
+      expect(screen.queryByRole('button', { name: 'Tap along', hidden: true })).toBeNull();
     });
 
-    it('opens the metronome from the lobby, plays a bar of 6/8, and stops with it at the door', async () => {
+    it('opens the metronome from the lobby, plays a bar of 6/8, and stops it on going back to the lobby', async () => {
       const fake = fakeAudioContext();
       vi.stubGlobal(
         'AudioContext',
@@ -94,17 +95,17 @@ describe('the app', () => {
       );
       onTestFinished(() => void vi.unstubAllGlobals());
       render(App);
-      await fireEvent.click(screen.getByText('Extras'));
-      await fireEvent.click(screen.getByRole('button', { name: 'Metronome' }));
-      expect(screen.getByRole('region', { name: 'Metronome' })).toBeInTheDocument();
-      expect(screen.queryByRole('region', { name: 'Join a session' })).toBeNull();
+      await view('Meter');
+      expect(screen.getByRole('region', { name: 'Metronome' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Solo', hidden: true })).not.toBeVisible();
       await fireEvent.click(screen.getByRole('radio', { name: '6/8' }));
       expect(screen.getByLabelText('Accents')).toHaveTextContent('* . . + . .');
       await fireEvent.click(screen.getByRole('button', { name: 'Play' }));
       expect(await screen.findByRole('button', { name: 'Stop' })).toBeInTheDocument();
-      await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
-      expect(screen.getByRole('button', { name: 'Solo' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+      await view('Play');
+      expect(screen.getByRole('button', { name: 'Solo' })).toBeVisible();
+      await view('Meter');
+      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
     });
 
     it('hosts a session locally, closes it only when sure, and lands back at the door', async () => {
@@ -155,6 +156,7 @@ describe('the app', () => {
 
     it('keeps the volume a person set, on both sides of the door', async () => {
       const { unmount } = render(App);
+      await pull('Sound');
       await fireEvent.input(screen.getByRole('slider', { name: /^Volume/ }), {
         target: { value: '40' },
       });
@@ -163,6 +165,7 @@ describe('the app', () => {
       expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
       unmount();
       render(App);
+      await pull('Sound');
       expect(screen.getByRole('slider', { name: /^Volume/ })).toHaveValue('40');
     });
 
@@ -308,6 +311,7 @@ describe('the app', () => {
 
   it('signs the page in its footer at the lobby', async () => {
     render(App);
+    await pull('About');
     expect(screen.getByRole('contentinfo')).toHaveTextContent(
       'all rites reversed kallisti collective, 3192 YOLD',
     );
@@ -325,6 +329,7 @@ describe('the app', () => {
       Object.assign(URL, { createObjectURL: created, revokeObjectURL: () => {} });
       const clicked = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
       render(App);
+      await pull('Counters');
       const panel = screen.getByRole('region', { name: 'Timing' });
       expect(panel).toHaveTextContent('Steps laid, missed');
       await fireEvent.click(screen.getByRole('button', { name: 'Export' }));

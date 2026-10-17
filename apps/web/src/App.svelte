@@ -1,22 +1,18 @@
 <!--
   The page: the container. It holds what belongs to the person and the
   device whichever screen is showing (their name, how it sounds,
-  the player, the sessions) and picks the screen: the lobby, the
-  door, or the band that stands behind it (`screenOf`). The screens take
+  the player, the sessions) and picks the screen: the door, with the
+  lobby and its extras, or the band that stands behind it (`screenOf`). The screens take
   props and send intents, and know nothing of the sessions or the device.
 -->
 <script lang="ts">
   import Card from './components/Card.svelte';
-  import TitleCard from './components/TitleCard.svelte';
   import Fader from './components/Fader.svelte';
   import SoundPanel from './components/SoundPanel.svelte';
   import Equalizer from './components/glyphs/Equalizer.svelte';
   import TimingPanel from './components/TimingPanel.svelte';
   import Band from './screens/Band.svelte';
-  import Lobby from './screens/Lobby.svelte';
-  import MeterScreen from './screens/Meter.svelte';
-  import TuneScreen from './screens/Tune.svelte';
-  import TimingTestScreen from './screens/TimingTest.svelte';
+  import Door from './screens/Door.svelte';
   import { Device } from './device.svelte.ts';
   import { Instruments } from './instruments.svelte.ts';
   import { Metronome } from './metronome.svelte.ts';
@@ -140,7 +136,7 @@
    */
   const connectMidi = () =>
     device.connect((note, source, timeStamp) =>
-      screen === 'timing'
+      extra === 'timing'
         ? testing.midi(note, source, timeStamp)
         : instruments.onMidiNote(note, source),
     );
@@ -152,14 +148,8 @@
   /** Whether the person chose to play alone: not kept, so a reload lands on the door. */
   let soloChosen = $state(false);
 
-  /** Whether the person chose the timing test: not kept, so a reload lands on the door. */
-  let timingChosen = $state(false);
-
-  /** Whether the person chose the metronome: not kept either. */
-  let meterChosen = $state(false);
-
-  /** Whether the person chose the tuner: not kept either. */
-  let tuneChosen = $state(false);
+  /** The door's view: Play (the lobby) or an extra. Not kept, so a reload lands on Play. */
+  let doorView = $state('play');
 
   /** The band is fading out on its way to the door: it stays on screen until it has. */
   let leaving = $state(false);
@@ -172,38 +162,36 @@
           clientStatus: clientSession.status,
           restoring: sessions.restoring,
           soloChosen,
-          timingChosen,
-          meterChosen,
-          tuneChosen,
         }),
   );
 
-  // A session takes the place of the choice to play alone, or to take the test.
+  /** The extra showing at the door, if one is: it runs only while its view shows. */
+  const extra = $derived(screen === 'band' ? null : doorView);
+
+  // A session takes the place of the choice to play alone, and of an extra.
   $effect(() => {
     if (player.mode !== 'solo') {
       soloChosen = false;
-      timingChosen = false;
-      meterChosen = false;
-      tuneChosen = false;
+      doorView = 'play';
     }
   });
 
-  // The test runs only on its own screen, and takes the computer's keys there.
+  // The test runs only on its own view, and takes the computer's keys there.
   $effect(() => {
-    if (screen !== 'timing') testing.stop();
+    if (extra !== 'timing') testing.stop();
   });
   $effect(() => {
-    if (screen === 'timing') return testing.listen();
-  });
-
-  // The metronome plays on its own screen only.
-  $effect(() => {
-    if (screen !== 'meter') meterPlayer.stop();
+    if (extra === 'timing') return testing.listen();
   });
 
-  // The tuner listens on its own screen only: the microphone is let go of on leaving it, and a note held on it is released.
+  // The metronome plays on its own view only.
   $effect(() => {
-    if (screen !== 'tune') {
+    if (extra !== 'meter') meterPlayer.stop();
+  });
+
+  // The tuner listens on its own view only: the microphone is let go of on leaving it, and a note held on it is released.
+  $effect(() => {
+    if (extra !== 'tune') {
       tuner.stop();
       sender.release();
       correction.stop();
@@ -262,6 +250,7 @@
   const solo = () => {
     sessions.dismiss();
     soloChosen = true;
+    doorView = 'play';
   };
   /**
    * Close the session, leave it, or go back from solo to the lobby. What a
@@ -366,107 +355,38 @@
     timing={timingShown ? timingPanel : undefined}
   />
 {:else}
-  <main>
-    <TitleCard
-      theme={theme.name}
-      ontheme={(name) => (theme.name = name)}
-      address={sessions.address}
-      onaddress={(url) => (sessions.address = url)}
-    />
-
-    {@render soundCard()}
-
-    {#if screen === 'timing'}
-      <TimingTestScreen
-        test={testing}
-        onback={() => (timingChosen = false)}
-        onexport={exportRuns}
-      />
-    {:else if screen === 'meter'}
-      <MeterScreen player={meterPlayer} onback={() => (meterChosen = false)} />
-    {:else if screen === 'tune'}
-      <TuneScreen {tuner} {sender} {correction} onback={() => (tuneChosen = false)} />
-    {:else if screen === 'restoring'}
-      <p class="message" role="status">Taking up your session again…</p>
-      <button type="button" onclick={() => sessions.drop()}>Drop session</button>
-    {:else}
-      <Lobby
-        name={profile.name}
-        onname={(name) => (profile.name = name)}
-        onsettle={() => profile.settle()}
-        onregenerate={() => profile.regenerate()}
-        suggest={randomSessionName}
-        {found}
-        joining={clientSession.status === 'joining'}
-        notice={sessions.ended}
-        onsolo={solo}
-        ontiming={() => (timingChosen = true)}
-        onmeter={() => (meterChosen = true)}
-        ontune={() => (tuneChosen = true)}
-        onhost={host}
-        onjoin={join}
-      />
-    {/if}
-
-    {#if timingShown}
-      <div class="settings">
-        <TimingPanel report={timing} onexport={exportTiming} />
-      </div>
-    {/if}
-    <footer>
-      <span>all rites reversed</span>
-      <svg class="pentagon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-        <polygon points="10,2 18,8 15,17.5 5,17.5 2,8" />
-      </svg>
-      <span>kallisti collective, 3192 YOLD</span>
-    </footer>
-  </main>
+  <Door
+    bind:view={doorView}
+    lobby={{
+      suggest: randomSessionName,
+      found,
+      joining: clientSession.status === 'joining',
+      notice: sessions.ended,
+      onsolo: solo,
+      onhost: host,
+      onjoin: join,
+    }}
+    you={{
+      name: profile.name,
+      onname: (name) => (profile.name = name),
+      onsettle: () => profile.settle(),
+      onregenerate: () => profile.regenerate(),
+    }}
+    settings={{
+      theme: theme.name,
+      ontheme: (name) => (theme.name = name),
+      address: sessions.address,
+      onaddress: (url) => (sessions.address = url),
+    }}
+    restoring={screen === 'restoring'}
+    ondrop={() => sessions.drop()}
+    {tuner}
+    {sender}
+    {correction}
+    metronome={meterPlayer}
+    test={testing}
+    onexport={exportRuns}
+    sound={soundCard}
+    counters={timingShown ? timingPanel : undefined}
+  />
 {/if}
-
-<style>
-  main {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    /* The footer stays at the window's bottom where the content doesn't fill it. */
-    min-height: 100dvh;
-  }
-  /* A phone on its side: tighter, so more of the cards show at once. */
-  @media (max-height: 500px) {
-    main {
-      padding: 8px 14px;
-    }
-  }
-  main > * {
-    min-width: 0;
-  }
-  footer {
-    margin-top: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: var(--muted);
-    font-size: 13px;
-  }
-  .pentagon {
-    width: 14px;
-    height: 14px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.6;
-    stroke-linejoin: round;
-  }
-  .settings {
-    display: grid;
-    gap: 8px;
-    min-width: 0;
-  }
-  .message {
-    color: var(--muted);
-    font-size: 14px;
-  }
-</style>

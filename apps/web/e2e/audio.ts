@@ -282,15 +282,18 @@ export const holdAudio = (page: Page, ms: number) =>
 export const stalls = (page: Page) =>
   page.evaluate(() => (window as unknown as { stalls: Stall[] }).stalls);
 
-/** The band's drawer section that holds a card, by the card's title. */
+/** The drawer section that holds a card, the band's or the door's, by the card's title. */
 const DRAWN: Record<string, string> = {
+  Name: 'You',
+  Settings: 'Settings',
+  Jambot: 'About',
   Sound: 'Sound',
   Session: 'Session',
   Style: 'Style',
   Metrum: 'Time',
   Key: 'Key',
   Muse: 'Muse',
-  Timing: 'Timing',
+  Timing: 'Counters',
 };
 /** The band's view that holds a card, by the card's title. */
 const SHOWN: Record<string, string> = { Band: 'Mix', Play: 'Melody' };
@@ -314,6 +317,12 @@ export async function openCard(page: Page, title: string) {
   const card = page.locator(`details[aria-label="${title}"]`);
   if (!(await card.evaluate((details) => (details as HTMLDetailsElement).open)))
     await card.locator('summary .title').click();
+}
+
+/** Puts the drawer back up, as a tap on the rider that pulled it does, so the view under it takes taps again. */
+export async function closeDrawer(page: Page) {
+  const drawn = page.getByRole('navigation', { name: 'Drawer' }).locator('[aria-expanded="true"]');
+  if ((await drawn.count()) > 0) await drawn.click();
 }
 
 /** Unfold the style card, where it is folded: its presets and sliders are in its details. */

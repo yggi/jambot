@@ -1,15 +1,13 @@
 <!--
-  The title card: the page's name, "Jambot" with what it is for, at the top
-  of every screen. Its glyph is the logo. The details are about (what the
-  band is) and settings: the theme, and the address of the lobby server that
-  sessions across machines go through, given when the field is left.
+  The settings, a card in the lobby's drawer: the theme, and the address of
+  the lobby server that sessions across machines go through, given when the
+  field is left.
 -->
 <script lang="ts">
   import { THEMES, type ThemeName } from '../theme.svelte.ts';
   import Card from './Card.svelte';
-  import Group from './Group.svelte';
   import Segmented from './Segmented.svelte';
-  import Logo from './glyphs/Logo.svelte';
+  import Lobby from './glyphs/Lobby.svelte';
 
   interface Props {
     theme: ThemeName;
@@ -32,13 +30,15 @@
   $effect(() => void (typed = address));
 </script>
 
-{#snippet logo()}<Logo />{/snippet}
+{#snippet gear()}<Lobby kind="gear" />{/snippet}
 
-<Card title="Jambot" untitled main="Jambot" sub="play together" glyph={logo}>
-  <Group title="About">
-    <p class="note">You play, the Muse listens, the band answers.</p>
-  </Group>
-  <Group title="Settings">
+<Card
+  title="Settings"
+  main="Settings"
+  sub={address === '' ? 'This browser only' : address}
+  glyph={gear}
+>
+  <div class="settings">
     <Segmented label="Theme" value={theme} options={OPTIONS} onselect={ontheme} />
     <label>
       Lobby server
@@ -54,10 +54,14 @@
     <p class="note">
       Every player gives the same lobby server: ws:// on a local network, wss:// when hosted.
     </p>
-  </Group>
+  </div>
 </Card>
 
 <style>
+  .settings {
+    display: grid;
+    gap: 10px;
+  }
   .note {
     font-size: 13px;
     color: var(--muted);

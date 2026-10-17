@@ -16,13 +16,11 @@
 
   interface Props {
     test: TimingTest;
-    /** Back to the lobby. */
-    onback: () => void;
     /** The runs kept, as a file. */
     onexport: (kind: 'json' | 'csv') => void;
   }
 
-  let { test, onback, onexport }: Props = $props();
+  let { test, onexport }: Props = $props();
 
   /** Where the pattern is, in seconds from its first bar, redrawn with the screen. */
   let position: number | null = $state(null);
@@ -103,10 +101,6 @@
 
 <div class="test">
   <section class="card" aria-label="Timing test">
-    <div class="head">
-      <h2>Timing test</h2>
-      <button type="button" class="quiet" onclick={onback}>Back to the lobby</button>
-    </div>
     <p class="message">
       A drum pattern of two sounds, a kick and a snare, plays after a bar of hats. Follow every hit
       for eight bars with the computer's keys (a–l, 1–7), the button below, a pad or a MIDI key, and
@@ -130,11 +124,6 @@
         options={TEMPOS.map((bpm) => ({ value: `${bpm}`, text: `${bpm} bpm` }))}
         onselect={(bpm) => (test.bpm = Number(bpm) as Tempo)}
       />
-      <button type="button" class="primary" onclick={() => void test.start()}>
-        {test.phase === 'done' ? 'Run again' : 'Start the test'}
-      </button>
-    {:else}
-      <button type="button" class="quiet" onclick={() => test.stop()}>Stop</button>
     {/if}
 
     {#if test.notice}
@@ -268,6 +257,8 @@
 <style>
   .test {
     display: grid;
+    /* As wide as the view, whatever a plot in it would like. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
   }
   .card {

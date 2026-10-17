@@ -16,7 +16,7 @@ Where Jambot is heading. The concept and the reasoning behind it are in
   The round after it is #212: the band's screen as cards, a summary over
   details (`Card`). The style, metrum, key, plan, chords, band, play and Muse
   cards are in, closed cards are compact on a phone on its side, and the lobby
-  is built of cards under a title card with a theme setting (#254).
+  is built of cards in the same shell as the band, its extras as views (#254, #327).
   Left: `Level` removed, and the visual details of Band, Play and Muse.
 - **v1: event-ready**, by Christmas 2026. This is the deadline. v1 is the full
   bucket: everything on this roadmap, the live track and the learning track
@@ -50,7 +50,7 @@ Next on the time tower is the Meter-Cell (#306): a style carries a list or range
 The score writes the bass as `step=pitch` pairs, and the pad and stab as `step=ch|nx` pairs with a `next` line (#63 step 3, #280, #281); a `frame` line pins a part's register or voicing as integers above the tonic only where its hand is not the default (#285); the score states no scale and refuses no chord for having none, U3 being vitrified (#292); a loop, a group, a rest, a hold and a finer grid wait for the tree of #275, whose first measurement is E27 (#282).
 The lead's text waits on the cell (#287): a shared library of named cells, and `realize` sorted into what the score states (the cell, its operator, the anchor) and what a player fits (the chord tones a note snaps to, the octave), so that the Muse's cell is the minimal case.
 The tuner (#269) has its pure parts in (slices 1 and 2, #273): `frequencyOf` and `pitchOf` in theory, and `packages/spectrum` with an FFT, peaks and two pitch estimators.
-Its screen is built too (slice 3): a microphone or line in, the note heard in cents and Hz against a settable A4, a spectrum whose pitch frame follows the sound, and the lobby's Extras to reach it.
+Its screen is built too (slice 3): a microphone or line in, the note heard in cents and Hz against a settable A4, a spectrum whose pitch frame follows the sound, and the door's Tune view to reach it.
 The waterfall, a note to hold on the synth or a MIDI channel to tune an instrument by, and the loop that hears the app's own synth (read within 0.05 cents from A1 to A6) are built too (slices 4 to 6).
 The width of a note, its harmonics and a fingerprint of them are in too (slice 7), labelled experimental: the fingerprint tells synthetic tones apart and does not hold for a sound with formants, which includes the synth's own lead, and recorded instruments are not measured.
 A measurement of what correcting live audio toward the score's notes takes (#293) found the pitch shifters the easy part and the tracker, which has only the past, the hard one, with about 15 to 40 ms of algorithmic delay before the audio hardware.

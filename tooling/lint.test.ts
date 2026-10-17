@@ -104,7 +104,7 @@ describe('lint keeps the screens presentational', () => {
   const screen = (imports: string) =>
     `<script lang="ts">\n  ${imports}\n</script>\n\n<p>probe</p>\n`;
 
-  it('refuses a screen that runs the player, the device or the sessions, and one that knows the other', async () => {
+  it('refuses a screen that runs the player, the device or the sessions, that knows the other side of the door, or that shows a view of the door', async () => {
     for (const imports of [
       "import { Sessions } from '../session/sessions.svelte.ts';",
       "import { Player } from '../player.svelte.ts';",
@@ -113,9 +113,29 @@ describe('lint keeps the screens presentational', () => {
       "import { Metronome } from '../metronome.svelte.ts';",
       "import { Profile } from '../profile.svelte.ts';",
       "import Band from './Band.svelte';",
+      "import Door from './Door.svelte';",
       "import Lobby from './Lobby.svelte';",
+      "import TuneScreen from './Tune.svelte';",
+      "import MeterScreen from './Meter.svelte';",
+      "import TimingTestScreen from './TimingTest.svelte';",
     ])
       expect(await firing(screen(imports), lobby), imports).toContain('no-restricted-imports');
+  });
+
+  it('lets the door show the lobby and the extras, and keeps it from the band and from running the player', async () => {
+    const door = 'apps/web/src/screens/Door.svelte';
+    const views = [
+      "import Lobby from './Lobby.svelte';",
+      "import TuneScreen from './Tune.svelte';",
+      "import MeterScreen from './Meter.svelte';",
+      "import TimingTestScreen from './TimingTest.svelte';",
+    ].join('\n  ');
+    expect(await firing(screen(views), door)).not.toContain('no-restricted-imports');
+    for (const imports of [
+      "import Band from './Band.svelte';",
+      "import { Player } from '../player.svelte.ts';",
+    ])
+      expect(await firing(screen(imports), door), imports).toContain('no-restricted-imports');
   });
 
   it('lets a screen name their types, and use the components and the pure helpers', async () => {
