@@ -20,7 +20,7 @@ if (process.env.E31_REPORT) console.log(WITNESSES.map(report).join('\n\n'));
 const of = (preset: string) => WITNESSES.find((w) => w.preset === preset)!;
 
 /** A one-line drum text at 120 bpm: a line of hits (on 16ths unless `step` says), played on channel 10 by voices with the given attributes. */
-const line = (hits: string, voices: string, sound = 's=white', step = '&bar*4') =>
+const line = (hits: string, voices: string, sound = 's=white', step = '16n') =>
   [
     '&bar scan(1 1 1 1) step=120bpm',
     `&groove step=${step} ${hits}`,
@@ -60,8 +60,8 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
     const rims = WITNESSES.filter((w) => rolesOf(w.bar).includes('euclid'));
     expect(rims.map((w) => w.preset)).toEqual(['Lo-fi hip hop', 'Funk', 'Bossa nova']);
     for (const w of rims) {
-      expect(w.text, w.preset).toMatch(/^&euclid step=&bar\/4 &rim\([357],16,\d+\)$/m);
-      expect(w.text, w.preset).toMatch(/^&euclidLevel map=amp step=&bar\*4 /m);
+      expect(w.text, w.preset).toMatch(/^&euclid step=1m &rim\([357],16,\d+\)$/m);
+      expect(w.text, w.preset).toMatch(/^&euclidLevel map=amp step=16n /m);
     }
   });
 
@@ -77,7 +77,7 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
     expect(changed(/~ &hh:0:([.\d]+)/, '&hh:0:$1 ~')).not.toEqual([]);
     expect(changed(/&oh:0:[.\d]+/, '&oh:0:.5')).not.toEqual([]);
     expect(changed(/&rim\(7,16,0\)/, '&rim(7,16,1)')).not.toEqual([]);
-    expect(changed(/&sd s=white/, '&sd s=white\n&ghost2 step=&bar*4 &sd')).toEqual([]);
+    expect(changed(/&sd s=white/, '&sd s=white\n&ghost2 step=16n &sd')).toEqual([]);
   });
 });
 
@@ -105,8 +105,8 @@ describe('the forms the translator relies on, over every case', () => {
     expect(own.hits.map((h) => h.velocity)).toEqual(velocities);
     const text = [
       '&bar scan(1 1 1 1) step=120bpm',
-      `&groove step=&bar*4 ${velocities.map(() => '&bd').join(' ')}`,
-      `&levels map=amp step=&bar*4 ${velocities.map(levelOf).join(' ')}`,
+      `&groove step=16n ${velocities.map(() => '&bd').join(' ')}`,
+      `&levels map=amp step=16n ${velocities.map(levelOf).join(' ')}`,
       '&drums map=midi(10) [&groove * &levels]',
       '&bd s=white',
     ].join('\n');
@@ -122,7 +122,7 @@ describe('the forms the translator relies on, over every case', () => {
         const steps = positions(even(k, 16, shift));
         const euclid = euclidOf(steps)!;
         const played = cellsDrums(
-          line(`&rim(${k},16,${euclid.r})`, 'rim', 's=white', '&bar/4'),
+          line(`&rim(${k},16,${euclid.r})`, 'rim', 's=white', '1m'),
           120,
         ).hits;
         expect(played.map((h) => h.step)).toEqual(steps);

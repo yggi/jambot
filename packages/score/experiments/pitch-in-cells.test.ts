@@ -93,20 +93,20 @@ describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
   it('counts each spelling: its characters, and the bars that read back exactly', () => {
     expect(table(MEASURED)).toEqual([
       { name: 'score', characters: 12900, exact: 256 },
-      { name: 'stacks', characters: 27180, exact: 252 },
-      { name: 'shapes', characters: 29425, exact: 252 },
-      { name: 'numerals', characters: 25577, exact: 256 },
+      { name: 'stacks', characters: 26156, exact: 252 },
+      { name: 'shapes', characters: 28401, exact: 252 },
+      { name: 'numerals', characters: 24553, exact: 256 },
     ]);
     // The key and the pin are the same lines in every candidate; the chords are where they part.
-    expect(breakdown(MEASURED, 'stacks')).toEqual({ key: 5744, chords: 10123, frame: 11569 });
-    expect(breakdown(MEASURED, 'shapes')).toEqual({ key: 5744, chords: 12368, frame: 11569 });
-    expect(breakdown(MEASURED, 'numerals')).toEqual({ key: 5744, chords: 8520, frame: 11569 });
+    expect(breakdown(MEASURED, 'stacks')).toEqual({ key: 5744, chords: 9099, frame: 11569 });
+    expect(breakdown(MEASURED, 'shapes')).toEqual({ key: 5744, chords: 11344, frame: 11569 });
+    expect(breakdown(MEASURED, 'numerals')).toEqual({ key: 5744, chords: 7496, frame: 11569 });
     expect(breakdown(MEASURED, 'score')).toEqual({ key: 3440, chords: 2936, frame: 6780 });
     // Stated once a run, as a section's text would, the shapes cost less, and still more than the numerals.
-    expect(shapesOnce(MEASURED)).toBe(26230);
+    expect(shapesOnce(MEASURED)).toBe(25206);
   });
 
-  it('compiles every stacks and shapes text in cells v0.1.0 with no diagnostic, and plays the band’s chords, step for step', () => {
+  it('compiles every stacks and shapes text in cells v0.3.0 with no diagnostic, and plays the band’s chords, step for step', () => {
     for (const m of MEASURED)
       for (const name of ['stacks', 'shapes']) {
         const { played, diagnostics } = cellsPlays(m.texts[name]!);
@@ -115,7 +115,7 @@ describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
       }
   });
 
-  it('parses no numerals text in cells v0.1.0 (a proposal), and plays each, lowered by its stated meaning, as the band’s chords', () => {
+  it('parses no numerals text in cells v0.3.0 (a proposal), and plays each, lowered by its stated meaning, as the band’s chords', () => {
     const w = at('Swing jazz', 2);
     expect(planOf(w.texts.numerals!).result.diagnostics.map((d) => d.message)).toEqual([
       "Unexpected 'vii'",
@@ -237,7 +237,7 @@ describe('what no candidate can say (E32: the gaps)', () => {
           '&bar scan(1 1 1 1) step=120bpm',
           '&e31 cycle=31 map=edo',
           '&key over=&e31 scan(5 5 3 5 5 5 3)',
-          `&harm over=&key step=&bar*4 ${degrees}`,
+          `&harm over=&key step=16n ${degrees}`,
           '&v s=sine loop=C4',
           '&out map=sample [&harm * &v]',
         ].join('\n'),
@@ -306,7 +306,7 @@ describe('what no candidate can say (E32: the gaps)', () => {
     for (const s of new Map(stated.map((x) => [x.text, x])).values()) {
       const text = [
         '&bar scan(1 1 1 1) step=120bpm',
-        `&line over=${s.text} step=&bar*4 0 1 2 3 4 5 6 7`,
+        `&line over=${s.text} step=16n 0 1 2 3 4 5 6 7`,
         '&v s=sine loop=C4',
         '&out map=sample [&line * &v]',
       ].join('\n');

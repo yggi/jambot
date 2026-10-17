@@ -14,7 +14,7 @@ import { even } from '@jambot/theory';
 const midiOf = (freq: number): number => Math.round(69 + 12 * Math.log2(freq / 440));
 
 const RIFF = `&bar scan(1 1 1 1) step=120bpm
-&tune over=scale("C:minor:pentatonic") step=&bar*2 0 2 4 2 [3 4] ~ 4 _
+&tune over=scale("C:minor:pentatonic") step=8n 0 2 4 2 [3 4] ~ 4 _
 &lead sound=saw loop=C4 cutoff=1200
 &mix [&tune * &lead]`;
 

@@ -10,7 +10,7 @@
  *
  * The translator, `drumsAsCells`, uses only forms cells has:
  *
- * - the bar, `&bar scan(1 1 1 1) step=<bpm>bpm`, and a line on its 16ths, `step=&bar*4`;
+ * - the bar, `&bar scan(1 1 1 1) step=<bpm>bpm`, and a line on its 16ths, `step=16n`;
  * - one line per role, named by it (`&ghost`): a role is a cell, so the snare's open role (E16) is a word;
  * - a hit is its sound's voice, by the score's words (`DRUM_WORDS`) and cells' `sd` for the snare, which the score has no word for yet; cells' MIDI out sends each name as its General MIDI drum note;
  * - its accent is its own level, `&sd:0:.0635`: MIDI out strikes a note at 127·√level, so a velocity v is the level (v/127)²;
@@ -113,8 +113,8 @@ function roleLines(bar: BandBar, role: DrumRole): { lines: string[]; term: strin
     const level = (step: number) => hits.find((n) => n.step === step)?.velocity;
     return {
       lines: [
-        `&${role} step=&bar/4 &${voice}(${euclid.k},${BAR_STEPS},${euclid.r})`,
-        `&${role}Level map=amp step=&bar*4 ${eachStep((s) => (level(s) ? levelOf(level(s)!) : '0'))}`,
+        `&${role} step=1m &${voice}(${euclid.k},${BAR_STEPS},${euclid.r})`,
+        `&${role}Level map=amp step=16n ${eachStep((s) => (level(s) ? levelOf(level(s)!) : '0'))}`,
       ],
       term: `&${role} * &${role}Level`,
     };
@@ -125,7 +125,7 @@ function roleLines(bar: BandBar, role: DrumRole): { lines: string[]; term: strin
       .map((n) => `&${VOICE_OF_NOTE.get(n.note)!}${hitLevel(n.velocity)}`);
     return words.length === 0 ? '~' : words.length === 1 ? words[0]! : `[${words.join(',')}]`;
   });
-  return { lines: [`&${role} step=&bar*4 ${braid}`], term: `&${role}` };
+  return { lines: [`&${role} step=16n ${braid}`], term: `&${role}` };
 }
 
 /** The cells text of a bar's drums: the bar, the lines of each role, the MIDI card playing `card` (every role unless given), the voices. */
