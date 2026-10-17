@@ -389,9 +389,8 @@ describe('the radio’s section (#313)', () => {
 
   it('walks a track along the walk exactly, section after section: the style it reached is the one the walk gave', () => {
     let track = holding(INITIAL_STYLE);
-    let style = INITIAL_STYLE;
     for (let n = 0; n < 60; n++) {
-      style = walkRadio(radioStyle(track, 0), 11, n);
+      const style = walkRadio(radioStyle(track, 0), 11, n);
       track = conductRadio(track, style, (n + 1) * section, 0).track;
       expect(styleAt(track, (n + 2) * section)).toEqual(style);
     }
