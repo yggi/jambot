@@ -125,7 +125,7 @@ Each phase depends on the one before, except radio mode, which can start now.
    Cell studio's pure `src/engine`, with the theory it imports, moves into yggi/cells with its history and is tagged (MIT, so it passes `tooling/licenses.ts`); Jambot depends on the tag, with a test that compiles a cells text and takes its events ([yggi/cells#1](https://github.com/yggi/cells/issues/1)).
    The MIDI layer gets one owner.
 2. **Radio mode, alongside.**
-   A slow mean-reverting walk of the style around an anchor that drifts more slowly still, through the glides (#195).
+   A free walk of the style, through the glides, whose variance the entropy sets and whose tempo the energy leans, slowly; the session carries it (#313, the owner's rulings).
    It gives Q11's key a home (#233), and a station that runs while the rest is built, to measure the homeostat against.
 3. **The seam.**
    The band writes cells text a section at a time and plays it through the cells engine (#63 step 5).

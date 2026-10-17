@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEAD_SECONDS, MeterPlayer, TICK_MS } from '../meter/meter-player.svelte.ts';
 import { surroundings } from '../timing-test/fixtures.ts';
@@ -7,15 +8,14 @@ import MeterScreen from './Meter.svelte';
 function shown() {
   const world = surroundings();
   const player = new MeterPlayer({ audio: () => ({ base: world.base, offset: world.offset }) });
-  const onback = vi.fn();
-  const rendered = render(MeterScreen, { player, onback });
+  const rendered = render(MeterScreen, { player });
   const run = (ms: number) => {
     for (let t = 0; t < ms; t += TICK_MS) {
       world.state.page += TICK_MS;
       vi.advanceTimersByTime(TICK_MS);
     }
   };
-  return { ...world, player, onback, rendered, run };
+  return { ...world, player, rendered, run };
 }
 
 beforeEach(() =>
@@ -129,9 +129,8 @@ describe('the metronome screen', () => {
   it('plays and stops, and lights the eighth heard, counted by pulse', async () => {
     const { player, run, rendered } = shown();
     await fireEvent.click(screen.getByRole('radio', { name: '6/8' }));
-    await fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    await player.start();
     expect(player.playing).toBe(true);
-    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
     run(LEAD_SECONDS * 1000 + 1500);
     await Promise.resolve();
     player.follow();
@@ -139,14 +138,9 @@ describe('the metronome screen', () => {
       expect(rendered.container.querySelectorAll('svg.ruler circle.lit').length).toBe(1),
     );
     expect(screen.getByText(/^6\/8 · pulse \d of 2$/)).toBeInTheDocument();
-    await fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    player.stop();
+    await tick();
     expect(player.playing).toBe(false);
     expect(screen.getByText('Stopped')).toBeInTheDocument();
-  });
-
-  it('goes back to the lobby', async () => {
-    const { onback } = shown();
-    await fireEvent.click(screen.getByRole('button', { name: 'Back to the lobby' }));
-    expect(onback).toHaveBeenCalledOnce();
   });
 });

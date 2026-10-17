@@ -42,9 +42,9 @@ export const AUDITED: Readonly<Record<string, string>> = {
     'downstream, which quantise on their own.',
   'packages/engine/src/radio.ts':
     "Math.log and Math.exp walk the tempo in its axis's log space; the tempo that " +
-    'comes out is clamped (continuous) and quantised to QUANTUM before it is carried ' +
-    'to the next section, so a last bit cannot compound over a walk, and it only ' +
-    'becomes a glide target. The draws are sums of uniform ones, with no ' +
+    'comes out is reflected and clamped (continuous) and quantised to QUANTUM before ' +
+    'it is carried to the next section, so a last bit cannot compound over a walk, ' +
+    'and it only becomes a glide target. Each draw is one uniform one, with no ' +
     'transcendental call.',
   'packages/engine/src/genre.ts':
     'Math.exp builds the softmax weights of a reading, which is measured and never ' +

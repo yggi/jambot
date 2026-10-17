@@ -39,8 +39,9 @@ A bar whose hand is the default, the bass's E2 and the comp's nothing, states no
 `seam.test.ts` (`packages/score`), "plays the same bass cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, another register (S2)": 80 resumptions given their pin play every note, where the same bars resumed without it play another register, the same pitch classes; "plays the same comp cold as warm from the text alone: 80 resumptions, each given its frame, play every note; without it, other inversions of the same chords (S2)".
 `score.test.ts`, "compiles a bar from its own text, with no state before it: the register is the default or in the frame, so cold equals warm (S2)", "pins a register other than the default in a frame, counted from the tonic at or below the bass’s floor, so the pin moves with the key (S2, U6)" and "voices each chord close from the one before it, the first from the frame: the same chords from another voicing are other notes (S2)".
 The lead's phrase is still open (#265).
+`radio.test.ts`, "is warm when resumed cold from its carried state at sections 1, 64 and 600, and within the text’s rounding, for good, from the style as the score writes it (S2)": the radio (#313) carries only the style it reached, so a walk resumed from it is the walk; resumed from the style as a bar's header writes it, to 3 decimals (C7), it differs, and stays within that rounding, since a walk with no pull neither forgets an offset nor grows it.
 Source: T5, S1, #40's review, #37 step 5. Status: measured, failing
-(prototype); measured (the port's carried state, and the bass's and the comp's pins).
+(prototype); measured (the port's carried state, and the bass's and the comp's pins; the radio's carried style).
 Decided: the owner, ahead of the evidence: the frame is a pin counted from the tonic, and a text without one compiles from the default hand. Lands
 in: #13, #264, #265.
 
@@ -223,6 +224,7 @@ Test: `fading.test.ts`, whose tests cite C9: a memory fades to nothing left alon
 Source: #210; W. Ross Ashby, _Design for a Brain_ (1952), the homeostat; Stafford Beer, _Brain of the Firm_ (1972), the recursion of viable systems.
 The Muse remembers the motifs she took the same way (#204 H8, `muse.ts`): a fading memory by `MOTIF_DECAY` a bar, in which a motif heard once is kept for 16 bars, as long as an offer outlasts silence, and longer each time it is heard again, and a motif heard again is taken first (Q12).
 Her offer still drops at the cliff, so the memory has no lean yet: #207's selection is its lean.
+The style left alone, the radio (`radio.ts`, #313), is the style's row with nobody in it, by the owner's ruling (no attraction): it holds the axes' bounds and takes the energy and entropy as its temperature, fills by a free walk, and has no read, memory or lean until a player acts, when its position is the default the players' nudges lean from (#195); E30 measures its three numbers (A4), and that it never comes home (Q11).
 Status: measured (the key); measured (the Muse's memory of motifs); measured, failing (the tempo; the Muse's offer); open (the note, #204; the phrase, #207; the style, #195).
 Open: whether a lean is always a centre or sometimes a draw; whether every level needs every arrow (the performer's fill is read by nobody); where each memory lives (S2); and whether a level needs a default of its own to return to (Q11).
 Lands in: #210, #195, #204, #207, #16.

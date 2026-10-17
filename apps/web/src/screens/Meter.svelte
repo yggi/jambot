@@ -28,11 +28,9 @@
 
   interface Props {
     player: MeterPlayer;
-    /** Back to the lobby. */
-    onback: () => void;
   }
 
-  let { player, onback }: Props = $props();
+  let { player }: Props = $props();
 
   // The eighth heard is redrawn with the screen.
   $effect(() => {
@@ -92,23 +90,11 @@
 
 <div class="page">
   <section class="card" aria-label="Metronome">
-    <div class="head">
-      <h2>Metronome</h2>
-      <button type="button" class="quiet" onclick={onback}>Back to the lobby</button>
-    </div>
     <p class="message">
       A bar of any meter, played over and over. The tempo counts quarters, so 6/8 and 3/4 at one
       tempo are one bar. What the composer writes and what the players may bend are kept apart: the
       signature, then the licence. A change takes hold at the next bar.
     </p>
-
-    <button
-      type="button"
-      class="primary"
-      onclick={() => (player.playing ? player.stop() : void player.start())}
-    >
-      {player.playing ? 'Stop' : 'Play'}
-    </button>
   </section>
 
   <section class="card" aria-label="Signature">
@@ -279,6 +265,8 @@
 <style>
   .page {
     display: grid;
+    /* As wide as the view, whatever a plot in it would like. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
   }
   .card {
@@ -288,14 +276,6 @@
     border-radius: 10px;
     padding: 12px 14px;
   }
-  .head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  h2,
   h3 {
     margin: 0;
     font-size: 16px;
@@ -334,19 +314,6 @@
     border-radius: 19px;
     background: var(--surface);
     font-weight: 500;
-  }
-  .primary {
-    min-height: 48px;
-    padding: 0 22px;
-    border: 0;
-    border-radius: 24px;
-    background: var(--amber);
-    color: var(--on-amber);
-    font-weight: 600;
-    font-size: 16px;
-  }
-  .quiet {
-    color: var(--muted);
   }
   .layers {
     display: flex;

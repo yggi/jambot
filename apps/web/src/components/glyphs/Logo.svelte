@@ -1,6 +1,6 @@
 <!--
   Jambot's logo as a glyph: the four bars of the app's icon, in amber, one
-  for each performer of the band. It is the title card's picture and does
+  for each performer of the band. It is the About card's and the lobby banner's picture and does
   not move.
 -->
 <script lang="ts">

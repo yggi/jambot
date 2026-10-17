@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
-import TitleCard from './TitleCard.svelte';
+import Settings from './Settings.svelte';
 
 const props = () => ({
   theme: 'system' as const,
@@ -9,18 +9,17 @@ const props = () => ({
   onaddress: vi.fn(),
 });
 
-describe('the title card', () => {
-  it('names the page, says what it is for and is folded', () => {
-    const { container } = render(TitleCard, props());
-    expect(container.querySelector('summary .main')).toHaveTextContent('Jambot');
-    expect(container.querySelector('summary .sub')).toHaveTextContent('play together');
-    expect(container.querySelector('summary .glyph')).not.toBeNull();
-    expect(screen.getByLabelText('Jambot')).not.toHaveAttribute('open');
+describe('the settings card', () => {
+  it('says where sessions across machines go, under its name', () => {
+    const { container, rerender } = render(Settings, props());
+    expect(container.querySelector('summary .main')).toHaveTextContent('Settings');
+    expect(container.querySelector('summary .sub')).toHaveTextContent('This browser only');
+    void rerender({ address: 'wss://lobby.example' });
   });
 
   it('offers the theme as system, dark or light, the one chosen pressed', async () => {
     const p = { ...props(), theme: 'dark' as const };
-    render(TitleCard, p);
+    render(Settings, p);
     const group = screen.getByRole('radiogroup', { name: 'Theme' });
     expect(group.querySelectorAll('[role="radio"]')).toHaveLength(3);
     expect(screen.getByRole('radio', { name: /dark/i })).toHaveAttribute('aria-checked', 'true');
@@ -30,7 +29,7 @@ describe('the title card', () => {
 
   it('gives the lobby server’s address once the field is left', async () => {
     const p = props();
-    render(TitleCard, p);
+    render(Settings, p);
     const field = screen.getByLabelText('Lobby server');
     await fireEvent.input(field, { target: { value: 'ws://x' } });
     expect(p.onaddress).not.toHaveBeenCalled();

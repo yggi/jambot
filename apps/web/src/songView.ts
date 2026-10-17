@@ -1,63 +1,77 @@
 /**
  * The Song view's reading of the plan, from where a person plays along
- * (#327): the section heard bar by bar (those played, the one heard, those
- * ahead, each by its chords and the motif it plays), the sections after it
- * as their bars' first chords, and the notes that sit over the bar heard.
+ * (#327): the sections from the one heard on, each as its bars in one row,
+ * a bar as its chords laid where they start in it (those played, the one
+ * heard, those ahead, and the motif a bar plays), and the notes that sit over
+ * the bar heard. One form for every section, so the section heard and those
+ * after it read alike, and as many fit as the room allows.
  */
 
+import { stepsOf } from '@jambot/theory';
 import type { Credit } from './attribution.ts';
 import type { BarView, SectionView } from './hud.ts';
 import { scaleNoteNames } from './noteNames.ts';
 import { blockName } from './planView.ts';
 
-/** How many sections after the one heard the view shows. */
-export const AHEAD_SECTIONS = 2;
+/** How many sections the view shows, the one heard first. */
+export const SONG_SECTIONS = 4;
+
+export interface SongChord {
+  /** As a lead sheet names it. */
+  readonly symbol: string;
+  /** As a degree of its key. */
+  readonly numeral: string;
+  /** How much of its bar it holds, 0 to 1, from where it starts to the next. */
+  readonly share: number;
+}
 
 export interface SongBar {
   /** Counted from the song's start. */
   readonly bar: number;
-  /** In its section, from 1. */
-  readonly number: number;
-  /** Its chords, as a lead sheet names them, in order. */
-  readonly chords: string;
-  /** Its first chord as a degree of its key. */
-  readonly numeral: string;
+  readonly chords: readonly SongChord[];
   readonly state: 'played' | 'heard' | 'ahead';
   /** Whose motif the lead plays in it, or null. */
   readonly motif: Credit | null;
 }
 
-/** The section heard, or before anything is the one the song opens on, bar by bar. */
-export function sectionBars(sections: readonly SectionView[], heard: number | null): SongBar[] {
-  const section = sections[0];
-  if (!section) return [];
-  return section.bars.map((bar) => ({
-    bar: bar.bar,
-    number: bar.barInSection + 1,
-    chords: bar.chords.map((c) => c.symbol).join(' '),
-    numeral: bar.chords[0]?.numeral ?? '',
-    state: heard === null || bar.bar > heard ? 'ahead' : bar.bar === heard ? 'heard' : 'played',
-    motif: bar.motif,
-  }));
-}
-
-export interface SectionAhead {
+export interface SongSection {
   /** Counted from the song's start. */
   readonly index: number;
   readonly name: string;
-  /** Its new key and meter where they change, else empty. */
+  /** Its new key and meter where they change from the section before, else empty. */
   readonly change: string;
-  /** Each bar's first chord. */
-  readonly chords: readonly string[];
+  readonly bars: readonly SongBar[];
 }
 
-/** The sections after the one heard. */
-export function sectionsAhead(sections: readonly SectionView[]): SectionAhead[] {
-  return sections.slice(1, 1 + AHEAD_SECTIONS).map((section) => ({
+/** A bar's chords, each holding its share of the bar from where it starts. */
+export function chordsOf(bar: Pick<BarView, 'chords' | 'meter'>): SongChord[] {
+  const steps = stepsOf(bar.meter);
+  return bar.chords.map((chord, i) => ({
+    symbol: chord.symbol,
+    numeral: chord.numeral,
+    share: ((bar.chords[i + 1]?.step ?? steps) - chord.step) / steps,
+  }));
+}
+
+/**
+ * The sections from the one heard on (before anything is, from the one the
+ * song opens on), as many as are decided, to `count`.
+ */
+export function songSections(
+  sections: readonly SectionView[],
+  heard: number | null,
+  count = SONG_SECTIONS,
+): SongSection[] {
+  return sections.slice(0, count).map((section) => ({
     index: section.index,
     name: section.section,
     change: blockName(section).slice(section.section.length).replace(/^, /, ''),
-    chords: section.bars.map((bar) => bar.chords[0]?.symbol ?? ''),
+    bars: section.bars.map((bar) => ({
+      bar: bar.bar,
+      chords: chordsOf(bar),
+      state: heard === null || bar.bar > heard ? 'ahead' : bar.bar === heard ? 'heard' : 'played',
+      motif: bar.motif,
+    })),
   }));
 }
 

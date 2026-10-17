@@ -4,6 +4,7 @@ import {
   type Heard,
   type Stall,
   clockJumps,
+  closeDrawer,
   heard,
   holdAudio,
   listen,
@@ -24,14 +25,21 @@ import {
 const LOBBY = 'ws://localhost:4319';
 
 /**
- * Through the title card's settings: the lobby server's address, given when
- * the field is left, as a person does.
+ * Through the door's Settings: the lobby server's address, given when the
+ * field is left, as a person does.
  */
 const useLobby = async (page: Page, lobby: string) => {
-  const fold = page.locator('details[aria-label="Jambot"]');
-  if ((await fold.getAttribute('open')) === null) await fold.locator('summary').click();
+  await openCard(page, 'Settings');
   await page.getByLabel('Lobby server').fill(lobby);
   await page.getByLabel('Lobby server').blur();
+  await closeDrawer(page);
+};
+
+/** Through the door's You: the name a person goes by. */
+const useName = async (page: Page, name: string) => {
+  await openCard(page, 'Name');
+  await page.getByLabel('Your name').fill(name);
+  await closeDrawer(page);
 };
 
 /** The session card, where the session is named and its players and the way out are. */
@@ -66,7 +74,7 @@ const listed = (page: Page, session: string) =>
 /** Joins a session listed at the lobby's door, as the name given. */
 const join = async (page: Page, session: string, name: string, lobby = '') => {
   if (lobby !== '') await useLobby(page, lobby);
-  await page.getByLabel('Your name').fill(name);
+  await useName(page, name);
   await listed(page, session).click({ timeout: 8000 });
   await expect(state(page)).toContainText('Following');
 };
@@ -307,7 +315,7 @@ test('the door lists the sessions open with their players, local and global apar
   const found = listed(other, 'Listed Jam');
   await expect(found).toHaveAttribute('title', /lobby server/i);
   await expect(found).toHaveText(/1$/);
-  await other.getByLabel('Your name').fill('Bob');
+  await useName(other, 'Bob');
   await found.click();
   await expect(state(other)).toContainText('Following');
   await joined(page, 'Bob');
@@ -369,7 +377,7 @@ test('a session joined comes in on a fade, not at full volume, and leaving fades
   await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await page.getByRole('button', { name: 'Start the band' }).click();
-  await client.getByLabel('Your name').fill('Ada');
+  await useName(client, 'Ada');
   await listed(client, 'fade jam').click({ timeout: 8000 });
   const { began, samples: trace } = await record(client, 9000);
 

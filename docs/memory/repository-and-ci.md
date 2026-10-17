@@ -7,7 +7,7 @@ How the repository is built, gated, deployed and licensed.
 - The repository is private, so its Actions runs share the account's monthly minutes with the other private repositories of the family, and once those are used up Actions is blocked for all of them until the month's end (#4).
   The family's rule for spending them is [CI-BUDGET.md](https://github.com/yggi/music-commons/blob/main/CI-BUDGET.md) in music-commons.
 - The gate is `pnpm verify`, run before every push of a branch by the pre-push hook (`.githooks/pre-push`), where it costs no minutes.
-  The pull request names the commit that passed it, in its Checks section.
+  The pull request names the commit that passed it, in its Verified section.
 - CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: one job that runs `pnpm verify` on a pull request when it is opened, pushed to, reopened or taken out of draft.
   A draft runs nothing, and a newer push cancels the run still going, so a pull request stays a draft while it moves.
   The end-to-end checks run there only by hand (Actions → CI → Run workflow, with `e2e` ticked); otherwise `pnpm e2e` runs locally, as `AGENTS.md` says when.

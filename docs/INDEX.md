@@ -66,7 +66,7 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `apps/web/src/`: the browser app (Svelte 5, Vite, PWA): the page, the player, the screen's view model and the conductor; it serves the prototype at `/prototype.html`
   - `apps/web/src/components/`: the page's components, which take props and send intents
   - `apps/web/src/components/glyphs/`: the living pictures in the cards' summaries, drawn on `Glyph`'s frame
-  - `apps/web/src/screens/`: the lobby at the door, the band behind it and the timing test the door leads to, presentational; the page (`App.svelte`) picks between them
+  - `apps/web/src/screens/`: the door (the lobby and its extras: the tuner, the metronome and the timing test) and the band behind it, presentational; the page (`App.svelte`) picks between them
   - `apps/web/src/timing-test/`: the timing test (#204, H7): its patterns, the matching of taps to hits, the run record and its download, the runs kept in the browser, and the container that plays it
   - `apps/web/src/tune/`: the tuner (#269): the microphone, the worker that looks at its sound, the tuner that reads a note from the looks, and the spectrum's drawing as numbers
   - `apps/web/src/meter/`: the metronome (#259): a bar of any meter written from its helix (the accent grades, the ternary swing, the plan of a bar's onsets) and the player that loops it
@@ -77,8 +77,8 @@ A source file has no line here: its header comment says what it is, and `tooling
 - `tooling/`: the repository's own gates and tools: `pnpm verify`, lint rules, hooks, the pawl, the license gate, the Pages deploy, screenshots
 - `.github/`
   - `.github/workflows/ci.yml`: `pnpm verify` in one job on a ready pull request, a witness to the pre-push hook; e2e by hand
-  - `.github/ISSUE_TEMPLATE/`: the epic, design, bug and infrastructure issue forms, one per label
-  - [`.github/pull_request_template.md`](../.github/pull_request_template.md): the checklist every pull request fills in
+  - `.github/ISSUE_TEMPLATE/`: the epic, design, bug and infrastructure issue forms, one per label, the task form for work meant for an agent, and the links for a language question (yggi/cells) and the family (yggi/music-commons)
+  - [`.github/pull_request_template.md`](../.github/pull_request_template.md): what every pull request says: what and why, the commit verified, its findings, what is left
 - `.githooks/pre-push`: runs `pnpm verify` before a `git push` of a branch, and blocks the push if it fails; refuses a dirty tree, remembers a tree that passed (as `pnpm verify` does), says what passed with its count of tests, and runs the docs check alone for a markdown-only branch
 - `.claude/`
   - `.claude/settings.json`: the session-start hook, the GitHub tools denied, and the checks agents may run without a prompt

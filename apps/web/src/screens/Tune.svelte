@@ -23,11 +23,9 @@
     sender: ToneSender;
     /** Corrects the sound toward a scale, live. */
     correction: LiveCorrection;
-    /** Back to the lobby. */
-    onback: () => void;
   }
 
-  let { tuner, sender, correction, onback }: Props = $props();
+  let { tuner, sender, correction }: Props = $props();
 
   // The correction is told what to do whenever a setting changes.
   $effect(() => {
@@ -105,22 +103,10 @@
 
 <div class="page">
   <section class="card" aria-label="Tuner">
-    <div class="head">
-      <h2>Tuner</h2>
-      <button type="button" class="quiet" onclick={onback}>Back to the lobby</button>
-    </div>
     <p class="message">
       Hold a note in front of a microphone, or plug an instrument in, and read how far it is from
       the nearest note. A browser asks before it lets this page listen.
     </p>
-    <button
-      type="button"
-      class="primary"
-      disabled={tuner.status === 'starting'}
-      onclick={() => (listening ? tuner.stop() : void tuner.start())}
-    >
-      {listening ? 'Stop' : tuner.status === 'starting' ? 'Starting…' : 'Start'}
-    </button>
     {#if tuner.message}
       <p class="notice" role="status">{tuner.message}</p>
     {/if}
@@ -226,7 +212,7 @@
       {/if}
     </div>
     {#if ports === 0}
-      <p class="hint">To send to an instrument, connect a MIDI port in the Sound card above.</p>
+      <p class="hint">To send to an instrument, connect a MIDI port under Sound, in the drawer.</p>
     {/if}
     <div class="sends">
       <b class="sent">{midiNoteName(sender.note)}</b>
@@ -497,26 +483,17 @@
 <style>
   .page {
     display: grid;
+    /* As wide as the view, whatever a plot in it would like. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
   }
   .card {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 12px 14px;
-  }
-  .head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  h2 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
   }
   .message,
   .hint,
@@ -562,6 +539,8 @@
   }
   .field input[type='number'],
   .field select {
+    /* A device's long name never widens the card. */
+    max-width: 100%;
     min-height: 34px;
     padding: 0 8px;
     border: 1px solid var(--line);

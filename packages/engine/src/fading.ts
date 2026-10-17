@@ -14,9 +14,10 @@
  * The lean comes in two forms, and both are here: the centre, the candidate
  * that weighs most (where the band has been), and a
  * draw by weight to a power (the band's own drift, `bandWish`). The centre
- * is the draw's limit as the power grows. A continuous value fades its
- * distance from a centre in place of weights: the radio's walk does
- * (`radio.ts`, #313), with a draw as its reading.
+ * is the draw's limit as the power grows. `timeConstant` also reads a
+ * series that keeps a share of itself a step later as a memory of that
+ * decay: E30 reads the radio's walk so (`radio.ts`, #313), which has no
+ * memory of its own.
  */
 
 /** One weight per letter of the alphabet; never negative. */

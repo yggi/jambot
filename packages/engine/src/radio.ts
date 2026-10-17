@@ -1,181 +1,148 @@
 /**
- * Radio mode (#313): left alone, the style walks slowly around an anchor that
- * walks more slowly still, as a radio station drifts through an evening.
+ * Radio mode (#313): left alone, the style wanders freely, as a radio station
+ * drifts through an evening, with energy and entropy as the walk's
+ * temperature.
  *
- * Two walks, one inside the other, each pulled back toward its centre, are
- * taken once a section, on every axis in its own space (tempo in log space,
- * the rest linearly):
+ * Once a section, every axis takes a step in its own space (tempo in log
+ * space, the rest linearly), drawn uniformly between minus and plus its
+ * `step`, and nothing pulls it back: no home, no anchor, no preset.
  *
- * - the anchor walks around `home`, the style the radio was tuned in at
- *   (where the jam started, or where the players left it), with a time
- *   constant of `anchorTime` sections;
- * - the tip walks around the anchor, with a time constant of `tipTime`.
+ * - **Entropy sets the variance.** Every step is scaled by the style's
+ *   entropy: at 1 an axis moves up to its whole `step` a section, at 0.25 a
+ *   quarter of it, and at 0 the style holds. Entropy itself holds by default:
+ *   it is the dial, which the players set, and a walk scaled by itself would
+ *   creep toward 0 and freeze there (E30).
+ * - **Energy leans the tempo.** The tempo drifts by `tempoLean` a section at
+ *   an energy of 1, as much down at 0, and not at all at 0.5, linearly
+ *   between, on top of its step. Energy walks as the other axes do, so the
+ *   tempo rises and falls with it.
+ * - **The tempo changes slowly.** Its step and its lean together are at most
+ *   0.01 in log tempo, about 1 %, a section.
+ * - **An axis's ends reflect.** A step past an end comes back off it by as
+ *   much, so a target always lies inside its axis, `glideTo`'s clamp does not
+ *   act, and the walk neither sticks to an end nor is drawn away from one.
  *
- * Each is a fading memory of a continuous value (C9, `fading.ts`): a
- * section's distance from the centre is the last one faded by the decay
- * `1 − 1 / time`, so `timeConstant(decay)` is the time, plus a draw. The draw
- * is scaled so that the walk's spread about its centre settles at the spread
- * asked for (an Ornstein–Uhlenbeck process sampled once a section). A value
- * past its axis's end is held at the end.
+ * It is the style's row of the loop every level may run (C9, #210), with
+ * nobody in it:
  *
- * The tip is the section's targets, for `glideTo`, so nothing jumps, not even
- * the rate. The state is plain data, so a host can carry it and a client
- * compute the same walk. Every draw is keyed by the seed, the section and the
- * axis (`STREAMS.radio`). A draw is a sum of uniform ones, so a linear axis
- * meets nothing but arithmetic, and the tempo, which meets `Math.log` and
- * `Math.exp`, is quantised after them, so the same seed walks the same on
- * every device (`random.ts`).
+ * - **hold:** the axes' bounds, and the energy and entropy the level above
+ *   gives, as the walk's temperature;
+ * - **fill:** the walk;
+ * - **read, remember, lean:** none, by the owner's ruling on #313 (no
+ *   attraction), until a player acts; then the radio's position is the
+ *   default the players' nudges lean from (#195).
  *
- * The parameters are speculative until #313's step 2 chooses them on E30's
- * measurements. The app decides when to call it (step 3).
+ * So it has no time constant of its own: it remembers where it is for as
+ * long as the bounds let it, which E30 measures (A4), and it never comes
+ * home (Q11).
+ *
+ * The walk is a Mealy machine (F1, `radio`): the state it carries is the
+ * style it last reached, plain data, so a host carries nothing more, a client
+ * computes the same walk, and a run resumed from that state at any section
+ * is the run from the start (S2). Every draw is keyed by the seed, the section
+ * and the axis (`STREAMS.radio`), one uniform draw each, so a unit axis meets
+ * nothing but arithmetic; the tempo, which meets `Math.log` and `Math.exp`,
+ * is quantised after them, so the same seed walks the same on every device
+ * (`random.ts`).
+ *
+ * The app glides to each section's style with `glideTo` (step 3), and the
+ * session, not the band, will carry the station (the owner, #313).
  */
 
+import type { Machine } from './machine.ts';
 import { draw, quantize } from './random.ts';
 import { AXES, AXIS_NAMES, type Axis, type Style } from './style.ts';
 
-/** How the radio walks: two time constants, in sections, and a spread per axis for each walk. */
+/** How the radio walks: a step per axis, and the tempo's lean. */
 export interface RadioParams {
-  /** The sections over which the tip's distance from the anchor fades to 1/e, about. At least 1. */
-  readonly tipTime: number;
-  /** The same for the anchor's distance from home. */
-  readonly anchorTime: number;
-  /** How far the tip strays from the anchor, settled (a standard deviation), in the axis's space. */
-  readonly tipSpread: Readonly<Record<Axis, number>>;
-  /** How far the anchor strays from home, settled. */
-  readonly anchorSpread: Readonly<Record<Axis, number>>;
+  /** The most an axis moves a section at an entropy of 1, in its space (log space for tempo). */
+  readonly step: Readonly<Record<Axis, number>>;
+  /** How far the tempo drifts a section at an energy of 1, in log space: up; as much down at 0. */
+  readonly tempoLean: number;
 }
 
 /**
- * The radio's walk by default. The tempo is heard most, so it walks least: a
- * spread of 0.03 in log space is about 3 % of the tempo. Entropy, which the
- * presets leave to the players, holds (#313's step 2 decides).
+ * The radio's walk by default. The unit axes are heard unequally: swing and
+ * energy step least, harmony and articulation most. The tempo is heard most,
+ * so its step and its lean together stay at 0.01 in log tempo, about 1 % a
+ * section, a twentieth of it the lean: about 8 % an hour at an energy of 1.
  */
 export const RADIO: RadioParams = {
-  tipTime: 4,
-  anchorTime: 128,
-  tipSpread: {
-    swing: 0.05,
-    sync: 0.06,
-    harm: 0.08,
-    artic: 0.08,
-    energy: 0.05,
+  step: {
+    swing: 0.06,
+    sync: 0.08,
+    harm: 0.1,
+    artic: 0.1,
+    energy: 0.06,
     entropy: 0,
-    bpm: 0.03,
+    bpm: 0.0095,
   },
-  anchorSpread: {
-    swing: 0.15,
-    sync: 0.2,
-    harm: 0.25,
-    artic: 0.25,
-    energy: 0.15,
-    entropy: 0,
-    bpm: 0.1,
-  },
+  tempoLean: 0.0005,
 };
 
-/** Where the radio is: plain data, carried from one section to the next. */
-export interface Radio {
-  /** Where the anchor is pulled back to. */
-  readonly home: Style;
-  /** Where the tip is pulled back to. */
-  readonly anchor: Style;
-  /** Where the style glides to this section: the targets. */
-  readonly tip: Style;
-}
-
-/** The radio tuned in at a style: home, anchor and tip all there. */
-export function tuneIn(style: Style): Radio {
-  return { home: style, anchor: style, tip: style };
-}
-
-/** The walks, in the order their draws are keyed. */
-const LEVELS = ['tip', 'anchor'] as const;
-/** The uniform draws summed into one: four give a bell bounded at 2√3 spreads. */
-const DRAWS = 4;
-
-/**
- * A draw of mean 0 and standard deviation 1, from `DRAWS` uniform ones
- * (Irwin and Hall), so it needs nothing but adding: no logarithm or cosine,
- * which may differ in the last bit between engines.
- */
-function bell(seed: number, ...keys: number[]): number {
-  let sum = 0;
-  for (let i = 0; i < DRAWS; i++) sum += draw(seed, 'radio', ...keys, i);
-  return (sum - DRAWS / 2) * Math.sqrt(12 / DRAWS);
-}
-
-const inSpace = (axis: Axis, x: number) => (AXES[axis].space === 'log' ? Math.log(x) : x);
-const outOfSpace = (axis: Axis, x: number) => (AXES[axis].space === 'log' ? Math.exp(x) : x);
-
 function checked(params: RadioParams): RadioParams {
-  for (const name of ['tipTime', 'anchorTime'] as const)
-    if (!(params[name] >= 1 && Number.isFinite(params[name])))
-      throw new Error(
-        `walkRadio: ${name} ${params[name]} is not a number of sections of 1 or more`,
-      );
-  for (const spreads of [params.tipSpread, params.anchorSpread])
-    for (const axis of AXIS_NAMES)
-      if (!(spreads[axis] >= 0 && Number.isFinite(spreads[axis])))
-        throw new Error(`walkRadio: ${axis}: spread ${spreads[axis]} is not a spread`);
+  for (const axis of AXIS_NAMES)
+    if (!(params.step[axis] >= 0 && Number.isFinite(params.step[axis])))
+      throw new Error(`walkRadio: ${axis}: step ${params.step[axis]} is not a step`);
+  if (!Number.isFinite(params.tempoLean))
+    throw new Error(`walkRadio: tempoLean ${params.tempoLean} is not a number`);
   return params;
 }
 
-/**
- * One step of a walk on one axis, in the axis's space: the distance from the
- * centre faded by the decay, plus a draw of the spread that keeps the walk's
- * spread settled where it was asked, then held inside the axis.
- */
-function stepOf(
-  axis: Axis,
-  value: number,
-  centre: number,
-  time: number,
-  spread: number,
-  bellDraw: number,
-): number {
-  const decay = 1 - 1 / time;
-  const [at, from] = [inSpace(axis, value), inSpace(axis, centre)];
-  const next = from + decay * (at - from) + spread * Math.sqrt(1 - decay * decay) * bellDraw;
-  const { min, max, space } = AXES[axis];
-  const held = Math.max(min, Math.min(max, outOfSpace(axis, next)));
-  // Only a log axis meets `Math.log` and `Math.exp`, whose last bit may differ between engines.
-  return space === 'log' ? quantize(held) : held;
+/** `x` folded into [low, high]: past an end, it comes back off it by as much, as often as it takes. */
+function reflected(x: number, low: number, high: number): number {
+  const width = high - low;
+  const around = (((x - low) % (2 * width)) + 2 * width) % (2 * width);
+  return low + (around > width ? 2 * width - around : around);
 }
 
 /**
- * The radio at the start of `section`: its anchor a step on from the last,
- * around home, and its tip a step on from the last, around the new anchor.
- * The tip is the section's targets.
+ * The style a section on: every axis a step from where it is, in its space,
+ * scaled by the style's entropy, the tempo leaned by its energy, and folded
+ * back into the axis at its ends.
  */
 export function walkRadio(
-  radio: Radio,
+  style: Style,
   seed: number,
   section: number,
   params: RadioParams = RADIO,
-): Radio {
-  const { tipTime, anchorTime, tipSpread, anchorSpread } = checked(params);
-  const anchor = {} as Record<Axis, number>;
-  const tip = {} as Record<Axis, number>;
+): Style {
+  const { step, tempoLean } = checked(params);
+  const next = {} as Record<Axis, number>;
   for (const [index, axis] of AXIS_NAMES.entries()) {
-    const [tipLevel, anchorLevel] = LEVELS.map((_, level) => bell(seed, section, level, index));
-    anchor[axis] = stepOf(
-      axis,
-      radio.anchor[axis],
-      radio.home[axis],
-      anchorTime,
-      anchorSpread[axis],
-      anchorLevel!,
-    );
-    // The tip keeps its distance from the anchor, faded, so it rides the anchor's step.
-    const off = inSpace(axis, radio.tip[axis]) - inSpace(axis, radio.anchor[axis]);
-    tip[axis] = stepOf(
-      axis,
-      outOfSpace(axis, inSpace(axis, anchor[axis]) + off),
-      anchor[axis],
-      tipTime,
-      tipSpread[axis],
-      tipLevel!,
-    );
+    const { min, max, space } = AXES[axis];
+    const towards = 2 * draw(seed, 'radio', section, index) - 1;
+    const move =
+      step[axis] * style.entropy * towards +
+      (axis === 'bpm' ? tempoLean * (2 * style.energy - 1) : 0);
+    if (space === 'linear') {
+      next[axis] = move === 0 ? style[axis] : reflected(style[axis] + move, min, max);
+      continue;
+    }
+    const at = reflected(Math.log(style[axis]) + move, Math.log(min), Math.log(max));
+    // Only a log axis meets `Math.log` and `Math.exp`, whose last bit may differ between engines.
+    next[axis] = move === 0 ? style[axis] : Math.max(min, Math.min(max, quantize(Math.exp(at))));
   }
-  return { home: radio.home, anchor, tip };
+  return next;
 }
+
+/** What the radio reads at a section's start. */
+export interface RadioEnv {
+  readonly seed: number;
+  readonly section: number;
+  /** The style the radio is tuned in at, read only when it carries none: where the jam is, or where the players left it. */
+  readonly tunedIn: Style;
+}
+
+/**
+ * The radio as a machine at the section rate (F1). It carries the style it
+ * last reached, none before it is tuned in; a section's output is the style
+ * to glide to. Nobody plays into it: a player's act ends it.
+ */
+export const radio: Machine<RadioEnv, Style | null, null, Style> = {
+  initial: null,
+  advance({ seed, section, tunedIn }, before) {
+    const style = before === null ? tunedIn : walkRadio(before, seed, section);
+    return { carried: style, output: style };
+  },
+};
