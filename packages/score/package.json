@@ -16,6 +16,6 @@
   "devDependencies": {
     "@jambot/engine": "workspace:*",
     "@strudel/mini": "1.2.5",
-    "@yggi/cells": "github:yggi/cells#v0.2.0"
+    "@yggi/cells": "github:yggi/cells#v0.3.0"
   }
 }

@@ -11,21 +11,21 @@
  * The three candidates, each a key cell the lines read through (`&key
  * scale(aeolian, A)`, cells' `scale(name, tonic)`, decision 013):
  *
- * - **stacks** (cells v0.1.0 parses it, the spelling of its `chords.cells`): a
+ * - **stacks** (cells v0.3.0 parses it, the spelling of its `chords.cells`): a
  *   chord is a stack of degrees of the key, each the chord's own degree (root,
  *   third, fifth, …) altered where the chord leaves the key: `[4,6#,8]` is V in
  *   A minor.
- * - **shapes** (cells v0.1.0 parses it, the spelling of its `tines.cells`): a
+ * - **shapes** (cells v0.3.0 parses it, the spelling of its `tines.cells`): a
  *   chord is a shape of degrees moved up the key by `^n` (decision 015), the
  *   shapes stated once in the bar: `&c0 [0,2#,4]`, then `&c0^4`; an
  *   accidental moves with its note (decision 033).
- * - **numerals** (a proposal: cells v0.1.0 has no numeral, decision 038's
+ * - **numerals** (a proposal: cells v0.3.0 has no numeral, decision 038's
  *   row (a)): a chord is Jambot's numeral (U1), a token of a line read over the
  *   key, `V7/V`. Its meaning is the stack the numeral names, so a numeral
  *   lowers to the stacks candidate, which is how it is played here.
  *
  * Shared by the three: the rhythm (a token per chord on the coarsest clock
- * of the bar's chords, `step=&bar/2` for two halves, `@k` for a longer one);
+ * of the bar's chords, `step=2n` for two halves, `@k` for a longer one);
  * the next chord as a one-chord cell, `&next`, over the next bar's key where
  * that differs; and the frame pin as degrees of the key, `&frame` (the comp's
  * voicing before the bar, counted from its voice at C3 and the key's tonic
@@ -281,11 +281,11 @@ const stack = (tones: readonly Tone[]) => `[${tones.map(toneText).join(',')}]`;
 
 /** The clock a bar's chords are written on, by the length of its unit in steps. */
 const CLOCKS: Readonly<Record<number, string>> = {
-  16: '&bar/4',
-  8: '&bar/2',
-  4: '&bar',
-  2: '&bar*2',
-  1: '&bar*4',
+  16: '1m',
+  8: '2n',
+  4: '4n',
+  2: '8n',
+  1: '16n',
 };
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 
@@ -334,7 +334,7 @@ const sameKey = (a: ScoreKey, b: ScoreKey) => a.tonic === b.tonic && a.mode === 
 const nextOver = (h: Harmony) =>
   h.next && sameKey(h.next.key, h.key) ? '&key' : keyText(h.next!.key);
 
-/** A candidate spelling: whether cells v0.1.0 parses it, how it writes a bar, and how it reads one back. */
+/** A candidate spelling: whether cells v0.3.0 parses it, how it writes a bar, and how it reads one back. */
 export interface Candidate {
   readonly name: string;
   readonly parses: boolean;
@@ -344,7 +344,7 @@ export interface Candidate {
 
 const chordOf = (key: ScoreKey, numeral: Numeral) => lowerNumeral(key, numeral);
 
-/** stacks: `&harm over=&key step=&bar/2 [0,2,4] [4,6#,8]`. */
+/** stacks: `&harm over=&key step=2n [0,2,4] [4,6#,8]`. */
 function writeStacks(h: Harmony): string {
   const chordStack = (key: ScoreKey, numeral: Numeral) =>
     stack(chordTones(key, chordOf(key, numeral)));
@@ -356,7 +356,7 @@ function writeStacks(h: Harmony): string {
   ].join('\n');
 }
 
-/** shapes: `&c0 [0,2,4]`, `&c1 [0,2#,4]`, `&harm over=&key step=&bar/2 &c0 &c1^4`. */
+/** shapes: `&c0 [0,2,4]`, `&c1 [0,2#,4]`, `&harm over=&key step=2n &c0 &c1^4`. */
 function writeShapes(h: Harmony): string {
   const shapes: string[] = [];
   const moved = (key: ScoreKey, numeral: Numeral) => {
@@ -377,7 +377,7 @@ function writeShapes(h: Harmony): string {
   ].join('\n');
 }
 
-/** numerals (a proposal): `&harm over=&key step=&bar/2 i V`. */
+/** numerals (a proposal): `&harm over=&key step=2n i V`. */
 function writeNumerals(h: Harmony): string {
   return [
     `&key ${keyText(h.key)}`,
@@ -387,7 +387,7 @@ function writeNumerals(h: Harmony): string {
   ].join('\n');
 }
 
-/** A numerals text lowered to cells v0.1.0 by the proposal's meaning: each numeral the stack it names. */
+/** A numerals text lowered to cells v0.3.0 by the proposal's meaning: each numeral the stack it names. */
 export const lowerNumerals = (text: string): string => writeStacks(readNumerals(text));
 
 /** The key a `scale(mode, tonic)` states. */
@@ -432,7 +432,7 @@ export function cellsPlays(text: string): {
     text,
     ...cards.flatMap(({ cell, channel, voice }) => [
       `&v${channel} loop=${voice}`,
-      ...(cell === 'harm' ? [] : [`&p${channel} step=&bar/4 &${cell}`]),
+      ...(cell === 'harm' ? [] : [`&p${channel} step=1m &${cell}`]),
     ]),
     `&out map=midi ${PLAYED_BY.map(({ cell, channel }) =>
       !names.has(cell) ? '~' : `[&${cell === 'harm' ? cell : `p${channel}`} * &v${channel}]`,

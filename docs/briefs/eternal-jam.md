@@ -73,7 +73,7 @@ Both projects were already moving toward it, each from its own side:
    Cells' generators make braids and events, not new cells or forms.
    Jambot's composer is the generator now; generators written in cells (Cell studio's song machine) come later and block nothing.
 6. **One clock, owned by the host.**
-   The host states `&bar` (meter, tempo, swing) for each section, and tempo-free fragments are spliced onto it, as cells already does with `step=&bar*4`.
+   The host states `&bar` (meter, tempo, swing) for each section, and tempo-free fragments are spliced onto it, as cells already does with `step=16n`.
 7. **Strudel is a superset in its mini-notation and its parameter names**, not in its pattern functions (no `.every`, `.jux`, `.off`, polymeter, samples).
    Strudel is AGPL, and `tooling/licenses.ts` keeps it out of what ships.
 
