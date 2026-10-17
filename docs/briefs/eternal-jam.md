@@ -34,7 +34,7 @@ Cell studio keeps a twin of this page at `docs/notes/eternal-jam.md`.
 One loop, four roles, one language:
 
 - **The composer** (Jambot) runs without end.
-  It writes the score as cells text, steered by the jam's style vector, and it selects rather than generates: it fills an empty workbench by asking the repository for every part, the meter first, and generates only when a query finds nothing (yggi/cells decision 043).
+  It writes the score as cells text, steered by the jam's style vector: it fills an empty workbench by asking the repository for every part, the meter first, judges each result against the composition, and generates its own fragment, filed in the repository, when nothing satisfies it (yggi/cells decision 043).
   It keeps a fading short-term workbench of cells and queries a long-term repository.
 - **The conductor** holds the session to a shared ruleset.
   `free()` is each performer's licence.
@@ -71,7 +71,7 @@ Both projects were already moving toward it, each from its own side:
    A take goes to the memory and the repository, never back into the composer's text, which is C10's displacement.
 5. **Generators: cells is the output first.**
    Cells' generators make braids and events, not new cells or forms.
-   Jambot's generators are the fallback on a miss: a query that finds nothing generates a fragment, files it under the style it was made for, and uses it, so they seed the repository and fade as it fills (yggi/cells decision 043); generators written in cells (Cell studio's song machine) come later and block nothing.
+   Jambot's composer stays a generator: it asks the repository first and judges what it gets, and it generates a fragment that fits the composition when nothing returned satisfies it, filing it in the repository (yggi/cells decision 043); generators written in cells (Cell studio's song machine) come later and block nothing.
 6. **One clock, owned by the host.**
    The host states `&bar` (meter, tempo, swing) for each section, and tempo-free fragments are spliced onto it, as cells already does with `step=16n`.
 7. **Strudel is a superset in its mini-notation and its parameter names**, not in its pattern functions (no `.every`, `.jux`, `.off`, polymeter, samples).
