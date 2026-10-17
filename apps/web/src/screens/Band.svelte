@@ -4,19 +4,17 @@
   sets up the band (Sound, Session, Style, Time, Key, Muse, and the timing Counters where
   the address asks for it); below, the views are where a person reads and
   plays along: Song (the plan and the chords read from where one plays), Melody (a roll of the lead
-  falling onto the keys), Rhythm (the drums' over the pads) and Mix (the band's tracks).
+  falling onto the keys), Rhythm (the bar as a grid over the pads, and a pattern of one's own) and Mix (the band's tracks).
   It shows the player it is given and sends what the person does; it opens
   no session and holds no device.
 -->
 <script lang="ts">
   import type { ComponentProps, Snippet } from 'svelte';
-  import DrumPads from '../components/DrumPads.svelte';
-  import Keyboard from '../components/Keyboard.svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
   import Melody from '../components/Melody.svelte';
+  import Rhythm from '../components/Rhythm.svelte';
   import Metrum from '../components/Metrum.svelte';
   import Muse from '../components/Muse.svelte';
-  import Play from '../components/Play.svelte';
   import Session from '../components/Session.svelte';
   import Shell, { type Place } from '../components/Shell.svelte';
   import Song from '../components/Song.svelte';
@@ -27,7 +25,7 @@
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { raised, toggled } from '../mix.ts';
-  import type { AlongPart, Player } from '../player.svelte.ts';
+  import type { Player } from '../player.svelte.ts';
   import { tracksOf } from '../tracks.ts';
   import { transportCells, transportHeard, transportLine } from '../transportView.ts';
 
@@ -123,23 +121,6 @@
   />
 {/snippet}
 
-{#snippet instrument(part: AlongPart)}
-  {#if part === 'lead'}
-    <Keyboard
-      down={instruments.heldLead}
-      scale={player.hud.bar?.melodic ?? []}
-      sounding={player.sounding.lead}
-      onnote={(note, velocity, on) => instruments.toLead(note, velocity, on, 'the on-screen keys')}
-    />
-  {:else}
-    <DrumPads
-      down={instruments.heldDrums}
-      sounding={player.sounding.drums}
-      onnote={(note, velocity, on) => instruments.toDrums(note, velocity, on, 'the drum pads')}
-    />
-  {/if}
-{/snippet}
-
 {#snippet sheet(id: string)}
   {#if id === 'sound'}
     {@render sound()}
@@ -211,11 +192,17 @@
       onnote={(note, velocity, on) => instruments.toLead(note, velocity, on, 'the on-screen keys')}
     />
   {:else if id === 'rhythm'}
-    <Play
+    <Rhythm
       {tracks}
-      part="drums"
-      held={{ lead: instruments.heldLead.size > 0, drums: instruments.heldDrums.size > 0 }}
-      {instrument}
+      rhythm={player.rhythm}
+      plays={player.rhythmPlays}
+      down={instruments.heldDrums}
+      sounding={player.sounding.drums}
+      onnote={(note, velocity, on) => instruments.toDrums(note, velocity, on, 'the drum pads')}
+      ontoggle={(note, step) => player.toggleHit(note, step)}
+      onrecord={(note) => player.recordHit(note)}
+      onplays={(plays) => (player.rhythmPlays = plays)}
+      onclear={() => (player.rhythm = [])}
     />
   {:else if id === 'mix'}
     <BandCard
