@@ -151,6 +151,16 @@ describe('the device’s MIDI ports', () => {
     expect(d.settings.outPort).toBeNull();
   });
 
+  it('leaves out a port the browser keeps listed as disconnected', async () => {
+    const { access } = midi();
+    const { device: d } = device();
+    await d.connect(() => {});
+    const unplugged = { id: 'out-2', name: 'Unplugged', send: vi.fn(), state: 'disconnected' };
+    access.outputs.set(unplugged.id, unplugged);
+    access.onstatechange!();
+    expect(d.ports.outputs.map((p) => p.name)).toEqual(['Synth']);
+  });
+
   it('has nothing to look at before it is connected', () => {
     const { device: d } = device();
     expect(() => d.refresh()).not.toThrow();

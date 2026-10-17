@@ -22,7 +22,7 @@ import {
   DRUM_KEY_MAP,
   type ParsedNote,
   ignoreKeyEvent,
-} from '../midi/surfaces.ts';
+} from '@yggi/webmidi/core';
 import {
   type Match,
   type OffsetStats,

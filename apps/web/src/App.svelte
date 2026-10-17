@@ -135,9 +135,9 @@
    * timing test, taps timed by the message's own timestamp.
    */
   const connectMidi = () =>
-    device.connect((note, source, timeStamp) =>
+    device.connect((note, source) =>
       extra === 'timing'
-        ? testing.midi(note, source, timeStamp)
+        ? testing.midi(note, source, note.timeStamp)
         : instruments.onMidiNote(note, source),
     );
 

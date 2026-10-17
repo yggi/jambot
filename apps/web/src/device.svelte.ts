@@ -13,8 +13,15 @@
 import { bandOutput } from './audio/band-output.ts';
 import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
 import { type Output, webAudioOutput } from './audio/output.ts';
-import { MidiAccess, type NoteHandler, type PortOption } from './midi/access.ts';
-import { adoptPorts, connectMidi, portsMessage } from './midi/routing.ts';
+import {
+  type ChosenPorts,
+  type ParsedNote,
+  type PortOption,
+  adoptPorts,
+  connectMidi,
+  portsMessage,
+} from '@yggi/webmidi/core';
+import { MidiAccess } from '@yggi/webmidi/web';
 import { MidiSettings } from './midi/settings.svelte.ts';
 import { type Surroundings, browserSurroundings } from './player.svelte.ts';
 import type { DeviceClocks } from './session/clocks.ts';
@@ -40,8 +47,37 @@ const storedVolume = (): number => {
   }
 };
 
+/**
+ * The ports the settings chose, as webmidi adopts them: by id alone, since
+ * the settings keep no port's name, so a port plugged in again under a new
+ * id is not found by its name.
+ */
+const chosenPorts = (settings: MidiSettings): ChosenPorts => ({
+  get outPortId() {
+    return settings.outPortId;
+  },
+  set outPortId(id) {
+    settings.outPortId = id;
+  },
+  outPortName: '',
+  get inPortId() {
+    return settings.inPortId;
+  },
+  set inPortId(id) {
+    settings.inPortId = id;
+  },
+  inPortName: '',
+  get outPort() {
+    return settings.outPort;
+  },
+  set outPort(port) {
+    settings.outPort = port;
+  },
+});
+
 export class Device {
   readonly settings = new MidiSettings();
+  readonly #chosen = chosenPorts(this.settings);
   /** The Web MIDI connection, once made. */
   access: MidiAccess | null = $state(null);
   /** The ports plugged in, as of the last look: at connecting, when one came or went, and when a person asked. */
@@ -137,12 +173,11 @@ export class Device {
     );
   });
 
-  /** Connect to Web MIDI, notes in going to `onNote`. */
-  async connect(onNote: NoteHandler) {
+  /** Connect to Web MIDI, notes in going to `onNote` with the name of the port each came from. */
+  async connect(onNote: (note: ParsedNote, source: string) => void) {
     const result = await connectMidi(
-      (handler) => MidiAccess.connect(handler, () => this.#changed()),
-      onNote,
-      this.settings,
+      () => MidiAccess.connect({ onNote, onChange: () => this.#changed() }),
+      this.#chosen,
     );
     this.access = result.access;
     this.message = result.message;
@@ -157,7 +192,7 @@ export class Device {
   /** The ports may have changed: adopt the ones chosen again, and list them. */
   #changed() {
     const access = this.access;
-    if (access) adoptPorts(access, this.settings);
+    if (access) adoptPorts(access, this.#chosen);
     this.#listPorts();
   }
 

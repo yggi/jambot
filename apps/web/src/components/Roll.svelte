@@ -11,7 +11,7 @@
   whatever room the view gives it.
 -->
 <script lang="ts">
-  import type { KeyLayout } from '../midi/surfaces.ts';
+  import type { KeyLayout } from '@yggi/webmidi/core';
   import { NOW_AT, type RollNote } from '../rollView.ts';
 
   interface Props {

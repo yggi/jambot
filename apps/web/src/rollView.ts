@@ -6,7 +6,7 @@
  * and left to right, so the drawing is a picture of these and nothing else.
  */
 
-import type { KeyLayout } from './midi/surfaces.ts';
+import type { KeyLayout } from '@yggi/webmidi/core';
 import type { LaneNote } from './tracks.ts';
 
 /** How many steps ahead of the one heard the roll shows: a bar and a half of 4/4. */

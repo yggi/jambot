@@ -8,7 +8,7 @@
  * channel mapping silences what the old one held before adopting it.
  *
  * The clock offset can be shared with whatever reads human input
- * (`midi/access.ts`, the keyboards): its `fromDeviceMs` is `toDeviceMs`'s
+ * (MIDI in, the keyboards): its `fromDeviceMs` is `toDeviceMs`'s
  * inverse, turning a note's `performance.now()` timestamp back into a
  * moment on this same output's clock. It reads the clocks once a tick, and
  * the moment heard it gives (`heard`) is the one the whole device reads.
