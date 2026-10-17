@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import Card from './components/Card.svelte';
+  import UpdateToast from './components/UpdateToast.svelte';
   import Fader from './components/Fader.svelte';
   import SoundPanel from './components/SoundPanel.svelte';
   import Equalizer from './components/glyphs/Equalizer.svelte';
@@ -390,3 +391,5 @@
     counters={timingShown ? timingPanel : undefined}
   />
 {/if}
+
+<UpdateToast />

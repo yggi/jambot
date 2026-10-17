@@ -22,7 +22,20 @@ export const nodeTests = readdirSync(join(import.meta.dirname, 'src'), {
 
 export default defineProject({
   plugins: [svelte(), svelteTesting()],
-  resolve: { alias: { ws } },
+  // `virtual:pwa-register` is vite-plugin-pwa's, not loaded here: a stand-in with no update to offer
+  resolve: {
+    alias: { ws, 'virtual:pwa-register': join(import.meta.dirname, 'src/pwa-register.stub.ts') },
+  },
+  define: {
+    __BUILD__: JSON.stringify({
+      name: '@jambot/web',
+      version: '0.0.0',
+      commit: '0123456789abcdef0123456789abcdef01234567',
+      branch: 'main',
+      builtAt: '2026-10-17T14:03:59.000Z',
+      dependencies: [{ name: '@yggi/cells', version: 'v0.2.0' }],
+    }),
+  },
   // jsdom costs about a second a file, so a test that touches no DOM opts out
   // with `// @vitest-environment node` on its first line. The player's tests
   // stay on jsdom: under node Svelte resolves its server build, and they run

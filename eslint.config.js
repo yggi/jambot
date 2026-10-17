@@ -77,7 +77,7 @@ export default defineConfig(
   svelte.configs.prettier,
   {
     ignores: pureSources,
-    languageOptions: { globals: { ...globals.browser, ...globals.node } },
+    languageOptions: { globals: { ...globals.browser, ...globals.node, __BUILD__: 'readonly' } },
   },
   {
     // Pure packages run in browsers, workers and on the root node alike: no

@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
@@ -5,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { buildInfo } from './src/readBuild.ts';
 import {
   licenseProblems,
   notices,
@@ -12,6 +14,25 @@ import {
   readShipped,
   workboxPackages,
 } from '../../tooling/licenses.ts';
+
+/** What this build is: its commit, branch and date, and the versions of what the app ships, as the version sheet lists them. Name a dependency here before it is one (`webmidi`): it shows once it is. */
+const build = buildInfo(
+  {
+    dirs: ['.', '../../packages/score'].map((dir) => fileURLToPath(new URL(dir, import.meta.url))),
+    env: process.env,
+    git: (args) => {
+      try {
+        return execSync(`git ${args.join(' ')}`, { stdio: ['ignore', 'pipe', 'ignore'] })
+          .toString()
+          .trim();
+      } catch {
+        return '';
+      }
+    },
+    now: new Date(),
+  },
+  ['@yggi/cells', 'svelte', 'webmidi'],
+);
 
 const prototypeFile = new URL('../../prototype/jambot-prototype.html', import.meta.url);
 
@@ -105,11 +126,13 @@ function licenses(): Plugin {
 export default defineConfig({
   // GitHub Pages serves the site under /<repo>/; `pnpm pages` sets BASE_PATH accordingly.
   base: process.env.BASE_PATH ?? '/',
+  define: { __BUILD__: JSON.stringify(build) },
   plugins: [
     svelte(),
     prototype(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': a new service worker waits until the person accepts (UpdateToast), so a band is never cut off by a reload
+      registerType: 'prompt',
       manifest: {
         name: 'Jambot',
         short_name: 'Jambot',
