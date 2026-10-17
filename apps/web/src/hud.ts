@@ -87,6 +87,8 @@ export interface BarView {
   readonly meterName: string;
   /** The level its meter swings on, its section's (#360). */
   readonly swingLevel: SwingLevel;
+  /** The share its meter swings at, its section's where the repository gave the meter (#375); else none, and the swing track's holds. */
+  readonly swingShare: number | null;
   readonly key: string;
   /** The key's tonic, as a pitch class 0–11, C = 0. */
   readonly tonic: number;
@@ -539,6 +541,7 @@ function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Cre
     meter: bar.plan.meter,
     meterName: meterLabel(bar.plan.meter),
     swingLevel: bar.plan.swing,
+    swingShare: bar.plan.share ?? null,
     key: keyName(bar.plan.key),
     tonic: bar.plan.key.tonic,
     scale: positions(keyHelix(bar.plan.key)),

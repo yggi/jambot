@@ -68,6 +68,7 @@ import {
 import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import type { MeterRepository } from './meter-query.ts';
 import type { Meter } from '@jambot/theory';
 import {
   type HeardNote,
@@ -80,6 +81,7 @@ import {
   keptAfter,
   muse,
 } from './muse.ts';
+import { sectionMeter } from './plan.ts';
 import { type StyleTrack, styleAt, valueAt, valueIn, writtenStyle } from './style.ts';
 import {
   type MeterSwing,
@@ -130,8 +132,14 @@ export interface TransportEnv {
   readonly swing?: SwingTrack | undefined;
   /** The key the players wish for, which the band moves toward at a section boundary. */
   readonly wish: KeyWish;
-  /** The meter asked for, which the band takes at a section boundary (#261); 4/4 where none is. */
+  /** The meter asked for, which the band takes at a section boundary (#261); where none is, the repository's, or 4/4. */
   readonly meter?: Meter | undefined;
+  /**
+   * The repository the composer asks for a section's meter, and its swing,
+   * where none is asked for (#375): each section's plan then says the share
+   * it swings at, which the swing track's share gives way to.
+   */
+  readonly repository?: MeterRepository | undefined;
   /**
    * The meter whose beats the track's bpm counts (#367); 4/4 where none is.
    * Whoever holds the track keeps it the meter heard, converting the number
@@ -243,7 +251,10 @@ export const bandSource: BarSource<BandCarried> = {
         ? carried.next.plan.meter
         : null
       : env.bar === 0
-        ? (env.meter ?? SONG_METER)
+        ? sectionMeter(
+            { meter: env.meter, repository: env.repository, style: writtenStyle(env.style) },
+            null,
+          ).meter
         : null,
   finale: finaleBar,
 };
@@ -331,7 +342,7 @@ const STRAIGHT_TRACK = holdingSwing(STRAIGHT);
  * bar starts, on their tracks, and what the Muse offers.
  */
 export function bandEnvAt(
-  { seed, track, wish, meter, swing = STRAIGHT_TRACK }: TransportEnv,
+  { seed, track, wish, meter, swing = STRAIGHT_TRACK, repository }: TransportEnv,
   bar: number,
   offer: Offer | null,
   clock: SongClock = SONG_CLOCK,
@@ -344,6 +355,7 @@ export function bandEnvAt(
     wish,
     meter,
     swing: swingAt(swing, start),
+    repository,
     offer,
   };
 }
@@ -644,10 +656,10 @@ export function transportOver<Source, Arrived = never>(
         const index = song.beatAt(head.step);
         const pulseStart = song.beatStart(index);
         const pulse = { start: pulseStart, length: song.beatStart(index + 1) - pulseStart };
-        const swingFrom = (at: number): MeterSwing => ({
-          level: (bars.find((b) => b.bar === song.barAt(at)) ?? current).plan.swing,
-          share: valueIn(SHARE, swingTrack.share, at),
-        });
+        const swingFrom = (at: number): MeterSwing => {
+          const { plan } = bars.find((b) => b.bar === song.barAt(at)) ?? current;
+          return { level: plan.swing, share: plan.share ?? valueIn(SHARE, swingTrack.share, at) };
+        };
         if (beat?.index !== index) beat = { index, swing: swingFrom(pulseStart) };
         const held = beat;
         const swing = swingOf(swingFrom, song);

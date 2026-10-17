@@ -6,7 +6,9 @@
  * the form, moves the key one step toward the wish (`nextKey`), picks the
  * melodic scale the lead walks (the wish's where the style reaches it, else
  * the style's default, #209), takes the meter asked for (#261) and the
- * level its swing leans (#360), and picks the section's theme. The band
+ * level its swing leans (#360), or where none is asked for, the meter the
+ * composer finds in the repository at the style (#375, `sectionMeter`), and
+ * picks the section's theme. The band
  * holds the plan for the section's eight bars, so a new key, scale or theme
  * arrives only at a boundary, as does a new meter or swing level.
  *
@@ -31,6 +33,7 @@ import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from 
 import { harmonicReach, licenceOf, melodicDefault } from './licence.ts';
 import { SONG_METER } from './events.ts';
 import type { Machine } from './machine.ts';
+import { type MeterRepository, composedMeter } from './meter-query.ts';
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
 import type { SwingLevel } from './swing.ts';
@@ -49,6 +52,11 @@ export interface PlanEnv {
   readonly meter?: Meter | undefined;
   /** The level the meter asked for swings on, which the plan takes as it takes the meter (#360); the 16ths where none is. */
   readonly swing?: SwingLevel | undefined;
+  /**
+   * The repository the composer asks for the section's meter where none is
+   * asked for (#375); the song's 4/4 where there is none either.
+   */
+  readonly repository?: MeterRepository | undefined;
 }
 
 /**
@@ -67,6 +75,15 @@ export interface Plan {
    * section starts, since nothing jumps.
    */
   readonly swing: SwingLevel;
+  /**
+   * The share the section's meter swings at, where the composer took it
+   * from the repository (#375): a feel is one fragment, held for the
+   * section. Absent where the meter was asked for, and the share glides on
+   * the swing track.
+   */
+  readonly share?: number;
+  /** The repository's meter fragment the section plays, by id, where it plays one (#375). */
+  readonly meterFragment?: string;
   readonly melodic: MelodicScale;
   readonly theme: Theme;
 }
@@ -114,10 +131,49 @@ export function bandWish(
   return candidates[pick(draw(seed, 'keyJump', index, 1), leaning(weights, LEAN))]!;
 }
 
+/** A section's meter: the meter, the level it swings on, and where the composer took it from the repository, the share and the fragment. */
+export type SectionMeter = Pick<Plan, 'meter' | 'swing' | 'share' | 'meterFragment'>;
+
+/**
+ * The meter a section takes where it starts: the one asked for, with the
+ * level asked for; where none is, the one the composer finds in the
+ * repository at the style (`composedMeter`); on a miss, the section
+ * before's; and where there is nothing else, the song's 4/4.
+ */
+export function sectionMeter(
+  {
+    meter,
+    swing = '16n',
+    repository,
+    style,
+  }: Pick<PlanEnv, 'meter' | 'swing' | 'repository' | 'style'>,
+  before: SectionMeter | null,
+): SectionMeter {
+  if (meter) return { meter, swing };
+  const found = repository ? composedMeter(repository, style, before?.meterFragment ?? null) : null;
+  if (found)
+    return {
+      meter: found.meter,
+      swing: found.swing.level,
+      share: found.swing.share,
+      meterFragment: found.id,
+    };
+  if (repository && before) {
+    const { meter: kept, swing: level, share, meterFragment } = before;
+    return {
+      meter: kept,
+      swing: level,
+      ...(share === undefined ? {} : { share }),
+      ...(meterFragment === undefined ? {} : { meterFragment }),
+    };
+  }
+  return { meter: SONG_METER, swing };
+}
+
 export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
   initial: { before: null, themes: { A: null, B: null } },
   advance(env, { before, themes }) {
-    const { seed, index, style, wish, meter = SONG_METER, swing = '16n' } = env;
+    const { seed, index, style, wish } = env;
     const section = form.advance({ seed, index, style }, before?.section ?? null, null).output;
     const from = before?.key ?? INITIAL_KEY;
     // The players' wish wins: a tonic, or a mode other than the one playing.
@@ -145,7 +201,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             entropy: style.entropy,
             a: themes.A,
           });
-    const plan = { section, key, meter, swing, melodic, theme };
+    const plan = { section, key, ...sectionMeter(env, before), melodic, theme };
     return {
       carried: { before: plan, themes: kind === 'build' ? themes : { ...themes, [kind]: theme } },
       output: plan,

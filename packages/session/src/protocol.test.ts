@@ -21,6 +21,7 @@ import {
   refusal,
   sourceName,
 } from './protocol.ts';
+import { METER_REPOSITORY } from '@jambot/engine/repository';
 
 /** Every path to a plain value in a value, with the value's type: its shape. */
 function paths(value: unknown, at = ''): string[] {
@@ -48,6 +49,8 @@ function travelling(): {
     start: 0,
     track: holding({ ...INITIAL_STYLE, energy: 1, harm: 1 }),
     wish: { tonic: null, mode: 'aeolian', melodic: null },
+    // No meter asked for: each section's plan says the repository's meter and its share (#375).
+    repository: METER_REPOSITORY,
   };
   // The motif in bar 2, and again in bar 3, so the log carries a recognition.
   const inBar = (bar: number) =>
@@ -205,9 +208,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 10 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373). */
+/** The shapes of version 11 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375). */
 const SHAPES = {
-  protocol: 10,
+  protocol: 11,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -241,8 +244,10 @@ const SHAPES = {
     'bar.plan.melodic: string',
     'bar.plan.meter.cycle: number',
     'bar.plan.meter.heights[]: number',
+    'bar.plan.meterFragment: string',
     'bar.plan.section.index: number',
     'bar.plan.section.type: string',
+    'bar.plan.share: number',
     'bar.plan.swing: string',
     'bar.plan.theme.bars[][].degree: number',
     'bar.plan.theme.bars[][].dominantOf: number',

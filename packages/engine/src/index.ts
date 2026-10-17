@@ -17,6 +17,7 @@ export * from './history.ts';
 export * from './licence.ts';
 export * from './lead.ts';
 export * from './machine.ts';
+export * from './meter-query.ts';
 export * from './metronome.ts';
 export * from './muse.ts';
 export * from './part-reading.ts';

@@ -1129,12 +1129,34 @@ describe('the meter asked for (#262)', () => {
     return { world, player, heard, play };
   };
 
-  it('is 4/4 until asked, in the view and on the clock', () => {
+  it('asks for none at first, so the composer asks the repository: Synth-pop’s 4/4, straight, in the view and on the clock (#375)', () => {
     const { s } = surroundings();
     const player = new Player(s);
-    expect(player.meter).toEqual(METERS['4/4']);
+    expect(player.meter).toBeNull();
     expect(player.hud.bar!.meterName).toBe('4/4');
+    expect(player.hud.bar!.swingShare).toBe(0.5);
     expect(player.clock.barSteps(0)).toBe(16);
+  });
+
+  it('opens a stopped song in the meter the repository finds at the preset, with its swing, and a meter asked for wins (#375)', () => {
+    const { s } = surroundings();
+    const player = new Player(s);
+    player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Lo-fi hip hop')! });
+    expect(player.hud.bar!.meterName).toBe('4/4');
+    expect([player.hud.bar!.swingLevel, player.hud.bar!.swingShare]).toEqual(['16n', 0.65]);
+    player.setMeter(METERS['7/8']);
+    expect(player.hud.bar!.meterName).toBe('7/8');
+    expect(player.hud.bar!.swingShare).toBeNull();
+    player.setMeter(null);
+    expect(player.hud.bar!.meterName).toBe('4/4');
+  });
+
+  it('asks for the meter heading when a swing is set on the Metrum card, so the card’s swing wins (#375)', () => {
+    const { s } = surroundings();
+    const player = new Player(s);
+    player.apply({ kind: 'swing', swing: { share: 0.6 } });
+    expect(player.meter).toEqual(METERS['4/4']);
+    expect(player.hud.bar!.swingShare).toBeNull();
   });
 
   it('opens the song in the meter asked for while stopped, in the view, on the clock and in every section shown', () => {
@@ -1267,7 +1289,7 @@ describe('the meter asked for (#262)', () => {
     const player = new Player(s);
     player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
     player.setMeter(METERS['5/8']);
-    expect(player.meter).toEqual(METERS['4/4']);
+    expect(player.meter).toBeNull();
   });
 });
 

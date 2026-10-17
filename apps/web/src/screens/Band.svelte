@@ -73,7 +73,7 @@
 
   const phase = $derived(player.counting ? 'counting' : player.ending ? 'ending' : null);
   /** The meter of the bar heard, or before anything is, of the bar the song opens on (the count-in's). */
-  const meter = $derived(player.hud.bar?.meter ?? player.meter);
+  const meter = $derived(player.hud.bar?.meter ?? player.opening);
   const step = $derived(
     player.counting
       ? player.countStep
@@ -150,7 +150,9 @@
   {:else if id === 'time'}
     <Metrum
       tempo={tempoView(player.track, player.tempoNudge)}
-      swing={swingTarget(player.swing)}
+      swing={player.meter === null && player.hud.bar?.swingShare != null
+        ? { level: player.hud.bar.swingLevel, share: player.hud.bar.swingShare }
+        : swingTarget(player.swing)}
       level={player.hud.bar?.swingLevel}
       {metronome}
       heard={player.heard}

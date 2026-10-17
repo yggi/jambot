@@ -325,6 +325,17 @@ export async function closeDrawer(page: Page) {
   if ((await drawn.count()) > 0) await drawn.click();
 }
 
+/**
+ * Asks for a meter on the Metrum card, so the band plays it whatever the
+ * style: with none asked for, the composer takes the repository's meter
+ * nearest the style, which a moved slider can change (#375).
+ */
+export async function askForMeter(page: Page, name: string) {
+  await openCard(page, 'Metrum');
+  await page.getByRole('radio', { name, exact: true }).click();
+  await closeDrawer(page);
+}
+
 /** Unfold the style card, where it is folded: its presets and sliders are in its details. */
 export const openStyle = (page: Page) => openCard(page, 'Style');
 

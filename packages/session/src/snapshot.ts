@@ -15,8 +15,9 @@
  * values (the style track and the key wish) inside: those are the app's
  * own, written by the same build, and a version bump retires a shape that
  * changes. The meter is checked as a meter (its pulses rising from the
- * downbeat within the bar), since a bar's length is built from it; a record
- * saved before it was kept has none, and asks for the song's. The swing is
+ * downbeat within the bar), since a bar's length is built from it, or is
+ * null, none asked for, where the composer asks the repository (#375); a
+ * record saved before it was kept has none, and asks for the song's. The swing is
  * checked as a level and a share's glide; a record saved before the meter
  * held it (#360) has none, and plays straight. The radio's station (#313) is
  * checked as a seed and a count, and a record without one has the radio off. Pure: the app stores and fetches, and gives the time, in
@@ -52,8 +53,12 @@ export interface HostSnapshot {
   readonly track: StyleTrack;
   readonly wish: KeyWish;
   readonly tempoNudge: number;
-  /** The meter asked for, which the band takes at a section's start; absent in a record saved before it was kept. */
-  readonly meter?: Meter;
+  /**
+   * The meter asked for, which the band takes at a section's start; null
+   * where none is, and the composer asks the repository (#375); absent in a
+   * record saved before it was kept.
+   */
+  readonly meter?: Meter | null;
   /** The meter's swing asked for (#360); absent in a record saved before the meter held it. */
   readonly swing?: SwingTrack;
   /** The radio's station, if it was on the air (#313); absent in a record saved before it, or with it off. */
@@ -123,7 +128,7 @@ export function readHostSnapshot(data: unknown, now: number): HostSnapshot | nul
   if (reclaim !== null && typeof reclaim !== 'string') return null;
   if (typeof tempoNudge !== 'number' || !Number.isFinite(tempoNudge)) return null;
   if (!isRecord(track) || !isRecord(wish)) return null;
-  if (meter !== undefined && !isMeter(meter)) return null;
+  if (meter !== undefined && meter !== null && !isMeter(meter)) return null;
   if (swing !== undefined && !isSwing(swing)) return null;
   if (station !== undefined && readStation(station) === null) return null;
   if (!isRecord(players) || !Object.values(players).every((n) => typeof n === 'string'))

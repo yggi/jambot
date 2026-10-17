@@ -45,6 +45,11 @@ describe('what a host keeps to come back from a reload', () => {
     expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
   });
 
+  it('reads one that asks for no meter, whose composer asks the repository (#375)', () => {
+    const none = { ...snapshot, meter: null };
+    expect(readHostSnapshot(JSON.parse(JSON.stringify(none)), 1001)).toEqual(none);
+  });
+
   it('reads one saved before the meter held the swing, which plays straight (#360)', () => {
     const older = { ...snapshot, swing: undefined };
     expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
@@ -102,7 +107,6 @@ describe('what a host keeps to come back from a reload', () => {
       { ...snapshot, tempoNudge: 'up' },
       { ...snapshot, tempoNudge: Number.NaN },
       { ...snapshot, meter: '5/4' },
-      { ...snapshot, meter: null },
       { ...snapshot, meter: { cycle: 0, heights: [0] } },
       { ...snapshot, meter: { cycle: 10, heights: [] } },
       { ...snapshot, meter: { cycle: 10, heights: [2, 4] } },

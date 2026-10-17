@@ -140,6 +140,9 @@ importers:
       '@jambot/theory':
         specifier: workspace:*
         version: link:../theory
+      '@yggi/cells':
+        specifier: github:yggi/cells#v0.4.0
+        version: https://codeload.github.com/yggi/cells/tar.gz/f61aa71ca90b4adbd17d9696a7247a2a86896673
 
   packages/score:
     dependencies:

@@ -37,9 +37,12 @@ import type { ForecastDelta } from './forecast.ts';
  * beside the style (`swing`, #360, #369), and counts the style's bpm in the
  * beats of the meter that travels with it (`tempoMeter`, #367, #373), so a
  * host and a client of different counts would lay a 6/8 bar at different
- * lengths.
+ * lengths. Version 11 has a section's plan say the meter fragment the
+ * composer took from the repository and the share it swings at (`Plan.share`,
+ * `Plan.meterFragment`, #375), which a client's transport swings by in place
+ * of the swing track's.
  */
-export const PROTOCOL = 10;
+export const PROTOCOL = 11;
 
 /**
  * A bar as a host wrote it: everything its parts read, and the notes they

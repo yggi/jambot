@@ -1,6 +1,7 @@
 import { type Page, expect, test } from '@playwright/test';
 import {
   type ClockJump,
+  askForMeter,
   type Heard,
   type Stall,
   clockJumps,
@@ -444,6 +445,8 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
   const client = await context.newPage();
   await listen(client);
   await host(page, 'motif jam');
+  // At energy 0 the repository's meter nearest Synth-pop is 6/8: 4/4 asked for keeps the steps below (#375).
+  await askForMeter(page, '4/4');
   await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
   await page.getByRole('button', { name: 'Start the band' }).click();
