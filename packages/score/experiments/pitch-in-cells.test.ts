@@ -106,7 +106,7 @@ describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
     expect(shapesOnce(MEASURED)).toBe(25206);
   });
 
-  it('compiles every stacks and shapes text in cells v0.3.0 with no diagnostic, and plays the band’s chords, step for step', () => {
+  it('compiles every stacks and shapes text in cells v0.4.0 with no diagnostic, and plays the band’s chords, step for step', () => {
     for (const m of MEASURED)
       for (const name of ['stacks', 'shapes']) {
         const { played, diagnostics } = cellsPlays(m.texts[name]!);
@@ -115,7 +115,7 @@ describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
       }
   });
 
-  it('parses no numerals text in cells v0.3.0 (a proposal), and plays each, lowered by its stated meaning, as the band’s chords', () => {
+  it('parses no numerals text in cells v0.4.0 (a proposal), and plays each, lowered by its stated meaning, as the band’s chords', () => {
     const w = at('Swing jazz', 2);
     expect(planOf(w.texts.numerals!).result.diagnostics.map((d) => d.message)).toEqual([
       "Unexpected 'vii'",

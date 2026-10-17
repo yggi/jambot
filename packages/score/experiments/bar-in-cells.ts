@@ -5,18 +5,23 @@
  * E31 stated the drums, E32 the harmony, each alone. This states a bar's
  * drums, bass, comp and harmony together as one text, with `&bar` a
  * `meter(…)` cell that every line taps, and measures what E31 left open:
- * when each step plays. Over all 8 presets in 4/4 and 2 of them (Synth-pop
- * and Bossa nova, both swing 0, with every non-lead part between them) in
- * 3/4 and 7/8 (3+2+2), seed 0, entropy 0.3, 32 bars each: 384 bars.
+ * when each step plays, and how long each note sounds. Over all 8 presets in
+ * 4/4 and 2 of them (Synth-pop and Bossa nova, both straight, with every
+ * non-lead part between them) in 3/4 and 7/8 (3+2+2), seed 0, entropy 0.3,
+ * 32 bars each: 384 bars.
  *
  * The bars come from the band's own transport (`transport`, a style held at
  * the preset's, the meter asked for and its bpm counted in that meter's
  * beats), so each onset has the time the
  * transport gives it. What is compared is what is composed, without the
- * performer's licence (T17): each written note's step, pitch and written
- * length in whole steps, and its velocity as the ensemble's default
- * (`baseVelocityOf`) plus a written accent, which is the velocity the
- * performer plays at feel 0. A text is played through cells' MIDI out
+ * performer's licence (T17): each written note's step and pitch, its
+ * length as the ensemble articulates it (`baseLengthOf`: the bass and the
+ * stab a share of the written length, the drums and the pad as written), in
+ * steps, and its velocity as the ensemble's default (`baseVelocityOf`) plus
+ * a written accent, which is the velocity the performer plays at feel 0.
+ * A step is read off cells' times through the band's own swing undone
+ * (`leanMap`'s `written`), so a swung bar's steps compare as a straight
+ * one's. A text is played through cells' MIDI out
  * (`channelTable`, `router`, `midiNote`) and read back part by part:
  * channel 10 the drums, 2 the bass, 3 the pad and the stab (the comp), as
  * Jambot's own MIDI out sends them (`DEFAULT_CHANNELS`).
@@ -25,7 +30,10 @@
  *
  * - the meter, `&bar meter("7/8") step=108bpm`: cells' bpm counts the
  *   meter's beats (decision 040), and so does Jambot's (#367), so the text
- *   states the band's tempo as it is, with no conversion;
+ *   states the band's tempo as it is, with no conversion; a swung preset's
+ *   meter states its swing, its level and share, as cells' swung meter
+ *   fragments do (`&bar meter("4/4") step=84bpm swing=16n:.65`; cells
+ *   v0.4.0, yggi/cells#18);
  * - the harmony, the key and the chords as stacks of its degrees (E32's
  *   stacks, the owner's choice of 2026-10-17): `&key scale(aeolian, A)`,
  *   `&harm over=&key step=2n [0,2,4] [4,6#,8]`; nothing plays it, and the
@@ -34,8 +42,10 @@
  *   rim one Euclid token on `1m` where the band writes it as `even`;
  * - the bass and the comp, on `16n` taps, as degrees of the key from their
  *   voices (C1 and C3, E32's pins), each note held `@k` for its written
- *   length; their velocities a line of levels (`map=amp`), or one gain where
- *   a line has one velocity, through a gate (`play=`, `level=`);
+ *   length and sounding its line's share of it (`legato=`, cells v0.4.0,
+ *   yggi/cells#94), one share a line; their velocities a line of levels
+ *   (`map=amp`), or one gain where a line has one velocity, through a gate
+ *   (`play=`, `level=`);
  * - one MIDI card.
  *
  * Where cells cannot say what a bar does, the probe records a gap with a
@@ -57,11 +67,16 @@ import {
   type TimedEvent,
   type TransportCarried,
   type TransportEnv,
+  type MeterSwing,
+  STRAIGHT,
+  baseLengthOf,
   baseVelocityOf,
   chordNumeral,
   clockOfTransport,
   holding,
   holdingSwing,
+  leanMap,
+  leansOf,
   sameMeter,
   slotStepOn,
   stepSeconds,
@@ -87,7 +102,7 @@ export const SEED = 0;
 export const ENTROPY = 0.3;
 export const BARS = 32;
 
-/** The meters other than 4/4, and the two presets they run on: swing 0, so their times are compared, and every non-lead part between them. */
+/** The meters other than 4/4, and the two presets they run on: straight, and every non-lead part between them. */
 export const OTHER_METERS: readonly MeterName[] = ['3/4', '7/8'];
 export const METER_PRESETS: readonly string[] = ['Synth-pop', 'Bossa nova'];
 
@@ -110,13 +125,18 @@ type NotePart = Exclude<ComparedPart, 'harmony'>;
 
 const CHANNEL_OF: Readonly<Record<NotePart, number>> = { drums: 10, bass: 2, comp: 3 };
 
-/** A note as composed or as cells plays it: its part, step, MIDI note, length in steps and velocity. */
+/** A note as composed or as cells plays it: its part, step, MIDI note, the length it sounds in steps, and velocity. */
 export interface Note {
   readonly part: NotePart;
   readonly step: number;
   readonly note: number;
   readonly length: number;
   readonly velocity: number;
+}
+
+/** A note as composed: the length it sounds, and the length written. */
+export interface Composed extends Note {
+  readonly written: number;
 }
 
 /** A chord the harmony states, at its step, as Jambot's numeral. */
@@ -185,10 +205,10 @@ export function meterName(bar: BandBar): MeterName {
 
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
-/** A bar's composed notes, the lead left out: the step, pitch and written length, and the velocity the performer plays at feel 0. */
-export function composedNotes(bar: BandBar): Note[] {
+/** A bar's composed notes, the lead left out: the step, pitch, articulated and written length, and the velocity the performer plays at feel 0. */
+export function composedNotes(bar: BandBar): Composed[] {
   return sortNotes(
-    bar.written.flatMap((w): Note[] =>
+    bar.written.flatMap((w): Composed[] =>
       w.part === 'lead'
         ? []
         : [
@@ -196,7 +216,8 @@ export function composedNotes(bar: BandBar): Note[] {
               part: w.part === 'pad' || w.part === 'stab' ? 'comp' : w.part,
               step: w.step,
               note: w.note,
-              length: w.length,
+              length: baseLengthOf(bar, w),
+              written: w.length,
               velocity: clampVelocity(baseVelocityOf(bar, w) + (w.accent ?? 0)),
             },
           ],
@@ -204,7 +225,7 @@ export function composedNotes(bar: BandBar): Note[] {
   );
 }
 
-const sortNotes = (notes: readonly Note[]): Note[] =>
+const sortNotes = <N extends Note>(notes: readonly N[]): N[] =>
   [...notes].sort((a, b) => a.part.localeCompare(b.part) || a.step - b.step || a.note - b.note);
 
 /** A bar's chords as its harmony states them: the step on its meter and the numeral in its key. */
@@ -219,6 +240,30 @@ export function statedChords(bar: BandBar): StatedChord[] {
 export interface Line {
   readonly part: 'meter' | 'key' | ComparedPart | 'card';
   readonly text: string;
+}
+
+/** A swing share as the text states it: the shorter of its shortest decimal and a fraction that is exactly it (`2/3`, `31/60`, `.65`). */
+export function shareText(share: number): string {
+  const decimal = String(share).replace(/^0/, '');
+  for (let d = 2; d <= 100; d++) {
+    const n = Math.round(share * d);
+    if (n / d === share) return `${n}/${d}`.length < decimal.length ? `${n}/${d}` : decimal;
+  }
+  return decimal;
+}
+
+/** A meter's swing as cells states it on `&bar`: none where it is straight. */
+export const swingText = (swing: MeterSwing) =>
+  swing.share === STRAIGHT.share ? '' : ` swing=${swing.level}:${shareText(swing.share)}`;
+
+/** A line's share of its written length, as `legato=` states it: none where it is 1. */
+export function legatoText(notes: readonly Composed[]): string {
+  const shares = [...new Set(notes.map((n) => Number((n.length / n.written).toPrecision(12))))];
+  if (shares.length !== 1)
+    throw new Error(
+      `a line sounds ${shares.length} shares of its written length: ${shares.join(' ')}`,
+    );
+  return shares[0] === 1 ? '' : ` legato=${String(shares[0]).replace(/^0/, '')}`;
 }
 
 /** What could not be stated as composed: a note held shorter than written, and why. */
@@ -245,8 +290,15 @@ const eachStep = (steps: number, f: (step: number) => string) =>
 /** A hit's own level after its voice, none at full velocity. */
 const hitLevel = (velocity: number) => (velocity >= 127 ? '' : `:0:${levelOf(velocity)}`);
 
-/** The drums: a line a role on 16ths, the rim one Euclid token where `even` wrote it; and the mix's terms. */
-function drumLines(bar: BandBar, notes: readonly Note[]): { lines: string[]; terms: string[] } {
+/**
+ * The drums: a line a role on 16ths, the rim one Euclid token where `even`
+ * wrote it (where `euclid` allows); and the mix's terms.
+ */
+function drumLines(
+  bar: BandBar,
+  notes: readonly Note[],
+  euclid: boolean,
+): { lines: string[]; terms: string[] } {
   const steps = stepsOf(bar.meter);
   const lines: string[] = [];
   const terms: string[] = [];
@@ -257,16 +309,16 @@ function drumLines(bar: BandBar, notes: readonly Note[]): { lines: string[]; ter
     );
     if (hits.length === 0) continue;
     const sounds = new Set(hits.map((h) => h.note));
-    const euclid =
-      role === 'euclid' && sounds.size === 1
+    const rim =
+      euclid && role === 'euclid' && sounds.size === 1
         ? euclidOf(
             hits.map((h) => h.step),
             steps,
           )
         : null;
-    if (euclid) {
+    if (rim) {
       const voice = VOICE_OF_NOTE.get(hits[0]!.note)!;
-      lines.push(`&${role} step=1m &${voice}(${euclid.k},${steps},${euclid.r})`);
+      lines.push(`&${role} step=1m &${voice}(${rim.k},${steps},${rim.r})`);
       const velocities = new Set(hits.map((h) => h.velocity));
       if (velocities.size === 1) {
         const v = hits[0]!.velocity;
@@ -298,12 +350,13 @@ const held = (text: string, length: number) => (length === 1 ? text : `${text}@$
 /**
  * A pitched line on 16ths: each onset its notes as degrees of the key from
  * the part's voice (a chord a stack), held for its written length, cut at the
- * next onset or the bar line; and its levels, as a line or one gain.
+ * next onset or the bar line, and sounding the line's share of it
+ * (`legato=`); and its levels, as a line or one gain.
  */
 function pitchedLine(
   bar: BandBar,
   name: string,
-  notes: readonly Note[],
+  notes: readonly Composed[],
   voice: 'comp' | 'bass',
   cuts: Cut[],
 ): { lines: string[]; level: string } {
@@ -319,7 +372,7 @@ function pitchedLine(
       levels.push(held('~', step - at));
     }
     const here = notes.filter((n) => n.step === step);
-    const written = Math.max(...here.map((n) => n.length));
+    const written = Math.max(...here.map((n) => n.written));
     const room = (onsets[i + 1] ?? steps) - step;
     const length = Math.min(written, room);
     if (length < written)
@@ -346,20 +399,29 @@ function pitchedLine(
   const one = velocities.size === 1;
   return {
     lines: [
-      `&${name} over=&key step=16n ${words.join(' ')}`,
+      `&${name} over=&key step=16n${legatoText(notes)} ${words.join(' ')}`,
       ...(one ? [] : [`&${name}Level map=amp step=16n ${levels.join(' ')}`]),
     ],
     level: one ? levelOf(notes[0]!.velocity) : `&${name}Level`,
   };
 }
 
-/** A bar's drums, bass, comp and harmony as one cells text. */
-export function barAsCells(bar: BandBar): BarText {
+/**
+ * A bar's drums, bass, comp and harmony as one cells text. The rim is one
+ * Euclid token on `1m` only where the meter is straight, unless `euclid`
+ * asks for it anyway: a Euclid's hits are even parts of its step, which the
+ * meter's swing doesn't reach (E33's gap 4, yggi/cells#121), so under swing the rim is a line
+ * on `16n` as every other role is.
+ */
+export function barAsCells(bar: BandBar, euclid = bar.swing.share === STRAIGHT.share): BarText {
   const key = bar.plan.key;
   const notes = composedNotes(bar);
   const cuts: Cut[] = [];
   const lines: Line[] = [
-    { part: 'meter', text: `&bar meter("${meterName(bar)}") step=${bar.style.bpm}bpm` },
+    {
+      part: 'meter',
+      text: `&bar meter("${meterName(bar)}") step=${bar.style.bpm}bpm${swingText(bar.swing)}`,
+    },
     { part: 'key', text: `&key ${keyText(key)}` },
   ];
   const chords = statedChords(bar);
@@ -374,6 +436,7 @@ export function barAsCells(bar: BandBar): BarText {
   const drums = drumLines(
     bar,
     notes.filter((n) => n.part === 'drums'),
+    euclid,
   );
   const voices = [
     ...new Set(notes.filter((n) => n.part === 'drums').map((n) => VOICE_OF_NOTE.get(n.note)!)),
@@ -434,6 +497,8 @@ export interface Played {
   readonly barSeconds: number;
   /** Each note's onset in seconds from the bar's start, in the order of `notes`. */
   readonly at: number[];
+  /** How long each note sounds, in seconds, in the order of `notes`. */
+  readonly seconds: number[];
   readonly diagnostics: string[];
 }
 
@@ -444,7 +509,10 @@ const READING = [
   '&read map=midi ~!14 [&lap * &readV] [&harm * &readV]',
 ].join('\n');
 
-/** A text played through cells' MIDI out for its first bar, read back; `estimate` is about how long its bar is. */
+/**
+ * A text played through cells' MIDI out for its first bar, read back; `estimate` is about how long its bar is.
+ * Each time is read as a step through the band's swing undone, its bar's (`leanMap`'s `written`).
+ */
 export function cellsPlays(text: string, bar: BandBar): Played {
   const steps = stepsOf(bar.meter);
   const estimate = steps * stepSeconds(bar.style.bpm, bar.meter);
@@ -459,15 +527,18 @@ export function cellsPlays(text: string, bar: BandBar): Played {
   const laps = out.filter((n) => n.channel === 15).map((n) => n.at);
   const barSeconds = laps.find((at) => at > 0)!;
   const step = barSeconds / steps;
+  const unswung = leanMap(leansOf(bar.swing), bar.meter);
+  const stepOf = (seconds: number) => unswung.written(seconds / step);
   const inBar = out.filter((n) => n.at < barSeconds - 1e-9);
   const timed = inBar.flatMap((n) => {
     const part = (Object.keys(CHANNEL_OF) as NotePart[]).find((p) => CHANNEL_OF[p] === n.channel);
     if (!part) return [];
-    const at = n.at / step;
+    const at = stepOf(n.at);
     return [
       {
         seconds: n.at,
-        note: { part, step: at, note: n.note, length: n.end / step - at, velocity: n.velocity },
+        sounds: n.end - n.at,
+        note: { part, step: at, note: n.note, length: stepOf(n.end) - at, velocity: n.velocity },
       },
     ];
   });
@@ -497,6 +568,7 @@ export function cellsPlays(text: string, bar: BandBar): Played {
     chords,
     barSeconds,
     at: timed.map((t) => t.seconds),
+    seconds: timed.map((t) => t.sounds),
     diagnostics: plan.result.diagnostics.map((d) => d.message),
   };
 }
@@ -525,6 +597,13 @@ export function mismatches(band: readonly Note[], cells: readonly Note[]): strin
   return out;
 }
 
+/** How far a note's sounding length in cells is from the band's: in steps (through the band's swing undone) and in seconds. */
+export interface Length {
+  readonly part: NotePart;
+  readonly steps: number;
+  readonly seconds: number;
+}
+
 /** One bar measured: its text, what cells played, and per part whether it is the band's. */
 export interface Measured {
   readonly run: RunKey;
@@ -533,18 +612,24 @@ export interface Measured {
   readonly played: Played;
   readonly equal: Readonly<Record<ComparedPart, boolean>>;
   readonly mismatches: Readonly<Record<NotePart, string[]>>;
-  /** Each onset's distance from the transport's, in seconds: where the run's times are compared. */
+  /** Each onset's distance from the transport's, in seconds. */
   readonly offsets: readonly number[];
+  /** Each bass, pad and stab note's sounding length against the band's articulated one, in the order of `composedNotes`. */
+  readonly lengths: readonly Length[];
 }
 
-/** Whether a run's times are compared: its preset's meter is straight (cells has no swing on the bar yet, yggi/cells#18). */
-export const timesCompared = (run: RunKey) => presetOf(run.preset).swing.share === 0.5;
+/** Whether a run's meter swings: its preset's, held. */
+export const swung = (run: RunKey) => presetOf(run.preset).swing.share !== STRAIGHT.share;
 
-/** Every bar of a run, stated, played (its text edited first, if asked) and compared; its onsets timed against the transport's where its swing is 0. */
-export function measureRun(run: Run, edit: (text: string) => string = (t) => t): Measured[] {
+/** Every bar of a run, stated, played (its text edited first, if asked) and compared; its onsets timed against the transport's. */
+export function measureRun(
+  run: Run,
+  edit: (text: string) => string = (t) => t,
+  state: (bar: BandBar) => BarText = (bar) => barAsCells(bar),
+): Measured[] {
   let cellsStart = 0;
   return run.bars.map((bar) => {
-    const text = barAsCells(bar);
+    const text = state(bar);
     const played = cellsPlays(edit(textOf(text)), bar);
     const band = composedNotes(bar);
     const of = (notes: readonly Note[], part: NotePart) => notes.filter((n) => n.part === part);
@@ -554,20 +639,32 @@ export function measureRun(run: Run, edit: (text: string) => string = (t) => t):
       comp: mismatches(of(band, 'comp'), of(played.notes, 'comp')),
     };
     const offsets: number[] = [];
-    if (timesCompared(run)) {
-      for (const [j, n] of played.notes.entries()) {
-        const event = run.events.find(
-          (e) =>
-            e.bar === bar.bar &&
-            (n.part === 'comp'
-              ? e.event.part === 'pad' || e.event.part === 'stab'
-              : e.event.part === n.part) &&
-            e.event.note === n.note &&
-            same(e.event.step, n.step),
-        );
-        if (event) offsets.push(cellsStart + played.at[j]! - (event.seconds - START));
-      }
+    for (const [j, n] of played.notes.entries()) {
+      const event = run.events.find(
+        (e) =>
+          e.bar === bar.bar &&
+          (n.part === 'comp'
+            ? e.event.part === 'pad' || e.event.part === 'stab'
+            : e.event.part === n.part) &&
+          e.event.note === n.note &&
+          same(e.event.step, n.step),
+      );
+      if (event) offsets.push(cellsStart + played.at[j]! - (event.seconds - START));
     }
+    // The band sounds a note from its step's time to its articulated end's, both through its swing.
+    const swing = leanMap(leansOf(bar.swing), bar.meter);
+    const stepSecs = played.barSeconds / stepsOf(bar.meter);
+    const lengths: Length[] = [];
+    const sortedPlayed = played.notes
+      .map((n, j) => ({ n, seconds: played.seconds[j]! }))
+      .filter(({ n }) => n.part !== 'drums');
+    const sortedBand = band.filter((n) => n.part !== 'drums');
+    if (sortedPlayed.length === sortedBand.length)
+      for (const [j, b] of sortedBand.entries()) {
+        const c = sortedPlayed[j]!;
+        const seconds = (swing.played(b.step + b.length) - swing.played(b.step)) * stepSecs;
+        lengths.push({ part: b.part, steps: c.n.length - b.length, seconds: c.seconds - seconds });
+      }
     cellsStart += played.barSeconds;
     return {
       run: { preset: run.preset, meter: run.meter },
@@ -582,6 +679,7 @@ export function measureRun(run: Run, edit: (text: string) => string = (t) => t):
       },
       mismatches: found,
       offsets,
+      lengths,
     };
   });
 }

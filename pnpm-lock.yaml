@@ -154,8 +154,8 @@ importers:
         specifier: 1.2.5
         version: 1.2.5
       '@yggi/cells':
-        specifier: github:yggi/cells#v0.3.0
-        version: https://codeload.github.com/yggi/cells/tar.gz/3b7bdb1497825aa7b3d8ceca330c681b79047389
+        specifier: github:yggi/cells#v0.4.0
+        version: https://codeload.github.com/yggi/cells/tar.gz/f61aa71ca90b4adbd17d9696a7247a2a86896673
 
   packages/session:
     dependencies:
@@ -1393,9 +1393,9 @@ packages:
   '@vitest/spy@5.0.2':
     resolution: {integrity: sha512-Ijc7T1nT9efNb5LxvjaBrEqw3f/QwUv5EE0nKqZxgqsaV/FxAAZ8baGylA8X/Z2oS4Lp+K74Jr6dTJsDKxJDeg==}
 
-  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/3b7bdb1497825aa7b3d8ceca330c681b79047389':
-    resolution: {tarball: https://codeload.github.com/yggi/cells/tar.gz/3b7bdb1497825aa7b3d8ceca330c681b79047389}
-    version: 0.3.0
+  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/f61aa71ca90b4adbd17d9696a7247a2a86896673':
+    resolution: {tarball: https://codeload.github.com/yggi/cells/tar.gz/f61aa71ca90b4adbd17d9696a7247a2a86896673}
+    version: 0.4.0
     engines: {node: '>=22'}
 
   '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49':
@@ -4365,7 +4365,7 @@ snapshots:
 
   '@vitest/spy@5.0.2': {}
 
-  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/3b7bdb1497825aa7b3d8ceca330c681b79047389': {}
+  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/f61aa71ca90b4adbd17d9696a7247a2a86896673': {}
 
   '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49': {}
 
