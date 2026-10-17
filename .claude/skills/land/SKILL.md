@@ -19,11 +19,11 @@ Do the steps in order and stop at the first that fails.
    `git fetch origin main && git checkout main && git merge --ff-only origin/main`.
 4. **Put its issues right.**
    Through the REST API (`gh api repos/yggi/<repo>/issues/<n>`; GraphQL may be refused), and each comment ends with the footer the session gives.
-   **A text the owner wrote is never edited**: the session appends its footer to every body or comment it writes, so an edit would sign the owner's words as Claude's. Where a step below would edit one (a tick in the owner's epic, a reference in the owner's issue), post a comment instead.
    1. **Closed as said:** every `Closes #n` in the merged pull request closed its issue.
       One that didn't (a reference to another repository, a typo) is closed by hand with a comment naming the pull request.
    2. **Ticked:** a `Part of #n` epic's checklist line for this pull request is ticked (`- [x] … (#PR)`).
       If the epic has no line for it, it gets one comment naming what landed.
+      A rung of the central roadmap (#358) is ticked there and in its twin, yggi/cells#81, and the epic's _Where it stands_ is brought up to date.
    3. **Follow-ups filed:** each line of the pull request's _Not done / follow-ups_ that names work becomes an issue, or is linked to the one that already holds it, in the repository where it belongs: a question about what the score language means or how it is spelled in yggi/cells.
    4. **References right:** an issue or pull request in another repository that the merged pull request names by a bare number is written `yggi/<repo>#n`, in its body and in the issues it closed or ticked.
 5. **Deploy.**
