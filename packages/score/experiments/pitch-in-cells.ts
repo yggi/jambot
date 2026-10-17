@@ -279,31 +279,35 @@ export function chordTones(key: ScoreKey, chord: Chord): Tone[] {
 const toneText = (t: Tone) => degreeText(t.degree, t.accidental);
 const stack = (tones: readonly Tone[]) => `[${tones.map(toneText).join(',')}]`;
 
-/** The clock a bar's chords are written on, by the length of its unit in steps. */
+/** The clock a bar's chords are written on, by the length of its unit in steps; a unit of the whole bar is `1m`. */
 const CLOCKS: Readonly<Record<number, string>> = {
   16: '1m',
+  12: '2n.',
   8: '2n',
+  6: '4n.',
   4: '4n',
+  3: '8n.',
   2: '8n',
   1: '16n',
 };
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 
-/** A bar's chords as a braid: the clock of its coarsest unit, a token a chord, `@k` a longer one. */
+/** A bar's chords as a braid: the clock of its coarsest unit, a token a chord, `@k` a longer one; a bar of `barSteps` 16ths. */
 export function rhythmText(
   chords: readonly { step: number }[],
   token: (i: number) => string,
+  barSteps = BAR_STEPS,
 ): string {
   const starts = chords.map((c) => c.step);
   const spans = [
     ...(starts[0]! > 0 ? [{ text: '~', length: starts[0]! }] : []),
-    ...starts.map((step, i) => ({ text: token(i), length: (starts[i + 1] ?? BAR_STEPS) - step })),
+    ...starts.map((step, i) => ({ text: token(i), length: (starts[i + 1] ?? barSteps) - step })),
   ];
-  const unit = spans.reduce((g, s) => gcd(g, s.length), BAR_STEPS);
+  const unit = spans.reduce((g, s) => gcd(g, s.length), barSteps);
   const words = spans.map(({ text, length }) =>
     length === unit ? text : `${text}@${length / unit}`,
   );
-  return `step=${CLOCKS[unit]} ${words.join(' ')}`;
+  return `step=${unit === barSteps ? '1m' : CLOCKS[unit]} ${words.join(' ')}`;
 }
 
 /** Where a pin counts from: its part's voice, a C, and the key's tonic above it. */
