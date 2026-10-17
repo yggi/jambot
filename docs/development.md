@@ -31,6 +31,11 @@ pnpm pages deploy # publish main to GitHub Pages (see below)
 - **PWA** via `vite-plugin-pwa`: the app installs and runs offline, which
   matters on stage. Keeping the output lean is a guideline: small dependencies,
   no heavy frameworks, system fonts, nothing fetched from elsewhere.
+- **Updates and the version.** The service worker waits (`registerType: 'prompt'`) and nothing reloads until the person presses Reload, so a band that plays is never cut off.
+  `src/update.svelte.ts` holds "a new version is ready"; `components/UpdateToast.svelte` and the version sheet both show it.
+  The lobby banner carries the build under the logo, the commit's first 7 characters (`dev` where unknown: releases aren't meaningful yet, so the hash stands for a build), and a tap opens `components/Version.svelte`: the commit in full, the branch, the build date (UTC) and the versions of `@yggi/cells`, `svelte` and `webmidi`.
+  `src/readBuild.ts` reads them when `vite.config.ts` loads (CI's variables, then git; a dependency no manifest names yet is left out, so `webmidi` shows once it is one), and `src/buildInfo.ts` is their shape.
+  These files are lifted from yggi/cell-studio, which has the same toast, sheet and shape: the two apps keep them alike, with no package between (#350).
 - **The license gate** (`tooling/licenses.ts`) runs in every build. It takes the
   packages behind the bundle's modules and those of the service worker, fails
   the build on one whose license isn't permissive or that carries no license

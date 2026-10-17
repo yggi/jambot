@@ -18,6 +18,7 @@
   import Transport from '../components/Transport.svelte';
   import You from '../components/You.svelte';
   import Logo from '../components/glyphs/Logo.svelte';
+  import Version from '../components/Version.svelte';
   import type { MeterPlayer } from '../meter/meter-player.svelte.ts';
   import { patternById } from '../timing-test/pattern.ts';
   import { describeOffset } from '../timing-test/match.ts';
@@ -161,7 +162,7 @@
     />
   {:else}
     <section class="banner" aria-label="Lobby">
-      <span class="mark"><Logo /></span>
+      <span class="mark"><Logo /><Version /></span>
       <div class="what">
         <b>Jambot</b>
         <span>{you.name.trim() || 'You'} · in the lobby</span>
@@ -219,13 +220,14 @@
   .mark {
     flex: none;
     width: 48px;
-    height: 48px;
-    display: grid;
-    place-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
   }
   .mark :global(.glyph) {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
   }
   .what {
     flex: 1;
