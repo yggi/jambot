@@ -1,8 +1,8 @@
 // @vitest-environment node
 import type { Timbre } from '@jambot/engine';
+import { clockOffset } from '@yggi/webmidi/core';
 import { describe, expect, it } from 'vitest';
 import { bandOutput, type BandOutputSettings } from './band-output.ts';
-import { clockOffset } from './clock-offset.ts';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_DRUM_NOTES,

@@ -18,7 +18,7 @@
 
 import { INITIAL_STYLE, timbreOf } from '@jambot/engine';
 import { METERS, type MeterName, STEPS_PER_EIGHTH, stepsOf } from '@jambot/theory';
-import type { ClockOffset } from '../audio/clock-offset.ts';
+import type { ClockOffset } from '@yggi/webmidi/core';
 import type { Output } from '../audio/output.ts';
 import { Heard } from '../heard.ts';
 import { type Layer, type Subdivision, barPlan } from './bar-plan.ts';

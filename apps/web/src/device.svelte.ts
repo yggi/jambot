@@ -11,10 +11,11 @@
  */
 
 import { bandOutput } from './audio/band-output.ts';
-import { type ClockOffset, clockOffset } from './audio/clock-offset.ts';
+import { type EstimatedOffset, estimatedOffset } from './audio/output-estimate.ts';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import {
   type ChosenPorts,
+  type ClockOffset,
   type ParsedNote,
   type PortOption,
   adoptPorts,
@@ -85,13 +86,13 @@ export class Device {
   message = $state('Without MIDI, the built-in synth and the keys still run the whole loop.');
 
   #base: Output | null = null;
-  #offset: ClockOffset | null = null;
+  #offset: EstimatedOffset | null = null;
   #volume = $state(storedVolume());
 
   /** The audio clock and the offset it maps to MIDI's, made on first use. */
   clockOf(): { base: Output; offset: ClockOffset } {
     const base = (this.#base ??= this.#opened());
-    const offset = (this.#offset ??= clockOffset(base));
+    const offset = (this.#offset ??= estimatedOffset(base));
     return { base, offset };
   }
 

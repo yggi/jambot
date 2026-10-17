@@ -7,7 +7,7 @@
 
 import { DRUM_NOTES } from '@jambot/engine';
 import { vi } from 'vitest';
-import type { ClockOffset } from '../audio/clock-offset.ts';
+import type { ClockOffset } from '@yggi/webmidi/core';
 import type { Output } from '../audio/output.ts';
 import { type KeptStorage, TimingRuns } from './runs.ts';
 import { TICK_MS, TimingTest } from './session.svelte.ts';
@@ -47,7 +47,7 @@ export function surroundings() {
     heard: () => state.page / 1000 + HEARD_OFFSET,
     toDeviceMs: (seconds) => (seconds - HEARD_OFFSET) * 1000,
     fromDeviceMs: (ms) => ms / 1000 + HEARD_OFFSET,
-    estimate: { offset: HEARD_OFFSET, bound: 0.001, jumps: 0 },
+    paired: true,
   };
   return { state, plays, clicks, silenced, base, offset };
 }
