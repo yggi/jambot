@@ -1,7 +1,7 @@
 import { METERS } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { BarView, ChordView, SectionView } from './hud.ts';
-import { AHEAD_SECTIONS, overThis, sectionBars, sectionsAhead } from './songView.ts';
+import { SONG_SECTIONS, chordsOf, overThis, songSections } from './songView.ts';
 
 const chord = (symbol: string, step = 0, numeral = 'i'): ChordView => ({ step, symbol, numeral });
 const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
@@ -33,10 +33,11 @@ const section = (index: number, over: Partial<SectionView> = {}): SectionView =>
 });
 const credit = { source: 'p1', bar: 9, name: 'Ada', colour: 1 } as const;
 
-describe('sectionBars', () => {
-  it('gives the section heard bar by bar: those played, the one heard, those ahead', () => {
-    const bars = sectionBars([section(1)], 10);
-    expect(bars.map((b) => b.state)).toEqual([
+describe('songSections', () => {
+  it('gives the sections from the one heard on, bar by bar: those played, the one heard, those ahead', () => {
+    const shown = songSections([section(1), section(2)], 10);
+    expect(shown.map((s) => s.index)).toEqual([1, 2]);
+    expect(shown[0]!.bars.map((b) => b.state)).toEqual([
       'played',
       'played',
       'heard',
@@ -46,54 +47,71 @@ describe('sectionBars', () => {
       'ahead',
       'ahead',
     ]);
-    expect(bars.map((b) => b.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(shown[1]!.bars.every((b) => b.state === 'ahead')).toBe(true);
   });
 
-  it('is all ahead before anything is heard: the section the song opens on', () => {
-    expect(sectionBars([section(0)], null).every((b) => b.state === 'ahead')).toBe(true);
+  it('shows as many as are decided, to four', () => {
+    expect(SONG_SECTIONS).toBe(4);
+    const five = [1, 2, 3, 4, 5].map((i) => section(i));
+    expect(songSections(five, 8).map((s) => s.index)).toEqual([1, 2, 3, 4]);
+    expect(songSections([section(1)], 8)).toHaveLength(1);
+    expect(songSections([], null)).toEqual([]);
   });
 
-  it('names a bar by its chords and the first one’s numeral, and credits the motif it plays', () => {
+  it('is all ahead before anything is heard: the song from where it opens', () => {
+    expect(songSections([section(0)], null)[0]!.bars.every((b) => b.state === 'ahead')).toBe(true);
+  });
+
+  it('names a section by what changes in it: a new key, a new meter, or nothing', () => {
+    const later = section(2, { newKey: true, key: 'D dorian', newMeter: true, meterName: '7/8' });
+    const shown = songSections(
+      [section(1), later, section(3, { newKey: true, key: 'C major' })],
+      8,
+    );
+    expect(shown.map((s) => s.change)).toEqual(['', 'D dorian, 7/8', 'C major']);
+  });
+
+  it('credits the motif a bar plays', () => {
     const own = section(1, {
-      bars: Array.from({ length: 8 }, (_, i) =>
-        bar(8 + i, {
-          chords: i === 1 ? [chord('Am'), chord('G', 8, 'VII')] : [chord('F', 0, 'VI')],
-          motif: i === 1 ? credit : null,
-        }),
-      ),
+      bars: section(1).bars.map((b, i) => (i === 1 ? { ...b, motif: credit } : b)),
     });
-    const [first, second] = sectionBars([own], 8);
-    expect(first).toMatchObject({ chords: 'F', numeral: 'VI', motif: null });
-    expect(second).toMatchObject({ chords: 'Am G', numeral: 'i', motif: credit });
-  });
-
-  it('has nothing to show before the plan holds a section', () => {
-    expect(sectionBars([], null)).toEqual([]);
+    expect(songSections([own], 8)[0]!.bars.map((b) => b.motif)).toEqual([
+      null,
+      credit,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
   });
 });
 
-describe('sectionsAhead', () => {
-  it('gives the sections after the one heard, each as its bars’ first chords', () => {
-    const later = section(2, {
-      section: 'Bridge',
-      key: 'C major',
-      newKey: true,
-      bars: Array.from({ length: 8 }, (_, i) => bar(16 + i, { chords: [chord(`C${i}`)] })),
-    });
-    const ahead = sectionsAhead([section(1), later, section(3), section(4)]);
-    expect(ahead).toHaveLength(AHEAD_SECTIONS);
-    expect(ahead[0]).toEqual({
-      index: 2,
-      name: 'Bridge',
-      change: 'C major',
-      chords: ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7'],
-    });
-    expect(ahead[1]!.change).toBe('');
+describe('chordsOf', () => {
+  it('gives each chord of a bar the share of it it holds, from where it starts', () => {
+    expect(chordsOf(bar(0, { chords: [chord('Am', 0), chord('G', 8, 'VII')] }))).toEqual([
+      { symbol: 'Am', numeral: 'i', share: 0.5 },
+      { symbol: 'G', numeral: 'VII', share: 0.5 },
+    ]);
+    expect(chordsOf(bar(0, { chords: [chord('Am', 0), chord('E7', 12, 'V7')] }))).toEqual([
+      { symbol: 'Am', numeral: 'i', share: 0.75 },
+      { symbol: 'E7', numeral: 'V7', share: 0.25 },
+    ]);
   });
 
-  it('says a new meter where it comes, with a new key', () => {
-    const later = section(2, { newKey: true, key: 'D dorian', newMeter: true, meterName: '7/8' });
-    expect(sectionsAhead([section(1), later])[0]!.change).toBe('D dorian, 7/8');
+  it('reads the bar in its own meter: a bar of 7/8 has 14 steps', () => {
+    const seven = bar(0, { meter: METERS['7/8'], chords: [chord('Am', 0), chord('G', 6)] });
+    expect(chordsOf(seven).map((c) => c.share)).toEqual([6 / 14, 8 / 14]);
+  });
+
+  it('fills the bar: the shares of every bar add up to one', () => {
+    for (const steps of [[0], [0, 4], [0, 8, 12], [0, 2, 6, 10, 14]]) {
+      const shares = chordsOf(bar(0, { chords: steps.map((s) => chord('C', s)) })).map(
+        (c) => c.share,
+      );
+      expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+    }
   });
 });
 
