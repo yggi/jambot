@@ -40,22 +40,22 @@ describe('the style card', () => {
       ...props(),
       style: view({
         preset: null,
-        axes: { ...axes, swing: 0.9, energy: 0.1, sync: 0.5, harm: 0.5, artic: 0.5 },
+        axes: { ...axes, harm: 0.9, energy: 0.1, sync: 0.5, artic: 0.5 },
       }),
     });
     expect(container.querySelector('summary .main')).toHaveTextContent('Custom');
-    expect(container.querySelector('summary .sub')).toHaveTextContent('Custom · swung, sparse');
+    expect(container.querySelector('summary .sub')).toHaveTextContent('Custom · rich, sparse');
   });
 
   it('draws the glyph from the axes of the style heard, not those it is going to', () => {
-    const heard = { ...axes, swing: 0 };
+    const heard = { ...axes, sync: 0 };
     const { container } = render(StylePanel, {
-      ...props({ track: holding({ ...INITIAL_STYLE, swing: 1 }) }),
+      ...props({ track: holding({ ...INITIAL_STYLE, sync: 1 }) }),
       style: view({ axes: heard }),
     });
     const glyph = container.querySelector('summary polygon.shape')!;
     const [x, y] = glyph.getAttribute('points')!.split(' ')[0]!.split(',').map(Number);
-    // the first vertex is the swing, at the top: a swing of 0 sits at the inner radius
+    // the first vertex is the syncopation, at the top: a sync of 0 sits at the inner radius
     expect(x).toBeCloseTo(20, 2);
     expect(20 - y!).toBeCloseTo(3, 2);
     expect(container.querySelectorAll('summary polygon.shape')).toHaveLength(1);
@@ -67,9 +67,11 @@ describe('the style card', () => {
       ...props({ track: holding({ ...INITIAL_STYLE, ...jazz.style }) }),
       style: view({ preset: jazz.name }),
     });
-    expect(screen.getByRole('slider', { name: 'Swing' })).toHaveValue(
-      String(Math.round(jazz.style.swing * 100)),
+    expect(screen.getByRole('slider', { name: 'Harmony' })).toHaveValue(
+      String(Math.round(jazz.style.harm * 100)),
     );
+    // Swing is the meter's, set on the Metrum card (#360).
+    expect(screen.queryByRole('slider', { name: 'Swing' })).toBeNull();
     expect(screen.getByRole('radio', { name: 'Swing jazz' })).toHaveAttribute(
       'aria-checked',
       'true',
@@ -77,11 +79,11 @@ describe('the style card', () => {
     expect(screen.getByRole('radio', { name: 'Techno' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('has a gauge and a nudge for each of the six axes', () => {
+  it('has a gauge and a nudge for each of the five axes', () => {
     render(StylePanel, props());
-    expect(screen.getAllByRole('slider')).toHaveLength(6);
-    expect(screen.getAllByRole('group', { name: /^Nudge / })).toHaveLength(6);
-    expect(screen.getAllByRole('img', { name: /^\w+ \d+ %$/ })).toHaveLength(6);
+    expect(screen.getAllByRole('slider')).toHaveLength(5);
+    expect(screen.getAllByRole('group', { name: /^Nudge / })).toHaveLength(5);
+    expect(screen.getAllByRole('img', { name: /^\w+ \d+ %$/ })).toHaveLength(5);
   });
 
   it('presses no preset for a custom style', () => {
@@ -99,17 +101,17 @@ describe('the style card', () => {
       target: { value: '20' },
     });
     expect(onintent).toHaveBeenLastCalledWith({ kind: 'axis', axis: 'entropy', value: 0.2 });
-    const at = INITIAL_STYLE.swing;
-    await fireEvent.click(screen.getByRole('button', { name: 'Swing up' }));
+    const at = INITIAL_STYLE.sync;
+    await fireEvent.click(screen.getByRole('button', { name: 'Syncopation up' }));
     expect(onintent).toHaveBeenLastCalledWith({
       kind: 'axis',
-      axis: 'swing',
+      axis: 'sync',
       value: Math.round((at + 0.1) * 100) / 100,
     });
-    await fireEvent.click(screen.getByRole('button', { name: 'Swing down' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Syncopation down' }));
     expect(onintent).toHaveBeenLastCalledWith({
       kind: 'axis',
-      axis: 'swing',
+      axis: 'sync',
       value: Math.max(0, Math.round((at - 0.1) * 100) / 100),
     });
   });
@@ -132,7 +134,6 @@ describe('the style card', () => {
     for (const p of PRESETS) expect(screen.getByRole('radio', { name: p.name })).toBeDisabled();
     for (const axis of STYLE_AXES) {
       const label = {
-        swing: 'Swing',
         sync: 'Syncopation',
         harm: 'Harmony',
         artic: 'Articulation',

@@ -246,7 +246,7 @@ describe('a style’s name', () => {
       expect(presetOf({ ...INITIAL_STYLE, ...p.style })).toBe(p.name);
       // Energy is ridden within a genre, and a preset sets no entropy.
       expect(presetOf({ ...INITIAL_STYLE, ...p.style, energy: 0.05, entropy: 0.95 })).toBe(p.name);
-      for (const axis of ['swing', 'sync', 'harm', 'artic', 'bpm'] as const)
+      for (const axis of ['sync', 'harm', 'artic', 'bpm'] as const)
         expect(presetOf({ ...INITIAL_STYLE, ...p.style, [axis]: p.style[axis] + 0.01 })).toBeNull();
     }
   });
@@ -291,7 +291,7 @@ describe('a glide’s progress', () => {
   });
 
   it('leaves a custom style unnamed', () => {
-    const custom = glideTo(track, { swing: 0.7 }, 0, 0);
+    const custom = glideTo(track, { harm: 0.7 }, 0, 0);
     const moving = glideTo(custom, funk.style, 32, PRESET_GLIDE);
     expect(hudOf({ heard: 40, bars, track: moving }).style.glide!.from).toBeNull();
     const sliding = glideTo(track, { harm: 0.9 }, 32, SLIDER_GLIDE);
@@ -330,6 +330,7 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     melodicName: 'plain',
     meter: METERS['4/4'],
     meterName: '4/4',
+    swingLevel: '16n',
     chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
     energy: 0.6,
     lead: 'improvising',
@@ -544,8 +545,8 @@ describe('the style card’s words', () => {
     expect(styleSub(view({ preset: 'Ambient', glide: { from: 'Funk', bar: 2, bars: 8 } }))).toBe(
       'Gliding to Ambient',
     );
-    const swungSparse = { ...axes, swing: 0.9, energy: 0.1, sync: 0.5, harm: 0.5, artic: 0.5 };
-    expect(styleSub(view({ preset: null, axes: swungSparse }))).toBe('Custom · swung, sparse');
+    const richSparse = { ...axes, harm: 0.9, energy: 0.1, sync: 0.5, artic: 0.5 };
+    expect(styleSub(view({ preset: null, axes: richSparse }))).toBe('Custom · rich, sparse');
   });
 
   it('says a client that the host sets it', () => {
@@ -553,10 +554,9 @@ describe('the style card’s words', () => {
   });
 
   it('gives a word to each end of each axis, the two furthest from the middle, in axis order', () => {
-    const middle = { swing: 0.5, sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5, entropy: 0.5 };
+    const middle = { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5, entropy: 0.5 };
     expect(styleWords(middle)).toEqual([]);
     const ends = {
-      swing: ['straight', 'swung'],
       sync: ['on the beat', 'syncopated'],
       harm: ['static', 'rich'],
       artic: ['legato', 'staccato'],
@@ -567,7 +567,7 @@ describe('the style card’s words', () => {
       expect(styleWords({ ...middle, [axis]: 0 })).toEqual([low]);
       expect(styleWords({ ...middle, [axis]: 1 })).toEqual([high]);
     }
-    expect(styleWords({ ...middle, artic: 1, entropy: 0.9, swing: 0.8 })).toEqual([
+    expect(styleWords({ ...middle, artic: 1, entropy: 0.9, harm: 0.8 })).toEqual([
       'staccato',
       'surprising',
     ]);
@@ -576,13 +576,13 @@ describe('the style card’s words', () => {
 
 describe('the axes of the style heard', () => {
   it('follow a glide, so an intermediate step reads an intermediate value', () => {
-    const settled = glideTo(track, { swing: 0 }, 0, 0);
-    const moving = glideTo(settled, { swing: 1 }, 32, PRESET_GLIDE);
-    const swingAt = (heard: number) => hudOf({ heard, bars, track: moving }).style.axes.swing;
-    expect(swingAt(32)).toBe(0);
-    expect(swingAt(32 + 16 * 4)).toBeGreaterThan(0);
-    expect(swingAt(32 + 16 * 4)).toBeLessThan(1);
-    expect(swingAt(32 + 16 * 8)).toBe(1);
+    const settled = glideTo(track, { harm: 0 }, 0, 0);
+    const moving = glideTo(settled, { harm: 1 }, 32, PRESET_GLIDE);
+    const harmAt = (heard: number) => hudOf({ heard, bars, track: moving }).style.axes.harm;
+    expect(harmAt(32)).toBe(0);
+    expect(harmAt(32 + 16 * 4)).toBeGreaterThan(0);
+    expect(harmAt(32 + 16 * 4)).toBeLessThan(1);
+    expect(harmAt(32 + 16 * 8)).toBe(1);
   });
 });
 
@@ -617,7 +617,7 @@ describe('the view on a song that changes meter (#262)', () => {
   it('counts a glide’s bars on the clock’s own bars: 128 steps are 8 bars of 4/4 and 9 and a bit of 7/8', () => {
     const glide = (heard: number, at: typeof clock) => {
       const moving = holding({ ...INITIAL_STYLE, entropy: 0 });
-      const to = glideTo(moving, { swing: 1 }, 0, PRESET_GLIDE);
+      const to = glideTo(moving, { harm: 1 }, 0, PRESET_GLIDE);
       return hudOf({ heard, bars: ahead, clock: at, track: to }).style.glide;
     };
     expect(glide(0, SONG_CLOCK)).toMatchObject({ bar: 1, bars: 8 });

@@ -294,6 +294,8 @@ for (const seed of SEEDS)
           seed,
           bar,
           style: { ...preset.style, entropy: (bar % 32) / 32 },
+          // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
+          swing: { level: presetAt(bar + 1).swing.level, share: preset.swing.share },
           wish: { tonic: null, mode: preset.mode, melodic: null } as KeyWish,
           offer: null,
         },

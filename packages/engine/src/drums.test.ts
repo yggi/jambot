@@ -14,19 +14,23 @@ import { SECTION_BARS, SECTION_TYPES, type SectionType, barEnergy } from './form
 import { INITIAL_KEY } from './key.ts';
 import { perform } from './performer.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
+import { type MeterSwing, STRAIGHT } from './swing.ts';
 import { buildTheme, themeKind } from './themes.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const grid = range(11).map((i) => i / 10);
 
-/** The axes that hold the performer still, at feel 0 (`licenceOf`, T17). */
-const STILL = { swing: 0, entropy: 0, artic: 1 } as const;
+/** The axes that hold the performer still, at feel 0 (`feelOf`, T17), with a straight meter. */
+const STILL = { swing: STRAIGHT, entropy: 0, artic: 1 } as const;
+
+/** A style, and the swing of the meter it plays in: straight where none is given. */
+type Swung = Style & { readonly swing?: MeterSwing };
 
 const envOf = (
   seed: number,
   type: SectionType,
   barInSection: number,
-  style: Style,
+  { swing = STRAIGHT, ...style }: Swung,
   energy = barEnergy(style.energy, type, barInSection),
   index = 3,
   meter: Meter = SONG_METER,
@@ -37,6 +41,7 @@ const envOf = (
   plan: {
     section: { type, index },
     meter,
+    swing: swing.level,
     key: INITIAL_KEY,
     melodic: 'plain',
     theme: buildTheme({
@@ -51,6 +56,7 @@ const envOf = (
   },
   barInSection,
   style,
+  swing,
   barEnergy: energy,
   chords: [],
   next: [],
@@ -60,7 +66,7 @@ const envOf = (
 /** The drums as they play: each written hit through the performance. */
 const played = (env: BarEnv) => drums(env).map((hit) => perform(env, hit));
 
-const styles = PRESETS.map((p) => ({ ...p.style, entropy: 0.3 }));
+const styles: Swung[] = PRESETS.map((p) => ({ ...p.style, entropy: 0.3, swing: p.swing }));
 
 /** Every environment the tests sweep: presets, sections, bars, seeds. */
 const sweep = styles.flatMap((style) =>
@@ -272,13 +278,30 @@ describe('drums', () => {
   });
 
   it('loosen their velocities from bar to bar as the feel rises, and not when held still (T17)', () => {
-    const velocities = (bar: number, style: Partial<Style>) =>
+    const velocities = (bar: number, style: Partial<Swung>) =>
       played(envOf(2, 'groove', bar, { ...INITIAL_STYLE, ...STILL, ...style })).map(
         (e) => e.velocity,
       );
     expect(velocities(2, {})).toEqual(velocities(0, {}));
-    for (const loose of [{ swing: 0.3 }, { entropy: 0.3 }, { artic: 0.7 }])
+    for (const loose of [{ swing: PRESETS[2]!.swing }, { entropy: 0.3 }, { artic: 0.7 }])
       expect(velocities(2, loose)).not.toEqual(velocities(0, loose));
+  });
+});
+
+describe('the jazz kit (#360)', () => {
+  it('comes in with a meter swung on the 8ths, and not with the same share on the 16ths (the owner’s ruling on #360)', () => {
+    const jazz = PRESETS.find((p) => p.name === 'Swing jazz')!;
+    const rides = (swing: MeterSwing) =>
+      range(SECTION_BARS)
+        .flatMap((bar) =>
+          range(3).flatMap((seed) =>
+            drums(envOf(seed, 'groove', bar, { ...jazz.style, entropy: 0.3, swing })),
+          ),
+        )
+        .filter((hit) => hit.note === DRUM_NOTES.ride).length;
+    expect(rides(jazz.swing)).toBeGreaterThan(50);
+    expect(rides({ ...jazz.swing, level: '16n' })).toBe(0);
+    expect(rides(STRAIGHT)).toBe(0);
   });
 });
 
@@ -321,7 +344,7 @@ describe('the drums on other meters (#260)', () => {
   it('plays the backbeat snare on the backbeat’s pulse starts and nowhere else (finite: every meter)', () => {
     for (const [name, meter] of named) {
       const starts = new Set(backbeatOf(meter).map((pulse) => meter.heights[pulse]! * 2));
-      const style = { ...PRESETS[1]!.style, entropy: 0 };
+      const style = { ...PRESETS[1]!.style, entropy: 0, swing: PRESETS[1]!.swing };
       const steps = new Set(
         range(3).flatMap((seed) =>
           drums(envOf(seed, 'groove', 2, style, 0.9, 3, meter))
@@ -335,7 +358,7 @@ describe('the drums on other meters (#260)', () => {
   });
 
   it('reads the two readings differently in a bar that is not 4/4’s, and the same in 4/4', () => {
-    const style = { ...PRESETS[5]!.style, sync: 1, entropy: 0 };
+    const style = { ...PRESETS[5]!.style, sync: 1, entropy: 0, swing: PRESETS[5]!.swing };
     const env = (meter: Meter, bar: number) => envOf(0, 'groove', bar, style, 0.9, 3, meter);
     expect(drums(env(SONG_METER, 1), 'cycle')).toEqual(drums(env(SONG_METER, 1), 'fold'));
     expect(drums(env(METERS['7/8'], 1), 'cycle')).not.toEqual(drums(env(METERS['7/8'], 1), 'fold'));
@@ -344,7 +367,7 @@ describe('the drums on other meters (#260)', () => {
   });
 
   it('ends a build on a fill that covers the bar’s second half with snares, and starts none before it (finite: every meter)', () => {
-    const style = { ...PRESETS[1]!.style, entropy: 0 };
+    const style = { ...PRESETS[1]!.style, entropy: 0, swing: PRESETS[1]!.swing };
     for (const [name, meter] of named) {
       const steps = stepsInBar(meter);
       const half = 2 * Math.floor(steps / 4);

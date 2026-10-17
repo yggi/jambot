@@ -19,6 +19,8 @@ import { fileURLToPath } from 'node:url';
 import {
   type ReadChord,
   PRESETS,
+  type MeterSwing,
+  STRAIGHT,
   type Style,
   band,
   chordAt,
@@ -39,13 +41,25 @@ export interface HarmSample {
   readonly harm: number | undefined;
 }
 
-/** The band's bars at a held style, each read with the chord the bar before it ended on. */
-export function harmSamples(style: Style, seed: number, bars: number): HarmSample[] {
+/** The band's bars at a held style, in a meter's swing, each read with the chord the bar before it ended on. */
+export function harmSamples(
+  style: Style,
+  seed: number,
+  bars: number,
+  swing: MeterSwing = STRAIGHT,
+): HarmSample[] {
   let carried = band.initial;
   let before: ReadChord | undefined;
   return range(bars).map((bar) => {
     const out = band.advance(
-      { seed, bar, style, wish: { tonic: null, mode: 'aeolian', melodic: null }, offer: null },
+      {
+        seed,
+        bar,
+        style,
+        swing,
+        wish: { tonic: null, mode: 'aeolian', melodic: null },
+        offer: null,
+      },
       carried,
       null,
     );
@@ -78,7 +92,7 @@ export interface ChordAccuracy {
 export function chordAccuracy(bars = 32): ChordAccuracy[] {
   return PRESETS.map((preset) => {
     const halves = SEEDS.flatMap((seed) =>
-      harmSamples({ ...preset.style, entropy: 0.3 }, seed, bars).flatMap((s) =>
+      harmSamples({ ...preset.style, entropy: 0.3 }, seed, bars, preset.swing).flatMap((s) =>
         s.truth.map((t, i) => ({ t, r: s.read[i]! })),
       ),
     );

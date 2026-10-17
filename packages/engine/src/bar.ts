@@ -7,6 +7,7 @@ import type { BarChord } from './chords.ts';
 import type { Offer } from './muse.ts';
 import type { Plan } from './plan.ts';
 import type { Style } from './style.ts';
+import type { MeterSwing } from './swing.ts';
 
 export interface BarEnv {
   readonly seed: number;
@@ -24,6 +25,13 @@ export interface BarEnv {
   readonly barInSection: number;
   /** The style where the bar starts. */
   readonly style: Style;
+  /**
+   * The meter's swing where the bar starts (#360): the plan's level, and the
+   * share the swing track glides to there. The transport plays each beat by
+   * the share where the beat starts; the parts read it here, the jazz band
+   * from a meter swung on `8n` (`eighthSwing`).
+   */
+  readonly swing: MeterSwing;
   /** The energy the bar plays at: the style's, shaped by its section (`barEnergy`). */
   readonly barEnergy: number;
   /** The bar's chords. */

@@ -197,7 +197,7 @@ describe('the radio’s walk', () => {
   });
 
   it('refuses a step that is negative or not a number, and a lean that is not a number (#313)', () => {
-    expect(() => walkRadio(INITIAL_STYLE, 1, 1, scaled(-1))).toThrow(/swing/);
+    expect(() => walkRadio(INITIAL_STYLE, 1, 1, scaled(-1))).toThrow(/sync/);
     expect(() =>
       walkRadio(INITIAL_STYLE, 1, 1, { ...RADIO, step: { ...RADIO.step, sync: Number.NaN } }),
     ).toThrow(/sync/);

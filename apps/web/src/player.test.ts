@@ -12,6 +12,8 @@ import {
   countInSeconds,
   foldBar,
   holding,
+  holdingSwing,
+  STRAIGHT,
   lookAhead,
 } from '@jambot/engine';
 import { METERS, type Meter } from '@jambot/theory';
@@ -180,7 +182,7 @@ describe('the player', () => {
   // Its clock is the test's own, so its time is the CPU's, composing an hour:
   // 2.4 to 3.1 s alone over 10 runs, 6.0 to 7.4 s beside two full test runs,
   // and once past 15 s as one of three full runs started together on the same
-  // 4 cores (#320). The timeout is ten times the slowest run alone.
+  // 4 cores (#320): the web project's timeout (`vitest.config.ts`) is ten times that.
   it('builds up no backlog while no frame shows, as in a hidden tab', async () => {
     // A Worker keeps ticking in a hidden tab, but no animation frame runs.
     const { world, s } = surroundings();
@@ -195,7 +197,7 @@ describe('the player', () => {
     expect(player.backlog).toBeLessThan(20);
     world.frames[0]!.follow();
     expect(player.hud.beat).not.toBeNull();
-  }, 30_000);
+  });
 
   it("hears a preset's mode from the next section on, and shows the chords (C5)", async () => {
     const { world, s } = surroundings();
@@ -332,7 +334,7 @@ describe('the player', () => {
       bars = player.hud.bar!.bar;
     }
     expect(bars).toBeGreaterThan(3);
-  }, 30_000);
+  });
 
   it('shows the section playing whole in the song map, its past bars included', async () => {
     const { world, s } = surroundings();
@@ -957,7 +959,13 @@ describe('the count-in', () => {
     const { world, s } = surroundings();
     const player = new Player(s, new Metronome());
     player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
-    const song = { seed: 3, start: 5, track: holdingSynthPop(), tempoMeter: METERS['4/4'] };
+    const song = {
+      seed: 3,
+      start: 5,
+      track: holdingSynthPop(),
+      swing: holdingSwing(STRAIGHT),
+      tempoMeter: METERS['4/4'],
+    };
     void player.followSong(song, []);
     world.resolve();
     await settle();
@@ -1064,7 +1072,13 @@ describe('stopping on a cadence', () => {
     const player = new Player(s, new Metronome());
     player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
     void player.followSong(
-      { seed: 1, start: 0.2, track: holdingSynthPop(), tempoMeter: METERS['4/4'] },
+      {
+        seed: 1,
+        start: 0.2,
+        track: holdingSynthPop(),
+        swing: holdingSwing(STRAIGHT),
+        tempoMeter: METERS['4/4'],
+      },
       [],
     );
     world.resolve();
@@ -1172,7 +1186,7 @@ describe('the meter asked for (#262)', () => {
           ...bars.map((b) => ({ kind: 'bar' as const, bar: b.bar.bar, bpm: b.bar.style.bpm })),
         ),
       decided: () => {},
-      track: (track, tempoMeter) =>
+      track: (...[track, , tempoMeter]) =>
         told.push({ kind: 'track', bpm: track.bpm.to, meter: meterOf(tempoMeter) }),
       meter: () => {},
       muse: () => {},

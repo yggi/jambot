@@ -1,9 +1,22 @@
-import { BAR_STEPS, SONG_METER, clicksOf, soundsAt } from '@jambot/engine';
+import {
+  BAR_STEPS,
+  type MeterSwing,
+  SONG_METER,
+  STRAIGHT,
+  clicksOf,
+  soundsAt,
+} from '@jambot/engine';
 import { METERS, type Meter, STEPS_PER_EIGHTH, meterOnSteps, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { barMarks, eighthHeard, marksPlayed } from './bar.ts';
 
-const SWINGS = [0, 0.25, 0.5, 0.75, 1];
+const SWINGS: MeterSwing[] = [
+  STRAIGHT,
+  { level: '16n', share: 0.6 },
+  { level: '16n', share: 2 / 3 },
+  { level: '8n', share: 0.6 },
+  { level: '8n', share: 2 / 3 },
+];
 const meters = Object.entries(METERS) as [string, Meter][];
 
 describe('the bar, on any meter', () => {
@@ -25,7 +38,7 @@ describe('the bar, on any meter', () => {
 
   it('lays a mark on each step of every meter’s bar, two to an eighth (finite: every meter)', () => {
     for (const [name, meter] of meters) {
-      const marks = barMarks(meter, 0, null);
+      const marks = barMarks(meter, STRAIGHT, null);
       expect([name, marks.length]).toEqual([name, meter.cycle * STEPS_PER_EIGHTH]);
       expect([name, marks.length]).toEqual([name, stepsOf(meter)]);
       expect(marks.filter((m) => m.text !== undefined)).toHaveLength(meter.cycle);
@@ -34,7 +47,7 @@ describe('the bar, on any meter', () => {
 
   it('counts the pulses, and marks the eighths between them (finite: every meter)', () => {
     const counted = (meter: Meter) =>
-      barMarks(meter, 0, null)
+      barMarks(meter, STRAIGHT, null)
         .filter((m) => m.text !== undefined)
         .map((m) => m.text)
         .join(' ');
@@ -43,7 +56,7 @@ describe('the bar, on any meter', () => {
     expect(counted(METERS['7/8'])).toBe('1 & & 2 & 3 &');
     expect(counted(METERS['5/4'])).toBe('1 & 2 & 3 & 4 & 5 &');
     for (const [, meter] of meters) {
-      const marks = barMarks(meter, 0, null);
+      const marks = barMarks(meter, STRAIGHT, null);
       expect(marks.filter((m) => m.accent)).toHaveLength(1);
       expect(marks[0]!.accent).toBe(true);
       const pulses = marks.filter((m) => m.text !== undefined && m.text !== '&');
@@ -68,15 +81,15 @@ describe('the bar, on any meter', () => {
 
   it('lights the one eighth heard, and none before anything is', () => {
     for (const [, meter] of meters) {
-      expect(barMarks(meter, 0, null).some((m) => m.lit)).toBe(false);
+      expect(barMarks(meter, STRAIGHT, null).some((m) => m.lit)).toBe(false);
       for (let eighth = 0; eighth < meter.cycle; eighth++)
-        expect(barMarks(meter, 0, eighth).flatMap((m, step) => (m.lit ? [step] : []))).toEqual([
-          eighth * STEPS_PER_EIGHTH,
-        ]);
+        expect(
+          barMarks(meter, STRAIGHT, eighth).flatMap((m, step) => (m.lit ? [step] : [])),
+        ).toEqual([eighth * STEPS_PER_EIGHTH]);
     }
   });
 
-  it('puts a mark where a map it is given plays it, in place of the swing axis', () => {
+  it('puts a mark where a map it is given plays it, in place of the meter’s swing', () => {
     const marks = marksPlayed(METERS['6/8'], (step) => step + 0.5, null);
     expect(marks.map((m) => m.at)).toEqual(marks.map((_, step) => step + 0.5));
   });
@@ -94,10 +107,10 @@ describe('the eighth heard, on any meter', () => {
 });
 
 describe('the bar of the song’s 4/4, as the metrum draws it', () => {
-  const barMarks4 = (swing: number, heard: number | null) => barMarks(SONG_METER, swing, heard);
+  const barMarks4 = (swing: MeterSwing, heard: number | null) => barMarks(SONG_METER, swing, heard);
 
   it('lays a mark on each step of the bar, the eighths counted 1 & 2 & 3 & 4 &, the downbeat accented', () => {
-    const marks = barMarks4(0, null);
+    const marks = barMarks4(STRAIGHT, null);
     expect(marks.map((m) => m.at)).toEqual([...Array(BAR_STEPS).keys()]);
     const eighths = marks.filter((m) => m.text !== undefined);
     expect(eighths.map((m) => m.text)).toEqual(['1', '&', '2', '&', '3', '&', '4', '&']);
@@ -108,27 +121,30 @@ describe('the bar of the song’s 4/4, as the metrum draws it', () => {
     expect(marks.filter((m) => m.faint)).toHaveLength(8);
   });
 
-  it('swings the sixteenths first and the offbeat eighths from half way, and never a beat', () => {
-    const straight = barMarks4(0, null);
-    const moved = (swing: number) =>
+  it('swings the sixteenths on the 16ths and the offbeat eighths on the 8ths, and never a beat (#360)', () => {
+    const straight = barMarks4(STRAIGHT, null);
+    const moved = (swing: MeterSwing) =>
       barMarks4(swing, null).map((m, i) => m.at - straight[i]!.at > 1e-9);
     const step = (i: number) => i % 4;
-    for (const swing of [0.25, 0.5, 0.75, 1]) {
+    for (const swing of SWINGS.slice(1)) {
       const marks = barMarks4(swing, null);
       moved(swing).forEach((late, i) => {
         if (step(i) === 0) expect(late).toBe(false);
+        // On the 8ths a 16th between moves with its eighth: all three move.
         if (step(i) === 1 || step(i) === 3) expect(late).toBe(true);
-        if (step(i) === 2) expect(late).toBe(swing > 0.5);
+        if (step(i) === 2) expect(late).toBe(swing.level === '8n');
         expect(marks[i]!.at).toBeLessThan(BAR_STEPS);
       });
     }
-    const offbeat = (swing: number) => barMarks4(swing, null)[2]!.at;
-    expect(offbeat(1)).toBeGreaterThan(offbeat(0.75));
+    const offbeat = (swing: MeterSwing) => barMarks4(swing, null)[2]!.at;
+    expect(offbeat({ level: '8n', share: 2 / 3 })).toBeGreaterThan(
+      offbeat({ level: '8n', share: 0.6 }),
+    );
   });
 
   it('lights the eighth heard, and none before anything is', () => {
-    expect(barMarks4(0, null).some((m) => m.lit)).toBe(false);
-    const lit = barMarks4(0, 5).flatMap((m, i) => (m.lit ? [i] : []));
+    expect(barMarks4(STRAIGHT, null).some((m) => m.lit)).toBe(false);
+    const lit = barMarks4(STRAIGHT, 5).flatMap((m, i) => (m.lit ? [i] : []));
     expect(lit).toEqual([10]);
   });
 });

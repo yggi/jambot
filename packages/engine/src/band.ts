@@ -48,6 +48,7 @@ import type { Offer } from './muse.ts';
 import { perform } from './performer.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
 import { type Style, writtenStyle } from './style.ts';
+import { type MeterSwing, STRAIGHT } from './swing.ts';
 
 export interface BandEnv {
   readonly seed: number;
@@ -59,6 +60,12 @@ export interface BandEnv {
   readonly wish: KeyWish;
   /** The meter asked for, which a section boundary takes (#261); the song's 4/4 where none is. */
   readonly meter?: Meter | undefined;
+  /**
+   * The meter's swing asked for (#360): its level, which a section boundary
+   * takes as it takes the meter, and its share where the bar starts, which
+   * the bar plays at once. Straight where none is.
+   */
+  readonly swing?: MeterSwing | undefined;
   /** The motif the Muse offers, which the lead settles on (#79). */
   readonly offer: Offer | null;
 }
@@ -113,7 +120,7 @@ const INITIAL: BandCarried = {
  * its chords, which the history then folds in.
  */
 function decide(
-  { seed, style, wish, meter = SONG_METER }: BandEnv,
+  { seed, style, wish, meter = SONG_METER, swing = STRAIGHT }: BandEnv,
   bar: number,
   plans: PlanCarried,
   history: HarmonicWeights,
@@ -122,7 +129,7 @@ function decide(
   const next =
     barInSection === 0
       ? planner.advance(
-          { seed, index: bar / SECTION_BARS, style, wish, history, meter },
+          { seed, index: bar / SECTION_BARS, style, wish, history, meter, swing: swing.level },
           plans,
           null,
         ).carried
@@ -132,6 +139,12 @@ function decide(
   const chords = barChords({ seed, barInSection, key, theme, harm: style.harm });
   return { plans: next, decided: { bar, plan, chords }, history: foldBar(history, chords) };
 }
+
+/** A bar's swing: its section's level, at the share asked for where it starts. */
+const barSwing = ({ swing = STRAIGHT }: BandEnv, plan: Plan): MeterSwing => ({
+  level: plan.swing,
+  share: swing.share,
+});
 
 /** The environment as the band reads it: its style as the score writes it (C7). */
 const read = (env: BandEnv): BandEnv => ({ ...env, style: writtenStyle(env.style) });
@@ -200,6 +213,7 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
       plan: here.plan,
       barInSection,
       style: env.style,
+      swing: barSwing(env, here.plan),
       barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
       chords: here.chords,
       next: after.next!.chords,
@@ -237,6 +251,7 @@ export function finaleBar(
     plan: here.plan,
     barInSection,
     style: env.style,
+    swing: barSwing(env, here.plan),
     barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
     chords,
     next: [chords[1]!],

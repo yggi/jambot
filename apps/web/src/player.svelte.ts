@@ -71,11 +71,14 @@ import {
   SECTION_BARS,
   SONG_CLOCK,
   SONG_METER,
+  STRAIGHT,
   type ScheduledStep,
   type SongClock,
   styleAt,
   timbreOf,
   type StyleTrack,
+  type MeterSwing,
+  type SwingTrack,
   type TransportCarried,
   type TransportEnv,
   type TransportOutput,
@@ -89,11 +92,13 @@ import {
   foresight,
   holding,
   rebeat,
+  holdingSwing,
   released,
   sameMeter,
   stepSeconds,
   transport,
   transportOver,
+  swingAt,
   valueAt,
   writtenAt,
 } from '@jambot/engine';
@@ -115,7 +120,16 @@ import {
 import { type Meter, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
-import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
+import {
+  type Intent,
+  conduct,
+  conductSwing,
+  nudgeAfter,
+  stopAt,
+  stopSwing,
+  styleAfter,
+  wishAfter,
+} from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
@@ -156,8 +170,11 @@ export interface Hosting {
   composed(bars: readonly SentBar[]): void;
   /** The bars ahead, whenever they are decided again. */
   decided(bars: readonly ForecastBar[]): void;
-  /** The style track, and the meter whose beats its bpm counts (#367): one pair, sent together. */
-  track(track: StyleTrack, tempoMeter: Meter): void;
+  /**
+   * The style, the meter's swing and the meter whose beats the style's bpm
+   * counts (#367): sent together, so a client lays every step as the host does.
+   */
+  track(track: StyleTrack, swing: SwingTrack, tempoMeter: Meter): void;
   /** The meter asked for changed: nothing goes on the wire, since each bar carries its own, but a host keeps it. */
   meter(meter: Meter): void;
   muse(muse: MuseState): void;
@@ -270,6 +287,12 @@ export class Player {
    * is the song's clock's (`clock`).
    */
   meter: Meter = $state.raw(SONG_METER);
+  /**
+   * The meter's swing (#360): the level asked for, which the band takes at
+   * the next section's boundary as it takes the meter, and the share gliding.
+   * Each preset names its own; the Meter card sets it.
+   */
+  swing: SwingTrack = $state.raw(holdingSwing(PRESETS[0]!.swing));
   /**
    * The meter whose beats the track's bpm counts (#367): the meter of the
    * bar the band decided next, or while stopped the meter the song opens
@@ -450,7 +473,7 @@ export class Player {
     this.meter = meter;
     // Stopped, the song opens in it: its bpm counts its beats from now.
     if (this.status !== 'playing' && this.#countTempoIn(meter))
-      this.hosting?.track(this.track, this.tempoMeter);
+      this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.hosting?.meter(meter);
     this.#decide();
   }
@@ -476,9 +499,10 @@ export class Player {
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
     const style = styleAfter(this.track, intent, this.tempoNudge);
     this.track = conduct(this.track, intent, at, this.tempoNudge);
+    this.swing = conductSwing(this.swing, intent, at);
     this.tempoNudge = nudgeAfter(this.tempoNudge, intent, style);
     this.wish = wishAfter(this.wish, intent, style, this.home);
-    this.hosting?.track(this.track, this.tempoMeter);
+    this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#decide();
   }
 
@@ -588,7 +612,7 @@ export class Player {
     const output = (this.#output ??= this.#surroundings.output());
     await output.resume();
     const energy = this.hud.bar?.energy ?? 0.6;
-    const timbre = timbreOf(part, styleAt(this.track, this.heard ?? 0), energy);
+    const timbre = timbreOf(part, styleAt(this.track, this.heard ?? 0), this.#swingHeard(), energy);
     output.play(part, note, velocity, output.currentTime, ALONG_DURATION[part], timbre);
   }
 
@@ -637,6 +661,7 @@ export class Player {
       seed: this.#seed,
       start: this.#start,
       track: this.track,
+      swing: this.swing,
       tempoMeter: this.tempoMeter,
     });
     this.#decide();
@@ -700,29 +725,33 @@ export class Player {
   }
 
   /**
-   * Set the style, key wish, tempo nudge and meter a host that was reloaded
-   * had, while it is stopped: the style holds where the conductor left it,
-   * its bpm counting the meter's beats (`trackCountedIn`), and a record
-   * saved before the meter was kept asks for the song's.
+   * Set the style, key wish, tempo nudge, meter and swing a host that was
+   * reloaded had, while it is stopped: the style holds where the conductor
+   * left it, its bpm counting the meter's beats (`trackCountedIn`), a record
+   * saved before the meter was kept asks for the song's, and one saved
+   * before the meter held the swing plays straight.
    */
   restore({
     track,
     wish,
     tempoNudge,
     meter = SONG_METER,
+    swing = holdingSwing(STRAIGHT),
   }: {
     track: StyleTrack;
     wish: KeyWish;
     tempoNudge: number;
     meter?: Meter | undefined;
+    swing?: SwingTrack | undefined;
   }) {
     if (this.status !== 'stopped' || this.mode === 'client') return;
     this.track = stopAt(track);
+    this.swing = stopSwing(swing);
     this.wish = wish;
     this.tempoNudge = tempoNudge;
     this.meter = meter;
     this.tempoMeter = meter;
-    this.hosting?.track(this.track, this.tempoMeter);
+    this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#decide();
   }
 
@@ -735,6 +764,7 @@ export class Player {
         seed: this.#seed,
         start: this.#start,
         track: this.track,
+        swing: this.swing,
         tempoMeter: this.tempoMeter,
       },
       bars: sentBars(
@@ -777,6 +807,7 @@ export class Player {
     this.#seed = song.seed;
     this.#start = song.start;
     this.track = song.track;
+    this.swing = song.swing;
     this.tempoMeter = song.tempoMeter;
     this.#begin(output);
     this.#tick();
@@ -794,9 +825,10 @@ export class Player {
     this.ending = true;
   }
 
-  followTrack(track: StyleTrack, tempoMeter: Meter) {
+  followTrack(track: StyleTrack, swing: SwingTrack, tempoMeter: Meter) {
     if (!this.#follow) return;
     this.track = track;
+    this.swing = swing;
     this.tempoMeter = tempoMeter;
   }
 
@@ -825,6 +857,7 @@ export class Player {
     this.mode = 'solo';
     this.skew = 0;
     this.track = holding(INITIAL_STYLE);
+    this.swing = holdingSwing(PRESETS[0]!.swing);
     this.tempoMeter = SONG_METER;
     this.#countTempoIn(this.meter);
     this.museLog = [];
@@ -864,11 +897,12 @@ export class Player {
     this.#metronome?.rest();
     if (!this.#follow) {
       this.track = stopAt(this.track);
+      this.swing = stopSwing(this.swing);
       // A meter asked for and not yet heard is the one the next song opens in.
       this.#countTempoIn(this.meter);
       this.#seed = this.#surroundings.seed();
       this.hosting?.stopped();
-      this.hosting?.track(this.track, this.tempoMeter);
+      this.hosting?.track(this.track, this.swing, this.tempoMeter);
       this.#decide();
     }
     this.#output?.silence();
@@ -886,8 +920,15 @@ export class Player {
       track: this.track,
       wish: this.wish,
       meter: this.meter,
+      swing: this.swing,
       tempoMeter: this.tempoMeter,
     };
+  }
+
+  /** The meter's swing heard: the bar heard's, or before anything is, what is asked for where the song stands. */
+  #swingHeard(): MeterSwing {
+    const asked = swingAt(this.swing, this.heard ?? 0);
+    return this.hud.bar ? { ...asked, level: this.hud.bar.swingLevel } : asked;
   }
 
   /**
@@ -956,7 +997,7 @@ export class Player {
     // that meter's beats, every step as long as it was (#367).
     const decided = carried!.source.next;
     if (decided && this.#countTempoIn(decided.plan.meter))
-      this.hosting?.track(this.track, this.tempoMeter);
+      this.hosting?.track(this.track, this.swing, this.tempoMeter);
     const logged = scheduled.judged.filter((j) => j.judgements.length > 0 || j.forgot !== null);
     if (logged.length > 0) this.museLog = [...this.museLog, ...logged].slice(-MUSE_LOG);
     const latest = scheduled.judged.at(-1);
@@ -1088,6 +1129,7 @@ export class Player {
       const timbre = timbreOf(
         'drums',
         styleAt(this.track, this.heard ?? 0),
+        this.#swingHeard(),
         this.hud.bar?.energy ?? 0.6,
       );
       for (const { step, seconds } of scheduled.steps)

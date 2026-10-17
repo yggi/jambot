@@ -58,8 +58,7 @@ describe('the style read back from the notes it wrote (E23)', () => {
 });
 
 describe('the timing read back from the clock it was played on (E23)', () => {
-  const swingSweep = timingReadback(timingSweep('swing', 16));
-  const bpmSweep = timingReadback(timingSweep('bpm', 16));
+  const bpmSweep = timingReadback(timingSweep(16));
   const presets = timingReadback(timingPresets(16));
   const timingTourRead = timingReadback(timingTour(16));
 
@@ -72,17 +71,5 @@ describe('the timing read back from the clock it was played on (E23)', () => {
   it('reads the tempo of a moving style within a fraction of a bpm: the glide moves inside the bar (E23)', () => {
     expect(timingTourRead.bpm.tau).toBeGreaterThan(0.9);
     expect(timingTourRead.bpm.distance).toBeLessThan(0.5);
-  });
-
-  it('reads the swing from where the notes fall, rising with the axis and within 0.03 of it, through the seeded looseness (E23)', () => {
-    expect(swingSweep.swing.tau).toBeGreaterThan(0.9);
-    expect(swingSweep.swing.distance).toBeLessThan(0.05);
-    expect(presets.swing.tau).toBeGreaterThan(0.85);
-    expect(timingTourRead.swing.tau).toBeGreaterThan(0.9);
-  });
-
-  it('reads swing and tempo apart: a sweep of one moves no tau of the other (E23)', () => {
-    expect(Math.abs(swingSweep.bpm.tau)).toBeLessThan(0.05);
-    expect(Math.abs(bpmSweep.swing.tau)).toBeLessThan(0.05);
   });
 });

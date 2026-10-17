@@ -24,7 +24,7 @@ const A_BAR: ScoreBar = {
   section: 'groove',
   key: { tonic: 0, mode: 'ionian' },
   theme: 'A',
-  style: { swing: 1, sync: 0.2, harm: 0.6, artic: 0.3, energy: 0.6, entropy: 0.3, bpm: 148 },
+  style: { sync: 0.2, harm: 0.6, artic: 0.3, energy: 0.6, entropy: 0.3, bpm: 148 },
   harm: [
     { step: 0, numeral: numeral('IVmaj9') },
     { step: 12, numeral: numeral('V7/vi') },
@@ -34,7 +34,7 @@ const A_BAR: ScoreBar = {
 
 const A_TEXT = [
   'bar 186 groove key=C:ionian theme=A',
-  'style swing=1 sync=0.2 harm=0.6 artic=0.3 energy=0.6 entropy=0.3 bpm=148',
+  'style sync=0.2 harm=0.6 artic=0.3 energy=0.6 entropy=0.3 bpm=148',
   'harm "IVmaj9@3 V7/vi"',
 ].join('\n');
 
@@ -91,7 +91,7 @@ describe('a bar as score text', () => {
     const variants = [
       // Fields in another order, a key spelled another way, numbers written another way.
       'bar 0186 groove theme=A key=B#:ionian',
-      'style bpm=148.000 energy=.6 swing=1. sync=0.20 harm=0.6 artic=0.3 entropy=0.3',
+      'style bpm=148.000 energy=.6 sync=0.20 harm=0.6 artic=0.3 entropy=0.3',
       '',
       'harm "IVmaj9@6 V7/vi@2"',
     ].join('\n');
@@ -131,10 +131,9 @@ describe('a bar as score text', () => {
         ['section "groove-2" is not a word'],
       ],
       [
-        withLine('style', 'style swing=1'),
+        withLine('style', 'style harm=1'),
         [
           'sync= is missing',
-          'harm= is missing',
           'artic= is missing',
           'energy= is missing',
           'entropy= is missing',
@@ -142,6 +141,8 @@ describe('a bar as score text', () => {
         ],
       ],
       [withLine('style', `${A_TEXT.split('\n')[1]} tempo=1`), ['"tempo=1" is not a field here']],
+      // Swing is the meter's, not the style's (#360).
+      [withLine('style', `${A_TEXT.split('\n')[1]} swing=1`), ['"swing=1" is not a field here']],
       [
         withLine('style', A_TEXT.split('\n')[1]!.replace('bpm=148', 'bpm=fast')),
         ['bpm=fast is not a number on the grid of 3 decimals'],

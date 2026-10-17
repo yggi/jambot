@@ -7,11 +7,15 @@
  * steps, on an S-curve. Each axis glides on its own, in its own space: tempo
  * in log space, because it is heard in ratios, and the rest linearly.
  *
+ * Swing is not an axis: it is the meter's (`swing.ts`, #360), and each
+ * preset names its meter's swing beside its point.
+ *
  * Positions are steps of the song, counted from its start, 16 to a bar.
  */
 
 import { barStart } from './events.ts';
 import type { ComposerMode } from './key.ts';
+import type { MeterSwing } from './swing.ts';
 
 export interface AxisRange {
   readonly min: number;
@@ -23,8 +27,6 @@ export interface AxisRange {
 const unit: AxisRange = { min: 0, max: 1, space: 'linear' };
 
 export const AXES = {
-  /** Straight (0), a full 16th shuffle (0.5), triplet 8th swing (1); see `swing.ts`. */
-  swing: unit,
   /** On the beat (0) to off the beat (1). */
   sync: unit,
   /** A static vamp (0) to moving, rich harmony (1). */
@@ -74,27 +76,41 @@ export interface Preset {
   readonly mode: ComposerMode;
   /** Every axis but entropy, which stays where the players put it. */
   readonly style: Readonly<Record<Exclude<Axis, 'entropy'>, number>>;
+  /**
+   * The swing of the meter it names (#360): a hand-written association until
+   * the repository finds meters by style (yggi/cells#82). It names no other
+   * meter than the one asked for, 4/4 for every preset.
+   */
+  readonly swing: MeterSwing;
 }
 
-/** A preset's axes in order: swing, sync, harm, artic, energy, bpm. */
-type PresetAxes = [number, number, number, number, number, number];
+/** A preset's axes in order: sync, harm, artic, energy, bpm. */
+type PresetAxes = [number, number, number, number, number];
 
 const preset = (
   name: string,
   mode: ComposerMode,
-  [swing, sync, harm, artic, energy, bpm]: PresetAxes,
-): Preset => ({ name, mode, style: { swing, sync, harm, artic, energy, bpm } });
+  swing: MeterSwing,
+  [sync, harm, artic, energy, bpm]: PresetAxes,
+): Preset => ({ name, mode, style: { sync, harm, artic, energy, bpm }, swing });
 
-/** The prototype's presets. */
+/** A meter swung on a level, at a share. */
+const on = (level: MeterSwing['level'], share: number): MeterSwing => ({ level, share });
+
+/**
+ * The prototype's presets. Each swings as it did on the swing axis, the
+ * level and share `swingParts` gave at its value there; the straight ones are
+ * on the 16ths, where nothing brings in the jazz band.
+ */
 export const PRESETS: readonly Preset[] = [
-  preset('Synth-pop', 'aeolian', [0, 0.3, 0.45, 0.55, 0.55, 108]),
-  preset('Techno', 'aeolian', [0, 0.12, 0, 1, 0.8, 130]),
-  preset('Deep house', 'dorian', [0.3, 0.35, 0.55, 0.65, 0.65, 122]),
-  preset('Ambient', 'ionian', [0.05, 0.05, 0.3, 0, 0.2, 72]),
-  preset('Lo-fi hip hop', 'aeolian', [0.45, 0.5, 0.75, 0.35, 0.5, 84]),
-  preset('Funk', 'dorian', [0.3, 1, 0.12, 0.85, 0.75, 104]),
-  preset('Bossa nova', 'ionian', [0, 0.75, 0.85, 0.45, 0.45, 132]),
-  preset('Swing jazz', 'ionian', [1, 0.35, 1, 0.3, 0.6, 148]),
+  preset('Synth-pop', 'aeolian', on('16n', 0.5), [0.3, 0.45, 0.55, 0.55, 108]),
+  preset('Techno', 'aeolian', on('16n', 0.5), [0.12, 0, 1, 0.8, 130]),
+  preset('Deep house', 'dorian', on('16n', 0.6), [0.35, 0.55, 0.65, 0.65, 122]),
+  preset('Ambient', 'ionian', on('16n', 31 / 60), [0.05, 0.3, 0, 0.2, 72]),
+  preset('Lo-fi hip hop', 'aeolian', on('16n', 0.65), [0.5, 0.75, 0.35, 0.5, 84]),
+  preset('Funk', 'dorian', on('16n', 0.6), [1, 0.12, 0.85, 0.75, 104]),
+  preset('Bossa nova', 'ionian', on('16n', 0.5), [0.75, 0.85, 0.45, 0.45, 132]),
+  preset('Swing jazz', 'ionian', on('8n', 2 / 3), [0.35, 1, 0.3, 0.6, 148]),
 ];
 
 /** A preset glides over 8 bars, a slider over one. */
@@ -110,8 +126,9 @@ export const STYLE_DECIMALS = 3;
  * A style as the score writes it: each axis rounded to `STYLE_DECIMALS`.
  * The band reads its style this way, so a bar's header states exactly the
  * style it was composed from (C7, decided on #7). A glide passes through
- * values of any length; what plays between bars, tempo and swing, the
- * transport reads from the style track itself.
+ * values of any length; what plays between bars, the tempo, the transport
+ * reads from the style track itself, as it reads the swing's share from its
+ * own track (`SwingTrack`).
  */
 export function writtenStyle(style: Style): Style {
   const grid = 10 ** STYLE_DECIMALS;
@@ -120,8 +137,8 @@ export function writtenStyle(style: Style): Style {
   ) as Style;
 }
 
-/** The axis's space: where a glide is a straight line (log for tempo). */
-const inSpace = (axis: Axis, x: number) => (AXES[axis].space === 'log' ? Math.log(x) : x);
+/** The range's space: where a glide is a straight line (log for tempo). */
+const inSpace = (range: AxisRange, x: number) => (range.space === 'log' ? Math.log(x) : x);
 
 /**
  * The value of one axis at a position, as its glide has it, in the axis's
@@ -131,6 +148,11 @@ const inSpace = (axis: Axis, x: number) => (AXES[axis].space === 'log' ? Math.lo
  * at rest; from rest it is the smoothstep alone.
  */
 export function valueAt(axis: Axis, glide: Glide, position: number): number {
+  return valueIn(AXES[axis], glide, position);
+}
+
+/** `valueAt` over any range: an axis's, or another value that glides as one does (the swing's share). */
+export function valueIn(range: AxisRange, glide: Glide, position: number): number {
   const { from, to, start, length } = glide;
   if (position >= start + length) return to;
   if (position <= start) return from;
@@ -138,11 +160,11 @@ export function valueAt(axis: Axis, glide: Glide, position: number): number {
   const toward = u * u * (3 - 2 * u);
   const onward = carried(glide, position);
   const value =
-    AXES[axis].space === 'log'
+    range.space === 'log'
       ? from * Math.pow(to / from, toward) * Math.exp(onward)
       : from * (1 - toward) + to * toward + onward;
   // Only rounding can take a glide past its axis (see glideTo).
-  return Math.max(AXES[axis].min, Math.min(AXES[axis].max, value));
+  return Math.max(range.min, Math.min(range.max, value));
 }
 
 /** The motion a glide left with, as far as it has carried the value by a position. */
@@ -153,11 +175,16 @@ function carried({ start, slope, brake }: Glide, position: number): number {
 
 /** How fast one axis is moving at a position, per step, in the axis's space. */
 export function rateAt(axis: Axis, glide: Glide, position: number): number {
+  return rateIn(AXES[axis], glide, position);
+}
+
+/** `rateAt` over any range. */
+function rateIn(range: AxisRange, glide: Glide, position: number): number {
   const { from, to, start, length, slope, brake } = glide;
   if (position < start || position >= start + length) return 0;
   const u = (position - start) / length;
   const s = brake > 0 ? (position - start) / brake : 1;
-  const distance = inSpace(axis, to) - inSpace(axis, from);
+  const distance = inSpace(range, to) - inSpace(range, from);
   const onward = s < 1 ? slope * (1 - s) * (1 - 3 * s) : 0;
   return onward + (distance * 6 * u * (1 - u)) / length;
 }
@@ -207,28 +234,40 @@ export function glideTo(
   const next = { ...track };
   for (const [axis, target] of Object.entries(targets) as [Axis, number][]) {
     if (!Number.isFinite(target)) throw new Error(`glideTo: ${axis}: ${target} is not a value`);
-    const { min, max } = AXES[axis];
-    const to = Math.max(min, Math.min(max, target));
-    const old = track[axis];
-    const from = valueAt(axis, old, start);
-    const slope = length === 0 ? 0 : rateAt(axis, old, start);
-    if (slope === 0) {
-      next[axis] = { from, to, start, length, slope: 0, brake: 0 };
-      continue;
-    }
-    const distance = inSpace(axis, to) - inSpace(axis, from);
-    if (slope * distance > 0) {
-      const arrival = Math.min(length, (3 * distance) / slope);
-      next[axis] = { from, to, start, length: arrival, slope, brake: arrival };
-      continue;
-    }
-    const room =
-      slope > 0
-        ? inSpace(axis, max) - inSpace(axis, from)
-        : inSpace(axis, from) - inSpace(axis, min);
-    const left = old.start + old.length - start;
-    const brake = Math.min(length, left, (27 * room) / (4 * Math.abs(slope)));
-    next[axis] = { from, to, start, length, slope, brake };
+    next[axis] = glideIn(AXES[axis], track[axis], target, start, length);
   }
   return next;
+}
+
+/**
+ * One glide of `glideTo`, over any range: from where `old` has the value at
+ * `start`, and as fast, to `target` clamped into the range.
+ */
+export function glideIn(
+  range: AxisRange,
+  old: Glide,
+  target: number,
+  start: number,
+  length: number,
+): Glide {
+  if (!(length >= 0 && Number.isFinite(length)))
+    throw new Error(`glideTo: length ${length} is not a length in steps`);
+  if (!Number.isFinite(target)) throw new Error(`glideTo: ${target} is not a value`);
+  const { min, max } = range;
+  const to = Math.max(min, Math.min(max, target));
+  const from = valueIn(range, old, start);
+  const slope = length === 0 ? 0 : rateIn(range, old, start);
+  if (slope === 0) return { from, to, start, length, slope: 0, brake: 0 };
+  const distance = inSpace(range, to) - inSpace(range, from);
+  if (slope * distance > 0) {
+    const arrival = Math.min(length, (3 * distance) / slope);
+    return { from, to, start, length: arrival, slope, brake: arrival };
+  }
+  const room =
+    slope > 0
+      ? inSpace(range, max) - inSpace(range, from)
+      : inSpace(range, from) - inSpace(range, min);
+  const left = old.start + old.length - start;
+  const brake = Math.min(length, left, (27 * room) / (4 * Math.abs(slope)));
+  return { from, to, start, length, slope, brake };
 }

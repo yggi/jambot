@@ -57,6 +57,7 @@ export function voiceBars(
           seed,
           bar,
           style: { ...preset.style, entropy: 0.3 },
+          swing: preset.swing,
           wish: { tonic: null, mode: 'aeolian', melodic: null },
           offer: null,
         },

@@ -9,6 +9,7 @@
   no session and holds no device.
 -->
 <script lang="ts">
+  import { swingTarget } from '@jambot/engine';
   import type { ComponentProps, Snippet } from 'svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
   import Melody from '../components/Melody.svelte';
@@ -145,7 +146,8 @@
   {:else if id === 'time'}
     <Metrum
       tempo={tempoView(player.track, player.tempoNudge)}
-      swing={player.track.swing.to}
+      swing={swingTarget(player.swing)}
+      level={player.hud.bar?.swingLevel}
       {metronome}
       heard={player.heard}
       meter={player.hud.bar?.meter}

@@ -255,22 +255,25 @@ async function inStep(
   const sorted = steady.map((g) => Math.abs(g.gap)).sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)]!;
   const since = (t: number) => ((t - heldAt) / 1000).toFixed(2);
-  console.log(
+  const summary =
     `${lobby || 'tabs'}, the ${hold} held: ${followed.length} notes, ` +
-      `${gaps.length - judged.length} dropped in the host's ${hostStalls.length} stalls, ` +
-      `${wide.length} out by 50 ms or more in a jump; ` +
-      `${steady.length} settled: median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms; ` +
-      `clocks jumped ${jumps.map((s) => `${s.by.toFixed(1)} ms at ${since(s.at)} s`).join(', ')} from the hold; ` +
-      `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g.at).toFixed(1)}`).join('; ') || 'none'}`,
-  );
+    `${gaps.length - judged.length} dropped in the host's ${hostStalls.length} stalls, ` +
+    `${wide.length} out by 50 ms or more in a jump; ` +
+    `${steady.length} settled: median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms; ` +
+    `clocks jumped ${jumps.map((s) => `${s.by.toFixed(1)} ms at ${since(s.at)} s`).join(', ')} from the hold; ` +
+    `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g.at).toFixed(1)}`).join('; ') || 'none'}; ` +
+    `the host's stalls ${hostStalls.map((s) => `${since(s.from)} to ${since(s.to)} s`).join(', ')}`;
+  console.log(summary);
   // Each fault met its path: the stall dropped host notes the client
   // played, and the wide hold put notes 50 ms or more out.
   if (stallHost) expect(gaps.length - judged.length).toBeGreaterThan(0);
   if (holdFor === HOLDS.wide) expect(wide.length).toBeGreaterThan(0);
   expect(steady.length).toBeGreaterThan(40);
   expect(median).toBeLessThan(1);
+  // A failure carries the whole run, its jumps and stalls, so it can be read without a rerun (#342).
   expect(
     out.map((g) => `${since(g.at)} s: ${g.gap.toFixed(1)} ms, past ${allowed(g.at).toFixed(1)}`),
+    summary,
   ).toEqual([]);
 
   await end(client, 'Leave session', 'Yes, leave');

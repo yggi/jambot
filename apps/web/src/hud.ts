@@ -39,6 +39,7 @@ import {
   type SongClock,
   type Style,
   type StyleTrack,
+  type SwingLevel,
   chordAt,
   chordName,
   chordNumeral,
@@ -84,6 +85,8 @@ export interface BarView {
   readonly meter: Meter;
   /** As the screen says it: "4/4", "7/8 2+2+3". */
   readonly meterName: string;
+  /** The level its meter swings on, its section's (#360). */
+  readonly swingLevel: SwingLevel;
   readonly key: string;
   /** The key's tonic, as a pitch class 0–11, C = 0. */
   readonly tonic: number;
@@ -131,12 +134,12 @@ export interface GlideView {
   readonly bars: number;
 }
 
-/** The six axes a style is drawn and set on: tempo has its own card. */
-export const STYLE_AXES = ['swing', 'sync', 'harm', 'artic', 'energy', 'entropy'] as const;
+/** The five axes a style is drawn and set on: tempo has its own card, and swing is the meter's (#360). */
+export const STYLE_AXES = ['sync', 'harm', 'artic', 'energy', 'entropy'] as const;
 export type StyleAxis = (typeof STYLE_AXES)[number];
 export type AxisValues = Readonly<Record<StyleAxis, number>>;
 
-/** The six axes of a style, 0 to 1. */
+/** The five axes of a style, 0 to 1. */
 export const axesOf = (style: Style): AxisValues =>
   Object.fromEntries(STYLE_AXES.map((axis) => [axis, style[axis]])) as AxisValues;
 
@@ -144,7 +147,7 @@ export interface StyleView {
   /** The preset the style is at or heading for, or null for a custom style. */
   readonly preset: string | null;
   readonly glide: GlideView | null;
-  /** The six axes where the band is at the step heard, so a glide moves them. */
+  /** The five axes where the band is at the step heard, so a glide moves them. */
   readonly axes: AxisValues;
 }
 
@@ -285,7 +288,6 @@ export function leadStatus(hud: Pick<Hud, 'bar' | 'beat'>): string {
 
 /** The word for an axis at its low or its high end, for a style no preset names. */
 const AXIS_WORDS: Record<StyleAxis, readonly [string, string]> = {
-  swing: ['straight', 'swung'],
   sync: ['on the beat', 'syncopated'],
   harm: ['static', 'rich'],
   artic: ['legato', 'staccato'],
@@ -536,6 +538,7 @@ function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Cre
     section: SECTION_NAMES[bar.plan.section.type],
     meter: bar.plan.meter,
     meterName: meterLabel(bar.plan.meter),
+    swingLevel: bar.plan.swing,
     key: keyName(bar.plan.key),
     tonic: bar.plan.key.tonic,
     scale: positions(keyHelix(bar.plan.key)),

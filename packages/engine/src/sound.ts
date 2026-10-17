@@ -3,21 +3,21 @@
  *
  * The lead goes from a soft triangle to a bright square as articulation
  * rises, its filter opening with energy and its attack sharpening. The bass
- * goes from a resonant saw to a round triangle as swing rises into
- * triplets, its filter opening with articulation. The chords swell in
+ * goes from a resonant saw to a round triangle as the meter's 8ths swing
+ * into triplets (`eighthSwing`), its filter opening with articulation. The chords swell in
  * legato and are cut short in staccato. These are the prototype's `sound`
  * lines, one performer's own now (`performer.ts`, #107).
  */
 
 import type { Part, Timbre } from './events.ts';
 import type { Style } from './style.ts';
-import { swingParts } from './swing.ts';
+import { type MeterSwing, eighthSwing } from './swing.ts';
 
 /** Exact at both ends. */
 const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
 
-/** A part's colour: its style, at the energy it plays at. The drums read none. */
-export function timbreOf(part: Part, style: Style, energy: number): Timbre {
+/** A part's colour: its style and its meter's swing, at the energy it plays at. The drums read none. */
+export function timbreOf(part: Part, style: Style, swing: MeterSwing, energy: number): Timbre {
   const { artic } = style;
   switch (part) {
     case 'lead':
@@ -28,7 +28,7 @@ export function timbreOf(part: Part, style: Style, energy: number): Timbre {
         attack: lerp(0.04, 0.006, artic),
       };
     case 'bass': {
-      const { eighth } = swingParts(style.swing);
+      const eighth = eighthSwing(swing);
       return {
         saw: 1 - eighth,
         triangle: 1.6 * eighth,

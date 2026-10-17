@@ -188,6 +188,7 @@ export class HostSession {
       wish: this.#player.wish,
       tempoNudge: this.#player.tempoNudge,
       meter: this.#player.meter,
+      swing: this.#player.swing,
     });
   }
 
@@ -228,8 +229,8 @@ export class HostSession {
         this.#send({ kind: 'forecast', forecast: forecastDelta(this.#forecast, bars) });
         this.#forecast = bars;
       },
-      track: (track, tempoMeter) => {
-        this.#send({ kind: 'track', track, tempoMeter });
+      track: (track, swing, tempoMeter) => {
+        this.#send({ kind: 'track', track, swing, tempoMeter });
         this.persist();
       },
       meter: () => this.persist(),

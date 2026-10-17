@@ -1,27 +1,32 @@
 <!--
   The metrum, a card: the tempo the band plays under its heading and, under
-  that, the meter and the swing. Unfolded, everything about time in one
-  place: the tempo nudged within the style's licence, the swing as a gauge
-  and as the shares it gives the eighths and the sixteenths (50 % straight, 67
-  % the triplet), the bar drawn where the band plays it under the swing (a
-  light mark on each step, the eighths counted), and the click itself, which
-  is the band's own steps sounded on the song's clock, the pulses of the bar
-  heard and the eighths or sixteenths between them if asked, so it plays only
-  while the band does. The bar and the pulses are those of the meter the bar
-  heard is in, whatever it is, and the drawing keeps its place when the meter
-  changes. The swing is read here and set in the style, where it is one of
-  its axes. The meter the next section takes is asked for here too (#262): the
-  band takes it where the next section starts, as it does a key, and a
-  client follows its host's, so its choice rests.
+  that, the meter and its swing. Unfolded, everything about time in one
+  place: the tempo nudged within the style's licence, the meter's swing (#360)
+  as the level it leans, the 8ths or the 16ths, and the share of each span
+  there its first half holds (50 % straight, 67 % the triplet), the bar drawn
+  where the band plays it under the swing (a light mark on each step, the
+  eighths counted), and the click itself, which is the band's own steps
+  sounded on the song's clock, the pulses of the bar heard and the eighths or
+  sixteenths between them if asked, so it plays only while the band does. The
+  bar and the pulses are those of the meter the bar heard is in, whatever it
+  is, and the drawing keeps its place when the meter changes. The swing is
+  set here: each preset names its own, the share glides over a bar from here,
+  and a level asked for is taken where the next section starts, as the meter
+  asked for here is (#262), and as a key is; a meter swung on the 8ths brings
+  in the jazz kit and the walking bass. A client follows its host's, so its
+  choices rest.
 -->
 <script lang="ts">
   import {
+    type MeterSwing,
+    SHARE,
     SONG_CLOCK,
     SONG_METER,
     SUBDIVISIONS,
+    SWING_LEVELS,
     type SongClock,
     type Subdivision,
-    swingShares,
+    type SwingLevel,
   } from '@jambot/engine';
   import { type Meter, stepsOf } from '@jambot/theory';
   import { barMarks, eighthHeard } from '../bar.ts';
@@ -38,8 +43,10 @@
 
   interface Props {
     tempo: TempoView;
-    /** The swing the style is heading for, 0 to 1. */
-    swing: number;
+    /** The meter's swing asked for: the level the next section takes, and the share it is heading for. */
+    swing: MeterSwing;
+    /** The level the bar heard swings on (or, before anything is, the one asked for). */
+    level?: SwingLevel | undefined;
     metronome: Metronome;
     /** The step heard, or null before anything is: the bar's lamps light with it. */
     heard: number | null;
@@ -59,6 +66,7 @@
   let {
     tempo,
     swing,
+    level = swing.level,
     metronome,
     heard,
     meter = SONG_METER,
@@ -70,13 +78,20 @@
     onmeter = () => {},
   }: Props = $props();
 
+  /** The swing as the bar heard plays it: its level, at the share asked for. */
+  const heardSwing = $derived({ level, share: swing.share });
   const marks = $derived(
-    barMarks(meter, swing, eighthHeard(meter, heard === null ? null : clock.stepInBar(heard))),
+    barMarks(meter, heardSwing, eighthHeard(meter, heard === null ? null : clock.stepInBar(heard))),
   );
-  const shares = $derived(swingShares(swing));
-  /** What the first half of a beat holds, as a percentage: 50 straight, 67 the triplet. */
-  const percent = $derived(Math.round(shares.eighth * 100));
-  const secondary = $derived(Math.round(shares.sixteenth * 100));
+  /** What the first half of a span at its level holds, as a percentage: 50 straight, 67 the triplet. */
+  const percent = $derived(Math.round(swing.share * 100));
+  const LEVEL_TEXT: Record<SwingLevel, string> = { '8n': '8ths', '16n': '16ths' };
+  /** The level as the header says it: the one heard, and the one asked for where the next section changes it. */
+  const levelText = $derived(
+    level === swing.level
+      ? LEVEL_TEXT[level]
+      : `${LEVEL_TEXT[level]}, ${LEVEL_TEXT[swing.level]} next section`,
+  );
   const SUBDIVISION_TEXT: Record<Subdivision, string> = {
     pulses: 'Pulses',
     eighths: 'Eighths',
@@ -96,16 +111,39 @@
 <Card
   title="Metrum"
   main="{Math.round(tempo.bpm)} BPM"
-  sub="{meterLabel(meter)} · swing {percent} %{secondary !== 50
-    ? ` · 16ths ${secondary} %`
-    : ''}{metronome.on ? ' · clicking' : ''}"
+  sub="{meterLabel(meter)} · swing {percent} % on {levelText}{metronome.on ? ' · clicking' : ''}"
 >
   {#snippet glyph()}<Blinker {marks} span={stepsOf(meter)} />{/snippet}
   <TempoNudge {tempo} disabled={following} {onintent} />
   <div class="swing">
+    <Segmented
+      label="Swing on"
+      value={swing.level}
+      columns={2}
+      disabled={following}
+      options={SWING_LEVELS.map((value) => ({ value, text: LEVEL_TEXT[value] }))}
+      onselect={(value: SwingLevel) => onintent({ kind: 'swing', swing: { level: value } })}
+    />
     <Reading label="Swing" value="{percent} %" />
-    <Reading label="Secondary swing" value="{secondary} %" />
-    <Gauge label="Swing axis" from={0} to={1} centre={0} value={swing} fill />
+    <div class="drag">
+      <Gauge
+        label="Swing {percent} %"
+        from={SHARE.min}
+        to={SHARE.max}
+        centre={SHARE.min}
+        value={swing.share}
+        fill
+      />
+      <input
+        type="range"
+        min={SHARE.min * 100}
+        max={SHARE.max * 100}
+        aria-label="Swing"
+        value={percent}
+        disabled={following}
+        oninput={(e) => onintent({ kind: 'swing', swing: { share: +e.currentTarget.value / 100 } })}
+      />
+    </div>
   </div>
   <Bar {meter} {marks} under="at a swing of {percent} %" />
   <Segmented
@@ -150,6 +188,26 @@
   .swing {
     display: grid;
     gap: 8px;
+  }
+  .drag {
+    position: relative;
+    display: grid;
+    align-items: center;
+    padding-block: 8px;
+  }
+  /* The range input lies over the gauge, unseen: it takes the finger and the keyboard. */
+  .drag input[type='range'] {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    min-height: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .drag:has(input:focus-visible) {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+    border-radius: 6px;
   }
   .doing {
     font-size: 13px;

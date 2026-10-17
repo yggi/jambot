@@ -4,7 +4,10 @@ import type { BandBar } from './band.ts';
 import { chordAt } from './chords.ts';
 import { type MeterChange, clockOf, sameMeter } from './events.ts';
 import { PRESETS, holding } from './style.ts';
-import { swingOf } from './swing.ts';
+import { type MeterSwing, STRAIGHT, holdingSwing, swingAt, swingOf } from './swing.ts';
+
+/** Full triplet swing on the 8ths. */
+const TRIPLET: MeterSwing = { level: '8n', share: 2 / 3 };
 import { stepSeconds } from './tempo.ts';
 import {
   LOOKAHEAD,
@@ -25,10 +28,11 @@ const ticks = (from: number, count: number, every = 0.025): TransportInput[] =>
   range(count).map((i) => ({ now: from + i * every, until: from + i * every + LOOKAHEAD }));
 
 const style = { ...PRESETS[4]!.style, entropy: 0.3, bpm: 120 };
-const wished = (meter: Meter, swing: number): TransportEnv => ({
+const wished = (meter: Meter, swing: MeterSwing): TransportEnv => ({
   seed: 11,
   start: 1,
-  track: holding({ ...style, swing }),
+  track: holding(style),
+  swing: holdingSwing(swing),
   wish: { tonic: null, mode: PRESETS[4]!.mode, melodic: null },
   meter,
 });
@@ -41,7 +45,7 @@ const wished = (meter: Meter, swing: number): TransportEnv => ({
 const meters = (head: number, toSeven = 4, back = 12): Meter =>
   head < toSeven * 16 ? METERS['4/4'] : head < back * 16 ? METERS['7/8'] : METERS['4/4'];
 
-const play = (swing: number, count: number, from = 0.9, every = 0.025) => {
+const play = (swing: MeterSwing, count: number, from = 0.9, every = 0.025) => {
   let carried: TransportCarried | null = transport.initial;
   const steps: ScheduledStep[] = [];
   const events: TimedEvent[] = [];
@@ -65,8 +69,8 @@ const named = (changes: readonly MeterChange[]) =>
   ]);
 
 describe('the transport over a song that changes meter (T14, #261)', () => {
-  const swingless = play(0, 2000);
-  const swung = play(1, 2000);
+  const swingless = play(STRAIGHT, 2000);
+  const swung = play(TRIPLET, 2000);
   const expected = clockOf([
     { bar: 0, meter: METERS['4/4'] },
     { bar: 8, meter: METERS['7/8'] },
@@ -130,7 +134,8 @@ describe('the transport over a song that changes meter (T14, #261)', () => {
   });
 
   it('ends each note where the swing over its own bars puts its end (finite: every note)', () => {
-    const swingOfTrack = swingOf(wished(METERS['4/4'], 1).track, expected);
+    const track = holdingSwing(TRIPLET);
+    const swingOfTrack = swingOf((start) => swingAt(track, start), expected);
     let crossing = 0;
     for (const e of swung.events) {
       const start = expected.barStart(e.bar) + e.event.step;
@@ -170,7 +175,7 @@ describe('the transport over a song that changes meter (T14, #261)', () => {
     let carried: TransportCarried | null = transport.initial;
     let at = 0;
     for (const input of [...ticks(0.9, 160), ...ticks(45, 40)]) {
-      const next = transport.advance(wished(meters(at, 1, 1000), 0), carried, input);
+      const next = transport.advance(wished(meters(at, 1, 1000), STRAIGHT), carried, input);
       carried = next.carried;
       at = carried!.head.step;
     }
@@ -191,7 +196,7 @@ describe('the transport over a song that changes meter (T14, #261)', () => {
   it('keeps the clock when the first bar is passed too, a song that starts 7/8 and is late', () => {
     let carried: TransportCarried | null = transport.initial;
     for (const input of ticks(45, 40))
-      carried = transport.advance(wished(METERS['7/8'], 0), carried, input).carried;
+      carried = transport.advance(wished(METERS['7/8'], STRAIGHT), carried, input).carried;
     expect(named(carried!.meters)).toEqual([[0, '7/8']]);
   });
 
@@ -201,11 +206,11 @@ describe('the transport over a song that changes meter (T14, #261)', () => {
     let preview: BandBar[] = [];
     const composed = new Map<number, BandBar>();
     for (const input of ticks(0.9, 700)) {
-      const next = transport.advance(wished(meters(at), 0), carried, input);
+      const next = transport.advance(wished(meters(at), STRAIGHT), carried, input);
       carried = next.carried;
       at = carried!.head.step;
       if (preview.length === 0 && at >= 5 * 16)
-        preview = foresight(wished(meters(at), 0), carried, 12);
+        preview = foresight(wished(meters(at), STRAIGHT), carried, 12);
       for (const bar of next.output.composed) composed.set(bar.bar, bar);
     }
     expect(preview.length).toBe(12);
@@ -216,8 +221,8 @@ describe('the transport over a song that changes meter (T14, #261)', () => {
 });
 
 describe('the clock through the bars ahead (#262)', () => {
-  const early = play(0, 120); // a few bars in, all of them 4/4
-  const asked = wished(METERS['7/8'], 0);
+  const early = play(STRAIGHT, 120); // a few bars in, all of them 4/4
+  const asked = wished(METERS['7/8'], STRAIGHT);
 
   it('reads the bars of a forecast in the meters they will be in, section by section', () => {
     const ahead = forecast(asked, early.carried, 30);
@@ -238,7 +243,7 @@ describe('the clock through the bars ahead (#262)', () => {
     const own = clockThrough(early.carried, []);
     const made = clockOf(early.carried.meters);
     for (const bar of range(6)) expect(own.barStart(bar)).toBe(made.barStart(bar));
-    const before = clockThrough(null, forecast(wished(METERS['4/4'], 0), null, 4));
+    const before = clockThrough(null, forecast(wished(METERS['4/4'], STRAIGHT), null, 4));
     expect(before.barSteps(0)).toBe(16);
   });
 

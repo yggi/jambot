@@ -40,6 +40,7 @@ import {
   type DoughNote,
   MELODIC_SCALES,
   type MelodicScale,
+  type MeterSwing,
   PRESETS,
   band,
   chordAt,
@@ -93,7 +94,7 @@ const empty = (): Tally => ({
 const measures: Measure[] = [];
 const examples: Record<
   string,
-  { bpm: number; swing: number; notes: (Omit<DoughNote, 'step'> & { step: number })[] }
+  { bpm: number; swing: MeterSwing; notes: (Omit<DoughNote, 'step'> & { step: number })[] }
 > = {};
 const totals = Object.fromEntries(MELODIC_SCALES.map((s) => [s, empty()])) as Record<
   MelodicScale,
@@ -110,7 +111,14 @@ for (const preset of PRESETS) {
     let carried = band.initial;
     const bars: BandBar[] = range(BARS).map((bar) => {
       const next = band.advance(
-        { seed, bar, style, wish: { tonic: null, mode: preset.mode, melodic: null }, offer: null },
+        {
+          seed,
+          bar,
+          style,
+          swing: preset.swing,
+          wish: { tonic: null, mode: preset.mode, melodic: null },
+          offer: null,
+        },
         carried,
         null,
       );
@@ -131,7 +139,7 @@ for (const preset of PRESETS) {
         const notes = out.dough.filter((n) => n.part === 'lead');
         if (seed === EXAMPLE.seed && bar >= EXAMPLE.from && bar < EXAMPLE.to) {
           const name = `${preset.name} · ${scale}`;
-          examples[name] ??= { bpm: style.bpm, swing: style.swing, notes: [] };
+          examples[name] ??= { bpm: style.bpm, swing: preset.swing, notes: [] };
           for (const n of out.dough)
             if (n.part === 'lead' || n.part === 'bass' || n.part === 'pad')
               examples[name]!.notes.push({ ...n, step: (bar - EXAMPLE.from) * 16 + n.step });

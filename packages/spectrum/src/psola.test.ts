@@ -62,29 +62,25 @@ describe('PsolaShifter', () => {
     }
   });
 
-  it(
-    'moves a sine to the pitch asked for within 2 cents, at every note from E2 to C6 and a range of shifts',
-    { timeout: 60_000 },
-    () => {
-      for (let midi = 40; midi <= 84; midi += 4)
-        for (const shift of [-300, -100, -25, 25, 100, 300]) {
-          const hz = hzOf(midi);
-          const x = sine(hz, 1.2 * sampleRate, sampleRate);
-          const out = run(
-            new PsolaShifter({ sampleRate, minHz: 70, maxHz: 1500 }),
-            x,
-            () => sampleRate / hz,
-            () => 2 ** (shift / 1200),
-          );
-          const found = estimatePitch(middle(out), sampleRate);
-          expect(found, `${midi} ${shift}`).toBeDefined();
-          expect(
-            Math.abs(centsBetween(found!.hz, hz * 2 ** (shift / 1200))),
-            `${midi} ${shift}`,
-          ).toBeLessThan(2);
-        }
-    },
-  );
+  it('moves a sine to the pitch asked for within 2 cents, at every note from E2 to C6 and a range of shifts', () => {
+    for (let midi = 40; midi <= 84; midi += 4)
+      for (const shift of [-300, -100, -25, 25, 100, 300]) {
+        const hz = hzOf(midi);
+        const x = sine(hz, 1.2 * sampleRate, sampleRate);
+        const out = run(
+          new PsolaShifter({ sampleRate, minHz: 70, maxHz: 1500 }),
+          x,
+          () => sampleRate / hz,
+          () => 2 ** (shift / 1200),
+        );
+        const found = estimatePitch(middle(out), sampleRate);
+        expect(found, `${midi} ${shift}`).toBeDefined();
+        expect(
+          Math.abs(centsBetween(found!.hz, hz * 2 ** (shift / 1200))),
+          `${midi} ${shift}`,
+        ).toBeLessThan(2);
+      }
+  });
 
   it('keeps the level of a sound it shifts, within 1.5 dB', () => {
     for (const shift of [-200, 200]) {

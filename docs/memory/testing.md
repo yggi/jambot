@@ -17,9 +17,12 @@ How a gate is shown to fire, and the checks that back the house rules.
 - A port that must not change the music is gated by a hash of every bar the band writes and plays, recorded from `main` before the port and checked event for event, written and played, naming the run and the first bar that differs (#260 did this over 2,880 bars: 5 seeds, each preset held and the tour).
   The gate is deleted once the port has landed: what it held stays in each part's own test, as the literals of its 4/4 tables and `lead.fixture.json`, `history.fixture.json`.
   A test that takes the code under test as its own oracle (`snap` checking `snap`) pins nothing; find the answer by brute force instead, and show it fire by mutation.
-- A test whose time is the CPU's, not the clock's, gets a measured timeout: the slowest of 10 runs alone times a margin, both said in a comment above it (`tempo.test.ts`: five; `player.test.ts`'s hidden tab: ten, since five was passed once in 15 runs under load, #320).
+- A test's time is the CPU's, not the clock's, and so the machine's load: three full runs on 4 cores (a load of 12 to 16) make a test of 1.5 s alone take past 5 s (#325).
+  So each project whose tests take every case has a measured `testTimeout` in its `vitest.config.ts`: its slowest test alone over 5 runs, times about eight, both said in a comment above it (#325, #353): theory and engine 60 s, web (which `web-node` shares) and tooling 30 s, score and spectrum 20 s.
+  Session and lobby keep Vitest's 5 s: their slowest test takes under 0.7 s alone.
+  A test takes a timeout of its own only where it needs more than its project's, and a test that would is first made to do less work.
   Fake timers change nothing there, since the player's tests already drive their own clock.
-- A sweep of two axes on a grid of 60ths against every style of `EVERY` outruns the 5 s test timeout: sweep the plane over the presets' styles, and show that nothing else is read over `EVERY` once (`licence.test.ts`).
+- A sweep of two axes on a grid of 60ths against every style of `EVERY` is more work than a check needs: sweep the plane over the presets' styles, and show that nothing else is read over `EVERY` once (`licence.test.ts`).
 
 ## Experiments
 
@@ -35,7 +38,8 @@ How a gate is shown to fire, and the checks that back the house rules.
 - Agents started with `isolation: worktree` work under `.claude/worktrees/`, which the checks leave out (#192, #199).
   Remove a finished agent's worktree once its branch is pushed: `git worktree remove --force --force <path>`, `git worktree prune`, and delete its local branch.
   The stop hook checks the shell's directory, which after inspecting an agent's worktree is that worktree: its changes are the agent's to commit, not the session's.
-- Heavy checks run one at a time: two `pnpm verify` or `pnpm e2e` runs at once time out the load-sensitive tests (#199, #203).
+- Two `pnpm verify` runs at once both pass, since the projects' measured timeouts: three in a row beside a fourth run looping in another worktree, 2,739 tests each, at a load of 9 to 17 on 4 cores (other agents' work beside them), 5.5 to 10 min each where one alone takes about 3 (#325).
+  Two `pnpm e2e` runs at once still share the audio clock's cores and the ports, so they run one at a time (#199, #203).
   Wait on the machine's load (`/proc/loadavg`) or a port, never on `pgrep -f` or a loop over `/proc/*/cmdline`: both match their own command line, and a kill loop kills itself.
   The cloud container has no `ss` or `netstat`; Node checks a port anywhere, exiting 0 while it is taken: `node -e "require('net').connect(4317,'localhost').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"`.
 - `pnpm e2e` refuses to start while port 4317 is taken, as by a `vite preview` left running from a manual check: find it by the port (`lsof -ti :4317` prints its PID) and stop it by that PID.

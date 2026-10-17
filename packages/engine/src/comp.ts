@@ -30,7 +30,7 @@ import type { WrittenNote } from './events.ts';
 import type { Machine } from './machine.ts';
 import { type Stream, chance, heldDraw } from './random.ts';
 import { readOnMeter } from './regroup.ts';
-import { swingParts } from './swing.ts';
+import { eighthSwing } from './swing.ts';
 
 /** The lowest and highest note the comp plays. */
 export const COMP_RANGE = [50, 79] as const;
@@ -95,7 +95,7 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
   initial: null,
   advance(env, last) {
     const { seed, bar, plan, style, barEnergy: energy, next, meter } = env;
-    const { eighth } = swingParts(style.swing);
+    const eighth = eighthSwing(env.swing);
     const steps = stepsOf(meter);
     const starts = meterOnSteps(meter).heights;
     const accents = accentsOf(meter);

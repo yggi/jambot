@@ -45,6 +45,11 @@ export default defineProject({
   test: {
     name: 'web',
     environment: 'jsdom',
+    // The player's tests drive their own clock through minutes of playing, so their time is the CPU's and the
+    // machine's load: alone, the slowest (`player.test.ts`, a control moved after a bar line) takes 3.2 to 3.7 s
+    // over 5 runs, the hidden tab 2.2 to 3.1 s, and past the default 5 s beside other runs (#320, #325).
+    // 30 s is eight times the slowest alone, and ten times the hidden tab's, the timeout of a test that hangs.
+    testTimeout: 30_000,
     pool: 'vmThreads',
     // A test that opts out of jsdom runs in the other project, `vitest.node.config.ts`:
     // under `vmThreads` a worker keeps a compiled module across files, and a node test

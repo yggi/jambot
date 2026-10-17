@@ -20,6 +20,7 @@ import type {
   Offer,
   Remembered,
   StyleTrack,
+  SwingTrack,
   WrittenNote,
 } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
@@ -32,11 +33,13 @@ import type { ForecastDelta } from './forecast.ts';
  * and her memory (`Remembered`)
  * travel as they are, so a change to their shape is a change to the
  * protocol, and bumps it (`protocol.test.ts` holds the shapes). So does a
- * change to what they mean: a track's bpm counts the beats of the meter
- * that travels with it (`tempoMeter`, #367), so a host and a client of
- * different counts would lay a 6/8 bar at different lengths.
+ * change to what they mean. Version 10 carries the meter's swing track
+ * beside the style (`swing`, #360, #369), and counts the style's bpm in the
+ * beats of the meter that travels with it (`tempoMeter`, #367, #373), so a
+ * host and a client of different counts would lay a 6/8 bar at different
+ * lengths.
  */
-export const PROTOCOL = 9;
+export const PROTOCOL = 10;
 
 /**
  * A bar as a host wrote it: everything its parts read, and the notes they
@@ -63,6 +66,8 @@ export interface Song {
    */
   readonly start: number;
   readonly track: StyleTrack;
+  /** The meter's swing (#360): the level asked for and the share's glide, which the client lays its beats by. */
+  readonly swing: SwingTrack;
   /** The meter whose beats the track's bpm counts (#367), which travels with it. */
   readonly tempoMeter: Meter;
 }
@@ -102,8 +107,17 @@ export type HostMessage =
     }
   | { readonly kind: 'refused'; readonly reason: string }
   | { readonly kind: 'start'; readonly song: Song }
-  /** The style track, and the meter whose beats its bpm counts (#367): one pair, so a client lays every step as the host does. */
-  | { readonly kind: 'track'; readonly track: StyleTrack; readonly tempoMeter: Meter }
+  /**
+   * The style, the meter's swing as the host's conductor moved them, and the
+   * meter whose beats the style's bpm counts (#367): one message, so a client
+   * lays every step as the host does.
+   */
+  | {
+      readonly kind: 'track';
+      readonly track: StyleTrack;
+      readonly swing: SwingTrack;
+      readonly tempoMeter: Meter;
+    }
   | { readonly kind: 'bar'; readonly sent: SentBar }
   | { readonly kind: 'forecast'; readonly forecast: ForecastDelta }
   | { readonly kind: 'muse'; readonly muse: MuseState }

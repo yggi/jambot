@@ -126,6 +126,7 @@ export function playedBars(): Played[] {
         seed: SEED,
         bar,
         style: { ...preset.style, entropy: ENTROPY },
+        swing: preset.swing,
         wish: { tonic: null, mode: preset.mode, melodic: null },
         offer: null,
       };

@@ -9,7 +9,9 @@
  * position mapped through swing, then tempo (`swingOf`, `tempoMap`): both
  * ends of a note go through the map, so a legato line stays legato under
  * swing. Once a beat has started, its swing is kept, so a change can't move
- * the rest of it. A wish for another key is heard at the next section the
+ * the rest of it. The swing is the meter's (#360): each beat swings on its
+ * bar's level, which its section's plan took, at the share the swing track
+ * has where the beat starts. A wish for another key is heard at the next section the
  * band plans, which it does a bar before the section starts.
  *
  * It also listens (#79). Notes players played arrive as input, where they
@@ -78,8 +80,17 @@ import {
   keptAfter,
   muse,
 } from './muse.ts';
-import { type StyleTrack, styleAt, valueAt, writtenStyle } from './style.ts';
-import { swingMapAt, swingOf } from './swing.ts';
+import { type StyleTrack, styleAt, valueAt, valueIn, writtenStyle } from './style.ts';
+import {
+  type MeterSwing,
+  SHARE,
+  STRAIGHT,
+  type SwingTrack,
+  holdingSwing,
+  swingAt,
+  swingMapAt,
+  swingOf,
+} from './swing.ts';
 import { type Anchor, stepSeconds, tempoMap } from './tempo.ts';
 
 /** How far ahead of the clock steps are scheduled, in seconds. */
@@ -109,8 +120,14 @@ export interface TransportEnv {
   readonly seed: number;
   /** The clock time step 0 starts at, in seconds. */
   readonly start: number;
-  /** The style: tempo and swing per step, and what the band composes from. */
+  /** The style: tempo per step, and what the band composes from. */
   readonly track: StyleTrack;
+  /**
+   * The meter's swing (#360): the level asked for, which the band takes at a
+   * section boundary as it takes the meter, and the share per step. Straight
+   * where none is.
+   */
+  readonly swing?: SwingTrack | undefined;
   /** The key the players wish for, which the band moves toward at a section boundary. */
   readonly wish: KeyWish;
   /** The meter asked for, which the band takes at a section boundary (#261); 4/4 where none is. */
@@ -262,7 +279,7 @@ export interface TransportCarried<Source = BandCarried> {
   /** The next bar the band composes. */
   readonly nextBar: number;
   /** The beat being scheduled and the swing it plays with, once it has started. */
-  readonly beat: { readonly index: number; readonly swing: number } | null;
+  readonly beat: { readonly index: number; readonly swing: MeterSwing } | null;
   readonly listening: Listening;
   readonly finale: Finale;
   /** Where the song's meter changes, as far as its bars are composed (#261): the first at bar 0. */
@@ -279,7 +296,7 @@ export interface ScheduledStep {
   /** How long the step lasts, in seconds. */
   readonly length: number;
   /** The swing its beat plays with, held from where the beat starts. */
-  readonly swing: number;
+  readonly swing: MeterSwing;
   /** The beat the step is in, where it starts and how long it is, in steps: what its swing is held over. */
   readonly pulse: { readonly start: number; readonly length: number };
 }
@@ -306,14 +323,29 @@ export interface TransportOutput {
   readonly dropped: readonly DroppedJudgement[];
 }
 
-/** What the band reads for a bar: the style where the bar starts, on the track, and what the Muse offers. */
+/** A transport's swing track: straight where its environment has none. */
+const STRAIGHT_TRACK = holdingSwing(STRAIGHT);
+
+/**
+ * What the band reads for a bar: the style and the meter's swing where the
+ * bar starts, on their tracks, and what the Muse offers.
+ */
 export function bandEnvAt(
-  { seed, track, wish, meter }: TransportEnv,
+  { seed, track, wish, meter, swing = STRAIGHT_TRACK }: TransportEnv,
   bar: number,
   offer: Offer | null,
   clock: SongClock = SONG_CLOCK,
 ): BandEnv {
-  return { seed, bar, style: styleAt(track, clock.barStart(bar)), wish, meter, offer };
+  const start = clock.barStart(bar);
+  return {
+    seed,
+    bar,
+    style: styleAt(track, start),
+    wish,
+    meter,
+    swing: swingAt(swing, start),
+    offer,
+  };
 }
 
 /** The song's meter changes at the start, before any bar is composed: 4/4 from bar 0. */
@@ -481,7 +513,7 @@ export function transportOver<Source, Arrived = never>(
       carried,
       { now, until, heard = [], judged: remote = [], forget = false, arrived = [], finish, ends },
     ) {
-      const { start, track, tempoMeter } = env;
+      const { start, track, tempoMeter, swing: swingTrack = STRAIGHT_TRACK } = env;
       let head = carried?.head ?? { step: 0, seconds: start };
       let playing = source.receive(carried?.source ?? source.initial, arrived);
       let bars = [...(carried?.bars ?? [])];
@@ -606,13 +638,19 @@ export function transportOver<Source, Arrived = never>(
         } = current;
         const chord = chordAt(chords, song.stepInBar(head.step));
 
-        // The beat's swing is read as the beat starts, and kept.
+        // The beat's swing is read as the beat starts, and kept: its bar's
+        // level, at the share the track has there. A beat in a bar not yet
+        // composed swings on the level of the bar playing.
         const index = song.beatAt(head.step);
         const pulseStart = song.beatStart(index);
         const pulse = { start: pulseStart, length: song.beatStart(index + 1) - pulseStart };
-        if (beat?.index !== index) beat = { index, swing: styleAt(track, pulseStart).swing };
+        const swingFrom = (at: number): MeterSwing => ({
+          level: (bars.find((b) => b.bar === song.barAt(at)) ?? current).plan.swing,
+          share: valueIn(SHARE, swingTrack.share, at),
+        });
+        if (beat?.index !== index) beat = { index, swing: swingFrom(pulseStart) };
         const held = beat;
-        const swing = swingOf(track, song);
+        const swing = swingOf(swingFrom, song);
         steps.push({
           step: head.step,
           section,

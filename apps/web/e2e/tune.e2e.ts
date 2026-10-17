@@ -65,13 +65,46 @@ test('names a recorded A2, 20 cents sharp, reads it over a frame longer than the
 
   const note = page.getByRole('region', { name: 'Note' });
   await expect(note.locator('.name')).toHaveText('A2', { timeout: 15_000 });
-  await expect(note.locator('.cents')).toHaveText(/^\+(19|20|21)\.\d cents$/);
-  const detail = await note.locator('.detail').innerText();
-  const [, offsetHz, nearestHz, heardHz] =
-    /([+−][\d.]+) Hz from ([\d.]+) Hz · heard ([\d.]+) Hz/.exec(detail)!;
-  expect(Number(nearestHz)).toBeCloseTo(110, 2);
-  expect(Number(heardHz)).toBeCloseTo(HEARD_HZ, 1);
-  expect(Number(offsetHz!.replace('−', '-'))).toBeCloseTo(HEARD_HZ - A2_HZ, 1);
+  // The reading is the median of 10 looks a tenth of a second apart. A look whose frame holds the
+  // seam where the fake device loops its file reads up to 7 cents sharp (+21.2 and +26.6 cents,
+  // 111.36 and 111.70 Hz, in 2 to 4 of 40 looks over four runs, #342); every other look reads
+  // +20.0 cents, 111.28 Hz, so the median is the recording's, whichever look comes first.
+  const looks: { cents: number; offsetHz: number; nearestHz: number; heardHz: number }[] = [];
+  for (let i = 0; i < 10; i++) {
+    const [cents, detail] = await Promise.all([
+      note.locator('.cents').innerText(),
+      note.locator('.detail').innerText(),
+    ]);
+    const [, offsetHz, nearestHz, heardHz] =
+      /([+−][\d.]+) Hz from ([\d.]+) Hz · heard ([\d.]+) Hz/.exec(detail)!;
+    looks.push({
+      cents: Number.parseFloat(cents.replace('−', '-')),
+      offsetHz: Number(offsetHz!.replace('−', '-')),
+      nearestHz: Number(nearestHz),
+      heardHz: Number(heardHz),
+    });
+    await page.waitForTimeout(100);
+  }
+  const median = (read: (look: (typeof looks)[number]) => number) =>
+    looks.map(read).sort((a, b) => a - b)[looks.length >> 1]!;
+  const seen = JSON.stringify(looks.map((l) => l.heardHz));
+  expect(
+    median((l) => l.cents),
+    seen,
+  ).toBeGreaterThanOrEqual(19);
+  expect(
+    median((l) => l.cents),
+    seen,
+  ).toBeLessThan(22);
+  expect(median((l) => l.nearestHz)).toBeCloseTo(110, 2);
+  expect(
+    median((l) => l.heardHz),
+    seen,
+  ).toBeCloseTo(HEARD_HZ, 1);
+  expect(
+    median((l) => l.offsetHz),
+    seen,
+  ).toBeCloseTo(HEARD_HZ - A2_HZ, 1);
 
   const spectrum = page.getByRole('region', { name: 'Spectrum' });
   await expect(spectrum.getByText(/Pitch read over 1[78]\d ms/)).toBeVisible();
@@ -221,14 +254,19 @@ test('pulls a recorded A2, 20 cents sharp, onto A2 through the worklet, and the 
   const note = page.getByRole('region', { name: 'Note' });
   await expect(note.locator('.name')).toHaveText('A2', { timeout: 15_000 });
   await page.waitForTimeout(1500);
+  // 40 looks over 6 s. Most read the corrected sound on the note (0.0 cents), and about a third,
+  // at a steady beat, some 11 cents flat, whatever the load: 24 to 29 of 40 looks on the note in
+  // eight runs, four alone and four at a load of 9 to 15 on four cores (#342). Ten looks, with a
+  // bound of 6, sat on that share's edge and failed once in four full runs at a load of 1; over
+  // 40 the count holds to its share, and half of them is 4 under the fewest seen.
   const cents: number[] = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 40; i++) {
     cents.push(Number.parseFloat((await note.locator('.cents').innerText()).replace('−', '-')));
     await page.waitForTimeout(150);
   }
   // The recording is +20 cents: what the tuner reads from the corrected sound is on the note.
   const onTheNote = cents.filter((c) => Math.abs(c) < 3).length;
-  expect(onTheNote, JSON.stringify(cents)).toBeGreaterThanOrEqual(6);
+  expect(onTheNote, JSON.stringify(cents)).toBeGreaterThanOrEqual(20);
   expect(errors).toEqual([]);
 });
 

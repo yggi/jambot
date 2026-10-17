@@ -3,22 +3,23 @@
  *
  * The layer above gives a default and a licence, the width of the hole it
  * leaves; the layer below nudges within it and never selects outright. The
- * same shape recurs at four levels, and `licenceOf` gives all four from
- * the style: the performer's feel at the note (`performer.ts`, T17), the
- * tempo, which the players nudge by a ratio of the style's, the key,
+ * same shape recurs at four levels: the performer's feel at the note
+ * (`feelOf`, `performer.ts`, T17), and from the style alone (`licenceOf`)
+ * the tempo, which the players nudge by a ratio of the style's, the key,
  * which they nudge around the circle of fifths from the song's home, and
  * the melodic scale the lead walks over the key (#209).
  *
  * The genre sets the range and the players' entropy sets how much of it is
  * used (#176): presets never set entropy (`style.ts`). So the feel reads
- * swing and articulation, the genre's, and entropy; the tempo's reach reads
- * entropy alone; the key's reach and the melodic scales read the harmony
- * alone, `harm`.
+ * the meter's swing and articulation, the genre's, and entropy; the tempo's
+ * reach reads entropy alone; the key's reach and the melodic scales read the
+ * harmony alone, `harm`.
  */
 
 import { diatonicMode, fifthsIndex, mod, relative, wrap } from '@jambot/theory';
 import { type Key, MELODIC_SCALES, type MelodicScale, keyHelix } from './key.ts';
 import { AXES, type Style } from './style.ts';
+import { type MeterSwing, swingWeight } from './swing.ts';
 
 /** How far a tempo nudge reaches either way from the style's tempo at entropy 1, in octaves. */
 export const TEMPO_REACH = 1 / 3;
@@ -29,14 +30,8 @@ export const TEMPO_STEP = 1 / 24;
 /** The tempo's reach at entropy 0: two steps, so the metrum's nudge is never dead. */
 const TEMPO_REACH_LEAST = 2 * TEMPO_STEP;
 
-/** What a style leaves its players and performers. */
+/** What a style leaves its players. */
 export interface Licence {
-  /**
-   * How loosely a note is played, 0 to 1: the width of the performer's
-   * draw on velocity and length (`performer.ts`, T17). Exactly 0, every
-   * note as the base sets it, at swing 0, entropy 0 and articulation 1.
-   */
-  readonly feel: number;
   /** How far the tempo may be nudged from the style's, in octaves each way (`tempoLicence`). */
   readonly tempo: { readonly low: number; readonly high: number };
   /** How many fifths from the home key the players may take the key: at least one. */
@@ -91,18 +86,20 @@ export function harmonicReach(style: Style): number {
 }
 
 /**
- * The feel: swing weighs most, then entropy, then legato. The weights sum
- * to 1, so it stays within 0 and 1 over the axes; at any one entropy the
- * presets run from Techno, straight and staccato, to Swing jazz.
+ * How loosely a note is played, 0 to 1: the width of the performer's draw
+ * on velocity and length (`performer.ts`, T17). The meter's swing weighs
+ * most (`swingWeight`), then entropy, then legato. The weights sum to 1, so
+ * it stays within 0 and 1; at any one entropy the presets run from Techno,
+ * straight and staccato, to Swing jazz. Exactly 0, every note as the base
+ * sets it, when straight, at entropy 0 and articulation 1.
  */
-function feelOf(style: Style): number {
-  return 0.5 * style.swing + 0.3 * style.entropy + 0.2 * (1 - style.artic);
+export function feelOf(style: Style, swing: MeterSwing): number {
+  return 0.5 * swingWeight(swing) + 0.3 * style.entropy + 0.2 * (1 - style.artic);
 }
 
-/** The licence a style leaves: the feel, the tempo's, the key's and the melodic scale's. */
+/** The licence a style leaves: the tempo's, the key's and the melodic scale's. */
 export function licenceOf(style: Style): Licence {
   return {
-    feel: feelOf(style),
     tempo: tempoLicence(style),
     keyReach: Math.max(1, harmonicReach(style)),
     melodic: melodicReach(style),

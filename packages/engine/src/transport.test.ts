@@ -15,7 +15,15 @@ import {
   holding,
   styleAt,
 } from './style.ts';
-import { swingOf } from './swing.ts';
+import {
+  type MeterSwing,
+  STRAIGHT,
+  type SwingTrack,
+  holdingSwing,
+  swingAt,
+  swingOf,
+  swingTo,
+} from './swing.ts';
 import { stepSeconds, tempoMap } from './tempo.ts';
 import {
   type BarJudgement,
@@ -79,10 +87,45 @@ const runChanging = (
 };
 
 const swung = holding({ ...PRESETS[4]!.style, entropy: 0.3 }); // Lo-fi hip hop, 84 bpm
+/** Lo-fi hip hop's meter: swung on the 16ths, at 65 %. */
+const LOFI = holdingSwing(PRESETS[4]!.swing);
 const env = (
   track: StyleTrack = swung,
   wish: KeyWish = { tonic: null, mode: PRESETS[4]!.mode, melodic: null },
-): TransportEnv => ({ seed: 11, start: 1, track, wish });
+  swing: SwingTrack = holdingSwing(STRAIGHT),
+): TransportEnv => ({ seed: 11, start: 1, track, wish, swing });
+
+/** The swing a meter's track plays, beat by beat, on the level it asks for. */
+const swingOfTrack = (track: SwingTrack) => swingOf((start) => swingAt(track, start));
+
+/**
+ * A run in which the meter's swing changes once: after the tick where the
+ * head first reaches `at`, from the head on.
+ */
+const runSwinging = (
+  swing: SwingTrack,
+  inputs: TransportInput[],
+  at: number,
+  change: (swing: SwingTrack, head: number) => SwingTrack,
+) => {
+  let carried = transport.initial;
+  let changedAt: number | null = null;
+  const outputs: TransportOutput[] = [];
+  for (const input of inputs) {
+    const next = transport.advance(
+      env(holding({ ...INITIAL_STYLE, energy: 1 }), undefined, swing),
+      carried,
+      input,
+    );
+    carried = next.carried;
+    outputs.push(next.output);
+    if (changedAt === null && carried!.head.step >= at) {
+      changedAt = carried!.head.step;
+      swing = change(swing, changedAt);
+    }
+  }
+  return { outputs, changedAt: changedAt! };
+};
 
 describe('the transport', () => {
   it('schedules 120 ms ahead', () => expect(LOOKAHEAD).toBe(0.12));
@@ -152,12 +195,14 @@ describe('the transport', () => {
     // Swing gliding up, then sent back to straight in the middle of a beat:
     // the rest of that beat plays as it would have. Reading the track again
     // moved it by up to 0.36 steps.
-    const track = glideTo(holding({ ...INITIAL_STYLE, energy: 1, swing: 0 }), { swing: 1 }, 0, 16);
+    const straight8: MeterSwing = { level: '8n', share: 0.5 };
+    const swing = swingTo(holdingSwing(straight8), { share: 2 / 3 }, 0, 16);
+    const style = holding({ ...INITIAL_STYLE, energy: 1 });
     let compared = 0;
     for (const at of [9, 10, 13, 14, 17, 18]) {
-      const steady = run(env(track), ticks(0.9, 60));
-      const changed = runChanging(track, ticks(0.9, 60), at, (t, head) =>
-        glideTo(t, { swing: 0 }, head, 16),
+      const steady = run(env(style, undefined, swing), ticks(0.9, 60));
+      const changed = runSwinging(swing, ticks(0.9, 60), at, (t, head) =>
+        swingTo(t, { share: 0.5 }, head, 16),
       );
       const beatEnd = Math.floor(changed.changedAt / 4) * 4 + 4;
       const inBeat = (r: { outputs: TransportOutput[] }) =>
@@ -174,9 +219,33 @@ describe('the transport', () => {
     expect(compared).toBeGreaterThan(0);
   });
 
+  it('takes a level asked for where the next section starts, and glides the share from the next beat (#360)', () => {
+    // Asked for the 8ths in bar 3: the share glides over a bar from there,
+    // on the 16ths, and the section from bar 8 swings on the 8ths.
+    const asked = 3 * 16;
+    let swing = LOFI;
+    let carried = transport.initial;
+    const laid: ScheduledStep[] = [];
+    for (const input of ticks(0.9, 1400)) {
+      const r = transport.advance(env(swung, undefined, swing), carried, input);
+      carried = r.carried;
+      laid.push(...r.output.steps);
+      if (swing === LOFI && carried!.head.step >= asked)
+        swing = swingTo(swing, { level: '8n', share: 2 / 3 }, carried!.head.step, SLIDER_GLIDE);
+    }
+    const levels = new Map(laid.map((s) => [s.step, s.swing.level]));
+    expect(laid.length).toBeGreaterThan(9 * 16);
+    for (const [step, level] of levels)
+      expect([step, level]).toEqual([step, step < 128 ? '16n' : '8n']);
+    // The share moved inside the section, on the 16ths.
+    const shares = laid.filter((s) => s.step < 128).map((s) => s.swing.share);
+    expect(shares[0]).toBe(PRESETS[4]!.swing.share);
+    expect(shares.at(-1)).toBeCloseTo(2 / 3, 12);
+  });
+
   it('plays every event the band composed, once, at its swung time', () => {
     const track = swung;
-    const { outputs } = run(env(track), ticks(0.9, 800));
+    const { outputs } = run(env(track, undefined, LOFI), ticks(0.9, 800));
     const steps = new Map(outputs.flatMap((o) => o.steps).map((s) => [s.step, s]));
     const bars = outputs.flatMap((o) => o.composed);
     const events = outputs.flatMap((o) => o.events);
@@ -198,7 +267,7 @@ describe('the transport', () => {
         dough.get(`${e.bar}:${e.event.part}:${e.event.step}:${e.event.note}`),
       );
     expect(events.length).toBe(played.size);
-    const swing = swingOf(track);
+    const swing = swingOfTrack(LOFI);
     for (const e of events) {
       const written = e.bar * 16 + e.event.step;
       const step = steps.get(written)!;
@@ -212,9 +281,9 @@ describe('the transport', () => {
   it('holds a note from its swung start to its swung end (L2)', () => {
     // Both ends of a note go through the map, so a legato line stays legato
     // under swing. The prototype swings only the start.
-    const { outputs } = run(env(), ticks(0.9, 400));
+    const { outputs } = run(env(swung, undefined, LOFI), ticks(0.9, 400));
     const steps = new Map(outputs.flatMap((o) => o.steps).map((s) => [s.step, s]));
-    const swing = swingOf(swung);
+    const swing = swingOfTrack(LOFI);
     const at = (written: number) => {
       const played = swing.played(written);
       const step = steps.get(Math.floor(played))!;
@@ -232,33 +301,40 @@ describe('the transport', () => {
     // back onto the grid. The track holds only its latest glide per axis,
     // so inverting it from the song's start misplaces notes once the tempo
     // has changed twice (#78); the steps as laid hold what the track forgets.
-    const changes: [number, Partial<Style>][] = [
-      [40, { bpm: 90 }],
-      [150, { swing: 1, bpm: 150 }],
-      [260, { swing: 0.2 }],
-      [330, { bpm: 70, swing: 0.8 }],
+    // The meter's swing changes too: its share at once, its level where the next section starts.
+    const changes: [number, Partial<Style>, Partial<MeterSwing>][] = [
+      [40, { bpm: 90 }, {}],
+      [150, { bpm: 150 }, { level: '8n', share: 2 / 3 }],
+      [260, {}, { share: 0.55 }],
+      [330, { bpm: 70 }, { level: '16n', share: 0.62 }],
     ];
     let track = swung;
+    let swing = LOFI;
     let carried = transport.initial;
     const laid: ScheduledStep[] = [];
     const events: TimedEvent[] = [];
     let next = 0;
     for (const input of ticks(0.9, 2400)) {
-      const r = transport.advance(env(track), carried, input);
+      const r = transport.advance(env(track, undefined, swing), carried, input);
       carried = r.carried;
       laid.push(...r.output.steps);
       events.push(...r.output.events);
       const head = carried!.head.step;
-      if (next < changes.length && head >= changes[next]![0])
-        track = glideTo(track, changes[next++]![1], head, SLIDER_GLIDE);
+      if (next < changes.length && head >= changes[next]![0]) {
+        const [, style, meter] = changes[next++]!;
+        track = glideTo(track, style, head, SLIDER_GLIDE);
+        swing = swingTo(swing, meter, head, SLIDER_GLIDE);
+      }
     }
+    // Both levels were laid.
+    expect(new Set(laid.map((s) => s.swing.level))).toEqual(new Set(['8n', '16n']));
     expect(next).toBe(changes.length);
     expect(events.length).toBeGreaterThan(500);
     for (const e of events)
       expect(writtenAt(laid, e.seconds)).toBeCloseTo(e.bar * 16 + e.event.step, 9);
     // Inverting the track as it ends up, from the start, gets them wrong.
     const fromStart = (seconds: number) =>
-      swingOf(track).written(tempoMap(track, { step: 0, seconds: 1 }).written(seconds));
+      swingOfTrack(swing).written(tempoMap(track, { step: 0, seconds: 1 }).written(seconds));
     const last = events.at(-1)!;
     expect(Math.abs(fromStart(last.seconds) - (last.bar * 16 + last.event.step))).toBeGreaterThan(
       16,
@@ -301,68 +377,64 @@ describe('the transport', () => {
     expect(window.length).toBeGreaterThan(0);
   });
 
-  // It walks every bar of four hours through the transport: a few seconds
-  // alone, and past Vitest's default 5 s when another run shares the machine.
-  it(
-    'catches up after four hours’ stall a bounded walk at a time: no advance passes more than CATCH_UP bars, and nothing plays late (T1)',
-    { timeout: 30_000 },
-    () => {
-      // A wish for another key, so the stall passes key changes too.
-      const far = env(swung, { tonic: 2, mode: 'mixolydian', melodic: null });
-      const before = run(far, ticks(0.9, 100));
-      // An event's night: four hours with the tab's clock stopped. A walk
-      // through every bar it passed costs some microseconds a bar, so one
-      // advance that walked them all would outlast its own lookahead on a
-      // slow machine; each advance walks at most CATCH_UP bars, and the
-      // ticks after carry on, on the clock as it is then.
-      const woke = 0.9 + 100 * 0.025 + 4 * 3600;
-      let carried = before.carried;
-      let missed = 0;
-      let silent = 0;
-      let back: TransportOutput | null = null;
-      for (let i = 0; !back; i++) {
-        const now = woke + i * 0.025;
-        const next = transport.advance(far, carried, { now, until: now + LOOKAHEAD });
-        carried = next.carried;
-        // CATCH_UP whole bars, and the steps of a part bar on either side.
-        expect(next.output.missed).toBeLessThanOrEqual((CATCH_UP + 2) * 16);
-        for (const e of next.output.events) expect(e.seconds).toBeGreaterThanOrEqual(now);
-        missed += next.output.missed;
-        if (next.output.composed.length > 0) back = next.output;
-        else silent++;
-      }
-      // 84 bpm is 5.6 steps a second, and 4 hours are some 5,040 bars.
-      expect(missed).toBeGreaterThan(4 * 3600 * 5.5);
-      expect(silent).toBe(Math.floor((4 * 3600 * 5.6) / 16 / CATCH_UP));
-      expect(back.composed.length).toBeLessThan(3);
-      expect(back.steps.length).toBeLessThan(4);
-      // The form, the key and the chords went on through the stall: the bars
-      // composed after it are those an unbroken run composes there.
-      const unbroken = new Map<number, BandBar>();
-      let steady = run(far, ticks(0.9, 100)).carried!;
-      while (steady.head.seconds <= woke + 2) {
-        const next = transport.advance(far, steady, {
-          now: steady.head.seconds,
-          until: steady.head.seconds + 4,
-        });
-        for (const b of next.output.composed) unbroken.set(b.bar, b);
-        steady = next.carried!;
-      }
-      for (const b of back.composed) {
-        const there = unbroken.get(b.bar)!;
-        expect({ plan: b.plan, chords: b.chords }).toEqual({
-          plan: there.plan,
-          chords: there.chords,
-        });
-      }
-      expect(back.composed[0]!.plan.key).toEqual({ tonic: 2, mode: 'mixolydian' });
-    },
-  );
+  // It walks every bar of four hours through the transport.
+  it('catches up after four hours’ stall a bounded walk at a time: no advance passes more than CATCH_UP bars, and nothing plays late (T1)', () => {
+    // A wish for another key, so the stall passes key changes too.
+    const far = env(swung, { tonic: 2, mode: 'mixolydian', melodic: null });
+    const before = run(far, ticks(0.9, 100));
+    // An event's night: four hours with the tab's clock stopped. A walk
+    // through every bar it passed costs some microseconds a bar, so one
+    // advance that walked them all would outlast its own lookahead on a
+    // slow machine; each advance walks at most CATCH_UP bars, and the
+    // ticks after carry on, on the clock as it is then.
+    const woke = 0.9 + 100 * 0.025 + 4 * 3600;
+    let carried = before.carried;
+    let missed = 0;
+    let silent = 0;
+    let back: TransportOutput | null = null;
+    for (let i = 0; !back; i++) {
+      const now = woke + i * 0.025;
+      const next = transport.advance(far, carried, { now, until: now + LOOKAHEAD });
+      carried = next.carried;
+      // CATCH_UP whole bars, and the steps of a part bar on either side.
+      expect(next.output.missed).toBeLessThanOrEqual((CATCH_UP + 2) * 16);
+      for (const e of next.output.events) expect(e.seconds).toBeGreaterThanOrEqual(now);
+      missed += next.output.missed;
+      if (next.output.composed.length > 0) back = next.output;
+      else silent++;
+    }
+    // 84 bpm is 5.6 steps a second, and 4 hours are some 5,040 bars.
+    expect(missed).toBeGreaterThan(4 * 3600 * 5.5);
+    expect(silent).toBe(Math.floor((4 * 3600 * 5.6) / 16 / CATCH_UP));
+    expect(back.composed.length).toBeLessThan(3);
+    expect(back.steps.length).toBeLessThan(4);
+    // The form, the key and the chords went on through the stall: the bars
+    // composed after it are those an unbroken run composes there.
+    const unbroken = new Map<number, BandBar>();
+    let steady = run(far, ticks(0.9, 100)).carried!;
+    while (steady.head.seconds <= woke + 2) {
+      const next = transport.advance(far, steady, {
+        now: steady.head.seconds,
+        until: steady.head.seconds + 4,
+      });
+      for (const b of next.output.composed) unbroken.set(b.bar, b);
+      steady = next.carried!;
+    }
+    for (const b of back.composed) {
+      const there = unbroken.get(b.bar)!;
+      expect({ plan: b.plan, chords: b.chords }).toEqual({
+        plan: there.plan,
+        chords: there.chords,
+      });
+    }
+    expect(back.composed[0]!.plan.key).toEqual({ tonic: 2, mode: 'mixolydian' });
+  });
 
   it('keeps the machine laws, with the style gliding under it (F1, Q4a)', () => {
-    const track = glideTo(glideTo(swung, PRESETS[1]!.style, 8, 64), { swing: 1 }, 40, 32);
+    const track = glideTo(swung, PRESETS[1]!.style, 8, 64);
+    const swing = swingTo(LOFI, { level: '8n', share: 2 / 3 }, 40, 32);
     const script: Script<TransportEnv, TransportInput> = ticks(0.9, 240).map((input) => ({
-      env: env(track),
+      env: env(track, undefined, swing),
       input,
     }));
     expect(lawBreaks(transport, script)).toEqual([]);

@@ -61,6 +61,7 @@ import {
   chordNumeral,
   clockOfTransport,
   holding,
+  holdingSwing,
   sameMeter,
   slotStepOn,
   stepSeconds,
@@ -147,6 +148,7 @@ export function runOf({ preset: name, meter }: RunKey): Run {
     seed: SEED,
     start: START,
     track: holding({ ...preset.style, entropy: ENTROPY }),
+    swing: holdingSwing(preset.swing),
     wish: { tonic: null, mode: preset.mode, melodic: null },
     meter: METERS[meter],
     tempoMeter: METERS[meter],
@@ -535,8 +537,8 @@ export interface Measured {
   readonly offsets: readonly number[];
 }
 
-/** Whether a run's times are compared: its preset's swing is 0 (cells has no swing on the bar yet, yggi/cells#18). */
-export const timesCompared = (run: RunKey) => presetOf(run.preset).style.swing === 0;
+/** Whether a run's times are compared: its preset's meter is straight (cells has no swing on the bar yet, yggi/cells#18). */
+export const timesCompared = (run: RunKey) => presetOf(run.preset).swing.share === 0.5;
 
 /** Every bar of a run, stated, played (its text edited first, if asked) and compared; its onsets timed against the transport's where its swing is 0. */
 export function measureRun(run: Run, edit: (text: string) => string = (t) => t): Measured[] {

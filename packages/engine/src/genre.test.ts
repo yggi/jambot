@@ -25,8 +25,7 @@ describe('genre probabilities: nearness to the presets', () => {
       'energy',
       'sync',
     ]);
-    expect(readingAxes({ density: 1, swing: 0.3, bpm: 120, harm: 0.4 })).toMatchObject({
-      swing: 0.3,
+    expect(readingAxes({ density: 1, bpm: 120, harm: 0.4 })).toMatchObject({
       harm: 0.4,
       bpm: bpmUnit(120),
     });

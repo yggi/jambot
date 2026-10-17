@@ -1,14 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { METERS, heightOf, meterOnSteps } from '@jambot/theory';
+import { PRESETS, SLIDER_GLIDE, rateAt } from './style.ts';
 import {
   LEAN_RANGE,
+  type MeterSwing,
+  SHARE,
+  STRAIGHT,
   composeTimeMaps,
+  eighthSwing,
+  holdingSwing,
   leanMap,
   leanOfShare,
+  leansOf,
   shareOfLean,
+  swingAt,
   swingMap,
+  swingMapAt,
   swingParts,
-  swingShares,
+  swingTarget,
+  swingTo,
+  swingWeight,
 } from './swing.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -280,7 +291,7 @@ describe('the lean of a level', () => {
     );
   });
 
-  it('is the path the swing axis takes: swingMap is leanMap over the axis’s parts, everywhere', () => {
+  it('is the readers’ path: swingMap is leanMap over its parts, everywhere', () => {
     for (const swing of swings)
       for (const meter of [METERS['4/4'], METERS['7/8']]) {
         const [a, b] = [swingMap(swing, meter), leanMap(swingParts(swing), meter)];
@@ -289,7 +300,7 @@ describe('the lean of a level', () => {
       }
   });
 
-  it('never leans the swing axis early (it is a style’s, from straight to swung)', () => {
+  it('never leans the readers’ path early (it runs from straight to swung)', () => {
     for (const swing of swings) {
       const { eighth, sixteenth } = swingParts(swing);
       expect(Math.min(eighth, sixteenth)).toBeGreaterThanOrEqual(0);
@@ -297,17 +308,69 @@ describe('the lean of a level', () => {
   });
 });
 
-describe('the shares of the swing axis', () => {
-  it('is straight at none, a 16th shuffle at half, and the triplet at all', () => {
-    expect(swingShares(0)).toEqual({ eighth: 0.5, sixteenth: 0.5 });
-    expect(swingShares(0.5).eighth).toBe(0.5);
-    expect(swingShares(0.5).sixteenth).toBeCloseTo(2 / 3, 12);
-    expect(swingShares(1).eighth).toBeCloseTo(2 / 3, 12);
-    expect(swingShares(1).sixteenth).toBe(0.5);
+describe('the meter’s swing (#360)', () => {
+  const shares = range(26).map((i) => 0.5 + i / 100);
+  const swung = (level: MeterSwing['level'], share: number): MeterSwing => ({ level, share });
+
+  it('leans its own level by its share and plays the other straight', () => {
+    for (const share of shares) {
+      const lean = leanOfShare(share);
+      expect(leansOf(swung('8n', share))).toEqual({ sixteenth: 0, eighth: lean });
+      expect(leansOf(swung('16n', share))).toEqual({ sixteenth: lean, eighth: 0 });
+    }
+    expect(leansOf(STRAIGHT)).toEqual({ sixteenth: 0, eighth: 0 });
   });
 
-  it('says where the map plays the offbeat: the share of the beat, at every swing', () => {
-    for (const swing of swings)
-      expect(swingMap(swing).played(2) / 4).toBeCloseTo(swingShares(swing).eighth, 12);
+  it('plays the share of each span at its level: the offbeat 8th of a beat, the offbeat 16th of a half-beat', () => {
+    for (const share of shares) {
+      expect(swingMapAt(swung('8n', share), 0, 4).played(2) / 4).toBeCloseTo(share, 12);
+      expect(swingMapAt(swung('8n', share), 0, 4).played(1)).toBeCloseTo(2 * share, 12);
+      expect(swingMapAt(swung('16n', share), 0, 4).played(1) / 2).toBeCloseTo(share, 12);
+      expect(swingMapAt(swung('16n', share), 0, 4).played(2)).toBe(2);
+    }
+  });
+
+  it('glides its share from straight to the dotted figure, never early', () => {
+    expect(SHARE).toEqual({ min: 0.5, max: 0.75, space: 'linear' });
+    const track = swingTo(holdingSwing(STRAIGHT), { share: 0.4 }, 0, 0);
+    expect(swingAt(track, 0).share).toBe(0.5);
+    expect(swingAt(swingTo(track, { share: 0.9 }, 0, 0), 0).share).toBe(0.75);
+  });
+
+  it('brings in the jazz band only from the 8ths, as far as they swing (the owner’s ruling on #360)', () => {
+    for (const share of shares) {
+      expect(eighthSwing(swung('16n', share))).toBe(0);
+      expect(eighthSwing(swung('8n', share))).toBeCloseTo(Math.min(1, leanOfShare(share)), 12);
+    }
+    expect(eighthSwing(swung('8n', 0.5))).toBe(0);
+    expect(eighthSwing(swung('8n', 2 / 3))).toBeCloseTo(1, 12);
+  });
+
+  it('weighs a 16th lean half of an 8th’s, so every preset weighs what its swing axis value was', () => {
+    const was = [0, 0, 0.3, 0.05, 0.45, 0.3, 0, 1];
+    PRESETS.forEach((p, i) => expect(swingWeight(p.swing)).toBeCloseTo(was[i]!, 12));
+    for (const share of shares) {
+      expect(swingWeight(swung('16n', share))).toBeCloseTo(leanOfShare(share) / 2, 12);
+      expect(swingWeight(swung('8n', share))).toBeCloseTo(Math.min(1, leanOfShare(share)), 12);
+    }
+  });
+
+  it('glides a share as an axis does: from where it is and as fast, over the glide asked for', () => {
+    const start = swingTo(holdingSwing(STRAIGHT), { level: '8n', share: 2 / 3 }, 0, SLIDER_GLIDE);
+    expect(swingTarget(start)).toEqual({ level: '8n', share: 2 / 3 });
+    expect(swingAt(start, 0).share).toBe(0.5);
+    expect(swingAt(start, SLIDER_GLIDE / 2).share).toBeCloseTo((0.5 + 2 / 3) / 2, 12);
+    expect(swingAt(start, SLIDER_GLIDE).share).toBe(2 / 3);
+    // Retargeted midway, it leaves from where it is, as fast as it was going.
+    const turned = swingTo(start, { share: 0.6 }, 4, SLIDER_GLIDE);
+    expect(swingAt(turned, 4).share).toBeCloseTo(swingAt(start, 4).share, 12);
+    expect(turned.share.slope).toBeCloseTo(rateAt('harm', start.share, 4), 12);
+    // A level asked for leaves the share as it is.
+    expect(swingTo(start, { level: '16n' }, 4, SLIDER_GLIDE).share).toBe(start.share);
+  });
+
+  it('survives JSON, so it can be carried', () => {
+    const track = swingTo(holdingSwing(PRESETS[7]!.swing), { share: 0.6 }, 16, 128);
+    expect(JSON.parse(JSON.stringify(track))).toEqual(track);
   });
 });
