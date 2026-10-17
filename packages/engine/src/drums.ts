@@ -36,7 +36,7 @@ import { DRUM_ROLES, type DrumRole, type WrittenNote, halfOf, lateOf } from './e
 import { SECTION_BARS } from './form.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { type Regroup, readOnMeter } from './regroup.ts';
-import { swingParts } from './swing.ts';
+import { eighthSwing } from './swing.ts';
 
 /** The General MIDI drum notes the band plays. */
 export const DRUM_NOTES = {
@@ -97,8 +97,9 @@ export function backbeatOf(meter: Meter): number[] {
 export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
   const { seed, bar, barInSection, style, barEnergy: energy, meter } = env;
   const { section } = env.plan;
-  const { sync, swing, artic, harm, entropy } = style;
-  const eighth = swingParts(swing).eighth;
+  const { sync, artic, harm, entropy } = style;
+  // A meter swung on 8n brings in the jazz kit (#360).
+  const eighth = eighthSwing(env.swing);
   const last = barInSection === SECTION_BARS - 1;
   const density = smooth((energy - 0.05) / 0.5);
 

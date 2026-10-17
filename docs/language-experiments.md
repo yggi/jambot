@@ -433,25 +433,27 @@ run; the others have.
     It has no scale of its own yet (onsets per step over all parts, 0.9 to 1.2 on average), so it has no distance; a fit to the axis is a later step.
   - An axis is read from its own and no other: a sweep of one moves the tau of each other reading by less than 0.05.
   - The clock is read exactly.
-    `readTiming` finds the tempo from how long the steps last, and the swing by `estimateSwing` over the onsets put back on the steps as played.
+    `readTiming` finds the tempo from how long the steps last.
     Over 3 seeds of 16 bars, the tempo has tau 1.00 over the presets and its sweep and an error under 10⁻⁶ bpm, and 0.94 over the tour, 0.06 bpm off, since a glide moves the tempo inside a bar.
-    The swing has tau 0.89 over the presets, 0.92 over its sweep and 0.94 over the tour, and lies 0.02 to 0.03 from the axis, through the seeded looseness of the timing (T17).
-    The tempo is the clock's own number, so its reading proves the reader and not the composer; the swing is a real inference, from notes that carry a licence.
-    A sweep of one moves no tau of the other (under 0.05).
+    The tempo is the clock's own number, so its reading proves the reader and not the composer.
+  - Swing is not read: it is the meter's, not the style's (#360), and each preset plays in its meter's swing.
+    The onsets' own reader still finds it in the played time (`estimateSwing`, for the Muse and the analyzer); reading it into the meter is #368.
   - Not measured: `harm` (needs the chords, not read from notes yet), per-part readings (step 4), and the real music the analyzer will read.
 
 - **E24. Does Techno land where techno lands?** (#15 step 3, N3), in
   [`packages/engine/experiments/genre-calibration.ts`](../packages/engine/experiments/genre-calibration.ts),
   held by [`packages/engine/experiments/genre-calibration.test.ts`](../packages/engine/experiments/genre-calibration.test.ts):
   the transport plays each preset's point, `readStyle`, `readTiming` and `readHarm` read the bars, and `genreOf` (`packages/engine/src/genre.ts`) turns the reading into probabilities over the presets by a softmax over the distances at a temperature.
-  The reading has six axes (`energy` from the density, `sync`, `artic`, `swing`, `bpm` on its log axis scaled to 0 to 1, and `harm`); the distance is a root mean square over them.
+  The reading has five axes (`energy` from the density, `sync`, `artic`, `bpm` on its log axis scaled to 0 to 1, and `harm`); the distance is a root mean square over them.
+  Swing is not one: it is the meter's (#360), and each preset plays in its meter's swing, which the drums, the bass and the lead still hear.
   3 seeds of 32 bars per preset, temperature 0.1, against two sets of landmarks: the presets' own points, and where the presets' bars read (the mean over 5 other seeds).
-  - Against the presets' points, a single bar lands as its own preset in 0.64 of bars on average (chance 0.125): Ambient 1.00, Swing jazz 0.91, Techno 0.87, Synth-pop 0.82, Lo-fi hip hop 0.74 and Deep house 0.72, but Funk 0.06 and Bossa nova 0.03.
+  - Against the presets' points, a single bar lands as its own preset in 0.53 of bars on average (chance 0.125): Ambient 1.00, Techno 0.82, Synth-pop 0.76, Swing jazz 0.71, Deep house 0.53 and Lo-fi hip hop 0.40, but Funk 0.00 and Bossa nova 0.00.
     The reading is compressed short of the axes (E23, E25), so a preset far out on one, Funk's `sync` of 1, has no bar near its point.
-  - Against where the presets read, 0.80: Ambient 0.92, Swing jazz 0.91, Bossa nova 0.86, Lo-fi hip hop 0.81, Funk 0.78, Techno 0.77, Deep house 0.69 and Synth-pop 0.68.
+  - Against where the presets read, 0.69: Ambient 0.91, Funk 0.82, Techno 0.77, Lo-fi hip hop 0.77, Swing jazz 0.69, Deep house 0.59, Bossa nova 0.57 and Synth-pop 0.42.
     So the critic's landmarks are measured, not read off the presets.
-  - Each axis added lifted it. On the three axes of the notes alone (`energy`, `sync`, `artic`) it was 0.30 against the points and 0.41 against where the presets read; with the two of the clock (`swing`, `bpm`) 0.61 and 0.71; with `harm` from the chords 0.64 and 0.80.
-    Synth-pop, Lo-fi hip hop and Bossa nova sat in the middle of the note axes and were separated by the clock; Deep house, taken for Funk until then, by `harm` (0.45 to 0.69).
+  - Each axis added lifted it. On the three axes of the notes alone (`energy`, `sync`, `artic`) it was 0.30 against the points and 0.41 against where the presets read; with `bpm` and `harm` it is 0.53 and 0.69.
+    With the swing read as a sixth axis, before it left the style (#360), it was 0.64 and 0.80: Synth-pop, Lo-fi hip hop and Bossa nova sat in the middle of the note axes and were separated by the clock, and Swing jazz landed in 0.91 of bars.
+    So four axes and the tempo place a bar less well than they did with swing (#358's open question, measured for the reader, not the composer).
   - A section's mean of 8 bars lands within 0.15 of a bar: averaging adds little, so what is missing is axes, not noise.
   - Not measured: the temperature's effect on calibration of `p` beyond the two tried (0.05 and 0.1 rank alike; `p` on the right preset is 0.14 to 0.80 at 0.1), `harm`, and real music.
 
@@ -528,20 +530,22 @@ run; the others have.
   It is tuned in at each preset's point with a setting's energy and entropy in place of the preset's, and left alone for 3 hours of music over 5 seeds a preset, each section's style glided to over `PRESET_GLIDE`; a section lasts 19.5 s on average.
   Fifteen settings: entropy 0.15, 0.3, 0.6 and 1 by an energy tuned in at of 0.2, 0.5 and 0.8, energy walking, and entropy 0.3 with energy held at each.
   Distances are on the unit axes, tempo on its unit scale; the nearest preset is read at each bar's start by `styleDistance`.
+  The walk is over the five unit axes and the tempo: swing is the meter's, not an axis (#360), so the radio leaves it where it was tuned in, and the nearest preset is read without it.
   - The tempo moves at most 1.00 % a section at entropy 1, 0.62 % at 0.6, 0.33 to 0.34 % at 0.3 and 0.17 to 0.19 % at 0.15.
-    In an hour it moves 4.1 % (root mean square) at entropy 0.3 and energy 0.5, 6.7 to 7.3 % at energy 0.2 or 0.8, and 9.5 to 10.0 % at entropy 1; over 3 hours a run spans 10 % at entropy 0.3 and energy 0.5, about 20 % at 0.2 or 0.8, and 25 to 27 % at entropy 1.
-    Energy leans it: tuned in at 0.8 and entropy 0.3, the median run ends at 140 bpm, at 0.2 at 96, and at 0.5 at 115; held at 0.8 a tenth of the runs end at the axis's top, 180, and spend 5 % of their sections within 2 % of it.
-    With energy held at 0.5 the tempo moves 2.3 % an hour, against 4.1 % with energy walking, whose lean the tempo follows.
-  - Each axis walks from where it was tuned in, after 10 minutes, an hour and 3 hours, about 0.07–0.11, 0.15–0.22 and 0.21–0.38 at entropy 0.3, about twice that at 0.6 within the hour, and at entropy 1 0.22–0.30 within 10 minutes and 0.30–0.44 within the hour, where the axis's ends begin to hold it; the tempo, on its unit scale, 0.010, 0.025 and 0.084 at entropy 0.3.
-  - The nearest preset first changes after a median of 72 to 90 minutes at entropy 0.3, 19 to 23 at 0.6 and 9 to 12 at 1, and not within 3 hours in at least half the runs at 0.15.
-    It changes 4.8 to 7.0 times an hour at entropy 0.3, 13 to 15 at 0.6 and 23 to 25 at 1, and about a fifth of changes, 18 to 23 % at every setting, are undone within a section: the walk runs along the border between two presets.
-    The station plays nearest the preset it was tuned in at in 62 to 72 % of bars at entropy 0.3 (89 to 96 % at 0.15, 33 to 38 % at 0.6, 22 to 24 % at 1), and is nearest 2.3 to 2.8 of the 8 presets some time in 3 hours at 0.3 (6.3 at 1).
+    In an hour it moves 4.2 % (root mean square) at entropy 0.3 and energy 0.5, 6.3 to 7.8 % at energy 0.2 or 0.8, and 9.6 to 10.1 % at entropy 1; over 3 hours a run spans 9 % at entropy 0.3 and energy 0.5, about 20 % at 0.2 or 0.8, and 24 to 27 % at entropy 1.
+    Energy leans it: tuned in at 0.8 and entropy 0.3, the median run ends at 142 bpm, at 0.2 at 99, and at 0.5 at 118; held at 0.8 a tenth of the runs end at 179 or above, and spend 7 % of their sections within 2 % of the axis's top.
+    With energy held at 0.5 the tempo moves 2.3 % an hour, against 4.2 % with energy walking, whose lean the tempo follows.
+  - Each axis walks from where it was tuned in, after 10 minutes, an hour and 3 hours, about 0.07–0.10, 0.13–0.24 and 0.21–0.32 at entropy 0.3, about twice that at 0.6 within the hour, and at entropy 1 0.22–0.29 within 10 minutes and 0.29–0.42 within the hour, where the axis's ends begin to hold it; the tempo, on its unit scale, 0.011, 0.030 and 0.079 at entropy 0.3.
+  - The nearest preset first changes after a median of 43 to 76 minutes at entropy 0.3, 12 to 18 at 0.6 and 4 to 6 at 1, and at 0.15 not within 3 hours in at least half the runs, but for energy 0.8 (159 minutes).
+    It changes 3.9 to 7.7 times an hour at entropy 0.3, 13 to 17 at 0.6 and 24 to 26 at 1, and about a fifth of changes, 19 to 23 % at every setting, are undone within a section: the walk runs along the border between two presets.
+    The station plays nearest the preset it was tuned in at in 62 to 71 % of bars at entropy 0.3 (79 to 91 % at 0.15, 35 to 41 % at 0.6, 26 to 29 % at 1), and is nearest 2.4 to 2.8 of the 8 presets some time in 3 hours at 0.3 (6.2 to 6.3 at 1).
+    It changes sooner than when swing walked as an axis (72 to 90 minutes at entropy 0.3): with an axis fewer, no two presets lie farther apart, and the walk's draws are new.
   - No axis glides faster than a tenth of the fastest a preset glide moves it, even at entropy 1 (harmony, articulation and energy 0.10); at entropy 0.3, 0.03.
-  - The style's loop with nobody in it, over 4 walks of 100,000 sections at each entropy (#210's three numbers, A4): its time constant, `timeConstant` of each axis's correlation a section later, is 53 to 144 sections on the unit axes at entropy 1 (0.3 to 0.8 hours, 63 to 173 times the key loop's 6.67 bars) and 562 to 1,561 at 0.3 (3.0 to 8.5 hours), a little under the reflected walk's slowest mode, 2 / (π² σ²) sections (61 to 169 at 1); the tempo's is 6,369 sections at entropy 1.
+  - The style's loop with nobody in it, over 4 walks of 100,000 sections at each entropy (#210's three numbers, A4): its time constant, `timeConstant` of each axis's correlation a section later, is 53 to 142 sections on the unit axes at entropy 1 (0.3 to 0.8 hours, 64 to 170 times the key loop's 6.67 bars) and 570 to 1,524 at 0.3 (3.1 to 8.3 hours), a little under the reflected walk's slowest mode, 2 / (π² σ²) sections (61 to 169 at 1); the tempo's is 7,208 sections at entropy 1.
     It scales as 1 / entropy², so the loop nests under the key's at every entropy above 0.
-    Its gain, the mean step against the distance from the axis's middle inside its middle half, is 0 within twice its error at every entropy (at most 5.4e-4 ± 3.3e-4 a section, where a pull of 1/128 reads −7.8e-3): nothing reads, remembers or leans.
-    Its bound is the axis, reflected, and the step: the largest step is the step the entropy allows (the tempo 0.995 to 1.000 of it), and no value after the first sits on an end.
-  - Entropy, walked under its own temperature (a step of 0.06 scaled by itself), cools from 0.3 to a median of 0.24 in 3 hours, 0.083 in 12 and 0.001 in 48: a multiplicative walk creeps to 0 and freezes there, so entropy holds.
+    Its gain, the mean step against the distance from the axis's middle inside its middle half, is 0 within twice its error at every entropy (at most 3.7e-4 ± 3.9e-4 a section, where a pull of 1/128 reads −7.8e-3): nothing reads, remembers or leans.
+    Its bound is the axis, reflected, and the step: the largest step is the step the entropy allows (the tempo 0.992 to 1.000 of it), and no value after the first sits on an end.
+  - Entropy, walked under its own temperature (a step of 0.06 scaled by itself), cools from 0.3 to a median of 0.22 in 3 hours, 0.063 in 12 and under 0.001 in 48: a multiplicative walk creeps to 0 and freezes there, so entropy holds.
   - Not measured: the music (the band was not run, only the style), a key under the walk (#313 step 4), a meter other than 4/4, and whether a listener hears the station as itself after 10 minutes.
 
 - **E31. The band's drums as cells text** (#309, the seam), in

@@ -22,6 +22,7 @@ const barView = (over: Partial<BarView> = {}): BarView => ({
   melodicName: 'plain',
   meter: METERS['4/4'],
   meterName: '4/4',
+  swingLevel: '16n',
   chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
   energy: 0.6,
   lead: 'improvising',
@@ -38,7 +39,7 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
   style: {
     preset: 'Techno',
     glide: null,
-    axes: { swing: 0, sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0 },
+    axes: { sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0 },
   },
   heading: { tonic: 9, mode: 'aeolian' },
   headingMelodic: 'plain',

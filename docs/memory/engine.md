@@ -11,10 +11,12 @@ The pointers to what holds each are in the sentences.
   Positions there are steps from the song's start, 16 to a bar.
   A track holds only the latest glide per axis, and before that glide's start it reads the glide's `from`.
   So to see what was played at a step, read the track as it stood when that step was scheduled, not the final track.
+  Its axes are `sync`, `harm`, `artic`, `energy`, `entropy` and `bpm`: swing is not one (#360, the owner's ruling on #309).
 - The radio (`packages/engine/src/radio.ts`, #313) is the style left alone: `walkRadio(style, seed, section)` gives the next section's targets, a free walk with no pull, every axis a uniform step in its own space, reflected at its ends.
   Entropy scales every step (0 holds the style) and holds itself; energy leans the tempo, `tempoLean` a section up at 1, as much down at 0; the tempo's step and lean together are at most 0.01 in log tempo, about 1 %, a section (the owner's rulings on #313, 2026-10-16).
   It is a machine at the section rate (`radio`), whose carried state is the style it last reached; its draws are `STREAMS.radio` by section and axis, and the app is to glide to each style with `glideTo`; nothing calls it yet (step 3), and the session, not the band card, is to carry it (step 5).
-  In C9's terms it is the style's fill with nobody in it, no read, memory or lean, so it never comes home (Q11); E30 measures its time constant, 0.3 to 0.8 hours at entropy 1 and 3 to 8.5 at 0.3, against the key loop's 6.67 bars, and at entropy 0.3 the station's nearest preset first changes after a median of 72 to 90 minutes, its tempo moving 4 to 7 % an hour.
+  In C9's terms it is the style's fill with nobody in it, no read, memory or lean, so it never comes home (Q11); E30 measures its time constant, 0.3 to 0.8 hours at entropy 1 and 3.1 to 8.3 at 0.3, against the key loop's 6.67 bars, and at entropy 0.3 the station's nearest preset first changes after a median of 43 to 76 minutes, its tempo moving 4 to 8 % an hour.
+  It walks the axes there are and leaves the meter's swing where it was tuned in.
 - The engine's levels are machines at their own rates: the section plan (form, key and theme) per section, the band per bar, the transport per tick.
   The players' key wish is a standing target, not an event: `nextKey` applied twice gives what it gave once, so the band can read it at every section boundary.
   Where the players wish for no tonic and the mode playing, the band moves the key itself (`bandWish`, `plan.ts`, #169): `harmonicReach` (6 × `harm`, rounded) gives how many fifths, the entropy how readily (`KEY_JUMP` × entropy a section), and the harmonic history where to.
@@ -51,10 +53,10 @@ The pointers to what holds each are in the sentences.
   A section has a meter (#261): the plan holds it (`Plan.meter`) beside the key, taken at the section boundary from the meter asked for (`BandEnv.meter`, `TransportEnv.meter`, 4/4 where none is), and a bar's `BarEnv.meter` is its plan's.
   The transport lays the bars on the song's clock as far as they are composed: it carries where the meter changes (`TransportCarried.meters`, the first at bar 0) and reads bars and beats from `clockOf` of them (`clockOfTransport`), learning a bar's meter as it composes or passes it (`BarSource.meterOf` gives it before a bar is composed, so a stall can pass a bar of another meter by its length).
   A bar is composed when the head is within `ahead` steps of where it starts (`barStart(nextBar) <= head + ahead`), which needs only the meters of the bars before it.
-  Swing is read off the clock's beats (`swingOf(track, clock)`, `swingMapAt`): a step keeps the start and length of its pulse (`ScheduledStep.pulse`), which `writtenAt` undoes its swing over.
+  Swing is read off the clock's beats (`swingOf(swingAt, clock)`, `swingMapAt`): a step keeps the start and length of its pulse (`ScheduledStep.pulse`), which `writtenAt` undoes its swing over.
   A note that runs into a bar not yet composed ends by the meter before it, which only moves its end where the swing does.
   `lookAhead`, `forecast` and `foresight` read each bar's environment from the clock of the bars before it, so a preview across a change is what plays.
-  The protocol is 8: the meter travels in the bar's plan, and the client gives it back to the bar (`follow.ts`).
+  The meter travels in the bar's plan, and the client gives it back to the bar (`follow.ts`); the protocol is 9 since the swing left the style (#360): a bar carries its swing (`BarEnv.swing`, its plan's level `Plan.swing`), and the song and the `track` message the swing track.
   The metronome clicks the pulses of the clock it is given (`clicksOf(steps, clock, subdivision)`, the eighths or sixteenths only where asked), and swings each by its own pulse; `PRESET_GLIDE` is a number of steps, not bars, so it is 8 bars of 4/4 and more in a shorter bar's meter; the web reads the transport's clock (#262).
   The drums carry nothing; the bass its last note, the comp its last voicing, the lead its last note, its phrase and its themes' melodies (`BandCarried.parts`).
   A passed bar leaves the parts where they were, and only the lead's memory reaches more than register (S2); the band's harmonic history is the plan's, not a part's.
@@ -63,10 +65,11 @@ The pointers to what holds each are in the sentences.
   The offer enters the band as its environment (`BandEnv.offer`, then `BarEnv.offer`), a standing target like the key wish, and the lead plays it whole while it stands, even where it would rest.
   The transport carries the Muse's state (`listening`) and judges bar k as it composes bar k + 2 (`LISTEN_DELAY`); a test that builds a `BandEnv` or `BarEnv` by hand gives `offer: null`.
   A motif's accents are counted from the player's level in the bar, which the judgement and the offer carry beside it as the style reading, and a motif note plays at the band's level plus its accent (U4): the lead writes it on the note (`WrittenNote.accent`), and `perform` plays it on `LEAD_LEVEL`.
-- `style-reading.ts` is the critic's reading (#15): `readStyle(dough)` reads a bar's `density`, `sync` and `artic` from its sounding notes, and `readTiming(steps, onsets)` its `bpm` and `swing` from the clock, by rule.
-  A reading is raw and an axis with nothing to read is absent; how far each lies from the style that wrote the bar is step 2's measurement, and swing stays `estimateSwing`'s, in played time.
+- `style-reading.ts` is the critic's reading (#15): `readStyle(dough)` reads a bar's `density`, `sync` and `artic` from its sounding notes, and `readTiming(steps)` its `bpm` from the clock, by rule.
+  A reading is raw and an axis with nothing to read is absent; how far each lies from the style that wrote the bar is step 2's measurement.
+  Swing is the meter's, so the style reading reads none (#360); the onsets' reader still finds it, in played time (`estimateSwing`).
 - `genre.ts` (#15, step 3): `genreOf(readingAxes({ ...readStyle(dough), ...readTiming(steps, onsets) }))` is a softmax over the distances from a reading to landmarks, by default the presets' points (`PRESET_LANDMARKS`).
-  A reading has `energy`, `sync`, `artic`, `swing`, `bpm` and `harm`, so the distance is a root mean square over those, and E24 finds it lands a bar as its own preset in 0.64 to 0.80 of bars.
+  A reading has `energy`, `sync`, `artic`, `bpm` and `harm`, so the distance is a root mean square over those, and E24 finds it lands a bar as its own preset in 0.53 to 0.69 of bars (0.64 to 0.80 when swing was read as an axis).
 - `chord-reading.ts` (#15): `readChords(dough)` reads a root and quality per half bar from the pad and stab (the bass settles the root), and `readHarm` the `harm` of them; E25 finds it right wherever it reads and `harm` rising with the axis (tau 0.77) but short of it.
 - `part-reading.ts` (#15, step 4): `readVoice(voice, dough)` reads one of four voices (drums, bass, comp, lead) alone, and `partDistance` its distance from where the voice reads at a style; E26 finds the bass says most of the style and the drums least, and a drum fill barely farther from the style than the drums' usual bar.
 - The Muse is two functions and a machine over their results: `judgeBar` judges one source's bar, `taken` takes one motif of all the bar's judgements, and `muse` carries the offer.
@@ -83,9 +86,15 @@ The pointers to what holds each are in the sentences.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's register.
   `joinChord` gives its stack, and `chordScale` takes a stack.
   A bar's chords come from its theme's slots (`barChords`); their colour draws are keyed by theme, bar and slot, so a test that wants a rate must vary the seed or the theme, not the key.
-- Swing is a time map, `swingMap(swing)`, with `played` and `written` as exact inverses.
-  It is `leanMap` over the swing axis's two levels: a lean per level, signed, 0 straight, 1 the triplet, 1.5 the dotted figure, negative the offbeat early (`shareOfLean` reads a lean as the share of its span the first half holds, 50 % straight).
-  The axis itself, a style's, never leans early; the metronome screen takes the two levels directly.
+- Swing is a time map, `leanMap`, with `played` and `written` as exact inverses: a lean per level, the 8ths' and the 16ths', signed, 0 straight, 1 the triplet, 1.5 the dotted figure, negative the offbeat early (`shareOfLean` reads a lean as the share of its span the first half holds, 50 % straight).
+  The band's swing is its meter's (#360, `swing.ts`): a level, `8n` or `16n`, and a share, `MeterSwing`, which leans that level alone and never early (`leansOf`).
+  Its share glides as an axis does (`SwingTrack`, `swingTo`, `glideIn`), over 8 bars from a preset and one from the Metrum card; its level is asked for at once and taken where the next section starts, as the meter is (`Plan.swing`), so a change of level never cuts into a section.
+  Each beat swings on its bar's level, at the share where the beat starts; a beat of a bar not yet composed swings on the level of the bar playing.
+  Each preset names its meter's swing (`Preset.swing`), the level and share `swingParts` gave at its old axis value, so every preset plays the onsets it did (within 1e-9, `style.test.ts`); the straight ones are on the 16ths.
+  A meter swung on `8n` brings in the jazz kit and the walking bass, as far as its 8ths swing (`eighthSwing`, the owner's ruling on #360), until drum and bass fragments come from the repository (yggi/cells#82); the lead's pickups and the performer's feel read `swingWeight`, a 16th lean counting half an 8th's, which on every preset is its old axis value.
+  A section's level is decided with its plan, on the bar before it, so a test that tours the presets a section at a time asks each preset's level a bar ahead.
+  `swingMap(x)` is the one path through the two levels the readers search (`estimateSwing`): straight to a 16th shuffle at 0.5, crossfading into triplet 8ths at 1.
+  The metronome screen takes the two levels directly.
   The transport plays through it, and player input reads back through `written`.
 - A moment on the clock reads back onto the grid through the steps the transport laid (`writtenAt`), never through the style track: the track holds only its latest glide per axis, so inverting it from the song's start put a note 18 bars early after two tempo changes (#78).
   Each `ScheduledStep` carries the swing its beat was held at for this.

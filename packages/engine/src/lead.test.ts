@@ -31,8 +31,17 @@ import { SECTION_TYPES } from './form.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import type { Offer } from './muse.ts';
 import { PRESETS, type Style } from './style.ts';
+import { type MeterSwing, STRAIGHT } from './swing.ts';
 
 const range = (n: number) => [...Array(n).keys()];
+
+const presetAt = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
+
+/** The tour's swing: each preset's, its level asked a bar ahead, as a section's plan takes it on the bar before (#360). */
+const swingAt = (bar: number): MeterSwing => ({
+  level: presetAt(bar + 1).swing.level,
+  share: presetAt(bar).swing.share,
+});
 
 const styleAt = (bar: number): Style => ({
   ...PRESETS[Math.floor(bar / 8) % PRESETS.length]!.style,
@@ -40,15 +49,16 @@ const styleAt = (bar: number): Style => ({
   entropy: (bar % 32) / 32,
 });
 
-const tour = (seed: number, bars = 160, style = styleAt): BandBar[] => {
+const tour = (seed: number, bars = 160, style = styleAt, swing = swingAt): BandBar[] => {
   let carried = band.initial;
   return range(bars).map((bar) => {
-    const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
+    const preset = presetAt(bar);
     const next = band.advance(
       {
         seed,
         bar,
         style: style(bar),
+        swing: swing(bar),
         wish: { tonic: null, mode: preset.mode, melodic: null },
         offer: null,
       },
@@ -100,7 +110,7 @@ describe('the lead', () => {
   it('keeps every note in 60–86 over a grid of styles, where its phrases are widest', () => {
     // The widest phrases come at high energy and entropy. A phrase that no
     // octave shift fits folds its stragglers note by note.
-    const run = (seed: number, style: Style, bars: number) => {
+    const run = (seed: number, style: Style, swing: MeterSwing, bars: number) => {
       let carried = band.initial;
       return range(bars).flatMap((bar) => {
         const next = band.advance(
@@ -108,6 +118,7 @@ describe('the lead', () => {
             seed,
             bar,
             style,
+            swing,
             wish: { tonic: null, mode: 'aeolian', melodic: null },
             offer: null,
           },
@@ -123,7 +134,6 @@ describe('the lead', () => {
     // Seed 9, bar 61, which played 86 84 89 79 81 72 69 when the octave
     // folds undid each other.
     const repro = {
-      swing: 1,
       sync: 1 / 3,
       harm: 0,
       artic: 1 / 3,
@@ -131,13 +141,14 @@ describe('the lead', () => {
       entropy: 0.9,
       bpm: 120,
     };
-    const bar61 = run(9, repro, 62).filter((n) => n.bar === 61);
+    const bar61 = run(9, repro, PRESETS[7]!.swing, 62).filter((n) => n.bar === 61);
     expect(bar61.length).toBeGreaterThan(0);
     const outside: string[] = [];
     for (const n of bar61) if (n.note < 60 || n.note > 86) outside.push(`repro: ${n.note}`);
     const grid = [0, 0.5, 1];
+    const swings: MeterSwing[] = [STRAIGHT, { level: '16n', share: 2 / 3 }, PRESETS[7]!.swing];
     let notes = 0;
-    for (const swing of grid)
+    for (const swing of swings)
       for (const sync of grid)
         for (const harm of grid)
           for (const artic of grid)
@@ -146,11 +157,11 @@ describe('the lead', () => {
               [1, 1],
             ] as const)
               for (const seed of range(3)) {
-                const style = { swing, sync, harm, artic, energy, entropy, bpm: 120 };
-                for (const n of run(seed, style, 64)) {
+                const style = { sync, harm, artic, energy, entropy, bpm: 120 };
+                for (const n of run(seed, style, swing, 64)) {
                   notes++;
                   if (n.note < 60 || n.note > 86)
-                    outside.push(`${JSON.stringify(style)} ${seed}: ${n.note}`);
+                    outside.push(`${JSON.stringify({ ...style, swing })} ${seed}: ${n.note}`);
                 }
               }
     expect(outside.slice(0, 5)).toEqual([]);
@@ -330,6 +341,7 @@ const recording = () =>
                 seed,
                 bar,
                 style: { ...preset.style, entropy: 0.3 },
+                swing: preset.swing,
                 wish: { tonic: null, mode: preset.mode, melodic: null },
                 offer: null,
               },
@@ -465,28 +477,33 @@ describe('the phrase parameters', () => {
     }
   });
 
-  it('lift the off-beat eighths with the swing, and nothing else, 0 when straight, over every preset (#168)', () => {
+  it('lift the off-beat eighths with the meter’s swing, by its weight, and nothing else, 0 when straight, over every preset (#168, #360)', () => {
+    // A 16th lean weighs half an 8th's: these weigh 0, 0.5 and 1.
+    const swings: MeterSwing[] = [STRAIGHT, { level: '16n', share: 2 / 3 }, PRESETS[7]!.swing];
+    const weights = [0, 0.5, 1];
     for (const { bar } of barsOf) {
-      const over = grid.map(
-        (swing) => phraseParams({ ...bar, style: { ...bar.style, swing } }).pickups,
-      );
+      const over = swings.map((swing) => phraseParams({ ...bar, swing }).pickups);
       over.forEach((pickups, i) => {
         expect(pickups).toHaveLength(16);
-        pickups.forEach((lift, s) => expect(lift).toBe(s % 4 === 2 ? 0.3 * grid[i]! : 0));
+        pickups.forEach((lift, s) =>
+          expect(lift).toBeCloseTo(s % 4 === 2 ? 0.3 * weights[i]! : 0, 12),
+        );
       });
       expect(over[0]!.every((lift) => lift === 0)).toBe(true);
     }
   });
 
   it('plays more of its notes on the off-beat eighths the more it swings (#168)', () => {
-    const offBeats = (swing: number) => {
-      const bars = [1, 2, 3, 4, 5, 6].flatMap((seed) =>
-        tour(seed, 64, (b) => ({ ...styleAt(b), swing })),
-      );
+    const offBeats = (swing: MeterSwing) => {
+      const bars = [1, 2, 3, 4, 5, 6].flatMap((seed) => tour(seed, 64, styleAt, () => swing));
       const notes = play(bars).flatMap((p) => p.events);
       return notes.filter((e) => e.step % 4 === 2).length / notes.length;
     };
-    const [straight, half, full] = [offBeats(0), offBeats(0.5), offBeats(1)];
+    const [straight, half, full] = [
+      offBeats(STRAIGHT),
+      offBeats({ level: '16n', share: 2 / 3 }),
+      offBeats(PRESETS[7]!.swing),
+    ];
     expect(half).toBeGreaterThan(straight);
     expect(full).toBeGreaterThan(half);
   });
@@ -504,7 +521,7 @@ describe('the phrase parameters', () => {
       }
   });
 
-  it('read the style’s sync, entropy, harmony and swing and the bar’s energy, and nothing else of the style', () => {
+  it('read the style’s sync, entropy and harmony, the meter’s swing and the bar’s energy, and nothing else of the style', () => {
     for (const { bar } of barsOf) {
       const base = phraseParams(bar);
       for (const axis of ['artic', 'energy', 'bpm'] as const)
@@ -528,6 +545,7 @@ describe('the lead over a melodic scale', () => {
               seed,
               bar,
               style: { ...preset.style, energy: 0.7, entropy: 0.3 },
+              swing: preset.swing,
               wish: { tonic: null, mode, melodic: null },
               offer: null,
             },

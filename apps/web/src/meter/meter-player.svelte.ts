@@ -16,7 +16,7 @@
  * bar's drawing to light.
  */
 
-import { INITIAL_STYLE, timbreOf } from '@jambot/engine';
+import { INITIAL_STYLE, STRAIGHT, timbreOf } from '@jambot/engine';
 import { METERS, type MeterName, STEPS_PER_EIGHTH, stepsOf } from '@jambot/theory';
 import type { ClockOffset } from '@yggi/webmidi/core';
 import type { Output } from '../audio/output.ts';
@@ -38,7 +38,7 @@ export const LEAD_SECONDS = 0.1;
  * saw, triangle, cutoff and resonance from it, and a voice given none of
  * them is asked for a level that is not a number, which Web Audio refuses.
  */
-const BASS = timbreOf('bass', INITIAL_STYLE, 0.5);
+const BASS = timbreOf('bass', INITIAL_STYLE, STRAIGHT, 0.5);
 
 export interface MeterDeps {
   /** The audio clock and its pairing with the page's, made on first use. */

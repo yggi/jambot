@@ -8,7 +8,7 @@
  * moved, or sent elsewhere; one is held at a time.
  */
 
-import { INITIAL_STYLE, type Part, type Timbre, timbreOf } from '@jambot/engine';
+import { INITIAL_STYLE, type Part, STRAIGHT, type Timbre, timbreOf } from '@jambot/engine';
 import { nibble, type MidiPort } from '../audio/midi-out.ts';
 import type { PortOption } from '@yggi/webmidi/core';
 
@@ -59,7 +59,7 @@ export interface Destination {
 }
 
 /** The lead's colour at the style the band starts in, so the note sounds as the band's lead does. */
-const LEAD = timbreOf('lead', INITIAL_STYLE, 0.5);
+const LEAD = timbreOf('lead', INITIAL_STYLE, STRAIGHT, 0.5);
 
 export class ToneSender {
   #deps: SenderDeps;

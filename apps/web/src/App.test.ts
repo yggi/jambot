@@ -210,7 +210,7 @@ describe('the app', () => {
     await pull('Style');
     for (const p of PRESETS)
       expect(screen.getByRole('radio', { name: p.name })).toBeInTheDocument();
-    for (const name of ['Swing', 'Syncopation', 'Harmony', 'Articulation', 'Energy', 'Entropy'])
+    for (const name of ['Syncopation', 'Harmony', 'Articulation', 'Energy', 'Entropy'])
       expect(screen.getByRole('slider', { name: new RegExp(name) })).toBeInTheDocument();
     expect(
       within(screen.getByRole('region', { name: 'Transport' })).getByText('Ready'),
@@ -278,8 +278,12 @@ describe('the app', () => {
       'aria-checked',
       'true',
     );
-    expect(screen.getByRole('slider', { name: /Swing/ })).toHaveValue('100');
+    expect(screen.getByRole('slider', { name: /Harmony/ })).toHaveValue('100');
     expect(tempo()).toHaveTextContent('148 BPM');
+    // Its meter swings on the 8ths, at the triplet: the Metrum card holds it (#360).
+    await pull('Time');
+    expect(screen.getByRole('slider', { name: 'Swing' })).toHaveValue('67');
+    expect(screen.getByRole('radio', { name: '8ths' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('nudges the tempo within the style’s licence, and names the style by its preset: energy, entropy and the nudge keep it, anything else makes it custom', async () => {

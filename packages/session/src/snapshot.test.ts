@@ -20,6 +20,10 @@ const snapshot: HostSnapshot = {
   wish: { tonic: null, mode: 'aeolian', melodic: null },
   tempoNudge: 0.1,
   meter: { cycle: 10, heights: [0, 2, 4, 6, 8] },
+  swing: {
+    level: '8n',
+    share: { from: 0.5, to: 2 / 3, start: 16, length: 128, slope: 0, brake: 0 },
+  },
 };
 
 const resume: ClientResume = {
@@ -39,6 +43,22 @@ describe('what a host keeps to come back from a reload', () => {
   it('reads one saved before it kept a meter, which asks for none (#305)', () => {
     const older = { ...snapshot, meter: undefined };
     expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
+  });
+
+  it('reads one saved before the meter held the swing, which plays straight (#360)', () => {
+    const older = { ...snapshot, swing: undefined };
+    expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
+  });
+
+  it('reads no swing that is not a level and a glide (#360)', () => {
+    const glide = snapshot.swing!.share;
+    for (const swing of [
+      0.5,
+      { level: '4n', share: glide },
+      { level: '8n', share: 0.6 },
+      { level: '16n', share: { ...glide, to: null } },
+    ])
+      expect(readHostSnapshot({ ...snapshot, swing }, 1001), JSON.stringify(swing)).toBeNull();
   });
 
   it('reads nothing that is not one, or of another version, or too old', () => {

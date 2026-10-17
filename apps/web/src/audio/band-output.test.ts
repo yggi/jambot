@@ -1,5 +1,5 @@
 // @vitest-environment node
-import type { Timbre } from '@jambot/engine';
+import { STRAIGHT, type Timbre } from '@jambot/engine';
 import { clockOffset } from '@yggi/webmidi/core';
 import { describe, expect, it } from 'vitest';
 import { bandOutput, type BandOutputSettings } from './band-output.ts';
@@ -158,7 +158,7 @@ describe('bandOutput', () => {
         chord: {} as never,
         seconds: 0,
         length: 0.5,
-        swing: 0,
+        swing: STRAIGHT,
         pulse: { start: 0, length: 4 },
       },
     ]);
@@ -173,7 +173,7 @@ describe('bandOutput', () => {
         chord: {} as never,
         seconds: 0,
         length: 0.5,
-        swing: 0,
+        swing: STRAIGHT,
         pulse: { start: 0, length: 4 },
       },
     ]);

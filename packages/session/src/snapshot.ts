@@ -7,7 +7,7 @@
  * so a host keeps the session's name and the secret that takes it back
  * from the lobby, who is in it and how they come back (`roster.ts`), the
  * players' names, the style, the key wish and the tempo nudge the
- * conductor had set, the meter asked for, and the lobby it opened in. A client keeps the session,
+ * conductor had set, the meter asked for and its swing, and the lobby it opened in. A client keeps the session,
  * its name, its token and the lobby it joined through. A record older than `SAVED_MAX_AGE` is
  * forgotten: a session that long gone has moved on.
  *
@@ -16,11 +16,13 @@
  * own, written by the same build, and a version bump retires a shape that
  * changes. The meter is checked as a meter (its pulses rising from the
  * downbeat within the bar), since a bar's length is built from it; a record
- * saved before it was kept has none, and asks for the song's. Pure: the app stores and fetches, and gives the time, in
+ * saved before it was kept has none, and asks for the song's. The swing is
+ * checked as a level and a share's glide; a record saved before the meter
+ * held it (#360) has none, and plays straight. Pure: the app stores and fetches, and gives the time, in
  * seconds since the epoch.
  */
 
-import type { KeyWish, StyleTrack } from '@jambot/engine';
+import { type KeyWish, type StyleTrack, type SwingTrack, SWING_LEVELS } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
 import type { Member } from './roster.ts';
 
@@ -50,6 +52,8 @@ export interface HostSnapshot {
   readonly tempoNudge: number;
   /** The meter asked for, which the band takes at a section's start; absent in a record saved before it was kept. */
   readonly meter?: Meter;
+  /** The meter's swing asked for (#360); absent in a record saved before the meter held it. */
+  readonly swing?: SwingTrack;
 }
 
 export interface ClientResume {
@@ -78,6 +82,15 @@ const isMeter = (v: unknown): v is Meter =>
       Number.isInteger(h) && h < (v.cycle as number) && (i === 0 || h > (all[i - 1] as number)),
   );
 
+/** Whether a value is a swing track: a level, and a glide of finite numbers. */
+const isSwing = (v: unknown): v is SwingTrack =>
+  isRecord(v) &&
+  (SWING_LEVELS as readonly unknown[]).includes(v.level) &&
+  isRecord(v.share) &&
+  ['from', 'to', 'start', 'length', 'slope', 'brake'].every((k) =>
+    Number.isFinite((v.share as Record<string, unknown>)[k]),
+  );
+
 /** Whether a record saved at `savedAt` is still good at `now`. */
 const fresh = (savedAt: unknown, now: number): boolean =>
   typeof savedAt === 'number' &&
@@ -88,12 +101,25 @@ const fresh = (savedAt: unknown, now: number): boolean =>
 /** A host's snapshot, or null for anything that isn't a good one at `now`. */
 export function readHostSnapshot(data: unknown, now: number): HostSnapshot | null {
   if (!isRecord(data) || data.version !== VERSION || !fresh(data.savedAt, now)) return null;
-  const { session, lobby, reclaim, player, roster, players, track, wish, tempoNudge, meter } = data;
+  const {
+    session,
+    lobby,
+    reclaim,
+    player,
+    roster,
+    players,
+    track,
+    wish,
+    tempoNudge,
+    meter,
+    swing,
+  } = data;
   if (!isText(session) || typeof lobby !== 'string' || typeof player !== 'string') return null;
   if (reclaim !== null && typeof reclaim !== 'string') return null;
   if (typeof tempoNudge !== 'number' || !Number.isFinite(tempoNudge)) return null;
   if (!isRecord(track) || !isRecord(wish)) return null;
   if (meter !== undefined && !isMeter(meter)) return null;
+  if (swing !== undefined && !isSwing(swing)) return null;
   if (!isRecord(players) || !Object.values(players).every((n) => typeof n === 'string'))
     return null;
   if (

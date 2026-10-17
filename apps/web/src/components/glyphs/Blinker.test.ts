@@ -1,10 +1,12 @@
 import { render } from '@testing-library/svelte';
 import { describe, expect, it } from 'vitest';
-import { SONG_METER } from '@jambot/engine';
+import { type MeterSwing, SONG_METER, STRAIGHT } from '@jambot/engine';
 import { METERS, stepsOf } from '@jambot/theory';
 import { barMarks as marksOf } from '../../bar.ts';
 
-const barMarks = (swing: number, heard: number | null) => marksOf(SONG_METER, swing, heard);
+const barMarks = (swing: MeterSwing, heard: number | null) => marksOf(SONG_METER, swing, heard);
+/** Full triplet swing on the 8ths. */
+const TRIPLET: MeterSwing = { level: '8n', share: 2 / 3 };
 import Blinker from './Blinker.svelte';
 
 const lamps = (container: HTMLElement) => [...container.querySelectorAll('circle.lamp')];
@@ -17,28 +19,28 @@ const turn = (lamp: Element) => {
 
 describe('the blinker', () => {
   it('lays the bar clockwise from the top, the eighths evenly round when there is no swing', () => {
-    const { container } = render(Blinker, { marks: barMarks(0, null), span: 16 });
+    const { container } = render(Blinker, { marks: barMarks(STRAIGHT, null), span: 16 });
     expect(lamps(container).map((lamp) => Math.round(turn(lamp) * 8) % 8)).toEqual([
       0, 1, 2, 3, 4, 5, 6, 7,
     ]);
   });
 
   it('has a lamp for each eighth, and none for the faint sixteenths between', () => {
-    const { container } = render(Blinker, { marks: barMarks(0, null), span: 16 });
+    const { container } = render(Blinker, { marks: barMarks(STRAIGHT, null), span: 16 });
     expect(lamps(container)).toHaveLength(8);
   });
 
   it('lights nothing before anything is heard, and the one eighth heard after', () => {
-    const still = render(Blinker, { marks: barMarks(0, null), span: 16 });
+    const still = render(Blinker, { marks: barMarks(STRAIGHT, null), span: 16 });
     expect(still.container.querySelectorAll('circle.lit')).toHaveLength(0);
     still.unmount();
-    const { container } = render(Blinker, { marks: barMarks(0, 3), span: 16 });
+    const { container } = render(Blinker, { marks: barMarks(STRAIGHT, 3), span: 16 });
     const lit = lamps(container).flatMap((lamp, i) => (lamp.classList.contains('lit') ? [i] : []));
     expect(lit).toEqual([3]);
   });
 
   it('shows three weights: the downbeat largest, a pulse, and an eighth between smallest', () => {
-    const { container } = render(Blinker, { marks: barMarks(0, null), span: 16 });
+    const { container } = render(Blinker, { marks: barMarks(STRAIGHT, null), span: 16 });
     const radius = lamps(container).map((lamp) => Number(lamp.getAttribute('r')));
     expect(radius[0]).toBeGreaterThan(radius[2]!);
     expect(radius[2]).toBeGreaterThan(radius[1]!);
@@ -47,18 +49,23 @@ describe('the blinker', () => {
   });
 
   it('moves the eighths between the pulses with the swing, and never a pulse', () => {
-    const straight = lamps(render(Blinker, { marks: barMarks(0, null), span: 16 }).container);
-    const swung = lamps(render(Blinker, { marks: barMarks(1, null), span: 16 }).container);
+    const straight = lamps(
+      render(Blinker, { marks: barMarks(STRAIGHT, null), span: 16 }).container,
+    );
+    const swung = lamps(render(Blinker, { marks: barMarks(TRIPLET, null), span: 16 }).container);
     for (const i of [0, 2, 4, 6]) expect(turn(swung[i]!)).toBeCloseTo(turn(straight[i]!), 6);
     for (const i of [1, 3, 5, 7]) expect(turn(swung[i]!)).toBeGreaterThan(turn(straight[i]!));
   });
 
   it('sends a ring out from the lamp lit, and none before anything is heard', () => {
-    const still = render(Blinker, { marks: barMarks(0, null), span: 16 });
+    const still = render(Blinker, { marks: barMarks(STRAIGHT, null), span: 16 });
     expect(still.container.querySelectorAll('circle.halo')).toHaveLength(0);
     still.unmount();
     for (const heard of [0, 3, 6]) {
-      const { container, unmount } = render(Blinker, { marks: barMarks(0, heard), span: 16 });
+      const { container, unmount } = render(Blinker, {
+        marks: barMarks(STRAIGHT, heard),
+        span: 16,
+      });
       const halo = container.querySelectorAll('circle.halo');
       expect(halo).toHaveLength(1);
       const lit = container.querySelector('circle.lamp.lit')!;
@@ -69,7 +76,7 @@ describe('the blinker', () => {
   });
 
   it('makes the downbeat’s ring the widest one', () => {
-    const { container } = render(Blinker, { marks: barMarks(0, 0), span: 16 });
+    const { container } = render(Blinker, { marks: barMarks(STRAIGHT, 0), span: 16 });
     expect(container.querySelector('circle.halo')).toHaveClass('accent');
   });
 });
@@ -77,7 +84,7 @@ describe('the blinker', () => {
 describe('the beacon of another meter', () => {
   it('lays one lamp on a circle for each eighth of the bar, the downbeat first and largest, in every named meter (finite: every meter)', () => {
     for (const [name, meter] of Object.entries(METERS)) {
-      const marks = marksOf(meter, 0, null);
+      const marks = marksOf(meter, STRAIGHT, null);
       const { container, unmount } = render(Blinker, { marks, span: stepsOf(meter) });
       const lamps = [...container.querySelectorAll('circle.lamp')];
       expect([name, lamps.length]).toEqual([name, meter.cycle]);

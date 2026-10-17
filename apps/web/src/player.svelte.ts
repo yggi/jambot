@@ -71,11 +71,14 @@ import {
   SECTION_BARS,
   SONG_CLOCK,
   SONG_METER,
+  STRAIGHT,
   type ScheduledStep,
   type SongClock,
   styleAt,
   timbreOf,
   type StyleTrack,
+  type MeterSwing,
+  type SwingTrack,
   type TransportCarried,
   type TransportEnv,
   type TransportOutput,
@@ -88,10 +91,12 @@ import {
   forecast,
   foresight,
   holding,
+  holdingSwing,
   released,
   stepSeconds,
   transport,
   transportOver,
+  swingAt,
   valueAt,
   writtenAt,
 } from '@jambot/engine';
@@ -113,7 +118,16 @@ import {
 import { type Meter, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
-import { type Intent, conduct, nudgeAfter, stopAt, styleAfter, wishAfter } from './conductor.ts';
+import {
+  type Intent,
+  conduct,
+  conductSwing,
+  nudgeAfter,
+  stopAt,
+  stopSwing,
+  styleAfter,
+  wishAfter,
+} from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
@@ -154,7 +168,8 @@ export interface Hosting {
   composed(bars: readonly SentBar[]): void;
   /** The bars ahead, whenever they are decided again. */
   decided(bars: readonly ForecastBar[]): void;
-  track(track: StyleTrack): void;
+  /** The style or the meter's swing moved. */
+  track(track: StyleTrack, swing: SwingTrack): void;
   /** The meter asked for changed: nothing goes on the wire, since each bar carries its own, but a host keeps it. */
   meter(meter: Meter): void;
   muse(muse: MuseState): void;
@@ -267,6 +282,12 @@ export class Player {
    * is the song's clock's (`clock`).
    */
   meter: Meter = $state.raw(SONG_METER);
+  /**
+   * The meter's swing (#360): the level asked for, which the band takes at
+   * the next section's boundary as it takes the meter, and the share gliding.
+   * Each preset names its own; the Meter card sets it.
+   */
+  swing: SwingTrack = $state.raw(holdingSwing(PRESETS[0]!.swing));
   /**
    * The song's clock as far as the bars decided reach: where its bars and
    * beats fall, in the meters they are in (#262). Every view reads bars and
@@ -444,9 +465,10 @@ export class Player {
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
     const style = styleAfter(this.track, intent, this.tempoNudge);
     this.track = conduct(this.track, intent, at, this.tempoNudge);
+    this.swing = conductSwing(this.swing, intent, at);
     this.tempoNudge = nudgeAfter(this.tempoNudge, intent, style);
     this.wish = wishAfter(this.wish, intent, style, this.home);
-    this.hosting?.track(this.track);
+    this.hosting?.track(this.track, this.swing);
     this.#decide();
   }
 
@@ -556,7 +578,7 @@ export class Player {
     const output = (this.#output ??= this.#surroundings.output());
     await output.resume();
     const energy = this.hud.bar?.energy ?? 0.6;
-    const timbre = timbreOf(part, styleAt(this.track, this.heard ?? 0), energy);
+    const timbre = timbreOf(part, styleAt(this.track, this.heard ?? 0), this.#swingHeard(), energy);
     output.play(part, note, velocity, output.currentTime, ALONG_DURATION[part], timbre);
   }
 
@@ -601,7 +623,12 @@ export class Player {
     this.status = 'playing';
     this.#start = output.currentTime + START_LEAD + countInSeconds(this.track, this.#opening());
     this.#begin(output);
-    this.hosting?.started({ seed: this.#seed, start: this.#start, track: this.track });
+    this.hosting?.started({
+      seed: this.#seed,
+      start: this.#start,
+      track: this.track,
+      swing: this.swing,
+    });
     this.#decide();
     this.#tick();
   }
@@ -663,27 +690,31 @@ export class Player {
   }
 
   /**
-   * Set the style, key wish, tempo nudge and meter a host that was reloaded
-   * had, while it is stopped: the style holds where the conductor left it,
-   * and a record saved before the meter was kept asks for the song's.
+   * Set the style, key wish, tempo nudge, meter and swing a host that was
+   * reloaded had, while it is stopped: the style holds where the conductor
+   * left it, a record saved before the meter was kept asks for the song's,
+   * and one saved before the meter held the swing plays straight.
    */
   restore({
     track,
     wish,
     tempoNudge,
     meter = SONG_METER,
+    swing = holdingSwing(STRAIGHT),
   }: {
     track: StyleTrack;
     wish: KeyWish;
     tempoNudge: number;
     meter?: Meter | undefined;
+    swing?: SwingTrack | undefined;
   }) {
     if (this.status !== 'stopped' || this.mode === 'client') return;
     this.track = stopAt(track);
+    this.swing = stopSwing(swing);
     this.wish = wish;
     this.tempoNudge = tempoNudge;
     this.meter = meter;
-    this.hosting?.track(this.track);
+    this.hosting?.track(this.track, this.swing);
     this.#decide();
   }
 
@@ -692,7 +723,7 @@ export class Player {
     const carried = this.#carried;
     if (this.status !== 'playing' || !carried) return null;
     return {
-      song: { seed: this.#seed, start: this.#start, track: this.track },
+      song: { seed: this.#seed, start: this.#start, track: this.track, swing: this.swing },
       bars: sentBars(carried.bars, this.#laid, carried.head, this.track, clockOfTransport(carried)),
     };
   }
@@ -726,6 +757,7 @@ export class Player {
     this.#seed = song.seed;
     this.#start = song.start;
     this.track = song.track;
+    this.swing = song.swing;
     this.#begin(output);
     this.#tick();
   }
@@ -742,8 +774,10 @@ export class Player {
     this.ending = true;
   }
 
-  followTrack(track: StyleTrack) {
-    if (this.#follow) this.track = track;
+  followTrack(track: StyleTrack, swing: SwingTrack) {
+    if (!this.#follow) return;
+    this.track = track;
+    this.swing = swing;
   }
 
   /** The host's bars ahead. */
@@ -771,6 +805,7 @@ export class Player {
     this.mode = 'solo';
     this.skew = 0;
     this.track = holding(INITIAL_STYLE);
+    this.swing = holdingSwing(PRESETS[0]!.swing);
     this.museLog = [];
     this.offer = null;
     this.#forgetMemory();
@@ -808,9 +843,10 @@ export class Player {
     this.#metronome?.rest();
     if (!this.#follow) {
       this.track = stopAt(this.track);
+      this.swing = stopSwing(this.swing);
       this.#seed = this.#surroundings.seed();
       this.hosting?.stopped();
-      this.hosting?.track(this.track);
+      this.hosting?.track(this.track, this.swing);
       this.#decide();
     }
     this.#output?.silence();
@@ -828,7 +864,14 @@ export class Player {
       track: this.track,
       wish: this.wish,
       meter: this.meter,
+      swing: this.swing,
     };
+  }
+
+  /** The meter's swing heard: the bar heard's, or before anything is, what is asked for where the song stands. */
+  #swingHeard(): MeterSwing {
+    const asked = swingAt(this.swing, this.heard ?? 0);
+    return this.hud.bar ? { ...asked, level: this.hud.bar.swingLevel } : asked;
   }
 
   /**
@@ -1022,6 +1065,7 @@ export class Player {
       const timbre = timbreOf(
         'drums',
         styleAt(this.track, this.heard ?? 0),
+        this.#swingHeard(),
         this.hud.bar?.energy ?? 0.6,
       );
       for (const { step, seconds } of scheduled.steps)

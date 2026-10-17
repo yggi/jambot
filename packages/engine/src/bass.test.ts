@@ -6,6 +6,7 @@ import { chordAt } from './chords.ts';
 import { writtenProblems } from './events.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { PRESETS, type Style } from './style.ts';
+import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -15,16 +16,20 @@ const styleAt = (bar: number): Style => ({
   entropy: (bar % 32) / 32,
 });
 
+const presetAt = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
+
 /** The bars a band plays over the tour: each is what the bass reads. */
 const tour = (seed: number, bars = 128): BandBar[] => {
   let carried = band.initial;
   return range(bars).map((bar) => {
-    const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
+    const preset = presetAt(bar);
     const next = band.advance(
       {
         seed,
         bar,
         style: styleAt(bar),
+        // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
+        swing: { level: presetAt(bar + 1).swing.level, share: preset.swing.share },
         wish: { tonic: null, mode: preset.mode, melodic: null },
         offer: null,
       },
@@ -75,7 +80,10 @@ describe('the bass', () => {
   it('plays the new root on every chord change, unless it pumps', () => {
     let checked = 0;
     for (const { bar, events } of played) {
-      if (bassBlend(bar.style, bar.barEnergy).pump >= 0.45 && bar.plan.section.type !== 'breakdown')
+      if (
+        bassBlend(bar.style, bar.swing, bar.barEnergy).pump >= 0.45 &&
+        bar.plan.section.type !== 'breakdown'
+      )
         continue;
       for (const chord of bar.chords) {
         const there = events.find((e) => e.step === chord.slot.step);
@@ -90,7 +98,10 @@ describe('the bass', () => {
     let walks = 0;
     let approaches = 0;
     for (const { bar, events } of played) {
-      if (bar.plan.section.type === 'breakdown' || bassBlend(bar.style, bar.barEnergy).walk <= 0.5)
+      if (
+        bar.plan.section.type === 'breakdown' ||
+        bassBlend(bar.style, bar.swing, bar.barEnergy).walk <= 0.5
+      )
         continue;
       walks++;
       for (const beat of [0, 4, 8, 12]) expect(events.some((e) => e.step === beat)).toBe(true);
@@ -113,7 +124,10 @@ describe('the bass', () => {
     let offbeats = 0;
     let downbeats = 0;
     for (const { bar, events } of played) {
-      if (bar.plan.section.type === 'breakdown' || bassBlend(bar.style, bar.barEnergy).pump < 0.6)
+      if (
+        bar.plan.section.type === 'breakdown' ||
+        bassBlend(bar.style, bar.swing, bar.barEnergy).pump < 0.6
+      )
         continue;
       offbeats += events.filter((e) => e.step % 4 === 2).length;
       downbeats += events.filter((e) => e.step % 4 === 0).length;
@@ -154,10 +168,10 @@ describe('the bass', () => {
   it('forces the root on a chord change exactly while the pump is under 0.45, and every beat while the walk is over 0.5', () => {
     // The tour's bars, restyled to either side of each threshold.
     const grooves = bars.filter((b) => b.plan.section.type !== 'breakdown').slice(0, 300);
-    const restyled = (over: Partial<Style>) =>
+    const restyled = (over: Partial<Style>, swing: MeterSwing = STRAIGHT) =>
       grooves.map((b) => {
         const style = { ...b.style, ...over };
-        return { ...b, style, barEnergy: 0.5 };
+        return { ...b, style, swing, barEnergy: 0.5 };
       });
     const rootsHeld = (over: Partial<Style>) =>
       restyled(over).every((b) => {
@@ -166,21 +180,32 @@ describe('the bass', () => {
           events.some((e) => e.step === c.slot.step && wrap(e.note, 12) === rootOf(c)),
         );
       });
-    // pump = (1 − harm) · artic · (1 − eighth) · (1 − sync), no swing: 0.44 and 0.46.
-    const pump = (x: number): Partial<Style> => ({ swing: 0, harm: 0, sync: 0, artic: x });
-    expect(bassBlend({ ...grooves[0]!.style, ...pump(0.44) }, 0.5).pump).toBeCloseTo(0.44, 9);
+    // pump = (1 − harm) · artic · (1 − eighth) · (1 − sync), straight: 0.44 and 0.46.
+    const pump = (x: number): Partial<Style> => ({ harm: 0, sync: 0, artic: x });
+    expect(bassBlend({ ...grooves[0]!.style, ...pump(0.44) }, STRAIGHT, 0.5).pump).toBeCloseTo(
+      0.44,
+      9,
+    );
     expect(rootsHeld(pump(0.44))).toBe(true);
     expect(rootsHeld(pump(0.46))).toBe(false);
-    const beatsHeld = (over: Partial<Style>) =>
-      restyled(over).every((b) => {
+    const beatsHeld = (swing: MeterSwing) =>
+      restyled(WALKING, swing).every((b) => {
         const steps = new Set(bass.advance(b, 40, null).output.map((e) => e.step));
         return [0, 4, 8, 12].every((beat) => steps.has(beat));
       });
-    // walk = eighth · min(1, harm · 1.5), with eighth = 2 · swing − 1: 0.52 and 0.48.
-    const walk = (x: number): Partial<Style> => ({ swing: (x + 1) / 2, harm: 1, sync: 0.5 });
-    expect(bassBlend({ ...grooves[0]!.style, ...walk(0.52) }, 0.5).walk).toBeCloseTo(0.52, 9);
+    // walk = eighth · min(1, harm · 1.5), the eighth the 8ths' lean: 0.52 and 0.48.
+    const WALKING: Partial<Style> = { harm: 1, sync: 0.5 };
+    const walk = (x: number): MeterSwing => ({ level: '8n', share: shareOfLean(x) });
+    expect(bassBlend({ ...grooves[0]!.style, ...WALKING }, walk(0.52), 0.5).walk).toBeCloseTo(
+      0.52,
+      9,
+    );
     expect(beatsHeld(walk(0.52))).toBe(true);
     expect(beatsHeld(walk(0.48))).toBe(false);
+    // On the 16ths the same share brings in no walk (the owner’s ruling on #360).
+    expect(
+      bassBlend({ ...grooves[0]!.style, ...WALKING }, { ...walk(1), level: '16n' }, 0.5).walk,
+    ).toBe(0);
   });
 
   it('takes the lower octave where two are as near', () => {

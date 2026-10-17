@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { METERS, meterOnSteps } from '@jambot/theory';
+import { leanMap, swingMapAt, swingParts } from './swing.ts';
 import {
   AXES,
   AXIS_NAMES,
@@ -23,7 +25,8 @@ const across = (axis: Axis, n = 9) =>
 
 describe('the axes', () => {
   it('have their ranges and the space they glide in (C2)', () => {
-    expect(AXIS_NAMES).toEqual(['swing', 'sync', 'harm', 'artic', 'energy', 'entropy', 'bpm']);
+    // Swing is the meter's, not an axis (#360).
+    expect(AXIS_NAMES).toEqual(['sync', 'harm', 'artic', 'energy', 'entropy', 'bpm']);
     for (const axis of AXIS_NAMES.filter((a) => a !== 'bpm'))
       expect(AXES[axis]).toEqual({ min: 0, max: 1, space: 'linear' });
     // Tempo is heard in ratios, so it glides in log space: halfway from 60
@@ -35,28 +38,75 @@ describe('the axes', () => {
 describe('the presets', () => {
   it('are the prototype’s eight points in style space', () => {
     expect(PRESETS.map((p) => [p.name, p.mode, ...Object.values(p.style)])).toEqual([
-      // name, mode, swing, sync, harm, artic, energy, bpm
-      ['Synth-pop', 'aeolian', 0, 0.3, 0.45, 0.55, 0.55, 108],
-      ['Techno', 'aeolian', 0, 0.12, 0, 1, 0.8, 130],
-      ['Deep house', 'dorian', 0.3, 0.35, 0.55, 0.65, 0.65, 122],
-      ['Ambient', 'ionian', 0.05, 0.05, 0.3, 0, 0.2, 72],
-      ['Lo-fi hip hop', 'aeolian', 0.45, 0.5, 0.75, 0.35, 0.5, 84],
-      ['Funk', 'dorian', 0.3, 1, 0.12, 0.85, 0.75, 104],
-      ['Bossa nova', 'ionian', 0, 0.75, 0.85, 0.45, 0.45, 132],
-      ['Swing jazz', 'ionian', 1, 0.35, 1, 0.3, 0.6, 148],
+      // name, mode, sync, harm, artic, energy, bpm
+      ['Synth-pop', 'aeolian', 0.3, 0.45, 0.55, 0.55, 108],
+      ['Techno', 'aeolian', 0.12, 0, 1, 0.8, 130],
+      ['Deep house', 'dorian', 0.35, 0.55, 0.65, 0.65, 122],
+      ['Ambient', 'ionian', 0.05, 0.3, 0, 0.2, 72],
+      ['Lo-fi hip hop', 'aeolian', 0.5, 0.75, 0.35, 0.5, 84],
+      ['Funk', 'dorian', 1, 0.12, 0.85, 0.75, 104],
+      ['Bossa nova', 'ionian', 0.75, 0.85, 0.45, 0.45, 132],
+      ['Swing jazz', 'ionian', 0.35, 1, 0.3, 0.6, 148],
     ]);
+  });
+
+  /** Each preset's value on the swing axis before the meter took it (#360), as a literal. */
+  const AXIS_SWING: Readonly<Record<string, number>> = {
+    'Synth-pop': 0,
+    Techno: 0,
+    'Deep house': 0.3,
+    Ambient: 0.05,
+    'Lo-fi hip hop': 0.45,
+    Funk: 0.3,
+    'Bossa nova': 0,
+    'Swing jazz': 1,
+  };
+
+  it('each name their meter’s swing: the level and share the swing axis gave them, the straight ones on the 16ths (#360)', () => {
+    expect(
+      PRESETS.map((p) => [p.name, p.swing.level, Math.round(p.swing.share * 1e4) / 1e4]),
+    ).toEqual([
+      ['Synth-pop', '16n', 0.5],
+      ['Techno', '16n', 0.5],
+      ['Deep house', '16n', 0.6],
+      ['Ambient', '16n', 0.5167],
+      ['Lo-fi hip hop', '16n', 0.65],
+      ['Funk', '16n', 0.6],
+      ['Bossa nova', '16n', 0.5],
+      ['Swing jazz', '8n', 0.6667],
+    ]);
+    for (const p of PRESETS) {
+      const parts = swingParts(AXIS_SWING[p.name]!);
+      // On every preset only one level swung, so the level is the one that did.
+      expect(Math.min(parts.eighth, parts.sixteenth)).toBe(0);
+      expect(p.swing.level).toBe(parts.eighth > 0 ? '8n' : '16n');
+    }
+  });
+
+  it('keep exactly the swing they played: every onset of a bar within 1e-9 of the axis’s `leanMap` (finite: 8 presets, every 48th of a step) (#360)', () => {
+    const beats = meterOnSteps(METERS['4/4']).heights;
+    let worst = 0;
+    for (const p of PRESETS) {
+      const was = leanMap(swingParts(AXIS_SWING[p.name]!));
+      for (let i = 0; i <= 16 * 48; i++) {
+        const x = i / 48;
+        const start = beats.findLast((b) => b <= x) ?? 0;
+        const now = swingMapAt(p.swing, start, 4);
+        worst = Math.max(worst, Math.abs(now.played(x) - was.played(x)));
+      }
+    }
+    expect(worst).toBeLessThan(1e-9);
   });
 
   it('span the axes they are said to reach at both ends', () => {
     // The prototype README says the presets reach every axis at both ends.
-    // Of its four hand-chosen axes, that holds for swing, harmony and
-    // articulation, and syncopation stops at 0.05. Energy and tempo stay
-    // inside their ranges.
+    // Of its four hand-chosen axes, that holds for harmony and articulation,
+    // and for swing, which is now the meter's (#360); syncopation stops at
+    // 0.05. Energy and tempo stay inside their ranges.
     const span = (axis: Exclude<Axis, 'entropy'>) => {
       const values = PRESETS.map((p) => p.style[axis]);
       return [Math.min(...values), Math.max(...values)];
     };
-    expect(span('swing')).toEqual([0, 1]);
     expect(span('harm')).toEqual([0, 1]);
     expect(span('artic')).toEqual([0, 1]);
     expect(span('sync')).toEqual([0.05, 1]);
@@ -315,8 +365,8 @@ describe('glideTo', () => {
   });
 
   it('keeps every target, and so every glide, inside its axis', () => {
-    const track = glideTo(holding(INITIAL_STYLE), { swing: 1.4, sync: -0.2, bpm: 400 }, 0, 16);
-    expect(styleAt(track, 16)).toMatchObject({ swing: 1, sync: 0, bpm: 180 });
+    const track = glideTo(holding(INITIAL_STYLE), { harm: 1.4, sync: -0.2, bpm: 400 }, 0, 16);
+    expect(styleAt(track, 16)).toMatchObject({ harm: 1, sync: 0, bpm: 180 });
     expect(() => glideTo(track, { bpm: NaN }, 0, 16)).toThrow(/bpm: NaN is not a value/);
   });
 

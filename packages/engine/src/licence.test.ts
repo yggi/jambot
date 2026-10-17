@@ -7,6 +7,7 @@ import {
   harmonicReach,
   intoReach,
   MELODIC_FROM,
+  feelOf,
   licenceOf,
   melodicDefault,
   melodicWithin,
@@ -15,6 +16,7 @@ import {
   tempoNudgeWithin,
 } from './licence.ts';
 import { AXES, INITIAL_STYLE, PRESETS, type Style } from './style.ts';
+import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
 import { positions } from '@jambot/theory';
 
 const KEYS: Key[] = COMPOSER_MODES.flatMap((mode) =>
@@ -24,9 +26,9 @@ const KEYS: Key[] = COMPOSER_MODES.flatMap((mode) =>
 /** The values of a unit axis this file walks: its ends and the tenths between them. */
 const UNIT = [...Array(11).keys()].map((i) => i / 10);
 
-/** Every preset as a style, at an entropy. */
-const presetsAt = (entropy: number): { name: string; style: Style }[] =>
-  PRESETS.map((p) => ({ name: p.name, style: { ...p.style, entropy } }));
+/** Every preset as a style, at an entropy, with its meter's swing. */
+const presetsAt = (entropy: number): { name: string; style: Style; swing: MeterSwing }[] =>
+  PRESETS.map((p) => ({ name: p.name, style: { ...p.style, entropy }, swing: p.swing }));
 
 /** Every preset at every entropy walked. */
 const EVERY = UNIT.flatMap(presetsAt);
@@ -40,31 +42,36 @@ const tempoReach = (style: Style) => tempoLicence({ ...style, bpm: MIDDLE }).hig
 const rising = (values: readonly number[]) => values.every((v, i) => i === 0 || v > values[i - 1]!);
 
 describe('the feel', () => {
-  it('lies within 0 and 1, and rises with swing, with entropy and toward legato (T17)', () => {
-    const feel = (style: Style) => licenceOf(style).feel;
-    for (const { style } of EVERY) {
-      expect(feel(style)).toBeGreaterThanOrEqual(0);
-      expect(feel(style)).toBeLessThanOrEqual(1);
-      for (const axis of ['swing', 'entropy', 'artic'] as const) {
-        const along = UNIT.map((value) => feel({ ...style, [axis]: value }));
-        // Swing and entropy loosen the feel; articulation tightens it.
-        expect(rising(axis === 'artic' ? along.toReversed() : along)).toBe(true);
+  /** Swings along a level, straight to the triplet, by tenths of the lean. */
+  const along = (level: MeterSwing['level']) =>
+    UNIT.map((lean): MeterSwing => ({ level, share: shareOfLean(lean) }));
+
+  it('lies within 0 and 1, and rises with the meter’s swing on either level, with entropy and toward legato (T17, #360)', () => {
+    for (const { style, swing } of EVERY) {
+      expect(feelOf(style, swing)).toBeGreaterThanOrEqual(0);
+      expect(feelOf(style, swing)).toBeLessThanOrEqual(1);
+      for (const axis of ['entropy', 'artic'] as const) {
+        const feels = UNIT.map((value) => feelOf({ ...style, [axis]: value }, swing));
+        // Entropy loosens the feel; articulation tightens it.
+        expect(rising(axis === 'artic' ? feels.toReversed() : feels)).toBe(true);
       }
+      for (const level of ['8n', '16n'] as const)
+        expect(rising(along(level).map((s) => feelOf(style, s)))).toBe(true);
     }
   });
 
-  it('is exactly 0 at swing 0, entropy 0 and articulation 1, and only there (T17)', () => {
-    for (const { style } of EVERY) {
-      expect(licenceOf({ ...style, swing: 0, entropy: 0, artic: 1 }).feel).toBe(0);
-      const still = style.swing === 0 && style.entropy === 0 && style.artic === 1;
-      expect(licenceOf(style).feel === 0).toBe(still);
+  it('is exactly 0 when straight, at entropy 0 and articulation 1, and only there (T17)', () => {
+    for (const { style, swing } of EVERY) {
+      expect(feelOf({ ...style, entropy: 0, artic: 1 }, STRAIGHT)).toBe(0);
+      const still = swing.share === 0.5 && style.entropy === 0 && style.artic === 1;
+      expect(feelOf(style, swing) === 0).toBe(still);
     }
   });
 
   it('orders the presets at any one entropy from Techno, the tightest, to Swing jazz, the loosest (T17)', () => {
     for (const entropy of UNIT) {
       const feels = presetsAt(entropy)
-        .map((p) => ({ name: p.name, feel: licenceOf(p.style).feel }))
+        .map((p) => ({ name: p.name, feel: feelOf(p.style, p.swing) }))
         .toSorted((a, b) => a.feel - b.feel);
       expect(feels[0]!.name).toBe('Techno');
       expect(feels.at(-1)!.name).toBe('Swing jazz');

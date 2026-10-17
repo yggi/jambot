@@ -93,7 +93,8 @@ import {
   keptAfter,
   muse,
   pick,
-  swingMap,
+  leanMap,
+  leansOf,
   taken,
 } from '../src/index.ts';
 
@@ -293,7 +294,11 @@ export function loopRun(
     let offer = held;
     for (let pass = 0; offer && pass < timesVaried(condition, seed, bar); pass++)
       offer = { ...offer, motif: varyOffer(offer.motif, seed, bar, entropy, pass) };
-    const next = band.advance({ seed, bar, style, wish, offer }, playing, null);
+    const next = band.advance(
+      { seed, bar, style, swing: preset.swing, wish, offer },
+      playing,
+      null,
+    );
     playing = next.carried;
     played?.(bar, next.output.dough);
     keys.push(next.output.plan.key);
@@ -485,11 +490,11 @@ export function examples(conditions: readonly Condition[] = HEARD.conditions) {
     return {
       preset: name,
       bpm: preset.style.bpm,
-      swing: preset.style.swing,
+      swing: preset.swing,
       conditions: conditions.map((condition) => {
         const notes: (DoughNote & { at: number; seconds: number; duration: number })[] = [];
         // Where each note is played, through the swing, and for how long, at the preset's tempo.
-        const swung = swingMap(preset.style.swing);
+        const swung = leanMap(leansOf(preset.swing));
         const stepSeconds = 60 / preset.style.bpm / 4;
         const run = loopRun(
           preset,

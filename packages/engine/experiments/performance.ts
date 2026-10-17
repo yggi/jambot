@@ -23,7 +23,9 @@ import {
   type BandCarried,
   type BandEnv,
   type KeyWish,
+  type MeterSwing,
   PRESETS,
+  STRAIGHT,
   type Style,
   band,
 } from '../src/index.ts';
@@ -39,10 +41,17 @@ const runs: ((bar: number) => (typeof PRESETS)[number])[] = [
   (bar) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!,
 ];
 
-const envOf = (seed: number, bar: number, style: Style, mode: KeyWish['mode']): BandEnv => ({
+const envOf = (
+  seed: number,
+  bar: number,
+  style: Style,
+  mode: KeyWish['mode'],
+  swing: MeterSwing = STRAIGHT,
+): BandEnv => ({
   seed,
   bar,
   style,
+  swing,
   wish: { tonic: null, mode, melodic: null },
   offer: null,
 });
@@ -75,7 +84,11 @@ for (const seed of SEEDS)
       const preset = presetAt(bar);
       const style = { ...preset.style, entropy: (bar % 32) / 32 };
       const { output, carried: after } = band.advance(
-        envOf(seed, bar, style, preset.mode),
+        // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
+        envOf(seed, bar, style, preset.mode, {
+          level: presetAt(bar + 1).swing.level,
+          share: preset.swing.share,
+        }),
         carried,
         null,
       );

@@ -21,10 +21,10 @@
  * folds by octaves on its own.
  *
  * The style reaches the lead's phrases in one place, `phraseParams`.
- * From the bar's energy, its chords, the plan's key and melodic scale, and the style's sync, entropy, harmony and swing, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the scale its contour walks, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
+ * From the bar's energy, its chords, the plan's key and melodic scale, the style's sync, entropy and harmony, and the meter's swing, it gives every parameter a shape, a variation and its realization read: the rhythm's density, groove and pulse, the scale its contour walks, the contour's span and weights, the rates of turns, leaps and nudges, the variations' weights, where notes go to chord tones, and the range.
  * The scale is the plan's melodic scale over its key (#209): the key's seven degrees, its pentatonic or its blues, which the style's harmony reaches and the players pick within.
  * Only the lead's own phrases walk it: the chord tones they land on and the cadence stay the chords', so ♭6 over VI stands in a pentatonic, and a player's motif plays on the key's own degrees, as heard.
- * The harmony leans the contour from an arch toward a wave, and thins the strong steps a note lands on a chord tone at; the swing lifts the off-beat eighths, the pickups a swung line leans on (#168).
+ * The harmony leans the contour from an arch toward a wave, and thins the strong steps a note lands on a chord tone at; the meter's swing lifts the off-beat eighths, the pickups a swung line leans on (#168).
  * The articulation doesn't reach the phrases: it is how a note is played, the performer's gate (T4), not how it is written.
  * What the lead writes over every preset is recorded in `lead.fixture.json`, so a change to it is a deliberate one.
  *
@@ -74,6 +74,7 @@ import { keyHelix, melodicHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick, quantize } from './random.ts';
 import { readOnMeter } from './regroup.ts';
+import { swingWeight } from './swing.ts';
 import type { ThemeKind } from './themes.ts';
 
 /** The lowest and highest note the lead plays. */
@@ -201,9 +202,9 @@ export interface PhraseParams {
   /** How far the grooves lean from straight (0) to syncopated (1): the style's sync. */
   readonly grooveMix: number;
   /**
-   * What each step's chance of a note gains from the swing: the off-beat
-   * eighths (steps 2, 6, 10, 14), the pickups a swung line leans on, by 0.3
-   * times the swing; nothing when straight.
+   * What each step's chance of a note gains from the meter's swing: the
+   * off-beat eighths (steps 2, 6, 10, 14), the pickups a swung line leans
+   * on, by 0.3 times its weight (`swingWeight`); nothing when straight.
    */
   readonly pickups: readonly number[];
   /**
@@ -255,16 +256,17 @@ function strongSteps(harm: number, meter: Meter): readonly number[] {
 /**
  * The one place the style reaches the lead's phrases: every parameter of a
  * shape, a variation and its realization, from the bar's energy, its chords,
- * the plan's key and melodic scale, and the style's sync, entropy, harmony
- * and swing.
+ * the plan's key and melodic scale, the style's sync, entropy and harmony,
+ * and the meter's swing.
  */
 export function phraseParams({
   style,
+  swing,
   barEnergy: energy,
   chords: written,
   plan,
   meter,
-}: Pick<BarEnv, 'style' | 'barEnergy' | 'chords' | 'plan' | 'meter'>): PhraseParams {
+}: Pick<BarEnv, 'style' | 'swing' | 'barEnergy' | 'chords' | 'plan' | 'meter'>): PhraseParams {
   const steps = stepsOf(meter);
   const starts = new Set(meterOnSteps(meter).heights);
   const chords = chordsOn(written, meter);
@@ -272,7 +274,7 @@ export function phraseParams({
     density: 0.25 + 0.5 * energy,
     grooveMix: style.sync,
     pickups: Array.from({ length: steps }, (_, s) =>
-      s % 2 === 0 && !starts.has(s) ? 0.3 * style.swing : 0,
+      s % 2 === 0 && !starts.has(s) ? 0.3 * swingWeight(swing) : 0,
     ),
     pulse: positions(even(Math.round(3 + 5 * energy), steps, Math.round(style.sync * 3))),
     scale: melodicHelix(plan.key, plan.melodic),

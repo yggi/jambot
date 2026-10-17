@@ -15,7 +15,7 @@
  *   never a replacement — except a lead note from a motif, whose accent
  *   replaces the beat's own, counted from the lead's level instead (U4);
  * - the licence: every part's velocity, and every part's length, loosens as
- *   the style's feel rises (`licenceOf`, T17) and holds exactly still when
+ *   the feel rises (`feelOf`, T17) and holds exactly still when
  *   it is 0 — a seeded draw per part, the same shape drums always had
  *   (#147), added last, since it alone is the performer's own hand. Width, not direction: velocity can
  *   land louder or softer; length only ever gates a little shorter, never
@@ -38,7 +38,7 @@
 import type { BarEnv } from './bar.ts';
 import { type DoughNote, PARTS, type WrittenNote } from './events.ts';
 import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
-import { licenceOf } from './licence.ts';
+import { feelOf } from './licence.ts';
 import { draw, type Stream } from './random.ts';
 import { timbreOf } from './sound.ts';
 
@@ -171,7 +171,7 @@ function lengthOf(env: BarEnv, written: WrittenNote, feel: number): number {
 /** A written note as a performer plays it. */
 export function perform(env: BarEnv, written: WrittenNote): DoughNote {
   const { part, step, note } = written;
-  const { feel } = licenceOf(env.style);
+  const feel = feelOf(env.style, env.swing);
   const velocity = velocityOf(env, written, feel);
   return {
     part,
@@ -180,7 +180,7 @@ export function perform(env: BarEnv, written: WrittenNote): DoughNote {
     length: lengthOf(env, written, feel),
     velocity,
     gain: velocity / 127,
-    ...timbreOf(part, env.style, env.barEnergy),
+    ...timbreOf(part, env.style, env.swing, env.barEnergy),
     ...(written.role !== undefined && { role: written.role }),
     ...(written.accent !== undefined && { accent: written.accent }),
   };

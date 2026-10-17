@@ -77,7 +77,11 @@ function corpus(seeds = 5): Bar[][] {
       const bars: Bar[] = [];
       for (let bar = 0; bar < 64; bar++) {
         const wish = { tonic: null, mode: preset.mode, melodic: null };
-        const next = band.advance({ seed, bar, style, wish, offer: null }, carried, null);
+        const next = band.advance(
+          { seed, bar, style, swing: preset.swing, wish, offer: null },
+          carried,
+          null,
+        );
         carried = next.carried;
         const of = (part: string): Note[] =>
           next.output.written
