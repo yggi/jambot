@@ -90,7 +90,7 @@ Both projects were already moving toward it, each from its own side:
 | Identity                | `canonicalOp`; content-addressing discussed on #287                                                                                           | Normalise planned (its #244, #151)                                                                                          | none built                       |
 | Repository              | nothing outlives a song                                                                                                                       | pieces in `localStorage`, 77 examples, 88 Bach MIDI files                                                                   | none                             |
 | Short-term memory       | `fading.ts`, `history.ts`, the Muse's memory                                                                                                  | none                                                                                                                        | holds motifs, not cells          |
-| Host and client         | protocol 8 and the lobby; `WrittenBar` JSON on the wire                                                                                       | none                                                                                                                        | the wire isn't text              |
+| Host and client         | protocol 9 and the lobby; `WrittenBar` JSON on the wire                                                                                       | none                                                                                                                        | the wire isn't text              |
 | Homeostasis             | the observable (share of bars recognised, E20, E22), the knob (the variation rate), each genre's edge by ear                                  | none                                                                                                                        | no controller                    |
 | Radio                   | the style never moves alone; the key drifts with no home (Q11)                                                                                | the idea (its #234)                                                                                                         | none                             |
 
@@ -131,7 +131,7 @@ Each phase depends on the one before, except radio mode, which can start now.
    The band writes cells text a section at a time and plays it through the cells engine (#63 step 5).
    Q1a's round trip moves onto cells; the lead and the snare come in as named cells.
    Porting the band shows what cells lacks: likely a section's meter, harmony as numerals over a key, open fragments that leave `&key` and `&bar` to the host, and imports or a library by hash.
-   The session protocol carries cells text (protocol 9), and Cell studio can load a stream from outside, to join a jam as a client and a view.
+   The session protocol carries cells text (protocol 10), and Cell studio can load a stream from outside, to join a jam as a client and a view.
 4. **A first repository.**
    A fragment is cells text with an index entry: its hashes, the operator back from the canonical form, the partial style reading with confidences, facets, origin, time and id.
    Seeded from Cell studio's examples, the folded Bach, and Jambot's own output, with POP909 or Lakh once their licences are checked.
