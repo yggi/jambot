@@ -161,24 +161,20 @@ describe('a motif', () => {
 describe('motif operators', () => {
   // A million cases take a few seconds: compared as text rather than with
   // toEqual, a fifth of the time.
-  it(
-    'act on every motif of a bar, rests, alterations and accents too, as a group does: two operators are their composition, and the identity changes nothing (Q5c)',
-    { timeout: 30_000 },
-    () => {
-      expect(ops).toHaveLength(48);
-      const wrong: string[] = [];
-      for (const m of both) {
-        if (text(applyOp(NOOP, m)) !== text(m)) wrong.push(`identity on ${text(m)}`);
-        for (const a of ops) {
-          const once = applyOp(a, m);
-          for (const b of ops)
-            if (text(applyOp(thenOp(a, b), m)) !== text(applyOp(b, once)))
-              wrong.push(`${JSON.stringify(a)} then ${JSON.stringify(b)} on ${text(m)}`);
-        }
+  it('act on every motif of a bar, rests, alterations and accents too, as a group does: two operators are their composition, and the identity changes nothing (Q5c)', () => {
+    expect(ops).toHaveLength(48);
+    const wrong: string[] = [];
+    for (const m of both) {
+      if (text(applyOp(NOOP, m)) !== text(m)) wrong.push(`identity on ${text(m)}`);
+      for (const a of ops) {
+        const once = applyOp(a, m);
+        for (const b of ops)
+          if (text(applyOp(thenOp(a, b), m)) !== text(applyOp(b, once)))
+            wrong.push(`${JSON.stringify(a)} then ${JSON.stringify(b)} on ${text(m)}`);
       }
-      expect(wrong.slice(0, 5)).toEqual([]);
-    },
-  );
+    }
+    expect(wrong.slice(0, 5)).toEqual([]);
+  });
 
   it('keep the laws: R∘R = id, I∘I = id, R∘I = I∘R, Tₐ∘T_b = Tₐ₊_b, and each is undone (Q5c)', () => {
     const r = { ...NOOP, rev: true };
@@ -384,65 +380,59 @@ describe('the motif operators are the symmetries there are', () => {
     expect(isometries).toHaveLength(22);
   });
 
-  it(
-    'give one motif from several operators only where the motif has a symmetry, and write each result with one canonical operator, a fixed point (U5, F3)',
-    { timeout: 30_000 },
-    () => {
-      // Every operator with a sequence of −2 to 2, and a wider set that holds every symmetry.
-      const all = [-2, -1, 0, 1, 2].flatMap((strans) =>
-        [false, true].flatMap((mirror) =>
-          range(SPAN).flatMap((late) =>
-            [false, true].map((rev) => ({ strans, mirror, late, rev })),
-          ),
+  it('give one motif from several operators only where the motif has a symmetry, and write each result with one canonical operator, a fixed point (U5, F3)', () => {
+    // Every operator with a sequence of −2 to 2, and a wider set that holds every symmetry.
+    const all = [-2, -1, 0, 1, 2].flatMap((strans) =>
+      [false, true].flatMap((mirror) =>
+        range(SPAN).flatMap((late) => [false, true].map((rev) => ({ strans, mirror, late, rev }))),
+      ),
+    );
+    const wide = range(9).flatMap((s) =>
+      [false, true].flatMap((mirror) =>
+        range(SPAN).flatMap((late) =>
+          [false, true].map((rev) => ({ strans: s - 4, mirror, late, rev })),
         ),
+      ),
+    );
+    const key = (op: MotifOp) => JSON.stringify(op);
+    let symmetric = 0;
+    for (const m of both) {
+      // What every operator of the wide set makes of the motif, made once for both checks.
+      const made = new Map(wide.map((op) => [key(op), text(applyOp(op, m))]));
+      const symmetries = stabilizer(m);
+      const found = symmetries.map(key).sort();
+      expect(found).toEqual(
+        wide
+          .filter((op) => made.get(key(op)) === text(m))
+          .map(key)
+          .sort(),
       );
-      const wide = range(9).flatMap((s) =>
-        [false, true].flatMap((mirror) =>
-          range(SPAN).flatMap((late) =>
-            [false, true].map((rev) => ({ strans: s - 4, mirror, late, rev })),
-          ),
-        ),
-      );
-      const key = (op: MotifOp) => JSON.stringify(op);
-      let symmetric = 0;
-      for (const m of both) {
-        // What every operator of the wide set makes of the motif, made once for both checks.
-        const made = new Map(wide.map((op) => [key(op), text(applyOp(op, m))]));
-        const symmetries = stabilizer(m);
-        const found = symmetries.map(key).sort();
-        expect(found).toEqual(
-          wide
-            .filter((op) => made.get(key(op)) === text(m))
-            .map(key)
-            .sort(),
-        );
-        if (found.length > 1 && !m.accents) symmetric++;
-        // The operators giving each result, and the canonical operator of each.
-        const results = new Map<string, Set<string>>();
-        for (const op of all) {
-          const result = made.get(key(op))!;
-          const canonical = canonicalOp(op, m, symmetries);
-          expect(text(applyOp(canonical, m))).toBe(result);
-          expect(canonicalOp(canonical, m, symmetries)).toEqual(canonical);
-          results.set(result, (results.get(result) ?? new Set()).add(key(canonical)));
-        }
-        // One canonical operator per result, and no two results share one.
-        expect([...results.values()].every((s) => s.size === 1)).toBe(true);
-        const canonicals = [...results.values()].map((s) => [...s][0]);
-        expect(new Set(canonicals).size).toBe(results.size);
+      if (found.length > 1 && !m.accents) symmetric++;
+      // The operators giving each result, and the canonical operator of each.
+      const results = new Map<string, Set<string>>();
+      for (const op of all) {
+        const result = made.get(key(op))!;
+        const canonical = canonicalOp(op, m, symmetries);
+        expect(text(applyOp(canonical, m))).toBe(result);
+        expect(canonicalOp(canonical, m, symmetries)).toEqual(canonical);
+        results.set(result, (results.get(result) ?? new Set()).add(key(canonical)));
       }
-      // A motif with no symmetry tells every operator apart. On a cycle this
-      // short, more than half have one.
-      expect(symmetric).toBe(285);
-      const plain = motif(SPAN, [
-        [0, 0],
-        [1, 1],
-        [3, 1, -1],
-      ]);
-      expect(stabilizer(plain)).toEqual([NOOP]);
-      expect(new Set(all.map((op) => text(applyOp(op, plain)))).size).toBe(all.length);
-    },
-  );
+      // One canonical operator per result, and no two results share one.
+      expect([...results.values()].every((s) => s.size === 1)).toBe(true);
+      const canonicals = [...results.values()].map((s) => [...s][0]);
+      expect(new Set(canonicals).size).toBe(results.size);
+    }
+    // A motif with no symmetry tells every operator apart. On a cycle this
+    // short, more than half have one.
+    expect(symmetric).toBe(285);
+    const plain = motif(SPAN, [
+      [0, 0],
+      [1, 1],
+      [3, 1, -1],
+    ]);
+    expect(stabilizer(plain)).toEqual([NOOP]);
+    expect(new Set(all.map((op) => text(applyOp(op, plain)))).size).toBe(all.length);
+  });
 });
 
 describe('head', () => {
@@ -680,39 +670,31 @@ describe('recognition: a motif heard as a remembered one under an operator (Q12)
     accidentals: m.accidentals,
   });
 
-  it(
-    'finds every operator from one motif to another as the coset of the first’s symmetries (finite: every motif and operator) (Q5c, Q12)',
-    { timeout: 30_000 },
-    () => {
-      for (const m of both) {
-        expect(opsBetween(m, m).map(key).sort()).toEqual(stabilizer(m).map(key).sort());
-        for (const op of ops) {
-          const found = opsBetween(m, applyOp(op, m)).map((o) => key({ ...o, late: o.late }));
-          const coset = stabilizer(m).map((s) => {
-            const o = thenOp(s, op);
-            return key({ ...o, late: ((o.late % SPAN) + SPAN) % SPAN });
-          });
-          expect(found.sort()).toEqual(coset.sort());
-        }
+  it('finds every operator from one motif to another as the coset of the first’s symmetries (finite: every motif and operator) (Q5c, Q12)', () => {
+    for (const m of both) {
+      expect(opsBetween(m, m).map(key).sort()).toEqual(stabilizer(m).map(key).sort());
+      for (const op of ops) {
+        const found = opsBetween(m, applyOp(op, m)).map((o) => key({ ...o, late: o.late }));
+        const coset = stabilizer(m).map((s) => {
+          const o = thenOp(s, op);
+          return key({ ...o, late: ((o.late % SPAN) + SPAN) % SPAN });
+        });
+        expect(found.sort()).toEqual(coset.sort());
       }
-    },
-  );
+    }
+  });
 
-  it(
-    'hears a motif played again under any operator as the remembered one, and writes it with the canonical operator, a repeat with none (finite: every motif and operator) (Q12)',
-    { timeout: 30_000 },
-    () => {
-      for (const m of both) {
-        expect(recognise(m, m)).toEqual(NOOP);
-        for (const op of ops) {
-          const heard = applyOp(op, m);
-          const found = recognise(heard, m)!;
-          expect(found).toEqual(canonicalOp(op, plain(m)));
-          expect(text(plain(applyOp(found, m)))).toBe(text(plain(heard)));
-        }
+  it('hears a motif played again under any operator as the remembered one, and writes it with the canonical operator, a repeat with none (finite: every motif and operator) (Q12)', () => {
+    for (const m of both) {
+      expect(recognise(m, m)).toEqual(NOOP);
+      for (const op of ops) {
+        const heard = applyOp(op, m);
+        const found = recognise(heard, m)!;
+        expect(found).toEqual(canonicalOp(op, plain(m)));
+        expect(text(plain(applyOp(found, m)))).toBe(text(plain(heard)));
       }
-    },
-  );
+    }
+  });
 
   it('hears accents as how a motif was played, not as what it is', () => {
     const [m, loud] = [motifs[40]!, accented[40]!];
@@ -769,27 +751,23 @@ describe('the cells of a phrase and their order, #207 M1 (#207, Q12)', () => {
       }
   });
 
-  it(
-    'gives a phrase moved on pitch the same order of cells, so the phrase heard again confirms its order (a sample of three bars A, A under an operator, B) (Q12)',
-    { timeout: 30_000 },
-    () => {
-      const pitchOps = [-1, 2].flatMap((strans) =>
-        [false, true].map((mirror) => ({ ...NOOP, strans, mirror })),
-      );
-      const sample = bars.filter((_, i) => i % 5 === 0);
-      expect(sample.length).toBeGreaterThan(8);
-      for (const a of sample)
-        for (const b of sample) {
-          const phrase = joinBars([a, applyOp({ ...NOOP, strans: 1 }, a), b])!;
-          const order = cellsOf(phrase, cyclesOf(3))!.order.map((o) => o.cell);
-          for (const op of pitchOps) {
-            const moved = cellsOf(applyOp(op, phrase), cyclesOf(3))!;
-            expect(moved.order.map((o) => o.cell)).toEqual(order);
-            expect(recognise(applyOp(op, phrase), phrase)).toEqual(canonicalOp(op, phrase));
-          }
+  it('gives a phrase moved on pitch the same order of cells, so the phrase heard again confirms its order (a sample of three bars A, A under an operator, B) (Q12)', () => {
+    const pitchOps = [-1, 2].flatMap((strans) =>
+      [false, true].map((mirror) => ({ ...NOOP, strans, mirror })),
+    );
+    const sample = bars.filter((_, i) => i % 5 === 0);
+    expect(sample.length).toBeGreaterThan(8);
+    for (const a of sample)
+      for (const b of sample) {
+        const phrase = joinBars([a, applyOp({ ...NOOP, strans: 1 }, a), b])!;
+        const order = cellsOf(phrase, cyclesOf(3))!.order.map((o) => o.cell);
+        for (const op of pitchOps) {
+          const moved = cellsOf(applyOp(op, phrase), cyclesOf(3))!;
+          expect(moved.order.map((o) => o.cell)).toEqual(order);
+          expect(recognise(applyOp(op, phrase), phrase)).toEqual(canonicalOp(op, phrase));
         }
-    },
-  );
+      }
+  });
 
   it('writes the order as letters, a mark on each cell heard under an operator, and nothing for a phrase that does not split', () => {
     const a = motif(SPAN, [
