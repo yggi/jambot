@@ -234,7 +234,7 @@ Apache License
 
 ------------------------------------------------------------------------
 
-@yggi/webmidi@0.1.0 (MIT)
+@yggi/webmidi@0.1.1 (MIT)
 
 MIT License
 
