@@ -3,8 +3,8 @@
   transport heads it; hanging from it, the drawer holds what conducts and
   sets up the band (Sound, Session, Style, Time, Key, Muse, and the timing Counters where
   the address asks for it); below, the views are where a person reads and
-  plays along: Song (the plan and the chords read from where one plays), Melody (the lead's lane over
-  the keys), Rhythm (the drums' over the pads) and Mix (the band's tracks).
+  plays along: Song (the plan and the chords read from where one plays), Melody (a roll of the lead
+  falling onto the keys), Rhythm (the drums' over the pads) and Mix (the band's tracks).
   It shows the player it is given and sends what the person does; it opens
   no session and holds no device.
 -->
@@ -13,6 +13,7 @@
   import DrumPads from '../components/DrumPads.svelte';
   import Keyboard from '../components/Keyboard.svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
+  import Melody from '../components/Melody.svelte';
   import Metrum from '../components/Metrum.svelte';
   import Muse from '../components/Muse.svelte';
   import Play from '../components/Play.svelte';
@@ -200,10 +201,19 @@
 {#snippet stage(id: string)}
   {#if id === 'song'}
     <Song hud={player.hud} meter={player.hud.bar?.meter} />
-  {:else if id === 'melody' || id === 'rhythm'}
+  {:else if id === 'melody'}
+    <Melody
+      {tracks}
+      bar={player.hud.bar}
+      chord={player.hud.chord}
+      down={instruments.heldLead}
+      sounding={player.sounding.lead}
+      onnote={(note, velocity, on) => instruments.toLead(note, velocity, on, 'the on-screen keys')}
+    />
+  {:else if id === 'rhythm'}
     <Play
       {tracks}
-      part={id === 'melody' ? 'lead' : 'drums'}
+      part="drums"
       held={{ lead: instruments.heldLead.size > 0, drums: instruments.heldDrums.size > 0 }}
       {instrument}
     />

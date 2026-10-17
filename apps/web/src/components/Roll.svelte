@@ -1,0 +1,114 @@
+<!--
+  The roll: the lead's notes over the keys that play them (#327). Its
+  columns are the keys under it; the steps ahead are above the line of the
+  step heard, falling toward it, and those played below it. The band's notes
+  ahead are outlined (foreseen, as the band means to play them), the band's
+  played are amber, and a player's are in their colour; a faint column marks
+  each note of the scale, and a dashed line each bar's start. A note above
+  the keys is a thin mark at the right edge, one below them at the left, so
+  a person sees which way to move the octave. Its places are
+  fractions of the roll (`rollView.ts`), drawn on a square stretched to fill
+  whatever room the view gives it.
+-->
+<script lang="ts">
+  import type { KeyLayout } from '../midi/surfaces.ts';
+  import { NOW_AT, type RollNote } from '../rollView.ts';
+
+  interface Props {
+    keys: readonly KeyLayout[];
+    notes: readonly RollNote[];
+    /** Where bars start, from the top. */
+    bars: readonly number[];
+    /** The scale's notes, as pitch classes: their columns are marked. */
+    scale?: readonly number[];
+    label: string;
+  }
+
+  let { keys, notes, bars, scale = [], label }: Props = $props();
+
+  const fill = (n: RollNote) =>
+    n.kind === 'played'
+      ? 'var(--amber)'
+      : n.kind === 'foreseen'
+        ? 'none'
+        : `var(--source-${n.colour ?? 0})`;
+</script>
+
+<svg class="roll" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={label}>
+  {#each keys as key (key.note)}
+    {#if key.black}
+      <rect class="black" x={key.left} y="0" width={key.width} height="100" />
+    {/if}
+    {#if scale.includes(key.note % 12)}
+      <line
+        class="scale"
+        x1={key.left + key.width / 2}
+        x2={key.left + key.width / 2}
+        y1="0"
+        y2="100"
+      />
+    {/if}
+  {/each}
+  {#each bars as y, i (i)}
+    <line class="bar" x1="0" x2="100" y1={y * 100} y2={y * 100} />
+  {/each}
+  <rect class="past" x="0" y={NOW_AT * 100} width="100" height={(1 - NOW_AT) * 100} />
+  {#each notes as n, i (i)}
+    <rect
+      class="note {n.kind}"
+      x={n.left * 100 + 0.6}
+      y={n.top * 100}
+      width={Math.max(0, n.width * 100 - 1.2)}
+      height={Math.max(0.4, n.height * 100 - 0.4)}
+      rx="1"
+      fill={fill(n)}
+      stroke={n.kind === 'foreseen' ? 'var(--amber)' : 'none'}
+    />
+  {/each}
+  <line class="now" x1="0" x2="100" y1={NOW_AT * 100} y2={NOW_AT * 100} />
+</svg>
+
+<style>
+  .roll {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+    background: var(--surface);
+  }
+  .black {
+    fill: var(--line);
+    opacity: 0.35;
+  }
+  .scale {
+    stroke: var(--teal);
+    stroke-opacity: 0.2;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .bar {
+    stroke: var(--muted);
+    stroke-opacity: 0.4;
+    stroke-dasharray: 3 4;
+    vector-effect: non-scaling-stroke;
+  }
+  .past {
+    fill: var(--bg);
+    opacity: 0.25;
+  }
+  .note.played {
+    opacity: 0.6;
+  }
+  .note.foreseen {
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.9;
+  }
+  .now {
+    stroke: var(--amber);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+</style>

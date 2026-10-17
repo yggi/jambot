@@ -4,7 +4,7 @@ about: A decision that needs measuring, or the owner's choice
 labels: design
 ---
 
-<!-- A question about what the score language means or how it is spelled goes to yggi/cells' issues instead (D5 on #309). -->
+<!-- Lifted from yggi/cells .github/ISSUE_TEMPLATE/design.md @ e35c6ee, consolidated 2026-10-16 (yggi/music-commons#4). A question about what the score language means or how it is spelled goes to yggi/cells' issues instead (D5 on yggi/jambot#309, cells decision 037). -->
 
 ## Question
 
@@ -16,12 +16,12 @@ labels: design
 
 ## Recommendation
 
-<!-- Which, and why. Say what would change your mind. -->
+<!-- Which, and why. Say what would change your mind, and whether what the band plays changes. -->
 
 ## Decide
 
-<!-- What the owner has to choose, and what each answer unblocks. -->
+<!-- Who decides (the owner, by ear or on the measurements), what they have to choose, and what each answer unblocks. -->
 
 ## Blocks and blocked by
 
-<!-- Issue numbers, or "none". -->
+<!-- Issue numbers, here or elsewhere as `yggi/<repo>#n`, or "none". -->

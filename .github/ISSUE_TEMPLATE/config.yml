@@ -1,5 +1,9 @@
+# Lifted from yggi/cells .github/ISSUE_TEMPLATE/config.yml @ e35c6ee, consolidated 2026-10-16 (yggi/music-commons#4).
 blank_issues_enabled: true
 contact_links:
-  - name: A language question → yggi/cells issues
+  - name: A question about the language (a meaning, a spelling)
     url: https://github.com/yggi/cells/issues
-    about: What the score language means or how it is spelled is decided in yggi/cells (D5 on #309, cells decision 037).
+    about: What the score language means or how it is spelled is decided in yggi/cells (D5 on yggi/jambot#309, cells decision 037).
+  - name: Something across the family
+    url: https://github.com/yggi/music-commons/issues
+    about: A contract, a word or a change that spans the music projects goes to the hub.

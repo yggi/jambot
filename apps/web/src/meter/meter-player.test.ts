@@ -1,5 +1,7 @@
 import { METERS } from '@jambot/theory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeAudioContext } from '../audio/fake-context.ts';
+import { webAudioOutput } from '../audio/output.ts';
 import { surroundings } from '../timing-test/fixtures.ts';
 import { LEAD_SECONDS, MeterPlayer, TICK_MS } from './meter-player.svelte.ts';
 
@@ -188,5 +190,32 @@ describe('the meter player', () => {
       const moved = await barAt(a, b, c);
       moved.forEach((seconds, i) => expect(seconds).toBeCloseTo(straight[i]!, 9));
     }
+  });
+});
+
+describe('the meter player on the built-in synth', () => {
+  afterEach(() => void vi.unstubAllGlobals());
+
+  it('sounds the bass: a saw on the root, E2, on the downbeat, and on the fifth, B2, on each pulse after', async () => {
+    const fake = fakeAudioContext();
+    vi.stubGlobal(
+      'AudioContext',
+      vi.fn(function () {
+        return fake.context;
+      }),
+    );
+    const base = webAudioOutput();
+    const { offset } = surroundings();
+    const player = new MeterPlayer({ audio: () => ({ base, offset }) });
+    player.layers.click = false;
+    player.layers.bass = true;
+    player.bpm = 100;
+    await player.start();
+    const saws = fake.oscillators.filter((o) => o.type === 'sawtooth');
+    const hz = (note: number) => 440 * 2 ** ((note - 69) / 12);
+    expect(saws.map((o) => o.frequency.value)).toEqual([hz(40), hz(47), hz(47), hz(47)]);
+    const quarter = 60 / 100;
+    saws.forEach((o, k) => expect(o.started).toBeCloseTo(LEAD_SECONDS + k * quarter, 9));
+    player.stop();
   });
 });
