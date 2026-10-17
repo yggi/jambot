@@ -16,7 +16,7 @@
 import { DRUM_NOTES } from '@jambot/engine';
 import { SvelteSet } from 'svelte/reactivity';
 import type { Output } from '../audio/output.ts';
-import type { ClockOffset } from '../audio/clock-offset.ts';
+import type { ClockOffset } from '@yggi/webmidi/core';
 import {
   COMPUTER_KEY_MAP,
   DRUM_KEY_MAP,

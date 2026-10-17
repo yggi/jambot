@@ -136,7 +136,7 @@ The others are neighbours that make different claims, and stay as they are:
 - **T17, T18, T19, T20** are the licence widening with the feel (T17), an accent as an offset on the base (T18), which layer owns the base (T19), and a longer chain of deltas (T20).
   They are one chain seen from four sides.
   If T20 is ever taken up, T18 and T19 want a covering entry for the chain, and that is a generalization to make then, with a test.
-- **T8 and T9** are two different clients of `outputClock`: a client's sound against its host, and MIDI out and capture.
+- **T8 and T9** are two different clients of the output pair (`outputClock`, and in the app webmidi's `clockOffset`, lifted from it): a client's sound against its host, and MIDI out and capture.
 - **P5 and P10, P7 and P9** are a claim and the counterexample filed beside it (P10 refutes P5's open scope, P9 was a probe on P7).
   Filed apart on purpose, since a counterexample lives where it refutes (`ratchet` skill, N3).
 - **S2 and S3:** S3 is `Decided: S2, dissolved`, a rule that stands only if S2 carries it, and S2 carries no rule.

@@ -15,7 +15,7 @@
  */
 
 import { LOOKAHEAD } from '@jambot/engine';
-import { type ClockOffset, clockOffset } from './clock-offset.ts';
+import { type ClockOffset, clockOffset } from '@yggi/webmidi/core';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_DRUM_NOTES,

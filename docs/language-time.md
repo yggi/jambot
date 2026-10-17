@@ -254,9 +254,11 @@ next tick and its host's at the next answer; and in Chromium, `session.e2e.ts`,
 through a 40 ms hold of one page's audio. Source: #27, #90. Status: measured.
 
 **T9. MIDI out and capture follow a dropped buffer within three readings.**
-Witness: `clockOffset`, the device's output pair (`outputClock`), read once a
-tick from the pairing or, where the platform has none, from `currentTime` less
-the latency, a render quantum coarser, and never the two mixed. Counterexample:
+Witness: `clockOffset` (`@yggi/webmidi/core`), the device's output pair
+(`outputClock`, lifted), read once a tick from the pairing or, where the
+platform has none, from `currentTime` less the latency, a render quantum
+coarser, and never the two mixed; a jump wider than 50 ms, which no buffer
+is, it follows from its first reading (`output-estimate.test.ts`). Counterexample:
 the smoothing it replaced, nine parts old to one fresh, which took some 23
 updates to come within a millisecond of a jump. Test: `clock-offset.test.ts`,
 "follows a dropped buffer within three readings, again and again (T9)". Source:

@@ -4,7 +4,9 @@ Facts about MIDI in and out of the app.
 
 - MIDI in goes through the family's MIDI layer, [`@yggi/webmidi`](https://github.com/yggi/webmidi) at its tag (`apps/web/package.json`): its parser, the computer's keys, the on-screen keyboard's layout and the drum maps (`@yggi/webmidi/core`), and the Web MIDI connection, `MidiAccess` (`@yggi/webmidi/web`).
   What is Jambot's own stays in `apps/web/src/midi/`: where a note lands (`routing.ts`: `partOf`, channel 10 the pads, and `routeNote`, the Muse, playing along and thru) and what is remembered (`settings.svelte.ts`); the scale-locked keys are `keyboard.ts`.
-  Note and clock out and the clock offset are still Jambot's (`audio/midi-out.ts`, `audio/clock-offset.ts`), the next steps of yggi/webmidi#3.
+  The clock offset, the audio clock against `performance.now()` that MIDI timestamps ride on, is webmidi's `clockOffset`: Jambot's output pair lifted, which also follows a jump wider than 50 ms (`OUTPUT.leap`: another device, a resume) from its first reading where Jambot's waited for three.
+  It keeps its bound and its count of jumps to itself (yggi/webmidi#9), so the timing panel reads them off its offset (`audio/output-estimate.ts`).
+  Note and clock out are still Jambot's (`audio/midi-out.ts`), the next step of yggi/webmidi#3.
   webmidi's test fakes for Web MIDI aren't shipped (yggi/webmidi#6), so a test here stubs `navigator.requestMIDIAccess` itself (`device.test.ts`).
 
 - A port chosen before (`MidiSettings.outPortId`/`inPortId`) is reconnected on load without a click (`App.svelte`), since a Web MIDI permission already granted needs no gesture; a first visit, with no port chosen yet, asks for none.

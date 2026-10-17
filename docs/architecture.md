@@ -337,8 +337,10 @@ stamped with page clocks, which never jump; and it plays by the three composed
 fault explicit (`packages/session/src/faults.ts`): the transport keeps T1 under
 all of them, and a client keeps within its bound of its host under each alone
 and all at once, following its own output's jump within three ticks and its
-host's with the next answer (T8). MIDI out and capture read the same output pair
-(T9).
+host's with the next answer (T8). In the app, the output pair is webmidi's
+`clockOffset` (`@yggi/webmidi/core`), this estimator lifted, which also follows
+a jump wider than 50 ms (another device, a resume) from its first reading; MIDI
+out and capture read it too (T9).
 
 The end-to-end checks of host and client mode (`session.e2e.ts`) hold one page's
 audio mid-run: the host's for 80 ms, a jump of some 70 ms, and the client's for
