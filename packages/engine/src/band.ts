@@ -44,6 +44,7 @@ import { SECTION_BARS, barEnergy } from './form.ts';
 import { type HarmonicWeights, NO_HISTORY, foldBar } from './history.ts';
 import type { KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import type { MeterRepository } from './meter-query.ts';
 import type { Offer } from './muse.ts';
 import { perform } from './performer.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
@@ -58,7 +59,7 @@ export interface BandEnv {
   readonly style: Style;
   /** The key the players wish for, which a section boundary moves toward. */
   readonly wish: KeyWish;
-  /** The meter asked for, which a section boundary takes (#261); the song's 4/4 where none is. */
+  /** The meter asked for, which a section boundary takes (#261); where none is, the repository's (#375), or the song's 4/4. */
   readonly meter?: Meter | undefined;
   /**
    * The meter's swing asked for (#360): its level, which a section boundary
@@ -66,6 +67,8 @@ export interface BandEnv {
    * the bar plays at once. Straight where none is.
    */
   readonly swing?: MeterSwing | undefined;
+  /** The repository the composer asks for a section's meter where none is asked for (#375). */
+  readonly repository?: MeterRepository | undefined;
   /** The motif the Muse offers, which the lead settles on (#79). */
   readonly offer: Offer | null;
 }
@@ -120,7 +123,7 @@ const INITIAL: BandCarried = {
  * its chords, which the history then folds in.
  */
 function decide(
-  { seed, style, wish, meter = SONG_METER, swing = STRAIGHT }: BandEnv,
+  { seed, style, wish, meter, swing = STRAIGHT, repository }: BandEnv,
   bar: number,
   plans: PlanCarried,
   history: HarmonicWeights,
@@ -129,7 +132,16 @@ function decide(
   const next =
     barInSection === 0
       ? planner.advance(
-          { seed, index: bar / SECTION_BARS, style, wish, history, meter, swing: swing.level },
+          {
+            seed,
+            index: bar / SECTION_BARS,
+            style,
+            wish,
+            history,
+            meter,
+            swing: swing.level,
+            repository,
+          },
           plans,
           null,
         ).carried
@@ -140,10 +152,10 @@ function decide(
   return { plans: next, decided: { bar, plan, chords }, history: foldBar(history, chords) };
 }
 
-/** A bar's swing: its section's level, at the share asked for where it starts. */
+/** A bar's swing: its section's level, at its section's share where the repository gave it, else the share asked for where it starts. */
 const barSwing = ({ swing = STRAIGHT }: BandEnv, plan: Plan): MeterSwing => ({
   level: plan.swing,
-  share: swing.share,
+  share: plan.share ?? swing.share,
 });
 
 /** The environment as the band reads it: its style as the score writes it (C7). */

@@ -1,5 +1,6 @@
 import { type Page, expect, test } from '@playwright/test';
 import {
+  askForMeter,
   isClick,
   level,
   listen,
@@ -153,6 +154,8 @@ test('starts and stops on a quick double click, and leaves nothing running', asy
 test('plays a straight preset on the 16th grid', async ({ page }) => {
   await listen(page);
   await solo(page);
+  // At energy 100 the repository's meter nearest Synth-pop leans on the 16ths: 4/4 asked for stays straight (#375).
+  await askForMeter(page, '4/4');
   await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
@@ -348,6 +351,8 @@ test('takes a motif typed on the computer keys, and the lead plays it back from 
 }) => {
   const errors = await listen(page);
   await solo(page);
+  // At energy 0 the repository's meter nearest Synth-pop is 6/8: 4/4 asked for keeps the steps below (#375).
+  await askForMeter(page, '4/4');
   // At energy 0 the lead rests on its own, so a lead note the band plays is the motif.
   await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('0');
@@ -452,6 +457,8 @@ for (const input of INPUTS)
     });
     const errors = await listen(page);
     await solo(page);
+    // At energy 0 the repository's meter nearest Synth-pop is 6/8: 4/4 asked for keeps the steps below (#375).
+    await askForMeter(page, '4/4');
     await openStyle(page);
     await page.getByRole('slider', { name: /Energy/ }).fill('0');
     await input.ready(page);

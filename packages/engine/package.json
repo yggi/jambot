@@ -5,12 +5,14 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./repository": "./src/repository.ts"
   },
   "scripts": {
     "check": "tsc -p ."
   },
   "dependencies": {
-    "@jambot/theory": "workspace:*"
+    "@jambot/theory": "workspace:*",
+    "@yggi/cells": "github:yggi/cells#v0.4.0"
   }
 }

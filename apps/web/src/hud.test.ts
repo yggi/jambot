@@ -331,6 +331,7 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     meter: METERS['4/4'],
     meterName: '4/4',
     swingLevel: '16n',
+    swingShare: null,
     chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
     energy: 0.6,
     lead: 'improvising',

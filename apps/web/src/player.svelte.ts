@@ -71,6 +71,8 @@ import {
   SECTION_BARS,
   SONG_CLOCK,
   SONG_METER,
+  sectionMeter,
+  writtenStyle,
   STRAIGHT,
   type ScheduledStep,
   type SongClock,
@@ -102,6 +104,7 @@ import {
   valueAt,
   writtenAt,
 } from '@jambot/engine';
+import { METER_REPOSITORY } from '@jambot/engine/repository';
 import {
   EAR,
   type EarCarried,
@@ -175,8 +178,8 @@ export interface Hosting {
    * counts (#367): sent together, so a client lays every step as the host does.
    */
   track(track: StyleTrack, swing: SwingTrack, tempoMeter: Meter): void;
-  /** The meter asked for changed: nothing goes on the wire, since each bar carries its own, but a host keeps it. */
-  meter(meter: Meter): void;
+  /** The meter asked for changed, or null to none: nothing goes on the wire, since each bar carries its own, but a host keeps it. */
+  meter(meter: Meter | null): void;
   muse(muse: MuseState): void;
   /** The song ends on this bar, its last, composed. */
   finale(bar: number): void;
@@ -283,10 +286,12 @@ export class Player {
   tempoNudge = $state(0);
   /**
    * The meter asked for, which the band takes at the next section's boundary
-   * (#261): a person's choice, held here as the key wish is. The meter heard
-   * is the song's clock's (`clock`).
+   * (#261): a person's choice, held here as the key wish is. Null, as at
+   * first, asks for none: the composer then asks cells' repository at each
+   * section's start for the meter nearest the style, with its swing (#375).
+   * The meter heard is the song's clock's (`clock`).
    */
-  meter: Meter = $state.raw(SONG_METER);
+  meter: Meter | null = $state.raw(null);
   /**
    * The meter's swing (#360): the level asked for, which the band takes at
    * the next section's boundary as it takes the meter, and the share gliding.
@@ -467,12 +472,16 @@ export class Player {
     return this.#heard.size;
   }
 
-  /** Ask for a meter from the next section on: the forecast shows it where it will be heard. */
-  setMeter(meter: Meter) {
+  /**
+   * Ask for a meter from the next section on, or with null for none, so the
+   * composer asks the repository (#375): the forecast shows it where it will
+   * be heard.
+   */
+  setMeter(meter: Meter | null) {
     if (this.mode === 'client') return;
     this.meter = meter;
     // Stopped, the song opens in it: its bpm counts its beats from now.
-    if (this.status !== 'playing' && this.#countTempoIn(meter))
+    if (this.status !== 'playing' && this.#countTempoIn(this.#opening()))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.hosting?.meter(meter);
     this.#decide();
@@ -489,19 +498,30 @@ export class Player {
     return true;
   }
 
-  /** The track with its bpm counted in `meter`'s beats, the felt tempo kept: what a host keeps, with the meter asked for. */
-  trackCountedIn(meter: Meter): StyleTrack {
-    return rebeat(this.track, this.tempoMeter, meter);
+  /**
+   * The track with its bpm counted in `meter`'s beats, the felt tempo kept:
+   * what a host keeps, with the meter asked for (with none, the meter it
+   * counts now, which a reloaded host's repository finds again).
+   */
+  trackCountedIn(meter: Meter | null): StyleTrack {
+    return rebeat(this.track, this.tempoMeter, meter ?? this.tempoMeter);
   }
 
   apply(intent: Intent) {
     if (this.mode === 'client') return;
+    // A swing set on the Metrum card asks for the meter the band is heading
+    // for, so the card's swing wins over the repository's from the next
+    // section, as a meter asked for there does (#375).
+    if (intent.kind === 'swing' && this.meter === null) this.meter = this.#heading();
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
     const style = styleAfter(this.track, intent, this.tempoNudge);
     this.track = conduct(this.track, intent, at, this.tempoNudge);
     this.swing = conductSwing(this.swing, intent, at);
     this.tempoNudge = nudgeAfter(this.tempoNudge, intent, style);
     this.wish = wishAfter(this.wish, intent, style, this.home);
+    // Stopped, with no meter asked for, the song opens in the meter the
+    // repository finds at the style it opens with now.
+    if (this.status !== 'playing') this.#countTempoIn(this.#opening());
     this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#decide();
   }
@@ -706,12 +726,31 @@ export class Player {
 
   /**
    * The meter the song opens in, which its count-in is a bar of: the meter
-   * asked for, or as a client the one its host's first bar is in once that
-   * has arrived, else the song's.
+   * asked for, or with none the one the repository finds at the style the
+   * song opens with (#375); as a client the one its host's first bar is in
+   * once that has arrived, else the song's.
    */
   #opening(): Meter {
     const first = this.#follow?.arrived.find((sent) => sent.bar.bar === 0);
-    return this.#follow ? (first?.bar.plan.meter ?? SONG_METER) : this.meter;
+    if (this.#follow) return first?.bar.plan.meter ?? SONG_METER;
+    return sectionMeter(
+      {
+        meter: this.meter ?? undefined,
+        repository: METER_REPOSITORY,
+        style: writtenStyle(styleAt(this.track, 0)),
+      },
+      null,
+    ).meter;
+  }
+
+  /** The meter the song opens in, which its count-in is a bar of (`#opening`). */
+  get opening(): Meter {
+    return this.#opening();
+  }
+
+  /** The meter the band is heading for: the last bar decided's, or stopped, the one the song opens in. */
+  #heading(): Meter {
+    return this.#bars.at(-1)?.plan.meter ?? this.#opening();
   }
 
   /** The bars decided, from the first of the section heard on: the forecast a host sends. */
@@ -728,7 +767,8 @@ export class Player {
    * Set the style, key wish, tempo nudge, meter and swing a host that was
    * reloaded had, while it is stopped: the style holds where the conductor
    * left it, its bpm counting the meter's beats (`trackCountedIn`), a record
-   * saved before the meter was kept asks for the song's, and one saved
+   * saved before the meter was kept asks for the song's, one that asks for
+   * none (null) has the composer ask the repository (#375), and one saved
    * before the meter held the swing plays straight.
    */
   restore({
@@ -741,7 +781,7 @@ export class Player {
     track: StyleTrack;
     wish: KeyWish;
     tempoNudge: number;
-    meter?: Meter | undefined;
+    meter?: Meter | null | undefined;
     swing?: SwingTrack | undefined;
   }) {
     if (this.status !== 'stopped' || this.mode === 'client') return;
@@ -750,7 +790,7 @@ export class Player {
     this.wish = wish;
     this.tempoNudge = tempoNudge;
     this.meter = meter;
-    this.tempoMeter = meter;
+    this.tempoMeter = this.#opening();
     this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#decide();
   }
@@ -859,7 +899,7 @@ export class Player {
     this.track = holding(INITIAL_STYLE);
     this.swing = holdingSwing(PRESETS[0]!.swing);
     this.tempoMeter = SONG_METER;
-    this.#countTempoIn(this.meter);
+    this.#countTempoIn(this.#opening());
     this.museLog = [];
     this.offer = null;
     this.#forgetMemory();
@@ -898,8 +938,8 @@ export class Player {
     if (!this.#follow) {
       this.track = stopAt(this.track);
       this.swing = stopSwing(this.swing);
-      // A meter asked for and not yet heard is the one the next song opens in.
-      this.#countTempoIn(this.meter);
+      // A meter asked for and not yet heard, or the repository's at the style, is the one the next song opens in.
+      this.#countTempoIn(this.#opening());
       this.#seed = this.#surroundings.seed();
       this.hosting?.stopped();
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
@@ -919,16 +959,18 @@ export class Player {
       start: this.#start,
       track: this.track,
       wish: this.wish,
-      meter: this.meter,
+      meter: this.meter ?? undefined,
+      repository: METER_REPOSITORY,
       swing: this.swing,
       tempoMeter: this.tempoMeter,
     };
   }
 
-  /** The meter's swing heard: the bar heard's, or before anything is, what is asked for where the song stands. */
+  /** The meter's swing heard: the bar heard's (its section's share where the repository gave it), or before anything is, what is asked for where the song stands. */
   #swingHeard(): MeterSwing {
     const asked = swingAt(this.swing, this.heard ?? 0);
-    return this.hud.bar ? { ...asked, level: this.hud.bar.swingLevel } : asked;
+    const bar = this.hud.bar;
+    return bar ? { level: bar.swingLevel, share: bar.swingShare ?? asked.share } : asked;
   }
 
   /**

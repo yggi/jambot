@@ -42,6 +42,15 @@ describe('the metrum', () => {
     expect(choice.querySelectorAll('[role="radio"]:not([disabled])')).toHaveLength(0);
   });
 
+  it('offers no meter asked for, “By style”, where the composer asks the repository, and asks for it with null (#375)', async () => {
+    const onmeter = vi.fn();
+    const { rerender } = render(Metrum, props(new Metronome(), { asked: null, onmeter }));
+    expect(screen.getByRole('radio', { name: 'By style' })).toHaveAttribute('aria-checked', 'true');
+    await rerender({ asked: METERS['7/8'] });
+    await fireEvent.click(screen.getByRole('radio', { name: 'By style' }));
+    expect(onmeter).toHaveBeenCalledWith(null);
+  });
+
   it('names itself in its own header, over the tempo', () => {
     const { container } = render(Metrum, props(new Metronome()));
     expect(container.querySelector('summary .title')).toHaveTextContent('Metrum');
