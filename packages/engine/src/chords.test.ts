@@ -268,48 +268,42 @@ describe("a bar's chords", () => {
     expect(name({ step: 0, degree: 6 }, 0, eFlat)).toBe('Ddim');
   });
 
-  // Every chord of the sweep and every secondary takes 3–4 s alone, and
-  // more under a full run, near Vitest's default limit.
-  it(
-    'each have a Roman numeral that reads back as the chord, a secondary dominant with its target',
-    { timeout: 30_000 },
-    () => {
-      const secondaries = keys.flatMap((key) =>
-        range(7).flatMap((target) =>
-          [0.3, 0.8, 1].flatMap((harm) =>
-            range(3).map((seed) => {
-              const theme = themeOf(key, [[{ step: 8, dominantOf: target }]]);
-              const env = envOf({ seed, key, theme, harm });
-              return [env, barChords(env)[0]!] as [ChordEnv, BarChord];
-            }),
-          ),
+  it('each have a Roman numeral that reads back as the chord, a secondary dominant with its target', () => {
+    const secondaries = keys.flatMap((key) =>
+      range(7).flatMap((target) =>
+        [0.3, 0.8, 1].flatMap((harm) =>
+          range(3).map((seed) => {
+            const theme = themeOf(key, [[{ step: 8, dominantOf: target }]]);
+            const env = envOf({ seed, key, theme, harm });
+            return [env, barChords(env)[0]!] as [ChordEnv, BarChord];
+          }),
         ),
-      );
-      const written = new Set<string>();
-      // Tallied, not asserted one by one: expect() costs more than the check, tens of thousands of times over.
-      const wrong: string[] = [];
-      for (const [{ key }, chord] of [...sweep, ...secondaries]) {
-        const text = chordNumeral(chord, key);
-        const numeral = parseNumeral(text);
-        if (!numeral) {
-          wrong.push(`${text}: not a numeral`);
-          continue;
-        }
-        if ((numeral.of !== undefined) !== 'dominantOf' in chord.slot)
-          wrong.push(`${text}: secondary dominant mismatch`);
-        const stack = joinChord(chord.chord);
-        const back = chordOfNumeral(keyHelix(key), numeral);
-        if (
-          back.root !== wrap(stack[0]!, 12) ||
-          back.quality !== qualityOf(stack.map((x) => x - stack[0]!))
-        )
-          wrong.push(`${text}: reads back as ${JSON.stringify(back)}`);
-        written.add(text);
+      ),
+    );
+    const written = new Set<string>();
+    // Tallied, not asserted one by one: expect() costs more than the check, tens of thousands of times over.
+    const wrong: string[] = [];
+    for (const [{ key }, chord] of [...sweep, ...secondaries]) {
+      const text = chordNumeral(chord, key);
+      const numeral = parseNumeral(text);
+      if (!numeral) {
+        wrong.push(`${text}: not a numeral`);
+        continue;
       }
-      expect(wrong.slice(0, 5)).toEqual([]);
-      expect(written.size).toBeGreaterThan(40);
-    },
-  );
+      if ((numeral.of !== undefined) !== 'dominantOf' in chord.slot)
+        wrong.push(`${text}: secondary dominant mismatch`);
+      const stack = joinChord(chord.chord);
+      const back = chordOfNumeral(keyHelix(key), numeral);
+      if (
+        back.root !== wrap(stack[0]!, 12) ||
+        back.quality !== qualityOf(stack.map((x) => x - stack[0]!))
+      )
+        wrong.push(`${text}: reads back as ${JSON.stringify(back)}`);
+      written.add(text);
+    }
+    expect(wrong.slice(0, 5)).toEqual([]);
+    expect(written.size).toBeGreaterThan(40);
+  });
 
   it('are written as numerals by the mode, as music21 writes them', () => {
     // music21: in A minor, V7 is E G# B D, V7/iv is A C# E G, V7/III is

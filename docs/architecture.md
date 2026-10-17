@@ -361,8 +361,9 @@ its dropped buffers, and on a client, every round trip, the skew and the bars
 too late. `?timing` shows them, and Export saves them as a file, so a timing
 report carries numbers rather than a symptom. In Chromium, `timing.e2e.ts` finds
 the export agrees with the harness: an 80 ms hold of the audio is one buffer
-dropped, and a 400 ms stall one tick some 420 ms after the last, with the steps
-it passed missed.
+dropped, and a 600 ms stall one tick at least 550 ms after the last, with the
+steps it passed missed: a stall misses a step whatever its phase only once it
+outlasts the lookahead and two steps.
 
 ## What has settled, and what is open
 

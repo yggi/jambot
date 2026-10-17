@@ -18,8 +18,15 @@ async function exported(page: Page) {
   return JSON.parse(await readFile((await download.path())!, 'utf8'));
 }
 
-/** How long, in milliseconds, the test stalls the page's main thread: past a lookahead and a step at 108 bpm. */
-const STALL = 400;
+/**
+ * How long, in milliseconds, the test stalls the page's main thread. The tick before the stall
+ * schedules every step that starts within `LOOKAHEAD` (120 ms), so the first step left unscheduled
+ * can start up to a step after that, and it is missed only once it has wholly passed: a stall must
+ * outlast the lookahead and two steps, 120 + 2 × 139 = 398 ms at 108 bpm, to miss a step whatever
+ * its phase (#356, where 400 ms missed none once). 600 ms misses at least one in every phase, with
+ * 200 ms to spare for a tick that the loaded page runs late.
+ */
+const STALL = 600;
 
 test('counts a hold of the audio as a buffer dropped, and a stall as a long tick and steps missed', async ({
   page,

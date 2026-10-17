@@ -109,14 +109,13 @@ describe('position and clock time', () => {
   };
   const holds = { order: undefined, error: expect.any(Number) as number };
 
-  // About 4 s alone, so its timeout leaves room for a loaded machine.
   it('holds from rest between any two of the axis ends and the presets’ tempos, at every glide length (T4, Q1c)', () => {
     for (const track of fromRest.flat()) {
       const found = breaks(tempoMap(track, anchor));
       expect(found).toEqual(holds);
       expect(found.error).toBeLessThan(1e-9);
     }
-  }, 20_000);
+  });
 
   it('holds through glides retargeted while they move, which carry their slope and may brake (T4, Q1c)', () => {
     const glides = retargeted.map((t) => t.bpm);
