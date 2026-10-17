@@ -94,14 +94,11 @@ Nothing checks these; you and the reviewer hold them.
   gathers constraints run side by side without waiting for each other. What one
   finds goes to the other, and a test on `main` holds it. See
   [`docs/ratchet.md`](docs/ratchet.md).
-- **`pnpm e2e` when what the app plays, or when, changes.** The end-to-end
-  checks run the built app in Chromium and measure its audio: the exact time of
-  every onset, and whether the band sounds and stops. They take about 20 s and
-  need a browser, so they are not part of `pnpm verify`. Run them before pushing
-  a change to the transport, the time maps, the style glides, a part's events,
-  the player, the audio or the page, and on a pull request that touches those. A
-  fresh checkout needs `pnpm exec playwright install chromium` once; Claude Code
-  sessions do it at start.
+- **`pnpm e2e` when what the app plays, or when, changes.**
+  The end-to-end checks run the built app in Chromium and measure its audio: the exact time of every onset, and whether the band sounds and stops.
+  They take about 6 minutes (44 checks in 5.9 min, 2026-10-17), mostly the band playing in real time, and need a browser, so they are not part of `pnpm verify`: run them in the background.
+  Run them before pushing a change to the transport, the time maps, the style glides, a part's events, the player, the audio or the page, and on a pull request that touches those.
+  A fresh checkout needs `pnpm exec playwright install chromium` once; Claude Code sessions do it at start.
 - **The prototype is a baseline, not a source of truth.** It orients the port.
   Where one of its values helps, a test records it as a literal. What is true is
   what the tests and the design say, and a deliberate difference from the

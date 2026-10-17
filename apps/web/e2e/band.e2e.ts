@@ -24,6 +24,17 @@ const phases = (times: number[], bpm: number) =>
 
 const start = (page: Page) => page.getByRole('button', { name: 'Start the band' }).click();
 
+/**
+ * The onsets once more than 8 have sounded, waiting up to 10 s for them: the
+ * count is what the band played, not how much time the page got.
+ */
+const playing = async (page: Page) => {
+  await expect
+    .poll(async () => (await onsets(page)).length, { timeout: 10_000 })
+    .toBeGreaterThan(8);
+  return onsets(page);
+};
+
 test('counts in, plays, follows on screen, and stops on a cadence, without an error', async ({
   page,
 }) => {
@@ -145,9 +156,7 @@ test('plays a straight preset on the 16th grid', async ({ page }) => {
   await openStyle(page);
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
-  await page.waitForTimeout(3000);
-  const times = await onsets(page);
-  expect(times.length).toBeGreaterThan(8);
+  const times = await playing(page);
   // Synth-pop: 108 bpm, no swing.
   expect(new Set(phases(times, 108))).toEqual(new Set([0]));
 });
@@ -159,9 +168,7 @@ test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   await page.getByRole('radio', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
-  await page.waitForTimeout(3000);
-  const times = await onsets(page);
-  expect(times.length).toBeGreaterThan(8);
+  const times = await playing(page);
   // Swing jazz: 148 bpm, full triplet swing. The offbeat 8th lies 2/3 of a
   // step late, which a 16th shuffle never plays, and every onset is on a
   // third of a step.

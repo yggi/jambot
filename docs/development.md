@@ -54,8 +54,9 @@ pnpm pages deploy # publish main to GitHub Pages (see below)
   against a broken app. `@playwright/test` is pinned to 1.56.1, the version
   whose Chromium (build 1194) the cloud sessions have installed, so they need no
   download. Elsewhere, `pnpm exec playwright install chromium` fetches that
-  build once. They take about 20 s and need a browser, so they are a command of
-  their own, not part of `pnpm verify`; `AGENTS.md` says when to run them.
+  build once. They take minutes and need a browser, so they are a command of
+  their own, not part of `pnpm verify`; `AGENTS.md` says when to run them and
+  how long they took when last measured.
 - **ESLint + Prettier**, with `eslint-plugin-svelte` and `svelte-check` for
   types in components. In the pure packages, lint refuses what their type check
   lets through: `Math.random`, the clock, timers, the DOM, Web Audio, Node APIs
