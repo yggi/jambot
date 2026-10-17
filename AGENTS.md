@@ -45,6 +45,7 @@ These principles come from the prototype
 | `docs/INDEX.md`                                        | Tree of all docs and code directories                                         |
 | `docs/ROADMAP.md`                                      | Where the project is heading                                                  |
 | [GitHub issues](https://github.com/yggi/jambot/issues) | The board: concrete work, bugs, blockers                                      |
+| [#358](https://github.com/yggi/jambot/issues/358)      | The central roadmap: look here first for what to do next (twin: cells#81)     |
 
 ## House rules
 
