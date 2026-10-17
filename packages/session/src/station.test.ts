@@ -18,7 +18,7 @@ describe('a radio station in a session (#313)', () => {
     expect(next.station).toEqual({ seed: 7, walked: 1 });
   });
 
-  it('carries nothing but its seed and how many sections it has walked, so a station resumed from them walks the same (S2)', () => {
+  it('carries nothing but its seed and how many sections it has walked, so a station resumed from them walks the same', () => {
     const run = stations(INITIAL_STYLE, tuneIn(3), 40);
     for (const at of [1, 17, 39]) {
       const resumed = stations(run[at]!.style, run[at]!.station, 40 - at);
