@@ -161,6 +161,40 @@ test('plays a straight preset on the 16th grid', async ({ page }) => {
   expect(new Set(phases(times, 108))).toEqual(new Set([0]));
 });
 
+test('left on the radio, the band wanders its style by itself a section at a time, plays on, and a preset takes it back (#313)', async ({
+  page,
+}) => {
+  const errors = await listen(page);
+  await solo(page);
+  await openStyle(page);
+  await page.getByRole('slider', { name: 'Entropy' }).fill('100');
+  const axes = ['Syncopation', 'Harmony', 'Articulation'];
+  const values = () =>
+    Promise.all(axes.map((name) => page.getByRole('slider', { name, exact: true }).inputValue()));
+  const opening = await values();
+  await openCard(page, 'Session');
+  await page.getByRole('checkbox', { name: 'Leave the band on the radio' }).check();
+  await start(page);
+  await playing(page);
+  // Synth-pop opens the song: the first section is the style tuned in at.
+  await expect(page.getByText('Now playing').locator('..')).toContainText('Synth-pop');
+  // A section is 8 bars (17.8 s at 108 bpm); three axes of a walk at entropy 1 step 8 to 10 % each.
+  await openStyle(page);
+  await expect
+    .poll(async () => (await values()).join() !== opening.join(), { timeout: 60_000 })
+    .toBe(true);
+  const sounded = (await onsets(page)).length;
+  await expect
+    .poll(async () => (await onsets(page)).length, { timeout: 10_000 })
+    .toBeGreaterThan(sounded);
+  await page.getByRole('radio', { name: 'Techno' }).click();
+  await openCard(page, 'Session');
+  await expect(
+    page.getByRole('checkbox', { name: 'Leave the band on the radio' }),
+  ).not.toBeChecked();
+  expect(errors).toEqual([]);
+});
+
 test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   await listen(page);
   await solo(page);

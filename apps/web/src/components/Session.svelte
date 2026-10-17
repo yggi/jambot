@@ -6,7 +6,11 @@
   pinging with each bar. The details are the players of a host, or the link
   of a client (its name, round trip, bars that came too late), and the way
   out: Close session for a host, Leave session for a client, Back to the
-  lobby from solo. Ending a session that others are in asks first, in place,
+  lobby from solo. A band that leads itself, a host or solo, can be left on
+  the radio (#313): it wanders the style alone, as a station does, until a
+  person sets a preset or an axis it walks. Where the band is in style
+  space, and where it heads, reads under "Now playing" for all of them, as
+  the nearest presets. Ending a session that others are in asks first, in place,
   so a stray tap can't end a jam for everyone: a host is told how many are
   playing in its session. Solo shares nothing, so it goes back at once.
 -->
@@ -39,9 +43,27 @@
     bar: number | null;
     /** End the session, or leave the band for the lobby, whichever this is. */
     onend: () => void;
+    /** Whether the radio is on the air, here, where the band leads itself (#313). */
+    radio?: boolean;
+    /** Where the band is in style space, and where it heads, in words (`stationLine`), or null before it plays. */
+    nowPlaying?: string | null;
+    /** Put the radio on the air, or take it off. */
+    ontune?: (on: boolean) => void;
   }
 
-  let { mode, hosting, following, players, playerId, phase = null, bar, onend }: Props = $props();
+  let {
+    mode,
+    hosting,
+    following,
+    players,
+    playerId,
+    phase = null,
+    bar,
+    onend,
+    radio = false,
+    nowPlaying = null,
+    ontune,
+  }: Props = $props();
 
   let asking = $state(false);
 
@@ -99,6 +121,21 @@
     </Group>
   {/if}
 
+  {#if mode !== 'client' && ontune}
+    <Group title="Radio">
+      <label class="check">
+        <input type="checkbox" checked={radio} onchange={(e) => ontune(e.currentTarget.checked)} />
+        Leave the band on the radio
+      </label>
+      <p class="note">
+        {radio
+          ? 'It wanders the style by itself, a section at a time. Energy leans its tempo, entropy its variance. A preset or another axis takes it back.'
+          : 'The band keeps the style you set.'}
+      </p>
+    </Group>
+  {/if}
+  {#if nowPlaying !== null}<Reading label="Now playing" value={nowPlaying} />{/if}
+
   {#if asking}
     <div
       class="ask"
@@ -146,6 +183,12 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
   }
   .note {
     margin: 0;

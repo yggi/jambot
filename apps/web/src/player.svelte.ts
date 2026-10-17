@@ -79,6 +79,7 @@ import {
   type StyleTrack,
   type MeterSwing,
   type SwingTrack,
+  type BandBar,
   type TransportCarried,
   type TransportEnv,
   type TransportOutput,
@@ -109,6 +110,7 @@ import {
   type MuseState,
   type SentBar,
   type Song,
+  type Station,
   TRANSPORT_TIMING,
   type TransportTiming,
   followSource,
@@ -116,6 +118,8 @@ import {
   earListen,
   sentBars,
   playerSource,
+  onward,
+  tuneIn,
 } from '@jambot/session';
 import { type Meter, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
@@ -123,11 +127,14 @@ import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
 import {
   type Intent,
   conduct,
+  conductRadio,
   conductSwing,
   nudgeAfter,
+  radioStyle,
   stopAt,
   stopSwing,
   styleAfter,
+  takesFromRadio,
   wishAfter,
 } from './conductor.ts';
 import { Heard } from './heard.ts';
@@ -177,6 +184,8 @@ export interface Hosting {
   track(track: StyleTrack, swing: SwingTrack, tempoMeter: Meter): void;
   /** The meter asked for changed: nothing goes on the wire, since each bar carries its own, but a host keeps it. */
   meter(meter: Meter): void;
+  /** The radio went on or off the air (#313): the walk travels in the track, so only a host keeps it. */
+  station(station: Station | null): void;
   muse(muse: MuseState): void;
   /** The song ends on this bar, its last, composed. */
   finale(bar: number): void;
@@ -278,6 +287,12 @@ const heardOn = (output: Output) => output.heard?.() ?? output.currentTime - out
 export class Player {
   status: Status = $state('stopped');
   track: StyleTrack = $state.raw(holding(INITIAL_STYLE));
+  /**
+   * The radio (#313), which the session carries: a station on the air walks
+   * the style track a section at a time while nobody takes it (`#walkRadio`),
+   * and null is off. It is the host's alone: a client follows the track.
+   */
+  station: Station | null = $state.raw(null);
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode, melodic: null });
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
@@ -494,8 +509,47 @@ export class Player {
     return rebeat(this.track, this.tempoMeter, meter);
   }
 
+  /**
+   * Put the radio on the air or take it off (#313). Tuned in, it holds the
+   * style the track is going to until the next section starts, and walks from
+   * there; a person who sets a preset or an axis it walks takes the track back
+   * (`takesFromRadio`).
+   */
+  tuneRadio(on: boolean) {
+    if (this.mode === 'client' || (this.station !== null) === on) return;
+    this.station = on ? tuneIn(this.#surroundings.seed()) : null;
+    this.hosting?.station(this.station);
+  }
+
+  /**
+   * The radio's walk at the start of each section after the song's first: the
+   * track glides one section to the walk's next style from where it is, never
+   * before the head, so what has been scheduled stays as it is. The nudge of
+   * the tempo stays within the licence of the style walked to.
+   */
+  #walkRadio(composed: readonly BandBar[], carried: TransportCarried<unknown>) {
+    const { station } = this;
+    if (!station) return;
+    const clock = clockOfTransport(carried);
+    for (const { bar } of composed) {
+      if (bar === 0 || bar % SECTION_BARS !== 0 || !this.station) continue;
+      const walked = onward(this.station, radioStyle(this.track, this.tempoNudge));
+      const at = Math.max(carried.head.step, clock.barStart(bar));
+      const conducted = conductRadio(this.track, walked.style, at, this.tempoNudge);
+      this.station = walked.station;
+      this.track = conducted.track;
+      this.tempoNudge = conducted.nudge;
+    }
+    if (this.station !== station) {
+      this.hosting?.station(this.station);
+      this.hosting?.track(this.track, this.swing, this.tempoMeter);
+      this.#decide();
+    }
+  }
+
   apply(intent: Intent) {
     if (this.mode === 'client') return;
+    if (this.station && takesFromRadio(intent)) this.tuneRadio(false);
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
     const style = styleAfter(this.track, intent, this.tempoNudge);
     this.track = conduct(this.track, intent, at, this.tempoNudge);
@@ -737,12 +791,14 @@ export class Player {
     tempoNudge,
     meter = SONG_METER,
     swing = holdingSwing(STRAIGHT),
+    station = null,
   }: {
     track: StyleTrack;
     wish: KeyWish;
     tempoNudge: number;
     meter?: Meter | undefined;
     swing?: SwingTrack | undefined;
+    station?: Station | null | undefined;
   }) {
     if (this.status !== 'stopped' || this.mode === 'client') return;
     this.track = stopAt(track);
@@ -751,6 +807,7 @@ export class Player {
     this.tempoNudge = tempoNudge;
     this.meter = meter;
     this.tempoMeter = meter;
+    this.station = station;
     this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#decide();
   }
@@ -782,6 +839,7 @@ export class Player {
   follow(told: Following) {
     this.halt();
     this.mode = 'client';
+    this.station = null;
     this.lacked = 0;
     this.#follow = { carried: null, arrived: [], ear: EAR, keys: [], ends: undefined, told };
     this.#bars = [];
@@ -998,6 +1056,7 @@ export class Player {
     const decided = carried!.source.next;
     if (decided && this.#countTempoIn(decided.plan.meter))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
+    this.#walkRadio(scheduled.composed, carried!);
     const logged = scheduled.judged.filter((j) => j.judgements.length > 0 || j.forgot !== null);
     if (logged.length > 0) this.museLog = [...this.museLog, ...logged].slice(-MUSE_LOG);
     const latest = scheduled.judged.at(-1);

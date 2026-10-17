@@ -17,7 +17,7 @@
  *   within 2 % of an end of its axis;
  * - per axis, how far the style has walked from where it was tuned in after
  *   10 minutes, 1 hour and 3 (root mean square; tempo on its unit scale);
- * - the nearest preset (by `styleDistance` to `PRESET_LANDMARKS`) of the
+ * - the nearest preset (`nearestPreset`) of the
  *   style played at each bar's start: the minutes until it first changes,
  *   how often it changes an hour, the share of changes undone within a
  *   section (a walk along a border between two presets), the share of time
@@ -38,7 +38,6 @@ import {
   type Axis,
   PRESETS,
   PRESET_GLIDE,
-  PRESET_LANDMARKS,
   RADIO,
   type RadioParams,
   SECTION_BARS,
@@ -46,12 +45,11 @@ import {
   type StyleTrack,
   barStart,
   bpmUnit,
-  centreOf,
   glideTo,
   holding,
+  nearestPreset,
   rateAt,
   styleAt,
-  styleDistance,
   timeConstant,
   walkRadio,
 } from '../src/index.ts';
@@ -97,10 +95,7 @@ export const SETTINGS: readonly Setting[] = [
 const paramsOf = ({ energyWalks }: Setting): RadioParams =>
   energyWalks ? RADIO : { ...RADIO, step: { ...RADIO.step, energy: 0 } };
 
-/** The style on the scale a distance is taken on: tempo on its unit axis. */
-const unitOf = (style: Style) => ({ ...style, bpm: bpmUnit(style.bpm) });
-const nearest = (style: Style) =>
-  centreOf(PRESET_LANDMARKS, (landmark) => -styleDistance(unitOf(style), landmark.at)).name;
+const nearest = nearestPreset;
 
 /** One run: each section's style and the minute it starts at, and each bar's nearest preset and minute. */
 export interface RadioRun {

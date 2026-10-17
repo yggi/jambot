@@ -263,7 +263,7 @@ The style under the radio is another, by design: the owner ruled on #313 that it
 Tuned in at Techno at entropy 1, every tenth of each unit axis holds a tenth of the time, give or take 4 %, after 1,000 sections; at entropy 0.3 the nearest preset first changes after a median of 72 to 90 minutes and is the one tuned in at in 62 to 72 % of bars over 3 hours, at entropy 1 in 22 to 24 % (E30).
 Test: `themes.test.ts`, whose test of the A theme's first chord cites Q11: every mode, 21 harmonies, three entropies and 20 seeds; `key-loop.test.ts` (`packages/engine/experiments`), E19, whose test of the key's drift cites Q11; `radio.test.ts`, whose test of the walk pulled nowhere cites Q11.
 Source: #210 ("left alone, it plays an endless, evolving jam", `AGENTS.md`, as a claim about where the system settles); the owner, on #210.
-Status: measured (the harmony within a key); measured (the key at entropy 0); measured, failing (the key above it; the style under the radio, by design).
+Status: measured (the harmony within a key); measured (the key at entropy 0); measured, failing (the key above it, also under the radio's walk, E19; the style under the radio, by design).
 Decided: #210, ahead of the evidence: a default comes home in a cycle the level above plans, or drifts, as the licence given and the freedom used balance; #313, ahead of the evidence: left alone, the style wanders freely, with no attraction (the owner, 2026-10-16).
 Lands in: #210, #233 (a planned cycle of keys over the form, which the key does not have yet), #195, #313.
 

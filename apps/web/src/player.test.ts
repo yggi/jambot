@@ -1,4 +1,5 @@
 import {
+  AXIS_NAMES,
   type HarmonicWeights,
   INITIAL_KEY,
   NO_HISTORY,
@@ -14,13 +15,20 @@ import {
   holding,
   holdingSwing,
   STRAIGHT,
+  SECTION_BARS,
+  type Style,
+  type StyleTrack,
   lookAhead,
+  styleAt,
+  walkRadio,
 } from '@jambot/engine';
+import { type Station, tuneIn } from '@jambot/session';
 import { METERS, type Meter } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
 import { Metronome } from './metronome.svelte.ts';
 import { EVEN_MIX, type Mix, withLevel } from './mix.ts';
+import { targetOf } from './conductor.ts';
 import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Hosting, type Surroundings } from './player.svelte.ts';
 
@@ -845,6 +853,7 @@ function told() {
     decided: () => {},
     track: () => {},
     meter: () => {},
+    station: () => {},
     muse: () => {},
     finale: (bar) => (said.push('finale'), finales.push(bar)),
   };
@@ -1189,6 +1198,7 @@ describe('the meter asked for (#262)', () => {
       track: (...[track, , tempoMeter]) =>
         told.push({ kind: 'track', bpm: track.bpm.to, meter: meterOf(tempoMeter) }),
       meter: () => {},
+      station: () => {},
       muse: () => {},
       finale: () => {},
     };
@@ -1258,5 +1268,155 @@ describe('the meter asked for (#262)', () => {
     player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
     player.setMeter(METERS['5/8']);
     expect(player.meter).toEqual(METERS['4/4']);
+  });
+});
+
+describe('the radio (#313)', () => {
+  /** A player playing, ticked by hand, with the radio's station and tracks told as a host's hosting would hear them. */
+  async function playing(tuned = true) {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    const said: { station: Station | null; track: StyleTrack }[] = [];
+    const host = told();
+    player.hosting = {
+      ...host.hosting,
+      station: (station) => void said.push({ station, track: player.track }),
+    };
+    void player.start();
+    world.resolve();
+    await settle();
+    if (tuned) player.tuneRadio(true);
+    const run = (seconds: number) => {
+      for (let t = 0; t < seconds - 1e-9; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+      }
+    };
+    return { world, player, said, run };
+  }
+
+  /** Seconds from the song's start to the start of a section, at the tempo it opens at. */
+  const SECTION = (SECTION_BARS * 4 * 60) / INITIAL_STYLE.bpm;
+  const OPENING = countInSeconds(holdingSynthPop()) + 0.1;
+
+  it('is off until it is tuned in, and leaves the track as the people set it', async () => {
+    const { player, run } = await playing(false);
+    const track = player.track;
+    run(OPENING + 4 * SECTION);
+    expect(player.station).toBeNull();
+    expect(player.track).toBe(track);
+  });
+
+  it('plays the style it was tuned in at through the song’s first section, then glides to the walk’s next style at each section’s start', async () => {
+    const { player, run, world } = await playing();
+    const seed = world.seeds.at(-1)!;
+    expect(player.station).toEqual(tuneIn(seed));
+    const opening = targetOf(player.track);
+    run(OPENING + 0.9 * SECTION);
+    expect(targetOf(player.track)).toEqual(opening);
+    expect(player.station!.walked).toBe(0);
+
+    let style: Style = opening;
+    for (let n = 0; n < 5; n++) {
+      run(SECTION);
+      style = walkRadio(style, seed, n);
+      expect(player.station!.walked, `after section ${n + 1}`).toBe(n + 1);
+      expect(targetOf(player.track), `section ${n + 1}`).toEqual(style);
+    }
+    // It wandered, and out of the song's first style.
+    expect(style).not.toEqual(opening);
+  });
+
+  it('glides from where the track is, never before the head: no axis of the style ever jumps', async () => {
+    const { player, run } = await playing();
+    run(OPENING);
+    let before = styleAt(player.track, 0);
+    // A step of the song is 1/16 of a bar; a glide of a section moves an axis at most its step.
+    let biggest = 0;
+    for (let n = 0; n < 4 * SECTION_BARS * 16; n++) {
+      run((SECTION / SECTION_BARS / 16) * 1);
+      const now = styleAt(player.track, player.heard ?? 0);
+      for (const axis of AXIS_NAMES) {
+        const move = Math.abs(now[axis] - before[axis]);
+        biggest = Math.max(biggest, axis === 'bpm' ? move / 100 : move);
+      }
+      before = now;
+    }
+    expect(biggest).toBeLessThan(0.02);
+  });
+
+  it('is taken off the air by a preset, or an axis it walks, and by nothing else a person sets', async () => {
+    const { player, said } = await playing();
+    player.apply({ kind: 'axis', axis: 'energy', value: 0.9 });
+    player.apply({ kind: 'axis', axis: 'entropy', value: 0.5 });
+    player.apply({ kind: 'tempo', nudge: 0.05 });
+    player.apply({ kind: 'key', wish: { tonic: 2 } });
+    player.apply({ kind: 'swing', swing: { share: 0.55 } });
+    expect(player.station).not.toBeNull();
+    player.apply({ kind: 'axis', axis: 'sync', value: 0.9 });
+    expect(player.station).toBeNull();
+    expect(said.map((s) => s.station === null)).toEqual([false, true]);
+
+    player.tuneRadio(true);
+    player.apply({ kind: 'preset', preset: PRESETS[1]! });
+    expect(player.station).toBeNull();
+  });
+
+  it('walks on from the energy and entropy a person set, which are its temperature', async () => {
+    const { player, run } = await playing();
+    run(OPENING);
+    player.apply({ kind: 'axis', axis: 'entropy', value: 0 });
+    run(2);
+    const held = targetOf(player.track);
+    run(3 * SECTION);
+    // At an entropy of 0 the radio holds every axis; only the energy's lean moves the tempo, by at most 0.05 % a section.
+    const { bpm, ...rest } = targetOf(player.track);
+    const { bpm: heldBpm, ...heldRest } = held;
+    expect(rest).toEqual(heldRest);
+    expect(Math.abs(Math.log(bpm / heldBpm))).toBeLessThan(0.0005 * player.station!.walked);
+    expect(player.station!.walked).toBeGreaterThanOrEqual(2);
+    player.apply({ kind: 'axis', axis: 'entropy', value: 1 });
+    run(3 * SECTION);
+    expect(targetOf(player.track)).not.toEqual(held);
+  });
+
+  it('keeps its station through a stop, and walks on at the next song, as a station does', async () => {
+    const { player, run, world } = await playing();
+    run(OPENING + 2.5 * SECTION);
+    const station = player.station;
+    expect(station!.walked).toBeGreaterThan(0);
+    player.halt();
+    expect(player.station).toEqual(station);
+    void player.start();
+    world.resolve();
+    await settle();
+    run(OPENING + 1.5 * SECTION);
+    expect(player.station!.seed).toBe(station!.seed);
+    expect(player.station!.walked).toBeGreaterThan(station!.walked);
+  });
+
+  it('cannot be tuned in by a client, and a client that follows a host has none', async () => {
+    const { player } = await playing();
+    player.follow({ judged: () => {}, forget: () => {}, skew: () => null });
+    expect(player.station).toBeNull();
+    player.tuneRadio(true);
+    expect(player.station).toBeNull();
+  });
+
+  it('comes back from a reload on the air, with the seed and sections it had', async () => {
+    const { world, s } = surroundings();
+    void world;
+    const player = new Player(s);
+    const kept = { seed: 5, walked: 12 };
+    player.restore({
+      track: holding(INITIAL_STYLE),
+      wish: player.wish,
+      tempoNudge: 0,
+      station: kept,
+    });
+    expect(player.station).toEqual(kept);
+    player.restore({ track: holding(INITIAL_STYLE), wish: player.wish, tempoNudge: 0 });
+    expect(player.station).toBeNull();
   });
 });

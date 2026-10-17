@@ -324,6 +324,12 @@ run; the others have.
     At entropy 0.6 the mean distance from the opening key is 0.6 to 1.4 fifths by preset after one section, 1.7 to 2.5 after 8, and 2.3 to 3.3 after 32, where a key drawn at random round the circle lies 3 fifths away; 0 to 15% of runs are back on it after 32 (a random key 8%).
     It is a walk with a bound on each step and none on where it goes.
   - Not measured: the gain of the draw, which reads the history to the fourth power (`LEAN`), and whether a key the style names, or the song's opening key, should pull the walk back (Q11, the owner's call).
+  - Under the radio's walk (#313 step 4; `keyRun`'s `radio`, entropy 0.3, 0.6 and 1, 20 seeds, 33 sections, the style tuned in at each preset and walked a section at a time, glided as the player glides it), the key has no home either.
+    Where it moves, it ends 1.9 to 3.4 fifths from where it opened after 32 sections at entropy 0.3 (leaving out Techno and Funk, below) and 2.0 to 3.4 at 1, and is back on it in 0 to 15% of runs at 0.3 and 0 to 20% at 1 (a random key 8%).
+  - The walk changes the key's reach, since `harm` walks: Techno, whose key never moves at its own harm 0, moves it at 4% of boundaries at entropy 0.3 and 51% at 1 as the walk raises its harmony; Funk's 11% and 51% are below the 20% and 63% it has left alone; and a jump may pass the reach of the preset tuned in at (widest 5 fifths from Synth-pop's 3).
+    At entropy 0.3 Techno stays home in 18 of 20 runs (90%) and Funk in 13 (65%), since their harmony takes many sections to leave 0 and the least.
+  - So the key under the radio is the key left alone, followed by the style's reach: no plan, no home, nothing added to the band.
+    The planned cycle (#233) would give it a home, against the ruling that the style wander freely, so the choice is the owner's, with a recommendation on #313.
 
 - **E20. Does repetition confirm?** (Q12, C9; #204 H8, #207 M1), in
   [`packages/engine/experiments/recognition.ts`](../packages/engine/experiments/recognition.ts)

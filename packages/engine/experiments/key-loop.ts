@@ -22,6 +22,12 @@
  * - the drift: how far the key is from the opening key, in fifths, after a
  *   number of sections, and the share of runs back on it.
  *
+ * It is run again under the radio's walk (#313 step 4, `keyRun`'s `radio`): the
+ * same band, the style left to wander as `walkRadio` walks it, a section at a
+ * time, glided as the player glides it (`RADIO_GLIDE`: one section), so the
+ * reach and the chance to move (`harm`, entropy) are the walk's. The players
+ * still wish only for the mode of the preset tuned in at.
+ *
  * The time constant is derived, not measured: `timeConstant(HISTORY_DECAY)`,
  * about 6.7 bars, against a section's 8.
  *
@@ -39,10 +45,18 @@ import {
   band,
   centre,
   fifthsApart,
+  type Style,
+  type StyleTrack,
+  barStart,
   foldBar,
+  glideTo,
   harmonicReach,
+  holding,
   lookAhead,
+  styleAt,
   timeConstant,
+  walkRadio,
+  writtenStyle,
 } from '../src/index.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -55,15 +69,41 @@ export interface KeyRun {
   readonly centres: readonly Key[];
 }
 
-/** The band left alone at `entropy` for `sections`, the players wishing only for the preset's mode. */
-export function keyRun(preset: Preset, seed: number, entropy: number, sections: number): KeyRun {
-  const style = { ...preset.style, entropy };
+/**
+ * The style track of a station tuned in at `from`: from the song's second
+ * section, a glide of a section to each next step of the walk, as the player
+ * conducts it (`conductRadio`).
+ */
+export function radioTrack(from: Style, seed: number, sections: number): StyleTrack {
+  let track = holding(from);
+  for (let section = 1; section < sections; section++) {
+    const next = walkRadio(styleAt(track, barStart(section * SECTION_BARS)), seed, section - 1);
+    track = glideTo(track, next, barStart(section * SECTION_BARS), barStart(SECTION_BARS));
+  }
+  return track;
+}
+
+/**
+ * The band left alone at `entropy` for `sections`, the players wishing only
+ * for the preset's mode; with `radio`, the style wandering as the radio walks
+ * it from the preset (the walk's seed the run's), read as the band reads it,
+ * at the bar it is decided in.
+ */
+export function keyRun(
+  preset: Preset,
+  seed: number,
+  entropy: number,
+  sections: number,
+  radio = false,
+): KeyRun {
+  const tuned = { ...preset.style, entropy };
+  const track = radio ? radioTrack(tuned, seed, sections) : null;
   const bars = lookAhead(
     band.initial,
     (bar) => ({
       seed,
       bar,
-      style,
+      style: track ? writtenStyle(styleAt(track, barStart(bar))) : tuned,
       wish: { tonic: null, mode: preset.mode, melodic: null },
       offer: null,
     }),
@@ -167,12 +207,12 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
 }
 
 /** E19 for every preset at `entropy`, over `seeds` seeds of one more section than `DRIFT_AT` reads. */
-export function keyLoops(entropy: number, seeds: number): KeyLoop[] {
+export function keyLoops(entropy: number, seeds: number, radio = false): KeyLoop[] {
   const sections = DRIFT_AT.at(-1)! + 1;
   return PRESETS.map((preset) =>
     keyLoop(
       preset,
-      range(seeds).map((seed) => keyRun(preset, seed + 1, entropy, sections)),
+      range(seeds).map((seed) => keyRun(preset, seed + 1, entropy, sections, radio)),
     ),
   );
 }
@@ -181,14 +221,19 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(
     `time constant: ${timeConstant(HISTORY_DECAY).toFixed(2)} bars; a section holds ${SECTION_BARS}`,
   );
-  for (const entropy of [0, 0.3, 0.6, 1]) {
-    console.log(`\nentropy ${entropy}, 20 seeds, ${DRIFT_AT.at(-1)! + 1} sections`);
+  for (const [entropy, radio] of [0, 0.3, 0.6, 1].flatMap((e) => [
+    [e, false] as const,
+    ...(e > 0 ? [[e, true] as const] : []),
+  ])) {
+    console.log(
+      `\nentropy ${entropy}${radio ? ', under the radio walk' : ''}, 20 seeds, ${DRIFT_AT.at(-1)! + 1} sections`,
+    );
     console.log(
       'preset          jumps  reach widest mean  back  lag  missed  error  held  drift after ' +
         DRIFT_AT.join(', ') +
         ' sections  back',
     );
-    for (const m of keyLoops(entropy, 20))
+    for (const m of keyLoops(entropy, 20, radio))
       console.log(
         [
           m.preset.padEnd(14),

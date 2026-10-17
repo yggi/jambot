@@ -50,6 +50,25 @@ describe('what a host keeps to come back from a reload', () => {
     expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
   });
 
+  it('reads one with a station on the air, and one saved before there was one, with the radio off (#313)', () => {
+    const on = { ...snapshot, station: { seed: 12, walked: 5 } };
+    expect(readHostSnapshot(JSON.parse(JSON.stringify(on)), 1001)).toEqual(on);
+    const older = { ...snapshot, station: undefined };
+    expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
+  });
+
+  it('reads no station that is not a seed and a count of sections (#313)', () => {
+    for (const station of [
+      null,
+      3,
+      {},
+      { seed: 1 },
+      { seed: 1, walked: -2 },
+      { seed: 1.5, walked: 0 },
+    ])
+      expect(readHostSnapshot({ ...snapshot, station }, 1001), JSON.stringify(station)).toBeNull();
+  });
+
   it('reads no swing that is not a level and a glide (#360)', () => {
     const glide = snapshot.swing!.share;
     for (const swing of [

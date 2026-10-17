@@ -18,13 +18,15 @@
  * downbeat within the bar), since a bar's length is built from it; a record
  * saved before it was kept has none, and asks for the song's. The swing is
  * checked as a level and a share's glide; a record saved before the meter
- * held it (#360) has none, and plays straight. Pure: the app stores and fetches, and gives the time, in
+ * held it (#360) has none, and plays straight. The radio's station (#313) is
+ * checked as a seed and a count, and a record without one has the radio off. Pure: the app stores and fetches, and gives the time, in
  * seconds since the epoch.
  */
 
 import { type KeyWish, type StyleTrack, type SwingTrack, SWING_LEVELS } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
 import type { Member } from './roster.ts';
+import { type Station, readStation } from './station.ts';
 
 /** How long, in seconds, a saved record is good for. */
 export const SAVED_MAX_AGE = 300;
@@ -54,6 +56,8 @@ export interface HostSnapshot {
   readonly meter?: Meter;
   /** The meter's swing asked for (#360); absent in a record saved before the meter held it. */
   readonly swing?: SwingTrack;
+  /** The radio's station, if it was on the air (#313); absent in a record saved before it, or with it off. */
+  readonly station?: Station;
 }
 
 export interface ClientResume {
@@ -113,6 +117,7 @@ export function readHostSnapshot(data: unknown, now: number): HostSnapshot | nul
     tempoNudge,
     meter,
     swing,
+    station,
   } = data;
   if (!isText(session) || typeof lobby !== 'string' || typeof player !== 'string') return null;
   if (reclaim !== null && typeof reclaim !== 'string') return null;
@@ -120,6 +125,7 @@ export function readHostSnapshot(data: unknown, now: number): HostSnapshot | nul
   if (!isRecord(track) || !isRecord(wish)) return null;
   if (meter !== undefined && !isMeter(meter)) return null;
   if (swing !== undefined && !isSwing(swing)) return null;
+  if (station !== undefined && readStation(station) === null) return null;
   if (!isRecord(players) || !Object.values(players).every((n) => typeof n === 'string'))
     return null;
   if (
