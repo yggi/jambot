@@ -38,7 +38,8 @@ How a gate is shown to fire, and the checks that back the house rules.
 - Agents started with `isolation: worktree` work under `.claude/worktrees/`, which the checks leave out (#192, #199).
   Remove a finished agent's worktree once its branch is pushed: `git worktree remove --force --force <path>`, `git worktree prune`, and delete its local branch.
   The stop hook checks the shell's directory, which after inspecting an agent's worktree is that worktree: its changes are the agent's to commit, not the session's.
-- Heavy checks run one at a time: two `pnpm verify` or `pnpm e2e` runs at once time out the load-sensitive tests (#199, #203).
+- Two `pnpm verify` runs at once both pass, since the projects' measured timeouts: three in a row beside a fourth run looping in another worktree, 2,739 tests each, at a load of 9 to 17 on 4 cores (other agents' work beside them), 5.5 to 10 min each where one alone takes about 3 (#325).
+  Two `pnpm e2e` runs at once still share the audio clock's cores and the ports, so they run one at a time (#199, #203).
   Wait on the machine's load (`/proc/loadavg`) or a port, never on `pgrep -f` or a loop over `/proc/*/cmdline`: both match their own command line, and a kill loop kills itself.
   The cloud container has no `ss` or `netstat`; Node checks a port anywhere, exiting 0 while it is taken: `node -e "require('net').connect(4317,'localhost').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"`.
 - `pnpm e2e` refuses to start while port 4317 is taken, as by a `vite preview` left running from a manual check: find it by the port (`lsof -ti :4317` prints its PID) and stop it by that PID.
