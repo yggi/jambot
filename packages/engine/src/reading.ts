@@ -14,7 +14,7 @@
 
 import { swingMap } from './swing.ts';
 
-/** How finely `estimateSwing` searches the swing axis. */
+/** How finely `estimateSwing` searches its path through the two levels (`swingMap`). */
 const SWING_RESOLUTION = 1000;
 
 /** The sum of squared distances from the nearest step, once `swing` is un-swung. */

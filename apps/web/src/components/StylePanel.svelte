@@ -2,7 +2,7 @@
   The style, a card. Folded: the closest named style (`presetOf`; Custom where
   no preset matches, and energy and entropy don't make a style custom) over
   what the band is doing (playing it, gliding to it, or for a custom style
-  its most telling axes); the glyph is a radar of the six axes drawn from the
+  its most telling axes); the glyph is a radar of the five axes drawn from the
   style the band is at (`hud.style.axes`), so a glide moves it. Unfolded, the
   genre presets as a segmented choice in two rows (the same component as the key's scale), and each axis as a gauge with a drag and
   a nudge. The gauge shows where the axis is going, not the glide, and the
@@ -13,7 +13,8 @@
   nudges and picks presets. A client's drag and presets rest and its nudges
   are disabled and say so, since its style intents don't reach the host yet
   (`Player.apply` drops them): the buttons are the seam, and what a client's
-  nudge of an axis means is open (#217).
+  nudge of an axis means is open (#217). Swing is not an axis: the Metrum
+  card holds it, as the meter's (#360), and a preset sets it there too.
 -->
 <script lang="ts">
   import { PRESETS, type StyleTrack } from '@jambot/engine';
@@ -43,7 +44,6 @@
   const STEP = 0.1;
 
   const AXES: { axis: StyleAxis; label: string; ends: [string, string] }[] = [
-    { axis: 'swing', label: 'Swing', ends: ['straight', 'swung'] },
     { axis: 'sync', label: 'Syncopation', ends: ['on the beat', 'off the beat'] },
     { axis: 'harm', label: 'Harmony', ends: ['static vamp', 'moving, rich'] },
     { axis: 'artic', label: 'Articulation', ends: ['legato', 'staccato'] },

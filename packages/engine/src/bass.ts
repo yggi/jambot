@@ -32,7 +32,7 @@ import type { WrittenNote } from './events.ts';
 import type { Machine } from './machine.ts';
 import { readOnMeter } from './regroup.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
-import { swingParts } from './swing.ts';
+import { type MeterSwing, eighthSwing } from './swing.ts';
 import type { Style } from './style.ts';
 
 /** The lowest and highest note the bass plays. */
@@ -78,9 +78,16 @@ const NOTE = { approach: 0, walkTone: 1, ornament: 2 } as const;
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
-/** How much of each pattern the style asks for, at the bar's energy. */
-export function bassBlend(style: Style, energy: number): Record<BassPattern, number> {
-  const { eighth } = swingParts(style.swing);
+/**
+ * How much of each pattern the style asks for, at the bar's energy, under
+ * the meter's swing: one swung on 8n brings in the walk (#360).
+ */
+export function bassBlend(
+  style: Style,
+  swing: MeterSwing,
+  energy: number,
+): Record<BassPattern, number> {
+  const eighth = eighthSwing(swing);
   const walk = eighth * clamp01(style.harm * 1.5);
   const funk = style.sync * (1 - walk);
   const pump = (1 - style.harm) * style.artic * (1 - eighth) * (1 - style.sync);
@@ -126,7 +133,7 @@ export const bass: Machine<BarEnv, number, null, WrittenNote[]> = {
       return { carried: last, output: notes };
     }
 
-    const blend = bassBlend(style, energy);
+    const blend = bassBlend(style, env.swing, energy);
     const total = Object.values(blend).reduce((a, b) => a + b, 0);
     const density = 0.55 + 0.6 * energy;
     const held = (role: number, step: number) =>

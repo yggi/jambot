@@ -26,7 +26,7 @@ const around = (drums: ScoreBar['drums']): ScoreBar => ({
   section: 'groove',
   key: { tonic: 0, mode: 'ionian' },
   theme: 'A',
-  style: { swing: 0, sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0, bpm: 96 },
+  style: { sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0, bpm: 96 },
   harm: [{ step: 0, numeral: parseNumeral('I')! }],
   drums,
 });

@@ -114,7 +114,7 @@ a started beat's swing. Test: `band.test.ts`, "holds each section for its eight
 bars (C3)", "plays each section's plan and its theme's chords, each decided when
 the bar before it is composed (C3)" and "forecasts the plan and chords of the
 bars the band then plays, from any bar, bar 0 included, any distance ahead
-(C3)"; `packages/engine/src/tempo.test.ts`, "swings each beat by the swing where
+(C3)"; `packages/engine/src/tempo.test.ts`, "swings each beat by the share where
 the beat starts (C3)"; `transport.test.ts`, "keeps a beat’s swing once the beat
 has started, whatever the style does next (C3)". Source: Pd's control and signal
 rates, multirate signal processing, #37 step 3, #40's review; #7's comment on

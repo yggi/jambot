@@ -1,7 +1,7 @@
 /**
  * A bar as the screen draws it, on any meter: a mark on each of its steps,
- * two to an eighth, at the place the step sounds under the swing
- * (`swingMap` over the meter's own pulses, T11). The eighths are counted by
+ * two to an eighth, at the place the step sounds under the meter's swing
+ * (`leanMap` over the meter's own pulses, T11, #360). The eighths are counted by
  * pulse (`1 & 2 & 3 &`, or `1 & & 2 & &` in a compound bar), the downbeat
  * accented and the eighths between the pulses lesser; the steps between them
  * are faint. This is the metrum's bar and the meter screen's alike: the
@@ -9,16 +9,16 @@
  * sounds that pulse's click, an eighth's where it sounds that when asked to.
  */
 
-import { type TimeMap, swingMap } from '@jambot/engine';
+import { type MeterSwing, type TimeMap, leanMap, leansOf } from '@jambot/engine';
 import { type Meter, STEPS_PER_EIGHTH, degreeBelow, meterWeights, stepsOf } from '@jambot/theory';
 import type { Mark } from './components/Ruler.svelte';
 
 /**
- * A mark on each step of the bar, at the place it sounds under a value on
- * the swing axis. `heard` is the eighth sounding now, from 0.
+ * A mark on each step of the bar, at the place it sounds under the meter's
+ * swing. `heard` is the eighth sounding now, from 0.
  */
-export function barMarks(meter: Meter, swing: number, heard: number | null): Mark[] {
-  return marksPlayed(meter, swingMap(swing, meter).played, heard);
+export function barMarks(meter: Meter, swing: MeterSwing, heard: number | null): Mark[] {
+  return marksPlayed(meter, leanMap(leansOf(swing), meter).played, heard);
 }
 
 /**

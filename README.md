@@ -8,8 +8,8 @@ it listens, takes their motifs, bends its style toward theirs and conducts the
 collective output. It produces **MIDI and a score, not sound**: hardware synths,
 grooveboxes or a small built-in Web Audio synth make the sound.
 
-Genres are points in a continuous _style space_ (swing, syncopation, harmony,
-articulation, energy, tempo), and every change glides instead of cutting. The
+Genres are points in a continuous _style space_ (syncopation, harmony,
+articulation, energy, tempo), each naming the swing of its meter, and every change glides instead of cutting. The
 band plays from a human-readable score, one bar at a time, which you can read
 and take over part by part.
 

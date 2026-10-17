@@ -5,10 +5,17 @@ import { DRUM_NOTES } from './drums.ts';
 import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
 import { type DrumRole, PARTS, type WrittenNote, writtenProblems } from './events.ts';
 import type { SectionType } from './form.ts';
-import { licenceOf } from './licence.ts';
+import { feelOf } from './licence.ts';
 import { LEAD_LEVEL, perform } from './performer.ts';
 import { timbreOf } from './sound.ts';
 import { PRESETS, type Style } from './style.ts';
+import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
+
+/** A style and the swing of its meter. */
+type Swung = Style & { readonly swing: MeterSwing };
+/** Swings that weigh half and all (`swingWeight`): a 16th triplet, and an 8th one. */
+const HALF: MeterSwing = { level: '16n', share: 2 / 3 };
+const FULL: MeterSwing = { level: '8n', share: 2 / 3 };
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -18,8 +25,18 @@ const tour = (seed: number, bars = 96): BandBar[] => {
   return range(bars).map((bar) => {
     const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
     const style = { ...preset.style, entropy: (bar % 32) / 32 };
+    // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
+    const ahead = PRESETS[Math.floor((bar + 1) / 8) % PRESETS.length]!.swing.level;
+    const swing = { level: ahead, share: preset.swing.share };
     const next = band.advance(
-      { seed, bar, style, wish: { tonic: null, mode: preset.mode, melodic: null }, offer: null },
+      {
+        seed,
+        bar,
+        style,
+        swing,
+        wish: { tonic: null, mode: preset.mode, melodic: null },
+        offer: null,
+      },
       carried,
       null,
     );
@@ -32,16 +49,18 @@ const bars = [1, 2, 3].flatMap((seed) => tour(seed));
 
 /**
  * A bar of the tour, in another section, at an energy and a style: held
- * still, at feel 0 (swing 0, entropy 0, articulation 1), unless the style
+ * still, at feel 0 (straight, entropy 0, articulation 1), unless the style
  * given loosens it.
  */
-const barOf = (type: SectionType, energy: number, style: Partial<Style> = {}): BarEnv => {
+const barOf = (type: SectionType, energy: number, given: Partial<Swung> = {}): BarEnv => {
   const b = bars[40]!;
+  const { swing = STRAIGHT, ...style } = given;
   return {
     ...b,
-    plan: { ...b.plan, section: { ...b.plan.section, type } },
+    plan: { ...b.plan, section: { ...b.plan.section, type }, swing: swing.level },
     barEnergy: energy,
-    style: { ...b.style, swing: 0, entropy: 0, artic: 1, ...style },
+    style: { ...b.style, entropy: 0, artic: 1, ...style },
+    swing,
   };
 };
 
@@ -209,17 +228,22 @@ describe('the performer', () => {
   });
 
   it('gives every dough note its part’s timbre, the way `timbreOf` colours it', () => {
-    const env = barOf('groove', 0.7, { artic: 0.4, swing: 0.6 });
+    const env = barOf('groove', 0.7, {
+      artic: 0.4,
+      swing: { level: '8n', share: shareOfLean(0.2) },
+    });
     expect(perform(env, { part: 'lead', step: 0, note: 64, length: 4 })).toMatchObject(
-      timbreOf('lead', env.style, env.barEnergy),
+      timbreOf('lead', env.style, env.swing, env.barEnergy),
     );
     expect(perform(env, { part: 'bass', step: 0, note: 40, length: 4 })).toMatchObject(
-      timbreOf('bass', env.style, env.barEnergy),
+      timbreOf('bass', env.style, env.swing, env.barEnergy),
     );
     expect(perform(env, { part: 'pad', step: 0, note: 60, length: 4 })).toMatchObject(
-      timbreOf('pad', env.style, env.barEnergy),
+      timbreOf('pad', env.style, env.swing, env.barEnergy),
     );
-    expect(perform(env, hit('kick', 0))).toMatchObject(timbreOf('drums', env.style, env.barEnergy));
+    expect(perform(env, hit('kick', 0))).toMatchObject(
+      timbreOf('drums', env.style, env.swing, env.barEnergy),
+    );
   });
 
   it('carries a drum hit’s role and a lead note’s accent through to the dough note, unchanged (L7)', () => {
@@ -241,14 +265,14 @@ describe('the performer', () => {
     // The same written note, over every bar of a tour (each licence
     // stream's only key besides step and note), held still and at the
     // loosest feel: a spread of 0 is no licence, and every part has one.
-    const still: Partial<Style> = { swing: 0, entropy: 0, artic: 1 };
-    const loosest: Partial<Style> = { swing: 1, entropy: 1, artic: 0 };
-    const envAt = (bar: number, style: Partial<Style>): BarEnv => ({
+    const still: Partial<Swung> = { swing: STRAIGHT, entropy: 0, artic: 1 };
+    const loosest: Partial<Swung> = { swing: FULL, entropy: 1, artic: 0 };
+    const envAt = (bar: number, style: Partial<Swung>): BarEnv => ({
       ...barOf('groove', 0.7, style),
       bar,
     });
     const spreadOf = (values: readonly number[]) => Math.max(...values) - Math.min(...values);
-    const spreadAt = (written: WrittenNote, style: Partial<Style>, field: 'velocity' | 'length') =>
+    const spreadAt = (written: WrittenNote, style: Partial<Swung>, field: 'velocity' | 'length') =>
       spreadOf(range(64).map((bar) => perform(envAt(bar, style), written)[field]));
 
     const notes: WrittenNote[] = [
@@ -262,7 +286,7 @@ describe('the performer', () => {
       for (const field of ['velocity', 'length'] as const) {
         expect(spreadAt(written, still, field)).toBe(0);
         // Each axis the feel reads loosens it alone, from the still corner.
-        for (const loose of [{ swing: 1 }, { entropy: 1 }, { artic: 0 }])
+        for (const loose of [{ swing: FULL }, { entropy: 1 }, { artic: 0 }])
           expect(spreadAt(written, { ...still, ...loose }, field)).toBeGreaterThan(0);
         expect(spreadAt(written, loosest, field)).toBeGreaterThan(0);
       }
@@ -272,7 +296,7 @@ describe('the performer', () => {
     // (14 × feel down, 10 × feel up, #170); length within 15 % × feel under
     // the base.
     for (const b of bars) {
-      const { feel } = licenceOf(b.style);
+      const feel = feelOf(b.style, b.swing);
       for (const written of b.written) {
         const { velocity, length } = perform(b, written);
         const accent = written.accent ?? 0;
@@ -291,7 +315,7 @@ describe('the performer', () => {
 
     // Length only ever gates a little shorter: it never exceeds what the
     // base already set, for any part, however loose the feel.
-    for (const style of [loosest, { ...still, artic: 0 }, { ...still, swing: 1 }])
+    for (const style of [loosest, { ...still, artic: 0 }, { ...still, swing: FULL }])
       for (const written of [...notes, drumHit])
         for (const bar of range(64)) {
           const env = envAt(bar, style);
@@ -300,12 +324,12 @@ describe('the performer', () => {
   });
 
   it('draws its own accent within the licence: still at feel 0, wider as the feel rises, ghosts off the 16th and a push on the off-8th, in any register (#170, T17)', () => {
-    const still: Partial<Style> = { swing: 0, entropy: 0, artic: 1 };
-    const envAt = (bar: number, style: Partial<Style>): BarEnv => ({
+    const still: Partial<Swung> = { swing: STRAIGHT, entropy: 0, artic: 1 };
+    const envAt = (bar: number, style: Partial<Swung>): BarEnv => ({
       ...barOf('groove', 0.7, style),
       bar,
     });
-    const deltas = (part: 'bass' | 'lead', step: number, style: Partial<Style>, note = 48) =>
+    const deltas = (part: 'bass' | 'lead', step: number, style: Partial<Swung>, note = 48) =>
       range(64).map((bar) => {
         const env = envAt(bar, style);
         const written: WrittenNote = { part, step, note, length: 2 };
@@ -315,13 +339,14 @@ describe('the performer', () => {
     // Still at feel 0; the licence's and the own accent's spread together grows with it.
     for (const step of [0, 1, 2, 3]) {
       expect(deltas('bass', step, still)).toEqual(range(64).map(() => 0));
-      const half = spread(deltas('bass', step, { ...still, swing: 0.5 }));
-      const full = spread(deltas('bass', step, { ...still, swing: 1 }));
+      const half = spread(deltas('bass', step, { ...still, swing: HALF }));
+      const full = spread(deltas('bass', step, { ...still, swing: FULL }));
       expect(full).toBeGreaterThan(half);
     }
     // Ghosts fall and pushes rise, beyond the symmetric licence's reach.
-    const loose: Partial<Style> = { swing: 1, entropy: 1, artic: 1 };
-    const feel = licenceOf({ ...barOf('groove', 1).style, ...loose }).feel;
+    const loose: Partial<Swung> = { swing: FULL, entropy: 1, artic: 1 };
+    const looseBar = barOf('groove', 1, loose);
+    const feel = feelOf(looseBar.style, looseBar.swing);
     expect(Math.min(...deltas('bass', 1, loose))).toBeLessThan(-12 * feel);
     expect(Math.max(...deltas('bass', 2, loose))).toBeGreaterThan(12 * feel);
     // Invariant under register (S2, S3): a pitched note's accent ignores its pitch.

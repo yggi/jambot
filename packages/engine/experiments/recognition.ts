@@ -148,7 +148,11 @@ export function leadCells(seeds = 5): LeadCells {
       const motifs: (Motif | null)[] = [];
       for (let bar = 0; bar < 64; bar++) {
         const wish = { tonic: null, mode: preset.mode, melodic: null };
-        const next = band.advance({ seed, bar, style, wish, offer: null }, carried, null);
+        const next = band.advance(
+          { seed, bar, style, swing: preset.swing, wish, offer: null },
+          carried,
+          null,
+        );
         carried = next.carried;
         const heard: HeardNote[] = next.output.written
           .filter((n) => n.part === 'lead')

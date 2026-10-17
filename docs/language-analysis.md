@@ -68,7 +68,7 @@ found.** Witness: `ticksTimeMap` (`packages/analyzer/src/tempo.ts`), whose
 segment, the same shape as the engine's own time maps (T4); and
 `estimateSwing`/`readOnsets` (`packages/engine/src/reading.ts`, which
 `quantiseSection` in `packages/analyzer/src/swing.ts` calls, and the Muse reads
-a phrase with), which search the swing axis (`swingMap`) for the value whose
+a phrase with), which search one path through the two levels (`swingMap`) for the value whose
 inverse leaves a section's onsets closest to the step grid, then round. Counterexample: a tick
 whose `written(played(tick))` differs from itself across a tempo change; a bar
 written at a known swing whose recovered step differs from the one it was

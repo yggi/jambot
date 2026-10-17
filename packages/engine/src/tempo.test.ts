@@ -11,7 +11,20 @@ import {
   styleAt,
   valueAt,
 } from './style.ts';
-import { type TimeMap, composeTimeMaps, swingOf } from './swing.ts';
+import {
+  type MeterSwing,
+  STRAIGHT,
+  type TimeMap,
+  composeTimeMaps,
+  holdingSwing,
+  swingAt,
+  swingOf,
+  swingTo,
+} from './swing.ts';
+
+/** The swing a meter's track plays, beat by beat, on its own level. */
+const swingOfTrack = (track: ReturnType<typeof holdingSwing>) =>
+  swingOf((start) => swingAt(track, start));
 import { stepSeconds, tempoMap } from './tempo.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -143,11 +156,11 @@ describe('position and clock time', () => {
   });
 
   it('takes a written position to its second through swing, then tempo, and back, with both gliding (T4, Q1c)', () => {
-    const swings = [
-      [0.3, 1],
-      [1, 0],
-      [0.5, 0.75],
-    ] as const;
+    const swings: [MeterSwing, number][] = [
+      [{ level: '16n', share: 0.6 }, 0.7],
+      [{ level: '8n', share: 2 / 3 }, 0.5],
+      [{ level: '8n', share: 0.55 }, 0.75],
+    ];
     // Every seventh glide from rest, at each length, and a few retargeted.
     const sample = [
       ...fromRest.flatMap((tracks) => tracks.filter((_, i) => i % 7 === 0)),
@@ -160,33 +173,34 @@ describe('position and clock time', () => {
       ).toBeGreaterThan(5);
     sample.forEach((track, i) => {
       const [swing, to] = swings[i % swings.length]!;
-      const both = glideTo(glideTo(track, { swing }, 0, 0), { swing: to }, 8, PRESET_GLIDE);
-      const found = breaks(composeTimeMaps(swingOf(both), tempoMap(both, anchor)));
+      const swung = swingTo(holdingSwing(swing), { share: to }, 8, PRESET_GLIDE);
+      const found = breaks(composeTimeMaps(swingOfTrack(swung), tempoMap(track, anchor)));
       expect(found, `sample ${i}`).toEqual(holds);
       expect(found.error).toBeLessThan(1e-9);
     });
     // The check can fail: a map that reads written positions back a step late.
-    const late = composeTimeMaps(swingOf(retargeted[0]!), tempoMap(retargeted[0]!, anchor));
+    const late = composeTimeMaps(
+      swingOfTrack(holdingSwing(STRAIGHT)),
+      tempoMap(retargeted[0]!, anchor),
+    );
     expect(breaks({ ...late, written: (t) => late.written(t) + 1 }).error).toBeGreaterThan(0.5);
   });
 });
 
 describe('swingOf', () => {
-  it('swings each beat by the swing where the beat starts (C3)', () => {
-    const track = glideTo(holding({ ...INITIAL_STYLE, swing: 0 }), { swing: 1 }, 0, 64);
-    const map = swingOf(track);
+  /** The 8ths gliding from straight to the triplet over 4 bars. */
+  const gliding = swingTo(holdingSwing({ level: '8n', share: 0.5 }), { share: 2 / 3 }, 0, 64);
+
+  it('swings each beat by the share where the beat starts (C3)', () => {
+    const map = swingOfTrack(gliding);
     for (const beat of range(16)) {
-      const swing = styleAt(track, 4 * beat).swing;
-      expect(map.played(4 * beat + 2) - (4 * beat + 2)).toBeCloseTo(
-        (2 / 3) * Math.max(0, 2 * swing - 1),
-        12,
-      );
+      const share = swingAt(gliding, 4 * beat).share;
+      expect(map.played(4 * beat + 2)).toBeCloseTo(4 * beat + 4 * share, 12);
     }
   });
 
   it('stays in order and invertible across beats that swing differently', () => {
-    const track = glideTo(holding({ ...INITIAL_STYLE, swing: 0 }), { swing: 1 }, 0, 64);
-    const map = swingOf(track);
+    const map = swingOfTrack(gliding);
     const positions = range(64 * 24 + 1).map((i) => i / 24);
     const played = positions.map((p) => map.played(p));
     played.slice(1).forEach((y, i) => expect(y).toBeGreaterThan(played[i]!));

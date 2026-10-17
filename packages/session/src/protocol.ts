@@ -20,6 +20,7 @@ import type {
   Offer,
   Remembered,
   StyleTrack,
+  SwingTrack,
   WrittenNote,
 } from '@jambot/engine';
 import type { ForecastDelta } from './forecast.ts';
@@ -32,7 +33,7 @@ import type { ForecastDelta } from './forecast.ts';
  * travel as they are, so a change to their shape is a change to the
  * protocol, and bumps it (`protocol.test.ts` holds the shapes).
  */
-export const PROTOCOL = 8;
+export const PROTOCOL = 9;
 
 /**
  * A bar as a host wrote it: everything its parts read, and the notes they
@@ -59,6 +60,8 @@ export interface Song {
    */
   readonly start: number;
   readonly track: StyleTrack;
+  /** The meter's swing (#360): the level asked for and the share's glide, which the client lays its beats by. */
+  readonly swing: SwingTrack;
 }
 
 /**
@@ -96,7 +99,8 @@ export type HostMessage =
     }
   | { readonly kind: 'refused'; readonly reason: string }
   | { readonly kind: 'start'; readonly song: Song }
-  | { readonly kind: 'track'; readonly track: StyleTrack }
+  /** The style and the meter's swing, as the host's conductor moved them. */
+  | { readonly kind: 'track'; readonly track: StyleTrack; readonly swing: SwingTrack }
   | { readonly kind: 'bar'; readonly sent: SentBar }
   | { readonly kind: 'forecast'; readonly forecast: ForecastDelta }
   | { readonly kind: 'muse'; readonly muse: MuseState }

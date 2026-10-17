@@ -11,7 +11,7 @@
  * #141's continuation, one generator at a time as the parser's later stages
  * land.
  */
-import { BAR_STEPS, DRUM_NOTES, clicksOf, stepSeconds } from '@jambot/engine';
+import { BAR_STEPS, DRUM_NOTES, STRAIGHT, clicksOf, stepSeconds } from '@jambot/engine';
 import { type Helix, even, heightOf } from '@jambot/theory';
 import type { RawMidi } from '../src/load.ts';
 import { ticksTimeMap } from '../src/tempo.ts';
@@ -35,7 +35,7 @@ export function metronomeRung(bpm: number, bars: number, ppq: number = DEFAULT_P
     step,
     seconds: step * length,
     length,
-    swing: 0,
+    swing: STRAIGHT,
     pulse: { start: step - (step % 4), length: 4 },
   }));
   const toTicks = ticksTimeMap(ppq, [{ ticks: 0, bpm }]).written;

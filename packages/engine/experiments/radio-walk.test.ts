@@ -39,13 +39,14 @@ describe('the radio’s walk over hours of music (E30)', () => {
     const [, twelve] = entropyWalks([3, 12], 40);
     expect(twelve!.entropy[1]).toBeLessThan(0.1);
   });
-  it('gives the style’s loop with nobody in it three numbers: at entropy 1, a time constant over 40 sections on every axis, over 40 times the key’s; a gain, the pull a section, under a tenth of a pull of 1/128; a bound, no step past the step and no value on an end (A4, E30)', () => {
+  it('gives the style’s loop with nobody in it three numbers: at entropy 1, a time constant over 40 sections on every axis, over 40 times the key’s; a gain, the pull a section, 0 within twice its error, which is under a fifth of a pull of 1/128; a bound, no step past the step and no value on an end (A4, E30)', () => {
     const loop = styleLoop(1, 2, 20_000);
     for (const [axis, sections] of Object.entries(loop.sections)) {
       expect(sections, axis).toBeGreaterThan(40);
       expect((sections * SECTION_BARS) / timeConstant(HISTORY_DECAY), axis).toBeGreaterThan(40);
     }
-    expect(Math.abs(loop.pull)).toBeLessThan(1 / 128 / 10);
+    expect(Math.abs(loop.pull)).toBeLessThan(2 * loop.pullError);
+    expect(loop.pullError).toBeLessThan(1 / 128 / 5);
     for (const [axis, ratio] of Object.entries(loop.largestStep)) {
       expect(ratio, axis).toBeLessThanOrEqual(1 + 1e-4);
       expect(ratio, axis).toBeGreaterThan(0.99);

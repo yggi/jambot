@@ -5,10 +5,10 @@
  * where the section starts, and the key the players wish for. It advances
  * the form, moves the key one step toward the wish (`nextKey`), picks the
  * melodic scale the lead walks (the wish's where the style reaches it, else
- * the style's default, #209), takes the meter asked for (#261), and picks
- * the section's theme. The band holds
- * the plan for the section's eight bars, so a new key, scale or theme
- * arrives only at a boundary, as does a new meter.
+ * the style's default, #209), takes the meter asked for (#261) and the
+ * level its swing leans (#360), and picks the section's theme. The band
+ * holds the plan for the section's eight bars, so a new key, scale or theme
+ * arrives only at a boundary, as does a new meter or swing level.
  *
  * Where the players wish for no tonic and the mode playing, the band may move
  * the key itself (#169): the harmony's reach (`harmonicReach`) gives how far,
@@ -33,6 +33,7 @@ import { SONG_METER } from './events.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
+import type { SwingLevel } from './swing.ts';
 import { type Theme, buildTheme, themeKind } from './themes.ts';
 
 export interface PlanEnv {
@@ -46,6 +47,8 @@ export interface PlanEnv {
   readonly history: HarmonicWeights;
   /** The meter asked for, which the plan takes at a section's boundary as it takes the key (#261). */
   readonly meter?: Meter | undefined;
+  /** The level the meter asked for swings on, which the plan takes as it takes the meter (#360); the 16ths where none is. */
+  readonly swing?: SwingLevel | undefined;
 }
 
 /**
@@ -58,6 +61,12 @@ export interface Plan {
   readonly key: Key;
   /** The meter of each of the section's bars (#261). */
   readonly meter: Meter;
+  /**
+   * The level the section's meter swings on (#360): its share glides on the
+   * style's time (`SwingTrack`), and the level changes only here, where a
+   * section starts, since nothing jumps.
+   */
+  readonly swing: SwingLevel;
   readonly melodic: MelodicScale;
   readonly theme: Theme;
 }
@@ -108,7 +117,7 @@ export function bandWish(
 export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
   initial: { before: null, themes: { A: null, B: null } },
   advance(env, { before, themes }) {
-    const { seed, index, style, wish, meter = SONG_METER } = env;
+    const { seed, index, style, wish, meter = SONG_METER, swing = '16n' } = env;
     const section = form.advance({ seed, index, style }, before?.section ?? null, null).output;
     const from = before?.key ?? INITIAL_KEY;
     // The players' wish wins: a tonic, or a mode other than the one playing.
@@ -136,7 +145,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             entropy: style.entropy,
             a: themes.A,
           });
-    const plan = { section, key, meter, melodic, theme };
+    const plan = { section, key, meter, swing, melodic, theme };
     return {
       carried: { before: plan, themes: kind === 'build' ? themes : { ...themes, [kind]: theme } },
       output: plan,

@@ -4,7 +4,7 @@
  *
  * ```
  * bar 186 groove key=C:ionian theme=A
- * style swing=1 sync=0.2 harm=0.6 artic=0.3 energy=0.6 entropy=0.3 bpm=148
+ * style sync=0.2 harm=0.6 artic=0.3 energy=0.6 entropy=0.3 bpm=148
  * harm "IVmaj9 V7/vi"
  * ```
  *
@@ -116,8 +116,11 @@ export const DRUM_WORDS: Readonly<Record<DrumSound, string>> = {
 /** A bar's drum lines: the steps each sound hits on, one line per sound present. */
 export type DrumLines = Readonly<Partial<Record<DrumSound, readonly number[]>>>;
 
-/** The style's axes, in the order `style` writes them: the engine's (`AXES`). */
-export const STYLE_AXES = ['swing', 'sync', 'harm', 'artic', 'energy', 'entropy', 'bpm'] as const;
+/**
+ * The style's axes, in the order `style` writes them: the engine's (`AXES`).
+ * Swing is the meter's, not the style's (#360), so `style` states none.
+ */
+export const STYLE_AXES = ['sync', 'harm', 'artic', 'energy', 'entropy', 'bpm'] as const;
 export type StyleAxis = (typeof STYLE_AXES)[number];
 
 /** The decimals `style` writes a value with, the grid the band reads it on (C7). */

@@ -12,6 +12,8 @@ import {
   countInSeconds,
   foldBar,
   holding,
+  holdingSwing,
+  STRAIGHT,
   lookAhead,
 } from '@jambot/engine';
 import { METERS } from '@jambot/theory';
@@ -957,7 +959,7 @@ describe('the count-in', () => {
     const { world, s } = surroundings();
     const player = new Player(s, new Metronome());
     player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
-    const song = { seed: 3, start: 5, track: holdingSynthPop() };
+    const song = { seed: 3, start: 5, track: holdingSynthPop(), swing: holdingSwing(STRAIGHT) };
     void player.followSong(song, []);
     world.resolve();
     await settle();
@@ -1063,7 +1065,10 @@ describe('stopping on a cadence', () => {
     const { world, s } = surroundings();
     const player = new Player(s, new Metronome());
     player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
-    void player.followSong({ seed: 1, start: 0.2, track: holdingSynthPop() }, []);
+    void player.followSong(
+      { seed: 1, start: 0.2, track: holdingSynthPop(), swing: holdingSwing(STRAIGHT) },
+      [],
+    );
     world.resolve();
     await settle();
     player.stop();

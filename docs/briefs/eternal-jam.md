@@ -109,7 +109,7 @@ The suggestion takes cells' spelling where it agrees with Strudel, and Jambot's 
 | A cell's name       | a number, never reused (`&0`)                              | a word; renaming keeps the cell                      | words; a hash is the identity                       |
 | What a cell holds   | chromatic, degrees a view (#287)                           | an index into its table (degrees)                    | chromatic behind the hash, degrees in the text      |
 | Accent grades       | `* + - .`                                                  | `* + .`                                              | cells                                               |
-| Swing               | an axis 0 to 1 on the pulses                               | a pair's ratio                                       | settled with the meter tree (#306)                  |
+| Swing               | the meter's: a level (`8n`, `16n`) and a share (#360)      | a pair's ratio                                       | settled with the meter tree (#306)                  |
 | Loudness            | additive offsets (T18)                                     | a product                                            | open                                                |
 | Score and playing   | the text holds what is composed (T4)                       | the text holds everything                            | Jambot's, for the jam's stream                      |
 

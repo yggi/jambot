@@ -15,6 +15,7 @@ const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   melodicName: 'plain',
   meter: METERS['4/4'],
   meterName: '4/4',
+  swingLevel: '16n',
   chords: [chord('Am')],
   energy: 0.5,
   lead: 'improvising',

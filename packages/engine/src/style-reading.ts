@@ -6,8 +6,9 @@
  * oracle of the learned critic that comes after. It reads a bar's notes as
  * they sound (`BandBar.dough`): the steps are the written ones, and the
  * lengths are the performer's gate, which is where the articulation lives
- * (T4). The written lengths fill the gap and say none of it (E23). Swing,
- * which lives in the played time, is `estimateSwing` in `reading.ts`.
+ * (T4). The written lengths fill the gap and say none of it (E23). Swing is
+ * the meter's, not the style's (#360): the onsets' own reader finds it in the
+ * played time (`estimateSwing` in `reading.ts`).
  *
  * A reading is raw, not fitted: `sync` and `artic` lie in 0 to 1 as their
  * axes do, `density` is onsets per step and has no axis to sit on yet. How
@@ -22,7 +23,6 @@
 
 import { type Meter, STEPS_PER_EIGHTH, meterOnSteps, stepsOf } from '@jambot/theory';
 import { type DoughNote, SONG_METER } from './events.ts';
-import { estimateSwing } from './reading.ts';
 import type { ScheduledStep } from './transport.ts';
 
 /** What a reading needs of a note: where it starts, in which part, and how long it sounds. */
@@ -88,33 +88,22 @@ export function readStyle(notes: readonly Sounding[], meter: Meter = SONG_METER)
 /** What a reading needs of a laid step: where it is on the grid and on the clock. */
 export type Laid = Pick<ScheduledStep, 'step' | 'seconds' | 'length'>;
 
-/** The timing a bar's steps and onsets read as: the tempo and the swing. */
+/** The timing a bar's steps read as: the tempo. */
 export interface TimingReading {
   /** Beats per minute, from how long the steps last. */
   readonly bpm?: number;
-  /** The swing (0 to 1) whose un-swung grid leaves the onsets closest to the steps (`estimateSwing`). */
-  readonly swing?: number;
 }
 
 /**
- * The tempo and swing of a bar from the clock: its steps as laid (each a
- * step of the grid with the seconds it starts at and lasts) and the seconds
- * its notes sound at. The tempo is 60 over the mean length of a beat, four
- * steps of 16th; swing does not enter it, since it moves notes inside a beat
- * and leaves the beat whole. The swing is found from the onsets, each put
- * back on the steps as played, by the one reader `reading.ts` gives the Muse
- * and the analyzer.
+ * The tempo of a bar from the clock: its steps as laid (each a step of the
+ * grid with the seconds it starts at and lasts). The tempo is 60 over the
+ * mean length of a beat, four steps of 16th; swing does not enter it, since
+ * it moves notes inside a beat and leaves the beat whole. Swing is the
+ * meter's, not the style's (#360), so the style reading reads none.
  */
-export function readTiming(laid: readonly Laid[], onsets: readonly number[]): TimingReading {
+export function readTiming(laid: readonly Laid[]): TimingReading {
   const bpm = laid.length
     ? 15 / (laid.reduce((sum, s) => sum + s.length, 0) / laid.length)
     : undefined;
-  const played = onsets.flatMap((seconds) => {
-    const at = laid.findLast((s) => s.seconds <= seconds);
-    return at ? [at.step + (seconds - at.seconds) / at.length] : [];
-  });
-  return {
-    ...(bpm === undefined ? {} : { bpm }),
-    ...(played.length ? { swing: estimateSwing(played) } : {}),
-  };
+  return bpm === undefined ? {} : { bpm };
 }

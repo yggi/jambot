@@ -13,13 +13,18 @@ import {
   INITIAL_KEY,
   MELODIC_SCALES,
   licenceOf,
+  STRAIGHT,
+  holdingSwing,
   styleAt,
+  swingAt,
   tempoLicence,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import {
   baseTempo,
   conduct,
+  conductSwing,
+  stopSwing,
   keyReachOf,
   melodicReachOf,
   nudgeAfter,
@@ -59,6 +64,48 @@ describe('conduct', () => {
   it('sets a change at once while the band is stopped', () => {
     const next = conduct(holding(INITIAL_STYLE), { kind: 'preset', preset: funk }, null);
     expect(styleAt(next, 0)).toEqual({ ...funk.style, entropy: INITIAL_STYLE.entropy });
+  });
+});
+
+describe('conductSwing (#360)', () => {
+  const jazz = PRESETS.find((p) => p.name === 'Swing jazz')!;
+  const straight = holdingSwing(STRAIGHT);
+
+  it('glides a preset’s share over eight bars, asks for its level at once, and leaves the style its swing', () => {
+    const at = 100;
+    const next = conductSwing(straight, { kind: 'preset', preset: jazz }, at);
+    expect(next.level).toBe('8n');
+    expect(swingAt(next, at).share).toBe(0.5);
+    expect(swingAt(next, at + PRESET_GLIDE / 2).share).toBeCloseTo((0.5 + 2 / 3) / 2, 12);
+    expect(swingAt(next, at + PRESET_GLIDE).share).toBe(2 / 3);
+    expect(Object.keys(jazz.style)).not.toContain('swing');
+  });
+
+  it('glides the card’s share over a bar, and sets its level alone', () => {
+    const next = conductSwing(straight, { kind: 'swing', swing: { share: 0.6 } }, 32);
+    expect(next.level).toBe('16n');
+    expect(swingAt(next, 32 + SLIDER_GLIDE).share).toBe(0.6);
+    expect(swingAt(next, 32 + SLIDER_GLIDE / 2).share).toBeGreaterThan(0.5);
+    const level = conductSwing(next, { kind: 'swing', swing: { level: '8n' } }, 40);
+    expect(level).toEqual({ ...next, level: '8n' });
+  });
+
+  it('sets it at once while stopped, and a stop holds it where it was going', () => {
+    const set = conductSwing(straight, { kind: 'preset', preset: jazz }, null);
+    expect(swingAt(set, 0)).toEqual(jazz.swing);
+    const moving = conductSwing(straight, { kind: 'preset', preset: jazz }, 100);
+    expect(swingAt(stopSwing(moving), 0)).toEqual(jazz.swing);
+  });
+
+  it('leaves the swing to an intent that is not about it, and the style to one that is', () => {
+    for (const intent of [
+      { kind: 'axis', axis: 'harm', value: 0.2 },
+      { kind: 'tempo', nudge: 0.1 },
+      { kind: 'key', wish: { tonic: 2 } },
+    ] as const)
+      expect(conductSwing(straight, intent, 10)).toBe(straight);
+    const track = holding(INITIAL_STYLE);
+    expect(conduct(track, { kind: 'swing', swing: { share: 0.6 } }, 10)).toBe(track);
   });
 });
 
