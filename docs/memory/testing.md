@@ -17,9 +17,12 @@ How a gate is shown to fire, and the checks that back the house rules.
 - A port that must not change the music is gated by a hash of every bar the band writes and plays, recorded from `main` before the port and checked event for event, written and played, naming the run and the first bar that differs (#260 did this over 2,880 bars: 5 seeds, each preset held and the tour).
   The gate is deleted once the port has landed: what it held stays in each part's own test, as the literals of its 4/4 tables and `lead.fixture.json`, `history.fixture.json`.
   A test that takes the code under test as its own oracle (`snap` checking `snap`) pins nothing; find the answer by brute force instead, and show it fire by mutation.
-- A test whose time is the CPU's, not the clock's, gets a measured timeout: the slowest of 10 runs alone times a margin, both said in a comment above it (`tempo.test.ts`: five; `player.test.ts`'s hidden tab: ten, since five was passed once in 15 runs under load, #320).
+- A test's time is the CPU's, not the clock's, and so the machine's load: three full runs on 4 cores (a load of 12 to 16) make a test of 1.5 s alone take past 5 s (#325).
+  So each project whose tests take every case has a measured `testTimeout` in its `vitest.config.ts`: its slowest test alone over 5 runs, times about eight, both said in a comment above it (#325, #353): theory and engine 60 s, web (which `web-node` shares) and tooling 30 s, score and spectrum 20 s.
+  Session and lobby keep Vitest's 5 s: their slowest test takes under 0.7 s alone.
+  A test takes a timeout of its own only where it needs more than its project's, and a test that would is first made to do less work.
   Fake timers change nothing there, since the player's tests already drive their own clock.
-- A sweep of two axes on a grid of 60ths against every style of `EVERY` outruns the 5 s test timeout: sweep the plane over the presets' styles, and show that nothing else is read over `EVERY` once (`licence.test.ts`).
+- A sweep of two axes on a grid of 60ths against every style of `EVERY` is more work than a check needs: sweep the plane over the presets' styles, and show that nothing else is read over `EVERY` once (`licence.test.ts`).
 
 ## Experiments
 

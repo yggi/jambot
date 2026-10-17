@@ -209,7 +209,6 @@ describe('reading phrases of a sloppy hand (E17)', () => {
       expect(Math.abs(share(r, r.onsets) - onsets)).toBeLessThan(0.03);
       expect(Math.abs(share(r, r.rests) - rests)).toBeLessThan(0.03);
     },
-    60_000,
   );
 
   it('is never worse than the nearest step up to 50 ms, in right bars, onsets, rests or notes strayed', () => {
@@ -221,7 +220,7 @@ describe('reading phrases of a sloppy hand (E17)', () => {
       expect(read.rests).toBeGreaterThanOrEqual(heard.rests);
       expect(read.strayed).toBeLessThanOrEqual(heard.strayed);
     }
-  }, 60_000);
+  });
 
   it('is no worse than the nearest step from 60 ms, by a point, in onsets, and better in rests', () => {
     for (const s of [60, 100]) {
@@ -231,7 +230,7 @@ describe('reading phrases of a sloppy hand (E17)', () => {
       expect(read.onsets / read.bars).toBeGreaterThan(heard.onsets / heard.bars - 0.01);
       expect(read.rests).toBeGreaterThan(heard.rests);
     }
-  }, 60_000);
+  });
 });
 
 /**
@@ -264,7 +263,6 @@ describe('reading phrases whose beats divide by themselves (E17)', () => {
       expect(Math.abs(r.onsets / r.bars - onsets)).toBeLessThan(0.03);
       expect(Math.abs(r.rests / r.bars - rests)).toBeLessThan(0.03);
     },
-    60_000,
   );
 
   it('is never worse than the nearest step up to 40 ms', () => {
@@ -275,7 +273,7 @@ describe('reading phrases whose beats divide by themselves (E17)', () => {
       expect(read.onsets).toBeGreaterThanOrEqual(heard.onsets);
       expect(read.strayed).toBeLessThanOrEqual(heard.strayed);
     }
-  }, 60_000);
+  });
 });
 
 /**
@@ -300,7 +298,6 @@ describe('the Muse’s own judgement of a sloppy hand (E17)', () => {
       expect(Math.abs(r.onsets / r.bars - onsets)).toBeLessThan(0.03);
       expect(Math.abs(r.rests / r.bars - rests)).toBeLessThan(0.03);
     },
-    60_000,
   );
 
   it('reads an exact hand right, and is well ahead of the nearest step from 20 ms', () => {
@@ -311,7 +308,7 @@ describe('the Muse’s own judgement of a sloppy hand (E17)', () => {
       const then = phraseRate(AS_HEARD, s, KEY);
       expect(now.right / now.bars).toBeGreaterThan(then.right / then.bars + 0.1);
     }
-  }, 60_000);
+  });
 
   it('is within two points of a phrase read whole, in bars right, up to 40 ms', () => {
     for (const s of [10, 20, 30, 40]) {
@@ -319,7 +316,7 @@ describe('the Muse’s own judgement of a sloppy hand (E17)', () => {
       const whole = phraseRate(AS_PHRASES, s, KEY);
       expect(Math.abs(now.right - whole.right) / now.bars).toBeLessThan(0.02);
     }
-  }, 60_000);
+  });
 });
 
 /** The confidence a judgement carries (#204, H5) says something: it sorts the bars read right from the bars read wrong. */
@@ -379,16 +376,12 @@ describe('the motif taken of two players (E17)', () => {
     [0, 40, 0.654, 1],
     [20, 40, 0.542, 0.777],
     [30, 30, 0.411, 0.584],
-  ])(
-    'players at %i and %i ms: the most notes %f, the surest reading %f',
-    (a, b, notes, sure) => {
-      const c = choiceRate(a, b, KEY);
-      expect(c.pairs).toBeGreaterThan(700);
-      expect(Math.abs(c.byNotes / c.pairs - notes)).toBeLessThan(0.03);
-      expect(Math.abs(c.bySureness / c.pairs - sure)).toBeLessThan(0.03);
-    },
-    60_000,
-  );
+  ])('players at %i and %i ms: the most notes %f, the surest reading %f', (a, b, notes, sure) => {
+    const c = choiceRate(a, b, KEY);
+    expect(c.pairs).toBeGreaterThan(700);
+    expect(Math.abs(c.byNotes / c.pairs - notes)).toBeLessThan(0.03);
+    expect(Math.abs(c.bySureness / c.pairs - sure)).toBeLessThan(0.03);
+  });
 
   it('never takes worse by the surest reading, over a spread of pairs', () => {
     for (const [a, b] of [
@@ -399,5 +392,5 @@ describe('the motif taken of two players (E17)', () => {
       const c = choiceRate(a, b, KEY);
       expect(c.bySureness).toBeGreaterThanOrEqual(c.byNotes);
     }
-  }, 60_000);
+  });
 });

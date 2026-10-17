@@ -135,10 +135,14 @@ test('a player exactly on the heard beat is on time, on every hit', async ({ pag
         () => {
           const ts = pair();
           const at = ts.performanceTime + (hit.when - ts.contextTime) * 1000;
-          setTimeout(
-            () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' })),
-            at - performance.now(),
-          );
+          // A key's event carries when it was struck, however late the page handles it, and the
+          // test reads that (`timeStamp`). A made event is stamped when it is made, so a timer the
+          // loaded page runs late would move the hit (#355): it is stamped with the hit's place.
+          setTimeout(() => {
+            const key = new KeyboardEvent('keydown', { key: 'a' });
+            Object.defineProperty(key, 'timeStamp', { value: at });
+            window.dispatchEvent(key);
+          }, at - performance.now());
         },
         rough - 150 - performance.now(),
       );
