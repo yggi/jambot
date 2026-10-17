@@ -7,7 +7,7 @@ Facts about MIDI in and out of the app.
   The clock offset, the audio clock against `performance.now()` that MIDI timestamps ride on, is webmidi's `clockOffset`: Jambot's output pair lifted, which also follows a jump wider than 50 ms (`OUTPUT.leap`: another device, a resume) from its first reading where Jambot's waited for three.
   It keeps its bound and its count of jumps to itself (yggi/webmidi#9), so the timing panel reads them off its offset (`audio/output-estimate.ts`).
   Note and clock out are still Jambot's (`audio/midi-out.ts`), the next step of yggi/webmidi#3.
-  webmidi's test fakes for Web MIDI aren't shipped (yggi/webmidi#6), so a test here stubs `navigator.requestMIDIAccess` itself (`device.test.ts`).
+  The ports' tests drive webmidi's fake Web MIDI, `@yggi/webmidi/testing`, which only a test imports (`device.test.ts`); the senders' tests keep their own port that records (`{ port, sent }`, a bare `MidiPort`), and the panel's its own connection of spies (`SoundPanel.test.ts`), which the shipped fakes don't match.
 
 - A port chosen before (`MidiSettings.outPortId`/`inPortId`) is reconnected on load without a click (`App.svelte`), since a Web MIDI permission already granted needs no gesture; a first visit, with no port chosen yet, asks for none.
   `MidiOut.panic` (`audio/midi-out.ts`) sends all notes off and forgets what it held; `App.svelte` calls it, through `Player.panicMidi`, on waking from a hidden tab, since a suspended tab's frozen clock can leave a release unscheduled and hardware sounding, and offers it as a button in `SoundPanel.svelte` too, for whatever the automatic case misses (#102).

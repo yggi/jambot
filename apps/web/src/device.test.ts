@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yggi/webmidi/testing';
 import { BUS_GAIN } from './audio/output.ts';
 import { fakeAudioContext } from './audio/fake-context.ts';
 import { Device, FADE_IN, FADE_OUT, VOLUME_KEY, taper } from './device.svelte.ts';
@@ -98,21 +99,16 @@ describe('the fades in and out of a session', () => {
 describe('the device’s MIDI ports', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => {
+    uninstallMidi();
     vi.unstubAllGlobals();
     localStorage.clear();
   });
 
-  /** Web MIDI with one input and one output, that a test can plug more into. */
+  /** Web MIDI with one input and one output, that a test can plug more into (webmidi's fakes). */
   function midi() {
-    const input = { id: 'in-1', name: 'Keys', onmidimessage: null as unknown };
-    const output = { id: 'out-1', name: 'Synth', send: vi.fn() };
-    const access = {
-      inputs: new Map([[input.id, input]]),
-      outputs: new Map([[output.id, output]]),
-      onstatechange: null as (() => void) | null,
-    };
-    vi.stubGlobal('navigator', { requestMIDIAccess: () => Promise.resolve(access) });
-    return { access, input, output };
+    const access = fakeAccess([fakeInput('in-1', 'Keys')], [fakePort('out-1', 'Synth')]);
+    installMidi(access);
+    return { access };
   }
 
   it('lists the ports once connected', async () => {
@@ -132,9 +128,9 @@ describe('the device’s MIDI ports', () => {
     d.settings.outPortId = 'out-2';
     await d.connect(() => {});
     expect(d.settings.outPort).toBeNull();
-    const back = { id: 'out-2', name: 'Launchpad', send: vi.fn() };
+    const back = fakePort('out-2', 'Launchpad');
     access.outputs.set(back.id, back);
-    access.onstatechange!();
+    access.change();
     expect(d.ports.outputs.map((p) => p.name)).toEqual(['Synth', 'Launchpad']);
     expect(d.settings.outPort).toBe(back);
   });
@@ -155,9 +151,9 @@ describe('the device’s MIDI ports', () => {
     const { access } = midi();
     const { device: d } = device();
     await d.connect(() => {});
-    const unplugged = { id: 'out-2', name: 'Unplugged', send: vi.fn(), state: 'disconnected' };
+    const unplugged = Object.assign(fakePort('out-2', 'Unplugged'), { state: 'disconnected' });
     access.outputs.set(unplugged.id, unplugged);
-    access.onstatechange!();
+    access.change();
     expect(d.ports.outputs.map((p) => p.name)).toEqual(['Synth']);
   });
 
