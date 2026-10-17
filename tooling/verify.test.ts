@@ -211,4 +211,13 @@ describe('the tree verify passed', () => {
     );
     expect(readFileSync(stampsPath(dir), 'utf8')).toBe(`${tree}\n`);
   });
+
+  it('is remembered with the count of tests that passed on it, once', () => {
+    const dir = repo();
+    const tree = workingTree(dir)!;
+    remember(dir, tree, 2719);
+    remember(dir, tree, 12);
+    remember(dir, tree);
+    expect(readFileSync(stampsPath(dir), 'utf8')).toBe(`${tree} 2719\n`);
+  });
 });

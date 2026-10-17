@@ -170,16 +170,21 @@ export function workingTree(dir: string): string | undefined {
   }
 }
 
-/** The pre-push hook's record of the trees that passed: one hash to a line, in the git directory. */
+/**
+ * The pre-push hook's record of the trees that passed, in the git directory:
+ * one hash to a line, then the count of tests that passed on it where known,
+ * which the hook prints when it lets a push through without running verify.
+ */
 export function stampsPath(dir: string): string {
   return join(git(dir, ['rev-parse', '--absolute-git-dir']), 'jambot-verified');
 }
 
-/** Records `tree` as passed, once, where the pre-push hook looks before running verify. */
-export function remember(dir: string, tree: string): void {
+/** Records `tree` as passed, once, with `tests` passed on it, where the pre-push hook looks before running verify. */
+export function remember(dir: string, tree: string, tests?: number): void {
   const path = stampsPath(dir);
   const known = existsSync(path) ? readFileSync(path, 'utf8').split('\n') : [];
-  if (!known.includes(tree)) appendFileSync(path, `${tree}\n`);
+  if (!known.some((line) => line.split(' ')[0] === tree))
+    appendFileSync(path, `${tree}${tests === undefined ? '' : ` ${tests}`}\n`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -197,7 +202,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const notes: string[] = [];
   // A tree edited while the stages ran is not the one they passed.
   if (passed && tree && workingTree(root) === tree) {
-    remember(root, tree);
+    remember(root, tree, passedTests(outcomes.find((o) => o.name === 'test')?.output ?? ''));
     notes.push(
       `tree ${tree.slice(0, 7)} remembered, so the pre-push hook doesn't run verify on it again`,
     );

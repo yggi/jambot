@@ -131,6 +131,24 @@ describe('pre-push', () => {
     expect(stderr).not.toContain('verify ran and failed');
   });
 
+  it('says the count of tests a verify by hand passed with, when it does not run verify again', () => {
+    const dir = repoWith(['a.ts']);
+    remember(dir, workingTree(dir)!, 2719);
+    const short = git(dir, 'rev-parse', '--short', 'HEAD^{tree}');
+    expect(hook(dir, 'head', { verify: failing }).stderr.trim()).toBe(
+      `pre-push: tree ${short} passed pnpm verify before (2719 tests passed), so it is not run again.`,
+    );
+  });
+
+  it('says the count of its own run again on a retried push', () => {
+    const dir = repoWith(['a.ts']);
+    const passing = 'echo "      Tests  1234 passed (1234)"';
+    expect(hook(dir, 'head', { verify: passing }).status).toBe(0);
+    expect(hook(dir, 'head', { verify: failing }).stderr).toContain(
+      'passed pnpm verify before (1234 tests passed), so it is not run again.',
+    );
+  });
+
   it('finds a tree verify passed before its changes were committed', () => {
     const dir = repoWith(['a.ts']);
     writeFileSync(join(dir, 'a.ts'), 'edited\n');

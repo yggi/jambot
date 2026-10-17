@@ -7,8 +7,9 @@
 #
 # - It verifies the working tree, and the push sends the commit, so a dirty
 #   tracked tree is refused: commit first, and push the branch checked out.
-# - A tree that passed is remembered by its hash (in the git directory), so a
-#   push retried after a network failure does not run the tests again. `pnpm
+# - A tree that passed is remembered by its hash (in the git directory), with
+#   the count of tests that passed on it, so a push retried after a network
+#   failure does not run the tests again and still says the count. `pnpm
 #   verify` run by hand remembers the tree it passed in the same file
 #   (tooling/verify.ts), so a push right after it does not run it again either.
 #   That tree holds every file verify saw, untracked ones too: a commit that
@@ -53,11 +54,16 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   exit 1
 fi
 
+# One tree to a line, then the count of tests that passed on it, if known.
 stamps="$(git rev-parse --absolute-git-dir)/jambot-verified"
 tree=$(git rev-parse 'HEAD^{tree}')
 short=$(git rev-parse --short "$tree")
-if grep -qx "$tree" "$stamps" 2>/dev/null; then
-  echo "pre-push: tree $short passed pnpm verify before, so it is not run again." >&2
+stamped() { grep -E "^$tree( |\$)" "$stamps" 2>/dev/null | head -1; }
+line=$(stamped)
+if [ -n "$line" ]; then
+  before=${line#"$tree"}
+  before=${before# }
+  echo "pre-push: tree $short passed pnpm verify before${before:+ ($before tests passed)}, so it is not run again." >&2
   exit 0
 fi
 
@@ -91,8 +97,8 @@ tests=$(sed -n 's/^ *Tests  *\([0-9][0-9]* failed | \)\{0,1\}\([0-9][0-9]*\) pas
 rm -f "$log"
 # verify remembers a tree it passed itself; a check put in its place does not.
 # An untracked file the check saw makes the tree it passed another than HEAD's.
-if [ -n "$stamp" ] && [ -z "$(git status --porcelain)" ] && ! grep -qx "$tree" "$stamps" 2>/dev/null; then
-  echo "$tree" >>"$stamps"
+if [ -n "$stamp" ] && [ -z "$(git status --porcelain)" ] && [ -z "$(stamped)" ]; then
+  echo "$tree${tests:+ $tests}" >>"$stamps"
 fi
 echo "pre-push: $name passed on tree $short${tests:+, $tests tests passed}, so the push goes ahead." >&2
 exit 0
