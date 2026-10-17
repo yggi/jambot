@@ -246,7 +246,8 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
   await start(page);
   await page.waitForTimeout(14000);
   const all = await starts(page);
-  // Synth-pop: 108 bpm, a step is 15 / 108 s, and a bar of 7/8 holds 14 of them: pulses at 0, 6 and 10.
+  // Synth-pop: 108 in 4/4, which 7/8 counts as 92.571 of its three beats, the felt tempo kept (#367):
+  // a step is 15 / 108 s, and a bar of 7/8 holds 14 of them: pulses at 0, 6 and 10.
   const step = 15 / 108;
   const clicks = all.filter(isClick);
   expect(clicks.filter((s) => s.kind === 'sine')).toEqual([]);
@@ -281,6 +282,26 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
   const kicks = all.filter((s) => s.kind === 'sine' && s.frequency === 440).map((s) => s.when);
   const struck = downbeats.filter((d) => kicks.some((k) => Math.abs(k - d) < 1e-3));
   expect(struck.length).toBeGreaterThan(downbeats.length / 2);
+});
+
+test('plays a section of 6/8 at the bpm it states, counted in its dotted quarters: each beat 60 / bpm long, within 1 ms (#367)', async ({
+  page,
+}) => {
+  await listen(page);
+  await solo(page);
+  await openCard(page, 'Metrum');
+  await page.getByRole('radio', { name: '6/8', exact: true }).click();
+  // Synth-pop's 108 in 4/4 is 72 dotted quarters in 6/8: the felt tempo kept, the number converted once.
+  const stated = page.locator('details[aria-label="Metrum"] summary .main');
+  await expect(stated).toHaveText('72 BPM');
+  const bpm = Number((await stated.textContent())!.replace(' BPM', ''));
+  await page.getByRole('button', { name: 'Click' }).click();
+  await start(page);
+  // The click sounds each beat: the downbeat and the dotted quarter after it, the count-in's two first.
+  const clicks = async () => (await starts(page)).filter(isClick).map((s) => s.when);
+  await expect.poll(async () => (await clicks()).length, { timeout: 15_000 }).toBeGreaterThan(8);
+  const beats = (await clicks()).sort((x, y) => x - y);
+  beats.slice(1).forEach((t, i) => expect(Math.abs(t - beats[i]! - 60 / bpm)).toBeLessThan(1e-3));
 });
 
 test('plays the full band: bass, chords and lead beside the drums', async ({ page }) => {

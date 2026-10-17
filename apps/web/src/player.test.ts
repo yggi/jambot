@@ -14,7 +14,7 @@ import {
   holding,
   lookAhead,
 } from '@jambot/engine';
-import { METERS } from '@jambot/theory';
+import { METERS, type Meter } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
 import { Metronome } from './metronome.svelte.ts';
@@ -957,7 +957,7 @@ describe('the count-in', () => {
     const { world, s } = surroundings();
     const player = new Player(s, new Metronome());
     player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
-    const song = { seed: 3, start: 5, track: holdingSynthPop() };
+    const song = { seed: 3, start: 5, track: holdingSynthPop(), tempoMeter: METERS['4/4'] };
     void player.followSong(song, []);
     world.resolve();
     await settle();
@@ -1063,7 +1063,10 @@ describe('stopping on a cadence', () => {
     const { world, s } = surroundings();
     const player = new Player(s, new Metronome());
     player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
-    void player.followSong({ seed: 1, start: 0.2, track: holdingSynthPop() }, []);
+    void player.followSong(
+      { seed: 1, start: 0.2, track: holdingSynthPop(), tempoMeter: METERS['4/4'] },
+      [],
+    );
     world.resolve();
     await settle();
     player.stop();
@@ -1154,6 +1157,85 @@ describe('the meter asked for (#262)', () => {
   it('makes the count-in a bar of the song’s opening meter', async () => {
     const { world } = await start((p) => p.setMeter(METERS['6/8']));
     expect(world.clicks.map((c) => c.weight)).toEqual(['downbeat', 'pulse']);
+  });
+
+  /** A host's session as a record: the bars it sent and the tracks, in order. */
+  const recording = (player: Player) => {
+    const told: (
+      { kind: 'bar'; bar: number; bpm: number } | { kind: 'track'; bpm: number; meter: string }
+    )[] = [];
+    player.hosting = {
+      started: () => {},
+      stopped: () => {},
+      composed: (bars) =>
+        told.push(
+          ...bars.map((b) => ({ kind: 'bar' as const, bar: b.bar.bar, bpm: b.bar.style.bpm })),
+        ),
+      decided: () => {},
+      track: (track, tempoMeter) =>
+        told.push({ kind: 'track', bpm: track.bpm.to, meter: meterOf(tempoMeter) }),
+      meter: () => {},
+      muse: () => {},
+      finale: () => {},
+    };
+    return told;
+  };
+  const meterOf = (meter: Meter) =>
+    (Object.keys(METERS) as (keyof typeof METERS)[]).find(
+      (name) =>
+        METERS[name].cycle === meter.cycle && METERS[name].heights.length === meter.heights.length,
+    )!;
+
+  it('keeps the felt tempo when asked for a meter while stopped: Synth-pop’s 108 in 4/4 is 72 in 6/8 and 108 again in 4/4 (#367)', () => {
+    const { s } = surroundings();
+    const player = new Player(s);
+    const told = recording(player);
+    expect(player.track.bpm.to).toBe(108);
+    player.setMeter(METERS['6/8']);
+    expect(player.tempoMeter).toEqual(METERS['6/8']);
+    expect(player.track.bpm.to).toBeCloseTo(72, 9);
+    player.setMeter(METERS['7/8']);
+    expect(player.track.bpm.to).toBeCloseTo((108 * 6) / 7, 9);
+    player.setMeter(METERS['4/4']);
+    expect(player.track.bpm.to).toBeCloseTo(108, 9);
+    expect(told.map((t) => t.kind === 'track' && t.meter)).toEqual(['6/8', '7/8', '4/4']);
+    // The same meter again converts nothing.
+    player.setMeter(METERS['4/4']);
+    expect(told).toHaveLength(3);
+  });
+
+  it('keeps every step’s length across a change of meter while playing, and the first bar in the new meter states its bpm in its beats (#367)', async () => {
+    const { world, player, heard, play } = await start();
+    const told = recording(player);
+    play(3);
+    player.setMeter(METERS['6/8']);
+    play(24);
+    expect(heard.get(8)).toEqual({ meter: '6/8', steps: 12 });
+    // Synth-pop, held: every step a 16th of 108 quarters a minute, before the change and after it.
+    expect(world.steps.length).toBeGreaterThan(8 * 16 + 4 * 12);
+    for (const step of world.steps) expect(Math.abs(step.length - 15 / 108)).toBeLessThan(1e-9);
+    // The number converts once, before the first bar in 6/8 is composed, which states it.
+    const bars = told.filter((t) => t.kind === 'bar');
+    expect(bars.filter((b) => b.bar < 8).map((b) => b.bpm)).toEqual(
+      bars.filter((b) => b.bar < 8).map(() => 108),
+    );
+    expect(bars.filter((b) => b.bar >= 8).length).toBeGreaterThan(2);
+    for (const b of bars.filter((b) => b.bar >= 8)) expect(b.bpm).toBe(72);
+    const turned = told.findIndex((t) => t.kind === 'track');
+    expect(told[turned]).toEqual({ kind: 'track', bpm: 72, meter: '6/8' });
+    expect(told.findIndex((t) => t.kind === 'bar' && t.bar === 8)).toBeGreaterThan(turned);
+    expect(player.track.bpm.to).toBe(72);
+  });
+
+  it('opens the next song in a meter asked for and not yet heard, its felt tempo kept (#367)', async () => {
+    const { player, play } = await start();
+    play(2);
+    player.setMeter(METERS['6/8']);
+    expect(player.track.bpm.to).toBe(108);
+    player.halt();
+    expect(player.tempoMeter).toEqual(METERS['6/8']);
+    expect(player.track.bpm.to).toBeCloseTo(72, 9);
+    expect(countInSeconds(player.track, METERS['6/8'])).toBeCloseTo(12 * (15 / 108), 9);
   });
 
   it('is the host’s to ask: a client follows the meter of its host’s bars, and its own asking rests', () => {

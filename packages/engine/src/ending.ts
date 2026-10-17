@@ -146,9 +146,12 @@ export interface CountInClick {
   readonly weight: Weight;
 }
 
-/** How long the count-in lasts: one bar, of the song's opening meter, at the tempo the song opens at. */
+/**
+ * How long the count-in lasts: one bar, of the song's opening meter, at the
+ * tempo the song opens at, counted in that meter's beats (#367).
+ */
 export function countInSeconds(track: StyleTrack, meter: Meter = SONG_METER): number {
-  return stepsOf(meter) * stepSeconds(valueAt('bpm', track.bpm, 0));
+  return stepsOf(meter) * stepSeconds(valueAt('bpm', track.bpm, 0), meter);
 }
 
 /**
@@ -161,7 +164,7 @@ export function countIn(
   start: number,
   meter: Meter = SONG_METER,
 ): CountInClick[] {
-  const step = stepSeconds(valueAt('bpm', track.bpm, 0));
+  const step = stepSeconds(valueAt('bpm', track.bpm, 0), meter);
   const from = start - countInSeconds(track, meter);
   const pulses = meterOnSteps(meter).heights;
   return pulses.map((pulse, beat) => ({

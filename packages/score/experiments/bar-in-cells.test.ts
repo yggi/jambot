@@ -99,18 +99,14 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       expect(row.within1ms, `${row.preset} ${row.meter}`).toBe(notes);
     }
     expect(timed.reduce((n, row) => n + row.timed, 0)).toBe(4067);
-    expect(Math.max(...timed.map((row) => row.largest))).toBeLessThan(1e-6);
-    // The farthest is in 7/8, whose tempo cells writes to six decimals; in 4/4 and 3/4 it is rounding.
-    for (const row of timed)
-      expect(row.largest, `${row.preset} ${row.meter}`).toBeLessThan(
-        row.meter === '7/8' ? 3e-7 : 1e-12,
-      );
+    // Both count the meter's beats (#367), so the text states the band's tempo as it is, and only rounding is left.
+    for (const row of timed) expect(row.largest, `${row.preset} ${row.meter}`).toBeLessThan(1e-12);
   });
 
   it('counts the characters of every part', () => {
     expect(characters(MEASURED)).toEqual({
-      total: 281539,
-      meter: 11872,
+      total: 281123,
+      meter: 11456,
       key: 8640,
       harmony: 12921,
       drums: 139824,
@@ -135,9 +131,9 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       'Bossa nova 4/4': 24149,
       'Swing jazz 4/4': 25011,
       'Synth-pop 3/4': 21891,
-      'Synth-pop 7/8': 21789,
+      'Synth-pop 7/8': 21597,
       'Bossa nova 3/4': 21254,
-      'Bossa nova 7/8': 21910,
+      'Bossa nova 7/8': 21686,
     });
   });
 
@@ -158,7 +154,7 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     expect(rims.filter((m) => /&euclid \* \.\d+\]/.test(textOf(m.text)))).toHaveLength(90);
   });
 
-  it('finds what it checks: a hit dropped, a bass note moved, a level changed, a chord respelled, or 7/8 at the band’s quarter tempo, is a difference', () => {
+  it('finds what it checks: a hit dropped, a bass note moved, a level changed, a chord respelled, or 7/8 at its quarters a minute, is a difference', () => {
     const differs = (preset: string, meter: string, bar: number, from: RegExp, to: string) => {
       const m = at(preset, meter, bar);
       const text = textOf(m.text);
@@ -174,10 +170,14 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     expect(differs('Synth-pop', '4/4', 0, /level=\.18755/, 'level=.2')).toEqual(['comp']);
     expect(differs('Synth-pop', '4/4', 0, /\[0,2,4\]$/m, '[0,2#,4]')).toEqual(['harmony']);
     const seven = run('Synth-pop', '7/8');
-    expect(farthest(seven, (t) => t)).toBeLessThan(1e-6);
-    expect(farthest(seven, (t) => t.replace(/step=[\d.]+bpm/, 'step=108bpm'))).toBeGreaterThan(
-      0.001,
-    );
+    expect(seven.bars[0]!.style.bpm).toBe(108);
+    expect(farthest(seven, (t) => t)).toBeLessThan(1e-12);
+    // 108 beats of 7/8 a minute are 126 quarters: a text that counted quarters would be off.
+    expect(
+      farthest(seven, (t) =>
+        t.replace(/step=([\d.]+)bpm/, (_, bpm) => `step=${(Number(bpm) * 7) / 6}bpm`),
+      ),
+    ).toBeGreaterThan(0.001);
     expect(
       farthest(seven, (t) =>
         t.replace(/step=([\d.]+)bpm/, (_, bpm) => `step=${Number(bpm) + 0.01}bpm`),

@@ -380,7 +380,7 @@ export class ClientSession {
         else this.#player.followBar(message.sent);
         return;
       case 'track':
-        return this.#player.followTrack(message.track);
+        return this.#player.followTrack(message.track, message.tempoMeter);
       case 'forecast':
         return this.#forecast(message.forecast);
       case 'muse':

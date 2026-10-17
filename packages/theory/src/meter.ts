@@ -54,6 +54,17 @@ export const METERS: Record<MeterName, Meter> = {
   '12/8': even(4, 12),
 };
 
+/**
+ * How many beats a meter's bar has: its pulses here, which cells' decision
+ * 040 calls its beats, what musicians count and what a tempo in bpm counts.
+ * 4/4 has 4, 6/8 2 dotted quarters, 7/8 3 unequal beats (3+2+2), so a bar
+ * at `bpm` lasts `beatsOf(meter) * 60 / bpm` seconds, its beats keeping
+ * their proportions (yggi/cells#88).
+ */
+export function beatsOf(meter: Meter): number {
+  return meter.heights.length;
+}
+
 /** An eighth's weight: the bar's first pulse, another pulse, or between them. */
 export type Weight = 'downbeat' | 'pulse' | 'subdivision';
 

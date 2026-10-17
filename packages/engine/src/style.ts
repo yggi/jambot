@@ -35,7 +35,7 @@ export const AXES = {
   energy: unit,
   /** Predictable (0) to surprising (1). */
   entropy: unit,
-  /** Beats per minute. */
+  /** Beats per minute: the beats of the meter the track counts (`tempo.ts`, #367). */
   bpm: { min: 60, max: 180, space: 'log' },
 } as const satisfies Record<string, AxisRange>;
 

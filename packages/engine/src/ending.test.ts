@@ -177,9 +177,10 @@ describe('the ending on other meters (#260)', () => {
       const clicks = countIn(track, 10, meter);
       expect([name, clicks.length]).toEqual([name, meterPulses(meter)]);
       expect([name, clicks[0]!.weight]).toEqual([name, 'downbeat']);
+      // A bar of its beats at 120 counted in them (#367): 7/8's three last 1.5 s, not 3.5 quarters' 1.75.
       expect([name, countInSeconds(track, meter)]).toEqual([
         name,
-        expect.closeTo(stepsOf(meter) * stepSeconds(120), 12),
+        expect.closeTo((meterPulses(meter) * 60) / 120, 12),
       ]);
     }
   });

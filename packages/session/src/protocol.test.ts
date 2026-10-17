@@ -205,9 +205,9 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 8 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them. */
+/** The shapes of version 9 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them; 9 counts a track's bpm in its meter's beats (#367). */
 const SHAPES = {
-  protocol: 8,
+  protocol: 9,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',

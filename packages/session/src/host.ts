@@ -15,9 +15,11 @@ import {
   type ScheduledStep,
   type StyleTrack,
   SONG_CLOCK,
+  SONG_METER,
   type SongClock,
   tempoMap,
 } from '@jambot/engine';
+import type { Meter } from '@jambot/theory';
 import type { SentBar, WrittenBar } from './protocol.ts';
 
 /** A bar as the band played it, as it was written. */
@@ -31,7 +33,8 @@ export function writtenBar(played: BandBar): WrittenBar {
 /**
  * The bars composed on a tick, as sent: each with where it starts, from the
  * steps laid on the tick if one of them is its first, and otherwise from
- * the head through the tempo map. A bar whose start the head passed
+ * the head through the tempo map, its bpm counting the beats of
+ * `tempoMeter`. A bar whose start the head passed
  * without laying it, in a stall, goes without one.
  */
 export function sentBars(
@@ -40,6 +43,7 @@ export function sentBars(
   head: Anchor,
   track: StyleTrack,
   clock: SongClock = SONG_CLOCK,
+  tempoMeter: Meter = SONG_METER,
 ): SentBar[] {
   return composed.map((b) => {
     const first = clock.barStart(b.bar);
@@ -47,7 +51,7 @@ export function sentBars(
     const start = laid
       ? laid.seconds
       : head.step <= first
-        ? tempoMap(track, head).played(first)
+        ? tempoMap(track, head, tempoMeter).played(first)
         : null;
     return { bar: writtenBar(b), start };
   });

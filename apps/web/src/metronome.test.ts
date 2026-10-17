@@ -204,7 +204,9 @@ describe('the metronome', () => {
       const metronome = new Metronome();
       metronome.on = true;
       const { world, player } = await playing(metronome, meter);
-      const start = 0.1 + countInSeconds(holding(INITIAL_STYLE), meter);
+      // Asked for while stopped, the meter keeps the felt tempo (#367): a bar of it as long as its eighths at 108 quarters.
+      const start = 0.1 + (stepsOf(meter) * 15) / PRESETS[0]!.style.bpm;
+      expect(countInSeconds(player.track, meter)).toBeCloseTo(start - 0.1, 9);
       expect(player.clock.barSteps(0)).toBe(stepsOf(meter));
       run(world, 8);
       const count = world.clicks.filter((c) => c.seconds < start - 0.01);

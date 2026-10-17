@@ -10,6 +10,7 @@ import {
   type MeterName,
   type Weight,
   STEPS_PER_EIGHTH,
+  beatsOf,
   meterOnSteps,
   meterWeights,
   stepsOf,
@@ -116,6 +117,24 @@ describe('meter', () => {
       '9/8': { cycle: 9, heights: [0, 3, 6] },
       '10/8': { cycle: 10, heights: [0, 3, 6, 8] },
       '12/8': { cycle: 12, heights: [0, 3, 6, 9] },
+    });
+  });
+
+  it('counts each named meter’s beats as cells’ decision 040 does: what bpm counts (finite: every named meter)', () => {
+    const counted = Object.fromEntries(
+      (Object.keys(METERS) as MeterName[]).map((name) => [name, beatsOf(METERS[name])]),
+    );
+    // 040's table gives 3/4, 4/4, 6/8, 9/8 and 7/8; the rest follow its rule, a beat to a pulse here.
+    expect(counted).toEqual({
+      '3/4': 3,
+      '4/4': 4,
+      '5/4': 5,
+      '5/8': 2,
+      '6/8': 2,
+      '7/8': 3,
+      '9/8': 3,
+      '10/8': 4,
+      '12/8': 4,
     });
   });
 
