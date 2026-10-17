@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { keyboardLayout, scaleLayout } from './midi/surfaces.ts';
+import { keyboardLayout } from '@yggi/webmidi/core';
+import { scaleLayout } from './keyboard.ts';
 import { EDGE, NOW_AT, ROLL_AHEAD, ROLL_BEHIND, rollBars, rollNotes, rollY } from './rollView.ts';
 
 const keys = keyboardLayout(60, 76);

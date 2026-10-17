@@ -1,11 +1,20 @@
 /**
- * Where a played note lands, and how a connection is adopted: pulled out
- * of `App.svelte` so this wiring has a test that can fail if it breaks.
+ * Where a played note lands: which instrument a MIDI channel plays, and the
+ * one route every note takes (the Muse, playing along, thru). Pulled out of
+ * `App.svelte` so this wiring has a test that can fail if it breaks. Reading
+ * the message and adopting the ports are webmidi's (`@yggi/webmidi`).
  */
 
+import type { Part } from '@jambot/engine';
 import { nibble } from '../audio/midi-out.ts';
 import type { MidiPort } from '../audio/midi-out.ts';
-import type { MidiAccess, NoteHandler } from './access.ts';
+
+/** General MIDI's drum channel, 10, counted from 0 as a status byte's nibble is. */
+export const DRUM_CHANNEL = 9;
+
+/** Which instrument a MIDI channel plays: the pads on channel 10, the keyboard on every other. */
+export const partOf = (channel: number): Extract<Part, 'lead' | 'drums'> =>
+  channel === DRUM_CHANNEL ? 'drums' : 'lead';
 
 export interface RouteDeps {
   /** Mutated in place: added on, removed off, as the on-screen keyboard lights it. */
@@ -46,56 +55,4 @@ export function routeNote(
     const channel = nibble(deps.thruChannel());
     deps.thruPort()?.send(on ? [0x90 | channel, note, velocity] : [0x80 | channel, note, 0]);
   }
-}
-
-/** The ports chosen, as settings keep them: ids, and the live output they resolve to. */
-export interface ChosenPorts {
-  readonly outPortId: string;
-  readonly inPortId: string;
-  outPort: MidiPort | null;
-}
-
-/**
- * Adopt the ports chosen from the connection as it is now: the output by its
- * id, none if it is gone or was never chosen, and the input listened to. A
- * port unplugged and plugged in again is a new object, so this runs whenever
- * the ports may have changed.
- */
-export function adoptPorts(
-  access: Pick<MidiAccess, 'outputPort' | 'listen'>,
-  settings: ChosenPorts,
-): void {
-  settings.outPort = settings.outPortId === 'none' ? null : access.outputPort(settings.outPortId);
-  access.listen(settings.inPortId);
-}
-
-/** What was found, in a line: "MIDI connected: 1 input, 2 outputs." */
-export function portsMessage(ports: {
-  readonly inputs: readonly unknown[];
-  readonly outputs: readonly unknown[];
-}): string {
-  const count = (list: readonly unknown[], noun: string) =>
-    `${list.length} ${noun}${list.length === 1 ? '' : 's'}`;
-  return `MIDI connected: ${count(ports.inputs, 'input')}, ${count(ports.outputs, 'output')}.`;
-}
-
-export interface ConnectResult {
-  readonly access: MidiAccess | null;
-  readonly message: string;
-}
-
-/**
- * Connects, then adopts the output port and input already chosen
- * (`settings.outPortId`, `settings.inPortId`), reporting what was found or
- * why it couldn't connect.
- */
-export async function connectMidi(
-  connect: (onNote: NoteHandler) => Promise<MidiAccess | string>,
-  onNote: NoteHandler,
-  settings: ChosenPorts,
-): Promise<ConnectResult> {
-  const result = await connect(onNote);
-  if (typeof result === 'string') return { access: null, message: result };
-  adoptPorts(result, settings);
-  return { access: result, message: portsMessage(result) };
 }

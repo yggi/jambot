@@ -72,7 +72,7 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `apps/web/src/meter/`: the metronome (#259): a bar of any meter written from its helix (the accent grades, the ternary swing, the plan of a bar's onsets) and the player that loops it
   - `apps/web/src/session/`: host and client mode in the app ([brief](briefs/host-mode.md))
   - `apps/web/src/audio/`: the player's outputs: the built-in synth, MIDI out, the device's clock pairing
-  - `apps/web/src/midi/`: Web MIDI in, the playing surfaces, routing and settings
+  - `apps/web/src/midi/`: where a note lands and the MIDI settings; reading MIDI and the Web MIDI connection are `@yggi/webmidi`'s
   - `apps/web/e2e/`: the end-to-end checks, the built app in Chromium with its audio measured (`pnpm e2e`)
 - `tooling/`: the repository's own gates and tools: `pnpm verify`, lint rules, hooks, the pawl, the license gate, the Pages deploy, screenshots
 - `.github/`

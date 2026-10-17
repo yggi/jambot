@@ -8,9 +8,13 @@
 
 import { SvelteSet } from 'svelte/reactivity';
 import type { Device } from './device.svelte.ts';
-import type { NoteHandler } from './midi/access.ts';
-import { routeNote } from './midi/routing.ts';
-import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, partOf } from './midi/surfaces.ts';
+import {
+  COMPUTER_KEY_MAP,
+  DRUM_KEY_MAP,
+  type ParsedNote,
+  ignoreKeyEvent,
+} from '@yggi/webmidi/core';
+import { partOf, routeNote } from './midi/routing.ts';
 import type { AlongPart, Player } from './player.svelte.ts';
 
 type Route = (note: number, velocity: number, on: boolean, source: string) => void;
@@ -42,7 +46,7 @@ export class Instruments {
   }
 
   /** A note from Web MIDI: channel 10 plays the pads, every other channel the keyboard (`partOf`). */
-  readonly onMidiNote: NoteHandler = (note, source) =>
+  readonly onMidiNote = (note: ParsedNote, source: string) =>
     (partOf(note.channel) === 'drums' ? this.toDrums : this.toLead)(
       note.note,
       note.velocity,

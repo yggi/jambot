@@ -5,7 +5,7 @@
  * component, so a test can hold each wording and each level.
  */
 
-import type { PortOption } from './midi/access.ts';
+import type { PortOption } from '@yggi/webmidi/core';
 import { PERFORMERS, type SoundingNotes } from './sounding.ts';
 
 /** How much of the equalizer's height a bar at rest has, 0 to 1: a resting bar is still a bar. */

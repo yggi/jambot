@@ -1,8 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { MidiPort } from '../audio/midi-out.ts';
-import type { MidiAccess } from './access.ts';
-import { adoptPorts, connectMidi, routeNote } from './routing.ts';
+import { DRUM_CHANNEL, partOf, routeNote } from './routing.ts';
 
 const NOTE_ON = 0x90;
 const NOTE_OFF = 0x80;
@@ -132,121 +131,10 @@ describe('routeNote', () => {
   });
 });
 
-describe('connectMidi', () => {
-  it('passes through the message when the connection fails', async () => {
-    const result = await connectMidi(
-      async () => 'This browser has no Web MIDI.',
-      () => {},
-      { outPortId: 'none', inPortId: 'none', outPort: null },
-    );
-    expect(result).toEqual({ access: null, message: 'This browser has no Web MIDI.' });
-  });
-
-  it('adopts the persisted output port and listens to the persisted input', async () => {
-    const outPort: MidiPort = { send: () => {} };
-    const listen = vi.fn();
-    const access = {
-      inputs: [{ id: 'in-1', name: 'Keys' }],
-      outputs: [{ id: 'out-1', name: 'Synth' }],
-      outputPort: vi.fn(() => outPort),
-      listen,
-    } as unknown as MidiAccess;
-    const settings = { outPortId: 'out-1', inPortId: 'in-1', outPort: null as MidiPort | null };
-
-    const result = await connectMidi(
-      async () => access,
-      () => {},
-      settings,
-    );
-
-    expect(settings.outPort).toBe(outPort);
-    expect(listen).toHaveBeenCalledWith('in-1');
-    expect(result.access).toBe(access);
-    expect(result.message).toBe('MIDI connected: 1 input, 1 output.');
-  });
-
-  it('resolves no output port when none was chosen', async () => {
-    const outputPort = vi.fn();
-    const access = {
-      inputs: [],
-      outputs: [],
-      outputPort,
-      listen: vi.fn(),
-    } as unknown as MidiAccess;
-    const settings = { outPortId: 'none', inPortId: 'none', outPort: null as MidiPort | null };
-
-    await connectMidi(
-      async () => access,
-      () => {},
-      settings,
-    );
-
-    expect(outputPort).not.toHaveBeenCalled();
-    expect(settings.outPort).toBeNull();
-  });
-
-  it('names several ports in the plural', async () => {
-    const access = {
-      inputs: [
-        { id: 'a', name: 'A' },
-        { id: 'b', name: 'B' },
-      ],
-      outputs: [],
-      outputPort: vi.fn(),
-      listen: vi.fn(),
-    } as unknown as MidiAccess;
-    const result = await connectMidi(
-      async () => access,
-      () => {},
-      {
-        outPortId: 'none',
-        inPortId: 'none',
-        outPort: null,
-      },
-    );
-    expect(result.message).toBe('MIDI connected: 2 inputs, 0 outputs.');
-  });
-});
-
-describe('adopting the ports again', () => {
-  const port = (id: string) => ({ send: () => {}, id });
-  const access = (outputs: Record<string, ReturnType<typeof port>>) => {
-    const listened: string[] = [];
-    return {
-      listened,
-      outputPort: (id: string) => outputs[id] ?? null,
-      listen: (id: string) => listened.push(id),
-    } as unknown as MidiAccess & { listened: string[] };
-  };
-
-  it('finds the output chosen before again, and listens to the input chosen before', () => {
-    const settings = { outPortId: 'out-1', inPortId: 'in-1', outPort: null as MidiPort | null };
-    const live = access({ 'out-1': port('out-1') });
-    adoptPorts(live, settings);
-    expect(settings.outPort).toBe(live.outputPort('out-1'));
-    expect(live.listened).toEqual(['in-1']);
-  });
-
-  it('lets go of an output that is gone, and picks up one plugged in again', () => {
-    const settings = {
-      outPortId: 'out-1',
-      inPortId: 'none',
-      outPort: port('old') as MidiPort | null,
-    };
-    adoptPorts(access({}), settings);
-    expect(settings.outPort).toBeNull();
-    const back = access({ 'out-1': port('out-1') });
-    adoptPorts(back, settings);
-    expect(settings.outPort).toBe(back.outputPort('out-1'));
-  });
-
-  it('has no output where none is chosen', () => {
-    const settings = {
-      outPortId: 'none',
-      inPortId: 'none',
-      outPort: port('old') as MidiPort | null,
-    };
-    adoptPorts(access({ 'out-1': port('out-1') }), settings);
-    expect(settings.outPort).toBeNull();
+describe('partOf', () => {
+  it('plays the pads on channel 10, the keyboard on every other', () => {
+    expect(DRUM_CHANNEL).toBe(9);
+    expect(partOf(9)).toBe('drums');
+    for (const channel of [0, 1, 8, 10, 15]) expect(partOf(channel)).toBe('lead');
   });
 });

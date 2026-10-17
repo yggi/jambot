@@ -10,7 +10,7 @@
 
 import { INITIAL_STYLE, type Part, type Timbre, timbreOf } from '@jambot/engine';
 import { nibble, type MidiPort } from '../audio/midi-out.ts';
-import type { PortOption } from '../midi/access.ts';
+import type { PortOption } from '@yggi/webmidi/core';
 
 /** The destination that is this device's own synth. */
 export const SYNTH = 'synth';

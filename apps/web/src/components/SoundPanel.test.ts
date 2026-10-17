@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES, type MidiPort } from '../audio/midi-out.ts';
-import type { MidiAccess } from '../midi/access.ts';
-import { DRUM_NOTE_PRESETS } from '../midi/drum-presets.ts';
+import { DRUM_PRESETS } from '@yggi/webmidi/core';
+import type { MidiAccess } from '@yggi/webmidi/web';
 import { MidiSettings } from '../midi/settings.svelte.ts';
 import SoundPanel from './SoundPanel.svelte';
 
@@ -100,7 +100,7 @@ describe('SoundPanel', () => {
     await fireEvent.change(screen.getByLabelText('Preset'), {
       target: { value: 'Novation Circuit' },
     });
-    expect(settings.drumNotes).toEqual(DRUM_NOTE_PRESETS['Novation Circuit']);
+    expect(settings.drumMap).toEqual(DRUM_PRESETS['Novation Circuit']);
     expect(screen.getByLabelText('Kick')).toHaveValue(60);
   });
 

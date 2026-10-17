@@ -3,11 +3,18 @@
  * remembers them: the prototype's `jambot-proto-v2`, under a name of its
  * own since the shape has moved.
  *
- * Whether a port is actually reachable is Web MIDI's to say (`../midi/input.ts`
- * and the UI resolve `outPortId`/`inPortId` to a live port once connected);
- * this class only remembers what was chosen.
+ * Whether a port is actually reachable is Web MIDI's to say (`Device`
+ * adopts `outPortId`/`inPortId` through webmidi once connected); this class
+ * only remembers what was chosen.
+ *
+ * The drum notes are kept as webmidi keeps them, a `DrumMap` keyed by the
+ * General MIDI note the engine writes (`drumMap`). A save from before keyed
+ * them by Jambot's drum sounds (`drumNotes`): it is read into a map that
+ * sends every sound as it did, and written back in the new form.
  */
 
+import { DRUM_NOTES, type DrumSound } from '@jambot/engine';
+import { DRUM_PRESETS, type DrumMap, deviceNote } from '@yggi/webmidi/core';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_DRUM_NOTES,
@@ -18,10 +25,37 @@ import {
 
 const STORAGE_KEY = 'jambot-midi-v1';
 
+const DRUM_SOUNDS = Object.keys(DRUM_NOTES) as readonly DrumSound[];
+
+/** The note each drum sound goes out as under a map: what `MidiOut` takes, until note out is webmidi's too. */
+export const drumNotesOf = (map: DrumMap): DrumNotes =>
+  Object.fromEntries(
+    DRUM_SOUNDS.map((sound) => [sound, deviceNote(map, DRUM_NOTES[sound])]),
+  ) as DrumNotes;
+
+const sameNotes = (a: DrumNotes, b: DrumNotes) => DRUM_SOUNDS.every((s) => a[s] === b[s]);
+
+/**
+ * A map that sends each drum sound as `notes` says: the preset that does, so
+ * it is still named as one (a Circuit's map also places sounds Jambot never
+ * plays), else `base` with each sound's General MIDI note sent as given.
+ */
+export function drumMapOf(notes: DrumNotes, base: DrumMap = {}): DrumMap {
+  const preset = Object.values(DRUM_PRESETS).find((map) => sameNotes(drumNotesOf(map), notes));
+  if (preset) return { ...preset };
+  const map: Record<number, number> = { ...base };
+  for (const sound of DRUM_SOUNDS) {
+    const gm = DRUM_NOTES[sound];
+    if (notes[sound] === gm) delete map[gm];
+    else map[gm] = notes[sound];
+  }
+  return map;
+}
+
 interface StoredPrefs {
   readonly internal: boolean;
   readonly channels: Channels;
-  readonly drumNotes: DrumNotes;
+  readonly drumMap: DrumMap;
   readonly clock: boolean;
   readonly thru: boolean;
   readonly thruChannel: number;
@@ -29,11 +63,17 @@ interface StoredPrefs {
   readonly inPortId: string;
 }
 
+/** What a save from before the drum map held in its place: one note per drum sound. */
+interface LegacyPrefs {
+  readonly drumNotes?: Partial<DrumNotes>;
+}
+
 /** No MIDI out or in, the built-in synth on, as a fresh install opens. */
 const DEFAULTS: StoredPrefs = {
   internal: true,
   channels: DEFAULT_CHANNELS,
-  drumNotes: DEFAULT_DRUM_NOTES,
+  // General MIDI: every note goes out as it is (webmidi's 'GM').
+  drumMap: {},
   clock: false,
   thru: false,
   thruChannel: 1,
@@ -41,26 +81,45 @@ const DEFAULTS: StoredPrefs = {
   inPortId: 'none',
 };
 
-function load(): StoredPrefs {
+/** A saved map's entries that are notes to notes: JSON keys are strings, and anything else is dropped. */
+function readDrumMap(stored: unknown): DrumMap {
+  const map: Record<number, number> = {};
+  if (typeof stored !== 'object' || stored === null) return map;
+  for (const [key, value] of Object.entries(stored)) {
+    const gm = Number(key);
+    if (Number.isInteger(gm) && Number.isInteger(value)) map[gm] = value as number;
+  }
+  return map;
+}
+
+/** The saved preferences, and whether they were saved in the old form and are to be written in the new. */
+function load(): { prefs: StoredPrefs; migrated: boolean } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULTS;
-    const stored = JSON.parse(raw) as Partial<StoredPrefs>;
+    if (!raw) return { prefs: DEFAULTS, migrated: false };
+    const { drumNotes, ...stored } = JSON.parse(raw) as Partial<StoredPrefs> & LegacyPrefs;
+    const migrated = stored.drumMap === undefined && drumNotes !== undefined;
     return {
-      ...DEFAULTS,
-      ...stored,
-      channels: { ...DEFAULTS.channels, ...stored.channels },
-      drumNotes: { ...DEFAULTS.drumNotes, ...stored.drumNotes },
+      prefs: {
+        ...DEFAULTS,
+        ...stored,
+        channels: { ...DEFAULTS.channels, ...stored.channels },
+        drumMap: migrated
+          ? drumMapOf({ ...DEFAULT_DRUM_NOTES, ...drumNotes })
+          : readDrumMap(stored.drumMap ?? DEFAULTS.drumMap),
+      },
+      migrated,
     };
   } catch {
-    return DEFAULTS;
+    return { prefs: DEFAULTS, migrated: false };
   }
 }
 
 export class MidiSettings {
   #internal = $state(true);
   #channels: Channels = $state.raw(DEFAULT_CHANNELS);
-  #drumNotes: DrumNotes = $state.raw(DEFAULT_DRUM_NOTES);
+  #drumMap: DrumMap = $state.raw(DEFAULTS.drumMap);
+  #drumNotes: DrumNotes = $derived(drumNotesOf(this.#drumMap));
   #clock = $state(false);
   #thru = $state(false);
   #thruChannel = $state(1);
@@ -71,15 +130,16 @@ export class MidiSettings {
   outPort: MidiPort | null = $state.raw(null);
 
   constructor() {
-    const stored = load();
+    const { prefs: stored, migrated } = load();
     this.#internal = stored.internal;
     this.#channels = stored.channels;
-    this.#drumNotes = stored.drumNotes;
+    this.#drumMap = stored.drumMap;
     this.#clock = stored.clock;
     this.#thru = stored.thru;
     this.#thruChannel = stored.thruChannel;
     this.#outPortId = stored.outPortId;
     this.#inPortId = stored.inPortId;
+    if (migrated) this.#save();
   }
 
   get internal(): boolean {
@@ -98,12 +158,21 @@ export class MidiSettings {
     this.#save();
   }
 
+  /** The drum notes as webmidi keeps them: a General MIDI note to the note it goes out as. */
+  get drumMap(): DrumMap {
+    return this.#drumMap;
+  }
+  set drumMap(value: DrumMap) {
+    this.#drumMap = value;
+    this.#save();
+  }
+
+  /** The note each drum sound goes out as, a view of `drumMap`; set, it changes the map to match (`drumMapOf`). */
   get drumNotes(): DrumNotes {
     return this.#drumNotes;
   }
   set drumNotes(value: DrumNotes) {
-    this.#drumNotes = value;
-    this.#save();
+    this.drumMap = drumMapOf(value, this.#drumMap);
   }
 
   get clock(): boolean {
@@ -150,7 +219,7 @@ export class MidiSettings {
     const stored: StoredPrefs = {
       internal: this.#internal,
       channels: this.#channels,
-      drumNotes: this.#drumNotes,
+      drumMap: this.#drumMap,
       clock: this.#clock,
       thru: this.#thru,
       thruChannel: this.#thruChannel,

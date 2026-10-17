@@ -408,7 +408,7 @@ describe('the app', () => {
       await renderBand();
       await pull('Sound');
       await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
-      await fireEvent.change(screen.getByRole('combobox', { name: 'Listen to input' }), {
+      await fireEvent.change(await screen.findByRole('combobox', { name: 'Listen to input' }), {
         target: { value: 'all' },
       });
 
@@ -470,7 +470,7 @@ describe('the app', () => {
       await renderBand();
       await pull('Sound');
       await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
-      await fireEvent.change(screen.getByRole('combobox', { name: 'Send to output' }), {
+      await fireEvent.change(await screen.findByRole('combobox', { name: 'Send to output' }), {
         target: { value: 'out-1' },
       });
       await fireEvent.keyDown(window, { key: 'a' }); // creates the output, sending a note on

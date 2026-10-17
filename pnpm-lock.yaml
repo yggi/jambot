@@ -75,6 +75,9 @@ importers:
       '@jambot/theory':
         specifier: workspace:*
         version: link:../../packages/theory
+      '@yggi/webmidi':
+        specifier: github:yggi/webmidi#v0.1.0
+        version: https://codeload.github.com/yggi/webmidi/tar.gz/d409e3d41bdea812e119ab7d226020b3f503be51
     devDependencies:
       '@jambot/lobby':
         specifier: workspace:*
@@ -1393,6 +1396,11 @@ packages:
   '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/d11dc10e837c3e4621904fc80041b6a142e24fca':
     resolution: {tarball: https://codeload.github.com/yggi/cells/tar.gz/d11dc10e837c3e4621904fc80041b6a142e24fca}
     version: 0.2.0
+    engines: {node: '>=22'}
+
+  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/d409e3d41bdea812e119ab7d226020b3f503be51':
+    resolution: {tarball: https://codeload.github.com/yggi/webmidi/tar.gz/d409e3d41bdea812e119ab7d226020b3f503be51}
+    version: 0.1.0
     engines: {node: '>=22'}
 
   acorn-jsx@5.3.2:
@@ -4358,6 +4366,8 @@ snapshots:
   '@vitest/spy@5.0.2': {}
 
   '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/d11dc10e837c3e4621904fc80041b6a142e24fca': {}
+
+  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/d409e3d41bdea812e119ab7d226020b3f503be51': {}
 
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:

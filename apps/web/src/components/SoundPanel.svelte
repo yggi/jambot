@@ -10,9 +10,9 @@
 -->
 <script lang="ts">
   import type { DrumSound } from '@jambot/engine';
-  import type { MidiAccess, PortOption } from '../midi/access.ts';
-  import type { Channels, DrumNotes } from '../audio/midi-out.ts';
-  import { DRUM_NOTE_PRESETS, presetNameOf } from '../midi/drum-presets.ts';
+  import { DRUM_PRESETS, type PortOption, presetNameOf } from '@yggi/webmidi/core';
+  import type { MidiAccess } from '@yggi/webmidi/web';
+  import type { Channels } from '../audio/midi-out.ts';
   import type { MidiSettings } from '../midi/settings.svelte.ts';
   import Group from './Group.svelte';
 
@@ -72,9 +72,15 @@
     settings.drumNotes = { ...settings.drumNotes, [sound]: clampNote(value) };
   }
 
+  /** The preset the drum notes are, or '' for a map edited by hand (webmidi names it 'Custom'). */
+  const drumPreset = $derived.by(() => {
+    const name = presetNameOf(settings.drumMap);
+    return name in DRUM_PRESETS ? name : '';
+  });
+
   function setDrumPreset(name: string) {
-    const preset: DrumNotes | undefined = DRUM_NOTE_PRESETS[name];
-    if (preset) settings.drumNotes = { ...preset };
+    const preset = DRUM_PRESETS[name];
+    if (preset) settings.drumMap = { ...preset };
   }
 
   function setOutPort(id: string) {
@@ -149,12 +155,9 @@
         <p class="label">Drum notes</p>
         <label>
           Preset
-          <select
-            value={presetNameOf(settings.drumNotes) ?? ''}
-            onchange={(e) => setDrumPreset(e.currentTarget.value)}
-          >
+          <select value={drumPreset} onchange={(e) => setDrumPreset(e.currentTarget.value)}>
             <option value="" disabled>Custom</option>
-            {#each Object.keys(DRUM_NOTE_PRESETS) as name (name)}
+            {#each Object.keys(DRUM_PRESETS) as name (name)}
               <option value={name}>{name}</option>
             {/each}
           </select>

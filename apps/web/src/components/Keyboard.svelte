@@ -7,7 +7,8 @@
   (#209); amber is the band's own lead heard sounding it.
 -->
 <script lang="ts">
-  import { KEYBOARD_HIGH, KEYBOARD_LOW, type KeyLayout, keyboardLayout } from '../midi/surfaces.ts';
+  import { type KeyLayout, keyboardLayout } from '@yggi/webmidi/core';
+  import { KEYBOARD_HIGH, KEYBOARD_LOW } from '../keyboard.ts';
 
   interface Props {
     /** Notes currently held, from any source, so a key lights whoever struck it. */

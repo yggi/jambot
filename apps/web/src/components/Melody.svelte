@@ -9,7 +9,8 @@
 -->
 <script lang="ts">
   import type { BarView, ChordView } from '../hud.ts';
-  import { KEYBOARD_HIGH, KEYBOARD_LOW, keyboardLayout, scaleLayout } from '../midi/surfaces.ts';
+  import { keyboardLayout } from '@yggi/webmidi/core';
+  import { KEYBOARD_HIGH, KEYBOARD_LOW, scaleLayout } from '../keyboard.ts';
   import { rollBars, rollNotes } from '../rollView.ts';
   import type { TracksView } from '../tracks.ts';
   import Keyboard from './Keyboard.svelte';
