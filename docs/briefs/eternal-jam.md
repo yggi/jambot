@@ -34,7 +34,7 @@ Cell studio keeps a twin of this page at `docs/notes/eternal-jam.md`.
 One loop, four roles, one language:
 
 - **The composer** (Jambot) runs without end.
-  It writes the score as cells text, steered by the jam's style vector.
+  It writes the score as cells text, steered by the jam's style vector, and it selects rather than generates: it fills an empty workbench by asking the repository for every part, the meter first, and generates only when a query finds nothing (yggi/cells decision 043).
   It keeps a fading short-term workbench of cells and queries a long-term repository.
 - **The conductor** holds the session to a shared ruleset.
   `free()` is each performer's licence.
@@ -71,7 +71,7 @@ Both projects were already moving toward it, each from its own side:
    A take goes to the memory and the repository, never back into the composer's text, which is C10's displacement.
 5. **Generators: cells is the output first.**
    Cells' generators make braids and events, not new cells or forms.
-   Jambot's composer is the generator now; generators written in cells (Cell studio's song machine) come later and block nothing.
+   Jambot's generators are the fallback on a miss: a query that finds nothing generates a fragment, files it under the style it was made for, and uses it, so they seed the repository and fade as it fills (yggi/cells decision 043); generators written in cells (Cell studio's song machine) come later and block nothing.
 6. **One clock, owned by the host.**
    The host states `&bar` (meter, tempo, swing) for each section, and tempo-free fragments are spliced onto it, as cells already does with `step=16n`.
 7. **Strudel is a superset in its mini-notation and its parameter names**, not in its pattern functions (no `.every`, `.jux`, `.off`, polymeter, samples).
@@ -90,7 +90,7 @@ Both projects were already moving toward it, each from its own side:
 | Identity                | `canonicalOp`; content-addressing discussed on #287                                                                                           | Normalise planned (its #244, #151)                                                                                          | none built                       |
 | Repository              | nothing outlives a song                                                                                                                       | pieces in `localStorage`, 77 examples, 88 Bach MIDI files                                                                   | none                             |
 | Short-term memory       | `fading.ts`, `history.ts`, the Muse's memory                                                                                                  | none                                                                                                                        | holds motifs, not cells          |
-| Host and client         | protocol 9 and the lobby; `WrittenBar` JSON on the wire                                                                                       | none                                                                                                                        | the wire isn't text              |
+| Host and client         | protocol 10 and the lobby; `WrittenBar` JSON on the wire                                                                                       | none                                                                                                                        | the wire isn't text              |
 | Homeostasis             | the observable (share of bars recognised, E20, E22), the knob (the variation rate), each genre's edge by ear                                  | none                                                                                                                        | no controller                    |
 | Radio                   | the style never moves alone; the key drifts with no home (Q11)                                                                                | the idea (its #234)                                                                                                         | none                             |
 
@@ -131,7 +131,7 @@ Each phase depends on the one before, except radio mode, which can start now.
    The band writes cells text a section at a time and plays it through the cells engine (#63 step 5).
    Q1a's round trip moves onto cells; the lead and the snare come in as named cells.
    Porting the band shows what cells lacks: likely a section's meter, harmony as numerals over a key, open fragments that leave `&key` and `&bar` to the host, and imports or a library by hash.
-   The session protocol carries cells text (protocol 10), and Cell studio can load a stream from outside, to join a jam as a client and a view.
+   The session protocol carries cells text (a protocol of its own), and Cell studio can load a stream from outside, to join a jam as a client and a view.
 4. **A first repository.**
    A fragment is cells text with an index entry: its hashes, the operator back from the canonical form, the partial style reading with confidences, facets, origin, time and id.
    Seeded from Cell studio's examples, the folded Bach, and Jambot's own output, with POP909 or Lakh once their licences are checked.
