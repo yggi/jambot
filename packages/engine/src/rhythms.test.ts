@@ -15,7 +15,15 @@ import {
   rhythmRepository,
 } from './rhythms.ts';
 import { pullOf } from './novelty.ts';
-import { PRESETS } from './style.ts';
+import { PRESETS, holding } from './style.ts';
+import { holdingSwing } from './swing.ts';
+import {
+  LOOKAHEAD,
+  type TransportCarried,
+  type TransportEnv,
+  forecast,
+  transport,
+} from './transport.ts';
 
 /** A preset held at entropy 0.3, 32 bars at a seed, the meter the repository's (as the app plays), with the rhythm or without (main). */
 function run(
@@ -270,5 +278,34 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
           if (id) repository.read(id, bench.meter);
       }
     expect(fits).toBe(warmed);
+  });
+
+  it('leaves a song no fit to test in its first section once the forecast from its start has run (#408)', () => {
+    // The player keeps that forecast while stopped, at load and at every control moved, so a song starts warm.
+    for (const preset of PRESETS) {
+      let fits = 0;
+      const fit = cellsFit();
+      const rhythms = rhythmRepository(undefined, (fragment, workbench) => {
+        fits++;
+        return fit(fragment, workbench);
+      });
+      const env: TransportEnv = {
+        seed: 0,
+        start: 1,
+        track: holding({ ...preset.style, entropy: 0.3 }),
+        swing: holdingSwing(preset.swing),
+        wish: { tonic: null, mode: preset.mode, melodic: null },
+        repository: METER_REPOSITORY,
+        rhythms,
+        layer: EMPTY_LAYER,
+      };
+      forecast(env, null, 48);
+      const forecast48 = fits;
+      expect([preset.name, forecast48 > 0]).toEqual([preset.name, true]);
+      let carried: TransportCarried | null = transport.initial;
+      for (let now = env.start - 0.1; (carried?.nextBar ?? 0) < 8; now += 0.1)
+        carried = transport.advance(env, carried, { now, until: now + LOOKAHEAD }).carried;
+      expect([preset.name, fits]).toEqual([preset.name, forecast48]);
+    }
   });
 });
