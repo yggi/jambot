@@ -12,6 +12,7 @@ import {
   composedRhythm,
   sectionHits,
 } from './rhythm-query.ts';
+import { pullOf } from './novelty.ts';
 import { INITIAL_STYLE } from './style.ts';
 
 const ranked = (distances: Record<string, number>): FoundRhythm[] =>
@@ -128,6 +129,37 @@ describe('the composer asks the repository for a rhythm (#397)', () => {
   it('takes the margins a repository names in place of its own, as an experiment does', () => {
     const repository = { ...at({ d2: 0.1, d1: 0.11 }), margins: { miss: 0.05, hold: 0, layer: 0 } };
     expect(composedRhythm(repository, INITIAL_STYLE, bench, { rhythmFragment: 'd1' })).toEqual({});
+  });
+
+  it('asks the rhythm and the line chosen with it with the pull given (#389), and a section’s with the pull its entropy sets', () => {
+    const pulls: unknown[] = [];
+    const base = at({ d1: 0 }, { c1: 0.05 });
+    const repository: RhythmRepository = {
+      ...base,
+      query: (point, given, layer, chosen, reach, pull) => {
+        pulls.push(['query', pull]);
+        return base.query(point, given, layer, chosen, reach, pull);
+      },
+      layered: (point, given, chosen, layer, reach, more, pull) => {
+        pulls.push(['layered', pull]);
+        return base.layered(point, given, chosen, layer, reach, more, pull);
+      },
+    };
+    composedRhythm(repository, INITIAL_STYLE, bench, null, undefined, [], [], 0.05);
+    expect(pulls).toEqual([
+      ['query', 0.05],
+      ['layered', 0.05],
+    ]);
+    pulls.length = 0;
+    sectionRhythm(
+      { rhythms: repository, style: { ...INITIAL_STYLE, entropy: 1 } },
+      { meter: SONG_METER, swing: '16n' },
+      null,
+    );
+    expect(pulls).toEqual([
+      ['query', pullOf(1)],
+      ['layered', pullOf(1)],
+    ]);
   });
 
   it('asks nothing with no repository, as before #397', () => {

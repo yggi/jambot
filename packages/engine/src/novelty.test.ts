@@ -6,12 +6,14 @@ import {
   BORED,
   GROOVE_ANCHORS,
   GROOVE_RUNGS,
+  PULL_AT_REPEAT,
   type Lineage,
   NO_BOREDOM,
   VARIES,
   boredAfter,
   familyOf,
   lineageOf,
+  pullOf,
   rejectedOf,
   rungOf,
   variations,
@@ -19,8 +21,10 @@ import {
   wantsVariation,
 } from './novelty.ts';
 import type { FragmentHit } from './rhythm-query.ts';
+import { quantize } from './random.ts';
 import { readRhythm, rhythmRepository } from './rhythms.ts';
 import { EMPTY_LAYER } from './layer.ts';
+import { CO_USE_PULL } from '@yggi/cells/repository/fragments';
 
 const range = (n: number) => [...Array(n).keys()];
 const hit = (role: string, note: number, step: number, velocity: number): FragmentHit => ({
@@ -228,5 +232,16 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
     expect(familyOf(layer, g)).toEqual([g, v, w]);
     expect(familyOf(layer, h)).toEqual([h]);
     expect(familyOf(layer, 'Funk drums')).toEqual(['Funk drums']);
+  });
+});
+
+describe('how strongly the composer keeps a group: the pull of use together from its place on the ladder (#389)', () => {
+  it('pulls twice cells’ default at entropy 0 (repeat), cells’ default at 0.5, and not at all at 1 (fetch far): linear between, on the draws’ grid', () => {
+    expect(PULL_AT_REPEAT).toBe(2 * CO_USE_PULL);
+    expect([pullOf(0), pullOf(0.5), pullOf(1)]).toEqual([quantize(0.2), quantize(CO_USE_PULL), 0]);
+    expect(pullOf(0.3)).toBe(quantize(0.14));
+    const pulls = range(101).map((i) => pullOf(i / 100));
+    expect(pulls.every((p, i) => i === 0 || p <= pulls[i - 1]!)).toBe(true);
+    expect(pulls.every((p) => p >= 0)).toBe(true);
   });
 });

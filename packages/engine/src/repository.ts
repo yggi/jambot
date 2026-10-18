@@ -111,7 +111,7 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
   const all = played.size + RHYTHM_FRAGMENTS.length;
   return {
     fragments: played,
-    query: (point, layer, chosen = []) =>
+    query: (point, layer, chosen = [], pull) =>
       (layer
         ? cells
             .query(
@@ -122,6 +122,7 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
                 facet: 'meter',
                 layer,
                 ...(chosen.length ? { chosen } : {}),
+                ...(pull === undefined ? {} : { pull }),
               },
             )
             .filter((found) => played.has(found.fragment.id))

@@ -82,8 +82,8 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9420', '0.9250']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-1.70', '1.64']);
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9420', '0.9249']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-1.71', '1.64']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 

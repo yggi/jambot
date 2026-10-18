@@ -10,6 +10,7 @@ import {
   stylePoint,
 } from './meter-query.ts';
 import { type SectionMeter, sectionMeter } from './plan.ts';
+import { pullOf } from './novelty.ts';
 import { INITIAL_STYLE } from './style.ts';
 
 const fragment = (id: string, share = 0.5): MeterFragment => ({
@@ -54,6 +55,35 @@ describe('the composer asks the repository for a meter (#375)', () => {
       composedMeter(at({ b: MISS_DISTANCE - 0.01, a: MISS_DISTANCE + 0.005 }), INITIAL_STYLE, 'a')
         ?.id,
     ).toBe('b');
+  });
+});
+
+describe('the composer’s pull on the meter query (#389)', () => {
+  it('asks with the pull given, and the layer and chosen with it', () => {
+    const asked: unknown[][] = [];
+    const repository: MeterRepository = {
+      ...at({ a: 0 }),
+      query: (...args) => {
+        asked.push(args);
+        return [{ id: 'a', distance: 0 }];
+      },
+    };
+    composedMeter(repository, INITIAL_STYLE, null, undefined, ['x'], 0.05);
+    expect(asked).toEqual([[stylePoint(INITIAL_STYLE), undefined, ['x'], 0.05]]);
+  });
+
+  it('asks a section’s meter with the pull its entropy sets (`pullOf`)', () => {
+    const pulls: (number | undefined)[] = [];
+    const repository: MeterRepository = {
+      ...at({ a: 0 }),
+      query: (_point, _layer, _chosen, pull) => {
+        pulls.push(pull);
+        return [{ id: 'a', distance: 0 }];
+      },
+    };
+    for (const entropy of [0, 0.5, 1])
+      sectionMeter({ repository, style: { ...INITIAL_STYLE, entropy } }, null);
+    expect(pulls).toEqual([0, 0.5, 1].map(pullOf));
   });
 });
 

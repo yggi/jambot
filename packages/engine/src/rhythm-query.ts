@@ -100,6 +100,7 @@ export interface RhythmRepository {
    * where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory and the
    * section's meter, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046). A fragment the
    * layer filed is among them only within `reach` of the point, so a fit is tested only for one that could be taken.
+   * Use together pulls as strongly as `pull` (cells' query option; its default where none, #389).
    */
   query(
     point: StylePoint,
@@ -107,8 +108,9 @@ export interface RhythmRepository {
     layer?: LearnedLayer,
     chosen?: readonly string[],
     reach?: number,
+    pull?: number,
   ): readonly FoundRhythm[];
-  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen`, and with `more` chosen beside it, pulls; none farther than `reach`, where it is given, so a fit is tested only for those that can be taken. */
+  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen`, and with `more` chosen beside it, pulls; none farther than `reach`, where it is given, so a fit is tested only for those that can be taken; use together pulling as strongly as `pull`, as for `query`. */
   layered(
     point: StylePoint,
     bench: RhythmBench,
@@ -116,6 +118,7 @@ export interface RhythmRepository {
     layer?: LearnedLayer,
     reach?: number,
     more?: readonly string[],
+    pull?: number,
   ): readonly FoundRhythm[];
   /** The layer after the composer kept these fragments together at `point`: a use of each there, and of the pair (cells' `useFragments`), and each counted as used together with those `alongside` (the section's meter), which it doesn't move; within its cap. None where the repository learns nothing. */
   used?(
@@ -202,7 +205,8 @@ function heldNearest(
  * `chosen` (the composer's short-term memory and the section's meter) pull
  * the fragments used with them, as cells' query weighs use together. Those
  * `rejected` (grooves it has tired of, `novelty.ts`) it leaves out of what
- * the repository returns, so the next nearest is taken, or none.
+ * the repository returns, so the next nearest is taken, or none. It asks
+ * both with `pull`, how strongly use together pulls (#389, `pullOf`).
  */
 export function composedRhythm(
   repository: RhythmRepository,
@@ -212,6 +216,7 @@ export function composedRhythm(
   layer?: LearnedLayer,
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
+  pull?: number,
 ): SectionRhythm {
   const point = stylePoint(style);
   const {
@@ -220,7 +225,9 @@ export function composedRhythm(
     layer: reach,
   } = repository.margins ?? { miss: RHYTHM_MISS, hold: RHYTHM_HOLD, layer: LAYER_DISTANCE };
   const rhythm = heldNearest(
-    repository.query(point, bench, layer, chosen, miss).filter((f) => !rejected.includes(f.id)),
+    repository
+      .query(point, bench, layer, chosen, miss, pull)
+      .filter((f) => !rejected.includes(f.id)),
     playing?.rhythmFragment,
     miss,
     hold,
@@ -228,7 +235,7 @@ export function composedRhythm(
   if (rhythm === undefined) return {};
   // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
   const lines = repository
-    .layered(point, bench, rhythm, layer, reach + hold, chosen)
+    .layered(point, bench, rhythm, layer, reach + hold, chosen, pull)
     .filter((f) => f.distance <= reach + hold)
     .filter((f) => {
       const read = repository.read(f.id, bench.meter, layer);

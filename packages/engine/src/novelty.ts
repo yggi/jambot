@@ -80,6 +80,26 @@ export const BORED = 3;
 /** The rungs a groove climbs before it is rejected: repeat, then vary. */
 export const GROOVE_RUNGS = 2;
 
+/**
+ * How strongly use together pulls the composer's queries (cells' `pull`,
+ * decision 046) at the foot of the ladder, entropy 0, where it repeats:
+ * twice cells' default (`CO_USE_PULL`, 0.1), so a group used together ten
+ * times (known) pulls 0.02 in distance there, the meter's and the rhythm's
+ * hold (`METER_HOLD`).
+ */
+export const PULL_AT_REPEAT = 0.2;
+
+/**
+ * The pull of use together from the composer's place on the ladder (#389,
+ * decision 043's point 5: strong to repeat and vary, weak or none to fetch
+ * nearby and far), which entropy sets until the homeostat measures
+ * recognition (#237): from `PULL_AT_REPEAT` at entropy 0 down to none at 1,
+ * in a line, so entropy 0.5 pulls as cells does where it is told nothing;
+ * on the draws' grid.
+ */
+export const pullOf = (entropy: number): number =>
+  quantize(PULL_AT_REPEAT * Math.min(1, Math.max(0, 1 - entropy)));
+
 /** The lines no operator touches: they carry the meter. */
 export const GROOVE_ANCHORS: readonly string[] = ['kick', 'backbeat'];
 

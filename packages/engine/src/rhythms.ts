@@ -169,13 +169,19 @@ export function rhythmRepository(
     layer: LearnedLayer | undefined,
     chosen: readonly string[],
     reach: number,
+    pull: number | undefined,
   ) =>
     cells
       .query(
         point,
         fragments.length + METER_FRAGMENTS.length + (layer?.filed.length ?? 0),
         {},
-        { facet: 'rhythm', ...(layer ? { layer } : {}), ...(chosen.length ? { chosen } : {}) },
+        {
+          facet: 'rhythm',
+          ...(layer ? { layer } : {}),
+          ...(chosen.length ? { chosen } : {}),
+          ...(pull === undefined ? {} : { pull }),
+        },
       )
       .filter((f) => texts.has(f.fragment.id) || f.distance <= reach)
       .map((f) => ({ id: f.fragment.id, text: f.fragment.text, distance: f.distance }));
@@ -185,20 +191,20 @@ export function rhythmRepository(
     return reads.get(key)!;
   };
   return {
-    query(point, bench, layer, chosen = [], reach = Infinity) {
+    query(point, bench, layer, chosen = [], reach = Infinity, pull) {
       const workbench = benchOf(bench);
       return workbench === null
         ? []
-        : ranked(point, layer, chosen, reach)
+        : ranked(point, layer, chosen, reach, pull)
             .filter((f) => fits(f.text, workbench))
             .map(({ id, distance }) => ({ id, distance }));
     },
-    layered(point, bench, chosen, layer, reach = Infinity, more = []) {
+    layered(point, bench, chosen, layer, reach = Infinity, more = [], pull) {
       const workbench = benchOf(bench);
       const chosenText = textOf(chosen, layer);
       if (workbench === null || chosenText === undefined) return [];
       const withIt = withItOf(chosenText, workbench);
-      return ranked(point, layer, [chosen, ...more], reach)
+      return ranked(point, layer, [chosen, ...more], reach, pull)
         .filter(
           (f) => f.distance <= reach && withIt.layers.includes(f.id) && fits(f.text, withIt.text),
         )
