@@ -7,14 +7,12 @@
  * A fragment the band can't play yet is left out, and says why: a meter
  * that is none of the band's named meters (`METERS`), a swing on more than
  * one level, or an articulation by level (`legato=`), which the band's
- * dynamics don't read. Of cells' thirteen, ten are played: the alla breve
- * (two beats of a half), 2/4 (a bar of 8 steps) and 10/8 (cells groups it
- * 3+2+3+2, Jambot 3+3+2+2) are not.
+ * dynamics don't read. Of cells' thirteen, eleven are played: the alla breve
+ * (two beats of a half) and 2/4 (a bar of 8 steps) are not.
  *
- * The engine's barrel leaves it out, and a host imports it as
- * `@jambot/engine/repository` (#384): cells shipped only TypeScript before
- * v0.5.0, which node doesn't strip under `node_modules`. Node imports cells
- * since v0.5.0 (cells decision 045), so it can join the barrel (#386).
+ * The engine's barrel exports it, so a host that imports the engine loads
+ * cells at start: node imports cells from `node_modules` through its
+ * JavaScript build (cells decision 045).
  */
 
 import { METERS, type Meter } from '@jambot/theory';

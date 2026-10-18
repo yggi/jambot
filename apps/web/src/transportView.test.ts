@@ -11,7 +11,7 @@ describe('transportCells', () => {
     expect(transportCells(METERS['6/8'])).toEqual([3, 3]);
     expect(transportCells(METERS['7/8'])).toEqual([3, 2, 2]);
     expect(transportCells(METERS['9/8'])).toEqual([3, 3, 3]);
-    expect(transportCells(METERS['10/8'])).toEqual([3, 3, 2, 2]);
+    expect(transportCells(METERS['10/8'])).toEqual([3, 2, 3, 2]);
     expect(transportCells(METERS['12/8'])).toEqual([3, 3, 3, 3]);
   });
 

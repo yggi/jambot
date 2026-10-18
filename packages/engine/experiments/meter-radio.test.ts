@@ -14,24 +14,24 @@ if (process.env.E34_REPORT) {
 }
 
 describe('the composer asks the repository for its meter while the radio walks (E34)', () => {
-  it('changes the meter only where a section starts, 201 times in 120 hours, and never back at the next section (E34)', () => {
+  it('changes the meter only where a section starts, 211 times in 120 hours, and never back at the next section (E34)', () => {
     expect(RUNS).toHaveLength(40);
-    expect(changes).toHaveLength(201);
+    expect(changes).toHaveLength(211);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
     expect(RUNS.flatMap(wentBack)).toEqual([]);
-    expect(sections).toBe(26773);
+    expect(sections).toBe(26691);
   });
 
-  it('goes back 264 times with no margin for the meter playing, and twice with half of it (E34)', () => {
+  it('goes back 271 times with no margin for the meter playing, and twice with half of it (E34)', () => {
     const back = (hold: number) =>
       meterRuns(undefined, undefined, { miss: MISS_DISTANCE, hold }).flatMap(wentBack).length;
-    expect([back(0), back(METER_HOLD / 2)]).toEqual([264, 2]);
+    expect([back(0), back(METER_HOLD / 2)]).toEqual([271, 2]);
   });
 
   it('misses in 201 of the radio’s sections, 10 % of the axes’ space, toward its corners (E34)', () => {
     expect(RUNS.reduce((n, r) => n + r.missed, 0)).toBe(201);
     const grid = gridDistances();
-    expect(missShare(grid).toFixed(4)).toBe('0.1040');
+    expect(missShare(grid).toFixed(4)).toBe('0.1027');
     expect(grid.reduce((a, d) => Math.max(a, d), 0).toFixed(3)).toBe('0.466');
   });
 
