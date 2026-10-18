@@ -4,6 +4,9 @@ import {
   LOOKAHEAD,
   METER_REPOSITORY,
   type MuseOutput,
+  PRESETS,
+  RHYTHM_REPOSITORY,
+  type Style,
   type Remembered,
   type SongClock,
   type TransportEnv,
@@ -42,7 +45,7 @@ const shapeOf = (values: readonly unknown[]) =>
  * bars are 20 steps, so 75 seconds hold the bars a minute of 4/4 does, enough
  * for the Muse to forget a motif.
  */
-function travelling(): {
+function travelling(style: Style = { ...INITIAL_STYLE, energy: 1, harm: 1 }): {
   bars: SentBar[];
   judgements: Judgement[];
   log: MuseOutput[];
@@ -51,10 +54,12 @@ function travelling(): {
   const env: TransportEnv = {
     seed: 3,
     start: 0,
-    track: holding({ ...INITIAL_STYLE, energy: 1, harm: 1 }),
+    track: holding(style),
     wish: { tonic: null, mode: 'aeolian', melodic: null },
-    // No meter asked for: each section's plan says the repository's meter and its share (#375).
+    // No meter asked for: each section's plan says the repository's meter and its share (#375),
+    // and the rhythm the composer finds that fits it, with its clave where one layers (#397).
     repository: METER_REPOSITORY,
+    rhythms: RHYTHM_REPOSITORY,
   };
   // The motif in bar 2, and again in bar 3, so the log carries a recognition: each
   // bar where the song's clock starts it, in whatever meter the repository gives.
@@ -190,7 +195,14 @@ describe('the session protocol', () => {
     // A bar, a judgement and the Muse's log carry the engine's own types. If this fails,
     // their shape changed: bump PROTOCOL, so a host and a client of
     // different builds refuse each other, and record the shape here.
-    const { bars, judgements, log, memory } = travelling();
+    const { bars: tenEight, judgements, log, memory } = travelling();
+    // 10/8 fits no rhythm: Funk's point, in 4/4, plays its drum bar and the rumba clave (#397).
+    const funk = travelling({
+      ...PRESETS.find((p) => p.name === 'Funk')!.style,
+      entropy: 0.3,
+    }).bars;
+    expect(funk.some((b) => b.bar.plan.claveFragment)).toBe(true);
+    const bars = [...tenEight, ...funk];
     expect(memory.length).toBeGreaterThan(0);
     expect(log.some((l) => l.recognised.length > 0)).toBe(true);
     expect({
@@ -224,7 +236,7 @@ describe('the session protocol', () => {
 
 /** The shapes of version 11 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements and the Muse's log show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375). */
 const SHAPES = {
-  protocol: 11,
+  protocol: 12,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -253,12 +265,14 @@ const SHAPES = {
     'bar.offer.motif.onsets[]: number',
     'bar.offer.source: string',
     'bar.offer: null',
+    'bar.plan.claveFragment: string',
     'bar.plan.key.mode: string',
     'bar.plan.key.tonic: number',
     'bar.plan.melodic: string',
     'bar.plan.meter.cycle: number',
     'bar.plan.meter.heights[]: number',
     'bar.plan.meterFragment: string',
+    'bar.plan.rhythmFragment: string',
     'bar.plan.section.index: number',
     'bar.plan.section.type: string',
     'bar.plan.share: number',
@@ -271,6 +285,7 @@ const SHAPES = {
     'bar.plan.theme.kind: string',
     'bar.plan.theme.mode: string',
     'bar.plan.theme.vamp: null',
+    'bar.plan.theme.vamp: number',
     'bar.seed: number',
     'bar.style.artic: number',
     'bar.style.bpm: number',

@@ -1,7 +1,8 @@
 /**
  * The built-in drum kit: the General MIDI drum notes the band plays, as Web
  * Audio voices. Kick and snare are synthesised; rim, hats and ride are
- * filtered noise. These are the prototype's voices.
+ * filtered noise. These are the prototype's voices; the claves (75, #397)
+ * are noise too, a narrow band, short and woody.
  */
 
 export interface DrumKit {
@@ -75,6 +76,7 @@ export function drumKit(ctx: BaseAudioContext, out: AudioNode): DrumKit {
       if (note === 36) kick(t, v);
       else if (note === 38) snare(t, v);
       else if (note === 37) metal(t, 0.35 * v, 2600, 0.035, 4);
+      else if (note === 75) metal(t, 0.4 * v, 2100, 0.025, 14);
       else if (note === 51) metal(t, 0.13 * v, 5200, 0.45, 1.2);
       else if (note === 44) metal(t, 0.1 * v, 7500, 0.03);
       else metal(t, 0.22 * v, 7000, note === 46 ? 0.3 : 0.045);

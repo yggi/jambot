@@ -40,6 +40,7 @@ function roleAccent(env: BarEnv, role: DrumRole, step: number): number {
     case 'pedal':
       return 58;
     case 'euclid':
+    case 'clave':
       return 72;
     case 'fill': {
       const from = type === 'build' ? half : lateOf(steps);

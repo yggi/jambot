@@ -40,9 +40,12 @@ import type { ForecastDelta } from './forecast.ts';
  * lengths. Version 11 has a section's plan say the meter fragment the
  * composer took from the repository and the share it swings at (`Plan.share`,
  * `Plan.meterFragment`, #375), which a client's transport swings by in place
- * of the swing track's.
+ * of the swing track's. Version 12 has it say the rhythm fragment the drummer
+ * plays the section from and the clave chosen with it (`Plan.rhythmFragment`,
+ * `Plan.claveFragment`, #397), and a drum hit may be the clave's
+ * (`DrumRole`'s `clave`), which a client's performer accents.
  */
-export const PROTOCOL = 11;
+export const PROTOCOL = 12;
 
 /**
  * A bar as a host wrote it: everything its parts read, and the notes they

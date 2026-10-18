@@ -1,0 +1,199 @@
+/**
+ * The composer's rhythm, asked of a repository at a section's start, after
+ * its meter (#397; E36, ruled by the owner on 2026-10-18; yggi/cells
+ * decisions 046 and 047).
+ *
+ * A repository holds rhythm fragments, each cells text the band reads into
+ * hits a role a line (`FragmentHit`). The composer asks it at the style's
+ * point (`stylePoint`, as the meter is asked), with the section's meter as
+ * the workbench (`RhythmBench`): the repository ranks only the fragments
+ * that fit that meter (cells' fit). The composer takes the nearest, with the
+ * meter's two rules (`composedRhythm`):
+ *
+ * - **a miss**: where no fragment fits, or the nearest that fits lies past
+ *   `RHYTHM_MISS`, it takes none, and the drummer invents as it does with no
+ *   repository;
+ * - **the rhythm playing holds**: another is taken only where it is nearer by
+ *   more than `RHYTHM_HOLD`.
+ *
+ * Beside the rhythm, a fragment chosen with it (cells decision 046's use
+ * together): the nearest that fits with the rhythm on the workbench, renames
+ * none of its names, so it layers as a line of its own, and names no role of
+ * the drummer's (the library's claves), within `LAYER_DISTANCE`; held as the
+ * rhythm is, and the clave playing also held `RHYTHM_HOLD` past that
+ * distance, so a style walking along it doesn't drop the clave at one
+ * section and take it back at the next (E37: 15 such in 40 hours of the
+ * radio's walk without it, none with it).
+ *
+ * A query is handed what the host has learned, where it was given a layer
+ * (#398; cells decision 048), and the fragments the composer keeps are a use
+ * of each at the section's point and of the pair together (`used`), which
+ * the plans carry on as they carry the meter's.
+ *
+ * How the drummer plays from them is `groove.ts`. This module is pure and
+ * knows no cells: the repository is given, built from cells' fragments by
+ * `rhythms.ts`.
+ */
+
+import type { Meter } from '@jambot/theory';
+import { DRUM_ROLES, type DrumRole } from './events.ts';
+import type { LearnedLayer } from './layer.ts';
+import { METER_HOLD, MISS_DISTANCE, type QueriedStyle, stylePoint } from './meter-query.ts';
+import type { StylePoint } from './meter-query.ts';
+
+/** A hit of a fragment as the band reads it: its line's name, its General MIDI note, its step in its lap, and its velocity. */
+export interface FragmentHit {
+  /** The line's name: one of the drummer's roles, or `clave`. */
+  readonly role: string;
+  readonly note: number;
+  /** Its step from the lap's start: a fragment of two bars counts on into the second. */
+  readonly step: number;
+  readonly velocity: number;
+}
+
+/** A fragment read under a meter, played straight: its hits over its lap, and the bars the lap holds. */
+export interface FragmentRead {
+  readonly bars: number;
+  readonly hits: readonly FragmentHit[];
+}
+
+/** What a rhythm must fit: the section's meter, and the meter fragment it came from, where it came from one. */
+export interface RhythmBench {
+  readonly meter: Meter;
+  readonly meterFragment?: string | undefined;
+}
+
+/** A fragment found, and its distance from the point asked at. */
+export interface FoundRhythm {
+  readonly id: string;
+  readonly distance: number;
+}
+
+/** A repository of rhythms the composer asks (#397). */
+export interface RhythmRepository {
+  /** Every fragment that fits the bench, with its distance from the point, nearest first, with what was learned merged where a layer is given. */
+  query(point: StylePoint, bench: RhythmBench, layer?: LearnedLayer): readonly FoundRhythm[];
+  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen` pulls; none farther than `reach`, where it is given, so a fit is tested only for those that can be taken. */
+  layered(
+    point: StylePoint,
+    bench: RhythmBench,
+    chosen: string,
+    layer?: LearnedLayer,
+    reach?: number,
+  ): readonly FoundRhythm[];
+  /** The layer after the composer kept these fragments together at `point`: a use of each there, and of the pair (cells' `useFragments`), within its cap. None where the repository learns nothing. */
+  used?(layer: LearnedLayer, ids: readonly string[], point: StylePoint): LearnedLayer;
+  /** A fragment's hits under a meter played straight, or null where it can't be read there. */
+  read(id: string, meter: Meter): FragmentRead | null;
+  /**
+   * Work the repository can do ahead, so that asking on these benches costs
+   * only lookups: each step a fit, a union or a read at most, so a host runs
+   * it a step at a time between other work. None where it keeps nothing.
+   */
+  warm?(benches: readonly RhythmBench[]): Iterable<void>;
+  /** The composer's margins, where they are other than `RHYTHM_MISS`, `RHYTHM_HOLD` and `LAYER_DISTANCE`: an experiment tries others. */
+  readonly margins?: { readonly miss: number; readonly hold: number; readonly layer: number };
+}
+
+/** The farthest a rhythm may lie from the style to be taken: the meter's, so a point misses for both by one rule (E36). */
+export const RHYTHM_MISS = MISS_DISTANCE;
+
+/** How much nearer another rhythm must be than the one playing to take its place: the meter's (the owner's ruling on E36). */
+export const RHYTHM_HOLD = METER_HOLD;
+
+/**
+ * The farthest a fragment chosen with the rhythm may lie from the style:
+ * E36 found the claves nearest Bossa nova and Funk 0.025 and 0.069 from
+ * them, Lo-fi hip hop's 0.168, every other preset's 0.26 or more, so 0.1
+ * takes the two a clave was written near and no other.
+ */
+export const LAYER_DISTANCE = 0.1;
+
+/** The drummer's own roles, which a fragment's lines of those names give a pattern to: all but the clave, which plays as a line of its own. */
+export const GROOVE_ROLES: readonly DrumRole[] = DRUM_ROLES.filter((role) => role !== 'clave');
+
+/** Whether a fragment names none of the drummer's roles: a line of its own, as a clave is. */
+export const isOwnLine = (read: FragmentRead): boolean =>
+  read.hits.every((h) => !(GROOVE_ROLES as readonly string[]).includes(h.role));
+
+/** A section's rhythm: the fragment the drummer plays from, and the one chosen with it, by id; none on a miss. */
+export interface SectionRhythm {
+  readonly rhythmFragment?: string;
+  readonly claveFragment?: string;
+}
+
+/**
+ * The nearest of `found` within `miss`, unless `playing` is among them no
+ * farther than `hold` beyond it; the one playing reaches `edge` past `miss`
+ * (0 for the rhythm, as for the meter: a rhythm past the distance gives way).
+ */
+function heldNearest(
+  found: readonly FoundRhythm[],
+  playing: string | undefined,
+  miss: number,
+  hold: number,
+  edge = 0,
+): string | undefined {
+  const nearest = found[0];
+  const held = playing === undefined ? undefined : found.find((f) => f.id === playing);
+  if (held && held.distance <= miss + edge && held.distance - nearest!.distance <= hold)
+    return held.id;
+  return nearest && nearest.distance <= miss ? nearest.id : undefined;
+}
+
+/**
+ * The rhythm the composer takes at a style, on a bench, given the section
+ * before's: the nearest that fits, held as the meter is, none on a miss; and
+ * the line chosen with it, where one layers within `LAYER_DISTANCE`.
+ */
+export function composedRhythm(
+  repository: RhythmRepository,
+  style: QueriedStyle,
+  bench: RhythmBench,
+  playing: SectionRhythm | null,
+  layer?: LearnedLayer,
+): SectionRhythm {
+  const point = stylePoint(style);
+  const {
+    miss,
+    hold,
+    layer: reach,
+  } = repository.margins ?? { miss: RHYTHM_MISS, hold: RHYTHM_HOLD, layer: LAYER_DISTANCE };
+  const rhythm = heldNearest(
+    repository.query(point, bench, layer),
+    playing?.rhythmFragment,
+    miss,
+    hold,
+  );
+  if (rhythm === undefined) return {};
+  // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
+  const lines = repository
+    .layered(point, bench, rhythm, layer, reach + hold)
+    .filter((f) => f.distance <= reach + hold)
+    .filter((f) => {
+      const read = repository.read(f.id, bench.meter);
+      return read !== null && isOwnLine(read);
+    });
+  const clave = heldNearest(lines, playing?.claveFragment, reach, hold, hold);
+  return clave === undefined
+    ? { rhythmFragment: rhythm }
+    : { rhythmFragment: rhythm, claveFragment: clave };
+}
+
+/** A section's fragments' hits in one of its bars: each fragment's bar of its lap, the clave's line too. */
+export function sectionHits(
+  repository: RhythmRepository,
+  rhythm: SectionRhythm,
+  meter: Meter,
+  barInSection: number,
+  steps: number,
+): FragmentHit[] {
+  return [rhythm.rhythmFragment, rhythm.claveFragment].flatMap((id) => {
+    const read = id === undefined ? null : repository.read(id, meter);
+    if (!read) return [];
+    const lap = barInSection % read.bars;
+    return read.hits
+      .filter((h) => Math.floor(h.step / steps) === lap)
+      .map((h) => ({ ...h, step: h.step - lap * steps }));
+  });
+}

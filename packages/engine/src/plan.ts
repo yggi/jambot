@@ -43,6 +43,7 @@ import {
   composedMeter,
   stylePoint,
 } from './meter-query.ts';
+import { type RhythmRepository, type SectionRhythm, composedRhythm } from './rhythm-query.ts';
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
 import type { SwingLevel } from './swing.ts';
@@ -73,6 +74,12 @@ export interface PlanEnv {
    * nothing.
    */
   readonly layer?: LearnedLayer | undefined;
+  /**
+   * The repository the composer asks for the section's rhythm, with its
+   * meter as the workbench (#397); with none, or on a miss, the drummer
+   * invents its own.
+   */
+  readonly rhythms?: RhythmRepository | undefined;
 }
 
 /**
@@ -100,6 +107,10 @@ export interface Plan {
   readonly share?: number;
   /** The repository's meter fragment the section plays, by id, where it plays one (#375). */
   readonly meterFragment?: string;
+  /** The repository's rhythm fragment the drummer plays the section from (`groove.ts`), by id, where it found one (#397). */
+  readonly rhythmFragment?: string;
+  /** The fragment chosen with the rhythm, a line of its own (a clave), by id, where one layers (#397). */
+  readonly claveFragment?: string;
   readonly melodic: MelodicScale;
   readonly theme: Theme;
 }
@@ -223,6 +234,38 @@ function learnedFrom(
   return found && repository?.used ? repository.used(layer, found.id, stylePoint(style)) : layer;
 }
 
+/**
+ * The rhythm a section takes where it starts, after its meter: the one the
+ * composer finds in the repository at the style, fitting the section's meter
+ * (`composedRhythm`), the section before's held; none with no repository or
+ * on a miss, where the drummer invents.
+ */
+export function sectionRhythm(
+  { rhythms, style, layer }: Pick<PlanEnv, 'rhythms' | 'style' | 'layer'>,
+  meter: SectionMeter,
+  before: SectionRhythm | null,
+): SectionRhythm {
+  return rhythms
+    ? composedRhythm(
+        rhythms,
+        style,
+        { meter: meter.meter, meterFragment: meter.meterFragment },
+        before,
+        layer,
+      )
+    : {};
+}
+
+/** The layer with a section's rhythm and clave, where it found them, learned as used together at the section's point (#398). */
+function rhythmLearned(
+  { rhythms, style }: Pick<PlanEnv, 'rhythms' | 'style'>,
+  layer: LearnedLayer,
+  { rhythmFragment, claveFragment }: SectionRhythm,
+): LearnedLayer {
+  const ids = [rhythmFragment, claveFragment].filter((id) => id !== undefined);
+  return ids.length && rhythms?.used ? rhythms.used(layer, ids, stylePoint(style)) : layer;
+}
+
 export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
   initial: { before: null, themes: { A: null, B: null }, layer: null },
   advance(given, { before, themes, layer: learned }) {
@@ -258,12 +301,13 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             a: themes.A,
           });
     const composed = composedSection(env, before);
-    const plan = { section, key, ...composed.meter, melodic, theme };
+    const rhythm = sectionRhythm(env, composed.meter, before);
+    const plan = { section, key, ...composed.meter, ...rhythm, melodic, theme };
     return {
       carried: {
         before: plan,
         themes: kind === 'build' ? themes : { ...themes, [kind]: theme },
-        layer: layer ? learnedFrom(env, layer, composed.found) : null,
+        layer: layer ? rhythmLearned(env, learnedFrom(env, layer, composed.found), rhythm) : null,
       },
       output: plan,
     };

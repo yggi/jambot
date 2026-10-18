@@ -1550,14 +1550,21 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     return player;
   }
 
-  it('keeps each meter the composer keeps, once a section, as the band plans it', async () => {
+  it('keeps each meter and rhythm the composer keeps, once a section, as the band plans it', async () => {
     const { layers, saved } = kept();
     // Synth-pop at 108 bpm: a bar is 2.2 s, so 24 s plan the first two sections and not the third.
     const player = await playing(layers, 24);
     expect(saved).toHaveLength(2);
+    // the meter's use, and the rhythm's that fits it (#397)
     expect(saved.map((l) => l.points.map((p) => [p.id, p.weight]))).toEqual([
-      [['4/4', 1.1]],
-      [['4/4', 1.2]],
+      [
+        ['4/4', 1.1],
+        ['Synth-pop drums', 1.1],
+      ],
+      [
+        ['4/4', 1.2],
+        ['Synth-pop drums', 1.2],
+      ],
     ]);
     expect(player.layer).toBe(saved.at(-1));
   });
