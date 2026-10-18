@@ -89,6 +89,8 @@ export interface GrooveFiling {
   /** When, on the song's clock (the engine has no other): `song 3, bar 40`. */
   readonly created: string;
   readonly tags: readonly string[];
+  /** The groove it varies, by id, where the composer made it from one (#411, `novelty.ts`). */
+  readonly varies?: string | undefined;
 }
 
 /** A repository of rhythms the composer asks (#397). */
@@ -198,7 +200,9 @@ function heldNearest(
  * before's: the nearest that fits, held as the meter is, none on a miss; and
  * the line chosen with it, where one layers within `LAYER_DISTANCE`. Those
  * `chosen` (the composer's short-term memory and the section's meter) pull
- * the fragments used with them, as cells' query weighs use together.
+ * the fragments used with them, as cells' query weighs use together. Those
+ * `rejected` (grooves it has tired of, `novelty.ts`) it leaves out of what
+ * the repository returns, so the next nearest is taken, or none.
  */
 export function composedRhythm(
   repository: RhythmRepository,
@@ -207,6 +211,7 @@ export function composedRhythm(
   playing: SectionRhythm | null,
   layer?: LearnedLayer,
   chosen: readonly string[] = [],
+  rejected: readonly string[] = [],
 ): SectionRhythm {
   const point = stylePoint(style);
   const {
@@ -215,7 +220,7 @@ export function composedRhythm(
     layer: reach,
   } = repository.margins ?? { miss: RHYTHM_MISS, hold: RHYTHM_HOLD, layer: LAYER_DISTANCE };
   const rhythm = heldNearest(
-    repository.query(point, bench, layer, chosen, miss),
+    repository.query(point, bench, layer, chosen, miss).filter((f) => !rejected.includes(f.id)),
     playing?.rhythmFragment,
     miss,
     hold,

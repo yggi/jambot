@@ -27,6 +27,11 @@
  * sections whose rhythm is among its run's 3 most used against the same
  * walk with nothing learned (`lockIn`), and what the layer weighs.
  *
+ * E39, the composer tiring of a groove (#411): the same runs, which vary
+ * and reject grooves as the band does (`novelty.ts`), counted by
+ * `mostUsedGroove`: in the meters no seed rhythm fits, the sections the
+ * most used groove of each plays.
+ *
  * It runs under vitest: `E37_REPORT=1 pnpm vitest run --silent=false
  * packages/engine/experiments/rhythm-radio.test.ts` prints the numbers.
  */
@@ -89,6 +94,10 @@ export interface RhythmRun {
   readonly played: Readonly<Record<string, number>>;
   /** The rhythm of each section, in order: its fragment, or `-` where the drummer invents. */
   readonly kept: readonly string[];
+  /** The meter of each section, in order: its fragment's id, where it has one, else `-`. */
+  readonly meters: readonly string[];
+  /** The meters of the run that no seed rhythm fits, so a groove is all a section of them finds (E39). */
+  readonly seedless: readonly string[];
   /** What the run learned, where it was given a layer (E38). */
   readonly learning: Learning | null;
 }
@@ -177,6 +186,8 @@ export function rhythmRun(
   const changes: RhythmChange[] = [];
   const played: Record<string, number> = {};
   const kept: string[] = [];
+  const meterKept: string[] = [];
+  const seedless = new Set<string>();
   const missed = { fit: 0, distance: 0 };
   let minute = 0;
   let sections = 0;
@@ -196,10 +207,13 @@ export function rhythmRun(
       const key = rhythmKey(d.plan);
       played[key] = (played[key] ?? 0) + 1;
       kept.push(d.plan.rhythmFragment ?? '-');
+      meterKept.push(d.plan.meterFragment ?? '-');
+      const bench = { meter: d.plan.meter, meterFragment: d.plan.meterFragment };
+      // whatever the point, the query with no layer lists every seed rhythm that fits the bench: none is the fit refusing
+      const fitsNone = rhythms.query({ energy: 0 }, bench).length === 0;
+      if (fitsNone) seedless.add(d.plan.meterFragment ?? '-');
       if (d.plan.rhythmFragment === undefined) {
-        const bench = { meter: d.plan.meter, meterFragment: d.plan.meterFragment };
-        // whatever the point, the query lists every rhythm that fits the bench: none is the fit refusing
-        if (rhythms.query({ energy: 0 }, bench).length === 0) missed.fit++;
+        if (fitsNone) missed.fit++;
         else missed.distance++;
       }
     }
@@ -217,7 +231,18 @@ export function rhythmRun(
         layer: layers.slice(0, sections).findLast((l) => l !== undefined) ?? layer,
       }
     : null;
-  return { preset: preset.name, seed, sections, changes, missed, played, kept, learning };
+  return {
+    preset: preset.name,
+    seed,
+    sections,
+    changes,
+    missed,
+    played,
+    kept,
+    meters: meterKept,
+    seedless: [...seedless],
+    learning,
+  };
 }
 
 /** Every preset, `seeds` seeds each, each run its own seed as E34's are; learning from `layer` where one is given. */
@@ -283,3 +308,31 @@ export const wentBack = (run: RhythmRun): RhythmChange[] =>
     const next = run.changes[i + 1];
     return next !== undefined && next.section === c.section + 1 && next.to === c.from;
   });
+
+/**
+ * E39 (#411): in the meters no seed rhythm fits, where a groove is all a
+ * section finds, how many sections the most used groove of each plays, over
+ * every run and meter: the sections in those meters, the most used groove's
+ * pooled over them, and its share. A section the drummer invents its own
+ * in (`-`) counts among the sections and is no groove.
+ */
+export function mostUsedGroove(runs: readonly RhythmRun[]): {
+  readonly sections: number;
+  readonly mostUsed: number;
+  readonly share: number;
+} {
+  let sections = 0;
+  let mostUsed = 0;
+  for (const run of runs)
+    for (const meter of run.seedless) {
+      const counts = new Map<string, number>();
+      run.meters.forEach((m, i) => {
+        if (m !== meter) return;
+        sections++;
+        const id = run.kept[i]!;
+        if (id !== '-') counts.set(id, (counts.get(id) ?? 0) + 1);
+      });
+      mostUsed += Math.max(0, ...counts.values());
+    }
+  return { sections, mostUsed, share: mostUsed / sections };
+}

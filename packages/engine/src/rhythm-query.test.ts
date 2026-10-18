@@ -65,6 +65,16 @@ describe('the composer asks the repository for a rhythm (#397)', () => {
     expect(composedRhythm(at({}), INITIAL_STYLE, bench, null)).toEqual({});
   });
 
+  it('leaves out those it rejected (#411), even the rhythm playing: the next nearest is taken, or none, and the drummer invents', () => {
+    const repository = at({ d1: 0, d2: 0.1, d3: RHYTHM_MISS + 0.01 });
+    const playing = { rhythmFragment: 'd1' };
+    const take = (rejected: string[]) =>
+      composedRhythm(repository, INITIAL_STYLE, bench, playing, undefined, [], rejected);
+    expect(take([])).toEqual({ rhythmFragment: 'd1' });
+    expect(take(['d1'])).toEqual({ rhythmFragment: 'd2' });
+    expect(take(['d1', 'd2'])).toEqual({});
+  });
+
   it('asks with the section’s meter and its fragment as the bench', () => {
     const repository = at({ d1: 0 });
     composedRhythm(repository, INITIAL_STYLE, bench, null);

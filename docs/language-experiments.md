@@ -742,15 +742,24 @@ run; the others have.
   [`packages/engine/experiments/rhythm-radio.ts`](../packages/engine/experiments/rhythm-radio.ts) (`learningRuns`)
   (about 40 s, under vitest, as E31), held by [`packages/engine/experiments/rhythm-learning.test.ts`](../packages/engine/experiments/rhythm-learning.test.ts):
   E37's radio walks for 3 hours a run (40 runs, 120 hours, 26,631 sections), the band given an empty learned layer, so on each miss the drummer invents, and where the next section is planned the Muse files the section's recurring bar as cells text open on its meter (`muse-groove.ts`, `museFiled`), and every meter, rhythm and groove kept is a use, the rhythm's together with its meter; against the same walks with nothing learned (26,691 sections: a meter learned can last other than the one it replaced).
-  - **What is filed**: 20 grooves, all the drummer's, in 16 of the 40 runs, at most 2 in a run, each under a meter no seed rhythm fits (5/4, 6/8, 7/8, 10/8, 12/8, 3/4) but one, a 4/4 whose nearest rhythm lay past `RHYTHM_MISS`.
-    Each is found by the next query at its point at distance 0, from a repository that never saw it, and cells reads every hit of it back as the drummer played it (`readRhythm`).
-  - **The loop closed**: the misses fall from 3,945 sections to 24, and 3,349 sections play a filed groove: once kept, a groove's point gains a use a section (cells' `USE_STEP`, to `USE_CAP`), so it reaches as far as a seed rhythm, and in its meter, where no seed rhythm fits, it is the one found.
-    Four misses file nothing: a section of an Ambient run whose bars hold fewer than 3 hits (`GROOVE_FEWEST`) misses four times before a fifth files.
-  - **Identity**: no run files a groove twice on its own, since a groove filed is found before the drummer invents in its meter again; each of the 20 filed again into its run's last layer adds to its one fragment, 20 of 20, and E31's 8 bars filed so add to cells' seed drum bars, which are their text.
-  - **Lock-in** (cells decision 048, as E34 measures it for meters): the share of sections whose rhythm (or the drummer's own, `-`) is among the run's 3 most used rises from 0.9420 to 0.9626, 2.06 points, standard error 0.90, so 3.86 with twice its error, within 5.
-  - **The layer** weighs at most 2,943 bytes after 3 hours, under `LAYER_CAP` (16,000); nothing was dropped.
-  - **The cost** (one run, Funk in 5/4, a laptop under vitest): the bar whose next section files spends about 18 ms (the filing, its uses, and the clave's layering asked of a rhythm not seen before), the bar after about 4.5 ms, against about 1 ms a bar otherwise.
-  - Not measured: a player's grooves in a walk (none plays), entropy other than 0.3, a groove varied rather than reused, and how any of it sounds.
+  - **What is filed**: 76 grooves in 16 of the 40 runs, at most 8 in a run: 39 the drummer's, each on a miss, and 37 the composer's variations of them (E39).
+    The drummer's are under a meter no seed rhythm fits (5/4, 6/8, 7/8, 10/8, 12/8, 3/4) but one, a 4/4 whose nearest rhythm lay past `RHYTHM_MISS`.
+    Each is found by a query at its point at distance 0, from a repository that never saw it, and cells reads every hit of it back as it was played or varied (`readRhythm`).
+  - **The loop closed**: the misses fall from 3,945 sections to 43, and 3,278 sections play a filed groove: once kept, a groove's point gains a use a section (cells' `USE_STEP`, to `USE_CAP`), so it reaches as far as a seed rhythm, and in its meter, where no seed rhythm fits, it is the one found until the composer tires of it (E39).
+    A section of an Ambient run whose bars hold fewer than 3 hits (`GROOVE_FEWEST`) misses and files nothing.
+  - **Identity**: no run files a groove twice on its own; each of the 76 filed again into its run's last layer adds to its one fragment, 76 of 76, and E31's 8 bars filed so add to cells' seed drum bars, which are their text.
+  - **Lock-in** (cells decision 048, as E34 measures it for meters): the share of sections whose rhythm (or the drummer's own, `-`) is among the run's 3 most used moves from 0.9420 to 0.9250, −1.70 points, standard error 1.64, so 1.58 with twice its error, within 5.
+  - **The layer** weighs at most 8,464 bytes after 3 hours, under `LAYER_CAP` (16,000); nothing was dropped.
+  - **The cost** (one run, Funk in 5/4, a laptop under vitest): the bar whose next section files spends about 15 to 18 ms (the filing, its uses, and the clave's layering asked of a rhythm not seen before), the bar after about 1.6 to 4.5 ms, against about 1 ms a bar otherwise.
+  - Not measured: a player's grooves in a walk (none plays), entropy other than 0.3, and how any of it sounds.
+- **E39. The composer tires of a groove while the radio walks** (#411; cells decision 043's novelty ladder; E38's walks), in
+  [`packages/engine/experiments/rhythm-radio.ts`](../packages/engine/experiments/rhythm-radio.ts) (`mostUsedGroove`), held by [`packages/engine/experiments/rhythm-learning.test.ts`](../packages/engine/experiments/rhythm-learning.test.ts):
+  E38's runs, with the composer's boredom (`novelty.ts`): a groove the layer filed climbs a rung each 3 of boredom, the entropy of each section it plays, so at 0.3 it plays 10 sections, its one variation 10 more, and is then rejected until its boredom has faded.
+  - **The most used groove of a meter no seed rhythm fits** plays 1,654 of the 3,236 sections in those meters, over every run and meter, 51 %, under #411's 60 %; on `main` at 3a64468, where the first groove filed stays its meter's, the same walks play it in 3,213 of 3,236, 99.3 %.
+  - **The variations**: 37, each of a groove its run filed before, each one of the operators' variations of it (`variations`), and no family varied twice.
+  - **Inventing again**: the drummer invents 18 grooves in a meter where one was filed before, each where the composer had rejected every groove that meter held.
+  - **The cost** (one run, Funk in 5/4 at entropy 1, a laptop under vitest): the bar whose next section varies its groove spends about 3.5 ms warm (9.7 ms the first time), against about 0.4 to 1 ms a bar otherwise.
+  - Not measured: entropy other than 0.3 over the walks (a band test holds the ladder at 0 and 1), a seed rhythm's ladder (seed rhythms don't climb it), and how a variation sounds.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

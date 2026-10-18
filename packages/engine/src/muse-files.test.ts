@@ -1,4 +1,4 @@
-import { METERS } from '@jambot/theory';
+import { METERS, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, type BandEnv, DRUMMER, band, lookAhead } from './band.ts';
 import { DRUM_NOTES } from './drums.ts';
@@ -6,7 +6,9 @@ import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { stylePoint } from './meter-query.ts';
 import type { HeardNote } from './muse.ts';
 import { distilledGroove } from './muse-groove.ts';
-import { GROOVE_TAG } from './plan.ts';
+import { SECTION_BARS } from './form.ts';
+import { GROOVE_ANCHORS, variations } from './novelty.ts';
+import { COMPOSER, GROOVE_TAG } from './plan.ts';
 import { METER_REPOSITORY } from './repository.ts';
 import type { FragmentHit } from './rhythm-query.ts';
 import { RHYTHM_REPOSITORY, readRhythm } from './rhythms.ts';
@@ -256,5 +258,75 @@ describe('the Muse files a player’s drum pattern the same way (#401)', () => {
     const heard = heardBy(10);
     expect(heard.source.plans.layer).toBeNull();
     expect(heard.source.ear).toBeNull();
+  });
+});
+
+describe('the composer tires of a groove: varies it, then rejects it, and the drummer invents again (#411)', () => {
+  // 5/4 asked for, where no rhythm of cells' fits: section 0 misses and the drummer invents; the Muse files it at section 1.
+  const rhythmsOf = (run: ReturnType<typeof play>) =>
+    range(run.length / SECTION_BARS).map(
+      (s) => run[s * SECTION_BARS]!.bar.plan.rhythmFragment ?? '-',
+    );
+  const G = 'drummer song 1, bar 0';
+  const V = 'composer song 1, bar 32';
+  const G2 = 'drummer song 1, bar 56';
+
+  it('at entropy 1 plays the groove 3 sections, its variation the next 3, then rejects both: the drummer invents, and the Muse files that', () => {
+    const run = play(
+      10 * SECTION_BARS,
+      { meter: FIVE, layer: EMPTY_LAYER },
+      { ...STYLE, entropy: 1 },
+    );
+    expect(rhythmsOf(run)).toEqual(['-', G, G, G, V, V, V, '-', G2, G2]);
+    // the drummer's own bars play in the section the composer rejected the groove, and its groove is filed where the next is planned
+    const filed = run.at(-1)!.carried.plans.layer!.filed;
+    expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies])).toEqual([
+      [G, DRUMMER, undefined],
+      [V, COMPOSER, G],
+      [G2, DRUMMER, undefined],
+    ]);
+    // (the band decides a bar ahead: the state after bar 47 has planned section 6, the variation's third)
+    expect(run[6 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
+      { grooves: [G, V], boredom: 6, rejected: true },
+    ]);
+  });
+
+  it('varies by one operator on one line, never the kick or the backbeat, and the drummer plays from the variation', () => {
+    const run = play(
+      5 * SECTION_BARS,
+      { meter: FIVE, layer: EMPTY_LAYER },
+      { ...STYLE, entropy: 1 },
+    );
+    const layer = run.at(-1)!.carried.plans.layer!;
+    const [groove, varied] = [G, V].map((id) => RHYTHM_REPOSITORY.read(id, FIVE, layer)!.hits);
+    expect(variations(groove!, stepsOf(FIVE)).map((v) => JSON.stringify(v))).toContain(
+      JSON.stringify(varied),
+    );
+    const anchors = (hits: readonly FragmentHit[]) =>
+      hits.filter((h) => GROOVE_ANCHORS.includes(h.role));
+    expect(anchors(varied!)).toEqual(anchors(groove!));
+    expect(run[4 * SECTION_BARS]!.bar.plan.rhythmFragment).toBe(V);
+  });
+
+  it('holds the groove at entropy 0: no variation, no rejection, nothing filed but the drummer’s first', () => {
+    const run = play(
+      12 * SECTION_BARS,
+      { meter: FIVE, layer: EMPTY_LAYER },
+      { ...STYLE, entropy: 0 },
+    );
+    expect(rhythmsOf(run)).toEqual(['-', ...range(11).map(() => G)]);
+    expect(run.at(-1)!.carried.plans.layer!.filed.map((f) => f.fragment.id)).toEqual([G]);
+  });
+
+  it('brings a rejected groove back once its boredom has faded, with its variation, and varies no family twice', () => {
+    const run = play(
+      30 * SECTION_BARS,
+      { meter: FIVE, layer: EMPTY_LAYER },
+      { ...STYLE, entropy: 1 },
+    );
+    const played = rhythmsOf(run);
+    // G2's family is rejected after its 6 sections (8 to 13); G's, rejected after section 6, has faded by then
+    expect(played.slice(14, 20)).toEqual(played.slice(14, 20).map(() => V));
+    expect(run.at(-1)!.carried.plans.layer!.filed).toHaveLength(4);
   });
 });
