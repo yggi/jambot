@@ -18,6 +18,7 @@
   import { Instruments } from './instruments.svelte.ts';
   import { Metronome } from './metronome.svelte.ts';
   import { Player } from './player.svelte.ts';
+  import { playsFrom } from './shadow.ts';
   import { Profile, randomSessionName } from './profile.svelte.ts';
   import { Theme } from './theme.svelte.ts';
   import { equalizerLevels, soundSummary } from './sound.ts';
@@ -51,7 +52,18 @@
    * client-only and a client keeps it while its other controls rest.
    */
   const metronome = new Metronome();
-  const player = new Player(device.surroundings, metronome);
+  /** The band through cells (#399): in shadow always, and played with the switch on (`?play=cells`). */
+  const player = new Player(
+    device.surroundings,
+    metronome,
+    playsFrom(location.search, import.meta.env.VITE_PLAY),
+  );
+  /** The dev readout: what the shadow found since the page opened (`window.jambot.shadow`). */
+  window.jambot = {
+    get shadow() {
+      return player.shadow.readout;
+    },
+  };
   const instruments = new Instruments(player, device);
   const profile = new Profile();
   const theme = new Theme();
