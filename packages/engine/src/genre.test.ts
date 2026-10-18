@@ -4,6 +4,7 @@ import {
   bpmUnit,
   energyOf,
   genreOf,
+  nearestPreset,
   readingAxes,
   styleDistance,
 } from './genre.ts';
@@ -67,5 +68,24 @@ describe('genre probabilities: nearness to the presets', () => {
     expect(near).toBeGreaterThan(0.99);
     expect(warm).toBeCloseTo(1 / PRESETS.length, 1);
     for (const g of genreOf({}, 0.1)) expect(g.p).toBeCloseTo(1 / PRESETS.length, 12);
+  });
+
+  it('names the preset a style lies nearest: each preset’s own point names itself, at any entropy (#313)', () => {
+    for (const preset of PRESETS)
+      for (const entropy of [0, 0.3, 1])
+        expect(nearestPreset({ ...preset.style, entropy })).toBe(preset.name);
+  });
+
+  it('names another preset once a style has moved nearer to it than to the one it left', () => {
+    const [from, to] = [PRESETS[1]!, PRESETS[3]!];
+    const between = (u: number) =>
+      Object.fromEntries(
+        Object.keys(from.style).map((axis) => {
+          const a = axis as keyof typeof from.style;
+          return [a, from.style[a] * (1 - u) + to.style[a] * u];
+        }),
+      ) as typeof from.style;
+    expect(nearestPreset({ ...between(0.1), entropy: 0.3 })).toBe(from.name);
+    expect(nearestPreset({ ...between(0.9), entropy: 0.3 })).toBe(to.name);
   });
 });

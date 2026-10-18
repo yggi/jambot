@@ -3,11 +3,14 @@ import {
   INITIAL_STYLE,
   PRESETS,
   PRESET_GLIDE,
+  SECTION_BARS,
   SLIDER_GLIDE,
   type Style,
   TEMPO_REACH,
   TEMPO_STEP,
   fifthsApart,
+  barStart,
+  walkRadio,
   glideTo,
   holding,
   INITIAL_KEY,
@@ -21,8 +24,12 @@ import {
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import {
+  RADIO_GLIDE,
   baseTempo,
   conduct,
+  conductRadio,
+  radioStyle,
+  takesFromRadio,
   conductSwing,
   stopSwing,
   keyReachOf,
@@ -346,5 +353,57 @@ describe('conduct, for the tempo', () => {
       TEMPO_STEP,
     );
     expect(styleAt(next, 0).bpm).toBeCloseTo(120 * 2 ** TEMPO_STEP, 9);
+  });
+});
+
+describe('the radio’s section (#313)', () => {
+  const section = barStart(SECTION_BARS);
+
+  it('glides one section to the walk’s next style, from where the track is, so nothing jumps', () => {
+    const track = holding(INITIAL_STYLE);
+    const next = walkRadio(INITIAL_STYLE, 4, 0);
+    const { track: after } = conductRadio(track, next, 2 * section, 0);
+    expect(RADIO_GLIDE).toBe(section);
+    expect(styleAt(after, 2 * section)).toEqual(INITIAL_STYLE);
+    expect(styleAt(after, 3 * section)).toEqual(next);
+    expect(styleAt(after, 2.5 * section).energy).toBeGreaterThan(
+      Math.min(INITIAL_STYLE.energy, next.energy) - 1e-12,
+    );
+  });
+
+  it('reads where it is off the track, the players’ nudge taken out, so a slider moved has moved the walk', () => {
+    const style = { ...INITIAL_STYLE, energy: 0.9 };
+    const nudged = tempoLicence(style).high / 2;
+    const { track } = conductRadio(holding(INITIAL_STYLE), style, 0, nudged);
+    expect(styleAt(track, section).bpm).toBeCloseTo(style.bpm * 2 ** nudged, 9);
+    expect(radioStyle(track, nudged)).toEqual(style);
+  });
+
+  it('keeps the tempo nudge within the licence of the style it walks to', () => {
+    const style = { ...INITIAL_STYLE, entropy: 0 };
+    const { low, high } = tempoLicence(style);
+    const { nudge } = conductRadio(holding(style), style, 0, high + 1);
+    expect(nudge).toBeCloseTo(high, 12);
+    expect(conductRadio(holding(style), style, 0, low - 1).nudge).toBeCloseTo(low, 12);
+  });
+
+  it('walks a track along the walk exactly, section after section: the style it reached is the one the walk gave', () => {
+    let track = holding(INITIAL_STYLE);
+    for (let n = 0; n < 60; n++) {
+      const style = walkRadio(radioStyle(track, 0), 11, n);
+      track = conductRadio(track, style, (n + 1) * section, 0).track;
+      expect(styleAt(track, (n + 2) * section)).toEqual(style);
+    }
+  });
+
+  it('is taken from by a preset or an axis the walk moves, and by no dial or nudge', () => {
+    expect(takesFromRadio({ kind: 'preset', preset: funk })).toBe(true);
+    for (const axis of ['sync', 'harm', 'artic', 'bpm'] as const)
+      expect(takesFromRadio({ kind: 'axis', axis, value: 0.5 }), axis).toBe(true);
+    for (const axis of ['energy', 'entropy'] as const)
+      expect(takesFromRadio({ kind: 'axis', axis, value: 0.5 }), axis).toBe(false);
+    expect(takesFromRadio({ kind: 'tempo', nudge: 0.1 })).toBe(false);
+    expect(takesFromRadio({ kind: 'key', wish: { tonic: 2 } })).toBe(false);
+    expect(takesFromRadio({ kind: 'swing', swing: { share: 0.6 } })).toBe(false);
   });
 });

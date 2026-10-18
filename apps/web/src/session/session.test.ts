@@ -9,6 +9,7 @@ import {
   playerSource,
 } from '@jambot/session';
 import { METERS } from '@jambot/theory';
+import { targetOf } from '../conductor.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { broadcastLobby, CLAIM_WAIT } from './broadcast.ts';
 import { ClientSession, WELCOME_WAIT } from './client.svelte.ts';
@@ -125,6 +126,34 @@ describe('a host and a client session', () => {
     expect(hosting.guests).toEqual([]);
     expect(client.player.mode).toBe('solo');
     expect(client.player.status).toBe('stopped');
+  });
+
+  it('give a client the radio’s walk exactly, section after section, and one that joins mid-walk too (#313)', async () => {
+    const lobby = memoryLobby();
+    const host = device(105);
+    const client = device(100);
+    const late = device(95);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    await host.player.start();
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    host.player.tuneRadio(true);
+    const opening = targetOf(host.player.track);
+    await run([host, client], 70);
+    // Three sections walked and more: a 3-decimal header could not have carried it, but the track does.
+    expect(host.player.station!.walked).toBeGreaterThanOrEqual(3);
+    expect(targetOf(host.player.track)).not.toEqual(opening);
+    expect(client.player.track).toEqual(host.player.track);
+    expect(client.player.station).toBeNull();
+
+    const joining = new ClientSession(late.player, late.clocks);
+    await joining.join(lobby, 'Jam', 'Bo');
+    await run([host, client, late], 1);
+    expect(late.player.track).toEqual(host.player.track);
+    joining.leave();
+    following.leave();
+    hosting.close();
   });
 
   it("start a client a bar before the song and end it on the host's last bar, lacking none of the bars", async () => {
@@ -486,6 +515,10 @@ describe('a host that is reloaded', () => {
     first.player.setMeter(METERS['5/4']);
     // A meter asked for is kept as it is asked, as the style is.
     expect(saved.at(-1)!.meter).toEqual(METERS['5/4']);
+    // The radio on the air is kept with its seed and sections, and off, not at all (#313).
+    expect(saved.at(-1)!.station).toBeUndefined();
+    first.player.tuneRadio(true);
+    expect(saved.at(-1)!.station).toEqual(first.player.station);
     hosting.persist();
     const snapshot = JSON.parse(JSON.stringify(saved.at(-1)));
     expect(snapshot).toMatchObject({
@@ -512,6 +545,7 @@ describe('a host that is reloaded', () => {
     expect(second.player.tempoNudge).toBe(0.25);
     // The meter asked for comes back with it: the song starts again in it (#305).
     expect(second.player.meter).toEqual(METERS['5/4']);
+    expect(second.player.station).toEqual(first.player.station);
 
     const back = await joined(fresh, 'Friday Jam', 'Ada', 'token-ada');
     expect(back.heard[0]).toMatchObject({ kind: 'welcome', resume: 'token-ada' });

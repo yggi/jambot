@@ -45,8 +45,9 @@
  * is quantised after them, so the same seed walks the same on every device
  * (`random.ts`).
  *
- * The app glides to each section's style with `glideTo` (step 3), and the
- * session, not the band, will carry the station (the owner, #313).
+ * The player glides to each section's style with `glideTo` (`conductRadio`),
+ * and the session, not the band, carries the station (the owner, #313;
+ * `packages/session/src/station.ts`).
  */
 
 import type { Machine } from './machine.ts';

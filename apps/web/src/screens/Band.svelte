@@ -23,6 +23,7 @@
   import BandCard from '../components/BandCard.svelte';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
+  import { stationLine } from '../radioView.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { raised, toggled } from '../mix.ts';
@@ -135,6 +136,9 @@
       {phase}
       bar={player.hud.beat === null ? null : (player.hud.bar?.bar ?? null)}
       {onend}
+      radio={player.station !== null}
+      nowPlaying={player.playing ? stationLine(player.track, player.heard) : null}
+      ontune={(on) => player.tuneRadio(on)}
     />
   {:else if id === 'style'}
     <StylePanel

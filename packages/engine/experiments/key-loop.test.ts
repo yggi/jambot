@@ -6,6 +6,10 @@ import { keyLoops } from './key-loop.ts';
 const still = keyLoops(0, 10);
 const moving = keyLoops(1, 10);
 const named = (name: string) => moving.find((m) => m.preset === name)!;
+/** The same under the radio's walk (#313 step 4): the style wanders, so the reach and the chance to move do. */
+const wandering = keyLoops(1, 10, true);
+const slow = keyLoops(0.3, 10, true);
+const wanders = (name: string) => wandering.find((m) => m.preset === name)!;
 
 describe('the key’s loop, left alone (E19)', () => {
   it('remembers for about 6.7 bars, less than the section the key is held for (A4, C9)', () => {
@@ -43,5 +47,30 @@ describe('the key’s loop, left alone (E19)', () => {
     expect(named('Bossa nova').centreMissed).toBeLessThan(0.05);
     expect(named('Funk').centreMissed).toBeGreaterThan(0.2);
     expect(named('Ambient').centreMissed).toBeGreaterThan(0.4);
+  });
+
+  it('still has no home under the radio’s walk: where the key moves it ends more than 1.5 fifths from where it opened (a random key lies 3), and is back on it in at most 1 run in 5 (Q11, #313)', () => {
+    for (const m of wandering.filter((m) => m.reach > 0)) {
+      expect(m.drift.at(-1), m.preset).toBeGreaterThan(1.5);
+      expect(m.back, m.preset).toBeLessThanOrEqual(0.2);
+    }
+  });
+
+  it('moves a key the preset holds still once the walk has raised its harmony, and then leaves it as wide a jump as the walk’s harmony reaches (#313)', () => {
+    // Techno holds its key at every entropy (E19), and its reach is 0.
+    expect(named('Techno').jumpRate).toBe(0);
+    expect(wanders('Techno').jumpRate).toBeGreaterThan(0.4);
+    expect(wanders('Techno').widestJump).toBeGreaterThan(wanders('Techno').reach);
+    expect(slow.find((m) => m.preset === 'Techno')!.jumpRate).toBeGreaterThan(0);
+    // The reach is the preset's at the opening only: the walk's harmony takes it past.
+    expect(Math.max(...wandering.map((m) => m.widestJump - m.reach))).toBeGreaterThan(0);
+  });
+
+  it('keeps a station that opens with a thin harmony nearer its opening key at a low entropy, which the walk takes a long while to leave (#313)', () => {
+    for (const name of ['Techno', 'Funk'])
+      expect(slow.find((m) => m.preset === name)!.drift.at(-1), name).toBeLessThan(
+        wandering.find((m) => m.preset === name)!.drift.at(-1)! + 1e-9,
+      );
+    expect(slow.find((m) => m.preset === 'Techno')!.back).toBeGreaterThan(0.5);
   });
 });

@@ -16,6 +16,7 @@
  * Pure: it counts and knows no clock, file or key.
  */
 
+import { centreOf } from './fading.ts';
 import { AXES, PRESETS, type Style } from './style.ts';
 import type { StyleReading, TimingReading } from './style-reading.ts';
 
@@ -101,4 +102,14 @@ export function genreOf(
   const scores = landmarks.map((l) => Math.exp(-styleDistance(read, l.at) / temperature));
   const total = scores.reduce((a, b) => a + b, 0);
   return landmarks.map((l, i) => ({ name: l.name, p: scores[i]! / total }));
+}
+
+/**
+ * The preset whose point a style lies nearest, by the distance a reading is
+ * taken at: how a station says where it is and where it heads (#313), the
+ * name of the nearest of the presets' points (`PRESET_LANDMARKS`).
+ */
+export function nearestPreset(style: Style): string {
+  const read = { ...style, bpm: bpmUnit(style.bpm) };
+  return centreOf(PRESET_LANDMARKS, (landmark) => -styleDistance(read, landmark.at)).name;
 }

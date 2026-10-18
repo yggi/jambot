@@ -42,11 +42,13 @@ import {
   type KeyWish,
   PRESET_GLIDE,
   type Preset,
+  SECTION_BARS,
   SLIDER_GLIDE,
   type Style,
   type StyleTrack,
   type MeterSwing,
   type SwingTrack,
+  barStart,
   glideTo,
   holdingSwing,
   swingTarget,
@@ -124,6 +126,47 @@ export function conductSwing(swing: SwingTrack, intent: Intent, at: number | nul
   if (target === null) return swing;
   if (at === null) return swingTo(swing, target, 0, 0);
   return swingTo(swing, target, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);
+}
+
+/** The radio's glide: one section, so each walk's style is reached as the next section starts. */
+export const RADIO_GLIDE = barStart(SECTION_BARS);
+
+/**
+ * Where the radio is: the style the track is going to, as the layer above
+ * sets it, the players' tempo nudge taken back out. The radio carries no
+ * style of its own (`station.ts`), so a slider a player moved has moved it.
+ */
+export const radioStyle = (track: StyleTrack, nudge: number): Style =>
+  unnudged(targetOf(track), nudge);
+
+/**
+ * The track after one section of the radio's walk: every axis gliding from
+ * step `at` over a section to `style`, the walk's next style, so nothing
+ * jumps. The tempo played is the style's times the players' nudge, which
+ * stays within the new style's licence: the nudge returned.
+ */
+export function conductRadio(
+  track: StyleTrack,
+  style: Style,
+  at: number,
+  nudge: number,
+): { track: StyleTrack; nudge: number } {
+  const held = tempoNudgeWithin(nudge, style);
+  return {
+    track: glideTo(track, { ...style, bpm: nudgedTempo(style, held) }, at, RADIO_GLIDE),
+    nudge: held,
+  };
+}
+
+/**
+ * Whether an intent takes the track from the radio: a preset, or an axis the
+ * walk moves. Energy and entropy are the dials the radio is run by (the
+ * owner, #313), and the tempo, key and swing are nudges on top of it, so
+ * they leave it on the air.
+ */
+export function takesFromRadio(intent: Intent): boolean {
+  if (intent.kind === 'preset') return true;
+  return intent.kind === 'axis' && intent.axis !== 'energy' && intent.axis !== 'entropy';
 }
 
 /** The meter's swing a stopped band keeps: where it was going, held. */

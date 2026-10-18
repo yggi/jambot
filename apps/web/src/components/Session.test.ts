@@ -103,6 +103,44 @@ describe('the session card', () => {
     });
   });
 
+  describe('the radio (#313)', () => {
+    it('lets a host and a solo band put the radio on the air and take it off, and says what it does', async () => {
+      for (const mode of ['host', 'solo'] as const) {
+        const ontune = vi.fn();
+        const { rerender, unmount } = render(Session, props({ mode, ontune }));
+        await unfold();
+        const box = screen.getByRole('checkbox', { name: 'Leave the band on the radio' });
+        expect(box).not.toBeChecked();
+        expect(screen.getByText('The band keeps the style you set.')).toBeInTheDocument();
+        await fireEvent.click(box);
+        expect(ontune).toHaveBeenLastCalledWith(true);
+        await rerender({ radio: true });
+        expect(screen.getByRole('checkbox', { name: 'Leave the band on the radio' })).toBeChecked();
+        expect(screen.getByText(/wanders the style by itself/)).toBeInTheDocument();
+        await fireEvent.click(
+          screen.getByRole('checkbox', { name: 'Leave the band on the radio' }),
+        );
+        expect(ontune).toHaveBeenLastCalledWith(false);
+        unmount();
+      }
+    });
+
+    it('gives a client no radio of its own: it follows the host’s style', async () => {
+      render(Session, props({ mode: 'client', ontune: () => {} }));
+      await unfold();
+      expect(screen.queryByRole('checkbox')).toBeNull();
+    });
+
+    it('names where the band is and where it heads, for a client as for a host, and nothing before it plays', async () => {
+      const { rerender } = render(Session, props({ mode: 'client' }));
+      await unfold();
+      expect(screen.queryByText('Now playing')).toBeNull();
+      await rerender({ nowPlaying: 'Techno, drifting toward Ambient' });
+      expect(screen.getByText('Now playing')).toBeInTheDocument();
+      expect(screen.getByText('Techno, drifting toward Ambient')).toBeInTheDocument();
+    });
+  });
+
   describe('the way out', () => {
     it('lets a host close its session only after asking, and says how many are playing in it', async () => {
       const onend = vi.fn();
