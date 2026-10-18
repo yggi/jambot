@@ -36,12 +36,18 @@
  *   v0.4.0, yggi/cells#18);
  * - the harmony, the key and the chords as stacks of its degrees (E32's
  *   stacks, the owner's choice of 2026-10-17): `&key scale(aeolian, A)`,
- *   `&harm over=&key step=2n [0,2,4] [4,6#,8]`; nothing plays it, and the
- *   reading plays it on a channel of its own to read each chord back;
+ *   `&harm over=&key step=2n [0,2,4] [4,6#,8]`, each chord stated once;
+ *   nothing plays it, and the reading plays a copy of it on a channel of its
+ *   own to read each chord back;
  * - the drums, a line a role on `16n` taps with each hit's level (E31), the
  *   rim one Euclid token on `1m` where the band writes it as `even`;
- * - the bass and the comp, on `16n` taps, as degrees of the key from their
- *   voices (C1 and C3, E32's pins), each note held `@k` for its written
+ * - the bass and the comp, on `16n` taps, read over the chord in force
+ *   (`over=&harm`, cells v0.5.0, yggi/cells#125, #387) from their voices (C1
+ *   and C3, E32's pins): each note an index into the stack sounding at its
+ *   onset (`throughChord`: past the last tone the chord a lap up, an
+ *   accidental a degree of the key beside a tone), and a line with a note no
+ *   index reaches as degrees of the key (`over=&key`, Swing jazz's approach
+ *   notes); each note held `@k` for its written
  *   length and sounding its line's share of it (`legato=`, cells v0.4.0,
  *   yggi/cells#94), one share a line; their velocities a line of levels
  *   (`map=amp`), or one gain where a line has one velocity, through a gate
@@ -82,17 +88,26 @@ import {
   stepSeconds,
   transport,
 } from '@jambot/engine';
-import { METERS, type MeterName, formatNumeral, parseNumeral, stepsOf } from '@jambot/theory';
+import {
+  METERS,
+  type MeterName,
+  diatonicMode,
+  formatNumeral,
+  parseNumeral,
+  stepsOf,
+} from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { lowerNumeral } from '../src/score.ts';
+import { type ScoreKey, lowerNumeral } from '../src/score.ts';
 import { VOICE_OF_NOTE, euclidOf, levelOf } from './drums-in-cells.ts';
 import {
   PIN_VOICES,
+  type Tone,
   chordTones,
   degreeText,
   keyText,
   numeralOfNotes,
+  pinNote,
   pinTone,
   rhythmText,
 } from './pitch-in-cells.ts';
@@ -275,10 +290,24 @@ export interface Cut {
   readonly why: 'next onset' | 'bar line';
 }
 
-/** A bar as one cells text: its lines, and what the text had to cut. */
+/** The table a pitched line reads: the chord in force (`over=&harm`, cells v0.5.0), or the key's degrees (`over=&key`). */
+export type PitchTable = 'harm' | 'key';
+
+/** A pitched line of the text: the part it states, the table it reads, and the notes no index into the chord in force reaches. */
+export interface PitchedLine {
+  readonly part: 'bass' | 'pad' | 'stab';
+  readonly table: PitchTable;
+  /** Over the chord: how many notes take an accidental on their index (a degree of the key beside a chord tone). */
+  readonly accidentals: number;
+  /** Over the key, where the chord was asked for: the notes that kept it there. */
+  readonly unreached: readonly { readonly step: number; readonly note: number }[];
+}
+
+/** A bar as one cells text: its lines, what the text had to cut, and the table each pitched line reads. */
 export interface BarText {
   readonly lines: readonly Line[];
   readonly cuts: readonly Cut[];
+  readonly pitched: readonly PitchedLine[];
 }
 
 export const textOf = (b: BarText) => b.lines.map((l) => l.text).join('\n');
@@ -347,28 +376,82 @@ function drumLines(
 /** A held token: `x`, or `x@k` for k steps. */
 const held = (text: string, length: number) => (length === 1 ? text : `${text}@${length}`);
 
+/** An index into the chord in force as a cells number writes it: `n` its tone (a lap up past its last), `alter` an accidental. */
+export interface ChordIndex {
+  readonly n: number;
+  readonly alter: number;
+}
+
 /**
- * A pitched line on 16ths: each onset its notes as degrees of the key from
- * the part's voice (a chord a stack), held for its written length, cut at the
- * next onset or the bar line, and sounding the line's share of it
- * (`legato=`); and its levels, as a line or one gain.
+ * What an index into a chord reads, as cells v0.5.0 reads `over=&harm`: the chord's tone `n` (past its last tone the
+ * chord a lap up, a lap the key's seven degrees, so index 4 of a seventh chord is its root an octave up), moved by its
+ * accidental a degree of the key (an accidental moves a step of the table below, cells decision 015), and keeping the
+ * tone's own alteration.
+ */
+export function throughChord(key: ScoreKey, chord: readonly Tone[], index: ChordIndex): Tone {
+  const lap = Math.floor(index.n / chord.length);
+  const tone = chord[index.n - lap * chord.length]!;
+  const degrees = diatonicMode(key.mode).heights.length;
+  return { degree: tone.degree + lap * degrees + index.alter, accidental: tone.accidental };
+}
+
+/** The order an index is looked for in: no accidental first, then one, then two; and the tone nearest 0. */
+const ALTERS = [0, 1, -1, 2, -2];
+const INDICES = Array.from({ length: 41 }, (_, i) => (i % 2 ? (i + 1) / 2 : i && -i / 2));
+
+/** The index into the chord in force that plays `note` from a part's voice: the first in ALTERS × INDICES, or none. */
+export function indexOf(
+  key: ScoreKey,
+  chord: readonly Tone[],
+  note: number,
+  voice: 'comp' | 'bass',
+): ChordIndex | null {
+  for (const alter of ALTERS)
+    for (const n of INDICES)
+      if (pinNote(key, throughChord(key, chord, { n, alter }), voice) === note) return { n, alter };
+  return null;
+}
+
+/** The stack each step of a bar reads as the chord in force: the last chord stated at or before it, none before the first. */
+function chordsInForce(bar: BandBar): (step: number) => readonly Tone[] | null {
+  const key = bar.plan.key;
+  const stated = statedChords(bar).map((c) => ({
+    step: c.step,
+    tones: chordTones(key, lowerNumeral(key, parseNumeral(c.numeral)!)),
+  }));
+  return (step) => stated.findLast((c) => c.step <= step)?.tones ?? null;
+}
+
+/**
+ * A pitched line on 16ths: each onset its notes as indices into the chord in
+ * force from the part's voice (`over=&harm`), or, where `table` asks for the
+ * key or a note has no index, as degrees of the key (`over=&key`); a chord a
+ * stack, held for its written length, cut at the next onset or the bar line,
+ * and sounding the line's share of it (`legato=`); and its levels, as a line
+ * or one gain.
  */
 function pitchedLine(
   bar: BandBar,
-  name: string,
+  name: 'bass' | 'pad' | 'stab',
   notes: readonly Composed[],
   voice: 'comp' | 'bass',
   cuts: Cut[],
-): { lines: string[]; level: string } {
+  table: PitchTable,
+): { lines: string[]; level: string; pitched: PitchedLine } {
   const steps = stepsOf(bar.meter);
   const key = bar.plan.key;
   const onsets = [...new Set(notes.map((n) => n.step))].sort((a, b) => a - b);
+  const inForce = chordsInForce(bar);
   const words: string[] = [];
+  const overChord: string[] = [];
+  const unreached: { step: number; note: number }[] = [];
+  let accidentals = 0;
   const levels: string[] = [];
   let at = 0;
   for (const [i, step] of onsets.entries()) {
     if (step > at) {
       words.push(held('~', step - at));
+      overChord.push(held('~', step - at));
       levels.push(held('~', step - at));
     }
     const here = notes.filter((n) => n.step === step);
@@ -383,27 +466,61 @@ function pitchedLine(
         stated: length,
         why: onsets[i + 1] === undefined ? 'bar line' : 'next onset',
       });
-    const tones = here.map((n) => {
-      const t = pinTone(key, n.note, voice);
-      return degreeText(t.degree, t.accidental);
-    });
-    words.push(held(tones.length === 1 ? tones[0]! : `[${tones.join(',')}]`, length));
+    const word = (tones: readonly string[]) =>
+      held(tones.length === 1 ? tones[0]! : `[${tones.join(',')}]`, length);
+    words.push(
+      word(
+        here.map((n) => {
+          const t = pinTone(key, n.note, voice);
+          return degreeText(t.degree, t.accidental);
+        }),
+      ),
+    );
+    const chord = inForce(step);
+    overChord.push(
+      word(
+        here.map((n) => {
+          const index = chord && indexOf(key, chord, n.note, voice);
+          if (!index) {
+            // (the line then reads the key, and this word is never written)
+            unreached.push({ step, note: n.note });
+            return '?';
+          }
+          if (index.alter !== 0) accidentals++;
+          return degreeText(index.n, index.alter);
+        }),
+      ),
+    );
     levels.push(held(levelOf(here[0]!.velocity), length));
     at = step + length;
   }
   if (at < steps) {
     words.push(held('~', steps - at));
+    overChord.push(held('~', steps - at));
     levels.push(held('~', steps - at));
   }
   const velocities = new Set(notes.map((n) => n.velocity));
   const one = velocities.size === 1;
+  const over: PitchTable = table === 'harm' && unreached.length === 0 ? 'harm' : 'key';
   return {
     lines: [
-      `&${name} over=&key step=16n${legatoText(notes)} ${words.join(' ')}`,
+      `&${name} over=&${over} step=16n${legatoText(notes)} ${(over === 'harm' ? overChord : words).join(' ')}`,
       ...(one ? [] : [`&${name}Level map=amp step=16n ${levels.join(' ')}`]),
     ],
     level: one ? levelOf(notes[0]!.velocity) : `&${name}Level`,
+    pitched: {
+      part: name,
+      table: over,
+      accidentals: over === 'harm' ? accidentals : 0,
+      unreached: table === 'harm' ? unreached : [],
+    },
   };
+}
+
+/** How a bar is stated: the rim as one Euclid or a line, and the table the bass and the comp read. */
+export interface Statement {
+  readonly euclid?: boolean;
+  readonly table?: PitchTable;
 }
 
 /**
@@ -411,12 +528,18 @@ function pitchedLine(
  * Euclid token on `1m` only where the meter is straight, unless `euclid`
  * asks for it anyway: a Euclid's hits are even parts of its step, which the
  * meter's swing doesn't reach (E33's gap 4, yggi/cells#121), so under swing the rim is a line
- * on `16n` as every other role is.
+ * on `16n` as every other role is. The bass and the comp read the chord in
+ * force (`over=&harm`), unless `table` asks for the key, as E33 stated them
+ * before cells v0.5.0.
  */
-export function barAsCells(bar: BandBar, euclid = bar.swing.share === STRAIGHT.share): BarText {
+export function barAsCells(
+  bar: BandBar,
+  { euclid = bar.swing.share === STRAIGHT.share, table = 'harm' }: Statement = {},
+): BarText {
   const key = bar.plan.key;
   const notes = composedNotes(bar);
   const cuts: Cut[] = [];
+  const pitched: PitchedLine[] = [];
   const lines: Line[] = [
     {
       part: 'meter',
@@ -456,7 +579,9 @@ export function barAsCells(bar: BandBar, euclid = bar.swing.share === STRAIGHT.s
       notes.filter((n) => n.part === 'bass'),
       'bass',
       cuts,
+      table,
     );
+    pitched.push(line.pitched);
     lines.push(
       ...line.lines.map((text) => ({ part: 'bass' as const, text })),
       { part: 'bass', text: `&bassOut play=&bass level=${line.level} &bassV` },
@@ -469,7 +594,8 @@ export function barAsCells(bar: BandBar, euclid = bar.swing.share === STRAIGHT.s
       ...bar,
       written: bar.written.filter((w) => w.part === part),
     });
-    const line = pitchedLine(bar, part, own, 'comp', cuts);
+    const line = pitchedLine(bar, part, own, 'comp', cuts, table);
+    pitched.push(line.pitched);
     lines.push(...line.lines.map((text) => ({ part: 'comp' as const, text })), {
       part: 'comp',
       text: `&${part}Out play=&${part} level=${line.level} &compV`,
@@ -486,7 +612,7 @@ export function barAsCells(bar: BandBar, euclid = bar.swing.share === STRAIGHT.s
     part: 'card',
     text: `&out map=midi ~ ${bass ? '&bassOut' : '~'} ${compEntry} ~!6 ${drums.terms.length ? '&drums' : '~'}`,
   });
-  return { lines, cuts };
+  return { lines, cuts, pitched };
 }
 
 /** What a bar's text plays through cells: its notes by part, its chords read back, its bar's length, and what cells said. */
@@ -502,12 +628,18 @@ export interface Played {
   readonly diagnostics: string[];
 }
 
-/** The reading's own lines, not counted: the bar's lap and the harmony, each on a channel of its own (15 and 16). */
-const READING = [
-  '&lap step=1m 0',
-  '&readV loop=C4',
-  '&read map=midi ~!14 [&lap * &readV] [&harm * &readV]',
-].join('\n');
+/**
+ * The reading's own lines, not counted: the bar's lap and the harmony, each on a channel of its own (15 and 16).
+ * The harmony heard is a copy of `&harm`, `&harmHeard`: a cell that plays is not a table that turns (cells' `shiftsAt`,
+ * yggi/cells#167), so lines read over a played `&harm` would read its first chord all bar long.
+ */
+const reading = (text: string) =>
+  [
+    `&harmHeard ${/^&harm (.*)$/m.exec(text)![1]}`,
+    '&lap step=1m 0',
+    '&readV loop=C4',
+    '&read map=midi ~!14 [&lap * &readV] [&harmHeard * &readV]',
+  ].join('\n');
 
 /**
  * A text played through cells' MIDI out for its first bar, read back; `estimate` is about how long its bar is.
@@ -516,7 +648,7 @@ const READING = [
 export function cellsPlays(text: string, bar: BandBar): Played {
   const steps = stepsOf(bar.meter);
   const estimate = steps * stepSeconds(bar.style.bpm, bar.meter);
-  const plan = planOf(`${text}\n${READING}`);
+  const plan = planOf(`${text}\n${reading(text)}`);
   const route = router(plan.result, channelTable(plan.result));
   const out = windowAt(plan, 0, estimate * 1.5).events.flatMap((e) =>
     routesOf(route(e)).flatMap((r) => {
@@ -704,8 +836,10 @@ export function table(measured: readonly Measured[]) {
   });
 }
 
-/** Characters by part over some bars, each line with its newline. */
-export function characters(measured: readonly Measured[]): Record<Line['part'] | 'total', number> {
+/** Characters by part over some bars' texts, each line with its newline. */
+export function characters(
+  measured: readonly { readonly text: BarText }[],
+): Record<Line['part'] | 'total', number> {
   const out: Record<string, number> = { total: 0 };
   for (const m of measured)
     for (const line of m.text.lines) {
