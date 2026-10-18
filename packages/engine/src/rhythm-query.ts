@@ -144,10 +144,12 @@ export interface RhythmRepository {
   read(id: string, meter: Meter, layer?: LearnedLayer): FragmentRead | null;
   /**
    * Work the repository can do ahead, so that asking on these benches costs
-   * only lookups: each step a fit, a union or a read at most, so a host runs
-   * it a step at a time between other work. None where it keeps nothing.
+   * only lookups: for its own rhythms and the grooves the layer given filed
+   * (#412), each step a fit, a union or a read at most, so a host runs it a
+   * step at a time between other work, and what it warmed once takes no step
+   * again. None where it keeps nothing.
    */
-  warm?(benches: readonly RhythmBench[]): Iterable<void>;
+  warm?(benches: readonly RhythmBench[], layer?: LearnedLayer): Iterable<void>;
   /** The composer's margins, where they are other than `RHYTHM_MISS`, `RHYTHM_HOLD` and `LAYER_DISTANCE`: an experiment tries others. */
   readonly margins?: { readonly miss: number; readonly hold: number; readonly layer: number };
 }

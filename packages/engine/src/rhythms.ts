@@ -22,9 +22,13 @@
  * A groove the Muse files (#401) joins the rhythms through the layer: ranked
  * with them, held by its text there, read and fitted as they are. Filing
  * keeps its reading and its fit to the bench it was played on, which the
- * round trip gives (`muse-groove.ts`), so a filed groove costs no compile at
- * the next section; one asked on another bench, or near its point after a
- * reload, compiles once, as a fit not yet tested does. */
+ * round trip gives (`muse-groove.ts`), so the section that takes it at once
+ * compiles only its union with the bench, and those of the few fragments
+ * within a clave's reach (whether a fragment layers with a rhythm is tested
+ * one fragment at a time, only for those a section could take). The rest,
+ * its fits, reads and unions on every bench, the host warms after filing,
+ * or after loading a layer that filed it (#412: `warm` given the layer), so
+ * no later section compiles them. */
 
 import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
@@ -123,10 +127,15 @@ export function cellsFit(): RhythmFit {
   return (fragment, workbench) => fitOf(fragment, workbench, compiled).fits;
 }
 
-/** A repository of these rhythms, ranked by cells' query on the facet `rhythm`, filtered by the fit (cells', unless a test counts it). */
+/** Whether a filed fragment is a rhythm: associated as one at some point. */
+const isRhythm = ({ fragment }: LearnedLayer['filed'][number]) =>
+  fragment.association.some((p) => p.facet === 'rhythm');
+
+/** A repository of these rhythms, ranked by cells' query on the facet `rhythm`, filtered by the fit and read by `read` (cells', unless a test counts them). */
 export function rhythmRepository(
   fragments: readonly Fragment[] = RHYTHM_FRAGMENTS,
   fit: RhythmFit = cellsFit(),
+  read: (text: string, meter: Meter) => FragmentRead | null = readRhythm,
 ): RhythmRepository {
   // (the rhythms with cells' meters beside them, which a rhythm query never ranks, its facet theirs alone:
   // so a rhythm and the meter it was kept with count as used together, and a filing finds any text held)
@@ -134,33 +143,45 @@ export function rhythmRepository(
   const texts = new Map(fragments.map((f) => [f.id, f.text]));
   const textOf = (id: string, layer?: LearnedLayer) =>
     texts.get(id) ?? layer?.filed.find((f) => f.fragment.id === id)?.fragment.text;
-  // (every fit tested, every read, each bench's workbench, and each rhythm's union with one and the
-  // fragments that layer there, by text: kept for the repository's life, a few hundred of each at most,
-  // and one more of each for every groove filed that a section asks near)
+  // (every fit tested, every read, each bench's workbench, each rhythm's union with one, whether a fragment
+  // layers there, and each rhythm warmed on a workbench, by text: kept for the repository's life, a few
+  // hundred of each at most, and a few dozen more for every groove filed)
   const fitted = new Map<string, boolean>();
   const reads = new Map<string, FragmentRead | null>();
-  const benches = new Map<string, string | null>();
-  const withIts = new Map<string, { text: string; layers: readonly string[] }>();
+  const workbenches = new Map<string, string | null>();
+  const withIts = new Map<string, string>();
+  const layering = new Map<string, boolean>();
+  const warmed = new Set<string>();
   const fits = (text: string, workbench: string) => {
     const key = `${workbench.length}:${workbench}${text}`;
     if (!fitted.has(key)) fitted.set(key, fit(text, workbench));
     return fitted.get(key)!;
   };
+  const benchKey = (bench: RhythmBench) => `${bench.meterFragment ?? ''}\n${meterKey(bench.meter)}`;
   const benchOf = (bench: RhythmBench) => {
-    const key = `${bench.meterFragment ?? ''}\n${meterKey(bench.meter)}`;
-    if (!benches.has(key)) benches.set(key, benchText(bench));
-    return benches.get(key)!;
+    const key = benchKey(bench);
+    if (!workbenches.has(key)) workbenches.set(key, benchText(bench));
+    return workbenches.get(key)!;
   };
   const withItOf = (chosen: string, workbench: string) => {
     const key = `${chosen}\n${workbench}`;
-    if (!withIts.has(key)) {
-      const text = unionOf(chosen, workbench).text;
-      const layers = fragments
-        .filter((f) => f.text !== chosen && unionOf(f.text, text).renamed.size === 0)
-        .map((f) => f.id);
-      withIts.set(key, { text, layers });
-    }
+    if (!withIts.has(key)) withIts.set(key, unionOf(chosen, workbench).text);
     return withIts.get(key)!;
+  };
+  // Whether a seed fragment layers with `chosen` on the workbench: another text, whose union with theirs renames none
+  // of its names. Tested one fragment at a time, so a section tests it only for those within its reach.
+  const layersWith = (id: string, chosen: string, workbench: string) => {
+    const key = `${id}\n${chosen}\n${workbench}`;
+    if (!layering.has(key)) {
+      const text = texts.get(id);
+      layering.set(
+        key,
+        text !== undefined &&
+          text !== chosen &&
+          unionOf(text, withItOf(chosen, workbench)).renamed.size === 0,
+      );
+    }
+    return layering.get(key)!;
   };
   // Ranked as cells' query ranks them: the seed's every rhythm, and a groove filed (#401) no farther than `reach`,
   // so a fit is tested only for one a section could take.
@@ -187,7 +208,7 @@ export function rhythmRepository(
       .map((f) => ({ id: f.fragment.id, text: f.fragment.text, distance: f.distance }));
   const readText = (text: string, meter: Meter) => {
     const key = `${text}\n${meterKey(meter)}`;
-    if (!reads.has(key)) reads.set(key, readRhythm(text, meter));
+    if (!reads.has(key)) reads.set(key, read(text, meter));
     return reads.get(key)!;
   };
   return {
@@ -203,10 +224,12 @@ export function rhythmRepository(
       const workbench = benchOf(bench);
       const chosenText = textOf(chosen, layer);
       if (workbench === null || chosenText === undefined) return [];
-      const withIt = withItOf(chosenText, workbench);
       return ranked(point, layer, [chosen, ...more], reach, pull)
         .filter(
-          (f) => f.distance <= reach && withIt.layers.includes(f.id) && fits(f.text, withIt.text),
+          (f) =>
+            f.distance <= reach &&
+            layersWith(f.id, chosenText, workbench) &&
+            fits(f.text, withItOf(chosenText, workbench)),
         )
         .map(({ id, distance }) => ({ id, distance }));
     },
@@ -245,12 +268,24 @@ export function rhythmRepository(
       const text = textOf(id, layer);
       return text === undefined ? null : readText(text, meter);
     },
-    *warm(benches) {
+    *warm(benches, layer) {
+      // (cells' rhythms, and the grooves the layer filed, newest first; a rhythm warmed on a workbench takes no step again)
+      const rhythms = [
+        ...(layer?.filed ?? [])
+          .filter(isRhythm)
+          .map((f) => f.fragment.text)
+          .reverse(),
+        ...fragments.map((f) => f.text),
+      ];
       for (const bench of benches) {
+        const asked = workbenches.has(benchKey(bench));
         const workbench = benchOf(bench);
-        yield;
+        if (!asked) yield;
         if (workbench === null) continue;
-        for (const { text } of fragments) {
+        for (const text of rhythms) {
+          const done = `${workbench.length}:${workbench}${text}`;
+          if (warmed.has(done)) continue;
+          warmed.add(done);
           if (!fits(text, workbench)) {
             yield;
             continue;
@@ -259,10 +294,11 @@ export function rhythmRepository(
           yield;
           const withIt = withItOf(text, workbench);
           yield;
-          for (const other of withIt.layers) {
-            const otherText = texts.get(other)!;
-            fits(otherText, withIt.text);
-            readText(otherText, bench.meter);
+          for (const other of fragments) {
+            if (layersWith(other.id, text, workbench)) {
+              fits(other.text, withIt);
+              readText(other.text, bench.meter);
+            }
             yield;
           }
         }

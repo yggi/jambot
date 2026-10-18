@@ -11,14 +11,15 @@
   person sets a preset or an axis it walks. Where the band is in style
   space, and where it heads, reads under "Now playing" for all of them, as
   the nearest presets. What the band learned (#398), a host's or solo's,
-  reads as how many meters it kept and what the layer weighs, and can be
+  reads as how many meters it kept and what the layer weighs, and the
+  grooves the Muse filed (#401), each with who played it and its tags; it can be
   exported as JSON (with its filed fragments as fragment files, where it
   has any) and imported from one while the band is stopped. Ending a session that others are in asks first, in place,
   so a stray tap can't end a jam for everyone: a host is told how many are
   playing in its session. Solo shares nothing, so it goes back at once.
 -->
 <script lang="ts">
-  import { type LearnedLayer, layerBytes } from '@jambot/engine';
+  import { COMPOSER, DRUMMER, type LearnedLayer, layerBytes } from '@jambot/engine';
   import type { Mode } from '../player.svelte.ts';
   import {
     type Following,
@@ -89,17 +90,44 @@
   /** What the last import said: that it took, or why not. */
   let imported: string | null = $state(null);
 
-  /** The meters the layer names, and what it weighs, in words. */
+  /** The meters the layer kept (its uses of the facet `meter`), and what it weighs, in words; nothing yet where it learned nothing. */
   const learnedLine = (layer: LearnedLayer): string => {
-    const ids = new Set([
-      ...layer.points.map((p) => p.id),
-      ...layer.together.flatMap((p) => p.ids),
-      ...layer.filed.map((f) => f.fragment.id),
-    ]);
-    if (ids.size === 0) return 'Nothing yet';
+    if (layer.points.length + layer.together.length + layer.filed.length === 0)
+      return 'Nothing yet';
+    const meters = new Set(layer.points.filter((p) => p.facet === 'meter').map((p) => p.id)).size;
     const kb = (layerBytes(layer) / 1000).toFixed(1);
-    return `${ids.size} ${ids.size === 1 ? 'meter' : 'meters'} · ${kb} KB`;
+    return `${meters} ${meters === 1 ? 'meter' : 'meters'} · ${kb} KB`;
   };
+
+  /** A groove filed: who played it, its tags, and the groove it varies, where the composer varied one (#411). */
+  interface Groove {
+    id: string;
+    source: string;
+    tags: string[];
+    varies: string | null;
+  }
+
+  /** Who played a groove, as a person reads it: the band's own by their part, a player by name. */
+  const BAND_SOURCES: Readonly<Record<string, string>> = {
+    [DRUMMER]: 'The drummer',
+    [COMPOSER]: 'The composer',
+  };
+
+  /** The grooves the layer filed (its fragments of the facet `rhythm`, the composer's variations too), oldest first. */
+  const groovesOf = (layer: LearnedLayer): Groove[] =>
+    layer.filed
+      .filter((f) => f.fragment.association.some((p) => p.facet === 'rhythm'))
+      .map(({ fragment, meta }) => {
+        const source = typeof meta.source === 'string' ? meta.source : '';
+        return {
+          id: fragment.id,
+          source: BAND_SOURCES[source] ?? source,
+          tags: Array.isArray(meta.tags)
+            ? meta.tags.filter((t): t is string => typeof t === 'string')
+            : [],
+          varies: typeof meta.varies === 'string' ? meta.varies : null,
+        };
+      });
 
   async function take(input: HTMLInputElement, carry: Learned) {
     const file = input.files?.[0];
@@ -180,6 +208,21 @@
   {#if mode !== 'client' && learned}
     <Group title="Learned">
       <Reading label="Meters kept" value={learnedLine(learned.layer)} />
+      {@const grooves = groovesOf(learned.layer)}
+      {#if grooves.length > 0}
+        <Reading label="Grooves filed" value={String(grooves.length)} />
+        <ul aria-label="Grooves filed" class="grooves">
+          {#each grooves as groove (groove.id)}
+            <li>
+              <b>{groove.source}</b>
+              <ul class="tags" aria-label="Tags">
+                {#each groove.tags as tag (tag)}<li class="tag">{tag}</li>{/each}
+              </ul>
+              {#if groove.varies !== null}<span class="varies">varies {groove.varies}</span>{/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
       <div class="actions">
         <button type="button" onclick={learned.onexport}>Export</button>
         {#if learned.layer.filed.length > 0}
@@ -200,8 +243,8 @@
       <p class="note">
         {imported ??
           (learned.playing
-            ? 'The band learns each meter it keeps, a section at a time. Stop it to import.'
-            : 'The band learns each meter it keeps, a section at a time, and this browser keeps it.')}
+            ? 'The band learns each meter and rhythm it keeps, and each groove it files, a section at a time. Stop it to import.'
+            : 'The band learns each meter and rhythm it keeps, and each groove it files, a section at a time, and this browser keeps it.')}
       </p>
     </Group>
   {/if}
@@ -259,6 +302,29 @@
     align-items: center;
     gap: 8px;
     font-size: 14px;
+  }
+  .grooves > li {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .grooves b {
+    font-weight: 500;
+  }
+  .varies {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .tag {
+    padding: 1px 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--muted);
   }
   .note {
     margin: 0;

@@ -19,7 +19,13 @@
  * never the band, which the transport schedules `LOOKAHEAD` (120 ms) ahead.
  * Where there is no `requestIdleCallback` (Safari before 18), a slice runs
  * from a zero timeout, its period `FALLBACK_PERIOD` ms.
+ *
+ * A groove the Muse files (#401) is a rhythm the warm-up never saw: once it
+ * is filed, its fits, reads and unions on every bench are warmed the same
+ * way (`warmedOnFiling`, #412), so no bar after it compiles them.
  */
+
+import type { RhythmBench, RhythmRepository } from '@jambot/engine';
 
 /** How long into a slice a step may start, in ms: so a slice is at most this and its last step, under 50 ms. */
 export const SLICE_BUDGET = 25;
@@ -101,4 +107,35 @@ export function warmAtIdle(
   };
   schedule(slice);
   return warming;
+}
+
+/**
+ * The repository, warming each groove filed once it is filed (#412): on the
+ * bench it was played on first, then on `benches`, with the layer it was
+ * filed in, so the sections after it, which may take it and a clave beside
+ * it, compile nothing for it. A text is warmed once however often it is
+ * filed (each forecast files a groove ahead again, in a layer of its own),
+ * and one held already, a fragment's text, is warm. The repository as it is
+ * where it files or warms nothing.
+ */
+export function warmedOnFiling(
+  repository: RhythmRepository,
+  benches: readonly RhythmBench[],
+  warm: (steps: Iterable<void>) => void,
+): RhythmRepository {
+  const { file, warm: warmOn } = repository;
+  if (!file || !warmOn) return repository;
+  const warmedTexts = new Set<string>();
+  return {
+    ...repository,
+    file(layer, filing) {
+      const filed = file.call(repository, layer, filing);
+      const text = filed.layer.filed.find((f) => f.fragment.id === filed.id)?.fragment.text;
+      if (!filed.held && text !== undefined && !warmedTexts.has(text)) {
+        warmedTexts.add(text);
+        warm(warmOn.call(repository, [filing.bench, ...benches], filed.layer));
+      }
+      return filed;
+    },
+  };
 }

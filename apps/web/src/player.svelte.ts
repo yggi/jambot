@@ -103,7 +103,9 @@ import {
   type TransportEnv,
   type TransportOutput,
   METER_REPOSITORY,
+  RHYTHM_BENCHES,
   RHYTHM_REPOSITORY,
+  type RhythmRepository,
   NO_HISTORY,
   clockOfTransport,
   clockThrough,
@@ -146,6 +148,7 @@ import {
 import { type Meter, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { browserLayerStore } from './layer-storage.ts';
+import { warmAtIdle, warmedOnFiling } from './warm.ts';
 import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
 import {
   type Intent,
@@ -286,6 +289,8 @@ export interface Surroundings {
   page(): number;
   /** Where the host keeps what its band learned (#398); with none, it learns for as long as the player lives. */
   layers?: LayerStore;
+  /** Runs work ahead, a step at a time, at idle (`warmAtIdle`); with none, the rhythms are warmed by asking them. */
+  warm?(steps: Iterable<void>): void;
 }
 
 /** The real browser's ticker, frame and seed, with a given way to make the output. */
@@ -303,6 +308,7 @@ export function browserSurroundings(output: () => Output = webAudioOutput): Surr
     seed: () => Math.floor(Math.random() * 2 ** 32),
     page: () => performance.now() / 1000,
     layers: browserLayerStore(),
+    warm: (steps) => void warmAtIdle(steps),
   };
 }
 
@@ -440,6 +446,8 @@ export class Player {
   #plays: Plays;
 
   #surroundings: Surroundings;
+  /** Cells' rhythms, each groove filed warmed once it is (#412). */
+  #rhythms: RhythmRepository;
   #metronome: Metronome | null;
   #output: Output | null = null;
   #carried: TransportCarried | null = null;
@@ -511,6 +519,11 @@ export class Player {
     plays: Plays = 'band',
   ) {
     this.#surroundings = surroundings;
+    this.#rhythms = surroundings.warm
+      ? warmedOnFiling(RHYTHM_REPOSITORY, RHYTHM_BENCHES, surroundings.warm)
+      : RHYTHM_REPOSITORY;
+    // Every fit a section can ask for, at idle from the start (#397).
+    surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES) ?? []);
     this.#metronome = metronome;
     this.#plays = plays;
     this.shadow = new Shadow(() => surroundings.page() * 1000, plays);
@@ -537,6 +550,9 @@ export class Player {
   #startFrom(layer: LearnedLayer): boolean {
     if (this.status !== 'stopped' || this.mode === 'client') return false;
     this.layer = layer;
+    // The grooves it filed, which the warm-up from the start never saw (#412).
+    if (layer.filed.length > 0)
+      this.#surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES, layer) ?? []);
     if (this.#countTempoIn(this.#opening()))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#decide();
@@ -1122,7 +1138,7 @@ export class Player {
       meter: this.meter ?? undefined,
       repository: METER_REPOSITORY,
       layer: this.layer,
-      rhythms: RHYTHM_REPOSITORY,
+      rhythms: this.#rhythms,
       session: this.session ?? undefined,
       swing: this.swing,
       tempoMeter: this.tempoMeter,

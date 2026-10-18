@@ -236,6 +236,55 @@ describe('what the band learned, in its details (#398)', () => {
     expect(screen.getByText('Meters kept').nextElementSibling).toHaveTextContent('Nothing yet');
   });
 
+  it('shows the grooves filed, each with who played it and its tags, beside the meters kept (#412)', async () => {
+    const groove = (id: string, source: string, tags: string[], varies?: string) => ({
+      fragment: {
+        id,
+        text: '&kick step=16n &bd ~ ~ ~',
+        association: [{ ...POINT, facet: 'rhythm' }],
+      },
+      meta: { source, created: 'song 1, bar 0', tags, ...(varies ? { varies } : {}) },
+      prose: '',
+    });
+    const layer = {
+      ...LAYER,
+      filed: [
+        groove('drummer song 1, bar 0', 'drummer', ['groove']),
+        groove('Ada song 1, bar 8', 'Ada', ['groove', 'Friday jam']),
+        groove(
+          'composer song 1, bar 16',
+          'composer',
+          ['groove', 'Friday jam'],
+          'Ada song 1, bar 8',
+        ),
+      ],
+      together: [{ ids: ['4/4', 'drummer song 1, bar 0'] as [string, string], count: 1 }],
+    };
+    const { rerender } = render(Session, props({ learned: learned({ layer }) }));
+    await unfold();
+    // the grooves are not meters
+    expect(screen.getByText('Meters kept').nextElementSibling).toHaveTextContent(/^2 meters · /);
+    expect(screen.getByText('Grooves filed').nextElementSibling).toHaveTextContent('3');
+    const list = screen.getByRole('list', { name: 'Grooves filed' });
+    const grooves = [...list.children].map((groove) => [
+      within(groove as HTMLElement).getByText(/^(The drummer|Ada|The composer)$/).textContent,
+      within(within(groove as HTMLElement).getByRole('list', { name: 'Tags' }))
+        .getAllByRole('listitem')
+        .map((tag) => tag.textContent),
+    ]);
+    expect(grooves).toEqual([
+      ['The drummer', ['groove']],
+      ['Ada', ['groove', 'Friday jam']],
+      ['The composer', ['groove', 'Friday jam']],
+    ]);
+    // a variation names the groove it varies, and only a variation does
+    expect(screen.getAllByText(/^varies /).map((v) => v.textContent)).toEqual([
+      'varies Ada song 1, bar 8',
+    ]);
+    await rerender(props({ learned: learned() }));
+    expect(screen.queryByText('Grooves filed')).toBeNull();
+  });
+
   it('exports the layer, and its fragments only where it filed some', async () => {
     const onexport = vi.fn();
     render(Session, props({ mode: 'solo', learned: learned({ onexport }) }));
