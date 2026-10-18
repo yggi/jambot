@@ -55,7 +55,7 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `packages/engine/src/`: the musical engine, pure TypeScript: the machines of every level, the parts, the Muse, the style and the transport
   - `packages/engine/experiments/`: measurements on the port for the language design, outside the pure `src/` (E9 to E30, and E34)
   - `packages/score/src/`: the score, a bar as text and the text as a bar, pure TypeScript (#13, the seam of #63); the engine, `@strudel/mini` and the cells language (`@yggi/cells`) are dev dependencies, for its tests only (L4)
-  - `packages/score/experiments/`: the band's parts stated as cells text and played by `@yggi/cells`, a whole bar as one text, and a whole section, the lead too, toward the seam of #309 (E31 to E33, and E35)
+  - `packages/score/experiments/`: the band's parts stated as cells text and played by `@yggi/cells`, a whole bar as one text, and a whole section, the lead too, toward the seam of #309 (E31 to E33, and E35); and the composer's rhythm asked of cells' repository and read back into the drums (E36)
   - `packages/session/src/`: host and client mode, pure TypeScript ([brief](briefs/host-mode.md)): the lobby and session protocols, clocks, the fault kit and timing counters
   - `packages/spectrum/src/`: audio frames into spectrum, peaks and pitch, pure TypeScript (#269): the FFT, the McLeod and YIN estimators, the live correction (a streaming PSOLA, a tracker and a corrector) and the synthetic signals they are tested on
   - `packages/spectrum/experiments/`: what correcting live audio toward a score's notes would take (#269): two pitch shifters, a live tracker and a corrector, measured on synthetic voices, and the clips it writes to listen to
