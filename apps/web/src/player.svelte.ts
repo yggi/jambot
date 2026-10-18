@@ -63,7 +63,9 @@
  * keeps none and learns nothing. What its players play on drums goes to its
  * Muse apart from the keyboard's (`drums`), and a groove she hears over a
  * section is filed in the layer under the player's name and tagged with the
- * session hosted (#401); a client's drums don't reach its host yet.
+ * session hosted (#401). A client's ear passes its players' drums on to the
+ * host a bar at a time, and the host's Muse hears them as its own players'
+ * (#410).
  */
 
 import {
@@ -132,6 +134,7 @@ import {
   type FollowCarried,
   type LayerStore,
   type MuseState,
+  type PlayedBar,
   type SentBar,
   type Song,
   type Station,
@@ -222,6 +225,8 @@ export interface Hosting {
 export interface Following {
   /** Bars its players played in, judged. */
   judged(judged: readonly BarJudgement[]): void;
+  /** What its players played on drums, a bar at a time, as its ear heard it (#410). */
+  played(played: readonly PlayedBar[]): void;
   /** Its players asked the Muse to forget. */
   forget(): void;
   /** The host's heard moment less this output's now, once the clocks are trusted: read every tick. */
@@ -460,7 +465,11 @@ export class Player {
   #laid: ScheduledStep[] = [];
   /** Melody notes heard since the last tick, for the transport to pass to the Muse. */
   #arrived: HeardNote[] = [];
-  /** Drum notes this device's players struck since the tick before, for the Muse to hear as grooves (#401); none on a client. */
+  /**
+   * Drum notes struck since the tick before, for the Muse to hear as grooves
+   * (#401): this device's players', and a host's clients' (#410); a client's
+   * go to its ear.
+   */
   #arrivedDrums: HeardNote[] = [];
   #forget = false;
   /** Whether a host's clients were told which bar is the last. */
@@ -711,12 +720,12 @@ export class Player {
   /**
    * A drum note for the Muse, who files a groove a player plays over a
    * section under the player's name (#401): in a session the name the player
-   * goes by, else the instrument it came from. A client's go nowhere yet: its
-   * host's band files, and the wire carries no drum notes.
+   * goes by, else the instrument it came from. A client's go to its ear,
+   * which passes them on to its host by the instrument (#410), and the host
+   * names them by the player it seated.
    */
   #drumsHeard(note: number, velocity: number, source: string, position: number) {
-    if (this.#follow) return;
-    const name = (this.playerId !== null && this.players[this.playerId]) || source;
+    const name = (!this.#follow && this.playerId !== null && this.players[this.playerId]) || source;
     this.#arrivedDrums.push({ note, velocity, source: name, position, end: null });
   }
 
@@ -933,6 +942,11 @@ export class Player {
   /** Judgements a client made of its players' bars, for the Muse to hear with its own. */
   judgedElsewhere(judged: readonly BarJudgement[]) {
     this.#judged.push(...judged);
+  }
+
+  /** Drum notes a client's players struck, named by the player, for the Muse to hear with its own (#410). */
+  drumsElsewhere(drums: readonly HeardNote[]) {
+    if (this.status === 'playing' && !this.#follow) this.#arrivedDrums.push(...drums);
   }
 
   /**
@@ -1341,11 +1355,20 @@ export class Player {
     const heard = this.writtenPosition(heardOn(output));
     if (heard !== null) {
       const keyOf = (bar: number) => follow.keys.find((k) => k.bar === bar)?.key;
-      const ear = earListen(follow.ear, this.#arrived, heard, keyOf, clockOfTransport(carried));
+      const ear = earListen(
+        follow.ear,
+        this.#arrived,
+        heard,
+        keyOf,
+        clockOfTransport(carried),
+        this.#arrivedDrums,
+      );
       follow.ear = ear.carried;
       if (ear.judged.length > 0) follow.told.judged(ear.judged);
+      if (ear.played.length > 0) follow.told.played(ear.played);
     }
     this.#arrived = [];
+    this.#arrivedDrums = [];
     if (this.#finished(carried!, now)) this.halt();
   }
 

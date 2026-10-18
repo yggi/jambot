@@ -8,7 +8,8 @@
  * sounds at the host, whatever each output's latency. A song waits until the clock is trusted, then plays from the bars
  * the host sent. Everything else the host says goes to the player as it
  * comes: bars, the style, the bars ahead and the Muse. What the player's
- * ear judged goes to the host, its sources named by this player's name.
+ * ear judged goes to the host, its sources named by this player's name, and
+ * so does what its players played on drums, a bar a message (#410).
  *
  * It leaves when asked, when the host closes or refuses it, when the host
  * is too far away for playing together (`CLOCK.tooFar`), and when no
@@ -175,6 +176,9 @@ export class ClientSession {
     this.#player.follow({
       judged: (judged) => {
         for (const { bar, judgement } of judged) this.#send({ kind: 'judged', bar, judgement });
+      },
+      played: (played) => {
+        for (const bar of played) this.#send({ kind: 'played', ...bar });
       },
       forget: () => this.#send({ kind: 'forget' }),
       skew: () => this.#skew(),

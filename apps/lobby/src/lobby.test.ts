@@ -100,6 +100,15 @@ describe('the lobby', () => {
     const heard = await host.next();
     expect(heard).toMatchObject({ op: 'heard', message: { kind: 'join', name: 'Ada' } });
     const adaId = (heard as FromLobby & { op: 'heard' }).from;
+    // It reads no version and no kind: a client's bar of drums (protocol 13, #410) goes as it is.
+    const played = {
+      kind: 'played',
+      part: 'drums',
+      bar: 3,
+      notes: [{ note: 36, velocity: 100, source: 'the drum pads', position: 48.2, end: null }],
+    } as const;
+    ada.send({ op: 'tell', message: played });
+    expect(await host.next()).toEqual({ op: 'heard', from: adaId, message: played });
 
     host.send({ op: 'send', message: { kind: 'stop' } });
     host.send({ op: 'send', to: adaId, message: { kind: 'refused', reason: 'only Ada' } });

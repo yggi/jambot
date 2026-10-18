@@ -1,20 +1,33 @@
 import {
   type BandBar,
   type BarJudgement,
+  DRUM_NOTES,
+  EMPTY_LAYER,
+  GROOVE_TAG,
   type HeardNote,
   type Key,
+  METER_REPOSITORY,
+  PRESETS,
+  RHYTHM_REPOSITORY,
   type ScheduledStep,
   INITIAL_STYLE,
   LOOKAHEAD,
   SLIDER_GLIDE,
+  type Style,
   type StyleTrack,
   type TimedEvent,
+  type TransportCarried,
   type TransportEnv,
+  clockOfTransport,
   glideTo,
   holding,
+  holdingSwing,
+  readRhythm,
+  stylePoint,
   transport,
   transportOver,
   writtenAt,
+  writtenStyle,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { CLOCK } from './clock.ts';
@@ -22,7 +35,7 @@ import { EAR, earListen } from './ear.ts';
 import { orderedArrival } from './faults.ts';
 import { followSource } from './follow.ts';
 import { sentBars } from './host.ts';
-import type { SentBar } from './protocol.ts';
+import { type SentBar, heardFrom, readClientMessage } from './protocol.ts';
 
 /** A keyed stand-in for chance, so a run is the same every time. */
 function draws(seed: number) {
@@ -381,5 +394,181 @@ describe('bars over a link that keeps order, as a WebSocket does (#27, T13)', ()
     }
     // The stream did hold bars up behind a loss, a recovery and more.
     expect(longest).toBeGreaterThan(0.2);
+  });
+});
+
+describe("a client's drums, over the link (#410)", () => {
+  const FUNK = PRESETS.find((p) => p.name === 'Funk')!;
+  const STYLE: Style = { ...FUNK.style, entropy: 0.3 };
+  /** Ada's pattern, a bar of 4/4: kick, snare on the backbeat, hats on the eighths. */
+  const PATTERN: readonly { note: number; step: number; velocity: number }[] = [
+    { note: DRUM_NOTES.kick, step: 0, velocity: 110 },
+    { note: DRUM_NOTES.closedHat, step: 2, velocity: 70 },
+    { note: DRUM_NOTES.snare, step: 4, velocity: 100 },
+    { note: DRUM_NOTES.closedHat, step: 6, velocity: 72 },
+    { note: DRUM_NOTES.kick, step: 10, velocity: 96 },
+    { note: DRUM_NOTES.snare, step: 12, velocity: 104 },
+    { note: DRUM_NOTES.closedHat, step: 14, velocity: 68 },
+  ];
+  /** Played over the song's first 8 bars, each hit up to 0.3 of a step off the grid, as a hand plays. */
+  const PLAYED: HeardNote[] = [...Array(8).keys()].flatMap((bar) =>
+    PATTERN.map(({ note, step, velocity }, i) => ({
+      note,
+      velocity,
+      source: 'the drum pads',
+      position: bar * 16 + step + (((bar * 7 + i * 3) % 7) - 3) / 10,
+      end: null,
+    })),
+  );
+  const envAt = (bpm: number): TransportEnv => ({
+    seed: 3,
+    start: 1,
+    track: holding({ ...STYLE, bpm }),
+    swing: holdingSwing(FUNK.swing),
+    wish: { tonic: null, mode: FUNK.mode, melodic: null },
+    repository: METER_REPOSITORY,
+    rhythms: RHYTHM_REPOSITORY,
+    layer: EMPTY_LAYER,
+    session: 'Friday jam',
+  });
+
+  /**
+   * A client's player plays Ada's pattern as the client hears its bars; its
+   * ear passes each bar on (`played`) as JSON over a link with a one-way
+   * delay (`back`, if the way back is slower), and the host hears what it
+   * reads under the name it seated her by. The host's state once 9 bars are
+   * laid, and the bytes of each message. The client's output is 30 ms behind
+   * its clock, and both tick every 25 ms.
+   */
+  function drumsOver(bpm: number, delay: number, back = delay) {
+    const env = envAt(bpm);
+    const latency = 0.03;
+    const follower = transportOver(followSource);
+    let hostCarried = transport.initial;
+    let clientCarried = follower.initial;
+    let ear = EAR;
+    const toClient: { at: number; sent: SentBar }[] = [];
+    const toHost: { at: number; text: string }[] = [];
+    const laid: ScheduledStep[] = [];
+    const bytes: { message: number; notes: number }[] = [];
+    let waiting = [...PLAYED];
+    for (let ms = 900; ; ms += 5) {
+      const t = ms / 1000;
+      if (ms % 25 === 0) {
+        const arrived = toHost.filter((m) => m.at <= t);
+        toHost.splice(0, arrived.length);
+        const drums = arrived.flatMap(({ text }) => {
+          const message = readClientMessage(JSON.parse(text));
+          return message?.kind === 'played' ? heardFrom(message, 'Ada') : [];
+        });
+        const { carried, output } = transport.advance(env, hostCarried, {
+          now: t,
+          until: t + LOOKAHEAD,
+          drums,
+        });
+        hostCarried = carried;
+        if (carried!.head.step > clockOfTransport(carried).barStart(9))
+          return { carried: carried!, bytes };
+        for (const sent of sentBars(output.composed, output.steps, carried!.head, env.track))
+          toClient.push({ at: t + delay, sent });
+      }
+      if (ms % 25 === 10) {
+        const arrived = toClient.filter((m) => m.at <= t).map((m) => m.sent);
+        toClient.splice(0, arrived.length);
+        if (clientCarried === null && arrived.length === 0) continue;
+        const { carried, output } = follower.advance(env, clientCarried, {
+          now: t,
+          until: t + LOOKAHEAD,
+          arrived,
+        });
+        clientCarried = carried;
+        laid.push(...output.steps);
+        const heard = writtenAt(laid, t - latency);
+        if (heard === null) continue;
+        // What the player struck by now, where it was heard.
+        const drums = waiting.filter((n) => n.position <= heard);
+        waiting = waiting.filter((n) => n.position > heard);
+        const listened = earListen(
+          ear,
+          [],
+          heard,
+          () => undefined,
+          clockOfTransport(carried),
+          drums,
+        );
+        ear = listened.carried;
+        for (const played of listened.played) {
+          const text = JSON.stringify({ kind: 'played', ...played });
+          bytes.push({ message: text.length, notes: played.notes.length });
+          toHost.push({ at: t + back, text });
+        }
+      }
+    }
+  }
+
+  /** The host's state once 9 bars are laid, where its own player struck the same notes as it heard them. */
+  function playedAtHost(bpm: number): TransportCarried {
+    const env = envAt(bpm);
+    let carried: TransportCarried | null = transport.initial;
+    let waiting = PLAYED.map((n) => ({ ...n, source: 'Ada' }));
+    for (let now = env.start - 0.1; ; now += 0.025) {
+      const head = carried?.head.step ?? 0;
+      const drums = waiting.filter((n) => n.position < head);
+      waiting = waiting.filter((n) => n.position >= head);
+      carried = transport.advance(env, carried, { now, until: now + LOOKAHEAD, drums }).carried!;
+      if (carried.head.step > clockOfTransport(carried).barStart(9)) return carried;
+    }
+  }
+
+  // Half the longest round trip the clock keeps, one way, plus a tick (F7).
+  const SLOWEST = CLOCK.tooFar / 2 + 0.025;
+
+  it("is filed by the host's Muse under the client's name, tagged with the session, as the host's own player's would be", () => {
+    for (const bpm of [FUNK.style.bpm, 180]) {
+      const { carried } = drumsOver(bpm, SLOWEST);
+      const filed = carried.source.plans.layer!.filed;
+      expect(filed.map((f) => f.fragment.id)).toEqual(['Ada song 3, bar 0']);
+      expect(filed[0]!.meta).toEqual({
+        source: 'Ada',
+        created: 'song 3, bar 0',
+        tags: [GROOVE_TAG, 'Friday jam'],
+      });
+      // Across the wire or struck at the host, the Muse files the same.
+      expect(carried.source.plans.layer).toEqual(playedAtHost(bpm).source.plans.layer);
+    }
+  });
+
+  it('is found at the point it was played at, and reads back as played, to the step the Muse rounds to', () => {
+    const { carried } = drumsOver(FUNK.style.bpm, SLOWEST);
+    const layer = carried.source.plans.layer!;
+    const plan = carried.bars.at(-1)!.plan;
+    const found = RHYTHM_REPOSITORY.query(
+      stylePoint(writtenStyle(STYLE)),
+      { meter: plan.meter, meterFragment: plan.meterFragment },
+      layer,
+    );
+    expect(found[0]).toEqual({ id: 'Ada song 3, bar 0', distance: 0 });
+    expect(readRhythm(layer.filed[0]!.fragment.text, plan.meter)!.hits).toEqual(
+      PATTERN.map(({ note, step, velocity }) => ({
+        role: note === DRUM_NOTES.kick ? 'kick' : note === DRUM_NOTES.snare ? 'backbeat' : 'hat',
+        note,
+        step,
+        velocity,
+      })),
+    );
+  });
+
+  it('travels a bar a message, at most 90 bytes a note and 60 more for the message', () => {
+    const { bytes } = drumsOver(FUNK.style.bpm, SLOWEST);
+    expect(bytes.map((b) => b.notes)).toEqual(Array(8).fill(PATTERN.length));
+    for (const { message, notes } of bytes) expect(message).toBeLessThanOrEqual(60 + 90 * notes);
+  });
+
+  it('reaches the host over a way back of a beat and a half, as a judgement does, and files nothing over a slower one', () => {
+    for (const bpm of [60, 180]) {
+      const beat = 60 / bpm;
+      expect(drumsOver(bpm, 0.01, 1.5 * beat).carried.source.plans.layer!.filed).toHaveLength(1);
+      expect(drumsOver(bpm, 0.01, 2 * beat).carried.source.plans.layer!.filed).toEqual([]);
+    }
   });
 });

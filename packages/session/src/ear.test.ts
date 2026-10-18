@@ -1,6 +1,7 @@
 import { type HeardNote, type Key, judgeBar } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { EAR, EAR_AFTER, earListen } from './ear.ts';
+import { PLAYED_MOST } from './protocol.ts';
 
 const A_MINOR: Key = { tonic: 9, mode: 'aeolian' };
 const keys = (bars: number[]) => (bar: number) => (bars.includes(bar) ? A_MINOR : undefined);
@@ -44,5 +45,61 @@ describe("a client's ear", () => {
     const notes = [...phrase(1), ...phrase(2), ...phrase(3)];
     const { judged } = earListen(EAR, notes, 5 * 16, keys([1, 3]));
     expect(judged.map((j) => j.bar)).toEqual([1, 3]);
+  });
+});
+
+/** Kick and snare on the beats of `bar`, struck on the pads, each a little late. */
+const beats = (bar: number, source = 'the drum pads'): HeardNote[] =>
+  [36, 38, 36, 38].map((note, i) => ({
+    note,
+    velocity: 100,
+    source,
+    position: 16 * bar + 4 * i + 0.3,
+    end: null,
+  }));
+
+describe("a client's ear for drums (#410)", () => {
+  it('passes each bar’s drum notes on a beat after the bar ends, as heard, one bar a message', () => {
+    const drums = [...beats(2), ...beats(3, 'a MIDI port')];
+    const early = earListen(EAR, [], 3 * 16 + EAR_AFTER - 0.01, keys([]), undefined, drums);
+    expect(early.played).toEqual([]);
+    const due = earListen(early.carried, [], 4 * 16 + EAR_AFTER, keys([]));
+    expect(due.played).toEqual([
+      { part: 'drums', bar: 2, notes: beats(2) },
+      { part: 'drums', bar: 3, notes: beats(3, 'a MIDI port') },
+    ]);
+    // Passed once: nothing more comes of them.
+    expect(earListen(due.carried, [], 10 * 16, keys([])).played).toEqual([]);
+  });
+
+  it('passes a bar’s drums whether or not it judges the bar, and none for a bar nobody struck', () => {
+    const { judged, played } = earListen(EAR, phrase(1), 6 * 16, keys([1]), undefined, [
+      ...beats(1),
+      ...beats(4),
+    ]);
+    expect(judged.map((j) => j.bar)).toEqual([1]);
+    expect(played.map((p) => p.bar)).toEqual([1, 4]);
+  });
+
+  it(`passes at most ${PLAYED_MOST} notes of a bar, the earliest`, () => {
+    const many: HeardNote[] = [...Array(PLAYED_MOST + 10).keys()].map((i) => ({
+      note: 42,
+      velocity: 60,
+      source: 'the drum pads',
+      position: 16 + i * (15 / (PLAYED_MOST + 10)),
+      end: null,
+    }));
+    const { played } = earListen(EAR, [], 3 * 16, keys([]), undefined, many.toReversed());
+    expect(played).toEqual([{ part: 'drums', bar: 1, notes: many.slice(0, PLAYED_MOST) }]);
+  });
+
+  it('drops a drum note heard for a bar it has passed on already', () => {
+    const first = earListen(EAR, [], 3 * 16 + EAR_AFTER, keys([]), undefined, beats(2));
+    expect(first.played.map((p) => p.bar)).toEqual([2]);
+    const late = earListen(first.carried, [], 5 * 16 + EAR_AFTER, keys([]), undefined, [
+      ...beats(2),
+      ...beats(4),
+    ]);
+    expect(late.played).toEqual([{ part: 'drums', bar: 4, notes: beats(4) }]);
   });
 });
