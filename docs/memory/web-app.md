@@ -106,6 +106,8 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   So it starts on the band's downbeat, follows a tempo glide, and rests while the band is stopped: switched on, it waits for the next song (decided in #166).
   A client clicks its host's steps on its own output at the skew it plays them; the click is the client's own, so it is never in a session and its switch never rests.
   Only its volume is saved, in `localStorage`; whether it is on never is.
+- The player keeps what its band learned (#398, `Player.layer`): loaded at start from `localStorage` under `jambot:learned-layer:v1` (`layer-storage.ts`), saved whenever it changes (at most once a section, on the tick the section is planned), and handed to each song; a client keeps none.
+  The Session card's Learned group says how many meters it kept and what the layer weighs, exports it as JSON (and its filed fragments as fragment files, where it has any), and imports one while the band is stopped (`useLayer`).
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.
   `licenceOf(style)` gives all four widths from the style: the performer's feel, the tempo's reach, the key's and the melodic scales'.

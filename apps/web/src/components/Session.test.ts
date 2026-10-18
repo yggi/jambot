@@ -202,3 +202,68 @@ describe('the session card', () => {
     });
   });
 });
+
+describe('what the band learned, in its details (#398)', () => {
+  const POINT = {
+    point: { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5 },
+    weight: 1.2,
+    facet: 'meter',
+  };
+  const LAYER = {
+    filed: [],
+    points: [
+      { id: '4/4', ...POINT },
+      { id: '5/4', ...POINT },
+    ],
+    together: [],
+  };
+  const learned = (more: Partial<NonNullable<Props['learned']>> = {}) => ({
+    layer: LAYER,
+    playing: false,
+    onexport: () => {},
+    onexportfiles: () => {},
+    onimport: () => null,
+    ...more,
+  });
+
+  it('says how many meters it kept and what the layer weighs, and nothing yet before it has', async () => {
+    const { rerender } = render(Session, props({ learned: learned() }));
+    await unfold();
+    expect(screen.getByText('Meters kept').nextElementSibling).toHaveTextContent(
+      '2 meters · 0.2 KB',
+    );
+    await rerender(props({ learned: learned({ layer: { filed: [], points: [], together: [] } }) }));
+    expect(screen.getByText('Meters kept').nextElementSibling).toHaveTextContent('Nothing yet');
+  });
+
+  it('exports the layer, and its fragments only where it filed some', async () => {
+    const onexport = vi.fn();
+    render(Session, props({ mode: 'solo', learned: learned({ onexport }) }));
+    await unfold();
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    expect(onexport).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: /Export fragments/ })).toBeNull();
+  });
+
+  it('imports a file while the band is stopped, and says how it went', async () => {
+    const onimport = vi.fn(() => null);
+    render(Session, props({ learned: learned({ onimport }) }));
+    await unfold();
+    const input = screen.getByLabelText('Import') as HTMLInputElement;
+    const file = new File(['{"format":"jambot-learned-layer"}'], 'layer.json');
+    await fireEvent.change(input, { target: { files: [file] } });
+    await vi.waitFor(() =>
+      expect(onimport).toHaveBeenCalledWith('{"format":"jambot-learned-layer"}'),
+    );
+    await vi.waitFor(() => expect(screen.getByText(/Imported/)).toBeInTheDocument());
+  });
+
+  it('waits for the band to stop to import, and a client has none', async () => {
+    const { rerender } = render(Session, props({ learned: learned({ playing: true }) }));
+    await unfold();
+    expect(screen.getByLabelText('Import')).toBeDisabled();
+    expect(screen.getByText(/Stop it to import/)).toBeInTheDocument();
+    await rerender(props({ mode: 'client', learned: learned() }));
+    expect(screen.queryByText('Meters kept')).toBeNull();
+  });
+});
