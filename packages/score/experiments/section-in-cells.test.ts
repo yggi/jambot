@@ -439,7 +439,9 @@ describe('the forms it relies on, over every case', () => {
       expect(s.measured.every((m) => m.equal.bass)).toBe(true);
       // cells reads each bass note's share at its onset off `&bassShare`: the band's (its length less 0.3) / length.
       const shares = s.played.bars.flatMap((b) =>
-        b.notes.flatMap((n, j) => (n.part === 'bass' ? [`${n.written} ${b.shares[j]}`] : [])),
+        b.notes.flatMap((n, j) =>
+          n.part === 'bass' ? [`${+n.written.toFixed(9)} ${b.shares[j]}`] : [],
+        ),
       );
       expect(new Set(shares)).toEqual(new Set(['16 0.98125', '8 0.9625']));
     }
@@ -462,7 +464,7 @@ describe('what cells could not say (E35: the gaps)', () => {
     expect(s.played.chords[0]!.map((c) => c.numeral)).toEqual(['Imaj7', 'III9']);
   });
 
-  it('gap 2, a line’s articulation under swing (E33’s gap 1): the written layer is the band’s in every bar, and the sounding length parts in the swung presets’ articulated lines', () => {
+  it('gap 2, a line’s articulation under swing (E33’s gap 1), closed in cells v0.6.0 (yggi/cells#120): the written layer and the sounding length are the band’s in every bar, swung or straight', () => {
     const sounding = Object.fromEntries(
       PRESETS.map((p) => [
         p.name,
@@ -474,12 +476,12 @@ describe('what cells could not say (E35: the gaps)', () => {
     expect(sounding).toEqual({
       'Synth-pop': [64, 64, 64],
       Techno: [64, 64, 64],
-      'Deep house': [0, 7, 8],
+      'Deep house': [64, 64, 64],
       Ambient: [64, 64, 64],
-      'Lo-fi hip hop': [0, 21, 10],
-      Funk: [0, 64, 8],
+      'Lo-fi hip hop': [64, 64, 64],
+      Funk: [64, 64, 64],
       'Bossa nova': [64, 64, 64],
-      'Swing jazz': [0, 63, 8],
+      'Swing jazz': [64, 64, 64],
     });
   });
 
@@ -543,6 +545,10 @@ describe.runIf(process.env.E35_FULL)(
         lead: 2560,
       });
       expect(bars.filter((m) => m.functions)).toHaveLength(2467);
+      // The sounding length too, swung or straight (cells v0.6.0, yggi/cells#120).
+      expect(
+        bars.filter((m) => m.sounding.bass && m.sounding.comp && m.sounding.lead),
+      ).toHaveLength(2560);
       const offsets = sections.flatMap((s) => s.offsets);
       expect(bars.reduce((n, m) => n + m.notes, 0)).toBe(73444);
       expect(offsets.filter((o) => Math.abs(o) < 0.001)).toHaveLength(73444);

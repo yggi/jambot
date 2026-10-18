@@ -8,7 +8,6 @@ import {
   BARS,
   PARTS,
   RUNS,
-  type Note,
   type Run,
   barAsCells,
   characters,
@@ -111,28 +110,16 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     ]);
   });
 
-  it("plays every bar's drums as composed (step, pitch, length, velocity), its bass and comp but for their lengths under swing (gap 1), and reads back its harmony but in 4 bars", () => {
+  it("plays every bar's drums, bass and comp as composed (step, pitch, length, velocity), and reads back its harmony but in 4 bars", () => {
     for (const m of MEASURED) {
       const where = `${m.run.preset} ${m.run.meter} ${m.bar.bar}`;
-      expect(m.mismatches.drums, where).toEqual([]);
-      // Where the bass or the comp differs, only a length does: every step, pitch and velocity is the band's.
-      for (const part of ['bass', 'comp'] as const)
-        for (const line of m.mismatches[part]) {
-          const [band, cells] = line
-            .split(', cells ')
-            .map((x) => JSON.parse(x.replace(/^band /, '')) as Note);
-          expect([cells!.part, cells!.note, cells!.velocity], where).toEqual([
-            band!.part,
-            band!.note,
-            band!.velocity,
-          ]);
-          expect(Math.abs(cells!.step - band!.step), where).toBeLessThan(1e-6);
-        }
+      for (const part of ['drums', 'bass', 'comp'] as const)
+        expect(m.mismatches[part], where).toEqual([]);
     }
     const equal = Object.fromEntries(
       PARTS.map((p) => [p, MEASURED.filter((m) => m.equal[p]).length]),
     );
-    expect(equal).toEqual({ drums: 384, bass: 256, comp: 336, harmony: 380 });
+    expect(equal).toEqual({ drums: 384, bass: 384, comp: 384, harmony: 380 });
     const notes = MEASURED.reduce((n, m) => n + m.played.notes.length, 0);
     expect(notes).toBe(MEASURED.reduce((n, m) => n + composedNotes(m.bar).length, 0));
     expect(notes).toBe(7478);
@@ -402,7 +389,7 @@ describe('the chord in force as E33 reads it, over every case (#387)', () => {
 });
 
 describe('what cells could not say (E33: the gaps)', () => {
-  it('gap 1, a line’s articulation under swing: `legato=` states each line’s share, and every bass, pad and stab note sounds the band’s length within 1e-6 steps where the meter is straight; under swing, 572 bass and stab notes part', () => {
+  it('gap 1, a line’s articulation under swing, closed in cells v0.6.0 (yggi/cells#120): `legato=` states each line’s share, and every bass, pad and stab note sounds the band’s length within 1e-6 steps, swung or straight', () => {
     const shares = new Map<string, Set<string>>();
     let gated = 0;
     let all = 0;
@@ -473,7 +460,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     expect([written.length, baseLengthOf(w.bar, written)]).toEqual([8, 2.5600000000000005]);
     expect(textOf(w.text)).toMatch(/^&bass over=&harm step=16n legato=\.32 /m);
     expect(w.played.notes.find((n) => n.part === 'bass')!.length).toBeCloseTo(2.56, 9);
-    // Every length, by run: within 1e-6 steps (and 1 ms) where the meter is straight or the line sounds as written.
+    // Every length, by run: within 1e-6 steps (and 1 ms), in every meter and every swing.
     const lengths = (preset: string) =>
       MEASURED.filter((m) => m.run.preset === preset).flatMap((m) => m.lengths);
     const off = (preset: string) => lengths(preset).filter((l) => Math.abs(l.steps) > 1e-6);
@@ -492,31 +479,27 @@ describe('what cells could not say (E33: the gaps)', () => {
     ).toEqual({
       'Synth-pop': [576, 0, []],
       Techno: [394, 0, []],
-      'Deep house': [239, 209, ['bass', 'comp']],
+      'Deep house': [239, 0, []],
       Ambient: [155, 0, []],
-      'Lo-fi hip hop': [254, 158, ['bass', 'comp']],
-      Funk: [413, 77, ['bass']],
+      'Lo-fi hip hop': [254, 0, []],
+      Funk: [413, 0, []],
       'Bossa nova': [648, 0, []],
-      'Swing jazz': [300, 128, ['bass']],
+      'Swing jazz': [300, 0, []],
     });
     for (const l of MEASURED.flatMap((m) => m.lengths))
       expect(Math.abs(l.steps) > 1e-6).toBe(Math.abs(l.seconds) > 0.001);
     const farthest = MEASURED.flatMap((m) => m.lengths).reduce(
-      (a, l) => (Math.abs(l.seconds) > Math.abs(a.seconds) ? l : a),
-      { part: 'bass', steps: 0, seconds: 0 },
+      (a, l) => Math.max(a, Math.abs(l.seconds)),
+      0,
     );
-    expect([farthest.part, farthest.steps.toFixed(4), farthest.seconds.toFixed(4)]).toEqual([
-      'comp',
-      '0.4615',
-      '0.0838',
-    ]);
-    // Why: cells sounds the share of a note's held time, Jambot the share of its written steps, then swung.
-    // Funk's bar 0: its bass at step 10, written 3, sounds .425 of it. Jambot ends it at step 11.275, 1.42
-    // steps' time after its onset (a pair of sixteenths is .6 and .4 of its time); cells .425 of the 3.2
-    // steps' time it is held, 1.36, which ends it at step 11.2.
+    expect(farthest).toBeLessThan(1e-9);
+    // Why: cells and Jambot both sound the share of a note's written steps, then swing its end as its onset.
+    // Funk's bar 0: its bass at step 10, written 3, sounds .425 of it, so both end it at step 11.275, 1.42
+    // steps' time after its onset (a pair of sixteenths is .6 and .4 of its time), where cells v0.5.0 sounded
+    // .425 of the 3.2 steps' time it is held, 1.36, and ended it at step 11.2.
     const funk = at('Funk', '4/4', 0);
     const ten = funk.played.notes.find((n) => n.part === 'bass' && n.step === 10)!;
-    expect(ten.length).toBeCloseTo(1.2, 9);
+    expect(ten.length).toBeCloseTo(1.275, 9);
     const lean = leanMap(leansOf(funk.bar.swing), funk.bar.meter);
     expect(lean.played(13) - lean.played(10)).toBeCloseTo(3.2, 9);
     expect(lean.played(11.275) - lean.played(10)).toBeCloseTo(1.42, 9);
