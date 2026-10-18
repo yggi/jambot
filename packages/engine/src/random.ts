@@ -98,6 +98,8 @@ export const STREAMS = {
   offerVariation: 28,
   /** The radio's walk: one step per section and axis (#313). */
   radio: 29,
+  /** Which variation the composer makes of a groove it tires of, per groove (#411). */
+  grooveVariation: 30,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

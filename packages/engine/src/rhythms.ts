@@ -211,7 +211,7 @@ export function rhythmRepository(
           ...alongside.map((id) => ({ id })),
         ]),
       ),
-    file(layer, { hits, bench, point, source, created, tags }) {
+    file(layer, { hits, bench, point, source, created, tags, varies }) {
       const text = grooveText(hits, stepsOf(bench.meter));
       const filed = fileFragment(cells, layer, {
         text,
@@ -219,7 +219,7 @@ export function rhythmRepository(
         facet: 'rhythm',
         source,
         created,
-        meta: { tags: [...tags] },
+        meta: { tags: [...tags], ...(varies === undefined ? {} : { varies }) },
       });
       // (filing is its use at the point; beside the meter fragment it was played in, a use together)
       const { meterFragment } = bench;
