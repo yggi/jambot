@@ -25,6 +25,8 @@ import {
   transport,
 } from './transport.ts';
 
+const FUNK = PRESETS.find((p) => p.name === 'Funk')!;
+
 /** A preset held at entropy 0.3, 32 bars at a seed, the meter the repository's (as the app plays), with the rhythm or without (main). */
 function run(
   preset: (typeof PRESETS)[number],
@@ -259,7 +261,7 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
     expect(RHYTHM_BENCHES.length).toBe(11 + Object.keys(METERS).length);
     const steps = [...repository.warm!(RHYTHM_BENCHES)].length;
     const warmed = fits;
-    expect([steps, warmed]).toEqual([838, 740]);
+    expect([steps, warmed]).toEqual([1372, 740]);
     // Every preset's point and a spread of others, on every bench, a clave playing or none, with a layer and without.
     const styles = [
       ...PRESETS.map((p) => p.style),
@@ -307,5 +309,67 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
         carried = transport.advance(env, carried, { now, until: now + LOOKAHEAD }).carried;
       expect([preset.name, fits]).toEqual([preset.name, forecast48]);
     }
+  });
+});
+
+describe('a groove filed, warmed ahead (#412)', () => {
+  it('warms the grooves a layer filed on every bench, so no section near one tests a fit or reads afresh, and a second warming takes no step', () => {
+    let fits = 0;
+    let reads = 0;
+    const fit = cellsFit();
+    const repository = rhythmRepository(
+      undefined,
+      (fragment, workbench) => {
+        fits++;
+        return fit(fragment, workbench);
+      },
+      (text, meter) => {
+        reads++;
+        return readRhythm(text, meter);
+      },
+    );
+    for (const step of repository.warm!(RHYTHM_BENCHES)) void step;
+    // The drummer's groove, filed where the second section is planned in 5/4, where no rhythm of cells' fits (as muse-files.test.ts).
+    const style = { ...FUNK.style, entropy: 0.3 };
+    let carried: BandCarried = band.initial;
+    for (let bar = 0; bar < 8; bar++)
+      carried = band.advance(
+        {
+          seed: 1,
+          bar,
+          style,
+          swing: FUNK.swing,
+          wish: { tonic: null, mode: FUNK.mode, melodic: null },
+          offer: null,
+          repository: METER_REPOSITORY,
+          rhythms: repository,
+          meter: METERS['5/4'],
+          layer: EMPTY_LAYER,
+        },
+        carried,
+        null,
+      ).carried;
+    const layer = carried.plans.layer!;
+    expect(layer.filed.map((f) => f.fragment.id)).toEqual(['drummer song 1, bar 0']);
+    const steps = [...repository.warm!(RHYTHM_BENCHES, layer)].length;
+    expect(steps).toBeGreaterThan(0);
+    const warmed = [fits, reads];
+    // The filing's point and points around it, within the miss distance, on every bench, a clave playing or none.
+    const point = stylePoint(style);
+    const near = Array.from({ length: 20 }, (_, i) => ({
+      sync: point.sync! + ((i % 5) - 2) * 0.05,
+      harm: point.harm! + (((i * 3) % 5) - 2) * 0.05,
+      artic: point.artic!,
+      energy: point.energy! + ((i % 4) - 1.5) * 0.04,
+    }));
+    for (const at of near)
+      for (const bench of RHYTHM_BENCHES) {
+        const found = composedRhythm(repository, at, bench, null, layer);
+        composedRhythm(repository, at, bench, found, layer);
+        for (const id of [found.rhythmFragment, found.claveFragment])
+          if (id) repository.read(id, bench.meter, layer);
+      }
+    expect([fits, reads]).toEqual(warmed);
+    expect([...repository.warm!(RHYTHM_BENCHES, layer)].length).toBe(0);
   });
 });
