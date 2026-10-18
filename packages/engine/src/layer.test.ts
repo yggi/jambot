@@ -11,7 +11,7 @@ import {
   filedFiles,
   layerBytes,
 } from './layer.ts';
-import { composedMeter, stylePoint } from './meter-query.ts';
+import { METER_HOLD, MISS_DISTANCE, composedMeter, stylePoint } from './meter-query.ts';
 import { type PlanCarried, type PlanEnv, planner } from './plan.ts';
 import { walkRadio } from './radio.ts';
 import { METER_REPOSITORY, meterLayerProblems } from './repository.ts';
@@ -171,6 +171,55 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
       else if (own > 1.2 * nearest + 1e-9) expect(first, `at ${t}`).toBe(found[0]!.id);
     }
     expect(flips).toBeGreaterThan(0);
+  });
+
+  it('holds the meter playing, with a layer, where another is nearer by less than METER_HOLD', () => {
+    // Section 0 at 4/4's point keeps 4/4 and learns it; section 1 steps toward 5/4, to where another meter is nearest by less than the margin.
+    const [a, b] = [seedPoint('4/4').point, seedPoint('5/4').point];
+    const along = (t: number): Style => ({
+      ...SYNTH_POP,
+      ...Object.fromEntries(
+        Object.keys(a).map((axis) => [axis, a[axis]! + t * (b[axis]! - a[axis]!)]),
+      ),
+    });
+    const learned = planned(along(0), EMPTY_LAYER, 1)[0]!.layer!;
+    const border = range(1001)
+      .map((i) => i / 1000)
+      .find((t) => {
+        const found = METER_REPOSITORY.query(stylePoint(along(t)), learned);
+        const own = found.find((f) => f.id === '4/4')!.distance;
+        return (
+          found[0]!.id !== '4/4' &&
+          own - found[0]!.distance < METER_HOLD / 2 &&
+          own <= MISS_DISTANCE
+        );
+      })!;
+    expect(border).toBeDefined();
+    const nearest = METER_REPOSITORY.query(stylePoint(along(border)), learned)[0]!.id;
+    expect(nearest).not.toBe('4/4');
+    let carried: PlanCarried = planner.initial;
+    const plans = [along(0), along(border)].map((style, index) => {
+      const next = planner.advance(
+        {
+          seed: 1,
+          index,
+          style,
+          wish: { tonic: null, mode: 'aeolian', melodic: null },
+          history: NO_HISTORY,
+          repository: METER_REPOSITORY,
+          layer: EMPTY_LAYER,
+        },
+        carried,
+        null,
+      );
+      carried = next.carried;
+      return next.output;
+    });
+    expect(plans.map((p) => p.meterFragment)).toEqual(['4/4', '4/4']);
+    // Asked afresh, with nothing playing, the composer would take the nearest.
+    expect(composedMeter(METER_REPOSITORY, along(border), null, learned)!.id).toBe(nearest);
+    // The held meter is a use too, at the border's point.
+    expect(carried.layer!.points.map((p) => [p.id, p.weight])).toEqual([['4/4', 1.2]]);
   });
 
   it('plays the same from the same seed, style and layer: the plans carry the layer, so a forecast learns as the band will', () => {
