@@ -14,6 +14,7 @@ import {
   readRhythm,
   rhythmRepository,
 } from './rhythms.ts';
+import { pullOf } from './novelty.ts';
 import { PRESETS } from './style.ts';
 
 /** A preset held at entropy 0.3, 32 bars at a seed, the meter the repository's (as the app plays), with the rhythm or without (main). */
@@ -192,6 +193,50 @@ describe('the rhythm and the learned layer (#397, #398)', () => {
       { ids: ['4/4 leaning lightly on 16n', 'rumba clave 3-2'], count: 5 },
       { ids: ['Funk drums', 'rumba clave 3-2'], count: 5 },
     ]);
+  });
+});
+
+describe('the pull of a group the composer keeps, from its place on the ladder (#389)', () => {
+  // Between Funk's point and Synth-pop's, the point where another rhythm is nearer than Funk's drum bar by 0.01: half
+  // what a group known together pulls at entropy 0 (pull 0.2 × cells' reach 0.1), and more than nothing pulls at 1.
+  const FUNK = PRESETS.find((p) => p.name === 'Funk')!.style;
+  const POP = PRESETS[0]!.style;
+  const bench = { meter: METERS['4/4'] };
+  const at = (t: number) =>
+    Object.fromEntries(
+      (['sync', 'harm', 'artic', 'energy'] as const).map((axis) => [
+        axis,
+        FUNK[axis] + (POP[axis] - FUNK[axis]) * t,
+      ]),
+    ) as Pick<typeof FUNK, 'sync' | 'harm' | 'artic' | 'energy'>;
+  /** How much nearer the nearest other rhythm lies than Funk's drum bar. */
+  const lead = (t: number) => {
+    const found = RHYTHM_REPOSITORY.query(stylePoint(at(t)), bench);
+    const funk = found.find((f) => f.id === 'Funk drums')!.distance;
+    return funk - found.find((f) => f.id !== 'Funk drums')!.distance;
+  };
+  let [low, high] = [0, 1];
+  for (let i = 0; i < 40; i++) {
+    const mid = (low + high) / 2;
+    if (lead(mid) < 0.01) low = mid;
+    else high = mid;
+  }
+  const style = at(high);
+  const [rival] = RHYTHM_REPOSITORY.query(stylePoint(style), bench);
+  // Funk's drum bar and the 4/4 meter fragment, known together (cells' 10 uses)
+  const layer: LearnedLayer = {
+    ...EMPTY_LAYER,
+    together: [{ ids: ['4/4', 'Funk drums'], count: 10 }],
+  };
+  const taken = (entropy: number) =>
+    composedRhythm(RHYTHM_REPOSITORY, style, bench, null, layer, ['4/4'], [], pullOf(entropy))
+      .rhythmFragment;
+
+  it('keeps the group at entropy 0 (repeat), and follows the style at entropy 1 (fetch far): the nearest by style alone', () => {
+    expect(lead(high)).toBeCloseTo(0.01, 6);
+    expect(rival!.id).not.toBe('Funk drums');
+    expect(taken(0)).toBe('Funk drums');
+    expect(taken(1)).toBe(rival!.id);
   });
 });
 

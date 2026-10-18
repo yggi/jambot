@@ -139,10 +139,10 @@ export function rhythmRun(
   };
   const meters: MeterRepository = {
     ...METER_REPOSITORY,
-    query(point, given, chosen) {
+    query(point, given, chosen, pull) {
       planning++;
       if (given) layers[planning] = given;
-      return METER_REPOSITORY.query(point, given, chosen);
+      return METER_REPOSITORY.query(point, given, chosen, pull);
     },
     used: (given, id, point) => learnt(METER_REPOSITORY.used!(given, id, point)),
   };

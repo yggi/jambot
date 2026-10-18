@@ -60,6 +60,7 @@ import {
   boredAfter,
   familyOf,
   lineageOf,
+  pullOf,
   rejectedOf,
   variedGroove,
   wantsVariation,
@@ -212,7 +213,8 @@ export type SectionMeter = Pick<Plan, 'meter' | 'swing' | 'share' | 'meterFragme
 /**
  * The meter a section takes where it starts: the one asked for, with the
  * level asked for; where none is, the one the composer finds in the
- * repository at the style (`composedMeter`); on a miss, the section
+ * repository at the style (`composedMeter`), asked with the pull of use
+ * together its entropy sets (#389, `pullOf`); on a miss, the section
  * before's; and where there is nothing else, the song's 4/4.
  */
 export function sectionMeter(
@@ -237,7 +239,14 @@ function composedSection(
 ): { readonly meter: SectionMeter; readonly found: MeterFragment | null } {
   if (meter) return { meter: { meter, swing }, found: null };
   const found = repository
-    ? composedMeter(repository, style, before?.meterFragment ?? null, layer, chosen)
+    ? composedMeter(
+        repository,
+        style,
+        before?.meterFragment ?? null,
+        layer,
+        chosen,
+        pullOf(style.entropy),
+      )
     : null;
   if (found)
     return {
@@ -282,7 +291,8 @@ function learnedFrom(
  * The rhythm a section takes where it starts, after its meter: the one the
  * composer finds in the repository at the style, fitting the section's meter
  * (`composedRhythm`), the section before's held, none of those `rejected`;
- * none with no repository or on a miss, where the drummer invents.
+ * none with no repository or on a miss, where the drummer invents. It asks
+ * with the pull of use together its entropy sets (#389, `pullOf`).
  */
 export function sectionRhythm(
   { rhythms, style, layer }: Pick<PlanEnv, 'rhythms' | 'style' | 'layer'>,
@@ -300,6 +310,7 @@ export function sectionRhythm(
         layer,
         chosen,
         rejected,
+        pullOf(style.entropy),
       )
     : {};
 }

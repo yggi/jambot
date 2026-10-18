@@ -49,11 +49,12 @@ export type StylePoint = Readonly<Record<string, number>>;
 export interface MeterRepository {
   /** The fragments the band can play, by id. */
   readonly fragments: ReadonlyMap<string, MeterFragment>;
-  /** Every fragment the band can play, with its distance from a point, nearest first, with what was learned merged where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046). */
+  /** Every fragment the band can play, with its distance from a point, nearest first, with what was learned merged where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046), as strongly as `pull` (cells' default where none, #389). */
   query(
     point: StylePoint,
     layer?: LearnedLayer,
     chosen?: readonly string[],
+    pull?: number,
   ): readonly { readonly id: string; readonly distance: number }[];
   /** The layer after the composer kept fragment `id` at `point`: a use of it there (cells' `useFragments`), the layer within its cap. None where the repository learns nothing. */
   used?(layer: LearnedLayer, id: string, point: StylePoint): LearnedLayer;
@@ -96,7 +97,7 @@ export const METER_HOLD = 0.02;
  * nearest, unless it misses or the one playing is within `METER_HOLD` of
  * it; null on a miss, where the band keeps its meter. The repository ranks
  * with the layer merged, where one is given, and those `chosen` pulling the
- * meters used with them.
+ * meters used with them as strongly as `pull` (#389).
  */
 export function composedMeter(
   repository: MeterRepository,
@@ -104,9 +105,13 @@ export function composedMeter(
   playing: string | null,
   layer?: LearnedLayer,
   chosen: readonly string[] = [],
+  pull?: number,
 ): MeterFragment | null {
   const { miss, hold } = repository.margins ?? { miss: MISS_DISTANCE, hold: METER_HOLD };
-  const found = repository.query(stylePoint(style), layer, ...(chosen.length ? [chosen] : []));
+  const found =
+    pull === undefined
+      ? repository.query(stylePoint(style), layer, ...(chosen.length ? [chosen] : []))
+      : repository.query(stylePoint(style), layer, chosen, pull);
   const nearest = found[0];
   if (!nearest || nearest.distance > miss) return null;
   const held = playing === null ? undefined : found.find((f) => f.id === playing);
