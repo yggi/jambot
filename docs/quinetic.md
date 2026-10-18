@@ -264,7 +264,7 @@ Tuned in at Techno at entropy 1, every tenth of each unit axis holds a tenth of 
 Test: `themes.test.ts`, whose test of the A theme's first chord cites Q11: every mode, 21 harmonies, three entropies and 20 seeds; `key-loop.test.ts` (`packages/engine/experiments`), E19, whose test of the key's drift cites Q11; `radio.test.ts`, whose test of the walk pulled nowhere cites Q11.
 Source: #210 ("left alone, it plays an endless, evolving jam", `AGENTS.md`, as a claim about where the system settles); the owner, on #210.
 Status: measured (the harmony within a key); measured (the key at entropy 0); measured, failing (the key above it, also under the radio's walk, E19; the style under the radio, by design).
-Decided: #210, ahead of the evidence: a default comes home in a cycle the level above plans, or drifts, as the licence given and the freedom used balance; #313, ahead of the evidence: left alone, the style wanders freely, with no attraction (the owner, 2026-10-16).
+Decided: #210, ahead of the evidence: a default comes home in a cycle the level above plans, or drifts, as the licence given and the freedom used balance; #313, ahead of the evidence: left alone, the style wanders freely, with no attraction (the owner, 2026-10-16); #313, after E19 under the walk: the key under the radio is the key left alone, no planned cycle (the owner, 2026-10-18).
 Lands in: #210, #233 (a planned cycle of keys over the form, which the key does not have yet), #195, #313.
 
 ## Not a property
