@@ -25,6 +25,8 @@
   import { broadcastLobby } from './session/broadcast.ts';
   import { type Found, Sessions, type Where } from './session/sessions.svelte.ts';
   import { browserKept } from './session/storage.ts';
+  import { filedFiles } from '@jambot/engine';
+  import { layerText, readLayerText } from '@jambot/session';
   import { websocketLobby } from './session/websocket.ts';
   import { MeterPlayer } from './meter/meter-player.svelte.ts';
   import { WorkerAnalysis } from './tune/analysis.ts';
@@ -126,6 +128,22 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const exportTiming = () => download(timingFile(takeTiming()));
+  /** What the band learned, carried to and from files from the Session card (#398). */
+  const layers = {
+    onexport: () =>
+      download({
+        name: `jambot-layer-${new Date().toISOString().slice(0, 10)}.json`,
+        text: layerText(player.layer),
+      }),
+    onexportfiles: () => {
+      for (const file of filedFiles(player.layer)) download(file, 'text/markdown');
+    },
+    onimport: (text: string) => {
+      const { layer, problem } = readLayerText(text);
+      if (problem !== null) return `Not imported: ${problem}.`;
+      return player.useLayer(layer) ? null : 'Stop the band to import.';
+    },
+  };
   const exportRuns = (kind: 'json' | 'csv') =>
     kind === 'json'
       ? download(runsFile(testing.saved))
@@ -352,6 +370,7 @@
       },
     }}
     onend={() => void leave()}
+    {layers}
     sound={soundCard}
     timing={timingShown ? timingPanel : undefined}
   />
