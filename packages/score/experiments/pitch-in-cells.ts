@@ -253,7 +253,7 @@ export const QUALITY_DEGREES: Readonly<Record<string, readonly number[]>> = {
 };
 
 /** A tone of a chord as a degree of its key, from the tonic, and the alteration it needs. */
-interface Tone {
+export interface Tone {
   readonly degree: number;
   readonly accidental: number;
 }
@@ -321,6 +321,10 @@ export function pinTone(key: ScoreKey, note: number, part: 'comp' | 'bass'): Ton
   const at = alteredDegree(diatonicMode(key.mode), height)!;
   return { degree: at.degree, accidental: at.accidental };
 }
+
+/** A degree of the key from a part's voice, altered: the MIDI note it plays (`pinTone`'s inverse). */
+export const pinNote = (key: ScoreKey, tone: Tone, part: 'comp' | 'bass') =>
+  PIN_FROM[part] + key.tonic + heightOf(diatonicMode(key.mode), tone.degree) + tone.accidental;
 
 /** The pin's lines, shared by every candidate: `&frame` and `&frameBass`, where the score states one. */
 function frameLines(h: Harmony): string[] {
