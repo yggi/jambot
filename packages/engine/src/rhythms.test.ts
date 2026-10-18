@@ -7,7 +7,13 @@ import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { stylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
 import { composedRhythm } from './rhythm-query.ts';
-import { RHYTHM_REPOSITORY, readRhythm } from './rhythms.ts';
+import {
+  RHYTHM_BENCHES,
+  RHYTHM_REPOSITORY,
+  cellsFit,
+  readRhythm,
+  rhythmRepository,
+} from './rhythms.ts';
 import { PRESETS } from './style.ts';
 
 /** A preset held at entropy 0.3, 32 bars at a seed, the meter the repository's (as the app plays), with the rhythm or without (main). */
@@ -182,5 +188,38 @@ describe('the rhythm and the learned layer (#397, #398)', () => {
     ).toBe(true);
     // 4 sections played, and the fifth decided a bar ahead
     expect(learned.together).toEqual([{ ids: ['Funk drums', 'rumba clave 3-2'], count: 5 }]);
+  });
+});
+
+describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
+  it('tests every fit a section can ask for while it warms, a step at a time, and none after', () => {
+    let fits = 0;
+    const fit = cellsFit();
+    const repository = rhythmRepository(undefined, (fragment, workbench) => {
+      fits++;
+      return fit(fragment, workbench);
+    });
+    expect(RHYTHM_BENCHES.length).toBe(11 + Object.keys(METERS).length);
+    const steps = [...repository.warm!(RHYTHM_BENCHES)].length;
+    const warmed = fits;
+    expect([steps, warmed]).toEqual([838, 740]);
+    // Every preset's point and a spread of others, on every bench, a clave playing or none, with a layer and without.
+    const styles = [
+      ...PRESETS.map((p) => p.style),
+      ...Array.from({ length: 50 }, (_, i) => ({
+        sync: (i * 0.618) % 1,
+        harm: (i * 0.414) % 1,
+        artic: (i * 0.732) % 1,
+        energy: (i * 0.236) % 1,
+      })),
+    ];
+    for (const style of styles)
+      for (const bench of RHYTHM_BENCHES) {
+        const found = composedRhythm(repository, style, bench, null);
+        composedRhythm(repository, style, bench, found, EMPTY_LAYER);
+        for (const id of [found.rhythmFragment, found.claveFragment])
+          if (id) repository.read(id, bench.meter);
+      }
+    expect(fits).toBe(warmed);
   });
 });

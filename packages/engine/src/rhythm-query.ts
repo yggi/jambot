@@ -73,17 +73,24 @@ export interface FoundRhythm {
 export interface RhythmRepository {
   /** Every fragment that fits the bench, with its distance from the point, nearest first, with what was learned merged where a layer is given. */
   query(point: StylePoint, bench: RhythmBench, layer?: LearnedLayer): readonly FoundRhythm[];
-  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen` pulls. */
+  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen` pulls; none farther than `reach`, where it is given, so a fit is tested only for those that can be taken. */
   layered(
     point: StylePoint,
     bench: RhythmBench,
     chosen: string,
     layer?: LearnedLayer,
+    reach?: number,
   ): readonly FoundRhythm[];
   /** The layer after the composer kept these fragments together at `point`: a use of each there, and of the pair (cells' `useFragments`), within its cap. None where the repository learns nothing. */
   used?(layer: LearnedLayer, ids: readonly string[], point: StylePoint): LearnedLayer;
   /** A fragment's hits under a meter played straight, or null where it can't be read there. */
   read(id: string, meter: Meter): FragmentRead | null;
+  /**
+   * Work the repository can do ahead, so that asking on these benches costs
+   * only lookups: each step a fit, a union or a read at most, so a host runs
+   * it a step at a time between other work. None where it keeps nothing.
+   */
+  warm?(benches: readonly RhythmBench[]): Iterable<void>;
   /** The composer's margins, where they are other than `RHYTHM_MISS`, `RHYTHM_HOLD` and `LAYER_DISTANCE`: an experiment tries others. */
   readonly margins?: { readonly miss: number; readonly hold: number; readonly layer: number };
 }
@@ -161,7 +168,7 @@ export function composedRhythm(
   if (rhythm === undefined) return {};
   // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
   const lines = repository
-    .layered(point, bench, rhythm, layer)
+    .layered(point, bench, rhythm, layer, reach + hold)
     .filter((f) => f.distance <= reach + hold)
     .filter((f) => {
       const read = repository.read(f.id, bench.meter);
