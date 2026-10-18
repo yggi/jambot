@@ -15,6 +15,7 @@ import { METER_HOLD, MISS_DISTANCE, composedMeter, stylePoint } from './meter-qu
 import { type PlanCarried, type PlanEnv, planner } from './plan.ts';
 import { walkRadio } from './radio.ts';
 import { METER_REPOSITORY, repositoryLayerProblems } from './repository.ts';
+import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { PRESETS, PRESET_GLIDE, type Style, glideTo, holding } from './style.ts';
 import { STRAIGHT, holdingSwing } from './swing.ts';
 import {
@@ -48,8 +49,8 @@ function hashOf(all: readonly TimedEvent[]): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-/** Each preset at entropy `entropy`, 2 seeds, the style held or walked by the radio a section at a time. */
-function runs(entropy: number, walked: boolean, extra: Partial<TransportEnv> = {}) {
+/** Each preset at entropy `entropy`, 2 seeds, the style held or walked by the radio a section at a time, swung as the preset where `swung`. */
+function runs(entropy: number, walked: boolean, extra: Partial<TransportEnv> = {}, swung = false) {
   return PRESETS.flatMap((preset) =>
     [0, 1].map((seed) => {
       let style = { ...preset.style, entropy };
@@ -64,7 +65,7 @@ function runs(entropy: number, walked: boolean, extra: Partial<TransportEnv> = {
         start: 1,
         track,
         wish: { tonic: null, mode: preset.mode, melodic: null },
-        swing: holdingSwing(STRAIGHT),
+        swing: holdingSwing(swung ? preset.swing : STRAIGHT),
         repository: METER_REPOSITORY,
         ...extra,
       });
@@ -90,6 +91,26 @@ describe('the band given an empty learned layer plays exactly what main plays (#
       const all = runs(1, true, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.walked);
     }
+  });
+});
+
+/** Main's events with cells' rhythms and an empty layer, each preset held and swung as it is, as recorded on `main` at 45b6b80 before a seed rhythm climbed the ladder (#414). */
+const MAIN_RHYTHMS = { still: [15434, '6ab77cf7'], bored: [13700, '77e8600e'] } as const;
+
+describe('a seed rhythm climbs the ladder only where the entropy bores the composer (#414)', () => {
+  const rhythms = { rhythms: RHYTHM_REPOSITORY, layer: EMPTY_LAYER };
+
+  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 15,434 events, each to 1e-9 s', () => {
+    const all = runs(0, false, rhythms, true).flat();
+    expect([all.length, hashOf(all)]).toEqual(MAIN_RHYTHMS.still);
+  });
+
+  it('plays otherwise at entropy 1, where a preset’s drum bar is varied at the fourth section', () => {
+    const all = runs(1, false, rhythms, true).flat();
+    expect([all.length, hashOf(all)]).not.toEqual(MAIN_RHYTHMS.bored);
+    // and as main where it is given no layer to file the variation in
+    const none = runs(1, false, { rhythms: RHYTHM_REPOSITORY }, true).flat();
+    expect([none.length, hashOf(none)]).toEqual(MAIN_RHYTHMS.bored);
   });
 });
 

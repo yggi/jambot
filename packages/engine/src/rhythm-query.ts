@@ -206,9 +206,10 @@ function heldNearest(
  * the line chosen with it, where one layers within `LAYER_DISTANCE`. Those
  * `chosen` (the composer's short-term memory and the section's meter) pull
  * the fragments used with them, as cells' query weighs use together. Those
- * `rejected` (grooves it has tired of, `novelty.ts`) it leaves out of what
- * the repository returns, so the next nearest is taken, or none. It asks
- * both with `pull`, how strongly use together pulls (#389, `pullOf`).
+ * `rejected` (rhythms it has tired of, and the claves played with them,
+ * `novelty.ts`) it leaves out of what the repository returns, so the next
+ * nearest is taken, or none. It asks both with `pull`, how strongly use
+ * together pulls (#389, `pullOf`).
  */
 export function composedRhythm(
   repository: RhythmRepository,
@@ -238,7 +239,7 @@ export function composedRhythm(
   // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
   const lines = repository
     .layered(point, bench, rhythm, layer, reach + hold, chosen, pull)
-    .filter((f) => f.distance <= reach + hold)
+    .filter((f) => f.distance <= reach + hold && !rejected.includes(f.id))
     .filter((f) => {
       const read = repository.read(f.id, bench.meter, layer);
       return read !== null && isOwnLine(read);

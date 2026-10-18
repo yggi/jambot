@@ -1,3 +1,4 @@
+import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { describe, expect, it } from 'vitest';
 import {
   QUANTUM,
@@ -7,6 +8,7 @@ import {
   keyedRandom,
   keyedRng,
   mulberry32,
+  nameKey,
   pick,
   quantize,
 } from './random.ts';
@@ -178,5 +180,19 @@ describe('draw', () => {
         seen.set(draws, `${seed} ${stream}`);
       }
     expect(draw(7, 'form', 3)).not.toBe(draw(7, 'drumHit', 3));
+  });
+});
+
+describe('nameKey', () => {
+  it('is FNV-1a over a name, a 32-bit key: its known answers', () => {
+    expect([nameKey(''), nameKey('a'), nameKey('foobar')]).toEqual([
+      0x811c9dc5, 0xe40c292c, 0xbf9cf968,
+    ]);
+  });
+
+  it('gives each of cells’ seed rhythms a key of its own, so each is varied by a draw of its own (#414)', () => {
+    const keys = RHYTHM_FRAGMENTS.map((f) => nameKey(f.id));
+    expect(new Set(keys).size).toBe(RHYTHM_FRAGMENTS.length);
+    for (const k of keys) expect(Number.isInteger(k) && k >= 0 && k < 2 ** 32).toBe(true);
   });
 });

@@ -1,46 +1,61 @@
 /**
- * The novelty ladder for grooves (#411; yggi/cells decision 043: repeat →
- * vary with operators → recombine the workbench → fetch nearby → fetch far,
- * bored climbing it): how the composer tires of a groove the Muse filed
- * (`muse-groove.ts`), varies it, and past that rejects it, so the drummer
- * invents again and the Muse files that in turn.
+ * The novelty ladder for rhythms (#411, #414; yggi/cells decision 043:
+ * repeat → vary with operators → recombine the workbench → fetch nearby →
+ * fetch far, bored climbing it): how the composer tires of a rhythm it
+ * plays, varies it, and past that rejects it, so the next nearest plays, or
+ * the drummer invents and the Muse files that in turn.
  *
- * A groove here is a fragment the learned layer filed: the drummer's, a
- * player's, or a variation the composer made. Cells' seed rhythms don't
- * climb it: a preset's drum bar is what the preset plays, and the drummer
- * already varies within it (`groove.ts`).
+ * A rhythm here is any the repository gives a section: one of cells' seed
+ * rhythms (a preset's drum bar, or a clave playing alone, #414), or a groove
+ * the learned layer filed (the drummer's, a player's, or a variation the
+ * composer made, `muse-groove.ts`). A preset's drum bar climbs as a groove
+ * filed does, so a preset held plays its drum bar, then a variation of it,
+ * then leaves it a while.
+ *
+ * **The clave climbs with the drum bar** (#414): a line chosen with the
+ * rhythm (`claveFragment`) is never varied, and the lineage of the rhythm it
+ * played with keeps it (`claves`), so it is rejected with that rhythm and
+ * returns with it. A clave is chosen for the drum bar it layers on (cells
+ * decision 046's use together), so the two tire together, as a pair; and the
+ * variation keeps it, as it keeps the kick and the backbeat, so what a
+ * section varies is the drum bar's own lines.
  *
  * **Boredom** (until the homeostat measures recognition, #237): the
- * composer keeps, for each groove it played lately and its family (a
- * `Lineage`: the groove it varies, named in the layer under `varies`,
- * followed back to the first, and every variation of that one,
- * `familyOf`), how bored it is. A section the lineage plays
- * adds the style's entropy, and a section it doesn't takes it away, so
- * boredom fades as fast as it grew, and a lineage at none is forgotten.
- * Counted on the draws' grid (`quantize`), so ten sections at 0.3 make 3.
+ * composer keeps, for each rhythm it played lately and its family (a
+ * `Lineage`: the rhythm it varies, named in the layer under `varies`,
+ * followed back to the first, a seed rhythm or a groove filed, and every
+ * variation of that one, `familyOf`), how bored it is. A section the
+ * lineage plays adds the style's entropy, and a section it doesn't takes it
+ * away, so boredom fades as fast as it grew, and a lineage at none is
+ * forgotten. Counted on the draws' grid (`quantize`), so ten sections at 0.3
+ * make 3.
  *
  * **The rungs**, each `BORED` of boredom (3 sections at entropy 1, 10 at
- * 0.3; none at 0, where the groove holds):
+ * 0.3; none at 0, where the rhythm holds):
  *
- * - rung 0, **repeat**: the groove plays as found;
- * - rung 1, **vary**: on reaching it, the composer varies the groove
+ * - rung 0, **repeat**: the rhythm plays as found;
+ * - rung 1, **vary**: on reaching it, the composer varies the rhythm
  *   playing by one operator (`variations`), files the variation (`plan.ts`)
- *   and plays it, where the family holds no variation yet; so a family
- *   that returns is not varied again, and the layer grows by one variation
- *   a groove the drummer or a player made;
- * - past `GROOVE_RUNGS`, **rejected**: the composer leaves every groove of
- *   the lineage out of what the repository returns (decision 043: it may
- *   reject what it is given), so it takes the next nearest, a seed rhythm
- *   where one fits, and where none does, the drummer invents. A rejected
- *   lineage is out until its boredom has faded, as many sections as it
- *   played, then it may be found again.
+ *   and plays it, where the family holds no variation yet and the rhythm is
+ *   one bar long (a two-bar clave playing alone isn't varied, and only
+ *   repeats until it is rejected); so a family that returns is not varied
+ *   again, and the layer grows by one variation a rhythm the band played
+ *   long enough;
+ * - past `GROOVE_RUNGS`, **rejected**: the composer leaves every rhythm of
+ *   the lineage, and its claves, out of what the repository returns
+ *   (decision 043: it may reject what it is given), so it takes the next
+ *   nearest, and where none lies near enough, the drummer invents. A
+ *   rejected lineage is out until its boredom has faded, as many sections
+ *   as it played, then it may be found again.
  *
  * The rungs between vary and fetch (recombining the workbench, fetching
- * far) are not climbed here: a groove rejected is the composer asking the
+ * far) are not climbed here: a rhythm rejected is the composer asking the
  * repository again without it, which is fetching nearby.
  *
- * **The operators** act on one line of the groove (a role's hits), never on
- * the kick or the backbeat (`GROOVE_ANCHORS`), which carry the meter:
+ * **The operators** act on one line of the rhythm (a role's hits), never on
+ * the kick or the backbeat (`GROOVE_ANCHORS`), which carry the meter, nor on
+ * the fill, which the drummer plays its own of (`groove.ts`), so a variation
+ * of a fragment's fill would sound as the fragment does:
  *
  * - **rotate**: every hit of the line a step later, the last step wrapping
  *   to the first;
@@ -49,7 +64,7 @@
  *   sound is silent on, at the line's loudest, so the drummer, who plays a
  *   fragment's loudest hits first (`groove.ts`), plays it among its first.
  *
- * None strikes one sound twice on a step, and each gives a groove the one
+ * None strikes one sound twice on a step, and each gives a rhythm the one
  * varied isn't; a draw picks one of all of them.
  */
 
@@ -58,13 +73,15 @@ import type { FragmentHit } from './rhythm-query.ts';
 import { GROOVE_FEWEST } from './muse-groove.ts';
 import { pick, quantize } from './random.ts';
 
-/** A groove the composer played lately, the variations it made of it, and how bored it is with them. */
+/** A rhythm the composer played lately, the variations it made of it, and how bored it is with them. */
 export interface Lineage {
-  /** The groove found first, then each variation made of it, by id. */
+  /** The rhythm found first, a seed rhythm or a groove filed, then each variation made of it, by id. */
   readonly grooves: readonly string[];
+  /** The lines chosen with them, a line of their own each (the claves), by id: they climb with the rhythm (#414). */
+  readonly claves: readonly string[];
   /** The entropy of each section it played, less that of each it didn't, on the draws' grid. */
   readonly boredom: number;
-  /** Whether it climbed past the last rung: out of what the repository returns until its boredom fades. */
+  /** Whether it climbed past the last rung: out of what the repository returns until its boredom fades, its claves too. */
   readonly rejected: boolean;
 }
 
@@ -103,20 +120,24 @@ export const pullOf = (entropy: number): number =>
 /** The lines no operator touches: they carry the meter. */
 export const GROOVE_ANCHORS: readonly string[] = ['kick', 'backbeat'];
 
+/** The line no operator touches beside the anchors: the fill, which the drummer plays its own of (`groove.ts`). */
+const UNVARIED: readonly string[] = [...GROOVE_ANCHORS, 'fill'];
+
 /** The rung a boredom stands on: 0 to repeat, 1 to vary, `GROOVE_RUNGS` and past it rejected. */
 export const rungOf = (boredom: number): number => Math.floor(boredom / BORED);
 
-/** Every groove the composer has rejected, by id. */
+/** Every rhythm the composer has rejected, and every clave with them, by id. */
 export const rejectedOf = (boredom: Boredom): string[] =>
-  boredom.filter((l) => l.rejected).flatMap((l) => l.grooves);
+  boredom.filter((l) => l.rejected).flatMap((l) => [...l.grooves, ...l.claves]);
 
 /** The metadata key a variation names the groove it varies by, in the layer (`GrooveFiling.varies`). */
 export const VARIES = 'varies';
 
 /**
- * A groove's family in the layer: the groove it varies, followed back to the
+ * A rhythm's family in the layer: the rhythm it varies, followed back to the
  * first, and every groove the layer filed from that one, in the layer's
- * order; the groove alone where the layer files none of it.
+ * order, the first ahead of them where the layer didn't file it (a seed
+ * rhythm, #414); the rhythm alone where the layer files none of it.
  */
 export function familyOf(layer: LearnedLayer, id: string): string[] {
   const variesOf = (of: string) => {
@@ -133,11 +154,12 @@ export function familyOf(layer: LearnedLayer, id: string): string[] {
     return root;
   };
   const root = rootOf(id);
-  const family = layer.filed.map((f) => f.fragment.id).filter((other) => rootOf(other) === root);
+  const filed = layer.filed.map((f) => f.fragment.id).filter((other) => rootOf(other) === root);
+  const family = filed.includes(root) ? filed : [root, ...filed];
   return family.includes(id) ? family : [id];
 }
 
-/** The lineage a family of grooves belongs to (`familyOf`), with each of them, or a new one at no boredom. */
+/** The lineage a family of rhythms belongs to (`familyOf`), with each of them, or a new one at no boredom. */
 export function lineageOf(boredom: Boredom, family: readonly string[]): Lineage {
   const known = boredom.find((l) => l.grooves.some((id) => family.includes(id)));
   return known
@@ -145,8 +167,14 @@ export function lineageOf(boredom: Boredom, family: readonly string[]): Lineage 
         ...known,
         grooves: [...known.grooves, ...family.filter((id) => !known.grooves.includes(id))],
       }
-    : { grooves: [...family], boredom: 0, rejected: false };
+    : { grooves: [...family], claves: [], boredom: 0, rejected: false };
 }
+
+/** A lineage with a clave played with it (#414): one more it keeps, where it didn't. */
+export const withClave = (lineage: Lineage, clave: string | undefined): Lineage =>
+  clave === undefined || lineage.claves.includes(clave)
+    ? lineage
+    : { ...lineage, claves: [...lineage.claves, clave] };
 
 /** Whether the composer varies the lineage's groove now: on a rung past repeat it hasn't made a variation on. */
 export function wantsVariation({ grooves, boredom }: Lineage): boolean {
@@ -169,7 +197,12 @@ export function boredAfter(boredom: Boredom, playing: Lineage | null, entropy: n
   const grown = playing.boredom + step;
   return [
     ...others,
-    { grooves: playing.grooves, boredom: grown, rejected: rungOf(grown) >= GROOVE_RUNGS },
+    {
+      grooves: playing.grooves,
+      claves: playing.claves,
+      boredom: grown,
+      rejected: rungOf(grown) >= GROOVE_RUNGS,
+    },
   ];
 }
 
@@ -185,7 +218,7 @@ const patternOf = (hits: readonly FragmentHit[]) =>
 
 /**
  * Every variation of a bar of `steps` by one operator on one line: for each
- * line but the anchors, in the order the bar first plays them, its rotation,
+ * line but the anchors and the fill, in the order the bar first plays them, its rotation,
  * each of its hits dropped, and a hit added on each step its sound is
  * silent on; each in the order a bar plays its hits, none twice, none the
  * groove itself, none striking a sound twice on a step, none of fewer than
@@ -204,7 +237,7 @@ export function variations(hits: readonly FragmentHit[], steps: number): Fragmen
     seen.add(pattern);
     out.push(inOrder(varied));
   };
-  const roles = [...new Set(bar.map((h) => h.role))].filter((r) => !GROOVE_ANCHORS.includes(r));
+  const roles = [...new Set(bar.map((h) => h.role))].filter((r) => !UNVARIED.includes(r));
   for (const role of roles) {
     const line = bar.filter((h) => h.role === role);
     const rest = bar.filter((h) => h.role !== role);
