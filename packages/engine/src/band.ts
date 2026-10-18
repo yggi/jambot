@@ -23,7 +23,7 @@
  * long as nobody moves a control, the forecast is what plays.
  */
 
-import type { Meter } from '@jambot/theory';
+import { type Meter, stepsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { type BarChord, barChords } from './chords.ts';
 import { bass } from './bass.ts';
@@ -46,6 +46,8 @@ import type { KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import type { LearnedLayer } from './layer.ts';
 import type { MeterRepository } from './meter-query.ts';
+import { grooveBar } from './groove.ts';
+import { type RhythmRepository, sectionHits } from './rhythm-query.ts';
 import type { Offer } from './muse.ts';
 import { perform } from './performer.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
@@ -72,6 +74,8 @@ export interface BandEnv {
   readonly repository?: MeterRepository | undefined;
   /** What the host has learned, which the song starts from (#398); the plans carry it on from the first section. */
   readonly layer?: LearnedLayer | undefined;
+  /** The repository the composer asks for a section's rhythm, which the drummer plays from (#397). */
+  readonly rhythms?: RhythmRepository | undefined;
   /** The motif the Muse offers, which the lead settles on (#79). */
   readonly offer: Offer | null;
 }
@@ -126,7 +130,7 @@ const INITIAL: BandCarried = {
  * its chords, which the history then folds in.
  */
 function decide(
-  { seed, style, wish, meter, swing = STRAIGHT, repository, layer }: BandEnv,
+  { seed, style, wish, meter, swing = STRAIGHT, repository, layer, rhythms }: BandEnv,
   bar: number,
   plans: PlanCarried,
   history: HarmonicWeights,
@@ -145,6 +149,7 @@ function decide(
             swing: swing.level,
             repository,
             layer,
+            rhythms,
           },
           plans,
           null,
@@ -239,7 +244,15 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
     const comping = comp.advance(bar, carried.parts.comp, null);
     const melody = lead.advance(bar, carried.parts.lead, null);
     const parts = { bass: bassline.carried, comp: comping.carried, lead: melody.carried };
-    const written = [...drums(bar), ...bassline.output, ...comping.output, ...melody.output];
+    const rhythm = env.rhythms
+      ? sectionHits(env.rhythms, here.plan, bar.meter, barInSection, stepsOf(bar.meter))
+      : [];
+    const written = [
+      ...grooveBar(bar, drums(bar), rhythm),
+      ...bassline.output,
+      ...comping.output,
+      ...melody.output,
+    ];
     return { carried: { ...after, parts }, output: playBar(bar, written) };
   },
 };

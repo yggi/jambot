@@ -694,5 +694,15 @@ run; the others have.
   - What the band playing through cells (#63's next rung) needs that cells lacks, beyond E33's list: a tempo that glides inside a section, and an index into a table that names a step of the 12 beside its tone (gap 3), so that one note doesn't keep a section's line over the key.
   - Not measured: the licence (the played velocity and length), a meter other than 4/4 (the corpus is E28's), the radio's walk (presets are held here, so no tempo glides), a key that changes inside a section (none does), a note that leads into the next section's first chord (a section's text doesn't see it), and the union of fragments in cells.
 
+- **E37. The composer asks the repository for its rhythm while the radio walks** (#397, step 2; E34's walk, on the owner's ruling of E36), in
+  [`packages/engine/experiments/rhythm-radio.ts`](../packages/engine/experiments/rhythm-radio.ts)
+  (about 15 s, under vitest, as E31), held by [`packages/engine/experiments/rhythm-radio.test.ts`](../packages/engine/experiments/rhythm-radio.test.ts):
+  E34's radio tuned in at each preset's point at entropy 0.3, its energy the preset's, left alone for an hour of music over 5 seeds a preset (40 runs, 40 hours, 8,521 sections), the band deciding every bar with no meter asked for and cells' rhythms beside cells' meters, so each section's plan takes the meter the composer finds and the rhythm, and its clave, that fit it (`composedRhythm`).
+  - **Where the rhythm changes**: 112 times, every one on a section's first bar, and none goes back at the next section's start; with no margin for the rhythm playing, 99 go back.
+    Without a margin at the edge of the clave's distance, 15 of the changes dropped a clave at one section and took it back at the next (Bossa nova's and Funk's), so the clave playing is held `RHYTHM_HOLD` past `LAYER_DISTANCE`, and none does.
+  - **A miss**: 390 sections (4.6 %), each in a meter no rhythm fits (the fit refusing every one under a meter other than a 4/4), where the drummer invents; none lies past `RHYTHM_MISS`.
+  - **What plays**: a preset's drum bar in most sections, the son clave 3-2 alone in 360, its lines the clave's and the drummer's own roles its own, and the rumba clave beside Funk's drum bar in 265 and the one-bar bossa nova clave beside Bossa nova's in 331.
+  - Not measured: entropy other than 0.3, a learned layer (#398, #401), and how the walk sounds.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

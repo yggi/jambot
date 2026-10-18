@@ -70,6 +70,7 @@ import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import type { LearnedLayer } from './layer.ts';
 import type { MeterRepository } from './meter-query.ts';
+import type { RhythmRepository } from './rhythm-query.ts';
 import type { Meter } from '@jambot/theory';
 import {
   type HeardNote,
@@ -143,6 +144,8 @@ export interface TransportEnv {
   readonly repository?: MeterRepository | undefined;
   /** What the host has learned, which the song starts from and the band carries on, learning (#398): none learns nothing. */
   readonly layer?: LearnedLayer | undefined;
+  /** The repository the composer asks for a section's rhythm, which the drummer plays from (#397). */
+  readonly rhythms?: RhythmRepository | undefined;
   /**
    * The meter whose beats the track's bpm counts (#367); 4/4 where none is.
    * Whoever holds the track keeps it the meter heard, converting the number
@@ -350,7 +353,7 @@ const STRAIGHT_TRACK = holdingSwing(STRAIGHT);
  * bar starts, on their tracks, and what the Muse offers.
  */
 export function bandEnvAt(
-  { seed, track, wish, meter, swing = STRAIGHT_TRACK, repository, layer }: TransportEnv,
+  { seed, track, wish, meter, swing = STRAIGHT_TRACK, repository, layer, rhythms }: TransportEnv,
   bar: number,
   offer: Offer | null,
   clock: SongClock = SONG_CLOCK,
@@ -365,6 +368,7 @@ export function bandEnvAt(
     swing: swingAt(swing, start),
     repository,
     layer,
+    rhythms,
     offer,
   };
 }

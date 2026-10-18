@@ -95,6 +95,7 @@ import {
   type TransportEnv,
   type TransportOutput,
   METER_REPOSITORY,
+  RHYTHM_REPOSITORY,
   NO_HISTORY,
   clockOfTransport,
   clockThrough,
@@ -1069,6 +1070,7 @@ export class Player {
       meter: this.meter ?? undefined,
       repository: METER_REPOSITORY,
       layer: this.layer,
+      rhythms: RHYTHM_REPOSITORY,
       swing: this.swing,
       tempoMeter: this.tempoMeter,
     };
