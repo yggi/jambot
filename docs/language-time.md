@@ -195,8 +195,8 @@ the pitched parts' carried state is S2's key frame.
 **T6. A meter is a helix of pulses over the bar's eighths, and a grouping is a
 mode of it.** Witness: `Meter` (`meter.ts`), which is a `Helix`: its cycle is
 the bar's eighths and its heights where its pulses start. `METERS` names nine,
-eight as `even(pulses, eighths)` (simple, compound and additive meters in one
-formula) and 10/8's 3+3+2+2 by its heights. 7/8's 3+2+2, 2+2+3 and 2+3+2 are the
+each as `even(pulses, eighths)` (simple, compound and additive meters in one
+formula), 10/8 as 3+2+3+2. 7/8's 3+2+2, 2+2+3 and 2+3+2 are the
 three modes of `even(3, 7)`, and `mirror` is the retrograde of every grouping. A
 change of grouping is a key change on the time axis: `parallel` keeps the
 downbeat and regroups, `relative` keeps the pulses and moves the downbeat, over
@@ -204,7 +204,7 @@ every grouping and each of its modes. Every pulse spans 2 or 3 eighths exactly
 when `2 · pulses ≤ eighths ≤ 3 · pulses`. The song's 4/4 is one meter: its
 pulses composed onto 16 steps, two to an eighth, are `even(4, 16)`, the
 transport's beats. Counterexample: a grouping into 2s and 3s that no mode of
-`even` gives. 10/8 as 3+3+2+2 is the first, and 70 of the 149 groupings of up to
+`even` gives. Ten eighths as 3+3+2+2 is the first, and 70 of the 149 groupings of up to
 16 eighths are such; each is still a helix, given by its heights, as the son
 clave is among the rhythms. Test: `packages/theory/src/meter.test.ts`, whose
 tests under "as a helix" cite T6, over every named meter and every grouping up

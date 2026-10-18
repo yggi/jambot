@@ -401,11 +401,11 @@ The rest of the helix applies as it does to scales:
   regroups the bar, as C major goes to C minor; `relative` keeps the pulses and
   moves the downbeat, as C major goes to A minor.
 - **Not every grouping is maximally even.** Of the 149 groupings into 2s and 3s
-  of up to 16 eighths, 79 are modes of `even`; 10/8 as 3+3+2+2 is the first that
+  of up to 16 eighths, 79 are modes of `even`; ten eighths as 3+3+2+2 is the first that
   is not. Such a meter is still a helix, given by its heights, as the son clave
-  is among the rhythms, and `METERS` names 10/8 so.
+  is among the rhythms; `METERS` names none, since its 10/8 is 3+2+3+2, `even(4, 10)`.
 - **The same eighths, other pulses.**
-  5/4 and 10/8 both hold ten eighths, and are told apart by their pulses as 3/4 and 6/8 are: 5/4 is `even(5, 10)`, five pulses of 2, and 10/8 is 3+3+2+2.
+  5/4 and 10/8 both hold ten eighths, and are told apart by their pulses as 3/4 and 6/8 are: 5/4 is `even(5, 10)`, five pulses of 2, and 10/8 is `even(4, 10)`, 3+2+3+2.
 - **The song's 4/4 is one of them.** The 4/4 pulses composed onto a bar of 16
   steps, two steps to an eighth, are `even(4, 16)`, the beats the transport
   plays. Its bar, step in the bar and beat are the helix's own readings: a turn,

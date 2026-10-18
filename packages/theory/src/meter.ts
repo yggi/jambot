@@ -11,10 +11,11 @@
  * the meter onto the bar's steps (`helix.test.ts`, "nests meter the same
  * way").
  *
- * Most named meters are maximally even, `even(pulses, eighths)`, and one
+ * Every named meter is maximally even, `even(pulses, eighths)`, and one
  * formula covers three named cases: a *simple* meter (3/4, 4/4) divides
  * evenly into 2 eighths a pulse, a *compound* one (6/8, 12/8) into 3, and an
- * *additive* one, whose pulses aren't equal (5/8 as 3+2, 7/8 as 3+2+2), is
+ * *additive* one, whose pulses aren't equal (5/8 as 3+2, 7/8 as 3+2+2,
+ * 10/8 as 3+2+3+2, as cells' repository writes it, yggi/cells#97), is
  * what `even` gives when the pulses don't divide the eighths at all: the
  * same maximally even spread that gives the bossa clave its shape
  * (`rhythms.ts`). So 3/4 and 6/8 sound different at the same pulse tempo
@@ -24,11 +25,11 @@
  * Every pulse spans 2 or 3 eighths exactly when
  * `2 · pulses ≤ eighths ≤ 3 · pulses` (Lerdahl and Jackendoff's
  * well-formedness rule), but a grouping of 2s and 3s need not be a mode of
- * `even`: 10/8's 3+3+2+2 has the pulse lengths `even(4, 10)` gives, but not
- * their cyclic order (`even` alternates them, 3+2+3+2). Of the 149
+ * `even`: ten eighths as 3+3+2+2 has the pulse lengths `even(4, 10)` gives,
+ * but not their cyclic order (`even` alternates them, 3+2+3+2). Of the 149
  * groupings of up to 16 eighths into 2s and 3s, 79 are modes of `even`
  * (`meter.test.ts`, T6). A meter outside that reach is given by its
- * heights, as the son clave is among the rhythms, and 10/8 here is.
+ * heights, as the son clave is among the rhythms; none here needs one.
  */
 
 import { even } from './even.ts';
@@ -50,7 +51,7 @@ export const METERS: Record<MeterName, Meter> = {
   '6/8': even(2, 6),
   '7/8': even(3, 7), // 3+2+2
   '9/8': even(3, 9),
-  '10/8': { cycle: 10, heights: [0, 3, 6, 8] }, // 3+3+2+2, which no mode of `even` gives
+  '10/8': even(4, 10), // 3+2+3+2
   '12/8': even(4, 12),
 };
 

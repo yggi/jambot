@@ -631,14 +631,14 @@ run; the others have.
 - **E34. The composer asks the repository for its meter while the radio walks** (#375, rung 6 of #358; yggi/cells decision 043), in
   [`packages/engine/experiments/meter-radio.ts`](../packages/engine/experiments/meter-radio.ts)
   (about 10 s, under vitest, as E31), held by [`packages/engine/experiments/meter-radio.test.ts`](../packages/engine/experiments/meter-radio.test.ts):
-  the radio tuned in at each preset's point at entropy 0.3, its energy the preset's, left alone for 3 hours of music over 5 seeds a preset (40 runs, 120 hours, 26,773 sections), each section's style glided to as in E30.
-  The band decides every bar with no meter asked for, so each section's plan takes the meter the composer finds in cells' repository (`METER_REPOSITORY`, `composedMeter`: the nearest of the ten meters the band can play, on `sync`, `harm`, `artic` and `energy`), and a bar lasts its meter's beats at its tempo (#367).
-  - **Where the meter changes**: 201 times in 120 hours (1.7 an hour), every one on a section's first bar, and none goes back at the next section's start.
-    With no margin for the meter playing (`METER_HOLD` 0), 901 changes and 264 back; with half of it (0.01), 338 and 2; with 0.02, none.
+  the radio tuned in at each preset's point at entropy 0.3, its energy the preset's, left alone for 3 hours of music over 5 seeds a preset (40 runs, 120 hours, 26,691 sections), each section's style glided to as in E30.
+  The band decides every bar with no meter asked for, so each section's plan takes the meter the composer finds in cells' repository (`METER_REPOSITORY`, `composedMeter`: the nearest of the eleven meters the band can play, on `sync`, `harm`, `artic` and `energy`), and a bar lasts its meter's beats at its tempo (#367).
+  - **Where the meter changes**: 211 times in 120 hours (1.8 an hour), every one on a section's first bar, and none goes back at the next section's start.
+    With no margin for the meter playing (`METER_HOLD` 0), 941 changes and 271 back; with half of it (0.01), 367 and 2; with 0.02, none.
     A section moves the style's point 0.014 on average and 0.021 at the 99th percentile, on cells' distance, so the margin is about a section's move.
-  - **What it plays**: 4/4 in 37 % of the time, the swung 4/4s in 52 % (leaning lightly on `16n` 25 %, on `16n` 11 %, faintly 8 %, swung on `8n` 8 %), and another meter in 11 % (5/4 5 %, 3/4 2 %, 6/8 2 %, 7/8 1.5 %, 12/8 0.8 %).
-  - **A miss** (`MISS_DISTANCE` 0.3, nothing nearer, so the band keeps its meter): 201 of the 26,773 sections; on a grid of the four unit axes (21 points an axis), 10.4 % of the space, toward its corners, where the farthest point lies 0.466 from a fragment.
-    At 0.25 a quarter of the space misses (25.6 %), and one change goes back where the meter playing has just slipped past the distance; at 0.35, 3 %.
+  - **What it plays**: 4/4 in 35 % of the time, the swung 4/4s in 49 % (leaning lightly on `16n` 23 %, on `16n` 11 %, faintly 8 %, swung on `8n` 7 %), and another meter in 16 % (5/4 5 %, 10/8 5 %, 3/4 2 %, 6/8 2 %, 12/8 0.8 %, 7/8 0.7 %).
+  - **A miss** (`MISS_DISTANCE` 0.3, nothing nearer, so the band keeps its meter): 201 of the 26,691 sections; on a grid of the four unit axes (21 points an axis), 10.3 % of the space, toward its corners, where the farthest point lies 0.466 from a fragment.
+    At 0.25 a quarter of the space misses (24.6 %), and one change goes back where the meter playing has just slipped past the distance; at 0.35, 3 %.
   - **The cost**: a query is 0.006 to 0.008 ms, far under #375's bound of 1 ms a section.
   - Beside it, `packages/engine/src/repository.test.ts`: the 8 presets held, 2 seeds of 32 bars, play 15,061 events with the repository's meter, each with the same part, step, note and velocity as `main` and the same onset and duration to 1e-9 s, the swing coming from the plan whatever the swing track holds.
   - Not measured: the radio driving the app (nothing calls it yet, #313 step 3), entropy other than 0.3, how the band's parts sound in the meters the walk reaches (6/8 and 12/8 are played by the rules of #260), a fragment's legato by level (none of cells' carries one, and the band doesn't read one), and learning by use.
