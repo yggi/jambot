@@ -159,10 +159,14 @@ export function composedRhythm(
     hold,
   );
   if (rhythm === undefined) return {};
-  const lines = repository.layered(point, bench, rhythm, layer).filter((f) => {
-    const read = repository.read(f.id, bench.meter);
-    return read !== null && isOwnLine(read);
-  });
+  // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
+  const lines = repository
+    .layered(point, bench, rhythm, layer)
+    .filter((f) => f.distance <= reach + hold)
+    .filter((f) => {
+      const read = repository.read(f.id, bench.meter);
+      return read !== null && isOwnLine(read);
+    });
   const clave = heldNearest(lines, playing?.claveFragment, reach, hold, hold);
   return clave === undefined
     ? { rhythmFragment: rhythm }
