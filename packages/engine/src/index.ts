@@ -28,6 +28,7 @@ export * from './plan.ts';
 export * from './radio.ts';
 export * from './random.ts';
 export * from './reading.ts';
+export * from './repository.ts';
 export * from './sound.ts';
 export * from './style.ts';
 export * from './style-reading.ts';

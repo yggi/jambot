@@ -20,9 +20,7 @@
  *   change the meter at every section.
  *
  * This module is pure and knows no cells: the repository is given, built
- * from cells' fragments by `repository.ts` (`@jambot/engine/repository`),
- * which the engine's barrel leaves out, so the lobby runs without cells
- * (#386 folds it in, since node imports cells as of v0.5.0).
+ * from cells' fragments by `repository.ts`.
  */
 
 import type { Meter } from '@jambot/theory';

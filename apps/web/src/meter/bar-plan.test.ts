@@ -47,6 +47,17 @@ describe('the bar’s plan', () => {
     }
   });
 
+  it('clicks 10/8 as 3+2+3+2, the owner’s grouping (#365): pulses on its eighths 0, 3, 5 and 8', () => {
+    const click = barPlan(setting('10/8', { layers: only('click'), subdivision: 'pulses' }));
+    expect(click.map((o) => o.step / 2)).toEqual([0, 3, 5, 8]);
+    expect(click.map((o) => (o.layer === 'click' ? o.weight : null))).toEqual([
+      'downbeat',
+      'pulse',
+      'pulse',
+      'pulse',
+    ]);
+  });
+
   it('adds an eighth’s click between the pulses, or a sixteenth’s too, none louder than a pulse’s (finite: every meter, every accent)', () => {
     for (const name of names)
       for (const grade of [0, 1]) {
