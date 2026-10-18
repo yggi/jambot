@@ -21,8 +21,8 @@
  *
  * This module is pure and knows no cells: the repository is given, built
  * from cells' fragments by `repository.ts` (`@jambot/engine/repository`),
- * which only a host that bundles cells' TypeScript imports, so node runs the
- * engine and the lobby without it.
+ * which the engine's barrel leaves out, so the lobby runs without cells
+ * (#386 folds it in, since node imports cells as of v0.5.0).
  */
 
 import type { Meter } from '@jambot/theory';

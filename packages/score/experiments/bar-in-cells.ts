@@ -52,7 +52,7 @@
  * witness and invents no form; the gaps are in `docs/language-experiments.md`,
  * E33, and the test holds each.
  *
- * It runs under vitest, not node, as E31 and E32. Its test,
+ * It runs under vitest, as E31 and E32. Its test,
  * `bar-in-cells.test.ts`, holds what it found;
  * `E33_REPORT=1 pnpm vitest run --silent=false packages/score/experiments/bar-in-cells.test.ts`
  * prints the table and a witness bar's text.

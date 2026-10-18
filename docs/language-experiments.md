@@ -556,8 +556,8 @@ run; the others have.
 
 - **E31. The band's drums as cells text** (#309, the seam), in
   [`packages/score/experiments/drums-in-cells.ts`](../packages/score/experiments/drums-in-cells.ts)
-  (about 2 s, under vitest only: `@yggi/cells` ships TypeScript, which node does not strip under `node_modules`), held by [`packages/score/experiments/drums-in-cells.test.ts`](../packages/score/experiments/drums-in-cells.test.ts):
-  for each preset held (seed 0, entropy 0.3), the first of 32 bars with the most roles, then the most hits, is stated in cells v0.4.0 by a small translator, compiled, and played through cells' own MIDI out (`channelTable`, `router`, `midiNote`).
+  (about 2 s, under vitest), held by [`packages/score/experiments/drums-in-cells.test.ts`](../packages/score/experiments/drums-in-cells.test.ts):
+  for each preset held (seed 0, entropy 0.3), the first of 32 bars with the most roles, then the most hits, is stated in cells v0.5.0 by a small translator, compiled, and played through cells' own MIDI out (`channelTable`, `router`, `midiNote`).
   Each witness is a section's last bar, with a fill; the eight hold 144 hits, every role and every sound.
   The translator uses only forms cells has, and records what it cannot say as a gap, with the bar as witness.
   - Every hit plays as the band plays it, 144 of 144, with no diagnostic: its General MIDI note, its step, its written length of one step and its velocity.
@@ -577,11 +577,11 @@ run; the others have.
 
 - **E32. The band's harmony as cells text** (yggi/cells#50, its first step; #309, the seam), in
   [`packages/score/experiments/pitch-in-cells.ts`](../packages/score/experiments/pitch-in-cells.ts)
-  (about 4 s, under vitest only, as E31), held by [`packages/score/experiments/pitch-in-cells.test.ts`](../packages/score/experiments/pitch-in-cells.test.ts):
+  (about 4 s, under vitest, as E31), held by [`packages/score/experiments/pitch-in-cells.test.ts`](../packages/score/experiments/pitch-in-cells.test.ts):
   every preset held (all 8, seed 0, entropy 0.3, 32 bars: 256 bars, 262 chords, six keys in three modes), each bar's harmony (its key, its chords as numerals, the next chord where a stab plays it, the frame pin) written under three candidate spellings in cells and read back.
   The three share the key (`&key scale(aeolian, A)`), the rhythm (a token a chord, `step=2n`, `@k`), the next chord as a one-chord cell (`&next`, over the next key where it differs) and the pin as degrees of the key from the part's voice (`&frame over=&key [0,2,5]`, `&frameBass over=&key 5`); they part on the chord.
-  - **stacks** (cells v0.4.0 parses it, as its `chords.cells`): a stack of the key's degrees, `[4,6#,8,10]`.
-  - **shapes** (cells v0.4.0 parses it, as its `tines.cells`): a shape moved up the key, `&c0 [0,2#,4,6]` and `&c0^4` (decisions 015 and 033).
+  - **stacks** (cells v0.5.0 parses it, as its `chords.cells`): a stack of the key's degrees, `[4,6#,8,10]`.
+  - **shapes** (cells v0.5.0 parses it, as its `tines.cells`): a shape moved up the key, `&c0 [0,2#,4,6]` and `&c0^4` (decisions 015 and 033).
   - **numerals** (a proposal: cells has no numeral): U1's numeral as a token over the key, `V7/V`; its meaning is the stack it names, and every bar's numerals text lowered by it is that bar's stacks text.
   - **Characters, and the bars that read back exactly**: the score's own `key=`, `harm`, `next` and `frame` 12,900 and 256; stacks 26,156 and 252; shapes 28,401 and 252 (25,206 with its shapes stated once a preset); numerals 24,553 and 256.
     The chords' lines alone are 2,936 in the score, 9,099 stacks, 11,344 shapes and 7,496 numerals; the key (5,744) and the pin (11,569) are the same lines in every candidate.
@@ -596,8 +596,8 @@ run; the others have.
 
 - **E33. The band writes a whole bar as one cells text** (#359, rung 3 of #358; #63, the seam), in
   [`packages/score/experiments/bar-in-cells.ts`](../packages/score/experiments/bar-in-cells.ts)
-  (about 6 s, under vitest only, as E31), held by [`packages/score/experiments/bar-in-cells.test.ts`](../packages/score/experiments/bar-in-cells.test.ts):
-  the drums, the bass, the comp and the harmony of a bar stated together in cells v0.4.0, with `&bar` a `meter(…)` cell carrying the preset's swing and every line on a tap of it, played through cells' MIDI out and read back part by part on Jambot's own channels (10 the drums, 2 the bass, 3 the pad and the stab).
+  (about 6 s, under vitest, as E31), held by [`packages/score/experiments/bar-in-cells.test.ts`](../packages/score/experiments/bar-in-cells.test.ts):
+  the drums, the bass, the comp and the harmony of a bar stated together in cells v0.5.0, with `&bar` a `meter(…)` cell carrying the preset's swing and every line on a tap of it, played through cells' MIDI out and read back part by part on Jambot's own channels (10 the drums, 2 the bass, 3 the pad and the stab).
   The bars come from the band's transport, a preset held, its bpm counting the meter's beats (T7, #367): all 8 presets in 4/4, and Synth-pop and Bossa nova (both straight, and between them every part but the lead) in 3/4 and in 7/8 (3+2+2), seed 0, entropy 0.3, 32 bars each: 12 runs, 384 bars.
   What is compared is what is composed, without the licence (T17): each note's step and pitch, its length as the ensemble articulates it (`baseLengthOf`), and its velocity as the performer plays it at feel 0 (`baseVelocityOf` plus a written accent).
   A step is read off cells' times through the band's own swing undone (`leanMap`), so a swung bar's steps compare as a straight one's.
@@ -617,18 +617,20 @@ run; the others have.
     A meter's `legato=` by level can't carry the band's articulation either: the bass and the stab tap the same level, `16n`, at shares of their own (Synth-pop's `.635` and `1.3725`).
   - Gap 2, the chord in force ([yggi/cells#95](https://github.com/yggi/cells/issues/95)).
     The comp and the bass state their notes as degrees of the key, so every chord is stated again, voiced, in the comp (E32's gap 3, the hand), though 2,862 of the 2,979 notes are tones of the chord sounding (the pad 678 of 678, the stab 1,316 of 1,374, the bass 868 of 927).
-    `over=&harm` reads the braid of chords as turned: past the chord's last tone it plays the next chord's, not the chord a lap up (over `[0,2,4,6] [4,6#,8,10]` from C1, index 4 plays E2, not A2).
+    Cells reads the chord in force since v0.5.0 ([yggi/cells#125](https://github.com/yggi/cells/issues/125)): `over=&harm` indexes the stack sounding, and past its last tone plays the chord a lap up (over `[0,2,4,6] [4,6#,8,10]` from C1, index 4 plays A2, where v0.4.0 played E2, the next chord's).
+    Cells' own test plays all 2,979 of these notes over `over=&harm`; E33's text doesn't read it yet ([#387](https://github.com/yggi/jambot/issues/387)).
   - Gap 3, a secondary's function (E32's gap 1, [yggi/cells#50](https://github.com/yggi/cells/issues/50)): Swing jazz's bars 2, 6, 10 and 14 state V7/V or V9/V, whose stacks read back as II7 and II9.
   - Gap 4, a Euclid under swing ([yggi/cells#121](https://github.com/yggi/cells/issues/121)): a Euclid's hits are even parts of its step (cells' `x(k,n,r)`), which a tap's swing doesn't reach, so a swung rim on `1m` plays its offbeats straight: 137 of the 275 hits in the 45 swung bars that hold a rim (Lo-fi hip hop's 13, Funk's 32), early by up to 54 ms (Lo-fi hip hop's).
     So under swing the text states the rim as a line on `16n`, as every other role.
     E31's gap 1 holds too: each drum voice names a sound, `s=white` ([yggi/cells#10](https://github.com/yggi/cells/issues/10)).
-  - What the seam's next rung (#63 step 5) needs that cells lacks: an articulation that ends where the band's does under swing (gap 1, yggi/cells#120); a line over the chord in force (#95) and the next chord (#50), so the parts read the harmony instead of restating it; a fragment that leaves `&bar` and `&key` to the host (yggi/cells#22); the lead (yggi/cells#47, #348); a role's accent as a level (yggi/cells#21), since the hits' levels are 29 % of the drums' text; a Euclid that swings with the bar (gap 4, yggi/cells#121); and a tempo that glides, since a text holds one bpm and the transport's tempo moves within a bar.
+  - What the seam's next rung (#63 step 5) needs that cells lacks: an articulation that ends where the band's does under swing (gap 1, yggi/cells#120); the next chord (#50), so the parts read the harmony instead of restating it; a fragment that leaves `&bar` and `&key` to the host (yggi/cells#22); the lead (yggi/cells#47, #348); a role's accent as a level (yggi/cells#21), since the hits' levels are 29 % of the drums' text; a Euclid that swings with the bar (gap 4, yggi/cells#121); and a tempo that glides, since a text holds one bpm and the transport's tempo moves within a bar.
+    The chord in force, which it needed too, is in cells since v0.5.0; writing the parts over it is [#387](https://github.com/yggi/jambot/issues/387).
     A note that sounds past the bar line is held now, so a text of one bar states it, and a section of bar texts in a row would overlap where it does.
   - Not measured: the lead, the licence (the played velocity and length), a tempo or a swing in a glide, a meter that changes between sections (each text states its bar's), a chord on a half of 3/4 or 7/8 (no bar of those runs holds two), seeds other than 0, and the swung presets in 3/4 and 7/8.
 
 - **E34. The composer asks the repository for its meter while the radio walks** (#375, rung 6 of #358; yggi/cells decision 043), in
   [`packages/engine/experiments/meter-radio.ts`](../packages/engine/experiments/meter-radio.ts)
-  (about 10 s, under vitest only, as E31: it imports cells' repository), held by [`packages/engine/experiments/meter-radio.test.ts`](../packages/engine/experiments/meter-radio.test.ts):
+  (about 10 s, under vitest, as E31), held by [`packages/engine/experiments/meter-radio.test.ts`](../packages/engine/experiments/meter-radio.test.ts):
   the radio tuned in at each preset's point at entropy 0.3, its energy the preset's, left alone for 3 hours of music over 5 seeds a preset (40 runs, 120 hours, 26,773 sections), each section's style glided to as in E30.
   The band decides every bar with no meter asked for, so each section's plan takes the meter the composer finds in cells' repository (`METER_REPOSITORY`, `composedMeter`: the nearest of the ten meters the band can play, on `sync`, `harm`, `artic` and `energy`), and a bar lasts its meter's beats at its tempo (#367).
   - **Where the meter changes**: 201 times in 120 hours (1.7 an hour), every one on a section's first bar, and none goes back at the next section's start.

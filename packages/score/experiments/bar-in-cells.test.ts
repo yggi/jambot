@@ -391,7 +391,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     expect(lean.written(lean.played(10) + 0.425 * 3.2) - 10).toBeCloseTo(1.2, 9);
   });
 
-  it('gap 2, the chord in force: a line read over the harmony reads its braid of chords as turned, so past the chord sounding it plays the next chord, not the chord a lap up', () => {
+  it('gap 2, the chord in force: a line read over the harmony reads the chord sounding (cells v0.5.0), so past its last tone it plays the chord a lap up, though E33 still restates each chord in the comp (#387)', () => {
     const text = [
       '&bar meter("4/4") step=120bpm',
       '&key scale(aeolian, A)',
@@ -405,9 +405,9 @@ describe('what cells could not say (E33: the gaps)', () => {
     const notes = windowAt(plan, 0, 0.6).events.flatMap((e) =>
       routesOf(route(e)).flatMap((r) => midiNote(e, r)?.note ?? []),
     );
-    // A1 C2 E2 G2 are Am7's tones from C1; its root a lap up is A2 (45), and cells plays E2, the next chord's root.
-    expect(notes).toEqual([33, 36, 40, 43, 40]);
-    // What such a form would carry: the notes of the bass, the pad and the stab that are tones of the chord sounding.
+    // A1 C2 E2 G2 are Am7's tones from C1, and cells plays its root a lap up, A2 (45), where v0.4.0 played E2, the next chord's root.
+    expect(notes).toEqual([33, 36, 40, 43, 45]);
+    // What reading it would carry: the notes of the bass, the pad and the stab that are tones of the chord sounding.
     const tones: Record<string, [number, number]> = {};
     for (const m of MEASURED)
       for (const w of m.bar.written) {
