@@ -37,8 +37,9 @@
  * - the harmony, the key and the chords as stacks of its degrees (E32's
  *   stacks, the owner's choice of 2026-10-17): `&key scale(aeolian, A)`,
  *   `&harm over=&key step=2n [0,2,4] [4,6#,8]`, each chord stated once;
- *   nothing plays it, and the reading plays a copy of it on a channel of its
- *   own to read each chord back;
+ *   no part plays it, and the reading plays it on a channel of its own to
+ *   read each chord back, a played table turning for the lines read through
+ *   it as one nothing plays (cells v0.6.0, yggi/cells#167);
  * - the drums, a line a role on `16n` taps with each hit's level (E31), the
  *   rim one Euclid token on `1m` where the band writes it as `even`;
  * - the bass and the comp, on `16n` taps, read over the chord in force
@@ -395,7 +396,7 @@ export interface ChordIndex {
 }
 
 /**
- * What an index into a chord reads, as cells v0.5.0 reads `over=&harm`: the chord's tone `n` (past its last tone the
+ * What an index into a chord reads, as cells reads `over=&harm` (since v0.5.0): the chord's tone `n` (past its last tone the
  * chord a lap up, a lap the key's seven degrees, so index 4 of a seventh chord is its root an octave up), moved by its
  * accidental a degree of the key (an accidental moves a step of the table below, cells decision 015), and keeping the
  * tone's own alteration.
@@ -642,16 +643,13 @@ export interface Played {
 
 /**
  * The reading's own lines, not counted: the bar's lap and the harmony, each on a channel of its own (15 and 16).
- * The harmony heard is a copy of `&harm`, `&harmHeard`: a cell that plays is not a table that turns (cells' `shiftsAt`,
- * yggi/cells#167), so lines read over a played `&harm` would read its first chord all bar long.
+ * The harmony heard is `&harm` itself: a played table turns for the lines read through it (cells v0.6.0, yggi/cells#167).
  */
-const reading = (text: string) =>
-  [
-    `&harmHeard ${/^&harm (.*)$/m.exec(text)![1]}`,
-    '&lap step=1m 0',
-    '&readV loop=C4',
-    '&read map=midi ~!14 [&lap * &readV] [&harmHeard * &readV]',
-  ].join('\n');
+const READING = [
+  '&lap step=1m 0',
+  '&readV loop=C4',
+  '&read map=midi ~!14 [&lap * &readV] [&harm * &readV]',
+].join('\n');
 
 /**
  * A text played through cells' MIDI out for its first bar, read back; `estimate` is about how long its bar is.
@@ -660,7 +658,7 @@ const reading = (text: string) =>
 export function cellsPlays(text: string, bar: BandBar): Played {
   const steps = stepsOf(bar.meter);
   const estimate = steps * stepSeconds(bar.style.bpm, bar.meter);
-  const plan = planOf(`${text}\n${reading(text)}`);
+  const plan = planOf(`${text}\n${READING}`);
   const route = router(plan.result, channelTable(plan.result));
   const out = windowAt(plan, 0, estimate * 1.5).events.flatMap((e) =>
     routesOf(route(e)).flatMap((r) => {

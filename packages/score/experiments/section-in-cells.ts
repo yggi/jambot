@@ -7,9 +7,9 @@
  * one text: the host's lines once at the top, then each part a line per
  * sound or voice, open on them (yggi/cells decision 047: taps, a bare
  * `over=key` for the main key, `over=&harm` for the chord in force).
- * Decision 047's union of lines (a line given twice is one line) is not in
- * cells v0.5.0, Jambot's pin, so the text is built directly, the host's
- * lines given once; each part with the host's lines alone is a fragment
+ * Decision 047's union of lines (a line given twice is one line) is in
+ * cells v0.6.0 (`unionOf`), but the text is built directly, the host's
+ * lines given once, until a later rung builds sections by union; each part with the host's lines alone is a fragment
  * that plays as it does in the whole (the test shows it). The
  * corpus is E28's: every preset held at entropy 0.3, seeds 1 to 5, 64 bars
  * each, through the band's own transport in 4/4 (40 runs, 2,560 bars, 320
@@ -47,15 +47,15 @@
  *
  * What is compared is the written layer (#390's Q1a): each note's step,
  * pitch, velocity (the performer's at feel 0, as E33) and written length,
- * read off what cells plays: a note's held span is its sounding length over
- * the share its line reads at its onset (cells' own `legato=` tracks); and
+ * read off what cells plays: a note's written span is its sounding span,
+ * read as steps through the swing undone, over the share its line reads at
+ * its onset (cells' own `legato=` tracks), since cells sounds a share of the
+ * written steps and swings its end as its onset (v0.6.0, yggi/cells#120); and
  * each chord's step and notes (its pitch classes). The sounding length and
  * the chord's numeral read back, which E33 compared, are measured too.
  *
- * The reading plays a copy of `&harm`, as E33's does: a table that also
- * plays doesn't turn for its readers in cells v0.5.0 (yggi/cells#167,
- * fixed on cells' main), so the copy goes once Jambot's pin reaches the
- * fix.
+ * The reading plays `&harm` itself, as E33's does: a table that also plays
+ * turns for the lines read through it (cells v0.6.0, yggi/cells#167).
  *
  * It runs under vitest. Its test, `section-in-cells.test.ts`, holds seed 1
  * of every preset (8 runs, 512 bars, 64 sections) in `pnpm verify`, and the
@@ -584,17 +584,13 @@ export interface Played {
 
 /**
  * The reading's own lines, not counted: each bar's lap and the harmony, each on a channel of its own (15 and 16).
- * The harmony heard is a copy of `&harm`, `&harmHeard`: a table that plays doesn't turn for its readers in cells v0.5.0
- * (yggi/cells#167, fixed on cells' main), so lines read over a played `&harm` would read its first chord all section
- * long. The copy goes when Jambot's pin reaches the fix.
+ * The harmony heard is `&harm` itself: a played table turns for the lines read through it (cells v0.6.0, yggi/cells#167).
  */
-const reading = (text: string) =>
-  [
-    `&harmHeard ${/^&harm (.*)$/m.exec(text)![1]}`,
-    '&lap step=1m 0',
-    '&readV loop=C4',
-    '&read map=midi ~!14 [&lap * &readV] [&harmHeard * &readV]',
-  ].join('\n');
+const READING = [
+  '&lap step=1m 0',
+  '&readV loop=C4',
+  '&read map=midi ~!14 [&lap * &readV] [&harm * &readV]',
+].join('\n');
 
 /** The share of its held length a note sounds, as cells reads its line's `legato=` at its onset. */
 function shareOf(plan: Plan, output: string | undefined, at: number): number {
@@ -612,13 +608,13 @@ function shareOf(plan: Plan, output: string | undefined, at: number): number {
 /**
  * A section's text played through cells' MIDI out, read back bar by bar.
  * Each time is read as a step of its bar through the band's swing undone
- * (`leanMap`'s `written`), and a note's written length as the span it is
- * held, its sounding length over the share its line reads at its onset.
+ * (`leanMap`'s `written`), and a note's written length as its sounding
+ * length in those steps over the share its line reads at its onset.
  */
 export function cellsPlays(text: string, bars: readonly BandBar[]): Played {
   const steps = stepsOf(bars[0]!.meter);
   const estimate = bars.length * steps * stepSeconds(bars[0]!.style.bpm, bars[0]!.meter);
-  const plan = planOf(`${text}\n${reading(text)}`);
+  const plan = planOf(`${text}\n${READING}`);
   const route = router(plan.result, channelTable(plan.result));
   const out = windowAt(plan, 0, estimate * 1.25).events.flatMap((e) =>
     routesOf(route(e)).flatMap((r) => {
@@ -657,7 +653,7 @@ export function cellsPlays(text: string, bars: readonly BandBar[]): Played {
         step: onset,
         note: n.note,
         velocity: n.velocity,
-        written: stepOf(n.at + (n.end - n.at) / n.share) - onset,
+        written: (stepOf(n.end) - onset) / n.share,
         length: stepOf(n.end) - onset,
       },
     });

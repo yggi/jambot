@@ -1,8 +1,10 @@
 /**
  * Cells' repository of meters, as the composer asks it (#375): cells'
- * `METER_FRAGMENTS` (v0.4.0, yggi/cells#96 and #102), each read by cells'
+ * `METER_FRAGMENTS` (v0.4.0, yggi/cells#96 and #102; since v0.6.0 read from
+ * its seed files, `fragments/meters/*.md`, decision 047), each read by cells'
  * own compiler into what the band plays (`readMeterFragment`), ranked by
- * cells' own `query` (decision 041).
+ * cells' own `query` (decision 041). Each point names its facet, `meter`
+ * (decision 046); the query names none, so it measures every point.
  *
  * A fragment the band can't play yet is left out, and says why: a meter
  * that is none of the band's named meters (`METERS`), a swing on more than
