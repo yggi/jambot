@@ -21,8 +21,7 @@
  *
  * Beside it: the share of the axes' space where the composer misses, on a
  * grid of the four unit axes (`missShare`); and the query's cost
- * (`queryCost`). It imports cells' repository, so it runs under vitest, as
- * E31 does: `E34_REPORT=1 pnpm vitest run --silent=false
+ * (`queryCost`). It runs under vitest, as E31 does: `E34_REPORT=1 pnpm vitest run --silent=false
  * packages/engine/experiments/meter-radio.test.ts` prints the numbers.
  */
 

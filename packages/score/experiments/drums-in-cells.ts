@@ -21,9 +21,8 @@
  * the bar as witness, and invents no form; the gaps are in
  * `docs/language-experiments.md`, E31, and the test holds each.
  *
- * It runs under vitest, not node: `@yggi/cells` ships TypeScript, and node
- * strips no types under `node_modules`. Its test, `drums-in-cells.test.ts`,
- * holds what it found;
+ * It runs under vitest. Its test, `drums-in-cells.test.ts`, holds what it
+ * found;
  * `E31_REPORT=1 pnpm vitest run --silent=false packages/score/experiments/drums-in-cells.test.ts`
  * also prints each bar and its text.
  */
