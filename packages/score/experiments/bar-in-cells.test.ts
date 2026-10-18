@@ -1,5 +1,6 @@
 import { PRESETS, baseLengthOf, leanMap, leansOf, slotStepOn, stepSeconds } from '@jambot/engine';
-import { joinChord, stepsOf } from '@jambot/theory';
+import { joinChord, parseNumeral, stepsOf } from '@jambot/theory';
+import { lowerNumeral } from '../src/score.ts';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
@@ -12,15 +13,26 @@ import {
   barAsCells,
   characters,
   composedNotes,
+  indexOf,
   measureRun,
   report,
   runOf,
   shareText,
+  statedChords,
   swung,
   table,
   textOf,
+  throughChord,
 } from './bar-in-cells.ts';
 import { levelOf } from './drums-in-cells.ts';
+import {
+  chordTones,
+  degreeText,
+  everyNumeral,
+  keyText,
+  pinNote,
+  pinTone,
+} from './pitch-in-cells.ts';
 
 const RUN_OF = new Map<string, Run>(RUNS.map((key) => [`${key.preset} ${key.meter}`, runOf(key)]));
 const run = (preset: string, meter = '4/4') => RUN_OF.get(`${preset} ${meter}`)!;
@@ -143,16 +155,81 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     for (const row of TABLE) expect(row.largest, `${row.preset} ${row.meter}`).toBeLessThan(1e-12);
   });
 
-  it('counts the characters of every part', () => {
+  it('states the bass and the comp over the chord in force, `over=&harm`, in 781 of their 802 lines, 720 of them with whole indices alone (#387)', () => {
+    const lines = MEASURED.flatMap((m) => m.text.pitched.map((p) => ({ m, p })));
+    const over = (x: (typeof lines)[number]) => x.p.table;
+    expect(lines).toHaveLength(802);
+    expect(lines.filter((x) => over(x) === 'harm')).toHaveLength(781);
+    expect(lines.filter((x) => over(x) === 'harm' && x.p.accidentals === 0)).toHaveLength(720);
+    // Each line as the text has it: over the harmony, or over the key with the notes no index reaches.
+    for (const m of MEASURED)
+      for (const p of m.text.pitched) {
+        expect(textOf(m.text)).toMatch(new RegExp(`^&${p.part} over=&${p.table} `, 'm'));
+        expect(p.unreached.length > 0).toBe(p.table === 'key');
+      }
+    // 91 notes take an accidental on their index, a degree of the key beside a chord tone: the bass 33, the stab 58.
+    const accidentals = (part: string) =>
+      lines.filter((x) => x.p.part === part).reduce((n, x) => n + x.p.accidentals, 0);
+    expect(['bass', 'pad', 'stab'].map(accidentals)).toEqual([33, 0, 58]);
+    // The 21 lines over the key are Swing jazz's walking bass: 25 notes off the key, each a semitone from the root of
+    // the chord that sounds next (the bar's next, or the next bar's first), and off the chord sounding. An accidental on
+    // an index moves a degree of the key (cells decision 015), so no index into a chord names a step of the 12 that
+    // none of its tones carries.
+    const kept = lines.filter((x) => over(x) === 'key');
+    expect(kept).toHaveLength(21);
+    expect(new Set(kept.map((x) => `${x.m.run.preset} ${x.m.run.meter} ${x.p.part}`))).toEqual(
+      new Set(['Swing jazz 4/4 bass']),
+    );
+    const swingJazz = run('Swing jazz');
+    const approaches = kept.flatMap(({ m, p }) =>
+      p.unreached.map((u) => {
+        const next =
+          m.bar.chords.find((c) => slotStepOn(m.bar.meter, c.slot.step) > u.step) ??
+          swingJazz.bars[m.bar.bar + 1]!.chords[0]!;
+        const root = joinChord(next.chord)[0]!;
+        return {
+          offKey: pinTone(m.bar.plan.key, u.note, 'bass').accidental !== 0,
+          semitone: Math.abs(((u.note - root + 6 + 1200) % 12) - 6) === 1,
+        };
+      }),
+    );
+    expect(approaches).toHaveLength(25);
+    expect(approaches.every((a) => a.offKey && a.semitone)).toBe(true);
+    // Witness: Swing jazz's bar 0, Imaj9 in C, the bass's last note G♭2 (42) leading to IVmaj7's F; written over the key.
+    const w = at('Swing jazz', '4/4', 0);
+    expect(statedChords(w.bar)).toEqual([{ step: 0, numeral: 'Imaj9' }]);
+    expect(w.text.pitched).toEqual([
+      { part: 'bass', table: 'key', accidentals: 0, unreached: [{ step: 12, note: 42 }] },
+    ]);
+    expect(textOf(w.text)).toMatch(/^&harm over=&key step=1m \[0,2,4,6,8\]$/m);
+    expect(textOf(w.text)).toMatch(/^&bass over=&key step=16n legato=\.81 7@4 11@4 11@4 11b@4$/m);
+    // … and the next bar's, IVmaj7 `[3,5,7,9]`, its walk on the chord's tones (F2 E2 A2 C3), over it.
+    expect(textOf(at('Swing jazz', '4/4', 1).text)).toMatch(
+      /^&bass over=&harm step=16n legato=\.81 4@4 3@4 5@4 6@4$/m,
+    );
+  });
+
+  it('counts the characters of every part, the bass and the comp over the chord in force 716 more than over the key (#387)', () => {
     expect(characters(MEASURED)).toEqual({
-      total: 294616,
+      total: 295332,
       meter: 13664,
       key: 8640,
       harmony: 12921,
       drums: 143841,
+      bass: 54278,
+      comp: 44287,
+      card: 17701,
+    });
+    // The same bars with the bass and the comp over the key, as E33 stated them before cells v0.5.0: the harmony
+    // stated again in the comp, and 716 characters fewer (54,221 + 43,628 + 12,921 = 110,770 against 111,486).
+    const overKey = [...RUN_OF.values()].flatMap((r) =>
+      r.bars.map((bar) => ({ text: barAsCells(bar, { table: 'key' }) })),
+    );
+    expect(characters(overKey)).toMatchObject({
+      total: 294616,
+      harmony: 12921,
       bass: 54221,
       comp: 43628,
-      card: 17701,
     });
     const levels = MEASURED.reduce(
       (n, m) => n + (textOf(m.text).match(/:0:[.\d]+/g) ?? []).join('').length,
@@ -162,18 +239,18 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     expect(
       Object.fromEntries(TABLE.map((row) => [`${row.preset} ${row.meter}`, row.characters.total])),
     ).toEqual({
-      'Synth-pop 4/4': 25065,
-      'Techno 4/4': 26555,
-      'Deep house 4/4': 26027,
-      'Ambient 4/4': 15667,
-      'Lo-fi hip hop 4/4': 26594,
-      'Funk 4/4': 35012,
-      'Bossa nova 4/4': 24869,
-      'Swing jazz 4/4': 26065,
-      'Synth-pop 3/4': 22597,
-      'Synth-pop 7/8': 22093,
-      'Bossa nova 3/4': 21862,
-      'Bossa nova 7/8': 22210,
+      'Synth-pop 4/4': 25150,
+      'Techno 4/4': 26619,
+      'Deep house 4/4': 26068,
+      'Ambient 4/4': 15672,
+      'Lo-fi hip hop 4/4': 26732,
+      'Funk 4/4': 35087,
+      'Bossa nova 4/4': 24930,
+      'Swing jazz 4/4': 26102,
+      'Synth-pop 3/4': 22671,
+      'Synth-pop 7/8': 22148,
+      'Bossa nova 3/4': 21907,
+      'Bossa nova 7/8': 22246,
     });
   });
 
@@ -195,7 +272,7 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     expect(rims.filter((m) => /&euclid \* \.\d+\]/.test(textOf(m.text)))).toHaveLength(45);
   });
 
-  it('finds what it checks: a hit dropped, a bass note moved, a level changed, a chord respelled, a share changed, 7/8 at its quarters a minute, or a swing left out or moved, is a difference', () => {
+  it('finds what it checks: a hit dropped, a bass note moved, a level changed, a chord respelled (and the comp with it), a line read over the key, a share changed, 7/8 at its quarters a minute, or a swing left out or moved, is a difference', () => {
     const differs = (preset: string, meter: string, bar: number, from: RegExp, to: string) => {
       const m = at(preset, meter, bar);
       const text = textOf(m.text);
@@ -207,9 +284,14 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       return PARTS.filter((p) => m.equal[p] && !again!.equal[p]);
     };
     expect(differs('Funk', '4/4', 23, /&hh:0:[.\d]+/, '~')).toEqual(['drums']);
-    expect(differs('Synth-pop', '4/4', 0, /7@10 14@6/, '7@9 14@7')).toEqual(['bass']);
+    expect(differs('Synth-pop', '4/4', 0, /3@10 6@6/, '3@9 6@7')).toEqual(['bass']);
     expect(differs('Synth-pop', '4/4', 0, /level=\.18755/, 'level=.2')).toEqual(['comp']);
-    expect(differs('Synth-pop', '4/4', 0, /\[0,2,4\]$/m, '[0,2#,4]')).toEqual(['harmony']);
+    // The chord is stated once: respelled, the comp that reads it moves with it (the bass plays its root, a lap up).
+    expect(differs('Synth-pop', '4/4', 0, /\[0,2,4\]$/m, '[0,2#,4]')).toEqual(['comp', 'harmony']);
+    expect(differs('Synth-pop', '4/4', 0, /^&pad over=&harm/m, '&pad over=&key')).toEqual(['comp']);
+    expect(differs('Synth-pop', '4/4', 0, /^&bass over=&harm/m, '&bass over=&key')).toEqual([
+      'bass',
+    ]);
     expect(differs('Synth-pop', '4/4', 0, /legato=\.635/, 'legato=.64')).toEqual(['bass']);
     expect(differs('Synth-pop', '4/4', 0, / legato=\.635/, '')).toEqual(['bass']);
     const lofi = run('Lo-fi hip hop');
@@ -266,6 +348,56 @@ describe('the forms it relies on, over every case', () => {
     ).toEqual(velocities);
     for (const v of velocities)
       expect(play(scaffold('&bass step=16n 0', levelOf(v)))[0], `${v}`).toBe(v);
+  });
+});
+
+describe('the chord in force as E33 reads it, over every case (#387)', () => {
+  it('plays what `throughChord` says over every chord of the composer’s four modes: 228 a key, indices from below the root to past a lap, none, a sharp or a flat, 43,776 notes', () => {
+    // A stack of degrees is the same in every tonic, so A in each mode is every case; the tonic only adds itself.
+    const alters = [0, 1, -1];
+    let notes = 0;
+    for (const mode of ['ionian', 'dorian', 'mixolydian', 'aeolian'] as const) {
+      const key = { tonic: 9, mode };
+      const chords = everyNumeral(key).map((n) => chordTones(key, lowerNumeral(key, n)));
+      expect(chords).toHaveLength(228);
+      // each bar a chord, and 16 indices into it from −(its tones), on three lines: no accidental, `#`, `b`
+      const index = (c: (typeof chords)[number], k: number) => k - c.length;
+      const text = [
+        '&bar meter("4/4") step=120bpm',
+        `&key ${keyText(key)}`,
+        `&harm over=&key step=1m ${chords.map((c) => `[${c.map((t) => degreeText(t.degree, t.accidental)).join(',')}]`).join(' ')}`,
+        ...alters.map(
+          (alter, i) =>
+            `&i${i} over=&harm step=16n ${chords.flatMap((c) => Array.from({ length: 16 }, (_, k) => degreeText(index(c, k), alter))).join(' ')}`,
+        ),
+        '&bassV loop=C1',
+        `&out map=midi ~ ${alters.map((_, i) => `[&i${i} * &bassV]`).join(' ')}`,
+      ].join('\n');
+      const plan = planOf(text);
+      expect(plan.result.diagnostics.map((d) => d.message)).toEqual([]);
+      const route = router(plan.result, channelTable(plan.result));
+      const played = windowAt(plan, 0, chords.length * 2)
+        .events.flatMap((e) =>
+          routesOf(route(e)).flatMap((r) => {
+            const n = midiNote(e, r);
+            return n ? [`${n.channel} ${Math.round(n.at / 0.125)} ${n.note}`] : [];
+          }),
+        )
+        .sort();
+      const said = chords
+        .flatMap((c, bar) =>
+          alters.flatMap((alter, i) =>
+            Array.from({ length: 16 }, (_, k) => {
+              const tone = throughChord(key, c, { n: index(c, k), alter });
+              return `${i + 2} ${bar * 16 + k} ${pinNote(key, tone, 'bass')}`;
+            }),
+          ),
+        )
+        .sort();
+      expect(played, mode).toEqual(said);
+      notes += said.length;
+    }
+    expect(notes).toBe(4 * 228 * 3 * 16);
   });
 });
 
@@ -326,7 +458,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     const legatos = new Set(
       MEASURED.flatMap((m) =>
         [
-          ...textOf(m.text).matchAll(/^&(bass|stab|pad) over=&key step=(\S+)(?: legato=(\S+))? /gm),
+          ...textOf(m.text).matchAll(/^&(bass|stab|pad) over=&\w+ step=(\S+)(?: legato=(\S+))? /gm),
         ].map(([, part, tap, legato]) => `${m.run.preset} ${part} ${tap} ${legato ?? 1}`),
       ),
     );
@@ -339,7 +471,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     const w = at('Techno', '4/4', 0);
     const written = w.bar.written.find((n) => n.part === 'bass')!;
     expect([written.length, baseLengthOf(w.bar, written)]).toEqual([8, 2.5600000000000005]);
-    expect(textOf(w.text)).toMatch(/^&bass over=&key step=16n legato=\.32 /m);
+    expect(textOf(w.text)).toMatch(/^&bass over=&harm step=16n legato=\.32 /m);
     expect(w.played.notes.find((n) => n.part === 'bass')!.length).toBeCloseTo(2.56, 9);
     // Every length, by run: within 1e-6 steps (and 1 ms) where the meter is straight or the line sounds as written.
     const lengths = (preset: string) =>
@@ -391,7 +523,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     expect(lean.written(lean.played(10) + 0.425 * 3.2) - 10).toBeCloseTo(1.2, 9);
   });
 
-  it('gap 2, the chord in force: a line read over the harmony reads the chord sounding (cells v0.5.0), so past its last tone it plays the chord a lap up, though E33 still restates each chord in the comp (#387)', () => {
+  it('gap 2, what the chord in force leaves: a step of the 12 off the chord (Swing jazz’s 25 approach notes), the next chord (83 notes beside this one), and the hand (599 stacks of indices, 543 close)', () => {
     const text = [
       '&bar meter("4/4") step=120bpm',
       '&key scale(aeolian, A)',
@@ -419,6 +551,49 @@ describe('what cells could not say (E33: the gaps)', () => {
         if (pitchClasses.has(w.note % 12)) t[0]++;
       }
     expect(tones).toEqual({ bass: [868, 927], pad: [678, 678], stab: [1316, 1374] });
+    // Off the chord: an accidental on an index is a degree of the key, so a step of the 12 that no tone of the chord
+    // carries has no index. Swing jazz's bar 0: G♭2 (42), over the key `11b`, over Imaj9 none.
+    const c = { tonic: 0, mode: 'ionian' as const };
+    const imaj9 = chordTones(c, lowerNumeral(c, parseNumeral('Imaj9')!));
+    expect(imaj9.map((t) => degreeText(t.degree, t.accidental))).toEqual(['0', '2', '4', '6', '8']);
+    expect(pinTone(c, 42, 'bass')).toEqual({ degree: 11, accidental: -1 });
+    expect(indexOf(c, imaj9, 42, 'bass')).toBeNull();
+    // (G2 a semitone up is the chord's fifth a lap up, index 7)
+    expect(indexOf(c, imaj9, 43, 'bass')).toEqual({ n: 7, alter: 0 });
+    // The next chord: of the notes off the chord sounding, 83 are tones of the next bar's first chord (the bass 31, the
+    // stab 52), which the text writes beside this chord's tones, since cells has no next chord (yggi/cells#50).
+    const next: Record<string, number> = { bass: 0, pad: 0, stab: 0 };
+    for (const r of RUN_OF.values())
+      for (const [i, bar] of r.bars.entries()) {
+        // (a run's last bar has no next in the run)
+        const after = r.bars[i + 1];
+        if (!after) continue;
+        const pitchClasses = (chord: (typeof bar.chords)[number]) =>
+          new Set(joinChord(chord.chord).map((h) => ((h % 12) + 12) % 12));
+        const following = pitchClasses(after.chords[0]!);
+        for (const w of bar.written) {
+          if (w.part !== 'bass' && w.part !== 'pad' && w.part !== 'stab') continue;
+          const sounding = bar.chords.findLast(
+            (x) => slotStepOn(bar.meter, x.slot.step) <= w.step,
+          )!;
+          if (!pitchClasses(sounding).has(w.note % 12) && following.has(w.note % 12))
+            next[w.part]!++;
+        }
+      }
+    expect(next).toEqual({ bass: 31, pad: 0, stab: 52 });
+    // The hand: the comp's stacks over the chord are its indices, the voicing written out, not led from a pin (E32's
+    // gap 3); most are close, consecutive tones of the chord with no accidental, which a voicing could choose.
+    const stacks = MEASURED.flatMap((m) =>
+      [...textOf(m.text).matchAll(/^&(?:pad|stab) over=&harm .*$/gm)].flatMap(([line]) =>
+        [...line.matchAll(/\[([^\]]+)\]/g)].map(([, inner]) => inner!.split(',')),
+      ),
+    );
+    const close = stacks.filter((tones) =>
+      tones.every(
+        (t, i) => /^-?\d+$/.test(t) && (i === 0 || Number(t) === Number(tones[i - 1]) + 1),
+      ),
+    );
+    expect([close.length, stacks.length]).toEqual([543, 599]);
   });
 
   it("gap 3, a secondary's function (E32's gap 1): Swing jazz's V7/V and V9/V read back as II7 and II9", () => {
@@ -444,7 +619,7 @@ describe('what cells could not say (E33: the gaps)', () => {
       for (const m of measureRun(
         r,
         (t) => t,
-        (bar) => barAsCells(bar, true),
+        (bar) => barAsCells(bar, { euclid: true }),
       )) {
         if (!/^&euclid step=1m /m.test(textOf(m.text))) continue;
         bars++;
