@@ -75,45 +75,51 @@ import {
   type TimedEvent,
   type TransportCarried,
   type TransportEnv,
-  type MeterSwing,
   STRAIGHT,
   baseLengthOf,
   baseVelocityOf,
-  chordNumeral,
   clockOfTransport,
   holding,
   holdingSwing,
   leanMap,
   leansOf,
-  sameMeter,
-  slotStepOn,
   stepSeconds,
   transport,
 } from '@jambot/engine';
-import {
-  METERS,
-  type MeterName,
-  diatonicMode,
-  formatNumeral,
-  parseNumeral,
-  stepsOf,
-} from '@jambot/theory';
+import { METERS, type MeterName, formatNumeral, parseNumeral, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { type ScoreKey, lowerNumeral } from '../src/score.ts';
-import { VOICE_OF_NOTE, euclidOf, levelOf } from './drums-in-cells.ts';
+import { lowerNumeral } from '../src/score.ts';
 import {
   PIN_VOICES,
-  type PinVoice,
+  type StatedChord,
   type Tone,
+  VOICE_OF_NOTE,
+  barMeterName as meterName,
   chordTones,
   degreeText,
+  euclidOf,
+  indexOf,
   keyText,
+  levelOf,
   numeralOfNotes,
-  pinNote,
   pinTone,
   rhythmText,
-} from './pitch-in-cells.ts';
+  statedChords,
+  swingText,
+} from '../src/section-text.ts';
+
+/** The meter, the swing, the chords stated and the indices into the chord in force E33 found, which the section's builder holds (`../src/section-text.ts`). */
+export {
+  type ChordIndex,
+  type StatedChord,
+  barMeterName as meterName,
+  indexOf,
+  shareText,
+  statedChords,
+  swingText,
+  throughChord,
+} from '../src/section-text.ts';
 
 /** The run every bar comes from, as E31's and E32's. */
 export const SEED = 0;
@@ -159,12 +165,6 @@ export interface Note {
 /** A note as composed: the length it sounds, and the length written. */
 export interface Composed extends Note {
   readonly written: number;
-}
-
-/** A chord the harmony states, at its step, as Jambot's numeral. */
-export interface StatedChord {
-  readonly step: number;
-  readonly numeral: string;
 }
 
 /** The transport's clock starts here, in seconds. */
@@ -226,11 +226,6 @@ export function runOf({
   };
 }
 
-/** A meter's name, as cells writes it in `meter("…")`. */
-export function meterName(bar: BandBar): MeterName {
-  return (Object.keys(METERS) as MeterName[]).find((name) => sameMeter(METERS[name], bar.meter))!;
-}
-
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
 /** A bar's composed notes, the lead left out: the step, pitch, articulated and written length, and the velocity the performer plays at feel 0. */
@@ -256,33 +251,11 @@ export function composedNotes(bar: BandBar): Composed[] {
 const sortNotes = <N extends Note>(notes: readonly N[]): N[] =>
   [...notes].sort((a, b) => a.part.localeCompare(b.part) || a.step - b.step || a.note - b.note);
 
-/** A bar's chords as its harmony states them: the step on its meter and the numeral in its key. */
-export function statedChords(bar: BandBar): StatedChord[] {
-  return bar.chords.map((chord) => ({
-    step: slotStepOn(bar.meter, chord.slot.step),
-    numeral: formatNumeral(parseNumeral(chordNumeral(chord, bar.plan.key))!),
-  }));
-}
-
 /** A line of the text, and which part it states. */
 export interface Line {
   readonly part: 'meter' | 'key' | ComparedPart | 'card';
   readonly text: string;
 }
-
-/** A swing share as the text states it: the shorter of its shortest decimal and a fraction that is exactly it (`2/3`, `31/60`, `.65`). */
-export function shareText(share: number): string {
-  const decimal = String(share).replace(/^0/, '');
-  for (let d = 2; d <= 100; d++) {
-    const n = Math.round(share * d);
-    if (n / d === share) return `${n}/${d}`.length < decimal.length ? `${n}/${d}` : decimal;
-  }
-  return decimal;
-}
-
-/** A meter's swing as cells states it on `&bar`: none where it is straight. */
-export const swingText = (swing: MeterSwing) =>
-  swing.share === STRAIGHT.share ? '' : ` swing=${swing.level}:${shareText(swing.share)}`;
 
 /** A line's share of its written length, as `legato=` states it: none where it is 1. */
 export function legatoText(notes: readonly Composed[]): string {
@@ -388,42 +361,6 @@ function drumLines(
 
 /** A held token: `x`, or `x@k` for k steps. */
 const held = (text: string, length: number) => (length === 1 ? text : `${text}@${length}`);
-
-/** An index into the chord in force as a cells number writes it: `n` its tone (a lap up past its last), `alter` an accidental. */
-export interface ChordIndex {
-  readonly n: number;
-  readonly alter: number;
-}
-
-/**
- * What an index into a chord reads, as cells reads `over=&harm` (since v0.5.0): the chord's tone `n` (past its last tone the
- * chord a lap up, a lap the key's seven degrees, so index 4 of a seventh chord is its root an octave up), moved by its
- * accidental a degree of the key (an accidental moves a step of the table below, cells decision 015), and keeping the
- * tone's own alteration.
- */
-export function throughChord(key: ScoreKey, chord: readonly Tone[], index: ChordIndex): Tone {
-  const lap = Math.floor(index.n / chord.length);
-  const tone = chord[index.n - lap * chord.length]!;
-  const degrees = diatonicMode(key.mode).heights.length;
-  return { degree: tone.degree + lap * degrees + index.alter, accidental: tone.accidental };
-}
-
-/** The order an index is looked for in: no accidental first, then one, then two; and the tone nearest 0. */
-const ALTERS = [0, 1, -1, 2, -2];
-const INDICES = Array.from({ length: 41 }, (_, i) => (i % 2 ? (i + 1) / 2 : i && -i / 2));
-
-/** The index into the chord in force that plays `note` from a part's voice: the first in ALTERS × INDICES, or none. */
-export function indexOf(
-  key: ScoreKey,
-  chord: readonly Tone[],
-  note: number,
-  voice: PinVoice,
-): ChordIndex | null {
-  for (const alter of ALTERS)
-    for (const n of INDICES)
-      if (pinNote(key, throughChord(key, chord, { n, alter }), voice) === note) return { n, alter };
-  return null;
-}
 
 /** The stack each step of a bar reads as the chord in force: the last chord stated at or before it, none before the first. */
 function chordsInForce(bar: BandBar): (step: number) => readonly Tone[] | null {

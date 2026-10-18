@@ -4,7 +4,8 @@
  * pairing of its clock with the page's, sampled every few milliseconds.
  */
 
-import type { Page } from '@playwright/test';
+import { appendFileSync } from 'node:fs';
+import { type Page, test } from '@playwright/test';
 
 export interface Start {
   /** What started: an oscillator's type, or noise. */
@@ -153,7 +154,33 @@ export async function listen(page: Page, path = '/') {
     };
   });
   await page.goto(path);
+  logShadow(page);
   return errors;
+}
+
+/**
+ * With `JAMBOT_SHADOW_LOG` naming a file, what the band through cells found
+ * in shadow on the page (#399, `window.jambot.shadow`), read every half second
+ * and appended there as the page closes, one line a test: a measurement over
+ * the end-to-end runs, not a check, missing at most the page's last half second.
+ */
+function logShadow(page: Page) {
+  const file = process.env.JAMBOT_SHADOW_LOG;
+  if (!file) return;
+  const title = test.info().title;
+  let latest: object | undefined;
+  const timer = setInterval(() => {
+    page
+      .evaluate(() => window.jambot?.shadow)
+      .then(
+        (readout) => void (latest = readout ?? latest),
+        () => {},
+      );
+  }, 500);
+  page.on('close', () => {
+    clearInterval(timer);
+    if (latest) appendFileSync(file, `${JSON.stringify({ title, ...latest, text: undefined })}\n`);
+  });
 }
 
 /** Through the lobby's door into the band, playing alone. */

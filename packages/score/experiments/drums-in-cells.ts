@@ -31,7 +31,6 @@ import {
   BAR_STEPS,
   type BandBar,
   type BandCarried,
-  DRUM_NOTES,
   DRUM_ROLES,
   type DrumRole,
   PRESETS,
@@ -41,8 +40,10 @@ import {
 } from '@jambot/engine';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { bjorklund } from '@yggi/cells/engine/parser/generators';
-import { DRUM_WORDS } from '../src/score.ts';
+import { VOICE_OF_NOTE, euclidOf, levelOf } from '../src/section-text.ts';
+
+/** The drums' voices and levels E31 found, which the section's builder holds (`../src/section-text.ts`). */
+export { VOICE_OF_NOTE, euclidOf, levelOf } from '../src/section-text.ts';
 
 /** The run each witness bar comes from. */
 export const SEED = 0;
@@ -57,39 +58,8 @@ export interface Hit {
   readonly velocity: number;
 }
 
-/** The voice each drum note is written with: the score's words, and cells' `sd` for the snare. */
-export const VOICE_OF_NOTE: ReadonlyMap<number, string> = new Map([
-  ...Object.entries(DRUM_WORDS).map(
-    ([sound, word]) => [DRUM_NOTES[sound as keyof typeof DRUM_WORDS], word] as const,
-  ),
-  [DRUM_NOTES.snare, 'sd'] as const,
-]);
-
-/** A velocity as a level, (v/127)², which cells' MIDI out strikes at 127·√level: six decimals, no leading 0. */
-export function levelOf(velocity: number): string {
-  if (velocity >= 127) return '1';
-  return ((velocity / 127) ** 2).toFixed(6).replace(/0+$/, '').replace(/^0/, '');
-}
-
 /** A hit's own level after its voice (`&sd:0:.0635`), none at full velocity. */
 const hitLevel = (velocity: number) => (velocity >= 127 ? '' : `:0:${levelOf(velocity)}`);
-
-/** The rotation `r` at which cells' `euclid(k, n, r)` hits exactly these steps of `n`, if any. */
-export function euclidOf(steps: readonly number[], n = BAR_STEPS): { k: number; r: number } | null {
-  const k = steps.length;
-  if (k === 0 || k >= n) return null;
-  const want = [...steps].sort((a, b) => a - b).join();
-  const from = bjorklund(k, n).flatMap((on, j) => (on ? [j] : []));
-  for (let r = 0; r < n; r++)
-    if (
-      from
-        .map((j) => (j + r) % n)
-        .sort((a, b) => a - b)
-        .join() === want
-    )
-      return { k, r };
-  return null;
-}
 
 /** A bar's drum hits, as the band plays them, each with its role. */
 export const bandDrums = (bar: BandBar) => bar.dough.filter((n) => n.part === 'drums');

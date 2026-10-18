@@ -31,6 +31,11 @@
  * once, and so does anything that isn't a person's stop: leaving a session,
  * following a host, or the host having stopped.
  *
+ * Beside the band, alone or hosting, each section is written as one cells
+ * text and played by cells' engine to a silent sink, and compared with what
+ * the band sends (`shadow`, #399). With the switch on (`plays`, a solo band
+ * only) the outputs play cells' events in place of the band's.
+ *
  * The metronome, when one is given, is handed the steps laid on each tick
  * and clicks them on this output, so it has no clock of its own.
  *
@@ -152,6 +157,7 @@ import {
   wishAfter,
 } from './conductor.ts';
 import { Heard } from './heard.ts';
+import { type Plays, Shadow } from './shadow.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
 import { PATTERN_BARS, Pattern, type PatternBar, patternBarOf } from './pattern.ts';
@@ -422,6 +428,11 @@ export class Player {
    */
   skew = 0;
 
+  /** The band through cells, in shadow (#399): what it found is `shadow.readout`. */
+  readonly shadow: Shadow;
+  /** What the switch asks a solo band's outputs to play. */
+  #plays: Plays;
+
   #surroundings: Surroundings;
   #metronome: Metronome | null;
   #output: Output | null = null;
@@ -488,9 +499,13 @@ export class Player {
     surroundings: Surroundings = browser,
     /** Clicks the steps laid, when it is on; this device's own. */
     metronome: Metronome | null = null,
+    /** Which events a solo band's outputs play: its own, or cells' (the switch of #399, off by default). */
+    plays: Plays = 'band',
   ) {
     this.#surroundings = surroundings;
     this.#metronome = metronome;
+    this.#plays = plays;
+    this.shadow = new Shadow(() => surroundings.page() * 1000, plays);
     this.#seed = surroundings.seed();
     this.#decide();
     void surroundings.layers?.load().then((layer) => {
@@ -606,6 +621,20 @@ export class Player {
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
       this.#decide();
     }
+  }
+
+  /**
+   * The environment the band reads from a section's first bar on, as the
+   * radio's walk will leave it when that bar is composed (`#walkRadio`): what
+   * the shadow forecasts a section ahead by. Off the air, the environment now.
+   */
+  #envFrom(first: number): TransportEnv {
+    const env = this.#env;
+    const carried = this.#carried;
+    if (!this.station || !carried || first === 0) return env;
+    const walked = onward(this.station, radioStyle(this.track, this.tempoNudge));
+    const at = Math.max(carried.head.step, clockOfTransport(carried).barStart(first));
+    return { ...env, track: conductRadio(this.track, walked.style, at, this.tempoNudge).track };
   }
 
   apply(intent: Intent) {
@@ -794,6 +823,7 @@ export class Player {
   #begin(output: Output) {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
+    this.shadow.reset();
     this.#heard.clear();
     this.#timing = TRANSPORT_TIMING;
     this.#laid = [];
@@ -1134,7 +1164,8 @@ export class Player {
     this.#arrived = [];
     this.#judged = [];
     this.#forget = false;
-    const { carried, output: scheduled } = transport.advance(this.#env, this.#carried, {
+    const laidWith = this.#env;
+    const { carried, output: scheduled } = transport.advance(laidWith, this.#carried, {
       now,
       until: now + LOOKAHEAD,
       heard,
@@ -1197,7 +1228,18 @@ export class Player {
           players: this.players,
         });
     }
-    this.#schedule(output, now, scheduled, clockOfTransport(carried));
+    // The shadow writes and compares beside the band (#399); its events play only with the switch on, alone.
+    this.shadow.plays = this.mode === 'solo' ? this.#plays : 'band';
+    const shadowed = this.shadow.tick({
+      env: laidWith,
+      next: this.#env,
+      carried: carried!,
+      output: scheduled,
+      now,
+      envFrom: (first) => this.#envFrom(first),
+    });
+    const played = shadowed === scheduled.events ? scheduled : { ...scheduled, events: shadowed };
+    this.#schedule(output, now, played, clockOfTransport(carried));
     const { history, plans } = carried!.source;
     if (history !== this.harmonicHistory) this.harmonicHistory = history;
     // A tonic picked lets go once the band has planned it, so the band moves on from there (#169).
