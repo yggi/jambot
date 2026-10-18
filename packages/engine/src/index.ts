@@ -13,6 +13,7 @@ export * from './genre.ts';
 export * from './form.ts';
 export * from './key.ts';
 export * from './lattice.ts';
+export * from './layer.ts';
 export * from './history.ts';
 export * from './licence.ts';
 export * from './lead.ts';

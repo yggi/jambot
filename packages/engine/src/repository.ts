@@ -12,6 +12,13 @@
  * dynamics don't read. Of cells' thirteen, eleven are played: the alla breve
  * (two beats of a half) and 2/4 (a bar of 8 steps) are not.
  *
+ * What the host has learned (#398, cells decision 048) is merged at each
+ * query where a layer is given, and a meter kept is a use of it at the
+ * section's point (`useFragments`, of the facet `meter`), the layer kept
+ * within its cap (`cappedLayer`). A fragment a layer filed is ranked only
+ * where the band can play it: filing waits for the composer to make a meter
+ * on a miss, so none is read yet, and a layer that files one leaves it out.
+ *
  * The engine's barrel exports it, so a host that imports the engine loads
  * cells at start: node imports cells from `node_modules` through its
  * JavaScript build (cells decision 045).
@@ -20,9 +27,16 @@
 import { METERS, type Meter } from '@jambot/theory';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { setTiming } from '@yggi/cells/engine/edit';
-import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
+import {
+  type Fragment,
+  type LearnedLayer,
+  createRepository,
+  layerProblems,
+} from '@yggi/cells/repository/fragments';
+import { useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { sameMeter } from './events.ts';
+import { cappedLayer } from './layer.ts';
 import type { MeterFragment, MeterRepository } from './meter-query.ts';
 import { STRAIGHT, SWING_LEVELS, type SwingLevel } from './swing.ts';
 
@@ -86,13 +100,33 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
   const cells = createRepository(fragments.filter((f) => played.has(f.id)));
   return {
     fragments: played,
-    query: (point) =>
-      cells.query(point, played.size).map((found) => ({
-        id: found.fragment.id,
-        distance: found.distance,
-      })),
+    query: (point, layer) =>
+      (layer
+        ? cells
+            .query(point, played.size + layer.filed.length, {}, { layer })
+            .filter((found) => played.has(found.fragment.id))
+        : cells.query(point, played.size)
+      ).map((found) => ({ id: found.fragment.id, distance: found.distance })),
+    used: (layer, id, point) =>
+      cappedLayer(useFragments(cells, layer, [{ id, point, facet: 'meter' }])),
   };
 }
 
 /** Cells' meters, as the composer asks them. */
 export const METER_REPOSITORY: MeterRepository = meterRepository();
+
+/**
+ * What is wrong with a learned layer for cells' meters, each problem a
+ * sentence; none for one a query takes. Its shape (cells' `layerProblems`),
+ * and that it files no seed fragment's id, which a query refuses.
+ */
+export function meterLayerProblems(layer: unknown): string[] {
+  if (typeof layer !== 'object' || layer === null || Array.isArray(layer))
+    return ['the layer is not a map'];
+  const shape = layerProblems(layer as LearnedLayer);
+  if (shape.length) return shape;
+  const seed = new Set(METER_FRAGMENTS.map((f) => f.id));
+  return (layer as LearnedLayer).filed
+    .filter((file) => seed.has(file.fragment.id))
+    .map((file) => `the layer files ${file.fragment.id}, a seed fragment's id`);
+}

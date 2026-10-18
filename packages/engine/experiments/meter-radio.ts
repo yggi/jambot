@@ -19,6 +19,13 @@
  * - the sections where the composer finds nothing within `MISS_DISTANCE`,
  *   and keeps the meter playing.
  *
+ * Learning (#398): the same runs with the band given an empty learned layer,
+ * so each meter the composer keeps is a use at the section's point and the
+ * next section asks with what was learned (cells decision 048). It counts
+ * the share of sections whose meter is among its run's 3 most used, against
+ * the same walk with nothing learned (`lockIn`), and what the layer weighs
+ * after the run's hours (`layerBytes`).
+ *
  * Beside it: the share of the axes' space where the composer misses, on a
  * grid of the four unit axes (`missShare`); and the query's cost
  * (`queryCost`). It runs under vitest, as E31 does: `E34_REPORT=1 pnpm vitest run --silent=false
@@ -50,6 +57,7 @@ import {
   styleAt,
   walkRadio,
 } from '../src/index.ts';
+import { EMPTY_LAYER, type LearnedLayer, layerBytes } from '../src/layer.ts';
 import { METER_REPOSITORY } from '../src/repository.ts';
 
 export const HOURS = 3;
@@ -83,6 +91,10 @@ export interface MeterRun {
   readonly moves: readonly number[];
   /** Minutes in each fragment's meter. */
   readonly minutes: Readonly<Record<string, number>>;
+  /** The fragment each section plays, by id (`-` for none). */
+  readonly kept: readonly string[];
+  /** What the band learned by the run's last section, where it was given a layer; null where it wasn't. */
+  readonly layer: LearnedLayer | null;
 }
 
 /**
@@ -94,17 +106,23 @@ export function meterRun(
   seed: number,
   hours = HOURS,
   margins?: MeterRepository['margins'],
+  layer?: LearnedLayer,
 ): MeterRun {
-  // The repository with the margins asked for, keeping each query: the planner asks once a section, in order.
+  // The repository with the margins asked for, keeping each query and what each section learned: the planner asks once a section, in order.
   const { miss } = margins ?? { miss: MISS_DISTANCE };
-  const queries: { point: StylePoint; missed: boolean }[] = [];
+  const queries: { point: StylePoint; missed: boolean; learned?: LearnedLayer }[] = [];
   const repository: MeterRepository = {
     ...METER_REPOSITORY,
     ...(margins ? { margins } : {}),
-    query(point) {
-      const found = METER_REPOSITORY.query(point);
+    query(point, given) {
+      const found = METER_REPOSITORY.query(point, given);
       queries.push({ point, missed: found[0]!.distance > miss });
       return found;
+    },
+    used(given, id, point) {
+      const learned = METER_REPOSITORY.used!(given, id, point);
+      queries.at(-1)!.learned = learned;
+      return learned;
     },
   };
   let style: Style = { ...preset.style, entropy: ENTROPY };
@@ -128,6 +146,7 @@ export function meterRun(
       wish: { tonic: null, mode: preset.mode, melodic: null },
       swing: STRAIGHT,
       repository,
+      layer,
       offer: null,
     };
   };
@@ -135,6 +154,7 @@ export function meterRun(
   const decided = lookAhead(band.initial as BandCarried, envAt, Math.ceil((hours * 60 * 180) / 2));
   const changes: MeterChangeSeen[] = [];
   const minutes: Record<string, number> = {};
+  const kept: string[] = [];
   let minute = 0;
   let bars = 0;
   for (const [i, d] of decided.entries()) {
@@ -151,11 +171,13 @@ export function meterRun(
     // A bar of `beats` beats at `bpm` beats a minute (#367).
     const length = beatsOf(d.plan.meter) / bpms[d.bar]!;
     const id = d.plan.meterFragment ?? '-';
+    if (d.bar % SECTION_BARS === 0) kept.push(id);
     minutes[id] = (minutes[id] ?? 0) + length;
     minute += length;
   }
   const sections = Math.ceil(bars / SECTION_BARS);
   const asked = queries.slice(0, sections);
+  const learned = asked.findLast((q) => q.learned)?.learned ?? layer ?? null;
   return {
     preset: preset.name,
     seed,
@@ -165,6 +187,8 @@ export function meterRun(
     missed: asked.filter((q) => q.missed).length,
     moves: asked.slice(1).map((q, i) => pointMove(asked[i]!.point, q.point)),
     minutes,
+    kept,
+    layer: layer ? learned : null,
   };
 }
 
@@ -174,15 +198,67 @@ const pointMove = (a: StylePoint, b: StylePoint): number => {
   return Math.sqrt(axes.reduce((sum, axis) => sum + (a[axis]! - b[axis]!) ** 2, 0) / axes.length);
 };
 
-/** Every preset, `seeds` seeds each, each run its own seed as E30's are. */
+/** Every preset, `seeds` seeds each, each run its own seed as E30's are; learning from `layer` where one is given. */
 export const meterRuns = (
   seeds = SEEDS,
   hours = HOURS,
   margins?: MeterRepository['margins'],
+  layer?: LearnedLayer,
 ): MeterRun[] =>
   PRESETS.flatMap((preset, p) =>
-    range(seeds).map((seed) => meterRun(preset, p * seeds + seed + 1, hours, margins)),
+    range(seeds).map((seed) => meterRun(preset, p * seeds + seed + 1, hours, margins, layer)),
   );
+
+/** E34's runs with the band learning from an empty layer (#398). */
+export const learningRuns = (seeds = SEEDS, hours = HOURS): MeterRun[] =>
+  meterRuns(seeds, hours, undefined, EMPTY_LAYER);
+
+/** How many of a run's sections play one of its 3 most used meters. */
+export function inTopThree(run: MeterRun): number {
+  const counts = new Map<string, number>();
+  for (const id of run.kept) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts.values()]
+    .sort((a, b) => b - a)
+    .slice(0, 3)
+    .reduce((a, b) => a + b, 0);
+}
+
+/**
+ * Lock-in (cells decision 048, point 6, as amended): how many points
+ * learning adds to the share of sections whose meter is among its run's 3
+ * most used, over the same walks with nothing learned. Pooled over every
+ * section of every run, with the standard error of the runs' differences
+ * (each run paired with its walk unlearned), its spread over √runs.
+ */
+export function lockIn(
+  unlearned: readonly MeterRun[],
+  learned: readonly MeterRun[],
+): {
+  readonly before: number;
+  readonly after: number;
+  readonly added: number;
+  readonly error: number;
+} {
+  const pooled = (runs: readonly MeterRun[]) =>
+    runs.reduce((n, r) => n + inTopThree(r), 0) / runs.reduce((n, r) => n + r.kept.length, 0);
+  const share = (r: MeterRun) => inTopThree(r) / r.kept.length;
+  const differences = learned.map((r, i) => (share(r) - share(unlearned[i]!)) * 100);
+  const mean = differences.reduce((a, b) => a + b, 0) / differences.length;
+  const spread = Math.sqrt(
+    differences.reduce((a, d) => a + (d - mean) ** 2, 0) / (differences.length - 1),
+  );
+  const [before, after] = [pooled(unlearned), pooled(learned)];
+  return {
+    before,
+    after,
+    added: (after - before) * 100,
+    error: spread / Math.sqrt(differences.length),
+  };
+}
+
+/** What each learned run's layer weighs, in bytes of its JSON. */
+export const learnedBytes = (runs: readonly MeterRun[]): number[] =>
+  runs.map((r) => (r.layer ? layerBytes(r.layer) : 0));
 
 /** The changes that go back, at the next section's start, to the meter just left. */
 export const wentBack = (run: MeterRun): MeterChangeSeen[] =>

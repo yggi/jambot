@@ -42,13 +42,18 @@
     };
     /** Close the session, leave it, or go back to the lobby. */
     onend: () => void;
+    /** How the session card carries what the band learned (#398): exported, its fragments exported, imported. */
+    layers?: Pick<
+      NonNullable<ComponentProps<typeof Session>['learned']>,
+      'onexport' | 'onexportfiles' | 'onimport'
+    >;
     /** How this device sounds: the page's Sound card, which is on both sides of the door. */
     sound: Snippet;
     /** The timing counters, where the address asks for them (`?timing`). */
     timing?: Snippet | undefined;
   }
 
-  let { player, metronome, instruments, session, onend, sound, timing }: Props = $props();
+  let { player, metronome, instruments, session, onend, layers, sound, timing }: Props = $props();
 
   const DRAWER: readonly Place[] = [
     { id: 'sound', title: 'Sound', icon: 'sound' },
@@ -139,6 +144,7 @@
       radio={player.station !== null}
       nowPlaying={player.playing ? stationLine(player.track, player.heard) : null}
       ontune={(on) => player.tuneRadio(on)}
+      learned={layers ? { layer: player.layer, playing: player.playing, ...layers } : null}
     />
   {:else if id === 'style'}
     <StylePanel

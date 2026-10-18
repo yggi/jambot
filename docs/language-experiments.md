@@ -642,7 +642,7 @@ run; the others have.
 
 - **E34. The composer asks the repository for its meter while the radio walks** (#375, rung 6 of #358; yggi/cells decision 043), in
   [`packages/engine/experiments/meter-radio.ts`](../packages/engine/experiments/meter-radio.ts)
-  (about 10 s, under vitest, as E31), held by [`packages/engine/experiments/meter-radio.test.ts`](../packages/engine/experiments/meter-radio.test.ts):
+  (about 10 s, and as much again with learning, under vitest, as E31), held by [`packages/engine/experiments/meter-radio.test.ts`](../packages/engine/experiments/meter-radio.test.ts):
   the radio tuned in at each preset's point at entropy 0.3, its energy the preset's, left alone for 3 hours of music over 5 seeds a preset (40 runs, 120 hours, 26,691 sections), each section's style glided to as in E30.
   The band decides every bar with no meter asked for, so each section's plan takes the meter the composer finds in cells' repository (`METER_REPOSITORY`, `composedMeter`: the nearest of the eleven meters the band can play, on `sync`, `harm`, `artic` and `energy`), and a bar lasts its meter's beats at its tempo (#367).
   - **Where the meter changes**: 211 times in 120 hours (1.8 an hour), every one on a section's first bar, and none goes back at the next section's start.
@@ -653,7 +653,10 @@ run; the others have.
     At 0.25 a quarter of the space misses (24.6 %), and one change goes back where the meter playing has just slipped past the distance; at 0.35, 3 %.
   - **The cost**: a query is 0.006 to 0.008 ms, far under #375's bound of 1 ms a section.
   - Beside it, `packages/engine/src/repository.test.ts`: the 8 presets held, 2 seeds of 32 bars, play 15,061 events with the repository's meter, each with the same part, step, note and velocity as `main` and the same onset and duration to 1e-9 s, the swing coming from the plan whatever the swing track holds.
-  - Not measured: the radio driving the app (nothing calls it yet, #313 step 3), entropy other than 0.3, how the band's parts sound in the meters the walk reaches (6/8 and 12/8 are played by the rules of #260), a fragment's legato by level (none of cells' carries one, and the band doesn't read one), and learning by use.
+  - **Learning** (#398, cells decision 048): the same 40 runs with the band given an empty learned layer, each meter it keeps a use at the section's point (`learningRuns`).
+    The share of sections whose meter is among its run's 3 most used goes from 97.50 % to 98.11 %, 0.61 points ± 0.25 (the standard error of the 40 runs' paired differences), so 1.1 with twice its error, under decision 048's bound of 5 (`lockIn`).
+    Learning reaches farther, as decision 048 says: 2 misses where there were 201, and 119 changes of meter where there were 211, none going back at the next section; the layer after 3 hours weighs at most 814 bytes (7 points), against a cap of 16,000.
+  - Not measured: the radio driving the app (nothing calls it yet, #313 step 3), entropy other than 0.3, how the band's parts sound in the meters the walk reaches (6/8 and 12/8 are played by the rules of #260), a fragment's legato by level (none of cells' carries one, and the band doesn't read one), and learning over more than one run (each starts from an empty layer).
 
 - **E35. The band writes a whole section as one cells text, every part, the lead as its notes** (#390; #63, the seam; #358), in
   [`packages/score/experiments/section-in-cells.ts`](../packages/score/experiments/section-in-cells.ts)

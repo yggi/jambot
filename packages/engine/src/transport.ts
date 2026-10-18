@@ -68,6 +68,7 @@ import {
 import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import type { LearnedLayer } from './layer.ts';
 import type { MeterRepository } from './meter-query.ts';
 import type { Meter } from '@jambot/theory';
 import {
@@ -140,6 +141,8 @@ export interface TransportEnv {
    * it swings at, which the swing track's share gives way to.
    */
   readonly repository?: MeterRepository | undefined;
+  /** What the host has learned, which the song starts from and the band carries on, learning (#398): none learns nothing. */
+  readonly layer?: LearnedLayer | undefined;
   /**
    * The meter whose beats the track's bpm counts (#367); 4/4 where none is.
    * Whoever holds the track keeps it the meter heard, converting the number
@@ -252,7 +255,12 @@ export const bandSource: BarSource<BandCarried> = {
         : null
       : env.bar === 0
         ? sectionMeter(
-            { meter: env.meter, repository: env.repository, style: writtenStyle(env.style) },
+            {
+              meter: env.meter,
+              repository: env.repository,
+              style: writtenStyle(env.style),
+              layer: env.layer,
+            },
             null,
           ).meter
         : null,
@@ -342,7 +350,7 @@ const STRAIGHT_TRACK = holdingSwing(STRAIGHT);
  * bar starts, on their tracks, and what the Muse offers.
  */
 export function bandEnvAt(
-  { seed, track, wish, meter, swing = STRAIGHT_TRACK, repository }: TransportEnv,
+  { seed, track, wish, meter, swing = STRAIGHT_TRACK, repository, layer }: TransportEnv,
   bar: number,
   offer: Offer | null,
   clock: SongClock = SONG_CLOCK,
@@ -356,6 +364,7 @@ export function bandEnvAt(
     meter,
     swing: swingAt(swing, start),
     repository,
+    layer,
     offer,
   };
 }

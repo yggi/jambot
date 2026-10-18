@@ -10,11 +10,15 @@
   the radio (#313): it wanders the style alone, as a station does, until a
   person sets a preset or an axis it walks. Where the band is in style
   space, and where it heads, reads under "Now playing" for all of them, as
-  the nearest presets. Ending a session that others are in asks first, in place,
+  the nearest presets. What the band learned (#398), a host's or solo's,
+  reads as how many meters it kept and what the layer weighs, and can be
+  exported as JSON (with its filed fragments as fragment files, where it
+  has any) and imported from one while the band is stopped. Ending a session that others are in asks first, in place,
   so a stray tap can't end a jam for everyone: a host is told how many are
   playing in its session. Solo shares nothing, so it goes back at once.
 -->
 <script lang="ts">
+  import { type LearnedLayer, layerBytes } from '@jambot/engine';
   import type { Mode } from '../player.svelte.ts';
   import {
     type Following,
@@ -49,6 +53,20 @@
     nowPlaying?: string | null;
     /** Put the radio on the air, or take it off. */
     ontune?: (on: boolean) => void;
+    /** What the band learned, where this device keeps it (a host's, solo's; never a client's), and how to carry it (#398). */
+    learned?: Learned | null;
+  }
+
+  interface Learned {
+    layer: LearnedLayer;
+    /** Whether the band plays: an import waits until it stops. */
+    playing: boolean;
+    /** Save the layer as a JSON file. */
+    onexport: () => void;
+    /** Save its filed fragments as fragment files. */
+    onexportfiles: () => void;
+    /** Take a layer from a file's text: null where it took, else why not. */
+    onimport: (text: string) => string | null;
   }
 
   let {
@@ -63,9 +81,32 @@
     radio = false,
     nowPlaying = null,
     ontune,
+    learned = null,
   }: Props = $props();
 
   let asking = $state(false);
+
+  /** What the last import said: that it took, or why not. */
+  let imported: string | null = $state(null);
+
+  /** The meters the layer names, and what it weighs, in words. */
+  const learnedLine = (layer: LearnedLayer): string => {
+    const ids = new Set([
+      ...layer.points.map((p) => p.id),
+      ...layer.together.flatMap((p) => p.ids),
+      ...layer.filed.map((f) => f.fragment.id),
+    ]);
+    if (ids.size === 0) return 'Nothing yet';
+    const kb = (layerBytes(layer) / 1000).toFixed(1);
+    return `${ids.size} ${ids.size === 1 ? 'meter' : 'meters'} · ${kb} KB`;
+  };
+
+  async function take(input: HTMLInputElement, carry: Learned) {
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    imported = carry.onimport(await file.text()) ?? 'Imported: the next song starts from it.';
+  }
 
   const colours = $derived(networkColours(mode, hosting, players, playerId));
 
@@ -135,6 +176,35 @@
     </Group>
   {/if}
   {#if nowPlaying !== null}<Reading label="Now playing" value={nowPlaying} />{/if}
+
+  {#if mode !== 'client' && learned}
+    <Group title="Learned">
+      <Reading label="Meters kept" value={learnedLine(learned.layer)} />
+      <div class="actions">
+        <button type="button" onclick={learned.onexport}>Export</button>
+        {#if learned.layer.filed.length > 0}
+          <button type="button" onclick={learned.onexportfiles}>
+            Export fragments ({learned.layer.filed.length})
+          </button>
+        {/if}
+        <label class="file" class:disabled={learned.playing}>
+          Import
+          <input
+            type="file"
+            accept="application/json,.json"
+            disabled={learned.playing}
+            onchange={(e) => void take(e.currentTarget, learned!)}
+          />
+        </label>
+      </div>
+      <p class="note">
+        {imported ??
+          (learned.playing
+            ? 'The band learns each meter it keeps, a section at a time. Stop it to import.'
+            : 'The band learns each meter it keeps, a section at a time, and this browser keeps it.')}
+      </p>
+    </Group>
+  {/if}
 
   {#if asking}
     <div
@@ -210,6 +280,8 @@
     gap: 8px;
     flex-wrap: wrap;
   }
+  .actions button,
+  .file,
   .ask button,
   .out {
     justify-self: start;
@@ -219,6 +291,22 @@
     border-radius: 19px;
     background: var(--surface);
     font-weight: 500;
+  }
+  .file {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  .file input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+  .file.disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .ask .danger {
     border-color: var(--amber);
