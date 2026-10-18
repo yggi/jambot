@@ -66,6 +66,9 @@ importers:
       '@jambot/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@jambot/score':
+        specifier: workspace:*
+        version: link:../../packages/score
       '@jambot/session':
         specifier: workspace:*
         version: link:../../packages/session
@@ -146,19 +149,19 @@ importers:
 
   packages/score:
     dependencies:
-      '@jambot/theory':
-        specifier: workspace:*
-        version: link:../theory
-    devDependencies:
       '@jambot/engine':
         specifier: workspace:*
         version: link:../engine
-      '@strudel/mini':
-        specifier: 1.2.5
-        version: 1.2.5
+      '@jambot/theory':
+        specifier: workspace:*
+        version: link:../theory
       '@yggi/cells':
         specifier: github:yggi/cells#v0.6.0
         version: https://codeload.github.com/yggi/cells/tar.gz/d1c3b3a781ff23a24648176c9d2f25a2290d327c
+    devDependencies:
+      '@strudel/mini':
+        specifier: 1.2.5
+        version: 1.2.5
 
   packages/session:
     dependencies:

@@ -11,11 +11,11 @@
     "check": "tsc -p ."
   },
   "dependencies": {
-    "@jambot/theory": "workspace:*"
+    "@jambot/engine": "workspace:*",
+    "@jambot/theory": "workspace:*",
+    "@yggi/cells": "github:yggi/cells#v0.6.0"
   },
   "devDependencies": {
-    "@jambot/engine": "workspace:*",
-    "@strudel/mini": "1.2.5",
-    "@yggi/cells": "github:yggi/cells#v0.6.0"
+    "@strudel/mini": "1.2.5"
   }
 }

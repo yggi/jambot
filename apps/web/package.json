@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@jambot/engine": "workspace:*",
+    "@jambot/score": "workspace:*",
     "@jambot/session": "workspace:*",
     "@jambot/spectrum": "workspace:*",
     "@jambot/theory": "workspace:*",

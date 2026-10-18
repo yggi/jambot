@@ -31,6 +31,7 @@ import { EVEN_MIX, type Mix, withLevel } from './mix.ts';
 import { targetOf } from './conductor.ts';
 import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Hosting, type Surroundings } from './player.svelte.ts';
+import type { Plays } from './shadow.ts';
 
 /** Surroundings a test drives by hand: the clock, the resume, the ticks and frames. */
 function surroundings() {
@@ -1440,5 +1441,80 @@ describe('the radio (#313)', () => {
     expect(player.station).toEqual(kept);
     player.restore({ track: holding(INITIAL_STYLE), wish: player.wish, tempoNudge: 0 });
     expect(player.station).toBeNull();
+  });
+});
+
+describe('the band through cells, in shadow (#399)', () => {
+  /** A player playing for `seconds`, ticked by hand: alone, or as a host; with the radio on the air, or not. */
+  async function played(
+    plays: Plays,
+    seconds: number,
+    { tuned = false, host = false }: { tuned?: boolean; host?: boolean } = {},
+  ) {
+    const { world, s } = surroundings();
+    const player = new Player(s, null, plays);
+    if (host) {
+      player.hosting = told().hosting;
+      player.mode = 'host';
+    }
+    void player.start();
+    world.resolve();
+    await settle();
+    if (tuned) player.tuneRadio(true);
+    for (let t = 0; t < seconds - 1e-9; t += 0.025) {
+      world.currentTime += 0.025;
+      world.page += 0.025;
+      world.tickers[0]!.tick();
+      world.frames[0]!.follow();
+    }
+    return { world, player };
+  }
+
+  const NONE = { written: 0, harmony: 0, unmatched: 0, onsets: 0, extra: 0 };
+  /** Three sections at the tempo the song opens at, and its count-in. */
+  const SECTIONS_3 = (3 * SECTION_BARS * 4 * 60) / INITIAL_STYLE.bpm + 2.5;
+
+  it('writes each section as a cells text beside the band and finds nothing that differs, with the band’s own events on its outputs', async () => {
+    const { player } = await played('band', SECTIONS_3);
+    const { readout } = player.shadow;
+    expect(readout.errors).toEqual([]);
+    expect(readout.plays).toBe('band');
+    expect(readout.bars).toBeGreaterThanOrEqual(3 * SECTION_BARS);
+    expect(readout.mismatched).toEqual(NONE);
+    expect(readout.onsets.within).toBe(readout.onsets.timed);
+    expect(readout.played).toEqual({ cells: 0, band: 0 });
+    expect(readout.texts.again).toBe(0);
+  });
+
+  it('reads the radio’s walk to come, so a section written ahead is what plays: nothing written again', async () => {
+    const { player } = await played('band', SECTIONS_3 + 10, { tuned: true });
+    const { readout } = player.shadow;
+    expect(player.station!.walked).toBeGreaterThan(1);
+    expect(readout.texts.ahead).toBeGreaterThan(2);
+    expect(readout.texts.again).toBe(0);
+    expect(readout.mismatched).toEqual(NONE);
+  });
+
+  it('with the switch on, a solo band’s outputs play cells’ events: the same notes, each within 1 ms of where the band’s own play', async () => {
+    const [band, cells] = [await played('band', SECTIONS_3), await played('cells', SECTIONS_3)];
+    expect(cells.player.shadow.readout.played.band).toBe(0);
+    expect(cells.player.shadow.readout.played.cells).toBe(cells.world.plays.length);
+    const key = (p: { part: string; note: number; seconds: number }) =>
+      `${p.part} ${p.note} ${Math.round(p.seconds * 100)}`;
+    expect(cells.world.plays.map(key).sort()).toEqual(band.world.plays.map(key).sort());
+    const order = (ps: typeof band.world.plays) =>
+      [...ps].sort(
+        (a, b) => a.seconds - b.seconds || a.note - b.note || (a.part < b.part ? -1 : 1),
+      );
+    const [b, c] = [order(band.world.plays), order(cells.world.plays)];
+    for (const [i, p] of c.entries())
+      expect(Math.abs(p.seconds - b[i]!.seconds)).toBeLessThan(0.001);
+  });
+
+  it('plays a host’s own events with the switch on: a session follows in a later rung', async () => {
+    const { player, world } = await played('cells', SECTIONS_3, { host: true });
+    expect(player.shadow.readout.plays).toBe('band');
+    expect(player.shadow.readout.played.cells).toBe(0);
+    expect(world.plays.length).toBeGreaterThan(0);
   });
 });

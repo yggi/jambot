@@ -61,23 +61,14 @@ import {
 } from '@jambot/engine';
 import {
   CHORD_QUALITIES,
-  type Chord,
   type DiatonicModeName,
-  type Helix,
   type Numeral,
-  alteredDegree,
   chordScale,
-  diatonicMode,
   formatNumeral,
-  heightOf,
   joinChord,
   numeralOf,
   parseNote,
   parseNumeral,
-  qualityOf,
-  shift,
-  spelledTonic,
-  splitChord,
   wrap,
 } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
@@ -92,6 +83,35 @@ import {
   encodeBar,
   lowerNumeral,
 } from '../src/score.ts';
+import {
+  CLOCK_OF_UNIT,
+  PIN_VOICES,
+  QUALITY_DEGREES,
+  type Tone,
+  chordTones,
+  degreeText,
+  keyText,
+  numeralOfNotes,
+  pinTone,
+  rhythmText,
+  scoreKeyHelix,
+  stackText,
+} from '../src/section-text.ts';
+
+/** The key, the stacks and the pins E32 found, which the section's builder holds (`../src/section-text.ts`). */
+export {
+  PIN_VOICES,
+  QUALITY_DEGREES,
+  type PinVoice,
+  type Tone,
+  chordTones,
+  degreeText,
+  keyText,
+  numeralOfNotes,
+  pinNote,
+  pinTone,
+  rhythmText,
+} from '../src/section-text.ts';
 
 /** The run every bar comes from: each preset held, as E31's. */
 export const SEED = 0;
@@ -214,118 +234,9 @@ export function harmonyOfScore(score: ScoreBar): Harmony {
 /** A bar's harmony, as the band wrote it. */
 export const harmonyOf = (played: Played): Harmony => harmonyOfScore(scoreBarOf(played));
 
-const keyHelix = (key: ScoreKey): Helix => shift(diatonicMode(key.mode), key.tonic);
-
-/** The key's tonic as the score spells it: `F#`, `Bb`. */
-function tonicName(key: ScoreKey): string {
-  const tonic = spelledTonic(keyHelix(key));
-  return tonic.letter + (tonic.alteration < 0 ? 'b' : '#').repeat(Math.abs(tonic.alteration));
-}
-
-/** A key as cells writes it: `scale(aeolian, A)`. */
-export const keyText = (key: ScoreKey) => `scale(${key.mode}, ${tonicName(key)})`;
-
-/** A degree as a cells number writes it: the accidental after it (`6#`, `3bb`), as decision 033 reads. */
-export const degreeText = (degree: number, accidental: number) =>
-  `${degree}${(accidental < 0 ? 'b' : '#').repeat(Math.abs(accidental))}`;
-
-/** Each quality's tones as degrees above its root, counted in the key: a third is 2, a ninth 8. */
-export const QUALITY_DEGREES: Readonly<Record<string, readonly number[]>> = {
-  major: [0, 2, 4],
-  minor: [0, 2, 4],
-  diminished: [0, 2, 4],
-  augmented: [0, 2, 4],
-  sus2: [0, 1, 4],
-  sus4: [0, 3, 4],
-  '5': [0, 4],
-  '6': [0, 2, 4, 5],
-  m6: [0, 2, 4, 5],
-  '7': [0, 2, 4, 6],
-  maj7: [0, 2, 4, 6],
-  m7: [0, 2, 4, 6],
-  mMaj7: [0, 2, 4, 6],
-  m7b5: [0, 2, 4, 6],
-  dim7: [0, 2, 4, 6],
-  '9': [0, 2, 4, 6, 8],
-  maj9: [0, 2, 4, 6, 8],
-  m9: [0, 2, 4, 6, 8],
-  add9: [0, 2, 4, 8],
-};
-
-/** A tone of a chord as a degree of its key, from the tonic, and the alteration it needs. */
-export interface Tone {
-  readonly degree: number;
-  readonly accidental: number;
-}
-
-/**
- * A chord as degrees of the key: its root where `alteredDegree` puts it (a
- * degree of the key, else altered as the parallel major has it, else a flat
- * above or a sharp below), and each other tone on the chord's own degree
- * above it (`QUALITY_DEGREES`), altered by what the key leaves.
- */
-export function chordTones(key: ScoreKey, chord: Chord): Tone[] {
-  const scale = diatonicMode(key.mode);
-  const heights = joinChord(chord).map((h) => h - key.tonic);
-  const quality = qualityOf(heights.map((h) => h - heights[0]!));
-  const generic = quality && QUALITY_DEGREES[quality];
-  const root = alteredDegree(scale, heights[0]!);
-  if (!generic || !root) throw new Error(`chordTones: no degrees for ${heights.join(' ')}`);
-  return heights.map((height, i) => {
-    const degree = root.degree + generic[i]!;
-    return { degree, accidental: height - heightOf(scale, degree) };
-  });
-}
-
+const keyHelix = scoreKeyHelix;
 const toneText = (t: Tone) => degreeText(t.degree, t.accidental);
-const stack = (tones: readonly Tone[]) => `[${tones.map(toneText).join(',')}]`;
-
-/** The clock a bar's chords are written on, by the length of its unit in steps; a unit of the whole bar is `1m`. */
-const CLOCKS: Readonly<Record<number, string>> = {
-  16: '1m',
-  12: '2n.',
-  8: '2n',
-  6: '4n.',
-  4: '4n',
-  3: '8n.',
-  2: '8n',
-  1: '16n',
-};
-const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-
-/** A bar's chords as a braid: the clock of its coarsest unit, a token a chord, `@k` a longer one; a bar of `barSteps` 16ths. */
-export function rhythmText(
-  chords: readonly { step: number }[],
-  token: (i: number) => string,
-  barSteps = BAR_STEPS,
-): string {
-  const starts = chords.map((c) => c.step);
-  const spans = [
-    ...(starts[0]! > 0 ? [{ text: '~', length: starts[0]! }] : []),
-    ...starts.map((step, i) => ({ text: token(i), length: (starts[i + 1] ?? barSteps) - step })),
-  ];
-  const unit = spans.reduce((g, s) => gcd(g, s.length), barSteps);
-  const words = spans.map(({ text, length }) =>
-    length === unit ? text : `${text}@${length / unit}`,
-  );
-  return `step=${unit === barSteps ? '1m' : CLOCKS[unit]} ${words.join(' ')}`;
-}
-
-/** Where a pin counts from: its part's voice, a C, and the key's tonic above it; the lead's C4 is E35's. */
-export const PIN_VOICES = { comp: 'C3', bass: 'C1', lead: 'C4' } as const;
-const PIN_FROM = { comp: 48, bass: 24, lead: 60 } as const;
-export type PinVoice = keyof typeof PIN_VOICES;
-
-/** A pinned note as a degree of the key from its voice, altered where it is off the key. */
-export function pinTone(key: ScoreKey, note: number, part: PinVoice): Tone {
-  const height = note - PIN_FROM[part] - key.tonic;
-  const at = alteredDegree(diatonicMode(key.mode), height)!;
-  return { degree: at.degree, accidental: at.accidental };
-}
-
-/** A degree of the key from a part's voice, altered: the MIDI note it plays (`pinTone`'s inverse). */
-export const pinNote = (key: ScoreKey, tone: Tone, part: PinVoice) =>
-  PIN_FROM[part] + key.tonic + heightOf(diatonicMode(key.mode), tone.degree) + tone.accidental;
+const stack = stackText;
 
 /** The pin's lines, shared by every candidate: `&frame` and `&frameBass`, where the score states one. */
 function frameLines(h: Harmony): string[] {
@@ -475,15 +386,6 @@ export function cellsPlays(text: string): {
   };
 }
 
-/** A chord's notes, from voice C4 (60), read in a key as Jambot reads one: the numeral `numeralOf` writes. */
-export function numeralOfNotes(key: ScoreKey, notes: readonly number[]): Numeral | undefined {
-  const heights = notes.map((n) => n - 60);
-  const chord = splitChord(heights);
-  const quality = qualityOf(heights.map((h) => h - heights[0]!));
-  if (!chord || !quality) return undefined;
-  return numeralOf(keyHelix(key), { root: wrap(heights[0]!, 12), quality });
-}
-
 /** The pins a text plays, back to MIDI notes: the voice and the key's degrees undone by cells. */
 function readFrame(
   played: Map<string, { step: number; notes: number[] }[]>,
@@ -528,7 +430,7 @@ function readNumerals(text: string): Harmony {
   const lines = linesOf(text);
   const key = readKey(lines.get('key')!);
   const [, clock, braid] = /^over=&key step=(\S+) (.*)$/u.exec(lines.get('harm')!)!;
-  const unit = Number(Object.entries(CLOCKS).find(([, c]) => c === clock)![0]);
+  const unit = Number(Object.entries(CLOCK_OF_UNIT).find(([, c]) => c === clock)![0]);
   let at = 0;
   const chords = braid!.split(' ').flatMap((word) => {
     const [token, weight] = word.split('@');

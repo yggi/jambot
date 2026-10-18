@@ -2,3 +2,8 @@
 
 /** What this build is: commit, branch, date, dependencies (src/buildInfo.ts). */
 declare const __BUILD__: import('./buildInfo.ts').BuildInfo;
+
+/** The dev readout (#399): what the band through cells found, in shadow, since the page opened. */
+interface Window {
+  jambot?: { readonly shadow: import('./shadow.ts').ShadowReadout };
+}
