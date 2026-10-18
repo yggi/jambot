@@ -85,6 +85,7 @@ import {
   type TransportCarried,
   type TransportEnv,
   type TransportOutput,
+  METER_REPOSITORY,
   NO_HISTORY,
   clockOfTransport,
   clockThrough,
@@ -105,7 +106,6 @@ import {
   valueAt,
   writtenAt,
 } from '@jambot/engine';
-import { METER_REPOSITORY } from '@jambot/engine/repository';
 import {
   EAR,
   type EarCarried,
