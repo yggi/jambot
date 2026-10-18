@@ -17,6 +17,16 @@
  *   nearest past `RHYTHM_MISS`;
  * - the share of sections each rhythm plays.
  *
+ * E38, the Muse filing the drummer's grooves (#401): the same walks for
+ * `LEARNING_HOURS` hours with the band given an empty learned layer, so on
+ * each miss the drummer invents and the Muse files its groove where the next
+ * section is planned, and every meter, rhythm and groove the composer keeps
+ * is a use (`learningRuns`). It counts the grooves filed new and those whose
+ * text was held already (identity), the sections that play a filed groove,
+ * every filing read back by cells and fitted to its bench, the share of
+ * sections whose rhythm is among its run's 3 most used against the same
+ * walk with nothing learned (`lockIn`), and what the layer weighs.
+ *
  * It runs under vitest: `E37_REPORT=1 pnpm vitest run --silent=false
  * packages/engine/experiments/rhythm-radio.test.ts` prints the numbers.
  */
@@ -25,6 +35,8 @@ import { beatsOf } from '@jambot/theory';
 import {
   type BandCarried,
   type BandEnv,
+  type GrooveFiling,
+  type MeterRepository,
   type Plan,
   PRESETS,
   PRESET_GLIDE,
@@ -43,11 +55,14 @@ import {
   styleAt,
   walkRadio,
 } from '../src/index.ts';
+import { EMPTY_LAYER, type LearnedLayer } from '../src/layer.ts';
 import { METER_REPOSITORY } from '../src/repository.ts';
 
 export const HOURS = 1;
 export const SEEDS = 5;
 export const ENTROPY = 0.3;
+/** E38's hours a run: E34's learning runs', over which #398 bounds the layer's size. */
+export const LEARNING_HOURS = 3;
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -72,6 +87,28 @@ export interface RhythmRun {
   readonly missed: { readonly fit: number; readonly distance: number };
   /** Sections each rhythm played. */
   readonly played: Readonly<Record<string, number>>;
+  /** The rhythm of each section, in order: its fragment, or `-` where the drummer invents. */
+  readonly kept: readonly string[];
+  /** What the run learned, where it was given a layer (E38). */
+  readonly learning: Learning | null;
+}
+
+/** A groove the Muse filed in a run (E38): what was filed, and what filing gave. */
+export interface Filing {
+  readonly filing: GrooveFiling;
+  readonly id: string;
+  /** Whether its text was held already, so it added to that fragment (identity). */
+  readonly held: boolean;
+}
+
+/** What a run learned (E38). */
+export interface Learning {
+  /** Every filing in the run's hours, in order. */
+  readonly filings: readonly Filing[];
+  /** The sections whose rhythm is a groove the Muse filed. */
+  readonly playedFiled: number;
+  /** The layer after the run's hours. */
+  readonly layer: LearnedLayer;
 }
 
 /** The radio tuned in at a preset, the band deciding each bar with the composer asking for meter and rhythm. */
@@ -80,8 +117,37 @@ export function rhythmRun(
   seed: number,
   hours = HOURS,
   margins?: RhythmRepository['margins'],
+  layer?: LearnedLayer,
 ): RhythmRun {
-  const rhythms: RhythmRepository = { ...RHYTHM_REPOSITORY, ...(margins ? { margins } : {}) };
+  // (each filing kept, and each section's layer as the planner left it: it asks the meter once a section,
+  // in order, then files and learns)
+  const filings: (Filing & { readonly section: number })[] = [];
+  const layers: LearnedLayer[] = [];
+  let planning = -1;
+  const learnt = (learned: LearnedLayer) => {
+    layers[planning] = learned;
+    return learned;
+  };
+  const meters: MeterRepository = {
+    ...METER_REPOSITORY,
+    query(point, given, chosen) {
+      planning++;
+      if (given) layers[planning] = given;
+      return METER_REPOSITORY.query(point, given, chosen);
+    },
+    used: (given, id, point) => learnt(METER_REPOSITORY.used!(given, id, point)),
+  };
+  const rhythms: RhythmRepository = {
+    ...RHYTHM_REPOSITORY,
+    ...(margins ? { margins } : {}),
+    file(given, filing) {
+      const filed = RHYTHM_REPOSITORY.file!(given, filing);
+      filings.push({ filing, id: filed.id, held: filed.held, section: planning + 1 });
+      return filed;
+    },
+    used: (given, ids, point, alongside) =>
+      learnt(RHYTHM_REPOSITORY.used!(given, ids, point, alongside)),
+  };
   let style: Style = { ...preset.style, entropy: ENTROPY };
   let track: StyleTrack = holding(style);
   let walked = 0;
@@ -101,17 +167,20 @@ export function rhythmRun(
       style: played,
       wish: { tonic: null, mode: preset.mode, melodic: null },
       swing: STRAIGHT,
-      repository: METER_REPOSITORY,
+      repository: meters,
       rhythms,
+      layer,
       offer: null,
     };
   };
   const decided = lookAhead(band.initial as BandCarried, envAt, Math.ceil((hours * 60 * 180) / 2));
   const changes: RhythmChange[] = [];
   const played: Record<string, number> = {};
+  const kept: string[] = [];
   const missed = { fit: 0, distance: 0 };
   let minute = 0;
   let sections = 0;
+
   for (const [i, d] of decided.entries()) {
     if (minute >= hours * 60) break;
     const before = decided[i - 1];
@@ -126,6 +195,7 @@ export function rhythmRun(
       sections++;
       const key = rhythmKey(d.plan);
       played[key] = (played[key] ?? 0) + 1;
+      kept.push(d.plan.rhythmFragment ?? '-');
       if (d.plan.rhythmFragment === undefined) {
         const bench = { meter: d.plan.meter, meterFragment: d.plan.meterFragment };
         // whatever the point, the query lists every rhythm that fits the bench: none is the fit refusing
@@ -135,18 +205,77 @@ export function rhythmRun(
     }
     minute += beatsOf(d.plan.meter) / bpms[d.bar]!;
   }
-  return { preset: preset.name, seed, sections, changes, missed, played };
+  // (a filing is made where a section is planned, of the section before: those of the sections within the hours)
+  const within = filings
+    .filter((f) => f.section < sections)
+    .map(({ filing, id, held }) => ({ filing, id, held }));
+  const filedIds = new Set(within.filter((f) => !f.held).map((f) => f.id));
+  const learning: Learning | null = layer
+    ? {
+        filings: within,
+        playedFiled: kept.filter((id) => filedIds.has(id)).length,
+        layer: layers.slice(0, sections).findLast((l) => l !== undefined) ?? layer,
+      }
+    : null;
+  return { preset: preset.name, seed, sections, changes, missed, played, kept, learning };
 }
 
-/** Every preset, `seeds` seeds each, each run its own seed as E34's are. */
+/** Every preset, `seeds` seeds each, each run its own seed as E34's are; learning from `layer` where one is given. */
 export const rhythmRuns = (
   seeds = SEEDS,
   hours = HOURS,
   margins?: RhythmRepository['margins'],
+  layer?: LearnedLayer,
 ): RhythmRun[] =>
   PRESETS.flatMap((preset, p) =>
-    range(seeds).map((seed) => rhythmRun(preset, p * seeds + seed + 1, hours, margins)),
+    range(seeds).map((seed) => rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer)),
   );
+
+/** E38: E37's runs for `hours` hours with the band learning from an empty layer, and the Muse filing (#401). */
+export const learningRuns = (seeds = SEEDS, hours = LEARNING_HOURS): RhythmRun[] =>
+  rhythmRuns(seeds, hours, undefined, EMPTY_LAYER);
+
+/** How many of a run's sections play one of its 3 most used rhythms (`-`, the drummer's own, counting as one). */
+export function inTopThree(run: RhythmRun): number {
+  const counts = new Map<string, number>();
+  for (const id of run.kept) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts.values()]
+    .sort((a, b) => b - a)
+    .slice(0, 3)
+    .reduce((a, b) => a + b, 0);
+}
+
+/**
+ * Lock-in (cells decision 048, point 6, as amended), as E34 measures it for
+ * meters: how many points learning adds to the share of sections whose
+ * rhythm is among its run's 3 most used, over the same walks with nothing
+ * learned, pooled, with the standard error of the runs' paired differences.
+ */
+export function lockIn(
+  unlearned: readonly RhythmRun[],
+  learned: readonly RhythmRun[],
+): {
+  readonly before: number;
+  readonly after: number;
+  readonly added: number;
+  readonly error: number;
+} {
+  const pooled = (runs: readonly RhythmRun[]) =>
+    runs.reduce((n, r) => n + inTopThree(r), 0) / runs.reduce((n, r) => n + r.kept.length, 0);
+  const share = (r: RhythmRun) => inTopThree(r) / r.kept.length;
+  const differences = learned.map((r, i) => (share(r) - share(unlearned[i]!)) * 100);
+  const mean = differences.reduce((a, b) => a + b, 0) / differences.length;
+  const spread = Math.sqrt(
+    differences.reduce((a, d) => a + (d - mean) ** 2, 0) / (differences.length - 1),
+  );
+  const [before, after] = [pooled(unlearned), pooled(learned)];
+  return {
+    before,
+    after,
+    added: (after - before) * 100,
+    error: spread / Math.sqrt(differences.length),
+  };
+}
 
 /** The changes that go back, at the next section's start, to the rhythm just left. */
 export const wentBack = (run: RhythmRun): RhythmChange[] =>

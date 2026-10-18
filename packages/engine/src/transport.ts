@@ -20,7 +20,10 @@
  * band composes the bar from. So a motif heard in bar k plays from bar
  * k + 2, and nothing a player plays reaches a bar sooner: the loop from
  * players back to players passes through a delay (F7). A forget waits for
- * the next bar judged.
+ * the next bar judged. Notes played on drums arrive apart (`drums`): as she
+ * judges a bar she reads its drum hits onto its steps (`heardDrums`), and
+ * the band hears them in the next bar it composes, for the Muse to file the
+ * section's groove where the next is planned (#401).
  *
  * Its bars come from a source (`BarSource`): the band (`bandSource`), or
  * bars a host composed and sent. It is the same transport either way, so
@@ -79,10 +82,12 @@ import {
   type MuseOutput,
   type Offer,
   admissible,
+  heardStep,
   judgeBar,
   keptAfter,
   muse,
 } from './muse.ts';
+import { type HeardDrumBar, heardDrums } from './muse-groove.ts';
 import { sectionMeter } from './plan.ts';
 import { type StyleTrack, styleAt, valueAt, valueIn, writtenStyle } from './style.ts';
 import {
@@ -146,6 +151,8 @@ export interface TransportEnv {
   readonly layer?: LearnedLayer | undefined;
   /** The repository the composer asks for a section's rhythm, which the drummer plays from (#397). */
   readonly rhythms?: RhythmRepository | undefined;
+  /** The session the band plays in, which a groove the Muse files is tagged with (#401); none playing alone. */
+  readonly session?: string | undefined;
   /**
    * The meter whose beats the track's bpm counts (#367); 4/4 where none is.
    * Whoever holds the track keeps it the meter heard, converting the number
@@ -177,6 +184,12 @@ export interface TransportInput<Arrived = never> {
   readonly until: number;
   /** Notes players played since the tick before, where they were heard. */
   readonly heard?: readonly HeardNote[];
+  /**
+   * Notes players played on drums since the tick before, where they were
+   * heard (#401): the Muse reads each bar's onto its steps as she judges the
+   * bar (`heardDrums`), and the band hears them as the section's grooves.
+   */
+  readonly drums?: readonly HeardNote[];
   /**
    * Bars judged elsewhere since the tick before. Each joins the judgements
    * of its bar, after those of the notes heard here. One for a bar the Muse
@@ -275,17 +288,23 @@ export interface Listening {
   readonly muse: MuseCarried;
   /** Notes heard in bars not judged yet. */
   readonly pending: readonly HeardNote[];
+  /** Drum notes heard in bars not judged yet (#401). */
+  readonly drums: readonly HeardNote[];
+  /** Drum bars judged and not yet handed to the band (#401). */
+  readonly drumBars: readonly HeardDrumBar[];
   /** Bars judged elsewhere that the Muse hasn't heard yet. */
   readonly remote: readonly BarJudgement[];
   /** Whether a forget waits for the next bar judged. */
   readonly forget: boolean;
-  /** The bars composed and not judged yet, each with its key. */
-  readonly unjudged: readonly { readonly bar: number; readonly key: Key }[];
+  /** The bars composed and not judged yet, each with its key and meter. */
+  readonly unjudged: readonly { readonly bar: number; readonly key: Key; readonly meter: Meter }[];
 }
 
 const LISTENING: Listening = {
   muse: muse.initial,
   pending: [],
+  drums: [],
+  drumBars: [],
   remote: [],
   forget: false,
   unjudged: [],
@@ -353,7 +372,17 @@ const STRAIGHT_TRACK = holdingSwing(STRAIGHT);
  * bar starts, on their tracks, and what the Muse offers.
  */
 export function bandEnvAt(
-  { seed, track, wish, meter, swing = STRAIGHT_TRACK, repository, layer, rhythms }: TransportEnv,
+  {
+    seed,
+    track,
+    wish,
+    meter,
+    swing = STRAIGHT_TRACK,
+    repository,
+    layer,
+    rhythms,
+    session,
+  }: TransportEnv,
   bar: number,
   offer: Offer | null,
   clock: SongClock = SONG_CLOCK,
@@ -370,6 +399,7 @@ export function bandEnvAt(
     layer,
     rhythms,
     offer,
+    ...(session === undefined ? {} : { session }),
   };
 }
 
@@ -409,9 +439,11 @@ function listen(
   judged: MuseOutput[],
   clock: SongClock,
 ): Listening {
-  let { muse: carried, pending, remote, forget, unjudged } = listening;
+  let { muse: carried, pending, drums, drumBars, remote, forget, unjudged } = listening;
   while (unjudged.length > 0 && unjudged[0]!.bar <= last) {
-    const { bar, key } = unjudged[0]!;
+    const { bar, key, meter } = unjudged[0]!;
+    drumBars = [...drumBars, ...heardDrums(drums, bar, meter, clock)];
+    drums = drums.filter((n) => clock.barAt(heardStep(n)) > bar);
     const judgements = [
       ...judgeBar(pending, bar, key, 'phrases', clock),
       ...remote.filter((r) => r.bar === bar).map((r) => r.judgement),
@@ -424,7 +456,7 @@ function listen(
     remote = remote.filter((r) => r.bar > bar);
     unjudged = unjudged.slice(1);
   }
-  return { muse: carried, pending, remote, forget, unjudged };
+  return { muse: carried, pending, drums, drumBars, remote, forget, unjudged };
 }
 
 /** A bar decided ahead, the energy it plays at, and the motif the lead plays in it. */
@@ -536,7 +568,17 @@ export function transportOver<Source, Arrived = never>(
     advance(
       env,
       carried,
-      { now, until, heard = [], judged: remote = [], forget = false, arrived = [], finish, ends },
+      {
+        now,
+        until,
+        heard = [],
+        drums = [],
+        judged: remote = [],
+        forget = false,
+        arrived = [],
+        finish,
+        ends,
+      },
     ) {
       const { start, track, tempoMeter, swing: swingTrack = STRAIGHT_TRACK } = env;
       let head = carried?.head ?? { step: 0, seconds: start };
@@ -575,10 +617,11 @@ export function transportOver<Source, Arrived = never>(
         if (why) dropped.push({ ...r, why });
         return why === null;
       });
-      if (heard.length > 0 || kept.length > 0 || forget)
+      if (heard.length > 0 || drums.length > 0 || kept.length > 0 || forget)
         listening = {
           ...listening,
           pending: [...listening.pending, ...heard],
+          drums: [...listening.drums, ...drums],
           remote: [...listening.remote, ...kept],
           forget: listening.forget || forget,
         };
@@ -596,7 +639,12 @@ export function transportOver<Source, Arrived = never>(
         for (; song.barStart(nextBar) <= head.step + source.ahead; nextBar++) {
           if (finale.bar !== null && nextBar > finale.bar) break;
           listening = listen(listening, nextBar - LISTEN_DELAY, judged, song);
-          const barEnv = bandEnvAt(env, nextBar, listening.muse.offer, song);
+          // (the drum bars judged since the bar before reach the band once)
+          const barEnv = {
+            ...bandEnvAt(env, nextBar, listening.muse.offer, song),
+            ...(listening.drumBars.length ? { drumsHeard: listening.drumBars } : {}),
+          };
+          if (listening.drumBars.length) listening = { ...listening, drumBars: [] };
           const closing = finale.asked && finale.bar === null && source.finale;
           const made: { carried: Source; bar: BandBar | null; start?: number } = closing
             ? source.finale!(barEnv, playing)
@@ -605,8 +653,11 @@ export function transportOver<Source, Arrived = never>(
           if (closing) finale = { ...finale, bar: nextBar };
           if (!made.bar) continue;
           learn(nextBar, made.bar.meter);
-          const key = made.bar.plan.key;
-          listening = { ...listening, unjudged: [...listening.unjudged, { bar: nextBar, key }] };
+          const { key, meter } = made.bar.plan;
+          listening = {
+            ...listening,
+            unjudged: [...listening.unjudged, { bar: nextBar, key, meter }],
+          };
           bars.push(made.bar);
           composed.push(made.bar);
           if (made.start !== undefined && head.step === song.barStart(nextBar))

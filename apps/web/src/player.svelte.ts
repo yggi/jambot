@@ -60,7 +60,10 @@
  * keeps from the repository is a use the plans carry on. The layer is saved
  * whenever it changes, which is once a section at most, on the tick the
  * section is planned; a tick that passes many sections saves once. A client
- * keeps none and learns nothing.
+ * keeps none and learns nothing. What its players play on drums goes to its
+ * Muse apart from the keyboard's (`drums`), and a groove she hears over a
+ * section is filed in the layer under the player's name and tagged with the
+ * session hosted (#401); a client's drums don't reach its host yet.
  */
 
 import {
@@ -416,6 +419,8 @@ export class Player {
   lacked = $state(0);
   /** Told what a host does, while it hosts. */
   hosting: Hosting | null = null;
+  /** The session it hosts, by name, which a groove its Muse files is tagged with (#401); null alone or as a client. */
+  session: string | null = null;
   /**
    * The player id this device's own notes go by in a session's Muse, while
    * it hosts (`HOST_PLAYER`); its clients' go by theirs.
@@ -447,6 +452,8 @@ export class Player {
   #laid: ScheduledStep[] = [];
   /** Melody notes heard since the last tick, for the transport to pass to the Muse. */
   #arrived: HeardNote[] = [];
+  /** Drum notes this device's players struck since the tick before, for the Muse to hear as grooves (#401); none on a client. */
+  #arrivedDrums: HeardNote[] = [];
   #forget = false;
   /** Whether a host's clients were told which bar is the last. */
   #finaleTold = false;
@@ -682,7 +689,19 @@ export class Player {
     if (part === 'lead') {
       const heardAs = this.playerId === null ? source : playerSource(this.playerId, source);
       this.#arrived.push({ note, velocity, source: heardAs, position, end: null });
-    }
+    } else this.#drumsHeard(note, velocity, source, position);
+  }
+
+  /**
+   * A drum note for the Muse, who files a groove a player plays over a
+   * section under the player's name (#401): in a session the name the player
+   * goes by, else the instrument it came from. A client's go nowhere yet: its
+   * host's band files, and the wire carries no drum notes.
+   */
+  #drumsHeard(note: number, velocity: number, source: string, position: number) {
+    if (this.#follow) return;
+    const name = (this.playerId !== null && this.players[this.playerId]) || source;
+    this.#arrivedDrums.push({ note, velocity, source: name, position, end: null });
   }
 
   /** Keep a note a player struck, the oldest let go of past `HUMAN_NOTES_MAX`. */
@@ -715,7 +734,7 @@ export class Player {
   #logRhythm(heard: number) {
     const from = this.#rhythmLogged === null ? heard : this.#rhythmLogged + 1;
     for (let step = from; step <= heard; step++)
-      for (const note of this.#rhythmAt(step))
+      for (const note of this.#rhythmAt(step)) {
         this.#keepHuman({
           part: 'drums',
           note,
@@ -724,6 +743,8 @@ export class Player {
           position: step,
           end: step + 1,
         });
+        this.#drumsHeard(note, RHYTHM_VELOCITY, RHYTHM_SOURCE, step);
+      }
     this.#rhythmLogged = heard;
   }
 
@@ -829,6 +850,7 @@ export class Player {
     this.#timing = TRANSPORT_TIMING;
     this.#laid = [];
     this.#arrived = [];
+    this.#arrivedDrums = [];
     this.#judged = [];
     this.#forget = false;
     this.#finaleTold = false;
@@ -1101,6 +1123,7 @@ export class Player {
       repository: METER_REPOSITORY,
       layer: this.layer,
       rhythms: RHYTHM_REPOSITORY,
+      session: this.session ?? undefined,
       swing: this.swing,
       tempoMeter: this.tempoMeter,
     };
@@ -1163,7 +1186,9 @@ export class Player {
     // What arrived is taken before the transport reads it, so that anything
     // it can't read costs one tick, not every tick after.
     const [heard, judged, forget] = [this.#arrived, this.#judged, this.#forget];
+    const drums = this.#arrivedDrums;
     this.#arrived = [];
+    this.#arrivedDrums = [];
     this.#judged = [];
     this.#forget = false;
     const laidWith = this.#env;
@@ -1171,6 +1196,7 @@ export class Player {
       now,
       until: now + LOOKAHEAD,
       heard,
+      drums,
       judged,
       forget,
       finish: this.ending,

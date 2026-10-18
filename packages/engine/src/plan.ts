@@ -11,7 +11,12 @@
  * picks the section's theme. Where the band was given a learned layer
  * (#398), the composer asks with it, and a meter it keeps from the
  * repository is learned as a use at the section's point, which the plans
- * carry to the next section's query (`layer.ts`). The band
+ * carry to the next section's query (`layer.ts`). First, at each section's
+ * start, the Muse files what she heard played on drums over the section
+ * before (#401, `museFiled`): the drummer's groove where it invented on a
+ * miss, and each player's, in the layer and in the composer's short-term
+ * memory (`short-term.ts`), whose fragments every query of the section names
+ * as chosen, so the meter and the groove pull each other. The band
  * holds the plan for the section's eight bars, so a new key, scale or theme
  * arrives only at a boundary, as does a new meter or swing level.
  *
@@ -30,7 +35,7 @@
 
 import { type Meter, fifthsIndex, mod } from '@jambot/theory';
 import { leaning } from './fading.ts';
-import { type Section, form } from './form.ts';
+import { SECTION_BARS, type Section, form } from './form.ts';
 import { type HarmonicWeights, keyWeight } from './history.ts';
 import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from './key.ts';
 import { harmonicReach, licenceOf, melodicDefault } from './licence.ts';
@@ -40,9 +45,12 @@ import type { LearnedLayer } from './layer.ts';
 import {
   type MeterFragment,
   type MeterRepository,
+  type StylePoint,
   composedMeter,
   stylePoint,
 } from './meter-query.ts';
+import { type HeardGroove, distilledGroove } from './muse-groove.ts';
+import { NO_SHORT_TERM, type ShortTerm, chosenOf, remembered } from './short-term.ts';
 import { type RhythmRepository, type SectionRhythm, composedRhythm } from './rhythm-query.ts';
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
@@ -80,6 +88,15 @@ export interface PlanEnv {
    * invents its own.
    */
   readonly rhythms?: RhythmRepository | undefined;
+  /**
+   * What the Muse heard played on drums over the section before (#401): the
+   * drummer's bars where it invented on a miss, and each player's; she
+   * files each source's groove at the section's end, where there is a layer
+   * to file in and a repository that files (`museFiled`).
+   */
+  readonly heard?: readonly HeardGroove[] | undefined;
+  /** The session the band plays in, which a groove filed is tagged with; none playing alone. */
+  readonly session?: string | undefined;
 }
 
 /**
@@ -126,6 +143,10 @@ export interface PlanCarried {
    * the first section, or where it was given none.
    */
   readonly layer: LearnedLayer | null;
+  /** The composer's short-term memory as the section before left it (#401, `short-term.ts`). */
+  readonly shortTerm: ShortTerm;
+  /** The point the section before was asked at, where a groove heard in it is filed; null before the first. */
+  readonly asked: StylePoint | null;
 }
 
 /** How far the harmony may move from a returning theme's before it is built anew. */
@@ -176,8 +197,9 @@ export type SectionMeter = Pick<Plan, 'meter' | 'swing' | 'share' | 'meterFragme
 export function sectionMeter(
   env: Pick<PlanEnv, 'meter' | 'swing' | 'repository' | 'style' | 'layer'>,
   before: SectionMeter | null,
+  chosen: readonly string[] = [],
 ): SectionMeter {
-  return composedSection(env, before).meter;
+  return composedSection(env, before, chosen).meter;
 }
 
 /** A section's meter (`sectionMeter`), and the fragment the composer found for it in the repository: null where it found none. */
@@ -190,10 +212,11 @@ function composedSection(
     layer,
   }: Pick<PlanEnv, 'meter' | 'swing' | 'repository' | 'style' | 'layer'>,
   before: SectionMeter | null,
+  chosen: readonly string[],
 ): { readonly meter: SectionMeter; readonly found: MeterFragment | null } {
   if (meter) return { meter: { meter, swing }, found: null };
   const found = repository
-    ? composedMeter(repository, style, before?.meterFragment ?? null, layer)
+    ? composedMeter(repository, style, before?.meterFragment ?? null, layer, chosen)
     : null;
   if (found)
     return {
@@ -244,6 +267,7 @@ export function sectionRhythm(
   { rhythms, style, layer }: Pick<PlanEnv, 'rhythms' | 'style' | 'layer'>,
   meter: SectionMeter,
   before: SectionRhythm | null,
+  chosen: readonly string[] = [],
 ): SectionRhythm {
   return rhythms
     ? composedRhythm(
@@ -252,25 +276,87 @@ export function sectionRhythm(
         { meter: meter.meter, meterFragment: meter.meterFragment },
         before,
         layer,
+        chosen,
       )
     : {};
 }
 
-/** The layer with a section's rhythm and clave, where it found them, learned as used together at the section's point (#398). */
+/**
+ * The layer with a section's rhythm and clave, where it found them, learned
+ * as used together at the section's point (#398), and each as used together
+ * with the section's meter fragment (#401), which this use doesn't move.
+ */
 function rhythmLearned(
   { rhythms, style }: Pick<PlanEnv, 'rhythms' | 'style'>,
   layer: LearnedLayer,
   { rhythmFragment, claveFragment }: SectionRhythm,
+  meterFragment: string | undefined,
 ): LearnedLayer {
   const ids = [rhythmFragment, claveFragment].filter((id) => id !== undefined);
-  return ids.length && rhythms?.used ? rhythms.used(layer, ids, stylePoint(style)) : layer;
+  return ids.length && rhythms?.used
+    ? rhythms.used(
+        layer,
+        ids,
+        stylePoint(style),
+        meterFragment === undefined ? [] : [meterFragment],
+      )
+    : layer;
+}
+
+/** The tag every groove the Muse files carries, beside the session's name where there is one. */
+export const GROOVE_TAG = 'groove';
+
+/**
+ * What the Muse files at a section's end (#401): each source's groove heard
+ * over the section before, distilled (`distilledGroove`) and filed in the
+ * layer at the point that section was asked at, in its meter, created at its
+ * first bar on the song's clock, tagged `groove` and the session, and used
+ * together with its meter fragment. The layer as it was, and nothing filed,
+ * where the repository files nothing or no source played a groove.
+ */
+export function museFiled(
+  { rhythms, heard = [], seed, index, session }: PlanEnv,
+  layer: LearnedLayer,
+  before: Plan,
+  point: StylePoint,
+): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
+  if (!rhythms?.file) return { layer, ids: [] };
+  let filedLayer = layer;
+  const ids: string[] = [];
+  for (const { source, bars } of heard) {
+    const hits = distilledGroove(bars);
+    if (!hits) continue;
+    const filed = rhythms.file(filedLayer, {
+      hits,
+      bench: { meter: before.meter, meterFragment: before.meterFragment },
+      point,
+      source,
+      created: `song ${seed}, bar ${(index - 1) * SECTION_BARS}`,
+      tags: [GROOVE_TAG, ...(session === undefined ? [] : [session])],
+    });
+    filedLayer = filed.layer;
+    if (!ids.includes(filed.id)) ids.push(filed.id);
+  }
+  return { layer: filedLayer, ids };
 }
 
 export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
-  initial: { before: null, themes: { A: null, B: null }, layer: null },
-  advance(given, { before, themes, layer: learned }) {
-    // The layer the song started from, until the first section has learned.
-    const layer = learned ?? given.layer;
+  initial: {
+    before: null,
+    themes: { A: null, B: null },
+    layer: null,
+    shortTerm: NO_SHORT_TERM,
+    asked: null,
+  },
+  advance(given, { before, themes, layer: learned, shortTerm, asked }) {
+    // The layer the song started from, until the first section has learned;
+    // with what the Muse heard over the section before filed in it.
+    const start = learned ?? given.layer;
+    const filed =
+      start && before && asked ? museFiled(given, start, before, asked) : { layer: start, ids: [] };
+    const layer = filed.layer;
+    const memory = remembered(shortTerm, filed.ids);
+    const chosen = chosenOf(memory);
     const env = { ...given, layer };
     const { seed, index, style, wish } = env;
     const section = form.advance({ seed, index, style }, before?.section ?? null, null).output;
@@ -300,14 +386,25 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             entropy: style.entropy,
             a: themes.A,
           });
-    const composed = composedSection(env, before);
-    const rhythm = sectionRhythm(env, composed.meter, before);
+    const composed = composedSection(env, before, chosen);
+    const { meterFragment } = composed.meter;
+    const rhythm = sectionRhythm(env, composed.meter, before, [
+      ...chosen,
+      ...(meterFragment === undefined ? [] : [meterFragment]),
+    ]);
     const plan = { section, key, ...composed.meter, ...rhythm, melodic, theme };
+    const kept = [meterFragment, rhythm.rhythmFragment, rhythm.claveFragment].filter(
+      (id) => id !== undefined,
+    );
     return {
       carried: {
         before: plan,
         themes: kind === 'build' ? themes : { ...themes, [kind]: theme },
-        layer: layer ? rhythmLearned(env, learnedFrom(env, layer, composed.found), rhythm) : null,
+        layer: layer
+          ? rhythmLearned(env, learnedFrom(env, layer, composed.found), rhythm, meterFragment)
+          : null,
+        shortTerm: remembered(memory, kept, 1),
+        asked: stylePoint(style),
       },
       output: plan,
     };

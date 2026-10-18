@@ -1,8 +1,20 @@
-import { DRUM_NOTES, DRUM_ROLES, PRESETS } from '@jambot/engine';
+import {
+  DRUMMER,
+  DRUM_NOTES,
+  DRUM_ROLES,
+  DRUM_VOICES,
+  EMPTY_LAYER,
+  PRESETS,
+  RHYTHM_REPOSITORY,
+  SONG_METER,
+} from '@jambot/engine';
 import { even, positions } from '@jambot/theory';
+import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { describe, expect, it } from 'vitest';
+import { DRUM_WORDS } from '../src/score.ts';
 import {
   VOICE_OF_NOTE,
+  bandDrums,
   cellsDrums,
   euclidOf,
   hitsOf,
@@ -182,5 +194,43 @@ describe('what cells could not say (E31: the gaps)', () => {
       { at: 'Swing jazz ghost', hits: 2, velocities: 2 },
       { at: 'Swing jazz pedal', hits: 2, velocities: 2 },
     ]);
+  });
+});
+
+describe('E31’s translation as the engine states a groove the Muse files (#401)', () => {
+  it('states each witness bar as cells’ seed drum bar for its preset, character for character, less the bar line', () => {
+    for (const w of WITNESSES) {
+      const seed = RHYTHM_FRAGMENTS.find((f) => f.id === `${w.preset} drums`)!;
+      expect(w.text.split('\n').slice(1).join('\n'), w.preset).toBe(seed.text);
+    }
+  });
+
+  it('files a witness bar as the seed fragment it is: identity adds to it, a use at the point, and files nothing new', () => {
+    for (const w of WITNESSES) {
+      const filed = RHYTHM_REPOSITORY.file!(EMPTY_LAYER, {
+        hits: bandDrums(w.bar).map((n) => ({
+          role: n.role!,
+          note: n.note,
+          step: n.step,
+          velocity: n.velocity,
+        })),
+        bench: { meter: SONG_METER },
+        point: { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5 },
+        source: DRUMMER,
+        created: 'song 0',
+        tags: ['groove'],
+      });
+      expect([filed.held, filed.id, filed.layer.filed.length], w.preset).toEqual([
+        true,
+        `${w.preset} drums`,
+        0,
+      ]);
+    }
+  });
+
+  it('voices each sound as the score’s words do, and the snare as cells’ `sd`', () => {
+    for (const [sound, word] of Object.entries(DRUM_WORDS))
+      expect(DRUM_VOICES[sound as keyof typeof DRUM_WORDS]).toBe(word);
+    expect(DRUM_VOICES.snare).toBe('sd');
   });
 });

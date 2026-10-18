@@ -36,14 +36,14 @@ import {
   PRESETS,
   SONG_METER,
   band,
+  grooveText,
   stepSeconds,
 } from '@jambot/engine';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { VOICE_OF_NOTE, euclidOf, levelOf } from '../src/section-text.ts';
 
-/** The drums' voices and levels E31 found, which the section's builder holds (`../src/section-text.ts`). */
-export { VOICE_OF_NOTE, euclidOf, levelOf } from '../src/section-text.ts';
+/** The drums' voices and levels E31 found, which the engine holds (`muse-groove.ts`) and the section's builder shares. */
+export { VOICE_OF_NOTE, euclidOf, levelOf } from '@jambot/engine';
 
 /** The run each witness bar comes from. */
 export const SEED = 0;
@@ -58,9 +58,6 @@ export interface Hit {
   readonly velocity: number;
 }
 
-/** A hit's own level after its voice (`&sd:0:.0635`), none at full velocity. */
-const hitLevel = (velocity: number) => (velocity >= 127 ? '' : `:0:${levelOf(velocity)}`);
-
 /** A bar's drum hits, as the band plays them, each with its role. */
 export const bandDrums = (bar: BandBar) => bar.dough.filter((n) => n.part === 'drums');
 
@@ -68,47 +65,28 @@ export const bandDrums = (bar: BandBar) => bar.dough.filter((n) => n.part === 'd
 export const rolesOf = (bar: BandBar): DrumRole[] =>
   DRUM_ROLES.filter((role) => bandDrums(bar).some((n) => n.role === role));
 
-/** The steps of a bar, each mapped. */
-const eachStep = (f: (step: number) => string) =>
-  Array.from({ length: BAR_STEPS }, (_, step) => f(step)).join(' ');
-
-/** A role's lines, and the term the card plays it by. */
-function roleLines(bar: BandBar, role: DrumRole): { lines: string[]; term: string } {
-  const hits = bandDrums(bar).filter((n) => n.role === role);
-  const notes = new Set(hits.map((n) => n.note));
-  const euclid = role === 'euclid' && notes.size === 1 ? euclidOf(hits.map((n) => n.step)) : null;
-  if (euclid) {
-    const voice = VOICE_OF_NOTE.get(hits[0]!.note)!;
-    const level = (step: number) => hits.find((n) => n.step === step)?.velocity;
-    return {
-      lines: [
-        `&${role} step=1m &${voice}(${euclid.k},${BAR_STEPS},${euclid.r})`,
-        `&${role}Level map=amp step=16n ${eachStep((s) => (level(s) ? levelOf(level(s)!) : '0'))}`,
-      ],
-      term: `&${role} * &${role}Level`,
-    };
-  }
-  const braid = eachStep((step) => {
-    const words = hits
-      .filter((n) => n.step === step)
-      .map((n) => `&${VOICE_OF_NOTE.get(n.note)!}${hitLevel(n.velocity)}`);
-    return words.length === 0 ? '~' : words.length === 1 ? words[0]! : `[${words.join(',')}]`;
-  });
-  return { lines: [`&${role} step=16n ${braid}`], term: `&${role}` };
-}
-
-/** The cells text of a bar's drums: the bar, the lines of each role, the MIDI card playing `card` (every role unless given), the voices. */
+/**
+ * The cells text of a bar's drums: the bar, then the engine's statement of
+ * its hits (`grooveText`, E31's translation, which the Muse files grooves by,
+ * #401) with the MIDI card playing `card` (every role unless given).
+ */
 export function drumsAsCells(bar: BandBar, card: readonly DrumRole[] = rolesOf(bar)): string {
   if (bar.meter !== SONG_METER) throw new Error(`bar ${bar.bar}: only 4/4 is translated`);
-  const roles = rolesOf(bar).map((role) => ({ role, ...roleLines(bar, role) }));
-  const terms = roles.filter((r) => card.includes(r.role)).map((r) => r.term);
-  const voices = [...new Set(bandDrums(bar).map((n) => VOICE_OF_NOTE.get(n.note)!))];
-  return [
-    `&bar scan(1 1 1 1) step=${bar.style.bpm}bpm`,
-    ...roles.flatMap((r) => r.lines),
-    `&drums map=midi(10) ${terms.length ? `[${terms.join(', ')}]` : '~'}`,
-    ...voices.map((voice) => `&${voice} s=white`),
-  ].join('\n');
+  const hits = bandDrums(bar).map((n) => ({
+    role: n.role!,
+    note: n.note,
+    step: n.step,
+    velocity: n.velocity,
+  }));
+  const text = grooveText(hits, BAR_STEPS);
+  // (a role left off the card keeps its lines, as E31 states it, and plays nothing)
+  const played = text.replace(/^&drums map=midi\(10\) \[(.*)\]$/m, (_, all: string) => {
+    const kept = all
+      .split(', ')
+      .filter((term) => card.includes(/^&(\w+)/.exec(term)![1] as DrumRole));
+    return `&drums map=midi(10) ${kept.length ? `[${kept.join(', ')}]` : '~'}`;
+  });
+  return [`&bar scan(1 1 1 1) step=${bar.style.bpm}bpm`, played].join('\n');
 }
 
 const sorted = (hits: readonly Hit[]): Hit[] =>

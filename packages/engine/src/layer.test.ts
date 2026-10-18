@@ -14,7 +14,7 @@ import {
 import { METER_HOLD, MISS_DISTANCE, composedMeter, stylePoint } from './meter-query.ts';
 import { type PlanCarried, type PlanEnv, planner } from './plan.ts';
 import { walkRadio } from './radio.ts';
-import { METER_REPOSITORY, meterLayerProblems } from './repository.ts';
+import { METER_REPOSITORY, repositoryLayerProblems } from './repository.ts';
 import { PRESETS, PRESET_GLIDE, type Style, glideTo, holding } from './style.ts';
 import { STRAIGHT, holdingSwing } from './swing.ts';
 import {
@@ -296,19 +296,19 @@ const filed = (id: string, text = '&bar meter("9/8")') => ({
 
 describe('a layer the host keeps, read and written (#398)', () => {
   it('names what a query would refuse: a shape not a layer’s, a seed fragment filed', () => {
-    expect(meterLayerProblems(EMPTY_LAYER)).toEqual([]);
-    expect(meterLayerProblems(null)).toEqual(['the layer is not a map']);
-    expect(meterLayerProblems({ filed: [], points: 'x', together: [] })).toEqual([
+    expect(repositoryLayerProblems(EMPTY_LAYER)).toEqual([]);
+    expect(repositoryLayerProblems(null)).toEqual(['the layer is not a map']);
+    expect(repositoryLayerProblems({ filed: [], points: 'x', together: [] })).toEqual([
       'the layer: points is not a list',
     ]);
-    expect(meterLayerProblems({ ...EMPTY_LAYER, filed: [filed('4/4')] })).toEqual([
+    expect(repositoryLayerProblems({ ...EMPTY_LAYER, filed: [filed('4/4')] })).toEqual([
       "the layer files 4/4, a seed fragment's id",
     ]);
   });
 
   it('leaves out a filed meter the band can’t read yet, so the composer never meets one', () => {
     const layer = { ...EMPTY_LAYER, filed: [filed('composer 2026-10-18T21:04:00Z')] };
-    expect(meterLayerProblems(layer)).toEqual([]);
+    expect(repositoryLayerProblems(layer)).toEqual([]);
     const found = METER_REPOSITORY.query(stylePoint(OFF), layer);
     expect(found.map((f) => f.id)).toEqual(
       METER_REPOSITORY.query(stylePoint(OFF)).map((f) => f.id),

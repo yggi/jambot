@@ -14,12 +14,12 @@
  * naming its format and version around the layer, which reads back to the
  * same layer and writes back to the same text, byte for byte. A text that
  * isn't one (not JSON, another format, another version, a layer a query
- * would refuse, `meterLayerProblems`) reads as the empty layer with its
+ * would refuse, `repositoryLayerProblems`) reads as the empty layer with its
  * problem (`readLayerText`): a store warns once and the band starts from
  * nothing learned, never stopping on it. Pure: the app gives the slot.
  */
 
-import { EMPTY_LAYER, type LearnedLayer, meterLayerProblems } from '@jambot/engine';
+import { EMPTY_LAYER, type LearnedLayer, repositoryLayerProblems } from '@jambot/engine';
 
 /** Where a host keeps its learned layer: loaded once a page starts, saved as the band learns. */
 export interface LayerStore {
@@ -63,7 +63,7 @@ export function readLayerText(text: string | null): LayerRead {
     return wrong(`it is not a ${LAYER_FORMAT}`);
   if (record.version !== LAYER_VERSION)
     return wrong(`its version, ${String(record.version)}, is not ${LAYER_VERSION}`);
-  const problems = meterLayerProblems(record.layer);
+  const problems = repositoryLayerProblems(record.layer);
   if (problems.length) return wrong(problems.join('; '));
   return { layer: record.layer as LearnedLayer, problem: null };
 }

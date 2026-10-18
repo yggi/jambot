@@ -49,10 +49,11 @@ export type StylePoint = Readonly<Record<string, number>>;
 export interface MeterRepository {
   /** The fragments the band can play, by id. */
   readonly fragments: ReadonlyMap<string, MeterFragment>;
-  /** Every fragment the band can play, with its distance from a point, nearest first, with what was learned merged where a layer is given. */
+  /** Every fragment the band can play, with its distance from a point, nearest first, with what was learned merged where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046). */
   query(
     point: StylePoint,
     layer?: LearnedLayer,
+    chosen?: readonly string[],
   ): readonly { readonly id: string; readonly distance: number }[];
   /** The layer after the composer kept fragment `id` at `point`: a use of it there (cells' `useFragments`), the layer within its cap. None where the repository learns nothing. */
   used?(layer: LearnedLayer, id: string, point: StylePoint): LearnedLayer;
@@ -94,16 +95,18 @@ export const METER_HOLD = 0.02;
  * (null where the meter playing came from nowhere in the repository): the
  * nearest, unless it misses or the one playing is within `METER_HOLD` of
  * it; null on a miss, where the band keeps its meter. The repository ranks
- * with the layer merged, where one is given.
+ * with the layer merged, where one is given, and those `chosen` pulling the
+ * meters used with them.
  */
 export function composedMeter(
   repository: MeterRepository,
   style: QueriedStyle,
   playing: string | null,
   layer?: LearnedLayer,
+  chosen: readonly string[] = [],
 ): MeterFragment | null {
   const { miss, hold } = repository.margins ?? { miss: MISS_DISTANCE, hold: METER_HOLD };
-  const found = repository.query(stylePoint(style), layer);
+  const found = repository.query(stylePoint(style), layer, ...(chosen.length ? [chosen] : []));
   const nearest = found[0];
   if (!nearest || nearest.distance > miss) return null;
   const held = playing === null ? undefined : found.find((f) => f.id === playing);

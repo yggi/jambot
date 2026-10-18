@@ -17,7 +17,14 @@
  * asks again at the cost of a lookup. A fit not yet tested costs a compile
  * (2 to 15 ms), too much for a section's start while the band plays, so
  * the host warms the repository first (`warm`, over `RHYTHM_BENCHES`),
- * a step at a time, at idle. */
+ * a step at a time, at idle.
+ *
+ * A groove the Muse files (#401) joins the rhythms through the layer: ranked
+ * with them, held by its text there, read and fitted as they are. Filing
+ * keeps its reading and its fit to the bench it was played on, which the
+ * round trip gives (`muse-groove.ts`), so a filed groove costs no compile at
+ * the next section; one asked on another bench, or near its point after a
+ * reload, compiles once, as a fit not yet tested does. */
 
 import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
@@ -27,13 +34,14 @@ import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/mid
 import { cachedCompile, fitOf, unionOf } from '@yggi/cells/repository/fit';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
 import { holesOf } from '@yggi/cells/repository/holes';
-import { useFragments } from '@yggi/cells/repository/learned';
+import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
 import { type LearnedLayer, cappedLayer } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
+import { grooveText } from './muse-groove.ts';
 import type { FragmentHit, FragmentRead, RhythmBench, RhythmRepository } from './rhythm-query.ts';
 import { stepSeconds } from './tempo.ts';
 
@@ -96,8 +104,12 @@ export function readRhythm(text: string, meter: Meter): FragmentRead | null {
         hits.push({ role, note: note.note, step: at, velocity: note.velocity });
       }
   }
-  return { bars, hits: hits.sort((a, b) => a.step - b.step || a.note - b.note) };
+  return { bars, hits: inOrder(hits) };
 }
+
+/** Hits in the order a read gives them: by step, then note. */
+const inOrder = (hits: readonly FragmentHit[]): FragmentHit[] =>
+  [...hits].sort((a, b) => a.step - b.step || a.note - b.note);
 
 /** A meter's key in the caches: its cycle and pulses. */
 const meterKey = (meter: Meter) => `${meter.cycle}:${meter.heights.join(' ')}`;
@@ -116,17 +128,22 @@ export function rhythmRepository(
   fragments: readonly Fragment[] = RHYTHM_FRAGMENTS,
   fit: RhythmFit = cellsFit(),
 ): RhythmRepository {
-  const cells = createRepository(fragments);
+  // (the rhythms with cells' meters beside them, which a rhythm query never ranks, its facet theirs alone:
+  // so a rhythm and the meter it was kept with count as used together, and a filing finds any text held)
+  const cells = createRepository([...fragments, ...METER_FRAGMENTS]);
   const texts = new Map(fragments.map((f) => [f.id, f.text]));
+  const textOf = (id: string, layer?: LearnedLayer) =>
+    texts.get(id) ?? layer?.filed.find((f) => f.fragment.id === id)?.fragment.text;
   // (every fit tested, every read, each bench's workbench, and each rhythm's union with one and the
-  // fragments that layer there: kept for the repository's life, a few hundred of each at most)
+  // fragments that layer there, by text: kept for the repository's life, a few hundred of each at most,
+  // and one more of each for every groove filed that a section asks near)
   const fitted = new Map<string, boolean>();
   const reads = new Map<string, FragmentRead | null>();
   const benches = new Map<string, string | null>();
   const withIts = new Map<string, { text: string; layers: readonly string[] }>();
-  const fits = (id: string, workbench: string) => {
-    const key = `${workbench.length}:${workbench}${id}`;
-    if (!fitted.has(key)) fitted.set(key, fit(texts.get(id)!, workbench));
+  const fits = (text: string, workbench: string) => {
+    const key = `${workbench.length}:${workbench}${text}`;
+    if (!fitted.has(key)) fitted.set(key, fit(text, workbench));
     return fitted.get(key)!;
   };
   const benchOf = (bench: RhythmBench) => {
@@ -137,76 +154,109 @@ export function rhythmRepository(
   const withItOf = (chosen: string, workbench: string) => {
     const key = `${chosen}\n${workbench}`;
     if (!withIts.has(key)) {
-      const text = unionOf(texts.get(chosen)!, workbench).text;
+      const text = unionOf(chosen, workbench).text;
       const layers = fragments
-        .filter((f) => f.id !== chosen && unionOf(f.text, text).renamed.size === 0)
+        .filter((f) => f.text !== chosen && unionOf(f.text, text).renamed.size === 0)
         .map((f) => f.id);
       withIts.set(key, { text, layers });
     }
     return withIts.get(key)!;
   };
-  // Ranked as cells' query ranks them, a filed fragment left out, as the meter's are, until filing reads one (#401).
-  const ranked = (point: StylePoint, layer?: LearnedLayer, chosen?: string) =>
+  // Ranked as cells' query ranks them: the seed's every rhythm, and a groove filed (#401) no farther than `reach`,
+  // so a fit is tested only for one a section could take.
+  const ranked = (
+    point: StylePoint,
+    layer: LearnedLayer | undefined,
+    chosen: readonly string[],
+    reach: number,
+  ) =>
     cells
       .query(
         point,
-        fragments.length + (layer?.filed.length ?? 0),
+        fragments.length + METER_FRAGMENTS.length + (layer?.filed.length ?? 0),
         {},
-        {
-          facet: 'rhythm',
-          ...(layer ? { layer } : {}),
-          ...(chosen === undefined ? {} : { chosen: [chosen] }),
-        },
+        { facet: 'rhythm', ...(layer ? { layer } : {}), ...(chosen.length ? { chosen } : {}) },
       )
-      .filter((f) => texts.has(f.fragment.id))
-      .map((f) => ({ id: f.fragment.id, distance: f.distance }));
-  const read = (id: string, meter: Meter) => {
-    const key = `${id}\n${meterKey(meter)}`;
-    if (!reads.has(key)) {
-      const text = texts.get(id);
-      reads.set(key, text === undefined ? null : readRhythm(text, meter));
-    }
+      .filter((f) => texts.has(f.fragment.id) || f.distance <= reach)
+      .map((f) => ({ id: f.fragment.id, text: f.fragment.text, distance: f.distance }));
+  const readText = (text: string, meter: Meter) => {
+    const key = `${text}\n${meterKey(meter)}`;
+    if (!reads.has(key)) reads.set(key, readRhythm(text, meter));
     return reads.get(key)!;
   };
   return {
-    query(point, bench, layer) {
+    query(point, bench, layer, chosen = [], reach = Infinity) {
       const workbench = benchOf(bench);
-      return workbench === null ? [] : ranked(point, layer).filter((f) => fits(f.id, workbench));
+      return workbench === null
+        ? []
+        : ranked(point, layer, chosen, reach)
+            .filter((f) => fits(f.text, workbench))
+            .map(({ id, distance }) => ({ id, distance }));
     },
-    layered(point, bench, chosen, layer, reach = Infinity) {
+    layered(point, bench, chosen, layer, reach = Infinity, more = []) {
       const workbench = benchOf(bench);
-      if (workbench === null || !texts.has(chosen)) return [];
-      const withIt = withItOf(chosen, workbench);
-      return ranked(point, layer, chosen).filter(
-        (f) => f.distance <= reach && withIt.layers.includes(f.id) && fits(f.id, withIt.text),
-      );
+      const chosenText = textOf(chosen, layer);
+      if (workbench === null || chosenText === undefined) return [];
+      const withIt = withItOf(chosenText, workbench);
+      return ranked(point, layer, [chosen, ...more], reach)
+        .filter(
+          (f) => f.distance <= reach && withIt.layers.includes(f.id) && fits(f.text, withIt.text),
+        )
+        .map(({ id, distance }) => ({ id, distance }));
     },
-    used: (layer, ids, point) =>
+    used: (layer, ids, point, alongside = []) =>
       cappedLayer(
-        useFragments(
-          cells,
-          layer,
-          ids.map((id) => ({ id, point, facet: 'rhythm' })),
-        ),
+        useFragments(cells, layer, [
+          ...ids.map((id) => ({ id, point, facet: 'rhythm' })),
+          ...alongside.map((id) => ({ id })),
+        ]),
       ),
-    read,
+    file(layer, { hits, bench, point, source, created, tags }) {
+      const text = grooveText(hits, stepsOf(bench.meter));
+      const filed = fileFragment(cells, layer, {
+        text,
+        point,
+        facet: 'rhythm',
+        source,
+        created,
+        meta: { tags: [...tags] },
+      });
+      // (filing is its use at the point; beside the meter fragment it was played in, a use together)
+      const { meterFragment } = bench;
+      const together =
+        meterFragment === undefined
+          ? filed.layer
+          : useFragments(cells, filed.layer, [{ id: filed.id }, { id: meterFragment }]);
+      // (the round trip: a groove stated from its hits reads back as them, and fits the bench it was played on)
+      const known = `${text}\n${meterKey(bench.meter)}`;
+      if (filed.file && !reads.has(known)) reads.set(known, { bars: 1, hits: inOrder(hits) });
+      const workbench = benchOf(bench);
+      if (filed.file && workbench !== null)
+        fitted.set(`${workbench.length}:${workbench}${text}`, true);
+      return { layer: cappedLayer(together), id: filed.id, held: filed.file === null };
+    },
+    read(id, meter, layer) {
+      const text = textOf(id, layer);
+      return text === undefined ? null : readText(text, meter);
+    },
     *warm(benches) {
       for (const bench of benches) {
         const workbench = benchOf(bench);
         yield;
         if (workbench === null) continue;
-        for (const { id } of fragments) {
-          if (!fits(id, workbench)) {
+        for (const { text } of fragments) {
+          if (!fits(text, workbench)) {
             yield;
             continue;
           }
-          read(id, bench.meter);
+          readText(text, bench.meter);
           yield;
-          const withIt = withItOf(id, workbench);
+          const withIt = withItOf(text, workbench);
           yield;
           for (const other of withIt.layers) {
-            fits(other, withIt.text);
-            read(other, bench.meter);
+            const otherText = texts.get(other)!;
+            fits(otherText, withIt.text);
+            readText(otherText, bench.meter);
             yield;
           }
         }

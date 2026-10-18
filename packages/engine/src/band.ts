@@ -13,7 +13,12 @@
  *
  * It carries the plan's state, the bar it decided, the harmonic history of
  * the bars it decided (`history.ts`), which a section's plan reads to move
- * the key itself (#169), and what its parts carry.
+ * the key itself (#169), and what its parts carry. Where it has a learned
+ * layer and rhythms, it carries the Muse's ear too (#401, `GrooveEar`): each
+ * bar the drummer plays on a miss, and each bar players played on drums
+ * that the Muse heard, so a section's grooves are filed where the next is
+ * planned. A bar is heard as it is decided past, played or passed, so a
+ * forecast files as the band will.
  * The parts play side by side from the same bar: the drums, the bass, the
  * comp and the lead. What they write, the band plays through the
  * performance (`performer.ts`, T4).
@@ -47,7 +52,8 @@ import type { Machine } from './machine.ts';
 import type { LearnedLayer } from './layer.ts';
 import type { MeterRepository } from './meter-query.ts';
 import { grooveBar } from './groove.ts';
-import { type RhythmRepository, sectionHits } from './rhythm-query.ts';
+import type { HeardDrumBar, HeardGroove } from './muse-groove.ts';
+import { type FragmentHit, type RhythmRepository, sectionHits } from './rhythm-query.ts';
 import type { Offer } from './muse.ts';
 import { perform } from './performer.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
@@ -78,6 +84,29 @@ export interface BandEnv {
   readonly rhythms?: RhythmRepository | undefined;
   /** The motif the Muse offers, which the lead settles on (#79). */
   readonly offer: Offer | null;
+  /**
+   * What players played on drums in bars the Muse heard since the bar before
+   * (#401, `heardDrums`): each bar of the section playing joins what she
+   * files at its end. None where nobody played drums.
+   */
+  readonly drumsHeard?: readonly HeardDrumBar[] | undefined;
+  /** The session the band plays in, which a groove filed is tagged with (#401). */
+  readonly session?: string | undefined;
+}
+
+/**
+ * What the Muse has heard played on drums in the section playing (#401),
+ * for her to file at its end: the drummer's bars where it invents on a miss,
+ * and each player's bars heard. Kept only where the band has a layer to file
+ * in and a repository of rhythms.
+ */
+export interface GrooveEar {
+  readonly section: number;
+  readonly drummer: readonly (readonly FragmentHit[])[];
+  readonly players: readonly {
+    readonly source: string;
+    readonly bars: readonly (readonly FragmentHit[])[];
+  }[];
 }
 
 /** A bar as decided the bar before: its section's plan and its chords. */
@@ -105,6 +134,8 @@ export interface BandCarried {
   /** The harmonic history, up to and including the bar decided next. */
   readonly history: HarmonicWeights;
   readonly parts: PartsCarried;
+  /** What the Muse has heard played on drums in the section playing (#401); null before a bar is heard, or with nothing to file in. */
+  readonly ear: GrooveEar | null;
 }
 
 /**
@@ -122,7 +153,11 @@ const INITIAL: BandCarried = {
   next: null,
   history: NO_HISTORY,
   parts: { bass: bass.initial, comp: comp.initial, lead: lead.initial },
+  ear: null,
 };
+
+/** The drummer's source, as a groove it invented is filed (#401). */
+export const DRUMMER = 'drummer';
 
 /**
  * Decide a bar from the style and wish where the bar composed now starts:
@@ -130,10 +165,11 @@ const INITIAL: BandCarried = {
  * its chords, which the history then folds in.
  */
 function decide(
-  { seed, style, wish, meter, swing = STRAIGHT, repository, layer, rhythms }: BandEnv,
+  { seed, style, wish, meter, swing = STRAIGHT, repository, layer, rhythms, session }: BandEnv,
   bar: number,
   plans: PlanCarried,
   history: HarmonicWeights,
+  ear: GrooveEar | null = null,
 ): { plans: PlanCarried; decided: DecidedBar; history: HarmonicWeights } {
   const barInSection = bar % SECTION_BARS;
   const next =
@@ -150,6 +186,8 @@ function decide(
             repository,
             layer,
             rhythms,
+            heard: ear && ear.section === bar / SECTION_BARS - 1 ? groovesOf(ear) : [],
+            session,
           },
           plans,
           null,
@@ -167,6 +205,67 @@ const barSwing = ({ swing = STRAIGHT }: BandEnv, plan: Plan): MeterSwing => ({
   share: plan.share ?? swing.share,
 });
 
+/** A bar's environment as its parts read it, from the band's and the bar decided; `next` the chords of the bar after. */
+function barEnvOf(env: BandEnv, here: DecidedBar, next: readonly BarChord[]): BarEnv {
+  const barInSection = env.bar % SECTION_BARS;
+  return {
+    seed: env.seed,
+    bar: env.bar,
+    meter: here.plan.meter,
+    plan: here.plan,
+    barInSection,
+    style: env.style,
+    swing: barSwing(env, here.plan),
+    barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
+    chords: here.chords,
+    next,
+    offer: env.offer,
+  };
+}
+
+/** The ear's grooves, as the planner files them: the drummer's first, then each player's. */
+const groovesOf = (ear: GrooveEar): HeardGroove[] => [
+  ...(ear.drummer.length ? [{ source: DRUMMER, bars: ear.drummer }] : []),
+  ...ear.players,
+];
+
+/**
+ * The Muse's ear after the bar `here` (#401): where the band has a layer and
+ * rhythms, the drummer's bar where its section found no rhythm, as it plays
+ * it (its own drums, each hit at its performer's velocity; the drums read no
+ * bar after, so the bar's `next` is left empty), and each player's bar heard
+ * in the same section. A new section starts a new ear.
+ */
+function heard(
+  env: BandEnv,
+  here: DecidedBar,
+  plans: PlanCarried,
+  ear: GrooveEar | null,
+): GrooveEar | null {
+  if (!env.rhythms || plans.layer === null) return null;
+  const section = Math.floor(here.bar / SECTION_BARS);
+  let now: GrooveEar = ear?.section === section ? ear : { section, drummer: [], players: [] };
+  if (here.plan.rhythmFragment === undefined) {
+    const bar = barEnvOf(env, here, []);
+    const hits = drums(bar).map((n) => ({
+      role: n.role!,
+      note: n.note,
+      step: n.step,
+      velocity: perform(bar, n).velocity,
+    }));
+    now = { ...now, drummer: [...now.drummer, hits] };
+  }
+  for (const { source, bar, hits } of env.drumsHeard ?? []) {
+    if (Math.floor(bar / SECTION_BARS) !== section) continue;
+    const players = [...now.players];
+    const at = players.findIndex((p) => p.source === source);
+    if (at === -1) players.push({ source, bars: [hits] });
+    else players[at] = { source, bars: [...players[at]!.bars, hits] };
+    now = { ...now, players };
+  }
+  return now;
+}
+
 /** The environment as the band reads it: its style as the score writes it (C7). */
 const read = (env: BandEnv): BandEnv => ({ ...env, style: writtenStyle(env.style) });
 
@@ -179,10 +278,12 @@ function step(env: BandEnv, carried: BandCarried): { here: DecidedBar; carried: 
     ({ plans, decided: here, history } = decide(env, 0, plans, history));
   } else if (here.bar !== env.bar)
     throw new Error(`band: bar ${env.bar}, but the band decided bar ${here.bar} next`);
-  const after = decide(env, env.bar + 1, plans, history);
+  // The bar is heard before the next is decided, so a section's last bar joins what is filed at its end.
+  const ear = heard(env, here, plans, carried.ear);
+  const after = decide(env, env.bar + 1, plans, history, ear);
   return {
     here,
-    carried: { ...carried, plans: after.plans, next: after.decided, history: after.history },
+    carried: { ...carried, plans: after.plans, next: after.decided, history: after.history, ear },
   };
 }
 
@@ -226,26 +327,21 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
   advance(given, carried) {
     const env = read(given);
     const { here, carried: after } = step(env, carried);
-    const barInSection = env.bar % SECTION_BARS;
-    const bar: BarEnv = {
-      seed: env.seed,
-      bar: env.bar,
-      meter: here.plan.meter,
-      plan: here.plan,
-      barInSection,
-      style: env.style,
-      swing: barSwing(env, here.plan),
-      barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
-      chords: here.chords,
-      next: after.next!.chords,
-      offer: env.offer,
-    };
+    const bar = barEnvOf(env, here, after.next!.chords);
+    const { barInSection } = bar;
     const bassline = bass.advance(bar, carried.parts.bass, null);
     const comping = comp.advance(bar, carried.parts.comp, null);
     const melody = lead.advance(bar, carried.parts.lead, null);
     const parts = { bass: bassline.carried, comp: comping.carried, lead: melody.carried };
     const rhythm = env.rhythms
-      ? sectionHits(env.rhythms, here.plan, bar.meter, barInSection, stepsOf(bar.meter))
+      ? sectionHits(
+          env.rhythms,
+          here.plan,
+          bar.meter,
+          barInSection,
+          stepsOf(bar.meter),
+          after.plans.layer ?? undefined,
+        )
       : [];
     const written = [
       ...grooveBar(bar, drums(bar), rhythm),
@@ -271,21 +367,8 @@ export function finaleBar(
 ): { carried: BandCarried; bar: BandBar } {
   const env = read(given);
   const { here, carried: after } = step(env, carried);
-  const barInSection = env.bar % SECTION_BARS;
   const chords = cadence(here.plan.key);
-  const bar: BarEnv = {
-    seed: env.seed,
-    bar: env.bar,
-    meter: here.plan.meter,
-    plan: here.plan,
-    barInSection,
-    style: env.style,
-    swing: barSwing(env, here.plan),
-    barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
-    chords,
-    next: [chords[1]!],
-    offer: env.offer,
-  };
+  const bar: BarEnv = { ...barEnvOf(env, here, [chords[1]!]), chords };
   return { carried: after, bar: playBar(bar, finale(bar, carried.parts)) };
 }
 

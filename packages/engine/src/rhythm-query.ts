@@ -27,8 +27,16 @@
  *
  * A query is handed what the host has learned, where it was given a layer
  * (#398; cells decision 048), and the fragments the composer keeps are a use
- * of each at the section's point and of the pair together (`used`), which
- * the plans carry on as they carry the meter's.
+ * of each at the section's point and of the pair together (`used`), and each
+ * a use together with the section's meter fragment, which the plans carry on
+ * as they carry the meter's. A query also names what the composer has chosen
+ * already (`chosen`: its short-term memory and the section's meter,
+ * `short-term.ts`), so a fragment used often with those ranks nearer.
+ *
+ * A miss is where the Muse files (#401): the groove the drummer invented
+ * there, and any a player played, distilled and stated as cells text
+ * (`muse-groove.ts`), go into the layer (`file`, cells' `fileFragment`), so
+ * the next query near the section's point finds it as a rhythm of its own.
  *
  * How the drummer plays from them is `groove.ts`. This module is pure and
  * knows no cells: the repository is given, built from cells' fragments by
@@ -69,22 +77,66 @@ export interface FoundRhythm {
   readonly distance: number;
 }
 
+/** A groove to file (#401): a bar's hits, the bench it was played on, where and by whom (`muse-groove.ts`). */
+export interface GrooveFiling {
+  readonly hits: readonly FragmentHit[];
+  /** The section's meter, and the meter fragment it came from, where it came from one: filing counts the groove as used together with that fragment. */
+  readonly bench: RhythmBench;
+  /** The point the section it was played in was asked at. */
+  readonly point: StylePoint;
+  /** Who played it: `drummer`, or the player as the Muse knows them. */
+  readonly source: string;
+  /** When, on the song's clock (the engine has no other): `song 3, bar 40`. */
+  readonly created: string;
+  readonly tags: readonly string[];
+}
+
 /** A repository of rhythms the composer asks (#397). */
 export interface RhythmRepository {
-  /** Every fragment that fits the bench, with its distance from the point, nearest first, with what was learned merged where a layer is given. */
-  query(point: StylePoint, bench: RhythmBench, layer?: LearnedLayer): readonly FoundRhythm[];
-  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen` pulls; none farther than `reach`, where it is given, so a fit is tested only for those that can be taken. */
+  /**
+   * Every fragment that fits the bench, with its distance from the point, nearest first, with what was learned merged
+   * where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory and the
+   * section's meter, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046). A fragment the
+   * layer filed is among them only within `reach` of the point, so a fit is tested only for one that could be taken.
+   */
+  query(
+    point: StylePoint,
+    bench: RhythmBench,
+    layer?: LearnedLayer,
+    chosen?: readonly string[],
+    reach?: number,
+  ): readonly FoundRhythm[];
+  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen`, and with `more` chosen beside it, pulls; none farther than `reach`, where it is given, so a fit is tested only for those that can be taken. */
   layered(
     point: StylePoint,
     bench: RhythmBench,
     chosen: string,
     layer?: LearnedLayer,
     reach?: number,
+    more?: readonly string[],
   ): readonly FoundRhythm[];
-  /** The layer after the composer kept these fragments together at `point`: a use of each there, and of the pair (cells' `useFragments`), within its cap. None where the repository learns nothing. */
-  used?(layer: LearnedLayer, ids: readonly string[], point: StylePoint): LearnedLayer;
-  /** A fragment's hits under a meter played straight, or null where it can't be read there. */
-  read(id: string, meter: Meter): FragmentRead | null;
+  /** The layer after the composer kept these fragments together at `point`: a use of each there, and of the pair (cells' `useFragments`), and each counted as used together with those `alongside` (the section's meter), which it doesn't move; within its cap. None where the repository learns nothing. */
+  used?(
+    layer: LearnedLayer,
+    ids: readonly string[],
+    point: StylePoint,
+    alongside?: readonly string[],
+  ): LearnedLayer;
+  /**
+   * The layer with a groove filed (#401; cells' `fileFragment`, decision 048): stated as cells text
+   * (`grooveText`), an association of the facet `rhythm` at its point with the filing's weight, its source,
+   * created and tags; or, where its text is a fragment's held already, a use of that one there (identity).
+   * Either way counted as used together with the bench's meter fragment; within the cap. A groove stated so reads
+   * back as the hits it was stated from and fits its own bench (the round trip, `muse-groove.test.ts`), so the
+   * repository keeps both as known and compiles neither while the band plays. None where the repository files
+   * nothing.
+   */
+  file?(
+    layer: LearnedLayer,
+    filing: GrooveFiling,
+  ): { readonly layer: LearnedLayer; readonly id: string; readonly held: boolean };
+  /** A fragment's hits under a meter played straight, or null where it can't be read there; a filed one's from the layer given. */
+  read(id: string, meter: Meter, layer?: LearnedLayer): FragmentRead | null;
   /**
    * Work the repository can do ahead, so that asking on these benches costs
    * only lookups: each step a fit, a union or a read at most, so a host runs
@@ -144,7 +196,9 @@ function heldNearest(
 /**
  * The rhythm the composer takes at a style, on a bench, given the section
  * before's: the nearest that fits, held as the meter is, none on a miss; and
- * the line chosen with it, where one layers within `LAYER_DISTANCE`.
+ * the line chosen with it, where one layers within `LAYER_DISTANCE`. Those
+ * `chosen` (the composer's short-term memory and the section's meter) pull
+ * the fragments used with them, as cells' query weighs use together.
  */
 export function composedRhythm(
   repository: RhythmRepository,
@@ -152,6 +206,7 @@ export function composedRhythm(
   bench: RhythmBench,
   playing: SectionRhythm | null,
   layer?: LearnedLayer,
+  chosen: readonly string[] = [],
 ): SectionRhythm {
   const point = stylePoint(style);
   const {
@@ -160,7 +215,7 @@ export function composedRhythm(
     layer: reach,
   } = repository.margins ?? { miss: RHYTHM_MISS, hold: RHYTHM_HOLD, layer: LAYER_DISTANCE };
   const rhythm = heldNearest(
-    repository.query(point, bench, layer),
+    repository.query(point, bench, layer, chosen, miss),
     playing?.rhythmFragment,
     miss,
     hold,
@@ -168,10 +223,10 @@ export function composedRhythm(
   if (rhythm === undefined) return {};
   // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
   const lines = repository
-    .layered(point, bench, rhythm, layer, reach + hold)
+    .layered(point, bench, rhythm, layer, reach + hold, chosen)
     .filter((f) => f.distance <= reach + hold)
     .filter((f) => {
-      const read = repository.read(f.id, bench.meter);
+      const read = repository.read(f.id, bench.meter, layer);
       return read !== null && isOwnLine(read);
     });
   const clave = heldNearest(lines, playing?.claveFragment, reach, hold, hold);
@@ -180,16 +235,17 @@ export function composedRhythm(
     : { rhythmFragment: rhythm, claveFragment: clave };
 }
 
-/** A section's fragments' hits in one of its bars: each fragment's bar of its lap, the clave's line too. */
+/** A section's fragments' hits in one of its bars: each fragment's bar of its lap, the clave's line too; a filed one's read from the layer given. */
 export function sectionHits(
   repository: RhythmRepository,
   rhythm: SectionRhythm,
   meter: Meter,
   barInSection: number,
   steps: number,
+  layer?: LearnedLayer,
 ): FragmentHit[] {
   return [rhythm.rhythmFragment, rhythm.claveFragment].flatMap((id) => {
-    const read = id === undefined ? null : repository.read(id, meter);
+    const read = id === undefined ? null : repository.read(id, meter, layer);
     if (!read) return [];
     const lap = barInSection % read.bars;
     return read.hits

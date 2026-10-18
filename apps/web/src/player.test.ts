@@ -1581,6 +1581,42 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     expect(reloaded.saved).toEqual([]);
   });
 
+  it('files a drum pattern a player plays over a section, under the instrument’s name, as the next section is planned (#401)', async () => {
+    const { layers, saved } = kept();
+    const { world, s } = surroundings();
+    const player = new Player({ ...s, layers });
+    await settle();
+    void player.start();
+    world.resolve();
+    await settle();
+    const run = (seconds: number) => {
+      for (let i = 0; i < Math.round(seconds / 0.025); i++) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+      }
+    };
+    // kick and snare on the beats, each bar of the first section the Muse hears before the next is planned
+    for (let bar = 0; bar < 6; bar++)
+      for (const [i, note] of [36, 38, 36, 38].entries()) {
+        const step = 16 * bar + 4 * i;
+        while (!world.steps.some((laid) => laid.step === step)) run(0.025);
+        const at = world.steps.find((laid) => laid.step === step)!.seconds;
+        while (world.currentTime < at) run(0.025);
+        player.humanNoteOn('drums', note, 100, 'the pads', at);
+      }
+    run(24 - world.currentTime);
+    const filed = saved.at(-1)!.filed;
+    expect(filed.map((f) => f.meta)).toEqual([
+      { source: 'the pads', created: expect.stringMatching(/, bar 0$/), tags: ['groove'] },
+    ]);
+    expect(filed[0]!.fragment.text).toMatch(
+      /^&kick step=16n &bd:0:\.620001 ~ ~ ~ ~ ~ ~ ~ &bd:0:\.620001 ~ ~ ~ ~ ~ ~ ~$/m,
+    );
+    expect(filed[0]!.fragment.text).toMatch(
+      /^&backbeat step=16n ~ ~ ~ ~ &sd:0:\.620001 ~ ~ ~ ~ ~ ~ ~ &sd:0:\.620001 ~ ~ ~$/m,
+    );
+  });
+
   it('takes an import only while the band is stopped, and never as a client', async () => {
     const { layers, saved } = kept();
     const player = await playing(layers, 1);
