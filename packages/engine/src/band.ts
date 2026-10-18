@@ -44,6 +44,7 @@ import { SECTION_BARS, barEnergy } from './form.ts';
 import { type HarmonicWeights, NO_HISTORY, foldBar } from './history.ts';
 import type { KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import type { LearnedLayer } from './layer.ts';
 import type { MeterRepository } from './meter-query.ts';
 import type { Offer } from './muse.ts';
 import { perform } from './performer.ts';
@@ -69,6 +70,8 @@ export interface BandEnv {
   readonly swing?: MeterSwing | undefined;
   /** The repository the composer asks for a section's meter where none is asked for (#375). */
   readonly repository?: MeterRepository | undefined;
+  /** What the host has learned, which the song starts from (#398); the plans carry it on from the first section. */
+  readonly layer?: LearnedLayer | undefined;
   /** The motif the Muse offers, which the lead settles on (#79). */
   readonly offer: Offer | null;
 }
@@ -123,7 +126,7 @@ const INITIAL: BandCarried = {
  * its chords, which the history then folds in.
  */
 function decide(
-  { seed, style, wish, meter, swing = STRAIGHT, repository }: BandEnv,
+  { seed, style, wish, meter, swing = STRAIGHT, repository, layer }: BandEnv,
   bar: number,
   plans: PlanCarried,
   history: HarmonicWeights,
@@ -141,6 +144,7 @@ function decide(
             meter,
             swing: swing.level,
             repository,
+            layer,
           },
           plans,
           null,

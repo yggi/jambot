@@ -8,7 +8,10 @@
  * the style's default, #209), takes the meter asked for (#261) and the
  * level its swing leans (#360), or where none is asked for, the meter the
  * composer finds in the repository at the style (#375, `sectionMeter`), and
- * picks the section's theme. The band
+ * picks the section's theme. Where the band was given a learned layer
+ * (#398), the composer asks with it, and a meter it keeps from the
+ * repository is learned as a use at the section's point, which the plans
+ * carry to the next section's query (`layer.ts`). The band
  * holds the plan for the section's eight bars, so a new key, scale or theme
  * arrives only at a boundary, as does a new meter or swing level.
  *
@@ -33,7 +36,13 @@ import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from 
 import { harmonicReach, licenceOf, melodicDefault } from './licence.ts';
 import { SONG_METER } from './events.ts';
 import type { Machine } from './machine.ts';
-import { type MeterRepository, composedMeter } from './meter-query.ts';
+import type { LearnedLayer } from './layer.ts';
+import {
+  type MeterFragment,
+  type MeterRepository,
+  composedMeter,
+  stylePoint,
+} from './meter-query.ts';
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
 import type { SwingLevel } from './swing.ts';
@@ -57,6 +66,13 @@ export interface PlanEnv {
    * asked for (#375); the song's 4/4 where there is none either.
    */
   readonly repository?: MeterRepository | undefined;
+  /**
+   * What the host has learned, which the song starts from (#398): the
+   * composer asks the repository with it, and the plans carry it on, each
+   * meter kept a use. With none, it asks with nothing learned and learns
+   * nothing.
+   */
+  readonly layer?: LearnedLayer | undefined;
 }
 
 /**
@@ -93,6 +109,12 @@ export interface PlanCarried {
   readonly before: Plan | null;
   /** The themes that return. */
   readonly themes: { readonly A: Theme | null; readonly B: Theme | null };
+  /**
+   * What the band has learned as of the next section (#398): the layer it
+   * started from (`PlanEnv.layer`) with every meter kept since; null before
+   * the first section, or where it was given none.
+   */
+  readonly layer: LearnedLayer | null;
 }
 
 /** How far the harmony may move from a returning theme's before it is built anew. */
@@ -141,38 +163,72 @@ export type SectionMeter = Pick<Plan, 'meter' | 'swing' | 'share' | 'meterFragme
  * before's; and where there is nothing else, the song's 4/4.
  */
 export function sectionMeter(
+  env: Pick<PlanEnv, 'meter' | 'swing' | 'repository' | 'style' | 'layer'>,
+  before: SectionMeter | null,
+): SectionMeter {
+  return composedSection(env, before).meter;
+}
+
+/** A section's meter (`sectionMeter`), and the fragment the composer found for it in the repository: null where it found none. */
+function composedSection(
   {
     meter,
     swing = '16n',
     repository,
     style,
-  }: Pick<PlanEnv, 'meter' | 'swing' | 'repository' | 'style'>,
+    layer,
+  }: Pick<PlanEnv, 'meter' | 'swing' | 'repository' | 'style' | 'layer'>,
   before: SectionMeter | null,
-): SectionMeter {
-  if (meter) return { meter, swing };
-  const found = repository ? composedMeter(repository, style, before?.meterFragment ?? null) : null;
+): { readonly meter: SectionMeter; readonly found: MeterFragment | null } {
+  if (meter) return { meter: { meter, swing }, found: null };
+  const found = repository
+    ? composedMeter(repository, style, before?.meterFragment ?? null, layer)
+    : null;
   if (found)
     return {
-      meter: found.meter,
-      swing: found.swing.level,
-      share: found.swing.share,
-      meterFragment: found.id,
+      meter: {
+        meter: found.meter,
+        swing: found.swing.level,
+        share: found.swing.share,
+        meterFragment: found.id,
+      },
+      found,
     };
   if (repository && before) {
     const { meter: kept, swing: level, share, meterFragment } = before;
     return {
-      meter: kept,
-      swing: level,
-      ...(share === undefined ? {} : { share }),
-      ...(meterFragment === undefined ? {} : { meterFragment }),
+      meter: {
+        meter: kept,
+        swing: level,
+        ...(share === undefined ? {} : { share }),
+        ...(meterFragment === undefined ? {} : { meterFragment }),
+      },
+      found: null,
     };
   }
-  return { meter: SONG_METER, swing };
+  return { meter: { meter: SONG_METER, swing }, found: null };
+}
+
+/**
+ * What the band has learned once a section is planned (#398): the layer
+ * with the meter the composer found and kept, a use at the section's point,
+ * the style it asked at; the layer as it was where it found none, or where
+ * the repository learns nothing.
+ */
+function learnedFrom(
+  { repository, style }: Pick<PlanEnv, 'repository' | 'style'>,
+  layer: LearnedLayer,
+  found: MeterFragment | null,
+): LearnedLayer {
+  return found && repository?.used ? repository.used(layer, found.id, stylePoint(style)) : layer;
 }
 
 export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
-  initial: { before: null, themes: { A: null, B: null } },
-  advance(env, { before, themes }) {
+  initial: { before: null, themes: { A: null, B: null }, layer: null },
+  advance(given, { before, themes, layer: learned }) {
+    // The layer the song started from, until the first section has learned.
+    const layer = learned ?? given.layer;
+    const env = { ...given, layer };
     const { seed, index, style, wish } = env;
     const section = form.advance({ seed, index, style }, before?.section ?? null, null).output;
     const from = before?.key ?? INITIAL_KEY;
@@ -201,9 +257,14 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             entropy: style.entropy,
             a: themes.A,
           });
-    const plan = { section, key, ...sectionMeter(env, before), melodic, theme };
+    const composed = composedSection(env, before);
+    const plan = { section, key, ...composed.meter, melodic, theme };
     return {
-      carried: { before: plan, themes: kind === 'build' ? themes : { ...themes, [kind]: theme } },
+      carried: {
+        before: plan,
+        themes: kind === 'build' ? themes : { ...themes, [kind]: theme },
+        layer: layer ? learnedFrom(env, layer, composed.found) : null,
+      },
       output: plan,
     };
   },

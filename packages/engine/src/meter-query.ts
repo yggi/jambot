@@ -19,11 +19,19 @@
  *   walking along the border between two fragments (the radio's) doesn't
  *   change the meter at every section.
  *
- * This module is pure and knows no cells: the repository is given, built
- * from cells' fragments by `repository.ts`.
+ * A query may be handed what the host has learned (`LearnedLayer`, #398;
+ * cells decision 048), which the repository merges for that query alone;
+ * with none, or an empty one, it ranks as with nothing learned. A meter the
+ * composer keeps is a use of it at the section's point (`used`), which
+ * moves the borders as decision 048 lets them: a fragment's place reaches a
+ * fifth farther at most.
+ *
+ * This module is pure and knows no cells but its layer's type: the
+ * repository is given, built from cells' fragments by `repository.ts`.
  */
 
 import type { Meter } from '@jambot/theory';
+import type { LearnedLayer } from './layer.ts';
 import type { Style } from './style.ts';
 import type { MeterSwing } from './swing.ts';
 
@@ -41,8 +49,13 @@ export type StylePoint = Readonly<Record<string, number>>;
 export interface MeterRepository {
   /** The fragments the band can play, by id. */
   readonly fragments: ReadonlyMap<string, MeterFragment>;
-  /** Every fragment the band can play, with its distance from a point, nearest first. */
-  query(point: StylePoint): readonly { readonly id: string; readonly distance: number }[];
+  /** Every fragment the band can play, with its distance from a point, nearest first, with what was learned merged where a layer is given. */
+  query(
+    point: StylePoint,
+    layer?: LearnedLayer,
+  ): readonly { readonly id: string; readonly distance: number }[];
+  /** The layer after the composer kept fragment `id` at `point`: a use of it there (cells' `useFragments`), the layer within its cap. None where the repository learns nothing. */
+  used?(layer: LearnedLayer, id: string, point: StylePoint): LearnedLayer;
   /** The composer's margins, where they are other than `MISS_DISTANCE` and `METER_HOLD`: an experiment tries others (E34). */
   readonly margins?: { readonly miss: number; readonly hold: number };
 }
@@ -80,15 +93,17 @@ export const METER_HOLD = 0.02;
  * The meter fragment the composer plays at a style, given the one playing
  * (null where the meter playing came from nowhere in the repository): the
  * nearest, unless it misses or the one playing is within `METER_HOLD` of
- * it; null on a miss, where the band keeps its meter.
+ * it; null on a miss, where the band keeps its meter. The repository ranks
+ * with the layer merged, where one is given.
  */
 export function composedMeter(
   repository: MeterRepository,
   style: QueriedStyle,
   playing: string | null,
+  layer?: LearnedLayer,
 ): MeterFragment | null {
   const { miss, hold } = repository.margins ?? { miss: MISS_DISTANCE, hold: METER_HOLD };
-  const found = repository.query(stylePoint(style));
+  const found = repository.query(stylePoint(style), layer);
   const nearest = found[0];
   if (!nearest || nearest.distance > miss) return null;
   const held = playing === null ? undefined : found.find((f) => f.id === playing);

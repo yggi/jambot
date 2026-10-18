@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { METER_HOLD, MISS_DISTANCE, SECTION_BARS } from '../src/index.ts';
-import { gridDistances, meterRuns, missShare, queryCost, wentBack } from './meter-radio.ts';
+import { LAYER_CAP, METER_HOLD, MISS_DISTANCE, SECTION_BARS } from '../src/index.ts';
+import {
+  gridDistances,
+  learnedBytes,
+  learningRuns,
+  lockIn,
+  meterRuns,
+  missShare,
+  queryCost,
+  wentBack,
+} from './meter-radio.ts';
 
 const RUNS = meterRuns();
 const changes = RUNS.flatMap((r) => r.changes);
@@ -44,5 +53,33 @@ describe('the composer asks the repository for its meter while the radio walks (
 
   it('asks in well under 1 ms a section (E34)', () => {
     expect(queryCost(() => performance.now())).toBeLessThan(0.1);
+  });
+});
+
+describe('the band learns the meters it keeps while the radio walks (E34, #398)', () => {
+  const LEARNED = learningRuns();
+
+  it('adds 0.6 points to the share of sections among a run’s 3 most used meters, within 5 with twice its error (cells decision 048)', () => {
+    // The same walks, each run paired with its own unlearned: a meter learned may last other than the one it replaced, so the hours hold other counts of sections.
+    expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(RUNS.map((r) => [r.preset, r.seed]));
+    expect(LEARNED.reduce((n, r) => n + r.sections, 0)).toBe(26631);
+    const { before, after, added, error } = lockIn(RUNS, LEARNED);
+    if (process.env.E34_REPORT) console.log({ before, after, added, error });
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9750', '0.9811']);
+    expect(added.toFixed(2)).toBe('0.61');
+    expect(error.toFixed(2)).toBe('0.25');
+    expect(added + 2 * error).toBeLessThanOrEqual(5);
+  });
+
+  it('changes the meter 119 times in 120 hours, never back at the next section, and misses twice: learning reaches farther', () => {
+    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(119);
+    expect(LEARNED.flatMap(wentBack)).toEqual([]);
+    expect(LEARNED.reduce((n, r) => n + r.missed, 0)).toBe(2);
+  });
+
+  it(`keeps a layer of at most 814 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    const bytes = learnedBytes(LEARNED);
+    expect(Math.max(...bytes)).toBe(814);
+    expect(Math.max(...LEARNED.map((r) => r.layer!.points.length))).toBe(7);
   });
 });

@@ -18,11 +18,13 @@ import {
   SECTION_BARS,
   type Style,
   type StyleTrack,
+  EMPTY_LAYER,
+  type LearnedLayer,
   lookAhead,
   styleAt,
   walkRadio,
 } from '@jambot/engine';
-import { type Station, tuneIn } from '@jambot/session';
+import { type LayerStore, type Station, memoryLayerStore, tuneIn } from '@jambot/session';
 import { METERS, type Meter } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
@@ -1516,5 +1518,73 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(player.shadow.readout.plays).toBe('band');
     expect(player.shadow.readout.played.cells).toBe(0);
     expect(world.plays.length).toBeGreaterThan(0);
+  });
+});
+
+describe('the player learns, as a host keeps what its band learned (#398)', () => {
+  /** A store in memory that counts each layer saved. */
+  function kept(layer: LearnedLayer = EMPTY_LAYER) {
+    const store = memoryLayerStore(layer);
+    const saved: LearnedLayer[] = [];
+    const layers: LayerStore = {
+      load: () => store.load(),
+      save: async (given) => {
+        saved.push(given);
+        await store.save(given);
+      },
+    };
+    return { layers, saved };
+  }
+
+  async function playing(layers: LayerStore, seconds: number) {
+    const { world, s } = surroundings();
+    const player = new Player({ ...s, layers });
+    await settle();
+    void player.start();
+    world.resolve();
+    await settle();
+    for (let t = 0; t < seconds; t += 0.025) {
+      world.currentTime += 0.025;
+      world.tickers[0]!.tick();
+    }
+    return player;
+  }
+
+  it('keeps each meter the composer keeps, once a section, as the band plans it', async () => {
+    const { layers, saved } = kept();
+    // Synth-pop at 108 bpm: a bar is 2.2 s, so 24 s plan the first two sections and not the third.
+    const player = await playing(layers, 24);
+    expect(saved).toHaveLength(2);
+    expect(saved.map((l) => l.points.map((p) => [p.id, p.weight]))).toEqual([
+      [['4/4', 1.1]],
+      [['4/4', 1.2]],
+    ]);
+    expect(player.layer).toBe(saved.at(-1));
+  });
+
+  it('starts from the layer kept, as a reload does, and carries on learning from it', async () => {
+    const first = kept();
+    await playing(first.layers, 24);
+    const reloaded = kept(first.saved.at(-1)!);
+    const { s } = surroundings();
+    const player = new Player({ ...s, layers: reloaded.layers });
+    expect(player.layer).toBe(EMPTY_LAYER);
+    await settle();
+    expect(player.layer).toBe(first.saved.at(-1));
+    expect(reloaded.saved).toEqual([]);
+  });
+
+  it('takes an import only while the band is stopped, and never as a client', async () => {
+    const { layers, saved } = kept();
+    const player = await playing(layers, 1);
+    const learned = { ...EMPTY_LAYER, together: [{ ids: ['4/4', '5/4'] as const, count: 1 }] };
+    expect(player.useLayer(learned)).toBe(false);
+    player.halt();
+    expect(player.useLayer(learned)).toBe(true);
+    expect(player.layer).toBe(learned);
+    expect(saved.at(-1)).toBe(learned);
+    player.follow({ judged: () => {}, forget: () => {}, skew: () => null });
+    expect(player.useLayer(EMPTY_LAYER)).toBe(false);
+    expect(player.layer).toBe(learned);
   });
 });

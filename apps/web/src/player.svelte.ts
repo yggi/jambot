@@ -54,6 +54,13 @@
  * onto this device's clock, so a note sounds here when it sounds at the
  * host. Its style, bars ahead and Muse are the host's; its players' notes
  * go to its ear (`earListen`), and what it judges goes to the host.
+ *
+ * The band learns (#398): each song starts from the layer the host keeps
+ * (`layer`, loaded from `Surroundings.layers`), and each meter its composer
+ * keeps from the repository is a use the plans carry on. The layer is saved
+ * whenever it changes, which is once a section at most, on the tick the
+ * section is planned; a tick that passes many sections saves once. A client
+ * keeps none and learns nothing.
  */
 
 import {
@@ -87,6 +94,8 @@ import {
   type MeterSwing,
   type SwingTrack,
   type BandBar,
+  EMPTY_LAYER,
+  type LearnedLayer,
   type TransportCarried,
   type TransportEnv,
   type TransportOutput,
@@ -115,6 +124,7 @@ import {
   EAR,
   type EarCarried,
   type FollowCarried,
+  type LayerStore,
   type MuseState,
   type SentBar,
   type Song,
@@ -131,6 +141,7 @@ import {
 } from '@jambot/session';
 import { type Meter, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
+import { browserLayerStore } from './layer-storage.ts';
 import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
 import {
   type Intent,
@@ -269,6 +280,8 @@ export interface Surroundings {
   seed(): number;
   /** The page's clock, in seconds, which the ticks are timed on. */
   page(): number;
+  /** Where the host keeps what its band learned (#398); with none, it learns for as long as the player lives. */
+  layers?: LayerStore;
 }
 
 /** The real browser's ticker, frame and seed, with a given way to make the output. */
@@ -285,6 +298,7 @@ export function browserSurroundings(output: () => Output = webAudioOutput): Surr
     },
     seed: () => Math.floor(Math.random() * 2 ** 32),
     page: () => performance.now() / 1000,
+    layers: browserLayerStore(),
   };
 }
 
@@ -303,6 +317,13 @@ export class Player {
    */
   station: Station | null = $state.raw(null);
   wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode, melodic: null });
+  /**
+   * What the band has learned (#398): the layer the next song starts from,
+   * and while one plays, what it has learned as of the section planned last.
+   * The host's: loaded from where it is kept, saved as it changes, and
+   * replaced by an import (`useLayer`).
+   */
+  layer: LearnedLayer = $state.raw(EMPTY_LAYER);
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
   /**
@@ -440,6 +461,8 @@ export class Player {
   #decidedAt = -1;
   /** The meters the transport had laid when `clock` was last read from them: a change of them is a change of clock. */
   #clockMeters: unknown = null;
+  /** Whether the layer kept has loaded: until it has, nothing learned is saved over it. */
+  #layerLoaded = false;
 
   /**
    * The home key the players' key licence counts from: the plan's, the key
@@ -485,6 +508,31 @@ export class Player {
     this.shadow = new Shadow(() => surroundings.page() * 1000, plays);
     this.#seed = surroundings.seed();
     this.#decide();
+    void surroundings.layers?.load().then((layer) => {
+      this.#layerLoaded = true;
+      this.#startFrom(layer);
+    });
+  }
+
+  /**
+   * Start the next song from this layer, as an import does (#398): while
+   * the band is stopped, and not as a client, which keeps none. It is kept
+   * in place of the one kept. Whether it took it.
+   */
+  useLayer(layer: LearnedLayer): boolean {
+    if (!this.#startFrom(layer)) return false;
+    void this.#surroundings.layers?.save(layer);
+    return true;
+  }
+
+  /** The layer the next song starts from, while stopped and not a client: the meter it opens in may be another. */
+  #startFrom(layer: LearnedLayer): boolean {
+    if (this.status !== 'stopped' || this.mode === 'client') return false;
+    this.layer = layer;
+    if (this.#countTempoIn(this.#opening()))
+      this.hosting?.track(this.track, this.swing, this.tempoMeter);
+    this.#decide();
+    return true;
   }
 
   /** Whether the band is playing or about to: the start button reads Stop. */
@@ -822,6 +870,7 @@ export class Player {
         meter: this.meter ?? undefined,
         repository: METER_REPOSITORY,
         style: writtenStyle(styleAt(this.track, 0)),
+        layer: this.layer,
       },
       null,
     ).meter;
@@ -1049,6 +1098,7 @@ export class Player {
       wish: this.wish,
       meter: this.meter ?? undefined,
       repository: METER_REPOSITORY,
+      layer: this.layer,
       swing: this.swing,
       tempoMeter: this.tempoMeter,
     };
@@ -1124,6 +1174,7 @@ export class Player {
       finish: this.ending,
     });
     this.#carried = carried;
+    this.#learned(carried!.source.plans.layer);
     // The band decided its next bar in another meter: from now the bpm counts
     // that meter's beats, every step as long as it was (#367).
     const decided = carried!.source.next;
@@ -1198,6 +1249,13 @@ export class Player {
       this.#decide();
     } else if (carried?.nextBar !== this.#decidedAt) this.#decide();
     if (this.#finished(carried!, now)) this.halt();
+  }
+
+  /** What the band has learned as of the section it planned last, kept as it changes. */
+  #learned(layer: LearnedLayer | null) {
+    if (!layer || layer === this.layer) return;
+    this.layer = layer;
+    if (this.#layerLoaded) void this.#surroundings.layers?.save(layer);
   }
 
   /** Whether the song's last bar has ended and its last chord has rung out, at `now` on the transport's clock. */
