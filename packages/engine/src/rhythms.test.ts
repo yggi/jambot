@@ -172,7 +172,7 @@ describe('the band with the rhythm against main: 8 presets held × 2 seeds × 32
 });
 
 describe('the rhythm and the learned layer (#397, #398)', () => {
-  it('asks with the layer the band carries, plays what it plays with none, and learns the rhythm and the clave kept as used together', () => {
+  it('asks with the layer the band carries, plays what it plays with none, and learns the rhythm, the clave and the meter kept as used together', () => {
     const funk = PRESETS.find((p) => p.name === 'Funk')!;
     let layer: LearnedLayer | null = null;
     const bars = run(funk, 1, true, EMPTY_LAYER, (carried) => {
@@ -186,8 +186,12 @@ describe('the rhythm and the learned layer (#397, #398)', () => {
     expect(
       learned.points.filter((p) => p.id === 'rumba clave 3-2').every((p) => p.facet === 'rhythm'),
     ).toBe(true);
-    // 4 sections played, and the fifth decided a bar ahead
-    expect(learned.together).toEqual([{ ids: ['Funk drums', 'rumba clave 3-2'], count: 5 }]);
+    // 4 sections played, and the fifth decided a bar ahead: each the rhythm and the clave kept together, and each with the meter (#401)
+    expect(learned.together).toEqual([
+      { ids: ['4/4 leaning lightly on 16n', 'Funk drums'], count: 5 },
+      { ids: ['4/4 leaning lightly on 16n', 'rumba clave 3-2'], count: 5 },
+      { ids: ['Funk drums', 'rumba clave 3-2'], count: 5 },
+    ]);
   });
 });
 

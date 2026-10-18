@@ -28,7 +28,8 @@ export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments
  * #398's bound of 16 KiB. A layer that learned only meters stays far under
  * it: after 3 hours of the radio's walk it weighs at most about 1.6 KB (E34,
  * learning), since use raises a point where one is, and the eleven meters
- * have one each.
+ * have one each; with the rhythms, and the grooves the Muse files on a miss
+ * (#401), at most 2,943 bytes, two grooves at most (E38).
  */
 export const LAYER_CAP = 16_000;
 

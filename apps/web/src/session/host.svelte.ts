@@ -159,6 +159,7 @@ export class HostSession {
       this.#player.restore(restore);
     }
     this.#player.hosting = this.#hosting();
+    this.#player.session = this.session;
     this.#sweep = setInterval(() => this.#dropSilent(), 1000);
     this.persist();
   }
@@ -199,6 +200,7 @@ export class HostSession {
     if (this.#sweep) clearInterval(this.#sweep);
     this.#sweep = null;
     this.#player.hosting = null;
+    this.#player.session = null;
     this.#player.playerId = null;
     this.#player.players = {};
     this.#player.mode = 'solo';
