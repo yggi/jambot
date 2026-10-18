@@ -21,14 +21,14 @@ function events(env: TransportEnv): TimedEvent[] {
 }
 
 describe("cells' repository of meters, as the composer asks it (#375)", () => {
-  it('reads ten of cells’ thirteen meters into the band’s, and says why it leaves out the other three', () => {
+  it('reads eleven of cells’ thirteen meters into the band’s, and says why it leaves out the other two', () => {
     const left = METER_READINGS.filter((r) => typeof r.read === 'string');
     expect(Object.fromEntries(left.map((r) => [r.id, r.read]))).toEqual({
       '4/4 alla breve': "its meter, 2 beats in 8 eighths at 0 4, is none of the band's",
       '2/4': "its meter, 2 beats in 4 eighths at 0 2, is none of the band's",
-      '10/8': "its meter, 4 beats in 10 eighths at 0 3 5 8, is none of the band's",
     });
-    expect([...METER_REPOSITORY.fragments.keys()]).toHaveLength(10);
+    expect([...METER_REPOSITORY.fragments.keys()]).toHaveLength(11);
+    expect(METER_REPOSITORY.fragments.get('10/8')!.meter).toEqual(METERS['10/8']);
     expect(METER_REPOSITORY.fragments.get('7/8')!.meter).toEqual(METERS['7/8']);
     expect(METER_REPOSITORY.fragments.get('12/8')!.meter).toEqual(METERS['12/8']);
     expect(METER_REPOSITORY.fragments.get('4/4 swung on 8n')!.swing).toEqual({

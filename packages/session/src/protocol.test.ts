@@ -5,7 +5,9 @@ import {
   METER_REPOSITORY,
   type MuseOutput,
   type Remembered,
+  type SongClock,
   type TransportEnv,
+  clockOfTransport,
   holding,
   judgeBar,
   transport,
@@ -34,9 +36,11 @@ const shapeOf = (values: readonly unknown[]) =>
   [...new Set(values.flatMap((v) => paths(v)))].sort();
 
 /**
- * The bars a host sends over a minute of full energy and harmony, with a
+ * The bars a host sends over 75 seconds of full energy and harmony, with a
  * motif heard in bar 2 so that bars carry an offer and accents, and the
- * judgements of the notes heard.
+ * judgements of the notes heard. The repository gives that style 10/8, whose
+ * bars are 20 steps, so 75 seconds hold the bars a minute of 4/4 does, enough
+ * for the Muse to forget a motif.
  */
 function travelling(): {
   bars: SentBar[];
@@ -52,30 +56,40 @@ function travelling(): {
     // No meter asked for: each section's plan says the repository's meter and its share (#375).
     repository: METER_REPOSITORY,
   };
-  // The motif in bar 2, and again in bar 3, so the log carries a recognition.
-  const inBar = (bar: number) =>
+  // The motif in bar 2, and again in bar 3, so the log carries a recognition: each
+  // bar where the song's clock starts it, in whatever meter the repository gives.
+  const inBar = (bar: number, clock: SongClock) =>
     [69, 72, 76, 74].map((note, i) => ({
       note,
       velocity: 110 - i * 20,
       source: 'a client',
-      position: 16 * bar + i * 4,
-      end: i === 3 ? null : 16 * bar + 1 + i * 4,
+      position: clock.barStart(bar) + i * 4,
+      end: i === 3 ? null : clock.barStart(bar) + 1 + i * 4,
     }));
-  const heard = [inBar(2), inBar(3)];
+  const heard = [2, 3];
   let carried = transport.initial;
   const bars: SentBar[] = [];
   const log: MuseOutput[] = [];
   let memory: Remembered[] = [];
-  for (let t = 0; t < 60; t += 0.025) {
+  for (let t = 0; t < 75; t += 0.025) {
+    const clock = clockOfTransport(carried);
     const due =
-      carried && heard.length > 0 && carried.head.step > 16 * (5 - heard.length) + 2
-        ? heard.shift()!
+      carried && heard.length > 0 && carried.head.step > clock.barStart(5 - heard.length) + 2
+        ? inBar(heard.shift()!, clock)
         : [];
     const next = transport.advance(env, carried, { now: t, until: t + LOOKAHEAD, heard: due });
     carried = next.carried;
-    bars.push(...sentBars(next.output.composed, next.output.steps, carried!.head, env.track));
+    bars.push(
+      ...sentBars(
+        next.output.composed,
+        next.output.steps,
+        carried!.head,
+        env.track,
+        clockOfTransport(carried),
+      ),
+    );
     log.push(...next.output.judged);
-    // What she remembers while she does: it fades out of a minute's end.
+    // What she remembers while she does: it fades out of the run's end.
     const now = carried?.listening.muse.memory ?? [];
     if (now.length > 0) memory = [...now];
   }
@@ -208,7 +222,7 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 11 (the join and welcome that carry a resume token are read by field, above), as a minute of the band, two judgements and the Muse's log show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375). */
+/** The shapes of version 11 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements and the Muse's log show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375). */
 const SHAPES = {
   protocol: 11,
   bar: [

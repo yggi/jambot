@@ -61,8 +61,8 @@ const WEIGHTS: Record<MeterName, Weight[]> = {
     'subdivision',
     'pulse',
     'subdivision',
-    'subdivision',
     'pulse',
+    'subdivision',
     'subdivision',
     'pulse',
     'subdivision',
@@ -115,7 +115,7 @@ describe('meter', () => {
       '6/8': { cycle: 6, heights: [0, 3] },
       '7/8': { cycle: 7, heights: [0, 3, 5] },
       '9/8': { cycle: 9, heights: [0, 3, 6] },
-      '10/8': { cycle: 10, heights: [0, 3, 6, 8] },
+      '10/8': { cycle: 10, heights: [0, 3, 5, 8] },
       '12/8': { cycle: 12, heights: [0, 3, 6, 9] },
     });
   });
@@ -138,14 +138,14 @@ describe('meter', () => {
     });
   });
 
-  it('places every named meter’s pulses as `even` does over its eighths, but 10/8’s 3+3+2+2, which is given by its heights (finite: every named meter) (T6)', () => {
+  it('places every named meter’s pulses as `even` does over its eighths, 10/8 as 3+2+3+2 (finite: every named meter) (T6)', () => {
     for (const [name, meter] of Object.entries(METERS)) {
       expect(meter.heights[0]).toBe(0);
       const k = meter.heights.length;
-      expect([name, isEven(meter)]).toEqual([name, name !== '10/8']);
-      if (name !== '10/8') expect(meter).toEqual(even(k, meter.cycle));
+      expect([name, isEven(meter)]).toEqual([name, true]);
+      expect([name, meter]).toEqual([name, even(k, meter.cycle)]);
     }
-    expect(gaps(METERS['10/8'])).toEqual([3, 3, 2, 2]);
+    expect(gaps(METERS['10/8'])).toEqual([3, 2, 3, 2]);
   });
 
   it('weighs every eighth of every named meter, against its weights written out by hand (finite: every meter, every position)', () => {
@@ -235,7 +235,7 @@ describe('meter', () => {
       expect(modeGroupings(even(2, 5))).toEqual(['3+2', '2+3']);
       expect(modeGroupings(even(3, 7))).toEqual(['3+2+2', '2+2+3', '2+3+2']);
       expect(modeGroupings(even(4, 9))).toEqual(['3+2+2+2', '2+2+2+3', '2+2+3+2', '2+3+2+2']);
-      expect(modeGroupings(METERS['10/8'])).toEqual(['3+3+2+2', '3+2+2+3', '2+2+3+3', '2+3+3+2']);
+      expect(modeGroupings(METERS['10/8'])).toEqual(['3+2+3+2', '2+3+2+3', '3+2+3+2', '2+3+2+3']);
       for (const meter of Object.values(METERS)) {
         const brightest = Math.max(...modes(meter).map((m) => brightness(fromDownbeat(m))));
         expect(brightness(meter)).toBe(brightest);
@@ -248,7 +248,7 @@ describe('meter', () => {
         expect(gaps(mirror(meter))).toEqual([...gaps(meter)].reverse());
     });
 
-    it('does not reach every grouping: 79 of the 149 groupings into 2s and 3s of up to 16 eighths are modes of `even`, and 10/8’s 3+3+2+2 is the first that is not (T6)', () => {
+    it('does not reach every grouping: 79 of the 149 groupings into 2s and 3s of up to 16 eighths are modes of `even`, and ten eighths as 3+3+2+2 is the first that is not (T6)', () => {
       const missed = everyGrouping.filter(
         (meter) =>
           !modeGroupings(even(meter.heights.length, meter.cycle)).includes(gaps(meter).join('+')),
