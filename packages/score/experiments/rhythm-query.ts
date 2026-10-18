@@ -50,6 +50,7 @@ import {
   type BandCarried,
   DRUM_NOTES,
   DRUM_ROLES,
+  GROOVE_ROLES,
   type DrumSound,
   METER_REPOSITORY,
   MISS_DISTANCE,
@@ -350,7 +351,8 @@ export const barOf = (rhythm: Pick<ReadRhythm, 'hits'>, barInSection: number): D
 export const ENTRIES = ['bar', 'roles', 'thinned', 'groove'] as const;
 export type Entry = (typeof ENTRIES)[number];
 
-const isBandRole = (role: string) => (DRUM_ROLES as readonly string[]).includes(role);
+// the drummer's own roles: since #397's build the clave is a role too, but a line of its own
+const isBandRole = (role: string) => (GROOVE_ROLES as readonly string[]).includes(role);
 const loudFirst = (a: DrumHit, b: DrumHit) => b.velocity - a.velocity || a.step - b.step;
 
 /** The bar an entry builds. */
