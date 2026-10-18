@@ -69,6 +69,7 @@ import {
   DRUM_ROLES,
   type DrumRole,
   LOOKAHEAD,
+  type MelodicScale,
   PRESETS,
   type TimedEvent,
   type TransportCarried,
@@ -102,6 +103,7 @@ import { type ScoreKey, lowerNumeral } from '../src/score.ts';
 import { VOICE_OF_NOTE, euclidOf, levelOf } from './drums-in-cells.ts';
 import {
   PIN_VOICES,
+  type PinVoice,
   type Tone,
   chordTones,
   degreeText,
@@ -121,10 +123,14 @@ export const BARS = 32;
 export const OTHER_METERS: readonly MeterName[] = ['3/4', '7/8'];
 export const METER_PRESETS: readonly string[] = ['Synth-pop', 'Bossa nova'];
 
-/** One run: a preset in a meter. */
+/** One run: a preset in a meter; a seed and a length other than E33's where another experiment asks (E35). */
 export interface RunKey {
   readonly preset: string;
   readonly meter: MeterName;
+  readonly seed?: number;
+  readonly barCount?: number;
+  /** The melodic scale the players wish for (none, the style's default, unless asked). */
+  readonly melodic?: MelodicScale;
 }
 
 /** Every run: the 8 presets in 4/4, then the two in 3/4 and 7/8. */
@@ -161,7 +167,7 @@ export interface StatedChord {
 }
 
 /** The transport's clock starts here, in seconds. */
-const START = 1;
+export const START = 1;
 /** How often the transport is ticked: under its lookahead, so no step is missed. */
 const TICK = 0.1;
 
@@ -176,15 +182,21 @@ export interface Run extends RunKey {
 
 const presetOf = (name: string) => PRESETS.find((p) => p.name === name)!;
 
-/** The band's transport over a preset held, in a meter, until 32 bars are laid. */
-export function runOf({ preset: name, meter }: RunKey): Run {
+/** The band's transport over a preset held, in a meter, until its bars are laid (E33's 32 at seed 0, unless asked); every part's onsets, the lead's too. */
+export function runOf({
+  preset: name,
+  meter,
+  seed = SEED,
+  barCount: count = BARS,
+  melodic,
+}: RunKey): Run {
   const preset = presetOf(name);
   const env: TransportEnv = {
-    seed: SEED,
+    seed,
     start: START,
     track: holding({ ...preset.style, entropy: ENTROPY }),
     swing: holdingSwing(preset.swing),
-    wish: { tonic: null, mode: preset.mode, melodic: null },
+    wish: { tonic: null, mode: preset.mode, melodic: melodic ?? null },
     meter: METERS[meter],
     tempoMeter: METERS[meter],
   };
@@ -200,15 +212,15 @@ export function runOf({ preset: name, meter }: RunKey): Run {
     bars.push(...next.output.composed);
     for (const s of next.output.steps) stepAt.set(s.step, s.seconds - START);
     missed += next.output.missed;
-    if (bars.length > BARS && carried.head.step > clockOfTransport(carried).barStart(BARS)) break;
+    if (bars.length > count && carried.head.step > clockOfTransport(carried).barStart(count)) break;
   }
   const clock = clockOfTransport(carried);
   return {
     preset: name,
     meter,
-    bars: bars.slice(0, BARS),
-    events: events.filter((e) => e.bar < BARS && e.event.part !== 'lead'),
-    barStarts: Array.from({ length: BARS }, (_, bar) => stepAt.get(clock.barStart(bar))!),
+    bars: bars.slice(0, count),
+    events: events.filter((e) => e.bar < count),
+    barStarts: Array.from({ length: count }, (_, bar) => stepAt.get(clock.barStart(bar))!),
     missed,
   };
 }
@@ -404,7 +416,7 @@ export function indexOf(
   key: ScoreKey,
   chord: readonly Tone[],
   note: number,
-  voice: 'comp' | 'bass',
+  voice: PinVoice,
 ): ChordIndex | null {
   for (const alter of ALTERS)
     for (const n of INDICES)
