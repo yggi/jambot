@@ -5,19 +5,27 @@
  * while the band plays (time is absolute).
  *
  * Each slice runs in the browser's idle time (`requestIdleCallback`), never
- * inside the transport's tick, and starts a step only while more than
- * `RESERVE` ms of its idle period remain: a step is a fit, a union or a read
- * (the longest 21.7 ms in Chromium over the 838 steps of every bench, #407),
- * so a slice stays under the 50 ms the browser gives an idle period at most. Where there is no `requestIdleCallback`
- * (Safari before 18), a slice runs from a zero timeout with a budget of
- * `FALLBACK_BUDGET` ms instead.
+ * inside the transport's tick, and starts a step only within its first
+ * `SLICE_BUDGET` ms and while its idle period lasts: a step is a fit, a union
+ * or a read (the longest 21.7 ms in Chromium over the 838 steps of every
+ * bench, #407), so a slice stays under the 50 ms the browser gives an idle
+ * period at most.
+ * The period is all a step needs to start, not room for it to end in: while
+ * the band plays the page draws every frame, and Chromium's idle periods are
+ * then what is left of a frame, 16 ms at most, so a step that had to fit in
+ * one would never start, and the warm-up would wait for the song to stop
+ * (#408: none of 838 steps in 30 s of play).
+ * A step past the period's end delays the next frame by that step at most,
+ * never the band, which the transport schedules `LOOKAHEAD` (120 ms) ahead.
+ * Where there is no `requestIdleCallback` (Safari before 18), a slice runs
+ * from a zero timeout, its period `FALLBACK_PERIOD` ms.
  */
 
-/** How much of an idle period must remain to start a step: more than the longest step. */
-export const RESERVE = 25;
+/** How long into a slice a step may start, in ms: so a slice is at most this and its last step, under 50 ms. */
+export const SLICE_BUDGET = 25;
 
-/** A slice's budget where the browser gives no idle period, in ms. */
-export const FALLBACK_BUDGET = 16;
+/** A slice's idle period where the browser gives none, in ms. */
+export const FALLBACK_PERIOD = 16;
 
 /** What an idle period says: how long it has left, in ms. */
 export interface IdlePeriod {
@@ -48,7 +56,7 @@ export function browserIdle(now: () => number = () => performance.now()): IdleSc
   if (idle) return (slice) => void idle.call(globalThis, slice);
   return (slice) => {
     setTimeout(() => {
-      const end = now() + FALLBACK_BUDGET;
+      const end = now() + FALLBACK_PERIOD;
       slice({ timeRemaining: () => Math.max(0, end - now()) });
     }, 0);
   };
@@ -77,7 +85,7 @@ export function warmAtIdle(
   const slice = (period: IdlePeriod) => {
     const from = now();
     let done = false;
-    while (period.timeRemaining() > RESERVE) {
+    while (period.timeRemaining() > 0 && now() - from < SLICE_BUDGET) {
       const at = now();
       done = it.next().done === true;
       const took = now() - at;
