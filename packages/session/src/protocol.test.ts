@@ -2,6 +2,7 @@ import {
   INITIAL_STYLE,
   type Judgement,
   LOOKAHEAD,
+  METER_REPOSITORY,
   type MuseOutput,
   type Remembered,
   type SongClock,
@@ -23,7 +24,6 @@ import {
   refusal,
   sourceName,
 } from './protocol.ts';
-import { METER_REPOSITORY } from '@jambot/engine/repository';
 
 /** Every path to a plain value in a value, with the value's type: its shape. */
 function paths(value: unknown, at = ''): string[] {

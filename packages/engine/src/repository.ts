@@ -10,10 +10,9 @@
  * dynamics don't read. Of cells' thirteen, eleven are played: the alla breve
  * (two beats of a half) and 2/4 (a bar of 8 steps) are not.
  *
- * The engine's barrel leaves it out, and a host imports it as
- * `@jambot/engine/repository` (#384): cells shipped only TypeScript before
- * v0.5.0, which node doesn't strip under `node_modules`. Node imports cells
- * since v0.5.0 (cells decision 045), so it can join the barrel (#386).
+ * The engine's barrel exports it, so a host that imports the engine loads
+ * cells at start: node imports cells from `node_modules` through its
+ * JavaScript build (cells decision 045).
  */
 
 import { METERS, type Meter } from '@jambot/theory';
