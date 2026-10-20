@@ -207,6 +207,7 @@ player's level as the rounded mean of the melody's velocities and carries it
 beside the motif (`level` on the judgement and the offer). A lead note from a
 motif is written with its accent (`WrittenNote.accent`), and `perform` plays it
 on the lead's level, `LEAD_LEVEL`, in place of the beat's accent.
+The level so composed is clamped to MIDI's 1 to 127 before the licence (#433), so a cells text states the level the feel plays on.
 Counterexample: something a player plays that no motif gives back. The Muse's
 working track names four (#79, and #7's pressure comment, points 1 to 4): a blue
 note, which a whole degree rounds away; a player's accents, which the

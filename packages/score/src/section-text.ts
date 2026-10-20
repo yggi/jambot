@@ -318,8 +318,6 @@ export interface ComposedNote extends SectionNote {
   readonly role?: DrumRole;
 }
 
-const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
-
 /** Notes in the order the comparison reads them: by part, step, then pitch. */
 export const sortNotes = <N extends SectionNote>(notes: readonly N[]): N[] =>
   [...notes].sort((a, b) => a.part.localeCompare(b.part) || a.step - b.step || a.note - b.note);
@@ -333,7 +331,7 @@ export function writtenNotes(bar: BandBar): ComposedNote[] {
       ...(w.role ? { role: w.role } : {}),
       step: w.step,
       note: w.note,
-      velocity: clampVelocity(composedLevel(bar, w)),
+      velocity: Math.round(composedLevel(bar, w)),
       written: w.length,
       length: baseLengthOf(bar, w),
     })),

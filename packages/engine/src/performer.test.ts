@@ -364,7 +364,7 @@ describe('the performer', () => {
       );
   });
 
-  it('plays a note as a text states it as it plays the note written: the same velocity and length, every note of the tour and every motif’s accent on the lead’s level (#405, decision 037)', () => {
+  it('plays a note as a text states it as it plays the note written: the same velocity and length, every note of the tour, accented past MIDI’s 1 to 127 too, and every motif’s accent on the lead’s level (#405, #433, decision 037)', () => {
     const clamp = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
     /** A written note as a text states it: its line, step, pitch and role, its velocity at feel 0 as MIDI says it, and its sounding length at feel 0. */
     const stated = (env: BarEnv, w: WrittenNote): StatedNote => ({
@@ -383,24 +383,33 @@ describe('the performer', () => {
     };
     let notes = 0;
     let loose = 0;
+    let past = 0;
     for (const b of bars) {
-      // Every note the band writes, and a motif's lead note on every step at accents from far below the lead's level to far above.
-      const motif = range(stepsOf(b.meter)).flatMap((step) =>
-        [-60, -31, -9, -1, 0, 1, 9, 17, 36].map((accent): WrittenNote => ({
-          part: 'lead',
-          step,
-          note: 64 + (step % 12),
-          length: 2,
-          accent,
-        })),
+      // Every note the band writes, the same written far past either end of MIDI's velocities (a part's base keeps its
+      // fraction there), and a motif's lead note on every step at accents from past the lead's level's floor to past its ceiling.
+      const pushed = b.written.flatMap((w) =>
+        [-200, 200].map((by): WrittenNote => ({ ...w, accent: (w.accent ?? 0) + by })),
       );
-      for (const w of [...b.written, ...motif]) {
+      const motif = range(stepsOf(b.meter)).flatMap((step) =>
+        [-120, -91, -90, -60, -31, -9, -1, 0, 1, 9, 17, 36, 37, 48, 60].map(
+          (accent): WrittenNote => ({
+            part: 'lead',
+            step,
+            note: 64 + (step % 12),
+            length: 2,
+            accent,
+          }),
+        ),
+      );
+      for (const w of [...b.written, ...pushed, ...motif]) {
         expect(performStated(b, stated(b, w))).toEqual(played(b, w));
+        if (w.accent !== undefined && (w.accent > 36 || w.accent < -90)) past++;
         if (perform(b, w).velocity !== clamp(composedLevel(b, w))) loose++;
         notes++;
       }
     }
     expect(notes).toBeGreaterThan(8_000);
+    expect(past).toBeGreaterThan(8_000);
     // The feel is played, not lost: most velocities part from the level stated at feel 0.
     expect(loose / notes).toBeGreaterThan(0.5);
   });
@@ -425,17 +434,32 @@ describe('the performer', () => {
     );
   });
 
-  it('can’t play the feel exactly on a level the text states clamped, past MIDI’s 1 to 127: what the shadow counts apart (#405)', () => {
-    const env = { ...barOf('groove', 0.7, { swing: FULL, entropy: 1, artic: 0 }), bar: 3 };
-    const w: WrittenNote = { part: 'lead', step: 1, note: 72, length: 2, accent: 60 };
-    expect(composedLevel(env, w)).toBeGreaterThan(127);
-    const asStated = performStated(env, {
+  it('composes a level past MIDI’s 1 to 127 clamped to it, before the feel: a motif’s accent on the lead’s level, and a part’s base with its fraction kept (#433)', () => {
+    const lead = (accent: number): WrittenNote => ({
       part: 'lead',
       step: 1,
       note: 72,
-      velocity: 127,
-      length: 1,
+      length: 2,
+      accent,
     });
-    expect(asStated.velocity).not.toBe(perform(env, w).velocity);
+    const still = barOf('groove', 0.7);
+    expect([36, 37, 60, -90, -91, -200].map((a) => composedLevel(still, lead(a)))).toEqual([
+      127, 127, 127, 1, 1, 1,
+    ]);
+    // a part's base as the bar gives it, its whole velocity clamped and its fraction kept, which MIDI's rounding takes
+    const bass: WrittenNote = { part: 'bass', step: 1, note: 48, length: 2 };
+    const base = baseVelocityOf(still, bass);
+    const fraction = base - Math.round(base);
+    expect(fraction).not.toBe(0);
+    expect(composedLevel(still, { ...bass, accent: 200 })).toBeCloseTo(127 + fraction, 12);
+    expect(composedLevel(still, { ...bass, accent: -200 })).toBeCloseTo(1 + fraction, 12);
+    // so a motif's note past 127 breathes with the feel, as every other note does, instead of sticking at 127
+    const loose = (bar: number) => ({
+      ...barOf('groove', 0.7, { swing: FULL, entropy: 1, artic: 0 }),
+      bar,
+    });
+    const velocities = range(32).map((bar) => perform(loose(bar), lead(60)).velocity);
+    expect(Math.min(...velocities)).toBeLessThan(127 - 10);
+    expect(velocities).toEqual(range(32).map((bar) => perform(loose(bar), lead(36)).velocity));
   });
 });

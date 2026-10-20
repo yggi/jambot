@@ -328,17 +328,26 @@ describe('the band through cells, in shadow (#399)', () => {
     playsAsTheBand(band, played);
   });
 
-  it('counts apart a motif accented past MIDI’s 127 on the lead’s level: the text states it clamped, so the feel can’t be played on it, and the switch plays the band’s own there (#405)', () => {
-    // Accents 48, -19, 21 and -49 from their mean, 79: the first lands at 139 on the lead's level.
-    const { readout, band, played } = run({
-      plays: 'cells',
-      heard: motifIn(2, [127, 60, 100, 30]),
-      bars: 16,
-    });
-    expect(readout.mismatched).toEqual(NONE);
-    expect(Object.keys(readout.gaps)).toEqual([expect.stringMatching(/past MIDI's 1 to 127/)]);
-    expect(readout.played.band).toBeGreaterThan(0);
-    playsAsTheBand(band, played);
+  it('plays a motif accented past MIDI’s 127 on the lead’s level through cells as the band plays it: the composer clamps the level before the feel, so the text states what is played (#433)', () => {
+    // Accents 48, -19, 21 and -49 from their mean, 79: the first would land at 139 on the lead's level, and is composed at
+    // 127; and 1 against a mean of 95.5, an accent of -94.5, below 1, composed at 1.
+    for (const velocities of [
+      [127, 60, 100, 30],
+      [1, 127, 127, 127],
+    ]) {
+      const { readout, band, played } = run({
+        plays: 'cells',
+        heard: motifIn(2, velocities),
+        bars: 16,
+      });
+      expect(readout.errors).toEqual([]);
+      expect(readout.mismatched).toEqual(NONE);
+      expect(readout.gaps).toEqual({});
+      expect(readout.played.band).toBe(0);
+      const lead = band.filter((e) => e.event.part === 'lead' && e.event.accent !== undefined);
+      expect(lead.length).toBeGreaterThan(8);
+      playsAsTheBand(band, played);
+    }
   });
 
   it('counts the song’s last bar apart, its last chord ringing past the text’s end, and the switch plays the band’s own there', () => {

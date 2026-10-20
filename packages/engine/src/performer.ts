@@ -14,6 +14,8 @@
  * - a written accent, where one is given: an offset on top of the base,
  *   never a replacement — except a lead note from a motif, whose accent
  *   replaces the beat's own, counted from the lead's level instead (U4);
+ *   the level so composed is clamped to MIDI's 1 to 127 before the licence
+ *   (#433), so a text states the level the feel plays on;
  * - the licence: every part's velocity, and every part's length, loosens as
  *   the feel rises (`feelOf`, T17) and holds exactly still when
  *   it is 0 — a seeded draw per part, the same shape drums always had
@@ -46,6 +48,17 @@ import { draw, type Stream } from './random.ts';
 import { timbreOf } from './sound.ts';
 
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
+
+/**
+ * A level within MIDI's 1 to 127 as MIDI rounds it (#433): one whose
+ * velocity lies past them is clamped by whole velocities, so the fraction
+ * a part's base gives it, which MIDI's rounding takes, is kept; one within
+ * them is as it is.
+ */
+function withinMidi(level: number): number {
+  const velocity = Math.round(level);
+  return velocity >= 1 && velocity <= 127 ? level : level - velocity + clampVelocity(velocity);
+}
 
 /**
  * A part's velocity licence: how far a written note's velocity may drift,
@@ -135,14 +148,17 @@ const LENGTH_STREAM = {
  * The level a written note is composed at, before the performer's own hand,
  * unrounded: its part's base with its written accent on top, or, for a lead
  * note with an accent, the accent on the lead's level, which replaces the
- * beat's own (U4). At feel 0 a note plays at this level, rounded and clamped
- * to MIDI's 1 to 127: what a cells text states (`writtenNotes`, #399).
+ * beat's own (U4); within MIDI's 1 to 127 as MIDI rounds it (`withinMidi`,
+ * #433), so a motif's note accented past them plays at the level a text
+ * states, and breathes with the feel as every other note does. At feel 0 a
+ * note plays at this level, rounded: what a cells text states
+ * (`writtenNotes`, #399).
  */
 export function composedLevel(env: BarEnv, written: WrittenNote): number {
   const { accent } = written;
   if (written.part === 'lead')
-    return accent !== undefined ? LEAD_LEVEL + accent : baseVelocityOf(env, written);
-  return baseVelocityOf(env, written) + (accent ?? 0);
+    return withinMidi(accent !== undefined ? LEAD_LEVEL + accent : baseVelocityOf(env, written));
+  return withinMidi(baseVelocityOf(env, written) + (accent ?? 0));
 }
 
 /**
@@ -240,10 +256,9 @@ export interface StatedNote {
  * level stated, with the fraction MIDI's rounding took from it given back
  * from the bar's base (the lead's base and a motif's level are whole, so
  * only a part's base has one), and its length is the length licence on the
- * length cells sounds. Wherever the composed level lies within 1 to 127 it
- * plays as `perform` plays the note written; past them the text states the
- * level clamped, and how far past is lost. A written accent is in the
- * level stated, and not carried apart.
+ * length cells sounds, so it plays as `perform` plays the note written,
+ * since the composed level lies within MIDI's 1 to 127 (`composedLevel`).
+ * A written accent is in the level stated, and not carried apart.
  */
 export function performStated(env: BarEnv, stated: StatedNote): DoughNote {
   const feel = feelOf(env.style, env.swing);

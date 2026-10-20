@@ -48,10 +48,9 @@
  *
  * What cells cannot say yet is counted apart, each with its reason (`gaps`):
  * a section whose swing's share glides between its bars (one text states one
- * swing), a bar whose beats swing at a share that moves within it, a bar with
- * a note composed at a level past MIDI's 1 to 127 (the text states it
- * clamped, so the feel can't be played on it), and a bar no text was stated
- * for.
+ * swing), a bar whose beats swing at a share that moves within it, and a bar
+ * no text was stated for. A note's level is composed within MIDI's 1 to 127
+ * (`composedLevel`, #433), so a text states every level the band plays on.
  *
  * With `plays` set to cells (the switch, for a solo band only), the band's
  * outputs play cells' events, with the performer's feel, in place of its own
@@ -75,7 +74,6 @@ import {
   bandEnvAt,
   clockOf,
   clockOfTransport,
-  composedLevel,
   laidClock,
   performStated,
   tempoMap,
@@ -271,9 +269,6 @@ const spread = (samples: readonly number[]): Spread => {
 
 /** Within a millionth of a step. */
 const same = (a: number, b: number) => Math.abs(a - b) < 1e-6;
-
-/** Whether a level, rounded, lies past MIDI's velocities, 1 to 127. */
-const outOfMidi = (level: number) => Math.round(level) < 1 || Math.round(level) > 127;
 
 /** A band event's part as cells' lines name it: the pad and the stab apart. */
 const lineOfEvent = (e: DoughNote) => e.part;
@@ -515,9 +510,7 @@ export class Shadow {
             ? `cells said: ${played.diagnostics[0]}`
             : cut.has(b.bar)
               ? "a note runs past its line's next onset or the text's end (the finale's ring): cut there"
-              : b.written.some((w) => outOfMidi(composedLevel(b, w)))
-                ? "a note composed past MIDI's 1 to 127 (a motif's accent on the lead's level): the text states it clamped, and the feel can't be played on it"
-                : null,
+              : null,
       });
     for (const key of this.#bars.keys())
       if (key < bars[0]!.bar - 2 * SECTION_BARS) this.#bars.delete(key);
