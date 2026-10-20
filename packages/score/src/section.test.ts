@@ -186,8 +186,24 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect([gains(struck('-.5')), gains(struck('.5'))]).toEqual([[-0.5], [0.5]]);
   });
 
+  it('writes no swing on 8n in a meter whose pulses are all 3 eighths, which the band plays straight there (T16, #438), and says it can’t state one of pairs and threes (yggi/cells#204)', () => {
+    const swing: MeterSwing = { level: '8n', share: 2 / 3 };
+    const names = Object.keys(METERS) as MeterName[];
+    expect(names.filter((name) => swingText(METERS[name], swing) === '')).toEqual([
+      '6/8',
+      '9/8',
+      '12/8',
+    ]);
+    expect(names.filter((name) => !swingStated(METERS[name], swing))).toEqual([
+      '5/8',
+      '7/8',
+      '10/8',
+    ]);
+    expect(swingText(METERS['6/8'], { level: '16n', share: 2 / 3 })).toBe(' swing=16n:2/3');
+  });
+
   it.each(Object.keys(METERS) as MeterName[])(
-    'states the swing in %s where cells plays it as the band does, and says where it can’t: a pulse of 3 eighths on an 8n swing (T16; yggi/cells#18)',
+    'states the swing in %s where cells plays it as the band does, and says where it can’t: pulses of 2 and of 3 eighths on an 8n swing (T16; yggi/cells#204)',
     (name) => {
       const meter = METERS[name];
       const steps = stepsOf(meter);
@@ -195,7 +211,7 @@ describe('a section as one cells text, for the app (#399)', () => {
         for (const share of [0.5, 0.6, 2 / 3, 0.75]) {
           const swing: MeterSwing = { level, share };
           const text = [
-            `&bar meter("${name}") step=60bpm${swingText(swing)}`,
+            `&bar meter("${name}") step=60bpm${swingText(meter, swing)}`,
             '&x step=16n 0',
             '&v loop=C4',
             '&out map=midi [&x * &v]',
