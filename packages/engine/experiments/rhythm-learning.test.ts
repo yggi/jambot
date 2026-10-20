@@ -2,11 +2,12 @@ import { stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { DRUMMER } from '../src/band.ts';
 import { EMPTY_LAYER, LAYER_CAP, layerBytes } from '../src/layer.ts';
-import { grooveText } from '../src/muse-groove.ts';
-import { familyOf, variations } from '../src/novelty.ts';
+import { GROOVE_FEWEST, grooveText } from '../src/muse-groove.ts';
+import { GROOVE_KEEP, familyOf } from '../src/novelty.ts';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
+import { variations } from '@yggi/cells/engine/vary/index';
 import { COMPOSER } from '../src/plan.ts';
-import { readRhythm, rhythmRepository } from '../src/rhythms.ts';
+import { benchText, readRhythm, rhythmRepository } from '../src/rhythms.ts';
 import {
   LEARNING_HOURS,
   aloneByPreset,
@@ -90,9 +91,9 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it(`keeps a layer of at most 12,116 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped`, () => {
+  it(`keeps a layer of at most 12,237 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(12116);
+    expect(Math.max(...bytes)).toBe(12237);
     expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)
@@ -111,7 +112,7 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
     expect(mostUsedGroove(UNLEARNED).mostUsed).toBe(0);
   });
 
-  it('makes each variation of a seed rhythm or of a groove its run filed before, by one operator, and varies no family twice', () => {
+  it('makes each variation of a seed rhythm or of a groove its run filed before, by one of cells’ operators on its text, named in its filing (`by`), and varies no family twice', () => {
     const seeds = new Set(RHYTHM_FRAGMENTS.map((f) => f.id));
     for (const run of LEARNED) {
       const { filings, layer } = run.learning!;
@@ -123,8 +124,16 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
           expect(parent, id).toBeGreaterThanOrEqual(0);
           expect(parent, id).toBeLessThan(filings.findIndex((f) => f.id === id));
         }
-        const hits = rhythmRepository().read(varies!, bench.meter, layer)!.hits;
-        expect(variations(hits, stepsOf(bench.meter)), id).toContainEqual(
+        const text =
+          RHYTHM_FRAGMENTS.find((f) => f.id === varies)?.text ??
+          layer.filed.find((f) => f.fragment.id === varies)!.fragment.text;
+        const named = variations(text, {
+          workbench: benchText(bench)!,
+          keep: GROOVE_KEEP,
+          fewest: GROOVE_FEWEST,
+        }).find((v) => v.by === filing.by);
+        expect(named, id).toBeDefined();
+        expect(readRhythm(named!.apply(text), bench.meter)!.hits, id).toEqual(
           [...filing.hits].sort((a, b) => a.step - b.step || a.note - b.note),
         );
       }
