@@ -8,6 +8,7 @@ import {
   RESUME_WINDOW,
   playerSource,
 } from '@jambot/session';
+import { SECTION_BARS } from '@jambot/engine';
 import { METERS } from '@jambot/theory';
 import { targetOf } from '../conductor.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -247,6 +248,36 @@ describe('a host and a client session', () => {
       expect(player.hud.muse.log[0]).toMatchObject({
         text: "Took a 3-note motif from Ada's computer keys.",
       });
+  });
+
+  it("file the drums a client's player plays over a section in the host's layer, under the client's name (#410)", async () => {
+    const lobby = memoryLobby();
+    const host = device(10);
+    const client = device(3);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'jam', 'Bo');
+    await host.player.start();
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'jam', 'Ada');
+    await run([host, client], 3);
+    const heard = () => client.player.writtenPosition(client.world.currentTime) ?? -1;
+    const clock = () => client.player.clock;
+    // Kick and snare on the first four pulses of each bar, from the next bar to the section's end.
+    const first = clock().barAt(Math.floor(heard())) + 1;
+    for (let bar = first; bar < SECTION_BARS; bar++)
+      for (const [i, note] of [36, 38, 36, 38].entries()) {
+        const step = clock().barStart(bar) + 4 * i;
+        while (heard() < step) await run([host, client], 0.025);
+        client.player.humanNoteOn('drums', note, 100, 'the drum pads', client.world.currentTime);
+      }
+    for (let s = 0; s < 20 && host.player.layer.filed.length === 0; s++)
+      await run([host, client], 1);
+    expect(host.player.layer.filed.map((f) => f.meta)).toEqual([
+      { source: 'Ada', created: expect.stringMatching(/, bar 0$/), tags: ['groove', 'jam'] },
+    ]);
+    expect(host.player.layer.filed[0]!.fragment.text).toMatch(/^&kick step=16n &bd:0:/m);
+    // A client keeps no layer and files nothing of its own.
+    expect(client.player.layer.filed).toEqual([]);
   });
 
   it("name the host's own notes by its player, so a client never reads them as its own", async () => {

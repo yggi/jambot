@@ -60,6 +60,7 @@ where a host and a client split:
  client                                 host (a tab, later the root node)
  ──────                                 ─────────────────────────────────
  players ─▶ capture ─▶ ear (judgeBar) ─ judged ─▶ Muse: takes one of all
+                         └── drums as heard ─ played ─▶ Muse: files a groove
                                                         │ offer
                                                         ▼
                                                 band: plan, chords, parts
@@ -94,17 +95,16 @@ another source.
 
 The same form at two levels:
 
-- **Client**: its ear (`ear.ts`) judges its players' bars a beat after
-  each ends (`EAR_AFTER`), in the bar's key, and sends the judgements. So
-  mashing, too few and too wide stay on the client.
-- **Host**: takes one motif of all judgements, its own players' and every
-  client's, and names a client's source by its player ("Ada's computer
-  keys"). Today it takes the motif with the most notes; how it weighs
+- **Client**: its ear (`ear.ts`) judges its players' bars a beat after each ends (`EAR_AFTER`), in the bar's key, and sends the judgements.
+  So mashing, too few and too wide stay on the client.
+  At the same moment it passes on what its players played on drums in the bar, the notes as heard (`played`, #410), at most `PLAYED_MOST` (64) of them, about 85 bytes each as JSON.
+- **Host**: takes one motif of all judgements, its own players' and every client's, and names a client's source by its player ("Ada's computer keys").
+  It names a client's drum notes by the player it seated (`heardFrom`) and hears them as its own players' drums, so a groove a client plays over a section is filed under the client's name (#401). Today it takes the motif with the most notes; how it weighs
   several players is the open A3 on #79.
-- **Timing.** A motif heard in bar k plays from bar k + 2 (F7). The host
-  hears bar k as it composes bar k + 2, on the last beat of bar k + 1. A
-  client judges bar k a beat after it ends, so a judgement has about half a
-  bar to arrive.
+- **Timing.** A motif heard in bar k plays from bar k + 2 (F7).
+  The host hears bar k as it composes bar k + 2, on the last beat of bar k + 1.
+  A client judges bar k a beat after it ends, so a judgement has about half a bar to arrive, and a bar of drums the same.
+  Measured, a bar of drums still reaches the host's Muse over a way back of a beat and a half (0.5 s at 180 bpm, 1.5 s at 60), and one later than the host's hearing is dropped unheard (`session.test.ts`).
 - **The host checks** what it takes. The transport drops a client's
   judgement that no ear would have made in the bar's key (`admissible`,
   the same gates `judgeBar` applies), one for a bar not yet composed, and
@@ -243,8 +243,7 @@ refuses another version, since a cached app can be older than its host.
   and not yet played; the bars ahead; the Muse; the token to come back by),
   `refused`, `start`, `track`, `bar`, `forecast` (the bars that changed,
   `forecastDelta`), `muse`, `stop`, `finale`, `pong`, `closed`.
-- Client to host: `join` (version, name, and the token when it comes back),
-  `judged` (bar, judgement), `forget`, `ping`, `leave`.
+- Client to host: `join` (version, name, and the token when it comes back), `judged` (bar, judgement), `played` (part, bar, the notes as heard; a host hears drums alone so far), `forget`, `ping`, `leave`.
 - Said by a lobby, never by a peer, and so never read off the wire: `lost`
   to a host (a client's link dropped without a `leave`), `away` and `back`
   to a client (its host's link dropped, and returned).
@@ -408,13 +407,9 @@ e2e` pass unchanged, and a transport over bars the band composed, given
 
 ## Open
 
-- Whether clients send wishes. A client sends the ear's reading, not raw
-  notes (a position from review on #89): today a judgement; it would grow
-  into the judgement plus the bar's style metrics (density, register,
-  velocity, syncopation: the analyzer's stage 7, #3) run on the client,
-  which the host weighs per source, where A3's confidence belongs. A
-  player's notes stay on their device; raw notes can be added for the Muse
-  encoder (#16) if it needs them.
+- Whether clients send wishes.
+  For a melody a client sends the ear's reading, not raw notes (a position from review on #89): a judgement; it would grow into the judgement plus the bar's style metrics (density, register, velocity, syncopation: the analyzer's stage 7, #3) run on the client, which the host weighs per source, where A3's confidence belongs.
+  Drums travel as the notes heard (`played`, #410), since the host's Muse reads them onto the bar's steps and files the groove; the message names its part, so a pitched part the Muse files can travel the same way.
 - How the host weighs several players' motifs (A3 on #79). Today the most
   notes win, so a player who plays 12 notes in every bar, the most that
   isn't mashing, wins every bar.

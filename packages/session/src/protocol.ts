@@ -12,16 +12,19 @@
  * each bar starts. A client maps them onto its own clock (`clock.ts`).
  */
 
-import type {
-  BarEnv,
-  DroppedJudgement,
-  Judgement,
-  MuseOutput,
-  Offer,
-  Remembered,
-  StyleTrack,
-  SwingTrack,
-  WrittenNote,
+import {
+  type BarEnv,
+  type DroppedJudgement,
+  type HeardNote,
+  type Judgement,
+  type MuseOutput,
+  type Offer,
+  PARTS,
+  type Part,
+  type Remembered,
+  type StyleTrack,
+  type SwingTrack,
+  type WrittenNote,
 } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
 import type { ForecastDelta } from './forecast.ts';
@@ -43,9 +46,34 @@ import type { ForecastDelta } from './forecast.ts';
  * of the swing track's. Version 12 has it say the rhythm fragment the drummer
  * plays the section from and the clave chosen with it (`Plan.rhythmFragment`,
  * `Plan.claveFragment`, #397), and a drum hit may be the clave's
- * (`DrumRole`'s `clave`), which a client's performer accents.
+ * (`DrumRole`'s `clave`), which a client's performer accents. Version 13
+ * has a client pass on each bar its players played on drums, the notes as
+ * its ear heard them (`played`, #410), for the host's Muse to file a groove
+ * under the player's name.
  */
-export const PROTOCOL = 12;
+export const PROTOCOL = 13;
+
+/**
+ * What a client's players played on one part in one bar, as its ear heard
+ * the notes (`earListen`): a bar a message, passed on as the bar is judged,
+ * a beat after it ends. A note is a `HeardNote`, which any part's notes are,
+ * so a pitched part travels as drums do; a host hears drums alone so far
+ * (`heardFrom`), and the note's source is the client's instrument, which the
+ * host names by the player it seated.
+ */
+export interface PlayedBar {
+  readonly part: Part;
+  readonly bar: number;
+  readonly notes: readonly HeardNote[];
+}
+
+/**
+ * The most notes a played bar carries: a 4/4 bar's 16 steps with 4 sounds
+ * struck on every one, more than the kit's grooves strike, so a hand never
+ * meets it and a message stays under 6 KB, about 85 bytes a note as JSON. A client
+ * passes on the earliest, and a host reads no message with more.
+ */
+export const PLAYED_MOST = 64;
 
 /**
  * A bar as a host wrote it: everything its parts read, and the notes they
@@ -166,6 +194,8 @@ export type ClientMessage =
     }
   /** A bar the client's players played in, judged. */
   | { readonly kind: 'judged'; readonly bar: number; readonly judgement: Judgement }
+  /** What the client's players played on a part in a bar, as heard (#410). */
+  | ({ readonly kind: 'played' } & PlayedBar)
   | { readonly kind: 'forget' }
   /** A ping, stamped with the client's page clock as it was sent, in seconds. */
   | { readonly kind: 'ping'; readonly sent: number }
@@ -186,7 +216,31 @@ const HOST_KINDS: ReadonlySet<string> = new Set([
   'pong',
   'closed',
 ]);
-const CLIENT_KINDS: ReadonlySet<string> = new Set(['join', 'judged', 'forget', 'ping', 'leave']);
+const CLIENT_KINDS: ReadonlySet<string> = new Set([
+  'join',
+  'judged',
+  'played',
+  'forget',
+  'ping',
+  'leave',
+]);
+const PART_NAMES: ReadonlySet<unknown> = new Set(PARTS);
+
+const isMidi = (value: unknown, least: number): boolean =>
+  Number.isInteger(value) && (value as number) >= least && (value as number) <= 127;
+
+/** Whether a value is a note as an ear heard it: a MIDI note and velocity, its source, and where it was heard and released. */
+function isHeard(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false;
+  const n = value as Partial<Record<string, unknown>>;
+  return (
+    isMidi(n.note, 0) &&
+    isMidi(n.velocity, 0) &&
+    typeof n.source === 'string' &&
+    Number.isFinite(n.position) &&
+    (n.end === null || Number.isFinite(n.end))
+  );
+}
 
 const kindOf = (data: unknown): string | null =>
   typeof data === 'object' && data !== null && typeof (data as { kind?: unknown }).kind === 'string'
@@ -226,9 +280,15 @@ export function readClientMessage(data: unknown): ClientMessage | null {
           judgement !== null &&
           typeof judgement.kind === 'string' &&
           typeof judgement.source === 'string'
-        : kind === 'ping'
-          ? Number.isFinite(m.sent)
-          : true;
+        : kind === 'played'
+          ? PART_NAMES.has(m.part) &&
+            Number.isInteger(m.bar) &&
+            Array.isArray(m.notes) &&
+            m.notes.length <= PLAYED_MOST &&
+            m.notes.every(isHeard)
+          : kind === 'ping'
+            ? Number.isFinite(m.sent)
+            : true;
   return fits ? (data as ClientMessage) : null;
 }
 
@@ -248,6 +308,16 @@ export function refusal(
   if (inUse.some((n) => n.trim().toLowerCase() === name.toLowerCase()))
     return `A player named ${name} is already in this session. Pick another name.`;
   return null;
+}
+
+/**
+ * What a host's Muse hears of a played bar: its notes on drums, each named
+ * by the player who played them, as the host's own player's drums are
+ * (#401), so a groove is filed under the name; nothing of another part yet.
+ * A note outside the bar is the transport's to drop, as its own player's are.
+ */
+export function heardFrom(played: PlayedBar, name: string): HeardNote[] {
+  return played.part === 'drums' ? played.notes.map((n) => ({ ...n, source: name })) : [];
 }
 
 /** The id the host's own player goes by in its session; a client goes by the id its link has. */

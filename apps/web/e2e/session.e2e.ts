@@ -13,6 +13,7 @@ import {
   openStyle,
   stalls,
   openCard,
+  showView,
   transport,
 } from './audio.ts';
 
@@ -475,6 +476,33 @@ test("a client's motif reaches the host's Muse, and both lead lines, named by it
     await expect(screen.locator('details[aria-label="Band"] summary .sub')).toContainText(playing, {
       timeout: 8000,
     });
+});
+
+test("a client's drums reach the host's Muse, which files the groove under its player's name (#410)", async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(90_000);
+  await listen(page);
+  const client = await context.newPage();
+  await listen(client);
+  await host(page, 'drum jam');
+  await page.getByRole('button', { name: 'Start the band' }).click();
+  await join(client, 'drum jam', 'Ada');
+  await expect(state(client)).toContainText('host playing');
+
+  // Ada's own pattern on the Rhythm view, on steps every meter's bar has, played with the band.
+  await showView(client, 'Rhythm');
+  await client.getByRole('radio', { name: 'Edit' }).click();
+  for (const hit of ['Kick, step 1', 'Closed hat, step 3', 'Snare, step 5', 'Closed hat, step 7'])
+    await client.getByRole('button', { name: hit, exact: true }).click();
+  await client.getByRole('button', { name: '▶ Mine' }).click();
+
+  // The host's Muse files it where the next section is planned: within two sections at Synth-pop's tempo.
+  await openSession(page);
+  await expect(page.getByRole('list', { name: 'Grooves filed' })).toContainText('Ada', {
+    timeout: 45_000,
+  });
 });
 
 test('a second host cannot take a session name that is open', async ({ page, context }) => {
