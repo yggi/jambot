@@ -95,6 +95,7 @@ import {
   SHARE,
   STRAIGHT,
   type SwingTrack,
+  type TimeMap,
   holdingSwing,
   swingAt,
   swingMapAt,
@@ -554,6 +555,26 @@ export function writtenAt(laid: readonly ScheduledStep[], seconds: number): numb
   return null;
 }
 
+/**
+ * Where each step of the song plays, as the transport lays the events of a
+ * step it laid (`laid`): within the step's beat by the swing the beat holds,
+ * past it by each beat's own swing (`swingFrom` its start), and then through
+ * the tempo from the step. An event's onset is its step's, and its end its
+ * step and length; the shadow lays the end of a note cells plays by it too
+ * (#405).
+ */
+export function laidClock(
+  laid: ScheduledStep,
+  song: SongClock,
+  swingFrom: (beatStart: number) => MeterSwing,
+  tempo: TimeMap,
+): (step: number) => number {
+  const index = song.beatAt(laid.step);
+  const held = swingMapAt(laid.swing, laid.pulse.start, laid.pulse.length);
+  const swing = swingOf(swingFrom, song);
+  return (x) => tempo.played(song.beatAt(x) === index ? held.played(x) : swing.played(x));
+}
+
 /** The transport over a source of bars. */
 export function transportOver<Source, Arrived = never>(
   source: BarSource<Source, Arrived>,
@@ -725,24 +746,18 @@ export function transportOver<Source, Arrived = never>(
           return { level: plan.swing, share: plan.share ?? valueIn(SHARE, swingTrack.share, at) };
         };
         if (beat?.index !== index) beat = { index, swing: swingFrom(pulseStart) };
-        const held = beat;
-        const swing = swingOf(swingFrom, song);
-        steps.push({
+        const laid: ScheduledStep = {
           step: head.step,
           section,
           key,
           chord,
           seconds: head.seconds,
           length,
-          swing: held.swing,
+          swing: beat.swing,
           pulse,
-        });
-        const swung = (x: number) =>
-          song.beatAt(x) === held.index
-            ? swingMapAt(held.swing, pulse.start, pulse.length).played(x)
-            : swing.played(x);
-        const tempo = tempoMap(track, head, tempoMeter);
-        const clock = (x: number) => tempo.played(swung(x));
+        };
+        steps.push(laid);
+        const clock = laidClock(laid, song, swingFrom, tempoMap(track, head, tempoMeter));
 
         for (const event of current.dough) {
           if (event.step !== song.stepInBar(head.step)) continue;

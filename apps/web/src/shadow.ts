@@ -31,9 +31,14 @@
  *   and on cells' own clock from where the text starts, apart: a text states
  *   one tempo, the first bar's, and the transport's may glide within a
  *   section (the radio's walk), which cells' own clock does not follow;
- * - each note's sounding length and velocity as played, apart: the
- *   performer's feel plays the band's own, and cells sounds the written
- *   layer at feel 0.
+ * - each event as played, matched as its onset is: its velocity and its
+ *   sounding length, in steps and in seconds, against the band's (a bound of
+ *   #405: none differ). Cells sounds the written layer at feel 0, and the
+ *   performer plays its feel on top of each of cells' events
+ *   (`performStated`, cells decision 037: the text holds what is composed,
+ *   the playing is the player's), from the same feel and draws as on the
+ *   band's own notes; an event's end is laid as the transport lays the
+ *   band's (`laidClock`).
  *
  * Cells' events are laid on the transport's clock by their place in the bar:
  * an event `x` steps into a bar as cells plays it (through the swing) is laid
@@ -43,16 +48,19 @@
  *
  * What cells cannot say yet is counted apart, each with its reason (`gaps`):
  * a section whose swing's share glides between its bars (one text states one
- * swing), a bar whose beats swing at a share that moves within it, and a bar
- * no text was stated for.
+ * swing), a bar whose beats swing at a share that moves within it, a bar with
+ * a note composed at a level past MIDI's 1 to 127 (the text states it
+ * clamped, so the feel can't be played on it), and a bar no text was stated
+ * for.
  *
  * With `plays` set to cells (the switch, for a solo band only), the band's
- * outputs play cells' events in place of its own wherever cells states the
- * bar, and the band's own where it doesn't.
+ * outputs play cells' events, with the performer's feel, in place of its own
+ * wherever cells states the bar, and the band's own where it doesn't.
  */
 
 import {
   type BandBar,
+  COMPOSE_AHEAD,
   type DoughNote,
   SECTION_BARS,
   SHARE,
@@ -67,8 +75,10 @@ import {
   bandEnvAt,
   clockOf,
   clockOfTransport,
+  composedLevel,
+  laidClock,
+  performStated,
   tempoMap,
-  timbreOf,
   valueIn,
   withMeter,
 } from '@jambot/engine';
@@ -106,6 +116,9 @@ export function playsFrom(search: string, built: string | undefined): Plays {
 /** Within 1 ms: the bound on an onset. */
 export const ONSET_BOUND = 0.001;
 
+/** How many events that differ as played the readout shows, the first. */
+const SAMPLES_SHOWN = 20;
+
 /** How many cost samples the readout keeps, the latest. */
 const SAMPLES_KEPT = 5000;
 
@@ -132,20 +145,28 @@ export interface ShadowReadout {
   /** The bars compared on the written layer, and their notes. */
   readonly bars: number;
   readonly notes: number;
-  /** What differs, the bound of #399 being none: written notes, chords, band events cells has none for, or not within 1 ms, and cells events the band has none for. */
+  /**
+   * What differs, the bound of #399 and #405 being none: written notes, chords, band events cells has none for, or not within 1 ms, and cells events the band has none for;
+   * and as played, events whose velocity differs, or whose sounding length does (by a millionth of a step, or 1 ms).
+   */
   readonly mismatched: {
     readonly written: number;
     readonly harmony: number;
     readonly unmatched: number;
     readonly onsets: number;
     readonly extra: number;
+    readonly velocity: number;
+    readonly length: number;
   };
   /** Each onset on the transport's clock, and on cells' own from where its text starts (apart). */
   readonly onsets: Timed;
   readonly ownClock: Timed;
-  /** Apart: notes whose sounding length differs, and events whose velocity as played differs (the performer's feel). */
+  /** Each event's sounding length in seconds against the band's, within 1 ms. */
+  readonly lengths: Timed;
+  /** The first events that differ as played, each in a line: the band's velocity, length and duration, and cells'. */
+  readonly differing: readonly string[];
+  /** Apart: notes whose sounding length on the written layer, at feel 0, differs. */
   readonly sounding: number;
-  readonly velocity: number;
   /** What cells cannot say yet, by reason: the bars and the band's events it covered. */
   readonly gaps: Readonly<Record<string, { readonly bars: number; readonly events: number }>>;
   /** Anything the shadow threw, which never reaches the band. */
@@ -251,6 +272,9 @@ const spread = (samples: readonly number[]): Spread => {
 /** Within a millionth of a step. */
 const same = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 
+/** Whether a level, rounded, lies past MIDI's velocities, 1 to 127. */
+const outOfMidi = (level: number) => Math.round(level) < 1 || Math.round(level) > 127;
+
 /** A band event's part as cells' lines name it: the pad and the stab apart. */
 const lineOfEvent = (e: DoughNote) => e.part;
 
@@ -281,8 +305,9 @@ const noCounts = () => ({
   unmatched: 0,
   onsets: 0,
   extra: 0,
-  sounding: 0,
   velocity: 0,
+  length: 0,
+  sounding: 0,
   cells: 0,
   band: 0,
 });
@@ -309,6 +334,8 @@ export class Shadow {
   #counts = noCounts();
   #onsets = { timed: 0, within: 0, largest: 0 };
   #own = { timed: 0, within: 0, largest: 0 };
+  #lengths = { timed: 0, within: 0, largest: 0 };
+  #differing: string[] = [];
   #gaps: Record<string, { bars: number; events: number }> = {};
   #errors: string[] = [];
   #cost = noCost();
@@ -351,11 +378,14 @@ export class Shadow {
         unmatched: c.unmatched,
         onsets: c.onsets,
         extra: c.extra,
+        velocity: c.velocity,
+        length: c.length,
       },
       onsets: { ...this.#onsets },
       ownClock: { ...this.#own },
+      lengths: { ...this.#lengths },
+      differing: [...this.#differing],
       sounding: c.sounding,
-      velocity: c.velocity,
       gaps: structuredClone(this.#gaps),
       errors: [...this.#errors],
       played: { cells: c.cells, band: c.band },
@@ -485,7 +515,9 @@ export class Shadow {
             ? `cells said: ${played.diagnostics[0]}`
             : cut.has(b.bar)
               ? "a note runs past its line's next onset or the text's end (the finale's ring): cut there"
-              : null,
+              : b.written.some((w) => outOfMidi(composedLevel(b, w)))
+                ? "a note composed past MIDI's 1 to 127 (a motif's accent on the lead's level): the text states it clamped, and the feel can't be played on it"
+                : null,
       });
     for (const key of this.#bars.keys())
       if (key < bars[0]!.bar - 2 * SECTION_BARS) this.#bars.delete(key);
@@ -551,7 +583,7 @@ export class Shadow {
         if (this.plays === 'cells') this.#counts.band += theirs.length;
         continue;
       }
-      const mine = this.#cellsAt(stated!, composed, step, inBar, clock, env, now);
+      const mine = this.#cellsAt(stated!, composed, step, inBar, clock, carried, env, now);
       this.#match(theirs, mine);
       played.push(...mine.map((m) => m.event));
       if (this.plays === 'cells') this.#counts.cells += mine.length;
@@ -559,20 +591,37 @@ export class Shadow {
     return played;
   }
 
-  /** Cells' events whose onset falls in a step, laid where the transport laid it. */
+  /**
+   * Cells' events whose onset falls in a step, laid where the transport laid
+   * it, each as the performer plays it: its velocity and length with the
+   * feel, and its end where the transport lays the band's (`laidClock`).
+   */
   #cellsAt(
     stated: StatedBar,
     bar: BandBar,
     step: ScheduledStep,
     inBar: number,
     clock: SongClock,
+    carried: TransportCarried,
     env: TransportEnv,
     now: number,
   ): Laid[] {
     const p = stated.played!;
-    const barStart = clock.barStart(bar.bar);
-    const anchor = { step: step.step, seconds: step.seconds };
-    const tempo = tempoMap(env.track, anchor, env.tempoMeter);
+    const track = env.swing ?? STILL;
+    // A note that runs past its bar ends as the transport knew the bars after as it laid the step:
+    // those it had composed, up to `COMPOSE_AHEAD` steps ahead, by their plans and meters, and past them by this bar's.
+    const reach = clock.barAt(step.step + COMPOSE_AHEAD);
+    const song = clockOf(carried.meters.filter((change) => change.bar <= reach));
+    const ends = laidClock(
+      step,
+      song,
+      (at) => {
+        const barOfBeat = song.barAt(at);
+        const { plan } = (barOfBeat <= reach && this.#composedBars.get(barOfBeat)) || bar;
+        return { level: plan.swing, share: plan.share ?? valueIn(SHARE, track.share, at) };
+      },
+      tempoMap(env.track, { step: step.step, seconds: step.seconds }, env.tempoMeter),
+    );
     const textStarted = this.#starts.get(stated.textStart);
     const out: Laid[] = [];
     for (const [j, note] of p.notes.entries()) {
@@ -580,9 +629,16 @@ export class Shadow {
       if (Math.floor(onset + 1e-9) !== inBar) continue;
       const seconds = step.seconds + (onset - inBar) * step.length;
       if (seconds < now) continue;
-      const end = tempo.played(barStart + Math.max(onset, p.ends[j]!));
       const line = p.lines[j]!;
       const role = p.roles[j];
+      const event = performStated(bar, {
+        part: line,
+        step: Math.round(note.step),
+        note: note.note,
+        ...(role !== undefined && { role }),
+        velocity: note.velocity,
+        length: note.length,
+      });
       out.push({
         line,
         step: note.step,
@@ -590,17 +646,8 @@ export class Shadow {
         event: {
           bar: bar.bar,
           seconds,
-          duration: end - seconds,
-          event: {
-            part: line,
-            step: Math.round(note.step),
-            note: note.note,
-            length: note.length,
-            velocity: note.velocity,
-            gain: note.velocity / 127,
-            ...timbreOf(line, bar.style, bar.swing, bar.barEnergy),
-            ...(role !== undefined && { role }),
-          },
+          duration: ends(step.step + event.length) - seconds,
+          event,
         },
       });
     }
@@ -635,7 +682,20 @@ export class Shadow {
         if (own < ONSET_BOUND) this.#own.within++;
         this.#own.largest = Math.max(this.#own.largest, own);
       }
-      if (m.event.event.velocity !== e.event.velocity) this.#counts.velocity++;
+      const longer = Math.abs(m.event.duration - e.duration);
+      this.#lengths.timed++;
+      if (longer < ONSET_BOUND) this.#lengths.within++;
+      this.#lengths.largest = Math.max(this.#lengths.largest, longer);
+      const loud = m.event.event.velocity !== e.event.velocity;
+      const long = longer >= ONSET_BOUND || !same(m.event.event.length, e.event.length);
+      if (loud) this.#counts.velocity++;
+      if (long) this.#counts.length++;
+      if ((loud || long) && this.#differing.length < SAMPLES_SHOWN)
+        this.#differing.push(
+          `bar ${e.bar} ${e.event.part} step ${e.event.step} note ${e.event.note}: ` +
+            `band ${e.event.velocity}, ${e.event.length} steps, ${e.duration} s at ${e.seconds} s; ` +
+            `cells ${m.event.event.velocity}, ${m.event.event.length} steps, ${m.event.duration} s`,
+        );
     }
     this.#counts.extra += mine.length - used.size;
   }

@@ -29,6 +29,9 @@
  * transport's time maps (`swing.ts`, `tempo.ts`). These are the
  * prototype's accents and gates.
  *
+ * A note as a cells text states it is played by the same hand
+ * (`performStated`, #405): on top of the level and length the text states.
+ *
  * A drum hit's role and a lead note's written accent pass through onto the
  * dough note unchanged, for whatever reads a performer's notes (L7);
  * whether they are notation or the performer's own is #116's open question
@@ -36,7 +39,7 @@
  */
 
 import type { BarEnv } from './bar.ts';
-import { type DoughNote, PARTS, type WrittenNote } from './events.ts';
+import { type DoughNote, type DrumRole, PARTS, type Part, type WrittenNote } from './events.ts';
 import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
 import { feelOf } from './licence.ts';
 import { draw, type Stream } from './random.ts';
@@ -114,74 +117,142 @@ function ownAccent(
  */
 export const LEAD_LEVEL = 91;
 
-/** How loud a written note plays, at the style's feel. */
-function velocityOf(env: BarEnv, written: WrittenNote, feel: number): number {
-  const { seed, bar } = env;
-  const { step, note, accent } = written;
-  const loose = (stream: Stream) =>
-    velocityLooseness(seed, stream, feel, bar, step) +
-    ownAccent(seed, written.part, feel, bar, step);
-  switch (written.part) {
-    case 'drums':
-      return clampVelocity(
-        baseVelocityOf(env, written) +
-          (accent ?? 0) +
-          velocityLooseness(seed, 'drumVelocity', feel, bar, step, note) +
-          ownAccent(seed, 'drums', feel, bar, step, note),
-      );
-    case 'bass':
-      return clampVelocity(baseVelocityOf(env, written) + (accent ?? 0) + loose('bassVelocity'));
-    case 'stab':
-      return clampVelocity(baseVelocityOf(env, written) + (accent ?? 0) + loose('stabVelocity'));
-    case 'pad':
-      return clampVelocity(baseVelocityOf(env, written) + (accent ?? 0) + loose('padVelocity'));
-    case 'lead': {
-      // A motif's accent is counted from the lead's own level (U4), not the
-      // beat: its dynamics are the motif's own, not an offset on the base.
-      // Every other part adds its accent to the base; the lead's replaces
-      // it, exactly as U4 already decided.
-      const base = accent !== undefined ? LEAD_LEVEL + accent : baseVelocityOf(env, written);
-      return clampVelocity(base + loose('leadVelocity'));
-    }
-  }
+/** Each pitched part's own streams, for its licence on velocity and on length. */
+const VELOCITY_STREAM = {
+  bass: 'bassVelocity',
+  stab: 'stabVelocity',
+  pad: 'padVelocity',
+  lead: 'leadVelocity',
+} as const satisfies Record<Exclude<Part, 'drums'>, Stream>;
+const LENGTH_STREAM = {
+  bass: 'bassLength',
+  stab: 'stabLength',
+  pad: 'padLength',
+  lead: 'leadLength',
+} as const satisfies Record<Exclude<Part, 'drums'>, Stream>;
+
+/**
+ * The level a written note is composed at, before the performer's own hand,
+ * unrounded: its part's base with its written accent on top, or, for a lead
+ * note with an accent, the accent on the lead's level, which replaces the
+ * beat's own (U4). At feel 0 a note plays at this level, rounded and clamped
+ * to MIDI's 1 to 127: what a cells text states (`writtenNotes`, #399).
+ */
+export function composedLevel(env: BarEnv, written: WrittenNote): number {
+  const { accent } = written;
+  if (written.part === 'lead')
+    return accent !== undefined ? LEAD_LEVEL + accent : baseVelocityOf(env, written);
+  return baseVelocityOf(env, written) + (accent ?? 0);
 }
 
-/** How long a written note sounds, in steps, at the style's feel. */
-function lengthOf(env: BarEnv, written: WrittenNote, feel: number): number {
+/**
+ * How loud a note plays from its composed level, at the style's feel: the
+ * licence and the performer's own accent added, the drums keyed by their
+ * note too, then rounded and clamped. The sums keep the order they always
+ * had, the drums' one term at a time and a pitched part's two together,
+ * since a last bit's difference would round a half the other way.
+ */
+function velocityOn(
+  env: BarEnv,
+  { part, step, note }: Pick<WrittenNote, 'part' | 'step' | 'note'>,
+  level: number,
+  feel: number,
+): number {
   const { seed, bar } = env;
-  const { step, note } = written;
-  const gate = (gated: number, stream: Stream) =>
-    gated * lengthLooseness(seed, stream, feel, bar, step);
-  switch (written.part) {
-    case 'drums':
-      return (
-        baseLengthOf(env, written) * lengthLooseness(seed, 'drumLength', feel, bar, step, note)
-      );
-    case 'bass':
-      return gate(baseLengthOf(env, written), 'bassLength');
-    case 'pad':
-      return gate(baseLengthOf(env, written), 'padLength');
-    case 'stab':
-      return gate(baseLengthOf(env, written), 'stabLength');
-    case 'lead':
-      return gate(baseLengthOf(env, written), 'leadLength');
-  }
+  if (part === 'drums')
+    return clampVelocity(
+      level +
+        velocityLooseness(seed, 'drumVelocity', feel, bar, step, note) +
+        ownAccent(seed, 'drums', feel, bar, step, note),
+    );
+  return clampVelocity(
+    level +
+      (velocityLooseness(seed, VELOCITY_STREAM[part], feel, bar, step) +
+        ownAccent(seed, part, feel, bar, step)),
+  );
 }
 
-/** A written note as a performer plays it. */
-export function perform(env: BarEnv, written: WrittenNote): DoughNote {
-  const { part, step, note } = written;
-  const feel = feelOf(env.style, env.swing);
-  const velocity = velocityOf(env, written, feel);
+/** The share of its gated length a note sounds, at the style's feel: the length licence, the drums keyed by their note too. */
+function gateOf(
+  env: BarEnv,
+  { part, step, note }: Pick<WrittenNote, 'part' | 'step' | 'note'>,
+  feel: number,
+): number {
+  const { seed, bar } = env;
+  return part === 'drums'
+    ? lengthLooseness(seed, 'drumLength', feel, bar, step, note)
+    : lengthLooseness(seed, LENGTH_STREAM[part], feel, bar, step);
+}
+
+/** A played note: its velocity and length, and the rest a dough note carries. */
+function played(
+  env: BarEnv,
+  { part, step, note, role }: Pick<WrittenNote, 'part' | 'step' | 'note' | 'role'>,
+  velocity: number,
+  length: number,
+): DoughNote {
   return {
     part,
     step,
     note,
-    length: lengthOf(env, written, feel),
+    length,
     velocity,
     gain: velocity / 127,
     ...timbreOf(part, env.style, env.swing, env.barEnergy),
-    ...(written.role !== undefined && { role: written.role }),
+    ...(role !== undefined && { role }),
+  };
+}
+
+/** A written note as a performer plays it. */
+export function perform(env: BarEnv, written: WrittenNote): DoughNote {
+  const feel = feelOf(env.style, env.swing);
+  return {
+    ...played(
+      env,
+      written,
+      velocityOn(env, written, composedLevel(env, written), feel),
+      baseLengthOf(env, written) * gateOf(env, written, feel),
+    ),
     ...(written.accent !== undefined && { accent: written.accent }),
   };
+}
+
+/**
+ * A note as a cells text states it and cells plays it (#399): its line, step
+ * and pitch, a drum hit's role, its velocity at feel 0 as MIDI states it
+ * (its composed level rounded and clamped), and its sounding length at feel
+ * 0, in steps.
+ */
+export interface StatedNote {
+  readonly part: Part;
+  readonly step: number;
+  readonly note: number;
+  readonly role?: DrumRole;
+  readonly velocity: number;
+  readonly length: number;
+}
+
+/**
+ * A stated note as the performer plays it (#405; cells decision 037: the
+ * text holds what is composed, the playing is the player's): the
+ * performer's own hand on top of what cells plays, from the same feel and
+ * draws as `perform`. Its velocity is the licence and the own accent on the
+ * level stated, with the fraction MIDI's rounding took from it given back
+ * from the bar's base (the lead's base and a motif's level are whole, so
+ * only a part's base has one), and its length is the length licence on the
+ * length cells sounds. Wherever the composed level lies within 1 to 127 it
+ * plays as `perform` plays the note written; past them the text states the
+ * level clamped, and how far past is lost. A written accent is in the
+ * level stated, and not carried apart.
+ */
+export function performStated(env: BarEnv, stated: StatedNote): DoughNote {
+  const feel = feelOf(env.style, env.swing);
+  const base = baseVelocityOf(env, { ...stated, length: 1 });
+  const level = stated.velocity + (base - Math.round(base));
+  return played(
+    env,
+    stated,
+    velocityOn(env, stated, level, feel),
+    stated.length * gateOf(env, stated, feel),
+  );
 }

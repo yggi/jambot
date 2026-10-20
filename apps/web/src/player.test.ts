@@ -1472,7 +1472,15 @@ describe('the band through cells, in shadow (#399)', () => {
     return { world, player };
   }
 
-  const NONE = { written: 0, harmony: 0, unmatched: 0, onsets: 0, extra: 0 };
+  const NONE = {
+    written: 0,
+    harmony: 0,
+    unmatched: 0,
+    onsets: 0,
+    extra: 0,
+    velocity: 0,
+    length: 0,
+  };
   /** Three sections at the tempo the song opens at, and its count-in. */
   const SECTIONS_3 = (3 * SECTION_BARS * 4 * 60) / INITIAL_STYLE.bpm + 2.5;
 
@@ -1497,12 +1505,13 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(readout.mismatched).toEqual(NONE);
   });
 
-  it('with the switch on, a solo band’s outputs play cells’ events: the same notes, each within 1 ms of where the band’s own play', async () => {
+  it('with the switch on, a solo band’s outputs play cells’ events: the same notes at the same velocities, the performer’s feel on them, each within 1 ms of where the band’s own play (#405)', async () => {
     const [band, cells] = [await played('band', SECTIONS_3), await played('cells', SECTIONS_3)];
     expect(cells.player.shadow.readout.played.band).toBe(0);
     expect(cells.player.shadow.readout.played.cells).toBe(cells.world.plays.length);
-    const key = (p: { part: string; note: number; seconds: number }) =>
-      `${p.part} ${p.note} ${Math.round(p.seconds * 100)}`;
+    expect(cells.player.shadow.readout.mismatched).toEqual(NONE);
+    const key = (p: { part: string; note: number; velocity: number; seconds: number }) =>
+      `${p.part} ${p.note} ${p.velocity} ${Math.round(p.seconds * 100)}`;
     expect(cells.world.plays.map(key).sort()).toEqual(band.world.plays.map(key).sort());
     const order = (ps: typeof band.world.plays) =>
       [...ps].sort(
