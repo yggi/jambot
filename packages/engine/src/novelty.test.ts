@@ -9,6 +9,7 @@ import {
   PULL_AT_REPEAT,
   type Lineage,
   NO_BOREDOM,
+  NO_CLAVE_OWNERS,
   VARIES,
   boredAfter,
   familyOf,
@@ -18,8 +19,8 @@ import {
   rungOf,
   variations,
   variedGroove,
+  ownedWith,
   wantsVariation,
-  withClave,
 } from './novelty.ts';
 import type { FragmentHit } from './rhythm-query.ts';
 import { quantize } from './random.ts';
@@ -172,7 +173,7 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
   it('holds the groove at entropy 0: never bored, never varied', () => {
     const { rungs, boredom } = climb(0, 200);
     expect(rungs.every((r) => r.rung === 0 && !r.varies && !r.rejected)).toBe(true);
-    expect(boredom).toEqual([{ grooves: ['g'], claves: [], boredom: 0, rejected: false }]);
+    expect(boredom).toEqual([{ grooves: ['g'], boredom: 0, rejected: false }]);
   });
 
   it('varies after 10 sections at entropy 0.3 and rejects after 20, the boredom counted on a grid so 0.3 ten times is 3', () => {
@@ -189,27 +190,23 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
       ...range(6).map(() => true),
       false,
     ]);
-    expect(boredom).toEqual([{ grooves: ['g'], claves: [], boredom: 1, rejected: false }]);
+    expect(boredom).toEqual([{ grooves: ['g'], boredom: 1, rejected: false }]);
   });
 
   it('fades a lineage it no longer plays by the entropy a section, and forgets it at none', () => {
-    const one = boredAfter(
-      NO_BOREDOM,
-      { grooves: ['g'], claves: [], boredom: 0, rejected: false },
-      0.5,
-    );
-    expect(one).toEqual([{ grooves: ['g'], claves: [], boredom: 0.5, rejected: false }]);
+    const one = boredAfter(NO_BOREDOM, { grooves: ['g'], boredom: 0, rejected: false }, 0.5);
+    expect(one).toEqual([{ grooves: ['g'], boredom: 0.5, rejected: false }]);
     expect(boredAfter(one, null, 0.25)).toEqual([
-      { grooves: ['g'], claves: [], boredom: 0.25, rejected: false },
+      { grooves: ['g'], boredom: 0.25, rejected: false },
     ]);
     expect(boredAfter(boredAfter(one, null, 0.25), null, 0.25)).toEqual([]);
     // a lineage fades as another plays
-    const two = boredAfter(one, { grooves: ['h'], claves: [], boredom: 0, rejected: false }, 0.5);
-    expect(two).toEqual([{ grooves: ['h'], claves: [], boredom: 0.5, rejected: false }]);
+    const two = boredAfter(one, { grooves: ['h'], boredom: 0, rejected: false }, 0.5);
+    expect(two).toEqual([{ grooves: ['h'], boredom: 0.5, rejected: false }]);
   });
 
   it('finds the lineage a groove’s family belongs to, with every groove of the family, a new one at no boredom for a family it has not played', () => {
-    const boredom = [{ grooves: ['g', 'v'], claves: [], boredom: 2, rejected: false }];
+    const boredom = [{ grooves: ['g', 'v'], boredom: 2, rejected: false }];
     expect(lineageOf(boredom, ['v'])).toEqual(boredom[0]);
     expect(lineageOf(boredom, ['g', 'v', 'w'])).toEqual({
       ...boredom[0],
@@ -217,13 +214,13 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
     });
     expect(lineageOf(boredom, ['h'])).toEqual({
       grooves: ['h'],
-      claves: [],
       boredom: 0,
       rejected: false,
     });
-    expect(
-      rejectedOf([{ grooves: ['g', 'v'], claves: [], boredom: 6, rejected: true }, ...boredom]),
-    ).toEqual(['g', 'v']);
+    expect(rejectedOf([{ grooves: ['g', 'v'], boredom: 6, rejected: true }, ...boredom])).toEqual([
+      'g',
+      'v',
+    ]);
   });
 
   it('reads a groove’s family from the layer: the groove it varies, followed back to the first, and every groove filed from that one', () => {
@@ -280,18 +277,33 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
     expect(familyOf(layer, 'Techno drums')).toEqual(['Techno drums']);
   });
 
-  it('keeps the claves played with a lineage, and rejects them with it: the clave climbs with the drum bar (#414)', () => {
-    const fresh = lineageOf(NO_BOREDOM, ['Funk drums']);
-    expect(fresh.claves).toEqual([]);
-    const pair = withClave(withClave(fresh, 'rumba clave 3-2'), undefined);
-    expect(withClave(pair, 'rumba clave 3-2')).toBe(pair);
-    expect(pair.claves).toEqual(['rumba clave 3-2']);
-    // carried section to section, and out with the drum bar once it climbs past the last rung
-    let boredom = boredAfter(NO_BOREDOM, pair, 1);
-    expect(lineageOf(boredom, ['Funk drums']).claves).toEqual(['rumba clave 3-2']);
-    for (let section = 1; section < 6; section++)
+  it('keeps each clave the drum bar’s it was first chosen to layer on, and rejects it with that one’s lineage alone: the clave climbs with the drum bar (#414, #430)', () => {
+    const RUMBA = 'rumba clave 3-2';
+    const owners = ownedWith(NO_CLAVE_OWNERS, {
+      rhythmFragment: 'Funk drums',
+      claveFragment: RUMBA,
+    });
+    expect(owners).toEqual({ [RUMBA]: 'Funk drums' });
+    // layering on another rhythm meanwhile doesn't make it that one's, and a section with no clave or no drum bar adds none
+    for (const section of [
+      { rhythmFragment: 'drummer g', claveFragment: RUMBA },
+      { rhythmFragment: 'drummer g' },
+      { claveFragment: 'son clave 3-2' },
+    ])
+      expect(ownedWith(owners, section)).toBe(owners);
+    // carried section to section, and out with the drum bar's lineage once it climbs past the last rung
+    let boredom = NO_BOREDOM;
+    for (let section = 0; section < 6; section++)
       boredom = boredAfter(boredom, lineageOf(boredom, ['Funk drums']), 1);
-    expect(rejectedOf(boredom)).toEqual(['Funk drums', 'rumba clave 3-2']);
+    expect(rejectedOf(boredom, owners)).toEqual(['Funk drums', RUMBA]);
+    expect(rejectedOf(boredom)).toEqual(['Funk drums']);
+    // a lineage it layered on meanwhile is rejected without it, and once the drum bar's has faded, it is free again
+    const other: Lineage = { grooves: ['drummer g'], boredom: 6, rejected: true };
+    expect(rejectedOf([other], owners)).toEqual(['drummer g']);
+    let faded = boredom;
+    for (let section = 0; section < 6; section++) faded = boredAfter(faded, null, 1);
+    expect(faded).toEqual([]);
+    expect(rejectedOf([...faded, other], owners)).toEqual(['drummer g']);
   });
 });
 
