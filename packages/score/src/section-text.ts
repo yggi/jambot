@@ -265,21 +265,16 @@ const pulseLengths = (meter: Meter) =>
 export const levelSwings = (meter: Meter, level: MeterSwing['level']) =>
   level !== '8n' || pulseLengths(meter).includes(2);
 
-/** A meter's swing as cells states it on `&bar`: none where the band plays it straight (#438). */
-export const swingText = (meter: Meter, swing: MeterSwing) =>
-  swing.share === STRAIGHT.share || !levelSwings(meter, swing.level)
-    ? ''
-    : ` swing=${swing.level}:${shareText(swing.share)}`;
-
 /**
- * Whether cells plays a meter's swing as `swingText` states it where the band plays it.
- * On `16n`, and straight, the two agree in every meter.
- * On `8n` the band swings each pulse of 2 eighths and plays a pulse of any other length straight (T16), and cells leans a group of three, its second and third eighths (cells v0.6.0, yggi/cells decision 040).
- * So they agree where every pulse is 2 eighths, and where every pulse is 3 the text states no swing (`swingText`); a meter of both, 5/8, 7/8 or 10/8, is played otherwise than stated until cells can lean the pairs alone (yggi/cells#204).
+ * A meter's swing as cells states it on `&bar`: none where the band plays it straight (#438), and on `8n` in a meter
+ * of pulses of 2 and of 3 eighths (5/8, 7/8, 10/8) its pairs alone, `:pairs` (yggi/cells decision 053, #451): the
+ * band swings each pulse of 2 eighths and plays a pulse of 3 straight (T16), where cells' `swing=8n:r` alone leans a
+ * group of three too (decision 040). A meter whose pulses are all 2 eighths plays the two alike, and is stated plain.
  */
-export function swingStated(meter: Meter, swing: MeterSwing): boolean {
-  if (swingText(meter, swing) === '' || swing.level !== '8n') return true;
-  return pulseLengths(meter).every((length) => length === 2);
+export function swingText(meter: Meter, swing: MeterSwing): string {
+  if (swing.share === STRAIGHT.share || !levelSwings(meter, swing.level)) return '';
+  const pairs = swing.level === '8n' && pulseLengths(meter).some((length) => length !== 2);
+  return ` swing=${swing.level}:${shareText(swing.share)}${pairs ? ':pairs' : ''}`;
 }
 
 /** An index into the chord in force as a cells number writes it: `n` its tone (a lap up past its last), `alter` an accidental. */

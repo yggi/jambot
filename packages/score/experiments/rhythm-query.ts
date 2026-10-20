@@ -12,7 +12,7 @@
  * drummer writes, not when the transport plays it.
  *
  * At each section's start the composer asks cells' rhythms
- * (`RHYTHM_FRAGMENTS`, v0.7.0: E31's 8 drum bars and 5 claves) with the
+ * (`RHYTHM_FRAGMENTS`, v0.8.0: E31's 8 drum bars and 5 claves) with the
  * style's point on the meter's four axes (`stylePoint`), the facet `rhythm`,
  * and the workbench the section's meter fragment as the band hosts it, its
  * tempo set (`setTiming`, as `repository.ts` reads a meter), so the fit

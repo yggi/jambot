@@ -557,7 +557,7 @@ run; the others have.
 - **E31. The band's drums as cells text** (#309, the seam), in
   [`packages/score/experiments/drums-in-cells.ts`](../packages/score/experiments/drums-in-cells.ts)
   (about 2 s, under vitest), held by [`packages/score/experiments/drums-in-cells.test.ts`](../packages/score/experiments/drums-in-cells.test.ts):
-  for each preset held (seed 0, entropy 0.3), the first of 32 bars with the most roles, then the most hits, is stated in cells v0.7.0 by a small translator, compiled, and played through cells' own MIDI out (`channelTable`, `router`, `midiNote`).
+  for each preset held (seed 0, entropy 0.3), the first of 32 bars with the most roles, then the most hits, is stated in cells v0.8.0 by a small translator, compiled, and played through cells' own MIDI out (`channelTable`, `router`, `midiNote`).
   Each witness is a section's last bar, with a fill; the eight hold 144 hits, every role and every sound.
   The translator uses only forms cells has, and records what it cannot say as a gap, with the bar as witness.
   - Every hit plays as the band plays it, 144 of 144, with no diagnostic: its General MIDI note, its step, its written length of one step and its velocity.
@@ -580,8 +580,8 @@ run; the others have.
   (about 4 s, under vitest, as E31), held by [`packages/score/experiments/pitch-in-cells.test.ts`](../packages/score/experiments/pitch-in-cells.test.ts):
   every preset held (all 8, seed 0, entropy 0.3, 32 bars: 256 bars, 262 chords, six keys in three modes), each bar's harmony (its key, its chords as numerals, the next chord where a stab plays it, the frame pin) written under three candidate spellings in cells and read back.
   The three share the key (`&key scale(aeolian, A)`), the rhythm (a token a chord, `step=2n`, `@k`), the next chord as a one-chord cell (`&next`, over the next key where it differs) and the pin as degrees of the key from the part's voice (`&frame over=&key [0,2,5]`, `&frameBass over=&key 5`); they part on the chord.
-  - **stacks** (cells v0.7.0 parses it, as its `chords.cells`): a stack of the key's degrees, `[4,6#,8,10]`.
-  - **shapes** (cells v0.7.0 parses it, as its `tines.cells`): a shape moved up the key, `&c0 [0,2#,4,6]` and `&c0^4` (decisions 015 and 033).
+  - **stacks** (cells v0.8.0 parses it, as its `chords.cells`): a stack of the key's degrees, `[4,6#,8,10]`.
+  - **shapes** (cells v0.8.0 parses it, as its `tines.cells`): a shape moved up the key, `&c0 [0,2#,4,6]` and `&c0^4` (decisions 015 and 033).
   - **numerals** (a proposal: cells has no numeral): U1's numeral as a token over the key, `V7/V`; its meaning is the stack it names, and every bar's numerals text lowered by it is that bar's stacks text.
   - **Characters, and the bars that read back exactly**: the score's own `key=`, `harm`, `next` and `frame` 12,900 and 256; stacks 26,156 and 252; shapes 28,401 and 252 (25,206 with its shapes stated once a preset); numerals 24,553 and 256.
     The chords' lines alone are 2,936 in the score, 9,099 stacks, 11,344 shapes and 7,496 numerals; the key (5,744) and the pin (11,569) are the same lines in every candidate.
@@ -597,7 +597,7 @@ run; the others have.
 - **E33. The band writes a whole bar as one cells text** (#359, rung 3 of #358; #63, the seam), in
   [`packages/score/experiments/bar-in-cells.ts`](../packages/score/experiments/bar-in-cells.ts)
   (about 6 s, under vitest, as E31), held by [`packages/score/experiments/bar-in-cells.test.ts`](../packages/score/experiments/bar-in-cells.test.ts):
-  the drums, the bass, the comp and the harmony of a bar stated together in cells v0.7.0, with `&bar` a `meter(…)` cell carrying the preset's swing and every line on a tap of it, played through cells' MIDI out and read back part by part on Jambot's own channels (10 the drums, 2 the bass, 3 the pad and the stab).
+  the drums, the bass, the comp and the harmony of a bar stated together in cells v0.8.0, with `&bar` a `meter(…)` cell carrying the preset's swing and every line on a tap of it, played through cells' MIDI out and read back part by part on Jambot's own channels (10 the drums, 2 the bass, 3 the pad and the stab).
   The bars come from the band's transport, a preset held, its bpm counting the meter's beats (T7, #367): all 8 presets in 4/4, and Synth-pop and Bossa nova (both straight, and between them every part but the lead) in 3/4 and in 7/8 (3+2+2), seed 0, entropy 0.3, 32 bars each: 12 runs, 384 bars.
   What is compared is what is composed, without the licence (T17): each note's step and pitch, its length as the ensemble articulates it (`baseLengthOf`), and its velocity as the performer plays it at feel 0 (`baseVelocityOf` plus a written accent).
   A step is read off cells' times through the band's own swing undone (`leanMap`), so a swung bar's steps compare as a straight one's.
@@ -661,7 +661,7 @@ run; the others have.
 - **E35. The band writes a whole section as one cells text, every part, the lead as its notes** (#390; #63, the seam; #358), in
   [`packages/score/experiments/section-in-cells.ts`](../packages/score/experiments/section-in-cells.ts)
   (about 3 s for seed 1 and 8 s for the whole corpus, under vitest, as E31), held by [`packages/score/experiments/section-in-cells.test.ts`](../packages/score/experiments/section-in-cells.test.ts):
-  a section's 8 bars (`SECTION_BARS`) stated as one text in cells v0.7.0, every part, over E28's corpus through the band's transport: every preset held at entropy 0.3, seeds 1 to 5, 64 bars, in 4/4 (40 runs, 2,560 bars, 320 sections).
+  a section's 8 bars (`SECTION_BARS`) stated as one text in cells v0.8.0, every part, over E28's corpus through the band's transport: every preset held at entropy 0.3, seeds 1 to 5, 64 bars, in 4/4 (40 runs, 2,560 bars, 320 sections).
   `pnpm verify` holds seed 1 (8 runs, 512 bars, 64 sections), and `E35_FULL=1` the whole corpus.
   The builder and the reading are [`packages/score/src/section-text.ts`](../packages/score/src/section-text.ts) and [`section-play.ts`](../packages/score/src/section-play.ts), which the app's shadow shares (#399), with the helpers E31 to E33 found.
   What is compared is the written layer (Q1a): each note's step, pitch, velocity at feel 0 and written length, read off cells' MIDI out (a note's written span is its sounding span, in steps through the swing undone, over the share its line reads at its onset), and each chord's step and notes; the sounding length and the chord's numeral, E33's bounds, are measured too.
@@ -700,7 +700,7 @@ run; the others have.
   [`packages/score/experiments/rhythm-query.ts`](../packages/score/experiments/rhythm-query.ts)
   (about 5 s, under vitest, as E31), held by [`packages/score/experiments/rhythm-query.test.ts`](../packages/score/experiments/rhythm-query.test.ts):
   E35's corpus (every preset held at entropy 0.3, seeds 1 to 5, 64 bars, 320 sections of 8 bars), decided with no meter asked for, so each section's meter is the repository's (E34).
-  At each section's start the composer asks cells v0.7.0's 13 rhythms (`RHYTHM_FRAGMENTS`: E31's 8 drum bars and 5 claves) at the style's point, with `facet: 'rhythm'` and the workbench the section's meter fragment hosted at its tempo, so the fit ranks only those that fit it (`fitOf`, yggi/cells decision 047).
+  At each section's start the composer asks cells v0.8.0's 13 rhythms (`RHYTHM_FRAGMENTS`: E31's 8 drum bars and 5 claves) at the style's point, with `facet: 'rhythm'` and the workbench the section's meter fragment hosted at its tempo, so the fit ranks only those that fit it (`fitOf`, yggi/cells decision 047).
   A section takes the nearest that fits, or a named miss: the fit refusing every rhythm, or the nearest that fits lying past `RHYTHM_MISS`, 0.3, the meter's own distance.
   Nothing here changes what the band plays.
   - **What each section gets**: 320 of 320 a rhythm, each preset's own drum bar at distance 0, under the meter its sections choose (4/4 for Synth-pop, Techno and Bossa nova, a lean on `16n` for Deep house, Ambient, Lo-fi hip hop and Funk, swung on `8n` for Swing jazz), and no miss.
