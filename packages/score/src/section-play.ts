@@ -15,6 +15,12 @@
  * share of the written steps and swings its end as its onset (cells v0.6.0,
  * yggi/cells#120).
  *
+ * A negative gain is phase inversion (cells v0.7.0), and MIDI has no phase:
+ * cells' MIDI out strikes a note at its gain's size, so a note read back is
+ * struck as hard inverted as upright. The built-in synth plays the notes
+ * read back, and so ignores the sign (#413): inverting a voice alone is not
+ * heard, and the band writes no voice beside its own inversion.
+ *
  * Each note also says where it falls in its bar as played: its onset and
  * end in the bar's steps through the swing (`onsets`, `ends`), which a host
  * lays on its own clock, and which line and drum role it comes from (cells

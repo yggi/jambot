@@ -2,6 +2,7 @@ import { METERS, type MeterName } from '@jambot/theory';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
+import { CLAVES_NOTE } from './drums.ts';
 import { DRUM_ROLES } from './events.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { stylePoint } from './meter-query.ts';
@@ -73,7 +74,7 @@ const PAIRS = PRESETS.map((preset) => ({
 }));
 
 describe("cells' rhythms, as the composer asks them (#397)", () => {
-  it('reads every rhythm under 4/4 played straight: the 8 drum bars E31’s 144 hits, a line a role, the claves 5 strokes a lap', () => {
+  it('reads every rhythm under 4/4 played straight: the 8 drum bars E31’s 144 hits, a line a role, the claves 5 strokes a lap on their own sound, General MIDI’s 75 (cells v0.7.0)', () => {
     const read = RHYTHM_FRAGMENTS.map((f) => ({ id: f.id, ...readRhythm(f.text, METERS['4/4'])! }));
     const drumBars = read.filter((r) => r.id.endsWith(' drums'));
     expect(drumBars).toHaveLength(8);
@@ -85,7 +86,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
       expect(
         r.hits.map((h) => [h.role, h.note]),
         r.id,
-      ).toEqual(Array(5).fill(['clave', 37]));
+      ).toEqual(Array(5).fill(['clave', CLAVES_NOTE]));
       expect(r.bars, r.id).toBe(r.id.endsWith('(one bar)') ? 1 : 2);
     }
   });
@@ -169,14 +170,15 @@ describe('the band with the rhythm against main: 8 presets held × 2 seeds × 32
       ];
     });
     // [preset, overlap with main's bar, main's hits a bar on other steps, main's hits a bar, clave strokes a bar]
+    // (every stroke of the clave's lap: on its own sound, none falls to a rim on its step)
     expect(measured).toEqual([
       ['Synth-pop', 0.77, 1.53, 14.33, 0],
       ['Techno', 0.8, 1.91, 18.14, 0],
       ['Deep house', 0.78, 1.7, 17.05, 0],
       ['Ambient', 0.75, 0.88, 3.97, 0],
       ['Lo-fi hip hop', 0.61, 3, 14.67, 0],
-      ['Funk', 0.71, 4.3, 26.02, 1.66],
-      ['Bossa nova', 0.66, 2.81, 14.42, 3.06],
+      ['Funk', 0.71, 4.3, 26.02, 2.5],
+      ['Bossa nova', 0.66, 2.81, 14.42, 5],
       ['Swing jazz', 0.78, 1.44, 12.52, 0],
     ]);
   });

@@ -1,6 +1,6 @@
 import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { DRUM_NOTES, type DrumSound } from './drums.ts';
+import { CLAVES_NOTE, DRUM_NOTES, type DrumSound } from './drums.ts';
 import { DRUM_ROLES, SONG_METER, clockOf } from './events.ts';
 import type { HeardNote } from './muse.ts';
 import {
@@ -78,10 +78,17 @@ describe('a groove stated as cells text, open on its meter (#401, E31’s transl
     expect(readRhythm(grooveText(off, steps), METERS['5/4'])!.hits).toEqual(inOrder(off));
   });
 
-  it('voices every sound of the kit, and refuses a note outside it', () => {
-    expect(VOICE_OF_NOTE.size).toBe(Object.keys(DRUM_NOTES).length);
+  it('voices every sound of the kit and the claves, and refuses a note outside them', () => {
+    expect(VOICE_OF_NOTE.size).toBe(Object.keys(DRUM_NOTES).length + 1);
     expect(new Set(Object.values(DRUM_VOICES)).size).toBe(Object.keys(DRUM_NOTES).length);
     expect(() => grooveText([hit('hat', 0, 49)], 16)).toThrow(/note 49/);
+  });
+
+  it('states a clave line on the claves, which cells sends as 75 and reads back so (cells v0.7.0)', () => {
+    const clave = [0, 6, 12].map((step) => hit('clave', step, CLAVES_NOTE, 90));
+    const text = grooveText([hit('kick', 0, DRUM_NOTES.kick, 100), ...clave], 16);
+    expect(text).toMatch(/^&clave step=16n &claves:0:/m);
+    expect(readRhythm(text, METERS['4/4'])!.hits.filter((h) => h.role === 'clave')).toEqual(clave);
   });
 });
 
