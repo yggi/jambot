@@ -329,8 +329,6 @@ export interface ComposedNote extends SectionNote {
   readonly role?: DrumRole;
 }
 
-const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
-
 /**
  * The order the comparison reads notes in: by part, step, then pitch.
  * Steps within a millionth are one step, as the comparison reads them: a step read back off cells' clock lies a hair either side of the band's (7/8's unequal beats).
@@ -353,7 +351,7 @@ export function writtenNotes(bar: BandBar): ComposedNote[] {
       ...(w.role ? { role: w.role } : {}),
       step: w.step,
       note: w.note,
-      velocity: clampVelocity(composedLevel(bar, w)),
+      velocity: Math.round(composedLevel(bar, w)),
       written: w.length,
       length: baseLengthOf(bar, w),
     })),
