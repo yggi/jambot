@@ -167,6 +167,7 @@ import {
   wishAfter,
 } from './conductor.ts';
 import { Heard } from './heard.ts';
+import { type SectionTexts, browserTexts } from './section-texts.ts';
 import { type Plays, Shadow } from './shadow.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
@@ -296,6 +297,8 @@ export interface Surroundings {
   layers?: LayerStore;
   /** Runs work ahead, a step at a time, at idle (`warmAtIdle`); with none, the rhythms are warmed by asking them. */
   warm?(steps: Iterable<void>): void;
+  /** Where the shadow's section texts are built, compiled and played (#406): a worker; with none, on the page's thread. */
+  texts?(): SectionTexts;
 }
 
 /** The real browser's ticker, frame and seed, with a given way to make the output. */
@@ -314,6 +317,7 @@ export function browserSurroundings(output: () => Output = webAudioOutput): Surr
     page: () => performance.now() / 1000,
     layers: browserLayerStore(),
     warm: (steps) => void warmAtIdle(steps),
+    texts: browserTexts,
   };
 }
 
@@ -535,7 +539,7 @@ export class Player {
     surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES) ?? []);
     this.#metronome = metronome;
     this.#plays = plays;
-    this.shadow = new Shadow(() => surroundings.page() * 1000, plays);
+    this.shadow = new Shadow(() => surroundings.page() * 1000, plays, surroundings.texts?.());
     this.#seed = surroundings.seed();
     this.#decide();
     void surroundings.layers?.load().then((layer) => {
@@ -870,7 +874,7 @@ export class Player {
   #begin(output: Output) {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
-    this.shadow.reset();
+    this.shadow.reset(!this.#follow);
     this.#heard.clear();
     this.#timing = TRANSPORT_TIMING;
     this.#laid = [];
@@ -1120,6 +1124,7 @@ export class Player {
     this.counting = false;
     this.countStep = null;
     if (!wasPlaying) return;
+    this.shadow.end();
     this.#stopTicker?.();
     this.#stopFrames?.();
     this.#stopTicker = this.#stopFrames = null;

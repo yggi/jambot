@@ -61,7 +61,8 @@ test('counts in, plays, follows on screen, and stops on a cadence, without an er
     await page.waitForTimeout(20);
   }
   expect(loudest).toBeGreaterThan(0.01);
-  expect(await workers(page)).toEqual({ running: 1, made: 1 });
+  // Two workers play: the ticker's, and the one the shadow's section texts are built in (#406).
+  expect(await workers(page)).toEqual({ running: 2, made: 2 });
   // Stop asks the band to end: it plays on, closes on a cadence, and halts
   // by itself, within two bars and a ring (some 4 s at 148 bpm).
   await page.getByRole('button', { name: 'Stop' }).click();
@@ -69,7 +70,8 @@ test('counts in, plays, follows on screen, and stops on a cadence, without an er
   await expect(transport(page).getByText('Ready')).toBeVisible({ timeout: 8000 });
   await page.waitForTimeout(300);
   expect(await level(page)).toBeLessThan(0.0005);
-  expect(await workers(page)).toEqual({ running: 0, made: 1 });
+  // Both end with the song.
+  expect(await workers(page)).toEqual({ running: 0, made: 2 });
   expect(errors).toEqual([]);
 });
 

@@ -33,6 +33,7 @@ import { EVEN_MIX, type Mix, withLevel } from './mix.ts';
 import { targetOf } from './conductor.ts';
 import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Hosting, type Surroundings } from './player.svelte.ts';
+import { type SectionTexts, inlineTexts } from './section-texts.ts';
 import type { Plays } from './shadow.ts';
 
 /** Surroundings a test drives by hand: the clock, the resume, the ticks and frames. */
@@ -707,7 +708,7 @@ describe('the player', () => {
       world.resolve();
       await settle();
       let drumsSounded = false;
-      for (let t = 0; t < 10; t += 0.025) {
+      for (let t = 0; t < 20; t += 0.025) {
         world.currentTime += 0.025;
         world.tickers[0]!.tick();
         world.frames[0]!.follow();
@@ -750,7 +751,7 @@ describe('the player', () => {
       void player.start();
       world.resolve();
       await settle();
-      for (let t = 0; t < 10; t += 0.025) {
+      for (let t = 0; t < 20; t += 0.025) {
         world.currentTime += 0.025;
         world.tickers[0]!.tick();
       }
@@ -1520,6 +1521,51 @@ describe('the band through cells, in shadow (#399)', () => {
     const [b, c] = [order(band.world.plays), order(cells.world.plays)];
     for (const [i, p] of c.entries())
       expect(Math.abs(p.seconds - b[i]!.seconds)).toBeLessThan(0.001);
+  });
+
+  it('asks for its section texts where the surroundings build them (a worker in the browser, #406): started as a song starts, ended with it, and not on a client', async () => {
+    const { world, s } = surroundings();
+    const said: string[] = [];
+    const inline = inlineTexts();
+    const texts: SectionTexts = {
+      begin: () => void said.push('begin'),
+      ask: (bars, answer) => {
+        said.push('ask');
+        inline.ask(bars, answer);
+      },
+      end: () => void said.push('end'),
+    };
+    const player = new Player({ ...s, texts: () => texts });
+    void player.start();
+    world.resolve();
+    await settle();
+    // The first section's text is asked on the first tick, in the count-in, a bar before it plays.
+    expect(said).toEqual(['begin', 'ask']);
+    expect(player.counting).toBe(true);
+    for (let t = 0; t < 20; t += 0.025) {
+      world.currentTime += 0.025;
+      world.tickers[0]!.tick();
+    }
+    player.halt();
+    expect(said[0]).toBe('begin');
+    expect(said.filter((x) => x === 'ask').length).toBeGreaterThan(1);
+    expect(said.at(-1)).toBe('end');
+    expect(player.shadow.readout.mismatched.written).toBe(0);
+    said.length = 0;
+    player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
+    void player.followSong(
+      {
+        seed: 3,
+        start: world.currentTime + 2,
+        track: holding(INITIAL_STYLE),
+        swing: holdingSwing(STRAIGHT),
+        tempoMeter: METERS['4/4'],
+      },
+      [],
+    );
+    world.resolve();
+    await settle();
+    expect(said).not.toContain('begin');
   });
 
   it('plays a host’s own events with the switch on: a session follows in a later rung', async () => {

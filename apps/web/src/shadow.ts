@@ -21,6 +21,13 @@
  * section's text written again from it, at once: it is composed a beat
  * before it plays.
  *
+ * The text is written, compiled and played where `SectionTexts` says, a
+ * worker in the app (`section-texts.ts`, #406): the page forecasts the bars
+ * and sends them, and the answer comes back between ticks, each bar then
+ * holding what cells plays in it. A bar composed while its text is on its
+ * way is compared once it arrives, and a step laid then plays the band's
+ * own and is counted late (`arrival`).
+ *
  * What is compared, as E35 compares it:
  *
  * - the written layer, each bar as it is composed: each note's part, step,
@@ -85,20 +92,12 @@ import {
 import {
   type PlayedBar,
   type SectionNote,
-  barMeterName,
   bandChords,
-  compileSection,
-  keyText,
   mismatches,
-  playSection,
-  sectionAsCells,
-  sectionTextOf,
-  statedChords,
   swingStated,
-  swingText,
   writtenNotes,
 } from '@jambot/score';
-import { stepsOf } from '@jambot/theory';
+import { type SectionStated, type SectionTexts, foreseenOf, inlineTexts } from './section-texts.ts';
 
 /** Which events the band's outputs play: the band's own, or cells'. */
 export type Plays = 'band' | 'cells';
@@ -174,13 +173,29 @@ export interface ShadowReadout {
   readonly errors: readonly string[];
   /** With the switch on: the events played from cells, and from the band where cells states no bar. */
   readonly played: { readonly cells: number; readonly band: number };
-  /** On the main thread, in ms: writing a text, compiling it, the two together (the bound: 5 ms at the 95th percentile), playing it, and the forecast. */
+  /**
+   * In ms: writing a text, compiling it, the two together, and playing it, where the job runs (a worker, `section-texts.ts`);
+   * on the page's thread, the forecast, and for each text the page's own work, asking for it and taking the answer (`main`, the bound of #406: 2 ms at the 95th percentile).
+   */
   readonly cost: {
     readonly build: Spread;
     readonly compile: Spread;
     readonly buildCompile: Spread;
     readonly play: Spread;
     readonly forecast: Spread;
+    readonly main: Spread;
+  };
+  /**
+   * When each text arrived: the least time, in seconds, between a text's answer and its first bar playing, by how it was asked
+   * (none where no text was); and the steps laid while their bar's text was on its way (the bound of #406: none).
+   */
+  readonly arrival: {
+    readonly least: {
+      readonly ahead: number | null;
+      readonly fresh: number | null;
+      readonly again: number | null;
+    };
+    readonly late: number;
   };
   /** The latest text built. */
   readonly text: string;
@@ -204,6 +219,8 @@ export interface ShadowTick {
 /** What cells plays in one bar, from the latest text that states it. */
 interface StatedBar {
   readonly bar: number;
+  /** The ask whose answer it is. */
+  readonly ask: number;
   /** The bar as foreseen when the text was written: what a bar composed is checked against. */
   readonly foreseen: string;
   readonly played: PlayedBar | null;
@@ -214,17 +231,6 @@ interface StatedBar {
   /** Why cells states nothing for the bar. */
   readonly gap: string | null;
 }
-
-/** What of a bar the text is checked by: its written notes, chords, key, scale, meter and swing; its tempo is the transport's. */
-export const foreseenOf = (bar: BandBar): string =>
-  JSON.stringify([
-    writtenNotes(bar),
-    statedChords(bar),
-    keyText(bar.plan.key),
-    bar.plan.melodic,
-    barMeterName(bar),
-    swingText(bar.swing),
-  ]);
 
 /**
  * Whether a bar's beats all swing at one share: its section's, where the
@@ -311,8 +317,29 @@ const noCounts = () => ({
 });
 
 /** The cost's samples, in ms, by what was timed. */
-type Cost = Record<'build' | 'compile' | 'buildCompile' | 'play' | 'forecast', number[]>;
-const noCost = (): Cost => ({ build: [], compile: [], buildCompile: [], play: [], forecast: [] });
+type Cost = Record<'build' | 'compile' | 'buildCompile' | 'play' | 'forecast' | 'main', number[]>;
+const noCost = (): Cost => ({
+  build: [],
+  compile: [],
+  buildCompile: [],
+  play: [],
+  forecast: [],
+  main: [],
+});
+
+/** How a text was asked for: ahead, at a bar with none, or again at a bar composed otherwise than foreseen. */
+type Asked = 'ahead' | 'fresh' | 'again';
+
+/** A text asked for and not yet answered: how, its bars as forecast, where it starts, and the page's time asking. */
+interface Pending {
+  readonly asked: Asked;
+  readonly bars: readonly BandBar[];
+  readonly textStart: number;
+  main: number | null;
+}
+
+/** The reason a step is laid without cells: its bar's text is still on its way. */
+const ON_ITS_WAY = 'the text was on its way when its bar was laid (late)';
 
 /** A swing track that holds straight, for an environment with none. */
 const STILL: SwingTrack = {
@@ -328,7 +355,7 @@ export class Shadow {
   #composedBars = new Map<number, BandBar>();
   /** Where each text's first step was laid, on the transport's clock, by that step. */
   #starts = new Map<number, number>();
-  #texts = { ahead: 0, fresh: 0, again: 0 };
+  #counted = { ahead: 0, fresh: 0, again: 0 };
   #counts = noCounts();
   #onsets = { timed: 0, within: 0, largest: 0 };
   #own = { timed: 0, within: 0, largest: 0 };
@@ -338,36 +365,61 @@ export class Shadow {
   #errors: string[] = [];
   #cost = noCost();
   #text = '';
-
-  #edit: (text: string) => string;
+  #texts: SectionTexts;
+  /** The latest ask for each bar, by bar, and the asks not yet answered, by ask. */
+  #asked = new Map<number, number>();
+  #pending = new Map<number, Pending>();
+  #nextAsk = 1;
+  /** The bars composed while their text was on its way, compared once it arrives. */
+  #toCompare = new Set<number>();
+  /** The latest tick: the page's clock and the transport's then, what an answer between ticks is timed by. */
+  #lastTick: { page: number; tick: ShadowTick } | null = null;
+  #least: { ahead: number | null; fresh: number | null; again: number | null } = {
+    ahead: null,
+    fresh: null,
+    again: null,
+  };
+  #late = 0;
 
   /**
-   * `clock` is the page's, in milliseconds, which the cost is timed on; a
-   * test may edit each text before cells plays it, to show the comparison
-   * finds what it checks.
+   * `clock` is the page's, in milliseconds, which the cost is timed on;
+   * `texts` builds, compiles and plays each section's text: a worker in
+   * the app, on this thread where none is given.
    */
-  constructor(
-    clock: () => number,
-    plays: Plays = 'band',
-    edit: (text: string) => string = (t) => t,
-  ) {
+  constructor(clock: () => number, plays: Plays = 'band', texts: SectionTexts = inlineTexts()) {
     this.#clock = clock;
     this.plays = plays;
-    this.#edit = edit;
+    this.#texts = texts;
   }
 
-  /** A song starts: what was stated for the last is forgotten, and what was found is kept, counted since the page opened. */
-  reset() {
+  /**
+   * A song starts: what was stated for the last is forgotten, and what was
+   * found is kept, counted since the page opened; where it will ask for
+   * texts (not on a client, which follows a host's song), where they are
+   * built starts, warming while the band counts in.
+   */
+  reset(asking = true) {
     this.#bars.clear();
     this.#composedBars.clear();
     this.#starts.clear();
+    this.#asked.clear();
+    this.#pending.clear();
+    this.#toCompare.clear();
+    this.#lastTick = null;
+    if (asking) this.#texts.begin();
+  }
+
+  /** The song ended: no text asked for it is answered. */
+  end() {
+    this.#pending.clear();
+    this.#texts.end();
   }
 
   get readout(): ShadowReadout {
     const c = this.#counts;
     return {
       plays: this.plays,
-      texts: { ...this.#texts },
+      texts: { ...this.#counted },
       bars: c.bars,
       notes: c.notes,
       mismatched: {
@@ -393,7 +445,9 @@ export class Shadow {
         buildCompile: spread(this.#cost.buildCompile),
         play: spread(this.#cost.play),
         forecast: spread(this.#cost.forecast),
+        main: spread(this.#cost.main),
       },
+      arrival: { least: { ...this.#least }, late: this.#late },
       text: this.#text,
     };
   }
@@ -404,6 +458,7 @@ export class Shadow {
    * the bar and the switch asks for them, the band's own otherwise.
    */
   tick(tick: ShadowTick): readonly TimedEvent[] {
+    this.#lastTick = { page: this.#clock(), tick };
     try {
       for (const bar of tick.output.composed) this.#composed(bar, tick);
       const played = this.#laid(tick);
@@ -433,13 +488,15 @@ export class Shadow {
     const end = carried.finale.bar === null ? last : Math.min(last, carried.finale.bar);
     this.#composedBars.set(bar.bar, bar);
     this.#composedBars.delete(bar.bar - 2 * SECTION_BARS);
-    const stated = this.#bars.get(bar.bar);
-    if (!stated || stated.foreseen !== foreseenOf(bar)) {
-      this.#texts[stated ? 'again' : 'fresh']++;
+    const foreseen = this.#foreseen(bar.bar);
+    if (foreseen === undefined || foreseen !== foreseenOf(bar)) {
+      const asked = foreseen === undefined ? 'fresh' : 'again';
+      this.#counted[asked]++;
       const ahead = this.#forecast(() => env, carried, bar.bar + 1, end);
-      this.#state([bar, ...ahead], carried);
+      this.#state([bar, ...ahead], carried, asked);
     }
-    this.#compare(bar);
+    if (this.#current(bar.bar)) this.#compare(bar);
+    else this.#toCompare.add(bar.bar);
     if (bar.bar % SECTION_BARS === SECTION_BARS / 2 && !carried.finale.asked) {
       const first = last + 1;
       const walked = envFrom?.(first) ?? env;
@@ -449,8 +506,8 @@ export class Shadow {
         first,
         first + SECTION_BARS - 1,
       );
-      this.#texts.ahead++;
-      this.#state(bars, carried);
+      this.#counted.ahead++;
+      this.#state(bars, carried, 'ahead');
     }
   }
 
@@ -467,70 +524,120 @@ export class Shadow {
     return bars;
   }
 
-  /** Write bars as one text, compile it and play it through cells, and keep what each bar plays. */
-  #state(bars: readonly BandBar[], carried: TransportCarried) {
+  /** What the latest text asked for a bar was built from: its answer's, or, still on its way, the bar as forecast; none where none was asked. */
+  #foreseen(bar: number): string | undefined {
+    const ask = this.#asked.get(bar);
+    if (ask === undefined) return undefined;
+    const stated = this.#bars.get(bar);
+    if (stated?.ask === ask) return stated.foreseen;
+    const forecast = this.#pending.get(ask)?.bars.find((b) => b.bar === bar);
+    return forecast && foreseenOf(forecast);
+  }
+
+  /** Whether a bar holds the answer to the latest text asked for it. */
+  #current(bar: number): boolean {
+    const ask = this.#asked.get(bar);
+    return ask !== undefined && this.#bars.get(bar)?.ask === ask;
+  }
+
+  /** Whether a bar's latest text is still on its way. */
+  #onItsWay(bar: number): boolean {
+    const ask = this.#asked.get(bar);
+    return ask !== undefined && this.#pending.has(ask);
+  }
+
+  /** Ask for bars as one text, compiled and played through cells (`SectionTexts`), each bar then holding what it plays. */
+  #state(bars: readonly BandBar[], carried: TransportCarried, asked: Asked) {
+    const t0 = this.#clock();
     const clock = clockOf(
       bars.reduce((meters, b) => withMeter(meters, b.bar, b.meter), carried.meters),
     );
-    const textStart = clock.barStart(bars[0]!.bar);
+    const ask = this.#nextAsk++;
+    const pending: Pending = { asked, bars, textStart: clock.barStart(bars[0]!.bar), main: null };
+    this.#pending.set(ask, pending);
+    for (const b of bars) this.#asked.set(b.bar, ask);
+    this.#texts.ask(bars, (stated) => this.#answered(ask, stated));
+    const main = this.#clock() - t0;
+    // Answered before `ask` returned, on this thread: the whole of it was the page's work.
+    if (this.#pending.has(ask)) pending.main = main;
+    else this.#sample('main', main);
+  }
+
+  /** A text's answer: each bar it is still the latest for holds what cells plays in it, and the bars composed meanwhile are compared. */
+  #answered(ask: number, stated: SectionStated) {
+    const pending = this.#pending.get(ask);
+    if (!pending) return;
     const t0 = this.#clock();
-    let source: string;
-    let cut: ReadonlySet<number>;
+    this.#pending.delete(ask);
     try {
-      const text = sectionAsCells(bars, { tempo: 'first' });
-      source = sectionTextOf(text);
-      const steps = stepsOf(bars[0]!.meter);
-      cut = new Set(text.cuts.map((c) => bars[Math.floor(c.step / steps)]!.bar));
+      this.#take(ask, pending, stated);
     } catch (error) {
-      const reason = String(error instanceof Error ? error.message : error).replace(
-        /^a section's (\w+) changes at its bar.*$/,
-        "the section's $1 moves between its bars: one text states one",
-      );
-      for (const b of bars) this.#bars.set(b.bar, this.#unstated(b, reason, textStart));
-      return;
+      if (this.#errors.length < 20) this.#errors.push(String(error));
     }
-    source = this.#edit(source);
-    const t1 = this.#clock();
-    const plan = compileSection(source);
-    const t2 = this.#clock();
-    const played = playSection(source, bars, plan);
-    const t3 = this.#clock();
-    this.#sample('build', t1 - t0);
-    this.#sample('compile', t2 - t1);
-    this.#sample('buildCompile', t2 - t0);
-    this.#sample('play', t3 - t2);
-    this.#text = source;
-    for (const [i, b] of bars.entries())
-      this.#bars.set(b.bar, {
-        bar: b.bar,
-        foreseen: foreseenOf(b),
-        played: played.bars[i]!,
-        chords: played.chords[i]!,
-        textStart,
-        lap: played.laps[i]!,
-        gap:
-          played.diagnostics.length > 0
+    const main = this.#clock() - t0;
+    if (pending.main !== null) this.#sample('main', pending.main + main);
+  }
+
+  #take(ask: number, pending: Pending, stated: SectionStated) {
+    this.#arrived(pending);
+    const { bars, textStart } = pending;
+    if (stated.played) {
+      this.#sample('build', stated.cost.build);
+      this.#sample('compile', stated.cost.compile);
+      this.#sample('buildCompile', stated.cost.build + stated.cost.compile);
+      this.#sample('play', stated.cost.play);
+    }
+    if (stated.error !== null && this.#errors.length < 20) this.#errors.push(stated.error);
+    if (stated.source) this.#text = stated.source;
+    const { played } = stated;
+    for (const [i, b] of bars.entries()) {
+      if (this.#asked.get(b.bar) !== ask) continue;
+      const gap =
+        stated.unstated ??
+        (stated.error !== null || !played
+          ? 'no text'
+          : played.diagnostics.length > 0
             ? `cells said: ${played.diagnostics[0]}`
             : !swingStated(b.meter, b.swing)
               ? "a pulse of 3 eighths on an 8n swing: the band plays it straight (T16), and cells' swing=8n leans a group of three (yggi/cells#18)"
-              : cut.has(b.bar)
+              : stated.cut.includes(i)
                 ? "a note runs past its line's next onset or the text's end (the finale's ring): cut there"
-                : null,
+                : null);
+      this.#bars.set(b.bar, {
+        bar: b.bar,
+        ask,
+        foreseen: stated.foreseen[i]!,
+        played: played?.bars[i] ?? null,
+        chords: played?.chords[i] ?? [],
+        textStart,
+        lap: played?.laps[i] ?? 0,
+        gap,
       });
-    for (const key of this.#bars.keys())
-      if (key < bars[0]!.bar - 2 * SECTION_BARS) this.#bars.delete(key);
+    }
+    const first = bars[0]!.bar;
+    for (const key of this.#bars.keys()) if (key < first - 2 * SECTION_BARS) this.#bars.delete(key);
+    for (const key of this.#asked.keys())
+      if (key < first - 2 * SECTION_BARS) this.#asked.delete(key);
+    for (const bar of this.#toCompare) {
+      const composed = this.#composedBars.get(bar);
+      if (!this.#current(bar) || !composed) continue;
+      this.#toCompare.delete(bar);
+      this.#compare(composed);
+    }
   }
 
-  #unstated(bar: BandBar, reason: string, textStart: number): StatedBar {
-    return {
-      bar: bar.bar,
-      foreseen: foreseenOf(bar),
-      played: null,
-      chords: [],
-      textStart,
-      lap: 0,
-      gap: reason,
-    };
+  /** How long before its first bar plays a text arrived, on the transport's clock: now, or between the latest tick and the next. */
+  #arrived({ asked, bars }: Pending) {
+    const latest = this.#lastTick;
+    if (!latest || !latest.tick.carried) return;
+    const { tick, page } = latest;
+    const { env, carried } = tick;
+    const now = tick.now + (this.#clock() - page) / 1000;
+    const start = clockOfTransport(carried).barStart(bars[0]!.bar);
+    if (start < carried.head.step) return;
+    const plays = tempoMap(env.track, carried.head, env.tempoMeter).played(start);
+    const least = this.#least[asked];
+    this.#least[asked] = least === null ? plays - now : Math.min(least, plays - now);
   }
 
   /** A bar composed, on the written layer: its notes and chords against what cells plays in it. */
@@ -564,17 +671,21 @@ export class Shadow {
       if (this.#starts.size > 64) this.#starts.delete(this.#starts.keys().next().value!);
       const bar = clock.barAt(step.step);
       const inBar = step.step - clock.barStart(bar);
-      const stated = this.#bars.get(bar);
+      const stated = this.#current(bar) ? this.#bars.get(bar) : undefined;
       if (stated && step.step === stated.textStart) this.#starts.set(step.step, step.seconds);
       const theirs = output.events.filter((e) => e.bar === bar && e.event.step === inBar);
       const composed = this.#composedBars.get(bar);
-      const why = !stated
-        ? 'no text'
-        : (stated.gap ??
-          (composed &&
-          !swingHolds(composed, env.swing ?? STILL, clock.barStart(bar), clock.barStart(bar + 1))
-            ? "the bar's swing moves within it: a text states one"
-            : null));
+      const late = this.#onItsWay(bar);
+      if (late) this.#late++;
+      const why = late
+        ? ON_ITS_WAY
+        : !stated
+          ? 'no text'
+          : (stated.gap ??
+            (composed &&
+            !swingHolds(composed, env.swing ?? STILL, clock.barStart(bar), clock.barStart(bar + 1))
+              ? "the bar's swing moves within it: a text states one"
+              : null));
       if (why !== null || !composed) {
         this.#gap(why ?? 'no bar', 0, theirs.length);
         played.push(...theirs);
