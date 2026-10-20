@@ -10,18 +10,31 @@ import {
   PRESETS,
   SECTION_BARS,
   LEAD_LEVEL,
+  type MeterSwing,
+  SWING_LEVELS,
   type WrittenNote,
   band,
   composedLevel,
   leanMap,
   leansOf,
+  stepSeconds,
 } from '@jambot/engine';
+import { METERS, type MeterName, stepsOf } from '@jambot/theory';
+import { planOf, windowAt } from '@yggi/cells';
 import { describe, expect, it } from 'vitest';
-import { lineOf, playSection } from './section-play.ts';
-import { hostOf, sectionAsCells, sectionTextOf, writtenNotes } from './section-text.ts';
+import { bandChords, lineOf, mismatches, playSection } from './section-play.ts';
+import {
+  type SectionNote,
+  hostOf,
+  sectionAsCells,
+  sectionTextOf,
+  swingStated,
+  swingText,
+  writtenNotes,
+} from './section-text.ts';
 
-/** A preset's first section, as the band composes it at entropy 0.3, seed 1. */
-function section(name: string): BandBar[] {
+/** A preset's first section, as the band composes it at entropy 0.3, seed 1, in its meter or the one asked for. */
+function section(name: string, meter?: MeterName): BandBar[] {
   const preset = PRESETS.find((p) => p.name === name)!;
   let carried: BandCarried = band.initial;
   return Array.from({ length: SECTION_BARS }, (_, bar) => {
@@ -32,6 +45,7 @@ function section(name: string): BandBar[] {
         style: { ...preset.style, entropy: 0.3 },
         wish: { tonic: null, mode: preset.mode, melodic: null },
         swing: preset.swing,
+        ...(meter && { meter: METERS[meter] }),
         offer: null,
       },
       carried,
@@ -113,4 +127,62 @@ describe('a section as one cells text, for the app (#399)', () => {
         .map((n) => n.velocity),
     ).toEqual([-20, 0, 9, 30].map((a) => LEAD_LEVEL + a));
   });
+
+  it('reads each chord back on the step the band writes it, through the swing: Swing jazz in 3/4 and 5/4, a chord on the offbeat of a swung beat (#432)', () => {
+    for (const meter of ['3/4', '5/4'] as const) {
+      const bars = section('Swing jazz', meter);
+      const played = playSection(sectionTextOf(sectionAsCells(bars)), bars);
+      const offbeat = bars.flatMap((bar) => bandChords(bar).filter((c) => c.step % 4 !== 0));
+      expect(offbeat.length).toBeGreaterThan(0);
+      // (as the shadow compares them: the step and the pitch classes; a numeral read back may be spelled otherwise, II9 for V9/V)
+      const heard = (chords: readonly { step: number; pitchClasses: readonly number[] }[]) =>
+        chords.map(({ step, pitchClasses }) => ({ step, pitchClasses }));
+      expect(played.chords.map(heard)).toEqual(bars.map((bar) => heard(bandChords(bar))));
+    }
+  });
+
+  it('pairs notes read back on one step a hair apart, as cells’ clock gives them in 7/8, by pitch as the band orders them (#432)', () => {
+    const note = (step: number, pitch: number): SectionNote => ({
+      part: 'drums',
+      step,
+      note: pitch,
+      velocity: 90,
+      written: 1,
+      length: 1,
+    });
+    const band = [note(2, 37), note(2, 46)];
+    expect(mismatches(band, [note(2.0000000000000036, 37), note(1.9999999999999956, 46)])).toEqual(
+      [],
+    );
+    expect(mismatches(band, [note(2, 37), note(1.5, 46)])).toHaveLength(2);
+  });
+
+  it.each(Object.keys(METERS) as MeterName[])(
+    'states the swing in %s where cells plays it as the band does, and says where it can’t: a pulse of 3 eighths on an 8n swing (T16; yggi/cells#18)',
+    (name) => {
+      const meter = METERS[name];
+      const steps = stepsOf(meter);
+      for (const level of SWING_LEVELS)
+        for (const share of [0.5, 0.6, 2 / 3, 0.75]) {
+          const swing: MeterSwing = { level, share };
+          const text = [
+            `&bar meter("${name}") step=60bpm${swingText(swing)}`,
+            '&x step=16n 0',
+            '&v loop=C4',
+            '&out map=midi [&x * &v]',
+          ].join('\n');
+          const plan = planOf(text);
+          expect(plan.result.diagnostics).toEqual([]);
+          const step = stepSeconds(60, meter);
+          const cells = [
+            ...new Set(windowAt(plan, 0, steps * step - 1e-6).events.map((e) => e.at)),
+          ];
+          const map = leanMap(leansOf(swing), meter);
+          const band = Array.from({ length: steps }, (_, s) => map.played(s) * step);
+          expect(cells).toHaveLength(steps);
+          const agrees = cells.every((at, s) => Math.abs(at - band[s]!) < 1e-9);
+          expect([level, share, agrees]).toEqual([level, share, swingStated(meter, swing)]);
+        }
+    },
+  );
 });

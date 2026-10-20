@@ -287,7 +287,7 @@ describe('the composer tires of a groove: varies it, then rejects it, and the dr
     ]);
     // (the band decides a bar ahead: the state after bar 47 has planned section 6, the variation's third)
     expect(run[6 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
-      { grooves: [G, V], claves: [], boredom: 6, rejected: true },
+      { grooves: [G, V], boredom: 6, rejected: true },
     ]);
   });
 
@@ -343,7 +343,7 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
     });
   const times = (n: number, what: string) => range(n).map(() => what);
 
-  it('at entropy 1 plays the drum bar 3 sections, its variation the next 3, then rejects both with the clave: no other drum bar lies near, so the drummer invents, until the drum bar’s boredom has faded', () => {
+  it('at entropy 1 plays the drum bar 3 sections, its variation the next 3, then rejects both with the clave: no other drum bar lies near, so the drummer invents, until the drum bar’s boredom has faded, and its clave returns with it', () => {
     const run = play(16 * SECTION_BARS, { layer: EMPTY_LAYER }, { ...STYLE, entropy: 1 });
     const DRUMMER_G = 'drummer song 1, bar 48';
     const DRUMMER_V = 'composer song 1, bar 80';
@@ -355,10 +355,10 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
       '- + -',
       ...times(3, `${DRUMMER_G} + -`),
       ...times(2, `${DRUMMER_V} + -`),
-      // the drum bar's boredom faded, its clave layers on the groove playing, and is out with that one at the next
-      // section, where the drum bar's variation returns without it
+      // the drum bar's boredom faded, its clave layers on the groove playing, but stays the drum bar's (#430): the
+      // groove is out at the next section, and the drum bar's variation returns with its clave
       `${DRUMMER_V} + ${RUMBA}`,
-      ...times(3, `${V} + -`),
+      ...times(3, `${V} + ${RUMBA}`),
     ]);
     const filed = run.at(-1)!.carried.plans.layer!.filed;
     expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies])).toEqual([
@@ -368,8 +368,10 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
     ]);
     // (the band decides a bar ahead: the state after bar 39 has planned section 5, the variation's third)
     expect(run[5 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
-      { grooves: [FUNK_DRUMS, V], claves: [RUMBA], boredom: 6, rejected: true },
+      { grooves: [FUNK_DRUMS, V], boredom: 6, rejected: true },
     ]);
+    // the clave is the drum bar's it was first chosen to layer on, and stays so after it layered on the drummer's
+    expect(run.at(-1)!.carried.plans.claveOwners).toEqual({ [RUMBA]: FUNK_DRUMS });
   });
 
   it('varies the drum bar by one operator on one line, never the kick, the backbeat or the fill, and the drummer plays from the variation', () => {

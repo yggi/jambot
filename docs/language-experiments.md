@@ -756,7 +756,7 @@ run; the others have.
   - Not measured: a player's grooves in a walk (none plays), entropy other than 0.3, and how any of it sounds.
 - **E39. The composer tires of a rhythm while the radio walks** (#411, #414; cells decision 043's novelty ladder; E38's walks), in
   [`packages/engine/experiments/rhythm-radio.ts`](../packages/engine/experiments/rhythm-radio.ts) (`mostUsedGroove`), held by [`packages/engine/experiments/rhythm-learning.test.ts`](../packages/engine/experiments/rhythm-learning.test.ts):
-  E38's runs, with the composer's boredom (`novelty.ts`): a rhythm, a seed rhythm or a groove the layer filed, climbs a rung each 3 of boredom, the entropy of each section it plays, so at 0.3 it plays 10 sections, its one variation 10 more, and is then rejected, with the clave played with it, until its boredom has faded.
+  E38's runs, with the composer's boredom (`novelty.ts`): a rhythm, a seed rhythm or a groove the layer filed, climbs a rung each 3 of boredom, the entropy of each section it plays, so at 0.3 it plays 10 sections, its one variation 10 more, and is then rejected, with the clave first chosen with it, until its boredom has faded.
   - **The most used groove of a meter no seed rhythm fits** plays 1,661 of the 3,222 sections in those meters, over every run and meter, 52 %, under #411's 60 %; on `main` at 3a64468, where the first groove filed stays its meter's, the same walks play it in 3,213 of 3,236, 99.3 %.
   - **The variations**: 141, each of a seed drum bar (98, every preset's) or of a groove its run filed before (43), each one of the operators' variations of it (`variations`), and no family varied twice.
   - **Inventing again**: the drummer invents 19 grooves in a meter where one was filed before, each where the composer had rejected every groove that meter held.
@@ -771,7 +771,9 @@ run; the others have.
   - **No clave alone** (#428): no section plays a clave without a drum bar; on `main` at 9e26a40, 95 sections an hour did at Funk (the son clave 2-3) and 120 at Bossa nova (the two-bar bossa nova clave).
   - **The drummer's bars against `main`'s**: hits a role by section type within 0.05 a bar (Swing jazz; Funk 0.03, where the drummer's own groove plays past the drum bar; every other preset 0), since the drummer still decides how many it plays and the fragment only where (`groove.ts`); bar beside bar, 69 % (Swing jazz) to 95 % (Lo-fi hip hop) of the hits on a step and sound both play, Funk 74 % and Bossa nova 91 %.
   - **The layer** weighs at most 4,003 bytes after an hour, 3 grooves.
-  - **The clave climbs with the drum bar** (`Lineage.claves`): Funk's rumba clave and Bossa nova's one-bar clave play beside the drum bar and its variation, and are out with them.
+  - **The clave climbs with the drum bar** (`ClaveOwners`, #430): Funk's rumba clave and Bossa nova's one-bar clave play beside the drum bar and its variation, and are out with them.
+    A clave is the drum bar's it was first chosen to layer on, so a drum bar that returns plays with the clave it played every section of its stretch before, in every section (`claveLost`; on `main` at 09ec1be, where a clave was rejected with every lineage it played with, 100 sections lost it: Funk's variation, 20 sections in each of its 5 runs).
+    At Funk the rumba clave layers on the drummer's variation at one section, where Funk's lineage has faded, and the drummer's variation returns 20 sections later without it, since it is out with Funk's lineage then: 100 sections, 20 a run, on the owner's ruling (option A on #430).
   - Not measured: entropy other than 0.3 held (band tests hold 0 and 1), and how a variation sounds.
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to

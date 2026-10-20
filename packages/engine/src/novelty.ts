@@ -13,12 +13,14 @@
  * then leaves it a while.
  *
  * **The clave climbs with the drum bar** (#414): a line chosen with the
- * rhythm (`claveFragment`) is never varied, and the lineage of the rhythm it
- * played with keeps it (`claves`), so it is rejected with that rhythm and
- * returns with it. A clave is chosen for the drum bar it layers on (cells
- * decision 046's use together), so the two tire together, as a pair; and the
- * variation keeps it, as it keeps the kick and the backbeat, so what a
- * section varies is the drum bar's own lines.
+ * rhythm (`claveFragment`) is never varied, and it is the drum bar's it was
+ * first chosen to layer on (`ClaveOwners`, #430), so it is rejected with that
+ * drum bar's lineage alone and returns with it. A clave is chosen for the
+ * drum bar it layers on (cells decision 046's use together), so the two tire
+ * together, as a pair; layering on another rhythm meanwhile, once its own has
+ * faded, doesn't make it that one's, so a drum bar that returns finds its
+ * clave free. The variation keeps it, as it keeps the kick and the backbeat,
+ * so what a section varies is the drum bar's own lines.
  *
  * **Boredom** (until the homeostat measures recognition, #237): the
  * composer keeps, for each rhythm it played lately and its family (a
@@ -42,7 +44,7 @@
  *   again, and the layer grows by one variation a rhythm the band played
  *   long enough;
  * - past `GROOVE_RUNGS`, **rejected**: the composer leaves every rhythm of
- *   the lineage, and its claves, out of what the repository returns
+ *   the lineage, and the claves that are its own, out of what the repository returns
  *   (decision 043: it may reject what it is given), so it takes the next
  *   nearest, and where none lies near enough, the drummer invents. A
  *   rejected lineage is out until its boredom has faded, as many sections
@@ -69,7 +71,7 @@
  */
 
 import type { LearnedLayer } from './layer.ts';
-import type { FragmentHit } from './rhythm-query.ts';
+import type { FragmentHit, SectionRhythm } from './rhythm-query.ts';
 import { GROOVE_FEWEST } from './muse-groove.ts';
 import { pick, quantize } from './random.ts';
 
@@ -77,11 +79,9 @@ import { pick, quantize } from './random.ts';
 export interface Lineage {
   /** The rhythm found first, a seed rhythm or a groove filed, then each variation made of it, by id. */
   readonly grooves: readonly string[];
-  /** The lines chosen with them, a line of their own each (the claves), by id: they climb with the rhythm (#414). */
-  readonly claves: readonly string[];
   /** The entropy of each section it played, less that of each it didn't, on the draws' grid. */
   readonly boredom: number;
-  /** Whether it climbed past the last rung: out of what the repository returns until its boredom fades, its claves too. */
+  /** Whether it climbed past the last rung: out of what the repository returns until its boredom fades, its own claves too. */
   readonly rejected: boolean;
 }
 
@@ -126,9 +126,29 @@ const UNVARIED: readonly string[] = [...GROOVE_ANCHORS, 'fill'];
 /** The rung a boredom stands on: 0 to repeat, 1 to vary, `GROOVE_RUNGS` and past it rejected. */
 export const rungOf = (boredom: number): number => Math.floor(boredom / BORED);
 
-/** Every rhythm the composer has rejected, and every clave with them, by id. */
-export const rejectedOf = (boredom: Boredom): string[] =>
-  boredom.filter((l) => l.rejected).flatMap((l) => [...l.grooves, ...l.claves]);
+/**
+ * The drum bar each clave was first chosen to layer on, by id (#430): the
+ * clave is that one's, climbs with its lineage, and is rejected with it alone.
+ */
+export type ClaveOwners = Readonly<Record<string, string>>;
+
+/** No clave chosen yet: a song's start. */
+export const NO_CLAVE_OWNERS: ClaveOwners = {};
+
+/** The claves' drum bars with a section's: its clave the drum bar's it layers on, where it was no drum bar's yet. */
+export const ownedWith = (
+  owners: ClaveOwners,
+  { rhythmFragment, claveFragment }: SectionRhythm,
+): ClaveOwners =>
+  rhythmFragment === undefined || claveFragment === undefined || claveFragment in owners
+    ? owners
+    : { ...owners, [claveFragment]: rhythmFragment };
+
+/** Every rhythm the composer has rejected, and every clave whose drum bar is among them, by id. */
+export function rejectedOf(boredom: Boredom, owners: ClaveOwners = NO_CLAVE_OWNERS): string[] {
+  const grooves = boredom.filter((l) => l.rejected).flatMap((l) => l.grooves);
+  return [...grooves, ...Object.keys(owners).filter((clave) => grooves.includes(owners[clave]!))];
+}
 
 /** The metadata key a variation names the groove it varies by, in the layer (`GrooveFiling.varies`). */
 export const VARIES = 'varies';
@@ -167,14 +187,8 @@ export function lineageOf(boredom: Boredom, family: readonly string[]): Lineage 
         ...known,
         grooves: [...known.grooves, ...family.filter((id) => !known.grooves.includes(id))],
       }
-    : { grooves: [...family], claves: [], boredom: 0, rejected: false };
+    : { grooves: [...family], boredom: 0, rejected: false };
 }
-
-/** A lineage with a clave played with it (#414): one more it keeps, where it didn't. */
-export const withClave = (lineage: Lineage, clave: string | undefined): Lineage =>
-  clave === undefined || lineage.claves.includes(clave)
-    ? lineage
-    : { ...lineage, claves: [...lineage.claves, clave] };
 
 /** Whether the composer varies the lineage's groove now: on a rung past repeat it hasn't made a variation on. */
 export function wantsVariation({ grooves, boredom }: Lineage): boolean {
@@ -199,7 +213,6 @@ export function boredAfter(boredom: Boredom, playing: Lineage | null, entropy: n
     ...others,
     {
       grooves: playing.grooves,
-      claves: playing.claves,
       boredom: grown,
       rejected: rungOf(grown) >= GROOVE_RUNGS,
     },

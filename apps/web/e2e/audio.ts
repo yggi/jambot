@@ -5,7 +5,7 @@
  */
 
 import { appendFileSync } from 'node:fs';
-import { type Page, test } from '@playwright/test';
+import { type Page, expect, test } from '@playwright/test';
 
 export interface Start {
   /** What started: an oscillator's type, or noise. */
@@ -181,6 +181,26 @@ function logShadow(page: Page) {
     clearInterval(timer);
     if (latest) appendFileSync(file, `${JSON.stringify({ title, ...latest, text: undefined })}\n`);
   });
+}
+
+/**
+ * What the band through cells found in shadow on the page so far (#399, `window.jambot.shadow`):
+ * with the switch on or off, every bar compared plays in cells as the band plays it, and none is a gap.
+ */
+export async function shadowAgrees(page: Page) {
+  const shadow = (await page.evaluate(() => window.jambot?.shadow))!;
+  expect(shadow.errors).toEqual([]);
+  expect(shadow.bars).toBeGreaterThan(0);
+  expect(shadow.mismatched).toEqual({
+    written: 0,
+    harmony: 0,
+    unmatched: 0,
+    onsets: 0,
+    extra: 0,
+    velocity: 0,
+    length: 0,
+  });
+  expect(shadow.gaps).toEqual({});
 }
 
 /** Through the lobby's door into the band, playing alone. */

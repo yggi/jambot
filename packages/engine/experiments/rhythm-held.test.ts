@@ -4,6 +4,7 @@ import { PRESETS } from '../src/style.ts';
 import { COMPOSER } from '../src/plan.ts';
 import {
   aloneByPreset,
+  claveLost,
   drumDistance,
   drumOverlap,
   heldRuns,
@@ -19,6 +20,7 @@ if (process.env.E37_REPORT)
   console.log({
     mostUsed: [mostUsedRhythm(MAIN), mostUsedRhythm(CLIMBING)],
     alone: aloneByPreset(CLIMBING),
+    claveLost: claveLost(CLIMBING),
     distance: drumDistance(CLIMBING, MAIN),
     overlap: drumOverlap(CLIMBING, MAIN),
     bytes: Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer))),
@@ -54,6 +56,13 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       expect(run.kept.slice(20, 40).some(family), `${run.preset} ${run.seed}`).toBe(false);
       expect(run.kept.slice(40).some(family), `${run.preset} ${run.seed}`).toBe(true);
     }
+  });
+
+  it('brings a drum bar back with the clave chosen with it, and the drummer’s groove back without the one it was lent (#430; on main at 09ec1be, 100 sections lost their own)', () => {
+    // Funk's variation returns with the rumba clave in each of its 5 runs; the drummer's variation, which the rumba clave
+    // layered on at one section while Funk's lineage had faded, returns without it, out with Funk's lineage, 20 sections a run
+    expect(claveLost(MAIN)).toEqual({ lost: 0, lent: 0 });
+    expect(claveLost(CLIMBING)).toEqual({ lost: 0, lent: 100 });
   });
 
   it('moves the drummer’s hits a role by section type at most 0.05 from main’s: the variations move hits, the drummer still decides how many', () => {

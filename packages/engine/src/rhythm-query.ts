@@ -217,7 +217,7 @@ function heldNearest(
  * the line chosen with it, where one layers within `LAYER_DISTANCE`. Those
  * `chosen` (the composer's short-term memory and the section's meter) pull
  * the fragments used with them, as cells' query weighs use together. Those
- * `rejected` (rhythms it has tired of, and the claves played with them,
+ * `rejected` (rhythms it has tired of, and the claves first chosen with them,
  * `novelty.ts`) it leaves out of what the repository returns, so the next
  * nearest is taken, or none. It asks both with `pull`, how strongly use
  * together pulls (#389, `pullOf`).

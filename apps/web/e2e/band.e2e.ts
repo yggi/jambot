@@ -7,6 +7,7 @@ import {
   onsets,
   openCard,
   openStyle,
+  shadowAgrees,
   solo,
   starts,
   workers,
@@ -319,6 +320,8 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
   const kicks = all.filter((s) => s.kind === 'sine' && s.frequency === 440).map((s) => s.when);
   const struck = downbeats.filter((d) => kicks.some((k) => Math.abs(k - d) < 1e-3));
   expect(struck.length).toBeGreaterThan(downbeats.length / 2);
+  // And the band through cells plays its bars of 7/8 as it does (#432).
+  await shadowAgrees(page);
 });
 
 test('plays a section of 6/8 at the bpm it states, counted in its dotted quarters: each beat 60 / bpm long, within 1 ms (#367)', async ({
@@ -339,6 +342,8 @@ test('plays a section of 6/8 at the bpm it states, counted in its dotted quarter
   await expect.poll(async () => (await clicks()).length, { timeout: 15_000 }).toBeGreaterThan(8);
   const beats = (await clicks()).sort((x, y) => x - y);
   beats.slice(1).forEach((t, i) => expect(Math.abs(t - beats[i]! - 60 / bpm)).toBeLessThan(1e-3));
+  // And the band through cells plays its bars of 6/8 as it does (#432).
+  await shadowAgrees(page);
 });
 
 test('plays the full band: bass, chords and lead beside the drums', async ({ page }) => {
