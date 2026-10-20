@@ -38,9 +38,10 @@
  * E37's runs with the radio not walking, each preset held at entropy 0.3
  * (`heldRuns`), learning from an empty layer or, as `main` plays a held
  * preset, with none. It counts the share of sections the run's most used
- * rhythm plays (`mostUsedRhythm`), and how far the drummer's bars move from
+ * rhythm plays (`mostUsedRhythm`), how far the drummer's bars move from
  * `main`'s: the hits a role by section type (`drumDistance`) and the hits
- * on the steps `main` plays them, bar beside bar (`drumOverlap`).
+ * on the steps `main` plays them, bar beside bar (`drumOverlap`), and the
+ * sections where a drum bar returns without the clave it had (`claveLost`).
  *
  * It runs under vitest: `E37_REPORT=1 pnpm vitest run --silent=false
  * packages/engine/experiments/rhythm-radio.test.ts` prints the numbers
@@ -113,6 +114,8 @@ export interface RhythmRun {
   readonly alone: number;
   /** The rhythm of each section, in order: its fragment, or `-` where the drummer invents. */
   readonly kept: readonly string[];
+  /** The clave of each section, in order: its fragment, or `-` where none layers. */
+  readonly claves: readonly string[];
   /** The meter of each section, in order: its fragment's id, where it has one, else `-`. */
   readonly meters: readonly string[];
   /** The meters of the run that no seed rhythm fits, so a groove is all a section of them finds (E39). */
@@ -222,6 +225,7 @@ export function rhythmRun(
   const changes: RhythmChange[] = [];
   const played: Record<string, number> = {};
   const kept: string[] = [];
+  const claveKept: string[] = [];
   const meterKept: string[] = [];
   const seedless = new Set<string>();
   const missed = { fit: 0, distance: 0 };
@@ -247,6 +251,7 @@ export function rhythmRun(
       const key = rhythmKey(d.plan);
       played[key] = (played[key] ?? 0) + 1;
       kept.push(d.plan.rhythmFragment ?? '-');
+      claveKept.push(d.plan.claveFragment ?? '-');
       meterKept.push(d.plan.meterFragment ?? '-');
       const bench = { meter: d.plan.meter, meterFragment: d.plan.meterFragment };
       // whatever the point, the query with no layer lists every seed rhythm that fits the bench: none is the fit refusing
@@ -319,6 +324,7 @@ export function rhythmRun(
     played,
     alone,
     kept,
+    claves: claveKept,
     meters: meterKept,
     seedless: [...seedless],
     learning,
@@ -372,6 +378,37 @@ export function mostUsedRhythm(runs: readonly RhythmRun[]): {
     mostUsed += Math.max(...counts.values());
   }
   return { sections, mostUsed, share: mostUsed / sections };
+}
+
+/**
+ * E40 (#430): the sections where a drum bar that returns plays without the clave it had before. For each section of a
+ * stretch of a drum bar (its fragment, the same in sections one after another) that played in a stretch before, where
+ * that stretch's last section had a clave and this section has another, or none: `lost` where the clave played in
+ * every section of that stretch, so the two were chosen together, and `lent` where it layered on only its last
+ * sections, the drum bar it was chosen with having faded meanwhile.
+ */
+export function claveLost(runs: readonly RhythmRun[]): {
+  readonly lost: number;
+  readonly lent: number;
+} {
+  let lost = 0;
+  let lent = 0;
+  for (const run of runs) {
+    const had = new Map<string, { readonly clave: string; readonly whole: boolean }>();
+    let start = 0;
+    run.kept.forEach((id, i) => {
+      if (run.kept[i - 1] !== id) start = i;
+      const before = had.get(id);
+      if (id !== '-' && before && before.clave !== '-' && run.claves[i] !== before.clave)
+        if (before.whole) lost++;
+        else lent++;
+      if (run.kept[i + 1] !== id) {
+        const clave = run.claves[i]!;
+        had.set(id, { clave, whole: run.claves.slice(start, i + 1).every((c) => c === clave) });
+      }
+    });
+  }
+  return { lost, lent };
 }
 
 /**
