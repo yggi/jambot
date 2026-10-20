@@ -287,7 +287,7 @@ describe('the composer tires of a groove: varies it, then rejects it, and the dr
     ]);
     // (the band decides a bar ahead: the state after bar 47 has planned section 6, the variation's third)
     expect(run[6 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
-      { grooves: [G, V], boredom: 6, rejected: true },
+      { grooves: [G, V], claves: [], boredom: 6, rejected: true },
     ]);
   });
 
@@ -328,5 +328,74 @@ describe('the composer tires of a groove: varies it, then rejects it, and the dr
     // G2's family is rejected after its 6 sections (8 to 13); G's, rejected after section 6, has faded by then
     expect(played.slice(14, 20)).toEqual(played.slice(14, 20).map(() => V));
     expect(run.at(-1)!.carried.plans.layer!.filed).toHaveLength(4);
+  });
+});
+
+describe('a seed rhythm climbs the ladder as a groove filed does, the clave with it (#414)', () => {
+  // Funk's style, where the repository's meter is a 4/4 and the composer finds Funk's drum bar with the rumba clave.
+  const FUNK_DRUMS = 'Funk drums';
+  const RUMBA = 'rumba clave 3-2';
+  const V = 'composer song 1, bar 24';
+  const sectionsOf = (run: ReturnType<typeof play>) =>
+    range(run.length / SECTION_BARS).map((s) => {
+      const { plan } = run[s * SECTION_BARS]!.bar;
+      return `${plan.rhythmFragment ?? '-'} + ${plan.claveFragment ?? '-'}`;
+    });
+  const times = (n: number, what: string) => range(n).map(() => what);
+
+  it('at entropy 1 plays the drum bar 3 sections, its variation the next 3, then rejects both with the clave: the next nearest plays, until the drum bar’s boredom has faded', () => {
+    const run = play(16 * SECTION_BARS, { layer: EMPTY_LAYER }, { ...STYLE, entropy: 1 });
+    expect(sectionsOf(run)).toEqual([
+      ...times(3, `${FUNK_DRUMS} + ${RUMBA}`),
+      ...times(3, `${V} + ${RUMBA}`),
+      // the next nearest is a clave alone, the son's, and the rumba clave is out with the drum bar it played with
+      ...times(6, 'son clave 2-3 + -'),
+      ...times(4, `${V} + ${RUMBA}`),
+    ]);
+    const filed = run.at(-1)!.carried.plans.layer!.filed;
+    expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies])).toEqual([
+      [V, COMPOSER, FUNK_DRUMS],
+    ]);
+    // (the band decides a bar ahead: the state after bar 39 has planned section 5, the variation's third)
+    expect(run[5 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
+      { grooves: [FUNK_DRUMS, V], claves: [RUMBA], boredom: 6, rejected: true },
+    ]);
+  });
+
+  it('varies the drum bar by one operator on one line, never the kick, the backbeat or the fill, and the drummer plays from the variation', () => {
+    const run = play(4 * SECTION_BARS, { layer: EMPTY_LAYER }, { ...STYLE, entropy: 1 });
+    const { meter } = run[0]!.bar.plan;
+    const layer = run.at(-1)!.carried.plans.layer!;
+    const [own, varied] = [FUNK_DRUMS, V].map(
+      (id) => RHYTHM_REPOSITORY.read(id, meter, layer)!.hits,
+    );
+    expect(variations(own!, stepsOf(meter)).map((v) => JSON.stringify(v))).toContain(
+      JSON.stringify(varied),
+    );
+    const kept = (hits: readonly FragmentHit[]) =>
+      hits.filter((h) => [...GROOVE_ANCHORS, 'fill'].includes(h.role));
+    expect(kept(varied!)).toEqual(kept(own!));
+    expect(run[3 * SECTION_BARS]!.bar.plan.rhythmFragment).toBe(V);
+    const drums = (bar: BandBar) => drumsOf(bar).map((h) => [h.role, h.note, h.step]);
+    expect(drums(run[3 * SECTION_BARS]!.bar)).not.toEqual(drums(run[2 * SECTION_BARS]!.bar));
+  });
+
+  it('holds the drum bar and the clave at entropy 0: nothing varied, rejected or filed', () => {
+    const run = play(16 * SECTION_BARS, { layer: EMPTY_LAYER }, { ...STYLE, entropy: 0 });
+    expect(sectionsOf(run)).toEqual(times(16, `${FUNK_DRUMS} + ${RUMBA}`));
+    expect(run.at(-1)!.carried.plans.layer!.filed).toEqual([]);
+  });
+
+  it('climbs nothing with no layer to file in, or a repository that files nothing: the drum bar holds at entropy 1 as on main', () => {
+    const run = play(16 * SECTION_BARS, {}, { ...STYLE, entropy: 1 });
+    expect(sectionsOf(run)).toEqual(times(16, `${FUNK_DRUMS} + ${RUMBA}`));
+    const filesNothing = { ...RHYTHM_REPOSITORY };
+    delete filesNothing.file;
+    const kept = play(
+      16 * SECTION_BARS,
+      { layer: EMPTY_LAYER, rhythms: filesNothing },
+      { ...STYLE, entropy: 1 },
+    );
+    expect(sectionsOf(kept)).toEqual(times(16, `${FUNK_DRUMS} + ${RUMBA}`));
   });
 });

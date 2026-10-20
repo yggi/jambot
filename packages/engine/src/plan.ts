@@ -17,9 +17,10 @@
  * miss, and each player's, in the layer and in the composer's short-term
  * memory (`short-term.ts`), whose fragments every query of the section names
  * as chosen, so the meter and the groove pull each other. The composer tires
- * of a groove it plays (#411, `novelty.ts`): bored, it varies it and files
- * the variation (`climbed`), and past that it rejects it, so the drummer
- * invents again where nothing else fits. The band
+ * of a rhythm it plays, a seed rhythm or a groove filed (#411, #414,
+ * `novelty.ts`): bored, it varies it and files the variation (`climbed`),
+ * and past that it rejects it, with the clave played with it, so the next
+ * nearest plays, or the drummer invents where nothing else fits. The band
  * holds the plan for the section's eight bars, so a new key, scale or theme
  * arrives only at a boundary, as does a new meter or swing level.
  *
@@ -64,6 +65,7 @@ import {
   rejectedOf,
   variedGroove,
   wantsVariation,
+  withClave,
 } from './novelty.ts';
 import { NO_SHORT_TERM, type ShortTerm, chosenOf, remembered } from './short-term.ts';
 import {
@@ -72,7 +74,7 @@ import {
   type SectionRhythm,
   composedRhythm,
 } from './rhythm-query.ts';
-import { chance, draw, pick } from './random.ts';
+import { chance, draw, nameKey, pick } from './random.ts';
 import type { Style } from './style.ts';
 import type { SwingLevel } from './swing.ts';
 import { type Theme, buildTheme, themeKind } from './themes.ts';
@@ -350,15 +352,17 @@ const grooveTags = (session: string | undefined): string[] => [
 export const COMPOSER = 'composer';
 
 /**
- * The novelty ladder where a section's rhythm is found (#411, `novelty.ts`):
- * where the rhythm is a groove the layer filed, the lineage its family
- * belongs to (`familyOf`); where the composer is bored enough to vary it,
- * one variation of it (`variedGroove`, drawn by the groove's place in the
- * layer, so a forecast varies it as the band will), filed in the layer at
- * the point the section is asked at, on its bench, by the composer, created
- * at its first bar, tagged as the Muse's grooves are and naming the groove
- * it varies, and played in its place. The rhythm and the layer as they
- * were, and no lineage, where the rhythm is no groove.
+ * The novelty ladder where a section's rhythm is found (#411, #414,
+ * `novelty.ts`): the lineage the rhythm's family belongs to (`familyOf`),
+ * a seed rhythm's or a groove's the layer filed, with the clave chosen with
+ * it (`withClave`); where the composer is bored enough to vary it, one
+ * variation of it (`variedGroove`, drawn by a groove's place in the layer, a
+ * seed rhythm's id, so a forecast varies it as the band will), filed in the
+ * layer at the point the section is asked at, on its bench, by the
+ * composer, created at its first bar, tagged as the Muse's grooves are and
+ * naming the rhythm it varies, and played in its place, the clave beside it.
+ * The rhythm and the layer as they were, and no lineage, where the section
+ * found no rhythm, or a seed rhythm where the repository files nothing.
  */
 function climbed(
   {
@@ -379,13 +383,15 @@ function climbed(
 } {
   const id = rhythm.rhythmFragment;
   const position = layer.filed.findIndex((f) => f.fragment.id === id);
-  if (!rhythms || id === undefined || position === -1) return { rhythm, layer, playing: null };
-  const lineage = lineageOf(boredom, familyOf(layer, id));
+  if (!rhythms || id === undefined || (position === -1 && !rhythms.file))
+    return { rhythm, layer, playing: null };
+  const lineage = withClave(lineageOf(boredom, familyOf(layer, id)), rhythm.claveFragment);
   const read =
     wantsVariation(lineage) && rhythms.file ? rhythms.read(id, bench.meter, layer) : null;
+  const drawKey = position === -1 ? nameKey(id) : position;
   const hits =
     read && read.bars === 1
-      ? variedGroove(read.hits, stepsOf(bench.meter), draw(seed, 'grooveVariation', position))
+      ? variedGroove(read.hits, stepsOf(bench.meter), draw(seed, 'grooveVariation', drawKey))
       : null;
   if (!hits) return { rhythm, layer, playing: lineage };
   const filed = rhythms.file!(layer, {

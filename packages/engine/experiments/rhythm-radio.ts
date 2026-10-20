@@ -27,16 +27,25 @@
  * sections whose rhythm is among its run's 3 most used against the same
  * walk with nothing learned (`lockIn`), and what the layer weighs.
  *
- * E39, the composer tiring of a groove (#411): the same runs, which vary
- * and reject grooves as the band does (`novelty.ts`), counted by
- * `mostUsedGroove`: in the meters no seed rhythm fits, the sections the
- * most used groove of each plays.
+ * E39, the composer tiring of a rhythm (#411, #414): the same runs, which
+ * vary and reject grooves and seed rhythms as the band does (`novelty.ts`),
+ * counted by `mostUsedGroove`: in the meters no seed rhythm fits, the
+ * sections the most used groove of each plays.
+ *
+ * E40, a seed rhythm climbing the ladder while a preset is held (#414):
+ * E37's runs with the radio not walking, each preset held at entropy 0.3
+ * (`heldRuns`), learning from an empty layer or, as `main` plays a held
+ * preset, with none. It counts the share of sections the run's most used
+ * rhythm plays (`mostUsedRhythm`), and how far the drummer's bars move from
+ * `main`'s: the hits a role by section type (`drumDistance`) and the hits
+ * on the steps `main` plays them, bar beside bar (`drumOverlap`).
  *
  * It runs under vitest: `E37_REPORT=1 pnpm vitest run --silent=false
- * packages/engine/experiments/rhythm-radio.test.ts` prints the numbers.
+ * packages/engine/experiments/rhythm-radio.test.ts` prints the numbers
+ * (E38 and E39's in `rhythm-learning.test.ts`, E40's in `rhythm-held.test.ts`).
  */
 
-import { beatsOf } from '@jambot/theory';
+import { beatsOf, stepsOf } from '@jambot/theory';
 import {
   type BandCarried,
   type BandEnv,
@@ -60,8 +69,14 @@ import {
   styleAt,
   walkRadio,
 } from '../src/index.ts';
+import type { BarEnv } from '../src/bar.ts';
+import { drums } from '../src/drums.ts';
+import { GROOVE_ROLES, sectionHits } from '../src/rhythm-query.ts';
+import { type SectionType, barEnergy } from '../src/form.ts';
+import { grooveBar } from '../src/groove.ts';
 import { EMPTY_LAYER, type LearnedLayer } from '../src/layer.ts';
 import { METER_REPOSITORY } from '../src/repository.ts';
+import { writtenStyle } from '../src/style.ts';
 
 export const HOURS = 1;
 export const SEEDS = 5;
@@ -100,7 +115,18 @@ export interface RhythmRun {
   readonly seedless: readonly string[];
   /** What the run learned, where it was given a layer (E38). */
   readonly learning: Learning | null;
+  /** The drummer's hits a role, and the bars, by section type, where the preset was held (E40). */
+  readonly drums: DrumCounts | null;
+  /** The drummer's hits in each bar, each its step and sound (`step × 128 + note`), where the preset was held (E40). */
+  readonly drumBars: readonly (readonly number[])[] | null;
 }
+
+/** The drummer's bars by section type (E40): how many, and the hits of each role in them. */
+export type DrumCounts = Readonly<
+  Partial<
+    Record<SectionType, { readonly bars: number; readonly hits: Readonly<Record<string, number>> }>
+  >
+>;
 
 /** A groove the Muse filed in a run (E38): what was filed, and what filing gave. */
 export interface Filing {
@@ -120,13 +146,17 @@ export interface Learning {
   readonly layer: LearnedLayer;
 }
 
-/** The radio tuned in at a preset, the band deciding each bar with the composer asking for meter and rhythm. */
+/**
+ * The radio tuned in at a preset, the band deciding each bar with the composer asking for meter and rhythm; or, where
+ * `held`, the preset held at entropy 0.3, the radio not walking, and the drummer's hits counted (E40).
+ */
 export function rhythmRun(
   preset: (typeof PRESETS)[number],
   seed: number,
   hours = HOURS,
   margins?: RhythmRepository['margins'],
   layer?: LearnedLayer,
+  held = false,
 ): RhythmRun {
   // (each filing kept, and each section's layer as the planner left it: it asks the meter once a section,
   // in order, then files and learns)
@@ -161,15 +191,17 @@ export function rhythmRun(
   let track: StyleTrack = holding(style);
   let walked = 0;
   const bpms: number[] = [];
+  const styles: Style[] = [];
   const envAt = (bar: number, clock: ReturnType<typeof clockOf>): BandEnv => {
     const section = Math.floor(bar / SECTION_BARS);
-    while (walked < section) {
+    while (!held && walked < section) {
       walked++;
       style = walkRadio(style, seed, walked, RADIO);
       track = glideTo(track, style, clock.barStart(walked * SECTION_BARS), PRESET_GLIDE);
     }
     const played = styleAt(track, clock.barStart(bar));
     bpms[bar] = played.bpm;
+    styles[bar] = writtenStyle(played);
     return {
       seed,
       bar,
@@ -189,6 +221,9 @@ export function rhythmRun(
   const meterKept: string[] = [];
   const seedless = new Set<string>();
   const missed = { fit: 0, distance: 0 };
+  const drumCounts: Partial<Record<SectionType, { bars: number; hits: Record<string, number> }>> =
+    {};
+  const drumBars: number[][] = [];
   let minute = 0;
   let sections = 0;
 
@@ -217,6 +252,38 @@ export function rhythmRun(
         else missed.distance++;
       }
     }
+    if (held) {
+      // (the drummer's bar as the band plays it: its own, given the section's fragments' hits, from the layer the
+      // section was planned with)
+      const barInSection = d.bar % SECTION_BARS;
+      const bar: BarEnv = {
+        seed,
+        bar: d.bar,
+        meter: d.plan.meter,
+        plan: d.plan,
+        barInSection,
+        style: styles[d.bar]!,
+        swing: { level: d.plan.swing, share: d.plan.share ?? STRAIGHT.share },
+        barEnergy: barEnergy(styles[d.bar]!.energy, d.plan.section.type, barInSection),
+        chords: d.chords,
+        next: [],
+        offer: null,
+      };
+      const learnt = layers[Math.floor(d.bar / SECTION_BARS)] ?? layer;
+      const hits = sectionHits(
+        rhythms,
+        d.plan,
+        d.plan.meter,
+        barInSection,
+        stepsOf(d.plan.meter),
+        learnt,
+      );
+      const counts = (drumCounts[d.plan.section.type] ??= { bars: 0, hits: {} });
+      counts.bars++;
+      const played = grooveBar(bar, drums(bar), hits).filter((w) => w.role !== 'clave');
+      for (const w of played) counts.hits[w.role!] = (counts.hits[w.role!] ?? 0) + 1;
+      drumBars.push(played.map((w) => w.step * 128 + w.note));
+    }
     minute += beatsOf(d.plan.meter) / bpms[d.bar]!;
   }
   // (a filing is made where a section is planned, of the section before: those of the sections within the hours)
@@ -242,6 +309,8 @@ export function rhythmRun(
     meters: meterKept,
     seedless: [...seedless],
     learning,
+    drums: held ? drumCounts : null,
+    drumBars: held ? drumBars : null,
   };
 }
 
@@ -255,6 +324,106 @@ export const rhythmRuns = (
   PRESETS.flatMap((preset, p) =>
     range(seeds).map((seed) => rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer)),
   );
+
+/**
+ * E40 (#414): E37's runs with each preset held at entropy 0.3, the radio not walking, for `hours` hours; learning from
+ * an empty layer where `learning`, so the composer climbs the ladder with a seed rhythm too, else with none, as `main`
+ * plays a held preset (where it finds a seed rhythm, nothing is filed).
+ */
+export const heldRuns = (learning: boolean, seeds = SEEDS, hours = HOURS): RhythmRun[] =>
+  PRESETS.flatMap((preset, p) =>
+    range(seeds).map((seed) =>
+      rhythmRun(
+        preset,
+        p * seeds + seed + 1,
+        hours,
+        undefined,
+        learning ? EMPTY_LAYER : undefined,
+        true,
+      ),
+    ),
+  );
+
+/** E40: the sections a run's most used rhythm plays (its fragment, or `-` where the drummer invents), pooled over the runs, and its share. */
+export function mostUsedRhythm(runs: readonly RhythmRun[]): {
+  readonly sections: number;
+  readonly mostUsed: number;
+  readonly share: number;
+} {
+  let sections = 0;
+  let mostUsed = 0;
+  for (const run of runs) {
+    const counts = new Map<string, number>();
+    for (const id of run.kept) counts.set(id, (counts.get(id) ?? 0) + 1);
+    sections += run.kept.length;
+    mostUsed += Math.max(...counts.values());
+  }
+  return { sections, mostUsed, share: mostUsed / sections };
+}
+
+/**
+ * E40: how far the drummer's bars move from `main`'s, as `rhythms.test.ts` measures it: for each preset, section type
+ * and role but the clave, the hits a bar over the preset's runs, against the same runs on `main`; the farthest a
+ * preset moves, over its types and roles.
+ */
+export function drumDistance(
+  runs: readonly RhythmRun[],
+  main: readonly RhythmRun[],
+): Record<string, number> {
+  const pooled = (of: readonly RhythmRun[], preset: string) => {
+    const out: Partial<Record<SectionType, { bars: number; hits: Record<string, number> }>> = {};
+    for (const run of of.filter((r) => r.preset === preset))
+      for (const [type, c] of Object.entries(run.drums!) as [
+        SectionType,
+        { bars: number; hits: Record<string, number> },
+      ][]) {
+        const into = (out[type] ??= { bars: 0, hits: {} });
+        into.bars += c.bars;
+        for (const [role, n] of Object.entries(c.hits))
+          into.hits[role] = (into.hits[role] ?? 0) + n;
+      }
+    return out;
+  };
+  return Object.fromEntries(
+    PRESETS.map(({ name }) => {
+      const [a, b] = [pooled(runs, name), pooled(main, name)];
+      let far = 0;
+      for (const type of Object.keys(b) as SectionType[])
+        for (const role of GROOVE_ROLES) {
+          const perBar = (c: (typeof a)[SectionType]) => (c ? (c.hits[role] ?? 0) / c.bars : 0);
+          far = Math.max(far, Math.abs(perBar(a[type]) - perBar(b[type])));
+        }
+      return [name, Math.round(far * 100) / 100];
+    }),
+  );
+}
+
+/**
+ * E40: how much of the drummer's bars stays where `main` plays it, as `rhythms.test.ts` measures it, for each preset
+ * over its runs, bar beside bar, the clave aside: the hits on a step and sound both play, over those either plays.
+ */
+export function drumOverlap(
+  runs: readonly RhythmRun[],
+  main: readonly RhythmRun[],
+): Record<string, number> {
+  return Object.fromEntries(
+    PRESETS.map(({ name }) => {
+      const overlaps = runs.flatMap((run, i) =>
+        run.preset !== name
+          ? []
+          : run.drumBars!.map((bar, j) => {
+              const theirs = new Set(main[i]!.drumBars![j]);
+              const shared = bar.filter((k) => theirs.has(k)).length;
+              return shared / new Set([...bar, ...theirs]).size || 1;
+            }),
+      );
+      return [
+        name,
+        Math.round((overlaps.reduce((a, b) => a + b, 0) / overlaps.length) * 100) / 100,
+      ];
+    }),
+  );
+}
 
 /** E38: E37's runs for `hours` hours with the band learning from an empty layer, and the Muse filing (#401). */
 export const learningRuns = (seeds = SEEDS, hours = LEARNING_HOURS): RhythmRun[] =>

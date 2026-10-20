@@ -28,6 +28,17 @@ export function keyedRng(seed: number, ...keys: number[]): Rng {
   return mulberry32(h);
 }
 
+/**
+ * A key for a draw from a name: FNV-1a over its UTF-16 code units, a 32-bit
+ * integer, so a decision about a fragment of the repository can be keyed by
+ * its id (#414: which variation the composer makes of a seed rhythm).
+ */
+export function nameKey(name: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 0x01000193);
+  return h >>> 0;
+}
+
 /** The first draw of `keyedRng`, for one-off decisions. */
 export function keyedRandom(seed: number, ...keys: number[]): number {
   return keyedRng(seed, ...keys)();
@@ -98,7 +109,7 @@ export const STREAMS = {
   offerVariation: 28,
   /** The radio's walk: one step per section and axis (#313). */
   radio: 29,
-  /** Which variation the composer makes of a groove it tires of, per groove (#411). */
+  /** Which variation the composer makes of a rhythm it tires of, per rhythm: a groove filed by its place in the layer (#411), a seed rhythm by its id (#414, `nameKey`). */
   grooveVariation: 30,
 } as const;
 

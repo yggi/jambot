@@ -4,6 +4,7 @@ import { DRUMMER } from '../src/band.ts';
 import { EMPTY_LAYER, LAYER_CAP, layerBytes } from '../src/layer.ts';
 import { grooveText } from '../src/muse-groove.ts';
 import { familyOf, variations } from '../src/novelty.ts';
+import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { COMPOSER } from '../src/plan.ts';
 import { readRhythm, rhythmRepository } from '../src/rhythms.ts';
 import {
@@ -14,8 +15,8 @@ import {
   rhythmRuns,
 } from './rhythm-radio.ts';
 
-// E38 (#401) and E39 (#411): E37's walks, 3 hours a run, the band learning, the Muse filing the drummer's grooves,
-// and the composer varying and rejecting them.
+// E38 (#401) and E39 (#411, #414): E37's walks, 3 hours a run, the band learning, the Muse filing the drummer's
+// grooves, and the composer varying and rejecting them and the seed rhythms it plays.
 const LEARNED = learningRuns();
 const UNLEARNED = rhythmRuns(undefined, LEARNING_HOURS);
 const FILINGS = LEARNED.flatMap((r) => r.learning!.filings);
@@ -37,14 +38,14 @@ if (process.env.E37_REPORT)
   });
 
 describe('the Muse files the drummer’s grooves while the radio walks (E38, #401)', () => {
-  it('files 76 grooves in 120 hours, 39 the drummer’s on a miss and 37 the composer’s variations (#411), and the misses fall from 3,945 sections to 43: what was filed is found again', () => {
+  it('files 187 grooves in 120 hours, 50 the drummer’s on a miss and 137 the composer’s variations (#411, #414), and the misses fall from 3,945 sections to 56: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     expect(count(LEARNED, (r) => r.sections)).toBe(26631);
-    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([43, 3945]);
-    expect(FILINGS.length).toBe(76);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([39, 37]);
-    expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(16);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(3278);
+    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([56, 3945]);
+    expect(FILINGS.length).toBe(187);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([50, 137]);
+    expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(12969);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -77,41 +78,49 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −1.7 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −12.6 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9420', '0.9249']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-1.71', '1.64']);
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9420', '0.8158']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-12.62', '1.79']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it(`keeps a layer of at most 8,464 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+  it(`keeps a layer of at most 11,550 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(8464);
-    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(8);
+    expect(Math.max(...bytes)).toBe(11550);
+    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
+    // every groove its run filed is still there
+    for (const run of LEARNED)
+      expect(run.learning!.layer.filed.map((f) => f.fragment.id)).toEqual(
+        run.learning!.filings.map((f) => f.id),
+      );
   });
 });
 
-describe('the composer tires of a groove while the radio walks (E39, #411)', () => {
-  it('plays the most used groove of a meter no seed rhythm fits in 51 % of its sections, under 60 %', () => {
+describe('the composer tires of a groove while the radio walks (E39, #411, #414)', () => {
+  it('plays the most used groove of a meter no seed rhythm fits in 52 % of its sections, under 60 %', () => {
     const { sections, mostUsed, share } = mostUsedGroove(LEARNED);
-    expect([sections, mostUsed]).toEqual([3236, 1654]);
+    expect([sections, mostUsed]).toEqual([3222, 1661]);
     expect(share).toBeLessThan(0.6);
     // with nothing learned no groove is filed: those sections are the drummer's own
     expect(mostUsedGroove(UNLEARNED).mostUsed).toBe(0);
   });
 
-  it('makes each variation of a groove its run filed before, by one operator, and varies no family twice', () => {
+  it('makes each variation of a seed rhythm or of a groove its run filed before, by one operator, and varies no family twice', () => {
+    const seeds = new Set(RHYTHM_FRAGMENTS.map((f) => f.id));
     for (const run of LEARNED) {
       const { filings, layer } = run.learning!;
       const varied = filings.filter((f) => f.filing.source === COMPOSER);
       for (const { filing, id } of varied) {
         const { varies, bench } = filing;
         const parent = filings.findIndex((f) => f.id === varies);
-        expect(parent, id).toBeGreaterThanOrEqual(0);
-        expect(parent, id).toBeLessThan(filings.findIndex((f) => f.id === id));
+        if (!seeds.has(varies!)) {
+          expect(parent, id).toBeGreaterThanOrEqual(0);
+          expect(parent, id).toBeLessThan(filings.findIndex((f) => f.id === id));
+        }
         const hits = rhythmRepository().read(varies!, bench.meter, layer)!.hits;
         expect(variations(hits, stepsOf(bench.meter)), id).toContainEqual(
           [...filing.hits].sort((a, b) => a.step - b.step || a.note - b.note),

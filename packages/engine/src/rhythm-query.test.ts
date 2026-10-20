@@ -76,6 +76,16 @@ describe('the composer asks the repository for a rhythm (#397)', () => {
     expect(take(['d1', 'd2'])).toEqual({});
   });
 
+  it('leaves out a clave it rejected with its drum bar (#414), even the clave playing: the next nearest that layers, or none', () => {
+    const repository = at({ d1: 0, d2: 0.1 }, { c1: 0.01, c2: 0.05 });
+    const playing = { rhythmFragment: 'd1', claveFragment: 'c1' };
+    const take = (rejected: string[]) =>
+      composedRhythm(repository, INITIAL_STYLE, bench, playing, undefined, [], rejected);
+    expect(take([])).toEqual(playing);
+    expect(take(['d1', 'c1'])).toEqual({ rhythmFragment: 'd2', claveFragment: 'c2' });
+    expect(take(['d1', 'c1', 'c2'])).toEqual({ rhythmFragment: 'd2' });
+  });
+
   it('asks with the section’s meter and its fragment as the bench', () => {
     const repository = at({ d1: 0 });
     composedRhythm(repository, INITIAL_STYLE, bench, null);
