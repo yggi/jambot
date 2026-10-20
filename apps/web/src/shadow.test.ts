@@ -25,6 +25,7 @@ import { type Station, onward, tuneIn } from '@jambot/session';
 import { METERS, type MeterName } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { conductRadio, radioStyle } from './conductor.ts';
+import { type SectionTexts, inlineTexts, stateSection } from './section-texts.ts';
 import { ONSET_BOUND, type Plays, Shadow, type ShadowReadout, playsFrom } from './shadow.ts';
 
 const START = 1;
@@ -58,6 +59,8 @@ function run({
   meter = '4/4',
   heard = [],
   repositories = false,
+  delay,
+  countIn = 0,
 }: {
   preset?: (typeof PRESETS)[number];
   seed?: number;
@@ -75,8 +78,30 @@ function run({
   heard?: readonly HeardNote[];
   /** Whether the composer asks cells' repositories for each section's meter and rhythm, as the app's does, the meter then asked for none. */
   repositories?: boolean;
+  /** How long a text takes to arrive once asked, in seconds on the clock, as from a worker; none answers at once, on the thread that asks. */
+  delay?: number;
+  /** How long before the song's first step the transport starts ticking, in seconds: the count-in. */
+  countIn?: number;
 }): Run {
-  const shadow = new Shadow(() => performance.now(), plays, edit);
+  let clock = 0;
+  const due: { at: number; deliver: () => void }[] = [];
+  const texts: SectionTexts =
+    delay === undefined
+      ? inlineTexts(edit)
+      : {
+          begin() {},
+          end() {},
+          ask(bars, answer) {
+            // Copied as `postMessage` copies them, and stated where the worker would: off the page's time.
+            const copy = structuredClone(bars);
+            due.push({
+              at: clock + delay,
+              deliver: () => answer(structuredClone(stateSection(copy, edit))),
+            });
+          },
+        };
+  const shadow = new Shadow(() => performance.now(), plays, texts);
+  shadow.reset();
   let env: TransportEnv = {
     seed,
     start: START,
@@ -100,7 +125,12 @@ function run({
   };
   const laid = new Set<number>();
   let waiting = [...heard];
-  for (let now = START - TICK; ; now += TICK) {
+  for (let now = START - countIn - TICK; ; now += TICK) {
+    clock = now;
+    for (const d of due.filter((d) => d.at <= now)) {
+      due.splice(due.indexOf(d), 1);
+      d.deliver();
+    }
     const laidWith = env;
     const finish = finishAt !== undefined && (carried?.nextBar ?? 0) >= finishAt;
     const arrived = waiting.filter((n) => laid.has(Math.floor(n.position)));
@@ -532,6 +562,88 @@ describe('the band through cells in every meter it plays (#432)', () => {
       playsAsTheBand(band, played);
     },
   );
+});
+
+/** A text's way from a worker and back, in seconds: more than three times the 15 ms a text took to build, compile and play in #403's soak. */
+const WORKER = 0.05;
+
+/** The count-in, in seconds: a bar at 120 bpm, the transport ticking before the song's first step. */
+const COUNT_IN = 2;
+
+describe('a section’s text from a worker (#406)', () => {
+  it.each(PRESETS.map((p) => [p.name, p] as const))(
+    'with each text arriving 50 ms after it is asked, plays %s held through cells as the band does: every text there before its first bar plays, the first a count-in early and the others a section less a beat',
+    (_, preset) => {
+      const { readout, band, played } = run({
+        plays: 'cells',
+        preset,
+        delay: WORKER,
+        countIn: COUNT_IN,
+      });
+      expect(readout.errors).toEqual([]);
+      expect(readout.mismatched).toEqual(NONE);
+      expect(readout.gaps).toEqual({});
+      expect(readout.bars).toBeGreaterThanOrEqual(24);
+      expect(readout.played.band).toBe(0);
+      expect(readout.texts).toEqual({ ahead: 3, fresh: 1, again: 0 });
+      expect(readout.arrival.late).toBe(0);
+      const bar = (4 * 60) / preset.style.bpm;
+      expect(readout.arrival.least.fresh).toBeGreaterThan(COUNT_IN - 2 * WORKER);
+      expect(readout.arrival.least.fresh).toBeLessThan(COUNT_IN + TICK);
+      // Asked as the middle bar is composed, a beat before it starts and as far as the lookahead before that: the next section starts four bars and a beat later.
+      expect(readout.arrival.least.ahead).toBeGreaterThan(4 * bar - 2 * WORKER);
+      expect(readout.arrival.least.ahead).toBeLessThan(4 * bar + bar / 4 + LOOKAHEAD);
+      expect(readout.arrival.least.again).toBeNull();
+      playsAsTheBand(band, played);
+    },
+  );
+
+  it('writes a section again from a worker when a bar is composed otherwise than foreseen: there a beat before it plays, less the way, and nothing differs', () => {
+    let moved = false;
+    const preset = PRESETS[0]!;
+    const { readout, band, played } = run({
+      plays: 'cells',
+      preset,
+      delay: WORKER,
+      countIn: COUNT_IN,
+      control: (env, carried) => {
+        if (moved || carried.nextBar !== 11) return env;
+        moved = true;
+        return {
+          ...env,
+          track: glideTo(env.track, { energy: 0.95, artic: 0.9 }, carried.head.step, 0),
+        };
+      },
+    });
+    expect(moved).toBe(true);
+    expect(readout.texts.again).toBeGreaterThan(0);
+    expect(readout.errors).toEqual([]);
+    expect(readout.mismatched).toEqual(NONE);
+    expect(readout.gaps).toEqual({});
+    expect(readout.played.band).toBe(0);
+    expect(readout.arrival.late).toBe(0);
+    expect(readout.arrival.least.again).toBeGreaterThan(60 / preset.style.bpm - 2 * WORKER);
+    playsAsTheBand(band, played);
+  });
+
+  it('plays the band’s own where a text is still on its way as its bar is laid, and counts each such step late, with its reason', () => {
+    const { readout, band, played } = run({ plays: 'cells', delay: 2 });
+    expect(readout.arrival.late).toBeGreaterThan(0);
+    expect(Object.keys(readout.gaps)).toEqual([expect.stringMatching(/on its way/)]);
+    expect(readout.played.band).toBeGreaterThan(0);
+    expect(readout.played.cells).toBeGreaterThan(0);
+    expect(readout.mismatched).toEqual(NONE);
+    expect(readout.bars).toBeGreaterThanOrEqual(20);
+    playsAsTheBand(band, played);
+  });
+
+  it('times the page’s own work for each text apart from the job’s, which a worker does', () => {
+    const { readout } = run({ delay: WORKER, countIn: COUNT_IN });
+    const asked = readout.texts.ahead + readout.texts.fresh + readout.texts.again;
+    expect(readout.cost.main.count).toBe(asked);
+    expect(readout.cost.compile.count).toBe(asked);
+    expect(readout.cost.main.p50).toBeLessThan(readout.cost.buildCompile.p50);
+  });
 });
 
 describe('the switch (#399)', () => {

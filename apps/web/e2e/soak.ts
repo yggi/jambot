@@ -49,6 +49,8 @@ for (let lap = 1; lap * every <= minutes; lap++) {
       gaps: r.gaps,
       texts: r.texts,
       buildCompile: r.cost.buildCompile,
+      main: r.cost.main,
+      arrival: r.arrival,
     }),
   );
 }
