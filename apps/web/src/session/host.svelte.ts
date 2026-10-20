@@ -6,8 +6,8 @@
  * bars composed and not yet played, the bars ahead and the Muse. From then
  * on it tells every client what the player does (`Hosting`), answers each
  * ping with its page clock and its output's offset from it (`DeviceClocks`),
- * and passes what clients judged
- * to the player's Muse. A client silent for `SILENT` seconds has lost its
+ * and passes what clients judged, and what they played on drums, named by
+ * the player it seated (`heardFrom`, #410), to the player's Muse. A client silent for `SILENT` seconds has lost its
  * link. It keeps its seat, and comes back as the same player with the token
  * its welcome gave (`roster.ts`), as one whose link dropped does. What a
  * host needs to come back from a reload is kept as it changes
@@ -26,6 +26,7 @@ import {
   admit,
   expire,
   forecastDelta,
+  heardFrom,
   leave,
   lose,
   memberAt,
@@ -265,6 +266,9 @@ export class HostSession {
         this.#player.judgedElsewhere([{ bar: message.bar, judgement }]);
         return;
       }
+      case 'played':
+        // Its Muse files a groove under the name the player was seated by.
+        return this.#player.drumsElsewhere(heardFrom(message, member.name));
       case 'forget':
         return this.#player.forgetMotif();
       case 'leave':

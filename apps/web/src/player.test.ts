@@ -970,7 +970,7 @@ describe('the count-in', () => {
   it('clicks the rest of it, and only the rest, for a client that follows a song already counting', async () => {
     const { world, s } = surroundings();
     const player = new Player(s, new Metronome());
-    player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
+    player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
     const song = {
       seed: 3,
       start: 5,
@@ -1082,7 +1082,7 @@ describe('stopping on a cadence', () => {
   it('halts a client at once for any stop that is not the host’s ending', async () => {
     const { world, s } = surroundings();
     const player = new Player(s, new Metronome());
-    player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
+    player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
     void player.followSong(
       {
         seed: 1,
@@ -1290,7 +1290,7 @@ describe('the meter asked for (#262)', () => {
   it('is the host’s to ask: a client follows the meter of its host’s bars, and its own asking rests', () => {
     const { s } = surroundings();
     const player = new Player(s);
-    player.follow({ judged: () => {}, forget: () => {}, skew: () => 0 });
+    player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
     player.setMeter(METERS['5/8']);
     expect(player.meter).toBeNull();
   });
@@ -1423,7 +1423,7 @@ describe('the radio (#313)', () => {
 
   it('cannot be tuned in by a client, and a client that follows a host has none', async () => {
     const { player } = await playing();
-    player.follow({ judged: () => {}, forget: () => {}, skew: () => null });
+    player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => null });
     expect(player.station).toBeNull();
     player.tuneRadio(true);
     expect(player.station).toBeNull();
@@ -1626,7 +1626,7 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     expect(player.useLayer(learned)).toBe(true);
     expect(player.layer).toBe(learned);
     expect(saved.at(-1)).toBe(learned);
-    player.follow({ judged: () => {}, forget: () => {}, skew: () => null });
+    player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => null });
     expect(player.useLayer(EMPTY_LAYER)).toBe(false);
     expect(player.layer).toBe(learned);
   });

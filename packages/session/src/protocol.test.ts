@@ -16,9 +16,13 @@ import {
   transport,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
+import { EAR, earListen } from './ear.ts';
 import { sentBars } from './host.ts';
 import {
+  type ClientMessage,
+  PLAYED_MOST,
   PROTOCOL,
+  heardFrom,
   type SentBar,
   playerOf,
   playerSource,
@@ -112,6 +116,25 @@ function travelling(style: Style = { ...INITIAL_STYLE, energy: 1, harm: 1 }): {
   return { bars, judgements, log, memory };
 }
 
+/**
+ * What a client's ear passes on of a bar of drums (#410): kick, snare and
+ * hats struck on the pads, a hat held from a MIDI port, each a little off
+ * the grid, as a hand plays.
+ */
+function playedBars(): (ClientMessage & { kind: 'played' })[] {
+  const drums = [36, 42, 38, 42].map((note, i) => ({
+    note,
+    velocity: 100 - i * 9,
+    source: i === 3 ? 'a MIDI port' : 'the drum pads',
+    position: 16 + i * 4 + 0.23,
+    end: i === 3 ? 16 + i * 4 + 1.71 : null,
+  }));
+  return earListen(EAR, [], 3 * 16, () => undefined, undefined, drums).played.map((p) => ({
+    kind: 'played',
+    ...p,
+  }));
+}
+
 describe('the session protocol', () => {
   it("reads each side's messages, and nothing else", () => {
     expect(readHostMessage({ kind: 'stop' })).toEqual({ kind: 'stop' });
@@ -139,6 +162,9 @@ describe('the session protocol', () => {
       { kind: 'join', protocol: PROTOCOL, name: 'Ada', resume: 'token' },
       { kind: 'judged', bar: 3, judgement },
       { kind: 'ping', sent: 1.5 },
+      ...playedBars(),
+      // Any part the band has reads; a host hears drums alone so far (`heardFrom`).
+      { kind: 'played', part: 'bass', bar: 1, notes: [] },
       { kind: 'forget' },
       { kind: 'leave' },
     ])
@@ -159,8 +185,22 @@ describe('the session protocol', () => {
       { kind: 'ping' },
       { kind: 'ping', sent: '1' },
       { kind: 'ping', sent: Number.NaN },
+      ...playedJunk(),
     ])
       expect(readClientMessage(junk), JSON.stringify(junk)).toBeNull();
+  });
+
+  it(`reads a client's played bar of at most ${PLAYED_MOST} notes, and hears drums alone in it, by the player's name`, () => {
+    const [played] = playedBars();
+    expect(played!.notes).toHaveLength(4);
+    const most = { ...played!, notes: Array(PLAYED_MOST).fill(played!.notes[0]) };
+    expect(readClientMessage(most)).toEqual(most);
+    expect(readClientMessage({ ...most, notes: [...most.notes, played!.notes[0]] })).toBeNull();
+    // The host names each note by the player it seated, whatever the client said it was.
+    expect(heardFrom(played!, 'Ada')).toEqual(played!.notes.map((n) => ({ ...n, source: 'Ada' })));
+    expect(heardFrom({ ...played!, part: 'lead' }, 'Ada')).toEqual([]);
+    // About 85 bytes a note on the wire, as JSON: a bar of 4 hits is under 400.
+    expect(JSON.stringify(played).length).toBeLessThan(400);
   });
 
   it('refuses a client of another version, and one without a name', () => {
@@ -211,6 +251,7 @@ describe('the session protocol', () => {
       judgement: shapeOf(judgements),
       log: shapeOf(log),
       memory: shapeOf(memory),
+      played: shapeOf(playedBars()),
     }).toEqual(SHAPES);
   });
 
@@ -234,9 +275,39 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 11 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements and the Muse's log show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375). */
+/** The shapes of version 13 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements, the Muse's log and a client's bar of drums show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375); 12 the rhythm fragment and the clave (#397); 13 has a client pass on each bar its players played on drums, the notes as heard (`played`, #410). */
+/** A played bar that isn't one: each field missing or of another type, in turn. */
+function playedJunk(): unknown[] {
+  const [played] = playedBars();
+  const note = played!.notes[0]!;
+  const notes = (changed: Record<string, unknown>) => ({
+    ...played,
+    notes: [{ ...note, ...changed }],
+  });
+  return [
+    { ...played, part: undefined },
+    { ...played, part: 'kazoo' },
+    { ...played, bar: undefined },
+    { ...played, bar: 1.5 },
+    { ...played, notes: undefined },
+    { ...played, notes: 'kick' },
+    { ...played, notes: [null] },
+    notes({ note: undefined }),
+    notes({ note: 36.5 }),
+    notes({ note: 128 }),
+    notes({ velocity: '100' }),
+    notes({ velocity: -1 }),
+    notes({ velocity: 128 }),
+    notes({ source: 7 }),
+    notes({ position: Number.POSITIVE_INFINITY }),
+    notes({ position: undefined }),
+    notes({ end: undefined }),
+    notes({ end: Number.NaN }),
+  ];
+}
+
 const SHAPES = {
-  protocol: 12,
+  protocol: 13,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -359,5 +430,16 @@ const SHAPES = {
     'motif.onsets[]: number',
     'source: string',
     'weight: number',
+  ],
+  played: [
+    'bar: number',
+    'kind: string',
+    'notes[].end: null',
+    'notes[].end: number',
+    'notes[].note: number',
+    'notes[].position: number',
+    'notes[].source: string',
+    'notes[].velocity: number',
+    'part: string',
   ],
 };
