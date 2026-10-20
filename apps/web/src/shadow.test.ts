@@ -1,5 +1,7 @@
 // @vitest-environment node
 import {
+  CLAVES_NOTE,
+  DRUM_NOTES,
   type HeardNote,
   INITIAL_STYLE,
   LOOKAHEAD,
@@ -190,6 +192,28 @@ describe('the band through cells, in shadow (#399)', () => {
       expect(readout.gaps).toEqual({});
       // Section 0 is written as the song starts, the rest ahead, at the middle of the section before; none again.
       expect(readout.texts).toEqual({ ahead: 3, fresh: 1, again: 0 });
+    },
+  );
+
+  it.each(['Funk', 'Bossa nova'])(
+    'with the switch on, plays %s held from cells’ repositories, 3 sections, as the band does: its clave on the claves (75), beside the rim on a step they share (cells v0.7.0)',
+    (name) => {
+      const preset = PRESETS.find((p) => p.name === name)!;
+      const { readout, band, played } = run({ preset, repositories: true, plays: 'cells' });
+      const drums = (note: number) =>
+        new Set(
+          band
+            .filter((e) => e.event.part === 'drums' && e.event.note === note)
+            .map((e) => `${e.bar} ${e.event.step}`),
+        );
+      const claves = drums(CLAVES_NOTE);
+      expect(claves.size).toBeGreaterThan(0);
+      expect([...drums(DRUM_NOTES.rim)].some((at) => claves.has(at))).toBe(true);
+      expect(readout.errors).toEqual([]);
+      expect(readout.mismatched).toEqual(NONE);
+      expect(readout.gaps).toEqual({});
+      expect(readout.played.band).toBe(0);
+      playsAsTheBand(band, played);
     },
   );
 

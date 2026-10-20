@@ -335,8 +335,8 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
       ['Deep house', null],
       ['Ambient', null],
       ['Lo-fi hip hop', null],
-      ['Funk', { id: 'rumba clave 3-2', hits: 2.5, onDrums: 1, added: 1.63 }],
-      ['Bossa nova', { id: 'bossa nova clave (one bar)', hits: 5, onDrums: 3, added: 3 }],
+      ['Funk', { id: 'rumba clave 3-2', hits: 2.5, onDrums: 0, added: 2.5 }],
+      ['Bossa nova', { id: 'bossa nova clave (one bar)', hits: 5, onDrums: 0, added: 5 }],
       ['Swing jazz', null],
     ]);
     expect(ASKED.filter((s) => s.withIt).length).toBe(80);

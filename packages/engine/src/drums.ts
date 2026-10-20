@@ -50,11 +50,11 @@ export const DRUM_NOTES = {
 } as const;
 
 /**
- * The General MIDI claves, which the composer's clave line strikes once
- * cells' claves are a voice of their own (yggi/cells#179; in v0.6.0 they
- * strike the rim's 37). A fragment's notes pass to the drums as they are
+ * The General MIDI claves, which the composer's clave line strikes: cells'
+ * claves strike a voice of their own, `&claves` (yggi/cells#179 and #140,
+ * cells v0.7.0). A fragment's notes pass to the drums as they are
  * (`groove.ts`), the built-in kit voices this one, and MIDI out sends a
- * note no drum sound remaps as itself, so that pin moves the data alone.
+ * note no drum sound remaps as itself.
  * It is no drum sound of the drummer's own, which `DRUM_NOTES` holds.
  */
 export const CLAVES_NOTE = 75;

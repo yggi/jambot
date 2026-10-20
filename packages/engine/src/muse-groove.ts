@@ -38,7 +38,7 @@
 
 import { type Meter, meterOnSteps, stepsOf } from '@jambot/theory';
 import { bjorklund } from '@yggi/cells/engine/parser/generators';
-import { DRUM_NOTES, type DrumSound, backbeatOf } from './drums.ts';
+import { CLAVES_NOTE, DRUM_NOTES, type DrumSound, backbeatOf } from './drums.ts';
 import { BAR_STEPS, DRUM_ROLES, type DrumRole, type SongClock } from './events.ts';
 import { type HeardNote, heardStep } from './muse.ts';
 import type { FragmentHit } from './rhythm-query.ts';
@@ -54,10 +54,13 @@ export const DRUM_VOICES: Readonly<Record<DrumSound, string>> = {
   ride: 'rd',
 };
 
-/** The voice each drum note is written with (E31). */
-export const VOICE_OF_NOTE: ReadonlyMap<number, string> = new Map(
-  (Object.keys(DRUM_VOICES) as DrumSound[]).map((sound) => [DRUM_NOTES[sound], DRUM_VOICES[sound]]),
-);
+/** The voice each drum note is written with (E31): the kit's, and General MIDI's name for the claves a clave line strikes, which cells sends as 75 (cells v0.7.0). */
+export const VOICE_OF_NOTE: ReadonlyMap<number, string> = new Map([
+  ...(Object.keys(DRUM_VOICES) as DrumSound[]).map(
+    (sound) => [DRUM_NOTES[sound], DRUM_VOICES[sound]] as const,
+  ),
+  [CLAVES_NOTE, 'claves'],
+]);
 
 /** A velocity as a level, (v/127)², which cells' MIDI out strikes at 127·√level: six decimals, no leading 0. */
 export function levelOf(velocity: number): string {

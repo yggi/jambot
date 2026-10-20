@@ -8,7 +8,7 @@
  * sound or voice, open on them (yggi/cells decision 047: taps, a bare
  * `over=key` for the main key, `over=&harm` for the chord in force).
  * Decision 047's union of lines (a line given twice is one line) is in
- * cells v0.6.0 (`unionOf`), but the text is built directly, the host's
+ * cells since v0.6.0 (`unionOf`), but the text is built directly, the host's
  * lines given once, until a later rung builds sections by union; each part with the host's lines alone is a fragment
  * that plays as it does in the whole (the test shows it). The
  * corpus is E28's: every preset held at entropy 0.3, seeds 1 to 5, 64 bars

@@ -21,6 +21,7 @@ import {
 } from '@jambot/engine';
 import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
+import { channelTable, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
 import { bandChords, lineOf, mismatches, playSection } from './section-play.ts';
 import {
@@ -155,6 +156,34 @@ describe('a section as one cells text, for the app (#399)', () => {
       [],
     );
     expect(mismatches(band, [note(2, 37), note(1.5, 46)])).toHaveLength(2);
+  });
+
+  it('sends a negative gain’s size as velocity: a section whose bass is struck at `-.5` sends the velocities of `.5`, the sign kept in cells’ route alone (cells v0.7.0, #413)', () => {
+    const bars = section('Synth-pop');
+    const text = sectionTextOf(sectionAsCells(bars));
+    // (on a MIDI card a note is struck at its product's gain there; a voice's own `gain=` the card doesn't read)
+    const struck = (gain: string) =>
+      text.replace(/^(&out map=midi .*)&bassOut /m, `$1[&bassOut * ${gain}] `);
+    const voiced = (gain: string) => text.replace(/^&bassV .*$/m, (line) => `${line} gain=${gain}`);
+    const velocities = (source: string) =>
+      playSection(source, bars).bars.flatMap((bar) =>
+        bar.notes.filter((n) => n.part === 'bass').map((n) => n.velocity),
+      );
+    const own = velocities(text);
+    const heard = velocities(struck('.5'));
+    expect(heard).toHaveLength(own.length);
+    // (the gain is played: half the level, each velocity lower than the bass's own)
+    heard.forEach((v, i) => expect(v).toBeLessThan(own[i]!));
+    expect(velocities(struck('-.5'))).toEqual(heard);
+    expect([velocities(voiced('-.5')), velocities(voiced('.5'))]).toEqual([own, own]);
+    // The sign reaches cells' route, which MIDI has no word for: the bass is routed at -.5, and struck at its size.
+    const gains = (source: string) => {
+      const plan = planOf(source);
+      const route = router(plan.result, channelTable(plan.result));
+      const bass = windowAt(plan, 0, 2).events.filter((e) => e.output?.startsWith('bassV:'));
+      return [...new Set(bass.flatMap((e) => routesOf(route(e)).map((r) => r.gain)))];
+    };
+    expect([gains(struck('-.5')), gains(struck('.5'))]).toEqual([[-0.5], [0.5]]);
   });
 
   it.each(Object.keys(METERS) as MeterName[])(

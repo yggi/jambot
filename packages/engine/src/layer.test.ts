@@ -94,13 +94,16 @@ describe('the band given an empty learned layer plays exactly what main plays (#
   });
 });
 
-/** Main's events with cells' rhythms and an empty layer, each preset held and swung as it is, as recorded on `main` at 45b6b80 before a seed rhythm climbed the ladder (#414). */
-const MAIN_RHYTHMS = { still: [15434, '6ab77cf7'], bored: [13700, '77e8600e'] } as const;
+/**
+ * Main's events with cells' rhythms and an empty layer, each preset held and swung as it is, as recorded on `main` at 45b6b80 before a seed rhythm climbed the ladder (#414),
+ * then under cells v0.7.0, where a clave strikes its own sound, 75, and not the rim's 37 (yggi/cells#140): every stroke at its time, 178 and 146 more where a rim shares its step, and its feel drawn on its own note (velocities within 4, lengths within 5 ms).
+ */
+const MAIN_RHYTHMS = { still: [15612, '32d83dee'], bored: [13846, '9e1e9280'] } as const;
 
 describe('a seed rhythm climbs the ladder only where the entropy bores the composer (#414)', () => {
   const rhythms = { rhythms: RHYTHM_REPOSITORY, layer: EMPTY_LAYER };
 
-  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 15,434 events, each to 1e-9 s', () => {
+  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 15,612 events, each to 1e-9 s', () => {
     const all = runs(0, false, rhythms, true).flat();
     expect([all.length, hashOf(all)]).toEqual(MAIN_RHYTHMS.still);
   });
@@ -346,7 +349,8 @@ describe('a layer the host keeps, read and written (#398)', () => {
       'composer-2026-10-18T21-04-00Z.md',
       'composer-2026-10-18T21-04-00Z-2.md',
     ]);
+    // (with where its one block sits in the file, which cells' reader gives since v0.7.0: literate cells, cells decision 051)
     for (const [i, file] of files.entries())
-      expect(readFragment(file.text)).toEqual(layer.filed[i]);
+      expect(readFragment(file.text)).toEqual({ ...layer.filed[i], layout: expect.any(Object) });
   });
 });
