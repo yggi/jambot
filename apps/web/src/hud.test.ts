@@ -32,6 +32,7 @@ import {
   styleWords,
 } from './hud.ts';
 import { CHORD_BARS, cueOf } from './planView.ts';
+import { stationLine } from './radioView.ts';
 import type { BarView } from './hud.ts';
 import { keyName } from './noteNames.ts';
 
@@ -48,6 +49,23 @@ const env: TransportEnv = {
 const bars = forecast(env, null, 40);
 
 describe('the view model', () => {
+  it("says which of the repository's fragments the bar's section plays, and which section that is", () => {
+    const [first, ...rest] = bars;
+    const taken = {
+      ...first!,
+      plan: { ...first!.plan, meterFragment: '7/8', rhythmFragment: 'Funk drums' },
+    };
+    expect(hudOf({ heard: null, bars: [taken, ...rest], track }).bar).toMatchObject({
+      sectionIndex: first!.plan.section.index,
+      fragments: { meter: '7/8', rhythm: 'Funk drums', clave: null },
+    });
+    expect(hudOf({ heard: null, bars, track }).bar!.fragments).toEqual({
+      meter: first!.plan.meterFragment ?? null,
+      rhythm: first!.plan.rhythmFragment ?? null,
+      clave: first!.plan.claveFragment ?? null,
+    });
+  });
+
   it('shows the bar the band opens on, and its first chord, before anything is heard', () => {
     const hud = hudOf({ heard: null, bars, track });
     const first = bars[0]!;
@@ -259,6 +277,24 @@ describe('a style’s name', () => {
     const ridden = glideTo(chosen, { energy: 0.2, entropy: 0.9 }, 60, SLIDER_GLIDE);
     expect(hudOf({ heard: 61, bars, track: ridden }).style.preset).toBe('Techno');
   });
+
+  it('is near the preset the session says the band plays, and heads where it says (`stationLine`)', () => {
+    const nudged = glideTo(
+      glideTo(track, techno.style, 0, 0),
+      { sync: techno.style.sync - 0.05 },
+      0,
+      0,
+    );
+    expect(hudOf({ heard: 16, bars, track: nudged }).style).toMatchObject({
+      preset: null,
+      near: { at: 'Techno', toward: null },
+    });
+    expect(stationLine(nudged, 16)).toBe('Techno');
+    const drifting = glideTo(nudged, { ...funk.style, sync: funk.style.sync - 0.05 }, 16, 64);
+    const { near } = hudOf({ heard: 20, bars, track: drifting }).style;
+    expect(near).toEqual({ at: 'Techno', toward: 'Funk' });
+    expect(stationLine(drifting, 20)).toBe('Techno, drifting toward Funk');
+  });
 });
 
 describe('a glide’s progress', () => {
@@ -322,6 +358,8 @@ describe('the lead status line, reused by the stage and its tracks', () => {
   const barView = (over: Partial<BarView> = {}): BarView => ({
     bar: 9,
     barInSection: 1,
+    sectionIndex: 1,
+    fragments: { meter: null, rhythm: null, clave: null },
     section: 'Groove',
     key: 'A minor',
     tonic: 9,
@@ -533,12 +571,13 @@ describe('the style card’s words', () => {
     preset: 'Synth-pop' as string | null,
     glide: null,
     axes,
+    near: { at: 'Synth-pop', toward: null as string | null },
     ...over,
   });
 
-  it('names the closest style, and Custom where no preset matches', () => {
+  it('names the preset, and where none matches the nearest, as the session says where the band is', () => {
     expect(styleName(view())).toBe('Synth-pop');
-    expect(styleName(view({ preset: null }))).toBe('Custom');
+    expect(styleName(view({ preset: null, near: { at: 'Funk', toward: null } }))).toBe('Funk');
   });
 
   it('says a preset playing, a glide under way to a preset, and a custom style by its two most telling axes', () => {
@@ -548,6 +587,14 @@ describe('the style card’s words', () => {
     );
     const richSparse = { ...axes, harm: 0.9, energy: 0.1, sync: 0.5, artic: 0.5 };
     expect(styleSub(view({ preset: null, axes: richSparse }))).toBe('Custom · rich, sparse');
+  });
+
+  it('says a custom style drifting toward another preset, where it heads for one', () => {
+    const near = { at: 'Lo-fi hip hop', toward: 'Funk' };
+    expect(styleSub(view({ preset: null, near }))).toBe('Custom · drifting toward Funk');
+    expect(styleSub(view({ preset: null, near }), true)).toBe(
+      'Custom · drifting toward Funk · the host sets it',
+    );
   });
 
   it('says a client that the host sets it', () => {

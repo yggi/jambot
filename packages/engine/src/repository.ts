@@ -136,6 +136,11 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
 /** Cells' meters, as the composer asks them. */
 export const METER_REPOSITORY: MeterRepository = meterRepository();
 
+export type { Fragment };
+
+/** Cells' seed, its meters then its rhythms, each with its text and the points it is found at: what a screen shows of a fragment the band took. */
+export const SEED_FRAGMENTS: readonly Fragment[] = [...METER_FRAGMENTS, ...RHYTHM_FRAGMENTS];
+
 /**
  * What is wrong with a learned layer for cells' meters and rhythms, each
  * problem a sentence; none for one a query takes. Its shape (cells'

@@ -1,8 +1,9 @@
 <!--
-  The style, a card. Folded: the closest named style (`presetOf`; Custom where
-  no preset matches, and energy and entropy don't make a style custom) over
-  what the band is doing (playing it, gliding to it, or for a custom style
-  its most telling axes); the glyph is a radar of the five axes drawn from the
+  The style, a card. Folded: the preset it matches (`presetOf`; energy and
+  entropy don't make a style custom), or for a custom style the preset nearest,
+  as the session's "Now playing" names it, over what the band is doing
+  (playing it, gliding to it, or for a custom style "Custom" and the preset it
+  drifts toward, else its most telling axes); the glyph is a radar of the five axes drawn from the
   style the band is at (`hud.style.axes`), so a glide moves it. Unfolded, the
   genre presets as a segmented choice in two rows (the same component as the key's scale), and each axis as a gauge with a drag and
   a nudge. The gauge shows where the axis is going, not the glide, and the

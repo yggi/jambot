@@ -4,7 +4,8 @@ import { type TimedEvent, type TransportEnv, transport } from './transport.ts';
 import { LOOKAHEAD } from './transport.ts';
 import { clockOfTransport, type TransportCarried } from './transport.ts';
 import { composedMeter, stylePoint } from './meter-query.ts';
-import { METER_READINGS, METER_REPOSITORY } from './repository.ts';
+import { METER_READINGS, METER_REPOSITORY, SEED_FRAGMENTS } from './repository.ts';
+import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { PRESETS, holding } from './style.ts';
 import { STRAIGHT, holdingSwing } from './swing.ts';
 
@@ -19,6 +20,17 @@ function events(env: TransportEnv): TimedEvent[] {
     if (carried.head.step > clockOfTransport(carried).barStart(32)) return out;
   }
 }
+
+describe("cells' seed, as a screen reads it", () => {
+  it('holds every meter, then every rhythm, each once and with its text', () => {
+    expect(SEED_FRAGMENTS.map((f) => f.id)).toEqual([
+      ...METER_READINGS.map((r) => r.id),
+      ...RHYTHM_FRAGMENTS.map((f) => f.id),
+    ]);
+    expect(new Set(SEED_FRAGMENTS.map((f) => f.id)).size).toBe(SEED_FRAGMENTS.length);
+    for (const f of SEED_FRAGMENTS) expect(f.text.length, f.id).toBeGreaterThan(0);
+  });
+});
 
 describe("cells' repository of meters, as the composer asks it (#375)", () => {
   it('reads eleven of cells’ thirteen meters into the band’s, and says why it leaves out the other two', () => {
