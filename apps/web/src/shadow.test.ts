@@ -18,8 +18,9 @@ import {
   swingTo,
   transport,
 } from '@jambot/engine';
+import { swingStated } from '@jambot/score';
 import { type Station, onward, tuneIn } from '@jambot/session';
-import { METERS } from '@jambot/theory';
+import { METERS, type MeterName } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { conductRadio, radioStyle } from './conductor.ts';
 import { ONSET_BOUND, type Plays, Shadow, type ShadowReadout, playsFrom } from './shadow.ts';
@@ -67,7 +68,7 @@ function run({
   /** The bar composing which the song is asked to end on. */
   finishAt?: number;
   /** The meter asked for, which the song opens in, the track's bpm counting its beats. */
-  meter?: '4/4' | '7/8' | '6/8' | '3/4' | '5/4';
+  meter?: MeterName;
   /** Notes a player plays, each arriving on the first tick that has laid its step. */
   heard?: readonly HeardNote[];
   /** Whether the composer asks cells' repositories for each section's meter and rhythm, as the app's does, the meter then asked for none. */
@@ -414,6 +415,58 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(shorter.readout.mismatched.length).toBeGreaterThan(0);
     expect(shorter.readout.mismatched.velocity).toBe(0);
   });
+});
+
+/** Every meter the band plays: those `METERS` names, which hold each of cells' meter fragments the band plays (`METER_REPOSITORY`). */
+const EVERY_METER = Object.keys(METERS) as MeterName[];
+
+/** The gap where cells' `swing=8n` leans a pulse of 3 eighths the band plays straight. */
+const LEANS_THREE = /pulse of 3 eighths.*yggi\/cells#18/;
+
+describe('the band through cells in every meter it plays (#432)', () => {
+  it.each(EVERY_METER)(
+    'in %s, with the switch on, plays each preset held, seeds 1 and 2, 26 bars, as the band does: every written note and chord, and with the feel every velocity and sounding length; a pulse of 3 eighths on an 8n swing a gap with its reason',
+    (meter) => {
+      for (const preset of PRESETS)
+        for (const seed of [1, 2]) {
+          const { readout, band, played } = run({ preset, seed, meter, plays: 'cells' });
+          const stated = swingStated(METERS[meter], preset.swing);
+          expect(readout.errors).toEqual([]);
+          expect(readout.mismatched).toEqual(NONE);
+          expect(Object.keys(readout.gaps)).toEqual(
+            stated ? [] : [expect.stringMatching(LEANS_THREE)],
+          );
+          expect(readout.bars).toBe(stated ? 26 : 0);
+          if (stated) {
+            expect(readout.played.band).toBe(0);
+            expect(readout.onsets.within).toBe(readout.onsets.timed);
+            expect(readout.lengths.within).toBe(readout.lengths.timed);
+          }
+          playsAsTheBand(band, played);
+        }
+    },
+  );
+
+  it.each(['3/4', '5/4', '6/8', '7/8'] as const)(
+    'in %s, with the switch on, plays a preset whose swing’s level turns to 8n mid-song as the band does: a pulse of 3 eighths then a gap with its reason',
+    (meter) => {
+      const { readout, band, played } = run({
+        plays: 'cells',
+        preset: PRESETS.find((p) => p.name === 'Deep house')!,
+        meter,
+        bars: 32,
+        control: (env, carried) =>
+          carried.nextBar === SECTION_BARS + SECTION_BARS / 2
+            ? { ...env, swing: swingTo(env.swing!, { level: '8n' }, carried.head.step, 0) }
+            : env,
+      });
+      expect(readout.errors).toEqual([]);
+      expect(readout.mismatched).toEqual(NONE);
+      const turned = !swingStated(METERS[meter], { level: '8n', share: 0.6 });
+      expect(Object.keys(readout.gaps)).toEqual(turned ? [expect.stringMatching(LEANS_THREE)] : []);
+      playsAsTheBand(band, played);
+    },
+  );
 });
 
 describe('the switch (#399)', () => {

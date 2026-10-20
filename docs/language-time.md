@@ -347,6 +347,8 @@ straight. Source: #121, its research comment. Status: speculative.
 Decided: #121, ahead of the evidence (the easiest option to reverse). Lands in:
 #144, which measures a ternary feel against real playing and asks whether it is
 performer expression, a style axis, or one with swing.
+Cells parts from it: its `swing=8n` leans a group of three, the second and third eighths (cells v0.6.0, yggi/cells#18), so a section in a meter with a pulse of three swung on `8n` plays otherwise through cells than the band plays it.
+The shadow counts such a bar apart, with that reason (`swingStated` in `packages/score/src/section-text.ts`, #432), until cells can state a straight group of three or T16 moves to cells' lean.
 
 **T12. An onset off the meter is an altered degree of it only where the meter's
 pulses are unequal.** Witness: the numerals' `b` and `#` move by
