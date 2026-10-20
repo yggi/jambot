@@ -343,18 +343,28 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
     });
   const times = (n: number, what: string) => range(n).map(() => what);
 
-  it('at entropy 1 plays the drum bar 3 sections, its variation the next 3, then rejects both with the clave: the next nearest plays, until the drum bar’s boredom has faded', () => {
+  it('at entropy 1 plays the drum bar 3 sections, its variation the next 3, then rejects both with the clave: no other drum bar lies near, so the drummer invents, until the drum bar’s boredom has faded', () => {
     const run = play(16 * SECTION_BARS, { layer: EMPTY_LAYER }, { ...STYLE, entropy: 1 });
+    const DRUMMER_G = 'drummer song 1, bar 48';
+    const DRUMMER_V = 'composer song 1, bar 80';
     expect(sectionsOf(run)).toEqual([
       ...times(3, `${FUNK_DRUMS} + ${RUMBA}`),
       ...times(3, `${V} + ${RUMBA}`),
-      // the next nearest is a clave alone, the son's, and the rumba clave is out with the drum bar it played with
-      ...times(6, 'son clave 2-3 + -'),
-      ...times(4, `${V} + ${RUMBA}`),
+      // the son clave lies nearest, but a clave is never a section's rhythm alone (#428), and the rumba clave is out
+      // with the drum bar it played with: the drummer invents, the Muse files its groove, and it climbs in turn
+      '- + -',
+      ...times(3, `${DRUMMER_G} + -`),
+      ...times(2, `${DRUMMER_V} + -`),
+      // the drum bar's boredom faded, its clave layers on the groove playing, and is out with that one at the next
+      // section, where the drum bar's variation returns without it
+      `${DRUMMER_V} + ${RUMBA}`,
+      ...times(3, `${V} + -`),
     ]);
     const filed = run.at(-1)!.carried.plans.layer!.filed;
     expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies])).toEqual([
       [V, COMPOSER, FUNK_DRUMS],
+      [DRUMMER_G, DRUMMER, undefined],
+      [DRUMMER_V, COMPOSER, DRUMMER_G],
     ]);
     // (the band decides a bar ahead: the state after bar 39 has planned section 5, the variation's third)
     expect(run[5 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
