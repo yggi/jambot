@@ -14,6 +14,7 @@ const NAMES: IconName[] = [
   'melody',
   'rhythm',
   'mix',
+  'cells',
   'you',
   'settings',
   'about',

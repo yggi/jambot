@@ -18,7 +18,8 @@
  * A style is named by the preset it matches on every axis the preset sets
  * but energy, which a player rides within a genre. So the name follows the
  * track alone: a preset chosen names itself at once, and any other move
- * leaves the style unnamed, custom.
+ * leaves the style custom, called by the preset nearest where the band is,
+ * as the session's "Now playing" calls it (`nowPlaying`), so the two agree.
  */
 
 import {
@@ -55,6 +56,7 @@ import { type Attribution, type Credit, credit } from './attribution.ts';
 import { targetOf, unnudged } from './conductor.ts';
 import { meterLabel } from './meter-choice.ts';
 import { keyName } from './noteNames.ts';
+import { nowPlaying } from './radioView.ts';
 import { CHORD_BARS, FAR_SECTIONS, NEAR_SECTIONS } from './planView.ts';
 
 /**
@@ -78,6 +80,14 @@ export interface ChordView {
 export interface BarView {
   /** Counted from the song's start. */
   readonly bar: number;
+  /** Its section's, counted from the song's start. */
+  readonly sectionIndex: number;
+  /** The repository's fragments its section plays, by id, each where the composer took one (#375, #397): null where it didn't. */
+  readonly fragments: {
+    readonly meter: string | null;
+    readonly rhythm: string | null;
+    readonly clave: string | null;
+  };
   /** From 0 to `SECTION_BARS` - 1. */
   readonly barInSection: number;
   readonly section: string;
@@ -151,6 +161,8 @@ export interface StyleView {
   readonly glide: GlideView | null;
   /** The five axes where the band is at the step heard, so a glide moves them. */
   readonly axes: AxisValues;
+  /** The preset nearest where the band is, and the one it heads for where that is another: the session's words (`nowPlaying`). */
+  readonly near: { readonly at: string; readonly toward: string | null };
 }
 
 /** A motif on offer, as the Muse panel draws it, credited to its source and the bar it was heard in. */
@@ -310,18 +322,23 @@ export function styleWords(axes: AxisValues): string[] {
     .map(({ axis }) => AXIS_WORDS[axis][axes[axis] < 0.5 ? 0 : 1]);
 }
 
-/** The style card's main element: the closest named style. */
-export const styleName = ({ preset }: StyleView): string => preset ?? 'Custom';
+/** The style card's main element: the preset, or where none matches, the nearest, as the session names it. */
+export const styleName = ({ preset, near }: StyleView): string => preset ?? near.at;
 
 /**
  * The style card's sub element: what the band is doing now, or for a client
  * whose host sets it, that too.
  */
 export function styleSub(view: StyleView, following = false): string {
-  const { preset, glide, axes } = view;
+  const { preset, glide, axes, near } = view;
   const state =
     preset === null
-      ? ['Custom', styleWords(axes).join(', ')].filter(Boolean).join(' · ')
+      ? [
+          'Custom',
+          near.toward === null ? styleWords(axes).join(', ') : `drifting toward ${near.toward}`,
+        ]
+          .filter(Boolean)
+          .join(' · ')
       : glide
         ? `Gliding to ${preset}`
         : `Playing ${preset}`;
@@ -329,7 +346,7 @@ export function styleSub(view: StyleView, following = false): string {
 }
 
 /** Where a style is, in the prototype's words, reused by the tracks. */
-export function styleStatus({ preset, glide }: StyleView): string {
+export function styleStatus({ preset, glide }: Omit<StyleView, 'near'>): string {
   if (preset === null) return 'Custom style. Pick a preset to glide somewhere named.';
   if (!glide) return `Playing ${preset}.`;
   return `Moving from ${glide.from ?? 'Custom'} to ${preset}, bar ${glide.bar} of ${glide.bars}.`;
@@ -537,6 +554,12 @@ function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Cre
   return {
     bar: bar.bar,
     barInSection: bar.bar % SECTION_BARS,
+    sectionIndex: bar.plan.section.index,
+    fragments: {
+      meter: bar.plan.meterFragment ?? null,
+      rhythm: bar.plan.rhythmFragment ?? null,
+      clave: bar.plan.claveFragment ?? null,
+    },
     section: SECTION_NAMES[bar.plan.section.type],
     meter: bar.plan.meter,
     meterName: meterLabel(bar.plan.meter),
@@ -568,8 +591,10 @@ function styleView(track: StyleTrack, step: number, nudge: number, clock: SongCl
   const moving = NAMING_AXES.map((axis) => track[axis]).filter(
     (g) => g.length > 0 && step < g.start + g.length && (g.from !== g.to || g.slope !== 0),
   );
-  const axes = axesOf(styleAt(track, step));
-  if (moving.length === 0) return { preset: presetOf(target), glide: null, axes };
+  const at = styleAt(track, step);
+  const axes = axesOf(at);
+  const near = nowPlaying(at, targetOf(track));
+  if (moving.length === 0) return { preset: presetOf(target), glide: null, axes, near };
   const start = Math.min(...moving.map((g) => g.start));
   const end = Math.max(...moving.map((g) => g.start + g.length));
   /** A position as a count of bars, the part of a bar as a fraction of its own length. */
@@ -581,5 +606,6 @@ function styleView(track: StyleTrack, step: number, nudge: number, clock: SongCl
     preset: presetOf(target),
     glide: { from: presetOf(unnudged(styleAt(track, start), nudge)), bar, bars },
     axes,
+    near,
   };
 }

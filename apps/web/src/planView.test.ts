@@ -7,6 +7,8 @@ const chord = (symbol: string, step = 0): ChordView => ({ step, symbol, numeral:
 const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   bar: n,
   barInSection: n % 8,
+  sectionIndex: Math.floor(n / 8),
+  fragments: { meter: null, rhythm: null, clave: null },
   section: 'Groove',
   key: 'A minor',
   tonic: 9,
