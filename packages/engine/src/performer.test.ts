@@ -1,3 +1,4 @@
+import { stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import type { BarEnv } from './bar.ts';
@@ -6,7 +7,7 @@ import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
 import { type DrumRole, PARTS, type WrittenNote, writtenProblems } from './events.ts';
 import type { SectionType } from './form.ts';
 import { feelOf } from './licence.ts';
-import { LEAD_LEVEL, perform } from './performer.ts';
+import { LEAD_LEVEL, type StatedNote, composedLevel, perform, performStated } from './performer.ts';
 import { timbreOf } from './sound.ts';
 import { PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
@@ -361,5 +362,80 @@ describe('the performer', () => {
       expect(perform(env, { ...written, accent }).velocity).toBe(
         Math.max(1, Math.min(127, plain + accent)),
       );
+  });
+
+  it('plays a note as a text states it as it plays the note written: the same velocity and length, every note of the tour and every motif’s accent on the lead’s level (#405, decision 037)', () => {
+    const clamp = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
+    /** A written note as a text states it: its line, step, pitch and role, its velocity at feel 0 as MIDI says it, and its sounding length at feel 0. */
+    const stated = (env: BarEnv, w: WrittenNote): StatedNote => ({
+      part: w.part,
+      step: w.step,
+      note: w.note,
+      ...(w.role !== undefined && { role: w.role }),
+      velocity: clamp(composedLevel(env, w)),
+      length: baseLengthOf(env, w),
+    });
+    // A written accent is in the level stated, not carried apart: the band's dough note carries it.
+    const played = (env: BarEnv, w: WrittenNote) => {
+      const { accent, ...rest } = perform(env, w);
+      expect(accent).toBe(w.accent);
+      return rest;
+    };
+    let notes = 0;
+    let loose = 0;
+    for (const b of bars) {
+      // Every note the band writes, and a motif's lead note on every step at accents from far below the lead's level to far above.
+      const motif = range(stepsOf(b.meter)).flatMap((step) =>
+        [-60, -31, -9, -1, 0, 1, 9, 17, 36].map((accent): WrittenNote => ({
+          part: 'lead',
+          step,
+          note: 64 + (step % 12),
+          length: 2,
+          accent,
+        })),
+      );
+      for (const w of [...b.written, ...motif]) {
+        expect(performStated(b, stated(b, w))).toEqual(played(b, w));
+        if (perform(b, w).velocity !== clamp(composedLevel(b, w))) loose++;
+        notes++;
+      }
+    }
+    expect(notes).toBeGreaterThan(8_000);
+    // The feel is played, not lost: most velocities part from the level stated at feel 0.
+    expect(loose / notes).toBeGreaterThan(0.5);
+  });
+
+  it('composes a note’s level as the performer plays it at feel 0: its base and its written accent, a motif’s on the lead’s level (U4, #405)', () => {
+    const still = barOf('groove', 0.6);
+    expect(feelOf(still.style, still.swing)).toBe(0);
+    for (const w of [
+      hit('kick', 0),
+      hit('ghost', 3),
+      { part: 'bass', step: 2, note: 48, length: 2 },
+      { part: 'pad', step: 0, note: 60, length: 16, accent: 5 },
+      { part: 'lead', step: 0, note: 72, length: 2 },
+      { part: 'lead', step: 2, note: 72, length: 2, accent: 12 },
+      { part: 'lead', step: 0, note: 72, length: 2, accent: -30 },
+    ] as WrittenNote[])
+      expect(perform(still, w).velocity).toBe(
+        Math.max(1, Math.min(127, Math.round(composedLevel(still, w)))),
+      );
+    expect(composedLevel(still, { part: 'lead', step: 2, note: 72, length: 2, accent: 12 })).toBe(
+      LEAD_LEVEL + 12,
+    );
+  });
+
+  it('can’t play the feel exactly on a level the text states clamped, past MIDI’s 1 to 127: what the shadow counts apart (#405)', () => {
+    const env = { ...barOf('groove', 0.7, { swing: FULL, entropy: 1, artic: 0 }), bar: 3 };
+    const w: WrittenNote = { part: 'lead', step: 1, note: 72, length: 2, accent: 60 };
+    expect(composedLevel(env, w)).toBeGreaterThan(127);
+    const asStated = performStated(env, {
+      part: 'lead',
+      step: 1,
+      note: 72,
+      velocity: 127,
+      length: 1,
+    });
+    expect(asStated.velocity).not.toBe(perform(env, w).velocity);
   });
 });

@@ -9,7 +9,10 @@ import {
   type BandCarried,
   PRESETS,
   SECTION_BARS,
+  LEAD_LEVEL,
+  type WrittenNote,
   band,
+  composedLevel,
   leanMap,
   leansOf,
 } from '@jambot/engine';
@@ -86,4 +89,28 @@ describe('a section as one cells text, for the app (#399)', () => {
       }
     },
   );
+
+  it('states each note at the level the performer plays it at feel 0: a motif’s lead note on the lead’s level, its accent in place of the beat’s (#405)', () => {
+    const [first] = section('Synth-pop');
+    const motif: WrittenNote[] = [0, 2, 4, 6].map((step, i) => ({
+      part: 'lead',
+      step,
+      note: 72 + i,
+      length: 2,
+      accent: [-20, 0, 9, 30][i]!,
+    }));
+    const bar = { ...first!, written: [...first!.written, ...motif] };
+    const clamp = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
+    for (const n of writtenNotes(bar)) {
+      const w = bar.written.find(
+        (x) => x.part === n.line && x.step === n.step && x.note === n.note,
+      )!;
+      expect(n.velocity).toBe(clamp(composedLevel(bar, w)));
+    }
+    expect(
+      writtenNotes(bar)
+        .filter((n) => n.line === 'lead' && n.note >= 72)
+        .map((n) => n.velocity),
+    ).toEqual([-20, 0, 9, 30].map((a) => LEAD_LEVEL + a));
+  });
 });

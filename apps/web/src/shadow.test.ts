@@ -1,8 +1,11 @@
 // @vitest-environment node
 import {
+  type HeardNote,
   INITIAL_STYLE,
   LOOKAHEAD,
+  METER_REPOSITORY,
   PRESETS,
+  RHYTHM_REPOSITORY,
   SECTION_BARS,
   type TimedEvent,
   type TransportCarried,
@@ -50,6 +53,8 @@ function run({
   meddle,
   finishAt,
   meter = '4/4',
+  heard = [],
+  repositories = false,
 }: {
   preset?: (typeof PRESETS)[number];
   seed?: number;
@@ -63,6 +68,10 @@ function run({
   finishAt?: number;
   /** The meter asked for, which the song opens in, the track's bpm counting its beats. */
   meter?: '4/4' | '7/8' | '6/8' | '3/4' | '5/4';
+  /** Notes a player plays, each arriving on the first tick that has laid its step. */
+  heard?: readonly HeardNote[];
+  /** Whether the composer asks cells' repositories for each section's meter and rhythm, as the app's does, the meter then asked for none. */
+  repositories?: boolean;
 }): Run {
   const shadow = new Shadow(() => performance.now(), plays, edit);
   let env: TransportEnv = {
@@ -71,8 +80,10 @@ function run({
     track: rebeat(holding({ ...preset.style, entropy: 0.3 }), METERS['4/4'], METERS[meter]),
     swing: holdingSwing(preset.swing),
     wish: { tonic: null, mode: preset.mode, melodic: null },
-    meter: METERS[meter],
     tempoMeter: METERS[meter],
+    ...(repositories
+      ? { repository: METER_REPOSITORY, rhythms: RHYTHM_REPOSITORY }
+      : { meter: METERS[meter] }),
   };
   let radio = station;
   let nudge = 0;
@@ -84,11 +95,21 @@ function run({
     const at = Math.max(c.head.step, clockOfTransport(c).barStart(first));
     return { walked, conducted: conductRadio(from.track, walked.style, at, nudge) };
   };
+  const laid = new Set<number>();
+  let waiting = [...heard];
   for (let now = START - TICK; ; now += TICK) {
     const laidWith = env;
     const finish = finishAt !== undefined && (carried?.nextBar ?? 0) >= finishAt;
-    const next = transport.advance(env, carried, { now, until: now + LOOKAHEAD, finish });
+    const arrived = waiting.filter((n) => laid.has(Math.floor(n.position)));
+    waiting = waiting.filter((n) => !arrived.includes(n));
+    const next = transport.advance(env, carried, {
+      now,
+      until: now + LOOKAHEAD,
+      finish,
+      heard: arrived,
+    });
     carried = next.carried!;
+    for (const step of next.output.steps) laid.add(step.step);
     for (const { bar } of next.output.composed)
       if (radio && bar > 0 && bar % SECTION_BARS === 0) {
         const { walked, conducted } = walk(radio, bar, carried, env);
@@ -116,7 +137,41 @@ function run({
   return { readout: shadow.readout, band, played };
 }
 
-const NONE = { written: 0, harmony: 0, unmatched: 0, onsets: 0, extra: 0 };
+const NONE = {
+  written: 0,
+  harmony: 0,
+  unmatched: 0,
+  onsets: 0,
+  extra: 0,
+  velocity: 0,
+  length: 0,
+};
+
+/** Every event the band's outputs play, against the band's own: the same note on the same step, its onset within 1 ms, and its velocity and sounding length the band's, its duration within a microsecond. */
+function playsAsTheBand(band: readonly TimedEvent[], played: readonly TimedEvent[]) {
+  const key = (e: TimedEvent) => `${e.bar} ${e.event.part} ${e.event.step} ${e.event.note}`;
+  const sorted = (es: readonly TimedEvent[]) => [...es].sort((a, b) => (key(a) < key(b) ? -1 : 1));
+  const [b, c] = [sorted(band), sorted(played)];
+  expect(c.map(key)).toEqual(b.map(key));
+  for (const [i, e] of c.entries()) {
+    const own = b[i]!;
+    expect(Math.abs(e.seconds - own.seconds)).toBeLessThan(ONSET_BOUND);
+    expect(e.event.velocity).toBe(own.event.velocity);
+    expect(e.event.gain).toBe(own.event.gain);
+    expect(e.event.length).toBeCloseTo(own.event.length, 9);
+    expect(Math.abs(e.duration - own.duration)).toBeLessThan(1e-6);
+  }
+}
+
+/** A motif a player plays in `bar`, on its steps 0, 4, 8 and 12, each at its own velocity: offered with accents, their mean's distance, from bar + 2 on. */
+const motifIn = (bar: number, velocities = [110, 70, 95, 60]): HeardNote[] =>
+  [69, 72, 76, 74].map((note, i) => ({
+    note,
+    velocity: velocities[i]!,
+    source: 'the computer keys',
+    position: 16 * bar + 4 * i,
+    end: null,
+  }));
 
 describe('the band through cells, in shadow (#399)', () => {
   it.each(PRESETS.map((p) => [p.name, p] as const))(
@@ -194,17 +249,96 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(played).toHaveLength(band.length);
   });
 
-  it('with the switch on, plays cells’ events in place of the band’s: the same notes on the same steps, each within 1 ms, at the velocity the performer plays at feel 0', () => {
-    const { readout, band, played } = run({ plays: 'cells', preset: PRESETS[1]! });
-    expect(readout.played.band).toBe(0);
-    expect(readout.played.cells).toBe(band.length);
-    const key = (e: TimedEvent) => `${e.bar} ${e.event.part} ${e.event.step} ${e.event.note}`;
-    const sorted = (es: readonly TimedEvent[]) =>
-      [...es].sort((a, b) => (key(a) < key(b) ? -1 : 1));
-    const [b, c] = [sorted(band), sorted(played)];
-    expect(c.map(key)).toEqual(b.map(key));
-    for (const [i, e] of c.entries())
-      expect(Math.abs(e.seconds - b[i]!.seconds)).toBeLessThan(ONSET_BOUND);
+  it.each(PRESETS.map((p) => [p.name, p] as const))(
+    'with the switch on, plays %s through cells as the band plays it: the same notes on the same steps, each within 1 ms, with the performer’s feel, its velocities and sounding lengths the band’s own (#405)',
+    (_, preset) => {
+      const { readout, band, played } = run({ plays: 'cells', preset });
+      expect(readout.played.band).toBe(0);
+      expect(readout.played.cells).toBe(band.length);
+      expect(readout.mismatched).toEqual(NONE);
+      expect(readout.lengths.within).toBe(readout.lengths.timed);
+      playsAsTheBand(band, played);
+    },
+  );
+
+  it('plays a motif a player offers through cells as the band plays it, each note’s accent on the lead’s level (#405)', () => {
+    const { readout, band, played } = run({ plays: 'cells', heard: motifIn(2), bars: 16 });
+    expect(readout.errors).toEqual([]);
+    expect(readout.mismatched).toEqual(NONE);
+    expect(readout.gaps).toEqual({});
+    const lead = band.filter((e) => e.event.part === 'lead' && e.event.accent !== undefined);
+    expect(lead.length).toBeGreaterThan(8);
+    playsAsTheBand(band, played);
+  });
+
+  it.each(PRESETS.filter((p) => p.swing.share !== 0.5).map((p) => [p.name, p] as const))(
+    'with the switch on, plays %s through cells as the band plays it while its swing’s level turns each section: each note’s end swings as the transport swings the band’s (#405)',
+    (_, preset) => {
+      const { readout, band, played } = run({
+        plays: 'cells',
+        preset: { ...preset, style: { ...preset.style, artic: 0 } },
+        bars: 40,
+        control: (env, carried) =>
+          carried.nextBar % SECTION_BARS === SECTION_BARS / 2
+            ? {
+                ...env,
+                swing: swingTo(
+                  env.swing!,
+                  { level: (carried.nextBar / SECTION_BARS) % 2 < 1 ? '16n' : '8n' },
+                  carried.head.step,
+                  0,
+                ),
+              }
+            : env,
+      });
+      expect(readout.errors).toEqual([]);
+      expect(readout.mismatched).toEqual(NONE);
+      playsAsTheBand(band, played);
+    },
+  );
+
+  it('with the switch on, ends a note that runs into the next section, whose swing’s level turned, as the transport ends the band’s: by the next bar’s swing once it is composed (#405)', () => {
+    let crossing = 0;
+    const { readout, band, played } = run({
+      plays: 'cells',
+      // Stabs held long, past the bar's end (articulation 0.1).
+      preset: (({ style, ...p }) => ({ ...p, style: { ...style, artic: 0.1 } }))(
+        PRESETS.find((p) => p.name === 'Swing jazz')!,
+      ),
+      seed: 2,
+      meter: '3/4',
+      bars: 32,
+      control: (env, carried) =>
+        carried.nextBar % SECTION_BARS === 3
+          ? {
+              ...env,
+              swing: swingTo(
+                env.swing!,
+                { level: Math.floor(carried.nextBar / SECTION_BARS) % 2 ? '8n' : '16n' },
+                carried.head.step,
+                0,
+              ),
+            }
+          : env,
+    });
+    for (const e of band) if (e.event.step + e.event.length > 12) crossing++;
+    expect(crossing).toBeGreaterThan(0);
+    expect(readout.mismatched).toMatchObject({ velocity: 0, length: 0, onsets: 0, unmatched: 0 });
+    expect(readout.lengths.largest).toBeLessThan(1e-9);
+    playsAsTheBand(band, played);
+  });
+
+  it('counts apart a motif accented past MIDI’s 127 on the lead’s level: the text states it clamped, so the feel can’t be played on it, and the switch plays the band’s own there (#405)', () => {
+    // Accents 48, -19, 21 and -49 from their mean, 79: the first lands at 139 on the lead's level.
+    const { readout, band, played } = run({
+      plays: 'cells',
+      heard: motifIn(2, [127, 60, 100, 30]),
+      bars: 16,
+    });
+    expect(readout.mismatched).toEqual(NONE);
+    expect(Object.keys(readout.gaps)).toEqual([expect.stringMatching(/past MIDI's 1 to 127/)]);
+    expect(readout.played.band).toBeGreaterThan(0);
+    playsAsTheBand(band, played);
   });
 
   it('counts the song’s last bar apart, its last chord ringing past the text’s end, and the switch plays the band’s own there', () => {
@@ -251,6 +385,34 @@ describe('the band through cells, in shadow (#399)', () => {
       ],
     });
     expect(extra.readout.mismatched.unmatched).toBeGreaterThan(0);
+  });
+
+  it('finds the feel played otherwise: a velocity one louder, or a note sounding shorter, as the band plays it is a mismatch as played (#405)', () => {
+    const louder = run({
+      bars: 8,
+      meddle: (es) =>
+        es.map((e) =>
+          e.bar === 3 ? { ...e, event: { ...e.event, velocity: e.event.velocity + 1 } } : e,
+        ),
+    });
+    expect(louder.readout.mismatched.velocity).toBeGreaterThan(0);
+    expect(louder.readout.differing[0]).toMatch(/^bar 3 \w+ step \d+ note \d+: band \d+, /);
+    expect(louder.readout.mismatched.length).toBe(0);
+    const shorter = run({
+      bars: 8,
+      meddle: (es) =>
+        es.map((e) =>
+          e.bar === 3
+            ? {
+                ...e,
+                duration: e.duration * 0.9,
+                event: { ...e.event, length: e.event.length * 0.9 },
+              }
+            : e,
+        ),
+    });
+    expect(shorter.readout.mismatched.length).toBeGreaterThan(0);
+    expect(shorter.readout.mismatched.velocity).toBe(0);
   });
 });
 
