@@ -8,11 +8,12 @@
  * bass, 3 the pad and the stab, 10 the drums. Two lines of the reading's own
  * go beside the text, on channels of their own: each bar's lap (15), which
  * says where cells holds each bar, and the harmony (16), so each chord is
- * read back too. A note's step is read off cells' time through the band's
- * swing undone (`leanMap`'s `written`), and its written length as its
- * sounding length in those steps over the share its line reads at its onset
- * (cells' own `legato=` tracks), since cells sounds a share of the written
- * steps and swings its end as its onset (cells v0.6.0, yggi/cells#120).
+ * read back too. A note's step, and a chord's, is read off cells' time
+ * through the band's swing undone (`leanMap`'s `written`), and a note's
+ * written length as its sounding length in those steps over the share its
+ * line reads at its onset (cells' own `legato=` tracks), since cells sounds a
+ * share of the written steps and swings its end as its onset (cells v0.6.0,
+ * yggi/cells#120).
  *
  * Each note also says where it falls in its bar as played: its onset and
  * end in the bar's steps through the swing (`onsets`, `ends`), which a host
@@ -30,6 +31,7 @@ import {
   type PitchedName,
   type SectionNote,
   type StatedChord,
+  noteOrder,
   numeralOfNotes,
   sortNotes,
   statedChords,
@@ -163,15 +165,15 @@ export function playSection(
     const bar = bars[i]!;
     const from = laps[i]!;
     const step = (laps[i + 1]! - from) / steps;
+    const unswung = leanMap(leansOf(bar.swing), bar.meter);
+    const stepOf = (seconds: number) => unswung.written((seconds - from) / step);
     if (n.channel === 16) {
-      const s = Math.round((n.at - from) / step);
+      const s = Math.round(stepOf(n.at));
       harmony[i]!.set(s, [...(harmony[i]!.get(s) ?? []), n.note]);
       continue;
     }
     const part = (Object.keys(CHANNEL_OF) as NotePart[]).find((p) => CHANNEL_OF[p] === n.channel);
     if (!part) continue;
-    const unswung = leanMap(leansOf(bar.swing), bar.meter);
-    const stepOf = (seconds: number) => unswung.written((seconds - from) / step);
     const onset = stepOf(n.at);
     read[i]!.timed.push({
       at: n.at,
@@ -192,12 +194,7 @@ export function playSection(
   }
   return {
     bars: read.map(({ timed }) => {
-      timed.sort(
-        (a, b) =>
-          a.note.part.localeCompare(b.note.part) ||
-          a.note.step - b.note.step ||
-          a.note.note - b.note.note,
-      );
+      timed.sort((a, b) => noteOrder(a.note, b.note));
       return {
         notes: timed.map((t) => t.note),
         at: timed.map((t) => t.at),

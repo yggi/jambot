@@ -61,6 +61,7 @@ import {
   type Chord,
   type Helix,
   METERS,
+  type Meter,
   type MeterName,
   type Numeral,
   alteredDegree,
@@ -255,6 +256,16 @@ export function shareText(share: number): string {
 export const swingText = (swing: MeterSwing) =>
   swing.share === STRAIGHT.share ? '' : ` swing=${swing.level}:${shareText(swing.share)}`;
 
+/**
+ * Whether cells plays a meter's swing as `swingText` states it where the band plays it.
+ * On `16n`, and straight, the two agree in every meter.
+ * On `8n` the band swings each pulse of 2 eighths and plays a pulse of any other length straight (T16), and cells leans a group of three, its second and third eighths (yggi/cells#18, cells v0.6.0): so a meter with a pulse of 3 eighths, 6/8's or 7/8's first, is played otherwise than stated.
+ */
+export function swingStated(meter: Meter, swing: MeterSwing): boolean {
+  if (swing.level !== '8n' || swing.share === STRAIGHT.share) return true;
+  return meter.heights.every((start, i) => (meter.heights[i + 1] ?? meter.cycle) - start === 2);
+}
+
 /** An index into the chord in force as a cells number writes it: `n` its tone (a lap up past its last), `alter` an accidental. */
 export interface ChordIndex {
   readonly n: number;
@@ -320,9 +331,18 @@ export interface ComposedNote extends SectionNote {
 
 const clampVelocity = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
-/** Notes in the order the comparison reads them: by part, step, then pitch. */
+/**
+ * The order the comparison reads notes in: by part, step, then pitch.
+ * Steps within a millionth are one step, as the comparison reads them: a step read back off cells' clock lies a hair either side of the band's (7/8's unequal beats).
+ */
+export const noteOrder = (a: SectionNote, b: SectionNote): number =>
+  a.part.localeCompare(b.part) ||
+  (Math.abs(a.step - b.step) < 1e-6 ? 0 : a.step - b.step) ||
+  a.note - b.note;
+
+/** Notes in the order the comparison reads them (`noteOrder`). */
 export const sortNotes = <N extends SectionNote>(notes: readonly N[]): N[] =>
-  [...notes].sort((a, b) => a.part.localeCompare(b.part) || a.step - b.step || a.note - b.note);
+  [...notes].sort(noteOrder);
 
 /** A bar's written notes, every part: the step, pitch, velocity at feel 0, written and articulated length. */
 export function writtenNotes(bar: BandBar): ComposedNote[] {
