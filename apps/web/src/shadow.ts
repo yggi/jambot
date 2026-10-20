@@ -56,8 +56,9 @@
  * What cells cannot say yet is counted apart, each with its reason (`gaps`):
  * a section whose swing's share glides between its bars (one text states one
  * swing), a bar whose beats swing at a share that moves within it, a bar in a
- * meter with a pulse of 3 eighths swung on 8n (the band plays that pulse
- * straight, T16, and cells' `swing=8n` leans a group of three: `swingStated`),
+ * meter of pulses of 2 and of 3 eighths swung on 8n (the band leans the pairs
+ * and plays the threes straight, T16, and cells' `swing=8n` leans both:
+ * `swingStated`),
  * and a bar no text was stated for. A note's level is composed within MIDI's
  * 1 to 127 (`composedLevel`, #433), so a text states every level the band plays on.
  *
@@ -93,6 +94,7 @@ import {
   type PlayedBar,
   type SectionNote,
   bandChords,
+  levelSwings,
   mismatches,
   swingStated,
   writtenNotes,
@@ -234,9 +236,12 @@ interface StatedBar {
 
 /**
  * Whether a bar's beats all swing at one share: its section's, where the
- * repository gave it, or the swing track's where that holds over the bar.
+ * repository gave it, or the swing track's where that holds over the bar;
+ * or whether its share moves nothing, an 8n swing in a meter whose pulses
+ * are all 3 eighths (`levelSwings`, #438).
  */
 export function swingHolds(bar: BandBar, track: SwingTrack, from: number, to: number): boolean {
+  if (!levelSwings(bar.meter, bar.swing.level)) return true;
   if (bar.plan.share !== undefined && bar.plan.share !== null) return true;
   const { share } = track;
   if (share.from === share.to || share.start + share.length <= from || share.start >= to)
@@ -599,7 +604,7 @@ export class Shadow {
           : played.diagnostics.length > 0
             ? `cells said: ${played.diagnostics[0]}`
             : !swingStated(b.meter, b.swing)
-              ? "a pulse of 3 eighths on an 8n swing: the band plays it straight (T16), and cells' swing=8n leans a group of three (yggi/cells#18)"
+              ? "pulses of 2 and of 3 eighths on an 8n swing: the band leans the pairs and plays the threes straight (T16), and cells' swing=8n leans both (yggi/cells#204)"
               : stated.cut.includes(i)
                 ? "a note runs past its line's next onset or the text's end (the finale's ring): cut there"
                 : null);

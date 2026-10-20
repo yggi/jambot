@@ -41,7 +41,7 @@ export const foreseenOf = (bar: BandBar): string =>
     keyText(bar.plan.key),
     bar.plan.melodic,
     barMeterName(bar),
-    swingText(bar.swing),
+    swingText(bar.meter, bar.swing),
   ]);
 
 /** A section's bars as one text, and what cells plays in each: the job's answer, plain data. */

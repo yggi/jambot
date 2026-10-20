@@ -252,18 +252,34 @@ export function shareText(share: number): string {
   return decimal;
 }
 
-/** A meter's swing as cells states it on `&bar`: none where it is straight. */
-export const swingText = (swing: MeterSwing) =>
-  swing.share === STRAIGHT.share ? '' : ` swing=${swing.level}:${shareText(swing.share)}`;
+/** Each pulse's length in eighths. */
+const pulseLengths = (meter: Meter) =>
+  meter.heights.map((start, i) => (meter.heights[i + 1] ?? meter.cycle) - start);
+
+/**
+ * Whether the band's swing on a level moves anything in a meter: on `16n` it
+ * does in every meter, and on `8n` only a pulse of 2 eighths swings (T16), so
+ * in a meter whose pulses are all 3 eighths, 6/8's, 9/8's or 12/8's, the band
+ * plays an 8n swing straight, whatever its share.
+ */
+export const levelSwings = (meter: Meter, level: MeterSwing['level']) =>
+  level !== '8n' || pulseLengths(meter).includes(2);
+
+/** A meter's swing as cells states it on `&bar`: none where the band plays it straight (#438). */
+export const swingText = (meter: Meter, swing: MeterSwing) =>
+  swing.share === STRAIGHT.share || !levelSwings(meter, swing.level)
+    ? ''
+    : ` swing=${swing.level}:${shareText(swing.share)}`;
 
 /**
  * Whether cells plays a meter's swing as `swingText` states it where the band plays it.
  * On `16n`, and straight, the two agree in every meter.
- * On `8n` the band swings each pulse of 2 eighths and plays a pulse of any other length straight (T16), and cells leans a group of three, its second and third eighths (yggi/cells#18, cells v0.6.0): so a meter with a pulse of 3 eighths, 6/8's or 7/8's first, is played otherwise than stated.
+ * On `8n` the band swings each pulse of 2 eighths and plays a pulse of any other length straight (T16), and cells leans a group of three, its second and third eighths (cells v0.6.0, yggi/cells decision 040).
+ * So they agree where every pulse is 2 eighths, and where every pulse is 3 the text states no swing (`swingText`); a meter of both, 5/8, 7/8 or 10/8, is played otherwise than stated until cells can lean the pairs alone (yggi/cells#204).
  */
 export function swingStated(meter: Meter, swing: MeterSwing): boolean {
-  if (swing.level !== '8n' || swing.share === STRAIGHT.share) return true;
-  return meter.heights.every((start, i) => (meter.heights[i + 1] ?? meter.cycle) - start === 2);
+  if (swingText(meter, swing) === '' || swing.level !== '8n') return true;
+  return pulseLengths(meter).every((length) => length === 2);
 }
 
 /** An index into the chord in force as a cells number writes it: `n` its tone (a lap up past its last), `alter` an accidental. */
@@ -424,7 +440,7 @@ export function hostOf(
   const each = bars.map((bar) => ({
     meter: barMeterName(bar),
     bpm: bar.style.bpm,
-    swing: swingText(bar.swing),
+    swing: swingText(bar.meter, bar.swing),
     key: keyText(bar.plan.key),
     melodic: bar.plan.melodic,
   }));

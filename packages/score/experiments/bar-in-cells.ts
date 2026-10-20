@@ -493,7 +493,7 @@ export function barAsCells(
   const lines: Line[] = [
     {
       part: 'meter',
-      text: `&bar meter("${meterName(bar)}") step=${bar.style.bpm}bpm${swingText(bar.swing)}`,
+      text: `&bar meter("${meterName(bar)}") step=${bar.style.bpm}bpm${swingText(bar.meter, bar.swing)}`,
     },
     { part: 'key', text: `&key ${keyText(key)}` },
   ];
