@@ -15,7 +15,9 @@
  * - the sections where the composer finds no rhythm, and the drummer
  *   invents: the fit refusing every one (a meter other than a 4/4), or the
  *   nearest past `RHYTHM_MISS`;
- * - the share of sections each rhythm plays.
+ * - the share of sections each rhythm plays;
+ * - the sections whose rhythm is a line of its own played alone, a clave
+ *   with no drum bar (`aloneByPreset`, #428), which E40 counts too.
  *
  * E38, the Muse filing the drummer's grooves (#401): the same walks for
  * `LEARNING_HOURS` hours with the band given an empty learned layer, so on
@@ -71,7 +73,7 @@ import {
 } from '../src/index.ts';
 import type { BarEnv } from '../src/bar.ts';
 import { drums } from '../src/drums.ts';
-import { GROOVE_ROLES, sectionHits } from '../src/rhythm-query.ts';
+import { GROOVE_ROLES, isOwnLine, sectionHits } from '../src/rhythm-query.ts';
 import { type SectionType, barEnergy } from '../src/form.ts';
 import { grooveBar } from '../src/groove.ts';
 import { EMPTY_LAYER, type LearnedLayer } from '../src/layer.ts';
@@ -107,6 +109,8 @@ export interface RhythmRun {
   readonly missed: { readonly fit: number; readonly distance: number };
   /** Sections each rhythm played. */
   readonly played: Readonly<Record<string, number>>;
+  /** The sections whose rhythm names none of the drummer's roles: a line of its own, a clave, played alone (#428). */
+  readonly alone: number;
   /** The rhythm of each section, in order: its fragment, or `-` where the drummer invents. */
   readonly kept: readonly string[];
   /** The meter of each section, in order: its fragment's id, where it has one, else `-`. */
@@ -221,6 +225,7 @@ export function rhythmRun(
   const meterKept: string[] = [];
   const seedless = new Set<string>();
   const missed = { fit: 0, distance: 0 };
+  let alone = 0;
   const drumCounts: Partial<Record<SectionType, { bars: number; hits: Record<string, number> }>> =
     {};
   const drumBars: number[][] = [];
@@ -250,6 +255,13 @@ export function rhythmRun(
       if (d.plan.rhythmFragment === undefined) {
         if (fitsNone) missed.fit++;
         else missed.distance++;
+      } else {
+        const read = rhythms.read(
+          d.plan.rhythmFragment,
+          d.plan.meter,
+          layers[Math.floor(d.bar / SECTION_BARS)] ?? layer,
+        );
+        if (read && isOwnLine(read)) alone++;
       }
     }
     if (held) {
@@ -305,6 +317,7 @@ export function rhythmRun(
     changes,
     missed,
     played,
+    alone,
     kept,
     meters: meterKept,
     seedless: [...seedless],
@@ -505,3 +518,12 @@ export function mostUsedGroove(runs: readonly RhythmRun[]): {
     }
   return { sections, mostUsed, share: mostUsed / sections };
 }
+
+/** #428: the sections whose rhythm is a line of its own played alone (`RhythmRun.alone`), a preset's runs pooled, for each preset. */
+export const aloneByPreset = (runs: readonly RhythmRun[]): Record<string, number> =>
+  Object.fromEntries(
+    PRESETS.map(({ name }) => [
+      name,
+      runs.filter((r) => r.preset === name).reduce((n, r) => n + r.alone, 0),
+    ]),
+  );

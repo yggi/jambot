@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { RHYTHM_HOLD, RHYTHM_MISS, LAYER_DISTANCE, SECTION_BARS } from '../src/index.ts';
-import { rhythmRuns, wentBack } from './rhythm-radio.ts';
+import { PRESETS, RHYTHM_HOLD, RHYTHM_MISS, LAYER_DISTANCE, SECTION_BARS } from '../src/index.ts';
+import { aloneByPreset, rhythmRuns, wentBack } from './rhythm-radio.ts';
 
 const RUNS = rhythmRuns();
 const changes = RUNS.flatMap((r) => r.changes);
@@ -15,24 +15,29 @@ if (process.env.E37_REPORT) {
     back: RUNS.flatMap(wentBack).length,
     missed: RUNS.map((r) => r.missed),
     played,
+    alone: aloneByPreset(RUNS),
   });
 }
 
 describe('the composer asks the repository for its rhythm while the radio walks (E37)', () => {
-  it('changes the rhythm 112 times in 8,521 sections, only where a section starts, and never back at the next section (E37)', () => {
+  it('changes the rhythm 123 times in 8,521 sections, only where a section starts, and never back at the next section (E37)', () => {
     expect(RUNS).toHaveLength(40);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
     expect(RUNS.flatMap(wentBack)).toEqual([]);
-    expect([changes.length, sections]).toEqual([112, 8521]);
+    expect([changes.length, sections]).toEqual([123, 8521]);
   });
 
-  it('goes back 99 times with no margin for the rhythm playing (E37)', () => {
+  it('goes back 89 times with no margin for the rhythm playing (E37)', () => {
     const back = rhythmRuns(undefined, undefined, {
       miss: RHYTHM_MISS,
       hold: 0,
       layer: LAYER_DISTANCE,
     }).flatMap(wentBack).length;
-    expect([back, RHYTHM_HOLD]).toEqual([99, 0.02]);
+    expect([back, RHYTHM_HOLD]).toEqual([89, 0.02]);
+  });
+
+  it('plays no clave alone in any section, where 992 did before #428: a line of its own only layers on a drum bar', () => {
+    expect(aloneByPreset(RUNS)).toEqual(Object.fromEntries(PRESETS.map((p) => [p.name, 0])));
   });
 
   it('misses in 390 sections, each where no rhythm fits the meter (a meter but the 4/4s), and none past the distance: the drummer invents there (E37)', () => {

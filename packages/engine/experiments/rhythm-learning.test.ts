@@ -9,6 +9,7 @@ import { COMPOSER } from '../src/plan.ts';
 import { readRhythm, rhythmRepository } from '../src/rhythms.ts';
 import {
   LEARNING_HOURS,
+  aloneByPreset,
   learningRuns,
   lockIn,
   mostUsedGroove,
@@ -35,17 +36,18 @@ if (process.env.E37_REPORT)
     bytes: Math.max(...LEARNED.map((r) => layerBytes(r.learning!.layer))),
     lockIn: lockIn(UNLEARNED, LEARNED),
     mostUsed: mostUsedGroove(LEARNED),
+    alone: [aloneByPreset(LEARNED), aloneByPreset(UNLEARNED)],
   });
 
 describe('the Muse files the drummer’s grooves while the radio walks (E38, #401)', () => {
-  it('files 187 grooves in 120 hours, 50 the drummer’s on a miss and 137 the composer’s variations (#411, #414), and the misses fall from 3,945 sections to 56: what was filed is found again', () => {
+  it('files 198 grooves in 120 hours, 57 the drummer’s on a miss and 141 the composer’s variations (#411, #414), and the misses fall from 4,042 sections to 63: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     expect(count(LEARNED, (r) => r.sections)).toBe(26631);
-    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([56, 3945]);
-    expect(FILINGS.length).toBe(187);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([50, 137]);
+    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([63, 4042]);
+    expect(FILINGS.length).toBe(198);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([57, 141]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(12969);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(15193);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -78,19 +80,19 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −12.6 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −12.2 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9420', '0.8158']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-12.62', '1.79']);
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9684', '0.8465']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-12.19', '1.82']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it(`keeps a layer of at most 11,550 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped`, () => {
+  it(`keeps a layer of at most 12,116 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(11550);
+    expect(Math.max(...bytes)).toBe(12116);
     expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)
@@ -131,7 +133,7 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
     }
   });
 
-  it('has the drummer invent again where the composer rejected every groove a meter holds: 18 grooves beyond the first of their meter', () => {
+  it('has the drummer invent again where the composer rejected every groove a meter holds: 19 grooves beyond the first of their meter', () => {
     const again = LEARNED.flatMap((run) => {
       const firsts = new Set<string>();
       return run.learning!.filings.filter((f) => {
@@ -142,6 +144,6 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
         return !first;
       });
     });
-    expect(again).toHaveLength(18);
+    expect(again).toHaveLength(19);
   });
 });
