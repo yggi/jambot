@@ -7,14 +7,23 @@
  * hits a role a line (`FragmentHit`). The composer asks it at the style's
  * point (`stylePoint`, as the meter is asked), with the section's meter as
  * the workbench (`RhythmBench`): the repository ranks only the fragments
- * that fit that meter (cells' fit). The composer takes the nearest, with the
- * meter's two rules (`composedRhythm`):
+ * that fit that meter (cells' fit). The composer takes the nearest drum bar,
+ * with the meter's two rules (`composedRhythm`):
  *
- * - **a miss**: where no fragment fits, or the nearest that fits lies past
+ * - **a miss**: where no drum bar fits, or the nearest that fits lies past
  *   `RHYTHM_MISS`, it takes none, and the drummer invents as it does with no
  *   repository;
  * - **the rhythm playing holds**: another is taken only where it is nearer by
  *   more than `RHYTHM_HOLD`.
+ *
+ * A fragment that names none of the drummer's roles (`isOwnLine`: the
+ * library's claves) is never a section's rhythm by itself: it only layers on
+ * a drum bar, so where it lies nearer than any drum bar, the nearest drum bar
+ * is the rhythm and the clave layers on it, and where no drum bar lies near,
+ * the drummer invents, as on any other miss (#428, the owner's ruling of
+ * 2026-10-20): a clave is chosen for the drum bar it layers on (cells
+ * decision 046's use together), and alone it leaves the drummer only its own
+ * roles to play.
  *
  * Beside the rhythm, a fragment chosen with it (cells decision 046's use
  * together): the nearest that fits with the rhythm on the workbench, renames
@@ -202,7 +211,9 @@ function heldNearest(
 
 /**
  * The rhythm the composer takes at a style, on a bench, given the section
- * before's: the nearest that fits, held as the meter is, none on a miss; and
+ * before's: the nearest drum bar that fits (a fragment that reads as a line
+ * of its own, `isOwnLine`, never is one, #428; one that can't be read under
+ * the meter isn't told apart), held as the meter is, none on a miss; and
  * the line chosen with it, where one layers within `LAYER_DISTANCE`. Those
  * `chosen` (the composer's short-term memory and the section's meter) pull
  * the fragments used with them, as cells' query weighs use together. Those
@@ -227,10 +238,15 @@ export function composedRhythm(
     hold,
     layer: reach,
   } = repository.margins ?? { miss: RHYTHM_MISS, hold: RHYTHM_HOLD, layer: LAYER_DISTANCE };
+  // (only a drum bar within the distance can be the rhythm: a line of its own only layers on one, #428)
   const rhythm = heldNearest(
     repository
       .query(point, bench, layer, chosen, miss, pull)
-      .filter((f) => !rejected.includes(f.id)),
+      .filter((f) => f.distance <= miss && !rejected.includes(f.id))
+      .filter((f) => {
+        const read = repository.read(f.id, bench.meter, layer);
+        return read === null || !isOwnLine(read);
+      }),
     playing?.rhythmFragment,
     miss,
     hold,

@@ -6,7 +6,7 @@ import { DRUM_ROLES } from './events.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { stylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
-import { composedRhythm } from './rhythm-query.ts';
+import { composedRhythm, isOwnLine } from './rhythm-query.ts';
 import {
   RHYTHM_BENCHES,
   RHYTHM_REPOSITORY,
@@ -207,8 +207,9 @@ describe('the rhythm and the learned layer (#397, #398)', () => {
 });
 
 describe('the pull of a group the composer keeps, from its place on the ladder (#389)', () => {
-  // Between Funk's point and Synth-pop's, the point where another rhythm is nearer than Funk's drum bar by 0.01: half
-  // what a group known together pulls at entropy 0 (pull 0.2 × cells' reach 0.1), and more than nothing pulls at 1.
+  // Between Funk's point and Synth-pop's, the point where another drum bar is nearer than Funk's by 0.01: half what a
+  // group known together pulls at entropy 0 (pull 0.2 × cells' reach 0.1), and more than nothing pulls at 1. (A clave
+  // nearer doesn't count: it is never a section's rhythm, #428.)
   const FUNK = PRESETS.find((p) => p.name === 'Funk')!.style;
   const POP = PRESETS[0]!.style;
   const bench = { meter: METERS['4/4'] };
@@ -219,9 +220,13 @@ describe('the pull of a group the composer keeps, from its place on the ladder (
         FUNK[axis] + (POP[axis] - FUNK[axis]) * t,
       ]),
     ) as Pick<typeof FUNK, 'sync' | 'harm' | 'artic' | 'energy'>;
-  /** How much nearer the nearest other rhythm lies than Funk's drum bar. */
+  const drumBars = (t: number) =>
+    RHYTHM_REPOSITORY.query(stylePoint(at(t)), bench).filter(
+      (f) => !isOwnLine(RHYTHM_REPOSITORY.read(f.id, bench.meter)!),
+    );
+  /** How much nearer the nearest other drum bar lies than Funk's. */
   const lead = (t: number) => {
-    const found = RHYTHM_REPOSITORY.query(stylePoint(at(t)), bench);
+    const found = drumBars(t);
     const funk = found.find((f) => f.id === 'Funk drums')!.distance;
     return funk - found.find((f) => f.id !== 'Funk drums')!.distance;
   };
@@ -232,7 +237,7 @@ describe('the pull of a group the composer keeps, from its place on the ladder (
     else high = mid;
   }
   const style = at(high);
-  const [rival] = RHYTHM_REPOSITORY.query(stylePoint(style), bench);
+  const [rival] = drumBars(high);
   // Funk's drum bar and the 4/4 meter fragment, known together (cells' 10 uses)
   const layer: LearnedLayer = {
     ...EMPTY_LAYER,

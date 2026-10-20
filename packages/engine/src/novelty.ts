@@ -6,8 +6,8 @@
  * the drummer invents and the Muse files that in turn.
  *
  * A rhythm here is any the repository gives a section: one of cells' seed
- * rhythms (a preset's drum bar, or a clave playing alone, #414), or a groove
- * the learned layer filed (the drummer's, a player's, or a variation the
+ * drum bars (#414; a clave is never a section's rhythm alone, #428), or a
+ * groove the learned layer filed (the drummer's, a player's, or a variation the
  * composer made, `muse-groove.ts`). A preset's drum bar climbs as a groove
  * filed does, so a preset held plays its drum bar, then a variation of it,
  * then leaves it a while.
@@ -37,8 +37,8 @@
  * - rung 1, **vary**: on reaching it, the composer varies the rhythm
  *   playing by one operator (`variations`), files the variation (`plan.ts`)
  *   and plays it, where the family holds no variation yet and the rhythm is
- *   one bar long (a two-bar clave playing alone isn't varied, and only
- *   repeats until it is rejected); so a family that returns is not varied
+ *   one bar long (a rhythm of two bars isn't varied, and only repeats until
+ *   it is rejected); so a family that returns is not varied
  *   again, and the layer grows by one variation a rhythm the band played
  *   long enough;
  * - past `GROOVE_RUNGS`, **rejected**: the composer leaves every rhythm of

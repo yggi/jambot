@@ -86,6 +86,30 @@ describe('the composer asks the repository for a rhythm (#397)', () => {
     expect(take(['d1', 'c1', 'c2'])).toEqual({ rhythmFragment: 'd2' });
   });
 
+  it('takes only a drum bar as the rhythm, never a line of its own (#428): a clave nearer layers on the nearest drum bar, and with none near, the drummer invents', () => {
+    expect(composedRhythm(at({ c1: 0, d1: 0.05 }, { c1: 0 }), INITIAL_STYLE, bench, null)).toEqual({
+      rhythmFragment: 'd1',
+      claveFragment: 'c1',
+    });
+    expect(composedRhythm(at({ c1: 0, c2: 0.01 }), INITIAL_STYLE, bench, null)).toEqual({});
+    expect(
+      composedRhythm(at({ c1: 0, d1: RHYTHM_MISS + 1e-9 }), INITIAL_STYLE, bench, null),
+    ).toEqual({});
+    // past a drum bar rejected with its clave, a clave nearer than the next drum bar doesn't play alone
+    const take = (rejected: string[]) =>
+      composedRhythm(
+        at({ d1: 0, c2: 0.01, d2: 0.1 }, { c1: 0.01 }),
+        INITIAL_STYLE,
+        bench,
+        { rhythmFragment: 'd1', claveFragment: 'c1' },
+        undefined,
+        [],
+        rejected,
+      );
+    expect(take(['d1', 'c1'])).toEqual({ rhythmFragment: 'd2' });
+    expect(take(['d1', 'd2', 'c1'])).toEqual({});
+  });
+
   it('asks with the section’s meter and its fragment as the bench', () => {
     const repository = at({ d1: 0 });
     composedRhythm(repository, INITIAL_STYLE, bench, null);

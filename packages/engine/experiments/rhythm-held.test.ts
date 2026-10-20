@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { LAYER_CAP, layerBytes } from '../src/layer.ts';
 import { PRESETS } from '../src/style.ts';
 import { COMPOSER } from '../src/plan.ts';
-import { drumDistance, drumOverlap, heldRuns, mostUsedRhythm } from './rhythm-radio.ts';
+import {
+  aloneByPreset,
+  drumDistance,
+  drumOverlap,
+  heldRuns,
+  mostUsedRhythm,
+} from './rhythm-radio.ts';
 
 // E40 (#414): E37's runs with each preset held at entropy 0.3, an hour a run: the band as `main` plays it (no layer:
 // with a seed rhythm found, nothing is filed and nothing climbs, so a held preset plays its drum bar every section),
@@ -12,6 +18,7 @@ const CLIMBING = heldRuns(true);
 if (process.env.E37_REPORT)
   console.log({
     mostUsed: [mostUsedRhythm(MAIN), mostUsedRhythm(CLIMBING)],
+    alone: aloneByPreset(CLIMBING),
     distance: drumDistance(CLIMBING, MAIN),
     overlap: drumOverlap(CLIMBING, MAIN),
     bytes: Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer))),
@@ -22,8 +29,12 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     expect(CLIMBING).toHaveLength(40);
     expect(mostUsedRhythm(MAIN)).toEqual({ sections: 8450, mostUsed: 8450, share: 1 });
     const { sections, mostUsed, share } = mostUsedRhythm(CLIMBING);
-    expect([sections, mostUsed]).toEqual([8450, 3974]);
+    expect([sections, mostUsed]).toEqual([8450, 3939]);
     expect(share).toBeLessThan(0.6);
+  });
+
+  it('plays no clave alone in any section: a line of its own only layers on a drum bar (#428; on main at 9e26a40, 95 sections an hour at Funk, 120 at Bossa nova)', () => {
+    expect(aloneByPreset(CLIMBING)).toEqual(Object.fromEntries(PRESETS.map((p) => [p.name, 0])));
   });
 
   it('plays each preset’s own drum bar for 10 sections, then the composer’s variation of it, filed in the layer as varying it', () => {
@@ -52,7 +63,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       'Deep house': 0,
       Ambient: 0,
       'Lo-fi hip hop': 0,
-      Funk: 0,
+      Funk: 0.03,
       'Bossa nova': 0,
       'Swing jazz': 0.05,
     });
@@ -66,14 +77,14 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       'Deep house': 0.94,
       Ambient: 0.89,
       'Lo-fi hip hop': 0.95,
-      Funk: 0.82,
-      'Bossa nova': 0.8,
+      Funk: 0.74,
+      'Bossa nova': 0.91,
       'Swing jazz': 0.69,
     });
   });
 
-  it(`keeps a layer of at most 3,147 bytes after an hour, under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3147);
+  it(`keeps a layer of at most 4,003 bytes after an hour, under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(4003);
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(3);
   });
 });
