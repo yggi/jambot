@@ -100,6 +100,14 @@ export interface GrooveFiling {
   readonly tags: readonly string[];
   /** The groove it varies, by id, where the composer made it from one (#411, `novelty.ts`). */
   readonly varies?: string | undefined;
+  /** How it varies that one, as cells' vary names it (`drop &hat 6`, `rotate &ghost`; decision 052, point 6). */
+  readonly by?: string | undefined;
+}
+
+/** A variation of a rhythm (#442): its hits over its bar, and how it varies the rhythm, for the filing's `by`. */
+export interface RhythmVariation {
+  readonly hits: readonly FragmentHit[];
+  readonly by: string;
 }
 
 /** A repository of rhythms the composer asks (#397). */
@@ -151,6 +159,12 @@ export interface RhythmRepository {
   ): { readonly layer: LearnedLayer; readonly id: string; readonly held: boolean };
   /** A fragment's hits under a meter played straight, or null where it can't be read there; a filed one's from the layer given. */
   read(id: string, meter: Meter, layer?: LearnedLayer): FragmentRead | null;
+  /**
+   * One variation of a rhythm on the bench, by one operator on one of its lines (cells' vary, yggi/cells decision
+   * 052), the one a draw in [0, 1) takes of all of them, read back as hits; a filed one's from the layer given. Null
+   * where it has none, or can't be read there. None where the repository varies nothing.
+   */
+  vary?(id: string, bench: RhythmBench, draw: number, layer?: LearnedLayer): RhythmVariation | null;
   /**
    * Work the repository can do ahead, so that asking on these benches costs
    * only lookups: for its own rhythms and the grooves the layer given filed

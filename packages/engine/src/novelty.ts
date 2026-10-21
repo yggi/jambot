@@ -37,7 +37,7 @@
  *
  * - rung 0, **repeat**: the rhythm plays as found;
  * - rung 1, **vary**: on reaching it, the composer varies the rhythm
- *   playing by one operator (`variations`), files the variation (`plan.ts`)
+ *   playing by one operator (`RhythmRepository.vary`), files the variation (`plan.ts`)
  *   and plays it, where the family holds no variation yet and the rhythm is
  *   one bar long (a rhythm of two bars isn't varied, and only repeats until
  *   it is rejected); so a family that returns is not varied
@@ -54,10 +54,13 @@
  * far) are not climbed here: a rhythm rejected is the composer asking the
  * repository again without it, which is fetching nearby.
  *
- * **The operators** act on one line of the rhythm (a role's hits), never on
- * the kick or the backbeat (`GROOVE_ANCHORS`), which carry the meter, nor on
- * the fill, which the drummer plays its own of (`groove.ts`), so a variation
- * of a fragment's fill would sound as the fragment does:
+ * **The operators** are cells' (#442, yggi/cells decision 052), asked of
+ * the repository (`RhythmRepository.vary`), which reads the rhythm's text:
+ * each acts on one line of it, never on the kick or the backbeat, which
+ * carry the meter and which cells finds in the text (its anchors), nor on
+ * the fill, which the drummer plays its own of (`groove.ts`), so a
+ * variation of a fragment's fill would sound as the fragment does
+ * (`GROOVE_KEEP`, this repository's policy):
  *
  * - **rotate**: every hit of the line a step later, the last step wrapping
  *   to the first;
@@ -66,14 +69,16 @@
  *   sound is silent on, at the line's loudest, so the drummer, who plays a
  *   fragment's loudest hits first (`groove.ts`), plays it among its first.
  *
- * None strikes one sound twice on a step, and each gives a rhythm the one
- * varied isn't; a draw picks one of all of them.
+ * None strikes one sound twice on a step, and each plays notes the one
+ * varied doesn't, nor any variation before it (cells tells them apart by
+ * the notes they play, so a rotation that only moves levels is none); a
+ * draw picks one of all of them, and the filing names it (`by`, beside
+ * `varies`).
  */
 
 import type { LearnedLayer } from './layer.ts';
-import type { FragmentHit, SectionRhythm } from './rhythm-query.ts';
-import { GROOVE_FEWEST } from './muse-groove.ts';
-import { pick, quantize } from './random.ts';
+import type { SectionRhythm } from './rhythm-query.ts';
+import { quantize } from './random.ts';
 
 /** A rhythm the composer played lately, the variations it made of it, and how bored it is with them. */
 export interface Lineage {
@@ -117,11 +122,8 @@ export const PULL_AT_REPEAT = 0.2;
 export const pullOf = (entropy: number): number =>
   quantize(PULL_AT_REPEAT * Math.min(1, Math.max(0, 1 - entropy)));
 
-/** The lines no operator touches: they carry the meter. */
-export const GROOVE_ANCHORS: readonly string[] = ['kick', 'backbeat'];
-
-/** The line no operator touches beside the anchors: the fill, which the drummer plays its own of (`groove.ts`). */
-const UNVARIED: readonly string[] = [...GROOVE_ANCHORS, 'fill'];
+/** The lines no operator touches beside cells' anchors (the kick's and the backbeat's): the fill, which the drummer plays its own of (`groove.ts`). */
+export const GROOVE_KEEP: readonly string[] = ['fill'];
 
 /** The rung a boredom stands on: 0 to repeat, 1 to vary, `GROOVE_RUNGS` and past it rejected. */
 export const rungOf = (boredom: number): number => Math.floor(boredom / BORED);
@@ -152,6 +154,9 @@ export function rejectedOf(boredom: Boredom, owners: ClaveOwners = NO_CLAVE_OWNE
 
 /** The metadata key a variation names the groove it varies by, in the layer (`GrooveFiling.varies`). */
 export const VARIES = 'varies';
+
+/** The metadata key a variation names how it varies that groove by, in the layer (`GrooveFiling.by`; cells decision 052, point 6). */
+export const BY = 'by';
 
 /**
  * A rhythm's family in the layer: the rhythm it varies, followed back to the
@@ -217,67 +222,4 @@ export function boredAfter(boredom: Boredom, playing: Lineage | null, entropy: n
       rejected: rungOf(grown) >= GROOVE_RUNGS,
     },
   ];
-}
-
-/** Hits in the order a bar plays them: by step, then note. */
-const inOrder = (hits: readonly FragmentHit[]): FragmentHit[] =>
-  [...hits].sort((a, b) => a.step - b.step || a.note - b.note);
-
-/** A groove's pattern, its velocities too, to tell two apart. */
-const patternOf = (hits: readonly FragmentHit[]) =>
-  inOrder(hits)
-    .map((h) => `${h.role}:${h.note}:${h.step}:${h.velocity}`)
-    .join(' ');
-
-/**
- * Every variation of a bar of `steps` by one operator on one line: for each
- * line but the anchors and the fill, in the order the bar first plays them, its rotation,
- * each of its hits dropped, and a hit added on each step its sound is
- * silent on; each in the order a bar plays its hits, none twice, none the
- * groove itself, none striking a sound twice on a step, none of fewer than
- * `GROOVE_FEWEST` hits.
- */
-export function variations(hits: readonly FragmentHit[], steps: number): FragmentHit[][] {
-  const bar = inOrder(hits);
-  const seen = new Set([patternOf(bar)]);
-  const out: FragmentHit[][] = [];
-  const keep = (varied: readonly FragmentHit[]) => {
-    if (varied.length < GROOVE_FEWEST) return;
-    const strikes = new Set(varied.map((h) => `${h.step}:${h.note}`));
-    if (strikes.size < varied.length) return;
-    const pattern = patternOf(varied);
-    if (seen.has(pattern)) return;
-    seen.add(pattern);
-    out.push(inOrder(varied));
-  };
-  const roles = [...new Set(bar.map((h) => h.role))].filter((r) => !UNVARIED.includes(r));
-  for (const role of roles) {
-    const line = bar.filter((h) => h.role === role);
-    const rest = bar.filter((h) => h.role !== role);
-    keep([...rest, ...line.map((h) => ({ ...h, step: (h.step + 1) % steps }))]);
-    for (const dropped of line) keep(bar.filter((h) => h !== dropped));
-    const { note } = line[0]!;
-    const loudest = Math.max(...line.map((h) => h.velocity));
-    for (let step = 0; step < steps; step++)
-      if (!bar.some((h) => h.note === note && h.step === step))
-        keep([...bar, { role, note, step, velocity: loudest }]);
-  }
-  return out;
-}
-
-/** One variation of a bar (`variations`), picked by a draw; null where no operator applies. */
-export function variedGroove(
-  hits: readonly FragmentHit[],
-  steps: number,
-  draw: number,
-): FragmentHit[] | null {
-  const all = variations(hits, steps);
-  return all.length
-    ? all[
-        pick(
-          draw,
-          all.map(() => 1),
-        )
-      ]!
-    : null;
 }

@@ -4,7 +4,7 @@ import { DRUM_NOTES } from './drums.ts';
 import { GROOVE_FEWEST, grooveText } from './muse-groove.ts';
 import {
   BORED,
-  GROOVE_ANCHORS,
+  GROOVE_KEEP,
   GROOVE_RUNGS,
   PULL_AT_REPEAT,
   type Lineage,
@@ -17,15 +17,13 @@ import {
   pullOf,
   rejectedOf,
   rungOf,
-  variations,
-  variedGroove,
   ownedWith,
   wantsVariation,
 } from './novelty.ts';
-import type { FragmentHit } from './rhythm-query.ts';
+import type { FragmentHit, RhythmRepository, RhythmVariation } from './rhythm-query.ts';
 import { quantize } from './random.ts';
 import { readRhythm, rhythmRepository } from './rhythms.ts';
-import { EMPTY_LAYER } from './layer.ts';
+import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { CO_USE_PULL } from '@yggi/cells/repository/fragments';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -57,8 +55,42 @@ const key = (hits: readonly FragmentHit[]) =>
   JSON.stringify(sorted(hits).map((h) => [h.role, h.note, h.step, h.velocity]));
 const lineOf = (hits: readonly FragmentHit[], role: string) => hits.filter((h) => h.role === role);
 
-describe('the operators that vary a groove (#411)', () => {
-  const all = variations(GROOVE, STEPS);
+/** A groove's lines as the bar plays them: its kick and backbeat, which cells finds in its text, and the rest. */
+const ANCHORED = ['kick', 'backbeat'];
+
+/** Draws enough to take every variation of a bar, each at least once: a thousand, evenly. */
+const DRAWS = range(1000).map((i) => (i + 0.5) / 1000);
+
+/** A repository with a groove filed in it, on the 5/4 bench: the groove's id, and the layer it is filed in. */
+function filed(
+  hits: readonly FragmentHit[],
+  repository: RhythmRepository = rhythmRepository(),
+): { repository: RhythmRepository; id: string; layer: LearnedLayer } {
+  const { id, layer } = repository.file!(EMPTY_LAYER, {
+    hits,
+    bench: { meter: FIVE },
+    point: { energy: 0.5 },
+    source: 'drummer',
+    created: 'bar 0',
+    tags: ['groove'],
+  });
+  return { repository, id, layer };
+}
+
+/** Every variation the repository gives a groove (`vary`), each once, in the order the draws take them. */
+function variationsOf(hits: readonly FragmentHit[]): RhythmVariation[] {
+  const { repository, id, layer } = filed(hits);
+  const seen = new Map<string, RhythmVariation>();
+  for (const d of DRAWS) {
+    const v = repository.vary!(id, { meter: FIVE }, d, layer);
+    if (v && !seen.has(v.by)) seen.set(v.by, v);
+  }
+  return [...seen.values()];
+}
+
+describe('the operators that vary a groove, cells’ (#411, #442; yggi/cells decision 052)', () => {
+  const varied = variationsOf(GROOVE);
+  const all = varied.map((v) => v.hits);
 
   it('rotates a line a step later, drops one of its hits, or adds one at its loudest on a step its sound is silent on', () => {
     // the ghost: 1 rotation, 1 drop, 17 steps to add on (its sound strikes 4, 7 and 12); the hats: 1, 4 and 16
@@ -83,11 +115,16 @@ describe('the operators that vary a groove (#411)', () => {
     }
   });
 
-  it('never touches the kick or the backbeat, which carry the meter', () => {
-    expect(GROOVE_ANCHORS).toEqual(['kick', 'backbeat']);
+  it('names each as cells’ vary does, for the filing’s `by`: its operator, its line and its step, in the order the draws take them (the hats first, the line the bar first plays past its anchors, then the ghost)', () => {
+    const by = varied.map((v) => v.by);
+    expect(by.slice(0, 3)).toEqual(['rotate &hat', 'drop &hat 0', 'drop &hat 2']);
+    expect(by.slice(21, 23)).toEqual(['rotate &ghost', 'drop &ghost 7']);
+    expect(by.every((b) => /^(rotate|drop|add) &(ghost|hat)( \d+)?$/.test(b))).toBe(true);
+  });
+
+  it('never touches the kick or the backbeat, which carry the meter and which cells finds in the text', () => {
     for (const v of all)
-      for (const role of GROOVE_ANCHORS)
-        expect(key(lineOf(v, role))).toBe(key(lineOf(GROOVE, role)));
+      for (const role of ANCHORED) expect(key(lineOf(v, role))).toBe(key(lineOf(GROOVE, role)));
   });
 
   it('gives grooves that differ from the one varied and from each other, with no two strikes of one sound on a step and at least as many hits as a groove holds', () => {
@@ -101,36 +138,49 @@ describe('the operators that vary a groove (#411)', () => {
     }
   });
 
+  it('reads each back as cells plays its whole text, though only its varied line is read', () => {
+    const { repository, id, layer } = filed(GROOVE);
+    const text = layer.filed.find((f) => f.fragment.id === id)!.fragment.text;
+    for (const d of [0, 0.3, 0.6, 0.99]) {
+      const v = repository.vary!(id, { meter: FIVE }, d, layer)!;
+      expect(text).not.toBe(grooveText(v.hits, STEPS));
+      expect(readRhythm(grooveText(v.hits, STEPS), FIVE)!.hits).toEqual(sorted(v.hits));
+    }
+  });
+
   it('reads back from cells hit for hit, every variation stated as a groove is (the round trip filing relies on)', () => {
     for (const v of all) expect(readRhythm(grooveText(v, STEPS), FIVE)!.hits).toEqual(sorted(v));
   });
 
   it('drops no hit where the bar would hold fewer than a groove, and gives none where only the anchors play', () => {
     const three = [GROOVE[0]!, GROOVE[4]!, GROOVE[6]!];
-    expect(variations(three, STEPS).every((v) => v.length >= GROOVE_FEWEST)).toBe(true);
-    expect(variations(three, STEPS).filter((v) => v.length < three.length)).toEqual([]);
-    const anchors = GROOVE.filter((h) => GROOVE_ANCHORS.includes(h.role));
-    expect(variations(anchors, STEPS)).toEqual([]);
-    expect(variedGroove(anchors, STEPS, 0.5)).toBeNull();
+    expect(variationsOf(three).every((v) => v.hits.length >= GROOVE_FEWEST)).toBe(true);
+    expect(variationsOf(three).filter((v) => v.hits.length < three.length)).toEqual([]);
+    const anchors = GROOVE.filter((h) => ANCHORED.includes(h.role));
+    const { repository, id, layer } = filed(anchors);
+    expect(DRAWS.map((d) => repository.vary!(id, { meter: FIVE }, d, layer))).toEqual(
+      DRAWS.map(() => null),
+    );
   });
 
   it('never touches the fill, which the drummer plays its own of: a variation of it would sound as the groove does', () => {
+    expect(GROOVE_KEEP).toEqual(['fill']);
     const withFill = [
       ...GROOVE,
       hit('fill', DRUM_NOTES.snare, 17, 60),
       hit('fill', DRUM_NOTES.snare, 18, 80),
     ];
-    const varied = variations(withFill, STEPS);
+    const withIt = variationsOf(withFill).map((v) => v.hits);
     // the others as without it, but for the ghost's two adds on the steps the fill's snare strikes
-    expect(varied).toHaveLength(all.length - 2);
-    for (const v of varied) expect(key(lineOf(v, 'fill'))).toBe(key(lineOf(withFill, 'fill')));
+    expect(withIt).toHaveLength(all.length - 2);
+    for (const v of withIt) expect(key(lineOf(v, 'fill'))).toBe(key(lineOf(withFill, 'fill')));
   });
 
-  it('picks one by a draw, every one for some draw', () => {
-    const picked = new Set(
-      range(all.length).map((i) => key(variedGroove(GROOVE, STEPS, (i + 0.5) / all.length)!)),
-    );
-    expect(picked.size).toBe(all.length);
+  it('varies a groove filed only with the layer that filed it, and no rhythm it doesn’t hold', () => {
+    const { repository, id, layer } = filed(GROOVE);
+    expect(repository.vary!(id, { meter: FIVE }, 0.5, layer)).not.toBeNull();
+    expect(repository.vary!(id, { meter: FIVE }, 0.5)).toBeNull();
+    expect(repository.vary!('no such groove', { meter: FIVE }, 0.5, layer)).toBeNull();
   });
 });
 
@@ -240,7 +290,7 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
       layer = filed.layer;
       return filed.id;
     };
-    const all = variations(GROOVE, STEPS);
+    const all = variationsOf(GROOVE).map((v) => v.hits);
     const g = fileIt(GROOVE, 'bar 0');
     const h = fileIt(all[0]!, 'bar 8');
     const v = fileIt(all[1]!, 'bar 16', g);
@@ -254,8 +304,9 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
 
   it('reads a seed rhythm’s family from the layer too: the seed rhythm first, which the layer didn’t file, then every groove filed from it (#414)', () => {
     const repository = rhythmRepository();
-    const funk = repository.read('Funk drums', METERS['4/4'])!.hits;
-    const [one, two] = variations(funk, 16);
+    const varyFunk = (d: number) =>
+      repository.vary!('Funk drums', { meter: METERS['4/4'] }, d, EMPTY_LAYER)!.hits;
+    const [one, two] = [varyFunk(0), varyFunk(0.5)];
     let layer = EMPTY_LAYER;
     const fileIt = (hits: readonly FragmentHit[], created: string, varies: string) => {
       const filed = repository.file!(layer, {

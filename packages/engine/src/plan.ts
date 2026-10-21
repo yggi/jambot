@@ -37,7 +37,7 @@
  * ten). A build is always built afresh.
  */
 
-import { type Meter, fifthsIndex, mod, stepsOf } from '@jambot/theory';
+import { type Meter, fifthsIndex, mod } from '@jambot/theory';
 import { leaning } from './fading.ts';
 import { SECTION_BARS, type Section, form } from './form.ts';
 import { type HarmonicWeights, keyWeight } from './history.ts';
@@ -66,7 +66,6 @@ import {
   pullOf,
   rejectedOf,
   ownedWith,
-  variedGroove,
   wantsVariation,
 } from './novelty.ts';
 import { NO_SHORT_TERM, type ShortTerm, chosenOf, remembered } from './short-term.ts';
@@ -359,11 +358,11 @@ export const COMPOSER = 'composer';
  * The novelty ladder where a section's rhythm is found (#411, #414,
  * `novelty.ts`): the lineage the rhythm's family belongs to (`familyOf`),
  * a seed rhythm's or a groove's the layer filed; where the composer is
- * bored enough to vary it, one variation of it (`variedGroove`, drawn by a groove's place in the layer, a
- * seed rhythm's id, so a forecast varies it as the band will), filed in the
+ * bored enough to vary it, one variation of it (`RhythmRepository.vary`, cells' operators, drawn by a groove's
+ * place in the layer, a seed rhythm's id, so a forecast varies it as the band will), filed in the
  * layer at the point the section is asked at, on its bench, by the
  * composer, created at its first bar, tagged as the Muse's grooves are and
- * naming the rhythm it varies, and played in its place, the clave beside it.
+ * naming the rhythm it varies and how (`by`), and played in its place, the clave beside it.
  * The rhythm and the layer as they were, and no lineage, where the section
  * found no rhythm, or a seed rhythm where the repository files nothing.
  */
@@ -390,21 +389,24 @@ function climbed(
     return { rhythm, layer, playing: null };
   const lineage = lineageOf(boredom, familyOf(layer, id));
   const read =
-    wantsVariation(lineage) && rhythms.file ? rhythms.read(id, bench.meter, layer) : null;
-  const drawKey = position === -1 ? nameKey(id) : position;
-  const hits =
-    read && read.bars === 1
-      ? variedGroove(read.hits, stepsOf(bench.meter), draw(seed, 'grooveVariation', drawKey))
+    wantsVariation(lineage) && rhythms.file && rhythms.vary
+      ? rhythms.read(id, bench.meter, layer)
       : null;
-  if (!hits) return { rhythm, layer, playing: lineage };
+  const drawKey = position === -1 ? nameKey(id) : position;
+  const variation =
+    read && read.bars === 1
+      ? rhythms.vary!(id, bench, draw(seed, 'grooveVariation', drawKey), layer)
+      : null;
+  if (!variation) return { rhythm, layer, playing: lineage };
   const filed = rhythms.file!(layer, {
-    hits,
+    hits: variation.hits,
     bench,
     point: stylePoint(style),
     source: COMPOSER,
     created: `song ${seed}, bar ${index * SECTION_BARS}`,
     tags: grooveTags(session),
     varies: id,
+    by: variation.by,
   });
   const grooves = lineage.grooves.includes(filed.id)
     ? lineage.grooves

@@ -1,4 +1,4 @@
-import { METERS, stepsOf } from '@jambot/theory';
+import { METERS } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, type BandEnv, DRUMMER, band, lookAhead } from './band.ts';
 import { DRUM_NOTES } from './drums.ts';
@@ -7,10 +7,10 @@ import { stylePoint } from './meter-query.ts';
 import type { HeardNote } from './muse.ts';
 import { distilledGroove } from './muse-groove.ts';
 import { SECTION_BARS } from './form.ts';
-import { GROOVE_ANCHORS, variations } from './novelty.ts';
+import { BY, GROOVE_KEEP, VARIES } from './novelty.ts';
 import { COMPOSER, GROOVE_TAG } from './plan.ts';
 import { METER_REPOSITORY } from './repository.ts';
-import type { FragmentHit } from './rhythm-query.ts';
+import type { FragmentHit, RhythmBench } from './rhythm-query.ts';
 import { RHYTHM_REPOSITORY, readRhythm } from './rhythms.ts';
 import { SHORT_TERM_FLOOR } from './short-term.ts';
 import { PRESETS, type Style, holding, writtenStyle } from './style.ts';
@@ -28,6 +28,29 @@ const STYLE: Style = { ...FUNK.style, entropy: 0.3 };
 /** The point of the 5/4 meter fragment, where the repository's meter is 5/4 and no rhythm fits it. */
 const COOL: Style = { ...STYLE, sync: 0.4, harm: 0.9, artic: 0.5, energy: 0.3 };
 const range = (n: number) => [...Array(n).keys()];
+
+/** How cells' vary names a variation: its operator, its line and, but for a rotation, its step. */
+const VARIED_BY = /^(rotate|drop|add) &\w+( \d+)?$/;
+
+/**
+ * The variation the composer filed as `id` against its parent's own (cells' vary, #442): the hits the repository's
+ * variation named by the filing's `by` gives, taken over draws enough to reach each, and the filed groove's hits.
+ */
+function filedVariation(id: string, bench: RhythmBench, layer: LearnedLayer) {
+  const meta = layer.filed.find((f) => f.fragment.id === id)!.meta;
+  const [parent, by] = [meta[VARIES] as string, meta[BY] as string];
+  let named: readonly FragmentHit[] | null = null;
+  for (let i = 0; i < 200 && named === null; i++) {
+    const v = RHYTHM_REPOSITORY.vary!(parent, bench, (i + 0.5) / 200, layer);
+    if (v?.by === by) named = v.hits;
+  }
+  return {
+    by,
+    parent: RHYTHM_REPOSITORY.read(parent, bench.meter, layer)!.hits,
+    named,
+    filed: RHYTHM_REPOSITORY.read(id, bench.meter, layer)!.hits,
+  };
+}
 
 /** The band over `bars` bars at one style, every bar and the carried state after each. */
 function play(bars: number, extra: Partial<BandEnv>, style: Style = STYLE) {
@@ -280,10 +303,10 @@ describe('the composer tires of a groove: varies it, then rejects it, and the dr
     expect(rhythmsOf(run)).toEqual(['-', G, G, G, V, V, V, '-', G2, G2]);
     // the drummer's own bars play in the section the composer rejected the groove, and its groove is filed where the next is planned
     const filed = run.at(-1)!.carried.plans.layer!.filed;
-    expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies])).toEqual([
-      [G, DRUMMER, undefined],
-      [V, COMPOSER, G],
-      [G2, DRUMMER, undefined],
+    expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies, f.meta.by])).toEqual([
+      [G, DRUMMER, undefined, undefined],
+      [V, COMPOSER, G, expect.stringMatching(VARIED_BY)],
+      [G2, DRUMMER, undefined, undefined],
     ]);
     // (the band decides a bar ahead: the state after bar 47 has planned section 6, the variation's third)
     expect(run[6 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
@@ -298,13 +321,13 @@ describe('the composer tires of a groove: varies it, then rejects it, and the dr
       { ...STYLE, entropy: 1 },
     );
     const layer = run.at(-1)!.carried.plans.layer!;
-    const [groove, varied] = [G, V].map((id) => RHYTHM_REPOSITORY.read(id, FIVE, layer)!.hits);
-    expect(variations(groove!, stepsOf(FIVE)).map((v) => JSON.stringify(v))).toContain(
-      JSON.stringify(varied),
-    );
+    const { meterFragment } = run[4 * SECTION_BARS]!.bar.plan;
+    const { by, parent, named, filed } = filedVariation(V, { meter: FIVE, meterFragment }, layer);
+    expect(by).toMatch(VARIED_BY);
+    expect(filed).toEqual(named);
     const anchors = (hits: readonly FragmentHit[]) =>
-      hits.filter((h) => GROOVE_ANCHORS.includes(h.role));
-    expect(anchors(varied!)).toEqual(anchors(groove!));
+      hits.filter((h) => ['kick', 'backbeat'].includes(h.role));
+    expect(anchors(filed)).toEqual(anchors(parent));
     expect(run[4 * SECTION_BARS]!.bar.plan.rhythmFragment).toBe(V);
   });
 
@@ -361,10 +384,10 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
       ...times(3, `${V} + ${RUMBA}`),
     ]);
     const filed = run.at(-1)!.carried.plans.layer!.filed;
-    expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies])).toEqual([
-      [V, COMPOSER, FUNK_DRUMS],
-      [DRUMMER_G, DRUMMER, undefined],
-      [DRUMMER_V, COMPOSER, DRUMMER_G],
+    expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies, f.meta.by])).toEqual([
+      [V, COMPOSER, FUNK_DRUMS, expect.stringMatching(VARIED_BY)],
+      [DRUMMER_G, DRUMMER, undefined, undefined],
+      [DRUMMER_V, COMPOSER, DRUMMER_G, expect.stringMatching(VARIED_BY)],
     ]);
     // (the band decides a bar ahead: the state after bar 39 has planned section 5, the variation's third)
     expect(run[5 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
@@ -376,17 +399,14 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
 
   it('varies the drum bar by one operator on one line, never the kick, the backbeat or the fill, and the drummer plays from the variation', () => {
     const run = play(4 * SECTION_BARS, { layer: EMPTY_LAYER }, { ...STYLE, entropy: 1 });
-    const { meter } = run[0]!.bar.plan;
+    const { meter, meterFragment } = run[3 * SECTION_BARS]!.bar.plan;
     const layer = run.at(-1)!.carried.plans.layer!;
-    const [own, varied] = [FUNK_DRUMS, V].map(
-      (id) => RHYTHM_REPOSITORY.read(id, meter, layer)!.hits,
-    );
-    expect(variations(own!, stepsOf(meter)).map((v) => JSON.stringify(v))).toContain(
-      JSON.stringify(varied),
-    );
+    const { by, parent, named, filed } = filedVariation(V, { meter, meterFragment }, layer);
+    expect(by).toMatch(VARIED_BY);
+    expect(filed).toEqual(named);
     const kept = (hits: readonly FragmentHit[]) =>
-      hits.filter((h) => [...GROOVE_ANCHORS, 'fill'].includes(h.role));
-    expect(kept(varied!)).toEqual(kept(own!));
+      hits.filter((h) => ['kick', 'backbeat', ...GROOVE_KEEP].includes(h.role));
+    expect(kept(filed)).toEqual(kept(parent));
     expect(run[3 * SECTION_BARS]!.bar.plan.rhythmFragment).toBe(V);
     const drums = (bar: BandBar) => drumsOf(bar).map((h) => [h.role, h.note, h.step]);
     expect(drums(run[3 * SECTION_BARS]!.bar)).not.toEqual(drums(run[2 * SECTION_BARS]!.bar));

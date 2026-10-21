@@ -28,7 +28,15 @@
  * one fragment at a time, only for those a section could take). The rest,
  * its fits, reads and unions on every bench, the host warms after filing,
  * or after loading a layer that filed it (#412: `warm` given the layer), so
- * no later section compiles them. */
+ * no later section compiles them.
+ *
+ * A rhythm is varied by cells' vary (#442, yggi/cells decision 052): every
+ * variation of its text by one of cells' rhythm operators on one line, on
+ * the bench's workbench, which sets the anchors cells derives (the kick's
+ * line and the backbeat's), beside the lines the composer keeps
+ * (`GROOVE_KEEP`, the fill), each kept for the repository's life and
+ * warmed with the rhythm's fit and read; the one a draw takes is read back
+ * by its varied line alone, over the rhythm's lap, one compile (E39). */
 
 import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
@@ -40,13 +48,21 @@ import { type Fragment, createRepository } from '@yggi/cells/repository/fragment
 import { holesOf } from '@yggi/cells/repository/holes';
 import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
+import { type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
 import { type LearnedLayer, cappedLayer } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
-import { grooveText } from './muse-groove.ts';
-import type { FragmentHit, FragmentRead, RhythmBench, RhythmRepository } from './rhythm-query.ts';
+import { GROOVE_FEWEST, grooveText } from './muse-groove.ts';
+import { BY, GROOVE_KEEP } from './novelty.ts';
+import {
+  type FragmentHit,
+  type FragmentRead,
+  type RhythmBench,
+  type RhythmRepository,
+  isOwnLine,
+} from './rhythm-query.ts';
 import { stepSeconds } from './tempo.ts';
 
 /** The compiles kept: every fragment, workbench and union the benches meet, a few hundred, with room. */
@@ -63,7 +79,7 @@ const nameOf = (meter: Meter): MeterName | null =>
 const straight = (name: MeterName) => `&bar meter("${name}") step=${READ_AT}bpm`;
 
 /** The workbench of a bench: its meter fragment at the reading tempo, or the meter named. */
-function benchText({ meter, meterFragment }: RhythmBench): string | null {
+export function benchText({ meter, meterFragment }: RhythmBench): string | null {
   const fragment = METER_FRAGMENTS.find((f) => f.id === meterFragment);
   if (fragment) return setTiming(fragment.text, 'bar', 'step', `${READ_AT}bpm`);
   const name = nameOf(meter);
@@ -87,15 +103,22 @@ const whole = (x: number) => (Math.abs(x - Math.round(x)) < 1e-6 ? Math.round(x)
  * channel 10, or a hit falls off the steps.
  */
 export function readRhythm(text: string, meter: Meter): FragmentRead | null {
+  if (!nameOf(meter) || !cardOf(text)) return null;
+  const bars = Math.max(1, ...holesOf(text, compileSource).clock.map((need) => need.bars));
+  return readLines(text, meter, bars);
+}
+
+/** A fragment's hits over a lap of `bars` (`readRhythm`), each line's, or one line's alone where a role is given. */
+function readLines(text: string, meter: Meter, bars: number, role?: string): FragmentRead | null {
   const name = nameOf(meter);
   const card = cardOf(text);
   if (!name || !card) return null;
-  const bars = Math.max(1, ...holesOf(text, compileSource).clock.map((need) => need.bars));
   const step = stepSeconds(READ_AT, meter);
   const steps = stepsOf(meter) * bars;
   const hits: FragmentHit[] = [];
   for (const term of card.terms) {
-    const role = /^&(\w+)/.exec(term)![1]!;
+    const line = /^&(\w+)/.exec(term)![1]!;
+    if (role !== undefined && line !== role) continue;
     const alone = text.replace(card.line, card.line.replace(/\[.*\]$/, `[${term}]`));
     const plan = planOf(unionOf(alone, straight(name)).text);
     const route = router(plan.result, channelTable(plan.result));
@@ -105,7 +128,7 @@ export function readRhythm(text: string, meter: Meter): FragmentRead | null {
         if (!note || note.channel !== 10) continue;
         const at = whole(note.at / step);
         if (!Number.isInteger(at) || at >= steps) return null;
-        hits.push({ role, note: note.note, step: at, velocity: note.velocity });
+        hits.push({ role: line, note: note.note, step: at, velocity: note.velocity });
       }
   }
   return { bars, hits: inOrder(hits) };
@@ -152,6 +175,7 @@ export function rhythmRepository(
   const withIts = new Map<string, string>();
   const layering = new Map<string, boolean>();
   const warmed = new Set<string>();
+  const varied = new Map<string, readonly Variation[]>();
   const fits = (text: string, workbench: string) => {
     const key = `${workbench.length}:${workbench}${text}`;
     if (!fitted.has(key)) fitted.set(key, fit(text, workbench));
@@ -211,6 +235,14 @@ export function rhythmRepository(
     if (!reads.has(key)) reads.set(key, read(text, meter));
     return reads.get(key)!;
   };
+  // Every variation of a rhythm on a workbench, by the composer's policy (`novelty.ts`): cells' rhythm operators on
+  // every line but its anchors and those kept, none of fewer hits than a groove holds.
+  const variationsOn = (text: string, workbench: string) => {
+    const key = `${workbench.length}:${workbench}${text}`;
+    if (!varied.has(key))
+      varied.set(key, variations(text, { workbench, keep: GROOVE_KEEP, fewest: GROOVE_FEWEST }));
+    return varied.get(key)!;
+  };
   return {
     query(point, bench, layer, chosen = [], reach = Infinity, pull) {
       const workbench = benchOf(bench);
@@ -240,7 +272,7 @@ export function rhythmRepository(
           ...alongside.map((id) => ({ id })),
         ]),
       ),
-    file(layer, { hits, bench, point, source, created, tags, varies }) {
+    file(layer, { hits, bench, point, source, created, tags, varies, by }) {
       const text = grooveText(hits, stepsOf(bench.meter));
       const filed = fileFragment(cells, layer, {
         text,
@@ -248,7 +280,11 @@ export function rhythmRepository(
         facet: 'rhythm',
         source,
         created,
-        meta: { tags: [...tags], ...(varies === undefined ? {} : { varies }) },
+        meta: {
+          tags: [...tags],
+          ...(varies === undefined ? {} : { varies }),
+          ...(by === undefined ? {} : { [BY]: by }),
+        },
       });
       // (filing is its use at the point; beside the meter fragment it was played in, a use together)
       const { meterFragment } = bench;
@@ -267,6 +303,23 @@ export function rhythmRepository(
     read(id, meter, layer) {
       const text = textOf(id, layer);
       return text === undefined ? null : readText(text, meter);
+    },
+    vary(id, bench, draw, layer) {
+      const text = textOf(id, layer);
+      const workbench = benchOf(bench);
+      const whole = text === undefined ? null : readText(text, bench.meter);
+      if (text === undefined || workbench === null || whole === null) return null;
+      const all = variationsOn(text, workbench);
+      if (!all.length) return null;
+      // (a variation rewrites one line, so only that line is read back from its text, over the rhythm's lap: one compile)
+      const variation = all[drawn(draw, all.length)]!;
+      const role = variation.line.slice(1);
+      const line = readLines(variation.apply(text), bench.meter, whole.bars, role);
+      if (line === null) return null;
+      return {
+        hits: inOrder([...whole.hits.filter((h) => h.role !== role), ...line.hits]),
+        by: variation.by,
+      };
     },
     *warm(benches, layer) {
       // (cells' rhythms, and the grooves the layer filed, newest first; a rhythm warmed on a workbench takes no step again)
@@ -290,8 +343,13 @@ export function rhythmRepository(
             yield;
             continue;
           }
-          readText(text, bench.meter);
+          const got = readText(text, bench.meter);
           yield;
+          // (and its variations, where the composer could vary it there: a bar of a drum bar's lines, so its ask reads one line)
+          if (got !== null && got.bars === 1 && !isOwnLine(got)) {
+            variationsOn(text, workbench);
+            yield;
+          }
           const withIt = withItOf(text, workbench);
           yield;
           for (const other of fragments) {

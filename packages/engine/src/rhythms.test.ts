@@ -268,7 +268,8 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
     expect(RHYTHM_BENCHES.length).toBe(11 + Object.keys(METERS).length);
     const steps = [...repository.warm!(RHYTHM_BENCHES)].length;
     const warmed = fits;
-    expect([steps, warmed]).toEqual([1372, 740]);
+    // (48 of the steps are the 8 drum bars' variations on each bench each fits, which the composer's ladder asks for, #442)
+    expect([steps, warmed]).toEqual([1420, 740]);
     // Every preset's point and a spread of others, on every bench, a clave playing or none, with a layer and without.
     const styles = [
       ...PRESETS.map((p) => p.style),
