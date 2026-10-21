@@ -10,6 +10,7 @@ const view = (over: Partial<StyleView> = {}): StyleView => ({
   preset: 'Synth-pop',
   glide: null,
   axes,
+  near: { at: 'Synth-pop', toward: null },
   ...over,
 });
 const props = (over: Partial<Parameters<typeof render<typeof StylePanel>>[1]> = {}) => ({
@@ -41,9 +42,10 @@ describe('the style card', () => {
       style: view({
         preset: null,
         axes: { ...axes, harm: 0.9, energy: 0.1, sync: 0.5, artic: 0.5 },
+        near: { at: 'Ambient', toward: null },
       }),
     });
-    expect(container.querySelector('summary .main')).toHaveTextContent('Custom');
+    expect(container.querySelector('summary .main')).toHaveTextContent('Ambient');
     expect(container.querySelector('summary .sub')).toHaveTextContent('Custom · rich, sparse');
   });
 

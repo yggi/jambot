@@ -17,6 +17,7 @@
     | 'melody'
     | 'rhythm'
     | 'mix'
+    | 'cells'
     | 'you'
     | 'settings'
     | 'about'
@@ -107,6 +108,11 @@
       <path class="line" d="M{8 + i * 8} 6 V34" />
       <rect class="lit" x={4.5 + i * 8} y={y - 2.5} width="7" height="5" rx="1.5" />
     {/each}
+  {:else if name === 'cells'}
+    <path class="line" d="M10 9 V31 M10 20 H18 M10 31 H18" />
+    <rect class="accent" x="5" y="4" width="14" height="9" rx="2" />
+    <rect class="lit" x="18" y="15.5" width="17" height="9" rx="2" />
+    <rect class="dim" x="18" y="26.5" width="13" height="9" rx="2" />
   {:else if name === 'you'}
     <circle class="accent" cx="20" cy="13" r="6" />
     <path class="line" d="M8 34 C8 24 32 24 32 34" />

@@ -14,6 +14,8 @@ const none = { drums: [], bass: [], comp: [], lead: [] };
 const barView = (over: Partial<BarView> = {}): BarView => ({
   bar: 9,
   barInSection: 1,
+  sectionIndex: 1,
+  fragments: { meter: null, rhythm: null, clave: null },
   section: 'Groove',
   key: 'A aeolian',
   tonic: 9,
@@ -41,6 +43,7 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
     preset: 'Techno',
     glide: null,
     axes: { sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0 },
+    near: { at: 'Techno', toward: null },
   },
   heading: { tonic: 9, mode: 'aeolian' },
   headingMelodic: 'plain',
