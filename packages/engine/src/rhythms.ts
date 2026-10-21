@@ -1,6 +1,6 @@
 /**
  * Cells' repository of rhythms, as the composer asks it (#397): cells'
- * `RHYTHM_FRAGMENTS` (v0.7.0: E31's eight drum bars and five claves), ranked
+ * `RHYTHM_FRAGMENTS` (v0.8.0: E31's eight drum bars and five claves), ranked
  * by cells' own `query` on the facet `rhythm` with the section's meter as
  * the workbench, so only the rhythms that fit it rank (cells' fit, decision
  * 047), and each read by cells' own compiler and MIDI out into hits a role a

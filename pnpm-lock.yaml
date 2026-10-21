@@ -144,8 +144,8 @@ importers:
         specifier: workspace:*
         version: link:../theory
       '@yggi/cells':
-        specifier: github:yggi/cells#v0.7.0
-        version: https://codeload.github.com/yggi/cells/tar.gz/670b4bacfe7538d3232641ae70d92c5f38a14923
+        specifier: github:yggi/cells#v0.8.0
+        version: https://codeload.github.com/yggi/cells/tar.gz/d5bdabc6a47e54cb49d19ebcd4b0da2b00bf536e
 
   packages/score:
     dependencies:
@@ -156,8 +156,8 @@ importers:
         specifier: workspace:*
         version: link:../theory
       '@yggi/cells':
-        specifier: github:yggi/cells#v0.7.0
-        version: https://codeload.github.com/yggi/cells/tar.gz/670b4bacfe7538d3232641ae70d92c5f38a14923
+        specifier: github:yggi/cells#v0.8.0
+        version: https://codeload.github.com/yggi/cells/tar.gz/d5bdabc6a47e54cb49d19ebcd4b0da2b00bf536e
     devDependencies:
       '@strudel/mini':
         specifier: 1.2.5
@@ -1399,9 +1399,9 @@ packages:
   '@vitest/spy@5.0.2':
     resolution: {integrity: sha512-Ijc7T1nT9efNb5LxvjaBrEqw3f/QwUv5EE0nKqZxgqsaV/FxAAZ8baGylA8X/Z2oS4Lp+K74Jr6dTJsDKxJDeg==}
 
-  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/670b4bacfe7538d3232641ae70d92c5f38a14923':
-    resolution: {tarball: https://codeload.github.com/yggi/cells/tar.gz/670b4bacfe7538d3232641ae70d92c5f38a14923}
-    version: 0.7.0
+  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/d5bdabc6a47e54cb49d19ebcd4b0da2b00bf536e':
+    resolution: {tarball: https://codeload.github.com/yggi/cells/tar.gz/d5bdabc6a47e54cb49d19ebcd4b0da2b00bf536e}
+    version: 0.8.0
     engines: {node: '>=22'}
 
   '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49':
@@ -4371,7 +4371,7 @@ snapshots:
 
   '@vitest/spy@5.0.2': {}
 
-  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/670b4bacfe7538d3232641ae70d92c5f38a14923': {}
+  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/d5bdabc6a47e54cb49d19ebcd4b0da2b00bf536e': {}
 
   '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49': {}
 

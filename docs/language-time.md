@@ -349,7 +349,7 @@ Decided: #121, ahead of the evidence (the easiest option to reverse). Lands in:
 performer expression, a style axis, or one with swing.
 Cells parts from it: its `swing=8n` leans a group of three, the second and third eighths (cells v0.6.0, yggi/cells decision 040).
 In a meter whose pulses are all 3 eighths (6/8, 9/8, 12/8) the band's 8n swing moves nothing, so the section's text states no swing and plays as the band does (`swingText`, #438).
-In a meter of pulses of 2 and of 3 (5/8, 7/8, 10/8) no text says "the pairs leaned, the threes straight", so the shadow counts such a bar apart with that reason (`swingStated` in `packages/score/src/section-text.ts`, #432) until cells can lean the pairs alone (yggi/cells#204).
+In a meter of pulses of 2 and of 3 (5/8, 7/8, 10/8) the text states the pairs alone, `swing=8n:r:pairs` (cells v0.8.0, yggi/cells decision 053), which leans each pair as `swing=8n:r` does and plays each three evenly, so the section plays as the band does there too (`swingText` in `packages/score/src/section-text.ts`, #451).
 
 **T12. An onset off the meter is an altered degree of it only where the meter's
 pulses are unequal.** Witness: the numerals' `b` and `#` move by

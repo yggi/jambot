@@ -55,11 +55,8 @@
  *
  * What cells cannot say yet is counted apart, each with its reason (`gaps`):
  * a section whose swing's share glides between its bars (one text states one
- * swing), a bar whose beats swing at a share that moves within it, a bar in a
- * meter of pulses of 2 and of 3 eighths swung on 8n (the band leans the pairs
- * and plays the threes straight, T16, and cells' `swing=8n` leans both:
- * `swingStated`),
- * and a bar no text was stated for. A note's level is composed within MIDI's
+ * swing), a bar whose beats swing at a share that moves within it, and a bar
+ * no text was stated for. A note's level is composed within MIDI's
  * 1 to 127 (`composedLevel`, #433), so a text states every level the band plays on.
  *
  * With `plays` set to cells (the switch, for a solo band only), the band's
@@ -96,7 +93,6 @@ import {
   bandChords,
   levelSwings,
   mismatches,
-  swingStated,
   writtenNotes,
 } from '@jambot/score';
 import { type SectionStated, type SectionTexts, foreseenOf, inlineTexts } from './section-texts.ts';
@@ -603,11 +599,9 @@ export class Shadow {
           ? 'no text'
           : played.diagnostics.length > 0
             ? `cells said: ${played.diagnostics[0]}`
-            : !swingStated(b.meter, b.swing)
-              ? "pulses of 2 and of 3 eighths on an 8n swing: the band leans the pairs and plays the threes straight (T16), and cells' swing=8n leans both (yggi/cells#204)"
-              : stated.cut.includes(i)
-                ? "a note runs past its line's next onset or the text's end (the finale's ring): cut there"
-                : null);
+            : stated.cut.includes(i)
+              ? "a note runs past its line's next onset or the text's end (the finale's ring): cut there"
+              : null);
       this.#bars.set(b.bar, {
         bar: b.bar,
         ask,

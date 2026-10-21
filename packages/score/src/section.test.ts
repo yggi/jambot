@@ -29,7 +29,6 @@ import {
   hostOf,
   sectionAsCells,
   sectionTextOf,
-  swingStated,
   swingText,
   writtenNotes,
 } from './section-text.ts';
@@ -186,29 +185,39 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect([gains(struck('-.5')), gains(struck('.5'))]).toEqual([[-0.5], [0.5]]);
   });
 
-  it('writes no swing on 8n in a meter whose pulses are all 3 eighths, which the band plays straight there (T16, #438), and says it can’t state one of pairs and threes (yggi/cells#204)', () => {
+  it('writes no swing on 8n in a meter whose pulses are all 3 eighths, which the band plays straight there (T16, #438), and the pairs alone where pulses of 2 and of 3 mix (yggi/cells decision 053, #451)', () => {
     const swing: MeterSwing = { level: '8n', share: 2 / 3 };
     const names = Object.keys(METERS) as MeterName[];
-    expect(names.filter((name) => swingText(METERS[name], swing) === '')).toEqual([
-      '6/8',
-      '9/8',
-      '12/8',
-    ]);
-    expect(names.filter((name) => !swingStated(METERS[name], swing))).toEqual([
-      '5/8',
-      '7/8',
-      '10/8',
-    ]);
+    expect(Object.fromEntries(names.map((name) => [name, swingText(METERS[name], swing)]))).toEqual(
+      {
+        '3/4': ' swing=8n:2/3',
+        '4/4': ' swing=8n:2/3',
+        '5/4': ' swing=8n:2/3',
+        '5/8': ' swing=8n:2/3:pairs',
+        '6/8': '',
+        '7/8': ' swing=8n:2/3:pairs',
+        '9/8': '',
+        '10/8': ' swing=8n:2/3:pairs',
+        '12/8': '',
+      },
+    );
     expect(swingText(METERS['6/8'], { level: '16n', share: 2 / 3 })).toBe(' swing=16n:2/3');
+    expect(swingText(METERS['7/8'], { level: '16n', share: 0.6 })).toBe(' swing=16n:.6');
   });
 
   it.each(Object.keys(METERS) as MeterName[])(
-    'states the swing in %s where cells plays it as the band does, and says where it can’t: pulses of 2 and of 3 eighths on an 8n swing (T16; yggi/cells#204)',
+    'states the swing in %s as cells plays it where the band plays it, at every level, 2/3 and every preset’s share: the pairs alone on 8n where pulses of 2 and of 3 mix (T16; yggi/cells decision 053, #451)',
     (name) => {
       const meter = METERS[name];
       const steps = stepsOf(meter);
       for (const level of SWING_LEVELS)
-        for (const share of [0.5, 0.6, 2 / 3, 0.75]) {
+        for (const share of new Set([
+          0.5,
+          0.6,
+          2 / 3,
+          0.75,
+          ...PRESETS.map((p) => p.swing.share),
+        ])) {
           const swing: MeterSwing = { level, share };
           const text = [
             `&bar meter("${name}") step=60bpm${swingText(meter, swing)}`,
@@ -225,8 +234,8 @@ describe('a section as one cells text, for the app (#399)', () => {
           const map = leanMap(leansOf(swing), meter);
           const band = Array.from({ length: steps }, (_, s) => map.played(s) * step);
           expect(cells).toHaveLength(steps);
-          const agrees = cells.every((at, s) => Math.abs(at - band[s]!) < 1e-9);
-          expect([level, share, agrees]).toEqual([level, share, swingStated(meter, swing)]);
+          const off = cells.filter((at, s) => Math.abs(at - band[s]!) >= 1e-9);
+          expect([level, share, off]).toEqual([level, share, []]);
         }
     },
   );
