@@ -59,7 +59,7 @@
  * no text was stated for. A note's level is composed within MIDI's
  * 1 to 127 (`composedLevel`, #433), so a text states every level the band plays on.
  *
- * With `plays` set to cells (the switch), the band's outputs play cells'
+ * With `plays` set to cells (the switch, on by default), the band's outputs play cells'
  * events, with the performer's feel, in place of its own wherever cells
  * states the bar, and the band's own where it doesn't.
  *
@@ -120,14 +120,15 @@ export type Plays = 'band' | 'cells';
 export type TextsFrom = 'asked' | 'given' | 'none';
 
 /**
- * The switch (#399), off by default: `?play=cells` in the page's address
- * plays the band through cells, alone or in a session (#446), `?play=band` its own; with neither, the
- * build's default (`VITE_PLAY=cells` at build time, for the end-to-end checks
- * with the switch on), else the band's own.
+ * The switch (#399), on by default (#456): the band plays through cells,
+ * alone or in a session (#446), and `?play=band` in the page's address plays
+ * its own, `?play=cells` through cells; with neither, the build's default
+ * (`VITE_PLAY=band` at build time, for the end-to-end checks with the switch
+ * off), else through cells.
  */
 export function playsFrom(search: string, built: string | undefined): Plays {
   const asked = new URLSearchParams(search).get('play') ?? built;
-  return asked === 'cells' ? 'cells' : 'band';
+  return asked === 'band' ? 'band' : 'cells';
 }
 
 /** Within 1 ms: the bound on an onset. */
@@ -460,7 +461,7 @@ export class Shadow {
    * `texts` builds, compiles and plays each section's text: a worker in
    * the app, on this thread where none is given.
    */
-  constructor(clock: () => number, plays: Plays = 'band', texts: SectionTexts = inlineTexts()) {
+  constructor(clock: () => number, plays: Plays = 'cells', texts: SectionTexts = inlineTexts()) {
     this.#clock = clock;
     this.plays = plays;
     this.#texts = texts;

@@ -539,8 +539,8 @@ export class Player {
     surroundings: Surroundings = browser,
     /** Clicks the steps laid, when it is on; this device's own. */
     metronome: Metronome | null = null,
-    /** Which events a solo band's outputs play: its own, or cells' (the switch of #399, off by default). */
-    plays: Plays = 'band',
+    /** Which events the band's outputs play: cells' (the switch of #399, on by default since #456), or its own. */
+    plays: Plays = 'cells',
   ) {
     this.#surroundings = surroundings;
     this.#rhythms = surroundings.warm

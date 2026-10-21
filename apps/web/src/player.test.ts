@@ -1533,7 +1533,7 @@ describe('the band through cells, in shadow (#399)', () => {
       expect(Math.abs(p.seconds - b[i]!.seconds)).toBeLessThan(0.001);
   });
 
-  it('asks for its section texts where the surroundings build them (a worker in the browser, #406): started as a song starts, ended with it, and not on a client', async () => {
+  it('asks for its section texts where the surroundings build them (a worker in the browser, #406): started as a song starts, ended with it; a client asks for none, and starts one to play its host’s only through cells (#446)', async () => {
     const { world, s } = surroundings();
     const said: string[] = [];
     const inline = inlineTexts();
@@ -1565,21 +1565,26 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(said.filter((x) => x === 'ask').length).toBeGreaterThan(1);
     expect(said.at(-1)).toBe('end');
     expect(player.shadow.readout.mismatched.written).toBe(0);
-    said.length = 0;
-    player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
-    void player.followSong(
-      {
-        seed: 3,
-        start: world.currentTime + 2,
-        track: holding(INITIAL_STYLE),
-        swing: holdingSwing(STRAIGHT),
-        tempoMeter: METERS['4/4'],
-      },
-      [],
-    );
-    world.resolve();
-    await settle();
-    expect(said).not.toContain('begin');
+    // A client, through cells by default, starts its worker to play the texts its host gives, and asks for none; one playing its own starts none.
+    const following = async (client: Player) => {
+      said.length = 0;
+      client.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
+      void client.followSong(
+        {
+          seed: 3,
+          start: world.currentTime + 2,
+          track: holding(INITIAL_STYLE),
+          swing: holdingSwing(STRAIGHT),
+          tempoMeter: METERS['4/4'],
+        },
+        [],
+      );
+      world.resolve();
+      await settle();
+      return [...said];
+    };
+    expect(await following(player)).toEqual(['begin']);
+    expect(await following(new Player({ ...s, texts: () => texts }, null, 'band'))).toEqual([]);
   });
 
   it('with the switch on, a host plays cells’ events as a band alone does and tells its session each text it takes, which it gives a client joining mid-song (#446)', async () => {

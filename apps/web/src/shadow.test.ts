@@ -70,7 +70,7 @@ function run({
   seed = 1,
   bars = 24,
   station = null,
-  plays = 'band',
+  plays = 'cells',
   edit,
   control,
   meddle,
@@ -500,8 +500,8 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(played).toHaveLength(band.length);
   });
 
-  it('is silent by default: with the switch off it hands back the band’s own events, the very array', () => {
-    const shadow = new Shadow(() => 0);
+  it('is silent with the switch off (`?play=band`): it hands back the band’s own events, the very array', () => {
+    const shadow = new Shadow(() => 0, 'band');
     const events: TimedEvent[] = [];
     const output = { steps: [], events, composed: [], missed: 0, judged: [], dropped: [] };
     const env = {
@@ -869,7 +869,7 @@ describe('a session through cells: the section’s text on the wire, host to cli
   });
 
   it('a host whose band plays its own tells its texts, which a client that plays its own neither asks for nor plays: the very events the transport laid', () => {
-    const { readout, played, client } = run({ follow: { link: LINK } });
+    const { readout, played, client } = run({ plays: 'band', follow: { link: LINK } });
     expect(readout.texts.told).toBeGreaterThan(0);
     expect(client!.readout.from).toBe('none');
     expect(client!.readout.texts.given).toBe(0);
@@ -879,12 +879,13 @@ describe('a session through cells: the section’s text on the wire, host to cli
 });
 
 describe('the switch (#399)', () => {
-  it('is off by default, set by `?play=cells` in the address, or by the build where the address says nothing', () => {
-    expect(playsFrom('', undefined)).toBe('band');
-    expect(playsFrom('?play=cells', undefined)).toBe('cells');
-    expect(playsFrom('?x=1&play=cells', undefined)).toBe('cells');
-    expect(playsFrom('', 'cells')).toBe('cells');
-    expect(playsFrom('?play=band', 'cells')).toBe('band');
-    expect(playsFrom('?play=strudel', undefined)).toBe('band');
+  it('is on by default (#456), turned off by `?play=band` in the address, or by the build where the address says nothing', () => {
+    expect(playsFrom('', undefined)).toBe('cells');
+    expect(playsFrom('?play=band', undefined)).toBe('band');
+    expect(playsFrom('?x=1&play=band', undefined)).toBe('band');
+    expect(playsFrom('', 'band')).toBe('band');
+    expect(playsFrom('?play=cells', 'band')).toBe('cells');
+    expect(playsFrom('?play=strudel', undefined)).toBe('cells');
+    expect(playsFrom('', 'strudel')).toBe('cells');
   });
 });
