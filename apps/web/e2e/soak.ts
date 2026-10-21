@@ -139,10 +139,14 @@ const profiled = async () => {
     traceEvents: Parameters<typeof placeOf>[0];
   };
   const events = trace.traceEvents;
+  // A clock both pages share: the trace's, in seconds from the host's mark.
+  const origin = placeOf(events, 'soak-host', marks.host);
   const of = async (p: Page, name: string, at: number | null) => {
     const place = at === null ? null : placeOf(events, name, at);
     const watch = await readWatch(p);
-    return { place, ...lateTicks(watch, place && collections(events, place)) };
+    const toCommon = (t: number) =>
+      place && origin ? (t + place.offset - origin.offset - marks.host) / 1000 : t / 1000;
+    return { place, ...lateTicks(watch, place && collections(events, place), toCommon) };
   };
   return {
     host: await of(page, 'soak-host', marks.host),

@@ -13,9 +13,10 @@
  * set beside it by a mark each page leaves in the trace (`markPage`), which
  * also says which renderer process and thread runs each page.
  *
- * `lateTicks` then says, of each tick that dropped events late, what
- * overlapped it: a long task, a collection on the page's main thread, the
- * page hidden, or nothing the page could see.
+ * `lateTicks` then says, of each tick later than the lookahead and each
+ * that dropped events late, what overlapped it: a long task, a collection on
+ * the page's main thread, its timers stalled, the page hidden, or nothing the
+ * page could see, on a clock both pages share.
  */
 
 import type { Page } from '@playwright/test';
@@ -166,21 +167,34 @@ export function collections(events: readonly TraceEvent[], place: PagePlace) {
   return outer;
 }
 
-/** What overlapped each tick that dropped events late, and the counts of each cause. */
+/** The lookahead (`LOOKAHEAD`, 120 ms): a tick later than it can drop events. */
+const LATE_TICK = 120;
+
+/**
+ * Each tick later than the lookahead, and each that dropped events late,
+ * with what overlapped it: the longest long task, the collector's time on
+ * the main thread, whether the page's 10 ms timer stalled too, and whether
+ * the page was hidden or unfocused. `toCommon` puts a time on a clock both
+ * pages share (the trace's, from a mark), in seconds.
+ */
 export function lateTicks(
   watch: TickWatch,
   gc: readonly { at: number; duration: number; name: string }[] | null,
+  toCommon: (at: number) => number,
 ) {
   const overlaps = (from: number, to: number, at: number, duration: number) =>
     at < to && at + duration > from;
-  const hiddenAt = (t: number) => {
+  const seenAt = (t: number) => {
     const before = watch.visibility.filter((v) => v.at <= t).at(-1) ?? watch.visibility[0];
     return before ? { hidden: before.hidden, focused: before.focused } : null;
   };
-  const ticks = watch.late.map(({ at, events, tick }) => {
-    // The tick that dropped them is the slow one just before the count grew, where there is one.
-    const to = tick && at - tick.at < 100 ? tick.at : at;
-    const from = tick && at - tick.at < 100 ? tick.at - tick.gap : at - 150;
+  // The count grows at the first 10 ms sample after the tick that dropped them.
+  const droppedBy = (tick: Gap) =>
+    watch.late.filter((l) => l.tick?.at === tick.at).reduce((sum, l) => sum + l.events, 0);
+  const late = watch.slow.filter((s) => s.gap > LATE_TICK || droppedBy(s) > 0);
+  const unplaced = watch.late.filter((l) => !l.tick || !late.some((s) => s.at === l.tick!.at));
+  const ticks = late.map((tick) => {
+    const [from, to] = [tick.at - tick.gap, tick.at];
     const longest = Math.max(
       0,
       ...watch.longtasks.filter((l) => overlaps(from, to, l.at, l.duration)).map((l) => l.duration),
@@ -188,23 +202,25 @@ export function lateTicks(
     const gcMs = gc
       ? gc.filter((c) => overlaps(from, to, c.at, c.duration)).reduce((s, c) => s + c.duration, 0)
       : null;
-    const stalled = watch.stalls.some((s) => overlaps(from, to, s.at - s.gap, s.gap));
     return {
-      at: Math.round(at),
-      events,
-      gap: tick && at - tick.at < 100 ? Math.round(tick.gap) : null,
+      at: Math.round(toCommon(to) * 1000) / 1000,
+      gap: Math.round(tick.gap),
+      dropped: droppedBy(tick),
       longTask: Math.round(longest),
       gc: gcMs === null ? null : Math.round(gcMs),
-      timerStalled: stalled,
-      ...hiddenAt(to),
+      timerStalled: watch.stalls.some((s) => overlaps(from, to, s.at - s.gap, s.gap)),
+      ...seenAt(to),
     };
   });
+  const dropping = ticks.filter((t) => t.dropped > 0);
   const causes = {
-    longTask: ticks.filter((t) => t.longTask > 0).length,
-    gc: ticks.filter((t) => (t.gc ?? 0) > 0).length,
-    hidden: ticks.filter((t) => t.hidden).length,
-    unfocused: ticks.filter((t) => t.focused === false).length,
-    none: ticks.filter((t) => t.longTask === 0 && !(t.gc ?? 0) && !t.hidden).length,
+    longTask: dropping.filter((t) => t.longTask > 0).length,
+    gc: dropping.filter((t) => (t.gc ?? 0) > 0).length,
+    timerStalled: dropping.filter((t) => t.timerStalled).length,
+    hidden: dropping.filter((t) => t.hidden).length,
+    unfocused: dropping.filter((t) => t.focused === false).length,
+    none: dropping.filter((t) => t.longTask === 0 && !(t.gc ?? 0) && !t.timerStalled && !t.hidden)
+      .length,
   };
   const spread = (xs: number[]) => {
     const sorted = [...xs].sort((a, b) => a - b);
@@ -216,19 +232,21 @@ export function lateTicks(
       most: sorted.at(-1) ?? null,
     };
   };
+  const common = <T extends { at: number }>(xs: readonly T[]) =>
+    xs.map((x) => ({ ...x, at: Math.round(toCommon(x.at) * 1000) / 1000 }));
   return {
     ticks: watch.ticks,
     slowTicks: spread(watch.slow.map((s) => Math.round(s.gap))),
-    over120: watch.slow.filter((s) => s.gap > 120).length,
-    timerStalls: spread(watch.stalls.map((s) => Math.round(s.gap))),
-    longtasks: spread(watch.longtasks.map((l) => Math.round(l.duration))),
+    timerStalls: common(watch.stalls),
+    longtasks: common(watch.longtasks.filter((l) => l.duration > 100)),
     gc: gc && {
       count: gc.length,
-      over50: gc.filter((c) => c.duration > 50).length,
+      over20: common(gc.filter((c) => c.duration > 20)),
       most: Math.round(Math.max(0, ...gc.map((c) => c.duration))),
     },
     visibility: watch.visibility,
-    droppingTicks: ticks,
+    lateTicks: ticks,
+    droppedUnplaced: unplaced.reduce((sum, l) => sum + l.events, 0),
     causes,
   };
 }
