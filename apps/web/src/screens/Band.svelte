@@ -4,7 +4,8 @@
   sets up the band (Sound, Session, Style, Time, Key, Muse, and the timing Counters where
   the address asks for it); below, the views are where a person reads and
   plays along: Song (the plan and the chords read from where one plays), Melody (a roll of the lead
-  falling onto the keys), Rhythm (the bar as a grid over the pads, and a pattern of one's own) and Mix (the band's tracks).
+  falling onto the keys), Rhythm (the bar as a grid over the pads, and a pattern of one's own), Mix (the band's tracks)
+  and Cells (every cells fragment the band took, filed or heard, as one table).
   It shows the player it is given and sends what the person does; it opens
   no session and holds no device.
 -->
@@ -21,6 +22,7 @@
   import Song from '../components/Song.svelte';
   import StylePanel from '../components/StylePanel.svelte';
   import BandCard from '../components/BandCard.svelte';
+  import Cells from '../components/Cells.svelte';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
   import { stationLine } from '../radioView.ts';
@@ -71,6 +73,7 @@
     { id: 'melody', title: 'Melody', icon: 'melody' },
     { id: 'rhythm', title: 'Rhythm', icon: 'rhythm' },
     { id: 'mix', title: 'Mix', icon: 'mix' },
+    { id: 'cells', title: 'Cells', icon: 'cells' },
   ];
 
   /** Whether this device follows a host, whose song, style and key it plays. */
@@ -223,6 +226,13 @@
       {tracks}
       ontoggle={(which, performer) => (player.mix = toggled(player.mix, which, performer))}
       onlevel={(performer, level) => (player.mix = raised(player.mix, performer, level))}
+    />
+  {:else if id === 'cells'}
+    <Cells
+      bar={player.hud.beat === null ? null : player.hud.bar}
+      layer={following ? null : player.layer}
+      memory={player.hud.muse.memory}
+      players={player.players}
     />
   {/if}
 {/snippet}

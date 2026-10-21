@@ -233,13 +233,14 @@ describe('the app', () => {
       'Melody',
       'Rhythm',
       'Mix',
+      'Cells',
     ]);
     expect(screen.getByRole('tab', { name: 'Song' })).toHaveAttribute('aria-selected', 'true');
     // Every card is there, pinned open: the views' in their order (Song, Melody and Rhythm are views, not cards), then the drawer's.
     const cards = [...container.querySelectorAll('.card > summary .title')].map(
       (h) => h.textContent,
     );
-    expect(cards).toEqual(['Band', 'Sound', 'Session', 'Style', 'Metrum', 'Key', 'Muse']);
+    expect(cards).toEqual(['Band', 'Cells', 'Sound', 'Session', 'Style', 'Metrum', 'Key', 'Muse']);
     for (const card of container.querySelectorAll('details.card'))
       expect(card).toHaveAttribute('open');
     expect(screen.getByLabelText('Session').querySelector('summary .sub')).toHaveTextContent(
