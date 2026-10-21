@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PROTOCOL, type ClientMessage } from './protocol.ts';
+import { FIRST_PROTOCOL, PROTOCOL, type ClientMessage } from './protocol.ts';
 import { RESUME_WINDOW, admit, expire, leave, lose, present, type Roster } from './roster.ts';
 
 type Join = ClientMessage & { kind: 'join' };
@@ -28,12 +28,11 @@ describe("a session's roster", () => {
     });
   });
 
-  it('refuses another version, no name, and a name in use, the host’s included', () => {
+  it('refuses another major version, no name, and a name in use, the host’s included', () => {
     const roster = seated('Ada');
-    expect(admit(roster, { ...join('Bo'), protocol: PROTOCOL + 1 }, 'c1', 't', 'h')).toHaveProperty(
-      'refusal',
-      expect.stringMatching(/version/),
-    );
+    expect(
+      admit(roster, { ...join('Bo'), protocol: FIRST_PROTOCOL - 1 }, 'c1', 't', 'h'),
+    ).toHaveProperty('refusal', expect.stringMatching(/version/));
     expect(admit(roster, join(' '), 'c1', 't', 'h')).toHaveProperty(
       'refusal',
       expect.stringMatching(/name/),

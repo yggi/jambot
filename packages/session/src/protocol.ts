@@ -5,8 +5,8 @@
  * sends back what its players played, judged. Everything here is plain
  * data, so any link carries it: a BroadcastChannel as it is, a WebSocket
  * as JSON. Every join names the protocol's version, and a host refuses a
- * client of another version, since a cached app can be older than its
- * host.
+ * client of another major version, since a cached app can be older than
+ * its host; any minor of its own it admits (`sameMajor`, #460).
  *
  * Times are on the host's clock, in seconds: the song's start, and where
  * each bar starts. A client maps them onto its own clock (`clock.ts`).
@@ -32,8 +32,8 @@ import type { Meter } from '@jambot/theory';
 import type { ForecastDelta } from './forecast.ts';
 
 /**
- * The protocol's version: a host and a client of different versions refuse
- * each other. The engine's `Motif`, `Judgement`, `BarEnv` (with its `Offer`),
+ * The protocol's version: a host and a client of different major versions
+ * refuse each other (13 on is one, below). The engine's `Motif`, `Judgement`, `BarEnv` (with its `Offer`),
  * `WrittenNote`, the Muse's log (`MuseOutput`, with what she recognised)
  * and her memory (`Remembered`)
  * travel as they are, so a change to their shape is a change to the
@@ -54,8 +54,23 @@ import type { ForecastDelta } from './forecast.ts';
  * under the player's name. Version 14 has a host whose band plays through
  * cells send each section's cells text to its clients (`section`, and
  * `texts` in a welcome, #446), which a client's own cells engine plays.
+ *
+ * From 13 on, a protocol is a minor version of the session contract's major
+ * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
+ * yggi/music-commons#22, #460): 14 is minor 1. A host admits a join of any
+ * of them, and a client stays with a host of any (`sameMajor`), each
+ * ignoring a kind it doesn't know, so a minor that adds a kind deploys
+ * without every client in lockstep: a client at 13 drops the `section`
+ * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
 export const PROTOCOL = 14;
+
+/** The first protocol of the session contract's major version 1 (#460): every protocol from it on is one of its minors. */
+export const FIRST_PROTOCOL = 13;
+
+/** Whether a protocol is a minor of this one's major version: an integer from `FIRST_PROTOCOL` on (#460). */
+export const sameMajor = (protocol: unknown): boolean =>
+  Number.isInteger(protocol) && (protocol as number) >= FIRST_PROTOCOL;
 
 /**
  * A section's cells text, as a host's band through cells states it (#446,
@@ -349,16 +364,16 @@ export function readClientMessage(data: unknown): ClientMessage | null {
 }
 
 /**
- * Why a host refuses a join, or null to admit it: another version, no
- * name, or a name a player in the session already goes by (`inUse`), in
- * any case.
+ * Why a host refuses a join, or null to admit it: another major version
+ * (any minor of its own is admitted, `sameMajor`, #460), no name, or a name
+ * a player in the session already goes by (`inUse`), in any case.
  */
 export function refusal(
   join: ClientMessage & { kind: 'join' },
   inUse: readonly string[] = [],
 ): string | null {
-  if (join.protocol !== PROTOCOL)
-    return `This host speaks version ${PROTOCOL} of the session protocol, and this app ${join.protocol}: reload both.`;
+  if (!sameMajor(join.protocol))
+    return `This host speaks version ${PROTOCOL} of the session protocol, which takes ${FIRST_PROTOCOL} on, and this app ${join.protocol}: reload it.`;
   const name = join.name.trim();
   if (name === '') return 'A player needs a name to join.';
   if (inUse.some((n) => n.trim().toLowerCase() === name.toLowerCase()))
