@@ -42,7 +42,12 @@ import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
-import { type MeterFragment, type MeterRepository, composedMeter } from './meter-query.ts';
+import {
+  MISS_DISTANCE,
+  type MeterFragment,
+  type MeterRepository,
+  stylePoint,
+} from './meter-query.ts';
 import type { Preset } from './style.ts';
 import { type MeterSwing, STRAIGHT, SWING_LEVELS, type SwingLevel } from './swing.ts';
 
@@ -138,18 +143,29 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
 export const METER_REPOSITORY: MeterRepository = meterRepository();
 
 /**
- * A preset's swing (#459, rung 2 of #420): the swing of the meter the
- * repository finds at the preset's point, as the composer would take it with
- * nothing playing; null where it misses. Each of the eight presets finds the
- * 4/4 swinging as it once named by hand, at distance 0. It asks cells' seed
- * alone, never what a host has learned, so a preset swings the same in every
- * session.
+ * The meter a preset's swing is read off (#459, rung 2 of #420): the one the
+ * repository finds nearest the preset's point, as the composer takes it with
+ * nothing playing, and its distance from the point asked at; null where it
+ * misses. Each of the eight presets finds the 4/4 it once swung by hand, at
+ * distance 0. It asks cells' seed alone, never what a host has learned, so a
+ * preset swings the same in every session.
  */
+export function presetMeter(
+  preset: Pick<Preset, 'style'>,
+  repository: MeterRepository = METER_REPOSITORY,
+): { readonly fragment: MeterFragment; readonly distance: number } | null {
+  const nearest = repository.query(stylePoint(preset.style))[0];
+  const miss = repository.margins?.miss ?? MISS_DISTANCE;
+  if (!nearest || nearest.distance > miss) return null;
+  return { fragment: repository.fragments.get(nearest.id)!, distance: nearest.distance };
+}
+
+/** A preset's swing: the swing of the meter found at its point (`presetMeter`); null where none is. */
 export function presetSwing(
   preset: Pick<Preset, 'style'>,
   repository: MeterRepository = METER_REPOSITORY,
 ): MeterSwing | null {
-  return composedMeter(repository, preset.style, null)?.swing ?? null;
+  return presetMeter(preset, repository)?.fragment.swing ?? null;
 }
 
 export type { Fragment };

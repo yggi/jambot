@@ -4,7 +4,13 @@ import { type TimedEvent, type TransportEnv, transport } from './transport.ts';
 import { LOOKAHEAD } from './transport.ts';
 import { clockOfTransport, type TransportCarried } from './transport.ts';
 import { composedMeter, stylePoint } from './meter-query.ts';
-import { METER_READINGS, METER_REPOSITORY, SEED_FRAGMENTS, presetSwing } from './repository.ts';
+import {
+  METER_READINGS,
+  METER_REPOSITORY,
+  SEED_FRAGMENTS,
+  presetMeter,
+  presetSwing,
+} from './repository.ts';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { PRESETS, holding } from './style.ts';
 import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
@@ -72,9 +78,23 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
     }
   });
 
+  it('reads each preset’s swing off the meter found at its own point, at distance 0 there, as the composer with nothing playing takes it (#459)', () => {
+    for (const preset of PRESETS) {
+      const found = presetMeter(preset)!;
+      expect(found.distance, preset.name).toBe(0);
+      expect(found.fragment, preset.name).toEqual(
+        composedMeter(METER_REPOSITORY, preset.style, null),
+      );
+      expect(presetSwing(preset), preset.name).toEqual(found.fragment.swing);
+    }
+  });
+
   it('finds no swing where the repository misses, so a preset there leaves the swing as it is', () => {
     const missing = { ...METER_REPOSITORY, margins: { miss: -1, hold: 0 } };
-    for (const preset of PRESETS) expect(presetSwing(preset, missing), preset.name).toBeNull();
+    for (const preset of PRESETS) {
+      expect(presetMeter(preset, missing), preset.name).toBeNull();
+      expect(presetSwing(preset, missing), preset.name).toBeNull();
+    }
   });
 
   it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 15,061 events, each to 1e-9 s', () => {
