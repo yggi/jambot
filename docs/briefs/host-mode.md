@@ -237,7 +237,9 @@ address as the lobby server.
 ### Messages
 
 Plain data (`protocol.ts`). A join names the protocol's version, and a host
-refuses another version, since a cached app can be older than its host.
+refuses another major version, since a cached app can be older than its host;
+from 13 on every protocol is a minor of one major, which a host admits and a
+client stays with, each ignoring a kind it doesn't know (#460).
 
 - Host to client: `welcome` (the song, if playing, with the bars composed
   and not yet played; the bars ahead; the Muse; the token to come back by),

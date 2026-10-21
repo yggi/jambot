@@ -20,6 +20,7 @@ import { EAR, earListen } from './ear.ts';
 import { sentBars } from './host.ts';
 import {
   type ClientMessage,
+  FIRST_PROTOCOL,
   type HostMessage,
   PLAYED_MOST,
   PROTOCOL,
@@ -31,6 +32,7 @@ import {
   readClientMessage,
   readHostMessage,
   refusal,
+  sameMajor,
   sourceName,
 } from './protocol.ts';
 
@@ -235,10 +237,16 @@ describe('the session protocol', () => {
     expect(JSON.stringify(played).length).toBeLessThan(400);
   });
 
-  it('refuses a client of another version, and one without a name', () => {
-    expect(refusal({ kind: 'join', protocol: PROTOCOL, name: 'Ada' })).toBeNull();
-    expect(refusal({ kind: 'join', protocol: PROTOCOL + 1, name: 'Ada' })).toMatch(/version/);
-    expect(refusal({ kind: 'join', protocol: PROTOCOL, name: '  ' })).toMatch(/name/);
+  it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([14, 13]);
+    for (const protocol of [13, 14, 15])
+      expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
+    for (const protocol of [12, 1, 13.5, Number.NaN])
+      expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
+        /version 14 .* takes 13 on/,
+      );
+    expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
+    expect(sameMajor('14')).toBe(false);
   });
 
   it('refuses a name a player in the session already goes by, in any case', () => {
@@ -265,8 +273,8 @@ describe('the session protocol', () => {
 
   it(`holds the shapes that travel as version ${PROTOCOL} has them: a change bumps PROTOCOL`, () => {
     // A bar, a judgement and the Muse's log carry the engine's own types. If this fails,
-    // their shape changed: bump PROTOCOL, so a host and a client of
-    // different builds refuse each other, and record the shape here.
+    // their shape changed: bump PROTOCOL, a minor where the change only adds (#460),
+    // and record the shape here.
     const { bars: tenEight, judgements, log, memory } = travelling();
     // 10/8 fits no rhythm: Funk's point, in 4/4, plays its drum bar and the rumba clave (#397).
     const funk = travelling({

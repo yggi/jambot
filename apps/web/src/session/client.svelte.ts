@@ -13,8 +13,9 @@
  * so does what its players played on drums, a bar a message (#410).
  *
  * It leaves when asked, when the host closes or refuses it, when the host
- * is too far away for playing together (`CLOCK.tooFar`), and when no
- * welcome comes within `WELCOME_WAIT`.
+ * is too far away for playing together (`CLOCK.tooFar`), when no welcome
+ * comes within `WELCOME_WAIT`, and when the welcome's protocol is of an
+ * older major version than its own (`sameMajor`, #460), saying `leave`.
  *
  * A link that drops is no leaving. The player keeps playing what it has,
  * and the client joins again with the token its welcome gave, so the host
@@ -30,6 +31,7 @@ import type { ForecastBar } from '@jambot/engine';
 import {
   type ClientMessage,
   type HostMessage,
+  FIRST_PROTOCOL,
   PROTOCOL,
   type SectionText,
   type SentBar,
@@ -43,6 +45,7 @@ import {
   failed,
   hostClock,
   outage,
+  sameMajor,
   retry,
   skewOf,
   spreadWith,
@@ -364,6 +367,13 @@ export class ClientSession {
       case 'welcome':
         if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
         this.#welcomeWait = null;
+        // A host of an older major version than this app reads: say so, and go (#460).
+        if (!sameMajor(message.protocol)) {
+          this.#send({ kind: 'leave' });
+          return this.#end(
+            `This host speaks version ${message.protocol} of the session protocol, and this app reads ${FIRST_PROTOCOL} on: reload the host.`,
+          );
+        }
         if (this.#retrying) clearTimeout(this.#retrying);
         this.#retrying = null;
         this.#outage = null;

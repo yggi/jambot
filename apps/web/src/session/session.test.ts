@@ -1,11 +1,13 @@
 import {
   type ClientMessage,
+  FIRST_PROTOCOL,
   HOST_PLAYER,
   type HostMessage,
   type HostSnapshot,
   PROTOCOL,
   RECONNECT,
   RESUME_WINDOW,
+  forecastDelta,
   playerSource,
 } from '@jambot/session';
 import { SECTION_BARS } from '@jambot/engine';
@@ -15,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { broadcastLobby, CLAIM_WAIT } from './broadcast.ts';
 import { ClientSession, WELCOME_WAIT } from './client.svelte.ts';
 import { device, memoryLobby } from './fixtures.ts';
-import type { Lobby } from './lobby.ts';
+import type { HostLink, Lobby } from './lobby.ts';
 import { HostSession, SILENT } from './host.svelte.ts';
 import { compareSession } from '../played.ts';
 import { inlineTexts, playText } from '../section-texts.ts';
@@ -441,16 +443,26 @@ describe('a host and a client session', () => {
     expect(host.player.players).toEqual({ [HOST_PLAYER]: 'Bo', [hosting.guests[0]!.id]: 'Ada' });
   });
 
-  it('refuse a client of another version, and end a client that no host answers', async () => {
+  it('admit a client of any minor of the host’s major version and refuse one of an older, and end a client that no host answers (#460)', async () => {
     const lobby = memoryLobby();
     const host = device(0);
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
     const heard: HostMessage[] = [];
     const link = await lobby.join('jam', (m) => heard.push(m));
-    link.send({ kind: 'join', protocol: PROTOCOL + 1, name: 'Old' });
+    link.send({ kind: 'join', protocol: FIRST_PROTOCOL - 1, name: 'Old' });
     expect(heard[0]).toMatchObject({ kind: 'refused', reason: expect.stringMatching(/version/) });
     expect(hosting.guests).toEqual([]);
+    for (const [protocol, name] of [
+      [FIRST_PROTOCOL, 'Ada'],
+      [PROTOCOL + 1, 'Bo'],
+    ] as const) {
+      const said: HostMessage[] = [];
+      const other = await lobby.join('jam', (m) => said.push(m));
+      other.send({ kind: 'join', protocol, name });
+      expect(said[0]).toMatchObject({ kind: 'welcome', protocol: PROTOCOL });
+    }
+    expect(hosting.guests.map((g) => g.name)).toEqual(['Ada', 'Bo']);
 
     const lonely = device(0);
     const following = new ClientSession(lonely.player, lonely.clocks);
@@ -459,6 +471,70 @@ describe('a host and a client session', () => {
     expect(following.status).toBe('idle');
     expect(following.ended).toMatch(/No session named “nobody”/);
     expect(lonely.player.mode).toBe('solo');
+  });
+
+  it('play a client at protocol 13 beside a host at 14 whose band plays through cells: the host admits it, and it plays every note the host plays (#460)', async () => {
+    const lobby = memoryLobby();
+    const host = device(105, 'cells');
+    const client = device(100);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    // The client's join says 13, as a page a minor older does.
+    const joinAt = lobby.join;
+    lobby.join = async (session, hear, lost) => {
+      const link = await joinAt(session, hear, lost);
+      return {
+        ...link,
+        send: (m) => link.send(m.kind === 'join' ? { ...m, protocol: FIRST_PROTOCOL } : m),
+      };
+    };
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
+    await host.player.start();
+    await run([host, client], 12);
+    expect(following.status).toBe('joined');
+    expect(client.player.lacked).toBe(0);
+    const hostPlayed = new Set(host.world.plays.map(playedKey(0)));
+    expect(client.world.plays.length).toBeGreaterThan(20);
+    for (const p of client.world.plays.map(playedKey(client.player.skew)))
+      expect(hostPlayed).toContain(p);
+    following.leave();
+    hosting.close();
+  });
+
+  it('end a client whose host speaks a protocol before 13, the client saying it leaves (#460)', async () => {
+    const lobby = memoryLobby();
+    const said: ClientMessage[] = [];
+    let link: HostLink | null = null;
+    link = await lobby.host('Old', (m) => {
+      said.push(m);
+      if (m.kind === 'join')
+        link!.send({
+          kind: 'welcome',
+          protocol: FIRST_PROTOCOL - 1,
+          session: 'Old',
+          resume: 'token',
+          song: null,
+          forecast: forecastDelta([], []),
+          muse: {
+            offer: null,
+            memory: [],
+            asOf: null,
+            lastPlayed: null,
+            log: [],
+            dropped: [],
+            players: {},
+          },
+        });
+    });
+    const client = device(0);
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Old', 'Ada');
+    expect(said.map((m) => m.kind)).toEqual(['join', 'leave']);
+    expect(following.status).toBe('idle');
+    expect(following.ended).toMatch(/version 12 .* reads 13 on/);
+    expect(client.player.mode).toBe('solo');
   });
 
   it('keep the host playing through what only claims to be a judgement, and say it dropped it (T1)', async () => {
