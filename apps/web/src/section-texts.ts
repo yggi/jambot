@@ -3,15 +3,19 @@
  * thread (#406): the shadow (`shadow.ts`) asks for each section's text with
  * the bars it forecast, and the answer comes back as plain data, what cells
  * plays in each bar, so the clock never waits on cells' compiler (the spirit:
- * time is absolute).
+ * time is absolute). A client of a host whose band plays through cells is
+ * given each section's text instead (`SectionText`, #446), and has it
+ * compiled and played the same way (`playText`), from the text and its frame
+ * alone, as the host's own is.
  *
- * `stateSection` is the whole job, and the same wherever it runs.
- * `WorkerTexts` is the page's side of a worker that runs it: the worker is
- * made as a song starts (`begin`) and warmed with a text of its own while the
- * band counts in, so the first section's text compiles warm, and it ends with
- * the song (`end`), as the ticker's does. `inlineTexts` runs the job on the
- * thread that asks, answering before `ask` returns: what the tests and a
- * player without a worker use.
+ * `stateSection` is the whole job, and the same wherever it runs: the text
+ * built, then played as a client plays it. `WorkerTexts` is the page's side
+ * of a worker that runs it: the worker is made as a song starts (`begin`) and
+ * warmed with a text of its own while the band counts in, so the first
+ * section's text compiles warm, and it ends with the song (`end`), as the
+ * ticker's does. `inlineTexts` runs the job on the thread that asks,
+ * answering before `ask` returns: what the tests and a player without a
+ * worker use.
  *
  * The answer also says what of each bar the text is checked by (`foreseenOf`),
  * which costs a millisecond or two over a section, so that is worked out
@@ -19,8 +23,10 @@
  */
 
 import type { BandBar } from '@jambot/engine';
+import type { SectionText } from '@jambot/session';
 import {
   type PlayedSection,
+  type SectionFrame,
   barMeterName,
   compileSection,
   keyText,
@@ -33,21 +39,64 @@ import {
 } from '@jambot/score';
 import { stepsOf } from '@jambot/theory';
 
-/** What of a bar the text is checked by: its written notes, chords, key, scale, meter and swing; its tempo is the transport's. */
+/**
+ * A text's digest: cyrb53 (bryc's, public domain), 53 bits as hex, so two
+ * texts that differ share one by a chance of some 1 in 9e15.
+ */
+export function digest(text: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
+
+/**
+ * What of a bar the text is checked by, as a digest: its written notes,
+ * chords, key, scale, meter and swing; its tempo is the transport's. A host
+ * sends it with each text (`SectionText.foreseen`), and a client checks the
+ * bar it is sent by it, as the host checks the bar it composes.
+ */
 export const foreseenOf = (bar: BandBar): string =>
-  JSON.stringify([
-    writtenNotes(bar),
-    statedChords(bar),
-    keyText(bar.plan.key),
-    bar.plan.melodic,
-    barMeterName(bar),
-    swingText(bar.meter, bar.swing),
-  ]);
+  digest(
+    JSON.stringify([
+      writtenNotes(bar),
+      statedChords(bar),
+      keyText(bar.plan.key),
+      bar.plan.melodic,
+      barMeterName(bar),
+      swingText(bar.meter, bar.swing),
+    ]),
+  );
+
+/** What of a section's bars cells' reading needs beside its text, from its first bar: what a host sends with it. */
+export const frameOf = (bar: BandBar): SectionText['frame'] => ({
+  meter: bar.meter,
+  swing: bar.swing,
+  bpm: bar.style.bpm,
+  key: bar.plan.key,
+});
+
+/** A text's frame for each of its bars, as cells' reading takes it (`playSection`). */
+const framesOf = (
+  { meter, swing, bpm, key }: SectionText['frame'],
+  count: number,
+): SectionFrame[] =>
+  Array.from({ length: count }, () => ({ meter, swing, style: { bpm }, plan: { key } }));
 
 /** A section's bars as one text, and what cells plays in each: the job's answer, plain data. */
 export interface SectionStated {
   /** The text as built, or empty where none could be. */
   readonly source: string;
+  /** What cells' reading needs beside the text, from its first bar. */
+  readonly frame: SectionText['frame'];
   /** What of each bar the text was built from (`foreseenOf`), in order. */
   readonly foreseen: readonly string[];
   /** Where no text states the bars, why (a section's key or meter moving between its bars). */
@@ -63,10 +112,10 @@ export interface SectionStated {
 }
 
 /**
- * The job: the bars written as one text (`sectionAsCells`), compiled and
- * played through cells, timed on `clock` (ms); `edit` changes the text
- * before cells plays it, for a test to show the comparison finds what it
- * checks.
+ * The job: the bars written as one text (`sectionAsCells`), then compiled and
+ * played through cells as a client plays it (`playText`), timed on `clock`
+ * (ms); `edit` changes the text before cells plays it, for a test to show the
+ * comparison finds what it checks.
  */
 export function stateSection(
   bars: readonly BandBar[],
@@ -75,7 +124,7 @@ export function stateSection(
 ): SectionStated {
   const t0 = clock();
   const foreseen = bars.map(foreseenOf);
-  const none = { source: '', foreseen, played: null, cut: [], error: null };
+  const frame = frameOf(bars[0]!);
   let source: string;
   let cut: number[];
   try {
@@ -88,29 +137,42 @@ export function stateSection(
       /^a section's (\w+) changes at its bar.*$/,
       "the section's $1 moves between its bars: one text states one",
     );
+    const none = { source: '', frame, foreseen, played: null, cut: [], error: null };
     return { ...none, unstated: reason, cost: { build: clock() - t0, compile: 0, play: 0 } };
   }
+  const built = clock() - t0;
+  const played = playText(
+    { bar: bars[0]!.bar, step: 0, text: source, unstated: null, frame, foreseen, cut },
+    clock,
+  );
+  return { ...played, cost: { ...played.cost, build: built } };
+}
+
+/**
+ * A section's text as a host sends it, compiled and played through cells from
+ * the text and its frame alone (#446): what a client does with each it is
+ * given, and the host with each it builds (`stateSection`), so the two play
+ * alike. Where no text states the bars, nothing is played and the reason is kept.
+ */
+export function playText(
+  given: SectionText,
+  clock: () => number = () => performance.now(),
+): SectionStated {
+  const { text: source, frame, foreseen, cut, unstated } = given;
+  const none = { source, frame, foreseen, unstated, played: null, cut, error: null };
+  if (unstated !== null) return { ...none, cost: { build: 0, compile: 0, play: 0 } };
   const t1 = clock();
   try {
     const plan = compileSection(source);
     const t2 = clock();
-    const played = playSection(source, bars, plan);
+    const played = playSection(source, framesOf(frame, foreseen.length), plan);
     const t3 = clock();
-    return {
-      ...none,
-      source,
-      played,
-      cut,
-      unstated: null,
-      cost: { build: t1 - t0, compile: t2 - t1, play: t3 - t2 },
-    };
+    return { ...none, played, cost: { build: 0, compile: t2 - t1, play: t3 - t2 } };
   } catch (error) {
     return {
       ...none,
-      source,
-      unstated: null,
       error: String(error),
-      cost: { build: t1 - t0, compile: clock() - t1, play: 0 },
+      cost: { build: 0, compile: clock() - t1, play: 0 },
     };
   }
 }
@@ -141,6 +203,8 @@ export interface SectionTexts {
   begin(): void;
   /** Build, compile and play the bars as one text, and `answer` with what cells plays, once. */
   ask(bars: readonly BandBar[], answer: (stated: SectionStated) => void): void;
+  /** Compile and play a text a host gave (#446), and `answer` with what cells plays, once. */
+  play(given: SectionText, answer: (stated: SectionStated) => void): void;
   /** The song ended: nothing asked is answered any more. */
   end(): void;
 }
@@ -150,13 +214,15 @@ export function inlineTexts(edit?: (text: string) => string): SectionTexts {
   return {
     begin() {},
     ask: (bars, answer) => answer(stateSection(bars, edit)),
+    play: (given, answer) => answer(playText(given)),
     end() {},
   };
 }
 
-/** What the page asks the worker: a section's bars to state, or to warm up. */
+/** What the page asks the worker: a section's bars to state, a text a host gave to play, or to warm up. */
 export type Ask =
   | { readonly id: number; readonly bars: readonly BandBar[] }
+  | { readonly id: number; readonly given: SectionText }
   | { readonly id: number; readonly warm: true };
 
 /** What the worker answers, under the ask's id: what the bars state, or nothing to a warm-up. */
@@ -171,7 +237,7 @@ export function answerAsk(ask: Ask): Answer {
     warmSection();
     return { id: ask.id, stated: null };
   }
-  return { id: ask.id, stated: stateSection(ask.bars) };
+  return { id: ask.id, stated: 'given' in ask ? playText(ask.given) : stateSection(ask.bars) };
 }
 
 /** The part of a `Worker` this needs, so a test can stand in for one. */
@@ -195,7 +261,7 @@ export class WorkerTexts implements SectionTexts {
   #failed = false;
   #waiting = new Map<
     number,
-    { bars: readonly BandBar[]; answer: (stated: SectionStated) => void }
+    { job: () => SectionStated; answer: (stated: SectionStated) => void }
   >();
   #next = 1;
 
@@ -209,11 +275,19 @@ export class WorkerTexts implements SectionTexts {
   }
 
   ask(bars: readonly BandBar[], answer: (stated: SectionStated) => void): void {
+    this.#post({ id: this.#next++, bars }, () => stateSection(bars), answer);
+  }
+
+  play(given: SectionText, answer: (stated: SectionStated) => void): void {
+    this.#post({ id: this.#next++, given }, () => playText(given), answer);
+  }
+
+  /** An ask sent to the worker, or, with none, its job run on this thread. */
+  #post(ask: Ask, job: () => SectionStated, answer: (stated: SectionStated) => void) {
     const worker = this.#worker ?? this.#open();
-    if (!worker) return answer(stateSection(bars));
-    const id = this.#next++;
-    this.#waiting.set(id, { bars, answer });
-    worker.postMessage({ id, bars });
+    if (!worker) return answer(job());
+    this.#waiting.set(ask.id, { job, answer });
+    worker.postMessage(ask);
   }
 
   end(): void {
@@ -240,7 +314,7 @@ export class WorkerTexts implements SectionTexts {
       this.#failed = true;
       const waiting = [...this.#waiting.values()];
       this.end();
-      for (const { bars, answer } of waiting) answer(stateSection(bars));
+      for (const { job, answer } of waiting) answer(job());
     });
     this.#worker = worker;
     return worker;

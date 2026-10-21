@@ -19,12 +19,22 @@ import {
   rebeat,
   swingTo,
   transport,
+  transportOver,
 } from '@jambot/engine';
-import { type Station, onward, tuneIn } from '@jambot/session';
+import {
+  type FollowCarried,
+  type SectionText,
+  type SentBar,
+  type Station,
+  followSource,
+  onward,
+  sentBars,
+  tuneIn,
+} from '@jambot/session';
 import { METERS, type MeterName } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { conductRadio, radioStyle } from './conductor.ts';
-import { type SectionTexts, inlineTexts, stateSection } from './section-texts.ts';
+import { type SectionTexts, inlineTexts, playText, stateSection } from './section-texts.ts';
 import { ONSET_BOUND, type Plays, Shadow, type ShadowReadout, playsFrom } from './shadow.ts';
 
 const START = 1;
@@ -35,6 +45,16 @@ interface Run {
   readout: ShadowReadout;
   band: TimedEvent[];
   played: TimedEvent[];
+}
+
+/**
+ * A client following the host of a run (#446): how long the link takes each way, how long its own texts take to
+ * compile and play (the host's where none is said), and from which bar it joins, with the welcome's texts.
+ */
+interface Following {
+  readonly link: number;
+  readonly delay?: number;
+  readonly joins?: number;
 }
 
 /**
@@ -60,6 +80,7 @@ function run({
   repositories = false,
   delay,
   countIn = 0,
+  follow,
 }: {
   preset?: (typeof PRESETS)[number];
   seed?: number;
@@ -81,10 +102,12 @@ function run({
   delay?: number;
   /** How long before the song's first step the transport starts ticking, in seconds: the count-in. */
   countIn?: number;
-}): Run {
+  /** A client following the host over a link, its band playing through cells as the host's does or not (`plays`). */
+  follow?: Following;
+}): Run & { client?: Run } {
   let clock = 0;
   const due: { at: number; deliver: () => void }[] = [];
-  const texts: SectionTexts =
+  const texts = (delay?: number): SectionTexts =>
     delay === undefined
       ? inlineTexts(edit)
       : {
@@ -98,9 +121,25 @@ function run({
               deliver: () => answer(structuredClone(stateSection(copy, edit))),
             });
           },
+          play(given, answer) {
+            const copy = structuredClone(given);
+            due.push({ at: clock + delay, deliver: () => answer(structuredClone(playText(copy))) });
+          },
         };
-  const shadow = new Shadow(() => performance.now(), plays, texts);
+  const shadow = new Shadow(() => performance.now(), plays, texts(delay));
   shadow.reset();
+  // The client: the host's bars and texts over the link, on a transport of its own in the host's time.
+  const follower = transportOver(followSource);
+  const theirs = follow && new Shadow(() => performance.now(), plays, texts(follow.delay ?? delay));
+  theirs?.reset(plays === 'cells' ? 'given' : 'none');
+  const client = { band: [] as TimedEvent[], played: [] as TimedEvent[] };
+  let followed: TransportCarried<FollowCarried> | null = null;
+  let inbox: SentBar[] = [];
+  let ends: number | undefined;
+  let joined = false;
+  const send = (deliver: () => void) =>
+    follow && due.push({ at: clock + follow.link, deliver: () => joined && deliver() });
+  shadow.told = (text: SectionText) => send(() => theirs!.given(structuredClone(text)));
   let env: TransportEnv = {
     seed,
     start: START,
@@ -142,6 +181,34 @@ function run({
     });
     carried = next.carried!;
     for (const step of next.output.steps) laid.add(step.step);
+    if (follow && !joined && carried.nextBar > (follow.joins ?? 0)) {
+      // A client joins: its welcome, the bars not yet played and the texts that state them, over the link.
+      const c = carried;
+      const welcome = structuredClone({
+        bars: sentBars(c.bars, [], c.head, env.track, clockOfTransport(c), env.tempoMeter),
+        texts: shadow.toldFrom(clockOfTransport(c).barAt(c.head.step)),
+      });
+      joined = true;
+      send(() => {
+        inbox.push(...welcome.bars);
+        for (const text of welcome.texts) theirs!.given(text, true);
+      });
+    }
+    if (follow && joined) {
+      const bars = sentBars(
+        next.output.composed,
+        next.output.steps,
+        carried.head,
+        env.track,
+        clockOfTransport(carried),
+        env.tempoMeter,
+      );
+      const finale = carried.finale.bar;
+      send(() => {
+        inbox.push(...structuredClone(bars));
+        if (finale !== null) ends = finale;
+      });
+    }
     for (const { bar } of next.output.composed)
       if (radio && bar > 0 && bar % SECTION_BARS === 0) {
         const { walked, conducted } = walk(radio, bar, carried, env);
@@ -164,9 +231,28 @@ function run({
           radio ? { ...env, track: walk(radio, first, c, env).conducted.track } : env,
       }),
     );
+    if (theirs && joined) {
+      const f = follower.advance(laidWith, followed, {
+        now,
+        until: now + LOOKAHEAD,
+        arrived: inbox,
+        ends,
+      });
+      inbox = [];
+      followed = f.carried;
+      client.band.push(...f.output.events);
+      client.played.push(
+        ...theirs.follow({ env: laidWith, carried: followed!, output: f.output, now }),
+      );
+    }
     if (carried.nextBar > bars + 1 || carried.finale.ended !== null) break;
   }
-  return { readout: shadow.readout, band, played };
+  return {
+    readout: shadow.readout,
+    band,
+    played,
+    ...(theirs && { client: { readout: theirs.readout, ...client } }),
+  };
 }
 
 const NONE = {
@@ -220,7 +306,7 @@ describe('the band through cells, in shadow (#399)', () => {
       expect(readout.ownClock.largest).toBeLessThan(ONSET_BOUND);
       expect(readout.gaps).toEqual({});
       // Section 0 is written as the song starts, the rest ahead, at the middle of the section before; none again.
-      expect(readout.texts).toEqual({ ahead: 3, fresh: 1, again: 0 });
+      expect(readout.texts).toEqual({ ahead: 3, fresh: 1, again: 0, given: 0, joined: 0, told: 4 });
     },
   );
 
@@ -566,7 +652,7 @@ describe('a section’s text from a worker (#406)', () => {
       expect(readout.gaps).toEqual({});
       expect(readout.bars).toBeGreaterThanOrEqual(24);
       expect(readout.played.band).toBe(0);
-      expect(readout.texts).toEqual({ ahead: 3, fresh: 1, again: 0 });
+      expect(readout.texts).toEqual({ ahead: 3, fresh: 1, again: 0, given: 0, joined: 0, told: 4 });
       expect(readout.arrival.late).toBe(0);
       const bar = (4 * 60) / preset.style.bpm;
       expect(readout.arrival.least.fresh).toBeGreaterThan(COUNT_IN - 2 * WORKER);
@@ -624,6 +710,171 @@ describe('a section’s text from a worker (#406)', () => {
     expect(readout.cost.main.count).toBe(asked);
     expect(readout.cost.compile.count).toBe(asked);
     expect(readout.cost.main.p50).toBeLessThan(readout.cost.buildCompile.p50);
+  });
+});
+
+/** A link a client is joined over, one way, in seconds: some 30 ms, a phone on a busy Wi-Fi. */
+const LINK = 0.03;
+
+/** Every event a client played against its host's: the same notes on the same steps, each field the host's, its onset and duration within a microsecond. */
+function playsAsTheHost(host: readonly TimedEvent[], client: readonly TimedEvent[]) {
+  expect(client.length).toBeGreaterThan(0);
+  const first = Math.min(...client.map((e) => e.bar));
+  playsAsTheBand(
+    host.filter((e) => e.bar >= first),
+    client,
+  );
+}
+
+describe('a session through cells: the section’s text on the wire, host to client (#446)', () => {
+  it.each(PRESETS.map((p) => [p.name, p] as const))(
+    'a client given each of %s’s texts over a link plays the host’s events through cells, every one, each field the host’s: none late, none from the band',
+    (_, preset) => {
+      const { readout, played, client } = run({
+        plays: 'cells',
+        preset,
+        delay: WORKER,
+        countIn: COUNT_IN,
+        follow: { link: LINK },
+      });
+      const theirs = client!.readout;
+      expect(readout.played.band).toBe(0);
+      expect(theirs.from).toBe('given');
+      expect(theirs.errors).toEqual([]);
+      expect(theirs.mismatched).toEqual(NONE);
+      expect(theirs.gaps).toEqual({});
+      expect(theirs.played.band).toBe(0);
+      expect(theirs.played.cells).toBe(client!.played.length);
+      expect(theirs.bars).toBeGreaterThanOrEqual(24);
+      // Every text the host took was told and given, as it took it.
+      expect(readout.texts.told).toBe(4);
+      expect(theirs.texts).toMatchObject({ given: 4, joined: 0, told: 0 });
+      expect(theirs.arrival.late).toBe(0);
+      // The first there a count-in before it plays, less the way: the host's worker, the link and the client's worker.
+      expect(theirs.arrival.least.given).toBeGreaterThan(COUNT_IN - 2 * WORKER - LINK - TICK);
+      playsAsTheHost(played, client!.played);
+      playsAsTheBand(client!.band, client!.played);
+    },
+  );
+
+  it('a client given the host’s text again, at a bar composed otherwise than foreseen, plays it as the host does: there before it plays, less the way', () => {
+    let moved = false;
+    const { readout, played, client } = run({
+      plays: 'cells',
+      delay: WORKER,
+      countIn: COUNT_IN,
+      follow: { link: LINK },
+      control: (env, carried) => {
+        if (moved || carried.nextBar !== 11) return env;
+        moved = true;
+        return {
+          ...env,
+          track: glideTo(env.track, { energy: 0.95, artic: 0.9 }, carried.head.step, 0),
+        };
+      },
+    });
+    const theirs = client!.readout;
+    expect(moved).toBe(true);
+    expect(readout.texts.again).toBeGreaterThan(0);
+    expect(theirs.texts.given).toBe(readout.texts.told);
+    expect(theirs.mismatched).toEqual(NONE);
+    expect(theirs.gaps).toEqual({});
+    expect(theirs.arrival.late).toBe(0);
+    expect(theirs.arrival.least.given).toBeGreaterThan(0);
+    playsAsTheHost(played, client!.played);
+  });
+
+  it('a client whose texts take longer than a beat plays the band’s own where the host’s text again hasn’t come, counted late', () => {
+    let moved = false;
+    const { readout, played, client } = run({
+      plays: 'cells',
+      delay: WORKER,
+      countIn: COUNT_IN,
+      follow: { link: LINK, delay: 0.6 },
+      control: (env, carried) => {
+        if (moved || carried.nextBar !== 11) return env;
+        moved = true;
+        return {
+          ...env,
+          track: glideTo(env.track, { energy: 0.95, artic: 0.9 }, carried.head.step, 0),
+        };
+      },
+    });
+    const theirs = client!.readout;
+    expect(readout.arrival.late).toBe(0);
+    expect(theirs.arrival.late).toBeGreaterThan(0);
+    expect(Object.keys(theirs.gaps)).toEqual([expect.stringMatching(/on its way/)]);
+    expect(theirs.played.band).toBeGreaterThan(0);
+    expect(theirs.mismatched).toEqual(NONE);
+    playsAsTheHost(played, client!.played);
+  });
+
+  it('a client sent a bar otherwise than its latest text foresaw never plays that text in it: it waits for the host’s text again, as the host does, and plays the band’s own meanwhile', () => {
+    let moved = false;
+    // The host's worker slower than a beat: its text again comes after the bar it was asked at, on both pages.
+    const { readout, played, client } = run({
+      plays: 'cells',
+      delay: 0.6,
+      countIn: COUNT_IN,
+      follow: { link: LINK, delay: WORKER },
+      control: (env, carried) => {
+        if (moved || carried.nextBar !== 11) return env;
+        moved = true;
+        return {
+          ...env,
+          track: glideTo(env.track, { energy: 0.95, artic: 0.9 }, carried.head.step, 0),
+        };
+      },
+    });
+    const theirs = client!.readout;
+    expect(readout.arrival.late).toBeGreaterThan(0);
+    expect(theirs.arrival.late).toBeGreaterThan(0);
+    expect(theirs.played.band).toBeGreaterThan(0);
+    expect(theirs.mismatched).toEqual(NONE);
+    expect(theirs.errors).toEqual([]);
+    playsAsTheHost(played, client!.played);
+  });
+
+  it('a client follows the radio’s walk through cells, a section at a time, as the host plays it', () => {
+    const { played, client } = run({
+      plays: 'cells',
+      station: tuneIn(7),
+      bars: 40,
+      follow: { link: LINK },
+    });
+    const theirs = client!.readout;
+    expect(theirs.mismatched).toEqual(NONE);
+    expect(theirs.gaps).toEqual({});
+    expect(theirs.texts.given).toBeGreaterThan(4);
+    expect(theirs.played.band).toBe(0);
+    playsAsTheHost(played, client!.played);
+  });
+
+  it('a client that joins mid-section is given the texts that state the bars not yet played with its welcome, plays them as the host does, and counts none late', () => {
+    const { played, client } = run({
+      plays: 'cells',
+      delay: WORKER,
+      countIn: COUNT_IN,
+      follow: { link: LINK, joins: 10 },
+    });
+    const theirs = client!.readout;
+    expect(theirs.texts.joined).toBeGreaterThan(0);
+    expect(theirs.texts.given).toBeGreaterThan(0);
+    expect(theirs.mismatched).toEqual(NONE);
+    expect(theirs.arrival.late).toBe(0);
+    // Only the first steps, laid while the welcome's texts were on their way, play the band's own, a gap of their own.
+    expect(Object.keys(theirs.gaps).every((gap) => /joined/.test(gap))).toBe(true);
+    expect(theirs.played.cells).toBeGreaterThan(theirs.played.band);
+    playsAsTheHost(played, client!.played);
+  });
+
+  it('a host whose band plays its own tells its texts, which a client that plays its own neither asks for nor plays: the very events the transport laid', () => {
+    const { readout, played, client } = run({ follow: { link: LINK } });
+    expect(readout.texts.told).toBeGreaterThan(0);
+    expect(client!.readout.from).toBe('none');
+    expect(client!.readout.texts.given).toBe(0);
+    expect(client!.played).toEqual(client!.band);
+    playsAsTheHost(played, client!.played);
   });
 });
 

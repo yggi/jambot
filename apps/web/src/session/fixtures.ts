@@ -6,14 +6,18 @@
 import { type ClientMessage, type HostMessage } from '@jambot/session';
 import type { Output } from '../audio/output.ts';
 import { Player, type Surroundings } from '../player.svelte.ts';
+import type { SectionTexts } from '../section-texts.ts';
+import type { Plays } from '../shadow.ts';
 import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
 
 /**
  * A device: an output whose clock the test moves, the ticks it runs, and
  * its output's offset from its page clock, which reads the output's clock:
- * a buffer the output drops moves the offset.
+ * a buffer the output drops moves the offset. Its band plays its own events,
+ * or with `plays` cells' (#446), its texts built where `texts` says (on its
+ * thread where it says nothing).
  */
-export function device(clockAt: number) {
+export function device(clockAt: number, plays: Plays = 'band', texts?: () => SectionTexts) {
   const world = {
     currentTime: clockAt,
     heardOffset: 0,
@@ -21,7 +25,13 @@ export function device(clockAt: number) {
     resumed: 0,
     /** Whether the output's clock stays still and its `resume` never answers, as a browser's does before a click. */
     suspended: false,
-    plays: [] as { part: string; note: number; seconds: number }[],
+    plays: [] as {
+      part: string;
+      note: number;
+      velocity: number;
+      seconds: number;
+      duration: number;
+    }[],
     tickers: [] as (() => void)[],
   };
   const output: Output = {
@@ -33,7 +43,8 @@ export function device(clockAt: number) {
       world.resumed++;
       return world.suspended ? new Promise<void>(() => {}) : Promise.resolve();
     },
-    play: (part, note, _velocity, seconds) => void world.plays.push({ part, note, seconds }),
+    play: (part, note, velocity, seconds, duration) =>
+      void world.plays.push({ part, note, velocity, seconds, duration }),
     silence: () => {},
   };
   const surroundings: Surroundings = {
@@ -45,10 +56,11 @@ export function device(clockAt: number) {
     frame: () => () => {},
     seed: () => 42,
     page: () => world.currentTime,
+    ...(texts && { texts }),
   };
   return {
     world,
-    player: new Player(surroundings),
+    player: new Player(surroundings, null, plays),
     clocks: { page: () => world.currentTime, heardOffset: () => world.heardOffset },
   };
 }

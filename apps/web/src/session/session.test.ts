@@ -17,6 +17,25 @@ import { ClientSession, WELCOME_WAIT } from './client.svelte.ts';
 import { device, memoryLobby } from './fixtures.ts';
 import type { Lobby } from './lobby.ts';
 import { HostSession, SILENT } from './host.svelte.ts';
+import { compareSession } from '../played.ts';
+import { inlineTexts, playText } from '../section-texts.ts';
+
+/** What the shadow counts that differs, none of it (#399). */
+const NONE = {
+  written: 0,
+  harmony: 0,
+  unmatched: 0,
+  onsets: 0,
+  extra: 0,
+  velocity: 0,
+  length: 0,
+};
+
+/** A note played, as a key: on the host's clock, a device `offset` seconds behind it. */
+const playedKey =
+  (offset: number) =>
+  (p: { part: string; note: number; velocity: number; seconds: number; duration: number }) =>
+    `${p.part} ${p.note} ${p.velocity} ${(p.seconds + offset).toFixed(6)} ${p.duration.toFixed(6)}`;
 
 /** Both devices a tick on, every 25 ms, for `seconds`. */
 async function run(devices: ReturnType<typeof device>[], seconds: number) {
@@ -189,6 +208,99 @@ describe('a host and a client session', () => {
     );
     for (const p of client.world.plays)
       expect(hostPlayed).toContain(`${p.part} ${p.note} ${(p.seconds + 5).toFixed(6)}`);
+    following.leave();
+    hosting.close();
+  });
+
+  it('play the host’s section texts on a client through cells, event for event, the one that joins before the song and one that joins mid-song alike (#446)', async () => {
+    const lobby = memoryLobby();
+    const host = device(105, 'cells');
+    const client = device(100, 'cells');
+    const late = device(95, 'cells');
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    const sent: HostMessage[] = [];
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    await host.player.start();
+    await run([host, client], 20);
+    // Bo joins mid-song: the welcome gives the texts of the bars not yet played.
+    const joining = new ClientSession(late.player, late.clocks);
+    const tapped = lobby.join;
+    lobby.join = (session, hear, lost) => tapped(session, (m) => (sent.push(m), hear(m)), lost);
+    await joining.join(lobby, 'Jam', 'Bo');
+    await run([host, client, late], 30);
+    const welcome = sent.find((m) => m.kind === 'welcome');
+    expect(welcome?.kind === 'welcome' && welcome.song!.texts.length).toBeGreaterThan(0);
+    expect(sent.filter((m) => m.kind === 'section').length).toBeGreaterThan(0);
+
+    const told = host.player.shadow.readout;
+    expect(told.played.band).toBe(0);
+    expect(told.texts.told).toBeGreaterThanOrEqual(4);
+    for (const [who, d] of [
+      ['Ada', client],
+      ['Bo', late],
+    ] as const) {
+      const { readout } = d.player.shadow;
+      expect(readout.from, who).toBe('given');
+      expect(readout.errors, who).toEqual([]);
+      expect(readout.mismatched, who).toEqual(NONE);
+      expect(readout.arrival.late, who).toBe(0);
+      expect(readout.played.cells, who).toBeGreaterThan(readout.played.band);
+      // Every note it played, the host played as loud and as long, its skew later on the host's clock.
+      const hostPlayed = new Set(host.world.plays.map(playedKey(0)));
+      for (const p of d.world.plays.map(playedKey(d.player.skew)))
+        expect(hostPlayed, who).toContain(p);
+      // And what each output played is the host's, event by event.
+      const compared = compareSession(
+        host.player.played.since().events,
+        d.player.played.since().events,
+      );
+      expect(compared.events, who).toBeGreaterThan(100);
+      expect(compared.mismatched, who).toEqual({
+        missing: 0,
+        extra: 0,
+        velocity: 0,
+        length: 0,
+        onset: 0,
+        duration: 0,
+      });
+    }
+    expect(client.player.shadow.readout.texts.joined).toBe(0);
+    expect(late.player.shadow.readout.texts.joined).toBeGreaterThan(0);
+    joining.leave();
+    following.leave();
+    hosting.close();
+  });
+
+  it('play what cells plays of each text on a client: a text it compiles otherwise is heard there, and its shadow says where (#446)', async () => {
+    const lobby = memoryLobby();
+    const host = device(105, 'cells');
+    // The client's cells plays each text with a rest before the bass's first note, a step later.
+    const inline = inlineTexts();
+    const client = device(100, 'cells', () => ({
+      ...inline,
+      play: (given, answer) =>
+        answer(
+          playText({
+            ...given,
+            text: given.text.replace(/(&bass over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2'),
+          }),
+        ),
+    }));
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    await host.player.start();
+    await run([host, client], 20);
+    // Its outputs play what its cells played: the host's events but where the text was edited.
+    const { mismatched } = compareSession(
+      host.player.played.since().events,
+      client.player.played.since().events,
+    );
+    expect(mismatched.missing + mismatched.extra).toBeGreaterThan(0);
+    expect(client.player.shadow.readout.mismatched.written).toBeGreaterThan(0);
     following.leave();
     hosting.close();
   });

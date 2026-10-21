@@ -27,8 +27,16 @@
  * names each note's output by its line, `lines` and `roles`).
  */
 
-import { type BandBar, type DrumRole, leanMap, leansOf, stepSeconds } from '@jambot/engine';
-import { formatNumeral, joinChord, stepsOf } from '@jambot/theory';
+import {
+  type BandBar,
+  type DrumRole,
+  type Key,
+  type MeterSwing,
+  leanMap,
+  leansOf,
+  stepSeconds,
+} from '@jambot/engine';
+import { type Meter, formatNumeral, joinChord, stepsOf } from '@jambot/theory';
 import { type Plan, planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { heldAt } from '@yggi/cells/engine/series';
@@ -125,6 +133,19 @@ export function lineOf(output: string | undefined): {
   return { line: second as PitchedName };
 }
 
+/**
+ * What of a bar cells' reading of a text needs beside the text (`playSection`): its meter and swing, which each
+ * time is read through, its tempo, which sizes the window read, and its key, which names a chord's numeral.
+ * A `BandBar` is one; a host that sends a section's text sends one frame for its bars, as one text states one
+ * meter, swing and key (`hostOf`), and its first bar's tempo (`tempo: 'first'`) (#446).
+ */
+export interface SectionFrame {
+  readonly meter: Meter;
+  readonly swing: MeterSwing;
+  readonly style: { readonly bpm: number };
+  readonly plan: { readonly key: Key };
+}
+
 /** A section's text compiled with the reading's own lines beside it: what `playSection` plays. */
 export const compileSection = (text: string): Plan => planOf(`${text}\n${READING}`);
 
@@ -137,7 +158,7 @@ export const compileSection = (text: string): Plan => planOf(`${text}\n${READING
  */
 export function playSection(
   text: string,
-  bars: readonly BandBar[],
+  bars: readonly SectionFrame[],
   plan: Plan = compileSection(text),
 ): PlayedSection {
   const steps = stepsOf(bars[0]!.meter);

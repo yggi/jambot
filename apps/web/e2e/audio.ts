@@ -2,10 +2,13 @@
  * Listening to the app in the browser: the sound sources it starts, the
  * Workers it runs, what reaches the speakers, and each audio context's
  * pairing of its clock with the page's, sampled every few milliseconds.
+ * And the ways a person opens and joins a session, which the session checks
+ * and the session soak share.
  */
 
 import { appendFileSync } from 'node:fs';
 import { type Page, expect, test } from '@playwright/test';
+import { type SessionComparison, compareSession } from '../src/played.ts';
 
 export interface Start {
   /** What started: an oscillator's type, or noise. */
@@ -389,3 +392,79 @@ export const openStyle = (page: Page) => openCard(page, 'Style');
 /** What the page asked of the master level, in order. */
 export const masterCalls = (page: Page) =>
   page.evaluate(() => (window as unknown as { master: MasterCall[] }).master);
+
+/**
+ * Through the door's Settings: the lobby server's address, given when the
+ * field is left, as a person does.
+ */
+export const useLobby = async (page: Page, lobby: string) => {
+  await openCard(page, 'Settings');
+  await page.getByLabel('Lobby server').fill(lobby);
+  await page.getByLabel('Lobby server').blur();
+  await closeDrawer(page);
+};
+
+/** Through the door's You: the name a person goes by. */
+export const useName = async (page: Page, name: string) => {
+  await openCard(page, 'Name');
+  await page.getByLabel('Your name').fill(name);
+  await closeDrawer(page);
+};
+
+/** The session card, where the session is named and its players and the way out are. */
+export const sessionCard = (page: Page) => page.locator('details[aria-label="Session"]');
+
+/** Its state line, folded or not: "Hosting · 1 joined", "Following · host playing". */
+export const state = (page: Page) => sessionCard(page).locator('summary .sub');
+
+/** Brings the session card into view: its drawer section, pulled down. */
+export const openSession = (page: Page) => openCard(page, 'Session');
+
+/** A host has exactly one player joined, by this name. */
+export const joined = async (page: Page, name: string) => {
+  await expect(state(page)).toContainText('Hosting · 1 joined');
+  await openSession(page);
+  await expect(page.getByRole('list', { name: 'Players' })).toContainText(name);
+};
+
+/** Hosts a session at the lobby's door: locally, or, given a lobby server, globally. */
+export const host = async (page: Page, session: string, lobby = '') => {
+  if (lobby !== '') await useLobby(page, lobby);
+  await page.getByRole('textbox', { name: 'Session name' }).fill(session);
+  await page.getByRole('radio', { name: lobby === '' ? /Local/ : /Global/ }).click();
+  await page.getByRole('button', { name: 'Host', exact: true }).click();
+  await expect(state(page)).toContainText('Hosting');
+};
+
+/** The button that joins a session listed at the door. */
+export const listed = (page: Page, session: string) =>
+  page.locator('details[aria-label="Join a session"]').getByRole('button', { name: session });
+
+/** Joins a session listed at the lobby's door, as the name given. */
+export const join = async (page: Page, session: string, name: string, lobby = '') => {
+  if (lobby !== '') await useLobby(page, lobby);
+  await useName(page, name);
+  await listed(page, session).click({ timeout: 8000 });
+  await expect(state(page)).toContainText('Following');
+};
+
+/**
+ * A host's events against a client's, as each page's outputs played them
+ * (#446, `window.jambot.played`): every event of the bars both played whole,
+ * the same part, note, velocity and length, its onset and duration within 1 ms.
+ */
+export async function sessionAgrees(host: Page, client: Page): Promise<SessionComparison> {
+  const [mine, theirs] = await Promise.all(
+    [host, client].map((page) => page.evaluate(() => window.jambot!.played().events)),
+  );
+  const compared = compareSession(mine!, theirs!);
+  expect(compared.mismatched, compared.differing.join('\n')).toEqual({
+    missing: 0,
+    extra: 0,
+    velocity: 0,
+    length: 0,
+    onset: 0,
+    duration: 0,
+  });
+  return compared;
+}

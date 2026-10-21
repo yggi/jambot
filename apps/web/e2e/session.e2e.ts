@@ -5,7 +5,6 @@ import {
   type Heard,
   type Stall,
   clockJumps,
-  closeDrawer,
   heard,
   holdAudio,
   listen,
@@ -15,6 +14,17 @@ import {
   openCard,
   showView,
   transport,
+  host,
+  join,
+  joined,
+  listed,
+  openSession,
+  sessionAgrees,
+  sessionCard,
+  shadowAgrees,
+  state,
+  useLobby,
+  useName,
 } from './audio.ts';
 
 /**
@@ -25,61 +35,6 @@ import {
 
 /** The lobby server `playwright.config.ts` starts. */
 const LOBBY = 'ws://localhost:4319';
-
-/**
- * Through the door's Settings: the lobby server's address, given when the
- * field is left, as a person does.
- */
-const useLobby = async (page: Page, lobby: string) => {
-  await openCard(page, 'Settings');
-  await page.getByLabel('Lobby server').fill(lobby);
-  await page.getByLabel('Lobby server').blur();
-  await closeDrawer(page);
-};
-
-/** Through the door's You: the name a person goes by. */
-const useName = async (page: Page, name: string) => {
-  await openCard(page, 'Name');
-  await page.getByLabel('Your name').fill(name);
-  await closeDrawer(page);
-};
-
-/** The session card, where the session is named and its players and the way out are. */
-const sessionCard = (page: Page) => page.locator('details[aria-label="Session"]');
-
-/** Its state line, folded or not: "Hosting · 1 joined", "Following · host playing". */
-const state = (page: Page) => sessionCard(page).locator('summary .sub');
-
-/** Brings the session card into view: its drawer section, pulled down. */
-const openSession = (page: Page) => openCard(page, 'Session');
-
-/** A host has exactly one player joined, by this name. */
-const joined = async (page: Page, name: string) => {
-  await expect(state(page)).toContainText('Hosting · 1 joined');
-  await openSession(page);
-  await expect(page.getByRole('list', { name: 'Players' })).toContainText(name);
-};
-
-/** Hosts a session at the lobby's door: locally, or, given a lobby server, globally. */
-const host = async (page: Page, session: string, lobby = '') => {
-  if (lobby !== '') await useLobby(page, lobby);
-  await page.getByRole('textbox', { name: 'Session name' }).fill(session);
-  await page.getByRole('radio', { name: lobby === '' ? /Local/ : /Global/ }).click();
-  await page.getByRole('button', { name: 'Host', exact: true }).click();
-  await expect(state(page)).toContainText('Hosting');
-};
-
-/** The button that joins a session listed at the door. */
-const listed = (page: Page, session: string) =>
-  page.locator('details[aria-label="Join a session"]').getByRole('button', { name: session });
-
-/** Joins a session listed at the lobby's door, as the name given. */
-const join = async (page: Page, session: string, name: string, lobby = '') => {
-  if (lobby !== '') await useLobby(page, lobby);
-  await useName(page, name);
-  await listed(page, session).click({ timeout: 8000 });
-  await expect(state(page)).toContainText('Following');
-};
 
 /** Ends a session on purpose, past the question that asks whether to. */
 const end = async (page: Page, button: string, sure: string) => {
@@ -290,6 +245,69 @@ test("a client joins a session and sounds with its host, note for note, through 
   context,
 }) => {
   await inStep(page, await context.newPage(), 'e2e jam', { hold: 'host', holdFor: HOLDS.wide });
+});
+
+/**
+ * How many bars both pages must have played whole for the comparison to count:
+ * bars 1 to 8, the first section's after the count-in's, which holds the first
+ * text and is laid as the second, ahead, arrives. The check waits for them by
+ * the bars played, not for a time, as how far a fixed wait reaches depends on
+ * when the song starts (20 s reached bar 6 to 8 over six runs).
+ */
+const BARS_COMPARED = 8;
+
+/** The last bar a page's outputs played an event in, or -1 before any. */
+const lastBar = (page: Page) =>
+  page.evaluate(() => Math.max(-1, ...window.jambot!.played().events.map((e) => e.bar)));
+
+test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells with the switch on, the section texts on the wire (#446)', async ({
+  page,
+  context,
+}) => {
+  const client = await context.newPage();
+  const hostErrors = await listen(page);
+  const clientErrors = await listen(client);
+  await host(page, 'cells jam');
+  await join(client, 'cells jam', 'Ada');
+  await joined(page, 'Ada');
+  await page.getByRole('button', { name: 'Start the band' }).click();
+  await expect(state(client)).toContainText('host playing');
+  // Both pages into the bar after the last compared, which `compareSession` leaves out as played in part.
+  for (const p of [page, client])
+    await expect
+      .poll(() => lastBar(p), { timeout: 40_000, intervals: [500] })
+      .toBeGreaterThanOrEqual(BARS_COMPARED + 1);
+
+  const compared = await sessionAgrees(page, client);
+  const [mine, theirs] = await Promise.all(
+    [page, client].map((p) => p.evaluate(() => window.jambot!.shadow)),
+  );
+  console.log(
+    `bars ${compared.bars.from} to ${compared.bars.to}: ${compared.events} events, ` +
+      `onsets apart by ${(compared.largest.onset * 1000).toFixed(3)} ms at most; ` +
+      `the host told ${mine!.texts.told} texts of ${mine!.wire.p50} to ${mine!.wire.max} bytes, ` +
+      `the client was given ${theirs!.texts.given}, played ${theirs!.played.cells} from cells and ${theirs!.played.band} from the band, ` +
+      `the least time before play ${theirs!.arrival.least.given} s, ${theirs!.arrival.late} late`,
+  );
+  // Every event of the bars both played whole, whatever the song composed in them: at least `BARS_COMPARED`.
+  expect(compared.bars.to - compared.bars.from + 1).toBeGreaterThanOrEqual(BARS_COMPARED);
+  expect(compared.events).toBeGreaterThan(0);
+  await shadowAgrees(page);
+  if (mine!.plays === 'cells') {
+    expect(mine!.played.band).toBe(0);
+    expect(mine!.texts.told).toBeGreaterThanOrEqual(2);
+    expect(theirs!.from).toBe('given');
+    expect(theirs!.texts.given).toBe(mine!.texts.told);
+    expect(theirs!.arrival.late).toBe(0);
+    expect(theirs!.played.band).toBe(0);
+    await shadowAgrees(client);
+  } else {
+    // With the switch off a host tells its session no text, and a client asks for none.
+    expect(theirs!.from).toBe('none');
+    expect(theirs!.texts.given).toBe(0);
+  }
+  expect(hostErrors).toEqual([]);
+  expect(clientErrors).toEqual([]);
 });
 
 test("a client in another browser context joins through the lobby server, in step through a hold of the client's audio and a stall of the host's page", async ({
