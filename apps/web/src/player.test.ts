@@ -1605,6 +1605,28 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(hosted.texts).toEqual(sections.filter((t) => t.bar + SECTION_BARS > first));
   });
 
+  it('gives a client joining in a section’s last bar the text of the bar it joins in, and the next section’s (#446)', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s, null, 'cells');
+    const session = told();
+    player.hosting = session.hosting;
+    player.mode = 'host';
+    void player.start();
+    world.resolve();
+    await settle();
+    // Tick until the bar not yet played is the first section's last.
+    const last = SECTION_BARS - 1;
+    while ((player.hosted?.bars[0]?.bar.bar ?? 0) < last) {
+      world.currentTime += 0.025;
+      world.page += 0.025;
+      world.tickers[0]!.tick();
+    }
+    const hosted = player.hosted!;
+    expect(hosted.bars[0]!.bar.bar).toBe(last);
+    expect(hosted.texts.map((t) => t.bar)).toEqual([0, SECTION_BARS]);
+    expect(hosted.texts[0]).toEqual(session.sections[0]);
+  });
+
   it('with the switch off, a host tells its session no text', async () => {
     const { player, told: host } = await played('band', SECTIONS_3, { host: true });
     expect(player.shadow.readout.texts.told).toBeGreaterThan(0);

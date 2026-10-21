@@ -247,6 +247,13 @@ test("a client joins a session and sounds with its host, note for note, through 
   await inStep(page, await context.newPage(), 'e2e jam', { hold: 'host', holdFor: HOLDS.wide });
 });
 
+/**
+ * How many bars both pages must have played whole for the comparison to count:
+ * 20 s at Synth-pop's 108 bpm, a bar 2.2 s, is the count-in and 8 bars, bars 1
+ * to 8 compared in every run so far; 6 leaves two bars for a slow start.
+ */
+const BARS_COMPARED = 6;
+
 test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells with the switch on, the section texts on the wire (#446)', async ({
   page,
   context,
@@ -273,7 +280,9 @@ test('a client plays what its host plays, event for event: part, note, velocity,
       `the client was given ${theirs!.texts.given}, played ${theirs!.played.cells} from cells and ${theirs!.played.band} from the band, ` +
       `the least time before play ${theirs!.arrival.least.given} s, ${theirs!.arrival.late} late`,
   );
-  expect(compared.events).toBeGreaterThan(100);
+  // Every event of the bars both played whole, whatever the song composed in them: at least `BARS_COMPARED`.
+  expect(compared.bars.to - compared.bars.from + 1).toBeGreaterThanOrEqual(BARS_COMPARED);
+  expect(compared.events).toBeGreaterThan(0);
   await shadowAgrees(page);
   if (mine!.plays === 'cells') {
     expect(mine!.played.band).toBe(0);
