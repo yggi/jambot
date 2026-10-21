@@ -1,5 +1,12 @@
 // @vitest-environment node
-import { type BandBar, type BandCarried, PRESETS, SECTION_BARS, band } from '@jambot/engine';
+import {
+  type BandBar,
+  type BandCarried,
+  PRESETS,
+  SECTION_BARS,
+  band,
+  presetSwing,
+} from '@jambot/engine';
 import { playSection } from '@jambot/score';
 import type { SectionText } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
@@ -29,7 +36,7 @@ function section(name: string, from = 0): BandBar[] {
         bar,
         style: { ...preset.style, entropy: 0.3 },
         wish: { tonic: null, mode: preset.mode, melodic: null },
-        swing: preset.swing,
+        swing: presetSwing(preset)!,
         offer: null,
       },
       carried,

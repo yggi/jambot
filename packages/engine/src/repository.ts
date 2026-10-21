@@ -42,8 +42,9 @@ import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
-import type { MeterFragment, MeterRepository } from './meter-query.ts';
-import { STRAIGHT, SWING_LEVELS, type SwingLevel } from './swing.ts';
+import { type MeterFragment, type MeterRepository, composedMeter } from './meter-query.ts';
+import type { Preset } from './style.ts';
+import { type MeterSwing, STRAIGHT, SWING_LEVELS, type SwingLevel } from './swing.ts';
 
 /** The eighths in a pulse of a meter's note value: two of a quarter, one of an eighth. */
 const eighthsOf = (unit: number): number => 8 / unit;
@@ -135,6 +136,21 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
 
 /** Cells' meters, as the composer asks them. */
 export const METER_REPOSITORY: MeterRepository = meterRepository();
+
+/**
+ * A preset's swing (#459, rung 2 of #420): the swing of the meter the
+ * repository finds at the preset's point, as the composer would take it with
+ * nothing playing; null where it misses. Each of the eight presets finds the
+ * 4/4 swinging as it once named by hand, at distance 0. It asks cells' seed
+ * alone, never what a host has learned, so a preset swings the same in every
+ * session.
+ */
+export function presetSwing(
+  preset: Pick<Preset, 'style'>,
+  repository: MeterRepository = METER_REPOSITORY,
+): MeterSwing | null {
+  return composedMeter(repository, preset.style, null)?.swing ?? null;
+}
 
 export type { Fragment };
 

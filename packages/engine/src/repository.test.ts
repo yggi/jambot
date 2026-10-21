@@ -4,10 +4,22 @@ import { type TimedEvent, type TransportEnv, transport } from './transport.ts';
 import { LOOKAHEAD } from './transport.ts';
 import { clockOfTransport, type TransportCarried } from './transport.ts';
 import { composedMeter, stylePoint } from './meter-query.ts';
-import { METER_READINGS, METER_REPOSITORY, SEED_FRAGMENTS } from './repository.ts';
+import { METER_READINGS, METER_REPOSITORY, SEED_FRAGMENTS, presetSwing } from './repository.ts';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { PRESETS, holding } from './style.ts';
-import { STRAIGHT, holdingSwing } from './swing.ts';
+import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
+
+/** Each preset's swing as `PRESETS` named it by hand before the repository found it (#360, #459), as a literal. */
+const HAND_SWING: Readonly<Record<string, MeterSwing>> = {
+  'Synth-pop': { level: '16n', share: 0.5 },
+  Techno: { level: '16n', share: 0.5 },
+  'Deep house': { level: '16n', share: 0.6 },
+  Ambient: { level: '16n', share: 31 / 60 },
+  'Lo-fi hip hop': { level: '16n', share: 0.65 },
+  Funk: { level: '16n', share: 0.6 },
+  'Bossa nova': { level: '16n', share: 0.5 },
+  'Swing jazz': { level: '8n', share: 2 / 3 },
+};
 
 /** The transport over a preset held, 32 bars: every event's part, step, note, velocity, onset and duration. */
 function events(env: TransportEnv): TimedEvent[] {
@@ -49,13 +61,20 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
     });
   });
 
-  it('finds each preset’s own meter at its point: 4/4, swinging exactly as the preset names', () => {
+  it('finds each preset’s swing at its point, at distance 0: 4/4, swinging exactly as the preset named it by hand (#459)', () => {
+    expect(PRESETS.map((p) => p.name)).toEqual(Object.keys(HAND_SWING));
     for (const preset of PRESETS) {
       const found = composedMeter(METER_REPOSITORY, preset.style, null)!;
       expect(found.meter, preset.name).toEqual(METERS['4/4']);
-      expect(found.swing, preset.name).toEqual(preset.swing);
+      expect(presetSwing(preset), preset.name).toEqual(HAND_SWING[preset.name]);
+      expect(presetSwing(preset), preset.name).toEqual(found.swing);
       expect(METER_REPOSITORY.query(stylePoint(preset.style))[0]!.distance, preset.name).toBe(0);
     }
+  });
+
+  it('finds no swing where the repository misses, so a preset there leaves the swing as it is', () => {
+    const missing = { ...METER_REPOSITORY, margins: { miss: -1, hold: 0 } };
+    for (const preset of PRESETS) expect(presetSwing(preset, missing), preset.name).toBeNull();
   });
 
   it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 15,061 events, each to 1e-9 s', () => {
@@ -68,7 +87,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
           track: holding({ ...preset.style, entropy: 0.3 }),
           wish: { tonic: null, mode: preset.mode, melodic: null },
         };
-        const asked = events({ ...env, swing: holdingSwing(preset.swing) });
+        const asked = events({ ...env, swing: holdingSwing(HAND_SWING[preset.name]!) });
         // The repository's share wins over the swing track's, so a straight track changes nothing.
         const found = events({
           ...env,

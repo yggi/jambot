@@ -58,6 +58,7 @@ import {
   chordNumeral,
   slotStepOn,
   voicing,
+  presetSwing,
 } from '@jambot/engine';
 import {
   CHORD_QUALITIES,
@@ -146,7 +147,7 @@ export function playedBars(): Played[] {
         seed: SEED,
         bar,
         style: { ...preset.style, entropy: ENTROPY },
-        swing: preset.swing,
+        swing: presetSwing(preset)!,
         wish: { tonic: null, mode: preset.mode, melodic: null },
         offer: null,
       };

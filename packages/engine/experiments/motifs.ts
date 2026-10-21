@@ -41,7 +41,14 @@ import {
   head,
   stabilizer,
 } from '../../theory/src/motifs.ts';
-import { type BandCarried, type KeyWish, PRESETS, band, keyHelix } from '../src/index.ts';
+import {
+  type BandCarried,
+  type KeyWish,
+  PRESETS,
+  band,
+  keyHelix,
+  presetSwing,
+} from '../src/index.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const SEEDS = range(5);
@@ -128,7 +135,10 @@ for (const seed of SEEDS)
           bar,
           style: { ...preset.style, entropy: (bar % 32) / 32 },
           // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
-          swing: { level: presetAt(bar + 1).swing.level, share: preset.swing.share },
+          swing: {
+            level: presetSwing(presetAt(bar + 1))!.level,
+            share: presetSwing(preset)!.share,
+          },
           wish: { tonic: null, mode: preset.mode, melodic: null } as KeyWish,
           offer: null,
         },

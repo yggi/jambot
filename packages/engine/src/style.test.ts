@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { METERS, meterOnSteps } from '@jambot/theory';
+import { presetSwing } from './repository.ts';
 import { leanMap, swingMapAt, swingParts } from './swing.ts';
 import {
   AXES,
@@ -62,24 +63,12 @@ describe('the presets', () => {
     'Swing jazz': 1,
   };
 
-  it('each name their meter’s swing: the level and share the swing axis gave them, the straight ones on the 16ths (#360)', () => {
-    expect(
-      PRESETS.map((p) => [p.name, p.swing.level, Math.round(p.swing.share * 1e4) / 1e4]),
-    ).toEqual([
-      ['Synth-pop', '16n', 0.5],
-      ['Techno', '16n', 0.5],
-      ['Deep house', '16n', 0.6],
-      ['Ambient', '16n', 0.5167],
-      ['Lo-fi hip hop', '16n', 0.65],
-      ['Funk', '16n', 0.6],
-      ['Bossa nova', '16n', 0.5],
-      ['Swing jazz', '8n', 0.6667],
-    ]);
+  it('each find a meter swinging on the level the swing axis swung, the straight ones on the 16ths (#360, #459: the shares, `repository.test.ts`)', () => {
     for (const p of PRESETS) {
       const parts = swingParts(AXIS_SWING[p.name]!);
       // On every preset only one level swung, so the level is the one that did.
       expect(Math.min(parts.eighth, parts.sixteenth)).toBe(0);
-      expect(p.swing.level).toBe(parts.eighth > 0 ? '8n' : '16n');
+      expect(presetSwing(p)!.level).toBe(parts.eighth > 0 ? '8n' : '16n');
     }
   });
 
@@ -91,7 +80,7 @@ describe('the presets', () => {
       for (let i = 0; i <= 16 * 48; i++) {
         const x = i / 48;
         const start = beats.findLast((b) => b <= x) ?? 0;
-        const now = swingMapAt(p.swing, start, 4);
+        const now = swingMapAt(presetSwing(p)!, start, 4);
         worst = Math.max(worst, Math.abs(now.played(x) - was.played(x)));
       }
     }

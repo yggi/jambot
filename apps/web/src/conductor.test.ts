@@ -1,6 +1,7 @@
 // @vitest-environment node
 import {
   INITIAL_STYLE,
+  METER_REPOSITORY,
   PRESETS,
   PRESET_GLIDE,
   SECTION_BARS,
@@ -16,6 +17,7 @@ import {
   INITIAL_KEY,
   MELODIC_SCALES,
   licenceOf,
+  presetSwing,
   STRAIGHT,
   holdingSwing,
   styleAt,
@@ -86,6 +88,18 @@ describe('conductSwing (#360)', () => {
     expect(swingAt(next, at + PRESET_GLIDE / 2).share).toBeCloseTo((0.5 + 2 / 3) / 2, 12);
     expect(swingAt(next, at + PRESET_GLIDE).share).toBe(2 / 3);
     expect(Object.keys(jazz.style)).not.toContain('swing');
+    expect(Object.keys(jazz)).not.toContain('swing');
+  });
+
+  it('glides to the swing of the meter the repository finds at the preset’s point, and leaves the swing where none is found (#459)', () => {
+    for (const preset of PRESETS) {
+      const found = presetSwing(preset)!;
+      const next = conductSwing(straight, { kind: 'preset', preset }, 64);
+      expect(next.level, preset.name).toBe(found.level);
+      expect(swingAt(next, 64 + PRESET_GLIDE), preset.name).toEqual(found);
+    }
+    const missing = { ...METER_REPOSITORY, margins: { miss: -1, hold: 0 } };
+    expect(conductSwing(straight, { kind: 'preset', preset: jazz }, 64, missing)).toBe(straight);
   });
 
   it('glides the card’s share over a bar, and sets its level alone', () => {
@@ -99,9 +113,9 @@ describe('conductSwing (#360)', () => {
 
   it('sets it at once while stopped, and a stop holds it where it was going', () => {
     const set = conductSwing(straight, { kind: 'preset', preset: jazz }, null);
-    expect(swingAt(set, 0)).toEqual(jazz.swing);
+    expect(swingAt(set, 0)).toEqual({ level: '8n', share: 2 / 3 });
     const moving = conductSwing(straight, { kind: 'preset', preset: jazz }, 100);
-    expect(swingAt(stopSwing(moving), 0)).toEqual(jazz.swing);
+    expect(swingAt(stopSwing(moving), 0)).toEqual({ level: '8n', share: 2 / 3 });
   });
 
   it('leaves the swing to an intent that is not about it, and the style to one that is', () => {

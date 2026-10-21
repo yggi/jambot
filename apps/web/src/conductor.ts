@@ -1,7 +1,8 @@
 /**
  * The conductor turns what people do into the style track, and into the
- * meter's swing (#360): the level and share each preset names, and those
- * the Meter card sets. The share glides as an axis does, over 8 bars from a
+ * meter's swing (#360): the level and share of the meter the repository
+ * finds at a preset's point (`presetSwing`, #459), and those the Meter card
+ * sets. The share glides as an axis does, over 8 bars from a
  * preset and one from the card; the level is asked for at once and taken
  * where the next section starts, as a meter is.
  *
@@ -46,6 +47,8 @@ import {
   SLIDER_GLIDE,
   type Style,
   type StyleTrack,
+  METER_REPOSITORY,
+  type MeterRepository,
   type MeterSwing,
   type SwingTrack,
   barStart,
@@ -59,6 +62,7 @@ import {
   licenceOf,
   melodicWithin,
   nudgedTempo,
+  presetSwing,
   tempoLicence,
   tempoNudgeWithin,
 } from '@jambot/engine';
@@ -116,13 +120,24 @@ export function conduct(
 
 /**
  * The meter's swing after an intent, gliding from step `at`, or set at once
- * when stopped (`null`): a preset's over `PRESET_GLIDE`, the card's over
+ * when stopped (`null`): a preset's, the swing of the meter `repository`
+ * finds at its point, over `PRESET_GLIDE`, and the card's over
  * `SLIDER_GLIDE`. The level is the one asked for, which the band takes where
- * the next section starts.
+ * the next section starts. A preset where the repository finds nothing
+ * leaves the swing as it is, as the composer keeps its meter on a miss.
  */
-export function conductSwing(swing: SwingTrack, intent: Intent, at: number | null): SwingTrack {
+export function conductSwing(
+  swing: SwingTrack,
+  intent: Intent,
+  at: number | null,
+  repository: MeterRepository = METER_REPOSITORY,
+): SwingTrack {
   const target =
-    intent.kind === 'preset' ? intent.preset.swing : intent.kind === 'swing' ? intent.swing : null;
+    intent.kind === 'preset'
+      ? presetSwing(intent.preset, repository)
+      : intent.kind === 'swing'
+        ? intent.swing
+        : null;
   if (target === null) return swing;
   if (at === null) return swingTo(swing, target, 0, 0);
   return swingTo(swing, target, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);

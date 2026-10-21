@@ -28,6 +28,7 @@ import {
   STRAIGHT,
   type Style,
   band,
+  presetSwing,
 } from '../src/index.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -86,8 +87,8 @@ for (const seed of SEEDS)
       const { output, carried: after } = band.advance(
         // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
         envOf(seed, bar, style, preset.mode, {
-          level: presetAt(bar + 1).swing.level,
-          share: preset.swing.share,
+          level: presetSwing(presetAt(bar + 1))!.level,
+          share: presetSwing(preset)!.share,
         }),
         carried,
         null,

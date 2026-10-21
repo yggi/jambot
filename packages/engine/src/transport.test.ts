@@ -4,6 +4,7 @@ import { chordAt } from './chords.ts';
 import type { KeyWish } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { type HeardNote, type Judgement, judgeBar } from './muse.ts';
+import { presetSwing } from './repository.ts';
 import {
   INITIAL_STYLE,
   PRESETS,
@@ -88,7 +89,7 @@ const runChanging = (
 
 const swung = holding({ ...PRESETS[4]!.style, entropy: 0.3 }); // Lo-fi hip hop, 84 bpm
 /** Lo-fi hip hop's meter: swung on the 16ths, at 65 %. */
-const LOFI = holdingSwing(PRESETS[4]!.swing);
+const LOFI = holdingSwing(presetSwing(PRESETS[4]!)!);
 const env = (
   track: StyleTrack = swung,
   wish: KeyWish = { tonic: null, mode: PRESETS[4]!.mode, melodic: null },
@@ -239,7 +240,7 @@ describe('the transport', () => {
       expect([step, level]).toEqual([step, step < 128 ? '16n' : '8n']);
     // The share moved inside the section, on the 16ths.
     const shares = laid.filter((s) => s.step < 128).map((s) => s.swing.share);
-    expect(shares[0]).toBe(PRESETS[4]!.swing.share);
+    expect(shares[0]).toBe(presetSwing(PRESETS[4]!)!.share);
     expect(shares.at(-1)).toBeCloseTo(2 / 3, 12);
   });
 

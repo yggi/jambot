@@ -33,7 +33,14 @@
  */
 
 import { even, wrap } from '@jambot/theory';
-import { type BandCarried, type KeyWish, PRESETS, band, chordAt } from '../src/index.ts';
+import {
+  type BandCarried,
+  type KeyWish,
+  PRESETS,
+  band,
+  chordAt,
+  presetSwing,
+} from '../src/index.ts';
 import { nearest } from '../src/bass.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -295,7 +302,10 @@ for (const seed of SEEDS)
           bar,
           style: { ...preset.style, entropy: (bar % 32) / 32 },
           // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
-          swing: { level: presetAt(bar + 1).swing.level, share: preset.swing.share },
+          swing: {
+            level: presetSwing(presetAt(bar + 1))!.level,
+            share: presetSwing(preset)!.share,
+          },
           wish: { tonic: null, mode: preset.mode, melodic: null } as KeyWish,
           offer: null,
         },
