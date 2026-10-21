@@ -249,10 +249,16 @@ test("a client joins a session and sounds with its host, note for note, through 
 
 /**
  * How many bars both pages must have played whole for the comparison to count:
- * 20 s at Synth-pop's 108 bpm, a bar 2.2 s, is the count-in and 8 bars, bars 1
- * to 8 compared in every run so far; 6 leaves two bars for a slow start.
+ * bars 1 to 8, the first section's after the count-in's, which holds the first
+ * text and is laid as the second, ahead, arrives. The check waits for them by
+ * the bars played, not for a time, as how far a fixed wait reaches depends on
+ * when the song starts (20 s reached bar 6 to 8 over six runs).
  */
-const BARS_COMPARED = 6;
+const BARS_COMPARED = 8;
+
+/** The last bar a page's outputs played an event in, or -1 before any. */
+const lastBar = (page: Page) =>
+  page.evaluate(() => Math.max(-1, ...window.jambot!.played().events.map((e) => e.bar)));
 
 test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells with the switch on, the section texts on the wire (#446)', async ({
   page,
@@ -266,8 +272,11 @@ test('a client plays what its host plays, event for event: part, note, velocity,
   await joined(page, 'Ada');
   await page.getByRole('button', { name: 'Start the band' }).click();
   await expect(state(client)).toContainText('host playing');
-  // Two sections and more at Synth-pop's 108 bpm: the first text, asked in the count-in, and the second, ahead.
-  await client.waitForTimeout(20_000);
+  // Both pages into the bar after the last compared, which `compareSession` leaves out as played in part.
+  for (const p of [page, client])
+    await expect
+      .poll(() => lastBar(p), { timeout: 40_000, intervals: [500] })
+      .toBeGreaterThanOrEqual(BARS_COMPARED + 1);
 
   const compared = await sessionAgrees(page, client);
   const [mine, theirs] = await Promise.all(
