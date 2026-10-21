@@ -52,7 +52,7 @@ The composer asks cells' repository for its meter at each section's start (#375,
 The band learns the meters it keeps (#398, cells decision 048): the host keeps the learned layer in its browser, hands it to each query, and can export and import it from the Session card, behind an interface (`LayerStore`) a shared repository can take later.
 With the meter found, the composer asks the repository for a rhythm that fits it (#397, the owner's ruling on E36; protocol 12, so a page and a lobby deploy together): the drummer plays from the fragment as its groove, its own dynamics, fills and counts kept, a clave beside it where one layers, and invents where none fits (E37); the Muse files what it invents, and what a player plays on drums, in the learned layer and the composer's short-term memory, so the composer picks it up and the meter and the groove pull each other (#401, E38); a session client's drums reach the host's Muse the same way, a bar a message, and are filed under the client's name (#410, protocol 13; the lobby server relays without reading the version, so the page deploys alone).
 The composer tires of a rhythm it holds, a preset's drum bar as a groove filed: it varies it, then rejects it, so the next nearest drum bar plays (a clave only layers on one, #428) or the drummer invents again (#411, #414, E39, E40), on cells decision 043's novelty ladder, its boredom counted by entropy until the homeostat measures recognition (#237); the same place on the ladder sets how strongly the composer keeps a group used together (#389).
-A preset is becoming a point in style space and nothing else, everything it decides by hand moving to the repository as fragments that climb the ladder (#420); its drum bar climbing is the first rung.
+A preset is becoming a point in style space and nothing else, everything it decides by hand moving to the repository as fragments that climb the ladder (#420); its drum bar climbing is the first rung, and the order of the rest is under _Presets become style vectors_ below.
 Next on the time tower is the Meter-Cell (#306): a style carries a list or range of meters the band chooses among at a section's start, and swing, the ternary lean, agogic weight and aksak become one operator on the meter's tree, each node keeping its ends; the meter's swing is the first of them on the meter, a level and a share.
 The score writes the bass as `step=pitch` pairs, and the pad and stab as `step=ch|nx` pairs with a `next` line (#63 step 3, #280, #281); a `frame` line pins a part's register or voicing as integers above the tonic only where its hand is not the default (#285); the score states no scale and refuses no chord for having none, U3 being vitrified (#292); a loop, a group, a rest, a hold and a finer grid wait for the tree of #275, whose first measurement is E27 (#282).
 The lead's text waits on the cell (#287): a shared library of named cells, and `realize` sorted into what the score states (the cell, its operator, the anchor) and what a player fits (the chord tones a note snaps to, the octave), so that the Muse's cell is the minimal case.
@@ -116,6 +116,21 @@ The analyzer is deterministic and rule-based, and it is the foundation of the
 learned models: everything trained later sees music only through it. It is also
 the biggest risk, because messy MIDI turned into clean score text decides the
 quality of everything downstream.
+
+## Presets become style vectors (#420)
+
+A preset is to be a name and a point in style space, nothing else (the owner, 2026-10-18): what it decides moves to the repository as fragments found at its point, and each band member's machine stays its generator on a miss.
+The inventory ([presets](memory/presets.md), #447) counts 35 rows: a preset's 4 fields, 3 that name a preset or open with one, 5 keyed by a mode and 23 by a region of style space.
+Nothing branches on a preset's name: a preset reaches what plays only through its point, its mode and its swing, and all else is the members' blends and thresholds of the axes.
+Its drum bar is done (rung 1: #429, #431, #435): the drummer plays from the eight drum bars at the presets' points, and invents on a miss.
+The rest moves cheapest and most decoupled first:
+
+2. **`swing` leaves the preset.** The facet `meter` holds it already: each preset's point finds a 4/4 swinging as the preset names, at distance 0, and plays its 15,061 events within 1e-9 s (`repository.test.ts`), so the swing track takes the meter found there, with 0 engine hashes moved.
+3. **The figures, a member at a time, in the owner's order**, each once the band plays through cells (#399, #446): the bass's five patterns from the facet `bass` (#423, 5 seeds), the lead's filed motifs on the facet `line` (#424, no seeds, its shapes the generator), and the vamps from the facet `harmony` (#425, 5 seeds, the mode's tables the generator), each playing as `main` at entropy 0 with nothing filed, over 8 presets × 2 seeds × 32 bars.
+4. **`mode` leaves the preset**, after the harmony: no facet carries a mode (cells' vamps are over the host's key, so one text is every mode's), so a fragment that states one is a question for cells first, and then each preset's mode is found at its point, 8 of 8 at entropy 0.
+5. **`Preset` is `{ name, style }`**: 2 fields, `bpm` kept on the point, since a fragment's style has no tempo (cells decision 037).
+
+What stays code: the comp, the form, the colour, the performer's base and feel, the key's and the melodic scale's licences, and the genre's names; whether the comp, the form and the colour get facets of their own is the owner's question on #420.
 
 ## Event setup
 

@@ -39,6 +39,7 @@ A source file has no line here: its header comment says what it is, and `tooling
     - [`repository-and-ci.md`](memory/repository-and-ci.md): CI, Pages, toolchain pins and the license
     - [`terms.md`](memory/terms.md): root node, rendering node, dough
     - [`hardware.md`](memory/hardware.md): the live setup
+    - [`presets.md`](memory/presets.md): the presets' inventory: what each decides by hand or by its region of style space, and where it goes
     - [`cell-studio.md`](memory/cell-studio.md): the sister project and home of the cells language, how to read it, and where its words and Jambot's correspond and part
   - `docs/briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)

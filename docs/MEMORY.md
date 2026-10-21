@@ -67,3 +67,4 @@ Each is a page of facts, one sentence to a line, and `docs/INDEX.md` lists them.
 - [`terms`](memory/terms.md): root node, rendering node, dough.
 - [`cell-studio`](memory/cell-studio.md): the sister project, how to read it, and where its words and Jambot's correspond and part.
 - [`hardware`](memory/hardware.md): the live setup.
+- [`presets`](memory/presets.md): what a preset decides by hand, what decides by its region of style space, and where each goes (#420).
