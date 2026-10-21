@@ -24,7 +24,13 @@ import {
   styleAt,
   walkRadio,
 } from '@jambot/engine';
-import { type LayerStore, type Station, memoryLayerStore, tuneIn } from '@jambot/session';
+import {
+  type LayerStore,
+  type SectionText,
+  type Station,
+  memoryLayerStore,
+  tuneIn,
+} from '@jambot/session';
 import { METERS, type Meter } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
@@ -847,6 +853,7 @@ function told() {
   const started: { seed: number; start: number }[] = [];
   const composed: { bar: number; chords: number[] }[] = [];
   const finales: number[] = [];
+  const sections: SectionText[] = [];
   const hosting: Hosting = {
     started: (song) => (said.push('started'), started.push(song)),
     stopped: () => void said.push('stopped'),
@@ -860,8 +867,9 @@ function told() {
     station: () => {},
     muse: () => {},
     finale: (bar) => (said.push('finale'), finales.push(bar)),
+    section: (text) => void sections.push(text),
   };
-  return { said, started, composed, finales, hosting };
+  return { said, started, composed, finales, sections, hosting };
 }
 
 describe('the count-in', () => {
@@ -1227,6 +1235,7 @@ describe('the meter asked for (#262)', () => {
       station: () => {},
       muse: () => {},
       finale: () => {},
+      section: () => {},
     };
     return told;
   };
@@ -1456,8 +1465,9 @@ describe('the band through cells, in shadow (#399)', () => {
   ) {
     const { world, s } = surroundings();
     const player = new Player(s, null, plays);
+    const session = told();
     if (host) {
-      player.hosting = told().hosting;
+      player.hosting = session.hosting;
       player.mode = 'host';
     }
     void player.start();
@@ -1470,7 +1480,7 @@ describe('the band through cells, in shadow (#399)', () => {
       world.tickers[0]!.tick();
       world.frames[0]!.follow();
     }
-    return { world, player };
+    return { world, player, told: session };
   }
 
   const NONE = {
@@ -1533,6 +1543,10 @@ describe('the band through cells, in shadow (#399)', () => {
         said.push('ask');
         inline.ask(bars, answer);
       },
+      play: (given, answer) => {
+        said.push('play');
+        inline.play(given, answer);
+      },
       end: () => void said.push('end'),
     };
     const player = new Player({ ...s, texts: () => texts });
@@ -1568,11 +1582,34 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(said).not.toContain('begin');
   });
 
-  it('plays a host’s own events with the switch on: a session follows in a later rung', async () => {
-    const { player, world } = await played('cells', SECTIONS_3, { host: true });
-    expect(player.shadow.readout.plays).toBe('band');
-    expect(player.shadow.readout.played.cells).toBe(0);
-    expect(world.plays.length).toBeGreaterThan(0);
+  it('with the switch on, a host plays cells’ events as a band alone does and tells its session each text it takes, which it gives a client joining mid-song (#446)', async () => {
+    const [alone, hosting] = [
+      await played('cells', SECTIONS_3),
+      await played('cells', SECTIONS_3, { host: true }),
+    ];
+    const { readout } = hosting.player.shadow;
+    expect(readout.played.band).toBe(0);
+    expect(readout.played.cells).toBe(hosting.world.plays.length);
+    expect(readout.mismatched).toEqual(NONE);
+    const key = (p: { part: string; note: number; velocity: number; seconds: number }) =>
+      `${p.part} ${p.note} ${p.velocity} ${p.seconds}`;
+    expect(hosting.world.plays.map(key)).toEqual(alone.world.plays.map(key));
+    const sections = hosting.told.sections;
+    expect(sections).toHaveLength(readout.texts.told);
+    expect(sections.map((t) => t.bar)).toEqual([0, 8, 16, 24]);
+    expect(sections.every((t) => t.text.startsWith('&bar meter("4/4")'))).toBe(true);
+    // A client joining now is given the texts that state a bar not yet played.
+    const hosted = hosting.player.hosted!;
+    const first = hosted.bars[0]!.bar.bar;
+    expect(hosted.texts.length).toBeGreaterThan(0);
+    expect(hosted.texts).toEqual(sections.filter((t) => t.bar + SECTION_BARS > first));
+  });
+
+  it('with the switch off, a host tells its session no text', async () => {
+    const { player, told: host } = await played('band', SECTIONS_3, { host: true });
+    expect(player.shadow.readout.texts.told).toBeGreaterThan(0);
+    expect(host.sections).toEqual([]);
+    expect(player.hosted!.texts).toEqual([]);
   });
 });
 

@@ -58,11 +58,19 @@
     metronome,
     playsFrom(location.search, import.meta.env.VITE_PLAY),
   );
-  /** The dev readout: what the shadow found since the page opened (`window.jambot.shadow`). */
+  /**
+   * The dev readout: what the shadow found since the page opened (`window.jambot.shadow`), and
+   * what the outputs played, event by event, from the one numbered `from` on, and the
+   * transport's counters, the steps it laid and those the clock passed (#446).
+   */
   window.jambot = {
     get shadow() {
       return player.shadow.readout;
     },
+    get timing() {
+      return player.timing;
+    },
+    played: (from) => player.played.since(from),
   };
   const instruments = new Instruments(player, device);
   const profile = new Profile();

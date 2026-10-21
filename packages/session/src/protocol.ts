@@ -17,6 +17,8 @@ import {
   type DroppedJudgement,
   type HeardNote,
   type Judgement,
+  type Key,
+  type MeterSwing,
   type MuseOutput,
   type Offer,
   PARTS,
@@ -49,9 +51,55 @@ import type { ForecastDelta } from './forecast.ts';
  * (`DrumRole`'s `clave`), which a client's performer accents. Version 13
  * has a client pass on each bar its players played on drums, the notes as
  * its ear heard them (`played`, #410), for the host's Muse to file a groove
- * under the player's name.
+ * under the player's name. Version 14 has a host whose band plays through
+ * cells send each section's cells text to its clients (`section`, and
+ * `texts` in a welcome, #446), which a client's own cells engine plays.
  */
-export const PROTOCOL = 13;
+export const PROTOCOL = 14;
+
+/**
+ * A section's cells text, as a host's band through cells states it (#446,
+ * cells decision 037: the text holds what is composed): sent to every client
+ * as the host takes it from where it was built (`section`), four bars and a
+ * beat before the section plays, again at a bar composed otherwise than
+ * foreseen (a beat before it plays), and with a welcome, every text that
+ * states a bar not yet played (`texts`). A client compiles and plays it with
+ * its own cells engine, and its performer plays its feel on each event, as
+ * the host's does, so the two play the same events. The text travels, not
+ * the events cells plays from it: the score is what is legible all the way
+ * down, and it is the smaller, 2.6 to 6.3 KB a section as JSON over the
+ * presets' second sections at entropy 0.3, where the events would be 4 to 12
+ * times that, 11 to 75 KB (`section-texts.test.ts` in the app measures both).
+ * A host sends it only while its band plays through cells (`?play=cells`).
+ */
+export interface SectionText {
+  /** The first bar the text states, and its first step on the song's clock. */
+  readonly bar: number;
+  readonly step: number;
+  /** The text, or empty where none states the bars (`unstated` says why). */
+  readonly text: string;
+  /** Why no text states the bars (a section's key or meter moving between them), or null where one does. */
+  readonly unstated: string | null;
+  /**
+   * What cells' reading of the text needs beside it, one for the section,
+   * as a text states one meter, swing and key: its first bar's meter, swing,
+   * tempo and key (`SectionFrame` in `@jambot/score`).
+   */
+  readonly frame: {
+    readonly meter: Meter;
+    readonly swing: MeterSwing;
+    readonly bpm: number;
+    readonly key: Key;
+  };
+  /**
+   * What each bar, in order from `bar`, was built from, as a digest
+   * (`foreseenOf` in the app): a client plays the text in a bar only where
+   * the bar the host sends is the one foreseen, as the host does.
+   */
+  readonly foreseen: readonly string[];
+  /** The bars, by their place from `bar`, a note was cut in, which the text doesn't play as the band does. */
+  readonly cut: readonly number[];
+}
 
 /**
  * What a client's players played on one part in one bar, as its ear heard
@@ -134,8 +182,13 @@ export type HostMessage =
        * (`roster.ts`): sent again in the join that follows.
        */
       readonly resume: string;
-      /** The song playing, with the bars composed and not yet played, or null while stopped. */
-      readonly song: (Song & { readonly bars: readonly SentBar[] }) | null;
+      /**
+       * The song playing, with the bars composed and not yet played and the
+       * section texts that state a bar not yet played (#446), or null while stopped.
+       */
+      readonly song:
+        | (Song & { readonly bars: readonly SentBar[]; readonly texts: readonly SectionText[] })
+        | null;
       readonly forecast: ForecastDelta;
       readonly muse: MuseState;
     }
@@ -153,6 +206,8 @@ export type HostMessage =
       readonly tempoMeter: Meter;
     }
   | { readonly kind: 'bar'; readonly sent: SentBar }
+  /** A section's cells text, as the host's band through cells states it (#446). */
+  | ({ readonly kind: 'section' } & SectionText)
   | { readonly kind: 'forecast'; readonly forecast: ForecastDelta }
   | { readonly kind: 'muse'; readonly muse: MuseState }
   | { readonly kind: 'stop' }
@@ -209,6 +264,7 @@ const HOST_KINDS: ReadonlySet<string> = new Set([
   'start',
   'track',
   'bar',
+  'section',
   'forecast',
   'muse',
   'stop',

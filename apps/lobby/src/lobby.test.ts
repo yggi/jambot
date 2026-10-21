@@ -110,6 +110,26 @@ describe('the lobby', () => {
     ada.send({ op: 'tell', message: played });
     expect(await host.next()).toEqual({ op: 'heard', from: adaId, message: played });
 
+    // Nor a host's: a section's cells text (protocol 14, #446) goes to every client as it is.
+    const section = {
+      kind: 'section',
+      bar: 8,
+      step: 128,
+      text: '&bar meter("4/4") step=108bpm\n&key scale(aeolian, A)',
+      unstated: null,
+      frame: {
+        meter: { cycle: 16, heights: [0, 4, 8, 12] },
+        swing: { level: '16n', share: 0.5 },
+        bpm: 108,
+        key: { tonic: 9, mode: 'aeolian' },
+      },
+      foreseen: ['1c9f0e3a2b4d5'],
+      cut: [],
+    } as const;
+    host.send({ op: 'send', message: section });
+    expect(await ada.next()).toEqual({ op: 'said', message: section });
+    expect(await bob.next()).toEqual({ op: 'said', message: section });
+
     host.send({ op: 'send', message: { kind: 'stop' } });
     host.send({ op: 'send', to: adaId, message: { kind: 'refused', reason: 'only Ada' } });
     expect(await ada.next()).toEqual({ op: 'said', message: { kind: 'stop' } });

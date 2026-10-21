@@ -20,8 +20,10 @@ import { EAR, earListen } from './ear.ts';
 import { sentBars } from './host.ts';
 import {
   type ClientMessage,
+  type HostMessage,
   PLAYED_MOST,
   PROTOCOL,
+  type SectionText,
   heardFrom,
   type SentBar,
   playerOf,
@@ -135,10 +137,40 @@ function playedBars(): (ClientMessage & { kind: 'played' })[] {
   }));
 }
 
+/**
+ * A section's cells text as a host sends it (#446), framed by the first of
+ * the bars it states: the text itself is cells' (the app builds it), so a
+ * line of it stands in here, which a shape doesn't read.
+ */
+function sectionsOf(bars: readonly SentBar[]): (HostMessage & { kind: 'section' })[] {
+  const at = (first: number): HostMessage & { kind: 'section' } => {
+    const { plan, swing, style } = bars[first]!.bar;
+    return {
+      kind: 'section',
+      bar: bars[first]!.bar.bar,
+      step: bars[first]!.bar.bar * 16,
+      text: '&bar meter("4/4") step=120bpm',
+      unstated: null,
+      frame: { meter: plan.meter, swing, bpm: style.bpm, key: plan.key },
+      foreseen: bars.slice(first, first + 8).map((_, i) => `1f3a${i}`),
+      cut: [3],
+    };
+  };
+  const stated = at(0);
+  const unstated = { ...at(8), text: '', unstated: "the section's key moves between its bars" };
+  return [stated, unstated];
+}
+
 describe('the session protocol', () => {
   it("reads each side's messages, and nothing else", () => {
     expect(readHostMessage({ kind: 'stop' })).toEqual({ kind: 'stop' });
     expect(readHostMessage({ kind: 'finale', bar: 9 })).toEqual({ kind: 'finale', bar: 9 });
+    // A section's text (#446), as a host sends it, and with a welcome.
+    const sections = sectionsOf(travelling().bars);
+    for (const section of sections) expect(readHostMessage(section)).toEqual(section);
+    expect(readClientMessage(sections[0])).toBeNull();
+    const text: SectionText = sections[0]!;
+    expect(text.foreseen).toHaveLength(8);
     expect(readClientMessage({ kind: 'ping', sent: 1 })).toEqual({ kind: 'ping', sent: 1 });
     for (const junk of [null, 3, 'stop', {}, { kind: 7 }, { kind: 'play' }]) {
       expect(readHostMessage(junk)).toBeNull();
@@ -252,6 +284,7 @@ describe('the session protocol', () => {
       log: shapeOf(log),
       memory: shapeOf(memory),
       played: shapeOf(playedBars()),
+      section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
   });
 
@@ -275,7 +308,7 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 13 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements, the Muse's log and a client's bar of drums show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375); 12 the rhythm fragment and the clave (#397); 13 has a client pass on each bar its players played on drums, the notes as heard (`played`, #410). */
+/** The shapes of version 14 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements, the Muse's log, a client's bar of drums and a host's section texts show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375); 12 the rhythm fragment and the clave (#397); 13 has a client pass on each bar its players played on drums, the notes as heard (`played`, #410); 14 has a host send each section's cells text (`section`, and a welcome's `song.texts`, #446). */
 /** A played bar that isn't one: each field missing or of another type, in turn. */
 function playedJunk(): unknown[] {
   const [played] = playedBars();
@@ -307,7 +340,7 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 13,
+  protocol: 14,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -441,5 +474,22 @@ const SHAPES = {
     'notes[].source: string',
     'notes[].velocity: number',
     'part: string',
+  ],
+  section: [
+    'bar: number',
+    'cut[]: number',
+    'foreseen[]: string',
+    'frame.bpm: number',
+    'frame.key.mode: string',
+    'frame.key.tonic: number',
+    'frame.meter.cycle: number',
+    'frame.meter.heights[]: number',
+    'frame.swing.level: string',
+    'frame.swing.share: number',
+    'kind: string',
+    'step: number',
+    'text: string',
+    'unstated: null',
+    'unstated: string',
   ],
 };

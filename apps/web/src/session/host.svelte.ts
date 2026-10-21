@@ -3,7 +3,8 @@
  *
  * It opens the session in a lobby, admits a client of the same protocol
  * with a name, and welcomes it with where the song stands: the song, the
- * bars composed and not yet played, the bars ahead and the Muse. From then
+ * bars composed and not yet played, the section texts that state them while
+ * the band plays through cells (#446), the bars ahead and the Muse. From then
  * on it tells every client what the player does (`Hosting`), answers each
  * ping with its page clock and its output's offset from it (`DeviceClocks`),
  * and passes what clients judged, and what they played on drums, named by
@@ -226,6 +227,7 @@ export class HostSession {
       started: (song) => this.#send({ kind: 'start', song }),
       stopped: () => this.#send({ kind: 'stop' }),
       finale: (bar) => this.#send({ kind: 'finale', bar }),
+      section: (text) => this.#send({ kind: 'section', ...text }),
       composed: (bars) => {
         for (const sent of bars) this.#send({ kind: 'bar', sent });
       },
@@ -299,7 +301,11 @@ export class HostSession {
         session: this.session ?? '',
         resume: member.token,
         song: this.#player.hosted
-          ? { ...this.#player.hosted.song, bars: this.#player.hosted.bars }
+          ? {
+              ...this.#player.hosted.song,
+              bars: this.#player.hosted.bars,
+              texts: this.#player.hosted.texts,
+            }
           : null,
         forecast: forecastDelta([], this.#forecast),
         muse: this.#muse,

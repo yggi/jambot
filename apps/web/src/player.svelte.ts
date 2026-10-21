@@ -33,8 +33,11 @@
  *
  * Beside the band, alone or hosting, each section is written as one cells
  * text and played by cells' engine to a silent sink, and compared with what
- * the band sends (`shadow`, #399). With the switch on (`plays`, a solo band
- * only) the outputs play cells' events in place of the band's.
+ * the band sends (`shadow`, #399). With the switch on (`plays`) the outputs
+ * play cells' events in place of the band's; a host then sends each text to
+ * its clients (`Hosting.section`), and a client with the switch on plays the
+ * texts it is sent as the host plays them (#446). What the outputs played is
+ * kept, event by event (`played`), to set a client's beside its host's.
  *
  * The metronome, when one is given, is handed the steps laid on each tick
  * and clicks them on this output, so it has no clock of its own.
@@ -135,6 +138,7 @@ import {
   type LayerStore,
   type MuseState,
   type PlayedBar,
+  type SectionText,
   type SentBar,
   type Song,
   type Station,
@@ -168,7 +172,8 @@ import {
 } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type SectionTexts, browserTexts } from './section-texts.ts';
-import { type Plays, Shadow } from './shadow.ts';
+import { type Plays, Shadow, type TextsFrom } from './shadow.ts';
+import { PlayedLog } from './played.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
 import { PATTERN_BARS, Pattern, type PatternBar, patternBarOf } from './pattern.ts';
@@ -220,6 +225,8 @@ export interface Hosting {
   muse(muse: MuseState): void;
   /** The song ends on this bar, its last, composed. */
   finale(bar: number): void;
+  /** A section's cells text, as the band through cells states it (#446): told only while it plays through cells. */
+  section(text: SectionText): void;
 }
 
 /** What a client tells its host, as it happens. */
@@ -234,10 +241,12 @@ export interface Following {
   skew(): number | null;
 }
 
-/** A client's state: its transport, the host's bars arrived, and its ear. */
+/** A client's state: its transport, the host's bars and section texts arrived (#446), and its ear. */
 interface Follow {
   carried: TransportCarried<FollowCarried> | null;
   arrived: SentBar[];
+  /** Texts the host gave, not yet handed to the shadow: as it took them, or with its welcome (`joined`). */
+  texts: { readonly text: SectionText; readonly joined: boolean }[];
   ear: EarCarried;
   /** The keys of the bars it played lately, which its ear judges them in. */
   keys: readonly { readonly bar: number; readonly key: Key }[];
@@ -451,6 +460,8 @@ export class Player {
 
   /** The band through cells, in shadow (#399): what it found is `shadow.readout`. */
   readonly shadow: Shadow;
+  /** What the outputs played lately, event by event (#446). */
+  readonly played = new PlayedLog();
   /** What the switch asks a solo band's outputs to play. */
   #plays: Plays;
 
@@ -540,6 +551,10 @@ export class Player {
     this.#metronome = metronome;
     this.#plays = plays;
     this.shadow = new Shadow(() => surroundings.page() * 1000, plays, surroundings.texts?.());
+    // A host's band through cells tells its session each section's text as it takes it (#446).
+    this.shadow.told = (text) => {
+      if (this.#plays === 'cells') this.hosting?.section(text);
+    };
     this.#seed = surroundings.seed();
     this.#decide();
     void surroundings.layers?.load().then((layer) => {
@@ -874,7 +889,7 @@ export class Player {
   #begin(output: Output) {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
-    this.shadow.reset(!this.#follow);
+    this.shadow.reset(this.#textsFrom());
     this.#heard.clear();
     this.#timing = TRANSPORT_TIMING;
     this.#laid = [];
@@ -892,6 +907,15 @@ export class Player {
     this.dropped = [];
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
     this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
+  }
+
+  /**
+   * Where a song's section texts come from: the band's own, asked for, alone
+   * or hosting; given by the host to a client that plays through cells (#446);
+   * none to one that doesn't.
+   */
+  #textsFrom(): TextsFrom {
+    return !this.#follow ? 'asked' : this.#plays === 'cells' ? 'given' : 'none';
   }
 
   /**
@@ -988,8 +1012,12 @@ export class Player {
     this.#decide();
   }
 
-  /** Where the song and the bars composed stand, for a client joining mid-song. */
-  get hosted(): { song: Song; bars: SentBar[] } | null {
+  /**
+   * Where the song and the bars composed stand, for a client joining mid-song,
+   * and the section texts that state the bars not yet played, while the band
+   * plays through cells (#446).
+   */
+  get hosted(): { song: Song; bars: SentBar[]; texts: readonly SectionText[] } | null {
     const carried = this.#carried;
     if (this.status !== 'playing' || !carried) return null;
     return {
@@ -1008,6 +1036,10 @@ export class Player {
         clockOfTransport(carried),
         this.tempoMeter,
       ),
+      texts:
+        this.#plays === 'cells'
+          ? this.shadow.toldFrom(clockOfTransport(carried).barAt(carried.head.step))
+          : [],
     };
   }
 
@@ -1017,19 +1049,31 @@ export class Player {
     this.mode = 'client';
     this.station = null;
     this.lacked = 0;
-    this.#follow = { carried: null, arrived: [], ear: EAR, keys: [], ends: undefined, told };
+    this.#follow = {
+      carried: null,
+      arrived: [],
+      texts: [],
+      ear: EAR,
+      keys: [],
+      ends: undefined,
+      told,
+    };
     this.#bars = [];
     this.#thenClock(null);
   }
 
-  /** Play the host's song from now, with the bars it has composed and not played. */
-  async followSong(song: Song, bars: readonly SentBar[]) {
+  /**
+   * Play the host's song from now, with the bars it has composed and not
+   * played, and the texts its welcome gave that state them (#446).
+   */
+  async followSong(song: Song, bars: readonly SentBar[], texts: readonly SectionText[] = []) {
     const follow = this.#follow;
     if (!follow) return;
     this.halt();
     Object.assign(follow, {
       carried: null,
       arrived: [...bars],
+      texts: texts.map((text) => ({ text, joined: true })),
       ear: EAR,
       keys: [],
       ends: undefined,
@@ -1050,6 +1094,11 @@ export class Player {
   /** A bar the host composed. */
   followBar(sent: SentBar) {
     this.#follow?.arrived.push(sent);
+  }
+
+  /** A section's text the host's band through cells states, as it took it (#446). */
+  followSection(text: SectionText) {
+    this.#follow?.texts.push({ text, joined: false });
   }
 
   /** The host says which bar is the song's last. */
@@ -1291,8 +1340,7 @@ export class Player {
           players: this.players,
         });
     }
-    // The shadow writes and compares beside the band (#399); its events play only with the switch on, alone.
-    this.shadow.plays = this.mode === 'solo' ? this.#plays : 'band';
+    // The shadow writes and compares beside the band (#399); its events play with the switch on.
     const shadowed = this.shadow.tick({
       env: laidWith,
       next: this.#env,
@@ -1340,13 +1388,20 @@ export class Player {
     const now = output.currentTime + this.skew;
     const arrived = follow.arrived;
     follow.arrived = [];
-    const { carried, output: scheduled } = follower.advance(this.#env, follow.carried, {
+    const texts = follow.texts;
+    follow.texts = [];
+    for (const { text, joined } of texts) this.shadow.given(text, joined);
+    const env = this.#env;
+    const { carried, output: laid } = follower.advance(env, follow.carried, {
       now,
       until: now + LOOKAHEAD,
       arrived,
       ends: follow.ends,
     });
     follow.carried = carried;
+    // With the switch on, the host's texts play through cells, the performer's feel on them, as at the host (#446).
+    const events = this.shadow.follow({ env, carried: carried!, output: laid, now });
+    const scheduled = events === laid.events ? laid : { ...laid, events };
     if (scheduled.composed.length > 0)
       this.harmonicHistory = scheduled.composed.reduce(
         (history, bar) => foldBar(history, bar.chords),
@@ -1381,6 +1436,7 @@ export class Player {
   #schedule(output: Output, now: number, scheduled: TransportOutput, clock: SongClock) {
     const skew = this.skew;
     this.#timing = timedTick(this.#timing, { at: this.#surroundings.page(), now, scheduled });
+    this.played.push(scheduled.events);
     for (const { bar, offer } of scheduled.composed) this.#pattern.offered(bar, offer);
     for (const { bar, event, seconds, duration } of scheduled.events) {
       const performer = performerOf(event.part);

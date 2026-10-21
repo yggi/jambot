@@ -7,7 +7,8 @@
  * clock, less this output's (`skewOf`), so a note sounds here as it
  * sounds at the host, whatever each output's latency. A song waits until the clock is trusted, then plays from the bars
  * the host sent. Everything else the host says goes to the player as it
- * comes: bars, the style, the bars ahead and the Muse. What the player's
+ * comes: bars, the section texts of a band that plays through cells (#446),
+ * the style, the bars ahead and the Muse. What the player's
  * ear judged goes to the host, its sources named by this player's name, and
  * so does what its players played on drums, a bar a message (#410).
  *
@@ -30,6 +31,7 @@ import {
   type ClientMessage,
   type HostMessage,
   PROTOCOL,
+  type SectionText,
   type SentBar,
   type Song,
   applyForecast,
@@ -109,8 +111,16 @@ export class ClientSession {
   #pinging: ReturnType<typeof setTimeout> | null = null;
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
   #held: ForecastBar[] = [];
-  /** A song the host plays, waiting for the clock to be trusted. */
-  #pending: { song: Song; bars: SentBar[] } | null = null;
+  /**
+   * A song the host plays, waiting for the clock to be trusted: its bars, the
+   * texts its welcome gave, and those that came since (#446).
+   */
+  #pending: {
+    song: Song;
+    bars: SentBar[];
+    joined: readonly SectionText[];
+    texts: SectionText[];
+  } | null = null;
   #lobby: Lobby | null = null;
   /** The address of the lobby, to keep with the token. */
   #lobbyUrl: string | null = null;
@@ -366,7 +376,7 @@ export class ClientSession {
         this.#remember();
         this.#forecast(message.forecast);
         this.#player.followMuse(message.muse);
-        if (message.song) this.#play(message.song, message.song.bars);
+        if (message.song) this.#play(message.song, message.song.bars, message.song.texts);
         else if (this.hostPlaying) this.#stopped();
         if (this.#pinging) clearTimeout(this.#pinging);
         this.#ping();
@@ -383,6 +393,13 @@ export class ClientSession {
         if (this.#pending) this.#pending.bars.push(message.sent);
         else this.#player.followBar(message.sent);
         return;
+      case 'section': {
+        const { kind, ...text } = message;
+        void kind;
+        if (this.#pending) this.#pending.texts.push(text);
+        else this.#player.followSection(text);
+        return;
+      }
       case 'track':
         return this.#player.followTrack(message.track, message.swing, message.tempoMeter);
       case 'forecast':
@@ -426,9 +443,9 @@ export class ClientSession {
     this.#player.followForecast(this.#held);
   }
 
-  #play(song: Song, bars: readonly SentBar[]) {
+  #play(song: Song, bars: readonly SentBar[], joined: readonly SectionText[] = []) {
     this.hostPlaying = true;
-    this.#pending = { song, bars: [...bars] };
+    this.#pending = { song, bars: [...bars], joined, texts: [] };
     this.#startWhenReady();
   }
 
@@ -438,7 +455,8 @@ export class ClientSession {
     if (!pending || skew === null) return;
     this.#pending = null;
     this.#player.skew = skew;
-    void this.#player.followSong(pending.song, pending.bars);
+    void this.#player.followSong(pending.song, pending.bars, pending.joined);
+    for (const text of pending.texts) this.#player.followSection(text);
   }
 
   /** The host's heard moment less this output's, once every clock is trusted. */

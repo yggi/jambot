@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { type BandBar, type BandCarried, PRESETS, SECTION_BARS, band } from '@jambot/engine';
+import { playSection } from '@jambot/score';
+import type { SectionText } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
 import {
   type Answer,
@@ -8,17 +10,19 @@ import {
   type TextWorker,
   WorkerTexts,
   answerAsk,
+  digest,
   foreseenOf,
   inlineTexts,
+  playText,
   stateSection,
   warmSection,
 } from './section-texts.ts';
 
-/** A preset's first section, as the band composes it at entropy 0.3, seed 1. */
-function section(name: string): BandBar[] {
+/** A preset's first section, or the one `from` on, as the band composes it at entropy 0.3, seed 1. */
+function section(name: string, from = 0): BandBar[] {
   const preset = PRESETS.find((p) => p.name === name)!;
   let carried: BandCarried = band.initial;
-  return Array.from({ length: SECTION_BARS }, (_, bar) => {
+  return Array.from({ length: from + SECTION_BARS }, (_, bar) => {
     const made = band.advance(
       {
         seed: 1,
@@ -33,8 +37,19 @@ function section(name: string): BandBar[] {
     );
     carried = made.carried;
     return made.output;
-  });
+  }).slice(from);
 }
+
+/** A section's text as a host tells it (`Shadow`'s `#tell`), from what the bars state: what goes on the wire, as JSON. */
+const toldOf = (bars: readonly BandBar[], stated: SectionStated): SectionText => ({
+  bar: bars[0]!.bar,
+  step: bars[0]!.bar * 16,
+  text: stated.source,
+  unstated: stated.unstated,
+  frame: stated.frame,
+  foreseen: stated.foreseen,
+  cut: stated.cut,
+});
 
 /** What a job states, its timing aside. */
 const timeless = (stated: SectionStated) => ({ ...stated, cost: null });
@@ -117,6 +132,68 @@ describe('a section’s text, as a job (#406)', () => {
   });
 });
 
+describe('a section’s text on the wire, host to client (#446)', () => {
+  it.each(PRESETS.map((p) => p.name))(
+    'plays %s’s second section from the text and its frame alone, through JSON, as cells plays it from each of the bars',
+    (name) => {
+      const bars = section(name, SECTION_BARS);
+      const host = stateSection(bars);
+      const given: SectionText = JSON.parse(JSON.stringify(toldOf(bars, host)));
+      const client = playText(given);
+      expect(client.error).toBeNull();
+      expect(client.played!.diagnostics).toEqual([]);
+      expect(timeless(client)).toEqual(timeless(host));
+      // One frame stands for every bar of a text: each bar's own reads the same.
+      expect(client.played).toEqual(playSection(host.source, bars));
+    },
+  );
+
+  it('sends the text, 2.6 to 6.3 KB a section as JSON, under 8 KB, where what cells plays from it is 4 to 12 times that', () => {
+    const sizes = PRESETS.map((p) => {
+      const bars = section(p.name, SECTION_BARS);
+      const stated = stateSection(bars);
+      return {
+        text: JSON.stringify({ kind: 'section', ...toldOf(bars, stated) }).length,
+        events: JSON.stringify({ kind: 'section', played: stated.played }).length,
+      };
+    });
+    for (const { text, events } of sizes) {
+      expect(text).toBeLessThan(8 * 1024);
+      expect(events / text).toBeGreaterThan(4);
+    }
+    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(2 * 1024);
+    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(10);
+  });
+
+  it('says where no text states the bars, and a client given that plays nothing, for the same reason', () => {
+    const bars = section('Funk');
+    const moved = bars.map((b, i) =>
+      i < 4
+        ? b
+        : { ...b, plan: { ...b.plan, key: { ...b.plan.key, tonic: (b.plan.key.tonic + 1) % 12 } } },
+    );
+    const host = stateSection(moved);
+    const client = playText(JSON.parse(JSON.stringify(toldOf(moved, host))));
+    expect(client.played).toBeNull();
+    expect(client.unstated).toBe(host.unstated);
+    expect(client.foreseen).toEqual(host.foreseen);
+  });
+
+  it('checks a bar by a digest of what it was built from: the same bar sent through JSON reads the same, a note moved another', () => {
+    const bars = section('Funk');
+    const sent: BandBar[] = JSON.parse(JSON.stringify(bars));
+    expect(sent.map(foreseenOf)).toEqual(bars.map(foreseenOf));
+    const [first] = bars;
+    const moved = {
+      ...first!,
+      written: first!.written.map((w, i) => (i === 0 ? { ...w, step: w.step + 1 } : w)),
+    };
+    expect(foreseenOf(moved)).not.toBe(foreseenOf(first!));
+    expect(digest('a')).not.toBe(digest('b'));
+    expect(digest('a')).toMatch(/^[0-9a-f]{1,14}$/);
+  });
+});
+
 describe('WorkerTexts', () => {
   it('makes its worker as a song starts and warms it, once, and not before', () => {
     const made: ReturnType<typeof fakeWorker>[] = [];
@@ -164,6 +241,25 @@ describe('WorkerTexts', () => {
     texts.ask(section('Funk'), () => answered++);
     await Promise.resolve();
     expect([made.length, answered]).toEqual([2, 1]);
+  });
+
+  it('plays a text a host gave in its worker, and on this thread where none starts', async () => {
+    const worker = fakeWorker();
+    const texts = new WorkerTexts(() => worker);
+    texts.begin();
+    const bars = section('Funk');
+    const given = toldOf(bars, stateSection(bars));
+    const answers: SectionStated[] = [];
+    texts.play(given, (s) => answers.push(s));
+    expect(answers).toEqual([]);
+    await Promise.resolve();
+    expect(worker.received.at(-1)).toEqual({ id: 2, given });
+    expect(answers.map(timeless)).toEqual([timeless(playText(given))]);
+    const none = new WorkerTexts(() => {
+      throw new Error('no workers here');
+    });
+    none.play(given, (s) => answers.push(s));
+    expect(answers).toHaveLength(2);
   });
 
   it('states on this thread where no worker starts, as the ticker falls back', () => {
