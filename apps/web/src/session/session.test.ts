@@ -19,7 +19,7 @@ import { ClientSession, WELCOME_WAIT } from './client.svelte.ts';
 import { device, memoryLobby } from './fixtures.ts';
 import type { HostLink, Lobby } from './lobby.ts';
 import { HostSession, SILENT } from './host.svelte.ts';
-import { compareSession } from '../played.ts';
+import { compareSession, sessionBreaks } from '../played.ts';
 import { inlineTexts, playText } from '../section-texts.ts';
 
 /** What the shadow counts that differs, none of it (#399). */
@@ -259,14 +259,13 @@ describe('a host and a client session', () => {
         d.player.played.since().events,
       );
       expect(compared.events, who).toBeGreaterThan(100);
-      expect(compared.mismatched, who).toEqual({
-        missing: 0,
-        extra: 0,
-        velocity: 0,
-        length: 0,
-        onset: 0,
-        duration: 0,
+      expect(compared.mismatched, who).toEqual({ velocity: 0, length: 0, onset: 0, duration: 0 });
+      // Its clock ticks on time: it lacks none, so drops none late.
+      expect(compared.lacked, who).toEqual({
+        host: { events: 0, unexplained: 0 },
+        client: { events: 0, unexplained: 0 },
       });
+      expect(d.player.timing.lateEvents, who).toBe(0);
     }
     expect(client.player.shadow.readout.texts.joined).toBe(0);
     expect(late.player.shadow.readout.texts.joined).toBeGreaterThan(0);
@@ -296,12 +295,17 @@ describe('a host and a client session', () => {
     await following.join(lobby, 'Jam', 'Ada');
     await host.player.start();
     await run([host, client], 20);
-    // Its outputs play what its cells played: the host's events but where the text was edited.
-    const { mismatched } = compareSession(
-      host.player.played.since().events,
-      client.player.played.since().events,
+    // Its outputs play what its cells played: the host's events but where the text was edited,
+    // which neither page dropped late, so the session's bound breaks (#462).
+    const [mine, theirs] = [host.player.played.since(), client.player.played.since()];
+    const compared = compareSession(mine.events, theirs.events, {
+      host: mine.late,
+      client: theirs.late,
+    });
+    expect(compared.lacked.host.unexplained + compared.lacked.client.unexplained).toBeGreaterThan(
+      0,
     );
-    expect(mismatched.missing + mismatched.extra).toBeGreaterThan(0);
+    expect(sessionBreaks(compared).join('\n')).toMatch(/lacks \d+ events it didn't drop late/);
     expect(client.player.shadow.readout.mismatched.written).toBeGreaterThan(0);
     following.leave();
     hosting.close();

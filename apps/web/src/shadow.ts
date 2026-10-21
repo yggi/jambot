@@ -79,6 +79,7 @@ import {
   type BandBar,
   COMPOSE_AHEAD,
   type DoughNote,
+  type LateEvent,
   SECTION_BARS,
   SHARE,
   type ScheduledStep,
@@ -533,31 +534,34 @@ export class Shadow {
 
   /**
    * One tick: the bars composed checked and stated, then the steps laid
-   * compared. The events the band's outputs play: cells' where it states
-   * the bar and the switch asks for them, the band's own otherwise.
+   * compared. The tick's output as the band's outputs play it: cells'
+   * events where it states the bar and the switch asks for them, the
+   * band's own otherwise, and those dropped late of each (#462).
    */
-  tick(tick: ShadowTick): readonly TimedEvent[] {
+  tick(tick: ShadowTick): TransportOutput {
     return this.#run(tick, (bar) => this.#composed(bar, tick));
   }
 
   /**
    * One tick of a client's transport (#446): the bars sent, checked against
-   * the texts given, then the steps laid compared; the events to play as `tick`'s.
+   * the texts given, then the steps laid compared; the output to play as `tick`'s.
    */
-  follow(tick: FollowTick): readonly TimedEvent[] {
-    if (this.#from === 'none') return tick.output.events;
+  follow(tick: FollowTick): TransportOutput {
+    if (this.#from === 'none') return tick.output;
     return this.#run(tick, (bar) => this.#sent(bar));
   }
 
-  #run(tick: FollowTick, composed: (bar: BandBar) => void): readonly TimedEvent[] {
+  #run(tick: FollowTick, composed: (bar: BandBar) => void): TransportOutput {
     this.#lastTick = { page: this.#clock(), tick };
     try {
       for (const bar of tick.output.composed) composed(bar);
-      const played = this.#laid(tick);
-      return this.plays === 'cells' ? played : tick.output.events;
+      const { played, late } = this.#laid(tick);
+      return this.plays === 'cells'
+        ? { ...tick.output, events: played, lateEvents: late }
+        : tick.output;
     } catch (error) {
       if (this.#errors.length < 20) this.#errors.push(String(error));
-      return tick.output.events;
+      return tick.output;
     }
   }
 
@@ -838,10 +842,21 @@ export class Shadow {
       mine.filter((ch, i) => i < theirs.length && ch !== theirs[i]).length;
   }
 
-  /** The steps laid on a tick: cells' events at each, compared with the band's, and the events to play. */
-  #laid({ env, carried, output, now }: FollowTick): TimedEvent[] {
+  /**
+   * The steps laid on a tick: cells' events at each, compared with the band's,
+   * and the events to play, and to drop late: cells' where cells plays the
+   * bar, the band's elsewhere, of the steps laid and of those the clock
+   * passed whole (#462).
+   */
+  #laid({ env, carried, output, now }: FollowTick): {
+    played: TimedEvent[];
+    late: LateEvent[];
+  } {
     const clock = clockOfTransport(carried);
     const played: TimedEvent[] = [];
+    const late: LateEvent[] = [];
+    const theirsLate = (bar: number, inBar: number) =>
+      output.lateEvents.filter((e) => e.bar === bar && e.event.step === inBar);
     for (const step of output.steps) {
       if (this.#starts.size > 64) this.#starts.delete(this.#starts.keys().next().value!);
       const bar = clock.barAt(step.step);
@@ -852,29 +867,69 @@ export class Shadow {
       const composed = this.#composedBars.get(bar);
       const onItsWay = this.#onItsWay(bar);
       if (onItsWay !== null && onItsWay !== 'joined') this.#late++;
-      const why = onItsWay
-        ? onItsWay === 'joined'
-          ? JOINING
-          : ON_ITS_WAY
-        : !stated
-          ? 'no text'
-          : (stated.gap ??
-            (composed &&
-            !swingHolds(composed, env.swing ?? STILL, clock.barStart(bar), clock.barStart(bar + 1))
-              ? "the bar's swing moves within it: a text states one"
-              : null));
+      const why = this.#bandsWhy(bar, onItsWay, clock, env);
       if (why !== null || !composed) {
         this.#gap(why ?? 'no bar', 0, theirs.length);
         played.push(...theirs);
+        late.push(...theirsLate(bar, inBar));
         if (this.plays === 'cells') this.#counts.band += theirs.length;
         continue;
       }
-      const mine = this.#cellsAt(stated!, composed, step, inBar, clock, carried, env, now);
+      const mine = this.#cellsAt(stated!, composed, step, inBar, clock, carried, env, now, late);
       this.#match(theirs, mine);
       played.push(...mine.map((m) => m.event));
       if (this.plays === 'cells') this.#counts.cells += mine.length;
     }
-    return played;
+    for (const step of output.passedSteps) {
+      const bar = clock.barAt(step);
+      const inBar = step - clock.barStart(bar);
+      const composed = this.#composedBars.get(bar);
+      if (this.#bandsWhy(bar, this.#onItsWay(bar), clock, env) !== null || !composed)
+        late.push(...theirsLate(bar, inBar));
+      else late.push(...this.#cellsIn(this.#bars.get(bar)!, composed, inBar));
+    }
+    return { played, late };
+  }
+
+  /** Why a bar plays the band's own events, not cells': null where cells states it. */
+  #bandsWhy(bar: number, onItsWay: Asked | null, clock: SongClock, env: TransportEnv) {
+    const stated = this.#current(bar) ? this.#bars.get(bar) : undefined;
+    const composed = this.#composedBars.get(bar);
+    return onItsWay
+      ? onItsWay === 'joined'
+        ? JOINING
+        : ON_ITS_WAY
+      : !stated
+        ? 'no text'
+        : (stated.gap ??
+          (composed &&
+          !swingHolds(composed, env.swing ?? STILL, clock.barStart(bar), clock.barStart(bar + 1))
+            ? "the bar's swing moves within it: a text states one"
+            : null));
+  }
+
+  /** Cells' notes whose onset falls in a step of a bar, each as the performer plays it. */
+  #cellsIn(stated: StatedBar, bar: BandBar, inBar: number): LateEvent[] {
+    const p = stated.played!;
+    return p.notes.flatMap((_, j) =>
+      Math.floor(p.onsets[j]! + 1e-9) === inBar
+        ? [{ bar: bar.bar, event: this.#performed(p, bar, j) }]
+        : [],
+    );
+  }
+
+  /** Cells' `j`th note in a bar, as the performer plays it: its velocity and length with the feel. */
+  #performed(p: NonNullable<StatedBar['played']>, bar: BandBar, j: number): DoughNote {
+    const note = p.notes[j]!;
+    const role = p.roles[j];
+    return performStated(bar, {
+      part: p.lines[j]!,
+      step: Math.round(note.step),
+      note: note.note,
+      ...(role !== undefined && { role }),
+      velocity: note.velocity,
+      length: note.length,
+    });
   }
 
   /**
@@ -891,6 +946,7 @@ export class Shadow {
     carried: TransportCarried<unknown>,
     env: TransportEnv,
     now: number,
+    late: LateEvent[],
   ): Laid[] {
     const p = stated.played!;
     const track = env.swing ?? STILL;
@@ -914,17 +970,12 @@ export class Shadow {
       const onset = p.onsets[j]!;
       if (Math.floor(onset + 1e-9) !== inBar) continue;
       const seconds = step.seconds + (onset - inBar) * step.length;
-      if (seconds < now) continue;
+      const event = this.#performed(p, bar, j);
+      if (seconds < now) {
+        late.push({ bar: bar.bar, event });
+        continue;
+      }
       const line = p.lines[j]!;
-      const role = p.roles[j];
-      const event = performStated(bar, {
-        part: line,
-        step: Math.round(note.step),
-        note: note.note,
-        ...(role !== undefined && { role }),
-        velocity: note.velocity,
-        length: note.length,
-      });
       out.push({
         line,
         step: note.step,

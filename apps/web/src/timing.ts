@@ -5,7 +5,8 @@
  *
  * - **The transport**: how far apart its ticks came on the page's clock, how
  *   far ahead of the output's clock each event was scheduled (the least is how near a note came to
- *   playing late), and the steps it laid and missed (`timedTick`).
+ *   playing late), the steps it laid and missed, and the events it dropped
+ *   late (`timedTick`).
  * - **The output pair**: the moment heard less the page's clock, the bound
  *   it trusts, and the jumps it followed, which are the buffers the output
  *   dropped (`clockOffset`).
@@ -47,6 +48,7 @@ export interface TimingReport extends TimingPlace {
     readonly margins: SpreadSummary;
     readonly laid: number;
     readonly missed: number;
+    readonly lateEvents: number;
   };
   readonly output: {
     readonly offset: number | null;
@@ -88,6 +90,7 @@ export function timingReport(sources: TimingSources, place: TimingPlace): Timing
       margins: summary(transport.margins),
       laid: transport.laid,
       missed: transport.missed,
+      lateEvents: transport.lateEvents,
     },
     output: output && { offset: ms(output.offset), bound: ms(output.bound), jumps: output.jumps },
     network: network && {

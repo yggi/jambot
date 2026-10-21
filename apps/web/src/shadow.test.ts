@@ -3,6 +3,7 @@ import {
   CLAVES_NOTE,
   DRUM_NOTES,
   type HeardNote,
+  type LateEvent,
   INITIAL_STYLE,
   LOOKAHEAD,
   METER_REPOSITORY,
@@ -45,6 +46,8 @@ interface Run {
   readout: ShadowReadout;
   band: TimedEvent[];
   played: TimedEvent[];
+  /** What the outputs would have played and the clock passed: dropped late (#462). */
+  late: LateEvent[];
 }
 
 /**
@@ -55,6 +58,8 @@ interface Following {
   readonly link: number;
   readonly delay?: number;
   readonly joins?: number;
+  /** Where the client's page ticks nothing, on the clock, from and to, in seconds (#462). */
+  readonly stall?: readonly [number, number];
 }
 
 /**
@@ -132,7 +137,7 @@ function run({
   const follower = transportOver(followSource);
   const theirs = follow && new Shadow(() => performance.now(), plays, texts(follow.delay ?? delay));
   theirs?.reset(plays === 'cells' ? 'given' : 'none');
-  const client = { band: [] as TimedEvent[], played: [] as TimedEvent[] };
+  const client = { band: [] as TimedEvent[], played: [] as TimedEvent[], late: [] as LateEvent[] };
   let followed: TransportCarried<FollowCarried> | null = null;
   let inbox: SentBar[] = [];
   let ends: number | undefined;
@@ -156,6 +161,7 @@ function run({
   let carried: TransportCarried | null = null;
   const band: TimedEvent[] = [];
   const played: TimedEvent[] = [];
+  const late: LateEvent[] = [];
   const walk = (on: Station, first: number, c: TransportCarried, from: TransportEnv) => {
     const walked = onward(on, radioStyle(from.track, nudge));
     const at = Math.max(c.head.step, clockOfTransport(c).barStart(first));
@@ -220,18 +226,19 @@ function run({
     const c = carried;
     const output = meddle ? { ...next.output, events: meddle(next.output.events) } : next.output;
     band.push(...output.events);
-    played.push(
-      ...shadow.tick({
-        env: laidWith,
-        next: env,
-        carried,
-        output,
-        now,
-        envFrom: (first) =>
-          radio ? { ...env, track: walk(radio, first, c, env).conducted.track } : env,
-      }),
-    );
-    if (theirs && joined) {
+    const playing = shadow.tick({
+      env: laidWith,
+      next: env,
+      carried,
+      output,
+      now,
+      envFrom: (first) =>
+        radio ? { ...env, track: walk(radio, first, c, env).conducted.track } : env,
+    });
+    played.push(...playing.events);
+    late.push(...playing.lateEvents);
+    const stalled = follow?.stall && now >= follow.stall[0] && now < follow.stall[1];
+    if (theirs && joined && !stalled) {
       const f = follower.advance(laidWith, followed, {
         now,
         until: now + LOOKAHEAD,
@@ -241,9 +248,9 @@ function run({
       inbox = [];
       followed = f.carried;
       client.band.push(...f.output.events);
-      client.played.push(
-        ...theirs.follow({ env: laidWith, carried: followed!, output: f.output, now }),
-      );
+      const playing = theirs.follow({ env: laidWith, carried: followed!, output: f.output, now });
+      client.played.push(...playing.events);
+      client.late.push(...playing.lateEvents);
     }
     if (carried.nextBar > bars + 1 || carried.finale.ended !== null) break;
   }
@@ -251,6 +258,7 @@ function run({
     readout: shadow.readout,
     band,
     played,
+    late,
     ...(theirs && { client: { readout: theirs.readout, ...client } }),
   };
 }
@@ -500,17 +508,26 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(played).toHaveLength(band.length);
   });
 
-  it('is silent by default: with the switch off it hands back the band’s own events, the very array', () => {
+  it('is silent by default: with the switch off it hands back the band’s own output, the very object', () => {
     const shadow = new Shadow(() => 0);
     const events: TimedEvent[] = [];
-    const output = { steps: [], events, composed: [], missed: 0, judged: [], dropped: [] };
+    const output = {
+      steps: [],
+      events,
+      lateEvents: [],
+      passedSteps: [],
+      composed: [],
+      missed: 0,
+      judged: [],
+      dropped: [],
+    };
     const env = {
       seed: 1,
       start: 0,
       track: holding(INITIAL_STYLE),
       wish: { tonic: null, mode: 'ionian' as const, melodic: null },
     };
-    expect(shadow.tick({ env, carried: null as never, output, now: 0 })).toBe(events);
+    expect(shadow.tick({ env, carried: null as never, output, now: 0 })).toBe(output);
   });
 
   it('finds what it checks: a lead note moved in the text is a written mismatch, an onset 2 ms late or a note the band plays that cells lacks is an onset’s', () => {
@@ -756,6 +773,40 @@ describe('a session through cells: the section’s text on the wire, host to cli
       playsAsTheBand(client!.band, client!.played);
     },
   );
+
+  it('a client whose page ticks late drops what its cells would have played, and says so: what it played and dropped late are the host’s events, event for event (#462)', () => {
+    const key = (e: { bar: number; event: TimedEvent['event'] }) =>
+      `${e.bar} ${e.event.part} ${e.event.step} ${e.event.note}`;
+    const keys = (es: readonly { bar: number; event: TimedEvent['event'] }[]) => es.map(key).sort();
+    // Each text has the bass a step later than the band plays it, so cells' events are not the band's.
+    const edit = (text: string) =>
+      text.replace(/(&bass over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2');
+    // Stalls of 0.2 s drop events in the steps laid late; of 0.45 and 0.7 s whole steps too,
+    // at 12 phases across the bars, some across a bar's start.
+    let dropped = 0;
+    for (let i = 0; i < 12; i++) {
+      const from = 5 + i * 0.913;
+      const gap = [0.2, 0.45, 0.7][i % 3]!;
+      const { played, client, readout } = run({
+        plays: 'cells',
+        edit,
+        delay: WORKER,
+        countIn: COUNT_IN,
+        follow: { link: LINK, stall: [from, from + gap] },
+      });
+      const theirs = client!;
+      expect(readout.mismatched.written).toBeGreaterThan(0);
+      expect(theirs.readout.played.band).toBe(0);
+      // Of the bars both played whole, what the client played and dropped is what the host played.
+      const last = Math.min(
+        ...[played, theirs.played].map((es) => Math.max(...es.map((e) => e.bar))),
+      );
+      const upTo = <T extends { bar: number }>(es: readonly T[]) => es.filter((e) => e.bar < last);
+      expect(keys(upTo([...theirs.played, ...theirs.late]))).toEqual(keys(upTo(played)));
+      dropped += theirs.late.length;
+    }
+    expect(dropped).toBeGreaterThan(10);
+  });
 
   it('a client given the host’s text again, at a bar composed otherwise than foreseen, plays it as the host does: there before it plays, less the way', () => {
     let moved = false;

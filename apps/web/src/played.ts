@@ -6,11 +6,17 @@
  * (`PlayedLog`), the dev readout gives them (`window.jambot.played`), and the
  * session's end-to-end check and soak compare two pages' (`compareSession`).
  *
+ * The bound counts the events both pages played (#462, the owner's ruling).
+ * An event a page's clock passed is dropped late, by the clock's own rule,
+ * which is another failure than a wrong event: the log keeps those beside,
+ * and every event one page lacks of the other's must be among the ones it
+ * dropped late (`sessionBreaks`).
+ *
  * A time is on the transport's clock, which a client's runs in the host's
  * time (`skew` aside), so a client's event and its host's fall at one time.
  */
 
-import type { TimedEvent } from '@jambot/engine';
+import type { LateEvent, TimedEvent } from '@jambot/engine';
 
 /** An event as an output played it: its bar, part, step, note, velocity, length in steps, and onset and duration in seconds. */
 export interface PlayedEvent {
@@ -35,6 +41,9 @@ export const playedOf = ({ bar, seconds, duration, event }: TimedEvent): PlayedE
   duration,
 });
 
+/** An event a page dropped late (#462): which it was, by its bar, part, step and note. */
+export type DroppedEvent = Pick<PlayedEvent, 'bar' | 'part' | 'step' | 'note'>;
+
 /** How many events a log keeps, the latest: some 15 minutes of the band at full energy. */
 export const PLAYED_KEPT = 20_000;
 
@@ -45,6 +54,7 @@ export const PLAYED_KEPT = 20_000;
 export class PlayedLog {
   #kept: PlayedEvent[] = [];
   #count = 0;
+  #late: DroppedEvent[] = [];
 
   push(events: readonly TimedEvent[]) {
     for (const e of events) this.#kept.push(playedOf(e));
@@ -52,30 +62,52 @@ export class PlayedLog {
     if (this.#kept.length > PLAYED_KEPT) this.#kept.splice(0, this.#kept.length - PLAYED_KEPT);
   }
 
-  /** Every event kept numbered `from` on, and the number of the next to come. */
-  since(from = 0): { readonly events: PlayedEvent[]; readonly next: number } {
+  /** Events the transport dropped late, kept beside those played: the latest `PLAYED_KEPT`. */
+  dropped(events: readonly LateEvent[]) {
+    for (const { bar, event } of events)
+      this.#late.push({ bar, part: event.part, step: event.step, note: event.note });
+    if (this.#late.length > PLAYED_KEPT) this.#late.splice(0, this.#late.length - PLAYED_KEPT);
+  }
+
+  /** Every event kept numbered `from` on, the number of the next to come, and every one kept dropped late. */
+  since(from = 0): {
+    readonly events: PlayedEvent[];
+    readonly next: number;
+    readonly late: DroppedEvent[];
+  } {
     const first = this.#count - this.#kept.length;
-    return { events: this.#kept.slice(Math.max(0, from - first)), next: this.#count };
+    return {
+      events: this.#kept.slice(Math.max(0, from - first)),
+      next: this.#count,
+      late: [...this.#late],
+    };
   }
 }
 
 /** Within 1 ms: the bound on an onset and a duration between two pages. */
 const WITHIN = 0.001;
 
+/** The events one page lacks of the other's, in the bars compared. */
+export interface Lacked {
+  readonly events: number;
+  /** Of those, the ones not among the events it dropped late: the bound is none. */
+  readonly unexplained: number;
+}
+
 /** What sets a host's events against a client's found: the bars and events compared, and what differs. */
 export interface SessionComparison {
-  /** The bars both played whole, first and last, and how many events in them. */
+  /** The bars both played whole, first and last, and how many events the host played in them. */
   readonly bars: { readonly from: number; readonly to: number };
   readonly events: number;
-  /** Events one played and the other didn't, and events of both whose velocity, length in steps, onset or duration differs. */
+  /** Events both played whose velocity, length in steps, onset or duration differs. */
   readonly mismatched: {
-    readonly missing: number;
-    readonly extra: number;
     readonly velocity: number;
     readonly length: number;
     readonly onset: number;
     readonly duration: number;
   };
+  /** The events each page lacks of the other's, and how many of them it didn't drop late. */
+  readonly lacked: { readonly host: Lacked; readonly client: Lacked };
   /** The farthest apart two events' onsets and durations were, in seconds. */
   readonly largest: { readonly onset: number; readonly duration: number };
   /** The first that differ, each in a line. */
@@ -83,17 +115,28 @@ export interface SessionComparison {
 }
 
 /** Which event it is: its bar, part, step and note. */
-const keyOf = (e: PlayedEvent) => `${e.bar} ${e.part} ${e.step.toFixed(6)} ${e.note}`;
+const keyOf = (e: DroppedEvent) => `${e.bar} ${e.part} ${e.step.toFixed(6)} ${e.note}`;
+
+/** The events each page dropped late (`PlayedLog.dropped`): none where they aren't given. */
+export interface DroppedLate {
+  readonly host: readonly DroppedEvent[];
+  readonly client: readonly DroppedEvent[];
+}
+
+const NONE_LATE: DroppedLate = { host: [], client: [] };
 
 /**
  * A host's events against a client's, over the bars both played whole: from
  * the later of their first bars, past it, to the earlier of their last, short
- * of it (a page read mid-bar holds it in part). Every event of one is the
- * other's, its velocity and length the same, its onset and duration within 1 ms.
+ * of it (a page read mid-bar holds it in part). Every event both played is
+ * the same, its velocity and length, its onset and duration within 1 ms; an
+ * event one lacks of the other's is explained where it is among those the
+ * page that lacks it dropped late (`late`), each of them explaining one.
  */
 export function compareSession(
   host: readonly PlayedEvent[],
   client: readonly PlayedEvent[],
+  late: DroppedLate = NONE_LATE,
 ): SessionComparison {
   const bars = (es: readonly PlayedEvent[]) => es.map((e) => e.bar);
   const from = Math.max(Math.min(...bars(host)), Math.min(...bars(client))) + 1;
@@ -101,16 +144,29 @@ export function compareSession(
   const within = (es: readonly PlayedEvent[]) => es.filter((e) => e.bar >= from && e.bar <= to);
   const theirs = new Map<string, PlayedEvent[]>();
   for (const e of within(client)) theirs.set(keyOf(e), [...(theirs.get(keyOf(e)) ?? []), e]);
-  const mismatched = { missing: 0, extra: 0, velocity: 0, length: 0, onset: 0, duration: 0 };
+  const mismatched = { velocity: 0, length: 0, onset: 0, duration: 0 };
+  const lacked = { host: { events: 0, unexplained: 0 }, client: { events: 0, unexplained: 0 } };
   const largest = { onset: 0, duration: 0 };
   const differing: string[] = [];
   const say = (line: string) => void (differing.length < 20 && differing.push(line));
+  const dropped = (es: readonly DroppedEvent[]) => {
+    const counted = new Map<string, number>();
+    for (const e of es) counted.set(keyOf(e), (counted.get(keyOf(e)) ?? 0) + 1);
+    return counted;
+  };
+  const droppedBy = { host: dropped(late.host), client: dropped(late.client) };
+  const lacks = (page: 'host' | 'client', e: PlayedEvent) => {
+    lacked[page].events++;
+    const left = droppedBy[page].get(keyOf(e)) ?? 0;
+    if (left > 0) return void droppedBy[page].set(keyOf(e), left - 1);
+    lacked[page].unexplained++;
+    say(`the ${page} lacks ${keyOf(e)}, and didn't drop it late`);
+  };
   const mine = within(host);
   for (const h of mine) {
     const c = theirs.get(keyOf(h))?.shift();
     if (!c) {
-      mismatched.missing++;
-      say(`the client lacks ${keyOf(h)}`);
+      lacks('client', h);
       continue;
     }
     const onset = Math.abs(c.seconds - h.seconds);
@@ -128,10 +184,21 @@ export function compareSession(
     if (Object.values(apart).some(Boolean))
       say(`${keyOf(h)}: host ${JSON.stringify(h)}, client ${JSON.stringify(c)}`);
   }
-  for (const left of theirs.values())
-    for (const c of left) {
-      mismatched.extra++;
-      say(`the host lacks ${keyOf(c)}`);
-    }
-  return { bars: { from, to }, events: mine.length, mismatched, largest, differing };
+  for (const left of theirs.values()) for (const c of left) lacks('host', c);
+  return { bars: { from, to }, events: mine.length, mismatched, lacked, largest, differing };
+}
+
+/**
+ * Where a session breaks its bound (#462): each event both pages played that
+ * differs, by what, and each page that lacks an event of the other's it
+ * didn't drop late. None where it holds.
+ */
+export function sessionBreaks({ mismatched, lacked }: SessionComparison): string[] {
+  const breaks: string[] = [];
+  for (const [what, count] of Object.entries(mismatched))
+    if (count > 0) breaks.push(`${count} events both played differ in ${what}`);
+  for (const page of ['host', 'client'] as const)
+    if (lacked[page].unexplained > 0)
+      breaks.push(`the ${page} lacks ${lacked[page].unexplained} events it didn't drop late`);
+  return breaks;
 }

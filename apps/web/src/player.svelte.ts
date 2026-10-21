@@ -37,7 +37,8 @@
  * play cells' events in place of the band's; a host then sends each text to
  * its clients (`Hosting.section`), and a client with the switch on plays the
  * texts it is sent as the host plays them (#446). What the outputs played is
- * kept, event by event (`played`), to set a client's beside its host's.
+ * kept, event by event (`played`), and what the transport dropped late
+ * (#462), to set a client's beside its host's.
  *
  * The metronome, when one is given, is handed the steps laid on each tick
  * and clicks them on this output, so it has no clock of its own.
@@ -1341,7 +1342,7 @@ export class Player {
         });
     }
     // The shadow writes and compares beside the band (#399); its events play with the switch on.
-    const shadowed = this.shadow.tick({
+    const played = this.shadow.tick({
       env: laidWith,
       next: this.#env,
       carried: carried!,
@@ -1349,7 +1350,6 @@ export class Player {
       now,
       envFrom: (first) => this.#envFrom(first),
     });
-    const played = shadowed === scheduled.events ? scheduled : { ...scheduled, events: shadowed };
     this.#schedule(output, now, played, clockOfTransport(carried));
     const { history, plans } = carried!.source;
     if (history !== this.harmonicHistory) this.harmonicHistory = history;
@@ -1400,8 +1400,7 @@ export class Player {
     });
     follow.carried = carried;
     // With the switch on, the host's texts play through cells, the performer's feel on them, as at the host (#446).
-    const events = this.shadow.follow({ env, carried: carried!, output: laid, now });
-    const scheduled = events === laid.events ? laid : { ...laid, events };
+    const scheduled = this.shadow.follow({ env, carried: carried!, output: laid, now });
     if (scheduled.composed.length > 0)
       this.harmonicHistory = scheduled.composed.reduce(
         (history, bar) => foldBar(history, bar.chords),
@@ -1435,8 +1434,11 @@ export class Player {
   /** Play what the transport scheduled, count it, and keep its steps for what is heard. */
   #schedule(output: Output, now: number, scheduled: TransportOutput, clock: SongClock) {
     const skew = this.skew;
+    const late = this.#timing.lateEvents;
     this.#timing = timedTick(this.#timing, { at: this.#surroundings.page(), now, scheduled });
     this.played.push(scheduled.events);
+    // What the counters count dropped late is kept beside, so a session's soak can name each (#462).
+    if (this.#timing.lateEvents > late) this.played.dropped(scheduled.lateEvents);
     for (const { bar, offer } of scheduled.composed) this.#pattern.offered(bar, offer);
     for (const { bar, event, seconds, duration } of scheduled.events) {
       const performer = performerOf(event.part);

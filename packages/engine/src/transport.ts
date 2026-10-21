@@ -43,7 +43,8 @@
  *
  * Time is absolute and the clock never waits. A step is laid where the step
  * before it ends, whenever the tick comes; if the clock has stalled past an
- * event, that event is dropped rather than played late. A bar the clock has
+ * event, that event is dropped rather than played late, and said
+ * (`lateEvents`, #462). A bar the clock has
  * wholly passed is not composed; the form still moves on through it, at
  * most `CATCH_UP` bars an advance, so every advance is bounded work.
  */
@@ -352,9 +353,28 @@ export interface TimedEvent {
   readonly duration: number;
 }
 
+/**
+ * An event the transport dropped late (#462): its onset the clock had passed
+ * when its step was laid, or its whole step before it could be laid, in a bar
+ * the transport held. A bar the clock passed whole is no event's: its steps
+ * are `missed`, and its events were never played.
+ */
+export interface LateEvent {
+  readonly bar: number;
+  readonly event: DoughNote;
+}
+
 export interface TransportOutput {
   readonly steps: readonly ScheduledStep[];
   readonly events: readonly TimedEvent[];
+  /** The events dropped late on this tick: time is absolute, and the clock never waits to play them. */
+  readonly lateEvents: readonly LateEvent[];
+  /**
+   * The steps the clock passed whole in bars the transport held, whose
+   * events are among `lateEvents`: what another player of those bars (the
+   * shadow, #462) drops late of its own.
+   */
+  readonly passedSteps: readonly number[];
   /** The bars composed on this tick. */
   readonly composed: readonly BandBar[];
   /** How many steps the clock had passed before they could be scheduled. */
@@ -649,9 +669,22 @@ export function transportOver<Source, Arrived = never>(
       const judged: MuseOutput[] = [];
       const steps: ScheduledStep[] = [];
       const events: TimedEvent[] = [];
+      const lateEvents: LateEvent[] = [];
+      const passedSteps: number[] = [];
       const composed: BandBar[] = [];
       let missed = 0;
       let passed = 0;
+      // Steps the clock passed whole in a bar not yet composed, whose events are late once it is.
+      let unheld: number[] = [];
+      // The events of a step the clock passed whole: of its bar where it is held, else once it is.
+      const passedStep = (step: number) => {
+        const bar = song.barAt(step);
+        const held = bars.find((b) => b.bar === bar);
+        if (!held) return void unheld.push(step);
+        const inBar = song.stepInBar(step);
+        passedSteps.push(step);
+        for (const event of held.dough) if (event.step === inBar) lateEvents.push({ bar, event });
+      };
 
       // Compose each bar `ahead` steps before it starts: the band on the
       // last beat of the bar before. A song asked to end composes its
@@ -717,15 +750,22 @@ export function transportOver<Source, Arrived = never>(
         const length = stepSeconds(valueAt('bpm', track.bpm, head.step), tempoMeter);
         if (head.seconds + length <= now) {
           missed++;
+          passedStep(head.step);
           head = { step: head.step + 1, seconds: head.seconds + length };
           continue;
         }
 
         composeAhead();
+        // A bar still not held once composing has caught up is lacked, not late.
+        const waiting = unheld;
+        unheld = [];
+        for (const step of waiting) passedStep(step);
+        unheld = [];
         bars = bars.filter((b) => b.bar >= bar);
         const current = bars[0];
         if (current?.bar !== bar || head.seconds + length <= now) {
           missed++;
+          if (current?.bar === bar) passedStep(head.step);
           head = { step: head.step + 1, seconds: head.seconds + length };
           continue;
         }
@@ -762,7 +802,10 @@ export function transportOver<Source, Arrived = never>(
         for (const event of current.dough) {
           if (event.step !== song.stepInBar(head.step)) continue;
           const seconds = clock(head.step);
-          if (seconds < now) continue;
+          if (seconds < now) {
+            lateEvents.push({ bar, event });
+            continue;
+          }
           events.push({
             bar,
             event,
@@ -774,7 +817,7 @@ export function transportOver<Source, Arrived = never>(
       }
       return {
         carried: { head, source: playing, bars, nextBar, beat, listening, finale, meters },
-        output: { steps, events, composed, missed, judged, dropped },
+        output: { steps, events, lateEvents, passedSteps, composed, missed, judged, dropped },
       };
     },
   };

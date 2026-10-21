@@ -8,7 +8,7 @@
 
 import { appendFileSync } from 'node:fs';
 import { type Page, expect, test } from '@playwright/test';
-import { type SessionComparison, compareSession } from '../src/played.ts';
+import { type SessionComparison, compareSession, sessionBreaks } from '../src/played.ts';
 
 export interface Start {
   /** What started: an oscillator's type, or noise. */
@@ -450,21 +450,27 @@ export const join = async (page: Page, session: string, name: string, lobby = ''
 
 /**
  * A host's events against a client's, as each page's outputs played them
- * (#446, `window.jambot.played`): every event of the bars both played whole,
- * the same part, note, velocity and length, its onset and duration within 1 ms.
+ * (#446, `window.jambot.played`): every event of the bars both played whole
+ * the same part, note, velocity and length, its onset and duration within
+ * 1 ms, and every event one page lacks of the other's among those it dropped
+ * late (#462, `sessionBreaks`). With each page's count of events dropped late.
  */
-export async function sessionAgrees(host: Page, client: Page): Promise<SessionComparison> {
+export async function sessionAgrees(
+  host: Page,
+  client: Page,
+): Promise<SessionComparison & { readonly lateEvents: { host: number; client: number } }> {
   const [mine, theirs] = await Promise.all(
-    [host, client].map((page) => page.evaluate(() => window.jambot!.played().events)),
+    [host, client].map((page) =>
+      page.evaluate(() => ({
+        ...window.jambot!.played(),
+        lateEvents: window.jambot!.timing.lateEvents,
+      })),
+    ),
   );
-  const compared = compareSession(mine!, theirs!);
-  expect(compared.mismatched, compared.differing.join('\n')).toEqual({
-    missing: 0,
-    extra: 0,
-    velocity: 0,
-    length: 0,
-    onset: 0,
-    duration: 0,
+  const compared = compareSession(mine!.events, theirs!.events, {
+    host: mine!.late,
+    client: theirs!.late,
   });
-  return compared;
+  expect(sessionBreaks(compared), compared.differing.join('\n')).toEqual([]);
+  return { ...compared, lateEvents: { host: mine!.lateEvents, client: theirs!.lateEvents } };
 }

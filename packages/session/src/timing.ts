@@ -12,10 +12,10 @@
  * the ticks came, on the page's clock, which a stalled main thread holds up
  * and a held output doesn't; how far ahead of the clock the transport reads
  * each event was scheduled, whose least is how near the device came
- * to playing a note late; the steps it laid and missed; and the bars judged
- * elsewhere that its Muse dropped, by why. Steps passed before the first
- * step laid are not missed: they are where a client joined a song already
- * playing.
+ * to playing a note late; the steps it laid and missed, and the events it
+ * dropped late; and the bars judged elsewhere that its Muse dropped, by why.
+ * Steps passed and events dropped before the first step laid are not
+ * counted: they are where a client joined a song already playing.
  */
 
 import type { DroppedJudgement, TransportOutput } from '@jambot/engine';
@@ -102,6 +102,12 @@ export interface TransportTiming {
   /** The steps laid, and those the clock passed after the first was laid. */
   readonly laid: number;
   readonly missed: number;
+  /**
+   * The events dropped late after the first step was laid (#462): each whose
+   * onset the clock had passed as its step was laid, or whose step it passed
+   * whole. Beside `missed`, which counts steps, this counts what didn't sound.
+   */
+  readonly lateEvents: number;
   /** The bars judged elsewhere that the Muse dropped, by why. */
   readonly dropped: Readonly<Record<DroppedJudgement['why'], number>>;
 }
@@ -112,6 +118,7 @@ export const TRANSPORT_TIMING: TransportTiming = {
   margins: EMPTY_SPREAD,
   laid: 0,
   missed: 0,
+  lateEvents: 0,
   dropped: { late: 0, ahead: 0, inadmissible: 0 },
 };
 
@@ -141,6 +148,7 @@ export function timedTick(
     margins,
     laid: timing.laid + scheduled.steps.length,
     missed: timing.missed + (timing.laid > 0 ? scheduled.missed : 0),
+    lateEvents: timing.lateEvents + (timing.laid > 0 ? scheduled.lateEvents.length : 0),
     dropped,
   };
 }

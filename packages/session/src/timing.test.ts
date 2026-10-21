@@ -126,10 +126,39 @@ describe("the transport's counters (#27)", () => {
     expect(timing.laid).toBeGreaterThan(0);
   });
 
+  it('count no event dropped late on time', () => {
+    const { timing, outputs } = counted(every(0, 10));
+    expect(outputs.flatMap((o) => o.lateEvents)).toEqual([]);
+    expect(timing.lateEvents).toBe(0);
+    expect(timing.margins.count).toBeGreaterThan(100);
+  });
+
+  it('count every event a late tick drops: those of the steps it laid past their onset, and of the steps it missed (#462)', () => {
+    const onTime = counted(every(0, 10)).outputs.flatMap((o) => o.events);
+    for (const gap of [0.2, 0.6]) {
+      // The page ticks nothing for `gap` seconds from 5 s on.
+      const { timing, outputs } = counted([...every(0, 5), ...every(5 + gap, 10)]);
+      const played = outputs.flatMap((o) => o.events).length;
+      const late = outputs.flatMap((o) => o.lateEvents).length;
+      expect(late).toBeGreaterThan(0);
+      expect(timing.lateEvents).toBe(late);
+      // And what it dropped is what it didn't play of what an on-time page plays.
+      expect(played + late).toBe(onTime.length);
+    }
+  });
+
+  it('count no event dropped before the first step is laid: that is where a client joined', () => {
+    const { timing, outputs } = counted(every(60.01, 70));
+    expect(outputs[0]!.lateEvents.length).toBeGreaterThan(0);
+    expect(timing.lateEvents).toBe(0);
+  });
+
   it('count the judgements dropped, by why', () => {
     const scheduled: TransportOutput = {
       steps: [],
       events: [],
+      lateEvents: [],
+      passedSteps: [],
       composed: [],
       missed: 0,
       judged: [],
