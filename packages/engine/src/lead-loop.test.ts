@@ -16,6 +16,7 @@ import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
 import { PRESETS, type Style, holding, writtenStyle } from './style.ts';
 import { holdingSwing } from './swing.ts';
+import { presetMode } from './mode-repository.ts';
 import {
   LOOKAHEAD,
   type TimedEvent,
@@ -59,7 +60,7 @@ const held = (extra: Partial<TransportEnv> = {}) =>
         seed,
         start: 1,
         track: holding({ ...preset.style, entropy: 0 }),
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         swing: holdingSwing(presetSwing(preset)!),
         repository: METER_REPOSITORY,
         rhythms: RHYTHM_REPOSITORY,
@@ -104,7 +105,7 @@ function play(
         bar,
         style,
         swing: presetSwing(preset)!,
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
         rhythms: RHYTHM_REPOSITORY,
@@ -170,7 +171,7 @@ function song(seed = 3, source = 'Ada', shift = 0): LearnedLayer {
     start: 1,
     track: holding({ ...SYNTH_POP.style, entropy: 0.3 }),
     swing: holdingSwing(presetSwing(SYNTH_POP)!),
-    wish: { tonic: null, mode: SYNTH_POP.mode, melodic: null },
+    wish: { tonic: null, mode: presetMode(SYNTH_POP)!, melodic: null },
     repository: METER_REPOSITORY,
     rhythms: RHYTHM_REPOSITORY,
     leads: LEAD_REPOSITORY,

@@ -13,10 +13,21 @@
  * its welcome gave (`roster.ts`), as one whose link dropped does. What a
  * host needs to come back from a reload is kept as it changes
  * (`snapshot`), and `open` takes it up again.
+ *
+ * A session is open, as every session was, until the host asks for a code
+ * (`admitByCode`, or `byCode` when it opens, #461): from then on a join with
+ * the code joins to play, one without it joins to listen (what it plays,
+ * judges or forgets reaches no Muse, and its welcome says so), and one with
+ * another is refused; past `WRONG_CODES` wrong codes a minute, every code is
+ * refused for the rest of the minute. A player seated before stays seated,
+ * and one whose token opens its seat comes back as it was. The code is drawn
+ * here, shown on the host's Session card, kept through a reload, and sent to
+ * nobody: it travels only in a join.
  */
 
 import type { ForecastBar } from '@jambot/engine';
 import {
+  CODE_WRONG,
   type ClientMessage,
   HOST_PLAYER,
   type HostMessage,
@@ -25,6 +36,7 @@ import {
   PROTOCOL,
   type Roster,
   admit,
+  codeOf,
   expire,
   forecastDelta,
   heardFrom,
@@ -33,6 +45,8 @@ import {
   memberAt,
   playerSource,
   present,
+  WRONG_CODES,
+  wrongCodesWithin,
 } from '@jambot/session';
 import type { Hosting, Player } from '../player.svelte.ts';
 import type { DeviceClocks } from './clocks.ts';
@@ -59,7 +73,12 @@ export interface HostOptions {
   readonly keep?: HostKeep;
   /** The time, in seconds since the epoch, that a snapshot is dated by. */
   readonly epoch?: () => number;
+  /** A code to admit clients by, which can't be guessed but by trying (`CODE_DIGITS`). */
+  readonly draw?: () => string;
 }
+
+/** A code drawn from the browser's randomness, as a resume token is. */
+const drawCode = () => codeOf(() => crypto.getRandomValues(new Uint32Array(1))[0]!);
 
 export class HostSession {
   /** The session's name, while it is open. */
@@ -67,6 +86,8 @@ export class HostSession {
   guests: readonly Guest[] = $state.raw([]);
   /** Why the session ended, if it ended on its own. */
   ended: string | null = $state(null);
+  /** The code clients are admitted by (#461), or null while the session is open to anyone who finds it. */
+  code: string | null = $state(null);
 
   #player: Player;
   #clocks: DeviceClocks;
@@ -75,10 +96,13 @@ export class HostSession {
   /** When each client was last heard, by its id. */
   #lastHeard: Record<string, number> = {};
   #roster: Roster = [];
+  /** When, on the wall clock, the wrong codes of the last `WRONG_CODES.seconds` were tried (#461). */
+  #wrongCodes: number[] = [];
   #lobbyUrl = '';
   #mint: () => string;
   #keep: HostKeep | null;
   #epoch: () => number;
+  #draw: () => string;
   #forecast: readonly ForecastBar[] = [];
   #muse: MuseState = {
     offer: null,
@@ -99,7 +123,12 @@ export class HostSession {
     player: Player,
     clocks: DeviceClocks,
     wallNow: () => number = () => performance.now() / 1000,
-    { mint = () => crypto.randomUUID(), keep, epoch = () => Date.now() / 1000 }: HostOptions = {},
+    {
+      mint = () => crypto.randomUUID(),
+      keep,
+      epoch = () => Date.now() / 1000,
+      draw = drawCode,
+    }: HostOptions = {},
   ) {
     this.#player = player;
     this.#clocks = clocks;
@@ -107,6 +136,7 @@ export class HostSession {
     this.#mint = mint;
     this.#keep = keep ?? null;
     this.#epoch = epoch;
+    this.#draw = draw;
   }
 
   /**
@@ -121,7 +151,11 @@ export class HostSession {
     lobby: Lobby,
     session: string,
     player = '',
-    { restore, lobbyUrl = '' }: { restore?: HostSnapshot; lobbyUrl?: string } = {},
+    {
+      restore,
+      lobbyUrl = '',
+      byCode = false,
+    }: { restore?: HostSnapshot; lobbyUrl?: string; byCode?: boolean } = {},
   ) {
     this.#lobbyUrl = lobbyUrl;
     this.ended = null;
@@ -136,6 +170,7 @@ export class HostSession {
       restore?.reclaim ?? undefined,
     );
     this.session = (restore?.session ?? session).trim();
+    this.code = restore ? (restore.code ?? null) : byCode ? this.#draw() : null;
     this.#player.mode = 'host';
     this.#player.playerId = HOST_PLAYER;
     this.#player.players = {};
@@ -166,6 +201,16 @@ export class HostSession {
     this.persist();
   }
 
+  /**
+   * Admit clients by a code from now on, a fresh one each time it is asked
+   * (#461), or let anyone who finds the session join again. Who is seated
+   * stays seated either way.
+   */
+  admitByCode(on: boolean) {
+    this.code = on ? this.#draw() : null;
+    this.persist();
+  }
+
   /** The session is closed on purpose: its clients hear it, and nothing is kept to come back to. */
   close() {
     this.#link?.send({ kind: 'closed' });
@@ -184,7 +229,12 @@ export class HostSession {
       lobby: this.#lobbyUrl,
       reclaim: link.reclaim,
       player: this.#player.players[HOST_PLAYER] ?? '',
-      roster: this.#roster.map(({ id, name, token }) => ({ id, name, token })),
+      roster: this.#roster.map(({ id, name, token, listens }) => ({
+        id,
+        name,
+        token,
+        ...(listens ? { listens } : {}),
+      })),
       players: this.#player.players,
       // Its bpm counted in the meter asked for, which a reloaded host opens in (#367).
       track: this.#player.trackCountedIn(this.#player.meter),
@@ -193,6 +243,7 @@ export class HostSession {
       meter: this.#player.meter,
       swing: this.#player.swing,
       ...(this.#player.station ? { station: this.#player.station } : {}),
+      code: this.code,
     });
   }
 
@@ -207,8 +258,10 @@ export class HostSession {
     this.#player.players = {};
     this.#player.mode = 'solo';
     this.session = null;
+    this.code = null;
     this.guests = [];
     this.#roster = [];
+    this.#wrongCodes = [];
     this.#lastHeard = {};
   }
 
@@ -259,6 +312,25 @@ export class HostSession {
         this.#send({ kind: 'pong', sent: message.sent, host: this.#clocks.page(), heard }, from);
         return;
       }
+      case 'judged':
+      case 'played':
+      case 'forget':
+        // A listener, seated without the code of a session by code, reaches no Muse (#461).
+        if (member.listens) return;
+        return this.#contribute(message, member);
+      case 'leave':
+        return this.#seat(leave(this.#roster, from));
+      case 'lost':
+        return this.#lose(from);
+    }
+  }
+
+  /** What a seated player contributes reaches the host's Muse. */
+  #contribute(
+    message: ClientMessage & { kind: 'judged' | 'played' | 'forget' },
+    member: { id: string; name: string },
+  ) {
+    switch (message.kind) {
       case 'judged': {
         // A client's source goes by the id of its link, which it can't choose.
         const judgement = {
@@ -275,10 +347,6 @@ export class HostSession {
           : this.#player.drumsElsewhere(heardFrom(message, member.name));
       case 'forget':
         return this.#player.forgetMotif();
-      case 'leave':
-        return this.#seat(leave(this.#roster, from));
-      case 'lost':
-        return this.#lose(from);
     }
   }
 
@@ -289,9 +357,17 @@ export class HostSession {
       from,
       this.#mint(),
       this.#player.players[HOST_PLAYER] ?? '',
+      this.code,
+      wrongCodesWithin(this.#wrongCodes, this.#wallNow()).length >= WRONG_CODES.count,
     );
-    if ('refusal' in admitted)
+    if ('refusal' in admitted) {
+      if (admitted.refusal === CODE_WRONG)
+        this.#wrongCodes = [
+          ...wrongCodesWithin(this.#wrongCodes, this.#wallNow()),
+          this.#wallNow(),
+        ];
       return this.#send({ kind: 'refused', reason: admitted.refusal }, from);
+    }
     const { roster, member } = admitted;
     this.#name(member.id, member.name, false);
     this.#seat(roster);
@@ -311,6 +387,7 @@ export class HostSession {
           : null,
         forecast: forecastDelta([], this.#forecast),
         muse: this.#muse,
+        ...(member.listens ? { listening: true as const } : {}),
       },
       from,
     );

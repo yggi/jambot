@@ -163,16 +163,23 @@ export class Sessions {
     return url;
   }
 
-  /** Open a session under a name, the host's own notes going by `player`. Throws if it can't. */
-  async host(where: Where, session: string, player: string) {
+  /**
+   * Open a session under a name, the host's own notes going by `player`,
+   * admitting players by a code from the start where `byCode` (#461). Throws if it can't.
+   */
+  async host(where: Where, session: string, player: string, byCode = false) {
     const url = this.#urlOf(where);
     this.#kept.clientKeep.clear();
     this.dismiss();
-    await this.asHost.open(this.#lobbyAt(url), session, player, { lobbyUrl: url });
+    await this.asHost.open(this.#lobbyAt(url), session, player, { lobbyUrl: url, byCode });
   }
 
-  /** Join the session under a name; a join that fails leaves its reason in `ended`. */
-  async join(where: Where, session: string, name: string) {
+  /**
+   * Join the session under a name, with the code its host admits by where
+   * the person gave one (#461); a join that fails, or that the host refuses,
+   * leaves its reason in `ended`.
+   */
+  async join(where: Where, session: string, name: string, code = '') {
     this.#restoringClient = false;
     this.#kept.hostKeep.clear();
     this.dismiss();
@@ -190,7 +197,7 @@ export class Sessions {
       this.asClient.ended = why(e);
       return;
     }
-    await this.asClient.join(lobby, session, name, { lobbyUrl: url });
+    await this.asClient.join(lobby, session, name, { lobbyUrl: url, code });
   }
 
   /** Forget what a page keeps to come back to a session: a reload after this finds none. */

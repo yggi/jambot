@@ -1,5 +1,6 @@
 // @vitest-environment node
 import {
+  presetMode,
   type BandBar,
   type BandCarried,
   PRESETS,
@@ -35,7 +36,7 @@ function section(name: string, from = 0): BandBar[] {
         seed: 1,
         bar,
         style: { ...preset.style, entropy: 0.3 },
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         swing: presetSwing(preset)!,
         offer: null,
       },

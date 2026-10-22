@@ -53,6 +53,7 @@ export interface KeyWish {
   readonly melodic: MelodicScale | null;
 }
 
+/** A aeolian: its mode the one the repository finds at the opening style's point (`presetMode`, a test holds it). */
 export const INITIAL_KEY: Key = { tonic: 9, mode: 'aeolian' };
 
 /** The key as a helix: its mode, shifted to its tonic. */

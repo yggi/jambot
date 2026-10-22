@@ -54,6 +54,7 @@
 
 import { beatsOf, stepsOf } from '@jambot/theory';
 import {
+  presetMode,
   type BandCarried,
   type BandEnv,
   type GrooveFiling,
@@ -276,7 +277,7 @@ export function rhythmRun(
       seed,
       bar,
       style: played,
-      wish: { tonic: null, mode: preset.mode, melodic: null },
+      wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
       swing: STRAIGHT,
       repository: meters,
       rhythms,

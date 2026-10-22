@@ -20,6 +20,11 @@
  * Every vector runs. One Jambot doesn't meet is recorded below with its
  * reason, and its run then shows it still differs, so a record that has gone
  * stale fails as surely as a vector newly missed.
+ *
+ * Jambot speaks protocol 15, the contract's minor 2 (a join's `code`, #461),
+ * which the hub has yet to write: a minor's every vector holds at the next
+ * but the handshake's protocol number, so the copy of minor 1 runs as it is
+ * until the hub's minor 2 is copied in its place.
  */
 import { PARTS } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
@@ -48,7 +53,7 @@ interface Vector {
   readonly put?: Readonly<Record<string, string>>;
   readonly inUse?: readonly string[];
   readonly admits?: boolean;
-  readonly refusedFor?: 'version' | 'name' | 'taken';
+  readonly refusedFor?: 'version' | 'code' | 'name' | 'taken';
 }
 
 const contract = hub as unknown as {
@@ -89,6 +94,7 @@ function delivered(v: Vector): unknown {
 function refusedFor(why: string | null): Vector['refusedFor'] | null {
   if (why === null) return null;
   if (/version/.test(why)) return 'version';
+  if (/code/.test(why)) return 'code';
   if (/needs a name/.test(why)) return 'name';
   if (/already in this session/.test(why)) return 'taken';
   throw new Error(`a refusal the contract doesn't name: ${why}`);
@@ -135,7 +141,8 @@ describe('the session contract (yggi/music-commons contracts/session, version 1,
       /^Lifted from yggi\/music-commons contracts\/session\/vectors\.json @ [0-9a-f]{7,40}$/,
     );
     expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 1]);
-    expect([contract.protocol, contract.firstProtocol]).toEqual([PROTOCOL, FIRST_PROTOCOL]);
+    // Jambot is a minor ahead of the copy, until the hub writes minor 2 (#461).
+    expect([contract.protocol + 1, contract.firstProtocol]).toEqual([PROTOCOL, FIRST_PROTOCOL]);
     expect(new Set(names).size).toBe(names.length);
     expect(strays(names, Object.keys(RECORDED))).toEqual([]);
     expect(names).toHaveLength(245);

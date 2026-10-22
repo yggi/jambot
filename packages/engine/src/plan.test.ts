@@ -16,6 +16,7 @@ import { type Script, lawBreaks } from './machine.ts';
 import { type Plan, type PlanEnv, bandWish, planner } from './plan.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
 import { themeKind } from './themes.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -29,7 +30,7 @@ const tour = (seed: number, sections = 24): Script<PlanEnv, null> =>
         seed,
         index,
         style,
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         history: NO_HISTORY,
       },
       input: null,

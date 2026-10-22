@@ -123,13 +123,13 @@ quality of everything downstream.
 
 A preset is to be a name and a point in style space, nothing else (the owner, 2026-10-18): what it decides moves to the repository as fragments found at its point, and each band member's machine stays its generator on a miss.
 The inventory ([presets](memory/presets.md), #447) counts 35 rows: a preset's 4 fields, 3 that name a preset or open with one, 5 keyed by a mode and 23 by a region of style space.
-Nothing branches on a preset's name: a preset reaches what plays only through its point, its mode and its swing, and all else is the members' blends and thresholds of the axes.
+Nothing branches on a preset's name: a preset reaches what plays only through its point, and the swing and the mode found there, and all else is the members' blends and thresholds of the axes.
 Its drum bar is done (rung 1: #429, #431, #435): the drummer plays from the eight drum bars at the presets' points, and invents on a miss.
 The rest moves cheapest and most decoupled first:
 
 2. **`swing` has left the preset** (#459): a preset chosen glides the swing's share over 8 bars to the swing of the meter the facet `meter` finds at its point (`presetSwing`); each of the 8 finds the 4/4 it swung by hand at distance 0 and plays its 15,061 events within 1e-9 s (`repository.test.ts`), with 0 engine hashes moved.
 3. **The figures, a member at a time, in the owner's order**, each once the band plays through cells (#399, #446): the bass's five patterns from the facet `bass` (#423, 5 seeds), the lead's filed motifs on the facet `line` (#424, no seeds, its shapes the generator), and the vamps from the facet `harmony` (#425, 5 seeds, the mode's tables the generator), each playing as `main` at entropy 0 with nothing filed, over 8 presets × 2 seeds × 32 bars.
-4. **`mode` leaves the preset**, after the harmony: no facet carries a mode (cells' vamps are over the host's key, so one text is every mode's), so a fragment that states one is a question for cells first, and then each preset's mode is found at its point, 8 of 8 at entropy 0.
+4. **`mode` has left the preset** (#420): a preset chosen wishes for the mode the facet `mode` finds at its point (`presetMode`), from cells' four mode fragments and the bell and scale (yggi/cells#233, decision 056); each of the 8 finds the mode it was named with by hand at distance 0, so what plays doesn't move, and the band takes the wish where its next section starts.
 5. **`Preset` is `{ name, style }`**: 2 fields, `bpm` kept on the point, since a fragment's style has no tempo (cells decision 037).
 
 What stays code: the comp, the form, the colour, the performer's base and feel, the key's and the melodic scale's licences, and the genre's names; whether the comp, the form and the colour get facets of their own is the owner's question on #420.

@@ -54,16 +54,18 @@ import type { ForecastDelta } from './forecast.ts';
  * under the player's name. Version 14 has a host whose band plays through
  * cells send each section's cells text to its clients (`section`, and
  * `texts` in a welcome, #446), which a client's own cells engine plays.
+ * Version 15 has a join carry the code a host may admit its clients by
+ * (`code`, #461), which a host that asks for one refuses a join without.
  *
  * From 13 on, a protocol is a minor version of the session contract's major
  * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1. A host admits a join of any
+ * yggi/music-commons#22, #460): 14 is minor 1, and 15 minor 2. A host admits a join of any
  * of them, and a client stays with a host of any (`sameMajor`), each
  * ignoring a kind it doesn't know, so a minor that adds a kind deploys
  * without every client in lockstep: a client at 13 drops the `section`
  * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
-export const PROTOCOL = 14;
+export const PROTOCOL = 15;
 
 /** The first protocol of the session contract's major version 1 (#460): every protocol from it on is one of its minors. */
 export const FIRST_PROTOCOL = 13;
@@ -207,6 +209,12 @@ export type HostMessage =
         | null;
       readonly forecast: ForecastDelta;
       readonly muse: MuseState;
+      /**
+       * Present where the host admits by a code and this client was seated
+       * without it (#461): it listens, and what it plays reaches no Muse
+       * (`CODE_LISTENS`).
+       */
+      readonly listening?: true;
     }
   | { readonly kind: 'refused'; readonly reason: string }
   | { readonly kind: 'start'; readonly song: Song }
@@ -262,6 +270,11 @@ export type ClientMessage =
       readonly name: string;
       /** The token a host's welcome gave, to come back as the same player. */
       readonly resume?: string;
+      /**
+       * The code the host admits its clients by, where it asks for one (#461):
+       * a person reads it off the host's Session card, and it travels only here.
+       */
+      readonly code?: string;
     }
   /** A bar the client's players played in, judged. */
   | { readonly kind: 'judged'; readonly bar: number; readonly judgement: Judgement }
@@ -367,6 +380,7 @@ const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>)
     Number.isInteger(m.protocol) &&
     isString(m.session) &&
     isString(m.resume) &&
+    (m.listening === undefined || m.listening === true) &&
     orNull(m.song, isPlaying) &&
     isForecast(m.forecast) &&
     isMuse(m.muse),
@@ -417,7 +431,8 @@ export function readClientMessage(data: unknown): ClientMessage | null {
     kind === 'join'
       ? Number.isInteger(m.protocol) &&
         typeof m.name === 'string' &&
-        (m.resume === undefined || typeof m.resume === 'string')
+        (m.resume === undefined || typeof m.resume === 'string') &&
+        (m.code === undefined || typeof m.code === 'string')
       : kind === 'judged'
         ? Number.isInteger(m.bar) &&
           typeof judgement === 'object' &&
@@ -437,16 +452,80 @@ export function readClientMessage(data: unknown): ClientMessage | null {
 }
 
 /**
+ * How many digits a host's code has (#461): a million codes, typed on a
+ * phone's number pad. The code keeps out a person who finds the session in
+ * the lobby's list, not a script: the lobby takes 50 messages a second from
+ * a socket (`LOBBY.rate`), so one socket trying every code takes 20,000 s,
+ * some 5.6 hours, and the 31 sockets a session has room for beside one
+ * player (`LOBBY.maxClients`) some 11 minutes, each half that on average;
+ * a host draws another code whenever it likes.
+ */
+export const CODE_DIGITS = 6;
+
+/**
+ * What a client seated without the code of a session by code is told (#461,
+ * the owner's ruling on yggi/music-commons#22: a name is enough to listen, a
+ * code comes before a client contributes): it listens, and what it plays,
+ * judges or forgets reaches no Muse.
+ */
+export const CODE_LISTENS =
+  'This session admits players by a code: without it you listen. Ask the host for it to play.';
+
+/** Why a host that admits by a code refuses a join with another (#461). */
+export const CODE_WRONG = "That is not this session's code: ask the host for it.";
+
+/**
+ * How many wrong codes a host takes across its session in a window of
+ * seconds before it refuses every code for the rest of that window (#461):
+ * five a minute keeps a script to some 7,200 codes a day, a million taking
+ * months, at the cost that a stranger trying codes can hold a player's code
+ * off for a minute. A join without a code, which listens, is never held off.
+ */
+export const WRONG_CODES = { count: 5, seconds: 60 } as const;
+
+/** Why a host refuses a code while too many wrong ones were tried (`WRONG_CODES`, #461). */
+export const CODE_LOCKED =
+  'Too many wrong codes were tried in this session: wait a minute, then try again.';
+
+/** The times of wrong codes still inside the window at `now`. */
+export const wrongCodesWithin = (times: readonly number[], now: number): number[] =>
+  times.filter((t) => now - t < WRONG_CODES.seconds);
+
+/** The largest count of 32-bit words that holds every code equally often: the last whole million of 2^32. */
+const CODE_WORDS = Math.floor(2 ** 32 / 10 ** CODE_DIGITS) * 10 ** CODE_DIGITS;
+
+/**
+ * A code drawn from `word`, a source of random 32-bit unsigned words (the
+ * app's is the browser's `crypto`, as a resume token is): `CODE_DIGITS`
+ * digits, a word past the last whole million drawn again, so every code is
+ * as likely as another.
+ */
+export function codeOf(word: () => number): string {
+  let w = word();
+  while (w >= CODE_WORDS) w = word();
+  return String(w % 10 ** CODE_DIGITS).padStart(CODE_DIGITS, '0');
+}
+
+/**
  * Why a host refuses a join, or null to admit it: another major version
- * (any minor of its own is admitted, `sameMajor`, #460), no name, or a name
- * a player in the session already goes by (`inUse`), in any case.
+ * (any minor of its own is admitted, `sameMajor`, #460), a wrong code where
+ * the host admits by one (`code`, #461, looked at before the name, so a join
+ * refused for it learns nothing of who is in the session; a join without a
+ * code is admitted, to listen, `admit`),
+ * no name, or a name a player in the session already goes by (`inUse`), in
+ * any case. A code is compared trimmed, as a phone's keyboard may pad it.
  */
 export function refusal(
   join: ClientMessage & { kind: 'join' },
   inUse: readonly string[] = [],
+  code: string | null = null,
 ): string | null {
   if (!sameMajor(join.protocol))
     return `This host speaks version ${PROTOCOL} of the session protocol, which takes ${FIRST_PROTOCOL} on, and this app ${join.protocol}: reload it.`;
+  if (code !== null) {
+    const given = join.code?.trim() ?? '';
+    if (given !== '' && given !== code) return CODE_WRONG;
+  }
   const name = join.name.trim();
   if (name === '') return 'A player needs a name to join.';
   if (inUse.some((n) => n.trim().toLowerCase() === name.toLowerCase()))

@@ -12,6 +12,7 @@ import { presetSwing } from './repository.ts';
 import { timbreOf } from './sound.ts';
 import { PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
+import { presetMode } from './mode-repository.ts';
 
 /** A style and the swing of its meter. */
 type Swung = Style & { readonly swing: MeterSwing };
@@ -36,7 +37,7 @@ const tour = (seed: number, bars = 96): BandBar[] => {
         bar,
         style,
         swing,
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
       },
       carried,

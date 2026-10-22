@@ -280,11 +280,12 @@
     }
   });
 
-  const host = (where: Where, session: string) => sessions.host(where, session, named());
-  const join = (where: Where, session: string) => {
+  const host = (where: Where, session: string, byCode: boolean) =>
+    sessions.host(where, session, named(), byCode);
+  const join = (where: Where, session: string, code: string) => {
     device.mute();
     comingIn = true;
-    void sessions.join(where, session, named());
+    void sessions.join(where, session, named(), code);
   };
   const solo = () => {
     sessions.dismiss();
@@ -378,13 +379,19 @@
     {metronome}
     {instruments}
     session={{
-      hosting: { session: hostSession.session, guests: hostSession.guests },
+      hosting: {
+        session: hostSession.session,
+        guests: hostSession.guests,
+        code: hostSession.code,
+      },
+      onadmit: (byCode: boolean) => hostSession.admitByCode(byCode),
       following: {
         status: clientSession.status,
         session: clientSession.session,
         name: clientSession.name,
         hostPlaying: clientSession.hostPlaying,
         hostAway: clientSession.hostAway,
+        listening: clientSession.listening,
         trip: clientSession.trip,
         lacked: player.lacked,
       },

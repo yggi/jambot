@@ -34,6 +34,7 @@
 
 import { beatsOf } from '@jambot/theory';
 import {
+  presetMode,
   type BandCarried,
   type BandEnv,
   MISS_DISTANCE,
@@ -143,7 +144,7 @@ export function meterRun(
       seed,
       bar,
       style: played,
-      wish: { tonic: null, mode: preset.mode, melodic: null },
+      wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
       swing: STRAIGHT,
       repository,
       layer,

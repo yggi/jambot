@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { FIRST_PROTOCOL, PROTOCOL, type ClientMessage } from './protocol.ts';
+import {
+  CODE_LOCKED,
+  CODE_WRONG,
+  FIRST_PROTOCOL,
+  PROTOCOL,
+  type ClientMessage,
+} from './protocol.ts';
 import { RESUME_WINDOW, admit, expire, leave, lose, present, type Roster } from './roster.ts';
 
 type Join = ClientMessage & { kind: 'join' };
@@ -105,6 +111,58 @@ describe("a session's roster", () => {
     const back = admit(fresh.roster, join('Ada', 'token-0'), 'c3', 'unused', 'the host');
     if ('refusal' in back) throw new Error(back.refusal);
     expect(back.member.id).toBe('c0');
+  });
+
+  it('admits by a code where the host asks for one, and seats a player back by its token without it (#461)', () => {
+    const roster = seated('Ada');
+    const byCode = (j: Join, link: string) =>
+      admit(roster, j, link, `token-${link}`, 'the host', '042917');
+    // Without the code, a join is seated to listen; with another, refused; with it, seated to play.
+    const listener = byCode(join('Bo'), 'c1');
+    expect(listener).toHaveProperty('member', expect.objectContaining({ id: 'c1', listens: true }));
+    expect(byCode({ ...join('Bo'), code: '111111' }, 'c1')).toEqual({ refusal: CODE_WRONG });
+    const player = byCode({ ...join('Bo'), code: '042917' }, 'c1');
+    expect(player).toHaveProperty('member', expect.objectContaining({ id: 'c1', name: 'Bo' }));
+    if ('member' in player) expect(player.member.listens).toBeUndefined();
+    // In an open session nobody listens only.
+    const open = admit(roster, join('Bo'), 'c1', 't', 'the host', null);
+    if ('member' in open) expect(open.member.listens).toBeUndefined();
+    // A listener that comes back with the code plays; one that comes back without it still listens.
+    if (!('member' in listener)) throw new Error('not seated');
+    const gone = lose(listener.roster, 'c1', 10);
+    const withIt = admit(
+      gone,
+      { ...join('Bo', listener.member.token), code: '042917' },
+      'c6',
+      'x',
+      'the host',
+      '042917',
+    );
+    if ('member' in withIt) expect(withIt.member.listens).toBeUndefined();
+    else throw new Error(withIt.refusal);
+    const without = admit(gone, join('Bo', listener.member.token), 'c7', 'x', 'the host', '042917');
+    expect(without).toHaveProperty('member', expect.objectContaining({ id: 'c1', listens: true }));
+    // While too many wrong codes were tried, every code is refused, the right one too; a listener is still seated.
+    expect(
+      admit(roster, { ...join('Bo'), code: '042917' }, 'c1', 't', 'the host', '042917', true),
+    ).toEqual({
+      refusal: CODE_LOCKED,
+    });
+    expect(admit(roster, join('Bo'), 'c1', 't', 'the host', '042917', true)).toHaveProperty(
+      'member',
+    );
+    // A token is a seat the host gave: its player comes back without the code, as when the host turned it on later.
+    const away = lose(roster, 'c0', 10);
+    const back = admit(away, join('Ada', 'token-0'), 'c4', 'unused', 'the host', '042917');
+    expect(back).toHaveProperty('member', expect.objectContaining({ id: 'c0', link: 'c4' }));
+    // A seat from before the code plays on; a token nobody holds is no seat: without the code it listens.
+    if ('member' in back) expect(back.member.listens).toBeUndefined();
+    expect(admit(away, join('Cy', 'forged'), 'c5', 't', 'the host', '042917')).toHaveProperty(
+      'member',
+      expect.objectContaining({ listens: true }),
+    );
+    // Without a code asked for, a join is admitted as ever.
+    expect(admit(roster, join('Bo'), 'c1', 't', 'the host', null)).toHaveProperty('member');
   });
 
   it('forgets a player that leaves, and one away past the window, and no other', () => {

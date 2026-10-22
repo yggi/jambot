@@ -6,6 +6,7 @@
  */
 
 import {
+  presetMode,
   BAR_STEPS,
   BASS_RANGE,
   COMP_RANGE as ENGINE_COMP_RANGE,
@@ -110,11 +111,11 @@ const touring = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
 const RUNS: ((bar: number) => { style: Style; mode: Key['mode'] })[] = [
   ...PRESETS.map((preset) => (bar: number) => ({
     style: { ...preset.style, entropy: (bar % 32) / 32 },
-    mode: preset.mode,
+    mode: presetMode(preset)!,
   })),
   (bar) => ({
     style: { ...touring(bar).style, entropy: (bar % 32) / 32 },
-    mode: touring(bar).mode,
+    mode: presetMode(touring(bar))!,
   }),
   (bar) => ({ style: glided[bar]!, mode: COMPOSER_MODES[Math.floor(bar / 8) % 4]! }),
 ];
@@ -489,7 +490,7 @@ const METER_PLAYED: Played[] = Object.values(METERS).flatMap((meter) =>
           seed,
           bar,
           style: { ...preset.style, entropy: (bar % 8) / 8 },
-          wish: { tonic: null, mode: preset.mode, melodic: null },
+          wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
           meter,
           offer: null,
         };

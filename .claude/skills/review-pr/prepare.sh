@@ -183,13 +183,13 @@ echo "Diff: git -C $dir diff $range"
 # Bare @jambot/* imports resolve only inside a package; the engine's
 # reaches both the engine and the theory. `env` is one the transport runs
 # over, and `bandEnvAt(env, bar, null)` gives the band's for a bar.
-probe="import { band, bandEnvAt, transport, holding, INITIAL_STYLE, PRESETS } from '@jambot/engine'; import { even } from '@jambot/theory'; const env = { seed: 1, start: 0, track: holding(INITIAL_STYLE), wish: { tonic: null, mode: PRESETS[0].mode, melodic: null } }; …"
+probe="import { band, bandEnvAt, transport, holding, INITIAL_STYLE, INITIAL_KEY } from '@jambot/engine'; import { even } from '@jambot/theory'; const env = { seed: 1, start: 0, track: holding(INITIAL_STYLE), wish: { tonic: null, mode: INITIAL_KEY.mode, melodic: null } }; …"
 [ -f packages/engine/package.json ] &&
   echo "Probe: cd $dir/packages/engine && node --experimental-strip-types --no-warnings --input-type=module -e \"$probe\""
 # The app's pure modules (not `.svelte` or `.svelte.ts`) run the same way
 # from inside it, beside the engine: `hudOf` over the bars the band decides
 # is the view model the screen reads.
-app="import { hudOf } from './src/hud.ts'; import { forecast, holding, INITIAL_STYLE, PRESETS } from '@jambot/engine'; const env = { seed: 1, start: 0, track: holding(INITIAL_STYLE), wish: { tonic: null, mode: PRESETS[0].mode, melodic: null } }; const bars = forecast(env, null, 32); …"
+app="import { hudOf } from './src/hud.ts'; import { forecast, holding, INITIAL_STYLE, INITIAL_KEY } from '@jambot/engine'; const env = { seed: 1, start: 0, track: holding(INITIAL_STYLE), wish: { tonic: null, mode: INITIAL_KEY.mode, melodic: null } }; const bars = forecast(env, null, 32); …"
 [ -f apps/web/package.json ] &&
   echo "Probe the app: cd $dir/apps/web && node --experimental-strip-types --no-warnings --input-type=module -e \"$app\""
 echo "Done: git worktree remove --force $dir && rm -f $log"
