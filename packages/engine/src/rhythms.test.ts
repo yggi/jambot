@@ -6,7 +6,7 @@ import { CLAVES_NOTE } from './drums.ts';
 import { DRUM_ROLES } from './events.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { stylePoint } from './meter-query.ts';
-import { METER_REPOSITORY } from './repository.ts';
+import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import { composedRhythm, isOwnLine } from './rhythm-query.ts';
 import {
   RHYTHM_BENCHES,
@@ -43,7 +43,7 @@ function run(
         seed,
         bar,
         style: { ...preset.style, entropy: 0.3 },
-        swing: preset.swing,
+        swing: presetSwing(preset)!,
         wish: { tonic: null, mode: preset.mode, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
@@ -303,7 +303,7 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
         seed: 0,
         start: 1,
         track: holding({ ...preset.style, entropy: 0.3 }),
-        swing: holdingSwing(preset.swing),
+        swing: holdingSwing(presetSwing(preset)!),
         wish: { tonic: null, mode: preset.mode, melodic: null },
         repository: METER_REPOSITORY,
         rhythms,
@@ -346,7 +346,7 @@ describe('a groove filed, warmed ahead (#412)', () => {
           seed: 1,
           bar,
           style,
-          swing: FUNK.swing,
+          swing: presetSwing(FUNK)!,
           wish: { tonic: null, mode: FUNK.mode, melodic: null },
           offer: null,
           repository: METER_REPOSITORY,

@@ -52,6 +52,7 @@ import {
   styleAt,
   swingAt,
   swingTo,
+  presetSwing,
 } from '../src/index.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -169,7 +170,7 @@ export function presetSamples(bars: number): Sample[] {
         () => ({ ...p.style, entropy: 0.3 }),
         seed,
         bars,
-        () => p.swing,
+        () => presetSwing(p)!,
       ),
     ),
   );
@@ -189,12 +190,12 @@ export function sweepSamples(axis: Axis, bars: number): Sample[] {
  */
 function tourTracks(sections: number): { track: StyleTrack; swing: SwingTrack }[] {
   let track: StyleTrack = holding({ ...PRESETS[0]!.style, entropy: 0.3 });
-  let swing: SwingTrack = holdingSwing(PRESETS[0]!.swing);
+  let swing: SwingTrack = holdingSwing(presetSwing(PRESETS[0]!)!);
   return range(sections).map((section) => {
     const preset = PRESETS[section % PRESETS.length]!;
     const start = barStart(section * SECTION_BARS);
     track = glideTo(track, { ...preset.style }, start, PRESET_GLIDE);
-    swing = swingTo(swing, preset.swing, start, PRESET_GLIDE);
+    swing = swingTo(swing, presetSwing(preset)!, start, PRESET_GLIDE);
     return { track, swing };
   });
 }
@@ -318,7 +319,12 @@ export function timingSweep(bars: number): TimingSample[] {
 export function timingPresets(bars: number): TimingSample[] {
   return PRESETS.flatMap((p) =>
     SEEDS.slice(0, 3).flatMap((seed) =>
-      timingSamples(holding({ ...p.style, entropy: 0.3 }), seed, bars, holdingSwing(p.swing)),
+      timingSamples(
+        holding({ ...p.style, entropy: 0.3 }),
+        seed,
+        bars,
+        holdingSwing(presetSwing(p)!),
+      ),
     ),
   );
 }

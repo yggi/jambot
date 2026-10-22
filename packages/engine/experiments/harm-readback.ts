@@ -26,6 +26,7 @@ import {
   chordAt,
   readChords,
   readHarm,
+  presetSwing,
 } from '../src/index.ts';
 import { MIDDLE, SEEDS, tau } from './style-readback.ts';
 
@@ -92,8 +93,8 @@ export interface ChordAccuracy {
 export function chordAccuracy(bars = 32): ChordAccuracy[] {
   return PRESETS.map((preset) => {
     const halves = SEEDS.flatMap((seed) =>
-      harmSamples({ ...preset.style, entropy: 0.3 }, seed, bars, preset.swing).flatMap((s) =>
-        s.truth.map((t, i) => ({ t, r: s.read[i]! })),
+      harmSamples({ ...preset.style, entropy: 0.3 }, seed, bars, presetSwing(preset)!).flatMap(
+        (s) => s.truth.map((t, i) => ({ t, r: s.read[i]! })),
       ),
     );
     return {

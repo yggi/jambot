@@ -122,6 +122,7 @@ import {
   holding,
   rebeat,
   holdingSwing,
+  presetSwing,
   released,
   sameMeter,
   stepSeconds,
@@ -180,6 +181,9 @@ import { PATTERN_BARS, Pattern, type PatternBar, patternBarOf } from './pattern.
 import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
 import type { Metronome } from './metronome.svelte.ts';
 import { startTicker } from './ticker.ts';
+
+/** The swing the band opens with: the one the repository finds at the opening style's point (#459), straight on a miss. */
+const OPENING_SWING: MeterSwing = presetSwing({ style: INITIAL_STYLE }) ?? STRAIGHT;
 
 const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
 
@@ -365,9 +369,10 @@ export class Player {
   /**
    * The meter's swing (#360): the level asked for, which the band takes at
    * the next section's boundary as it takes the meter, and the share gliding.
-   * Each preset names its own; the Meter card sets it.
+   * A preset's is the swing of the meter the repository finds at its point
+   * (`presetSwing`, #459), the opening style's too; the Meter card sets it.
    */
-  swing: SwingTrack = $state.raw(holdingSwing(PRESETS[0]!.swing));
+  swing: SwingTrack = $state.raw(holdingSwing(OPENING_SWING));
   /**
    * The meter whose beats the track's bpm counts (#367): the meter of the
    * bar the band decided next, or while stopped the meter the song opens
@@ -1140,7 +1145,7 @@ export class Player {
     this.mode = 'solo';
     this.skew = 0;
     this.track = holding(INITIAL_STYLE);
-    this.swing = holdingSwing(PRESETS[0]!.swing);
+    this.swing = holdingSwing(OPENING_SWING);
     this.tempoMeter = SONG_METER;
     this.#countTempoIn(this.#opening());
     this.museLog = [];

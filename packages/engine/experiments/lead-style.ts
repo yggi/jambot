@@ -47,6 +47,7 @@ import {
   lead,
   melodicHelix,
   playBar,
+  presetSwing,
 } from '../src/index.ts';
 
 const range = (n: number) => [...Array(n).keys()];
@@ -115,7 +116,7 @@ for (const preset of PRESETS) {
           seed,
           bar,
           style,
-          swing: preset.swing,
+          swing: presetSwing(preset)!,
           wish: { tonic: null, mode: preset.mode, melodic: null },
           offer: null,
         },
@@ -139,7 +140,7 @@ for (const preset of PRESETS) {
         const notes = out.dough.filter((n) => n.part === 'lead');
         if (seed === EXAMPLE.seed && bar >= EXAMPLE.from && bar < EXAMPLE.to) {
           const name = `${preset.name} · ${scale}`;
-          examples[name] ??= { bpm: style.bpm, swing: preset.swing, notes: [] };
+          examples[name] ??= { bpm: style.bpm, swing: presetSwing(preset)!, notes: [] };
           for (const n of out.dough)
             if (n.part === 'lead' || n.part === 'bass' || n.part === 'pad')
               examples[name]!.notes.push({ ...n, step: (bar - EXAMPLE.from) * 16 + n.step });

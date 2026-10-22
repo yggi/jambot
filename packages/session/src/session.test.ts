@@ -28,6 +28,7 @@ import {
   transportOver,
   writtenAt,
   writtenStyle,
+  presetSwing,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { CLOCK } from './clock.ts';
@@ -424,7 +425,7 @@ describe("a client's drums, over the link (#410)", () => {
     seed: 3,
     start: 1,
     track: holding({ ...STYLE, bpm }),
-    swing: holdingSwing(FUNK.swing),
+    swing: holdingSwing(presetSwing(FUNK)!),
     wish: { tonic: null, mode: FUNK.mode, melodic: null },
     repository: METER_REPOSITORY,
     rhythms: RHYTHM_REPOSITORY,

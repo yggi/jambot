@@ -274,20 +274,6 @@ export type ClientMessage =
   /** Said by a lobby, never by a client: its link dropped without a `leave`. */
   | { readonly kind: 'lost' };
 
-const HOST_KINDS: ReadonlySet<string> = new Set([
-  'welcome',
-  'refused',
-  'start',
-  'track',
-  'bar',
-  'section',
-  'forecast',
-  'muse',
-  'stop',
-  'finale',
-  'pong',
-  'closed',
-]);
 const CLIENT_KINDS: ReadonlySet<string> = new Set([
   'join',
   'judged',
@@ -319,14 +305,100 @@ const kindOf = (data: unknown): string | null =>
     ? (data as { kind: string }).kind
     : null;
 
+/** An object, as a message's field is one: neither null nor an array. */
+const isObject = (value: unknown): value is Partial<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+const orNull = (value: unknown, is: (v: unknown) => boolean): boolean =>
+  value === null || is(value);
+const each = (value: unknown, is: (v: unknown) => boolean): boolean =>
+  Array.isArray(value) && value.every(is);
+const isString = (value: unknown): boolean => typeof value === 'string';
+
+const isSong = (s: unknown): s is Partial<Record<string, unknown>> =>
+  isObject(s) &&
+  Number.isInteger(s.seed) &&
+  Number.isFinite(s.start) &&
+  isObject(s.track) &&
+  isObject(s.swing) &&
+  isObject(s.tempoMeter);
+const isSent = (s: unknown): boolean =>
+  isObject(s) && isObject(s.bar) && orNull(s.start, Number.isFinite);
+const isForecast = (f: unknown): boolean =>
+  isObject(f) &&
+  Number.isInteger(f.from) &&
+  Number.isInteger(f.count) &&
+  each(f.changed, (b) => isObject(b) && Number.isInteger(b.bar));
+const isMuse = (u: unknown): boolean =>
+  isObject(u) &&
+  orNull(u.offer, isObject) &&
+  Array.isArray(u.memory) &&
+  orNull(u.asOf, Number.isInteger) &&
+  orNull(u.lastPlayed, Number.isInteger) &&
+  Array.isArray(u.log) &&
+  Array.isArray(u.dropped) &&
+  isObject(u.players) &&
+  Object.values(u.players).every(isString);
+const isText = (t: unknown): boolean =>
+  isObject(t) &&
+  Number.isInteger(t.bar) &&
+  Number.isInteger(t.step) &&
+  isString(t.text) &&
+  orNull(t.unstated, isString) &&
+  isObject(t.frame) &&
+  isObject(t.frame.meter) &&
+  isObject(t.frame.swing) &&
+  Number.isFinite(t.frame.bpm) &&
+  isObject(t.frame.key) &&
+  each(t.foreseen, isString) &&
+  each(t.cut, Number.isInteger);
+/** A welcome's song: its bars not yet played, and its texts, absent from a host of 13. */
+const isPlaying = (s: unknown): boolean =>
+  isSong(s) && each(s.bars, isSent) && (s.texts === undefined || each(s.texts, isText));
+
 /**
- * A message from a host, or null for anything that isn't one. It checks the
- * kind only: a client trusts the host it chose to join, whose version it
- * matched, where a host reads what any client sends (`readClientMessage`).
+ * Each kind a host sends, and whether a message of it carries that kind's
+ * fields, of their types (yggi/music-commons `contracts/session`, minor 1).
+ * What a track, a swing, a
+ * meter or a sent bar holds is the shapes' to fix (`protocol.test.ts`), not
+ * the reader's.
+ */
+const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>) => boolean>> = {
+  welcome: (m) =>
+    Number.isInteger(m.protocol) &&
+    isString(m.session) &&
+    isString(m.resume) &&
+    orNull(m.song, isPlaying) &&
+    isForecast(m.forecast) &&
+    isMuse(m.muse),
+  refused: (m) => isString(m.reason),
+  start: (m) => isSong(m.song),
+  track: (m) => isObject(m.track) && isObject(m.swing) && isObject(m.tempoMeter),
+  bar: (m) => isSent(m.sent),
+  section: isText,
+  forecast: (m) => isForecast(m.forecast),
+  muse: (m) => isMuse(m.muse),
+  stop: () => true,
+  finale: (m) => Number.isInteger(m.bar),
+  pong: (m) =>
+    Number.isFinite(m.sent) && Number.isFinite(m.host) && orNull(m.heard, Number.isFinite),
+  closed: () => true,
+};
+
+/**
+ * A message from a host, or null for anything that isn't one: its kind, and
+ * the fields that kind carries, of their types, as a host reads a client's
+ * (`readClientMessage`). A client checks them though it chose the host it
+ * joined: one not built from this code can't take a field's type on trust
+ * (the contract's ruling), and a message it can't read is dropped here, the
+ * link kept, rather than thrown on while its band plays.
  */
 export function readHostMessage(data: unknown): HostMessage | null {
   const kind = kindOf(data);
-  return kind !== null && HOST_KINDS.has(kind) ? (data as HostMessage) : null;
+  return kind !== null &&
+    Object.hasOwn(HOST_FIELDS, kind) &&
+    HOST_FIELDS[kind]!(data as Partial<Record<string, unknown>>)
+    ? (data as HostMessage)
+    : null;
 }
 
 /**
@@ -343,7 +415,7 @@ export function readClientMessage(data: unknown): ClientMessage | null {
   const judgement = m.judgement as Partial<Record<string, unknown>> | null | undefined;
   const fits =
     kind === 'join'
-      ? typeof m.protocol === 'number' &&
+      ? Number.isInteger(m.protocol) &&
         typeof m.name === 'string' &&
         (m.resume === undefined || typeof m.resume === 'string')
       : kind === 'judged'

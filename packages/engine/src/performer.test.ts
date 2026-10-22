@@ -8,6 +8,7 @@ import { type DrumRole, PARTS, type WrittenNote, writtenProblems } from './event
 import type { SectionType } from './form.ts';
 import { feelOf } from './licence.ts';
 import { LEAD_LEVEL, type StatedNote, composedLevel, perform, performStated } from './performer.ts';
+import { presetSwing } from './repository.ts';
 import { timbreOf } from './sound.ts';
 import { PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
@@ -27,8 +28,8 @@ const tour = (seed: number, bars = 96): BandBar[] => {
     const preset = PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
     const style = { ...preset.style, entropy: (bar % 32) / 32 };
     // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
-    const ahead = PRESETS[Math.floor((bar + 1) / 8) % PRESETS.length]!.swing.level;
-    const swing = { level: ahead, share: preset.swing.share };
+    const ahead = presetSwing(PRESETS[Math.floor((bar + 1) / 8) % PRESETS.length]!)!.level;
+    const swing = { level: ahead, share: presetSwing(preset)!.share };
     const next = band.advance(
       {
         seed,

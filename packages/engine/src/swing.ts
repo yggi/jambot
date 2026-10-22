@@ -152,8 +152,8 @@ export const SWING_LEVELS: readonly SwingLevel[] = ['8n', '16n'];
 /**
  * A meter's swing (#360, yggi/cells#18): the level it leans and the share of
  * each span at that level the first half holds, 1/2 straight, 2/3 the
- * triplet, up to 3/4 the dotted figure. It never leans early. Each preset
- * names its meter's (`Preset.swing`).
+ * triplet, up to 3/4 the dotted figure. It never leans early. A preset's is
+ * the swing of the meter the repository finds at its point (`presetSwing`).
  */
 export interface MeterSwing {
   readonly level: SwingLevel;

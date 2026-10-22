@@ -39,6 +39,7 @@ import {
   barStart,
   judgeBar,
   muse,
+  presetSwing,
 } from '../src/index.ts';
 import { BAR, PATTERNS, TRIALS, humanise, pattern, played } from './humanise.ts';
 
@@ -149,7 +150,7 @@ export function leadCells(seeds = 5): LeadCells {
       for (let bar = 0; bar < 64; bar++) {
         const wish = { tonic: null, mode: preset.mode, melodic: null };
         const next = band.advance(
-          { seed, bar, style, swing: preset.swing, wish, offer: null },
+          { seed, bar, style, swing: presetSwing(preset)!, wish, offer: null },
           carried,
           null,
         );

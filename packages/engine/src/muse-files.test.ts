@@ -9,7 +9,7 @@ import { distilledGroove } from './muse-groove.ts';
 import { SECTION_BARS } from './form.ts';
 import { BY, GROOVE_KEEP, VARIES } from './novelty.ts';
 import { COMPOSER, GROOVE_TAG } from './plan.ts';
-import { METER_REPOSITORY } from './repository.ts';
+import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import type { FragmentHit, RhythmBench } from './rhythm-query.ts';
 import { RHYTHM_REPOSITORY, readRhythm } from './rhythms.ts';
 import { SHORT_TERM_FLOOR } from './short-term.ts';
@@ -62,7 +62,7 @@ function play(bars: number, extra: Partial<BandEnv>, style: Style = STYLE) {
         seed: 1,
         bar,
         style,
-        swing: FUNK.swing,
+        swing: presetSwing(FUNK)!,
         wish: { tonic: null, mode: FUNK.mode, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
@@ -182,7 +182,7 @@ describe('the Muse files the groove the drummer invents on a miss (#401)', () =>
         seed: 1,
         bar,
         style: STYLE,
-        swing: FUNK.swing,
+        swing: presetSwing(FUNK)!,
         wish: { tonic: null, mode: FUNK.mode, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
@@ -224,7 +224,7 @@ describe('the Muse files a player’s drum pattern the same way (#401)', () => {
       seed: 3,
       start: 1,
       track: holding(STYLE),
-      swing: holdingSwing(FUNK.swing),
+      swing: holdingSwing(presetSwing(FUNK)!),
       wish: { tonic: null, mode: FUNK.mode, melodic: null },
       repository: METER_REPOSITORY,
       rhythms: RHYTHM_REPOSITORY,

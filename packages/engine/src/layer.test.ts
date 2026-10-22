@@ -14,7 +14,7 @@ import {
 import { METER_HOLD, MISS_DISTANCE, composedMeter, stylePoint } from './meter-query.ts';
 import { type PlanCarried, type PlanEnv, planner } from './plan.ts';
 import { walkRadio } from './radio.ts';
-import { METER_REPOSITORY, repositoryLayerProblems } from './repository.ts';
+import { METER_REPOSITORY, repositoryLayerProblems, presetSwing } from './repository.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { PRESETS, PRESET_GLIDE, type Style, glideTo, holding } from './style.ts';
 import { STRAIGHT, holdingSwing } from './swing.ts';
@@ -65,7 +65,7 @@ function runs(entropy: number, walked: boolean, extra: Partial<TransportEnv> = {
         start: 1,
         track,
         wish: { tonic: null, mode: preset.mode, melodic: null },
-        swing: holdingSwing(swung ? preset.swing : STRAIGHT),
+        swing: holdingSwing(swung ? presetSwing(preset)! : STRAIGHT),
         repository: METER_REPOSITORY,
         ...extra,
       });

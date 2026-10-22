@@ -20,6 +20,8 @@ import {
   swingTo,
   transport,
   transportOver,
+  type MeterSwing,
+  presetSwing,
 } from '@jambot/engine';
 import {
   type FollowCarried,
@@ -67,6 +69,7 @@ interface Following {
  */
 function run({
   preset = PRESETS[0]!,
+  swing = presetSwing(preset)!,
   seed = 1,
   bars = 24,
   station = null,
@@ -83,6 +86,8 @@ function run({
   follow,
 }: {
   preset?: (typeof PRESETS)[number];
+  /** The meter's swing held: the one the repository finds at the preset's point, unless a test moves the point off it. */
+  swing?: MeterSwing;
   seed?: number;
   bars?: number;
   station?: Station | null;
@@ -144,7 +149,7 @@ function run({
     seed,
     start: START,
     track: rebeat(holding({ ...preset.style, entropy: 0.3 }), METERS['4/4'], METERS[meter]),
-    swing: holdingSwing(preset.swing),
+    swing: holdingSwing(swing),
     wish: { tonic: null, mode: preset.mode, melodic: null },
     tempoMeter: METERS[meter],
     ...(repositories
@@ -374,13 +379,16 @@ describe('the band through cells, in shadow (#399)', () => {
 
   it('counts apart a swing that glides: the bars its share moves in are a gap with their reason, and the switch plays the band’s own there', () => {
     let moved = false;
-    const swung = PRESETS.find((p) => p.swing.share !== 0.5)!;
+    const swung = PRESETS.find((p) => presetSwing(p)!.share !== 0.5)!;
     const { readout, band, played } = run({
       plays: 'cells',
       control: (env, carried) => {
         if (moved || carried.nextBar !== 6) return env;
         moved = true;
-        return { ...env, swing: swingTo(env.swing!, swung.swing, carried.head.step, 8 * 16) };
+        return {
+          ...env,
+          swing: swingTo(env.swing!, presetSwing(swung)!, carried.head.step, 8 * 16),
+        };
       },
     });
     expect(readout.mismatched).toEqual(NONE);
@@ -411,12 +419,13 @@ describe('the band through cells, in shadow (#399)', () => {
     playsAsTheBand(band, played);
   });
 
-  it.each(PRESETS.filter((p) => p.swing.share !== 0.5).map((p) => [p.name, p] as const))(
+  it.each(PRESETS.filter((p) => presetSwing(p)!.share !== 0.5).map((p) => [p.name, p] as const))(
     'with the switch on, plays %s through cells as the band plays it while its swing’s level turns each section: each note’s end swings as the transport swings the band’s (#405)',
     (_, preset) => {
       const { readout, band, played } = run({
         plays: 'cells',
         preset: { ...preset, style: { ...preset.style, artic: 0 } },
+        swing: presetSwing(preset)!,
         bars: 40,
         control: (env, carried) =>
           carried.nextBar % SECTION_BARS === SECTION_BARS / 2
@@ -445,6 +454,7 @@ describe('the band through cells, in shadow (#399)', () => {
       preset: (({ style, ...p }) => ({ ...p, style: { ...style, artic: 0.1 } }))(
         PRESETS.find((p) => p.name === 'Swing jazz')!,
       ),
+      swing: presetSwing(PRESETS.find((p) => p.name === 'Swing jazz')!)!,
       seed: 2,
       meter: '3/4',
       bars: 32,

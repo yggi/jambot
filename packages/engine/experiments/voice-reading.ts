@@ -27,6 +27,7 @@ import {
   band,
   partDistance,
   readVoice,
+  presetSwing,
 } from '../src/index.ts';
 import { SEEDS } from './style-readback.ts';
 
@@ -57,7 +58,7 @@ export function voiceBars(
           seed,
           bar,
           style: { ...preset.style, entropy: 0.3 },
-          swing: preset.swing,
+          swing: presetSwing(preset)!,
           wish: { tonic: null, mode: 'aeolian', melodic: null },
           offer: null,
         },

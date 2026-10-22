@@ -10,7 +10,8 @@
   sixteenths between them if asked, so it plays only while the band does. The
   bar and the pulses are those of the meter the bar heard is in, whatever it
   is, and the drawing keeps its place when the meter changes. The swing is
-  set here: each preset names its own, the share glides over a bar from here,
+  set here: a preset's is the one of the meter the repository finds at its
+  point, the share glides over a bar from here,
   and a level asked for is taken where the next section starts, as the meter
   asked for here is (#262), and as a key is; a meter swung on the 8ths brings
   in the jazz kit and the walking bass. With no meter asked for ("By style",

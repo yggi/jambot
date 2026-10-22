@@ -30,6 +30,7 @@ import {
 import { SECTION_TYPES } from './form.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import type { Offer } from './muse.ts';
+import { presetSwing } from './repository.ts';
 import { PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT } from './swing.ts';
 
@@ -39,8 +40,8 @@ const presetAt = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!
 
 /** The tour's swing: each preset's, its level asked a bar ahead, as a section's plan takes it on the bar before (#360). */
 const swingAt = (bar: number): MeterSwing => ({
-  level: presetAt(bar + 1).swing.level,
-  share: presetAt(bar).swing.share,
+  level: presetSwing(presetAt(bar + 1))!.level,
+  share: presetSwing(presetAt(bar))!.share,
 });
 
 const styleAt = (bar: number): Style => ({
@@ -141,12 +142,16 @@ describe('the lead', () => {
       entropy: 0.9,
       bpm: 120,
     };
-    const bar61 = run(9, repro, PRESETS[7]!.swing, 62).filter((n) => n.bar === 61);
+    const bar61 = run(9, repro, presetSwing(PRESETS[7]!)!, 62).filter((n) => n.bar === 61);
     expect(bar61.length).toBeGreaterThan(0);
     const outside: string[] = [];
     for (const n of bar61) if (n.note < 60 || n.note > 86) outside.push(`repro: ${n.note}`);
     const grid = [0, 0.5, 1];
-    const swings: MeterSwing[] = [STRAIGHT, { level: '16n', share: 2 / 3 }, PRESETS[7]!.swing];
+    const swings: MeterSwing[] = [
+      STRAIGHT,
+      { level: '16n', share: 2 / 3 },
+      presetSwing(PRESETS[7]!)!,
+    ];
     let notes = 0;
     for (const swing of swings)
       for (const sync of grid)
@@ -341,7 +346,7 @@ const recording = () =>
                 seed,
                 bar,
                 style: { ...preset.style, entropy: 0.3 },
-                swing: preset.swing,
+                swing: presetSwing(preset)!,
                 wish: { tonic: null, mode: preset.mode, melodic: null },
                 offer: null,
               },
@@ -479,7 +484,11 @@ describe('the phrase parameters', () => {
 
   it('lift the off-beat eighths with the meter’s swing, by its weight, and nothing else, 0 when straight, over every preset (#168, #360)', () => {
     // A 16th lean weighs half an 8th's: these weigh 0, 0.5 and 1.
-    const swings: MeterSwing[] = [STRAIGHT, { level: '16n', share: 2 / 3 }, PRESETS[7]!.swing];
+    const swings: MeterSwing[] = [
+      STRAIGHT,
+      { level: '16n', share: 2 / 3 },
+      presetSwing(PRESETS[7]!)!,
+    ];
     const weights = [0, 0.5, 1];
     for (const { bar } of barsOf) {
       const over = swings.map((swing) => phraseParams({ ...bar, swing }).pickups);
@@ -502,7 +511,7 @@ describe('the phrase parameters', () => {
     const [straight, half, full] = [
       offBeats(STRAIGHT),
       offBeats({ level: '16n', share: 2 / 3 }),
-      offBeats(PRESETS[7]!.swing),
+      offBeats(presetSwing(PRESETS[7]!)!),
     ];
     expect(half).toBeGreaterThan(straight);
     expect(full).toBeGreaterThan(half);
@@ -545,7 +554,7 @@ describe('the lead over a melodic scale', () => {
               seed,
               bar,
               style: { ...preset.style, energy: 0.7, entropy: 0.3 },
-              swing: preset.swing,
+              swing: presetSwing(preset)!,
               wish: { tonic: null, mode, melodic: null },
               offer: null,
             },

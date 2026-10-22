@@ -7,15 +7,15 @@
  * steps, on an S-curve. Each axis glides on its own, in its own space: tempo
  * in log space, because it is heard in ratios, and the rest linearly.
  *
- * Swing is not an axis: it is the meter's (`swing.ts`, #360), and each
- * preset names its meter's swing beside its point.
+ * Swing is not an axis: it is the meter's (`swing.ts`, #360), and a
+ * preset's is the swing of the meter the repository finds at its point
+ * (`presetSwing`, `repository.ts`, #459).
  *
  * Positions are steps of the song, counted from its start, 16 to a bar.
  */
 
 import { barStart } from './events.ts';
 import type { ComposerMode } from './key.ts';
-import type { MeterSwing } from './swing.ts';
 
 export interface AxisRange {
   readonly min: number;
@@ -76,12 +76,6 @@ export interface Preset {
   readonly mode: ComposerMode;
   /** Every axis but entropy, which stays where the players put it. */
   readonly style: Readonly<Record<Exclude<Axis, 'entropy'>, number>>;
-  /**
-   * The swing of the meter it names (#360): a hand-written association until
-   * the repository finds meters by style (yggi/cells#82). It names no other
-   * meter than the one asked for, 4/4 for every preset.
-   */
-  readonly swing: MeterSwing;
 }
 
 /** A preset's axes in order: sync, harm, artic, energy, bpm. */
@@ -90,27 +84,24 @@ type PresetAxes = [number, number, number, number, number];
 const preset = (
   name: string,
   mode: ComposerMode,
-  swing: MeterSwing,
   [sync, harm, artic, energy, bpm]: PresetAxes,
-): Preset => ({ name, mode, style: { sync, harm, artic, energy, bpm }, swing });
-
-/** A meter swung on a level, at a share. */
-const on = (level: MeterSwing['level'], share: number): MeterSwing => ({ level, share });
+): Preset => ({ name, mode, style: { sync, harm, artic, energy, bpm } });
 
 /**
- * The prototype's presets. Each swings as it did on the swing axis, the
- * level and share `swingParts` gave at its value there; the straight ones are
+ * The prototype's presets. Each swings as it did on the swing axis: the
+ * meter the repository finds at its point swings at the level and share
+ * `swingParts` gave at its value there (`presetSwing`), the straight ones
  * on the 16ths, where nothing brings in the jazz band.
  */
 export const PRESETS: readonly Preset[] = [
-  preset('Synth-pop', 'aeolian', on('16n', 0.5), [0.3, 0.45, 0.55, 0.55, 108]),
-  preset('Techno', 'aeolian', on('16n', 0.5), [0.12, 0, 1, 0.8, 130]),
-  preset('Deep house', 'dorian', on('16n', 0.6), [0.35, 0.55, 0.65, 0.65, 122]),
-  preset('Ambient', 'ionian', on('16n', 31 / 60), [0.05, 0.3, 0, 0.2, 72]),
-  preset('Lo-fi hip hop', 'aeolian', on('16n', 0.65), [0.5, 0.75, 0.35, 0.5, 84]),
-  preset('Funk', 'dorian', on('16n', 0.6), [1, 0.12, 0.85, 0.75, 104]),
-  preset('Bossa nova', 'ionian', on('16n', 0.5), [0.75, 0.85, 0.45, 0.45, 132]),
-  preset('Swing jazz', 'ionian', on('8n', 2 / 3), [0.35, 1, 0.3, 0.6, 148]),
+  preset('Synth-pop', 'aeolian', [0.3, 0.45, 0.55, 0.55, 108]),
+  preset('Techno', 'aeolian', [0.12, 0, 1, 0.8, 130]),
+  preset('Deep house', 'dorian', [0.35, 0.55, 0.65, 0.65, 122]),
+  preset('Ambient', 'ionian', [0.05, 0.3, 0, 0.2, 72]),
+  preset('Lo-fi hip hop', 'aeolian', [0.5, 0.75, 0.35, 0.5, 84]),
+  preset('Funk', 'dorian', [1, 0.12, 0.85, 0.75, 104]),
+  preset('Bossa nova', 'ionian', [0.75, 0.85, 0.45, 0.45, 132]),
+  preset('Swing jazz', 'ionian', [0.35, 1, 0.3, 0.6, 148]),
 ];
 
 /** A preset glides over 8 bars, a slider over one. */
