@@ -146,6 +146,12 @@ export interface Ear {
   readonly lead: HeardSection<readonly LeadNote[]>;
   /** The bass's own bar heard last, waiting for the chords of the bar after it. */
   readonly unheard: BarEnv | null;
+  /**
+   * The bars the lead played its own in, as it read them: the Muse hears
+   * them (`inventedBar`) only at the section's end, and only where a player
+   * answered, since only then are they filed (#424).
+   */
+  readonly leadBars: readonly BarEnv[];
 }
 
 /** Nothing heard of a member yet. */
@@ -250,7 +256,7 @@ function decide(
             // (the lead's own only where players answered it: a section where she heard a player's motif)
             leadHeard:
               ear && ear.section === bar / SECTION_BARS - 1 && ear.lead.players.length
-                ? heardOf(ear.lead, SOLOIST)
+                ? heardOf({ ...ear.lead, own: leadOwn(ear.leadBars) }, SOLOIST)
                 : [],
           },
           plans,
@@ -286,6 +292,10 @@ function barEnvOf(env: BandEnv, here: DecidedBar, next: readonly BarChord[]): Ba
     offer: env.offer,
   };
 }
+
+/** The lead's own bars as the Muse hears them: each a line over its key, those it rested in left out. */
+const leadOwn = (bars: readonly BarEnv[]): (readonly LeadNote[])[] =>
+  bars.map((b) => leadOf(inventedBar(b), b.plan.key)).filter((line) => line.length > 0);
 
 /** What the Muse heard of a member, as the planner files it: the member's own first, under its source, then each player's. */
 const heardOf = <Bar>(section: HeardSection<Bar>, member: string): HeardBars<Bar>[] => [
@@ -323,6 +333,7 @@ function heard(env: BandEnv, here: DecidedBar, plans: PlanCarried, ear: Ear | nu
           bass: NOTHING_HEARD,
           lead: NOTHING_HEARD,
           unheard: null,
+          leadBars: [],
         };
   if (now.unheard) {
     const bar = { ...now.unheard, next: here.chords };
@@ -342,10 +353,8 @@ function heard(env: BandEnv, here: DecidedBar, plans: PlanCarried, ear: Ear | nu
   }
   if (env.bassLines && plans.bassFragment === null)
     now = { ...now, unheard: barEnvOf(env, here, []) };
-  if (env.leads && plans.leadFragment === null) {
-    const line = leadOf(inventedBar(barEnvOf(env, here, [])), here.plan.key);
-    if (line.length) now = { ...now, lead: { ...now.lead, own: [...now.lead.own, line] } };
-  }
+  if (env.leads && plans.leadFragment === null)
+    now = { ...now, leadBars: [...now.leadBars, barEnvOf(env, here, [])] };
   for (const { source, bar, hits } of env.drumsHeard ?? [])
     if (Math.floor(bar / SECTION_BARS) === section)
       now = { ...now, drums: withPlayer(now.drums, source, hits) };
