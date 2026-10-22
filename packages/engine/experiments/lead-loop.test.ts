@@ -1,45 +1,54 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { BASS_REPOSITORY } from '../src/bass-lines.ts';
 import { COMPOSER } from '../src/facet.ts';
-import { EMPTY_LAYER, LAYER_CAP, layerBytes } from '../src/layer.ts';
+import { EMPTY_LAYER, LAYER_CAP, type LearnedLayer, layerBytes } from '../src/layer.ts';
 import { readLead } from '../src/lead-lines.ts';
 import { SOLOIST } from '../src/muse-lead.ts';
 import { PLAYS, asLeads, cost, leadsFiled, mostUsedLead } from './lead-loop.ts';
-import { LEARNING_HOURS, PLAYER, lockIn, rhythmRuns } from './rhythm-radio.ts';
+import { LEARNING_HOURS, PLAYER, type RhythmRun, lockIn, rhythmRuns } from './rhythm-radio.ts';
 
 // E42 (#424): the lead in the loop on E37's walks at entropy 0.3, a player answering one section in four.
-const LEARNED = rhythmRuns(undefined, 1, undefined, EMPTY_LAYER, BASS_REPOSITORY, PLAYS);
-const UNLEARNED = rhythmRuns(undefined, 1, undefined, undefined, BASS_REPOSITORY, PLAYS);
-// (the three hours over one seed a preset, 8 runs: forty take five minutes)
-const LONG = rhythmRuns(1, LEARNING_HOURS, undefined, EMPTY_LAYER, BASS_REPOSITORY, PLAYS);
-const FILED = LEARNED.flatMap((r) => r.leadFilings);
+// Played before the tests rather than as the file is imported, so the time is the file's, and run first (the
+// engine's `hookTimeout`).
+let LEARNED: RhythmRun[] = [];
+let UNLEARNED: RhythmRun[] = [];
+let LONG: RhythmRun[] = [];
+let FILED: RhythmRun['leadFilings'][number][] = [];
+let HEAVIEST: LearnedLayer = EMPTY_LAYER;
 const by = (source: string) => FILED.filter((f) => f.filing.source === source && !f.held).length;
-const HEAVIEST = LONG.map((r) => r.learning!.layer).reduce((a, b) =>
-  layerBytes(b) > layerBytes(a) ? b : a,
-);
 
-if (process.env.E42_REPORT)
-  console.log(
-    JSON.stringify(
-      {
-        mostUsed: mostUsedLead(LEARNED),
-        lockIn: lockIn(asLeads(UNLEARNED), asLeads(LEARNED)),
-        filed: [
-          FILED.length,
-          by(PLAYER),
-          by(SOLOIST),
-          by(COMPOSER),
-          FILED.filter((f) => f.held).length,
-        ],
-        bytes: Math.max(...LONG.map((r) => layerBytes(r.learning!.layer))),
-        dropped: LONG.reduce((n, r) => n + r.learning!.dropped, 0),
-        longLeads: mostUsedLead(LONG),
-        cost: cost(HEAVIEST),
-      },
-      null,
-      1,
-    ),
+beforeAll(() => {
+  LEARNED = rhythmRuns(undefined, 1, undefined, EMPTY_LAYER, BASS_REPOSITORY, PLAYS);
+  UNLEARNED = rhythmRuns(undefined, 1, undefined, undefined, BASS_REPOSITORY, PLAYS);
+  // (the three hours over one seed a preset, 8 runs: forty take five minutes)
+  LONG = rhythmRuns(1, LEARNING_HOURS, undefined, EMPTY_LAYER, BASS_REPOSITORY, PLAYS);
+  FILED = LEARNED.flatMap((r) => r.leadFilings);
+  HEAVIEST = LONG.map((r) => r.learning!.layer).reduce((a, b) =>
+    layerBytes(b) > layerBytes(a) ? b : a,
   );
+  if (process.env.E42_REPORT)
+    console.log(
+      JSON.stringify(
+        {
+          mostUsed: mostUsedLead(LEARNED),
+          lockIn: lockIn(asLeads(UNLEARNED), asLeads(LEARNED)),
+          filed: [
+            FILED.length,
+            by(PLAYER),
+            by(SOLOIST),
+            by(COMPOSER),
+            FILED.filter((f) => f.held).length,
+          ],
+          bytes: Math.max(...LONG.map((r) => layerBytes(r.learning!.layer))),
+          dropped: LONG.reduce((n, r) => n + r.learning!.dropped, 0),
+          longLeads: mostUsedLead(LONG),
+          cost: cost(HEAVIEST),
+        },
+        null,
+        1,
+      ),
+    );
+});
 
 describe('the lead on the radio’s walk, learning, a player answering (E42, #424)', () => {
   it('plays its run’s most used lead line in under 60 % of the sections that play one, over 40 runs of an hour at entropy 0.3', () => {

@@ -197,10 +197,9 @@ describe('the player', () => {
     expect(player.timing.missed).toBe(0);
   });
 
-  // Its clock is the test's own, so its time is the CPU's, composing an hour:
-  // 2.4 to 3.1 s alone over 10 runs, 6.0 to 7.4 s beside two full test runs,
-  // and once past 15 s as one of three full runs started together on the same
-  // 4 cores (#320): the web project's timeout (`vitest.config.ts`) is ten times that.
+  // Its clock is the test's own, so its time is the CPU's, composing what it plays. Ten minutes lay some 4,300 steps,
+  // which would wait to be heard had none been dropped, and the backlog is bounded after every tick of them, not
+  // only after the last: an hour, as this composed once, took past 15 s beside two other full runs (#320, #471).
   it('builds up no backlog while no frame shows, as in a hidden tab', async () => {
     // A Worker keeps ticking in a hidden tab, but no animation frame runs.
     const { world, s } = surroundings();
@@ -208,11 +207,13 @@ describe('the player', () => {
     void player.start();
     world.resolve();
     await settle();
-    for (let i = 0; i < 3600; i++) {
+    let most = 0;
+    for (let i = 0; i < 600; i++) {
       world.currentTime += 1;
       world.tickers[0]!.tick();
+      most = Math.max(most, player.backlog);
     }
-    expect(player.backlog).toBeLessThan(20);
+    expect(most).toBeLessThan(20);
     world.frames[0]!.follow();
     expect(player.hud.beat).not.toBeNull();
   });
