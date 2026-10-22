@@ -85,6 +85,7 @@ import {
   leansOf,
   stepSeconds,
   transport,
+  presetSwing,
 } from '@jambot/engine';
 import { METERS, type MeterName, formatNumeral, parseNumeral, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
@@ -196,7 +197,7 @@ export function runOf({
     seed,
     start: START,
     track: holding({ ...preset.style, entropy: ENTROPY }),
-    swing: holdingSwing(preset.swing),
+    swing: holdingSwing(presetSwing(preset)!),
     wish: { tonic: null, mode: preset.mode, melodic: melodic ?? null },
     meter: METERS[meter],
     tempoMeter: METERS[meter],
@@ -698,7 +699,7 @@ export interface Measured {
 }
 
 /** Whether a run's meter swings: its preset's, held. */
-export const swung = (run: RunKey) => presetOf(run.preset).swing.share !== STRAIGHT.share;
+export const swung = (run: RunKey) => presetSwing(presetOf(run.preset))!.share !== STRAIGHT.share;
 
 /** Every bar of a run, stated, played (its text edited first, if asked) and compared; its onsets timed against the transport's. */
 export function measureRun(

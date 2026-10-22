@@ -48,6 +48,7 @@ import {
   band,
   barStart,
   judgeBar,
+  presetSwing,
 } from '../src/index.ts';
 import { melodicHelix } from '../src/key.ts';
 
@@ -78,7 +79,7 @@ function corpus(seeds = 5): Bar[][] {
       for (let bar = 0; bar < 64; bar++) {
         const wish = { tonic: null, mode: preset.mode, melodic: null };
         const next = band.advance(
-          { seed, bar, style, swing: preset.swing, wish, offer: null },
+          { seed, bar, style, swing: presetSwing(preset)!, wish, offer: null },
           carried,
           null,
         );

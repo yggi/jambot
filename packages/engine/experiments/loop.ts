@@ -96,6 +96,7 @@ import {
   leanMap,
   leansOf,
   taken,
+  presetSwing,
 } from '../src/index.ts';
 
 /**
@@ -295,7 +296,7 @@ export function loopRun(
     for (let pass = 0; offer && pass < timesVaried(condition, seed, bar); pass++)
       offer = { ...offer, motif: varyOffer(offer.motif, seed, bar, entropy, pass) };
     const next = band.advance(
-      { seed, bar, style, swing: preset.swing, wish, offer },
+      { seed, bar, style, swing: presetSwing(preset)!, wish, offer },
       playing,
       null,
     );
@@ -490,11 +491,11 @@ export function examples(conditions: readonly Condition[] = HEARD.conditions) {
     return {
       preset: name,
       bpm: preset.style.bpm,
-      swing: preset.swing,
+      swing: presetSwing(preset)!,
       conditions: conditions.map((condition) => {
         const notes: (DoughNote & { at: number; seconds: number; duration: number })[] = [];
         // Where each note is played, through the swing, and for how long, at the preset's tempo.
-        const swung = leanMap(leansOf(preset.swing));
+        const swung = leanMap(leansOf(presetSwing(preset)!));
         const stepSeconds = 60 / preset.style.bpm / 4;
         const run = loopRun(
           preset,

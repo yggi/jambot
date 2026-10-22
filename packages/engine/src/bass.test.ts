@@ -5,6 +5,7 @@ import { BASS_RANGE, bass, bassBlend, patternsOn } from './bass.ts';
 import { chordAt } from './chords.ts';
 import { writtenProblems } from './events.ts';
 import { type Script, lawBreaks } from './machine.ts';
+import { presetSwing } from './repository.ts';
 import { PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
 
@@ -29,7 +30,7 @@ const tour = (seed: number, bars = 128): BandBar[] => {
         bar,
         style: styleAt(bar),
         // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
-        swing: { level: presetAt(bar + 1).swing.level, share: preset.swing.share },
+        swing: { level: presetSwing(presetAt(bar + 1))!.level, share: presetSwing(preset)!.share },
         wish: { tonic: null, mode: preset.mode, melodic: null },
         offer: null,
       },

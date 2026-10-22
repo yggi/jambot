@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { METERS, heightOf, meterOnSteps } from '@jambot/theory';
+import { presetSwing } from './repository.ts';
 import { PRESETS, SLIDER_GLIDE, rateAt } from './style.ts';
 import {
   LEAN_RANGE,
@@ -348,7 +349,7 @@ describe('the meter’s swing (#360)', () => {
 
   it('weighs a 16th lean half of an 8th’s, so every preset weighs what its swing axis value was', () => {
     const was = [0, 0, 0.3, 0.05, 0.45, 0.3, 0, 1];
-    PRESETS.forEach((p, i) => expect(swingWeight(p.swing)).toBeCloseTo(was[i]!, 12));
+    PRESETS.forEach((p, i) => expect(swingWeight(presetSwing(p)!)).toBeCloseTo(was[i]!, 12));
     for (const share of shares) {
       expect(swingWeight(swung('16n', share))).toBeCloseTo(leanOfShare(share) / 2, 12);
       expect(swingWeight(swung('8n', share))).toBeCloseTo(Math.min(1, leanOfShare(share)), 12);
@@ -370,7 +371,7 @@ describe('the meter’s swing (#360)', () => {
   });
 
   it('survives JSON, so it can be carried', () => {
-    const track = swingTo(holdingSwing(PRESETS[7]!.swing), { share: 0.6 }, 16, 128);
+    const track = swingTo(holdingSwing(presetSwing(PRESETS[7]!)!), { share: 0.6 }, 16, 128);
     expect(JSON.parse(JSON.stringify(track))).toEqual(track);
   });
 });

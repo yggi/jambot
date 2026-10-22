@@ -34,6 +34,7 @@ import {
   energyOf,
   genreOf,
   readingAxes,
+  presetSwing,
 } from '../src/index.ts';
 import { SEEDS, type TimingSample, timingSamples } from './style-readback.ts';
 
@@ -72,7 +73,7 @@ export function readLandmarks(bars = 32): Landmark[] {
     const style = { ...preset.style, entropy: 0.3 };
     const read = meanReading(
       LANDMARK_SEEDS.flatMap((seed) =>
-        timingSamples(holding(style), seed, bars, holdingSwing(preset.swing)),
+        timingSamples(holding(style), seed, bars, holdingSwing(presetSwing(preset)!)),
       ),
     );
     return { name: preset.name, at: landmarkOf(read) };
@@ -97,7 +98,7 @@ export function calibrate(
   return PRESETS.map((preset) => {
     const style = { ...preset.style, entropy: 0.3 };
     const runs = SEEDS.map((seed) =>
-      timingSamples(holding(style), seed, bars, holdingSwing(preset.swing)),
+      timingSamples(holding(style), seed, bars, holdingSwing(presetSwing(preset)!)),
     );
     const axes = runs.flat().map(axesOf);
     const barTops = axes.map(top);

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { METERS, type Meter } from '@jambot/theory';
 import { BAR_STEPS, type MeterChange, clockOf } from './events.ts';
 import { SUBDIVISIONS, clicksOf, soundsAt } from './metronome.ts';
+import { presetSwing } from './repository.ts';
 import { PRESETS, holding } from './style.ts';
 import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
 
@@ -17,7 +18,7 @@ function play(preset: number, swing: MeterSwing | null, seconds: number) {
     seed: 11,
     start: 1,
     track: holding(style),
-    swing: holdingSwing(swing ?? PRESETS[preset]!.swing),
+    swing: holdingSwing(swing ?? presetSwing(PRESETS[preset]!)!),
     wish: { tonic: null, mode: PRESETS[preset]!.mode, melodic: null },
   };
   let carried = transport.initial;
