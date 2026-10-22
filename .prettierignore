@@ -6,3 +6,5 @@ pnpm-lock.yaml
 docs/briefs/
 # The hub's contract vectors, kept as lifted: one vector to a line
 packages/session/fixtures/
+packages/theory/fixtures/
+packages/engine/fixtures/
