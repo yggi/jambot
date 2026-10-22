@@ -1,4 +1,5 @@
 import {
+  presetMode,
   type BandBar,
   LOOKAHEAD,
   PRESETS,
@@ -21,7 +22,7 @@ const wished = (head: number): TransportEnv => ({
   seed: 11,
   start: 1,
   track: holding(style),
-  wish: { tonic: null, mode: PRESETS[4]!.mode, melodic: null },
+  wish: { tonic: null, mode: presetMode(PRESETS[4]!)!, melodic: null },
   meter: head < 4 * 16 ? METERS['4/4'] : head < 12 * 16 ? METERS['7/8'] : METERS['4/4'],
 });
 

@@ -21,6 +21,7 @@
 
 import { writeFileSync } from 'node:fs';
 import {
+  presetMode,
   type BandCarried,
   type DoughNote,
   type KeyWish,
@@ -85,7 +86,7 @@ for (const seed of SEEDS)
             level: presetSwing(presetAt(bar + 1))!.level,
             share: presetSwing(preset)!.share,
           },
-          wish: { tonic: null, mode: preset.mode, melodic: null } as KeyWish,
+          wish: { tonic: null, mode: presetMode(preset)!, melodic: null } as KeyWish,
           offer: null,
         },
         carried,

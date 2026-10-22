@@ -8,6 +8,7 @@ import { type Script, lawBreaks } from './machine.ts';
 import { presetSwing } from './repository.ts';
 import { PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -31,7 +32,7 @@ const tour = (seed: number, bars = 128): BandBar[] => {
         style: styleAt(bar),
         // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
         swing: { level: presetSwing(presetAt(bar + 1))!.level, share: presetSwing(preset)!.share },
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
       },
       carried,

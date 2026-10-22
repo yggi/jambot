@@ -45,6 +45,7 @@ import {
   transportOver,
   writtenAt,
 } from './transport.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -93,7 +94,7 @@ const swung = holding({ ...PRESETS[4]!.style, entropy: 0.3 }); // Lo-fi hip hop,
 const LOFI = holdingSwing(presetSwing(PRESETS[4]!)!);
 const env = (
   track: StyleTrack = swung,
-  wish: KeyWish = { tonic: null, mode: PRESETS[4]!.mode, melodic: null },
+  wish: KeyWish = { tonic: null, mode: presetMode(PRESETS[4]!)!, melodic: null },
   swing: SwingTrack = holdingSwing(STRAIGHT),
 ): TransportEnv => ({ seed: 11, start: 1, track, wish, swing });
 

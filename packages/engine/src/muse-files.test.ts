@@ -22,6 +22,7 @@ import {
   clockOfTransport,
   transport,
 } from './transport.ts';
+import { presetMode } from './mode-repository.ts';
 
 const FUNK = PRESETS.find((p) => p.name === 'Funk')!;
 const STYLE: Style = { ...FUNK.style, entropy: 0.3 };
@@ -63,7 +64,7 @@ function play(bars: number, extra: Partial<BandEnv>, style: Style = STYLE) {
         bar,
         style,
         swing: presetSwing(FUNK)!,
-        wish: { tonic: null, mode: FUNK.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(FUNK)!, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
         rhythms: RHYTHM_REPOSITORY,
@@ -183,7 +184,7 @@ describe('the Muse files the groove the drummer invents on a miss (#401)', () =>
         bar,
         style: STYLE,
         swing: presetSwing(FUNK)!,
-        wish: { tonic: null, mode: FUNK.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(FUNK)!, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
         rhythms: RHYTHM_REPOSITORY,
@@ -225,7 +226,7 @@ describe('the Muse files a player’s drum pattern the same way (#401)', () => {
       start: 1,
       track: holding(STYLE),
       swing: holdingSwing(presetSwing(FUNK)!),
-      wish: { tonic: null, mode: FUNK.mode, melodic: null },
+      wish: { tonic: null, mode: presetMode(FUNK)!, melodic: null },
       repository: METER_REPOSITORY,
       rhythms: RHYTHM_REPOSITORY,
       layer,

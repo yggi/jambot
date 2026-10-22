@@ -41,6 +41,7 @@
 import { fileURLToPath } from 'node:url';
 import { type Motif, type MotifOp, applyOp, motifProblems, recognise } from '@jambot/theory';
 import {
+  presetMode,
   type HeardNote,
   type Key,
   PRESETS,
@@ -77,7 +78,7 @@ function corpus(seeds = 5): Bar[][] {
       let carried = band.initial;
       const bars: Bar[] = [];
       for (let bar = 0; bar < 64; bar++) {
-        const wish = { tonic: null, mode: preset.mode, melodic: null };
+        const wish = { tonic: null, mode: presetMode(preset)!, melodic: null };
         const next = band.advance(
           { seed, bar, style, swing: presetSwing(preset)!, wish, offer: null },
           carried,

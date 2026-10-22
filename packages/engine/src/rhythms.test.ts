@@ -25,6 +25,7 @@ import {
   forecast,
   transport,
 } from './transport.ts';
+import { presetMode } from './mode-repository.ts';
 
 const FUNK = PRESETS.find((p) => p.name === 'Funk')!;
 
@@ -44,7 +45,7 @@ function run(
         bar,
         style: { ...preset.style, entropy: 0.3 },
         swing: presetSwing(preset)!,
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
         ...(rhythms ? { rhythms: RHYTHM_REPOSITORY } : {}),
@@ -304,7 +305,7 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
         start: 1,
         track: holding({ ...preset.style, entropy: 0.3 }),
         swing: holdingSwing(presetSwing(preset)!),
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         repository: METER_REPOSITORY,
         rhythms,
         layer: EMPTY_LAYER,
@@ -347,7 +348,7 @@ describe('a groove filed, warmed ahead (#412)', () => {
           bar,
           style,
           swing: presetSwing(FUNK)!,
-          wish: { tonic: null, mode: FUNK.mode, melodic: null },
+          wish: { tonic: null, mode: presetMode(FUNK)!, melodic: null },
           offer: null,
           repository: METER_REPOSITORY,
           rhythms: repository,

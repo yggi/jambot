@@ -9,6 +9,7 @@ import { BAR_STEPS, beatStart, doughProblems, writtenProblems } from './events.t
 import { COMPOSER_MODES, INITIAL_KEY } from './key.ts';
 import { INITIAL_STYLE, PRESETS, glideTo, holding } from './style.ts';
 import { stepSeconds } from './tempo.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const TONICS = range(12);
@@ -103,7 +104,9 @@ describe('the final bar', () => {
   });
 
   it('closes every preset’s style', () => {
-    for (const { style, mode } of PRESETS) {
+    for (const preset of PRESETS) {
+      const { style } = preset;
+      const mode = presetMode(preset)!;
       const bar = finaleBar(
         {
           seed: 3,

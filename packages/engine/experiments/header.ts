@@ -24,6 +24,7 @@
 
 import { writeFileSync } from 'node:fs';
 import {
+  presetMode,
   AXIS_NAMES,
   type BandBar,
   type BandCarried,
@@ -52,7 +53,7 @@ const styles: Style[] = (() => {
     return { ...styleAt(track, bar * 16), entropy: (bar % 32) / 32 };
   });
 })();
-const modeAt = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!.mode;
+const modeAt = (bar: number) => presetMode(PRESETS[Math.floor(bar / 8) % PRESETS.length]!)!;
 
 const onGrid = (style: Style, decimals: number): Style =>
   Object.fromEntries(

@@ -9,13 +9,13 @@
  *
  * Swing is not an axis: it is the meter's (`swing.ts`, #360), and a
  * preset's is the swing of the meter the repository finds at its point
- * (`presetSwing`, `repository.ts`, #459).
+ * (`presetSwing`, `repository.ts`, #459). A preset's mode is found at its
+ * point the same way (`presetMode`, `mode-repository.ts`, #420).
  *
  * Positions are steps of the song, counted from its start, 16 to a bar.
  */
 
 import { barStart } from './events.ts';
-import type { ComposerMode } from './key.ts';
 
 export interface AxisRange {
   readonly min: number;
@@ -73,7 +73,6 @@ export type StyleTrack = Readonly<Record<Axis, Glide>>;
 
 export interface Preset {
   readonly name: string;
-  readonly mode: ComposerMode;
   /** Every axis but entropy, which stays where the players put it. */
   readonly style: Readonly<Record<Exclude<Axis, 'entropy'>, number>>;
 }
@@ -81,27 +80,27 @@ export interface Preset {
 /** A preset's axes in order: sync, harm, artic, energy, bpm. */
 type PresetAxes = [number, number, number, number, number];
 
-const preset = (
-  name: string,
-  mode: ComposerMode,
-  [sync, harm, artic, energy, bpm]: PresetAxes,
-): Preset => ({ name, mode, style: { sync, harm, artic, energy, bpm } });
+const preset = (name: string, [sync, harm, artic, energy, bpm]: PresetAxes): Preset => ({
+  name,
+  style: { sync, harm, artic, energy, bpm },
+});
 
 /**
  * The prototype's presets. Each swings as it did on the swing axis: the
  * meter the repository finds at its point swings at the level and share
  * `swingParts` gave at its value there (`presetSwing`), the straight ones
- * on the 16ths, where nothing brings in the jazz band.
+ * on the 16ths, where nothing brings in the jazz band. Each one's mode is
+ * the one the repository finds at its point (`presetMode`).
  */
 export const PRESETS: readonly Preset[] = [
-  preset('Synth-pop', 'aeolian', [0.3, 0.45, 0.55, 0.55, 108]),
-  preset('Techno', 'aeolian', [0.12, 0, 1, 0.8, 130]),
-  preset('Deep house', 'dorian', [0.35, 0.55, 0.65, 0.65, 122]),
-  preset('Ambient', 'ionian', [0.05, 0.3, 0, 0.2, 72]),
-  preset('Lo-fi hip hop', 'aeolian', [0.5, 0.75, 0.35, 0.5, 84]),
-  preset('Funk', 'dorian', [1, 0.12, 0.85, 0.75, 104]),
-  preset('Bossa nova', 'ionian', [0.75, 0.85, 0.45, 0.45, 132]),
-  preset('Swing jazz', 'ionian', [0.35, 1, 0.3, 0.6, 148]),
+  preset('Synth-pop', [0.3, 0.45, 0.55, 0.55, 108]),
+  preset('Techno', [0.12, 0, 1, 0.8, 130]),
+  preset('Deep house', [0.35, 0.55, 0.65, 0.65, 122]),
+  preset('Ambient', [0.05, 0.3, 0, 0.2, 72]),
+  preset('Lo-fi hip hop', [0.5, 0.75, 0.35, 0.5, 84]),
+  preset('Funk', [1, 0.12, 0.85, 0.75, 104]),
+  preset('Bossa nova', [0.75, 0.85, 0.45, 0.45, 132]),
+  preset('Swing jazz', [0.35, 1, 0.3, 0.6, 148]),
 ];
 
 /** A preset glides over 8 bars, a slider over one. */

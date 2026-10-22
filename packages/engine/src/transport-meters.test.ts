@@ -22,6 +22,7 @@ import {
   transport,
   writtenAt,
 } from './transport.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const ticks = (from: number, count: number, every = 0.025): TransportInput[] =>
@@ -33,7 +34,7 @@ const wished = (meter: Meter, swing: MeterSwing): TransportEnv => ({
   start: 1,
   track: holding(style),
   swing: holdingSwing(swing),
-  wish: { tonic: null, mode: PRESETS[4]!.mode, melodic: null },
+  wish: { tonic: null, mode: presetMode(PRESETS[4]!)!, melodic: null },
   meter,
 });
 

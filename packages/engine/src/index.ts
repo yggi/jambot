@@ -21,6 +21,7 @@ export * from './lead.ts';
 export * from './machine.ts';
 export * from './meter-query.ts';
 export * from './metronome.ts';
+export * from './mode-repository.ts';
 export * from './muse.ts';
 export * from './muse-groove.ts';
 export * from './part-reading.ts';

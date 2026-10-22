@@ -36,6 +36,7 @@
 import { writeFileSync } from 'node:fs';
 import { joinChord, positions, wrap } from '@jambot/theory';
 import {
+  presetMode,
   type BandBar,
   type DoughNote,
   MELODIC_SCALES,
@@ -117,7 +118,7 @@ for (const preset of PRESETS) {
           bar,
           style,
           swing: presetSwing(preset)!,
-          wish: { tonic: null, mode: preset.mode, melodic: null },
+          wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
           offer: null,
         },
         carried,
