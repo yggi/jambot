@@ -3,14 +3,21 @@ import { describe, expect, it } from 'vitest';
 import { type TimedEvent, type TransportEnv, transport } from './transport.ts';
 import { LOOKAHEAD } from './transport.ts';
 import { clockOfTransport, type TransportCarried } from './transport.ts';
-import { composedMeter, stylePoint } from './meter-query.ts';
+import { type MeterRepository, QUERY_AXES, composedMeter, stylePoint } from './meter-query.ts';
 import {
   METER_READINGS,
   METER_REPOSITORY,
   SEED_FRAGMENTS,
+  meterRepository,
   presetMeter,
   presetSwing,
 } from './repository.ts';
+import type { RhythmRepository } from './rhythm-query.ts';
+import { RHYTHM_BENCHES, RHYTHM_REPOSITORY, rhythmRepository } from './rhythms.ts';
+import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
+import { createRepository } from '@yggi/cells/repository/fragments';
+import { LIBRARY } from '@yggi/cells/repository/library';
+import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { PRESETS, holding } from './style.ts';
 import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
@@ -130,5 +137,78 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
         count += asked.length;
       }
     expect(count).toBe(15061);
+  });
+});
+
+describe('every query the composer asks names its facet (cells v0.9.0: the library holds instruments and modes too)', () => {
+  // Each preset's point, and the 81 corners and midpoints of the four axes asked on: 89 points.
+  const steps = [0, 0.5, 1];
+  const grid = QUERY_AXES.reduce<Record<string, number>[]>(
+    (points, axis) => points.flatMap((p) => steps.map((v) => ({ ...p, [axis]: v }))),
+    [{}],
+  );
+  const POINTS = [...PRESETS.map((p) => stylePoint(p.style)), ...grid];
+  const ranked = (found: readonly { id: string; distance: number }[]) =>
+    found.map((f) => `${f.id} ${f.distance.toFixed(9)}`).join(', ');
+  /** FNV-1a over the lines, one a query. */
+  const hashOf = (lines: readonly string[]) => {
+    let h = 0x811c9dc5;
+    for (const line of lines)
+      for (let i = 0; i <= line.length; i++)
+        h = Math.imul(h ^ (i < line.length ? line.charCodeAt(i) : 10), 0x01000193);
+    return (h >>> 0).toString(16).padStart(8, '0');
+  };
+  const meterQueries = (repository: MeterRepository) =>
+    POINTS.map((point) => ranked(repository.query(point)));
+  // A section's rhythm on every bench, then what layers on the nearest (the clave beside a drum bar).
+  const rhythmQueries = (repository: RhythmRepository) =>
+    RHYTHM_BENCHES.flatMap((bench) =>
+      POINTS.map((point) => {
+        const found = repository.query(point, bench);
+        const layered = found[0] ? repository.layered(point, bench, found[0].id) : [];
+        return `${ranked(found)} | ${ranked(layered)}`;
+      }),
+    );
+  // The rest of cells' library, beside the meters and rhythms each repository holds already: the bass lines, the
+  // harmonies, the kits and the modes, the bell and scale (a rhythm too) left out.
+  const OTHERS = LIBRARY.filter(
+    (f) => !f.association.some((p) => p.facet === 'meter' || p.facet === 'rhythm'),
+  );
+
+  it('finds the meters as under cells v0.8.0, at each of 89 points, and as with every other facet of the library beside them', () => {
+    const asked = meterQueries(METER_REPOSITORY);
+    expect([asked.length, hashOf(asked)]).toEqual([89, '5a9574da']);
+    expect(OTHERS).toHaveLength(16); // 5 bass lines, 5 harmonies, 2 kits, 4 modes
+    expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
+  });
+
+  it('finds the rhythms, and the clave layered on the drum bar found, as under cells v0.8.0, on each of 20 benches at each of 89 points, and as with every other facet of the library beside them', () => {
+    const asked = rhythmQueries(RHYTHM_REPOSITORY);
+    expect([asked.length, hashOf(asked)]).toEqual([1780, 'b665eb87']);
+    // (a rhythm is found on the six benches in 4/4 alone, 6 × 89, and a clave layers on every one found)
+    const found = asked.filter((line) => !line.startsWith(' |'));
+    expect([found.length, found.filter((line) => !line.endsWith('| ')).length]).toEqual([534, 534]);
+    expect(rhythmQueries(rhythmRepository([...RHYTHM_FRAGMENTS, ...OTHERS]))).toEqual(asked);
+  });
+
+  it('finds the bass lines as under cells v0.8.0, the library asked on the facet `bass`, which the composer will ask (#423)', () => {
+    const library = createRepository(LIBRARY);
+    const asked = POINTS.map((point) =>
+      ranked(
+        library
+          .query(point, LIBRARY.length, {}, { facet: 'bass' })
+          .map((f) => ({ id: f.fragment.id, distance: f.distance })),
+      ),
+    );
+    expect([asked.length, hashOf(asked)]).toEqual([89, 'cf6a321b']);
+    expect(asked).toEqual(
+      POINTS.map((point) =>
+        ranked(
+          createRepository(BASS_FRAGMENTS)
+            .query(point, BASS_FRAGMENTS.length)
+            .map((f) => ({ id: f.fragment.id, distance: f.distance })),
+        ),
+      ),
+    );
   });
 });
