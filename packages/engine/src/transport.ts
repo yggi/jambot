@@ -30,7 +30,10 @@
  * keeps with each bar composed (`heardBass`). And with a lead (#424): each
  * motif she judges of a source she didn't hear as a bass in that bar, her
  * own players' and a client's, is heard as a lead line (`heardLead`), for
- * her to file the section's line where the next is planned.
+ * her to file the section's line where the next is planned. And with
+ * harmonies (#425): the chords each of her own players struck in the bar, a
+ * source she didn't hear as a bass there, are read as degrees of the bar's
+ * key (`heardHarmony`), for her to file the progression.
  *
  * Its bars come from a source (`BarSource`): the band (`bandSource`), or
  * bars a host composed and sent. It is the same transport either way, so
@@ -98,6 +101,8 @@ import {
 import { type HeardDrumBar, heardDrums } from './muse-groove.ts';
 import { type HeardLineBar, heardBass } from './muse-line.ts';
 import { type HeardLeadBar, heardLead } from './muse-lead.ts';
+import { type HeardHarmonyBar, heardHarmony } from './muse-harmony.ts';
+import type { HarmonyRepository } from './harmony-query.ts';
 import type { LeadRepository } from './lead-query.ts';
 import type { LineRepository } from './bass-query.ts';
 import { sectionMeter } from './plan.ts';
@@ -170,6 +175,8 @@ export interface TransportEnv {
   readonly bassLines?: LineRepository | undefined;
   /** The repository the composer asks for a section's lead line, which the lead plays from (#424). */
   readonly leads?: LeadRepository | undefined;
+  /** The repository the composer asks for a section's theme, which the band plays (#425). */
+  readonly harmonies?: HarmonyRepository | undefined;
   /**
    * The meter whose beats the track's bpm counts (#367); 4/4 where none is.
    * Whoever holds the track keeps it the meter heard, converting the number
@@ -322,6 +329,8 @@ export interface Listening {
   readonly bassBars: readonly HeardLineBar[];
   /** Lead bars judged and not yet handed to the band (#424): each motif, of a source not heard as a bass. */
   readonly leadBars: readonly HeardLeadBar[];
+  /** Bars of chords judged and not yet handed to the band (#425): each player's, of a source not heard as a bass. */
+  readonly harmonyBars: readonly HeardHarmonyBar[];
   /** Bars judged elsewhere that the Muse hasn't heard yet. */
   readonly remote: readonly BarJudgement[];
   /** Whether a forget waits for the next bar judged. */
@@ -344,6 +353,7 @@ const LISTENING: Listening = {
   bass: [],
   bassBars: [],
   leadBars: [],
+  harmonyBars: [],
   remote: [],
   forget: false,
   unjudged: [],
@@ -442,6 +452,7 @@ export function bandEnvAt(
     session,
     bassLines,
     leads,
+    harmonies,
   }: TransportEnv,
   bar: number,
   offer: Offer | null,
@@ -462,6 +473,7 @@ export function bandEnvAt(
     ...(session === undefined ? {} : { session }),
     ...(bassLines === undefined ? {} : { bassLines }),
     ...(leads === undefined ? {} : { leads }),
+    ...(harmonies === undefined ? {} : { harmonies }),
   };
 }
 
@@ -509,6 +521,7 @@ function listen(
     bass,
     bassBars,
     leadBars,
+    harmonyBars,
     remote,
     forget,
     unjudged,
@@ -527,6 +540,11 @@ function listen(
     ];
     // (a lead: each motif judged, of a source not heard as a bass in the bar)
     leadBars = [...leadBars, ...heardLead(judgements, bar, new Set(lows.map((l) => l.source)))];
+    // (chords: what was heard here, of a source not heard as a bass in the bar, read in the bar's key)
+    harmonyBars = [
+      ...harmonyBars,
+      ...heardHarmony(pending, bar, key, meter, clock, new Set(lows.map((l) => l.source))),
+    ];
     const next = muse.advance({ bar }, carried, { judgements, forget });
     carried = next.carried;
     judged.push(next.output);
@@ -543,6 +561,7 @@ function listen(
     bass,
     bassBars,
     leadBars,
+    harmonyBars,
     remote,
     forget,
     unjudged,
@@ -770,9 +789,15 @@ export function transportOver<Source, Arrived = never>(
             ...(listening.drumBars.length ? { drumsHeard: listening.drumBars } : {}),
             ...(listening.bassBars.length ? { bassHeard: listening.bassBars } : {}),
             ...(listening.leadBars.length ? { leadHeard: listening.leadBars } : {}),
+            ...(listening.harmonyBars.length ? { harmonyHeard: listening.harmonyBars } : {}),
           };
-          if (listening.drumBars.length || listening.bassBars.length || listening.leadBars.length)
-            listening = { ...listening, drumBars: [], bassBars: [], leadBars: [] };
+          if (
+            listening.drumBars.length ||
+            listening.bassBars.length ||
+            listening.leadBars.length ||
+            listening.harmonyBars.length
+          )
+            listening = { ...listening, drumBars: [], bassBars: [], leadBars: [], harmonyBars: [] };
           const closing = finale.asked && finale.bar === null && source.finale;
           const made: { carried: Source; bar: BandBar | null; start?: number } = closing
             ? source.finale!(barEnv, playing)

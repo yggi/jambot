@@ -20,7 +20,9 @@
  * planned; and with bass lines (#423), the bass's own bars on a miss and
  * each bar players played as a bass; and with lead lines (#424), the lead's
  * own bars on a miss (`inventedBar`) and each player's motif, the lead's own
- * filed only in a section a player answered, where she heard a motif. A bar is heard as it is decided past,
+ * filed only in a section a player answered, where she heard a motif; and
+ * with harmonies (#425), each player's bars of chords, kept a section longer,
+ * since a progression is filed once all eight of its bars are heard. A bar is heard as it is decided past,
  * played or passed, so a forecast files as the band will. The bass plays
  * from the line its section's plans found (`PlanCarried.bassFragment`), as
  * the drummer from its rhythm; and with lead lines (#424), the lead's own
@@ -45,6 +47,8 @@ import { comp } from './comp.ts';
 import { type LeadCarried, inventedBar, lead, playLead } from './lead.ts';
 import { type LeadNote, type LeadRepository, leadMotif } from './lead-query.ts';
 import { type HeardLeadBar, SOLOIST, leadOf } from './muse-lead.ts';
+import type { HarmonyRepository } from './harmony-query.ts';
+import { type HeardHarmonyBar, sectionHarmony } from './muse-harmony.ts';
 import { drums } from './drums.ts';
 import { cadence, finale } from './ending.ts';
 import {
@@ -121,6 +125,14 @@ export interface BandEnv {
    * the section playing joins what she files at its end.
    */
   readonly leadHeard?: readonly HeardLeadBar[] | undefined;
+  /** The repository the composer asks for a section's theme, which the band plays (#425). */
+  readonly harmonies?: HarmonyRepository | undefined;
+  /**
+   * What players played as chords in bars the Muse heard since the bar
+   * before (#425, `heardHarmony`), each read as slots of its key: each bar
+   * joins what she files a section after its own ends.
+   */
+  readonly harmonyHeard?: readonly HeardHarmonyBar[] | undefined;
 }
 
 /** What the Muse heard of one member in the section playing: the member's own bars where it played its own on a miss, and each player's. */
@@ -152,6 +164,12 @@ export interface Ear {
    * answered, since only then are they filed (#424).
    */
   readonly leadBars: readonly BarEnv[];
+  /**
+   * Each player's bars heard as chords (#425), of the section playing and
+   * the one before: a section's progression is filed once the next is
+   * planned, when its last bars have been heard.
+   */
+  readonly harmony: readonly HeardHarmonyBar[];
 }
 
 /** Nothing heard of a member yet. */
@@ -225,6 +243,7 @@ function decide(
     session,
     bassLines,
     leads,
+    harmonies,
   }: BandEnv,
   bar: number,
   plans: PlanCarried,
@@ -257,6 +276,11 @@ function decide(
             leadHeard:
               ear && ear.section === bar / SECTION_BARS - 1 && ear.lead.players.length
                 ? heardOf({ ...ear.lead, own: leadOwn(ear.leadBars) }, SOLOIST)
+                : [],
+            harmonies,
+            harmonyHeard:
+              ear && bar >= 2 * SECTION_BARS
+                ? sectionHarmony(ear.harmony, bar - 2 * SECTION_BARS)
                 : [],
           },
           plans,
@@ -322,7 +346,8 @@ function withPlayer<Bar>(heard: HeardSection<Bar>, source: string, bar: Bar): He
  * starts a new ear.
  */
 function heard(env: BandEnv, here: DecidedBar, plans: PlanCarried, ear: Ear | null): Ear | null {
-  if ((!env.rhythms && !env.bassLines && !env.leads) || plans.layer === null) return null;
+  if ((!env.rhythms && !env.bassLines && !env.leads && !env.harmonies) || plans.layer === null)
+    return null;
   const section = Math.floor(here.bar / SECTION_BARS);
   let now: Ear =
     ear?.section === section
@@ -334,6 +359,10 @@ function heard(env: BandEnv, here: DecidedBar, plans: PlanCarried, ear: Ear | nu
           lead: NOTHING_HEARD,
           unheard: null,
           leadBars: [],
+          // (the chords heard in the section before stay, to be filed once this one's next is planned)
+          harmony: (ear?.harmony ?? []).filter(
+            (h) => Math.floor(h.bar / SECTION_BARS) >= section - 1,
+          ),
         };
   if (now.unheard) {
     const bar = { ...now.unheard, next: here.chords };
@@ -364,6 +393,12 @@ function heard(env: BandEnv, here: DecidedBar, plans: PlanCarried, ear: Ear | nu
   for (const { source, bar, notes } of env.leadHeard ?? [])
     if (Math.floor(bar / SECTION_BARS) === section)
       now = { ...now, lead: withPlayer(now.lead, source, notes) };
+  if (env.harmonies) {
+    const chords = (env.harmonyHeard ?? []).filter(
+      (h) => Math.floor(h.bar / SECTION_BARS) >= section - 1,
+    );
+    if (chords.length) now = { ...now, harmony: [...now.harmony, ...chords] };
+  }
   return now;
 }
 

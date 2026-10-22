@@ -218,6 +218,7 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     expect(lineRepository().query(point, bench, filed.layer)[0]).toEqual({
       id: filed.id,
       distance: 0,
+      score: 0,
     });
     // a bar of the root on one and three states as the root bass's own text: filing it is a use of the seed
     const root = [0, 8].map((step) => ({ step, chord: 0, index: 0, alter: 0, shift: 0 }));

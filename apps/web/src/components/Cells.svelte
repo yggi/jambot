@@ -254,6 +254,10 @@
     border-color: var(--source-4);
     color: var(--source-4);
   }
+  .part.harmony {
+    border-color: var(--source-1);
+    color: var(--source-1);
+  }
   .part.lead {
     border-color: var(--source-5);
     color: var(--source-5);

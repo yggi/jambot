@@ -40,8 +40,10 @@ export interface LineKind<N extends { readonly step: number }> {
   readonly read: (text: string, meter: Meter) => LinesRead<N> | null;
   /** A bar's notes as a line's text, open on its meter: it reads back as them (the round trip). */
   readonly text: (notes: readonly N[], steps: number) => string;
-  /** How cells varies a line under a named meter: its workbench and operators. */
-  readonly vary: (name: MeterName) => VaryOptions;
+  /** How cells varies a line under a named meter: its workbench and operators; none where cells has no operators for it, and the composer varies none. */
+  readonly vary?: ((name: MeterName) => VaryOptions) | undefined;
+  /** The bars a line filed holds, which its text states and reads back as: one where none is said. */
+  readonly bars?: number | undefined;
 }
 
 /** A meter's name as cells writes it in `meter("…")`, or null for one cells has no name for. */
@@ -74,7 +76,8 @@ export function gridOf(
 export function lineRepositoryOf<N extends { readonly step: number }>(
   kind: LineKind<N>,
 ): FacetRepository<LinesRead<N>, { readonly notes: readonly N[] }> {
-  const { facet, fragments, read } = kind;
+  const { facet, fragments, read, bars = 1 } = kind;
+  const varyOptions = kind.vary;
   // (the lines with cells' meters beside them, which a line query never ranks, its facet theirs alone: so a line and
   // the meter it was kept with count as used together)
   const cells = createRepository([...fragments, ...METER_FRAGMENTS]);
@@ -93,7 +96,7 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
   };
   const variationsOn = (text: string, name: MeterName) => {
     const key = `${name}\n${text}`;
-    if (!varied.has(key)) varied.set(key, variations(text, kind.vary(name)));
+    if (!varied.has(key)) varied.set(key, varyOptions ? variations(text, varyOptions(name)) : []);
     return varied.get(key)!;
   };
   const ranked = (
@@ -120,7 +123,7 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
     query(point, bench, layer, chosen = [], reach = Infinity, pull) {
       return ranked(point, layer, chosen, reach, pull)
         .filter((f) => readText(f.fragment.text, bench.meter) !== null)
-        .map((f) => ({ id: f.fragment.id, distance: f.distance }));
+        .map((f) => ({ id: f.fragment.id, distance: f.distance, score: f.score }));
     },
     used: (layer, ids, point, alongside = []) =>
       cappedLayer(
@@ -152,7 +155,7 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
       // (the round trip: a line stated from its notes reads back as them, on its bench)
       const known = `${text}\n${meterKey(bench.meter)}`;
       if (filed.file && !reads.has(known))
-        reads.set(known, { bars: 1, notes: [...notes].sort((a, b) => a.step - b.step) });
+        reads.set(known, { bars, notes: [...notes].sort((a, b) => a.step - b.step) });
       return { layer: cappedLayer(together), id: filed.id, held: filed.file === null };
     },
     read(id, meter, layer) {
@@ -160,6 +163,7 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
       return text === undefined ? null : readText(text, meter);
     },
     vary(id, bench, draw, layer) {
+      if (!varyOptions) return null;
       const text = textOf(id, layer);
       const name = nameOf(bench.meter);
       if (text === undefined || name === null || readText(text, bench.meter) === null) return null;
@@ -189,7 +193,7 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
           const got = readText(text, meter);
           yield;
           // (and its variations, where the composer could vary it there: a line of a bar)
-          if (got !== null && got.bars === 1 && !varied.has(`${name}\n${text}`)) {
+          if (varyOptions && got !== null && got.bars === 1 && !varied.has(`${name}\n${text}`)) {
             variationsOn(text, name);
             yield;
           }

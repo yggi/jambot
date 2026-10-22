@@ -819,5 +819,21 @@ run; the others have.
   - **The cost** (Node, a shared container) with the heaviest layer's 23 lead lines: the warm-up's 88 steps take at most 1.6 ms each, under a slice's 50 ms; an ask of the lead lines takes 0.11 ms at p95 and 0.8 ms at most, under #424's 5 ms.
   - Not measured: entropy other than 0.3 walked, players other than this one, a player's motif bent off the key (which cells doesn't vary), and how any of it sounds.
 
+- **E43. The harmony enters the loop** (#425; the loop of `facet.ts` for the facet `harmony`, cells' five seed vamps, yggi/cells#219), in
+  [`packages/engine/experiments/harmony-loop.ts`](../packages/engine/experiments/harmony-loop.ts) and E37's runs with the bass lines and the harmonies (`rhythmRun`'s `harmony`),
+  held by [`packages/engine/experiments/harmony-loop.test.ts`](../packages/engine/experiments/harmony-loop.test.ts) (about 2 minutes under vitest):
+  - **Held** at entropy 0, nothing filed, every preset, 2 seeds of 64 bars, learning from an empty layer: every slot of every theme is `main`'s degree, and every bar's chords `main`'s (`harmony-loop.test.ts` in `src`).
+    Techno, Funk and Ambient play a seed vamp in every A and B section, drawn as `buildTheme` draws one; the five presets at harm 0.33 or more walk the tables, as no vamp fits there.
+    The twelve vamps of the four modes are each one of the five seeds, laid as `buildTheme` lays it at every harmony under 0.33 (`progressions.test.ts`).
+  - **Walked** (the radio at entropy 0.3 from each preset, 40 runs of an hour, 8,508 sections, learning from an empty layer, no player):
+    the run's most used theme plays 1,759 sections, 20.7 %, under #425's 60 %; 2,340 sections play a seed vamp; the share of sections among a run's 3 most used themes moves +0.07 points (0.21 error), within 5 with twice its error.
+  - **With a player** who plays a progression over one section in four, the third of each four, a chord a bar, one of eight (`PROGRESSIONS`), a new one every 16 sections (a choice of this experiment, not a measure of players):
+    2,101 filings, 320 new and 1,781 a progression held already (identity), each new one reading back as filed; 5,459 sections play a progression from the repository; the most used theme plays 2,507 sections, 29.5 %, under 60 %.
+    The share among a run's 3 most used themes rises 13.9 points (3.0 error) against the same walks with nothing learned, which can't hear the player: past 5.
+    It is the player's progressions coming back. Use and use together add 0.07 points of it (above, no player); above `VAMP_HARM` a progression filed is the only fit, and each section that plays it is a use that widens its reach (cells' `USE_STEP`, to `USE_CAP`); with use moving no point, only counting together, the rise is 4.8 points (2.2 error), still past 5 with twice its error.
+    Whether this is the lock-in the bound means, or the loop doing what it is for, is the owner's to rule (#425).
+  - **The cost** (Node, a shared container): the warm-up's 45 steps (a seed read under a named meter) take at most 6.8 ms each; with the layer that filed the most progressions (8), an ask takes 0.15 ms at p95 and 5.5 ms at most, the first, cold, under #425's 5 ms at p95.
+  - Not measured: entropy other than 0 held and 0.3 walked, players other than this one, chords a session's client plays (no part carries them yet), a progression's variations (cells has no operators on a harmony, yggi/cells#208), and how any of it sounds.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
