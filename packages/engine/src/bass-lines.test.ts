@@ -219,6 +219,10 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       id: filed.id,
       distance: 0,
     });
+    // a bar of the root on one and three states as the root bass's own text: filing it is a use of the seed
+    const root = [0, 8].map((step) => ({ step, chord: 0, index: 0, alter: 0, shift: 0 }));
+    const seed = lineRepository().file!(EMPTY_LAYER, { ...filing, notes: root });
+    expect([seed.held, seed.id, seed.layer.filed.length]).toEqual([true, 'root bass', 0]);
     const again = lineRepository().file!(filed.layer, { ...filing, created: 'song 1, bar 16' });
     expect([again.held, again.id, again.layer.filed.length]).toEqual([true, filed.id, 1]);
   });
