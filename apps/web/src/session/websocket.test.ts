@@ -2,7 +2,13 @@
 // Node's own WebSocket, against the real lobby server.
 
 import { type Lobby as Server, startLobby } from '@jambot/lobby';
-import { type ClientMessage, type HostMessage, type HostSnapshot, PROTOCOL } from '@jambot/session';
+import {
+  CODE_WRONG,
+  type ClientMessage,
+  type HostMessage,
+  type HostSnapshot,
+  PROTOCOL,
+} from '@jambot/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Output } from '../audio/output.ts';
 import { Player, type Surroundings } from '../player.svelte.ts';
@@ -123,6 +129,26 @@ describe('the WebSocket lobby', () => {
     await expect(lobby.sessions()).rejects.toThrow(/Can't reach the lobby/);
     await expect(websocketLobby('http://nowhere').sessions()).rejects.toThrow(/no lobby address/);
     server = await startLobby({ port: 0, host: '127.0.0.1' });
+  });
+
+  it("carries a host's code in a join it never reads, so a host admits by a code over the lobby as it is (#461)", async () => {
+    const lobby = websocketLobby(url);
+    const host = device(40, 0);
+    const hosting = new HostSession(host.player, host.clocks, undefined, { draw: () => '042917' });
+    await hosting.open(lobby, 'jam');
+    hosting.admitByCode(true);
+    const refused = device(7, 0);
+    const turnedAway = new ClientSession(refused.player, refused.clocks);
+    await turnedAway.join(lobby, 'jam', 'Bo', { code: '111111' });
+    await until(() => turnedAway.status === 'idle');
+    expect(turnedAway.ended).toBe(CODE_WRONG);
+    const client = device(7, 0);
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'jam', 'Ada', { code: '042917' });
+    await until(() => following.status === 'joined');
+    expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
+    following.leave();
+    hosting.close();
   });
 
   it('carries a host and a client session: the client joins, sets its clock and follows the song', async () => {

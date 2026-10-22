@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { FIRST_PROTOCOL, PROTOCOL, type ClientMessage } from './protocol.ts';
+import {
+  CODE_NEEDED,
+  CODE_WRONG,
+  FIRST_PROTOCOL,
+  PROTOCOL,
+  type ClientMessage,
+} from './protocol.ts';
 import { RESUME_WINDOW, admit, expire, leave, lose, present, type Roster } from './roster.ts';
 
 type Join = ClientMessage & { kind: 'join' };
@@ -105,6 +111,28 @@ describe("a session's roster", () => {
     const back = admit(fresh.roster, join('Ada', 'token-0'), 'c3', 'unused', 'the host');
     if ('refusal' in back) throw new Error(back.refusal);
     expect(back.member.id).toBe('c0');
+  });
+
+  it('admits by a code where the host asks for one, and seats a player back by its token without it (#461)', () => {
+    const roster = seated('Ada');
+    const byCode = (j: Join, link: string) =>
+      admit(roster, j, link, `token-${link}`, 'the host', '042917');
+    expect(byCode(join('Bo'), 'c1')).toEqual({ refusal: CODE_NEEDED });
+    expect(byCode({ ...join('Bo'), code: '111111' }, 'c1')).toEqual({ refusal: CODE_WRONG });
+    expect(byCode({ ...join('Bo'), code: '042917' }, 'c1')).toHaveProperty(
+      'member',
+      expect.objectContaining({ id: 'c1', name: 'Bo' }),
+    );
+    // A token is a seat the host gave: its player comes back without the code, as when the host turned it on later.
+    const away = lose(roster, 'c0', 10);
+    const back = admit(away, join('Ada', 'token-0'), 'c4', 'unused', 'the host', '042917');
+    expect(back).toHaveProperty('member', expect.objectContaining({ id: 'c0', link: 'c4' }));
+    // A token nobody holds is no seat: it needs the code like any join.
+    expect(admit(away, join('Cy', 'forged'), 'c5', 't', 'the host', '042917')).toEqual({
+      refusal: CODE_NEEDED,
+    });
+    // Without a code asked for, a join is admitted as ever.
+    expect(admit(roster, join('Bo'), 'c1', 't', 'the host', null)).toHaveProperty('member');
   });
 
   it('forgets a player that leaves, and one away past the window, and no other', () => {

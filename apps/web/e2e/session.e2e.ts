@@ -1,6 +1,8 @@
 import { type Page, expect, test } from '@playwright/test';
 import {
   type ClockJump,
+  admitByCode,
+  ask,
   askForMeter,
   type Heard,
   type Stall,
@@ -336,6 +338,53 @@ test("a client in another browser context joins through the lobby server, in ste
     holdFor: HOLDS.some,
     stallHost: true,
   });
+  await elsewhere.close();
+});
+
+test('a host that admits by a code turns away a join without it and one with another, each saying why, and a player with its code plays what the host plays, event for event, through the lobby server (#461)', async ({
+  page,
+  browser,
+}) => {
+  const elsewhere = await browser.newContext();
+  const client = await elsewhere.newPage();
+  const hostErrors = await listen(page);
+  const clientErrors = await listen(client);
+  await host(page, 'code jam', LOBBY);
+  const code = await admitByCode(page);
+  expect(code).toMatch(/^\d{6}$/);
+  await expect(page.getByText(/anyone without it is turned away/)).toBeVisible();
+
+  await useLobby(client, LOBBY);
+  await useName(client, 'Ada');
+  const other = code.replace(/\d$/, (d) => String((Number(d) + 1) % 10));
+  for (const [given, why] of [
+    ['', 'This session admits players by a code: ask the host for it.'],
+    [other, "That is not this session's code: ask the host for it."],
+  ] as const) {
+    await ask(client, 'code jam', given);
+    await expect(client.getByRole('status')).toHaveText(why);
+    await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
+  }
+  await expect(state(page)).toContainText('Hosting · nobody has joined');
+
+  await ask(client, 'code jam', code);
+  await expect(state(client)).toContainText('Following');
+  await joined(page, 'Ada');
+  await page.getByRole('button', { name: 'Start the band' }).click();
+  await expect(state(client)).toContainText('host playing');
+  for (const p of [page, client])
+    await expect
+      .poll(() => lastBar(p), { timeout: 40_000, intervals: [500] })
+      .toBeGreaterThanOrEqual(BARS_COMPARED + 1);
+  const compared = await sessionAgrees(page, client);
+  console.log(
+    `by code: bars ${compared.bars.from} to ${compared.bars.to}, ${compared.events} events, ` +
+      `the client lacked ${compared.lacked.client.events}, onsets apart by ${(compared.largest.onset * 1000).toFixed(3)} ms at most`,
+  );
+  expect(compared.bars.to - compared.bars.from + 1).toBeGreaterThanOrEqual(BARS_COMPARED);
+  expect(compared.events).toBeGreaterThan(0);
+  expect(hostErrors).toEqual([]);
+  expect(clientErrors).toEqual([]);
   await elsewhere.close();
 });
 

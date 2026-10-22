@@ -20,7 +20,9 @@
  * record saved before it was kept has none, and asks for the song's. The swing is
  * checked as a level and a share's glide; a record saved before the meter
  * held it (#360) has none, and plays straight. The radio's station (#313) is
- * checked as a seed and a count, and a record without one has the radio off. Pure: the app stores and fetches, and gives the time, in
+ * checked as a seed and a count, and a record without one has the radio off.
+ * The code a host admits by (#461) is kept, so a reload doesn't open the
+ * session, and a record without one is open. Pure: the app stores and fetches, and gives the time, in
  * seconds since the epoch.
  */
 
@@ -63,6 +65,8 @@ export interface HostSnapshot {
   readonly swing?: SwingTrack;
   /** The radio's station, if it was on the air (#313); absent in a record saved before it, or with it off. */
   readonly station?: Station;
+  /** The code the host admits its clients by (#461), or null for an open session; absent in a record saved before codes, open. */
+  readonly code?: string | null;
 }
 
 export interface ClientResume {
@@ -123,6 +127,7 @@ export function readHostSnapshot(data: unknown, now: number): HostSnapshot | nul
     meter,
     swing,
     station,
+    code,
   } = data;
   if (!isText(session) || typeof lobby !== 'string' || typeof player !== 'string') return null;
   if (reclaim !== null && typeof reclaim !== 'string') return null;
@@ -131,6 +136,7 @@ export function readHostSnapshot(data: unknown, now: number): HostSnapshot | nul
   if (meter !== undefined && meter !== null && !isMeter(meter)) return null;
   if (swing !== undefined && !isSwing(swing)) return null;
   if (station !== undefined && readStation(station) === null) return null;
+  if (code !== undefined && code !== null && !isText(code)) return null;
   if (!isRecord(players) || !Object.values(players).every((n) => typeof n === 'string'))
     return null;
   if (

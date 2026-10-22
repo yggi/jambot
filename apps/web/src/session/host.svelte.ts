@@ -13,6 +13,13 @@
  * its welcome gave (`roster.ts`), as one whose link dropped does. What a
  * host needs to come back from a reload is kept as it changes
  * (`snapshot`), and `open` takes it up again.
+ *
+ * A session is open, as every session was, until the host asks for a code
+ * (`admitByCode`, #461): from then on a join without the code, or with
+ * another, is refused, each for its reason, and one with it joins; a player
+ * seated before stays seated, and one whose token opens its seat comes back
+ * without the code. The code is drawn here, shown on the host's Session
+ * card, kept through a reload, and sent to nobody: it travels only in a join.
  */
 
 import type { ForecastBar } from '@jambot/engine';
@@ -25,6 +32,7 @@ import {
   PROTOCOL,
   type Roster,
   admit,
+  codeOf,
   expire,
   forecastDelta,
   heardFrom,
@@ -59,7 +67,12 @@ export interface HostOptions {
   readonly keep?: HostKeep;
   /** The time, in seconds since the epoch, that a snapshot is dated by. */
   readonly epoch?: () => number;
+  /** A code to admit clients by, which can't be guessed but by trying (`CODE_DIGITS`). */
+  readonly draw?: () => string;
 }
+
+/** A code drawn from the browser's randomness, as a resume token is. */
+const drawCode = () => codeOf(() => crypto.getRandomValues(new Uint32Array(1))[0]!);
 
 export class HostSession {
   /** The session's name, while it is open. */
@@ -67,6 +80,8 @@ export class HostSession {
   guests: readonly Guest[] = $state.raw([]);
   /** Why the session ended, if it ended on its own. */
   ended: string | null = $state(null);
+  /** The code clients are admitted by (#461), or null while the session is open to anyone who finds it. */
+  code: string | null = $state(null);
 
   #player: Player;
   #clocks: DeviceClocks;
@@ -79,6 +94,7 @@ export class HostSession {
   #mint: () => string;
   #keep: HostKeep | null;
   #epoch: () => number;
+  #draw: () => string;
   #forecast: readonly ForecastBar[] = [];
   #muse: MuseState = {
     offer: null,
@@ -99,7 +115,12 @@ export class HostSession {
     player: Player,
     clocks: DeviceClocks,
     wallNow: () => number = () => performance.now() / 1000,
-    { mint = () => crypto.randomUUID(), keep, epoch = () => Date.now() / 1000 }: HostOptions = {},
+    {
+      mint = () => crypto.randomUUID(),
+      keep,
+      epoch = () => Date.now() / 1000,
+      draw = drawCode,
+    }: HostOptions = {},
   ) {
     this.#player = player;
     this.#clocks = clocks;
@@ -107,6 +128,7 @@ export class HostSession {
     this.#mint = mint;
     this.#keep = keep ?? null;
     this.#epoch = epoch;
+    this.#draw = draw;
   }
 
   /**
@@ -136,6 +158,7 @@ export class HostSession {
       restore?.reclaim ?? undefined,
     );
     this.session = (restore?.session ?? session).trim();
+    this.code = restore?.code ?? null;
     this.#player.mode = 'host';
     this.#player.playerId = HOST_PLAYER;
     this.#player.players = {};
@@ -166,6 +189,16 @@ export class HostSession {
     this.persist();
   }
 
+  /**
+   * Admit clients by a code from now on, a fresh one each time it is asked
+   * (#461), or let anyone who finds the session join again. Who is seated
+   * stays seated either way.
+   */
+  admitByCode(on: boolean) {
+    this.code = on ? this.#draw() : null;
+    this.persist();
+  }
+
   /** The session is closed on purpose: its clients hear it, and nothing is kept to come back to. */
   close() {
     this.#link?.send({ kind: 'closed' });
@@ -193,6 +226,7 @@ export class HostSession {
       meter: this.#player.meter,
       swing: this.#player.swing,
       ...(this.#player.station ? { station: this.#player.station } : {}),
+      code: this.code,
     });
   }
 
@@ -207,6 +241,7 @@ export class HostSession {
     this.#player.players = {};
     this.#player.mode = 'solo';
     this.session = null;
+    this.code = null;
     this.guests = [];
     this.#roster = [];
     this.#lastHeard = {};
@@ -289,6 +324,7 @@ export class HostSession {
       from,
       this.#mint(),
       this.#player.players[HOST_PLAYER] ?? '',
+      this.code,
     );
     if ('refusal' in admitted)
       return this.#send({ kind: 'refused', reason: admitted.refusal }, from);

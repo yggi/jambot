@@ -10,7 +10,9 @@
   the radio (#313): it wanders the style alone, as a station does, until a
   person sets a preset or an axis it walks. Where the band is in style
   space, and where it heads, reads under "Now playing" for all of them, as
-  the nearest presets. What the band learned (#398), a host's or solo's,
+  the nearest presets. A host's session is open to anyone who finds it until
+  the host asks for a code (#461): the code then shows here, for the host to
+  read out, and another can be drawn. What the band learned (#398), a host's or solo's,
   reads as how many meters it kept and what the layer weighs, and the
   grooves the Muse filed (#401), each with who played it and its tags; it can be
   exported as JSON (with its filed fragments as fragment files, where it
@@ -56,6 +58,8 @@
     ontune?: (on: boolean) => void;
     /** What the band learned, where this device keeps it (a host's, solo's; never a client's), and how to carry it (#398). */
     learned?: Learned | null;
+    /** A host's: admit players by a code from now on, a fresh one each time, or by none (#461). */
+    onadmit?: ((byCode: boolean) => void) | undefined;
   }
 
   interface Learned {
@@ -83,6 +87,7 @@
     nowPlaying = null,
     ontune,
     learned = null,
+    onadmit,
   }: Props = $props();
 
   let asking = $state(false);
@@ -172,6 +177,31 @@
         {/each}
       </ul>
     </Group>
+    {#if onadmit}
+      {@const code = hosting.code ?? null}
+      <Group title="Admission">
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={code !== null}
+            onchange={(e) => onadmit(e.currentTarget.checked)}
+          />
+          Admit players by a code
+        </label>
+        {#if code !== null}
+          <div class="actions">
+            <output class="code" aria-label="Code">{code}</output>
+            <button type="button" onclick={() => onadmit(true)}>Draw another code</button>
+          </div>
+          <p class="note">
+            A player joins with this code, and anyone without it is turned away. Who is in already
+            stays.
+          </p>
+        {:else}
+          <p class="note">Anyone who finds the session can join it, under any free name.</p>
+        {/if}
+      </Group>
+    {/if}
   {:else if mode === 'client'}
     <Group title="Link">
       <Reading label="Playing as" value={following.name ?? '…'} />
@@ -325,6 +355,12 @@
     border-radius: 10px;
     font-size: 12px;
     color: var(--muted);
+  }
+  .code {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.1em;
   }
   .note {
     margin: 0;

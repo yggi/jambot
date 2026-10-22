@@ -62,6 +62,15 @@ describe('what a host keeps to come back from a reload', () => {
     expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(older);
   });
 
+  it('reads one that admits by a code, one open, and one saved before there were codes, open (#461)', () => {
+    for (const code of ['042917', null, undefined]) {
+      const kept = { ...snapshot, code };
+      expect(readHostSnapshot(JSON.parse(JSON.stringify(kept)), 1001), String(code)).toEqual(kept);
+    }
+    for (const code of [42917, '', ' ', {}])
+      expect(readHostSnapshot({ ...snapshot, code }, 1001), JSON.stringify(code)).toBeNull();
+  });
+
   it('reads no station that is not a seed and a count of sections (#313)', () => {
     for (const station of [
       null,

@@ -1,7 +1,8 @@
 <!--
   The lobby, the door to the band: the door's Play view, what a person meets
   on a cold start, laid out in the band's own cards. Playing alone (Solo);
-  joining a session that is open, with the players in it; hosting one of
+  joining a session that is open, with the players in it, and with the code
+  its host admits by where the person was given one (#461); hosting one of
   their own, named as they like or by a made-up name, in this browser or
   through the lobby server. Their name and the extras are the door's own
   (`Door.svelte`). It holds no session and knows no player: it takes props
@@ -26,7 +27,8 @@
     notice: string | null;
     onsolo: () => void;
     onhost: (where: Where, session: string) => Promise<void>;
-    onjoin: (where: Where, session: string) => void;
+    /** Join an open session, with the code typed, or an empty one for none. */
+    onjoin: (where: Where, session: string, code: string) => void;
   }
 
   let { suggest, found, joining, notice, onsolo, onhost, onjoin }: Props = $props();
@@ -34,6 +36,7 @@
   // svelte-ignore state_referenced_locally
   let session = $state(suggest());
   let where = $state<Where>('local');
+  let code = $state('');
   let error: string | null = $state(null);
 
   const WHERE_TITLE: Record<Where, string> = {
@@ -122,6 +125,15 @@
     <p class="message">Joining…</p>
   {/if}
   {#if found !== null && found.sessions.length > 0}
+    <input
+      type="text"
+      class="code"
+      aria-label="Code"
+      inputmode="numeric"
+      autocomplete="off"
+      placeholder="Code, if the host gave you one"
+      bind:value={code}
+    />
     <div class="open">
       {#each found.sessions as open (`${open.where}:${open.name}`)}
         <button
@@ -129,7 +141,7 @@
           class="found {open.where}"
           title={WHERE_TITLE[open.where]}
           disabled={joining}
-          onclick={() => onjoin(open.where, open.name)}
+          onclick={() => onjoin(open.where, open.name, code.trim())}
         >
           {open.name}
           <span class="count">{count(open)}</span>
@@ -197,6 +209,9 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+  }
+  .code {
+    margin-bottom: 8px;
   }
   input {
     flex: 1 1 auto;

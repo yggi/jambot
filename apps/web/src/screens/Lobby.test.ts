@@ -39,9 +39,23 @@ describe('the lobby, the door to the band', () => {
     expect(stage).toHaveAttribute('title', expect.stringMatching(/lobby server/i));
     expect(garage.className).not.toBe(stage.className);
     await fireEvent.click(stage);
-    expect(p.onjoin).toHaveBeenCalledWith('global', 'Stage');
+    expect(p.onjoin).toHaveBeenCalledWith('global', 'Stage', '');
     await fireEvent.click(garage);
-    expect(p.onjoin).toHaveBeenLastCalledWith('local', 'Garage');
+    expect(p.onjoin).toHaveBeenLastCalledWith('local', 'Garage', '');
+  });
+
+  it('joins with the code a host gave, typed on a number pad, where a person has one (#461)', async () => {
+    const p = props();
+    render(Lobby, {
+      ...p,
+      found: { sessions: [{ name: 'Stage', players: 4, where: 'global' }], problem: null },
+    });
+    const code = screen.getByRole('textbox', { name: 'Code' });
+    expect(code).toHaveAttribute('inputmode', 'numeric');
+    expect(code).toHaveAttribute('autocomplete', 'off');
+    await fireEvent.input(code, { target: { value: '042917' } });
+    await fireEvent.click(screen.getByRole('button', { name: /Stage/ }));
+    expect(p.onjoin).toHaveBeenCalledWith('global', 'Stage', '042917');
   });
 
   it('says when no session is open, when it is still looking, and why a lobby couldn’t be listed', async () => {
