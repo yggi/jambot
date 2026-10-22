@@ -2,7 +2,7 @@ import { METERS, type MeterName } from '@jambot/theory';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
-import { CLAVES_NOTE } from './drums.ts';
+import { CLAVES_NOTE, DRUM_NOTES } from './drums.ts';
 import { DRUM_ROLES } from './events.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { stylePoint } from './meter-query.ts';
@@ -380,5 +380,32 @@ describe('a groove filed, warmed ahead (#412)', () => {
       }
     expect([fits, reads]).toEqual(warmed);
     expect([...repository.warm!(RHYTHM_BENCHES, layer)].length).toBe(0);
+  });
+});
+
+describe('a groove the layer’s cap dropped (#424)', () => {
+  it('learns no use of a groove the layer no longer holds, where cells would refuse it', () => {
+    const repository = rhythmRepository();
+    const hits = [0, 4, 8, 12].map((step) => ({
+      role: step % 8 === 0 ? 'kick' : 'backbeat',
+      note: step % 8 === 0 ? DRUM_NOTES.kick : DRUM_NOTES.snare,
+      step,
+      velocity: 100,
+    }));
+    const point = { energy: 0.5 };
+    const filed = repository.file!(EMPTY_LAYER, {
+      hits,
+      bench: { meter: METERS['4/4'] },
+      point,
+      source: 'drummer',
+      created: 'song 1, bar 0',
+      tags: ['groove'],
+    });
+    const dropped = { ...filed.layer, filed: [] };
+    expect(repository.used!(dropped, [filed.id], point, ['4/4', filed.id])).toEqual(
+      repository.used!(dropped, [], point, ['4/4']),
+    );
+    // (and one it holds is learned as used)
+    expect(repository.used!(filed.layer, [filed.id], point)).not.toEqual(filed.layer);
   });
 });

@@ -27,7 +27,10 @@
  * as she judges a bar she reads, as a line over its chords, what each source
  * played wholly in the bass's register, of the notes heard and of a client's
  * part `bass` (`bass`), with the bar's chords and the next bar's, which it
- * keeps with each bar composed (`heardBass`).
+ * keeps with each bar composed (`heardBass`). And with a lead (#424): each
+ * motif she judges of a source she didn't hear as a bass in that bar, her
+ * own players' and a client's, is heard as a lead line (`heardLead`), for
+ * her to file the section's line where the next is planned.
  *
  * Its bars come from a source (`BarSource`): the band (`bandSource`), or
  * bars a host composed and sent. It is the same transport either way, so
@@ -94,6 +97,8 @@ import {
 } from './muse.ts';
 import { type HeardDrumBar, heardDrums } from './muse-groove.ts';
 import { type HeardLineBar, heardBass } from './muse-line.ts';
+import { type HeardLeadBar, heardLead } from './muse-lead.ts';
+import type { LeadRepository } from './lead-query.ts';
 import type { LineRepository } from './bass-query.ts';
 import { sectionMeter } from './plan.ts';
 import { type StyleTrack, styleAt, valueAt, valueIn, writtenStyle } from './style.ts';
@@ -163,6 +168,8 @@ export interface TransportEnv {
   readonly session?: string | undefined;
   /** The repository the composer asks for a section's bass line, which the bass plays from (#423). */
   readonly bassLines?: LineRepository | undefined;
+  /** The repository the composer asks for a section's lead line, which the lead plays from (#424). */
+  readonly leads?: LeadRepository | undefined;
   /**
    * The meter whose beats the track's bpm counts (#367); 4/4 where none is.
    * Whoever holds the track keeps it the meter heard, converting the number
@@ -313,6 +320,8 @@ export interface Listening {
   readonly bass: readonly HeardNote[];
   /** Bass bars judged and not yet handed to the band (#423). */
   readonly bassBars: readonly HeardLineBar[];
+  /** Lead bars judged and not yet handed to the band (#424): each motif, of a source not heard as a bass. */
+  readonly leadBars: readonly HeardLeadBar[];
   /** Bars judged elsewhere that the Muse hasn't heard yet. */
   readonly remote: readonly BarJudgement[];
   /** Whether a forget waits for the next bar judged. */
@@ -334,6 +343,7 @@ const LISTENING: Listening = {
   drumBars: [],
   bass: [],
   bassBars: [],
+  leadBars: [],
   remote: [],
   forget: false,
   unjudged: [],
@@ -431,6 +441,7 @@ export function bandEnvAt(
     rhythms,
     session,
     bassLines,
+    leads,
   }: TransportEnv,
   bar: number,
   offer: Offer | null,
@@ -450,6 +461,7 @@ export function bandEnvAt(
     offer,
     ...(session === undefined ? {} : { session }),
     ...(bassLines === undefined ? {} : { bassLines }),
+    ...(leads === undefined ? {} : { leads }),
   };
 }
 
@@ -496,6 +508,7 @@ function listen(
     drumBars,
     bass,
     bassBars,
+    leadBars,
     remote,
     forget,
     unjudged,
@@ -505,12 +518,15 @@ function listen(
     drumBars = [...drumBars, ...heardDrums(drums, bar, meter, clock)];
     drums = drums.filter((n) => clock.barAt(heardStep(n)) > bar);
     // (a bass: what a client passed on as one, and what was heard here in the bass's register, read over the bar's chords)
-    bassBars = [...bassBars, ...heardBass([...bass, ...pending], bar, meter, clock, chords, after)];
+    const lows = heardBass([...bass, ...pending], bar, meter, clock, chords, after);
+    bassBars = [...bassBars, ...lows];
     bass = bass.filter((n) => clock.barAt(heardStep(n)) > bar);
     const judgements = [
       ...judgeBar(pending, bar, key, 'phrases', clock),
       ...remote.filter((r) => r.bar === bar).map((r) => r.judgement),
     ];
+    // (a lead: each motif judged, of a source not heard as a bass in the bar)
+    leadBars = [...leadBars, ...heardLead(judgements, bar, new Set(lows.map((l) => l.source)))];
     const next = muse.advance({ bar }, carried, { judgements, forget });
     carried = next.carried;
     judged.push(next.output);
@@ -519,7 +535,18 @@ function listen(
     remote = remote.filter((r) => r.bar > bar);
     unjudged = unjudged.slice(1);
   }
-  return { muse: carried, pending, drums, drumBars, bass, bassBars, remote, forget, unjudged };
+  return {
+    muse: carried,
+    pending,
+    drums,
+    drumBars,
+    bass,
+    bassBars,
+    leadBars,
+    remote,
+    forget,
+    unjudged,
+  };
 }
 
 /** A bar decided ahead, the energy it plays at, and the motif the lead plays in it. */
@@ -742,9 +769,10 @@ export function transportOver<Source, Arrived = never>(
             ...bandEnvAt(env, nextBar, listening.muse.offer, song),
             ...(listening.drumBars.length ? { drumsHeard: listening.drumBars } : {}),
             ...(listening.bassBars.length ? { bassHeard: listening.bassBars } : {}),
+            ...(listening.leadBars.length ? { leadHeard: listening.leadBars } : {}),
           };
-          if (listening.drumBars.length || listening.bassBars.length)
-            listening = { ...listening, drumBars: [], bassBars: [] };
+          if (listening.drumBars.length || listening.bassBars.length || listening.leadBars.length)
+            listening = { ...listening, drumBars: [], bassBars: [], leadBars: [] };
           const closing = finale.asked && finale.bar === null && source.finale;
           const made: { carried: Source; bar: BandBar | null; start?: number } = closing
             ? source.finale!(barEnv, playing)

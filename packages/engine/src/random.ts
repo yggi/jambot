@@ -113,6 +113,8 @@ export const STREAMS = {
   grooveVariation: 30,
   /** Which variation the composer makes of a bass line it tires of, per line: one filed by its place among the layer's lines, a seed line by its id (#423). */
   lineVariation: 31,
+  /** Which variation the composer makes of a lead line it tires of, per line: by its place among the layer's lead lines (#424). */
+  leadLineVariation: 32,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

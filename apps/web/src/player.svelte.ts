@@ -114,6 +114,8 @@ import {
   BASS_REPOSITORY,
   LINE_BENCHES,
   type LineRepository,
+  LEAD_REPOSITORY,
+  type LeadRepository,
   NO_HISTORY,
   clockOfTransport,
   clockThrough,
@@ -482,6 +484,8 @@ export class Player {
   #rhythms: RhythmRepository;
   /** Cells' bass lines, each line filed warmed once it is (#423). */
   #bassLines: LineRepository;
+  /** The lead lines the layer files, each warmed once it is (#424). */
+  #leads: LeadRepository;
   #metronome: Metronome | null;
   #output: Output | null = null;
   #carried: TransportCarried | null = null;
@@ -565,6 +569,9 @@ export class Player {
     this.#bassLines = surroundings.warm
       ? warmedOnFiling(BASS_REPOSITORY, LINE_BENCHES, surroundings.warm)
       : BASS_REPOSITORY;
+    this.#leads = surroundings.warm
+      ? warmedOnFiling(LEAD_REPOSITORY, LINE_BENCHES, surroundings.warm)
+      : LEAD_REPOSITORY;
     // Every fit a section can ask for, at idle from the start (#397), and every bass line's read (#423).
     surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES) ?? []);
     surroundings.warm?.(BASS_REPOSITORY.warm?.(LINE_BENCHES) ?? []);
@@ -598,10 +605,11 @@ export class Player {
   #startFrom(layer: LearnedLayer): boolean {
     if (this.status !== 'stopped' || this.mode === 'client') return false;
     this.layer = layer;
-    // The grooves it filed, which the warm-up from the start never saw (#412).
+    // The grooves and lines it filed, which the warm-up from the start never saw (#412).
     if (layer.filed.length > 0) {
       this.#surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES, layer) ?? []);
       this.#surroundings.warm?.(BASS_REPOSITORY.warm?.(LINE_BENCHES, layer) ?? []);
+      this.#surroundings.warm?.(LEAD_REPOSITORY.warm?.(LINE_BENCHES, layer) ?? []);
     }
     if (this.#countTempoIn(this.#opening()))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
@@ -1236,6 +1244,7 @@ export class Player {
       layer: this.layer,
       rhythms: this.#rhythms,
       bassLines: this.#bassLines,
+      leads: this.#leads,
       session: this.session ?? undefined,
       swing: this.swing,
       tempoMeter: this.tempoMeter,

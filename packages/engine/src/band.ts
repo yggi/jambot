@@ -18,10 +18,14 @@
  * bar the drummer plays on a miss, and each bar players played on drums
  * that the Muse heard, so a section's grooves are filed where the next is
  * planned; and with bass lines (#423), the bass's own bars on a miss and
- * each bar players played as a bass. A bar is heard as it is decided past,
+ * each bar players played as a bass; and with lead lines (#424), the lead's
+ * own bars on a miss (`inventedBar`) and each player's motif, the lead's own
+ * filed only in a section a player answered, where she heard a motif. A bar is heard as it is decided past,
  * played or passed, so a forecast files as the band will. The bass plays
  * from the line its section's plans found (`PlanCarried.bassFragment`), as
- * the drummer from its rhythm.
+ * the drummer from its rhythm; and with lead lines (#424), the lead's own
+ * bars on a miss and each player's motif, the lead playing the line its
+ * section's plans found (`PlanCarried.leadFragment`) as its phrase.
  * The parts play side by side from the same bar: the drums, the bass, the
  * comp and the lead. What they write, the band plays through the
  * performance (`performer.ts`, T4).
@@ -38,7 +42,9 @@ import { type BarChord, barChords } from './chords.ts';
 import { bass, playBass } from './bass.ts';
 import { type LineNote, type LineRepository, sectionNotes } from './bass-query.ts';
 import { comp } from './comp.ts';
-import { type LeadCarried, lead } from './lead.ts';
+import { type LeadCarried, inventedBar, lead, playLead } from './lead.ts';
+import { type LeadNote, type LeadRepository, leadMotif } from './lead-query.ts';
+import { type HeardLeadBar, SOLOIST, leadOf } from './muse-lead.ts';
 import { drums } from './drums.ts';
 import { cadence, finale } from './ending.ts';
 import {
@@ -107,6 +113,14 @@ export interface BandEnv {
    * of the section playing joins what she files at its end.
    */
   readonly bassHeard?: readonly HeardLineBar[] | undefined;
+  /** The repository the composer asks for a section's lead line, which the lead plays from (#424). */
+  readonly leads?: LeadRepository | undefined;
+  /**
+   * What players played as a lead in bars the Muse heard since the bar
+   * before (#424, `heardLead`), each motif she judged as a line: each bar of
+   * the section playing joins what she files at its end.
+   */
+  readonly leadHeard?: readonly HeardLeadBar[] | undefined;
 }
 
 /** What the Muse heard of one member in the section playing: the member's own bars where it played its own on a miss, and each player's. */
@@ -129,8 +143,15 @@ export interface Ear {
   readonly section: number;
   readonly drums: HeardSection<readonly FragmentHit[]>;
   readonly bass: HeardSection<readonly LineNote[]>;
+  readonly lead: HeardSection<readonly LeadNote[]>;
   /** The bass's own bar heard last, waiting for the chords of the bar after it. */
   readonly unheard: BarEnv | null;
+  /**
+   * The bars the lead played its own in, as it read them: the Muse hears
+   * them (`inventedBar`) only at the section's end, and only where a player
+   * answered, since only then are they filed (#424).
+   */
+  readonly leadBars: readonly BarEnv[];
 }
 
 /** Nothing heard of a member yet. */
@@ -203,6 +224,7 @@ function decide(
     rhythms,
     session,
     bassLines,
+    leads,
   }: BandEnv,
   bar: number,
   plans: PlanCarried,
@@ -230,6 +252,12 @@ function decide(
             bassLines,
             bassHeard:
               ear && ear.section === bar / SECTION_BARS - 1 ? heardOf(ear.bass, BASSIST) : [],
+            leads,
+            // (the lead's own only where players answered it: a section where she heard a player's motif)
+            leadHeard:
+              ear && ear.section === bar / SECTION_BARS - 1 && ear.lead.players.length
+                ? heardOf({ ...ear.lead, own: leadOwn(ear.leadBars) }, SOLOIST)
+                : [],
           },
           plans,
           null,
@@ -265,6 +293,10 @@ function barEnvOf(env: BandEnv, here: DecidedBar, next: readonly BarChord[]): Ba
   };
 }
 
+/** The lead's own bars as the Muse hears them: each a line over its key, those it rested in left out. */
+const leadOwn = (bars: readonly BarEnv[]): (readonly LeadNote[])[] =>
+  bars.map((b) => leadOf(inventedBar(b), b.plan.key)).filter((line) => line.length > 0);
+
 /** What the Muse heard of a member, as the planner files it: the member's own first, under its source, then each player's. */
 const heardOf = <Bar>(section: HeardSection<Bar>, member: string): HeardBars<Bar>[] => [
   ...(section.own.length ? [{ source: member, bars: section.own }] : []),
@@ -290,12 +322,19 @@ function withPlayer<Bar>(heard: HeardSection<Bar>, source: string, bar: Bar): He
  * starts a new ear.
  */
 function heard(env: BandEnv, here: DecidedBar, plans: PlanCarried, ear: Ear | null): Ear | null {
-  if ((!env.rhythms && !env.bassLines) || plans.layer === null) return null;
+  if ((!env.rhythms && !env.bassLines && !env.leads) || plans.layer === null) return null;
   const section = Math.floor(here.bar / SECTION_BARS);
   let now: Ear =
     ear?.section === section
       ? ear
-      : { section, drums: NOTHING_HEARD, bass: NOTHING_HEARD, unheard: null };
+      : {
+          section,
+          drums: NOTHING_HEARD,
+          bass: NOTHING_HEARD,
+          lead: NOTHING_HEARD,
+          unheard: null,
+          leadBars: [],
+        };
   if (now.unheard) {
     const bar = { ...now.unheard, next: here.chords };
     const played = playBass(bar, bass.initial).output;
@@ -314,12 +353,17 @@ function heard(env: BandEnv, here: DecidedBar, plans: PlanCarried, ear: Ear | nu
   }
   if (env.bassLines && plans.bassFragment === null)
     now = { ...now, unheard: barEnvOf(env, here, []) };
+  if (env.leads && plans.leadFragment === null)
+    now = { ...now, leadBars: [...now.leadBars, barEnvOf(env, here, [])] };
   for (const { source, bar, hits } of env.drumsHeard ?? [])
     if (Math.floor(bar / SECTION_BARS) === section)
       now = { ...now, drums: withPlayer(now.drums, source, hits) };
   for (const { source, bar, notes } of env.bassHeard ?? [])
     if (Math.floor(bar / SECTION_BARS) === section)
       now = { ...now, bass: withPlayer(now.bass, source, notes) };
+  for (const { source, bar, notes } of env.leadHeard ?? [])
+    if (Math.floor(bar / SECTION_BARS) === section)
+      now = { ...now, lead: withPlayer(now.lead, source, notes) };
   return now;
 }
 
@@ -416,7 +460,16 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
       : [];
     const bassline = playBass(bar, carried.parts.bass, line);
     const comping = comp.advance(bar, carried.parts.comp, null);
-    const melody = lead.advance(bar, carried.parts.lead, null);
+    const figure = env.leads
+      ? leadMotif(
+          env.leads,
+          at.leadFragment ?? undefined,
+          bar.meter,
+          stepsOf(bar.meter),
+          after.plans.layer ?? undefined,
+        )
+      : null;
+    const melody = playLead(bar, carried.parts.lead, figure, at.leadFragment ?? undefined);
     const parts = { bass: bassline.carried, comp: comping.carried, lead: melody.carried };
     const rhythm = env.rhythms
       ? sectionHits(

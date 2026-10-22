@@ -43,6 +43,10 @@
  * on the steps `main` plays them, bar beside bar (`drumOverlap`), and the
  * sections where a drum bar returns without the clave it had (`claveLost`).
  *
+ * E42, the lead entering the loop (#424): the runs given the lead lines and
+ * a player (`LeadPlayer`), who answers some sections with a motif, which the
+ * Muse hears as a lead line (`rhythmRun`'s `leads`).
+ *
  * It runs under vitest: `E37_REPORT=1 pnpm vitest run --silent=false
  * packages/engine/experiments/rhythm-radio.test.ts` prints the numbers
  * (E38 and E39's in `rhythm-learning.test.ts`, E40's in `rhythm-held.test.ts`).
@@ -54,6 +58,9 @@ import {
   type BandCarried,
   type BandEnv,
   type GrooveFiling,
+  type LeadFiling,
+  type LeadNote,
+  type LeadRepository,
   type LineFiling,
   type LineRepository,
   type MeterRepository,
@@ -137,7 +144,28 @@ export interface RhythmRun {
     readonly id: string;
     readonly held: boolean;
   }[];
+  /** The lead line of each section, in order, where the band was given lead lines (E42): its fragment, or `-` where the lead plays its own. */
+  readonly leads: readonly string[];
+  /** The lead lines the Muse and the composer filed within the hours (E42), in order. */
+  readonly leadFilings: readonly {
+    readonly filing: LeadFiling;
+    readonly id: string;
+    readonly held: boolean;
+  }[];
 }
+
+/**
+ * A player on E42's walks (#424): the lead lines the composer asks, and what
+ * the player plays in a section, a motif as a lead line the Muse hears in
+ * each bar of its second half, or nothing.
+ */
+export interface LeadPlayer {
+  readonly repository: LeadRepository;
+  readonly plays: (seed: number, section: number) => readonly LeadNote[] | null;
+}
+
+/** The player's name as the Muse knows them on E42's walks. */
+export const PLAYER = 'player';
 
 /** The drummer's bars by section type (E40): how many, and the hits of each role in them. */
 export type DrumCounts = Readonly<
@@ -178,6 +206,7 @@ export function rhythmRun(
   layer?: LearnedLayer,
   held = false,
   lines?: LineRepository,
+  player?: LeadPlayer,
 ): RhythmRun {
   // (each filing kept, and each section's layer as the planner left it: it asks the meter once a section,
   // in order, then files and learns)
@@ -218,6 +247,17 @@ export function rhythmRun(
     },
     used: (given, ids, point, alongside) => learnt(lines.used!(given, ids, point, alongside)),
   };
+  const leadFilings: { filing: LeadFiling; id: string; held: boolean; section: number }[] = [];
+  const leads: LeadRepository | undefined = player && {
+    ...player.repository,
+    file(given, filing) {
+      const filed = player.repository.file!(given, filing);
+      leadFilings.push({ filing, id: filed.id, held: filed.held, section: planning + 1 });
+      return filed;
+    },
+    used: (given, ids, point, alongside) =>
+      learnt(player.repository.used!(given, ids, point, alongside)),
+  };
   let style: Style = { ...preset.style, entropy: ENTROPY };
   let track: StyleTrack = holding(style);
   let walked = 0;
@@ -244,7 +284,16 @@ export function rhythmRun(
       layer,
       offer: null,
       ...(bassLines ? { bassLines } : {}),
+      ...(leads ? { leads, leadHeard: heardOf(bar) } : {}),
     };
+  };
+  // (the player's motif in the bars of a section's second half where they play one, heard in the bar itself)
+  const heardOf = (bar: number) => {
+    const notes =
+      bar % SECTION_BARS >= SECTION_BARS / 2
+        ? player?.plays(seed, Math.floor(bar / SECTION_BARS))
+        : null;
+    return notes ? [{ source: PLAYER, bar, notes }] : [];
   };
   const planned = plannedAhead(
     band.initial as BandCarried,
@@ -253,6 +302,7 @@ export function rhythmRun(
   );
   const decided = planned.map((p) => p.bar);
   const lineKept: string[] = [];
+  const leadKept: string[] = [];
   const changes: RhythmChange[] = [];
   const played: Record<string, number> = {};
   const kept: string[] = [];
@@ -285,6 +335,7 @@ export function rhythmRun(
       claveKept.push(d.plan.claveFragment ?? '-');
       meterKept.push(d.plan.meterFragment ?? '-');
       lineKept.push(planned[i]!.plans.bassFragment ?? '-');
+      leadKept.push(planned[i]!.plans.leadFragment ?? '-');
       const bench = { meter: d.plan.meter, meterFragment: d.plan.meterFragment };
       // whatever the point, the query with no layer lists every seed rhythm that fits the bench: none is the fit refusing
       const fitsNone = rhythms.query({ energy: 0 }, bench).length === 0;
@@ -376,6 +427,10 @@ export function rhythmRun(
     lineFilings: lineFilings
       .filter((f) => f.section < sections)
       .map(({ filing, id, held: wasHeld }) => ({ filing, id, held: wasHeld })),
+    leads: player ? leadKept : [],
+    leadFilings: leadFilings
+      .filter((f) => f.section < sections)
+      .map(({ filing, id, held: wasHeld }) => ({ filing, id, held: wasHeld })),
   };
 }
 
@@ -386,10 +441,11 @@ export const rhythmRuns = (
   margins?: RhythmRepository['margins'],
   layer?: LearnedLayer,
   lines?: LineRepository,
+  player?: LeadPlayer,
 ): RhythmRun[] =>
   PRESETS.flatMap((preset, p) =>
     range(seeds).map((seed) =>
-      rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer, false, lines),
+      rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer, false, lines, player),
     ),
   );
 

@@ -24,7 +24,10 @@
  * rhythm, the composer asks for the section's bass line the same way (#423,
  * the loop of `facet.ts` for the facet `bass`, `sectionLine`): it climbs the
  * same ladder, and where it finds none the bass plays its own, which the Muse
- * files with a player's bass at the section's end (`museFiledLines`). The band
+ * files with a player's bass at the section's end (`museFiledLines`). After
+ * the bass line, the lead's (#424, the facet `lead`, `sectionLead`): a line
+ * the Muse filed of a player's motif, or of the lead's own on a miss
+ * (`museFiledLeads`), which the lead plays as its phrase's shape. The band
  * holds the plan for the section's eight bars, so a new key, scale or theme
  * arrives only at a boundary, as does a new meter or swing level.
  *
@@ -58,6 +61,8 @@ import {
   stylePoint,
 } from './meter-query.ts';
 import { BASS_FACET, type LineNote, type LineRepository, composedLine } from './bass-query.ts';
+import { LEAD_FACET, type LeadNote, type LeadRepository, composedLead } from './lead-query.ts';
+import { distilledLead } from './muse-lead.ts';
 import {
   type FilingAt,
   type HeardBars,
@@ -144,6 +149,18 @@ export interface PlanEnv {
    * she files each source's line at the section's end, as she does a groove.
    */
   readonly bassHeard?: readonly HeardBars<readonly LineNote[]>[] | undefined;
+  /**
+   * The repository the composer asks for the section's lead line, with its
+   * meter as the bench (#424, `lead-query.ts`); with none, or on a miss, the
+   * lead plays its own.
+   */
+  readonly leads?: LeadRepository | undefined;
+  /**
+   * What the Muse heard played as a lead over the section before (#424): the
+   * lead's own bars where it played its own on a miss, and each player's
+   * motifs; she files each source's line at the section's end.
+   */
+  readonly leadHeard?: readonly HeardBars<readonly LeadNote[]>[] | undefined;
 }
 
 /**
@@ -205,6 +222,8 @@ export interface PlanCarried {
    * has it, and a client plays the bass's notes it is sent.
    */
   readonly bassFragment: string | null;
+  /** The lead line the section before plays from (#424, `lead-query.ts`), by id, carried as the bass line is; null where it found none, and the lead plays its own. */
+  readonly leadFragment: string | null;
 }
 
 /** How far the harmony may move from a returning theme's before it is built anew. */
@@ -457,6 +476,58 @@ export function museFiledLines(
  * 8ths; none with no repository or on a miss, where the bass plays its own.
  * It asks with the pull of use together its entropy sets (#389, `pullOf`).
  */
+/** The tag every lead line the Muse or the composer files carries, beside the session's name where there is one (#424). */
+export const LEAD_TAG = 'lead line';
+
+/** What the Muse files of the lead at a section's end (#424): each source's recurring line heard over the section before (`distilledLead`), as `museFiledLines` files a bass line. */
+export function museFiledLeads(
+  given: PlanEnv,
+  layer: LearnedLayer,
+  before: Plan,
+  point: StylePoint,
+): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
+  return filedHeard(
+    given.leads,
+    given.leadHeard ?? [],
+    (bars) => {
+      const notes = distilledLead(bars);
+      return notes && { notes };
+    },
+    { meter: before.meter, meterFragment: before.meterFragment },
+    filingAt({ ...given, index: given.index - 1 }, point, LEAD_TAG),
+    layer,
+  );
+}
+
+/**
+ * The lead line a section takes where it starts, after its bass line
+ * (#424): the one the composer finds in the repository at the style, a bar
+ * it can read under the section's meter (`composedLead`), the section
+ * before's held, none of those `rejected`; none with no repository or on a
+ * miss, where the lead plays its own. It asks with the pull of use together
+ * its entropy sets (#389, `pullOf`).
+ */
+export function sectionLead(
+  { leads, style, layer }: Pick<PlanEnv, 'leads' | 'style' | 'layer'>,
+  meter: SectionMeter,
+  before: string | undefined,
+  chosen: readonly string[] = [],
+  rejected: readonly string[] = [],
+): string | undefined {
+  return leads
+    ? composedLead(
+        leads,
+        style,
+        { meter: meter.meter, meterFragment: meter.meterFragment },
+        before,
+        layer,
+        chosen,
+        rejected,
+        pullOf(style.entropy),
+      )
+    : undefined;
+}
+
 export function sectionLine(
   { bassLines, style, layer, share }: Pick<PlanEnv, 'bassLines' | 'style' | 'layer' | 'share'>,
   meter: SectionMeter,
@@ -490,10 +561,21 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     boredom: NO_BOREDOM,
     claveOwners: NO_CLAVE_OWNERS,
     bassFragment: null,
+    leadFragment: null,
   },
   advance(
     given,
-    { before, themes, layer: learned, shortTerm, asked, boredom, claveOwners, bassFragment },
+    {
+      before,
+      themes,
+      layer: learned,
+      shortTerm,
+      asked,
+      boredom,
+      claveOwners,
+      bassFragment,
+      leadFragment,
+    },
   ) {
     // The layer the song started from, until the first section has learned;
     // with what the Muse heard over the section before filed in it.
@@ -504,8 +586,12 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       grooves.layer && before && asked
         ? museFiledLines(given, grooves.layer, before, asked)
         : { layer: grooves.layer, ids: [] };
-    const layer = filed.layer;
-    const memory = remembered(shortTerm, [...grooves.ids, ...filed.ids]);
+    const motifs =
+      filed.layer && before && asked
+        ? museFiledLeads(given, filed.layer, before, asked)
+        : { layer: filed.layer, ids: [] };
+    const layer = motifs.layer;
+    const memory = remembered(shortTerm, [...grooves.ids, ...filed.ids, ...motifs.ids]);
     const chosen = chosenOf(memory);
     const env = { ...given, layer };
     const { seed, index, style, wish } = env;
@@ -571,25 +657,56 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         )
       : { id: line, layer: ladder.layer, playing: null };
     const bassKept = lineLadder.id;
-    const plan = { section, key, ...composed.meter, ...rhythm, melodic, theme };
-    const kept = [meterFragment, rhythm.rhythmFragment, rhythm.claveFragment, bassKept].filter(
-      (id) => id !== undefined,
+    // The lead line, on the same bench, its ladder climbed as the bass line's is.
+    const motif = sectionLead(
+      env,
+      composed.meter,
+      leadFragment ?? undefined,
+      [...chosen, ...(meterFragment === undefined ? [] : [meterFragment])],
+      rejectedOf(boredom, claveOwners),
     );
+    const leadLadder = lineLadder.layer
+      ? climbedFigure(
+          env.leads,
+          LEAD_FACET,
+          'leadLineVariation',
+          filingAt(env, stylePoint(style), LEAD_TAG),
+          lineLadder.layer,
+          boredom,
+          motif,
+          { meter: composed.meter.meter, meterFragment },
+        )
+      : { id: motif, layer: lineLadder.layer, playing: null };
+    const leadKept = leadLadder.id;
+    const plan = { section, key, ...composed.meter, ...rhythm, melodic, theme };
+    const kept = [
+      meterFragment,
+      rhythm.rhythmFragment,
+      rhythm.claveFragment,
+      bassKept,
+      leadKept,
+    ].filter((id) => id !== undefined);
     return {
       carried: {
         before: plan,
         themes: kind === 'build' ? themes : { ...themes, [kind]: theme },
-        layer: lineLadder.layer
+        layer: leadLadder.layer
           ? figureLearned(
-              env.bassLines,
+              env.leads,
               figureLearned(
-                env.rhythms,
-                learnedFrom(env, lineLadder.layer, composed.found),
-                [rhythm.rhythmFragment, rhythm.claveFragment],
+                env.bassLines,
+                figureLearned(
+                  env.rhythms,
+                  learnedFrom(env, leadLadder.layer, composed.found),
+                  [rhythm.rhythmFragment, rhythm.claveFragment],
+                  stylePoint(style),
+                  meterFragment,
+                ),
+                [bassKept],
                 stylePoint(style),
                 meterFragment,
               ),
-              [bassKept],
+              [leadKept],
               stylePoint(style),
               meterFragment,
             )
@@ -598,12 +715,13 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         asked: stylePoint(style),
         boredom: boredAfter(
           boredom,
-          [ladder.playing, lineLadder.playing].filter((l) => l !== null),
+          [ladder.playing, lineLadder.playing, leadLadder.playing].filter((l) => l !== null),
           style.entropy,
         ),
         // (a clave is the drum bar's it was first chosen to layer on, where the ladder climbs)
         claveOwners: ladder.playing ? ownedWith(claveOwners, found) : claveOwners,
         bassFragment: bassKept ?? null,
+        leadFragment: leadKept ?? null,
       },
       output: plan,
     };

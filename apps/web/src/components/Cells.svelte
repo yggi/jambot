@@ -254,6 +254,10 @@
     border-color: var(--source-4);
     color: var(--source-4);
   }
+  .part.lead {
+    border-color: var(--source-5);
+    color: var(--source-5);
+  }
   .part.motif {
     border-color: var(--teal);
     color: var(--teal);

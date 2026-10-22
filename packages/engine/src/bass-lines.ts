@@ -37,32 +37,26 @@
  * the bar's downbeat, the chord the reading bench changes on, as #423 asks:
  * never a chord change's root on its downbeat). The one a draw takes is
  * read back, one compile.
+ *
+ * The repository itself, its query, filing, uses and warming, is the one
+ * every member's lines share (`line-repository.ts`); this module says only
+ * what a bass line is.
  */
 
-import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
+import { type Meter, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { flatten } from '@yggi/cells/engine/flatten';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { codeShifts } from '@yggi/cells/engine/program';
-import {
-  PITCHED_OPERATORS,
-  type Variation,
-  drawn,
-  variations,
-} from '@yggi/cells/engine/vary/index';
+import { PITCHED_OPERATORS } from '@yggi/cells/engine/vary/index';
 import { linesOf } from '@yggi/cells/engine/vary/lines';
 import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
 import { unionOf } from '@yggi/cells/repository/fit';
-import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
-import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
-import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
+import type { Fragment } from '@yggi/cells/repository/fragments';
 import { BASS_FACET, type LineNote, type LineRead, type LineRepository } from './bass-query.ts';
-import { sameMeter } from './events.ts';
 import type { Bench } from './facet.ts';
-import { type LearnedLayer, cappedLayer } from './layer.ts';
-import type { StylePoint } from './meter-query.ts';
-import { BY } from './novelty.ts';
+import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';
 import { RHYTHM_BENCHES } from './rhythms.ts';
 import { stepSeconds } from './tempo.ts';
 
@@ -79,10 +73,6 @@ export const BASS_VOICE: readonly string[] = [
   '&bassV loop=C2',
   '&bassOut map=midi(2) [&bass * &bassV]',
 ];
-
-/** A meter's name as cells writes it in `meter("…")`, or null for one cells has no name for. */
-const nameOf = (meter: Meter): MeterName | null =>
-  (Object.keys(METERS) as MeterName[]).find((name) => sameMeter(METERS[name], meter)) ?? null;
 
 /**
  * The workbench a line is read and varied on: the meter played straight at the reading tempo, a key, and a harmony of
@@ -151,25 +141,6 @@ export function readLine(text: string, meter: Meter): LineRead | null {
   return { bars, notes: onsets.map((at, j) => ({ step: at, ...reads[j % reads.length]! })) };
 }
 
-/** The coarsest grid of a bar of `steps` all these steps fall on, as cells writes it, and its length in steps. */
-function gridOf(
-  onsets: readonly number[],
-  steps: number,
-): { readonly tap: string; readonly length: number } {
-  const grids = [
-    { tap: '1m', length: steps },
-    { tap: '2n', length: 8 },
-    { tap: '4n', length: 4 },
-    { tap: '8n', length: 2 },
-  ];
-  return (
-    grids.find((g) => steps % g.length === 0 && onsets.every((s) => s % g.length === 0)) ?? {
-      tap: '16n',
-      length: 1,
-    }
-  );
-}
-
 /**
  * A note's token, as cells' vary writes one back (`pitchText`): an index over the chord in force; where it reads the
  * next chord or moves by semitones, a splice of that chord's root (`&bassNext`, or `&bassRoot` for the chord in force)
@@ -209,142 +180,18 @@ export function lineText(notes: readonly LineNote[], steps: number): string {
   ].join('\n');
 }
 
-/** Whether a filed fragment is a bass line: associated as one at some point. */
-const isLine = ({ fragment }: LearnedLayer['filed'][number]) =>
-  fragment.association.some((p) => p.facet === BASS_FACET);
-
-/** A meter's key in the caches: its cycle and pulses. */
-const meterKey = (meter: Meter) => `${meter.cycle}:${meter.heights.join(' ')}`;
-
 /** A repository of these lines, ranked by cells' query on the facet `bass` and read by `read` (cells', unless a test counts them). */
 export function lineRepository(
   fragments: readonly Fragment[] = BASS_FRAGMENTS,
   read: (text: string, meter: Meter) => LineRead | null = readLine,
 ): LineRepository {
-  // (the lines with cells' meters beside them, which a line query never ranks, its facet theirs alone: so a line and
-  // the meter it was kept with count as used together)
-  const cells = createRepository([...fragments, ...METER_FRAGMENTS]);
-  const texts = new Map(fragments.map((f) => [f.id, f.text]));
-  const textOf = (id: string, layer?: LearnedLayer) =>
-    texts.get(id) ?? layer?.filed.find((f) => f.fragment.id === id)?.fragment.text;
-  // (every read and every line's variations on a meter, by text: kept for the repository's life)
-  const reads = new Map<string, LineRead | null>();
-  const varied = new Map<string, readonly Variation[]>();
-  const readText = (text: string, meter: Meter) => {
-    const key = `${text}\n${meterKey(meter)}`;
-    if (!reads.has(key)) reads.set(key, read(text, meter));
-    return reads.get(key)!;
-  };
-  const variationsOn = (text: string, name: MeterName) => {
-    const key = `${name}\n${text}`;
-    if (!varied.has(key))
-      varied.set(
-        key,
-        variations(text, { workbench: readingBench(name), operators: PITCHED_OPERATORS }),
-      );
-    return varied.get(key)!;
-  };
-  const ranked = (
-    point: StylePoint,
-    layer: LearnedLayer | undefined,
-    chosen: readonly string[],
-    reach: number,
-    pull: number | undefined,
-  ) =>
-    cells
-      .query(
-        point,
-        fragments.length + METER_FRAGMENTS.length + (layer?.filed.length ?? 0),
-        {},
-        {
-          facet: BASS_FACET,
-          ...(layer ? { layer } : {}),
-          ...(chosen.length ? { chosen } : {}),
-          ...(pull === undefined ? {} : { pull }),
-        },
-      )
-      .filter((f) => texts.has(f.fragment.id) || f.distance <= reach);
-  return {
-    query(point, bench, layer, chosen = [], reach = Infinity, pull) {
-      return ranked(point, layer, chosen, reach, pull)
-        .filter((f) => readText(f.fragment.text, bench.meter) !== null)
-        .map((f) => ({ id: f.fragment.id, distance: f.distance }));
-    },
-    used: (layer, ids, point, alongside = []) =>
-      cappedLayer(
-        useFragments(cells, layer, [
-          ...ids.map((id) => ({ id, point, facet: BASS_FACET })),
-          ...alongside.map((id) => ({ id })),
-        ]),
-      ),
-    file(layer, { notes, bench, point, source, created, tags, varies, by }) {
-      const text = lineText(notes, stepsOf(bench.meter));
-      const filed = fileFragment(cells, layer, {
-        text,
-        point,
-        facet: BASS_FACET,
-        source,
-        created,
-        meta: {
-          tags: [...tags],
-          ...(varies === undefined ? {} : { varies }),
-          ...(by === undefined ? {} : { [BY]: by }),
-        },
-      });
-      // (filing is its use at the point; beside the meter fragment it was played in, a use together)
-      const { meterFragment } = bench;
-      const together =
-        meterFragment === undefined
-          ? filed.layer
-          : useFragments(cells, filed.layer, [{ id: filed.id }, { id: meterFragment }]);
-      // (the round trip: a line stated from its notes reads back as them, on its bench)
-      const known = `${text}\n${meterKey(bench.meter)}`;
-      if (filed.file && !reads.has(known))
-        reads.set(known, { bars: 1, notes: [...notes].sort((a, b) => a.step - b.step) });
-      return { layer: cappedLayer(together), id: filed.id, held: filed.file === null };
-    },
-    read(id, meter, layer) {
-      const text = textOf(id, layer);
-      return text === undefined ? null : readText(text, meter);
-    },
-    vary(id, bench, draw, layer) {
-      const text = textOf(id, layer);
-      const name = nameOf(bench.meter);
-      if (text === undefined || name === null || readText(text, bench.meter) === null) return null;
-      const all = variationsOn(text, name);
-      if (!all.length) return null;
-      const variation = all[drawn(draw, all.length)]!;
-      const got = read(variation.apply(text), bench.meter);
-      return got && { notes: got.notes, by: variation.by };
-    },
-    *warm(benches, layer) {
-      // (cells' lines, and those the layer filed, newest first; a line read on a meter takes no step again)
-      const lines = [
-        ...(layer?.filed ?? [])
-          .filter(isLine)
-          .map((f) => f.fragment.text)
-          .reverse(),
-        ...fragments.map((f) => f.text),
-      ];
-      const meters = benches.filter(
-        (b, i) => benches.findIndex((o) => sameMeter(o.meter, b.meter)) === i,
-      );
-      for (const { meter } of meters) {
-        const name = nameOf(meter);
-        if (name === null) continue;
-        for (const text of lines) {
-          if (reads.has(`${text}\n${meterKey(meter)}`)) continue;
-          const got = readText(text, meter);
-          yield;
-          // (and its variations, where the composer could vary it there: a line of a bar)
-          if (got !== null && got.bars === 1 && !varied.has(`${name}\n${text}`)) {
-            variationsOn(text, name);
-            yield;
-          }
-        }
-      }
-    },
-  };
+  return lineRepositoryOf<LineNote>({
+    facet: BASS_FACET,
+    fragments,
+    read,
+    text: lineText,
+    vary: (name) => ({ workbench: readingBench(name), operators: PITCHED_OPERATORS }),
+  });
 }
 
 /** Every bench a section can ask on: the rhythms' (`RHYTHM_BENCHES`); a line reads by its meter alone. */

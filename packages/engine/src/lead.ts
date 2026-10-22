@@ -42,6 +42,13 @@
  * once, and a motif never becomes a theme's melody. These are the
  * prototype's rules and weights.
  *
+ * Where the composer found a lead line for the section (#424,
+ * `lead-query.ts`), the line is the phrase's shape in place of the lead's
+ * own and a theme's melody (`playLead`): the line, a variation, the line, a
+ * variation, realized as a player's motif, in the key's degrees and
+ * accidentals. What the lead invents on its own, as the Muse hears it on a
+ * miss, is `inventedBar`.
+ *
  * It is written on the bar's meter (#260): its steps, its pulses and the
  * accent tree give the grooves, the strong steps, the pickups and the
  * snapping steps; the syncopated groove, written on 4/4's 16 steps, is read
@@ -88,6 +95,12 @@ export const LEAD_RANGE = [60, 86] as const;
 export interface LeadShape extends Motif {
   readonly sync: number;
   readonly energy: number;
+  /**
+   * The lead line it is played from (#424), by id, where the composer found
+   * one: realized in the key's own degrees and accidentals, as a player's
+   * motif, and never a theme's melody.
+   */
+  readonly fragment?: string;
 }
 
 /**
@@ -101,22 +114,29 @@ function shapeFrom(
   sync: number,
   energy: number,
   cycle: number,
+  accidentals: readonly number[] = steps.map(() => 0),
+  fragment?: string,
 ): LeadShape {
   const rest = steps[0]! > 0;
   return {
     cycle,
     onsets: rest ? [0, ...steps] : [...steps],
     degrees: rest ? [null, ...degrees] : [...degrees],
-    accidentals: [...(rest ? [0] : []), ...steps.map(() => 0)],
+    accidentals: [...(rest ? [0] : []), ...accidentals],
     sync,
     energy,
+    ...(fragment === undefined ? {} : { fragment }),
   };
 }
 
-/** A shape's notes: their steps and degrees, its rest left out. */
-function notesOf(shape: LeadShape): { steps: number[]; degrees: number[] } {
+/** A shape's notes: their steps, degrees and accidentals, its rest left out. */
+function notesOf(shape: LeadShape): { steps: number[]; degrees: number[]; accidentals: number[] } {
   const at = shape.degrees.flatMap((d, i) => (d === null ? [] : [i]));
-  return { steps: at.map((i) => shape.onsets[i]!), degrees: at.map((i) => shape.degrees[i]!) };
+  return {
+    steps: at.map((i) => shape.onsets[i]!),
+    degrees: at.map((i) => shape.degrees[i]!),
+    accidentals: at.map((i) => shape.accidentals[i] ?? 0),
+  };
 }
 
 /**
@@ -341,7 +361,9 @@ function shapeOf(env: BarEnv): LeadShape {
 /**
  * A variation of a shape, drawn per bar: turned over, lifted, its last note
  * bent, or its last note dropped, the note before it then held to the bar's
- * end. At some entropy one note is nudged a degree.
+ * end. At some entropy one note is nudged a degree. A note's accidental
+ * goes with it (a lead line's, #424; the lead's own have none): turned over
+ * with it, and none on a note bent.
  */
 function varied(shape: LeadShape, env: BarEnv): LeadShape {
   const { seed, bar } = env;
@@ -349,19 +371,24 @@ function varied(shape: LeadShape, env: BarEnv): LeadShape {
   let n = 0;
   const next = () => draw(seed, 'leadVariation', bar, n++);
   const notes = notesOf(shape);
-  let degrees = notes.degrees;
+  let { degrees, accidentals } = notes;
   const onsets = notes.steps;
   // Turn it over, lift it, bend its last note, or drop it.
   const way = pick(next(), variations);
-  if (way === 0) degrees = degrees.map((d) => -d);
-  else if (way === 1) degrees = degrees.map((d) => d + 2);
+  if (way === 0) {
+    degrees = degrees.map((d) => -d);
+    accidentals = accidentals.map((a) => (a === 0 ? 0 : -a));
+  } else if (way === 1) degrees = degrees.map((d) => d + 2);
   else if (way === 2) {
     const i = degrees.length - 1;
-    if (i > 0)
+    if (i > 0) {
       degrees[i] = degrees[i - 1]! + (chance(next(), 0.5) ? -1 : 1) * (1 + pick(next(), [1, 1]));
+      accidentals[i] = 0;
+    }
   } else if (onsets.length > 2) {
     onsets.pop();
     degrees.pop();
+    accidentals.pop();
   }
   if (chance(next(), nudge) && onsets.length > 1) {
     const i =
@@ -372,7 +399,15 @@ function varied(shape: LeadShape, env: BarEnv): LeadShape {
       );
     degrees[i]! += chance(next(), 0.5) ? -1 : 1;
   }
-  return shapeFrom(onsets, degrees, shape.sync, shape.energy, shape.cycle);
+  return shapeFrom(
+    onsets,
+    degrees,
+    shape.sync,
+    shape.energy,
+    shape.cycle,
+    accidentals,
+    shape.fragment,
+  );
 }
 
 /** The nearest note to `near` among a chord's tones, within a tritone; ties go down. */
@@ -474,43 +509,79 @@ function realize(motif: Motif, env: BarEnv, last: number, own: boolean) {
   return { written, last: notes.at(-1)! };
 }
 
-export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
-  initial: { last: 69, phrase: null, melodies: {}, offered: null },
-  advance(env, carried) {
-    const { plan, style, barEnergy: energy, barInSection, offer } = env;
-    // A motif the Muse offers is played whole while it stands, even where
-    // the lead would rest, and the lead's own phrase starts afresh after it.
-    if (offer) {
-      const { written, last } = realize(offer.motif, env, carried.last, false);
-      return {
-        carried: { ...carried, last, phrase: null, offered: offer.bar },
-        output: written,
-      };
+/** Where the lead starts before it has played: the A above middle C. */
+const FIRST_LAST = 69;
+
+/**
+ * The lead's bar, given where it was and the motif of the lead line its
+ * section plays from (#424), if the composer found one (`leadMotif`). A
+ * motif the Muse offers is played whole while it stands, even where the
+ * lead would rest, and the lead's own phrase starts afresh after it. Where
+ * a line was found, it is the phrase's shape, played as the lead plays its
+ * own (shape, variation, shape, variation), but realized as a player's
+ * motif, in the key's degrees; where none was, the lead's own shape, or a
+ * theme's melody returning.
+ */
+export function playLead(
+  env: BarEnv,
+  carried: LeadCarried,
+  figure: Motif | null = null,
+  fragment?: string,
+): { carried: LeadCarried; output: WrittenNote[] } {
+  const { plan, style, barEnergy: energy, barInSection, offer } = env;
+  if (offer) {
+    const { written, last } = realize(offer.motif, env, carried.last, false);
+    return {
+      carried: { ...carried, last, phrase: null, offered: offer.bar },
+      output: written,
+    };
+  }
+  const { section, theme } = plan;
+  if (leadRests(section.type, energy))
+    return { carried: { ...carried, phrase: null, offered: null }, output: [] };
+
+  const phase = barInSection % 4;
+  let { phrase, melodies } = carried;
+  let shape: LeadShape;
+  if (phase === 0 || !phrase) {
+    const kept = melodies[theme.kind];
+    const returns =
+      kept &&
+      kept.theme === theme.index &&
+      Math.abs(kept.shape.sync - style.sync) < 0.25 &&
+      Math.abs(kept.shape.energy - energy) < 0.3;
+    if (figure) {
+      const { steps, degrees, accidentals } = notesOf({ ...figure, sync: 0, energy: 0 });
+      shape = shapeFrom(steps, degrees, style.sync, energy, figure.cycle, accidentals, fragment);
+    } else if (returns) shape = kept.shape;
+    else {
+      shape = shapeOf(env);
+      melodies = { ...melodies, [theme.kind]: { theme: theme.index, shape } };
     }
-    const { section, theme } = plan;
-    if (leadRests(section.type, energy))
-      return { carried: { ...carried, phrase: null, offered: null }, output: [] };
+    phrase = shape;
+  } else if (phase === 2) shape = phrase;
+  else shape = varied(phrase, env);
 
-    const phase = barInSection % 4;
-    let { phrase, melodies } = carried;
-    let shape: LeadShape;
-    if (phase === 0 || !phrase) {
-      const kept = melodies[theme.kind];
-      const returns =
-        kept &&
-        kept.theme === theme.index &&
-        Math.abs(kept.shape.sync - style.sync) < 0.25 &&
-        Math.abs(kept.shape.energy - energy) < 0.3;
-      if (returns) shape = kept.shape;
-      else {
-        shape = shapeOf(env);
-        melodies = { ...melodies, [theme.kind]: { theme: theme.index, shape } };
-      }
-      phrase = shape;
-    } else if (phase === 2) shape = phrase;
-    else shape = varied(phrase, env);
+  const { written, last } = realize(shape, env, carried.last, shape.fragment === undefined);
+  return { carried: { last, phrase, melodies, offered: null }, output: written };
+}
 
-    const { written, last } = realize(shape, env, carried.last, true);
-    return { carried: { last, phrase, melodies, offered: null }, output: written };
-  },
+/**
+ * What the lead invents for a bar on its own (#424), as the Muse hears it
+ * on a miss: the shape it draws for the bar's half, varied where the phrase
+ * varies it, played from where it starts; none where it rests or a motif is
+ * offered. It reads the bar alone, as the drummer's bar does, so a forecast
+ * hears what the band will; where a theme's melody returns, the lead plays
+ * that instead, which this doesn't hear.
+ */
+export function inventedBar(env: BarEnv): WrittenNote[] {
+  if (env.offer || leadRests(env.plan.section.type, env.barEnergy)) return [];
+  const shape = shapeOf(env);
+  const phase = env.barInSection % 4;
+  return realize(phase % 2 === 0 ? shape : varied(shape, env), env, FIRST_LAST, true).written;
+}
+
+export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
+  initial: { last: FIRST_LAST, phrase: null, melodies: {}, offered: null },
+  advance: (env, carried) => playLead(env, carried),
 };
