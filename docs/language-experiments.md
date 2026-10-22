@@ -807,5 +807,17 @@ run; the others have.
   - **The cost** (Node, a shared container, warmed as the app warms it): the warm-up's 55 steps (a line read, or its variations) take at most 4.1 ms each, under the 25 ms a slice starts a step in; an ask of the bass lines takes 0.02 ms at p95 and 1.8 ms at most, under #412's 5 ms.
   - Not measured: entropy other than 0 held and 0.3 walked, a player's bass on the walks (none plays), and how any of it sounds: the owner's ear rules on the held movement before merge (#423).
 
+- **E42. The lead enters the loop** (#424; the loop of `facet.ts` for the facet `lead`, every line one the layer filed, cells holding no seed lead lines), in
+  [`packages/engine/experiments/lead-loop.ts`](../packages/engine/experiments/lead-loop.ts) and E37's runs with the bass lines, the lead lines and a player (`rhythmRun`'s `player`),
+  held by [`packages/engine/experiments/lead-loop.test.ts`](../packages/engine/experiments/lead-loop.test.ts) (about 2 minutes under vitest):
+  - **The player** answers one section in four, the second of each four, in its second half, with one of eight motifs of 3 to 6 notes (`MOTIFS`), a new one every 16 sections, heard by the Muse in each bar as a lead line: a choice of this experiment, not a measure of players.
+  - **Walked** (the radio at entropy 0.3 from each preset, 40 runs of an hour, 8,508 sections, learning from an empty layer):
+    8,413 sections play a lead line, and the lead its own in 95 (with nothing learned, in all of them); the run's most used line plays 3,022, 35.9 % of those that play one, under #424's 60 %.
+    The share of sections among a run's 3 most used lead lines moves −20.4 points (1.8 error), within 5 with twice its error; with nothing learned the lead plays its own every section, which counts as one, so this share can only fall, and the bound says little here.
+    2,321 filings: 332 of the player's lines new, 38 of the lead's own the player answered, 159 of the composer's variations (lift or turn over), 1,792 a line held already (identity); each new one reads back as filed.
+  - **Three hours** (one seed a preset, 8 runs, 5,252 sections; forty take five minutes): the layer reaches its cap with the drums, the bass and the lead filing, at most 15,998 bytes, under `LAYER_CAP` (16,000), its cap dropping the oldest in 26 sections; a lead line weighs about 380 bytes, its voice and card a sixth of it. The most used lead line plays 27.6 % of the sections that play one.
+  - **The cost** (Node, a shared container) with the heaviest layer's 23 lead lines: the warm-up's 88 steps take at most 1.6 ms each, under a slice's 50 ms; an ask of the lead lines takes 0.11 ms at p95 and 0.8 ms at most, under #424's 5 ms.
+  - Not measured: entropy other than 0.3 walked, players other than this one, a player's motif bent off the key (which cells doesn't vary), and how any of it sounds.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

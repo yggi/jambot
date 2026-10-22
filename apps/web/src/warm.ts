@@ -117,7 +117,7 @@ export function warmAtIdle(
  * is filed (each forecast files ahead again, in a layer of its own), and one
  * held already, a fragment's text, is warm. The repository as it is where it
  * files or warms nothing. Any member's repository (`FacetRepository`): the
- * rhythms' and the bass lines' (#423).
+ * rhythms', the bass lines' (#423) and the lead lines' (#424).
  */
 export function warmedOnFiling<R extends FacetRepository<{ readonly bars: number }, object>>(
   repository: R,

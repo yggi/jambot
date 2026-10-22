@@ -1,4 +1,11 @@
-import { COMPOSER, DRUMMER, EMPTY_LAYER, type LearnedLayer, SEED_FRAGMENTS } from '@jambot/engine';
+import {
+  COMPOSER,
+  DRUMMER,
+  EMPTY_LAYER,
+  type LearnedLayer,
+  SEED_FRAGMENTS,
+  SOLOIST,
+} from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import {
   FRAGMENT_FILTERS,
@@ -174,6 +181,24 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
       source: 'Ada',
       muse: true,
       colour: 1,
+    });
+  });
+
+  it('shows a lead line filed as the part `lead`, the lead’s own as the lead’s (#424)', () => {
+    const filed = [
+      filedFile('soloist song 1, bar 8', SOLOIST, { facet: 'lead' }),
+      filedFile('Ada song 1, bar 8', 'Ada', { facet: 'lead' }),
+    ];
+    const all = rows({ layer: layer({ filed }), players: { p1: 'Ada' } });
+    expect(byName(all, 'soloist song 1, bar 8')).toMatchObject({
+      role: 'lead',
+      source: 'The lead',
+      muse: false,
+    });
+    expect(byName(all, 'Ada song 1, bar 8')).toMatchObject({
+      role: 'lead',
+      source: 'Ada',
+      muse: true,
     });
   });
 

@@ -18,7 +18,7 @@
 
 import type { FragmentFile } from '@yggi/cells/repository/files';
 import { writeFragment } from '@yggi/cells/repository/files';
-import type { LearnedLayer } from '@yggi/cells/repository/fragments';
+import type { LearnedLayer, Repository } from '@yggi/cells/repository/fragments';
 
 export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments';
 
@@ -30,7 +30,10 @@ export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments
  * learning), since use raises a point where one is, and the eleven meters
  * have one each; with the rhythms, and the grooves the Muse files on a miss
  * (#401) and the composer's variations of them and of the seed rhythms
- * (#411, #414), at most 11,550 bytes, eleven grooves at most (E38, E39).
+ * (#411, #414), at most 11,550 bytes, eleven grooves at most (E38, E39);
+ * with the bass lines too, at most 15,583 (E41). With the lead lines and a
+ * player answering one section in four (E42), it reaches the cap, which drops
+ * its oldest in 26 sections of 5,252 over 3 hours.
  */
 export const LAYER_CAP = 16_000;
 
@@ -60,6 +63,22 @@ export function cappedLayer(layer: LearnedLayer, cap: number = LAYER_CAP): Learn
   while (together.length > 0 && weight() > cap) together = together.slice(1);
   while (filed.length > 0 && weight() > cap) filed = filed.slice(1);
   return { filed, points, together };
+}
+
+/**
+ * Those of `ids` a repository with a layer still holds: its seeds, and the
+ * fragments the layer files. A fragment the layer's cap dropped meanwhile
+ * (`cappedLayer`), which a section may still have been playing, is gone, so
+ * its use is learned no more.
+ */
+export function stillHeld(
+  repository: Repository,
+  layer: LearnedLayer,
+  ids: readonly string[],
+): string[] {
+  const held = (id: string) =>
+    repository.fragments.some((f) => f.id === id) || layer.filed.some((f) => f.fragment.id === id);
+  return ids.filter(held);
 }
 
 /** A file a person can save: its name and its text. */

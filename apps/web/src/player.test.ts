@@ -629,8 +629,13 @@ describe('the player', () => {
       player.forgetMotif();
       run(9);
       expect(player.museLog.at(-1)).toMatchObject({ offer: null, forgot: 'asked' });
+      // The offer is forgotten; the motif heard was filed as a lead line (#424), which the lead plays as its own phrase.
+      const filed = player.layer.filed.filter((f) =>
+        f.fragment.association.some((p) => p.facet === 'lead'),
+      );
+      expect(filed.map((f) => f.meta.source)).toEqual(['the computer keys']);
       const after = Math.floor(world.steps.at(-1)!.step / 16) - 1;
-      expect(leadSteps(world, after)).not.toEqual([0, 4, 8]);
+      expect(leadSteps(world, after)).toEqual([0, 4, 8]);
     });
 
     it('keeps at most 240 notes, dropping the oldest half once full', async () => {

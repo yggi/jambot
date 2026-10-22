@@ -51,7 +51,7 @@ import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
-import { type LearnedLayer, cappedLayer } from './layer.ts';
+import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
 import { GROOVE_FEWEST, grooveText } from './muse-groove.ts';
@@ -268,8 +268,8 @@ export function rhythmRepository(
     used: (layer, ids, point, alongside = []) =>
       cappedLayer(
         useFragments(cells, layer, [
-          ...ids.map((id) => ({ id, point, facet: 'rhythm' })),
-          ...alongside.map((id) => ({ id })),
+          ...stillHeld(cells, layer, ids).map((id) => ({ id, point, facet: 'rhythm' })),
+          ...stillHeld(cells, layer, alongside).map((id) => ({ id })),
         ]),
       ),
     file(layer, { hits, bench, point, source, created, tags, varies, by }) {
