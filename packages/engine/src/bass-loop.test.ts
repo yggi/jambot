@@ -24,6 +24,7 @@ import {
   clockOfTransport,
   transport,
 } from './transport.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const byName = (name: string) => PRESETS.find((p) => p.name === name)!;
@@ -58,7 +59,7 @@ const held = (extra: Partial<TransportEnv> = {}) =>
         seed,
         start: 1,
         track: holding({ ...preset.style, entropy: 0 }),
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         swing: holdingSwing(presetSwing(preset)!),
         repository: METER_REPOSITORY,
         rhythms: RHYTHM_REPOSITORY,
@@ -106,7 +107,7 @@ function play(
         bar,
         style,
         swing: presetSwing(preset)!,
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
         rhythms: RHYTHM_REPOSITORY,
@@ -245,7 +246,7 @@ describe('the bass is the generator on a miss, and the Muse files what it played
             bar,
             style: { ...preset.style, entropy: 0.6 },
             swing: presetSwing(preset)!,
-            wish: { tonic: null, mode: preset.mode, melodic: null },
+            wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
             offer: null,
             repository: METER_REPOSITORY,
           };

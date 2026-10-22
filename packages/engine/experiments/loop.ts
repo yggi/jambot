@@ -74,6 +74,7 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Motif, NOOP, applyOp, head, recognise } from '@jambot/theory';
 import {
+  presetMode,
   type DoughNote,
   type HeardNote,
   type Judgement,
@@ -258,7 +259,7 @@ export function loopRun(
   played?: (bar: number, dough: readonly DoughNote[]) => void,
 ): LoopBar[] {
   const style = { ...preset.style, entropy };
-  const wish = { tonic: null, mode: preset.mode, melodic: null };
+  const wish = { tonic: null, mode: presetMode(preset)!, melodic: null };
   let playing = band.initial;
   let listening: MuseCarried = muse.initial;
   let pending: HeardNote[] = [];

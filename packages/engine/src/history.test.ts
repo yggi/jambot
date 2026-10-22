@@ -6,6 +6,7 @@ import recorded from './history.fixture.json';
 import { HISTORY_DECAY, NO_HISTORY, centre, foldBar, keyWeight } from './history.ts';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
 import { PRESETS } from './style.ts';
+import { presetMode } from './mode-repository.ts';
 
 /** A chord on `step` of heights `heights` (its helix alone). */
 const chordAt = (step: number, heights: number[]): BarChord => ({
@@ -89,7 +90,7 @@ function recording() {
             seed,
             bar,
             style,
-            wish: { tonic: null, mode: preset.mode, melodic: null },
+            wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
             offer: null,
           }),
           24 * 8,

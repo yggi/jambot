@@ -66,6 +66,7 @@
  */
 
 import {
+  presetMode,
   type BandBar,
   DRUM_ROLES,
   type DrumRole,
@@ -198,7 +199,7 @@ export function runOf({
     start: START,
     track: holding({ ...preset.style, entropy: ENTROPY }),
     swing: holdingSwing(presetSwing(preset)!),
-    wish: { tonic: null, mode: preset.mode, melodic: melodic ?? null },
+    wish: { tonic: null, mode: presetMode(preset)!, melodic: melodic ?? null },
     meter: METERS[meter],
     tempoMeter: METERS[meter],
   };

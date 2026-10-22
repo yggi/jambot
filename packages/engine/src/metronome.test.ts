@@ -10,6 +10,7 @@ import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
 const TRIPLET: MeterSwing = { level: '8n', share: 2 / 3 };
 import { stepSeconds } from './tempo.ts';
 import { LOOKAHEAD, type ScheduledStep, type TransportEnv, transport } from './transport.ts';
+import { presetMode } from './mode-repository.ts';
 
 /** The transport's own clock, a tick every 25 ms, run for `seconds` at a constant style. */
 function play(preset: number, swing: MeterSwing | null, seconds: number) {
@@ -19,7 +20,7 @@ function play(preset: number, swing: MeterSwing | null, seconds: number) {
     start: 1,
     track: holding(style),
     swing: holdingSwing(swing ?? presetSwing(PRESETS[preset]!)!),
-    wish: { tonic: null, mode: PRESETS[preset]!.mode, melodic: null },
+    wish: { tonic: null, mode: presetMode(PRESETS[preset]!)!, melodic: null },
   };
   let carried = transport.initial;
   const steps: ScheduledStep[] = [];
@@ -169,7 +170,7 @@ function inMeter(meter: Meter, swing: MeterSwing, bars: number) {
     start: 1,
     track: holding(style),
     swing: holdingSwing(swing),
-    wish: { tonic: null, mode: PRESETS[4]!.mode, melodic: null },
+    wish: { tonic: null, mode: presetMode(PRESETS[4]!)!, melodic: null },
     meter,
   };
   let carried = transport.initial;

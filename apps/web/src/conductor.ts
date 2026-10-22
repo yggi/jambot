@@ -14,9 +14,11 @@
  * and a beat, at most 20 steps. While the band is stopped, a change is set
  * at once, and the next start plays from it.
  *
- * A preset also wishes for its mode, unless the wish is in that mode
- * already, so a key picked stays when a preset in its mode follows, as in
- * the prototype. A key picked is wished for as it is, tonic and mode, and a
+ * A preset also wishes for its mode, the one the repository finds at its
+ * point (`presetMode`, #420), unless the wish is in that mode already, so a
+ * key picked stays when a preset in its mode follows, as in the prototype;
+ * a preset where the repository finds none leaves the wish as it is.
+ * A key picked is wished for as it is, tonic and mode, and a
  * melodic scale picked beside it (#209): a key intent names what it changes
  * of the wish, and the rest stands. The band moves its key toward the wish,
  * and takes its melodic scale, at the next section it plans (`nextKey`,
@@ -62,6 +64,9 @@ import {
   licenceOf,
   melodicWithin,
   nudgedTempo,
+  type ModeRepository,
+  MODE_REPOSITORY,
+  presetMode,
   presetSwing,
   tempoLicence,
   tempoNudgeWithin,
@@ -211,7 +216,8 @@ export function nudgeAfter(nudge: number, intent: Intent, style: Style): number 
 
 /**
  * The key wished for after an intent: what a key intent picks, or a
- * preset's mode from any tonic, the rest of the wish as it was; a tonic held
+ * preset's mode from any tonic, the one `repository` finds at its point,
+ * the rest of the wish as it was; a tonic held
  * within the reach that the style after the intent leaves (`licenceOf`) of
  * `home`: the plan's key, the one the band is heading for, which is the key
  * the song opens in before anything is decided; and a melodic scale
@@ -222,12 +228,14 @@ export function wishAfter(
   intent: Intent,
   style: Style,
   home: Key = INITIAL_KEY,
+  repository: ModeRepository = MODE_REPOSITORY,
 ): KeyWish {
+  const mode = intent.kind === 'preset' ? presetMode(intent.preset, repository) : null;
   const next: KeyWish =
     intent.kind === 'key'
       ? { ...wish, ...intent.wish }
-      : intent.kind === 'preset' && intent.preset.mode !== wish.mode
-        ? { ...wish, tonic: null, mode: intent.preset.mode }
+      : mode !== null && mode !== wish.mode
+        ? { ...wish, tonic: null, mode }
         : wish;
   const { keyReach } = licenceOf(style);
   const tonic =

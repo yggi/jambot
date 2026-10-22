@@ -26,6 +26,7 @@ import {
   clockOfTransport,
   transport,
 } from './transport.ts';
+import { presetMode } from './mode-repository.ts';
 
 /** The transport over 32 bars: every event. */
 function events(env: TransportEnv): TimedEvent[] {
@@ -64,7 +65,7 @@ function runs(entropy: number, walked: boolean, extra: Partial<TransportEnv> = {
         seed,
         start: 1,
         track,
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         swing: holdingSwing(swung ? presetSwing(preset)! : STRAIGHT),
         repository: METER_REPOSITORY,
         ...extra,

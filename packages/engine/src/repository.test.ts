@@ -21,6 +21,7 @@ import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { PRESETS, holding } from './style.ts';
 import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
+import { presetMode } from './mode-repository.ts';
 
 /** Each preset's swing as `PRESETS` named it by hand before the repository found it (#360, #459), as a literal. */
 const HAND_SWING: Readonly<Record<string, MeterSwing>> = {
@@ -113,7 +114,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
           seed,
           start: 1,
           track: holding({ ...preset.style, entropy: 0.3 }),
-          wish: { tonic: null, mode: preset.mode, melodic: null },
+          wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         };
         const asked = events({ ...env, swing: holdingSwing(HAND_SWING[preset.name]!) });
         // The repository's share wins over the swing track's, so a straight track changes nothing.

@@ -28,6 +28,7 @@
  */
 
 import {
+  presetMode,
   BAR_STEPS,
   type BandBar,
   type BandCarried,
@@ -178,7 +179,7 @@ export function presetBars(preset: (typeof PRESETS)[number]): BandBar[] {
         bar,
         style: { ...preset.style, entropy: ENTROPY },
         swing: presetSwing(preset)!,
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
       },
       carried,
