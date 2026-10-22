@@ -113,6 +113,8 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   A step starts within a slice's first 25 ms and while its idle period lasts, so a slice stays under 50 ms, and the warm-up moves on while the band plays, when Chromium's idle periods are what a frame leaves, 16 ms at most (#408).
   In Chromium it takes 1,371 steps (a fit, a read or a union each), about a second of work, and ends about 2 s after the page opens, a song started or not; `warmings` holds what it did.
   Each groove the Muse files is warmed the same way once it is filed (`warmedOnFiling`, #412), on the bench it was played on first, then on every other, about 76 steps; so are the grooves of a layer loaded or imported.
+  Cells' bass lines are warmed beside them (#423, `BASS_REPOSITORY.warm` over `LINE_BENCHES`): each line read under each named meter and its variations, 55 steps, the longest about 6 ms in Node; a line filed is warmed by `warmedOnFiling` too, which takes any member's repository.
+  The Cells view lists a filed line as the part `bass`, the bass's own as "The bass" (`BASSIST`); the section's bass line is not on the plan (it doesn't travel, `PlanCarried.bassFragment`), so the Retrieved log has no bass column yet.
   The opening section needs none of it: the forecast the player keeps while stopped asks that section's rhythm at load and at every control moved, so a song starts with its fits made.
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.

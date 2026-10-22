@@ -6,8 +6,9 @@
  * - **Retrieved**: what the composer took from the repository for each
  *   section heard (its meter, rhythm and clave, `Plan.meterFragment` and the
  *   rest, which reach a client too), logged a section at a time (`logged`).
- * - **Filed**: what the learned layer filed (#401, #411): the drummer's
- *   grooves, the composer's variations and the players' grooves, each with
+ * - **Filed**: what the learned layer filed (#401, #411, #423): the
+ *   drummer's grooves and the bass's lines, the composer's variations and
+ *   the players' grooves and lines, each with
  *   its text, the point it was filed at, its tags and what it varies. Only a
  *   host or a band alone keeps a layer.
  * - **Muse**: what she collected: the players' grooves she filed, and the
@@ -19,6 +20,7 @@
  */
 
 import {
+  BASSIST,
   COMPOSER,
   DRUMMER,
   type Fragment,
@@ -40,7 +42,7 @@ export interface TakenSection {
 }
 
 /** The part a fragment plays: its slot in a section, its facet where it took none, or a motif. */
-export type FragmentRole = 'meter' | 'rhythm' | 'clave' | 'motif';
+export type FragmentRole = 'meter' | 'rhythm' | 'clave' | 'bass' | 'motif';
 
 /** The order a section names its fragments in. */
 const SLOTS = ['meter', 'rhythm', 'clave'] as const;
@@ -109,6 +111,7 @@ export function logged(
 /** Who made a filed fragment, as a person reads it: the band's own by their part, a player by name. */
 const BAND_SOURCES: Readonly<Record<string, string>> = {
   [DRUMMER]: 'The drummer',
+  [BASSIST]: 'The bass',
   [COMPOSER]: 'The composer',
 };
 
@@ -190,7 +193,7 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
     return {
       key: id,
       name: id,
-      role: took?.role ?? (facet === 'meter' ? 'meter' : 'rhythm'),
+      role: took?.role ?? (facet === 'meter' ? 'meter' : facet === 'bass' ? 'bass' : 'rhythm'),
       filed: file !== undefined,
       retrieved: took !== undefined,
       muse: !band,

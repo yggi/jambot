@@ -198,7 +198,7 @@ describe('the session protocol', () => {
       { kind: 'judged', bar: 3, judgement },
       { kind: 'ping', sent: 1.5 },
       ...playedBars(),
-      // Any part the band has reads; a host hears drums alone so far (`heardFrom`).
+      // Any part the band has reads; a host hears the drums and the bass (`heardFrom`).
       { kind: 'played', part: 'bass', bar: 1, notes: [] },
       { kind: 'forget' },
       { kind: 'leave' },
@@ -225,7 +225,7 @@ describe('the session protocol', () => {
       expect(readClientMessage(junk), JSON.stringify(junk)).toBeNull();
   });
 
-  it(`reads a client's played bar of at most ${PLAYED_MOST} notes, and hears drums alone in it, by the player's name`, () => {
+  it(`reads a client's played bar of at most ${PLAYED_MOST} notes, and hears the drums or the bass in it, by the player's name`, () => {
     const [played] = playedBars();
     expect(played!.notes).toHaveLength(4);
     const most = { ...played!, notes: Array(PLAYED_MOST).fill(played!.notes[0]) };
@@ -234,6 +234,13 @@ describe('the session protocol', () => {
     // The host names each note by the player it seated, whatever the client said it was.
     expect(heardFrom(played!, 'Ada')).toEqual(played!.notes.map((n) => ({ ...n, source: 'Ada' })));
     expect(heardFrom({ ...played!, part: 'lead' }, 'Ada')).toEqual([]);
+    // and the bass, asked for, where the bar is the bass's (#423), and not the drums of it
+    const bass = { ...played!, part: 'bass' as const };
+    expect(heardFrom(bass, 'Ada', 'bass')).toEqual(
+      bass.notes.map((n) => ({ ...n, source: 'Ada' })),
+    );
+    expect(heardFrom(bass, 'Ada')).toEqual([]);
+    expect(heardFrom(played!, 'Ada', 'bass')).toEqual([]);
     // About 85 bytes a note on the wire, as JSON: a bar of 4 hits is under 400.
     expect(JSON.stringify(played).length).toBeLessThan(400);
   });

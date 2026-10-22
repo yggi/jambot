@@ -250,6 +250,10 @@
     border-color: var(--source-2);
     color: var(--source-2);
   }
+  .part.bass {
+    border-color: var(--source-4);
+    color: var(--source-4);
+  }
   .part.motif {
     border-color: var(--teal);
     color: var(--teal);

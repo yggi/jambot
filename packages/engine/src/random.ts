@@ -111,6 +111,8 @@ export const STREAMS = {
   radio: 29,
   /** Which variation the composer makes of a rhythm it tires of, per rhythm: a groove filed by its place in the layer (#411), a seed rhythm by its id (#414, `nameKey`). */
   grooveVariation: 30,
+  /** Which variation the composer makes of a bass line it tires of, per line: one filed by its place among the layer's lines, a seed line by its id (#423). */
+  lineVariation: 31,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

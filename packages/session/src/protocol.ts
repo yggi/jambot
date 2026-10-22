@@ -121,9 +121,9 @@ export interface SectionText {
  * What a client's players played on one part in one bar, as its ear heard
  * the notes (`earListen`): a bar a message, passed on as the bar is judged,
  * a beat after it ends. A note is a `HeardNote`, which any part's notes are,
- * so a pitched part travels as drums do; a host hears drums alone so far
- * (`heardFrom`), and the note's source is the client's instrument, which the
- * host names by the player it seated.
+ * so a pitched part travels as drums do; a host hears drums and the bass
+ * (`heardFrom`, #423), and the note's source is the client's instrument,
+ * which the host names by the player it seated.
  */
 export interface PlayedBar {
   readonly part: Part;
@@ -455,13 +455,18 @@ export function refusal(
 }
 
 /**
- * What a host's Muse hears of a played bar: its notes on drums, each named
- * by the player who played them, as the host's own player's drums are
- * (#401), so a groove is filed under the name; nothing of another part yet.
- * A note outside the bar is the transport's to drop, as its own player's are.
+ * What a host's Muse hears of a played bar on one part, the drums unless
+ * another is named: its notes, each named by the player who played them, as
+ * the host's own player's are, so a groove (#401) or a bass line (#423) is
+ * filed under the name; nothing where the bar is another part's. A note
+ * outside the bar is the transport's to drop, as its own player's are.
  */
-export function heardFrom(played: PlayedBar, name: string): HeardNote[] {
-  return played.part === 'drums' ? played.notes.map((n) => ({ ...n, source: name })) : [];
+export function heardFrom(
+  played: PlayedBar,
+  name: string,
+  part: Extract<Part, 'drums' | 'bass'> = 'drums',
+): HeardNote[] {
+  return played.part === part ? played.notes.map((n) => ({ ...n, source: name })) : [];
 }
 
 /** The id the host's own player goes by in its session; a client goes by the id its link has. */

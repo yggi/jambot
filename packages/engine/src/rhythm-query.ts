@@ -47,6 +47,11 @@
  * (`muse-groove.ts`), go into the layer (`file`, cells' `fileFragment`), so
  * the next query near the section's point finds it as a rhythm of its own.
  *
+ * The query, the ladder, the filing and the learning are the loop's, keyed by
+ * facet (`facet.ts`, #423): this module is its member for the facet
+ * `rhythm`, and the drums' own step beside it, the clave layered on a drum
+ * bar; the bass is the other (`bass-query.ts`).
+ *
  * How the drummer plays from them is `groove.ts`. This module is pure and
  * knows no cells: the repository is given, built from cells' fragments by
  * `rhythms.ts`.
@@ -54,6 +59,15 @@
 
 import type { Meter } from '@jambot/theory';
 import { DRUM_ROLES, type DrumRole } from './events.ts';
+import {
+  type Bench,
+  type FacetRepository,
+  type Filing,
+  type Found,
+  type Varied,
+  heldNearest,
+  nearestFigure,
+} from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
 import { METER_HOLD, MISS_DISTANCE, type QueriedStyle, stylePoint } from './meter-query.ts';
 import type { StylePoint } from './meter-query.ts';
@@ -74,59 +88,29 @@ export interface FragmentRead {
   readonly hits: readonly FragmentHit[];
 }
 
-/** What a rhythm must fit: the section's meter, and the meter fragment it came from, where it came from one. */
-export interface RhythmBench {
-  readonly meter: Meter;
-  readonly meterFragment?: string | undefined;
-}
+/** What a rhythm must fit: the section's meter, and the meter fragment it came from, where it came from one (`facet.ts`'s bench). */
+export type RhythmBench = Bench;
 
 /** A fragment found, and its distance from the point asked at. */
-export interface FoundRhythm {
-  readonly id: string;
-  readonly distance: number;
+export type FoundRhythm = Found;
+
+/** What a groove filed and a rhythm's variation carry of what the drummer plays: a bar's hits. */
+export interface GrooveContent {
+  readonly hits: readonly FragmentHit[];
 }
 
 /** A groove to file (#401): a bar's hits, the bench it was played on, where and by whom (`muse-groove.ts`). */
-export interface GrooveFiling {
-  readonly hits: readonly FragmentHit[];
-  /** The section's meter, and the meter fragment it came from, where it came from one: filing counts the groove as used together with that fragment. */
-  readonly bench: RhythmBench;
-  /** The point the section it was played in was asked at. */
-  readonly point: StylePoint;
-  /** Who played it: `drummer`, or the player as the Muse knows them. */
-  readonly source: string;
-  /** When, on the song's clock (the engine has no other): `song 3, bar 40`. */
-  readonly created: string;
-  readonly tags: readonly string[];
-  /** The groove it varies, by id, where the composer made it from one (#411, `novelty.ts`). */
-  readonly varies?: string | undefined;
-  /** How it varies that one, as cells' vary names it (`drop &hat 6`, `rotate &ghost`; decision 052, point 6). */
-  readonly by?: string | undefined;
-}
+export type GrooveFiling = Filing<GrooveContent>;
 
 /** A variation of a rhythm (#442): its hits over its bar, and how it varies the rhythm, for the filing's `by`. */
-export interface RhythmVariation {
-  readonly hits: readonly FragmentHit[];
-  readonly by: string;
-}
+export type RhythmVariation = Varied<GrooveContent>;
 
-/** A repository of rhythms the composer asks (#397). */
-export interface RhythmRepository {
-  /**
-   * Every fragment that fits the bench, with its distance from the point, nearest first, with what was learned merged
-   * where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory and the
-   * section's meter, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046). A fragment the
-   * layer filed is among them only within `reach` of the point, so a fit is tested only for one that could be taken.
-   * Use together pulls as strongly as `pull` (cells' query option; its default where none, #389).
-   */
-  query(
-    point: StylePoint,
-    bench: RhythmBench,
-    layer?: LearnedLayer,
-    chosen?: readonly string[],
-    reach?: number,
-    pull?: number,
-  ): readonly FoundRhythm[];
+/**
+ * A repository of rhythms the composer asks (#397): the loop's repository for the facet `rhythm` (`facet.ts`), its
+ * fragments read into hits, a groove filed and a variation carrying a bar's hits (`grooveText` states them), and the
+ * drums' own step beside it: a line that layers on a rhythm, the clave.
+ */
+export interface RhythmRepository extends FacetRepository<FragmentRead, GrooveContent> {
   /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen`, and with `more` chosen beside it, pulls; none farther than `reach`, where it is given, so a fit is tested only for those that can be taken; use together pulling as strongly as `pull`, as for `query`. */
   layered(
     point: StylePoint,
@@ -137,42 +121,6 @@ export interface RhythmRepository {
     more?: readonly string[],
     pull?: number,
   ): readonly FoundRhythm[];
-  /** The layer after the composer kept these fragments together at `point`: a use of each there, and of the pair (cells' `useFragments`), and each counted as used together with those `alongside` (the section's meter), which it doesn't move; within its cap. None where the repository learns nothing. */
-  used?(
-    layer: LearnedLayer,
-    ids: readonly string[],
-    point: StylePoint,
-    alongside?: readonly string[],
-  ): LearnedLayer;
-  /**
-   * The layer with a groove filed (#401; cells' `fileFragment`, decision 048): stated as cells text
-   * (`grooveText`), an association of the facet `rhythm` at its point with the filing's weight, its source,
-   * created and tags; or, where its text is a fragment's held already, a use of that one there (identity).
-   * Either way counted as used together with the bench's meter fragment; within the cap. A groove stated so reads
-   * back as the hits it was stated from and fits its own bench (the round trip, `muse-groove.test.ts`), so the
-   * repository keeps both as known and compiles neither while the band plays. None where the repository files
-   * nothing.
-   */
-  file?(
-    layer: LearnedLayer,
-    filing: GrooveFiling,
-  ): { readonly layer: LearnedLayer; readonly id: string; readonly held: boolean };
-  /** A fragment's hits under a meter played straight, or null where it can't be read there; a filed one's from the layer given. */
-  read(id: string, meter: Meter, layer?: LearnedLayer): FragmentRead | null;
-  /**
-   * One variation of a rhythm on the bench, by one operator on one of its lines (cells' vary, yggi/cells decision
-   * 052), the one a draw in [0, 1) takes of all of them, read back as hits; a filed one's from the layer given. Null
-   * where it has none, or can't be read there. None where the repository varies nothing.
-   */
-  vary?(id: string, bench: RhythmBench, draw: number, layer?: LearnedLayer): RhythmVariation | null;
-  /**
-   * Work the repository can do ahead, so that asking on these benches costs
-   * only lookups: for its own rhythms and the grooves the layer given filed
-   * (#412), each step a fit, a union or a read at most, so a host runs it a
-   * step at a time between other work, and what it warmed once takes no step
-   * again. None where it keeps nothing.
-   */
-  warm?(benches: readonly RhythmBench[], layer?: LearnedLayer): Iterable<void>;
   /** The composer's margins, where they are other than `RHYTHM_MISS`, `RHYTHM_HOLD` and `LAYER_DISTANCE`: an experiment tries others. */
   readonly margins?: { readonly miss: number; readonly hold: number; readonly layer: number };
 }
@@ -205,25 +153,6 @@ export interface SectionRhythm {
 }
 
 /**
- * The nearest of `found` within `miss`, unless `playing` is among them no
- * farther than `hold` beyond it; the one playing reaches `edge` past `miss`
- * (0 for the rhythm, as for the meter: a rhythm past the distance gives way).
- */
-function heldNearest(
-  found: readonly FoundRhythm[],
-  playing: string | undefined,
-  miss: number,
-  hold: number,
-  edge = 0,
-): string | undefined {
-  const nearest = found[0];
-  const held = playing === undefined ? undefined : found.find((f) => f.id === playing);
-  if (held && held.distance <= miss + edge && held.distance - nearest!.distance <= hold)
-    return held.id;
-  return nearest && nearest.distance <= miss ? nearest.id : undefined;
-}
-
-/**
  * The rhythm the composer takes at a style, on a bench, given the section
  * before's: the nearest drum bar that fits (a fragment that reads as a line
  * of its own, `isOwnLine`, never is one, #428; one that can't be read under
@@ -247,23 +176,21 @@ export function composedRhythm(
   pull?: number,
 ): SectionRhythm {
   const point = stylePoint(style);
-  const {
-    miss,
-    hold,
-    layer: reach,
-  } = repository.margins ?? { miss: RHYTHM_MISS, hold: RHYTHM_HOLD, layer: LAYER_DISTANCE };
+  const { hold, layer: reach } = repository.margins ?? {
+    hold: RHYTHM_HOLD,
+    layer: LAYER_DISTANCE,
+  };
   // (only a drum bar within the distance can be the rhythm: a line of its own only layers on one, #428)
-  const rhythm = heldNearest(
-    repository
-      .query(point, bench, layer, chosen, miss, pull)
-      .filter((f) => f.distance <= miss && !rejected.includes(f.id))
-      .filter((f) => {
-        const read = repository.read(f.id, bench.meter, layer);
-        return read === null || !isOwnLine(read);
-      }),
+  const rhythm = nearestFigure(
+    repository,
+    point,
+    bench,
     playing?.rhythmFragment,
-    miss,
-    hold,
+    (read) => read === null || !isOwnLine(read),
+    layer,
+    chosen,
+    rejected,
+    pull,
   );
   if (rhythm === undefined) return {};
   // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
