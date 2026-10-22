@@ -16,6 +16,7 @@ import {
   transport,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
+import hub from '../fixtures/contracts/session.json';
 import { EAR, earListen } from './ear.ts';
 import { sentBars } from './host.ts';
 import {
@@ -294,6 +295,8 @@ describe('the session protocol', () => {
       played: shapeOf(playedBars()),
       section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
+    // The session contract (yggi/music-commons `contracts/session`) holds the same shapes.
+    expect(hub.shapes).toEqual(SHAPES);
   });
 
   it('never carries a performer’s fill on the wire: a bar states only what a WrittenNote holds (#107, #140)', () => {

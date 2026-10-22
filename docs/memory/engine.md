@@ -102,7 +102,7 @@ The pointers to what holds each are in the sentences.
   `packages/engine/experiments/humanise.ts` plays a pattern as a hand would, from one sloppiness in ms, and measures any reader over 890 bars, or 3,600 in phrases, against it; E17 records how the rounding does (69% right at 20 ms, 27% at 30, mostly lost to rests nobody meant) and how the reading of phrases does (85% and 46%).
   In a session the same split runs across apps: a client's ear (`earListen`) judges its players' bars and sends the judgements; the host's transport checks each (`admissible`: the gates a motif carries, in the bar's key, and first its shape, since it arrives as JSON) and drops, and logs, one that is late, ahead or inadmissible.
   `Motif`, `Judgement` and the bars travel as they are, so a change to their shape bumps `PROTOCOL` (`protocol.test.ts` fails until it does).
-  A host reads each client message by its fields (`readClientMessage`) and refuses a name already in the session, in any case; a client reads its host's by kind alone.
+  A host reads each client message by its fields (`readClientMessage`) and refuses a name already in the session, in any case; a client reads its host's by its fields too (`readHostMessage`), as the session contract has it (#457).
   The player takes what arrived before the transport reads it, so an input it can't read costs one tick, not the song.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's register.
   `joinChord` gives its stack, and `chordScale` takes a stack.

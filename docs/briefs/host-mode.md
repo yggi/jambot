@@ -310,8 +310,9 @@ A host reads what any client sends, so it reads each message by the fields
 its kind carries (`readClientMessage`), and what a judgement says by the
 gates it was judged by (`admissible`), before anything is read from it. A
 message that fails either is dropped, not thrown on while the band plays.
-A client reads its host's messages by kind alone: it chose that host and
-matched its version.
+A client reads its host's messages by their fields too (`readHostMessage`):
+it chose that host, but a client not built from the host's code can't take a
+field's type on trust (yggi/music-commons `contracts/session`, minor 1, #457).
 
 ## Capacity
 
