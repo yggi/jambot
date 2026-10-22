@@ -46,6 +46,7 @@ import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/mid
 import { cachedCompile, fitOf, unionOf } from '@yggi/cells/repository/fit';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
 import { holesOf } from '@yggi/cells/repository/holes';
+import { instrumentsFor, withInstruments } from './instruments.ts';
 import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
@@ -120,7 +121,7 @@ function readLines(text: string, meter: Meter, bars: number, role?: string): Fra
     const line = /^&(\w+)/.exec(term)![1]!;
     if (role !== undefined && line !== role) continue;
     const alone = text.replace(card.line, card.line.replace(/\[.*\]$/, `[${term}]`));
-    const plan = planOf(unionOf(alone, straight(name)).text);
+    const plan = planOf(unionOf(withInstruments(alone), straight(name)).text);
     const route = router(plan.result, channelTable(plan.result));
     for (const e of windowAt(plan, 0, steps * step).events)
       for (const r of routesOf(route(e))) {
@@ -240,7 +241,15 @@ export function rhythmRepository(
   const variationsOn = (text: string, workbench: string) => {
     const key = `${workbench.length}:${workbench}${text}`;
     if (!varied.has(key))
-      varied.set(key, variations(text, { workbench, keep: GROOVE_KEEP, fewest: GROOVE_FEWEST }));
+      varied.set(
+        key,
+        variations(text, {
+          // (the workbench brings the instruments the rhythm strikes, so the text varied is the rhythm's own)
+          workbench: [workbench, ...instrumentsFor(text)].join('\n'),
+          keep: GROOVE_KEEP,
+          fewest: GROOVE_FEWEST,
+        }),
+      );
     return varied.get(key)!;
   };
   return {

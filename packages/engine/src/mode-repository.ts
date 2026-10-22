@@ -23,6 +23,7 @@ import { compileSource } from '@yggi/cells/engine/compile';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
 import { MODE_FRAGMENTS } from '@yggi/cells/repository/modes';
 import { COMPOSER_MODES, type ComposerMode } from './key.ts';
+import { withInstruments } from './instruments.ts';
 import { MISS_DISTANCE, type StylePoint, stylePoint } from './meter-query.ts';
 import type { Preset } from './style.ts';
 
@@ -48,7 +49,8 @@ const STEPS = COMPOSER_MODES.map((mode) => ({ mode, steps: gaps(diatonicMode(mod
 
 /** A fragment read by cells' compiler into one of the composer's modes, or why the band can't play it. */
 export function readModeFragment(fragment: Fragment): ModeFragment | string {
-  const compiled = compileSource(`${BENCH}\n${fragment.text}`);
+  // (the bell and scale strikes the General MIDI kit's agogô, a hole its instrument fills: yggi/cells#260)
+  const compiled = compileSource(`${BENCH}\n${withInstruments(fragment.text)}`);
   const errors = compiled.diagnostics.filter((d) => d.severity === 'error');
   if (errors.length) return `it doesn't compile: ${errors.map((d) => d.message).join('; ')}`;
   const key = compiled.mainKey === undefined ? undefined : compiled.cells.get(compiled.mainKey);

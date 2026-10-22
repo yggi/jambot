@@ -57,6 +57,7 @@ import type { Fragment } from '@yggi/cells/repository/fragments';
 import { BASS_FACET, type LineNote, type LineRead, type LineRepository } from './bass-query.ts';
 import type { Bench } from './facet.ts';
 import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';
+import { withInstruments } from './instruments.ts';
 import { RHYTHM_BENCHES } from './rhythms.ts';
 import { stepSeconds } from './tempo.ts';
 
@@ -64,15 +65,11 @@ import { stepSeconds } from './tempo.ts';
 const READ_AT = 120;
 
 /**
- * Where a filed line's voice and card come from: the bass's voice, its register's floor the performer moves from
- * (`C2`, as cells' seed lines write it), and its card on Jambot's bass channel, 2. The one place this module states
- * them, so a pin of cells that fills the voice from an instrument fragment (`use "bass"`, yggi/cells#260) changes these
- * lines alone.
+ * A filed line's card: the line through the bass's voice on Jambot's bass channel, 2, as cells' seed lines write it.
+ * The voice is a hole cells' `bass` instrument fills (`&bassV loop=C2`, its register's floor the performer moves from;
+ * yggi/cells#260), which a line is read with (`withInstruments`). The one place this module states the card.
  */
-export const BASS_VOICE: readonly string[] = [
-  '&bassV loop=C2',
-  '&bassOut map=midi(2) [&bass * &bassV]',
-];
+export const BASS_VOICE: readonly string[] = ['&bassOut map=midi(2) [&bass * &bassV]'];
 
 /**
  * The workbench a line is read and varied on: the meter played straight at the reading tempo, a key, and a harmony of
@@ -100,7 +97,7 @@ const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 export function readLine(text: string, meter: Meter): LineRead | null {
   const name = nameOf(meter);
   if (!name) return null;
-  const source = unionOf(text, readingBench(name)).text;
+  const source = unionOf(withInstruments(text), readingBench(name)).text;
   const result = compileSource(source);
   if (!result.ok) return null;
   const pitched = linesOf(source, result).filter((l) => l.pitched);

@@ -66,6 +66,7 @@ import {
   stepSeconds,
   stylePoint,
   presetSwing,
+  withInstruments,
 } from '@jambot/engine';
 import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
@@ -230,7 +231,7 @@ export function readFragment(
     .flatMap((term) => {
       const role = /^&(\w+)/.exec(term)![1]!;
       const alone = fragment.replace(line, line.replace(/\[.*\]$/, `[${term}]`));
-      const plan = planOf(unionOf(alone, workbench).text);
+      const plan = planOf(unionOf(withInstruments(alone), workbench).text);
       const route = router(plan.result, channelTable(plan.result));
       return windowAt(plan, 0, bars * 16 * step).events.flatMap((e) =>
         routesOf(route(e)).flatMap((r) => {
