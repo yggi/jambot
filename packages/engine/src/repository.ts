@@ -39,6 +39,7 @@ import {
 } from '@yggi/cells/repository/fragments';
 import { useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
+import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
@@ -170,8 +171,12 @@ export function presetSwing(
 
 export type { Fragment };
 
-/** Cells' seed, its meters then its rhythms, each with its text and the points it is found at: what a screen shows of a fragment the band took. */
-export const SEED_FRAGMENTS: readonly Fragment[] = [...METER_FRAGMENTS, ...RHYTHM_FRAGMENTS];
+/** Cells' seed, its meters, its rhythms, then its bass lines (#423), each with its text and the points it is found at: what a screen shows of a fragment the band took. */
+export const SEED_FRAGMENTS: readonly Fragment[] = [
+  ...METER_FRAGMENTS,
+  ...RHYTHM_FRAGMENTS,
+  ...BASS_FRAGMENTS,
+];
 
 /**
  * What is wrong with a learned layer for cells' meters and rhythms, each
@@ -184,7 +189,7 @@ export function repositoryLayerProblems(layer: unknown): string[] {
     return ['the layer is not a map'];
   const shape = layerProblems(layer as LearnedLayer);
   if (shape.length) return shape;
-  const seed = new Set([...METER_FRAGMENTS, ...RHYTHM_FRAGMENTS].map((f) => f.id));
+  const seed = new Set(SEED_FRAGMENTS.map((f) => f.id));
   return (layer as LearnedLayer).filed
     .filter((file) => seed.has(file.fragment.id))
     .map((file) => `the layer files ${file.fragment.id}, a seed fragment's id`);

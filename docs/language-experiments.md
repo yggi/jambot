@@ -781,6 +781,31 @@ run; the others have.
     A clave is the drum bar's it was first chosen to layer on, so a drum bar that returns plays with the clave it played every section of its stretch before, in every section (`claveLost`; on `main` at 09ec1be, where a clave was rejected with every lineage it played with, 100 sections lost it: Funk's variation, 20 sections in each of its 5 runs).
     At Funk the rumba clave layers on the drummer's variation at one section, where Funk's lineage has faded, and the drummer's variation returns 20 sections later without it, since it is out with Funk's lineage then: 100 sections, 20 a run, on the owner's ruling (option A on #430).
   - Not measured: entropy other than 0.3 held (band tests hold 0 and 1), and how a variation sounds.
+- **E41. The bass enters the loop** (#423; the loop of `facet.ts` keyed by facet, cells' five bass seeds, yggi/cells#211 and #214), in
+  [`packages/engine/experiments/bass-loop.ts`](../packages/engine/experiments/bass-loop.ts) and E37's runs with the bass lines (`rhythmRun`'s `lines`),
+  held by [`packages/engine/experiments/bass-loop.test.ts`](../packages/engine/experiments/bass-loop.test.ts) (about 2 minutes under vitest):
+  - **Held** at entropy 0, every preset swung as it is, 2 seeds of 32 bars, cells' meters and rhythms and an empty layer, with the bass lines and without (as `main` plays):
+    each preset plays its pattern's line every section (root: Synth-pop, Deep house, Ambient; pump: Techno; funk: Lo-fi hip hop, Funk, Bossa nova; walk: Swing jazz); the drums, the comp and the lead play every event they did, to 1e-9 s (`bass-loop.test.ts` in `src`, 15,612 events in all), and the bass as many notes a bar by section type, since it decides how many as before.
+    What moves is where they fall and what they play, by preset (the share of its notes on a step `main`'s bass plays, and of the same note there; by section type, the total variation of the shares of its notes on each interval above the chord's root, intro / groove / build / drop):
+
+    | preset        | on `main`'s steps | same note | intervals moved           |
+    | ------------- | ----------------- | --------- | ------------------------- |
+    | Synth-pop     | 79.4 %            | 77.5 %    | 0 / 0 / 0.07 / 0.2        |
+    | Techno        | 81.2 %            | 62.5 %    | 0.14 / 0.10 / 0.24 / 0.4  |
+    | Deep house    | 80.9 %            | 78.7 %    | 0 / 0 / 0.05 / 0.2        |
+    | Ambient       | 87.6 %            | 87.6 %    | 0 / 0 / 0.04 / 0.06       |
+    | Lo-fi hip hop | 57.5 %            | 56.5 %    | 0 / 0 / 0.17 / 0.25       |
+    | Funk          | 68.0 %            | 56.7 %    | 0.09 / 0.03 / 0.10 / 0.2  |
+    | Bossa nova    | 59.5 %            | 50.7 %    | 0.09 / 0 / 0.18 / 0.22    |
+    | Swing jazz    | 100 %             | 29.3 %    | 0.33 / 0.34 / 0.19 / 0.38 |
+
+    Off a chord change the bass keeps the octave it draws one step in four on a line's note, but not the fifth it draws one in five: the line says the tone; the walk is one of the walks `bass.ts` draws (up through the chord, the approach from below), so Swing jazz keeps every onset and under a third of its notes.
+
+  - **Walked** (E37's runs, the radio at entropy 0.3 from each preset, 40 runs of an hour, 8,508 sections, learning from an empty layer):
+    the run's most used line plays 4,048 sections, 47.6 %, under #423's 60 %; the share of sections among a run's 3 most used lines moves −4.3 points (1.0 error), within 5 with twice its error; 105 lines filed (16 the bass's own on a miss, 89 the composer's variations), each read back as filed; 18 sections play the bass's own (none with nothing learned, where no line is rejected).
+  - **Three hours** (E38's runs with the bass lines): the layer weighs at most 15,583 bytes, under `LAYER_CAP` (16,000), its cap dropping nothing in any section; E39's most used groove plays 1,661 of 3,222 sections, 51.6 %, as without the bass.
+  - **The cost** (Node, a shared container, warmed as the app warms it): the warm-up's 55 steps (a line read, or its variations) take at most 4.1 ms each, under the 25 ms a slice starts a step in; an ask of the bass lines takes 0.02 ms at p95 and 1.8 ms at most, under #412's 5 ms.
+  - Not measured: entropy other than 0 held and 0.3 walked, a player's bass on the walks (none plays), and how any of it sounds: the owner's ear rules on the held movement before merge (#423).
 
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.

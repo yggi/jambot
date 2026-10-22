@@ -18,11 +18,22 @@
  * bar's hits onto its steps and files a groove a player plays over a
  * section under the player's name (#401), as she does her own players'. A
  * bar is passed on whether or not it is judged, since drums need no key,
- * and a drum note for a bar passed on already is dropped.
+ * and a drum note for a bar passed on already is dropped. So is what a
+ * player plays as a bass (#423): a source whose every note of a bar lies in
+ * the bass's register (at or below `BASS_RANGE`'s top) has that bar passed
+ * on too, as the part `bass`, for the host's Muse to file the line under the
+ * player's name, as she files a bass her own players play.
  */
 
 import type { BarJudgement, HeardNote, Key } from '@jambot/engine';
-import { SONG_CLOCK, type SongClock, barOfIn, judgeBar, keptAfter } from '@jambot/engine';
+import {
+  BASS_RANGE,
+  SONG_CLOCK,
+  type SongClock,
+  barOfIn,
+  judgeBar,
+  keptAfter,
+} from '@jambot/engine';
 import { PLAYED_MOST, type PlayedBar } from './protocol.ts';
 
 /** How many steps after a bar ends it is judged: a beat. */
@@ -67,8 +78,10 @@ export function earListen(
     if (key)
       for (const judgement of judgeBar(pending, next, key, 'phrases', clock))
         judged.push({ bar: next, judgement });
-    pending = keptAfter(pending, next, clock);
     const bar = next;
+    const low = bassOf(pending.filter((n) => barOfIn(n, clock) === bar));
+    if (low.length > 0) played.push({ part: 'bass', bar, notes: low.slice(0, PLAYED_MOST) });
+    pending = keptAfter(pending, next, clock);
     const notes = struck
       .filter((n) => barOfIn(n, clock) === bar)
       .toSorted((x, y) => x.position - y.position)
@@ -77,4 +90,10 @@ export function earListen(
     struck = struck.filter((n) => barOfIn(n, clock) > bar);
   }
   return { carried: { pending, drums: struck, next }, judged, played };
+}
+
+/** The notes of a bar each source played wholly in the bass's register, in the order they were played. */
+function bassOf(notes: readonly HeardNote[]): HeardNote[] {
+  const above = new Set(notes.filter((n) => n.note > BASS_RANGE[1]).map((n) => n.source));
+  return notes.filter((n) => !above.has(n.source)).toSorted((x, y) => x.position - y.position);
 }

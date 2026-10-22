@@ -23,10 +23,15 @@
  * line, written on 4/4's 16 steps, is read in another meter by the rule
  * (`regroup.ts`). The chords' slots, 0 and the half, are read on the meter
  * (`chordsOn`). In 4/4 every bar is what it was.
+ *
+ * Where the composer found it a line in the repository (#423), it plays from
+ * it as the drummer plays from a rhythm (`playBass`): how many notes as
+ * before, the line's steps and tones first.
  */
 
 import { type Chord, type Meter, accentsOf, meterOnSteps, stepsOf, wrap } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
+import { type LineNote, lineTone } from './bass-query.ts';
 import { type BarChord, chordAt, chordsOn } from './chords.ts';
 import type { WrittenNote } from './events.ts';
 import type { Machine } from './machine.ts';
@@ -110,87 +115,159 @@ export function nearest(pitchClass: number, last: number): number {
   return best;
 }
 
-export const bass: Machine<BarEnv, number, null, WrittenNote[]> = {
-  initial: 40,
-  advance(env, last) {
-    const { seed, bar, plan, style, barEnergy: energy, next, meter } = env;
-    const section = plan.section.index;
-    const notes: WrittenNote[] = [];
-    const steps = stepsOf(meter);
-    const starts = meterOnSteps(meter).heights;
-    const onBeat = (step: number) => starts.includes(step);
-    const chords = chordsOn(env.chords, meter);
-    const startsAt = (step: number) => chords.some((c) => c.slot.step === step);
-    const nextAfter = (step: number): BarChord =>
-      chords.find((c) => c.slot.step > step) ?? next[0] ?? chordAt(chords, step);
+/** An onset the bass plays: its step, and the line's note there, where the line gives it one. */
+interface Onset {
+  readonly step: number;
+  readonly from: LineNote | null;
+}
 
-    if (plan.section.type === 'breakdown') {
-      chords.forEach((c, i) => {
-        const end = chords[i + 1]?.slot.step ?? steps;
-        last = nearest(rootOf(c.chord), last);
-        notes.push({ part: 'bass', step: c.slot.step, note: last, length: end - c.slot.step });
-      });
-      return { carried: last, output: notes };
-    }
+/**
+ * The bass's bar, from the last note it played, and, where the composer found
+ * it a line (#423, `bass-query.ts`), that line's notes in the bar (on its
+ * steps).
+ *
+ * With no line it plays its own, as above. With one, as the drummer plays
+ * from a rhythm (`groove.ts`, the owner's ruling on E36): it decides as
+ * before how many notes it plays, and the line says where they fall and
+ * what they read, its notes first (the loudest first, then the earliest; a
+ * line's notes are all one level, so the earliest), and where the bass
+ * plays more notes than the line holds, its own on other steps, first those
+ * it is forced to (a chord change, a walk's beat), then by its own weight
+ * there, then the earliest. A note of the line reads its pitch class over
+ * the bar's chords (`lineTone`), and its octave is the bass's as any note's
+ * (`nearest`, and the octave up its own draw gives off a chord change); an
+ * own note plays as it would alone. A breakdown holds each chord's root, as
+ * always: the section's form is the bass's.
+ */
+export function playBass(
+  env: BarEnv,
+  last: number,
+  line: readonly LineNote[] = [],
+): { carried: number; output: WrittenNote[] } {
+  const { seed, bar, plan, style, barEnergy: energy, next, meter } = env;
+  const section = plan.section.index;
+  const notes: WrittenNote[] = [];
+  const steps = stepsOf(meter);
+  const starts = meterOnSteps(meter).heights;
+  const onBeat = (step: number) => starts.includes(step);
+  const chords = chordsOn(env.chords, meter);
+  const startsAt = (step: number) => chords.some((c) => c.slot.step === step);
+  const nextAfter = (step: number): BarChord =>
+    chords.find((c) => c.slot.step > step) ?? next[0] ?? chordAt(chords, step);
 
-    const blend = bassBlend(style, env.swing, energy);
-    const total = Object.values(blend).reduce((a, b) => a + b, 0);
-    const density = 0.55 + 0.6 * energy;
-    const held = (role: number, step: number) =>
-      heldDraw(seed, HELD, role, section, bar, step, style.entropy);
-    const tables = patternsOn(meter, bar);
-    const onsets: number[] = [];
-    for (let s = 0; s < steps; s++) {
-      let p = 0;
-      for (const pattern of PATTERNS) p += blend[pattern] * tables[pattern][s]!;
-      p /= total;
-      const forced = (startsAt(s) && blend.pump < 0.45) || (blend.walk > 0.5 && onBeat(s));
-      if (forced || chance(held(ROLE.hit, s), p * density)) onsets.push(s);
-    }
-    if (onsets.length === 0) onsets.push(0);
-
-    onsets.forEach((s, i) => {
-      const chord = chordAt(chords, s).chord;
-      const end = onsets[i + 1] ?? steps;
-      let pitchClass = rootOf(chord);
-      let up = false;
-      if (blend.walk > 0.5 && onBeat(s)) {
-        const nextBeat = starts.find((start) => start > s) ?? steps;
-        const lastBeat = nextBeat >= steps;
-        const change = lastBeat || startsAt(nextBeat);
-        const target = lastBeat ? (next[0]?.chord ?? chord) : chordAt(chords, nextBeat).chord;
-        if (startsAt(s)) pitchClass = rootOf(chord);
-        else if (change)
-          pitchClass =
-            rootOf(target) + (chance(draw(seed, 'bassNote', NOTE.approach, bar, s), 0.5) ? -1 : 1);
-        else {
-          const [, third, fifth, seventh] = intervals(chord);
-          const tones = [third!, fifth!, seventh ?? fifth!];
-          pitchClass =
-            rootOf(chord) + tones[Math.floor(draw(seed, 'bassNote', NOTE.walkTone, bar, s) * 3)]!;
-        }
-      } else if (!startsAt(s)) {
-        const coming = nextAfter(s).chord;
-        if (
-          s >= steps - 3 &&
-          wrap(rootOf(coming) - rootOf(chord), 12) !== 0 &&
-          chance(held(ROLE.anticipate, s), style.sync * 0.9)
-        )
-          pitchClass = rootOf(coming);
-        else {
-          const x = draw(seed, 'bassNote', NOTE.ornament, section, s);
-          if (x >= 0.55 && x < 0.8) up = true;
-          else if (x >= 0.8) pitchClass = rootOf(chord) + intervals(chord)[2]!;
-        }
-      }
-      last = nearest(pitchClass, last);
-      notes.push({
-        part: 'bass',
-        step: s,
-        note: up && last + 12 <= BASS_RANGE[1] ? last + 12 : last,
-        length: end - s,
-      });
+  if (plan.section.type === 'breakdown') {
+    chords.forEach((c, i) => {
+      const end = chords[i + 1]?.slot.step ?? steps;
+      last = nearest(rootOf(c.chord), last);
+      notes.push({ part: 'bass', step: c.slot.step, note: last, length: end - c.slot.step });
     });
     return { carried: last, output: notes };
-  },
+  }
+
+  const blend = bassBlend(style, env.swing, energy);
+  const total = Object.values(blend).reduce((a, b) => a + b, 0);
+  const density = 0.55 + 0.6 * energy;
+  const held = (role: number, step: number) =>
+    heldDraw(seed, HELD, role, section, bar, step, style.entropy);
+  const tables = patternsOn(meter, bar);
+  const own: number[] = [];
+  const weight: number[] = [];
+  const forcedAt = new Set<number>();
+  for (let s = 0; s < steps; s++) {
+    let p = 0;
+    for (const pattern of PATTERNS) p += blend[pattern] * tables[pattern][s]!;
+    p /= total;
+    weight.push(p);
+    const forced = (startsAt(s) && blend.pump < 0.45) || (blend.walk > 0.5 && onBeat(s));
+    if (forced) forcedAt.add(s);
+    if (forced || chance(held(ROLE.hit, s), p * density)) own.push(s);
+  }
+  if (own.length === 0) own.push(0);
+  const onsets = fromLine(own, line, forcedAt, weight);
+
+  onsets.forEach(({ step: s, from }, i) => {
+    const chord = chordAt(chords, s).chord;
+    const end = onsets[i + 1]?.step ?? steps;
+    const walking = blend.walk > 0.5 && onBeat(s);
+    let pitchClass = rootOf(chord);
+    let up = false;
+    if (from) {
+      pitchClass = lineTone(from, chords, next, plan.key);
+      if (!walking && !startsAt(s)) {
+        const x = draw(seed, 'bassNote', NOTE.ornament, section, s);
+        up = x >= 0.55 && x < 0.8;
+      }
+    } else if (walking) {
+      const nextBeat = starts.find((start) => start > s) ?? steps;
+      const lastBeat = nextBeat >= steps;
+      const change = lastBeat || startsAt(nextBeat);
+      const target = lastBeat ? (next[0]?.chord ?? chord) : chordAt(chords, nextBeat).chord;
+      if (startsAt(s)) pitchClass = rootOf(chord);
+      else if (change)
+        pitchClass =
+          rootOf(target) + (chance(draw(seed, 'bassNote', NOTE.approach, bar, s), 0.5) ? -1 : 1);
+      else {
+        const [, third, fifth, seventh] = intervals(chord);
+        const tones = [third!, fifth!, seventh ?? fifth!];
+        pitchClass =
+          rootOf(chord) + tones[Math.floor(draw(seed, 'bassNote', NOTE.walkTone, bar, s) * 3)]!;
+      }
+    } else if (!startsAt(s)) {
+      const coming = nextAfter(s).chord;
+      if (
+        s >= steps - 3 &&
+        wrap(rootOf(coming) - rootOf(chord), 12) !== 0 &&
+        chance(held(ROLE.anticipate, s), style.sync * 0.9)
+      )
+        pitchClass = rootOf(coming);
+      else {
+        const x = draw(seed, 'bassNote', NOTE.ornament, section, s);
+        if (x >= 0.55 && x < 0.8) up = true;
+        else if (x >= 0.8) pitchClass = rootOf(chord) + intervals(chord)[2]!;
+      }
+    }
+    last = nearest(pitchClass, last);
+    notes.push({
+      part: 'bass',
+      step: s,
+      note: up && last + 12 <= BASS_RANGE[1] ? last + 12 : last,
+      length: end - s,
+    });
+  });
+  return { carried: last, output: notes };
+}
+
+/**
+ * Where the bass's notes fall given a line (`playBass`): as many as it plays
+ * of its own (`own`), the line's first, the earliest first, then its own on
+ * other steps, those it is forced to first, then by its weight there, then
+ * the earliest; in order of step. Its own where the line has none.
+ */
+function fromLine(
+  own: readonly number[],
+  line: readonly LineNote[],
+  forced: ReadonlySet<number>,
+  weight: readonly number[],
+): Onset[] {
+  if (!line.length) return own.map((step) => ({ step, from: null }));
+  const theirs = [...line].sort((a, b) => a.step - b.step);
+  const kept = theirs
+    .filter((n, i) => theirs.findIndex((m) => m.step === n.step) === i)
+    .slice(0, own.length)
+    .map((n) => ({ step: n.step, from: n }));
+  const taken = new Set(kept.map((o) => o.step));
+  const more = own
+    .filter((s) => !taken.has(s))
+    .sort(
+      (a, b) => Number(forced.has(b)) - Number(forced.has(a)) || weight[b]! - weight[a]! || a - b,
+    )
+    .slice(0, own.length - kept.length)
+    .map((step) => ({ step, from: null }));
+  return [...kept, ...more].sort((a, b) => a.step - b.step);
+}
+
+/** The bass as a machine: its own bar, with no line (`playBass`). */
+export const bass: Machine<BarEnv, number, null, WrittenNote[]> = {
+  initial: 40,
+  advance: (env, last) => playBass(env, last),
 };

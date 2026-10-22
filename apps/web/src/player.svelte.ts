@@ -111,6 +111,9 @@ import {
   RHYTHM_BENCHES,
   RHYTHM_REPOSITORY,
   type RhythmRepository,
+  BASS_REPOSITORY,
+  LINE_BENCHES,
+  type LineRepository,
   NO_HISTORY,
   clockOfTransport,
   clockThrough,
@@ -477,6 +480,8 @@ export class Player {
   #surroundings: Surroundings;
   /** Cells' rhythms, each groove filed warmed once it is (#412). */
   #rhythms: RhythmRepository;
+  /** Cells' bass lines, each line filed warmed once it is (#423). */
+  #bassLines: LineRepository;
   #metronome: Metronome | null;
   #output: Output | null = null;
   #carried: TransportCarried | null = null;
@@ -495,6 +500,8 @@ export class Player {
    * go to its ear.
    */
   #arrivedDrums: HeardNote[] = [];
+  /** Bass notes a host's clients' players played (#423), for the Muse to hear as bass lines; this device's own she reads from what it heard, in the bass's register. */
+  #arrivedBass: HeardNote[] = [];
   #forget = false;
   /** Whether a host's clients were told which bar is the last. */
   #finaleTold = false;
@@ -555,8 +562,12 @@ export class Player {
     this.#rhythms = surroundings.warm
       ? warmedOnFiling(RHYTHM_REPOSITORY, RHYTHM_BENCHES, surroundings.warm)
       : RHYTHM_REPOSITORY;
-    // Every fit a section can ask for, at idle from the start (#397).
+    this.#bassLines = surroundings.warm
+      ? warmedOnFiling(BASS_REPOSITORY, LINE_BENCHES, surroundings.warm)
+      : BASS_REPOSITORY;
+    // Every fit a section can ask for, at idle from the start (#397), and every bass line's read (#423).
     surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES) ?? []);
+    surroundings.warm?.(BASS_REPOSITORY.warm?.(LINE_BENCHES) ?? []);
     this.#metronome = metronome;
     this.#plays = plays;
     this.shadow = new Shadow(() => surroundings.page() * 1000, plays, surroundings.texts?.());
@@ -588,8 +599,10 @@ export class Player {
     if (this.status !== 'stopped' || this.mode === 'client') return false;
     this.layer = layer;
     // The grooves it filed, which the warm-up from the start never saw (#412).
-    if (layer.filed.length > 0)
+    if (layer.filed.length > 0) {
       this.#surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES, layer) ?? []);
+      this.#surroundings.warm?.(BASS_REPOSITORY.warm?.(LINE_BENCHES, layer) ?? []);
+    }
     if (this.#countTempoIn(this.#opening()))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#decide();
@@ -904,6 +917,7 @@ export class Player {
     this.#laid = [];
     this.#arrived = [];
     this.#arrivedDrums = [];
+    this.#arrivedBass = [];
     this.#judged = [];
     this.#forget = false;
     this.#finaleTold = false;
@@ -984,6 +998,11 @@ export class Player {
   /** Drum notes a client's players struck, named by the player, for the Muse to hear with its own (#410). */
   drumsElsewhere(drums: readonly HeardNote[]) {
     if (this.status === 'playing' && !this.#follow) this.#arrivedDrums.push(...drums);
+  }
+
+  /** Bass notes a client's players played, named by the player, for the Muse to hear with its own (#423). */
+  bassElsewhere(bass: readonly HeardNote[]) {
+    if (this.status === 'playing' && !this.#follow) this.#arrivedBass.push(...bass);
   }
 
   /**
@@ -1216,6 +1235,7 @@ export class Player {
       repository: METER_REPOSITORY,
       layer: this.layer,
       rhythms: this.#rhythms,
+      bassLines: this.#bassLines,
       session: this.session ?? undefined,
       swing: this.swing,
       tempoMeter: this.tempoMeter,
@@ -1280,8 +1300,10 @@ export class Player {
     // it can't read costs one tick, not every tick after.
     const [heard, judged, forget] = [this.#arrived, this.#judged, this.#forget];
     const drums = this.#arrivedDrums;
+    const bass = this.#arrivedBass;
     this.#arrived = [];
     this.#arrivedDrums = [];
+    this.#arrivedBass = [];
     this.#judged = [];
     this.#forget = false;
     const laidWith = this.#env;
@@ -1290,6 +1312,7 @@ export class Player {
       until: now + LOOKAHEAD,
       heard,
       drums,
+      bass,
       judged,
       forget,
       finish: this.ending,

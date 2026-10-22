@@ -269,8 +269,10 @@ export class HostSession {
         return;
       }
       case 'played':
-        // Its Muse files a groove under the name the player was seated by.
-        return this.#player.drumsElsewhere(heardFrom(message, member.name));
+        // Its Muse files a groove, or a bass line, under the name the player was seated by.
+        return message.part === 'bass'
+          ? this.#player.bassElsewhere(heardFrom(message, member.name, 'bass'))
+          : this.#player.drumsElsewhere(heardFrom(message, member.name));
       case 'forget':
         return this.#player.forgetMotif();
       case 'leave':

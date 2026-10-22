@@ -48,10 +48,11 @@ function events(env: TransportEnv): TimedEvent[] {
 }
 
 describe("cells' seed, as a screen reads it", () => {
-  it('holds every meter, then every rhythm, each once and with its text', () => {
+  it('holds every meter, then every rhythm, then every bass line, each once and with its text', () => {
     expect(SEED_FRAGMENTS.map((f) => f.id)).toEqual([
       ...METER_READINGS.map((r) => r.id),
       ...RHYTHM_FRAGMENTS.map((f) => f.id),
+      ...BASS_FRAGMENTS.map((f) => f.id),
     ]);
     expect(new Set(SEED_FRAGMENTS.map((f) => f.id)).size).toBe(SEED_FRAGMENTS.length);
     for (const f of SEED_FRAGMENTS) expect(f.text.length, f.id).toBeGreaterThan(0);

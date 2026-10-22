@@ -102,4 +102,13 @@ describe("a client's ear for drums (#410)", () => {
     ]);
     expect(late.played).toEqual([{ part: 'drums', bar: 4, notes: beats(4) }]);
   });
+
+  it('passes on, as the part bass, a bar its players played wholly in the bass’s register, whether or not it judges the bar (#423)', () => {
+    const low = phrase(1).map((n) => ({ ...n, note: n.note - 36 }));
+    const { played } = earListen(EAR, [...low, ...phrase(1, 'Bo')], 2 * 16 + EAR_AFTER, keys([]));
+    expect(played).toEqual([{ part: 'bass', bar: 1, notes: low }]);
+    // a source with a note above the bass's top passes nothing on as a bass
+    const mixed = [...low.slice(0, 2), { ...low[2]!, note: 58 }];
+    expect(earListen(EAR, mixed, 2 * 16 + EAR_AFTER, keys([1])).played).toEqual([]);
+  });
 });
