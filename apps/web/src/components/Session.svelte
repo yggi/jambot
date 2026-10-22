@@ -195,8 +195,7 @@
             <button type="button" onclick={() => onadmit(true)}>Draw another code</button>
           </div>
           <p class="note">
-            A player joins with this code, and anyone without it is turned away. Who is in already
-            stays.
+            A player joins with this code, and anyone without it listens. Who is in already stays.
           </p>
         {:else}
           <p class="note">Anyone who finds the session can join it, under any free name.</p>

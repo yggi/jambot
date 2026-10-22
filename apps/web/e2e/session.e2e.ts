@@ -341,7 +341,7 @@ test("a client in another browser context joins through the lobby server, in ste
   await elsewhere.close();
 });
 
-test('a host that admits by a code turns away a join without it and one with another, each saying why, and a player with its code plays what the host plays, event for event, through the lobby server (#461)', async ({
+test('a host that admits by a code turns away a join with another, saying why, seats one without it to listen, and a player with its code plays what the host plays, event for event, through the lobby server (#461)', async ({
   page,
   browser,
 }) => {
@@ -352,19 +352,25 @@ test('a host that admits by a code turns away a join without it and one with ano
   await host(page, 'code jam', LOBBY);
   const code = await admitByCode(page);
   expect(code).toMatch(/^\d{6}$/);
-  await expect(page.getByText(/anyone without it is turned away/)).toBeVisible();
+  await expect(page.getByText(/anyone without it listens/)).toBeVisible();
 
   await useLobby(client, LOBBY);
   await useName(client, 'Ada');
   const other = code.replace(/\d$/, (d) => String((Number(d) + 1) % 10));
-  for (const [given, why] of [
-    ['', 'This session admits players by a code: ask the host for it.'],
-    [other, "That is not this session's code: ask the host for it."],
-  ] as const) {
-    await ask(client, 'code jam', given);
-    await expect(client.getByRole('status')).toHaveText(why);
-    await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
-  }
+  await ask(client, 'code jam', other);
+  await expect(client.getByRole('status')).toHaveText(
+    "That is not this session's code: ask the host for it.",
+  );
+  await expect(client.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
+  await expect(state(page)).toContainText('Hosting · nobody has joined');
+
+  // Without the code, a client listens, and is told so.
+  await ask(client, 'code jam', '');
+  await expect(state(client)).toContainText('Following');
+  await openSession(client);
+  await expect(client.getByText(/without it you listen/)).toBeVisible();
+  await joined(page, 'Ada');
+  await end(client, 'Leave session', 'Yes, leave');
   await expect(state(page)).toContainText('Hosting · nobody has joined');
 
   await ask(client, 'code jam', code);
