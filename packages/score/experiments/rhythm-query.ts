@@ -46,6 +46,7 @@
  */
 
 import {
+  presetMode,
   type BandBar,
   type BandCarried,
   DRUM_NOTES,
@@ -120,7 +121,7 @@ export function corpusRun(name: string, seed: number, count = BARS): BandBar[] {
         bar,
         style: { ...preset.style, entropy: ENTROPY },
         swing: presetSwing(preset)!,
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,
       },

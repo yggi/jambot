@@ -1,4 +1,5 @@
 import {
+  presetMode,
   BAR_STEPS,
   INITIAL_STYLE,
   PRESETS,
@@ -443,7 +444,7 @@ const env: TransportEnv = {
   seed: 11,
   start: 1,
   track: dense,
-  wish: { tonic: null, mode: PRESETS[0]!.mode, melodic: null },
+  wish: { tonic: null, mode: presetMode(PRESETS[0]!)!, melodic: null },
 };
 
 /** The transport, run on the ticks given, each scheduling a lookahead past the clock it read. */

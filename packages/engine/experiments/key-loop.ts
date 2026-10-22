@@ -36,6 +36,7 @@
 
 import { fileURLToPath } from 'node:url';
 import {
+  presetMode,
   HISTORY_DECAY,
   NO_HISTORY,
   PRESETS,
@@ -104,7 +105,7 @@ export function keyRun(
       seed,
       bar,
       style: track ? writtenStyle(styleAt(track, barStart(bar))) : tuned,
-      wish: { tonic: null, mode: preset.mode, melodic: null },
+      wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
       offer: null,
     }),
     sections * SECTION_BARS,

@@ -24,6 +24,7 @@ import {
   styleAt as styleOnTrack,
   writtenStyle,
 } from './style.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -40,7 +41,7 @@ const presetAt = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!
 const styleAt = (bar: number): Style => ({ ...presetAt(bar).style, entropy: (bar % 32) / 32 });
 const wishAt = (bar: number): KeyWish => ({
   tonic: null,
-  mode: presetAt(Math.max(0, bar - 3)).mode,
+  mode: presetMode(presetAt(Math.max(0, bar - 3)))!,
   melodic: MELODIC_SCALES[Math.floor(bar / 3) % MELODIC_SCALES.length]!,
 });
 const envAt =
@@ -191,7 +192,7 @@ describe('the band', () => {
       seed,
       bar,
       style,
-      wish: { tonic: null, mode: PRESETS[Math.floor(bar / 8)]!.mode, melodic: null },
+      wish: { tonic: null, mode: presetMode(PRESETS[Math.floor(bar / 8)]!)!, melodic: null },
       offer: null,
     });
     let off = 0;
@@ -251,7 +252,7 @@ describe('the band', () => {
           seed,
           bar,
           style,
-          wish: { tonic: null, mode: preset.mode, melodic: null },
+          wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
           offer: null,
         };
       };

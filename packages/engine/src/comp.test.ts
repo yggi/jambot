@@ -7,6 +7,7 @@ import { writtenProblems } from './events.ts';
 import { COMPOSER_MODES, keyHelix } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { PRESETS, type Style } from './style.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -24,7 +25,7 @@ const tour = (seed: number, bars = 128): BandBar[] => {
         seed,
         bar,
         style: styleAt(bar),
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
       },
       carried,

@@ -87,7 +87,6 @@ import {
   type Offer,
   type Remembered,
   type Part,
-  PRESETS,
   RING_STEPS,
   SECTION_BARS,
   SONG_CLOCK,
@@ -126,6 +125,7 @@ import {
   holding,
   rebeat,
   holdingSwing,
+  presetMode,
   presetSwing,
   released,
   sameMeter,
@@ -188,6 +188,9 @@ import { startTicker } from './ticker.ts';
 
 /** The swing the band opens with: the one the repository finds at the opening style's point (#459), straight on a miss. */
 const OPENING_SWING: MeterSwing = presetSwing({ style: INITIAL_STYLE }) ?? STRAIGHT;
+
+/** The mode the band opens wishing for: the one the repository finds at the opening style's point (#420), the opening key's on a miss. */
+const OPENING_MODE = presetMode({ style: INITIAL_STYLE }) ?? INITIAL_KEY.mode;
 
 const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
 
@@ -352,7 +355,7 @@ export class Player {
    * and null is off. It is the host's alone: a client follows the track.
    */
   station: Station | null = $state.raw(null);
-  wish: KeyWish = $state.raw({ tonic: null, mode: PRESETS[0]!.mode, melodic: null });
+  wish: KeyWish = $state.raw({ tonic: null, mode: OPENING_MODE, melodic: null });
   /**
    * What the band has learned (#398): the layer the next song starts from,
    * and while one plays, what it has learned as of the section planned last.

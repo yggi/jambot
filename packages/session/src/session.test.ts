@@ -1,4 +1,5 @@
 import {
+  presetMode,
   type BandBar,
   type BarJudgement,
   DRUM_NOTES,
@@ -426,7 +427,7 @@ describe("a client's drums, over the link (#410)", () => {
     start: 1,
     track: holding({ ...STYLE, bpm }),
     swing: holdingSwing(presetSwing(FUNK)!),
-    wish: { tonic: null, mode: FUNK.mode, melodic: null },
+    wish: { tonic: null, mode: presetMode(FUNK)!, melodic: null },
     repository: METER_REPOSITORY,
     rhythms: RHYTHM_REPOSITORY,
     layer: EMPTY_LAYER,

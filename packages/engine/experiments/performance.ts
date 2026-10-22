@@ -20,6 +20,7 @@
  */
 
 import {
+  presetMode,
   type BandCarried,
   type BandEnv,
   type KeyWish,
@@ -86,7 +87,7 @@ for (const seed of SEEDS)
       const style = { ...preset.style, entropy: (bar % 32) / 32 };
       const { output, carried: after } = band.advance(
         // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
-        envOf(seed, bar, style, preset.mode, {
+        envOf(seed, bar, style, presetMode(preset)!, {
           level: presetSwing(presetAt(bar + 1))!.level,
           share: presetSwing(preset)!.share,
         }),
@@ -187,7 +188,7 @@ const precision = (decimals: number, only?: string) => {
   for (const seed of SEEDS) {
     let carried: BandCarried = band.initial;
     for (const bar of range(BARS)) {
-      const mode = PRESETS[Math.floor(bar / 8) % PRESETS.length]!.mode;
+      const mode = presetMode(PRESETS[Math.floor(bar / 8) % PRESETS.length]!)!;
       const style = glidingStyle(bar);
       const exact = band.advance(envOf(seed, bar, style, mode), carried, null);
       const header = band.advance(

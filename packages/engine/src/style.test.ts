@@ -38,16 +38,16 @@ describe('the axes', () => {
 
 describe('the presets', () => {
   it('are the prototype’s eight points in style space', () => {
-    expect(PRESETS.map((p) => [p.name, p.mode, ...Object.values(p.style)])).toEqual([
-      // name, mode, sync, harm, artic, energy, bpm
-      ['Synth-pop', 'aeolian', 0.3, 0.45, 0.55, 0.55, 108],
-      ['Techno', 'aeolian', 0.12, 0, 1, 0.8, 130],
-      ['Deep house', 'dorian', 0.35, 0.55, 0.65, 0.65, 122],
-      ['Ambient', 'ionian', 0.05, 0.3, 0, 0.2, 72],
-      ['Lo-fi hip hop', 'aeolian', 0.5, 0.75, 0.35, 0.5, 84],
-      ['Funk', 'dorian', 1, 0.12, 0.85, 0.75, 104],
-      ['Bossa nova', 'ionian', 0.75, 0.85, 0.45, 0.45, 132],
-      ['Swing jazz', 'ionian', 0.35, 1, 0.3, 0.6, 148],
+    expect(PRESETS.map((p) => [p.name, ...Object.values(p.style)])).toEqual([
+      // name, sync, harm, artic, energy, bpm
+      ['Synth-pop', 0.3, 0.45, 0.55, 0.55, 108],
+      ['Techno', 0.12, 0, 1, 0.8, 130],
+      ['Deep house', 0.35, 0.55, 0.65, 0.65, 122],
+      ['Ambient', 0.05, 0.3, 0, 0.2, 72],
+      ['Lo-fi hip hop', 0.5, 0.75, 0.35, 0.5, 84],
+      ['Funk', 1, 0.12, 0.85, 0.75, 104],
+      ['Bossa nova', 0.75, 0.85, 0.45, 0.45, 132],
+      ['Swing jazz', 0.35, 1, 0.3, 0.6, 148],
     ]);
   });
 

@@ -1,5 +1,7 @@
 // @vitest-environment node
 import {
+  type ComposerMode,
+  presetMode,
   CLAVES_NOTE,
   DRUM_NOTES,
   type HeardNote,
@@ -75,6 +77,7 @@ interface Following {
 function run({
   preset = PRESETS[0]!,
   swing = presetSwing(preset)!,
+  mode = presetMode(preset)!,
   seed = 1,
   bars = 24,
   station = null,
@@ -93,6 +96,8 @@ function run({
   preset?: (typeof PRESETS)[number];
   /** The meter's swing held: the one the repository finds at the preset's point, unless a test moves the point off it. */
   swing?: MeterSwing;
+  /** The mode wished for: the one the repository finds at the preset's point, unless a test moves the point off it. */
+  mode?: ComposerMode;
   seed?: number;
   bars?: number;
   station?: Station | null;
@@ -155,7 +160,7 @@ function run({
     start: START,
     track: rebeat(holding({ ...preset.style, entropy: 0.3 }), METERS['4/4'], METERS[meter]),
     swing: holdingSwing(swing),
-    wish: { tonic: null, mode: preset.mode, melodic: null },
+    wish: { tonic: null, mode, melodic: null },
     tempoMeter: METERS[meter],
     ...(repositories
       ? { repository: METER_REPOSITORY, rhythms: RHYTHM_REPOSITORY }
@@ -434,6 +439,7 @@ describe('the band through cells, in shadow (#399)', () => {
         plays: 'cells',
         preset: { ...preset, style: { ...preset.style, artic: 0 } },
         swing: presetSwing(preset)!,
+        mode: presetMode(preset)!,
         bars: 40,
         control: (env, carried) =>
           carried.nextBar % SECTION_BARS === SECTION_BARS / 2
@@ -463,6 +469,7 @@ describe('the band through cells, in shadow (#399)', () => {
         PRESETS.find((p) => p.name === 'Swing jazz')!,
       ),
       swing: presetSwing(PRESETS.find((p) => p.name === 'Swing jazz')!)!,
+      mode: presetMode(PRESETS.find((p) => p.name === 'Swing jazz')!)!,
       seed: 2,
       meter: '3/4',
       bars: 32,

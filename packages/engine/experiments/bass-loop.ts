@@ -27,6 +27,7 @@
 
 import { wrap } from '@jambot/theory';
 import {
+  presetMode,
   BASS_REPOSITORY,
   type BandBar,
   type BandCarried,
@@ -90,7 +91,7 @@ export function heldBass(
       seed,
       bar,
       style,
-      wish: { tonic: null, mode: preset.mode, melodic: null },
+      wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
       swing,
       repository: METER_REPOSITORY,
       rhythms: RHYTHM_REPOSITORY,

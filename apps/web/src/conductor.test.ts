@@ -1,5 +1,7 @@
 // @vitest-environment node
 import {
+  type ModeRepository,
+  presetMode,
   INITIAL_STYLE,
   METER_REPOSITORY,
   PRESETS,
@@ -157,6 +159,16 @@ describe('wishAfter', () => {
     expect(wishAfter(wish, slider, { ...INITIAL_STYLE, harm: 0.5 })).toBe(wish);
   });
 
+  it('leaves the wish as it is for a preset where the repository finds no mode', () => {
+    const deepHouse = PRESETS.find((p) => p.name === 'Deep house')!;
+    const wish = { tonic: 7, mode: 'ionian', melodic: null } as const;
+    const style = { ...INITIAL_STYLE, ...deepHouse.style };
+    const none: ModeRepository = { fragments: new Map(), query: () => [] };
+    const intent = { kind: 'preset', preset: deepHouse } as const;
+    expect(wishAfter(wish, intent, style, INITIAL_KEY, none)).toBe(wish);
+    expect(wishAfter(wish, intent, style, INITIAL_KEY).mode).toBe('dorian');
+  });
+
   it('wishes for a key picked, tonic and mode, keeping the melodic scale wished', () => {
     const picked = { tonic: 2, mode: 'mixolydian' } as const;
     for (const melodic of [null, 'plain', 'pentatonic'] as const)
@@ -187,7 +199,7 @@ describe('wishAfter', () => {
       const style: Style = { ...INITIAL_STYLE, ...p.style };
       const reach = licenceOf(style).melodic;
       for (const melodic of MELODIC_SCALES) {
-        const before = { tonic: null, mode: p.mode, melodic: null } as const;
+        const before = { tonic: null, mode: presetMode(p)!, melodic: null } as const;
         const held = wishAfter(before, { kind: 'key', wish: { melodic } }, style).melodic;
         expect(held).toBe(reach.includes(melodic) ? melodic : reach.at(-1));
       }
@@ -235,7 +247,7 @@ describe('wishAfter', () => {
       const style: Style = { ...INITIAL_STYLE, ...p.style };
       const { keyReach } = licenceOf(style);
       for (let tonic = 0; tonic < 12; tonic++) {
-        const picked = { tonic, mode: p.mode };
+        const picked = { tonic, mode: presetMode(p)! };
         const before = { tonic: null, mode: 'aeolian', melodic: null } as const;
         const held = wishAfter(before, { kind: 'key', wish: picked }, style);
         const apart = Math.abs(fifthsApart(picked, INITIAL_KEY));

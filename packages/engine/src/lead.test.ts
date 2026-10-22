@@ -33,6 +33,7 @@ import type { Offer } from './muse.ts';
 import { presetSwing } from './repository.ts';
 import { PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT } from './swing.ts';
+import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -60,7 +61,7 @@ const tour = (seed: number, bars = 160, style = styleAt, swing = swingAt): BandB
         bar,
         style: style(bar),
         swing: swing(bar),
-        wish: { tonic: null, mode: preset.mode, melodic: null },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
       },
       carried,
@@ -347,7 +348,7 @@ const recording = () =>
                 bar,
                 style: { ...preset.style, entropy: 0.3 },
                 swing: presetSwing(preset)!,
-                wish: { tonic: null, mode: preset.mode, melodic: null },
+                wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
                 offer: null,
               },
               carried,
