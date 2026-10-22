@@ -26,6 +26,7 @@
       ['Ticks apart, least / p50 / p99 / most', spread(transport.ticks)],
       ['Scheduled ahead, least / p50 / p99 / most', spread(transport.margins)],
       ['Steps laid, missed', `${transport.laid}, ${transport.missed}`],
+      ['Events dropped late', `${transport.lateEvents}`],
       [
         'Output: buffers dropped, bound',
         output ? `${output.jumps}, ${figure(output.bound)}` : 'not started',

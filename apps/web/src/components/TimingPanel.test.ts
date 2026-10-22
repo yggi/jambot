@@ -16,6 +16,7 @@ describe('the timing panel (#27)', () => {
           ticks: [25, 26, 410].reduce(spreadWith, EMPTY_SPREAD),
           laid: 32,
           missed: 5,
+          lateEvents: 3,
         },
         output: { offset: 1, bound: 0.0005, jumps: 2 },
         network: null,
@@ -29,6 +30,7 @@ describe('the timing panel (#27)', () => {
     expect(value('Ticks apart, least / p50 / p99 / most')).toBe('25.0 / 26.5 / 410.0 / 410.0 (3)');
     expect(value('Scheduled ahead, least / p50 / p99 / most')).toBe('none yet');
     expect(value('Steps laid, missed')).toBe('32, 5');
+    expect(value('Events dropped late')).toBe('3');
     expect(value('Output: buffers dropped, bound')).toBe('2, 0.5');
     expect(screen.queryByText(/Round trips/)).toBeNull();
     await fireEvent.click(screen.getByRole('button', { name: 'Export' }));

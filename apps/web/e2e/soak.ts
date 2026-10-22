@@ -16,13 +16,34 @@
  * prints both shadows, and at the end sets every event the client's outputs
  * played against the host's (`compareSession`), read off each page a minute
  * at a time (`window.jambot.played`), as it keeps only the latest, with the
- * steps each page's transport laid and those its clock passed unlaid (`timing`),
- * where an event goes missing without a difference between the two.
+ * steps each page's transport laid and those its clock passed unlaid, and
+ * the events each dropped late (`timing`). The session's bound (#462) is that
+ * every event both played is the same and every event a page lacks is one it
+ * dropped late (`sessionBreaks`): it exits with 1 where it breaks.
+ *
+ * `--profile` watches each page's ticks and main thread, and traces the
+ * garbage collector, to say what overlapped each tick that dropped events
+ * late (`late-ticks.ts`), and how loaded the machine was, a minute at a time.
  */
 
+import { cpus, loadavg } from 'node:os';
 import { type Page, chromium } from '@playwright/test';
-import { compareSession, type PlayedEvent } from '../src/played.ts';
+import {
+  type DroppedEvent,
+  type PlayedEvent,
+  compareSession,
+  sessionBreaks,
+} from '../src/played.ts';
 import { host, join, joined, openCard, openStyle, solo, state } from './audio.ts';
+import {
+  GC_CATEGORIES,
+  collections,
+  lateTicks,
+  markPage,
+  placeOf,
+  readWatch,
+  watchTicks,
+} from './late-ticks.ts';
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -33,9 +54,11 @@ const entropy = Number(arg('entropy', '0.3'));
 const every = Number(arg('every', '5'));
 const url = arg('url', 'http://localhost:4320/');
 const session = process.argv.includes('--session');
+const profile = process.argv.includes('--profile');
 
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const context = await browser.newContext();
+if (profile) await context.addInitScript(watchTicks);
 const errors: string[] = [];
 const open = async () => {
   const page = await context.newPage();
@@ -46,6 +69,15 @@ const open = async () => {
 };
 const page = await open();
 const client = session ? await open() : null;
+if (profile) await browser.startTracing(undefined, { categories: GC_CATEGORIES });
+const marks = profile
+  ? {
+      host: await markPage(page, 'soak-host'),
+      client: client ? await markPage(client, 'soak-client') : null,
+    }
+  : null;
+/** The machine's load, a minute at a time: other agents' runs share it. */
+const load: number[] = [];
 if (client) {
   await host(page, 'soak');
   await join(client, 'soak', 'Ada');
@@ -61,19 +93,23 @@ const started = Date.now();
 const readout = (p: Page) => p.evaluate(() => window.jambot!.shadow);
 
 /** Each page's events, read a minute at a time from where the last read ended. */
-const played = new Map<Page, { events: PlayedEvent[]; next: number }>();
+const played = new Map<Page, { events: PlayedEvent[]; next: number; late: DroppedEvent[] }>();
 const gather = async () => {
+  load.push(loadavg()[0]!);
   for (const p of client ? [page, client] : []) {
-    const kept = played.get(p) ?? { events: [], next: 0 };
+    const kept = played.get(p) ?? { events: [], next: 0, late: [] };
     const read = await p.evaluate((from) => window.jambot!.played(from), kept.next);
-    played.set(p, { events: [...kept.events, ...read.events], next: read.next });
+    played.set(p, { events: [...kept.events, ...read.events], next: read.next, late: read.late });
   }
+};
+const steps = async (p: Page) => {
+  const { laid, missed, lateEvents, ticks } = await p.evaluate(() => window.jambot!.timing);
+  return { laid, missed, lateEvents, longestTick: ticks.most };
 };
 const summary = async (p: Page) => {
   const r = await readout(p);
-  const { laid, missed, ticks } = await p.evaluate(() => window.jambot!.timing);
   return {
-    steps: { laid, missed, longestTick: ticks.most },
+    steps: await steps(p),
     from: r.from,
     bars: r.bars,
     mismatched: r.mismatched,
@@ -95,27 +131,56 @@ for (let minute = 1; minute <= minutes; minute++) {
   else Object.assign(line, await summary(page));
   console.log(JSON.stringify(line));
 }
-const end = async (p: Page) => {
-  const { laid, missed, ticks } = await p.evaluate(() => window.jambot!.timing);
+const end = async (p: Page) => ({ ...(await readout(p)), text: undefined, steps: await steps(p) });
+/** What overlapped each page's ticks that dropped events late, with the collector's trace set beside. */
+const profiled = async () => {
+  if (!marks) return null;
+  const trace = JSON.parse((await browser.stopTracing()).toString()) as {
+    traceEvents: Parameters<typeof placeOf>[0];
+  };
+  const events = trace.traceEvents;
+  // A clock both pages share: the trace's, in seconds from the host's mark.
+  const origin = placeOf(events, 'soak-host', marks.host);
+  const of = async (p: Page, name: string, at: number | null) => {
+    const place = at === null ? null : placeOf(events, name, at);
+    const watch = await readWatch(p);
+    const toCommon = (t: number) =>
+      place && origin ? (t + place.offset - origin.offset - marks.host) / 1000 : t / 1000;
+    return { place, ...lateTicks(watch, place && collections(events, place), toCommon) };
+  };
   return {
-    ...(await readout(p)),
-    text: undefined,
-    steps: { laid, missed, longestTick: ticks.most },
+    host: await of(page, 'soak-host', marks.host),
+    client: client ? await of(client, 'soak-client', marks.client) : null,
+    machine: { cpus: cpus().length, load1: load },
   };
 };
 if (client) {
-  const [mine, theirs] = [played.get(page)!.events, played.get(client)!.events];
-  const compared = compareSession(mine, theirs);
+  const [mine, theirs] = [played.get(page)!, played.get(client)!];
+  const compared = compareSession(mine.events, theirs.events, {
+    host: mine.late,
+    client: theirs.late,
+  });
+  const breaks = sessionBreaks(compared);
+  const [hosted, followed] = [await end(page), await end(client)];
   console.log(
     JSON.stringify({
-      host: await end(page),
-      client: await end(client),
-      session: { ...compared, played: { host: mine.length, client: theirs.length } },
+      host: hosted,
+      client: followed,
+      session: {
+        ...compared,
+        played: { host: mine.events.length, client: theirs.events.length },
+        lateEvents: { host: hosted.steps.lateEvents, client: followed.steps.lateEvents },
+        breaks,
+      },
+      profile: await profiled(),
       errors,
     }),
   );
+  if (breaks.length > 0) process.exitCode = 1;
 } else {
   const r = await end(page);
-  console.log(JSON.stringify({ ...r, errors: [...r.errors, ...errors] }));
+  console.log(
+    JSON.stringify({ ...r, profile: await profiled(), errors: [...r.errors, ...errors] }),
+  );
 }
 await browser.close();

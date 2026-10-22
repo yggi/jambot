@@ -13,6 +13,7 @@ describe('the timing report (#27)', () => {
       margins: [96.25, 110, 120].reduce(spreadWith, EMPTY_SPREAD),
       laid: 64,
       missed: 2,
+      lateEvents: 7,
     };
     const report = timingReport(
       {
@@ -34,6 +35,7 @@ describe('the timing report (#27)', () => {
         margins: { count: 3, least: 96.25, p50: 110.5, p99: 120, most: 120 },
         laid: 64,
         missed: 2,
+        lateEvents: 7,
       },
       output: { offset: 12034.568, bound: 0.5, jumps: 3 },
       network: null,

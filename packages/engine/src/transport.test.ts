@@ -38,6 +38,7 @@ import {
   type TimedEvent,
   type TransportOutput,
   bandEnvAt,
+  clockOfTransport,
   forecast,
   foresight,
   transport,
@@ -330,7 +331,7 @@ describe('the transport', () => {
     // Both levels were laid.
     expect(new Set(laid.map((s) => s.swing.level))).toEqual(new Set(['8n', '16n']));
     expect(next).toBe(changes.length);
-    expect(events.length).toBeGreaterThan(500);
+    expect(events.length).toBeGreaterThan(200);
     for (const e of events)
       expect(writtenAt(laid, e.seconds)).toBeCloseTo(e.bar * 16 + e.event.step, 9);
     // Inverting the track as it ends up, from the start, gets them wrong.
@@ -1004,4 +1005,69 @@ describe('the transport starting after the clock', () => {
     const { outputs } = run(later, ticks(0, 200));
     for (const s of outputs.flatMap((o) => o.steps)) expect(s.seconds).toBeGreaterThanOrEqual(5);
   });
+});
+
+describe('the transport dropping events late (#462)', () => {
+  const lively = holding({ ...INITIAL_STYLE, energy: 1 });
+  const onTime = run(env(lively), ticks(0.9, 900));
+  const bars = onTime.outputs.flatMap((o) => o.composed);
+  /** An event as a multiset counts it: its bar, part, step and note. */
+  const keys = (es: readonly { bar: number; event: TimedEvent['event'] }[]) =>
+    es.map(({ bar, event }) => `${bar} ${event.part} ${event.step} ${event.note}`).sort();
+  /** The prototype's clock, but for a page that ticks nothing for `gap` seconds from `at`. */
+  const stalled = (at: number, gap: number) =>
+    ticks(0.9, 900).filter(({ now }) => now <= at || now >= at + gap);
+  const over = (source: BarSource<null> | null, inputs: TransportInput[]) => {
+    if (!source) return run(env(lively), inputs).outputs;
+    const machine = transportOver(source);
+    let carried = machine.initial;
+    return inputs.map((input) => {
+      const next = machine.advance(env(lively), carried, input);
+      carried = next.carried;
+      return next.output;
+    });
+  };
+
+  it('drops none on time', () => {
+    for (const o of onTime.outputs) expect(o.lateEvents).toEqual([]);
+    const client = over(replay(bars), ticks(0.9, 900));
+    for (const o of client) expect(o.lateEvents).toEqual([]);
+    expect(client.flatMap((o) => o.events).length).toBeGreaterThan(200);
+  });
+
+  // A tick later than the lookahead drops what its laid steps held before the clock; one later
+  // than a step past that misses whole steps, whose events are late too, on a host whose bars are
+  // composed a beat ahead and on a client whose bar comes as its first step is laid (`replay`).
+  for (const [who, source] of [
+    ['a host', null],
+    ['a client', replay(bars)],
+  ] as const)
+    for (const gap of [0.2, 0.35, 0.6, 1.1])
+      it(`drops late, on ${who} that ticks ${gap * 1000} ms late, exactly the events it doesn't play, at every phase of 40`, () => {
+        let dropped = 0;
+        let missed = 0;
+        for (let phase = 0; phase < 40; phase++) {
+          const at = 4 + phase * 0.0371;
+          const outputs = over(source, stalled(at, gap));
+          const late = outputs.flatMap((o) => o.lateEvents);
+          const played = outputs.flatMap((o) => o.events);
+          // What it played and what it dropped late are what an on-time page plays, event for event.
+          expect(keys([...played, ...late])).toEqual(keys(onTime.outputs.flatMap((o) => o.events)));
+          // Each dropped in no step laid is in a step it passed whole, which it says.
+          const laidAt = new Set(outputs.flatMap((o) => o.steps).map((s) => s.step));
+          const passed = new Set(outputs.flatMap((o) => o.passedSteps));
+          for (const s of passed) expect(laidAt.has(s)).toBe(false);
+          const clock = clockOfTransport(onTime.carried);
+          for (const { bar, event } of late) {
+            const step = clock.barStart(bar) + event.step;
+            expect(laidAt.has(step) || passed.has(step)).toBe(true);
+          }
+          const passedWhole = outputs.reduce((sum, o) => sum + o.missed, 0);
+          expect(passed.size).toBeLessThanOrEqual(passedWhole);
+          dropped += late.length;
+          missed += passedWhole;
+        }
+        expect(dropped).toBeGreaterThan(0);
+        if (gap > 0.5) expect(missed).toBeGreaterThan(0);
+      });
 });

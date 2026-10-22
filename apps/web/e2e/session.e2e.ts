@@ -80,7 +80,7 @@ const IN_STEP = 2.5;
  */
 const HOLDS = { some: 40, wide: 80 } as const;
 /**
- * How long, in milliseconds, a test stalls the host's main thread, so its
+ * How long, in milliseconds, a test stalls a page's main thread, so its
  * transport drops what the stall passes (T1). The transport schedules
  * `LOOKAHEAD` (120 ms) ahead, so only the steps of a stall's last part are
  * dropped: at 300 ms that is about one step of 139 ms, which held a note in
@@ -260,7 +260,7 @@ const BARS_COMPARED = 8;
 const lastBar = (page: Page) =>
   page.evaluate(() => Math.max(-1, ...window.jambot!.played().events.map((e) => e.bar)));
 
-test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells as by default, the section texts on the wire (#446, #456)', async ({
+test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells as by default, the section texts on the wire (#446, #456), and what a stall of its page drops is dropped late (#462)', async ({
   page,
   context,
 }) => {
@@ -272,6 +272,15 @@ test('a client plays what its host plays, event for event: part, note, velocity,
   await joined(page, 'Ada');
   await page.getByRole('button', { name: 'Start the band' }).click();
   await expect(state(client)).toContainText('host playing');
+  // The client's page does nothing for a moment in bar 3, as a busy machine's can: what its clock
+  // passed it drops late, and the bound asks that every event it lacks is one of those (#462).
+  await expect
+    .poll(() => lastBar(client), { timeout: 30_000, intervals: [100] })
+    .toBeGreaterThanOrEqual(3);
+  await client.evaluate((ms) => {
+    const end = performance.now() + ms;
+    while (performance.now() < end);
+  }, STALL);
   // Both pages into the bar after the last compared, which `compareSession` leaves out as played in part.
   for (const p of [page, client])
     await expect
@@ -284,6 +293,8 @@ test('a client plays what its host plays, event for event: part, note, velocity,
   );
   console.log(
     `bars ${compared.bars.from} to ${compared.bars.to}: ${compared.events} events, ` +
+      `the client lacked ${compared.lacked.client.events} and dropped ${compared.lateEvents.client} late, ` +
+      `the host lacked ${compared.lacked.host.events} and dropped ${compared.lateEvents.host} late; ` +
       `onsets apart by ${(compared.largest.onset * 1000).toFixed(3)} ms at most; ` +
       `the host told ${mine!.texts.told} texts of ${mine!.wire.p50} to ${mine!.wire.max} bytes, ` +
       `the client was given ${theirs!.texts.given}, played ${theirs!.played.cells} from cells and ${theirs!.played.band} from the band, ` +
@@ -292,6 +303,9 @@ test('a client plays what its host plays, event for event: part, note, velocity,
   // Every event of the bars both played whole, whatever the song composed in them: at least `BARS_COMPARED`.
   expect(compared.bars.to - compared.bars.from + 1).toBeGreaterThanOrEqual(BARS_COMPARED);
   expect(compared.events).toBeGreaterThan(0);
+  // The stall dropped some of the client's events late, each of them accounted for (`sessionAgrees`).
+  expect(compared.lateEvents.client).toBeGreaterThan(0);
+  expect(compared.lacked.client.events).toBeGreaterThan(0);
   await shadowAgrees(page);
   if (mine!.plays === 'cells') {
     expect(mine!.played.band).toBe(0);
