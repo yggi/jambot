@@ -35,6 +35,10 @@
  * written. A pulse of any other length — every named meter's 3-eighth
  * pulses — plays straight at the 8th level, the easiest option to reverse
  * until a real performance measures a ternary feel (T16).
+ *
+ * A meter's swing is the family's swing contract (yggi/music-commons
+ * `contracts/swing`, version 1), whose vectors `contracts.test.ts` runs
+ * against `leanMap` (#474).
  */
 
 import {

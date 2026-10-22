@@ -33,6 +33,9 @@
  *
  * A note as a cells text states it is played by the same hand
  * (`performStated`, #405): on top of the level and length the text states.
+ * That hand is the family's feel contract (yggi/music-commons
+ * `contracts/feel`, version 1), whose rule a frontend implements to play a
+ * session as its host does; `contracts.test.ts` runs its vectors (#474).
  *
  * A drum hit's role and a lead note's written accent pass through onto the
  * dough note unchanged, for whatever reads a performer's notes (L7);

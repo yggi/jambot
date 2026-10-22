@@ -18,6 +18,10 @@
  * level's own, would tie 12/8's second pulse with its third, and has not been
  * heard.
  *
+ * These grades are the family's meter contract's levels 0 to 3
+ * (yggi/music-commons `contracts/meter`, version 1), whose vectors
+ * `contracts.test.ts` runs against `accentsOf` and `METERS` (#474).
+ *
  * The engine's `Weight` has three (downbeat, pulse, subdivision): these are
  * the tree's first four levels, and the drums read their kick from them
  * (#260).
