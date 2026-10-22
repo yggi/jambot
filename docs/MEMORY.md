@@ -45,6 +45,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - The direction is to bring the two back together for eternal jam sessions: cells as the score language and its engine as the player, Jambot as the composer, and a shared repository of cell fragments ([brief](briefs/eternal-jam.md)).
 - The language becomes a core of its own, [yggi/cells](https://github.com/yggi/cells), which Jambot and Cell studio consume at a tag (D1 on #309).
 - The music projects (Cell studio, cells, quintenzirkel, play-aeiou, lib-aeiou, flow3r-aeiou, KO-Multitool, ep133-sysex and this one) share a hub, [yggi/music-commons](https://github.com/yggi/music-commons): an atlas, a charter, a glossary and contracts with vectors.
+  Jambot passes `session` (its `packages/session`), `meter` (`packages/theory`), and `swing` and `feel` (`packages/engine`), each run by a `contracts.test.ts` over the hub's vectors in the package's `fixtures/contracts/`; `feel` is its performer's own playing, lifted (#474).
 - The handshake is ruled (#309; yggi/cells decision 037): a new score form (#287, #306, #275, #265) is said in cells, its meaning kept and no spelling of its own grown here.
 - Its words and Jambot's part in places (`^`, `_`, `shift`, `cycle=`, Euclid's rotation): read [`cell-studio`](memory/cell-studio.md) before porting a form either way.
 
