@@ -18,6 +18,7 @@ import {
   leanMap,
   leansOf,
   stepSeconds,
+  presetSwing,
 } from '@jambot/engine';
 import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
@@ -44,7 +45,7 @@ function section(name: string, meter?: MeterName): BandBar[] {
         bar,
         style: { ...preset.style, entropy: 0.3 },
         wish: { tonic: null, mode: preset.mode, melodic: null },
-        swing: preset.swing,
+        swing: presetSwing(preset)!,
         ...(meter && { meter: METERS[meter] }),
         offer: null,
       },
@@ -216,7 +217,7 @@ describe('a section as one cells text, for the app (#399)', () => {
           0.6,
           2 / 3,
           0.75,
-          ...PRESETS.map((p) => p.swing.share),
+          ...PRESETS.map((p) => presetSwing(p)!.share),
         ])) {
           const swing: MeterSwing = { level, share };
           const text = [

@@ -13,11 +13,11 @@ import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
 /**
  * A device: an output whose clock the test moves, the ticks it runs, and
  * its output's offset from its page clock, which reads the output's clock:
- * a buffer the output drops moves the offset. Its band plays its own events,
- * or with `plays` cells' (#446), its texts built where `texts` says (on its
- * thread where it says nothing).
+ * a buffer the output drops moves the offset. Its band plays cells' events
+ * (#446, the default since #456), or with `plays` set to band its own, its
+ * texts built where `texts` says (on its thread where it says nothing).
  */
-export function device(clockAt: number, plays: Plays = 'band', texts?: () => SectionTexts) {
+export function device(clockAt: number, plays: Plays = 'cells', texts?: () => SectionTexts) {
   const world = {
     currentTime: clockAt,
     heardOffset: 0,

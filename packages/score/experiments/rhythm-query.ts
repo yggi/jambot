@@ -64,6 +64,7 @@ import {
   leansOf,
   stepSeconds,
   stylePoint,
+  presetSwing,
 } from '@jambot/engine';
 import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
@@ -118,7 +119,7 @@ export function corpusRun(name: string, seed: number, count = BARS): BandBar[] {
         seed,
         bar,
         style: { ...preset.style, entropy: ENTROPY },
-        swing: preset.swing,
+        swing: presetSwing(preset)!,
         wish: { tonic: null, mode: preset.mode, melodic: null },
         offer: null,
         repository: METER_REPOSITORY,

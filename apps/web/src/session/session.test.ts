@@ -480,7 +480,8 @@ describe('a host and a client session', () => {
   it('play a client at protocol 13 beside a host at 14 whose band plays through cells: the host admits it, and it plays every note the host plays (#460)', async () => {
     const lobby = memoryLobby();
     const host = device(105, 'cells');
-    const client = device(100);
+    // A page a minor older plays its band's own: it predates playing through cells.
+    const client = device(100, 'band');
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'Jam');
     // The client's join says 13, as a page a minor older does.

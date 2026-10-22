@@ -6,13 +6,14 @@ The order the rest moves in is the [roadmap](../ROADMAP.md)'s, under _Presets be
 
 ## What a preset is
 
-- `Preset` (`packages/engine/src/style.ts`) has four fields, `name`, `style`, `mode` and `swing`, and `PRESETS` holds eight presets.
+- `Preset` (`packages/engine/src/style.ts`) has three fields, `name`, `style` and `mode`, and `PRESETS` holds eight presets.
+  Its fourth, `swing`, left it in rung 2 (#459): a preset's swing is the meter's found at its point (`presetSwing`, `repository.ts`).
 - `style` is five axes, `sync`, `harm`, `artic`, `energy` and `bpm`; entropy stays where the players put it.
-- Nothing in `packages/*/src` or `apps/*/src` branches on a preset's name: a preset reaches what plays only through its point, its mode and its swing.
-- So what is decided by hand per preset is the `PRESETS` table alone: eight names, eight points, three of the four composer modes (no preset is mixolydian), and five swings (16n at 1/2, 0.6, 31/60 and 0.65, and 8n at 2/3).
+- Nothing in `packages/*/src` or `apps/*/src` branches on a preset's name: a preset reaches what plays only through its point and its mode, and its swing is found at its point.
+- So what is decided by hand per preset is the `PRESETS` table alone: eight names, eight points, and three of the four composer modes (no preset is mixolydian); the five swings (16n at 1/2, 0.6, 31/60 and 0.65, and 8n at 2/3) are the meter fragments' found at the points, each at distance 0.
 - Cells copies the eight points without `bpm` (`src/repository/presets.ts` there, lifted @ 7b078e8), and each seed fragment's association writes them as numbers, so a point moved here moves no fragment there.
 - `bpm` stays on the point: a fragment's style has no tempo (cells decision 037), so no query reads it.
-- 23 experiments and 26 test files read a preset's `swing` or `mode`: the rungs that remove a field change them too.
+- 23 experiments and 26 test files read a preset's `swing` or `mode` at the inventory; of them, 19 experiments and 18 test files read its `swing`, and now read `presetSwing` (#459).
 
 ## The inventory
 
@@ -23,7 +24,7 @@ _Goes_ says where each row is headed: a rung of #420, done, the **generator** on
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ----------------------------- |
 | 1   | A preset's name                                                                                                                              | `style.ts`, `Preset.name`                                                                 | the Style card's buttons, rows 5 and 6                                               | the preset                                             | none: cells names its drum bars after the presets (`Funk drums`)                             | stays                         |
 | 2   | A preset's point                                                                                                                             | `style.ts`, `Preset.style`                                                                | `targetsOf` (`apps/web/src/conductor.ts`), `INITIAL_STYLE`, rows 5 and 6             | the preset                                             | every facet: each fragment's association is placed at it                                     | stays: it is the vector       |
-| 3   | A preset's swing                                                                                                                             | `style.ts`, `Preset.swing`                                                                | `conductSwing` (the swing track's target), the player's opening swing                | the preset                                             | `meter`, 13 (11 played): each preset's point finds a 4/4 swinging as it names, at distance 0 | rung 2                        |
+| 3   | A preset's swing                                                                                                                             | `repository.ts`, `presetSwing`                                                            | `conductSwing` (the swing track's target), the player's opening swing                | the preset's point                                     | `meter`, 13 (11 played): the 8 presets' points find the 4/4 each swung by hand at distance 0 | done (rung 2)                 |
 | 4   | A preset's mode                                                                                                                              | `style.ts`, `Preset.mode`                                                                 | `wishAfter` (the key wished for), the player's opening wish                          | the preset                                             | none: `harmony`'s vamps are over the host's key, so one text is every mode's                 | rung 4                        |
 | 5   | The genre: nearness to the presets' points                                                                                                   | `genre.ts`, `PRESET_LANDMARKS`, `genreOf`, `nearestPreset`                                | the radio's station names (`radioView.ts`), E24                                      | the presets' points                                    | none                                                                                         | stays: it names a point       |
 | 6   | A style named as a preset when it is one on every axis but energy                                                                            | `apps/web/src/hud.ts`, `presetOf`, `NAMING_AXES`                                          | the Style card's title                                                               | the presets' points                                    | none                                                                                         | stays                         |
@@ -60,8 +61,8 @@ _Goes_ says where each row is headed: a rung of #420, done, the **generator** on
 ## What the count says
 
 - 9 rows have seed fragments in cells now: the swing (`meter`), the drummer's six (`rhythm`), the vamps (`harmony`) and the bass's patterns (`bass`).
-- 5 rows are done (rows 13 to 17, rung 1): a drum bar found says where each role plays, and the drummer still says how many hits, as `groove.ts` reads its counts.
-- 4 rows are to move (rows 3, 4, 8 and 19), and row 7 follows rows 3 and 4.
+- 6 rows are done: rows 13 to 17 (rung 1), where a drum bar found says where each role plays and the drummer still says how many hits, as `groove.ts` reads its counts; and row 3 (rung 2), the swing found at the preset's point.
+- 3 rows are to move (rows 4, 8 and 19), and row 7 follows row 4, its swing found already.
 - 14 rows stay the generator on a miss, and 11 stay code: the point and its name, the genre's names, the theory, the drummer's fills, the licences, the colour, and the performer's hand.
 - The comp (rows 22 and 23) has no facet, no seeds and no rung of its own, and the owner's order (bass, lead, harmony) names none for it.
 - Mode (row 4) is the one field no facet carries.

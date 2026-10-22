@@ -38,6 +38,7 @@ import {
   band,
   grooveText,
   stepSeconds,
+  presetSwing,
 } from '@jambot/engine';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
@@ -176,7 +177,7 @@ export function presetBars(preset: (typeof PRESETS)[number]): BandBar[] {
         seed: SEED,
         bar,
         style: { ...preset.style, entropy: ENTROPY },
-        swing: preset.swing,
+        swing: presetSwing(preset)!,
         wish: { tonic: null, mode: preset.mode, melodic: null },
         offer: null,
       },

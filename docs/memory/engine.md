@@ -102,7 +102,7 @@ The pointers to what holds each are in the sentences.
   `packages/engine/experiments/humanise.ts` plays a pattern as a hand would, from one sloppiness in ms, and measures any reader over 890 bars, or 3,600 in phrases, against it; E17 records how the rounding does (69% right at 20 ms, 27% at 30, mostly lost to rests nobody meant) and how the reading of phrases does (85% and 46%).
   In a session the same split runs across apps: a client's ear (`earListen`) judges its players' bars and sends the judgements; the host's transport checks each (`admissible`: the gates a motif carries, in the bar's key, and first its shape, since it arrives as JSON) and drops, and logs, one that is late, ahead or inadmissible.
   `Motif`, `Judgement` and the bars travel as they are, so a change to their shape bumps `PROTOCOL` (`protocol.test.ts` fails until it does).
-  A host reads each client message by its fields (`readClientMessage`) and refuses a name already in the session, in any case; a client reads its host's by kind alone.
+  A host reads each client message by its fields (`readClientMessage`) and refuses a name already in the session, in any case; a client reads its host's by its fields too (`readHostMessage`), as the session contract has it (#457).
   The player takes what arrived before the transport reads it, so an input it can't read costs one tick, not the song.
 - A chord is the theory's `Chord`, a helix plus tensions (#38), in the key's register.
   `joinChord` gives its stack, and `chordScale` takes a stack.
@@ -111,7 +111,8 @@ The pointers to what holds each are in the sentences.
   The band's swing is its meter's (#360, `swing.ts`): a level, `8n` or `16n`, and a share, `MeterSwing`, which leans that level alone and never early (`leansOf`).
   Its share glides as an axis does (`SwingTrack`, `swingTo`, `glideIn`), over 8 bars from a preset and one from the Metrum card; its level is asked for at once and taken where the next section starts, as the meter is (`Plan.swing`), so a change of level never cuts into a section.
   Each beat swings on its bar's level, at the share where the beat starts; a beat of a bar not yet composed swings on the level of the bar playing.
-  Each preset names its meter's swing (`Preset.swing`), the level and share `swingParts` gave at its old axis value, so every preset plays the onsets it did (within 1e-9, `style.test.ts`); the straight ones are on the 16ths.
+  A preset's swing is the swing of the meter cells' seed finds at its point (`presetSwing`, `repository.ts`, #459), the level and share `swingParts` gave at its old axis value, so every preset plays the onsets it did (within 1e-9, `style.test.ts` and `repository.test.ts`); the straight ones are on the 16ths.
+  A preset chosen glides the share to it over 8 bars (`conductSwing`); one whose point finds no meter leaves the swing as it is.
   A meter swung on `8n` brings in the jazz kit and the walking bass, as far as its 8ths swing (`eighthSwing`, the owner's ruling on #360), until drum and bass fragments come from the repository (yggi/cells#82); the lead's pickups and the performer's feel read `swingWeight`, a 16th lean counting half an 8th's, which on every preset is its old axis value.
   A section's level is decided with its plan, on the bar before it, so a test that tours the presets a section at a time asks each preset's level a bar ahead.
   `swingMap(x)` is the one path through the two levels the readers search (`estimateSwing`): straight to a 16th shuffle at 0.5, crossfading into triplet 8ths at 1.

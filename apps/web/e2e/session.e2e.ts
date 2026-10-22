@@ -260,7 +260,7 @@ const BARS_COMPARED = 8;
 const lastBar = (page: Page) =>
   page.evaluate(() => Math.max(-1, ...window.jambot!.played().events.map((e) => e.bar)));
 
-test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells with the switch on, the section texts on the wire (#446), and what a stall of its page drops is dropped late (#462)', async ({
+test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells as by default, the section texts on the wire (#446, #456), and what a stall of its page drops is dropped late (#462)', async ({
   page,
   context,
 }) => {

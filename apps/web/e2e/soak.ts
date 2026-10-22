@@ -8,7 +8,7 @@
  *     pnpm --filter @jambot/web build && pnpm --filter @jambot/web preview --port 4320 &
  *     node --experimental-strip-types --no-warnings apps/web/e2e/soak.ts --minutes 30 --entropy 0.3
  *
- * `--url` names another address (`?play=cells` plays the band through cells),
+ * `--url` names another address (`?play=band` plays the band's own; through cells is the default),
  * and `--every` how often, in minutes, a line of progress is printed.
  *
  * `--session` soaks a session (#446): a host on the radio and one client,

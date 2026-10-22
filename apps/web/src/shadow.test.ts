@@ -21,6 +21,8 @@ import {
   swingTo,
   transport,
   transportOver,
+  type MeterSwing,
+  presetSwing,
 } from '@jambot/engine';
 import {
   type FollowCarried,
@@ -72,10 +74,11 @@ interface Following {
  */
 function run({
   preset = PRESETS[0]!,
+  swing = presetSwing(preset)!,
   seed = 1,
   bars = 24,
   station = null,
-  plays = 'band',
+  plays = 'cells',
   edit,
   control,
   meddle,
@@ -88,6 +91,8 @@ function run({
   follow,
 }: {
   preset?: (typeof PRESETS)[number];
+  /** The meter's swing held: the one the repository finds at the preset's point, unless a test moves the point off it. */
+  swing?: MeterSwing;
   seed?: number;
   bars?: number;
   station?: Station | null;
@@ -149,7 +154,7 @@ function run({
     seed,
     start: START,
     track: rebeat(holding({ ...preset.style, entropy: 0.3 }), METERS['4/4'], METERS[meter]),
-    swing: holdingSwing(preset.swing),
+    swing: holdingSwing(swing),
     wish: { tonic: null, mode: preset.mode, melodic: null },
     tempoMeter: METERS[meter],
     ...(repositories
@@ -382,13 +387,16 @@ describe('the band through cells, in shadow (#399)', () => {
 
   it('counts apart a swing that glides: the bars its share moves in are a gap with their reason, and the switch plays the band’s own there', () => {
     let moved = false;
-    const swung = PRESETS.find((p) => p.swing.share !== 0.5)!;
+    const swung = PRESETS.find((p) => presetSwing(p)!.share !== 0.5)!;
     const { readout, band, played } = run({
       plays: 'cells',
       control: (env, carried) => {
         if (moved || carried.nextBar !== 6) return env;
         moved = true;
-        return { ...env, swing: swingTo(env.swing!, swung.swing, carried.head.step, 8 * 16) };
+        return {
+          ...env,
+          swing: swingTo(env.swing!, presetSwing(swung)!, carried.head.step, 8 * 16),
+        };
       },
     });
     expect(readout.mismatched).toEqual(NONE);
@@ -419,12 +427,13 @@ describe('the band through cells, in shadow (#399)', () => {
     playsAsTheBand(band, played);
   });
 
-  it.each(PRESETS.filter((p) => p.swing.share !== 0.5).map((p) => [p.name, p] as const))(
+  it.each(PRESETS.filter((p) => presetSwing(p)!.share !== 0.5).map((p) => [p.name, p] as const))(
     'with the switch on, plays %s through cells as the band plays it while its swing’s level turns each section: each note’s end swings as the transport swings the band’s (#405)',
     (_, preset) => {
       const { readout, band, played } = run({
         plays: 'cells',
         preset: { ...preset, style: { ...preset.style, artic: 0 } },
+        swing: presetSwing(preset)!,
         bars: 40,
         control: (env, carried) =>
           carried.nextBar % SECTION_BARS === SECTION_BARS / 2
@@ -453,6 +462,7 @@ describe('the band through cells, in shadow (#399)', () => {
       preset: (({ style, ...p }) => ({ ...p, style: { ...style, artic: 0.1 } }))(
         PRESETS.find((p) => p.name === 'Swing jazz')!,
       ),
+      swing: presetSwing(PRESETS.find((p) => p.name === 'Swing jazz')!)!,
       seed: 2,
       meter: '3/4',
       bars: 32,
@@ -508,8 +518,8 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(played).toHaveLength(band.length);
   });
 
-  it('is silent by default: with the switch off it hands back the band’s own output, the very object', () => {
-    const shadow = new Shadow(() => 0);
+  it('is silent with the switch off (`?play=band`): it hands back the band’s own output, the very object', () => {
+    const shadow = new Shadow(() => 0, 'band');
     const events: TimedEvent[] = [];
     const output = {
       steps: [],
@@ -920,7 +930,7 @@ describe('a session through cells: the section’s text on the wire, host to cli
   });
 
   it('a host whose band plays its own tells its texts, which a client that plays its own neither asks for nor plays: the very events the transport laid', () => {
-    const { readout, played, client } = run({ follow: { link: LINK } });
+    const { readout, played, client } = run({ plays: 'band', follow: { link: LINK } });
     expect(readout.texts.told).toBeGreaterThan(0);
     expect(client!.readout.from).toBe('none');
     expect(client!.readout.texts.given).toBe(0);
@@ -930,12 +940,13 @@ describe('a session through cells: the section’s text on the wire, host to cli
 });
 
 describe('the switch (#399)', () => {
-  it('is off by default, set by `?play=cells` in the address, or by the build where the address says nothing', () => {
-    expect(playsFrom('', undefined)).toBe('band');
-    expect(playsFrom('?play=cells', undefined)).toBe('cells');
-    expect(playsFrom('?x=1&play=cells', undefined)).toBe('cells');
-    expect(playsFrom('', 'cells')).toBe('cells');
-    expect(playsFrom('?play=band', 'cells')).toBe('band');
-    expect(playsFrom('?play=strudel', undefined)).toBe('band');
+  it('is on by default (#456), turned off by `?play=band` in the address, or by the build where the address says nothing', () => {
+    expect(playsFrom('', undefined)).toBe('cells');
+    expect(playsFrom('?play=band', undefined)).toBe('band');
+    expect(playsFrom('?x=1&play=band', undefined)).toBe('band');
+    expect(playsFrom('', 'band')).toBe('band');
+    expect(playsFrom('?play=cells', 'band')).toBe('cells');
+    expect(playsFrom('?play=strudel', undefined)).toBe('cells');
+    expect(playsFrom('', 'strudel')).toBe('cells');
   });
 });

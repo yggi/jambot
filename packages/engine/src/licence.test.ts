@@ -15,6 +15,7 @@ import {
   tempoLicence,
   tempoNudgeWithin,
 } from './licence.ts';
+import { presetSwing } from './repository.ts';
 import { AXES, INITIAL_STYLE, PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
 import { positions } from '@jambot/theory';
@@ -28,7 +29,7 @@ const UNIT = [...Array(11).keys()].map((i) => i / 10);
 
 /** Every preset as a style, at an entropy, with its meter's swing. */
 const presetsAt = (entropy: number): { name: string; style: Style; swing: MeterSwing }[] =>
-  PRESETS.map((p) => ({ name: p.name, style: { ...p.style, entropy }, swing: p.swing }));
+  PRESETS.map((p) => ({ name: p.name, style: { ...p.style, entropy }, swing: presetSwing(p)! }));
 
 /** Every preset at every entropy walked. */
 const EVERY = UNIT.flatMap(presetsAt);

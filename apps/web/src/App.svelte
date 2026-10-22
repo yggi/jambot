@@ -52,7 +52,7 @@
    * client-only and a client keeps it while its other controls rest.
    */
   const metronome = new Metronome();
-  /** The band through cells (#399): in shadow always, and played with the switch on (`?play=cells`). */
+  /** The band through cells (#399): in shadow always, and played with the switch on, the default (#456; `?play=band` plays its own). */
   const player = new Player(
     device.surroundings,
     metronome,
