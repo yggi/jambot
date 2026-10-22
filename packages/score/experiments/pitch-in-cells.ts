@@ -11,15 +11,15 @@
  * The three candidates, each a key cell the lines read through (`&key
  * scale(aeolian, A)`, cells' `scale(name, tonic)`, decision 013):
  *
- * - **stacks** (cells v0.8.0 parses it, the spelling of its `chords.cells`): a
+ * - **stacks** (cells v0.9.0 parses it, the spelling of its `chords.cells`): a
  *   chord is a stack of degrees of the key, each the chord's own degree (root,
  *   third, fifth, …) altered where the chord leaves the key: `[4,6#,8]` is V in
  *   A minor.
- * - **shapes** (cells v0.8.0 parses it, the spelling of its `tines.cells`): a
+ * - **shapes** (cells v0.9.0 parses it, the spelling of its `tines.cells`): a
  *   chord is a shape of degrees moved up the key by `^n` (decision 015), the
  *   shapes stated once in the bar: `&c0 [0,2#,4]`, then `&c0^4`; an
  *   accidental moves with its note (decision 033).
- * - **numerals** (a proposal: cells v0.8.0 has no numeral, decision 038's
+ * - **numerals** (a proposal: cells v0.9.0 has no numeral, decision 038's
  *   row (a)): a chord is Jambot's numeral (U1), a token of a line read over the
  *   key, `V7/V`. Its meaning is the stack the numeral names, so a numeral
  *   lowers to the stacks candidate, which is how it is played here.
@@ -256,7 +256,7 @@ const sameKey = (a: ScoreKey, b: ScoreKey) => a.tonic === b.tonic && a.mode === 
 const nextOver = (h: Harmony) =>
   h.next && sameKey(h.next.key, h.key) ? '&key' : keyText(h.next!.key);
 
-/** A candidate spelling: whether cells v0.8.0 parses it, how it writes a bar, and how it reads one back. */
+/** A candidate spelling: whether cells v0.9.0 parses it, how it writes a bar, and how it reads one back. */
 export interface Candidate {
   readonly name: string;
   readonly parses: boolean;
@@ -309,7 +309,7 @@ function writeNumerals(h: Harmony): string {
   ].join('\n');
 }
 
-/** A numerals text lowered to cells v0.8.0 by the proposal's meaning: each numeral the stack it names. */
+/** A numerals text lowered to cells v0.9.0 by the proposal's meaning: each numeral the stack it names. */
 export const lowerNumerals = (text: string): string => writeStacks(readNumerals(text));
 
 /** The key a `scale(mode, tonic)` states. */
