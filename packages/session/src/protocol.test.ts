@@ -24,8 +24,15 @@ import {
   FIRST_PROTOCOL,
   type HostMessage,
   PLAYED_MOST,
+  CODE_DIGITS,
+  CODE_LISTENS,
+  CODE_LOCKED,
+  CODE_WRONG,
+  WRONG_CODES,
+  wrongCodesWithin,
   PROTOCOL,
   type SectionText,
+  codeOf,
   heardFrom,
   type SentBar,
   playerOf,
@@ -195,6 +202,7 @@ describe('the session protocol', () => {
     for (const message of [
       { kind: 'join', protocol: PROTOCOL, name: 'Ada' },
       { kind: 'join', protocol: PROTOCOL, name: 'Ada', resume: 'token' },
+      { kind: 'join', protocol: PROTOCOL, name: 'Ada', code: '042917' },
       { kind: 'judged', bar: 3, judgement },
       { kind: 'ping', sent: 1.5 },
       ...playedBars(),
@@ -210,6 +218,8 @@ describe('the session protocol', () => {
       { kind: 'join', protocol: String(PROTOCOL), name: 'Ada' },
       { kind: 'join', protocol: PROTOCOL, name: 7 },
       { kind: 'join', protocol: PROTOCOL, name: 'Ada', resume: 7 },
+      { kind: 'join', protocol: PROTOCOL, name: 'Ada', code: 42917 },
+      { kind: 'join', protocol: PROTOCOL, name: 'Ada', code: null },
       { kind: 'judged', judgement },
       { kind: 'judged', bar: '3', judgement },
       { kind: 'judged', bar: 3.5, judgement },
@@ -246,12 +256,12 @@ describe('the session protocol', () => {
   });
 
   it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
-    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([14, 13]);
-    for (const protocol of [13, 14, 15])
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([15, 13]);
+    for (const protocol of [13, 14, 15, 16])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
     for (const protocol of [12, 1, 13.5, Number.NaN])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
-        /version 14 .* takes 13 on/,
+        /version 15 .* takes 13 on/,
       );
     expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
     expect(sameMajor('14')).toBe(false);
@@ -263,6 +273,54 @@ describe('the session protocol', () => {
     expect(refusal(join(' ada '), ['Bo', 'Ada'])).toBe(
       'A player named ada is already in this session. Pick another name.',
     );
+  });
+
+  it(`admits a join by a code where the host asks for one (#461): ${CODE_DIGITS} digits, a join without it or with another refused for the code, before its name is looked at`, () => {
+    const join = (code?: string, name = 'Ada') =>
+      ({
+        kind: 'join',
+        protocol: PROTOCOL,
+        name,
+        ...(code === undefined ? {} : { code }),
+      }) as const;
+    // An open session, as every session was before: a code or none, it admits.
+    expect(refusal(join())).toBeNull();
+    expect(refusal(join('123456'))).toBeNull();
+    // By code: the code, trimmed as a phone's keyboard may pad it, admits; another is refused,
+    // a part of it and the code with more besides alike.
+    expect(refusal(join('042917'), [], '042917')).toBeNull();
+    expect(refusal(join(' 042917 '), [], '042917')).toBeNull();
+    for (const code of ['042918', '42917', '0429170', '042 917', '0', '04291', '42917 0'])
+      expect(refusal(join(code), [], '042917'), code).toBe(CODE_WRONG);
+    // None is no refusal: such a join is seated to listen (`admit`), a minor before this one's too.
+    for (const code of [undefined, '', '  ']) expect(refusal(join(code), [], '042917')).toBeNull();
+    expect(refusal({ kind: 'join', protocol: 14, name: 'Ada' }, [], '042917')).toBeNull();
+    // The code is looked at before the name, so a wrong one learns nothing of who is in it.
+    expect(refusal(join('000000', 'Bo'), ['Bo'], '042917')).toBe(CODE_WRONG);
+    expect(refusal(join(undefined, ' '), [], '042917')).toMatch(/name/);
+    // A version before is refused for the version, whatever it carries.
+    expect(refusal({ ...join('042917'), protocol: 12 }, [], '042917')).toMatch(/version/);
+    // Each says so in words of its own, which name the code.
+    expect(new Set([CODE_LISTENS, CODE_LOCKED, CODE_WRONG]).size).toBe(3);
+    for (const why of [CODE_LISTENS, CODE_LOCKED, CODE_WRONG]) expect(why).toMatch(/code/);
+  });
+
+  it(`counts the wrong codes of the last ${WRONG_CODES.seconds} s, ${WRONG_CODES.count} of them holding every code off`, () => {
+    expect(WRONG_CODES).toEqual({ count: 5, seconds: 60 });
+    expect(wrongCodesWithin([0, 10, 59.9, 60, 100], 119.95)).toEqual([60, 100]);
+    expect(wrongCodesWithin([0, 10, 20], 60)).toEqual([10, 20]);
+    expect(wrongCodesWithin([], 5)).toEqual([]);
+  });
+
+  it(`draws a code of ${CODE_DIGITS} digits from random words, each digit as likely as another`, () => {
+    expect(CODE_DIGITS).toBe(6);
+    expect(codeOf(() => 0)).toBe('000000');
+    expect(codeOf(() => 42_917)).toBe('042917');
+    expect(codeOf(() => 999_999)).toBe('999999');
+    // A word past the last whole million of 2^32 is drawn again, so no code is likelier than another.
+    const words = [4_294_967_295, 4_294_000_000, 1_000_123];
+    expect(codeOf(() => words.shift()!)).toBe('000123');
+    expect(words).toEqual([]);
   });
 
   it('keeps a player by id in a source, and reads it out by name', () => {
@@ -302,8 +360,11 @@ describe('the session protocol', () => {
       played: shapeOf(playedBars()),
       section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
-    // The session contract (yggi/music-commons `contracts/session`) holds the same shapes.
-    expect(hub.shapes).toEqual(SHAPES);
+    // The session contract (yggi/music-commons `contracts/session`) holds the same shapes, at
+    // its minor 1 (protocol 14) until it writes minor 2: 15 adds a join's `code` (#461), a
+    // field of a message read by field, above, and no shape here.
+    expect([hub.protocol, PROTOCOL]).toEqual([14, 15]);
+    expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
   });
 
   it('never carries a performer’s fill on the wire: a bar states only what a WrittenNote holds (#107, #140)', () => {
@@ -326,7 +387,7 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 14 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements, the Muse's log, a client's bar of drums and a host's section texts show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375); 12 the rhythm fragment and the clave (#397); 13 has a client pass on each bar its players played on drums, the notes as heard (`played`, #410); 14 has a host send each section's cells text (`section`, and a welcome's `song.texts`, #446). */
+/** The shapes of version 15 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements, the Muse's log, a client's bar of drums and a host's section texts show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375); 12 the rhythm fragment and the clave (#397); 13 has a client pass on each bar its players played on drums, the notes as heard (`played`, #410); 14 has a host send each section's cells text (`section`, and a welcome's `song.texts`, #446); 15 has a join carry a host's code (`code`, #461), read by field above. */
 /** A played bar that isn't one: each field missing or of another type, in turn. */
 function playedJunk(): unknown[] {
   const [played] = playedBars();
@@ -358,7 +419,7 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 14,
+  protocol: 15,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',

@@ -13,6 +13,8 @@ import type { Guest } from './session/host.svelte.ts';
 export interface Hosting {
   readonly session: string | null;
   readonly guests: readonly Guest[];
+  /** The code a host admits its clients by (#461), or null (or absent) while its session is open. */
+  readonly code?: string | null;
 }
 
 export interface Following {
@@ -21,6 +23,8 @@ export interface Following {
   readonly name: string | null;
   readonly hostPlaying: boolean;
   readonly hostAway: boolean;
+  /** Seated without the code of a session by code: it listens (#461). */
+  readonly listening?: boolean;
   readonly trip: number | null;
   readonly lacked: number;
 }

@@ -440,12 +440,27 @@ export const host = async (page: Page, session: string, lobby = '') => {
 export const listed = (page: Page, session: string) =>
   page.locator('details[aria-label="Join a session"]').getByRole('button', { name: session });
 
-/** Joins a session listed at the lobby's door, as the name given. */
-export const join = async (page: Page, session: string, name: string, lobby = '') => {
+/** Asks for a session listed at the lobby's door, with the code given (#461), and none where it is empty. */
+export const ask = async (page: Page, session: string, code = '') => {
+  const found = listed(page, session);
+  await found.waitFor({ timeout: 8000 });
+  await page.getByRole('textbox', { name: 'Code', exact: true }).fill(code);
+  await found.click();
+};
+
+/** Joins a session listed at the lobby's door, as the name given, with the host's code where it asks for one. */
+export const join = async (page: Page, session: string, name: string, lobby = '', code = '') => {
   if (lobby !== '') await useLobby(page, lobby);
   await useName(page, name);
-  await listed(page, session).click({ timeout: 8000 });
+  await ask(page, session, code);
   await expect(state(page)).toContainText('Following');
+};
+
+/** A host asks for a code to admit players by, on its Session card, and reads it there (#461). */
+export const admitByCode = async (page: Page): Promise<string> => {
+  await openSession(page);
+  await page.getByRole('checkbox', { name: 'Admit players by a code' }).check();
+  return (await page.getByLabel('Code', { exact: true }).textContent())!.trim();
 };
 
 /**

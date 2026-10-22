@@ -48,6 +48,36 @@ describe('the session card', () => {
     expect(container.querySelector('summary .main')).toHaveTextContent('Solo');
   });
 
+  describe("a host's code (#461)", () => {
+    it('is open, as every session was, until the host asks for a code, which it then shows', async () => {
+      const onadmit = vi.fn();
+      const { rerender } = render(Session, props({ onadmit }));
+      await unfold();
+      const byCode = screen.getByRole('checkbox', { name: 'Admit players by a code' });
+      expect(byCode).not.toBeChecked();
+      expect(screen.queryByLabelText('Code')).toBeNull();
+      expect(screen.getByText(/Anyone who finds the session can join/)).toBeInTheDocument();
+      await fireEvent.click(byCode);
+      expect(onadmit).toHaveBeenLastCalledWith(true);
+      await rerender({ hosting: { ...nobody, code: '042917' } });
+      expect(byCode).toBeChecked();
+      expect(screen.getByLabelText('Code')).toHaveTextContent('042917');
+      await fireEvent.click(screen.getByRole('button', { name: 'Draw another code' }));
+      expect(onadmit).toHaveBeenLastCalledWith(true);
+      await fireEvent.click(byCode);
+      expect(onadmit).toHaveBeenLastCalledWith(false);
+    });
+
+    it("is a host's only: a client and a band alone show none", async () => {
+      for (const mode of ['client', 'solo'] as const) {
+        const { unmount } = render(Session, props({ mode, onadmit: () => {} }));
+        await unfold();
+        expect(screen.queryByRole('checkbox', { name: 'Admit players by a code' })).toBeNull();
+        unmount();
+      }
+    });
+  });
+
   describe('the players, in its details', () => {
     it('lists a host and those who joined it, each with a colour', async () => {
       render(

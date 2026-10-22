@@ -1,7 +1,8 @@
 /**
  * A client's session: the player following a host.
  *
- * It joins a session by name and pings the host from the start. The pings
+ * It joins a session by name, with the host's code where the person was
+ * given one (#461), and pings the host from the start. The pings
  * set the player's clock by the host's: the network's offset between the
  * page clocks (`hostClock`), plus the host's output's offset from its page
  * clock, less this output's (`skewOf`), so a note sounds here as it
@@ -104,6 +105,8 @@ export class ClientSession {
   ended: string | null = $state(null);
   /** Whether the host's link dropped and the lobby holds the session for it to come back. */
   hostAway = $state(false);
+  /** Whether the host seated this client without its code, to listen (#461): what it plays reaches no Muse. */
+  listening = $state(false);
 
   #player: Player;
   #clocks: DeviceClocks;
@@ -129,6 +132,8 @@ export class ClientSession {
   #lobbyUrl: string | null = null;
   /** What the host's welcome gave to come back as the same player. */
   #token: string | null = null;
+  /** The code the person gave to join by (#461), sent with every join of this session, or null for none. */
+  #code: string | null = null;
   #outage: Outage | null = null;
   #retrying: ReturnType<typeof setTimeout> | null = null;
   /** Counts the links made, so a late word from a dropped one is ignored. */
@@ -164,7 +169,8 @@ export class ClientSession {
   }
 
   /**
-   * Join a session by name. Given the token of a session this client was in
+   * Join a session by name, with the code its host admits by, if the person
+   * gave one (`code`, #461). Given the token of a session this client was in
    * (`resume`), and the lobby's address to keep with it, it comes back as the
    * same player.
    */
@@ -172,7 +178,7 @@ export class ClientSession {
     lobby: Lobby,
     session: string,
     name: string,
-    { resume, lobbyUrl }: { resume?: string; lobbyUrl?: string } = {},
+    { resume, lobbyUrl, code }: { resume?: string; lobbyUrl?: string; code?: string } = {},
   ) {
     this.leave();
     const attempt = ++this.#joins;
@@ -183,6 +189,7 @@ export class ClientSession {
     this.#lobby = lobby;
     this.#lobbyUrl = lobbyUrl ?? null;
     this.#token = resume ?? null;
+    this.#code = code?.trim() || null;
     await this.#player.prepareWithin();
     // Left, or joined again, while the output was awaited.
     if (attempt !== this.#joins || this.status !== 'joining') return;
@@ -232,6 +239,7 @@ export class ClientSession {
       protocol: PROTOCOL,
       name: this.name ?? '',
       ...(this.#token === null ? {} : { resume: this.#token }),
+      ...(this.#code === null ? {} : { code: this.#code }),
     });
   }
 
@@ -326,6 +334,7 @@ export class ClientSession {
     this.#outage = null;
     this.#lobby = null;
     this.#token = null;
+    this.#code = null;
     this.#keep?.clear();
     this.#reset();
     this.#player.unfollow();
@@ -382,6 +391,7 @@ export class ClientSession {
         this.#lastHeard = this.#wallNow();
         this.status = 'joined';
         this.hostAway = false;
+        this.listening = message.listening === true;
         this.#token = message.resume;
         this.#remember();
         this.#forecast(message.forecast);
