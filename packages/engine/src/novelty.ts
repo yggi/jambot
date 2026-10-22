@@ -1,5 +1,5 @@
 /**
- * The novelty ladder for rhythms (#411, #414; yggi/cells decision 043:
+ * The novelty ladder (#411, #414; yggi/cells decision 043:
  * repeat → vary with operators → recombine the workbench → fetch nearby →
  * fetch far, bored climbing it): how the composer tires of a rhythm it
  * plays, varies it, and past that rejects it, so the next nearest plays, or
@@ -10,7 +10,10 @@
  * groove the learned layer filed (the drummer's, a player's, or a variation the
  * composer made, `muse-groove.ts`). A preset's drum bar climbs as a groove
  * filed does, so a preset held plays its drum bar, then a variation of it,
- * then leaves it a while.
+ * then leaves it a while. A bass line climbs it the same way (#423, the loop
+ * of `facet.ts`), its lineage beside the drums' in one boredom: varied by
+ * cells' pitched operators (transpose by a degree of its chord, invert,
+ * reverse), never its anchor, the root on a chord change's downbeat.
  *
  * **The clave climbs with the drum bar** (#414): a line chosen with the
  * rhythm (`claveFragment`) is never varied, and it is the drum bar's it was
@@ -202,24 +205,27 @@ export function wantsVariation({ grooves, boredom }: Lineage): boolean {
 }
 
 /**
- * The boredom a section later: the lineage it played (with any variation it
- * made) the section's entropy more, rejected where that takes it past the
- * last rung; every other the entropy less, forgotten at none.
+ * The boredom a section later: each lineage it played (with any variation it
+ * made; one a member, the drums' and the bass's, `facet.ts`) the section's
+ * entropy more, rejected where that takes it past the last rung; every other
+ * the entropy less, forgotten at none.
  */
-export function boredAfter(boredom: Boredom, playing: Lineage | null, entropy: number): Boredom {
+export function boredAfter(
+  boredom: Boredom,
+  playing: readonly Lineage[],
+  entropy: number,
+): Boredom {
   const step = quantize(entropy);
+  const plays = (l: Lineage) => playing.some((p) => l.grooves.some((id) => p.grooves.includes(id)));
   const others = boredom
-    .filter((l) => !playing || !l.grooves.some((id) => playing.grooves.includes(id)))
+    .filter((l) => !plays(l))
     .map((l) => ({ ...l, boredom: l.boredom - step }))
     .filter((l) => l.boredom > 0);
-  if (!playing) return others;
-  const grown = playing.boredom + step;
   return [
     ...others,
-    {
-      grooves: playing.grooves,
-      boredom: grown,
-      rejected: rungOf(grown) >= GROOVE_RUNGS,
-    },
+    ...playing.map(({ grooves, boredom: was }) => {
+      const grown = was + step;
+      return { grooves, boredom: grown, rejected: rungOf(grown) >= GROOVE_RUNGS };
+    }),
   ];
 }

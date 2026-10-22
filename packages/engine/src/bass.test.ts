@@ -1,8 +1,9 @@
 import { METERS, type Meter, meterOnSteps, stepsOf, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
-import { BASS_RANGE, bass, bassBlend, patternsOn } from './bass.ts';
-import { chordAt } from './chords.ts';
+import { BASS_RANGE, bass, bassBlend, patternsOn, playBass } from './bass.ts';
+import { type LineNote, lineTone } from './bass-query.ts';
+import { chordAt, chordsOn } from './chords.ts';
 import { writtenProblems } from './events.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { presetSwing } from './repository.ts';
@@ -271,5 +272,74 @@ describe('the bass on other meters (#260)', () => {
         }
       }
     }
+  });
+});
+
+describe('the bass playing from a line (#423, as the drummer plays from a rhythm)', () => {
+  const ROOT = { chord: 0, index: 0, alter: 0, shift: 0 };
+  /** A line of every step's root but the downbeat's, a fifth: a note on each step. */
+  const dense = (steps: number): LineNote[] =>
+    range(steps).map((step) => (step === 0 ? { step, ...ROOT } : { step, ...ROOT, index: 2 }));
+
+  it('plays as many notes as it plays alone, the line’s first, the earliest first, then its own on other steps', () => {
+    let checked = 0;
+    for (const bar of bars) {
+      if (bar.plan.section.type === 'breakdown') continue;
+      const steps = stepsOf(bar.meter);
+      const own = playBass(bar, 40).output;
+      const line: LineNote[] = [
+        { step: steps - 1, ...ROOT, chord: 1 },
+        { step: 0, ...ROOT },
+      ];
+      const from = playBass(bar, 40, line).output;
+      expect(from.length, `bar ${bar.bar}`).toBe(own.length);
+      // the line's notes first: its downbeat always, its last step where the bass plays two or more
+      expect(from[0]!.step).toBe(0);
+      if (own.length >= 2) expect(from.at(-1)!.step).toBe(steps - 1);
+      // its own on other steps: of those it played alone
+      const ownSteps = new Set(own.map((n) => n.step));
+      expect(
+        from.filter((n) => n.step !== 0 && n.step !== steps - 1).every((n) => ownSteps.has(n.step)),
+      ).toBe(true);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(300);
+  });
+
+  it('plays its own where the line holds fewer notes than it would, and the line’s earliest where it holds more', () => {
+    for (const bar of bars.slice(0, 64)) {
+      if (bar.plan.section.type === 'breakdown') continue;
+      const own = playBass(bar, 40).output;
+      const from = playBass(bar, 40, dense(stepsOf(bar.meter))).output;
+      expect(from.map((n) => n.step)).toEqual(range(own.length));
+    }
+  });
+
+  it('reads the line’s pitch classes over the bar’s chords, its octave its own, within 33–57', () => {
+    for (const bar of bars.slice(0, 64)) {
+      if (bar.plan.section.type === 'breakdown') continue;
+      const chords = chordsOn(bar.chords, bar.meter);
+      const line = dense(stepsOf(bar.meter));
+      const from = playBass(bar, 40, line).output;
+      for (const n of from) {
+        expect(n.note).toBeGreaterThanOrEqual(BASS_RANGE[0]);
+        expect(n.note).toBeLessThanOrEqual(BASS_RANGE[1]);
+        expect(wrap(n.note, 12)).toBe(
+          wrap(lineTone(line[n.step]!, chords, chordsOn(bar.next, bar.meter), bar.plan.key), 12),
+        );
+      }
+    }
+  });
+
+  it('holds each chord’s root in a breakdown, line or none', () => {
+    const breakdowns = bars.filter((b) => b.plan.section.type === 'breakdown');
+    expect(breakdowns.length).toBeGreaterThan(0);
+    for (const bar of breakdowns)
+      expect(playBass(bar, 40, dense(stepsOf(bar.meter))).output).toEqual(playBass(bar, 40).output);
+  });
+
+  it('plays its own bar with no line, as the machine does', () => {
+    for (const { bar, before, events } of played.slice(0, 128))
+      expect(playBass(bar, before, []).output).toEqual(events);
   });
 });

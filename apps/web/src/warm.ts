@@ -25,7 +25,7 @@
  * way (`warmedOnFiling`, #412), so no bar after it compiles them.
  */
 
-import type { RhythmBench, RhythmRepository } from '@jambot/engine';
+import type { Bench, FacetRepository } from '@jambot/engine';
 
 /** How long into a slice a step may start, in ms: so a slice is at most this and its last step, under 50 ms. */
 export const SLICE_BUDGET = 25;
@@ -110,19 +110,20 @@ export function warmAtIdle(
 }
 
 /**
- * The repository, warming each groove filed once it is filed (#412): on the
- * bench it was played on first, then on `benches`, with the layer it was
- * filed in, so the sections after it, which may take it and a clave beside
- * it, compile nothing for it. A text is warmed once however often it is
- * filed (each forecast files a groove ahead again, in a layer of its own),
- * and one held already, a fragment's text, is warm. The repository as it is
- * where it files or warms nothing.
+ * The repository, warming each fragment filed once it is filed (#412): on
+ * the bench it was played on first, then on `benches`, with the layer it was
+ * filed in, so the sections after it, which may take it (and a clave beside
+ * a groove), compile nothing for it. A text is warmed once however often it
+ * is filed (each forecast files ahead again, in a layer of its own), and one
+ * held already, a fragment's text, is warm. The repository as it is where it
+ * files or warms nothing. Any member's repository (`FacetRepository`): the
+ * rhythms' and the bass lines' (#423).
  */
-export function warmedOnFiling(
-  repository: RhythmRepository,
-  benches: readonly RhythmBench[],
+export function warmedOnFiling<R extends FacetRepository<{ readonly bars: number }, object>>(
+  repository: R,
+  benches: readonly Bench[],
   warm: (steps: Iterable<void>) => void,
-): RhythmRepository {
+): R {
   const { file, warm: warmOn } = repository;
   if (!file || !warmOn) return repository;
   const warmedTexts = new Set<string>();

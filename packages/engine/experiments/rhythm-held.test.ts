@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LAYER_CAP, layerBytes } from '../src/layer.ts';
 import { PRESETS } from '../src/style.ts';
-import { COMPOSER } from '../src/plan.ts';
+import { COMPOSER } from '../src/facet.ts';
 import {
   aloneByPreset,
   claveLost,

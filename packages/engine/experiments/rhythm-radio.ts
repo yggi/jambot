@@ -53,6 +53,8 @@ import {
   type BandCarried,
   type BandEnv,
   type GrooveFiling,
+  type LineFiling,
+  type LineRepository,
   type MeterRepository,
   type Plan,
   PRESETS,
@@ -68,7 +70,7 @@ import {
   clockOf,
   glideTo,
   holding,
-  lookAhead,
+  plannedAhead,
   styleAt,
   walkRadio,
 } from '../src/index.ts';
@@ -126,6 +128,14 @@ export interface RhythmRun {
   readonly drums: DrumCounts | null;
   /** The drummer's hits in each bar, each its step and sound (`step × 128 + note`), where the preset was held (E40). */
   readonly drumBars: readonly (readonly number[])[] | null;
+  /** The bass line of each section, in order, where the band was given cells' bass lines (E41): its fragment, or `-` where the bass plays its own. */
+  readonly lines: readonly string[];
+  /** The bass lines the Muse and the composer filed within the hours (E41), in order. */
+  readonly lineFilings: readonly {
+    readonly filing: LineFiling;
+    readonly id: string;
+    readonly held: boolean;
+  }[];
 }
 
 /** The drummer's bars by section type (E40): how many, and the hits of each role in them. */
@@ -151,6 +161,8 @@ export interface Learning {
   readonly playedFiled: number;
   /** The layer after the run's hours. */
   readonly layer: LearnedLayer;
+  /** The sections whose layer holds fewer points, pairs or filed fragments than the section's before: its cap dropped some (`cappedLayer`), as use and filing only add. */
+  readonly dropped: number;
 }
 
 /**
@@ -164,6 +176,7 @@ export function rhythmRun(
   margins?: RhythmRepository['margins'],
   layer?: LearnedLayer,
   held = false,
+  lines?: LineRepository,
 ): RhythmRun {
   // (each filing kept, and each section's layer as the planner left it: it asks the meter once a section,
   // in order, then files and learns)
@@ -194,6 +207,16 @@ export function rhythmRun(
     used: (given, ids, point, alongside) =>
       learnt(RHYTHM_REPOSITORY.used!(given, ids, point, alongside)),
   };
+  const lineFilings: { filing: LineFiling; id: string; held: boolean; section: number }[] = [];
+  const bassLines: LineRepository | undefined = lines && {
+    ...lines,
+    file(given, filing) {
+      const filed = lines.file!(given, filing);
+      lineFilings.push({ filing, id: filed.id, held: filed.held, section: planning + 1 });
+      return filed;
+    },
+    used: (given, ids, point, alongside) => learnt(lines.used!(given, ids, point, alongside)),
+  };
   let style: Style = { ...preset.style, entropy: ENTROPY };
   let track: StyleTrack = holding(style);
   let walked = 0;
@@ -219,9 +242,16 @@ export function rhythmRun(
       rhythms,
       layer,
       offer: null,
+      ...(bassLines ? { bassLines } : {}),
     };
   };
-  const decided = lookAhead(band.initial as BandCarried, envAt, Math.ceil((hours * 60 * 180) / 2));
+  const planned = plannedAhead(
+    band.initial as BandCarried,
+    envAt,
+    Math.ceil((hours * 60 * 180) / 2),
+  );
+  const decided = planned.map((p) => p.bar);
+  const lineKept: string[] = [];
   const changes: RhythmChange[] = [];
   const played: Record<string, number> = {};
   const kept: string[] = [];
@@ -253,6 +283,7 @@ export function rhythmRun(
       kept.push(d.plan.rhythmFragment ?? '-');
       claveKept.push(d.plan.claveFragment ?? '-');
       meterKept.push(d.plan.meterFragment ?? '-');
+      lineKept.push(planned[i]!.plans.bassFragment ?? '-');
       const bench = { meter: d.plan.meter, meterFragment: d.plan.meterFragment };
       // whatever the point, the query with no layer lists every seed rhythm that fits the bench: none is the fit refusing
       const fitsNone = rhythms.query({ energy: 0 }, bench).length === 0;
@@ -313,6 +344,16 @@ export function rhythmRun(
         filings: within,
         playedFiled: kept.filter((id) => filedIds.has(id)).length,
         layer: layers.slice(0, sections).findLast((l) => l !== undefined) ?? layer,
+        dropped: layers
+          .slice(0, sections)
+          .filter((l) => l !== undefined)
+          .filter(
+            (l, i, all) =>
+              i > 0 &&
+              (l.points.length < all[i - 1]!.points.length ||
+                l.together.length < all[i - 1]!.together.length ||
+                l.filed.length < all[i - 1]!.filed.length),
+          ).length,
       }
     : null;
   return {
@@ -330,6 +371,10 @@ export function rhythmRun(
     learning,
     drums: held ? drumCounts : null,
     drumBars: held ? drumBars : null,
+    lines: lines ? lineKept : [],
+    lineFilings: lineFilings
+      .filter((f) => f.section < sections)
+      .map(({ filing, id, held: wasHeld }) => ({ filing, id, held: wasHeld })),
   };
 }
 
@@ -339,9 +384,12 @@ export const rhythmRuns = (
   hours = HOURS,
   margins?: RhythmRepository['margins'],
   layer?: LearnedLayer,
+  lines?: LineRepository,
 ): RhythmRun[] =>
   PRESETS.flatMap((preset, p) =>
-    range(seeds).map((seed) => rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer)),
+    range(seeds).map((seed) =>
+      rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer, false, lines),
+    ),
   );
 
 /**

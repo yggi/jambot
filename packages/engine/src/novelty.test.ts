@@ -192,14 +192,14 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
     for (const section of range(sections)) {
       if (rejectedOf(boredom).includes('g')) {
         rungs.push({ rung: -1, varies: false, rejected: true });
-        boredom = boredAfter(boredom, null, entropy);
+        boredom = boredAfter(boredom, [], entropy);
         continue;
       }
       let playing: Lineage = lineageOf(boredom, ['g']);
       const varies = wantsVariation(playing);
       if (varies) playing = { ...playing, grooves: [...playing.grooves, `v${section}`] };
       rungs.push({ rung: rungOf(playing.boredom), varies, rejected: false });
-      boredom = boredAfter(boredom, playing, entropy);
+      boredom = boredAfter(boredom, [playing], entropy);
     }
     return { rungs, boredom };
   }
@@ -244,14 +244,12 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
   });
 
   it('fades a lineage it no longer plays by the entropy a section, and forgets it at none', () => {
-    const one = boredAfter(NO_BOREDOM, { grooves: ['g'], boredom: 0, rejected: false }, 0.5);
+    const one = boredAfter(NO_BOREDOM, [{ grooves: ['g'], boredom: 0, rejected: false }], 0.5);
     expect(one).toEqual([{ grooves: ['g'], boredom: 0.5, rejected: false }]);
-    expect(boredAfter(one, null, 0.25)).toEqual([
-      { grooves: ['g'], boredom: 0.25, rejected: false },
-    ]);
-    expect(boredAfter(boredAfter(one, null, 0.25), null, 0.25)).toEqual([]);
+    expect(boredAfter(one, [], 0.25)).toEqual([{ grooves: ['g'], boredom: 0.25, rejected: false }]);
+    expect(boredAfter(boredAfter(one, [], 0.25), [], 0.25)).toEqual([]);
     // a lineage fades as another plays
-    const two = boredAfter(one, { grooves: ['h'], boredom: 0, rejected: false }, 0.5);
+    const two = boredAfter(one, [{ grooves: ['h'], boredom: 0, rejected: false }], 0.5);
     expect(two).toEqual([{ grooves: ['h'], boredom: 0.5, rejected: false }]);
   });
 
@@ -345,14 +343,14 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
     // carried section to section, and out with the drum bar's lineage once it climbs past the last rung
     let boredom = NO_BOREDOM;
     for (let section = 0; section < 6; section++)
-      boredom = boredAfter(boredom, lineageOf(boredom, ['Funk drums']), 1);
+      boredom = boredAfter(boredom, [lineageOf(boredom, ['Funk drums'])], 1);
     expect(rejectedOf(boredom, owners)).toEqual(['Funk drums', RUMBA]);
     expect(rejectedOf(boredom)).toEqual(['Funk drums']);
     // a lineage it layered on meanwhile is rejected without it, and once the drum bar's has faded, it is free again
     const other: Lineage = { grooves: ['drummer g'], boredom: 6, rejected: true };
     expect(rejectedOf([other], owners)).toEqual(['drummer g']);
     let faded = boredom;
-    for (let section = 0; section < 6; section++) faded = boredAfter(faded, null, 1);
+    for (let section = 0; section < 6; section++) faded = boredAfter(faded, [], 1);
     expect(faded).toEqual([]);
     expect(rejectedOf([...faded, other], owners)).toEqual(['drummer g']);
   });
