@@ -25,8 +25,11 @@ import {
   type HostMessage,
   PLAYED_MOST,
   CODE_DIGITS,
-  CODE_NEEDED,
+  CODE_LISTENS,
+  CODE_LOCKED,
   CODE_WRONG,
+  WRONG_CODES,
+  wrongCodesWithin,
   PROTOCOL,
   type SectionText,
   codeOf,
@@ -283,23 +286,30 @@ describe('the session protocol', () => {
     // An open session, as every session was before: a code or none, it admits.
     expect(refusal(join())).toBeNull();
     expect(refusal(join('123456'))).toBeNull();
-    // By code: the code, trimmed as a phone's keyboard may pad it, admits; none, or another, is refused.
+    // By code: the code, trimmed as a phone's keyboard may pad it, admits; another is refused,
+    // a part of it and the code with more besides alike.
     expect(refusal(join('042917'), [], '042917')).toBeNull();
     expect(refusal(join(' 042917 '), [], '042917')).toBeNull();
-    for (const code of [undefined, '', '  '])
-      expect(refusal(join(code), [], '042917')).toBe(CODE_NEEDED);
-    for (const code of ['042918', '42917', '0429170', '042 917'])
+    for (const code of ['042918', '42917', '0429170', '042 917', '0', '04291', '42917 0'])
       expect(refusal(join(code), [], '042917'), code).toBe(CODE_WRONG);
-    // A join of a minor before this one carries no code: by code, it is refused for it too.
-    expect(refusal({ kind: 'join', protocol: 14, name: 'Ada' }, [], '042917')).toBe(CODE_NEEDED);
+    // None is no refusal: such a join is seated to listen (`admit`), a minor before this one's too.
+    for (const code of [undefined, '', '  ']) expect(refusal(join(code), [], '042917')).toBeNull();
+    expect(refusal({ kind: 'join', protocol: 14, name: 'Ada' }, [], '042917')).toBeNull();
     // The code is looked at before the name, so a wrong one learns nothing of who is in it.
     expect(refusal(join('000000', 'Bo'), ['Bo'], '042917')).toBe(CODE_WRONG);
-    expect(refusal(join(undefined, ' '), [], '042917')).toBe(CODE_NEEDED);
+    expect(refusal(join(undefined, ' '), [], '042917')).toMatch(/name/);
     // A version before is refused for the version, whatever it carries.
     expect(refusal({ ...join('042917'), protocol: 12 }, [], '042917')).toMatch(/version/);
     // Each says so in words of its own, which name the code.
-    expect(CODE_NEEDED).not.toBe(CODE_WRONG);
-    for (const why of [CODE_NEEDED, CODE_WRONG]) expect(why).toMatch(/code/);
+    expect(new Set([CODE_LISTENS, CODE_LOCKED, CODE_WRONG]).size).toBe(3);
+    for (const why of [CODE_LISTENS, CODE_LOCKED, CODE_WRONG]) expect(why).toMatch(/code/);
+  });
+
+  it(`counts the wrong codes of the last ${WRONG_CODES.seconds} s, ${WRONG_CODES.count} of them holding every code off`, () => {
+    expect(WRONG_CODES).toEqual({ count: 5, seconds: 60 });
+    expect(wrongCodesWithin([0, 10, 59.9, 60, 100], 119.95)).toEqual([60, 100]);
+    expect(wrongCodesWithin([0, 10, 20], 60)).toEqual([10, 20]);
+    expect(wrongCodesWithin([], 5)).toEqual([]);
   });
 
   it(`draws a code of ${CODE_DIGITS} digits from random words, each digit as likely as another`, () => {

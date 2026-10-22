@@ -1,4 +1,4 @@
-import { CODE_NEEDED, type ClientResume, type HostSnapshot } from '@jambot/session';
+import { type ClientResume, type HostSnapshot } from '@jambot/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { device, memoryLobby } from './fixtures.ts';
 import type { Lobby } from './lobby.ts';
@@ -136,7 +136,7 @@ describe('the sessions a page can be in', () => {
     expect(b.kept.client).toBeNull();
   });
 
-  it("joins with the code a host admits by, and a join without it ends with the host's reason (#461)", async () => {
+  it('joins with the code a host admits by, and listens without it (#461)', async () => {
     const tabs = memoryLobby();
     const a = page(tabs);
     await a.sessions.host('local', 'Garage', 'Ada');
@@ -145,8 +145,9 @@ describe('the sessions a page can be in', () => {
     expect(code).toMatch(/^\d{6}$/);
     const b = page(tabs);
     await b.sessions.join('local', 'Garage', 'Bo');
-    await until(() => b.sessions.asClient.status === 'idle');
-    expect(b.sessions.ended).toBe(CODE_NEEDED);
+    await until(() => b.sessions.asClient.status === 'joined');
+    expect(b.sessions.asClient.listening).toBe(true);
+    b.sessions.end();
     await b.sessions.join('local', 'Garage', 'Bo', code);
     await until(() => b.sessions.asClient.status === 'joined');
     expect(b.d.player.mode).toBe('client');

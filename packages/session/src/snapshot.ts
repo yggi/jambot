@@ -37,7 +37,7 @@ export const SAVED_MAX_AGE = 300;
 const VERSION = 1;
 
 /** A player of the roster as kept: without a link, which a new page doesn't have. */
-export type SavedMember = Pick<Member, 'id' | 'name' | 'token'>;
+export type SavedMember = Pick<Member, 'id' | 'name' | 'token' | 'listens'>;
 
 export interface HostSnapshot {
   readonly version: 1;
@@ -142,7 +142,12 @@ export function readHostSnapshot(data: unknown, now: number): HostSnapshot | nul
   if (
     !Array.isArray(roster) ||
     !roster.every(
-      (m) => isRecord(m) && isText(m.id) && typeof m.name === 'string' && isText(m.token),
+      (m) =>
+        isRecord(m) &&
+        isText(m.id) &&
+        typeof m.name === 'string' &&
+        isText(m.token) &&
+        (m.listens === undefined || m.listens === true),
     )
   )
     return null;

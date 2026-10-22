@@ -89,10 +89,10 @@ describe('the lobby, the door to the band', () => {
     await fireEvent.input(field, { target: { value: ' Garage ' } });
     expect(screen.getByRole('radio', { name: /Local/ })).toHaveAttribute('aria-checked', 'true');
     await fireEvent.click(host);
-    expect(p.onhost).toHaveBeenLastCalledWith('local', ' Garage ');
+    expect(p.onhost).toHaveBeenLastCalledWith('local', ' Garage ', false);
     await fireEvent.click(screen.getByRole('radio', { name: /Global/ }));
     await fireEvent.click(host);
-    expect(p.onhost).toHaveBeenLastCalledWith('global', ' Garage ');
+    expect(p.onhost).toHaveBeenLastCalledWith('global', ' Garage ', false);
   });
 
   it('explains where a session will be, and draws local and global each with a glyph', async () => {

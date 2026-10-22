@@ -1,5 +1,5 @@
 import {
-  CODE_NEEDED,
+  CODE_LOCKED,
   CODE_WRONG,
   type ClientMessage,
   FIRST_PROTOCOL,
@@ -11,6 +11,7 @@ import {
   RESUME_WINDOW,
   forecastDelta,
   playerSource,
+  WRONG_CODES,
 } from '@jambot/session';
 import { SECTION_BARS } from '@jambot/engine';
 import { METERS } from '@jambot/theory';
@@ -400,6 +401,34 @@ describe('a host and a client session', () => {
     expect(client.player.layer.filed).toEqual([]);
   });
 
+  it('file nothing a listener plays: a client seated without the code hears the band and adds nothing to it (#461)', async () => {
+    const lobby = memoryLobby();
+    const host = device(10);
+    const client = device(3);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
+      draw: () => '042917',
+    });
+    await hosting.open(lobby, 'jam', 'Bo');
+    hosting.admitByCode(true);
+    await host.player.start();
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'jam', 'Ada');
+    expect(following.listening).toBe(true);
+    await run([host, client], 3);
+    const heard = () => client.player.writtenPosition(client.world.currentTime) ?? -1;
+    const clock = () => client.player.clock;
+    const first = clock().barAt(Math.floor(heard())) + 1;
+    for (let bar = first; bar < SECTION_BARS; bar++)
+      for (const [i, note] of [36, 38, 36, 38].entries()) {
+        const step = clock().barStart(bar) + 4 * i;
+        while (heard() < step) await run([host, client], 0.025);
+        client.player.humanNoteOn('drums', note, 100, 'the drum pads', client.world.currentTime);
+      }
+    await run([host, client], 20);
+    expect(client.world.plays.length).toBeGreaterThan(20);
+    expect(host.player.layer.filed).toEqual([]);
+  });
+
   it("name the host's own notes by its player, so a client never reads them as its own", async () => {
     const lobby = memoryLobby();
     const host = device(10);
@@ -544,7 +573,7 @@ describe('a host and a client session', () => {
     expect(client.player.mode).toBe('solo');
   });
 
-  it('admit clients by a code where the host asks for one: none or another is refused with its reason, the code joins and plays every note, and open admits as ever (#461)', async () => {
+  it('admit clients by a code where the host asks for one: another is refused with its reason, none seats a listener, the code joins and plays every note, and open admits as ever (#461)', async () => {
     const lobby = memoryLobby();
     const host = device(105);
     const codes = ['042917', '310588'];
@@ -562,20 +591,24 @@ describe('a host and a client session', () => {
     expect(hosting.code).toBe('042917');
     await host.player.start();
 
-    for (const [code, why] of [
-      [undefined, CODE_NEEDED],
-      ['  ', CODE_NEEDED],
-      ['042918', CODE_WRONG],
-    ] as const) {
-      const other = device(100);
-      const refused = new ClientSession(other.player, other.clocks);
-      await refused.join(lobby, 'Jam', 'Bo', code === undefined ? {} : { code });
-      expect(refused.status, String(code)).toBe('idle');
-      expect(refused.ended).toBe(why);
-      expect(other.player.mode).toBe('solo');
-    }
+    const other = device(100);
+    const refused = new ClientSession(other.player, other.clocks);
+    await refused.join(lobby, 'Jam', 'Bo', { code: '042918' });
+    expect(refused.status).toBe('idle');
+    expect(refused.ended).toBe(CODE_WRONG);
+    expect(other.player.mode).toBe('solo');
     // A player seated before the code was asked for stays seated; nobody refused was.
     expect(hosting.guests.map((g) => g.name)).toEqual(['Early']);
+    // Without a code a client is seated to listen, and told so.
+    for (const code of [undefined, '  ']) {
+      const quiet = device(100);
+      const listener = new ClientSession(quiet.player, quiet.clocks);
+      await listener.join(lobby, 'Jam', 'Lu', code === undefined ? {} : { code });
+      expect(listener.status, String(code)).toBe('joined');
+      expect(listener.listening).toBe(true);
+      expect(early.listening).toBe(false);
+      listener.leave();
+    }
 
     const client = device(100);
     const following = new ClientSession(client.player, client.clocks);
@@ -611,7 +644,37 @@ describe('a host and a client session', () => {
     expect(hosting.code).toBeNull();
   });
 
-  it('play a client at protocol 14, which carries no code, as ever in an open session, and refuse it for the code where the host asks for one (#461)', async () => {
+  it('lock a session by code after five wrong codes within a minute, the right one too, and open it again a minute on (#461)', async () => {
+    const lobby = memoryLobby();
+    const host = device(105);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
+      draw: () => '042917',
+    });
+    await hosting.open(lobby, 'Jam', 'Bo', { byCode: true });
+    expect(hosting.code).toBe('042917');
+    await host.player.start();
+    for (let i = 0; i < 5; i++)
+      expect((await joined(lobby, 'Jam', `Guess${i}`, undefined, `00000${i}`)).heard[0]).toEqual({
+        kind: 'refused',
+        reason: CODE_WRONG,
+      });
+    expect((await joined(lobby, 'Jam', 'Ada', undefined, '042917')).heard[0]).toEqual({
+      kind: 'refused',
+      reason: CODE_LOCKED,
+    });
+    // A listener needs no code, so the lock keeps none out.
+    expect((await joined(lobby, 'Jam', 'Lu')).heard[0]).toMatchObject({
+      kind: 'welcome',
+      listening: true,
+    });
+    await run([host], WRONG_CODES.seconds);
+    expect((await joined(lobby, 'Jam', 'Ada', undefined, '042917')).heard[0]).toMatchObject({
+      kind: 'welcome',
+    });
+    hosting.close();
+  });
+
+  it('play a client at protocol 14, which carries no code, as ever in an open session, and seat it to listen where the host asks for one (#461)', async () => {
     const lobby = memoryLobby();
     const host = device(105);
     const client = device(100);
@@ -648,10 +711,10 @@ describe('a host and a client session', () => {
 
     hosting.admitByCode(true);
     const later = device(100);
-    const refused = new ClientSession(later.player, later.clocks);
-    await refused.join(lobby, 'Jam', 'Bo', { code: '042917' });
-    expect(refused.status).toBe('idle');
-    expect(refused.ended).toBe(CODE_NEEDED);
+    const older = new ClientSession(later.player, later.clocks);
+    await older.join(lobby, 'Jam', 'Bo', { code: '042917' });
+    expect(older.status).toBe('joined');
+    expect(older.listening).toBe(true);
     hosting.close();
   });
 
@@ -922,15 +985,15 @@ describe('a host that is reloaded', () => {
     const fresh = memoryLobby();
     await again.open(fresh, 'Jam', '', { restore: snapshot });
     expect(again.code).toBe('042917');
-    expect((await joined(fresh, 'Jam', 'Cy')).heard[0]).toEqual({
-      kind: 'refused',
-      reason: CODE_NEEDED,
-    });
-    // Ada's token is the seat the host gave her: she comes back without the code.
-    expect((await joined(fresh, 'Jam', 'Ada', 'token-ada')).heard[0]).toMatchObject({
+    expect((await joined(fresh, 'Jam', 'Cy')).heard[0]).toMatchObject({
       kind: 'welcome',
+      listening: true,
     });
-    expect(again.guests.map((g) => g.name)).toEqual(['Ada']);
+    // Ada's token is the seat the host gave her: she comes back without the code, still to play.
+    const ada = (await joined(fresh, 'Jam', 'Ada', 'token-ada')).heard[0];
+    expect(ada).toMatchObject({ kind: 'welcome' });
+    expect(ada).not.toHaveProperty('listening');
+    expect(again.guests.map((g) => g.name)).toEqual(['Ada', 'Cy']);
     again.close();
   });
 

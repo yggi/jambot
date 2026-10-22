@@ -105,6 +105,8 @@ export class ClientSession {
   ended: string | null = $state(null);
   /** Whether the host's link dropped and the lobby holds the session for it to come back. */
   hostAway = $state(false);
+  /** Whether the host seated this client without its code, to listen (#461): what it plays reaches no Muse. */
+  listening = $state(false);
 
   #player: Player;
   #clocks: DeviceClocks;
@@ -389,6 +391,7 @@ export class ClientSession {
         this.#lastHeard = this.#wallNow();
         this.status = 'joined';
         this.hostAway = false;
+        this.listening = message.listening === true;
         this.#token = message.resume;
         this.#remember();
         this.#forecast(message.forecast);

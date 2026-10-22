@@ -22,6 +22,7 @@
 -->
 <script lang="ts">
   import { COMPOSER, DRUMMER, type LearnedLayer, layerBytes } from '@jambot/engine';
+  import { CODE_LISTENS } from '@jambot/session';
   import type { Mode } from '../player.svelte.ts';
   import {
     type Following,
@@ -217,6 +218,7 @@
       {:else if following.hostAway}
         <p class="note">The host lost its link and may be back in a moment.</p>
       {/if}
+      {#if following.listening}<p class="note">{CODE_LISTENS}</p>{/if}
     </Group>
   {/if}
 

@@ -209,6 +209,12 @@ export type HostMessage =
         | null;
       readonly forecast: ForecastDelta;
       readonly muse: MuseState;
+      /**
+       * Present where the host admits by a code and this client was seated
+       * without it (#461): it listens, and what it plays reaches no Muse
+       * (`CODE_LISTENS`).
+       */
+      readonly listening?: true;
     }
   | { readonly kind: 'refused'; readonly reason: string }
   | { readonly kind: 'start'; readonly song: Song }
@@ -374,6 +380,7 @@ const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>)
     Number.isInteger(m.protocol) &&
     isString(m.session) &&
     isString(m.resume) &&
+    (m.listening === undefined || m.listening === true) &&
     orNull(m.song, isPlaying) &&
     isForecast(m.forecast) &&
     isMuse(m.muse),
@@ -455,11 +462,34 @@ export function readClientMessage(data: unknown): ClientMessage | null {
  */
 export const CODE_DIGITS = 6;
 
-/** Why a host that admits by a code refuses a join without one (#461). */
-export const CODE_NEEDED = 'This session admits players by a code: ask the host for it.';
+/**
+ * What a client seated without the code of a session by code is told (#461,
+ * the owner's ruling on yggi/music-commons#22: a name is enough to listen, a
+ * code comes before a client contributes): it listens, and what it plays,
+ * judges or forgets reaches no Muse.
+ */
+export const CODE_LISTENS =
+  'This session admits players by a code: without it you listen. Ask the host for it to play.';
 
 /** Why a host that admits by a code refuses a join with another (#461). */
 export const CODE_WRONG = "That is not this session's code: ask the host for it.";
+
+/**
+ * How many wrong codes a host takes across its session in a window of
+ * seconds before it refuses every code for the rest of that window (#461):
+ * five a minute keeps a script to some 7,200 codes a day, a million taking
+ * months, at the cost that a stranger trying codes can hold a player's code
+ * off for a minute. A join without a code, which listens, is never held off.
+ */
+export const WRONG_CODES = { count: 5, seconds: 60 } as const;
+
+/** Why a host refuses a code while too many wrong ones were tried (`WRONG_CODES`, #461). */
+export const CODE_LOCKED =
+  'Too many wrong codes were tried in this session: wait a minute, then try again.';
+
+/** The times of wrong codes still inside the window at `now`. */
+export const wrongCodesWithin = (times: readonly number[], now: number): number[] =>
+  times.filter((t) => now - t < WRONG_CODES.seconds);
 
 /** The largest count of 32-bit words that holds every code equally often: the last whole million of 2^32. */
 const CODE_WORDS = Math.floor(2 ** 32 / 10 ** CODE_DIGITS) * 10 ** CODE_DIGITS;
@@ -478,9 +508,10 @@ export function codeOf(word: () => number): string {
 
 /**
  * Why a host refuses a join, or null to admit it: another major version
- * (any minor of its own is admitted, `sameMajor`, #460), a missing or wrong
- * code where the host admits by one (`code`, #461, looked at before the
- * name, so a join refused for it learns nothing of who is in the session),
+ * (any minor of its own is admitted, `sameMajor`, #460), a wrong code where
+ * the host admits by one (`code`, #461, looked at before the name, so a join
+ * refused for it learns nothing of who is in the session; a join without a
+ * code is admitted, to listen, `admit`),
  * no name, or a name a player in the session already goes by (`inUse`), in
  * any case. A code is compared trimmed, as a phone's keyboard may pad it.
  */
@@ -493,8 +524,7 @@ export function refusal(
     return `This host speaks version ${PROTOCOL} of the session protocol, which takes ${FIRST_PROTOCOL} on, and this app ${join.protocol}: reload it.`;
   if (code !== null) {
     const given = join.code?.trim() ?? '';
-    if (given === '') return CODE_NEEDED;
-    if (given !== code) return CODE_WRONG;
+    if (given !== '' && given !== code) return CODE_WRONG;
   }
   const name = join.name.trim();
   if (name === '') return 'A player needs a name to join.';

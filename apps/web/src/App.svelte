@@ -280,7 +280,8 @@
     }
   });
 
-  const host = (where: Where, session: string) => sessions.host(where, session, named());
+  const host = (where: Where, session: string, byCode: boolean) =>
+    sessions.host(where, session, named(), byCode);
   const join = (where: Where, session: string, code: string) => {
     device.mute();
     comingIn = true;
@@ -390,6 +391,7 @@
         name: clientSession.name,
         hostPlaying: clientSession.hostPlaying,
         hostAway: clientSession.hostAway,
+        listening: clientSession.listening,
         trip: clientSession.trip,
         lacked: player.lacked,
       },

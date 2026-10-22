@@ -23,6 +23,8 @@ export interface Following {
   readonly name: string | null;
   readonly hostPlaying: boolean;
   readonly hostAway: boolean;
+  /** Seated without the code of a session by code: it listens (#461). */
+  readonly listening?: boolean;
   readonly trip: number | null;
   readonly lacked: number;
 }

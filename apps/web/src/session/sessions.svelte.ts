@@ -163,12 +163,15 @@ export class Sessions {
     return url;
   }
 
-  /** Open a session under a name, the host's own notes going by `player`. Throws if it can't. */
-  async host(where: Where, session: string, player: string) {
+  /**
+   * Open a session under a name, the host's own notes going by `player`,
+   * admitting players by a code from the start where `byCode` (#461). Throws if it can't.
+   */
+  async host(where: Where, session: string, player: string, byCode = false) {
     const url = this.#urlOf(where);
     this.#kept.clientKeep.clear();
     this.dismiss();
-    await this.asHost.open(this.#lobbyAt(url), session, player, { lobbyUrl: url });
+    await this.asHost.open(this.#lobbyAt(url), session, player, { lobbyUrl: url, byCode });
   }
 
   /**

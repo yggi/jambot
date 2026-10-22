@@ -26,7 +26,8 @@
     /** Why the last session ended, or a join failed. */
     notice: string | null;
     onsolo: () => void;
-    onhost: (where: Where, session: string) => Promise<void>;
+    /** Open a session, admitting players by a code from the start where `byCode` (#461). */
+    onhost: (where: Where, session: string, byCode: boolean) => Promise<void>;
     /** Join an open session, with the code typed, or an empty one for none. */
     onjoin: (where: Where, session: string, code: string) => void;
   }
@@ -37,6 +38,7 @@
   let session = $state(suggest());
   let where = $state<Where>('local');
   let code = $state('');
+  let byCode = $state(false);
   let error: string | null = $state(null);
 
   const WHERE_TITLE: Record<Where, string> = {
@@ -57,7 +59,7 @@
   async function host() {
     error = null;
     try {
-      await onhost(where, session);
+      await onhost(where, session, byCode);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }
@@ -113,6 +115,10 @@
       >
     </div>
     <p class="message" title={WHERE_TITLE[where]}>{WHERE_NOTE[where]}</p>
+    <label class="check">
+      <input type="checkbox" bind:checked={byCode} />
+      By code: players need it to play; without it they listen
+    </label>
   </div>
 {/snippet}
 
@@ -269,6 +275,12 @@
   .message {
     font-size: 13px;
     color: var(--muted);
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
   }
   .notice {
     font-size: 14px;
