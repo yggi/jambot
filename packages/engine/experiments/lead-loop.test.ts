@@ -45,20 +45,20 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
   it('plays its run’s most used lead line in under 60 % of the sections that play one, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { playing, mostUsed, share } = mostUsedLead(LEARNED);
-    expect([playing, mostUsed]).toEqual([8413, 3022]);
+    expect([playing, mostUsed]).toEqual([8413, 3021]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used lead lines within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asLeads(UNLEARNED), asLeads(LEARNED));
     // (with nothing learned the lead plays its own every section, which counts as one: the share can only fall)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-20.37', '1.80']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-20.39', '1.81']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   it('files the player’s lines, the lead’s own the player answered and the composer’s variations, each reading back as filed', () => {
     expect([by(PLAYER), by(SOLOIST), by(COMPOSER), FILED.filter((f) => f.held).length]).toEqual([
-      332, 38, 159, 1792,
+      332, 38, 160, 1792,
     ]);
     for (const { filing, id } of FILED.filter((f) => !f.held)) {
       const layer = LEARNED.find((r) => r.leadFilings.some((f) => f.id === id))!.learning!.layer;
@@ -69,10 +69,10 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     }
   });
 
-  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 26 sections of 5,252`, () => {
+  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 29 sections of 5,252`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThan(LAYER_CAP);
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15998, 26]);
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15990, 29]);
     expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5252);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);
   });

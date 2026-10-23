@@ -7,6 +7,7 @@ import {
   PRESETS,
   RHYTHM_REPOSITORY,
   SONG_METER,
+  withInstruments,
 } from '@jambot/engine';
 import { even, positions } from '@jambot/theory';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
@@ -92,7 +93,7 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
     expect(changed(/~ &hh:0:([.\d]+)/, '&hh:0:$1 ~')).not.toEqual([]);
     expect(changed(/&oh:0:[.\d]+/, '&oh:0:.5')).not.toEqual([]);
     expect(changed(/&rim\(7,16,0\)/, '&rim(7,16,1)')).not.toEqual([]);
-    expect(changed(/&sd s=white/, '&sd s=white\n&ghost2 step=16n &sd')).toEqual([]);
+    expect(changed(/^(&drums .*)$/m, '$1\n&ghost2 step=16n &sd')).toEqual([]);
   });
 });
 
@@ -167,7 +168,11 @@ describe('what cells could not say (E31: the gaps)', () => {
     const w = of('Synth-pop');
     expect(w.cells).toHaveLength(12);
     for (const sound of ['gain=1', 'oneshot', '']) {
-      const text = w.text.replaceAll(' s=white', sound ? ` ${sound}` : '');
+      // (each voice's line, which the kit gives it, stripped of its sound)
+      const text = w.text.replace(/^&(\w+) s=.*$/gm, (_, voice: string) =>
+        sound ? `&${voice} ${sound}` : `&${voice}`,
+      );
+      expect(text).not.toBe(w.text);
       const { hits, diagnostics } = cellsDrums(text, w.bar.style.bpm);
       expect(hits, sound).toEqual([]);
       expect(diagnostics.join(), sound).toMatch(/has no voice/);
@@ -198,10 +203,10 @@ describe('what cells could not say (E31: the gaps)', () => {
 });
 
 describe('E31’s translation as the engine states a groove the Muse files (#401)', () => {
-  it('states each witness bar as cells’ seed drum bar for its preset, character for character, less the bar line', () => {
+  it('states each witness bar as cells’ seed drum bar for its preset, character for character, less the bar line, each with the kit it strikes', () => {
     for (const w of WITNESSES) {
       const seed = RHYTHM_FRAGMENTS.find((f) => f.id === `${w.preset} drums`)!;
-      expect(w.text.split('\n').slice(1).join('\n'), w.preset).toBe(seed.text);
+      expect(w.text.split('\n').slice(1).join('\n'), w.preset).toBe(withInstruments(seed.text));
     }
   });
 

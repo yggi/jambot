@@ -22,6 +22,7 @@ export * from './history.ts';
 export * from './licence.ts';
 export * from './lead.ts';
 export * from './lead-lines.ts';
+export * from './instruments.ts';
 export * from './lead-query.ts';
 export * from './line-repository.ts';
 export * from './machine.ts';
