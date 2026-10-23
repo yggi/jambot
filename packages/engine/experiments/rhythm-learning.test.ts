@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DRUMMER } from '../src/band.ts';
 import { EMPTY_LAYER, LAYER_CAP, layerBytes } from '../src/layer.ts';
 import { GROOVE_FEWEST, grooveText } from '../src/muse-groove.ts';
+import { instrumentsFor } from '../src/instruments.ts';
 import { GROOVE_KEEP, familyOf } from '../src/novelty.ts';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { variations } from '@yggi/cells/engine/vary/index';
@@ -91,9 +92,9 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it(`keeps a layer of at most 12,237 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  it(`keeps a layer of at most 11,603 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(12237);
+    expect(Math.max(...bytes)).toBe(11603);
     expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)
@@ -128,7 +129,8 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
           RHYTHM_FRAGMENTS.find((f) => f.id === varies)?.text ??
           layer.filed.find((f) => f.fragment.id === varies)!.fragment.text;
         const named = variations(text, {
-          workbench: benchText(bench)!,
+          // (the bench and the instruments the rhythm strikes, as the repository varies it)
+          workbench: [benchText(bench)!, ...instrumentsFor(text)].join('\n'),
           keep: GROOVE_KEEP,
           fewest: GROOVE_FEWEST,
         }).find((v) => v.by === filing.by);

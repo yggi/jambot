@@ -130,9 +130,11 @@ function roleLines(hits: readonly FragmentHit[], steps: number): { lines: string
 
 /**
  * A bar's drum hits as cells text, open on its meter (E31's translation, no
- * `&bar`): the lines of each role in the band's order, the MIDI card on
- * channel 10 playing them, the voices in the order they first strike.
- * Every hit's note must be one of the kit's (`VOICE_OF_NOTE`).
+ * `&bar`): the lines of each role in the band's order and the MIDI card on
+ * channel 10 playing them. Its voices are holes a kit fills, as cells' seed
+ * rhythms' are (yggi/cells#260), so a groove that plays a seed's hits is
+ * that seed's text. Every hit's note must be one of the kit's
+ * (`VOICE_OF_NOTE`).
  */
 export function grooveText(hits: readonly FragmentHit[], steps: number): string {
   const sorted = inOrder(hits);
@@ -147,11 +149,9 @@ export function grooveText(hits: readonly FragmentHit[], steps: number): string 
       steps,
     ),
   );
-  const voices = [...new Set(sorted.map((h) => VOICE_OF_NOTE.get(h.note)!))];
   return [
     ...stated.flatMap((r) => r.lines),
     `&drums map=midi(10) ${stated.length ? `[${stated.map((r) => r.term).join(', ')}]` : '~'}`,
-    ...voices.map((voice) => `&${voice} s=white`),
   ].join('\n');
 }
 

@@ -69,7 +69,7 @@ describe('a fragment read back into the band’s drums, E31’s reverse (E36)', 
     };
     const asBand = (hits: ReturnType<typeof readWith>) =>
       hits.map((h) => `${h.role}:${h.step}:${h.note}:${h.velocity}`).join(' ');
-    const base = asBand(readWith(text.replace('&bd s=white', '&bd  s=white')));
+    const base = asBand(readWith(`${text}\n`));
     expect(asBand(readWith(text.replace(/~ &hh:0:([.\d]+)/, '&hh:0:$1 ~')))).not.toBe(base);
     expect(asBand(readWith(text.replace(/&oh:0:[.\d]+/, '~')))).not.toBe(base);
     expect(asBand(readWith(text.replace(/&oh:0:[.\d]+/, '&oh:0:.5')))).not.toBe(base);

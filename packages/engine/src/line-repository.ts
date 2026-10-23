@@ -22,6 +22,7 @@ import { sameMeter } from './events.ts';
 import type { FacetRepository } from './facet.ts';
 import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
+import { instrumentsFor } from './instruments.ts';
 import { BY } from './novelty.ts';
 
 /** A line read under a meter: its notes over its lap, and the bars the lap holds. */
@@ -96,7 +97,15 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
   };
   const variationsOn = (text: string, name: MeterName) => {
     const key = `${name}\n${text}`;
-    if (!varied.has(key)) varied.set(key, varyOptions ? variations(text, varyOptions(name)) : []);
+    if (!varied.has(key)) {
+      if (!varyOptions) varied.set(key, []);
+      else {
+        // (the workbench brings the instruments the line plays through, so the text varied is the line's own)
+        const options = varyOptions(name);
+        const workbench = [options.workbench ?? [], instrumentsFor(text)].flat().join('\n');
+        varied.set(key, variations(text, { ...options, workbench }));
+      }
+    }
     return varied.get(key)!;
   };
   const ranked = (
