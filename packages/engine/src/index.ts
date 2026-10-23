@@ -44,6 +44,7 @@ export * from './progressions.ts';
 export * from './radio.ts';
 export * from './random.ts';
 export * from './reading.ts';
+export * from './recognised.ts';
 export * from './repository.ts';
 export * from './rhythm-query.ts';
 export * from './rhythms.ts';
