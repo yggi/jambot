@@ -2,6 +2,7 @@ import { METERS, type Meter, type MeterName, heightOf, stepsOf, wrap } from '@ja
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { PITCHED_OPERATORS, variations } from '@yggi/cells/engine/vary/index';
+import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
 import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
 import { unionOf } from '@yggi/cells/repository/fit';
 import { describe, expect, it } from 'vitest';
@@ -45,11 +46,14 @@ const NAMES = Object.keys(METERS) as MeterName[];
 const READ_AT = 120;
 
 /** What cells plays of a line over `HARM`, bar by bar: each note's bar, step and pitch class. */
+/** Cells' `bass` instrument, the voice the lines play through (yggi/cells#260), as cells states it. */
+const BASS = INSTRUMENT_FRAGMENTS.find((f) => f.id === 'bass')!.text;
+
 function cellsPlays(text: string, name: MeterName, bars: number): string[] {
   const meter = METERS[name];
   const source = unionOf(
     text,
-    [`&bar meter("${name}") step=${READ_AT}bpm`, '&key scale(aeolian, A)', HARM].join('\n'),
+    [`&bar meter("${name}") step=${READ_AT}bpm`, '&key scale(aeolian, A)', HARM, BASS].join('\n'),
   ).text;
   const plan = planOf(source);
   const route = router(plan.result, channelTable(plan.result));
@@ -102,9 +106,10 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
 
   it('reads every variation cells makes of the seeds by its pitched operators (24 of them in 4/4) as cells plays it', () => {
     const all = BASS_FRAGMENTS.flatMap((f) =>
-      variations(f.text, { workbench: readingBench('4/4'), operators: PITCHED_OPERATORS }).map(
-        (v) => ({ id: `${f.id}: ${v.by}`, text: v.apply(f.text) }),
-      ),
+      variations(f.text, {
+        workbench: `${readingBench('4/4')}\n${BASS}`,
+        operators: PITCHED_OPERATORS,
+      }).map((v) => ({ id: `${f.id}: ${v.by}`, text: v.apply(f.text) })),
     );
     expect(all).toHaveLength(24);
     for (const { id, text } of all)
@@ -218,6 +223,7 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     expect(lineRepository().query(point, bench, filed.layer)[0]).toEqual({
       id: filed.id,
       distance: 0,
+      score: 0,
     });
     // a bar of the root on one and three states as the root bass's own text: filing it is a use of the seed
     const root = [0, 8].map((step) => ({ step, chord: 0, index: 0, alter: 0, shift: 0 }));

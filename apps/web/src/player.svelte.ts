@@ -116,6 +116,8 @@ import {
   type LineRepository,
   LEAD_REPOSITORY,
   type LeadRepository,
+  HARMONY_REPOSITORY,
+  type HarmonyRepository,
   NO_HISTORY,
   clockOfTransport,
   clockThrough,
@@ -486,6 +488,8 @@ export class Player {
   #bassLines: LineRepository;
   /** The lead lines the layer files, each warmed once it is (#424). */
   #leads: LeadRepository;
+  /** Cells' harmonies, each progression filed warmed once it is (#425). */
+  #harmonies: HarmonyRepository;
   #metronome: Metronome | null;
   #output: Output | null = null;
   #carried: TransportCarried | null = null;
@@ -572,9 +576,13 @@ export class Player {
     this.#leads = surroundings.warm
       ? warmedOnFiling(LEAD_REPOSITORY, LINE_BENCHES, surroundings.warm)
       : LEAD_REPOSITORY;
+    this.#harmonies = surroundings.warm
+      ? warmedOnFiling(HARMONY_REPOSITORY, LINE_BENCHES, surroundings.warm)
+      : HARMONY_REPOSITORY;
     // Every fit a section can ask for, at idle from the start (#397), and every bass line's read (#423).
     surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES) ?? []);
     surroundings.warm?.(BASS_REPOSITORY.warm?.(LINE_BENCHES) ?? []);
+    surroundings.warm?.(HARMONY_REPOSITORY.warm?.(LINE_BENCHES) ?? []);
     this.#metronome = metronome;
     this.#plays = plays;
     this.shadow = new Shadow(() => surroundings.page() * 1000, plays, surroundings.texts?.());
@@ -610,6 +618,7 @@ export class Player {
       this.#surroundings.warm?.(RHYTHM_REPOSITORY.warm?.(RHYTHM_BENCHES, layer) ?? []);
       this.#surroundings.warm?.(BASS_REPOSITORY.warm?.(LINE_BENCHES, layer) ?? []);
       this.#surroundings.warm?.(LEAD_REPOSITORY.warm?.(LINE_BENCHES, layer) ?? []);
+      this.#surroundings.warm?.(HARMONY_REPOSITORY.warm?.(LINE_BENCHES, layer) ?? []);
     }
     if (this.#countTempoIn(this.#opening()))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
@@ -1245,6 +1254,7 @@ export class Player {
       rhythms: this.#rhythms,
       bassLines: this.#bassLines,
       leads: this.#leads,
+      harmonies: this.#harmonies,
       session: this.session ?? undefined,
       swing: this.swing,
       tempoMeter: this.tempoMeter,

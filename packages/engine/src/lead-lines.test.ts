@@ -100,7 +100,7 @@ describe('the lead’s repository (#424)', () => {
     const filed = repository.file!(EMPTY_LAYER, FILING);
     expect(filed.held).toBe(false);
     expect(repository.query(FILING.point, FILING.bench, filed.layer)).toEqual([
-      { id: filed.id, distance: 0 },
+      { id: filed.id, distance: 0, score: 0 },
     ]);
     const fragment = filed.layer.filed[0]!.fragment;
     expect(fragment.association.map((p) => p.facet)).toEqual(['lead']);

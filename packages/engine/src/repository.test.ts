@@ -15,6 +15,7 @@ import {
 import type { RhythmRepository } from './rhythm-query.ts';
 import { RHYTHM_BENCHES, RHYTHM_REPOSITORY, rhythmRepository } from './rhythms.ts';
 import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
+import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
 import { createRepository } from '@yggi/cells/repository/fragments';
 import { LIBRARY } from '@yggi/cells/repository/library';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
@@ -48,11 +49,12 @@ function events(env: TransportEnv): TimedEvent[] {
 }
 
 describe("cells' seed, as a screen reads it", () => {
-  it('holds every meter, then every rhythm, then every bass line, each once and with its text', () => {
+  it('holds every meter, then every rhythm, every bass line, then every harmony, each once and with its text', () => {
     expect(SEED_FRAGMENTS.map((f) => f.id)).toEqual([
       ...METER_READINGS.map((r) => r.id),
       ...RHYTHM_FRAGMENTS.map((f) => f.id),
       ...BASS_FRAGMENTS.map((f) => f.id),
+      ...HARMONY_FRAGMENTS.map((f) => f.id),
     ]);
     expect(new Set(SEED_FRAGMENTS.map((f) => f.id)).size).toBe(SEED_FRAGMENTS.length);
     for (const f of SEED_FRAGMENTS) expect(f.text.length, f.id).toBeGreaterThan(0);
@@ -180,7 +182,7 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
   it('finds the meters as under cells v0.8.0, at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = meterQueries(METER_REPOSITORY);
     expect([asked.length, hashOf(asked)]).toEqual([89, '5a9574da']);
-    expect(OTHERS).toHaveLength(16); // 5 bass lines, 5 harmonies, 2 kits, 4 modes
+    expect(OTHERS).toHaveLength(17); // 5 bass lines, 5 harmonies, 2 kits and the bass instrument (v0.10.0), 4 modes
     expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
   });
 

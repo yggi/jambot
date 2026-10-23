@@ -117,6 +117,7 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   The lead lines (#424, `LEAD_REPOSITORY`) hold only what the layer filed, so they are warmed from a layer loaded and as each is filed, not at start.
   The Cells view lists a filed line as the part `bass`, the bass's own as "The bass" (`BASSIST`); the section's bass line is not on the plan (it doesn't travel, `PlanCarried.bassFragment`), so the Retrieved log has no bass column yet.
   A filed lead line is the part `lead`, the lead's own "The lead" (`SOLOIST`); the section's lead line doesn't travel either (`PlanCarried.leadFragment`).
+  Cells' harmonies (#425, `HARMONY_REPOSITORY`) are warmed at start beside the bass lines, 45 steps, and a progression filed as each is; a filed one is the part `harmony`, and the theme's progression doesn't travel (`PlanCarried.themeFragments`), though the theme it is read into does, on the plan.
   The opening section needs none of it: the forecast the player keeps while stopped asks that section's rhythm at load and at every control moved, so a song starts with its fits made.
 - The players nudge a default the layer above sets; they don't select it.
   The layer above gives the default and a licence, how far a nudge may move it (`packages/engine/src/licence.ts`): the performer's licence on a note (`performer.ts`, T17) is the same shape one level down.

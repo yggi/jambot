@@ -39,9 +39,15 @@
  *
  * Themes return: an A theme for the grooves and drops, a B theme for the
  * contrast. A returning theme is built anew when the mode has changed, when
- * the harmony has moved more than 0.2 from the one it was built for, or at
+ * the harmony has moved more than 0.2 from the one it was built for, at
  * random, the more often the higher the entropy (at most three times in
- * ten). A build is always built afresh.
+ * ten), or when the composer has rejected its progression. A build is always
+ * built afresh. Where it builds one, the composer asks the repository for a
+ * progression (#425, `sectionTheme`, the loop of `facet.ts` for the facet
+ * `harmony`), A and B each with the other chosen; on a miss the mode's
+ * tables write it (`buildTheme`). The Muse files the progressions players
+ * play a section after their own ends, once its last bars are heard
+ * (`museFiledHarmonies`).
  */
 
 import { type Meter, fifthsIndex, mod, stepsOf } from '@jambot/theory';
@@ -64,6 +70,15 @@ import { BASS_FACET, type LineNote, type LineRepository, composedLine } from './
 import { LEAD_FACET, type LeadNote, type LeadRepository, composedLead } from './lead-query.ts';
 import { distilledLead } from './muse-lead.ts';
 import {
+  HARMONY_FACET,
+  type HarmonyRepository,
+  type HarmonySlot,
+  composedHarmony,
+  themeOf,
+} from './harmony-query.ts';
+import { distilledProgression } from './muse-harmony.ts';
+import {
+  type Bench,
   type FilingAt,
   type HeardBars,
   climbedFigure,
@@ -93,7 +108,7 @@ import {
 import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
 import type { SwingLevel } from './swing.ts';
-import { type Theme, buildTheme, themeKind } from './themes.ts';
+import { type Theme, type ThemeKind, buildTheme, themeKind } from './themes.ts';
 
 export interface PlanEnv {
   readonly seed: number;
@@ -161,6 +176,19 @@ export interface PlanEnv {
    * motifs; she files each source's line at the section's end.
    */
   readonly leadHeard?: readonly HeardBars<readonly LeadNote[]>[] | undefined;
+  /**
+   * The repository the composer asks for a theme where it builds one (#425,
+   * `harmony-query.ts`); with none, or on a miss, the mode's tables write it
+   * (`buildTheme`).
+   */
+  readonly harmonies?: HarmonyRepository | undefined;
+  /**
+   * What the Muse heard players play as chords over the section before the
+   * one before (#425): each player's eight bars, each its slots where she
+   * read it, else null. A section's last bars are heard only once the next
+   * is planned, so she files a progression a section later than a line.
+   */
+  readonly harmonyHeard?: readonly HeardBars<readonly HarmonySlot[] | null>[] | undefined;
 }
 
 /**
@@ -224,6 +252,10 @@ export interface PlanCarried {
   readonly bassFragment: string | null;
   /** The lead line the section before plays from (#424, `lead-query.ts`), by id, carried as the bass line is; null where it found none, and the lead plays its own. */
   readonly leadFragment: string | null;
+  /** The progression each returning theme plays (#425, `harmony-query.ts`), by id; null where the tables wrote it. */
+  readonly themeFragments: { readonly A: string | null; readonly B: string | null };
+  /** The point the section before the one before was asked at, and its bench: where a progression heard in it is filed (#425); null before it. */
+  readonly earlier: { readonly point: StylePoint; readonly bench: Bench } | null;
 }
 
 /** How far the harmony may move from a returning theme's before it is built anew. */
@@ -476,6 +508,23 @@ export function museFiledLines(
  * 8ths; none with no repository or on a miss, where the bass plays its own.
  * It asks with the pull of use together its entropy sets (#389, `pullOf`).
  */
+/**
+ * The layer with a section's progression learned (#425): a use at the
+ * section's point, counted as used together with those `alongside` (the
+ * section's meter fragment, and the other returning theme's progression,
+ * so A and B pull each other), which this use doesn't move; as it was where
+ * the tables wrote the theme, or the repository learns nothing.
+ */
+function harmonyLearned(
+  repository: HarmonyRepository | undefined,
+  layer: LearnedLayer,
+  id: string | null,
+  alongside: readonly string[],
+  point: StylePoint,
+): LearnedLayer {
+  return id !== null && repository?.used ? repository.used(layer, [id], point, alongside) : layer;
+}
+
 /** The tag every lead line the Muse or the composer files carries, beside the session's name where there is one (#424). */
 export const LEAD_TAG = 'lead line';
 
@@ -528,6 +577,90 @@ export function sectionLead(
     : undefined;
 }
 
+/** The tag every progression the Muse files carries, beside the session's name where there is one (#425). */
+export const HARMONY_TAG = 'progression';
+
+/**
+ * What the Muse files of the harmony at a section's start (#425): each
+ * player's progression heard over the section before the one before
+ * (`distilledProgression`), filed at the point that section was asked at,
+ * on its bench, created at its first bar.
+ */
+export function museFiledHarmonies(
+  given: PlanEnv,
+  layer: LearnedLayer,
+  earlier: { readonly point: StylePoint; readonly bench: Bench },
+): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
+  return filedHeard(
+    given.harmonies,
+    given.harmonyHeard ?? [],
+    (bars) => {
+      const notes = distilledProgression(bars);
+      return notes && { notes };
+    },
+    earlier.bench,
+    filingAt({ ...given, index: given.index - 2 }, earlier.point, HARMONY_TAG),
+    layer,
+  );
+}
+
+/** A section's theme, and the progression it plays where the composer found one. */
+export interface SectionTheme {
+  readonly theme: Theme;
+  readonly fragment: string | null;
+}
+
+/**
+ * The theme a section builds (#425): the progression the composer finds in
+ * the repository at the style (`composedHarmony`), A and B each asked with
+ * the other chosen, as strongly as its entropy sets (#389, `pullOf`), none
+ * of those `rejected`, read as a theme (`themeOf`); with no repository or
+ * on a miss, the one the mode's tables write (`buildTheme`).
+ */
+export function sectionTheme(
+  {
+    harmonies,
+    style,
+    layer,
+    seed,
+    index,
+  }: Pick<PlanEnv, 'harmonies' | 'style' | 'layer' | 'seed' | 'index'>,
+  kind: ThemeKind,
+  key: Key,
+  bench: Bench,
+  themes: PlanCarried['themes'],
+  fragments: PlanCarried['themeFragments'],
+  rejected: readonly string[] = [],
+): SectionTheme {
+  const at = { kind, index, mode: key.mode, harm: style.harm };
+  const other = kind === 'A' ? fragments.B : kind === 'B' ? fragments.A : null;
+  const id = harmonies
+    ? composedHarmony(harmonies, style, bench, {
+        at,
+        draw: draw(seed, 'theme', index, 0),
+        a: fragments.A ?? undefined,
+        chosen: other === null ? [] : [other],
+        rejected,
+        layer,
+        pull: pullOf(style.entropy),
+      })
+    : undefined;
+  const read = id === undefined ? null : harmonies!.read(id, bench.meter, layer);
+  if (id !== undefined && read) return { theme: themeOf(read, at), fragment: id };
+  return {
+    theme: buildTheme({
+      seed,
+      index,
+      kind,
+      key,
+      harm: style.harm,
+      entropy: style.entropy,
+      a: themes.A,
+    }),
+    fragment: null,
+  };
+}
+
 export function sectionLine(
   { bassLines, style, layer, share }: Pick<PlanEnv, 'bassLines' | 'style' | 'layer' | 'share'>,
   meter: SectionMeter,
@@ -562,6 +695,8 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     claveOwners: NO_CLAVE_OWNERS,
     bassFragment: null,
     leadFragment: null,
+    themeFragments: { A: null, B: null },
+    earlier: null,
   },
   advance(
     given,
@@ -575,6 +710,8 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       claveOwners,
       bassFragment,
       leadFragment,
+      themeFragments,
+      earlier,
     },
   ) {
     // The layer the song started from, until the first section has learned;
@@ -590,7 +727,12 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       filed.layer && before && asked
         ? museFiledLeads(given, filed.layer, before, asked)
         : { layer: filed.layer, ids: [] };
-    const layer = motifs.layer;
+    const progressions =
+      motifs.layer && earlier
+        ? museFiledHarmonies(given, motifs.layer, earlier)
+        : { layer: motifs.layer, ids: [] };
+    const layer = progressions.layer;
+    // (a progression filed isn't remembered short-term: the harmony is pulled by its other theme alone)
     const memory = remembered(shortTerm, [...grooves.ids, ...filed.ids, ...motifs.ids]);
     const chosen = chosenOf(memory);
     const env = { ...given, layer };
@@ -605,25 +747,37 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       wish.melodic !== null && licenceOf(style).melodic.includes(wish.melodic)
         ? wish.melodic
         : melodicDefault(style);
+    const composed = composedSection(env, before, chosen);
+    const { meterFragment } = composed.meter;
+    const bench = { meter: composed.meter.meter, meterFragment };
+    const rejected = rejectedOf(boredom, claveOwners);
     const kind = themeKind(section.type);
     const held = kind === 'build' ? null : themes[kind];
-    const theme =
+    const heldFragment = kind === 'build' ? null : themeFragments[kind];
+    // (a theme returns unless the mode or the harmony moved, at random, or the composer tired of its progression)
+    const returns =
       held &&
       held.mode === key.mode &&
       Math.abs(held.harm - style.harm) <= THEME_REACH &&
-      !chance(draw(seed, 'themeRenewal', index), style.entropy * 0.3)
-        ? held
-        : buildTheme({
-            seed,
-            index,
-            kind,
-            key,
-            harm: style.harm,
-            entropy: style.entropy,
-            a: themes.A,
-          });
-    const composed = composedSection(env, before, chosen);
-    const { meterFragment } = composed.meter;
+      !chance(draw(seed, 'themeRenewal', index), style.entropy * 0.3) &&
+      (heldFragment === null || !rejected.includes(heldFragment));
+    const built = returns
+      ? { theme: held, fragment: heldFragment }
+      : sectionTheme(env, kind, key, bench, themes, themeFragments, rejected);
+    const { theme } = built;
+    // Its ladder: a progression is eight bars, which the composer doesn't vary; tired of one, it rejects it.
+    const harmonyLadder = layer
+      ? climbedFigure(
+          env.harmonies,
+          HARMONY_FACET,
+          'harmonyVariation',
+          filingAt(env, stylePoint(style), HARMONY_TAG),
+          layer,
+          boredom,
+          built.fragment ?? undefined,
+          bench,
+        )
+      : { playing: null };
     const found = sectionRhythm(
       env,
       composed.meter,
@@ -691,37 +845,64 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         before: plan,
         themes: kind === 'build' ? themes : { ...themes, [kind]: theme },
         layer: leadLadder.layer
-          ? figureLearned(
-              env.leads,
+          ? harmonyLearned(
+              env.harmonies,
               figureLearned(
-                env.bassLines,
+                env.leads,
                 figureLearned(
-                  env.rhythms,
-                  learnedFrom(env, leadLadder.layer, composed.found),
-                  [rhythm.rhythmFragment, rhythm.claveFragment],
+                  env.bassLines,
+                  figureLearned(
+                    env.rhythms,
+                    learnedFrom(env, leadLadder.layer, composed.found),
+                    [rhythm.rhythmFragment, rhythm.claveFragment],
+                    stylePoint(style),
+                    meterFragment,
+                  ),
+                  [bassKept],
                   stylePoint(style),
                   meterFragment,
                 ),
-                [bassKept],
+                [leadKept],
                 stylePoint(style),
                 meterFragment,
               ),
-              [leadKept],
+              built.fragment,
+              [
+                ...(meterFragment === undefined ? [] : [meterFragment]),
+                ...((kind === 'A' ? themeFragments.B : kind === 'B' ? themeFragments.A : null) ??
+                  []),
+              ].filter((id) => id !== built.fragment),
               stylePoint(style),
-              meterFragment,
             )
           : null,
         shortTerm: remembered(memory, kept, 1),
         asked: stylePoint(style),
         boredom: boredAfter(
           boredom,
-          [ladder.playing, lineLadder.playing, leadLadder.playing].filter((l) => l !== null),
+          [ladder.playing, lineLadder.playing, leadLadder.playing, harmonyLadder.playing].filter(
+            (l) => l !== null,
+          ),
           style.entropy,
         ),
         // (a clave is the drum bar's it was first chosen to layer on, where the ladder climbs)
         claveOwners: ladder.playing ? ownedWith(claveOwners, found) : claveOwners,
         bassFragment: bassKept ?? null,
         leadFragment: leadKept ?? null,
+        themeFragments:
+          kind === 'build' ? themeFragments : { ...themeFragments, [kind]: built.fragment },
+        // (a section's bench as JSON keeps it: no meter fragment where it has none)
+        earlier:
+          asked && before
+            ? {
+                point: asked,
+                bench: {
+                  meter: before.meter,
+                  ...(before.meterFragment === undefined
+                    ? {}
+                    : { meterFragment: before.meterFragment }),
+                },
+              }
+            : null,
       },
       output: plan,
     };
