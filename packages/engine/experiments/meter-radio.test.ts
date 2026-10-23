@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { LAYER_CAP, METER_HOLD, MISS_DISTANCE, SECTION_BARS } from '../src/index.ts';
 import {
   gridDistances,
@@ -11,16 +11,23 @@ import {
   wentBack,
 } from './meter-radio.ts';
 
-const RUNS = meterRuns();
-const changes = RUNS.flatMap((r) => r.changes);
-const sections = RUNS.reduce((n, r) => n + r.sections, 0);
-if (process.env.E34_REPORT) {
-  const minutes: Record<string, number> = {};
-  for (const r of RUNS)
-    for (const [k, v] of Object.entries(r.minutes)) minutes[k] = (minutes[k] ?? 0) + v;
-  console.log({ changes: changes.length, sections, minutes });
-  for (const r of RUNS) console.log(r.preset, r.seed, r.changes.length, r.missed);
-}
+// Played before the tests rather than as the file is imported, so the time is the file's, and run first (the
+// engine's `hookTimeout`).
+let RUNS: ReturnType<typeof meterRuns> = [];
+let changes: (typeof RUNS)[number]['changes'][number][] = [];
+let sections = 0;
+beforeAll(() => {
+  RUNS = meterRuns();
+  changes = RUNS.flatMap((r) => r.changes);
+  sections = RUNS.reduce((n, r) => n + r.sections, 0);
+  if (process.env.E34_REPORT) {
+    const minutes: Record<string, number> = {};
+    for (const r of RUNS)
+      for (const [k, v] of Object.entries(r.minutes)) minutes[k] = (minutes[k] ?? 0) + v;
+    console.log({ changes: changes.length, sections, minutes });
+    for (const r of RUNS) console.log(r.preset, r.seed, r.changes.length, r.missed);
+  }
+});
 
 describe('the composer asks the repository for its meter while the radio walks (E34)', () => {
   it('changes the meter only where a section starts, 211 times in 120 hours, and never back at the next section (E34)', () => {
@@ -57,7 +64,10 @@ describe('the composer asks the repository for its meter while the radio walks (
 });
 
 describe('the band learns the meters it keeps while the radio walks (E34, #398)', () => {
-  const LEARNED = learningRuns();
+  let LEARNED: ReturnType<typeof learningRuns> = [];
+  beforeAll(() => {
+    LEARNED = learningRuns();
+  });
 
   it('adds 0.6 points to the share of sections among a run’s 3 most used meters, within 5 with twice its error (cells decision 048)', () => {
     // The same walks, each run paired with its own unlearned: a meter learned may last other than the one it replaced, so the hours hold other counts of sections.

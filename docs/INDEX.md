@@ -78,7 +78,7 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `apps/web/src/audio/`: the player's outputs: the built-in synth, MIDI out, the device's clock pairing
   - `apps/web/src/midi/`: where a note lands and the MIDI settings; reading MIDI and the Web MIDI connection are `@yggi/webmidi`'s
   - `apps/web/e2e/`: the end-to-end checks, the built app in Chromium with its audio measured (`pnpm e2e`)
-- `tooling/`: the repository's own gates and tools: `pnpm verify`, lint rules, hooks, the pawl, the license gate, the Pages deploy, screenshots
+- `tooling/`: the repository's own gates and tools: `pnpm verify`, lint rules, hooks, the pawl, the license gate, the Pages deploy, screenshots, the heavy runs' lock
 - `.github/`
   - `.github/workflows/ci.yml`: `pnpm verify` in one job on a ready pull request, a witness to the pre-push hook; e2e by hand
   - `.github/ISSUE_TEMPLATE/`: the epic, design, bug and infrastructure issue forms, one per label, the task form for work meant for an agent, and the links for a language question (yggi/cells) and the family (yggi/music-commons)

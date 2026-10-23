@@ -1,18 +1,26 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { BASS_REPOSITORY, LINE_BENCHES, lineRepository, readLine } from '../src/bass-lines.ts';
 import { COMPOSER } from '../src/facet.ts';
 import { EMPTY_LAYER, LAYER_CAP, layerBytes } from '../src/layer.ts';
 import { BASSIST } from '../src/muse-line.ts';
 import { PRESETS } from '../src/style.ts';
 import { asLines, heldRuns, kept, linesFiled, mostUsedLine, movement } from './bass-loop.ts';
-import { LEARNING_HOURS, lockIn, mostUsedGroove, rhythmRuns } from './rhythm-radio.ts';
+import {
+  LEARNING_HOURS,
+  type RhythmRun,
+  lockIn,
+  mostUsedGroove,
+  rhythmRuns,
+} from './rhythm-radio.ts';
 
 // E41 (#423): the bass in the loop, held at each preset at entropy 0, and on E38's walks at entropy 0.3.
-const HELD = heldRuns(0);
-const LEARNED = rhythmRuns(undefined, 1, undefined, EMPTY_LAYER, BASS_REPOSITORY);
-const UNLEARNED = rhythmRuns(undefined, 1, undefined, undefined, BASS_REPOSITORY);
-const LONG = rhythmRuns(undefined, LEARNING_HOURS, undefined, EMPTY_LAYER, BASS_REPOSITORY);
-const FILED = LEARNED.flatMap((r) => r.lineFilings);
+// Played before the tests rather than as the file is imported, so the time is the file's, and run first (the
+// engine's `hookTimeout`).
+let HELD: ReturnType<typeof heldRuns> = [];
+let LEARNED: RhythmRun[] = [];
+let UNLEARNED: RhythmRun[] = [];
+let LONG: RhythmRun[] = [];
+let FILED: RhythmRun['lineFilings'][number][] = [];
 
 /** The ask's and the warm-up's cost on this machine: each section's bass query, warmed, and each warm step, in ms. */
 function cost() {
@@ -38,36 +46,43 @@ function cost() {
   };
 }
 
-if (process.env.E41_REPORT)
-  console.log(
-    JSON.stringify(
-      {
-        movement: movement(HELD),
-        kept: kept(HELD),
-        lines: PRESETS.map((p) => [
-          p.name,
-          HELD.find((r) => r.main.preset === p.name)!.loop.lines[0],
-        ]),
-        mostUsed: mostUsedLine(LEARNED),
-        lockIn: lockIn(asLines(UNLEARNED), asLines(LEARNED)),
-        filed: [
-          FILED.length,
-          FILED.filter((f) => f.filing.source === BASSIST).length,
-          FILED.filter((f) => f.filing.source === COMPOSER).length,
-        ],
-        misses: [
-          LEARNED.reduce((n, r) => n + r.lines.filter((id) => id === '-').length, 0),
-          UNLEARNED.reduce((n, r) => n + r.lines.filter((id) => id === '-').length, 0),
-        ],
-        bytes: Math.max(...LONG.map((r) => layerBytes(r.learning!.layer))),
-        dropped: LONG.reduce((n, r) => n + r.learning!.dropped, 0),
-        groove: mostUsedGroove(LONG),
-        cost: cost(),
-      },
-      null,
-      1,
-    ),
-  );
+beforeAll(() => {
+  HELD = heldRuns(0);
+  LEARNED = rhythmRuns(undefined, 1, undefined, EMPTY_LAYER, BASS_REPOSITORY);
+  UNLEARNED = rhythmRuns(undefined, 1, undefined, undefined, BASS_REPOSITORY);
+  LONG = rhythmRuns(undefined, LEARNING_HOURS, undefined, EMPTY_LAYER, BASS_REPOSITORY);
+  FILED = LEARNED.flatMap((r) => r.lineFilings);
+  if (process.env.E41_REPORT)
+    console.log(
+      JSON.stringify(
+        {
+          movement: movement(HELD),
+          kept: kept(HELD),
+          lines: PRESETS.map((p) => [
+            p.name,
+            HELD.find((r) => r.main.preset === p.name)!.loop.lines[0],
+          ]),
+          mostUsed: mostUsedLine(LEARNED),
+          lockIn: lockIn(asLines(UNLEARNED), asLines(LEARNED)),
+          filed: [
+            FILED.length,
+            FILED.filter((f) => f.filing.source === BASSIST).length,
+            FILED.filter((f) => f.filing.source === COMPOSER).length,
+          ],
+          misses: [
+            LEARNED.reduce((n, r) => n + r.lines.filter((id) => id === '-').length, 0),
+            UNLEARNED.reduce((n, r) => n + r.lines.filter((id) => id === '-').length, 0),
+          ],
+          bytes: Math.max(...LONG.map((r) => layerBytes(r.learning!.layer))),
+          dropped: LONG.reduce((n, r) => n + r.learning!.dropped, 0),
+          groove: mostUsedGroove(LONG),
+          cost: cost(),
+        },
+        null,
+        1,
+      ),
+    );
+});
 
 describe('the bass held at each preset, at entropy 0 (E41, #423)', () => {
   it('plays each preset’s seed line every section, and every drum note main plays', () => {

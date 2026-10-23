@@ -37,12 +37,21 @@ export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments
  */
 export const LAYER_CAP = 16_000;
 
-/** The UTF-8 length of a text, in bytes. */
+/**
+ * The UTF-8 length of a text, in bytes: a byte for each code unit below 0x80, two below 0x800, four for a surrogate
+ * pair (a code point past 0xFFFF), three for any other. Counted over code units, as a layer is weighed each time a
+ * repository is used (#471).
+ */
 function utf8Bytes(text: string): number {
-  let bytes = 0;
-  for (const char of text) {
-    const code = char.codePointAt(0)!;
-    bytes += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
+  let bytes = text.length;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 0x80) continue;
+    if (code < 0x800) bytes += 1;
+    else if (code >= 0xd800 && code < 0xdc00 && (text.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
+      bytes += 2;
+      i++;
+    } else bytes += 2;
   }
   return bytes;
 }

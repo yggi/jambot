@@ -22,7 +22,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check --cache --cache-strategy content .",
     "verify": "node --experimental-strip-types --no-warnings tooling/verify.ts",
-    "e2e": "pnpm --filter @jambot/web e2e",
+    "e2e": "node --experimental-strip-types --no-warnings tooling/heavy.ts pnpm --filter @jambot/web e2e",
+    "soak": "node --experimental-strip-types --no-warnings tooling/heavy.ts node --experimental-strip-types --no-warnings apps/web/e2e/soak.ts",
+    "heavy": "node --experimental-strip-types --no-warnings tooling/heavy.ts",
     "ratchet": "node --experimental-strip-types --no-warnings tooling/history.ts"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 import { stepsOf } from '@jambot/theory';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { DRUMMER } from '../src/band.ts';
 import { EMPTY_LAYER, LAYER_CAP, layerBytes } from '../src/layer.ts';
 import { GROOVE_FEWEST, grooveText } from '../src/muse-groove.ts';
@@ -10,7 +10,9 @@ import { variations } from '@yggi/cells/engine/vary/index';
 import { COMPOSER } from '../src/facet.ts';
 import { benchText, readRhythm, rhythmRepository } from '../src/rhythms.ts';
 import {
+  type Filing,
   LEARNING_HOURS,
+  type RhythmRun,
   aloneByPreset,
   learningRuns,
   lockIn,
@@ -20,26 +22,33 @@ import {
 
 // E38 (#401) and E39 (#411, #414): E37's walks, 3 hours a run, the band learning, the Muse filing the drummer's
 // grooves, and the composer varying and rejecting them and the seed rhythms it plays.
-const LEARNED = learningRuns();
-const UNLEARNED = rhythmRuns(undefined, LEARNING_HOURS);
-const FILINGS = LEARNED.flatMap((r) => r.learning!.filings);
+// Played before the tests rather than as the file is imported, so the time is the file's, and run first (the
+// engine's `hookTimeout`).
+let LEARNED: RhythmRun[] = [];
+let UNLEARNED: RhythmRun[] = [];
+let FILINGS: Filing[] = [];
 const count = (runs: typeof LEARNED, f: (r: (typeof LEARNED)[number]) => number) =>
   runs.reduce((n, r) => n + f(r), 0);
 const misses = (r: (typeof LEARNED)[number]) => r.kept.filter((id) => id === '-').length;
 const bySource = (source: string) => FILINGS.filter((f) => f.filing.source === source).length;
-if (process.env.E37_REPORT)
-  console.log({
-    sections: [count(LEARNED, (r) => r.sections), count(UNLEARNED, (r) => r.sections)],
-    misses: [count(LEARNED, misses), count(UNLEARNED, misses)],
-    filed: FILINGS.length,
-    bySource: [bySource(DRUMMER), bySource(COMPOSER)],
-    held: FILINGS.filter((f) => f.held).length,
-    playedFiled: count(LEARNED, (r) => r.learning!.playedFiled),
-    bytes: Math.max(...LEARNED.map((r) => layerBytes(r.learning!.layer))),
-    lockIn: lockIn(UNLEARNED, LEARNED),
-    mostUsed: mostUsedGroove(LEARNED),
-    alone: [aloneByPreset(LEARNED), aloneByPreset(UNLEARNED)],
-  });
+beforeAll(() => {
+  LEARNED = learningRuns();
+  UNLEARNED = rhythmRuns(undefined, LEARNING_HOURS);
+  FILINGS = LEARNED.flatMap((r) => r.learning!.filings);
+  if (process.env.E37_REPORT)
+    console.log({
+      sections: [count(LEARNED, (r) => r.sections), count(UNLEARNED, (r) => r.sections)],
+      misses: [count(LEARNED, misses), count(UNLEARNED, misses)],
+      filed: FILINGS.length,
+      bySource: [bySource(DRUMMER), bySource(COMPOSER)],
+      held: FILINGS.filter((f) => f.held).length,
+      playedFiled: count(LEARNED, (r) => r.learning!.playedFiled),
+      bytes: Math.max(...LEARNED.map((r) => layerBytes(r.learning!.layer))),
+      lockIn: lockIn(UNLEARNED, LEARNED),
+      mostUsed: mostUsedGroove(LEARNED),
+      alone: [aloneByPreset(LEARNED), aloneByPreset(UNLEARNED)],
+    });
+});
 
 describe('the Muse files the drummer’s grooves while the radio walks (E38, #401)', () => {
   it('files 198 grooves in 120 hours, 57 the drummer’s on a miss and 141 the composer’s variations (#411, #414), and the misses fall from 4,042 sections to 63: what was filed is found again', () => {

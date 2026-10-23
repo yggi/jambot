@@ -8,5 +8,8 @@ export default defineProject({
     // default 5 s beside other runs. 20 s is eight times the slowest alone, the timeout of a test that hangs (#325).
     testTimeout: 20_000,
     environment: 'node',
+    // A pure package keeps no state between files and stubs nothing, so the files of a worker share their modules,
+    // each evaluated once a worker rather than once a file (#471).
+    isolate: false,
   },
 });

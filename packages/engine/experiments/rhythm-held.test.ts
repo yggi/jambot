@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { LAYER_CAP, layerBytes } from '../src/layer.ts';
 import { PRESETS } from '../src/style.ts';
 import { COMPOSER } from '../src/facet.ts';
 import {
+  type RhythmRun,
   aloneByPreset,
   claveLost,
   drumDistance,
@@ -14,17 +15,23 @@ import {
 // E40 (#414): E37's runs with each preset held at entropy 0.3, an hour a run: the band as `main` plays it (no layer:
 // with a seed rhythm found, nothing is filed and nothing climbs, so a held preset plays its drum bar every section),
 // and the band learning, where a seed rhythm climbs the novelty ladder as a groove filed does.
-const MAIN = heldRuns(false);
-const CLIMBING = heldRuns(true);
-if (process.env.E37_REPORT)
-  console.log({
-    mostUsed: [mostUsedRhythm(MAIN), mostUsedRhythm(CLIMBING)],
-    alone: aloneByPreset(CLIMBING),
-    claveLost: claveLost(CLIMBING),
-    distance: drumDistance(CLIMBING, MAIN),
-    overlap: drumOverlap(CLIMBING, MAIN),
-    bytes: Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer))),
-  });
+// Played before the tests rather than as the file is imported, so the time is the file's, and run first (the
+// engine's `hookTimeout`).
+let MAIN: RhythmRun[] = [];
+let CLIMBING: RhythmRun[] = [];
+beforeAll(() => {
+  MAIN = heldRuns(false);
+  CLIMBING = heldRuns(true);
+  if (process.env.E37_REPORT)
+    console.log({
+      mostUsed: [mostUsedRhythm(MAIN), mostUsedRhythm(CLIMBING)],
+      alone: aloneByPreset(CLIMBING),
+      claveLost: claveLost(CLIMBING),
+      distance: drumDistance(CLIMBING, MAIN),
+      overlap: drumOverlap(CLIMBING, MAIN),
+      bytes: Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer))),
+    });
+});
 
 describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #414)', () => {
   it('plays the run’s most used rhythm in 47 % of 8,450 sections, under 60 %, where main plays the preset’s drum bar in every one', () => {

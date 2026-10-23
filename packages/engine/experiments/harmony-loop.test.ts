@@ -1,50 +1,60 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { BASS_REPOSITORY } from '../src/bass-lines.ts';
-import { EMPTY_LAYER } from '../src/layer.ts';
+import { EMPTY_LAYER, type LearnedLayer } from '../src/layer.ts';
 import { readProgression } from '../src/progressions.ts';
 import { PLAYS, asThemes, cost, mostUsedTheme, progressionsFiled } from './harmony-loop.ts';
-import { PLAYER, lockIn, rhythmRuns } from './rhythm-radio.ts';
+import { PLAYER, type RhythmRun, lockIn, rhythmRuns } from './rhythm-radio.ts';
 
 // E43 (#425): the harmony in the loop on E37's walks at entropy 0.3: alone, and with a player playing a progression one section in four.
+// Played before the tests rather than as the file is imported, so the time is the file's, and run first (the
+// engine's `hookTimeout`).
 const ALONE = { ...PLAYS, plays: () => null };
-const LEARNED = rhythmRuns(undefined, 1, undefined, EMPTY_LAYER, BASS_REPOSITORY, undefined, ALONE);
-const UNLEARNED = rhythmRuns(undefined, 1, undefined, undefined, BASS_REPOSITORY, undefined, ALONE);
-const PLAYED = rhythmRuns(undefined, 1, undefined, EMPTY_LAYER, BASS_REPOSITORY, undefined, PLAYS);
-const PLAYED_UNLEARNED = rhythmRuns(
-  undefined,
-  1,
-  undefined,
-  undefined,
-  BASS_REPOSITORY,
-  undefined,
-  PLAYS,
-);
-const FILED = PLAYED.flatMap((r) => r.harmonyFilings);
-const HEAVIEST = PLAYED.map((r) => r.learning!.layer).reduce((a, b) =>
-  progressionsFiled(b).length > progressionsFiled(a).length ? b : a,
-);
+let LEARNED: RhythmRun[] = [];
+let UNLEARNED: RhythmRun[] = [];
+let PLAYED: RhythmRun[] = [];
+let PLAYED_UNLEARNED: RhythmRun[] = [];
+let FILED: RhythmRun['harmonyFilings'][number][] = [];
+let HEAVIEST: LearnedLayer = EMPTY_LAYER;
 
-if (process.env.E43_REPORT)
-  console.log(
-    JSON.stringify(
-      {
-        alone: mostUsedTheme(LEARNED),
-        aloneUnlearned: mostUsedTheme(UNLEARNED),
-        lockIn: lockIn(asThemes(UNLEARNED), asThemes(LEARNED)),
-        played: mostUsedTheme(PLAYED),
-        playedUnlearned: mostUsedTheme(PLAYED_UNLEARNED),
-        playedLockIn: lockIn(asThemes(PLAYED_UNLEARNED), asThemes(PLAYED)),
-        filed: [
-          FILED.length,
-          FILED.filter((f) => !f.held).length,
-          FILED.filter((f) => f.held).length,
-        ],
-        cost: cost(HEAVIEST),
-      },
-      null,
-      1,
-    ),
+beforeAll(() => {
+  LEARNED = rhythmRuns(undefined, 1, undefined, EMPTY_LAYER, BASS_REPOSITORY, undefined, ALONE);
+  UNLEARNED = rhythmRuns(undefined, 1, undefined, undefined, BASS_REPOSITORY, undefined, ALONE);
+  PLAYED = rhythmRuns(undefined, 1, undefined, EMPTY_LAYER, BASS_REPOSITORY, undefined, PLAYS);
+  PLAYED_UNLEARNED = rhythmRuns(
+    undefined,
+    1,
+    undefined,
+    undefined,
+    BASS_REPOSITORY,
+    undefined,
+    PLAYS,
   );
+  FILED = PLAYED.flatMap((r) => r.harmonyFilings);
+  HEAVIEST = PLAYED.map((r) => r.learning!.layer).reduce((a, b) =>
+    progressionsFiled(b).length > progressionsFiled(a).length ? b : a,
+  );
+  if (process.env.E43_REPORT)
+    console.log(
+      JSON.stringify(
+        {
+          alone: mostUsedTheme(LEARNED),
+          aloneUnlearned: mostUsedTheme(UNLEARNED),
+          lockIn: lockIn(asThemes(UNLEARNED), asThemes(LEARNED)),
+          played: mostUsedTheme(PLAYED),
+          playedUnlearned: mostUsedTheme(PLAYED_UNLEARNED),
+          playedLockIn: lockIn(asThemes(PLAYED_UNLEARNED), asThemes(PLAYED)),
+          filed: [
+            FILED.length,
+            FILED.filter((f) => !f.held).length,
+            FILED.filter((f) => f.held).length,
+          ],
+          cost: cost(HEAVIEST),
+        },
+        null,
+        1,
+      ),
+    );
+});
 
 describe('the harmony on the radio’s walk, learning (E43, #425)', () => {
   it('plays its run’s most used theme in under 60 % of its sections, over 40 runs of an hour at entropy 0.3', () => {
@@ -69,8 +79,8 @@ describe('the harmony on the radio’s walk, a player playing progressions one s
   });
 
   it('brings the player’s progressions back: the share among a run’s 3 most used themes rises 13.9 points (3.0 error), past 5', () => {
-    // (the player's progressions, filed, are the only fits above VAMP_HARM, and each section that plays one is a use: a
-    // measure of what was heard returning, which the owner rules on, #425)
+    // (the player's progressions, filed, are the only fits above VAMP_HARM, and each section that plays one is a use:
+    // what was heard returning, the loop doing its job, as the owner ruled on #484, 2026-10-23)
     const { added, error } = lockIn(asThemes(PLAYED_UNLEARNED), asThemes(PLAYED));
     expect([added.toFixed(2), error.toFixed(2)]).toEqual(['13.87', '2.98']);
   });

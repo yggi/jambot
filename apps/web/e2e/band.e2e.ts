@@ -1,5 +1,6 @@
 import { type Page, expect, test } from '@playwright/test';
 import {
+  type Start,
   askForMeter,
   isClick,
   level,
@@ -269,6 +270,9 @@ test('clicks the pulses and not the “and”, until the eighths are asked for',
   expect(clicks.filter((s) => s.kind === 'square')).toHaveLength(Math.ceil(clicks.length / 4));
 });
 
+/** The downbeats the 7/8 check waits for: the count-in's and seven of the song's, about the 14 s it once waited. */
+const BARS_OF_7_8 = 8;
+
 test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses, the band on the same steps (#262)', async ({
   page,
 }) => {
@@ -284,7 +288,11 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
   expect(Math.abs((await height()) - before)).toBeLessThanOrEqual(1);
   await page.getByRole('button', { name: 'Click' }).click();
   await start(page);
-  await page.waitForTimeout(14000);
+  // Bars laid, not a span of time (#470): the count-in's and seven of the song's, waiting up to 30 s for them.
+  const isDownbeat = (s: Start) => isClick(s) && s.kind === 'square';
+  await expect
+    .poll(async () => (await starts(page)).filter(isDownbeat).length, { timeout: 30_000 })
+    .toBeGreaterThanOrEqual(BARS_OF_7_8);
   const all = await starts(page);
   // Synth-pop: 108 in 4/4, which 7/8 counts as 92.571 of its three beats, the felt tempo kept (#367):
   // a step is 15 / 108 s, and a bar of 7/8 holds 14 of them: pulses at 0, 6 and 10.
@@ -296,7 +304,7 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
     .map((s) => s.when)
     .sort((x, y) => x - y);
   // The count-in is a bar of 7/8 as well, so its downbeat is the first.
-  expect(downbeats.length).toBeGreaterThan(5);
+  expect(downbeats.length).toBeGreaterThanOrEqual(BARS_OF_7_8);
   downbeats.slice(1).forEach((t, i) => expect(t - downbeats[i]!).toBeCloseTo(14 * step, 3));
   const pulses = clicks
     .filter((s) => s.kind === 'triangle')
@@ -309,15 +317,21 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
     const bar = downbeats[Math.floor(i / 2)]!;
     expect(t - bar).toBeCloseTo((i % 2 === 0 ? 6 : 10) * step, 3);
   });
-  // The band is on the same grid: every note of it falls on a step of a bar of 14, none past the bar.
+  // The band is on the same grid: every note of it falls on a step of a bar of 14, none past the bar, and every bar
+  // of the song laid whole, from the first after the count-in to the last before the latest downbeat, has notes.
   const band = [...new Set(all.filter((s) => !isClick(s)).map((s) => s.when))].sort(
     (x, y) => x - y,
   );
-  expect(band.length).toBeGreaterThan(20);
   for (const t of band) {
     const steps = (t - downbeats[0]!) / step;
     expect(Math.abs(steps - Math.round(steps))).toBeLessThan(1e-3);
   }
+  const whole = downbeats.slice(1, -1);
+  for (const [i, bar] of whole.entries())
+    expect(
+      band.filter((t) => t >= bar - 1e-3 && t < bar + 14 * step - 1e-3).length,
+      `bar ${i + 1}`,
+    ).toBeGreaterThan(0);
   // And the click and the band agree: the band's downbeat kick is struck with each click's downbeat.
   const kicks = all.filter((s) => s.kind === 'sine' && s.frequency === 440).map((s) => s.when);
   const struck = downbeats.filter((d) => kicks.some((k) => Math.abs(k - d) < 1e-3));

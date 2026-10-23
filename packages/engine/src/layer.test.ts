@@ -309,6 +309,10 @@ describe('the layer within its cap (#398)', () => {
       layerBytes({ ...EMPTY_LAYER, points: points(1, '4/4 ♭') }) -
         layerBytes({ ...EMPTY_LAYER, points: points(1, '4/4 b') }),
     ).toBe(2);
+    // A character of each width: one byte, two, three, and four for one past 0xFFFF, a surrogate pair.
+    const weigh = (meter: string) => layerBytes({ ...EMPTY_LAYER, points: points(1, meter) });
+    const plain = weigh('4/4 b');
+    expect(['4/4 é', '4/4 ♭', '4/4 𝄫'].map((m) => weigh(m) - plain)).toEqual([1, 2, 3]);
   });
 });
 

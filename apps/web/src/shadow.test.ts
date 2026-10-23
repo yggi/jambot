@@ -120,7 +120,16 @@ function run({
   /** A client following the host over a link, its band playing through cells as the host's does or not (`plays`). */
   follow?: Following;
 }): Run & { client?: Run } {
+  // The page's clock, in milliseconds: the run's, plus the real time since the run's was last set. A cost is timed
+  // on it in real time, and a text's arrival, between two ticks, on the run's clock alone, whatever the machine's load:
+  // so it is set again as each tick starts, as answers arrive and as each shadow ticks.
   let clock = 0;
+  let wall = performance.now();
+  const page = () => clock * 1000 + performance.now() - wall;
+  const at = (seconds: number) => {
+    clock = seconds;
+    wall = performance.now();
+  };
   const due: { at: number; deliver: () => void }[] = [];
   const texts = (delay?: number): SectionTexts =>
     delay === undefined
@@ -141,11 +150,11 @@ function run({
             due.push({ at: clock + delay, deliver: () => answer(structuredClone(playText(copy))) });
           },
         };
-  const shadow = new Shadow(() => performance.now(), plays, texts(delay));
+  const shadow = new Shadow(page, plays, texts(delay));
   shadow.reset();
   // The client: the host's bars and texts over the link, on a transport of its own in the host's time.
   const follower = transportOver(followSource);
-  const theirs = follow && new Shadow(() => performance.now(), plays, texts(follow.delay ?? delay));
+  const theirs = follow && new Shadow(page, plays, texts(follow.delay ?? delay));
   theirs?.reset(plays === 'cells' ? 'given' : 'none');
   const client = { band: [] as TimedEvent[], played: [] as TimedEvent[], late: [] as LateEvent[] };
   let followed: TransportCarried<FollowCarried> | null = null;
@@ -180,7 +189,7 @@ function run({
   const laid = new Set<number>();
   let waiting = [...heard];
   for (let now = START - countIn - TICK; ; now += TICK) {
-    clock = now;
+    at(now);
     for (const d of due.filter((d) => d.at <= now)) {
       due.splice(due.indexOf(d), 1);
       d.deliver();
@@ -236,6 +245,7 @@ function run({
     const c = carried;
     const output = meddle ? { ...next.output, events: meddle(next.output.events) } : next.output;
     band.push(...output.events);
+    at(now);
     const playing = shadow.tick({
       env: laidWith,
       next: env,
@@ -258,6 +268,7 @@ function run({
       inbox = [];
       followed = f.carried;
       client.band.push(...f.output.events);
+      at(now);
       const playing = theirs.follow({ env: laidWith, carried: followed!, output: f.output, now });
       client.played.push(...playing.events);
       client.late.push(...playing.lateEvents);

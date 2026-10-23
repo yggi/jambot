@@ -6,7 +6,10 @@
  * against a served build, in the background, and printed as JSON.
  *
  *     pnpm --filter @jambot/web build && pnpm --filter @jambot/web preview --port 4320 &
- *     node --experimental-strip-types --no-warnings apps/web/e2e/soak.ts --minutes 30 --entropy 0.3
+ *     pnpm soak --minutes 30 --entropy 0.3
+ *
+ * `pnpm soak` waits for the heavy runs' lock (`tooling/heavy.ts`), which `pnpm e2e` takes too, so no other
+ * soak or end-to-end run on the machine shares its audio clock's cores.
  *
  * `--url` names another address (`?play=band` plays the band's own; through cells is the default),
  * and `--every` how often, in minutes, a line of progress is printed.
