@@ -50,6 +50,8 @@ export interface Bench {
 export interface Found {
   readonly id: string;
   readonly distance: number;
+  /** What cells ranks it by, where the repository says: the distance less the pull of its use with those chosen (decision 046). */
+  readonly score?: number;
 }
 
 /** Who filed a fragment, where and when: what every filing carries beside what the member played. */

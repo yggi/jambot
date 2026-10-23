@@ -202,6 +202,16 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
     });
   });
 
+  it('shows a progression a player played as the part `harmony`, under the player’s name (#425)', () => {
+    const filed = [filedFile('Ada song 1, bar 8', 'Ada', { facet: 'harmony' })];
+    const all = rows({ layer: layer({ filed }), players: { p1: 'Ada' } });
+    expect(byName(all, 'Ada song 1, bar 8')).toMatchObject({
+      role: 'harmony',
+      source: 'Ada',
+      muse: true,
+    });
+  });
+
   it('marks a filed fragment the band took again as retrieved too, counted once', () => {
     const filed = [filedFile('drummer song 1, bar 8', DRUMMER)];
     const all = rows({

@@ -40,6 +40,7 @@ import {
 import { useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
+import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
@@ -171,11 +172,12 @@ export function presetSwing(
 
 export type { Fragment };
 
-/** Cells' seed, its meters, its rhythms, then its bass lines (#423), each with its text and the points it is found at: what a screen shows of a fragment the band took. */
+/** Cells' seed, its meters, its rhythms, its bass lines (#423), then its harmonies (#425), each with its text and the points it is found at: what a screen shows of a fragment the band took. */
 export const SEED_FRAGMENTS: readonly Fragment[] = [
   ...METER_FRAGMENTS,
   ...RHYTHM_FRAGMENTS,
   ...BASS_FRAGMENTS,
+  ...HARMONY_FRAGMENTS,
 ];
 
 /**

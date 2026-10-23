@@ -47,6 +47,11 @@
  * a player (`LeadPlayer`), who answers some sections with a motif, which the
  * Muse hears as a lead line (`rhythmRun`'s `leads`).
  *
+ * E43, the harmony entering the loop (#425): the runs given cells'
+ * harmonies and a player (`HarmonyPlayer`), who plays a progression over
+ * some sections, which the Muse hears as chords (`rhythmRun`'s `harmony`),
+ * counting each section's theme (`themes`).
+ *
  * It runs under vitest: `E37_REPORT=1 pnpm vitest run --silent=false
  * packages/engine/experiments/rhythm-radio.test.ts` prints the numbers
  * (E38 and E39's in `rhythm-learning.test.ts`, E40's in `rhythm-held.test.ts`).
@@ -58,6 +63,9 @@ import {
   type BandCarried,
   type BandEnv,
   type GrooveFiling,
+  type HarmonyFiling,
+  type HarmonyRepository,
+  type HarmonySlot,
   type LeadFiling,
   type LeadNote,
   type LeadRepository,
@@ -152,6 +160,24 @@ export interface RhythmRun {
     readonly id: string;
     readonly held: boolean;
   }[];
+  /** The theme of each section, in order, where the band was given harmonies (E43): its progression, else the tables' theme by the kind and section it was built for. */
+  readonly themes: readonly string[];
+  /** The progressions the Muse filed within the hours (E43), in order. */
+  readonly harmonyFilings: readonly {
+    readonly filing: HarmonyFiling;
+    readonly id: string;
+    readonly held: boolean;
+  }[];
+}
+
+/**
+ * A player on E43's walks (#425): the harmonies the composer asks, and what
+ * the player plays over a section, a progression's eight bars of slots of
+ * the key, each bar's heard by the Muse in the bar itself, or nothing.
+ */
+export interface HarmonyPlayer {
+  readonly repository: HarmonyRepository;
+  readonly plays: (seed: number, section: number) => readonly (readonly HarmonySlot[])[] | null;
 }
 
 /**
@@ -207,6 +233,7 @@ export function rhythmRun(
   held = false,
   lines?: LineRepository,
   player?: LeadPlayer,
+  harmony?: HarmonyPlayer,
 ): RhythmRun {
   // (each filing kept, and each section's layer as the planner left it: it asks the meter once a section,
   // in order, then files and learns)
@@ -258,6 +285,18 @@ export function rhythmRun(
     used: (given, ids, point, alongside) =>
       learnt(player.repository.used!(given, ids, point, alongside)),
   };
+  const harmonyFilings: { filing: HarmonyFiling; id: string; held: boolean; section: number }[] =
+    [];
+  const harmonies: HarmonyRepository | undefined = harmony && {
+    ...harmony.repository,
+    file(given, filing) {
+      const filed = harmony.repository.file!(given, filing);
+      harmonyFilings.push({ filing, id: filed.id, held: filed.held, section: planning + 1 });
+      return filed;
+    },
+    used: (given, ids, point, alongside) =>
+      learnt(harmony.repository.used!(given, ids, point, alongside)),
+  };
   let style: Style = { ...preset.style, entropy: ENTROPY };
   let track: StyleTrack = holding(style);
   let walked = 0;
@@ -285,7 +324,13 @@ export function rhythmRun(
       offer: null,
       ...(bassLines ? { bassLines } : {}),
       ...(leads ? { leads, leadHeard: heardOf(bar) } : {}),
+      ...(harmonies ? { harmonies, harmonyHeard: chordsHeard(bar) } : {}),
     };
+  };
+  // (the player's progression, each bar's chords heard in the bar itself)
+  const chordsHeard = (bar: number) => {
+    const bars = harmony?.plays(seed, Math.floor(bar / SECTION_BARS));
+    return bars ? [{ source: PLAYER, bar, slots: bars[bar % SECTION_BARS]! }] : [];
   };
   // (the player's motif in the bars of a section's second half where they play one, heard in the bar itself)
   const heardOf = (bar: number) => {
@@ -303,6 +348,7 @@ export function rhythmRun(
   const decided = planned.map((p) => p.bar);
   const lineKept: string[] = [];
   const leadKept: string[] = [];
+  const themeKept: string[] = [];
   const changes: RhythmChange[] = [];
   const played: Record<string, number> = {};
   const kept: string[] = [];
@@ -336,6 +382,11 @@ export function rhythmRun(
       meterKept.push(d.plan.meterFragment ?? '-');
       lineKept.push(planned[i]!.plans.bassFragment ?? '-');
       leadKept.push(planned[i]!.plans.leadFragment ?? '-');
+      const { theme } = d.plan;
+      themeKept.push(
+        (theme.kind === 'build' ? null : planned[i]!.plans.themeFragments[theme.kind]) ??
+          `${theme.kind} ${theme.index}`,
+      );
       const bench = { meter: d.plan.meter, meterFragment: d.plan.meterFragment };
       // whatever the point, the query with no layer lists every seed rhythm that fits the bench: none is the fit refusing
       const fitsNone = rhythms.query({ energy: 0 }, bench).length === 0;
@@ -431,6 +482,10 @@ export function rhythmRun(
     leadFilings: leadFilings
       .filter((f) => f.section < sections)
       .map(({ filing, id, held: wasHeld }) => ({ filing, id, held: wasHeld })),
+    themes: harmony ? themeKept : [],
+    harmonyFilings: harmonyFilings
+      .filter((f) => f.section < sections)
+      .map(({ filing, id, held: wasHeld }) => ({ filing, id, held: wasHeld })),
   };
 }
 
@@ -442,10 +497,11 @@ export const rhythmRuns = (
   layer?: LearnedLayer,
   lines?: LineRepository,
   player?: LeadPlayer,
+  harmony?: HarmonyPlayer,
 ): RhythmRun[] =>
   PRESETS.flatMap((preset, p) =>
     range(seeds).map((seed) =>
-      rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer, false, lines, player),
+      rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer, false, lines, player, harmony),
     ),
   );
 

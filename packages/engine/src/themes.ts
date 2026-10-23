@@ -88,8 +88,13 @@ const TRANSITIONS: Record<ComposerMode, Record<number, Record<number, number>>> 
   },
 };
 
-/** The vamps each mode plays at low harmony: the prototype's VAMPS. */
-const VAMPS: Record<ComposerMode, readonly (readonly number[])[]> = {
+/**
+ * The vamps each mode plays at low harmony: the prototype's VAMPS. On a
+ * miss they are the generator's; where the composer finds vamps in the
+ * repository (#425, `harmony-query.ts`), they are the order it draws them
+ * in, so a seed vamp is drawn where `buildTheme` would draw it.
+ */
+export const VAMPS: Record<ComposerMode, readonly (readonly number[])[]> = {
   aeolian: [[0], [0, 6], [0, 3], [0, 5]],
   dorian: [[0, 3], [0], [0, 6]],
   ionian: [
@@ -102,6 +107,29 @@ const VAMPS: Record<ComposerMode, readonly (readonly number[])[]> = {
     [0, 3],
   ],
 };
+
+/** The harmony under which a theme is a vamp; from it up, a progression walked through the mode's table. */
+export const VAMP_HARM = 0.33;
+
+/** The harmony under which a vamp lays a chord per four bars; from it up to `VAMP_HARM`, two bars each, twice over. */
+export const VAMP_WIDE = 0.15;
+
+/** A vamp's place among a mode's (`VAMPS`), by its chords; -1 for none of them. */
+export const vampIndex = (mode: ComposerMode, chords: readonly number[]): number =>
+  VAMPS[mode].findIndex((v) => v.join(' ') === chords.join(' '));
+
+/**
+ * A vamp's eight bars at a harmony: under `VAMP_WIDE` its first chord for
+ * four bars and its second for four (the first again for a vamp of one),
+ * else each two bars, twice over.
+ */
+export function vampBars(chords: readonly number[], harm: number): Slot[][] {
+  const bar = (degree: number): Slot[] => [{ step: 0, degree }];
+  const each = harm < VAMP_WIDE ? 4 : 2;
+  const first = [0, 1, 2, 3].map((b) => bar(chords[Math.floor(b / each) % chords.length]!));
+  const second = each === 4 ? [0, 1, 2, 3].map(() => bar(chords[1 % chords.length]!)) : first;
+  return [...first, ...second];
+}
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
@@ -131,15 +159,11 @@ export function buildTheme({ seed, index, kind, key, harm, entropy, a }: ThemeEn
   const { mode } = key;
   const bar = (degree: number): Slot[] => [{ step: 0, degree }];
 
-  if (harm < 0.33) {
+  if (harm < VAMP_HARM) {
     const vamps = VAMPS[mode];
     let vamp = Math.floor(next() * vamps.length);
     if (kind !== 'A' && a?.mode === mode && a.vamp === vamp) vamp = (vamp + 1) % vamps.length;
-    const chords = vamps[vamp]!;
-    const each = harm < 0.15 ? 4 : 2;
-    const first = [0, 1, 2, 3].map((b) => bar(chords[Math.floor(b / each) % chords.length]!));
-    const second = each === 4 ? [0, 1, 2, 3].map(() => bar(chords[1 % chords.length]!)) : first;
-    return { kind, index, mode, harm, vamp, bars: [...first, ...second] };
+    return { kind, index, mode, harm, vamp, bars: vampBars(vamps[vamp]!, harm) };
   }
 
   const table = TRANSITIONS[mode];

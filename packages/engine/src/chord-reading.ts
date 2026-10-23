@@ -52,7 +52,7 @@ const QUALITIES = Object.entries(CHORD_QUALITIES)
  * not read as a sixth chord without its fifth; then the bass's root, then the
  * largest quality.
  */
-function chordOf(pcs: ReadonlySet<number>, bass: number | null): ReadChord | null {
+export function chordOf(pcs: ReadonlySet<number>, bass: number | null): ReadChord | null {
   const roots = [
     ...(bass !== null && pcs.has(bass) ? [bass] : []),
     ...[...pcs].filter((r) => r !== bass),

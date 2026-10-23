@@ -115,6 +115,8 @@ export const STREAMS = {
   lineVariation: 31,
   /** Which variation the composer makes of a lead line it tires of, per line: by its place among the layer's lead lines (#424). */
   leadLineVariation: 32,
+  /** Which variation the composer makes of a progression it tires of (#425): none drawn yet, since cells has no operators on a harmony (yggi/cells#208). */
+  harmonyVariation: 33,
 } as const;
 
 export type Stream = keyof typeof STREAMS;
