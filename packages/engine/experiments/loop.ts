@@ -58,9 +58,15 @@
  * of the recognised share and of A B A B against p says whether the loop
  * moves from the locked loop toward the deaf band as p rises (#237).
  *
+ * Then the length apart from the variation (`TRIMS`): the offer trimmed to
+ * its first k notes at p = 0 and 1, since one of the variations drops a
+ * note, so p also shortens what the lead plays; and the rates past 2
+ * (`PAST`), looking for where the loop turns confusing (#237 step 0b). Each
+ * row also gives the lead's written notes a bar, from bar `SETTLED`.
+ *
  * Its cost is mostly the Muse's recognition, every motif heard against every
- * one she remembers: 3 seeds of 128 bars, the default, take about 60 s with
- * the variants and the rates.
+ * one she remembers: 3 seeds of 128 bars, the default, take about 95 s with
+ * the variants, the rates and the trims.
  *
  * node --experimental-strip-types --no-warnings packages/engine/experiments/loop.ts [seeds] [bars]
  *
@@ -133,11 +139,41 @@ export type Condition =
  * more by the chance of the rest. It generalises the closed conditions, which
  * are its points: `p=0` plays as `hearing` and `p=1` as `every bar`, and past
  * 1 the variations stack on one bar.
+ *
+ * With a length k, `p=0 k=3`, the lead first trims the offer to its first k
+ * notes (`trimmed`), and then varies it at the rate: so the length of what
+ * it plays is measured apart from its variation, since one of the variations
+ * drops a note (#237 step 0b). Without one, k is unbounded.
  */
-export type Rate = `p=${number}`;
+export type Rate = `p=${number}` | `p=${number} k=${number}`;
 
 /** The rates E22 sweeps, from the loop that copies to two variations a bar. */
 export const RATES: readonly Rate[] = ['p=0', 'p=0.25', 'p=0.5', 'p=0.75', 'p=1', 'p=1.5', 'p=2'];
+
+/** The lengths E22 trims the offer to, at the loop that copies and at one variation a bar (#237 step 0b). */
+export const TRIMS: readonly Rate[] = [
+  'p=0 k=2',
+  'p=0 k=3',
+  'p=0 k=4',
+  'p=1 k=2',
+  'p=1 k=3',
+  'p=1 k=4',
+];
+
+/** The rates past two variations a bar, looking for where the loop turns confusing (#237 step 0b). */
+export const PAST: readonly Rate[] = ['p=2.5', 'p=3', 'p=4'];
+
+/** A rate condition's rate p and length k, k unbounded where it names none; `null` for the other conditions. */
+export function rateOf(condition: Condition): { p: number; k: number } | null {
+  const named = /^p=([\d.]+)(?: k=(\d+))?$/.exec(condition);
+  if (!named) return null;
+  return { p: Number(named[1]), k: named[2] === undefined ? Infinity : Number(named[2]) };
+}
+
+/** An offered motif cut to its first k notes, its rests before them kept (`head`); as it is when k is unbounded or past its notes. */
+export function trimmed(motif: Motif, k: number): Motif {
+  return Number.isFinite(k) ? head(motif, k) : motif;
+}
 
 /** The conditions E22 compares, and its variants. */
 export const CONDITIONS: readonly Condition[] = ['deaf', 'hearing'];
@@ -212,8 +248,9 @@ export function varyOffer(
 
 /** How many times the lead varies an offer on this bar: on its phrase's second and fourth, on every bar, or at a rate. */
 export function timesVaried(condition: Condition, seed: number, bar: number): number {
-  if (condition.startsWith('p=')) {
-    const p = Number(condition.slice(2));
+  const rate = rateOf(condition);
+  if (rate) {
+    const { p } = rate;
     const whole = Math.floor(p);
     return whole + (chance(draw(seed, 'offerVariation', bar), p - whole) ? 1 : 0);
   }
@@ -232,11 +269,15 @@ export const BY_LICENCE: readonly Preset[] = [...PRESETS].sort(
   (a, b) => a.style.harm - b.style.harm,
 );
 
-/** Each judged bar of a run: the lead's motif, if it gave one, and whether the Muse heard it as one she remembers, exactly or not. */
+/** Each judged bar of a run: the lead's motif, if it gave one, whether the Muse heard it as one she remembers, exactly or not, and how many notes the lead wrote in it. */
 export interface LoopBar {
   readonly motif: Motif | null;
   readonly heardAs: 'new' | 'exact' | 'varied' | null;
+  readonly notes: number;
 }
+
+/** The first bar the lead's notes a bar are counted from, well past the intro, where it rests: the bars E22's rates were counted over. */
+export const SETTLED = 32;
 
 const motifIn = (judgements: readonly Judgement[]): Motif | null => {
   const j = judgements.find((x) => x.kind === 'motif');
@@ -266,6 +307,7 @@ export function loopRun(
   /** The motif of each bar heard, as the prototype takes it: the `no hold` conditions' offer. */
   let latest: Offer | null = null;
   const keys: Key[] = [];
+  const notes: number[] = [];
   const heard: LoopBar[] = [];
   for (let bar = 0; bar < bars + LISTEN_DELAY; bar++) {
     const judged = bar - LISTEN_DELAY;
@@ -288,12 +330,14 @@ export function loopRun(
               : isNoop(recognition.op)
                 ? 'exact'
                 : 'varied',
+        notes: notes[judged]!,
       });
     }
     if (bar >= bars) continue;
     const held =
       condition === 'deaf' ? null : condition.endsWith('no hold') ? latest : listening.offer;
-    let offer = held;
+    const k = rateOf(condition)?.k ?? Infinity;
+    let offer = held && { ...held, motif: trimmed(held.motif, k) };
     for (let pass = 0; offer && pass < timesVaried(condition, seed, bar); pass++)
       offer = { ...offer, motif: varyOffer(offer.motif, seed, bar, entropy, pass) };
     const next = band.advance(
@@ -304,6 +348,7 @@ export function loopRun(
     playing = next.carried;
     played?.(bar, next.output.dough);
     keys.push(next.output.plan.key);
+    notes.push(next.output.written.filter((n) => n.part === 'lead').length);
     for (const n of next.output.written)
       if (n.part === 'lead')
         pending.push({
@@ -347,6 +392,8 @@ export interface LoopMeasure {
   readonly firstHeld: number;
   /** Of the bars that play a run's commonest motif, the share on the bars of one parity, even or odd, whichever holds more. */
   readonly oneParity: number;
+  /** The lead's written notes a bar, from bar `SETTLED` on. */
+  readonly leadNotes: number;
 }
 
 const mean = (xs: readonly number[]) =>
@@ -373,7 +420,9 @@ export function measure(
   let firstHeld = 0;
   let commonestBars = 0;
   let parity = 0;
+  const leadNotes: number[] = [];
   for (const run of runs) {
+    leadNotes.push(...run.slice(SETTLED).map((b) => b.notes));
     bars += run.length;
     const texts = run.map((b) => (b.motif ? text(b.motif) : null));
     let best = 0;
@@ -437,6 +486,7 @@ export function measure(
     commonest: commonest / Math.max(1, motifBars),
     firstHeld: firstHeld / runs.length,
     oneParity: parity / Math.max(1, commonestBars),
+    leadNotes: mean(leadNotes),
   };
 }
 
@@ -536,7 +586,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2]?.endsW
   const [seeds = 3, bars = 128] = process.argv.slice(2).map(Number);
   const pct = (x: number) => `${(100 * x).toFixed(1)}%`.padStart(6);
   const header =
-    'preset         condition           playing   recog   exact  novelty  longest (any)  stalled     osc  return  distinct  commonest  first  parity';
+    'preset         condition           playing   recog   exact  novelty  longest (any)  stalled     osc  return  distinct  commonest  first  parity  notes';
   const row = (m: LoopMeasure) =>
     [
       m.preset.padEnd(14),
@@ -553,6 +603,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2]?.endsW
       pct(m.commonest).padStart(9),
       pct(m.firstHeld),
       pct(m.oneParity).padStart(7),
+      m.leadNotes.toFixed(1).padStart(5),
     ].join('  ');
   const all: LoopMeasure[] = [];
   for (const entropy of [0, 0.3, 0.6, 1]) {
@@ -635,4 +686,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2]?.endsW
       ).toFixed(2)}`,
     );
   }
+  console.log(
+    `\nthe offer trimmed to its first k notes, and the rates past 2, entropy 0.3, ${seeds} seeds, ${bars} bars`,
+  );
+  console.log(header);
+  for (const m of loops(0.3, seeds, bars, BY_LICENCE, [...TRIMS, ...PAST])) console.log(row(m));
 }
