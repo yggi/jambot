@@ -467,35 +467,55 @@ function cadence(notes: number[], lastStep: number, chords: BarEnv['chords'], ph
 }
 
 /**
+ * The fit (#378), the lead's licensed step after its realization: each of
+ * its own notes on a step its phrase parameters snap (`PhraseParams.snap`:
+ * where a chord starts and on the strong steps the harmony leaves) moved to
+ * the nearest tone of the chord sounding there, within a tritone, ties going
+ * down. Every other note stays as realized, and a player's motif is never
+ * fitted, so it plays as it was heard.
+ */
+export function fit(
+  heard: readonly { readonly step: number; readonly note: number }[],
+  chords: BarEnv['chords'],
+  snapped: readonly number[],
+): number[] {
+  return heard.map(({ step, note }) =>
+    snapped.includes(step) ? nearestTone(chordAt(chords, step).chord, note) : note,
+  );
+}
+
+/**
  * A motif of one bar realized as the lead's notes: its first note on the
  * degree of its scale nearest the chord tone nearest where the lead left
  * off, each note altered as written and held to the next onset, a rest
  * silent, and the last note to the bar's end. (A motif that didn't start on
  * the bar's first step would hold its last note on over the bar line; the
  * lead's own and the Muse's always start there, with a rest if the bar starts
- * silent.) The lead's `own` motif walks its phrase parameters' scale, and a
- * note on a step they snap goes to the nearest chord tone; a player's motif
- * is written in the key's degrees and accidentals (U4), so it is played on
- * the key's own as it was heard, each note with its accent, which the
- * performance plays on the lead's level. Bars 2 and 4 close as the phrase
- * grammar says, and the phrase moves into the lead's range.
+ * silent.) The realization itself is pure: every note is the motif's degree
+ * and accidental on the scale, so it writes the motif's own pitches. The
+ * lead's `own` motif walks its phrase parameters' scale and is then fitted
+ * (`fit`); a player's motif is written in the key's degrees and accidentals
+ * (U4), so it is played on the key's own as it was heard, each note with its
+ * accent, which the performance plays on the lead's level. Bars 2 and 4
+ * close as the phrase grammar says, and the phrase moves into the lead's
+ * range.
  */
 function realize(motif: Motif, env: BarEnv, last: number, own: boolean) {
   const { plan, barInSection, meter, bar } = env;
   const chords = chordsOn(env.chords, meter);
   const steps = stepsOf(meter);
   const params = phraseParams(env);
-  const { snap: snapped, range } = params;
   const { onsets, degrees, accidentals, accents } = motifInBar(motif, steps, bar);
   const scale = own ? params.scale : keyHelix(plan.key);
   const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
   if (heard.length === 0) return { written: [], last };
   const first = snap(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
-  let notes = heard.map(({ step, i }) => {
-    const note = alteredHeight(scale, first + degrees[i]!, accidentals[i]!);
-    return own && snapped.includes(step) ? nearestTone(chordAt(chords, step).chord, note) : note;
-  });
-  notes = intoRange(cadence(notes, heard.at(-1)!.step, chords, barInSection % 4), range);
+  const realized = heard.map(({ step, i }) => ({
+    step,
+    note: alteredHeight(scale, first + degrees[i]!, accidentals[i]!),
+  }));
+  let notes = own ? fit(realized, chords, params.snap) : realized.map((r) => r.note);
+  notes = intoRange(cadence(notes, heard.at(-1)!.step, chords, barInSection % 4), params.range);
   const written: WrittenNote[] = heard.map(({ step, i }, j) => ({
     part: 'lead',
     step,
