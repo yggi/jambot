@@ -2,7 +2,14 @@ import { METERS, type MeterName } from '@jambot/theory';
 import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES } from './key.ts';
-import { type HarmonySlot, OFFER, composedHarmony, themeOf, vampOf } from './harmony-query.ts';
+import {
+  type HarmonySlot,
+  OFFER,
+  composedHarmony,
+  fitsHarmony,
+  themeOf,
+  vampOf,
+} from './harmony-query.ts';
 import { EMPTY_LAYER } from './layer.ts';
 import {
   HARMONY_REPOSITORY,
@@ -182,5 +189,24 @@ describe('the composer’s ask (#425)', () => {
     expect(ask('A')).toBe('tonic vamp');
     expect(ask('B')).toBeUndefined();
     expect(ask('build')).toBeUndefined();
+  });
+});
+
+describe('a vamp fits only under the harmony buildTheme lays vamps at (#425)', () => {
+  it('fits every seed vamp below `VAMP_HARM` and none at or above it, where a progression of the players fits at any harmony', () => {
+    const reads = HARMONY_FRAGMENTS.map((f) => readProgression(f.text, METERS['4/4'])!);
+    expect(reads.every((r) => r !== null && vampOf(r) !== null)).toBe(true);
+    for (const read of reads) {
+      expect(fitsHarmony(read, VAMP_HARM - 0.01)).toBe(true);
+      expect(fitsHarmony(read, VAMP_HARM)).toBe(false);
+      expect(fitsHarmony(read, 1)).toBe(false);
+    }
+    // (eight bars that walk the key's degrees: no vamp)
+    const walk = readProgression(
+      progressionText([0, 3, 4, 0, 5, 1, 4, 0].map((degree, b) => ({ step: b * 16, degree }))),
+      METERS['4/4'],
+    )!;
+    expect(vampOf(walk)).toBeNull();
+    expect([0, VAMP_HARM, 1].map((harm) => fitsHarmony(walk, harm))).toEqual([true, true, true]);
   });
 });
