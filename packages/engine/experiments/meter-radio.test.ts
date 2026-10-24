@@ -16,8 +16,14 @@ import {
 let RUNS: ReturnType<typeof meterRuns> = [];
 let changes: (typeof RUNS)[number]['changes'][number][] = [];
 let sections = 0;
+// (E34 again with no margin for the meter playing, and with half of it: the times each goes back)
+let backs: number[] = [];
 beforeAll(() => {
   RUNS = meterRuns();
+  backs = [0, METER_HOLD / 2].map(
+    (hold) =>
+      meterRuns(undefined, undefined, { miss: MISS_DISTANCE, hold }).flatMap(wentBack).length,
+  );
   changes = RUNS.flatMap((r) => r.changes);
   sections = RUNS.reduce((n, r) => n + r.sections, 0);
   if (process.env.E34_REPORT) {
@@ -39,9 +45,7 @@ describe('the composer asks the repository for its meter while the radio walks (
   });
 
   it('goes back 271 times with no margin for the meter playing, and twice with half of it (E34)', () => {
-    const back = (hold: number) =>
-      meterRuns(undefined, undefined, { miss: MISS_DISTANCE, hold }).flatMap(wentBack).length;
-    expect([back(0), back(METER_HOLD / 2)]).toEqual([271, 2]);
+    expect(backs).toEqual([271, 2]);
   });
 
   it('misses in 201 of the radio’s sections, 10 % of the axes’ space, toward its corners (E34)', () => {
