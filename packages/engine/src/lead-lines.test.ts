@@ -124,14 +124,35 @@ describe('the lead’s repository (#424)', () => {
     expect(twice.layer.filed.length).toBe(1);
   });
 
-  it('varies a line by lift and turn over, and a bent one not at all', () => {
+  it('varies a line by lift, turn over, a bend of its last note and its drop, and a bent one not at all', () => {
     const repository = leadRepository();
     const plain = repository.file!(EMPTY_LAYER, FILING);
-    const ways = [0.25, 0.75].map((d) => repository.vary!(plain.id, FILING.bench, d, plain.layer));
-    expect(ways).toEqual([
-      { by: 'transpose &lead 2', notes: PLAIN.map((n) => ({ ...n, degree: n.degree + 2 })) },
-      { by: 'invert &lead', notes: PLAIN.map((n) => ({ ...n, degree: 0 - n.degree })) },
+    const ways = new Map<string, readonly LeadNote[]>();
+    for (let k = 0; k < 64; k++) {
+      const v = repository.vary!(plain.id, FILING.bench, k / 64, plain.layer)!;
+      if (!ways.has(v.by)) ways.set(v.by, v.notes);
+    }
+    // (in cells' order: lift, turn over, the bends by −2, −1, 1 and 2 degrees from the note before the last, the drop)
+    expect([...ways.keys()]).toEqual([
+      'transpose &lead 2',
+      'invert &lead',
+      'bend &lead -2',
+      'bend &lead -1',
+      'bend &lead 1',
+      'bend &lead 2',
+      'trim &lead 8',
     ]);
+    expect(ways.get('transpose &lead 2')).toEqual(
+      PLAIN.map((n) => ({ ...n, degree: n.degree + 2 })),
+    );
+    expect(ways.get('invert &lead')).toEqual(PLAIN.map((n) => ({ ...n, degree: 0 - n.degree })));
+    // (the last note, 4, bent to the note before it, −1, moved by n degrees)
+    for (const n of [-2, -1, 1, 2])
+      expect(ways.get(`bend &lead ${n}`)).toEqual([
+        ...PLAIN.slice(0, -1),
+        { ...PLAIN[3]!, degree: -1 + n },
+      ]);
+    expect(ways.get('trim &lead 8')).toEqual(PLAIN.slice(0, -1));
     const bent = repository.file!(EMPTY_LAYER, { ...FILING, notes: BENT });
     expect(repository.read(bent.id, METERS['4/4'], bent.layer)!.notes).toEqual(BENT);
     expect(repository.vary!(bent.id, FILING.bench, 0.25, bent.layer)).toBeNull();

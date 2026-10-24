@@ -207,14 +207,14 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 4,826 characters a section, 4,369 without the lead, against E33’s 7,549 for the same 8 bars, 42 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 4,793 characters a section, 4,335 without the lead, against E33’s 7,549 for the same 8 bars, 43 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 308881,
+      total: 306747,
       meter: 2456,
       key: 1436,
       harmony: 7133,
-      drums: 198294,
+      drums: 196160,
       bass: 38407,
       comp: 28399,
       lead: 29277,
@@ -235,21 +235,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(4826);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(4369);
+    expect(Math.round(e35.total / 64)).toBe(4793);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(4335);
     expect(Math.round(e33.total / 64)).toBe(7549);
-    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(42);
+    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(43);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [36843, 33311],
-      Techno: [41341, 36257],
-      'Deep house': [44992, 40081],
-      Ambient: [22308, 21083],
-      'Lo-fi hip hop': [41301, 37271],
-      Funk: [49410, 47542],
-      'Bossa nova': [38512, 34845],
-      'Swing jazz': [34174, 29214],
+      'Synth-pop': [36562, 33030],
+      Techno: [41051, 35967],
+      'Deep house': [44711, 39800],
+      Ambient: [22139, 20914],
+      'Lo-fi hip hop': [41068, 37038],
+      Funk: [49042, 47174],
+      'Bossa nova': [38266, 34599],
+      'Swing jazz': [33908, 28948],
     });
   });
 
@@ -576,11 +576,11 @@ describe.runIf(process.env.E35_FULL)(
         [216, 0, 0],
       ]);
       const e35 = characters(sections.map((s) => s.text));
-      expect([e35.total, e35.lead]).toEqual([1268352, 122081]);
+      expect([e35.total, e35.lead]).toEqual([1259623, 122081]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
       expect(e33).toBe(2112582);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        3964, 3582, 6602,
+        3936, 3555, 6602,
       ]);
     });
   },

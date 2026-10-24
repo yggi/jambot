@@ -696,7 +696,8 @@ export function sectionAsCells(
     ...(drums.terms.length
       ? [{ part: 'drums' as const, text: `&drums [${drums.terms.join(', ')}]` }]
       : []),
-    ...drums.voices.map((voice) => ({ part: 'drums' as const, text: `&${voice} s=white` })),
+    // (the drums' voices are the core kit's, which every one the band strikes is: cells' instrument fragment, yggi/cells#260)
+    ...(drums.voices.length ? [{ part: 'drums' as const, text: 'use "core kit"' }] : []),
   );
   const outs: Partial<Record<PitchedName, true>> = {};
   const state = (
