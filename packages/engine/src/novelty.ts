@@ -25,9 +25,10 @@
  * clave free. The variation keeps it, as it keeps the kick and the backbeat,
  * so what a section varies is the drum bar's own lines.
  *
- * **Boredom** (until the homeostat's controller drives the ladder from the
- * share of bars recognised, #237, which `recognised.ts` measures and nothing
- * here reads yet, E44): the composer keeps, for each rhythm it played lately and its family (a
+ * **Boredom** (counted by the entropy the band plays at, which the
+ * homeostat's controller leans from the share of bars recognised where a
+ * host runs it, #237, `homeostat.ts`, E45; this count's rate alone moves
+ * the share by under 0.01, so the controller leans the band's whole entropy): the composer keeps, for each rhythm it played lately and its family (a
  * `Lineage`: the rhythm it varies, named in the layer under `varies`,
  * followed back to the first, a seed rhythm or a groove filed, and every
  * variation of that one, `familyOf`), how bored it is. A section the
@@ -118,8 +119,8 @@ export const PULL_AT_REPEAT = 0.2;
 /**
  * The pull of use together from the composer's place on the ladder (#389,
  * decision 043's point 5: strong to repeat and vary, weak or none to fetch
- * nearby and far), which entropy sets until the homeostat's controller
- * drives the ladder from the share recognised (#237, E44): from `PULL_AT_REPEAT` at entropy 0 down to none at 1,
+ * nearby and far), which the entropy the band plays at sets, as the
+ * homeostat's controller leans it where a host runs it (#237, `homeostat.ts`): from `PULL_AT_REPEAT` at entropy 0 down to none at 1,
  * in a line, so entropy 0.5 pulls as cells does where it is told nothing;
  * on the draws' grid.
  */

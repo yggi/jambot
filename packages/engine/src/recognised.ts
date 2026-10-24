@@ -37,7 +37,17 @@
  * in; over all members, pooled, every member's bar played counting once. A
  * window none played in has no share. Over all members is the share the
  * homeostat controls (E44: each member's alone is pinned at 0 or 1 in most
- * sections). Pure: the recogniser is cells'.
+ * sections).
+ *
+ * **What it played lately** (`Lately`, E45): the controller (`homeostat.ts`)
+ * hears each bar against the member's library and what it played lately as
+ * well (`playedInto`: its last eight texts, and the harmony's last two
+ * themes, heard once a section by `heardTexts`), since what a listener has
+ * just heard is what is familiar. Against the library alone the band left
+ * alone sits at 0.134 over all members and entropy barely moves it (E44);
+ * with what it played lately it sits at 0.68 at entropy 0.3 and falls as
+ * its entropy rises, which is what the controller leans (E45). Pure: the
+ * recogniser is cells'.
  */
 
 import { stepsOf } from '@jambot/theory';
@@ -86,11 +96,46 @@ export const NOTHING_RECOGNISED: RecognitionWindow = [];
 const isOf = (facet: LoopFacet) => (fragment: Fragment) =>
   fragment.association.some((p) => p.facet === facet);
 
-/** A member's library: cells' seed fragments of its facet, then those the layer filed as it, in the layer's order. */
-export function libraryOf(facet: LoopFacet, layer?: LearnedLayer): Fragment[] {
+/**
+ * What each member played lately, as cells text, oldest first: a member's
+ * last `SHARE_BARS` texts, and the harmony's last `LATELY_THEMES` themes.
+ */
+export type Lately = Readonly<Record<LoopFacet, readonly string[]>>;
+
+/** Nothing played yet. */
+export const NOTHING_LATELY: Lately = { rhythm: [], bass: [], lead: [], harmony: [] };
+
+/** The themes the harmony is heard against: the last two sections', so a theme that returns after one between is heard as the one before. */
+export const LATELY_THEMES = 2;
+
+/** What each member played lately with a bar's texts played last (`heardTexts`). */
+export function playedInto(lately: Lately, texts: BarTexts): Lately {
+  const out: Record<LoopFacet, readonly string[]> = { ...lately };
+  for (const facet of LOOP_FACETS) {
+    const text = texts[facet];
+    if (text !== undefined)
+      out[facet] = [...lately[facet], text].slice(
+        -(facet === 'harmony' ? LATELY_THEMES : SHARE_BARS),
+      );
+  }
+  return out;
+}
+
+/**
+ * A member's library: cells' seed fragments of its facet, then those the
+ * layer filed as it, in the layer's order; then, where `lately` is given,
+ * each text it played lately once, as the workbench the band plays from
+ * (#237's controller, E45: what a listener has just heard is what is known).
+ */
+export function libraryOf(facet: LoopFacet, layer?: LearnedLayer, lately?: Lately): Fragment[] {
   return [
     ...SEED_FRAGMENTS.filter(isOf(facet)),
     ...(layer?.filed ?? []).map((f) => f.fragment).filter(isOf(facet)),
+    ...[...new Set(lately?.[facet] ?? [])].map((text, i) => ({
+      id: `lately ${facet} ${i}`,
+      text,
+      association: [],
+    })),
   ];
 }
 
@@ -143,10 +188,11 @@ export function recogniseOptionsOf(facet: LoopFacet, bench: Bench): RecogniseOpt
 }
 
 /**
- * Whether each member that stated a bar is recognised among its library,
- * on the bench: by cells' recogniser, under `recogniseOptionsOf`, with as
- * many notes differing as `tolerance` (a whole number; 0, exactly, by
- * default). A member on a bench with no workbench is not recognised.
+ * Whether each member that stated a bar is recognised among its library
+ * (with what it played `lately`, where given), on the bench: by cells'
+ * recogniser, under `recogniseOptionsOf`, with as many notes differing as
+ * `tolerance` (a whole number; 0, exactly, by default). A member on a bench
+ * with no workbench is not recognised.
  */
 export function recognisedBar(
   recogniser: Recogniser,
@@ -154,6 +200,7 @@ export function recognisedBar(
   bench: Bench,
   layer?: LearnedLayer,
   tolerance = 0,
+  lately?: Lately,
 ): BarRecognition {
   const out: Partial<Record<LoopFacet, boolean>> = {};
   for (const facet of LOOP_FACETS) {
@@ -162,7 +209,8 @@ export function recognisedBar(
     const options = recogniseOptionsOf(facet, bench);
     out[facet] =
       options !== null &&
-      recogniser.recognise(text, libraryOf(facet, layer), { ...options, tolerance }).length > 0;
+      recogniser.recognise(text, libraryOf(facet, layer, lately), { ...options, tolerance })
+        .length > 0;
   }
   return out;
 }
@@ -204,6 +252,16 @@ export function barTexts(bar: BandBar): BarTexts {
   const slots = themeSlots(bar.plan.theme);
   if (slots) out.harmony = progressionText(slots);
   return out;
+}
+
+/**
+ * What each member played in a bar as the homeostat hears it (`barTexts`),
+ * the theme only at its section's first bar: a progression is a section's,
+ * so it is heard once a section, against the sections before (`LATELY_THEMES`).
+ */
+export function heardTexts(bar: BandBar): BarTexts {
+  const { harmony, ...texts } = barTexts(bar);
+  return bar.barInSection === 0 && harmony !== undefined ? { ...texts, harmony } : texts;
 }
 
 /** The window with a bar's recognition heard last: the last `SHARE_BARS` bars. */

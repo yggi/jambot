@@ -258,7 +258,7 @@ export interface Against {
 
 /** Where the sections' shares (`over`) of these runs sit against `band`, pooled. */
 export function against(
-  runs: readonly SensedRun[],
+  runs: readonly Pick<SensedRun, 'sections'>[],
   over: Over,
   band: { readonly low: number; readonly high: number } = BAND,
 ): Against {
