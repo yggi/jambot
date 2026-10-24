@@ -882,23 +882,23 @@ run; the others have.
     | member      | held: mean | spread | inside | pinned | walked: mean | spread | inside | pinned |
     | ----------- | ---------- | ------ | ------ | ------ | ------------ | ------ | ------ | ------ |
     | drums       | 0.002      | 0.016  | 0 %    | 98 %   | 0.012        | 0.089  | 0.6 %  | 97 %   |
-    | bass        | 0.173      | 0.305  | 7.8 %  | 71 %   | 0.128        | 0.268  | 6.4 %  | 77 %   |
+    | bass        | 0.220      | 0.375  | 0.8 %  | 78 %   | 0.209        | 0.360  | 4.5 %  | 79 %   |
     | lead        | 0          | 0      | 0 %    | 100 %  | 0            | 0      | 0 %    | 100 %  |
     | harmony     | 0.288      | 0.453  | 0 %    | 100 %  | 0.288        | 0.453  | 0 %    | 100 %  |
-    | all, pooled | 0.118      | 0.143  | 4.7 %  | 50 %   | 0.103        | 0.142  | 4.1 %  | 58 %   |
+    | all, pooled | 0.134      | 0.161  | 7.0 %  | 49 %   | 0.127        | 0.161  | 7.0 %  | 53 %   |
 
-    Over all members it sits under the band in 95.3 % of sections held and 95.9 % walked, and above it in none: the sensor reads the band left alone as confusing, in every preset.
-    By preset, over all members, held (walked): Techno 0.36 (0.33), inside the band in 38 % (25 %) of its sections; Funk 0.26 (0.26); Swing jazz 0.19 (0.09); Ambient 0.09 (0.10); Synth-pop, Deep house, Lo-fi hip hop and Bossa nova 0.02 or less.
+    Over all members it sits under the band in 93 % of sections held and walked (119 of 128, 476 of 512), and above it in none: the sensor reads the band left alone as confusing, in every preset.
+    By preset, over all members, held (walked): Techno 0.37 (0.36), inside the band in 44 % (36 %) of its sections; Swing jazz 0.29 (0.19); Funk 0.27 (0.28); Ambient 0.09 (0.10); Synth-pop, Deep house, Lo-fi hip hop and Bossa nova 0.02 or less held (Bossa nova 0.05 walked).
 
   - **Why so low, by member**:
     the drummer plays its fragment's hits as it decides how many (`groove.ts`: the fragment says only where), so its bar is a fragment thinned and joined by its own lines (a Euclid on the rim, fills on its own), several notes from any fragment or one operator of it, and is almost never recognised, even where the Muse filed the drummer's own groove;
     the lead has no seed line in cells, and with nobody playing files none (its own are filed only where a player answered, #424), so its library is empty;
     a harmony is one text a section, so its share is a section's 0 or 1: 1 where the theme is a seed vamp (Techno, Funk), 0 where the tables walk, and none stated where a theme leads to a secondary dominant (Bossa nova and Swing jazz, most sections);
-    the bass's line is recognised where it plays a seed line as the seed states it (Techno, Ambient, Swing jazz's walk), and not where the bass decides its own notes over it.
+    the bass's line is recognised where it plays a seed line as the seed states it or bent or trimmed by one of cells' pitched operators (Techno, Ambient, Swing jazz's walk), and not where the bass decides its own notes over it; `bend` and `trim` (cells v0.10.1) raise its share from 0.173 to 0.220 held and from 0.128 to 0.209 walked.
   - **Per member or over all members**: over all members, pooled.
-    Each member's share is pinned at 0 or 1 in 71 % to 100 % of its sections (the lead and the harmony by construction), so it says little a ladder could move; over all members the share is pinned in 50 % (58 % walked) and moves between, the one with a spread to control.
-  - **Entropy** barely moves it: over all members 0.124, 0.118 and 0.113 held at 0.1, 0.3 and 0.6, and 0.113, 0.103 and 0.101 walked, so a band widening with entropy has nothing yet to be placed on.
-  - **Tolerance** (held at 0.3, over all members): 0.118 at 0, 0.131 at 1 note, 0.183 at 2 and 0.376 at 4, where 44.5 % of sections are inside the band and 2.3 % pinned; at 4 the bass is above the band in 80 % of its sections and the drums reach 0.17.
+    Each member's share is pinned at 0 or 1 in 78 % to 100 % of its sections (the lead and the harmony by construction), so it says little a ladder could move; over all members the share is pinned in 49 % (53 % walked) and moves between, the one with a spread to control.
+  - **Entropy** barely moves it: over all members 0.142, 0.134 and 0.130 held at 0.1, 0.3 and 0.6, and 0.134, 0.127 and 0.114 walked, so a band widening with entropy has nothing yet to be placed on.
+  - **Tolerance** (held at 0.3, over all members): 0.134 at 0, 0.155 at 1 note, 0.214 at 2 and 0.406 at 4, where 50 % of sections are inside the band and 0.8 % pinned; at 4 the bass is above the band in 92 % of its sections and the drums reach 0.17.
     A tolerance from the licence is #237's step 1, not built; this says where it would move the share.
   - **The cost** (Node, a shared container; the recogniser warmed on every member's seeds on every bench, as a page warms at idle, so a bar compiles only its heard texts, one a member): a bar's recognition of every member takes 6.6 ms at p95 held and 6.7 ms walked (max 105 and 84 ms, single bars; no worse on a bar after a filing), over the ruled 2 ms.
     The drums' one compile is most of it (3.4 ms at p95 held, 5.1 ms walked); the bass 0.8 to 0.9 ms, the lead 0.7 ms, the harmony 0.5 ms; a tolerance of 1 to 4 costs about the same.

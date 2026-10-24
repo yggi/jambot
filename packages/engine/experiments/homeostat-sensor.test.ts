@@ -82,14 +82,14 @@ const fixed = (a: ReturnType<typeof against>) =>
   [a.sections, a.mean, a.spread, a.inside, a.pinned].map((x) => Number(x.toFixed(3)));
 
 describe('the share of bars recognised over 8 bars, over the 8 presets at entropy 0.3 (E44, #237)', () => {
-  it('sits below the ruled band over all members, held and walked: 95 % of sections or more under 0.4', () => {
+  it('sits below the ruled band over all members, held and walked: 92 % of sections or more under 0.4 (119 of 128 held)', () => {
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
-    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.118, 0.143, 0.047, 0.5]);
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.103, 0.142, 0.041, 0.584]);
+    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.134, 0.161, 0.07, 0.492]);
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.127, 0.161, 0.07, 0.533]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeLessThan(BAND.low);
-      expect(all.below).toBeGreaterThanOrEqual(0.95);
+      expect(all.below).toBeGreaterThanOrEqual(0.92);
     }
   });
 
@@ -121,12 +121,12 @@ describe('the share over entropy and tolerance (E44, #237)', () => {
         ).toBeLessThan(0.03);
   });
 
-  it('rises with the tolerance, to 44.5 % of sections inside the band at 4 notes, over all members (held at 0.3)', () => {
+  it('rises with the tolerance, to 50 % of sections inside the band at 4 notes, over all members (held at 0.3)', () => {
     const means = [held[0.3]!, ...TOLERANCES.map((t) => tolerant[t]!)].map((r) =>
       Number(against(r, 'all').mean.toFixed(3)),
     );
-    expect(means).toEqual([0.118, 0.131, 0.183, 0.376]);
-    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.376, 0.191, 0.445, 0.023]);
+    expect(means).toEqual([0.134, 0.155, 0.214, 0.406]);
+    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.406, 0.174, 0.5, 0.008]);
   });
 });
 
