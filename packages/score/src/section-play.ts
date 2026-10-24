@@ -38,6 +38,7 @@ import {
 } from '@jambot/engine';
 import { type Meter, formatNumeral, joinChord, stepsOf } from '@jambot/theory';
 import { type Plan, planOf, windowAt } from '@yggi/cells';
+import { resolveSeed } from '@yggi/cells/repository/library';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { heldAt } from '@yggi/cells/engine/series';
 import {
@@ -146,8 +147,12 @@ export interface SectionFrame {
   readonly plan: { readonly key: Key };
 }
 
-/** A section's text compiled with the reading's own lines beside it: what `playSection` plays. */
-export const compileSection = (text: string): Plan => planOf(`${text}\n${READING}`);
+/**
+ * A section's text compiled with the reading's own lines beside it: what `playSection` plays. Its `use` lines (the
+ * drums' `use "core kit"`) read through cells' seed library (`resolveSeed`, cells v0.10.1's engine host).
+ */
+export const compileSection = (text: string): Plan =>
+  planOf(`${text}\n${READING}`, undefined, { resolve: resolveSeed });
 
 /**
  * A section's text played through cells' MIDI out, read back bar by bar

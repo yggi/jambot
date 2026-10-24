@@ -361,7 +361,7 @@ run; the others have.
   - Not measured: another player, another browser, a touch screen, audio latency by a loopback, and whether a hand follows the band the same way as it follows a metronome.
 - **E22. The loop closed with no players** (Q7b, Q12; #237 step 0), in
   [`packages/engine/experiments/loop.ts`](../packages/engine/experiments/loop.ts)
-  (about 60 s with its variants and rates; its test, a sample, about 5 s): the Muse hears the band's own lead as she hears a player, and her offer goes back into the band with F7's delay, so what she hears in bar k plays from bar k + 2.
+  (about 95 s with its variants, rates and trims; its test, a sample, about 10 s): the Muse hears the band's own lead as she hears a player, and her offer goes back into the band with F7's delay, so what she hears in bar k plays from bar k + 2.
   - Two conditions over the same seeds: deaf, the band as it plays alone today, a Muse listening beside it whose offer is not fed back; and hearing, the loop closed.
   - Every preset at entropy 0, 0.3, 0.6 and 1, 3 seeds of 128 bars; the presets ordered by their harmony, which sets the licence's reach (Techno the narrowest, Swing jazz the widest).
   - The lead's notes are on the grid, so the nearest step reads each bar as the transport's phrase reading does, which the test holds on a sample.
@@ -421,7 +421,40 @@ run; the others have.
     - So no preset turned confusing by p = 2, and the edge lies past it.
   - The rate thins the lead, since one of its variations drops a note: over bars 32 to 127 of the same runs, the lead plays 4.3 to 5.7 notes a bar at p = 0 in every preset but Ambient (3.8) and Bossa nova (3.0), and 2.3 to 2.9 at p = 2 in all of them (Deep house 5.0 to 2.9).
     So Deep house's preference for p = 2 doesn't yet separate more variation from fewer notes a motif.
-  - Not measured: weights for the band's voices beside the players', since no players play here; the style's distance over time, which needs the critic (#15); where past p = 2 the loop turns confusing; and the length of a motif apart from its variation.
+  - The length apart from the variation (`TRIMS`, #237 step 0b): the lead trims the offer to its first k notes (`trimmed`, `head`, which draws nothing) and then varies it at p, for k = 2, 3 and 4 at p = 0 and 1.
+    So p = 0 k = 3 is a motif of three notes that copies itself, and p = 1 k = 3 the same varied once a bar; a k past every motif's notes plays as its rate, which the test holds.
+    Beside them, the rates past 2 (`PAST`: 2.5, 3 and 4).
+    Over every preset at entropy 0.3, 3 seeds of 128 bars, the range over the presets (motif bars: the bars the Muse judges a motif; lead notes from bar 32):
+
+    | condition | motif bars | recognised | exact   | A B A B | distinct | lead notes a bar |
+    | --------- | ---------- | ---------- | ------- | ------- | -------- | ---------------- |
+    | p = 0     | 62–94%     | 86–92%     | 86–100% | 50–65%  | 7–11     | 3.0–5.7          |
+    | p=0 k=4   | 62–94%     | 85–90%     | 79–100% | 46–59%  | 8–12     | 3.0–4.0          |
+    | p=0 k=3   | 62–94%     | 85–92%     | 79–100% | 41–64%  | 8–13     | 2.4–3.0          |
+    | p=0 k=2   | 1–2%       | 0–17%      | 0%      | 0%      | 2        | 1.6–2.0          |
+    | p = 1     | 56–90%     | 62–74%     | 46–57%  | 12–17%  | 24–49    | 2.8–4.1          |
+    | p=1 k=4   | 52–84%     | 65–74%     | 46–56%  | 13–18%  | 24–35    | 2.3–3.3          |
+    | p=1 k=3   | 50–78%     | 68–74%     | 46–57%  | 11–17%  | 21–27    | 2.2–2.8          |
+    | p=1 k=2   | 1–2%       | 0–17%      | 0%      | 0%      | 2        | 1.6–2.0          |
+    | p = 2     | 45–71%     | 52–62%     | 49–63%  | 4–10%   | 24–45    | 2.3–2.9          |
+    | p = 2.5   | 41–65%     | 46–57%     | 43–60%  | 5–11%   | 29–49    | 2.2–2.9          |
+    | p = 3     | 34–57%     | 40–46%     | 46–56%  | 5–8%    | 25–44    | 2.1–2.7          |
+    | p = 4     | 31–45%     | 26–41%     | 39–73%  | 0–8%    | 25–36    | 2.1–2.4          |
+    - The trim holds the length where the variation moved it: at p = 0 the lead plays k notes a bar wherever its motifs had more (3.0 at k = 3 in every preset but Ambient, 2.4), and Bossa nova, whose motifs have three, plays the same at k = 4 as untrimmed.
+    - A short motif alone doesn't loosen the lock: at p = 0 k = 3 the Muse still recognises 85 to 92% of the bars, as at p = 0, mostly as exact repeats, with A B A B at 41 to 64%.
+    - At p = 1, k = 3 thins the lead to p = 2's length with one variation a bar: Deep house plays 2.8 notes a bar at p = 1 k = 3, 2.9 at p = 2 and 3.0 at p = 0 k = 3, and Swing jazz 2.8, 2.9 and 3.0.
+      By the Muse's measures p = 1 k = 3 sits with p = 1, not with p = 2: it recognises 68 to 74% of the bars (Deep house 70.9%, against 64.1% at p = 1 and 55.7% at p = 2), and A B A B is 11 to 17%.
+      So what p = 2 does to recognition is the second variation's, not the shorter motif's; whether the ear hears Deep house's preference so is the owner's to say.
+    - k = 2 opens the loop: the Muse judges a bar of fewer than three notes too few (`muse.ts`), so she hears 1 to 2% of the bars as motifs, and the lead plays two notes in every bar from bar 32 on, at p = 0 and p = 1 alike.
+      Three notes is the shortest motif the loop can hear.
+    - Past p = 2 the stacked variations drop notes until a bar has two, which the Muse doesn't hear as a motif.
+      Over every preset, every bar from bar 32 that is neither a motif nor silent has fewer than three notes: 28% of the bars at p = 2, 46% at 3 and 56% at 4.
+      So the motif bars fall with p (Kendall's tau −1 from 2 to 4 at the licence's ends, which the test holds), and from p = 3 the recognised share is below the deaf band's in every preset.
+      The lead thins only to 2.1 to 2.9 notes a bar, since a variation drops a note only from three or more.
+      Past 2, then, the measures fall partly because the Muse stops hearing the thinned bars, not only because the variation outruns her recognition: the confusing edge found by p is confounded with the length, as Deep house's preference was.
+    - The renders of seed 1's bars 32 to 47 (Deep house and Swing jazz at each trim beside p = 0, 1 and 2; Swing jazz at 1.5, 2, 2.5, 3 and 4) are with the owner, whose ear places the length and the confusing edge (#237).
+
+  - Not measured: weights for the band's voices beside the players', since no players play here; the style's distance over time, which needs the critic (#15); and where past p = 2 the loop turns confusing at a length the Muse can hear, which needs a variation that keeps three notes.
 
 - **E23. The style read back from the notes it wrote** (#15 step 2, F3 at the style level, N3), in
   [`packages/engine/experiments/style-readback.ts`](../packages/engine/experiments/style-readback.ts),
@@ -677,8 +710,8 @@ run; the others have.
     Where the plan's scale is a pentatonic or the blues, it is one line, a stack of the key's degrees open on the key (`&melo over=key step=1m [0,2,3,4b,4,6]`, the blues in A aeolian), and the lead reads it as the chord in force is read, an index a tone and a lap the key's seven degrees.
     A probe off the corpus, the players wishing for each scale a preset's harmony reaches (8 runs at seed 1, 512 bars), plays every bar equal, 50 of its 56 lead lines over the scale and 26 notes with an accidental on their index.
     Over all 48 keys of the composer's four modes, cells plays every note of the lead's range, 60 to 86, over the key, and every note of the key over each scale's stack: 3,915 notes.
-  - **Characters**: 3,964 a section, 3,582 without the lead, against E33's 6,602 for the same 8 bars each stated alone (1,146,271 against 2,112,582 over the corpus, 46 % fewer; the lead adds 122,081).
-    By part at seed 1, against E33's: the meter 2,456 and 19,648, the key 1,436 and 11,488, the harmony 7,133 and 17,811, the card 3,479 and 24,066, the drums 198,294 and 251,231, the bass 38,407 and 90,065, the comp 28,399 and 68,839.
+  - **Characters**: 3,936 a section, 3,555 without the lead, against E33's 6,602 for the same 8 bars each stated alone (1,259,623 against 2,112,582 over the corpus, 46 % fewer; the lead adds 122,081; the drums' voices are one `use "core kit"` line since cells v0.10.1).
+    By part at seed 1, against E33's: the meter 2,456 and 19,648, the key 1,436 and 11,488, the harmony 7,133 and 17,811, the card 3,479 and 24,066, the drums 196,160 and 251,231, the bass 38,407 and 90,065, the comp 28,399 and 68,839.
     What a bar's text repeats, the host's lines, the harmony, the voices, the mix, the card and each line's head, gate and voice, a section's says once.
   - **The chord in force**: 682 of the 727 bass, pad and stab lines read it (gap 3 has the rest).
     Swing jazz's breakdown bass at seed 5 (sections 3 and 6), held 0.3 of a step short of each written length, sounds two shares of it, stated as a line of them, `legato=&bassShare` and `&bassShare step=16n .98125@16 … .9625@8`, which cells reads at each onset.
@@ -728,6 +761,7 @@ run; the others have.
     With no learned layer, use together pulls nothing (the layer's store is #398).
   - **The point asked at**: at the section's energy in place of the style's, 57 of the 320 sections take another fragment, 40 of them a clave alone, with no band role (Bossa nova's intros, builds, bridges and breakdowns, Funk's drops and breakdowns, Lo-fi hip hop's breakdowns), and 17 a neighbour's drum bar (Synth-pop's drops take Deep house's).
   - **The cost**, the median over seed 1's 64 sections: 0.006 to 0.013 ms with no workbench or with one the repository has seen, 2.0 to 3.4 ms with one it hasn't (a new repository a query, k = 1), under #397's 1 ms and 5 ms (yggi/cells#148: 0.2 ms, and 3 to 5 ms).
+    The bounds are wall-clock time, so they run with `E36_COST=1`, not in `pnpm verify`: on a shared CI runner the unseen median reads 5.0 to 5.2 ms.
   - The proposal for #397's step 2, with these numbers, is on the issue.
   - Not measured: the radio's walk (presets are held, so a section's point is a drum bar's own), a learned layer or a filed fragment, a rhythm held against a nearer one between sections (as `METER_HOLD` holds a meter), how any entry sounds (none is built), and a clave's level against the drummer's accents.
 - **E37. The composer asks the repository for its rhythm while the radio walks** (#397, step 2; E34's walk, on the owner's ruling of E36), in
@@ -802,8 +836,8 @@ run; the others have.
     Off a chord change the bass keeps the octave it draws one step in four on a line's note, but not the fifth it draws one in five: the line says the tone; the walk is one of the walks `bass.ts` draws (up through the chord, the approach from below), so Swing jazz keeps every onset and under a third of its notes.
 
   - **Walked** (E37's runs, the radio at entropy 0.3 from each preset, 40 runs of an hour, 8,508 sections, learning from an empty layer):
-    the run's most used line plays 4,048 sections, 47.6 %, under #423's 60 %; the share of sections among a run's 3 most used lines moves −4.3 points (1.0 error), within 5 with twice its error; 105 lines filed (16 the bass's own on a miss, 89 the composer's variations), each read back as filed; 18 sections play the bass's own (none with nothing learned, where no line is rejected).
-  - **Three hours** (E38's runs with the bass lines): the layer weighs at most 15,044 bytes (15,583 before cells v0.10.0, whose lines and grooves state no voices), under `LAYER_CAP` (16,000), its cap dropping nothing in any section; E39's most used groove plays 1,661 of 3,222 sections, 51.6 %, as without the bass.
+    the run's most used line plays 4,028 sections, 47.3 %, under #423's 60 %; the share of sections among a run's 3 most used lines moves −4.3 points (1.0 error), within 5 with twice its error; 108 lines filed (17 the bass's own on a miss, 91 the composer's variations, by cells' five pitched operators since v0.10.1: transpose, invert, reverse, bend and trim), each read back as filed; 18 sections play the bass's own (none with nothing learned, where no line is rejected).
+  - **Three hours** (E38's runs with the bass lines): the layer weighs at most 15,035 bytes (15,583 before cells v0.10.0, whose lines and grooves state no voices), under `LAYER_CAP` (16,000), its cap dropping nothing in any section; E39's most used groove plays 1,661 of 3,222 sections, 51.6 %, as without the bass.
   - **The cost** (Node, a shared container, warmed as the app warms it): the warm-up's 55 steps (a line read, or its variations) take at most 4.1 ms each, under the 25 ms a slice starts a step in; an ask of the bass lines takes 0.02 ms at p95 and 1.8 ms at most, under #412's 5 ms.
   - Not measured: entropy other than 0 held and 0.3 walked, a player's bass on the walks (none plays), and how any of it sounds: the owner's ear rules on the held movement before merge (#423).
 
@@ -815,7 +849,7 @@ run; the others have.
     8,413 sections play a lead line, and the lead its own in 95 (with nothing learned, in all of them); the run's most used line plays 3,021, 35.9 % of those that play one, under #424's 60 %.
     The share of sections among a run's 3 most used lead lines moves −20.4 points (1.8 error), within 5 with twice its error; with nothing learned the lead plays its own every section, which counts as one, so this share can only fall, and the bound says little here.
     2,322 filings: 332 of the player's lines new, 38 of the lead's own the player answered, 160 of the composer's variations (lift or turn over), 1,792 a line held already (identity); each new one reads back as filed.
-  - **Three hours** (one seed a preset, 8 runs, 5,252 sections; forty take five minutes): the layer reaches its cap with the drums, the bass and the lead filing, at most 15,990 bytes, under `LAYER_CAP` (16,000), its cap dropping the oldest in 29 sections; a lead line weighs about 380 bytes, its voice and card a sixth of it. The most used lead line plays 27.6 % of the sections that play one.
+  - **Three hours** (one seed a preset, 8 runs, 5,252 sections; forty take five minutes): the layer reaches its cap with the drums, the bass and the lead filing, at most 15,996 bytes, under `LAYER_CAP` (16,000), its cap dropping the oldest in 31 sections; a lead line weighs about 380 bytes, its voice and card a sixth of it. The most used lead line plays 27.6 % of the sections that play one.
   - **The cost** (Node, a shared container) with the heaviest layer's 23 lead lines: the warm-up's 88 steps take at most 1.6 ms each, under a slice's 50 ms; an ask of the lead lines takes 0.11 ms at p95 and 0.8 ms at most, under #424's 5 ms.
   - Not measured: entropy other than 0.3 walked, players other than this one, a player's motif bent off the key (which cells doesn't vary), and how any of it sounds.
 

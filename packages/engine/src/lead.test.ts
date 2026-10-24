@@ -14,13 +14,14 @@ import {
 } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
-import { chordAt } from './chords.ts';
+import { chordAt, chordsOn } from './chords.ts';
 import { writtenProblems } from './events.ts';
 import { COMPOSER_MODES, type Key, MELODIC_SCALES, keyHelix, melodicHelix } from './key.ts';
 import recorded from './lead.fixture.json';
 import {
   LEAD_RANGE,
   type LeadCarried,
+  fit,
   lead,
   leadRests,
   motifInBar,
@@ -367,6 +368,46 @@ const recording = () =>
       ),
     ]),
   );
+
+describe('the fit (#378)', () => {
+  // Every note of the lead's range on every step of every bar of the tour,
+  // which crosses every preset and its chords.
+  const cases = tour(1).map((bar) => {
+    const chords = chordsOn(bar.chords, bar.meter);
+    const steps = range(stepsOf(bar.meter));
+    const heard = steps.flatMap((step) =>
+      range(LEAD_RANGE[1] - LEAD_RANGE[0] + 1).map((n) => ({ step, note: LEAD_RANGE[0] + n })),
+    );
+    return { bar, chords, steps, heard };
+  });
+
+  it('moves a note on a snapping step to the nearest tone of its chord, within a tritone', () => {
+    for (const { chords, steps, heard } of cases) {
+      const fitted = fit(heard, chords, steps);
+      heard.forEach(({ step, note }, i) => {
+        const tones = joinChord(chordAt(chords, step).chord).map((x) => wrap(x, 12));
+        const moved = fitted[i]!;
+        expect(tones).toContain(wrap(moved, 12));
+        expect(Math.abs(moved - note)).toBeLessThanOrEqual(6);
+        const nearer = range(Math.abs(moved - note)).some((d) =>
+          [note - d, note + d].some((n) => tones.includes(wrap(n, 12))),
+        );
+        expect(nearer).toBe(false);
+      });
+    }
+  });
+
+  it('leaves every note off its snapping steps as realized', () => {
+    for (const { bar, chords, heard } of cases) {
+      const { snap: snapped } = phraseParams(bar);
+      const fitted = fit(heard, chords, snapped);
+      heard.forEach(({ step, note }, i) => {
+        if (!snapped.includes(step)) expect(fitted[i]).toBe(note);
+      });
+      expect(fit(heard, chords, [])).toEqual(heard.map((h) => h.note));
+    }
+  });
+});
 
 describe('what the lead writes', () => {
   it('is the recorded notes, note for note, over every preset, three seeds and 32 bars', () => {

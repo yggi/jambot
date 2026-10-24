@@ -29,6 +29,7 @@ How a gate is shown to fire, and the checks that back the house rules.
   Vitest takes a worker for every core (`maxWorkers` in the root config), since `pnpm verify` runs the tests alone.
 - A bound on what a run did is counted in bars, steps or ticks of its own clock, never in wall-clock time (#471).
   The shadow's tests time a text's arrival on the run's clock (`page` in `shadow.test.ts`), and the 7/8 end-to-end check waits for bars of 7/8 laid, not for 14 s (#470).
+  A bound on how long code takes is wall-clock time by nature, so it runs only when asked: E36's query cost with `E36_COST=1`, which a shared CI runner read at 5.16 ms against its 5 ms with nothing wrong.
   Fake timers change nothing there, since the player's tests already drive their own clock.
 - A sweep of two axes on a grid of 60ths against every style of `EVERY` is more work than a check needs: sweep the plane over the presets' styles, and show that nothing else is read over `EVERY` once (`licence.test.ts`).
 

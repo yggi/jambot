@@ -104,14 +104,14 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       }
   });
 
-  it('reads every variation cells makes of the seeds by its pitched operators (24 of them in 4/4) as cells plays it', () => {
+  it('reads every variation cells makes of the seeds by its pitched operators (44 of them in 4/4, bend and trim among them since cells v0.10.1) as cells plays it', () => {
     const all = BASS_FRAGMENTS.flatMap((f) =>
       variations(f.text, {
         workbench: `${readingBench('4/4')}\n${BASS}`,
         operators: PITCHED_OPERATORS,
       }).map((v) => ({ id: `${f.id}: ${v.by}`, text: v.apply(f.text) })),
     );
-    expect(all).toHaveLength(24);
+    expect(all).toHaveLength(44);
     for (const { id, text } of all)
       expect(bandPlays(readLine(text, METERS['4/4'])!, METERS['4/4'], 4), id).toEqual(
         cellsPlays(text, '4/4', 4),
@@ -265,6 +265,11 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       'transpose &bass 2',
       'invert &bass',
       'reverse &bass',
+      'bend &bass -2',
+      'bend &bass -1',
+      'bend &bass 1',
+      'bend &bass 2',
+      'trim &bass 3',
     ]);
   });
 });
