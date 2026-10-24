@@ -728,6 +728,7 @@ run; the others have.
     With no learned layer, use together pulls nothing (the layer's store is #398).
   - **The point asked at**: at the section's energy in place of the style's, 57 of the 320 sections take another fragment, 40 of them a clave alone, with no band role (Bossa nova's intros, builds, bridges and breakdowns, Funk's drops and breakdowns, Lo-fi hip hop's breakdowns), and 17 a neighbour's drum bar (Synth-pop's drops take Deep house's).
   - **The cost**, the median over seed 1's 64 sections: 0.006 to 0.013 ms with no workbench or with one the repository has seen, 2.0 to 3.4 ms with one it hasn't (a new repository a query, k = 1), under #397's 1 ms and 5 ms (yggi/cells#148: 0.2 ms, and 3 to 5 ms).
+    The bounds are wall-clock time, so they run with `E36_COST=1`, not in `pnpm verify`: on a shared CI runner the unseen median reads 5.0 to 5.2 ms.
   - The proposal for #397's step 2, with these numbers, is on the issue.
   - Not measured: the radio's walk (presets are held, so a section's point is a drum bar's own), a learned layer or a filed fragment, a rhythm held against a nearer one between sections (as `METER_HOLD` holds a meter), how any entry sounds (none is built), and a clave's level against the drummer's accents.
 - **E37. The composer asks the repository for its rhythm while the radio walks** (#397, step 2; E34's walk, on the owner's ruling of E36), in
