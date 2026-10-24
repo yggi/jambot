@@ -31,12 +31,12 @@
  * once, and so does anything that isn't a person's stop: leaving a session,
  * following a host, or the host having stopped.
  *
- * Beside the band, alone or hosting, each section is written as one cells
- * text and played by cells' engine to a silent sink, and compared with what
- * the band sends (`shadow`, #399). With the switch on (`plays`) the outputs
- * play cells' events in place of the band's; a host then sends each text to
- * its clients (`Hosting.section`), and a client with the switch on plays the
- * texts it is sent as the host plays them (#446). What the outputs played is
+ * The band plays through cells (`shadow`, #399, #469): alone or hosting,
+ * each section is written as one cells text and played by cells' engine, and
+ * the outputs play cells' events, the band's own only in a gap, a bar cells
+ * states none of; a host sends each text to its clients (`Hosting.section`),
+ * and a client plays the texts it is sent as the host plays them (#446).
+ * What the outputs played is
  * kept, event by event (`played`), and what the transport dropped late
  * (#462), to set a client's beside its host's.
  *
@@ -181,7 +181,7 @@ import {
 } from './conductor.ts';
 import { Heard } from './heard.ts';
 import { type SectionTexts, browserTexts } from './section-texts.ts';
-import { type Plays, Shadow, type TextsFrom } from './shadow.ts';
+import { Shadow } from './shadow.ts';
 import { PlayedLog } from './played.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
@@ -240,7 +240,7 @@ export interface Hosting {
   muse(muse: MuseState): void;
   /** The song ends on this bar, its last, composed. */
   finale(bar: number): void;
-  /** A section's cells text, as the band through cells states it (#446): told only while it plays through cells. */
+  /** A section's cells text, as the band through cells states it (#446). */
   section(text: SectionText): void;
 }
 
@@ -474,12 +474,10 @@ export class Player {
    */
   skew = 0;
 
-  /** The band through cells, in shadow (#399): what it found is `shadow.readout`. */
+  /** The band through cells (#399, #469): how it played is `shadow.readout`. */
   readonly shadow: Shadow;
   /** What the outputs played lately, event by event (#446). */
   readonly played = new PlayedLog();
-  /** What the switch asks a solo band's outputs to play. */
-  #plays: Plays;
 
   #surroundings: Surroundings;
   /** Cells' rhythms, each groove filed warmed once it is (#412). */
@@ -563,8 +561,6 @@ export class Player {
     surroundings: Surroundings = browser,
     /** Clicks the steps laid, when it is on; this device's own. */
     metronome: Metronome | null = null,
-    /** Which events the band's outputs play: cells' (the switch of #399, on by default since #456), or its own. */
-    plays: Plays = 'cells',
   ) {
     this.#surroundings = surroundings;
     this.#rhythms = surroundings.warm
@@ -584,12 +580,9 @@ export class Player {
     surroundings.warm?.(BASS_REPOSITORY.warm?.(LINE_BENCHES) ?? []);
     surroundings.warm?.(HARMONY_REPOSITORY.warm?.(LINE_BENCHES) ?? []);
     this.#metronome = metronome;
-    this.#plays = plays;
-    this.shadow = new Shadow(() => surroundings.page() * 1000, plays, surroundings.texts?.());
+    this.shadow = new Shadow(() => surroundings.page() * 1000, surroundings.texts?.());
     // A host's band through cells tells its session each section's text as it takes it (#446).
-    this.shadow.told = (text) => {
-      if (this.#plays === 'cells') this.hosting?.section(text);
-    };
+    this.shadow.told = (text) => this.hosting?.section(text);
     this.#seed = surroundings.seed();
     this.#decide();
     void surroundings.layers?.load().then((layer) => {
@@ -928,7 +921,8 @@ export class Player {
   #begin(output: Output) {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
-    this.shadow.reset(this.#textsFrom());
+    // Its texts asked for from the band's own bars, alone or hosting; given by the host to a client (#446).
+    this.shadow.reset(this.#follow ? 'given' : 'asked');
     this.#heard.clear();
     this.#timing = TRANSPORT_TIMING;
     this.#laid = [];
@@ -947,15 +941,6 @@ export class Player {
     this.dropped = [];
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
     this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
-  }
-
-  /**
-   * Where a song's section texts come from: the band's own, asked for, alone
-   * or hosting; given by the host to a client that plays through cells (#446);
-   * none to one that doesn't.
-   */
-  #textsFrom(): TextsFrom {
-    return !this.#follow ? 'asked' : this.#plays === 'cells' ? 'given' : 'none';
   }
 
   /**
@@ -1059,8 +1044,7 @@ export class Player {
 
   /**
    * Where the song and the bars composed stand, for a client joining mid-song,
-   * and the section texts that state the bars not yet played, while the band
-   * plays through cells (#446).
+   * and the section texts that state the bars not yet played (#446).
    */
   get hosted(): { song: Song; bars: SentBar[]; texts: readonly SectionText[] } | null {
     const carried = this.#carried;
@@ -1081,10 +1065,7 @@ export class Player {
         clockOfTransport(carried),
         this.tempoMeter,
       ),
-      texts:
-        this.#plays === 'cells'
-          ? this.shadow.toldFrom(clockOfTransport(carried).barAt(carried.head.step))
-          : [],
+      texts: this.shadow.toldFrom(clockOfTransport(carried).barAt(carried.head.step)),
     };
   }
 
@@ -1391,7 +1372,7 @@ export class Player {
           players: this.players,
         });
     }
-    // The shadow writes and compares beside the band (#399); its events play with the switch on.
+    // The band plays through cells (#399, #469): the band's own events only in a gap.
     const played = this.shadow.tick({
       env: laidWith,
       next: this.#env,
@@ -1449,7 +1430,7 @@ export class Player {
       ends: follow.ends,
     });
     follow.carried = carried;
-    // With the switch on, the host's texts play through cells, the performer's feel on them, as at the host (#446).
+    // The host's texts play through cells, the performer's feel on them, as at the host (#446).
     const scheduled = this.shadow.follow({ env, carried: carried!, output: laid, now });
     if (scheduled.composed.length > 0)
       this.harmonicHistory = scheduled.composed.reduce(
