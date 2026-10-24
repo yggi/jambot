@@ -6,10 +6,14 @@ import {
   type LoopMeasure,
   VARIANTS,
   kendall,
+  PAST,
   RATES,
+  TRIMS,
   loopRun,
   loops,
+  rateOf,
   timesVaried,
+  trimmed,
   varyOffer,
 } from './loop.ts';
 
@@ -21,6 +25,11 @@ const ENDS = [BY_LICENCE[0]!, BY_LICENCE.at(-1)!];
 const wide = loops(1, 1, 96, ENDS);
 
 const round = (x: number) => Math.round(x * 100) / 100;
+/** The lead's notes a bar after the intro at p = 0, untrimmed and at k = 4, 3 and 2, in Techno and Swing jazz: as measured. */
+const NOTES_AT_P0 = [
+  [6, 4, 3, 2],
+  [6, 4, 3, 2],
+];
 /** A measure of every preset in one condition, as measured. */
 const exactly = (rows: readonly LoopMeasure[], condition: Condition, of: keyof LoopMeasure) =>
   rows.filter((m) => m.condition === condition).map((m) => m[of] as number);
@@ -208,6 +217,109 @@ describe('the rate the lead varies an offer at, p (E22, #237)', () => {
     const [narrow] = ENDS;
     expect(loopRun(narrow!, 1, 0.3, 32, 'p=0')).toEqual(loopRun(narrow!, 1, 0.3, 32, 'hearing'));
     expect(loopRun(narrow!, 1, 0.3, 32, 'p=1')).toEqual(loopRun(narrow!, 1, 0.3, 32, 'every bar'));
+  });
+});
+
+describe('the offer trimmed to its first k notes, E22 (#237)', () => {
+  /** The sounding notes of a motif, each its onset and its degree. */
+  const sounding = (m: Motif) =>
+    m.onsets.flatMap((at, i) => (m.degrees[i] === null ? [] : [[at, m.degrees[i]]]));
+  /** Every motif of 1 to 15 notes on a bar of 16 steps, one note a step, with a rest before them, after them, or neither (a rest at both ends would follow itself round the cycle). */
+  const shapes = [...Array(15).keys()].flatMap((i) =>
+    [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+    ].map(([before, after]): Motif => {
+      const n = i + 1;
+      const onsets = [...Array(before! + n + after!).keys()];
+      const degrees = onsets.map((j) => (j < before! || j >= before! + n ? null : (j * 3) % 7));
+      return { cycle: 16, onsets, degrees, accidentals: onsets.map(() => 0) };
+    }),
+  );
+
+  it('keeps exactly the first k notes, for every k from 1 to 16 and every motif of 1 to 15 notes, with a rest before or after or neither', () => {
+    expect(shapes).toHaveLength(45);
+    for (const shape of shapes) expect(motifProblems(shape), JSON.stringify(shape)).toEqual([]);
+    for (const shape of shapes)
+      for (let k = 1; k <= 16; k++) {
+        const trim = trimmed(shape, k);
+        const label = `${JSON.stringify(shape.degrees)} k=${k}`;
+        expect(motifProblems(trim), label).toEqual([]);
+        expect(sounding(trim), label).toEqual(sounding(shape).slice(0, k));
+      }
+  });
+
+  it('leaves the motif as it is when k is unbounded', () => {
+    for (const shape of shapes) expect(trimmed(shape, Infinity)).toBe(shape);
+  });
+
+  it('reads a condition’s rate and trim, k unbounded where none is named', () => {
+    expect(rateOf('p=0')).toEqual({ p: 0, k: Infinity });
+    expect(rateOf('p=1.5')).toEqual({ p: 1.5, k: Infinity });
+    expect(rateOf('p=1 k=3')).toEqual({ p: 1, k: 3 });
+    expect(rateOf('hearing')).toBeNull();
+    expect(TRIMS).toEqual(['p=0 k=2', 'p=0 k=3', 'p=0 k=4', 'p=1 k=2', 'p=1 k=3', 'p=1 k=4']);
+    expect(PAST).toEqual(['p=2.5', 'p=3', 'p=4']);
+  });
+
+  it('varies a trimmed offer as often as its rate does, the trim drawing nothing', () => {
+    for (const trim of TRIMS) {
+      const rate = `p=${rateOf(trim)!.p}` as const;
+      for (let bar = 0; bar < 64; bar++)
+        expect(timesVaried(trim, 1, bar), `${trim} bar ${bar}`).toBe(timesVaried(rate, 1, bar));
+    }
+  });
+
+  it('plays as its rate when k is past any motif’s notes: p=0 k=16 as hearing, p=1 k=16 as every bar (E22)', () => {
+    const [narrow] = ENDS;
+    expect(loopRun(narrow!, 1, 0.3, 32, 'p=0 k=16')).toEqual(
+      loopRun(narrow!, 1, 0.3, 32, 'hearing'),
+    );
+    expect(loopRun(narrow!, 1, 0.3, 32, 'p=1 k=16')).toEqual(
+      loopRun(narrow!, 1, 0.3, 32, 'every bar'),
+    );
+  });
+
+  it('thins the lead as k falls, with no variation at p=0 (E22, #237)', () => {
+    /** The trims at p = 0, at the ends of the licence, one seed of 96 bars, beside p = 0 untrimmed. */
+    const sample = loops(0.3, 1, 96, ENDS, ['p=0', 'p=0 k=4', 'p=0 k=3', 'p=0 k=2']);
+    const notes = ENDS.map((p) =>
+      sample.filter((m) => m.preset === p.name).map((m) => round(m.leadNotes)),
+    );
+    for (const row of notes) expect([...row].sort((a, b) => b - a)).toEqual(row);
+    expect(notes).toEqual(NOTES_AT_P0);
+  });
+
+  it('opens the loop at k = 2: two notes fall under the Muse’s gate of three, so she judges almost no bar a motif and the lead holds what it was offered (E22, #237)', () => {
+    const sample = loops(0.3, 1, 96, ENDS, ['p=0 k=2', 'p=1 k=2', 'p=1 k=3']);
+    expect(column(sample, 'p=0 k=2', 'playing')).toEqual([0.02, 0.02]);
+    expect(column(sample, 'p=1 k=2', 'playing')).toEqual([0.02, 0.02]);
+    expect(column(sample, 'p=0 k=2', 'leadNotes')).toEqual([2, 2]);
+    expect(column(sample, 'p=1 k=3', 'playing')).toEqual([0.72, 0.72]);
+    expect(column(sample, 'p=1 k=3', 'recognised')).toEqual([0.68, 0.71]);
+  });
+});
+
+describe('the rates past two variations a bar, E22 (#237)', () => {
+  it('hears fewer bars as motifs and recognises less of them as p rises past 2 (E22, Q7b)', () => {
+    const rates = ['p=2', ...PAST] as const;
+    const sample = loops(0.3, 1, 96, ENDS, rates);
+    const along = (field: keyof LoopMeasure) =>
+      ENDS.map((p) =>
+        rates.map((r) =>
+          round(sample.find((m) => m.preset === p.name && m.condition === r)![field] as number),
+        ),
+      );
+    expect(along('playing')).toEqual([
+      [0.71, 0.61, 0.52, 0.39],
+      [0.72, 0.6, 0.46, 0.35],
+    ]);
+    expect(along('recognised')).toEqual([
+      [0.43, 0.42, 0.46, 0.22],
+      [0.39, 0.45, 0.45, 0.29],
+    ]);
+    for (const shares of along('playing')) expect(kendall([2, 2.5, 3, 4], shares)).toBe(-1);
   });
 });
 
