@@ -23,6 +23,7 @@ import {
 } from '@jambot/engine';
 import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
+import { resolveSeed } from '@yggi/cells/repository/library';
 import { channelTable, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
 import { bandChords, lineOf, mismatches, playSection } from './section-play.ts';
@@ -179,7 +180,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect([velocities(voiced('-.5')), velocities(voiced('.5'))]).toEqual([own, own]);
     // The sign reaches cells' route, which MIDI has no word for: the bass is routed at -.5, and struck at its size.
     const gains = (source: string) => {
-      const plan = planOf(source);
+      const plan = planOf(source, undefined, { resolve: resolveSeed });
       const route = router(plan.result, channelTable(plan.result));
       const bass = windowAt(plan, 0, 2).events.filter((e) => e.output?.startsWith('bassV:'));
       return [...new Set(bass.flatMap((e) => routesOf(route(e)).map((r) => r.gain)))];

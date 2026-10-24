@@ -184,7 +184,7 @@ const WARM_TEXT = [
   '&harm over=key step=1m [0,2,4] [5,7,9]',
   '&kick step=16n &bd:0:.4 ~ ~ ~',
   '&drums [&kick]',
-  '&bd s=white',
+  'use "core kit"',
   '&bass over=&harm step=16n legato=.6 0@4 3@4',
   '&bassLevel map=amp step=16n .4@8',
   '&bassOut play=&bass level=&bassLevel &bassV',

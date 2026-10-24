@@ -18,12 +18,13 @@
  * read is a degree, not a pitch.
  *
  * A line is varied by cells' vary (yggi/cells decision 052, rung 2) with
- * the two of the lead's own variations cells has as operators: lift, every
- * note two degrees up (`transpose`, by 2), and turn over, every note
- * mirrored about the first (`invert`). Cells reads no line with an
+ * the lead's own four variations, each one of cells' operators: lift, every
+ * note two degrees up (`transpose`, by 2); turn over, every note mirrored
+ * about the first (`invert`); bend the last note 1 or 2 degrees either side
+ * of the note before it (`bend`); and drop it, the note before held
+ * (`trim`; cells v0.10.1, yggi/cells#267). Cells reads no line with an
  * accidental, so a line a player bent off the key isn't varied: it repeats
- * until the composer rejects it. Bend the last note and drop it wait for
- * cells' operators (#424).
+ * until the composer rejects it (yggi/cells#268).
  */
 
 import type { Meter, MeterName } from '@jambot/theory';
@@ -47,8 +48,8 @@ export const LEAD_VOICE: readonly string[] = [
   '&leadOut map=midi(1) [&lead * &leadV]',
 ];
 
-/** The operators the composer varies a lead line by: lift (`transpose` by 2) and turn over (`invert`). */
-export const LEAD_OPERATORS: readonly Operator[] = ['transpose', 'invert'];
+/** The operators the composer varies a lead line by: lift (`transpose` by 2), turn over (`invert`), bend the last note (`bend`) and drop it (`trim`). */
+export const LEAD_OPERATORS: readonly Operator[] = ['transpose', 'invert', 'bend', 'trim'];
 
 /** How far lift moves a line: two degrees up, as the lead's own lift does (`lead.ts`). */
 export const LIFT = 2;
