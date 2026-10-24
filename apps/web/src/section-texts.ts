@@ -1,10 +1,9 @@
 /**
  * A section's cells text built, compiled and played, away from the page's
- * thread (#406): the shadow (`shadow.ts`) asks for each section's text with
+ * thread (#406): the band through cells (`shadow.ts`) asks for each section's text with
  * the bars it forecast, and the answer comes back as plain data, what cells
  * plays in each bar, so the clock never waits on cells' compiler (the spirit:
- * time is absolute). A client of a host whose band plays through cells is
- * given each section's text instead (`SectionText`, #446), and has it
+ * time is absolute). A client of a host is given each section's text instead (`SectionText`, #446), and has it
  * compiled and played the same way (`playText`), from the text and its frame
  * alone, as the host's own is.
  *
@@ -114,8 +113,8 @@ export interface SectionStated {
 /**
  * The job: the bars written as one text (`sectionAsCells`), then compiled and
  * played through cells as a client plays it (`playText`), timed on `clock`
- * (ms); `edit` changes the text before cells plays it, for a test to show the
- * comparison finds what it checks.
+ * (ms); `edit` changes the text before cells plays it, for a test to show
+ * that cells' events, not the band's, are what plays.
  */
 export function stateSection(
   bars: readonly BandBar[],
@@ -197,7 +196,7 @@ export function warmSection(): readonly unknown[] {
   return compileSection(WARM_TEXT).result.diagnostics;
 }
 
-/** Where a section's text is built, compiled and played: the shadow's side of it. */
+/** Where a section's text is built, compiled and played: the band through cells' side of it. */
 export interface SectionTexts {
   /** A song starts. */
   begin(): void;

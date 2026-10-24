@@ -162,8 +162,8 @@ export async function listen(page: Page, path = '/') {
 }
 
 /**
- * With `JAMBOT_SHADOW_LOG` naming a file, what the band through cells found
- * in shadow on the page (#399, `window.jambot.shadow`), read every half second
+ * With `JAMBOT_SHADOW_LOG` naming a file, how the band played through cells
+ * on the page (#399, `window.jambot.shadow`), read every half second
  * and appended there as the page closes, one line a test: a measurement over
  * the end-to-end runs, not a check, missing at most the page's last half second.
  */
@@ -187,22 +187,14 @@ function logShadow(page: Page) {
 }
 
 /**
- * What the band through cells found in shadow on the page so far (#399, `window.jambot.shadow`):
- * with the switch on or off, every bar compared plays in cells as the band plays it, and none is a gap.
+ * How the band played through cells on the page so far (#399, #469, `window.jambot.shadow`):
+ * every event from cells, none a gap's falling back on the band's own, and nothing thrown.
  */
-export async function shadowAgrees(page: Page) {
+export async function playsThroughCells(page: Page) {
   const shadow = (await page.evaluate(() => window.jambot?.shadow))!;
   expect(shadow.errors).toEqual([]);
-  expect(shadow.bars).toBeGreaterThan(0);
-  expect(shadow.mismatched).toEqual({
-    written: 0,
-    harmony: 0,
-    unmatched: 0,
-    onsets: 0,
-    extra: 0,
-    velocity: 0,
-    length: 0,
-  });
+  expect(shadow.played.cells).toBeGreaterThan(0);
+  expect(shadow.played.band).toBe(0);
   expect(shadow.gaps).toEqual({});
 }
 

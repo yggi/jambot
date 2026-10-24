@@ -40,7 +40,6 @@ import { targetOf } from './conductor.ts';
 import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Hosting, type Surroundings } from './player.svelte.ts';
 import { type SectionTexts, inlineTexts } from './section-texts.ts';
-import type { Plays } from './shadow.ts';
 
 /** Surroundings a test drives by hand: the clock, the resume, the ticks and frames. */
 function surroundings() {
@@ -1462,15 +1461,27 @@ describe('the radio (#313)', () => {
   });
 });
 
-describe('the band through cells, in shadow (#399)', () => {
-  /** A player playing for `seconds`, ticked by hand: alone, or as a host; with the radio on the air, or not. */
+describe('the band through cells (#399, #469)', () => {
+  /**
+   * A player playing for `seconds`, ticked by hand: alone, or as a host; with the radio on the air, or not;
+   * where `unstated` says why, with texts that state none of their bars, so every bar falls back on the band's own.
+   */
   async function played(
-    plays: Plays,
     seconds: number,
-    { tuned = false, host = false }: { tuned?: boolean; host?: boolean } = {},
+    {
+      tuned = false,
+      host = false,
+      unstated,
+    }: { tuned?: boolean; host?: boolean; unstated?: string } = {},
   ) {
     const { world, s } = surroundings();
-    const player = new Player(s, null, plays);
+    const inline = inlineTexts();
+    const texts: SectionTexts = {
+      ...inline,
+      ask: (bars, answer) =>
+        inline.ask(bars, (stated) => answer({ ...stated, unstated: unstated! })),
+    };
+    const player = new Player(unstated === undefined ? s : { ...s, texts: () => texts });
     const session = told();
     if (host) {
       player.hosting = session.hosting;
@@ -1489,44 +1500,41 @@ describe('the band through cells, in shadow (#399)', () => {
     return { world, player, told: session };
   }
 
-  const NONE = {
-    written: 0,
-    harmony: 0,
-    unmatched: 0,
-    onsets: 0,
-    extra: 0,
-    velocity: 0,
-    length: 0,
-  };
   /** Three sections at the tempo the song opens at, and its count-in. */
   const SECTIONS_3 = (3 * SECTION_BARS * 4 * 60) / INITIAL_STYLE.bpm + 2.5;
 
-  it('writes each section as a cells text beside the band and finds nothing that differs, with the band’s own events on its outputs', async () => {
-    const { player } = await played('band', SECTIONS_3);
+  it('writes each section as a cells text and plays it: every event on its outputs from cells, none from the band', async () => {
+    const { world, player } = await played(SECTIONS_3);
     const { readout } = player.shadow;
     expect(readout.errors).toEqual([]);
-    expect(readout.plays).toBe('band');
-    expect(readout.bars).toBeGreaterThanOrEqual(3 * SECTION_BARS);
-    expect(readout.mismatched).toEqual(NONE);
-    expect(readout.onsets.within).toBe(readout.onsets.timed);
-    expect(readout.played).toEqual({ cells: 0, band: 0 });
+    expect(readout.gaps).toEqual({});
+    expect(readout.played).toEqual({ cells: world.plays.length, band: 0 });
+    expect(world.plays.length).toBeGreaterThan(3 * SECTION_BARS * 4);
     expect(readout.texts.again).toBe(0);
   });
 
   it('reads the radio’s walk to come, so a section written ahead is what plays: nothing written again', async () => {
-    const { player } = await played('band', SECTIONS_3 + 10, { tuned: true });
+    const { player } = await played(SECTIONS_3 + 10, { tuned: true });
     const { readout } = player.shadow;
     expect(player.station!.walked).toBeGreaterThan(1);
     expect(readout.texts.ahead).toBeGreaterThan(2);
     expect(readout.texts.again).toBe(0);
-    expect(readout.mismatched).toEqual(NONE);
+    expect(readout.gaps).toEqual({});
   });
 
-  it('with the switch on, a solo band’s outputs play cells’ events: the same notes at the same velocities, the performer’s feel on them, each within 1 ms of where the band’s own play (#405)', async () => {
-    const [band, cells] = [await played('band', SECTIONS_3), await played('cells', SECTIONS_3)];
+  it('falls back on the band’s own events where no text states a bar, counted under its reason; and where texts state them, plays cells’ events as the band’s own: the same notes at the same velocities, the performer’s feel on them, each within 1 ms (#405)', async () => {
+    const reason = 'a test states none';
+    const [band, cells] = [
+      await played(SECTIONS_3, { unstated: reason }),
+      await played(SECTIONS_3),
+    ];
+    const fallback = band.player.shadow.readout;
+    expect(fallback.played).toEqual({ cells: 0, band: band.world.plays.length });
+    expect(Object.keys(fallback.gaps)).toEqual([reason]);
+    expect(fallback.gaps[reason]!.events).toBe(band.world.plays.length);
+    expect(band.world.plays.length).toBeGreaterThan(3 * SECTION_BARS * 4);
     expect(cells.player.shadow.readout.played.band).toBe(0);
     expect(cells.player.shadow.readout.played.cells).toBe(cells.world.plays.length);
-    expect(cells.player.shadow.readout.mismatched).toEqual(NONE);
     const key = (p: { part: string; note: number; velocity: number; seconds: number }) =>
       `${p.part} ${p.note} ${p.velocity} ${Math.round(p.seconds * 100)}`;
     expect(cells.world.plays.map(key).sort()).toEqual(band.world.plays.map(key).sort());
@@ -1539,7 +1547,7 @@ describe('the band through cells, in shadow (#399)', () => {
       expect(Math.abs(p.seconds - b[i]!.seconds)).toBeLessThan(0.001);
   });
 
-  it('asks for its section texts where the surroundings build them (a worker in the browser, #406): started as a song starts, ended with it; a client asks for none, and starts one to play its host’s only through cells (#446)', async () => {
+  it('asks for its section texts where the surroundings build them (a worker in the browser, #406): started as a song starts, ended with it; a client asks for none, and starts one to play its host’s (#446)', async () => {
     const { world, s } = surroundings();
     const said: string[] = [];
     const inline = inlineTexts();
@@ -1570,8 +1578,8 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(said[0]).toBe('begin');
     expect(said.filter((x) => x === 'ask').length).toBeGreaterThan(1);
     expect(said.at(-1)).toBe('end');
-    expect(player.shadow.readout.mismatched.written).toBe(0);
-    // A client, through cells by default, starts its worker to play the texts its host gives, and asks for none; one playing its own starts none.
+    expect(player.shadow.readout.errors).toEqual([]);
+    // A client starts its worker to play the texts its host gives, and asks for none.
     const following = async (client: Player) => {
       said.length = 0;
       client.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
@@ -1590,18 +1598,13 @@ describe('the band through cells, in shadow (#399)', () => {
       return [...said];
     };
     expect(await following(player)).toEqual(['begin']);
-    expect(await following(new Player({ ...s, texts: () => texts }, null, 'band'))).toEqual([]);
   });
 
-  it('with the switch on, a host plays cells’ events as a band alone does and tells its session each text it takes, which it gives a client joining mid-song (#446)', async () => {
-    const [alone, hosting] = [
-      await played('cells', SECTIONS_3),
-      await played('cells', SECTIONS_3, { host: true }),
-    ];
+  it('a host plays cells’ events as a band alone does and tells its session each text it takes, which it gives a client joining mid-song (#446)', async () => {
+    const [alone, hosting] = [await played(SECTIONS_3), await played(SECTIONS_3, { host: true })];
     const { readout } = hosting.player.shadow;
     expect(readout.played.band).toBe(0);
     expect(readout.played.cells).toBe(hosting.world.plays.length);
-    expect(readout.mismatched).toEqual(NONE);
     const key = (p: { part: string; note: number; velocity: number; seconds: number }) =>
       `${p.part} ${p.note} ${p.velocity} ${p.seconds}`;
     expect(hosting.world.plays.map(key)).toEqual(alone.world.plays.map(key));
@@ -1618,7 +1621,7 @@ describe('the band through cells, in shadow (#399)', () => {
 
   it('gives a client joining in a section’s last bar the text of the bar it joins in, and the next section’s (#446)', async () => {
     const { world, s } = surroundings();
-    const player = new Player(s, null, 'cells');
+    const player = new Player(s);
     const session = told();
     player.hosting = session.hosting;
     player.mode = 'host';
@@ -1636,13 +1639,6 @@ describe('the band through cells, in shadow (#399)', () => {
     expect(hosted.bars[0]!.bar.bar).toBe(last);
     expect(hosted.texts.map((t) => t.bar)).toEqual([0, SECTION_BARS]);
     expect(hosted.texts[0]).toEqual(session.sections[0]);
-  });
-
-  it('with the switch off, a host tells its session no text', async () => {
-    const { player, told: host } = await played('band', SECTIONS_3, { host: true });
-    expect(player.shadow.readout.texts.told).toBeGreaterThan(0);
-    expect(host.sections).toEqual([]);
-    expect(player.hosted!.texts).toEqual([]);
   });
 });
 
