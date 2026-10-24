@@ -42,7 +42,8 @@
  * It runs under vitest. Its test, `rhythm-query.test.ts`, holds what it
  * found;
  * `E36_REPORT=1 pnpm vitest run --silent=false packages/score/experiments/rhythm-query.test.ts`
- * prints the tables.
+ * prints the tables, and `E36_COST=1` runs the query's cost against its
+ * bounds, wall-clock time and so not in `pnpm verify`.
  */
 
 import {
