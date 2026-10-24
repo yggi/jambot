@@ -1,7 +1,8 @@
 /**
  * The radio soak (#399): the built app left on the radio at an entropy, in
- * Playwright's Chromium, for some minutes, and what the band through cells
- * found in shadow read off the dev readout (`window.jambot.shadow`) at the end.
+ * Playwright's Chromium, for some minutes, and how the band played through
+ * cells read off the dev readout (`window.jambot.shadow`) at the end: its
+ * gaps, its texts' timing and cost, and the events dropped late.
  * Not one of the end-to-end checks (`*.e2e.ts`): a measurement, run by hand
  * against a served build, in the background, and printed as JSON.
  *
@@ -11,12 +12,11 @@
  * `pnpm soak` waits for the heavy runs' lock (`tooling/heavy.ts`), which `pnpm e2e` takes too, so no other
  * soak or end-to-end run on the machine shares its audio clock's cores.
  *
- * `--url` names another address (`?play=band` plays the band's own; through cells is the default),
- * and `--every` how often, in minutes, a line of progress is printed.
+ * `--url` names another address, and `--every` how often, in minutes, a line of progress is printed.
  *
  * `--session` soaks a session (#446): a host on the radio and one client,
  * joined before the song over the tabs' lobby, each page at the address. It
- * prints both shadows, and at the end sets every event the client's outputs
+ * prints both readouts, and at the end sets every event the client's outputs
  * played against the host's (`compareSession`), read off each page a minute
  * at a time (`window.jambot.played`), as it keeps only the latest, with the
  * steps each page's transport laid and those its clock passed unlaid, and
@@ -114,8 +114,6 @@ const summary = async (p: Page) => {
   return {
     steps: await steps(p),
     from: r.from,
-    bars: r.bars,
-    mismatched: r.mismatched,
     gaps: r.gaps,
     texts: r.texts,
     played: r.played,

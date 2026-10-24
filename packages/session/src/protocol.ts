@@ -87,8 +87,6 @@ export const sameMajor = (protocol: unknown): boolean =>
  * down, and it is the smaller, 2.6 to 6.3 KB a section as JSON over the
  * presets' second sections at entropy 0.3, where the events would be 4 to 12
  * times that, 11 to 75 KB (`section-texts.test.ts` in the app measures both).
- * A host sends it only while its band plays through cells: the default, not
- * with `?play=band`.
  */
 export interface SectionText {
   /** The first bar the text states, and its first step on the song's clock. */

@@ -23,7 +23,7 @@ import {
   openSession,
   sessionAgrees,
   sessionCard,
-  shadowAgrees,
+  playsThroughCells,
   state,
   useLobby,
   useName,
@@ -262,7 +262,7 @@ const BARS_COMPARED = 8;
 const lastBar = (page: Page) =>
   page.evaluate(() => Math.max(-1, ...window.jambot!.played().events.map((e) => e.bar)));
 
-test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells as by default, the section texts on the wire (#446, #456), and what a stall of its page drops is dropped late (#462)', async ({
+test('a client plays what its host plays, event for event: part, note, velocity, onset and length, through cells, the section texts on the wire (#446, #469), and what a stall of its page drops is dropped late (#462)', async ({
   page,
   context,
 }) => {
@@ -308,20 +308,12 @@ test('a client plays what its host plays, event for event: part, note, velocity,
   // The stall dropped some of the client's events late, each of them accounted for (`sessionAgrees`).
   expect(compared.lateEvents.client).toBeGreaterThan(0);
   expect(compared.lacked.client.events).toBeGreaterThan(0);
-  await shadowAgrees(page);
-  if (mine!.plays === 'cells') {
-    expect(mine!.played.band).toBe(0);
-    expect(mine!.texts.told).toBeGreaterThanOrEqual(2);
-    expect(theirs!.from).toBe('given');
-    expect(theirs!.texts.given).toBe(mine!.texts.told);
-    expect(theirs!.arrival.late).toBe(0);
-    expect(theirs!.played.band).toBe(0);
-    await shadowAgrees(client);
-  } else {
-    // With the switch off a host tells its session no text, and a client asks for none.
-    expect(theirs!.from).toBe('none');
-    expect(theirs!.texts.given).toBe(0);
-  }
+  await playsThroughCells(page);
+  expect(mine!.texts.told).toBeGreaterThanOrEqual(2);
+  expect(theirs!.from).toBe('given');
+  expect(theirs!.texts.given).toBe(mine!.texts.told);
+  expect(theirs!.arrival.late).toBe(0);
+  await playsThroughCells(client);
   expect(hostErrors).toEqual([]);
   expect(clientErrors).toEqual([]);
 });

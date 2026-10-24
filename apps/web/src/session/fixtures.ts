@@ -7,17 +7,16 @@ import { type ClientMessage, type HostMessage } from '@jambot/session';
 import type { Output } from '../audio/output.ts';
 import { Player, type Surroundings } from '../player.svelte.ts';
 import type { SectionTexts } from '../section-texts.ts';
-import type { Plays } from '../shadow.ts';
 import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
 
 /**
  * A device: an output whose clock the test moves, the ticks it runs, and
  * its output's offset from its page clock, which reads the output's clock:
  * a buffer the output drops moves the offset. Its band plays cells' events
- * (#446, the default since #456), or with `plays` set to band its own, its
- * texts built where `texts` says (on its thread where it says nothing).
+ * (#446, #469), its texts built where `texts` says (on its thread where it
+ * says nothing).
  */
-export function device(clockAt: number, plays: Plays = 'cells', texts?: () => SectionTexts) {
+export function device(clockAt: number, texts?: () => SectionTexts) {
   const world = {
     currentTime: clockAt,
     heardOffset: 0,
@@ -60,7 +59,7 @@ export function device(clockAt: number, plays: Plays = 'cells', texts?: () => Se
   };
   return {
     world,
-    player: new Player(surroundings, null, plays),
+    player: new Player(surroundings),
     clocks: { page: () => world.currentTime, heardOffset: () => world.heardOffset },
   };
 }

@@ -25,17 +25,6 @@ import { HostSession, SILENT } from './host.svelte.ts';
 import { compareSession, sessionBreaks } from '../played.ts';
 import { inlineTexts, playText } from '../section-texts.ts';
 
-/** What the shadow counts that differs, none of it (#399). */
-const NONE = {
-  written: 0,
-  harmony: 0,
-  unmatched: 0,
-  onsets: 0,
-  extra: 0,
-  velocity: 0,
-  length: 0,
-};
-
 /** A note played, as a key: on the host's clock, a device `offset` seconds behind it. */
 const playedKey =
   (offset: number) =>
@@ -219,9 +208,9 @@ describe('a host and a client session', () => {
 
   it('play the host’s section texts on a client through cells, event for event, the one that joins before the song and one that joins mid-song alike (#446)', async () => {
     const lobby = memoryLobby();
-    const host = device(105, 'cells');
-    const client = device(100, 'cells');
-    const late = device(95, 'cells');
+    const host = device(105);
+    const client = device(100);
+    const late = device(95);
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'Jam');
     const sent: HostMessage[] = [];
@@ -249,7 +238,7 @@ describe('a host and a client session', () => {
       const { readout } = d.player.shadow;
       expect(readout.from, who).toBe('given');
       expect(readout.errors, who).toEqual([]);
-      expect(readout.mismatched, who).toEqual(NONE);
+      expect(readout.gaps, who).toEqual({});
       expect(readout.arrival.late, who).toBe(0);
       expect(readout.played.cells, who).toBeGreaterThan(readout.played.band);
       // Every note it played, the host played as loud and as long, its skew later on the host's clock.
@@ -277,12 +266,12 @@ describe('a host and a client session', () => {
     hosting.close();
   });
 
-  it('play what cells plays of each text on a client: a text it compiles otherwise is heard there, and its shadow says where (#446)', async () => {
+  it('play what cells plays of each text on a client: a text it compiles otherwise is heard there, and the session’s bound says where (#446, #462)', async () => {
     const lobby = memoryLobby();
-    const host = device(105, 'cells');
+    const host = device(105);
     // The client's cells plays each text with a rest before the bass's first note, a step later.
     const inline = inlineTexts();
-    const client = device(100, 'cells', () => ({
+    const client = device(100, () => ({
       ...inline,
       play: (given, answer) =>
         answer(
@@ -309,7 +298,6 @@ describe('a host and a client session', () => {
       0,
     );
     expect(sessionBreaks(compared).join('\n')).toMatch(/lacks \d+ events it didn't drop late/);
-    expect(client.player.shadow.readout.mismatched.written).toBeGreaterThan(0);
     following.leave();
     hosting.close();
   });
@@ -510,9 +498,13 @@ describe('a host and a client session', () => {
 
   it('play a client at protocol 13 beside a host at 14 whose band plays through cells: the host admits it, and it plays every note the host plays (#460)', async () => {
     const lobby = memoryLobby();
-    const host = device(105, 'cells');
-    // A page a minor older plays its band's own: it predates playing through cells.
-    const client = device(100, 'band');
+    const host = device(105);
+    // A page a minor older plays its band's own: it predates playing through cells, as a page whose texts state no bar plays.
+    const inline = inlineTexts();
+    const client = device(100, () => ({
+      ...inline,
+      play: (given, answer) => answer({ ...playText(given), played: null, unstated: 'older' }),
+    }));
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'Jam');
     // The client's join says 13, as a page a minor older does.
