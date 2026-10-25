@@ -20,6 +20,7 @@ export * from './lattice.ts';
 export * from './layer.ts';
 export * from './harmony-query.ts';
 export * from './history.ts';
+export * from './homeostat.ts';
 export * from './licence.ts';
 export * from './lead.ts';
 export * from './lead-lines.ts';

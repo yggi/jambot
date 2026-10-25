@@ -14,13 +14,17 @@ import { presetMode } from './mode-repository.ts';
 import { lineOf } from './muse-line.ts';
 import {
   type BarRecognition,
+  LATELY_THEMES,
   LOOP_FACETS,
   type LoopFacet,
+  NOTHING_LATELY,
   NOTHING_RECOGNISED,
   SHARE_BARS,
   barTexts,
   heardInto,
+  heardTexts,
   libraryOf,
+  playedInto,
   recogniseOptionsOf,
   recognisedBar,
   shareOf,
@@ -254,5 +258,62 @@ describe('the share of bars recognised (heardInto, shareOf)', () => {
       expect(share).toBe(heard.length ? heard.filter(Boolean).length / heard.length : null);
     }
     expect(shareOf(NOTHING_RECOGNISED)).toBeNull();
+  });
+});
+
+describe('what each member played lately (heardTexts, playedInto)', () => {
+  it('hears the theme once a section, at its first bar, and every other member every bar it states', () => {
+    for (const bar of played('Techno', 16)) {
+      const { harmony, ...rest } = barTexts(bar);
+      const heard = heardTexts(bar);
+      expect({ ...heard, harmony: undefined }).toEqual({ ...rest, harmony: undefined });
+      expect(heard.harmony).toBe(bar.barInSection === 0 ? harmony : undefined);
+    }
+  });
+
+  it('keeps a member’s last eight texts and the harmony’s last two themes, each member alone', () => {
+    let lately = NOTHING_LATELY;
+    for (let b = 0; b < 3 * SHARE_BARS; b++)
+      lately = playedInto(lately, {
+        bass: `bass ${b}`,
+        ...(b % 2 ? {} : { lead: `lead ${b}` }),
+        ...(b % SHARE_BARS ? {} : { harmony: `theme ${b}` }),
+      });
+    const last = (n: number, of: (b: number) => string, every = 1) =>
+      [...Array(3 * SHARE_BARS).keys()]
+        .filter((b) => b % every === 0)
+        .slice(-n)
+        .map(of);
+    expect(lately.bass).toEqual(last(SHARE_BARS, (b) => `bass ${b}`));
+    expect(lately.lead).toEqual(last(SHARE_BARS, (b) => `lead ${b}`, 2));
+    expect(lately.harmony).toEqual(last(LATELY_THEMES, (b) => `theme ${b}`, SHARE_BARS));
+    expect(lately.rhythm).toEqual([]);
+  });
+
+  it('joins a member’s library after its seeds and filings, each text once, and no other member’s', () => {
+    const text = leadText(LINE, 16);
+    const lately = { ...NOTHING_LATELY, lead: [text, text] };
+    expect(libraryOf('lead', undefined, lately).map((f) => f.text)).toEqual([text]);
+    expect(libraryOf('bass', undefined, lately)).toEqual(libraryOf('bass'));
+  });
+
+  it('recognises a bar the member played lately, and a variation of it by one of its operators, where nothing else would', () => {
+    const text = leadText(LINE, 16);
+    const lifted = leadText(
+      LINE.map((n) => ({ ...n, degree: n.degree + 2 })),
+      16,
+    );
+    const lately = { ...NOTHING_LATELY, lead: [text] };
+    expect(recognisedBar(recogniser, { lead: text }, FOUR)).toEqual({ lead: false });
+    expect(recognisedBar(recogniser, { lead: text }, FOUR, undefined, 0, lately)).toEqual({
+      lead: true,
+    });
+    expect(recognisedBar(recogniser, { lead: lifted }, FOUR, undefined, 0, lately)).toEqual({
+      lead: true,
+    });
+    const other = leadText([{ step: 2, degree: 6, alter: 0 }], 16);
+    expect(recognisedBar(recogniser, { lead: other }, FOUR, undefined, 0, lately)).toEqual({
+      lead: false,
+    });
   });
 });
