@@ -2,7 +2,8 @@
   The lobby, the door to the band: the door's Play view, what a person meets
   on a cold start, laid out in the band's own cards. Playing alone (Solo);
   joining a session that is open, with the players in it, and with the code
-  its host admits by where the person was given one (#461); hosting one of
+  its host admits by where the person was given one (#461), but not one whose
+  host is away, which the lobby would refuse (#496); hosting one of
   their own, named as they like or by a made-up name, in this browser or
   through the lobby server. Their name and the extras are the door's own
   (`Door.svelte`). It holds no session and knows no player: it takes props
@@ -54,7 +55,9 @@
     { value: 'global', text: 'Global', name: 'Global: others can join', icon: globe },
   ] as const;
 
-  const count = (open: Listed) => `${open.players}`;
+  const count = (open: Listed) => `${open.players}${open.away ? ' · away' : ''}`;
+  const AWAY_TITLE =
+    'Its host has lost its link and may be back in a moment: it takes no join till then.';
 
   async function host() {
     error = null;
@@ -145,8 +148,8 @@
         <button
           type="button"
           class="found {open.where}"
-          title={WHERE_TITLE[open.where]}
-          disabled={joining}
+          title={open.away ? AWAY_TITLE : WHERE_TITLE[open.where]}
+          disabled={joining || open.away === true}
           onclick={() => onjoin(open.where, open.name, code.trim())}
         >
           {open.name}

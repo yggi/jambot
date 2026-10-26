@@ -32,10 +32,16 @@ export function nameRefusal(session: string): string | null {
   return null;
 }
 
-/** A session that is open: its name, and how many players are in it, the host counted. */
+/**
+ * A session that is open: its name, how many players are in it, the host
+ * counted, and whether its host is away (`away`, protocol 16): its link
+ * dropped and the lobby holds the session for it, refusing a join until it
+ * is back. A lobby leaves `away` out while the host is there.
+ */
 export interface OpenSession {
   readonly name: string;
   readonly players: number;
+  readonly away?: boolean;
 }
 
 export type ToLobby =
@@ -104,8 +110,21 @@ export function readToLobby(data: unknown): ToLobby | null {
   return data as ToLobby;
 }
 
-/** What a lobby said, or null for anything that isn't. */
+/** Whether a listed session's `away` is a boolean or left out: nothing else of it is checked. */
+const awayRead = (open: unknown) =>
+  typeof open !== 'object' ||
+  open === null ||
+  (open as { away?: unknown }).away === undefined ||
+  typeof (open as { away?: unknown }).away === 'boolean';
+
+/**
+ * What a lobby said, or null for anything that isn't: a list of sessions
+ * one of which says it is `away` by anything but a boolean among them.
+ */
 export function readFromLobby(data: unknown): FromLobby | null {
   const op = opOf(data);
-  return op !== null && FROM_LOBBY.has(op) ? (data as FromLobby) : null;
+  if (op === null || !FROM_LOBBY.has(op)) return null;
+  const { sessions } = data as { sessions?: unknown };
+  if (op === 'sessions' && Array.isArray(sessions) && !sessions.every(awayRead)) return null;
+  return data as FromLobby;
 }

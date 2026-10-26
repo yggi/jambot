@@ -246,8 +246,8 @@ describe('the WebSocket lobby', () => {
       sockets[hostSockets]!.close();
       await until(() => following.hostAway);
       expect(following.status).toBe('joined');
-      // The host away still counts, with the client that is seated.
-      expect(await lobby.sessions()).toEqual([{ name: 'Friday Jam', players: 2 }]);
+      // The host away still counts, with the client that is seated, and the list says it is away (#496).
+      expect(await lobby.sessions()).toEqual([{ name: 'Friday Jam', players: 2, away: true }]);
 
       // A new page, a new player, what was kept.
       const reloaded = device(90, 0.02);

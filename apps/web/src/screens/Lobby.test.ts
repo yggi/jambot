@@ -44,6 +44,27 @@ describe('the lobby, the door to the band', () => {
     expect(p.onjoin).toHaveBeenLastCalledWith('local', 'Garage', '');
   });
 
+  it('marks a session whose host is away, and offers no join to it (#496)', async () => {
+    const p = props();
+    render(Lobby, {
+      ...p,
+      found: {
+        sessions: [
+          { name: 'Stage', players: 2, where: 'global', away: true },
+          { name: 'Garage', players: 1, where: 'global', away: false },
+        ],
+        problem: null,
+      },
+    });
+    const stage = screen.getByRole('button', { name: /Stage/ });
+    expect(stage).toHaveTextContent('away');
+    expect(stage).toBeDisabled();
+    expect(stage).toHaveAttribute('title', expect.stringMatching(/lost its link/));
+    const garage = screen.getByRole('button', { name: /Garage/ });
+    expect(garage).not.toHaveTextContent('away');
+    expect(garage).toBeEnabled();
+  });
+
   it('joins with the code a host gave, typed on a number pad, where a person has one (#461)', async () => {
     const p = props();
     render(Lobby, {
