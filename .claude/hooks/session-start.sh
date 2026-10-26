@@ -9,21 +9,34 @@
 # .claude/settings.json). A no-op in about a second when all is installed.
 # Its stdout goes into the agent's context, so it prints two lines, and a third
 # first when the install lacks @yggi/cells (cells-access.sh).
+# A proxy that refuses GitHub's tarballs gets them installed from git
+# (github-tarballs.sh).
 cd "$CLAUDE_PROJECT_DIR" || exit 1
 # The pre-push hook (.githooks/pre-push); `pnpm install` sets it too.
 git config core.hooksPath .githooks
 log=$(mktemp)
 installed=1
+deps='dependencies installed'
 if ! pnpm install --frozen-lockfile --prefer-offline >"$log" 2>&1; then
-  tail -20 "$log" >&2
   installed=
+  # A proxy that refuses GitHub's tarballs (a 403 from codeload.github.com)
+  # still serves git, so the tarballs are installed from git instead.
+  if grep -q 'ERR_PNPM_FETCH_403.*codeload\.github\.com' "$log"; then
+    if sh "$(dirname "$0")/github-tarballs.sh" >"$log.git" 2>&1; then
+      installed=1
+      deps='dependencies installed, the GitHub tarballs from git as the proxy refused them (github-tarballs.sh)'
+    else
+      tail -20 "$log.git" >&2
+    fi
+    rm -f "$log.git"
+  fi
+  [ -z "$installed" ] && tail -20 "$log" >&2
 fi
 # The language, @yggi/cells, is fetched from its public repository, and a fetch
 # can fail on the network or the proxy. That cause gets its own line on stdout,
 # which the agent reads, and the session goes on; any other failed install
 # stops here.
-deps='dependencies installed'
-if ! sh "$(dirname "$0")/cells-access.sh"; then
+if ! sh "$(dirname "$0")/cells-access.sh" "$log"; then
   deps='dependencies incomplete, @yggi/cells missing (the line above)'
 elif [ -z "$installed" ]; then
   echo 'session-start: pnpm install failed; run it by hand before pnpm verify' >&2
