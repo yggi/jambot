@@ -256,12 +256,12 @@ describe('the session protocol', () => {
   });
 
   it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
-    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([15, 13]);
-    for (const protocol of [13, 14, 15, 16])
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([16, 13]);
+    for (const protocol of [13, 14, 15, 16, 17])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
     for (const protocol of [12, 1, 13.5, Number.NaN])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
-        /version 15 .* takes 13 on/,
+        /version 16 .* takes 13 on/,
       );
     expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
     expect(sameMajor('14')).toBe(false);
@@ -360,10 +360,10 @@ describe('the session protocol', () => {
       played: shapeOf(playedBars()),
       section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
-    // The session contract (yggi/music-commons `contracts/session`) holds the same shapes, at
-    // its minor 1 (protocol 14) until it writes minor 2: 15 adds a join's `code` (#461), a
-    // field of a message read by field, above, and no shape here.
-    expect([hub.protocol, PROTOCOL]).toEqual([14, 15]);
+    // The session contract (yggi/music-commons `contracts/session`, minor 3) holds the same
+    // shapes, which it states at protocol 15: 16 adds a listed session's `away` (#496), a
+    // lobby's word, and no shape here.
+    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([16, 15, 16]);
     expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
   });
 
@@ -387,7 +387,7 @@ describe('the session protocol', () => {
   });
 });
 
-/** The shapes of version 15 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements, the Muse's log, a client's bar of drums and a host's section texts show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375); 12 the rhythm fragment and the clave (#397); 13 has a client pass on each bar its players played on drums, the notes as heard (`played`, #410); 14 has a host send each section's cells text (`section`, and a welcome's `song.texts`, #446); 15 has a join carry a host's code (`code`, #461), read by field above. */
+/** The shapes of version 16 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements, the Muse's log, a client's bar of drums and a host's section texts show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375); 12 the rhythm fragment and the clave (#397); 13 has a client pass on each bar its players played on drums, the notes as heard (`played`, #410); 14 has a host send each section's cells text (`section`, and a welcome's `song.texts`, #446); 15 has a join carry a host's code (`code`, #461), read by field above; 16 has a lobby's list say a session's host is away (`away`, #496), no message of a peer. */
 /** A played bar that isn't one: each field missing or of another type, in turn. */
 function playedJunk(): unknown[] {
   const [played] = playedBars();
@@ -419,7 +419,7 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 15,
+  protocol: 16,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',

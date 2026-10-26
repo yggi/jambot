@@ -608,6 +608,25 @@ test('a host page that reloads keeps its session and its client, and a client pa
   await expect(state(client)).toContainText('host playing');
   await joined(page, 'Ada');
 
+  // While the host's page is gone, the door lists its session as away, within
+  // the lobby's next answer, and offers no join to it, until the page is back (#496).
+  const doorContext = await browser.newContext();
+  const door = await doorContext.newPage();
+  await listen(door);
+  await useLobby(door, LOBBY);
+  const atDoor = listed(door, 'reload jam');
+  await expect(atDoor).toBeEnabled({ timeout: 8000 });
+  await expect(atDoor).not.toContainText('away');
+  const app = page.url();
+  await page.goto('about:blank');
+  await expect(atDoor).toContainText('away');
+  await expect(atDoor).toBeDisabled();
+  await page.goto(app);
+  await expect(state(page)).toContainText('Hosting');
+  await expect(atDoor).not.toContainText('away');
+  await expect(atDoor).toBeEnabled();
+  await doorContext.close();
+
   // The host's page goes and comes back: the lobby holds the session, the page
   // reopens it from what it kept, and the client, never disconnected, joins again.
   await page.reload();

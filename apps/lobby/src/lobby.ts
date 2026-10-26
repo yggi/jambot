@@ -8,7 +8,8 @@
  * that it left, and when a host's closes its clients hear it is away, and
  * gone if it isn't back within `LOBBY.hostGrace`, by the secret it was given
  * when it opened the session, so a page that reloads doesn't end the
- * session for everyone in it. A
+ * session for everyone in it. Meanwhile its list says the session is
+ * `away`, and refuses a join to it. A
  * socket that doesn't answer a ping within `LOBBY.heartbeat`, or that falls
  * `LOBBY.backlog` bytes behind, is closed: Jambot is played live, and a
  * link that far behind is no link to play on. It also refuses beyond
@@ -165,6 +166,7 @@ export async function startLobby({
           sessions: [...sessions.values()].map((s) => ({
             name: s.name,
             players: 1 + s.clients.size,
+            ...(s.host === null ? { away: true } : {}),
           })),
         });
       case 'host': {

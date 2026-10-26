@@ -214,6 +214,31 @@ describe('the lobby', () => {
       expect(lobby.counts()).toEqual({ sessions: 1, sockets: 3 });
     });
 
+    it('lists its session as away until it is back', async () => {
+      const { host, ada, reclaim } = await session();
+      const door = await connect(lobby.port);
+      door.send({ op: 'list' });
+      expect(await door.next()).toEqual({
+        op: 'sessions',
+        sessions: [{ name: 'jam', players: 3 }],
+      });
+      host.close();
+      await ada.next();
+      door.send({ op: 'list' });
+      expect(await door.next()).toEqual({
+        op: 'sessions',
+        sessions: [{ name: 'jam', players: 3, away: true }],
+      });
+      const again = await connect(lobby.port);
+      again.send({ op: 'host', session: 'jam', reclaim });
+      await again.next();
+      door.send({ op: 'list' });
+      expect(await door.next()).toEqual({
+        op: 'sessions',
+        sessions: [{ name: 'jam', players: 3 }],
+      });
+    });
+
     it('drops what a client tells it while it is away, and refuses a join until it is back', async () => {
       const { host, ada, reclaim } = await session();
       host.close();

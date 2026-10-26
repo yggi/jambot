@@ -35,6 +35,20 @@ describe("a lobby's words", () => {
     expect(readFromLobby({})).toBeNull();
   });
 
+  it('reads a list whose sessions say they are away by a boolean or not at all, and refuses one that says it otherwise (protocol 16)', () => {
+    const listing = (away: unknown) => ({
+      op: 'sessions',
+      sessions: [
+        { name: 'jam', players: 2, away },
+        { name: 'reel', players: 1 },
+      ],
+    });
+    for (const away of [true, false]) expect(readFromLobby(listing(away))).toEqual(listing(away));
+    const without = { op: 'sessions', sessions: [{ name: 'reel', players: 1 }] };
+    expect(readFromLobby(without)).toEqual(without);
+    for (const away of ['yes', 1, null, {}]) expect(readFromLobby(listing(away))).toBeNull();
+  });
+
   it('takes a name with something in it, and not too long, compared in any case', () => {
     expect(nameRefusal('Friday Jam')).toBeNull();
     expect(nameRefusal('   ')).toMatch(/needs a name/);

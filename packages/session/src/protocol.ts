@@ -56,16 +56,18 @@ import type { ForecastDelta } from './forecast.ts';
  * `texts` in a welcome, #446), which a client's own cells engine plays.
  * Version 15 has a join carry the code a host may admit its clients by
  * (`code`, #461), which a host that asks for one refuses a join without.
+ * Version 16 has a lobby's list say a session's host is away (`away` in
+ * `OpenSession`, #496), which no peer reads.
  *
  * From 13 on, a protocol is a minor version of the session contract's major
  * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1, and 15 minor 2. A host admits a join of any
+ * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, and 16 minor 3. A host admits a join of any
  * of them, and a client stays with a host of any (`sameMajor`), each
  * ignoring a kind it doesn't know, so a minor that adds a kind deploys
  * without every client in lockstep: a client at 13 drops the `section`
  * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
-export const PROTOCOL = 15;
+export const PROTOCOL = 16;
 
 /** The first protocol of the session contract's major version 1 (#460): every protocol from it on is one of its minors. */
 export const FIRST_PROTOCOL = 13;
