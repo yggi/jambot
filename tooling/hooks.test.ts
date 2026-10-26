@@ -364,8 +364,13 @@ describe('session-start', () => {
    * Runs session-start.sh in a fresh repository, with `pnpm` and `uv` replaced
    * by `pnpm` (shell) and a `uv` that fails, and `@yggi/cells` installed or not.
    */
-  function sessionStart(pnpm: string, cells: boolean) {
+  function sessionStart(
+    pnpm: string,
+    cells: boolean,
+    prepare: (dir: string) => Record<string, string> = () => ({}),
+  ) {
     const dir = repoWith([]);
+    const env = prepare(dir);
     const bin = mkdtempSync(join(tmpdir(), 'jambot-bin-'));
     dirs.push(bin);
     for (const [name, body] of [
@@ -384,10 +389,15 @@ describe('session-start', () => {
     writeFileSync(join(dir, 'docs/MEMORY.md'), 'memory\n');
     const run = spawnSync('sh', [`${root}/.claude/hooks/session-start.sh`], {
       cwd: dir,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: dir, PATH: `${bin}:${process.env.PATH}` },
+      env: {
+        ...process.env,
+        ...env,
+        CLAUDE_PROJECT_DIR: dir,
+        PATH: `${bin}:${process.env.PATH}`,
+      },
       encoding: 'utf8',
     });
-    return { status: run.status, stdout: run.stdout, stderr: run.stderr };
+    return { dir, status: run.status, stdout: run.stdout, stderr: run.stderr };
   }
 
   it('tells the agent, when the install leaves @yggi/cells missing, that its fetch failed and to install again', () => {
@@ -402,6 +412,75 @@ describe('session-start', () => {
     expect(line).toContain('a public repository, failed on the network');
     expect(line).not.toContain('private');
     expect(line).toContain('run `pnpm install --frozen-lockfile` again');
+    expect(stdout).toContain('session-start: dependencies incomplete, @yggi/cells missing');
+  });
+
+  // A proxy that refuses GitHub's tarballs: pnpm answers a lockfile naming
+  // codeload.github.com with its 403, and installs @yggi/cells from a lockfile
+  // whose resolution names a packed file instead.
+  const refusing = [
+    "packed=$(grep -o 'tarball: file:[^}]*' pnpm-lock.yaml | cut -c 15-)",
+    'if [ -z "$packed" ]; then',
+    `  echo " ERR_PNPM_FETCH_403  GET https://codeload.github.com/yggi/cells/tar.gz/$(grep -o '[0-9a-f]\\{40\\}' pnpm-lock.yaml): Forbidden - 403"`,
+    '  exit 1',
+    'fi',
+    'mkdir -p packages/score/node_modules/@yggi/cells',
+    'tar -xzf "$packed" -C packages/score/node_modules/@yggi/cells --strip-components 1',
+  ].join('\n');
+
+  /** A lockfile naming the tarball of yggi/cells at a commit of a repository under a stand-in for github.com, which serves it or not. */
+  function lockfileAtCommit(dir: string, served: boolean) {
+    const github = mkdtempSync(join(tmpdir(), 'jambot-github-'));
+    dirs.push(github);
+    const cells = join(github, 'yggi/cells');
+    mkdirSync(cells, { recursive: true });
+    git(cells, 'init', '-q');
+    git(cells, 'config', 'user.email', 'hook@test');
+    git(cells, 'config', 'user.name', 'hook');
+    const files = { 'index.js': 'the pinned commit\n', 'notes.md': 'not in files\n' };
+    for (const [name, text] of Object.entries(files)) writeFileSync(join(cells, name), text);
+    writeFileSync(
+      join(cells, 'package.json'),
+      JSON.stringify({ name: '@yggi/cells', version: '1.0.0', files: ['index.js'] }),
+    );
+    git(cells, 'add', '.');
+    git(cells, 'commit', '-qm', 'pinned');
+    const pinned = git(cells, 'rev-parse', 'HEAD');
+    writeFileSync(join(cells, 'index.js'), 'a later commit\n');
+    git(cells, 'commit', '-qam', 'later');
+    const url = `https://codeload.github.com/yggi/cells/tar.gz/${pinned}`;
+    writeFileSync(
+      join(dir, 'pnpm-lock.yaml'),
+      `packages:\n\n  '@yggi/cells@${url}':\n    resolution: {tarball: ${url}}\n`,
+    );
+    return { JAMBOT_GITHUB: served ? github : join(github, 'refused') };
+  }
+
+  it("installs the tarballs the proxy refuses from git at the lockfile's commit, and leaves the lockfile as it was", () => {
+    let lockfile = '';
+    const { dir, status, stdout } = sessionStart(refusing, false, (dir) => {
+      const env = lockfileAtCommit(dir, true);
+      lockfile = readFileSync(join(dir, 'pnpm-lock.yaml'), 'utf8');
+      return env;
+    });
+    expect(status).toBe(0);
+    expect(stdout).not.toContain('@yggi/cells is not installed');
+    expect(stdout).toContain('session-start: dependencies installed, the GitHub tarballs from git');
+    const cells = join(dir, 'packages/score/node_modules/@yggi/cells');
+    expect(readFileSync(join(cells, 'index.js'), 'utf8')).toBe('the pinned commit\n');
+    expect(() => readFileSync(join(cells, 'notes.md'))).toThrow();
+    expect(readFileSync(join(dir, 'pnpm-lock.yaml'), 'utf8')).toBe(lockfile);
+  });
+
+  it('names the 403 from codeload and the way round it when the install from git fails too', () => {
+    const { status, stdout } = sessionStart(refusing, false, (dir) => lockfileAtCommit(dir, false));
+    expect(status).toBe(0);
+    const line = stdout.split('\n')[0]!;
+    expect(line).toContain('@yggi/cells is not installed');
+    expect(line).toContain('refused its tarball from codeload.github.com (403)');
+    expect(line).toContain('run `sh .claude/hooks/github-tarballs.sh`');
+    expect(line).toContain('attach yggi/cells and yggi/webmidi');
+    expect(line).not.toContain('`pnpm install --frozen-lockfile` again');
     expect(stdout).toContain('session-start: dependencies incomplete, @yggi/cells missing');
   });
 
