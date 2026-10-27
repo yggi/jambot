@@ -4,7 +4,7 @@
  * yggi/cells decisions 043, 046, 047 and 052).
  *
  * A repository holds lead lines, each cells text of degrees of the key
- * (`over=key`) counted from its first note, one bar long: a motif as the
+ * (`over=&key`) counted from its first note, one bar long: a motif as the
  * Muse hears one (U4), its notes' onsets and degrees, each altered where it
  * is off the key. The band reads one into its notes over the bar
  * (`LeadNote`: a step, a degree and an accidental), and the lead plays them

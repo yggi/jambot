@@ -55,10 +55,10 @@ describe('a lead line as cells text, and read back (#424)', () => {
 
   it('writes the coarsest grid its notes fall on, an accidental as cells spells one, and the lead’s voice', () => {
     expect(leadText(BENT, 16)).toBe(
-      ['&lead over=key step=16n 0 ~ ~ 2 ~ ~ -1 ~ 4b ~ ~ ~ ~ ~ ~ ~', ...LEAD_VOICE].join('\n'),
+      ['&lead over=&key step=16n 0 ~ ~ 2 ~ ~ -1 ~ 4b ~ ~ ~ ~ ~ ~ ~', ...LEAD_VOICE].join('\n'),
     );
     expect(leadText(PLAIN.filter((n) => n.step % 4 === 0 || n.step === 6).slice(0, 1), 16)).toBe(
-      ['&lead over=key step=1m 0', ...LEAD_VOICE].join('\n'),
+      ['&lead over=&key step=1m 0', ...LEAD_VOICE].join('\n'),
     );
   });
 
@@ -75,7 +75,7 @@ describe('a lead line as cells text, and read back (#424)', () => {
   });
 
   it('reads no text that isn’t a line over the key', () => {
-    expect(readLead('&lead over=key step=16n', METERS['4/4'])).toBeNull();
+    expect(readLead('&lead over=&key step=16n', METERS['4/4'])).toBeNull();
     expect(readLead('&lead step=16n 0 2 4', METERS['4/4'])).toBeNull();
     expect(readLead('not cells', METERS['4/4'])).toBeNull();
   });
@@ -124,7 +124,7 @@ describe('the lead’s repository (#424)', () => {
     expect(twice.layer.filed.length).toBe(1);
   });
 
-  it('varies a line by lift, turn over, a bend of its last note and its drop, and a bent one not at all', () => {
+  it('varies a line by lift, turn over, a bend of its last note and its drop, and a bent one too, its accidental mirrored with its note', () => {
     const repository = leadRepository();
     const plain = repository.file!(EMPTY_LAYER, FILING);
     const ways = new Map<string, readonly LeadNote[]>();
@@ -155,7 +155,11 @@ describe('the lead’s repository (#424)', () => {
     expect(ways.get('trim &lead 8')).toEqual(PLAIN.slice(0, -1));
     const bent = repository.file!(EMPTY_LAYER, { ...FILING, notes: BENT });
     expect(repository.read(bent.id, METERS['4/4'], bent.layer)!.notes).toEqual(BENT);
-    expect(repository.vary!(bent.id, FILING.bench, 0.25, bent.layer)).toBeNull();
+    // (cells v0.11 reads a line with an accidental, yggi/cells#272: turned over, the flat on 4 is a sharp on −4)
+    expect(repository.vary!(bent.id, FILING.bench, 0.25, bent.layer)).toEqual({
+      notes: BENT.map((n) => ({ ...n, degree: 0 - n.degree, alter: 0 - n.alter })),
+      by: 'invert &lead',
+    });
   });
 
   it('starts a motif with a rest where its line starts after the downbeat', () => {

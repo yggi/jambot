@@ -42,21 +42,14 @@ describe('a fragment read back into the band’s drums, E31’s reverse (E36)', 
     expect(read.reduce((n, r) => n + r.hits, 0)).toBe(144);
   });
 
-  it('reads 132 of 144 under the meter each preset’s sections choose: the rim’s Euclid on `1m` stays straight under a 16n lean (#121), where the band swings it', () => {
+  it('reads all 144 under the meter each preset’s sections choose: the rim’s Euclid on `1m` swings under a 16n lean as the band swings it, the parts of a step swung (cells#306)', () => {
     const first = new Map(PRESETS.map((p) => [p.name, ASKED.find((s) => s.preset === p.name)!]));
     const read = e31Readback((preset) => {
       const bar = first.get(preset)!.bars[0]!;
       return { text: workbenchOf(bar), meter: bar.meter, swing: bar.swing };
     });
-    expect(read.reduce((n, r) => n + r.matched, 0)).toBe(132);
-    expect(
-      read.filter((r) => r.mismatches.length).map((r) => [r.preset, r.hits - r.matched]),
-    ).toEqual([
-      ['Lo-fi hip hop', 5],
-      ['Funk', 7],
-    ]);
-    for (const r of read)
-      for (const m of r.mismatches) expect(m, r.preset).toMatch(/"role":"euclid"/);
+    expect(read.reduce((n, r) => n + r.matched, 0)).toBe(144);
+    expect(read.flatMap((r) => r.mismatches)).toEqual([]);
   });
 
   it('finds what it checks: a hit moved, dropped, struck at another level, or put on another line, is a mismatch', () => {
@@ -212,11 +205,12 @@ describe('the fragment beside the drummer (E36)', () => {
         filled: 21,
         equal: 0,
       },
+      // (Lo-fi hip hop's and Funk's rims swing as the drummer's since the parts of a step swing, cells#306)
       {
         preset: 'Lo-fi hip hop',
         fragment: 17,
         drummer: 13.78,
-        overlap: 0.24,
+        overlap: 0.27,
         self: 0.34,
         filled: 23,
         equal: 0,
@@ -225,7 +219,7 @@ describe('the fragment beside the drummer (E36)', () => {
         preset: 'Funk',
         fragment: 24,
         drummer: 23.75,
-        overlap: 0.31,
+        overlap: 0.35,
         self: 0.41,
         filled: 28,
         equal: 0,
@@ -285,8 +279,9 @@ describe('the fragment beside the drummer (E36)', () => {
       ['Techno', 0.73, 1.95, 0.77],
       ['Deep house', 0.81, 1.61, 0.52],
       ['Ambient', 0.82, 0.68, 0.72],
-      ['Lo-fi hip hop', 0.64, 3.07, 0.5],
-      ['Funk', 0.5, 6.87, 0.75],
+      // (Lo-fi hip hop's and Funk's rims swing as the drummer's do since the parts of a step swing, cells#306)
+      ['Lo-fi hip hop', 0.68, 2.63, 0.5],
+      ['Funk', 0.53, 6.09, 0.75],
       ['Bossa nova', 0.6, 4.05, 0.54],
       ['Swing jazz', 0.77, 1.78, 0.6],
     ]);

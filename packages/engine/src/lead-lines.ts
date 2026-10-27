@@ -6,7 +6,7 @@
  * Cells holds no seed lead lines yet, so every line is one the layer filed:
  * with nothing filed, the composer finds none and the lead plays its own.
  *
- * A line is one bar of degrees of the key (`over=key`) counted from its
+ * A line is one bar of degrees of the key (`over=&key`) counted from its
  * first note, as the Muse hears a motif (U4), on the coarsest of the bar's
  * grids its notes fall on: each note a step of that grid, a rest `~`, a
  * note off the key with its accidental (`3b`, cells decision 015). What it
@@ -22,9 +22,9 @@
  * note two degrees up (`transpose`, by 2); turn over, every note mirrored
  * about the first (`invert`); bend the last note 1 or 2 degrees either side
  * of the note before it (`bend`); and drop it, the note before held
- * (`trim`; cells v0.10.1, yggi/cells#267). Cells reads no line with an
- * accidental, so a line a player bent off the key isn't varied: it repeats
- * until the composer rejects it (yggi/cells#268).
+ * (`trim`; cells v0.10.1, yggi/cells#267). A line a player bent off the
+ * key is varied too, its accidental moved with its note: cells reads a
+ * line with an accidental since v0.11 (yggi/cells#268, #272).
  */
 
 import type { Meter, MeterName } from '@jambot/theory';
@@ -78,7 +78,7 @@ export function leadText(notes: readonly LeadNote[], steps: number): string {
     const here = sorted.find((n) => n.step === i * grid.length);
     return here ? tokenOf(here) : '~';
   });
-  return [`&lead over=key step=${grid.tap} ${tokens.join(' ')}`, ...LEAD_VOICE].join('\n');
+  return [`&lead over=&key step=${grid.tap} ${tokens.join(' ')}`, ...LEAD_VOICE].join('\n');
 }
 
 /**

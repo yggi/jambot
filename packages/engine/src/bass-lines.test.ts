@@ -29,7 +29,7 @@ const STACKS = [
   [3, 5, 7],
   [4, 6, 8, 10],
 ] as const;
-const HARM = `&harm over=key step=1m ${STACKS.map((s) => `[${s.join(',')}]`).join(' ')}`;
+const HARM = `&harm over=&key step=1m ${STACKS.map((s) => `[${s.join(',')}]`).join(' ')}`;
 /** The same chords as the band writes them: each stack's degrees as heights in the key's register. */
 const CHORDS: BarChord[] = STACKS.map((stack) => ({
   slot: { step: 0, degree: stack[0]! } as BarChord['slot'],
@@ -53,7 +53,13 @@ function cellsPlays(text: string, name: MeterName, bars: number): string[] {
   const meter = METERS[name];
   const source = unionOf(
     text,
-    [`&bar meter("${name}") step=${READ_AT}bpm`, '&key scale(aeolian, A)', HARM, BASS].join('\n'),
+    [
+      `&bar meter("${name}") step=${READ_AT}bpm`,
+      '&key scale(aeolian, A)',
+      HARM,
+      BASS,
+      ...BASS_VOICE,
+    ].join('\n'),
   ).text;
   const plan = planOf(source);
   const route = router(plan.result, channelTable(plan.result));
@@ -190,12 +196,15 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     for (const [name, notes] of bars) {
       const text = lineText(notes, stepsOf(METERS[name]));
       expect(readLine(text, METERS[name]), text).toEqual({ bars: 1, notes });
-      expect(text.split('\n').slice(-BASS_VOICE.length)).toEqual(BASS_VOICE);
+      // (and no card, as a seed line carries none since yggi/cells#299: the reading brings BASS_VOICE)
+      expect(text).not.toMatch(/map=midi/);
     }
     expect(() => lineText([note(0, { alter: 1 })], 16)).toThrow(/accidental/);
-    expect(lineText([note(0), note(8)], 16).split('\n')[0]).toBe('&bass over=&harm step=2n 0 0');
+    expect(lineText([note(0), note(8)], 16).split('\n')[0]).toBe(
+      '&bassline over=&harm step=2n 0 0',
+    );
     expect(lineText([note(0), note(12, { chord: 1, shift: -1 })], 16).split('\n')[0]).toBe(
-      '&bass over=&harm step=4n 0 ~ ~ &bassNext^$-1',
+      '&bassline over=&harm step=4n 0 ~ ~ &bassNext^$-1',
     );
   });
 
@@ -259,17 +268,17 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       expect(v.notes[0]).toEqual({ step: 0, chord: 0, index: 0, alter: 0, shift: 0 });
     }
     expect([...seen]).toEqual([
-      'transpose &bass -2',
-      'transpose &bass -1',
-      'transpose &bass 1',
-      'transpose &bass 2',
-      'invert &bass',
-      'reverse &bass',
-      'bend &bass -2',
-      'bend &bass -1',
-      'bend &bass 1',
-      'bend &bass 2',
-      'trim &bass 3',
+      'transpose &bassline -2',
+      'transpose &bassline -1',
+      'transpose &bassline 1',
+      'transpose &bassline 2',
+      'invert &bassline',
+      'reverse &bassline',
+      'bend &bassline -2',
+      'bend &bassline -1',
+      'bend &bassline 1',
+      'bend &bassline 2',
+      'trim &bassline 3',
     ]);
   });
 });

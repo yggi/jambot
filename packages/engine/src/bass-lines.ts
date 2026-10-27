@@ -24,9 +24,11 @@
  * coarsest of the bar's grids its notes fall on, the next chord's root
  * spliced in where a note reads it (`&bassNext`, `over=&harm[>>]`), and a
  * note off every tone of its chord as the root moved by semitones
- * (`&bassRoot^$n`). Its voice and card are `BASS_VOICE`, this module's
- * one place for them: where cells moves a line's voice into a hole an
- * instrument fragment fills (yggi/cells#260), only it changes. Filing keeps
+ * (`&bassRoot^$n`). It carries no card, as cells' seed lines don't
+ * (yggi/cells#299): its voice and card are `BASS_VOICE`, this module's one
+ * place for them, which the line is read with (`readLine`) and a section
+ * sends it on: where cells moves a line's voice into a hole an instrument
+ * fragment fills (yggi/cells#260), only it changes. Filing keeps
  * its read, the round trip (`muse-line.test.ts`), so the section that takes
  * it compiles nothing.
  *
@@ -69,7 +71,7 @@ const READ_AT = 120;
  * The voice is a hole cells' `bass` instrument fills (`&bassV loop=C2`, its register's floor the performer moves from;
  * yggi/cells#260), which a line is read with (`withInstruments`). The one place this module states the card.
  */
-export const BASS_VOICE: readonly string[] = ['&bassOut map=midi(2) [&bass * &bassV]'];
+export const BASS_VOICE: readonly string[] = ['&bassOut map=midi(2) [&bassline * &bassV]'];
 
 /**
  * The workbench a line is read and varied on: the meter played straight at the reading tempo, a key, and a harmony of
@@ -79,7 +81,7 @@ export const readingBench = (name: MeterName): string =>
   [
     `&bar meter("${name}") step=${READ_AT}bpm`,
     '&key scale(ionian, C)',
-    '&harm over=key step=1m [0,2,4]',
+    '&harm over=&key step=1m [0,2,4]',
   ].join('\n');
 
 /** Within a millionth of a step. */
@@ -97,7 +99,10 @@ const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 export function readLine(text: string, meter: Meter): LineRead | null {
   const name = nameOf(meter);
   if (!name) return null;
-  const source = unionOf(withInstruments(text), readingBench(name)).text;
+  // (with the card on the bench: a seed line carries none since yggi/cells#299, and a filed one's, the same line, is kept once)
+  const source = withInstruments(
+    unionOf(text, [readingBench(name), ...BASS_VOICE].join('\n')).text,
+  );
   const result = compileSource(source);
   if (!result.ok) return null;
   const pitched = linesOf(source, result).filter((l) => l.pitched);
@@ -156,7 +161,8 @@ function tokenOf(note: LineNote): string {
 /**
  * A bar's line as cells text, open on its meter and its chords (no `&bar`, no key, no harmony): its notes as indices
  * over the chord in force on the coarsest grid they fall on, `&bassNext` and `&bassRoot` defined where a note splices
- * them (`tokenOf`), and `BASS_VOICE`. It reads back as the notes it was stated from (`readLine`, the round trip).
+ * them (`tokenOf`), and no card, as a seed line has none (`BASS_VOICE` is the reading's). It reads back as the notes it
+ * was stated from (`readLine`, the round trip).
  */
 export function lineText(notes: readonly LineNote[], steps: number): string {
   const sorted = [...notes].sort((a, b) => a.step - b.step);
@@ -170,10 +176,9 @@ export function lineText(notes: readonly LineNote[], steps: number): string {
   });
   const spliced = (cell: string) => sorted.some((n) => tokenOf(n).includes(cell));
   return [
-    `&bass over=&harm step=${grid.tap} ${tokens.join(' ')}`,
+    `&bassline over=&harm step=${grid.tap} ${tokens.join(' ')}`,
     ...(spliced('&bassNext') ? ['&bassNext over=&harm[>>] 0'] : []),
     ...(spliced('&bassRoot') ? ['&bassRoot over=&harm 0'] : []),
-    ...BASS_VOICE,
   ].join('\n');
 }
 

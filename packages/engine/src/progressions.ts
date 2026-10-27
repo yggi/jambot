@@ -6,7 +6,7 @@
  * (the loop's repository, `line-repository.ts`), and each read by cells'
  * compiler into the chord slots a theme plays (`readProgression`).
  *
- * A progression is eight bars of triads over the key, `&harm over=key
+ * A progression is eight bars of triads over the key, `&harm over=&key
  * step=1m cycle=8`, as cells' seeds write them: each bar a stack on a degree
  * of the key, `[d,d+2,d+4]`, or two, a bar's halves, `[[0,2,4] [3,5,7]]`; a
  * run of one chord as `!n`, so a vamp the Muse hears is stated as the seed
@@ -71,7 +71,7 @@ export function progressionText(notes: readonly HarmonySlot[]): string {
     runs.push(n > 1 ? `${bars[b]}!${n}` : bars[b]!);
     b += n;
   }
-  return `&harm over=key step=1m cycle=${SECTION_BARS} ${runs.join(' ')}`;
+  return `&harm over=&key step=1m cycle=${SECTION_BARS} ${runs.join(' ')}`;
 }
 
 /**

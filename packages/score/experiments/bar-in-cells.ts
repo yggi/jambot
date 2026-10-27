@@ -478,9 +478,10 @@ export interface Statement {
 /**
  * A bar's drums, bass, comp and harmony as one cells text. The rim is one
  * Euclid token on `1m` only where the meter is straight, unless `euclid`
- * asks for it anyway: a Euclid's hits are even parts of its step, which the
- * meter's swing doesn't reach (E33's gap 4, yggi/cells#121), so under swing the rim is a line
- * on `16n` as every other role is. The bass and the comp read the chord in
+ * asks for it anyway, and under swing a line on `16n` as every other role
+ * is: so E33 measured it while a Euclid's hits, even parts of its step,
+ * didn't swing (E33's gap 4, yggi/cells#121), which they do since cells
+ * v0.11.2 (yggi/cells#306). The bass and the comp read the chord in
  * force (`over=&harm`), unless `table` asks for the key, as E33 stated them
  * before cells v0.5.0.
  */

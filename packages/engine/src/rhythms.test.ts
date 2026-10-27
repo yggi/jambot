@@ -76,7 +76,14 @@ const PAIRS = PRESETS.map((preset) => ({
 
 describe("cells' rhythms, as the composer asks them (#397)", () => {
   it('reads every rhythm under 4/4 played straight: the 8 drum bars E31’s 144 hits, a line a role, the claves 5 strokes a lap on their own sound, General MIDI’s 75 (cells v0.7.0)', () => {
-    const read = RHYTHM_FRAGMENTS.map((f) => ({ id: f.id, ...readRhythm(f.text, METERS['4/4'])! }));
+    // (cells v0.11's Electro swing drums names its lines kick, clap, hats and ticks, three of them no drummer's role: not read)
+    expect(
+      readRhythm(RHYTHM_FRAGMENTS.find((f) => f.id === 'Electro swing drums')!.text, METERS['4/4']),
+    ).toBeNull();
+    const read = RHYTHM_FRAGMENTS.filter((f) => f.id !== 'Electro swing drums').map((f) => ({
+      id: f.id,
+      ...readRhythm(f.text, METERS['4/4'])!,
+    }));
     const drumBars = read.filter((r) => r.id.endsWith(' drums'));
     expect(drumBars).toHaveLength(8);
     expect(drumBars.reduce((n, r) => n + r.hits.length, 0)).toBe(144);
@@ -269,8 +276,10 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
     expect(RHYTHM_BENCHES.length).toBe(11 + Object.keys(METERS).length);
     const steps = [...repository.warm!(RHYTHM_BENCHES)].length;
     const warmed = fits;
-    // (48 of the steps are the 8 drum bars' variations on each bench each fits, which the composer's ladder asks for, #442)
-    expect([steps, warmed]).toEqual([1420, 740]);
+    // (48 of the steps are the 8 drum bars' variations on each bench each fits, which the composer's ladder asks for, #442;
+    // since cells v0.11 a seed meter's bench is word for word its named meter's, `&bar meter("4/4") step=120bpm`, for
+    // seven of them, so 13 benches are warmed, not 20)
+    expect([steps, warmed]).toEqual([1139, 569]);
     // Every preset's point and a spread of others, on every bench, a clave playing or none, with a layer and without.
     const styles = [
       ...PRESETS.map((p) => p.style),

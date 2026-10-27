@@ -26,7 +26,8 @@
  *   bar's steps, each hit its sound's voice at its own level (`&sd:0:.0635`,
  *   a velocity v at (v/127)², which cells' MIDI out strikes at 127·√level);
  *   the rim, where one sound plays a Euclid, one token on `1m` and its levels
- *   a line of their own; one MIDI card on channel 10; each voice its sound.
+ *   a line of their own; one mix of the lines, `&groove`, and no MIDI card,
+ *   as cells' seed bars have none (yggi/cells#299); each voice its sound.
  *   E31's own bars stated so are cells' seed drum bars, which is how
  *   identity finds them (`muse-groove.test.ts`).
  *
@@ -130,8 +131,8 @@ function roleLines(hits: readonly FragmentHit[], steps: number): { lines: string
 
 /**
  * A bar's drum hits as cells text, open on its meter (E31's translation, no
- * `&bar`): the lines of each role in the band's order and the MIDI card on
- * channel 10 playing them. Its voices are holes a kit fills, as cells' seed
+ * `&bar`): the lines of each role in the band's order and their mix,
+ * `&groove`, which a reading sends on channel 10. Its voices are holes a kit fills, as cells' seed
  * rhythms' are (yggi/cells#260), so a groove that plays a seed's hits is
  * that seed's text. Every hit's note must be one of the kit's
  * (`VOICE_OF_NOTE`).
@@ -151,7 +152,7 @@ export function grooveText(hits: readonly FragmentHit[], steps: number): string 
   );
   return [
     ...stated.flatMap((r) => r.lines),
-    `&drums map=midi(10) ${stated.length ? `[${stated.map((r) => r.term).join(', ')}]` : '~'}`,
+    `&groove ${stated.length ? `[${stated.map((r) => r.term).join(', ')}]` : '~'}`,
   ].join('\n');
 }
 

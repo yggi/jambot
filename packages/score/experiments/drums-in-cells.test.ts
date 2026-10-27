@@ -203,10 +203,10 @@ describe('what cells could not say (E31: the gaps)', () => {
 });
 
 describe('E31’s translation as the engine states a groove the Muse files (#401)', () => {
-  it('states each witness bar as cells’ seed drum bar for its preset, character for character, less the bar line, each with the kit it strikes', () => {
+  it('states each witness bar as cells’ seed drum bar for its preset, character for character, less the bar line and its card, each with the kit it strikes', () => {
     for (const w of WITNESSES) {
       const seed = RHYTHM_FRAGMENTS.find((f) => f.id === `${w.preset} drums`)!;
-      expect(w.text.split('\n').slice(1).join('\n'), w.preset).toBe(withInstruments(seed.text));
+      expect(w.text.split('\n').slice(2).join('\n'), w.preset).toBe(withInstruments(seed.text));
     }
   });
 

@@ -6,7 +6,7 @@
  * E33 stated a bar; this states a section, its 8 bars (`SECTION_BARS`), as
  * one text: the host's lines once at the top, then each part a line per
  * sound or voice, open on them (yggi/cells decision 047: taps, a bare
- * `over=key` for the main key, `over=&harm` for the chord in force).
+ * `over=&key` for the main key, `over=&harm` for the chord in force).
  * Decision 047's union of lines (a line given twice is one line) is in
  * cells since v0.6.0 (`unionOf`), but the text is built directly, the host's
  * lines given once, until a later rung builds sections by union; each part with the host's lines alone is a fragment
@@ -22,7 +22,7 @@
  *   key (`&key scale(aeolian, A)`); the plan holds both, and the melodic
  *   scale, for the section's 8 bars, so each is one line (the builder
  *   refuses a section whose bars part on any of them);
- * - the harmony once, `&harm over=key step=1m [0,2,4] [3,5,7] …`, every
+ * - the harmony once, `&harm over=&key step=1m [0,2,4] [3,5,7] …`, every
  *   chord the band writes in the section at its slot (E32's stacks), which
  *   nothing plays;
  * - the drums, a line a role on `16n` over the section's 128 steps (E31),
@@ -30,7 +30,7 @@
  *   (E33's gap 4);
  * - the bass, the pad and the stab, each a line on `16n` over the chord in
  *   force (`over=&harm`, as E33), a line with a note no index reaches over
- *   the key (`over=key`), held `@k` for the written length and sounding
+ *   the key (`over=&key`), held `@k` for the written length and sounding
  *   its share of it (`legato=`), a line of shares where a line sounds more
  *   than one (`legato=&bassShare`: Swing jazz's breakdown bass, held 0.3 of
  *   a step short);
@@ -38,7 +38,7 @@
  *   "A now, B as the goal"): the line it plays, as degrees over the plan's
  *   melodic scale from its voice, C4: over the key where the scale is the
  *   key's own (`plain`), else over the scale stated as a stack of the key's
- *   degrees, `&melo over=key step=1m [0,2,3,4,6]` (a pentatonic, read as
+ *   degrees, `&melo over=&key step=1m [0,2,3,4,6]` (a pentatonic, read as
  *   the chord in force is, a lap the key's seven degrees); no cell or
  *   operator is named yet;
  * - velocities through a gate, a line of levels or one gain (E33), and one

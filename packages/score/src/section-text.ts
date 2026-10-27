@@ -11,14 +11,14 @@
  *   for the section's bars, so each is one line (`hostOf` refuses a section
  *   whose bars part on any of them, the tempo too unless the statement lets
  *   it move: `tempo: 'first'`);
- * - the harmony once, `&harm over=key step=1m [0,2,4] [3,5,7] …`, every
+ * - the harmony once, `&harm over=&key step=1m [0,2,4] [3,5,7] …`, every
  *   chord the band writes in the section at its slot (E32's stacks), which
  *   nothing plays;
  * - the drums, a line a role on `16n` over the section's steps (E31), the
  *   rim a Euclid token a bar on `1m` where the meter is straight (E33's gap 4);
  * - the bass, the pad and the stab, each a line on `16n` over the chord in
  *   force (`over=&harm`, E33), a line with a note no index reaches over the
- *   key (`over=key`), held `@k` for the written length and sounding its share
+ *   key (`over=&key`), held `@k` for the written length and sounding its share
  *   of it (`legato=`), a line of shares where a line sounds more than one;
  * - the lead as its notes (yggi/cells#47): degrees over the plan's melodic
  *   scale from its voice, C4, over the key where the scale is the key's own,
@@ -548,7 +548,7 @@ function drumLines(
  * A pitched line on 16ths over the section: each onset its notes as indices
  * into the table asked for (the chord in force, or the melodic scale) from
  * the line's voice, or, where a note has no index or the key is asked for,
- * as degrees of the key (`over=key`); a chord a stack, held for its written
+ * as degrees of the key (`over=&key`); a chord a stack, held for its written
  * length (cut at the next onset or the section's end), sounding its share of
  * it (`legato=`, a number or a line of shares); and its levels, as a line or
  * one gain.
@@ -621,7 +621,7 @@ function pitchedLine(
         : ` legato=${shareSet[0]}`;
   return {
     lines: [
-      `&${name} over=${over === 'key' ? 'key' : `&${over}`} step=16n${legato} ${(over === 'key' ? overKey : overTable).join(' ')}`,
+      `&${name} over=&${over} step=16n${legato} ${(over === 'key' ? overKey : overTable).join(' ')}`,
       ...(shareSet.length > 1 ? [`&${name}Share step=16n ${shares.join(' ')}`] : []),
       ...(one ? [] : [`&${name}Level map=amp step=16n ${levels.join(' ')}`]),
     ],
@@ -678,7 +678,7 @@ export function sectionAsCells(
     { part: 'key', text: `&key ${host.key}` },
     {
       part: 'harmony',
-      text: `&harm over=key ${rhythmText(chords, (i) => stackText(chordStack(chords[i]!.numeral)), total, steps)}`,
+      text: `&harm over=&key ${rhythmText(chords, (i) => stackText(chordStack(chords[i]!.numeral)), total, steps)}`,
     },
   ];
   const inForce = (at: number) => {
@@ -697,7 +697,7 @@ export function sectionAsCells(
       ? [{ part: 'drums' as const, text: `&drums [${drums.terms.join(', ')}]` }]
       : []),
     // (the drums' voices are the core kit's, which every one the band strikes is: cells' instrument fragment, yggi/cells#260)
-    ...(drums.voices.length ? [{ part: 'drums' as const, text: 'use "core kit"' }] : []),
+    ...(drums.voices.length ? [{ part: 'drums' as const, text: 'use * from "core kit"' }] : []),
   );
   const outs: Partial<Record<PitchedName, true>> = {};
   const state = (
@@ -727,7 +727,7 @@ export function sectionAsCells(
   const scaleOwn = melodic === 'plain' || lead === 'key';
   const scale = melodicTones(key, melodic);
   if (!scaleOwn && notes.some((n) => n.line === 'lead'))
-    lines.push({ part: 'lead', text: `&melo over=key step=1m ${stackText(scale)}` });
+    lines.push({ part: 'lead', text: `&melo over=&key step=1m ${stackText(scale)}` });
   state('lead', 'lead', 'lead', () => scale, scaleOwn ? 'key' : 'melo', 'leadV');
   if (outs.lead) {
     lines.push({ part: 'lead', text: `&leadV loop=${PIN_VOICES.lead}` });

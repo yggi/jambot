@@ -76,7 +76,7 @@ export interface LineContent {
 /** A bass line to file: a bar's notes over its chords, the bench it was played on, where and by whom (`muse-line.ts`). */
 export type LineFiling = Filing<LineContent>;
 
-/** A variation of a bass line (#423): its notes over its bar, and how it varies the line (cells' `transpose &bass 1`). */
+/** A variation of a bass line (#423): its notes over its bar, and how it varies the line (cells' `transpose &bassline 1`). */
 export type LineVariation = Varied<LineContent>;
 
 /** A repository of bass lines the composer asks (#423): the loop's repository for the facet `bass` (`facet.ts`). */

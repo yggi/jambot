@@ -71,7 +71,8 @@ export const rolesOf = (bar: BandBar): DrumRole[] =>
 /**
  * The cells text of a bar's drums: the bar, then the engine's statement of
  * its hits (`grooveText`, E31's translation, which the Muse files grooves by,
- * #401) with the MIDI card playing `card` (every role unless given).
+ * #401) with its mix playing `card` (every role unless given), under a
+ * card sending the groove on channel 10.
  */
 export function drumsAsCells(bar: BandBar, card: readonly DrumRole[] = rolesOf(bar)): string {
   if (bar.meter !== SONG_METER) throw new Error(`bar ${bar.bar}: only 4/4 is translated`);
@@ -82,14 +83,19 @@ export function drumsAsCells(bar: BandBar, card: readonly DrumRole[] = rolesOf(b
     velocity: n.velocity,
   }));
   const text = grooveText(hits, BAR_STEPS);
-  // (a role left off the card keeps its lines, as E31 states it, and plays nothing)
-  const played = text.replace(/^&drums map=midi\(10\) \[(.*)\]$/m, (_, all: string) => {
-    const kept = all
-      .split(', ')
-      .filter((term) => card.includes(/^&(\w+)/.exec(term)![1] as DrumRole));
-    return `&drums map=midi(10) ${kept.length ? `[${kept.join(', ')}]` : '~'}`;
+  // (a role left off the groove's mix keeps its lines, as E31 states it, and plays nothing)
+  const played = text.replace(/^&groove (?:\[(.*)\]|~)$/m, (_, all: string | undefined) => {
+    const kept = (all ? all.split(', ') : []).filter((term) =>
+      card.includes(/^&(\w+)/.exec(term)![1] as DrumRole),
+    );
+    return `&groove ${kept.length ? `[${kept.join(', ')}]` : '~'}`;
   });
-  return [`&bar scan(1 1 1 1) step=${bar.style.bpm}bpm`, withInstruments(played)].join('\n');
+  // the groove carries no MIDI card (cells#299): the bar's own card sends it on channel 10
+  return [
+    `&bar scan(1 1 1 1) step=${bar.style.bpm}bpm`,
+    '&drums map=midi(10) [&groove]',
+    withInstruments(played),
+  ].join('\n');
 }
 
 const sorted = (hits: readonly Hit[]): Hit[] =>
