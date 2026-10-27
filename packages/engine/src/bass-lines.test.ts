@@ -92,14 +92,9 @@ function bandPlays(read: LineRead, meter: Meter, bars: number): string[] {
 }
 
 describe("cells' bass lines read into the notes the band plays (#423)", () => {
-  it('reads each of the five seeds under every named meter as cells plays it over a harmony: where each note falls and its pitch class, over 8 bars', () => {
-    expect(BASS_FRAGMENTS.map((f) => f.id)).toEqual([
-      'root bass',
-      'pumping bass',
-      'eighths bass',
-      'funk bass',
-      'walking bass',
-    ]);
+  it('reads each of the seeds under every named meter as cells plays it over a harmony: where each note falls and its pitch class, over 8 bars', () => {
+    // (whichever bass lines cells offers: its library's list is cells', yggi/music-commons#37)
+    expect(BASS_FRAGMENTS.length).toBeGreaterThan(0);
     for (const name of NAMES)
       for (const f of BASS_FRAGMENTS) {
         const read = readLine(f.text, METERS[name]);
@@ -110,14 +105,14 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       }
   });
 
-  it('reads every variation cells makes of the seeds by its pitched operators (44 of them in 4/4, bend and trim among them since cells v0.10.1) as cells plays it', () => {
+  it('reads every variation cells makes of the seeds by its pitched operators, in 4/4, as cells plays it', () => {
     const all = BASS_FRAGMENTS.flatMap((f) =>
       variations(f.text, {
         workbench: `${readingBench('4/4')}\n${BASS}`,
         operators: PITCHED_OPERATORS,
       }).map((v) => ({ id: `${f.id}: ${v.by}`, text: v.apply(f.text) })),
     );
-    expect(all).toHaveLength(44);
+    expect(all.length).toBeGreaterThan(BASS_FRAGMENTS.length);
     for (const { id, text } of all)
       expect(bandPlays(readLine(text, METERS['4/4'])!, METERS['4/4'], 4), id).toEqual(
         cellsPlays(text, '4/4', 4),
@@ -146,14 +141,18 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       { step: 12, chord: 1, index: 0, alter: 0, shift: -1 },
     ]);
     // a lap of more than a bar where its grid doesn't divide the bar: the pump's eight eighths over 3/4's six
-    expect(readLine(BASS_FRAGMENTS[1]!.text, METERS['3/4'])!.bars).toBe(4);
+    const pump = BASS_FRAGMENTS.find((f) => f.id === 'pumping bass')!;
+    expect(readLine(pump.text, METERS['3/4'])!.bars).toBe(4);
   });
 
   it('tells a walk: a note on every pulse and nowhere else, in every bar of its lap', () => {
     const walks = BASS_FRAGMENTS.filter((f) =>
       isWalk(readLine(f.text, METERS['4/4'])!, METERS['4/4'], 16),
     ).map((f) => f.id);
-    expect(walks).toEqual(['walking bass']);
+    // (the seeds named: which others cells offers, and whether they walk, is cells' library's)
+    expect(walks).toContain('walking bass');
+    for (const id of ['root bass', 'pumping bass', 'eighths bass', 'funk bass'])
+      expect(walks).not.toContain(id);
   });
 
   it('states a bar of notes as cells text that reads back as them: the round trip a filing relies on, on the coarsest grid they fall on', () => {
