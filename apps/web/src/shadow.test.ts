@@ -456,7 +456,7 @@ describe('the band through cells (#399, #469)', () => {
     },
   );
 
-  it('ends a note that runs into the next section, whose swing’s level turned, as the transport ends the band’s: by the next bar’s swing once it is composed (#405)', () => {
+  it('ends a note that runs into the next section, whose swing’s level turned, as the transport ends the band’s: by its own bar’s swing, past it too (#405, #501)', () => {
     let crossing = 0;
     const { readout, band, played } = run({
       // Stabs held long, past the bar's end (articulation 0.1).
@@ -849,6 +849,39 @@ describe('a session through cells: the section’s text on the wire, host to cli
     expect(theirs.arrival.late).toBeGreaterThan(0);
     expect(theirs.played.band).toBeGreaterThan(0);
     expect(theirs.errors).toEqual([]);
+    playsAsTheHost(played, client!.played);
+  });
+
+  it('a client ends a note that runs into the next section, whose swing’s level turned, as the host does, though it holds the next bar only as it starts (#501)', () => {
+    let crossing = 0;
+    const jazz = PRESETS.find((p) => p.name === 'Swing jazz')!;
+    const { band, played, client } = run({
+      // Stabs held long, past the bar's end (articulation 0.1).
+      preset: { ...jazz, style: { ...jazz.style, artic: 0.1 } },
+      swing: presetSwing(jazz)!,
+      mode: presetMode(jazz)!,
+      seed: 2,
+      meter: '3/4',
+      bars: 32,
+      countIn: COUNT_IN,
+      follow: { link: LINK },
+      control: (env, carried) =>
+        carried.nextBar % SECTION_BARS === 3
+          ? {
+              ...env,
+              swing: swingTo(
+                env.swing!,
+                { level: Math.floor(carried.nextBar / SECTION_BARS) % 2 ? '8n' : '16n' },
+                carried.head.step,
+                0,
+              ),
+            }
+          : env,
+    });
+    for (const e of band)
+      if (e.event.step + e.event.length > 12 && (e.bar + 1) % SECTION_BARS === 0) crossing++;
+    expect(crossing).toBeGreaterThan(0);
+    expect(client!.readout.errors).toEqual([]);
     playsAsTheHost(played, client!.played);
   });
 

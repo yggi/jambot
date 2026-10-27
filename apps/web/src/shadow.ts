@@ -59,7 +59,6 @@
 
 import {
   type BandBar,
-  COMPOSE_AHEAD,
   type DoughNote,
   type LateEvent,
   SECTION_BARS,
@@ -687,7 +686,6 @@ export class Shadow {
         composed,
         step,
         inBar,
-        clock,
         carried,
         env,
         now,
@@ -758,26 +756,17 @@ export class Shadow {
     bar: BandBar,
     step: ScheduledStep,
     inBar: number,
-    clock: SongClock,
     carried: TransportCarried<unknown>,
     env: TransportEnv,
     now: number,
     late: LateEvent[],
   ): TimedEvent[] {
     const p = stated.played!;
-    const track = env.swing ?? STILL;
-    // A note that runs past its bar ends as the transport knew the bars after as it laid the step:
-    // those it had composed, up to `COMPOSE_AHEAD` steps ahead, by their plans and meters, and past them by this bar's.
-    const reach = clock.barAt(step.step + COMPOSE_AHEAD);
-    const song = clockOf(carried.meters.filter((change) => change.bar <= reach));
     const ends = laidClock(
       step,
-      song,
-      (at) => {
-        const barOfBeat = song.barAt(at);
-        const { plan } = (barOfBeat <= reach && this.#composedBars.get(barOfBeat)) || bar;
-        return { level: plan.swing, share: plan.share ?? valueIn(SHARE, track.share, at) };
-      },
+      bar,
+      carried.meters,
+      env.swing ?? STILL,
       tempoMap(env.track, { step: step.step, seconds: step.seconds }, env.tempoMeter),
     );
     const out: TimedEvent[] = [];

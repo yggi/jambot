@@ -665,23 +665,35 @@ export function writtenAt(laid: readonly ScheduledStep[], seconds: number): numb
 
 /**
  * Where each step of the song plays, as the transport lays the events of a
- * step it laid (`laid`): within the step's beat by the swing the beat holds,
- * past it by each beat's own swing (`swingFrom` its start), and then through
- * the tempo from the step. An event's onset is its step's, and its end its
- * step and length; the shadow lays the end of a note cells plays by it too
- * (#405).
+ * step it laid (`laid`) in a bar (`bar`): within the step's beat by the swing
+ * the beat holds, past it by each beat's own swing, and then through the
+ * tempo from the step. An event's onset is its step's, and its end its step
+ * and length; the shadow lays the end of a note cells plays by it too (#405).
+ *
+ * A note that runs past its bar ends as its bar knows the song: the meters
+ * up to it and its own past it (`meters`), and every beat on its bar's level,
+ * at the share the track (`swing`) has there. A host composes the next bar a
+ * beat ahead and a client holds it only as its first step is laid, so only
+ * what the note's own bar holds ends it alike on both (#501).
  */
 export function laidClock(
   laid: ScheduledStep,
-  song: SongClock,
-  swingFrom: (beatStart: number) => MeterSwing,
+  bar: { readonly bar: number; readonly plan: Pick<BandBar['plan'], 'swing' | 'share'> },
+  meters: readonly MeterChange[],
+  swing: SwingTrack,
   tempo: TimeMap,
 ): (step: number) => number {
+  const song = clockOf(meters.filter((change) => change.bar <= bar.bar));
   const index = song.beatAt(laid.step);
   const held = swingMapAt(laid.swing, laid.pulse.start, laid.pulse.length);
-  const swing = swingOf(swingFrom, song);
-  return (x) => tempo.played(song.beatAt(x) === index ? held.played(x) : swing.played(x));
+  const beats = swingOf(barSwing(bar.plan, swing), song);
+  return (x) => tempo.played(song.beatAt(x) === index ? held.played(x) : beats.played(x));
 }
+
+/** The swing a bar's beats swing on: its level, at its share where its plan gives one, else the share the track has where the beat starts. */
+const barSwing =
+  ({ swing: level, share }: Pick<BandBar['plan'], 'swing' | 'share'>, track: SwingTrack) =>
+  (at: number): MeterSwing => ({ level, share: share ?? valueIn(SHARE, track.share, at) });
 
 /** The transport over a source of bars. */
 export function transportOver<Source, Arrived = never>(
@@ -876,16 +888,12 @@ export function transportOver<Source, Arrived = never>(
         const chord = chordAt(chords, song.stepInBar(head.step));
 
         // The beat's swing is read as the beat starts, and kept: its bar's
-        // level, at the share the track has there. A beat in a bar not yet
-        // composed swings on the level of the bar playing.
+        // level, at the share the track has there.
         const index = song.beatAt(head.step);
         const pulseStart = song.beatStart(index);
         const pulse = { start: pulseStart, length: song.beatStart(index + 1) - pulseStart };
-        const swingFrom = (at: number): MeterSwing => {
-          const { plan } = bars.find((b) => b.bar === song.barAt(at)) ?? current;
-          return { level: plan.swing, share: plan.share ?? valueIn(SHARE, swingTrack.share, at) };
-        };
-        if (beat?.index !== index) beat = { index, swing: swingFrom(pulseStart) };
+        if (beat?.index !== index)
+          beat = { index, swing: barSwing(current.plan, swingTrack)(pulseStart) };
         const laid: ScheduledStep = {
           step: head.step,
           section,
@@ -897,7 +905,13 @@ export function transportOver<Source, Arrived = never>(
           pulse,
         };
         steps.push(laid);
-        const clock = laidClock(laid, song, swingFrom, tempoMap(track, head, tempoMeter));
+        const clock = laidClock(
+          laid,
+          current,
+          meters,
+          swingTrack,
+          tempoMap(track, head, tempoMeter),
+        );
 
         for (const event of current.dough) {
           if (event.step !== song.stepInBar(head.step)) continue;
