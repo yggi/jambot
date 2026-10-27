@@ -119,13 +119,9 @@ Nothing checks these; you and the reviewer hold them.
   open and say so.
 - **Small commits, pull requests into `main`.** No ceremony beyond passing
   checks. See "Branches and merging" below.
-- **Deploy after merging.** Whoever merges a pull request into `main` then runs
-  `pnpm pages deploy` from `main`, so the site at
-  <https://yggi.github.io/jambot/> plays what `main` holds. Nothing else deploys
-  (`docs/memory/repository-and-ci.md`). The deploy refuses a commit that
-  isn't on `origin/main`, runs `pnpm verify`, and checks the live site once
-  Pages has published it. When the build hasn't changed, it pushes nothing and
-  only checks.
+- **A merge deploys.** A push to `main` runs `.github/workflows/deploy.yml`, which runs `pnpm pages deploy` there, so the site at <https://yggi.github.io/jambot/> plays what `main` holds.
+  The deploy runs `pnpm verify`, refuses a commit that isn't on `origin/main`, and checks the live site once Pages has published it; when the build hasn't changed, it pushes nothing and only checks.
+  Whoever merges watches that run, and deploys from a clone (`pnpm pages deploy` on `main`) only when Actions can't (`docs/memory/repository-and-ci.md`).
 
 ### What to do with what you find
 
@@ -159,7 +155,7 @@ Climb only as far as the change needs:
   Its intermediate commits were never verified, so it gives a readable history, not a bisectable one.
   One sentence describes the change: squash. Otherwise: merge commit.
   The size of the branch does not decide it.
-- The `land` skill does the merge, the deploy and the check of the live site.
+- The `land` skill does the merge, and sees the deploy it starts through to the check of the live site.
 
 ## Keeping the shared memory current
 

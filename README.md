@@ -1,5 +1,8 @@
 # Jambot
 
+[![CI, nightly on main](https://github.com/yggi/jambot/actions/workflows/ci.yml/badge.svg?branch=main&event=schedule)](https://github.com/yggi/jambot/actions/workflows/ci.yml?query=branch%3Amain+event%3Aschedule)
+[![Deploy](https://github.com/yggi/jambot/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/yggi/jambot/actions/workflows/deploy.yml)
+
 > You play, the Muse listens, the band answers.
 
 A cybernetic bandleader for live maker events. Left alone, it plays an endless,

@@ -8,7 +8,7 @@ name: CI
 # - by hand (Actions -> CI -> Run workflow, or `actions_run_trigger` on `ci.yml`, on any branch): `check` and `e2e`,
 #   and the soaks with `soak` ticked.
 # The review-pr skill reuses `check` and `e2e` on a head they passed rather than run them again.
-# GitHub Pages is deployed by hand from the `gh-pages` branch, with `pnpm pages deploy` (`tooling/pages.ts`), not from here.
+# GitHub Pages is deployed by deploy.yml on a merge into main (`pnpm pages deploy`, `tooling/pages.ts`), not from here.
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]

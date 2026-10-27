@@ -80,7 +80,8 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `apps/web/e2e/`: the end-to-end checks, the built app in Chromium with its audio measured (`pnpm e2e`)
 - `tooling/`: the repository's own gates and tools: `pnpm verify`, lint rules, hooks, the pawl, the license gate, the Pages deploy, screenshots, the heavy runs' lock
 - `.github/`
-  - `.github/workflows/ci.yml`: `pnpm verify` in one job on a ready pull request, a witness to the pre-push hook; e2e by hand
+  - `.github/workflows/ci.yml`: `pnpm verify` and `pnpm e2e` on a ready pull request, witnesses to the pre-push hook; both and the soaks nightly on `main`
+  - `.github/workflows/deploy.yml`: `pnpm pages deploy` on every merge into `main`
   - `.github/ISSUE_TEMPLATE/`: the epic, design, bug and infrastructure issue forms, one per label, the task form for work meant for an agent, and the links for a language question (yggi/cells) and the family (yggi/music-commons)
   - [`.github/pull_request_template.md`](../.github/pull_request_template.md): what every pull request says: what and why, the commit verified, its findings, what is left
 - `.githooks/pre-push`: runs `pnpm verify` before a `git push` of a branch, and blocks the push if it fails; refuses a dirty tree, remembers a tree that passed (as `pnpm verify` does), says what passed with its count of tests, and runs the docs check alone for a markdown-only branch
@@ -92,5 +93,5 @@ A source file has no line here: its header comment says what it is, and `tooling
     - `.claude/skills/music-theory/`: checks theory claims against music21 and tonal
     - `.claude/skills/ratchet/`: claims in the Dialectica form and the moves both sides of a ratchet pair make (#41)
     - `.claude/skills/review-pr/`: reviews a pull request against the house rules, in its own worktree
-    - `.claude/skills/land/`: merges a reviewed pull request, runs the deploy and checks the live site
+    - `.claude/skills/land/`: merges a reviewed pull request, and sees the deploy it starts through to the live site
     - `.claude/skills/screenshot/`: measured options shown side by side, as screenshots and as audio through the app's synth

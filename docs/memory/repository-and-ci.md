@@ -17,8 +17,8 @@ How the repository is built, gated, deployed and licensed.
 - While Actions is blocked, a run fails within seconds, with no runner and no step: a red or missing `check` then says nothing about the code.
   `node tools/measure/actions.mjs --status yggi/jambot`, in music-commons, tells a blocked repository from one where Actions runs.
   The evidence is the verified commit the pull request names; when minutes are back, one run of a blocked check on a pull request still open is enough.
-  Nothing else waits on Actions: Pages is deployed by hand (below), and the lobby by the `lobby-deploy` skill.
-- GitHub Pages is deployed by hand, after each merge into `main` (`AGENTS.md`): `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
+  Pages is deployed by a merge (below), and the lobby by the `lobby-deploy` skill.
+- GitHub Pages is deployed by each merge into `main` (`AGENTS.md`): the push runs `.github/workflows/deploy.yml`, one at a time and never cancelled, which runs `pnpm pages deploy` there (by hand too, Actions → Deploy → Run workflow, and from a clone when Actions is blocked). `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
   It then waits for the live site to serve that build and checks it again.
   Pages publishes the branch as it is: the repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
   `pnpm pages build` and `pnpm pages serve` show the site on `http://localhost:4318/jambot/` first, served as Pages serves it (404 for what isn't a file, where `vite preview` would answer with the app).
