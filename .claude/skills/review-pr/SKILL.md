@@ -100,6 +100,18 @@ assertion, since vitest's reporter can swallow a passing test's `console.log`.
 A longer probe goes in a file, removed after. A finding with a measured number
 beats one without.
 
+Then break it yourself: for each thing the change claims to catch or keep, make
+the smallest edit in the worktree that should trip it (a check undone, a value
+off by one, a bound moved), run the test, restore. The review's summary carries
+them as a table, one row each:
+
+| break-it                          | the edit                        | what failed               | restored |
+| --------------------------------- | ------------------------------- | ------------------------- | -------- |
+| the hook ignores the shared stamp | `tooling/verify.ts` from `main` | `hooks.test.ts`: 1 failed | yes      |
+
+A break-it that fails nothing is a finding: the check it meant to show doesn't
+exist. (As cells' `review` skill asks, yggi/cells#242.)
+
 ## 3. Post
 
 Post one review: create a pending review, add an inline comment per finding on
