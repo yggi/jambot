@@ -1,6 +1,6 @@
 /**
  * The family's swing and feel contracts (yggi/music-commons
- * `contracts/swing` and `contracts/feel`, version 1) run against the time
+ * `contracts/swing` and `contracts/feel`, version 1; the feel's minor 1) run against the time
  * maps and the performer: each hub `vectors.json` is copied into
  * `fixtures/contracts/` with a first field, `lifted`, naming the hub and the
  * commit it came from, and the hub's `README.md` for each contract is the
@@ -14,7 +14,9 @@
  * `performStated` on a bar made of the frame, its velocity and length.
  *
  * Every vector runs, and Jambot meets each: the feel's are its own
- * performer's playing, lifted.
+ * performer's playing, lifted. The feel's minor 1, the reading of a host's
+ * text (`reading`), is `packages/score`'s, which reads each event's output
+ * (`lineOf`): `packages/score/src/contracts.test.ts`.
  */
 import { describe, expect, it } from 'vitest';
 import feelHub from '../fixtures/contracts/feel.json';
@@ -63,7 +65,10 @@ interface Contract<V> {
   readonly vectors: readonly V[];
 }
 const swing = swingHub as unknown as Contract<SwingVector>;
-const feel = feelHub as unknown as Contract<FeelVector> & { readonly hubLifted: string };
+const feel = feelHub as unknown as Contract<FeelVector> & {
+  readonly minor: number;
+  readonly hubLifted: string;
+};
 
 const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 /** A grouping as a meter: its eighths, each group's first a pulse. */
@@ -119,7 +124,7 @@ describe('the feel contract (yggi/music-commons contracts/feel, version 1)', () 
       /^Lifted from yggi\/music-commons contracts\/feel\/vectors\.json @ [0-9a-f]{7,40}$/,
     );
     expect(feel.hubLifted).toMatch(/^Lifted from yggi\/jambot @ [0-9a-f]{7}/);
-    expect([feel.contract, feel.version]).toEqual(['feel', 1]);
+    expect([feel.contract, feel.version, feel.minor]).toEqual(['feel', 1, 1]);
     expect(feel.vectors).toHaveLength(256);
   });
 
