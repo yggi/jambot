@@ -1,11 +1,11 @@
 ---
 name: land
-description: Land a Jambot pull request that has been reviewed and approved. Verifies, merges into main, puts its issues right, runs the deploy and checks the live site. Use when asked to merge a pull request, or after a merge that has not been deployed yet.
+description: Land a Jambot pull request that has been reviewed and approved. Verifies, merges into main, puts its issues right, and watches the deploy the merge starts on Actions (which checks the live site). Use when asked to merge a pull request, or after a merge whose deploy hasn't been seen through.
 ---
 
 # Land a pull request
 
-Whoever merges into `main` deploys it (`AGENTS.md`, "Deploy after merging").
+A merge into `main` deploys it: the push runs `.github/workflows/deploy.yml` (`AGENTS.md`, "A merge deploys").
 Do the steps in order and stop at the first that fails.
 
 1. **The pull request is ready.**
@@ -26,10 +26,11 @@ Do the steps in order and stop at the first that fails.
       A rung of the central roadmap (#358) is ticked there and in its twin, yggi/cells#81, and the epic's _Where it stands_ is brought up to date.
    3. **Follow-ups filed:** each line of the pull request's _Not done / follow-ups_ that names work becomes an issue, or is linked to the one that already holds it, in the repository where it belongs: a question about what the score language means or how it is spelled in yggi/cells.
    4. **References right:** an issue or pull request in another repository that the merged pull request names by a bare number is written `yggi/<repo>#n`, in its body and in the issues it closed or ticked.
-5. **Deploy.**
-   `pnpm pages deploy` from `main`.
-   It refuses a commit that is not on `origin/main`, runs `pnpm verify`, pushes `gh-pages` if the build changed, and checks the live site at <https://yggi.github.io/jambot/> once Pages serves it.
+5. **The deploy.**
+   The merge's push to `main` starts _Deploy_ on Actions: `pnpm pages deploy` there, which runs `pnpm verify`, pushes `gh-pages` if the build changed, and checks the live site at <https://yggi.github.io/jambot/> once Pages serves it.
+   Wait for that run (on the merge commit) to end, green.
+   Only when Actions is blocked (a run that fails in seconds with no step), run `pnpm pages deploy` from `main` in a clone instead.
 6. **Say so.**
-   A comment on the pull request with what the deploy printed, and what step 4 closed, ticked and filed.
+   A comment on the pull request with the deploy's run and its last lines, and what step 4 closed, ticked and filed.
 
-If the deploy fails, the merge stands: fix forward on a new branch, and say that `main` and the site differ.
+If the deploy fails, the merge stands: fix forward on a new branch (or run _Deploy_ again by hand for a failure that wasn't the code's), and say that `main` and the site differ.

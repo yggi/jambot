@@ -7,7 +7,8 @@
 #
 # - It verifies the working tree, and the push sends the commit, so a dirty
 #   tracked tree is refused: commit first, and push the branch checked out.
-# - A tree that passed is remembered by its hash (in the git directory), with
+# - A tree that passed is remembered by its hash (in the common git directory,
+#   shared by every linked worktree of the clone), with
 #   the count of tests that passed on it, so a push retried after a network
 #   failure does not run the tests again and still says the count. `pnpm
 #   verify` run by hand remembers the tree it passed in the same file
@@ -55,7 +56,7 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 fi
 
 # One tree to a line, then the count of tests that passed on it, if known.
-stamps="$(git rev-parse --absolute-git-dir)/jambot-verified"
+stamps="$(git rev-parse --path-format=absolute --git-common-dir)/jambot-verified"
 tree=$(git rev-parse 'HEAD^{tree}')
 short=$(git rev-parse --short "$tree")
 stamped() { grep -E "^$tree( |\$)" "$stamps" 2>/dev/null | head -1; }

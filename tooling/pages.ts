@@ -1,5 +1,6 @@
 /**
- * GitHub Pages without GitHub Actions (docs/memory/repository-and-ci.md). The site is built here, checked
+ * GitHub Pages from a branch (docs/memory/repository-and-ci.md), run by `.github/workflows/deploy.yml` on a
+ * merge into `main`, or from a clone. The site is built here, checked
  * here, and committed to the `gh-pages` branch, which Pages publishes as it
  * is ("Deploy from a branch"). Pages serves the site under a sub-path,
  * `/<repo>/`, so the check is that every file the site references resolves

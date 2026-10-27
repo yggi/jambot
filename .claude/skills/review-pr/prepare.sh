@@ -8,8 +8,14 @@
 # the output where there are none. The worktree stays for reading and
 # probing; the summary says how to probe it and how to remove it.
 #
+# CI's run is the witness when it has one: when the CI workflow's `check`
+# (`pnpm verify`) and, where the change needs it, `e2e` jobs passed on the
+# head commit, neither runs again here, only the install, for the probes. A
+# pull request that changes markdown alone needs no end-to-end run (the
+# pre-push hook's docs rule). --verify runs them anyway.
+#
 # Usage:
-#   prepare.sh <pull request number | branch> [--from <commit>] [--against <pull request number | branch>] [worktree directory]
+#   prepare.sh <pull request number | branch> [--from <commit>] [--against <pull request number | branch>] [--verify] [worktree directory]
 # --from scopes the commits and the diff to what the pull request did after
 # <commit>, leaving out what came in from main, to review part of a pull
 # request. Verify still runs on the whole head.
@@ -23,18 +29,26 @@
 #
 # A checkout without this script (a branch behind main) can run main's copy:
 #   git show origin/main:.claude/skills/review-pr/prepare.sh | sh -s -- <args>
-# JAMBOT_VERIFY replaces install and verify, and JAMBOT_E2E the end-to-end
-# tests, for tooling/review-pr.test.ts.
+# JAMBOT_VERIFY replaces install and verify, JAMBOT_E2E the end-to-end tests,
+# JAMBOT_INSTALL the install alone, and JAMBOT_CI the lookup of CI's check
+# runs on the commit (its first argument; it prints GitHub's JSON), for
+# tooling/review-pr.test.ts.
 set -u
-usage='usage: prepare.sh <pull request number | branch> [--from <commit>] [--against <pull request number | branch>] [worktree directory]'
+usage='usage: prepare.sh <pull request number | branch> [--from <commit>] [--against <pull request number | branch>] [--verify] [worktree directory]'
 target=${1:?$usage}
 shift
 from=''
 against=''
+force=''
 while :; do
   case ${1:-} in
     --from) from=${2:?$usage} ;;
     --against) against=${2:?$usage} ;;
+    --verify)
+      force=1
+      shift
+      continue
+      ;;
     *) break ;;
   esac
   shift 2
@@ -102,16 +116,49 @@ fi
 
 log="$dir.verify.log"
 cd "$dir" || exit 1
-if sh -c "${JAMBOT_VERIFY:-pnpm install --frozen-lockfile --prefer-offline && pnpm verify}" >"$log" 2>&1; then
+
+# The end-to-end tests, when the repository has them and the pull request
+# changes more than markdown, run apart from verify.
+e2e=${JAMBOT_E2E:-}
+[ -z "$e2e" ] && grep -q '"e2e":' package.json 2>/dev/null && e2e='pnpm e2e'
+if [ -n "$e2e" ] && ! git diff --name-only "$(git merge-base origin/main HEAD)...HEAD" | grep -qv '\.md$'; then
+  e2e=''
+  e2e_skipped=1
+fi
+
+# CI's witness: the address of the `check` run when the latest run of each
+# job needed (`check`, and `e2e` where it runs) passed on this commit; nothing
+# when one is missing, running or red, or GitHub can't be asked.
+witness() {
+  sh -c "${JAMBOT_CI:-curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' \"https://api.github.com/repos/yggi/jambot/commits/\$1/check-runs?per_page=100\"}" - "$1" 2>/dev/null |
+    node -e '
+      let text = "";
+      process.stdin.on("data", (chunk) => (text += chunk)).on("end", () => {
+        let runs;
+        try { runs = JSON.parse(text).check_runs ?? []; } catch { return; }
+        const last = (name) => runs.filter((r) => r.name === name).sort((a, b) => b.id - a.id)[0];
+        const jobs = process.argv.slice(1).map(last);
+        if (jobs.every((r) => r && r.status === "completed" && r.conclusion === "success")) console.log(jobs[0].html_url);
+      });' check ${e2e:+e2e} 2>/dev/null
+}
+witnessed=''
+[ -n "$force" ] || witnessed=$(witness "$(git rev-parse HEAD)")
+needed="pnpm verify${e2e:+ and pnpm e2e}"
+
+if [ -n "$witnessed" ]; then
+  # Installed for the probes; CI's verify and end-to-end run stand for this one's.
+  e2e=''
+  if sh -c "${JAMBOT_INSTALL:-pnpm install --frozen-lockfile --prefer-offline}" >"$log" 2>&1; then
+    verdict='witnessed'
+  else
+    verdict='FAILS'
+  fi
+elif sh -c "${JAMBOT_VERIFY:-pnpm install --frozen-lockfile --prefer-offline && pnpm verify}" >"$log" 2>&1; then
   verdict='passes'
 else
   verdict='FAILS'
 fi
 unit=$(grep -E '^ +Tests ' "$log" | tail -1 | sed 's/^ *//; s/  */ /g')
-
-# The end-to-end tests, when the repository has them, run apart from verify.
-e2e=${JAMBOT_E2E:-}
-[ -z "$e2e" ] && grep -q '"e2e":' package.json 2>/dev/null && e2e='pnpm e2e'
 verify_lines=$(wc -l <"$log")
 if [ -n "$e2e" ]; then
   if sh -c "$e2e" >>"$log" 2>&1; then e2e_verdict='passes'; else e2e_verdict='FAILS'; fi
@@ -170,9 +217,14 @@ echo
 # shellcheck disable=SC2086
 git diff --compact-summary --stat=100 $range
 echo
-echo "pnpm verify $verdict${unit:+ ($unit)}; full log: $log"
+if [ "$verdict" = witnessed ]; then
+  echo "CI passed $needed on this commit, so they didn't run here (--verify runs them): $witnessed"
+else
+  echo "pnpm verify $verdict${unit:+ ($unit)}; full log: $log"
+fi
 [ -n "$e2e" ] && echo "pnpm e2e $e2e_verdict${e2e_tests:+ ($e2e_tests)}"
-if [ "$verdict" != passes ]; then
+[ -n "${e2e_skipped:-}" ] && echo "pnpm e2e not run: the pull request changes markdown alone"
+if [ "$verdict" = FAILS ]; then
   # Vitest's block of failed tests, up to its summary; else the output's end.
   failed=$(head -n "$verify_lines" "$log" | sed -n '/Failed Tests/,/^ *Test Files /p' | head -80)
   if [ -n "$failed" ]; then echo "$failed"; else head -n "$verify_lines" "$log" | tail -30; fi

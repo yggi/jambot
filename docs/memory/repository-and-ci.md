@@ -4,19 +4,21 @@ How the repository is built, gated, deployed and licensed.
 
 ## Repository and CI
 
-- The repository is private, so its Actions runs share the account's monthly minutes with the other private repositories of the family, and once those are used up Actions is blocked for all of them until the month's end (#4).
-  The family's rule for spending them is [CI-BUDGET.md](https://github.com/yggi/music-commons/blob/main/CI-BUDGET.md) in music-commons.
+- The repository is public, so GitHub's standard runners cost it nothing; the family's rule for spending Actions minutes, [CI-BUDGET.md](https://github.com/yggi/music-commons/blob/main/CI-BUDGET.md) in music-commons, still switches a private repository's runs off (#4).
+  So the heavy runs (the end-to-end checks, the soaks) go to Actions, where each has a runner to itself, rather than queue for the shared machine's lock (#471).
 - The gate is `pnpm verify`, run before every push of a branch by the pre-push hook (`.githooks/pre-push`), where it costs no minutes.
   The pull request names the commit that passed it, in its Verified section.
-- CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: one job that runs `pnpm verify` on a pull request when it is opened, pushed to, reopened or taken out of draft.
+- CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: `check` (`pnpm verify`) and `e2e` (`pnpm e2e`), side by side, on a pull request when it is opened, pushed to, reopened or taken out of draft.
   A draft runs nothing, and a newer push cancels the run still going, so a pull request stays a draft while it moves.
-  The end-to-end checks run there only by hand (Actions → CI → Run workflow, with `e2e` ticked); otherwise `pnpm e2e` runs locally, as `AGENTS.md` says when.
+  Nightly on `main` both run, and so do the radio and the session soaks (`soak`, 30 minutes each, on a served build), their readouts kept as the run's artifacts; the session soak fails where its bound breaks (#462).
+  By hand (Actions → CI → Run workflow, or `actions_run_trigger` on `ci.yml`) any branch gets `check` and `e2e`, and the soaks with `soak` ticked; runs by hand are never cancelled, so several on one branch give a pass rate.
+  The review-pr skill reuses CI's `check` and `e2e` on a head they passed rather than run them a third time; it runs them itself only where CI hasn't passed that commit.
   No check is required to merge.
 - While Actions is blocked, a run fails within seconds, with no runner and no step: a red or missing `check` then says nothing about the code.
   `node tools/measure/actions.mjs --status yggi/jambot`, in music-commons, tells a blocked repository from one where Actions runs.
   The evidence is the verified commit the pull request names; when minutes are back, one run of a blocked check on a pull request still open is enough.
-  Nothing else waits on Actions: Pages is deployed by hand (below), and the lobby by the `lobby-deploy` skill.
-- GitHub Pages is deployed by hand, after each merge into `main` (`AGENTS.md`): `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
+  Pages is deployed by a merge (below), and the lobby by the `lobby-deploy` skill.
+- GitHub Pages is deployed by each merge into `main` (`AGENTS.md`): the push runs `.github/workflows/deploy.yml`, one at a time and never cancelled, which runs `pnpm pages deploy` there (by hand too, Actions → Deploy → Run workflow, and from a clone when Actions is blocked). `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
   It then waits for the live site to serve that build and checks it again.
   Pages publishes the branch as it is: the repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
   `pnpm pages build` and `pnpm pages serve` show the site on `http://localhost:4318/jambot/` first, served as Pages serves it (404 for what isn't a file, where `vite preview` would answer with the app).

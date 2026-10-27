@@ -99,6 +99,7 @@ Nothing checks these; you and the reviewer hold them.
   The end-to-end checks run the built app in Chromium and measure its audio: the exact time of every onset, and whether the band sounds and stops.
   They take about 6 minutes (44 checks in 5.9 min, 2026-10-17), mostly the band playing in real time, and need a browser, so they are not part of `pnpm verify`: run them in the background.
   Run them before pushing a change to the transport, the time maps, the style glides, a part's events, the player, the audio or the page, and on a pull request that touches those.
+  On a shared machine, run them on Actions instead (CI on your branch by hand, `docs/memory/repository-and-ci.md`) and quote the run: a ready pull request's CI runs them anyway.
   A fresh checkout needs `pnpm exec playwright install chromium` once; Claude Code sessions do it at start.
 - **The prototype is a baseline, not a source of truth.** It orients the port.
   Where one of its values helps, a test records it as a literal. What is true is
@@ -118,13 +119,9 @@ Nothing checks these; you and the reviewer hold them.
   open and say so.
 - **Small commits, pull requests into `main`.** No ceremony beyond passing
   checks. See "Branches and merging" below.
-- **Deploy after merging.** Whoever merges a pull request into `main` then runs
-  `pnpm pages deploy` from `main`, so the site at
-  <https://yggi.github.io/jambot/> plays what `main` holds. Nothing else deploys
-  (`docs/memory/repository-and-ci.md`). The deploy refuses a commit that
-  isn't on `origin/main`, runs `pnpm verify`, and checks the live site once
-  Pages has published it. When the build hasn't changed, it pushes nothing and
-  only checks.
+- **A merge deploys.** A push to `main` runs `.github/workflows/deploy.yml`, which runs `pnpm pages deploy` there, so the site at <https://yggi.github.io/jambot/> plays what `main` holds.
+  The deploy runs `pnpm verify`, refuses a commit that isn't on `origin/main`, and checks the live site once Pages has published it; when the build hasn't changed, it pushes nothing and only checks.
+  Whoever merges watches that run, and deploys from a clone (`pnpm pages deploy` on `main`) only when Actions can't (`docs/memory/repository-and-ci.md`).
 
 ### What to do with what you find
 
@@ -158,7 +155,7 @@ Climb only as far as the change needs:
   Its intermediate commits were never verified, so it gives a readable history, not a bisectable one.
   One sentence describes the change: squash. Otherwise: merge commit.
   The size of the branch does not decide it.
-- The `land` skill does the merge, the deploy and the check of the live site.
+- The `land` skill does the merge, and sees the deploy it starts through to the check of the live site.
 
 ## Keeping the shared memory current
 

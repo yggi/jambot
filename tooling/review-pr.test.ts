@@ -22,6 +22,18 @@ const identity = {
   GIT_COMMITTER_EMAIL: 'test@example.com',
 };
 const passing = 'echo "      Tests  12 passed (12)"';
+// CI's check runs, as GitHub's API answers for a commit; by default the lookup fails, as it does offline.
+const noCi = 'exit 1';
+const checkRuns = (...runs: [name: string, conclusion: string][]) =>
+  `echo '${JSON.stringify({
+    check_runs: runs.map(([name, conclusion], id) => ({
+      id,
+      name,
+      status: 'completed',
+      conclusion,
+      html_url: `https://ci/${name}`,
+    })),
+  })}'`;
 
 let root: string;
 let clone: string;
@@ -37,13 +49,21 @@ function commit(file: string, text: string, message: string) {
 
 /**
  * Runs prepare.sh in the clone, with `verify` standing in for install and
- * `pnpm verify`, and `e2e`, when given, for `pnpm e2e`.
+ * `pnpm verify`, `e2e`, when given, for `pnpm e2e`, and `ci` for the lookup
+ * of CI's check runs.
  */
-function prepare(args: string[], verify = passing, input?: string, e2e?: string) {
+function prepare(args: string[], verify = passing, input?: string, e2e?: string, ci = noCi) {
   const run = spawnSync('sh', input === undefined ? [script, ...args] : ['-s', '--', ...args], {
     cwd: clone,
     input,
-    env: { ...process.env, ...identity, JAMBOT_VERIFY: verify, ...(e2e && { JAMBOT_E2E: e2e }) },
+    env: {
+      ...process.env,
+      ...identity,
+      JAMBOT_VERIFY: verify,
+      JAMBOT_INSTALL: 'echo installed',
+      JAMBOT_CI: ci,
+      ...(e2e && { JAMBOT_E2E: e2e }),
+    },
     encoding: 'utf8',
     // A run left waiting on the lock fails, rather than hang the suite.
     timeout: 15_000,
@@ -55,7 +75,7 @@ function prepare(args: string[], verify = passing, input?: string, e2e?: string)
 function prepareAsync(args: string[], verify: string) {
   const run = spawn('sh', [script, ...args], {
     cwd: clone,
-    env: { ...process.env, ...identity, JAMBOT_VERIFY: verify },
+    env: { ...process.env, ...identity, JAMBOT_VERIFY: verify, JAMBOT_CI: noCi },
   });
   let stdout = '';
   let stderr = '';
@@ -125,6 +145,58 @@ describe('review-pr prepare.sh', () => {
     const { stdout } = prepare(['7', join(root, 'wt')], passing, undefined, e2e);
     expect(stdout).toContain('pnpm verify passes');
     expect(stdout).toContain('pnpm e2e FAILS (1 failed; 2 passed (1.2s))');
+  });
+
+  it("reuses CI's run on the head when verify and the end-to-end checks both passed there", () => {
+    const local = 'echo ran locally; exit 1';
+    const both = checkRuns(['check', 'success'], ['e2e', 'success']);
+    const witnessed = prepare(['7', join(root, 'wt')], local, undefined, local, both);
+    expect(witnessed.stdout).toContain(
+      "CI passed pnpm verify and pnpm e2e on this commit, so they didn't run here (--verify runs them): https://ci/check",
+    );
+    expect(witnessed.stdout).not.toContain('ran locally');
+    for (const ci of [
+      checkRuns(['check', 'success'], ['e2e', 'failure']),
+      checkRuns(['check', 'success']),
+      noCi,
+      'echo not json',
+    ]) {
+      const { stdout } = prepare(
+        ['7', join(root, 'wt')],
+        passing,
+        undefined,
+        'echo "  3 passed"',
+        ci,
+      );
+      expect(stdout).toContain('pnpm verify passes');
+      expect(stdout).toContain('pnpm e2e passes');
+    }
+    const forced = prepare(
+      ['7', '--verify', join(root, 'wt')],
+      passing,
+      undefined,
+      undefined,
+      both,
+    );
+    expect(forced.stdout).toContain('pnpm verify passes');
+  });
+
+  it('runs no end-to-end checks for a pull request that changes markdown alone, nor asks CI for them', () => {
+    git(clone, 'checkout', '-q', '-b', 'docs', 'main');
+    commit('notes.md', 'x\n', 'Docs only');
+    git(clone, 'push', '-q', 'origin', 'docs');
+    git(clone, 'checkout', '-q', 'main');
+    const local = prepare(['docs', join(root, 'wt')], passing, undefined, 'echo e2e ran; exit 1');
+    expect(local.stdout).toContain('pnpm e2e not run: the pull request changes markdown alone');
+    expect(local.stdout).not.toContain('e2e ran');
+    const witnessed = prepare(
+      ['docs', join(root, 'wt2')],
+      'exit 1',
+      undefined,
+      'exit 1',
+      checkRuns(['check', 'success']),
+    );
+    expect(witnessed.stdout).toContain('CI passed pnpm verify on this commit');
   });
 
   it('leaves end-to-end tests out where the repository has none', () => {

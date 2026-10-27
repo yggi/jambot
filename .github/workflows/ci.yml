@@ -1,32 +1,40 @@
 name: CI
 
 # A witness, not the gate (docs/memory/repository-and-ci.md): the gate is `pnpm verify`, which the pre-push hook runs,
-# and the pull request names the commit that passed it. A run that fails in seconds with no step is Actions blocked
-# (the account's minutes used up), not a verdict on the change.
-# One job, on a pull request that is ready (not a draft): jobs bill rounded up to a whole minute, so the steps share one.
-# The end-to-end checks by hand: Actions -> CI -> Run workflow, `e2e` ticked.
-# GitHub Pages is deployed by hand from the `gh-pages` branch, with `pnpm pages deploy` (`tooling/pages.ts`), not from here.
+# and the pull request names the commit that passed it. The repository is public, so Actions costs nothing here, and the
+# heavy runs move here from the shared machine (#471):
+# - on a pull request that is ready (not a draft): `pnpm verify` (`check`) and `pnpm e2e` (`e2e`), side by side;
+# - nightly on `main`: both, and the radio and session soaks (30 min each), their readouts kept as artifacts;
+# - by hand (Actions -> CI -> Run workflow, or `actions_run_trigger` on `ci.yml`, on any branch): `check` and `e2e`,
+#   and the soaks with `soak` ticked.
+# The review-pr skill reuses `check` and `e2e` on a head they passed rather than run them again.
+# GitHub Pages is deployed by deploy.yml on a merge into main (`pnpm pages deploy`, `tooling/pages.ts`), not from here.
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
+  schedule:
+    - cron: '43 2 * * *'
   workflow_dispatch:
     inputs:
-      e2e:
-        description: The end-to-end checks too (pnpm e2e, in Chromium)
+      soak:
+        description: The radio and session soaks too (30 min each)
         type: boolean
         default: false
 
 permissions:
   contents: read
 
+# (a newer push to a pull request cancels the run still going for the older one; a nightly or a run by hand is never
+# cancelled, so runs by hand on one branch can stand side by side, as a pass rate needs)
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   check:
-    # The switch (yggi/music-commons CI-BUDGET.md): runs only where Actions is free (public) or on (variable CI = on).
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
+    # The switch (yggi/music-commons CI-BUDGET.md): a pull request runs only where Actions is free (public) or on
+    # (variable CI = on), and a draft runs nothing.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -43,7 +51,53 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
-      - if: inputs.e2e
-        run: pnpm --filter @jambot/web exec playwright install --with-deps chromium
-      - if: inputs.e2e
-        run: pnpm e2e
+
+  e2e:
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @jambot/web exec playwright install --with-deps chromium
+      - run: pnpm e2e
+
+  soak:
+    if: github.event_name == 'schedule' || inputs.soak
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [radio, session]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @jambot/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @jambot/web build
+      - name: Serve the build on 4320
+        run: |
+          (pnpm --filter @jambot/web preview --port 4320 --strictPort >preview.log 2>&1 &)
+          for _ in $(seq 60); do curl -fs http://localhost:4320/ >/dev/null && exit 0; sleep 1; done
+          cat preview.log
+          exit 1
+      # The readout (one JSON line a few minutes, then the end's) is the artifact; the session soak fails where its
+      # bound breaks (#462), the radio soak only where it can't run.
+      - run: pnpm soak --minutes 30 --entropy 0.3 ${{ matrix.kind == 'session' && '--session' || '' }} | tee soak-${{ matrix.kind }}.jsonl
+        shell: bash
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-${{ matrix.kind }}
+          path: soak-${{ matrix.kind }}.jsonl
+          if-no-files-found: ignore
