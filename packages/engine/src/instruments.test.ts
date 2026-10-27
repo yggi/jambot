@@ -25,15 +25,15 @@ describe("the instruments a fragment's sound holes are filled from (yggi/cells#2
       errors(text).filter(
         (m) => /Unknown cell/.test(m) && !/Unknown cell &(harm|bar|key|tonic)\b/.test(m),
       );
-    // (at v0.10.0 the rhythms and the bass lines strike voices they don't define)
-    expect(seeds.filter((f) => unknownVoices(f.text).length).length).toBeGreaterThan(10);
+    // (some seeds strike voices they don't define: else this would show nothing)
+    expect(seeds.filter((f) => unknownVoices(f.text).length).length).toBeGreaterThan(0);
     for (const f of seeds) expect(unknownVoices(withInstruments(f.text)), f.id).toEqual([]);
   });
 
   it("takes a voice from the core kit before the General MIDI kit, the agogô from the General MIDI kit, and the bass's voice from `bass`", () => {
     expect(INSTRUMENT_LINES.get('bd')).toBe(lineOf('core kit', 'bd'));
     expect(INSTRUMENT_LINES.get('highagogo')).toBe(lineOf('gm kit', 'highagogo'));
-    expect(INSTRUMENT_LINES.get('bassV')).toBe('&bassV loop=C2');
+    expect(INSTRUMENT_LINES.get('bassV')).toBe(lineOf('bass', 'bassV'));
   });
 
   it('adds only the voices a text reads and does not define, and leaves a text that lacks none as it is', () => {

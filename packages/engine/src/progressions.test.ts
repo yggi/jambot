@@ -24,18 +24,14 @@ const range = (n: number) => [...Array(n).keys()];
 const NAMES = Object.keys(METERS) as MeterName[];
 
 describe("cells' harmonies read into a theme's slots (#425)", () => {
-  it('reads each of the five seeds, in every named meter, as its vamp: its first chord four bars, its second four', () => {
-    const vamps = HARMONY_FRAGMENTS.map((f) => [
-      f.id,
-      vampOf(readProgression(f.text, METERS['4/4'])!),
-    ]);
-    expect(Object.fromEntries(vamps)).toEqual({
-      'tonic vamp': [0],
-      'vamp to the seventh': [0, 6],
-      'vamp to the fourth': [0, 3],
-      'vamp to the sixth': [0, 5],
-      'vamp to the fifth': [0, 4],
-    });
+  it('reads each of the seeds, in every named meter, as a vamp from the tonic: its first chord four bars, its second four', () => {
+    // (which seeds cells offers, and to which degree each vamps, is cells' library's, yggi/music-commons#37)
+    expect(HARMONY_FRAGMENTS.length).toBeGreaterThan(0);
+    for (const f of HARMONY_FRAGMENTS) {
+      const vamp = vampOf(readProgression(f.text, METERS['4/4'])!);
+      expect(vamp?.[0], f.id).toBe(0);
+      expect(vamp!.length, f.id).toBeLessThanOrEqual(2);
+    }
     for (const f of HARMONY_FRAGMENTS)
       for (const name of NAMES)
         expect(readProgression(f.text, METERS[name]), `${f.id} in ${name}`).toEqual(
