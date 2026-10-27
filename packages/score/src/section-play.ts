@@ -149,7 +149,7 @@ export interface SectionFrame {
 
 /**
  * A section's text compiled with the reading's own lines beside it: what `playSection` plays. Its `use` lines (the
- * drums' `use "core kit"`) read through cells' seed library (`resolveSeed`, cells v0.10.1's engine host).
+ * drums' `use * from "core kit"`) read through cells' seed library (`resolveSeed`, cells v0.10.1's engine host).
  */
 export const compileSection = (text: string): Plan =>
   planOf(`${text}\n${READING}`, undefined, { resolve: resolveSeed });

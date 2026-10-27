@@ -350,7 +350,7 @@ describe('the composer tires of a line: varies it by cells’ pitched operators,
     const v = layer.filed.find((f) => f.fragment.id === 'composer song 1, bar 24 2')!;
     expect(v.meta[VARIES]).toBe('root bass');
     expect(v.meta.source).toBe(COMPOSER);
-    expect(v.meta[BY]).toMatch(/^(transpose &bass -?[12]|invert &bass|reverse &bass)$/);
+    expect(v.meta[BY]).toMatch(/^(transpose &bassline -?[12]|invert &bassline|reverse &bassline)$/);
     expect(v.meta.tags).toEqual([LINE_TAG]);
     const read = BASS_REPOSITORY.read(v.fragment.id, METERS['4/4'], layer)!;
     expect(read.notes[0]).toEqual({ step: 0, chord: 0, index: 0, alter: 0, shift: 0 });

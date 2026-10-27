@@ -5,10 +5,11 @@
  * read by cells' own compiler into one of the composer's modes
  * (`readModeFragment`) and ranked by cells' own `query` on the facet `mode`.
  *
- * A fragment states the mode and leaves the tonic to the host (`free(…)`),
- * which the key plan sets as it moves. One the band can't play is left out,
- * and says why: a scale that is none of `COMPOSER_MODES`, a tonic fixed, no
- * key, or a text that doesn't compile. Cells' five are all played, the bell
+ * A fragment states the mode and leaves the tonic to the host, a hole
+ * (`scale(dorian, &tonic)`, yggi/cells#300), which the key plan sets as it
+ * moves. One the band can't play is left out, and says why: a scale that is
+ * none of `COMPOSER_MODES`, a tonic fixed, no key, or a text that doesn't
+ * compile. Cells' five are all played, the bell
  * and scale as ionian.
  *
  * A preset's mode is the one found nearest its point (`presetMode`): each
@@ -21,6 +22,7 @@
 import { gaps, diatonicMode } from '@jambot/theory';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
+import { holesOf } from '@yggi/cells/repository/holes';
 import { MODE_FRAGMENTS } from '@yggi/cells/repository/modes';
 import { COMPOSER_MODES, type ComposerMode } from './key.ts';
 import { withInstruments } from './instruments.ts';
@@ -41,8 +43,8 @@ export interface ModeRepository {
   query(point: StylePoint): readonly { readonly id: string; readonly distance: number }[];
 }
 
-/** The workbench a fragment is read on: a meter, which a stepped key (the bell and scale's) taps. */
-const BENCH = '&bar meter("4/4") step=120bpm';
+/** The workbench a fragment is read on: a meter, which a stepped key (the bell and scale's) taps, and a tonic for its hole. */
+const BENCH = '&bar meter("4/4") step=120bpm\n&tonic C';
 
 /** Each composer mode's steps, in semitones, from its tonic. */
 const STEPS = COMPOSER_MODES.map((mode) => ({ mode, steps: gaps(diatonicMode(mode)) }));
@@ -55,8 +57,8 @@ export function readModeFragment(fragment: Fragment): ModeFragment | string {
   if (errors.length) return `it doesn't compile: ${errors.map((d) => d.message).join('; ')}`;
   const key = compiled.mainKey === undefined ? undefined : compiled.cells.get(compiled.mainKey);
   if (!key?.scan) return 'it has no key, a scale(…)';
-  if (!key.frees.some((free) => free.key === 'tonic'))
-    return 'its tonic is fixed, which the key plan sets: free(…) leaves it to the host';
+  if (!holesOf(fragment.text, compileSource).uses.includes('&tonic'))
+    return 'its tonic is fixed, which the key plan sets: scale(…, &tonic) leaves it to the host';
   const { lap, steps } = key.scan;
   const found = STEPS.find((mode) => lap === 12 && mode.steps.join(' ') === steps.join(' '))?.mode;
   if (!found) return `its scale, ${steps.join(' ')}, is none of the composer's modes`;

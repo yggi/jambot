@@ -80,9 +80,9 @@ function played(name: string, bars: number): BandBar[] {
 }
 
 describe('a member’s library (libraryOf)', () => {
-  it('holds cells’ seeds of its facet alone: 13 rhythms, 5 bass lines, no lead line, 5 harmonies', () => {
+  it('holds cells’ seeds of its facet alone: 14 rhythms, 5 bass lines, no lead line, 5 harmonies', () => {
     const counts = LOOP_FACETS.map((f) => libraryOf(f).length);
-    expect(counts).toEqual([13, 5, 0, 5]);
+    expect(counts).toEqual([14, 5, 0, 5]);
     for (const facet of LOOP_FACETS)
       for (const f of libraryOf(facet))
         expect(f.association.some((p) => p.facet === facet)).toBe(true);
@@ -93,7 +93,7 @@ describe('a member’s library (libraryOf)', () => {
 
   it('adds what the layer filed of its facet, and nothing of another’s', () => {
     const counts = LOOP_FACETS.map((f) => libraryOf(f, WITH_LINE).length);
-    expect(counts).toEqual([13, 5, 1, 5]);
+    expect(counts).toEqual([14, 5, 1, 5]);
     expect(libraryOf('lead', WITH_LINE)[0]!.text).toBe(leadText(LINE, 16));
   });
 });

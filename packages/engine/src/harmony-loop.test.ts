@@ -180,7 +180,7 @@ describe('the Muse files a player’s progression, and it comes back in a later 
     expect(ada.meta).toEqual({ source: 'Ada', created: 'song 3, bar 8', tags: [HARMONY_TAG] });
     expect(ada.fragment.text).toBe(progressionText(ADA));
     expect(ada.fragment.text).toBe(
-      '&harm over=key step=1m cycle=8 [0,2,4] [5,7,9] [2,4,6] [6,8,10] [0,2,4] [5,7,9] [2,4,6] [6,8,10]',
+      '&harm over=&key step=1m cycle=8 [0,2,4] [5,7,9] [2,4,6] [6,8,10] [0,2,4] [5,7,9] [2,4,6] [6,8,10]',
     );
     expect(ada.fragment.association[0]).toEqual({
       point: stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 0.3 })),

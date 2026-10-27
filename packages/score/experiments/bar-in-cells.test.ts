@@ -590,9 +590,9 @@ describe('what cells could not say (E33: the gaps)', () => {
     expect(lost.map((m) => m.played.chords[1]!.numeral)).toEqual(['II9', 'II7', 'II9', 'II7']);
   });
 
-  it('gap 4, a Euclid under swing: its hits are even parts of its step, which the swing doesn’t reach, so a swung rim is a line on 16n', () => {
-    // Stated as one Euclid on 1m anyway, the swung rims (Lo-fi hip hop's 13 bars, Funk's 32) play their offbeats
-    // straight: early by the swing, up to 54 ms (Lo-fi hip hop's sixteenths at .65 and 84 bpm).
+  it('gap 4, a Euclid under swing, closed in cells v0.11.2: its hits are even parts of its step, which swing with it (yggi/cells#306), so a swung rim plays as one Euclid on 1m', () => {
+    // Stated as one Euclid on 1m, the swung rims (Lo-fi hip hop's 13 bars, Funk's 32) play their offbeats
+    // late as the band does, by up to 54 ms (Lo-fi hip hop's sixteenths at .65 and 84 bpm).
     let bars = 0;
     let hits = 0;
     let offbeats = 0;
@@ -606,7 +606,7 @@ describe('what cells could not say (E33: the gaps)', () => {
       )) {
         if (!/^&euclid step=1m /m.test(textOf(m.text))) continue;
         bars++;
-        expect(m.mismatches.drums.length, `${r.preset} ${m.bar.bar}`).toBeGreaterThan(0);
+        expect(m.mismatches.drums, `${r.preset} ${m.bar.bar}`).toEqual([]);
         const lean = leanMap(leansOf(m.bar.swing), m.bar.meter);
         const step = stepSeconds(m.bar.style.bpm, m.bar.meter);
         for (const w of m.bar.written.filter((x) => x.role === 'euclid')) {

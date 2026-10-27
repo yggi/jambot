@@ -99,20 +99,20 @@ describe('the band writes a whole section as one cells text, every part, the lea
     expect(() => hostOf(across)).toThrow(/a section's key changes at its bar 4/);
   });
 
-  it('compiles every section with no diagnostic: the host’s lines first, once, and every part open on them (taps, `over=key`, `over=&harm`)', () => {
+  it('compiles every section with no diagnostic: the host’s lines first, once, and every part open on them (taps, `over=&key`, `over=&harm`)', () => {
     for (const s of SECTIONS) {
       const text = textOf(s.text);
       expect(s.played.diagnostics, `${s.run.preset} ${s.section}`).toEqual([]);
       const lines = text.split('\n');
       expect(lines[0]).toMatch(/^&bar meter\("4\/4"\) step=\d+bpm( swing=(8n|16n):[\d./]+)?$/);
       expect(lines[1]).toMatch(/^&key scale\((aeolian|dorian|ionian|mixolydian), [A-G][b#]?\)$/);
-      expect(lines[2]).toMatch(/^&harm over=key step=(1m|2n) /);
+      expect(lines[2]).toMatch(/^&harm over=&key step=(1m|2n) /);
       // No other line names a meter or a key; every line on a clock taps the main meter, and reads the main key, the
       // chord in force or the melodic scale.
       for (const line of lines.slice(1)) {
         expect(line).not.toMatch(/meter\(|scale\(.*\).*\n/);
         expect(line).not.toMatch(/step=(?!(16n|2n|1m)( |$))/);
-        expect(line).not.toMatch(/over=(?!(key|&harm|&melo)( |$))/);
+        expect(line).not.toMatch(/over=(?!(&key|&harm|&melo)( |$))/);
       }
       expect(lines.filter((l) => /scale\(/.test(l))).toHaveLength(1);
     }
@@ -171,7 +171,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
     // Witness: Synth-pop's section 2 in A aeolian, its lead from C4 and its levels on the beat and off it.
     const text = textOf(at('Synth-pop', 2).text);
     expect(text).toMatch(
-      /^&lead over=key step=16n legato=\.6375 ~@5 5@3 5@6 8@2 ~@5 8@3 6@6 3@2 ~@5 2@3 2@6 5@2 /m,
+      /^&lead over=&key step=16n legato=\.6375 ~@5 5@3 5@6 8@2 ~@5 8@3 6@6 3@2 ~@5 2@3 2@6 5@2 /m,
     );
     expect(text).toMatch(/^&leadOut play=&lead level=&leadLevel &leadV$/m);
     expect(text).toMatch(/^&out map=midi &leadOut &bassOut &stabOut ~!6 &drums$/m);
@@ -207,17 +207,17 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 4,793 characters a section, 4,335 without the lead, against E33’s 7,549 for the same 8 bars, 43 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 4,802 characters a section, 4,344 without the lead, against E33’s 7,549 for the same 8 bars, 42 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 306747,
+      total: 307323,
       meter: 2456,
       key: 1436,
-      harmony: 7133,
-      drums: 196160,
-      bass: 38407,
-      comp: 28399,
-      lead: 29277,
+      harmony: 7197,
+      drums: 196608,
+      bass: 38416,
+      comp: 28400,
+      lead: 29331,
       card: 3479,
     });
     // E33 states every bar alone: its meter, key, harmony, voices, mix and card every bar, and no lead.
@@ -235,21 +235,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(4793);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(4335);
+    expect(Math.round(e35.total / 64)).toBe(4802);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(4344);
     expect(Math.round(e33.total / 64)).toBe(7549);
-    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(43);
+    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(42);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [36562, 33030],
-      Techno: [41051, 35967],
-      'Deep house': [44711, 39800],
-      Ambient: [22139, 20914],
-      'Lo-fi hip hop': [41068, 37038],
-      Funk: [49042, 47174],
-      'Bossa nova': [38266, 34599],
-      'Swing jazz': [33908, 28948],
+      'Synth-pop': [36633, 33094],
+      Techno: [41122, 36031],
+      'Deep house': [44782, 39864],
+      Ambient: [22208, 20978],
+      'Lo-fi hip hop': [41139, 37102],
+      Funk: [49114, 47239],
+      'Bossa nova': [38338, 34664],
+      'Swing jazz': [33987, 29020],
     });
   });
 
@@ -262,7 +262,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
     expect(differs('Synth-pop', 2, /\.416889@3/, '.3@3').written).toEqual(['lead']);
     // The chord is stated once: respelled, the stab that reads it moves with it.
     expect(differs('Synth-pop', 2, /\[0,2,4\] /, '[0,2#,4] ').written).toEqual(['comp', 'harmony']);
-    expect(differs('Synth-pop', 2, /^&bass over=&harm/m, '&bass over=key').written).toEqual([
+    expect(differs('Synth-pop', 2, /^&bass over=&harm/m, '&bass over=&key').written).toEqual([
       'bass',
     ]);
     // The parts are open on the host's key: a key moved moves every pitched part, and the drums stay.
@@ -325,7 +325,7 @@ describe('the lead over its melodic scale (a probe off the corpus: the players w
     const lofi = sections.find(
       (s) => s.run.melodic === 'blues' && s.run.preset === 'Lo-fi hip hop' && s.section === 1,
     )!;
-    expect(textOf(lofi.text)).toMatch(/^&melo over=key step=1m \[0,2,3,4b,4,6\]$/m);
+    expect(textOf(lofi.text)).toMatch(/^&melo over=&key step=1m \[0,2,3,4b,4,6\]$/m);
     expect(textOf(lofi.text)).toMatch(
       /^&lead over=&melo step=16n legato=\.7875 ~@4 0 2@5 1@3 0@3 /m,
     );
@@ -390,9 +390,9 @@ describe('the forms it relies on, over every case', () => {
           `&key ${keyText(key)}`,
           ...scales.map(
             (tones, i) =>
-              `&melo${i} over=key step=1m [${tones.map((t) => degreeText(t.degree, t.accidental)).join(',')}]`,
+              `&melo${i} over=&key step=1m [${tones.map((t) => degreeText(t.degree, t.accidental)).join(',')}]`,
           ),
-          `&k over=key step=16n ${overKey.join(' ')}`,
+          `&k over=&key step=16n ${overKey.join(' ')}`,
           ...overScale.map((words, i) => `&s${i} over=&melo${i} step=16n ${words.join(' ')}`),
           '&leadV loop=C4',
           `&out map=midi [&k * &leadV] ${overScale.map((_, i) => `[&s${i} * &leadV]`).join(' ')}`,
@@ -559,7 +559,7 @@ describe.runIf(process.env.E35_FULL)(
       }
     });
 
-    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 3,964 characters a section, 3,582 without the lead, against E33’s 6,602', () => {
+    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 3,945 characters a section, 3,563 without the lead, against E33’s 6,602', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -576,11 +576,11 @@ describe.runIf(process.env.E35_FULL)(
         [216, 0, 0],
       ]);
       const e35 = characters(sections.map((s) => s.text));
-      expect([e35.total, e35.lead]).toEqual([1259623, 122081]);
+      expect([e35.total, e35.lead]).toEqual([1262444, 122297]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
       expect(e33).toBe(2112582);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        3936, 3555, 6602,
+        3945, 3563, 6602,
       ]);
     });
   },

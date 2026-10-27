@@ -12,7 +12,8 @@
  * drummer writes, not when the transport plays it.
  *
  * At each section's start the composer asks cells' rhythms
- * (`RHYTHM_FRAGMENTS`, v0.9.0: E31's 8 drum bars and 5 claves) with the
+ * (`RHYTHM_FRAGMENTS`, v0.9.0: E31's 8 drum bars and 5 claves; those the
+ * drummer holds, `heldRhythms`, since v0.11.2 brought one it can't play) with the
  * style's point on the meter's four axes (`stylePoint`), the facet `rhythm`,
  * and the workbench the section's meter fragment as the band hosts it, its
  * tempo set (`setTiming`, as `repository.ts` reads a meter), so the fit
@@ -54,6 +55,7 @@ import {
   DRUM_ROLES,
   GROOVE_ROLES,
   type DrumSound,
+  heldRhythms,
   METER_REPOSITORY,
   MISS_DISTANCE,
   type MeterSwing,
@@ -158,8 +160,8 @@ export function workbenchOf(bar: BandBar): string {
   return hosted(fragment ? fragment.text : `&bar meter("${meterName(bar)}")`, bar.style.bpm);
 }
 
-/** Cells' rhythms, as the composer asks them. */
-export const rhythmRepository = (): Repository => createRepository(RHYTHM_FRAGMENTS);
+/** Cells' rhythms the drummer holds (`heldRhythms`), as the composer asks them. */
+export const rhythmRepository = (): Repository => createRepository(heldRhythms());
 
 /** What the composer finds: the rhythm and its distance, or a named miss. */
 export type RhythmAnswer =
@@ -198,11 +200,15 @@ const SOUND_OF_NOTE = new Map<number, DrumSound>(
   Object.entries(DRUM_NOTES).map(([sound, note]) => [note, sound as DrumSound]),
 );
 
-/** A fragment's MIDI card on channel 10: its line, and its terms, each a role's line (`&euclid * &euclidLevel`). */
-export function cardOf(text: string): { readonly line: string; readonly terms: string[] } {
-  const card = /^&\w+ map=midi\(10\) \[(.*)\]$/m.exec(text);
-  if (!card) throw new Error('a fragment with no MIDI card on channel 10');
-  return { line: card[0], terms: card[1]!.split(', ') };
+/** A fragment's mix of its lines (it carries no MIDI card, cells#299): its line, its name, and its terms, each a role's line (`&euclid * &euclidLevel`). */
+export function mixOf(text: string): {
+  readonly line: string;
+  readonly name: string;
+  readonly terms: string[];
+} {
+  const mix = /^&(\w+) \[(.*)\]$/m.exec(text);
+  if (!mix) throw new Error('a fragment with no mix of its lines');
+  return { line: mix[0], name: mix[1]!, terms: mix[2]!.split(', ') };
 }
 
 /** Within a millionth of a step. */
@@ -227,11 +233,11 @@ export function readFragment(
     throw new Error('only a bar of four quarters is read');
   const step = stepSeconds(bpm, meter);
   const unswung = leanMap(leansOf(swing), meter);
-  const { line, terms } = cardOf(fragment);
+  const { line, name, terms } = mixOf(fragment);
   return terms
     .flatMap((term) => {
       const role = /^&(\w+)/.exec(term)![1]!;
-      const alone = fragment.replace(line, line.replace(/\[.*\]$/, `[${term}]`));
+      const alone = fragment.replace(line, `&${name} map=midi(10) [${term}]`);
       const plan = planOf(unionOf(withInstruments(alone), workbench).text);
       const route = router(plan.result, channelTable(plan.result));
       return windowAt(plan, 0, bars * 16 * step).events.flatMap((e) =>
@@ -648,7 +654,7 @@ export const sectionPoint = (s: CorpusSection): StylePoint => ({
 
 /** The band roles a fragment's lines name (none for a clave's `&clave`). */
 export const bandRolesOf = (text: string): string[] =>
-  cardOf(text)
+  mixOf(text)
     .terms.map((term) => /^&(\w+)/.exec(term)![1]!)
     .filter(isBandRole);
 

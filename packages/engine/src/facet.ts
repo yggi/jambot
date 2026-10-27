@@ -67,7 +67,7 @@ export interface FilingMeta {
   readonly tags: readonly string[];
   /** The fragment it varies, by id, where the composer made it from one (#411, `novelty.ts`). */
   readonly varies?: string | undefined;
-  /** How it varies that one, as cells' vary names it (`drop &hat 6`, `transpose &bass 1`; decision 052, point 6). */
+  /** How it varies that one, as cells' vary names it (`drop &hat 6`, `transpose &bassline 1`; decision 052, point 6). */
   readonly by?: string | undefined;
 }
 

@@ -182,12 +182,15 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
   it('finds the meters as under cells v0.8.0, at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = meterQueries(METER_REPOSITORY);
     expect([asked.length, hashOf(asked)]).toEqual([89, '5a9574da']);
-    expect(OTHERS).toHaveLength(17); // 5 bass lines, 5 harmonies, 2 kits and the bass instrument (v0.10.0), 4 modes
+    // 5 bass lines, 5 harmonies, 2 kits, 4 instruments (bass, keys, pad, lead), 5 modes (harmonic minor among them), 5
+    // performers, a stab line, 9 motifs and 4 forms (cells v0.11)
+    expect(OTHERS).toHaveLength(40);
     expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
   });
 
   it('finds the rhythms, and the clave layered on the drum bar found, as under cells v0.8.0, on each of 20 benches at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = rhythmQueries(RHYTHM_REPOSITORY);
+    // (as under cells v0.8.0: cells v0.11's Electro swing drums, whose lines no drummer's role names, isn't held)
     expect([asked.length, hashOf(asked)]).toEqual([1780, 'b665eb87']);
     // (a rhythm is found on the six benches in 4/4 alone, 6 × 89, and a clave layers on every one found)
     const found = asked.filter((line) => !line.startsWith(' |'));

@@ -180,10 +180,10 @@ export function playText(
 const WARM_TEXT = [
   '&bar meter("4/4") step=120bpm',
   '&key scale(aeolian, A)',
-  '&harm over=key step=1m [0,2,4] [5,7,9]',
+  '&harm over=&key step=1m [0,2,4] [5,7,9]',
   '&kick step=16n &bd:0:.4 ~ ~ ~',
   '&drums [&kick]',
-  'use "core kit"',
+  'use * from "core kit"',
   '&bass over=&harm step=16n legato=.6 0@4 3@4',
   '&bassLevel map=amp step=16n .4@8',
   '&bassOut play=&bass level=&bassLevel &bassV',

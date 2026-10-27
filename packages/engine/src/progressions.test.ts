@@ -67,12 +67,12 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
 
   it('reads no text that isn’t eight bars of triads on the key’s degrees, on a bar’s start or its half', () => {
     for (const text of [
-      '&harm over=key step=1m cycle=4 [0,2,4]!4',
-      '&harm over=key step=1m cycle=8 [0,2,4]!4 [0,3,4]!4',
-      '&harm over=key step=1m cycle=8 [0,2,4]!4 [0,2b,4]!4',
-      '&harm over=key step=1m cycle=8 [0,2,4,6]!8',
-      '&harm over=key step=4n cycle=32 [0,2,4]!32',
-      '&harm over=key step=1m cycle=8 [[0,2,4] [3,5,7] [4,6,8]] [0,2,4]!7',
+      '&harm over=&key step=1m cycle=4 [0,2,4]!4',
+      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,3,4]!4',
+      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,2b,4]!4',
+      '&harm over=&key step=1m cycle=8 [0,2,4,6]!8',
+      '&harm over=&key step=4n cycle=32 [0,2,4]!32',
+      '&harm over=&key step=1m cycle=8 [[0,2,4] [3,5,7] [4,6,8]] [0,2,4]!7',
       'not cells',
     ])
       expect(readProgression(text, METERS['4/4']), text).toBeNull();

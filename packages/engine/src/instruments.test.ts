@@ -20,10 +20,10 @@ describe("the instruments a fragment's sound holes are filled from (yggi/cells#2
   it("fills every seed rhythm's, bass line's and mode's sound holes, so each compiles with nothing unknown but the workbench's names", () => {
     const seeds = [...RHYTHM_FRAGMENTS, ...BASS_FRAGMENTS, ...MODE_FRAGMENTS];
     expect(seeds.length).toBeGreaterThan(20);
-    // (`&harm`, `&bar` and `&key` are the workbench's, which a bench brings: not an instrument's)
+    // (`&harm`, `&bar`, `&key` and the modes' `&tonic` are the workbench's, which a bench brings: not an instrument's)
     const unknownVoices = (text: string) =>
       errors(text).filter(
-        (m) => /Unknown cell/.test(m) && !/Unknown cell &(harm|bar|key)\b/.test(m),
+        (m) => /Unknown cell/.test(m) && !/Unknown cell &(harm|bar|key|tonic)\b/.test(m),
       );
     // (at v0.10.0 the rhythms and the bass lines strike voices they don't define)
     expect(seeds.filter((f) => unknownVoices(f.text).length).length).toBeGreaterThan(10);

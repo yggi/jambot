@@ -4,7 +4,7 @@
  * 046, 047 and 052).
  *
  * A repository holds progressions, each cells text of eight bars of triads
- * over the key (`over=key`): cells' five seeds are the vamps a theme plays
+ * over the key (`over=&key`): cells' five seeds are the vamps a theme plays
  * at low harmony (`themes.ts`'s `VAMPS`), and the Muse files the
  * progressions players play (`muse-harmony.ts`). The band reads one into
  * its chord slots (`HarmonySlot`: where it starts, 16 steps a bar from the
