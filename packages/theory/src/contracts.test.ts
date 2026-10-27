@@ -1,9 +1,11 @@
 /**
- * The family's meter contract (yggi/music-commons `contracts/meter`, version
- * 1) run against the accents and the named meters: the hub's `vectors.json`
- * is copied into `fixtures/contracts/meter.json` with a first field,
- * `lifted`, naming the hub and the commit it came from, and the hub's
- * `README.md` for the contract is the rule.
+ * The family's meter, euclid and notes contracts (yggi/music-commons
+ * `contracts/meter`, `contracts/euclid` and `contracts/notes`, each version
+ * 1) run against the accents and the named meters, `even` and the note
+ * reader and tuning: each of the hub's `vectors.json` is copied into
+ * `fixtures/contracts/<name>.json` with a first field, `lifted`, naming the
+ * hub and the commit it came from, and the hub's `README.md` for the
+ * contract is the rule.
  *
  * A vector is a grouping of 2s and 3s in eighths and each of its steps'
  * levels at 2 steps to the eighth; `accentsOf` grades the eighths, with the
@@ -16,9 +18,14 @@
  * stale fails as surely as a vector newly missed.
  */
 import { describe, expect, it } from 'vitest';
+import euclidHub from '../fixtures/contracts/euclid.json';
 import hub from '../fixtures/contracts/meter.json';
+import notesHub from '../fixtures/contracts/notes.json';
 import { accentLine, accentsOf } from './accents.ts';
+import { even } from './even.ts';
 import { type Meter, METERS, type MeterName } from './meter.ts';
+import { parseNote } from './notes.ts';
+import { frequencyOf } from './tuning.ts';
 
 interface Vector {
   readonly groups: readonly number[];
@@ -80,5 +87,84 @@ describe('the meter contract (yggi/music-commons contracts/meter, version 1)', (
       else expect(meter && groupsOf(meter), name).toEqual(groups);
     }
     expect(Object.keys(METERS).filter((name) => !(name in contract.names))).toEqual([]);
+  });
+});
+
+interface Lifted<V> {
+  readonly lifted: string;
+  readonly contract: string;
+  readonly version: number;
+  readonly vectors: readonly V[];
+}
+const liftedFrom = (name: string) =>
+  new RegExp(`^Lifted from yggi/music-commons contracts/${name}/vectors\\.json @ [0-9a-f]{7,40}$`);
+
+const euclid = euclidHub as unknown as Lifted<{
+  readonly k: number;
+  readonly n: number;
+  readonly even: readonly number[];
+  readonly bjorklund: readonly number[];
+  readonly offset: number;
+}>;
+/** A set's onsets, each within the bar, in order. */
+const onsets = (k: number, n: number, turn = 0) =>
+  even(k, n, turn)
+    .heights.map((h) => ((h % n) + n) % n)
+    .sort((a, b) => a - b);
+
+describe('the euclid contract (yggi/music-commons contracts/euclid, version 1)', () => {
+  it('is the version Jambot passes, lifted with its source named, every k ≤ n ≤ 16', () => {
+    expect(euclid.lifted).toMatch(liftedFrom('euclid'));
+    expect([euclid.contract, euclid.version]).toEqual(['euclid', 1]);
+    expect(euclid.vectors).toHaveLength(152);
+  });
+
+  it('even(k, n) is the canonical set of every vector', () => {
+    for (const v of euclid.vectors) expect(onsets(v.k, v.n), `${v.k} of ${v.n}`).toEqual(v.even);
+  });
+
+  it('a turn by t moves each onset j to (j + t) mod n, every turn of every vector', () => {
+    for (const v of euclid.vectors)
+      for (let t = 0; t < v.n; t++)
+        expect(onsets(v.k, v.n, t), `${v.k} of ${v.n}, turned ${t}`).toEqual(
+          v.even.map((j) => (j + t) % v.n).sort((a, b) => a - b),
+        );
+  });
+
+  it('turned by its offset, even(k, n) is Bjorklund’s set: cells’ euclid(k, n, r) is even(k, n, r + offset)', () => {
+    for (const v of euclid.vectors)
+      expect(onsets(v.k, v.n, v.offset), `${v.k} of ${v.n}`).toEqual(v.bjorklund);
+  });
+});
+
+const notes = notesHub as unknown as Lifted<{
+  readonly midi: number;
+  readonly pc: number;
+  readonly octave: number;
+  readonly sharp: string;
+  readonly flat: string;
+  readonly hz: number;
+}>;
+
+describe('the notes contract (yggi/music-commons contracts/notes, version 1)', () => {
+  it('is the version Jambot passes, lifted with its source named, all 128 note numbers', () => {
+    expect(notes.lifted).toMatch(liftedFrom('notes'));
+    expect([notes.contract, notes.version]).toEqual(['notes', 1]);
+    expect(notes.vectors).toHaveLength(128);
+  });
+
+  it('parseNote reads each plain name, sharp and flat, as its note number, pitch class and octave (C4 = 60)', () => {
+    for (const v of notes.vectors)
+      for (const name of [v.sharp, v.flat])
+        expect(parseNote(name), name).toMatchObject({
+          midi: v.midi,
+          pitchClass: v.pc,
+          octave: v.octave,
+        });
+  });
+
+  it('frequencyOf gives each note number’s frequency at A4 = 440, within 0.001 Hz', () => {
+    for (const v of notes.vectors)
+      expect(Math.abs(frequencyOf(v.midi) - v.hz), String(v.midi)).toBeLessThan(0.001);
   });
 });

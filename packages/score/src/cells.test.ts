@@ -3,12 +3,12 @@
  * yggi/cells, compiles a cells text and takes its events. The language is a
  * dev dependency here only; the band writes cells text and plays it through
  * the cells engine at the seam (phase 3, #63 step 5).
+ * `even` and cells' Euclid relate by the hub's euclid contract, which
+ * `packages/theory/src/contracts.test.ts` runs (#504).
  */
 
 import { describe, expect, it } from 'vitest';
 import { planOf, windowAt } from '@yggi/cells';
-import { bjorklund } from '@yggi/cells/engine/parser/generators';
-import { even } from '@jambot/theory';
 
 /** The MIDI note of a frequency, at A4 = 440 Hz. */
 const midiOf = (freq: number): number => Math.round(69 + 12 * Math.log2(freq / 440));
@@ -45,34 +45,5 @@ describe('a cells text, compiled by the language Jambot depends on', () => {
         first.map((e) => [e.at, e.dur, e.freq]),
       );
     }
-  });
-});
-
-describe('Euclid: the language and the theory give the same sets', () => {
-  // music-commons' Euclid contract: cells writes Strudel's Bjorklund form, Jambot `even`'s j·k mod n < k.
-  // They are the same set for every pair, and differ by a rotation for 46 of the 120 pairs with k < n ≤ 16.
-  const pairs = Array.from({ length: 15 }, (_, i) => i + 2).flatMap((n) =>
-    Array.from({ length: n - 1 }, (_, i) => [i + 1, n] as const),
-  );
-  const onsets = (k: number, n: number) => bjorklund(k, n).flatMap((on, j) => (on ? [j] : []));
-  const rotationTo = (k: number, n: number): number | undefined => {
-    const target = even(k, n).heights.join();
-    const from = onsets(k, n);
-    return [...Array(n).keys()].find(
-      (r) =>
-        from
-          .map((j) => (j - r + n) % n)
-          .sort((a, b) => a - b)
-          .join() === target,
-    );
-  };
-
-  it.each(pairs)('%i of %i is one set, up to a rotation', (k, n) => {
-    expect(rotationTo(k, n)).toBeDefined();
-  });
-
-  it('the rotation is not zero for 46 of the 120 pairs', () => {
-    expect(pairs).toHaveLength(120);
-    expect(pairs.filter(([k, n]) => rotationTo(k, n) !== 0)).toHaveLength(46);
   });
 });
