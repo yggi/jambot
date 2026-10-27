@@ -1,7 +1,7 @@
 ---
 name: review-pr
-description: Review a Jambot pull request. Fetches it into its own worktree, installs, runs
-  `pnpm verify` there, and walks the house rules (the four laws, purity, the
+description: Review a Jambot pull request. Fetches it into its own worktree, installs, reuses
+  CI's run on the head where `pnpm verify` and `pnpm e2e` passed there (or runs them), and walks the house rules (the four laws, purity, the
   prototype baseline, docs) before posting one review with inline comments. Use
   when asked to review a PR by number or branch, or to check that a branch is
   ready to merge.
@@ -12,7 +12,7 @@ description: Review a Jambot pull request. Fetches it into its own worktree, ins
 ## 1. Prepare
 
 ```sh
-.claude/skills/review-pr/prepare.sh <number | branch> [--from <commit>] [--against <number | branch>] [worktree directory]
+.claude/skills/review-pr/prepare.sh <number | branch> [--from <commit>] [--against <number | branch>] [--verify] [worktree directory]
 ```
 
 If your checkout doesn't have the script, your branch is behind `main`; run
@@ -25,7 +25,10 @@ git show origin/main:.claude/skills/review-pr/prepare.sh | sh -s -- <number | br
 
 It fetches the pull request and `main`, checks the head out in its own worktree
 (put it in your scratchpad if you have one), runs
-`pnpm install --frozen-lockfile` and `pnpm verify` there, and prints:
+`pnpm install --frozen-lockfile` there, and asks GitHub for CI's check runs on the head commit.
+When CI's `check` and `e2e` jobs passed on it (a pull request out of draft runs them on its merge with `main`), that run is the witness: neither runs again here, and the summary links it.
+Otherwise (a draft, a run not finished, a red job, GitHub out of reach, or `--verify`) it runs `pnpm verify`, and `pnpm e2e` unless the pull request changes markdown alone.
+It prints:
 
 - the commits and every changed file;
 - the verify result with its test count and, when the repository has end-to-end
@@ -55,9 +58,9 @@ files where `main`'s changes may still show.
 Read the diff from git, not from the GitHub files API, which returns every patch
 as one large JSON blob.
 
-CI is a witness, and may be blocked (`docs/memory/repository-and-ci.md`), so this verify run is the check that counts. Say
-in the review which commit you verified and what verify and `pnpm e2e` gave. The
-end-to-end run needs Playwright's Chromium, which the session hook installs;
+Each check runs once per commit: the author's hook is the gate, CI the witness, and the review runs neither again on a commit CI passed; its time goes to the rules and the probes below.
+Say in the review which commit was verified, and by what: CI's run (its link), or this one (what verify and `pnpm e2e` gave).
+A local end-to-end run needs Playwright's Chromium, which the session hook installs;
 without it, `pnpm e2e` fails, and a pull request that touches what the app plays
 or when (see `AGENTS.md`) is then not verified.
 

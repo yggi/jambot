@@ -171,12 +171,17 @@ export function workingTree(dir: string): string | undefined {
 }
 
 /**
- * The pre-push hook's record of the trees that passed, in the git directory:
- * one hash to a line, then the count of tests that passed on it where known,
- * which the hook prints when it lets a push through without running verify.
+ * The pre-push hook's record of the trees that passed, in the common git
+ * directory, which every linked worktree of a clone shares, since a tree is
+ * the same files whichever checkout verified it: one hash to a line, then the
+ * count of tests that passed on it where known, which the hook prints when it
+ * lets a push through without running verify.
  */
 export function stampsPath(dir: string): string {
-  return join(git(dir, ['rev-parse', '--absolute-git-dir']), 'jambot-verified');
+  return join(
+    git(dir, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
+    'jambot-verified',
+  );
 }
 
 /** Records `tree` as passed, once, with `tests` passed on it, where the pre-push hook looks before running verify. */

@@ -131,6 +131,17 @@ describe('pre-push', () => {
     expect(stderr).not.toContain('verify ran and failed');
   });
 
+  it('does not run verify again on a tree another worktree of the clone passed', () => {
+    const dir = repoWith(['a.ts']);
+    const other = join(dir, '.other');
+    git(dir, 'worktree', 'add', '-q', '--detach', other, 'HEAD');
+    writeFileSync(join(dir, '.git', 'info', 'exclude'), '.other\n');
+    remember(other, workingTree(other)!, 12);
+    expect(hook(dir, 'head', { verify: failing }).stderr).toContain(
+      'passed pnpm verify before (12 tests passed), so it is not run again.',
+    );
+  });
+
   it('says the count of tests a verify by hand passed with, when it does not run verify again', () => {
     const dir = repoWith(['a.ts']);
     remember(dir, workingTree(dir)!, 2719);
