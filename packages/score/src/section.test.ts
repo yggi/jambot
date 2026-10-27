@@ -26,9 +26,11 @@ import { planOf, windowAt } from '@yggi/cells';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { channelTable, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
-import { bandChords, lineOf, mismatches, playSection } from './section-play.ts';
+import { bandChords, compileSection, lineOf, mismatches, playSection } from './section-play.ts';
 import {
+  PIN_VOICES,
   type SectionNote,
+  performerOf,
   hostOf,
   sectionAsCells,
   sectionTextOf,
@@ -75,7 +77,78 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(text.split('\n').slice(1)).toEqual(held.split('\n').slice(1));
   });
 
-  it('names each note’s line by the output cells gives it: a gate’s voice then its line, a kit’s member then its role', () => {
+  it('plays each part through its seed performer, the card sending their gates, each moved from its instrument’s register to the part’s (yggi/cells decisions 058 and 061, #490)', () => {
+    const bars = section('Funk');
+    const text = sectionTextOf(sectionAsCells(bars));
+    const { result } = compileSection(text);
+    expect(result.diagnostics).toEqual([]);
+    expect(text.match(/^use .*$/gm)).toEqual(
+      ['drums', 'bass', 'stab'].map((p) => `use * from "${p} performer"`),
+    );
+    expect(text.split('\n').at(-1)).toBe('&out map=midi ~ &bassOut &stabOut ~!6 &drumsOut');
+    expect(result.performers.map((p) => [p.name, p.role, p.part])).toEqual([
+      ['drumsOut', 'drums', 'drumlines'],
+      ['bassOut', 'bass', 'bassline'],
+      ['stabOut', 'stab', 'stabline'],
+    ]);
+    // Each performer's move is the part's register less its instrument's, which the instrument fragment holds.
+    const midiOf = (name: string) => {
+      const [, letter, octave] = /^([A-G])(-?\d+)$/.exec(name)!;
+      return 12 * (Number(octave) + 1) + [0, 2, 4, 5, 7, 9, 11]['CDEFGAB'.indexOf(letter!)]!;
+    };
+    const register = { bass: 'bass', pad: 'comp', stab: 'comp', lead: 'lead' } as const;
+    const moves = (['bass', 'pad', 'stab', 'lead'] as const).map((part) => {
+      const performer = compileSection(
+        `&${part}line step=4n 0\n&${part}Level map=amp 1\nuse * from "${performerOf(part)}"\n&out map=midi &${part}Out`,
+      ).result.performers[0]!;
+      const voice = performer.voices[0]!;
+      const use = resolveSeed(performerOf(part))!.match(
+        new RegExp(`^use &${voice} from (\\S+)$`, 'm'),
+      )!;
+      const loop = resolveSeed(use[1]!.replace(/"/g, ''))!.match(/loop=(\S+)/)![1]!;
+      return [
+        part,
+        (performer.move?.transpose ?? 0) === midiOf(PIN_VOICES[register[part]]) - midiOf(loop),
+      ];
+    });
+    expect(Object.fromEntries(moves)).toEqual({ bass: true, pad: true, stab: true, lead: true });
+    // A role on the card is an error: it names gates, and is no sound to send.
+    expect(compileSection(text.replace(/&bassOut(?= )/, '&bass')).result.diagnostics).not.toEqual(
+      [],
+    );
+  });
+
+  it('names each note’s line by the role of the performer whose gate plays it, a drum hit’s role by its line, and else by the output cells gives it (feel v1.2, yggi/music-commons#35)', () => {
+    const text = [
+      '&bar meter("4/4") step=120bpm',
+      '&key scale(aeolian, A)',
+      '&harm over=&key step=1m [0,2,4]',
+      '&tune over=&key step=4n 0 2 4 2',
+      '&violin play=&tune &padV',
+      '&padV loop=C3',
+      '&pad map=role &violin',
+      '&hats step=4n &hh &hh',
+      'use * from "core kit"',
+      '&kitV &hh',
+      '&skins play=&hats &kitV',
+      '&drums map=role &skins',
+      '&busk play=&lead &leadV',
+      '&lead over=&key step=4n 4',
+      '&leadV loop=C4',
+      '&out map=midi &busk ~ &violin ~!6 &skins',
+    ].join('\n');
+    const { result } = compileSection(text);
+    expect(result.diagnostics).toEqual([]);
+    const read = (id: string) =>
+      lineOf(result.outputs.find((o) => o.id.startsWith(id))!.id, result);
+    // The violin plays its tune as the pad; the skins the hats as the drums, the hats' role their line's.
+    expect(read('padV:tune:')).toEqual({ line: 'pad' });
+    expect(read('kit:voices:hats:')).toEqual({ line: 'drums', role: 'hats' });
+    // A gate no role cell names plays as written: its line's name says.
+    expect(read('leadV:lead:')).toEqual({ line: 'lead' });
+    expect(lineOf(result.outputs.find((o) => o.id.startsWith('padV:tune:'))!.id)).toEqual({
+      line: 'tune',
+    });
     expect(lineOf('compV:pad:17:14')).toEqual({ line: 'pad' });
     expect(lineOf('compV:stab:19:15')).toEqual({ line: 'stab' });
     expect(lineOf('bassV:bass:14:15')).toEqual({ line: 'bass' });
@@ -166,7 +239,15 @@ describe('a section as one cells text, for the app (#399)', () => {
     // (on a MIDI card a note is struck at its product's gain there; a voice's own `gain=` the card doesn't read)
     const struck = (gain: string) =>
       text.replace(/^(&out map=midi .*)&bassOut /m, `$1[&bassOut * ${gain}] `);
-    const voiced = (gain: string) => text.replace(/^&bassV .*$/m, (line) => `${line} gain=${gain}`);
+    // (the bass's instrument, its register the seed's, given a gain of its own after the performer that uses it)
+    const voiced = (gain: string) => {
+      const edited = text.replace(
+        /^use \* from "bass performer"$/m,
+        (line) => `${line}\n&bassV loop=C2 gain=${gain}`,
+      );
+      expect(edited).not.toBe(text);
+      return edited;
+    };
     const velocities = (source: string) =>
       playSection(source, bars).bars.flatMap((bar) =>
         bar.notes.filter((n) => n.part === 'bass').map((n) => n.velocity),

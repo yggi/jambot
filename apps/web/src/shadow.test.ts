@@ -519,7 +519,7 @@ describe('the band through cells (#399, #469)', () => {
   it('falls back on the band’s own events in a gap, a bar cells states none of, and names it: the very events the band laid, in that bar alone', () => {
     // Each text has the bass a step later than the band plays it, so cells' events are not the band's.
     const edit = (text: string) =>
-      text.replace(/(&bass over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2');
+      text.replace(/(&bassline over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2');
     const { readout, band, played } = run({ edit, finishAt: 6, bars: 16 });
     const reasons = Object.keys(readout.gaps);
     expect(reasons).toEqual([expect.stringMatching(/finale's ring/)]);
@@ -550,7 +550,7 @@ describe('the band through cells (#399, #469)', () => {
     expect(
       differs(
         run({
-          edit: (t) => t.replace(/(&lead over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2'),
+          edit: (t) => t.replace(/(&leadline over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2'),
           bars: 8,
         }),
       ),
@@ -753,7 +753,7 @@ describe('a session through cells: the section’s text on the wire, host to cli
     const keys = (es: readonly { bar: number; event: TimedEvent['event'] }[]) => es.map(key).sort();
     // Each text has the bass a step later than the band plays it, so cells' events are not the band's.
     const edit = (text: string) =>
-      text.replace(/(&bass over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2');
+      text.replace(/(&bassline over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2');
     // Stalls of 0.2 s drop events in the steps laid late; of 0.45 and 0.7 s whole steps too,
     // at 12 phases across the bars, some across a bar's start.
     let dropped = 0;

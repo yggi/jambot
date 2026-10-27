@@ -15,17 +15,22 @@
  *   chord the band writes in the section at its slot (E32's stacks), which
  *   nothing plays;
  * - the drums, a line a role on `16n` over the section's steps (E31), the
- *   rim a Euclid token a bar on `1m` where the meter is straight (E33's gap 4);
+ *   rim a Euclid token a bar on `1m` where the meter is straight (E33's gap 4),
+ *   stacked as the drummer's part (`&drumlines`);
  * - the bass, the pad and the stab, each a line on `16n` over the chord in
  *   force (`over=&harm`, E33), a line with a note no index reaches over the
  *   key (`over=&key`), held `@k` for the written length and sounding its share
  *   of it (`legato=`), a line of shares where a line sounds more than one;
  * - the lead as its notes (yggi/cells#47): degrees over the plan's melodic
- *   scale from its voice, C4, over the key where the scale is the key's own,
+ *   scale from its register, C4, over the key where the scale is the key's own,
  *   else over the scale stated as a stack of the key's degrees (`&melo`);
- * - velocities through a gate, a line of levels or one gain, and one MIDI
- *   card on Jambot's channels: 1 the lead, 2 the bass, 3 the pad and the stab,
- *   10 the drums.
+ * - each part's velocities, a line of levels or one level (`&bassLevel`);
+ * - each part played by its performer from cells' seed library (`use * from
+ *   "bass performer"`, `performerOf`): a gate, `&bassOut`, playing the part's
+ *   lines (`&bassline`, `&bassLevel`) on its instrument, moved to the part's
+ *   register (`PIN_VOICES`), its role the part's (`&bass map=role &bassOut`);
+ * - one MIDI card that sends the gates on Jambot's channels: 1 the lead, 2 the
+ *   bass, 3 the pad and the stab, 10 the drums.
  *
  * What it states is the written layer: each note's step, pitch, velocity as
  * the performer plays it at feel 0 (`writtenNotes`) and written length, and
@@ -195,7 +200,12 @@ export function rhythmText(
   return `step=${named ?? '16n'} ${words.join(' ')}`;
 }
 
-/** Where a pin counts from: its part's voice, a C, and the key's tonic above it; the lead's C4 is E35's. */
+/**
+ * Where a pin counts from: its part's register, a C, and the key's tonic above it; the lead's C4 is E35's.
+ * The part sounds there through its performer (`performerOf`), whose gate plays it on an instrument that holds a
+ * register of its own and moves it by this one less the instrument's: the bass's C1 is cells' `bass` (C2) an octave
+ * down, `^$-12`, and the others' are their instruments' own (yggi/cells decision 058).
+ */
 export const PIN_VOICES = { comp: 'C3', bass: 'C1', lead: 'C4' } as const;
 const PIN_FROM = { comp: 48, bass: 24, lead: 60 } as const;
 export type PinVoice = keyof typeof PIN_VOICES;
@@ -323,6 +333,13 @@ export type NotePart = Exclude<SectionPart, 'harmony'>;
 
 /** A pitched line of the text: one per sound. */
 export type PitchedName = 'bass' | 'pad' | 'stab' | 'lead';
+
+/**
+ * The seed performer that plays a part (yggi/cells decisions 058 and 061): a gate, `&bassOut`, playing the part's
+ * holes (`&bassline`, `&bassLevel`; the drummer's `&drumlines`) on its instrument, its role the part's (`&bass map=role
+ * &bassOut`).
+ */
+export const performerOf = (part: PitchedName | 'drums') => `${part} performer`;
 
 /** A note as composed or as cells plays it: its part, step in its bar, MIDI note, velocity, written and sounding length in steps. */
 export interface SectionNote {
@@ -545,13 +562,14 @@ function drumLines(
 }
 
 /**
- * A pitched line on 16ths over the section: each onset its notes as indices
+ * A pitched part on 16ths over the section, the two holes its performer
+ * leaves (`&bassline` and `&bassLevel`): each onset its notes as indices
  * into the table asked for (the chord in force, or the melodic scale) from
- * the line's voice, or, where a note has no index or the key is asked for,
+ * the part's register, or, where a note has no index or the key is asked for,
  * as degrees of the key (`over=&key`); a chord a stack, held for its written
  * length (cut at the next onset or the section's end), sounding its share of
- * it (`legato=`, a number or a line of shares); and its levels, as a line or
- * one gain.
+ * it (`legato=`, a number or a line of shares); and its levels, a line of
+ * them or one.
  */
 function pitchedLine(
   name: PitchedName,
@@ -562,7 +580,7 @@ function pitchedLine(
   table: (at: number) => readonly Tone[] | null,
   asked: PitchTable,
   cuts: SectionCut[],
-): { lines: string[]; level: string; pitched: PitchedLine } {
+): { lines: string[]; pitched: PitchedLine } {
   const onsets = [...new Set(notes.map((n) => n.at))].sort((a, b) => a - b);
   const overKey: string[] = [];
   const overTable: string[] = [];
@@ -621,11 +639,10 @@ function pitchedLine(
         : ` legato=${shareSet[0]}`;
   return {
     lines: [
-      `&${name} over=&${over} step=16n${legato} ${(over === 'key' ? overKey : overTable).join(' ')}`,
+      `&${name}line over=&${over} step=16n${legato} ${(over === 'key' ? overKey : overTable).join(' ')}`,
       ...(shareSet.length > 1 ? [`&${name}Share step=16n ${shares.join(' ')}`] : []),
-      ...(one ? [] : [`&${name}Level map=amp step=16n ${levels.join(' ')}`]),
+      `&${name}Level map=amp ${one ? levelOf(notes[0]!.velocity) : `step=16n ${levels.join(' ')}`}`,
     ],
-    level: one ? levelOf(notes[0]!.velocity) : `&${name}Level`,
     pitched: {
       part: name,
       table: over,
@@ -691,13 +708,15 @@ export function sectionAsCells(
     steps,
     euclid,
   );
+  // (the drummer plays the core kit, which holds every voice the band strikes: cells' instrument fragment, yggi/cells#260)
   lines.push(
     ...drums.lines.map((text) => ({ part: 'drums' as const, text })),
     ...(drums.terms.length
-      ? [{ part: 'drums' as const, text: `&drums [${drums.terms.join(', ')}]` }]
+      ? [
+          { part: 'drums' as const, text: `&drumlines [${drums.terms.join(', ')}]` },
+          { part: 'drums' as const, text: `use * from "${performerOf('drums')}"` },
+        ]
       : []),
-    // (the drums' voices are the core kit's, which every one the band strikes is: cells' instrument fragment, yggi/cells#260)
-    ...(drums.voices.length ? [{ part: 'drums' as const, text: 'use * from "core kit"' }] : []),
   );
   const outs: Partial<Record<PitchedName, true>> = {};
   const state = (
@@ -706,7 +725,6 @@ export function sectionAsCells(
     voice: PinVoice,
     tableAt: (at: number) => readonly Tone[] | null,
     asked: PitchTable,
-    voiceCell: string,
   ) => {
     const own = notes.filter((n) => n.line === name);
     if (own.length === 0) return;
@@ -715,22 +733,19 @@ export function sectionAsCells(
     outs[name] = true;
     lines.push(...line.lines.map((text) => ({ part, text })), {
       part,
-      text: `&${name}Out play=&${name} level=${line.level} &${voiceCell}`,
+      text: `use * from "${performerOf(name)}"`,
     });
   };
-  state('bass', 'bass', 'bass', inForce, table, 'bassV');
-  if (outs.bass) lines.push({ part: 'bass', text: `&bassV loop=${PIN_VOICES.bass}` });
-  state('pad', 'comp', 'comp', inForce, table, 'compV');
-  state('stab', 'comp', 'comp', inForce, table, 'compV');
-  if (outs.pad || outs.stab) lines.push({ part: 'comp', text: `&compV loop=${PIN_VOICES.comp}` });
+  state('bass', 'bass', 'bass', inForce, table);
+  state('pad', 'comp', 'comp', inForce, table);
+  state('stab', 'comp', 'comp', inForce, table);
   const melodic = host.melodic;
   const scaleOwn = melodic === 'plain' || lead === 'key';
   const scale = melodicTones(key, melodic);
   if (!scaleOwn && notes.some((n) => n.line === 'lead'))
     lines.push({ part: 'lead', text: `&melo over=&key step=1m ${stackText(scale)}` });
-  state('lead', 'lead', 'lead', () => scale, scaleOwn ? 'key' : 'melo', 'leadV');
+  state('lead', 'lead', 'lead', () => scale, scaleOwn ? 'key' : 'melo');
   if (outs.lead) {
-    lines.push({ part: 'lead', text: `&leadV loop=${PIN_VOICES.lead}` });
     // a `&melo` the lead's notes kept it off goes: the line reads the key
     const melo = lines.findIndex((l) => l.text.startsWith('&melo '));
     if (melo >= 0 && pitched.find((p) => p.part === 'lead')!.table === 'key') lines.splice(melo, 1);
@@ -744,7 +759,7 @@ export function sectionAsCells(
         : `[${comp.map((p) => `&${p}Out`).join(', ')}]`;
   lines.push({
     part: 'card',
-    text: `&out map=midi ${outs.lead ? '&leadOut' : '~'} ${outs.bass ? '&bassOut' : '~'} ${compEntry} ~!6 ${drums.terms.length ? '&drums' : '~'}`,
+    text: `&out map=midi ${outs.lead ? '&leadOut' : '~'} ${outs.bass ? '&bassOut' : '~'} ${compEntry} ~!6 ${drums.terms.length ? '&drumsOut' : '~'}`,
   });
   return { lines, pitched, cuts };
 }

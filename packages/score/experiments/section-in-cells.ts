@@ -36,14 +36,17 @@
  *   a step short);
  * - the lead as its notes (yggi/cells#47, the owner's ruling of 2026-09-30,
  *   "A now, B as the goal"): the line it plays, as degrees over the plan's
- *   melodic scale from its voice, C4: over the key where the scale is the
+ *   melodic scale from its register, C4: over the key where the scale is the
  *   key's own (`plain`), else over the scale stated as a stack of the key's
  *   degrees, `&melo over=&key step=1m [0,2,3,4,6]` (a pentatonic, read as
  *   the chord in force is, a lap the key's seven degrees); no cell or
  *   operator is named yet;
- * - velocities through a gate, a line of levels or one gain (E33), and one
- *   MIDI card on Jambot's channels: 1 the lead, 2 the bass, 3 the pad and
- *   the stab, 10 the drums.
+ * - each part's velocities, a line of levels or one (`&bassLevel`), and
+ *   each part played by its performer from cells' seed library (`use * from
+ *   "bass performer"`, decisions 058 and 061, #490): a gate, `&bassOut`, that
+ *   plays the part's lines on its instrument at the part's register;
+ * - one MIDI card that sends the gates on Jambot's channels: 1 the lead,
+ *   2 the bass, 3 the pad and the stab, 10 the drums.
  *
  * What is compared is the written layer (#390's Q1a): each note's step,
  * pitch, velocity (the performer's at feel 0, as E33) and written length,
