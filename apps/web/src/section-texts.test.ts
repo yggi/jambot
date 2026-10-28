@@ -156,7 +156,7 @@ describe('a section’s text on the wire, host to client (#446)', () => {
     },
   );
 
-  it('sends the text, 2.6 to 6.3 KB a section as JSON, under 8 KB, where what cells plays from it is 4 to 12 times that', () => {
+  it('sends the text, 1.5 to 2.9 KB a section as JSON, under 3 KB, where what cells plays from it is 7 to 26 times that', () => {
     const sizes = PRESETS.map((p) => {
       const bars = section(p.name, SECTION_BARS);
       const stated = stateSection(bars);
@@ -166,11 +166,11 @@ describe('a section’s text on the wire, host to client (#446)', () => {
       };
     });
     for (const { text, events } of sizes) {
-      expect(text).toBeLessThan(8 * 1024);
-      expect(events / text).toBeGreaterThan(4);
+      expect(text).toBeLessThan(3 * 1024);
+      expect(events / text).toBeGreaterThan(7);
     }
-    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(2 * 1024);
-    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(10);
+    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(1.4 * 1024);
+    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(26);
   });
 
   it('says where no text states the bars, and a client given that plays nothing, for the same reason', () => {

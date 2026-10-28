@@ -24,12 +24,13 @@ import {
 import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { resolveSeed } from '@yggi/cells/repository/library';
-import { channelTable, router, routesOf } from '@yggi/cells/engine/midi';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
 import { bandChords, compileSection, lineOf, mismatches, playSection } from './section-play.ts';
 import {
   PIN_VOICES,
   type SectionNote,
+  barred,
   performerOf,
   hostOf,
   sectionAsCells,
@@ -323,4 +324,106 @@ describe('a section as one cells text, for the app (#399)', () => {
         }
     },
   );
+});
+
+/** The drums cells sends on channel 10 in a text's first `seconds`: each hit's note and velocity, by onset. */
+function drumsSent(lines: readonly string[], seconds: number): string[] {
+  const plan = planOf(
+    [...lines, 'use * from "drums performer"', '&out map=midi ~!9 &drumsOut'].join('\n'),
+    undefined,
+    { resolve: resolveSeed },
+  );
+  expect(plan.result.diagnostics).toEqual([]);
+  const route = router(plan.result, channelTable(plan.result));
+  return windowAt(plan, 0, seconds)
+    .events.flatMap((e) => routesOf(route(e)).flatMap((r) => midiNote(e, r) ?? []))
+    .filter((n) => n.channel === 10)
+    .sort((a, b) => a.at - b.at)
+    .map((n) => `${n.note}/${n.velocity}@${n.at.toFixed(3)}`);
+}
+
+describe('a section’s bars, each stated once where it recurs (#498)', () => {
+  const w = (at: number, length: number, text: string) => ({ at, length, text });
+
+  it('states a bar a line plays more than once as a cell of its own, spliced in where it plays, a run as one word; a bar played once stays in line', () => {
+    // Bars of 4 steps: A A B A.
+    const spans = [w(0, 2, '0'), w(2, 1, '~'), w(3, 1, '~'), w(4, 2, '0'), w(6, 2, '~')];
+    expect(barred('b', [...spans, w(8, 4, '3'), w(12, 2, '0'), w(14, 2, '~')], 4)).toEqual({
+      words: '&bA!2 3@4 &bA',
+      cells: ['&bA 0@2 ~@2'],
+    });
+    // Past Z, two letters.
+    const many = Array.from({ length: 28 }, (_, i) =>
+      [0, 4].map((at) => w(8 * i + at, 4, `[${i},9]`)),
+    );
+    const lettered = barred('b', many.flat(), 4);
+    expect(lettered.cells.slice(25)).toEqual(['&bZ [25,9]@4', '&bAA [26,9]@4', '&bAB [27,9]@4']);
+    expect(lettered.words.split(' ').slice(25)).toEqual(['&bZ!2', '&bAA!2', '&bAB!2']);
+  });
+
+  it('names no bar of rests alone, writes rests in a row as one, and leaves a line whose note is held across a bar’s end as it is', () => {
+    const rests = [0, 1, 2, 3, 4, 5, 6, 7].map((at) => w(at, 1, '~'));
+    expect(barred('b', [...rests, w(8, 4, '0'), w(12, 4, '0')], 4)).toEqual({
+      words: '~@8 0@4 0@4',
+      cells: [],
+    });
+    expect(barred('b', [w(0, 6, '0'), w(6, 2, '~'), w(8, 6, '0'), w(14, 2, '~')], 4)).toEqual({
+      words: '0@6 ~@2 0@6 ~@2',
+      cells: [],
+    });
+  });
+
+  it('states a drum role’s levels as one bar spliced in a section long where each is its step’s in the bar, and keeps each hit’s own where it is shorter', () => {
+    const texts = PRESETS.map((p) => sectionTextOf(sectionAsCells(section(p.name))));
+    const looped = texts.flatMap((t) =>
+      [...t.matchAll(/^&(\w+)Level map=amp step=16n &\1LevelA!8$/gm)].map((m) => m[1]!),
+    );
+    expect(looped.length).toBeGreaterThan(0);
+    for (const t of texts)
+      for (const role of looped.filter((r) => t.includes(`&${r}LevelA!8`))) {
+        expect(t).toMatch(new RegExp(`^&drumlines \\[.*&${role} \\* &${role}Level\\b`, 'm'));
+        expect(t).not.toMatch(new RegExp(`^&${role}[A-Z]? .*&\\w+:0:`, 'm'));
+      }
+  });
+
+  it('plays every preset’s first section, its bars stated once, as the band writes it', () => {
+    for (const p of PRESETS) {
+      const bars = section(p.name);
+      const text = sectionTextOf(sectionAsCells(bars));
+      expect(text, p.name).toMatch(/^&\w+A /m);
+      const played = playSection(text, bars);
+      expect(played.diagnostics).toEqual([]);
+      for (const [i, bar] of bars.entries())
+        expect(mismatches(writtenNotes(bar), played.bars[i]!.notes), `${p.name} ${i}`).toEqual([]);
+    }
+  });
+
+  // What cells does today that the text keeps clear of; each fails once cells plays it as written, and its way round can go.
+  it('cells reads the voices after a splice of rests alone as picks of the kit: why no bar of rests is named', () => {
+    const head = ['&bar meter("4/4") step=120bpm', '&drumlines [&fill]'];
+    const hits = '~@13 &sd:0:.2 &sd:0:.3 &sd:0:.4';
+    expect(drumsSent([...head, `&fill step=16n ~@16 ${hits}`], 3.99)).toEqual([
+      '38/57@3.625',
+      '38/70@3.750',
+      '38/80@3.875',
+    ]);
+    expect(drumsSent([...head, '&fillA ~@16', `&fill step=16n &fillA ${hits}`], 3.99)).toEqual([
+      '36/57@3.625',
+      '37/57@3.750',
+      '38/57@3.875',
+    ]);
+  });
+
+  it('cells misses a hit on a bar’s first step where its levels are a bar long and loop, at 84 bpm swung: why they are spliced a section long', () => {
+    const lines = (level: string) => [
+      '&bar meter("4/4") step=84bpm swing=16n:.65',
+      '&hat step=16n &hh ~@15 &hh ~@15 &hh ~@15 &hh ~@15',
+      level,
+      '&drumlines [&hat * &hatLevel]',
+    ];
+    expect(drumsSent(lines('&hatLevel map=amp step=16n .5@16'), 11.4)).toHaveLength(3);
+    expect(
+      drumsSent([...lines('&hatLevel map=amp step=16n &hatLevelA!4'), '&hatLevelA .5@16'], 11.4),
+    ).toHaveLength(4);
+  });
 });
