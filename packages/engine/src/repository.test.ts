@@ -181,21 +181,25 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     (f) => !f.association.some((p) => p.facet === 'meter' || p.facet === 'rhythm'),
   );
 
-  it('picks the meters it picked under cells v0.8.0, at each of 89 points, and as with every other facet of the library beside them', () => {
+  it('picks the meters it picked under cells v0.8.0 but near the new presets’ points, at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = meterQueries(METER_REPOSITORY);
-    expect([asked.length, hashOf(asked)]).toEqual([89, '345e1890']);
+    // (as under cells v0.8.0 but near Electro swing's and Spooky's points, whose meters cells v0.12.0 placed there)
+    expect([asked.length, hashOf(asked)]).toEqual([89, '5fd35b0e']);
     // (what of cells' library is neither a meter nor a rhythm: bass lines, harmonies, kits, modes … whatever it holds)
     expect(OTHERS.length).toBeGreaterThan(0);
     expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
   });
 
-  it('picks the rhythms, and the clave layered on the drum bar picked, as under cells v0.8.0 but where Electro swing drums is nearer, on each of 20 benches at each of 89 points, and as with every other facet of the library beside them', () => {
+  it('picks the rhythms, and the clave layered on the drum bar picked, as under cells v0.8.0 but where a newer seed is nearer, on each of 20 benches at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = rhythmQueries(RHYTHM_REPOSITORY);
-    // (as under cells v0.8.0 but where cells v0.11's Electro swing drums is nearer, held since #508: its lines read by the sounds they strike)
-    expect([asked.length, hashOf(asked)]).toEqual([1780, '8d45865d']);
-    // (a rhythm is found on the six benches in 4/4 alone, 6 × 89, and a clave layers on every one found)
+    // (as under cells v0.8.0 but where Electro swing drums (held since #508) or Spooky drums (cells v0.12.0) is nearer)
+    expect([asked.length, hashOf(asked)]).toEqual([1780, '9aaeb2c7']);
+    // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
+    // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits)
     const found = asked.filter((line) => !line.startsWith(' |'));
-    expect([found.length, found.filter((line) => !line.endsWith('| ')).length]).toEqual([534, 534]);
+    expect([found.length, found.filter((line) => !line.endsWith('| ')).length]).toEqual([
+      1424, 534,
+    ]);
     expect(rhythmQueries(rhythmRepository([...RHYTHM_FRAGMENTS, ...OTHERS]))).toEqual(asked);
   });
 });

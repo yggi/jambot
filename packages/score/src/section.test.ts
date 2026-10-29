@@ -129,7 +129,7 @@ describe('a section as one cells text, for the app (#399)', () => {
       '&padV loop=C3',
       '&pad map=role &violin',
       '&hats step=4n &hh &hh',
-      'use * from "core kit"',
+      'use &hh from gm_kit',
       '&kitV &hh',
       '&skins play=&hats &kitV',
       '&drums map=role &skins',

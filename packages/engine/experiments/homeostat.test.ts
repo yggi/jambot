@@ -109,7 +109,7 @@ const fixed = (x: number) => Number(x.toFixed(3));
 describe('what the lean can reach: the band’s entropy from 0 to 1, open (E45, #237)', () => {
   it('moves the share over all members down as the lean rises, in every preset, held at entropy 0.3', () => {
     expect([held.down, held.open, held.up].map((r) => fixed(against(r, 'all').mean))).toEqual([
-      0.721, 0.684, 0.601,
+      0.721, 0.684, 0.593,
     ]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
@@ -132,7 +132,7 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, open (E45, 
 describe('the controller closed (E45, #237)', () => {
   it('brings more sections inside the band than left alone, held and walked, and no more than the lean all the way up', () => {
     expect([held.open, held.closed, held.up].map((r) => fixed(insideOf(r)))).toEqual([
-      0.458, 0.563, 0.719,
+      0.458, 0.573, 0.719,
     ]);
     expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.516, 0.594]);
   });

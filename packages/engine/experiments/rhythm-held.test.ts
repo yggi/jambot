@@ -85,7 +85,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     });
   });
 
-  it('keeps 69 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
+  it('keeps 74 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
     expect(drumOverlap(MAIN, MAIN)).toEqual(Object.fromEntries(PRESETS.map((p) => [p.name, 1])));
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0.93,
@@ -95,7 +95,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       'Lo-fi hip hop': 0.95,
       Funk: 0.74,
       'Bossa nova': 0.91,
-      'Swing jazz': 0.69,
+      'Swing jazz': 0.83,
     });
   });
 

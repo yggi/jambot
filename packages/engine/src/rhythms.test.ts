@@ -152,11 +152,18 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     });
   });
 
-  it('misses under every meter but the 4/4s, at every preset’s point: no rhythm fits, and the drummer invents', () => {
-    const misses = (['3/4', '6/8', '12/8', '5/4', '7/8', '10/8'] as MeterName[]).flatMap((name) =>
-      PRESETS.map((p) => composedRhythm(RHYTHM_REPOSITORY, p.style, { meter: METERS[name] }, null)),
-    );
-    expect(misses).toEqual(misses.map(() => ({})));
+  // (cells v0.12.0's Spooky drums fits every meter but 7/8: within reach, it is taken where the drummer invented; the
+  // owner's ruling at the pin, #513: repository first)
+  it('under every meter but the 4/4s, at every preset’s point, takes Spooky drums where it is within reach, else misses and the drummer invents', () => {
+    const NEAR = ['Synth-pop', 'Deep house', 'Lo-fi hip hop', 'Bossa nova', 'Swing jazz'];
+    for (const name of ['3/4', '6/8', '12/8', '5/4', '7/8', '10/8'] as MeterName[])
+      for (const p of PRESETS)
+        expect(
+          composedRhythm(RHYTHM_REPOSITORY, p.style, { meter: METERS[name] }, null),
+          `${name} ${p.name}`,
+        ).toEqual(
+          name !== '7/8' && NEAR.includes(p.name) ? { rhythmFragment: 'Spooky drums' } : {},
+        );
   });
 });
 

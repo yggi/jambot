@@ -15,7 +15,7 @@
  * - a hit is its sound's voice, by the score's words (`DRUM_WORDS`) and cells' `sd` for the snare, which the score has no word for yet; cells' MIDI out sends each name as its General MIDI drum note;
  * - its accent is its own level, `&sd:0:.0635`: MIDI out strikes a note at 127·√level, so a velocity v is the level (v/127)²;
  * - the rim, which the band writes as `even(k, 16, shift)` (E16), is one Euclid token, `&rim(k,16,r)` on a step of the whole bar, and its levels a line of their own (`map=amp`) that the card multiplies it by;
- * - one MIDI card on channel 10 plays the lines, and each voice is a hole cells' core kit fills (`withInstruments`, yggi/cells#260), since cells has no voice without a sound (gap 1).
+ * - one MIDI card on channel 10 plays the lines, and each voice is a hole cells' General MIDI kit, `gm_kit`, fills (`withInstruments`, yggi/cells#260), since cells has no voice without a sound (gap 1).
  *
  * Where cells cannot say what a bar's drums do, the probe records a gap with
  * the bar as witness, and invents no form; the gaps are in

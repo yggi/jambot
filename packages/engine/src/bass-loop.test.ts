@@ -163,8 +163,9 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
     expect(sectionLine(env, { ...meter, swing: '8n', share: 2 / 3 }, undefined)).toBe(
       'walking bass',
     );
+    // (since cells v0.12.0 the next nearest is Spooky's creeping bass, 0.15 from Swing jazz's point, where funk bass was)
     expect(sectionLine(env, { meter: METERS['4/4'], swing: '16n', share: 0.5 }, undefined)).toBe(
-      'funk bass',
+      'creeping bass',
     );
   });
 
