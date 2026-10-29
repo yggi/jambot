@@ -76,9 +76,10 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
 });
 
 describe('a seed vamp plays the chords main’s vamp does (#425)', () => {
+  // (the prototype's four modes, whose twelve vamps are cells' five seeds; the other three's are the generator's, #516)
   it('lays each of the twelve vamps of the four modes as `buildTheme` does, at every harmony under VAMP_HARM, for every kind', () => {
     let covered = 0;
-    for (const mode of COMPOSER_MODES)
+    for (const mode of COMPOSER_MODES.slice(0, 4))
       VAMPS[mode].forEach((chords) => {
         const seed = HARMONY_FRAGMENTS.find(
           (f) => vampOf(readProgression(f.text, METERS['4/4'])!)?.join(' ') === chords.join(' '),

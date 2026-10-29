@@ -40,8 +40,19 @@ describe('the cadence', () => {
         expect(stack(dominant!)).toEqual([0, 4, 7, 10]);
         expect(dominant!.slot.step).toBe(0);
         expect(home!.chord.helix.heights[0]! % 12).toBe(tonic);
-        const minor = mode === 'aeolian' || mode === 'dorian';
-        expect(stack(home!)).toEqual([0, minor ? 3 : 4, 7]);
+        // (the key's own tonic triad: minor in aeolian, dorian and phrygian, diminished in locrian, #516)
+        const TONIC_TRIAD = {
+          aeolian: 'm',
+          dorian: 'm',
+          phrygian: 'm',
+          locrian: 'dim',
+          ionian: 'M',
+          lydian: 'M',
+          mixolydian: 'M',
+        };
+        expect(stack(home!)).toEqual(
+          { m: [0, 3, 7], dim: [0, 3, 6], M: [0, 4, 7] }[TONIC_TRIAD[mode]],
+        );
         expect(home!.slot.step).toBe(beatStart(2));
       }
   });

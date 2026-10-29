@@ -38,7 +38,7 @@ describe('the key picker', () => {
     expect(screen.queryByRole('button', { name: 'Scale' })).toBeNull();
   });
 
-  it('offers all seven modes, the four the band plays enabled', () => {
+  it('offers all seven modes, every one enabled: the band plays them all (#516)', () => {
     render(KeyPicker, {
       heading: { tonic: 3, mode: 'dorian' },
       history: NO_HISTORY,
@@ -66,7 +66,7 @@ describe('the key picker', () => {
     ]);
     expect(
       radios.filter((r) => !(r as HTMLButtonElement).disabled).map((r) => r.textContent),
-    ).toEqual(['major', 'mix', 'dor', 'minor']);
+    ).toEqual(['lyd', 'major', 'mix', 'dor', 'minor', 'phr', 'loc']);
     expect(screen.getByRole('radio', { name: 'dorian' })).toBeChecked();
   });
 

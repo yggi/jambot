@@ -21,6 +21,10 @@ const SCALES: Record<string, number[]> = {
   dorian: [0, 2, 3, 5, 7, 9, 10],
   ionian: [0, 2, 4, 5, 7, 9, 11],
   mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  // (the three the prototype didn't play, #516)
+  phrygian: [0, 1, 3, 5, 7, 8, 10],
+  lydian: [0, 2, 4, 6, 7, 9, 11],
+  locrian: [0, 1, 3, 5, 6, 8, 10],
 };
 function pivotRoot(k: Key, mode: string): number {
   const cur = new Set(SCALES[k.mode]!.map((x) => (x + k.tonic) % 12));
@@ -40,10 +44,18 @@ function pivotRoot(k: Key, mode: string): number {
 }
 
 describe('keys', () => {
-  it('are the four modes the composer knows, starting in A minor', () => {
-    // The prototype's minor, dorian, major and mixolydian: its transition
-    // tables cover these four, so the port keeps them.
-    expect(COMPOSER_MODES).toEqual(['aeolian', 'dorian', 'ionian', 'mixolydian']);
+  it('are the seven diatonic modes, the prototype’s four first, starting in A minor (#516)', () => {
+    // The prototype's minor, dorian, major and mixolydian, then the three its
+    // tables didn't cover: the owner's "all 7 modes".
+    expect(COMPOSER_MODES).toEqual([
+      'aeolian',
+      'dorian',
+      'ionian',
+      'mixolydian',
+      'phrygian',
+      'lydian',
+      'locrian',
+    ]);
     expect(INITIAL_KEY).toEqual({ tonic: 9, mode: 'aeolian' });
   });
 
@@ -108,7 +120,7 @@ describe('keys', () => {
     const names = COMPOSER_MODES.flatMap((mode) =>
       range(12).map((tonic) => keyName({ tonic, mode })),
     );
-    expect(new Set(names).size).toBe(48);
+    expect(new Set(names).size).toBe(84);
   });
 });
 
@@ -152,8 +164,12 @@ describe('the melodic scale', () => {
     pentatonic: { minor: [0, 3, 5, 7, 10], major: [0, 2, 4, 7, 9] },
     blues: { minor: [0, 3, 5, 6, 7, 10], major: [0, 2, 3, 4, 7, 9] },
   };
-  const KEYS: Key[] = COMPOSER_MODES.flatMap((mode) => range(12).map((tonic) => ({ tonic, mode })));
-  const minor = (key: Key) => key.mode === 'aeolian' || key.mode === 'dorian';
+  // (locrian's fifth is diminished: it has no pentatonic or blues, its lead walking the key's seven, below)
+  const KEYS: Key[] = COMPOSER_MODES.filter((mode) => mode !== 'locrian').flatMap((mode) =>
+    range(12).map((tonic) => ({ tonic, mode })),
+  );
+  const minor = (key: Key) =>
+    key.mode === 'aeolian' || key.mode === 'dorian' || key.mode === 'phrygian';
 
   it('are the plain mode, pentatonic and blues', () => {
     expect(MELODIC_SCALES).toEqual(['plain', 'pentatonic', 'blues']);
@@ -193,6 +209,15 @@ describe('the melodic scale', () => {
       expect(melodicHelix(key, 'pentatonic').heights).toEqual(
         melodicHelix(key, 'blues').heights.filter((h) => h !== blue),
       );
+    }
+  });
+});
+
+describe('locrian’s melodic scale (#516)', () => {
+  it('is the key itself, whatever is asked: its fifth is diminished, and the pentatonic and the blues stand on a perfect one', () => {
+    for (const tonic of range(12)) {
+      const key: Key = { tonic, mode: 'locrian' };
+      for (const scale of MELODIC_SCALES) expect(melodicHelix(key, scale)).toEqual(keyHelix(key));
     }
   });
 });

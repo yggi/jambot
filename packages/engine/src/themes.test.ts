@@ -80,6 +80,13 @@ describe('themes', () => {
         [0, 6],
         [0, 3],
       ],
+      // (the generator's, #516: each mode's colour beside its tonic)
+      phrygian: [[0, 1], [0], [0, 6]],
+      lydian: [[0, 1], [0], [0, 4]],
+      locrian: [
+        [0, 1],
+        [0, 6],
+      ],
     };
     for (const [e, theme] of sweep.filter(([e]) => e.harm < 0.33)) {
       const chords = VAMPS[e.key.mode]![theme.vamp!]!;
@@ -126,7 +133,16 @@ describe('themes', () => {
   });
 
   it('lead into a bar only through its secondary dominant, and never toward a diminished chord', () => {
-    const DIMINISHED: Record<string, number> = { aeolian: 1, dorian: 5, ionian: 6, mixolydian: 2 };
+    // (phrygian's, lydian's and locrian's checked with music21 10.5.0 and tonal: B D F on E phrygian's 4, F lydian's 3, B locrian's 0)
+    const DIMINISHED: Record<string, number> = {
+      aeolian: 1,
+      dorian: 5,
+      ionian: 6,
+      mixolydian: 2,
+      phrygian: 4,
+      lydian: 3,
+      locrian: 0,
+    };
     let secondaries = 0;
     for (const [e, theme] of sweep) {
       theme.bars.slice(0, 4).forEach((bar, b) => {
@@ -142,11 +158,21 @@ describe('themes', () => {
     expect(secondaries).toBeGreaterThan(0);
   });
 
+  // (the dominant, but mixolydian's ♭VII and phrygian's and locrian's ♭II, #516)
   it('cadence into the dominant at full harmony and no entropy, or play it as a ii–V', () => {
+    const CADENCE: Record<string, number> = {
+      aeolian: 4,
+      dorian: 4,
+      ionian: 4,
+      mixolydian: 6,
+      phrygian: 1,
+      lydian: 4,
+      locrian: 1,
+    };
     for (const mode of COMPOSER_MODES)
       for (const seed of range(30)) {
         const theme = buildTheme(env({ seed, key: { tonic: 0, mode }, harm: 1, entropy: 0 }));
-        const dominant = mode === 'mixolydian' ? 6 : 4;
+        const dominant = CADENCE[mode]!;
         const last = theme.bars[3]!;
         const iiV = last.length === 2 && 'degree' in last[1]! && last[1].degree === 4;
         const cadence = [dominant, (dominant + 3) % 7];

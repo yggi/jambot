@@ -8,9 +8,11 @@
  * A fragment states the mode and leaves the tonic to the host, a hole
  * (`scale(dorian, &tonic)`, yggi/cells#300), which the key plan sets as it
  * moves. One the band can't play is left out, and says why: a scale that is
- * none of `COMPOSER_MODES`, a tonic fixed, no key, or a text that doesn't
- * compile. Cells' five are all played, the bell
- * and scale as ionian.
+ * none of `COMPOSER_MODES` nor stands in for one, a tonic fixed, no key, or
+ * a text that doesn't compile. Cells' are all played, the bell and scale as
+ * ionian, and harmonic minor as aeolian on its tonic (#516): the score
+ * writes a key's mode as a diatonic one, and aeolian's dominant is major
+ * before the tonic at harm above 0.4 (`chords.ts`).
  *
  * A preset's mode is the one found nearest its point (`presetMode`): each
  * of the eight finds the mode `PRESETS` once named by hand, at distance 0.
@@ -46,8 +48,11 @@ export interface ModeRepository {
 /** The workbench a fragment is read on: a meter, which a stepped key (the bell and scale's) taps, and a tonic for its hole. */
 const BENCH = '&bar meter("4/4") step=120bpm\n&tonic C';
 
-/** Each composer mode's steps, in semitones, from its tonic. */
-const STEPS = COMPOSER_MODES.map((mode) => ({ mode, steps: gaps(diatonicMode(mode)) }));
+/** Each composer mode's steps, in semitones, from its tonic; then the scales read as one of them: harmonic minor as aeolian. */
+const STEPS: readonly { readonly mode: ComposerMode; readonly steps: readonly number[] }[] = [
+  ...COMPOSER_MODES.map((mode) => ({ mode, steps: gaps(diatonicMode(mode)) })),
+  { mode: 'aeolian', steps: gaps({ cycle: 12, heights: [0, 2, 3, 5, 7, 8, 11] }) },
+];
 
 /** A fragment read by cells' compiler into one of the composer's modes, or why the band can't play it. */
 export function readModeFragment(fragment: Fragment): ModeFragment | string {

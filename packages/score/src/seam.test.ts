@@ -375,14 +375,14 @@ describe('the seam, over the bars the band writes', () => {
     const home = chordsIn(0);
     const previous = [null, ...home.map((chord) => voicing(chord, null))];
     let compared = 0;
-    // Every pair of the 84 chords of one key, and each chord of every key from each of their voicings.
+    // Every pair of the 147 chords of one key (the composer's 7 modes, #516, × 7 degrees × 3), and each chord of every key from each of their voicings.
     for (const tonic of range(12))
       for (const to of tonic === 0 ? home : chordsIn(tonic))
         for (const from of previous) {
           expect(compVoicing(to, from)).toEqual(voicing(to, from));
           compared++;
         }
-    expect(compared).toBe(12 * 84 * 85);
+    expect(compared).toBe(12 * 147 * 148);
   });
 
   it('states the pad on the chords it sounds and the stab on its steps, each played as it was written, and holds a pad to the next chord and a stab one step (U6)', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Fragment } from '@yggi/cells/repository/fragments';
 import { MODE_FRAGMENTS } from '@yggi/cells/repository/modes';
-import { INITIAL_KEY, type ComposerMode } from './key.ts';
+import { COMPOSER_MODES, INITIAL_KEY, type ComposerMode } from './key.ts';
 import { stylePoint } from './meter-query.ts';
 import {
   MODE_READINGS,
@@ -31,22 +31,28 @@ const fragment = (id: string, text: string, point = PRESETS[0]!.style): Fragment
 });
 
 describe("cells' mode fragments, as the band reads them", () => {
-  it('reads each of the four modes as its own, the bell and scale as ionian, and leaves out harmonic minor', () => {
+  it('reads each mode as its own, the bell and scale as ionian, and harmonic minor as aeolian (#516)', () => {
     expect(MODE_READINGS).toEqual([
       { id: 'aeolian', read: { id: 'aeolian', mode: 'aeolian' } },
       { id: 'dorian', read: { id: 'dorian', mode: 'dorian' } },
       { id: 'ionian', read: { id: 'ionian', mode: 'ionian' } },
       { id: 'mixolydian', read: { id: 'mixolydian', mode: 'mixolydian' } },
       { id: 'bell and scale', read: { id: 'bell and scale', mode: 'ionian' } },
-      { id: 'harmonic minor', read: "its scale, 2 1 2 2 1 3 1, is none of the composer's modes" },
+      { id: 'harmonic minor', read: { id: 'harmonic minor', mode: 'aeolian' } },
     ]);
-    expect([...MODE_REPOSITORY.fragments.keys()]).toEqual(
-      MODE_FRAGMENTS.map((f) => f.id).filter((id) => id !== 'harmonic minor'),
-    );
+    expect([...MODE_REPOSITORY.fragments.keys()]).toEqual(MODE_FRAGMENTS.map((f) => f.id));
   });
 
-  it("leaves out a mode the composer doesn't play, a tonic fixed, a fragment with no key, and one that doesn't compile, and says why", () => {
-    expect(readModeFragment(fragment('lydian', '&key scale(lydian, &tonic)'))).toMatch(
+  it('reads each of the seven diatonic modes as its own, as cells writes them (yggi/cells#355)', () => {
+    for (const mode of COMPOSER_MODES)
+      expect(readModeFragment(fragment(mode, `&key scale(${mode}, &tonic)`))).toEqual({
+        id: mode,
+        mode,
+      });
+  });
+
+  it("leaves out a scale that is no mode the composer plays, a tonic fixed, a fragment with no key, and one that doesn't compile, and says why", () => {
+    expect(readModeFragment(fragment('melodic', '&key scale(melodic, &tonic)'))).toMatch(
       /none of the composer's/,
     );
     expect(readModeFragment(fragment('fixed', '&key scale(dorian, D)'))).toMatch(/tonic/);
@@ -58,13 +64,12 @@ describe("cells' mode fragments, as the band reads them", () => {
 
   it('ranks only what it can play', () => {
     const repository = modeRepository([
-      fragment('lydian', '&key scale(lydian, &tonic)'),
+      fragment('melodic', '&key scale(melodic, &tonic)'),
       ...MODE_FRAGMENTS,
     ]);
     const found = repository.query(stylePoint(PRESETS[0]!.style));
-    expect(found.map((f) => f.id)).not.toContain('lydian');
-    // (and not harmonic minor, which no composer mode is)
-    expect(found).toHaveLength(MODE_FRAGMENTS.length - 1);
+    expect(found.map((f) => f.id)).not.toContain('melodic');
+    expect(found).toHaveLength(MODE_FRAGMENTS.length);
   });
 });
 

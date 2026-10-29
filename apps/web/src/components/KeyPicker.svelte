@@ -122,7 +122,7 @@
   const playable = (mode: string): mode is ComposerMode =>
     (COMPOSER_MODES as readonly string[]).includes(mode);
 
-  /** All seven modes as segments, brightest to darkest; the band plays four. */
+  /** All seven modes as segments, brightest to darkest; the band plays every one (#516). */
   const shapes = DIATONIC_MODE_NAMES.map((mode) => ({
     value: mode,
     text: MODE_SHORT_NAMES[mode],
