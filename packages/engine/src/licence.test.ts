@@ -16,7 +16,7 @@ import {
   tempoNudgeWithin,
 } from './licence.ts';
 import { presetSwing } from './repository.ts';
-import { AXES, INITIAL_STYLE, PRESETS, type Style } from './style.ts';
+import { AXES, INITIAL_STYLE, PROTOTYPE_PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
 import { positions } from '@jambot/theory';
 
@@ -29,7 +29,11 @@ const UNIT = [...Array(11).keys()].map((i) => i / 10);
 
 /** Every preset as a style, at an entropy, with its meter's swing. */
 const presetsAt = (entropy: number): { name: string; style: Style; swing: MeterSwing }[] =>
-  PRESETS.map((p) => ({ name: p.name, style: { ...p.style, entropy }, swing: presetSwing(p)! }));
+  PROTOTYPE_PRESETS.map((p) => ({
+    name: p.name,
+    style: { ...p.style, entropy },
+    swing: presetSwing(p)!,
+  }));
 
 /** Every preset at every entropy walked. */
 const EVERY = UNIT.flatMap(presetsAt);
@@ -170,7 +174,7 @@ describe('the key licence', () => {
       expect(licenceOf({ ...style, harm: 1 }).keyReach).toBe(6);
     }
     const reachOf = (name: string) =>
-      licenceOf({ ...PRESETS.find((p) => p.name === name)!.style, entropy: 0 }).keyReach;
+      licenceOf({ ...PROTOTYPE_PRESETS.find((p) => p.name === name)!.style, entropy: 0 }).keyReach;
     expect(reachOf('Techno')).toBe(1);
     expect(reachOf('Swing jazz')).toBe(6);
   });

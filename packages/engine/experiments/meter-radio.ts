@@ -41,7 +41,7 @@ import {
   type MeterRepository,
   type StylePoint,
   type Plan,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   RADIO,
   SECTION_BARS,
@@ -103,7 +103,7 @@ export interface MeterRun {
  * composer asking the repository, until `hours` hours of music are decided.
  */
 export function meterRun(
-  preset: (typeof PRESETS)[number],
+  preset: (typeof PROTOTYPE_PRESETS)[number],
   seed: number,
   hours = HOURS,
   margins?: MeterRepository['margins'],
@@ -206,7 +206,7 @@ export const meterRuns = (
   margins?: MeterRepository['margins'],
   layer?: LearnedLayer,
 ): MeterRun[] =>
-  PRESETS.flatMap((preset, p) =>
+  PROTOTYPE_PRESETS.flatMap((preset, p) =>
     range(seeds).map((seed) => meterRun(preset, p * seeds + seed + 1, hours, margins, layer)),
   );
 
@@ -287,7 +287,7 @@ export const missShare = (distances: readonly number[], miss = MISS_DISTANCE): n
 /** What one query costs, in milliseconds, the mean over `count` styles: a section's worth of the composer's work. */
 export function queryCost(now: () => number, count = 20_000): number {
   const styles = range(count).map((i) => ({
-    ...PRESETS[i % PRESETS.length]!.style,
+    ...PROTOTYPE_PRESETS[i % PROTOTYPE_PRESETS.length]!.style,
     sync: (i * 0.618) % 1,
     harm: (i * 0.414) % 1,
     entropy: ENTROPY,

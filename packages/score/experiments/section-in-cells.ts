@@ -71,7 +71,7 @@
  * prints the table and a witness section's text.
  */
 
-import { type BandBar, type MelodicScale, PRESETS, SECTION_BARS } from '@jambot/engine';
+import { type BandBar, type MelodicScale, PROTOTYPE_PRESETS, SECTION_BARS } from '@jambot/engine';
 import { type PlayedSection, bandChords, mismatches, playSection } from '../src/section-play.ts';
 import {
   type NotePart,
@@ -102,7 +102,7 @@ export interface CorpusRun {
 }
 
 /** Every run of the corpus, preset by preset. */
-export const RUNS: readonly CorpusRun[] = PRESETS.flatMap((p) =>
+export const RUNS: readonly CorpusRun[] = PROTOTYPE_PRESETS.flatMap((p) =>
   SEEDS.map((seed) => ({ preset: p.name, seed })),
 );
 

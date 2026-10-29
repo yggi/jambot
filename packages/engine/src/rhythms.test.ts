@@ -17,7 +17,7 @@ import {
   rhythmRepository,
 } from './rhythms.ts';
 import { pullOf } from './novelty.ts';
-import { PRESETS, holding } from './style.ts';
+import { PROTOTYPE_PRESETS, holding } from './style.ts';
 import { holdingSwing } from './swing.ts';
 import {
   LOOKAHEAD,
@@ -28,11 +28,11 @@ import {
 } from './transport.ts';
 import { presetMode } from './mode-repository.ts';
 
-const FUNK = PRESETS.find((p) => p.name === 'Funk')!;
+const FUNK = PROTOTYPE_PRESETS.find((p) => p.name === 'Funk')!;
 
 /** A preset held at entropy 0.3, 32 bars at a seed, the meter the repository's (as the app plays), with the rhythm or without (main). */
 function run(
-  preset: (typeof PRESETS)[number],
+  preset: (typeof PROTOTYPE_PRESETS)[number],
   seed: number,
   rhythms: boolean,
   layer?: LearnedLayer,
@@ -67,7 +67,7 @@ const mean = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0) / xs.lengt
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
 /** Each preset's 2 seeds of 32 bars, on main and with the rhythm, bar beside bar. */
-const PAIRS = PRESETS.map((preset) => ({
+const PAIRS = PROTOTYPE_PRESETS.map((preset) => ({
   preset: preset.name,
   bars: [0, 1].flatMap((seed) => {
     const [main, built] = [run(preset, seed, false), run(preset, seed, true)];
@@ -119,7 +119,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
   });
 
   it('finds none it can’t read under the section’s meter, though cells fits it: a hit between the bar’s sixteenths (yggi/cells#360)', () => {
-    const synthPop = PRESETS[0]!;
+    const synthPop = PROTOTYPE_PRESETS[0]!;
     const bench = { meter: METERS['4/4'], meterFragment: '4/4' };
     const all = rhythmRepository(RHYTHM_FRAGMENTS, () => true);
     const found = all.query(stylePoint(synthPop.style), bench)[0]!.id;
@@ -150,7 +150,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
   });
 
   it('finds each preset’s own drum bar at its point, under the meter its sections choose, and the clave near Funk and Bossa nova', () => {
-    const found = PRESETS.map((preset) => {
+    const found = PROTOTYPE_PRESETS.map((preset) => {
       const meter = METER_REPOSITORY.query(stylePoint(preset.style))[0]!.id;
       const bench = { meter: METER_REPOSITORY.fragments.get(meter)!.meter, meterFragment: meter };
       return [preset.name, composedRhythm(RHYTHM_REPOSITORY, preset.style, bench, null)];
@@ -175,7 +175,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
   it('under every meter but the 4/4s, at every preset’s point, takes Spooky drums where it is within reach, else misses and the drummer invents', () => {
     const NEAR = ['Synth-pop', 'Deep house', 'Lo-fi hip hop', 'Bossa nova', 'Swing jazz'];
     for (const name of ['3/4', '6/8', '12/8', '5/4', '7/8', '10/8'] as MeterName[])
-      for (const p of PRESETS)
+      for (const p of PROTOTYPE_PRESETS)
         expect(
           composedRhythm(RHYTHM_REPOSITORY, p.style, { meter: METERS[name] }, null),
           `${name} ${p.name}`,
@@ -251,7 +251,7 @@ describe('the band with the rhythm against main: 8 presets held × 2 seeds × 32
 
 describe('the rhythm and the learned layer (#397, #398)', () => {
   it('asks with the layer the band carries, plays what it plays with none, and learns the rhythm, the clave and the meter kept as used together', () => {
-    const funk = PRESETS.find((p) => p.name === 'Funk')!;
+    const funk = PROTOTYPE_PRESETS.find((p) => p.name === 'Funk')!;
     let layer: LearnedLayer | null = null;
     const bars = run(funk, 1, true, EMPTY_LAYER, (carried) => {
       layer = carried.plans.layer;
@@ -277,8 +277,8 @@ describe('the pull of a group the composer keeps, from its place on the ladder (
   // Between Funk's point and Synth-pop's, the point where another drum bar is nearer than Funk's by 0.01: half what a
   // group known together pulls at entropy 0 (pull 0.2 × cells' reach 0.1), and more than nothing pulls at 1. (A clave
   // nearer doesn't count: it is never a section's rhythm, #428.)
-  const FUNK = PRESETS.find((p) => p.name === 'Funk')!.style;
-  const POP = PRESETS[0]!.style;
+  const FUNK = PROTOTYPE_PRESETS.find((p) => p.name === 'Funk')!.style;
+  const POP = PROTOTYPE_PRESETS[0]!.style;
   const bench = { meter: METERS['4/4'] };
   const at = (t: number) =>
     Object.fromEntries(
@@ -339,7 +339,7 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
     expect(steps).toBeGreaterThanOrEqual(warmed);
     // Every preset's point and a spread of others, on every bench, a clave playing or none, with a layer and without.
     const styles = [
-      ...PRESETS.map((p) => p.style),
+      ...PROTOTYPE_PRESETS.map((p) => p.style),
       ...Array.from({ length: 50 }, (_, i) => ({
         sync: (i * 0.618) % 1,
         harm: (i * 0.414) % 1,
@@ -359,7 +359,7 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
 
   it('leaves a song no fit to test in its first section once the forecast from its start has run (#408)', () => {
     // The player keeps that forecast while stopped, at load and at every control moved, so a song starts warm.
-    for (const preset of PRESETS) {
+    for (const preset of PROTOTYPE_PRESETS) {
       let fits = 0;
       const fit = cellsFit();
       const rhythms = rhythmRepository(undefined, (fragment, workbench) => {

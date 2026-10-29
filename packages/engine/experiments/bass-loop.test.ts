@@ -3,7 +3,7 @@ import { BASS_REPOSITORY, LINE_BENCHES, lineRepository, readLine } from '../src/
 import { COMPOSER } from '../src/facet.ts';
 import { EMPTY_LAYER, LAYER_CAP, layerBytes } from '../src/layer.ts';
 import { BASSIST } from '../src/muse-line.ts';
-import { PRESETS } from '../src/style.ts';
+import { PROTOTYPE_PRESETS } from '../src/style.ts';
 import { asLines, heldRuns, kept, linesFiled, mostUsedLine, movement } from './bass-loop.ts';
 import {
   LEARNING_HOURS,
@@ -30,7 +30,7 @@ function cost() {
   const it = repository.warm!(LINE_BENCHES)[Symbol.iterator]();
   for (let at = now(); !it.next().done; at = now()) steps.push(now() - at);
   const asks: number[] = [];
-  for (const preset of PRESETS)
+  for (const preset of PROTOTYPE_PRESETS)
     for (const bench of LINE_BENCHES)
       for (let k = 0; k < 4; k++) {
         const at = now();
@@ -58,7 +58,7 @@ beforeAll(() => {
         {
           movement: movement(HELD),
           kept: kept(HELD),
-          lines: PRESETS.map((p) => [
+          lines: PROTOTYPE_PRESETS.map((p) => [
             p.name,
             HELD.find((r) => r.main.preset === p.name)!.loop.lines[0],
           ]),
@@ -95,7 +95,7 @@ describe('the bass held at each preset, at entropy 0 (E41, #423)', () => {
 
   it('moves the bass where it falls and what it plays, as many notes a bar: the share of its notes on a step main’s plays, and of the same note there', () => {
     const moved = movement(HELD);
-    for (const preset of PRESETS)
+    for (const preset of PROTOTYPE_PRESETS)
       for (const [type, m] of Object.entries(moved[preset.name]!))
         expect(m.after, `${preset.name} ${type}`).toBe(m.before);
     expect(kept(HELD)).toEqual({

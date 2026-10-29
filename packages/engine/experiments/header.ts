@@ -29,7 +29,7 @@ import {
   type BandBar,
   type BandCarried,
   INITIAL_STYLE,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   type Style,
   band,
@@ -47,13 +47,14 @@ const styles: Style[] = (() => {
   let track = holding(INITIAL_STYLE);
   return range(BARS).map((bar) => {
     if (bar % 8 === 0 && bar > 0) {
-      const preset = PRESETS[(bar / 8) % PRESETS.length]!;
+      const preset = PROTOTYPE_PRESETS[(bar / 8) % PROTOTYPE_PRESETS.length]!;
       track = glideTo(track, { ...preset.style }, bar * 16, PRESET_GLIDE);
     }
     return { ...styleAt(track, bar * 16), entropy: (bar % 32) / 32 };
   });
 })();
-const modeAt = (bar: number) => presetMode(PRESETS[Math.floor(bar / 8) % PRESETS.length]!)!;
+const modeAt = (bar: number) =>
+  presetMode(PROTOTYPE_PRESETS[Math.floor(bar / 8) % PROTOTYPE_PRESETS.length]!)!;
 
 const onGrid = (style: Style, decimals: number): Style =>
   Object.fromEntries(

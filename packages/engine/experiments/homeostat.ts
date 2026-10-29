@@ -43,7 +43,7 @@ import {
   type MeterChange,
   NO_LEAN,
   PATIENCE,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   RADIO,
   RHYTHM_REPOSITORY,
@@ -109,7 +109,7 @@ export interface RegulatedRun {
 
 /** A preset played for `bars` bars at the players' `entropy`, its loop at the leaned, each bar sensed against its library and what it played lately. */
 export function regulatedRun(
-  preset: (typeof PRESETS)[number],
+  preset: (typeof PROTOTYPE_PRESETS)[number],
   seed: number,
   entropy: number,
   bars: number,
@@ -190,7 +190,7 @@ export const regulatedRuns = (
   recogniser: () => Recogniser,
   options: RunOptions,
 ): RegulatedRun[] =>
-  PRESETS.flatMap((preset, p) =>
+  PROTOTYPE_PRESETS.flatMap((preset, p) =>
     [...Array(seeds).keys()].map((seed) =>
       regulatedRun(preset, p * seeds + seed + 1, entropy, bars, recogniser(), options),
     ),

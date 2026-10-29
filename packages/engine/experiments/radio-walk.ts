@@ -36,7 +36,7 @@ import {
   HISTORY_DECAY,
   AXIS_NAMES,
   type Axis,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   RADIO,
   type RadioParams,
@@ -109,7 +109,7 @@ export interface RadioRun {
 
 /** The radio tuned in at a preset under a setting, left alone for `hours` hours of music. */
 export function radioRun(
-  preset: (typeof PRESETS)[number],
+  preset: (typeof PROTOTYPE_PRESETS)[number],
   seed: number,
   tuned: Setting,
   hours = HOURS,
@@ -145,9 +145,9 @@ export function radioRun(
 export function presetRates(): Record<Axis, number> {
   return Object.fromEntries(
     AXIS_NAMES.map((axis) => {
-      const values = axis === 'entropy' ? [0, 1] : PRESETS.map((p) => p.style[axis]);
+      const values = axis === 'entropy' ? [0, 1] : PROTOTYPE_PRESETS.map((p) => p.style[axis]);
       const track = glideTo(
-        holding({ ...PRESETS[0]!.style, entropy: 0, [axis]: Math.min(...values) }),
+        holding({ ...PROTOTYPE_PRESETS[0]!.style, entropy: 0, [axis]: Math.min(...values) }),
         { [axis]: Math.max(...values) },
         0,
         PRESET_GLIDE,
@@ -191,7 +191,7 @@ export interface RadioWalk {
 /** E30 over one setting: every preset, `seeds` seeds. */
 export function radioWalk(tuned: Setting, seeds = SEEDS, hours = HOURS): RadioWalk {
   // Each run its own seeds: the presets' runs share no draws.
-  const runs = PRESETS.flatMap((preset, p) =>
+  const runs = PROTOTYPE_PRESETS.flatMap((preset, p) =>
     range(seeds).map((seed) => radioRun(preset, p * seeds + seed + 1, tuned, hours)),
   );
   const minutes = hours * 60;
@@ -316,7 +316,7 @@ export function styleLoop(entropy: number, seeds = 4, sections = 100_000): Style
   const walking = AXIS_NAMES.filter((a) => RADIO.step[a] > 0);
   const unitAxes = walking.filter((a) => AXES[a].space === 'linear');
   const walks = range(seeds).map((seed) => {
-    const styles: Style[] = [{ ...PRESETS[0]!.style, entropy }];
+    const styles: Style[] = [{ ...PROTOTYPE_PRESETS[0]!.style, entropy }];
     for (let section = 1; section < sections; section++)
       styles.push(walkRadio(styles.at(-1)!, seed + 1, section));
     return styles;
@@ -404,7 +404,7 @@ export function entropyWalks(
   seeds = 100,
 ): { hours: number; entropy: readonly [number, number, number] }[] {
   const params: RadioParams = { ...RADIO, step: { ...RADIO.step, entropy: 0.06 } };
-  const from: Style = { ...PRESETS[0]!.style, entropy: 0.3 };
+  const from: Style = { ...PROTOTYPE_PRESETS[0]!.style, entropy: 0.3 };
   const styles = range(seeds).map(() => from);
   const out: { hours: number; entropy: readonly [number, number, number] }[] = [];
   let section = 0;

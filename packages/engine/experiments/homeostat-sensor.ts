@@ -42,7 +42,7 @@ import {
   HARMONY_REPOSITORY,
   LEAD_REPOSITORY,
   METER_REPOSITORY,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   RADIO,
   RHYTHM_BENCHES,
@@ -118,7 +118,7 @@ const eventsOf = (bar: BandBar) =>
  * events kept where `events`.
  */
 export function sensedRun(
-  preset: (typeof PRESETS)[number],
+  preset: (typeof PROTOTYPE_PRESETS)[number],
   seed: number,
   entropy: number,
   bars: number,
@@ -232,7 +232,7 @@ export const sensedRuns = (
   recogniser: Recogniser = warmedRecogniser(),
   tolerance = 0,
 ): SensedRun[] =>
-  PRESETS.flatMap((preset, p) =>
+  PROTOTYPE_PRESETS.flatMap((preset, p) =>
     [...Array(seeds).keys()].map((seed) =>
       sensedRun(preset, p * seeds + seed + 1, entropy, bars, walking, recogniser, false, tolerance),
     ),
@@ -322,7 +322,7 @@ export function costOf(
 /** Each preset's mean share over its runs' sections (`over`), and its sections inside the band. */
 export const byPreset = (runs: readonly SensedRun[], over: Over): Record<string, Against> =>
   Object.fromEntries(
-    PRESETS.map(({ name }) => [
+    PROTOTYPE_PRESETS.map(({ name }) => [
       name,
       against(
         runs.filter((r) => r.preset === name),

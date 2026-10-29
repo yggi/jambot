@@ -19,11 +19,11 @@ import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
 import { LIBRARY } from '@yggi/cells/repository/library';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
-import { PRESETS, holding } from './style.ts';
+import { PROTOTYPE_PRESETS, holding } from './style.ts';
 import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
 import { presetMode } from './mode-repository.ts';
 
-/** Each preset's swing as `PRESETS` named it by hand before the repository found it (#360, #459), as a literal. */
+/** Each preset's swing as `PROTOTYPE_PRESETS` named it by hand before the repository found it (#360, #459), as a literal. */
 const HAND_SWING: Readonly<Record<string, MeterSwing>> = {
   'Synth-pop': { level: '16n', share: 0.5 },
   Techno: { level: '16n', share: 0.5 },
@@ -78,8 +78,8 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
   });
 
   it('finds each preset’s swing at its point, at distance 0: 4/4, swinging exactly as the preset named it by hand (#459)', () => {
-    expect(PRESETS.map((p) => p.name)).toEqual(Object.keys(HAND_SWING));
-    for (const preset of PRESETS) {
+    expect(PROTOTYPE_PRESETS.map((p) => p.name)).toEqual(Object.keys(HAND_SWING));
+    for (const preset of PROTOTYPE_PRESETS) {
       const found = composedMeter(METER_REPOSITORY, preset.style, null)!;
       expect(found.meter, preset.name).toEqual(METERS['4/4']);
       expect(presetSwing(preset), preset.name).toEqual(HAND_SWING[preset.name]);
@@ -89,7 +89,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
   });
 
   it('reads each preset’s swing off the meter found at its own point, at distance 0 there, as the composer with nothing playing takes it (#459)', () => {
-    for (const preset of PRESETS) {
+    for (const preset of PROTOTYPE_PRESETS) {
       const found = presetMeter(preset)!;
       expect(found.distance, preset.name).toBe(0);
       expect(found.fragment, preset.name).toEqual(
@@ -101,7 +101,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
 
   it('finds no swing where the repository misses, so a preset there leaves the swing as it is', () => {
     const missing = { ...METER_REPOSITORY, margins: { miss: -1, hold: 0 } };
-    for (const preset of PRESETS) {
+    for (const preset of PROTOTYPE_PRESETS) {
       expect(presetMeter(preset, missing), preset.name).toBeNull();
       expect(presetSwing(preset, missing), preset.name).toBeNull();
     }
@@ -109,7 +109,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
 
   it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 15,061 events, each to 1e-9 s', () => {
     let count = 0;
-    for (const preset of PRESETS)
+    for (const preset of PROTOTYPE_PRESETS)
       for (const seed of [0, 1]) {
         const env: TransportEnv = {
           seed,
@@ -150,7 +150,7 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     (points, axis) => points.flatMap((p) => steps.map((v) => ({ ...p, [axis]: v }))),
     [{}],
   );
-  const POINTS = [...PRESETS.map((p) => stylePoint(p.style)), ...grid];
+  const POINTS = [...PROTOTYPE_PRESETS.map((p) => stylePoint(p.style)), ...grid];
   const ranked = (found: readonly { id: string; distance: number }[]) =>
     found.map((f) => `${f.id} ${f.distance.toFixed(9)}`).join(', ');
   /** FNV-1a over the lines, one a query. */

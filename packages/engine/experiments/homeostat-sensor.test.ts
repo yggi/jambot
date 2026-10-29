@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { PRESETS } from '../src/index.ts';
+import { PROTOTYPE_PRESETS } from '../src/index.ts';
 import { LOOP_FACETS } from '../src/recognised.ts';
 import {
   BAND,
@@ -46,7 +46,7 @@ beforeAll(() => {
   }
   for (const tolerance of TOLERANCES)
     tolerant[tolerance] = sensedRuns(0.3, false, HELD.seeds, HELD.bars, recogniser, tolerance);
-  unchanged = PRESETS.map((preset) => ({
+  unchanged = PROTOTYPE_PRESETS.map((preset) => ({
     sensed: [...sensedRun(preset, 1, 0.3, HELD.bars, true, recogniser, true).events],
     unsensed: [...sensedRun(preset, 1, 0.3, HELD.bars, true, null, true).events],
   }));
