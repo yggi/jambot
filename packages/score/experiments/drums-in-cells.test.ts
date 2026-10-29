@@ -48,8 +48,9 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
     expect(new Set(WITNESSES.flatMap((w) => rolesOf(w.bar)))).toEqual(
       new Set(DRUM_ROLES.filter((role) => role !== 'clave')),
     );
+    // every sound the drummer strikes itself: the clap is a fragment's (#508)
     expect(new Set(WITNESSES.flatMap((w) => w.band.map((h) => h.note)))).toEqual(
-      new Set(Object.values(DRUM_NOTES)),
+      new Set(Object.values(DRUM_NOTES).filter((n) => n !== DRUM_NOTES.clap)),
     );
     for (const w of WITNESSES) expect(rolesOf(w.bar).length, w.preset).toBeGreaterThanOrEqual(4);
   });

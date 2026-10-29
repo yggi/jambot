@@ -57,10 +57,11 @@ describe('the band’s bar', () => {
 });
 
 describe('the kit', () => {
-  it('is the pads’ seven sounds, each its own note', () => {
+  it('is the pads’ eight sounds, each its own note', () => {
     expect(KIT.map((p) => p.label)).toEqual([
       'Kick',
       'Snare',
+      'Clap',
       'Closed hat',
       'Open hat',
       'Pedal hat',

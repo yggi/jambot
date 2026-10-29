@@ -12,6 +12,7 @@ import {
   RHYTHM_BENCHES,
   RHYTHM_REPOSITORY,
   cellsFit,
+  heldRhythms,
   readRhythm,
   rhythmRepository,
 } from './rhythms.ts';
@@ -76,10 +77,6 @@ const PAIRS = PRESETS.map((preset) => ({
 
 describe("cells' rhythms, as the composer asks them (#397)", () => {
   it('reads every rhythm under 4/4 played straight: the drum bars, a line a role, the claves 5 strokes a lap on their own sound, General MIDI’s 75 (cells v0.7.0)', () => {
-    // (cells v0.11's Electro swing drums names its lines kick, clap, hats and ticks, three of them no drummer's role: not read)
-    expect(
-      readRhythm(RHYTHM_FRAGMENTS.find((f) => f.id === 'Electro swing drums')!.text, METERS['4/4']),
-    ).toBeNull();
     const read = RHYTHM_FRAGMENTS.filter((f) => f.id !== 'Electro swing drums').map((f) => ({
       id: f.id,
       ...readRhythm(f.text, METERS['4/4'])!,
@@ -97,6 +94,41 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
       ).toEqual(Array(5).fill(['clave', CLAVES_NOTE]));
       expect(r.bars, r.id).toBe(r.id.endsWith('(one bar)') ? 1 : 2);
     }
+  });
+
+  // (#508, the owner's ruling: a line whose name is no role takes the role of the sound it strikes, as the Muse hears a player)
+  it('reads Electro swing drums by the sounds its lines strike: the clap the backbeat, the hats and the ticks the hat, the snare’s ghost a ghost', () => {
+    const read = readRhythm(
+      RHYTHM_FRAGMENTS.find((f) => f.id === 'Electro swing drums')!.text,
+      METERS['4/4'],
+    )!;
+    const byLine = (line: string) => [
+      ...new Set(
+        read.hits.filter((h) => (h.line ?? h.role) === line).map((h) => `${h.role} ${h.note}`),
+      ),
+    ];
+    expect(byLine('kick')).toEqual(['kick 36']);
+    expect(byLine('clap')).toEqual(['backbeat 39']);
+    expect(byLine('hats')).toEqual(['hat 46']);
+    expect(byLine('ticks').sort()).toEqual(['ghost 38', 'hat 42']);
+    expect(read.hits.filter((h) => h.note === DRUM_NOTES.clap).map((h) => h.step)).toEqual([4, 12]);
+    // (a line named by a role keeps it, and carries no name of its own)
+    expect(read.hits.filter((h) => h.role === 'kick').every((h) => h.line === undefined)).toBe(
+      true,
+    );
+  });
+
+  it('holds every rhythm of cells’ seed, and none whose line strikes a sound outside the kit', () => {
+    expect(heldRhythms().map((f) => f.id)).toEqual(RHYTHM_FRAGMENTS.map((f) => f.id));
+    const crash = {
+      ...RHYTHM_FRAGMENTS[0]!,
+      id: 'crash',
+      text: '&kick step=4n &bd ~ ~ ~\n&boom step=4n &cr ~ ~ ~\n&groove [&kick, &boom]',
+    };
+    expect(heldRhythms([crash])).toEqual([]);
+    expect(
+      heldRhythms([{ ...crash, text: crash.text.replace('&cr', '&cp') }]).map((f) => f.id),
+    ).toEqual(['crash']);
   });
 
   it('finds each preset’s own drum bar at its point, under the meter its sections choose, and the clave near Funk and Bossa nova', () => {

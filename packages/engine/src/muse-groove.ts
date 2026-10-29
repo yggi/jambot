@@ -44,11 +44,12 @@ import { BAR_STEPS, DRUM_ROLES, type DrumRole, type SongClock } from './events.t
 import { type HeardNote, heardStep } from './muse.ts';
 import type { FragmentHit } from './rhythm-query.ts';
 
-/** The voice each of the kit's sounds is written with: the score's words (`DRUM_WORDS`), and cells' `sd` for the snare, which the score has none for. */
+/** The voice each of the kit's sounds is written with: the score's words (`DRUM_WORDS`), and cells' `sd` and `cp` for the snare and the clap, which the score has none for. */
 export const DRUM_VOICES: Readonly<Record<DrumSound, string>> = {
   kick: 'bd',
   rim: 'rim',
   snare: 'sd',
+  clap: 'cp',
   closedHat: 'hh',
   pedalHat: 'ph',
   openHat: 'oh',
@@ -202,8 +203,8 @@ export interface HeardDrumBar {
 
 /**
  * The role a sound of the kit plays in a player's groove, as the drummer's
- * own: the kick its kick; the snare the backbeat on a backbeat pulse
- * (`backbeatOf`), else a ghost; the rim the Euclid's; the pedal hat the
+ * own: the kick its kick; the snare and the clap the backbeat on a
+ * backbeat pulse (`backbeatOf`), else a ghost; the rim the Euclid's; the pedal hat the
  * pedal; the closed and open hats and the ride the hat. Null for a note
  * outside the kit.
  */
@@ -212,7 +213,7 @@ export function roleOfSound(note: number, step: number, meter: Meter): DrumRole 
   if (note === DRUM_NOTES.kick) return 'kick';
   if (note === DRUM_NOTES.rim) return 'euclid';
   if (note === DRUM_NOTES.pedalHat) return 'pedal';
-  if (note !== DRUM_NOTES.snare) return 'hat';
+  if (note !== DRUM_NOTES.snare && note !== DRUM_NOTES.clap) return 'hat';
   const starts = meterOnSteps(meter).heights;
   const backbeat = backbeatOf(meter).map((pulse) => starts[pulse]);
   return backbeat.includes(step) ? 'backbeat' : 'ghost';

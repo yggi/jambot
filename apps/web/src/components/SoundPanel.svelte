@@ -55,6 +55,7 @@
     { key: 'kick', label: 'Kick' },
     { key: 'rim', label: 'Rim' },
     { key: 'snare', label: 'Snare' },
+    { key: 'clap', label: 'Clap' },
     { key: 'closedHat', label: 'Closed hat' },
     { key: 'pedalHat', label: 'Pedal hat' },
     { key: 'openHat', label: 'Open hat' },

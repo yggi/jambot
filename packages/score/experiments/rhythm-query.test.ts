@@ -134,7 +134,7 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
   });
 
   it(`misses over a grid of the four axes, the meter found first: 58 % found, 32 % refused by the fit, 10 % past ${RHYTHM_MISS}`, () => {
-    expect(gridAnswers(11)).toEqual({ found: 8506, fit: 4674, distance: 1461 });
+    expect(gridAnswers(11)).toEqual({ found: 8520, fit: 4674, distance: 1447 });
   });
 
   // a bound in wall-clock time, so it runs only when asked: on a shared runner it reads past 5 ms with nothing wrong (5.16 ms, #485's CI)
@@ -373,19 +373,21 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
 });
 
 describe('the point the rhythm is asked at (E36)', () => {
-  it('takes another fragment in 57 of 320 sections at the section’s energy, 40 of them a clave alone, with no band role', () => {
+  it('takes another fragment in 71 of 320 sections at the section’s energy, 40 of them a clave alone, with no band role', () => {
     const moved = atSectionEnergy(ASKED);
-    expect(moved).toHaveLength(57);
+    expect(moved).toHaveLength(71);
     expect(moved.filter((m) => m.noRole)).toHaveLength(40);
     expect([...new Set(moved.map((m) => `${m.preset} ${m.type} ${m.id}`))]).toEqual([
       'Synth-pop drop Deep house drums',
       'Deep house intro Synth-pop drums',
       'Deep house breakdown Synth-pop drums',
+      'Lo-fi hip hop drop Electro swing drums',
       'Lo-fi hip hop breakdown bossa nova clave',
       'Funk drop rumba clave 3-2',
       'Funk breakdown son clave 2-3',
       'Bossa nova intro bossa nova clave',
       'Bossa nova build bossa nova clave',
+      'Bossa nova drop Electro swing drums',
       'Bossa nova bridge bossa nova clave',
       'Bossa nova breakdown bossa nova clave',
     ]);

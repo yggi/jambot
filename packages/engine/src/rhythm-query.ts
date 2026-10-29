@@ -74,8 +74,10 @@ import type { StylePoint } from './meter-query.ts';
 
 /** A hit of a fragment as the band reads it: its line's name, its General MIDI note, its step in its lap, and its velocity. */
 export interface FragmentHit {
-  /** The line's name: one of the drummer's roles, or `clave`. */
+  /** One of the drummer's roles, or `clave`: the line's name where it names one, else read from the sound it strikes (#508). */
   readonly role: string;
+  /** The line's name, where it isn't the role (Electro swing drums' `&clap`, `&hats`, `&ticks`). */
+  readonly line?: string;
   readonly note: number;
   /** Its step from the lap's start: a fragment of two bars counts on into the second. */
   readonly step: number;

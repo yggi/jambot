@@ -89,13 +89,15 @@ describe('drums', () => {
       kick: 36,
       rim: 37,
       snare: 38,
+      clap: 39,
       closedHat: 42,
       pedalHat: 44,
       openHat: 46,
       ride: 51,
     });
-    const gm = new Set<number>(Object.values(DRUM_NOTES));
-    for (const env of sweep) for (const e of drums(env)) expect(gm.has(e.note)).toBe(true);
+    // (the clap is a fragment's sound, #508: the drummer's own bars never strike it)
+    const own = new Set<number>(Object.values(DRUM_NOTES).filter((n) => n !== DRUM_NOTES.clap));
+    for (const env of sweep) for (const e of drums(env)) expect(own.has(e.note)).toBe(true);
   });
 
   it('give every sound its own note, so a played drum note names its sound (L7)', () => {

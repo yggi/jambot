@@ -55,7 +55,7 @@ import { DRUM_ROLES, sameMeter } from './events.ts';
 import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
-import { GROOVE_FEWEST, grooveText } from './muse-groove.ts';
+import { GROOVE_FEWEST, grooveText, roleOfSound } from './muse-groove.ts';
 import { BY, GROOVE_KEEP } from './novelty.ts';
 import {
   type FragmentHit,
@@ -89,21 +89,25 @@ export function benchText({ meter, meterFragment }: RhythmBench): string | null 
 
 /**
  * A fragment's mix of its lines (`&groove [&kick, &hat]`, the claves' `&percussion [&clave * .5]`): its line, its name,
- * and its terms, a line each, each line named by one of the drummer's roles (`DRUM_ROLES`). A pattern fragment carries
- * no MIDI card (yggi/cells#299): the reading sends it on channel 10 itself. Null where it has no such mix, or a line is
- * named by no role the drummer plays (Electro swing drums' `&clap`, `&hats`, `&ticks`, cells v0.11: the drummer's ladder
- * keeps lines by their role).
+ * and its terms, a line each. A pattern fragment carries no MIDI card (yggi/cells#299): the reading sends it on channel
+ * 10 itself. Null where it has no such mix.
  */
 function mixOf(
   text: string,
 ): { readonly line: string; readonly name: string; readonly terms: string[] } | null {
   const mix = /^&(\w+) \[(.*)\]$/m.exec(text);
-  if (!mix) return null;
-  const terms = mix[2]!.split(', ');
-  const roles: readonly string[] = DRUM_ROLES;
-  if (!terms.every((t) => roles.includes(/^&(\w+)/.exec(t)?.[1] ?? ''))) return null;
-  return { line: mix[0], name: mix[1]!, terms };
+  return mix ? { line: mix[0], name: mix[1]!, terms: mix[2]!.split(', ') } : null;
 }
+
+const ROLES: readonly string[] = DRUM_ROLES;
+
+/**
+ * A hit's role: its line's name, where that is one of the drummer's roles; else the role of the sound it strikes, as the
+ * Muse hears a player's (`roleOfSound`: Electro swing drums' `&clap` the backbeat, its `&hats` and `&ticks` the hat, the
+ * ghost of its snare a ghost; #508, the owner's ruling). Null for a sound outside the kit.
+ */
+const roleOf = (line: string, note: number, step: number, meter: Meter): string | null =>
+  ROLES.includes(line) ? line : roleOfSound(note, step % stepsOf(meter), meter);
 
 /** Within a millionth of a step. */
 const whole = (x: number) => (Math.abs(x - Math.round(x)) < 1e-6 ? Math.round(x) : x);
@@ -111,9 +115,10 @@ const whole = (x: number) => (Math.abs(x - Math.round(x)) < 1e-6 ? Math.round(x)
 /**
  * A fragment's hits under a meter played straight, over its lap (the most
  * bars a line of it laps, `cycle=`): each line of its mix alone, in its
- * union with the meter, through cells' MIDI out on channel 10, its name the
- * hit's role. Null where the meter has no name in cells, the fragment no mix
- * of lines the drummer has roles for (`mixOf`), or a hit falls off the steps.
+ * union with the meter, through cells' MIDI out on channel 10, each hit on
+ * its role (`roleOf`). Null where the meter has no name in cells, the
+ * fragment no mix (`mixOf`), a hit falls off the steps, or one strikes a
+ * sound the drummer has no role for.
  */
 export function readRhythm(text: string, meter: Meter): FragmentRead | null {
   if (!nameOf(meter) || !mixOf(text)) return null;
@@ -121,8 +126,8 @@ export function readRhythm(text: string, meter: Meter): FragmentRead | null {
   return readLines(text, meter, bars);
 }
 
-/** A fragment's hits over a lap of `bars` (`readRhythm`), each line's, or one line's alone where a role is given. */
-function readLines(text: string, meter: Meter, bars: number, role?: string): FragmentRead | null {
+/** A fragment's hits over a lap of `bars` (`readRhythm`), each line's, or one line's alone where its name is given. */
+function readLines(text: string, meter: Meter, bars: number, only?: string): FragmentRead | null {
   const name = nameOf(meter);
   const mix = mixOf(text);
   if (!name || !mix) return null;
@@ -131,7 +136,7 @@ function readLines(text: string, meter: Meter, bars: number, role?: string): Fra
   const hits: FragmentHit[] = [];
   for (const term of mix.terms) {
     const line = /^&(\w+)/.exec(term)![1]!;
-    if (role !== undefined && line !== role) continue;
+    if (only !== undefined && line !== only) continue;
     // (the mix as the card on channel 10, of this line alone)
     const alone = text.replace(mix.line, `&${mix.name} map=midi(10) [${term}]`);
     const plan = planOf(unionOf(withInstruments(alone), straight(name)).text);
@@ -142,11 +147,28 @@ function readLines(text: string, meter: Meter, bars: number, role?: string): Fra
         if (!note || note.channel !== 10) continue;
         const at = whole(note.at / step);
         if (!Number.isInteger(at) || at >= steps) return null;
-        hits.push({ role: line, note: note.note, step: at, velocity: note.velocity });
+        const role = roleOf(line, note.note, at, meter);
+        if (role === null) return null;
+        hits.push({
+          role,
+          ...(role === line ? {} : { line }),
+          note: note.note,
+          step: at,
+          velocity: note.velocity,
+        });
       }
   }
   return { bars, hits: inOrder(hits) };
 }
+
+/**
+ * A read as the band plays it: each hit its role, its note, its step and its velocity, the line it was read from left
+ * behind (the repository keeps it, to vary a line by its name), so what the Muse files is what was played.
+ */
+const played = (read: FragmentRead): FragmentRead => ({
+  bars: read.bars,
+  hits: read.hits.map(({ role, note, step, velocity }) => ({ role, note, step, velocity })),
+});
 
 /** Hits in the order a read gives them: by step, then note. */
 const inOrder = (hits: readonly FragmentHit[]): FragmentHit[] =>
@@ -168,10 +190,15 @@ export function cellsFit(): RhythmFit {
 const isRhythm = ({ fragment }: LearnedLayer['filed'][number]) =>
   fragment.association.some((p) => p.facet === 'rhythm');
 
-/** The fragments the drummer holds: all but a rhythm it can't play, one with a line its roles don't name (`mixOf`). */
+/**
+ * The fragments the drummer holds: all but a rhythm it can't play, one with no mix of lines (`mixOf`) or a line that
+ * strikes a sound it has no role for (`roleOf`), read in 4/4. Since #508 that is every rhythm of cells' seed.
+ */
 export const heldRhythms = (fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): Fragment[] =>
   fragments.filter(
-    (f) => !f.association.some((p) => p.facet === 'rhythm') || mixOf(f.text) !== null,
+    (f) =>
+      !f.association.some((p) => p.facet === 'rhythm') ||
+      readRhythm(f.text, METERS['4/4']) !== null,
   );
 
 /** A repository of these rhythms, ranked by cells' query on the facet `rhythm`, filtered by the fit and read by `read` (cells', unless a test counts them). */
@@ -331,7 +358,8 @@ export function rhythmRepository(
     },
     read(id, meter, layer) {
       const text = textOf(id, layer);
-      return text === undefined ? null : readText(text, meter);
+      const read = text === undefined ? null : readText(text, meter);
+      return read && played(read);
     },
     vary(id, bench, draw, layer) {
       const text = textOf(id, layer);
@@ -342,11 +370,14 @@ export function rhythmRepository(
       if (!all.length) return null;
       // (a variation rewrites one line, so only that line is read back from its text, over the rhythm's lap: one compile)
       const variation = all[drawn(draw, all.length)]!;
-      const role = variation.line.slice(1);
-      const line = readLines(variation.apply(text), bench.meter, whole.bars, role);
+      const name = variation.line.slice(1);
+      const line = readLines(variation.apply(text), bench.meter, whole.bars, name);
       if (line === null) return null;
       return {
-        hits: inOrder([...whole.hits.filter((h) => h.role !== role), ...line.hits]),
+        hits: played({
+          bars: whole.bars,
+          hits: inOrder([...whole.hits.filter((h) => (h.line ?? h.role) !== name), ...line.hits]),
+        }).hits,
         by: variation.by,
       };
     },
