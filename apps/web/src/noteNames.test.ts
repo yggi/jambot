@@ -84,7 +84,7 @@ describe('keyName', () => {
     const names = new Set<string>();
     for (const mode of COMPOSER_MODES)
       for (let tonic = 0; tonic < 12; tonic++) names.add(keyName({ tonic, mode }));
-    expect(names.size).toBe(48);
+    expect(names.size).toBe(84);
   });
 });
 
@@ -94,6 +94,9 @@ describe('scaleSteps', () => {
     dorian: [2, 1, 2, 2, 2, 1, 2],
     mixolydian: [2, 2, 1, 2, 2, 1, 2],
     aeolian: [2, 1, 2, 2, 1, 2, 2],
+    phrygian: [1, 2, 2, 2, 1, 2, 2],
+    lydian: [2, 2, 2, 1, 2, 2, 1],
+    locrian: [1, 2, 2, 1, 2, 2, 2],
   } as const;
 
   it('gives each mode its pattern of semitones from the tonic, on every tonic, closing the octave', () => {

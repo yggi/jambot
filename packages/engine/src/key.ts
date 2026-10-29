@@ -1,8 +1,11 @@
 /**
  * Keys: a tonic and a mode, and how the band moves between them.
  *
- * The composer's tables (`themes.ts`) cover four modes, the prototype's
- * minor, dorian, major and mixolydian, so the band plays in those. Where it
+ * The composer plays the seven diatonic modes (#516, the owner: "jambot
+ * should be able to play all 7 modes. they should all be fragments"): the
+ * prototype's four, minor, dorian, major and mixolydian, whose tables
+ * (`themes.ts`) are the prototype's, and phrygian, lydian and locrian, whose
+ * tables are the generator's, written for #516. Where it
  * should go is a wish, held by whoever steers it: a mode, and a tonic or
  * none. The band takes the wish at the next section boundary. A wish with a
  * tonic is taken as it is; a wish for another mode alone pivots to the
@@ -26,7 +29,15 @@ import {
   wrap,
 } from '@jambot/theory';
 
-export const COMPOSER_MODES = ['aeolian', 'dorian', 'ionian', 'mixolydian'] as const;
+export const COMPOSER_MODES = [
+  'aeolian',
+  'dorian',
+  'ionian',
+  'mixolydian',
+  'phrygian',
+  'lydian',
+  'locrian',
+] as const;
 export type ComposerMode = (typeof COMPOSER_MODES)[number];
 
 export interface Key {
@@ -111,11 +122,13 @@ const MELODIC_DEGREES: Record<
 
 /**
  * The melodic scale over a key, as a helix on the key's heights: `plain` is
- * the key itself; the others are minor or major as the key's third is.
+ * the key itself; the others are minor or major as the key's third is. A key
+ * whose fifth is diminished (locrian, #516) has neither: the pentatonic and
+ * the blues stand on a perfect fifth, so its lead walks the key's seven.
  */
 export function melodicHelix(key: Key, scale: MelodicScale): Helix {
   const parent = keyHelix(key);
-  if (scale === 'plain') return parent;
+  if (scale === 'plain' || parent.heights[4]! - parent.heights[0]! !== 7) return parent;
   const side = parent.heights[2]! - parent.heights[0]! === 3 ? 'minor' : 'major';
   return {
     cycle: parent.cycle,

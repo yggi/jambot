@@ -12,8 +12,9 @@
  * through the mode's transition table, with more motion by fifths, a
  * cadence to the dominant in the fourth bar, and at the top secondary
  * dominants and a ii–V. The second four bars repeat the first, and entropy
- * may change the last. These are the prototype's tables, for the four modes
- * the composer knows (`key.ts`).
+ * may change the last. These are the prototype's tables for its four modes,
+ * and the generator's for phrygian, lydian and locrian (#516), each leaning
+ * on its mode's colour: phrygian's and locrian's ♭II, lydian's major II.
  */
 
 import { compose, heightOf, wrap } from '@jambot/theory';
@@ -86,6 +87,48 @@ const TRANSITIONS: Record<ComposerMode, Record<number, Record<number, number>>> 
     5: { 6: 1, 3: 1 },
     6: { 0: 3, 3: 2 },
   },
+  phrygian: {
+    0: { 1: 3, 6: 2, 3: 2, 5: 1 },
+    1: { 0: 4, 6: 1 },
+    2: { 1: 2, 3: 2, 0: 1 },
+    3: { 1: 2, 0: 2, 6: 1 },
+    4: { 1: 1, 0: 1 },
+    5: { 1: 2, 6: 2, 3: 1 },
+    6: { 0: 3, 1: 2 },
+  },
+  lydian: {
+    0: { 1: 4, 4: 2, 5: 2, 6: 1 },
+    1: { 0: 4, 4: 1 },
+    2: { 1: 2, 5: 2 },
+    3: { 0: 1, 1: 1 },
+    4: { 0: 3, 1: 2 },
+    5: { 1: 2, 4: 2 },
+    6: { 0: 2, 1: 1 },
+  },
+  locrian: {
+    0: { 1: 4, 4: 2, 6: 2 },
+    1: { 0: 4, 6: 1 },
+    2: { 1: 2, 6: 1 },
+    3: { 1: 2, 0: 1 },
+    4: { 1: 2, 0: 2 },
+    5: { 1: 2, 4: 2 },
+    6: { 0: 3, 1: 2 },
+  },
+};
+
+/**
+ * The degree a progression's fourth bar cadences to: the dominant, but
+ * mixolydian's ♭VII (the prototype's), and phrygian's and locrian's ♭II,
+ * a semitone above the tonic, which falls onto it (#516).
+ */
+const CADENCE: Record<ComposerMode, number> = {
+  aeolian: 4,
+  dorian: 4,
+  ionian: 4,
+  mixolydian: 6,
+  phrygian: 1,
+  lydian: 4,
+  locrian: 1,
 };
 
 /**
@@ -105,6 +148,12 @@ export const VAMPS: Record<ComposerMode, readonly (readonly number[])[]> = {
   mixolydian: [
     [0, 6],
     [0, 3],
+  ],
+  phrygian: [[0, 1], [0], [0, 6]],
+  lydian: [[0, 1], [0], [0, 4]],
+  locrian: [
+    [0, 1],
+    [0, 6],
   ],
 };
 
@@ -171,7 +220,7 @@ export function buildTheme({ seed, index, kind, key, harm, entropy, a }: ThemeEn
   const byFifths = clamp01((harm - 0.4) * 1.6);
   const degrees = [d];
   for (let i = 1; i < 4; i++) {
-    if (i === 3 && chance(next(), harm * (1 - entropy * 0.5))) d = mode === 'mixolydian' ? 6 : 4;
+    if (i === 3 && chance(next(), harm * (1 - entropy * 0.5))) d = CADENCE[mode];
     else if (chance(next(), byFifths)) {
       d = (d + 3) % 7;
       if (d === 6 && mode === 'ionian' && harm < 0.85) d = 4;
