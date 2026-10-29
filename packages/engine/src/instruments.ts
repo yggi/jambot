@@ -4,8 +4,9 @@
  * through `&bassV`, and neither defines it, so neither compiles alone. Where
  * the band reads one (`readRhythm`, `readLine`), it adds the line that
  * defines each voice the text strikes and doesn't define, from cells' own
- * instrument fragments (`INSTRUMENT_FRAGMENTS`): the core kit first, then
- * the General MIDI kit (the bell's agogô), then `bass`. What is read is the
+ * instrument fragments (`INSTRUMENT_FRAGMENTS`): the General MIDI kit
+ * first, `gm_kit` (the drums and the bell's agogô; cells v0.12 retired the
+ * core kit into it, yggi/cells#338), then `bass`. What is read is the
  * notes cells sends over MIDI (each hit's General MIDI drum note, each bass
  * note in the register `loop=C2` sets), which the instrument's sound doesn't
  * move.
@@ -18,7 +19,7 @@
 import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
 
 /** The order the instrument fragments fill a voice in: the first that defines it gives its line. */
-const INSTRUMENT_ORDER = ['core kit', 'gm kit', 'bass'];
+const INSTRUMENT_ORDER = ['gm_kit', 'bass'];
 
 /** Each voice an instrument fragment defines, by its name, and the line that defines it. */
 export const INSTRUMENT_LINES: ReadonlyMap<string, string> = (() => {

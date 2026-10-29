@@ -120,7 +120,9 @@ describe('a bar recognised (recognisedBar)', () => {
       }
   });
 
-  it('recognises every variation the composer may make of a seed rhythm or bass line, by its operator', () => {
+  // (the variations whose bar strikes the steps its source does, so it reads as the source)
+  const SAME_ONSETS = ['Spooky drums: drop &euclid 1'];
+  it('recognises every variation the composer may make of a seed rhythm or bass line, by its operator, or as its source where it strikes the source’s steps', () => {
     let variations = 0;
     for (const facet of ['rhythm', 'bass'] as const)
       for (const fragment of libraryOf(facet)) {
@@ -129,8 +131,17 @@ describe('a bar recognised (recognisedBar)', () => {
           variations++;
           const text = variation.apply(fragment.text);
           const found = recogniser.recognise(text, libraryOf(facet), options);
+          // (Spooky drums' rim knocks once, mid-bar, where in 4/4 its kick strikes too: dropped, its bar reads as the
+          // source's own, recognised at distance 0 with no operator, yggi/cells#360)
+          const asItsSource = SAME_ONSETS.includes(`${fragment.id}: ${variation.by}`);
           expect(
-            found.some((r) => r.fragment.id === fragment.id && r.path[0]?.by === variation.by),
+            found.some(
+              (r) =>
+                r.fragment.id === fragment.id &&
+                (asItsSource
+                  ? r.path.length === 0 && r.distance === 0
+                  : r.path[0]?.by === variation.by),
+            ),
             `${fragment.id}: ${variation.by}`,
           ).toBe(true);
           expect(recognisedBar(recogniser, { [facet]: text }, FOUR)[facet]).toBe(true);

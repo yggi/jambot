@@ -36,22 +36,22 @@ beforeAll(() => {
 });
 
 describe('the composer asks the repository for its meter while the radio walks (E34)', () => {
-  it('changes the meter only where a section starts, 211 times in 120 hours, and never back at the next section (E34)', () => {
+  it('changes the meter only where a section starts, 234 times in 120 hours, and never back at the next section (E34)', () => {
     expect(RUNS).toHaveLength(40);
-    expect(changes).toHaveLength(211);
+    expect(changes).toHaveLength(234);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
     expect(RUNS.flatMap(wentBack)).toEqual([]);
-    expect(sections).toBe(26691);
+    expect(sections).toBe(26868);
   });
 
-  it('goes back 271 times with no margin for the meter playing, and twice with half of it (E34)', () => {
-    expect(backs).toEqual([271, 2]);
+  it('goes back 328 times with no margin for the meter playing, and once with half of it (E34)', () => {
+    expect(backs).toEqual([328, 1]);
   });
 
-  it('misses in 201 of the radio’s sections, 10 % of the axes’ space, toward its corners (E34)', () => {
-    expect(RUNS.reduce((n, r) => n + r.missed, 0)).toBe(201);
+  it('misses in 204 of the radio’s sections, 10 % of the axes’ space, toward its corners (E34)', () => {
+    expect(RUNS.reduce((n, r) => n + r.missed, 0)).toBe(204);
     const grid = gridDistances();
-    expect(missShare(grid).toFixed(4)).toBe('0.1027');
+    expect(missShare(grid).toFixed(4)).toBe('0.1009');
     expect(grid.reduce((a, d) => Math.max(a, d), 0).toFixed(3)).toBe('0.466');
   });
 
@@ -73,27 +73,27 @@ describe('the band learns the meters it keeps while the radio walks (E34, #398)'
     LEARNED = learningRuns();
   });
 
-  it('adds 0.6 points to the share of sections among a run’s 3 most used meters, within 5 with twice its error (cells decision 048)', () => {
+  it('adds 1.8 points to the share of sections among a run’s 3 most used meters, within 5 with twice its error (cells decision 048)', () => {
     // The same walks, each run paired with its own unlearned: a meter learned may last other than the one it replaced, so the hours hold other counts of sections.
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(RUNS.map((r) => [r.preset, r.seed]));
-    expect(LEARNED.reduce((n, r) => n + r.sections, 0)).toBe(26631);
+    expect(LEARNED.reduce((n, r) => n + r.sections, 0)).toBe(26749);
     const { before, after, added, error } = lockIn(RUNS, LEARNED);
     if (process.env.E34_REPORT) console.log({ before, after, added, error });
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9750', '0.9811']);
-    expect(added.toFixed(2)).toBe('0.61');
-    expect(error.toFixed(2)).toBe('0.25');
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9668', '0.9853']);
+    expect(added.toFixed(2)).toBe('1.84');
+    expect(error.toFixed(2)).toBe('0.58');
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it('changes the meter 119 times in 120 hours, never back at the next section, and misses twice: learning reaches farther', () => {
-    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(119);
+  it('changes the meter 126 times in 120 hours, never back at the next section, and misses 16 times (204 unlearned): learning reaches farther', () => {
+    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(126);
     expect(LEARNED.flatMap(wentBack)).toEqual([]);
-    expect(LEARNED.reduce((n, r) => n + r.missed, 0)).toBe(2);
+    expect(LEARNED.reduce((n, r) => n + r.missed, 0)).toBe(16);
   });
 
-  it(`keeps a layer of at most 814 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+  it(`keeps a layer of at most 725 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
     const bytes = learnedBytes(LEARNED);
-    expect(Math.max(...bytes)).toBe(814);
-    expect(Math.max(...LEARNED.map((r) => r.layer!.points.length))).toBe(7);
+    expect(Math.max(...bytes)).toBe(725);
+    expect(Math.max(...LEARNED.map((r) => r.layer!.points.length))).toBe(6);
   });
 });

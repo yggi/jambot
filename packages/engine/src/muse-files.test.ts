@@ -12,7 +12,8 @@ import { COMPOSER } from './facet.ts';
 import { GROOVE_TAG } from './plan.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import type { FragmentHit, RhythmBench } from './rhythm-query.ts';
-import { RHYTHM_REPOSITORY, readRhythm } from './rhythms.ts';
+import { RHYTHM_REPOSITORY, readRhythm, rhythmRepository } from './rhythms.ts';
+import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { SHORT_TERM_FLOOR } from './short-term.ts';
 import { PRESETS, type Style, holding, writtenStyle } from './style.ts';
 import { holdingSwing } from './swing.ts';
@@ -27,9 +28,13 @@ import { presetMode } from './mode-repository.ts';
 
 const FUNK = PRESETS.find((p) => p.name === 'Funk')!;
 const STYLE: Style = { ...FUNK.style, entropy: 0.3 };
-/** The point of the 5/4 meter fragment, where the repository's meter is 5/4 and no rhythm fits it. */
+/**
+ * The point of the 5/4 meter fragment, where the repository's meter is 5/4 and no rhythm fits it but cells' Spooky
+ * drums (v0.12.0), which fits every meter but 7/8, held out here (`NO_SPOOKY`) so the drummer invents.
+ */
 const COOL: Style = { ...STYLE, sync: 0.4, harm: 0.9, artic: 0.5, energy: 0.3 };
 const range = (n: number) => [...Array(n).keys()];
+const NO_SPOOKY = rhythmRepository(RHYTHM_FRAGMENTS.filter((f) => f.id !== 'Spooky drums'));
 
 /** How cells' vary names a variation: its operator, its line and, but for a rotation, its step. */
 const VARIED_BY = /^(rotate|drop|add) &\w+( \d+)?$/;
@@ -153,7 +158,7 @@ describe('the Muse files the groove the drummer invents on a miss (#401)', () =>
   });
 
   it('counts the groove as used together with the meter fragment it was played in, so the two pull each other', () => {
-    const cool = play(16, { layer: EMPTY_LAYER }, COOL);
+    const cool = play(16, { layer: EMPTY_LAYER, rhythms: NO_SPOOKY }, COOL);
     expect(cool[0]!.bar.plan.meterFragment).toBe('5/4');
     const layer = cool[7]!.carried.plans.layer!;
     expect(layer.filed.map((f) => f.fragment.id)).toEqual(['drummer song 1, bar 0']);

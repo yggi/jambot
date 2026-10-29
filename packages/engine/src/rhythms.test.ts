@@ -118,6 +118,24 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     );
   });
 
+  it('finds none it can’t read under the section’s meter, though cells fits it: a hit between the bar’s sixteenths (yggi/cells#360)', () => {
+    const synthPop = PRESETS[0]!;
+    const bench = { meter: METERS['4/4'], meterFragment: '4/4' };
+    const all = rhythmRepository(RHYTHM_FRAGMENTS, () => true);
+    const found = all.query(stylePoint(synthPop.style), bench)[0]!.id;
+    const unreadable = rhythmRepository(
+      RHYTHM_FRAGMENTS,
+      () => true,
+      (text, meter) =>
+        text === RHYTHM_FRAGMENTS.find((f) => f.id === found)!.text
+          ? null
+          : readRhythm(text, meter),
+    );
+    const ids = unreadable.query(stylePoint(synthPop.style), bench).map((f) => f.id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids).not.toContain(found);
+  });
+
   it('holds every rhythm of cells’ seed, and none whose line strikes a sound outside the kit', () => {
     expect(heldRhythms().map((f) => f.id)).toEqual(RHYTHM_FRAGMENTS.map((f) => f.id));
     const crash = {
@@ -152,11 +170,18 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     });
   });
 
-  it('misses under every meter but the 4/4s, at every preset’s point: no rhythm fits, and the drummer invents', () => {
-    const misses = (['3/4', '6/8', '12/8', '5/4', '7/8', '10/8'] as MeterName[]).flatMap((name) =>
-      PRESETS.map((p) => composedRhythm(RHYTHM_REPOSITORY, p.style, { meter: METERS[name] }, null)),
-    );
-    expect(misses).toEqual(misses.map(() => ({})));
+  // (cells v0.12.0's Spooky drums fits every meter but 7/8: within reach, it is taken where the drummer invented; the
+  // owner's ruling at the pin, #513: repository first)
+  it('under every meter but the 4/4s, at every preset’s point, takes Spooky drums where it is within reach, else misses and the drummer invents', () => {
+    const NEAR = ['Synth-pop', 'Deep house', 'Lo-fi hip hop', 'Bossa nova', 'Swing jazz'];
+    for (const name of ['3/4', '6/8', '12/8', '5/4', '7/8', '10/8'] as MeterName[])
+      for (const p of PRESETS)
+        expect(
+          composedRhythm(RHYTHM_REPOSITORY, p.style, { meter: METERS[name] }, null),
+          `${name} ${p.name}`,
+        ).toEqual(
+          name !== '7/8' && NEAR.includes(p.name) ? { rhythmFragment: 'Spooky drums' } : {},
+        );
   });
 });
 

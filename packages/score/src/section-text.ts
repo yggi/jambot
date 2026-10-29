@@ -842,7 +842,7 @@ export function sectionAsCells(
     steps,
     euclid,
   );
-  // (the drummer plays the core kit, which holds every voice the band strikes: cells' instrument fragment, yggi/cells#260)
+  // (the drummer plays the 13 voices of the General MIDI kit it takes, every voice the band strikes: cells' `drums performer`, yggi/cells#287, #338)
   lines.push(
     ...drums.lines.map((text) => ({ part: 'drums' as const, text })),
     ...(drums.terms.length

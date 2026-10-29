@@ -23,16 +23,31 @@ import { VAMPS, VAMP_HARM, buildTheme } from './themes.ts';
 const range = (n: number) => [...Array(n).keys()];
 const NAMES = Object.keys(METERS) as MeterName[];
 
+/**
+ * The seeds the composer reads: every one of eight bars. Cells' `dark cadence` (v0.12.0, Spooky's) is four bars a lap,
+ * so it is no progression the composer takes, and Spooky's harmony is the generator's (the owner's ruling on #517).
+ */
+const VAMP_SEEDS = HARMONY_FRAGMENTS.filter((f) => readProgression(f.text, METERS['4/4']) !== null);
+
 describe("cells' harmonies read into a theme's slots (#425)", () => {
+  it('reads none of four bars: the dark cadence is no progression the composer takes (#517)', () => {
+    const cadence = HARMONY_FRAGMENTS.find((f) => f.id === 'dark cadence')!;
+    expect(cadence.text).toMatch(/ cycle=4 /);
+    expect(readProgression(cadence.text, METERS['4/4'])).toBeNull();
+    expect(HARMONY_FRAGMENTS.filter((f) => !VAMP_SEEDS.includes(f)).map((f) => f.id)).toEqual([
+      'dark cadence',
+    ]);
+  });
+
   it('reads each of the seeds, in every named meter, as a vamp from the tonic: its first chord four bars, its second four', () => {
     // (which seeds cells offers, and to which degree each vamps, is cells' library's, yggi/music-commons#37)
-    expect(HARMONY_FRAGMENTS.length).toBeGreaterThan(0);
-    for (const f of HARMONY_FRAGMENTS) {
+    expect(VAMP_SEEDS.length).toBeGreaterThan(0);
+    for (const f of VAMP_SEEDS) {
       const vamp = vampOf(readProgression(f.text, METERS['4/4'])!);
       expect(vamp?.[0], f.id).toBe(0);
       expect(vamp!.length, f.id).toBeLessThanOrEqual(2);
     }
-    for (const f of HARMONY_FRAGMENTS)
+    for (const f of VAMP_SEEDS)
       for (const name of NAMES)
         expect(readProgression(f.text, METERS[name]), `${f.id} in ${name}`).toEqual(
           readProgression(f.text, METERS['4/4']),
@@ -40,7 +55,7 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
   });
 
   it('states each seed’s slots as the seed’s own text, character for character (identity)', () => {
-    for (const f of HARMONY_FRAGMENTS)
+    for (const f of VAMP_SEEDS)
       expect(progressionText(readProgression(f.text, METERS['4/4'])!.notes)).toBe(f.text.trim());
   });
 
@@ -191,7 +206,7 @@ describe('the composer’s ask (#425)', () => {
 
 describe('a vamp fits only under the harmony buildTheme lays vamps at (#425)', () => {
   it('fits every seed vamp below `VAMP_HARM` and none at or above it, where a progression of the players fits at any harmony', () => {
-    const reads = HARMONY_FRAGMENTS.map((f) => readProgression(f.text, METERS['4/4'])!);
+    const reads = VAMP_SEEDS.map((f) => readProgression(f.text, METERS['4/4'])!);
     expect(reads.every((r) => r !== null && vampOf(r) !== null)).toBe(true);
     for (const read of reads) {
       expect(fitsHarmony(read, VAMP_HARM - 0.01)).toBe(true);

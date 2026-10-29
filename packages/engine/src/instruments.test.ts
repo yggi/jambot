@@ -30,15 +30,15 @@ describe("the instruments a fragment's sound holes are filled from (yggi/cells#2
     for (const f of seeds) expect(unknownVoices(withInstruments(f.text)), f.id).toEqual([]);
   });
 
-  it("takes a voice from the core kit before the General MIDI kit, the agogô from the General MIDI kit, and the bass's voice from `bass`", () => {
-    expect(INSTRUMENT_LINES.get('bd')).toBe(lineOf('core kit', 'bd'));
-    expect(INSTRUMENT_LINES.get('highagogo')).toBe(lineOf('gm kit', 'highagogo'));
+  it("takes a drum's voice and the agogô from the General MIDI kit, and the bass's voice from `bass`", () => {
+    expect(INSTRUMENT_LINES.get('bd')).toBe(lineOf('gm_kit', 'bd'));
+    expect(INSTRUMENT_LINES.get('highagogo')).toBe(lineOf('gm_kit', 'highagogo'));
     expect(INSTRUMENT_LINES.get('bassV')).toBe(lineOf('bass', 'bassV'));
   });
 
   it('adds only the voices a text reads and does not define, and leaves a text that lacks none as it is', () => {
     expect(instrumentsFor('&kick step=16n &bd ~ &bd:0:.5 ~\n&drums map=midi(10) [&kick]')).toEqual([
-      lineOf('core kit', 'bd'),
+      lineOf('gm_kit', 'bd'),
     ]);
     // (a groove filed before the pin states its own voices: it keeps them)
     const own = '&kick step=16n &bd ~ &bd ~\n&bd s=white\n&drums map=midi(10) [&kick]';

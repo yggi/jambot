@@ -104,7 +104,7 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
     });
   });
 
-  it('misses by the fit under every meter but the 4/4s: at every preset’s point, the six others refuse all 13 rhythms', () => {
+  it('misses by the fit under 7/8 alone: the 4/4s find each preset’s drum bar, and the five other meters Spooky drums where it is within reach, past it a miss by the distance (cells v0.12.0)', () => {
     const sweep = meterSweep();
     const verdicts = Object.fromEntries(
       [...new Set(sweep.map((r) => r.meter))].map((meter) => [
@@ -124,17 +124,17 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
       '4/4 leaning on 16n': ['found'],
       '4/4 leaning lightly on 16n': ['found'],
       '4/4 leaning faintly on 16n': ['found'],
-      '3/4': ['fit'],
-      '6/8': ['fit'],
-      '12/8': ['fit'],
-      '5/4': ['fit'],
+      '3/4': ['found', 'distance'],
+      '6/8': ['found', 'distance'],
+      '12/8': ['found', 'distance'],
+      '5/4': ['found', 'distance'],
       '7/8': ['fit'],
-      '10/8': ['fit'],
+      '10/8': ['found', 'distance'],
     });
   });
 
-  it(`misses over a grid of the four axes, the meter found first: 58 % found, 32 % refused by the fit, 10 % past ${RHYTHM_MISS}`, () => {
-    expect(gridAnswers(11)).toEqual({ found: 8520, fit: 4674, distance: 1447 });
+  it(`misses over a grid of the four axes, the meter found first: 69 % found, 2 % refused by the fit, 29 % past ${RHYTHM_MISS}`, () => {
+    expect(gridAnswers(11)).toEqual({ found: 10097, fit: 361, distance: 4183 });
   });
 
   // a bound in wall-clock time, so it runs only when asked: on a shared runner it reads past 5 ms with nothing wrong (5.16 ms, #485's CI)
@@ -373,9 +373,9 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
 });
 
 describe('the point the rhythm is asked at (E36)', () => {
-  it('takes another fragment in 71 of 320 sections at the section’s energy, 40 of them a clave alone, with no band role', () => {
+  it('takes another fragment in 81 of 320 sections at the section’s energy, 40 of them a clave alone, with no band role', () => {
     const moved = atSectionEnergy(ASKED);
-    expect(moved).toHaveLength(71);
+    expect(moved).toHaveLength(81);
     expect(moved.filter((m) => m.noRole)).toHaveLength(40);
     expect([...new Set(moved.map((m) => `${m.preset} ${m.type} ${m.id}`))]).toEqual([
       'Synth-pop drop Deep house drums',
@@ -390,6 +390,8 @@ describe('the point the rhythm is asked at (E36)', () => {
       'Bossa nova drop Electro swing drums',
       'Bossa nova bridge bossa nova clave',
       'Bossa nova breakdown bossa nova clave',
+      'Swing jazz intro Spooky drums',
+      'Swing jazz breakdown Spooky drums',
     ]);
   });
 });

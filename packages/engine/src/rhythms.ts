@@ -283,6 +283,9 @@ export function rhythmRepository(
     if (!reads.has(key)) reads.set(key, read(text, meter));
     return reads.get(key)!;
   };
+  // Whether the band can read a fragment under a meter: one cells fits but the drummer can't read (a hit between the
+  // bar's sixteenths, yggi/cells#360) is no find, so a section never names a rhythm that would play the drummer's own.
+  const readable = (text: string, meter: Meter) => readText(text, meter) !== null;
   // Every variation of a rhythm on a workbench, by the composer's policy (`novelty.ts`): cells' rhythm operators on
   // every line but its anchors and those kept, none of fewer hits than a groove holds.
   const variationsOn = (text: string, workbench: string) => {
@@ -305,7 +308,7 @@ export function rhythmRepository(
       return workbench === null
         ? []
         : ranked(point, layer, chosen, reach, pull)
-            .filter((f) => fits(f.text, workbench))
+            .filter((f) => fits(f.text, workbench) && readable(f.text, bench.meter))
             .map(({ id, distance }) => ({ id, distance }));
     },
     layered(point, bench, chosen, layer, reach = Infinity, more = [], pull) {
@@ -317,7 +320,8 @@ export function rhythmRepository(
           (f) =>
             f.distance <= reach &&
             layersWith(f.id, chosenText, workbench) &&
-            fits(f.text, withItOf(chosenText, workbench)),
+            fits(f.text, withItOf(chosenText, workbench)) &&
+            readable(f.text, bench.meter),
         )
         .map(({ id, distance }) => ({ id, distance }));
     },

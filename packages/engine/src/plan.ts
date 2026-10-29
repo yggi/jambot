@@ -528,7 +528,11 @@ function harmonyLearned(
 /** The tag every lead line the Muse or the composer files carries, beside the session's name where there is one (#424). */
 export const LEAD_TAG = 'lead line';
 
-/** What the Muse files of the lead at a section's end (#424): each source's recurring line heard over the section before (`distilledLead`), as `museFiledLines` files a bass line. */
+/**
+ * What the Muse files of the lead at a section's end (#424): each source's recurring line heard over the section before
+ * (`distilledLead`), as `museFiledLines` files a bass line, its notes those within a bar of the section's meter: a note
+ * past it is the next bar's, which the line's text can't hold (a 4/4 motif heard in a bar of 3/4, `leadText`).
+ */
 export function museFiledLeads(
   given: PlanEnv,
   layer: LearnedLayer,
@@ -539,8 +543,8 @@ export function museFiledLeads(
     given.leads,
     given.leadHeard ?? [],
     (bars) => {
-      const notes = distilledLead(bars);
-      return notes && { notes };
+      const notes = distilledLead(bars)?.filter((n) => n.step < stepsOf(before.meter));
+      return notes?.length ? { notes } : null;
     },
     { meter: before.meter, meterFragment: before.meterFragment },
     filingAt({ ...given, index: given.index - 1 }, point, LEAD_TAG),
