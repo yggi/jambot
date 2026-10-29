@@ -182,13 +182,12 @@ const WARM_TEXT = [
   '&key scale(aeolian, A)',
   '&harm over=&key step=1m [0,2,4] [5,7,9]',
   '&kick step=16n &bd:0:.4 ~ ~ ~',
-  '&drums [&kick]',
-  'use * from "core kit"',
-  '&bass over=&harm step=16n legato=.6 0@4 3@4',
+  '&drumlines [&kick]',
+  'use * from "drums performer"',
+  '&bassline over=&harm step=16n legato=.6 0@4 3@4',
   '&bassLevel map=amp step=16n .4@8',
-  '&bassOut play=&bass level=&bassLevel &bassV',
-  '&bassV loop=C1',
-  '&out map=midi ~ &bassOut ~!7 &drums',
+  'use * from "bass performer"',
+  '&out map=midi ~ &bassOut ~!7 &drumsOut',
 ].join('\n');
 
 /** The warm-up, what a worker does as it starts: its text compiled; what cells said of it. */

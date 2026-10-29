@@ -277,7 +277,10 @@ describe('a host and a client session', () => {
         answer(
           playText({
             ...given,
-            text: given.text.replace(/(&bass over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2'),
+            text: given.text.replace(
+              /(&bassline over=\S+ step=16n(?: legato=\S+)? )(\S+)/,
+              '$1~ $2',
+            ),
           }),
         ),
     }));

@@ -23,8 +23,9 @@
  *
  * Each note also says where it falls in its bar as played: its onset and
  * end in the bar's steps through the swing (`onsets`, `ends`), which a host
- * lays on its own clock, and which line and drum role it comes from (cells
- * names each note's output by its line, `lines` and `roles`).
+ * lays on its own clock, and which line and drum role it comes from: the
+ * role of the performer that plays it, and the drum role its line names
+ * (`lineOf`; `lines` and `roles`).
  */
 
 import {
@@ -37,7 +38,7 @@ import {
   stepSeconds,
 } from '@jambot/engine';
 import { type Meter, formatNumeral, joinChord, stepsOf } from '@jambot/theory';
-import { type Plan, planOf, windowAt } from '@yggi/cells';
+import { type CompileResult, type Plan, planOf, windowAt } from '@yggi/cells';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { heldAt } from '@yggi/cells/engine/series';
@@ -121,16 +122,29 @@ function shareOf(plan: Plan, output: string | undefined, at: number): number {
 }
 
 /**
- * The line a note comes from, by the output cells names it with: a gate's
- * voice, then its line (`compV:pad:…`), or a kit's member, then its role
- * (`kit:voices:hat:…`).
+ * The line a note comes from: the role of the performer whose gate plays it
+ * (`CompileResult.performers`, a role cell's name: `bass` for `&bass map=role
+ * &bassOut`), and for a drum hit the drum role its line names (`kit:voices:hat:…`,
+ * as feel v1.2 reads it, yggi/music-commons#35).
+ * Where no performer with a role plays it, or none is given, the output's id
+ * says: a gate's voice, then its line (`compV:pad:…`), or a kit's member,
+ * then its role (`kit:voices:hat:…`).
  */
-export function lineOf(output: string | undefined): {
+export function lineOf(
+  output: string | undefined,
+  result?: Pick<CompileResult, 'outputs' | 'performers'>,
+): {
   line: PitchedName | 'drums';
   role?: DrumRole;
 } {
   const [first, second, third] = (output ?? '').split(':');
-  if (first === 'kit') return { line: 'drums', role: third as DrumRole };
+  // (the gate is on the output's way to its card: a mix it goes through, or, in a stack, an instrument it plays through)
+  const own = result?.outputs.find((o) => o.id === output);
+  const gates = own ? [...own.via, ...own.through] : [];
+  const role = result?.performers.find((p) => p.role !== undefined && gates.includes(p.name))?.role;
+  const drum = first === 'kit' ? { role: third as DrumRole } : {};
+  if (role) return { line: role as PitchedName | 'drums', ...(role === 'drums' ? drum : {}) };
+  if (first === 'kit') return { line: 'drums', ...drum };
   return { line: second as PitchedName };
 }
 
@@ -149,7 +163,7 @@ export interface SectionFrame {
 
 /**
  * A section's text compiled with the reading's own lines beside it: what `playSection` plays. Its `use` lines (the
- * drums' `use * from "core kit"`) read through cells' seed library (`resolveSeed`, cells v0.10.1's engine host).
+ * performers', `use * from "bass performer"`) read through cells' seed library (`resolveSeed`, cells v0.10.1's engine host).
  */
 export const compileSection = (text: string): Plan =>
   planOf(`${text}\n${READING}`, undefined, { resolve: resolveSeed });
@@ -172,7 +186,9 @@ export function playSection(
   const out = windowAt(plan, 0, estimate * 1.25).events.flatMap((e) =>
     routesOf(route(e)).flatMap((r) => {
       const n = midiNote(e, r);
-      return n ? [{ ...n, share: shareOf(plan, e.output, e.at), ...lineOf(e.output) }] : [];
+      return n
+        ? [{ ...n, share: shareOf(plan, e.output, e.at), ...lineOf(e.output, plan.result) }]
+        : [];
     }),
   );
   const laps = [...new Set(out.filter((n) => n.channel === 15).map((n) => n.at))]
