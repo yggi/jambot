@@ -4,7 +4,14 @@ import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
 import { MODE_FRAGMENTS } from '@yggi/cells/repository/modes';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { describe, expect, it } from 'vitest';
-import { INSTRUMENT_LINES, instrumentsFor, withInstruments } from './instruments.ts';
+import {
+  INSTRUMENT_LINES,
+  PERFORMER_VOICES,
+  instrumentsAt,
+  instrumentsFor,
+  withInstruments,
+} from './instruments.ts';
+import { PRESETS } from './style.ts';
 
 const errors = (text: string) =>
   compileSource(text)
@@ -47,5 +54,33 @@ describe("the instruments a fragment's sound holes are filled from (yggi/cells#2
     expect(instrumentsFor('&x step=16n &nosuchvoice ~')).toEqual([]);
     // (a name that only starts with an instrument's is not it)
     expect(instrumentsFor('&x step=16n &bdx ~')).toEqual([]);
+  });
+});
+
+describe('the instruments a section’s performers play, found at its style (#497)', () => {
+  const point = { sync: 0.9, harm: 0.1, artic: 0.9, energy: 0.1 };
+  /** An instrument for the lead at a point of its own, as yggi/cells#350's are at the two presets'. */
+  const theirs = {
+    id: 'test whistle',
+    text: '&leadV s=sine loop=C4 env=&(map=adsr .05 .1 .8 .2)',
+    association: [{ point, weight: 0.125, facet: 'instrument' }],
+  };
+
+  it.each(PRESETS.map((p) => p.name))('at %s, every performer plays its own instrument', (name) => {
+    expect(instrumentsAt(PRESETS.find((p) => p.name === name)!.style)).toEqual({});
+    expect(
+      instrumentsAt(PRESETS.find((p) => p.name === name)!.style, [...INSTRUMENT_FRAGMENTS, theirs]),
+    ).toEqual({});
+  });
+
+  it('at an instrument’s own point, the performer whose voice it defines plays it, and the others their own', () => {
+    expect(instrumentsAt(point, [...INSTRUMENT_FRAGMENTS, theirs])).toEqual({
+      lead: { id: 'test whistle', line: theirs.text },
+    });
+  });
+
+  it('names each pitched performer’s voice as its own instrument defines it', () => {
+    for (const { voice, own } of Object.values(PERFORMER_VOICES))
+      expect(lineOf(own, voice), own).toMatch(new RegExp(`^&${voice} loop=C\\d$`));
   });
 });
