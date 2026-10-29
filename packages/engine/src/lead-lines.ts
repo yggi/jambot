@@ -3,8 +3,11 @@
  * lead (`muse-lead.ts`), stated as cells text (`leadText`) and read by
  * cells' compiler back into a bar's notes (`readLead`), ranked by cells'
  * own `query` on the facet `lead` (the loop's repository, `line-repository.ts`).
- * Cells holds no seed lead lines yet, so every line is one the layer filed:
- * with nothing filed, the composer finds none and the lead plays its own.
+ * Its seeds are cells' motifs (`MOTIF_FRAGMENTS`, the facet `motif`, #520):
+ * each read as a lead line (`motifLead`), its head renamed `&lead` and the
+ * lead's voice beside it, at the point cells associates it with, so every
+ * preset finds the motif written for it; away from them, and in a meter no
+ * motif fills, the lead plays its own unless the layer filed one.
  *
  * A line is one bar of degrees of the key (`over=&key`) counted from its
  * first note, as the Muse hears a motif (U4), on the coarsest of the bar's
@@ -28,14 +31,15 @@
  */
 
 import type { Meter, MeterName } from '@jambot/theory';
-import { stepsOf } from '@jambot/theory';
+import { METERS, stepsOf } from '@jambot/theory';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { flatten } from '@yggi/cells/engine/flatten';
 import { codeShifts } from '@yggi/cells/engine/program';
-import type { Operator } from '@yggi/cells/engine/vary/index';
+import { type Operator, variations } from '@yggi/cells/engine/vary/index';
 import { tapWhole } from '@yggi/cells/engine/vary/lines';
 import { unionOf } from '@yggi/cells/repository/fit';
 import type { Fragment } from '@yggi/cells/repository/fragments';
+import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
 import { LEAD_FACET, type LeadNote, type LeadRead, type LeadRepository } from './lead-query.ts';
 import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';
 
@@ -87,7 +91,8 @@ export function leadText(notes: readonly LeadNote[], steps: number): string {
  * key and its accidental, from cells' flattening of `&lead`. Null where the
  * meter has no name in cells, the text doesn't compile on the workbench, a
  * note reads other than the key unmoved, its lap is no whole number of
- * bars, or a note falls off the steps.
+ * bars, or a note falls off the steps. A line shorter than the bar is read
+ * as the bar, a rest after it (`paddedLead`).
  */
 export function readLead(text: string, meter: Meter): LeadRead | null {
   const name = nameOf(meter);
@@ -97,12 +102,14 @@ export function readLead(text: string, meter: Meter): LeadRead | null {
   const cell = result.cells.get('lead');
   if (!cell?.step) return null;
   const cellMeter = result.cells.get(cell.step.driver)?.meter ?? null;
-  const whole = tapWhole(cell.step.tap, cellMeter);
-  if (whole === null || !cellMeter) return null;
+  const { tap } = cell.step;
+  const whole = tapWhole(tap, cellMeter);
+  if (whole === null || !cellMeter || !tap || cell.steps < 1) return null;
   const steps = stepsOf(meter);
   const perStep = cellMeter.pulses / cellMeter.unit / steps;
   const lap = (cell.steps * whole) / (perStep * steps);
-  if (Math.abs(lap - Math.round(lap)) > 1e-9 || Math.round(lap) < 1) return null;
+  if (lap < 1 - 1e-9) return paddedLead(text, meter, tap, cell.steps, lap);
+  if (Math.abs(lap - Math.round(lap)) > 1e-9) return null;
   const bars = Math.round(lap);
   const notes: LeadNote[] = [];
   for (const e of flatten(result, 'lead', codeShifts(result))) {
@@ -117,9 +124,62 @@ export function readLead(text: string, meter: Meter): LeadRead | null {
   return { bars, notes: notes.sort((a, b) => a.step - b.step) };
 }
 
+/**
+ * A line shorter than the bar, read as the bar: the line, then a rest to the bar's end, as a piece pads a motif into a
+ * longer meter (`&leadline step=8n &diesIrae ~@2` in 5/4, yggi/cells examples/spooky.md). The line keeps its own cell
+ * (`&leadLine`) and `&lead` plays it and the rest, on its tap; null where no whole number of its taps fills the bar.
+ */
+function paddedLead(
+  text: string,
+  meter: Meter,
+  tap: string,
+  taps: number,
+  lap: number,
+): LeadRead | null {
+  const pad = taps / lap - taps;
+  if (Math.abs(pad - Math.round(pad)) > 1e-9 || Math.round(pad) < 1) return null;
+  const line = text.replace(/^&lead(?=\s)/m, '&leadLine');
+  return readLead(`${line}\n&lead step=${tap} &leadLine ~@${Math.round(pad)}`, meter);
+}
+
+/** Cells' facet of a motif, a line a form moves and answers (#294). */
+export const MOTIF_FACET = 'motif';
+
+/**
+ * A motif of cells' as a lead line (#520): its head (`&<id>`) renamed `&lead`, the lead's voice beside it
+ * (`LEAD_VOICE`), and its association moved from the facet `motif` to `lead`, at the same points and weights. It is
+ * stated from its first note, as every lead line is, by cells' transpose (`&diesIrae`'s `2 1 2 0 …` as `0 -1 0 -2 …`):
+ * the lead plays a line from the chord tone nearest where it was (`lead.ts`), so that is what it plays, and what the
+ * Muse would file of it. One that reads in no meter stays as cells wrote it.
+ */
+export function motifLead(motif: Fragment): Fragment {
+  const head = new RegExp(`^&${motif.id}(?=\\s)`, 'm');
+  const text = [motif.text.replace(head, '&lead'), ...LEAD_VOICE].join('\n');
+  const name = (Object.keys(METERS) as MeterName[]).find((n) => readLead(text, METERS[n]));
+  const first = name ? readLead(text, METERS[name])!.notes[0]!.degree : 0;
+  const lift =
+    name && first !== 0
+      ? variations(text, {
+          workbench: leadBench(name),
+          operators: ['transpose'],
+          degrees: [-first],
+        })[0]
+      : undefined;
+  return {
+    ...motif,
+    text: lift ? lift.apply(text) : text,
+    association: motif.association.map((a) =>
+      a.facet === MOTIF_FACET ? { ...a, facet: LEAD_FACET } : a,
+    ),
+  };
+}
+
+/** Cells' motifs as lead lines: the lead repository's seeds. */
+export const MOTIF_LEADS: readonly Fragment[] = MOTIF_FRAGMENTS.map(motifLead);
+
 /** A repository of lead lines, ranked by cells' query on the facet `lead` and read by `read` (cells', unless a test counts them). */
 export function leadRepository(
-  fragments: readonly Fragment[] = [],
+  fragments: readonly Fragment[] = MOTIF_LEADS,
   read: (text: string, meter: Meter) => LeadRead | null = readLead,
 ): LeadRepository {
   return lineRepositoryOf<LeadNote>({
@@ -131,5 +191,5 @@ export function leadRepository(
   });
 }
 
-/** The lead lines the layer files, as the composer asks them. */
+/** Cells' motifs and the lead lines the layer files, as the composer asks them. */
 export const LEAD_REPOSITORY: LeadRepository = leadRepository();

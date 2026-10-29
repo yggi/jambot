@@ -5,7 +5,15 @@ import { unionOf } from '@yggi/cells/repository/fit';
 import { describe, expect, it } from 'vitest';
 import { keyHelix } from './key.ts';
 import { EMPTY_LAYER } from './layer.ts';
-import { LEAD_REPOSITORY, LEAD_VOICE, leadRepository, leadText, readLead } from './lead-lines.ts';
+import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
+import {
+  LEAD_REPOSITORY,
+  LEAD_VOICE,
+  MOTIF_LEADS,
+  leadRepository,
+  leadText,
+  readLead,
+} from './lead-lines.ts';
 import { type LeadFiling, type LeadNote, leadMotif } from './lead-query.ts';
 import { stepSeconds } from './tempo.ts';
 
@@ -75,7 +83,7 @@ describe('a lead line as cells text, and read back (#424)', () => {
   });
 
   it('reads no text that isn’t a line over the key', () => {
-    expect(readLead('&lead over=&key step=16n', METERS['4/4'])).toBeNull();
+    expect(readLead('&lead over=&key 0 2 4', METERS['4/4'])).toBeNull();
     expect(readLead('&lead step=16n 0 2 4', METERS['4/4'])).toBeNull();
     expect(readLead('not cells', METERS['4/4'])).toBeNull();
   });
@@ -91,17 +99,57 @@ const FILING: LeadFiling = {
 };
 
 describe('the lead’s repository (#424)', () => {
-  it('holds no seed line, so a query with nothing filed finds none', () => {
-    expect(LEAD_REPOSITORY.query(FILING.point, FILING.bench, EMPTY_LAYER)).toEqual([]);
+  it('holds cells’ motifs as its seeds, each found first at its own point in 4/4 and in 5/4, a rest after it, and none in 3/4, which none fits (#520)', () => {
+    expect(MOTIF_LEADS.map((f) => f.id)).toEqual(MOTIF_FRAGMENTS.map((f) => f.id));
+    for (const motif of MOTIF_LEADS) {
+      const { point } = motif.association[0]!;
+      const found = LEAD_REPOSITORY.query(point, FILING.bench, EMPTY_LAYER);
+      expect(found[0], motif.id).toEqual({ id: motif.id, distance: 0, score: 0 });
+      const five = { meter: METERS['5/4'], meterFragment: '5/4' };
+      expect(LEAD_REPOSITORY.query(point, five, EMPTY_LAYER)[0], motif.id).toEqual(found[0]);
+      const three = { meter: METERS['3/4'], meterFragment: '3/4' };
+      expect(LEAD_REPOSITORY.query(point, three, EMPTY_LAYER), motif.id).toEqual([]);
+    }
+  });
+
+  it('reads a motif as a lead line from its first note: the Dies irae’s step down, back, a third down, a step up, a third down and a step up, held; in 5/4 a rest after it (#520)', () => {
+    const lead = MOTIF_LEADS.find((f) => f.id === 'diesIrae')!;
+    expect(lead.text.split('\n')).toEqual([
+      '&lead over=&key step=8n 0 -1 0 -2 -1 -3 -2@2',
+      ...LEAD_VOICE,
+    ]);
+    expect(lead.association.map((p) => p.facet)).toEqual(['lead']);
+    const line = [
+      [0, 0],
+      [2, -1],
+      [4, 0],
+      [6, -2],
+      [8, -1],
+      [10, -3],
+      [12, -2],
+    ];
+    for (const name of ['4/4', '5/4'] as const) {
+      const read = LEAD_REPOSITORY.read('diesIrae', METERS[name], EMPTY_LAYER)!;
+      expect(read.bars, name).toBe(1);
+      expect(
+        read.notes.map((n) => [n.step, n.degree]),
+        name,
+      ).toEqual(line);
+    }
+    // (two quarters in 7/8's three and a half: no whole number of quarters fills the bar)
+    expect(readLead('&lead over=&key step=4n 0 2', METERS['7/8'])).toBeNull();
+    expect(readLead('&lead over=&key step=8n 0 2', METERS['7/8'])?.notes.length).toBe(2);
   });
 
   it('files a line at its point, as the facet `lead`, and finds it there with what it read back', () => {
     const repository = leadRepository();
     const filed = repository.file!(EMPTY_LAYER, FILING);
     expect(filed.held).toBe(false);
-    expect(repository.query(FILING.point, FILING.bench, filed.layer)).toEqual([
-      { id: filed.id, distance: 0, score: 0 },
-    ]);
+    expect(repository.query(FILING.point, FILING.bench, filed.layer)[0]).toEqual({
+      id: filed.id,
+      distance: 0,
+      score: 0,
+    });
     const fragment = filed.layer.filed[0]!.fragment;
     expect(fragment.association.map((p) => p.facet)).toEqual(['lead']);
     expect(repository.read(filed.id, METERS['4/4'], filed.layer)).toEqual({

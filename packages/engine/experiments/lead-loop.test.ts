@@ -31,6 +31,7 @@ beforeAll(() => {
       JSON.stringify(
         {
           mostUsed: mostUsedLead(LEARNED),
+          unlearned: mostUsedLead(UNLEARNED),
           lockIn: lockIn(asLeads(UNLEARNED), asLeads(LEARNED)),
           filed: [
             FILED.length,
@@ -54,20 +55,22 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
   it('plays its run’s most used lead line in under 60 % of the sections that play one, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { playing, mostUsed, share } = mostUsedLead(LEARNED);
-    expect([playing, mostUsed]).toEqual([8418, 3032]);
+    expect([playing, mostUsed]).toEqual([8506, 2878]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used lead lines within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asLeads(UNLEARNED), asLeads(LEARNED));
-    // (with nothing learned the lead plays its own every section, which counts as one: the share can only fall)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-20.31', '1.73']);
+    // (with nothing learned the lead plays cells' motif nearest the walk in nearly every section, 99 % among a run's
+    // 3 most used: the share can only fall)
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-22.27', '1.93']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   it('files the player’s lines, the lead’s own the player answered and the composer’s variations, each reading back as filed', () => {
     expect([by(PLAYER), by(SOLOIST), by(COMPOSER), FILED.filter((f) => f.held).length]).toEqual([
-      332, 38, 159, 1793,
+      // (the lead’s own, once: it plays a motif of cells’ in nearly every section, #520)
+      332, 1, 166, 1795,
     ]);
     for (const { filing, id } of FILED.filter((f) => !f.held)) {
       const layer = LEARNED.find((r) => r.leadFilings.some((f) => f.id === id))!.learning!.layer;
@@ -78,10 +81,10 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     }
   });
 
-  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 24 sections of 5,389`, () => {
+  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 23 sections of 5,389`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThan(LAYER_CAP);
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15988, 24]);
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15990, 23]);
     expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5389);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);
   });

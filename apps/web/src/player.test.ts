@@ -629,13 +629,14 @@ describe('the player', () => {
       player.forgetMotif();
       run(9);
       expect(player.museLog.at(-1)).toMatchObject({ offer: null, forgot: 'asked' });
-      // The offer is forgotten; the motif heard was filed as a lead line (#424), which the lead plays as its own phrase.
+      // The offer is forgotten; the motif heard was filed as a lead line (#424), and the lead plays the line its
+      // section holds, cells' motif at Synth-pop's point (`hook`, #520), the motif filed waiting in the layer.
       const filed = player.layer.filed.filter((f) =>
         f.fragment.association.some((p) => p.facet === 'lead'),
       );
       expect(filed.map((f) => f.meta.source)).toEqual(['the computer keys']);
       const after = Math.floor(world.steps.at(-1)!.step / 16) - 1;
-      expect(leadSteps(world, after)).toEqual([0, 4, 8]);
+      expect(leadSteps(world, after)).toEqual([0, 2, 4, 6, 12, 14]);
     });
 
     it('keeps at most 240 notes, dropping the oldest half once full', async () => {
@@ -1671,22 +1672,24 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     return player;
   }
 
-  it('keeps each meter, rhythm and bass line the composer keeps, once a section, as the band plans it', async () => {
+  it('keeps each meter, rhythm, bass line and lead line the composer keeps, once a section, as the band plans it', async () => {
     const { layers, saved } = kept();
     // Synth-pop at 108 bpm: a bar is 2.2 s, so 24 s plan the first two sections and not the third.
     const player = await playing(layers, 24);
     expect(saved).toHaveLength(2);
-    // the meter's use, the rhythm's that fits it (#397), and the bass line's (#423)
+    // the meter's use, the rhythm's that fits it (#397), the bass line's (#423), and the lead line's, cells' motif (#520)
     expect(saved.map((l) => l.points.map((p) => [p.id, p.weight]))).toEqual([
       [
         ['4/4', 1.1],
         ['Synth-pop drums', 1.1],
         ['root bass', 1.1],
+        ['hook', 1.1],
       ],
       [
         ['4/4', 1.2],
         ['Synth-pop drums', 1.2],
         ['root bass', 1.2],
+        ['hook', 1.2],
       ],
     ]);
     expect(player.layer).toBe(saved.at(-1));

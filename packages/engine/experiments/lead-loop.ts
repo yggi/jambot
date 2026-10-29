@@ -1,14 +1,15 @@
 /**
  * E42: the lead enters the loop (#424; the loop of `facet.ts` for the facet
- * `lead`, every line one the layer filed, since cells holds no seed lead
- * lines).
+ * `lead`, cells' motifs its seeds since #520, and the lines the layer
+ * filed).
  *
  * E37's walks (`rhythm-radio.ts`), the radio tuned in at each preset at
  * entropy 0.3, the band learning from an empty layer with cells' rhythms and
  * bass lines and the lead lines, and a player (`PLAYER`) who answers one
  * section in four, in its second half, with a motif of `MOTIFS`, a new one
  * every four of those: the Muse files the player's line, and the lead's own
- * of that section where it played its own (the phrase the player answered),
+ * of that section where it played its own (the phrase the player answered;
+ * seldom, since it plays a motif of cells' nearly everywhere),
  * and the composer plays, varies and rejects them as it does a bass line.
  * It counts the share of sections the run's most used lead line plays
  * (`mostUsedLead`: of the sections that play one, and of all, the lead's own
