@@ -140,11 +140,11 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
     }
   });
 
-  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums and the bass filing, the cap dropping the oldest once`, () => {
+  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums and the bass filing, the cap dropping the oldest 3 times`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
-    expect(bytes).toBe(15953);
+    expect(bytes).toBe(15996);
     expect(bytes).toBeLessThan(LAYER_CAP);
-    expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(1);
+    expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(3);
   });
 
   it('leaves E39’s most used groove where it was: 147 of 274 sections, within 1 point', () => {

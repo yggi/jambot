@@ -118,6 +118,24 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     );
   });
 
+  it('finds none it can’t read under the section’s meter, though cells fits it: a hit between the bar’s sixteenths (yggi/cells#360)', () => {
+    const synthPop = PRESETS[0]!;
+    const bench = { meter: METERS['4/4'], meterFragment: '4/4' };
+    const all = rhythmRepository(RHYTHM_FRAGMENTS, () => true);
+    const found = all.query(stylePoint(synthPop.style), bench)[0]!.id;
+    const unreadable = rhythmRepository(
+      RHYTHM_FRAGMENTS,
+      () => true,
+      (text, meter) =>
+        text === RHYTHM_FRAGMENTS.find((f) => f.id === found)!.text
+          ? null
+          : readRhythm(text, meter),
+    );
+    const ids = unreadable.query(stylePoint(synthPop.style), bench).map((f) => f.id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids).not.toContain(found);
+  });
+
   it('holds every rhythm of cells’ seed, and none whose line strikes a sound outside the kit', () => {
     expect(heldRhythms().map((f) => f.id)).toEqual(RHYTHM_FRAGMENTS.map((f) => f.id));
     const crash = {

@@ -39,6 +39,10 @@ describe("cells' mode fragments, as the band reads them", () => {
       { id: 'mixolydian', read: { id: 'mixolydian', mode: 'mixolydian' } },
       { id: 'bell and scale', read: { id: 'bell and scale', mode: 'ionian' } },
       { id: 'harmonic minor', read: { id: 'harmonic minor', mode: 'aeolian' } },
+      // (the other three of the seven, cells v0.12.1: yggi/cells#355)
+      { id: 'phrygian', read: { id: 'phrygian', mode: 'phrygian' } },
+      { id: 'lydian', read: { id: 'lydian', mode: 'lydian' } },
+      { id: 'locrian', read: { id: 'locrian', mode: 'locrian' } },
     ]);
     expect([...MODE_REPOSITORY.fragments.keys()]).toEqual(MODE_FRAGMENTS.map((f) => f.id));
   });

@@ -95,7 +95,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       'Lo-fi hip hop': 0.95,
       Funk: 0.74,
       'Bossa nova': 0.91,
-      'Swing jazz': 0.83,
+      'Swing jazz': 0.84,
     });
   });
 

@@ -51,14 +51,14 @@ beforeAll(() => {
 });
 
 describe('the Muse files the drummer’s grooves while the radio walks (E38, #401)', () => {
-  it('files 193 grooves in 120 hours, 47 the drummer’s on a miss and 146 the composer’s variations (#411, #414), and the misses fall from 2,146 sections to 50: what was filed is found again', () => {
+  it('files 195 grooves in 120 hours, 46 the drummer’s on a miss and 149 the composer’s variations (#411, #414), and the misses fall from 2,146 sections to 49: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     expect(count(LEARNED, (r) => r.sections)).toBe(26749);
-    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([50, 2146]);
-    expect(FILINGS.length).toBe(193);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([47, 146]);
+    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([49, 2146]);
+    expect(FILINGS.length).toBe(195);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([46, 149]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(15282);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(15398);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -96,15 +96,15 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9446', '0.8106']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-13.40', '2.07']);
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9446', '0.8102']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-13.44', '2.08']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it(`keeps a layer of at most 13,569 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  it(`keeps a layer of at most 14,380 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(13569);
-    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
+    expect(Math.max(...bytes)).toBe(14380);
+    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(12);
     // every groove its run filed is still there
     for (const run of LEARNED)
       expect(run.learning!.layer.filed.map((f) => f.fragment.id)).toEqual(
@@ -157,7 +157,7 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
     }
   });
 
-  it('has the drummer invent again where the composer rejected every groove a meter holds: 13 grooves beyond the first of their meter', () => {
+  it('has the drummer invent again where the composer rejected every groove a meter holds: 12 grooves beyond the first of their meter', () => {
     const again = LEARNED.flatMap((run) => {
       const firsts = new Set<string>();
       return run.learning!.filings.filter((f) => {
@@ -168,6 +168,6 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
         return !first;
       });
     });
-    expect(again).toHaveLength(13);
+    expect(again).toHaveLength(12);
   });
 });
