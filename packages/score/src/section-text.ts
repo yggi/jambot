@@ -32,6 +32,12 @@
  * - one MIDI card that sends the gates on Jambot's channels: 1 the lead, 2 the
  *   bass, 3 the pad and the stab, 10 the drums.
  *
+ * Each line on `16n` states a bar it plays more than once once, a cell of its
+ * own spliced in where it plays (`&bassline … &basslineA!4 &basslineB`,
+ * `barred`), and a drum role whose levels are each its step's in the bar
+ * states them as one bar of levels (`&hat * &hatLevel`), so what recurs in a
+ * section is written once (#498).
+ *
  * What it states is the written layer: each note's step, pitch, velocity as
  * the performer plays it at feel 0 (`writtenNotes`) and written length, and
  * each chord. Playing a text back is `section-play.ts`.
@@ -427,6 +433,86 @@ export const sectionTextOf = (s: SectionText) => s.lines.map((l) => l.text).join
 /** A held token: `x`, or `x@k` for k steps. */
 const held = (text: string, length: number) => (length === 1 ? text : `${text}@${length}`);
 
+/** A word of a line at its step in the section, held for its length: a rest is `~`. */
+interface Span {
+  readonly at: number;
+  readonly length: number;
+  readonly text: string;
+}
+
+/** The name of a line's `i`th bar stated once: the line's name and a letter, `&bassA`, then `&bassB`, past Z `&bassAA`. */
+const barName = (cell: string, i: number): string => {
+  let letters = '';
+  for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26))
+    letters = String.fromCharCode(65 + ((n - 1) % 26)) + letters;
+  return `${cell}${letters}`;
+};
+
+/**
+ * A line's words over a section of bars of `steps`, as the law of recursion has it at the bar: each bar the line
+ * plays more than once is stated once, as a cell of its own (`&bassA 0@4 2@12`), and spliced in wherever it plays,
+ * a run of it as one word (`&bassA!3 &bassB 0@16`), so it reads through its line's table, step and share. A bar
+ * played once stays in the line, and so does a bar of rests alone (cells reads the voices after such a splice as
+ * picks of a kit). Rests in a row are one rest (`~@13`), cut at a bar's end; a note held across one leaves the
+ * line's words in a row, as they are.
+ */
+export function barred(
+  cell: string,
+  given: readonly Span[],
+  steps: number,
+): { readonly words: string; readonly cells: readonly string[] } {
+  const spans: Span[] = [];
+  for (const w of given) {
+    const last = spans.at(-1);
+    if (last && last.text === '~' && w.text === '~')
+      spans[spans.length - 1] = { ...last, length: last.length + w.length };
+    else spans.push(w);
+  }
+  const flat = { words: spans.map((w) => held(w.text, w.length)).join(' '), cells: [] };
+  const bars: string[][] = [];
+  for (const w of spans) {
+    const into = Math.floor(w.at / steps);
+    const room = (into + 1) * steps - w.at;
+    if (w.length > room && w.text !== '~') return flat;
+    for (let at = w.at, left = w.length; left > 0;) {
+      const bar = Math.floor(at / steps);
+      const here = Math.min(left, (bar + 1) * steps - at);
+      (bars[bar] ??= []).push(held(w.text, here));
+      at += here;
+      left -= here;
+    }
+  }
+  const texts = bars.map((words) => words.join(' '));
+  const count = new Map<string, number>();
+  for (const t of texts) count.set(t, (count.get(t) ?? 0) + 1);
+  const named = new Map<string, string>();
+  for (const [i, t] of texts.entries())
+    if (
+      count.get(t)! > 1 &&
+      !named.has(t) &&
+      bars[i]!.some((w) => !w.startsWith('~')) &&
+      t.length > cell.length + 2
+    )
+      named.set(t, barName(cell, named.size));
+  if (named.size === 0) return flat;
+  const words: string[] = [];
+  for (let i = 0; i < texts.length;) {
+    const name = named.get(texts[i]!);
+    if (!name) {
+      words.push(texts[i++]!);
+      continue;
+    }
+    let run = 1;
+    while (texts[i + run] === texts[i]) run++;
+    words.push(run === 1 ? `&${name}` : `&${name}!${run}`);
+    i += run;
+  }
+  return {
+    words: words.join(' '),
+    cells: [...named].map(([text, name]) => `&${name} ${text}`),
+  };
+}
+
 /** A number as the text writes it: no leading 0, twelve significant digits at most. */
 const numberText = (x: number) => String(Number(x.toPrecision(12))).replace(/^0\./, '.');
 
@@ -485,9 +571,9 @@ function sectionChords(bars: readonly BandBar[], steps: number) {
   );
 }
 
-/** A section's steps, each mapped. */
-const eachStep = (steps: number, f: (step: number) => string) =>
-  Array.from({ length: steps }, (_, step) => f(step)).join(' ');
+/** A section's steps, each a word a step long. */
+const eachStep = (steps: number, f: (step: number) => string): Span[] =>
+  Array.from({ length: steps }, (_, at) => ({ at, length: 1, text: f(at) }));
 
 /** A hit's own level after its voice, none at full velocity. */
 const hitLevel = (velocity: number) => (velocity >= 127 ? '' : `:0:${levelOf(velocity)}`);
@@ -541,20 +627,58 @@ function drumLines(
         terms.push(`&${role} * &${role}Level`);
       } else {
         const level = (s: number) => hits.find((h) => h.at === s)?.velocity;
-        lines.push(
-          `&${role}Level map=amp step=16n ${eachStep(bars * steps, (s) => (level(s) ? levelOf(level(s)!) : '0'))}`,
+        const levels = barred(
+          `${role}Level`,
+          eachStep(bars * steps, (s) => (level(s) ? levelOf(level(s)!) : '0')),
+          steps,
         );
+        lines.push(...levels.cells, `&${role}Level map=amp step=16n ${levels.words}`);
         terms.push(`&${role} * &${role}Level`);
       }
       continue;
     }
-    const braid = eachStep(bars * steps, (s) => {
-      const words = hits
-        .filter((h) => h.at === s)
-        .map((h) => `&${VOICE_OF_NOTE.get(h.note)!}${hitLevel(h.velocity)}`);
-      return words.length === 0 ? '~' : words.length === 1 ? words[0]! : `[${words.join(',')}]`;
+    const braidOf = (level: (velocity: number) => string) =>
+      barred(
+        role,
+        eachStep(bars * steps, (s) => {
+          const words = hits
+            .filter((h) => h.at === s)
+            .map((h) => `&${VOICE_OF_NOTE.get(h.note)!}${level(h.velocity)}`);
+          return words.length === 0 ? '~' : words.length === 1 ? words[0]! : `[${words.join(',')}]`;
+        }),
+        steps,
+      );
+    const own = braidOf(hitLevel);
+    const each = [...own.cells, `&${role} step=16n ${own.words}`];
+    // A hit is a step long, so where a role's level is its step's in the bar, one bar of levels states them all: spliced
+    // in a section long, since a line of levels a bar long, looped, misses a hit on a bar's first step at some tempos.
+    const atStep = new Map<number, number>();
+    const placed = hits.every((h) => {
+      const step = h.at % steps;
+      if ((atStep.get(step) ?? h.velocity) !== h.velocity) return false;
+      atStep.set(step, h.velocity);
+      return true;
     });
-    lines.push(`&${role} step=16n ${braid}`);
+    if (placed) {
+      const bare = braidOf(() => '');
+      const looped = [
+        ...bare.cells,
+        `&${role} step=16n ${bare.words}`,
+        `&${role}LevelA ${barred(
+          `${role}Level`,
+          eachStep(steps, (s) => (atStep.has(s) ? levelOf(atStep.get(s)!) : '~')),
+          steps,
+        ).words.replace(/~/g, '0')}`,
+        `&${role}Level map=amp step=16n &${role}LevelA${bars > 1 ? `!${bars}` : ''}`,
+      ];
+      const term = `&${role} * &${role}Level`;
+      if (looped.join('\n').length + term.length < each.join('\n').length + role.length + 1) {
+        lines.push(...looped);
+        terms.push(term);
+        continue;
+      }
+    }
+    lines.push(...each);
     terms.push(`&${role}`);
   }
   const voices = [...new Set(notes.map((n) => VOICE_OF_NOTE.get(n.note)!))];
@@ -576,30 +700,35 @@ function pitchedLine(
   notes: readonly AtStep[],
   key: ScoreKey,
   total: number,
+  steps: number,
   voice: PinVoice,
   table: (at: number) => readonly Tone[] | null,
   asked: PitchTable,
   cuts: SectionCut[],
 ): { lines: string[]; pitched: PitchedLine } {
   const onsets = [...new Set(notes.map((n) => n.at))].sort((a, b) => a - b);
-  const overKey: string[] = [];
-  const overTable: string[] = [];
-  const levels: string[] = [];
-  const shares: string[] = [];
+  const overKey: Span[] = [];
+  const overTable: Span[] = [];
+  const levels: Span[] = [];
+  const shares: Span[] = [];
   const unreached: { step: number; note: number }[] = [];
   let accidentals = 0;
   let at = 0;
   const rest = (length: number) => {
-    for (const words of [overKey, overTable, levels, shares]) words.push(held('~', length));
+    for (const words of [overKey, overTable, levels, shares]) words.push({ at, length, text: '~' });
   };
   for (const [i, step] of onsets.entries()) {
     if (step > at) rest(step - at);
+    at = step;
     const here = notes.filter((n) => n.at === step);
     const written = Math.max(...here.map((n) => n.written));
     const length = Math.min(written, (onsets[i + 1] ?? total) - step);
     if (length < written) cuts.push({ line: name, step, written, stated: length });
-    const word = (tones: readonly string[]) =>
-      held(tones.length === 1 ? tones[0]! : `[${tones.join(',')}]`, length);
+    const word = (tones: readonly string[]): Span => ({
+      at: step,
+      length,
+      text: tones.length === 1 ? tones[0]! : `[${tones.join(',')}]`,
+    });
     overKey.push(
       word(
         here.map((n) => {
@@ -623,8 +752,8 @@ function pitchedLine(
         }),
       ),
     );
-    levels.push(held(levelOf(here[0]!.velocity), length));
-    shares.push(held(numberText(here[0]!.length / here[0]!.written), length));
+    levels.push({ at: step, length, text: levelOf(here[0]!.velocity) });
+    shares.push({ at: step, length, text: numberText(here[0]!.length / here[0]!.written) });
     at = step + length;
   }
   if (at < total) rest(total - at);
@@ -637,11 +766,16 @@ function pitchedLine(
       : shareSet[0] === '1'
         ? ''
         : ` legato=${shareSet[0]}`;
+  const line = barred(`${name}line`, over === 'key' ? overKey : overTable, steps);
+  const share = barred(`${name}Share`, shares, steps);
+  const level = barred(`${name}Level`, levels, steps);
   return {
     lines: [
-      `&${name}line over=&${over} step=16n${legato} ${(over === 'key' ? overKey : overTable).join(' ')}`,
-      ...(shareSet.length > 1 ? [`&${name}Share step=16n ${shares.join(' ')}`] : []),
-      `&${name}Level map=amp ${one ? levelOf(notes[0]!.velocity) : `step=16n ${levels.join(' ')}`}`,
+      ...line.cells,
+      `&${name}line over=&${over} step=16n${legato} ${line.words}`,
+      ...(shareSet.length > 1 ? [...share.cells, `&${name}Share step=16n ${share.words}`] : []),
+      ...(one ? [] : level.cells),
+      `&${name}Level map=amp ${one ? levelOf(notes[0]!.velocity) : `step=16n ${level.words}`}`,
     ],
     pitched: {
       part: name,
@@ -728,7 +862,7 @@ export function sectionAsCells(
   ) => {
     const own = notes.filter((n) => n.line === name);
     if (own.length === 0) return;
-    const line = pitchedLine(name, own, key, total, voice, tableAt, asked, cuts);
+    const line = pitchedLine(name, own, key, total, steps, voice, tableAt, asked, cuts);
     pitched.push(line.pitched);
     outs[name] = true;
     lines.push(...line.lines.map((text) => ({ part, text })), {

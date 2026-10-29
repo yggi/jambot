@@ -171,8 +171,10 @@ describe('the band writes a whole section as one cells text, every part, the lea
     // Witness: Synth-pop's section 2 in A aeolian, its lead from C4 and its levels on the beat and off it.
     const text = textOf(at('Synth-pop', 2).text);
     expect(text).toMatch(
-      /^&leadline over=&key step=16n legato=\.6375 ~@5 5@3 5@6 8@2 ~@5 8@3 6@6 3@2 ~@5 2@3 2@6 5@2 /m,
+      /^&leadline over=&key step=16n legato=\.6375 &leadlineA ~@5 8@3 6@6 3@2 /m,
     );
+    // (a bar it plays more than once stated once, and spliced in where it plays)
+    expect(text).toMatch(/^&leadlineA ~@5 5@3 5@6 8@2$/m);
     expect(text).toMatch(/^&leadLevel map=amp step=16n /m);
     expect(text).toMatch(/^use \* from "lead performer"$/m);
     expect(text).toMatch(/^&out map=midi &leadOut &bassOut &stabOut ~!6 &drumsOut$/m);
@@ -208,17 +210,17 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 4,775 characters a section, 4,333 without the lead, against E33’s 7,549 for the same 8 bars, 43 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,643 characters a section, 2,345 without the lead, against E33’s 7,549 for the same 8 bars, 69 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 305578,
+      total: 169159,
       meter: 2456,
       key: 1436,
       harmony: 7197,
-      drums: 197312,
-      bass: 36868,
-      comp: 28345,
-      lead: 28293,
+      drums: 78493,
+      bass: 30020,
+      comp: 26809,
+      lead: 19077,
       card: 3671,
     });
     // E33 states every bar alone: its meter, key, harmony, voices, mix and card every bar, and no lead.
@@ -236,21 +238,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(4775);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(4333);
+    expect(Math.round(e35.total / 64)).toBe(2643);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2345);
     expect(Math.round(e33.total / 64)).toBe(7549);
-    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(43);
+    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(69);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [36369, 32959],
-      Techno: [40793, 35891],
-      'Deep house': [44461, 39732],
-      Ambient: [22027, 20842],
-      'Lo-fi hip hop': [40874, 36996],
-      Funk: [49013, 47117],
-      'Bossa nova': [38091, 34576],
-      'Swing jazz': [33950, 29172],
+      'Synth-pop': [21015, 18632],
+      Techno: [20936, 18101],
+      'Deep house': [25124, 22261],
+      Ambient: [12424, 11201],
+      'Lo-fi hip hop': [22862, 20250],
+      Funk: [24653, 22703],
+      'Bossa nova': [23176, 20804],
+      'Swing jazz': [18969, 16130],
     });
   });
 
@@ -436,7 +438,8 @@ describe('the forms it relies on, over every case', () => {
     for (const s of shared) {
       expect(s.bars[0]!.plan.section.type).toBe('breakdown');
       expect(textOf(s.text)).toMatch(/^&bassline over=\S+ step=16n legato=&bassShare /m);
-      expect(textOf(s.text)).toMatch(/^&bassShare step=16n .*\.98125@16.*\.9625@8/m);
+      expect(textOf(s.text)).toMatch(/^&bassShare step=16n .*\.98125@16.*&bassShareA/m);
+      expect(textOf(s.text)).toMatch(/^&bassShareA \.9625@8 \.9625@8$/m);
       expect(s.measured.every((m) => m.equal.bass)).toBe(true);
       // cells reads each bass note's share at its onset off `&bassShare`: the band's (its length less 0.3) / length.
       const shares = s.played.bars.flatMap((b) =>
@@ -560,7 +563,7 @@ describe.runIf(process.env.E35_FULL)(
       }
     });
 
-    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 3,926 characters a section, 3,559 without the lead, against E33’s 6,602', () => {
+    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,162 characters a section, 1,925 without the lead, against E33’s 6,602', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -577,11 +580,11 @@ describe.runIf(process.env.E35_FULL)(
         [216, 0, 0],
       ]);
       const e35 = characters(sections.map((s) => s.text));
-      expect([e35.total, e35.lead]).toEqual([1256452, 117665]);
+      expect([e35.total, e35.lead]).toEqual([691754, 75767]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
       expect(e33).toBe(2112582);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        3926, 3559, 6602,
+        2162, 1925, 6602,
       ]);
     });
   },
