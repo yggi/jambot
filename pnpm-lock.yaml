@@ -80,7 +80,7 @@ importers:
         version: link:../../packages/theory
       '@yggi/webmidi':
         specifier: github:yggi/webmidi#v0.1.1
-        version: git+https://git@github.com:yggi/webmidi.git#985993c8ca75e6b87c1265b7703830e78893eb49
+        version: https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49
     devDependencies:
       '@jambot/lobby':
         specifier: workspace:*
@@ -1404,8 +1404,8 @@ packages:
     version: 0.12.1
     engines: {node: '>=22'}
 
-  '@yggi/webmidi@git+https://git@github.com:yggi/webmidi.git#985993c8ca75e6b87c1265b7703830e78893eb49':
-    resolution: {commit: 985993c8ca75e6b87c1265b7703830e78893eb49, repo: git@github.com:yggi/webmidi.git, type: git}
+  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49':
+    resolution: {tarball: https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49}
     version: 0.1.1
     engines: {node: '>=22'}
 
@@ -4373,7 +4373,7 @@ snapshots:
 
   '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/5b45f143380bded46dc2b352d45b0aaf5186c7a6': {}
 
-  '@yggi/webmidi@git+https://git@github.com:yggi/webmidi.git#985993c8ca75e6b87c1265b7703830e78893eb49': {}
+  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49': {}
 
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:
