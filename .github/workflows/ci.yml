@@ -54,7 +54,8 @@ jobs:
 
   e2e:
     if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
-    runs-on: ubuntu-latest
+    # (24.04, not ubuntu-latest: Playwright 1.56.1 installs no chromium on ubuntu-latest's 26.04)
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -69,7 +70,8 @@ jobs:
 
   soak:
     if: github.event_name == 'schedule' || inputs.soak
-    runs-on: ubuntu-latest
+    # (24.04, not ubuntu-latest: Playwright 1.56.1 installs no chromium on ubuntu-latest's 26.04)
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
