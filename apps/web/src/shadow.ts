@@ -736,11 +736,13 @@ export class Shadow {
   #performed(p: NonNullable<StatedBar['played']>, bar: BandBar, j: number): DoughNote {
     const note = p.notes[j]!;
     const role = p.roles[j];
+    const sound = p.sounds[j];
     return performStated(bar, {
       part: p.lines[j]!,
       step: Math.round(note.step),
       note: note.note,
       ...(role !== undefined && { role }),
+      ...(sound !== undefined && { sound }),
       velocity: note.velocity,
       length: note.length,
     });

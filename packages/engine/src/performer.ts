@@ -44,7 +44,14 @@
  */
 
 import type { BarEnv } from './bar.ts';
-import { type DoughNote, type DrumRole, PARTS, type Part, type WrittenNote } from './events.ts';
+import {
+  type DoughNote,
+  type DrumRole,
+  PARTS,
+  type Part,
+  type VoiceSound,
+  type WrittenNote,
+} from './events.ts';
 import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
 import { feelOf } from './licence.ts';
 import { draw, type Stream } from './random.ts';
@@ -249,6 +256,8 @@ export interface StatedNote {
   readonly role?: DrumRole;
   readonly velocity: number;
   readonly length: number;
+  /** Its voice's own sound, where the text gives it one (`VoiceSound`): it rides on the note in place of the style's colour. */
+  readonly sound?: VoiceSound;
 }
 
 /**
@@ -267,10 +276,11 @@ export function performStated(env: BarEnv, stated: StatedNote): DoughNote {
   const feel = feelOf(env.style, env.swing);
   const base = baseVelocityOf(env, { ...stated, length: 1 });
   const level = stated.velocity + (base - Math.round(base));
-  return played(
+  const note = played(
     env,
     stated,
     velocityOn(env, stated, level, feel),
     stated.length * gateOf(env, stated, feel),
   );
+  return stated.sound ? { ...note, sound: stated.sound } : note;
 }

@@ -232,6 +232,35 @@ export interface Timbre {
   readonly triangle?: number;
   readonly square?: number;
   readonly saw?: number;
+  /** A cells voice's own sound, where the text gives its voice one: the synth plays it in place of the fields above. */
+  readonly sound?: VoiceSound;
+}
+
+/**
+ * A pitched voice's own sound, as a cells text writes it on the voice
+ * (`&leadV s=square lpf=2400 env=&(map=adsr .02 .2 .7 .15)`): its waveform,
+ * its filters, its envelope and the pitch changes over a note, as cells'
+ * first stage of rendering reads them (yggi/cells decision 062). The built-in
+ * synth plays it as it stands, until cells' renderer plays the client's rig
+ * (yggi/cells decision 063).
+ */
+export interface VoiceSound {
+  readonly wave: 'sine' | 'triangle' | 'sawtooth' | 'square';
+  /** The low-pass filter's cutoff in hertz, and its Q. */
+  readonly lpf?: number;
+  readonly lpq?: number;
+  /** The high-pass filter's cutoff in hertz, and its Q. */
+  readonly hpf?: number;
+  readonly hpq?: number;
+  /** In seconds, the sustain a share of the peak; the synth's own envelope where none. */
+  readonly env?: {
+    readonly attack: number;
+    readonly decay: number;
+    readonly sustain: number;
+    readonly release: number;
+  };
+  /** The pitch over the note, in cents, each at seconds from its start: a vibrato's steps. */
+  readonly bends?: readonly { readonly at: number; readonly cents: number }[];
 }
 
 /**

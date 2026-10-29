@@ -7,6 +7,10 @@
  * into triplets (`eighthSwing`), its filter opening with articulation. The chords swell in
  * legato and are cut short in staccato. These are the prototype's `sound`
  * lines, one performer's own now (`performer.ts`, #107).
+ *
+ * A note whose cells voice the section text gives a sound of its own carries
+ * that sound beside these (`VoiceSound`, `soundOf` in `@jambot/score`), and
+ * the built-in synth plays it instead (#497).
  */
 
 import type { Part, Timbre } from './events.ts';

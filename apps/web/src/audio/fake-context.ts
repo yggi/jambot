@@ -13,11 +13,19 @@ export interface FakeParam {
   readonly events: [string, ...number[]][];
 }
 
-/** An oscillator, its type and frequency as set, and when it was started, if it was. */
+/** An oscillator, its type, frequency and detune as set, and when it was started, if it was. */
 export interface FakeOscillator extends FakeNode {
   type: string;
   readonly frequency: FakeParam;
+  readonly detune: FakeParam;
   started: number | null;
+}
+
+/** A filter, its type, cutoff and Q as set. */
+export interface FakeFilter extends FakeNode {
+  type: string;
+  readonly frequency: FakeParam;
+  readonly Q: FakeParam;
 }
 
 export interface FakeNode {
@@ -30,6 +38,7 @@ export function fakeAudioContext() {
   const gains: (FakeNode & { gain: FakeParam })[] = [];
   const compressors: FakeNode[] = [];
   const oscillators: FakeOscillator[] = [];
+  const filters: FakeFilter[] = [];
   const finite = (where: string, ...args: number[]) => {
     if (!args.every(Number.isFinite))
       throw new TypeError(`${where}: the provided float value is non-finite.`);
@@ -85,12 +94,17 @@ export function fakeAudioContext() {
       gains.push(gain);
       return gain;
     },
-    createBiquadFilter: () => ({ ...node(), type: '', Q: param(), frequency: param() }),
+    createBiquadFilter: () => {
+      const filter: FakeFilter = { ...node(), type: '', Q: param(), frequency: param() };
+      filters.push(filter);
+      return filter;
+    },
     createOscillator: () => {
       const oscillator: FakeOscillator & { start(t: number): void; stop(t: number): void } = {
         ...node(),
         type: '',
         frequency: param(),
+        detune: param(),
         started: null,
         start(t: number) {
           finite('start', t);
@@ -105,5 +119,5 @@ export function fakeAudioContext() {
     createBufferSource: () => ({ ...node(), buffer: null, start() {}, stop() {} }),
     resume: () => Promise.resolve(),
   };
-  return { context, gains, compressors, oscillators };
+  return { context, gains, compressors, oscillators, filters };
 }
