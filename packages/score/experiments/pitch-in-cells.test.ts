@@ -1,4 +1,4 @@
-import { PRESETS, SECTION_BARS, band } from '@jambot/engine';
+import { PROTOTYPE_PRESETS, SECTION_BARS, band } from '@jambot/engine';
 import {
   CHORD_QUALITIES,
   type Numeral,
@@ -69,7 +69,9 @@ const inBars = (key: ScoreKey, numerals: readonly Numeral[]): Harmony[] =>
 describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
   it('reads every preset held, 32 bars each, seed 0: six keys in three modes, secondaries, a next chord and pins among them', () => {
     expect(MEASURED).toHaveLength(256);
-    expect(new Set(MEASURED.map((m) => m.preset))).toEqual(new Set(PRESETS.map((p) => p.name)));
+    expect(new Set(MEASURED.map((m) => m.preset))).toEqual(
+      new Set(PROTOTYPE_PRESETS.map((p) => p.name)),
+    );
     const keys = new Set(MEASURED.map((m) => `${m.harmony.key.tonic}:${m.harmony.key.mode}`));
     expect(keys.size).toBe(6);
     expect(new Set(MEASURED.map((m) => m.harmony.key.mode))).toEqual(

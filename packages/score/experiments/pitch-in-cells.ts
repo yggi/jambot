@@ -53,7 +53,7 @@ import {
   type BandCarried,
   type BandEnv,
   type Key,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   SONG_METER,
   band,
   chordNumeral,
@@ -141,7 +141,7 @@ export interface Played {
 
 /** Every bar of every preset held: 8 × 32, each run one bar longer for the key the last leads into. */
 export function playedBars(): Played[] {
-  return PRESETS.flatMap((preset) => {
+  return PROTOTYPE_PRESETS.flatMap((preset) => {
     let carried: BandCarried = band.initial;
     const runs = Array.from({ length: BARS + 1 }, (_, bar) => {
       const env: BandEnv = {

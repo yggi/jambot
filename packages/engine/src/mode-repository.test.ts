@@ -22,6 +22,9 @@ const HAND_MODE: Readonly<Record<string, ComposerMode>> = {
   Funk: 'dorian',
   'Bossa nova': 'ionian',
   'Swing jazz': 'ionian',
+  // (cells' harmonic minor, read as aeolian: #516)
+  'Electro swing': 'aeolian',
+  Spooky: 'aeolian',
 };
 
 const fragment = (id: string, text: string, point = PRESETS[0]!.style): Fragment => ({

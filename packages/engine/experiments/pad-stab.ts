@@ -25,7 +25,7 @@ import {
   type BandCarried,
   type DoughNote,
   type KeyWish,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   band,
   presetSwing,
 } from '../src/index.ts';
@@ -34,9 +34,9 @@ const range = (n: number) => [...Array(n).keys()];
 const SEEDS = range(5);
 const BARS = 64;
 
-const runs: ((bar: number) => (typeof PRESETS)[number])[] = [
-  ...PRESETS.map((preset) => () => preset),
-  (bar) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!,
+const runs: ((bar: number) => (typeof PROTOTYPE_PRESETS)[number])[] = [
+  ...PROTOTYPE_PRESETS.map((preset) => () => preset),
+  (bar) => PROTOTYPE_PRESETS[Math.floor(bar / 8) % PROTOTYPE_PRESETS.length]!,
 ];
 
 /** A note of the comp's two parts, on the song's step line. */

@@ -1,4 +1,11 @@
-import { PRESETS, baseLengthOf, leanMap, leansOf, slotStepOn, stepSeconds } from '@jambot/engine';
+import {
+  PROTOTYPE_PRESETS,
+  baseLengthOf,
+  leanMap,
+  leansOf,
+  slotStepOn,
+  stepSeconds,
+} from '@jambot/engine';
 import { joinChord, parseNumeral, stepsOf } from '@jambot/theory';
 import { lowerNumeral } from '../src/score.ts';
 import { planOf, windowAt } from '@yggi/cells';
@@ -60,7 +67,7 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
   it('runs every preset in 4/4 and Synth-pop and Bossa nova in 3/4 and 7/8 through the transport: 12 runs of 32 bars, each bar in its meter, no step missed', () => {
     expect(RUNS).toHaveLength(12);
     expect(RUNS.filter((r) => r.meter === '4/4').map((r) => r.preset)).toEqual(
-      PRESETS.map((p) => p.name),
+      PROTOTYPE_PRESETS.map((p) => p.name),
     );
     for (const r of RUN_OF.values()) {
       expect(r.bars, `${r.preset} ${r.meter}`).toHaveLength(BARS);
@@ -127,7 +134,7 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
 
   it('places every onset within 1 ms of the transport, the 5 swung presets with their swing on &bar among them', () => {
     expect(
-      PRESETS.filter((p) => swung({ preset: p.name, meter: '4/4' })).map((p) => p.name),
+      PROTOTYPE_PRESETS.filter((p) => swung({ preset: p.name, meter: '4/4' })).map((p) => p.name),
     ).toEqual(['Deep house', 'Ambient', 'Lo-fi hip hop', 'Funk', 'Swing jazz']);
     for (const row of TABLE) {
       const notes = MEASURED.filter(
@@ -422,7 +429,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     const share = (k: string) => [...(shares.get(k) ?? ['-'])][0];
     expect(
       Object.fromEntries(
-        PRESETS.map((p) => [
+        PROTOTYPE_PRESETS.map((p) => [
           p.name,
           ['bass', 'stab', 'pad'].map((part) => share(`${p.name} 4/4 ${part}`)),
         ]),
@@ -467,7 +474,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     expect(MEASURED.reduce((n, m) => n + m.lengths.length, 0)).toBe(2979);
     expect(
       Object.fromEntries(
-        PRESETS.map((p) => [
+        PROTOTYPE_PRESETS.map((p) => [
           p.name,
           [
             lengths(p.name).length,

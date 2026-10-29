@@ -21,7 +21,7 @@
  * packages/engine/experiments/lead-loop.test.ts` prints the numbers.
  */
 
-import { type LeadNote, type LearnedLayer, PRESETS } from '../src/index.ts';
+import { type LeadNote, type LearnedLayer, PROTOTYPE_PRESETS } from '../src/index.ts';
 import { LEAD_REPOSITORY } from '../src/lead-lines.ts';
 import { LINE_BENCHES } from '../src/bass-lines.ts';
 import type { LeadPlayer } from './rhythm-radio.ts';
@@ -99,7 +99,7 @@ export function cost(layer: LearnedLayer) {
   const it = LEAD_REPOSITORY.warm!(LINE_BENCHES, layer)[Symbol.iterator]();
   for (let at = now(); !it.next().done; at = now()) steps.push(now() - at);
   const asks: number[] = [];
-  for (const preset of PRESETS)
+  for (const preset of PROTOTYPE_PRESETS)
     for (const bench of LINE_BENCHES)
       for (let k = 0; k < 4; k++) {
         const at = now();

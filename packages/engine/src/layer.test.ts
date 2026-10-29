@@ -16,7 +16,7 @@ import { type PlanCarried, type PlanEnv, planner } from './plan.ts';
 import { walkRadio } from './radio.ts';
 import { METER_REPOSITORY, repositoryLayerProblems, presetSwing } from './repository.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
-import { PRESETS, PRESET_GLIDE, type Style, glideTo, holding } from './style.ts';
+import { PROTOTYPE_PRESETS, PRESET_GLIDE, type Style, glideTo, holding } from './style.ts';
 import { STRAIGHT, holdingSwing } from './swing.ts';
 import {
   LOOKAHEAD,
@@ -52,7 +52,7 @@ function hashOf(all: readonly TimedEvent[]): string {
 
 /** Each preset at entropy `entropy`, 2 seeds, the style held or walked by the radio a section at a time, swung as the preset where `swung`. */
 function runs(entropy: number, walked: boolean, extra: Partial<TransportEnv> = {}, swung = false) {
-  return PRESETS.flatMap((preset) =>
+  return PROTOTYPE_PRESETS.flatMap((preset) =>
     [0, 1].map((seed) => {
       let style = { ...preset.style, entropy };
       let track = holding(style);
@@ -142,7 +142,7 @@ function planned(
   });
 }
 
-const SYNTH_POP = { ...PRESETS[0]!.style, entropy: 0.3 };
+const SYNTH_POP = { ...PROTOTYPE_PRESETS[0]!.style, entropy: 0.3 };
 /** Synth-pop's style, moved off its meter's point. */
 const OFF = { ...SYNTH_POP, sync: SYNTH_POP.sync + 0.05, energy: SYNTH_POP.energy - 0.05 };
 const seedPoint = (id: string) => METER_FRAGMENTS.find((f) => f.id === id)!.association[0]!;

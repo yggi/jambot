@@ -1,4 +1,4 @@
-import { PRESETS, stylePoint } from '@jambot/engine';
+import { PROTOTYPE_PRESETS, stylePoint } from '@jambot/engine';
 import { METERS } from '@jambot/theory';
 import { unionOf } from '@yggi/cells/repository/fit';
 import { describe, expect, it } from 'vitest';
@@ -37,13 +37,15 @@ const STRAIGHT = { level: '16n', share: 0.5 } as const;
 describe('a fragment read back into the band’s drums, E31’s reverse (E36)', () => {
   it('reads every drum bar as E31’s hits under a straight 4/4 at its bpm: note, step, length, velocity and role, 144 of 144', () => {
     const read = e31Readback();
-    expect(read.map((r) => r.mismatches)).toEqual(PRESETS.map(() => []));
+    expect(read.map((r) => r.mismatches)).toEqual(PROTOTYPE_PRESETS.map(() => []));
     expect(read.reduce((n, r) => n + r.matched, 0)).toBe(144);
     expect(read.reduce((n, r) => n + r.hits, 0)).toBe(144);
   });
 
   it('reads all 144 under the meter each preset’s sections choose: the rim’s Euclid on `1m` swings under a 16n lean as the band swings it, the parts of a step swung (cells#306)', () => {
-    const first = new Map(PRESETS.map((p) => [p.name, ASKED.find((s) => s.preset === p.name)!]));
+    const first = new Map(
+      PROTOTYPE_PRESETS.map((p) => [p.name, ASKED.find((s) => s.preset === p.name)!]),
+    );
     const read = e31Readback((preset) => {
       const bar = first.get(preset)!.bars[0]!;
       return { text: workbenchOf(bar), meter: bar.meter, swing: bar.swing };
@@ -87,7 +89,7 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
     }
     expect(
       Object.fromEntries(
-        PRESETS.map((p) => [
+        PROTOTYPE_PRESETS.map((p) => [
           p.name,
           ASKED.find((s) => s.preset === p.name)!.bars[0]!.plan.meterFragment,
         ]),
@@ -345,7 +347,7 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
     const repository = rhythmRepository();
     const bench = straightBench(120);
     expect(
-      PRESETS.map((p) => {
+      PROTOTYPE_PRESETS.map((p) => {
         const found = coSelect(
           repository,
           stylePoint(p.style),

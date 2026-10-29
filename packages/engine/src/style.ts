@@ -92,7 +92,7 @@ const preset = (name: string, [sync, harm, artic, energy, bpm]: PresetAxes): Pre
  * on the 16ths, where nothing brings in the jazz band. Each one's mode is
  * the one the repository finds at its point (`presetMode`).
  */
-export const PRESETS: readonly Preset[] = [
+export const PROTOTYPE_PRESETS: readonly Preset[] = [
   preset('Synth-pop', [0.3, 0.45, 0.55, 0.55, 108]),
   preset('Techno', [0.12, 0, 1, 0.8, 130]),
   preset('Deep house', [0.35, 0.55, 0.65, 0.65, 122]),
@@ -101,6 +101,18 @@ export const PRESETS: readonly Preset[] = [
   preset('Funk', [1, 0.12, 0.85, 0.75, 104]),
   preset('Bossa nova', [0.75, 0.85, 0.45, 0.45, 132]),
   preset('Swing jazz', [0.35, 1, 0.3, 0.6, 148]),
+];
+
+/**
+ * Every preset: the prototype's eight, then the two cells' seeds sit at (yggi/cells#305 and #349; #517, the owner's
+ * "electroswing" and "spooky" for Halloween), each a name and a point and nothing else (#420): its meter, its drums,
+ * its bass and its mode are what the repository finds there. The experiments' records were measured over the
+ * prototype's eight (`PROTOTYPE_PRESETS`), and so are the tests that hold what `main` plays.
+ */
+export const PRESETS: readonly Preset[] = [
+  ...PROTOTYPE_PRESETS,
+  preset('Electro swing', [0.55, 0.75, 0.6, 0.75, 124]),
+  preset('Spooky', [0.2, 0.9, 0.3, 0.35, 100]),
 ];
 
 /** A preset glides over 8 bars, a slider over one. */

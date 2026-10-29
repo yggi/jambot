@@ -8,7 +8,7 @@ import {
   type Axis,
   type Glide,
   INITIAL_STYLE,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   SLIDER_GLIDE,
   glideTo,
@@ -38,7 +38,7 @@ describe('the axes', () => {
 
 describe('the presets', () => {
   it('are the prototype’s eight points in style space', () => {
-    expect(PRESETS.map((p) => [p.name, ...Object.values(p.style)])).toEqual([
+    expect(PROTOTYPE_PRESETS.map((p) => [p.name, ...Object.values(p.style)])).toEqual([
       // name, sync, harm, artic, energy, bpm
       ['Synth-pop', 0.3, 0.45, 0.55, 0.55, 108],
       ['Techno', 0.12, 0, 1, 0.8, 130],
@@ -64,7 +64,7 @@ describe('the presets', () => {
   };
 
   it('each find a meter swinging on the level the swing axis swung, the straight ones on the 16ths (#360, #459: the shares, `repository.test.ts`)', () => {
-    for (const p of PRESETS) {
+    for (const p of PROTOTYPE_PRESETS) {
       const parts = swingParts(AXIS_SWING[p.name]!);
       // On every preset only one level swung, so the level is the one that did.
       expect(Math.min(parts.eighth, parts.sixteenth)).toBe(0);
@@ -75,7 +75,7 @@ describe('the presets', () => {
   it('keep exactly the swing they played: every onset of a bar within 1e-9 of the axis’s `leanMap` (finite: 8 presets, every 48th of a step) (#360)', () => {
     const beats = meterOnSteps(METERS['4/4']).heights;
     let worst = 0;
-    for (const p of PRESETS) {
+    for (const p of PROTOTYPE_PRESETS) {
       const was = leanMap(swingParts(AXIS_SWING[p.name]!));
       for (let i = 0; i <= 16 * 48; i++) {
         const x = i / 48;
@@ -93,7 +93,7 @@ describe('the presets', () => {
     // and for swing, which is now the meter's (#360); syncopation stops at
     // 0.05. Energy and tempo stay inside their ranges.
     const span = (axis: Exclude<Axis, 'entropy'>) => {
-      const values = PRESETS.map((p) => p.style[axis]);
+      const values = PROTOTYPE_PRESETS.map((p) => p.style[axis]);
       return [Math.min(...values), Math.max(...values)];
     };
     expect(span('harm')).toEqual([0, 1]);
@@ -109,7 +109,7 @@ describe('the presets', () => {
   });
 
   it('start from Synth-pop, with entropy at 0.3', () => {
-    expect(INITIAL_STYLE).toEqual({ ...PRESETS[0]!.style, entropy: 0.3 });
+    expect(INITIAL_STYLE).toEqual({ ...PROTOTYPE_PRESETS[0]!.style, entropy: 0.3 });
   });
 });
 
@@ -343,8 +343,8 @@ describe('glideTo', () => {
   });
 
   it('takes a whole preset to its point in style space, and leaves entropy', () => {
-    const track = glideTo(holding(INITIAL_STYLE), PRESETS[7]!.style, 0, PRESET_GLIDE);
-    expect(styleAt(track, PRESET_GLIDE)).toEqual({ ...PRESETS[7]!.style, entropy: 0.3 });
+    const track = glideTo(holding(INITIAL_STYLE), PROTOTYPE_PRESETS[7]!.style, 0, PRESET_GLIDE);
+    expect(styleAt(track, PRESET_GLIDE)).toEqual({ ...PROTOTYPE_PRESETS[7]!.style, entropy: 0.3 });
   });
 
   it('glides entropy like any other axis', () => {
@@ -367,7 +367,7 @@ describe('glideTo', () => {
   });
 
   it('gives a track that survives JSON, so it can be carried', () => {
-    const track = glideTo(holding(INITIAL_STYLE), PRESETS[3]!.style, 10, PRESET_GLIDE);
+    const track = glideTo(holding(INITIAL_STYLE), PROTOTYPE_PRESETS[3]!.style, 10, PRESET_GLIDE);
     expect(JSON.parse(JSON.stringify(track))).toEqual(track);
   });
 });
@@ -379,7 +379,7 @@ describe('writtenStyle', () => {
     const values: Record<Axis, number[]> = Object.fromEntries(
       AXIS_NAMES.map((a) => [a, []]),
     ) as never;
-    PRESETS.forEach((preset, i) => {
+    PROTOTYPE_PRESETS.forEach((preset, i) => {
       track = glideTo(track, preset.style, i * PRESET_GLIDE, PRESET_GLIDE);
       for (const step of range(PRESET_GLIDE)) {
         const style = styleAt(track, i * PRESET_GLIDE + step);
@@ -401,7 +401,10 @@ describe('writtenStyle', () => {
   });
 
   it('is a fixed point: a style written once is written again unchanged, and reads back from its text (C7)', () => {
-    const style = styleAt(glideTo(holding(INITIAL_STYLE), PRESETS[3]!.style, 0, PRESET_GLIDE), 37);
+    const style = styleAt(
+      glideTo(holding(INITIAL_STYLE), PROTOTYPE_PRESETS[3]!.style, 0, PRESET_GLIDE),
+      37,
+    );
     const once = writtenStyle(style);
     expect(writtenStyle(once)).toEqual(once);
     const text = AXIS_NAMES.map((axis) => `${axis}=${once[axis]}`).join(' ');

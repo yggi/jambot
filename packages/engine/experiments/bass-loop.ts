@@ -36,7 +36,7 @@ import {
   type LearnedLayer,
   type LineRepository,
   METER_REPOSITORY,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   RHYTHM_REPOSITORY,
   SECTION_BARS,
   band,
@@ -72,7 +72,7 @@ const notesOf = (bar: BandBar, part: string) =>
 
 /** A preset held for `bars` bars at `entropy`, with cells' bass lines where `lines` is given. */
 export function heldBass(
-  preset: (typeof PRESETS)[number],
+  preset: (typeof PROTOTYPE_PRESETS)[number],
   seed: number,
   entropy: number,
   bars: number,
@@ -121,7 +121,7 @@ export function heldBass(
 
 /** Each preset held, `seeds` seeds of `bars` bars, with and without the bass lines. */
 export function heldRuns(entropy: number, seeds = 2, bars = 32, lines = BASS_REPOSITORY) {
-  return PRESETS.flatMap((preset) =>
+  return PROTOTYPE_PRESETS.flatMap((preset) =>
     [...Array(seeds).keys()].map((seed) => ({
       main: heldBass(preset, seed, entropy, bars),
       loop: heldBass(preset, seed, entropy, bars, lines),
@@ -157,7 +157,7 @@ export function movement(runs: ReturnType<typeof heldRuns>) {
     string,
     Partial<Record<SectionType, { before: number; after: number; distance: number }>>
   > = {};
-  for (const preset of PRESETS) {
+  for (const preset of PROTOTYPE_PRESETS) {
     const mine = runs.filter((r) => r.main.preset === preset.name);
     const types = [...new Set(mine.flatMap((r) => Object.keys(r.main.bass)))] as SectionType[];
     out[preset.name] = Object.fromEntries(
@@ -195,7 +195,7 @@ export function kept(
   runs: ReturnType<typeof heldRuns>,
 ): Record<string, { onsets: number; notes: number }> {
   return Object.fromEntries(
-    PRESETS.map(({ name }) => {
+    PROTOTYPE_PRESETS.map(({ name }) => {
       const mine = runs.filter((r) => r.main.preset === name);
       let total = 0;
       let onsets = 0;
