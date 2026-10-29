@@ -162,11 +162,12 @@ describe('a player’s drums as the Muse hears them (#401)', () => {
     ]);
   });
 
-  it('gives each sound of the kit its role in every meter: the snare the backbeat on a backbeat pulse, else a ghost', () => {
+  it('gives each sound of the kit its role in every meter: the snare and the clap the backbeat on a backbeat pulse, else a ghost', () => {
     const others: Record<DrumSound, string | null> = {
       kick: 'kick',
       rim: 'euclid',
       snare: null,
+      clap: null,
       closedHat: 'hat',
       pedalHat: 'pedal',
       openHat: 'hat',

@@ -15,6 +15,7 @@ import type { LaneNote } from './tracks.ts';
 export const KIT: readonly { readonly note: number; readonly label: string }[] = [
   { note: DRUM_NOTES.kick, label: 'Kick' },
   { note: DRUM_NOTES.snare, label: 'Snare' },
+  { note: DRUM_NOTES.clap, label: 'Clap' },
   { note: DRUM_NOTES.closedHat, label: 'Closed hat' },
   { note: DRUM_NOTES.openHat, label: 'Open hat' },
   { note: DRUM_NOTES.pedalHat, label: 'Pedal hat' },

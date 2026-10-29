@@ -38,11 +38,16 @@ import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { type Regroup, readOnMeter } from './regroup.ts';
 import { eighthSwing } from './swing.ts';
 
-/** The General MIDI drum notes the band plays. */
+/**
+ * The General MIDI drum notes the band plays. The drummer's own bars strike
+ * all but the clap, which comes from a fragment's line (cells' `Electro
+ * swing drums`, #508) and plays the backbeat or a ghost, as the snare does.
+ */
 export const DRUM_NOTES = {
   kick: 36,
   rim: 37,
   snare: 38,
+  clap: 39,
   closedHat: 42,
   pedalHat: 44,
   openHat: 46,

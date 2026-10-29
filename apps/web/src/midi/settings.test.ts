@@ -1,5 +1,5 @@
 import { DRUM_NOTES, type DrumSound } from '@jambot/engine';
-import { DRUM_PRESETS, deviceNote, presetNameOf } from '@yggi/webmidi/core';
+import { DRUM_PRESETS, type DrumMap, deviceNote, presetNameOf } from '@yggi/webmidi/core';
 import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES, type DrumNotes } from '../audio/midi-out.ts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MidiSettings, drumNotesOf } from './settings.svelte.ts';
@@ -69,9 +69,10 @@ describe('MidiSettings', () => {
   /**
    * Jambot's own drum presets before webmidi's, keyed by its drum sounds
    * (`midi/drum-presets.ts` at 5b4685f), as literals: what a save made
-   * then holds, and what each sound went out as.
+   * then holds, and what each sound went out as. They name no clap, which
+   * joined the sounds later (#508): a save without one sends it as its map does.
    */
-  const OLD_PRESETS: Readonly<Record<string, DrumNotes>> = {
+  const OLD_PRESETS: Readonly<Record<string, Omit<DrumNotes, 'clap'>>> = {
     GM: { kick: 36, rim: 37, snare: 38, closedHat: 42, pedalHat: 44, openHat: 46, ride: 51 },
     'Novation Circuit': {
       kick: 60,
@@ -83,7 +84,12 @@ describe('MidiSettings', () => {
       ride: 65,
     },
   };
-  const SOUNDS = Object.keys(DRUM_NOTES) as DrumSound[];
+  const SOUNDS = (Object.keys(DRUM_NOTES) as DrumSound[]).filter((s) => s !== 'clap');
+  /** A save's notes with the clap its map sends: GM's 39, a Circuit's 62 (webmidi's presets). */
+  const withClap = (notes: Omit<DrumNotes, 'clap'>, map: DrumMap): DrumNotes => ({
+    ...notes,
+    clap: deviceNote(map, DRUM_NOTES.clap),
+  });
 
   it('has a preset of webmidi for each of its own before, sending all 7 drum sounds as that one did', () => {
     expect(Object.keys(DRUM_PRESETS)).toEqual(Object.keys(OLD_PRESETS));
@@ -95,7 +101,7 @@ describe('MidiSettings', () => {
   });
 
   it('reads a save of drum notes by sound as General MIDI notes, every sound going out as before, and writes the new form', () => {
-    const custom: DrumNotes = { ...OLD_PRESETS['Novation Circuit']!, kick: 61, ride: 51 };
+    const custom = { ...OLD_PRESETS['Novation Circuit']!, kick: 61, ride: 51 };
     for (const [name, old] of [...Object.entries(OLD_PRESETS), ['Custom', custom] as const]) {
       localStorage.setItem('jambot-midi-v1', JSON.stringify({ drumNotes: old, thruChannel: 4 }));
       const settings = new MidiSettings();
@@ -103,14 +109,14 @@ describe('MidiSettings', () => {
         expect(deviceNote(settings.drumMap, DRUM_NOTES[sound]), `${name}: ${sound}`).toBe(
           old[sound],
         );
-      expect(settings.drumNotes).toEqual(old);
+      expect(settings.drumNotes).toEqual(withClap(old, settings.drumMap));
       expect(presetNameOf(settings.drumMap)).toBe(name);
       expect(settings.thruChannel).toBe(4);
 
       const saved = JSON.parse(localStorage.getItem('jambot-midi-v1')!);
       expect(saved).not.toHaveProperty('drumNotes');
       expect(saved.drumMap).toEqual(JSON.parse(JSON.stringify(settings.drumMap)));
-      expect(drumNotesOf(new MidiSettings().drumMap)).toEqual(old);
+      expect(drumNotesOf(new MidiSettings().drumMap)).toEqual(withClap(old, settings.drumMap));
     }
   });
 

@@ -2,13 +2,22 @@
  * The built-in drum kit: the General MIDI drum notes the band plays, as Web
  * Audio voices. Kick and snare are synthesised; rim, hats and ride are
  * filtered noise. These are the prototype's voices; the claves (75, #397)
- * are noise too, a narrow band, short and woody.
+ * are noise too, a narrow band, short and woody, and so is the clap (39,
+ * #508): three bursts of band-passed noise a few milliseconds apart, the
+ * hands not quite together, then a short tail.
  */
 
 export interface DrumKit {
   /** Strike a General MIDI drum note at a time on the context's clock. */
   play(note: number, velocity: number, seconds: number): void;
 }
+
+/** The clap's bursts: when each starts after the hit, and how long it decays, the last the tail. */
+const CLAP: readonly (readonly [number, number])[] = [
+  [0, 0.012],
+  [0.011, 0.012],
+  [0.022, 0.12],
+];
 
 export function drumKit(ctx: BaseAudioContext, out: AudioNode): DrumKit {
   const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -75,6 +84,8 @@ export function drumKit(ctx: BaseAudioContext, out: AudioNode): DrumKit {
       const v = velocity / 127;
       if (note === 36) kick(t, v);
       else if (note === 38) snare(t, v);
+      else if (note === 39)
+        for (const [at, decay] of CLAP) metal(t + at, 0.3 * v, 1200, decay, 1.5);
       else if (note === 37) metal(t, 0.35 * v, 2600, 0.035, 4);
       else if (note === 75) metal(t, 0.4 * v, 2100, 0.025, 14);
       else if (note === 51) metal(t, 0.13 * v, 5200, 0.45, 1.2);

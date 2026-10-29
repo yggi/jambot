@@ -142,7 +142,7 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
 
   it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums and the bass filing, nothing dropped`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
-    expect(bytes).toBe(14756);
+    expect(bytes).toBe(15188);
     expect(bytes).toBeLessThan(LAYER_CAP);
     expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(0);
   });
