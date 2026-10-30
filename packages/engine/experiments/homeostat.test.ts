@@ -109,7 +109,7 @@ const fixed = (x: number) => Number(x.toFixed(3));
 describe('what the lean can reach: the band’s entropy from 0 to 1, open (E45, #237)', () => {
   it('moves the share over all members down as the lean rises, in every preset, held at entropy 0.3', () => {
     expect([held.down, held.open, held.up].map((r) => fixed(against(r, 'all').mean))).toEqual([
-      0.721, 0.684, 0.593,
+      0.78, 0.729, 0.632,
     ]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
@@ -132,9 +132,9 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, open (E45, 
 describe('the controller closed (E45, #237)', () => {
   it('brings more sections inside the band than left alone, held and walked, and no more than the lean all the way up', () => {
     expect([held.open, held.closed, held.up].map((r) => fixed(insideOf(r)))).toEqual([
-      0.458, 0.573, 0.719,
+      0.344, 0.563, 0.635,
     ]);
-    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.516, 0.594]);
+    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.336, 0.539]);
   });
 
   it('falls short of the ruled 80 % of sections inside, held and walked: the lean’s reach bounds it', () => {
@@ -147,14 +147,14 @@ describe('the controller closed (E45, #237)', () => {
       expect(reversalsOf(runs).most).toBe(0);
   });
 
-  it('climbs where bored: 7 of 8 presets held end leaned up, none down', () => {
+  it('climbs where bored: every preset held ends leaned up, none down', () => {
     const leans = held.closed.map((r) => r.homeostat.lean);
-    expect(leans.filter((l) => l > 0)).toHaveLength(7);
+    expect(leans.filter((l) => l > 0)).toHaveLength(8);
     expect(leans.filter((l) => l < 0)).toHaveLength(0);
   });
 
   it('measures how many sections a run leaned all the way down takes to come inside, and what a bar costs', () => {
-    expect(cameInside(held.fromDown)).toEqual([3, 1, 2, 5, 1, 2, 3, 3]);
+    expect(cameInside(held.fromDown)).toEqual([3, 1, 2, 5, 1, 4, 3, 3]);
     for (const runs of [held.closed, walked.closed])
       expect(Number.isFinite(costOf(runs).p95)).toBe(true);
   });

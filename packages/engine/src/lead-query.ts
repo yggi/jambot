@@ -8,9 +8,11 @@
  * Muse hears one (U4), its notes' onsets and degrees, each altered where it
  * is off the key. The band reads one into its notes over the bar
  * (`LeadNote`: a step, a degree and an accidental), and the lead plays them
- * as a motif (`leadMotif`), realized as it realizes the Muse's: the first
- * note where its phrase starts, each held to the next, in the key's own
- * degrees, as heard (`lead.ts`).
+ * as the bars of its phrase (`leadPhrase`): in cells' call and answer where
+ * the repository can play it there (#520, rung 2), else the line alone
+ * (`leadMotif`); realized as it realizes the Muse's: the call's first note
+ * where its phrase starts, each held to the next, in the key's own degrees,
+ * as heard (`lead.ts`).
  *
  * The composer asks it at the style's point, with the section's meter as
  * the bench, as it asks for a bass line, and takes the nearest line it can
@@ -64,7 +66,13 @@ export type LeadFiling = Filing<LeadContent>;
 export type LeadVariation = Varied<LeadContent>;
 
 /** A repository of lead lines the composer asks (#424): the loop's repository for the facet `lead` (`facet.ts`). */
-export type LeadRepository = FacetRepository<LeadRead, LeadContent>;
+export type LeadRepository = FacetRepository<LeadRead, LeadContent> & {
+  /**
+   * A line's notes played in the lead's form (#520, rung 2): the phrase's bars, each note a degree from the line's
+   * first; null where the line can't be played in it, and none where the repository knows no forms.
+   */
+  readonly phrase?: (notes: readonly LeadNote[], meter: Meter) => LeadRead | null;
+};
 
 /**
  * The lead line the composer takes at a style, on a bench, given the
@@ -111,12 +119,44 @@ export function leadMotif(
 ): Motif | null {
   const read = id === undefined ? null : repository.read(id, meter, layer);
   if (!read || read.bars !== 1 || !read.notes.length) return null;
-  const notes = [...read.notes].sort((a, b) => a.step - b.step);
-  const rest = notes[0]!.step > 0;
+  return motifOf(read.notes, steps);
+}
+
+/** A bar's notes as a motif of `steps`: their onsets, degrees and accidentals, a rest first where the bar starts silent. */
+function motifOf(bar: readonly LeadNote[], steps: number): Motif {
+  const notes = [...bar].sort((a, b) => a.step - b.step);
+  const rest = notes.length === 0 || notes[0]!.step > 0;
   return {
     cycle: steps,
     onsets: [...(rest ? [0] : []), ...notes.map((n) => n.step)],
     degrees: [...(rest ? [null] : []), ...notes.map((n) => n.degree)],
     accidentals: [...(rest ? [0] : []), ...notes.map((n) => n.alter)],
   };
+}
+
+/**
+ * A lead line as the bars of its phrase (#520, rung 2): played in the repository's form (`call and answer`: the call,
+ * then its answer two degrees down), a motif a bar, each note a degree from the line's
+ * first, so the answer keeps its place below the call; the line alone, one bar, where it can't be played in a form;
+ * none with no line, or one that can't be read.
+ */
+export function leadPhrase(
+  repository: LeadRepository,
+  id: string | undefined,
+  meter: Meter,
+  steps: number,
+  layer?: LearnedLayer,
+): readonly Motif[] | null {
+  const read = id === undefined ? null : repository.read(id, meter, layer);
+  if (!read || read.bars !== 1 || !read.notes.length) return null;
+  const formed = repository.phrase?.(read.notes, meter);
+  if (!formed || formed.bars < 2) return [motifOf(read.notes, steps)];
+  return Array.from({ length: formed.bars }, (_, k) =>
+    motifOf(
+      formed.notes
+        .filter((n) => n.step >= k * steps && n.step < (k + 1) * steps)
+        .map((n) => ({ ...n, step: n.step - k * steps })),
+      steps,
+    ),
+  );
 }
