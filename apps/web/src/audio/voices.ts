@@ -4,9 +4,15 @@
  * chords (the pad and the stab alike) a triangle beside a slightly detuned
  * sine, the lead a filtered square and triangle. Each note is held for its
  * duration, then released. These are the prototype's voices.
+ *
+ * A note whose cells voice has a sound of its own (`timbre.sound`, a text's
+ * `&leadV s=square lpf=2400 env=…`) plays that instead (`playSound`): its
+ * waveform through its filters, on its envelope, bent as it bends, at its
+ * part's level. That is the shortcut until cells' renderer plays a client's
+ * rig (yggi/cells decision 063).
  */
 
-import type { Part, Timbre } from '@jambot/engine';
+import type { Part, Timbre, VoiceSound } from '@jambot/engine';
 
 export interface Voices {
   /** Play a pitched part's note at a time on the context's clock, for a duration in seconds. */
@@ -21,6 +27,65 @@ export interface Voices {
 }
 
 const frequencyOf = (note: number) => 440 * Math.pow(2, (note - 69) / 12);
+
+/** Each pitched part's peak level at full velocity, as its own voice plays it, so a sound of its own sits where it did in the mix. */
+export const PEAK: Readonly<Record<Exclude<Part, 'drums'>, number>> = {
+  bass: 0.28,
+  pad: 0.05,
+  stab: 0.05,
+  lead: 0.07,
+};
+
+/** The envelope of a sound that states none: a short attack, held, a short release. */
+const PLAIN = { attack: 0.005, decay: 0, sustain: 1, release: 0.05 };
+
+/**
+ * A note in a voice's own sound (`VoiceSound`): its waveform through its
+ * low-pass, then its high-pass, where it has them, up to `peak` over the attack,
+ * down to the sustain over the decay, held through `duration`, then
+ * released; its bends on the oscillator's detune.
+ */
+export function playSound(
+  ctx: BaseAudioContext,
+  out: AudioNode,
+  sound: VoiceSound,
+  frequency: number,
+  peak: number,
+  t: number,
+  duration: number,
+) {
+  const { attack, decay, sustain, release } = sound.env ?? PLAIN;
+  const gain = ctx.createGain();
+  gain.connect(out);
+  let into: AudioNode = gain;
+  for (const [type, cutoff, q] of [
+    ['highpass', sound.hpf, sound.hpq],
+    ['lowpass', sound.lpf, sound.lpq],
+  ] as const) {
+    if (cutoff === undefined) continue;
+    const filter = ctx.createBiquadFilter();
+    filter.type = type;
+    filter.frequency.value = cutoff;
+    filter.Q.value = q ?? 1;
+    filter.connect(into);
+    into = filter;
+  }
+  const held = t + Math.max(duration, attack);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(peak, t + attack);
+  if (duration > attack) {
+    gain.gain.linearRampToValueAtTime(peak * sustain, Math.min(held, t + attack + decay));
+    gain.gain.setValueAtTime(peak * sustain, held);
+  }
+  gain.gain.linearRampToValueAtTime(0, held + release);
+  const osc = ctx.createOscillator();
+  osc.type = sound.wave;
+  osc.frequency.value = frequency;
+  for (const b of sound.bends ?? []) osc.detune.setValueAtTime(b.cents, t + b.at);
+  osc.connect(into);
+  osc.start(t);
+  osc.stop(held + release + 0.05);
+}
 
 export function voices(ctx: BaseAudioContext, out: AudioNode): Voices {
   /** Up to `peak` in `attack`, held through `duration`, released over `release`. */
@@ -60,6 +125,10 @@ export function voices(ctx: BaseAudioContext, out: AudioNode): Voices {
   return {
     play(part, note, velocity, t, duration, timbre) {
       const v = velocity / 127;
+      if (timbre.sound) {
+        playSound(ctx, out, timbre.sound, frequencyOf(note), PEAK[part] * v, t, duration);
+        return;
+      }
       const gain = ctx.createGain();
       gain.connect(out);
       const frequency = frequencyOf(note);

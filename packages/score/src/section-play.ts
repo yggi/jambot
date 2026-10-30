@@ -25,7 +25,8 @@
  * end in the bar's steps through the swing (`onsets`, `ends`), which a host
  * lays on its own clock, and which line and drum role it comes from: the
  * role of the performer that plays it, and the drum role its line names
- * (`lineOf`; `lines` and `roles`).
+ * (`lineOf`; `lines` and `roles`), and the sound its voice is given, where
+ * the text gives it one (`soundOf`; `sounds`), which the built-in synth plays.
  */
 
 import {
@@ -33,12 +34,14 @@ import {
   type DrumRole,
   type Key,
   type MeterSwing,
+  type VoiceSound,
   leanMap,
   leansOf,
   stepSeconds,
 } from '@jambot/engine';
 import { type Meter, formatNumeral, joinChord, stepsOf } from '@jambot/theory';
-import { type CompileResult, type Plan, planOf, windowAt } from '@yggi/cells';
+import { type CompileResult, type Plan, type Played, planOf, windowAt } from '@yggi/cells';
+import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { heldAt } from '@yggi/cells/engine/series';
@@ -87,6 +90,8 @@ export interface PlayedBar {
   readonly lines: (PitchedName | 'drums')[];
   /** Each drum hit's role, as its line names it; none for a pitched note. */
   readonly roles: (DrumRole | undefined)[];
+  /** Each note's voice's own sound, where the text gives it one (`soundOf`); none where its voice holds only a register. */
+  readonly sounds: (VoiceSound | undefined)[];
 }
 
 /** What a section's text plays through cells: its notes and chords bar by bar, each bar's length, and what cells said. */
@@ -148,6 +153,39 @@ export function lineOf(
   return { line: second as PitchedName };
 }
 
+/** The filters' parameters a voice's sound carries. */
+const FILTERS = ['lpf', 'lpq', 'hpf', 'hpq'] as const;
+
+/**
+ * The sound a note's voice is given (`VoiceSound`): its waveform (`s=`), its
+ * filters (a moving one at where its range starts), the envelope the note
+ * plays with and its bends, at seconds from its start. None where the voice
+ * has no waveform of the four, as a voice that holds only a register
+ * (`&bassV loop=C2`) or a drum's noise.
+ */
+export function soundOf(
+  event: Played,
+  result: Pick<CompileResult, 'cells'>,
+): VoiceSound | undefined {
+  const cell = result.cells.get(event.voice);
+  const wave = cell?.params.s === undefined ? undefined : DOUGH_SOURCES[String(cell.params.s)];
+  if (!cell || (wave !== 'sine' && wave !== 'triangle' && wave !== 'sawtooth' && wave !== 'square'))
+    return undefined;
+  const filters: Partial<Record<(typeof FILTERS)[number], number>> = {};
+  for (const k of FILTERS) {
+    const value = cell.params[k];
+    const from = typeof value === 'number' ? value : cell.paramCells[k]?.range?.[0];
+    if (from !== undefined) filters[k] = from;
+  }
+  const bends = event.bends.map((b) => ({ at: b.at - event.at, cents: b.cents }));
+  return {
+    wave,
+    ...filters,
+    ...(event.env && { env: event.env }),
+    ...(bends.length > 0 && { bends }),
+  };
+}
+
 /**
  * What of a bar cells' reading of a text needs beside the text (`playSection`): its meter and swing, which each
  * time is read through, its tempo, which sizes the window read, and its key, which names a chord's numeral.
@@ -187,7 +225,18 @@ export function playSection(
     routesOf(route(e)).flatMap((r) => {
       const n = midiNote(e, r);
       return n
-        ? [{ ...n, share: shareOf(plan, e.output, e.at), ...lineOf(e.output, plan.result) }]
+        ? [
+            {
+              ...n,
+              share: shareOf(plan, e.output, e.at),
+              ...lineOf(e.output, plan.result),
+              // (a drum is struck on the kit, whatever its voice's waveform)
+              sound:
+                lineOf(e.output, plan.result).line === 'drums'
+                  ? undefined
+                  : soundOf(e, plan.result),
+            },
+          ]
         : [];
     }),
   );
@@ -204,6 +253,7 @@ export function playSection(
     end: number;
     line: PitchedName | 'drums';
     role: DrumRole | undefined;
+    sound: VoiceSound | undefined;
   };
   const read = bars.map(() => ({ timed: [] as Timed[] }));
   const harmony = bars.map(() => new Map<number, number[]>());
@@ -230,6 +280,7 @@ export function playSection(
       end: (n.end - from) / step,
       line: n.line,
       role: n.role,
+      sound: n.sound,
       note: {
         part,
         step: onset,
@@ -251,6 +302,7 @@ export function playSection(
         ends: timed.map((t) => t.end),
         lines: timed.map((t) => t.line),
         roles: timed.map((t) => t.role),
+        sounds: timed.map((t) => t.sound),
       };
     }),
     chords: harmony.map((h, i) =>

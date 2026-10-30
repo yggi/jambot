@@ -77,6 +77,17 @@ const baseOf = (env: BarEnv, written: WrittenNote) => ({
   length: baseLengthOf(env, written),
 });
 
+const clamp = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
+/** A written note as a text states it: its line, step, pitch and role, its velocity at feel 0 as MIDI says it, and its sounding length at feel 0. */
+const stated = (env: BarEnv, w: WrittenNote): StatedNote => ({
+  part: w.part,
+  step: w.step,
+  note: w.note,
+  ...(w.role !== undefined && { role: w.role }),
+  velocity: clamp(composedLevel(env, w)),
+  length: baseLengthOf(env, w),
+});
+
 const hit = (role: DrumRole, step: number): WrittenNote => ({
   part: 'drums',
   role,
@@ -367,16 +378,6 @@ describe('the performer', () => {
   });
 
   it('plays a note as a text states it as it plays the note written: the same velocity and length, every note of the tour, accented past MIDI’s 1 to 127 too, and every motif’s accent on the lead’s level (#405, #433, decision 037)', () => {
-    const clamp = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
-    /** A written note as a text states it: its line, step, pitch and role, its velocity at feel 0 as MIDI says it, and its sounding length at feel 0. */
-    const stated = (env: BarEnv, w: WrittenNote): StatedNote => ({
-      part: w.part,
-      step: w.step,
-      note: w.note,
-      ...(w.role !== undefined && { role: w.role }),
-      velocity: clamp(composedLevel(env, w)),
-      length: baseLengthOf(env, w),
-    });
     // A written accent is in the level stated, not carried apart: the band's dough note carries it.
     const played = (env: BarEnv, w: WrittenNote) => {
       const { accent, ...rest } = perform(env, w);
@@ -414,6 +415,17 @@ describe('the performer', () => {
     expect(past).toBeGreaterThan(8_000);
     // The feel is played, not lost: most velocities part from the level stated at feel 0.
     expect(loose / notes).toBeGreaterThan(0.5);
+  });
+
+  it('carries a stated note’s voice sound onto what it plays, in place of nothing else, and none where none is stated (#497)', () => {
+    const sound = { wave: 'square', lpf: 2400, bends: [{ at: 0.02, cents: 12 }] } as const;
+    for (const b of bars.slice(0, 48))
+      for (const w of b.written) {
+        const s = stated(b, w);
+        const plain = performStated(b, s);
+        expect(plain).not.toHaveProperty('sound');
+        expect(performStated(b, { ...s, sound })).toEqual({ ...plain, sound });
+      }
   });
 
   it('composes a note’s level as the performer plays it at feel 0: its base and its written accent, a motif’s on the lead’s level (U4, #405)', () => {

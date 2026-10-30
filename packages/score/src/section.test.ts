@@ -26,7 +26,14 @@ import { planOf, windowAt } from '@yggi/cells';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
-import { bandChords, compileSection, lineOf, mismatches, playSection } from './section-play.ts';
+import {
+  bandChords,
+  compileSection,
+  lineOf,
+  mismatches,
+  playSection,
+  soundOf,
+} from './section-play.ts';
 import {
   PIN_VOICES,
   type SectionNote,
@@ -425,5 +432,76 @@ describe('a section’s bars, each stated once where it recurs (#498)', () => {
     expect(
       drumsSent([...lines('&hatLevel map=amp step=16n &hatLevelA!4'), '&hatLevelA .5@16'], 11.4),
     ).toHaveLength(4);
+  });
+});
+
+describe('a voice’s own sound, read off the text for the built-in synth (#497)', () => {
+  // (a stab with a clarinet's vibrato, and a bass whose cutoff moves: Funk's first section plays the two)
+  const STAB =
+    '&keysV s=square loop=C3 lpf=2400 lpq=3 env=&(map=adsr .02 .2 .7 .15) pitch=&(map=lin loop=5.5 0 .12 0 -.12 0)';
+  const BASS = '&bassV s=saw loop=C2 lpf=300..1200 * &bassMove';
+
+  it.each(PRESETS.map((p) => p.name))(
+    'gives no pitched note of %s’s section a sound, nor any drum hit: its voices hold a register, so the synth colours it by the style',
+    (name) => {
+      const bars = section(name);
+      const played = playSection(sectionTextOf(sectionAsCells(bars)), bars);
+      expect(played.bars.flatMap((b) => b.sounds).filter((s) => s !== undefined)).toEqual([]);
+    },
+  );
+
+  it('gives each note its voice’s sound where the text writes one, and sends the same notes', () => {
+    const bars = section('Funk');
+    const text = sectionTextOf(sectionAsCells(bars));
+    // (a voice with a sound is heard on a sound card: on a MIDI card alone cells says its sound isn't sent)
+    const voiced = `${text}\n${STAB}\n${BASS}\n&bassMove step=1m 0 1\n&heard map=sample [&stabOut, &bassOut]`;
+    const plain = playSection(text, bars);
+    const played = playSection(voiced, bars);
+    expect(played.diagnostics).toEqual([]);
+    expect(played.bars.map((b) => b.notes)).toEqual(plain.bars.map((b) => b.notes));
+    const stab = played.bars.flatMap((b) => b.sounds.filter((_, j) => b.lines[j] === 'stab'));
+    const bass = played.bars.flatMap((b) => b.sounds.filter((_, j) => b.lines[j] === 'bass'));
+    const rest = played.bars.flatMap((b) =>
+      b.sounds.filter((_, j) => b.lines[j] !== 'stab' && b.lines[j] !== 'bass'),
+    );
+    expect(stab.length).toBeGreaterThan(0);
+    expect(bass.length).toBeGreaterThan(0);
+    for (const sound of stab) {
+      expect(sound).toMatchObject({
+        wave: 'square',
+        lpf: 2400,
+        lpq: 3,
+        env: { attack: 0.02, decay: 0.2, sustain: 0.7, release: 0.15 },
+      });
+      // (the vibrato, as cells bends it, from the note's start on: a stab is short enough to end on its way up)
+      expect(Math.max(...sound!.bends!.map((b) => Math.abs(b.cents)))).toBeGreaterThan(0);
+      expect(Math.min(...sound!.bends!.map((b) => b.at))).toBeGreaterThanOrEqual(0);
+    }
+    // (a moving cutoff at where its range starts; no envelope written, none carried)
+    for (const sound of bass) expect(sound).toEqual({ wave: 'sawtooth', lpf: 300 });
+    expect(rest.filter((s) => s !== undefined)).toEqual([]);
+  });
+
+  it('reads none off a voice with no waveform of the four: a register alone, or a noise', () => {
+    const plan = planOf(
+      [
+        '&bar meter("4/4") step=120bpm',
+        '&line step=4n 0 2',
+        '&av loop=C4',
+        '&bv s=white',
+        '&cv s=tri',
+        '&out map=sample [&line * &av, &line * &bv, &line * &cv]',
+      ].join('\n'),
+    );
+    expect(plan.result.diagnostics).toEqual([]);
+    const events = windowAt(plan, 0, 0.4).events;
+    expect(
+      ['av', 'bv', 'cv'].map((v) =>
+        soundOf(
+          events.find((e) => e.voice === v)!,
+          plan.result,
+        ),
+      ),
+    ).toEqual([undefined, undefined, { wave: 'triangle' }]);
   });
 });
