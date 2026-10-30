@@ -29,8 +29,14 @@
  *   "bass performer"`, `performerOf`): a gate, `&bassOut`, playing the part's
  *   lines (`&bassline`, `&bassLevel`) on its instrument, moved to the part's
  *   register (`PIN_VOICES`), its role the part's (`&bass map=role &bassOut`);
+ * - the instrument each performer plays at the section's style, where it
+ *   isn't the performer's own (`instrumentsAt`, #497): its voice's line,
+ *   which the text's own line makes win over the performer's (a clarinet's
+ *   `&leadV s=square loop=C4 …` at Electro swing's point);
  * - one MIDI card that sends the gates on Jambot's channels: 1 the lead, 2 the
- *   bass, 3 the pad and the stab, 10 the drums.
+ *   bass, 3 the pad and the stab, 10 the drums; and, where an instrument with
+ *   a sound is played, a sound card that hears its gates (`&heard`), so cells
+ *   and a follower hear its sound and MIDI out sends its notes as before.
  *
  * Each line on `16n` states a bar it plays more than once once, a cell of its
  * own spliced in where it plays (`&bassline … &basslineA!4 &basslineB`,
@@ -56,6 +62,7 @@ import {
   type Key,
   VOICE_OF_NOTE,
   euclidOf,
+  instrumentsAt,
   levelOf,
   type MelodicScale,
   type MeterSwing,
@@ -853,6 +860,8 @@ export function sectionAsCells(
       : []),
   );
   const outs: Partial<Record<PitchedName, true>> = {};
+  const instruments = instrumentsAt(bars[0]!.style);
+  const heard: PitchedName[] = [];
   const state = (
     name: PitchedName,
     part: 'bass' | 'comp' | 'lead',
@@ -869,6 +878,11 @@ export function sectionAsCells(
       part,
       text: `use * from "${performerOf(name)}"`,
     });
+    const instrument = instruments[name];
+    if (instrument) {
+      lines.push({ part, text: instrument.line });
+      heard.push(name);
+    }
   };
   state('bass', 'bass', 'bass', inForce, table);
   state('pad', 'comp', 'comp', inForce, table);
@@ -895,5 +909,10 @@ export function sectionAsCells(
     part: 'card',
     text: `&out map=midi ${outs.lead ? '&leadOut' : '~'} ${outs.bass ? '&bassOut' : '~'} ${compEntry} ~!6 ${drums.terms.length ? '&drumsOut' : '~'}`,
   });
+  if (heard.length)
+    lines.push({
+      part: 'card',
+      text: `&heard map=sample [${heard.map((p) => `&${p}Out`).join(', ')}]`,
+    });
   return { lines, pitched, cuts };
 }
