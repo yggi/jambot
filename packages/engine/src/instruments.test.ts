@@ -66,12 +66,29 @@ describe('the instruments a section’s performers play, found at its style (#49
     association: [{ point, weight: 0.125, facet: 'instrument' }],
   };
 
-  it.each(PRESETS.map((p) => p.name))('at %s, every performer plays its own instrument', (name) => {
-    expect(instrumentsAt(PRESETS.find((p) => p.name === name)!.style)).toEqual({});
-    expect(
-      instrumentsAt(PRESETS.find((p) => p.name === name)!.style, [...INSTRUMENT_FRAGMENTS, theirs]),
-    ).toEqual({});
-  });
+  /** The instruments cells wrote for two presets' points (yggi/cells#366): elsewhere each performer plays its own. */
+  const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
+    'Electro swing': { bass: 'upright bass', lead: 'clarinet', stab: 'brass stab' },
+    Spooky: { bass: 'round bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
+  };
+
+  it.each(PRESETS.map((p) => p.name))(
+    'at %s, a performer plays the instrument found at its point where it isn’t its own, its own elsewhere',
+    (name) => {
+      const style = PRESETS.find((p) => p.name === name)!.style;
+      for (const library of [INSTRUMENT_FRAGMENTS, [...INSTRUMENT_FRAGMENTS, theirs]]) {
+        const found = instrumentsAt(style, library);
+        expect(
+          Object.fromEntries(Object.entries(found).map(([part, { id }]) => [part, id])),
+        ).toEqual(FOUND[name] ?? {});
+        // (the line each plays is the one its instrument defines the performer's voice with)
+        for (const [part, { id, line }] of Object.entries(found))
+          expect(line).toBe(
+            lineOf(id, PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES].voice),
+          );
+      }
+    },
+  );
 
   it('at an instrument’s own point, the performer whose voice it defines plays it, and the others their own', () => {
     expect(instrumentsAt(point, [...INSTRUMENT_FRAGMENTS, theirs])).toEqual({

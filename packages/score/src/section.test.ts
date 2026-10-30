@@ -441,12 +441,31 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     '&keysV s=square loop=C3 lpf=2400 lpq=3 env=&(map=adsr .02 .2 .7 .15) pitch=&(map=lin loop=5.5 0 .12 0 -.12 0)';
   const BASS = '&bassV s=saw loop=C2 lpf=300..1200 * &bassMove';
 
+  // (the instruments found at two presets' points, yggi/cells#366, by the waveform each plays: elsewhere a voice
+  // holds a register only, and the synth colours it by the style)
+  const WAVES: Record<string, Record<string, string>> = {
+    'Electro swing': { bass: 'sawtooth', lead: 'square', stab: 'sawtooth' },
+    Spooky: { bass: 'triangle', lead: 'sine', pad: 'square', stab: 'sine' },
+  };
+
   it.each(PRESETS.map((p) => p.name))(
-    'gives no pitched note of %s’s section a sound, nor any drum hit: its voices hold a register, so the synth colours it by the style',
+    'gives %s’s pitched notes the sound of the instrument found at its style, every note of the performer, and no drum hit one',
     (name) => {
       const bars = section(name);
       const played = playSection(sectionTextOf(sectionAsCells(bars)), bars);
-      expect(played.bars.flatMap((b) => b.sounds).filter((s) => s !== undefined)).toEqual([]);
+      const waves = new Map<string, Set<string | undefined>>();
+      for (const b of played.bars)
+        b.sounds.forEach((sound, j) => {
+          const line = b.lines[j]!;
+          if (!waves.has(line)) waves.set(line, new Set());
+          waves.get(line)!.add(sound?.wave);
+        });
+      const want = WAVES[name] ?? {};
+      for (const [line, heard] of waves)
+        expect([...heard], `${name}: ${line}`).toEqual([want[line]]);
+      // (and heard: the first section plays the bass and the stab or the pad, the lead coming in later)
+      if (name in WAVES)
+        expect(Object.keys(want).filter((line) => waves.has(line)).length).toBeGreaterThan(1);
     },
   );
 
