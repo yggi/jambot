@@ -12,6 +12,6 @@
   },
   "dependencies": {
     "@jambot/theory": "workspace:*",
-    "@yggi/cells": "github:yggi/cells#v0.12.1"
+    "@yggi/cells": "github:yggi/cells#v0.12.2"
   }
 }

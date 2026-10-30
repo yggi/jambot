@@ -11,7 +11,7 @@ import {
   instrumentsFor,
   withInstruments,
 } from './instruments.ts';
-import { PRESETS } from './style.ts';
+import { PRESETS, PROTOTYPE_PRESETS } from './style.ts';
 
 const errors = (text: string) =>
   compileSource(text)
@@ -66,11 +66,50 @@ describe('the instruments a section’s performers play, found at its style (#49
     association: [{ point, weight: 0.125, facet: 'instrument' }],
   };
 
-  it.each(PRESETS.map((p) => p.name))('at %s, every performer plays its own instrument', (name) => {
-    expect(instrumentsAt(PRESETS.find((p) => p.name === name)!.style)).toEqual({});
-    expect(
-      instrumentsAt(PRESETS.find((p) => p.name === name)!.style, [...INSTRUMENT_FRAGMENTS, theirs]),
-    ).toEqual({});
+  it.each(PROTOTYPE_PRESETS.map((p) => p.name))(
+    'at %s, every performer plays its own instrument',
+    (name) => {
+      expect(instrumentsAt(PRESETS.find((p) => p.name === name)!.style)).toEqual({});
+      expect(
+        instrumentsAt(PRESETS.find((p) => p.name === name)!.style, [
+          ...INSTRUMENT_FRAGMENTS,
+          theirs,
+        ]),
+      ).toEqual({});
+    },
+  );
+
+  it('at Electro swing, the bass plays the upright bass, the stab the brass stab and the lead the clarinet; at Spooky, the round bass, the organ, the celesta and the theremin (yggi/cells#350)', () => {
+    const ids = (name: string) =>
+      Object.fromEntries(
+        Object.entries(instrumentsAt(PRESETS.find((p) => p.name === name)!.style)).map(
+          ([part, i]) => [part, i.id],
+        ),
+      );
+    expect(ids('Electro swing')).toEqual({
+      bass: 'upright bass',
+      stab: 'brass stab',
+      lead: 'clarinet',
+    });
+    expect(ids('Spooky')).toEqual({
+      bass: 'round bass',
+      pad: 'organ',
+      stab: 'celesta',
+      lead: 'theremin',
+    });
+    // (each holds its own instrument's register, so MIDI out sends the same notes)
+    for (const name of ['Electro swing', 'Spooky'])
+      for (const [part, { line }] of Object.entries(
+        instrumentsAt(PRESETS.find((p) => p.name === name)!.style),
+      ))
+        expect(/loop=(\S+)/.exec(line)![1], `${name} ${part}`).toBe(
+          /loop=(\S+)/.exec(
+            lineOf(
+              PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES].own,
+              PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES].voice,
+            ),
+          )![1],
+        );
   });
 
   it('at an instrument’s own point, the performer whose voice it defines plays it, and the others their own', () => {

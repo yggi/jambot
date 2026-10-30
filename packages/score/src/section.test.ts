@@ -9,6 +9,7 @@ import {
   type BandBar,
   type BandCarried,
   PRESETS,
+  PROTOTYPE_PRESETS,
   SECTION_BARS,
   LEAD_LEVEL,
   type MeterSwing,
@@ -441,12 +442,41 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     '&keysV s=square loop=C3 lpf=2400 lpq=3 env=&(map=adsr .02 .2 .7 .15) pitch=&(map=lin loop=5.5 0 .12 0 -.12 0)';
   const BASS = '&bassV s=saw loop=C2 lpf=300..1200 * &bassMove';
 
-  it.each(PRESETS.map((p) => p.name))(
+  it.each(PROTOTYPE_PRESETS.map((p) => p.name))(
     'gives no pitched note of %s’s section a sound, nor any drum hit: its voices hold a register, so the synth colours it by the style',
     (name) => {
       const bars = section(name);
       const played = playSection(sectionTextOf(sectionAsCells(bars)), bars);
       expect(played.bars.flatMap((b) => b.sounds).filter((s) => s !== undefined)).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['Electro swing', { bass: 'sawtooth', stab: 'sawtooth', lead: 'square' }],
+    ['Spooky', { bass: 'triangle', pad: 'square', stab: 'sine', lead: 'sine' }],
+  ] as const)(
+    'plays %s’s section on the instruments found at its point: each pitched note in its instrument’s sound, no drum hit with one, and the same notes as on the performers’ own (yggi/cells#350)',
+    (name, waves) => {
+      const bars = section(name);
+      const text = sectionAsCells(bars);
+      const voiced = playSection(sectionTextOf(text), bars);
+      expect(voiced.diagnostics).toEqual([]);
+      // (the text with its instruments' lines and the card that hears them left out: the performers' own)
+      const own = {
+        ...text,
+        lines: text.lines.filter((l) => !/^&(bassV|padV|keysV|leadV|heard) /.test(l.text)),
+      };
+      expect(own.lines.length).toBeLessThan(text.lines.length);
+      const plain = playSection(sectionTextOf(own), bars);
+      expect(voiced.bars.map((b) => b.notes)).toEqual(plain.bars.map((b) => b.notes));
+      let heard = 0;
+      for (const b of voiced.bars)
+        for (const [j, line] of b.lines.entries()) {
+          const wave = line === 'drums' ? undefined : (waves as Record<string, string>)[line];
+          expect(b.sounds[j]?.wave, `${line} at ${b.notes[j]!.step}`).toBe(wave);
+          if (wave) heard++;
+        }
+      expect(heard).toBeGreaterThan(0);
     },
   );
 
