@@ -27,6 +27,18 @@ export interface Stall {
 }
 
 /**
+ * A client's network pair as it read, from where its trip or offset changed, on the wall
+ * clock in milliseconds: its best round trip lately (the offset is good to
+ * half of it), the network's offset and the skew played by, in milliseconds.
+ */
+export interface NetworkSample {
+  wall: number;
+  trip: number | null;
+  offset: number | null;
+  skew: number | null;
+}
+
+/**
  * What the master level was asked to do, at `at` on the page clock, in
  * milliseconds: to be `value` at once (`set`), or to glide to it on a time
  * constant, in seconds (`target`). The master is the gain that feeds the
@@ -64,6 +76,7 @@ export async function listen(page: Page, path = '/') {
       pairings: PairingSample[];
       stalls: Stall[];
       master: MasterCall[];
+      network: NetworkSample[];
     };
     w.starts = [];
     w.workers = { running: 0, made: 0 };
@@ -71,6 +84,7 @@ export async function listen(page: Page, path = '/') {
     w.pairings = [];
     w.stalls = [];
     w.master = [];
+    w.network = [];
     // The master's own level: the gain that feeds the compressor. What it is
     // asked to do, at once or on a time constant, is a mute and a fade.
     const masters = new WeakSet<AudioParam>();
@@ -105,6 +119,18 @@ export async function listen(page: Page, path = '/') {
       const now = performance.timeOrigin + performance.now();
       if (now - last > 50) w.stalls.push({ from: last, to: now });
       last = now;
+      const net = window.jambot?.network;
+      if (net) {
+        const sample = {
+          wall: now,
+          trip: net.reading?.trip == null ? null : net.reading.trip * 1000,
+          offset: net.reading?.offset == null ? null : net.reading.offset * 1000,
+          skew: net.skew === null ? null : net.skew * 1000,
+        };
+        const was = w.network.at(-1);
+        if (!was || was.trip !== sample.trip || was.offset !== sample.offset)
+          w.network.push(sample);
+      }
       w.contexts.forEach((ctx, context) => {
         const ts = ctx.getOutputTimestamp?.();
         if (ts?.contextTime && ts.performanceTime)
@@ -323,6 +349,10 @@ export const holdAudio = (page: Page, ms: number) =>
  */
 export const stalls = (page: Page) =>
   page.evaluate(() => (window as unknown as { stalls: Stall[] }).stalls);
+
+/** A client's network pair, each time it read otherwise (`NetworkSample`). */
+export const networkReadings = (page: Page) =>
+  page.evaluate(() => (window as unknown as { network: NetworkSample[] }).network);
 
 /** The drawer section that holds a card, the band's or the door's, by the card's title. */
 const DRAWN: Record<string, string> = {
