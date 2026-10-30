@@ -469,6 +469,24 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     },
   );
 
+  it.each(['Electro swing', 'Spooky'])(
+    'plays %s’s section on its instruments with the same notes as on the performers’ own (yggi/cells#350)',
+    (name) => {
+      const bars = section(name);
+      const text = sectionAsCells(bars);
+      const voiced = playSection(sectionTextOf(text), bars);
+      expect(voiced.diagnostics).toEqual([]);
+      // (the text with its instruments' lines and the card that hears them left out: the performers' own)
+      const own = {
+        ...text,
+        lines: text.lines.filter((l) => !/^&(bassV|padV|keysV|leadV|heard) /.test(l.text)),
+      };
+      expect(own.lines.length).toBeLessThan(text.lines.length);
+      const plain = playSection(sectionTextOf(own), bars);
+      expect(voiced.bars.map((b) => b.notes)).toEqual(plain.bars.map((b) => b.notes));
+    },
+  );
+
   it('gives each note its voice’s sound where the text writes one, and sends the same notes', () => {
     const bars = section('Funk');
     const text = sectionTextOf(sectionAsCells(bars));

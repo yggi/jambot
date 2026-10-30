@@ -86,6 +86,13 @@ describe('the instruments a section’s performers play, found at its style (#49
           expect(line).toBe(
             lineOf(id, PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES].voice),
           );
+        // (and holds its performer's own instrument's register, so MIDI out sends the same notes)
+        for (const [part, { line }] of Object.entries(found)) {
+          const { own, voice } = PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES];
+          expect(/loop=(\S+)/.exec(line)![1], `${name} ${part}`).toBe(
+            /loop=(\S+)/.exec(lineOf(own, voice))![1],
+          );
+        }
       }
     },
   );
