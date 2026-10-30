@@ -848,11 +848,11 @@ run; the others have.
   held by [`packages/engine/experiments/lead-loop.test.ts`](../packages/engine/experiments/lead-loop.test.ts) (about 2 minutes under vitest):
   - **The player** answers one section in four, the second of each four, in its second half, with one of eight motifs of 3 to 6 notes (`MOTIFS`), a new one every 16 sections, heard by the Muse in each bar as a lead line: a choice of this experiment, not a measure of players.
   - **Walked** (the radio at entropy 0.3 from each preset, 40 runs of an hour, 8,513 sections, learning from an empty layer):
-    8,506 sections play a lead line, and the lead its own in 7; the run's most used line plays 2,878, 33.8 % of those that play one, under #424's 60 %.
+    8,513 sections play a lead line, and the lead its own in 7; the run's most used line plays 2,884, 33.9 % of those that play one, under #424's 60 %.
     With nothing learned, 8,305 of 8,570 sections play one of cells' motifs, the run's most used 6,779 of them, 81.6 %, over 60 %: away from the players, each preset's walk stays near the motif written for it (before #520 the lead played its own in every section, and 8,418 sections played a line learning, the most used 36.0 %).
-    The share of sections among a run's 3 most used lead lines moves −22.3 points (1.9 error), within 5 with twice its error; with nothing learned it is 98.8 %, so it can only fall, and the bound says little here.
-    2,294 filings: 332 of the player's lines new, 1 of the lead's own the player answered (38 before #520, when the lead played its own wherever nothing was filed), 166 of the composer's variations (lift or turn over), 1,795 a line held already (identity); each new one reads back as filed, of its notes those within a bar of the section's meter (`museFiledLeads`: the player's 4/4 motif heard in 3/4, which the walk reaches since cells v0.12.0, loses the note past the bar's 12 steps).
-  - **Three hours** (one seed a preset, 8 runs, 5,389 sections; forty take five minutes): the layer reaches its cap with the drums, the bass and the lead filing, at most 15,990 bytes, under `LAYER_CAP` (16,000), its cap dropping the oldest in 23 sections (24 before #520 and before cells v0.12.0 too, 20 before #508 held Electro swing drums, 31 before cells v0.11.0, whose grooves and bass lines carry no MIDI card, so the layer fills later); a lead line weighs about 380 bytes, its voice and card a sixth of it. The most used lead line plays 23.9 % of the sections that play one.
+    The share of sections among a run's 3 most used lead lines moves −19.3 points (2.1 error; −22.3 and 1.9 before cells v0.13.0's 26 motifs), within 5 with twice its error; with nothing learned it is 98.8 %, so it can only fall, and the bound says little here.
+    2,297 filings: 332 of the player's lines new, none of the lead's own the player answered (1 before cells v0.13.0, 38 before #520, when the lead played its own wherever nothing was filed), 172 of the composer's variations (lift or turn over), 1,793 a line held already (identity); each new one reads back as filed, of its notes those within a bar of the section's meter (`museFiledLeads`: the player's 4/4 motif heard in 3/4, which the walk reaches since cells v0.12.0, loses the note past the bar's 12 steps).
+  - **Three hours** (one seed a preset, 8 runs, 5,389 sections; forty take five minutes): the layer reaches its cap with the drums, the bass and the lead filing, at most 15,986 bytes, under `LAYER_CAP` (16,000), its cap dropping the oldest in 32 sections (23 before cells v0.13.0's motifs, 24 before #520 and before cells v0.12.0 too, 20 before #508 held Electro swing drums, 31 before cells v0.11.0, whose grooves and bass lines carry no MIDI card, so the layer fills later); a lead line weighs about 380 bytes, its voice and card a sixth of it. The most used lead line plays 23.9 % of the sections that play one.
   - **The cost** (Node, a shared container) with the heaviest layer's 24 lead lines and cells' 10 motifs: the warm-up's 209 steps take at most 3.3 ms each, under a slice's 50 ms; an ask of the lead lines takes 0.12 ms at p95 and 3.8 ms at most, under #424's 5 ms.
   - Not measured: entropy other than 0.3 walked, players other than this one, a player's motif bent off the key (which cells doesn't vary), and how any of it sounds.
 
@@ -888,7 +888,7 @@ run; the others have.
     | bass        | 0.220      | 0.375  | 0.8 %  | 78 %   | 0.203        | 0.355  | 4.3 %  | 78 %   |
     | lead        | 0.578      | 0.158  | 75 %   | 3.4 %  | 0.555        | 0.248  | 57 %   | 15 %   |
     | harmony     | 0.288      | 0.453  | 0 %    | 100 %  | 0.288        | 0.453  | 0 %    | 100 %  |
-    | all, pooled | 0.238      | 0.186  | 24 %   | 17 %   | 0.233        | 0.178  | 21 %   | 17 %   |
+    | all, pooled | 0.238      | 0.186  | 24 %   | 17 %   | 0.237        | 0.192  | 21 %   | 20 %   |
 
     Over all members it sits under the band in 76 % of sections held and 79 % walked (97 of 128, 406 of 512), and above it in none: the sensor reads the band left alone as confusing, in every preset (before #520, with the lead's library empty: 0.134 held and 0.125 walked, under the band in 93 %).
     By preset, over all members, held (walked): Techno 0.48 (0.45), inside the band in 63 % (66 %) of its sections; Swing jazz 0.41 (0.35), inside in 63 % (44 %); Funk 0.41 (0.37), inside in 63 % (44 %); Synth-pop, Deep house, Ambient, Lo-fi hip hop and Bossa nova 0.09 to 0.16 held (0.11 to 0.18 walked).
@@ -901,7 +901,7 @@ run; the others have.
   - **Per member or over all members**: over all members, pooled.
     Each member's share but the lead's is pinned at 0 or 1 in 78 % to 100 % of its sections (the harmony by construction), so it says little a ladder could move; the lead's in 3 % (15 % walked); over all members the share is pinned in 17 % (17 % walked) and moves between, the one with a spread to control.
   - **Entropy** barely moves it: over all members 0.247, 0.238 and 0.239 held at 0.1, 0.3 and 0.6, and 0.246, 0.233 and 0.205 walked, so a band widening with entropy has nothing yet to be placed on.
-  - **Tolerance** (held at 0.3, over all members): 0.238 at 0, 0.274 at 1 note, 0.381 at 2 and 0.579 at 4, where 66 % of sections are inside the band and none pinned; at 4 the bass is above the band in 92 % of its sections and the drums reach 0.17.
+  - **Tolerance** (held at 0.3, over all members): 0.238 at 0, 0.280 at 1 note, 0.382 at 2 and 0.579 at 4, where 66 % of sections are inside the band and none pinned; at 4 the bass is above the band in 92 % of its sections and the drums reach 0.17.
     A tolerance from the licence is #237's step 1, not built; this says where it would move the share.
   - **The cost** (Node, a shared container; the recogniser warmed on every member's seeds on every bench, as a page warms at idle, so a bar compiles only its heard texts, one a member): a bar's recognition of every member takes 7.1 ms at p95 held and 6.9 ms walked (max 58 and 72 ms, single bars; no worse on a bar after a filing), over the ruled 2 ms.
     The drums' one compile is most of it (6.5 ms at p95 held and walked); the bass and the lead 0.9 ms each, the harmony 0.1 ms; a tolerance of 1 to 4 costs about the same.
@@ -915,7 +915,7 @@ run; the others have.
     Over all members it then reads 0.73 at entropy 0.3 (0.68 before #520), and falls as the band's entropy rises; with what was played lately alone, without the library, it read 0.67 before #520, so it is what was played lately that is recognised.
   - **What it moves**, measured open (a probe of 8 presets, 2 seeds of 128 bars, held at 0.3, before the controller was written and before #520):
     the novelty ladder's rate alone (boredom a section, and the pull of use together, set apart from the band's entropy) moves the share from 0.682 at a rate of 0 to 0.674 at 1, almost nothing, since a varied fragment is recognised by its operator and a fetched one is repeated for its section;
-    the band's whole entropy moves it from 0.72 at 0 to 0.61 at 1 (the test's runs, since #520: 0.780, 0.729 and 0.632 leaned all the way down, at no lean, and all the way up), in every preset.
+    the band's whole entropy moves it from 0.72 at 0 to 0.61 at 1 (the test's runs, since #520: 0.780, 0.729 and 0.639 leaned all the way down, at no lean, and all the way up), in every preset.
     So the controller leans the band's whole entropy, the owner's nudge for the whole system (#237, 2026-09-30): `leanedEntropy` is the players' plus the lean, inside 0 to 1, and the band plays at it, the composer's ladder with it.
   - **The controller** (`homeostat.ts`): the band is 0.4 to 0.7 at entropy 0.3 (ruled), about a centre of 0.55, widening by 0.3 for each unit of entropy (chosen: 0.21 wide at 0, 0.51 at 1).
     It reads the share over the last 8 bars at each section's second-to-last bar, and the band plays the next bar, which decides the next section, at the new lean.
@@ -931,7 +931,7 @@ run; the others have.
     | 0.3, walked      | 36.5 %     | 58.2 % | 61.7 %                | 0                             |
 
     Before #520, with the lead's library empty: 27.7 %, 52.7 %, 74.2 % and 48.8 % left alone, 47.3 %, 64.1 %, 75.4 % and 65.8 % closed; the lead's motifs heard, and its call answered (#520), make the band left alone more bored, and the controller brings it in less far.
-    The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 63.5 % all the way up; 33.6 % and 53.9 % walked; no reversal.
+    The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 65.6 % all the way up; 33.6 % and 53.9 % walked; no reversal.
 
   - **Against the ruled limits**:
     the reversals are within one per four sections in every run;

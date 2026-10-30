@@ -101,17 +101,37 @@ const FILING: LeadFiling = {
 };
 
 describe('the lead’s repository (#424)', () => {
-  it('holds cells’ motifs as its seeds, each found first at its own point in 4/4 and in 5/4, a rest after it, and none in 3/4, which none fits (#520)', () => {
+  it('holds cells’ motifs as its seeds, each found first at its own point in every meter it fits, a rest after it; the presets’ ten in 4/4 and 5/4, and 3/4 its own (#520, yggi/cells#370)', () => {
     expect(MOTIF_LEADS.map((f) => f.id)).toEqual(MOTIF_FRAGMENTS.map((f) => f.id));
+    const at = (name: keyof typeof METERS) => ({ meter: METERS[name], meterFragment: name });
+    const fits = new Map<string, string[]>();
     for (const motif of MOTIF_LEADS) {
       const { point } = motif.association[0]!;
-      const found = LEAD_REPOSITORY.query(point, FILING.bench, EMPTY_LAYER);
-      expect(found[0], motif.id).toEqual({ id: motif.id, distance: 0, score: 0 });
-      const five = { meter: METERS['5/4'], meterFragment: '5/4' };
-      expect(LEAD_REPOSITORY.query(point, five, EMPTY_LAYER)[0], motif.id).toEqual(found[0]);
-      const three = { meter: METERS['3/4'], meterFragment: '3/4' };
-      expect(LEAD_REPOSITORY.query(point, three, EMPTY_LAYER), motif.id).toEqual([]);
+      for (const name of Object.keys(METERS) as (keyof typeof METERS)[]) {
+        const found = LEAD_REPOSITORY.query(point, at(name), EMPTY_LAYER);
+        if (!found.some((f) => f.id === motif.id)) continue;
+        expect(found[0], `${motif.id} in ${name}`).toEqual({ id: motif.id, distance: 0, score: 0 });
+        fits.set(motif.id, [...(fits.get(motif.id) ?? []), name]);
+      }
+      expect(fits.get(motif.id)?.length, motif.id).toBeGreaterThan(0);
     }
+    for (const id of [
+      'hook',
+      'octaves',
+      'sigh',
+      'rising',
+      'lazy',
+      'riff',
+      'tresillo',
+      'bebop',
+      'gypsy',
+      'diesIrae',
+    ])
+      expect(fits.get(id), id).toEqual(expect.arrayContaining(['4/4', '5/4']));
+    // (3/4 had none until cells' waltz and music box)
+    expect([...fits].filter(([, names]) => names.includes('3/4')).map(([id]) => id)).toEqual(
+      expect.arrayContaining(['waltz', 'musicBox']),
+    );
   });
 
   it('reads a motif as a lead line from its first note: the Dies irae’s step down, back, a third down, a step up, a third down and a step up, held; in 5/4 a rest after it (#520)', () => {

@@ -55,7 +55,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
   it('plays its run’s most used lead line in under 60 % of the sections that play one, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { playing, mostUsed, share } = mostUsedLead(LEARNED);
-    expect([playing, mostUsed]).toEqual([8506, 2878]);
+    expect([playing, mostUsed]).toEqual([8513, 2884]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -63,14 +63,14 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     const { added, error } = lockIn(asLeads(UNLEARNED), asLeads(LEARNED));
     // (with nothing learned the lead plays cells' motif nearest the walk in nearly every section, 99 % among a run's
     // 3 most used: the share can only fall)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-22.27', '1.93']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-19.26', '2.13']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   it('files the player’s lines, the lead’s own the player answered and the composer’s variations, each reading back as filed', () => {
     expect([by(PLAYER), by(SOLOIST), by(COMPOSER), FILED.filter((f) => f.held).length]).toEqual([
       // (the lead’s own, once: it plays a motif of cells’ in nearly every section, #520)
-      332, 1, 166, 1795,
+      332, 0, 172, 1793,
     ]);
     for (const { filing, id } of FILED.filter((f) => !f.held)) {
       const layer = LEARNED.find((r) => r.leadFilings.some((f) => f.id === id))!.learning!.layer;
@@ -81,10 +81,10 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     }
   });
 
-  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 23 sections of 5,389`, () => {
+  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 32 sections of 5,389`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThan(LAYER_CAP);
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15990, 23]);
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15986, 32]);
     expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5389);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);
   });
