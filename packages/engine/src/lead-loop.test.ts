@@ -1,5 +1,6 @@
 import { METERS, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
+import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
 import { type BandCarried, type BandEnv, band } from './band.ts';
 import { COMPOSER } from './facet.ts';
 import { SECTION_BARS } from './form.ts';
@@ -364,7 +365,8 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     }
   });
 
-  it('holds every motif of cells', () => {
-    expect(MOTIF_LEADS.map((f) => f.id).sort()).toEqual(Object.values(MOTIFS).sort());
+  it('holds every motif of cells, each preset’s among them', () => {
+    expect(MOTIF_LEADS.map((f) => f.id).sort()).toEqual(MOTIF_FRAGMENTS.map((f) => f.id).sort());
+    expect(MOTIF_LEADS.map((f) => f.id)).toEqual(expect.arrayContaining(Object.values(MOTIFS)));
   });
 });
