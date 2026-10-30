@@ -19,7 +19,7 @@
 
 import { fileURLToPath } from 'node:url';
 import {
-  PRESETS,
+  PROTOTYPE_PRESETS,
   type VoiceLandmark,
   type VoiceReading,
   VOICES,
@@ -46,7 +46,7 @@ export interface VoiceBar {
 }
 
 export function voiceBars(
-  preset: (typeof PRESETS)[number],
+  preset: (typeof PROTOTYPE_PRESETS)[number],
   seeds: readonly number[],
   bars: number,
 ): VoiceBar[] {
@@ -82,7 +82,7 @@ export function voiceBars(
 /** Where each voice reads at each preset: the mean of every axis it has. */
 export function voiceLandmarks(bars = 32): Record<string, Record<Voice, VoiceLandmark>> {
   return Object.fromEntries(
-    PRESETS.map((preset) => {
+    PROTOTYPE_PRESETS.map((preset) => {
       const set = voiceBars(preset, LANDMARK_SEEDS, bars);
       return [
         preset.name,
@@ -124,9 +124,9 @@ export interface FillResult {
 
 export function voiceResults(bars = 32): { voices: VoiceResult[]; fill: FillResult } {
   const landmarks = voiceLandmarks(bars);
-  const all = PRESETS.flatMap((preset) => voiceBars(preset, SEEDS, bars));
+  const all = PROTOTYPE_PRESETS.flatMap((preset) => voiceBars(preset, SEEDS, bars));
   const nearest = (voice: Voice, reading: VoiceReading) =>
-    PRESETS.map((p) => p.name).reduce((a, b) =>
+    PROTOTYPE_PRESETS.map((p) => p.name).reduce((a, b) =>
       partDistance(reading, landmarks[b]![voice]) < partDistance(reading, landmarks[a]![voice])
         ? b
         : a,

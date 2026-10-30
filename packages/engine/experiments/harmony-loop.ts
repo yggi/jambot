@@ -22,7 +22,7 @@ import {
   HARMONY_REPOSITORY,
   type HarmonySlot,
   type LearnedLayer,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   VAMP_HARM,
   composedHarmony,
 } from '../src/index.ts';
@@ -94,7 +94,7 @@ export function cost(layer: LearnedLayer) {
   const warming = HARMONY_REPOSITORY.warm!(LINE_BENCHES, layer)[Symbol.iterator]();
   while (!warming.next().done);
   const asks: number[] = [];
-  for (const preset of PRESETS)
+  for (const preset of PROTOTYPE_PRESETS)
     for (const bench of LINE_BENCHES)
       for (let k = 0; k < 4; k++) {
         const style = { ...preset.style, sync: preset.style.sync + k / 100, entropy: 0.3 };

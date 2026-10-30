@@ -5,7 +5,7 @@ import type { BarChord } from './chords.ts';
 import recorded from './history.fixture.json';
 import { HISTORY_DECAY, NO_HISTORY, centre, foldBar, keyWeight } from './history.ts';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
-import { PRESETS } from './style.ts';
+import { PROTOTYPE_PRESETS } from './style.ts';
 import { presetMode } from './mode-repository.ts';
 
 /** A chord on `step` of heights `heights` (its helix alone). */
@@ -81,7 +81,7 @@ describe('the harmonic history', () => {
  */
 function recording() {
   return Object.fromEntries(
-    PRESETS.map((preset) => {
+    PROTOTYPE_PRESETS.map((preset) => {
       const style = { ...preset.style, entropy: 1 };
       const seeds = [1, 2, 3].map((seed) => {
         const bars = lookAhead(
@@ -120,8 +120,8 @@ describe('the band’s keys and the history’s centres', () => {
     const moved = Object.values(recorded).filter((seeds) =>
       Object.values(seeds).some(({ keys }) => new Set(keys).size > 1),
     );
-    expect(moved.length).toBe(PRESETS.length - 1);
-    expect(Object.keys(recorded)).toEqual(PRESETS.map((p) => p.name));
+    expect(moved.length).toBe(PROTOTYPE_PRESETS.length - 1);
+    expect(Object.keys(recorded)).toEqual(PROTOTYPE_PRESETS.map((p) => p.name));
     expect(recording()).toEqual(recorded);
   });
 });

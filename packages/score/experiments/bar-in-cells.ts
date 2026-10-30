@@ -72,7 +72,7 @@ import {
   type DrumRole,
   LOOKAHEAD,
   type MelodicScale,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   type TimedEvent,
   type TransportCarried,
   type TransportEnv,
@@ -144,7 +144,7 @@ export interface RunKey {
 
 /** Every run: the 8 presets in 4/4, then the two in 3/4 and 7/8. */
 export const RUNS: readonly RunKey[] = [
-  ...PRESETS.map((p) => ({ preset: p.name, meter: '4/4' as const })),
+  ...PROTOTYPE_PRESETS.map((p) => ({ preset: p.name, meter: '4/4' as const })),
   ...METER_PRESETS.flatMap((preset) => OTHER_METERS.map((meter) => ({ preset, meter }))),
 ];
 
@@ -183,7 +183,7 @@ export interface Run extends RunKey {
   readonly missed: number;
 }
 
-const presetOf = (name: string) => PRESETS.find((p) => p.name === name)!;
+const presetOf = (name: string) => PROTOTYPE_PRESETS.find((p) => p.name === name)!;
 
 /** The band's transport over a preset held, in a meter, until its bars are laid (E33's 32 at seed 0, unless asked); every part's onsets, the lead's too. */
 export function runOf({

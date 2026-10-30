@@ -59,7 +59,7 @@ import {
   METER_REPOSITORY,
   MISS_DISTANCE,
   type MeterSwing,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   SECTION_BARS,
   type StylePoint,
   band,
@@ -112,7 +112,7 @@ export interface CorpusSection {
   readonly point: StylePoint;
 }
 
-const presetOf = (name: string) => PRESETS.find((p) => p.name === name)!;
+const presetOf = (name: string) => PROTOTYPE_PRESETS.find((p) => p.name === name)!;
 
 /** A preset held, at a seed, its bars decided with no meter asked for: each section's meter is the repository's. */
 export function corpusRun(name: string, seed: number, count = BARS): BandBar[] {
@@ -139,7 +139,7 @@ export function corpusRun(name: string, seed: number, count = BARS): BandBar[] {
 
 /** Every section of the corpus, in order of preset, seed and index (320). */
 export function corpus(seeds: readonly number[] = SEEDS): CorpusSection[] {
-  return PRESETS.flatMap((preset) =>
+  return PROTOTYPE_PRESETS.flatMap((preset) =>
     seeds.flatMap((seed) => {
       const bars = corpusRun(preset.name, seed);
       return Array.from({ length: bars.length / SECTION_BARS }, (_, index) => {
@@ -550,7 +550,7 @@ const meanBy = (rows: readonly { key: string; value: number }[]) => {
 
 /** Each preset's fragment beside its drummer, over the corpus asked. */
 export function compare(asked: readonly AskedSection[]): Comparison[] {
-  return PRESETS.map(({ name }) => {
+  return PROTOTYPE_PRESETS.map(({ name }) => {
     const sections = asked.filter((s) => s.preset === name);
     const played = sections.filter((s) => s.rhythm);
     const bars = played.flatMap((s) =>
@@ -702,7 +702,7 @@ export function gridAnswers(n: number, bpm = 120): Record<'found' | 'fit' | 'dis
 export function meterSweep(bpm = 120): { meter: string; preset: string; answer: RhythmAnswer }[] {
   const repository = rhythmRepository();
   return [...METER_REPOSITORY.fragments.keys()].flatMap((id) =>
-    PRESETS.map((p) => ({
+    PROTOTYPE_PRESETS.map((p) => ({
       meter: id,
       preset: p.name,
       answer: askRhythm(

@@ -357,6 +357,23 @@ describe('the band through cells (#399, #469)', () => {
     },
   );
 
+  // (#517: a preset is a point, its parts found there; Electro swing's drums strike the clap, 39, since #508)
+  it.each([
+    ['Electro swing', DRUM_NOTES.clap],
+    ['Spooky', DRUM_NOTES.ride],
+  ] as const)(
+    'plays %s held from cells’ repositories, 3 sections, as the band does, every bar through cells, its own drum bar’s sound among the hits (%s)',
+    (name, note) => {
+      const preset = PRESETS.find((p) => p.name === name)!;
+      const { readout, band, played } = run({ preset, repositories: true });
+      expect(readout.errors).toEqual([]);
+      expect(readout.gaps).toEqual({});
+      expect(readout.played.band).toBe(0);
+      expect(band.some((e) => e.event.part === 'drums' && e.event.note === note)).toBe(true);
+      playsAsTheBand(band, played);
+    },
+  );
+
   it.each(['7/8', '6/8', '3/4', '5/4'] as const)(
     'plays Synth-pop held in %s, 3 sections, as the band does',
     (meter) => {

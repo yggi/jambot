@@ -32,13 +32,14 @@ import { SECTION_TYPES } from './form.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import type { Offer } from './muse.ts';
 import { presetSwing } from './repository.ts';
-import { PRESETS, type Style } from './style.ts';
+import { PROTOTYPE_PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT } from './swing.ts';
 import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
-const presetAt = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
+const presetAt = (bar: number) =>
+  PROTOTYPE_PRESETS[Math.floor(bar / 8) % PROTOTYPE_PRESETS.length]!;
 
 /** The tour's swing: each preset's, its level asked a bar ahead, as a section's plan takes it on the bar before (#360). */
 const swingAt = (bar: number): MeterSwing => ({
@@ -47,7 +48,7 @@ const swingAt = (bar: number): MeterSwing => ({
 });
 
 const styleAt = (bar: number): Style => ({
-  ...PRESETS[Math.floor(bar / 8) % PRESETS.length]!.style,
+  ...PROTOTYPE_PRESETS[Math.floor(bar / 8) % PROTOTYPE_PRESETS.length]!.style,
   energy: 0.7,
   entropy: (bar % 32) / 32,
 });
@@ -144,7 +145,9 @@ describe('the lead', () => {
       entropy: 0.9,
       bpm: 120,
     };
-    const bar61 = run(9, repro, presetSwing(PRESETS[7]!)!, 62).filter((n) => n.bar === 61);
+    const bar61 = run(9, repro, presetSwing(PROTOTYPE_PRESETS[7]!)!, 62).filter(
+      (n) => n.bar === 61,
+    );
     expect(bar61.length).toBeGreaterThan(0);
     const outside: string[] = [];
     for (const n of bar61) if (n.note < 60 || n.note > 86) outside.push(`repro: ${n.note}`);
@@ -152,7 +155,7 @@ describe('the lead', () => {
     const swings: MeterSwing[] = [
       STRAIGHT,
       { level: '16n', share: 2 / 3 },
-      presetSwing(PRESETS[7]!)!,
+      presetSwing(PROTOTYPE_PRESETS[7]!)!,
     ];
     let notes = 0;
     for (const swing of swings)
@@ -178,7 +181,7 @@ describe('the lead', () => {
   it('plays the same melody on an engine whose Math.sin is one ulp off, either way (T5)', () => {
     // sin(π/6) times an odd span lies one ulp from a half, so an unquantised
     // round would flip. Energy and entropy summing to 1 give span 5.
-    const steady = (): Style => ({ ...PRESETS[0]!.style, energy: 0.7, entropy: 0.3 });
+    const steady = (): Style => ({ ...PROTOTYPE_PRESETS[0]!.style, energy: 0.7, entropy: 0.3 });
     const bars = range(40).flatMap((seed) => tour(seed, 48, steady));
     const melody = () => play(bars).map((p) => p.events.map((e) => `${e.step}:${e.note}`).join());
     const exact = melody();
@@ -282,7 +285,7 @@ describe('the lead', () => {
 
   it("brings a theme's melody back with its harmony, while the style stays near it (Q8)", () => {
     // A steady style: every return of a theme plays the shape it played before.
-    const steady = (): Style => ({ ...PRESETS[0]!.style, energy: 0.9, entropy: 0 });
+    const steady = (): Style => ({ ...PROTOTYPE_PRESETS[0]!.style, energy: 0.9, entropy: 0 });
     let returns = 0;
     for (const seed of range(6)) {
       const run = play(tour(seed, 160, steady));
@@ -337,7 +340,7 @@ describe('the lead', () => {
  */
 const recording = () =>
   Object.fromEntries(
-    PRESETS.map((preset) => [
+    PROTOTYPE_PRESETS.map((preset) => [
       preset.name,
       Object.fromEntries(
         [1, 2, 3].map((seed) => {
@@ -418,8 +421,8 @@ describe('what the lead writes', () => {
     const playedIn = Object.values(recorded).filter((seeds) =>
       Object.values(seeds).some((bars) => notes(bars) > 0),
     );
-    expect(playedIn.length).toBeGreaterThanOrEqual(PRESETS.length - 1);
-    expect(Object.keys(recorded)).toEqual(PRESETS.map((p) => p.name));
+    expect(playedIn.length).toBeGreaterThanOrEqual(PROTOTYPE_PRESETS.length - 1);
+    expect(Object.keys(recorded)).toEqual(PROTOTYPE_PRESETS.map((p) => p.name));
     expect(recording()).toEqual(recorded);
   });
 });
@@ -428,7 +431,7 @@ describe('the phrase parameters', () => {
   const grid = range(21).map((i) => i / 20);
   const ascending = (xs: readonly number[]) => xs.every((x, i) => i === 0 || x >= xs[i - 1]!);
   /** A bar of each preset from the band, its chords included. */
-  const barsOf = PRESETS.map((preset) => {
+  const barsOf = PROTOTYPE_PRESETS.map((preset) => {
     const bars = tour(1, 16, () => ({ ...preset.style, entropy: 0.3 }));
     return { preset, bar: bars.find((b) => b.chords.length > 1) ?? bars[8]! };
   });
@@ -529,7 +532,7 @@ describe('the phrase parameters', () => {
     const swings: MeterSwing[] = [
       STRAIGHT,
       { level: '16n', share: 2 / 3 },
-      presetSwing(PRESETS[7]!)!,
+      presetSwing(PROTOTYPE_PRESETS[7]!)!,
     ];
     const weights = [0, 0.5, 1];
     for (const { bar } of barsOf) {
@@ -553,7 +556,7 @@ describe('the phrase parameters', () => {
     const [straight, half, full] = [
       offBeats(STRAIGHT),
       offBeats({ level: '16n', share: 2 / 3 }),
-      offBeats(presetSwing(PRESETS[7]!)!),
+      offBeats(presetSwing(PROTOTYPE_PRESETS[7]!)!),
     ];
     expect(half).toBeGreaterThan(straight);
     expect(full).toBeGreaterThan(half);
@@ -586,7 +589,7 @@ describe('the phrase parameters', () => {
 
 describe('the lead over a melodic scale', () => {
   /** Every preset in each mode, three seeds of 32 bars, at energy 0.7 so the lead plays. */
-  const runs = PRESETS.flatMap((preset) =>
+  const runs = PROTOTYPE_PRESETS.flatMap((preset) =>
     COMPOSER_MODES.flatMap((mode) =>
       [1, 2, 3].map((seed) => {
         let carried = band.initial;

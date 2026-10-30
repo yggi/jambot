@@ -17,7 +17,7 @@ import {
   DRUM_NOTES,
   INITIAL_STYLE,
   type Key,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   SECTION_BARS,
   SONG_METER,
@@ -100,16 +100,16 @@ const glided: Style[] = (() => {
     if (bar % 8 === 0 && bar > 0)
       track = glideTo(
         track,
-        { ...PRESETS[(bar / 8) % PRESETS.length]!.style },
+        { ...PROTOTYPE_PRESETS[(bar / 8) % PROTOTYPE_PRESETS.length]!.style },
         bar * 16,
         PRESET_GLIDE,
       );
     return { ...styleAt(track, bar * 16), entropy: (bar % 32) / 32 };
   });
 })();
-const touring = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
+const touring = (bar: number) => PROTOTYPE_PRESETS[Math.floor(bar / 8) % PROTOTYPE_PRESETS.length]!;
 const RUNS: ((bar: number) => { style: Style; mode: Key['mode'] })[] = [
-  ...PRESETS.map((preset) => (bar: number) => ({
+  ...PROTOTYPE_PRESETS.map((preset) => (bar: number) => ({
     style: { ...preset.style, entropy: (bar % 32) / 32 },
     mode: presetMode(preset)!,
   })),
@@ -228,7 +228,7 @@ describe('the seam, over the bars the band writes', () => {
   });
 
   it('has bars to read: every preset, the tour and the glides, five seeds', () => {
-    expect(BAND_BARS).toHaveLength(5 * (PRESETS.length + 2) * BARS);
+    expect(BAND_BARS).toHaveLength(5 * (PROTOTYPE_PRESETS.length + 2) * BARS);
     expect(new Set(BAND_BARS.map((b) => b.plan.section.type)).size).toBeGreaterThan(4);
     expect(new Set(BAND_BARS.map((b) => b.plan.key.mode)).size).toBe(4);
     expect(BAND_BARS.some((b) => b.chords.some((c) => 'dominantOf' in c.slot))).toBe(true);
@@ -483,7 +483,7 @@ describe('the seam, over the bars the band writes', () => {
 /** Bars of every named meter: each preset held in it for a section and a half, for two seeds. */
 const METER_PLAYED: Played[] = Object.values(METERS).flatMap((meter) =>
   range(2).flatMap((seed) =>
-    PRESETS.flatMap((preset) => {
+    PROTOTYPE_PRESETS.flatMap((preset) => {
       let carried: BandCarried = band.initial;
       const played = range(13).map((bar) => {
         const env: BandEnv = {
@@ -508,7 +508,9 @@ const METER_PLAYED: Played[] = Object.values(METERS).flatMap((meter) =>
 
 describe('the seam, over the bars of every named meter (#261)', () => {
   it('states the meter in the header of every bar not in 4/4, and reads it back: compileBar ∘ encodeBar = id (finite: every meter, every preset)', () => {
-    expect(METER_PLAYED).toHaveLength(Object.keys(METERS).length * 2 * PRESETS.length * 12);
+    expect(METER_PLAYED).toHaveLength(
+      Object.keys(METERS).length * 2 * PROTOTYPE_PRESETS.length * 12,
+    );
     for (const played of METER_PLAYED) {
       const score = stated(played);
       const text = encodeBar(score);

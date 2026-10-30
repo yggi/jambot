@@ -42,7 +42,7 @@ import {
   MELODIC_SCALES,
   type MelodicScale,
   type MeterSwing,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   band,
   chordAt,
   lead,
@@ -103,7 +103,7 @@ const totals = Object.fromEntries(MELODIC_SCALES.map((s) => [s, empty()])) as Re
   Tally
 >;
 
-for (const preset of PRESETS) {
+for (const preset of PROTOTYPE_PRESETS) {
   const style = { ...preset.style, entropy: 0.3 };
   const tallies = Object.fromEntries(MELODIC_SCALES.map((s) => [s, empty()])) as Record<
     MelodicScale,

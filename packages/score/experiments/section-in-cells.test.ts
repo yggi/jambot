@@ -1,4 +1,4 @@
-import { PRESETS, SECTION_BARS, STRAIGHT, licenceOf, slotStepOn } from '@jambot/engine';
+import { PROTOTYPE_PRESETS, SECTION_BARS, STRAIGHT, licenceOf, slotStepOn } from '@jambot/engine';
 import { joinChord } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
@@ -74,7 +74,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
   it('runs seed 1 of every preset through the transport: 8 runs of 64 bars, 64 sections of 8 bars, each holding one meter, tempo, swing, key and melodic scale', () => {
     expect(SECTION_BARS).toBe(8);
     expect(RUNS).toHaveLength(40);
-    expect(QUICK.map((r) => r.preset)).toEqual(PRESETS.map((p) => p.name));
+    expect(QUICK.map((r) => r.preset)).toEqual(PROTOTYPE_PRESETS.map((p) => p.name));
     for (const r of RUN_OF.values()) {
       expect(r.bars, r.preset).toHaveLength(BARS);
       expect(r.missed, r.preset).toBe(0);
@@ -291,7 +291,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
 });
 
 describe('the lead over its melodic scale (a probe off the corpus: the players wish for a pentatonic or the blues)', () => {
-  const probe: CorpusRun[] = PRESETS.flatMap((p) =>
+  const probe: CorpusRun[] = PROTOTYPE_PRESETS.flatMap((p) =>
     (['pentatonic', 'blues'] as const)
       .filter((melodic) => licenceOf({ ...p.style, entropy: 0.3 }).melodic.includes(melodic))
       .map((melodic) => ({ preset: p.name, seed: 1, melodic })),
@@ -470,7 +470,7 @@ describe('what cells could not say (E35: the gaps)', () => {
 
   it('gap 2, a line’s articulation under swing (E33’s gap 1), closed in cells v0.6.0 (yggi/cells#120): the written layer and the sounding length are the band’s in every bar, swung or straight', () => {
     const sounding = Object.fromEntries(
-      PRESETS.map((p) => [
+      PROTOTYPE_PRESETS.map((p) => [
         p.name,
         (['bass', 'comp', 'lead'] as const).map(
           (x) => MEASURED.filter((m) => m.run.preset === p.name && m.sounding[x]).length,

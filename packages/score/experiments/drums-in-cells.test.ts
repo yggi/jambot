@@ -4,7 +4,7 @@ import {
   DRUM_ROLES,
   DRUM_VOICES,
   EMPTY_LAYER,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   RHYTHM_REPOSITORY,
   SONG_METER,
   withInstruments,
@@ -43,7 +43,7 @@ const line = (hits: string, voices: string, sound = 's=white', step = '16n') =>
 
 describe("the band's drums as cells text, one bar per preset (E31)", () => {
   it('has a witness for every preset, and between them every role and every sound the drums play', () => {
-    expect(WITNESSES.map((w) => w.preset)).toEqual(PRESETS.map((p) => p.name));
+    expect(WITNESSES.map((w) => w.preset)).toEqual(PROTOTYPE_PRESETS.map((p) => p.name));
     // every role the drummer writes itself: the clave is the composer's line (#397)
     expect(new Set(WITNESSES.flatMap((w) => rolesOf(w.bar)))).toEqual(
       new Set(DRUM_ROLES.filter((role) => role !== 'clave')),

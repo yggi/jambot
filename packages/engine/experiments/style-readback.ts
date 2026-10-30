@@ -34,7 +34,7 @@ import {
   readHarm,
   readStyle,
   readTiming,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   SECTION_BARS,
   type Style,
@@ -164,7 +164,7 @@ export const SEEDS = [1, 2, 3, 4, 5];
 
 /** The presets, each held for `bars` bars, over the seeds. */
 export function presetSamples(bars: number): Sample[] {
-  return PRESETS.flatMap((p) =>
+  return PROTOTYPE_PRESETS.flatMap((p) =>
     SEEDS.flatMap((seed) =>
       samples(
         () => ({ ...p.style, entropy: 0.3 }),
@@ -189,10 +189,10 @@ export function sweepSamples(axis: Axis, bars: number): Sample[] {
  * section takes it the section after.
  */
 function tourTracks(sections: number): { track: StyleTrack; swing: SwingTrack }[] {
-  let track: StyleTrack = holding({ ...PRESETS[0]!.style, entropy: 0.3 });
-  let swing: SwingTrack = holdingSwing(presetSwing(PRESETS[0]!)!);
+  let track: StyleTrack = holding({ ...PROTOTYPE_PRESETS[0]!.style, entropy: 0.3 });
+  let swing: SwingTrack = holdingSwing(presetSwing(PROTOTYPE_PRESETS[0]!)!);
   return range(sections).map((section) => {
-    const preset = PRESETS[section % PRESETS.length]!;
+    const preset = PROTOTYPE_PRESETS[section % PROTOTYPE_PRESETS.length]!;
     const start = barStart(section * SECTION_BARS);
     track = glideTo(track, { ...preset.style }, start, PRESET_GLIDE);
     swing = swingTo(swing, presetSwing(preset)!, start, PRESET_GLIDE);
@@ -317,7 +317,7 @@ export function timingSweep(bars: number): TimingSample[] {
 
 /** The presets, each held in its meter's swing. */
 export function timingPresets(bars: number): TimingSample[] {
-  return PRESETS.flatMap((p) =>
+  return PROTOTYPE_PRESETS.flatMap((p) =>
     SEEDS.slice(0, 3).flatMap((seed) =>
       timingSamples(
         holding({ ...p.style, entropy: 0.3 }),

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { PRESETS, RHYTHM_HOLD, RHYTHM_MISS, LAYER_DISTANCE, SECTION_BARS } from '../src/index.ts';
+import {
+  PROTOTYPE_PRESETS,
+  RHYTHM_HOLD,
+  RHYTHM_MISS,
+  LAYER_DISTANCE,
+  SECTION_BARS,
+} from '../src/index.ts';
 import { aloneByPreset, rhythmRuns, wentBack } from './rhythm-radio.ts';
 
 const RUNS = rhythmRuns();
@@ -42,7 +48,9 @@ describe('the composer asks the repository for its rhythm while the radio walks 
   });
 
   it('plays no clave alone in any section, where 992 did before #428: a line of its own only layers on a drum bar', () => {
-    expect(aloneByPreset(RUNS)).toEqual(Object.fromEntries(PRESETS.map((p) => [p.name, 0])));
+    expect(aloneByPreset(RUNS)).toEqual(
+      Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 0])),
+    );
   });
 
   it('misses in 139 sections, each past the distance of every rhythm that fits the meter, and none where none fits: Spooky drums fits every meter the walk reaches (cells v0.12.0), and the drummer invents past it (E37)', () => {

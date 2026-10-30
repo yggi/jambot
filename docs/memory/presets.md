@@ -6,12 +6,14 @@ The order the rest moves in is the [roadmap](../ROADMAP.md)'s, under _Presets be
 
 ## What a preset is
 
-- `Preset` (`packages/engine/src/style.ts`) has two fields, `name` and `style`, and `PRESETS` holds eight presets.
+- `Preset` (`packages/engine/src/style.ts`) has two fields, `name` and `style`, and `PRESETS` holds ten presets: the prototype's eight (`PROTOTYPE_PRESETS`), then Electro swing and Spooky (#517), two points cells' seeds sit at (yggi/cells#305, #349).
+  A new preset is a row: a name and a point, nothing else; at Electro swing's point the repository finds `4/4 swung on 8n`, `Electro swing drums` (its clap the backbeat, #508), the `walking bass` and harmonic minor (read as aeolian, #516), and at Spooky's `5/4`, `Spooky drums`, the `creeping bass` and harmonic minor; each harmony is the generator's (#517, the owner's ruling).
+  The experiments and the tests that hold what `main` plays are recorded over the prototype's eight.
   Its `swing` left it in rung 2 (#459): a preset's swing is the meter's found at its point (`presetSwing`, `repository.ts`).
   Its `mode` left it next (#420): a preset's mode is the one the facet `mode` finds at its point (`presetMode`, `mode-repository.ts`), from cells' mode fragments (v0.9.0, decision 056).
 - `style` is five axes, `sync`, `harm`, `artic`, `energy` and `bpm`; entropy stays where the players put it.
 - Nothing in `packages/*/src` or `apps/*/src` branches on a preset's name: a preset reaches what plays only through its point, and its swing and its mode are found there.
-- So what is decided by hand per preset is the `PRESETS` table alone: eight names and eight points; the five swings (16n at 1/2, 0.6, 31/60 and 0.65, and 8n at 2/3) are the meter fragments' found at the points, and the three modes (aeolian, dorian, ionian; no preset finds mixolydian) the mode fragments', each at distance 0.
+- So what is decided by hand per preset is the `PRESETS` table alone: ten names and ten points; of the prototype's eight, the five swings (16n at 1/2, 0.6, 31/60 and 0.65, and 8n at 2/3) are the meter fragments' found at the points, and the three modes (aeolian, dorian, ionian; no preset finds mixolydian) the mode fragments', each at distance 0.
 - Cells copies the eight points without `bpm` (`src/repository/presets.ts` there, lifted @ 7b078e8), and each seed fragment's association writes them as numbers, so a point moved here moves no fragment there.
 - `bpm` stays on the point: a fragment's style has no tempo (cells decision 037), so no query reads it.
 - 23 experiments and 26 test files read a preset's `swing` or `mode` at the inventory; of them, 19 experiments and 18 test files read its `swing`, and now read `presetSwing` (#459), and those that read its `mode` now read `presetMode`.

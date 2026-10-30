@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LAYER_CAP, layerBytes } from '../src/layer.ts';
-import { PRESETS } from '../src/style.ts';
+import { PROTOTYPE_PRESETS } from '../src/style.ts';
 import { COMPOSER } from '../src/facet.ts';
 import {
   type RhythmRun,
@@ -43,7 +43,9 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
   });
 
   it('plays no clave alone in any section: a line of its own only layers on a drum bar (#428; on main at 9e26a40, 95 sections an hour at Funk, 120 at Bossa nova)', () => {
-    expect(aloneByPreset(CLIMBING)).toEqual(Object.fromEntries(PRESETS.map((p) => [p.name, 0])));
+    expect(aloneByPreset(CLIMBING)).toEqual(
+      Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 0])),
+    );
   });
 
   it('plays each preset’s own drum bar for 10 sections, then the composer’s variation of it, filed in the layer as varying it', () => {
@@ -86,7 +88,9 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
   });
 
   it('keeps 74 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
-    expect(drumOverlap(MAIN, MAIN)).toEqual(Object.fromEntries(PRESETS.map((p) => [p.name, 1])));
+    expect(drumOverlap(MAIN, MAIN)).toEqual(
+      Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
+    );
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0.93,
       Techno: 0.91,
