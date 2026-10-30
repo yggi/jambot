@@ -7,7 +7,7 @@ import { BASS_REPOSITORY, readLine } from './bass-lines.ts';
 import { chordsOn } from './chords.ts';
 import { HARMONY_REPOSITORY } from './progressions.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
-import { LEAD_REPOSITORY, leadText } from './lead-lines.ts';
+import { LEAD_REPOSITORY, MOTIF_LEADS, leadText } from './lead-lines.ts';
 import type { LeadNote } from './lead-query.ts';
 import { stylePoint } from './meter-query.ts';
 import { presetMode } from './mode-repository.ts';
@@ -80,7 +80,7 @@ function played(name: string, bars: number): BandBar[] {
 }
 
 describe('a member’s library (libraryOf)', () => {
-  it('holds cells’ seeds of its facet alone, each of them', () => {
+  it('holds cells’ seeds of its facet alone, each of them, and the lead cells’ motifs (#520)', () => {
     const counts = LOOP_FACETS.map((f) => libraryOf(f).length);
     expect(counts).toEqual(
       LOOP_FACETS.map(
@@ -88,6 +88,7 @@ describe('a member’s library (libraryOf)', () => {
           SEED_FRAGMENTS.filter((f) => f.association.some((p) => p.facet === facet)).length,
       ),
     );
+    expect(libraryOf('lead')).toEqual(MOTIF_LEADS);
     for (const facet of LOOP_FACETS)
       for (const f of libraryOf(facet))
         expect(f.association.some((p) => p.facet === facet)).toBe(true);
@@ -99,7 +100,7 @@ describe('a member’s library (libraryOf)', () => {
   it('adds what the layer filed of its facet, and nothing of another’s', () => {
     const counts = LOOP_FACETS.map((f) => libraryOf(f, WITH_LINE).length);
     expect(counts).toEqual(LOOP_FACETS.map((f) => libraryOf(f).length + (f === 'lead' ? 1 : 0)));
-    expect(libraryOf('lead', WITH_LINE)[0]!.text).toBe(leadText(LINE, 16));
+    expect(libraryOf('lead', WITH_LINE)[MOTIF_LEADS.length]!.text).toBe(leadText(LINE, 16));
   });
 });
 
@@ -309,7 +310,10 @@ describe('what each member played lately (heardTexts, playedInto)', () => {
   it('joins a member’s library after its seeds and filings, each text once, and no other member’s', () => {
     const text = leadText(LINE, 16);
     const lately = { ...NOTHING_LATELY, lead: [text, text] };
-    expect(libraryOf('lead', undefined, lately).map((f) => f.text)).toEqual([text]);
+    expect(libraryOf('lead', undefined, lately).map((f) => f.text)).toEqual([
+      ...MOTIF_LEADS.map((f) => f.text),
+      text,
+    ]);
     expect(libraryOf('bass', undefined, lately)).toEqual(libraryOf('bass'));
   });
 

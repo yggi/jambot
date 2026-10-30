@@ -15,6 +15,7 @@ import {
 import type { RhythmRepository } from './rhythm-query.ts';
 import { RHYTHM_BENCHES, RHYTHM_REPOSITORY, rhythmRepository } from './rhythms.ts';
 import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
+import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
 import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
 import { LIBRARY } from '@yggi/cells/repository/library';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
@@ -48,12 +49,13 @@ function events(env: TransportEnv): TimedEvent[] {
 }
 
 describe("cells' seed, as a screen reads it", () => {
-  it('holds every meter, then every rhythm, every bass line, then every harmony, each once and with its text', () => {
+  it('holds every meter, then every rhythm, every bass line, every harmony, then every motif as a lead line, each once and with its text', () => {
     expect(SEED_FRAGMENTS.map((f) => f.id)).toEqual([
       ...METER_READINGS.map((r) => r.id),
       ...RHYTHM_FRAGMENTS.map((f) => f.id),
       ...BASS_FRAGMENTS.map((f) => f.id),
       ...HARMONY_FRAGMENTS.map((f) => f.id),
+      ...MOTIF_FRAGMENTS.map((f) => f.id),
     ]);
     expect(new Set(SEED_FRAGMENTS.map((f) => f.id)).size).toBe(SEED_FRAGMENTS.length);
     for (const f of SEED_FRAGMENTS) expect(f.text.length, f.id).toBeGreaterThan(0);

@@ -1,10 +1,10 @@
-import { METERS } from '@jambot/theory';
+import { METERS, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandCarried, type BandEnv, band } from './band.ts';
 import { COMPOSER } from './facet.ts';
 import { SECTION_BARS } from './form.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
-import { LEAD_REPOSITORY, leadText } from './lead-lines.ts';
+import { LEAD_REPOSITORY, MOTIF_LEADS, leadRepository, leadText } from './lead-lines.ts';
 import type { LeadNote } from './lead-query.ts';
 import { stylePoint } from './meter-query.ts';
 import type { HeardNote } from './muse.ts';
@@ -14,7 +14,7 @@ import { LEAD_TAG } from './plan.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
-import { PROTOTYPE_PRESETS, type Style, holding, writtenStyle } from './style.ts';
+import { PRESETS, PROTOTYPE_PRESETS, type Style, holding, writtenStyle } from './style.ts';
 import { holdingSwing } from './swing.ts';
 import { presetMode } from './mode-repository.ts';
 import {
@@ -27,6 +27,8 @@ import {
 } from './transport.ts';
 
 const range = (n: number) => [...Array(n).keys()];
+/** The lead's repository without cells' motifs: what the layer files alone, which most of these tests measure. */
+const FILED = leadRepository([]);
 const byName = (name: string) => PROTOTYPE_PRESETS.find((p) => p.name === name)!;
 const SYNTH_POP = byName('Synth-pop');
 
@@ -73,17 +75,17 @@ const held = (extra: Partial<TransportEnv> = {}) =>
 /** Main's events as `layer.test.ts` and `bass-loop.test.ts` record them: every part, the presets held at entropy 0. */
 const MAIN_STILL = [15612, '32d83dee'] as const;
 
-describe('the lead in the loop with nothing filed plays what main plays (#424)', () => {
+describe('the lead in the loop with no seed and nothing filed plays what main plays (#424)', () => {
   const lead = (all: readonly TimedEvent[]) => all.filter((e) => e.event.part === 'lead');
 
   it('plays every event main plays with the lead lines and an empty layer, nobody playing: 15,612, each to 1e-9 s, over 8 presets × 2 seeds × 32 bars', () => {
-    const loop = held({ leads: LEAD_REPOSITORY });
+    const loop = held({ leads: FILED });
     expect([loop.length, hashOf(loop)]).toEqual(MAIN_STILL);
   });
 
   it('plays every lead event the bass’s loop plays, with the bass lines beside it', () => {
     const bass = held({ bassLines: BASS_REPOSITORY });
-    const both = held({ bassLines: BASS_REPOSITORY, leads: LEAD_REPOSITORY });
+    const both = held({ bassLines: BASS_REPOSITORY, leads: FILED });
     expect([both.length, hashOf(both)]).toEqual([bass.length, hashOf(bass)]);
     expect(lead(both).length).toBeGreaterThan(0);
   });
@@ -109,7 +111,7 @@ function play(
         offer: null,
         repository: METER_REPOSITORY,
         rhythms: RHYTHM_REPOSITORY,
-        leads: LEAD_REPOSITORY,
+        leads: FILED,
         layer: EMPTY_LAYER,
         ...extra,
       },
@@ -174,7 +176,7 @@ function song(seed = 3, source = 'Ada', shift = 0): LearnedLayer {
     wish: { tonic: null, mode: presetMode(SYNTH_POP)!, melodic: null },
     repository: METER_REPOSITORY,
     rhythms: RHYTHM_REPOSITORY,
-    leads: LEAD_REPOSITORY,
+    leads: FILED,
     layer: EMPTY_LAYER,
   };
   let carried: TransportCarried | null = transport.initial;
@@ -233,25 +235,29 @@ describe('the Muse files a player’s motif as a lead line, and it comes back in
     }
   });
 
-  it('plays the line as its phrase: the line, a variation, the line again, a variation', () => {
+  it('plays the line in cells’ call and answer: the call, its answer two degrees down, the call again, the answer varied (#520)', () => {
     const run = play(4 * SECTION_BARS, { ...SYNTH_POP.style, entropy: 0.3 }, { layer }, 5);
     const at = phraseStarts(run, ada.fragment.id)[0]!;
     expect(at).toBeDefined();
-    const lines = range(4).map((k) => {
-      const bar = run[at + k]!.bar;
-      return leadOf(
-        bar.written.filter((n) => n.part === 'lead'),
-        bar.plan.key,
-      );
-    });
-    expect(lines[0]).toEqual(ADA_LINE);
-    expect(lines[2]).toEqual(ADA_LINE);
-    expect(lines[1]).not.toEqual(ADA_LINE);
+    const bars = range(4).map((k) => run[at + k]!.bar);
+    const lead = (k: number) => bars[k]!.written.filter((n) => n.part === 'lead');
+    expect(leadOf(lead(0), bars[0]!.plan.key)).toEqual(ADA_LINE);
+    expect(leadOf(lead(2), bars[2]!.plan.key)).toEqual(ADA_LINE);
+    // the call and its answer heard as one line: the answer's notes two degrees below the call's, but its last, which
+    // the phrase's cadence closes on a chord tone
+    const both = leadOf(
+      [...lead(0), ...lead(1).map((n) => ({ ...n, step: n.step + 16 }))],
+      bars[0]!.plan.key,
+    );
+    expect(both.slice(ADA_LINE.length, -1)).toEqual(
+      ADA_LINE.slice(0, -1).map((n) => ({ ...n, step: n.step + 16, degree: n.degree - 2 })),
+    );
+    expect(leadOf(lead(3), bars[3]!.plan.key)).not.toEqual(ADA_LINE);
   });
 });
 
 describe('the lead is the generator on a miss, filed only where the players answered it (#424)', () => {
-  it('finds no line with nothing filed, plays its own, and files nothing of it where nobody played', () => {
+  it('finds no line with no seed and nothing filed, plays its own, and files nothing of it where nobody played', () => {
     const run = play(4 * SECTION_BARS, { ...SYNTH_POP.style, entropy: 0.3 });
     expect(leadsOf(run)).toEqual(['-', '-', '-', '-']);
     expect(leadLines(run.at(-1)!.carried.plans.layer!)).toEqual([]);
@@ -264,7 +270,7 @@ describe('the lead is the generator on a miss, filed only where the players answ
 
 describe('the composer tires of a lead line: varies it by lift or turn over, then rejects it (#424)', () => {
   const point = stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 1 }));
-  const seeded = LEAD_REPOSITORY.file!(EMPTY_LAYER, {
+  const seeded = FILED.file!(EMPTY_LAYER, {
     notes: ADA_LINE,
     bench: { meter: METERS['4/4'], meterFragment: '4/4' },
     point,
@@ -291,5 +297,74 @@ describe('the composer tires of a lead line: varies it by lift or turn over, the
     expect(v.meta.source).toBe(COMPOSER);
     expect(v.meta[BY]).toMatch(/^(transpose &lead 2|invert &lead)$/);
     expect(v.meta.tags).toEqual([LEAD_TAG]);
+  });
+});
+
+describe('cells’ motifs are the lead’s lines (#520)', () => {
+  /** Each preset's motif, the one cells wrote at its point. */
+  const MOTIFS: Record<string, string> = {
+    'Synth-pop': 'hook',
+    Techno: 'octaves',
+    'Deep house': 'sigh',
+    Ambient: 'rising',
+    'Lo-fi hip hop': 'lazy',
+    Funk: 'riff',
+    'Bossa nova': 'tresillo',
+    'Swing jazz': 'bebop',
+    'Electro swing': 'gypsy',
+    Spooky: 'diesIrae',
+  };
+
+  it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape and its second the answer: in 4/4, and the Dies irae in Spooky’s 5/4', () => {
+    expect(Object.keys(MOTIFS)).toEqual(PRESETS.map((p) => p.name));
+    for (const preset of PRESETS) {
+      const id = MOTIFS[preset.name]!;
+      const run = play(
+        4 * SECTION_BARS,
+        { ...preset.style, entropy: 0 },
+        { leads: LEAD_REPOSITORY },
+        1,
+        preset,
+      );
+      expect(leadsOf(run), preset.name).toEqual([id, id, id, id]);
+      const meter = run[0]!.bar.plan.meter;
+      if (preset.name === 'Spooky') expect(meter).toEqual(METERS['5/4']);
+      const line = LEAD_REPOSITORY.read(id, meter, EMPTY_LAYER)!.notes;
+      const first = line[0]!.degree;
+      const starts = phraseStarts(run, id);
+      expect(starts.length, preset.name).toBeGreaterThan(0);
+      for (const at of starts) {
+        const bar = run[at]!.bar;
+        expect(
+          leadOf(
+            bar.written.filter((n) => n.part === 'lead'),
+            bar.plan.key,
+          ),
+          `${preset.name}, bar ${at}`,
+        ).toEqual(line.map((n) => ({ ...n, degree: n.degree - first })));
+        // and the next its answer, two degrees down (#520, rung 2), heard with the call as one line; its last note the
+        // cadence's
+        const steps = stepsOf(meter);
+        const both = leadOf(
+          [
+            ...bar.written.filter((n) => n.part === 'lead'),
+            ...run[at + 1]!.bar.written.filter((n) => n.part === 'lead').map((n) => ({
+              ...n,
+              step: n.step + steps,
+            })),
+          ],
+          bar.plan.key,
+        );
+        expect(both.slice(line.length, -1), `${preset.name}, bar ${at + 1}`).toEqual(
+          line
+            .slice(0, -1)
+            .map((n) => ({ ...n, step: n.step + steps, degree: n.degree - first - 2 })),
+        );
+      }
+    }
+  });
+
+  it('holds every motif of cells', () => {
+    expect(MOTIF_LEADS.map((f) => f.id).sort()).toEqual(Object.values(MOTIFS).sort());
   });
 });

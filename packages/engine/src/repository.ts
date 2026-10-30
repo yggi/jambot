@@ -44,6 +44,7 @@ import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
+import { MOTIF_LEADS } from './lead-lines.ts';
 import {
   MISS_DISTANCE,
   type MeterFragment,
@@ -172,12 +173,13 @@ export function presetSwing(
 
 export type { Fragment };
 
-/** Cells' seed, its meters, its rhythms, its bass lines (#423), then its harmonies (#425), each with its text and the points it is found at: what a screen shows of a fragment the band took. */
+/** Cells' seed, its meters, its rhythms, its bass lines (#423), its harmonies (#425), then its motifs as lead lines (#520), each with its text and the points it is found at: what a screen shows of a fragment the band took. */
 export const SEED_FRAGMENTS: readonly Fragment[] = [
   ...METER_FRAGMENTS,
   ...RHYTHM_FRAGMENTS,
   ...BASS_FRAGMENTS,
   ...HARMONY_FRAGMENTS,
+  ...MOTIF_LEADS,
 ];
 
 /**

@@ -45,7 +45,7 @@ import { bass, playBass } from './bass.ts';
 import { type LineNote, type LineRepository, sectionNotes } from './bass-query.ts';
 import { comp } from './comp.ts';
 import { type LeadCarried, inventedBar, lead, playLead } from './lead.ts';
-import { type LeadNote, type LeadRepository, leadMotif } from './lead-query.ts';
+import { type LeadNote, type LeadRepository, leadPhrase } from './lead-query.ts';
 import { type HeardLeadBar, SOLOIST, leadOf } from './muse-lead.ts';
 import type { HarmonyRepository } from './harmony-query.ts';
 import { type HeardHarmonyBar, sectionHarmony } from './muse-harmony.ts';
@@ -496,7 +496,7 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
     const bassline = playBass(bar, carried.parts.bass, line);
     const comping = comp.advance(bar, carried.parts.comp, null);
     const figure = env.leads
-      ? leadMotif(
+      ? leadPhrase(
           env.leads,
           at.leadFragment ?? undefined,
           bar.meter,
