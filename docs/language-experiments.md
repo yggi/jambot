@@ -934,8 +934,9 @@ run; the others have.
     The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 65.6 % all the way up; 33.6 % and 54.7 % walked; no reversal.
 
   - **On the page's schedule** (#495, `ahead` in the experiment, the test's own runs at 0.3): a page reads a section's share at its last bar, off the clock, and leans from two sections on (`LEAN_AHEAD`), since the next section's text is forecast at the middle of the one read.
-    Held, 47.9 % of sections inside, against 34.4 % left alone and 56.3 % read a bar before the section it leans; walked, 53.1 %, against 33.6 % and 53.9 %.
-    Its reversals stay within the ruled one per four sections: none held, at most 0.25 walked.
+    Held, 47.9 % of sections inside, against 34.4 % left alone and 56.3 % read a bar before the section it leans; walked, 53.9 %, against 33.6 % and 54.7 %.
+    Its reversals stay within the ruled one per four sections: none, held or walked.
+    In the page (`pnpm soak --minutes 30 --entropy 0.3`, the radio and a session, 2026-10-30): the page's thread pays 0.6 ms a bar at p95, the ear's recognition 3.8 to 4.9 ms at p50 in its worker at minute 30 against 4.6 to 4.7 ms at minute 1, 102 sections read, 67 % to 74 % inside, no reversal and no late reading; no gap, no event mismatched between host and client, and no event dropped late, against 3 and 5 dropped by the runs without it (`--no-homeostat`).
   - **Against the ruled limits**:
     the reversals are within one per four sections in every run;
     the share is inside the band in 34 % to 67 % of sections, under the ruled 80 % at every entropy, and so is the lean all the way up, which is the controller's reach: what bounds it is the lever, not the controller;

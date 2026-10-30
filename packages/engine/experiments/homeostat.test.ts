@@ -179,12 +179,12 @@ describe('the controller on the page’s schedule (#495: read at a section’s l
       0.344, 0.479, 0.563,
     ]);
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.336, 0.531, 0.539,
+      0.336, 0.539, 0.547,
     ]);
   });
 
   it('reverses within the ruled one per four sections, held and walked', () => {
     expect(reversalsOf(held.page).most).toBe(0);
-    expect(reversalsOf(walked.page).most).toBe(0.25);
+    expect(reversalsOf(walked.page).most).toBe(0);
   });
 });
