@@ -11,7 +11,7 @@ import {
   instrumentsFor,
   withInstruments,
 } from './instruments.ts';
-import { PRESETS, PROTOTYPE_PRESETS } from './style.ts';
+import { PRESETS } from './style.ts';
 
 const errors = (text: string) =>
   compileSource(text)
@@ -66,51 +66,36 @@ describe('the instruments a section’s performers play, found at its style (#49
     association: [{ point, weight: 0.125, facet: 'instrument' }],
   };
 
-  it.each(PROTOTYPE_PRESETS.map((p) => p.name))(
-    'at %s, every performer plays its own instrument',
+  /** The instruments cells wrote for two presets' points (yggi/cells#366): elsewhere each performer plays its own. */
+  const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
+    'Electro swing': { bass: 'upright bass', lead: 'clarinet', stab: 'brass stab' },
+    Spooky: { bass: 'round bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
+  };
+
+  it.each(PRESETS.map((p) => p.name))(
+    'at %s, a performer plays the instrument found at its point where it isn’t its own, its own elsewhere',
     (name) => {
-      expect(instrumentsAt(PRESETS.find((p) => p.name === name)!.style)).toEqual({});
-      expect(
-        instrumentsAt(PRESETS.find((p) => p.name === name)!.style, [
-          ...INSTRUMENT_FRAGMENTS,
-          theirs,
-        ]),
-      ).toEqual({});
+      const style = PRESETS.find((p) => p.name === name)!.style;
+      for (const library of [INSTRUMENT_FRAGMENTS, [...INSTRUMENT_FRAGMENTS, theirs]]) {
+        const found = instrumentsAt(style, library);
+        expect(
+          Object.fromEntries(Object.entries(found).map(([part, { id }]) => [part, id])),
+        ).toEqual(FOUND[name] ?? {});
+        // (the line each plays is the one its instrument defines the performer's voice with)
+        for (const [part, { id, line }] of Object.entries(found))
+          expect(line).toBe(
+            lineOf(id, PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES].voice),
+          );
+        // (and holds its performer's own instrument's register, so MIDI out sends the same notes)
+        for (const [part, { line }] of Object.entries(found)) {
+          const { own, voice } = PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES];
+          expect(/loop=(\S+)/.exec(line)![1], `${name} ${part}`).toBe(
+            /loop=(\S+)/.exec(lineOf(own, voice))![1],
+          );
+        }
+      }
     },
   );
-
-  it('at Electro swing, the bass plays the upright bass, the stab the brass stab and the lead the clarinet; at Spooky, the round bass, the organ, the celesta and the theremin (yggi/cells#350)', () => {
-    const ids = (name: string) =>
-      Object.fromEntries(
-        Object.entries(instrumentsAt(PRESETS.find((p) => p.name === name)!.style)).map(
-          ([part, i]) => [part, i.id],
-        ),
-      );
-    expect(ids('Electro swing')).toEqual({
-      bass: 'upright bass',
-      stab: 'brass stab',
-      lead: 'clarinet',
-    });
-    expect(ids('Spooky')).toEqual({
-      bass: 'round bass',
-      pad: 'organ',
-      stab: 'celesta',
-      lead: 'theremin',
-    });
-    // (each holds its own instrument's register, so MIDI out sends the same notes)
-    for (const name of ['Electro swing', 'Spooky'])
-      for (const [part, { line }] of Object.entries(
-        instrumentsAt(PRESETS.find((p) => p.name === name)!.style),
-      ))
-        expect(/loop=(\S+)/.exec(line)![1], `${name} ${part}`).toBe(
-          /loop=(\S+)/.exec(
-            lineOf(
-              PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES].own,
-              PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES].voice,
-            ),
-          )![1],
-        );
-  });
 
   it('at an instrument’s own point, the performer whose voice it defines plays it, and the others their own', () => {
     expect(instrumentsAt(point, [...INSTRUMENT_FRAGMENTS, theirs])).toEqual({

@@ -9,7 +9,6 @@ import {
   type BandBar,
   type BandCarried,
   PRESETS,
-  PROTOTYPE_PRESETS,
   SECTION_BARS,
   LEAD_LEVEL,
   type MeterSwing,
@@ -442,21 +441,37 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     '&keysV s=square loop=C3 lpf=2400 lpq=3 env=&(map=adsr .02 .2 .7 .15) pitch=&(map=lin loop=5.5 0 .12 0 -.12 0)';
   const BASS = '&bassV s=saw loop=C2 lpf=300..1200 * &bassMove';
 
-  it.each(PROTOTYPE_PRESETS.map((p) => p.name))(
-    'gives no pitched note of %s’s section a sound, nor any drum hit: its voices hold a register, so the synth colours it by the style',
+  // (the instruments found at two presets' points, yggi/cells#366, by the waveform each plays: elsewhere a voice
+  // holds a register only, and the synth colours it by the style)
+  const WAVES: Record<string, Record<string, string>> = {
+    'Electro swing': { bass: 'sawtooth', lead: 'square', stab: 'sawtooth' },
+    Spooky: { bass: 'triangle', lead: 'sine', pad: 'square', stab: 'sine' },
+  };
+
+  it.each(PRESETS.map((p) => p.name))(
+    'gives %s’s pitched notes the sound of the instrument found at its style, every note of the performer, and no drum hit one',
     (name) => {
       const bars = section(name);
       const played = playSection(sectionTextOf(sectionAsCells(bars)), bars);
-      expect(played.bars.flatMap((b) => b.sounds).filter((s) => s !== undefined)).toEqual([]);
+      const waves = new Map<string, Set<string | undefined>>();
+      for (const b of played.bars)
+        b.sounds.forEach((sound, j) => {
+          const line = b.lines[j]!;
+          if (!waves.has(line)) waves.set(line, new Set());
+          waves.get(line)!.add(sound?.wave);
+        });
+      const want = WAVES[name] ?? {};
+      for (const [line, heard] of waves)
+        expect([...heard], `${name}: ${line}`).toEqual([want[line]]);
+      // (and heard: the first section plays the bass and the stab or the pad, the lead coming in later)
+      if (name in WAVES)
+        expect(Object.keys(want).filter((line) => waves.has(line)).length).toBeGreaterThan(1);
     },
   );
 
-  it.each([
-    ['Electro swing', { bass: 'sawtooth', stab: 'sawtooth', lead: 'square' }],
-    ['Spooky', { bass: 'triangle', pad: 'square', stab: 'sine', lead: 'sine' }],
-  ] as const)(
-    'plays %s’s section on the instruments found at its point: each pitched note in its instrument’s sound, no drum hit with one, and the same notes as on the performers’ own (yggi/cells#350)',
-    (name, waves) => {
+  it.each(['Electro swing', 'Spooky'])(
+    'plays %s’s section on its instruments with the same notes as on the performers’ own (yggi/cells#350)',
+    (name) => {
       const bars = section(name);
       const text = sectionAsCells(bars);
       const voiced = playSection(sectionTextOf(text), bars);
@@ -469,14 +484,6 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
       expect(own.lines.length).toBeLessThan(text.lines.length);
       const plain = playSection(sectionTextOf(own), bars);
       expect(voiced.bars.map((b) => b.notes)).toEqual(plain.bars.map((b) => b.notes));
-      let heard = 0;
-      for (const b of voiced.bars)
-        for (const [j, line] of b.lines.entries()) {
-          const wave = line === 'drums' ? undefined : (waves as Record<string, string>)[line];
-          expect(b.sounds[j]?.wave, `${line} at ${b.notes[j]!.step}`).toBe(wave);
-          if (wave) heard++;
-        }
-      expect(heard).toBeGreaterThan(0);
     },
   );
 
