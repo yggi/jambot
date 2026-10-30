@@ -931,7 +931,7 @@ run; the others have.
     | 0.3, walked      | 36.5 %     | 58.2 % | 61.7 %                | 0                             |
 
     Before #520, with the lead's library empty: 27.7 %, 52.7 %, 74.2 % and 48.8 % left alone, 47.3 %, 64.1 %, 75.4 % and 65.8 % closed; the lead's motifs heard, and its call answered (#520), make the band left alone more bored, and the controller brings it in less far.
-    The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 65.6 % all the way up; 33.6 % and 53.9 % walked; no reversal.
+    The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 65.6 % all the way up; 33.6 % and 54.7 % walked; no reversal.
 
   - **Against the ruled limits**:
     the reversals are within one per four sections in every run;

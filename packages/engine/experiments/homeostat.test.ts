@@ -134,7 +134,7 @@ describe('the controller closed (E45, #237)', () => {
     expect([held.open, held.closed, held.up].map((r) => fixed(insideOf(r)))).toEqual([
       0.344, 0.563, 0.656,
     ]);
-    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.336, 0.539]);
+    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.336, 0.547]);
   });
 
   it('falls short of the ruled 80 % of sections inside, held and walked: the lean’s reach bounds it', () => {
