@@ -3,7 +3,9 @@
  * and its themes' melodies.
  *
  * A phrase is four bars: a shape, a variation of it, the shape again, and
- * another variation. A shape is a motif of one bar (U4), and the lead
+ * another variation; a line the composer found is played in cells' call and
+ * answer instead (#520, rung 2): the call, its answer, the call, the answer
+ * varied. A shape is a motif of one bar (U4), and the lead
  * `realize`s every motif it plays, its own and the Muse's, the same way. A
  * shape is a rhythm, the style's grooves blended with a Euclidean pattern
  * that fills with energy, and a contour over it (an arch, a fall, a rise or
@@ -171,6 +173,10 @@ export interface LeadCarried {
   readonly last: number;
   /** The shape of the phrase playing, or none while resting. */
   readonly phrase: LeadShape | null;
+  /** The bars of the form a found line plays in (#520, rung 2), the call first: none for the lead's own phrase or a line played alone. */
+  readonly form?: readonly LeadShape[] | null;
+  /** Where the form's call started, on the scale it is played on: the answer is played from there, so it keeps its place below the call. */
+  readonly anchor?: number | null;
   /** Each theme's melody: the theme it belongs to, and its shape. */
   readonly melodies: Partial<
     Record<ThemeKind, { readonly theme: number; readonly shape: LeadShape }>
@@ -430,21 +436,27 @@ function nearestOf(classes: readonly number[], near: number): number {
  * by octaves on its own. The lead's range, 60–86, is over an octave wide,
  * so every note fits, and folding by octaves keeps each note's pitch class.
  */
-function intoRange(notes: readonly number[], [low, high]: PhraseParams['range']): number[] {
+function intoRange(
+  notes: readonly number[],
+  [low, high]: PhraseParams['range'],
+  held = false,
+  along: readonly number[] = [],
+): { notes: number[]; octaves: number } {
   const inside = (shift: number) =>
-    notes.filter((n) => n + shift >= low && n + shift <= high).length;
+    [...notes, ...along].filter((n) => n + shift >= low && n + shift <= high).length;
   let best = 0;
-  for (let octaves = -4; octaves <= 4; octaves++) {
+  for (let octaves = -4; octaves <= 4 && !held; octaves++) {
     const shift = 12 * octaves;
     const better = inside(shift) - inside(best);
     if (better > 0 || (better === 0 && Math.abs(shift) < Math.abs(best))) best = shift;
   }
-  return notes.map((n) => {
+  const ranged = notes.map((n) => {
     let note = n + best;
     while (note > high) note -= 12;
     while (note < low) note += 12;
     return note;
   });
+  return { notes: ranged, octaves: best / 12 };
 }
 
 /** Whether the lead rests in a bar: in an intro, a breakdown, and below energy 0.4. */
@@ -500,7 +512,14 @@ export function fit(
  * close as the phrase grammar says, and the phrase moves into the lead's
  * range.
  */
-function realize(motif: Motif, env: BarEnv, last: number, own: boolean) {
+function realize(
+  motif: Motif,
+  env: BarEnv,
+  last: number,
+  own: boolean,
+  anchor?: number,
+  form: readonly Motif[] = [],
+) {
   const { plan, barInSection, meter, bar } = env;
   const chords = chordsOn(env.chords, meter);
   const steps = stepsOf(meter);
@@ -508,14 +527,27 @@ function realize(motif: Motif, env: BarEnv, last: number, own: boolean) {
   const { onsets, degrees, accidentals, accents } = motifInBar(motif, steps, bar);
   const scale = own ? params.scale : keyHelix(plan.key);
   const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
-  if (heard.length === 0) return { written: [], last };
-  const first = snap(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
+  if (heard.length === 0) return { written: [], last, anchor: anchor ?? null };
+  const first = anchor ?? snap(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
   const realized = heard.map(({ step, i }) => ({
     step,
     note: alteredHeight(scale, first + degrees[i]!, accidentals[i]!),
   }));
   let notes = own ? fit(realized, chords, params.snap) : realized.map((r) => r.note);
-  notes = intoRange(cadence(notes, heard.at(-1)!.step, chords, barInSection % 4), params.range);
+  // (a bar played from its call's anchor keeps the call's octave, which the anchor carries: only a note out of range folds)
+  // (and a call picks its octave for the whole form, its answer's notes counted beside its own)
+  const along = form.flatMap((bar) =>
+    bar.degrees.flatMap((d, i) =>
+      d === null ? [] : [alteredHeight(scale, first + d, bar.accidentals[i] ?? 0)],
+    ),
+  );
+  const ranged = intoRange(
+    cadence(notes, heard.at(-1)!.step, chords, barInSection % 4),
+    params.range,
+    anchor !== undefined,
+    along,
+  );
+  notes = ranged.notes;
   const written: WrittenNote[] = heard.map(({ step, i }, j) => ({
     part: 'lead',
     step,
@@ -526,7 +558,7 @@ function realize(motif: Motif, env: BarEnv, last: number, own: boolean) {
     // beat's, so leaving out a 0 would change how it plays.
     ...(own ? {} : { accent: accents?.[i] ?? 0 }),
   }));
-  return { written, last: notes.at(-1)! };
+  return { written, last: notes.at(-1)!, anchor: first + ranged.octaves * scale.heights.length };
 }
 
 /** Where the lead starts before it has played: the A above middle C. */
@@ -537,53 +569,93 @@ const FIRST_LAST = 69;
  * section plays from (#424), if the composer found one (`leadMotif`). A
  * motif the Muse offers is played whole while it stands, even where the
  * lead would rest, and the lead's own phrase starts afresh after it. Where
- * a line was found, it is the phrase's shape, played as the lead plays its
- * own (shape, variation, shape, variation), but realized as a player's
- * motif, in the key's degrees; where none was, the lead's own shape, or a
+ * a line was found, it is the phrase's shape, realized as a player's motif,
+ * in the key's degrees. Played in a form (#520, rung 2, `leadPhrase`), the
+ * phrase is the form's bars in turn: the call and its answer, the call
+ * again and the answer varied by the lead's own variations; the answer from
+ * where the call started (its `anchor`), so it keeps its place below it.
+ * Alone, the line is played as the lead plays its own (shape, variation,
+ * shape, variation). Where none was found, the lead's own shape, or a
  * theme's melody returning.
  */
 export function playLead(
   env: BarEnv,
   carried: LeadCarried,
-  figure: Motif | null = null,
+  figure: Motif | readonly Motif[] | null = null,
   fragment?: string,
 ): { carried: LeadCarried; output: WrittenNote[] } {
   const { plan, style, barEnergy: energy, barInSection, offer } = env;
   if (offer) {
     const { written, last } = realize(offer.motif, env, carried.last, false);
     return {
-      carried: { ...carried, last, phrase: null, offered: offer.bar },
+      carried: { ...carried, last, phrase: null, form: null, anchor: null, offered: offer.bar },
       output: written,
     };
   }
   const { section, theme } = plan;
   if (leadRests(section.type, energy))
-    return { carried: { ...carried, phrase: null, offered: null }, output: [] };
+    return {
+      carried: { ...carried, phrase: null, form: null, anchor: null, offered: null },
+      output: [],
+    };
 
+  const bars = figure === null ? [] : 'cycle' in figure ? [figure] : figure;
   const phase = barInSection % 4;
   let { phrase, melodies } = carried;
+  let form = carried.form ?? null;
   let shape: LeadShape;
-  if (phase === 0 || !phrase) {
+  const fresh = phase === 0 || !phrase;
+  if (fresh) {
     const kept = melodies[theme.kind];
     const returns =
       kept &&
       kept.theme === theme.index &&
       Math.abs(kept.shape.sync - style.sync) < 0.25 &&
       Math.abs(kept.shape.energy - energy) < 0.3;
-    if (figure) {
-      const { steps, degrees, accidentals } = notesOf({ ...figure, sync: 0, energy: 0 });
-      shape = shapeFrom(steps, degrees, style.sync, energy, figure.cycle, accidentals, fragment);
+    form = null;
+    if (bars.length) {
+      const shapes = bars.map((bar) => {
+        const { steps, degrees, accidentals } = notesOf({ ...bar, sync: 0, energy: 0 });
+        return shapeFrom(steps, degrees, style.sync, energy, bar.cycle, accidentals, fragment);
+      });
+      shape = shapes[0]!;
+      if (shapes.length > 1) form = shapes;
     } else if (returns) shape = kept.shape;
     else {
       shape = shapeOf(env);
       melodies = { ...melodies, [theme.kind]: { theme: theme.index, shape } };
     }
     phrase = shape;
-  } else if (phase === 2) shape = phrase;
-  else shape = varied(phrase, env);
+  } else shape = phrase!;
+  // A found line in a form (#520, rung 2): its bars in turn, the call, its answer, and so on round the four bars, the
+  // phrase's last bar varied where the form is shorter than the phrase; alone, the line is the shape and the lead's own
+  // phrase grammar (shape, variation, shape, variation).
+  const at = form ? phase % form.length : 0;
+  if (form) {
+    shape = form[at]!;
+    if (!fresh && phase >= form.length && at === form.length - 1) shape = varied(shape, env);
+  } else if (!fresh && phase % 2 === 1) shape = varied(phrase!, env);
 
-  const { written, last } = realize(shape, env, carried.last, shape.fragment === undefined);
-  return { carried: { last, phrase, melodies, offered: null }, output: written };
+  const anchor = form && at > 0 ? (carried.anchor ?? undefined) : undefined;
+  const played = realize(
+    shape,
+    env,
+    carried.last,
+    shape.fragment === undefined,
+    anchor,
+    form && at === 0 ? form.slice(1) : [],
+  );
+  return {
+    carried: {
+      last: played.last,
+      phrase,
+      melodies,
+      offered: null,
+      form,
+      anchor: form ? (at === 0 ? played.anchor : (carried.anchor ?? played.anchor)) : null,
+    },
+    output: played.written,
+  };
 }
 
 /**
@@ -602,6 +674,13 @@ export function inventedBar(env: BarEnv): WrittenNote[] {
 }
 
 export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
-  initial: { last: FIRST_LAST, phrase: null, melodies: {}, offered: null },
+  initial: {
+    last: FIRST_LAST,
+    phrase: null,
+    melodies: {},
+    offered: null,
+    form: null,
+    anchor: null,
+  },
   advance: (env, carried) => playLead(env, carried),
 };

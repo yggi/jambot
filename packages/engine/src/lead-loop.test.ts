@@ -1,4 +1,4 @@
-import { METERS } from '@jambot/theory';
+import { METERS, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandCarried, type BandEnv, band } from './band.ts';
 import { COMPOSER } from './facet.ts';
@@ -235,20 +235,24 @@ describe('the Muse files a player’s motif as a lead line, and it comes back in
     }
   });
 
-  it('plays the line as its phrase: the line, a variation, the line again, a variation', () => {
+  it('plays the line in cells’ call and answer: the call, its answer two degrees down, the call again, the answer varied (#520)', () => {
     const run = play(4 * SECTION_BARS, { ...SYNTH_POP.style, entropy: 0.3 }, { layer }, 5);
     const at = phraseStarts(run, ada.fragment.id)[0]!;
     expect(at).toBeDefined();
-    const lines = range(4).map((k) => {
-      const bar = run[at + k]!.bar;
-      return leadOf(
-        bar.written.filter((n) => n.part === 'lead'),
-        bar.plan.key,
-      );
-    });
-    expect(lines[0]).toEqual(ADA_LINE);
-    expect(lines[2]).toEqual(ADA_LINE);
-    expect(lines[1]).not.toEqual(ADA_LINE);
+    const bars = range(4).map((k) => run[at + k]!.bar);
+    const lead = (k: number) => bars[k]!.written.filter((n) => n.part === 'lead');
+    expect(leadOf(lead(0), bars[0]!.plan.key)).toEqual(ADA_LINE);
+    expect(leadOf(lead(2), bars[2]!.plan.key)).toEqual(ADA_LINE);
+    // the call and its answer heard as one line: the answer's notes two degrees below the call's, but its last, which
+    // the phrase's cadence closes on a chord tone
+    const both = leadOf(
+      [...lead(0), ...lead(1).map((n) => ({ ...n, step: n.step + 16 }))],
+      bars[0]!.plan.key,
+    );
+    expect(both.slice(ADA_LINE.length, -1)).toEqual(
+      ADA_LINE.slice(0, -1).map((n) => ({ ...n, step: n.step + 16, degree: n.degree - 2 })),
+    );
+    expect(leadOf(lead(3), bars[3]!.plan.key)).not.toEqual(ADA_LINE);
   });
 });
 
@@ -311,7 +315,7 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     Spooky: 'diesIrae',
   };
 
-  it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape: in 4/4, and the Dies irae in Spooky’s 5/4', () => {
+  it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape and its second the answer: in 4/4, and the Dies irae in Spooky’s 5/4', () => {
     expect(Object.keys(MOTIFS)).toEqual(PRESETS.map((p) => p.name));
     for (const preset of PRESETS) {
       const id = MOTIFS[preset.name]!;
@@ -338,6 +342,24 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
           ),
           `${preset.name}, bar ${at}`,
         ).toEqual(line.map((n) => ({ ...n, degree: n.degree - first })));
+        // and the next its answer, two degrees down (#520, rung 2), heard with the call as one line; its last note the
+        // cadence's
+        const steps = stepsOf(meter);
+        const both = leadOf(
+          [
+            ...bar.written.filter((n) => n.part === 'lead'),
+            ...run[at + 1]!.bar.written.filter((n) => n.part === 'lead').map((n) => ({
+              ...n,
+              step: n.step + steps,
+            })),
+          ],
+          bar.plan.key,
+        );
+        expect(both.slice(line.length, -1), `${preset.name}, bar ${at + 1}`).toEqual(
+          line
+            .slice(0, -1)
+            .map((n) => ({ ...n, step: n.step + steps, degree: n.degree - first - 2 })),
+        );
       }
     }
   });

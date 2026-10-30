@@ -7,14 +7,16 @@ import { keyHelix } from './key.ts';
 import { EMPTY_LAYER } from './layer.ts';
 import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
 import {
+  LEAD_FORM,
   LEAD_REPOSITORY,
   LEAD_VOICE,
   MOTIF_LEADS,
   leadRepository,
   leadText,
+  phraseOf,
   readLead,
 } from './lead-lines.ts';
-import { type LeadFiling, type LeadNote, leadMotif } from './lead-query.ts';
+import { type LeadFiling, type LeadNote, leadMotif, leadPhrase } from './lead-query.ts';
 import { stepSeconds } from './tempo.ts';
 
 const NAMES = Object.keys(METERS) as MeterName[];
@@ -234,5 +236,40 @@ describe('a line the layer’s cap dropped (#424)', () => {
     );
     // (and one it holds is learned as used)
     expect(repository.used!(filed.layer, [filed.id], FILING.point)).not.toEqual(filed.layer);
+  });
+});
+
+describe('a lead line in cells’ call and answer (#520, rung 2)', () => {
+  const dies = (name: MeterName) =>
+    LEAD_REPOSITORY.read('diesIrae', METERS[name], EMPTY_LAYER)!.notes;
+
+  it('names cells’ call and answer as the lead’s form', () => {
+    expect(LEAD_FORM.id).toBe('call and answer');
+  });
+
+  it('reads the call, then its answer two degrees down, over two bars of 4/4 and of 5/4', () => {
+    for (const name of ['4/4', '5/4'] as const) {
+      const steps = stepsOf(METERS[name]);
+      const call = dies(name);
+      const phrase = phraseOf(call, METERS[name], LEAD_FORM)!;
+      expect(phrase.bars, name).toBe(2);
+      expect(phrase.notes, name).toEqual([
+        ...call,
+        ...call.map((n) => ({ ...n, step: n.step + steps, degree: n.degree - 2 })),
+      ]);
+      expect(LEAD_REPOSITORY.phrase!(call, METERS[name]), name).toEqual(phrase);
+    }
+  });
+
+  it('plays no line on sixteenths in a form, which taps eighths, and splits the phrase into its bars', () => {
+    expect(phraseOf(PLAIN, METERS['4/4'], LEAD_FORM)).toBeNull();
+    const repository = leadRepository();
+    const filed = repository.file!(EMPTY_LAYER, FILING);
+    expect(leadPhrase(repository, filed.id, METERS['4/4'], 16, filed.layer)).toHaveLength(1);
+    const bars = leadPhrase(LEAD_REPOSITORY, 'diesIrae', METERS['4/4'], 16, EMPTY_LAYER)!;
+    expect(bars.map((b) => b.degrees)).toEqual([
+      [0, -1, 0, -2, -1, -3, -2],
+      [-2, -3, -2, -4, -3, -5, -4],
+    ]);
   });
 });

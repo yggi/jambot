@@ -84,8 +84,8 @@ const fixed = (a: ReturnType<typeof against>) =>
 describe('the share of bars recognised over 8 bars, over the 8 presets at entropy 0.3 (E44, #237)', () => {
   it('sits below the ruled band over all members, held and walked: 75 % of sections or more under 0.4 (97 of 128 held)', () => {
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
-    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.235, 0.187, 0.242, 0.172]);
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.228, 0.178, 0.227, 0.176]);
+    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.238, 0.186, 0.242, 0.172]);
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.233, 0.178, 0.207, 0.174]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeLessThan(BAND.low);
@@ -127,8 +127,8 @@ describe('the share over entropy and tolerance (E44, #237)', () => {
     const means = [held[0.3]!, ...TOLERANCES.map((t) => tolerant[t]!)].map((r) =>
       Number(against(r, 'all').mean.toFixed(3)),
     );
-    expect(means).toEqual([0.235, 0.264, 0.377, 0.58]);
-    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.58, 0.157, 0.656, 0]);
+    expect(means).toEqual([0.238, 0.274, 0.381, 0.579]);
+    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.579, 0.158, 0.656, 0]);
   });
 });
 

@@ -67,4 +67,5 @@ _Goes_ says where each row is headed: a rung of #420, done, the **generator** on
 - 8 rows are done: rows 13 to 17 (rung 1), where a drum bar found says where each role plays and the drummer still says how many hits, as `groove.ts` reads its counts; row 3 (rung 2), the swing found at the preset's point; and rows 4 and 7 (rung 3), the mode found at the preset's point and the opening key's mode held to the one found at the opening style's.
 - 2 rows are to move (rows 8 and 19).
 - 14 rows stay the generator on a miss, and 11 stay code: the point and its name, the genre's names, the theory, the drummer's fills, the licences, the colour, and the performer's hand.
+- The lead's form is named, not found: `LEAD_FORM`, cells' `call and answer` (#520, rung 2, the owner's ask), since cells holds its four forms at the centre and a query breaks their tie by id (yggi/cells#371); once each has a point, the lead asks for one.
 - The comp (rows 22 and 23) has no facet, no seeds and no rung of its own, and the owner's order (bass, lead, harmony) names none for it.

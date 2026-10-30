@@ -886,22 +886,22 @@ run; the others have.
     | ----------- | ---------- | ------ | ------ | ------ | ------------ | ------ | ------ | ------ |
     | drums       | 0.002      | 0.016  | 0 %    | 98 %   | 0.012        | 0.089  | 0.6 %  | 97 %   |
     | bass        | 0.220      | 0.375  | 0.8 %  | 78 %   | 0.203        | 0.355  | 4.3 %  | 78 %   |
-    | lead        | 0.563      | 0.136  | 85 %   | 3.4 %  | 0.525        | 0.228  | 68 %   | 13 %   |
+    | lead        | 0.578      | 0.158  | 75 %   | 3.4 %  | 0.555        | 0.248  | 57 %   | 15 %   |
     | harmony     | 0.288      | 0.453  | 0 %    | 100 %  | 0.288        | 0.453  | 0 %    | 100 %  |
-    | all, pooled | 0.235      | 0.187  | 24 %   | 17 %   | 0.228        | 0.178  | 23 %   | 18 %   |
+    | all, pooled | 0.238      | 0.186  | 24 %   | 17 %   | 0.233        | 0.178  | 21 %   | 17 %   |
 
-    Over all members it sits under the band in 76 % of sections held and 77 % walked (97 of 128, 396 of 512), and above it in none: the sensor reads the band left alone as confusing, in every preset (before #520, with the lead's library empty: 0.134 held and 0.125 walked, under the band in 93 %).
-    By preset, over all members, held (walked): Techno 0.49 (0.46), inside the band in 75 % (69 %) of its sections; Swing jazz 0.41 (0.33), inside in 63 % (45 %); Funk 0.41 (0.37), inside in 56 % (58 %); Synth-pop, Deep house, Ambient, Lo-fi hip hop and Bossa nova 0.09 to 0.14 held (0.11 to 0.17 walked).
+    Over all members it sits under the band in 76 % of sections held and 79 % walked (97 of 128, 406 of 512), and above it in none: the sensor reads the band left alone as confusing, in every preset (before #520, with the lead's library empty: 0.134 held and 0.125 walked, under the band in 93 %).
+    By preset, over all members, held (walked): Techno 0.48 (0.45), inside the band in 63 % (66 %) of its sections; Swing jazz 0.41 (0.35), inside in 63 % (44 %); Funk 0.41 (0.37), inside in 63 % (44 %); Synth-pop, Deep house, Ambient, Lo-fi hip hop and Bossa nova 0.09 to 0.16 held (0.11 to 0.18 walked).
 
   - **Why so low, by member**:
     the drummer plays its fragment's hits as it decides how many (`groove.ts`: the fragment says only where), so its bar is a fragment thinned and joined by its own lines (a Euclid on the rim, fills on its own), several notes from any fragment or one operator of it, and is almost never recognised, even where the Muse filed the drummer's own groove;
-    the lead plays cells' motif at its point (#520), the line and a variation of it in turn (its own phrase grammar), so a bar of it is recognised in over half the bars it plays, the motif or a variation of it by one of cells' operators (the rest are bars the phrase's cadence or a nudge moved off them, it seems; not measured bar by bar); it is the one member seldom pinned;
+    the lead plays cells' motif at its point (#520) in cells' call and answer: the call, its answer two degrees down, the call, the answer varied, so a bar of it is recognised in over half the bars it plays, the motif or a variation of it by one of cells' operators (the answer, transposed by −2) (the rest are bars the phrase's cadence or a nudge moved off them, it seems; not measured bar by bar); it is the one member seldom pinned;
     a harmony is one text a section, so its share is a section's 0 or 1: 1 where the theme is a seed vamp (Techno, Funk), 0 where the tables walk, and none stated where a theme leads to a secondary dominant (Bossa nova and Swing jazz, most sections);
     the bass's line is recognised where it plays a seed line as the seed states it or bent or trimmed by one of cells' pitched operators (Techno, Ambient, Swing jazz's walk), and not where the bass decides its own notes over it; `bend` and `trim` (cells v0.10.1) raise its share from 0.173 to 0.220 held and from 0.128 to 0.209 walked.
   - **Per member or over all members**: over all members, pooled.
-    Each member's share but the lead's is pinned at 0 or 1 in 78 % to 100 % of its sections (the harmony by construction), so it says little a ladder could move; the lead's in 3 % (13 % walked); over all members the share is pinned in 17 % (18 % walked) and moves between, the one with a spread to control.
-  - **Entropy** barely moves it: over all members 0.250, 0.235 and 0.232 held at 0.1, 0.3 and 0.6, and 0.247, 0.228 and 0.203 walked, so a band widening with entropy has nothing yet to be placed on.
-  - **Tolerance** (held at 0.3, over all members): 0.235 at 0, 0.264 at 1 note, 0.377 at 2 and 0.580 at 4, where 66 % of sections are inside the band and none pinned; at 4 the bass is above the band in 92 % of its sections and the drums reach 0.17.
+    Each member's share but the lead's is pinned at 0 or 1 in 78 % to 100 % of its sections (the harmony by construction), so it says little a ladder could move; the lead's in 3 % (15 % walked); over all members the share is pinned in 17 % (17 % walked) and moves between, the one with a spread to control.
+  - **Entropy** barely moves it: over all members 0.247, 0.238 and 0.239 held at 0.1, 0.3 and 0.6, and 0.246, 0.233 and 0.205 walked, so a band widening with entropy has nothing yet to be placed on.
+  - **Tolerance** (held at 0.3, over all members): 0.238 at 0, 0.274 at 1 note, 0.381 at 2 and 0.579 at 4, where 66 % of sections are inside the band and none pinned; at 4 the bass is above the band in 92 % of its sections and the drums reach 0.17.
     A tolerance from the licence is #237's step 1, not built; this says where it would move the share.
   - **The cost** (Node, a shared container; the recogniser warmed on every member's seeds on every bench, as a page warms at idle, so a bar compiles only its heard texts, one a member): a bar's recognition of every member takes 7.1 ms at p95 held and 6.9 ms walked (max 58 and 72 ms, single bars; no worse on a bar after a filing), over the ruled 2 ms.
     The drums' one compile is most of it (6.5 ms at p95 held and walked); the bass and the lead 0.9 ms each, the harmony 0.1 ms; a tolerance of 1 to 4 costs about the same.
@@ -910,12 +910,12 @@ run; the others have.
 - **E45. The homeostat's controller, measured** (#237, step 6; the owner's limits of 2026-10-22), in
   [`packages/engine/src/homeostat.ts`](../packages/engine/src/homeostat.ts) and [`packages/engine/experiments/homeostat.ts`](../packages/engine/experiments/homeostat.ts),
   held by [`packages/engine/experiments/homeostat.test.ts`](../packages/engine/experiments/homeostat.test.ts) (about 2 minutes under vitest; `E45_REPORT=1 E45_FULL=1` prints a larger set, about 10 minutes):
-  - **What it reads.** E44's sensor, every member against its library, reads the band left alone at 0.235 (0.134 before #520 gave the lead cells' motifs) and entropy barely moves it, so no lever moves it either.
+  - **What it reads.** E44's sensor, every member against its library, reads the band left alone at 0.238 (0.134 before #520 gave the lead cells' motifs) and entropy barely moves it, so no lever moves it either.
     E45 hears each bar against what the member played lately as well (`recognised.ts`: its last 8 texts, the harmony's last 2 themes, heard once a section), the workbench a listener has just heard.
-    Over all members it then reads 0.72 at entropy 0.3 (0.68 before #520), and falls as the band's entropy rises; with what was played lately alone, without the library, it read 0.67 before #520, so it is what was played lately that is recognised.
+    Over all members it then reads 0.73 at entropy 0.3 (0.68 before #520), and falls as the band's entropy rises; with what was played lately alone, without the library, it read 0.67 before #520, so it is what was played lately that is recognised.
   - **What it moves**, measured open (a probe of 8 presets, 2 seeds of 128 bars, held at 0.3, before the controller was written and before #520):
     the novelty ladder's rate alone (boredom a section, and the pull of use together, set apart from the band's entropy) moves the share from 0.682 at a rate of 0 to 0.674 at 1, almost nothing, since a varied fragment is recognised by its operator and a fetched one is repeated for its section;
-    the band's whole entropy moves it from 0.72 at 0 to 0.61 at 1 (the test's runs, since #520: 0.768, 0.717 and 0.624 leaned all the way down, at no lean, and all the way up), in every preset.
+    the band's whole entropy moves it from 0.72 at 0 to 0.61 at 1 (the test's runs, since #520: 0.780, 0.729 and 0.632 leaned all the way down, at no lean, and all the way up), in every preset.
     So the controller leans the band's whole entropy, the owner's nudge for the whole system (#237, 2026-09-30): `leanedEntropy` is the players' plus the lean, inside 0 to 1, and the band plays at it, the composer's ladder with it.
   - **The controller** (`homeostat.ts`): the band is 0.4 to 0.7 at entropy 0.3 (ruled), about a centre of 0.55, widening by 0.3 for each unit of entropy (chosen: 0.21 wide at 0, 0.51 at 1).
     It reads the share over the last 8 bars at each section's second-to-last bar, and the band plays the next bar, which decides the next section, at the new lean.
@@ -925,21 +925,21 @@ run; the others have.
 
     | players' entropy | left alone | closed | leaned all the way up | most reversals per 4 sections |
     | ---------------- | ---------- | ------ | --------------------- | ----------------------------- |
-    | 0.1, held        | 18.0 %     | 37.9 % | 48.0 %                | 0                             |
-    | 0.3, held        | 37.1 %     | 56.6 % | 64.8 %                | 0                             |
-    | 0.6, held        | 63.3 %     | 72.3 % | 73.0 %                | 0                             |
-    | 0.3, walked      | 39.8 %     | 61.7 % | 64.6 %                | 0                             |
+    | 0.1, held        | 16.8 %     | 34.4 % | 48.0 %                | 0                             |
+    | 0.3, held        | 32.8 %     | 55.5 % | 61.3 %                | 0                             |
+    | 0.6, held        | 59.4 %     | 66.8 % | 69.5 %                | 0                             |
+    | 0.3, walked      | 36.5 %     | 58.2 % | 61.7 %                | 0                             |
 
-    Before #520, with the lead's library empty: 27.7 %, 52.7 %, 74.2 % and 48.8 % left alone, 47.3 %, 64.1 %, 75.4 % and 65.8 % closed; the lead's motifs heard make the band left alone more bored, and the controller brings it in less far.
-    The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 36.5 % left alone, 57.3 % closed, 65.6 % all the way up; 42.2 % and 57.0 % walked; no reversal.
+    Before #520, with the lead's library empty: 27.7 %, 52.7 %, 74.2 % and 48.8 % left alone, 47.3 %, 64.1 %, 75.4 % and 65.8 % closed; the lead's motifs heard, and its call answered (#520), make the band left alone more bored, and the controller brings it in less far.
+    The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 63.5 % all the way up; 33.6 % and 53.9 % walked; no reversal.
 
   - **Against the ruled limits**:
     the reversals are within one per four sections in every run;
-    the share is inside the band in 38 % to 72 % of sections, under the ruled 80 % at every entropy, and so is the lean all the way up, which is the controller's reach: what bounds it is the lever, not the controller;
-    the band left alone is bored, not confused: above the band in 47 % to 71 % of sections, under it in 0 % to 2 %, and the controller ends leaned up in 15 of 16 runs held at 0.3, and never down;
+    the share is inside the band in 34 % to 67 % of sections, under the ruled 80 % at every entropy, and so is the lean all the way up, which is the controller's reach: what bounds it is the lever, not the controller;
+    the band left alone is bored, not confused: above the band in 50 % to 75 % of sections, under it in 0 % to 2 %, and the controller ends leaned up in 16 of 16 runs held at 0.3, and never down;
     Ambient and Swing jazz stayed at 0.68 to 0.69 at the band's entropy of 1 (Synth-pop 0.54; before #520), so nothing the lean can reach brings them further in;
-    a run leaned all the way down at its start comes inside after 1 to 5 sections (3, 1, 2, 5, 1, 3, 3, 3, counted from its first section), within the ruled 2 in 3 of 8, and the open runs take as long or longer (2, 1, 2, 10, 1, 4, 3, 3), so the lean is not what holds the others out.
-  - **The cost** (Node, a shared container; a recogniser warmed on every member's seeds): a bar's recognition of every member takes 7.2 to 8.2 ms at p95 against the library and what was played lately (9 to 12 ms before #520, on another load of the shared container), against E44's 7.1 ms, over the ruled 2 ms; each text heard is read with its variations once, to be heard against in the next bars.
+    a run leaned all the way down at its start comes inside after 1 to 5 sections (3, 1, 2, 5, 1, 4, 3, 3, counted from its first section), within the ruled 2 in 3 of 8, and the open runs take as long or longer (2, 1, 2, 10, 1, 2, 3, 3), so the lean is not what holds the others out.
+  - **The cost** (Node, a shared container; a recogniser warmed on every member's seeds): a bar's recognition of every member takes 7.0 to 9.5 ms at p95 against the library and what was played lately (9 to 12 ms before #520, on another load of the shared container), against E44's 7.1 ms, over the ruled 2 ms; each text heard is read with its variations once, to be heard against in the next bars.
     cells' recogniser keeps every text it reads, so a run reading new texts every bar grows without bound: one recogniser shared by 48 runs of 128 bars ran out of the default heap, so each run here has its own.
   - **Next**, for the owner (#237): whether the sensor hears what was played lately (the reading it gives is the one a lever moves); a lever with more reach where entropy 1 is still bored, such as E22's rate of variation (step 0b) or the ladder's fetch far; and the host's part: recognition at idle, off the clock, with a recogniser rebuilt or a cache bounded in cells, before any host runs the controller.
   - Not measured: a player, the page's cost, a session, the 30-minute soaks the ruling names (the band's events with the controller off are E44's), and how any of it sounds.

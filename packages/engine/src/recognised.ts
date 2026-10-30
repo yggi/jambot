@@ -44,8 +44,8 @@
  * well (`playedInto`: its last eight texts, and the harmony's last two
  * themes, heard once a section by `heardTexts`), since what a listener has
  * just heard is what is familiar. Against the library alone the band left
- * alone sits at 0.235 over all members and entropy barely moves it (E44);
- * with what it played lately it sits at 0.72 at entropy 0.3 and falls as
+ * alone sits at 0.238 over all members and entropy barely moves it (E44);
+ * with what it played lately it sits at 0.73 at entropy 0.3 and falls as
  * its entropy rises, which is what the controller leans (E45). Pure: the
  * recogniser is cells'.
  */
