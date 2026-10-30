@@ -40,6 +40,11 @@
  * kept, event by event (`played`), and what the transport dropped late
  * (#462), to set a client's beside its host's.
  *
+ * The band hears itself where the surroundings give it an ear (`hearing`,
+ * #495): alone or hosting, each bar it composes is recognised off the
+ * clock, and the homeostat leans the entropy it plays at from a section on
+ * (`TransportEnv.leans`); a client plays its host's leaned texts.
+ *
  * The metronome, when one is given, is handed the steps laid on each tick
  * and clicks them on this output, so it has no clock of its own.
  *
@@ -182,6 +187,8 @@ import {
 import { Heard } from './heard.ts';
 import { type SectionTexts, browserTexts } from './section-texts.ts';
 import { Shadow } from './shadow.ts';
+import { type Ear, browserEar } from './ear.ts';
+import { Hearing } from './hearing.ts';
 import { PlayedLog } from './played.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
@@ -323,6 +330,8 @@ export interface Surroundings {
   warm?(steps: Iterable<void>): void;
   /** Where the shadow's section texts are built, compiled and played (#406): a worker; with none, on the page's thread. */
   texts?(): SectionTexts;
+  /** Where the band hears itself, for the homeostat to lean its entropy (#495): a worker; with none, it plays at the players' entropy. */
+  ear?(): Ear;
 }
 
 /** The real browser's ticker, frame and seed, with a given way to make the output. */
@@ -342,6 +351,10 @@ export function browserSurroundings(output: () => Output = webAudioOutput): Surr
     layers: browserLayerStore(),
     warm: (steps) => void warmAtIdle(steps),
     texts: browserTexts,
+    // (`?homeostat=off` plays at the players' entropy, unleaned: what a soak sets the controller beside)
+    ...(/[?&]homeostat=off(&|$)/.test(globalThis.location?.search ?? '')
+      ? {}
+      : { ear: browserEar }),
   };
 }
 
@@ -476,6 +489,8 @@ export class Player {
 
   /** The band through cells (#399, #469): how it played is `shadow.readout`. */
   readonly shadow: Shadow;
+  /** The homeostat (#495): the band hearing itself and leaning its entropy, alone or hosting; none without an ear. What it did is `hearing.readout`. */
+  readonly hearing: Hearing | null;
   /** What the outputs played lately, event by event (#446). */
   readonly played = new PlayedLog();
 
@@ -583,6 +598,13 @@ export class Player {
     this.shadow = new Shadow(() => surroundings.page() * 1000, surroundings.texts?.());
     // A host's band through cells tells its session each section's text as it takes it (#446).
     this.shadow.told = (text) => this.hosting?.section(text);
+    const ear = surroundings.ear?.();
+    this.hearing = ear ? new Hearing(ear, () => surroundings.page() * 1000) : null;
+    // A lean moved changes the bars ahead from the section it leans.
+    if (this.hearing)
+      this.hearing.leaned = () => {
+        if (this.status === 'playing') this.#decide();
+      };
     this.#seed = surroundings.seed();
     this.#decide();
     void surroundings.layers?.load().then((layer) => {
@@ -923,6 +945,7 @@ export class Player {
     this.#carried = null;
     // Its texts asked for from the band's own bars, alone or hosting; given by the host to a client (#446).
     this.shadow.reset(this.#follow ? 'given' : 'asked');
+    if (!this.#follow) this.hearing?.begin();
     this.#heard.clear();
     this.#timing = TRANSPORT_TIMING;
     this.#laid = [];
@@ -1200,6 +1223,7 @@ export class Player {
     this.countStep = null;
     if (!wasPlaying) return;
     this.shadow.end();
+    this.hearing?.end();
     this.#stopTicker?.();
     this.#stopFrames?.();
     this.#stopTicker = this.#stopFrames = null;
@@ -1239,6 +1263,7 @@ export class Player {
       session: this.session ?? undefined,
       swing: this.swing,
       tempoMeter: this.tempoMeter,
+      leans: this.#follow ? undefined : this.hearing?.leans,
     };
   }
 
@@ -1325,6 +1350,12 @@ export class Player {
     if (decided && this.#countTempoIn(decided.plan.meter))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#walkRadio(scheduled.composed, carried!);
+    // The band hears what it composed, off the clock, and leans from a section on (#495).
+    if (scheduled.composed.length > 0)
+      this.hearing?.composed(scheduled.composed, carried!.source.plans.layer, (bar) => {
+        const clock = clockOfTransport(carried);
+        return styleAt(this.track, clock.barStart(bar)).entropy;
+      });
     const logged = scheduled.judged.filter((j) => j.judgements.length > 0 || j.forgot !== null);
     if (logged.length > 0) this.museLog = [...this.museLog, ...logged].slice(-MUSE_LOG);
     const latest = scheduled.judged.at(-1);

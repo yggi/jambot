@@ -5,6 +5,7 @@
 
 import { type ClientMessage, type HostMessage } from '@jambot/session';
 import type { Output } from '../audio/output.ts';
+import type { Ear } from '../ear.ts';
 import { Player, type Surroundings } from '../player.svelte.ts';
 import type { SectionTexts } from '../section-texts.ts';
 import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
@@ -14,9 +15,10 @@ import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
  * its output's offset from its page clock, which reads the output's clock:
  * a buffer the output drops moves the offset. Its band plays cells' events
  * (#446, #469), its texts built where `texts` says (on its thread where it
- * says nothing).
+ * says nothing), and it hears itself where `ear` says (#495; not at all
+ * where it says nothing).
  */
-export function device(clockAt: number, texts?: () => SectionTexts) {
+export function device(clockAt: number, texts?: () => SectionTexts, ear?: () => Ear) {
   const world = {
     currentTime: clockAt,
     heardOffset: 0,
@@ -56,6 +58,7 @@ export function device(clockAt: number, texts?: () => SectionTexts) {
     seed: () => 42,
     page: () => world.currentTime,
     ...(texts && { texts }),
+    ...(ear && { ear }),
   };
   return {
     world,

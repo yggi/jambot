@@ -31,7 +31,7 @@
  * packages/engine/experiments/homeostat-sensor.test.ts` prints the numbers.
  */
 
-import { type Recogniser, createRecogniser } from '@yggi/cells/repository/recognise';
+import type { Recogniser } from '@yggi/cells/repository/recognise';
 import {
   presetMode,
   BASS_REPOSITORY,
@@ -45,7 +45,6 @@ import {
   PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   RADIO,
-  RHYTHM_BENCHES,
   RHYTHM_REPOSITORY,
   SECTION_BARS,
   STRAIGHT,
@@ -70,10 +69,9 @@ import {
   type RecognitionWindow,
   barTexts,
   heardInto,
-  libraryOf,
-  recogniseOptionsOf,
   recognisedBar,
   shareOf,
+  warmedRecogniser,
 } from '../src/recognised.ts';
 
 /** The band the share is kept in at entropy 0.3 (the owner's ruling, #237, 2026-10-22). */
@@ -204,23 +202,6 @@ export function sensedRun(
     cost,
     events: played,
   };
-}
-
-/**
- * A recogniser warmed on every member's seeds as `recognisedBar` reads them on each named meter's bench, as a page
- * warms it at idle, on every bench a section can ask on (`RHYTHM_BENCHES`): each fragment's readings and variations
- * kept, so a bar compiles only its heard text.
- */
-export function warmedRecogniser(): Recogniser {
-  const recogniser = createRecogniser();
-  for (const facet of LOOP_FACETS) {
-    const library = libraryOf(facet);
-    for (const bench of RHYTHM_BENCHES) {
-      const options = recogniseOptionsOf(facet, bench);
-      if (options) for (const f of library) recogniser.recognise(f.text, library, options);
-    }
-  }
-  return recogniser;
 }
 
 /** Every preset, `seeds` seeds of `bars` bars at `entropy`, held or walked, sensed by one warmed recogniser. */

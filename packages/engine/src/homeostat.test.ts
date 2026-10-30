@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   BAND_WIDTH,
+  LEAN_AHEAD,
   BAND_WIDENING,
   LEAN_STEP,
   NO_LEAN,
   PATIENCE,
   bandOf,
+  leanAt,
   leanedEntropy,
   regulated,
   wayOf,
+  withLean,
 } from './homeostat.ts';
 
 /** Every entropy on a tenth's grid, 0 to 1. */
@@ -56,7 +59,11 @@ describe('the controller (regulated)', () => {
       for (const share of SHARES)
         for (const heard of [-1, 0, 1] as const)
           for (let lean = -entropy; lean <= 1 - entropy + 1e-9; lean += LEAN_STEP / 4) {
-            const after = regulated({ ...NO_LEAN, lean, heard }, share, entropy);
+            const after = regulated(
+              { ...NO_LEAN, lean, heard, run: Math.abs(heard) },
+              share,
+              entropy,
+            );
             const way = wayOf(share, entropy) === heard ? heard : 0;
             expect(after.heard).toBe(wayOf(share, entropy));
             const wanted = Math.min(1 - entropy, Math.max(-entropy, lean + way * LEAN_STEP));
@@ -91,10 +98,27 @@ describe('the controller (regulated)', () => {
     expect([state.lean, state.moved]).toEqual([LEAN_STEP, 1]);
   });
 
+  it('waits for as many readings in a row as its patience says, counting them, and starts again inside', () => {
+    const { low, high } = bandOf(0.3);
+    const up = high + 0.1;
+    const inside = (low + high) / 2;
+    for (const patience of [1, 2, 3, 4]) {
+      let state = NO_LEAN;
+      for (let reading = 1; reading <= patience; reading++) {
+        expect(state.lean).toBe(0);
+        state = regulated(state, up, 0.3, LEAN_STEP, patience);
+        expect(state.run).toBe(reading);
+      }
+      expect(state.lean).toBe(LEAN_STEP);
+      state = regulated(state, inside, 0.3, LEAN_STEP, patience);
+      expect([state.run, state.lean]).toEqual([0, LEAN_STEP]);
+    }
+  });
+
   it('does not move, nor count a reversal, where the lean is already at its edge', () => {
     // (at entropy 0, leaned all the way down already: confused again moves nothing)
-    const state = regulated({ lean: 0, moved: 1, reversals: 0, heard: -1 }, 0, 0);
-    expect(state).toEqual({ lean: 0, moved: 1, reversals: 0, heard: -1 });
+    const state = regulated({ lean: 0, moved: 1, reversals: 0, heard: -1, run: 1 }, 0, 0);
+    expect(state).toEqual({ lean: 0, moved: 1, reversals: 0, heard: -1, run: 2 });
   });
 
   it('plays the players’ entropy as it is at no lean, and reaches 1 bored long enough', () => {
@@ -103,5 +127,33 @@ describe('the controller (regulated)', () => {
     for (let i = 0; i < 3; i++) state = regulated(state, 1, 0.3);
     expect(state.lean).toBe(0.7);
     expect(leanedEntropy(0.3, state.lean)).toBe(1);
+  });
+});
+
+describe('a song’s leans (leanAt, withLean)', () => {
+  it('reads each bar’s lean from the latest change at or before it, none before the first', () => {
+    const leans = withLean(withLean([], 16, 0.5), 32, 0);
+    expect(leans).toEqual([
+      { bar: 16, lean: 0.5 },
+      { bar: 32, lean: 0 },
+    ]);
+    expect([0, 15, 16, 31, 32, 99].map((bar) => leanAt(leans, bar))).toEqual([
+      0, 0, 0.5, 0.5, 0, 0,
+    ]);
+  });
+
+  it('drops the changes after the bar a lean is set from, and adds none where it leans as before', () => {
+    const leans = withLean(withLean([], 16, 0.5), 32, 1);
+    expect(withLean(leans, 24, 0.5)).toEqual([{ bar: 16, lean: 0.5 }]);
+    expect(withLean(leans, 24, 0.25)).toEqual([
+      { bar: 16, lean: 0.5 },
+      { bar: 24, lean: 0.25 },
+    ]);
+    expect(withLean([], 8, 0)).toEqual([]);
+    expect(withLean(leans, 40, 1)).toBe(leans);
+  });
+
+  it('leans two sections after the one read, past the one forecast before the reading', () => {
+    expect(LEAN_AHEAD).toBe(2);
   });
 });

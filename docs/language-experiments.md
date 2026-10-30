@@ -933,6 +933,9 @@ run; the others have.
     Before #520, with the lead's library empty: 27.7 %, 52.7 %, 74.2 % and 48.8 % left alone, 47.3 %, 64.1 %, 75.4 % and 65.8 % closed; the lead's motifs heard, and its call answered (#520), make the band left alone more bored, and the controller brings it in less far.
     The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 65.6 % all the way up; 33.6 % and 54.7 % walked; no reversal.
 
+  - **On the page's schedule** (#495, `ahead` in the experiment, the test's own runs at 0.3): a page reads a section's share at its last bar, off the clock, and leans from two sections on (`LEAN_AHEAD`), since the next section's text is forecast at the middle of the one read.
+    Held, 47.9 % of sections inside, against 34.4 % left alone and 56.3 % read a bar before the section it leans; walked, 53.1 %, against 33.6 % and 53.9 %.
+    Its reversals stay within the ruled one per four sections: none held, at most 0.25 walked.
   - **Against the ruled limits**:
     the reversals are within one per four sections in every run;
     the share is inside the band in 34 % to 67 % of sections, under the ruled 80 % at every entropy, and so is the lean all the way up, which is the controller's reach: what bounds it is the lever, not the controller;

@@ -9,10 +9,10 @@
  *
  * `stateSection` is the whole job, and the same wherever it runs: the text
  * built, then played as a client plays it. `WorkerTexts` is the page's side
- * of a worker that runs it: the worker is made as a song starts (`begin`) and
- * warmed with a text of its own while the band counts in, so the first
- * section's text compiles warm, and it ends with the song (`end`), as the
- * ticker's does. `inlineTexts` runs the job on the thread that asks,
+ * of a worker that runs it (`off-clock.ts`): the worker is made as a song
+ * starts (`begin`) and warmed with a text of its own while the band counts
+ * in, so the first section's text compiles warm, and it ends with the song
+ * (`end`), as the ticker's does. `inlineTexts` runs the job on the thread that asks,
  * answering before `ask` returns: what the tests and a player without a
  * worker use.
  *
@@ -37,6 +37,7 @@ import {
   writtenNotes,
 } from '@jambot/score';
 import { stepsOf } from '@jambot/theory';
+import { type JobWorker, WorkerJobs } from './off-clock.ts';
 
 /**
  * A text's digest: cyrb53 (bryc's, public domain), 53 bits as hex, so two
@@ -239,83 +240,43 @@ export function answerAsk(ask: Ask): Answer {
 }
 
 /** The part of a `Worker` this needs, so a test can stand in for one. */
-export interface TextWorker {
-  addEventListener(type: 'message', listener: (event: { data: Answer }) => void): void;
-  addEventListener(type: 'error', listener: () => void): void;
-  postMessage(message: Ask): void;
-  terminate(): void;
-}
+export type TextWorker = JobWorker<Ask, Answer>;
 
 /**
- * The page's side of the worker (`section-texts.worker.ts`): made as a song
- * starts and warmed then, each answer matched to its ask, and ended with the
- * song; an ask with no worker makes one. Where no worker starts, or one
- * fails, the job runs on this thread, as the ticker falls back to an interval
- * (`ticker.ts`): the asks waiting on it then, and every one after.
+ * The page's side of the worker (`section-texts.worker.ts`), off the clock
+ * as `WorkerJobs` runs it: made as a song starts and warmed then, and ended
+ * with the song; where no worker starts, or one fails, the job runs on this
+ * thread.
  */
 export class WorkerTexts implements SectionTexts {
-  #make: () => TextWorker;
-  #worker: TextWorker | null = null;
-  #failed = false;
-  #waiting = new Map<
-    number,
-    { job: () => SectionStated; answer: (stated: SectionStated) => void }
-  >();
-  #next = 1;
+  #jobs: WorkerJobs<Ask, Answer, SectionStated>;
 
   constructor(make: () => TextWorker) {
-    this.#make = make;
+    this.#jobs = new WorkerJobs(make, (answer) => answer.stated);
   }
 
   begin(): void {
-    if (this.#worker) return;
-    this.#open()?.postMessage({ id: this.#next++, warm: true });
+    this.#jobs.begin((id) => ({ id, warm: true }));
   }
 
   ask(bars: readonly BandBar[], answer: (stated: SectionStated) => void): void {
-    this.#post({ id: this.#next++, bars }, () => stateSection(bars), answer);
+    this.#jobs.post(
+      (id) => ({ id, bars }),
+      () => stateSection(bars),
+      answer,
+    );
   }
 
   play(given: SectionText, answer: (stated: SectionStated) => void): void {
-    this.#post({ id: this.#next++, given }, () => playText(given), answer);
-  }
-
-  /** An ask sent to the worker, or, with none, its job run on this thread. */
-  #post(ask: Ask, job: () => SectionStated, answer: (stated: SectionStated) => void) {
-    const worker = this.#worker ?? this.#open();
-    if (!worker) return answer(job());
-    this.#waiting.set(ask.id, { job, answer });
-    worker.postMessage(ask);
+    this.#jobs.post(
+      (id) => ({ id, given }),
+      () => playText(given),
+      answer,
+    );
   }
 
   end(): void {
-    this.#worker?.terminate();
-    this.#worker = null;
-    this.#waiting.clear();
-  }
-
-  #open(): TextWorker | null {
-    if (this.#failed) return null;
-    let worker: TextWorker;
-    try {
-      worker = this.#make();
-    } catch {
-      this.#failed = true;
-      return null;
-    }
-    worker.addEventListener('message', ({ data }) => {
-      const waiting = this.#waiting.get(data.id);
-      this.#waiting.delete(data.id);
-      if (waiting && data.stated) waiting.answer(data.stated);
-    });
-    worker.addEventListener('error', () => {
-      this.#failed = true;
-      const waiting = [...this.#waiting.values()];
-      this.end();
-      for (const { job, answer } of waiting) answer(job());
-    });
-    this.#worker = worker;
-    return worker;
+    this.#jobs.end();
   }
 }
 
