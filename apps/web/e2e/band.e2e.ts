@@ -593,7 +593,7 @@ test('offers a melodic scale within the style’s reach, and the keyboard marks 
   expect(errors).toEqual([]);
 });
 
-test('keeps the preset segments inside the style card, in two rows, at 760 px and at 360 px (#217)', async ({
+test('keeps the preset segments inside the style card, four to a row, at 760 px and at 360 px (#217, #517)', async ({
   page,
 }) => {
   await listen(page);
@@ -607,7 +607,7 @@ test('keeps the preset segments inside the style card, in two rows, at 760 px an
       .getByRole('radiogroup', { name: 'Genre presets' })
       .getByRole('radio')
       .all();
-    expect(segments).toHaveLength(8);
+    expect(segments).toHaveLength(10);
     const rows = new Set<number>();
     for (const segment of segments) {
       const box = (await segment.boundingBox())!;
@@ -615,7 +615,8 @@ test('keeps the preset segments inside the style card, in two rows, at 760 px an
       expect(box.x + box.width).toBeLessThanOrEqual(card.x + card.width);
       rows.add(Math.round(box.y));
     }
-    expect(rows.size).toBe(2);
+    // (the prototype's eight and Electro swing and Spooky, #517: rows of four)
+    expect(rows.size).toBe(3);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width,
     );

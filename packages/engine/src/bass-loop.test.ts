@@ -14,7 +14,7 @@ import { BY, VARIES } from './novelty.ts';
 import { LINE_TAG, sectionLine } from './plan.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
-import { PRESETS, type Style, holding, writtenStyle } from './style.ts';
+import { PROTOTYPE_PRESETS, type Style, holding, writtenStyle } from './style.ts';
 import { holdingSwing } from './swing.ts';
 import {
   LOOKAHEAD,
@@ -27,7 +27,7 @@ import {
 import { presetMode } from './mode-repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
-const byName = (name: string) => PRESETS.find((p) => p.name === name)!;
+const byName = (name: string) => PROTOTYPE_PRESETS.find((p) => p.name === name)!;
 
 /** The transport over 32 bars: every event. */
 function events(env: TransportEnv): TimedEvent[] {
@@ -53,7 +53,7 @@ function hashOf(all: readonly TimedEvent[]): string {
 
 /** Each preset held at entropy 0, swung as it is, 2 seeds, with cells' meters and rhythms and an empty layer; and the bass lines where given. */
 const held = (extra: Partial<TransportEnv> = {}) =>
-  PRESETS.flatMap((preset) =>
+  PROTOTYPE_PRESETS.flatMap((preset) =>
     [0, 1].map((seed) =>
       events({
         seed,
@@ -132,7 +132,7 @@ const linesOf = (run: ReturnType<typeof play>) =>
 describe('the composer asks for a bass line by the facet `bass` at the style (#423)', () => {
   it('finds each preset’s line at its point, at distance 0, and plays it every section while the preset is held at entropy 0', () => {
     const found = Object.fromEntries(
-      PRESETS.map((p) => {
+      PROTOTYPE_PRESETS.map((p) => {
         const run = play(4 * SECTION_BARS, { ...p.style, entropy: 0 }, {}, p);
         return [p.name, [...new Set(linesOf(run))]];
       }),
@@ -147,7 +147,7 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
       'Bossa nova': ['funk bass'],
       'Swing jazz': ['walking bass'],
     });
-    for (const p of PRESETS)
+    for (const p of PROTOTYPE_PRESETS)
       expect(
         BASS_REPOSITORY.query(stylePoint(writtenStyle({ ...p.style, entropy: 0 })), {
           meter: METERS['4/4'],
@@ -238,7 +238,7 @@ describe('the bass is the generator on a miss, and the Muse files what it played
 
   it('reads every bar the band’s bass plays, over 8 presets and 2 seeds, as a line that plays its notes again over its chords', () => {
     let bars = 0;
-    for (const preset of PRESETS)
+    for (const preset of PROTOTYPE_PRESETS)
       for (const seed of [0, 1]) {
         let carried: BandCarried = band.initial;
         for (const bar of range(2 * SECTION_BARS)) {

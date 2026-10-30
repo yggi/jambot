@@ -21,7 +21,7 @@ import {
   presetMode,
   type BandCarried,
   type KeyWish,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   band,
   chordAt,
   keyHelix,
@@ -31,9 +31,9 @@ import {
 const range = (n: number) => [...Array(n).keys()];
 const SEEDS = range(5);
 const BARS = 64;
-const runs: ((bar: number) => (typeof PRESETS)[number])[] = [
-  ...PRESETS.map((preset) => () => preset),
-  (bar) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!,
+const runs: ((bar: number) => (typeof PROTOTYPE_PRESETS)[number])[] = [
+  ...PROTOTYPE_PRESETS.map((preset) => () => preset),
+  (bar) => PROTOTYPE_PRESETS[Math.floor(bar / 8) % PROTOTYPE_PRESETS.length]!,
 ];
 
 let pitchNotes = 0;

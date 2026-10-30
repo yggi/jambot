@@ -44,7 +44,7 @@ import {
   presetMode,
   type HeardNote,
   type Key,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   SECTION_BARS,
   band,
   barStart,
@@ -72,7 +72,7 @@ interface Bar {
 /** Every run of E20's corpus: the lead's and the bass's written bars. */
 function corpus(seeds = 5): Bar[][] {
   const runs: Bar[][] = [];
-  for (const preset of PRESETS)
+  for (const preset of PROTOTYPE_PRESETS)
     for (let seed = 1; seed <= seeds; seed++) {
       const style = { ...preset.style, entropy: 0.3 };
       let carried = band.initial;

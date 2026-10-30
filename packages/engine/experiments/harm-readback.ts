@@ -18,7 +18,7 @@ import { joinChord, qualityOf } from '@jambot/theory';
 import { fileURLToPath } from 'node:url';
 import {
   type ReadChord,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   type MeterSwing,
   STRAIGHT,
   type Style,
@@ -91,7 +91,7 @@ export interface ChordAccuracy {
 }
 
 export function chordAccuracy(bars = 32): ChordAccuracy[] {
-  return PRESETS.map((preset) => {
+  return PROTOTYPE_PRESETS.map((preset) => {
     const halves = SEEDS.flatMap((seed) =>
       harmSamples({ ...preset.style, entropy: 0.3 }, seed, bars, presetSwing(preset)!).flatMap(
         (s) => s.truth.map((t, i) => ({ t, r: s.read[i]! })),
@@ -129,7 +129,7 @@ export function harmReadback(set: readonly HarmSample[]): HarmReadback {
 }
 
 export const harmPresets = (bars = 32) =>
-  PRESETS.flatMap((p) =>
+  PROTOTYPE_PRESETS.flatMap((p) =>
     SEEDS.flatMap((seed) => harmSamples({ ...p.style, entropy: 0.3 }, seed, bars)),
   );
 

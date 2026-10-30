@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { PRESET_LANDMARKS } from '../src/index.ts';
-import { calibrate, readLandmarks } from './genre-calibration.ts';
+import { PROTOTYPE_LANDMARKS, calibrate, readLandmarks } from './genre-calibration.ts';
 
-const points = calibrate(PRESET_LANDMARKS);
+const points = calibrate(PROTOTYPE_LANDMARKS);
 const read = calibrate(readLandmarks());
 const mean = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const bar = (rows: typeof points, name: string) => rows.find((r) => r.preset === name)!.bar;

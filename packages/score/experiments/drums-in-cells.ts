@@ -34,7 +34,7 @@ import {
   type BandCarried,
   DRUM_ROLES,
   type DrumRole,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   SONG_METER,
   band,
   grooveText,
@@ -177,7 +177,7 @@ export interface Witness {
 }
 
 /** The bars a preset held plays, at the seed and entropy above. */
-export function presetBars(preset: (typeof PRESETS)[number]): BandBar[] {
+export function presetBars(preset: (typeof PROTOTYPE_PRESETS)[number]): BandBar[] {
   let carried: BandCarried = band.initial;
   return Array.from({ length: BARS }, (_, bar) => {
     const out = band.advance(
@@ -205,7 +205,7 @@ export function witnessBar(bars: readonly BandBar[]): BandBar {
 
 /** Every preset's witness, stated, compiled and played. */
 export function witnesses(): Witness[] {
-  return PRESETS.map((preset) => {
+  return PROTOTYPE_PRESETS.map((preset) => {
     const bar = witnessBar(presetBars(preset));
     const text = drumsAsCells(bar);
     const played = cellsDrums(text, bar.style.bpm);

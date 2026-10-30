@@ -34,7 +34,7 @@ import {
   type Judgement,
   type Key,
   type MuseCarried,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   SECTION_BARS,
   band,
   barStart,
@@ -143,7 +143,7 @@ export function leadCells(seeds = 5): LeadCells {
   let repeated = 0;
   let underOp = 0;
   const orders = new Map<string, number>();
-  for (const preset of PRESETS)
+  for (const preset of PROTOTYPE_PRESETS)
     for (let seed = 1; seed <= seeds; seed++) {
       const style = { ...preset.style, entropy: 0.3 };
       let carried = band.initial;

@@ -25,7 +25,7 @@
 import { fileURLToPath } from 'node:url';
 import {
   type Landmark,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_LANDMARKS,
   bpmUnit,
   holding,
@@ -39,6 +39,11 @@ import {
 import { SEEDS, type TimingSample, timingSamples } from './style-readback.ts';
 
 const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+/** The landmarks E24 was measured against: the prototype's eight presets' points (the app names ten since #517). */
+export const PROTOTYPE_LANDMARKS = PRESET_LANDMARKS.filter((l) =>
+  PROTOTYPE_PRESETS.some((p) => p.name === l.name),
+);
 
 /** The seeds the landmarks are read from, apart from the measured ones. */
 const LANDMARK_SEEDS = [11, 12, 13, 14, 15];
@@ -69,7 +74,7 @@ const landmarkOf = (read: ReturnType<typeof meanReading>): Landmark['at'] => ({
 
 /** Where each preset's bars read: its landmark for the critic. */
 export function readLandmarks(bars = 32): Landmark[] {
-  return PRESETS.map((preset) => {
+  return PROTOTYPE_PRESETS.map((preset) => {
     const style = { ...preset.style, entropy: 0.3 };
     const read = meanReading(
       LANDMARK_SEEDS.flatMap((seed) =>
@@ -95,7 +100,7 @@ export function calibrate(
 ): Calibration[] {
   const top = (read: ReturnType<typeof axesOf>) =>
     genreOf(read, temperature, landmarks).reduce((a, b) => (b.p > a.p ? b : a)).name;
-  return PRESETS.map((preset) => {
+  return PROTOTYPE_PRESETS.map((preset) => {
     const style = { ...preset.style, entropy: 0.3 };
     const runs = SEEDS.map((seed) =>
       timingSamples(holding(style), seed, bars, holdingSwing(presetSwing(preset)!)),
@@ -125,7 +130,7 @@ export function calibrate(
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const read = readLandmarks();
   for (const [title, landmarks] of [
-    ['the presets’ points', PRESET_LANDMARKS],
+    ['the presets’ points', PROTOTYPE_LANDMARKS],
     ['where the presets read', read],
   ] as const)
     for (const t of [0.05, 0.1]) {

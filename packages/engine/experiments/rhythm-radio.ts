@@ -73,7 +73,7 @@ import {
   type LineRepository,
   type MeterRepository,
   type Plan,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   RADIO,
   RHYTHM_REPOSITORY,
@@ -225,7 +225,7 @@ export interface Learning {
  * `held`, the preset held at entropy 0.3, the radio not walking, and the drummer's hits counted (E40).
  */
 export function rhythmRun(
-  preset: (typeof PRESETS)[number],
+  preset: (typeof PROTOTYPE_PRESETS)[number],
   seed: number,
   hours = HOURS,
   margins?: RhythmRepository['margins'],
@@ -499,7 +499,7 @@ export const rhythmRuns = (
   player?: LeadPlayer,
   harmony?: HarmonyPlayer,
 ): RhythmRun[] =>
-  PRESETS.flatMap((preset, p) =>
+  PROTOTYPE_PRESETS.flatMap((preset, p) =>
     range(seeds).map((seed) =>
       rhythmRun(preset, p * seeds + seed + 1, hours, margins, layer, false, lines, player, harmony),
     ),
@@ -511,7 +511,7 @@ export const rhythmRuns = (
  * plays a held preset (where it finds a seed rhythm, nothing is filed).
  */
 export const heldRuns = (learning: boolean, seeds = SEEDS, hours = HOURS): RhythmRun[] =>
-  PRESETS.flatMap((preset, p) =>
+  PROTOTYPE_PRESETS.flatMap((preset, p) =>
     range(seeds).map((seed) =>
       rhythmRun(
         preset,
@@ -596,7 +596,7 @@ export function drumDistance(
     return out;
   };
   return Object.fromEntries(
-    PRESETS.map(({ name }) => {
+    PROTOTYPE_PRESETS.map(({ name }) => {
       const [a, b] = [pooled(runs, name), pooled(main, name)];
       let far = 0;
       for (const type of Object.keys(b) as SectionType[])
@@ -618,7 +618,7 @@ export function drumOverlap(
   main: readonly RhythmRun[],
 ): Record<string, number> {
   return Object.fromEntries(
-    PRESETS.map(({ name }) => {
+    PROTOTYPE_PRESETS.map(({ name }) => {
       const overlaps = runs.flatMap((run, i) =>
         run.preset !== name
           ? []
@@ -720,7 +720,7 @@ export function mostUsedGroove(runs: readonly RhythmRun[]): {
 /** #428: the sections whose rhythm is a line of its own played alone (`RhythmRun.alone`), a preset's runs pooled, for each preset. */
 export const aloneByPreset = (runs: readonly RhythmRun[]): Record<string, number> =>
   Object.fromEntries(
-    PRESETS.map(({ name }) => [
+    PROTOTYPE_PRESETS.map(({ name }) => [
       name,
       runs.filter((r) => r.preset === name).reduce((n, r) => n + r.alone, 0),
     ]),

@@ -89,7 +89,7 @@ import {
   type MuseCarried,
   type Offer,
   type Reading,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   type Preset,
   SECTION_BARS,
   band,
@@ -265,7 +265,7 @@ const LEAD = 'the lead';
 export const STALL_RUN = SECTION_BARS;
 
 /** The presets, the narrowest licence first: by their harmony. */
-export const BY_LICENCE: readonly Preset[] = [...PRESETS].sort(
+export const BY_LICENCE: readonly Preset[] = [...PROTOTYPE_PRESETS].sort(
   (a, b) => a.style.harm - b.style.harm,
 );
 
@@ -538,7 +538,7 @@ const HEARD = {
  */
 export function examples(conditions: readonly Condition[] = HEARD.conditions) {
   return HEARD.presets.map((name) => {
-    const preset = PRESETS.find((p) => p.name === name)!;
+    const preset = PROTOTYPE_PRESETS.find((p) => p.name === name)!;
     return {
       preset: name,
       bpm: preset.style.bpm,

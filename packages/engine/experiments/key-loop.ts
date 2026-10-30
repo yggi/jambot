@@ -39,7 +39,7 @@ import {
   presetMode,
   HISTORY_DECAY,
   NO_HISTORY,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   type Key,
   type Preset,
   SECTION_BARS,
@@ -210,7 +210,7 @@ export function keyLoop(preset: Preset, runs: readonly KeyRun[]): KeyLoop {
 /** E19 for every preset at `entropy`, over `seeds` seeds of one more section than `DRIFT_AT` reads. */
 export function keyLoops(entropy: number, seeds: number, radio = false): KeyLoop[] {
   const sections = DRIFT_AT.at(-1)! + 1;
-  return PRESETS.map((preset) =>
+  return PROTOTYPE_PRESETS.map((preset) =>
     keyLoop(
       preset,
       range(seeds).map((seed) => keyRun(preset, seed + 1, entropy, sections, radio)),

@@ -14,7 +14,7 @@ import { LEAD_TAG } from './plan.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
-import { PRESETS, type Style, holding, writtenStyle } from './style.ts';
+import { PROTOTYPE_PRESETS, type Style, holding, writtenStyle } from './style.ts';
 import { holdingSwing } from './swing.ts';
 import { presetMode } from './mode-repository.ts';
 import {
@@ -27,7 +27,7 @@ import {
 } from './transport.ts';
 
 const range = (n: number) => [...Array(n).keys()];
-const byName = (name: string) => PRESETS.find((p) => p.name === name)!;
+const byName = (name: string) => PROTOTYPE_PRESETS.find((p) => p.name === name)!;
 const SYNTH_POP = byName('Synth-pop');
 
 /** The transport over 32 bars: every event. */
@@ -54,7 +54,7 @@ function hashOf(all: readonly TimedEvent[]): string {
 
 /** Each preset held at entropy 0, swung as it is, 2 seeds, with cells' meters and rhythms and an empty layer. */
 const held = (extra: Partial<TransportEnv> = {}) =>
-  PRESETS.flatMap((preset) =>
+  PROTOTYPE_PRESETS.flatMap((preset) =>
     [0, 1].map((seed) =>
       events({
         seed,

@@ -25,7 +25,7 @@ import {
   type BandEnv,
   type KeyWish,
   type MeterSwing,
-  PRESETS,
+  PROTOTYPE_PRESETS,
   STRAIGHT,
   type Style,
   band,
@@ -38,9 +38,9 @@ const SEEDS = range(5);
 const BARS = 64;
 
 /** Each preset held, and the tour, as E1 runs them. */
-const runs: ((bar: number) => (typeof PRESETS)[number])[] = [
-  ...PRESETS.map((preset) => () => preset),
-  (bar) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!,
+const runs: ((bar: number) => (typeof PROTOTYPE_PRESETS)[number])[] = [
+  ...PROTOTYPE_PRESETS.map((preset) => () => preset),
+  (bar) => PROTOTYPE_PRESETS[Math.floor(bar / 8) % PROTOTYPE_PRESETS.length]!,
 ];
 
 const envOf = (
@@ -157,8 +157,8 @@ console.table(
 // 2. The header's precision, over a tour that glides between presets.
 const glidingStyle = (bar: number): Style => {
   const i = Math.floor(bar / 8);
-  const from = PRESETS[i % PRESETS.length]!.style;
-  const to = PRESETS[(i + 1) % PRESETS.length]!.style;
+  const from = PROTOTYPE_PRESETS[i % PROTOTYPE_PRESETS.length]!.style;
+  const to = PROTOTYPE_PRESETS[(i + 1) % PROTOTYPE_PRESETS.length]!.style;
   const t = (bar % 8) / 8;
   const style = Object.fromEntries(
     Object.keys(from).map((axis) => {
@@ -188,7 +188,7 @@ const precision = (decimals: number, only?: string) => {
   for (const seed of SEEDS) {
     let carried: BandCarried = band.initial;
     for (const bar of range(BARS)) {
-      const mode = presetMode(PRESETS[Math.floor(bar / 8) % PRESETS.length]!)!;
+      const mode = presetMode(PROTOTYPE_PRESETS[Math.floor(bar / 8) % PROTOTYPE_PRESETS.length]!)!;
       const style = glidingStyle(bar);
       const exact = band.advance(envOf(seed, bar, style, mode), carried, null);
       const header = band.advance(
