@@ -10,6 +10,7 @@ import {
   heard,
   holdAudio,
   listen,
+  networkReadings,
   masterCalls,
   openStyle,
   stalls,
@@ -74,6 +75,14 @@ const SLEWED = 10 / 1000;
  */
 const IN_STEP = 2.5;
 /**
+ * The client's best round trip, in milliseconds, that `IN_STEP` assumes.
+ * Its network offset is good only to half its best round trip lately
+ * (`CLOCK`'s pings), and on a busy machine, as the host starts, that is
+ * 10 to 16 ms for the first second the client plays: a note may be out by
+ * half of what that trip is past this (#509).
+ */
+const TRIP = 1;
+/**
  * How long, in milliseconds, a test holds a page's audio: 40 ms jumps its
  * clock by some 30, and 80 by some 70, past the 50 ms within which a
  * note is taken for the host's. Held on the host, the client plays by
@@ -113,7 +122,9 @@ const unsettled = ({ at, by }: ClockJump, stalled: readonly Stall[] = []) => {
  * share. Every note must be within `IN_STEP` of the host's but where a
  * jump of either page's clock is still settling: the hold, and any jump a
  * busy machine makes on its own, which the pairings show. There, a note
- * may be out by no more than the jumps settling and `IN_STEP`. So the
+ * may be out by no more than the jumps settling and `IN_STEP`. And where
+ * the client's best round trip is longer than `TRIP`, half of what it is
+ * longer is allowed too, as its offset is good to no better. So the
  * check asks the same of every machine, whether its audio drops buffers or
  * not, and a clock that slews a jump it should follow fails it on every
  * machine (T8).
@@ -167,6 +178,10 @@ async function inStep(
   const hosted = hostedAll.filter((n) => n.heard <= horizon + 50);
   const followed = followedAll.filter((n) => n.heard <= horizon);
   const hostStalls = await stalls(page);
+  const net = await networkReadings(client);
+  /** The client's network pair as it read at `t`: its best round trip bounds its offset to half of it (#509). */
+  const netAt = (t: number) => net.findLast((n) => n.wall <= t);
+  const trips = net.flatMap((n) => (n.trip === null ? [] : [n.trip]));
   const hostJumps = await clockJumps(page);
   const clientJumps = await clockJumps(client);
   const jumps = [...hostJumps, ...clientJumps];
@@ -185,9 +200,14 @@ async function inStep(
     ...hostJumps.map((j) => unsettled(j, hostStalls)),
     ...clientJumps.map((j) => unsettled(j)),
   ];
-  /** How far, in milliseconds, a note at `t` may be out: `IN_STEP`, and every jump still settling there. */
-  const allowed = (t: number) =>
-    IN_STEP + spans.filter((s) => t >= s.from && t <= s.to).reduce((sum, s) => sum + s.size, 0);
+  /** How far, in milliseconds, the jumps still settling at `t` may put a note out. */
+  const settling = (t: number) =>
+    spans.filter((s) => t >= s.from && t <= s.to).reduce((sum, s) => sum + s.size, 0);
+  /** How far past `TRIP`'s the client's network offset may be out for a note at `t`: half its best round trip as the note was laid or heard. */
+  const far = (t: number) =>
+    Math.max(0, ...[t - AHEAD, t].map((at) => ((netAt(at)?.trip ?? TRIP) - TRIP) / 2));
+  /** How far, in milliseconds, a note at `t` may be out: `IN_STEP`, every jump still settling there, and the client's round trip past `TRIP`. */
+  const allowed = (t: number) => IN_STEP + settling(t) + far(t);
 
   // Each note the client sounded, against the host's nearest of the same voice.
   const voice = (h: Heard) => `${h.kind} ${h.frequency}`;
@@ -204,13 +224,14 @@ async function inStep(
   // transport dropped, where its page stalled past it (T1): from the stall
   // on, until a tick came back and an output's latency more. Every other
   // note has the host's, within what is allowed as it sounds: `IN_STEP`,
-  // and the size of every jump still settling there, however large (a
-  // busy machine's output can drop more than 50 ms at once).
+  // the size of every jump still settling there, however large (a busy
+  // machine's output can drop more than 50 ms at once), and the client's
+  // round trip past `TRIP`.
   const dropped = (t: number) => hostStalls.some((s) => t >= s.from && t <= s.to + 100);
   const judged = gaps.filter((g) => !(Math.abs(g.gap) >= 50 && dropped(g.at)));
   const out = judged.filter((g) => !(Math.abs(g.gap) <= allowed(g.at)));
   const wide = judged.filter((g) => Math.abs(g.gap) >= 50);
-  const steady = judged.filter((g) => allowed(g.at) === IN_STEP);
+  const steady = judged.filter((g) => settling(g.at) === 0);
   const sorted = steady.map((g) => Math.abs(g.gap)).sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)]!;
   const since = (t: number) => ((t - heldAt) / 1000).toFixed(2);
@@ -220,7 +241,8 @@ async function inStep(
     `${wide.length} out by 50 ms or more in a jump; ` +
     `${steady.length} settled: median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms; ` +
     `clocks jumped ${jumps.map((s) => `${s.by.toFixed(1)} ms at ${since(s.at)} s`).join(', ')} from the hold; ` +
-    `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g.at).toFixed(1)}`).join('; ') || 'none'}; ` +
+    `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g.at).toFixed(1)}, the client's best round trip ${netAt(g.at)?.trip?.toFixed(1)} ms`).join('; ') || 'none'}; ` +
+    `the client's best round trip ${trips.length ? `${Math.min(...trips).toFixed(1)} to ${Math.max(...trips).toFixed(1)} ms` : 'unread'}; ` +
     `the host's stalls ${hostStalls.map((s) => `${since(s.from)} to ${since(s.to)} s`).join(', ')}`;
   console.log(summary);
   // Each fault met its path: the stall dropped host notes the client

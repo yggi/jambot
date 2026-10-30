@@ -19,6 +19,10 @@
  * nothing.
  * A jump no wider than the samples' ranges and `jumped` is not told from
  * drift, so it is slewed: a pair's resolution is its samples' bounds.
+ * Where every sample is sure to hold the offset within its bound
+ * (`bounded`), the offset played by is also kept within the trusted one's:
+ * a quicker sample that shows it out moves it there at once, as a jump does,
+ * since slewing would leave it known to be wrong for seconds (#509).
  *
  * Jambot reads two kinds of pair (`clockPair`):
  *
@@ -33,7 +37,10 @@
  *   the shortest round trip is trusted. Delay that is always longer one way
  *   than the other can't be seen from either end: the offset is then off
  *   by half the difference. Jambot is played in one room, so a host whose
- *   best round trip is longer than `CLOCK.tooFar` is too far away.
+ *   best round trip is longer than `CLOCK.tooFar` is too far away. The
+ *   host's clock was read between sending and receiving, so a ping's bound
+ *   is sure (`bounded`): a busy host's slow first answers set the offset
+ *   some milliseconds out, and the first quick one puts it right.
  *
  * A host answers each ping with its page clock and its own output's
  * offset, the moment heard less its page clock. So a client sets its clock
@@ -60,6 +67,8 @@ export interface PairConfig {
   readonly jumped: number;
   /** How many samples in a row it takes to say the clocks jumped. */
   readonly confirm: number;
+  /** Whether every sample is sure to hold the offset within its bound, so the offset played by is kept within the trusted one's. */
+  readonly bounded: boolean;
 }
 
 /** A sample of a pair's offset: it lies within `bound` of `offset`, both in seconds. */
@@ -104,7 +113,7 @@ const estimate = ({ samples, offset, jumps }: PairCarried): PairEstimate => ({
 
 /** The estimator of a pair of clocks, from samples of their offset. */
 export function clockPair(config: PairConfig): Machine<null, PairCarried, Sample, PairEstimate> {
-  const { window, ready, slew, jumped, confirm } = config;
+  const { window, ready, slew, jumped, confirm, bounded } = config;
   return {
     initial: { samples: [], offset: null, doubts: [], jumps: 0 },
     advance(_, carried, sample) {
@@ -136,6 +145,8 @@ export function clockPair(config: PairConfig): Machine<null, PairCarried, Sample
           offset === null
             ? best.offset
             : offset + Math.max(-slew, Math.min(slew, best.offset - offset));
+      if (offset !== null && bounded)
+        offset = Math.max(best.offset - best.bound, Math.min(best.offset + best.bound, offset));
       // A wide sample agrees with both: it leaves the doubts standing.
       const next = {
         samples,
@@ -162,6 +173,8 @@ export const OUTPUT = {
   window: 16,
   ready: 2,
   confirm: 3,
+  /** A blip reads past its bound, so the offset slews through it. */
+  bounded: false,
   /** A quarter of a millisecond a tick: a jump inside the jump rule is gone in some eight ticks. */
   slew: 0.00025,
   jumped: 0.001,
@@ -192,6 +205,7 @@ export const CLOCK = {
   slew: 0.0005,
   jumped: 0.003,
   confirm: 2,
+  bounded: true,
   /** The longest best round trip, in seconds, a host may be away. */
   tooFar: 0.1,
 } as const;

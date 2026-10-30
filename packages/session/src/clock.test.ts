@@ -149,6 +149,19 @@ describe("the host's clock, as a client reads it", () => {
       expect(Math.abs(r.offset! - 4.991)).toBeLessThan(0.001);
   });
 
+  it('puts its offset within a quicker ping at once, where the first pings were slow one way (#509)', () => {
+    // A busy host starting up: its first answers come back 16 ms late, which
+    // reads the offset 8 ms out, within those pings' 9 ms bounds. Then a quick
+    // ping bounds it to 1 ms, and a page clock doesn't jump: the offset is
+    // there from that ping on, not slewed there over seconds.
+    const { pings: list } = pings(20, { jitter: 0 });
+    const slow = list.map((p, i) => (i < CLOCK.ready ? { ...p, received: p.received + 0.016 } : p));
+    const readings = read(slow);
+    expect(readings[CLOCK.ready - 1]!.offset).toBeCloseTo(4.992, 6);
+    for (const r of readings.slice(CLOCK.ready))
+      expect(Math.abs(r.offset! - 5)).toBeLessThanOrEqual(0.002 + 1e-12);
+  });
+
   it('finds a host too far away when even its best round trip is long', () => {
     expect(read(pings(20, { there: 0.03, back: 0.03 }).pings).at(-1)!.tooFar).toBe(false);
     expect(read(pings(20, { there: 0.06, back: 0.06 }).pings).at(-1)!.tooFar).toBe(true);
@@ -175,7 +188,14 @@ function estimates(config: PairConfig, samples: readonly Sample[]) {
   });
 }
 
-const PAIR: PairConfig = { window: 8, ready: 2, slew: 0.0001, jumped: 0.001, confirm: 2 };
+const PAIR: PairConfig = {
+  window: 8,
+  ready: 2,
+  slew: 0.0001,
+  jumped: 0.001,
+  confirm: 2,
+  bounded: false,
+};
 const at = (offset: number, bound = 0.0005): Sample => ({ offset, bound });
 
 describe('a pair of clocks', () => {
@@ -211,6 +231,16 @@ describe('a pair of clocks', () => {
         expect(Math.abs(r.offset! - read[i - 1]!.offset!)).toBeLessThanOrEqual(1e-4 + 1e-12);
     expect(read.at(-1)!.offset).toBeCloseTo(0.9985, 9);
     expect(read.at(-1)!.jumps).toBe(0);
+  });
+
+  it('keeps the offset within the trusted sample where its bounds are sure, and slews to it where not', () => {
+    // A wide first estimate 5 ms out, then a narrow sample that agrees with it.
+    const samples = [at(1.005, 0.006), at(1.005, 0.006), at(1, 0.0005)];
+    const slewed = estimates(PAIR, samples);
+    const held = estimates({ ...PAIR, bounded: true }, samples);
+    expect(slewed[2]!.offset).toBeCloseTo(1.0049, 12);
+    expect(held[2]!.offset).toBeCloseTo(1.0005, 12);
+    expect(held[2]!.jumps).toBe(0);
   });
 
   it('reads nothing from a sample with no bound, or a negative one', () => {
