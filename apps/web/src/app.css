@@ -25,6 +25,11 @@
   /* The pitch colours' saturation and lightness (`pitch.ts`): the hue is the pitch class's, C red. */
   --pitch-s: 72%;
   --pitch-l: 40%;
+  /* The band's voices, as the roll outlines them: the band's amber, a shade each, so who plays reads as the band. */
+  --voice-lead: #3b2a0a;
+  --voice-comp: #9a6200;
+  --voice-bass: #c98a1a;
+  --voice-drums: #8a7a5a;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -45,6 +50,10 @@
     --source-4: #a8d66b;
     --source-5: #ff9a85;
     --pitch-l: 60%;
+    --voice-lead: #fff4dc;
+    --voice-comp: #f2d48a;
+    --voice-bass: #f2b134;
+    --voice-drums: #b08a4a;
   }
 }
 :root[data-theme='light'] {
@@ -68,6 +77,10 @@
   --source-4: #a8d66b;
   --source-5: #ff9a85;
   --pitch-l: 60%;
+  --voice-lead: #fff4dc;
+  --voice-comp: #f2d48a;
+  --voice-bass: #f2b134;
+  --voice-drums: #b08a4a;
 }
 *,
 *::before,
