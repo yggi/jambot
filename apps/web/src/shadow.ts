@@ -11,7 +11,7 @@
  * band will compose them (a forecast run on the band's own decisions, as
  * `foresight` does), and each bar composed is checked against what its text
  * foresaw, a digest (`foreseenOf`). A section's text is built ahead, when the
- * band composes the middle bar of the section before (`SECTION_BARS / 2`), so
+ * band composes the middle bar of the section before (`ASKED_AT`), so
  * the work is done four bars before it is needed and never at the section's
  * edge, where the band composes and the radio walks (the spirit: time is
  * absolute). With the radio on the air the forecast reads the track as the
@@ -89,6 +89,9 @@ export type TextsFrom = 'asked' | 'given';
 
 /** How many cost samples the readout keeps, the latest. */
 const SAMPLES_KEPT = 5000;
+
+/** The bar of a section, by its place, at which the band composing it asks for the next section's text: the middle one. */
+export const ASKED_AT = SECTION_BARS / 2;
 
 /** A cost's spread over its samples, in milliseconds. */
 export interface Spread {
@@ -457,7 +460,7 @@ export class Shadow {
       const ahead = this.#forecast(() => env, carried, bar.bar + 1, end);
       this.#state([bar, ...ahead], carried, asked);
     }
-    if (bar.bar % SECTION_BARS === SECTION_BARS / 2 && !carried.finale.asked) {
+    if (bar.bar % SECTION_BARS === ASKED_AT && !carried.finale.asked) {
       const first = last + 1;
       const walked = envFrom?.(first) ?? env;
       const bars = this.#forecast(
