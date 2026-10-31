@@ -329,7 +329,35 @@ export const styleName = ({ preset, near }: StyleView): string => preset ?? near
  * The style card's sub element: what the band is doing now, or for a client
  * whose host sets it, that too.
  */
-export function styleSub(view: StyleView, following = false): string {
+/**
+ * How near the style is to each preset, as a glow from 0 to 1 in the presets'
+ * order: 1 at a preset's own point, half at the median distance from a
+ * preset to its nearest neighbour, fading on from there. Two presets as
+ * far from the style glow alike, so a style halfway between Funk and Bossa
+ * nova lights both. The distance is the root mean square over the radar's
+ * axes that name a preset (`GLOW_AXES`): energy and entropy don't make a style custom, so they don't dim one.
+ */
+export function presetGlow(axes: AxisValues): number[] {
+  return PRESETS.map((p) => Math.exp(-axesDistance(axes, p.style) / GLOW_FADE));
+}
+
+/** The radar's axes that name a preset: those a preset sets, but energy. */
+const GLOW_AXES = STYLE_AXES.filter((axis) => (NAMING_AXES as readonly string[]).includes(axis));
+
+const axesDistance = (a: Partial<AxisValues>, b: Partial<AxisValues>): number =>
+  Math.sqrt(
+    GLOW_AXES.reduce((sum, axis) => sum + (a[axis]! - b[axis]!) ** 2, 0) / GLOW_AXES.length,
+  );
+
+/** How far the glow fades by e: a nearest-neighbour distance, the median over the presets (0.147), halves it. */
+const GLOW_FADE = (() => {
+  const nearest = PRESETS.map((p) =>
+    Math.min(...PRESETS.filter((q) => q !== p).map((q) => axesDistance(p.style, q.style))),
+  ).sort((x, y) => x - y);
+  return nearest[Math.floor(nearest.length / 2)]! / Math.LN2;
+})();
+
+export function styleSub(view: StyleView, following = false, radio = false): string {
   const { preset, glide, axes, near } = view;
   const state =
     preset === null
@@ -342,7 +370,8 @@ export function styleSub(view: StyleView, following = false): string {
       : glide
         ? `Gliding to ${preset}`
         : `Playing ${preset}`;
-  return following ? `${state} · the host sets it` : state;
+  const said = radio ? `Radio · ${state}` : state;
+  return following ? `${said} · the host sets it` : said;
 }
 
 /** Where a style is, in the prototype's words, reused by the tracks. */

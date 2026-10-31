@@ -54,6 +54,8 @@
   const metronome = new Metronome();
   /** The band, playing through cells (#399, #469). */
   const player = new Player(device.surroundings, metronome);
+  // The radio is on the air by default: left alone, the band drifts through style space (#313).
+  player.tuneRadio(true);
   /** The screen stays awake while the band plays or counts in, so a tablet on a stand doesn't lock mid-jam. */
   const awake = new Awake(navigator.wakeLock, document);
   $effect(() => awake.hold(player.playing));
@@ -155,7 +157,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const exportTiming = () => download(timingFile(takeTiming()));
-  /** What the band learned, carried to and from files from the Session card (#398). */
+  /** What the band learned, carried to and from files from the Cells view (#398). */
   const layers = {
     onexport: () =>
       download({

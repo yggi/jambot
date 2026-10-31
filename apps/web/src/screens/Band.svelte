@@ -25,7 +25,6 @@
   import Cells from '../components/Cells.svelte';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
-  import { stationLine } from '../radioView.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { raised, toggled } from '../mix.ts';
@@ -45,11 +44,8 @@
     };
     /** Close the session, leave it, or go back to the lobby. */
     onend: () => void;
-    /** How the session card carries what the band learned (#398): exported, its fragments exported, imported. */
-    layers?: Pick<
-      NonNullable<ComponentProps<typeof Session>['learned']>,
-      'onexport' | 'onexportfiles' | 'onimport'
-    >;
+    /** How the Cells view carries what the band learned (#398): exported, its fragments exported, imported. */
+    layers?: Omit<NonNullable<ComponentProps<typeof Cells>['carry']>, 'playing'>;
     /** How this device sounds: the page's Sound card, which is on both sides of the door. */
     sound: Snippet;
     /** The timing counters, where the address asks for them (`?timing`). */
@@ -146,16 +142,14 @@
       {phase}
       bar={player.hud.beat === null ? null : (player.hud.bar?.bar ?? null)}
       {onend}
-      radio={player.station !== null}
-      nowPlaying={player.playing ? stationLine(player.track, player.heard) : null}
-      ontune={(on) => player.tuneRadio(on)}
-      learned={layers ? { layer: player.layer, playing: player.playing, ...layers } : null}
     />
   {:else if id === 'style'}
     <StylePanel
       track={player.track}
       style={player.hud.style}
       {following}
+      radio={player.station !== null}
+      ontune={(on) => player.tuneRadio(on)}
       onintent={(intent) => player.apply(intent)}
     />
   {:else if id === 'time'}
@@ -235,6 +229,7 @@
       layer={following ? null : player.layer}
       memory={player.hud.muse.memory}
       players={player.players}
+      carry={layers && !following ? { playing: player.playing, ...layers } : null}
     />
   {/if}
 {/snippet}

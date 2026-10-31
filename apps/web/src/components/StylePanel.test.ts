@@ -150,4 +150,40 @@ describe('the style card', () => {
     }
     expect(container.querySelector('summary .sub')).toHaveTextContent('the host sets it');
   });
+
+  describe('the radio (#313)', () => {
+    it('is a toggle beside the presets: the band drifts through style space while it is on', async () => {
+      const ontune = vi.fn();
+      const { container, rerender } = render(StylePanel, props({ radio: false, ontune }));
+      const box = screen.getByRole('switch', { name: 'Radio', hidden: true });
+      expect(box).not.toBeChecked();
+      await fireEvent.click(box);
+      expect(ontune).toHaveBeenLastCalledWith(true);
+      await rerender(props({ radio: true, ontune }));
+      expect(screen.getByRole('switch', { name: 'Radio', hidden: true })).toBeChecked();
+      expect(container.querySelector('summary .sub')).toHaveTextContent(
+        'Radio · Playing Synth-pop',
+      );
+      await fireEvent.click(screen.getByRole('switch', { name: 'Radio', hidden: true }));
+      expect(ontune).toHaveBeenLastCalledWith(false);
+    });
+
+    it('rests on a client, which follows the host’s radio', () => {
+      render(StylePanel, props({ radio: true, ontune: () => {}, following: true }));
+      expect(screen.getByRole('switch', { name: 'Radio', hidden: true })).toBeDisabled();
+    });
+
+    it('is not there where nothing tunes it', () => {
+      render(StylePanel, props());
+      expect(screen.queryByRole('switch', { name: 'Radio', hidden: true })).toBeNull();
+    });
+  });
+
+  it('lights each preset as near as the style is to it: the one it is at fully, the rest dimmer', () => {
+    render(StylePanel, props({ style: view({ axes: { ...axes, ...jazz.style } }) }));
+    const glow = (name: string) =>
+      Number(screen.getByRole('radio', { name, hidden: true }).style.getPropertyValue('--glow'));
+    expect(glow('Swing jazz')).toBeCloseTo(1, 2);
+    for (const p of PRESETS) if (p !== jazz) expect(glow(p.name)).toBeLessThan(1);
+  });
 });

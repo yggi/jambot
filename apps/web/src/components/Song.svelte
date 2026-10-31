@@ -316,7 +316,7 @@
     }
     .big {
       grid-template-columns: minmax(0, 1fr);
-      align-content: center;
+      align-content: start;
       height: auto;
     }
     .next {

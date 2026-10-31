@@ -4,7 +4,9 @@
   name for a tooltip and a screen reader where its text is short. Given
   `columns`, the options are joined in rows of that many instead of in one,
   the last cell taking the rest of a row that is not full, with the four
-  corner cells curved to the outline so a pressed one's ring follows it.
+  corner cells curved to the outline so a pressed one's ring follows it. An
+  option may glow, as near as it is to what is (the style's presets, lit by
+  how near the style is to each).
 -->
 <script lang="ts" generics="Value extends string">
   import type { Snippet } from 'svelte';
@@ -18,6 +20,8 @@
     disabled?: boolean;
     /** A small picture before the text, decoration: the text or `name` says it in words. */
     icon?: Snippet;
+    /** How near this option is to what is, from 0 to 1, lit as a glow behind it (the style's presets). */
+    glow?: number;
   }
 
   interface Props {
@@ -66,6 +70,7 @@
       class:bl={corner.bl}
       class:br={corner.br}
       style:grid-column={spanOf(i)}
+      style:--glow={option.glow === undefined ? undefined : option.glow.toFixed(3)}
       role="radio"
       aria-label={option.name}
       title={option.name}
@@ -129,6 +134,10 @@
   }
   .br {
     border-bottom-right-radius: 21px;
+  }
+  /* A glow: the option's nearness, as much amber in its face. */
+  button[style*='--glow'] {
+    background: color-mix(in srgb, var(--amber) calc(var(--glow) * 40%), var(--surface));
   }
   button:disabled {
     opacity: 0.4;

@@ -285,6 +285,11 @@
     gap: 8px;
     font-size: 14px;
   }
+  /* A checkbox keeps its own size beside its words: the text inputs' stretch is not for it. */
+  .check input {
+    flex: none;
+    width: auto;
+  }
   .notice {
     font-size: 14px;
     color: var(--amber);

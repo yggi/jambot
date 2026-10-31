@@ -8,7 +8,10 @@
   under it: its cells text, the point it is found at on the style's axes,
   its tags, what it varies and what it was used together with. It logs the
   sections heard itself, a section at a time, so it stays mounted while
-  another view shows.
+  another view shows. Where this device keeps what the band learned (a
+  host's, solo's), it carries it (#398): the layer exported as JSON, its
+  filed fragments as fragment files, and a layer imported while the band is
+  stopped.
 -->
 <script lang="ts">
   import type { LearnedLayer } from '@jambot/engine';
@@ -38,9 +41,32 @@
     memory: readonly MemoryView[];
     /** The session's players' names, by id. */
     players: Readonly<Record<string, string>>;
+    /** How the learned layer is carried to and from files; null for a client. */
+    carry?: Carry | null;
   }
 
-  let { bar, layer, memory, players }: Props = $props();
+  interface Carry {
+    /** Whether the band plays: an import waits until it stops. */
+    playing: boolean;
+    /** Save the layer as a JSON file. */
+    onexport: () => void;
+    /** Save its filed fragments as fragment files. */
+    onexportfiles: () => void;
+    /** Take a layer from a file's text: null where it took, else why not. */
+    onimport: (text: string) => string | null;
+  }
+
+  let { bar, layer, memory, players, carry = null }: Props = $props();
+
+  /** What the last import said: that it took, or why not. */
+  let imported: string | null = $state(null);
+
+  async function take(input: HTMLInputElement, by: Carry) {
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    imported = by.onimport(await file.text()) ?? 'Imported: the next song starts from it.';
+  }
 
   let log: readonly TakenSection[] = $state.raw([]);
   $effect.pre(() => {
@@ -173,9 +199,65 @@
       {/if}
     </section>
   {/if}
+  {#if carry}
+    <div class="actions">
+      <button type="button" onclick={carry.onexport}>Export</button>
+      {#if layer && layer.filed.length > 0}
+        <button type="button" onclick={carry.onexportfiles}>
+          Export fragments ({layer.filed.length})
+        </button>
+      {/if}
+      <label class="file" class:disabled={carry.playing}>
+        Import
+        <input
+          type="file"
+          accept="application/json,.json"
+          disabled={carry.playing}
+          onchange={(e) => void take(e.currentTarget, carry!)}
+        />
+      </label>
+      <p class="note">
+        {imported ??
+          (carry.playing
+            ? 'This browser keeps what the band learns. Stop the band to import.'
+            : 'This browser keeps what the band learns.')}
+      </p>
+    </div>
+  {/if}
 </Card>
 
 <style>
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .actions button,
+  .file {
+    min-height: 38px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 19px;
+    background: var(--surface);
+    font-weight: 500;
+  }
+  .file {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  .file input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+  .file.disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
   .note {
     margin: 0;
     font-size: 13px;

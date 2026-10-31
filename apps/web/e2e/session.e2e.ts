@@ -600,8 +600,9 @@ test("a client's drums reach the host's Muse, which files the groove under its p
   await client.getByRole('button', { name: '▶ Mine' }).click();
 
   // The host's Muse files it where the next section is planned: within two sections at Synth-pop's tempo.
-  await openSession(page);
-  await expect(page.getByRole('list', { name: 'Grooves filed' })).toContainText('Ada', {
+  await showView(page, 'Cells');
+  await page.getByRole('radio', { name: 'Filed' }).click();
+  await expect(page.getByRole('table', { name: 'Fragments' })).toContainText('Ada', {
     timeout: 45_000,
   });
 });
