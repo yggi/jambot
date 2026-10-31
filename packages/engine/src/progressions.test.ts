@@ -1,5 +1,6 @@
 import { METERS, type MeterName } from '@jambot/theory';
 import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
+import { bodyOf } from '@yggi/cells/engine/use';
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES } from './key.ts';
 import {
@@ -56,7 +57,10 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
 
   it('states each seed’s slots as the seed’s own text, character for character (identity)', () => {
     for (const f of VAMP_SEEDS)
-      expect(progressionText(readProgression(f.text, METERS['4/4'])!.notes)).toBe(f.text.trim());
+      expect(progressionText(readProgression(f.text, METERS['4/4'])!.notes)).toBe(
+        // (the seed's body: a template's signature line, `&harm from &key`, says what it takes)
+        bodyOf(f.text).trim(),
+      );
   });
 
   it('reads back every progression of a chord a bar on degrees 0 to 6, with a half-bar change in bar 2 or none (the round trip)', () => {

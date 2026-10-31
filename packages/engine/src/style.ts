@@ -12,9 +12,13 @@
  * (`presetSwing`, `repository.ts`, #459). A preset's mode is found at its
  * point the same way (`presetMode`, `mode-repository.ts`, #420).
  *
+ * Style space's four axes, and what each measures, are cells' table of axes
+ * (yggi/cells#397); entropy and the bpm are the track's own.
+ *
  * Positions are steps of the song, counted from its start, 16 to a bar.
  */
 
+import { AXES as CELLS_AXES } from '@yggi/cells/engine/style';
 import { barStart } from './events.ts';
 
 export interface AxisRange {
@@ -26,15 +30,29 @@ export interface AxisRange {
 
 const unit: AxisRange = { min: 0, max: 1, space: 'linear' };
 
+/** A style axis as cells' table of axes has it (yggi/cells#397, `AXES`): its range, glided linearly. */
+function cellsAxis(name: StyleAxisName): AxisRange {
+  const axis = CELLS_AXES.find((a) => a.name === name);
+  if (!axis) throw new Error(`cells' table of axes has no ${name}`);
+  return { min: axis.range[0], max: axis.range[1], space: 'linear' };
+}
+
+/** The style space's axes, cells' (yggi/cells#397): what each measures is said there. */
+type StyleAxisName = 'sync' | 'harm' | 'artic' | 'energy';
+
+/**
+ * The track's axes: style space's four from cells' table (sync, harm, artic,
+ * energy), and the two that are the track's own, entropy and the bpm.
+ */
 export const AXES = {
   /** On the beat (0) to off the beat (1). */
-  sync: unit,
+  sync: cellsAxis('sync'),
   /** A static vamp (0) to moving, rich harmony (1). */
-  harm: unit,
+  harm: cellsAxis('harm'),
   /** Legato (0) to staccato (1). */
-  artic: unit,
+  artic: cellsAxis('artic'),
   /** Sparse (0) to dense (1). */
-  energy: unit,
+  energy: cellsAxis('energy'),
   /** Predictable (0) to surprising (1). */
   entropy: unit,
   /** Beats per minute: the beats of the meter the track counts (`tempo.ts`, #367). */

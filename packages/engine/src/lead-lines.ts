@@ -33,6 +33,7 @@
 import type { Meter, MeterName } from '@jambot/theory';
 import { METERS, stepsOf } from '@jambot/theory';
 import { compileSource } from '@yggi/cells/engine/compile';
+import { bodyOf } from '@yggi/cells/engine/use';
 import { flatten } from '@yggi/cells/engine/flatten';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { type Operator, variations } from '@yggi/cells/engine/vary/index';
@@ -156,7 +157,8 @@ export const MOTIF_FACET = 'motif';
  */
 export function motifLead(motif: Fragment): Fragment {
   const head = new RegExp(`^&${motif.id}(?=\\s)`, 'm');
-  const text = [motif.text.replace(head, '&lead'), ...LEAD_VOICE].join('\n');
+  // (its body: a template's signature line, `&hook from &key`, says what it takes, which the lead's bench gives)
+  const text = [bodyOf(motif.text).replace(head, '&lead'), ...LEAD_VOICE].join('\n');
   const name = (Object.keys(METERS) as MeterName[]).find((n) => readLead(text, METERS[n]));
   const first = name ? readLead(text, METERS[name])!.notes[0]!.degree : 0;
   const lift =

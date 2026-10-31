@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AXES as CELLS_AXES } from '@yggi/cells/engine/style';
 import { METERS, meterOnSteps } from '@jambot/theory';
 import { presetSwing } from './repository.ts';
 import { leanMap, swingMapAt, swingParts } from './swing.ts';
@@ -415,5 +416,16 @@ describe('writtenStyle', () => {
         .map(([a, v]) => [a, Number(v)]),
     );
     expect(read).toEqual(once);
+  });
+});
+
+describe('the axes (yggi/cells#397)', () => {
+  it('takes style space’s four from cells’ table, in its order and at its ranges, and keeps entropy and the bpm its own', () => {
+    expect(AXIS_NAMES).toEqual(['sync', 'harm', 'artic', 'energy', 'entropy', 'bpm']);
+    expect(CELLS_AXES.map((a) => a.name)).toEqual(AXIS_NAMES.slice(0, 4));
+    for (const axis of CELLS_AXES) {
+      const ours = AXES[axis.name as keyof typeof AXES];
+      expect([ours.min, ours.max, ours.space], axis.name).toEqual([...axis.range, 'linear']);
+    }
   });
 });

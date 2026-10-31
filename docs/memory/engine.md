@@ -7,7 +7,7 @@ The pointers to what holds each are in the sentences.
   A new one gets a test that `lawBreaks(machine, script)` is empty, and the events it writes a test that `eventProblems` finds none.
 - A random choice in the engine goes through `chance(draw, p)` or `pick(draw, weights)`, never a bare `draw < p`: they quantise to 2^-16, so a last-bit difference from `Math.pow` or `Math.sin` on another engine does not change the music.
   A value from them that is rounded is quantised first, `Math.round(quantize(x))`: sin(π/6) times an odd number lies one ulp from a half (`lead.ts`).
-- The style (`packages/engine/src/style.ts`) is a track of glides, one per axis, and `styleAt(track, position)` reads it at any step of the song.
+- The style (`packages/engine/src/style.ts`) is a track of glides, one per axis, and `styleAt(track, position)` reads it at any step of the song. Style space's four axes (sync, harm, artic, energy) are cells' table of axes (yggi/cells#397); entropy and the bpm are the track's own.
   Positions there are steps from the song's start, 16 to a bar.
   A track holds only the latest glide per axis, and before that glide's start it reads the glide's `from`.
   So to see what was played at a step, read the track as it stood when that step was scheduled, not the final track.
