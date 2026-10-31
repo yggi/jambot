@@ -46,6 +46,7 @@ A source file has no line here: its header comment says what it is, and `tooling
     - [`host-mode.md`](briefs/host-mode.md): a plan sketch for host and client mode: the seams, the Muse on both sides, time, links
     - [`eternal-jam.md`](briefs/eternal-jam.md): eternal jam sessions, Jambot and Cell studio back together: the owner's brief, its reading, and the plan
     - [`mobile-ui.md`](briefs/mobile-ui.md): the band on a phone (#327): the owner's brief and reply, with the mocks (five options, then the stage chosen) and their screenshots in `briefs/mobile-ui/`
+    - [`session-roles.md`](briefs/session-roles.md): the host sets, everyone else asks: roles per code, asks with feedback, the Room's log, reactions and announcements, and the protocol groundwork
 - `prototype/`: the baseline the port is oriented by
   - [`README.md`](../prototype/README.md): concept, spirit, prototype architecture, the score language, the plan for learned models, open threads
   - [`jambot-prototype.html`](../prototype/jambot-prototype.html): the playable single-file prototype
