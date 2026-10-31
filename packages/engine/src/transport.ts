@@ -105,9 +105,9 @@ import { type HeardHarmonyBar, heardHarmony } from './muse-harmony.ts';
 import type { HarmonyRepository } from './harmony-query.ts';
 import type { LeadRepository } from './lead-query.ts';
 import type { LineRepository } from './bass-query.ts';
-import { type LeanChange, leanAt, leanedEntropy } from './homeostat.ts';
+import { type LeanChange, leanAt, leanedEntropy, restlessOf } from './homeostat.ts';
 import { sectionMeter } from './plan.ts';
-import { type StyleTrack, styleAt, valueAt, valueIn, writtenStyle } from './style.ts';
+import { type Style, type StyleTrack, styleAt, valueAt, valueIn, writtenStyle } from './style.ts';
 import {
   type MeterSwing,
   SHARE,
@@ -442,6 +442,12 @@ export interface TransportOutput {
 /** A transport's swing track: straight where its environment has none. */
 const STRAIGHT_TRACK = holdingSwing(STRAIGHT);
 
+/** How restless the band plays at a bar (`BandEnv.restless`, #536): where the leans take it past entropy 1, and nothing otherwise, so a bar they don't is as without them. */
+const restlessAt = (style: Style, leans: readonly LeanChange[] | undefined, bar: number) => {
+  const restless = leans === undefined ? 0 : restlessOf(style.entropy, leanAt(leans, bar));
+  return restless > 0 ? { restless } : {};
+};
+
 /**
  * What the band reads for a bar: the style and the meter's swing where the
  * bar starts, on their tracks, the entropy leaned as the homeostat leans it
@@ -476,6 +482,7 @@ export function bandEnvAt(
       leans === undefined
         ? style
         : { ...style, entropy: leanedEntropy(style.entropy, leanAt(leans, bar)) },
+    ...restlessAt(style, leans, bar),
     wish,
     meter,
     swing: swingAt(swing, start),

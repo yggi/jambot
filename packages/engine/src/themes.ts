@@ -26,8 +26,20 @@ export const THEME_KINDS = ['A', 'B', 'build'] as const;
 export type ThemeKind = (typeof THEME_KINDS)[number];
 
 /** A chord slot: a degree of the key, or a secondary dominant toward one. */
+/** A tone of a stack written in a progression (#539): a degree of the key, and its accidental in semitones. */
+export interface StackTone {
+  readonly degree: number;
+  readonly alter: number;
+}
+
+/**
+ * A theme's slot: a chord on a degree of the key, the stacked thirds the
+ * harmony colours (`barChords`), or the stack a progression wrote there as
+ * written, its root's degree beside it (#539); or the secondary dominant of
+ * a degree.
+ */
 export type Slot =
-  | { readonly step: number; readonly degree: number }
+  | { readonly step: number; readonly degree: number; readonly stack?: readonly StackTone[] }
   | { readonly step: number; readonly dominantOf: number };
 
 export interface Theme {

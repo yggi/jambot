@@ -32,7 +32,9 @@
  * library compiles only the heard text.
  *
  * The share (`shareOf`) is over a window of the last `SHARE_BARS` bars'
- * recognitions (`heardInto`, the owner's ruling of 2026-10-22): for a
+ * recognitions (`heardInto`; eight in the owner's ruling of 2026-10-22,
+ * sixteen in the ruling of 2026-10-31 on #536, which halves a section's
+ * scatter about its run's mean, so a band 0.3 wide can hold 80 % of them): for a
  * member, the bars it played in that are recognised, over those it played
  * in; over all members, pooled, every member's bar played counting once. A
  * window none played in has no share. Over all members is the share the
@@ -41,7 +43,7 @@
  *
  * **What it played lately** (`Lately`, E45): the controller (`homeostat.ts`)
  * hears each bar against the member's library and what it played lately as
- * well (`playedInto`: its last eight texts, and the harmony's last two
+ * well (`playedInto`: its last `LATELY_BARS` texts, and the harmony's last two
  * themes, heard once a section by `heardTexts`), since what a listener has
  * just heard is what is familiar. Against the library alone the band left
  * alone sits at 0.238 over all members and entropy barely moves it (E44);
@@ -84,8 +86,16 @@ export { createRecogniser };
 export const LOOP_FACETS = ['rhythm', 'bass', 'lead', 'harmony'] as const;
 export type LoopFacet = (typeof LOOP_FACETS)[number];
 
-/** The bars a share is taken over: the last eight (the owner's ruling, #237, 2026-10-22). */
-export const SHARE_BARS = 8;
+/**
+ * The bars a share is taken over: the last sixteen, two sections (the owner's
+ * ruling on #536, 2026-10-31; eight on #237, 2026-10-22). Over eight a
+ * section's share scattered by 0.10 to 0.12 about its run's mean, too wide for
+ * 80 % of sections inside a band 0.3 wide; over sixteen by 0.07 to 0.08.
+ */
+export const SHARE_BARS = 16;
+
+/** The texts a member is heard against as what it played lately: its last eight (E45). */
+export const LATELY_BARS = 8;
 
 /** What each member played in a bar, as cells text; a member absent where it stated nothing. */
 export type BarTexts = Readonly<Partial<Record<LoopFacet, string>>>;
@@ -105,7 +115,7 @@ const isOf = (facet: LoopFacet) => (fragment: Fragment) =>
 
 /**
  * What each member played lately, as cells text, oldest first: a member's
- * last `SHARE_BARS` texts, and the harmony's last `LATELY_THEMES` themes.
+ * last `LATELY_BARS` texts, and the harmony's last `LATELY_THEMES` themes.
  */
 export type Lately = Readonly<Record<LoopFacet, readonly string[]>>;
 
@@ -122,7 +132,7 @@ export function playedInto(lately: Lately, texts: BarTexts): Lately {
     const text = texts[facet];
     if (text !== undefined)
       out[facet] = [...lately[facet], text].slice(
-        -(facet === 'harmony' ? LATELY_THEMES : SHARE_BARS),
+        -(facet === 'harmony' ? LATELY_THEMES : LATELY_BARS),
       );
   }
   return out;
@@ -248,7 +258,11 @@ function themeSlots(theme: Theme): HarmonySlot[] | null {
   for (const [b, bar] of theme.bars.entries())
     for (const slot of bar) {
       if (!('degree' in slot) || (slot.step !== 0 && slot.step !== SLOT_BAR / 2)) return null;
-      slots.push({ step: b * SLOT_BAR + slot.step, degree: ((slot.degree % 7) + 7) % 7 });
+      slots.push({
+        step: b * SLOT_BAR + slot.step,
+        degree: ((slot.degree % 7) + 7) % 7,
+        ...(slot.stack && { stack: slot.stack }),
+      });
     }
   return theme.bars.length === SECTION_BARS ? slots : null;
 }
@@ -291,9 +305,12 @@ export function heardTexts(bar: BandBar): BarTexts {
   return bar.barInSection === 0 && harmony !== undefined ? { ...texts, harmony } : texts;
 }
 
-/** The window with a bar's recognition heard last: the last `SHARE_BARS` bars. */
-export const heardInto = (window: RecognitionWindow, bar: BarRecognition): RecognitionWindow =>
-  [...window, bar].slice(-SHARE_BARS);
+/** The window with a bar's recognition heard last: the last `bars`, `SHARE_BARS` unless an experiment reads another. */
+export const heardInto = (
+  window: RecognitionWindow,
+  bar: BarRecognition,
+  bars: number = SHARE_BARS,
+): RecognitionWindow => [...window, bar].slice(-bars);
 
 /**
  * The share of the window's bars recognised: of a member's, those it

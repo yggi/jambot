@@ -4,6 +4,7 @@ import {
   chordScale,
   heightOf,
   joinChord,
+  numeralOf,
   parseNumeral,
   positions,
   qualityOf,
@@ -300,6 +301,95 @@ describe("a bar's chords", () => {
     const eFlat: Key = { tonic: 3, mode: 'ionian' };
     expect(name({ step: 0, degree: 3 }, 0, eFlat)).toBe('Ab');
     expect(name({ step: 0, degree: 6 }, 0, eFlat)).toBe('Ddim');
+  });
+
+  describe('a stack written in a progression (#539)', () => {
+    const tone = (degree: number, alter = 0) => ({ degree, alter });
+    // (the minor line cliché, the Neapolitan, the augmented third, the diminished seventh, the raised dominant)
+    const STACKS = [
+      [tone(0), tone(2), tone(4), tone(6, 1)],
+      [tone(0), tone(2), tone(4), tone(6)],
+      [tone(0), tone(2), tone(4), tone(5, 1)],
+      [tone(1, -1), tone(3), tone(5)],
+      [tone(2), tone(4), tone(6, 1)],
+      [tone(6, 1), tone(8), tone(10), tone(12)],
+      [tone(4), tone(6, 1), tone(8)],
+    ];
+    const slotOf = (stack: (typeof STACKS)[number]): Slot => ({
+      step: 0,
+      degree: wrap(stack[0]!.degree, 7),
+      stack,
+    });
+    const play = (key: Key, slot: Slot, harm: number, seed = 1) =>
+      barChords(
+        envOf({ seed, key, harm, theme: themeOf(key, [[slot], [{ step: 0, degree: 0 }]]) }),
+      )[0]!;
+
+    it('plays as written in A minor, at every harmony: the line cliché, ♭II, III+, vii°7 and V', () => {
+      const aMinor: Key = { tonic: 9, mode: 'aeolian' };
+      for (const harm of harms)
+        expect(
+          STACKS.map((stack) => chordName(play(aMinor, slotOf(stack), harm), aMinor)),
+          `${harm}`,
+        ).toEqual(['AmMaj7', 'Am7', 'Am6', 'Bb', 'Caug', 'G#dim7', 'E']);
+      expect(STACKS.map((stack) => chordNumeral(play(aMinor, slotOf(stack), 1), aMinor))).toEqual([
+        'imaj7',
+        'i7',
+        'i6',
+        'bII',
+        'III+',
+        '#vii°7',
+        'V',
+      ]);
+    });
+
+    it('spells its notes from the root its name gives: ♭II on B♭, vii°7 on G♯', () => {
+      const aMinor: Key = { tonic: 9, mode: 'aeolian' };
+      const spelled = (stack: (typeof STACKS)[number]) =>
+        chordNotes(play(aMinor, slotOf(stack), 1), aMinor)
+          .map(
+            (n) =>
+              n.letter + (n.alteration > 0 ? '#'.repeat(n.alteration) : 'b'.repeat(-n.alteration)),
+          )
+          .join(' ');
+      expect(spelled(STACKS[3]!)).toBe('Bb D F');
+      expect(spelled(STACKS[5]!)).toBe('G# B D F');
+      expect(spelled(STACKS[4]!)).toBe('C E G#');
+    });
+
+    it('sounds its tones and no others, every key and harmony: no seventh, ninth or raised dominant added; or, where the key makes it no chord with a numeral, the triad on its root', () => {
+      for (const key of keys)
+        for (const stack of STACKS) {
+          const scale = keyHelix(key);
+          const written = stack.map((t) => heightOf(scale, t.degree) + t.alter);
+          const quality = qualityOf(written.map((x) => x - written[0]!));
+          for (const harm of [0, 0.5, 1])
+            for (const seed of range(3)) {
+              const chord = play(key, slotOf(stack), harm, seed);
+              const plain = barChords(
+                envOf({
+                  seed,
+                  key,
+                  harm,
+                  theme: themeOf(key, [
+                    [{ step: 0, degree: wrap(stack[0]!.degree, 7) }],
+                    [{ step: 0, degree: 0 }],
+                  ]),
+                }),
+              )[0]!;
+              const label = `${keyName(key)} ${JSON.stringify(stack)} ${harm}`;
+              const numbered =
+                quality !== undefined &&
+                numeralOf(keyHelix(key), { root: wrap(written[0]!, 12), quality }) !== undefined;
+              if (numbered) {
+                expect(joinChord(chord.chord), label).toEqual(written);
+                expect(chord.raised, label).toBe(false);
+              } else expect(chord.chord, label).toEqual(plain.chord);
+              expect(() => chordName(chord, key), label).not.toThrow();
+              expect(() => chordNumeral(chord, key), label).not.toThrow();
+            }
+        }
+    });
   });
 
   it('each have a Roman numeral that reads back as the chord, a secondary dominant with its target', () => {

@@ -120,7 +120,7 @@ export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
 
   /** Whether a role plays on a step with probability p. */
   const plays = (role: keyof typeof ROLE, step: number, p: number) =>
-    chance(heldDraw(seed, HELD, ROLE[role], section.index, bar, step, entropy), p);
+    chance(heldDraw(seed, HELD, ROLE[role], section.index, bar, step, entropy, env.restless), p);
 
   const steps = stepsOf(meter);
   const starts = meterOnSteps(meter).heights;

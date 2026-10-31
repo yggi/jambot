@@ -6,8 +6,8 @@
  * cells text (`heardTexts`) and heard off the clock (`ear.ts`) against the
  * member's library and what it played lately (`playedInto`), which is kept
  * here, so the ear holds nothing but its recogniser. At each section's last
- * bar, once the ear has answered for it, the share recognised over the
- * section's bars (`shareOf`, the last `SHARE_BARS`) is read by the
+ * bar, once the ear has answered for it, the share recognised over the last
+ * `SHARE_BARS` (this section's bars and the one's before) is read by the
  * controller (`regulated`) at the players' entropy there, and the lean it
  * moves is played from `LEAN_AHEAD` sections on (`leans`, which the band's
  * environment carries, `TransportEnv.leans`): the section after the one read
@@ -33,6 +33,7 @@ import {
   NOTHING_LATELY,
   NO_LEAN,
   SECTION_BARS,
+  SHARE_BARS,
   bandOf,
   heardTexts,
   leanAt,
@@ -177,14 +178,15 @@ export class Hearing {
     this.#costs[this.#costs.length - 1] = { ...cost, main: cost.main + main };
   }
 
-  /** The section ending at `last` read: its share, the controller after it, and its lean from the first section it can reach. */
+  /** The section ending at `last` read: its share over the last `SHARE_BARS`, the controller after it, and its lean from the first section it can reach. */
   #read(last: number) {
     const section = Math.floor(last / SECTION_BARS);
     const window: BarRecognition[] = [];
-    for (let bar = section * SECTION_BARS; bar <= last; bar++) {
+    for (let bar = last - SHARE_BARS + 1; bar <= last; bar++) {
       const heard = this.#heard.get(bar);
       if (heard) window.push(heard);
-      this.#heard.delete(bar);
+      // (what the next reading hears again stays)
+      if (bar <= last - SHARE_BARS + SECTION_BARS) this.#heard.delete(bar);
     }
     const share = shareOf(window);
     const entropy = this.#entropy.get(last) ?? 0;

@@ -3,8 +3,9 @@
  * the loop of `facet.ts` for the facet `harmony`; yggi/cells decisions 043,
  * 046, 047 and 052).
  *
- * A repository holds progressions, each cells text of eight bars of triads
- * over the key (`over=&key`): cells' five seeds are the vamps a theme plays
+ * A repository holds progressions, each cells text of eight bars of stacks
+ * over the key (`over=&key`), a triad on a degree or a stack written as it
+ * plays (#539): cells' five seeds are the vamps a theme plays
  * at low harmony (`themes.ts`'s `VAMPS`), and the Muse files the
  * progressions players play (`muse-harmony.ts`). The band reads one into
  * its chord slots (`HarmonySlot`: where it starts, 16 steps a bar from the
@@ -38,7 +39,15 @@ import type { ComposerMode } from './key.ts';
 import { type Bench, type FacetRepository, type Filing, marginsOf } from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
-import { type Slot, type Theme, type ThemeKind, VAMP_HARM, vampBars, vampIndex } from './themes.ts';
+import {
+  type Slot,
+  type StackTone,
+  type Theme,
+  type ThemeKind,
+  VAMP_HARM,
+  vampBars,
+  vampIndex,
+} from './themes.ts';
 
 /** The facet a progression is associated as (#425, the owner's ruling of 2026-10-18: bass, lead, harmony). */
 export const HARMONY_FACET = 'harmony';
@@ -50,8 +59,10 @@ export const SLOT_BAR = 16;
 export interface HarmonySlot {
   /** Its step from the section's start, `SLOT_BAR` a bar: a bar's first on step 0 of it, a second on its half, 8. */
   readonly step: number;
-  /** Its degree of the key, 0 to 6: the triad on it. */
+  /** Its degree of the key, 0 to 6: the triad on it, or its stack's root. */
   readonly degree: number;
+  /** Its stack as written, where it is other than the triad on its degree (#539): its tones from the root up. */
+  readonly stack?: readonly StackTone[];
 }
 
 /** A progression read: its slots over its lap, and the bars the lap holds (eight, a section's). */
@@ -83,18 +94,22 @@ export const OFFER = 1.25;
 /** A progression's slots as a theme's eight bars of slots. */
 export function barsOf(notes: readonly HarmonySlot[], bars: number): Slot[][] {
   const out: Slot[][] = Array.from({ length: bars }, () => []);
-  for (const { step, degree } of [...notes].sort((a, b) => a.step - b.step))
-    out[Math.floor(step / SLOT_BAR)]!.push({ step: step % SLOT_BAR, degree });
+  for (const { step, degree, stack } of [...notes].sort((a, b) => a.step - b.step))
+    out[Math.floor(step / SLOT_BAR)]!.push({
+      step: step % SLOT_BAR,
+      degree,
+      ...(stack && { stack }),
+    });
   return out;
 }
 
 /**
  * The chords of a progression that is a vamp: one chord for its first four
  * bars and one for its last four, each a chord a bar; the one chord where
- * they are the same. Null for one that isn't.
+ * they are the same. Null for one that isn't, or that writes a stack (#539).
  */
 export function vampOf(read: HarmonyRead): readonly number[] | null {
-  if (read.bars !== 8) return null;
+  if (read.bars !== 8 || read.notes.some((n) => n.stack)) return null;
   const bars = barsOf(read.notes, read.bars);
   if (bars.some((b) => b.length !== 1 || b[0]!.step !== 0)) return null;
   const degree = (b: number) => (bars[b]![0] as { degree: number }).degree;

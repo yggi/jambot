@@ -37,6 +37,7 @@ import {
   SLOT_BAR,
 } from './harmony-query.ts';
 import { lineRepositoryOf, nameOf } from './line-repository.ts';
+import type { StackTone } from './themes.ts';
 
 /** The workbench a progression is read on: the meter, and a key, so its hole is filled. */
 export const harmonyBench = (name: MeterName): string =>
@@ -45,12 +46,22 @@ export const harmonyBench = (name: MeterName): string =>
 /** The half of a bar a slot starts on: step 8 of `SLOT_BAR`. */
 const HALF = SLOT_BAR / 2;
 
-/** A triad on a degree, as cells writes a stack. */
-const stackOf = (degree: number) => `[${degree},${degree + 2},${degree + 4}]`;
+/** A tone of a stack as cells writes it: its degree, then its accidental (`6#`, `1b`). */
+const toneText = ({ degree, alter }: StackTone) =>
+  `${degree}${(alter < 0 ? 'b' : '#').repeat(Math.abs(alter))}`;
+
+/** A slot's chord as cells writes a stack: the stack written there, else the triad on its degree. */
+const stackOf = ({ degree, stack }: HarmonySlot) =>
+  `[${(stack ?? [0, 2, 4].map((k) => ({ degree: degree + k, alter: 0 }))).map(toneText).join(',')}]`;
+
+/** The tones a stack may hold where it is written as it is (#539): 3 or 4, each moved a semitone at most. */
+const STACK_TONES = [3, 4];
+const MOST_ALTER = 1;
 
 /**
  * A section's progression as cells text, open on its meter and its key: a
- * bar a step (`1m`), each the triad on its slot's degree, or its two halves'
+ * bar a step (`1m`), each its slot's stack as written or the triad on its
+ * degree, or its two halves'
  * where it has a slot on its half, runs of a bar written `!n`. It reads
  * back as the slots it was stated from (`readProgression`, the round trip).
  */
@@ -58,11 +69,9 @@ export function progressionText(notes: readonly HarmonySlot[]): string {
   const bars = Array.from({ length: SECTION_BARS }, (_, b) => {
     const here = notes.filter((n) => Math.floor(n.step / SLOT_BAR) === b);
     const at = (step: number) => here.find((n) => n.step % SLOT_BAR === step);
-    const first = at(0)!;
+    const first = stackOf(at(0)!);
     const half = at(HALF);
-    return half && half.degree !== first.degree
-      ? `[${stackOf(first.degree)} ${stackOf(half.degree)}]`
-      : stackOf(first.degree);
+    return half && stackOf(half) !== first ? `[${first} ${stackOf(half)}]` : first;
   });
   const runs: string[] = [];
   for (let b = 0; b < bars.length;) {
@@ -79,8 +88,9 @@ export function progressionText(notes: readonly HarmonySlot[]): string {
  * start (a bar's start or its half), and the degree its triad stands on,
  * from cells' flattening of `&harm`. Null where the meter has no name in
  * cells, the text doesn't compile on the workbench, its lap is other than a
- * section's bars, a stack is no triad of the key's degrees unmoved (a third
- * and a fifth above its root, no accidental), one starts off a bar's start
+ * section's bars, a stack is neither the triad on a degree of the key nor 3
+ * or 4 tones on distinct degrees, each moved a semitone at most (one read
+ * as written, #539), one starts off a bar's start
  * or half, or a bar starts with none.
  */
 export function readProgression(text: string, meter: Meter): HarmonyRead | null {
@@ -96,29 +106,34 @@ export function readProgression(text: string, meter: Meter): HarmonyRead | null 
   const barWhole = cellMeter.pulses / cellMeter.unit;
   const lap = (cell.steps * whole) / barWhole;
   if (Math.abs(lap - SECTION_BARS) > 1e-9) return null;
-  const stacks = new Map<number, number[]>();
+  const stacks = new Map<number, StackTone[]>();
   for (const e of flatten(result, 'harm', codeShifts(result))) {
     if (e.table !== 'key' || e.via || e.tableShift !== 0 || (e.transpose ?? 0) !== 0) return null;
-    if (e.alter !== 0) return null;
+    if (Math.abs(e.alter) > MOST_ALTER) return null;
     const at = (e.step * whole) / barWhole;
     const step = Math.round(at * SLOT_BAR);
     if (Math.abs(at * SLOT_BAR - step) > 1e-6 || step % HALF !== 0) return null;
     if (step < 0 || step >= SECTION_BARS * SLOT_BAR) return null;
-    stacks.set(step, [...(stacks.get(step) ?? []), e.value]);
+    stacks.set(step, [...(stacks.get(step) ?? []), { degree: e.value, alter: e.alter }]);
   }
   const notes: HarmonySlot[] = [];
-  for (const [step, values] of [...stacks].sort(([a], [b]) => a - b)) {
-    const root = Math.min(...values);
-    const tones = [...new Set(values)].sort((a, b) => a - b);
-    if (tones.join(' ') !== `${root} ${root + 2} ${root + 4}`) return null;
-    notes.push({ step, degree: ((root % 7) + 7) % 7 });
+  for (const [step, written] of [...stacks].sort(([a], [b]) => a - b)) {
+    const tones = written.sort((a, b) => a.degree - b.degree || a.alter - b.alter);
+    if (tones.some((t, i) => i > 0 && t.degree === tones[i - 1]!.degree)) return null;
+    const root = tones[0]!.degree;
+    const degree = ((root % 7) + 7) % 7;
+    const triad = tones.map(toneText).join(' ') === `${root} ${root + 2} ${root + 4}`;
+    if (triad) notes.push({ step, degree });
+    else if (STACK_TONES.includes(tones.length)) notes.push({ step, degree, stack: tones });
+    else return null;
   }
   for (let b = 0; b < SECTION_BARS; b++)
     if (!notes.some((n) => n.step === b * SLOT_BAR)) return null;
   // (a bar's half that repeats its start is the same chord: one slot, as a theme writes it)
   const kept = notes.filter(
     (n) =>
-      n.step % SLOT_BAR === 0 || notes.find((m) => m.step === n.step - HALF)!.degree !== n.degree,
+      n.step % SLOT_BAR === 0 ||
+      stackOf(notes.find((m) => m.step === n.step - HALF)!) !== stackOf(n),
   );
   return { bars: SECTION_BARS, notes: kept };
 }

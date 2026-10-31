@@ -80,12 +80,34 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
     }
   });
 
-  it('reads no text that isn’t eight bars of triads on the key’s degrees, on a bar’s start or its half', () => {
+  it('reads a stack beyond the triad on its root as written: its tones as degrees of the key, each with its accidental (#539)', () => {
+    // (the minor line cliché, the Neapolitan, the augmented third, the raised dominant and the diminished seventh)
+    const text =
+      '&harm over=&key step=1m cycle=8 [0,2,4] [0,2,4,6#] [0,2,4,6] [0,2,4,5#] [1b,3,5] [2,4,6#] [6#,8,10,12] [4,6#,8]';
+    const tone = (degree: number, alter = 0) => ({ degree, alter });
+    const read = readProgression(text, METERS['4/4'])!;
+    expect(read.notes).toEqual([
+      { step: 0, degree: 0 },
+      { step: 16, degree: 0, stack: [tone(0), tone(2), tone(4), tone(6, 1)] },
+      { step: 32, degree: 0, stack: [tone(0), tone(2), tone(4), tone(6)] },
+      { step: 48, degree: 0, stack: [tone(0), tone(2), tone(4), tone(5, 1)] },
+      { step: 64, degree: 1, stack: [tone(1, -1), tone(3), tone(5)] },
+      { step: 80, degree: 2, stack: [tone(2), tone(4), tone(6, 1)] },
+      { step: 96, degree: 6, stack: [tone(6, 1), tone(8), tone(10), tone(12)] },
+      { step: 112, degree: 4, stack: [tone(4), tone(6, 1), tone(8)] },
+    ]);
+    expect(vampOf(read)).toBeNull();
+    // (the round trip: the slots stated read back as themselves)
+    expect(readProgression(progressionText(read.notes), METERS['4/4'])).toEqual(read);
+    expect(progressionText(read.notes)).toBe(text);
+  });
+
+  it('reads no text that isn’t eight bars of stacks of 3 or 4 tones on the key’s degrees, each altered a semitone at most, on a bar’s start or its half', () => {
     for (const text of [
       '&harm over=&key step=1m cycle=4 [0,2,4]!4',
-      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,3,4]!4',
-      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,2b,4]!4',
-      '&harm over=&key step=1m cycle=8 [0,2,4,6]!8',
+      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,4]!4',
+      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,2,4,6,8]!4',
+      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,2bb,4]!4',
       '&harm over=&key step=4n cycle=32 [0,2,4]!32',
       '&harm over=&key step=1m cycle=8 [[0,2,4] [3,5,7] [4,6,8]] [0,2,4]!7',
       'not cells',

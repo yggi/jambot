@@ -20,6 +20,7 @@ import {
   type LoopFacet,
   NOTHING_LATELY,
   NOTHING_RECOGNISED,
+  LATELY_BARS,
   SHARE_BARS,
   barTexts,
   heardInto,
@@ -242,7 +243,7 @@ describe('what each member played, as cells text (barTexts)', () => {
 });
 
 describe('the share of bars recognised (heardInto, shareOf)', () => {
-  it('is a member’s recognised bars over those it played in, for every window of eight bars of one member', () => {
+  it('is a member’s recognised bars over those it played in, for every window of sixteen bars of one member', () => {
     for (let pattern = 0; pattern < 1 << SHARE_BARS; pattern++) {
       let window = NOTHING_RECOGNISED;
       for (let b = 0; b < SHARE_BARS; b++)
@@ -255,7 +256,7 @@ describe('the share of bars recognised (heardInto, shareOf)', () => {
     }
   });
 
-  it('keeps the last eight bars: a ninth lets the first go', () => {
+  it('keeps the last sixteen bars: a seventeenth lets the first go', () => {
     let window = heardInto(NOTHING_RECOGNISED, { rhythm: true });
     for (let b = 1; b < SHARE_BARS; b++) window = heardInto(window, { rhythm: false });
     expect(shareOf(window, 'rhythm')).toBe(1 / SHARE_BARS);
@@ -292,20 +293,20 @@ describe('what each member played lately (heardTexts, playedInto)', () => {
 
   it('keeps a member’s last eight texts and the harmony’s last two themes, each member alone', () => {
     let lately = NOTHING_LATELY;
-    for (let b = 0; b < 3 * SHARE_BARS; b++)
+    for (let b = 0; b < 3 * LATELY_BARS; b++)
       lately = playedInto(lately, {
         bass: `bass ${b}`,
         ...(b % 2 ? {} : { lead: `lead ${b}` }),
-        ...(b % SHARE_BARS ? {} : { harmony: `theme ${b}` }),
+        ...(b % LATELY_BARS ? {} : { harmony: `theme ${b}` }),
       });
     const last = (n: number, of: (b: number) => string, every = 1) =>
-      [...Array(3 * SHARE_BARS).keys()]
+      [...Array(3 * LATELY_BARS).keys()]
         .filter((b) => b % every === 0)
         .slice(-n)
         .map(of);
-    expect(lately.bass).toEqual(last(SHARE_BARS, (b) => `bass ${b}`));
-    expect(lately.lead).toEqual(last(SHARE_BARS, (b) => `lead ${b}`, 2));
-    expect(lately.harmony).toEqual(last(LATELY_THEMES, (b) => `theme ${b}`, SHARE_BARS));
+    expect(lately.bass).toEqual(last(LATELY_BARS, (b) => `bass ${b}`));
+    expect(lately.lead).toEqual(last(LATELY_BARS, (b) => `lead ${b}`, 2));
+    expect(lately.harmony).toEqual(last(LATELY_THEMES, (b) => `theme ${b}`, LATELY_BARS));
     expect(lately.rhythm).toEqual([]);
   });
 
