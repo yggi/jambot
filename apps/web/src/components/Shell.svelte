@@ -40,6 +40,8 @@
     view?: string;
     /** The section whose sheet is down, or null. */
     drawn?: string | null;
+    /** What hangs from the header over the views, taps falling through it: the band's cues. */
+    overlay?: Snippet | undefined;
   }
 
   let {
@@ -50,6 +52,7 @@
     stage,
     view = $bindable(views[0]?.id ?? ''),
     drawn = $bindable(null),
+    overlay,
   }: Props = $props();
 
   pinCards();
@@ -91,6 +94,7 @@
         {@render stage(place.id)}
       </div>
     {/each}
+    {#if overlay}<div class="overlay">{@render overlay()}</div>{/if}
     <button
       type="button"
       class="scrim"
@@ -203,6 +207,15 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+  /* Over the views, under the drawer's sheets: nothing in it takes a tap. */
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: calc(var(--gutter) + 6px);
+    right: calc(var(--gutter) + 6px);
+    z-index: 1;
+    pointer-events: none;
   }
   .scrim {
     position: absolute;

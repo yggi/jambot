@@ -53,6 +53,9 @@
           players: tracks.players
             .filter((p) => p.part === 'lead' && !p.heardAs)
             .map((p) => ({ notes: p.notes, colour: p.colour, local: p.local })),
+          backing: tracks.performers
+            .filter((p) => (p.performer === 'comp' || p.performer === 'bass') && p.sounds)
+            .map((p) => ({ voice: p.performer, notes: p.notes })),
         }),
   );
   const bars = $derived(

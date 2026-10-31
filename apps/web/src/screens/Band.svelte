@@ -23,6 +23,9 @@
   import StylePanel from '../components/StylePanel.svelte';
   import BandCard from '../components/BandCard.svelte';
   import Cells from '../components/Cells.svelte';
+  import CueStrip from '../components/CueStrip.svelte';
+  import { cuesOf } from '../cues.ts';
+  import { STYLE_AXES } from '../hud.ts';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
   import type { Instruments } from '../instruments.svelte.ts';
@@ -96,6 +99,22 @@
       beatsLeft: player.counting
         ? transportCells(meter).length - (transportHeard(meter, player.countStep)?.cell ?? 0)
         : null,
+    }),
+  );
+
+  /** The heads-ups, read from the plan a few bars early, and from the transport's phase. */
+  const cues = $derived(
+    cuesOf({
+      hud: player.hud,
+      counting: player.counting
+        ? {
+            left:
+              transportCells(meter).length - (transportHeard(meter, player.countStep)?.cell ?? 0),
+            of: transportCells(meter).length,
+          }
+        : null,
+      ending: player.ending,
+      radio: player.station !== null,
     }),
   );
 
@@ -234,4 +253,12 @@
   {/if}
 {/snippet}
 
-<Shell {header} {drawer} {sheet} views={VIEWS} {stage} />
+{#snippet overlay()}
+  <CueStrip
+    {cues}
+    beat={player.hud.beat}
+    axes={STYLE_AXES.map((axis) => player.hud.style.axes[axis])}
+  />
+{/snippet}
+
+<Shell {header} {drawer} {sheet} views={VIEWS} {stage} {overlay} />
