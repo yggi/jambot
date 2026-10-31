@@ -514,7 +514,6 @@ for (const input of INPUTS)
     await openStyle(page);
     await page.getByRole('slider', { name: /Energy/ }).fill('0');
     await input.ready(page);
-    await openCard(page, 'Muse');
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await start(page);
     await expect(transport(page).getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
@@ -526,6 +525,8 @@ for (const input of INPUTS)
       await input.play(page, note, false);
       await page.waitForTimeout(step * 4 * 1000 - 60);
     }
+    // The Muse is the Cells view's: shown once the keys have played, so they stay in view while they do.
+    await openCard(page, 'Muse');
     const took = page.getByText(
       new RegExp(`Bar (\\d+): Took a 3-note motif from ${input.source}\\.`),
     );
