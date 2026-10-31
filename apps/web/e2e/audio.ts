@@ -364,11 +364,10 @@ const DRAWN: Record<string, string> = {
   Style: 'Style',
   Metrum: 'Time',
   Key: 'Key',
-  Muse: 'Muse',
   Timing: 'Counters',
 };
 /** The band's view that holds a card, by the card's title. */
-const SHOWN: Record<string, string> = { Band: 'Mix', Play: 'Melody' };
+const SHOWN: Record<string, string> = { Band: 'Mix', Play: 'Melody', Muse: 'Cells' };
 
 /** Shows one of the band's views, as a person taps its tab: the drawer goes up. */
 export const showView = (page: Page, name: string) => page.getByRole('tab', { name }).click();

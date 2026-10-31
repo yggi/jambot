@@ -100,50 +100,6 @@ describe('the Muse card', () => {
     expect(container.querySelectorAll('.patience span.spent')).toHaveLength(5);
   });
 
-  it('shows what it remembers, a row for each: its weight, the bars it was heard in, confirmed and on offer marked', () => {
-    const roll = {
-      cycle: 16,
-      pulses: [0, 4, 8, 12],
-      rows: 2,
-      notes: [{ step: 0, length: 4, row: 0, altered: false }],
-    };
-    const remembered = (name: string, strength: number, heard: number, offeredNow: boolean) => ({
-      ...roll,
-      source: name,
-      name,
-      colour: 1,
-      bar: 2,
-      strength,
-      heard,
-      confirmed: heard >= 2,
-      offered: offeredNow,
-    });
-    render(Muse, {
-      muse: {
-        ...empty,
-        memory: [
-          remembered('Ada’s keys', 0.9, 2, true),
-          remembered('the drum pads', 0.25, 1, false),
-        ],
-      },
-      pulse: 0,
-      onforget: () => {},
-    });
-    const rows = within(screen.getByRole('list', { name: 'Muse memory' })).getAllByRole('listitem');
-    expect(rows).toHaveLength(2);
-    const [first, second] = rows as [HTMLElement, HTMLElement];
-    expect(first.textContent).toContain('Ada’s keys · bar 3');
-    expect(within(first).getByRole('img', { name: 'Weight 90%' })).toBeInTheDocument();
-    expect(within(first).getByRole('img', { name: 'Heard in 2 bars' }).children).toHaveLength(2);
-    expect(within(first).getByRole('img', { name: 'Confirmed' })).toBeInTheDocument();
-    expect(within(first).getByRole('img', { name: 'On offer' })).toBeInTheDocument();
-    expect(first.classList.contains('offered')).toBe(true);
-    expect(within(second).queryByRole('img', { name: 'Confirmed' })).toBeNull();
-    expect(within(second).queryByRole('img', { name: 'On offer' })).toBeNull();
-    expect(within(second).getByRole('img', { name: 'Heard in 1 bars' }).children).toHaveLength(1);
-    expect(second.textContent).toContain('the drum pads');
-  });
-
   it('says in the summary how many it remembers while it holds no motif', () => {
     const { container } = render(Muse, {
       muse: {

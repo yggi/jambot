@@ -34,7 +34,7 @@ const tracks = (over: Partial<TracksView> = {}): TracksView => ({
 const props = (over = {}) => ({
   tracks: tracks(),
   bar: { key: 'A minor', melodic: [9, 11, 0, 2, 4, 5, 7], melodicName: 'plain' as const },
-  chord: { step: 0, symbol: 'Am', numeral: 'i' },
+  chord: { step: 0, symbol: 'Am', numeral: 'i', notes: [] },
   down: new Set<number>(),
   sounding: [],
   onnote: () => {},
@@ -51,8 +51,8 @@ describe('the melody view', () => {
     expect(
       screen.getByRole('img', { name: 'The lead, falling onto the keys' }),
     ).toBeInTheDocument();
-    expect(container.querySelectorAll('rect.note.foreseen')).toHaveLength(1);
-    expect(container.querySelectorAll('rect.note.played')).toHaveLength(1);
+    expect(container.querySelectorAll('.note.foreseen.chevron')).toHaveLength(1);
+    expect(container.querySelectorAll('.note.played.chevron')).toHaveLength(1);
   });
 
   it('says the chord and the key it plays over', () => {
@@ -102,7 +102,7 @@ describe('the melody view', () => {
     expect(onnote).toHaveBeenCalledWith(69, 100, true);
   });
 
-  it('draws a player’s notes in their colour', () => {
+  it('fills a note with its pitch’s colour and outlines it in its player’s: the band amber, a player theirs', () => {
     const { container } = render(
       Melody,
       props({
@@ -122,12 +122,46 @@ describe('the melody view', () => {
         }),
       }),
     );
-    const own = container.querySelector('rect.note.own');
-    expect(own).toHaveAttribute('fill', 'var(--source-2)');
+    const own = container.querySelector<SVGPathElement>('.note.own.chevron')!;
+    // E4: E's hue (120) in the middle octave, outlined in the player's colour.
+    expect(own.style.fill).toMatch(/^hsl\(120 /);
+    expect(own).toHaveAttribute('stroke', 'var(--source-2)');
+    for (const band of container.querySelectorAll('.note.played, .note.foreseen'))
+      expect(band).toHaveAttribute('stroke', 'var(--voice-lead)');
+  });
+
+  it('lays the chords and the bass faint behind the lead, as pills and blocks, where the keys reach them', () => {
+    const voice = (performer: 'comp' | 'bass', note: number, sounds = true): PerformerView => ({
+      ...lead([{ step: 32, note, length: 8 }]),
+      performer,
+      label: performer,
+      sounds,
+    });
+    const { container, unmount } = render(
+      Melody,
+      props({
+        tracks: tracks({
+          performers: [
+            ...tracks().performers,
+            voice('comp', 64),
+            voice('bass', 62),
+            voice('bass', 40),
+          ],
+        }),
+      }),
+    );
+    expect(container.querySelectorAll('.note.backing.pill')).toHaveLength(1);
+    expect(container.querySelectorAll('.note.backing.block')).toHaveLength(1);
+    unmount();
+    const muted = render(
+      Melody,
+      props({ tracks: tracks({ performers: [...tracks().performers, voice('comp', 64, false)] }) }),
+    );
+    expect(muted.container.querySelectorAll('.note.backing')).toHaveLength(0);
   });
 
   it('draws nothing on the roll before anything is heard', () => {
     const { container } = render(Melody, props({ tracks: tracks({ playhead: null }) }));
-    expect(container.querySelectorAll('rect.note')).toHaveLength(0);
+    expect(container.querySelectorAll('.note')).toHaveLength(0);
   });
 });

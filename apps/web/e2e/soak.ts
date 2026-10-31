@@ -46,7 +46,7 @@ import {
   compareSession,
   sessionBreaks,
 } from '../src/played.ts';
-import { host, join, joined, openCard, openStyle, solo, state } from './audio.ts';
+import { host, join, joined, openStyle, solo, state } from './audio.ts';
 import {
   GC_CATEGORIES,
   collections,
@@ -98,8 +98,7 @@ if (client) {
 } else await solo(page);
 await openStyle(page);
 await page.getByRole('slider', { name: 'Entropy' }).fill(String(Math.round(entropy * 100)));
-await openCard(page, 'Session');
-await page.getByRole('checkbox', { name: 'Leave the band on the radio' }).check();
+await page.getByRole('switch', { name: 'Radio' }).check();
 await page.getByRole('button', { name: 'Start the band' }).click();
 if (client) await state(client).filter({ hasText: 'host playing' }).waitFor({ state: 'attached' });
 const started = Date.now();

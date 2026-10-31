@@ -1,11 +1,11 @@
 <!--
   The band: what stands behind the lobby's door, in the shell (#327). The
   transport heads it; hanging from it, the drawer holds what conducts and
-  sets up the band (Sound, Session, Style, Time, Key, Muse, and the timing Counters where
+  sets up the band (Sound, Session, Style, Time, Key, and the timing Counters where
   the address asks for it); below, the views are where a person reads and
   plays along: Song (the plan and the chords read from where one plays), Melody (a roll of the lead
   falling onto the keys), Rhythm (the bar as a grid over the pads, and a pattern of one's own), Mix (the band's tracks)
-  and Cells (every cells fragment the band took, filed or heard, as one table).
+  and Cells (the Muse, what she holds and offers, over every cells fragment the band took, filed or heard, as one table).
   It shows the player it is given and sends what the person does; it opens
   no session and holds no device.
 -->
@@ -23,9 +23,11 @@
   import StylePanel from '../components/StylePanel.svelte';
   import BandCard from '../components/BandCard.svelte';
   import Cells from '../components/Cells.svelte';
+  import CueStrip from '../components/CueStrip.svelte';
+  import { cuesOf } from '../cues.ts';
+  import { STYLE_AXES } from '../hud.ts';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
-  import { stationLine } from '../radioView.ts';
   import type { Instruments } from '../instruments.svelte.ts';
   import type { Metronome } from '../metronome.svelte.ts';
   import { raised, toggled } from '../mix.ts';
@@ -45,11 +47,8 @@
     };
     /** Close the session, leave it, or go back to the lobby. */
     onend: () => void;
-    /** How the session card carries what the band learned (#398): exported, its fragments exported, imported. */
-    layers?: Pick<
-      NonNullable<ComponentProps<typeof Session>['learned']>,
-      'onexport' | 'onexportfiles' | 'onimport'
-    >;
+    /** How the Cells view carries what the band learned (#398): exported, its fragments exported, imported. */
+    layers?: Omit<NonNullable<ComponentProps<typeof Cells>['carry']>, 'playing'>;
     /** How this device sounds: the page's Sound card, which is on both sides of the door. */
     sound: Snippet;
     /** The timing counters, where the address asks for them (`?timing`). */
@@ -64,7 +63,6 @@
     { id: 'style', title: 'Style', icon: 'style' },
     { id: 'time', title: 'Time', icon: 'time' },
     { id: 'key', title: 'Key', icon: 'key' },
-    { id: 'muse', title: 'Muse', icon: 'muse' },
   ];
   const drawer = $derived(
     timing ? [...DRAWER, { id: 'counters', title: 'Counters', icon: 'timing' } as const] : DRAWER,
@@ -103,6 +101,23 @@
     }),
   );
 
+  /** The heads-ups, read from the plan a few bars early, and from the transport's phase. */
+  const cues = $derived(
+    cuesOf({
+      hud: player.hud,
+      counting: player.counting
+        ? {
+            left:
+              transportCells(meter).length - (transportHeard(meter, player.countStep)?.cell ?? 0),
+            of: transportCells(meter).length,
+          }
+        : null,
+      ending: player.ending,
+      last: player.lastBar,
+      radio: player.station !== null,
+    }),
+  );
+
   const tracks = $derived(
     tracksOf({
       hud: player.hud,
@@ -126,6 +141,7 @@
     {meter}
     {step}
     {phase}
+    last={player.lastBar !== null && player.hud.bar?.bar === player.lastBar}
     playing={player.playing}
     {following}
     ontoggle={() => (player.playing ? player.stop() : player.start())}
@@ -146,16 +162,14 @@
       {phase}
       bar={player.hud.beat === null ? null : (player.hud.bar?.bar ?? null)}
       {onend}
-      radio={player.station !== null}
-      nowPlaying={player.playing ? stationLine(player.track, player.heard) : null}
-      ontune={(on) => player.tuneRadio(on)}
-      learned={layers ? { layer: player.layer, playing: player.playing, ...layers } : null}
     />
   {:else if id === 'style'}
     <StylePanel
       track={player.track}
       style={player.hud.style}
       {following}
+      radio={player.station !== null}
+      ontune={(on) => player.tuneRadio(on)}
       onintent={(intent) => player.apply(intent)}
     />
   {:else if id === 'time'}
@@ -186,12 +200,6 @@
       melodicReach={melodicReachOf(player.track)}
       history={player.harmonicHistory}
       onintent={(intent) => player.apply(intent)}
-    />
-  {:else if id === 'muse'}
-    <Muse
-      muse={player.hud.muse}
-      pulse={player.humanNotes.length}
-      onforget={() => player.forgetMotif()}
     />
   {:else if id === 'counters' && timing}
     {@render timing()}
@@ -230,13 +238,27 @@
       onlevel={(performer, level) => (player.mix = raised(player.mix, performer, level))}
     />
   {:else if id === 'cells'}
+    <Muse
+      muse={player.hud.muse}
+      pulse={player.humanNotes.length}
+      onforget={() => player.forgetMotif()}
+    />
     <Cells
       bar={player.hud.beat === null ? null : player.hud.bar}
       layer={following ? null : player.layer}
       memory={player.hud.muse.memory}
       players={player.players}
+      carry={layers && !following ? { playing: player.playing, ...layers } : null}
     />
   {/if}
 {/snippet}
 
-<Shell {header} {drawer} {sheet} views={VIEWS} {stage} />
+{#snippet overlay()}
+  <CueStrip
+    {cues}
+    beat={player.hud.beat}
+    axes={STYLE_AXES.map((axis) => player.hud.style.axes[axis])}
+  />
+{/snippet}
+
+<Shell {header} {drawer} {sheet} views={VIEWS} {stage} {overlay} />

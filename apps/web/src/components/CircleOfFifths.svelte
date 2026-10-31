@@ -1,4 +1,6 @@
 <!--
+  The scale's dots wear their pitches' colours (`pitch.ts`), so a key's notes
+  read alike here, on the Song view and on the keys.
   The circle of fifths: the twelve pitch classes around a wheel, the current
   scale's notes lit and joined along the rim as an open arc, the tonic ringed.
   Only where a scale isn't contiguous in fifths does a dashed chord cross the
@@ -13,6 +15,7 @@
   import type { ComposerMode } from '@jambot/engine';
   import { fifthsIndex, mod } from '@jambot/theory';
   import type { Intent } from '../conductor.ts';
+  import { pitchColour } from '../pitch.ts';
   import { figureArc, wheelDistance, wheelOrder, wheelPoint } from '../circleLayout.ts';
   import { TONIC_NAMES } from '../noteNames.ts';
 
@@ -121,7 +124,14 @@
       <circle class="tonic-ring" cx={tonicDot.x} cy={tonicDot.y} r={compact ? 13 : 10} />
     {/if}
     {#each dots as dot (dot.pitchClass)}
-      <circle class="dot" class:in-scale={dot.inScale} cx={dot.x} cy={dot.y} r={compact ? 8 : 5} />
+      <circle
+        class="dot"
+        class:in-scale={dot.inScale}
+        cx={dot.x}
+        cy={dot.y}
+        r={compact ? 8 : 5}
+        style:fill={dot.inScale ? pitchColour(dot.pitchClass) : null}
+      />
       {#if !compact}
         <text
           class="label"
@@ -184,9 +194,6 @@
   }
   .dot {
     fill: var(--line);
-  }
-  .dot.in-scale {
-    fill: var(--amber);
   }
   .tonic-ring {
     fill: none;

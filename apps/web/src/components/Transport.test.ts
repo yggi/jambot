@@ -60,10 +60,25 @@ describe('the transport', () => {
     expect(cells[1]!.querySelectorAll('i.on')).toHaveLength(1);
   });
 
-  it('hatches the beats still to come in the count-in', () => {
+  it('hatches the beats still to come in the count-in, one stripe across them all', () => {
     const { container } = render(Transport, props({ phase: 'counting', playing: true, step: 4 }));
     const cells = [...container.querySelectorAll('.cell')];
     expect(cells.map((c) => c.classList.contains('ahead'))).toEqual([false, false, true, true]);
+    const hatches = container.querySelectorAll<HTMLElement>('.hatch');
+    expect(hatches).toHaveLength(1);
+    expect(hatches[0]!.style.gridColumn).toBe('3 / -1');
+  });
+
+  it('hatches the last bar’s beats still to come while the band ends, and not before its last bar', async () => {
+    const { container, rerender } = render(
+      Transport,
+      props({ phase: 'ending', playing: true, step: 8, last: true }),
+    );
+    expect((container.querySelector('.hatch') as HTMLElement).style.gridColumn).toBe('4 / -1');
+    await rerender(props({ phase: 'ending', playing: true, step: 8, last: false }));
+    expect(container.querySelector('.hatch')).toBeNull();
+    await rerender(props({ phase: 'ending', playing: true, step: 12, last: true }));
+    expect(container.querySelector('.hatch')).toBeNull();
   });
 
   it('lights nothing while nothing is heard', () => {

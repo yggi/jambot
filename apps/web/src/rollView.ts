@@ -7,6 +7,7 @@
  */
 
 import type { KeyLayout } from '@yggi/webmidi/core';
+import type { Performer } from './sounding.ts';
 import type { LaneNote } from './tracks.ts';
 
 /** How many steps ahead of the one heard the roll shows: a bar and a half of 4/4. */
@@ -17,11 +18,13 @@ export const ROLL_BEHIND = 12;
 /** Where the line of the step heard is, from the top. */
 export const NOW_AT = ROLL_AHEAD / (ROLL_AHEAD + ROLL_BEHIND);
 
-/** Whose a note is: the band's, played or foreseen, this player's own, or another player's. */
-export type RollKind = 'played' | 'foreseen' | 'own' | 'other';
+/** Whose a note is: the band's lead, played or foreseen, the band's other voices behind it, this player's own, or another player's. */
+export type RollKind = 'played' | 'foreseen' | 'backing' | 'own' | 'other';
 
 export interface RollNote {
   readonly note: number;
+  /** The voice it is of, which gives its shape: the lead's for a player on the keys. */
+  readonly voice: Performer;
   /** Where no key plays it: above the keys, drawn at the right edge, or below them, at the left. */
   readonly beyond: 'above' | 'below' | null;
   readonly kind: RollKind;
@@ -52,6 +55,7 @@ function placed(
   playhead: number,
   kind: RollKind,
   colour: number | null,
+  voice: Performer = 'lead',
 ): RollNote | null {
   const beyond = note.note > range.high ? 'above' : note.note < range.low ? 'below' : null;
   const key = beyond
@@ -63,6 +67,7 @@ function placed(
   if (bottom <= 0 || top >= 1) return null;
   return {
     note: note.note,
+    voice,
     beyond,
     kind,
     colour,
@@ -85,19 +90,28 @@ export interface RollInput {
     readonly colour: number;
     readonly local: boolean;
   }[];
+  /** The band's other voices with a pitch, drawn faint behind the lead where the keys reach them. */
+  readonly backing?: readonly { readonly voice: Performer; readonly notes: readonly LaneNote[] }[];
 }
 
 /**
- * Every note on the roll: the band's, foreseen where they start after the
- * step heard and played where they don't, and the players', drawn over them.
+ * Every note on the roll: the band's other voices behind, then the lead's,
+ * foreseen where they start after the step heard and played where they
+ * don't, and the players', drawn over them.
  */
-export function rollNotes({ keys, playhead, band, players }: RollInput): RollNote[] {
+export function rollNotes({ keys, playhead, band, players, backing = [] }: RollInput): RollNote[] {
   const byNote = new Map(keys.map((key) => [key.note, key]));
   const range = {
     low: Math.min(...keys.map((key) => key.note)),
     high: Math.max(...keys.map((key) => key.note)),
   };
   const out: RollNote[] = [];
+  for (const { voice, notes } of backing)
+    for (const note of notes) {
+      if (note.note < range.low || note.note > range.high) continue;
+      const at = placed(note, byNote, range, playhead, 'backing', null, voice);
+      if (at) out.push(at);
+    }
   for (const note of band) {
     const kind = note.step > playhead ? 'foreseen' : 'played';
     const at = placed(note, byNote, range, playhead, kind, null);

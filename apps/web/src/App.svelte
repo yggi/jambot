@@ -14,6 +14,7 @@
   import TimingPanel from './components/TimingPanel.svelte';
   import Band from './screens/Band.svelte';
   import Door from './screens/Door.svelte';
+  import { Awake } from './awake.ts';
   import { Device } from './device.svelte.ts';
   import { Instruments } from './instruments.svelte.ts';
   import { Metronome } from './metronome.svelte.ts';
@@ -53,6 +54,11 @@
   const metronome = new Metronome();
   /** The band, playing through cells (#399, #469). */
   const player = new Player(device.surroundings, metronome);
+  // The radio is on the air by default: left alone, the band drifts through style space (#313).
+  player.tuneRadio(true);
+  /** The screen stays awake while the band plays or counts in, so a tablet on a stand doesn't lock mid-jam. */
+  const awake = new Awake(navigator.wakeLock, document);
+  $effect(() => awake.hold(player.playing));
   /**
    * The dev readout: how the band played through cells since the page opened (`window.jambot.shadow`), and
    * what the outputs played, event by event, from the one numbered `from` on, and the
@@ -151,7 +157,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const exportTiming = () => download(timingFile(takeTiming()));
-  /** What the band learned, carried to and from files from the Session card (#398). */
+  /** What the band learned, carried to and from files from the Cells view (#398). */
   const layers = {
     onexport: () =>
       download({
@@ -415,6 +421,7 @@
       onsolo: solo,
       onhost: host,
       onjoin: join,
+      struck: instruments.struck,
     }}
     you={{
       name: profile.name,

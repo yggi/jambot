@@ -17,6 +17,7 @@ import {
   barChords,
   chordAt,
   chordName,
+  chordNotes,
   chordNumeral,
   chordsOn,
   slotStepOn,
@@ -253,6 +254,39 @@ describe("a bar's chords", () => {
     expect(named.size).toBeGreaterThan(1000);
   });
 
+  it('spell their notes from the root their name gives, each at its pitch, a letter of its own, every chord the composer writes', () => {
+    const wrong: string[] = [];
+    const seen = new Set<string>();
+    const letter = (n: { letter: string; alteration: number }, sharp = '♯', flat = '♭') =>
+      n.letter + (n.alteration > 0 ? sharp.repeat(n.alteration) : flat.repeat(-n.alteration));
+    for (const [{ key }, chord] of sweep) {
+      const heights = joinChord(chord.chord);
+      const id = `${key.tonic} ${key.mode} ${JSON.stringify(chord.slot)} ${heights.join()}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const label = `${chordName(chord, key)} in ${keyName(key)}`;
+      const notes = chordNotes(chord, key);
+      if (notes.length !== heights.length) wrong.push(`${label}: ${notes.length} notes`);
+      if (notes.some((n, i) => n.pitchClass !== wrap(heights[i]!, 12)))
+        wrong.push(`${label}: pitches`);
+      if (new Set(notes.map((n) => n.letter)).size !== notes.length)
+        wrong.push(`${label}: letters`);
+      if (!chordName(chord, key).startsWith(letter(notes[0]!, '#', 'b')))
+        wrong.push(`${label}: root`);
+    }
+    expect(wrong).toEqual([]);
+    const aMinor: Key = { tonic: 9, mode: 'aeolian' };
+    const notesOf = (slot: Slot, harm: number) =>
+      chordNotes(
+        barChords(envOf({ key: aMinor, harm, theme: themeOf(aMinor, [[slot]]) }))[0]!,
+        aMinor,
+      )
+        .map((n) => letter(n))
+        .join(' ');
+    expect(notesOf({ step: 0, degree: 0 }, 0)).toBe('A C E');
+    expect(notesOf({ step: 0, degree: 4 }, 0.8)).toBe('E G♯ B D');
+  });
+
   it('are named as lead sheets name them, spelled in their key (P2)', () => {
     const aMinor: Key = { tonic: 9, mode: 'aeolian' };
     const name = (slot: Slot, harm: number, key = aMinor, next: Slot = { step: 0, degree: 0 }) =>
@@ -307,6 +341,20 @@ describe("a bar's chords", () => {
         '#vii°7',
         'V',
       ]);
+    });
+
+    it('spells its notes from the root its name gives: ♭II on B♭, vii°7 on G♯', () => {
+      const aMinor: Key = { tonic: 9, mode: 'aeolian' };
+      const spelled = (stack: (typeof STACKS)[number]) =>
+        chordNotes(play(aMinor, slotOf(stack), 1), aMinor)
+          .map(
+            (n) =>
+              n.letter + (n.alteration > 0 ? '#'.repeat(n.alteration) : 'b'.repeat(-n.alteration)),
+          )
+          .join(' ');
+      expect(spelled(STACKS[3]!)).toBe('Bb D F');
+      expect(spelled(STACKS[5]!)).toBe('G# B D F');
+      expect(spelled(STACKS[4]!)).toBe('C E G#');
     });
 
     it('sounds its tones and no others, every key and harmony: no seventh, ninth or raised dominant added; or, where the key makes it no chord with a numeral, the triad on its root', () => {

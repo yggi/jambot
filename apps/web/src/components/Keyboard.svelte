@@ -4,11 +4,13 @@
   given, such as a scale's notes alone (`scaleLayout`), named on each. A pointer holds a
   note until it lifts, cancels, or the capture is lost. A dot marks a note
   of the scale it is given, the melodic scale the lead walks over the key
-  (#209); amber is the band's own lead heard sounding it.
+  (#209). A key sounding, the band's lead or a person's, lights in its
+  pitch's colour (`pitch.ts`), and one this person holds is ringed in teal.
 -->
 <script lang="ts">
   import { type KeyLayout, keyboardLayout } from '@yggi/webmidi/core';
   import { KEYBOARD_HIGH, KEYBOARD_LOW } from '../keyboard.ts';
+  import { pitchColour } from '../pitch.ts';
 
   interface Props {
     /** Notes currently held, from any source, so a key lights whoever struck it. */
@@ -59,6 +61,7 @@
       class:sounding={sounding.includes(key.note)}
       class:down={down.has(key.note)}
       style="left: {key.left}%; width: {key.width}%"
+      style:--pitch={pitchColour(key.note % 12, Math.floor(key.note / 12) - 5)}
       aria-label={nameOf(key.note)}
       onpointerdown={(e) => press(e, key.note)}
       onpointerup={() => release(key.note)}
@@ -119,13 +122,14 @@
     color: var(--muted);
     pointer-events: none;
   }
-  .sounding {
-    background: var(--amber);
-    border-color: var(--amber);
+  /* A key sounding lights in its pitch's colour; one this person holds is ringed in teal too. */
+  .sounding,
+  .down {
+    background: var(--pitch);
+    border-color: var(--pitch);
   }
   .down {
-    background: var(--teal);
-    border-color: var(--teal);
+    box-shadow: inset 0 0 0 3px var(--teal);
   }
   .sounding.in-scale::after,
   .down.in-scale::after {

@@ -8,7 +8,11 @@
   bars in one row, a bar its chords laid as wide as they last (those played
   dim, the one heard filling with its beats, a bar that plays a person's
   motif ringed in their colour). Every part is one size whatever it says, so
-  nothing moves while a person reads it.
+  nothing moves while a person reads it. Colour is pitch (`pitch.ts`): each
+  chord wears its root's colour as a stripe, and spells its notes in theirs,
+  the chord sounding and the next always, and where there is room every
+  chord of the section heard and the first of each section after it; the
+  notes over the bar are spelled in theirs too.
 -->
 <script lang="ts">
   import { SONG_METER } from '@jambot/engine';
@@ -16,6 +20,7 @@
   import type { Hud } from '../hud.ts';
   import { keyName } from '../noteNames.ts';
   import { beatsToNext, nextChord } from '../planView.ts';
+  import { pitchColour, type Spelled } from '../pitch.ts';
   import { overThis, songSections } from '../songView.ts';
 
   interface Props {
@@ -43,7 +48,19 @@
   );
   const sections = $derived(songSections(hud.sections, heard ? (hud.bar?.bar ?? null) : null));
   const over = $derived(overThis(hud.bar));
+  const overText = $derived(
+    [over.notes.map((n) => n.name).join(' '), over.scale].filter(Boolean).join(' · '),
+  );
+  /** A chord's root colour, none for a chord without notes. */
+  const rootOf = (notes: readonly Spelled[]) =>
+    notes[0] ? pitchColour(notes[0].pitchClass) : null;
 </script>
+
+{#snippet spell(notes: readonly Spelled[], cls: string)}
+  <span class="spell {cls}" aria-label={notes.map((n) => n.name).join(' ')}>
+    {#each notes as note, i (i)}<b style:color={pitchColour(note.pitchClass)}>{note.name}</b>{/each}
+  </span>
+{/snippet}
 
 <div class="song">
   <p class="where">
@@ -52,13 +69,21 @@
   </p>
 
   <div class="big" class:waiting={!heard}>
-    <p class="now">
-      <b class="chord" title={now?.symbol}>{now?.symbol ?? '—'}</b>
-      <span class="numeral">{now?.numeral ?? ''}</span>
-    </p>
+    <div class="here">
+      <p class="now">
+        <b class="chord" title={now?.symbol} style:--root={now && rootOf(now.notes)}
+          >{now?.symbol ?? '—'}</b
+        >
+        <span class="numeral">{now?.numeral ?? ''}</span>
+      </p>
+      {@render spell(now?.notes ?? [], 'big-notes')}
+    </div>
     <p class="next">
       <small>next</small>
-      <b title={coming?.symbol}>{coming?.symbol ?? ''}</b>
+      <b title={coming?.symbol} style:--root={coming && rootOf(coming.notes)}
+        >{coming?.symbol ?? ''}</b
+      >
+      {@render spell(coming?.notes ?? [], 'next-notes')}
       <span class="in" aria-label={count === null ? undefined : `in ${count}`}>
         {#each { length: beats }, i (i)}
           <i class:left={count !== null && i >= beats - count}></i>
@@ -67,7 +92,11 @@
     </p>
   </div>
 
-  <p class="over">Over this: <b title={over}>{over}</b></p>
+  <p class="over" title={overText}>
+    Over this:
+    {@render spell(over.notes, 'over-notes')}
+    {#if over.scale}<small>· {over.scale}</small>{/if}
+  </p>
 
   <div class="sections">
     {#each sections as section, s (section.index)}
@@ -77,7 +106,7 @@
           {#if section.change}<small>{section.change}</small>{/if}
         </p>
         <ol class="bars">
-          {#each section.bars as bar (bar.bar)}
+          {#each section.bars as bar, b (bar.bar)}
             <li
               class={bar.state}
               class:motif={bar.motif !== null}
@@ -88,10 +117,15 @@
                 <span
                   class="part"
                   style:flex-grow={chord.share}
+                  style:--root={rootOf(chord.notes)}
                   title="{chord.symbol} · {chord.numeral}"
                 >
                   <b>{chord.symbol}</b>
                   <small>{chord.numeral}</small>
+                  {#if s === 0 || (b === 0 && c === 0)}{@render spell(
+                      chord.notes,
+                      'bar-notes',
+                    )}{/if}
                 </span>
               {/each}
               {#if bar.state === 'heard' && hud.beat !== null}
@@ -150,7 +184,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
     gap: 10px;
-    height: 104px;
+    height: 132px;
   }
   .big.waiting {
     opacity: 0.55;
@@ -185,7 +219,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .next b {
+  .next > b {
     max-width: 100%;
     font-size: 36px;
     line-height: 1.05;
@@ -214,9 +248,55 @@
     display: flex;
     gap: 6px;
   }
-  .over b {
-    color: var(--teal);
-    letter-spacing: 0.08em;
+  .over small {
+    font-size: 12px;
+  }
+  .spell {
+    display: inline-flex;
+    gap: 0.3em;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+  .over .spell {
+    gap: 0.45em;
+  }
+  .here {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .big-notes {
+    font-size: 18px;
+  }
+  .next-notes {
+    font-size: 13px;
+  }
+  .bar-notes {
+    justify-content: center;
+    gap: 1px;
+    font-size: 10px;
+    line-height: 1.1;
+  }
+  /* A chord's notes show where its tile has room for them: a narrow one keeps its symbol and numeral. */
+  .part {
+    container-type: inline-size;
+  }
+  @container (max-width: 40px) {
+    .bar-notes {
+      display: none;
+    }
+  }
+  /* The root's colour, under the chord: the big one's underline, a bar's chord's stripe. */
+  .chord,
+  .next > b {
+    text-decoration: underline var(--root, transparent) 5px;
+    text-underline-offset: 6px;
+  }
+  .next > b {
+    text-decoration-thickness: 3px;
+  }
+  .part {
+    box-shadow: inset 0 -3px 0 var(--root, transparent);
   }
   ol {
     margin: 0;
@@ -275,11 +355,11 @@
   .part + .part {
     border-left: 1px dashed var(--line);
   }
-  .part b {
+  .part > b {
     font-size: 13px;
     line-height: 1.15;
   }
-  .near .part b {
+  .near .part > b {
     font-size: 15px;
   }
   .part small {
@@ -305,8 +385,9 @@
     border-radius: 0 0 0 8px;
     transition: width 0.1s linear;
   }
-  /* A phone on its side: the chord at the left, the section and those after it at the right. */
-  @media (max-height: 500px) and (orientation: landscape) {
+  /* A phone or a tablet on its side: the chord at the left, the section and those after it at the right. */
+  @media (max-height: 500px) and (orientation: landscape),
+    (pointer: coarse) and (orientation: landscape) {
     .song {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
       grid-template-rows: auto 1fr auto;
@@ -315,7 +396,7 @@
     }
     .big {
       grid-template-columns: minmax(0, 1fr);
-      align-content: center;
+      align-content: start;
       height: auto;
     }
     .next {
@@ -328,6 +409,21 @@
     .bars li,
     .bars li.near {
       height: 40px;
+    }
+  }
+  /* A tablet on its side has the height for a bar's notes. */
+  @media (min-height: 501px) and (pointer: coarse) and (orientation: landscape) {
+    .bars li {
+      height: 46px;
+    }
+    .bars li.near {
+      height: 56px;
+    }
+  }
+  /* A short screen has no room for a bar's notes: the chord sounding and the next still spell theirs. */
+  @media (max-height: 500px) {
+    .bar-notes {
+      display: none;
     }
   }
 </style>

@@ -40,6 +40,8 @@
     view?: string;
     /** The section whose sheet is down, or null. */
     drawn?: string | null;
+    /** What hangs from the header over the views, taps falling through it: the band's cues. */
+    overlay?: Snippet | undefined;
   }
 
   let {
@@ -50,6 +52,7 @@
     stage,
     view = $bindable(views[0]?.id ?? ''),
     drawn = $bindable(null),
+    overlay,
   }: Props = $props();
 
   pinCards();
@@ -91,6 +94,7 @@
         {@render stage(place.id)}
       </div>
     {/each}
+    {#if overlay}<div class="overlay">{@render overlay()}</div>{/if}
     <button
       type="button"
       class="scrim"
@@ -204,6 +208,15 @@
     flex-direction: column;
     gap: 10px;
   }
+  /* Over the views, under the drawer's sheets: nothing in it takes a tap. */
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: calc(var(--gutter) + 6px);
+    right: calc(var(--gutter) + 6px);
+    z-index: 1;
+    pointer-events: none;
+  }
   .scrim {
     position: absolute;
     inset: 0;
@@ -271,8 +284,9 @@
     display: none !important;
   }
 
-  /* A phone on its side: the views are a rail at the left, the riders beside the header. */
-  @media (max-height: 500px) and (orientation: landscape) {
+  /* A phone or a tablet on its side (a short screen, or a touch screen wider than tall): the views are a rail at the left, the riders beside the header, and the views take the whole width. */
+  @media (max-height: 500px) and (orientation: landscape),
+    (pointer: coarse) and (orientation: landscape) {
     .shell {
       --gutter: 8px;
       grid-template-columns: 76px minmax(0, 1fr);

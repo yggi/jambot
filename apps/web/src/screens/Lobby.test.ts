@@ -10,6 +10,7 @@ const props = () => ({
   onsolo: vi.fn(),
   onhost: vi.fn(() => Promise.resolve()),
   onjoin: vi.fn(),
+  struck: 0,
 });
 
 describe('the lobby, the door to the band', () => {
@@ -151,5 +152,37 @@ describe('the lobby, the door to the band', () => {
     expect(screen.getByText('Joining…')).toBeInTheDocument();
     void rerender({ joining: false, notice: 'The host closed the session.' });
     expect(screen.getByRole('status')).toHaveTextContent('The host closed the session.');
+  });
+
+  describe('its glyphs, live', () => {
+    const card = (name: RegExp) => screen.getByRole('button', { name }).closest('.card')!;
+
+    it('pings the solo band’s glyph for each note struck, and is still before any', async () => {
+      const { rerender } = render(Lobby, props());
+      expect(card(/^Solo$/).querySelectorAll('circle.ping')).toHaveLength(0);
+      await rerender({ ...props(), struck: 1 });
+      const first = card(/^Solo$/).querySelector('circle.ping');
+      expect(first).not.toBeNull();
+      await rerender({ ...props(), struck: 2 });
+      expect(card(/^Solo$/).querySelector('circle.ping')).not.toBe(first);
+    });
+
+    it('draws a node for each session open round you, and pings at each look', async () => {
+      const listed = (n: number) => ({
+        sessions: Array.from({ length: n }, (_, i) => ({
+          name: `S${i}`,
+          players: 1,
+          where: 'local' as const,
+        })),
+        problem: null,
+      });
+      const { container, rerender } = render(Lobby, { ...props(), found: listed(2) });
+      const join = () => container.querySelector('[aria-label="Join a session"]')!;
+      expect(join().querySelectorAll('summary circle.node')).toHaveLength(3);
+      const ping = join().querySelector('summary circle.ping');
+      await rerender({ ...props(), found: listed(3) });
+      expect(join().querySelectorAll('summary circle.node')).toHaveLength(4);
+      expect(join().querySelector('summary circle.ping')).not.toBe(ping);
+    });
   });
 });

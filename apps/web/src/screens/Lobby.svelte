@@ -7,9 +7,12 @@
   their own, named as they like or by a made-up name, in this browser or
   through the lobby server. Their name and the extras are the door's own
   (`Door.svelte`). It holds no session and knows no player: it takes props
-  and sends what the person chose.
+  and sends what the person chose. Its glyphs are live: Solo's network pings
+  for each note the person strikes, and Join's has a node for each session
+  open round the person, pinging at each look at the list.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Card from '../components/Card.svelte';
   import Regenerate from '../components/Regenerate.svelte';
   import Segmented from '../components/Segmented.svelte';
@@ -31,9 +34,22 @@
     onhost: (where: Where, session: string, byCode: boolean) => Promise<void>;
     /** Join an open session, with the code typed, or an empty one for none. */
     onjoin: (where: Where, session: string, code: string) => void;
+    /** How many notes the person has struck, on any instrument: the solo band's glyph pings for each. */
+    struck?: number;
   }
 
-  let { suggest, found, joining, notice, onsolo, onhost, onjoin }: Props = $props();
+  let { suggest, found, joining, notice, onsolo, onhost, onjoin, struck = 0 }: Props = $props();
+
+  /** How many looks at the sessions open have come back: the join glyph pings at each. */
+  let looks = $state(0);
+  $effect.pre(() => {
+    if (found) untrack(() => looks++);
+  });
+  /** The join glyph: you in the middle, a node round you for each session open (five at most). */
+  const joinColours = $derived([
+    0,
+    ...(found?.sessions ?? []).slice(0, 5).map((_, i) => (i % 5) + 1),
+  ]);
 
   // svelte-ignore state_referenced_locally
   let session = $state(suggest());
@@ -125,8 +141,8 @@
   </div>
 {/snippet}
 
-{#snippet soloGlyph()}<Network colours={[0]} bar={null} />{/snippet}
-{#snippet joinGlyph()}<Network colours={[1, 0, 2]} bar={null} />{/snippet}
+{#snippet soloGlyph()}<Network colours={[0]} bar={struck > 0 ? struck : null} />{/snippet}
+{#snippet joinGlyph()}<Network colours={joinColours} bar={looks > 0 ? looks : null} />{/snippet}
 {#snippet hostGlyph()}<Lobby kind="host" />{/snippet}
 
 {#snippet openSessions()}
@@ -284,6 +300,11 @@
     align-items: center;
     gap: 8px;
     font-size: 14px;
+  }
+  /* A checkbox keeps its own size beside its words: the text inputs' stretch is not for it. */
+  .check input {
+    flex: none;
+    width: auto;
   }
   .notice {
     font-size: 14px;

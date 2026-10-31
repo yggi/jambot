@@ -89,4 +89,22 @@ describe('the roll’s notes', () => {
       ['other', 3],
     ]);
   });
+
+  it('lays the band’s other voices behind the lead, in the keys’ range only, each by its voice', () => {
+    const notes = rollNotes({
+      keys,
+      playhead: 40,
+      band: [note(36, 72)],
+      players: [],
+      backing: [
+        { voice: 'comp', notes: [note(32, 64, 16), note(32, 48, 16)] },
+        { voice: 'bass', notes: [note(32, 62, 4)] },
+      ],
+    });
+    expect(notes.map((n) => [n.kind, n.voice, n.note])).toEqual([
+      ['backing', 'comp', 64],
+      ['backing', 'bass', 62],
+      ['played', 'lead', 72],
+    ]);
+  });
 });

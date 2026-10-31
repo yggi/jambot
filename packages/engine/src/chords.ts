@@ -159,19 +159,30 @@ const alteredBy = (note: Note, alter: number): Note =>
         pitchClass: wrap(note.pitchClass + alter, 12),
       };
 
-/** A chord's lead-sheet symbol, its root spelled in the key: `Am`, `E7`, `B♭maj9`. */
-export function chordName({ slot, chord }: BarChord, key: Key): string {
+/**
+ * A chord's root, spelled in the key: its degree's note, moved by the accidental a written stack gives it (♭II, #539),
+ * or for a secondary dominant the fifth above the degree it leads to.
+ */
+function rootIn({ slot, chord }: BarChord, key: Key): Note {
   const scale = keyHelix(key);
   const notes = spell(spelledTonic(scale), scale.heights);
-  const root =
-    'degree' in slot
-      ? alteredBy(
-          notes[slot.degree]!,
-          wrap(joinChord(chord)[0]! - heightOf(scale, slot.degree) + 6, 12) - 6,
-        )
-      : spell(notes[slot.dominantOf]!, [0, 7])[1]!;
-  const { stack, quality } = rootAndQuality(chord);
-  return nameOf({ kind: 'chord', root, quality, stack });
+  return 'degree' in slot
+    ? alteredBy(
+        notes[slot.degree]!,
+        wrap(joinChord(chord)[0]! - heightOf(scale, slot.degree) + 6, 12) - 6,
+      )
+    : spell(notes[slot.dominantOf]!, [0, 7])[1]!;
+}
+
+/** A chord's lead-sheet symbol, its root spelled in the key: `Am`, `E7`, `B♭maj9`. */
+export function chordName(bar: BarChord, key: Key): string {
+  const { stack, quality } = rootAndQuality(bar.chord);
+  return nameOf({ kind: 'chord', root: rootIn(bar, key), quality, stack });
+}
+
+/** A chord's notes from its root up, spelled from the root the key gives it: `A C E`, `E G♯ B D`. */
+export function chordNotes(bar: BarChord, key: Key): Note[] {
+  return spell(rootIn(bar, key), rootAndQuality(bar.chord).stack);
 }
 
 /**

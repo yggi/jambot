@@ -251,6 +251,8 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
       ["Ada's keys, bar 20", 'motif', true, 0.9, 'bar 20'],
       ["Ada's keys, bar 12", 'motif', true, 0.5, 'bar 12'],
     ]);
+    // Her memory's count: the bars she heard each in.
+    expect(all.slice(-2).map((r) => r.sections)).toEqual([2, 2]);
   });
 });
 

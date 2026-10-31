@@ -168,7 +168,7 @@ test('plays a straight preset on the 16th grid', async ({ page }) => {
   expect(new Set(phases(times, 108))).toEqual(new Set([0]));
 });
 
-test('left on the radio, the band wanders its style by itself a section at a time, plays on, and a preset takes it back (#313)', async ({
+test('on the radio by default, the band wanders its style by itself a section at a time, plays on, and a preset takes it back (#313)', async ({
   page,
 }) => {
   const errors = await listen(page);
@@ -179,14 +179,14 @@ test('left on the radio, the band wanders its style by itself a section at a tim
   const values = () =>
     Promise.all(axes.map((name) => page.getByRole('slider', { name, exact: true }).inputValue()));
   const opening = await values();
-  await openCard(page, 'Session');
-  await page.getByRole('checkbox', { name: 'Leave the band on the radio' }).check();
+  await expect(page.getByRole('switch', { name: 'Radio' })).toBeChecked();
   await start(page);
   await playing(page);
   // Synth-pop opens the song: the first section is the style tuned in at.
-  await expect(page.getByText('Now playing').locator('..')).toContainText('Synth-pop');
+  await expect(page.locator('details[aria-label="Style"] summary')).toContainText(
+    'Radio · Playing Synth-pop',
+  );
   // A section is 8 bars (17.8 s at 108 bpm); three axes of a walk at entropy 1 step 8 to 10 % each.
-  await openStyle(page);
   await expect
     .poll(async () => (await values()).join() !== opening.join(), { timeout: 60_000 })
     .toBe(true);
@@ -195,10 +195,7 @@ test('left on the radio, the band wanders its style by itself a section at a tim
     .poll(async () => (await onsets(page)).length, { timeout: 10_000 })
     .toBeGreaterThan(sounded);
   await page.getByRole('radio', { name: 'Techno' }).click();
-  await openCard(page, 'Session');
-  await expect(
-    page.getByRole('checkbox', { name: 'Leave the band on the radio' }),
-  ).not.toBeChecked();
+  await expect(page.getByRole('switch', { name: 'Radio' })).not.toBeChecked();
   expect(errors).toEqual([]);
 });
 
@@ -517,7 +514,6 @@ for (const input of INPUTS)
     await openStyle(page);
     await page.getByRole('slider', { name: /Energy/ }).fill('0');
     await input.ready(page);
-    await openCard(page, 'Muse');
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await start(page);
     await expect(transport(page).getByText('Intro 2/8')).toBeVisible({ timeout: 5000 });
@@ -529,6 +525,8 @@ for (const input of INPUTS)
       await input.play(page, note, false);
       await page.waitForTimeout(step * 4 * 1000 - 60);
     }
+    // The Muse is the Cells view's: shown once the keys have played, so they stay in view while they do.
+    await openCard(page, 'Muse');
     const took = page.getByText(
       new RegExp(`Bar (\\d+): Took a 3-note motif from ${input.source}\\.`),
     );

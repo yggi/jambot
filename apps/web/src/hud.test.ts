@@ -8,6 +8,7 @@ import {
   type TransportEnv,
   chordAt,
   chordName,
+  chordNotes,
   chordNumeral,
   clockThrough,
   forecast,
@@ -23,18 +24,19 @@ import {
   NEXT_BARS,
   SECTIONS,
   axesOf,
+  STYLE_AXES,
   hudOf,
   leadStatus,
   presetOf,
   styleName,
   styleStatus,
   styleSub,
+  presetGlow,
   styleWords,
 } from './hud.ts';
 import { CHORD_BARS, cueOf } from './planView.ts';
-import { stationLine } from './radioView.ts';
 import type { BarView } from './hud.ts';
-import { keyName } from './noteNames.ts';
+import { keyName, spelled } from './noteNames.ts';
 
 const techno = PRESETS.find((p) => p.name === 'Techno')!;
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
@@ -81,7 +83,9 @@ describe('the view model', () => {
       step: first.chords[0]!.slot.step,
       symbol: chordName(first.chords[0]!, first.plan.key),
       numeral: chordNumeral(first.chords[0]!, first.plan.key),
+      notes: chordNotes(first.chords[0]!, first.plan.key).map(spelled),
     });
+    expect(hud.chord!.notes.map((n) => n.name).slice(0, 3)).toEqual(['A', 'C', 'E']);
     expect(hud.bar!.key).toBe('A minor');
     expect(hud.chord!.symbol).toMatch(/^Am/);
     expect(hud.chord!.numeral).toMatch(/^i/);
@@ -101,6 +105,7 @@ describe('the view model', () => {
           step: c.slot.step,
           symbol: chordName(c, here.plan.key),
           numeral: chordNumeral(c, here.plan.key),
+          notes: chordNotes(c, here.plan.key).map(spelled),
         })),
       );
       const sounding = chordAt(here.chords, step % 16);
@@ -278,7 +283,7 @@ describe('a style’s name', () => {
     expect(hudOf({ heard: 61, bars, track: ridden }).style.preset).toBe('Techno');
   });
 
-  it('is near the preset the session says the band plays, and heads where it says (`stationLine`)', () => {
+  it('is near the preset the session says the band plays, and heads where it says', () => {
     const nudged = glideTo(
       glideTo(track, techno.style, 0, 0),
       { sync: techno.style.sync - 0.05 },
@@ -289,11 +294,9 @@ describe('a style’s name', () => {
       preset: null,
       near: { at: 'Techno', toward: null },
     });
-    expect(stationLine(nudged, 16)).toBe('Techno');
     const drifting = glideTo(nudged, { ...funk.style, sync: funk.style.sync - 0.05 }, 16, 64);
     const { near } = hudOf({ heard: 20, bars, track: drifting }).style;
     expect(near).toEqual({ at: 'Techno', toward: 'Funk' });
-    expect(stationLine(drifting, 20)).toBe('Techno, drifting toward Funk');
   });
 });
 
@@ -370,7 +373,7 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     meterName: '4/4',
     swingLevel: '16n',
     swingShare: null,
-    chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
+    chords: [{ step: 0, symbol: 'Am7', numeral: 'i7', notes: [] }],
     energy: 0.6,
     lead: 'improvising',
     motif: null,
@@ -566,6 +569,42 @@ describe('the view of the Muse', () => {
   });
 });
 
+describe('how near each preset glows (`presetGlow`)', () => {
+  it('glows a preset fully at its own point, brighter than every other', () => {
+    for (const [i, preset] of PRESETS.entries()) {
+      const glow = presetGlow({ ...axes, ...preset.style });
+      expect(glow).toHaveLength(PRESETS.length);
+      expect(glow[i]).toBeCloseTo(1, 9);
+      for (const [j, g] of glow.entries()) if (j !== i) expect(g).toBeLessThan(1);
+    }
+  });
+
+  it('glows two presets equally halfway between them, every pair, and the rest no brighter than those two at a neighbour’s midpoint', () => {
+    for (const [i, a] of PRESETS.entries())
+      for (const [j, b] of PRESETS.entries()) {
+        if (j <= i) continue;
+        const mid = Object.fromEntries(
+          STYLE_AXES.map((axis) => [
+            axis,
+            axis === 'entropy' ? 0.5 : (a.style[axis] + b.style[axis]) / 2,
+          ]),
+        ) as ReturnType<typeof axesOf>;
+        const glow = presetGlow(mid);
+        expect(glow[i]).toBeCloseTo(glow[j]!, 9);
+        expect(glow[i]).toBeGreaterThan(0);
+        expect(glow[i]).toBeLessThan(1);
+      }
+  });
+
+  it('fades with distance: further off on an axis, dimmer', () => {
+    const at = { ...axes, ...PRESETS[0]!.style };
+    const glows = [0, 0.1, 0.2, 0.4].map(
+      (by) => presetGlow({ ...at, harm: Math.min(1, at.harm + by) })[0]!,
+    );
+    for (let k = 1; k < glows.length; k++) expect(glows[k]).toBeLessThan(glows[k - 1]!);
+  });
+});
+
 describe('the style card’s words', () => {
   const view = (over: Partial<Parameters<typeof styleSub>[0]> = {}) => ({
     preset: 'Synth-pop' as string | null,
@@ -599,6 +638,15 @@ describe('the style card’s words', () => {
 
   it('says a client that the host sets it', () => {
     expect(styleSub(view(), true)).toBe('Playing Synth-pop · the host sets it');
+  });
+
+  it('says the band is on the radio, before what it plays', () => {
+    expect(styleSub(view(), false, true)).toBe('Radio · Playing Synth-pop');
+    const near = { at: 'Lo-fi hip hop', toward: 'Funk' };
+    expect(styleSub(view({ preset: null, near }), false, true)).toBe(
+      'Radio · Custom · drifting toward Funk',
+    );
+    expect(styleSub(view(), true, true)).toBe('Radio · Playing Synth-pop · the host sets it');
   });
 
   it('gives a word to each end of each axis, the two furthest from the middle, in axis order', () => {

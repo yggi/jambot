@@ -1,6 +1,6 @@
 import { DRUMMER, EMPTY_LAYER, type LearnedLayer } from '@jambot/engine';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import Cells from './Cells.svelte';
 import type { BarView } from '../hud.ts';
 
@@ -84,5 +84,53 @@ describe('the cells card', () => {
     expect(within(detail).getByLabelText('Tags')).toHaveTextContent('groove');
     await fireEvent.click(name);
     expect(screen.queryByRole('region', { name: 'drummer song 1, bar 8' })).toBeNull();
+  });
+
+  describe('carrying what the band learned (#398)', () => {
+    const carry = (more = {}) => ({
+      playing: false,
+      onexport: () => {},
+      onexportfiles: () => {},
+      onimport: () => null,
+      ...more,
+    });
+
+    it('exports the layer, and its fragments only where it filed some', async () => {
+      const onexport = vi.fn();
+      const onexportfiles = vi.fn();
+      const { rerender } = render(
+        Cells,
+        props({ layer: EMPTY_LAYER, carry: carry({ onexport, onexportfiles }) }),
+      );
+      await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+      expect(onexport).toHaveBeenCalledOnce();
+      expect(screen.queryByRole('button', { name: /Export fragments/ })).toBeNull();
+      await rerender(props({ layer, carry: carry({ onexport, onexportfiles }) }));
+      await fireEvent.click(screen.getByRole('button', { name: 'Export fragments (1)' }));
+      expect(onexportfiles).toHaveBeenCalledOnce();
+    });
+
+    it('imports a file while the band is stopped, and says how it went', async () => {
+      const onimport = vi.fn(() => null);
+      render(Cells, props({ layer: EMPTY_LAYER, carry: carry({ onimport }) }));
+      const input = screen.getByLabelText('Import') as HTMLInputElement;
+      const file = new File(['{"format":"jambot-learned-layer"}'], 'layer.json');
+      await fireEvent.change(input, { target: { files: [file] } });
+      await vi.waitFor(() =>
+        expect(onimport).toHaveBeenCalledWith('{"format":"jambot-learned-layer"}'),
+      );
+      await vi.waitFor(() => expect(screen.getByText(/Imported/)).toBeInTheDocument());
+    });
+
+    it('waits for the band to stop to import, and a client carries none', async () => {
+      const { rerender } = render(
+        Cells,
+        props({ layer: EMPTY_LAYER, carry: carry({ playing: true }) }),
+      );
+      expect(screen.getByLabelText('Import')).toBeDisabled();
+      expect(screen.getByText(/Stop the band to import/)).toBeInTheDocument();
+      await rerender(props({ layer: null, carry: null }));
+      expect(screen.queryByRole('button', { name: 'Export' })).toBeNull();
+    });
   });
 });
