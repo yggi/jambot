@@ -240,7 +240,8 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
       playing: m.offered,
       source: m.name,
       colour: m.colour,
-      sections: 0,
+      // A motif is heard in bars, not taken for sections: the bars she heard it in.
+      sections: m.heard,
       since: `bar ${m.bar}`,
       text: null,
       point: [],

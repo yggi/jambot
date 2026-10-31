@@ -421,6 +421,7 @@
       onsolo: solo,
       onhost: host,
       onjoin: join,
+      struck: instruments.struck,
     }}
     you={{
       name: profile.name,

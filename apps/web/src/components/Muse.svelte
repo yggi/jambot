@@ -7,10 +7,9 @@
   no prose: the motif it offers the band (`Contour`) with Forget, which asks
   it to let the motif go from the next bar the band composes; its patience,
   a step for each bar since anyone played, filled to `MUSE.forgetAfter`,
-  where it lets the offer go; its memory, a row for each motif it took,
-  the strongest first (its contour fading as its weight does, a bar for the
-  weight, a pip for each bar it was heard in, a check once heard twice, a
-  diamond on the one on offer); and its log, the latest first.
+  where it lets the offer go; and its log, the latest first. Its memory is
+  the Cells view's Muse rows, under it: a row for each motif it took, the
+  strongest first, with the bars it was heard in and its weight.
 -->
 <script lang="ts">
   import type { MuseView } from '../hud.ts';
@@ -63,35 +62,6 @@
       {/each}
     </div>
   {/if}
-  {#if muse.memory.length > 0}
-    <ul class="memory" aria-label="Muse memory">
-      {#each muse.memory as m (`${m.source}@${m.bar}`)}
-        <li class:offered={m.offered}>
-          <div class="roll">
-            <Contour
-              motif={m}
-              height={28}
-              beats={false}
-              opacity={0.3 + 0.7 * m.strength}
-              label="Motif of {m.notes.length} notes"
-            />
-          </div>
-          <span class="who">{m.name} · bar {m.bar + 1}</span>
-          <span class="weight" role="img" aria-label="Weight {Math.round(m.strength * 100)}%">
-            <span style:width="{m.strength * 100}%" style:background="var(--source-{m.colour})"
-            ></span>
-          </span>
-          <span class="heard" role="img" aria-label="Heard in {m.heard} bars">
-            {#each { length: Math.min(m.heard, 4) }, i (i)}<i></i>{/each}
-          </span>
-          <span class="mark">
-            {#if m.confirmed}<b role="img" aria-label="Confirmed">✓</b>{/if}
-            {#if m.offered}<b role="img" aria-label="On offer">◆</b>{/if}
-          </span>
-        </li>
-      {/each}
-    </ul>
-  {/if}
   {#if muse.log.length > 0}
     <ul class="log" aria-label="Muse log" aria-live="polite">
       {#each muse.log as line, i (i)}
@@ -136,70 +106,6 @@
     padding: 0;
     display: grid;
     gap: 4px;
-  }
-  .memory {
-    gap: 8px;
-  }
-  .memory li {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      'roll roll roll'
-      'who heard mark'
-      'weight weight weight';
-    gap: 4px 8px;
-    align-items: center;
-    padding: 8px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-  }
-  .memory li.offered {
-    border-color: var(--teal);
-  }
-  .roll {
-    grid-area: roll;
-  }
-  .who {
-    grid-area: who;
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    font-size: 13px;
-  }
-  .weight {
-    grid-area: weight;
-    display: block;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--line);
-    overflow: hidden;
-  }
-  .weight span {
-    display: block;
-    height: 100%;
-  }
-  .heard {
-    grid-area: heard;
-    display: flex;
-    gap: 3px;
-  }
-  .heard i {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--ink);
-  }
-  .mark {
-    grid-area: mark;
-    display: flex;
-    gap: 6px;
-    min-width: 1em;
-    font-size: 13px;
-  }
-  .mark b {
-    font-weight: 700;
-    color: var(--teal);
   }
   .log {
     font-size: 13px;

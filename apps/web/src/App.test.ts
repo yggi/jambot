@@ -226,7 +226,6 @@ describe('the app', () => {
       'Style',
       'Time',
       'Key',
-      'Muse',
     ]);
     expect(screen.getAllByRole('tab').map((t) => t.textContent?.trim())).toEqual([
       'Song',
@@ -240,7 +239,7 @@ describe('the app', () => {
     const cards = [...container.querySelectorAll('.card > summary .title')].map(
       (h) => h.textContent,
     );
-    expect(cards).toEqual(['Band', 'Cells', 'Sound', 'Session', 'Style', 'Metrum', 'Key', 'Muse']);
+    expect(cards).toEqual(['Band', 'Muse', 'Cells', 'Sound', 'Session', 'Style', 'Metrum', 'Key']);
     for (const card of container.querySelectorAll('details.card'))
       expect(card).toHaveAttribute('open');
     expect(screen.getByLabelText('Session').querySelector('summary .sub')).toHaveTextContent(
@@ -261,9 +260,9 @@ describe('the app', () => {
     await view('Mix');
     expect(rider('Key')).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('tab', { name: 'Mix' })).toHaveAttribute('aria-selected', 'true');
-    await pull('Muse');
+    await pull('Time');
     await fireEvent.click(screen.getByRole('button', { name: 'Close the drawer', hidden: true }));
-    expect(rider('Muse')).toHaveAttribute('aria-expanded', 'false');
+    expect(rider('Time')).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('starts from Synth-pop, and a preset sets the sliders and tempo at once while stopped', async () => {

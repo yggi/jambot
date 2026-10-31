@@ -1,11 +1,11 @@
 <!--
   The band: what stands behind the lobby's door, in the shell (#327). The
   transport heads it; hanging from it, the drawer holds what conducts and
-  sets up the band (Sound, Session, Style, Time, Key, Muse, and the timing Counters where
+  sets up the band (Sound, Session, Style, Time, Key, and the timing Counters where
   the address asks for it); below, the views are where a person reads and
   plays along: Song (the plan and the chords read from where one plays), Melody (a roll of the lead
   falling onto the keys), Rhythm (the bar as a grid over the pads, and a pattern of one's own), Mix (the band's tracks)
-  and Cells (every cells fragment the band took, filed or heard, as one table).
+  and Cells (the Muse, what she holds and offers, over every cells fragment the band took, filed or heard, as one table).
   It shows the player it is given and sends what the person does; it opens
   no session and holds no device.
 -->
@@ -63,7 +63,6 @@
     { id: 'style', title: 'Style', icon: 'style' },
     { id: 'time', title: 'Time', icon: 'time' },
     { id: 'key', title: 'Key', icon: 'key' },
-    { id: 'muse', title: 'Muse', icon: 'muse' },
   ];
   const drawer = $derived(
     timing ? [...DRAWER, { id: 'counters', title: 'Counters', icon: 'timing' } as const] : DRAWER,
@@ -202,12 +201,6 @@
       history={player.harmonicHistory}
       onintent={(intent) => player.apply(intent)}
     />
-  {:else if id === 'muse'}
-    <Muse
-      muse={player.hud.muse}
-      pulse={player.humanNotes.length}
-      onforget={() => player.forgetMotif()}
-    />
   {:else if id === 'counters' && timing}
     {@render timing()}
   {/if}
@@ -245,6 +238,11 @@
       onlevel={(performer, level) => (player.mix = raised(player.mix, performer, level))}
     />
   {:else if id === 'cells'}
+    <Muse
+      muse={player.hud.muse}
+      pulse={player.humanNotes.length}
+      onforget={() => player.forgetMotif()}
+    />
     <Cells
       bar={player.hud.beat === null ? null : player.hud.bar}
       layer={following ? null : player.layer}

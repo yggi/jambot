@@ -23,13 +23,16 @@ export class Instruments {
   /** Notes currently held, from any source, so the keyboard and the pads light them too. */
   readonly heldLead = new SvelteSet<number>();
   readonly heldDrums = new SvelteSet<number>();
+  /** How many notes have been struck, on any instrument, since the page opened: what the lobby's solo glyph pings on. */
+  struck = $state(0);
   readonly toLead: Route;
   readonly toDrums: Route;
 
   constructor(player: Player, device: Device) {
     const routerFor =
       (part: AlongPart, held: SvelteSet<number>): Route =>
-      (note, velocity, on, source) =>
+      (note, velocity, on, source) => {
+        if (on && velocity > 0) this.struck++;
         routeNote(note, velocity, on, source, {
           held,
           humanNoteOn: (n, v, s, seconds) => player.humanNoteOn(part, n, v, s, seconds),
@@ -41,6 +44,7 @@ export class Instruments {
           thruChannel: () => device.settings.thruChannel,
           playAlong: (n, v) => void player.playAlong(part, n, v),
         });
+      };
     this.toLead = routerFor('lead', this.heldLead);
     this.toDrums = routerFor('drums', this.heldDrums);
   }
