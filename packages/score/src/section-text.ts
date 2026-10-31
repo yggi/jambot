@@ -354,6 +354,17 @@ export type PitchedName = 'bass' | 'pad' | 'stab' | 'lead';
  */
 export const performerOf = (part: PitchedName | 'drums') => `${part} performer`;
 
+/**
+ * The line that takes a part's performer from cells' seed library, as cells'
+ * Normalise writes it (decision 065): the performer's head and its gate from
+ * the template, its main argument the part's line, and a pitched part's level
+ * its own line of levels (`&bassLevel`).
+ */
+export const fromPerformer = (part: PitchedName | 'drums') =>
+  part === 'drums'
+    ? `&drums, &drumsOut from "${performerOf('drums')}" &drumlines`
+    : `&${part}, &${part}Out from "${performerOf(part)}"(${part}Level=&${part}Level) &${part}line`;
+
 /** A note as composed or as cells plays it: its part, step in its bar, MIDI note, velocity, written and sounding length in steps. */
 export interface SectionNote {
   readonly part: NotePart;
@@ -855,7 +866,7 @@ export function sectionAsCells(
     ...(drums.terms.length
       ? [
           { part: 'drums' as const, text: `&drumlines [${drums.terms.join(', ')}]` },
-          { part: 'drums' as const, text: `use * from "${performerOf('drums')}"` },
+          { part: 'drums' as const, text: fromPerformer('drums') },
         ]
       : []),
   );
@@ -876,7 +887,7 @@ export function sectionAsCells(
     outs[name] = true;
     lines.push(...line.lines.map((text) => ({ part, text })), {
       part,
-      text: `use * from "${performerOf(name)}"`,
+      text: fromPerformer(name),
     });
     const instrument = instruments[name];
     if (instrument) {

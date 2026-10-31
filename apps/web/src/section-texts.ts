@@ -184,10 +184,10 @@ const WARM_TEXT = [
   '&harm over=&key step=1m [0,2,4] [5,7,9]',
   '&kick step=16n &bd:0:.4 ~ ~ ~',
   '&drumlines [&kick]',
-  'use * from "drums performer"',
+  '&drums, &drumsOut from "drums performer" &drumlines',
   '&bassline over=&harm step=16n legato=.6 0@4 3@4',
   '&bassLevel map=amp step=16n .4@8',
-  'use * from "bass performer"',
+  '&bass, &bassOut from "bass performer"(bassLevel=&bassLevel) &bassline',
   '&out map=midi ~ &bassOut ~!7 &drumsOut',
 ].join('\n');
 

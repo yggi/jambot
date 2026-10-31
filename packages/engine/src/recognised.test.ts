@@ -1,3 +1,4 @@
+import { bodyOf } from '@yggi/cells/engine/use';
 import { METERS, even, stepsOf } from '@jambot/theory';
 import { readVariations } from '@yggi/cells/engine/vary/index';
 import { createRecogniser } from '@yggi/cells/repository/recognise';
@@ -229,7 +230,8 @@ describe('what each member played, as cells text (barTexts)', () => {
     const techno = played('Techno', 16);
     // (Techno's A theme is a seed vamp: its text is the seed's)
     const vamp = barTexts(techno[0]!).harmony;
-    expect(libraryOf('harmony').some((f) => f.text === vamp)).toBe(true);
+    // (the seed's body: its signature line, `&harm from &key`, says what it takes)
+    expect(libraryOf('harmony').some((f) => bodyOf(f.text).trim() === vamp!.trim())).toBe(true);
     for (const bar of techno) {
       const lead = bar.written.some((n) => n.part === 'lead');
       expect(barTexts(bar).lead !== undefined).toBe(lead);

@@ -38,6 +38,7 @@ import {
   PIN_VOICES,
   type SectionNote,
   barred,
+  fromPerformer,
   performerOf,
   hostOf,
   sectionAsCells,
@@ -90,8 +91,8 @@ describe('a section as one cells text, for the app (#399)', () => {
     const text = sectionTextOf(sectionAsCells(bars));
     const { result } = compileSection(text);
     expect(result.diagnostics).toEqual([]);
-    expect(text.match(/^use .*$/gm)).toEqual(
-      ['drums', 'bass', 'stab'].map((p) => `use * from "${p} performer"`),
+    expect(text.match(/^.* from ".* performer".*$/gm)).toEqual(
+      (['drums', 'bass', 'stab'] as const).map((p) => fromPerformer(p)),
     );
     expect(text.split('\n').at(-1)).toBe('&out map=midi ~ &bassOut &stabOut ~!6 &drumsOut');
     expect(result.performers.map((p) => [p.name, p.role, p.part])).toEqual([
@@ -107,11 +108,11 @@ describe('a section as one cells text, for the app (#399)', () => {
     const register = { bass: 'bass', pad: 'comp', stab: 'comp', lead: 'lead' } as const;
     const moves = (['bass', 'pad', 'stab', 'lead'] as const).map((part) => {
       const performer = compileSection(
-        `&${part}line step=4n 0\n&${part}Level map=amp 1\nuse * from "${performerOf(part)}"\n&out map=midi &${part}Out`,
+        `&${part}line step=4n 0\n&${part}Level map=amp 1\n${fromPerformer(part)}\n&out map=midi &${part}Out`,
       ).result.performers[0]!;
       const voice = performer.voices[0]!;
       const use = resolveSeed(performerOf(part))!.match(
-        new RegExp(`^use &${voice} from (\\S+)$`, 'm'),
+        new RegExp(`^&${voice} from (\\S+)$`, 'm'),
       )!;
       const loop = resolveSeed(use[1]!.replace(/"/g, ''))!.match(/loop=(\S+)/)![1]!;
       return [
@@ -136,7 +137,7 @@ describe('a section as one cells text, for the app (#399)', () => {
       '&padV loop=C3',
       '&pad map=role &violin',
       '&hats step=4n &hh &hh',
-      'use &hh from gm_kit',
+      '&hh from gm_kit',
       '&kitV &hh',
       '&skins play=&hats &kitV',
       '&drums map=role &skins',
@@ -250,7 +251,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     // (the bass's instrument, its register the seed's, given a gain of its own after the performer that uses it)
     const voiced = (gain: string) => {
       const edited = text.replace(
-        /^use \* from "bass performer"$/m,
+        /^&bass, &bassOut from "bass performer".*$/m,
         (line) => `${line}\n&bassV loop=C2 gain=${gain}`,
       );
       expect(edited).not.toBe(text);
@@ -336,7 +337,7 @@ describe('a section as one cells text, for the app (#399)', () => {
 /** The drums cells sends on channel 10 in a text's first `seconds`: each hit's note and velocity, by onset. */
 function drumsSent(lines: readonly string[], seconds: number): string[] {
   const plan = planOf(
-    [...lines, 'use * from "drums performer"', '&out map=midi ~!9 &drumsOut'].join('\n'),
+    [...lines, fromPerformer('drums'), '&out map=midi ~!9 &drumsOut'].join('\n'),
     undefined,
     { resolve: resolveSeed },
   );
@@ -433,6 +434,17 @@ describe('a section’s bars, each stated once where it recurs (#498)', () => {
       drumsSent([...lines('&hatLevel map=amp step=16n &hatLevelA!4'), '&hatLevelA .5@16'], 11.4),
     ).toHaveLength(4);
   });
+});
+
+describe('a section’s performers, taken as cells writes them (yggi/cells decision 065)', () => {
+  it.each(PRESETS.map((p) => p.name))(
+    'writes %s’s performers by `from` lines, its section compiling with no diagnostic: no `use`, which warns',
+    (name) => {
+      const text = sectionTextOf(sectionAsCells(section(name)));
+      expect(text).not.toMatch(/^use /m);
+      expect(compileSection(text).result.diagnostics).toEqual([]);
+    },
+  );
 });
 
 describe('a voice’s own sound, read off the text for the built-in synth (#497)', () => {
