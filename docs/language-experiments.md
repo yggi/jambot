@@ -919,9 +919,9 @@ run; the others have.
     So the controller leans the band's whole entropy, the owner's nudge for the whole system (#237, 2026-09-30): `leanedEntropy` is the players' plus the lean, inside 0 to 1, and the band plays at it, the composer's ladder with it.
   - **The controller** (`homeostat.ts`): the band is 0.4 to 0.7 at entropy 0.3 (ruled), about a centre of 0.55, widening by 0.3 for each unit of entropy (chosen: 0.21 wide at 0, 0.51 at 1).
     It reads the share over the last 8 bars at each section's second-to-last bar, and the band plays the next bar, which decides the next section, at the new lean.
-    A reading above the band (bored) leans the entropy up, one under it (confused) down, by `LEAN_STEP`, 0.5, where the reading before was out on the same side (`PATIENCE`, 2); inside it holds.
-    With no patience and a step of 0.25 it reversed up to 1.75 times per four sections at entropy 0.1, past the ruled 1, chasing a section's noise (a section's share spreads by 0.12 to 0.14); with patience 2 and a step of 0.5, at most 0.5.
-  - **Closed**, the share of sections inside the band at the players' entropy (`E45_FULL`: held 2 seeds of 128 bars a preset, walked 2 of 256 at 0.3):
+    A reading above the band (bored) leans the entropy up, one under it (confused) down, by `LEAN_STEP`, 0.5, as many readings in a row as `PATIENCE` asks (1 since #536, over 16 bars; 2 over 8); inside it holds.
+    Over 8 bars, with no patience and a step of 0.25 it reversed up to 1.75 times per four sections at entropy 0.1, past the ruled 1, chasing a section's noise (a section's share spreads by 0.12 to 0.14); with patience 2 and a step of 0.5, at most 0.5.
+  - **Closed, over 8 bars** (before #536), the share of sections inside the band at the players' entropy (`E45_FULL`: held 2 seeds of 128 bars a preset, walked 2 of 256 at 0.3):
 
     | players' entropy | left alone | closed | leaned all the way up | most reversals per 4 sections |
     | ---------------- | ---------- | ------ | --------------------- | ----------------------------- |
@@ -931,13 +931,22 @@ run; the others have.
     | 0.3, walked      | 36.5 %     | 58.2 % | 61.7 %                | 0                             |
 
     Before #520, with the lead's library empty: 27.7 %, 52.7 %, 74.2 % and 48.8 % left alone, 47.3 %, 64.1 %, 75.4 % and 65.8 % closed; the lead's motifs heard, and its call answered (#520), make the band left alone more bored, and the controller brings it in less far.
-    The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 65.6 % all the way up; 33.6 % and 54.7 % walked; no reversal.
+    The test's own runs over 8 bars (1 seed of 96 bars held, 128 walked, at 0.3): 34.4 % left alone, 56.3 % closed, 65.6 % all the way up; 33.6 % and 54.7 % walked; no reversal.
 
-  - **On the page's schedule** (#495, `ahead` in the experiment, the test's own runs at 0.3): a page reads a section's share at its last bar, off the clock, and leans from two sections on (`LEAN_AHEAD`), since the next section's text is forecast at the middle of the one read.
+  - **On the page's schedule** (#495, `ahead` in the experiment, the test's own runs at 0.3, over 8 bars before #536): a page reads a section's share at its last bar, off the clock, and leans from two sections on (`LEAN_AHEAD`), since the next section's text is forecast at the middle of the one read.
     Held, 47.9 % of sections inside, against 34.4 % left alone and 56.3 % read a bar before the section it leans; walked, 53.9 %, against 33.6 % and 54.7 %.
     Its reversals stay within the ruled one per four sections: none, held or walked.
     In the page (`pnpm soak --minutes 30 --entropy 0.3`, the radio and a session, 2026-10-30): the page's thread pays 0.6 ms a bar at p95, the ear's recognition 3.8 to 4.9 ms at p50 in its worker at minute 30 against 4.6 to 4.7 ms at minute 1, 102 sections read, 67 % to 74 % inside, no reversal and no late reading; no gap, no event mismatched between host and client, and no event dropped late, against 3 and 5 dropped by the runs without it (`--no-homeostat`).
-  - **Against the ruled limits**:
+  - **Over 16 bars, and restless past entropy 1** (#536, the owner's ruling of 2026-10-31; probes of 8 presets at 0.3, 2 seeds, held open 128 bars):
+    over 8 bars a section's share scattered by 0.10 to 0.12 about its run's mean (0.094 at the lean all the way down, 0.101 at none, 0.118 at entropy 1), so even a mean held at the band's centre would leave only 80 % to 87 % of sections inside, and entropy 1 left the mean at 0.657: the drums carried most of the scatter (0.24 a section about their mean of 0.38), the bass and the lead most of the boredom (0.78 and 0.75);
+    over 16 bars (`SHARE_BARS`) it scatters by 0.07 to 0.08;
+    varying every bar of the held parts, not only the odd ones, lowered the mean at entropy 1 from 0.657 to 0.586 but widened the scatter over 8 bars to 0.141 (68.4 % inside), and the bass alone by 0.016 (59.4 %), and the ladder alone moves it by under 0.01 (above), so the lean reaches past entropy 1 into restlessness (`restlessOf`, `RESTLESS_REACH` 1), the chance a held part varies an even bar as its odd ones (`heldDraw`), and the sensor reads 16 bars.
+    Held open over 128 bars: 31.6 % of sections inside at no lean, 73.0 % at entropy 1, 84.4 % at the top (entropy 1 and full restlessness, mean 0.563).
+    On the page's schedule, the controller closed (step 0.5), 2 seeds of 256 bars held and 512 walked: with patience 2, 74.2 % held and 77.8 % walked, 80.8 % and 80.9 % from the fifth section; with patience 1, 80.3 % held and 81.2 % walked, 87.3 % and 84.4 % from the fifth, reversals at most 0.375 per four sections; from all the way down, 76.2 %, 84.4 % from the fifth; a step of 0.85 gained nothing (76.6 % and 79.7 %).
+    So `PATIENCE` is 1: a reading over 16 bars already spans two sections.
+    In the page (`pnpm soak --minutes 30 --entropy 0.3`, 2026-10-31): the radio 91.3 % of 103 sections inside and the session's host 82 % of 100, reversals 0.23 and 0.32 per four sections, no late reading; the page's thread 0.6 ms a bar at p95, the ear's recognition 5.1 and 5.7 ms at p50 at minute 30 against 4.5 and 4.9 at minute 1; no gap, 0 of 24,833 events mismatched between host and client, no break, and 0 events dropped late on the radio and 3 on the client (all explained), against 3 and 5 without the homeostat (#534's runs).
+    The test's own runs (1 seed of 96 bars held, 128 walked, at 0.3): the share 0.780, 0.729, 0.622 and 0.543 leaned all the way down, at none, to entropy 1 and to the top; inside 34.4 % left alone, 82.3 % at entropy 1, 87.5 % at the top, 78.1 % closed and 69.8 % on the page's schedule held, 39.1 %, 75.0 % and 74.2 % walked, the climb most of a run so short; reversals at most 0.333 held and 0.5 walked.
+  - **Against the ruled limits** (over 8 bars, before #536):
     the reversals are within one per four sections in every run;
     the share is inside the band in 34 % to 67 % of sections, under the ruled 80 % at every entropy, and so is the lean all the way up, which is the controller's reach: what bounds it is the lever, not the controller;
     the band left alone is bored, not confused: above the band in 50 % to 75 % of sections, under it in 0 % to 2 %, and the controller ends leaned up in 16 of 16 runs held at 0.3, and never down;

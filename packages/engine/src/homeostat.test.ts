@@ -6,10 +6,12 @@ import {
   LEAN_STEP,
   NO_LEAN,
   PATIENCE,
+  RESTLESS_REACH,
   bandOf,
   leanAt,
   leanedEntropy,
   regulated,
+  restlessOf,
   wayOf,
   withLean,
 } from './homeostat.ts';
@@ -52,34 +54,72 @@ describe('which way a share moves the ladder (wayOf)', () => {
   });
 });
 
+describe('restlessness past entropy 1 (restlessOf, #536)', () => {
+  it('is none at entropy 1 and under, and the lean past 1 above it, up to `RESTLESS_REACH`, at every entropy and lean', () => {
+    expect(RESTLESS_REACH).toBe(1);
+    for (const entropy of ENTROPIES)
+      for (let lean = -entropy; lean <= 2 - entropy + 1e-9; lean += LEAN_STEP / 4) {
+        const past = entropy + lean - 1;
+        expect(restlessOf(entropy, lean)).toBeCloseTo(Math.min(1, Math.max(0, past)), 12);
+        if (past <= 0) expect(leanedEntropy(entropy, lean)).toBeCloseTo(entropy + lean, 12);
+        else expect(leanedEntropy(entropy, lean)).toBe(1);
+      }
+  });
+
+  it('is reached from entropy 0.3 in four moves: 0.8, 1 and restless 0.3, 0.8, then the top', () => {
+    const { high } = bandOf(0.3);
+    let state = NO_LEAN;
+    const way: [number, number][] = [];
+    for (let i = 0; i < 5; i++) {
+      state = regulated(state, high + 0.1, 0.3);
+      way.push([leanedEntropy(0.3, state.lean), restlessOf(0.3, state.lean)]);
+    }
+    expect(way.map(([e, r]) => [+e.toFixed(9), +r.toFixed(9)])).toEqual([
+      [0.8, 0],
+      [1, 0.3],
+      [1, 0.8],
+      [1, 1],
+      [1, 1],
+    ]);
+    expect(state.reversals).toBe(0);
+  });
+});
+
 describe('the controller (regulated)', () => {
-  it('leans the loop’s entropy a step the share’s way where the reading before agreed, never past 0 or 1, at every entropy, share, lean and reading before', () => {
-    expect(PATIENCE).toBe(2);
+  it('moves on one reading out of the band, sixteen bars spanning two sections (#536)', () => {
+    expect(PATIENCE).toBe(1);
+  });
+
+  it('leans the loop’s entropy a step the share’s way where the reading before agreed (a patience of 2), never under 0 nor past 1 and full restlessness, at every entropy, share, lean and reading before', () => {
     for (const entropy of ENTROPIES)
       for (const share of SHARES)
         for (const heard of [-1, 0, 1] as const)
-          for (let lean = -entropy; lean <= 1 - entropy + 1e-9; lean += LEAN_STEP / 4) {
+          for (let lean = -entropy; lean <= 2 - entropy + 1e-9; lean += LEAN_STEP / 4) {
             const after = regulated(
               { ...NO_LEAN, lean, heard, run: Math.abs(heard) },
               share,
               entropy,
+              LEAN_STEP,
+              2,
             );
             const way = wayOf(share, entropy) === heard ? heard : 0;
             expect(after.heard).toBe(wayOf(share, entropy));
-            const wanted = Math.min(1 - entropy, Math.max(-entropy, lean + way * LEAN_STEP));
+            const wanted = Math.min(2 - entropy, Math.max(-entropy, lean + way * LEAN_STEP));
             expect(after.lean).toBe(way === 0 ? lean : wanted);
             expect(leanedEntropy(entropy, after.lean)).toBeGreaterThanOrEqual(0);
             expect(leanedEntropy(entropy, after.lean)).toBeLessThanOrEqual(1);
+            expect(restlessOf(entropy, after.lean)).toBeGreaterThanOrEqual(0);
+            expect(restlessOf(entropy, after.lean)).toBeLessThanOrEqual(1);
           }
   });
 
-  it('waits for a second reading on one side, and counts a reversal where it moves against its last move', () => {
+  it('waits for a second reading on one side at a patience of 2, and counts a reversal where it moves against its last move', () => {
     const { low, high } = bandOf(0.3);
     const up = high + 0.1;
     const down = low - 0.1;
     const inside = (low + high) / 2;
     const read = (state: typeof NO_LEAN, ...shares: (number | null)[]) =>
-      shares.reduce((s, share) => regulated(s, share, 0.3), state);
+      shares.reduce((s, share) => regulated(s, share, 0.3, LEAN_STEP, 2), state);
     let state = read(NO_LEAN, up);
     expect([state.lean, state.moved]).toEqual([0, 0]);
     state = read(state, up);
@@ -121,12 +161,12 @@ describe('the controller (regulated)', () => {
     expect(state).toEqual({ lean: 0, moved: 1, reversals: 0, heard: -1, run: 2 });
   });
 
-  it('plays the players’ entropy as it is at no lean, and reaches 1 bored long enough', () => {
+  it('plays the players’ entropy as it is at no lean, and reaches 1 and full restlessness bored long enough', () => {
     for (const entropy of ENTROPIES) expect(leanedEntropy(entropy, NO_LEAN.lean)).toBe(entropy);
     let state = NO_LEAN;
-    for (let i = 0; i < 3; i++) state = regulated(state, 1, 0.3);
-    expect(state.lean).toBe(0.7);
-    expect(leanedEntropy(0.3, state.lean)).toBe(1);
+    for (let i = 0; i < 5; i++) state = regulated(state, 1, 0.3);
+    expect(state.lean).toBe(1.7);
+    expect([leanedEntropy(0.3, state.lean), restlessOf(0.3, state.lean)]).toEqual([1, 1]);
   });
 });
 

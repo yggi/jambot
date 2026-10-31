@@ -5,6 +5,7 @@ import {
   STREAMS,
   chance,
   draw,
+  heldDraw,
   keyedRandom,
   keyedRng,
   mulberry32,
@@ -180,6 +181,64 @@ describe('draw', () => {
         seen.set(draws, `${seed} ${stream}`);
       }
     expect(draw(7, 'form', 3)).not.toBe(draw(7, 'drumHit', 3));
+  });
+});
+
+describe('heldDraw', () => {
+  const HELD = ['bassHit', 'bassVariation'] as const;
+  const varied = (
+    seed: number,
+    role: number,
+    section: number,
+    bar: number,
+    step: number,
+    entropy: number,
+  ) =>
+    Math.min(
+      0.9999,
+      Math.max(
+        0.0001,
+        draw(seed, HELD[0], role, section, step) +
+          (draw(seed, HELD[1], role, bar, step) - 0.5) * (0.12 + 0.4 * entropy),
+      ),
+    );
+  const held = (seed: number, role: number, section: number, step: number) =>
+    Math.min(0.9999, Math.max(0.0001, draw(seed, HELD[0], role, section, step)));
+
+  it('holds an even bar and varies an odd one where nothing is restless, and varies every bar at full restlessness (#536)', () => {
+    for (let seed = 1; seed <= 4; seed++)
+      for (let bar = 0; bar < 16; bar++)
+        for (let step = 0; step < 16; step++)
+          for (const entropy of [0, 0.5, 1]) {
+            const odd = bar % 2 === 1;
+            const calm = heldDraw(seed, HELD, 2, 1, bar, step, entropy);
+            expect(calm).toBe(
+              odd ? varied(seed, 2, 1, bar, step, entropy) : held(seed, 2, 1, step),
+            );
+            expect(heldDraw(seed, HELD, 2, 1, bar, step, entropy, 0)).toBe(calm);
+            expect(heldDraw(seed, HELD, 2, 1, bar, step, entropy, 1)).toBe(
+              varied(seed, 2, 1, bar, step, entropy),
+            );
+          }
+  });
+
+  it('varies an even bar with the chance it is restless, a role and bar at a time, the same at every step of it', () => {
+    for (const restless of [0.25, 0.5, 0.75]) {
+      let even = 0;
+      let restive = 0;
+      for (let bar = 0; bar < 2048; bar += 2)
+        for (let role = 0; role < 4; role++) {
+          even++;
+          const steps = [...Array(16).keys()].map(
+            (step) =>
+              heldDraw(7, HELD, role, 0, bar, step, 0.5, restless) !== held(7, role, 0, step),
+          );
+          // (a step whose variation rounds to nothing aside, a bar varies all of it or none)
+          if (steps.filter(Boolean).length > 8) restive++;
+          else expect(steps.filter(Boolean).length).toBe(0);
+        }
+      expect(Math.abs(restive / even - restless)).toBeLessThan(0.03);
+    }
   });
 });
 

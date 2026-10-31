@@ -8,7 +8,7 @@
  * played lately (`heardTexts`, `playedInto`, `recognisedBar` with `lately`:
  * a member's last eight texts, the harmony's last two themes, heard once a
  * section). At each section's second-to-last bar (`READ_AT`) the controller
- * reads the share over the last eight bars and leans the loop's entropy
+ * reads the share over the last `SHARE_BARS` bars and leans the loop's entropy
  * (`regulated`), which the band plays at from the next bar, the one that
  * decides the next section, so the section after is planned and played at
  * it. It counts, over every preset:
@@ -66,6 +66,7 @@ import {
   presetMode,
   presetSwing,
   regulated,
+  restlessOf,
   styleAt,
   walkRadio,
   withLean,
@@ -153,6 +154,7 @@ export function regulatedRun(
       seed,
       bar,
       style: { ...style, entropy: leanedEntropy(style.entropy, leanAt(leans, bar)) },
+      restless: restlessOf(style.entropy, leanAt(leans, bar)),
       wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
       swing: walking ? STRAIGHT : presetSwing(preset)!,
       repository: METER_REPOSITORY,

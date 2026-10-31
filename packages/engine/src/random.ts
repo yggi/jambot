@@ -117,6 +117,8 @@ export const STREAMS = {
   leadLineVariation: 32,
   /** Which variation the composer makes of a progression it tires of (#425): none drawn yet, since cells has no operators on a harmony (yggi/cells#208). */
   harmonyVariation: 33,
+  /** Whether a held part varies an even bar as it varies its odd ones, per part's stream, role and bar, where the homeostat leans past entropy 1 (#536, `restless`). */
+  restless: 34,
 } as const;
 
 export type Stream = keyof typeof STREAMS;
@@ -135,7 +137,9 @@ export function draw(seed: number, stream: Stream, ...keys: number[]): number {
  * A part's draw for a step that holds for its whole section, so as the style
  * moves the part morphs rather than reshuffles (C4). On odd bars it moves a
  * little, the more the higher the entropy, so a groove is a loop with
- * variation. Kept inside (0, 1), so every p between 0 and 1 is heard.
+ * variation; and on an even bar as well with a chance of `restless`, a role
+ * at a time (#536: the homeostat's lean past entropy 1, `restlessOf`), so at
+ * 1 every bar varies. Kept inside (0, 1), so every p between 0 and 1 is heard.
  */
 export function heldDraw(
   seed: number,
@@ -145,9 +149,13 @@ export function heldDraw(
   bar: number,
   step: number,
   entropy: number,
+  restless = 0,
 ): number {
   let x = draw(seed, held, role, section, step);
-  if (bar % 2 === 1) x += (draw(seed, variation, role, bar, step) - 0.5) * (0.12 + 0.4 * entropy);
+  const varied =
+    bar % 2 === 1 ||
+    (restless > 0 && chance(draw(seed, 'restless', STREAMS[variation], role, bar), restless));
+  if (varied) x += (draw(seed, variation, role, bar, step) - 0.5) * (0.12 + 0.4 * entropy);
   return Math.min(0.9999, Math.max(0.0001, x));
 }
 

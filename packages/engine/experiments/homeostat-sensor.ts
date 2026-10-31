@@ -16,8 +16,8 @@
  *   entropy, as E37 to E43 walk it (`rhythm-radio.ts`), each section's style
  *   glided to over `PRESET_GLIDE`, played straight;
  *
- * the share of bars recognised over the last `SHARE_BARS` at each section's
- * last bar (`shareOf`, whose window is then the section's eight bars), per
+ * the share of bars recognised over the section's eight bars at each section's
+ * last bar (`shareOf`, E44's window, before #536 read sixteen), per
  * member and over all members (`sectionShares`), where it sits against the
  * ruled band (`BAND`: 0.4 to 0.7 at entropy 0.3, `against`), and what a
  * recognition costs a bar on the warmed recogniser (`costOf`: each member's,
@@ -184,7 +184,7 @@ export function sensedRun(
     const fresh = (layer?.filed.length ?? 0) !== filed;
     filed = layer?.filed.length ?? 0;
     cost.push({ bar: Object.values(facets).reduce((a, b) => a + b, 0), facets, fresh });
-    window = heardInto(window, recognition);
+    window = heardInto(window, recognition, SECTION_BARS);
     if (bar % SECTION_BARS === SECTION_BARS - 1)
       sections.push(
         Object.fromEntries(
