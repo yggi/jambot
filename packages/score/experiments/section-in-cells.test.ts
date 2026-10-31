@@ -176,7 +176,9 @@ describe('the band writes a whole section as one cells text, every part, the lea
     // (a bar it plays more than once stated once, and spliced in where it plays)
     expect(text).toMatch(/^&leadlineA ~@5 5@3 5@6 8@2$/m);
     expect(text).toMatch(/^&leadLevel map=amp step=16n /m);
-    expect(text).toMatch(/^&lead, &leadOut from "lead performer"\(leadLevel=&leadLevel\) &leadline$/m);
+    expect(text).toMatch(
+      /^&lead, &leadOut from "lead performer"\(leadLevel=&leadLevel\) &leadline$/m,
+    );
     expect(text).toMatch(/^&out map=midi &leadOut &bassOut &stabOut ~!6 &drumsOut$/m);
   });
 
