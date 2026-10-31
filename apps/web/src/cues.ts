@@ -45,13 +45,15 @@ export interface CueInput {
   readonly hud: Pick<Hud, 'bar' | 'beat' | 'next' | 'style'>;
   /** The count-in's beats left and the beats it counts, or null outside one. */
   readonly counting: { readonly left: number; readonly of: number } | null;
-  /** Whether the band is ending on its bar. */
+  /** Whether the band is ending. */
   readonly ending: boolean;
+  /** The song's last bar, once the band asked to end has composed it, else null. */
+  readonly last?: number | null;
   /** Whether the radio is on the air. */
   readonly radio: boolean;
 }
 
-export function cuesOf({ hud, counting, ending, radio }: CueInput): Cue[] {
+export function cuesOf({ hud, counting, ending, last = null, radio }: CueInput): Cue[] {
   const cues: Cue[] = [];
   if (counting)
     cues.push({
@@ -73,17 +75,20 @@ export function cuesOf({ hud, counting, ending, radio }: CueInput): Cue[] {
     const bars = at.bar - here.bar;
     return { bars, beatsLeft: bars === 1 ? left : null, beats };
   };
-  if (ending)
+  if (ending) {
+    // Until the last bar is composed it is the next at least; in it, its beats count down.
+    const bars = last === null ? 2 : Math.max(1, last - here.bar + 1);
     cues.push({
       kind: 'ending',
       what: 'Ending',
       sub: 'the last chord rings · Stop again to stop now',
       who: null,
-      bars: 1,
-      beatsLeft: left,
+      bars,
+      beatsLeft: bars === 1 ? left : null,
       beats,
       glyph: 'cells',
     });
+  }
   const reach = hud.next.filter((b) => b.bar - here.bar <= CUE_BARS);
   const line = reach.find((b) => b.barInSection === 0);
   if (line) {

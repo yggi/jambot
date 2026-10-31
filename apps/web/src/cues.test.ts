@@ -56,9 +56,20 @@ describe('the cues: every heads-up read from the plan the band already holds', (
     });
   });
 
-  it('says the band ends on its bar’s last beat, in beats', () => {
-    const [cue] = cuesOf(input({ hud: hud(3, 1), ending: true }));
-    expect(cue).toMatchObject({ kind: 'ending', beatsLeft: 3, beats: 4 });
+  it('says the band ends at its last bar’s end, in bars, then in its last bar in beats', () => {
+    expect(cuesOf(input({ hud: hud(3, 1), ending: true, last: 4 }))[0]).toMatchObject({
+      kind: 'ending',
+      bars: 2,
+      beatsLeft: null,
+    });
+    expect(cuesOf(input({ hud: hud(4, 1), ending: true, last: 4 }))[0]).toMatchObject({
+      kind: 'ending',
+      bars: 1,
+      beatsLeft: 3,
+      beats: 4,
+    });
+    // Before the last bar is composed, it is the next at least.
+    expect(cuesOf(input({ hud: hud(3, 1), ending: true }))[0]).toMatchObject({ bars: 2 });
   });
 
   it('names the next section once it is within reach, in bars, then in its last bar in beats', () => {
@@ -125,7 +136,7 @@ describe('the cues: every heads-up read from the plan the band already holds', (
   it('puts the nearest first', () => {
     const ada = { source: 'k', name: 'Ada', colour: 2, bar: 1 };
     const both = (m: number) => (m >= 6 ? { lead: 'motif' as const, motif: ada } : {});
-    const cues = cuesOf(input({ hud: hud(5, 0, both), ending: true }));
+    const cues = cuesOf(input({ hud: hud(5, 0, both), ending: true, last: 5 }));
     expect(cues.map((c) => c.kind)).toEqual(['ending', 'motif', 'section']);
   });
 

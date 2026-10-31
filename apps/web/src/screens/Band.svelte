@@ -114,6 +114,7 @@
           }
         : null,
       ending: player.ending,
+      last: player.lastBar,
       radio: player.station !== null,
     }),
   );
@@ -141,6 +142,7 @@
     {meter}
     {step}
     {phase}
+    last={player.lastBar !== null && player.hud.bar?.bar === player.lastBar}
     playing={player.playing}
     {following}
     ontoggle={() => (player.playing ? player.stop() : player.start())}

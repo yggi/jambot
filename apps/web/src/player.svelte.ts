@@ -417,6 +417,8 @@ export class Player {
   counting = $state(false);
   /** Whether the band was asked to stop and plays on to its last bar. */
   ending = $state(false);
+  /** The song's last bar, once the band asked to end has composed it, else null: where the ending's countdown ends. */
+  lastBar: number | null = $state(null);
   /** The step of the count-in's bar heard, from 0, or null outside the count-in: what the transport counts down. */
   countStep: number | null = $state(null);
   /** The step heard, or null before anything is. */
@@ -943,6 +945,7 @@ export class Player {
   #begin(output: Output) {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
+    this.lastBar = null;
     // Its texts asked for from the band's own bars, alone or hosting; given by the host to a client (#446).
     this.shadow.reset(this.#follow ? 'given' : 'asked');
     if (!this.#follow) this.hearing?.begin();
@@ -1219,6 +1222,7 @@ export class Player {
     const wasPlaying = this.status === 'playing';
     this.status = 'stopped';
     this.ending = false;
+    this.lastBar = null;
     this.counting = false;
     this.countStep = null;
     if (!wasPlaying) return;
@@ -1343,6 +1347,7 @@ export class Player {
       finish: this.ending,
     });
     this.#carried = carried;
+    if (carried!.finale.bar !== this.lastBar) this.lastBar = carried!.finale.bar;
     this.#learned(carried!.source.plans.layer);
     // The band decided its next bar in another meter: from now the bpm counts
     // that meter's beats, every step as long as it was (#367).

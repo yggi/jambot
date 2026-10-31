@@ -3,9 +3,10 @@
   bar heard over the tempo, the meter and the key, and the bar itself as its
   background, a cell per pulse as long as the pulse is in eighths, the cell
   heard lit and its eighths as dots, so the beat is seen at a glance. In the
-  count-in the beats still to come are hatched and the line counts them
-  down; while the band ends the button is an outline, and a second Stop
-  stops it now. A client's button rests, since its host starts and stops the
+  count-in the beats still to come are hatched, one stripe across them all,
+  and the line counts them down; while the band ends the button is an
+  outline, the last bar's beats still to come are hatched the same way, and
+  a second Stop stops it now. A client's button rests, since its host starts and stops the
   band. The loop toggle is the place for holding a section and is not wired
   yet (#327). It stays one height whatever it says, so nothing under it moves.
   It is the transport of whatever a screen plays: the lobby's metronome,
@@ -26,6 +27,8 @@
     /** The step heard, or of the count-in's bar while it counts; null before either. */
     step: number | null;
     phase: Phase | null;
+    /** Whether the bar heard is the band's last, while it ends: its beats still to come are hatched. */
+    last?: boolean;
     /** Whether the band is playing or about to: the button reads Stop. */
     playing: boolean;
     /** Whether this device follows a host, whose band it doesn't start or stop. */
@@ -47,6 +50,7 @@
     meter,
     step,
     phase,
+    last = false,
     playing,
     following = false,
     ontoggle,
@@ -60,6 +64,14 @@
 
   const cells = $derived(meter ? transportCells(meter) : []);
   const lit = $derived(meter ? transportHeard(meter, step) : null);
+  /** The first cell still to come, where its beats are hatched: the count-in's, or the last bar's while the band ends. */
+  const hatchFrom = $derived(
+    lit !== null &&
+      (phase === 'counting' || (phase === 'ending' && last)) &&
+      lit.cell + 1 < cells.length
+      ? lit.cell + 1
+      : null,
+  );
 </script>
 
 <section class="transport" aria-label="Transport">
@@ -68,12 +80,15 @@
     aria-hidden="true"
     style:grid-template-columns={cells.map((c) => `${c}fr`).join(' ')}
   >
+    {#if hatchFrom !== null}
+      <div class="hatch" style:grid-column="{hatchFrom + 1} / -1"></div>
+    {/if}
     {#each cells as eighths, i (i)}
       <div
         class="cell"
         class:on={lit?.cell === i}
         class:down={lit?.cell === i && i === 0}
-        class:ahead={phase === 'counting' && lit !== null && i > lit.cell}
+        class:ahead={hatchFrom !== null && i >= hatchFrom}
       >
         <span class="dots">
           {#each { length: eighths }, j (j)}
@@ -152,6 +167,7 @@
   }
   .cell {
     position: relative;
+    grid-row: 1;
     border-right: 1px solid var(--line);
   }
   .cell:last-child {
@@ -163,10 +179,13 @@
   .cell.on.down {
     background: color-mix(in srgb, var(--amber) 32%, var(--surface));
   }
-  .cell.ahead {
+  /* One stripe across every cell still to come, so it runs on unbroken over their borders. */
+  .hatch {
+    grid-row: 1;
+    pointer-events: none;
     background: repeating-linear-gradient(
       135deg,
-      color-mix(in srgb, var(--amber) 16%, var(--surface)) 0 6px,
+      color-mix(in srgb, var(--amber) 16%, transparent) 0 6px,
       transparent 6px 12px
     );
   }

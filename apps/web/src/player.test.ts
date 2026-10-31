@@ -1039,9 +1039,12 @@ describe('stopping on a cadence', () => {
     const last = host.composed.at(-1)!;
     expect(last.bar).toBe(host.finales[0]);
     expect(last.chords).toEqual([0, 8]);
+    // The last bar is named once composed: where the transport's countdown ends.
+    expect(player.lastBar).toBe(last.bar);
     run(12);
     expect(player.status).toBe('stopped');
     expect(player.ending).toBe(false);
+    expect(player.lastBar).toBeNull();
     expect(host.said.filter((m) => m === 'stopped')).toHaveLength(1);
     expect(host.said.at(-1)).toBe('stopped');
     // No bar was composed after the last, and nothing was played after its end.
