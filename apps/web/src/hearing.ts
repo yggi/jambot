@@ -42,7 +42,7 @@ import {
   withLean,
 } from '@jambot/engine';
 import type { Ear, Heard } from './ear.ts';
-import { type Spread, spread } from './shadow.ts';
+import { ASKED_AT, type Spread, spread } from './shadow.ts';
 
 /** A section read: its share, the players' entropy at its last bar, and the lean it moved, from the bar it plays from. */
 export interface SectionRead {
@@ -79,9 +79,6 @@ export const KEPT_SECTIONS = 1024;
 
 /** How many bars' costs the readout keeps: some four hours at 120 bpm. */
 export const KEPT_COSTS = 8192;
-
-/** The bar of a section by its place, a section's text being asked for as the band composes it in the section before (`shadow.ts`). */
-const ASKED_AT = SECTION_BARS / 2;
 
 /** The homeostat on the page: one song's hearing, over an ear. */
 export class Hearing {
