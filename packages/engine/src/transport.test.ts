@@ -1097,4 +1097,24 @@ describe('the homeostat’s leans in the environment (#495)', () => {
     expect(leaned.slice(8).map((b) => b.style.entropy)).toEqual(Array(8).fill(1));
     expect(leaned.slice(8).map((b) => b.written)).not.toEqual(plain.slice(8).map((b) => b.written));
   });
+
+  it('gives the band its restlessness where a lean takes it past entropy 1, and none where it doesn’t (#536)', () => {
+    const at = env();
+    const entropy = styleAt(at.track, 0).entropy;
+    const leans = [
+      { bar: 8, lean: 1 - entropy },
+      { bar: 16, lean: 1.5 - entropy },
+    ];
+    const restless = [0, 8, 15, 16, 31].map(
+      (bar) => bandEnvAt({ ...at, leans }, bar, null).restless,
+    );
+    expect(restless).toEqual([undefined, undefined, undefined, 0.5, 0.5]);
+    expect(bandEnvAt(at, 16, null).restless).toBeUndefined();
+    const plain = foresight({ ...at, leans: leans.slice(0, 1) }, null, 24);
+    const restive = foresight({ ...at, leans }, null, 24);
+    expect(restive.slice(0, 16)).toEqual(plain.slice(0, 16));
+    expect(restive.slice(16).map((b) => b.written)).not.toEqual(
+      plain.slice(16).map((b) => b.written),
+    );
+  });
 });

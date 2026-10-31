@@ -101,6 +101,8 @@ export interface BandEnv {
   readonly rhythms?: RhythmRepository | undefined;
   /** The motif the Muse offers, which the lead settles on (#79). */
   readonly offer: Offer | null;
+  /** How restless the held parts play (`BarEnv.restless`, #536): the homeostat's lean past entropy 1; none where absent. */
+  readonly restless?: number | undefined;
   /**
    * What players played on drums in bars the Muse heard since the bar before
    * (#401, `heardDrums`): each bar of the section playing joins what she
@@ -314,6 +316,7 @@ function barEnvOf(env: BandEnv, here: DecidedBar, next: readonly BarChord[]): Ba
     chords: here.chords,
     next,
     offer: env.offer,
+    ...(env.restless === undefined ? {} : { restless: env.restless }),
   };
 }
 

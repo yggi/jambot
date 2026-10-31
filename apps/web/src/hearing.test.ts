@@ -18,6 +18,9 @@ import {
   leanAt,
   leanedEntropy,
   presetSwing,
+  restlessOf,
+  shareOf,
+  SHARE_BARS,
 } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { type Ear, type HearAsk, type Heard, inlineEar } from './ear.ts';
@@ -27,15 +30,17 @@ const ENTROPY = 0.3;
 
 /**
  * A preset played for `bars` bars as the page's band plays it, each bar at the players' entropy leaned as the
- * hearing leans it, and each told to the hearing as composed, then `after` it.
+ * hearing leans it, restless where the lean passes entropy 1, and each told to the hearing as composed, then `after` it.
  */
 function play(hearing: Hearing, name: string, bars: number, after = () => {}): BandBar[] {
   const preset = PRESETS.find((p) => p.name === name)!;
   let carried: BandCarried = band.initial;
   const out: BandBar[] = [];
   for (let bar = 0; bar < bars; bar++) {
+    const restless = restlessOf(ENTROPY, leanAt(hearing.leans, bar));
     const made = band.advance(
       {
+        ...(restless > 0 ? { restless } : {}),
         seed: 1,
         bar,
         style: { ...preset.style, entropy: leanedEntropy(ENTROPY, leanAt(hearing.leans, bar)) },
@@ -86,16 +91,48 @@ describe('the homeostat on the page (#495)', () => {
       sections.map((s) => (s.section + LEAN_AHEAD) * SECTION_BARS),
     );
     expect(sections.map((s) => s.entropy)).toEqual(Array(6).fill(ENTROPY));
-    // (bored, above the band twice in a row, sections 2 and 3: a step up from section 5, and another from 6)
+    // (bored, above the band at sections 0, 3, 4 and 5, each a step up two sections on, past entropy 1 into restlessness from 6, to the top from 7)
     const { high } = bandOf(ENTROPY);
-    expect(sections.map((s) => s.share! > high)).toEqual([true, false, true, true, true, true]);
+    expect(sections.map((s) => s.share! > high)).toEqual([true, false, false, true, true, true]);
     expect(leans).toEqual([
-      { bar: 5 * SECTION_BARS, lean: LEAN_STEP },
-      { bar: 6 * SECTION_BARS, lean: 1 - ENTROPY },
+      { bar: 2 * SECTION_BARS, lean: LEAN_STEP },
+      { bar: 5 * SECTION_BARS, lean: 2 * LEAN_STEP },
+      { bar: 6 * SECTION_BARS, lean: 3 * LEAN_STEP },
+      { bar: 7 * SECTION_BARS, lean: 2 - ENTROPY },
     ]);
     expect(leaned.length).toBe(leans.length);
     expect(homeostat.reversals).toBe(0);
     expect(late).toBe(0);
+  });
+
+  it('reads a section’s share over the last sixteen bars, its own and the section’s before (#536)', () => {
+    const heard: Heard[] = [];
+    const inline = inlineEar();
+    const hearing = new Hearing({
+      begin() {},
+      end() {},
+      hear: (ask, answer) =>
+        inline.hear(ask, (h) => {
+          heard.push(h);
+          answer(h);
+        }),
+    });
+    hearing.begin();
+    play(hearing, 'Funk', 4 * SECTION_BARS);
+    expect(SHARE_BARS).toBe(2 * SECTION_BARS);
+    const over = (last: number) =>
+      shareOf(
+        heard.filter((h) => h.bar > last - SHARE_BARS && h.bar <= last).map((h) => h.recognition),
+      );
+    expect(hearing.readout.sections.map((s) => s.share)).toEqual(
+      [0, 1, 2, 3].map((section) => over((section + 1) * SECTION_BARS - 1)),
+    );
+    // (and not the section's own eight alone, which reads otherwise here)
+    const own = (section: number) =>
+      shareOf(
+        heard.filter((h) => Math.floor(h.bar / SECTION_BARS) === section).map((h) => h.recognition),
+      );
+    expect(hearing.readout.sections.map((s) => s.share).slice(1)).not.toEqual([1, 2, 3].map(own));
   });
 
   it('keeps every bar’s cost, on the page’s thread and the ear’s', () => {

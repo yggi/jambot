@@ -40,4 +40,6 @@ export interface BarEnv {
   readonly next: readonly BarChord[];
   /** The motif the Muse offers, which the lead settles on while it stands (#79). */
   readonly offer: Offer | null;
+  /** How restless the held parts play, 0 to 1: the chance they vary an even bar as their odd ones (`heldDraw`), from the homeostat's lean past entropy 1 (#536, `restlessOf`); none where absent. */
+  readonly restless?: number | undefined;
 }

@@ -1,7 +1,7 @@
 /**
  * The homeostat's controller (#237, step 6; yggi/cells decision 043; the
  * owner's limits of 2026-10-22): the share of bars recognised over the last
- * eight (`recognised.ts`) leans the loop's entropy, so a band that bores
+ * sixteen (`recognised.ts`, `SHARE_BARS`) leans the loop's entropy, so a band that bores
  * itself loosens and one that confuses tightens.
  *
  * The share is kept in a band (`bandOf`): 0.4 to 0.7 at entropy 0.3, the
@@ -20,11 +20,19 @@
  * band's whole entropy from 0 to 1 moving it by 0.12, so the controller
  * leans the whole.
  *
- * Integral, with the band as its dead zone: a reading out of the band, where
- * the reading before was out on the same side (`PATIENCE`), moves the lean
+ * Past entropy 1 the lean reaches on, by up to 1 more, into how restless the
+ * held parts are (`restlessOf`, the owner's ruling on #536, 2026-10-31): the
+ * excess is the chance that a part varies an even bar as it varies its odd
+ * ones (`heldDraw`), so at the top every bar varies. E45 found the band still
+ * bored at entropy 1, its share 0.66 against the band's 0.4 to 0.7; varying
+ * every bar brings it to 0.59. Below entropy 1 it changes nothing.
+ *
+ * Integral, with the band as its dead zone: a reading out of the band, as
+ * many in a row as `PATIENCE` asks, moves the lean
  * `LEAN_STEP` its way, and a reading inside holds it, so the band left
  * inside keeps the lean that brought it there. The lean never
- * takes the loop's entropy past 0 or 1, and a move it can't make isn't one.
+ * takes the loop's entropy under 0, nor past 1 and full restlessness, and a
+ * move it can't make isn't one.
  * It counts its reversals (a move against the move before), which the
  * ruling bounds at one per four sections. A lean is a sum of steps, and
  * adding is exact alike on every device, so every device leans alike; at
@@ -45,11 +53,15 @@ export const LEAN_STEP = 0.5;
 
 /**
  * How many readings in a row, the latest among them, a move waits for out of
- * the band on one side (`Homeostat.run` counts them): 2, so one section's noise (a section's share spreads by about 0.13, E45)
- * doesn't move it; with 1 the controller reversed up to 1.75 times per four
- * sections, past the ruled 1 (chosen in E45).
+ * the band on one side (`Homeostat.run` counts them): 1, since a reading over
+ * `SHARE_BARS`, sixteen bars, already spans two sections (#536). Over eight
+ * bars it was 2, so one section's noise (it spread by about 0.13, E45) didn't
+ * move it, and with 1 the controller reversed up to 1.75 times per four
+ * sections; over sixteen, with 1, at most 0.375, and 81 % of sections are
+ * inside against 74 % to 78 % with 2 (E45, on the page's schedule, 2 seeds of
+ * 256 bars held and 512 walked).
  */
-export const PATIENCE = 2;
+export const PATIENCE = 1;
 
 /** The band the share is kept in at an entropy, inside 0 to 1. */
 export function bandOf(entropy: number): { readonly low: number; readonly high: number } {
@@ -85,6 +97,13 @@ export const NO_LEAN: Homeostat = { lean: 0, moved: 0, reversals: 0, heard: 0, r
 export const leanedEntropy = (entropy: number, lean: number): number =>
   Math.min(1, Math.max(0, entropy + lean));
 
+/** How far past entropy 1 the lean reaches, into restlessness (`restlessOf`): 1, so at the top every held bar varies. */
+export const RESTLESS_REACH = 1;
+
+/** How restless the held parts play (`heldDraw`): the players' entropy leaned past 1, inside 0 to 1; 0 at entropy 1 and under. */
+export const restlessOf = (entropy: number, lean: number): number =>
+  Math.min(RESTLESS_REACH, Math.max(0, entropy + lean - 1));
+
 /** The controller after a reading of the share at the players' entropy: a step its way, where `patience` readings in a row agree (`PATIENCE`) and the lean has room. */
 export function regulated(
   state: Homeostat,
@@ -96,7 +115,7 @@ export function regulated(
   const heard = wayOf(share, entropy);
   const run = heard === 0 ? 0 : heard === state.heard ? state.run + 1 : 1;
   const way = run >= patience ? heard : 0;
-  const lean = Math.min(1 - entropy, Math.max(-entropy, state.lean + way * step));
+  const lean = Math.min(1 + RESTLESS_REACH - entropy, Math.max(-entropy, state.lean + way * step));
   if (way === 0 || lean === state.lean) return { ...state, heard, run };
   return {
     lean,

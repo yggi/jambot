@@ -168,7 +168,7 @@ export function playBass(
   const total = Object.values(blend).reduce((a, b) => a + b, 0);
   const density = 0.55 + 0.6 * energy;
   const held = (role: number, step: number) =>
-    heldDraw(seed, HELD, role, section, bar, step, style.entropy);
+    heldDraw(seed, HELD, role, section, bar, step, style.entropy, env.restless);
   const tables = patternsOn(meter, bar);
   const own: number[] = [];
   const weight: number[] = [];

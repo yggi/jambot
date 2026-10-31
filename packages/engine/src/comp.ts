@@ -116,7 +116,7 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
       ? 0
       : (0.35 + 0.65 * energy) * (1 - 0.45 * eighth) * style.artic * 1.4;
     const held = (role: number, step: number) =>
-      heldDraw(seed, HELD, role, plan.section.index, bar, step, style.entropy);
+      heldDraw(seed, HELD, role, plan.section.index, bar, step, style.entropy, env.restless);
 
     let previous = last;
     const voiced = chords.map((c) => (previous = voicing(c.chord, previous)));
