@@ -258,7 +258,11 @@ function themeSlots(theme: Theme): HarmonySlot[] | null {
   for (const [b, bar] of theme.bars.entries())
     for (const slot of bar) {
       if (!('degree' in slot) || (slot.step !== 0 && slot.step !== SLOT_BAR / 2)) return null;
-      slots.push({ step: b * SLOT_BAR + slot.step, degree: ((slot.degree % 7) + 7) % 7 });
+      slots.push({
+        step: b * SLOT_BAR + slot.step,
+        degree: ((slot.degree % 7) + 7) % 7,
+        ...(slot.stack && { stack: slot.stack }),
+      });
     }
   return theme.bars.length === SECTION_BARS ? slots : null;
 }
