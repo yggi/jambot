@@ -271,8 +271,9 @@
     display: none !important;
   }
 
-  /* A phone on its side: the views are a rail at the left, the riders beside the header. */
-  @media (max-height: 500px) and (orientation: landscape) {
+  /* A phone or a tablet on its side (a short screen, or a touch screen wider than tall): the views are a rail at the left, the riders beside the header, and the views take the whole width. */
+  @media (max-height: 500px) and (orientation: landscape),
+    (pointer: coarse) and (orientation: landscape) {
     .shell {
       --gutter: 8px;
       grid-template-columns: 76px minmax(0, 1fr);

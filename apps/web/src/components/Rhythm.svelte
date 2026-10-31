@@ -254,7 +254,8 @@
   .pads :global(.pad) {
     min-height: 64px;
   }
-  @media (max-height: 500px) and (orientation: landscape) {
+  @media (max-height: 500px) and (orientation: landscape),
+    (pointer: coarse) and (orientation: landscape) {
     .rhythm {
       grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
       grid-template-rows: auto minmax(0, 1fr);

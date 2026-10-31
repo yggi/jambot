@@ -10,6 +10,8 @@ declare const __BUILD__: import('./buildInfo.ts').BuildInfo;
  * and the homeostat's song, none where it is off (#495).
  */
 interface Window {
+  /** Set once the app has mounted, so the boot guard in index.html stands down. */
+  jambotBooted?: boolean;
   jambot?: {
     readonly shadow: import('./shadow.ts').ShadowReadout;
     readonly homeostat: import('./hearing.ts').HearingReadout | null;

@@ -305,8 +305,9 @@
     border-radius: 0 0 0 8px;
     transition: width 0.1s linear;
   }
-  /* A phone on its side: the chord at the left, the section and those after it at the right. */
-  @media (max-height: 500px) and (orientation: landscape) {
+  /* A phone or a tablet on its side: the chord at the left, the section and those after it at the right. */
+  @media (max-height: 500px) and (orientation: landscape),
+    (pointer: coarse) and (orientation: landscape) {
     .song {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
       grid-template-rows: auto 1fr auto;

@@ -69,6 +69,11 @@
 *::after {
   box-sizing: border-box;
 }
+/* No pull-to-refresh, nor any other overscroll of the page: a swipe down in the middle of a jam would reload it. The shell owns the viewport, and its views scroll on their own. */
+html,
+body {
+  overscroll-behavior: none;
+}
 body {
   margin: 0;
   background: var(--bg);
