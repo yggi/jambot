@@ -1,7 +1,10 @@
 /**
  * Chords: what a bar's theme slots sound as, in the section's key.
  *
- * A slot on a degree is stacked thirds on that degree of the key: a triad
+ * A slot that carries a stack a progression wrote plays it as written, each
+ * tone a degree of the key moved by its accidental, nothing added, where the
+ * key makes it a chord with a name and a numeral (#539); else, and on any
+ * other slot on a degree, stacked thirds on that degree of the key: a triad
  * at low harmony, a seventh as harmony rises past 0.25 (all of them from
  * 0.75), and above 0.75 sometimes a ninth, a tension over the seventh
  * (#38), where the key gives a major one. A slot toward a degree is its
@@ -17,10 +20,12 @@
 import {
   type Chord,
   compose,
+  type Helix,
   formatNumeral,
   heightOf,
   joinChord,
   type Meter,
+  type Note,
   nameOf,
   numeralOf,
   qualityOf,
@@ -31,7 +36,7 @@ import {
 } from '@jambot/theory';
 import { type Key, keyHelix } from './key.ts';
 import { chance, draw } from './random.ts';
-import type { Slot, Theme } from './themes.ts';
+import type { Slot, StackTone, Theme } from './themes.ts';
 
 export interface ChordEnv {
   readonly seed: number;
@@ -57,6 +62,18 @@ const smooth = (x: number) => {
   return u * u * (3 - 2 * u);
 };
 
+/**
+ * A stack a progression wrote, as written (#539): each tone the key's degree
+ * moved by its accidental, nothing added; null where the key makes it no
+ * chord with a name and a numeral, so the slot plays the triad on its root.
+ */
+function writtenChord(scale: Helix, stack: readonly StackTone[]): Chord | null {
+  const heights = stack.map((t) => heightOf(scale, t.degree) + t.alter);
+  const quality = qualityOf(heights.map((x) => x - heights[0]!));
+  if (!quality || !numeralOf(scale, { root: wrap(heights[0]!, 12), quality })) return null;
+  return { helix: { cycle: 12, heights }, tensions: [] };
+}
+
 /** The chords of one bar, one per slot of the theme's bar. */
 export function barChords({ seed, barInSection, key, theme, harm }: ChordEnv): BarChord[] {
   const scale = keyHelix(key);
@@ -81,6 +98,8 @@ export function barChords({ seed, barInSection, key, theme, harm }: ChordEnv): B
       };
     }
     const d = slot.degree;
+    const written = slot.stack && writtenChord(scale, slot.stack);
+    if (written) return { slot, raised: false, chord: written };
     const size = chance(color(j, 0), seventh) ? 4 : 3;
     const heights = compose(
       { cycle: 7, heights: [d, d + 2, d + 4, d + 6].slice(0, size) },
@@ -130,11 +149,27 @@ function rootAndQuality(chord: Chord): { root: number; stack: number[]; quality:
   return { root: heights[0]!, stack, quality };
 }
 
+/** A note moved by an accidental, its letter kept: a written stack's root off the key (♭II, #539). */
+const alteredBy = (note: Note, alter: number): Note =>
+  alter === 0
+    ? note
+    : {
+        ...note,
+        alteration: note.alteration + alter,
+        pitchClass: wrap(note.pitchClass + alter, 12),
+      };
+
 /** A chord's lead-sheet symbol, its root spelled in the key: `Am`, `E7`, `B♭maj9`. */
 export function chordName({ slot, chord }: BarChord, key: Key): string {
   const scale = keyHelix(key);
   const notes = spell(spelledTonic(scale), scale.heights);
-  const root = 'degree' in slot ? notes[slot.degree]! : spell(notes[slot.dominantOf]!, [0, 7])[1]!;
+  const root =
+    'degree' in slot
+      ? alteredBy(
+          notes[slot.degree]!,
+          wrap(joinChord(chord)[0]! - heightOf(scale, slot.degree) + 6, 12) - 6,
+        )
+      : spell(notes[slot.dominantOf]!, [0, 7])[1]!;
   const { stack, quality } = rootAndQuality(chord);
   return nameOf({ kind: 'chord', root, quality, stack });
 }
