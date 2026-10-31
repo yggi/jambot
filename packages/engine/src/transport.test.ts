@@ -1072,3 +1072,29 @@ describe('the transport dropping events late (#462)', () => {
         if (gap > 0.5) expect(missed).toBeGreaterThan(0);
       });
 });
+
+describe('the homeostat’s leans in the environment (#495)', () => {
+  it('plays each bar at the track’s entropy leaned as the leans say there, inside 0 to 1, and as it is with none', () => {
+    const leans = [
+      { bar: 8, lean: 0.5 },
+      { bar: 16, lean: 1 },
+      { bar: 24, lean: -0.5 },
+    ];
+    const at = (bar: number, l?: typeof leans) =>
+      bandEnvAt({ ...env(), leans: l }, bar, null).style.entropy;
+    expect([0, 7, 8, 15, 16, 24, 40].map((bar) => at(bar, leans))).toEqual([
+      0.3, 0.3, 0.8, 0.8, 1, 0, 0,
+    ]);
+    for (const bar of [0, 8, 16, 24]) expect(at(bar)).toBe(0.3);
+    expect(at(8, [])).toBe(0.3);
+  });
+
+  it('forecasts the bars a lean reaches otherwise than those it doesn’t, alike as composed', () => {
+    const leans = [{ bar: 8, lean: 0.7 }];
+    const plain = foresight(env(), null, 16);
+    const leaned = foresight({ ...env(), leans }, null, 16);
+    expect(leaned.slice(0, 8)).toEqual(plain.slice(0, 8));
+    expect(leaned.slice(8).map((b) => b.style.entropy)).toEqual(Array(8).fill(1));
+    expect(leaned.slice(8).map((b) => b.written)).not.toEqual(plain.slice(8).map((b) => b.written));
+  });
+});

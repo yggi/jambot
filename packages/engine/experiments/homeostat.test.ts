@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { against, warmedRecogniser } from './homeostat-sensor.ts';
+import { LEAN_AHEAD } from '../src/index.ts';
+import { warmedRecogniser } from '../src/recognised.ts';
+import { against } from './homeostat-sensor.ts';
 import {
   type RegulatedRun,
   type RunOptions,
@@ -28,15 +30,20 @@ const FULL = {
   walked: { seeds: 2, bars: 256 },
 } as const;
 
-type Modes = 'open' | 'down' | 'up' | 'closed' | 'fromDown';
+type Modes = 'open' | 'down' | 'up' | 'closed' | 'fromDown' | 'page';
 const held: Record<Modes, RegulatedRun[]> = {
   open: [],
   down: [],
   up: [],
   closed: [],
   fromDown: [],
+  page: [],
 };
-const walked: Record<'open' | 'closed', RegulatedRun[]> = { open: [], closed: [] };
+const walked: Record<'open' | 'closed' | 'page', RegulatedRun[]> = {
+  open: [],
+  closed: [],
+  page: [],
+};
 
 const runsOf = (
   entropy: number,
@@ -44,7 +51,10 @@ const runsOf = (
   options: RunOptions,
 ) => regulatedRuns(entropy, seeds, bars, warmedRecogniser, options);
 
-/** A run's options by mode: open at no lean, open leaned all the way down or up, closed, and closed from all the way down. */
+/**
+ * A run's options by mode: open at no lean, open leaned all the way down or up, closed, closed from all the way down,
+ * and closed on the page's schedule (#495: read at a section's last bar, leaned from `LEAN_AHEAD` sections on).
+ */
 const modeOf = (mode: Modes, entropy: number, walking: boolean): RunOptions =>
   mode === 'open'
     ? { walking, controlled: false }
@@ -54,7 +64,9 @@ const modeOf = (mode: Modes, entropy: number, walking: boolean): RunOptions =>
         ? { walking, controlled: false, lean: 1 - entropy }
         : mode === 'closed'
           ? { walking, controlled: true }
-          : { walking, controlled: true, lean: -entropy };
+          : mode === 'page'
+            ? { walking, controlled: true, ahead: LEAN_AHEAD }
+            : { walking, controlled: true, lean: -entropy };
 
 const summary = (runs: RegulatedRun[]) => {
   const all = against(runs, 'all');
@@ -80,6 +92,7 @@ beforeAll(() => {
     held[mode] = runsOf(ENTROPY, HELD, modeOf(mode, ENTROPY, false));
   walked.open = runsOf(ENTROPY, WALKED, modeOf('open', ENTROPY, true));
   walked.closed = runsOf(ENTROPY, WALKED, modeOf('closed', ENTROPY, true));
+  walked.page = runsOf(ENTROPY, WALKED, modeOf('page', ENTROPY, true));
   if (!process.env.E45_REPORT) return;
   const report = (runs: Record<string, RegulatedRun[]>) =>
     Object.fromEntries(Object.entries(runs).map(([k, r]) => [k, summary(r)]));
@@ -157,5 +170,21 @@ describe('the controller closed (E45, #237)', () => {
     expect(cameInside(held.fromDown)).toEqual([3, 1, 2, 5, 1, 4, 3, 3]);
     for (const runs of [held.closed, walked.closed])
       expect(Number.isFinite(costOf(runs).p95)).toBe(true);
+  });
+});
+
+describe('the controller on the page’s schedule (#495: read at a section’s last bar, leaned two sections on)', () => {
+  it('brings sections inside the band, held and walked, behind the schedule read a bar before the section it leans', () => {
+    expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
+      0.344, 0.479, 0.563,
+    ]);
+    expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
+      0.336, 0.539, 0.547,
+    ]);
+  });
+
+  it('reverses within the ruled one per four sections, held and walked', () => {
+    expect(reversalsOf(held.page).most).toBe(0);
+    expect(reversalsOf(walked.page).most).toBe(0);
   });
 });

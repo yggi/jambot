@@ -57,11 +57,15 @@
    * The dev readout: how the band played through cells since the page opened (`window.jambot.shadow`), and
    * what the outputs played, event by event, from the one numbered `from` on, and the
    * transport's counters, the steps it laid and those the clock passed (#446), and a client's
-   * network pair: its round trips, the reading trusted and the skew played by (#509).
+   * network pair: its round trips, the reading trusted and the skew played by (#509);
+   * and the homeostat's song, its leans and its cost (`homeostat`, #495), none where it is off.
    */
   window.jambot = {
     get shadow() {
       return player.shadow.readout;
+    },
+    get homeostat() {
+      return player.hearing?.readout ?? null;
     },
     get timing() {
       return player.timing;

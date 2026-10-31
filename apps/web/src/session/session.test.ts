@@ -23,6 +23,7 @@ import { device, memoryLobby } from './fixtures.ts';
 import type { HostLink, Lobby } from './lobby.ts';
 import { HostSession, SILENT } from './host.svelte.ts';
 import { compareSession, sessionBreaks } from '../played.ts';
+import { inlineEar } from '../ear.ts';
 import { inlineTexts, playText } from '../section-texts.ts';
 
 /** A note played, as a key: on the host's clock, a device `offset` seconds behind it. */
@@ -262,6 +263,35 @@ describe('a host and a client session', () => {
     expect(client.player.shadow.readout.texts.joined).toBe(0);
     expect(late.player.shadow.readout.texts.joined).toBeGreaterThan(0);
     joining.leave();
+    following.leave();
+    hosting.close();
+  });
+
+  it('lean for the session on the host alone, and play the host’s leaned texts on a client, event for event (#495)', async () => {
+    const lobby = memoryLobby();
+    const host = device(105, undefined, inlineEar);
+    const client = device(100, undefined, inlineEar);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    await host.player.start();
+    await run([host, client], 110);
+    const leaned = host.player.hearing!.readout;
+    expect(leaned.leans.length).toBeGreaterThan(0);
+    expect(leaned.leans[0]!.bar).toBeLessThan(host.player.hud.bar!.bar);
+    expect(client.player.hearing!.readout.sections).toEqual([]);
+    const { readout } = client.player.shadow;
+    expect(readout.from).toBe('given');
+    expect(readout.gaps).toEqual({});
+    expect(readout.arrival.late).toBe(0);
+    const compared = compareSession(
+      host.player.played.since().events,
+      client.player.played.since().events,
+    );
+    expect(compared.events).toBeGreaterThan(1000);
+    expect(compared.mismatched).toEqual({ velocity: 0, length: 0, onset: 0, duration: 0 });
+    expect(sessionBreaks(compared)).toEqual([]);
     following.leave();
     hosting.close();
   });

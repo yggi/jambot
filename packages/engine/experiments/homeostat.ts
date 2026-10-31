@@ -19,6 +19,9 @@
  * - **closed** (`controlled` true): the lean as the controller moves it,
  *   by `step` a reading;
  *
+ * or on the page's schedule (`ahead`, #495): the share read at each
+ * section's last bar, and the lean played from `LEAN_AHEAD` sections on;
+ *
  * held, or walked by the radio as E44 walks it (the walk itself at the
  * players' entropy, the band at the leaned), the share at each section's last
  * bar against the band at the players' entropy (`bandOf`), the controller's
@@ -38,6 +41,7 @@ import {
   HARMONY_REPOSITORY,
   type Homeostat,
   LEAD_REPOSITORY,
+  type LeanChange,
   LEAN_STEP,
   METER_REPOSITORY,
   type MeterChange,
@@ -57,12 +61,14 @@ import {
   clockOf,
   glideTo,
   holding,
+  leanAt,
   leanedEntropy,
   presetMode,
   presetSwing,
   regulated,
   styleAt,
   walkRadio,
+  withLean,
   withMeter,
 } from '../src/index.ts';
 import {
@@ -90,6 +96,11 @@ export interface RunOptions {
   readonly patience?: number;
   /** The lean at the start; with the controller off, the lean throughout. */
   readonly lean?: number;
+  /**
+   * Where given, the page's schedule (#495): the share read at each section's last bar, and the lean it moves played
+   * from this many sections on (`LEAN_AHEAD`), not at `READ_AT` from the next bar.
+   */
+  readonly ahead?: number;
 }
 
 /** One run: each section's shares at its last bar, and its band, each reading's lean, the controller as it ends, each bar's cost. */
@@ -114,7 +125,7 @@ export function regulatedRun(
   entropy: number,
   bars: number,
   recogniser: Recogniser,
-  { walking, controlled, step = LEAN_STEP, patience = PATIENCE, lean = 0 }: RunOptions,
+  { walking, controlled, step = LEAN_STEP, patience = PATIENCE, lean = 0, ahead }: RunOptions,
   now: () => number = () => performance.now(),
 ): RegulatedRun {
   let carried = band.initial as BandCarried;
@@ -125,6 +136,8 @@ export function regulatedRun(
   let window: RecognitionWindow = NOTHING_RECOGNISED;
   let lately: Lately = NOTHING_LATELY;
   let homeostat: Homeostat = { ...NO_LEAN, lean };
+  let leans: readonly LeanChange[] = withLean([], 0, lean);
+  const readAt = ahead === undefined ? READ_AT : SECTION_BARS - 1;
   const sections: RegulatedRun['sections'][number][] = [];
   const cost: number[] = [];
   for (let bar = 0; bar < bars; bar++) {
@@ -139,7 +152,7 @@ export function regulatedRun(
     const env: BandEnv = {
       seed,
       bar,
-      style: { ...style, entropy: leanedEntropy(style.entropy, homeostat.lean) },
+      style: { ...style, entropy: leanedEntropy(style.entropy, leanAt(leans, bar)) },
       wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
       swing: walking ? STRAIGHT : presetSwing(preset)!,
       repository: METER_REPOSITORY,
@@ -163,8 +176,11 @@ export function regulatedRun(
     lately = playedInto(lately, texts);
     window = heardInto(window, recognition);
     const share = shareOf(window);
-    if (bar % SECTION_BARS === READ_AT && controlled)
+    if (bar % SECTION_BARS === readAt && controlled) {
       homeostat = regulated(homeostat, share, style.entropy, step, patience);
+      const from = ahead === undefined ? bar + 1 : (section + ahead) * SECTION_BARS;
+      leans = withLean(leans, from, homeostat.lean);
+    }
     if (bar % SECTION_BARS === SECTION_BARS - 1) {
       const { low, high } = bandOf(style.entropy);
       sections.push({
@@ -172,7 +188,7 @@ export function regulatedRun(
           OVERS.map((over) => [over, shareOf(window, over === 'all' ? undefined : over)]),
         ) as Record<Over, number | null>),
         inside: share === null ? null : share >= low && share <= high,
-        lean: homeostat.lean,
+        lean: leanAt(leans, bar),
       });
     }
   }

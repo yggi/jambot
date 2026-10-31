@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PROTOTYPE_PRESETS } from '../src/index.ts';
-import { LOOP_FACETS } from '../src/recognised.ts';
+import { LOOP_FACETS, warmedRecogniser } from '../src/recognised.ts';
 import {
   BAND,
   OVERS,
@@ -11,7 +11,6 @@ import {
   costOf,
   sensedRun,
   sensedRuns,
-  warmedRecogniser,
 } from './homeostat-sensor.ts';
 
 // E44 (#237, step 6's first part): the homeostat's sensor over the 8 presets, held and walked, at entropies 0.1, 0.3

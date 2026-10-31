@@ -44,8 +44,8 @@ export const BAND_WIDENING = 0.3;
 export const LEAN_STEP = 0.5;
 
 /**
- * How many readings in a row a move waits for out of the band on one side: 2,
- * so one section's noise (a section's share spreads by about 0.13, E45)
+ * How many readings in a row, the latest among them, a move waits for out of
+ * the band on one side (`Homeostat.run` counts them): 2, so one section's noise (a section's share spreads by about 0.13, E45)
  * doesn't move it; with 1 the controller reversed up to 1.75 times per four
  * sections, past the ruled 1 (chosen in E45).
  */
@@ -64,7 +64,7 @@ export function wayOf(share: number | null, entropy: number): -1 | 0 | 1 {
   return share > high ? 1 : share < low ? -1 : 0;
 }
 
-/** The controller's state: its lean, the way it moved last, and how often it reversed. */
+/** The controller's state: its lean, the way it moved last, how often it reversed, and the readings it has heard in a row. */
 export interface Homeostat {
   /** What it adds to the players' entropy. */
   readonly lean: number;
@@ -72,18 +72,20 @@ export interface Homeostat {
   readonly moved: -1 | 0 | 1;
   /** Its moves against the move before. */
   readonly reversals: number;
-  /** The way of the reading before, which a move waits to agree with (`PATIENCE`). */
+  /** The way of the latest reading. */
   readonly heard: -1 | 0 | 1;
+  /** How many readings in a row, the latest among them, were out the way it heard, which a move waits for (`PATIENCE`); 0 inside. */
+  readonly run: number;
 }
 
 /** Nothing leaned yet: a song's start. */
-export const NO_LEAN: Homeostat = { lean: 0, moved: 0, reversals: 0, heard: 0 };
+export const NO_LEAN: Homeostat = { lean: 0, moved: 0, reversals: 0, heard: 0, run: 0 };
 
 /** The entropy the loop plays at: the players' leaned, inside 0 to 1. */
 export const leanedEntropy = (entropy: number, lean: number): number =>
   Math.min(1, Math.max(0, entropy + lean));
 
-/** The controller after a reading of the share at the players' entropy: a step its way, where the reading before agreed (`PATIENCE`) and the lean has room. */
+/** The controller after a reading of the share at the players' entropy: a step its way, where `patience` readings in a row agree (`PATIENCE`) and the lean has room. */
 export function regulated(
   state: Homeostat,
   share: number | null,
@@ -92,13 +94,54 @@ export function regulated(
   patience: number = PATIENCE,
 ): Homeostat {
   const heard = wayOf(share, entropy);
-  const way = patience > 1 && heard !== state.heard ? 0 : heard;
+  const run = heard === 0 ? 0 : heard === state.heard ? state.run + 1 : 1;
+  const way = run >= patience ? heard : 0;
   const lean = Math.min(1 - entropy, Math.max(-entropy, state.lean + way * step));
-  if (way === 0 || lean === state.lean) return { ...state, heard };
+  if (way === 0 || lean === state.lean) return { ...state, heard, run };
   return {
     lean,
     moved: way,
     reversals: state.reversals + (state.moved !== 0 && state.moved !== way ? 1 : 0),
     heard,
+    run,
   };
 }
+
+/**
+ * A lean from a bar on (`LeanChange`): what the loop adds to the players'
+ * entropy at that bar and after, until the next change. A page keeps its
+ * leans as a song's changes, as it keeps its meters, so a forecast reads
+ * each bar's lean as the bar will be composed.
+ */
+export interface LeanChange {
+  readonly bar: number;
+  readonly lean: number;
+}
+
+/** The lean at a bar: the latest change at or before it; none before the first. */
+export function leanAt(leans: readonly LeanChange[], bar: number): number {
+  let lean = 0;
+  for (const change of leans) if (change.bar <= bar) lean = change.lean;
+  return lean;
+}
+
+/** The leans with `lean` from `bar` on: the changes from it on dropped, and none added where it leans as before; the same leans where nothing changes. */
+export function withLean(
+  leans: readonly LeanChange[],
+  bar: number,
+  lean: number,
+): readonly LeanChange[] {
+  const before = leans.filter((c) => c.bar < bar);
+  if (leanAt(before, bar) !== lean) return [...before, { bar, lean }];
+  return before.length === leans.length ? leans : before;
+}
+
+/**
+ * How many sections after the one it reads a lean plays from, on a page: 2.
+ * A page reads a section's share at its last bar, off the clock, and a
+ * section's text is forecast at the middle bar of the section before
+ * (`shadow.ts` in the app), so the section after the one read is forecast
+ * before the reading is made, and the one after that a section and a half
+ * later, which is the time the reading has to arrive.
+ */
+export const LEAN_AHEAD = 2;

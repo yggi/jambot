@@ -105,6 +105,7 @@ import { type HeardHarmonyBar, heardHarmony } from './muse-harmony.ts';
 import type { HarmonyRepository } from './harmony-query.ts';
 import type { LeadRepository } from './lead-query.ts';
 import type { LineRepository } from './bass-query.ts';
+import { type LeanChange, leanAt, leanedEntropy } from './homeostat.ts';
 import { sectionMeter } from './plan.ts';
 import { type StyleTrack, styleAt, valueAt, valueIn, writtenStyle } from './style.ts';
 import {
@@ -184,6 +185,12 @@ export interface TransportEnv {
    * length across the change.
    */
   readonly tempoMeter?: Meter | undefined;
+  /**
+   * The homeostat's leans (#495, `homeostat.ts`): what the band adds to the
+   * track's entropy from each change on, so a bar plays at the players'
+   * entropy leaned (`leanedEntropy`); none leans nothing.
+   */
+  readonly leans?: readonly LeanChange[] | undefined;
 }
 
 /** A bar a player's notes were judged in elsewhere, such as on a client, and the judgement. */
@@ -437,7 +444,8 @@ const STRAIGHT_TRACK = holdingSwing(STRAIGHT);
 
 /**
  * What the band reads for a bar: the style and the meter's swing where the
- * bar starts, on their tracks, and what the Muse offers.
+ * bar starts, on their tracks, the entropy leaned as the homeostat leans it
+ * there (`leans`), and what the Muse offers.
  */
 export function bandEnvAt(
   {
@@ -453,16 +461,21 @@ export function bandEnvAt(
     bassLines,
     leads,
     harmonies,
+    leans,
   }: TransportEnv,
   bar: number,
   offer: Offer | null,
   clock: SongClock = SONG_CLOCK,
 ): BandEnv {
   const start = clock.barStart(bar);
+  const style = styleAt(track, start);
   return {
     seed,
     bar,
-    style: styleAt(track, start),
+    style:
+      leans === undefined
+        ? style
+        : { ...style, entropy: leanedEntropy(style.entropy, leanAt(leans, bar)) },
     wish,
     meter,
     swing: swingAt(swing, start),

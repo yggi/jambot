@@ -39,6 +39,7 @@ import { EVEN_MIX, type Mix, withLevel } from './mix.ts';
 import { targetOf } from './conductor.ts';
 import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Hosting, type Surroundings } from './player.svelte.ts';
+import { inlineEar } from './ear.ts';
 import { type SectionTexts, inlineTexts } from './section-texts.ts';
 
 /** Surroundings a test drives by hand: the clock, the resume, the ticks and frames. */
@@ -1473,9 +1474,11 @@ describe('the band through cells (#399, #469)', () => {
       tuned = false,
       host = false,
       unstated,
-    }: { tuned?: boolean; host?: boolean; unstated?: string } = {},
+      ear = false,
+    }: { tuned?: boolean; host?: boolean; unstated?: string; ear?: boolean } = {},
   ) {
-    const { world, s } = surroundings();
+    const { world, s: plain } = surroundings();
+    const s = ear ? { ...plain, ear: inlineEar } : plain;
     const inline = inlineTexts();
     const texts: SectionTexts = {
       ...inline,
@@ -1546,6 +1549,23 @@ describe('the band through cells (#399, #469)', () => {
     const [b, c] = [order(band.world.plays), order(cells.world.plays)];
     for (const [i, p] of c.entries())
       expect(Math.abs(p.seconds - b[i]!.seconds)).toBeLessThan(0.001);
+  });
+
+  it('leans its entropy as it hears itself, alone (#495): from two sections after the one read, every text written ahead as it plays, nothing written again', async () => {
+    const { player } = await played(2 * SECTIONS_3, { ear: true });
+    const homeostat = player.hearing!.readout;
+    expect(homeostat.sections.map((s) => s.section)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(homeostat.leans.length).toBeGreaterThan(0);
+    expect(homeostat.late).toBe(0);
+    const { readout } = player.shadow;
+    expect(readout.texts.again).toBe(0);
+    expect(readout.gaps).toEqual({});
+    expect(readout.errors).toEqual([]);
+  });
+
+  it('hears nothing and leans nothing without an ear', async () => {
+    const { player } = await played(SECTIONS_3);
+    expect(player.hearing).toBeNull();
   });
 
   it('asks for its section texts where the surroundings build them (a worker in the browser, #406): started as a song starts, ended with it; a client asks for none, and starts one to play its host’s (#446)', async () => {

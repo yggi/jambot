@@ -230,7 +230,8 @@ export function forecastBars(
   return bars;
 }
 
-const spread = (samples: readonly number[]): Spread => {
+/** Samples' spread: how many, their median, 95th percentile and most. */
+export const spread = (samples: readonly number[]): Spread => {
   if (samples.length === 0) return { count: 0, p50: 0, p95: 0, max: 0 };
   const sorted = [...samples].sort((a, b) => a - b);
   const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)]!;

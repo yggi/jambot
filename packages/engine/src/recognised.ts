@@ -53,7 +53,11 @@
 import { stepsOf } from '@jambot/theory';
 import { type Operator, PITCHED_OPERATORS, RHYTHM_OPERATORS } from '@yggi/cells/engine/vary/index';
 import type { Fragment } from '@yggi/cells/repository/fragments';
-import { type RecogniseOptions, type Recogniser } from '@yggi/cells/repository/recognise';
+import {
+  type RecogniseOptions,
+  type Recogniser,
+  createRecogniser,
+} from '@yggi/cells/repository/recognise';
 import type { BandBar } from './band.ts';
 import { BASS_VOICE, lineText, readingBench } from './bass-lines.ts';
 import { chordsOn } from './chords.ts';
@@ -70,8 +74,11 @@ import { leadOf } from './muse-lead.ts';
 import { GROOVE_KEEP } from './novelty.ts';
 import { harmonyBench, progressionText } from './progressions.ts';
 import { SEED_FRAGMENTS } from './repository.ts';
-import { benchText } from './rhythms.ts';
+import { RHYTHM_BENCHES, benchText } from './rhythms.ts';
 import type { Theme } from './themes.ts';
+
+/** cells' recogniser, cold: what a page hears with where it can't warm one off the clock. */
+export { createRecogniser };
 
 /** The band members in the loop, by facet: the drums, the bass, the lead and the harmony (`facet.ts`). */
 export const LOOP_FACETS = ['rhythm', 'bass', 'lead', 'harmony'] as const;
@@ -214,6 +221,25 @@ export function recognisedBar(
         .length > 0;
   }
   return out;
+}
+
+/**
+ * A recogniser warmed on every member's seeds as `recognisedBar` reads them
+ * on each named meter's bench, on every bench a section can ask on
+ * (`RHYTHM_BENCHES`): each fragment's readings and variations kept, so a bar
+ * compiles only its heard text. A page warms it off the clock, in the worker
+ * that hears the band (#495), as a song starts.
+ */
+export function warmedRecogniser(): Recogniser {
+  const recogniser = createRecogniser();
+  for (const facet of LOOP_FACETS) {
+    const library = libraryOf(facet);
+    for (const bench of RHYTHM_BENCHES) {
+      const options = recogniseOptionsOf(facet, bench);
+      if (options) for (const f of library) recogniser.recognise(f.text, library, options);
+    }
+  }
+  return recogniser;
 }
 
 /** A theme's eight bars as a progression's slots, or null where a slot is none a progression states. */

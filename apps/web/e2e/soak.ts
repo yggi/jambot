@@ -24,6 +24,14 @@
  * every event both played is the same and every event a page lacks is one it
  * dropped late (`sessionBreaks`): it exits with 1 where it breaks.
  *
+ * The homeostat (#495) leans the host's entropy, and its song is read off
+ * the readout too (`window.jambot.homeostat`, `hearingSummary`): the page's
+ * cost a bar, a recognition's cost in the first minute and the last, the
+ * sections inside the band, the reversals per four sections and the
+ * readings that came late. `--no-homeostat` opens each page with
+ * `?homeostat=off`, so the band plays at the players' entropy, unleaned:
+ * the run the controller is set beside.
+ *
  * `--profile` watches each page's ticks and main thread, and traces the
  * garbage collector, to say what overlapped each tick that dropped events
  * late (`late-ticks.ts`), and how loaded the machine was, a minute at a time.
@@ -31,6 +39,7 @@
 
 import { cpus, loadavg } from 'node:os';
 import { type Page, chromium } from '@playwright/test';
+import { hearingSummary } from '../src/hearing.ts';
 import {
   type DroppedEvent,
   type PlayedEvent,
@@ -55,7 +64,8 @@ const arg = (name: string, fallback: string) => {
 const minutes = Number(arg('minutes', '30'));
 const entropy = Number(arg('entropy', '0.3'));
 const every = Number(arg('every', '5'));
-const url = arg('url', 'http://localhost:4320/');
+const homeostat = !process.argv.includes('--no-homeostat');
+const url = `${arg('url', 'http://localhost:4320/')}${homeostat ? '' : '?homeostat=off'}`;
 const session = process.argv.includes('--session');
 const profile = process.argv.includes('--profile');
 
@@ -94,6 +104,15 @@ await page.getByRole('button', { name: 'Start the band' }).click();
 if (client) await state(client).filter({ hasText: 'host playing' }).waitFor({ state: 'attached' });
 const started = Date.now();
 const readout = (p: Page) => p.evaluate(() => window.jambot!.shadow);
+/** The host's homeostat, none where it is off. */
+const leaning = () => page.evaluate(() => window.jambot!.homeostat);
+/** The last bar the host's ear had heard after the first minute, and after the minute before the last: what its cost is set apart by. */
+const heardBy = { first: -1, last: Infinity };
+const lastHeard = async () => (await leaning())?.costs.at(-1)?.bar ?? -1;
+const leaned = async () => {
+  const r = await leaning();
+  return r && hearingSummary(r, heardBy.first, heardBy.last);
+};
 
 /** Each page's events, read a minute at a time from where the last read ended. */
 const played = new Map<Page, { events: PlayedEvent[]; next: number; late: DroppedEvent[] }>();
@@ -126,10 +145,13 @@ const summary = async (p: Page) => {
 for (let minute = 1; minute <= minutes; minute++) {
   await page.waitForTimeout(60_000);
   await gather();
+  if (minute === 1) heardBy.first = await lastHeard();
+  if (minute === minutes - 1) heardBy.last = await lastHeard();
   if (minute % every !== 0) continue;
   const line: Record<string, unknown> = { minutes: (Date.now() - started) / 60_000 };
   if (client) Object.assign(line, { host: await summary(page), client: await summary(client) });
   else Object.assign(line, await summary(page));
+  line.homeostat = await leaned();
   console.log(JSON.stringify(line));
 }
 const end = async (p: Page) => ({ ...(await readout(p)), text: undefined, steps: await steps(p) });
@@ -173,6 +195,7 @@ if (client) {
         lateEvents: { host: hosted.steps.lateEvents, client: followed.steps.lateEvents },
         breaks,
       },
+      homeostat: await leaned(),
       profile: await profiled(),
       errors,
     }),
@@ -181,7 +204,12 @@ if (client) {
 } else {
   const r = await end(page);
   console.log(
-    JSON.stringify({ ...r, profile: await profiled(), errors: [...r.errors, ...errors] }),
+    JSON.stringify({
+      ...r,
+      homeostat: await leaned(),
+      profile: await profiled(),
+      errors: [...r.errors, ...errors],
+    }),
   );
 }
 await browser.close();
