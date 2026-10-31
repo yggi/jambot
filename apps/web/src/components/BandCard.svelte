@@ -209,6 +209,12 @@
   .room {
     height: clamp(220px, calc(100dvh - 330px), 900px);
   }
+  /* A phone on its side has the rail and the transport beside each other: the roll takes what is left. */
+  @media (max-height: 500px) and (orientation: landscape) {
+    .room {
+      height: max(160px, calc(100dvh - 210px));
+    }
+  }
   .credit {
     margin: 0;
     font-size: 13px;
