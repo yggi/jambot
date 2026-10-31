@@ -41,6 +41,19 @@ describe('the on-screen keyboard', () => {
     expect(screen.getByRole('button', { name: 'C♯4' })).not.toHaveClass('in-scale');
   });
 
+  it('lights each key in its pitch’s colour, C red round the wheel', () => {
+    render(Keyboard, { down: new Set<number>(), sounding: [], onnote: () => {} });
+    const hue = (name: string) =>
+      screen
+        .getByRole('button', { name })
+        .style.getPropertyValue('--pitch')
+        .match(/hsl\((\d+)/)?.[1];
+    expect(['C4', 'E4', 'A4', 'C5'].map(hue)).toEqual(['0', '120', '270', '0']);
+    expect(screen.getByRole('button', { name: 'C5' }).style.getPropertyValue('--pitch')).toContain(
+      '+ 11%',
+    );
+  });
+
   it('flashes a note the band’s own lead is heard sounding', () => {
     render(Keyboard, { down: new Set<number>(), sounding: [64], onnote: () => {} });
     expect(screen.getByRole('button', { name: 'E4' })).toHaveClass('sounding');

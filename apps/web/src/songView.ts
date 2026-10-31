@@ -10,7 +10,8 @@
 import { stepsOf } from '@jambot/theory';
 import type { Credit } from './attribution.ts';
 import type { BarView, SectionView } from './hud.ts';
-import { scaleNoteNames } from './noteNames.ts';
+import { scaleNotes } from './noteNames.ts';
+import type { Spelled } from './pitch.ts';
 import { blockName } from './planView.ts';
 
 /** How many sections the view shows, the one heard first. */
@@ -23,6 +24,8 @@ export interface SongChord {
   readonly numeral: string;
   /** How much of its bar it holds, 0 to 1, from where it starts to the next. */
   readonly share: number;
+  /** Its notes from the root up, spelled in its key. */
+  readonly notes: readonly Spelled[];
 }
 
 export interface SongBar {
@@ -50,6 +53,7 @@ export function chordsOf(bar: Pick<BarView, 'chords' | 'meter'>): SongChord[] {
     symbol: chord.symbol,
     numeral: chord.numeral,
     share: ((bar.chords[i + 1]?.step ?? steps) - chord.step) / steps,
+    notes: chord.notes,
   }));
 }
 
@@ -75,9 +79,12 @@ export function songSections(
   }));
 }
 
-/** The notes of the melodic scale over the bar heard, spelled in its key, and the scale where it isn't plain. */
-export function overThis(bar: Pick<BarView, 'melodic' | 'tonic' | 'melodicName'> | null): string {
-  if (!bar) return '';
-  const notes = scaleNoteNames(bar.melodic, bar.tonic).join(' ');
-  return bar.melodicName === 'plain' ? notes : `${notes} · ${bar.melodicName}`;
+/** The notes of the melodic scale over the bar heard, spelled in its key, and the scale where it isn't plain; none before the plan holds a bar. */
+export function overThis(bar: Pick<BarView, 'melodic' | 'tonic' | 'melodicName'> | null): {
+  notes: readonly Spelled[];
+  scale: string | null;
+} {
+  if (!bar) return { notes: [], scale: null };
+  const notes = scaleNotes(bar.melodic, bar.tonic);
+  return { notes, scale: bar.melodicName === 'plain' ? null : bar.melodicName };
 }

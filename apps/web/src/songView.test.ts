@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { BarView, ChordView, SectionView } from './hud.ts';
 import { SONG_SECTIONS, chordsOf, overThis, songSections } from './songView.ts';
 
-const chord = (symbol: string, step = 0, numeral = 'i'): ChordView => ({ step, symbol, numeral });
+const chord = (symbol: string, step = 0, numeral = 'i'): ChordView => ({
+  step,
+  symbol,
+  numeral,
+  notes: [],
+});
 const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   bar: n,
   barInSection: n % 8,
@@ -95,13 +100,25 @@ describe('songSections', () => {
 describe('chordsOf', () => {
   it('gives each chord of a bar the share of it it holds, from where it starts', () => {
     expect(chordsOf(bar(0, { chords: [chord('Am', 0), chord('G', 8, 'VII')] }))).toEqual([
-      { symbol: 'Am', numeral: 'i', share: 0.5 },
-      { symbol: 'G', numeral: 'VII', share: 0.5 },
+      { symbol: 'Am', numeral: 'i', share: 0.5, notes: [] },
+      { symbol: 'G', numeral: 'VII', share: 0.5, notes: [] },
     ]);
     expect(chordsOf(bar(0, { chords: [chord('Am', 0), chord('E7', 12, 'V7')] }))).toEqual([
-      { symbol: 'Am', numeral: 'i', share: 0.75 },
-      { symbol: 'E7', numeral: 'V7', share: 0.25 },
+      { symbol: 'Am', numeral: 'i', share: 0.75, notes: [] },
+      { symbol: 'E7', numeral: 'V7', share: 0.25, notes: [] },
     ]);
+  });
+
+  it('carries each chord’s notes, spelled in its key', () => {
+    const am = {
+      ...chord('Am'),
+      notes: [
+        { name: 'A', pitchClass: 9 },
+        { name: 'C', pitchClass: 0 },
+        { name: 'E', pitchClass: 4 },
+      ],
+    };
+    expect(chordsOf(bar(0, { chords: [am] }))[0]!.notes).toEqual(am.notes);
   });
 
   it('reads the bar in its own meter: a bar of 7/8 has 14 steps', () => {
@@ -121,13 +138,16 @@ describe('chordsOf', () => {
 
 describe('overThis', () => {
   it('spells the notes a person may play over the bar heard, in its key, and names the scale where it isn’t plain', () => {
-    expect(overThis(bar(0))).toBe('A B C D E F G');
-    expect(overThis(bar(0, { melodic: [9, 0, 2, 4, 7], melodicName: 'pentatonic' }))).toBe(
+    const said = (over: ReturnType<typeof overThis>) =>
+      [over.notes.map((n) => n.name).join(' '), over.scale].filter(Boolean).join(' · ');
+    expect(said(overThis(bar(0)))).toBe('A B C D E F G');
+    expect(overThis(bar(0)).notes.map((n) => n.pitchClass)).toEqual([9, 11, 0, 2, 4, 5, 7]);
+    expect(said(overThis(bar(0, { melodic: [9, 0, 2, 4, 7], melodicName: 'pentatonic' })))).toBe(
       'A C D E G · pentatonic',
     );
   });
 
   it('says nothing before the plan holds a bar', () => {
-    expect(overThis(null)).toBe('');
+    expect(overThis(null)).toEqual({ notes: [], scale: null });
   });
 });

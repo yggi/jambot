@@ -135,16 +135,18 @@
     align-items: center;
     gap: 3px;
   }
+  /* Who played a note is its outline: the legend says whose is whose. */
   .legend i {
-    width: 9px;
-    height: 9px;
+    width: 10px;
+    height: 10px;
     border-radius: 3px;
+    border: 2px solid;
   }
   .band {
-    background: var(--amber);
+    border-color: var(--amber);
   }
   .you {
-    background: var(--source-0);
+    border-color: var(--source-0);
   }
   .chip {
     height: 34px;

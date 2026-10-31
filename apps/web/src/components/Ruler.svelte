@@ -4,12 +4,14 @@
   mark on each note of the key) and the bar is another (16 steps, a mark on
   each eighth where the swing plays it): where a mark sits off its tick is
   what the ruler shows. A mark may be accented, dimmed (a subdivision) or lit
-  (heard now), and says a word under it.
+  (heard now), wear a colour of its own (a note's pitch), and says a word under it.
 -->
 <script module lang="ts">
   export interface Mark {
     /** Its place on the span, in steps; a tick's place where it is a whole one. */
     at: number;
+    /** Its colour, where it has one of its own (a note's pitch); else the ruler's. */
+    colour?: string | undefined;
     /** A word under it. */
     text?: string | undefined;
     /** The one the ruler is anchored on: the tonic, the bar's downbeat. */
@@ -51,6 +53,7 @@
       class:minor={mark.minor}
       class:faint={mark.faint}
       class:lit={mark.lit}
+      style:fill={mark.colour}
       cx={at(mark.at)}
       cy="16"
       r={mark.faint ? 2.5 : mark.minor ? 4.5 : 7}

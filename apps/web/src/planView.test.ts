@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { BarView, ChordView, SectionView } from './hud.ts';
 import { blockName, cueOf, beatsToNext, nextChord } from './planView.ts';
 
-const chord = (symbol: string, step = 0): ChordView => ({ step, symbol, numeral: 'i' });
+const chord = (symbol: string, step = 0): ChordView => ({ step, symbol, numeral: 'i', notes: [] });
 const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   bar: n,
   barInSection: n % 8,

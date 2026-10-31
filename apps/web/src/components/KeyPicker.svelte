@@ -25,6 +25,7 @@
   intents don't reach the host, so its nudges are disabled and say so.
 -->
 <script lang="ts">
+  import { pitchColour } from '../pitch.ts';
   import {
     COMPOSER_MODES,
     type ComposerMode,
@@ -117,6 +118,7 @@
       at,
       text: notes[i % notes.length],
       accent: i === 0 || i === marks.length - 1,
+      colour: pitchColour(key.tonic + at),
     })),
   );
   const playable = (mode: string): mode is ComposerMode =>

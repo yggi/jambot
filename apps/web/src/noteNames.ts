@@ -8,6 +8,7 @@
 
 import { type Key, keyHelix } from '@jambot/engine';
 import { type DiatonicModeName, type Note, mod, spell, spelledTonic } from '@jambot/theory';
+import type { Spelled } from './pitch.ts';
 
 /** The twelve pitch classes' names, C = 0, spelled as the prototype spells them. */
 export const TONIC_NAMES = [
@@ -31,7 +32,7 @@ export function midiNoteName(midi: number): string {
 }
 
 /** A spelled note as the screen writes it: its letter, then ♯ or ♭ for each semitone it is altered. */
-function noteName({ letter, alteration }: Note): string {
+export function noteName({ letter, alteration }: Note): string {
   return letter + (alteration > 0 ? '♯' : '♭').repeat(Math.abs(alteration));
 }
 
@@ -41,13 +42,25 @@ function noteName({ letter, alteration }: Note): string {
  * tonic in it has no key to spell in, and reads as the wheel names it.
  */
 export function scaleNoteNames(scale: readonly number[], tonic: number): readonly string[] {
-  if (!scale.includes(tonic)) return scale.map((pitchClass) => TONIC_NAMES[pitchClass]!);
+  return scaleNotes(scale, tonic).map((note) => note.name);
+}
+
+/** A key's notes as `scaleNoteNames` spells them, each with its pitch class for its colour. */
+export function scaleNotes(scale: readonly number[], tonic: number): readonly Spelled[] {
+  if (!scale.includes(tonic))
+    return scale.map((pitchClass) => ({ name: TONIC_NAMES[pitchClass]!, pitchClass }));
   const heights = scale
     .map((pitchClass) => tonic + mod(pitchClass - tonic, 12))
     .sort((a, b) => a - b);
   const helix = { cycle: 12, heights };
-  return spell(spelledTonic(helix), heights).map(noteName);
+  return spell(spelledTonic(helix), heights).map(spelled);
 }
+
+/** A spelled note as the screen writes it, with its pitch class. */
+export const spelled = (note: Note): Spelled => ({
+  name: noteName(note),
+  pitchClass: note.pitchClass,
+});
 
 /** The modes by their common names: the two everyone knows are major and minor. */
 export const MODE_NAMES: Readonly<Record<DiatonicModeName, string>> = {

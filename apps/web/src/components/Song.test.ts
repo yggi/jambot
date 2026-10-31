@@ -4,7 +4,17 @@ import { describe, expect, it } from 'vitest';
 import type { BarView, ChordView, Hud, SectionView } from '../hud.ts';
 import Song from './Song.svelte';
 
-const chord = (symbol: string, step = 0, numeral = 'i'): ChordView => ({ step, symbol, numeral });
+/** A chord with its notes: its root, the letter its symbol starts with, and a third and fifth above. */
+const chord = (symbol: string, step = 0, numeral = 'i'): ChordView => ({
+  step,
+  symbol,
+  numeral,
+  notes: [
+    { name: symbol[0]!, pitchClass: 9 },
+    { name: 'x', pitchClass: 0 },
+    { name: 'y', pitchClass: 4 },
+  ],
+});
 const bar = (n: number, over: Partial<BarView> = {}): BarView => ({
   bar: n,
   barInSection: n % 8,
@@ -88,16 +98,51 @@ describe('the song view', () => {
     });
     const { container } = render(Song, { hud: { ...view, sections: [split] } });
     const chords = container.querySelectorAll<HTMLElement>('.heard .part');
-    expect([...chords].map((c) => c.textContent?.trim().replace(/\s+/g, ' '))).toEqual([
-      'Am i',
-      'E7 V7',
-    ]);
+    expect(
+      [...chords].map(
+        (c) => `${c.querySelector('b')!.textContent} ${c.querySelector('small')!.textContent}`,
+      ),
+    ).toEqual(['Am i', 'E7 V7']);
     expect([...chords].map((c) => c.style.flexGrow)).toEqual(['0.75', '0.25']);
   });
 
-  it('says the notes over the bar heard', () => {
-    render(Song, { hud: hud(2) });
-    expect(screen.getByText('A B C D E F G')).toBeInTheDocument();
+  it('says the notes over the bar heard, each in its pitch’s colour', () => {
+    const { container } = render(Song, { hud: hud(2) });
+    expect(screen.getByLabelText('A B C D E F G')).toBeInTheDocument();
+    const letters = [...container.querySelectorAll<HTMLElement>('.over-notes b')];
+    expect(letters.map((b) => b.style.color.match(/hsl\((\d+)/)?.[1])).toEqual([
+      '270',
+      '330',
+      '0',
+      '60',
+      '120',
+      '150',
+      '210',
+    ]);
+  });
+
+  it('spells the chord sounding and the next, every chord of the section heard, and the first of each after it', () => {
+    const { container } = render(Song, { hud: hud(2) });
+    expect(container.querySelector('.big-notes')).toHaveAttribute('aria-label', 'G x y');
+    expect(container.querySelector('.next-notes')).toHaveAttribute(
+      'aria-label',
+      expect.stringMatching(/ x y$/),
+    );
+    const spelled = (block: Element) =>
+      [...block.querySelectorAll('.part')].map((p) => p.querySelector('.bar-notes') !== null);
+    const [heard, ...after] = container.querySelectorAll('.block');
+    expect(spelled(heard!).every(Boolean)).toBe(true);
+    for (const block of after) {
+      const marks = spelled(block);
+      expect(marks[0]).toBe(true);
+      expect(marks.slice(1).some(Boolean)).toBe(false);
+    }
+  });
+
+  it('marks each chord with its root’s colour', () => {
+    const { container } = render(Song, { hud: hud(2) });
+    for (const part of container.querySelectorAll<HTMLElement>('.part'))
+      expect(part.style.getPropertyValue('--root')).toMatch(/^hsl\(270 /);
   });
 
   it('shows what the band opens on, dimmed, before anything is heard', () => {

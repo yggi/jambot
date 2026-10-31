@@ -103,6 +103,8 @@ describe('the scale figure', () => {
     expect(container.querySelectorAll('button')).toHaveLength(0);
     expect(container.querySelector('path.history')).not.toBeNull();
     expect(container.querySelectorAll('.dot.in-scale')).toHaveLength(7);
+    for (const dot of container.querySelectorAll<SVGCircleElement>('.dot.in-scale'))
+      expect(dot.style.fill).toMatch(/^hsl\(\d+ /);
     expect(container.querySelector('.tonic-ring')).not.toBeNull();
     expect(container.querySelector('path.figure')).not.toBeNull();
   });

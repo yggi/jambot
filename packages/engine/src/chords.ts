@@ -16,6 +16,7 @@
 
 import {
   type Chord,
+  type Note,
   compose,
   formatNumeral,
   heightOf,
@@ -130,13 +131,22 @@ function rootAndQuality(chord: Chord): { root: number; stack: number[]; quality:
   return { root: heights[0]!, stack, quality };
 }
 
-/** A chord's lead-sheet symbol, its root spelled in the key: `Am`, `E7`, `B♭maj9`. */
-export function chordName({ slot, chord }: BarChord, key: Key): string {
+/** A chord's root, spelled in the key: its degree's note, or for a secondary dominant the fifth above the degree it leads to. */
+function rootIn(slot: Slot, key: Key): Note {
   const scale = keyHelix(key);
   const notes = spell(spelledTonic(scale), scale.heights);
-  const root = 'degree' in slot ? notes[slot.degree]! : spell(notes[slot.dominantOf]!, [0, 7])[1]!;
+  return 'degree' in slot ? notes[slot.degree]! : spell(notes[slot.dominantOf]!, [0, 7])[1]!;
+}
+
+/** A chord's lead-sheet symbol, its root spelled in the key: `Am`, `E7`, `B♭maj9`. */
+export function chordName({ slot, chord }: BarChord, key: Key): string {
   const { stack, quality } = rootAndQuality(chord);
-  return nameOf({ kind: 'chord', root, quality, stack });
+  return nameOf({ kind: 'chord', root: rootIn(slot, key), quality, stack });
+}
+
+/** A chord's notes from its root up, spelled from the root the key gives it: `A C E`, `E G♯ B D`. */
+export function chordNotes({ slot, chord }: BarChord, key: Key): Note[] {
+  return spell(rootIn(slot, key), rootAndQuality(chord).stack);
 }
 
 /**

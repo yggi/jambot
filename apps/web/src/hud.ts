@@ -43,6 +43,7 @@ import {
   type SwingLevel,
   chordAt,
   chordName,
+  chordNotes,
   chordNumeral,
   keyHelix,
   leadRests,
@@ -55,7 +56,8 @@ import { sourceName } from '@jambot/session';
 import { type Attribution, type Credit, credit } from './attribution.ts';
 import { targetOf, unnudged } from './conductor.ts';
 import { meterLabel } from './meter-choice.ts';
-import { keyName } from './noteNames.ts';
+import { keyName, spelled } from './noteNames.ts';
+import type { Spelled } from './pitch.ts';
 import { nowPlaying } from './radioView.ts';
 import { CHORD_BARS, FAR_SECTIONS, NEAR_SECTIONS } from './planView.ts';
 
@@ -75,6 +77,8 @@ export interface ChordView {
   readonly symbol: string;
   /** As a degree of its key: `i`, `V7`, `V7/iv`. */
   readonly numeral: string;
+  /** Its notes from the root up, spelled in its key. */
+  readonly notes: readonly Spelled[];
 }
 
 export interface BarView {
@@ -576,6 +580,7 @@ function chordView(
     step: chord.slot.step,
     symbol: chordName(chord, key),
     numeral: chordNumeral(chord, key),
+    notes: chordNotes(chord, key).map(spelled),
   };
 }
 

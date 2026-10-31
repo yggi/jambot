@@ -2,8 +2,9 @@
   The roll: the lead's notes over the keys that play them (#327). Its
   columns are the keys under it; the steps ahead are above the line of the
   step heard, falling toward it, and those played below it. The band's notes
-  ahead are outlined (foreseen, as the band means to play them), the band's
-  played are amber, and a player's are in their colour; a faint column marks
+  ahead are faint (foreseen, as the band means to play them) and those played
+  full; every note is filled in its pitch's colour (`pitch.ts`) and outlined
+  in who played it, the band amber and a player in their colour; a faint column marks
   each note of the scale, and a dashed line each bar's start. A note above
   the keys is a thin mark at the right edge, one below them at the left, so
   a person sees which way to move the octave. Its places are
@@ -12,6 +13,7 @@
 -->
 <script lang="ts">
   import type { KeyLayout } from '@yggi/webmidi/core';
+  import { pitchColour } from '../pitch.ts';
   import { NOW_AT, type RollNote } from '../rollView.ts';
 
   interface Props {
@@ -26,12 +28,13 @@
 
   let { keys, notes, bars, scale = [], label }: Props = $props();
 
-  const fill = (n: RollNote) =>
-    n.kind === 'played'
+  /** Who played a note: the band amber, a player in their colour. */
+  const who = (n: RollNote) =>
+    n.kind === 'played' || n.kind === 'foreseen'
       ? 'var(--amber)'
-      : n.kind === 'foreseen'
-        ? 'none'
-        : `var(--source-${n.colour ?? 0})`;
+      : `var(--source-${n.colour ?? 0})`;
+  /** C4 to B4 is the middle octave. */
+  const octaveOf = (note: number) => Math.floor(note / 12) - 5;
 </script>
 
 <svg class="roll" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={label}>
@@ -61,8 +64,8 @@
       width={Math.max(0, n.width * 100 - 1.2)}
       height={Math.max(0.4, n.height * 100 - 0.4)}
       rx="1"
-      fill={fill(n)}
-      stroke={n.kind === 'foreseen' ? 'var(--amber)' : 'none'}
+      style:fill={pitchColour(n.note % 12, octaveOf(n.note))}
+      stroke={who(n)}
     />
   {/each}
   <line class="now" x1="0" x2="100" y1={NOW_AT * 100} y2={NOW_AT * 100} />
@@ -98,13 +101,15 @@
     fill: var(--bg);
     opacity: 0.25;
   }
+  .note {
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
   .note.played {
     opacity: 0.6;
   }
   .note.foreseen {
-    stroke-width: 1.5;
-    vector-effect: non-scaling-stroke;
-    opacity: 0.9;
+    fill-opacity: 0.4;
   }
   .now {
     stroke: var(--amber);

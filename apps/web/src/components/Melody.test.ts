@@ -34,7 +34,7 @@ const tracks = (over: Partial<TracksView> = {}): TracksView => ({
 const props = (over = {}) => ({
   tracks: tracks(),
   bar: { key: 'A minor', melodic: [9, 11, 0, 2, 4, 5, 7], melodicName: 'plain' as const },
-  chord: { step: 0, symbol: 'Am', numeral: 'i' },
+  chord: { step: 0, symbol: 'Am', numeral: 'i', notes: [] },
   down: new Set<number>(),
   sounding: [],
   onnote: () => {},
@@ -102,7 +102,7 @@ describe('the melody view', () => {
     expect(onnote).toHaveBeenCalledWith(69, 100, true);
   });
 
-  it('draws a player’s notes in their colour', () => {
+  it('fills a note with its pitch’s colour and outlines it in its player’s: the band amber, a player theirs', () => {
     const { container } = render(
       Melody,
       props({
@@ -122,8 +122,12 @@ describe('the melody view', () => {
         }),
       }),
     );
-    const own = container.querySelector('rect.note.own');
-    expect(own).toHaveAttribute('fill', 'var(--source-2)');
+    const own = container.querySelector<SVGRectElement>('rect.note.own')!;
+    // E4: E's hue (120) in the middle octave, outlined in the player's colour.
+    expect(own.style.fill).toMatch(/^hsl\(120 /);
+    expect(own).toHaveAttribute('stroke', 'var(--source-2)');
+    for (const band of container.querySelectorAll('rect.note.played, rect.note.foreseen'))
+      expect(band).toHaveAttribute('stroke', 'var(--amber)');
   });
 
   it('draws nothing on the roll before anything is heard', () => {

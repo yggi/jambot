@@ -22,6 +22,9 @@
   --glyph-size: 52px;
   /* The glyph's size where height is short (a phone on its side): the two lines of a compact summary. */
   --glyph-compact: 40px;
+  /* The pitch colours' saturation and lightness (`pitch.ts`): the hue is the pitch class's, C red. */
+  --pitch-s: 72%;
+  --pitch-l: 40%;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -41,6 +44,7 @@
     --source-3: #7fb2ff;
     --source-4: #a8d66b;
     --source-5: #ff9a85;
+    --pitch-l: 60%;
   }
 }
 :root[data-theme='light'] {
@@ -63,6 +67,7 @@
   --source-3: #7fb2ff;
   --source-4: #a8d66b;
   --source-5: #ff9a85;
+  --pitch-l: 60%;
 }
 *,
 *::before,

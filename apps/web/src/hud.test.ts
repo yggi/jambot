@@ -8,6 +8,7 @@ import {
   type TransportEnv,
   chordAt,
   chordName,
+  chordNotes,
   chordNumeral,
   clockThrough,
   forecast,
@@ -35,7 +36,7 @@ import {
 } from './hud.ts';
 import { CHORD_BARS, cueOf } from './planView.ts';
 import type { BarView } from './hud.ts';
-import { keyName } from './noteNames.ts';
+import { keyName, spelled } from './noteNames.ts';
 
 const techno = PRESETS.find((p) => p.name === 'Techno')!;
 const funk = PRESETS.find((p) => p.name === 'Funk')!;
@@ -82,7 +83,9 @@ describe('the view model', () => {
       step: first.chords[0]!.slot.step,
       symbol: chordName(first.chords[0]!, first.plan.key),
       numeral: chordNumeral(first.chords[0]!, first.plan.key),
+      notes: chordNotes(first.chords[0]!, first.plan.key).map(spelled),
     });
+    expect(hud.chord!.notes.map((n) => n.name).slice(0, 3)).toEqual(['A', 'C', 'E']);
     expect(hud.bar!.key).toBe('A minor');
     expect(hud.chord!.symbol).toMatch(/^Am/);
     expect(hud.chord!.numeral).toMatch(/^i/);
@@ -102,6 +105,7 @@ describe('the view model', () => {
           step: c.slot.step,
           symbol: chordName(c, here.plan.key),
           numeral: chordNumeral(c, here.plan.key),
+          notes: chordNotes(c, here.plan.key).map(spelled),
         })),
       );
       const sounding = chordAt(here.chords, step % 16);
@@ -369,7 +373,7 @@ describe('the lead status line, reused by the stage and its tracks', () => {
     meterName: '4/4',
     swingLevel: '16n',
     swingShare: null,
-    chords: [{ step: 0, symbol: 'Am7', numeral: 'i7' }],
+    chords: [{ step: 0, symbol: 'Am7', numeral: 'i7', notes: [] }],
     energy: 0.6,
     lead: 'improvising',
     motif: null,
