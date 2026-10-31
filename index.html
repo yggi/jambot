@@ -8,8 +8,95 @@
     <link rel="icon" href="/jambot/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/jambot/apple-touch-icon.png" />
     <title>Jambot</title>
-    <script type="module" crossorigin src="/jambot/assets/index-BWWdXjWp.js"></script>
-    <link rel="stylesheet" crossorigin href="/jambot/assets/index-BA2R_2Fc.css">
+    <script>
+      // The boot guard: a classic script, in old syntax, so it runs where the app's module can't
+      // (a browser too old for it, a stale cache, an error while mounting). If the app hasn't
+      // started (main.ts sets `jambotBooted`) when an error comes or 10 s pass, it shows what went
+      // wrong and the browser it went wrong in, instead of a blank page, and offers a reset.
+      (function () {
+        var errors = [];
+        function show() {
+          if (window.jambotBooted) return;
+          var box = document.getElementById('boot-failure');
+          if (!box) {
+            box = document.createElement('div');
+            box.id = 'boot-failure';
+            box.setAttribute('role', 'alert');
+            box.style.cssText =
+              'position:fixed;inset:0;overflow:auto;padding:24px;background:#131a2e;color:#ede7da;font:15px/1.45 system-ui,sans-serif;z-index:99';
+            (document.body || document.documentElement).appendChild(box);
+          }
+          box.innerHTML = '';
+          function line(tag, text) {
+            var el = document.createElement(tag);
+            el.textContent = text;
+            el.style.cssText = 'white-space:pre-wrap;word-break:break-word';
+            box.appendChild(el);
+            return el;
+          }
+          line('h1', 'Jambot did not start');
+          line(
+            'p',
+            errors.length
+              ? errors.join('\n')
+              : 'No error was reported: the app did not start within 10 s.',
+          );
+          line('p', navigator.userAgent);
+          var reset = line('button', 'Reset and reload');
+          reset.style.cssText = 'font:inherit;padding:8px 16px';
+          reset.onclick = function () {
+            var waits = [];
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+              waits.push(
+                navigator.serviceWorker.getRegistrations().then(function (all) {
+                  return Promise.all(
+                    all.map(function (r) {
+                      return r.unregister();
+                    }),
+                  );
+                }),
+              );
+            if (window.caches)
+              waits.push(
+                caches.keys().then(function (names) {
+                  return Promise.all(
+                    names.map(function (name) {
+                      return caches.delete(name);
+                    }),
+                  );
+                }),
+              );
+            Promise.all(waits).then(reload, reload);
+          };
+          function reload() {
+            location.reload();
+          }
+        }
+        function note(text) {
+          if (window.jambotBooted) return;
+          errors.push(String(text));
+          if (document.body) show();
+          else document.addEventListener('DOMContentLoaded', show);
+        }
+        window.addEventListener(
+          'error',
+          function (event) {
+            var target = event.target;
+            if (target && target !== window && (target.src || target.href))
+              note('Could not load ' + (target.src || target.href));
+            else note(event.message || 'An error with no message');
+          },
+          true,
+        );
+        window.addEventListener('unhandledrejection', function (event) {
+          var reason = event.reason;
+          note((reason && (reason.stack || reason.message)) || reason);
+        });
+        setTimeout(show, 10000);
+      })();
+    </script>
+    <script type="module" crossorigin src="/jambot/assets/index-B6wu6Rds.js"></script>
+    <link rel="stylesheet" crossorigin href="/jambot/assets/index-BoCNid5D.css">
   <link rel="manifest" href="/jambot/manifest.webmanifest"></head>
   <body>
     <div id="app"></div>
