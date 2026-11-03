@@ -68,7 +68,7 @@ import { SECTION_BARS } from './form.ts';
 import { type HarmonySlot, SLOT_BAR } from './harmony-query.ts';
 import { instrumentsFor } from './instruments.ts';
 import type { LearnedLayer } from './layer.ts';
-import { LEAD_OPERATORS, LIFT, leadBench, leadText } from './lead-lines.ts';
+import { LEAD_OPERATORS, LIFT, fromFirstNote, leadBench, leadText } from './lead-lines.ts';
 import { nameOf } from './line-repository.ts';
 import { GROOVE_FEWEST, VOICE_OF_NOTE, grooveText } from './muse-groove.ts';
 import { lineOf } from './muse-line.ts';
@@ -140,15 +140,20 @@ export function playedInto(lately: Lately, texts: BarTexts): Lately {
 
 /**
  * A member's library: cells' seed fragments of its facet (the lead's, its
- * motifs as lead lines, #520), then those the layer filed as it, in the
+ * motifs as lead lines, #520, each stated from its first note, #529), then those the layer filed as it, in the
  * layer's order; then, where `lately` is given,
  * each text it played lately once, as the workbench the band plays from
  * (#237's controller, E45: what a listener has just heard is what is known).
  */
 export function libraryOf(facet: LoopFacet, layer?: LearnedLayer, lately?: Lately): Fragment[] {
+  // (the lead's lines stated from their first note, as `leadOf` hears a bar: a keyed line is known by its shape, #529)
+  const heard = (f: Fragment) => (facet === 'lead' ? fromFirstNote(f) : f);
   return [
-    ...SEED_FRAGMENTS.filter(isOf(facet)),
-    ...(layer?.filed ?? []).map((f) => f.fragment).filter(isOf(facet)),
+    ...SEED_FRAGMENTS.filter(isOf(facet)).map(heard),
+    ...(layer?.filed ?? [])
+      .map((f) => f.fragment)
+      .filter(isOf(facet))
+      .map(heard),
     ...[...new Set(lately?.[facet] ?? [])].map((text, i) => ({
       id: `lately ${facet} ${i}`,
       text,

@@ -103,6 +103,11 @@ export interface LeadShape extends Motif {
    * motif, and never a theme's melody.
    */
   readonly fragment?: string;
+  /**
+   * Whether its degrees are the key's as written (#529): a line of cells' motifs, played from its own degree, not
+   * from the chord tone nearest where the lead left off.
+   */
+  readonly keyed?: boolean;
 }
 
 /**
@@ -118,6 +123,7 @@ function shapeFrom(
   cycle: number,
   accidentals: readonly number[] = steps.map(() => 0),
   fragment?: string,
+  keyed = false,
 ): LeadShape {
   const rest = steps[0]! > 0;
   return {
@@ -128,6 +134,7 @@ function shapeFrom(
     sync,
     energy,
     ...(fragment === undefined ? {} : { fragment }),
+    ...(keyed ? { keyed } : {}),
   };
 }
 
@@ -413,6 +420,7 @@ function varied(shape: LeadShape, env: BarEnv): LeadShape {
     shape.cycle,
     accidentals,
     shape.fragment,
+    shape.keyed,
   );
 }
 
@@ -510,7 +518,11 @@ export function fit(
  * (U4), so it is played on the key's own as it was heard, each note with its
  * accent, which the performance plays on the lead's level. Bars 2 and 4
  * close as the phrase grammar says, and the phrase moves into the lead's
- * range.
+ * range. A `keyed` line, cells' motifs (#529), starts on its own degree of
+ * the key instead, in the octave nearest where the lead left off
+ * (`keyedFirst`), and plays as written where that is no tone of the chord:
+ * at the ten presets, held at entropy 0 over 2 seeds of 32 bars, 21 of 96
+ * phrases start off the chord, in six of their motifs.
  */
 function realize(
   motif: Motif,
@@ -519,6 +531,7 @@ function realize(
   own: boolean,
   anchor?: number,
   form: readonly Motif[] = [],
+  keyed = false,
 ) {
   const { plan, barInSection, meter, bar } = env;
   const chords = chordsOn(env.chords, meter);
@@ -528,7 +541,11 @@ function realize(
   const scale = own ? params.scale : keyHelix(plan.key);
   const heard = onsets.flatMap((step, i) => (degrees[i] === null ? [] : [{ step, i }]));
   if (heard.length === 0) return { written: [], last, anchor: anchor ?? null };
-  const first = anchor ?? snap(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last));
+  const first =
+    anchor ??
+    (keyed
+      ? keyedFirst(scale, degrees[heard[0]!.i]!, accidentals[heard[0]!.i]!, last)
+      : snap(scale, nearestTone(chordAt(chords, heard[0]!.step).chord, last)));
   const realized = heard.map(({ step, i }) => ({
     step,
     note: alteredHeight(scale, first + degrees[i]!, accidentals[i]!),
@@ -561,6 +578,23 @@ function realize(
   return { written, last: notes.at(-1)!, anchor: first + ranged.octaves * scale.heights.length };
 }
 
+/**
+ * Where a keyed line's degrees count from (#529): the tonic, in the octave that puts the line's first note, its degree
+ * as written and its accidental, nearest the note the lead last played, ties going down. So a motif written in cells
+ * starts on its own degree of the key, whatever chord sounds under it: a melody is known by its degrees, and the fit
+ * moves no note of a line found (`fit`), so neither does this.
+ */
+function keyedFirst(scale: Helix, degree: number, accidental: number, last: number): number {
+  const k = scale.heights.length;
+  const height = (turn: number) => alteredHeight(scale, turn * k + degree, accidental);
+  const guess = Math.floor((snap(scale, last) - degree) / k);
+  const turns = [guess - 1, guess, guess + 1];
+  const best = turns.reduce((a, b) =>
+    Math.abs(height(b) - last) < Math.abs(height(a) - last) ? b : a,
+  );
+  return best * k;
+}
+
 /** Where the lead starts before it has played: the A above middle C. */
 const FIRST_LAST = 69;
 
@@ -583,6 +617,7 @@ export function playLead(
   carried: LeadCarried,
   figure: Motif | readonly Motif[] | null = null,
   fragment?: string,
+  keyed = false,
 ): { carried: LeadCarried; output: WrittenNote[] } {
   const { plan, style, barEnergy: energy, barInSection, offer } = env;
   if (offer) {
@@ -616,7 +651,16 @@ export function playLead(
     if (bars.length) {
       const shapes = bars.map((bar) => {
         const { steps, degrees, accidentals } = notesOf({ ...bar, sync: 0, energy: 0 });
-        return shapeFrom(steps, degrees, style.sync, energy, bar.cycle, accidentals, fragment);
+        return shapeFrom(
+          steps,
+          degrees,
+          style.sync,
+          energy,
+          bar.cycle,
+          accidentals,
+          fragment,
+          keyed,
+        );
       });
       shape = shapes[0]!;
       if (shapes.length > 1) form = shapes;
@@ -644,6 +688,7 @@ export function playLead(
     shape.fragment === undefined,
     anchor,
     form && at === 0 ? form.slice(1) : [],
+    shape.keyed === true,
   );
   return {
     carried: {

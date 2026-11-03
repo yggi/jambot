@@ -507,7 +507,11 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
           after.plans.layer ?? undefined,
         )
       : null;
-    const melody = playLead(bar, carried.parts.lead, figure, at.leadFragment ?? undefined);
+    const keyed =
+      figure !== null &&
+      at.leadFragment != null &&
+      (env.leads?.keyed?.(at.leadFragment, after.plans.layer ?? undefined) ?? false);
+    const melody = playLead(bar, carried.parts.lead, figure, at.leadFragment ?? undefined, keyed);
     const parts = { bass: bassline.carried, comp: comping.carried, lead: melody.carried };
     const rhythm = env.rhythms
       ? sectionHits(

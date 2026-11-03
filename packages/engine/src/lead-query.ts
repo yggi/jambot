@@ -42,7 +42,7 @@ export const LEAD_FACET = 'lead';
 export interface LeadNote {
   /** Its step from the bar's start. */
   readonly step: number;
-  /** Its degree of the key, as written: counted from the line's first note where the Muse filed it. */
+  /** Its degree of the key, as written: counted from the line's first note where the Muse filed it (`keyed`). */
   readonly degree: number;
   /** Its accidental, in semitones (U2): −1 for `b`. */
   readonly alter: number;
@@ -72,6 +72,12 @@ export type LeadRepository = FacetRepository<LeadRead, LeadContent> & {
    * first; null where the line can't be played in it, and none where the repository knows no forms.
    */
   readonly phrase?: (notes: readonly LeadNote[], meter: Meter) => LeadRead | null;
+  /**
+   * Whether a line keeps its degrees of the key as written (#529): cells' motifs, and the composer's variations of
+   * them, which the lead plays from their own degree; not a line the Muse filed, heard from its first note. None
+   * keeps them where the repository doesn't say.
+   */
+  readonly keyed?: (id: string, layer?: LearnedLayer) => boolean;
 };
 
 /**
