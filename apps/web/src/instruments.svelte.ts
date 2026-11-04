@@ -59,9 +59,13 @@ export class Instruments {
     this.#midiDrums = routerFor('drums', this.heldDrums, false);
   }
 
-  /** A note from Web MIDI: channel 10 plays the pads, every other channel the keyboard (`partOf`). */
-  readonly onMidiNote = (note: ParsedNote, source: string) =>
-    (partOf(note.channel) === 'drums' ? this.#midiDrums : this.#midiLead)(
+  /**
+   * A note from Web MIDI, on the part its input plays (yggi/webmidi#43): the
+   * device's `partPlayed`, else as by its channel (`partOf`: channel 10 the
+   * pads, every other the keyboard).
+   */
+  readonly onMidiNote = (note: ParsedNote, source: string, part = partOf(note.channel)) =>
+    (part === 'drums' ? this.#midiDrums : this.#midiLead)(
       note.note,
       note.velocity,
       note.on,

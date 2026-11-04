@@ -1,17 +1,18 @@
 // @vitest-environment node
 import {
-  ANY_INPUT,
-  AS_PLAYED,
+  DEFAULT_PRESET,
   DEFAULT_PROFILE,
   DRUM_PRESETS,
   KEYS,
   activeSetup,
   addOutput,
+  applyPreset,
   chooseDevice,
+  forwardsOf,
   fromJambot,
   withClock,
   withCrossing,
-  withHeard,
+  withPlays,
   withProfile,
   type MidiPort,
   type SetupBook,
@@ -25,13 +26,10 @@ import {
   bandRoutes,
   channelsTo,
   drumsTo,
-  forwardsOf,
-  isHeard,
-  listenTo,
   wantsInputs,
   missingOutputs,
   nameByPorts,
-  rowsOfInput,
+  partPlayed,
   withOutputProfile,
 } from './patch.ts';
 
@@ -116,66 +114,71 @@ describe('what the band sends to each output', () => {
   });
 });
 
-describe('where a note played is passed on', () => {
+describe('where a note played is passed on (webmidi’s forwardsOf)', () => {
   it('passes the keys on to the thru channel of a migrated store, as its thru did', () => {
-    const setup = activeSetup(
-      fromJambot(stored({ outPortId: 'out-1', thru: true, thruChannel: 16 }), PORTS),
-    );
-    expect(forwardsOf(setup, [KEYS], 0)).toEqual([{ key: 'o1', channel: 15 }]);
+    const book = fromJambot(stored({ outPortId: 'out-1', thru: true, thruChannel: 16 }), PORTS);
+    expect(forwardsOf(book, BAND, KEYS, [0x90, 60, 100])).toEqual([
+      { output: 'o1', data: [0x9f, 60, 100] },
+    ]);
+    expect(forwardsOf(book, BAND, KEYS, [0x80, 60, 0])).toEqual([
+      { output: 'o1', data: [0x8f, 60, 0] },
+    ]);
   });
 
   it('passes nothing on without thru', () => {
-    const setup = activeSetup(fromJambot(stored({ outPortId: 'out-1' }), PORTS));
-    expect(forwardsOf(setup, [KEYS], 0)).toEqual([]);
-  });
-
-  it('keeps the channel a note came in on where its crossing is as played, and sends once per output', () => {
-    let book = fromJambot(stored({ outPortId: 'out-1' }), PORTS);
-    book = withCrossing(book, BAND, 'in:Keys', 'o1', AS_PLAYED);
-    book = withCrossing(book, BAND, ANY_INPUT, 'o1', 4);
-    const setup = activeSetup(book);
-    expect(forwardsOf(setup, ['in:Keys', ANY_INPUT], 6)).toEqual([{ key: 'o1', channel: 6 }]);
-    expect(forwardsOf(setup, ['in:Pads', ANY_INPUT], 6)).toEqual([{ key: 'o1', channel: 3 }]);
-  });
-
-  it('sends an input’s notes from every input’s row only when it is heard', () => {
-    const book = withHeard(fromJambot(stored(), NONE), [PORTS.inputs[0]!]);
-    const setup = activeSetup(book);
-    expect(isHeard(setup, 'Keys')).toBe(true);
-    expect(isHeard(setup, 'Pads')).toBe(false);
-    expect(rowsOfInput(setup, 'Keys')).toEqual(['in:Keys', ANY_INPUT]);
-    expect(rowsOfInput(setup, 'Pads')).toEqual(['in:Pads']);
-    expect(isHeard(activeSetup(withHeard(book, 'all')), 'Pads')).toBe(true);
+    const book = fromJambot(stored({ outPortId: 'out-1' }), PORTS);
+    expect(forwardsOf(book, BAND, KEYS, [0x90, 60, 100])).toEqual([]);
   });
 });
 
-describe('which inputs are listened to', () => {
-  const book = fromJambot(stored(), NONE);
-
-  it('none, when none is heard or routed', () => {
-    expect(listenTo(activeSetup(book), PORTS.inputs)).toBe('none');
+describe('the part an input plays (yggi/webmidi#43)', () => {
+  it('a migrated store’s heard input plays the default: by its channel, as before; one not heard, nothing', () => {
+    const book = fromJambot(stored({ inPortId: 'in-1' }), PORTS);
+    expect([
+      partPlayed(book, 'Keys', 0),
+      partPlayed(book, 'Keys', 9),
+      partPlayed(book, 'Pads', 0),
+    ]).toEqual(['lead', 'drums', null]);
+    const all = fromJambot(stored({ inPortId: 'all' }), PORTS);
+    expect(partPlayed(all, 'Pads', 9)).toBe('drums');
   });
 
-  it('one heard alone by its id, so no other port is opened', () => {
-    expect(listenTo(activeSetup(withHeard(book, [PORTS.inputs[1]!])), PORTS.inputs)).toBe('in-2');
+  it('the part chosen, whatever the channel; a part not played along on yet, the default', () => {
+    const book = fromJambot(stored({ inPortId: 'in-1' }), PORTS);
+    expect(partPlayed(withPlays(book, 'in:Keys', { row: 'drums', role: 'drums' }), 'Keys', 0)).toBe(
+      'drums',
+    );
+    expect(partPlayed(withPlays(book, 'in:Keys', { row: 'bass', role: 'bass' }), 'Keys', 0)).toBe(
+      'lead',
+    );
+    expect(partPlayed(withPlays(book, 'in:Keys', 'none'), 'Keys', 0)).toBeNull();
   });
 
-  it('one routed and not heard, too', () => {
-    const routed = withCrossing(book, BAND, 'in:Pads', 'o1', 2);
-    expect(listenTo(activeSetup(routed), PORTS.inputs)).toBe('in-2');
+  it('a preset assigns by the parts’ roles: a keyboard plays the lead, pads the drums', () => {
+    const keyStep = { id: 'k', name: 'Arturia KeyStep 37' };
+    const mpd = { id: 'p', name: 'MPD218' };
+    const book = applyPreset(fromJambot(stored(), NONE), DEFAULT_PRESET, [keyStep, mpd], BAND_ROWS);
+    expect([partPlayed(book, 'Arturia KeyStep 37', 9), partPlayed(book, 'MPD218', 0)]).toEqual([
+      'lead',
+      'drums',
+    ]);
+    expect(BAND_ROWS.filter((r) => r.role).map((r) => [r.id, r.role])).toEqual([
+      ['lead', 'lead'],
+      ['bass', 'bass'],
+      ['pad', 'pad'],
+      ['stab', 'stab'],
+      ['drums', 'drums'],
+    ]);
   });
+});
 
-  it('all, when all are heard, or more than one is wanted', () => {
-    expect(listenTo(activeSetup(withHeard(book, 'all')), PORTS.inputs)).toBe('all');
-    const two = withCrossing(withHeard(book, [PORTS.inputs[0]!]), BAND, 'in:Pads', 'o1', 2);
-    expect(listenTo(activeSetup(two), PORTS.inputs)).toBe('all');
-  });
-
-  it('none while the one wanted isn’t plugged in, so no other port is opened; still wanted, so the device reconnects', () => {
-    const one = activeSetup(withHeard(book, [PORTS.inputs[0]!]));
-    expect(listenTo(one, [])).toBe('none');
-    expect(listenTo(one, [{ id: 'in-9', name: PORTS.inputs[0]!.name }])).toBe('in-9');
-    expect([wantsInputs(one), wantsInputs(activeSetup(book))]).toEqual([true, false]);
+describe('the inputs a load connects again for', () => {
+  it('those heard or routed, plugged in or not; none in a store that chose none', () => {
+    const book = fromJambot(stored(), NONE);
+    expect(wantsInputs(activeSetup(book))).toBe(false);
+    expect(wantsInputs(activeSetup(withPlays(book, 'in:Keys', 'default')))).toBe(true);
+    expect(wantsInputs(activeSetup(withCrossing(book, BAND, 'in:Pads', 'o1', 2)))).toBe(true);
+    expect(wantsInputs(activeSetup(withPlays(book, 'in:Keys', 'none')))).toBe(false);
   });
 });
 

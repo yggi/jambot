@@ -1,4 +1,4 @@
-import type { PortOption } from '@yggi/webmidi/core';
+import { ANY_INPUT, inputRow, type PortOption, type Setup } from '@yggi/webmidi/core';
 import { describe, expect, it } from 'vitest';
 import { EQUALIZER_FLOOR, equalizerLevels, soundSummary } from './sound.ts';
 
@@ -11,7 +11,18 @@ const ports = {
 };
 const none = { key: 'o1', id: 'none', name: '' };
 const out = (id: string, name: string, key = 'o1') => ({ key, id, name });
-const setup = (outputs = [none], heard: PortOption[] | 'all' = []) => ({ outputs, heard });
+/** A setup with `outputs`, hearing `heard`: each input playing the default (yggi/webmidi decision 003). */
+const setup = (outputs = [none], heard: PortOption[] | 'all' = []): Setup => ({
+  id: 's1',
+  name: 'Setup',
+  outputs,
+  plays:
+    heard === 'all'
+      ? { [ANY_INPUT]: 'default' }
+      : Object.fromEntries(heard.map((p) => [inputRow(p), 'default' as const])),
+  routes: {},
+  clock: [],
+});
 const settings = { internal: true, setup: setup() };
 
 describe('what the sound card says', () => {

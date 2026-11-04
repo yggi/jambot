@@ -21,21 +21,18 @@ import { type Output, webAudioOutput } from './audio/output.ts';
 import {
   KEYS,
   type ClockOffset,
+  type Forward,
   type MidiPort,
   type ParsedNote,
   type PortOption,
+  forwardsOf,
+  forwardsOfInput,
+  listenOf,
   outputNow,
   portsMessage,
 } from '@yggi/webmidi/core';
 import { MidiAccess } from '@yggi/webmidi/web';
-import {
-  bandRoutes,
-  forwardsOf,
-  isHeard,
-  listenTo,
-  rowsOfInput,
-  wantsInputs,
-} from './midi/patch.ts';
+import { BAND, bandRoutes, partPlayed, wantsInputs } from './midi/patch.ts';
 import { MidiSettings } from './midi/settings.svelte.ts';
 import { type Surroundings, browserSurroundings } from './player.svelte.ts';
 import type { DeviceClocks } from './session/clocks.ts';
@@ -178,16 +175,25 @@ export class Device {
 
   /**
    * Connect to Web MIDI. A note in is passed on where the patch sends its
-   * input's row, and, from an input the setup hears, goes to `onNote` with
-   * the name of the port it came from.
+   * input's row (webmidi's `forwardsOfInput`), and, from an input the setup
+   * hears, goes to `onNote` with the name of the port it came from and the
+   * part it plays (`partPlayed`, yggi/webmidi#43).
    */
-  async connect(onNote: (note: ParsedNote, source: string) => void) {
+  async connect(onNote: (note: ParsedNote, source: string, part: 'lead' | 'drums') => void) {
     this.connecting = true;
     const result = await MidiAccess.connect({
       onNote: (note, source) => {
-        const setup = this.settings.setup;
-        this.#forward(rowsOfInput(setup, source), note.note, note.velocity, note.on, note.channel);
-        if (isHeard(setup, source)) onNote(note, source);
+        const book = this.settings.book;
+        this.#send(
+          forwardsOfInput(
+            book,
+            BAND,
+            { id: '', name: source },
+            noteBytes(note.note, note.velocity, note.on, note.channel),
+          ),
+        );
+        const part = partPlayed(book, source, note.channel);
+        if (part) onNote(note, source, part);
       },
       onChange: () => this.#changed(),
     });
@@ -217,19 +223,14 @@ export class Device {
 
   /** Listen to the inputs the setup in use hears or routes, and to no other. */
   #listen() {
-    this.access?.listen(listenTo(this.settings.setup, this.ports.inputs));
+    this.access?.listen(listenOf(this.settings.setup));
   }
 
-  /**
-   * Pass a note on from the patch's `rows` to each output they cross, at
-   * once, on the crossing's channel or, as played, on `played` (a status
-   * byte's nibble).
-   */
-  #forward(rows: readonly string[], note: number, velocity: number, on: boolean, played: number) {
-    for (const { key, channel } of forwardsOf(this.settings.setup, rows, played)) {
-      const port = this.#portOf(key);
+  /** Send each message passed on to its output, at once. */
+  #send(forwards: readonly Forward[]) {
+    for (const { output, data } of forwards) {
       try {
-        port?.send(on ? [0x90 | channel, note, velocity] : [0x80 | channel, note, 0]);
+        this.#portOf(output)?.send(data);
       } catch {
         // A port can vanish mid-send (unplugged, revoked); nothing to do about it.
       }
@@ -238,7 +239,7 @@ export class Device {
 
   /** A note played on this device's own keys (the keys' row of the patch), passed on where that row is sent. */
   forwardKeys(note: number, velocity: number, on: boolean, played: number) {
-    this.#forward([KEYS], note, velocity, on, played);
+    this.#send(forwardsOf(this.settings.book, BAND, KEYS, noteBytes(note, velocity, on, played)));
   }
 
   /** A short middle C on an output, on the first channel routed to it (else 1), to find a device by. */
@@ -259,3 +260,7 @@ export class Device {
     return setup.outputs.some((o) => o.id !== 'none') || wantsInputs(setup);
   }
 }
+
+/** A note as the message passed on: a note-on at its velocity, or a note-off at 0, on `channel` (a status byte's nibble). */
+const noteBytes = (note: number, velocity: number, on: boolean, channel: number): number[] =>
+  on ? [0x90 | (channel & 15), note, velocity] : [0x80 | (channel & 15), note, 0];

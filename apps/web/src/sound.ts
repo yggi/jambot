@@ -5,7 +5,7 @@
  * component, so a test can hold each wording and each level.
  */
 
-import type { PortOption, Setup } from '@yggi/webmidi/core';
+import { heardOf, type PortOption, type Setup } from '@yggi/webmidi/core';
 import { PERFORMERS, type SoundingNotes } from './sounding.ts';
 
 /** How much of the equalizer's height a bar at rest has, 0 to 1: a resting bar is still a bar. */
@@ -29,8 +29,8 @@ export function equalizerLevels(sounding: SoundingNotes, volume: number): number
 
 export interface SoundSettings {
   readonly internal: boolean;
-  /** The MIDI setup in use: its outputs, and the inputs it hears. */
-  readonly setup: Pick<Setup, 'outputs' | 'heard'>;
+  /** The MIDI setup in use: its outputs, and what its inputs play (the inputs it hears, `heardOf`). */
+  readonly setup: Setup;
 }
 
 /**
@@ -49,7 +49,7 @@ export function soundSummary(
     list.find((port) => port.id === chosen.id || (!!chosen.name && port.name === chosen.name))
       ?.name ?? (chosen.name ? `${chosen.name} not found` : 'not found');
   const outputs = settings.setup.outputs.filter((o) => o.id !== 'none');
-  const heard = settings.setup.heard;
+  const heard = heardOf(settings.setup);
   const out = outputs.length
     ? `out ${outputs.map((o) => named(ports.outputs, o)).join(' + ')}`
     : null;

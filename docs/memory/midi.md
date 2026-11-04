@@ -27,16 +27,19 @@ Facts about MIDI in and out of the app.
 - The clock (24 ticks a beat, Start, Stop) goes to the outputs of the setup's clock row (`Setup.clock`), not a device's setting.
 - An output's device's latency (its profile's, 0–1000 ms) sends every message to it that much earlier, the clock too (`MidiOut.setLatency`); 0 sends each at its moment.
 - Which output note each drum sound sends is the device's drum map (webmidi's `DrumMap` from the General MIDI note the engine writes for a `DrumSound`, `packages/engine/src/drums.ts`, to the note sent), kept by port name, so a Circuit's map is set once: a Novation Circuit's four Drum tracks (Circuit and Circuit Tracks alike, confirmed identical in both of Novation's Programmer's Reference Guides) never speak GM, only notes 60/62/64/65 on channel 10, each playing whatever sample was loaded onto it.
-  `DeviceInspector` offers webmidi's presets (`DRUM_PRESETS`: `GM`, `Novation Circuit`), and `SoundPanel.svelte` a number per sound under it to hand-edit from there (`drumMapOf`: a map set by sound that sends every sound as a preset does is that preset); `MidiOut.setDrumNotes` remaps a drum part's GM note to its configured one before sending, so two sounds aimed at the same pad retrigger like any other shared note (#102).
+  `DeviceInspector` offers webmidi's presets (`DRUM_PRESETS`: `GM`, `Novation Circuit`), and the patch a number per drum sound on each output the drums go to, to hand-edit from there (the kit's member rows, `BAND_ROWS`, yggi/webmidi#36); `MidiOut.setDrumNotes` remaps a drum part's GM note to its configured one before sending, so two sounds aimed at the same pad retrigger like any other shared note (#102).
 - `MidiOut.panic` (`audio/midi-out.ts`) sends all notes off and forgets what it held; `App.svelte` calls it on every output, through `Player.panicMidi`, on waking from a hidden tab, since a suspended tab's frozen clock can leave a release unscheduled and hardware sounding, and offers it as All notes off in the Sound panel too, for whatever the automatic case misses (#102).
 - An output's Test note sends a middle C on the first channel routed to it, released 300 ms later (`Device.testNote`).
 
 ## In
 
-- An input is a row of the patch in every mode: routed to any outputs, on a channel 1–16 or as played (webmidi's `AS_PLAYED`, the channel it came in on), and its Heard switch says whether the Muse and the instruments hear it (`setup.heard`).
-  A note from an input is passed on at once where its row crosses an output, heard or not, and where the row of every input (`in:*`) does when it is heard (`Device.connect`, `forwardsOf`); only a heard input's notes reach the instruments, the Muse and the timing test.
+- An input is a row of the patch in every mode: routed to any outputs, on a channel 1–16 or as played (webmidi's `AS_PLAYED`, the channel it came in on), and its Plays choice says what it plays (webmidi decision 003, `setup.plays`): not heard, the default, or a part.
+  The parts are rows with their roles (`lead`, `bass`, `pad`, `stab`, `drums`), so a setup's choice carries from Cell studio by role, and a preset assigns by them: the Sound sheet offers webmidi's `DEFAULT_PRESET`, a keyboard to the lead and pads to the drums, for the inputs with no choice.
+  A note from an input the setup hears goes to the instruments, the Muse and the timing test on the part it plays (`partPlayed`): its part where it plays the lead or the drums; the default, by its channel as before (`partOf`: channel 10 the pads, any other the keyboard).
+  The player plays along on the lead and the drums alone (`AlongPart`), so an input set to the bass, the pad or the stab plays the default until the band plays along on those too.
+  A note from an input is passed on at once where its row crosses an output, heard or not, and where the row of every input (`in:*`) does when it is heard (`Device.connect`, webmidi's `forwardsOfInput`).
   What is played on the on-screen and computer keys is passed on where the keys' row crosses an output (`Instruments`, `Device.forwardKeys`), on the crossing's channel; this is what the store before the book called thru.
-- The device listens to the inputs the setup hears or routes and to no other (`listenTo`): one alone by its id, so no other port is opened, and none while it isn't plugged in (the device listens again when the ports change, finding it by name); more as all, the rest dropped by the page.
+- The device listens to the inputs the setup hears or routes and to no other (webmidi's `listenOf`, each by its name): none is opened that isn't wanted, and one not plugged in is found by name when the ports change; every input when every input is heard or routed.
 
 ## Ports
 

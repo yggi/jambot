@@ -183,10 +183,10 @@
    * timing test, taps timed by the message's own timestamp.
    */
   const connectMidi = () =>
-    device.connect((note, source) =>
+    device.connect((note, source, part) =>
       extra === 'timing'
         ? testing.midi(note, source, note.timeStamp)
-        : instruments.onMidiNote(note, source),
+        : instruments.onMidiNote(note, source, part),
     );
 
   // A port chosen before is remembered (`MidiSettings`, the setup in use); reconnect to it without

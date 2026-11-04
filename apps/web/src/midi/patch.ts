@@ -1,8 +1,10 @@
 /**
- * The band's patch, read off webmidi's book of setups (yggi/webmidi decision
- * 002): the rows Jambot hands the patch matrix, what the band sends to each
- * output of the setup in use, where a note played is passed on, and which
- * inputs are listened to. Pure: the book is plain data, and the ports come in.
+ * The band's patch, read off webmidi's book of setups (yggi/webmidi decisions
+ * 002 and 003): the rows Jambot hands the patch matrix, what the band sends to
+ * each output of the setup in use, and the part an input plays. Where a note
+ * is passed on and which inputs are listened to are webmidi's
+ * (`forwardsOfInput`, `listenOf`). Pure: the book is plain data, and the
+ * ports come in.
  *
  * Jambot's routes are the context `band`. Its rows are the five parts, then
  * the keys' row (`KEYS`: the on-screen and computer keys), and webmidi's
@@ -11,10 +13,8 @@
  * the note came in on.
  */
 
-import type { Part } from '@jambot/engine';
+import { DRUM_NOTES, type DrumSound, type Part } from '@jambot/engine';
 import {
-  ANY_INPUT,
-  AS_PLAYED,
   DEFAULT_PROFILE,
   KEYS,
   type DeviceProfile,
@@ -25,13 +25,19 @@ import {
   type SetupBook,
   type SetupOutput,
   activeSetup,
-  inputRow,
+  listenOf,
+  namePorts,
+  playsOf,
   profileOf,
   withProfile,
 } from '@yggi/webmidi/core';
 import type { MatrixRow } from '@yggi/webmidi/ui';
 import type { DrumNotes, PartChannels } from '../audio/midi-out.ts';
-import { drumNotesOf } from './drums.ts';
+import { partOf } from './routing.ts';
+
+/** A part a person plays along on: the lead or the drums, as the player takes them. */
+type AlongPart = ReturnType<typeof partOf>;
+import { DRUM_SOUNDS, drumNotesOf } from './drums.ts';
 
 /** Jambot's context in a setup's routes. */
 export const BAND = 'band';
@@ -49,15 +55,61 @@ export const BAND_PARTS = [
   'drums',
 ] as const satisfies readonly Part[];
 
-/** The rows Jambot hands the matrix: the parts, then the keys. Seats (#108) would be more rows of the same kind. */
+/** How each drum sound is named in the matrix. */
+export const DRUM_LABELS: Record<DrumSound, string> = {
+  kick: 'Kick',
+  rim: 'Rim',
+  snare: 'Snare',
+  clap: 'Clap',
+  closedHat: 'Closed hat',
+  pedalHat: 'Pedal hat',
+  openHat: 'Open hat',
+  ride: 'Ride',
+};
+
+/**
+ * The rows Jambot hands the matrix: the parts with their roles (what an input
+ * that plays one finds it by, and what a preset assigns: yggi/webmidi decision
+ * 003), the drum sounds as the kit's members (each output's drum map edited
+ * there, note by note), then the keys. Seats (#108) would be more rows of the
+ * same kind.
+ */
 export const BAND_ROWS: readonly MatrixRow[] = [
-  { id: 'lead', label: 'Lead', kind: 'voice' },
-  { id: 'bass', label: 'Bass', kind: 'voice' },
-  { id: 'pad', label: 'Pad', kind: 'voice' },
-  { id: 'stab', label: 'Stab', kind: 'voice' },
-  { id: 'drums', label: 'Drums', kind: 'kit' },
+  { id: 'lead', label: 'Lead', kind: 'voice', role: 'lead' },
+  { id: 'bass', label: 'Bass', kind: 'voice', role: 'bass' },
+  { id: 'pad', label: 'Pad', kind: 'voice', role: 'pad' },
+  { id: 'stab', label: 'Stab', kind: 'voice', role: 'stab' },
+  { id: 'drums', label: 'Drums', kind: 'kit', role: 'drums' },
+  ...DRUM_SOUNDS.map((sound): MatrixRow => ({
+    id: `drum:${sound}`,
+    label: DRUM_LABELS[sound],
+    kind: 'member',
+    note: DRUM_NOTES[sound],
+  })),
   { id: KEYS, label: 'Keys', sub: 'you play', kind: 'voice', group: true },
 ];
+
+/**
+ * The parts an input can play along on: the lead and the drums, as the
+ * player takes them (`AlongPart`). An input set to play another part plays
+ * the default, until the band plays along on it too.
+ */
+const ALONG: readonly { id: AlongPart; role: AlongPart }[] = [
+  { id: 'lead', role: 'lead' },
+  { id: 'drums', role: 'drums' },
+];
+
+/**
+ * The part a note from an input plays (yggi/webmidi#43): the part the setup
+ * in use says it plays, by its port's name; playing the default, by its
+ * channel, as before (`partOf`: channel 10 the drums, any other the lead);
+ * not heard, null, so neither the Muse nor the instruments take it.
+ */
+export function partPlayed(book: SetupBook, source: string, channel: number): AlongPart | null {
+  const plays = playsOf(book, `in:${source}`, ALONG);
+  if (plays === null) return null;
+  return plays === 'default' ? partOf(channel) : (plays as AlongPart);
+}
 
 /** A value kept under a key of its own (a row named `__proto__` is none). */
 const own = <T>(o: Readonly<Record<string, T>>, key: string): T | undefined =>
@@ -107,71 +159,11 @@ export function bandRoutes(
   });
 }
 
-/** Whether the setup in use hears an input, by the name its notes come with: its notes reach the Muse and the instruments. */
-export const isHeard = (setup: Setup, source: string): boolean =>
-  setup.heard === 'all' || setup.heard.some((port) => inputRow(port) === `in:${source}`);
-
-/** The rows a note from an input is sent from: its own, and every input's (`ANY_INPUT`) when it is heard. */
-export const rowsOfInput = (setup: Setup, source: string): string[] =>
-  isHeard(setup, source) ? [`in:${source}`, ANY_INPUT] : [`in:${source}`];
-
-/** Where a note is passed on: an output's key, and the channel as a status byte's nibble, 0–15. */
-export interface Forward {
-  readonly key: string;
-  readonly channel: number;
-}
-
-/**
- * Where a note from `rows` is passed on in the setup in use: each output a
- * row crosses, once, by the first row that does, on the crossing's channel,
- * or for `AS_PLAYED` on `played` (the nibble it came in on).
- */
-export function forwardsOf(setup: Setup, rows: readonly string[], played: number): Forward[] {
-  const routes = bandRoutesOf(setup);
-  const sent = new Map<string, number>();
-  for (const row of rows) {
-    const crossings = own(routes, row);
-    if (!crossings) continue;
-    for (const output of setup.outputs) {
-      const crossing = own(crossings, output.key);
-      if (crossing === undefined || sent.has(output.key)) continue;
-      sent.set(output.key, crossing === AS_PLAYED ? played & 15 : (crossing - 1) & 15);
-    }
-  }
-  return [...sent].map(([key, channel]) => ({ key, channel }));
-}
-
-/** The inputs the setup in use wants: every one heard and every one routed, by row (`in:<name>`), or all. */
-function wantedInputs(setup: Setup): 'all' | Set<string> {
-  if (setup.heard === 'all') return 'all';
-  const rows = new Set(setup.heard.map(inputRow));
-  for (const [row, crossings] of Object.entries(bandRoutesOf(setup)))
-    if (row.startsWith('in:') && row !== ANY_INPUT && Object.keys(crossings).length) rows.add(row);
-  return rows;
-}
-
-/** Whether the setup in use hears or routes any input, plugged in or not. */
+/** Whether the setup in use wants an input at all, heard or routed, plugged in or not: so a load connects again. */
 export const wantsInputs = (setup: Setup): boolean => {
-  const wanted = wantedInputs(setup);
-  return wanted === 'all' || wanted.size > 0;
+  const listen = listenOf(setup);
+  return listen === 'all' || listen.length > 0;
 };
-
-/**
- * Which inputs to listen to, as webmidi's connection takes it (an id,
- * `'all'` or `'none'`): every input heard and every input routed. One input
- * is listened to alone, so no other port is opened, and none while it isn't
- * plugged in (the device listens again when the ports change, and finds it by
- * name); more are listened to all, and what isn't heard or routed is let go by
- * the page.
- */
-export function listenTo(setup: Setup, inputs: readonly PortOption[]): string {
-  const wanted = wantedInputs(setup);
-  if (wanted === 'all') return 'all';
-  if (wanted.size === 0) return 'none';
-  if (wanted.size > 1) return 'all';
-  const [row] = wanted;
-  return inputs.find((port) => inputRow(port) === row)?.id ?? 'none';
-}
 
 /** How many of the setup's devices aren't plugged in, by id or by name as webmidi finds them. */
 export const missingOutputs = (setup: Setup, plugged: readonly PortOption[]): number =>
@@ -214,58 +206,31 @@ export function withOutputProfile(
 /**
  * The ports a book keeps by id alone given their names, now that the ports
  * plugged in say them: Jambot's store before the book kept no names, so its
- * migration (webmidi's `fromJambot`) is made before any port is seen. An
- * output named takes the defaults as its device's profile where it has none
- * (they hold the drum map migrated), and an input named moves its rows' routes to
- * its name, so the book is as `fromJambot` would have made it with the ports
- * known. Not a person's change, so no custom variant: the same book when
- * there is nothing to name.
+ * migration (webmidi's `fromJambot`) is made before any port is seen.
+ * webmidi's `namePorts` names the outputs and the inputs' rows; an output
+ * named here also takes the defaults as its device's profile where it has
+ * none (they hold the drum map migrated), so the book is as `fromJambot`
+ * would have made it with the ports known. Not a person's change, so no
+ * custom variant: the same book when there is nothing to name.
  */
 export function nameByPorts(
   book: SetupBook,
   ports: { readonly inputs: readonly PortOption[]; readonly outputs: readonly PortOption[] },
 ): SetupBook {
-  let changed = false;
-  const devices: Record<string, DeviceProfile> = { ...book.devices };
-  let moved = false;
-  const nameOf = (list: readonly PortOption[], port: PortOption) =>
-    port.name || port.id === 'none' || port.id === 'all'
-      ? port.name
-      : (list.find((p) => p.id === port.id)?.name ?? '');
-  const setups = book.setups.map((setup) => {
-    const outputs = setup.outputs.map((output) => {
-      const name = nameOf(ports.outputs, output);
-      if (name === output.name) return output;
-      changed = true;
-      if (name && !Object.hasOwn(devices, name)) {
-        devices[name] = book.defaults;
-        moved = true;
-      }
-      return { ...output, name };
-    });
-    const renamed = new Map<string, string>();
-    const heard =
-      setup.heard === 'all'
-        ? setup.heard
-        : setup.heard.map((port) => {
-            const name = nameOf(ports.inputs, port);
-            if (name === port.name) return port;
-            changed = true;
-            renamed.set(inputRow(port), inputRow({ ...port, name }));
-            return { ...port, name };
-          });
-    const routes = renamed.size
-      ? Object.fromEntries(
-          Object.entries(setup.routes).map(([context, rows]) => [
-            context,
-            Object.fromEntries(
-              Object.entries(rows).map(([row, c]) => [renamed.get(row) ?? row, c]),
-            ),
-          ]),
-        )
-      : setup.routes;
-    return { ...setup, outputs, heard, routes };
-  });
-  if (!changed) return book;
-  return { ...book, devices, defaults: moved ? DEFAULT_PROFILE : book.defaults, setups };
+  const named = namePorts(book, ports);
+  if (named === book) return book;
+  const fresh = new Set<string>();
+  named.setups.forEach((setup, i) =>
+    setup.outputs.forEach((output, j) => {
+      const before = book.setups[i]?.outputs[j];
+      if (output.name && before && !before.name && !Object.hasOwn(book.devices, output.name))
+        fresh.add(output.name);
+    }),
+  );
+  if (!fresh.size) return named;
+  const devices = {
+    ...named.devices,
+    ...Object.fromEntries([...fresh].map((name) => [name, book.defaults])),
+  };
+  return { ...named, devices, defaults: DEFAULT_PROFILE };
 }

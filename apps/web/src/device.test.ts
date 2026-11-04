@@ -8,7 +8,8 @@ import {
   type SetupBook,
   chooseDevice,
   withCrossing,
-  withHeard,
+  ANY_INPUT,
+  withPlays,
 } from '@yggi/webmidi/core';
 import { Device, FADE_IN, FADE_OUT, VOLUME_KEY, taper } from './device.svelte.ts';
 import { BAND } from './midi/patch.ts';
@@ -155,9 +156,11 @@ describe('the device’s MIDI ports', () => {
     expect(pads.onmidimessage).toBeNull();
     keys.play([0x90, 60, 100]);
     keys.play([0x80, 60, 0]);
-    expect(heard.mock.calls.map(([note, source]) => [note.note, note.on, source])).toEqual([
-      [60, true, 'Keys'],
-      [60, false, 'Keys'],
+    expect(
+      heard.mock.calls.map(([note, source, part]) => [note.note, note.on, source, part]),
+    ).toEqual([
+      [60, true, 'Keys', 'lead'],
+      [60, false, 'Keys', 'lead'],
     ]);
     expect(synth.sent).toEqual([
       { data: [0x92, 60, 100], timestamp: undefined },
@@ -185,9 +188,21 @@ describe('the device’s MIDI ports', () => {
     const { device: d } = device();
     await d.connect(() => {});
     expect([keys.onmidimessage, pads.onmidimessage]).toEqual([null, null]);
-    changed(d, (book) => withHeard(book, 'all'));
+    changed(d, (book) => withPlays(book, ANY_INPUT, 'default'));
     expect(keys.onmidimessage).not.toBeNull();
     expect(pads.onmidimessage).not.toBeNull();
+  });
+
+  it('gives a note the part its input plays, whatever its channel (yggi/webmidi#43)', async () => {
+    const { pads } = midi();
+    const { device: d } = device();
+    changed(d, (book) => withPlays(book, 'in:Pads', { row: 'drums', role: 'drums' }));
+    const heard = vi.fn();
+    await d.connect(heard);
+    pads.play([0x90, 36, 100]);
+    expect(heard.mock.calls.map(([note, source, part]) => [note.note, source, part])).toEqual([
+      [36, 'Pads', 'drums'],
+    ]);
   });
 
   it('passes nothing on from the keys without a crossing of their row', async () => {

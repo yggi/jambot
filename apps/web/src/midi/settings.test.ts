@@ -34,7 +34,7 @@ describe('MidiSettings', () => {
     const setup = settings.setup;
     expect(setup.name).toBe('Jambot');
     expect(setup.outputs).toEqual([{ key: 'o1', id: 'none', name: '' }]);
-    expect(setup.heard).toEqual([]);
+    expect(setup.plays).toEqual({});
     expect(setup.clock).toEqual([]);
     expect(setup.routes[BAND]).toEqual(
       Object.fromEntries(Object.entries(DEFAULT_CHANNELS).map(([part, ch]) => [part, { o1: ch }])),

@@ -477,11 +477,11 @@ const INPUTS: {
     ready: async (page) => {
       await openCard(page, 'Sound');
       await page.getByRole('button', { name: 'Connect', exact: true }).click();
-      // The input is a row of the patch: its Heard switch is what the Muse listens to.
+      // The input is a row of the patch: what it plays is what the Muse hears it as (yggi/webmidi#43).
       await page
         .getByRole('row', { name: /Test keyboard/ })
-        .getByRole('button', { name: 'Not heard' })
-        .click();
+        .getByRole('combobox', { name: /^What Test keyboard plays/ })
+        .selectOption('lead');
     },
     play: (page, note, on) =>
       page.evaluate(

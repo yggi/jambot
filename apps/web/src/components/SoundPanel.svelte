@@ -2,18 +2,22 @@
   The details of the sound card: how this device sounds, in two sections.
   The built-in synth is one switch (its level is the card's volume). MIDI is
   webmidi's patchbay (`@yggi/webmidi/ui`): the connection (`MidiStatus`),
-  the setups (`SetupPicker`), the patch (`PatchMatrix`: the five parts and
-  the keys, then the inputs with their Heard switches and the clock, down;
-  the setup's outputs across) and the output selected (`DeviceInspector`),
-  with Jambot's drum notes by sound under it where the drums go there. A
+  the setups (`SetupPicker`), the patch (`PatchMatrix`: the clock, the five
+  parts with the drum sounds' notes on each output, the keys, then the inputs
+  with what each plays and the preset that assigns them, down; the setup's
+  outputs across) and the output selected (`DeviceInspector`). A
   change is a new book (`MidiSettings.book`), applied at once:
   `band-output.ts` silences what an old route held before adopting the new.
 -->
 <script lang="ts">
-  import { type DrumSound } from '@jambot/engine';
-  import { type PortOption, chooseDevice, profileOf, removeOutput } from '@yggi/webmidi/core';
+  import {
+    DEFAULT_PRESET,
+    type PortOption,
+    chooseDevice,
+    profileOf,
+    removeOutput,
+  } from '@yggi/webmidi/core';
   import { DeviceInspector, MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
-  import { DRUM_SOUNDS, drumMapOf, drumNotesOf } from '../midi/drums.ts';
   import {
     BAND,
     BAND_ROWS,
@@ -55,17 +59,6 @@
     ontest,
   }: Props = $props();
 
-  const LABELS: Record<DrumSound, string> = {
-    kick: 'Kick',
-    rim: 'Rim',
-    snare: 'Snare',
-    clap: 'Clap',
-    closedHat: 'Closed hat',
-    pedalHat: 'Pedal hat',
-    openHat: 'Open hat',
-    ride: 'Ride',
-  };
-
   const setup = $derived(settings.setup);
   /** The output the inspector shows, by key: the one chosen, else the first. */
   let chosen: string | undefined = $state();
@@ -79,15 +72,7 @@
   const profile = $derived(profileOf(settings.book, output.name));
   const drums = $derived(drumsTo(setup, output.key));
   const used = $derived(channelsTo(setup, output.key));
-  const notes = $derived(drumNotesOf(profile.drums));
   const missing = $derived(missingOutputs(setup, ports.outputs));
-
-  const clampNote = (value: string) => Math.max(0, Math.min(127, Math.round(+value) || 0));
-
-  function setDrumNote(sound: DrumSound, value: string) {
-    const map = drumMapOf({ ...notes, [sound]: clampNote(value) }, profile.drums);
-    settings.book = withOutputProfile(settings.book, output, { drums: map });
-  }
 </script>
 
 <div class="sound">
@@ -126,6 +111,7 @@
           inputs={ports.inputs}
           outputs={ports.outputs}
           heardBy="the Muse"
+          preset={DEFAULT_PRESET}
           selected={output.key}
           onchange={(book) => (settings.book = book)}
           onselect={(key) => (chosen = key)}
@@ -145,25 +131,6 @@
           onremove={() => (settings.book = removeOutput(settings.book, output.key))}
           {...ontest && connected ? { ontest: () => ontest(output.key, used[0] ?? 1) } : {}}
         />
-        {#if drums && output.id !== 'none'}
-          <details class="notes">
-            <summary>Drum notes by sound</summary>
-            <div class="chs">
-              {#each DRUM_SOUNDS as sound (sound)}
-                <label>
-                  {LABELS[sound]}
-                  <input
-                    type="number"
-                    min="0"
-                    max="127"
-                    value={notes[sound]}
-                    onchange={(e) => setDrumNote(sound, e.currentTarget.value)}
-                  />
-                </label>
-              {/each}
-            </div>
-          </details>
-        {/if}
       </div>
     </div>
   </Group>
@@ -213,18 +180,6 @@
   .patch {
     padding: 8px 4px 4px;
   }
-  .notes {
-    padding: 0 14px 12px;
-  }
-  .notes summary {
-    min-height: 34px;
-    display: flex;
-    align-items: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--muted);
-    cursor: pointer;
-  }
   label {
     display: grid;
     gap: 2px;
@@ -234,20 +189,5 @@
     display: flex;
     align-items: center;
     gap: 6px;
-  }
-  input[type='number'] {
-    font: inherit;
-    color: var(--ink);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    min-height: 34px;
-    width: 64px;
-    padding: 0 8px;
-  }
-  .chs {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-    gap: 6px 10px;
   }
 </style>

@@ -77,25 +77,52 @@ describe('SoundPanel', () => {
     expect(synth.queryByRole('table')).toBeNull();
   });
 
-  it('patches the five parts and the keys, then each input with its Heard switch, then the clock', () => {
+  it('patches the clock, the five parts with the drum sounds, the keys, then each input with what it plays', () => {
     panel();
     const rows = within(screen.getByRole('table'))
       .getAllByRole('rowheader')
       .map((h) => h.querySelector('.label')?.textContent);
-    expect(rows).toEqual(['Lead', 'Bass', 'Pad', 'Stab', 'Drums', 'Keys', 'KeyStep', 'Clock']);
+    expect(rows).toEqual([
+      'Clock',
+      'Lead',
+      'Bass',
+      'Pad',
+      'Stab',
+      'Drums',
+      'Kick',
+      'Rim',
+      'Snare',
+      'Clap',
+      'Closed hat',
+      'Pedal hat',
+      'Open hat',
+      'Ride',
+      'Keys',
+      'KeyStep',
+    ]);
     expect(jack('Lead', 'No device')).toHaveAccessibleName('Lead to No device: channel 1');
     expect(jack('Drums', 'No device')).toHaveAccessibleName('Drums to No device: channel 10');
     expect(jack('Keys', 'No device')).toHaveAccessibleName('Keys to No device: not sent');
-    expect(screen.getByRole('button', { name: 'Not heard' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    expect(
+      screen.getByRole('combobox', { name: 'What KeyStep plays, heard by the Muse' }),
+    ).toHaveValue('none');
   });
 
-  it('hears an input by its switch, which the Muse listens to, as a custom variant of the setup', async () => {
+  it('sets what an input plays, which the Muse hears, as a custom variant of the setup (yggi/webmidi#43)', async () => {
     const { settings } = panel();
-    await fireEvent.click(screen.getByRole('button', { name: 'Not heard' }));
-    expect(settings.setup.heard).toEqual([PORTS.inputs[0]]);
+    const plays = screen.getByRole('combobox', { name: 'What KeyStep plays, heard by the Muse' });
+    expect([...(plays as HTMLSelectElement).options].map((o) => o.textContent)).toEqual([
+      'Not heard',
+      'Plays the default',
+      'Plays Lead',
+      'Plays Bass',
+      'Plays Pad',
+      'Plays Stab',
+      'Plays Drums',
+      'Plays Keys',
+    ]);
+    await fireEvent.change(plays, { target: { value: 'drums' } });
+    expect(settings.setup.plays).toEqual({ 'in:KeyStep': { row: 'drums', role: 'drums' } });
     expect(settings.setup.name).toBe('Jambot - custom');
     expect(screen.getByRole('button', { name: 'Save…' })).toBeEnabled();
   });
@@ -128,10 +155,11 @@ describe('SoundPanel', () => {
     expect(settings.book.devices.Synth!.latency).toBe(9);
   });
 
-  it('edits the drum notes by sound, clamped to 0–127, the map then a custom one', async () => {
+  it('edits a drum sound’s note on an output in the patch, clamped to 0–127, the map then a custom one (yggi/webmidi#36)', async () => {
     const { settings } = panel({ settings: onSynth() });
-    expect(screen.getByLabelText('Kick')).toHaveValue(36);
-    await fireEvent.change(screen.getByLabelText('Kick'), { target: { value: '200' } });
+    const kick = screen.getByLabelText(/^Kick on Synth/);
+    expect(kick).toHaveValue(36);
+    await fireEvent.change(kick, { target: { value: '200' } });
     expect(settings.book.devices.Synth!.drums[36]).toBe(127);
     expect(screen.getByLabelText(/Drum map/)).toHaveValue('Custom');
   });
@@ -140,7 +168,7 @@ describe('SoundPanel', () => {
     const settings = onSynth();
     settings.book = withCrossing(settings.book, BAND, 'drums', 'o1', undefined);
     panel({ settings });
-    expect(screen.queryByLabelText('Kick')).toBeNull();
+    expect(screen.queryByLabelText(/^Kick on/)).toBeNull();
     expect(screen.queryByLabelText(/Drum map/)).toBeNull();
   });
 
