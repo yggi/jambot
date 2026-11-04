@@ -31,11 +31,12 @@
  * transport's time maps (`swing.ts`, `tempo.ts`). These are the
  * prototype's accents and gates.
  *
- * A note as a cells text states it is played by the same hand
- * (`performStated`, #405): on top of the level and length the text states.
- * That hand is the family's feel contract (yggi/music-commons
- * `contracts/feel`, version 1), whose rule a frontend implements to play a
- * session as its host does; `contracts.test.ts` runs its vectors (#474).
+ * This hand is the family's feel contract (yggi/music-commons
+ * `contracts/feel`, version 1), whose rule cells' default performer plays
+ * (`played`, yggi/cells v0.15.0), lifted from here. A note a cells text
+ * states is played by cells' (`performCells`, `@jambot/score`, #552), and
+ * `packages/score/src/perform.test.ts` holds that the two play every note
+ * alike.
  *
  * A drum hit's role and a lead note's written accent pass through onto the
  * dough note unchanged, for whatever reads a performer's notes (L7);
@@ -44,14 +45,7 @@
  */
 
 import type { BarEnv } from './bar.ts';
-import {
-  type DoughNote,
-  type DrumRole,
-  PARTS,
-  type Part,
-  type VoiceSound,
-  type WrittenNote,
-} from './events.ts';
+import { type DoughNote, PARTS, type Part, type WrittenNote } from './events.ts';
 import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
 import { feelOf } from './licence.ts';
 import { draw, type Stream } from './random.ts';
@@ -241,46 +235,4 @@ export function perform(env: BarEnv, written: WrittenNote): DoughNote {
     ),
     ...(written.accent !== undefined && { accent: written.accent }),
   };
-}
-
-/**
- * A note as a cells text states it and cells plays it (#399): its line, step
- * and pitch, a drum hit's role, its velocity at feel 0 as MIDI states it
- * (its composed level rounded and clamped), and its sounding length at feel
- * 0, in steps.
- */
-export interface StatedNote {
-  readonly part: Part;
-  readonly step: number;
-  readonly note: number;
-  readonly role?: DrumRole;
-  readonly velocity: number;
-  readonly length: number;
-  /** Its voice's own sound, where the text gives it one (`VoiceSound`): it rides on the note in place of the style's colour. */
-  readonly sound?: VoiceSound;
-}
-
-/**
- * A stated note as the performer plays it (#405; cells decision 037: the
- * text holds what is composed, the playing is the player's): the
- * performer's own hand on top of what cells plays, from the same feel and
- * draws as `perform`. Its velocity is the licence and the own accent on the
- * level stated, with the fraction MIDI's rounding took from it given back
- * from the bar's base (the lead's base and a motif's level are whole, so
- * only a part's base has one), and its length is the length licence on the
- * length cells sounds, so it plays as `perform` plays the note written,
- * since the composed level lies within MIDI's 1 to 127 (`composedLevel`).
- * A written accent is in the level stated, and not carried apart.
- */
-export function performStated(env: BarEnv, stated: StatedNote): DoughNote {
-  const feel = feelOf(env.style, env.swing);
-  const base = baseVelocityOf(env, { ...stated, length: 1 });
-  const level = stated.velocity + (base - Math.round(base));
-  const note = played(
-    env,
-    stated,
-    velocityOn(env, stated, level, feel),
-    stated.length * gateOf(env, stated, feel),
-  );
-  return stated.sound ? { ...note, sound: stated.sound } : note;
 }
