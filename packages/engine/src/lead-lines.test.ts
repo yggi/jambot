@@ -94,7 +94,7 @@ describe('a lead line as cells text, and read back (#424)', () => {
 
 const FILING: LeadFiling = {
   notes: PLAIN,
-  bench: { meter: METERS['4/4'], meterFragment: '4/4' },
+  bench: { meter: METERS['4/4'], meterFragment: 'meter_4_4' },
   point: { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5 },
   source: 'Ada',
   created: 'song 1, bar 0',
@@ -265,7 +265,7 @@ describe('a lead line in cells’ call and answer (#520, rung 2)', () => {
     LEAD_REPOSITORY.read('diesIrae', METERS[name], EMPTY_LAYER)!.notes;
 
   it('names cells’ call and answer as the lead’s form', () => {
-    expect(LEAD_FORM.id).toBe('call and answer');
+    expect(LEAD_FORM.id).toBe('call_and_answer');
   });
 
   it('reads the call, then its answer two degrees down, over two bars of 4/4 and of 5/4', () => {

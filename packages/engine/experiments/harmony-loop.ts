@@ -102,8 +102,8 @@ export function cost(layer: LearnedLayer) {
         composedHarmony(HARMONY_REPOSITORY, style, bench, {
           at: { kind: 'B', index: 1, mode: 'aeolian', harm: Math.min(style.harm, VAMP_HARM) },
           draw: k / 4,
-          a: 'tonic vamp',
-          chosen: ['tonic vamp'],
+          a: 'tonic_vamp',
+          chosen: ['tonic_vamp'],
           layer,
           pull: 0.1,
         });

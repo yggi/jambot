@@ -37,7 +37,7 @@ describe('the composer asks the repository for its rhythm while the radio walks 
     for (const b of back)
       expect([b.from, b.to].sort(), JSON.stringify(b)).toEqual([
         '- + -',
-        expect.stringMatching(/^(Spooky|Ghost) drums \+ -$/),
+        expect.stringMatching(/^(spooky|ghost)_drums \+ -$/),
       ]);
     expect([changes.length, sections]).toEqual([150, 8570]);
   });

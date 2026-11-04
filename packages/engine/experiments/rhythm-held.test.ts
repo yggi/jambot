@@ -11,6 +11,7 @@ import {
   heldRuns,
   mostUsedRhythm,
 } from './rhythm-radio.ts';
+import { wordOf } from '@yggi/cells/engine/renamed';
 
 // E40 (#414): E37's runs with each preset held at entropy 0.3, an hour a run: the band as `main` plays it (no layer:
 // with a seed rhythm found, nothing is filed and nothing climbs, so a held preset plays its drum bar every section),
@@ -50,7 +51,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
 
   it('plays each preset’s own drum bar for 10 sections, then the composer’s variation of it, filed in the layer as varying it', () => {
     for (const run of CLIMBING) {
-      const own = `${run.preset} drums`;
+      const own = wordOf(`${run.preset} drums`);
       expect(run.kept.slice(0, 10), `${run.preset} ${run.seed}`).toEqual(
         Array.from({ length: 10 }, () => own),
       );
@@ -78,33 +79,33 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     expect(drumDistance(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0,
       Techno: 0,
-      'Deep house': 0,
+      'Deep house': 0.01,
       Ambient: 0,
       'Lo-fi hip hop': 0,
       Funk: 0.03,
-      'Bossa nova': 0,
+      'Bossa nova': 0.01,
       'Swing jazz': 0.05,
     });
   });
 
-  it('keeps 74 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
+  it('keeps 75 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
     expect(drumOverlap(MAIN, MAIN)).toEqual(
       Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
     );
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
-      'Synth-pop': 0.93,
-      Techno: 0.91,
-      'Deep house': 0.94,
+      'Synth-pop': 0.92,
+      Techno: 0.82,
+      'Deep house': 0.95,
       Ambient: 0.89,
-      'Lo-fi hip hop': 0.95,
-      Funk: 0.74,
+      'Lo-fi hip hop': 0.93,
+      Funk: 0.75,
       'Bossa nova': 0.91,
-      'Swing jazz': 0.84,
+      'Swing jazz': 0.78,
     });
   });
 
-  it(`keeps a layer of at most 3,808 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3808);
+  it(`keeps a layer of at most 3,813 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3813);
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(3);
   });
 });

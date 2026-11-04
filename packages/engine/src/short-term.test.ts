@@ -10,11 +10,11 @@ import { timeConstant } from './fading.ts';
 
 describe('the composer’s short-term memory (#401)', () => {
   it('keeps a fragment kept at one section in mind for the next two, then lets it go', () => {
-    let memory = remembered(NO_SHORT_TERM, ['5/4'], 1);
+    let memory = remembered(NO_SHORT_TERM, ['meter_5_4'], 1);
     const weights: number[] = [];
     for (let section = 1; section <= 4; section++) {
       memory = remembered(memory, []);
-      weights.push(memory.find((m) => m.id === '5/4')?.weight ?? 0);
+      weights.push(memory.find((m) => m.id === 'meter_5_4')?.weight ?? 0);
     }
     expect(weights).toEqual([0.5, 0.25, 0, 0]);
     expect([timeConstant(SHORT_TERM_DECAY), SHORT_TERM_FLOOR]).toEqual([2, 0.25]);

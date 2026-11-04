@@ -237,7 +237,7 @@ describe('what no candidate can say (E32: the gaps)', () => {
       const plan = planOf(
         [
           '&bar scan(1 1 1 1) step=120bpm',
-          '&e31 cycle=31 map=edo',
+          '&e31 map=edo(31)',
           '&key over=&e31 scan(5 5 3 5 5 5 3)',
           `&harm over=&key step=16n ${degrees}`,
           '&v s=sine loop=C4',

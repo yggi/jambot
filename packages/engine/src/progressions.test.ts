@@ -25,7 +25,7 @@ const range = (n: number) => [...Array(n).keys()];
 const NAMES = Object.keys(METERS) as MeterName[];
 
 /**
- * The seeds the composer reads: every one of eight bars. Cells' `dark cadence` (v0.12.0, Spooky's) is four bars a lap,
+ * The seeds the composer reads: every one of eight bars. Cells' `dark_cadence` (v0.12.0, Spooky's) is four bars a lap,
  * so it is no progression the composer takes, and Spooky's harmony is the generator's (the owner's ruling on #517).
  */
 const READ_SEEDS = HARMONY_FRAGMENTS.filter((f) => readProgression(f.text, METERS['4/4']) !== null);
@@ -36,11 +36,11 @@ const VAMP_SEEDS = READ_SEEDS.filter(
 
 describe("cells' harmonies read into a theme's slots (#425)", () => {
   it('reads none of four bars: the dark cadence is no progression the composer takes (#517)', () => {
-    const cadence = HARMONY_FRAGMENTS.find((f) => f.id === 'dark cadence')!;
+    const cadence = HARMONY_FRAGMENTS.find((f) => f.id === 'dark_cadence')!;
     expect(cadence.text).toMatch(/ cycle=4 /);
     expect(readProgression(cadence.text, METERS['4/4'])).toBeNull();
     expect(HARMONY_FRAGMENTS.filter((f) => !READ_SEEDS.includes(f)).map((f) => f.id)).toEqual([
-      'dark cadence',
+      'dark_cadence',
     ]);
   });
 
@@ -48,7 +48,7 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
     // (which seeds cells offers, and to which degree each vamps, is cells' library's, yggi/music-commons#37)
     expect(VAMP_SEEDS.length).toBeGreaterThan(0);
     expect(READ_SEEDS.filter((f) => !VAMP_SEEDS.includes(f)).map((f) => f.id)).toEqual([
-      'haunted progression',
+      'haunted_progression',
     ]);
     for (const f of VAMP_SEEDS) {
       const vamp = vampOf(readProgression(f.text, METERS['4/4'])!);
@@ -167,7 +167,7 @@ describe('a seed vamp plays the chords main’s vamp does (#425)', () => {
 });
 
 describe('the composer’s ask (#425)', () => {
-  const bench = { meter: METERS['4/4'], meterFragment: '4/4' };
+  const bench = { meter: METERS['4/4'], meterFragment: 'meter_4_4' };
 
   it('offers a preset the vamps of its mode in main’s order, and none where main walks the tables', () => {
     const offered = (name: string) => {
@@ -185,25 +185,25 @@ describe('the composer’s ask (#425)', () => {
       );
     };
     expect([...new Set(offered('Techno'))]).toEqual([
-      'tonic vamp',
-      'vamp to the seventh',
-      'vamp to the fourth',
-      'vamp to the sixth',
+      'tonic_vamp',
+      'vamp_to_the_seventh',
+      'vamp_to_the_fourth',
+      'vamp_to_the_sixth',
     ]);
     expect([...new Set(offered('Funk'))]).toEqual([
-      'vamp to the fourth',
-      'tonic vamp',
-      'vamp to the seventh',
+      'vamp_to_the_fourth',
+      'tonic_vamp',
+      'vamp_to_the_seventh',
     ]);
     expect([...new Set(offered('Ambient'))]).toEqual([
-      'vamp to the fourth',
-      'vamp to the fifth',
-      'vamp to the sixth',
+      'vamp_to_the_fourth',
+      'vamp_to_the_fifth',
+      'vamp_to_the_sixth',
     ]);
     // (above VAMP_HARM no vamp fits: Spooky takes the progression placed for it, yggi/cells#409, and the rest walk the tables)
     for (const p of PRESETS.filter((p) => p.style.harm >= VAMP_HARM))
       expect(offered(p.name), p.name).toEqual(
-        range(8).map(() => (p.name === 'Spooky' ? 'haunted progression' : undefined)),
+        range(8).map(() => (p.name === 'Spooky' ? 'haunted_progression' : undefined)),
       );
   });
 
@@ -211,7 +211,7 @@ describe('the composer’s ask (#425)', () => {
     const ambient = PRESETS.find((p) => p.name === 'Ambient')!;
     let layer = EMPTY_LAYER;
     for (let k = 0; k < 10; k++)
-      layer = HARMONY_REPOSITORY.used!(layer, ['vamp to the fifth'], { ...ambient.style });
+      layer = HARMONY_REPOSITORY.used!(layer, ['vamp_to_the_fifth'], { ...ambient.style });
     const ask = (draw: number) =>
       composedHarmony(HARMONY_REPOSITORY, ambient.style, bench, {
         at: { kind: 'A', index: 0, mode: 'ionian', harm: ambient.style.harm },
@@ -221,7 +221,7 @@ describe('the composer’s ask (#425)', () => {
     // (raised to cells' cap, the fifth lies a sixth nearer than its equals: within OFFER)
     expect(OFFER).toBeGreaterThan(1.2);
     expect(new Set(range(3).map((k) => ask(k / 3)))).toEqual(
-      new Set(['vamp to the fourth', 'vamp to the fifth', 'vamp to the sixth']),
+      new Set(['vamp_to_the_fourth', 'vamp_to_the_fifth', 'vamp_to_the_sixth']),
     );
   });
 
@@ -232,9 +232,9 @@ describe('the composer’s ask (#425)', () => {
       composedHarmony(repository, techno.style, bench, {
         at: { kind, index: 0, mode: 'aeolian', harm: 0 },
         draw: 0,
-        a: 'tonic vamp',
+        a: 'tonic_vamp',
       });
-    expect(ask('A')).toBe('tonic vamp');
+    expect(ask('A')).toBe('tonic_vamp');
     expect(ask('B')).toBeUndefined();
     expect(ask('build')).toBeUndefined();
   });

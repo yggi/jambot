@@ -179,7 +179,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
     expect(text).toMatch(/^&leadlineA ~@5 5@3 5@6 8@2$/m);
     expect(text).toMatch(/^&leadLevel map=amp step=16n /m);
     expect(text).toMatch(
-      /^&lead, &leadOut from "lead performer"\(leadLevel=&leadLevel\) &leadline$/m,
+      /^&lead, &leadOut from lead_performer\(leadLevel=&leadLevel\) &leadline$/m,
     );
     expect(text).toMatch(/^&out map=midi &leadOut &bassOut &stabOut ~!6 &drumsOut$/m);
   });
@@ -226,17 +226,17 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 2,886 characters a section, 2,553 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,878 characters a section, 2,546 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 184731,
+      total: 184197,
       meter: 5000,
       key: 1436,
       harmony: 7197,
-      drums: 79965,
-      bass: 32708,
-      comp: 30199,
-      lead: 21345,
+      drums: 79837,
+      bass: 32580,
+      comp: 30029,
+      lead: 21237,
       card: 6881,
     });
     // E33 states every bar alone: its meter, key, harmony, voices, mix and card every bar, and no lead.
@@ -254,21 +254,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2886);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2553);
+    expect(Math.round(e35.total / 64)).toBe(2878);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2546);
     expect(Math.round(e33.total / 64)).toBe(7549);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(66);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [22909, 20232],
-      Techno: [22764, 19635],
-      'Deep house': [27084, 23927],
-      Ambient: [14108, 12675],
-      'Lo-fi hip hop': [24932, 22026],
-      Funk: [26551, 24307],
-      'Bossa nova': [25314, 22648],
-      'Swing jazz': [21069, 17936],
+      'Synth-pop': [22845, 20182],
+      Techno: [22702, 19587],
+      'Deep house': [27018, 23875],
+      Ambient: [14050, 12627],
+      'Lo-fi hip hop': [24860, 21968],
+      Funk: [26487, 24257],
+      'Bossa nova': [25240, 22588],
+      'Swing jazz': [20995, 17876],
     });
   });
 

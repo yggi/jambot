@@ -22,8 +22,8 @@ import type { MemoryView } from './hud.ts';
 const section = (index: number, over: Partial<TakenSection> = {}): TakenSection => ({
   index,
   section: 'Groove',
-  meter: '4/4 swung on 8n',
-  rhythm: 'Lo-fi hip hop drums',
+  meter: 'meter_4_4_swung_on_8n',
+  rhythm: 'lo_fi_hip_hop_drums',
   clave: null,
   ...over,
 });
@@ -108,11 +108,11 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
   it('counts the sections that took each fragment, its role in them, and marks those the section heard plays', () => {
     const log = [
       section(0),
-      section(1, { clave: 'bossa nova clave' }),
+      section(1, { clave: 'bossa_nova_clave' }),
       section(2, { meter: '3/4' }),
     ];
     const all = rows({ log });
-    expect(byName(all, 'Lo-fi hip hop drums')).toMatchObject({
+    expect(byName(all, 'lo_fi_hip_hop_drums')).toMatchObject({
       role: 'rhythm',
       retrieved: true,
       filed: false,
@@ -121,25 +121,25 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
       playing: true,
       source: 'seed',
     });
-    expect(byName(all, '4/4 swung on 8n')).toMatchObject({
+    expect(byName(all, 'meter_4_4_swung_on_8n')).toMatchObject({
       role: 'meter',
       sections: 2,
       playing: false,
     });
     expect(byName(all, '3/4')).toMatchObject({ role: 'meter', sections: 1, playing: true });
-    expect(byName(all, 'bossa nova clave')).toMatchObject({ role: 'clave', sections: 1 });
+    expect(byName(all, 'bossa_nova_clave')).toMatchObject({ role: 'clave', sections: 1 });
     // the latest taken first, then the most played, then as a section names them: meter, rhythm, clave
     expect(all.map((r) => r.name)).toEqual([
-      'Lo-fi hip hop drums',
+      'lo_fi_hip_hop_drums',
       '3/4',
-      '4/4 swung on 8n',
-      'bossa nova clave',
+      'meter_4_4_swung_on_8n',
+      'bossa_nova_clave',
     ]);
   });
 
   it("reads a seed fragment's text and the point it is found at from cells' seed", () => {
-    const seed = SEED_FRAGMENTS.find((f) => f.id === 'Lo-fi hip hop drums')!;
-    const row = byName(rows({ log: [section(0)] }), 'Lo-fi hip hop drums');
+    const seed = SEED_FRAGMENTS.find((f) => f.id === 'lo_fi_hip_hop_drums')!;
+    const row = byName(rows({ log: [section(0)] }), 'lo_fi_hip_hop_drums');
     expect(row.text).toBe(seed.text);
     expect(row.point).toEqual(
       ['sync', 'harm', 'artic', 'energy'].map((axis) => ({
@@ -228,17 +228,17 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
 
   it('lists what each fragment was used together with, the most first', () => {
     const together = [
-      { ids: ['4/4 swung on 8n', 'Lo-fi hip hop drums'] as const, count: 4 },
-      { ids: ['Lo-fi hip hop drums', 'bossa nova clave'] as const, count: 6 },
-      { ids: ['3/4', 'Funk drums'] as const, count: 2 },
+      { ids: ['meter_4_4_swung_on_8n', 'lo_fi_hip_hop_drums'] as const, count: 4 },
+      { ids: ['lo_fi_hip_hop_drums', 'bossa_nova_clave'] as const, count: 6 },
+      { ids: ['3/4', 'funk_drums'] as const, count: 2 },
     ];
     const row = byName(
       rows({ layer: layer({ together }), log: [section(0)] }),
-      'Lo-fi hip hop drums',
+      'lo_fi_hip_hop_drums',
     );
     expect(row.together).toEqual([
-      { id: 'bossa nova clave', count: 6 },
-      { id: '4/4 swung on 8n', count: 4 },
+      { id: 'bossa_nova_clave', count: 6 },
+      { id: 'meter_4_4_swung_on_8n', count: 4 },
     ]);
   });
 
@@ -271,7 +271,7 @@ describe('the filters', () => {
       shownRows(all, filter).map((r) => r.name);
     expect(names('all')).toHaveLength(all.length);
     expect(names('filed')).toEqual(['drummer song 1, bar 8', 'Ada song 1, bar 16']);
-    expect(names('retrieved')).toEqual(['4/4 swung on 8n', 'drummer song 1, bar 8']);
+    expect(names('retrieved')).toEqual(['meter_4_4_swung_on_8n', 'drummer song 1, bar 8']);
     expect(names('muse')).toEqual(['Ada song 1, bar 16', "Ada's keys, bar 12"]);
   });
 

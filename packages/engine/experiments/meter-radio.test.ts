@@ -91,9 +91,9 @@ describe('the band learns the meters it keeps while the radio walks (E34, #398)'
     expect(LEARNED.reduce((n, r) => n + r.missed, 0)).toBe(16);
   });
 
-  it(`keeps a layer of at most 725 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+  it(`keeps a layer of at most 761 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
     const bytes = learnedBytes(LEARNED);
-    expect(Math.max(...bytes)).toBe(725);
+    expect(Math.max(...bytes)).toBe(761);
     expect(Math.max(...LEARNED.map((r) => r.layer!.points.length))).toBe(6);
   });
 });

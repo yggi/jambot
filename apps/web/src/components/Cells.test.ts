@@ -10,7 +10,7 @@ const bar = (sectionIndex: number, fragments: Partial<BarView['fragments']> = {}
     bar: sectionIndex * 8,
     sectionIndex,
     section: 'Groove',
-    fragments: { meter: '4/4', rhythm: 'Funk drums', clave: null, ...fragments },
+    fragments: { meter: '4/4', rhythm: 'funk_drums', clave: null, ...fragments },
   }) as BarView;
 
 const layer: LearnedLayer = {
@@ -51,13 +51,13 @@ describe('the cells card', () => {
   it('logs each section heard, once, and counts the sections that took each fragment', async () => {
     const card = render(Cells, props({ bar: bar(0) }));
     await card.rerender(props({ bar: { ...bar(0), bar: 1 } }));
-    await card.rerender(props({ bar: bar(1, { rhythm: 'Techno drums' }) }));
-    expect(names()).toEqual(['4/4', 'Techno drums', 'Funk drums']);
+    await card.rerender(props({ bar: bar(1, { rhythm: 'techno_drums' }) }));
+    expect(names()).toEqual(['4/4', 'techno_drums', 'funk_drums']);
     const row = (name: string) => screen.getByRole('button', { name }).closest('tr')!;
     expect(row('4/4')).toHaveTextContent('§1');
     expect(within(row('4/4')).getAllByRole('cell')[4]).toHaveTextContent('2');
-    expect(within(row('Funk drums')).getAllByRole('cell')[4]).toHaveTextContent('1');
-    expect(row('Techno drums')).toHaveTextContent('playing');
+    expect(within(row('funk_drums')).getAllByRole('cell')[4]).toHaveTextContent('1');
+    expect(row('techno_drums')).toHaveTextContent('playing');
     expect(card.container.querySelector('summary .sub')).toHaveTextContent(
       '0 filed · 3 retrieved · 0 from the Muse',
     );
@@ -65,7 +65,7 @@ describe('the cells card', () => {
 
   it('filters the table by where a fragment has been', async () => {
     render(Cells, props({ bar: bar(0), layer }));
-    expect(names()).toEqual(['4/4', 'Funk drums', 'drummer song 1, bar 8']);
+    expect(names()).toEqual(['4/4', 'funk_drums', 'drummer song 1, bar 8']);
     await fireEvent.click(screen.getByRole('radio', { name: 'Filed' }));
     expect(names()).toEqual(['drummer song 1, bar 8']);
     await fireEvent.click(screen.getByRole('radio', { name: 'Muse' }));

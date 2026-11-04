@@ -25,8 +25,8 @@
  *   scale from its register, C4, over the key where the scale is the key's own,
  *   else over the scale stated as a stack of the key's degrees (`&melo`);
  * - each part's velocities, a line of levels or one level (`&bassLevel`);
- * - each part played by its performer from cells' seed library (`use * from
- *   "bass performer"`, `performerOf`): a gate, `&bassOut`, playing the part's
+ * - each part played by its performer from cells' seed library (`&bass,
+ *   &bassOut from bass_performer(…) &bassline`, `performerOf`): a gate, `&bassOut`, playing the part's
  *   lines (`&bassline`, `&bassLevel`) on its instrument, moved to the part's
  *   register (`PIN_VOICES`), its role the part's (`&bass map=role &bassOut`);
  * - the instrument each performer plays at the section's style, where it
@@ -355,7 +355,7 @@ export type PitchedName = 'bass' | 'pad' | 'stab' | 'lead';
  * holes (`&bassline`, `&bassLevel`; the drummer's `&drumlines`) on its instrument, its role the part's (`&bass map=role
  * &bassOut`).
  */
-export const performerOf = (part: PitchedName | 'drums') => `${part} performer`;
+export const performerOf = (part: PitchedName | 'drums') => `${part}_performer`;
 
 /**
  * The line that takes a part's performer from cells' seed library, as cells'
@@ -372,8 +372,8 @@ const styleLine = (style: { sync: number; harm: number; artic: number; energy: n
 
 export const fromPerformer = (part: PitchedName | 'drums') =>
   part === 'drums'
-    ? `&drums, &drumsOut from "${performerOf('drums')}" &drumlines`
-    : `&${part}, &${part}Out from "${performerOf(part)}"(${part}Level=&${part}Level) &${part}line`;
+    ? `&drums, &drumsOut from ${performerOf('drums')} &drumlines`
+    : `&${part}, &${part}Out from ${performerOf(part)}(${part}Level=&${part}Level) &${part}line`;
 
 /** A note as composed or as cells plays it: its part, step in its bar, MIDI note, velocity, written and sounding length in steps. */
 export interface SectionNote {
@@ -872,7 +872,7 @@ export function sectionAsCells(
     steps,
     euclid,
   );
-  // (the drummer plays the 13 voices of the General MIDI kit it takes, every voice the band strikes: cells' `drums performer`, yggi/cells#287, #338)
+  // (the drummer plays the 13 voices of the General MIDI kit it takes, every voice the band strikes: cells' `drums_performer`, yggi/cells#287, #338)
   lines.push(
     ...drums.lines.map((text) => ({ part: 'drums' as const, text })),
     ...(drums.terms.length

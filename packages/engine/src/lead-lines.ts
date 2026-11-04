@@ -238,12 +238,12 @@ export function keyedLine(seeds: readonly Fragment[], id: string, layer?: Learne
 export const LEAD_REPOSITORY: LeadRepository = leadRepository();
 
 /**
- * The form the lead plays a found line in (#520, rung 2): cells' `call and answer`, the call, then the call two degrees
+ * The form the lead plays a found line in (#520, rung 2): cells' `call_and_answer`, the call, then the call two degrees
  * down, the owner's ask (2026-10-29: "jambot should be able to do call and answer, like the electroswing example").
  * Named, not found: cells holds its four forms at the centre of style space and breaks the tie by id, so a query finds
  * AABA everywhere (yggi/cells#371); once each form has a point of its own, the lead asks for one.
  */
-export const LEAD_FORM: Fragment = FORM_FRAGMENTS.find((f) => f.id === 'call and answer')!;
+export const LEAD_FORM: Fragment = FORM_FRAGMENTS.find((f) => f.id === 'call_and_answer')!;
 
 /** A form's head, the line it plays, and its hole, the line it moves and answers: `&phrase` and `&call` for the call and its answer. */
 function formParts(form: Fragment): { readonly head: string; readonly hole: string } | null {

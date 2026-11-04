@@ -40,8 +40,8 @@ describe("cells' mode fragments, as the band reads them", () => {
       { id: 'dorian', read: { id: 'dorian', mode: 'dorian' } },
       { id: 'ionian', read: { id: 'ionian', mode: 'ionian' } },
       { id: 'mixolydian', read: { id: 'mixolydian', mode: 'mixolydian' } },
-      { id: 'bell and scale', read: { id: 'bell and scale', mode: 'ionian' } },
-      { id: 'harmonic minor', read: { id: 'harmonic minor', mode: 'aeolian' } },
+      { id: 'bell_and_scale', read: { id: 'bell_and_scale', mode: 'ionian' } },
+      { id: 'harmonic_minor', read: { id: 'harmonic_minor', mode: 'aeolian' } },
       // (the other three of the seven, cells v0.12.1: yggi/cells#355)
       { id: 'phrygian', read: { id: 'phrygian', mode: 'phrygian' } },
       { id: 'lydian', read: { id: 'lydian', mode: 'lydian' } },

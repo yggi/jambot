@@ -42,8 +42,8 @@
  *   the chord in force is, a lap the key's seven degrees); no cell or
  *   operator is named yet;
  * - each part's velocities, a line of levels or one (`&bassLevel`), and
- *   each part played by its performer from cells' seed library (`use * from
- *   "bass performer"`, decisions 058 and 061, #490): a gate, `&bassOut`, that
+ *   each part played by its performer from cells' seed library (`&bass,
+ *   &bassOut from bass_performer(…) &bassline`, decisions 058 and 061, #490): a gate, `&bassOut`, that
  *   plays the part's lines on its instrument at the part's register;
  * - one MIDI card that sends the gates on Jambot's channels: 1 the lead,
  *   2 the bass, 3 the pad and the stab, 10 the drums.

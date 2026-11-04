@@ -141,7 +141,7 @@ function motifOf(bar: readonly LeadNote[], steps: number): Motif {
 }
 
 /**
- * A lead line as the bars of its phrase (#520, rung 2): played in the repository's form (`call and answer`: the call,
+ * A lead line as the bars of its phrase (#520, rung 2): played in the repository's form (`call_and_answer`: the call,
  * then its answer two degrees down), a motif a bar, each note a degree from the line's
  * first, so the answer keeps its place below the call; the line alone, one bar, where it can't be played in a form;
  * none with no line, or one that can't be read.

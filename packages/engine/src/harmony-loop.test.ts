@@ -91,7 +91,7 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
     for (const r of runs.filter((r) => r.preset.style.harm >= 0.33))
       for (const { plans } of r.loop)
         expect(plans.themeFragments, r.preset.name).toEqual({
-          A: r.preset.name === 'Spooky' ? 'haunted progression' : null,
+          A: r.preset.name === 'Spooky' ? 'haunted_progression' : null,
           B: null,
         });
   });
@@ -225,7 +225,7 @@ describe('the composer plays a progression filed, never varied, and leaves out o
   const point = stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 1 }));
   const seeded = HARMONY_REPOSITORY.file!(EMPTY_LAYER, {
     notes: ADA,
-    bench: { meter: METERS['4/4'], meterFragment: '4/4' },
+    bench: { meter: METERS['4/4'], meterFragment: 'meter_4_4' },
     point,
     source: 'Ada',
     created: 'song 0, bar 0',
@@ -260,7 +260,7 @@ describe('the composer plays a progression filed, never varied, and leaves out o
       index: 0,
     };
     const key = { tonic: 9, mode: 'aeolian' } as const;
-    const bench = { meter: METERS['4/4'], meterFragment: '4/4' };
+    const bench = { meter: METERS['4/4'], meterFragment: 'meter_4_4' };
     const none = { A: null, B: null };
     expect(sectionTheme(env, 'A', key, bench, none, none).fragment).toBe(seeded.id);
     const rejected = sectionTheme(env, 'A', key, bench, none, none, [seeded.id]);

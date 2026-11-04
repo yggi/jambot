@@ -68,8 +68,8 @@ describe('the instruments a section’s performers play, found at its style (#49
 
   /** The instruments cells wrote for two presets' points (yggi/cells#366): elsewhere each performer plays its own. */
   const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
-    'Electro swing': { bass: 'upright bass', lead: 'clarinet', stab: 'brass stab' },
-    Spooky: { bass: 'round bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
+    'Electro swing': { bass: 'upright_bass', lead: 'clarinet', stab: 'brass_stab' },
+    Spooky: { bass: 'round_bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
   };
 
   it.each(PRESETS.map((p) => p.name))(

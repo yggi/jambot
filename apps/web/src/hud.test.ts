@@ -55,11 +55,11 @@ describe('the view model', () => {
     const [first, ...rest] = bars;
     const taken = {
       ...first!,
-      plan: { ...first!.plan, meterFragment: '7/8', rhythmFragment: 'Funk drums' },
+      plan: { ...first!.plan, meterFragment: '7/8', rhythmFragment: 'funk_drums' },
     };
     expect(hudOf({ heard: null, bars: [taken, ...rest], track }).bar).toMatchObject({
       sectionIndex: first!.plan.section.index,
-      fragments: { meter: '7/8', rhythm: 'Funk drums', clave: null },
+      fragments: { meter: '7/8', rhythm: 'funk_drums', clave: null },
     });
     expect(hudOf({ heard: null, bars, track }).bar!.fragments).toEqual({
       meter: first!.plan.meterFragment ?? null,

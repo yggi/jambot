@@ -14,19 +14,19 @@ const LEARNED: LearnedLayer = {
   filed: [],
   points: [
     {
-      id: '4/4 leaning on 16n',
+      id: 'meter_4_4_leaning_on_16n',
       point: { sync: 0.5, harm: 0.75, artic: 0.35, energy: 0.5 },
       weight: 1.2,
       facet: 'meter',
     },
     {
-      id: '5/4',
+      id: 'meter_5_4',
       point: { sync: 0.3, harm: 0.4, artic: 0.6, energy: 0.45 },
       weight: 1.1,
       facet: 'meter',
     },
   ],
-  together: [{ ids: ['4/4', '5/4'], count: 3 }],
+  together: [{ ids: ['meter_4_4', 'meter_5_4'], count: 3 }],
 };
 
 /** A slot in memory, with every warning a store gave. */
@@ -54,6 +54,21 @@ describe('the learned layer a host keeps (#398)', () => {
     await again.store.save(loaded);
     expect(again.kept.text).toBe(written);
     expect(again.warnings).toEqual([]);
+  });
+
+  it('reads a layer kept at cells v0.15.0, which names the seed ids before they were words, as the same layer in words (#558)', () => {
+    const before: LearnedLayer = {
+      filed: [],
+      points: [
+        { ...LEARNED.points[0]!, id: '4/4 leaning on 16n' },
+        { ...LEARNED.points[1]!, id: '5/4' },
+      ],
+      together: [{ ids: ['4/4', '5/4'], count: 3 }],
+    };
+    const read = readLayerText(layerText(before));
+    expect(read.problem).toBeNull();
+    // (the same points and pairs, none left out as unheld)
+    expect(read.layer).toEqual(LEARNED);
   });
 
   it('loads nothing kept as the empty layer, without a warning', async () => {
@@ -93,7 +108,7 @@ describe('the learned layer a host keeps (#398)', () => {
           filed: [
             {
               fragment: {
-                id: '4/4',
+                id: 'meter_4_4',
                 text: '&bar meter("4/4")',
                 association: [{ point: { sync: 0.5 }, weight: 0.1 }],
               },
@@ -103,7 +118,7 @@ describe('the learned layer a host keeps (#398)', () => {
           ],
         },
       }),
-      "the layer files 4/4, a seed fragment's id",
+      "the layer files meter_4_4, a seed fragment's id",
     ],
   ])('loads %s as the empty layer, with one warning that says why', async (_, text, why) => {
     const { store, warnings } = slot(text);
