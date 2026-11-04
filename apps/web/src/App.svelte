@@ -183,13 +183,13 @@
    * timing test, taps timed by the message's own timestamp.
    */
   const connectMidi = () =>
-    device.connect((note, source) =>
+    device.connect((note, source, part) =>
       extra === 'timing'
         ? testing.midi(note, source, note.timeStamp)
-        : instruments.onMidiNote(note, source),
+        : instruments.onMidiNote(note, source, part),
     );
 
-  // A port chosen before is remembered (`MidiSettings`); reconnect to it without
+  // A port chosen before is remembered (`MidiSettings`, the setup in use); reconnect to it without
   // waiting for a click, since a granted Web MIDI permission needs no gesture.
   if (device.remembersPorts) void connectMidi();
 
@@ -368,12 +368,14 @@
   >
     <SoundPanel
       settings={device.settings}
-      access={device.access}
+      connected={device.access !== null}
+      connecting={device.connecting}
       ports={device.ports}
       message={device.message}
       onconnect={connectMidi}
       onrefresh={() => device.refresh()}
       onpanic={() => player.panicMidi()}
+      ontest={(key, channel) => device.testNote(key, channel)}
     />
   </Card>
 {/snippet}

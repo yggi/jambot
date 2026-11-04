@@ -270,4 +270,32 @@ describe('MidiOut', () => {
     midi.play('lead', 60, 100, 0, 1, negative);
     expect(sent[0]!.timestamp).toBe(0);
   });
+
+  it('sends nothing for a part not routed to it, and silences only the channels in use', () => {
+    const midi = new MidiOut({ lead: 5 });
+    const { port, sent } = fakePort();
+    midi.setPort(port, 0, toDeviceMs);
+    for (const part of PARTS) midi.play(part, 60, 100, 0, 1, toDeviceMs);
+    expect(sent).toEqual([{ data: [NOTE_ON | 4, 60, 100], timestamp: 0 }]);
+    midi.panic(1, toDeviceMs);
+    expect(allNotesOffChannels(sent)).toEqual(new Set([4]));
+  });
+
+  it('sends every message its latency earlier, the clock too, and 0 changes nothing', () => {
+    const play = (latency?: number) => {
+      const midi = new MidiOut(DEFAULT_CHANNELS, true);
+      const { port, sent } = fakePort();
+      if (latency !== undefined) midi.setLatency(latency);
+      midi.setPort(port, 0, toDeviceMs);
+      midi.start(1, toDeviceMs);
+      midi.play('bass', 43, 100, 1, 0.5, toDeviceMs);
+      midi.clockTick(1.25, toDeviceMs);
+      midi.advance(2, toDeviceMs);
+      midi.stop(2, toDeviceMs);
+      return sent;
+    };
+    const plain = play();
+    expect(play(0)).toEqual(plain);
+    expect(play(12)).toEqual(plain.map((m) => ({ ...m, timestamp: m.timestamp - 12 })));
+  });
 });

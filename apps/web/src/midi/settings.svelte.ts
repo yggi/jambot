@@ -1,63 +1,52 @@
 /**
- * MIDI preferences, saved to `localStorage` on every change so a reload
- * remembers them: the prototype's `jambot-proto-v2`, under a name of its
- * own since the shape has moved.
+ * What this device remembers of how it sounds, saved on every change so a
+ * reload keeps it: whether the built-in synth plays (`internal`, Jambot's
+ * own), and the MIDI setups, webmidi's book (yggi/webmidi decision 002):
+ * device profiles kept by port name (drum map, bend, latency), named setups
+ * with their outputs, the inputs heard, the routes of the context `band`
+ * (`midi/patch.ts`) and the clock row.
  *
- * Whether a port is actually reachable is Web MIDI's to say (`Device`
- * adopts `outPortId`/`inPortId` through webmidi once connected); this class
- * only remembers what was chosen.
+ * The book is kept under `BOOK_KEY` (webmidi's `localBookStore`). A first
+ * load with nothing kept there migrates the store from before the book
+ * (`LEGACY_KEY`, read as it was, with its own migration of drum notes by
+ * sound) through webmidi's `fromJambot`, once; a first visit gets the same
+ * from the defaults, the five parts on their channels to one output with no
+ * device. That store kept its ports by id alone, so the book names them once
+ * the ports are seen (`name`, `nameByPorts`).
  *
- * The drum notes are kept as webmidi keeps them, a `DrumMap` keyed by the
- * General MIDI note the engine writes (`drumMap`). A save from before keyed
- * them by Jambot's drum sounds (`drumNotes`): it is read into a map that
- * sends every sound as it did, and written back in the new form.
+ * Whether a port is reachable is Web MIDI's to say (`Device` resolves each
+ * output once connected); this class only remembers what was chosen.
  */
 
-import { DRUM_NOTES, type DrumSound } from '@jambot/engine';
-import { DRUM_PRESETS, type DrumMap, deviceNote } from '@yggi/webmidi/core';
+import {
+  type BookStore,
+  type DrumMap,
+  type PortOption,
+  type Setup,
+  type SetupBook,
+  activeSetup,
+  fromJambot,
+  loadBook,
+} from '@yggi/webmidi/core';
+import { localBookStore } from '@yggi/webmidi/web';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_DRUM_NOTES,
   type Channels,
   type DrumNotes,
-  type MidiPort,
 } from '../audio/midi-out.ts';
+import { drumMapOf } from './drums.ts';
+import { nameByPorts } from './patch.ts';
 
-const STORAGE_KEY = 'jambot-midi-v1';
+/** Where the book of setups is kept. */
+export const BOOK_KEY = 'jambot:midi-setups';
+/** Whether the built-in synth plays: Jambot's own, beside the book. */
+export const SYNTH_KEY = 'jambot:synth';
+/** The store from before the book, read once to migrate it, and left as it was. */
+export const LEGACY_KEY = 'jambot-midi-v1';
 
-const DRUM_SOUNDS = Object.keys(DRUM_NOTES) as readonly DrumSound[];
-
-/** The note each drum sound goes out as under a map: what `MidiOut` takes, until note out is webmidi's too. */
-export const drumNotesOf = (map: DrumMap): DrumNotes =>
-  Object.fromEntries(
-    DRUM_SOUNDS.map((sound) => [sound, deviceNote(map, DRUM_NOTES[sound])]),
-  ) as DrumNotes;
-
-/** The sounds `notes` names: all of them, but a save from before the clap (#508) names no clap. */
-const soundsIn = (notes: Partial<DrumNotes>) => DRUM_SOUNDS.filter((s) => notes[s] !== undefined);
-
-const sameNotes = (a: DrumNotes, b: Partial<DrumNotes>) => soundsIn(b).every((s) => a[s] === b[s]);
-
-/**
- * A map that sends each drum sound as `notes` says: the preset that does, so
- * it is still named as one (a Circuit's map also places sounds Jambot never
- * plays), else `base` with each sound's General MIDI note sent as given. A
- * sound `notes` doesn't name goes out as the map sends it.
- */
-export function drumMapOf(notes: Partial<DrumNotes>, base: DrumMap = {}): DrumMap {
-  const preset = Object.values(DRUM_PRESETS).find((map) => sameNotes(drumNotesOf(map), notes));
-  if (preset) return { ...preset };
-  const map: Record<number, number> = { ...base };
-  for (const sound of soundsIn(notes)) {
-    const gm = DRUM_NOTES[sound];
-    const note = notes[sound]!;
-    if (note === gm) delete map[gm];
-    else map[gm] = note;
-  }
-  return map;
-}
-
-interface StoredPrefs {
+/** The store from before the book, as its own load read it. */
+export interface LegacyPrefs {
   readonly internal: boolean;
   readonly channels: Channels;
   readonly drumMap: DrumMap;
@@ -68,13 +57,8 @@ interface StoredPrefs {
   readonly inPortId: string;
 }
 
-/** What a save from before the drum map held in its place: one note per drum sound. */
-interface LegacyPrefs {
-  readonly drumNotes?: Partial<DrumNotes>;
-}
-
-/** No MIDI out or in, the built-in synth on, as a fresh install opens. */
-const DEFAULTS: StoredPrefs = {
+/** No MIDI out or in, the built-in synth on, as a fresh install opened. */
+export const LEGACY_DEFAULTS: LegacyPrefs = {
   internal: true,
   channels: DEFAULT_CHANNELS,
   // General MIDI: every note goes out as it is (webmidi's 'GM').
@@ -98,148 +82,101 @@ function readDrumMap(stored: unknown): DrumMap {
 }
 
 /** The sounds a save by sound named, filled in where one is missing: all but the clap, which joined later (#508). */
-const LEGACY_DEFAULTS: Partial<DrumNotes> = Object.fromEntries(
+const BY_SOUND_DEFAULTS: Partial<DrumNotes> = Object.fromEntries(
   Object.entries(DEFAULT_DRUM_NOTES).filter(([sound]) => sound !== 'clap'),
 );
 
-/** The saved preferences, and whether they were saved in the old form and are to be written in the new. */
-function load(): { prefs: StoredPrefs; migrated: boolean } {
+/**
+ * The store from before the book, as its load read it, or null when nothing
+ * (or junk) is kept: a partial save filled from the defaults, and a save of
+ * drum notes by sound (`drumNotes`) read into the map that sends every sound
+ * as it did.
+ */
+export function readLegacy(): LegacyPrefs | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { prefs: DEFAULTS, migrated: false };
-    const { drumNotes, ...stored } = JSON.parse(raw) as Partial<StoredPrefs> & LegacyPrefs;
-    const migrated = stored.drumMap === undefined && drumNotes !== undefined;
+    const raw = localStorage.getItem(LEGACY_KEY);
+    if (!raw) return null;
+    const { drumNotes, ...stored } = JSON.parse(raw) as Partial<LegacyPrefs> & {
+      drumNotes?: Partial<DrumNotes>;
+    };
+    const bySound = stored.drumMap === undefined && drumNotes !== undefined;
     return {
-      prefs: {
-        ...DEFAULTS,
-        ...stored,
-        channels: { ...DEFAULTS.channels, ...stored.channels },
-        drumMap: migrated
-          ? drumMapOf({ ...LEGACY_DEFAULTS, ...drumNotes })
-          : readDrumMap(stored.drumMap ?? DEFAULTS.drumMap),
-      },
-      migrated,
+      ...LEGACY_DEFAULTS,
+      ...stored,
+      channels: { ...LEGACY_DEFAULTS.channels, ...stored.channels },
+      drumMap: bySound
+        ? drumMapOf({ ...BY_SOUND_DEFAULTS, ...drumNotes })
+        : readDrumMap(stored.drumMap ?? LEGACY_DEFAULTS.drumMap),
     };
   } catch {
-    return { prefs: DEFAULTS, migrated: false };
+    return null;
   }
+}
+
+const NO_PORTS = { inputs: [], outputs: [] } as const;
+
+function readSynth(): boolean | null {
+  try {
+    const kept = localStorage.getItem(SYNTH_KEY);
+    return kept === 'true' ? true : kept === 'false' ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface MidiSettingsOptions {
+  /** Where the book is kept: `localStorage` under `BOOK_KEY` by default. */
+  readonly store?: BookStore;
+  /** Called after every change of the book, as the device listens to the inputs it names. */
+  readonly onchange?: () => void;
 }
 
 export class MidiSettings {
   #internal = $state(true);
-  #channels: Channels = $state.raw(DEFAULT_CHANNELS);
-  #drumMap: DrumMap = $state.raw(DEFAULTS.drumMap);
-  #drumNotes: DrumNotes = $derived(drumNotesOf(this.#drumMap));
-  #clock = $state(false);
-  #thru = $state(false);
-  #thruChannel = $state(1);
-  #outPortId = $state('none');
-  #inPortId = $state('none');
+  #book: SetupBook = $state.raw(fromJambot(LEGACY_DEFAULTS, NO_PORTS));
+  #setup: Setup = $derived(activeSetup(this.#book));
+  readonly #store: BookStore;
+  readonly #changed: () => void;
 
-  /** The output port `outPortId` currently resolves to, once Web MIDI is connected. */
-  outPort: MidiPort | null = $state.raw(null);
-
-  constructor() {
-    const { prefs: stored, migrated } = load();
-    this.#internal = stored.internal;
-    this.#channels = stored.channels;
-    this.#drumMap = stored.drumMap;
-    this.#clock = stored.clock;
-    this.#thru = stored.thru;
-    this.#thruChannel = stored.thruChannel;
-    this.#outPortId = stored.outPortId;
-    this.#inPortId = stored.inPortId;
-    if (migrated) this.#save();
+  constructor({ store = localBookStore(BOOK_KEY), onchange = () => {} }: MidiSettingsOptions = {}) {
+    this.#store = store;
+    this.#changed = onchange;
+    const legacy = readLegacy();
+    this.#internal = readSynth() ?? legacy?.internal ?? true;
+    this.#book = loadBook(store, () => fromJambot(legacy ?? LEGACY_DEFAULTS, NO_PORTS));
   }
 
+  /** Whether the built-in synth plays. */
   get internal(): boolean {
     return this.#internal;
   }
   set internal(value: boolean) {
     this.#internal = value;
-    this.#save();
-  }
-
-  get channels(): Channels {
-    return this.#channels;
-  }
-  set channels(value: Channels) {
-    this.#channels = value;
-    this.#save();
-  }
-
-  /** The drum notes as webmidi keeps them: a General MIDI note to the note it goes out as. */
-  get drumMap(): DrumMap {
-    return this.#drumMap;
-  }
-  set drumMap(value: DrumMap) {
-    this.#drumMap = value;
-    this.#save();
-  }
-
-  /** The note each drum sound goes out as, a view of `drumMap`; set, it changes the map to match (`drumMapOf`). */
-  get drumNotes(): DrumNotes {
-    return this.#drumNotes;
-  }
-  set drumNotes(value: Partial<DrumNotes>) {
-    this.drumMap = drumMapOf(value, this.#drumMap);
-  }
-
-  get clock(): boolean {
-    return this.#clock;
-  }
-  set clock(value: boolean) {
-    this.#clock = value;
-    this.#save();
-  }
-
-  get thru(): boolean {
-    return this.#thru;
-  }
-  set thru(value: boolean) {
-    this.#thru = value;
-    this.#save();
-  }
-
-  get thruChannel(): number {
-    return this.#thruChannel;
-  }
-  set thruChannel(value: number) {
-    this.#thruChannel = value;
-    this.#save();
-  }
-
-  get outPortId(): string {
-    return this.#outPortId;
-  }
-  set outPortId(value: string) {
-    this.#outPortId = value;
-    this.#save();
-  }
-
-  get inPortId(): string {
-    return this.#inPortId;
-  }
-  set inPortId(value: string) {
-    this.#inPortId = value;
-    this.#save();
-  }
-
-  #save() {
-    const stored: StoredPrefs = {
-      internal: this.#internal,
-      channels: this.#channels,
-      drumMap: this.#drumMap,
-      clock: this.#clock,
-      thru: this.#thru,
-      thruChannel: this.#thruChannel,
-      outPortId: this.#outPortId,
-      inPortId: this.#inPortId,
-    };
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+      localStorage.setItem(SYNTH_KEY, String(value));
     } catch {
       // Storage can be unavailable (private browsing, quota); it just won't persist.
     }
+  }
+
+  /** The setups, the one in use and the devices' profiles; a new book is saved at once. */
+  get book(): SetupBook {
+    return this.#book;
+  }
+  set book(value: SetupBook) {
+    this.#book = value;
+    this.#store.save(value);
+    this.#changed();
+  }
+
+  /** The setup in use. */
+  get setup(): Setup {
+    return this.#setup;
+  }
+
+  /** Give the ports kept by id alone their names, now the ports plugged in say them (`nameByPorts`). */
+  name(ports: { readonly inputs: readonly PortOption[]; readonly outputs: readonly PortOption[] }) {
+    const named = nameByPorts(this.#book, ports);
+    if (named !== this.#book) this.book = named;
   }
 }

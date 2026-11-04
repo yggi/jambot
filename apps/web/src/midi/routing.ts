@@ -1,13 +1,12 @@
 /**
  * Where a played note lands: which instrument a MIDI channel plays, and the
- * one route every note takes (the Muse, playing along, thru). Pulled out of
- * `App.svelte` so this wiring has a test that can fail if it breaks. Reading
- * the message and adopting the ports are webmidi's (`@yggi/webmidi`).
+ * one route every note takes (the Muse, playing along, and on to where the
+ * patch passes it). Pulled out of `App.svelte` so this wiring has a test that
+ * can fail if it breaks. Reading the message is webmidi's (`@yggi/webmidi`);
+ * where a note is passed on is the patch's (`patch.ts`, `forwardsOf`).
  */
 
 import type { Part } from '@jambot/engine';
-import { nibble } from '../audio/midi-out.ts';
-import type { MidiPort } from '../audio/midi-out.ts';
 
 /** General MIDI's drum channel, 10, counted from 0 as a status byte's nibble is. */
 export const DRUM_CHANNEL = 9;
@@ -26,9 +25,8 @@ export interface RouteDeps {
   readonly playing: () => boolean;
   /** A `performance.now()`-relative timestamp, as seconds on the player's clock. */
   readonly toOutputSeconds: (performanceMs: number) => number;
-  readonly thru: () => boolean;
-  readonly thruPort: () => MidiPort | null;
-  readonly thruChannel: () => number;
+  /** Pass it on, where the patch sends this instrument's row (the keys'): a MIDI input's is the device's own. */
+  readonly forward?: (note: number, velocity: number, on: boolean) => void;
   /** Heard at once, along with the band, whenever a note is struck. */
   readonly playAlong: (note: number, velocity: number) => void;
   readonly now?: () => number;
@@ -51,8 +49,5 @@ export function routeNote(
     if (on) deps.humanNoteOn(note, velocity, source, seconds);
     else deps.humanNoteOff(note, source, seconds);
   }
-  if (deps.thru()) {
-    const channel = nibble(deps.thruChannel());
-    deps.thruPort()?.send(on ? [0x90 | channel, note, velocity] : [0x80 | channel, note, 0]);
-  }
+  deps.forward?.(note, velocity, on);
 }

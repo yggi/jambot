@@ -1,24 +1,40 @@
 <!--
   The details of the sound card: how this device sounds, in two sections.
-  The built-in synth is one switch (its level is the card's volume). MIDI
-  is the connection, with Refresh to look at the ports again, and All notes
-  off for hardware left sounding, then two parts: the output (the port, the
-  channel each part sends on, the drum notes, the clock) and the input (the
-  port listened to, and passing what you play on to the output). A port or
-  channel change is applied at once; `band-output.ts` silences what the old
-  one held before adopting it.
+  The built-in synth is one switch (its level is the card's volume). MIDI is
+  webmidi's patchbay (`@yggi/webmidi/ui`): the connection (`MidiStatus`),
+  the setups (`SetupPicker`), the patch (`PatchMatrix`: the clock, the five
+  parts with the drum sounds' notes on each output, the keys, then the inputs
+  with what each plays and the preset that assigns them, down; the setup's
+  outputs across) and the output selected (`DeviceInspector`). A
+  change is a new book (`MidiSettings.book`), applied at once:
+  `band-output.ts` silences what an old route held before adopting the new.
 -->
 <script lang="ts">
-  import type { DrumSound } from '@jambot/engine';
-  import { DRUM_PRESETS, type PortOption, presetNameOf } from '@yggi/webmidi/core';
-  import type { MidiAccess } from '@yggi/webmidi/web';
-  import type { Channels } from '../audio/midi-out.ts';
+  import {
+    DEFAULT_PRESET,
+    type PortOption,
+    chooseDevice,
+    profileOf,
+    removeOutput,
+  } from '@yggi/webmidi/core';
+  import { DeviceInspector, MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
+  import {
+    BAND,
+    BAND_ROWS,
+    channelsTo,
+    drumsTo,
+    missingOutputs,
+    withOutputProfile,
+  } from '../midi/patch.ts';
   import type { MidiSettings } from '../midi/settings.svelte.ts';
   import Group from './Group.svelte';
 
   interface Props {
     settings: MidiSettings;
-    access: MidiAccess | null;
+    /** Whether Web MIDI is connected. */
+    connected: boolean;
+    /** Asking for Web MIDI: Connect waits. */
+    connecting?: boolean;
     /** The ports plugged in, as of the last look. */
     ports?: { inputs: readonly PortOption[]; outputs: readonly PortOption[] };
     message: string;
@@ -27,72 +43,36 @@
     onrefresh?: () => void;
     /** All notes off, for hardware left sounding by a suspended tab or a dropped connection. */
     onpanic?: () => void;
+    /** A test note on an output, by its key, on a channel 1–16. */
+    ontest?: (key: string, channel: number) => void;
   }
 
   let {
     settings,
-    access,
+    connected,
+    connecting = false,
     ports = { inputs: [], outputs: [] },
     message,
     onconnect,
     onrefresh,
     onpanic,
+    ontest,
   }: Props = $props();
 
-  /** Whether a port chosen before isn't among the ports plugged in now. */
-  const missing = (list: readonly PortOption[], id: string) =>
-    id !== 'none' && id !== 'all' && !list.some((port) => port.id === id);
-
-  const PARTS: { key: keyof Channels; label: string }[] = [
-    { key: 'lead', label: 'Lead' },
-    { key: 'bass', label: 'Bass' },
-    { key: 'pad', label: 'Pad' },
-    { key: 'stab', label: 'Stab' },
-    { key: 'drums', label: 'Drums' },
-  ];
-
-  const DRUM_SOUNDS: { key: DrumSound; label: string }[] = [
-    { key: 'kick', label: 'Kick' },
-    { key: 'rim', label: 'Rim' },
-    { key: 'snare', label: 'Snare' },
-    { key: 'clap', label: 'Clap' },
-    { key: 'closedHat', label: 'Closed hat' },
-    { key: 'pedalHat', label: 'Pedal hat' },
-    { key: 'openHat', label: 'Open hat' },
-    { key: 'ride', label: 'Ride' },
-  ];
-
-  const clampChannel = (value: string) => Math.max(1, Math.min(16, +value || 1));
-  const clampNote = (value: string) => Math.max(0, Math.min(127, +value || 0));
-
-  function setChannel(part: keyof Channels, value: string) {
-    settings.channels = { ...settings.channels, [part]: clampChannel(value) };
-  }
-
-  function setDrumNote(sound: DrumSound, value: string) {
-    settings.drumNotes = { ...settings.drumNotes, [sound]: clampNote(value) };
-  }
-
-  /** The preset the drum notes are, or '' for a map edited by hand (webmidi names it 'Custom'). */
-  const drumPreset = $derived.by(() => {
-    const name = presetNameOf(settings.drumMap);
-    return name in DRUM_PRESETS ? name : '';
-  });
-
-  function setDrumPreset(name: string) {
-    const preset = DRUM_PRESETS[name];
-    if (preset) settings.drumMap = { ...preset };
-  }
-
-  function setOutPort(id: string) {
-    settings.outPortId = id;
-    settings.outPort = id === 'none' ? null : (access?.outputPort(id) ?? null);
-  }
-
-  function setInPort(id: string) {
-    settings.inPortId = id;
-    access?.listen(id);
-  }
+  const setup = $derived(settings.setup);
+  /** The output the inspector shows, by key: the one chosen, else the first. */
+  let chosen: string | undefined = $state();
+  const index = $derived(
+    Math.max(
+      0,
+      setup.outputs.findIndex((o) => o.key === chosen),
+    ),
+  );
+  const output = $derived(setup.outputs[index]!);
+  const profile = $derived(profileOf(settings.book, output.name));
+  const drums = $derived(drumsTo(setup, output.key));
+  const used = $derived(channelsTo(setup, output.key));
+  const missing = $derived(missingOutputs(setup, ports.outputs));
 </script>
 
 <div class="sound">
@@ -108,186 +88,106 @@
   </Group>
 
   <Group title="MIDI">
-    <div class="status">
-      <p class="message">{message}</p>
-      <div class="buttons">
-        {#if !access}
-          <button type="button" onclick={onconnect}>Connect MIDI</button>
-        {:else}
-          <button type="button" onclick={onrefresh}>Refresh ports</button>
-          {#if onpanic}<button type="button" onclick={onpanic}>All notes off</button>{/if}
-        {/if}
+    <MidiStatus
+      {message}
+      {connected}
+      {connecting}
+      {missing}
+      {onconnect}
+      {...onrefresh ? { onrefresh } : {}}
+      {...onpanic ? { onpanic } : {}}
+    />
+    <SetupPicker
+      book={settings.book}
+      plugged={ports.outputs}
+      onchange={(book) => (settings.book = book)}
+    />
+    <div class="rack">
+      <div class="patch">
+        <PatchMatrix
+          book={settings.book}
+          context={BAND}
+          rows={BAND_ROWS}
+          inputs={ports.inputs}
+          outputs={ports.outputs}
+          heardBy="the Muse"
+          preset={DEFAULT_PRESET}
+          selected={output.key}
+          onchange={(book) => (settings.book = book)}
+          onselect={(key) => (chosen = key)}
+        />
+      </div>
+      <div class="inspector">
+        <DeviceInspector
+          {output}
+          slot={index + 1}
+          ports={ports.outputs}
+          {profile}
+          {used}
+          {drums}
+          canRemove={setup.outputs.length > 1}
+          onport={(port) => (settings.book = chooseDevice(settings.book, output.key, port))}
+          onprofile={(change) => (settings.book = withOutputProfile(settings.book, output, change))}
+          onremove={() => (settings.book = removeOutput(settings.book, output.key))}
+          {...ontest && connected ? { ontest: () => ontest(output.key, used[0] ?? 1) } : {}}
+        />
       </div>
     </div>
-
-    <Group title="Output" level={4}>
-      {#if access}
-        <label>
-          Send to output
-          <select value={settings.outPortId} onchange={(e) => setOutPort(e.currentTarget.value)}>
-            <option value="none">No MIDI output</option>
-            {#each ports.outputs as p (p.id)}
-              <option value={p.id}>{p.name}</option>
-            {/each}
-            {#if missing(ports.outputs, settings.outPortId)}
-              <option value={settings.outPortId}>Not connected</option>
-            {/if}
-          </select>
-        </label>
-      {/if}
-      <div class="channels">
-        <p class="label">Channels</p>
-        <div class="chs">
-          {#each PARTS as p (p.key)}
-            <label>
-              {p.label}
-              <input
-                type="number"
-                min="1"
-                max="16"
-                value={settings.channels[p.key]}
-                onchange={(e) => setChannel(p.key, e.currentTarget.value)}
-              />
-            </label>
-          {/each}
-        </div>
-      </div>
-      <div class="channels">
-        <p class="label">Drum notes</p>
-        <label>
-          Preset
-          <select value={drumPreset} onchange={(e) => setDrumPreset(e.currentTarget.value)}>
-            <option value="" disabled>Custom</option>
-            {#each Object.keys(DRUM_PRESETS) as name (name)}
-              <option value={name}>{name}</option>
-            {/each}
-          </select>
-        </label>
-        <div class="chs">
-          {#each DRUM_SOUNDS as s (s.key)}
-            <label>
-              {s.label}
-              <input
-                type="number"
-                min="0"
-                max="127"
-                value={settings.drumNotes[s.key]}
-                onchange={(e) => setDrumNote(s.key, e.currentTarget.value)}
-              />
-            </label>
-          {/each}
-        </div>
-      </div>
-      <label class="check">
-        <input
-          type="checkbox"
-          checked={settings.clock}
-          onchange={(e) => (settings.clock = e.currentTarget.checked)}
-        />
-        Send MIDI clock, start and stop
-      </label>
-    </Group>
-
-    <Group title="Input" level={4}>
-      {#if access}
-        <label>
-          Listen to input
-          <select value={settings.inPortId} onchange={(e) => setInPort(e.currentTarget.value)}>
-            <option value="none">No MIDI input</option>
-            <option value="all">All inputs</option>
-            {#each ports.inputs as p (p.id)}
-              <option value={p.id}>{p.name}</option>
-            {/each}
-            {#if missing(ports.inputs, settings.inPortId)}
-              <option value={settings.inPortId}>Not connected</option>
-            {/if}
-          </select>
-        </label>
-      {/if}
-      <div class="check">
-        <label>
-          <input
-            type="checkbox"
-            checked={settings.thru}
-            onchange={(e) => (settings.thru = e.currentTarget.checked)}
-          />
-          Pass what you play to the output on channel
-        </label>
-        <input
-          type="number"
-          min="1"
-          max="16"
-          aria-label="Thru channel"
-          value={settings.thruChannel}
-          onchange={(e) => (settings.thruChannel = clampChannel(e.currentTarget.value))}
-        />
-      </div>
-    </Group>
   </Group>
 </div>
 
 <style>
   .sound {
+    /* webmidi's components in Jambot's colours (`app.css`), so they follow its theme */
+    --wm-text: var(--ink);
+    --wm-muted: var(--muted);
+    --wm-faint: color-mix(in oklab, var(--muted) 65%, var(--surface));
+    --wm-off: var(--line);
+    --wm-line: var(--line);
+    --wm-panel: var(--surface);
+    --wm-panel-2: var(--bg);
+    --wm-accent: var(--teal);
+    --wm-live: var(--teal);
+    --wm-warn: var(--amber);
+    --wm-surface: var(--surface);
+    --wm-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --wm-font-num: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --wm-radius: 8px;
     display: grid;
     gap: 14px;
+    min-width: 0;
+    container-type: inline-size;
   }
-  .status {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 12px;
+  .rack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    min-width: 0;
   }
-  .buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+  /* Where there is room, the inspector sits beside the patch, as in the mockup. */
+  @container (min-width: 760px) {
+    .rack {
+      grid-template-columns: minmax(0, 1fr) 300px;
+      align-items: start;
+    }
   }
-  button {
-    min-height: 38px;
-    padding: 0 16px;
+  .patch,
+  .inspector {
+    min-width: 0;
     border: 1px solid var(--line);
-    border-radius: 19px;
-    background: var(--surface);
-    font-weight: 500;
+    border-radius: 12px;
   }
-  .message {
-    font-size: 13px;
-    color: var(--muted);
-    margin: 0;
+  .patch {
+    padding: 8px 4px 4px;
   }
   label {
     display: grid;
     gap: 2px;
     font-size: 14px;
   }
-  .check,
-  .check label {
+  .check {
     display: flex;
     align-items: center;
     gap: 6px;
-  }
-  select,
-  input[type='number'] {
-    font: inherit;
-    color: var(--ink);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    min-height: 34px;
-    padding: 0 8px;
-  }
-  input[type='number'] {
-    width: 64px;
-  }
-  .channels .label {
-    font-size: 13px;
-    color: var(--muted);
-    margin: 0 0 4px;
-  }
-  .chs {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-    gap: 6px 10px;
   }
 </style>

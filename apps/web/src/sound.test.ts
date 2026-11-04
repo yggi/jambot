@@ -1,3 +1,4 @@
+import { ANY_INPUT, inputRow, type PortOption, type Setup } from '@yggi/webmidi/core';
 import { describe, expect, it } from 'vitest';
 import { EQUALIZER_FLOOR, equalizerLevels, soundSummary } from './sound.ts';
 
@@ -8,7 +9,21 @@ const ports = {
   ],
   outputs: [{ id: 'out-1', name: 'Launchpad' }],
 };
-const settings = { internal: true, outPortId: 'none', inPortId: 'none' };
+const none = { key: 'o1', id: 'none', name: '' };
+const out = (id: string, name: string, key = 'o1') => ({ key, id, name });
+/** A setup with `outputs`, hearing `heard`: each input playing the default (yggi/webmidi decision 003). */
+const setup = (outputs = [none], heard: PortOption[] | 'all' = []): Setup => ({
+  id: 's1',
+  name: 'Setup',
+  outputs,
+  plays:
+    heard === 'all'
+      ? { [ANY_INPUT]: 'default' }
+      : Object.fromEntries(heard.map((p) => [inputRow(p), 'default' as const])),
+  routes: {},
+  clock: [],
+});
+const settings = { internal: true, setup: setup() };
 
 describe('what the sound card says', () => {
   it('names the synth and that MIDI is not connected', () => {
@@ -18,26 +33,53 @@ describe('what the sound card says', () => {
     );
   });
 
-  it('names the ports chosen, the output and the input', () => {
-    expect(soundSummary({ ...settings, outPortId: 'out-1' }, ports, true)).toBe(
-      'Synth · MIDI out Launchpad',
-    );
-    expect(soundSummary({ ...settings, inPortId: 'in-2' }, ports, true)).toBe(
-      'Synth · MIDI in Pads',
-    );
+  it('names the setup’s outputs and the inputs it hears', () => {
     expect(
-      soundSummary({ internal: false, outPortId: 'out-1', inPortId: 'all' }, ports, true),
+      soundSummary({ ...settings, setup: setup([out('out-1', 'Launchpad')]) }, ports, true),
+    ).toBe('Synth · MIDI out Launchpad');
+    expect(
+      soundSummary({ ...settings, setup: setup([none], [ports.inputs[1]!]) }, ports, true),
+    ).toBe('Synth · MIDI in Pads');
+    expect(
+      soundSummary(
+        { internal: false, setup: setup([out('out-1', 'Launchpad')], 'all') },
+        ports,
+        true,
+      ),
     ).toBe('Synth off · MIDI out Launchpad, in all inputs');
+    expect(
+      soundSummary(
+        {
+          ...settings,
+          setup: setup([out('out-1', 'Launchpad'), out('out-2', 'Circuit', 'o2')], ports.inputs),
+        },
+        { ...ports, outputs: [...ports.outputs, { id: 'out-2', name: 'Circuit' }] },
+        true,
+      ),
+    ).toBe('Synth · MIDI out Launchpad + Circuit, in Keys + Pads');
   });
 
   it('says so when MIDI is connected and no port is chosen', () => {
     expect(soundSummary(settings, ports, true)).toBe('Synth · MIDI connected, no ports chosen');
   });
 
-  it('says a port chosen before is not there now', () => {
-    expect(soundSummary({ ...settings, outPortId: 'gone', inPortId: 'in-1' }, ports, true)).toBe(
-      'Synth · MIDI out not found, in Keys',
+  it('says a port chosen before is not there now, by its name where it has one', () => {
+    expect(
+      soundSummary(
+        { ...settings, setup: setup([out('gone', '')], [ports.inputs[0]!]) },
+        ports,
+        true,
+      ),
+    ).toBe('Synth · MIDI out not found, in Keys');
+    expect(soundSummary({ ...settings, setup: setup([out('gone', 'Circuit')]) }, ports, true)).toBe(
+      'Synth · MIDI out Circuit not found',
     );
+  });
+
+  it('finds a port plugged in again under a new id by its name', () => {
+    expect(
+      soundSummary({ ...settings, setup: setup([out('old-id', 'Launchpad')]) }, ports, true),
+    ).toBe('Synth · MIDI out Launchpad');
   });
 });
 
