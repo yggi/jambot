@@ -8,7 +8,7 @@ import { BASS_REPOSITORY, readLine } from './bass-lines.ts';
 import { chordsOn } from './chords.ts';
 import { HARMONY_REPOSITORY } from './progressions.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
-import { LEAD_REPOSITORY, MOTIF_LEADS, leadText } from './lead-lines.ts';
+import { LEAD_REPOSITORY, MOTIF_LEADS, fromFirstNote, leadText } from './lead-lines.ts';
 import type { LeadNote } from './lead-query.ts';
 import { stylePoint } from './meter-query.ts';
 import { presetMode } from './mode-repository.ts';
@@ -90,7 +90,11 @@ describe('a member’s library (libraryOf)', () => {
           SEED_FRAGMENTS.filter((f) => f.association.some((p) => p.facet === facet)).length,
       ),
     );
-    expect(libraryOf('lead')).toEqual(MOTIF_LEADS);
+    // (the lead's motifs stated from their first note, as the sensor hears a bar: the Dies irae's `2 1 2 0` as `0 -1 0 -2`, #529)
+    expect(libraryOf('lead')).toEqual(MOTIF_LEADS.map(fromFirstNote));
+    expect(libraryOf('lead').find((f) => f.id === 'diesIrae')!.text).toMatch(
+      /^&lead over=&key step=8n 0 -1 0 -2 -1 -3 -2@2$/m,
+    );
     for (const facet of LOOP_FACETS)
       for (const f of libraryOf(facet))
         expect(f.association.some((p) => p.facet === facet)).toBe(true);
@@ -314,7 +318,7 @@ describe('what each member played lately (heardTexts, playedInto)', () => {
     const text = leadText(LINE, 16);
     const lately = { ...NOTHING_LATELY, lead: [text, text] };
     expect(libraryOf('lead', undefined, lately).map((f) => f.text)).toEqual([
-      ...MOTIF_LEADS.map((f) => f.text),
+      ...MOTIF_LEADS.map((f) => fromFirstNote(f).text),
       text,
     ]);
     expect(libraryOf('bass', undefined, lately)).toEqual(libraryOf('bass'));

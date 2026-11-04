@@ -4,13 +4,14 @@ import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/mid
 import { unionOf } from '@yggi/cells/repository/fit';
 import { describe, expect, it } from 'vitest';
 import { keyHelix } from './key.ts';
-import { EMPTY_LAYER } from './layer.ts';
+import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
 import {
   LEAD_FORM,
   LEAD_REPOSITORY,
   LEAD_VOICE,
   MOTIF_LEADS,
+  keyedLine,
   leadRepository,
   leadText,
   phraseOf,
@@ -134,21 +135,21 @@ describe('the lead’s repository (#424)', () => {
     );
   });
 
-  it('reads a motif as a lead line from its first note: the Dies irae’s step down, back, a third down, a step up, a third down and a step up, held; in 5/4 a rest after it (#520)', () => {
+  it('reads a motif as a lead line on its own degrees of the key: the Dies irae from the third, a step down, back, a third down, a step up, a third down and a step up, held; in 5/4 a rest after it (#520, #529)', () => {
     const lead = MOTIF_LEADS.find((f) => f.id === 'diesIrae')!;
     expect(lead.text.split('\n')).toEqual([
-      '&lead over=&key step=8n 0 -1 0 -2 -1 -3 -2@2',
+      '&lead over=&key step=8n 2 1 2 0 1 -1 0@2',
       ...LEAD_VOICE,
     ]);
     expect(lead.association.map((p) => p.facet)).toEqual(['lead']);
     const line = [
-      [0, 0],
-      [2, -1],
-      [4, 0],
-      [6, -2],
-      [8, -1],
-      [10, -3],
-      [12, -2],
+      [0, 2],
+      [2, 1],
+      [4, 2],
+      [6, 0],
+      [8, 1],
+      [10, -1],
+      [12, 0],
     ];
     for (const name of ['4/4', '5/4'] as const) {
       const read = LEAD_REPOSITORY.read('diesIrae', METERS[name], EMPTY_LAYER)!;
@@ -288,8 +289,30 @@ describe('a lead line in cells’ call and answer (#520, rung 2)', () => {
     expect(leadPhrase(repository, filed.id, METERS['4/4'], 16, filed.layer)).toHaveLength(1);
     const bars = leadPhrase(LEAD_REPOSITORY, 'diesIrae', METERS['4/4'], 16, EMPTY_LAYER)!;
     expect(bars.map((b) => b.degrees)).toEqual([
+      [2, 1, 2, 0, 1, -1, 0],
       [0, -1, 0, -2, -1, -3, -2],
-      [-2, -3, -2, -4, -3, -5, -4],
     ]);
+  });
+
+  it('keeps the degrees as written of cells’ motifs and of the composer’s variations of them, not of a line the Muse filed or its variations (#529)', () => {
+    const repository = leadRepository();
+    expect(MOTIF_LEADS.every((f) => repository.keyed!(f.id, EMPTY_LAYER))).toBe(true);
+    const filed = repository.file!(EMPTY_LAYER, FILING);
+    expect(repository.keyed!(filed.id, filed.layer)).toBe(false);
+    // (a variation is filed with the line it varies, as the ladder files one)
+    const of = (layer: LearnedLayer, varies: string, degree: number) =>
+      repository.file!(layer, {
+        ...FILING,
+        notes: [{ step: 0, degree, alter: 0 }],
+        varies,
+        by: `transpose &lead ${degree}`,
+      });
+    const seedVaried = of(filed.layer, 'diesIrae', 4);
+    const twice = of(seedVaried.layer, seedVaried.id, 6);
+    const heardVaried = of(twice.layer, filed.id, 5);
+    expect(repository.keyed!(seedVaried.id, heardVaried.layer)).toBe(true);
+    expect(repository.keyed!(twice.id, heardVaried.layer)).toBe(true);
+    expect(repository.keyed!(heardVaried.id, heardVaried.layer)).toBe(false);
+    expect(keyedLine(MOTIF_LEADS, 'nowhere', heardVaried.layer)).toBe(false);
   });
 });

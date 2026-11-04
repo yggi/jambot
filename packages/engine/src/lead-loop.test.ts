@@ -1,10 +1,11 @@
-import { METERS, stepsOf } from '@jambot/theory';
+import { METERS, alteredDegree, stepsOf, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
 import { type BandCarried, type BandEnv, band } from './band.ts';
 import { COMPOSER } from './facet.ts';
 import { SECTION_BARS } from './form.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
+import { keyHelix } from './key.ts';
 import { LEAD_REPOSITORY, MOTIF_LEADS, leadRepository, leadText } from './lead-lines.ts';
 import type { LeadNote } from './lead-query.ts';
 import { stylePoint } from './meter-query.ts';
@@ -328,6 +329,7 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
         preset,
       );
       expect(leadsOf(run), preset.name).toEqual([id, id, id, id]);
+      if (preset.name === 'Spooky') expect(id).toBe('diesIrae');
       const meter = run[0]!.bar.plan.meter;
       if (preset.name === 'Spooky') expect(meter).toEqual(METERS['5/4']);
       const line = LEAD_REPOSITORY.read(id, meter, EMPTY_LAYER)!.notes;
@@ -343,6 +345,15 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
           ),
           `${preset.name}, bar ${at}`,
         ).toEqual(line.map((n) => ({ ...n, degree: n.degree - first })));
+        // from the motif's own degree of the key, as cells writes it (#529): the Dies irae from the third
+        const opening = bar.written
+          .filter((n) => n.part === 'lead')
+          .reduce((a, b) => (b.step < a.step || (b.step === a.step && b.note > a.note) ? b : a));
+        const played = alteredDegree(keyHelix(bar.plan.key), opening.note)!;
+        expect(
+          [wrap(played.degree, 7), played.accidental],
+          `${preset.name}, bar ${at}: its first degree`,
+        ).toEqual([wrap(first, 7), line[0]!.alter]);
         // and the next its answer, two degrees down (#520, rung 2), heard with the call as one line; its last note the
         // cadence's
         const steps = stepsOf(meter);

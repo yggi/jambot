@@ -9,8 +9,10 @@
  * preset finds the motif written for it; away from them, and in a meter no
  * motif fills, the lead plays its own unless the layer filed one.
  *
- * A line is one bar of degrees of the key (`over=&key`) counted from its
- * first note, as the Muse hears a motif (U4), on the coarsest of the bar's
+ * A line is one bar of degrees of the key (`over=&key`): a motif of cells'
+ * on its own degrees as written, which the lead plays from there (`keyed`,
+ * #529); a line the Muse files counted from its first note, as she hears a
+ * motif (U4). Each is stated on the coarsest of the bar's
  * grids its notes fall on: each note a step of that grid, a rest `~`, a
  * note off the key with its accidental (`3b`, cells decision 015). What it
  * says is where each note starts and what it is; the lead holds each to the
@@ -44,6 +46,7 @@ import { FORM_FRAGMENTS } from '@yggi/cells/repository/forms';
 import { holesOf } from '@yggi/cells/repository/holes';
 import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
 import { LEAD_FACET, type LeadNote, type LeadRead, type LeadRepository } from './lead-query.ts';
+import type { LearnedLayer } from './layer.ts';
 import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';
 
 /**
@@ -150,32 +153,47 @@ export const MOTIF_FACET = 'motif';
 
 /**
  * A motif of cells' as a lead line (#520): its head (`&<id>`) renamed `&lead`, the lead's voice beside it
- * (`LEAD_VOICE`), and its association moved from the facet `motif` to `lead`, at the same points and weights. It is
- * stated from its first note, as every lead line is, by cells' transpose (`&diesIrae`'s `2 1 2 0 …` as `0 -1 0 -2 …`):
- * the lead plays a line from the chord tone nearest where it was (`lead.ts`), so that is what it plays, and what the
- * Muse would file of it. One that reads in no meter stays as cells wrote it.
+ * (`LEAD_VOICE`), and its association moved from the facet `motif` to `lead`, at the same points and weights. It keeps
+ * its degrees of the key as written (#529: `&diesIrae`'s `2 1 2 0 …` starts on the third), since a motif written in
+ * cells sets its place in the key, and the lead plays it from there (`keyed`, `lead.ts`).
  */
 export function motifLead(motif: Fragment): Fragment {
   const head = new RegExp(`^&${motif.id}(?=\\s)`, 'm');
   // (its body: a template's signature line, `&hook from &key`, says what it takes, which the lead's bench gives)
   const text = [bodyOf(motif.text).replace(head, '&lead'), ...LEAD_VOICE].join('\n');
-  const name = (Object.keys(METERS) as MeterName[]).find((n) => readLead(text, METERS[n]));
-  const first = name ? readLead(text, METERS[name])!.notes[0]!.degree : 0;
-  const lift =
-    name && first !== 0
-      ? variations(text, {
-          workbench: leadBench(name),
-          operators: ['transpose'],
-          degrees: [-first],
-        })[0]
-      : undefined;
   return {
     ...motif,
-    text: lift ? lift.apply(text) : text,
+    text,
     association: motif.association.map((a) =>
       a.facet === MOTIF_FACET ? { ...a, facet: LEAD_FACET } : a,
     ),
   };
+}
+
+/** Every line stated from its first note, by text: kept for the module's life. */
+const fromFirst = new Map<string, string>();
+
+/**
+ * A lead line stated from its first note (#529), as the Muse hears a motif (U4) and the homeostat's sensor reads a bar
+ * (`leadOf`): by cells' transpose, so `&diesIrae`'s `2 1 2 0 …` reads `0 -1 0 -2 …`. A line already from 0, as the
+ * Muse files them, and one that reads in no meter stay as they are. The recogniser's library is the lead's lines so
+ * stated (`recognised.ts`), so a keyed line is known by its shape, whatever degree it starts on.
+ */
+export function fromFirstNote(line: Fragment): Fragment {
+  if (!fromFirst.has(line.text)) {
+    const name = (Object.keys(METERS) as MeterName[]).find((n) => readLead(line.text, METERS[n]));
+    const first = name ? readLead(line.text, METERS[name])!.notes[0]!.degree : 0;
+    const lift =
+      name && first !== 0
+        ? variations(line.text, {
+            workbench: leadBench(name),
+            operators: ['transpose'],
+            degrees: [-first],
+          })[0]
+        : undefined;
+    fromFirst.set(line.text, lift ? lift.apply(line.text) : line.text);
+  }
+  return { ...line, text: fromFirst.get(line.text)! };
 }
 
 /** Cells' motifs as lead lines: the lead repository's seeds. */
@@ -195,7 +213,25 @@ export function leadRepository(
       vary: (name) => ({ workbench: leadBench(name), operators: LEAD_OPERATORS, degrees: [LIFT] }),
     }),
     phrase: (notes, meter) => phraseOf(notes, meter, LEAD_FORM),
+    keyed: (id, layer) => keyedLine(fragments, id, layer),
   };
+}
+
+/**
+ * Whether a lead line keeps its degrees of the key as written (#529): one of the seeds, cells' motifs, or a variation
+ * the composer made of one (`varies`, through every variation between), since cells' operators keep a line's degrees.
+ * A line the Muse filed is heard from its first note, which a player sets no degree for (U4), and so is any variation
+ * of it; so is a line neither the seeds nor the layer hold.
+ */
+export function keyedLine(seeds: readonly Fragment[], id: string, layer?: LearnedLayer): boolean {
+  const seen = new Set<string>();
+  for (let at: string | undefined = id; at !== undefined && !seen.has(at);) {
+    if (seeds.some((f) => f.id === at)) return true;
+    seen.add(at);
+    const varies: unknown = layer?.filed.find((f) => f.fragment.id === at)?.meta['varies'];
+    at = typeof varies === 'string' ? varies : undefined;
+  }
+  return false;
 }
 
 /** Cells' motifs and the lead lines the layer files, as the composer asks them. */
