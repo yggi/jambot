@@ -28,21 +28,28 @@ const NAMES = Object.keys(METERS) as MeterName[];
  * The seeds the composer reads: every one of eight bars. Cells' `dark cadence` (v0.12.0, Spooky's) is four bars a lap,
  * so it is no progression the composer takes, and Spooky's harmony is the generator's (the owner's ruling on #517).
  */
-const VAMP_SEEDS = HARMONY_FRAGMENTS.filter((f) => readProgression(f.text, METERS['4/4']) !== null);
+const READ_SEEDS = HARMONY_FRAGMENTS.filter((f) => readProgression(f.text, METERS['4/4']) !== null);
+// (the seeds that vamp: all of cells' harmonies but Spooky's haunted progression, eight bars that walk, yggi/cells#409)
+const VAMP_SEEDS = READ_SEEDS.filter(
+  (f) => vampOf(readProgression(f.text, METERS['4/4'])!) !== null,
+);
 
 describe("cells' harmonies read into a theme's slots (#425)", () => {
   it('reads none of four bars: the dark cadence is no progression the composer takes (#517)', () => {
     const cadence = HARMONY_FRAGMENTS.find((f) => f.id === 'dark cadence')!;
     expect(cadence.text).toMatch(/ cycle=4 /);
     expect(readProgression(cadence.text, METERS['4/4'])).toBeNull();
-    expect(HARMONY_FRAGMENTS.filter((f) => !VAMP_SEEDS.includes(f)).map((f) => f.id)).toEqual([
+    expect(HARMONY_FRAGMENTS.filter((f) => !READ_SEEDS.includes(f)).map((f) => f.id)).toEqual([
       'dark cadence',
     ]);
   });
 
-  it('reads each of the seeds, in every named meter, as a vamp from the tonic: its first chord four bars, its second four', () => {
+  it('reads each of the seeds, in every named meter, as a vamp from the tonic, its first chord four bars and its second four, but the haunted progression, which walks', () => {
     // (which seeds cells offers, and to which degree each vamps, is cells' library's, yggi/music-commons#37)
     expect(VAMP_SEEDS.length).toBeGreaterThan(0);
+    expect(READ_SEEDS.filter((f) => !VAMP_SEEDS.includes(f)).map((f) => f.id)).toEqual([
+      'haunted progression',
+    ]);
     for (const f of VAMP_SEEDS) {
       const vamp = vampOf(readProgression(f.text, METERS['4/4'])!);
       expect(vamp?.[0], f.id).toBe(0);
@@ -56,7 +63,7 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
   });
 
   it('states each seed’s slots as the seed’s own text, character for character (identity)', () => {
-    for (const f of VAMP_SEEDS)
+    for (const f of READ_SEEDS)
       expect(progressionText(readProgression(f.text, METERS['4/4'])!.notes)).toBe(
         // (the seed's body: a template's signature line, `&harm from &key`, says what it takes)
         bodyOf(f.text).trim(),
@@ -193,8 +200,11 @@ describe('the composer’s ask (#425)', () => {
       'vamp to the fifth',
       'vamp to the sixth',
     ]);
+    // (above VAMP_HARM no vamp fits: Spooky takes the progression placed for it, yggi/cells#409, and the rest walk the tables)
     for (const p of PRESETS.filter((p) => p.style.harm >= VAMP_HARM))
-      expect(offered(p.name), p.name).toEqual(range(8).map(() => undefined));
+      expect(offered(p.name), p.name).toEqual(
+        range(8).map(() => (p.name === 'Spooky' ? 'haunted progression' : undefined)),
+      );
   });
 
   it('keeps a seed’s equals on offer however often use raises one, past cells’ cap (OFFER)', () => {

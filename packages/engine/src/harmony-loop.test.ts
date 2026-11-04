@@ -57,8 +57,14 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
     })),
   );
 
-  it("plays main's themes, degree for degree in every slot, over 8 presets × 2 seeds × 64 bars", () => {
-    for (const { main, loop } of runs)
+  // (but Spooky, which takes the haunted progression cells placed for it, yggi/cells#409: i III+ iv V VI ii° V i)
+  it("plays main's themes, degree for degree in every slot, over 9 presets × 2 seeds × 64 bars, and Spooky the haunted progression", () => {
+    for (const r of runs.filter((r) => r.preset.name === 'Spooky'))
+      for (const { bar } of r.loop.filter(({ bar }) => bar.plan.theme.kind === 'A'))
+        expect(
+          bar.plan.theme.bars.map((b) => b.map((slot) => ('degree' in slot ? slot.degree : -1))),
+        ).toEqual([0, 2, 3, 4, 5, 1, 4, 0].map((d) => [d]));
+    for (const { main, loop } of runs.filter((r) => r.preset.name !== 'Spooky'))
       for (let bar = 0; bar < 64; bar++) {
         const m = main[bar]!.bar;
         const l = loop[bar]!.bar;
@@ -83,7 +89,11 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
       'Funk',
     ]);
     for (const r of runs.filter((r) => r.preset.style.harm >= 0.33))
-      for (const { plans } of r.loop) expect(plans.themeFragments).toEqual({ A: null, B: null });
+      for (const { plans } of r.loop)
+        expect(plans.themeFragments, r.preset.name).toEqual({
+          A: r.preset.name === 'Spooky' ? 'haunted progression' : null,
+          B: null,
+        });
   });
 });
 

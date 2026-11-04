@@ -111,7 +111,11 @@ describe('a member’s library (libraryOf)', () => {
 });
 
 describe('a bar recognised (recognisedBar)', () => {
-  it('recognises every seed of every member as itself, in 4/4', () => {
+  // (seeds that are another's shape: `haunt`, yggi/cells#409's, is `arpeggio` two degrees up, its last note held where
+  // `arpeggio` rests, so the ear, which hears a line's shape, hears the arpeggio; the augmented triad it is named for is
+  // so only in harmonic minor, which Jambot plays as aeolian: yggi/cells#430)
+  const SAME_SHAPE: Readonly<Record<string, string>> = { haunt: 'arpeggio' };
+  it('recognises every seed of every member as itself, in 4/4, or as the seed whose shape it is', () => {
     for (const facet of LOOP_FACETS)
       for (const fragment of libraryOf(facet)) {
         const found = recogniser.recognise(
@@ -119,7 +123,7 @@ describe('a bar recognised (recognisedBar)', () => {
           libraryOf(facet),
           recogniseOptionsOf(facet, FOUR)!,
         );
-        expect(found[0]?.fragment.id, fragment.id).toBe(fragment.id);
+        expect(found[0]?.fragment.id, fragment.id).toBe(SAME_SHAPE[fragment.id] ?? fragment.id);
         expect(found[0]!.path).toEqual([]);
         expect(recognisedBar(recogniser, { [facet]: fragment.text }, FOUR)).toEqual({
           [facet]: true,

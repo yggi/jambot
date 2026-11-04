@@ -106,7 +106,9 @@ describe('the band writes a whole section as one cells text, every part, the lea
       const lines = text.split('\n');
       expect(lines[0]).toMatch(/^&bar meter\("4\/4"\) step=\d+bpm( swing=(8n|16n):[\d./]+)?$/);
       expect(lines[1]).toMatch(/^&key scale\((aeolian|dorian|ionian|mixolydian), [A-G][b#]?\)$/);
-      expect(lines[2]).toMatch(/^&harm over=&key step=(1m|2n) /);
+      // (the section's style, where its first bar sits: cells v0.15.0's instruments read it, decision 063 §3)
+      expect(lines[2]).toMatch(/^&style style=&\(map=style( [\d.]+){4}\)$/);
+      expect(lines[3]).toMatch(/^&harm over=&key step=(1m|2n) /);
       // No other line names a meter or a key; every line on a clock taps the main meter, and reads the main key, the
       // chord in force or the melodic scale.
       for (const line of lines.slice(1)) {
@@ -196,13 +198,25 @@ describe('the band writes a whole section as one cells text, every part, the lea
         const lines = s.text.lines
           .filter((l) => ['meter', 'key', 'harmony', part].includes(l.part))
           .map((l) => l.text);
-        const card = s.text.lines.find((l) => l.part === 'card')!.text;
-        const alone = [
-          ...lines,
-          others
-            .reduce((c, o) => c.replace(new RegExp(`${o}\\b`), '~'), card)
-            .replace('[~, ~]', '~'),
-        ].join('\n');
+        // (each card with the other parts' gates as rests: the MIDI card, and the sound card hearing the pitched parts,
+        // which goes where it hears none of this part's)
+        const cards = s.text.lines
+          .filter((l) => l.part === 'card')
+          .flatMap((l) => {
+            // (a mix takes no rests: the sound card keeps this part's gates alone, or goes)
+            if (l.text.startsWith('&heard ')) {
+              const kept = [...l.text.matchAll(/&\w+Out/g)]
+                .map((m) => m[0])
+                .filter((o) => outs[part].includes(o));
+              return kept.length ? [`&heard map=sample [${kept.join(', ')}]`] : [];
+            }
+            return [
+              others
+                .reduce((c, o) => c.replace(new RegExp(`${o}\\b`), '~'), l.text)
+                .replace('[~, ~]', '~'),
+            ];
+          });
+        const alone = [...lines, ...cards].join('\n');
         const played = cellsPlays(alone, s.bars);
         expect(played.diagnostics, `${s.section} ${part}`).toEqual([]);
         for (const [i, bar] of played.bars.entries())
@@ -212,18 +226,18 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 2,797 characters a section, 2,463 without the lead, against E33’s 7,549 for the same 8 bars, 67 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,886 characters a section, 2,553 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 178977,
-      meter: 2456,
+      total: 184731,
+      meter: 5000,
       key: 1436,
       harmony: 7197,
       drums: 79965,
       bass: 32708,
       comp: 30199,
       lead: 21345,
-      card: 3671,
+      card: 6881,
     });
     // E33 states every bar alone: its meter, key, harmony, voices, mix and card every bar, and no lead.
     const e33 = barCharacters(
@@ -240,21 +254,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2797);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2463);
+    expect(Math.round(e35.total / 64)).toBe(2886);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2553);
     expect(Math.round(e33.total / 64)).toBe(7549);
-    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(67);
+    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(66);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [22192, 19515],
-      Techno: [22086, 18957],
-      'Deep house': [26348, 23191],
-      Ambient: [13450, 12017],
-      'Lo-fi hip hop': [24187, 21281],
-      Funk: [25840, 23596],
-      'Bossa nova': [24543, 21877],
-      'Swing jazz': [20331, 17198],
+      'Synth-pop': [22909, 20232],
+      Techno: [22764, 19635],
+      'Deep house': [27084, 23927],
+      Ambient: [14108, 12675],
+      'Lo-fi hip hop': [24932, 22026],
+      Funk: [26551, 24307],
+      'Bossa nova': [25314, 22648],
+      'Swing jazz': [21069, 17936],
     });
   });
 
