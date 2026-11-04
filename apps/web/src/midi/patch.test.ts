@@ -61,14 +61,20 @@ const stored = (over: Record<string, unknown> = {}) => ({
 const port = (): MidiPort => ({ send: () => {} });
 
 describe('the band’s rows', () => {
-  it('are the five parts, the drums a kit, then the keys', () => {
-    expect(BAND_ROWS.map((r) => [r.id, r.kind])).toEqual([
-      ['lead', 'voice'],
-      ['bass', 'voice'],
-      ['pad', 'voice'],
-      ['stab', 'voice'],
-      ['drums', 'kit'],
-      [KEYS, 'voice'],
+  it('are the five parts, the drums a kit with its sounds, then the keys; an input plays the lead or the drums alone', () => {
+    expect(BAND_ROWS.map((r) => [r.id, r.kind, r.playable ?? true])).toEqual([
+      ['lead', 'voice', true],
+      ['bass', 'voice', false],
+      ['pad', 'voice', false],
+      ['stab', 'voice', false],
+      ['drums', 'kit', true],
+      ...(
+        ['kick', 'rim', 'snare', 'clap', 'closedHat', 'pedalHat', 'openHat', 'ride'] as const
+      ).map((sound) => [`drum:${sound}`, 'member', true]),
+      [KEYS, 'voice', false],
+    ]);
+    expect(BAND_ROWS.filter((r) => r.kind === 'member').map((r) => r.note)).toEqual([
+      36, 37, 38, 39, 42, 44, 46, 51,
     ]);
   });
 });

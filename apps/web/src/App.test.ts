@@ -412,8 +412,14 @@ describe('the app', () => {
       await renderBand();
       await pull('Sound');
       await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
-      // The input is a row of the patch: its Heard switch lets the instruments and the Muse hear it.
-      await fireEvent.click(await screen.findByRole('button', { name: 'Not heard' }));
+      // The input is a row of the patch: what it plays lets the instruments and the Muse hear it; the default
+      // plays by the channel (yggi/webmidi#43).
+      await fireEvent.change(
+        await screen.findByRole('combobox', { name: /^What Test Keys plays/ }),
+        {
+          target: { value: 'default' },
+        },
+      );
 
       port.onmidimessage!({ data: [0x90, 64, 100] } as unknown as MIDIMessageEvent); // channel 1: E4
       await view('Melody');
