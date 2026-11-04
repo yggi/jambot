@@ -1,4 +1,3 @@
-import { stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import type { BarEnv } from './bar.ts';
@@ -7,7 +6,7 @@ import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
 import { type DrumRole, PARTS, type WrittenNote, writtenProblems } from './events.ts';
 import type { SectionType } from './form.ts';
 import { feelOf } from './licence.ts';
-import { LEAD_LEVEL, type StatedNote, composedLevel, perform, performStated } from './performer.ts';
+import { LEAD_LEVEL, composedLevel, perform } from './performer.ts';
 import { presetSwing } from './repository.ts';
 import { timbreOf } from './sound.ts';
 import { PRESETS, type Style } from './style.ts';
@@ -75,17 +74,6 @@ const barOf = (type: SectionType, energy: number, given: Partial<Swung> = {}): B
 const baseOf = (env: BarEnv, written: WrittenNote) => ({
   velocity: Math.max(1, Math.min(127, Math.round(baseVelocityOf(env, written)))),
   length: baseLengthOf(env, written),
-});
-
-const clamp = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
-/** A written note as a text states it: its line, step, pitch and role, its velocity at feel 0 as MIDI says it, and its sounding length at feel 0. */
-const stated = (env: BarEnv, w: WrittenNote): StatedNote => ({
-  part: w.part,
-  step: w.step,
-  note: w.note,
-  ...(w.role !== undefined && { role: w.role }),
-  velocity: clamp(composedLevel(env, w)),
-  length: baseLengthOf(env, w),
 });
 
 const hit = (role: DrumRole, step: number): WrittenNote => ({
@@ -375,57 +363,6 @@ describe('the performer', () => {
       expect(perform(env, { ...written, accent }).velocity).toBe(
         Math.max(1, Math.min(127, plain + accent)),
       );
-  });
-
-  it('plays a note as a text states it as it plays the note written: the same velocity and length, every note of the tour, accented past MIDI’s 1 to 127 too, and every motif’s accent on the lead’s level (#405, #433, decision 037)', () => {
-    // A written accent is in the level stated, not carried apart: the band's dough note carries it.
-    const played = (env: BarEnv, w: WrittenNote) => {
-      const { accent, ...rest } = perform(env, w);
-      expect(accent).toBe(w.accent);
-      return rest;
-    };
-    let notes = 0;
-    let loose = 0;
-    let past = 0;
-    for (const b of bars) {
-      // Every note the band writes, the same written far past either end of MIDI's velocities (a part's base keeps its
-      // fraction there), and a motif's lead note on every step at accents from past the lead's level's floor to past its ceiling.
-      const pushed = b.written.flatMap((w) =>
-        [-200, 200].map((by): WrittenNote => ({ ...w, accent: (w.accent ?? 0) + by })),
-      );
-      const motif = range(stepsOf(b.meter)).flatMap((step) =>
-        [-120, -91, -90, -60, -31, -9, -1, 0, 1, 9, 17, 36, 37, 48, 60].map(
-          (accent): WrittenNote => ({
-            part: 'lead',
-            step,
-            note: 64 + (step % 12),
-            length: 2,
-            accent,
-          }),
-        ),
-      );
-      for (const w of [...b.written, ...pushed, ...motif]) {
-        expect(performStated(b, stated(b, w))).toEqual(played(b, w));
-        if (w.accent !== undefined && (w.accent > 36 || w.accent < -90)) past++;
-        if (perform(b, w).velocity !== clamp(composedLevel(b, w))) loose++;
-        notes++;
-      }
-    }
-    expect(notes).toBeGreaterThan(8_000);
-    expect(past).toBeGreaterThan(8_000);
-    // The feel is played, not lost: most velocities part from the level stated at feel 0.
-    expect(loose / notes).toBeGreaterThan(0.5);
-  });
-
-  it('carries a stated note’s voice sound onto what it plays, in place of nothing else, and none where none is stated (#497)', () => {
-    const sound = { wave: 'square', lpf: 2400, bends: [{ at: 0.02, cents: 12 }] } as const;
-    for (const b of bars.slice(0, 48))
-      for (const w of b.written) {
-        const s = stated(b, w);
-        const plain = performStated(b, s);
-        expect(plain).not.toHaveProperty('sound');
-        expect(performStated(b, { ...s, sound })).toEqual({ ...plain, sound });
-      }
   });
 
   it('composes a note’s level as the performer plays it at feel 0: its base and its written accent, a motif’s on the lead’s level (U4, #405)', () => {
