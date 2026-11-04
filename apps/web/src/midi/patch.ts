@@ -71,14 +71,15 @@ export const DRUM_LABELS: Record<DrumSound, string> = {
  * The rows Jambot hands the matrix: the parts with their roles (what an input
  * that plays one finds it by, and what a preset assigns: yggi/webmidi decision
  * 003), the drum sounds as the kit's members (each output's drum map edited
- * there, note by note), then the keys. Seats (#108) would be more rows of the
- * same kind.
+ * there, note by note), then the keys. An input can play the lead and the
+ * drums alone (`playable`: the parts the player plays along on, `ALONG`).
+ * Seats (#108) would be more rows of the same kind.
  */
 export const BAND_ROWS: readonly MatrixRow[] = [
   { id: 'lead', label: 'Lead', kind: 'voice', role: 'lead' },
-  { id: 'bass', label: 'Bass', kind: 'voice', role: 'bass' },
-  { id: 'pad', label: 'Pad', kind: 'voice', role: 'pad' },
-  { id: 'stab', label: 'Stab', kind: 'voice', role: 'stab' },
+  { id: 'bass', label: 'Bass', kind: 'voice', role: 'bass', playable: false },
+  { id: 'pad', label: 'Pad', kind: 'voice', role: 'pad', playable: false },
+  { id: 'stab', label: 'Stab', kind: 'voice', role: 'stab', playable: false },
   { id: 'drums', label: 'Drums', kind: 'kit', role: 'drums' },
   ...DRUM_SOUNDS.map((sound): MatrixRow => ({
     id: `drum:${sound}`,
@@ -86,13 +87,14 @@ export const BAND_ROWS: readonly MatrixRow[] = [
     kind: 'member',
     note: DRUM_NOTES[sound],
   })),
-  { id: KEYS, label: 'Keys', sub: 'you play', kind: 'voice', group: true },
+  { id: KEYS, label: 'Keys', sub: 'you play', kind: 'voice', group: true, playable: false },
 ];
 
 /**
  * The parts an input can play along on: the lead and the drums, as the
- * player takes them (`AlongPart`). An input set to play another part plays
- * the default, until the band plays along on it too.
+ * player takes them (`AlongPart`): the matrix offers no other (`playable`),
+ * and an input a setup from elsewhere sets to another part plays the default,
+ * until the band plays along on it too.
  */
 const ALONG: readonly { id: AlongPart; role: AlongPart }[] = [
   { id: 'lead', role: 'lead' },

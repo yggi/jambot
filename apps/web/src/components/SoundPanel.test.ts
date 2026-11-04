@@ -113,13 +113,9 @@ describe('SoundPanel', () => {
     const plays = screen.getByRole('combobox', { name: 'What KeyStep plays, heard by the Muse' });
     expect([...(plays as HTMLSelectElement).options].map((o) => o.textContent)).toEqual([
       'Not heard',
-      'Plays the default',
-      'Plays Lead',
-      'Plays Bass',
-      'Plays Pad',
-      'Plays Stab',
-      'Plays Drums',
-      'Plays Keys',
+      'Default',
+      'Lead',
+      'Drums',
     ]);
     await fireEvent.change(plays, { target: { value: 'drums' } });
     expect(settings.setup.plays).toEqual({ 'in:KeyStep': { row: 'drums', role: 'drums' } });
