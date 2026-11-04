@@ -188,7 +188,10 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
     let flips = 0;
     for (const t of range(201).map((i) => i / 200)) {
       const found = METER_REPOSITORY.query(along(t));
-      const [nearest, own] = [found[0]!.distance, found.find((f) => f.id === 'meter_4_4')!.distance];
+      const [nearest, own] = [
+        found[0]!.distance,
+        found.find((f) => f.id === 'meter_4_4')!.distance,
+      ];
       const first = METER_REPOSITORY.query(along(t), learned)[0]!.id;
       if (first !== found[0]!.id) flips++;
       // 4/4 is first wherever it lies within 1.2 times the nearest's distance, and nowhere else.

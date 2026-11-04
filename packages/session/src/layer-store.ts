@@ -19,7 +19,12 @@
  * nothing learned, never stopping on it. Pure: the app gives the slot.
  */
 
-import { EMPTY_LAYER, type LearnedLayer, layerInWords, repositoryLayerProblems } from '@jambot/engine';
+import {
+  EMPTY_LAYER,
+  type LearnedLayer,
+  layerInWords,
+  repositoryLayerProblems,
+} from '@jambot/engine';
 
 /** Where a host keeps its learned layer: loaded once a page starts, saved as the band learns. */
 export interface LayerStore {
