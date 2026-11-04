@@ -179,7 +179,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
     expect(text).toMatch(/^&leadlineA ~@5 5@3 5@6 8@2$/m);
     expect(text).toMatch(/^&leadLevel map=amp step=16n /m);
     expect(text).toMatch(
-      /^&lead, &leadOut from "lead performer"\(leadLevel=&leadLevel\) &leadline$/m,
+      /^&lead, &leadOut from lead_performer\(leadLevel=&leadLevel\) &leadline$/m,
     );
     expect(text).toMatch(/^&out map=midi &leadOut &bassOut &stabOut ~!6 &drumsOut$/m);
   });
@@ -226,17 +226,17 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 2,886 characters a section, 2,553 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,878 characters a section, 2,546 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 184731,
+      total: 184197,
       meter: 5000,
       key: 1436,
       harmony: 7197,
-      drums: 79965,
-      bass: 32708,
-      comp: 30199,
-      lead: 21345,
+      drums: 79837,
+      bass: 32580,
+      comp: 30029,
+      lead: 21237,
       card: 6881,
     });
     // E33 states every bar alone: its meter, key, harmony, voices, mix and card every bar, and no lead.

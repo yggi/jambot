@@ -81,6 +81,7 @@ import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { type Hit, witnesses } from './drums-in-cells.ts';
 import { meterName } from './bar-in-cells.ts';
+import { wordOf } from '@yggi/cells/engine/renamed';
 
 /** The corpus: E35's seeds, entropy and length. */
 export const SEEDS = [1, 2, 3, 4, 5] as const;
@@ -264,7 +265,7 @@ export function readFragment(
 
 /** The drum-bar fragment E31 wrote for a preset. */
 export const drumFragmentOf = (preset: string): Fragment =>
-  RHYTHM_FRAGMENTS.find((f) => f.id === `${preset} drums`)!;
+  RHYTHM_FRAGMENTS.find((f) => f.id === wordOf(`${preset} drums`))!;
 
 /** A straight 4/4 at a tempo, as a workbench. */
 export const straightBench = (bpm: number) => hosted('&bar meter("4/4")', bpm);

@@ -36,7 +36,7 @@ const STYLE: Style = { ...FUNK.style, entropy: 0.3 };
 const COOL: Style = { ...STYLE, sync: 0.4, harm: 0.9, artic: 0.5, energy: 0.3 };
 const range = (n: number) => [...Array(n).keys()];
 // (the seeds that fit nearly every meter: Spooky drums, and since cells v0.15.0 Ghost drums and Kinderlied drums)
-const EVERY_METER = ['Spooky drums', 'Ghost drums', 'Kinderlied drums'];
+const EVERY_METER = ['spooky_drums', 'ghost_drums', 'kinderlied_drums'];
 const NO_SPOOKY = rhythmRepository(RHYTHM_FRAGMENTS.filter((f) => !EVERY_METER.includes(f.id)));
 
 /** How cells' vary names a variation: its operator, its line and, but for a rotation, its step. */
@@ -162,14 +162,14 @@ describe('the Muse files the groove the drummer invents on a miss (#401)', () =>
 
   it('counts the groove as used together with the meter fragment it was played in, so the two pull each other', () => {
     const cool = play(16, { layer: EMPTY_LAYER, rhythms: NO_SPOOKY }, COOL);
-    expect(cool[0]!.bar.plan.meterFragment).toBe('5/4');
+    expect(cool[0]!.bar.plan.meterFragment).toBe('meter_5_4');
     const layer = cool[7]!.carried.plans.layer!;
     expect(layer.filed.map((f) => f.fragment.id)).toEqual(['drummer song 1, bar 0']);
     // filed beside its meter, and kept with it by the section planned there: twice together
-    expect(layer.together).toEqual([{ ids: ['5/4', 'drummer song 1, bar 0'], count: 2 }]);
+    expect(layer.together).toEqual([{ ids: ['meter_5_4', 'drummer song 1, bar 0'], count: 2 }]);
     expect(cool[8]!.bar.plan.rhythmFragment).toBe('drummer song 1, bar 0');
     expect(cool[15]!.carried.plans.layer!.together).toEqual([
-      { ids: ['5/4', 'drummer song 1, bar 0'], count: 3 },
+      { ids: ['meter_5_4', 'drummer song 1, bar 0'], count: 3 },
     ]);
   });
 
@@ -275,7 +275,7 @@ describe('the Muse files a player’s drum pattern the same way (#401)', () => {
     );
     expect(found[0]).toEqual({ id: 'Ada song 3, bar 0', distance: 0 });
     // Funk's own drum bar lies there too: the rhythm playing holds against one no nearer
-    expect(found[1]).toEqual({ id: 'Funk drums', distance: 0 });
+    expect(found[1]).toEqual({ id: 'funk_drums', distance: 0 });
     const text = layer.filed[0]!.fragment.text;
     expect(readRhythm(text, plan.meter)!.hits).toEqual(
       PATTERN.map(({ note, step, velocity }) => ({
@@ -366,8 +366,8 @@ describe('the composer tires of a groove: varies it, then rejects it, and the dr
 
 describe('a seed rhythm climbs the ladder as a groove filed does, the clave with it (#414)', () => {
   // Funk's style, where the repository's meter is a 4/4 and the composer finds Funk's drum bar with the rumba clave.
-  const FUNK_DRUMS = 'Funk drums';
-  const RUMBA = 'rumba clave 3-2';
+  const FUNK_DRUMS = 'funk_drums';
+  const RUMBA = 'rumba_clave_3_2';
   const V = 'composer song 1, bar 24';
   const sectionsOf = (run: ReturnType<typeof play>) =>
     range(run.length / SECTION_BARS).map((s) => {

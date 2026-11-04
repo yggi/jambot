@@ -208,7 +208,7 @@ export interface SectionFrame {
 
 /**
  * A section's text compiled with the reading's own lines beside it: what `playSection` plays. Its `use` lines (the
- * performers', `use * from "bass performer"`) read through cells' seed library (`resolveSeed`, cells v0.10.1's engine host).
+ * performers', `&bass, &bassOut from bass_performer(…) &bassline`) read through cells' seed library (`resolveSeed`, cells v0.10.1's engine host).
  */
 export const compileSection = (text: string): Plan =>
   planOf(`${text}\n${READING}`, undefined, { resolve: resolveSeed });

@@ -77,29 +77,29 @@ const PAIRS = PROTOTYPE_PRESETS.map((preset) => ({
 
 describe("cells' rhythms, as the composer asks them (#397)", () => {
   it('reads every rhythm under 4/4 played straight: the drum bars, a line a role, the claves 5 strokes a lap on their own sound, General MIDI’s 75 (cells v0.7.0)', () => {
-    const read = RHYTHM_FRAGMENTS.filter((f) => f.id !== 'Electro swing drums').map((f) => ({
+    const read = RHYTHM_FRAGMENTS.filter((f) => f.id !== 'electro_swing_drums').map((f) => ({
       id: f.id,
       ...readRhythm(f.text, METERS['4/4'])!,
     }));
-    const drumBars = read.filter((r) => r.id.endsWith(' drums'));
+    const drumBars = read.filter((r) => r.id.endsWith('_drums'));
     expect(drumBars.length).toBeGreaterThan(0);
     for (const r of drumBars) expect(r.hits.length, r.id).toBeGreaterThan(0);
     expect(new Set(drumBars.flatMap((r) => r.hits.map((h) => h.role)))).toEqual(
       new Set(DRUM_ROLES.filter((role) => role !== 'clave')),
     );
-    for (const r of read.filter((x) => !x.id.endsWith(' drums'))) {
+    for (const r of read.filter((x) => !x.id.endsWith('_drums'))) {
       expect(
         r.hits.map((h) => [h.role, h.note]),
         r.id,
       ).toEqual(Array(5).fill(['clave', CLAVES_NOTE]));
-      expect(r.bars, r.id).toBe(r.id.endsWith('(one bar)') ? 1 : 2);
+      expect(r.bars, r.id).toBe(r.id.endsWith('_one_bar') ? 1 : 2);
     }
   });
 
   // (#508, the owner's ruling: a line whose name is no role takes the role of the sound it strikes, as the Muse hears a player)
   it('reads Electro swing drums by the sounds its lines strike: the clap the backbeat, the hats and the ticks the hat, the snare’s ghost a ghost', () => {
     const read = readRhythm(
-      RHYTHM_FRAGMENTS.find((f) => f.id === 'Electro swing drums')!.text,
+      RHYTHM_FRAGMENTS.find((f) => f.id === 'electro_swing_drums')!.text,
       METERS['4/4'],
     )!;
     const byLine = (line: string) => [
@@ -120,7 +120,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
 
   it('finds none it can’t read under the section’s meter, though cells fits it: a hit between the bar’s sixteenths (yggi/cells#360)', () => {
     const synthPop = PROTOTYPE_PRESETS[0]!;
-    const bench = { meter: METERS['4/4'], meterFragment: '4/4' };
+    const bench = { meter: METERS['4/4'], meterFragment: 'meter_4_4' };
     const all = rhythmRepository(RHYTHM_FRAGMENTS, () => true);
     const found = all.query(stylePoint(synthPop.style), bench)[0]!.id;
     const unreadable = rhythmRepository(
@@ -156,17 +156,17 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
       return [preset.name, composedRhythm(RHYTHM_REPOSITORY, preset.style, bench, null)];
     });
     expect(Object.fromEntries(found)).toEqual({
-      'Synth-pop': { rhythmFragment: 'Synth-pop drums' },
-      Techno: { rhythmFragment: 'Techno drums' },
-      'Deep house': { rhythmFragment: 'Deep house drums' },
-      Ambient: { rhythmFragment: 'Ambient drums' },
-      'Lo-fi hip hop': { rhythmFragment: 'Lo-fi hip hop drums' },
-      Funk: { rhythmFragment: 'Funk drums', claveFragment: 'rumba clave 3-2' },
+      'Synth-pop': { rhythmFragment: 'synth_pop_drums' },
+      Techno: { rhythmFragment: 'techno_drums' },
+      'Deep house': { rhythmFragment: 'deep_house_drums' },
+      Ambient: { rhythmFragment: 'ambient_drums' },
+      'Lo-fi hip hop': { rhythmFragment: 'lo_fi_hip_hop_drums' },
+      Funk: { rhythmFragment: 'funk_drums', claveFragment: 'rumba_clave_3_2' },
       'Bossa nova': {
-        rhythmFragment: 'Bossa nova drums',
-        claveFragment: 'bossa nova clave (one bar)',
+        rhythmFragment: 'bossa_nova_drums',
+        claveFragment: 'bossa_nova_clave_one_bar',
       },
-      'Swing jazz': { rhythmFragment: 'Swing jazz drums' },
+      'Swing jazz': { rhythmFragment: 'swing_jazz_drums' },
     });
   });
 
@@ -184,10 +184,10 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
         ).toEqual(
           name === '7/8'
             ? GHOST.includes(p.name)
-              ? { rhythmFragment: 'Ghost drums' }
+              ? { rhythmFragment: 'ghost_drums' }
               : {}
             : NEAR.includes(p.name)
-              ? { rhythmFragment: 'Spooky drums' }
+              ? { rhythmFragment: 'spooky_drums' }
               : {},
         );
   });
@@ -267,16 +267,16 @@ describe('the rhythm and the learned layer (#397, #398)', () => {
     expect(bars.map((b) => b.dough)).toEqual(run(funk, 1, true).map((b) => b.dough));
     const learned = layer! as LearnedLayer;
     expect(new Set(learned.points.map((p) => p.id))).toEqual(
-      new Set(['4/4 leaning lightly on 16n', 'Funk drums', 'rumba clave 3-2']),
+      new Set(['meter_4_4_leaning_lightly_on_16n', 'funk_drums', 'rumba_clave_3_2']),
     );
     expect(
-      learned.points.filter((p) => p.id === 'rumba clave 3-2').every((p) => p.facet === 'rhythm'),
+      learned.points.filter((p) => p.id === 'rumba_clave_3_2').every((p) => p.facet === 'rhythm'),
     ).toBe(true);
     // 4 sections played, and the fifth decided a bar ahead: each the rhythm and the clave kept together, and each with the meter (#401)
     expect(learned.together).toEqual([
-      { ids: ['4/4 leaning lightly on 16n', 'Funk drums'], count: 5 },
-      { ids: ['4/4 leaning lightly on 16n', 'rumba clave 3-2'], count: 5 },
-      { ids: ['Funk drums', 'rumba clave 3-2'], count: 5 },
+      { ids: ['meter_4_4_leaning_lightly_on_16n', 'funk_drums'], count: 5 },
+      { ids: ['meter_4_4_leaning_lightly_on_16n', 'rumba_clave_3_2'], count: 5 },
+      { ids: ['funk_drums', 'rumba_clave_3_2'], count: 5 },
     ]);
   });
 });
@@ -302,8 +302,8 @@ describe('the pull of a group the composer keeps, from its place on the ladder (
   /** How much nearer the nearest other drum bar lies than Funk's. */
   const lead = (t: number) => {
     const found = drumBars(t);
-    const funk = found.find((f) => f.id === 'Funk drums')!.distance;
-    return funk - found.find((f) => f.id !== 'Funk drums')!.distance;
+    const funk = found.find((f) => f.id === 'funk_drums')!.distance;
+    return funk - found.find((f) => f.id !== 'funk_drums')!.distance;
   };
   let [low, high] = [0, 1];
   for (let i = 0; i < 40; i++) {
@@ -316,16 +316,16 @@ describe('the pull of a group the composer keeps, from its place on the ladder (
   // Funk's drum bar and the 4/4 meter fragment, known together (cells' 10 uses)
   const layer: LearnedLayer = {
     ...EMPTY_LAYER,
-    together: [{ ids: ['4/4', 'Funk drums'], count: 10 }],
+    together: [{ ids: ['meter_4_4', 'funk_drums'], count: 10 }],
   };
   const taken = (entropy: number) =>
-    composedRhythm(RHYTHM_REPOSITORY, style, bench, null, layer, ['4/4'], [], pullOf(entropy))
+    composedRhythm(RHYTHM_REPOSITORY, style, bench, null, layer, ['meter_4_4'], [], pullOf(entropy))
       .rhythmFragment;
 
   it('keeps the group at entropy 0 (repeat), and follows the style at entropy 1 (fetch far): the nearest by style alone', () => {
     expect(lead(high)).toBeCloseTo(0.01, 6);
-    expect(rival!.id).not.toBe('Funk drums');
-    expect(taken(0)).toBe('Funk drums');
+    expect(rival!.id).not.toBe('funk_drums');
+    expect(taken(0)).toBe('funk_drums');
     expect(taken(1)).toBe(rival!.id);
   });
 });

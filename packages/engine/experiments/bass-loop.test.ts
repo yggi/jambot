@@ -115,19 +115,19 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
   it('plays its run’s most used line in under 60 % of a run’s sections, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { sections, mostUsed, share } = mostUsedLine(LEARNED);
-    expect([sections, mostUsed]).toEqual([8513, 3922]);
+    expect([sections, mostUsed]).toEqual([8513, 3913]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used lines within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asLines(UNLEARNED), asLines(LEARNED));
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-6.38', '1.23']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-6.43', '1.22']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   it('files the bass’s own lines on a miss and the composer’s variations, each reading back as filed', () => {
     const by = (source: string) => FILED.filter((f) => f.filing.source === source).length;
-    expect([FILED.length, by(BASSIST), by(COMPOSER)]).toEqual([109, 15, 94]);
+    expect([FILED.length, by(BASSIST), by(COMPOSER)]).toEqual([111, 16, 95]);
     for (const run of LEARNED)
       for (const { id } of run.lineFilings.filter((f) => !f.held))
         expect(linesFiled(run.learning!.layer).map((f) => f.fragment.id)).toContain(id);
@@ -142,7 +142,7 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
 
   it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums and the bass filing, the cap dropping the oldest once`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
-    expect(bytes).toBe(15971);
+    expect(bytes).toBe(15994);
     expect(bytes).toBeLessThan(LAYER_CAP);
     expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(1);
   });

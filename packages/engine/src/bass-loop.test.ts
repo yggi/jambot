@@ -138,14 +138,14 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
       }),
     );
     expect(found).toEqual({
-      'Synth-pop': ['root bass'],
-      Techno: ['pumping bass'],
-      'Deep house': ['root bass'],
-      Ambient: ['root bass'],
-      'Lo-fi hip hop': ['funk bass'],
-      Funk: ['funk bass'],
-      'Bossa nova': ['funk bass'],
-      'Swing jazz': ['walking bass'],
+      'Synth-pop': ['root_bass'],
+      Techno: ['pumping_bass'],
+      'Deep house': ['root_bass'],
+      Ambient: ['root_bass'],
+      'Lo-fi hip hop': ['funk_bass'],
+      Funk: ['funk_bass'],
+      'Bossa nova': ['funk_bass'],
+      'Swing jazz': ['walking_bass'],
     });
     for (const p of PROTOTYPE_PRESETS)
       expect(
@@ -159,13 +159,13 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
   it('takes the walk only under a meter that swings its 8ths: at Swing jazz’s point in a straight 4/4 it takes the next nearest', () => {
     const swing = byName('Swing jazz');
     const env = { bassLines: BASS_REPOSITORY, style: writtenStyle({ ...swing.style, entropy: 0 }) };
-    const meter = { meter: METERS['4/4'], meterFragment: '4/4 swung on 8n' };
+    const meter = { meter: METERS['4/4'], meterFragment: 'meter_4_4_swung_on_8n' };
     expect(sectionLine(env, { ...meter, swing: '8n', share: 2 / 3 }, undefined)).toBe(
-      'walking bass',
+      'walking_bass',
     );
     // (since cells v0.12.0 the next nearest is Spooky's creeping bass, 0.15 from Swing jazz's point, where funk bass was)
     expect(sectionLine(env, { meter: METERS['4/4'], swing: '16n', share: 0.5 }, undefined)).toBe(
-      'creeping bass',
+      'creeping_bass',
     );
   });
 
@@ -182,7 +182,7 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
       { bassLines: undefined },
       byName('Swing jazz'),
     );
-    const line = BASS_REPOSITORY.read('walking bass', METERS['4/4'])!.notes;
+    const line = BASS_REPOSITORY.read('walking_bass', METERS['4/4'])!.notes;
     for (const [i, { bar }] of run.entries()) {
       const bass = bar.written.filter((n) => n.part === 'bass');
       const own = alone[i]!.bar.written.filter((n) => n.part === 'bass');
@@ -337,25 +337,25 @@ describe('the composer tires of a line: varies it by cells’ pitched operators,
 
   it('plays the preset’s line 3 sections at entropy 1, a variation of it the next 3, then rejects both and takes the next nearest', () => {
     expect(lines.slice(0, 6)).toEqual([
-      'root bass',
-      'root bass',
-      'root bass',
+      'root_bass',
+      'root_bass',
+      'root_bass',
       'composer song 1, bar 24 2',
       'composer song 1, bar 24 2',
       'composer song 1, bar 24 2',
     ]);
-    expect(lines.slice(6, 9)).toEqual(['funk bass', 'funk bass', 'funk bass']);
+    expect(lines.slice(6, 9)).toEqual(['funk_bass', 'funk_bass', 'funk_bass']);
   });
 
   it('files the variation by the composer, naming the line it varies and the operator, and never moves the root on the downbeat', () => {
     const v = layer.filed.find((f) => f.fragment.id === 'composer song 1, bar 24 2')!;
-    expect(v.meta[VARIES]).toBe('root bass');
+    expect(v.meta[VARIES]).toBe('root_bass');
     expect(v.meta.source).toBe(COMPOSER);
     expect(v.meta[BY]).toMatch(/^(transpose &bassline -?[12]|invert &bassline|reverse &bassline)$/);
     expect(v.meta.tags).toEqual([LINE_TAG]);
     const read = BASS_REPOSITORY.read(v.fragment.id, METERS['4/4'], layer)!;
     expect(read.notes[0]).toEqual({ step: 0, chord: 0, index: 0, alter: 0, shift: 0 });
-    expect(read.notes).not.toEqual(BASS_REPOSITORY.read('root bass', METERS['4/4'])!.notes);
+    expect(read.notes).not.toEqual(BASS_REPOSITORY.read('root_bass', METERS['4/4'])!.notes);
   });
 
   it('climbs with no layer to file in no rung: the preset’s line every section', () => {
@@ -364,6 +364,6 @@ describe('the composer tires of a line: varies it by cells’ pitched operators,
       { ...byName('Synth-pop').style, entropy: 1 },
       { layer: undefined },
     );
-    expect(new Set(linesOf(none))).toEqual(new Set(['root bass']));
+    expect(new Set(linesOf(none))).toEqual(new Set(['root_bass']));
   });
 });

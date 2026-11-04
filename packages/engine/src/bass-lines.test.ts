@@ -123,25 +123,25 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     const read = (id: string) =>
       readLine(BASS_FRAGMENTS.find((f) => f.id === id)!.text, METERS['4/4'])!;
     const root = { chord: 0, index: 0, alter: 0, shift: 0 };
-    expect(read('root bass')).toEqual({
+    expect(read('root_bass')).toEqual({
       bars: 1,
       notes: [0, 8].map((step) => ({ step, ...root })),
     });
-    expect(read('pumping bass').notes.map((n) => n.step)).toEqual([2, 6, 10, 14]);
-    expect(read('eighths bass').notes.map((n) => n.step)).toEqual([0, 2, 4, 6, 8, 10, 12, 14]);
+    expect(read('pumping_bass').notes.map((n) => n.step)).toEqual([2, 6, 10, 14]);
+    expect(read('eighths_bass').notes.map((n) => n.step)).toEqual([0, 2, 4, 6, 8, 10, 12, 14]);
     expect(
-      read('funk bass')
+      read('funk_bass')
         .notes.filter((n) => n.chord === 1)
         .map((n) => n.step),
     ).toEqual([13, 14]);
-    expect(read('walking bass').notes).toEqual([
+    expect(read('walking_bass').notes).toEqual([
       { step: 0, ...root },
       { step: 4, ...root, index: 1 },
       { step: 8, ...root, index: 2 },
       { step: 12, chord: 1, index: 0, alter: 0, shift: -1 },
     ]);
     // a lap of more than a bar where its grid doesn't divide the bar: the pump's eight eighths over 3/4's six
-    const pump = BASS_FRAGMENTS.find((f) => f.id === 'pumping bass')!;
+    const pump = BASS_FRAGMENTS.find((f) => f.id === 'pumping_bass')!;
     expect(readLine(pump.text, METERS['3/4'])!.bars).toBe(4);
   });
 
@@ -150,8 +150,8 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       isWalk(readLine(f.text, METERS['4/4'])!, METERS['4/4'], 16),
     ).map((f) => f.id);
     // (the seeds named: which others cells offers, and whether they walk, is cells' library's)
-    expect(walks).toContain('walking bass');
-    for (const id of ['root bass', 'pumping bass', 'eighths bass', 'funk bass'])
+    expect(walks).toContain('walking_bass');
+    for (const id of ['root_bass', 'pumping_bass', 'eighths_bass', 'funk_bass'])
       expect(walks).not.toContain(id);
   });
 
@@ -216,7 +216,7 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       shift: 0,
     }));
     const point = { sync: 0.9, harm: 0.9, artic: 0.9, energy: 0.1 };
-    const bench = { meter: METERS['4/4'], meterFragment: '4/4' };
+    const bench = { meter: METERS['4/4'], meterFragment: 'meter_4_4' };
     const filing = {
       notes,
       bench,
@@ -236,7 +236,7 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     // a bar of the root on one and three states as the root bass's own text: filing it is a use of the seed
     const root = [0, 8].map((step) => ({ step, chord: 0, index: 0, alter: 0, shift: 0 }));
     const seed = lineRepository().file!(EMPTY_LAYER, { ...filing, notes: root });
-    expect([seed.held, seed.id, seed.layer.filed.length]).toEqual([true, 'root bass', 0]);
+    expect([seed.held, seed.id, seed.layer.filed.length]).toEqual([true, 'root_bass', 0]);
     const again = lineRepository().file!(filed.layer, { ...filing, created: 'song 1, bar 16' });
     expect([again.held, again.id, again.layer.filed.length]).toEqual([true, filed.id, 1]);
   });
@@ -262,7 +262,7 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     const bench = { meter: METERS['4/4'] };
     const seen = new Set<string>();
     for (let k = 0; k < 64; k++) {
-      const v = BASS_REPOSITORY.vary!('walking bass', bench, k / 64)!;
+      const v = BASS_REPOSITORY.vary!('walking_bass', bench, k / 64)!;
       seen.add(v.by);
       expect(v.notes[0]).toEqual({ step: 0, chord: 0, index: 0, alter: 0, shift: 0 });
     }

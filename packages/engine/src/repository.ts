@@ -37,7 +37,7 @@ import {
   createRepository,
   layerProblems,
 } from '@yggi/cells/repository/fragments';
-import { useFragments } from '@yggi/cells/repository/learned';
+import { renamedLayer, useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
 import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
@@ -188,6 +188,14 @@ export const SEED_FRAGMENTS: readonly Fragment[] = [
  * `layerProblems`), and that it files no seed fragment's id, which a query
  * refuses.
  */
+/**
+ * A learned layer kept before cells v0.16.0, its seed ids written as the words
+ * they are now (cells' `renamedLayer`, yggi/cells#443): read so on load, a
+ * band keeps the points and pairs it learned, which would otherwise be left
+ * out as unheld (#558).
+ */
+export const layerInWords = (layer: LearnedLayer): LearnedLayer => renamedLayer(layer);
+
 export function repositoryLayerProblems(layer: unknown): string[] {
   if (typeof layer !== 'object' || layer === null || Array.isArray(layer))
     return ['the layer is not a map'];

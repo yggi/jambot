@@ -297,13 +297,13 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
     expect(familyOf(layer, w)).toEqual([g, v, w]);
     expect(familyOf(layer, g)).toEqual([g, v, w]);
     expect(familyOf(layer, h)).toEqual([h]);
-    expect(familyOf(layer, 'Funk drums')).toEqual(['Funk drums']);
+    expect(familyOf(layer, 'funk_drums')).toEqual(['funk_drums']);
   });
 
   it('reads a seed rhythm’s family from the layer too: the seed rhythm first, which the layer didn’t file, then every groove filed from it (#414)', () => {
     const repository = rhythmRepository();
     const varyFunk = (d: number) =>
-      repository.vary!('Funk drums', { meter: METERS['4/4'] }, d, EMPTY_LAYER)!.hits;
+      repository.vary!('funk_drums', { meter: METERS['4/4'] }, d, EMPTY_LAYER)!.hits;
     const [one, two] = [varyFunk(0), varyFunk(0.5)];
     let layer = EMPTY_LAYER;
     const fileIt = (hits: readonly FragmentHit[], created: string, varies: string) => {
@@ -319,33 +319,33 @@ describe('the composer’s boredom with a groove: the novelty ladder (#411; cell
       layer = filed.layer;
       return filed.id;
     };
-    const v = fileIt(one!, 'bar 80', 'Funk drums');
+    const v = fileIt(one!, 'bar 80', 'funk_drums');
     const w = fileIt(two!, 'bar 160', v);
-    expect(familyOf(layer, 'Funk drums')).toEqual(['Funk drums', v, w]);
-    expect(familyOf(layer, w)).toEqual(['Funk drums', v, w]);
-    expect(familyOf(layer, 'Techno drums')).toEqual(['Techno drums']);
+    expect(familyOf(layer, 'funk_drums')).toEqual(['funk_drums', v, w]);
+    expect(familyOf(layer, w)).toEqual(['funk_drums', v, w]);
+    expect(familyOf(layer, 'techno_drums')).toEqual(['techno_drums']);
   });
 
   it('keeps each clave the drum bar’s it was first chosen to layer on, and rejects it with that one’s lineage alone: the clave climbs with the drum bar (#414, #430)', () => {
-    const RUMBA = 'rumba clave 3-2';
+    const RUMBA = 'rumba_clave_3_2';
     const owners = ownedWith(NO_CLAVE_OWNERS, {
-      rhythmFragment: 'Funk drums',
+      rhythmFragment: 'funk_drums',
       claveFragment: RUMBA,
     });
-    expect(owners).toEqual({ [RUMBA]: 'Funk drums' });
+    expect(owners).toEqual({ [RUMBA]: 'funk_drums' });
     // layering on another rhythm meanwhile doesn't make it that one's, and a section with no clave or no drum bar adds none
     for (const section of [
       { rhythmFragment: 'drummer g', claveFragment: RUMBA },
       { rhythmFragment: 'drummer g' },
-      { claveFragment: 'son clave 3-2' },
+      { claveFragment: 'son_clave_3_2' },
     ])
       expect(ownedWith(owners, section)).toBe(owners);
     // carried section to section, and out with the drum bar's lineage once it climbs past the last rung
     let boredom = NO_BOREDOM;
     for (let section = 0; section < 6; section++)
-      boredom = boredAfter(boredom, [lineageOf(boredom, ['Funk drums'])], 1);
-    expect(rejectedOf(boredom, owners)).toEqual(['Funk drums', RUMBA]);
-    expect(rejectedOf(boredom)).toEqual(['Funk drums']);
+      boredom = boredAfter(boredom, [lineageOf(boredom, ['funk_drums'])], 1);
+    expect(rejectedOf(boredom, owners)).toEqual(['funk_drums', RUMBA]);
+    expect(rejectedOf(boredom)).toEqual(['funk_drums']);
     // a lineage it layered on meanwhile is rejected without it, and once the drum bar's has faded, it is free again
     const other: Lineage = { grooves: ['drummer g'], boredom: 6, rejected: true };
     expect(rejectedOf([other], owners)).toEqual(['drummer g']);

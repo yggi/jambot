@@ -91,7 +91,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     const text = sectionTextOf(sectionAsCells(bars));
     const { result } = compileSection(text);
     expect(result.diagnostics).toEqual([]);
-    expect(text.match(/^.* from ".* performer".*$/gm)).toEqual(
+    expect(text.match(/^.* from \w+_performer.*$/gm)).toEqual(
       (['drums', 'bass', 'stab'] as const).map((p) => fromPerformer(p)),
     );
     // (the MIDI card, then the sound card that hears every pitched part: cells v0.15.0's instruments each have a sound)
@@ -255,7 +255,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     // (the bass's instrument, its register the seed's, given a gain of its own after the performer that uses it)
     const voiced = (gain: string) => {
       const edited = text.replace(
-        /^&bass, &bassOut from "bass performer".*$/m,
+        /^&bass, &bassOut from bass_performer.*$/m,
         (line) => `${line}\n&bassV loop=C2 gain=${gain}`,
       );
       expect(edited).not.toBe(text);

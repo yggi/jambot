@@ -132,7 +132,7 @@ describe('a bar recognised (recognisedBar)', () => {
   });
 
   // (the variations whose bar strikes the steps its source does, so it reads as the source)
-  const SAME_ONSETS = ['Spooky drums: drop &euclid 1'];
+  const SAME_ONSETS = ['spooky_drums: drop &euclid 1'];
   it('recognises every variation the composer may make of a seed rhythm or bass line, by its operator, or as its source where it strikes the source’s steps', () => {
     let variations = 0;
     for (const facet of ['rhythm', 'bass'] as const)
@@ -162,7 +162,7 @@ describe('a bar recognised (recognisedBar)', () => {
   });
 
   it('does not recognise a seed rhythm two operators away, nor a lead line before the layer files it', () => {
-    const techno = libraryOf('rhythm').find((f) => f.id === 'Techno drums')!;
+    const techno = libraryOf('rhythm').find((f) => f.id === 'techno_drums')!;
     const options = recogniseOptionsOf('rhythm', FOUR)!;
     const once = readVariations(techno.text, options).variations.find(
       (v) => v.variation.rule === 'drop',
@@ -188,7 +188,7 @@ describe('a bar recognised (recognisedBar)', () => {
   });
 
   it('recognises within a tolerance the notes that differ, and only then', () => {
-    const techno = libraryOf('rhythm').find((f) => f.id === 'Techno drums')!;
+    const techno = libraryOf('rhythm').find((f) => f.id === 'techno_drums')!;
     const options = recogniseOptionsOf('rhythm', FOUR)!;
     const once = readVariations(techno.text, options).variations.find(
       (v) => v.variation.rule === 'drop',

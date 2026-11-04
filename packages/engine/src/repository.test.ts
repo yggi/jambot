@@ -23,6 +23,7 @@ import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { PROTOTYPE_PRESETS, holding } from './style.ts';
 import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
 import { presetMode } from './mode-repository.ts';
+import { RENAMED_IDS } from '@yggi/cells/engine/renamed';
 
 /** Each preset's swing as `PROTOTYPE_PRESETS` named it by hand before the repository found it (#360, #459), as a literal. */
 const HAND_SWING: Readonly<Record<string, MeterSwing>> = {
@@ -66,14 +67,14 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
   it('reads eleven of cells’ thirteen meters into the band’s, and says why it leaves out the other two', () => {
     const left = METER_READINGS.filter((r) => typeof r.read === 'string');
     expect(Object.fromEntries(left.map((r) => [r.id, r.read]))).toEqual({
-      '4/4 alla breve': "its meter, 2 beats in 8 eighths at 0 4, is none of the band's",
-      '2/4': "its meter, 2 beats in 4 eighths at 0 2, is none of the band's",
+      meter_4_4_alla_breve: "its meter, 2 beats in 8 eighths at 0 4, is none of the band's",
+      meter_2_4: "its meter, 2 beats in 4 eighths at 0 2, is none of the band's",
     });
     expect([...METER_REPOSITORY.fragments.keys()]).toHaveLength(11);
-    expect(METER_REPOSITORY.fragments.get('10/8')!.meter).toEqual(METERS['10/8']);
-    expect(METER_REPOSITORY.fragments.get('7/8')!.meter).toEqual(METERS['7/8']);
-    expect(METER_REPOSITORY.fragments.get('12/8')!.meter).toEqual(METERS['12/8']);
-    expect(METER_REPOSITORY.fragments.get('4/4 swung on 8n')!.swing).toEqual({
+    expect(METER_REPOSITORY.fragments.get('meter_10_8')!.meter).toEqual(METERS['10/8']);
+    expect(METER_REPOSITORY.fragments.get('meter_7_8')!.meter).toEqual(METERS['7/8']);
+    expect(METER_REPOSITORY.fragments.get('meter_12_8')!.meter).toEqual(METERS['12/8']);
+    expect(METER_REPOSITORY.fragments.get('meter_4_4_swung_on_8n')!.swing).toEqual({
       level: '8n',
       share: 2 / 3,
     });
@@ -156,6 +157,10 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
   const ranked = (found: readonly { id: string; distance: number }[]) =>
     found.map((f) => `${f.id} ${f.distance.toFixed(9)}`).join(', ');
   /** FNV-1a over the lines, one a query. */
+  /** An answer with each seed id as it was before cells v0.16.0 (yggi/cells#443): the longest word first, so one inside another stays. */
+  const OLD_IDS = [...RENAMED_IDS].sort(([, a], [, b]) => b.length - a.length);
+  const asBefore = (lines: readonly string[]) =>
+    lines.map((line) => OLD_IDS.reduce((l, [old, word]) => l.split(word).join(old), line));
   const hashOf = (lines: readonly string[]) => {
     let h = 0x811c9dc5;
     for (const line of lines)
@@ -186,7 +191,9 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
   it('picks the meters it picked under cells v0.8.0 but near the new presets’ points, at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = meterQueries(METER_REPOSITORY);
     // (as under cells v0.8.0 but near Electro swing's and Spooky's points, whose meters cells v0.12.0 placed there)
-    expect([asked.length, hashOf(asked)]).toEqual([89, '5fd35b0e']);
+    expect([asked.length, hashOf(asked)]).toEqual([89, '1b079a45']);
+    // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
+    expect(hashOf(asBefore(asked))).toBe('5fd35b0e');
     // (what of cells' library is neither a meter nor a rhythm: bass lines, harmonies, kits, modes … whatever it holds)
     expect(OTHERS.length).toBeGreaterThan(0);
     expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
@@ -196,7 +203,9 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     const asked = rhythmQueries(RHYTHM_REPOSITORY);
     // (as under cells v0.8.0 but where Electro swing drums (held since #508) or Spooky drums (cells v0.12.0) is nearer, or
     // since cells v0.15.0 Ghost drums, near Spooky, in 476 answers, and Kinderlied drums in 14, yggi/cells#409 and #417)
-    expect([asked.length, hashOf(asked)]).toEqual([1780, '49339569']);
+    expect([asked.length, hashOf(asked)]).toEqual([1780, '0387bfe1']);
+    // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
+    expect(hashOf(asBefore(asked))).toBe('49339569');
     // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
     // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits; and since cells v0.15.0
     // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one)

@@ -24,6 +24,7 @@ import {
   straightBench,
   workbenchOf,
 } from './rhythm-query.ts';
+import { wordOf } from '@yggi/cells/engine/renamed';
 
 const SECTIONS = corpus();
 const ASKED = askCorpus(SECTIONS);
@@ -83,7 +84,7 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
     expect(ASKED).toHaveLength(320);
     for (const s of ASKED) {
       expect(s.answer, `${s.preset} ${s.seed} ${s.index}`).toEqual({
-        id: `${s.preset} drums`,
+        id: wordOf(`${s.preset} drums`),
         distance: 0,
       });
     }
@@ -95,14 +96,14 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
         ]),
       ),
     ).toEqual({
-      'Synth-pop': '4/4',
-      Techno: '4/4',
-      'Deep house': '4/4 leaning lightly on 16n',
-      Ambient: '4/4 leaning faintly on 16n',
-      'Lo-fi hip hop': '4/4 leaning on 16n',
-      Funk: '4/4 leaning lightly on 16n',
-      'Bossa nova': '4/4',
-      'Swing jazz': '4/4 swung on 8n',
+      'Synth-pop': 'meter_4_4',
+      Techno: 'meter_4_4',
+      'Deep house': 'meter_4_4_leaning_lightly_on_16n',
+      Ambient: 'meter_4_4_leaning_faintly_on_16n',
+      'Lo-fi hip hop': 'meter_4_4_leaning_on_16n',
+      Funk: 'meter_4_4_leaning_lightly_on_16n',
+      'Bossa nova': 'meter_4_4',
+      'Swing jazz': 'meter_4_4_swung_on_8n',
     });
   });
 
@@ -121,17 +122,17 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
       ]),
     );
     expect(verdicts).toEqual({
-      '4/4': ['found'],
-      '4/4 swung on 8n': ['found'],
-      '4/4 leaning on 16n': ['found'],
-      '4/4 leaning lightly on 16n': ['found'],
-      '4/4 leaning faintly on 16n': ['found'],
-      '3/4': ['found', 'distance'],
-      '6/8': ['found', 'distance'],
-      '12/8': ['found', 'distance'],
-      '5/4': ['found', 'distance'],
-      '7/8': ['distance', 'found'],
-      '10/8': ['found', 'distance'],
+      meter_4_4: ['found'],
+      meter_4_4_swung_on_8n: ['found'],
+      meter_4_4_leaning_on_16n: ['found'],
+      meter_4_4_leaning_lightly_on_16n: ['found'],
+      meter_4_4_leaning_faintly_on_16n: ['found'],
+      meter_3_4: ['found', 'distance'],
+      meter_6_8: ['found', 'distance'],
+      meter_12_8: ['found', 'distance'],
+      meter_5_4: ['found', 'distance'],
+      meter_7_8: ['distance', 'found'],
+      meter_10_8: ['found', 'distance'],
     });
   });
 
@@ -337,8 +338,8 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
       ['Deep house', null],
       ['Ambient', null],
       ['Lo-fi hip hop', null],
-      ['Funk', { id: 'rumba clave 3-2', hits: 2.5, onDrums: 0, added: 2.5 }],
-      ['Bossa nova', { id: 'bossa nova clave (one bar)', hits: 5, onDrums: 0, added: 5 }],
+      ['Funk', { id: 'rumba_clave_3_2', hits: 2.5, onDrums: 0, added: 2.5 }],
+      ['Bossa nova', { id: 'bossa_nova_clave_one_bar', hits: 5, onDrums: 0, added: 5 }],
       ['Swing jazz', null],
     ]);
     expect(ASKED.filter((s) => s.withIt).length).toBe(80);
@@ -353,20 +354,20 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
           repository,
           stylePoint(p.style),
           bench,
-          `${p.name} drums`,
+          wordOf(`${p.name} drums`),
           Infinity,
         )!;
         return [p.name, found.id, Math.round(found.distance * 1000) / 1000];
       }),
     ).toEqual([
-      ['Synth-pop', 'son clave 3-2', 0.293],
-      ['Techno', 'rumba clave 3-2', 0.468],
-      ['Deep house', 'son clave 3-2', 0.266],
-      ['Ambient', 'bossa nova clave', 0.522],
-      ['Lo-fi hip hop', 'bossa nova clave (one bar)', 0.168],
-      ['Funk', 'rumba clave 3-2', 0.069],
-      ['Bossa nova', 'bossa nova clave (one bar)', 0.025],
-      ['Swing jazz', 'bossa nova clave (one bar)', 0.26],
+      ['Synth-pop', 'son_clave_3_2', 0.293],
+      ['Techno', 'rumba_clave_3_2', 0.468],
+      ['Deep house', 'son_clave_3_2', 0.266],
+      ['Ambient', 'bossa_nova_clave', 0.522],
+      ['Lo-fi hip hop', 'bossa_nova_clave_one_bar', 0.168],
+      ['Funk', 'rumba_clave_3_2', 0.069],
+      ['Bossa nova', 'bossa_nova_clave_one_bar', 0.025],
+      ['Swing jazz', 'bossa_nova_clave_one_bar', 0.26],
     ]);
     const withSynth = unionOf(drumFragmentOf('Synth-pop').text, bench).text;
     expect([...unionOf(drumFragmentOf('Deep house').text, withSynth).renamed.keys()]).toContain(
@@ -381,20 +382,20 @@ describe('the point the rhythm is asked at (E36)', () => {
     expect(moved).toHaveLength(81);
     expect(moved.filter((m) => m.noRole)).toHaveLength(40);
     expect([...new Set(moved.map((m) => `${m.preset} ${m.type} ${m.id}`))]).toEqual([
-      'Synth-pop drop Deep house drums',
-      'Deep house intro Synth-pop drums',
-      'Deep house breakdown Synth-pop drums',
-      'Lo-fi hip hop drop Electro swing drums',
-      'Lo-fi hip hop breakdown bossa nova clave',
-      'Funk drop rumba clave 3-2',
-      'Funk breakdown son clave 2-3',
-      'Bossa nova intro bossa nova clave',
-      'Bossa nova build bossa nova clave',
-      'Bossa nova drop Electro swing drums',
-      'Bossa nova bridge bossa nova clave',
-      'Bossa nova breakdown bossa nova clave',
-      'Swing jazz intro Spooky drums',
-      'Swing jazz breakdown Spooky drums',
+      'Synth-pop drop deep_house_drums',
+      'Deep house intro synth_pop_drums',
+      'Deep house breakdown synth_pop_drums',
+      'Lo-fi hip hop drop electro_swing_drums',
+      'Lo-fi hip hop breakdown bossa_nova_clave',
+      'Funk drop rumba_clave_3_2',
+      'Funk breakdown son_clave_2_3',
+      'Bossa nova intro bossa_nova_clave',
+      'Bossa nova build bossa_nova_clave',
+      'Bossa nova drop electro_swing_drums',
+      'Bossa nova bridge bossa_nova_clave',
+      'Bossa nova breakdown bossa_nova_clave',
+      'Swing jazz intro spooky_drums',
+      'Swing jazz breakdown spooky_drums',
     ]);
   });
 });

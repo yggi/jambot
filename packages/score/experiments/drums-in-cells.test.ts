@@ -26,6 +26,7 @@ import {
   velocitiesOf,
   witnesses,
 } from './drums-in-cells.ts';
+import { wordOf } from '@yggi/cells/engine/renamed';
 
 const WITNESSES = witnesses();
 if (process.env.E31_REPORT) console.log(WITNESSES.map(report).join('\n\n'));
@@ -206,7 +207,7 @@ describe('what cells could not say (E31: the gaps)', () => {
 describe('E31’s translation as the engine states a groove the Muse files (#401)', () => {
   it('states each witness bar as cells’ seed drum bar for its preset, character for character, less the bar line and its card, each with the kit it strikes', () => {
     for (const w of WITNESSES) {
-      const seed = RHYTHM_FRAGMENTS.find((f) => f.id === `${w.preset} drums`)!;
+      const seed = RHYTHM_FRAGMENTS.find((f) => f.id === wordOf(`${w.preset} drums`))!;
       expect(w.text.split('\n').slice(2).join('\n'), w.preset).toBe(withInstruments(seed.text));
     }
   });
@@ -228,7 +229,7 @@ describe('E31’s translation as the engine states a groove the Muse files (#401
       });
       expect([filed.held, filed.id, filed.layer.filed.length], w.preset).toEqual([
         true,
-        `${w.preset} drums`,
+        wordOf(`${w.preset} drums`),
         0,
       ]);
     }
