@@ -25,6 +25,9 @@ export interface MidiPort {
 /** One channel per part (L6): the pad and the stab default to the same one. */
 export type Channels = Readonly<Record<Part, number>>;
 
+/** The channel each part goes out on at one output: a part not routed there is absent, and sends nothing. */
+export type PartChannels = Readonly<Partial<Record<Part, number>>>;
+
 export const DEFAULT_CHANNELS: Channels = { lead: 1, bass: 2, pad: 3, stab: 3, drums: 10 };
 
 /** The output note each drum sound sends, keyed as `DRUM_NOTES` is: GM by default. */
@@ -49,7 +52,8 @@ const STOP = 0xfc;
 /** A 1–16 MIDI channel to its 0–15 status-byte nibble, wrapping rather than throwing. */
 export const nibble = (channel: number) => (channel - 1) & 15;
 
-const channelsEqual = (a: Channels, b: Channels) => PARTS.every((part) => a[part] === b[part]);
+const channelsEqual = (a: PartChannels, b: PartChannels) =>
+  PARTS.every((part) => a[part] === b[part]);
 
 const drumNotesEqual = (a: DrumNotes, b: DrumNotes) =>
   DRUM_SOUNDS.every((sound) => a[sound] === b[sound]);
@@ -63,15 +67,17 @@ const holderKey = (channel: number, note: number) => `${channel}:${note}`;
 
 export class MidiOut {
   #port: MidiPort | null = null;
-  #channels: Channels;
+  #channels: PartChannels;
   #clock: boolean;
+  /** How much earlier than its moment each message is sent, in ms: the device's own latency. */
+  #latency = 0;
   #drumNotes: DrumNotes;
   #drumNoteOf: ReadonlyMap<number, number>;
   /** Notes currently held, by channel and pitch, not yet resolved as released. */
   #open = new Map<string, Holder[]>();
 
   constructor(
-    channels: Channels = DEFAULT_CHANNELS,
+    channels: PartChannels = DEFAULT_CHANNELS,
     clock = false,
     drumNotes: DrumNotes = DEFAULT_DRUM_NOTES,
   ) {
@@ -83,6 +89,15 @@ export class MidiOut {
 
   setClock(clock: boolean) {
     this.#clock = clock;
+  }
+
+  /**
+   * Send every message `ms` earlier than its moment: a device that sounds
+   * late by that much (its profile's latency) then sounds on time. 0 sends
+   * each at its moment.
+   */
+  setLatency(ms: number) {
+    this.#latency = ms;
   }
 
   /**
@@ -105,7 +120,7 @@ export class MidiOut {
   }
 
   /** Remap parts to channels, silencing the channels it leaves first. */
-  setChannels(channels: Channels, atSeconds: number, toDeviceMs: (seconds: number) => number) {
+  setChannels(channels: PartChannels, atSeconds: number, toDeviceMs: (seconds: number) => number) {
     if (channelsEqual(channels, this.#channels)) return;
     this.panic(atSeconds, toDeviceMs);
     this.#channels = channels;
@@ -124,7 +139,8 @@ export class MidiOut {
 
   /**
    * Schedule a note at `seconds` for `duration` seconds, on its part's
-   * channel. Its release is decided later, by `advance`.
+   * channel; a part with no channel here sends nothing. Its release is
+   * decided later, by `advance`.
    */
   play(
     part: Part,
@@ -134,9 +150,10 @@ export class MidiOut {
     duration: number,
     toDeviceMs: (seconds: number) => number,
   ) {
-    if (!this.#port) return;
+    const routed = this.#channels[part];
+    if (!this.#port || routed === undefined) return;
     const outNote = part === 'drums' ? (this.#drumNoteOf.get(note) ?? note) : note;
-    const channel = nibble(this.#channels[part]);
+    const channel = nibble(routed);
     const key = holderKey(channel, outNote);
     const holders = this.#open.get(key) ?? [];
     const held = holders.some((h) => h.start <= seconds && seconds < h.end);
@@ -187,7 +204,9 @@ export class MidiOut {
   }
 
   #allNotesOff(atSeconds: number, toDeviceMs: (seconds: number) => number) {
-    const channels = new Set(Object.values(this.#channels).map(nibble));
+    const channels = new Set(
+      Object.values(this.#channels).flatMap((c) => (c === undefined ? [] : [nibble(c)])),
+    );
     for (const channel of channels)
       this.#send([CONTROL_CHANGE | channel, ALL_NOTES_OFF, 0], atSeconds, toDeviceMs);
   }
@@ -195,7 +214,7 @@ export class MidiOut {
   #send(data: readonly number[], seconds: number, toDeviceMs: (seconds: number) => number) {
     if (!this.#port) return;
     try {
-      this.#port.send(data, Math.max(0, toDeviceMs(seconds)));
+      this.#port.send(data, Math.max(0, toDeviceMs(seconds) - this.#latency));
     } catch {
       // A port can vanish mid-send (unplugged, revoked); nothing to do about it.
     }

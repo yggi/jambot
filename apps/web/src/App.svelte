@@ -189,7 +189,7 @@
         : instruments.onMidiNote(note, source),
     );
 
-  // A port chosen before is remembered (`MidiSettings`); reconnect to it without
+  // A port chosen before is remembered (`MidiSettings`, the setup in use); reconnect to it without
   // waiting for a click, since a granted Web MIDI permission needs no gesture.
   if (device.remembersPorts) void connectMidi();
 
@@ -368,12 +368,14 @@
   >
     <SoundPanel
       settings={device.settings}
-      access={device.access}
+      connected={device.access !== null}
+      connecting={device.connecting}
       ports={device.ports}
       message={device.message}
       onconnect={connectMidi}
       onrefresh={() => device.refresh()}
       onpanic={() => player.panicMidi()}
+      ontest={(key, channel) => device.testNote(key, channel)}
     />
   </Card>
 {/snippet}

@@ -411,10 +411,9 @@ describe('the app', () => {
 
       await renderBand();
       await pull('Sound');
-      await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
-      await fireEvent.change(await screen.findByRole('combobox', { name: 'Listen to input' }), {
-        target: { value: 'all' },
-      });
+      await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+      // The input is a row of the patch: its Heard switch lets the instruments and the Muse hear it.
+      await fireEvent.click(await screen.findByRole('button', { name: 'Not heard' }));
 
       port.onmidimessage!({ data: [0x90, 64, 100] } as unknown as MIDIMessageEvent); // channel 1: E4
       await view('Melody');
@@ -438,9 +437,9 @@ describe('the app', () => {
       render(App);
       await waitFor(() => expect(requestMIDIAccess).toHaveBeenCalledTimes(1));
       await waitFor(() =>
-        expect(screen.queryByRole('button', { name: 'Connect MIDI' })).not.toBeInTheDocument(),
+        expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument(),
       );
-      expect(screen.getByLabelText('Send to output')).toHaveValue('out-1');
+      expect(screen.getByLabelText('Port')).toHaveValue('out-1');
 
       delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
     });
@@ -473,8 +472,8 @@ describe('the app', () => {
 
       await renderBand();
       await pull('Sound');
-      await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
-      await fireEvent.change(await screen.findByRole('combobox', { name: 'Send to output' }), {
+      await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+      await fireEvent.change(await screen.findByRole('combobox', { name: 'Port' }), {
         target: { value: 'out-1' },
       });
       await fireEvent.keyDown(window, { key: 'a' }); // creates the output, sending a note on

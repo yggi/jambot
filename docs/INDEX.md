@@ -29,7 +29,7 @@ A source file has no line here: its header comment says what it is, and `tooling
     - [`engine.md`](memory/engine.md): the levels, the band, the Muse, the style, swing and the clock
     - [`web-app.md`](memory/web-app.md): the screen, its components and what the end-to-end checks rely on
     - [`session.md`](memory/session.md): host and client mode, the fault kit, the timing panel
-    - [`midi.md`](memory/midi.md): ports, panic and the drum note maps
+    - [`midi.md`](memory/midi.md): setups, routes out and in, ports, panic and the drum note maps
     - [`theory.md`](memory/theory.md): reading names, the helix, Strudel, music21 and tonal
     - [`score-language.md`](memory/score-language.md): the score's layers, drums, meter and pitch syntax
     - [`analyzer.md`](memory/analyzer.md): the parser and its ladder
@@ -76,7 +76,7 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `apps/web/src/meter/`: the metronome (#259): a bar of any meter written from its helix (the accent grades, the ternary swing, the plan of a bar's onsets) and the player that loops it
   - `apps/web/src/session/`: host and client mode in the app ([brief](briefs/host-mode.md))
   - `apps/web/src/audio/`: the player's outputs: the built-in synth, MIDI out, the device's clock pairing
-  - `apps/web/src/midi/`: where a note lands and the MIDI settings; reading MIDI and the Web MIDI connection are `@yggi/webmidi`'s
+  - `apps/web/src/midi/`: where a note lands, the band's patch on webmidi's setups, the drum notes by sound and the MIDI settings; reading MIDI, the Web MIDI connection, the setups and the patchbay's components are `@yggi/webmidi`'s
   - `apps/web/e2e/`: the end-to-end checks, the built app in Chromium with its audio measured (`pnpm e2e`)
 - `tooling/`: the repository's own gates and tools: `pnpm verify`, lint rules, hooks, the pawl, the license gate, the Pages deploy, screenshots, the heavy runs' lock
 - `.github/`

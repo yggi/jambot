@@ -1,16 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import type { MidiPort } from '../audio/midi-out.ts';
 import { DRUM_CHANNEL, partOf, routeNote } from './routing.ts';
-
-const NOTE_ON = 0x90;
-const NOTE_OFF = 0x80;
-
-function fakePort() {
-  const sent: number[][] = [];
-  const port: MidiPort = { send: (data) => void sent.push([...data]) };
-  return { port, sent };
-}
 
 function deps(overrides: Partial<Omit<Parameters<typeof routeNote>[4], 'held'>> = {}) {
   const held = new Set<number>();
@@ -23,9 +13,6 @@ function deps(overrides: Partial<Omit<Parameters<typeof routeNote>[4], 'held'>> 
     humanNoteOff,
     playing: () => true,
     toOutputSeconds: (ms: number) => ms / 1000,
-    thru: () => false,
-    thruPort: () => null,
-    thruChannel: () => 1,
     playAlong,
     now: () => 5000,
     ...overrides,
@@ -76,42 +63,27 @@ describe('routeNote', () => {
     expect(stopped.humanNoteOff).not.toHaveBeenCalled();
   });
 
-  it('sends nothing over thru when thru is off', () => {
-    const { port, sent } = fakePort();
-    const d = deps({ thru: () => false, thruPort: () => port });
-    routeNote(60, 100, true, 'test', d);
-    expect(sent).toEqual([]);
+  it('passes nothing on without a forward: a MIDI input’s notes are the device’s to pass on', () => {
+    expect(() => routeNote(60, 100, true, 'test', deps())).not.toThrow();
   });
 
-  it('sends note on and off over thru, on the chosen channel', () => {
-    const { port, sent } = fakePort();
-    const d = deps({ thru: () => true, thruPort: () => port, thruChannel: () => 1 });
+  it('passes a note on and off on, as played', () => {
+    const forward = vi.fn();
+    const d = deps({ forward });
     routeNote(60, 100, true, 'test', d);
     routeNote(60, 0, false, 'test', d);
-    expect(sent).toEqual([
-      [NOTE_ON | 0, 60, 100],
-      [NOTE_OFF | 0, 60, 0],
+    expect(forward.mock.calls).toEqual([
+      [60, 100, true],
+      [60, 0, false],
     ]);
   });
 
-  it('wraps the thru channel 1–16 to a 0–15 nibble, off by one nowhere', () => {
-    const { port, sent } = fakePort();
-    const d = deps({ thru: () => true, thruPort: () => port, thruChannel: () => 16 });
-    routeNote(60, 100, true, 'test', d);
-    expect(sent[0]![0]).toBe(NOTE_ON | 15);
-  });
-
-  it('captures and sends thru together, each independent of the other', () => {
-    const { port, sent } = fakePort();
-    const d = deps({ thru: () => true, thruPort: () => port, playing: () => true });
+  it('captures and passes on together, each independent of the other', () => {
+    const forward = vi.fn();
+    const d = deps({ forward, playing: () => true });
     routeNote(60, 100, true, 'test', d);
     expect(d.humanNoteOn).toHaveBeenCalledTimes(1);
-    expect(sent).toHaveLength(1);
-  });
-
-  it('does nothing over thru when there is no port yet, without throwing', () => {
-    const d = deps({ thru: () => true, thruPort: () => null });
-    expect(() => routeNote(60, 100, true, 'test', d)).not.toThrow();
+    expect(forward).toHaveBeenCalledTimes(1);
   });
 
   it('plays along at once when struck, whether or not the band is playing', () => {

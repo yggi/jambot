@@ -1,250 +1,159 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { DRUM_PRESETS, KEYS, chooseDevice, inputRow, withCrossing } from '@yggi/webmidi/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES, type MidiPort } from '../audio/midi-out.ts';
-import { DRUM_PRESETS } from '@yggi/webmidi/core';
-import type { MidiAccess } from '@yggi/webmidi/web';
+import { BAND } from '../midi/patch.ts';
 import { MidiSettings } from '../midi/settings.svelte.ts';
 import SoundPanel from './SoundPanel.svelte';
 
 beforeEach(() => localStorage.clear());
 
 const PORTS = {
-  inputs: [{ id: 'in-1', name: 'Keys' }],
+  inputs: [{ id: 'in-1', name: 'KeyStep' }],
   outputs: [{ id: 'out-1', name: 'Synth' }],
 };
 
-function fakeAccess(outPort: MidiPort = { send: vi.fn() }) {
-  const listen = vi.fn();
-  const outputPort = vi.fn(() => outPort);
-  const access = {
-    inputs: [{ id: 'in-1', name: 'Keys' }],
-    outputs: [{ id: 'out-1', name: 'Synth' }],
-    outputPort,
-    listen,
-  } as unknown as MidiAccess;
-  return { access, listen, outputPort, outPort };
+/** The panel, connected or not, on settings of its own. */
+function panel(over: Record<string, unknown> = {}) {
+  const settings = (over.settings as MidiSettings | undefined) ?? new MidiSettings();
+  const props = {
+    settings,
+    connected: true,
+    ports: PORTS,
+    message: '',
+    onconnect: () => {},
+    ...over,
+  };
+  return { settings, ...render(SoundPanel, props) };
 }
 
+/** Settings whose one output is the synth plugged in. */
+function onSynth() {
+  const settings = new MidiSettings();
+  settings.book = chooseDevice(settings.book, 'o1', PORTS.outputs[0]!);
+  return settings;
+}
+
+const jack = (row: string, output: string) =>
+  screen.getByRole('button', { name: new RegExp(`^${row} to ${output}: `) });
+
 describe('SoundPanel', () => {
-  it('offers to connect when there is no access yet', async () => {
+  it('offers to connect when there is no access yet, and says what Web MIDI said', async () => {
     const onconnect = vi.fn();
-    render(SoundPanel, {
-      settings: new MidiSettings(),
-      access: null,
-      message: 'Without MIDI, the built-in synth and the keys still run the whole loop.',
-      onconnect,
-    });
-    await fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI' }));
-    expect(onconnect).toHaveBeenCalledTimes(1);
-    expect(screen.queryByLabelText('Send to output')).not.toBeInTheDocument();
+    panel({ connected: false, message: 'Not connected yet.', onconnect });
+    expect(screen.getByRole('status')).toHaveTextContent('Not connected yet.');
+    await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    expect(onconnect).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'Refresh ports' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'All notes off' })).toBeNull();
   });
 
-  it('offers the ports once connected, with no output chosen by default', () => {
-    const { access } = fakeAccess();
-    render(SoundPanel, {
-      settings: new MidiSettings(),
-      access,
-      ports: PORTS,
-      message: '',
-      onconnect: () => {},
-    });
-    expect(screen.queryByRole('button', { name: 'Connect MIDI' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Send to output')).toHaveValue('none');
-    expect(screen.getByRole('option', { name: 'Synth' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Keys' })).toBeInTheDocument();
+  it('waits while connecting', () => {
+    panel({ connected: false, connecting: true });
+    expect(screen.getByRole('button', { name: 'Connecting…' })).toBeDisabled();
   });
 
-  it('resolves a chosen output port through access, and saves its id', async () => {
-    const { access, outputPort, outPort } = fakeAccess();
-    const settings = new MidiSettings();
-    render(SoundPanel, { settings, access, ports: PORTS, message: '', onconnect: () => {} });
-    await fireEvent.change(screen.getByLabelText('Send to output'), {
-      target: { value: 'out-1' },
-    });
-    expect(outputPort).toHaveBeenCalledWith('out-1');
-    expect(settings.outPortId).toBe('out-1');
-    expect(settings.outPort).toBe(outPort);
-  });
-
-  it('listens to a chosen input port, and saves its id', async () => {
-    const { access, listen } = fakeAccess();
-    const settings = new MidiSettings();
-    render(SoundPanel, { settings, access, ports: PORTS, message: '', onconnect: () => {} });
-    await fireEvent.change(screen.getByLabelText('Listen to input'), {
-      target: { value: 'all' },
-    });
-    expect(listen).toHaveBeenCalledWith('all');
-    expect(settings.inPortId).toBe('all');
-  });
-
-  it('clamps a channel to 1–16', async () => {
-    const settings = new MidiSettings();
-    render(SoundPanel, { settings, access: null, message: '', onconnect: () => {} });
-    await fireEvent.change(screen.getByLabelText('Lead'), { target: { value: '99' } });
-    expect(settings.channels).toEqual({ ...DEFAULT_CHANNELS, lead: 16 });
-    await fireEvent.change(screen.getByLabelText('Bass'), { target: { value: '0' } });
-    expect(settings.channels.bass).toBe(1);
-  });
-
-  it('opens on the GM drum notes preset, with every sound at its GM number', () => {
-    const settings = new MidiSettings();
-    render(SoundPanel, { settings, access: null, message: '', onconnect: () => {} });
-    expect(screen.getByLabelText('Preset')).toHaveValue('GM');
-    expect(screen.getByLabelText('Kick')).toHaveValue(DEFAULT_DRUM_NOTES.kick);
-    expect(screen.getByLabelText('Ride')).toHaveValue(DEFAULT_DRUM_NOTES.ride);
-  });
-
-  it('sets every drum note from the chosen preset', async () => {
-    const settings = new MidiSettings();
-    render(SoundPanel, { settings, access: null, message: '', onconnect: () => {} });
-    await fireEvent.change(screen.getByLabelText('Preset'), {
-      target: { value: 'Novation Circuit' },
-    });
-    expect(settings.drumMap).toEqual(DRUM_PRESETS['Novation Circuit']);
-    expect(screen.getByLabelText('Kick')).toHaveValue(60);
-  });
-
-  it('clamps a drum note to 0–127, and shows the preset as custom once it no longer matches one', async () => {
-    const settings = new MidiSettings();
-    render(SoundPanel, { settings, access: null, message: '', onconnect: () => {} });
-    await fireEvent.change(screen.getByLabelText('Kick'), { target: { value: '200' } });
-    expect(settings.drumNotes.kick).toBe(127);
-    expect(screen.getByLabelText('Preset')).toHaveValue('');
-    await fireEvent.change(screen.getByLabelText('Snare'), { target: { value: '-5' } });
-    expect(settings.drumNotes.snare).toBe(0);
-  });
-
-  it('offers all notes off once connected, and calls it on click', async () => {
-    const { access } = fakeAccess();
-    const onpanic = vi.fn();
-    render(SoundPanel, {
-      settings: new MidiSettings(),
-      access,
-      message: '',
-      onconnect: () => {},
-      onpanic,
-    });
+  it('offers a refresh and all notes off once connected, and asks for each on click', async () => {
+    const [onrefresh, onpanic] = [vi.fn(), vi.fn()];
+    panel({ onrefresh, onpanic });
+    expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'Refresh ports' }));
     await fireEvent.click(screen.getByRole('button', { name: 'All notes off' }));
-    expect(onpanic).toHaveBeenCalledTimes(1);
+    expect(onrefresh).toHaveBeenCalledOnce();
+    expect(onpanic).toHaveBeenCalledOnce();
   });
 
-  it('offers no all-notes-off control before connecting', () => {
-    render(SoundPanel, {
-      settings: new MidiSettings(),
-      access: null,
-      message: '',
-      onconnect: () => {},
-    });
-    expect(screen.queryByRole('button', { name: 'All notes off' })).not.toBeInTheDocument();
-  });
-
-  it('toggles the built-in synth, clock and thru', async () => {
-    const settings = new MidiSettings();
-    render(SoundPanel, { settings, access: null, message: '', onconnect: () => {} });
+  it('toggles the built-in synth', async () => {
+    const { settings } = panel();
     await fireEvent.click(screen.getByLabelText('Play the built-in synth'));
     expect(settings.internal).toBe(false);
-    await fireEvent.click(screen.getByLabelText('Send MIDI clock, start and stop'));
-    expect(settings.clock).toBe(true);
-    await fireEvent.click(screen.getByLabelText('Pass what you play to the output on channel'));
-    expect(settings.thru).toBe(true);
   });
 
-  describe('laid out in sections', () => {
-    const region = (name: string) => screen.getByRole('region', { name });
-
-    it('splits the built-in synth from MIDI, and MIDI into its output and input', () => {
-      const { access } = fakeAccess();
-      render(SoundPanel, {
-        settings: new MidiSettings(),
-        access,
-        ports: PORTS,
-        message: '',
-        onconnect: () => {},
-      });
-      expect(screen.getAllByRole('heading').map((h) => [h.tagName, h.textContent])).toEqual([
-        ['H3', 'Built-in synth'],
-        ['H3', 'MIDI'],
-        ['H4', 'Output'],
-        ['H4', 'Input'],
-      ]);
-      const synth = within(region('Built-in synth'));
-      expect(synth.getByLabelText('Play the built-in synth')).toBeInTheDocument();
-      expect(synth.queryByLabelText('Send to output')).toBeNull();
-    });
-
-    it('keeps what is sent in the output, and what is heard in the input', () => {
-      const { access } = fakeAccess();
-      render(SoundPanel, {
-        settings: new MidiSettings(),
-        access,
-        ports: PORTS,
-        message: '',
-        onconnect: () => {},
-      });
-      const out = within(region('Output'));
-      for (const label of ['Send to output', 'Lead', 'Drums', 'Preset', 'Kick'])
-        expect(out.getByLabelText(label)).toBeInTheDocument();
-      expect(out.getByLabelText('Send MIDI clock, start and stop')).toBeInTheDocument();
-      const inn = within(region('Input'));
-      expect(inn.getByLabelText('Listen to input')).toBeInTheDocument();
-      expect(inn.getByLabelText('Pass what you play to the output on channel')).toBeInTheDocument();
-      expect(inn.getByLabelText('Thru channel')).toBeInTheDocument();
-      expect(inn.queryByLabelText('Send to output')).toBeNull();
-      expect(out.queryByLabelText('Listen to input')).toBeNull();
-    });
+  it('splits the built-in synth from MIDI', () => {
+    panel();
+    const headings = screen.getAllByRole('heading').map((h) => h.textContent);
+    expect(headings.slice(0, 2)).toEqual(['Built-in synth', 'MIDI']);
+    const synth = within(screen.getByRole('region', { name: 'Built-in synth' }));
+    expect(synth.getByLabelText('Play the built-in synth')).toBeInTheDocument();
+    expect(synth.queryByRole('table')).toBeNull();
   });
 
-  describe('looking at the ports again', () => {
-    it('offers a refresh once connected, and asks for one on click', async () => {
-      const { access } = fakeAccess();
-      const onrefresh = vi.fn();
-      render(SoundPanel, {
-        settings: new MidiSettings(),
-        access,
-        ports: PORTS,
-        message: '',
-        onconnect: () => {},
-        onrefresh,
-      });
-      await fireEvent.click(screen.getByRole('button', { name: 'Refresh ports' }));
-      expect(onrefresh).toHaveBeenCalledTimes(1);
-    });
+  it('patches the five parts and the keys, then each input with its Heard switch, then the clock', () => {
+    panel();
+    const rows = within(screen.getByRole('table'))
+      .getAllByRole('rowheader')
+      .map((h) => h.querySelector('.label')?.textContent);
+    expect(rows).toEqual(['Lead', 'Bass', 'Pad', 'Stab', 'Drums', 'Keys', 'KeyStep', 'Clock']);
+    expect(jack('Lead', 'No device')).toHaveAccessibleName('Lead to No device: channel 1');
+    expect(jack('Drums', 'No device')).toHaveAccessibleName('Drums to No device: channel 10');
+    expect(jack('Keys', 'No device')).toHaveAccessibleName('Keys to No device: not sent');
+    expect(screen.getByRole('button', { name: 'Not heard' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
 
-    it('offers connecting before that, and no refresh', () => {
-      render(SoundPanel, {
-        settings: new MidiSettings(),
-        access: null,
-        message: '',
-        onconnect: () => {},
-      });
-      expect(screen.queryByRole('button', { name: 'Refresh ports' })).toBeNull();
-      expect(screen.getByRole('button', { name: 'Connect MIDI' })).toBeInTheDocument();
-    });
+  it('hears an input by its switch, which the Muse listens to, as a custom variant of the setup', async () => {
+    const { settings } = panel();
+    await fireEvent.click(screen.getByRole('button', { name: 'Not heard' }));
+    expect(settings.setup.heard).toEqual([PORTS.inputs[0]]);
+    expect(settings.setup.name).toBe('Jambot - custom');
+    expect(screen.getByRole('button', { name: 'Save…' })).toBeEnabled();
+  });
 
-    it('lists the ports it is given, as they come and go', async () => {
-      const { access } = fakeAccess();
-      const { rerender } = render(SoundPanel, {
-        settings: new MidiSettings(),
-        access,
-        ports: PORTS,
-        message: '',
-        onconnect: () => {},
-      });
-      expect(screen.queryByRole('option', { name: 'Launchpad' })).toBeNull();
-      await rerender({
-        ports: { ...PORTS, outputs: [...PORTS.outputs, { id: 'out-2', name: 'Launchpad' }] },
-      });
-      expect(screen.getByRole('option', { name: 'Launchpad' })).toBeInTheDocument();
-    });
+  it('routes a row to a channel from the jack’s picker', async () => {
+    const { settings } = panel({ settings: onSynth() });
+    await fireEvent.click(jack('Keys', 'Synth'));
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '5' }));
+    expect(settings.setup.routes[BAND]![KEYS]).toEqual({ o1: 5 });
+    await fireEvent.click(jack(PORTS.inputs[0]!.name, 'Synth'));
+    await fireEvent.click(screen.getByRole('button', { name: '= As played' }));
+    expect(settings.setup.routes[BAND]![inputRow(PORTS.inputs[0]!)]).toEqual({ o1: 0 });
+  });
 
-    it('shows a port chosen before that is not plugged in as not connected, not as a blank', () => {
-      const { access } = fakeAccess();
-      const settings = new MidiSettings();
-      settings.outPortId = 'out-9';
-      settings.inPortId = 'in-9';
-      render(SoundPanel, { settings, access, ports: PORTS, message: '', onconnect: () => {} });
-      expect(screen.getByLabelText('Send to output')).toHaveDisplayValue('Not connected');
-      expect(screen.getByLabelText('Listen to input')).toHaveDisplayValue('Not connected');
+  it('chooses the output’s device in the inspector, and sends it the clock from the clock row', async () => {
+    const { settings } = panel();
+    await fireEvent.change(screen.getByLabelText('Port'), { target: { value: 'out-1' } });
+    expect(settings.setup.outputs).toEqual([{ key: 'o1', id: 'out-1', name: 'Synth' }]);
+    await fireEvent.click(screen.getByRole('button', { name: 'Clock to Synth' }));
+    expect(settings.setup.clock).toEqual(['o1']);
+  });
+
+  it('keeps a device’s drum map and latency with the device, by its name', async () => {
+    const { settings } = panel({ settings: onSynth() });
+    await fireEvent.change(screen.getByLabelText(/Drum map/), {
+      target: { value: 'Novation Circuit' },
     });
+    expect(settings.book.devices.Synth!.drums).toEqual(DRUM_PRESETS['Novation Circuit']);
+    await fireEvent.change(screen.getByLabelText(/Latency/), { target: { value: '9' } });
+    expect(settings.book.devices.Synth!.latency).toBe(9);
+  });
+
+  it('edits the drum notes by sound, clamped to 0–127, the map then a custom one', async () => {
+    const { settings } = panel({ settings: onSynth() });
+    expect(screen.getByLabelText('Kick')).toHaveValue(36);
+    await fireEvent.change(screen.getByLabelText('Kick'), { target: { value: '200' } });
+    expect(settings.book.devices.Synth!.drums[36]).toBe(127);
+    expect(screen.getByLabelText(/Drum map/)).toHaveValue('Custom');
+  });
+
+  it('offers no drum notes for an output the drums don’t go to', () => {
+    const settings = onSynth();
+    settings.book = withCrossing(settings.book, BAND, 'drums', 'o1', undefined);
+    panel({ settings });
+    expect(screen.queryByLabelText('Kick')).toBeNull();
+    expect(screen.queryByLabelText(/Drum map/)).toBeNull();
+  });
+
+  it('sends a test note on the output’s first channel, once connected', async () => {
+    const ontest = vi.fn();
+    panel({ settings: onSynth(), ontest });
+    await fireEvent.click(screen.getByRole('button', { name: 'Test note' }));
+    expect(ontest).toHaveBeenCalledWith('o1', 1);
+  });
+
+  it('shows a device of the setup that isn’t plugged in as such, and says how many are missing', () => {
+    panel({ settings: onSynth(), ports: { inputs: [], outputs: [] }, message: 'MIDI connected.' });
+    expect(screen.getByText(/1 of this setup’s devices isn’t plugged in/)).toBeInTheDocument();
+    expect(screen.getByText('Not plugged in')).toBeInTheDocument();
   });
 });

@@ -1,69 +1,108 @@
 import { DRUM_NOTES, type DrumSound } from '@jambot/engine';
-import { DRUM_PRESETS, type DrumMap, deviceNote, presetNameOf } from '@yggi/webmidi/core';
-import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES, type DrumNotes } from '../audio/midi-out.ts';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { MidiSettings, drumNotesOf } from './settings.svelte.ts';
+import {
+  DRUM_PRESETS,
+  KEYS,
+  type DrumMap,
+  activeSetup,
+  deviceNote,
+  fromJambot,
+  memoryStore,
+  presetNameOf,
+  withCrossing,
+} from '@yggi/webmidi/core';
+import { DEFAULT_CHANNELS, type DrumNotes } from '../audio/midi-out.ts';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { drumMapOf, drumNotesOf } from './drums.ts';
+import { BAND } from './patch.ts';
+import {
+  BOOK_KEY,
+  LEGACY_DEFAULTS,
+  LEGACY_KEY,
+  MidiSettings,
+  SYNTH_KEY,
+  readLegacy,
+} from './settings.svelte.ts';
 
 beforeEach(() => localStorage.clear());
 
+const kept = () => JSON.parse(localStorage.getItem(BOOK_KEY)!);
+
 describe('MidiSettings', () => {
-  it('opens with the built-in synth on, default channels, GM drum notes, and no MIDI', () => {
+  it('opens a first visit with the built-in synth on and one setup: the five parts on their channels, to no device', () => {
     const settings = new MidiSettings();
     expect(settings.internal).toBe(true);
-    expect(settings.channels).toEqual(DEFAULT_CHANNELS);
-    expect(settings.drumNotes).toEqual(DEFAULT_DRUM_NOTES);
-    expect(settings.clock).toBe(false);
-    expect(settings.thru).toBe(false);
-    expect(settings.outPortId).toBe('none');
-    expect(settings.inPortId).toBe('none');
-    expect(settings.outPort).toBeNull();
+    const setup = settings.setup;
+    expect(setup.name).toBe('Jambot');
+    expect(setup.outputs).toEqual([{ key: 'o1', id: 'none', name: '' }]);
+    expect(setup.heard).toEqual([]);
+    expect(setup.clock).toEqual([]);
+    expect(setup.routes[BAND]).toEqual(
+      Object.fromEntries(Object.entries(DEFAULT_CHANNELS).map(([part, ch]) => [part, { o1: ch }])),
+    );
+    expect(kept()).toEqual(JSON.parse(JSON.stringify(settings.book)));
   });
 
-  it('persists every field across instances', () => {
+  it('keeps the book and the synth across instances', () => {
     const settings = new MidiSettings();
     settings.internal = false;
-    settings.channels = { lead: 5, bass: 6, pad: 7, stab: 7, drums: 8 };
-    settings.drumNotes = { ...DEFAULT_DRUM_NOTES, kick: 60 };
-    settings.clock = true;
-    settings.thru = true;
-    settings.thruChannel = 3;
-    settings.outPortId = 'device-out';
-    settings.inPortId = 'all';
-
+    settings.book = withCrossing(settings.book, BAND, KEYS, 'o1', 4);
     const reopened = new MidiSettings();
     expect(reopened.internal).toBe(false);
-    expect(reopened.channels).toEqual({ lead: 5, bass: 6, pad: 7, stab: 7, drums: 8 });
-    expect(reopened.drumNotes).toEqual({ ...DEFAULT_DRUM_NOTES, kick: 60 });
-    expect(reopened.clock).toBe(true);
-    expect(reopened.thru).toBe(true);
-    expect(reopened.thruChannel).toBe(3);
-    expect(reopened.outPortId).toBe('device-out');
-    expect(reopened.inPortId).toBe('all');
+    expect(reopened.book).toEqual(settings.book);
+    expect(localStorage.getItem(SYNTH_KEY)).toBe('false');
   });
 
-  it('does not persist the resolved port itself: only its id', () => {
-    const settings = new MidiSettings();
-    settings.outPort = { send: () => {} };
-    const reopened = new MidiSettings();
-    expect(reopened.outPort).toBeNull();
+  it('says when the book changes, as the device listens again', () => {
+    const onchange = vi.fn();
+    const settings = new MidiSettings({ store: memoryStore(), onchange });
+    settings.book = withCrossing(settings.book, BAND, 'lead', 'o1', 9);
+    expect(onchange).toHaveBeenCalledOnce();
   });
 
-  it('falls back to defaults when localStorage holds junk', () => {
-    localStorage.setItem('jambot-midi-v1', '{not json');
+  it('migrates the store from before the book once, through webmidi’s fromJambot, and leaves it as it was', () => {
+    const old = {
+      internal: false,
+      channels: { lead: 5, bass: 6, pad: 7, stab: 7, drums: 8 },
+      drumMap: DRUM_PRESETS['Novation Circuit'],
+      clock: true,
+      thru: true,
+      thruChannel: 3,
+      outPortId: 'device-out',
+      inPortId: 'all',
+    };
+    localStorage.setItem(LEGACY_KEY, JSON.stringify(old));
     const settings = new MidiSettings();
-    expect(settings.channels).toEqual(DEFAULT_CHANNELS);
+    expect(settings.internal).toBe(false);
+    expect(settings.book).toEqual(fromJambot(old, { inputs: [], outputs: [] }));
+    expect(kept()).toEqual(JSON.parse(JSON.stringify(settings.book)));
+    expect(JSON.parse(localStorage.getItem(LEGACY_KEY)!)).toEqual(old);
+
+    // kept from then on: a change to the old store is never read again
+    localStorage.setItem(LEGACY_KEY, JSON.stringify({ ...old, thruChannel: 9 }));
+    expect(new MidiSettings().book).toEqual(settings.book);
   });
 
-  it('fills in missing channels from a partial save, rather than dropping the rest', () => {
-    localStorage.setItem('jambot-midi-v1', JSON.stringify({ channels: { lead: 9 } }));
+  it('names the ports the store kept by id alone once they are seen, and keeps the names', () => {
+    localStorage.setItem(LEGACY_KEY, JSON.stringify({ outPortId: 'out-1', clock: true }));
     const settings = new MidiSettings();
-    expect(settings.channels).toEqual({ ...DEFAULT_CHANNELS, lead: 9 });
+    expect(settings.setup.outputs[0]).toEqual({ key: 'o1', id: 'out-1', name: '' });
+    const ports = { inputs: [], outputs: [{ id: 'out-1', name: 'Circuit' }] };
+    settings.name(ports);
+    expect(settings.setup.outputs[0]).toEqual({ key: 'o1', id: 'out-1', name: 'Circuit' });
+    expect(new MidiSettings().setup.outputs[0]!.name).toBe('Circuit');
   });
 
-  it('fills in missing drum notes from a partial save, rather than dropping the rest', () => {
-    localStorage.setItem('jambot-midi-v1', JSON.stringify({ drumNotes: { kick: 60 } }));
-    const settings = new MidiSettings();
-    expect(settings.drumNotes).toEqual({ ...DEFAULT_DRUM_NOTES, kick: 60 });
+  it('reads the store before the book as its load did: junk as nothing, a partial save filled from the defaults', () => {
+    expect(readLegacy()).toBeNull();
+    localStorage.setItem(LEGACY_KEY, '{not json');
+    expect(readLegacy()).toBeNull();
+    expect(activeSetup(new MidiSettings().book).routes[BAND]!.lead).toEqual({ o1: 1 });
+    localStorage.clear();
+    localStorage.setItem(LEGACY_KEY, JSON.stringify({ channels: { lead: 9 } }));
+    expect(readLegacy()).toEqual({
+      ...LEGACY_DEFAULTS,
+      channels: { ...DEFAULT_CHANNELS, lead: 9 },
+    });
   });
 
   /**
@@ -100,34 +139,28 @@ describe('MidiSettings', () => {
         );
   });
 
-  it('reads a save of drum notes by sound as General MIDI notes, every sound going out as before, and writes the new form', () => {
+  it('reads a save of drum notes by sound into a map sending every sound as before, and migrates it into the book', () => {
     const custom = { ...OLD_PRESETS['Novation Circuit']!, kick: 61, ride: 51 };
     for (const [name, old] of [...Object.entries(OLD_PRESETS), ['Custom', custom] as const]) {
-      localStorage.setItem('jambot-midi-v1', JSON.stringify({ drumNotes: old, thruChannel: 4 }));
-      const settings = new MidiSettings();
+      localStorage.clear();
+      localStorage.setItem(LEGACY_KEY, JSON.stringify({ drumNotes: old, thruChannel: 4 }));
+      const map = readLegacy()!.drumMap;
       for (const sound of SOUNDS)
-        expect(deviceNote(settings.drumMap, DRUM_NOTES[sound]), `${name}: ${sound}`).toBe(
-          old[sound],
-        );
-      expect(settings.drumNotes).toEqual(withClap(old, settings.drumMap));
-      expect(presetNameOf(settings.drumMap)).toBe(name);
-      expect(settings.thruChannel).toBe(4);
-
-      const saved = JSON.parse(localStorage.getItem('jambot-midi-v1')!);
-      expect(saved).not.toHaveProperty('drumNotes');
-      expect(saved.drumMap).toEqual(JSON.parse(JSON.stringify(settings.drumMap)));
-      expect(drumNotesOf(new MidiSettings().drumMap)).toEqual(withClap(old, settings.drumMap));
+        expect(deviceNote(map, DRUM_NOTES[sound]), `${name}: ${sound}`).toBe(old[sound]);
+      expect(drumNotesOf(map)).toEqual(withClap(old, map));
+      expect(presetNameOf(map)).toBe(name);
+      // no port seen yet: the map is the book's defaults, which the output takes
+      const book = new MidiSettings().book;
+      expect(book.defaults.drums).toEqual(map);
     }
   });
 
   it('names a map set by sound as the preset it matches, and keeps what a preset places beyond the 7 sounds', () => {
-    const settings = new MidiSettings();
-    settings.drumNotes = OLD_PRESETS['Novation Circuit']!;
-    expect(settings.drumMap).toEqual(DRUM_PRESETS['Novation Circuit']);
-    settings.drumNotes = { ...settings.drumNotes, kick: 61 };
-    expect(presetNameOf(settings.drumMap)).toBe('Custom');
-    expect(deviceNote(settings.drumMap, 39)).toBe(62); // the clap, still on the Circuit's second pad
-    settings.drumNotes = OLD_PRESETS.GM!;
-    expect(settings.drumMap).toEqual({});
+    let map = drumMapOf(OLD_PRESETS['Novation Circuit']!);
+    expect(map).toEqual(DRUM_PRESETS['Novation Circuit']);
+    map = drumMapOf({ ...drumNotesOf(map), kick: 61 }, map);
+    expect(presetNameOf(map)).toBe('Custom');
+    expect(deviceNote(map, 39)).toBe(62); // the clap, still on the Circuit's second pad
+    expect(drumMapOf(OLD_PRESETS.GM!, map)).toEqual({});
   });
 });
