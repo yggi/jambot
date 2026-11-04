@@ -60,13 +60,13 @@ describe('the harmony on the radio’s walk, learning (E43, #425)', () => {
   it('plays its run’s most used theme in under 60 % of its sections, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { sections, mostUsed, share, fromRepository } = mostUsedTheme(LEARNED);
-    expect([sections, mostUsed, fromRepository]).toEqual([8513, 1759, 2340]);
+    expect([sections, mostUsed, fromRepository]).toEqual([8513, 1831, 2477]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used themes within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asThemes(UNLEARNED), asThemes(LEARNED));
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['0.23', '0.22']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['0.92', '0.58']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 });
@@ -78,11 +78,12 @@ describe('the harmony on the radio’s walk, a player playing progressions one s
     expect(share).toBeLessThan(0.6);
   });
 
-  it('brings the player’s progressions back: the share among a run’s 3 most used themes rises 14.0 points (3.0 error), past 5', () => {
-    // (the player's progressions, filed, are the only fits above VAMP_HARM, and each section that plays one is a use:
+  it('brings the player’s progressions back: the share among a run’s 3 most used themes rises 13.8 points (3.0 error), past 5', () => {
+    // (the player's progressions, filed, are the only fits above VAMP_HARM but where the walk comes near Spooky's haunted
+    // progression, yggi/cells#409, and each section that plays one is a use:
     // what was heard returning, the loop doing its job, as the owner ruled on #484, 2026-10-23)
     const { added, error } = lockIn(asThemes(PLAYED_UNLEARNED), asThemes(PLAYED));
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['14.03', '2.98']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['13.82', '2.99']);
   });
 
   it('files the player’s progressions under the player’s name, each reading back as filed', () => {

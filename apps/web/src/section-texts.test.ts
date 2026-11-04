@@ -156,8 +156,10 @@ describe('a section’s text on the wire, host to client (#446)', () => {
     },
   );
 
-  // (since cells v0.14.0 a part's performer is taken by its `from` line, its arguments written out, some 150 characters a section more)
-  it('sends the text, 1.5 to 3.1 KB a section as JSON, under 3.25 KB, where what cells plays from it is 7 to 31 times that', () => {
+  // (since cells v0.14.0 a part's performer is taken by its `from` line, its arguments written out, some 150 characters a section more;
+  // since v0.15.0 the section writes its `&style` and a sound card hearing its pitched parts, some 80 more: Ambient, the
+  // sparsest, plays 6.8 times its text)
+  it('sends the text, 1.6 to 3.1 KB a section as JSON, under 3.25 KB, where what cells plays from it is 6.8 to 31 times that', () => {
     const sizes = PRESETS.map((p) => {
       const bars = section(p.name, SECTION_BARS);
       const stated = stateSection(bars);
@@ -168,9 +170,9 @@ describe('a section’s text on the wire, host to client (#446)', () => {
     });
     for (const { text, events } of sizes) {
       expect(text).toBeLessThan(3.25 * 1024);
-      expect(events / text).toBeGreaterThan(7);
+      expect(events / text).toBeGreaterThan(6.5);
     }
-    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(1.4 * 1024);
+    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(1.5 * 1024);
     expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(30);
   });
 

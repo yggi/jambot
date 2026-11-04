@@ -103,8 +103,12 @@ describe('the instruments a section’s performers play, found at its style (#49
     });
   });
 
-  it('names each pitched performer’s voice as its own instrument defines it', () => {
+  // (since cells v0.15.0 each default instrument has a sound, `s=` and its filters, and reads the section's &style:
+  // the lead's a blend of two waves, `s=tri..square * &style[artic]`, cells decision 066)
+  it('names each pitched performer’s voice as its own instrument defines it, its register and its sound', () => {
     for (const { voice, own } of Object.values(PERFORMER_VOICES))
-      expect(lineOf(own, voice), own).toMatch(new RegExp(`^&${voice} loop=C\\d$`));
+      expect(lineOf(own, voice), own).toMatch(
+        new RegExp(`^&${voice} s=\\S+( \\* &\\S+)? loop=C\\d( |$)`),
+      );
   });
 });
