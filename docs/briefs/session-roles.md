@@ -37,7 +37,7 @@ The log takes in the Muse's log, joins and leaves, asks and answers, reactions, 
 
 ## The session as it stands
 
-- A client is host or client (`mode`); a client admitted without a code listens (`listens`, `packages/session/src/roster.ts`, #461), and the host drops a listener's `judged`, `played` and `forget`.
+- A client is host or client (`mode`); a seat is a player or a listener (`role`, `packages/session/src/roster.ts`), a client admitted without a code a listener (#461), and the host drops a listener's `judged`, `played` and `forget`.
 - A client sends the host its ear's motif judgement, its drums and bass, and Forget; there is no nudge message, and `Player.apply` drops every client intent.
 - Joins and leaves are not logged; the Muse's log keeps its last five lines.
 - There is no handover: a host away for the lobby's 30 s grace ends the session; a reloaded host restores from its own `HostSnapshot`.
@@ -48,7 +48,9 @@ The log takes in the Muse's log, joins and leaves, asks and answers, reactions, 
 
 Each step is one protocol minor and one pull request; the hub's session contract (yggi/music-commons) takes a vector for each new kind first.
 
-1. **Roles.** A member's `role` (co-host, player, listener) in place of `listens`, in the roster and the welcome; a code per role, joining without one a listener or turned away; a host's `role` message to change one. The app reads one `can` per device in place of the `following` flag, and draws only what it allows.
+1. **Roles.** A member's `role` in place of `listens`, in the roster and the welcome; a code per role, joining without one a listener or turned away; a host's `role` message to change one. The app reads one `can` per device in place of the `following` flag, and draws only what it allows.
+   Its first half is built, the part that leaves the wire as it is: a seat's `role` (player or listener; co-host comes with step 5, when it has something of its own to do), kept in the host's snapshot, and `Can` (`canOf`, `apps/web/src/sessionState.ts`), by which the Style, Key and Metrum cards and the transport draw no control a client can't use.
+   Its second half bumps the protocol: the welcome's `role`, the host's `role` message, and the host's control to change one; the hub's session contract takes their vectors first.
 2. **Asks** (#217 step 3). A client's `wish`: the target and its running total in steps, clamped by the host and dropped from a listener; `Player.apply` folds the median in at the section line, as the radio's walk is folded.
 3. **The log.** A host's `event`: the bar, who, the kind (joined, left, asked, answered, declined, Muse, reacted, announced) and a short text; the host keeps the last 200 and the welcome carries the tail. `cuesOf` grows an asked kind, and a cue whose moment passes becomes an event.
 4. **Reactions and announcements.** `react` from anyone (an emoji of a fixed set, the bar, the event it answers if any) and `announce` from a host or co-host, relayed as events.

@@ -5,6 +5,7 @@
  * wording and each colour.
  */
 
+import type { Role } from '@jambot/session';
 import { SOURCE_COLOURS } from './attribution.ts';
 import type { Mode } from './player.svelte.ts';
 import type { ClientStatus } from './session/client.svelte.ts';
@@ -23,11 +24,28 @@ export interface Following {
   readonly name: string | null;
   readonly hostPlaying: boolean;
   readonly hostAway: boolean;
-  /** Seated without the code of a session by code: it listens (#461). */
-  readonly listening?: boolean;
+  /** What the host seated it as: a listener is one seated without the code of a session by code (#461). */
+  readonly role: Role;
   readonly trip: number | null;
   readonly lacked: number;
 }
+
+/**
+ * What a device can do in its session (docs/briefs/session-roles.md), the
+ * one thing a card asks rather than whether it follows a host. `set`: it
+ * sets the style, the key, the tempo, the meter and its swing, and starts
+ * and stops the band, so a card draws the controls that do; a device that
+ * can't sees what the host set and no control it couldn't use. `play`: what
+ * its players play reaches the session's Muse, as a listener's doesn't.
+ */
+export interface Can {
+  readonly set: boolean;
+  readonly play: boolean;
+}
+
+/** What a device can do: everything alone or hosting; as a client, what its role lets it. */
+export const canOf = (mode: Mode, role: Role): Can =>
+  mode === 'client' ? { set: false, play: role === 'player' } : { set: true, play: true };
 
 /** The session by name: the one hosted or followed, or "Solo". */
 export function sessionMain(mode: Mode, hosting: Hosting, following: Following): string {

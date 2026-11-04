@@ -25,6 +25,7 @@
   import Cells from '../components/Cells.svelte';
   import CueStrip from '../components/CueStrip.svelte';
   import { cuesOf } from '../cues.ts';
+  import { canOf } from '../sessionState.ts';
   import { STYLE_AXES } from '../hud.ts';
   import Transport from '../components/Transport.svelte';
   import { keyReachOf, melodicReachOf, tempoView } from '../conductor.ts';
@@ -75,8 +76,10 @@
     { id: 'cells', title: 'Cells', icon: 'cells' },
   ];
 
-  /** Whether this device follows a host, whose song, style and key it plays. */
+  /** Whether this device follows a host, whose song and learned layer it plays. */
   const following = $derived(player.mode === 'client');
+  /** What this device can do in its session: a card draws only the controls it can use. */
+  const can = $derived(canOf(player.mode, session.following.role));
 
   const phase = $derived(player.counting ? 'counting' : player.ending ? 'ending' : null);
   /** The meter of the bar heard, or before anything is, of the bar the song opens on (the count-in's). */
@@ -143,7 +146,7 @@
     {phase}
     last={player.lastBar !== null && player.hud.bar?.bar === player.lastBar}
     playing={player.playing}
-    {following}
+    sets={can.set}
     ontoggle={() => (player.playing ? player.stop() : player.start())}
   />
 {/snippet}
@@ -167,7 +170,7 @@
     <StylePanel
       track={player.track}
       style={player.hud.style}
-      {following}
+      sets={can.set}
       radio={player.station !== null}
       ontune={(on) => player.tuneRadio(on)}
       onintent={(intent) => player.apply(intent)}
@@ -184,14 +187,14 @@
       meter={player.hud.bar?.meter}
       clock={player.clock}
       playing={player.playing}
-      {following}
+      sets={can.set}
       onintent={(intent) => player.apply(intent)}
-      asked={following ? (player.hud.headingMeter ?? player.meter) : player.meter}
+      asked={player.meter}
       onmeter={(meter) => player.setMeter(meter)}
     />
   {:else if id === 'key'}
     <KeyPicker
-      {following}
+      sets={can.set}
       heading={player.hud.heading}
       heard={player.hud.bar}
       reach={keyReachOf(player.track)}

@@ -35,11 +35,10 @@ describe('the transport', () => {
     );
   });
 
-  it('rests for a client, which follows its host’s band, and says so', () => {
-    render(Transport, props({ following: true }));
-    const button = screen.getByRole('button', { name: 'Start the band' });
-    expect(button).toBeDisabled();
-    expect(button).toHaveAttribute('title', 'The host starts and stops the band');
+  it('draws neither Start nor the loop for a device that doesn’t set the band, and still says its lines', () => {
+    render(Transport, props({ sets: false }));
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Transport' })).toHaveTextContent('Groove 3/8');
   });
 
   it('says its two lines, in the transport region', () => {

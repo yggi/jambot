@@ -43,7 +43,7 @@ import {
   sameMajor,
   wrongCodesWithin,
 } from './protocol.ts';
-import { RESUME_WINDOW, type Roster, admit } from './roster.ts';
+import { RESUME_WINDOW, type Role, type Roster, admit } from './roster.ts';
 
 interface Vector {
   readonly name: string;
@@ -56,7 +56,7 @@ interface Vector {
   readonly admits?: boolean;
   readonly refusedFor?: 'version' | 'code' | 'locked' | 'name' | 'taken';
   readonly byCode?: string | null;
-  readonly seat?: 'player' | 'listener' | null;
+  readonly seat?: Role | null;
   readonly wrongCodes?: readonly number[];
   readonly at?: number;
   readonly listens?: boolean;
@@ -120,10 +120,13 @@ function rosterFor(v: Vector, join: ClientMessage & { kind: 'join' }): Roster {
     token: `p${i}`,
     link: `p${i}`,
     awaySince: null,
+    role: 'player' as const,
   }));
   if (!v.seat || join.resume === undefined) return present;
-  const away = { id: 'seat', name: join.name, token: join.resume, link: null, awaySince: 0 };
-  return [...present, v.seat === 'listener' ? { ...away, listens: true as const } : away];
+  return [
+    ...present,
+    { id: 'seat', name: join.name, token: join.resume, link: null, awaySince: 0, role: v.seat },
+  ];
 }
 
 /**
@@ -157,7 +160,7 @@ function differs(v: Vector): string | null {
     if (
       'member' in admitted &&
       v.listens !== undefined &&
-      (admitted.member.listens === true) !== v.listens
+      (admitted.member.role === 'listener') !== v.listens
     )
       return v.listens ? 'host seats it to play' : 'host seats it to listen';
     return null;

@@ -35,10 +35,4 @@ describe('the tempo nudge', () => {
     expect(screen.getByRole('button', { name: 'Faster' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Slower' })).toBeEnabled();
   });
-
-  it('rests for a client, who follows its host’s tempo', () => {
-    render(TempoNudge, { tempo: tempo(0), disabled: true, onintent: () => {} });
-    expect(screen.getByRole('button', { name: 'Faster' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Slower' })).toBeDisabled();
-  });
 });

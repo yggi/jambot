@@ -28,9 +28,10 @@ function seated(...names: string[]): Roster {
 describe("a session's roster", () => {
   it('admits a player by the id of its link, with the token it may come back by', () => {
     const admitted = admit([], join(' Ada '), 'c0', 'token-0', 'the host');
+    const ada = { id: 'c0', name: 'Ada', token: 'token-0', link: 'c0', awaySince: null };
     expect(admitted).toEqual({
-      roster: [{ id: 'c0', name: 'Ada', token: 'token-0', link: 'c0', awaySince: null }],
-      member: { id: 'c0', name: 'Ada', token: 'token-0', link: 'c0', awaySince: null },
+      roster: [{ ...ada, role: 'player' }],
+      member: { ...ada, role: 'player' },
     });
   });
 
@@ -64,6 +65,7 @@ describe("a session's roster", () => {
       token: 'token-0',
       link: 'c7',
       awaySince: null,
+      role: 'player',
     });
     expect(present(back.roster).map((m) => m.id)).toEqual(['c0', 'c1']);
   });
@@ -119,14 +121,17 @@ describe("a session's roster", () => {
       admit(roster, j, link, `token-${link}`, 'the host', '042917');
     // Without the code, a join is seated to listen; with another, refused; with it, seated to play.
     const listener = byCode(join('Bo'), 'c1');
-    expect(listener).toHaveProperty('member', expect.objectContaining({ id: 'c1', listens: true }));
+    expect(listener).toHaveProperty(
+      'member',
+      expect.objectContaining({ id: 'c1', role: 'listener' }),
+    );
     expect(byCode({ ...join('Bo'), code: '111111' }, 'c1')).toEqual({ refusal: CODE_WRONG });
     const player = byCode({ ...join('Bo'), code: '042917' }, 'c1');
     expect(player).toHaveProperty('member', expect.objectContaining({ id: 'c1', name: 'Bo' }));
-    if ('member' in player) expect(player.member.listens).toBeUndefined();
+    if ('member' in player) expect(player.member.role).toBe('player');
     // In an open session nobody listens only.
     const open = admit(roster, join('Bo'), 'c1', 't', 'the host', null);
-    if ('member' in open) expect(open.member.listens).toBeUndefined();
+    if ('member' in open) expect(open.member.role).toBe('player');
     // A listener that comes back with the code plays; one that comes back without it still listens.
     if (!('member' in listener)) throw new Error('not seated');
     const gone = lose(listener.roster, 'c1', 10);
@@ -138,10 +143,13 @@ describe("a session's roster", () => {
       'the host',
       '042917',
     );
-    if ('member' in withIt) expect(withIt.member.listens).toBeUndefined();
+    if ('member' in withIt) expect(withIt.member.role).toBe('player');
     else throw new Error(withIt.refusal);
     const without = admit(gone, join('Bo', listener.member.token), 'c7', 'x', 'the host', '042917');
-    expect(without).toHaveProperty('member', expect.objectContaining({ id: 'c1', listens: true }));
+    expect(without).toHaveProperty(
+      'member',
+      expect.objectContaining({ id: 'c1', role: 'listener' }),
+    );
     // While too many wrong codes were tried, every code is refused, the right one too; a listener is still seated.
     expect(
       admit(roster, { ...join('Bo'), code: '042917' }, 'c1', 't', 'the host', '042917', true),
@@ -156,10 +164,10 @@ describe("a session's roster", () => {
     const back = admit(away, join('Ada', 'token-0'), 'c4', 'unused', 'the host', '042917');
     expect(back).toHaveProperty('member', expect.objectContaining({ id: 'c0', link: 'c4' }));
     // A seat from before the code plays on; a token nobody holds is no seat: without the code it listens.
-    if ('member' in back) expect(back.member.listens).toBeUndefined();
+    if ('member' in back) expect(back.member.role).toBe('player');
     expect(admit(away, join('Cy', 'forged'), 'c5', 't', 'the host', '042917')).toHaveProperty(
       'member',
-      expect.objectContaining({ listens: true }),
+      expect.objectContaining({ role: 'listener' }),
     );
     // Without a code asked for, a join is admitted as ever.
     expect(admit(roster, join('Bo'), 'c1', 't', 'the host', null)).toHaveProperty('member');

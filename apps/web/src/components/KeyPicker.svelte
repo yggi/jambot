@@ -21,8 +21,10 @@
   lead walks over the key (#209): the plain scale, the pentatonic or the
   blues, those beyond the style's reach (`licenceOf`'s `melodic`) dimmed; a
   pick is wished for as it is, heard from the next section, and changes
-  nothing else of the key. A client can't set or nudge either yet: its key
-  intents don't reach the host, so its nudges are disabled and say so.
+  nothing else of the key. A device that doesn't set the key, a client
+  (`Can`), reads it on the wheel and the ruler and has none of the controls;
+  a client's nudge, which asks the host, comes with the brief's step 2
+  (docs/briefs/session-roles.md).
 -->
 <script lang="ts">
   import { pitchColour } from '../pitch.ts';
@@ -69,8 +71,8 @@
     melodic?: MelodicScale | null;
     /** The melodic scales the style reaches (`licenceOf`'s `melodic`). */
     melodicReach?: readonly MelodicScale[];
-    /** Whether a client follows its host: it may nudge the key, not set it. */
-    following?: boolean;
+    /** Whether this device sets the key (`Can`'s `set`): a client's host does, and it draws no control. */
+    sets?: boolean;
     onintent: (intent: Intent) => void;
   }
 
@@ -82,7 +84,7 @@
     home = INITIAL_KEY,
     melodic = 'plain',
     melodicReach = ['plain'],
-    following = false,
+    sets = true,
     onintent,
   }: Props = $props();
 
@@ -94,9 +96,6 @@
       (tonic) => intoReach({ tonic, mode: key.mode }, home, reach).tonic !== tonic,
     ),
   );
-
-  /** Why a client's nudges are disabled: its key intents don't reach the host yet. */
-  const HOST_SETS = 'The host sets the key';
 
   /** A fifth up the wheel (clockwise) or down (counter-clockwise) from the key heard, in its mode. */
   const nudged = (by: 1 | -1) => mod(key.tonic + 7 * by, 12);
@@ -153,40 +152,40 @@
       {scale}
       mode={key.mode}
       {beyond}
-      onintent={following ? undefined : onintent}
+      onintent={sets ? onintent : undefined}
       {history}
     />
   </div>
-  <Nudge
-    label="Nudge the key"
-    down={{
-      name: 'Nudge down',
-      glyph: '↺',
-      title: following ? HOST_SETS : 'A fifth down',
-      disabled: following || beyond.includes(nudged(-1)),
-    }}
-    up={{
-      name: 'Nudge up',
-      glyph: '↻',
-      title: following ? HOST_SETS : 'A fifth up',
-      disabled: following || beyond.includes(nudged(1)),
-    }}
-    onnudge={nudge}>a fifth</Nudge
-  >
-  <Segmented
-    label="Scale"
-    value={key.mode}
-    options={shapes}
-    disabled={following}
-    onselect={(mode) => playable(mode) && wish(key.tonic, mode)}
-  />
-  <Segmented
-    label="Melodic scale"
-    value={melodic ?? 'plain'}
-    options={melodics}
-    disabled={following}
-    onselect={(scale) => onintent({ kind: 'key', wish: { melodic: scale } })}
-  />
+  {#if sets}
+    <Nudge
+      label="Nudge the key"
+      down={{
+        name: 'Nudge down',
+        glyph: '↺',
+        title: 'A fifth down',
+        disabled: beyond.includes(nudged(-1)),
+      }}
+      up={{
+        name: 'Nudge up',
+        glyph: '↻',
+        title: 'A fifth up',
+        disabled: beyond.includes(nudged(1)),
+      }}
+      onnudge={nudge}>a fifth</Nudge
+    >
+    <Segmented
+      label="Scale"
+      value={key.mode}
+      options={shapes}
+      onselect={(mode) => playable(mode) && wish(key.tonic, mode)}
+    />
+    <Segmented
+      label="Melodic scale"
+      value={melodic ?? 'plain'}
+      options={melodics}
+      onselect={(scale) => onintent({ kind: 'key', wish: { melodic: scale } })}
+    />
+  {/if}
   <Ruler
     label="{keyName(key)}: {notes.join(' ')}, steps {steps
       .map((n) => (n === 1 ? 'half' : 'whole'))

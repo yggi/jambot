@@ -150,23 +150,17 @@ describe('the key picker', () => {
     expect(screen.getByRole('button', { name: /Nudge down/ })).toBeDisabled();
   });
 
-  it('lets a client neither set nor nudge the key yet: the host sets it, and says so', async () => {
+  it('draws no control for a device that doesn’t set the key: it reads the key on the wheel and the ruler', async () => {
     render(KeyPicker, {
       heading: { tonic: 9, mode: 'aeolian' },
       history: NO_HISTORY,
       reach: 6,
-      following: true,
+      sets: false,
       onintent: () => {},
     });
-    expect(screen.queryByRole('button', { name: 'D' })).toBeNull();
-    for (const name of [/Nudge up/, /Nudge down/]) {
-      expect(screen.getByRole('button', { name })).toBeDisabled();
-      expect(screen.getByRole('button', { name })).toHaveAttribute(
-        'title',
-        'The host sets the key',
-      );
-    }
-    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
+    expect(screen.queryAllByRole('button')).toEqual([]);
+    expect(screen.queryAllByRole('radio')).toEqual([]);
+    expect(screen.getByLabelText(/^A minor: A B C D E F G/)).toBeInTheDocument();
   });
 
   it('dims the tonics beyond the reach of the home it is given, the harmonic history’s centre (#169)', () => {
@@ -249,16 +243,16 @@ describe('the key picker', () => {
       expect(onintent).toHaveBeenLastCalledWith({ kind: 'key', wish: { melodic: 'pentatonic' } });
     });
 
-    it('rests on a client, as the key does', () => {
+    it('is not drawn for a client, as the key’s controls aren’t', () => {
       render(KeyPicker, {
         heading: { tonic: 9, mode: 'aeolian' },
         history: NO_HISTORY,
         reach: 6,
         melodicReach: ['plain', 'pentatonic', 'blues'],
-        following: true,
+        sets: false,
         onintent: () => {},
       });
-      for (const radio of scales()) expect(radio).toBeDisabled();
+      expect(screen.queryByRole('radiogroup', { name: 'Melodic scale' })).toBeNull();
     });
   });
 

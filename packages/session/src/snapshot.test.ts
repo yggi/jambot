@@ -14,7 +14,10 @@ const snapshot: HostSnapshot = {
   lobby: 'wss://example',
   reclaim: 'secret',
   player: 'Bo',
-  roster: [{ id: 'c0', name: 'Ada', token: 'token-0' }],
+  roster: [
+    { id: 'c0', name: 'Ada', token: 'token-0', role: 'player' },
+    { id: 'c1', name: 'Cy', token: 'token-1', role: 'listener' },
+  ],
   players: { host: 'Bo', c0: 'Ada' },
   track: { energy: { from: 0.5, to: 0.5, at: 0, over: 0 } } as never,
   wish: { tonic: null, mode: 'aeolian', melodic: null },
@@ -94,6 +97,17 @@ describe('what a host keeps to come back from a reload', () => {
       expect(readHostSnapshot({ ...snapshot, swing }, 1001), JSON.stringify(swing)).toBeNull();
   });
 
+  it('reads one saved before a seat had a role, a listener by its `listens`, every other seat a player', () => {
+    const older = {
+      ...snapshot,
+      roster: [
+        { id: 'c0', name: 'Ada', token: 'token-0' },
+        { id: 'c1', name: 'Cy', token: 'token-1', listens: true },
+      ],
+    };
+    expect(readHostSnapshot(JSON.parse(JSON.stringify(older)), 1001)).toEqual(snapshot);
+  });
+
   it('reads nothing that is not one, or of another version, or too old', () => {
     for (const junk of [
       null,
@@ -109,6 +123,8 @@ describe('what a host keeps to come back from a reload', () => {
       { ...snapshot, roster: 'Ada' },
       { ...snapshot, roster: [{ id: 'c0', name: 'Ada' }] },
       { ...snapshot, roster: [null] },
+      { ...snapshot, roster: [{ id: 'c0', name: 'Ada', token: 'token-0', role: 'host' }] },
+      { ...snapshot, roster: [{ id: 'c0', name: 'Ada', token: 'token-0', listens: false }] },
       { ...snapshot, players: [] },
       { ...snapshot, players: { c0: 3 } },
       { ...snapshot, track: null },

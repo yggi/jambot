@@ -12,12 +12,10 @@
 
   interface Props {
     tempo: TempoView;
-    /** Whether a client follows its host's tempo, so it can't nudge. */
-    disabled?: boolean;
     onintent: (intent: Intent) => void;
   }
 
-  let { tempo, disabled = false, onintent }: Props = $props();
+  let { tempo, onintent }: Props = $props();
 
   const steps = $derived(Math.round(tempo.nudge / TEMPO_STEP));
   /** The gauge's half width: the licence's wider side, so the style's own tempo is in the middle. */
@@ -31,12 +29,12 @@
     down={{
       name: 'Slower',
       glyph: '−',
-      disabled: disabled || tempo.nudge - TEMPO_STEP < tempo.low - 1e-9,
+      disabled: tempo.nudge - TEMPO_STEP < tempo.low - 1e-9,
     }}
     up={{
       name: 'Faster',
       glyph: '+',
-      disabled: disabled || tempo.nudge + TEMPO_STEP > tempo.high + 1e-9,
+      disabled: tempo.nudge + TEMPO_STEP > tempo.high + 1e-9,
     }}
     onnudge={nudge}
   >
