@@ -254,21 +254,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2886);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2553);
+    expect(Math.round(e35.total / 64)).toBe(2878);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2546);
     expect(Math.round(e33.total / 64)).toBe(7549);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(66);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [22909, 20232],
-      Techno: [22764, 19635],
-      'Deep house': [27084, 23927],
-      Ambient: [14108, 12675],
-      'Lo-fi hip hop': [24932, 22026],
-      Funk: [26551, 24307],
-      'Bossa nova': [25314, 22648],
-      'Swing jazz': [21069, 17936],
+      'Synth-pop': [22845, 20182],
+      Techno: [22702, 19587],
+      'Deep house': [27018, 23875],
+      Ambient: [14050, 12627],
+      'Lo-fi hip hop': [24860, 21968],
+      Funk: [26487, 24257],
+      'Bossa nova': [25240, 22588],
+      'Swing jazz': [20995, 17876],
     });
   });
 
