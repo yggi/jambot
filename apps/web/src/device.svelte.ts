@@ -28,7 +28,14 @@ import {
   portsMessage,
 } from '@yggi/webmidi/core';
 import { MidiAccess } from '@yggi/webmidi/web';
-import { bandRoutes, forwardsOf, isHeard, listenTo, rowsOfInput } from './midi/patch.ts';
+import {
+  bandRoutes,
+  forwardsOf,
+  isHeard,
+  listenTo,
+  rowsOfInput,
+  wantsInputs,
+} from './midi/patch.ts';
 import { MidiSettings } from './midi/settings.svelte.ts';
 import { type Surroundings, browserSurroundings } from './player.svelte.ts';
 import type { DeviceClocks } from './session/clocks.ts';
@@ -249,6 +256,6 @@ export class Device {
   /** Whether a port was chosen before: a granted permission needs no gesture to connect again. */
   get remembersPorts(): boolean {
     const setup = this.settings.setup;
-    return setup.outputs.some((o) => o.id !== 'none') || listenTo(setup, []) !== 'none';
+    return setup.outputs.some((o) => o.id !== 'none') || wantsInputs(setup);
   }
 }

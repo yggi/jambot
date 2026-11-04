@@ -28,6 +28,7 @@ import {
   forwardsOf,
   isHeard,
   listenTo,
+  wantsInputs,
   missingOutputs,
   nameByPorts,
   rowsOfInput,
@@ -164,11 +165,17 @@ describe('which inputs are listened to', () => {
     expect(listenTo(activeSetup(routed), PORTS.inputs)).toBe('in-2');
   });
 
-  it('all, when all are heard, or more than one is wanted, or the one wanted isn’t plugged in', () => {
+  it('all, when all are heard, or more than one is wanted', () => {
     expect(listenTo(activeSetup(withHeard(book, 'all')), PORTS.inputs)).toBe('all');
     const two = withCrossing(withHeard(book, [PORTS.inputs[0]!]), BAND, 'in:Pads', 'o1', 2);
     expect(listenTo(activeSetup(two), PORTS.inputs)).toBe('all');
-    expect(listenTo(activeSetup(withHeard(book, [PORTS.inputs[0]!])), [])).toBe('all');
+  });
+
+  it('none while the one wanted isn’t plugged in, so no other port is opened; still wanted, so the device reconnects', () => {
+    const one = activeSetup(withHeard(book, [PORTS.inputs[0]!]));
+    expect(listenTo(one, [])).toBe('none');
+    expect(listenTo(one, [{ id: 'in-9', name: PORTS.inputs[0]!.name }])).toBe('in-9');
+    expect([wantsInputs(one), wantsInputs(activeSetup(book))]).toEqual([true, false]);
   });
 });
 

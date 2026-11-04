@@ -141,21 +141,36 @@ export function forwardsOf(setup: Setup, rows: readonly string[], played: number
   return [...sent].map(([key, channel]) => ({ key, channel }));
 }
 
+/** The inputs the setup in use wants: every one heard and every one routed, by row (`in:<name>`), or all. */
+function wantedInputs(setup: Setup): 'all' | Set<string> {
+  if (setup.heard === 'all') return 'all';
+  const rows = new Set(setup.heard.map(inputRow));
+  for (const [row, crossings] of Object.entries(bandRoutesOf(setup)))
+    if (row.startsWith('in:') && row !== ANY_INPUT && Object.keys(crossings).length) rows.add(row);
+  return rows;
+}
+
+/** Whether the setup in use hears or routes any input, plugged in or not. */
+export const wantsInputs = (setup: Setup): boolean => {
+  const wanted = wantedInputs(setup);
+  return wanted === 'all' || wanted.size > 0;
+};
+
 /**
  * Which inputs to listen to, as webmidi's connection takes it (an id,
  * `'all'` or `'none'`): every input heard and every input routed. One input
- * is listened to alone, so no other port is opened; more are listened to
- * all, and what isn't heard or routed is let go by the page.
+ * is listened to alone, so no other port is opened, and none while it isn't
+ * plugged in (the device listens again when the ports change, and finds it by
+ * name); more are listened to all, and what isn't heard or routed is let go by
+ * the page.
  */
 export function listenTo(setup: Setup, inputs: readonly PortOption[]): string {
-  if (setup.heard === 'all') return 'all';
-  const names = new Set(setup.heard.map(inputRow));
-  for (const [row, crossings] of Object.entries(bandRoutesOf(setup)))
-    if (row.startsWith('in:') && row !== ANY_INPUT && Object.keys(crossings).length) names.add(row);
-  if (names.size === 0) return 'none';
-  if (names.size > 1) return 'all';
-  const [row] = names;
-  return inputs.find((port) => inputRow(port) === row)?.id ?? 'all';
+  const wanted = wantedInputs(setup);
+  if (wanted === 'all') return 'all';
+  if (wanted.size === 0) return 'none';
+  if (wanted.size > 1) return 'all';
+  const [row] = wanted;
+  return inputs.find((port) => inputRow(port) === row)?.id ?? 'none';
 }
 
 /** How many of the setup's devices aren't plugged in, by id or by name as webmidi finds them. */

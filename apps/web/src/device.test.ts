@@ -250,6 +250,12 @@ describe('the device’s MIDI ports', () => {
     expect(d.ports.outputs.map((p) => p.name)).toEqual(['Synth']);
   });
 
+  it('remembers an input chosen alone, not plugged in yet, so a load connects again', () => {
+    localStorage.setItem('jambot-midi-v1', JSON.stringify({ outPortId: 'none', inPortId: 'in-1' }));
+    const { device: d } = device();
+    expect(d.remembersPorts).toBe(true);
+  });
+
   it('has nothing to look at before it is connected, and remembers no port on a first visit', () => {
     const { device: d } = device();
     expect(() => d.refresh()).not.toThrow();

@@ -36,7 +36,7 @@ Facts about MIDI in and out of the app.
 - An input is a row of the patch in every mode: routed to any outputs, on a channel 1–16 or as played (webmidi's `AS_PLAYED`, the channel it came in on), and its Heard switch says whether the Muse and the instruments hear it (`setup.heard`).
   A note from an input is passed on at once where its row crosses an output, heard or not, and where the row of every input (`in:*`) does when it is heard (`Device.connect`, `forwardsOf`); only a heard input's notes reach the instruments, the Muse and the timing test.
   What is played on the on-screen and computer keys is passed on where the keys' row crosses an output (`Instruments`, `Device.forwardKeys`), on the crossing's channel; this is what the store before the book called thru.
-- The device listens to the inputs the setup hears or routes and to no other (`listenTo`): one alone by its id, so no other port is opened, more as all, the rest dropped by the page.
+- The device listens to the inputs the setup hears or routes and to no other (`listenTo`): one alone by its id, so no other port is opened, and none while it isn't plugged in (the device listens again when the ports change, finding it by name); more as all, the rest dropped by the page.
 
 ## Ports
 
