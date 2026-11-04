@@ -79,8 +79,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/theory
       '@yggi/webmidi':
-        specifier: github:yggi/webmidi#v0.1.1
-        version: https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49
+        specifier: github:yggi/webmidi#v0.1.2
+        version: https://codeload.github.com/yggi/webmidi/tar.gz/ce5ab13b3ed1d1a70e4d89c1a37bb8babe3f30c9(svelte@5.57.1(@typescript-eslint/types@8.70.1))
     devDependencies:
       '@jambot/lobby':
         specifier: workspace:*
@@ -1404,10 +1404,15 @@ packages:
     version: 0.15.0
     engines: {node: '>=22'}
 
-  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49':
-    resolution: {tarball: https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49}
-    version: 0.1.1
+  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/ce5ab13b3ed1d1a70e4d89c1a37bb8babe3f30c9':
+    resolution: {tarball: https://codeload.github.com/yggi/webmidi/tar.gz/ce5ab13b3ed1d1a70e4d89c1a37bb8babe3f30c9}
+    version: 0.1.2
     engines: {node: '>=22'}
+    peerDependencies:
+      svelte: ^5.57.2
+    peerDependenciesMeta:
+      svelte:
+        optional: true
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -4373,7 +4378,9 @@ snapshots:
 
   '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/2129a3e27ed402af98aafb2115cf3fefd092bcad': {}
 
-  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/985993c8ca75e6b87c1265b7703830e78893eb49': {}
+  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/ce5ab13b3ed1d1a70e4d89c1a37bb8babe3f30c9(svelte@5.57.1(@typescript-eslint/types@8.70.1))':
+    optionalDependencies:
+      svelte: 5.57.1(@typescript-eslint/types@8.70.1)
 
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:
