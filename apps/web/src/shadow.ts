@@ -25,15 +25,16 @@
  * and sends them, and the answer comes back between ticks, each bar then
  * holding what cells plays in it.
  *
- * Cells sounds the written layer at feel 0, and the performer plays its feel
- * on top of each of cells' events (`performStated`, cells decision 037: the
- * text holds what is composed, the playing is the player's), from the same
- * feel and draws as on the band's own notes. Cells' events are laid by their
- * place in the bar: an event `x` steps into a bar as cells plays it (through
- * the swing) is laid where the transport laid that step, `x` less the step's
- * start of a step's length after it, so a tempo the transport glides carries
- * cells' events with it, as it carries its own; an event's end is laid as the
- * transport lays the band's (`laidClock`).
+ * Cells sounds the written layer at feel 0, and cells' default performer
+ * plays the feel on top of each of its events (`performCells`, cells decision
+ * 037: the text holds what is composed, the playing is the player's), the
+ * feel contract's rule, from the same feel and draws as the band's own
+ * notes. Cells' events are laid by their place in the bar: an event `x`
+ * steps into a bar as cells plays it (through the swing) is laid where the
+ * transport laid that step, `x` less the step's start of a step's length
+ * after it, so a tempo the transport glides carries cells' events with it,
+ * as it carries its own; an event's end is laid as the transport lays the
+ * band's (`laidClock`).
  *
  * The band's own events are the fallback for a gap, a bar cells states none
  * of, each counted with its reason (`gaps`): a bar whose text is still on its
@@ -75,12 +76,11 @@ import {
   clockOf,
   clockOfTransport,
   laidClock,
-  performStated,
   tempoMap,
   valueIn,
   withMeter,
 } from '@jambot/engine';
-import { type PlayedBar, levelSwings } from '@jambot/score';
+import { type PlayedBar, levelSwings, performCells } from '@jambot/score';
 import type { SectionText } from '@jambot/session';
 import { type SectionStated, type SectionTexts, foreseenOf, inlineTexts } from './section-texts.ts';
 
@@ -736,12 +736,12 @@ export class Shadow {
     );
   }
 
-  /** Cells' `j`th note in a bar, as the performer plays it: its velocity and length with the feel. */
+  /** Cells' `j`th note in a bar, as the performer plays it: its velocity and length with the feel, cells' own rule. */
   #performed(p: NonNullable<StatedBar['played']>, bar: BandBar, j: number): DoughNote {
     const note = p.notes[j]!;
     const role = p.roles[j];
     const sound = p.sounds[j];
-    return performStated(bar, {
+    return performCells(bar, {
       part: p.lines[j]!,
       step: Math.round(note.step),
       note: note.note,
