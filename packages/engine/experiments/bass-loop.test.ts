@@ -115,13 +115,13 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
   it('plays its run’s most used line in under 60 % of a run’s sections, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { sections, mostUsed, share } = mostUsedLine(LEARNED);
-    expect([sections, mostUsed]).toEqual([8513, 3953]);
+    expect([sections, mostUsed]).toEqual([8513, 3922]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used lines within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asLines(UNLEARNED), asLines(LEARNED));
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-5.99', '1.22']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-6.38', '1.23']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
@@ -140,16 +140,17 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
     }
   });
 
-  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums and the bass filing, the cap dropping the oldest 3 times`, () => {
+  it(`keeps a layer under its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums and the bass filing, the cap dropping the oldest once`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
-    expect(bytes).toBe(15996);
+    expect(bytes).toBe(15971);
     expect(bytes).toBeLessThan(LAYER_CAP);
-    expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(3);
+    expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(1);
   });
 
-  it('leaves E39’s most used groove where it was: 147 of 274 sections, within 1 point', () => {
-    const { sections, mostUsed, share } = mostUsedGroove(LONG);
-    expect([sections, mostUsed]).toEqual([274, 147]);
-    expect(Math.abs(share - 147 / 274)).toBeLessThanOrEqual(0.01);
+  // (E39's measure has no sections since cells v0.15.0, no meter the walk reaches being one no seed rhythm fits; at
+  // v0.14.0 the bass left it where it was, 147 of 274 sections, within 1 point)
+  it('leaves E39’s measure as E39 finds it: no meter no seed rhythm fits', () => {
+    const { sections, mostUsed } = mostUsedGroove(LONG);
+    expect([sections, mostUsed]).toEqual([0, 0]);
   });
 });

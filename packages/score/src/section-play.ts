@@ -161,12 +161,19 @@ const FILTERS = ['lpf', 'lpq', 'hpf', 'hpq'] as const;
  * filters (a moving one at where its range starts), the envelope the note
  * plays with and its bends, at seconds from its start. None where the voice
  * has no waveform of the four, as a voice that holds only a register
- * (`&bassV loop=C2`) or a drum's noise.
+ * (`&bassV loop=C2`) or a drum's noise; and, given the cells a text writes
+ * (`written`), none where the text doesn't write the voice: cells' default
+ * instruments have a sound since v0.15.0, which Jambot's synth doesn't play
+ * yet (yggi/jambot#531).
  */
 export function soundOf(
   event: Played,
   result: Pick<CompileResult, 'cells'>,
+  written?: ReadonlySet<string>,
 ): VoiceSound | undefined {
+  // (a voice the text doesn't write is an instrument's own, from cells' library: Jambot's synth plays its own timbre
+  // there until it plays cells' instruments, yggi/jambot#531; a voice the text writes, an instrument found at the style)
+  if (written && !written.has(event.voice)) return undefined;
   const cell = result.cells.get(event.voice);
   const wave = cell?.params.s === undefined ? undefined : DOUGH_SOURCES[String(cell.params.s)];
   if (!cell || (wave !== 'sine' && wave !== 'triangle' && wave !== 'sawtooth' && wave !== 'square'))
@@ -221,6 +228,8 @@ export function playSection(
   const steps = stepsOf(bars[0]!.meter);
   const estimate = bars.length * steps * stepSeconds(bars[0]!.style.bpm, bars[0]!.meter);
   const route = router(plan.result, channelTable(plan.result));
+  // (the cells the text's own lines define: a voice's sound is the text's where it writes the voice)
+  const written = new Set(text.split('\n').flatMap((l) => /^&(\w+)\s/.exec(l)?.[1] ?? []));
   const out = windowAt(plan, 0, estimate * 1.25).events.flatMap((e) =>
     routesOf(route(e)).flatMap((r) => {
       const n = midiNote(e, r);
@@ -234,7 +243,7 @@ export function playSection(
               sound:
                 lineOf(e.output, plan.result).line === 'drums'
                   ? undefined
-                  : soundOf(e, plan.result),
+                  : soundOf(e, plan.result, written),
             },
           ]
         : [];

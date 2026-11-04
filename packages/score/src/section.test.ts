@@ -94,7 +94,11 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(text.match(/^.* from ".* performer".*$/gm)).toEqual(
       (['drums', 'bass', 'stab'] as const).map((p) => fromPerformer(p)),
     );
-    expect(text.split('\n').at(-1)).toBe('&out map=midi ~ &bassOut &stabOut ~!6 &drumsOut');
+    // (the MIDI card, then the sound card that hears every pitched part: cells v0.15.0's instruments each have a sound)
+    expect(text.split('\n').slice(-2)).toEqual([
+      '&out map=midi ~ &bassOut &stabOut ~!6 &drumsOut',
+      '&heard map=sample [&bassOut, &stabOut]',
+    ]);
     expect(result.performers.map((p) => [p.name, p.role, p.part])).toEqual([
       ['drumsOut', 'drums', 'drumlines'],
       ['bassOut', 'bass', 'bassline'],
@@ -502,8 +506,8 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
   it('gives each note its voice’s sound where the text writes one, and sends the same notes', () => {
     const bars = section('Funk');
     const text = sectionTextOf(sectionAsCells(bars));
-    // (a voice with a sound is heard on a sound card: on a MIDI card alone cells says its sound isn't sent)
-    const voiced = `${text}\n${STAB}\n${BASS}\n&bassMove step=1m 0 1\n&heard map=sample [&stabOut, &bassOut]`;
+    // (the text's own sound card hears every pitched part, so a voice it writes with a sound is heard: cells v0.15.0)
+    const voiced = `${text}\n${STAB}\n${BASS}\n&bassMove step=1m 0 1`;
     const plain = playSection(text, bars);
     const played = playSection(voiced, bars);
     expect(played.diagnostics).toEqual([]);

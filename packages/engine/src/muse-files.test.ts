@@ -30,11 +30,14 @@ const FUNK = PRESETS.find((p) => p.name === 'Funk')!;
 const STYLE: Style = { ...FUNK.style, entropy: 0.3 };
 /**
  * The point of the 5/4 meter fragment, where the repository's meter is 5/4 and no rhythm fits it but cells' Spooky
- * drums (v0.12.0), which fits every meter but 7/8, held out here (`NO_SPOOKY`) so the drummer invents.
+ * drums (v0.12.0), which fits every meter but 7/8, and Ghost drums and Kinderlied drums (v0.15.0), which fit it too, held out
+ * here (`NO_SPOOKY`) so the drummer invents.
  */
 const COOL: Style = { ...STYLE, sync: 0.4, harm: 0.9, artic: 0.5, energy: 0.3 };
 const range = (n: number) => [...Array(n).keys()];
-const NO_SPOOKY = rhythmRepository(RHYTHM_FRAGMENTS.filter((f) => f.id !== 'Spooky drums'));
+// (the seeds that fit nearly every meter: Spooky drums, and since cells v0.15.0 Ghost drums and Kinderlied drums)
+const EVERY_METER = ['Spooky drums', 'Ghost drums', 'Kinderlied drums'];
+const NO_SPOOKY = rhythmRepository(RHYTHM_FRAGMENTS.filter((f) => !EVERY_METER.includes(f.id)));
 
 /** How cells' vary names a variation: its operator, its line and, but for a rotation, its step. */
 const VARIED_BY = /^(rotate|drop|add) &\w+( \d+)?$/;

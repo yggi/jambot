@@ -34,9 +34,12 @@
  *   which the text's own line makes win over the performer's (a clarinet's
  *   `&leadV s=square loop=C4 …` at Electro swing's point);
  * - one MIDI card that sends the gates on Jambot's channels: 1 the lead, 2 the
- *   bass, 3 the pad and the stab, 10 the drums; and, where an instrument with
- *   a sound is played, a sound card that hears its gates (`&heard`), so cells
- *   and a follower hear its sound and MIDI out sends its notes as before.
+ *   bass, 3 the pad and the stab, 10 the drums; and a sound card that hears
+ *   every pitched part's gate (`&heard`), each instrument having a sound of
+ *   its own, so cells and a follower hear it and MIDI out sends its notes as
+ *   before;
+ * - the section's style, the note `&style` at its first bar's point, which
+ *   the instruments read (`&style[artic]`, cells decision 063 §3).
  *
  * Each line on `16n` states a bar it plays more than once once, a cell of its
  * own spliced in where it plays (`&bassline … &basslineA!4 &basslineB`,
@@ -360,6 +363,13 @@ export const performerOf = (part: PitchedName | 'drums') => `${part} performer`;
  * the template, its main argument the part's line, and a pitched part's level
  * its own line of levels (`&bassLevel`).
  */
+/** A number as a style's axis writes it: three decimals at most, no leading zero (`.35`, `1`). */
+const axisText = (x: number) => String(Math.round(x * 1000) / 1000).replace(/^0\./, '.');
+
+/** The section's style as cells reads it (decision 063 §3): the note `&style` at a point of the four axes. */
+const styleLine = (style: { sync: number; harm: number; artic: number; energy: number }) =>
+  `&style style=&(map=style ${[style.sync, style.harm, style.artic, style.energy].map(axisText).join(' ')})`;
+
 export const fromPerformer = (part: PitchedName | 'drums') =>
   part === 'drums'
     ? `&drums, &drumsOut from "${performerOf('drums')}" &drumlines`
@@ -845,6 +855,8 @@ export function sectionAsCells(
   const lines: SectionLine[] = [
     { part: 'meter', text: `&bar meter("${host.meter}") step=${host.bpm}bpm${host.swing}` },
     { part: 'key', text: `&key ${host.key}` },
+    // (the section's style, where its first bar sits: what the instruments read, `&style[artic]`, decision 063 §3)
+    { part: 'meter', text: styleLine(bars[0]!.style) },
     {
       part: 'harmony',
       text: `&harm over=&key ${rhythmText(chords, (i) => stackText(chordStack(chords[i]!.numeral)), total, steps)}`,
@@ -890,10 +902,9 @@ export function sectionAsCells(
       text: fromPerformer(name),
     });
     const instrument = instruments[name];
-    if (instrument) {
-      lines.push({ part, text: instrument.line });
-      heard.push(name);
-    }
+    if (instrument) lines.push({ part, text: instrument.line });
+    // (every instrument has a sound since cells v0.15.0: a sound card hears each part, as Jambot's synth does)
+    heard.push(name);
   };
   state('bass', 'bass', 'bass', inForce, table);
   state('pad', 'comp', 'comp', inForce, table);

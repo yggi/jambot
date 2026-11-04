@@ -51,14 +51,14 @@ beforeAll(() => {
 });
 
 describe('the Muse files the drummer’s grooves while the radio walks (E38, #401)', () => {
-  it('files 195 grooves in 120 hours, 46 the drummer’s on a miss and 149 the composer’s variations (#411, #414), and the misses fall from 2,146 sections to 49: what was filed is found again', () => {
+  it('files 190 grooves in 120 hours, 39 the drummer’s on a miss and 151 the composer’s variations (#411, #414), and the misses fall from 2,142 sections to 41: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     expect(count(LEARNED, (r) => r.sections)).toBe(26749);
-    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([49, 2146]);
-    expect(FILINGS.length).toBe(195);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([46, 149]);
+    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([41, 2142]);
+    expect(FILINGS.length).toBe(190);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([39, 151]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(15398);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(15178);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -91,20 +91,20 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −13.4 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −13.2 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9446', '0.8102']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-13.44', '2.08']);
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9436', '0.8112']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-13.24', '1.97']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it(`keeps a layer of at most 14,380 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  it(`keeps a layer of at most 13,357 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(14380);
-    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(12);
+    expect(Math.max(...bytes)).toBe(13357);
+    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)
       expect(run.learning!.layer.filed.map((f) => f.fragment.id)).toEqual(
@@ -114,10 +114,13 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
 });
 
 describe('the composer tires of a groove while the radio walks (E39, #411, #414)', () => {
-  it('plays the most used groove of a meter no seed rhythm fits in 54 % of its sections, under 60 %', () => {
-    const { sections, mostUsed, share } = mostUsedGroove(LEARNED);
-    expect([sections, mostUsed]).toEqual([274, 147]);
-    expect(share).toBeLessThan(0.6);
+  // (no meter the walk reaches is one no seed rhythm fits since cells v0.15.0: Ghost drums fits 7/8, the last, yggi/cells#409;
+  // at v0.14.0 the most used groove there played 147 of 274 sections, 54 %, under 60 %. What E39 measures has to be asked
+  // anew, of the grooves the drummer files beside a seed: the owner's, on this pull request)
+  it('finds no meter no seed rhythm fits: every section the walk plays has a seed beside the grooves it files', () => {
+    const { sections, mostUsed } = mostUsedGroove(LEARNED);
+    expect([sections, mostUsed]).toEqual([0, 0]);
+    expect(LEARNED.every((r) => r.seedless.length === 0)).toBe(true);
     // with nothing learned no groove is filed: those sections are the drummer's own
     expect(mostUsedGroove(UNLEARNED).mostUsed).toBe(0);
   });

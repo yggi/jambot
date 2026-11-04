@@ -181,6 +181,7 @@ export function playText(
 const WARM_TEXT = [
   '&bar meter("4/4") step=120bpm',
   '&key scale(aeolian, A)',
+  '&style style=&(map=style .5 .5 .5 .5)',
   '&harm over=&key step=1m [0,2,4] [5,7,9]',
   '&kick step=16n &bd:0:.4 ~ ~ ~',
   '&drumlines [&kick]',
@@ -189,6 +190,7 @@ const WARM_TEXT = [
   '&bassLevel map=amp step=16n .4@8',
   '&bass, &bassOut from "bass performer"(bassLevel=&bassLevel) &bassline',
   '&out map=midi ~ &bassOut ~!7 &drumsOut',
+  '&heard map=sample [&bassOut]',
 ].join('\n');
 
 /** The warm-up, what a worker does as it starts: its text compiled; what cells said of it. */

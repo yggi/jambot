@@ -106,7 +106,7 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
     });
   });
 
-  it('misses by the fit under 7/8 alone: the 4/4s find each preset’s drum bar, and the five other meters Spooky drums where it is within reach, past it a miss by the distance (cells v0.12.0)', () => {
+  it('misses past the distance only: the 4/4s find each preset’s drum bar, the five other meters Spooky drums where it is within reach, and 7/8 Ghost drums (cells v0.15.0), past them a miss by the distance', () => {
     const sweep = meterSweep();
     const verdicts = Object.fromEntries(
       [...new Set(sweep.map((r) => r.meter))].map((meter) => [
@@ -130,13 +130,14 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
       '6/8': ['found', 'distance'],
       '12/8': ['found', 'distance'],
       '5/4': ['found', 'distance'],
-      '7/8': ['fit'],
+      '7/8': ['distance', 'found'],
       '10/8': ['found', 'distance'],
     });
   });
 
-  it(`misses over a grid of the four axes, the meter found first: 69 % found, 2 % refused by the fit, 29 % past ${RHYTHM_MISS}`, () => {
-    expect(gridAnswers(11)).toEqual({ found: 10097, fit: 361, distance: 4183 });
+  // (none refused by the fit since cells v0.15.0: Ghost drums fits 7/8, the one meter no seed rhythm fitted)
+  it(`misses over a grid of the four axes, the meter found first: 69 % found, none refused by the fit, 31 % past ${RHYTHM_MISS}`, () => {
+    expect(gridAnswers(11)).toEqual({ found: 10148, fit: 0, distance: 4493 });
   });
 
   // a bound in wall-clock time, so it runs only when asked: on a shared runner it reads past 5 ms with nothing wrong (5.16 ms, #485's CI)
