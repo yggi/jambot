@@ -30,9 +30,8 @@ export class Instruments {
   /** The on-screen and computer keys' routes, which pass what is played on as the keys' row. */
   readonly toLead: Route;
   readonly toDrums: Route;
-  /** MIDI in's routes, which pass nothing on: the device did. */
-  readonly #midiLead: Route;
-  readonly #midiDrums: Route;
+  /** MIDI in's routes, one per part an input can play (#564), which pass nothing on: the device did. */
+  readonly #midi: Record<AlongPart, Route>;
 
   constructor(player: Player, device: Device) {
     const routerFor =
@@ -55,22 +54,26 @@ export class Instruments {
       };
     this.toLead = routerFor('lead', this.heldLead, true);
     this.toDrums = routerFor('drums', this.heldDrums, true);
-    this.#midiLead = routerFor('lead', this.heldLead, false);
-    this.#midiDrums = routerFor('drums', this.heldDrums, false);
+    // (a bass, a pad or a stab played from MIDI is held by its own set: the on-screen keys light the lead's alone)
+    this.#midi = {
+      lead: routerFor('lead', this.heldLead, false),
+      drums: routerFor('drums', this.heldDrums, false),
+      bass: routerFor('bass', new SvelteSet<number>(), false),
+      pad: routerFor('pad', new SvelteSet<number>(), false),
+      stab: routerFor('stab', new SvelteSet<number>(), false),
+    };
   }
 
   /**
    * A note from Web MIDI, on the part its input plays (yggi/webmidi#43): the
-   * device's `partPlayed`, else as by its channel (`partOf`: channel 10 the
-   * pads, every other the keyboard).
+   * device's `partPlayed`, any of the band's (#564), else as by its channel
+   * (`partOf`: channel 10 the pads, every other the keyboard).
    */
-  readonly onMidiNote = (note: ParsedNote, source: string, part = partOf(note.channel)) =>
-    (part === 'drums' ? this.#midiDrums : this.#midiLead)(
-      note.note,
-      note.velocity,
-      note.on,
-      source,
-    );
+  readonly onMidiNote = (
+    note: ParsedNote,
+    source: string,
+    part: AlongPart = partOf(note.channel),
+  ) => this.#midi[part](note.note, note.velocity, note.on, source);
 
   /** Listen to the computer's keys, until the returned function is called. */
   listen(): () => void {

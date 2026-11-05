@@ -205,11 +205,21 @@ const OPENING_MODE = presetMode({ style: INITIAL_STYLE }) ?? INITIAL_KEY.mode;
 
 const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
 
-/** A part an instrument, not the band, can play along on. */
-export type AlongPart = Extract<Part, 'lead' | 'drums'>;
+/**
+ * A part an instrument, not the band, can play along on: any of the band's (#564). The Muse reads the lead's (its
+ * motifs), the drums' (its grooves, #401) and the bass's (its bass lines, #423); a pad or a stab played along sounds,
+ * is kept and shown, and is not read, since the Muse reads no chords.
+ */
+export type AlongPart = Part;
 
-/** How long a note played along sounds, in seconds: held for the keyboard, struck for the pads. */
-const ALONG_DURATION: Record<AlongPart, number> = { lead: 0.6, drums: 0.2 };
+/** How long a note played along sounds, in seconds: held for a keyboard's line or chord, struck for the pads and a stab. */
+const ALONG_DURATION: Record<AlongPart, number> = {
+  lead: 0.6,
+  drums: 0.2,
+  bass: 0.5,
+  pad: 1.2,
+  stab: 0.25,
+};
 
 /** How hard a pattern of one's own strikes, of 127, and the source its hits are logged from. */
 const RHYTHM_VELOCITY = 100;
@@ -789,7 +799,9 @@ export class Player {
     if (part === 'lead') {
       const heardAs = this.playerId === null ? source : playerSource(this.playerId, source);
       this.#arrived.push({ note, velocity, source: heardAs, position, end: null });
-    } else this.#drumsHeard(note, velocity, source, position);
+    } else if (part === 'drums') this.#drumsHeard(note, velocity, source, position);
+    else if (part === 'bass') this.#bassHeard(note, velocity, source, position);
+    // (a pad or a stab played along is kept and shown, not read by the Muse: #564)
   }
 
   /**
@@ -802,6 +814,17 @@ export class Player {
   #drumsHeard(note: number, velocity: number, source: string, position: number) {
     const name = (!this.#follow && this.playerId !== null && this.players[this.playerId]) || source;
     this.#arrivedDrums.push({ note, velocity, source: name, position, end: null });
+  }
+
+  /**
+   * A note played on the bass (#564), for the Muse to hear as a bass line, as she hears a host's clients' (#423,
+   * `bassElsewhere`): under the name the player goes by in a session, else the instrument it came from. A client's own
+   * is kept and shown, not yet carried to its host.
+   */
+  #bassHeard(note: number, velocity: number, source: string, position: number) {
+    if (this.#follow) return;
+    const name = (this.playerId !== null && this.players[this.playerId]) || source;
+    this.#arrivedBass.push({ note, velocity, source: name, position, end: null });
   }
 
   /** Keep a note a player struck, the oldest let go of past `HUMAN_NOTES_MAX`. */

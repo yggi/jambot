@@ -18,7 +18,7 @@
   import { SHAPES, type Shape } from '../bandRoll.ts';
   import type { Mix } from '../mix.ts';
   import { PATTERN_BARS } from '../pattern.ts';
-  import type { Performer } from '../sounding.ts';
+  import { type Performer, performerOf } from '../sounding.ts';
   import type { PerformerView, TracksView } from '../tracks.ts';
   import BandRoll from './BandRoll.svelte';
   import Card from './Card.svelte';
@@ -105,7 +105,7 @@
       {/each}
       {#each players as lane (`${lane.part} ${lane.source}`)}
         <span class="chip player" style:color="var(--source-{lane.colour})">
-          {@render shape(SHAPES[lane.part], `var(--source-${lane.colour})`)}
+          {@render shape(SHAPES[performerOf(lane.part)], `var(--source-${lane.colour})`)}
           <span class="name">{lane.name}</span>
         </span>
       {/each}

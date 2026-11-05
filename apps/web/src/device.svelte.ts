@@ -36,6 +36,7 @@ import { BAND, bandRoutes, partPlayed, wantsInputs } from './midi/patch.ts';
 import { MidiSettings } from './midi/settings.svelte.ts';
 import { type Surroundings, browserSurroundings } from './player.svelte.ts';
 import type { DeviceClocks } from './session/clocks.ts';
+import type { Part } from '@jambot/engine';
 
 /** How long, in seconds, the band takes to come in when a session is joined, and to go when it is left. */
 export const FADE_IN = 1.5;
@@ -179,7 +180,7 @@ export class Device {
    * hears, goes to `onNote` with the name of the port it came from and the
    * part it plays (`partPlayed`, yggi/webmidi#43).
    */
-  async connect(onNote: (note: ParsedNote, source: string, part: 'lead' | 'drums') => void) {
+  async connect(onNote: (note: ParsedNote, source: string, part: Part) => void) {
     this.connecting = true;
     const result = await MidiAccess.connect({
       onNote: (note, source) => {

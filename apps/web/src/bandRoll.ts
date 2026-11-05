@@ -12,7 +12,7 @@
  * fractions, across the bars shown and down the pitches heard.
  */
 
-import type { Performer } from './sounding.ts';
+import { type Performer, performerOf } from './sounding.ts';
 import type { TracksView } from './tracks.ts';
 
 export type Shape = 'chevron' | 'pill' | 'block' | 'square';
@@ -94,9 +94,9 @@ export function bandRoll(tracks: TracksView): BandRollView {
     if (lane.heardAs) continue;
     for (const n of lane.notes)
       raw.push({
-        voice: lane.part,
+        voice: performerOf(lane.part),
         player: lane.source,
-        shape: SHAPES[lane.part],
+        shape: SHAPES[performerOf(lane.part)],
         who: `var(--source-${lane.colour})`,
         pitch: lane.part === 'drums' ? null : n.note,
         row: lane.part === 'drums' ? drumRow(n.note) : 0,
