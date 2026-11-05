@@ -3,7 +3,7 @@ name: CI
 # A witness, not the gate (docs/memory/repository-and-ci.md): the gate is `pnpm verify`, which the pre-push hook runs,
 # and the pull request names the commit that passed it. The repository is public, so Actions costs nothing here, and the
 # heavy runs move here from the shared machine (#471):
-# - on a pull request that is ready (not a draft): `pnpm verify` (`check`) and `pnpm e2e` (`e2e`), side by side;
+# - on a pull request that is ready (not a draft): `pnpm verify` (`check`) and `pnpm e2e` (`e2e`, two shards), side by side;
 # - nightly on `main`: both, and the radio and session soaks (30 min each), their readouts kept as artifacts;
 # - by hand (Actions -> CI -> Run workflow, or `actions_run_trigger` on `ci.yml`, on any branch): `check` and `e2e`,
 #   and the soaks with `soak` ticked.
@@ -64,11 +64,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify ${{ steps.scope.outputs.scope == 'docs' && '--docs' || '' }}
 
-  e2e:
+  # `pnpm e2e` in two shards on two runners, each a half of the files (Playwright's `--shard`, 25 and 24 of 49 checks),
+  # so the witness takes about half the wall time; the job `e2e` below stands for both, under the name review-pr reads.
+  e2e-shard:
     if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
     # (24.04, not ubuntu-latest: Playwright 1.56.1 installs no chromium on ubuntu-latest's 26.04)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -95,7 +101,18 @@ jobs:
       - if: steps.scope.outputs.scope != 'docs'
         run: pnpm --filter @jambot/web exec playwright install --with-deps chromium
       - if: steps.scope.outputs.scope != 'docs'
-        run: pnpm e2e
+        run: pnpm e2e --shard=${{ matrix.shard }}/2
+
+  e2e:
+    # (passes when every shard passed: `always()` so a red shard makes it red rather than skipped)
+    if: always() && (github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on')))
+    needs: e2e-shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: |
+          echo "the shards: ${{ needs.e2e-shard.result }}" >>"$GITHUB_STEP_SUMMARY"
+          [ '${{ needs.e2e-shard.result }}' = success ]
 
   soak:
     if: github.event_name == 'schedule' || inputs.soak
