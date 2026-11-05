@@ -34,18 +34,17 @@ const fragment = (id: string, text: string, point = PRESETS[0]!.style): Fragment
 });
 
 describe("cells' mode fragments, as the band reads them", () => {
-  it('reads each mode as its own, the bell and scale as ionian, and harmonic minor as aeolian (#516)', () => {
+  it('reads each mode as its own (cells v0.17.0: the seven from one `diatonic`, yggi/cells#455), the bell and scale as ionian, and harmonic minor as aeolian (#516)', () => {
     expect(MODE_READINGS).toEqual([
-      { id: 'aeolian', read: { id: 'aeolian', mode: 'aeolian' } },
-      { id: 'dorian', read: { id: 'dorian', mode: 'dorian' } },
-      { id: 'ionian', read: { id: 'ionian', mode: 'ionian' } },
-      { id: 'mixolydian', read: { id: 'mixolydian', mode: 'mixolydian' } },
+      // (the seven modes, each `diatonic` with its mode, cells v0.17.0: yggi/cells#455; the other three since v0.12.1, #355)
+      ...['aeolian', 'dorian', 'ionian', 'mixolydian', 'phrygian', 'lydian', 'locrian'].map(
+        (mode) => ({
+          id: `diatonic(mode=${mode})`,
+          read: { id: `diatonic(mode=${mode})`, mode },
+        }),
+      ),
       { id: 'bell_and_scale', read: { id: 'bell_and_scale', mode: 'ionian' } },
       { id: 'harmonic_minor', read: { id: 'harmonic_minor', mode: 'aeolian' } },
-      // (the other three of the seven, cells v0.12.1: yggi/cells#355)
-      { id: 'phrygian', read: { id: 'phrygian', mode: 'phrygian' } },
-      { id: 'lydian', read: { id: 'lydian', mode: 'lydian' } },
-      { id: 'locrian', read: { id: 'locrian', mode: 'locrian' } },
     ]);
     expect([...MODE_REPOSITORY.fragments.keys()]).toEqual(MODE_FRAGMENTS.map((f) => f.id));
   });

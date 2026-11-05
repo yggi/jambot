@@ -1,6 +1,6 @@
 /**
- * The family's feel contract (yggi/music-commons `contracts/feel`, version 1,
- * minor 1), its copy the engine's (`packages/engine/fixtures/contracts/feel.json`)
+ * The family's feel contract (yggi/music-commons `contracts/feel`, version 2),
+ * its copy the engine's (`packages/engine/fixtures/contracts/feel.json`)
  * with a first field, `lifted`, naming the hub and the commit it came from;
  * the hub's own `lifted`, what it lifted from this repository, is kept in the
  * copy as `hubLifted`, its one change.
@@ -86,7 +86,7 @@ function barOf({ preset, frame }: FeelVector): BarEnv {
   } as unknown as BarEnv;
 }
 
-describe('the feel contract (yggi/music-commons contracts/feel, version 1)', () => {
+describe('the feel contract (yggi/music-commons contracts/feel, version 2: the own accent by the meter, yggi/music-commons#46)', () => {
   it('is the version Jambot passes, lifted with its source named, and the hub’s lift of this repository kept', () => {
     expect(feel.lifted).toMatch(
       /^Lifted from yggi\/music-commons contracts\/feel\/vectors\.json @ [0-9a-f]{7,40}$/,
@@ -134,9 +134,9 @@ const RECORDED: Readonly<Record<string, string>> = {
   bassV: 'lineOf reads an output with no line as a part named nothing',
 };
 
-describe('the feel contract’s reading (yggi/music-commons contracts/feel, version 1, minor 1)', () => {
+describe('the feel contract’s reading (yggi/music-commons contracts/feel, version 1 minor 1’s, unchanged in version 2)', () => {
   it('is the minor the engine’s copy holds: 12 outputs the feel’s, 5 not', () => {
-    expect([feel.contract, feel.version, feel.minor]).toEqual(['feel', 1, 1]);
+    expect([feel.contract, feel.version, feel.minor]).toEqual(['feel', 2, 0]);
     expect(feel.reading).toHaveLength(17);
     expect(feel.reading.filter((r) => r.reads === null)).toHaveLength(5);
   });
