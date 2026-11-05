@@ -19,6 +19,7 @@ How the repository is built, gated, deployed and licensed.
   A push it lets through prints one line with the count of tests passed, and verify's last line names it too, for the pull request to quote.
   A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
   A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone (`pnpm verify --docs`, which installs first and prints its summary line too).
+  No tracked file keeps a line git left as a conflict marker (`tooling/conflict-markers.ts`, lifted from yggi/webmidi): it runs in verify and in the docs check alike, since Prettier formats a marker in markdown as ordinary text and a hand-resolved merge of the changelog or the memory could otherwise push one.
   The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
   The pull request names the commit that passed it, in its Verified section.
 - CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: `check` (`pnpm verify`) and `e2e` (`pnpm e2e` in two shards, `e2e-shard`, on two runners: about half the wall time; `e2e` passes when both did), side by side, on a pull request when it is opened, pushed to, reopened or taken out of draft.
