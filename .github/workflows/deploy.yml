@@ -5,10 +5,16 @@ name: Deploy
 # references, commits the build to `gh-pages` (Pages publishes that branch as it is) and pushes it when it changed, then
 # waits for https://yggi.github.io/jambot/ to serve it and checks the live site. By hand too: Actions -> Deploy -> Run
 # workflow (or `actions_run_trigger` on `deploy.yml`), to deploy `main` again.
+# On a merge, `pnpm verify` is skipped when CI's witness stands for it (`tooling/witness.ts`): the merged pull request's
+# head has the tree deployed, and CI's `check` passed on it on code, not markdown alone. Otherwise, and always by hand,
+# it runs. The build, its check, the push and the check of the live site run either way.
 # A run that fails in seconds with no step is Actions blocked: deploy from a clone instead (the land skill).
 on:
   push:
     branches: [main]
+    # (a merge of markdown alone changes nothing the site serves, so it starts no deploy; the next merge of code deploys
+    # it with the rest, and a deploy by hand deploys `main` as it is)
+    paths-ignore: ['**.md']
   workflow_dispatch:
 
 permissions:
@@ -28,6 +34,9 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      # (the witness: the merged pull request, its files, and CI's check runs on its head)
+      pull-requests: read
+      checks: read
     steps:
       # The whole history, with origin/main: verify's ratchet test (tooling/history.test.ts) compares with it.
       - uses: actions/checkout@v5
@@ -44,4 +53,13 @@ jobs:
       - run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-      - run: pnpm pages deploy
+      # (never fails the run: anything it can't read means the tests run)
+      - id: witness
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: node --experimental-strip-types --no-warnings tooling/witness.ts
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: pnpm pages deploy ${{ steps.witness.outputs.head && format('--tests-passed-on {0}', steps.witness.outputs.head) || '' }}
+        env:
+          TESTS_PASSED_RUN: ${{ steps.witness.outputs.run }}

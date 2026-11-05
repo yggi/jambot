@@ -15,7 +15,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 const script = fileURLToPath(new URL('../.claude/skills/review-pr/prepare.sh', import.meta.url));
 
+// A fixed author, and none of the user's global config: a session signs every commit through it, which under verify's
+// load took this file's git setup past its 10 s hook timeout (#493, yggi/cells#275).
 const identity = {
+  GIT_CONFIG_GLOBAL: '/dev/null',
   GIT_AUTHOR_NAME: 'test',
   GIT_AUTHOR_EMAIL: 'test@example.com',
   GIT_COMMITTER_NAME: 'test',

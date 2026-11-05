@@ -20,34 +20,17 @@ pnpm ratchet      # the catalogues over main's history: evidence, rules, aliases
 pnpm pages deploy # publish main to GitHub Pages, and check the live site
 ```
 
-- Agent sessions (Claude Code) install dependencies and Playwright's Chromium, warm music21 and fetch `origin/main` and their own branch at start, resume and compaction through `.claude/hooks/session-start.sh`.
-  It also says how far the branch is behind `origin/main`, whether main already holds it, and whether its remote branch moved (`branch-status.sh`).
-  And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
-  When the install lacks `@yggi/cells`, its fetch from the public yggi/cells failed on the network or the proxy, and the hook's first line says so: run `pnpm install --frozen-lockfile` again.
-  The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
-- Every `git push` of a branch runs `pnpm verify` first, through git's pre-push hook (`.githooks/pre-push`: about 3 min alone, the tests 2 min 20 s of it, and 4 to 5 min beside another agent's tests, 2026-10-17), and is blocked if it fails.
-  `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
-  It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
-  A tree that passed is remembered in the git directory (`jambot-verified`), with its count of tests, by the hook and by a `pnpm verify` run by hand, so neither a retried push nor one right after a verify runs it again, and the hook still prints the count.
-  The tree is that of every file verify saw, untracked ones too, so a commit that leaves out a new file verify passed with is verified again.
-  A push it lets through prints one line with the count of tests passed, and verify's last line names it too, for the pull request to quote.
-  A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
-  A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone (`pnpm verify --docs`, which installs first and prints its summary line too).
-  The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
+- Claude Code sessions install and fetch at start (`.claude/hooks/session-start.sh`), and every push of a branch runs `pnpm verify` first through git's pre-push hook, blocked if it fails (`pnpm verify --docs` for a diff of `*.md` alone); the hook's stamp, its log, and the GitHub MCP tools that skip it: [repository-and-ci](memory/repository-and-ci.md).
 - Two gates that show themselves only by failing: a `Math.pow`, `log`, `exp`, `sin` or similar call in a pure package fails until `tooling/quantized-math.ts`'s audit names it with why it is safe ([testing](memory/testing.md)), and a new experiment takes the next E number after the highest in [`language-experiments.md`](language-experiments.md), where its entry goes.
-- To review a pull request, use the `review-pr` skill: `.claude/skills/review-pr/prepare.sh <number>` fetches it and `main`, checks it out in its own worktree and runs `pnpm verify` there.
-  It says when `main` has moved on and where a merge would conflict, and `--from <commit>` scopes it to part of a pull request.
-  A branch behind `main` may not have the script yet: pipe `main`'s copy from `git show origin/main:.claude/skills/review-pr/prepare.sh` to `sh -s --`.
-  `git fetch origin pull/<n>/head` works through the session proxy.
+- To review a pull request, use the `review-pr` skill.
 
-## Cell studio, the sister project
+## The family
 
 - [yggi/cell-studio](https://github.com/yggi/cell-studio) started as a spike out of Jambot, to research and define the language: cells, on top of Strudel.
 - The direction is to bring the two back together for eternal jam sessions: cells as the score language and its engine as the player, Jambot as the composer, and a shared repository of cell fragments ([brief](briefs/eternal-jam.md)).
 - The language becomes a core of its own, [yggi/cells](https://github.com/yggi/cells), which Jambot and Cell studio consume at a tag (D1 on #309).
-- The music projects (Cell studio, cells, quintenzirkel, play-aeiou, lib-aeiou, flow3r-aeiou, KO-Multitool, ep133-sysex and this one) share a hub, [yggi/music-commons](https://github.com/yggi/music-commons): an atlas, a charter, a glossary and contracts with vectors.
-  Jambot runs the vectors of meter, euclid and notes (`packages/theory`), swing and feel at minor 1 (`packages/engine`, the reading in `packages/score`) and session at minor 4 (`packages/session`), each in its `contracts.test.ts`.
-  Jambot passes `session` (its `packages/session`), `meter` (`packages/theory`), and `swing` and `feel` (`packages/engine`), each run by a `contracts.test.ts` over the hub's vectors in the package's `fixtures/contracts/`; `feel` is its performer's own playing, lifted (#474).
+- The music projects (Cell studio, cells, webmidi, quintenzirkel, play-aeiou, lib-aeiou, flow3r-aeiou, KO-Multitool, ep133-sysex and this one) share a hub, [yggi/music-commons](https://github.com/yggi/music-commons): an atlas, a charter, a glossary and contracts with vectors.
+  Jambot runs their vectors (and passes session, meter, swing and feel), each by a `contracts.test.ts` over the package's `fixtures/contracts/`: meter, euclid and notes (`packages/theory`), swing and feel at minor 1 (`packages/engine`, the reading in `packages/score`; `feel` is its performer's own playing, lifted, #474) and session at minor 4 (`packages/session`).
 - The handshake is ruled (#309; yggi/cells decision 037): a new score form (#287, #306, #275, #265) is said in cells, its meaning kept and no spelling of its own grown here.
 - Its words and Jambot's part in places (`^`, `_`, `shift`, `cycle=`, Euclid's rotation): read [`cell-studio`](memory/cell-studio.md) before porting a form either way.
 

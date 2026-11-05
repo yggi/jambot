@@ -6,19 +6,37 @@ How the repository is built, gated, deployed and licensed.
 
 - The repository is public, so GitHub's standard runners cost it nothing; the family's rule for spending Actions minutes, [CI-BUDGET.md](https://github.com/yggi/music-commons/blob/main/CI-BUDGET.md) in music-commons, still switches a private repository's runs off (#4).
   So the heavy runs (the end-to-end checks, the soaks) go to Actions, where each has a runner to itself, rather than queue for the shared machine's lock (#471).
-- The gate is `pnpm verify`, run before every push of a branch by the pre-push hook (`.githooks/pre-push`), where it costs no minutes.
+- Agent sessions (Claude Code) install dependencies and Playwright's Chromium, warm music21 and fetch `origin/main` and their own branch at start, resume and compaction through `.claude/hooks/session-start.sh`.
+  It also says how far the branch is behind `origin/main`, whether main already holds it, and whether its remote branch moved (`branch-status.sh`).
+  And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
+  When the install lacks `@yggi/cells`, its fetch from the public yggi/cells failed on the network or the proxy, and the hook's first line says so: run `pnpm install --frozen-lockfile` again.
+  The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
+- The gate is `pnpm verify`, where it costs no minutes: every `git push` of a branch runs it first, through git's pre-push hook (`.githooks/pre-push`: about 3 min alone, the tests 2 min 20 s of it, and 4 to 5 min beside another agent's tests, 2026-10-17), and is blocked if it fails.
+  `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
+  It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
+  A tree that passed is remembered in the git directory (`jambot-verified`), with its count of tests, by the hook and by a `pnpm verify` run by hand, so neither a retried push nor one right after a verify runs it again, and the hook still prints the count.
+  The tree is that of every file verify saw, untracked ones too, so a commit that leaves out a new file verify passed with is verified again.
+  A push it lets through prints one line with the count of tests passed, and verify's last line names it too, for the pull request to quote.
+  A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
+  A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone (`pnpm verify --docs`, which installs first and prints its summary line too).
+  The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
   The pull request names the commit that passed it, in its Verified section.
-- CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: `check` (`pnpm verify`) and `e2e` (`pnpm e2e`), side by side, on a pull request when it is opened, pushed to, reopened or taken out of draft.
+- CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: `check` (`pnpm verify`) and `e2e` (`pnpm e2e` in two shards, `e2e-shard`, on two runners: about half the wall time; `e2e` passes when both did), side by side, on a pull request when it is opened, pushed to, reopened or taken out of draft.
   A draft runs nothing, and a newer push cancels the run still going, so a pull request stays a draft while it moves.
   Nightly on `main` both run, and so do the radio and the session soaks (`soak`, 30 minutes each, on a served build), their readouts kept as the run's artifacts; the session soak fails where its bound breaks (#462).
   By hand (Actions → CI → Run workflow, or `actions_run_trigger` on `ci.yml`) any branch gets `check` and `e2e`, and the soaks with `soak` ticked; runs by hand are never cancelled, so several on one branch give a pass rate.
   The review-pr skill reuses CI's `check` and `e2e` on a head they passed rather than run them a third time; it runs them itself only where CI hasn't passed that commit.
+  A pull request that changes `*.md` files alone, as the pre-push hook reads it, runs `pnpm verify --docs` in `check` and skips `e2e`'s steps, both jobs still named and green, so the review's reuse holds for it.
+  `git fetch origin pull/<n>/head` works through the session proxy.
   No check is required to merge.
 - While Actions is blocked, a run fails within seconds, with no runner and no step: a red or missing `check` then says nothing about the code.
   `node tools/measure/actions.mjs --status yggi/jambot`, in music-commons, tells a blocked repository from one where Actions runs.
   The evidence is the verified commit the pull request names; when minutes are back, one run of a blocked check on a pull request still open is enough.
   Pages is deployed by a merge (below), and the lobby by the `lobby-deploy` skill.
-- GitHub Pages is deployed by each merge into `main` (`AGENTS.md`): the push runs `.github/workflows/deploy.yml`, one at a time and never cancelled, which runs `pnpm pages deploy` there (by hand too, Actions → Deploy → Run workflow, and from a clone when Actions is blocked). `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
+- GitHub Pages is deployed by each merge into `main` (`AGENTS.md`) but one of `*.md` files alone, which changes nothing the site serves (`paths-ignore`): the push runs `.github/workflows/deploy.yml`, one at a time and never cancelled, which runs `pnpm pages deploy` there (by hand too, Actions → Deploy → Run workflow, and from a clone when Actions is blocked). `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
+  On a merge, the deploy skips `pnpm verify` when CI already passed it on the same tree: `tooling/witness.ts` finds the pull request merged as the commit deployed, and passes its head to `pnpm pages deploy --tests-passed-on <head>` when that head has the commit's tree, CI's latest `check` on it is `success`, and the pull request changes more than `*.md` files.
+  In every other case (a deploy by hand, no such pull request, another tree, a `check` missing or not green, GitHub unreadable) it runs `pnpm verify`, and the log's `pages: tests:` line says which and why; from a clone the flag is refused, so a clone runs every test.
+  A head that held `main` when it was merged (`main` merged into it, and CI green on that) has the merge's tree, so the deploy skips the tests it passed.
   It then waits for the live site to serve that build and checks it again.
   Pages publishes the branch as it is: the repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
   `pnpm pages build` and `pnpm pages serve` show the site on `http://localhost:4318/jambot/` first, served as Pages serves it (404 for what isn't a file, where `vite preview` would answer with the app).

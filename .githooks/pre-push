@@ -96,6 +96,8 @@ fi
 # vitest's summary line, `Tests  12 passed (12)`, the one review-pr reads too.
 tests=$(sed -n 's/^ *Tests  *\([0-9][0-9]* failed | \)\{0,1\}\([0-9][0-9]*\) passed.*/\2/p' "$log" | tail -1)
 rm -f "$log"
+# The boot set near its ceiling, which a passing check's hidden output would keep from the pusher (tooling/reading-list.ts).
+node --experimental-strip-types --no-warnings tooling/reading-list.ts 2>/dev/null | sed 's/^/pre-push: /' >&2
 # verify remembers a tree it passed itself; a check put in its place does not.
 # An untracked file the check saw makes the tree it passed another than HEAD's.
 if [ -n "$stamp" ] && [ -z "$(git status --porcelain)" ] && [ -z "$(stamped)" ]; then

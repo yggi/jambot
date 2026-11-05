@@ -28,24 +28,22 @@ These principles come from the prototype
 
 ## Where things are
 
-| Path                                                   | What                                                                          |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `packages/theory/`                                     | Music theory on one primitive, `even(k, n, shift)`: pure TypeScript           |
-| `packages/engine/`                                     | The musical engine: pure TypeScript, no I/O                                   |
-| `packages/score/`                                      | The score: a bar as text and back, pure TypeScript, no I/O                    |
-| `packages/session/`                                    | Host and client mode: pure TypeScript, no I/O                                 |
-| `packages/spectrum/`                                   | Audio frames into spectrum, peaks and pitch: pure TypeScript, no I/O          |
-| `packages/analyzer/`                                   | The parser: MIDI into the step grid, pure TypeScript, no I/O                  |
-| `apps/web/`                                            | The browser app: Svelte 5, Vite, PWA                                          |
-| `apps/lobby/`                                          | The lobby server: sessions found by name and relayed over WebSockets          |
-| `tooling/`                                             | The repository's own gates and tools: lint rules, hooks, the pawl, the deploy |
-| `prototype/`                                           | The original single-file prototype and its README: a baseline for orientation |
-| `docs/MEMORY.md`                                       | The cheatsheet and pointers to the topic files: the entry point               |
-| `docs/memory/`                                         | Persistent facts, one file per topic, read on demand                          |
-| `docs/INDEX.md`                                        | Tree of all docs and code directories                                         |
-| `docs/ROADMAP.md`                                      | Where the project is heading                                                  |
-| [GitHub issues](https://github.com/yggi/jambot/issues) | The board: concrete work, bugs, blockers                                      |
-| [#555](https://github.com/yggi/jambot/issues/555)      | The central roadmap: look here first for what to do next (twin: cells#437)    |
+- `packages/theory/`: music theory on one primitive, `even(k, n, shift)`: pure TypeScript
+- `packages/engine/`: the musical engine: pure TypeScript, no I/O
+- `packages/score/`: the score: a bar as text and back, pure TypeScript, no I/O
+- `packages/session/`: host and client mode: pure TypeScript, no I/O
+- `packages/spectrum/`: audio frames into spectrum, peaks and pitch: pure TypeScript, no I/O
+- `packages/analyzer/`: the parser: MIDI into the step grid, pure TypeScript, no I/O
+- `apps/web/`: the browser app: Svelte 5, Vite, PWA
+- `apps/lobby/`: the lobby server: sessions found by name and relayed over WebSockets
+- `tooling/`: the repository's own gates and tools: lint rules, hooks, the pawl, the deploy
+- `prototype/`: the original single-file prototype and its README: a baseline for orientation
+- `docs/MEMORY.md`: the cheatsheet and pointers to the topic files: the entry point
+- `docs/memory/`: persistent facts, one file per topic, read on demand
+- `docs/INDEX.md`: tree of all docs and code directories
+- `docs/ROADMAP.md`: where the project is heading
+- [GitHub issues](https://github.com/yggi/jambot/issues): the board: concrete work, bugs, blockers
+- [#555](https://github.com/yggi/jambot/issues/555): the central roadmap: look here first for what to do next (twin: cells#437)
 
 ## House rules
 
@@ -120,7 +118,7 @@ Nothing checks these; you and the reviewer hold them.
 - **Small commits, pull requests into `main`.** No ceremony beyond passing
   checks. See "Branches and merging" below.
 - **A merge deploys.** A push to `main` runs `.github/workflows/deploy.yml`, which runs `pnpm pages deploy` there, so the site at <https://yggi.github.io/jambot/> plays what `main` holds.
-  The deploy runs `pnpm verify`, refuses a commit that isn't on `origin/main`, and checks the live site once Pages has published it; when the build hasn't changed, it pushes nothing and only checks.
+  The deploy runs `pnpm verify` (skipped on a merge whose tree CI's `check` passed on the pull request's head: `tooling/witness.ts`), refuses a commit that isn't on `origin/main`, and checks the live site once Pages has published it; when the build hasn't changed, it pushes nothing and only checks.
   Whoever merges watches that run, and deploys from a clone (`pnpm pages deploy` on `main`) only when Actions can't (`docs/memory/repository-and-ci.md`).
 
 ### What to do with what you find
