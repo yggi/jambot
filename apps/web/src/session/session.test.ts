@@ -422,6 +422,35 @@ describe('a host and a client session', () => {
     expect(client.player.layer.filed).toEqual([]);
   });
 
+  it("file the bass a client's player plays on the bass part in the host's layer, as a bass line under the client's name (#569)", async () => {
+    const lobby = memoryLobby();
+    const host = device(10);
+    const client = device(3);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'jam', 'Bo');
+    await host.player.start();
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'jam', 'Ada');
+    await run([host, client], 3);
+    const heard = () => client.player.writtenPosition(client.world.currentTime) ?? -1;
+    const clock = () => client.player.clock;
+    // A root and fifth on the first four pulses of each bar, on the bass part, from the next bar to the section's end.
+    const first = clock().barAt(Math.floor(heard())) + 1;
+    for (let bar = first; bar < SECTION_BARS; bar++)
+      for (const [i, note] of [40, 47, 40, 45].entries()) {
+        const step = clock().barStart(bar) + 4 * i;
+        while (heard() < step) await run([host, client], 0.025);
+        client.player.humanNoteOn('bass', note, 100, 'the bass keys', client.world.currentTime);
+      }
+    for (let s = 0; s < 20 && host.player.layer.filed.length === 0; s++)
+      await run([host, client], 1);
+    expect(host.player.layer.filed.map((f) => f.meta)).toEqual([
+      { source: 'Ada', created: expect.stringMatching(/, bar \d+$/), tags: ['bass line', 'jam'] },
+    ]);
+    expect(host.player.layer.filed[0]!.fragment.text).toMatch(/^&bassline /m);
+    expect(client.player.layer.filed).toEqual([]);
+  });
+
   it('file nothing a listener plays: a client seated without the code hears the band and adds nothing to it (#461)', async () => {
     const lobby = memoryLobby();
     const host = device(10);
