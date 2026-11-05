@@ -19,7 +19,9 @@ describe('conflict markers', () => {
   });
 
   it('finds the three markers of a whole conflict, its `=======` right under a line of text', () => {
-    expect(markers('# Changelog\n<<<<<<< HEAD\n- ours\n=======\n- theirs\n>>>>>>> main\n')).toEqual([2, 4, 6]);
+    expect(markers('# Changelog\n<<<<<<< HEAD\n- ours\n=======\n- theirs\n>>>>>>> main\n')).toEqual(
+      [2, 4, 6],
+    );
   });
 
   it('passes a setext heading underline, a longer run, and a marker that is not at the start of its line', () => {
@@ -29,7 +31,9 @@ describe('conflict markers', () => {
   });
 
   it('no tracked file has one', () => {
-    const files = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
+    const files = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+      .split('\0')
+      .filter(Boolean);
     const found = files.flatMap((file) => {
       const bytes = readFileSync(join(root, file));
       if (bytes.includes(0)) return []; // binary
