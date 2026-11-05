@@ -118,7 +118,7 @@ Nothing checks these; you and the reviewer hold them.
 - **Small commits, pull requests into `main`.** No ceremony beyond passing
   checks. See "Branches and merging" below.
 - **A merge deploys.** A push to `main` runs `.github/workflows/deploy.yml`, which runs `pnpm pages deploy` there, so the site at <https://yggi.github.io/jambot/> plays what `main` holds.
-  The deploy runs `pnpm verify`, refuses a commit that isn't on `origin/main`, and checks the live site once Pages has published it; when the build hasn't changed, it pushes nothing and only checks.
+  The deploy runs `pnpm verify` (skipped on a merge whose tree CI's `check` passed on the pull request's head: `tooling/witness.ts`), refuses a commit that isn't on `origin/main`, and checks the live site once Pages has published it; when the build hasn't changed, it pushes nothing and only checks.
   Whoever merges watches that run, and deploys from a clone (`pnpm pages deploy` on `main`) only when Actions can't (`docs/memory/repository-and-ci.md`).
 
 ### What to do with what you find
