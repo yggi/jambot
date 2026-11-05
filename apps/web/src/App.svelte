@@ -402,7 +402,7 @@
         name: clientSession.name,
         hostPlaying: clientSession.hostPlaying,
         hostAway: clientSession.hostAway,
-        listening: clientSession.listening,
+        role: clientSession.role,
         trip: clientSession.trip,
         lacked: player.lacked,
       },

@@ -31,15 +31,16 @@ describe('the metrum', () => {
     expect(container.querySelector('details')).not.toHaveAttribute('open');
   });
 
-  it('asks for the meter of the next section, and rests on a client, which follows its host’s', async () => {
+  it('asks for the meter of the next section, and draws no choice for a client, which follows its host’s', async () => {
     const onmeter = vi.fn();
     const { rerender } = render(Metrum, props(new Metronome(), { asked: METERS['4/4'], onmeter }));
     const choice = screen.getByRole('radiogroup', { name: 'Meter for the next section' });
     expect(screen.getByRole('radio', { name: '4/4' })).toHaveAttribute('aria-checked', 'true');
     await fireEvent.click(screen.getByRole('radio', { name: '7/8' }));
     expect(onmeter).toHaveBeenCalledWith(METERS['7/8']);
-    await rerender({ following: true });
-    expect(choice.querySelectorAll('[role="radio"]:not([disabled])')).toHaveLength(0);
+    expect(choice).toBeInTheDocument();
+    await rerender({ sets: false });
+    expect(screen.queryByRole('radiogroup', { name: 'Meter for the next section' })).toBeNull();
   });
 
   it('offers no meter asked for, “By style”, where the composer asks the repository, and asks for it with null (#375)', async () => {
@@ -65,13 +66,13 @@ describe('the metrum', () => {
     );
   });
 
-  it('nudges the tempo through the same intent, and a client’s nudges rest', async () => {
+  it('nudges the tempo through the same intent, and draws no nudge for a client', async () => {
     const onintent = vi.fn();
     const { rerender } = render(Metrum, props(new Metronome(), { onintent }));
     await fireEvent.click(screen.getByRole('button', { name: 'Faster' }));
     expect(onintent).toHaveBeenCalledOnce();
-    await rerender({ following: true });
-    expect(screen.getByRole('button', { name: 'Faster' })).toBeDisabled();
+    await rerender({ sets: false });
+    expect(screen.queryByRole('button', { name: 'Faster' })).toBeNull();
   });
 
   it('shows the swing’s share as a gauge, empty when straight and full at the dotted figure', () => {
@@ -101,7 +102,7 @@ describe('the metrum', () => {
     expect(reading(TRIPLET)).toBe('67 %');
   });
 
-  it('sets the swing’s level and share through intents, and a client’s rest (#360)', async () => {
+  it('sets the swing’s level and share through intents; a client reads the share and sets neither (#360)', async () => {
     const onintent = vi.fn();
     const { rerender } = render(Metrum, props(new Metronome(), { onintent }));
     expect(screen.getByRole('radio', { name: '16ths' })).toHaveAttribute('aria-checked', 'true');
@@ -111,9 +112,12 @@ describe('the metrum', () => {
       target: { value: '62' },
     });
     expect(onintent).toHaveBeenLastCalledWith({ kind: 'swing', swing: { share: 0.62 } });
-    await rerender({ following: true });
-    expect(screen.getByRole('slider', { name: 'Swing' })).toBeDisabled();
-    expect(screen.getByRole('radio', { name: '8ths' })).toBeDisabled();
+    await rerender({ sets: false });
+    expect(screen.queryByRole('slider', { name: 'Swing' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: '8ths' })).toBeNull();
+    expect(screen.getByLabelText('Swing 50 %')).toBeInTheDocument();
+    // The click is the device's own: a client has it too.
+    expect(screen.getByRole('button', { name: 'Click' })).toBeEnabled();
   });
 
   it('says in its header the level heard, and the one asked for where the next section changes it (#360)', () => {

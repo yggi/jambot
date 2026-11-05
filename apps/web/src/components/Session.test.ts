@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import type { ComponentProps } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
+import { CODE_LISTENS } from '@jambot/session';
 import Session from './Session.svelte';
 
 const following = {
@@ -9,6 +10,7 @@ const following = {
   name: 'Bo',
   hostPlaying: true,
   hostAway: false,
+  role: 'player',
   trip: 12,
   lacked: 0,
 } as const;
@@ -117,6 +119,16 @@ describe('the session card', () => {
       expect(screen.getByText('Bo')).toBeInTheDocument();
       expect(screen.getByText('12 ms')).toBeInTheDocument();
       expect(screen.getByText('3 bars')).toBeInTheDocument();
+    });
+
+    it('tells a listener it listens, and why, and a player nothing of it (#461)', async () => {
+      const { rerender } = render(Session, props({ mode: 'client' }));
+      await unfold();
+      expect(screen.queryByText(CODE_LISTENS)).toBeNull();
+      await rerender({ following: { ...following, role: 'listener' } });
+      expect(screen.getByText('Listening as')).toBeInTheDocument();
+      expect(screen.queryByText('Playing as')).toBeNull();
+      expect(screen.getByText(CODE_LISTENS)).toBeInTheDocument();
     });
 
     it('says what a client’s link is doing when it is lost, or the host is away', async () => {

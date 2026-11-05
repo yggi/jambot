@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type Following, networkColours, sessionMain, sessionSub } from './sessionState.ts';
+import { type Following, canOf, networkColours, sessionMain, sessionSub } from './sessionState.ts';
 
 const following: Following = {
   status: 'joined',
@@ -7,6 +7,7 @@ const following: Following = {
   name: 'Bo',
   hostPlaying: true,
   hostAway: false,
+  role: 'player',
   trip: 12,
   lacked: 0,
 };
@@ -50,6 +51,19 @@ describe('what the session card says of its state', () => {
     expect(sub({ hostAway: true, hostPlaying: false })).toBe('Following · host away');
     expect(sub({ status: 'joining' })).toBe('Joining');
     expect(sub({ status: 'reconnecting' })).toBe('Reconnecting · playing on what it has');
+  });
+});
+
+describe('what a device can do in its session', () => {
+  it('sets everything alone or hosting, and only plays as a player or listens as a listener', () => {
+    const all = { set: true, play: true };
+    // Alone or hosting, the role a client would have says nothing.
+    for (const role of ['player', 'listener'] as const) {
+      expect(canOf('solo', role)).toEqual(all);
+      expect(canOf('host', role)).toEqual(all);
+    }
+    expect(canOf('client', 'player')).toEqual({ set: false, play: true });
+    expect(canOf('client', 'listener')).toEqual({ set: false, play: false });
   });
 });
 

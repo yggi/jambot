@@ -17,8 +17,9 @@
   in the jazz kit and the walking bass. With no meter asked for ("By style",
   as at first), the composer asks cells' repository at each section's start
   for the meter nearest the style, with its swing (#375); a meter or a swing
-  set here asks for one, and wins. A client follows its host's, so its
-  choices rest.
+  set here asks for one, and wins. A device that doesn't set the band's time,
+  a client (`Can`), follows its host's, and has none of these controls: it
+  reads the tempo, the meter and the swing, and keeps its own click.
 -->
 <script lang="ts">
   import {
@@ -59,8 +60,8 @@
     clock?: SongClock;
     /** Whether the band plays: the click sounds with it. */
     playing: boolean;
-    /** Whether a client follows its host's tempo, so it can't nudge. */
-    following?: boolean;
+    /** Whether this device sets the band's time (`Can`'s `set`): a client's host does, and it draws no control. */
+    sets?: boolean;
     onintent: (intent: Intent) => void;
     /** The meter asked for the next section, which the band takes where it starts; null for none, the repository's. */
     asked?: Meter | null;
@@ -76,7 +77,7 @@
     meter = SONG_METER,
     clock = SONG_CLOCK,
     playing,
-    following = false,
+    sets = true,
     onintent,
     asked = SONG_METER,
     onmeter = () => {},
@@ -120,16 +121,17 @@
   sub="{meterLabel(meter)} · swing {percent} % on {levelText}{metronome.on ? ' · clicking' : ''}"
 >
   {#snippet glyph()}<Blinker {marks} span={stepsOf(meter)} />{/snippet}
-  <TempoNudge {tempo} disabled={following} {onintent} />
+  {#if sets}<TempoNudge {tempo} {onintent} />{/if}
   <div class="swing">
-    <Segmented
-      label="Swing on"
-      value={swing.level}
-      columns={2}
-      disabled={following}
-      options={SWING_LEVELS.map((value) => ({ value, text: LEVEL_TEXT[value] }))}
-      onselect={(value: SwingLevel) => onintent({ kind: 'swing', swing: { level: value } })}
-    />
+    {#if sets}
+      <Segmented
+        label="Swing on"
+        value={swing.level}
+        columns={2}
+        options={SWING_LEVELS.map((value) => ({ value, text: LEVEL_TEXT[value] }))}
+        onselect={(value: SwingLevel) => onintent({ kind: 'swing', swing: { level: value } })}
+      />
+    {/if}
     <Reading label="Swing" value="{percent} %" />
     <div class="drag">
       <Gauge
@@ -140,30 +142,33 @@
         value={swing.share}
         fill
       />
-      <input
-        type="range"
-        min={SHARE.min * 100}
-        max={SHARE.max * 100}
-        aria-label="Swing"
-        value={percent}
-        disabled={following}
-        oninput={(e) => onintent({ kind: 'swing', swing: { share: +e.currentTarget.value / 100 } })}
-      />
+      {#if sets}
+        <input
+          type="range"
+          min={SHARE.min * 100}
+          max={SHARE.max * 100}
+          aria-label="Swing"
+          value={percent}
+          oninput={(e) =>
+            onintent({ kind: 'swing', swing: { share: +e.currentTarget.value / 100 } })}
+        />
+      {/if}
     </div>
   </div>
   <Bar {meter} {marks} under="at a swing of {percent} %" />
-  <Segmented
-    label="Meter for the next section"
-    value={asked === null ? BY_STYLE : meterLabel(asked)}
-    columns={4}
-    disabled={following}
-    options={[BY_STYLE, ...METER_CHOICES.map((choice) => choice.text)].map((text) => ({
-      value: text,
-      text,
-    }))}
-    onselect={(text) =>
-      onmeter(METER_CHOICES.find((choice) => choice.text === text)?.meter ?? null)}
-  />
+  {#if sets}
+    <Segmented
+      label="Meter for the next section"
+      value={asked === null ? BY_STYLE : meterLabel(asked)}
+      columns={4}
+      options={[BY_STYLE, ...METER_CHOICES.map((choice) => choice.text)].map((text) => ({
+        value: text,
+        text,
+      }))}
+      onselect={(text) =>
+        onmeter(METER_CHOICES.find((choice) => choice.text === text)?.meter ?? null)}
+    />
+  {/if}
   <div class="click" role="group" aria-label="Click">
     <button
       type="button"

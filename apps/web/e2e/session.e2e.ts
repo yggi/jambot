@@ -150,9 +150,10 @@ async function inStep(
   await join(client, session, 'Ada', lobby);
   await joined(page, 'Ada');
   await expect(state(client)).toContainText('host playing');
-  // A client's controls rest: the host leads.
-  // (Its label is Stop once the band sounds, so it is found by its title.)
-  await expect(client.getByTitle('The host starts and stops the band')).toBeDisabled();
+  // A client draws no control it can't use: the host starts and stops the band.
+  const transport = client.getByRole('region', { name: 'Transport' });
+  await expect(transport).toBeVisible();
+  await expect(transport.getByRole('button')).toHaveCount(0);
 
   await client.waitForTimeout(6000);
   const held = hold === 'host' ? page : client;
@@ -383,6 +384,7 @@ test('a host that admits by a code turns away a join with another, saying why, s
   await expect(state(client)).toContainText('Following');
   await openSession(client);
   await expect(client.getByText(/without it you listen/)).toBeVisible();
+  await expect(client.getByText('Listening as')).toBeVisible();
   await joined(page, 'Ada');
   await end(client, 'Leave session', 'Yes, leave');
   await expect(state(page)).toContainText('Hosting · nobody has joined');

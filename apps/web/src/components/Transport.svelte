@@ -6,8 +6,8 @@
   count-in the beats still to come are hatched, one stripe across them all,
   and the line counts them down; while the band ends the button is an
   outline, the last bar's beats still to come are hatched the same way, and
-  a second Stop stops it now. A client's button rests, since its host starts and stops the
-  band. The loop toggle is the place for holding a section and is not wired
+  a second Stop stops it now. A device that doesn't set the band, a client
+  (`Can`), has neither button: its host starts and stops the band. The loop toggle is the place for holding a section and is not wired
   yet (#327). It stays one height whatever it says, so nothing under it moves.
   It is the transport of whatever a screen plays: the lobby's metronome,
   timing test and tuner use it too, with their own labels, their bar's cells
@@ -31,8 +31,8 @@
     last?: boolean;
     /** Whether the band is playing or about to: the button reads Stop. */
     playing: boolean;
-    /** Whether this device follows a host, whose band it doesn't start or stop. */
-    following?: boolean;
+    /** Whether this device starts and stops the band (`Can`'s `set`): a client's host does. */
+    sets?: boolean;
     ontoggle: () => void;
     /** What the button says to a screen reader, stopped and playing. */
     labels?: { start: string; stop: string };
@@ -52,7 +52,7 @@
     phase,
     last = false,
     playing,
-    following = false,
+    sets = true,
     ontoggle,
     labels = { start: 'Start the band', stop: 'Stop' },
     cadence = true,
@@ -98,36 +98,36 @@
       </div>
     {/each}
   </div>
-  <button
-    type="button"
-    class="play"
-    class:ending={phase === 'ending'}
-    disabled={following || busy}
-    title={following
-      ? 'The host starts and stops the band'
-      : !cadence
+  {#if sets}
+    <button
+      type="button"
+      class="play"
+      class:ending={phase === 'ending'}
+      disabled={busy}
+      title={!cadence
         ? undefined
         : phase === 'ending'
           ? 'Stop again to stop now'
           : playing
             ? 'Stops on a cadence: the band plays to the end of its next bar'
             : undefined}
-    aria-label={playing ? labels.stop : labels.start}
-    onclick={ontoggle}
-  >
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      {#if playing}
-        <rect x="5" y="5" width="10" height="10" rx="1.5" />
-      {:else}
-        <path d="M6.5 4.5 L16 10 L6.5 15.5 Z" />
-      {/if}
-    </svg>
-  </button>
+      aria-label={playing ? labels.stop : labels.start}
+      onclick={ontoggle}
+    >
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        {#if playing}
+          <rect x="5" y="5" width="10" height="10" rx="1.5" />
+        {:else}
+          <path d="M6.5 4.5 L16 10 L6.5 15.5 Z" />
+        {/if}
+      </svg>
+    </button>
+  {/if}
   <div class="what">
     <b title={main}>{main}</b>
     <span title={sub}>{sub}</span>
   </div>
-  {#if loop}
+  {#if loop && sets}
     <button
       type="button"
       class="loop"

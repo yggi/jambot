@@ -130,10 +130,11 @@ describe('the style card', () => {
     expect(screen.getByRole('button', { name: 'Entropy up' })).toBeEnabled();
   });
 
-  it('rests a client’s drag and presets, disables its nudges with the reason, and says the host sets it', () => {
-    const { container } = render(StylePanel, props({ following: true }));
-    for (const slider of screen.getAllByRole('slider')) expect(slider).toBeDisabled();
-    for (const p of PRESETS) expect(screen.getByRole('radio', { name: p.name })).toBeDisabled();
+  it('draws no preset, drag or nudge for a device that doesn’t set the style, reads each axis and its ends, and says the host sets it', () => {
+    const { container } = render(StylePanel, props({ sets: false }));
+    expect(screen.queryAllByRole('slider')).toEqual([]);
+    expect(screen.queryAllByRole('radio')).toEqual([]);
+    expect(screen.queryAllByRole('button')).toEqual([]);
     for (const axis of STYLE_AXES) {
       const label = {
         sync: 'Syncopation',
@@ -142,12 +143,9 @@ describe('the style card', () => {
         energy: 'Energy',
         entropy: 'Entropy',
       }[axis];
-      for (const side of ['up', 'down']) {
-        const nudge = screen.getByRole('button', { name: `${label} ${side}` });
-        expect(nudge).toBeDisabled();
-        expect(nudge).toHaveAttribute('title', 'The host sets the style');
-      }
+      expect(screen.getByText(label)).toBeInTheDocument();
     }
+    expect(screen.getByText('on the beat – off the beat')).toBeInTheDocument();
     expect(container.querySelector('summary .sub')).toHaveTextContent('the host sets it');
   });
 
@@ -168,9 +166,13 @@ describe('the style card', () => {
       expect(ontune).toHaveBeenLastCalledWith(false);
     });
 
-    it('rests on a client, which follows the host’s radio', () => {
-      render(StylePanel, props({ radio: true, ontune: () => {}, following: true }));
-      expect(screen.getByRole('switch', { name: 'Radio', hidden: true })).toBeDisabled();
+    it('is not drawn for a client, which follows the host’s radio, whose header still says it is on', () => {
+      const { container } = render(
+        StylePanel,
+        props({ radio: true, ontune: () => {}, sets: false }),
+      );
+      expect(screen.queryByRole('switch', { name: 'Radio', hidden: true })).toBeNull();
+      expect(container.querySelector('summary .sub')).toHaveTextContent('Radio ·');
     });
 
     it('is not there where nothing tunes it', () => {

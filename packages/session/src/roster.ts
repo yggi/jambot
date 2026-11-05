@@ -9,7 +9,7 @@
  * under a name that is free. A token opens its own player's seat only: a
  * name held by another is refused as ever. Where the host admits by a code
  * (#461), a join with another code is refused; one without a code is seated
- * to listen (`listens`), what it plays reaching no Muse; one whose token
+ * as a listener (`role`), what it plays reaching no Muse; one whose token
  * opens a seat comes back as it was, so a player the host seated before
  * plays on without the code. While too many wrong codes were tried
  * (`WRONG_CODES`), every code is refused. A player away is kept for
@@ -18,6 +18,15 @@
  */
 
 import { CODE_LOCKED, type ClientMessage, refusal } from './protocol.ts';
+
+/**
+ * What a seat may do in a session (docs/briefs/session-roles.md): a
+ * player's ear reaches the host's Muse, a listener's reaches nothing. The
+ * host is no seat: it sets everything. A co-host joins them with the
+ * brief's step 5, when it has something of its own to do.
+ */
+export const ROLES = ['player', 'listener'] as const;
+export type Role = (typeof ROLES)[number];
 
 /** How long, in seconds, a player whose link dropped may come back as itself. */
 export const RESUME_WINDOW = 300;
@@ -32,8 +41,8 @@ export interface Member {
   readonly link: string | null;
   /** When, in seconds, its link dropped, or null while it is joined. */
   readonly awaySince: number | null;
-  /** Seated without the code of a session by code (#461): it listens, and what it plays reaches no Muse. */
-  readonly listens?: true;
+  /** What it may do: a listener is one seated without the code of a session by code (#461). */
+  readonly role: Role;
 }
 
 export type Roster = readonly Member[];
@@ -73,7 +82,7 @@ export function admit(
   const name = join.name.trim();
   if (resumed) {
     // A listener that comes back with the code plays; a seat from before the code plays on.
-    const listens = resumed.listens === true && code !== null && given !== code;
+    const listens = resumed.role === 'listener' && code !== null && given !== code;
     const { id, token: seatToken } = resumed;
     const member: Member = {
       id,
@@ -81,7 +90,7 @@ export function admit(
       token: seatToken,
       link,
       awaySince: null,
-      ...(listens ? { listens: true } : {}),
+      role: listens ? 'listener' : 'player',
     };
     return { roster: roster.map((m) => (m === resumed ? member : m)), member };
   }
@@ -95,7 +104,7 @@ export function admit(
     token,
     link,
     awaySince: null,
-    ...(listens ? { listens: true } : {}),
+    role: listens ? 'listener' : 'player',
   };
   return { roster: [...kept, member], member };
 }

@@ -22,13 +22,15 @@
  * held it (#360) has none, and plays straight. The radio's station (#313) is
  * checked as a seed and a count, and a record without one has the radio off.
  * The code a host admits by (#461) is kept, so a reload doesn't open the
- * session, and a record without one is open. Pure: the app stores and fetches, and gives the time, in
+ * session, and a record without one is open. Each seat is kept with its
+ * role; a record saved before seats had one says a listener by `listens`,
+ * and is read with every other seat a player. Pure: the app stores and fetches, and gives the time, in
  * seconds since the epoch.
  */
 
 import { type KeyWish, type StyleTrack, type SwingTrack, SWING_LEVELS } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
-import type { Member } from './roster.ts';
+import { type Member, ROLES } from './roster.ts';
 import { type Station, readStation } from './station.ts';
 
 /** How long, in seconds, a saved record is good for. */
@@ -37,7 +39,7 @@ export const SAVED_MAX_AGE = 300;
 const VERSION = 1;
 
 /** A player of the roster as kept: without a link, which a new page doesn't have. */
-export type SavedMember = Pick<Member, 'id' | 'name' | 'token' | 'listens'>;
+export type SavedMember = Pick<Member, 'id' | 'name' | 'token' | 'role'>;
 
 export interface HostSnapshot {
   readonly version: 1;
@@ -104,6 +106,17 @@ const isSwing = (v: unknown): v is SwingTrack =>
     Number.isFinite((v.share as Record<string, unknown>)[k]),
   );
 
+/** A kept seat, its role read from an older record's `listens` where it has none; null for anything else. */
+function readSeat(m: unknown): SavedMember | null {
+  if (!isRecord(m) || !isText(m.id) || typeof m.name !== 'string' || !isText(m.token)) return null;
+  const { id, name, token, role, listens } = m;
+  if (role === undefined && (listens === undefined || listens === true))
+    return { id, name, token, role: listens ? 'listener' : 'player' };
+  return (ROLES as readonly unknown[]).includes(role) && listens === undefined
+    ? { id, name, token, role: role as SavedMember['role'] }
+    : null;
+}
+
 /** Whether a record saved at `savedAt` is still good at `now`. */
 const fresh = (savedAt: unknown, now: number): boolean =>
   typeof savedAt === 'number' &&
@@ -139,19 +152,10 @@ export function readHostSnapshot(data: unknown, now: number): HostSnapshot | nul
   if (code !== undefined && code !== null && !isText(code)) return null;
   if (!isRecord(players) || !Object.values(players).every((n) => typeof n === 'string'))
     return null;
-  if (
-    !Array.isArray(roster) ||
-    !roster.every(
-      (m) =>
-        isRecord(m) &&
-        isText(m.id) &&
-        typeof m.name === 'string' &&
-        isText(m.token) &&
-        (m.listens === undefined || m.listens === true),
-    )
-  )
-    return null;
-  return data as unknown as HostSnapshot;
+  if (!Array.isArray(roster)) return null;
+  const seats = roster.map(readSeat);
+  if (!seats.every((m) => m !== null)) return null;
+  return { ...data, roster: seats } as unknown as HostSnapshot;
 }
 
 /** A client's record, or null for anything that isn't a good one at `now`. */

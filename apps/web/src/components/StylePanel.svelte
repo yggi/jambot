@@ -11,16 +11,17 @@
   style. The drag is a transparent range input laid over the gauge, so the
   gauge is what is seen and the input what a keyboard and a finger reach. A
   nudge is a tenth of the axis. The host, or a band playing alone, drags and
-  nudges and picks presets. A client's drag and presets rest and its nudges
-  are disabled and say so, since its style intents don't reach the host yet
-  (`Player.apply` drops them): the buttons are the seam, and what a client's
-  nudge of an axis means is open (#217). Swing is not an axis: the Metrum
+  nudges and picks presets. A device that doesn't set the style, a client
+  (`Can`), has none of them: it reads each axis as a gauge over its ends, and
+  the header says the host sets it. A client's nudge, which asks the host
+  rather than sets, comes with the brief's step 2 (#217,
+  docs/briefs/session-roles.md). Swing is not an axis: the Metrum
   card holds it, as the meter's (#360), and a preset sets it there too.
   Each preset glows as near as the style heard is to it (`presetGlow`), so a
   style halfway between two lights both. Under them the radio (#313), a
   switch: on the air, the band drifts through style space by itself a section
-  at a time, until a preset or an axis it walks takes it back. It rests on a
-  client, whose host's radio it follows.
+  at a time, until a preset or an axis it walks takes it back. A client,
+  which follows its host's radio, has no switch: its header says the radio.
 -->
 <script lang="ts">
   import { PRESETS, type StyleTrack } from '@jambot/engine';
@@ -36,8 +37,8 @@
   interface Props {
     track: StyleTrack;
     style: StyleView;
-    /** Whether a client follows its host: it can't drag or pick a preset, and its nudges wait. */
-    following?: boolean;
+    /** Whether this device sets the style (`Can`'s `set`): a client's host does, and it draws no control. */
+    sets?: boolean;
     /** Whether the radio is on the air (#313). */
     radio?: boolean;
     /** Put the radio on the air or take it off; none where nothing tunes it. */
@@ -45,12 +46,9 @@
     onintent: (intent: Intent) => void;
   }
 
-  let { track, style, following = false, radio = false, ontune, onintent }: Props = $props();
+  let { track, style, sets = true, radio = false, ontune, onintent }: Props = $props();
 
   const glow = $derived(presetGlow(style.axes));
-
-  /** Why a client's nudges are disabled: its style intents don't reach the host yet. */
-  const HOST_SETS = 'The host sets the style';
 
   /** How far a nudge moves an axis. */
   const STEP = 0.1;
@@ -69,28 +67,27 @@
     Math.min(1, Math.max(0, Math.round((value + by * STEP) * 100) / 100));
 </script>
 
-<Card title="Style" main={styleName(style)} sub={styleSub(style, following, radio)} live>
+<Card title="Style" main={styleName(style)} sub={styleSub(style, !sets, radio)} live>
   {#snippet glyph()}<Radar values={AXES.map(({ axis }) => style.axes[axis])} />{/snippet}
-  <Segmented
-    label="Genre presets"
-    value={style.preset ?? ''}
-    options={PRESETS.map((p, i) => ({ value: p.name, text: p.name, glow: glow[i] ?? 0 }))}
-    columns={4}
-    disabled={following}
-    onselect={(name) => {
-      const preset = PRESETS.find((p) => p.name === name);
-      if (preset) onintent({ kind: 'preset', preset });
-    }}
-  />
-  {#if ontune}
+  {#if sets}
+    <Segmented
+      label="Genre presets"
+      value={style.preset ?? ''}
+      options={PRESETS.map((p, i) => ({ value: p.name, text: p.name, glow: glow[i] ?? 0 }))}
+      columns={4}
+      onselect={(name) => {
+        const preset = PRESETS.find((p) => p.name === name);
+        if (preset) onintent({ kind: 'preset', preset });
+      }}
+    />
+  {/if}
+  {#if ontune && sets}
     <label class="radio">
       <input
         type="checkbox"
         role="switch"
         aria-label="Radio"
         checked={radio}
-        disabled={following}
-        title={following ? HOST_SETS : undefined}
         onchange={(e) => ontune(e.currentTarget.checked)}
       />
       <span class="name">Radio</span>
@@ -108,35 +105,40 @@
         <Reading label={a.label} value="{percent(value)} %" />
         <div class="drag">
           <Gauge label="{a.label} {percent(value)} %" from={0} to={1} centre={0} {value} fill />
-          <input
-            type="range"
-            min="0"
-            max="100"
-            aria-label={a.label}
-            value={percent(value)}
-            disabled={following}
-            oninput={(e) =>
-              onintent({ kind: 'axis', axis: a.axis, value: +e.currentTarget.value / 100 })}
-          />
+          {#if sets}
+            <input
+              type="range"
+              min="0"
+              max="100"
+              aria-label={a.label}
+              value={percent(value)}
+              oninput={(e) =>
+                onintent({ kind: 'axis', axis: a.axis, value: +e.currentTarget.value / 100 })}
+            />
+          {/if}
         </div>
-        <Nudge
-          label="Nudge {a.label.toLowerCase()}"
-          down={{
-            name: `${a.label} down`,
-            glyph: '−',
-            title: following ? HOST_SETS : `${a.label} down a tenth`,
-            disabled: following || value <= 0,
-          }}
-          up={{
-            name: `${a.label} up`,
-            glyph: '+',
-            title: following ? HOST_SETS : `${a.label} up a tenth`,
-            disabled: following || value >= 1,
-          }}
-          onnudge={(by) => onintent({ kind: 'axis', axis: a.axis, value: stepped(value, by) })}
-        >
-          {a.ends[0]} – {a.ends[1]}
-        </Nudge>
+        {#if sets}
+          <Nudge
+            label="Nudge {a.label.toLowerCase()}"
+            down={{
+              name: `${a.label} down`,
+              glyph: '−',
+              title: `${a.label} down a tenth`,
+              disabled: value <= 0,
+            }}
+            up={{
+              name: `${a.label} up`,
+              glyph: '+',
+              title: `${a.label} up a tenth`,
+              disabled: value >= 1,
+            }}
+            onnudge={(by) => onintent({ kind: 'axis', axis: a.axis, value: stepped(value, by) })}
+          >
+            {a.ends[0]} – {a.ends[1]}
+          </Nudge>
+        {:else}
+          <p class="ends">{a.ends[0]} – {a.ends[1]}</p>
+        {/if}
       </div>
     {/each}
   </div>
@@ -189,8 +191,11 @@
     opacity: 0;
     cursor: pointer;
   }
-  input[type='range']:disabled {
-    cursor: default;
+  .ends {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: center;
   }
   .drag:has(input:focus-visible) {
     outline: 2px solid var(--amber);

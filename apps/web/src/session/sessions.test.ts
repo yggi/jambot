@@ -146,7 +146,7 @@ describe('the sessions a page can be in', () => {
     const b = page(tabs);
     await b.sessions.join('local', 'Garage', 'Bo');
     await until(() => b.sessions.asClient.status === 'joined');
-    expect(b.sessions.asClient.listening).toBe(true);
+    expect(b.sessions.asClient.role).toBe('listener');
     b.sessions.end();
     await b.sessions.join('local', 'Garage', 'Bo', code);
     await until(() => b.sessions.asClient.status === 'joined');

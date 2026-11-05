@@ -229,12 +229,7 @@ export class HostSession {
       lobby: this.#lobbyUrl,
       reclaim: link.reclaim,
       player: this.#player.players[HOST_PLAYER] ?? '',
-      roster: this.#roster.map(({ id, name, token, listens }) => ({
-        id,
-        name,
-        token,
-        ...(listens ? { listens } : {}),
-      })),
+      roster: this.#roster.map(({ id, name, token, role }) => ({ id, name, token, role })),
       players: this.#player.players,
       // Its bpm counted in the meter asked for, which a reloaded host opens in (#367).
       track: this.#player.trackCountedIn(this.#player.meter),
@@ -316,7 +311,7 @@ export class HostSession {
       case 'played':
       case 'forget':
         // A listener, seated without the code of a session by code, reaches no Muse (#461).
-        if (member.listens) return;
+        if (member.role === 'listener') return;
         return this.#contribute(message, member);
       case 'leave':
         return this.#seat(leave(this.#roster, from));
@@ -387,7 +382,7 @@ export class HostSession {
           : null,
         forecast: forecastDelta([], this.#forecast),
         muse: this.#muse,
-        ...(member.listens ? { listening: true as const } : {}),
+        ...(member.role === 'listener' ? { listening: true as const } : {}),
       },
       from,
     );

@@ -123,7 +123,10 @@
     {/if}
   {:else if mode === 'client'}
     <Group title="Link">
-      <Reading label="Playing as" value={following.name ?? '…'} />
+      <Reading
+        label={following.role === 'listener' ? 'Listening as' : 'Playing as'}
+        value={following.name ?? '…'}
+      />
       {#if following.trip !== null}<Reading label="Round trip" value="{following.trip} ms" />{/if}
       {#if following.lacked > 0}
         <Reading
@@ -136,7 +139,7 @@
       {:else if following.hostAway}
         <p class="note">The host lost its link and may be back in a moment.</p>
       {/if}
-      {#if following.listening}<p class="note">{CODE_LISTENS}</p>{/if}
+      {#if following.role === 'listener'}<p class="note">{CODE_LISTENS}</p>{/if}
     </Group>
   {/if}
 

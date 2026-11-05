@@ -434,7 +434,7 @@ describe('a host and a client session', () => {
     await host.player.start();
     const following = new ClientSession(client.player, client.clocks);
     await following.join(lobby, 'jam', 'Ada');
-    expect(following.listening).toBe(true);
+    expect(following.role).toBe('listener');
     await run([host, client], 3);
     const heard = () => client.player.writtenPosition(client.world.currentTime) ?? -1;
     const clock = () => client.player.clock;
@@ -630,8 +630,8 @@ describe('a host and a client session', () => {
       const listener = new ClientSession(quiet.player, quiet.clocks);
       await listener.join(lobby, 'Jam', 'Lu', code === undefined ? {} : { code });
       expect(listener.status, String(code)).toBe('joined');
-      expect(listener.listening).toBe(true);
-      expect(early.listening).toBe(false);
+      expect(listener.role).toBe('listener');
+      expect(early.role).toBe('player');
       listener.leave();
     }
 
@@ -739,7 +739,7 @@ describe('a host and a client session', () => {
     const older = new ClientSession(later.player, later.clocks);
     await older.join(lobby, 'Jam', 'Bo', { code: '042917' });
     expect(older.status).toBe('joined');
-    expect(older.listening).toBe(true);
+    expect(older.role).toBe('listener');
     hosting.close();
   });
 
