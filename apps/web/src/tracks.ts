@@ -136,7 +136,8 @@ const LABELS: Readonly<Record<Performer, string>> = {
   lead: 'Lead',
 };
 
-const PARTS: readonly AlongPart[] = ['lead', 'drums'];
+/** The parts a player's lanes are shown for: every part one can play along on (#564). */
+const PARTS: readonly AlongPart[] = ['lead', 'bass', 'pad', 'stab', 'drums'];
 
 export function tracksOf(input: TracksInput): TracksView {
   const { hud, sounding, pattern, heard, players, mix, clock = SONG_CLOCK } = input;

@@ -115,6 +115,9 @@ describe('SoundPanel', () => {
       'Not heard',
       'Default',
       'Lead',
+      'Bass',
+      'Pad',
+      'Stab',
       'Drums',
     ]);
     await fireEvent.change(plays, { target: { value: 'drums' } });

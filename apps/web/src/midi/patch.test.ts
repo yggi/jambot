@@ -61,12 +61,12 @@ const stored = (over: Record<string, unknown> = {}) => ({
 const port = (): MidiPort => ({ send: () => {} });
 
 describe('the band’s rows', () => {
-  it('are the five parts, the drums a kit with its sounds, then the keys; an input plays the lead or the drums alone', () => {
+  it('are the five parts, the drums a kit with its sounds, then the keys; an input plays any part (#564), not the keys', () => {
     expect(BAND_ROWS.map((r) => [r.id, r.kind, r.playable ?? true])).toEqual([
       ['lead', 'voice', true],
-      ['bass', 'voice', false],
-      ['pad', 'voice', false],
-      ['stab', 'voice', false],
+      ['bass', 'voice', true],
+      ['pad', 'voice', true],
+      ['stab', 'voice', true],
       ['drums', 'kit', true],
       ...(
         ['kick', 'rim', 'snare', 'clap', 'closedHat', 'pedalHat', 'openHat', 'ride'] as const
@@ -149,14 +149,15 @@ describe('the part an input plays (yggi/webmidi#43)', () => {
     expect(partPlayed(all, 'Pads', 9)).toBe('drums');
   });
 
-  it('the part chosen, whatever the channel; a part not played along on yet, the default', () => {
+  it('the part chosen, whatever the channel: any of the five (#564)', () => {
     const book = fromJambot(stored({ inPortId: 'in-1' }), PORTS);
     expect(partPlayed(withPlays(book, 'in:Keys', { row: 'drums', role: 'drums' }), 'Keys', 0)).toBe(
       'drums',
     );
-    expect(partPlayed(withPlays(book, 'in:Keys', { row: 'bass', role: 'bass' }), 'Keys', 0)).toBe(
-      'lead',
-    );
+    for (const part of ['bass', 'pad', 'stab'] as const)
+      expect(partPlayed(withPlays(book, 'in:Keys', { row: part, role: part }), 'Keys', 9)).toBe(
+        part,
+      );
     expect(partPlayed(withPlays(book, 'in:Keys', 'none'), 'Keys', 0)).toBeNull();
   });
 

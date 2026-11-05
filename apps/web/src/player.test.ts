@@ -1766,6 +1766,88 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     );
   });
 
+  it('hears a bass played here as she hears a client’s part bass (#564, #423): filed as a bass line, the band playing as it would', async () => {
+    // three players: one plays a bass here, one is passed the same notes as a client's, one hears none
+    const run3 = async (feed: 'here' | 'elsewhere' | 'none') => {
+      const { layers, saved } = kept();
+      const { world, s } = surroundings();
+      const player = new Player({ ...s, layers });
+      await settle();
+      void player.start();
+      world.resolve();
+      await settle();
+      const run = (seconds: number) => {
+        for (let i = 0; i < Math.round(seconds / 0.025); i++) {
+          world.currentTime += 0.025;
+          world.tickers[0]!.tick();
+        }
+      };
+      // a root and fifth in the bass's register on the beats, over the first section
+      for (let bar = 0; bar < 6; bar++)
+        for (const [i, note] of [40, 47, 40, 45].entries()) {
+          const step = 16 * bar + 4 * i;
+          while (!world.steps.some((laid) => laid.step === step)) run(0.025);
+          const at = world.steps.find((laid) => laid.step === step)!.seconds;
+          while (world.currentTime < at) run(0.025);
+          if (feed === 'here') player.humanNoteOn('bass', note, 100, 'the keys', at);
+          if (feed === 'elsewhere') {
+            const position = player.writtenPosition(at)!;
+            player.bassElsewhere([
+              { note, velocity: 100, source: 'the keys', position, end: null },
+            ]);
+          }
+        }
+      run(24 - world.currentTime);
+      const filed = (saved.at(-1)?.filed ?? []).map((f) => [f.meta, f.fragment.text]);
+      return { filed, pattern: JSON.stringify(player.pattern), notes: player.humanNotes };
+    };
+    const [here, elsewhere, none] = [
+      await run3('here'),
+      await run3('elsewhere'),
+      await run3('none'),
+    ];
+    expect(here.notes.filter((n) => n.part === 'bass')).toHaveLength(24);
+    // filed as a bass line under the instrument's name, as a client's would be; none filed where none was played
+    expect(here.filed.map(([meta]) => meta)).toEqual([
+      { source: 'the keys', created: expect.stringMatching(/, bar 0$/), tags: ['bass line'] },
+    ]);
+    expect([here.filed, here.pattern]).toEqual([elsewhere.filed, elsewhere.pattern]);
+    expect(none.filed).toEqual([]);
+  });
+
+  it('keeps a pad or a stab played along, and the Muse doesn’t read it (#564): the band plays as if none was played', async () => {
+    const run2 = async (part: 'pad' | 'stab' | null) => {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      await settle();
+      void player.start();
+      world.resolve();
+      await settle();
+      const run = (seconds: number) => {
+        for (let i = 0; i < Math.round(seconds / 0.025); i++) {
+          world.currentTime += 0.025;
+          world.tickers[0]!.tick();
+        }
+      };
+      for (let bar = 0; bar < 4; bar++) {
+        const step = 16 * bar;
+        while (!world.steps.some((laid) => laid.step === step)) run(0.025);
+        const at = world.steps.find((laid) => laid.step === step)!.seconds;
+        while (world.currentTime < at) run(0.025);
+        if (part)
+          for (const note of [60, 64, 67]) player.humanNoteOn(part, note, 90, 'the keys', at);
+      }
+      run(24 - world.currentTime);
+      return { pattern: JSON.stringify(player.pattern), notes: player.humanNotes };
+    };
+    const none = await run2(null);
+    for (const part of ['pad', 'stab'] as const) {
+      const played = await run2(part);
+      expect(played.notes.filter((n) => n.part === part)).toHaveLength(12);
+      expect(played.pattern).toBe(none.pattern);
+    }
+  });
+
   it('takes an import only while the band is stopped, and never as a client', async () => {
     const { layers, saved } = kept();
     const player = await playing(layers, 1);
