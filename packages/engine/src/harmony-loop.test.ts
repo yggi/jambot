@@ -126,8 +126,15 @@ function chordsPlayed(source: string, sections: number, shift = 0): HeardNote[] 
   });
 }
 
-/** The layer after a song at Synth-pop at entropy 0.3 in A minor, a player playing `played` and the band going on 2 sections past them. */
-function song(played: readonly HeardNote[], seed = 3): LearnedLayer {
+/**
+ * The layer after a song at Synth-pop at entropy 0.3 in A minor, a player playing `played` and the band going on 2
+ * sections past them: heard as notes (`heard`), or played on the pad or the stab (`chords`, #570).
+ */
+function song(
+  played: readonly HeardNote[],
+  seed = 3,
+  via: 'heard' | 'chords' = 'heard',
+): LearnedLayer {
   const env: TransportEnv = {
     seed,
     start: 1,
@@ -145,7 +152,11 @@ function song(played: readonly HeardNote[], seed = 3): LearnedLayer {
     const head = carried?.head.step ?? 0;
     const heard = waiting.filter((n) => n.position < head);
     waiting = waiting.filter((n) => n.position >= head);
-    carried = transport.advance(env, carried, { now, until: now + LOOKAHEAD, heard }).carried!;
+    carried = transport.advance(env, carried, {
+      now,
+      until: now + LOOKAHEAD,
+      [via]: heard,
+    }).carried!;
     if (carried.head.step > clockOfTransport(carried).barStart(4 * SECTION_BARS + 1))
       return carried.source.plans.layer!;
   }
@@ -211,6 +222,18 @@ describe('the Muse files a player’s progression, and it comes back in a later 
         // (each bar's chord stands on Ada's degree of the key playing)
         expect(first.bar.plan.key.tonic).toBe(wish.tonic);
       }
+  });
+
+  it('files the chords a player plays on the pad or the stab (#570) as she files those heard, and no lead line of them', () => {
+    const padded = song(chordsPlayed('Ada', 2), 3, 'chords');
+    expect(progressions(padded).map((f) => [f.fragment.id, f.fragment.text])).toEqual([
+      [ada.fragment.id, ada.fragment.text],
+    ]);
+    const leads = (l: LearnedLayer) =>
+      l.filed.filter(
+        (f) => f.fragment.association.some((p) => p.facet === 'lead') && f.meta.source === 'Ada',
+      );
+    expect(leads(padded)).toEqual([]);
   });
 
   it('files nothing where nobody played, or a player played the chords’ roots alone, or in the bass’s register', () => {

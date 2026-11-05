@@ -33,7 +33,9 @@
  * her to file the section's line where the next is planned. And with
  * harmonies (#425): the chords each of her own players struck in the bar, a
  * source she didn't hear as a bass there, are read as degrees of the bar's
- * key (`heardHarmony`), for her to file the progression.
+ * key (`heardHarmony`), for her to file the progression; and so are the
+ * chords played on the pad or the stab (#570, `chords`), which she reads as
+ * chords alone, judging no motif of them.
  *
  * Its bars come from a source (`BarSource`): the band (`bandSource`), or
  * bars a host composed and sent. It is the same transport either way, so
@@ -229,6 +231,11 @@ export interface TransportInput<Arrived = never> {
    */
   readonly bass?: readonly HeardNote[];
   /**
+   * Notes played on a comping part, the pad or the stab (#570), where they were heard: the Muse reads each bar's as
+   * a player's chords (#425, `heardHarmony`), with the notes heard here, and judges no motif of them.
+   */
+  readonly chords?: readonly HeardNote[];
+  /**
    * Bars judged elsewhere since the tick before. Each joins the judgements
    * of its bar, after those of the notes heard here. One for a bar the Muse
    * has already heard is too late, one for a bar not yet composed can't be
@@ -334,6 +341,8 @@ export interface Listening {
   readonly bass: readonly HeardNote[];
   /** Bass bars judged and not yet handed to the band (#423). */
   readonly bassBars: readonly HeardLineBar[];
+  /** Notes played on the pad or the stab, in bars not judged yet (#570): read as chords alone. */
+  readonly chords: readonly HeardNote[];
   /** Lead bars judged and not yet handed to the band (#424): each motif, of a source not heard as a bass. */
   readonly leadBars: readonly HeardLeadBar[];
   /** Bars of chords judged and not yet handed to the band (#425): each player's, of a source not heard as a bass. */
@@ -359,6 +368,7 @@ const LISTENING: Listening = {
   drumBars: [],
   bass: [],
   bassBars: [],
+  chords: [],
   leadBars: [],
   harmonyBars: [],
   remote: [],
@@ -540,6 +550,7 @@ function listen(
     drumBars,
     bass,
     bassBars,
+    chords: comped,
     leadBars,
     harmonyBars,
     remote,
@@ -560,11 +571,19 @@ function listen(
     ];
     // (a lead: each motif judged, of a source not heard as a bass in the bar)
     leadBars = [...leadBars, ...heardLead(judgements, bar, new Set(lows.map((l) => l.source)))];
-    // (chords: what was heard here, of a source not heard as a bass in the bar, read in the bar's key)
+    // (chords: what was heard here, and played on the pad or the stab (#570), of a source not heard as a bass in the bar, read in the bar's key)
     harmonyBars = [
       ...harmonyBars,
-      ...heardHarmony(pending, bar, key, meter, clock, new Set(lows.map((l) => l.source))),
+      ...heardHarmony(
+        [...pending, ...comped],
+        bar,
+        key,
+        meter,
+        clock,
+        new Set(lows.map((l) => l.source)),
+      ),
     ];
+    comped = comped.filter((n) => clock.barAt(heardStep(n)) > bar);
     const next = muse.advance({ bar }, carried, { judgements, forget });
     carried = next.carried;
     judged.push(next.output);
@@ -580,6 +599,7 @@ function listen(
     drumBars,
     bass,
     bassBars,
+    chords: comped,
     leadBars,
     harmonyBars,
     remote,
@@ -735,6 +755,7 @@ export function transportOver<Source, Arrived = never>(
         heard = [],
         drums = [],
         bass = [],
+        chords = [],
         judged: remote = [],
         forget = false,
         arrived = [],
@@ -779,12 +800,20 @@ export function transportOver<Source, Arrived = never>(
         if (why) dropped.push({ ...r, why });
         return why === null;
       });
-      if (heard.length > 0 || drums.length > 0 || bass.length > 0 || kept.length > 0 || forget)
+      if (
+        heard.length > 0 ||
+        drums.length > 0 ||
+        bass.length > 0 ||
+        chords.length > 0 ||
+        kept.length > 0 ||
+        forget
+      )
         listening = {
           ...listening,
           pending: [...listening.pending, ...heard],
           drums: [...listening.drums, ...drums],
           bass: [...listening.bass, ...bass],
+          chords: [...listening.chords, ...chords],
           remote: [...listening.remote, ...kept],
           forget: listening.forget || forget,
         };

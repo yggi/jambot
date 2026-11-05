@@ -207,8 +207,8 @@ const SILENT: SoundingNotes = { drums: [], bass: [], comp: [], lead: [] };
 
 /**
  * A part an instrument, not the band, can play along on: any of the band's (#564). The Muse reads the lead's (its
- * motifs), the drums' (its grooves, #401) and the bass's (its bass lines, #423); a pad or a stab played along sounds,
- * is kept and shown, and is not read, since the Muse reads no chords.
+ * motifs), the drums' (its grooves, #401), the bass's (its bass lines, #423), and the pad's and the stab's as a
+ * player's chords (#425, #570), judging no motif of them.
  */
 export type AlongPart = Part;
 
@@ -539,6 +539,8 @@ export class Player {
    * bass's register.
    */
   #arrivedBass: HeardNote[] = [];
+  /** Notes played on the pad or the stab since the tick before (#570), for the Muse to read as a player's chords. */
+  #arrivedChords: HeardNote[] = [];
   #forget = false;
   /** Whether a host's clients were told which bar is the last. */
   #finaleTold = false;
@@ -805,7 +807,7 @@ export class Player {
       this.#arrived.push({ note, velocity, source: heardAs, position, end: null });
     } else if (part === 'drums') this.#drumsHeard(note, velocity, source, position);
     else if (part === 'bass') this.#bassHeard(note, velocity, source, position);
-    // (a pad or a stab played along is kept and shown, not read by the Muse: #564)
+    else this.#chordsHeard(note, velocity, source, position);
   }
 
   /**
@@ -828,6 +830,17 @@ export class Player {
   #bassHeard(note: number, velocity: number, source: string, position: number) {
     const name = (!this.#follow && this.playerId !== null && this.players[this.playerId]) || source;
     this.#arrivedBass.push({ note, velocity, source: name, position, end: null });
+  }
+
+  /**
+   * A note played on the pad or the stab (#570), for the Muse to read as a player's chords (#425), as she reads the
+   * chords a player strikes on the keys, judging no motif of them: under the name the player goes by in a session, else
+   * the instrument. As with those, she reads her own players' alone: a client's are kept and shown.
+   */
+  #chordsHeard(note: number, velocity: number, source: string, position: number) {
+    if (this.#follow) return;
+    const name = (this.playerId !== null && this.players[this.playerId]) || source;
+    this.#arrivedChords.push({ note, velocity, source: name, position, end: null });
   }
 
   /** Keep a note a player struck, the oldest let go of past `HUMAN_NOTES_MAX`. */
@@ -981,6 +994,7 @@ export class Player {
     this.#arrived = [];
     this.#arrivedDrums = [];
     this.#arrivedBass = [];
+    this.#arrivedChords = [];
     this.#judged = [];
     this.#forget = false;
     this.#finaleTold = false;
@@ -1356,9 +1370,11 @@ export class Player {
     const [heard, judged, forget] = [this.#arrived, this.#judged, this.#forget];
     const drums = this.#arrivedDrums;
     const bass = this.#arrivedBass;
+    const chords = this.#arrivedChords;
     this.#arrived = [];
     this.#arrivedDrums = [];
     this.#arrivedBass = [];
+    this.#arrivedChords = [];
     this.#judged = [];
     this.#forget = false;
     const laidWith = this.#env;
@@ -1368,6 +1384,7 @@ export class Player {
       heard,
       drums,
       bass,
+      chords,
       judged,
       forget,
       finish: this.ending,

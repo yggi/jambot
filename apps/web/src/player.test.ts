@@ -1815,10 +1815,11 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     expect(none.filed).toEqual([]);
   });
 
-  it('keeps a pad or a stab played along, and the Muse doesn’t read it (#564): the band plays as if none was played', async () => {
-    const run2 = async (part: 'pad' | 'stab' | null) => {
+  it('hears a pad or a stab played along as a player’s chords (#570, #425): files the progression, judges no motif of it', async () => {
+    const run2 = async (part: 'pad' | 'stab') => {
+      const { layers, saved } = kept();
       const { world, s } = surroundings();
-      const player = new Player(s);
+      const player = new Player({ ...s, layers });
       await settle();
       void player.start();
       world.resolve();
@@ -1829,22 +1830,49 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
           world.tickers[0]!.tick();
         }
       };
-      for (let bar = 0; bar < 4; bar++) {
-        const step = 16 * bar;
-        while (!world.steps.some((laid) => laid.step === step)) run(0.025);
-        const at = world.steps.find((laid) => laid.step === step)!.seconds;
-        while (world.currentTime < at) run(0.025);
-        if (part)
-          for (const note of [60, 64, 67]) player.humanNoteOn(part, note, 90, 'the keys', at);
-      }
-      run(24 - world.currentTime);
-      return { pattern: JSON.stringify(player.pattern), notes: player.humanNotes };
+      // a chord on each half bar over the first section: i iv v i in the key heard, as a hand voices them on a pad
+      const voicings = [
+        [57, 60, 64],
+        [62, 65, 69],
+        [64, 68, 71],
+        [57, 60, 64],
+      ];
+      for (let bar = 0; bar < 8; bar++)
+        for (const half of [0, 8]) {
+          const step = 16 * bar + half;
+          while (!world.steps.some((laid) => laid.step === step)) run(0.025);
+          const at = world.steps.find((laid) => laid.step === step)!.seconds;
+          while (world.currentTime < at) run(0.025);
+          for (const note of voicings[bar % 4]!)
+            player.humanNoteOn(part, note, 90, 'the pad keys', at);
+        }
+      run(60 - world.currentTime);
+      const layer = saved.at(-1)!;
+      const facet = (f: (typeof layer.filed)[number], name: string) =>
+        f.fragment.association.some((p) => p.facet === name);
+      return {
+        progressions: layer.filed.filter(
+          (f) => facet(f, 'harmony') && f.meta.source === 'the pad keys',
+        ),
+        leads: layer.filed.filter((f) => facet(f, 'lead') && f.meta.source === 'the pad keys'),
+        notes: player.humanNotes.filter((n) => n.part === part),
+      };
     };
-    const none = await run2(null);
     for (const part of ['pad', 'stab'] as const) {
-      const played = await run2(part);
-      expect(played.notes.filter((n) => n.part === part)).toHaveLength(12);
-      expect(played.pattern).toBe(none.pattern);
+      const { progressions, leads, notes } = await run2(part);
+      expect(notes, part).toHaveLength(48);
+      expect(
+        progressions.map((f) => f.meta),
+        part,
+      ).toEqual([
+        {
+          source: 'the pad keys',
+          created: expect.stringMatching(/, bar \d+$/),
+          tags: ['progression'],
+        },
+      ]);
+      expect(progressions[0]!.fragment.text, part).toMatch(/^&harm over=&key step=1m cycle=8 /);
+      expect(leads, part).toEqual([]);
     }
   });
 
