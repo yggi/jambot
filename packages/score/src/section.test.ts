@@ -426,14 +426,14 @@ describe('a section’s bars, each stated once where it recurs (#498)', () => {
     ]);
   });
 
-  it('cells misses a hit on a bar’s first step where its levels are a bar long and loop, at 84 bpm swung: why they are spliced a section long', () => {
+  it('a bar of levels a bar long and looped levels each lap’s first hit, at 84 bpm swung, since cells v0.17.0 (yggi/cells#460): the splice a section long is no longer needed, kept until it is taken out', () => {
     const lines = (level: string) => [
       '&bar meter("4/4") step=84bpm swing=16n:.65',
       '&hat step=16n &hh ~@15 &hh ~@15 &hh ~@15 &hh ~@15',
       level,
       '&drumlines [&hat * &hatLevel]',
     ];
-    expect(drumsSent(lines('&hatLevel map=amp step=16n .5@16'), 11.4)).toHaveLength(3);
+    expect(drumsSent(lines('&hatLevel map=amp step=16n .5@16'), 11.4)).toHaveLength(4);
     expect(
       drumsSent([...lines('&hatLevel map=amp step=16n &hatLevelA!4'), '&hatLevelA .5@16'], 11.4),
     ).toHaveLength(4);

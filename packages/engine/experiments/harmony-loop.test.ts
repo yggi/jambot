@@ -60,13 +60,13 @@ describe('the harmony on the radio’s walk, learning (E43, #425)', () => {
   it('plays its run’s most used theme in under 60 % of its sections, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { sections, mostUsed, share, fromRepository } = mostUsedTheme(LEARNED);
-    expect([sections, mostUsed, fromRepository]).toEqual([8513, 1831, 2477]);
+    expect([sections, mostUsed, fromRepository]).toEqual([8513, 1818, 2472]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used themes within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asThemes(UNLEARNED), asThemes(LEARNED));
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['0.92', '0.58']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['0.69', '0.56']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 });
