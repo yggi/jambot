@@ -28,7 +28,7 @@
  * after the app was closed is kept as it changes (`ClientKeep`).
  */
 
-import type { ForecastBar } from '@jambot/engine';
+import type { ForecastBar, Nudged } from '@jambot/engine';
 import {
   type ClientMessage,
   type HostMessage,
@@ -354,6 +354,17 @@ export class ClientSession {
     this.#pending = null;
     this.#held = [];
     this.#lastHeard = null;
+  }
+
+  /**
+   * Nudge an axis or the tempo a step up or down (step 2 of
+   * docs/briefs/session-roles.md): a bias the host leans the band by from the
+   * next section, which it answers only by the track. A listener's reaches
+   * nothing, so it isn't sent.
+   */
+  nudge(target: Nudged, by: 1 | -1) {
+    if (this.status !== 'joined' || this.role !== 'player') return;
+    this.#send({ kind: 'nudge', target, by });
   }
 
   #send(message: ClientMessage) {

@@ -149,6 +149,27 @@ describe('the style card', () => {
     expect(container.querySelector('summary .sub')).toHaveTextContent('the host sets it');
   });
 
+  it('gives a player its nudges back as nudges: every axis but entropy, sent, not set, and says so (step 2)', async () => {
+    const onnudge = vi.fn();
+    const onintent = vi.fn();
+    render(StylePanel, props({ sets: false, onnudge, onintent }));
+    expect(screen.queryAllByRole('slider')).toEqual([]);
+    expect(screen.queryAllByRole('radio')).toEqual([]);
+    for (const label of ['Syncopation', 'Harmony', 'Articulation', 'Energy'])
+      for (const side of ['up', 'down'])
+        expect(screen.getByRole('button', { name: `${label} ${side}` })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Entropy/ })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'Syncopation up' }));
+    expect(onnudge).toHaveBeenLastCalledWith('sync', 1);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'You nudged syncopation up: the band leans that way from the next section',
+    );
+    await fireEvent.click(screen.getByRole('button', { name: 'Energy down' }));
+    expect(onnudge).toHaveBeenLastCalledWith('energy', -1);
+    expect(screen.getByRole('status')).toHaveTextContent('You nudged energy down');
+    expect(onintent).not.toHaveBeenCalled();
+  });
+
   describe('the radio (#313)', () => {
     it('is a toggle beside the presets: the band drifts through style space while it is on', async () => {
       const ontune = vi.fn();

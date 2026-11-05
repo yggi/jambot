@@ -75,6 +75,18 @@ describe('the metrum', () => {
     expect(screen.queryByRole('button', { name: 'Faster' })).toBeNull();
   });
 
+  it('gives a player its tempo nudge back as a nudge, sent, not set, and says so (step 2)', async () => {
+    const onnudge = vi.fn();
+    const onintent = vi.fn();
+    render(Metrum, props(new Metronome(), { sets: false, onnudge, onintent }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Slower' }));
+    expect(onnudge).toHaveBeenLastCalledWith('bpm', -1);
+    expect(screen.getByRole('status')).toHaveTextContent('You nudged the tempo slower');
+    await fireEvent.click(screen.getByRole('button', { name: 'Faster' }));
+    expect(onnudge).toHaveBeenLastCalledWith('bpm', 1);
+    expect(onintent).not.toHaveBeenCalled();
+  });
+
   it('shows the swing’s share as a gauge, empty when straight and full at the dotted figure', () => {
     const marker = (swing: MeterSwing) => {
       const { container, unmount } = render(Metrum, props(new Metronome(), { swing }));

@@ -10,7 +10,7 @@
   no session and holds no device.
 -->
 <script lang="ts">
-  import { swingTarget } from '@jambot/engine';
+  import { type Nudged, swingTarget } from '@jambot/engine';
   import type { ComponentProps, Snippet } from 'svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
   import Melody from '../components/Melody.svelte';
@@ -46,6 +46,8 @@
       following: ComponentProps<typeof Session>['following'];
       onadmit?: ComponentProps<typeof Session>['onadmit'];
       oncast?: ComponentProps<typeof Session>['oncast'];
+      /** A client's: nudge an axis or the tempo a step (step 2 of docs/briefs/session-roles.md). */
+      onnudge?: ((axis: Nudged, by: 1 | -1) => void) | undefined;
     };
     /** Close the session, leave it, or go back to the lobby. */
     onend: () => void;
@@ -81,6 +83,8 @@
   const following = $derived(player.mode === 'client');
   /** What this device can do in its session: a card draws only the controls it can use. */
   const can = $derived(canOf(player.mode, session.following.role));
+  /** How a device that plays but doesn't set nudges: a player's, never a host's or a listener's. */
+  const onnudge = $derived(can.play && !can.set ? session.onnudge : undefined);
 
   const phase = $derived(player.counting ? 'counting' : player.ending ? 'ending' : null);
   /** The meter of the bar heard, or before anything is, of the bar the song opens on (the count-in's). */
@@ -173,6 +177,7 @@
       track={player.track}
       style={player.hud.style}
       sets={can.set}
+      {onnudge}
       radio={player.station !== null}
       ontune={(on) => player.tuneRadio(on)}
       onintent={(intent) => player.apply(intent)}
@@ -191,6 +196,7 @@
       playing={player.playing}
       sets={can.set}
       onintent={(intent) => player.apply(intent)}
+      {onnudge}
       asked={player.meter}
       onmeter={(meter) => player.setMeter(meter)}
     />

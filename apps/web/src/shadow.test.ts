@@ -72,7 +72,7 @@ interface Following {
  * The band through its own transport, as the player runs it, with the
  * shadow beside it: a tick every 25 ms for `bars` bars; with a station, the
  * radio walks the track at each section's start as the player's does
- * (`#walkRadio`), and the shadow reads its walk to come (`envFrom`).
+ * (`#sectionLine`), and the shadow reads its walk to come (`envFrom`).
  * `control` may move a control at a tick: it returns the environment from
  * then on.
  */

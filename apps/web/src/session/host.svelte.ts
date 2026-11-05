@@ -23,7 +23,9 @@
  * and one whose token opens its seat comes back as it was. The code is drawn
  * here, shown on the host's Session card, kept through a reload, and sent to
  * nobody: it travels only in a join. The host may seat a client as a
- * player or a listener at any time (`cast`, #567), and tells it so.
+ * player or a listener at any time (`cast`, #567), and tells it so. A
+ * player's nudge leans the band, weighed by the players present (`nudgeFrom`,
+ * step 2 of docs/briefs/session-roles.md); a listener's is dropped.
  */
 
 import type { ForecastBar } from '@jambot/engine';
@@ -330,11 +332,20 @@ export class HostSession {
         // A listener, seated without the code of a session by code, reaches no Muse (#461).
         if (member.role === 'listener') return;
         return this.#contribute(message, member);
+      case 'nudge':
+        // A listener's nudge reaches nothing, as what it plays doesn't.
+        if (member.role === 'listener') return;
+        return this.#player.nudgeFrom(message.target, message.by, this.#players());
       case 'leave':
         return this.#seat(leave(this.#roster, from));
       case 'lost':
         return this.#lose(from);
     }
+  }
+
+  /** The players present, the host's own among them, who weigh a nudge (`nudges.ts`). */
+  #players(): number {
+    return 1 + present(this.#roster).filter((m) => m.role === 'player').length;
   }
 
   /** What a seated player contributes reaches the host's Muse. */

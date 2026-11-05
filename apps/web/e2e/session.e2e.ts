@@ -391,6 +391,10 @@ test('a host that admits by a code turns away a join with another, saying why, s
   await expect(client.getByText('Playing as')).toBeVisible({ timeout: 2000 });
   await expect(client.getByText(/without it you listen/)).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Make Ada listen' })).toBeVisible();
+  // A player nudges, where a listener had nothing to press (step 2).
+  await openStyle(client);
+  await client.getByRole('button', { name: 'Energy up' }).click();
+  await expect(client.locator('p.nudged')).toContainText('You nudged energy up');
   await end(client, 'Leave session', 'Yes, leave');
   await expect(state(page)).toContainText('Hosting · nobody has joined');
 

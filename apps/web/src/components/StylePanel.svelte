@@ -24,7 +24,7 @@
   which follows its host's radio, has no switch: its header says the radio.
 -->
 <script lang="ts">
-  import { PRESETS, type StyleTrack } from '@jambot/engine';
+  import { NUDGED, type Nudged, PRESETS, type StyleTrack } from '@jambot/engine';
   import type { Intent } from '../conductor.ts';
   import { type StyleAxis, type StyleView, presetGlow, styleName, styleSub } from '../hud.ts';
   import Card from './Card.svelte';
@@ -44,9 +44,20 @@
     /** Put the radio on the air or take it off; none where nothing tunes it. */
     ontune?: ((on: boolean) => void) | undefined;
     onintent: (intent: Intent) => void;
+    /** A player's, who doesn't set the style: nudge an axis a step, a bias the band leans by from the next section. */
+    onnudge?: ((axis: Nudged, by: 1 | -1) => void) | undefined;
   }
 
-  let { track, style, sets = true, radio = false, ontune, onintent }: Props = $props();
+  let { track, style, sets = true, radio = false, ontune, onintent, onnudge }: Props = $props();
+
+  /** The axis and way this player nudged last, said under the axes until it nudges again. */
+  let nudgedLast: { label: string; by: 1 | -1 } | null = $state(null);
+  const nudge = (axis: Nudged, label: string, by: 1 | -1) => {
+    onnudge?.(axis, by);
+    nudgedLast = { label, by };
+  };
+  const nudges = (axis: StyleAxis): axis is Nudged & StyleAxis =>
+    (NUDGED as readonly string[]).includes(axis);
 
   const glow = $derived(presetGlow(style.axes));
 
@@ -136,12 +147,39 @@
           >
             {a.ends[0]} – {a.ends[1]}
           </Nudge>
+        {:else if onnudge && nudges(a.axis)}
+          {@const axis = a.axis}
+          <Nudge
+            label="Nudge {a.label.toLowerCase()}"
+            down={{
+              name: `${a.label} down`,
+              glyph: '−',
+              title: `Lean the band toward ${a.ends[0]}`,
+              disabled: value <= 0,
+            }}
+            up={{
+              name: `${a.label} up`,
+              glyph: '+',
+              title: `Lean the band toward ${a.ends[1]}`,
+              disabled: value >= 1,
+            }}
+            onnudge={(by) => nudge(axis, a.label.toLowerCase(), by)}
+          >
+            {a.ends[0]} – {a.ends[1]}
+          </Nudge>
         {:else}
           <p class="ends">{a.ends[0]} – {a.ends[1]}</p>
         {/if}
       </div>
     {/each}
   </div>
+  {#if nudgedLast}
+    <p class="nudged" role="status">
+      You nudged {nudgedLast.label}
+      {nudgedLast.by > 0 ? 'up' : 'down'}: the band leans that way from the next section, more the
+      fewer play.
+    </p>
+  {/if}
 </Card>
 
 <style>
@@ -190,6 +228,11 @@
     margin: 0;
     opacity: 0;
     cursor: pointer;
+  }
+  .nudged {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
   }
   .ends {
     margin: 0;

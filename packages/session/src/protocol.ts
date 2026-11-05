@@ -20,6 +20,8 @@ import {
   type Key,
   type MeterSwing,
   type MuseOutput,
+  NUDGED,
+  type Nudged,
   type Offer,
   PARTS,
   type Part,
@@ -59,16 +61,19 @@ import type { ForecastDelta } from './forecast.ts';
  * Version 16 has a lobby's list say a session's host is away (`away` in
  * `OpenSession`, #496), which no peer reads. Version 17 has a host tell a
  * client the role it now seats it as when it changes it (`role`, #567).
+ * Version 18 has a player nudge a style axis or the tempo up or down
+ * (`nudge`, docs/briefs/session-roles.md step 2), which a host leans its band
+ * by. It is version 1's last: version 2 starts at 19.
  *
  * From 13 on, a protocol is a minor version of the session contract's major
  * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, and 17 minor 4. A host admits a join of any
+ * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, and 18 minor 5. A host admits a join of any
  * of them, and a client stays with a host of any (`sameMajor`), each
  * ignoring a kind it doesn't know, so a minor that adds a kind deploys
  * without every client in lockstep: a client at 13 drops the `section`
  * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
-export const PROTOCOL = 17;
+export const PROTOCOL = 18;
 
 /**
  * What a client may be seated as (docs/briefs/session-roles.md): a
@@ -296,6 +301,12 @@ export type ClientMessage =
   /** What the client's players played on a part in a bar, as heard (#410). */
   | ({ readonly kind: 'played' } & PlayedBar)
   | { readonly kind: 'forget' }
+  /**
+   * A player leans a style axis or the tempo a step up or down (step 2 of
+   * docs/briefs/session-roles.md): an event, not a total, and a bias, not a
+   * request, which the host answers by the style its track carries.
+   */
+  | { readonly kind: 'nudge'; readonly target: Nudged; readonly by: 1 | -1 }
   /** A ping, stamped with the client's page clock as it was sent, in seconds. */
   | { readonly kind: 'ping'; readonly sent: number }
   | { readonly kind: 'leave' }
@@ -307,6 +318,7 @@ const CLIENT_KINDS: ReadonlySet<string> = new Set([
   'judged',
   'played',
   'forget',
+  'nudge',
   'ping',
   'leave',
 ]);
@@ -463,7 +475,9 @@ export function readClientMessage(data: unknown): ClientMessage | null {
             m.notes.every(isHeard)
           : kind === 'ping'
             ? Number.isFinite(m.sent)
-            : true;
+            : kind === 'nudge'
+              ? (NUDGED as readonly unknown[]).includes(m.target) && (m.by === 1 || m.by === -1)
+              : true;
   return fits ? (data as ClientMessage) : null;
 }
 
