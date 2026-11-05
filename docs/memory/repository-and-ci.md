@@ -6,13 +6,27 @@ How the repository is built, gated, deployed and licensed.
 
 - The repository is public, so GitHub's standard runners cost it nothing; the family's rule for spending Actions minutes, [CI-BUDGET.md](https://github.com/yggi/music-commons/blob/main/CI-BUDGET.md) in music-commons, still switches a private repository's runs off (#4).
   So the heavy runs (the end-to-end checks, the soaks) go to Actions, where each has a runner to itself, rather than queue for the shared machine's lock (#471).
-- The gate is `pnpm verify`, run before every push of a branch by the pre-push hook (`.githooks/pre-push`), where it costs no minutes.
+- Agent sessions (Claude Code) install dependencies and Playwright's Chromium, warm music21 and fetch `origin/main` and their own branch at start, resume and compaction through `.claude/hooks/session-start.sh`.
+  It also says how far the branch is behind `origin/main`, whether main already holds it, and whether its remote branch moved (`branch-status.sh`).
+  And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
+  When the install lacks `@yggi/cells`, its fetch from the public yggi/cells failed on the network or the proxy, and the hook's first line says so: run `pnpm install --frozen-lockfile` again.
+  The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
+- The gate is `pnpm verify`, where it costs no minutes: every `git push` of a branch runs it first, through git's pre-push hook (`.githooks/pre-push`: about 3 min alone, the tests 2 min 20 s of it, and 4 to 5 min beside another agent's tests, 2026-10-17), and is blocked if it fails.
+  `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
+  It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
+  A tree that passed is remembered in the git directory (`jambot-verified`), with its count of tests, by the hook and by a `pnpm verify` run by hand, so neither a retried push nor one right after a verify runs it again, and the hook still prints the count.
+  The tree is that of every file verify saw, untracked ones too, so a commit that leaves out a new file verify passed with is verified again.
+  A push it lets through prints one line with the count of tests passed, and verify's last line names it too, for the pull request to quote.
+  A failed run's whole output stays in the git directory, as `jambot-verify-failed.log`, which the message names.
+  A diff against `origin/main` of only `*.md` files runs the format check and the tooling tests alone (`pnpm verify --docs`, which installs first and prints its summary line too).
+  The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
   The pull request names the commit that passed it, in its Verified section.
 - CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: `check` (`pnpm verify`) and `e2e` (`pnpm e2e`), side by side, on a pull request when it is opened, pushed to, reopened or taken out of draft.
   A draft runs nothing, and a newer push cancels the run still going, so a pull request stays a draft while it moves.
   Nightly on `main` both run, and so do the radio and the session soaks (`soak`, 30 minutes each, on a served build), their readouts kept as the run's artifacts; the session soak fails where its bound breaks (#462).
   By hand (Actions → CI → Run workflow, or `actions_run_trigger` on `ci.yml`) any branch gets `check` and `e2e`, and the soaks with `soak` ticked; runs by hand are never cancelled, so several on one branch give a pass rate.
   The review-pr skill reuses CI's `check` and `e2e` on a head they passed rather than run them a third time; it runs them itself only where CI hasn't passed that commit.
+  `git fetch origin pull/<n>/head` works through the session proxy.
   No check is required to merge.
 - While Actions is blocked, a run fails within seconds, with no runner and no step: a red or missing `check` then says nothing about the code.
   `node tools/measure/actions.mjs --status yggi/jambot`, in music-commons, tells a blocked repository from one where Actions runs.
