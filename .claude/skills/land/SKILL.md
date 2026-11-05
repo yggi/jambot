@@ -28,6 +28,7 @@ Do the steps in order and stop at the first that fails.
    4. **References right:** an issue or pull request in another repository that the merged pull request names by a bare number is written `yggi/<repo>#n`, in its body and in the issues it closed or ticked.
 5. **The deploy.**
    The merge's push to `main` starts _Deploy_ on Actions: `pnpm pages deploy` there, which runs `pnpm verify`, pushes `gh-pages` if the build changed, and checks the live site at <https://yggi.github.io/jambot/> once Pages serves it.
+   It skips `pnpm verify` when CI's `check` passed on the pull request's head and the head has the merge's tree (`tooling/witness.ts`; its log's `pages: tests:` line says which), so a head brought up to date with `main` and green in CI before the merge deploys in minutes less.
    Wait for that run (on the merge commit) to end, green.
    Only when Actions is blocked (a run that fails in seconds with no step), run `pnpm pages deploy` from `main` in a clone instead.
    A merge of `*.md` files alone starts no deploy (`deploy.yml`'s `paths-ignore`: it changes nothing the site serves), so there is nothing to watch: step 6 says so.

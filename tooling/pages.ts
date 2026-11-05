@@ -9,6 +9,10 @@
  *   pnpm pages build            build for the sub-path into apps/web/dist-pages, and check it
  *   pnpm pages serve            serve that build as Pages would, on http://localhost:4318/<repo>/
  *   pnpm pages deploy           verify, build, check, commit to gh-pages, push, check the live site
+ *   pnpm pages deploy --tests-passed-on <sha>
+ *                               the same without `pnpm verify`, on Actions only: deploy.yml passes the pull request's
+ *                               head whose tests CI passed (`tooling/witness.ts`), and it skips them when that head has
+ *                               HEAD's tree (TESTS_PASSED_RUN names CI's run, for the log)
  *   pnpm pages check [url]      check the live site
  *
  * `build` and `serve` take `--base /path/`, and `serve` takes `--port n`.
@@ -230,6 +234,44 @@ export function commitSite(
   }
 }
 
+/** What the deploy does about `pnpm verify`: skip it, or run it, and the line that says which and why. */
+export interface TestsPlan {
+  skip: boolean;
+  message: string;
+}
+
+/**
+ * Whether the deploy skips `pnpm verify` because CI passed it on `passedOn`, a pull request's head (`tooling/witness.ts`
+ * decides that). Only on Actions, and only when `passedOn` has HEAD's tree (`treeOf` gives a commit's tree, or undefined
+ * when it isn't known); otherwise the tests run. A clone always runs them: there the flag is refused.
+ */
+export function testsPlan(
+  passedOn: string | undefined,
+  options: {
+    actions: boolean;
+    tree: string;
+    treeOf: (sha: string) => string | undefined;
+    run?: string | undefined;
+  },
+): TestsPlan {
+  if (passedOn === undefined)
+    return { skip: false, message: 'tests: running pnpm verify (no --tests-passed-on)' };
+  if (!options.actions)
+    throw new Error(
+      '--tests-passed-on is for the deploy on Actions; from a clone the deploy runs every test',
+    );
+  const witnessed = options.treeOf(passedOn);
+  if (witnessed !== options.tree)
+    return {
+      skip: false,
+      message: `tests: running pnpm verify, since ${passedOn.slice(0, 7)} has ${witnessed ? `tree ${witnessed.slice(0, 7)}` : 'no tree here'} and HEAD ${options.tree.slice(0, 7)}`,
+    };
+  return {
+    skip: true,
+    message: `tests: skipped, CI passed them on ${passedOn.slice(0, 7)} (run ${options.run || 'unnamed'}), same tree ${options.tree.slice(0, 7)}`,
+  };
+}
+
 const root = fileURLToPath(new URL('..', import.meta.url));
 const siteDir = join(root, 'apps/web/dist-pages');
 
@@ -286,7 +328,7 @@ async function checkLive(url: string, base: string, timeoutMs = 10 * 60_000): Pr
   return report(url, await siteProblems(remoteSite(url), base));
 }
 
-async function deploy(target: Target): Promise<boolean> {
+async function deploy(target: Target, passedOn: string | undefined): Promise<boolean> {
   if (git('status', '--porcelain') !== '') {
     console.error('pages: commit or stash first; the site is built from a commit');
     return false;
@@ -299,7 +341,20 @@ async function deploy(target: Target): Promise<boolean> {
     console.error('pages: HEAD is not on origin/main; the site shows main');
     return false;
   }
-  run('pnpm', ['verify']);
+  const plan = testsPlan(passedOn, {
+    actions: process.env.GITHUB_ACTIONS === 'true',
+    tree: git('rev-parse', 'HEAD^{tree}'),
+    treeOf: (sha) => {
+      const result = spawnSync('git', ['rev-parse', '--verify', '--quiet', `${sha}^{tree}`], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      return result.status === 0 ? result.stdout.trim() : undefined;
+    },
+    run: process.env.TESTS_PASSED_RUN,
+  });
+  console.log(`pages: ${plan.message}`);
+  if (!plan.skip) run('pnpm', ['verify']);
   if (!(await build(target.base))) return false;
   const remote = git('ls-remote', 'origin', 'refs/heads/gh-pages');
   if (remote !== '') git('fetch', '--quiet', 'origin', 'gh-pages');
@@ -333,7 +388,7 @@ async function main(args: string[]): Promise<boolean> {
       return true;
     }
     case 'deploy':
-      return deploy(target);
+      return deploy(target, option(args, '--tests-passed-on'));
     case 'check': {
       const url = args[1] ?? target.url;
       const liveBase = args[1] ? new URL(url).pathname : target.base;
