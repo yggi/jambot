@@ -431,6 +431,9 @@ export class ClientSession {
         return this.#player.followEnds(message.bar);
       case 'stop':
         return this.#stopped();
+      case 'role':
+        this.role = message.role;
+        return;
       case 'away':
         this.hostAway = true;
         return;

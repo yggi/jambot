@@ -22,7 +22,8 @@
  * refused for the rest of the minute. A player seated before stays seated,
  * and one whose token opens its seat comes back as it was. The code is drawn
  * here, shown on the host's Session card, kept through a reload, and sent to
- * nobody: it travels only in a join.
+ * nobody: it travels only in a join. The host may seat a client as a
+ * player or a listener at any time (`cast`, #567), and tells it so.
  */
 
 import type { ForecastBar } from '@jambot/engine';
@@ -34,6 +35,7 @@ import {
   type HostSnapshot,
   type MuseState,
   PROTOCOL,
+  type Role,
   type Roster,
   admit,
   codeOf,
@@ -45,6 +47,7 @@ import {
   memberAt,
   playerSource,
   present,
+  recast,
   WRONG_CODES,
   wrongCodesWithin,
 } from '@jambot/session';
@@ -58,6 +61,8 @@ export const SILENT = 3;
 export interface Guest {
   readonly id: string;
   readonly name: string;
+  /** What the host seats it as: a listener's ear reaches no Muse. */
+  readonly role: Role;
 }
 
 /** Where a host keeps what it needs to come back from a reload. */
@@ -211,6 +216,18 @@ export class HostSession {
     this.persist();
   }
 
+  /**
+   * Seat a client as another role (#567): from now on what it sends is
+   * taken or dropped as that role says, its token brings it back as that,
+   * and it is told, if its link is up (`role`, protocol 17).
+   */
+  cast(id: string, role: Role) {
+    const member = this.#roster.find((m) => m.id === id);
+    if (!member || member.role === role) return;
+    this.#seat(recast(this.#roster, id, role));
+    if (member.link !== null) this.#send({ kind: 'role', role }, member.link);
+  }
+
   /** The session is closed on purpose: its clients hear it, and nothing is kept to come back to. */
   close() {
     this.#link?.send({ kind: 'closed' });
@@ -262,7 +279,7 @@ export class HostSession {
 
   #seat(roster: Roster) {
     this.#roster = roster;
-    this.guests = present(roster).map(({ id, name }) => ({ id, name }));
+    this.guests = present(roster).map(({ id, name, role }) => ({ id, name, role }));
     this.persist();
   }
 

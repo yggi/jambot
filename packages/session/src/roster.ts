@@ -11,22 +11,14 @@
  * (#461), a join with another code is refused; one without a code is seated
  * as a listener (`role`), what it plays reaching no Muse; one whose token
  * opens a seat comes back as it was, so a player the host seated before
- * plays on without the code. While too many wrong codes were tried
+ * plays on without the code. The host may cast a seat as another role at
+ * any time (`recast`), and its token brings it back as that. While too many wrong codes were tried
  * (`WRONG_CODES`), every code is refused. A player away is kept for
  * `RESUME_WINDOW` seconds, then forgotten; one that leaves is forgotten at
  * once. Pure: the host gives the token, its name and the time.
  */
 
-import { CODE_LOCKED, type ClientMessage, refusal } from './protocol.ts';
-
-/**
- * What a seat may do in a session (docs/briefs/session-roles.md): a
- * player's ear reaches the host's Muse, a listener's reaches nothing. The
- * host is no seat: it sets everything. A co-host joins them with the
- * brief's step 5, when it has something of its own to do.
- */
-export const ROLES = ['player', 'listener'] as const;
-export type Role = (typeof ROLES)[number];
+import { CODE_LOCKED, type ClientMessage, type Role, refusal } from './protocol.ts';
 
 /** How long, in seconds, a player whose link dropped may come back as itself. */
 export const RESUME_WINDOW = 300;
@@ -108,6 +100,13 @@ export function admit(
   };
   return { roster: [...kept, member], member };
 }
+
+/**
+ * The seat by `id` cast as `role` at the host's word (#567), present or
+ * away: its token brings it back as that role.
+ */
+export const recast = (roster: Roster, id: string, role: Role): Roster =>
+  roster.map((m) => (m.id === id ? { ...m, role } : m));
 
 /** The player on `link` has lost it: away from `now`, seat kept. */
 export const lose = (roster: Roster, link: string, now: number): Roster =>

@@ -9,12 +9,14 @@
   lobby from solo. The radio is the style card's (#313), and what the band
   learned is carried from the Cells view (#398). A host's session is open to anyone who finds it until
   the host asks for a code (#461): the code then shows here, for the host to
-  read out, and another can be drawn. Ending a session that others are in asks first, in place,
+  read out, and another can be drawn. Each player the host lists has its
+  role, and a button that seats it as the other: a listener let in plays,
+  and a player made to listen reaches no Muse (#567). Ending a session that others are in asks first, in place,
   so a stray tap can't end a jam for everyone: a host is told how many are
   playing in its session. Solo shares nothing, so it goes back at once.
 -->
 <script lang="ts">
-  import { CODE_LISTENS } from '@jambot/session';
+  import { CODE_LISTENS, type Role } from '@jambot/session';
   import type { Mode } from '../player.svelte.ts';
   import {
     type Following,
@@ -45,6 +47,8 @@
     onend: () => void;
     /** A host's: admit players by a code from now on, a fresh one each time, or by none (#461). */
     onadmit?: ((byCode: boolean) => void) | undefined;
+    /** A host's: seat a client as a player or a listener (#567). */
+    oncast?: ((id: string, role: Role) => void) | undefined;
   }
 
   let {
@@ -57,6 +61,7 @@
     bar,
     onend,
     onadmit,
+    oncast,
   }: Props = $props();
 
   let asking = $state(false);
@@ -93,7 +98,20 @@
       <ul aria-label="Players">
         <li><i style:background="var(--source-0)"></i>You (host)</li>
         {#each hosting.guests as guest, i (guest.id)}
-          <li><i style:background="var(--source-{colours[i + 1] ?? 0})"></i>{guest.name}</li>
+          {@const listens = guest.role === 'listener'}
+          <li>
+            <i style:background="var(--source-{colours[i + 1] ?? 0})"></i>{guest.name}
+            {#if listens}<span class="role">listening</span>{/if}
+            {#if oncast}
+              <button
+                type="button"
+                class="cast"
+                aria-label={listens ? `Let ${guest.name} play` : `Make ${guest.name} listen`}
+                onclick={() => oncast(guest.id, listens ? 'player' : 'listener')}
+                >{listens ? 'Let play' : 'Make listen'}</button
+              >
+            {/if}
+          </li>
         {/each}
       </ul>
     </Group>
@@ -185,6 +203,19 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  .role {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .cast {
+    margin-left: auto;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    font-size: 13px;
   }
   li i {
     width: 10px;

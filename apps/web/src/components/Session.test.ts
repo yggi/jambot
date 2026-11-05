@@ -36,7 +36,9 @@ describe('the session card', () => {
   it('names the session, and says its state, over its network', () => {
     const { container } = render(
       Session,
-      props({ hosting: { ...nobody, guests: [{ id: 'c0', name: 'Ada' }] } }),
+      props({
+        hosting: { ...nobody, guests: [{ id: 'c0', name: 'Ada', role: 'player' as const }] },
+      }),
     );
     expect(container.querySelector('summary .title')).toHaveTextContent('Session');
     expect(container.querySelector('summary .main')).toHaveTextContent('Garage');
@@ -88,8 +90,8 @@ describe('the session card', () => {
           hosting: {
             session: 'Garage',
             guests: [
-              { id: 'c0', name: 'Ada' },
-              { id: 'c1', name: 'Bo' },
+              { id: 'c0', name: 'Ada', role: 'player' as const },
+              { id: 'c1', name: 'Bo', role: 'player' as const },
             ],
           },
           players: { host: 'Cy', c0: 'Ada', c1: 'Bo' },
@@ -103,6 +105,31 @@ describe('the session card', () => {
         'Ada',
         'Bo',
       ]);
+    });
+
+    it('seats a player to listen and a listener to play, at the host’s word, and says who listens (#567)', async () => {
+      const oncast = vi.fn();
+      render(
+        Session,
+        props({
+          hosting: {
+            session: 'Garage',
+            guests: [
+              { id: 'c0', name: 'Ada', role: 'player' },
+              { id: 'c1', name: 'Bo', role: 'listener' },
+            ],
+          },
+          oncast,
+        }),
+      );
+      await unfold();
+      const items = within(screen.getByRole('list', { name: 'Players' })).getAllByRole('listitem');
+      expect(items[1]).not.toHaveTextContent('listening');
+      expect(items[2]).toHaveTextContent('listening');
+      await fireEvent.click(screen.getByRole('button', { name: 'Make Ada listen' }));
+      expect(oncast).toHaveBeenLastCalledWith('c0', 'listener');
+      await fireEvent.click(screen.getByRole('button', { name: 'Let Bo play' }));
+      expect(oncast).toHaveBeenLastCalledWith('c1', 'player');
     });
 
     it('says nobody has joined yet, in the list, as the summary does', async () => {
@@ -154,8 +181,8 @@ describe('the session card', () => {
           hosting: {
             session: 'Garage',
             guests: [
-              { id: 'c0', name: 'Ada' },
-              { id: 'c1', name: 'Bo' },
+              { id: 'c0', name: 'Ada', role: 'player' as const },
+              { id: 'c1', name: 'Bo', role: 'player' as const },
             ],
           },
           onend,

@@ -479,6 +479,38 @@ describe('a host and a client session', () => {
     expect(host.player.layer.filed).toEqual([]);
   });
 
+  it('seat a listener to play at the host’s word, and back, telling the client each time, and keep it through a reload (#567)', async () => {
+    const lobby = memoryLobby();
+    const host = device(10);
+    const client = device(3);
+    const saved: HostSnapshot[] = [];
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
+      draw: () => '042917',
+      keep: { save: (s) => void saved.push(s), clear: () => {} },
+    });
+    await hosting.open(lobby, 'jam', 'Bo');
+    hosting.admitByCode(true);
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'jam', 'Ada');
+    expect(following.role).toBe('listener');
+    const ada = hosting.guests[0]!;
+    expect(ada.role).toBe('listener');
+    hosting.cast(ada.id, 'player');
+    await run([host, client], 0.1);
+    expect(following.role).toBe('player');
+    expect(hosting.guests[0]!.role).toBe('player');
+    expect(saved.at(-1)!.roster).toEqual([expect.objectContaining({ id: ada.id, role: 'player' })]);
+    hosting.cast(ada.id, 'listener');
+    await run([host, client], 0.1);
+    expect(following.role).toBe('listener');
+    // Casting a seat as what it is, or one nobody holds, tells nobody anything.
+    const told = saved.length;
+    hosting.cast(ada.id, 'listener');
+    hosting.cast('nobody', 'player');
+    expect(saved).toHaveLength(told);
+    hosting.close();
+  });
+
   it("name the host's own notes by its player, so a client never reads them as its own", async () => {
     const lobby = memoryLobby();
     const host = device(10);
@@ -1005,7 +1037,7 @@ describe('a host that is reloaded', () => {
 
     const back = await joined(fresh, 'Friday Jam', 'Ada', 'token-ada');
     expect(back.heard[0]).toMatchObject({ kind: 'welcome', resume: 'token-ada' });
-    expect(again.guests).toEqual([{ id: snapshot.roster[0].id, name: 'Ada' }]);
+    expect(again.guests).toEqual([{ id: snapshot.roster[0].id, name: 'Ada', role: 'player' }]);
     // Nobody else gets Ada's name, or her token.
     const stranger = await joined(fresh, 'Friday Jam', 'ada', 'guess');
     expect(stranger.heard[0]).toMatchObject({ kind: 'refused' });
