@@ -30,7 +30,8 @@
 
 import { type KeyWish, type StyleTrack, type SwingTrack, SWING_LEVELS } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
-import { type Member, ROLES } from './roster.ts';
+import { ROLES } from './protocol.ts';
+import type { Member } from './roster.ts';
 import { type Station, readStation } from './station.ts';
 
 /** How long, in seconds, a saved record is good for. */

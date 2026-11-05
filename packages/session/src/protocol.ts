@@ -57,17 +57,27 @@ import type { ForecastDelta } from './forecast.ts';
  * Version 15 has a join carry the code a host may admit its clients by
  * (`code`, #461), which a host that asks for one refuses a join without.
  * Version 16 has a lobby's list say a session's host is away (`away` in
- * `OpenSession`, #496), which no peer reads.
+ * `OpenSession`, #496), which no peer reads. Version 17 has a host tell a
+ * client the role it now seats it as when it changes it (`role`, #567).
  *
  * From 13 on, a protocol is a minor version of the session contract's major
  * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, and 16 minor 3. A host admits a join of any
+ * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, and 17 minor 4. A host admits a join of any
  * of them, and a client stays with a host of any (`sameMajor`), each
  * ignoring a kind it doesn't know, so a minor that adds a kind deploys
  * without every client in lockstep: a client at 13 drops the `section`
  * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
-export const PROTOCOL = 16;
+export const PROTOCOL = 17;
+
+/**
+ * What a client may be seated as (docs/briefs/session-roles.md): a
+ * player's ear reaches the host's Muse, a listener's reaches nothing. The
+ * host is no seat: it sets everything. A co-host joins them with the
+ * brief's step 5, when it has something of its own to do.
+ */
+export const ROLES = ['player', 'listener'] as const;
+export type Role = (typeof ROLES)[number];
 
 /** The first protocol of the session contract's major version 1 (#460): every protocol from it on is one of its minors. */
 export const FIRST_PROTOCOL = 13;
@@ -256,6 +266,11 @@ export type HostMessage =
     }
   | { readonly kind: 'closed' }
   /**
+   * The role the host now seats this client as (#567): sent to it alone,
+   * when the host changes it, never with a welcome, whose `listening` says it.
+   */
+  | { readonly kind: 'role'; readonly role: Role }
+  /**
    * Said by a lobby, never by a host: the host's link dropped, and the
    * session waits for it to come back (`away`), or it has (`back`), when a
    * client joins again with its token.
@@ -370,7 +385,7 @@ const isPlaying = (s: unknown): boolean =>
 
 /**
  * Each kind a host sends, and whether a message of it carries that kind's
- * fields, of their types (yggi/music-commons `contracts/session`, minor 1).
+ * fields, of their types (yggi/music-commons `contracts/session`, minor 1; `role`, minor 4).
  * What a track, a swing, a
  * meter or a sent bar holds is the shapes' to fix (`protocol.test.ts`), not
  * the reader's.
@@ -396,6 +411,7 @@ const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>)
   pong: (m) =>
     Number.isFinite(m.sent) && Number.isFinite(m.host) && orNull(m.heard, Number.isFinite),
   closed: () => true,
+  role: (m) => (ROLES as readonly unknown[]).includes(m.role),
 };
 
 /**

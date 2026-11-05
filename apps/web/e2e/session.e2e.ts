@@ -356,7 +356,7 @@ test("a client in another browser context joins through the lobby server, in ste
   await elsewhere.close();
 });
 
-test('a host that admits by a code turns away a join with another, saying why, seats one without it to listen, and a player with its code plays what the host plays, event for event, through the lobby server (#461)', async ({
+test('a host that admits by a code turns away a join with another, saying why, seats one without it to listen and lets it play at its word, and a player with its code plays what the host plays, event for event, through the lobby server (#461)', async ({
   page,
   browser,
 }) => {
@@ -386,6 +386,11 @@ test('a host that admits by a code turns away a join with another, saying why, s
   await expect(client.getByText(/without it you listen/)).toBeVisible();
   await expect(client.getByText('Listening as')).toBeVisible();
   await joined(page, 'Ada');
+  // The host lets her play, and she is told at once (#567).
+  await page.getByRole('button', { name: 'Let Ada play' }).click();
+  await expect(client.getByText('Playing as')).toBeVisible({ timeout: 2000 });
+  await expect(client.getByText(/without it you listen/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Make Ada listen' })).toBeVisible();
   await end(client, 'Leave session', 'Yes, leave');
   await expect(state(page)).toContainText('Hosting · nobody has joined');
 

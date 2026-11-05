@@ -6,7 +6,16 @@ import {
   PROTOCOL,
   type ClientMessage,
 } from './protocol.ts';
-import { RESUME_WINDOW, admit, expire, leave, lose, present, type Roster } from './roster.ts';
+import {
+  RESUME_WINDOW,
+  admit,
+  expire,
+  leave,
+  lose,
+  present,
+  recast,
+  type Roster,
+} from './roster.ts';
 
 type Join = ClientMessage & { kind: 'join' };
 const join = (name: string, resume?: string): Join =>
@@ -171,6 +180,36 @@ describe("a session's roster", () => {
     );
     // Without a code asked for, a join is admitted as ever.
     expect(admit(roster, join('Bo'), 'c1', 't', 'the host', null)).toHaveProperty('member');
+  });
+
+  it('seats a player as another role at the host’s word, and its token brings it back as that role (#567)', () => {
+    const roster = seated('Ada', 'Bo');
+    for (const role of ['listener', 'player'] as const) {
+      const cast = recast(roster, 'c1', role);
+      expect(cast.map((m) => m.role)).toEqual(['player', role]);
+      // Its token, with no code or another, brings it back as what it was cast as.
+      const away = lose(cast, 'c1', 10);
+      for (const code of [undefined, '111111']) {
+        const back = admit(
+          away,
+          { ...join('Bo', 'token-1'), ...(code ? { code } : {}) },
+          'c5',
+          'x',
+          'the host',
+          '042917',
+        );
+        expect(back, `${role} ${code}`).toHaveProperty(
+          'member',
+          expect.objectContaining({ id: 'c1', role }),
+        );
+      }
+    }
+    // An id nobody holds changes nothing, and a seat away is cast as it waits.
+    expect(recast(roster, 'nobody', 'listener')).toEqual(roster);
+    expect(recast(lose(roster, 'c0', 5), 'c0', 'listener')[0]).toMatchObject({
+      link: null,
+      role: 'listener',
+    });
   });
 
   it('forgets a player that leaves, and one away past the window, and no other', () => {

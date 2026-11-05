@@ -45,6 +45,7 @@
       hosting: ComponentProps<typeof Session>['hosting'];
       following: ComponentProps<typeof Session>['following'];
       onadmit?: ComponentProps<typeof Session>['onadmit'];
+      oncast?: ComponentProps<typeof Session>['oncast'];
     };
     /** Close the session, leave it, or go back to the lobby. */
     onend: () => void;
@@ -160,6 +161,7 @@
       hosting={session.hosting}
       following={session.following}
       onadmit={session.onadmit}
+      oncast={session.oncast}
       players={player.players}
       playerId={player.playerId}
       {phase}

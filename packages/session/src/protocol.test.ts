@@ -31,6 +31,7 @@ import {
   WRONG_CODES,
   wrongCodesWithin,
   PROTOCOL,
+  ROLES,
   type SectionText,
   codeOf,
   heardFrom,
@@ -196,6 +197,15 @@ describe('the session protocol', () => {
     expect(readClientMessage({ kind: 'stop' })).toBeNull();
   });
 
+  it('reads a host’s role message of each role, and refuses any other (protocol 17, #567)', () => {
+    for (const role of ROLES) {
+      expect(readHostMessage({ kind: 'role', role })).toEqual({ kind: 'role', role });
+      expect(readClientMessage({ kind: 'role', role })).toBeNull();
+    }
+    for (const role of [undefined, 'host', 'co-host', 'Listener', true, null])
+      expect(readHostMessage({ kind: 'role', role }), String(role)).toBeNull();
+  });
+
   it("reads a client's message only with the fields its kind carries, of their types", () => {
     const { judgements } = travelling();
     const judgement = judgements[0]!;
@@ -256,12 +266,12 @@ describe('the session protocol', () => {
   });
 
   it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
-    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([16, 13]);
-    for (const protocol of [13, 14, 15, 16, 17])
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([17, 13]);
+    for (const protocol of [13, 14, 15, 16, 17, 18])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
     for (const protocol of [12, 1, 13.5, Number.NaN])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
-        /version 16 .* takes 13 on/,
+        /version 17 .* takes 13 on/,
       );
     expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
     expect(sameMajor('14')).toBe(false);
@@ -360,10 +370,10 @@ describe('the session protocol', () => {
       played: shapeOf(playedBars()),
       section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
-    // The session contract (yggi/music-commons `contracts/session`, minor 3) holds the same
+    // The session contract (yggi/music-commons `contracts/session`, minor 4) holds the same
     // shapes, which it states at protocol 15: 16 adds a listed session's `away` (#496), a
-    // lobby's word, and no shape here.
-    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([16, 15, 16]);
+    // lobby's word, and 17 a host's `role` (#567), read by field; neither adds a shape here.
+    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([17, 15, 17]);
     expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
   });
 
@@ -419,7 +429,7 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 16,
+  protocol: 17,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',

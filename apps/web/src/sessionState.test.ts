@@ -12,8 +12,8 @@ const following: Following = {
   lacked: 0,
 };
 const nobody = { session: 'Garage', guests: [] };
-const ada = { id: 'c0', name: 'Ada' };
-const bo = { id: 'c1', name: 'Bo' };
+const ada = { id: 'c0', name: 'Ada', role: 'player' as const };
+const bo = { id: 'c1', name: 'Bo', role: 'player' as const };
 
 describe('what the session card names', () => {
   it('names the session hosted or followed, and solo as solo', () => {
@@ -87,7 +87,11 @@ describe('the colours of the network', () => {
 
   it('gives a player not yet in the record the next colour, and comes round after six', () => {
     expect(networkColours('host', { ...nobody, guests: [ada] }, {}, 'host')).toEqual([0, 1]);
-    const many = Array.from({ length: 7 }, (_, i) => ({ id: `g${i}`, name: `G${i}` }));
+    const many = Array.from({ length: 7 }, (_, i) => ({
+      id: `g${i}`,
+      name: `G${i}`,
+      role: 'player' as const,
+    }));
     const colours = networkColours('host', { ...nobody, guests: many }, {}, 'host');
     expect(colours).toHaveLength(8);
     expect(Math.max(...colours)).toBeLessThan(6);

@@ -27,7 +27,7 @@
   import { type Found, Sessions, type Where } from './session/sessions.svelte.ts';
   import { browserKept } from './session/storage.ts';
   import { filedFiles } from '@jambot/engine';
-  import { layerText, readLayerText } from '@jambot/session';
+  import { type Role, layerText, readLayerText } from '@jambot/session';
   import { websocketLobby } from './session/websocket.ts';
   import { MeterPlayer } from './meter/meter-player.svelte.ts';
   import { WorkerAnalysis } from './tune/analysis.ts';
@@ -396,6 +396,7 @@
         code: hostSession.code,
       },
       onadmit: (byCode: boolean) => hostSession.admitByCode(byCode),
+      oncast: (id: string, role: Role) => hostSession.cast(id, role),
       following: {
         status: clientSession.status,
         session: clientSession.session,
