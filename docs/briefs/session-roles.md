@@ -27,10 +27,14 @@ A control a role cannot use is not drawn; each card keeps the controls of its ro
 The `Nudge` pill already stands on every style axis, the key and the tempo: for a host it steps the value, for a player it asks.
 A player's card is the host's with the setting controls (presets, drags, key dots, the meter grid, start and stop) gone; a listener's is a readout.
 
-An ask is a cue, then an event: one shape in two tenses.
-Asked, it is a pending cue on the asker's device and a line in everyone's log; planned, it is the cue of the section that takes it; done or declined, it is an event in the log, with the reason where it had no effect.
-How asks combine is #217's (C10): whole steps, sent as each player's running total, the band settling on the median within the licence, only syncopation, harmony, articulation and energy taking wishes; the host's set is not in the median.
-Whether a wish fades or holds is open on #217, to be decided by ear.
+A nudge is a cue, then an event: one shape in two tenses.
+Made, it is a pending cue on the nudger's device and a line in everyone's log ("Ada wants a slower tempo"); when the band moves, the move is an event in the log ("after the break: the tempo dropped to 95 bpm").
+**A nudge is a bias, not a request** (the owner, 2026-11-05): the host neither takes nor declines one. Every active nudge leans the style vector, the tonic, the tempo, the meter and the rest, as an extension of the radio's walk: a bias on the associations the composer searches and uses.
+- The effective nudge on a parameter is the sum of all active nudges, weighted by the players in the session: one nudge among few players moves it far, one among many moves it little, and many in the same direction move it far. (The reading here: each nudge weighs 1/N of the N players.)
+- A nudge fades.
+- With no nudges, the band walks by itself, as the radio does now.
+
+This replaces #217's median (C10) as the way nudges combine.
 
 The Session card becomes the Room: who is in it with their role, the log under them, filtered by a tap on a person, the reactions, and the host's line to announce on.
 The log takes in the Muse's log, joins and leaves, asks and answers, reactions, announcements and the cues that have passed.
@@ -48,20 +52,30 @@ The log takes in the Muse's log, joins and leaves, asks and answers, reactions, 
 
 Each step is one protocol minor and one pull request; the hub's session contract (yggi/music-commons) takes a vector for each new kind first.
 
-1. **Roles.** A member's `role` in place of `listens`, in the roster and the welcome; a code per role, joining without one a listener or turned away; a host's `role` message to change one. The app reads one `can` per device in place of the `following` flag, and draws only what it allows.
+1. **Roles.** A member's `role` in place of `listens`; a code per role, joining without one a listener or turned away; a host's `role` message to change one. The app reads one `can` per device in place of the `following` flag, and draws only what it allows.
    Its first half is built, the part that leaves the wire as it is: a seat's `role` (player or listener; co-host comes with step 5, when it has something of its own to do), kept in the host's snapshot, and `Can` (`canOf`, `apps/web/src/sessionState.ts`), by which the Style, Key and Metrum cards and the transport draw no control a client can't use.
-   Its second half bumps the protocol: the welcome's `role`, the host's `role` message, and the host's control to change one; the hub's session contract takes their vectors first.
-2. **Asks** (#217 step 3). A client's `wish`: the target and its running total in steps, clamped by the host and dropped from a listener; `Player.apply` folds the median in at the section line, as the radio's walk is folded.
-3. **The log.** A host's `event`: the bar, who, the kind (joined, left, asked, answered, declined, Muse, reacted, announced) and a short text; the host keeps the last 200 and the welcome carries the tail. `cuesOf` grows an asked kind, and a cue whose moment passes becomes an event.
-4. **Reactions and announcements.** `react` from anyone (an emoji of a fixed set, the bar, the event it answers if any) and `announce` from a host or co-host, relayed as events.
+   Its second half bumps the protocol (#567): the host's `role` message and the host's control to change one. The hub's session contract has its vectors, minor 4 (yggi/music-commons#48); a welcome carries no `role`, since its `listening` already says it.
+2. **Nudges** (#217 step 3). A client's `wish`: a parameter and a direction, dropped from a listener; the host sums the active ones weighted by the players present, lets each fade, and `Player.apply` folds the bias into the radio's walk at the section line.
+3. **The log.** A host's `event`: the bar, who, the kind (joined, left, nudged, moved, Muse, reacted, announced) and a short text; the host keeps the last 200 and the welcome carries the tail. `cuesOf` grows an asked kind, and a cue whose moment passes becomes an event.
+4. **Reactions and announcements.** `react` from anyone (an emoji of a fixed set, the bar, the fragment playing it answers) and `announce` from a host or co-host, relayed as events. A reaction leans too: it is associated with the fragment it answers (a drum pattern, a melody, a bass line), and changes the chance of that fragment playing again.
 5. **Co-host.** A co-host's set as an `intent` the host applies outright; the host shares its reclaim secret and a periodic `HostSnapshot` with co-hosts, so one can reclaim the session within the lobby's grace and restore the song by today's path.
 6. **Music chat**, later: a `post` carrying a cells fragment, as the section texts (#446) carry theirs.
 
 Steps 1 and 2 are the core; the rest follow in any order.
 
+## The owner's answers (2026-11-05, on #566)
+
+- **A wish fades** (#217's question).
+- **The host takes and rejects nothing:** a nudge biases the style, the tonic, the tempo and the meter, summed and weighted by the players present (above), so there is no "take it now".
+- **The reactions:** start with a set of smilies.
+  - Positive: 🥰 🤩 🥳.
+  - Strange: 🫪 👾 🤖.
+  - Negative, read as "clashes with the style" and "should stop": 🫩 boring, 🫨 dissonant, 😵‍💫 confusing.
+
+  A reaction goes to the fragment playing (a drum pattern, a melody, a bass line): a positive one raises its chance of appearing, a negative one lowers it.
+- **A co-host's snapshot:** "we have to see; in any case, it will be better to pick up a session somehow than to just drop it." So a takeover is tried with the latest snapshot, however old, and its bound is measured in step 5.
+
 ## Open
 
-- Whether a wish fades or holds (#217).
-- Whether a host's "take it now" on an ask sets the median at once or the asker's wish alone.
-- The emoji set, and whether a listener's reactions are counted with the players'.
-- How long a co-host's snapshot may be old before a takeover is refused.
+- Whether a listener's reactions count with the players'.
+- What a strange reaction does to a fragment's chance, beside the positive and the negative.
