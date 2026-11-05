@@ -533,7 +533,11 @@ export class Player {
    * go to its ear.
    */
   #arrivedDrums: HeardNote[] = [];
-  /** Bass notes a host's clients' players played (#423), for the Muse to hear as bass lines; this device's own she reads from what it heard, in the bass's register. */
+  /**
+   * Bass notes for the Muse to hear as bass lines (#423): a host's clients' players', and this device's played on the
+   * bass part (#564); a client's go to its ear (#569). The rest of this device's she reads from what it heard, in the
+   * bass's register.
+   */
   #arrivedBass: HeardNote[] = [];
   #forget = false;
   /** Whether a host's clients were told which bar is the last. */
@@ -818,12 +822,11 @@ export class Player {
 
   /**
    * A note played on the bass (#564), for the Muse to hear as a bass line, as she hears a host's clients' (#423,
-   * `bassElsewhere`): under the name the player goes by in a session, else the instrument it came from. A client's own
-   * is kept and shown, not yet carried to its host.
+   * `bassElsewhere`): under the name the player goes by in a session, else the instrument it came from. A client's go
+   * to its ear, which passes them on to its host by the instrument (#569), as its drums.
    */
   #bassHeard(note: number, velocity: number, source: string, position: number) {
-    if (this.#follow) return;
-    const name = (this.playerId !== null && this.players[this.playerId]) || source;
+    const name = (!this.#follow && this.playerId !== null && this.players[this.playerId]) || source;
     this.#arrivedBass.push({ note, velocity, source: name, position, end: null });
   }
 
@@ -1511,6 +1514,7 @@ export class Player {
         keyOf,
         clockOfTransport(carried),
         this.#arrivedDrums,
+        this.#arrivedBass,
       );
       follow.ear = ear.carried;
       if (ear.judged.length > 0) follow.told.judged(ear.judged);
@@ -1518,6 +1522,7 @@ export class Player {
     }
     this.#arrived = [];
     this.#arrivedDrums = [];
+    this.#arrivedBass = [];
     if (this.#finished(carried!, now)) this.halt();
   }
 

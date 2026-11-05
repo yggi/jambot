@@ -111,4 +111,35 @@ describe("a client's ear for drums (#410)", () => {
     const mixed = [...low.slice(0, 2), { ...low[2]!, note: 58 }];
     expect(earListen(EAR, mixed, 2 * 16 + EAR_AFTER, keys([1])).played).toEqual([]);
   });
+
+  it('passes on, as the part bass, what a player plays on the bass part, whatever its register, with the bar’s low notes (#569)', () => {
+    const low = phrase(1).map((n) => ({ ...n, note: n.note - 36 }));
+    // played on the bass part, an octave above the bass's top: a bass all the same, by its part
+    const played = phrase(1, 'the bass keys').map((n) => ({
+      ...n,
+      note: n.note + 12,
+      position: n.position + 0.5,
+    }));
+    const early = earListen(EAR, low, 2 * 16 + EAR_AFTER - 0.01, keys([]), undefined, [], played);
+    expect(early.played).toEqual([]);
+    const { played: passed } = earListen(early.carried, [], 2 * 16 + EAR_AFTER, keys([]));
+    expect(passed).toEqual([
+      {
+        part: 'bass',
+        bar: 1,
+        notes: [...low, ...played].toSorted((x, y) => x.position - y.position),
+      },
+    ]);
+    // a bar passed on already: its late bass notes are dropped
+    const late = earListen(
+      earListen(EAR, [], 2 * 16 + EAR_AFTER, keys([]), undefined, [], played).carried,
+      [],
+      3 * 16 + EAR_AFTER,
+      keys([]),
+      undefined,
+      [],
+      played,
+    );
+    expect(late.played).toEqual([]);
+  });
 });
