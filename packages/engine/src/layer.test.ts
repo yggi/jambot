@@ -76,8 +76,13 @@ function runs(entropy: number, walked: boolean, extra: Partial<TransportEnv> = {
 
 const range = (n: number) => [...Array(n).keys()];
 
-/** Main's events, as recorded on `main` at 22c47fe before the layer was carried: their count and hash. */
-const MAIN = { held: [15061, '98f62766'], walked: [13019, '6444f418'] } as const;
+/**
+ * Main's events, as recorded on `main` at 22c47fe before the layer was carried: their count and hash.
+ * The walk's hash is re-recorded at feel v2 (yggi/music-commons#45), where the performer's own accent reads the meter's
+ * pulses, so velocities in the meters the radio walks into that have a pulse of three move (6444f418 at v1); the held
+ * presets play 4/4 and don't.
+ */
+const MAIN = { held: [15061, '98f62766'], walked: [13019, '563952d0'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
   it('over the 8 presets held, 2 seeds of 32 bars: 15,061 events, each to 1e-9 s', () => {

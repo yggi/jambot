@@ -32,7 +32,7 @@
  * prototype's accents and gates.
  *
  * This hand is the family's feel contract (yggi/music-commons
- * `contracts/feel`, version 1), whose rule cells' default performer plays
+ * `contracts/feel`, version 2), whose rule cells' default performer plays
  * (`played`, yggi/cells v0.15.0), lifted from here. A note a cells text
  * states is played by cells' (`performCells`, `@jambot/score`, #552), and
  * `packages/score/src/perform.test.ts` holds that the two play every note
@@ -44,6 +44,7 @@
  * (m), not this file's to decide.
  */
 
+import { meterOnSteps } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { type DoughNote, PARTS, type Part, type WrittenNote } from './events.ts';
 import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
@@ -98,17 +99,19 @@ function lengthLooseness(
 
 /** How far a ghost note on an off-beat 16th may fall, at feel 1. */
 const GHOST_DEPTH = 14;
-/** How far a push on the off-beat 8th may rise, at feel 1. */
+/** How far a push on an eighth that starts no pulse may rise, at feel 1. */
 const PUSH_HEIGHT = 10;
-/** How far a note on the beat may lean either way, at feel 1. */
+/** How far a note on a pulse's start may lean either way, at feel 1. */
 const BEAT_LEAN = 4;
 
 /**
  * The performer's own accent on a note (#170): a velocity delta drawn from
  * its bar and step, in the direction a player leans by feel: a ghost note
- * softer on an off-beat 16th, a push louder on the off-beat 8th, a slight
- * lean either way on the beat. Its width is the feel's, so it is exactly 0
- * at feel 0. Keyed like the licence (a drum adds its note, a pitched part
+ * softer on an off-beat 16th, a push louder on an eighth that starts no
+ * pulse, a slight lean either way on a pulse's start. The pulses are the
+ * meter's (`starts`, feel v2, yggi/music-commons#45), so in a meter of 2s
+ * the push is on the off-beat 8th, as feel v1 read every meter. Its width
+ * is the feel's, so it is exactly 0 at feel 0. Keyed like the licence (a drum adds its note, a pitched part
  * never does, S2, S3), and added on top of the base and any written accent
  * (T18), so a written accent is never lost. The base's own beat reading
  * (`roleAccent`, `dynamics.ts`) stays the base's.
@@ -117,13 +120,14 @@ function ownAccent(
   seed: number,
   part: WrittenNote['part'],
   feel: number,
+  starts: readonly number[],
   bar: number,
   step: number,
   ...rest: readonly number[]
 ): number {
   const d = draw(seed, 'ownAccent', PARTS.indexOf(part), bar, step, ...rest);
   if (step % 2 === 1) return -d * GHOST_DEPTH * feel;
-  if (step % 4 === 2) return d * PUSH_HEIGHT * feel;
+  if (!starts.includes(step)) return d * PUSH_HEIGHT * feel;
   return (d - 0.5) * 2 * BEAT_LEAN * feel;
 }
 
@@ -179,16 +183,17 @@ function velocityOn(
   feel: number,
 ): number {
   const { seed, bar } = env;
+  const starts = meterOnSteps(env.meter).heights;
   if (part === 'drums')
     return clampVelocity(
       level +
         velocityLooseness(seed, 'drumVelocity', feel, bar, step, note) +
-        ownAccent(seed, 'drums', feel, bar, step, note),
+        ownAccent(seed, 'drums', feel, starts, bar, step, note),
     );
   return clampVelocity(
     level +
       (velocityLooseness(seed, VELOCITY_STREAM[part], feel, bar, step) +
-        ownAccent(seed, part, feel, bar, step)),
+        ownAccent(seed, part, feel, starts, bar, step)),
   );
 }
 

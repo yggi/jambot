@@ -1,7 +1,7 @@
 /**
  * Cells' events as the performer plays them (#552): cells' default performer
  * (`played`, yggi/cells v0.15.0, decision 063 rung 3), the family's feel
- * contract's rule (yggi/music-commons `contracts/feel`, version 1), on each
+ * contract's rule (yggi/music-commons `contracts/feel`, version 2), on each
  * event cells plays in a bar, at the contract's widths.
  *
  * Cells sounds the written layer at feel 0, and the feel goes on top of each

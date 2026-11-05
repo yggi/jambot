@@ -1,6 +1,6 @@
 /**
- * The family's feel contract (yggi/music-commons `contracts/feel`, version 1,
- * minor 1), its copy the engine's (`packages/engine/fixtures/contracts/feel.json`)
+ * The family's feel contract (yggi/music-commons `contracts/feel`, version 2),
+ * its copy the engine's (`packages/engine/fixtures/contracts/feel.json`)
  * with a first field, `lifted`, naming the hub and the commit it came from;
  * the hub's own `lifted`, what it lifted from this repository, is kept in the
  * copy as `hubLifted`, its one change.
