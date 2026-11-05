@@ -26,13 +26,14 @@ How the repository is built, gated, deployed and licensed.
   Nightly on `main` both run, and so do the radio and the session soaks (`soak`, 30 minutes each, on a served build), their readouts kept as the run's artifacts; the session soak fails where its bound breaks (#462).
   By hand (Actions → CI → Run workflow, or `actions_run_trigger` on `ci.yml`) any branch gets `check` and `e2e`, and the soaks with `soak` ticked; runs by hand are never cancelled, so several on one branch give a pass rate.
   The review-pr skill reuses CI's `check` and `e2e` on a head they passed rather than run them a third time; it runs them itself only where CI hasn't passed that commit.
+  A pull request that changes `*.md` files alone, as the pre-push hook reads it, runs `pnpm verify --docs` in `check` and skips `e2e`'s steps, both jobs still named and green, so the review's reuse holds for it.
   `git fetch origin pull/<n>/head` works through the session proxy.
   No check is required to merge.
 - While Actions is blocked, a run fails within seconds, with no runner and no step: a red or missing `check` then says nothing about the code.
   `node tools/measure/actions.mjs --status yggi/jambot`, in music-commons, tells a blocked repository from one where Actions runs.
   The evidence is the verified commit the pull request names; when minutes are back, one run of a blocked check on a pull request still open is enough.
   Pages is deployed by a merge (below), and the lobby by the `lobby-deploy` skill.
-- GitHub Pages is deployed by each merge into `main` (`AGENTS.md`): the push runs `.github/workflows/deploy.yml`, one at a time and never cancelled, which runs `pnpm pages deploy` there (by hand too, Actions → Deploy → Run workflow, and from a clone when Actions is blocked). `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
+- GitHub Pages is deployed by each merge into `main` (`AGENTS.md`) but one of `*.md` files alone, which changes nothing the site serves (`paths-ignore`): the push runs `.github/workflows/deploy.yml`, one at a time and never cancelled, which runs `pnpm pages deploy` there (by hand too, Actions → Deploy → Run workflow, and from a clone when Actions is blocked). `pnpm pages deploy` (`tooling/pages.ts`) runs `pnpm verify`, builds `main` for the sub-path `/jambot/` into `apps/web/dist-pages`, checks that every file the site references resolves there and that nothing is fetched from outside it, commits the build to the `gh-pages` branch and pushes it.
   It then waits for the live site to serve that build and checks it again.
   Pages publishes the branch as it is: the repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
   `pnpm pages build` and `pnpm pages serve` show the site on `http://localhost:4318/jambot/` first, served as Pages serves it (404 for what isn't a file, where `vite preview` would answer with the app).

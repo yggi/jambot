@@ -30,6 +30,7 @@ Do the steps in order and stop at the first that fails.
    The merge's push to `main` starts _Deploy_ on Actions: `pnpm pages deploy` there, which runs `pnpm verify`, pushes `gh-pages` if the build changed, and checks the live site at <https://yggi.github.io/jambot/> once Pages serves it.
    Wait for that run (on the merge commit) to end, green.
    Only when Actions is blocked (a run that fails in seconds with no step), run `pnpm pages deploy` from `main` in a clone instead.
+   A merge of `*.md` files alone starts no deploy (`deploy.yml`'s `paths-ignore`: it changes nothing the site serves), so there is nothing to watch: step 6 says so.
 6. **Say so.**
    A comment on the pull request with the deploy's run and its last lines, and what step 4 closed, ticked and filed.
 

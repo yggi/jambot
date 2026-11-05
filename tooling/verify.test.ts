@@ -140,7 +140,11 @@ describe('the tree verify passed', () => {
   });
 
   function git(dir: string, ...args: string[]) {
-    const run = spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8' });
+    // (without the user's global config: a session signs every commit through it, slow under verify's load, #493)
+    const run = spawnSync('git', ['-C', dir, ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null' },
+    });
     if (run.status !== 0) throw new Error(run.stderr);
     return run.stdout.trim();
   }

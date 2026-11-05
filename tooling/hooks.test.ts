@@ -22,8 +22,11 @@ afterEach(() => {
   for (const dir of repos.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
+// Without the user's global config: a session signs every commit through it, slow under verify's load (#493).
+const env: NodeJS.ProcessEnv = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null' };
+
 function git(dir: string, ...args: string[]) {
-  const run = spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8' });
+  const run = spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8', env });
   if (run.status !== 0) throw new Error(run.stderr);
   return run.stdout.trim();
 }
@@ -70,7 +73,7 @@ function hook(
     cwd: dir,
     input: `refs/heads/work ${local} ${remote} ${zero}\n`,
     env: {
-      ...process.env,
+      ...env,
       JAMBOT_VERIFY: checks.verify ?? 'true',
       JAMBOT_VERIFY_DOCS: checks.docs ?? 'true',
     },
@@ -272,7 +275,7 @@ describe('pre-push', () => {
       cwd: dir,
       input: `refs/heads/work ${head} refs/heads/work ${zero}\n`,
       env: {
-        ...process.env,
+        ...env,
         GIT_DIR: join(dir, '.git'),
         JAMBOT_VERIFY: 'test -z "$GIT_DIR" || { echo GIT_DIR leaked; exit 1; }',
       },
@@ -401,7 +404,7 @@ describe('session-start', () => {
     const run = spawnSync('sh', [`${root}/.claude/hooks/session-start.sh`], {
       cwd: dir,
       env: {
-        ...process.env,
+        ...env,
         ...env,
         CLAUDE_PROJECT_DIR: dir,
         PATH: `${bin}:${process.env.PATH}`,

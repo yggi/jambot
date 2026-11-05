@@ -8,6 +8,8 @@ name: CI
 # - by hand (Actions -> CI -> Run workflow, or `actions_run_trigger` on `ci.yml`, on any branch): `check` and `e2e`,
 #   and the soaks with `soak` ticked.
 # The review-pr skill reuses `check` and `e2e` on a head they passed rather than run them again.
+# A pull request that changes `*.md` files alone, the pre-push hook's own test, runs `pnpm verify --docs` in `check` and
+# nothing in `e2e`, each job still named and green, so the review's reuse holds for it.
 # GitHub Pages is deployed by deploy.yml on a merge into main (`pnpm pages deploy`, `tooling/pages.ts`), not from here.
 on:
   pull_request:
@@ -44,13 +46,23 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - id: scope
+        # (`docs` when the pull request differs from its base in `*.md` files alone, as .githooks/pre-push reads it)
+        run: |
+          scope=code
+          if [ '${{ github.event_name }}' = pull_request ]; then
+            changed=$(git diff --name-only 'origin/${{ github.base_ref }}...HEAD') || changed=
+            [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$' && scope=docs
+          fi
+          echo "scope=$scope" >>"$GITHUB_OUTPUT"
+          echo "scope: $scope" >>"$GITHUB_STEP_SUMMARY"
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm verify
+      - run: pnpm verify ${{ steps.scope.outputs.scope == 'docs' && '--docs' || '' }}
 
   e2e:
     if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
@@ -59,14 +71,31 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+        with:
+          fetch-depth: 0
+      - id: scope
+        # (`docs` when the pull request differs from its base in `*.md` files alone, as .githooks/pre-push reads it)
+        run: |
+          scope=code
+          if [ '${{ github.event_name }}' = pull_request ]; then
+            changed=$(git diff --name-only 'origin/${{ github.base_ref }}...HEAD') || changed=
+            [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$' && scope=docs
+          fi
+          echo "scope=$scope" >>"$GITHUB_OUTPUT"
+          echo "scope: $scope" >>"$GITHUB_STEP_SUMMARY"
+      - if: steps.scope.outputs.scope != 'docs'
+        uses: pnpm/action-setup@v4
+      - if: steps.scope.outputs.scope != 'docs'
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @jambot/web exec playwright install --with-deps chromium
-      - run: pnpm e2e
+      - if: steps.scope.outputs.scope != 'docs'
+        run: pnpm install --frozen-lockfile
+      - if: steps.scope.outputs.scope != 'docs'
+        run: pnpm --filter @jambot/web exec playwright install --with-deps chromium
+      - if: steps.scope.outputs.scope != 'docs'
+        run: pnpm e2e
 
   soak:
     if: github.event_name == 'schedule' || inputs.soak
