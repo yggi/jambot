@@ -41,6 +41,20 @@ describe.each(estimators)('%s', (name, estimate) => {
         }
   });
 
+  it('does not care about a DC offset as large as twice the sound, at 110, 440 and 1760 Hz', () => {
+    // McLeod's bound is its clean sine's worst over these notes (0.11 cents), YIN's its own.
+    const bound = name === 'mpm' ? 0.11 : bounds.yin.sine;
+    for (const hz of [110, 440, 1760])
+      for (const offset of [0, 0.5, 1, 2]) {
+        const frame = sine(hz, FRAME, 48000).map((x) => x + offset);
+        const found = estimate(frame, 48000);
+        expect(found, `${hz} Hz, offset ${offset}`).toBeDefined();
+        expect(Math.abs(centsBetween(found!.hz, hz)), `${hz} Hz, offset ${offset}`).toBeLessThan(
+          bound,
+        );
+      }
+  });
+
   it('does not care how loud the sound is', () => {
     for (const amplitude of [0.001, 0.05, 1])
       expect(estimate(sine(220, FRAME, 48000, { amplitude }), 48000)!.hz).toBeCloseTo(220, 0);

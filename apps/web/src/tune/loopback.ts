@@ -7,7 +7,7 @@
  * sound corrected toward a scale is heard at the note it was moved to (#298).
  */
 
-import { listenThrough, type InputDevice, type Mic, type MicSource, type Tap } from './mic.ts';
+import { listenThrough, type InputDevice, type Mic, type MicSource, type Monitor } from './mic.ts';
 
 /** The input id that is this device's synth. */
 export const SYNTH_INPUT = 'synth';
@@ -20,7 +20,7 @@ interface Inside {
   /** What the input calls itself once open. */
   label: string;
   /** Where the sound can be taken from, or undefined where there is none to take. */
-  tap: () => Tap | undefined;
+  monitor: () => Monitor | undefined;
   /** What to tell the person when there is none. */
   missing: string;
 }
@@ -34,13 +34,13 @@ function withInside(mic: MicSource, inside: Inside): MicSource {
   return {
     async open(deviceId): Promise<Mic> {
       if (deviceId !== inside.device.id) return mic.open(deviceId);
-      const tap = inside.tap();
-      if (!tap) throw new Error(inside.missing);
-      const analyser = tap.context.createAnalyser();
-      tap.node.connect(analyser);
-      await tap.context.resume();
-      return listenThrough(analyser, tap.context.sampleRate, inside.label, () =>
-        tap.node.disconnect(analyser),
+      const monitor = inside.monitor();
+      if (!monitor) throw new Error(inside.missing);
+      const analyser = monitor.context.createAnalyser();
+      monitor.node.connect(analyser);
+      await monitor.context.resume();
+      return listenThrough(analyser, monitor.context.sampleRate, inside.label, () =>
+        monitor.node.disconnect(analyser),
       );
     },
     async devices() {
@@ -50,21 +50,21 @@ function withInside(mic: MicSource, inside: Inside): MicSource {
 }
 
 /** The inputs of `mic`, and the synth as one more. */
-export function withSynth(mic: MicSource, tap: () => Tap | undefined): MicSource {
+export function withSynth(mic: MicSource, monitor: () => Monitor | undefined): MicSource {
   return withInside(mic, {
     device: { id: SYNTH_INPUT, label: 'This device’s synth (what it plays)' },
     label: 'This device’s synth',
-    tap,
+    monitor,
     missing: 'the synth has nothing to listen to',
   });
 }
 
 /** The inputs of `mic`, and the corrected sound as one more, there once a correction runs. */
-export function withCorrected(mic: MicSource, tap: () => Tap | undefined): MicSource {
+export function withCorrected(mic: MicSource, monitor: () => Monitor | undefined): MicSource {
   return withInside(mic, {
     device: { id: CORRECTED_INPUT, label: 'The corrected sound (from the correction below)' },
     label: 'The corrected sound',
-    tap,
+    monitor,
     missing: 'nothing is being corrected yet: start the correction first',
   });
 }

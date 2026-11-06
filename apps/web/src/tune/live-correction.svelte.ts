@@ -10,7 +10,7 @@
  * which reads it whether it is heard or not.
  */
 
-import { type InputDevice, type Tap, MicDenied, type Mic, type MicSource } from './mic.ts';
+import { type InputDevice, type Monitor, MicDenied, type Mic, type MicSource } from './mic.ts';
 import { nearestNote } from '@jambot/spectrum';
 import { assess, probeSignal } from './measure.ts';
 import { pitchClassesOf } from './scales.ts';
@@ -93,7 +93,7 @@ export class LiveCorrection {
   #mic: Mic | null = null;
   #node: AudioWorkletNode | null = null;
   #gain: GainNode | null = null;
-  #tap: Tap | undefined;
+  #monitor: Monitor | undefined;
   #run = 0;
 
   constructor(deps: CorrectionDeps) {
@@ -158,7 +158,7 @@ export class LiveCorrection {
       this.#mic = mic;
       this.#node = node;
       this.#gain = gain;
-      this.#tap = { context, node };
+      this.#monitor = { context, node };
       this.status = 'running';
       this.apply();
     } catch (error) {
@@ -196,7 +196,7 @@ export class LiveCorrection {
     }
     this.#gain?.disconnect();
     const capacity = (
-      this.#tap?.context as unknown as { renderCapacity?: RenderCapacity } | undefined
+      this.#monitor?.context as unknown as { renderCapacity?: RenderCapacity } | undefined
     )?.renderCapacity;
     if (capacity) {
       capacity.stop();
@@ -206,7 +206,7 @@ export class LiveCorrection {
     this.#mic = null;
     this.#node = null;
     this.#gain = null;
-    this.#tap = undefined;
+    this.#monitor = undefined;
     this.status = 'off';
     this.heard = null;
     this.offsetCents = 0;
@@ -281,8 +281,8 @@ export class LiveCorrection {
   }
 
   /** The corrected sound as a place to take it from, while it runs. */
-  outputTap(): Tap | undefined {
-    return this.status === 'running' ? this.#tap : undefined;
+  outputMonitor(): Monitor | undefined {
+    return this.status === 'running' ? this.#monitor : undefined;
   }
 }
 
