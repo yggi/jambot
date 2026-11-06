@@ -6,14 +6,18 @@ import { describe, expect, it } from 'vitest';
 import { keyHelix } from './key.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
+import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
+import { bodyOf } from '@yggi/cells/engine/use';
 import {
   LEAD_FORM,
   LEAD_REPOSITORY,
-  LEAD_VOICE,
   MOTIF_LEADS,
+  RETIRED_LEAD_VOICE,
   keyedLine,
+  leadAlone,
   leadRepository,
   leadText,
+  leadsAlone,
   phraseOf,
   readLead,
 } from './lead-lines.ts';
@@ -39,10 +43,17 @@ const spread = (steps: number, first: number): LeadNote[] =>
     alter: i % 3 === 2 ? 1 : 0,
   }));
 
-/** What cells plays of a lead line in a key, over a bar: each note's step and pitch class. */
+/** Cells' lead instrument (`&leadV`) and a card on Jambot's lead channel: what a line alone plays on (#580). */
+const LEAD_INSTRUMENT = [
+  bodyOf(INSTRUMENT_FRAGMENTS.find((f) => f.id === 'lead')!.text),
+  '&leadOut map=midi(1) [&lead * &leadV]',
+].join('\n');
+
+/** What cells plays of a lead line in a key, on cells' lead instrument, over a bar: each note's step and pitch class. */
 function cellsPlays(text: string, name: MeterName, key: string): string[] {
   const meter = METERS[name];
-  const source = unionOf(text, `&bar meter("${name}") step=120bpm\n&key scale(${key})`).text;
+  const bench = `&bar meter("${name}") step=120bpm\n&key scale(${key})\n${LEAD_INSTRUMENT}`;
+  const source = unionOf(text, bench).text;
   const plan = planOf(source);
   const route = router(plan.result, channelTable(plan.result));
   const step = stepSeconds(120, meter);
@@ -64,16 +75,22 @@ describe('a lead line as cells text, and read back (#424)', () => {
     }
   });
 
-  it('writes the coarsest grid its notes fall on, an accidental as cells spells one, and the lead’s voice', () => {
-    expect(leadText(BENT, 16)).toBe(
-      ['&lead over=&key step=16n 0 ~ ~ 2 ~ ~ -1 ~ 4b ~ ~ ~ ~ ~ ~ ~', ...LEAD_VOICE].join('\n'),
-    );
+  it('writes the line alone, on the coarsest grid its notes fall on, an accidental as cells spells one: no voice, no card (#580)', () => {
+    expect(leadText(BENT, 16)).toBe('&lead over=&key step=16n 0 ~ ~ 2 ~ ~ -1 ~ 4b ~ ~ ~ ~ ~ ~ ~');
     expect(leadText(PLAIN.filter((n) => n.step % 4 === 0 || n.step === 6).slice(0, 1), 16)).toBe(
-      ['&lead over=&key step=1m 0', ...LEAD_VOICE].join('\n'),
+      '&lead over=&key step=1m 0',
     );
   });
 
-  it('plays in cells what the lead plays of it: each note the key’s degree from the tonic, altered', () => {
+  it('reads a line filed with the voice and card it carried before #580 as the line alone', () => {
+    const line = leadText(BENT, 16);
+    const before = [line, ...RETIRED_LEAD_VOICE].join('\n');
+    expect(leadAlone(before)).toBe(line);
+    expect(leadAlone(line)).toBe(line);
+    expect(readLead(before, METERS['4/4'])).toEqual(readLead(line, METERS['4/4']));
+  });
+
+  it('plays in cells, on cells’ lead instrument, what the lead plays of it: each note the key’s degree from the tonic, altered', () => {
     const key = { tonic: 2, mode: 'dorian' as const };
     for (const name of ['4/4', '6/8', '7/8'] as MeterName[]) {
       const steps = stepsOf(METERS[name]);
@@ -137,10 +154,7 @@ describe('the lead’s repository (#424)', () => {
 
   it('reads a motif as a lead line on its own degrees of the key: the Dies irae from the third, a step down, back, a third down, a step up, a third down and a step up, held; in 5/4 a rest after it (#520, #529)', () => {
     const lead = MOTIF_LEADS.find((f) => f.id === 'diesIrae')!;
-    expect(lead.text.split('\n')).toEqual([
-      '&lead over=&key step=8n 2 1 2 0 1 -1 0@2',
-      ...LEAD_VOICE,
-    ]);
+    expect(lead.text).toBe('&lead over=&key step=8n 2 1 2 0 1 -1 0@2');
     expect(lead.association.map((p) => p.facet)).toEqual(['lead']);
     const line = [
       [0, 2],
@@ -193,6 +207,32 @@ describe('the lead’s repository (#424)', () => {
     const twice = repository.file!(once.layer, { ...FILING, source: 'Bo' });
     expect(twice).toMatchObject({ id: once.id, held: true });
     expect(twice.layer.filed.length).toBe(1);
+  });
+
+  it('files a line again as the one a layer kept before #580 holds with the lead’s voice, once the layer is read alone (`leadsAlone`)', () => {
+    const repository = leadRepository();
+    const once = repository.file!(EMPTY_LAYER, FILING);
+    const file = once.layer.filed[0]!;
+    const kept: LearnedLayer = {
+      ...once.layer,
+      filed: [
+        {
+          ...file,
+          fragment: {
+            ...file.fragment,
+            text: [file.fragment.text, ...RETIRED_LEAD_VOICE].join('\n'),
+          },
+        },
+      ],
+    };
+    const alone = leadsAlone(kept);
+    expect(alone.filed[0]!.fragment.text).toBe(file.fragment.text);
+    expect(repository.file!(alone, { ...FILING, source: 'Bo' })).toMatchObject({
+      id: once.id,
+      held: true,
+    });
+    // (a layer with nothing to drop is the same layer)
+    expect(leadsAlone(once.layer)).toBe(once.layer);
   });
 
   it('varies a line by lift, turn over, a bend of its last note and its drop, and a bent one too, its accidental mirrored with its note', () => {

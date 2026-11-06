@@ -44,7 +44,7 @@ import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
-import { MOTIF_LEADS } from './lead-lines.ts';
+import { MOTIF_LEADS, leadsAlone } from './lead-lines.ts';
 import {
   MISS_DISTANCE,
   type MeterFragment,
@@ -189,12 +189,13 @@ export const SEED_FRAGMENTS: readonly Fragment[] = [
  * refuses.
  */
 /**
- * A learned layer kept before cells v0.16.0, its seed ids written as the words
- * they are now (cells' `renamedLayer`, yggi/cells#443): read so on load, a
- * band keeps the points and pairs it learned, which would otherwise be left
- * out as unheld (#558).
+ * A learned layer as a band reads it on load, whenever it was kept:
+ * - its seed ids written as the words they are now (cells' `renamedLayer`, yggi/cells#443), for one kept before cells
+ *   v0.16.0, so a band keeps the points and pairs it learned, which would otherwise be left out as unheld (#558);
+ * - its lead lines without the voice and card they carried before #580 (`leadsAlone`), so a line heard again is
+ *   known as the one filed.
  */
-export const layerInWords = (layer: LearnedLayer): LearnedLayer => renamedLayer(layer);
+export const keptLayer = (layer: LearnedLayer): LearnedLayer => leadsAlone(renamedLayer(layer));
 
 export function repositoryLayerProblems(layer: unknown): string[] {
   if (typeof layer !== 'object' || layer === null || Array.isArray(layer))

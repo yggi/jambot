@@ -17,10 +17,14 @@
  * note off the key with its accidental (`3b`, cells decision 015). What it
  * says is where each note starts and what it is; the lead holds each to the
  * next, as it plays every motif, so a line keeps no lengths and no rests
- * inside it. Its voice and card are `LEAD_VOICE`, this module's one place
- * for them. A line is read on a workbench of the meter and a key that
- * nothing reads but its hole (`leadBench`): any key serves, since what is
- * read is a degree, not a pitch.
+ * inside it. A line is the line alone, as cells writes a motif (yggi/cells#291)
+ * and the Muse files a bass line: no voice and no card, since what it sounds
+ * on is an instrument, cells' `lead` fragment (`instruments.ts`), and where
+ * its notes go is the performer's (#580, rung 1). A line filed before then
+ * carried the lead's voice and card (`RETIRED_LEAD_VOICE`), which a kept
+ * layer drops on load (`leadsAlone`). A line is read on a workbench of the
+ * meter and a key that nothing reads but its hole (`leadBench`): any key
+ * serves, since what is read is a degree, not a pitch.
  *
  * A line is varied by cells' vary (yggi/cells decision 052, rung 2) with
  * the lead's own four variations, each one of cells' operators: lift, every
@@ -50,13 +54,35 @@ import type { LearnedLayer } from './layer.ts';
 import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';
 
 /**
- * Where a filed lead line's voice and card come from: the lead's voice, its register's floor the lead moves from
- * (`C4`, the bottom of `LEAD_RANGE`), and its card on Jambot's lead channel, 1. The one place this module states them.
+ * The lead's voice and card a filed lead line carried before #580 (rung 1): its register's floor (`C4`) and its card
+ * on Jambot's lead channel, 1. A line no longer carries them, its instrument a fragment of cells' (`lead`); a layer kept
+ * before reads without them (`leadsAlone`).
  */
-export const LEAD_VOICE: readonly string[] = [
+export const RETIRED_LEAD_VOICE: readonly string[] = [
   '&leadV loop=C4',
   '&leadOut map=midi(1) [&lead * &leadV]',
 ];
+
+/** A lead line's text without the voice and card it carried before #580 (`RETIRED_LEAD_VOICE`); any other text as it is. */
+export function leadAlone(text: string): string {
+  const lines = text.split('\n');
+  const kept = lines.filter((line) => !RETIRED_LEAD_VOICE.includes(line.trim()));
+  return kept.length === lines.length ? text : kept.join('\n');
+}
+
+/**
+ * A kept layer's lead lines without the voice and card they carried before #580 (`leadAlone`), so a line heard again
+ * is known by its text (cells' `fileFragment` finds a held one by its text) and filed once. A layer with none is
+ * returned as it is.
+ */
+export function leadsAlone(layer: LearnedLayer): LearnedLayer {
+  const alone = (file: LearnedLayer['filed'][number]) => {
+    const text = leadAlone(file.fragment.text);
+    return text === file.fragment.text ? file : { ...file, fragment: { ...file.fragment, text } };
+  };
+  const filed = layer.filed.map(alone);
+  return filed.every((file, i) => file === layer.filed[i]) ? layer : { ...layer, filed };
+}
 
 /** The operators the composer varies a lead line by: lift (`transpose` by 2), turn over (`invert`), bend the last note (`bend`) and drop it (`trim`). */
 export const LEAD_OPERATORS: readonly Operator[] = ['transpose', 'invert', 'bend', 'trim'];
@@ -75,8 +101,8 @@ const tokenOf = ({ degree, alter }: LeadNote): string =>
 /**
  * A bar's lead line as cells text, open on its meter and its key (no `&bar`,
  * no key): its notes as degrees of the key on the coarsest grid they fall
- * on, and `LEAD_VOICE`. It reads back as the notes it was stated from
- * (`readLead`, the round trip).
+ * on, and nothing else, no voice and no card (#580). It reads back as the
+ * notes it was stated from (`readLead`, the round trip).
  */
 export function leadText(notes: readonly LeadNote[], steps: number): string {
   const sorted = [...notes].sort((a, b) => a.step - b.step);
@@ -88,7 +114,7 @@ export function leadText(notes: readonly LeadNote[], steps: number): string {
     const here = sorted.find((n) => n.step === i * grid.length);
     return here ? tokenOf(here) : '~';
   });
-  return [`&lead over=&key step=${grid.tap} ${tokens.join(' ')}`, ...LEAD_VOICE].join('\n');
+  return `&lead over=&key step=${grid.tap} ${tokens.join(' ')}`;
 }
 
 /**
@@ -152,15 +178,15 @@ function paddedLead(
 export const MOTIF_FACET = 'motif';
 
 /**
- * A motif of cells' as a lead line (#520): its head (`&<id>`) renamed `&lead`, the lead's voice beside it
- * (`LEAD_VOICE`), and its association moved from the facet `motif` to `lead`, at the same points and weights. It keeps
+ * A motif of cells' as a lead line (#520): its head (`&<id>`) renamed `&lead`, with no voice beside it, as the Muse
+ * files a line (#580), and its association moved from the facet `motif` to `lead`, at the same points and weights. It keeps
  * its degrees of the key as written (#529: `&diesIrae`'s `2 1 2 0 …` starts on the third), since a motif written in
  * cells sets its place in the key, and the lead plays it from there (`keyed`, `lead.ts`).
  */
 export function motifLead(motif: Fragment): Fragment {
   const head = new RegExp(`^&${motif.id}(?=\\s)`, 'm');
   // (its body: a template's signature line, `&hook from &key`, says what it takes, which the lead's bench gives)
-  const text = [bodyOf(motif.text).replace(head, '&lead'), ...LEAD_VOICE].join('\n');
+  const text = bodyOf(motif.text).replace(head, '&lead');
   return {
     ...motif,
     text,
