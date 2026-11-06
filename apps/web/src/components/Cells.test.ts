@@ -1,4 +1,4 @@
-import { DRUMMER, EMPTY_LAYER, type LearnedLayer } from '@jambot/engine';
+import { COMPOSER, DRUMMER, EMPTY_LAYER, type LearnedLayer } from '@jambot/engine';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import Cells from './Cells.svelte';
@@ -71,6 +71,34 @@ describe('the cells card', () => {
     await fireEvent.click(screen.getByRole('radio', { name: 'Muse' }));
     expect(screen.queryByRole('table')).toBeNull();
     expect(screen.getByText('None of these yet.')).toBeInTheDocument();
+  });
+
+  it('says what a variation varies and how (#454), and what alone where its filing says nothing of how', async () => {
+    const variation = (id: string, by?: string): LearnedLayer['filed'][number] => ({
+      fragment: { id, text: '&kick step=16n &bd ~ ~ ~', association: [] },
+      meta: {
+        source: COMPOSER,
+        created: 'song 1, bar 16',
+        tags: [],
+        varies: 'drummer song 1, bar 8',
+        ...(by === undefined ? {} : { by }),
+      },
+      prose: '',
+    });
+    const varied = {
+      ...layer,
+      filed: [
+        ...layer.filed,
+        variation('composer song 1, bar 16', 'drop &hat 6'),
+        variation('composer song 1, bar 24'),
+      ],
+    };
+    render(Cells, props({ layer: varied }));
+    const line = () => screen.getByText('Varies').closest('p')!;
+    await fireEvent.click(screen.getByRole('button', { name: 'composer song 1, bar 16' }));
+    expect(line()).toHaveTextContent(/^Varies\s*drummer song 1, bar 8 by drop &hat 6$/);
+    await fireEvent.click(screen.getByRole('button', { name: 'composer song 1, bar 24' }));
+    expect(line()).toHaveTextContent(/^Varies\s*drummer song 1, bar 8$/);
   });
 
   it('opens a row picked: its text, its point, its tags; a second pick closes it', async () => {

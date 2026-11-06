@@ -9,7 +9,7 @@
  * - **Filed**: what the learned layer filed (#401, #411, #423, #424, #425):
  *   the drummer's grooves, the bass's lines and the lead's, the composer's
  *   variations and the players' grooves, lines and progressions, each with
- *   its text, the point it was filed at, its tags and what it varies. Only a
+ *   its text, the point it was filed at, its tags and what it varies, and how. Only a
  *   host or a band alone keeps a layer.
  * - **Muse**: what she collected: the players' grooves she filed, and the
  *   motifs she remembers, which are not cells fragments yet (#309) and take a
@@ -81,6 +81,8 @@ export interface FragmentRow {
   readonly tags: readonly string[];
   /** The fragment it varies, where the composer varied one (#411). */
   readonly varies: string | null;
+  /** How it varies that one, as cells' vary names it (`drop &hat 6`, #442); null where its filing says nothing of how. */
+  readonly by: string | null;
   /** What it was used together with, and how often, the most first (cells decision 046). */
   readonly together: readonly { readonly id: string; readonly count: number }[];
   /** A motif's weight in her memory, 0 to 1; null for a fragment. */
@@ -216,6 +218,7 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
       point: pointOf(fragment, took?.role === 'meter' ? 'meter' : facet),
       tags: strings(file?.meta.tags),
       varies: typeof file?.meta.varies === 'string' ? file.meta.varies : null,
+      by: typeof file?.meta.by === 'string' ? file.meta.by : null,
       together: togetherOf(layer, id),
       strength: null,
     };
@@ -247,6 +250,7 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
       point: [],
       tags: [],
       varies: null,
+      by: null,
       together: [],
       strength: m.strength,
     }));
