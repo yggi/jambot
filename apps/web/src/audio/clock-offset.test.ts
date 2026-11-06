@@ -3,11 +3,11 @@
  * The clock offset the app reads, webmidi's (`clockOffset`,
  * `@yggi/webmidi/core`), under every fault of the clocks of a device
  * `@jambot/session` simulates (#27). Its unit tests are webmidi's
- * (`src/core/clock.test.ts`); how it compares with the estimate Jambot had
- * before is `output-estimate.test.ts`.
+ * (`src/core/clock.test.ts`). The timing panel shows its own estimate
+ * (`estimate`): the offset, the bound it trusts and the jumps it followed.
  */
 import { type DeviceFaults, simulatedDevice } from '@jambot/session';
-import { OUTPUT, PAIRED_AFTER, clockOffset } from '@yggi/webmidi/core';
+import { OUTPUT, type OutputClock, PAIRED_AFTER, clockOffset } from '@yggi/webmidi/core';
 import { describe, expect, it } from 'vitest';
 
 /** A buffer of 512 frames at 48 kHz, and Chromium's render quantum there. */
@@ -171,5 +171,97 @@ describe('the moment heard, under every fault of its clocks (#27)', () => {
       if (Math.abs(t - 1 - PAIRED_AFTER) > 0.06)
         expect(offset.heardOffset() === null).toBe(t < 1 + PAIRED_AFTER);
     }
+  });
+});
+
+/** A clock whose pairing reads `offsets[i]` at reading `i`, a tick (25 ms) apart, and its offset, updated at each. */
+function overReadings(offsets: readonly number[]) {
+  let i = 0;
+  const clock: OutputClock = {
+    get currentTime() {
+      return 1 + i * 0.025;
+    },
+    outputTimestamp: () => ({
+      contextTime: 1 + i * 0.025,
+      performanceTime: (1 + i * 0.025 - offsets[i]!) * 1000,
+    }),
+  };
+  const offset = clockOffset(clock, () => 0);
+  for (i = 0; i < offsets.length; i++) offset.update();
+  return offset.estimate;
+}
+
+/** A seeded random in [0, 1): the same offsets every run. */
+function seeded(seed: number) {
+  let state = seed;
+  return () => {
+    state = (state * 1103515245 + 12345) % 2 ** 31;
+    return state / 2 ** 31;
+  };
+}
+
+describe("the output pair's estimate the timing panel shows (#27): webmidi's own", () => {
+  it('counts every restart on a pairing that blips, one smaller than the slew among them: 54 over 5 seeds', () => {
+    // 2,000 readings of a pairing that jitters by up to 0.4 ms, blips by up to 4 ms on one reading in twenty,
+    // drifts by 100 ppm, and jumps every 200 readings by 5 ms up to just inside the leap, either way.
+    const widest = OUTPUT.leap - 0.004 - 0.0008 - 2 * OUTPUT.paired;
+    const jumps = [1, 2, 3, 4, 5].map((seed) => {
+      const random = seeded(seed);
+      let base = 0.7;
+      const offsets = Array.from({ length: 2000 }, (_, i) => {
+        if (i > 0 && i % 200 === 0)
+          base += (random() < 0.5 ? -1 : 1) * (0.005 + random() * (widest - 0.005));
+        const blip = random() < 0.05 ? (random() * 2 - 1) * 0.004 : 0;
+        return base + i * 0.025 * 1e-4 + (random() * 2 - 1) * 0.0004 + blip;
+      });
+      return overReadings(offsets).jumps;
+    });
+    // The 9 jumps of each, and restarts on the blips: seed 5's at reading 683 moves the offset by 0.16 ms, under the slew.
+    expect(jumps).toEqual([11, 11, 9, 12, 11]);
+    expect(jumps.reduce((a, b) => a + b)).toBe(54);
+  });
+
+  it('counts each dropped buffer as a jump followed, with the bound of the pairing or the clock', () => {
+    for (const paired of [true, false]) {
+      const drops = Array.from({ length: 6 }, (_, i) => ({ at: 2 + i * 1.7, lost: BUFFER }));
+      const d = simulatedDevice({ latency: 0.03, pageOrigin: -12, seed: 3, drops });
+      let t = 0;
+      const { clock, now } = d.view(() => t, { paired });
+      const offset = clockOffset(clock, now);
+      for (t = 0.3; t < 12; t += 0.025) offset.update();
+      expect(offset.estimate.jumps).toBe(6);
+      expect(offset.estimate.bound).toBe(paired ? OUTPUT.paired : OUTPUT.unpaired);
+    }
+  });
+
+  it('follows a jump wider than 50 ms (the leap) from its first reading, and one of up to 50 ms after three', () => {
+    for (const [jump, after] of [
+      [0.08, 1],
+      [0.04, OUTPUT.confirm],
+      [0.0107, OUTPUT.confirm],
+    ] as const) {
+      const offsets = [...Array<number>(20).fill(0.5), ...Array<number>(20).fill(0.5 - jump)];
+      const followed = Array.from(
+        { length: offsets.length },
+        (_, n) => overReadings(offsets.slice(0, n + 1)).offset,
+      );
+      expect(
+        followed.findIndex((o, i) => i >= 20 && Math.abs(o! - (0.5 - jump)) < 0.001) - 19,
+      ).toBe(after);
+    }
+    expect([OUTPUT.leap, OUTPUT.confirm]).toEqual([0.05, 3]);
+  });
+
+  it('counts a hold of 80 ms as one jump', () => {
+    const offsets = [...Array<number>(20).fill(0.5), ...Array<number>(20).fill(0.42)];
+    expect(overReadings(offsets)).toEqual({
+      offset: expect.closeTo(0.42, 12),
+      bound: OUTPUT.paired,
+      jumps: 1,
+    });
+  });
+
+  it('has no estimate before its first reading', () => {
+    expect(overReadings([])).toEqual({ offset: null, bound: null, jumps: 0 });
   });
 });

@@ -16,15 +16,16 @@
  */
 
 import { bandOutput } from './audio/band-output.ts';
-import { type EstimatedOffset, estimatedOffset } from './audio/output-estimate.ts';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import {
   KEYS,
   type ClockOffset,
+  type EstimatedClockOffset,
   type Forward,
   type MidiPort,
   type ParsedNote,
   type PortOption,
+  clockOffset,
   forwardsOf,
   forwardsOfInput,
   listenOf,
@@ -92,13 +93,13 @@ export class Device {
   }
 
   #base: Output | null = null;
-  #offset: EstimatedOffset | null = null;
+  #offset: EstimatedClockOffset | null = null;
   #volume = $state(storedVolume());
 
   /** The audio clock and the offset it maps to MIDI's, made on first use. */
   clockOf(): { base: Output; offset: ClockOffset } {
     const base = (this.#base ??= this.#opened());
-    const offset = (this.#offset ??= estimatedOffset(base));
+    const offset = (this.#offset ??= clockOffset(base));
     return { base, offset };
   }
 

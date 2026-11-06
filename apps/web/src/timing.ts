@@ -16,7 +16,8 @@
  *   judgements from clients the Muse dropped, by why.
  */
 
-import type { PairEstimate, SpreadSummary, TransportTiming } from '@jambot/session';
+import type { SpreadSummary, TransportTiming } from '@jambot/session';
+import type { PairEstimate } from '@yggi/webmidi/core';
 import { summaryOf } from '@jambot/session';
 import type { Mode } from './player.svelte.ts';
 import type { NetworkTiming } from './session/client.svelte.ts';
