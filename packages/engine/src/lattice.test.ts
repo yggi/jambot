@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOSENESS_FLOOR, VALUES, snapToValues, valueOf } from './lattice.ts';
+import { LOOSENESS_FLOOR, VALUES, leastCost, snapToValues, valueOf } from './lattice.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -71,5 +71,31 @@ describe('snapping onsets to a phrase’s note value', () => {
         const at = value * Math.round(x / value);
         expect(Math.abs(x - at)).toBeLessThanOrEqual(value / 2 + 1e-9);
       }
+  });
+});
+
+describe('what a phrase costs on the lattice that describes it best (#580)', () => {
+  it('costs eighths on the beat less than the same eighths a sixteenth later, which need the sixteenths', () => {
+    const onBeat = [0, 2, 4, 6, 8];
+    const later = onBeat.map((x) => x + 1);
+    expect(leastCost(onBeat, LOOSENESS_FLOOR)).toBeLessThan(leastCost(later, LOOSENESS_FLOOR));
+    // (a place of the bar each: 3 bits an eighth, 4 a sixteenth, and nothing off them)
+    expect(leastCost(onBeat, LOOSENESS_FLOOR)).toBeCloseTo(5 * 3 * Math.LN2, 9);
+    expect(leastCost(later, LOOSENESS_FLOOR)).toBeCloseTo(5 * 4 * Math.LN2, 9);
+  });
+
+  it('is the cheapest of the values, so a loose hand’s quarters cost less than a rhythm fitted to its every slip', () => {
+    const quarters = [0.3, 3.7, 8.3, 11.6];
+    expect(leastCost(quarters, 0.3)).toBeLessThan(
+      leastCost(
+        quarters.map((x) => x + 0.5),
+        0.3,
+      ),
+    );
+    // (on the quarters: 2 bits each, and the slips over the looseness)
+    const slips = [0.3, 0.3, 0.3, 0.4];
+    const onQuarters =
+      4 * 2 * Math.LN2 + slips.reduce((sum, d) => sum + d ** 2 / (2 * 0.3 ** 2), 0);
+    expect(leastCost(quarters, 0.3)).toBeCloseTo(onQuarters, 9);
   });
 });

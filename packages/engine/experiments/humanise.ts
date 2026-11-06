@@ -88,6 +88,44 @@ export function humanise(
   });
 }
 
+/**
+ * A hand as #580 measures it: a steady latency, late positive, and the
+ * jitter of each onset about it, in milliseconds. A tight hand's latency
+ * (its input, the audio it hears late, its own lead) is the same over a
+ * phrase; only the jitter is its looseness. `humanise`'s one sloppiness
+ * draws the latency afresh for every phrase, at the same size as the jitter.
+ */
+export interface Hand {
+  readonly lateMs: number;
+  readonly jitterMs: number;
+}
+
+/**
+ * The notes of a pattern played by `hand`: each onset late by the hand's
+ * latency and off it by a draw of its jitter, each note held as `humanise`
+ * holds it at that jitter, its release off by half a draw. Keyed by `seed`
+ * and `trial` as `humanise` is.
+ */
+export function handed(
+  notes: readonly HeardNote[],
+  hand: Hand,
+  seed: number,
+  trial: number,
+): HeardNote[] {
+  const late = hand.lateMs / stepMs();
+  const jitter = hand.jitterMs / stepMs();
+  return notes.map((n, i) => {
+    const rng = keyedRng(seed, trial, 1 + i);
+    const shift = late + normal(rng) * jitter;
+    const held = n.end === null ? null : (n.end - n.position) * gate(hand.jitterMs);
+    return {
+      ...n,
+      position: n.position + shift,
+      end: held === null ? null : n.position + shift + held + normal(rng) * jitter * 0.5,
+    };
+  });
+}
+
 /** A note value in steps, and how a pattern is filled with them. */
 const VALUES = [1, 2, 3, 4, 6, 8] as const;
 
@@ -141,6 +179,46 @@ export function beatPattern(index: number): Segment[] {
       rest: rng() < 0.1,
     })),
   );
+}
+
+/**
+ * The pattern with index `index` a beginner plays (#580): quarters and
+ * eighths on the beat, now and then a half, a rest one time in ten.
+ */
+export function beginnerPattern(index: number): Segment[] {
+  const rng = keyedRng(29, index);
+  const segments: Segment[] = [];
+  let left = BAR_STEPS;
+  while (left > 0) {
+    const roll = rng();
+    const lengths = roll < 0.45 ? [4] : roll < 0.85 ? [2, 2] : left >= 8 ? [8] : [4];
+    for (const length of lengths) segments.push({ length, rest: rng() < 0.1 });
+    left -= lengths.reduce((a, b) => a + b, 0);
+  }
+  return segments;
+}
+
+/**
+ * Syncopations a skilled player means, on the sixteenths of a bar of 4/4,
+ * each mixing onsets on the beat and off it: the tresillo twice, son and
+ * rumba clave 3-2, a bossa nova's, a funk line's, an anticipated bar, and
+ * offbeats against the downbeat.
+ */
+export const SYNCOPATIONS: readonly (readonly number[])[] = [
+  [0, 3, 6, 8, 11, 14],
+  [0, 3, 6, 10, 12],
+  [0, 3, 7, 10, 12],
+  [0, 3, 6, 10, 13],
+  [0, 3, 6, 7, 10, 12, 15],
+  [0, 2, 4, 7, 10, 12, 14],
+  [0, 2, 6, 10, 14],
+  [0, 4, 7, 9, 12, 15],
+];
+
+/** The pattern with index `index` a skilled player syncopates (#580): one of `SYNCOPATIONS`, each note held to the next. */
+export function syncopatedPattern(index: number): Segment[] {
+  const onsets = SYNCOPATIONS[index % SYNCOPATIONS.length]!;
+  return onsets.map((at, i) => ({ length: (onsets[i + 1] ?? BAR_STEPS) - at, rest: false }));
 }
 
 /** The notes of a pattern played exactly in `bar`: each held its whole segment, in A minor's pentatonic. */
@@ -312,6 +390,38 @@ export function phraseRate(
   source: (index: number) => Segment[] = pattern,
   reading: Reading = 'nearest',
 ): PhraseRate {
+  return rateOf(
+    hearing,
+    (notes, trial) => humanise(notes, sloppiness, seed, trial),
+    key,
+    source,
+    reading,
+  );
+}
+
+/**
+ * `phraseRate` for a hand of a steady latency and a jitter (#580): the same
+ * performances and counts, each phrase played by `hand` (`handed`).
+ */
+export function handRate(
+  hearing: Hearing,
+  hand: Hand,
+  key: Key,
+  seed = 1,
+  source: (index: number) => Segment[] = pattern,
+  reading: Reading = 'nearest',
+): PhraseRate {
+  return rateOf(hearing, (notes, trial) => handed(notes, hand, seed, trial), key, source, reading);
+}
+
+/** What a hearing makes of the performances, each phrase played by `play`, keyed by its trial. */
+function rateOf(
+  hearing: Hearing,
+  play: (notes: readonly HeardNote[], trial: number) => HeardNote[],
+  key: Key,
+  source: (index: number) => Segment[],
+  reading: Reading,
+): PhraseRate {
   let bars = 0;
   let right = 0;
   let onsets = 0;
@@ -323,10 +433,8 @@ export function phraseRate(
     const intended = new Map(exact.map((n) => [n.velocity, barAt(n.position)]));
     for (let trial = 0; trial < TRIALS; trial++) {
       const heard = [0, 1].flatMap((phrase) =>
-        humanise(
+        play(
           parts.filter((p) => p.phrase === phrase).map((p) => p.note),
-          sloppiness,
-          seed,
           (index * TRIALS + trial) * 2 + phrase,
         ),
       );

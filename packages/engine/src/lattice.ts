@@ -69,6 +69,18 @@ function cost(xs: readonly number[], value: number, looseness: number): number {
 }
 
 /**
+ * What describing `xs` costs on the lattice that describes it best, in nats
+ * (#580): `cost` at the cheapest of `VALUES`. A phrase read at another
+ * offset is weighed by it (`phrase.ts`'s `offsetOf`), so eighths on the beat
+ * cost less than the same eighths a sixteenth later, which need the
+ * sixteenths, and a loose hand's quarters less than a rhythm that fits its
+ * every slip.
+ */
+export function leastCost(xs: readonly number[], looseness: number): number {
+  return Math.min(...VALUES.map((value) => cost(xs, value, looseness)));
+}
+
+/**
  * The value of a phrase: the lattice its onsets fit at the least cost, the
  * coarser where two cost the same, and the finest where every one is ruled
  * out.

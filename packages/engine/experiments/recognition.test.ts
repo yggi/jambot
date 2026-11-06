@@ -11,8 +11,8 @@ describe('repetition heard by the Muse, E20 and #204 H8 (#204, Q12)', () => {
   });
 
   it('recognises a loose hand’s repeat only as often as it reads both playings right, which falls fast (Q12)', () => {
-    expect(at.get(20)).toMatchObject({ recognised: 133, readBoth: 132 });
-    expect(at.get(30)).toMatchObject({ recognised: 44, readBoth: 41 });
+    expect(at.get(20)).toMatchObject({ recognised: 136, readBoth: 133 });
+    expect(at.get(30)).toMatchObject({ recognised: 62, readBoth: 59 });
   });
 });
 
