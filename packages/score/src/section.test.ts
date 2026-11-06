@@ -282,7 +282,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect([gains(struck('-.5')), gains(struck('.5'))]).toEqual([[-0.5], [0.5]]);
   });
 
-  it('writes no swing on 8n in a meter whose pulses are all 3 eighths, which the band plays straight there (T16, #438), and the pairs alone where pulses of 2 and of 3 mix (yggi/cells decision 053, #451)', () => {
+  it('writes no swing on 8n in a meter whose pulses are all 3 eighths, which the band plays straight there (T16, #438), and plain where pulses of 2 and of 3 mix, a swing leaning pairs only (yggi/cells decision 071, v0.18.0)', () => {
     const swing: MeterSwing = { level: '8n', share: 2 / 3 };
     const names = Object.keys(METERS) as MeterName[];
     expect(Object.fromEntries(names.map((name) => [name, swingText(METERS[name], swing)]))).toEqual(
@@ -290,11 +290,11 @@ describe('a section as one cells text, for the app (#399)', () => {
         '3/4': ' swing=8n:2/3',
         '4/4': ' swing=8n:2/3',
         '5/4': ' swing=8n:2/3',
-        '5/8': ' swing=8n:2/3:pairs',
+        '5/8': ' swing=8n:2/3',
         '6/8': '',
-        '7/8': ' swing=8n:2/3:pairs',
+        '7/8': ' swing=8n:2/3',
         '9/8': '',
-        '10/8': ' swing=8n:2/3:pairs',
+        '10/8': ' swing=8n:2/3',
         '12/8': '',
       },
     );
