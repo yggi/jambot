@@ -511,6 +511,37 @@ describe('a host and a client session', () => {
     hosting.close();
   });
 
+  it('lean the host by a player’s nudge, weighed by the players present, and drop a listener’s (step 2)', async () => {
+    const lobby = memoryLobby();
+    const host = device(10);
+    const ada = device(3);
+    const bo = device(4);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
+      draw: () => '042917',
+    });
+    await hosting.open(lobby, 'jam', 'Cy');
+    const playing = new ClientSession(ada.player, ada.clocks);
+    await playing.join(lobby, 'jam', 'Ada');
+    hosting.admitByCode(true);
+    const listening = new ClientSession(bo.player, bo.clocks);
+    await listening.join(lobby, 'jam', 'Bo');
+    expect([playing.role, listening.role]).toEqual(['player', 'listener']);
+    // Two play, the host and Ada: her nudge weighs half a step. Bo listens: his weighs nothing.
+    playing.nudge('energy', 1);
+    listening.nudge('energy', 1);
+    await run([host, ada, bo], 0.1);
+    expect(host.player.nudges).toEqual({ energy: 0.5 });
+    // Let in, Bo plays too, and three players weigh a nudge a third of a step.
+    hosting.cast(hosting.guests[1]!.id, 'player');
+    await run([host, ada, bo], 0.1);
+    listening.nudge('bpm', -1);
+    await run([host, ada, bo], 0.1);
+    expect(host.player.nudges.bpm).toBeCloseTo(-1 / 3, 12);
+    // A client keeps no nudges of its own: it follows the host's track.
+    expect(ada.player.nudges).toEqual({});
+    hosting.close();
+  });
+
   it("name the host's own notes by its player, so a client never reads them as its own", async () => {
     const lobby = memoryLobby();
     const host = device(10);

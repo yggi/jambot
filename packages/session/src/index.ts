@@ -9,6 +9,7 @@ export * from './layer-store.ts';
 export * from './lobby.ts';
 export * from './protocol.ts';
 export * from './reconnect.ts';
+export * from './nudges.ts';
 export * from './roster.ts';
 export * from './snapshot.ts';
 export * from './station.ts';

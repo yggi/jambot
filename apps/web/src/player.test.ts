@@ -23,12 +23,14 @@ import {
   lookAhead,
   styleAt,
   walkRadio,
+  leaned,
 } from '@jambot/engine';
 import {
   type LayerStore,
   type SectionText,
   type Station,
   memoryLayerStore,
+  releaseNudges,
   tuneIn,
 } from '@jambot/session';
 import { METERS, type Meter } from '@jambot/theory';
@@ -1371,6 +1373,38 @@ describe('the radio (#313)', () => {
     }
     // It wandered, and out of the song's first style.
     expect(style).not.toEqual(opening);
+  });
+
+  it('leans by a player’s nudge from the next section line, half a step, then half the rest, a step in all, radio or none (step 2)', async () => {
+    for (const tuned of [false, true]) {
+      const { player, run, world } = await playing(tuned);
+      const seed = world.seeds.at(-1)!;
+      const opening = targetOf(player.track);
+      // A lone player nudges syncopation up and the tempo down, in the song's first section.
+      player.nudgeFrom('sync', 1, 1);
+      player.nudgeFrom('bpm', -1, 1);
+      run(OPENING + 0.9 * SECTION);
+      expect(targetOf(player.track), `${tuned}: nothing moves within the section`).toEqual(opening);
+      let style: Style = opening;
+      let nudges = player.nudges;
+      for (let n = 0; n < 8; n++) {
+        run(SECTION);
+        const { lean, nudges: kept } = releaseNudges(nudges);
+        nudges = kept;
+        style = leaned(tuned ? walkRadio(style, seed, n) : style, lean);
+        const target = targetOf(player.track);
+        for (const axis of AXIS_NAMES)
+          expect(target[axis], `${tuned}: section ${n + 1}, ${axis}`).toBeCloseTo(style[axis], 9);
+      }
+      expect(player.nudges).toEqual({});
+      if (!tuned) {
+        // Off the air, it moved a step in all on each axis it was nudged on, and nothing else.
+        const target = targetOf(player.track);
+        expect(target.sync).toBeCloseTo(opening.sync + 0.1, 9);
+        expect(target.bpm).toBeCloseTo(opening.bpm * 2 ** -(1 / 24), 3);
+        expect({ ...target, sync: 0, bpm: 0 }).toEqual({ ...opening, sync: 0, bpm: 0 });
+      }
+    }
   });
 
   it('glides from where the track is, never before the head: no axis of the style ever jumps', async () => {

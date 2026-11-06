@@ -42,6 +42,7 @@ export * from './performer.ts';
 export * from './phrase.ts';
 export * from './plan.ts';
 export * from './progressions.ts';
+export * from './lean.ts';
 export * from './radio.ts';
 export * from './random.ts';
 export * from './reading.ts';

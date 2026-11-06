@@ -26,7 +26,7 @@
   import { broadcastLobby } from './session/broadcast.ts';
   import { type Found, Sessions, type Where } from './session/sessions.svelte.ts';
   import { browserKept } from './session/storage.ts';
-  import { filedFiles } from '@jambot/engine';
+  import { type Nudged, filedFiles } from '@jambot/engine';
   import { type Role, layerText, readLayerText } from '@jambot/session';
   import { websocketLobby } from './session/websocket.ts';
   import { MeterPlayer } from './meter/meter-player.svelte.ts';
@@ -397,6 +397,7 @@
       },
       onadmit: (byCode: boolean) => hostSession.admitByCode(byCode),
       oncast: (id: string, role: Role) => hostSession.cast(id, role),
+      onnudge: (axis: Nudged, by: 1 | -1) => clientSession.nudge(axis, by),
       following: {
         status: clientSession.status,
         session: clientSession.session,

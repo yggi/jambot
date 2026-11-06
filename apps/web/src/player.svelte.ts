@@ -103,7 +103,11 @@ import {
   type SongClock,
   styleAt,
   timbreOf,
+  type Style,
   type StyleTrack,
+  type Nudged,
+  leaned,
+  leans,
   type MeterSwing,
   type SwingTrack,
   type BandBar,
@@ -163,7 +167,11 @@ import {
   earListen,
   sentBars,
   playerSource,
+  NO_NUDGES,
+  type Nudges,
+  nudged,
   onward,
+  releaseNudges,
   tuneIn,
 } from '@jambot/session';
 import { type Meter, stepsOf } from '@jambot/theory';
@@ -378,10 +386,17 @@ export class Player {
   track: StyleTrack = $state.raw(holding(INITIAL_STYLE));
   /**
    * The radio (#313), which the session carries: a station on the air walks
-   * the style track a section at a time while nobody takes it (`#walkRadio`),
+   * the style track a section at a time while nobody takes it (`#sectionLine`),
    * and null is off. It is the host's alone: a client follows the track.
    */
   station: Station | null = $state.raw(null);
+  /**
+   * The players' nudges a host holds and hasn't released yet (step 2 of
+   * docs/briefs/session-roles.md): each section line leans the style by a
+   * share of them (`#sectionLine`). The host's alone: a client nudges by a
+   * message, and follows the track.
+   */
+  nudges: Nudges = $state.raw(NO_NUDGES);
   wish: KeyWish = $state.raw({ tonic: null, mode: OPENING_MODE, melodic: null });
   /**
    * What the band has learned (#398): the layer the next song starts from,
@@ -722,26 +737,56 @@ export class Player {
   }
 
   /**
-   * The radio's walk at the start of each section after the song's first: the
-   * track glides one section to the walk's next style from where it is, never
-   * before the head, so what has been scheduled stays as it is. The nudge of
-   * the tempo stays within the licence of the style walked to.
+   * A player's nudge, heard by the host (step 2 of
+   * docs/briefs/session-roles.md): a step up or down on an axis, weighed by
+   * the `players` present, which the section lines release (`nudges.ts`).
    */
-  #walkRadio(composed: readonly BandBar[], carried: TransportCarried<unknown>) {
-    const { station } = this;
-    if (!station) return;
+  nudgeFrom(axis: Nudged, by: 1 | -1, players: number) {
+    if (this.mode === 'client') return;
+    this.nudges = nudged(this.nudges, axis, by, players);
+  }
+
+  /**
+   * What the next section line does to the style: the radio's walk where it
+   * is on the air, then the players' lean, the share of their nudges it
+   * releases; null where neither moves it.
+   */
+  #sectionStep(): { station: Station | null; nudges: Nudges; style: Style } | null {
+    const from = radioStyle(this.track, this.tempoNudge);
+    const walked = this.station ? onward(this.station, from) : null;
+    const { lean, nudges } = releaseNudges(this.nudges);
+    if (!walked && !leans(lean)) return null;
+    return {
+      station: walked?.station ?? null,
+      nudges,
+      style: leaned(walked?.style ?? from, lean),
+    };
+  }
+
+  /**
+   * The section line, at the start of each section after the song's first:
+   * the radio's walk and the players' lean (`#sectionStep`). The track glides
+   * one section to the style they reach from where it is, never before the
+   * head, so what has been scheduled stays as it is. The nudge of the tempo
+   * stays within the licence of the style reached.
+   */
+  #sectionLine(composed: readonly BandBar[], carried: TransportCarried<unknown>) {
+    const { station, nudges } = this;
+    if (!station && !leans(nudges)) return;
     const clock = clockOfTransport(carried);
     for (const { bar } of composed) {
-      if (bar === 0 || bar % SECTION_BARS !== 0 || !this.station) continue;
-      const walked = onward(this.station, radioStyle(this.track, this.tempoNudge));
+      if (bar === 0 || bar % SECTION_BARS !== 0) continue;
+      const step = this.#sectionStep();
+      if (!step) continue;
       const at = Math.max(carried.head.step, clock.barStart(bar));
-      const conducted = conductRadio(this.track, walked.style, at, this.tempoNudge);
-      this.station = walked.station;
+      const conducted = conductRadio(this.track, step.style, at, this.tempoNudge);
+      this.station = step.station;
+      this.nudges = step.nudges;
       this.track = conducted.track;
       this.tempoNudge = conducted.nudge;
     }
-    if (this.station !== station) {
-      this.hosting?.station(this.station);
+    if (this.station !== station) this.hosting?.station(this.station);
+    if (this.station !== station || this.nudges !== nudges) {
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
       this.#decide();
     }
@@ -749,16 +794,18 @@ export class Player {
 
   /**
    * The environment the band reads from a section's first bar on, as the
-   * radio's walk will leave it when that bar is composed (`#walkRadio`): what
-   * the shadow forecasts a section ahead by. Off the air, the environment now.
+   * section line will leave it when that bar is composed (`#sectionLine`):
+   * what the shadow forecasts a section ahead by. With neither the radio nor
+   * a nudge to move it, the environment now.
    */
   #envFrom(first: number): TransportEnv {
     const env = this.#env;
     const carried = this.#carried;
-    if (!this.station || !carried || first === 0) return env;
-    const walked = onward(this.station, radioStyle(this.track, this.tempoNudge));
+    if (!carried || first === 0) return env;
+    const step = this.#sectionStep();
+    if (!step) return env;
     const at = Math.max(carried.head.step, clockOfTransport(carried).barStart(first));
-    return { ...env, track: conductRadio(this.track, walked.style, at, this.tempoNudge).track };
+    return { ...env, track: conductRadio(this.track, step.style, at, this.tempoNudge).track };
   }
 
   apply(intent: Intent) {
@@ -1140,6 +1187,7 @@ export class Player {
     this.halt();
     this.mode = 'client';
     this.station = null;
+    this.nudges = NO_NUDGES;
     this.lacked = 0;
     this.#follow = {
       carried: null,
@@ -1397,7 +1445,7 @@ export class Player {
     const decided = carried!.source.next;
     if (decided && this.#countTempoIn(decided.plan.meter))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
-    this.#walkRadio(scheduled.composed, carried!);
+    this.#sectionLine(scheduled.composed, carried!);
     // The band hears what it composed, off the clock, and leans from a section on (#495).
     if (scheduled.composed.length > 0)
       this.hearing?.composed(scheduled.composed, carried!.source.plans.layer, (bar) => {

@@ -44,6 +44,7 @@
   import Blinker from './glyphs/Blinker.svelte';
   import Reading from './Reading.svelte';
   import Segmented from './Segmented.svelte';
+  import Nudge from './Nudge.svelte';
   import TempoNudge from './TempoNudge.svelte';
 
   interface Props {
@@ -63,6 +64,8 @@
     /** Whether this device sets the band's time (`Can`'s `set`): a client's host does, and it draws no control. */
     sets?: boolean;
     onintent: (intent: Intent) => void;
+    /** A player's, who doesn't set the tempo: nudge it a step, a bias the band leans by from the next section. */
+    onnudge?: ((axis: 'bpm', by: 1 | -1) => void) | undefined;
     /** The meter asked for the next section, which the band takes where it starts; null for none, the repository's. */
     asked?: Meter | null;
     onmeter?: (meter: Meter | null) => void;
@@ -79,9 +82,13 @@
     playing,
     sets = true,
     onintent,
+    onnudge,
     asked = SONG_METER,
     onmeter = () => {},
   }: Props = $props();
+
+  /** The way this player nudged the tempo last, said under the nudge until it nudges again. */
+  let nudgedLast: 1 | -1 | null = $state(null);
 
   /** The choice that asks for no meter: the composer's, from the repository (#375). */
   const BY_STYLE = 'By style';
@@ -121,7 +128,25 @@
   sub="{meterLabel(meter)} · swing {percent} % on {levelText}{metronome.on ? ' · clicking' : ''}"
 >
   {#snippet glyph()}<Blinker {marks} span={stepsOf(meter)} />{/snippet}
-  {#if sets}<TempoNudge {tempo} {onintent} />{/if}
+  {#if sets}
+    <TempoNudge {tempo} {onintent} />
+  {:else if onnudge}
+    <Nudge
+      label="Nudge the tempo"
+      down={{ name: 'Slower', glyph: '−', title: 'Lean the band slower' }}
+      up={{ name: 'Faster', glyph: '+', title: 'Lean the band faster' }}
+      onnudge={(by) => {
+        onnudge('bpm', by);
+        nudgedLast = by;
+      }}>tempo</Nudge
+    >
+    {#if nudgedLast !== null}
+      <p class="nudged" role="status">
+        You nudged the tempo {nudgedLast > 0 ? 'faster' : 'slower'}: the band leans that way from
+        the next section, more the fewer play.
+      </p>
+    {/if}
+  {/if}
   <div class="swing">
     {#if sets}
       <Segmented
@@ -200,6 +225,11 @@
 </Card>
 
 <style>
+  .nudged {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
   .swing {
     display: grid;
     gap: 8px;
