@@ -74,6 +74,22 @@ describe('the shell', () => {
     expect(screen.getByText('the song view')).not.toBeVisible();
   });
 
+  it('says what is coming in the title bar, between the header and the riders, never over a view', () => {
+    const cue = createRawSnippet(() => ({ render: () => '<p>the cue</p>' }));
+    render(Shell, { header, drawer: DRAWER, sheet, views: VIEWS, stage, cue });
+    const said = screen.getByText('the cue');
+    const transport = screen.getByText('the transport');
+    const riders = screen.getByRole('navigation', { name: 'Drawer' });
+    const follows = (a: Node, b: Node) =>
+      (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    expect(follows(transport, said)).toBe(true);
+    expect(follows(said, riders)).toBe(true);
+    for (const view of screen.getAllByRole('tabpanel', { hidden: true }))
+      expect(view.contains(said)).toBe(false);
+    // Its row is the title bar's own, the same with a cue or without, so nothing under it moves.
+    expect(said.closest('.top')).not.toBeNull();
+  });
+
   it('names each view by its tab', () => {
     draw();
     expect(screen.getByRole('tabpanel', { name: 'Song' })).toHaveTextContent('the song view');

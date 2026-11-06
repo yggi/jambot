@@ -1,10 +1,11 @@
 <!--
-  The cue strip: the nearest cue (`cues.ts`) hanging from the transport over
-  the view, whichever shows, with taps falling through it to the view. Its
+  The cue strip: the nearest cue (`cues.ts`), in the title bar's own row
+  under the transport (`Shell`'s `cue`), so it covers no view and moves
+  nothing as it comes and goes. Its
   glyph is live on the beat (`CueGlyph`); its countdown is in bars while the
   moment is a bar or more off, and in beats, as dots, in its last bar; "+n"
-  says how many more are coming. Its border is whose it is: the band's
-  amber, or a player's colour. It leaves when its moment arrives, and is
+  says how many more are coming. The bar at its left is whose it is: the
+  band's amber, or a player's colour. It leaves when its moment arrives, and is
   read out politely as it changes.
 -->
 <script lang="ts">
@@ -55,20 +56,18 @@
 
 <style>
   .cues {
-    pointer-events: none;
+    height: 100%;
   }
   .cue {
+    height: 100%;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: 10px;
     min-width: 0;
-    padding: 7px 12px;
-    border: 1.5px solid var(--who);
-    border-top: 0;
-    border-radius: 0 0 14px 14px;
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
-    box-shadow: 0 10px 22px rgb(0 0 0 / 0.25);
-    backdrop-filter: blur(6px);
+    padding: 0 12px 0 9px;
+    border-left: 3px solid var(--who);
+    background: color-mix(in srgb, var(--who) 7%, var(--surface));
   }
   .what {
     display: grid;

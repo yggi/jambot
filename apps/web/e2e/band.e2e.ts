@@ -677,6 +677,42 @@ test('keeps the shell’s regions and every card the size they are while the ban
   }
 });
 
+test('says what is coming in the title bar, under the transport and over the riders, covering no view, at 390 x 844 and 844 x 390', async ({
+  page,
+}) => {
+  await listen(page);
+  for (const [width, height] of [
+    [390, 844],
+    [844, 390],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await solo(page);
+    const cue = page.getByRole('status', { name: 'Cue' });
+    const views = page.getByRole('tabpanel').first();
+    const at = async () => ({
+      cue: (await cue.boundingBox())!,
+      head: (await transport(page).boundingBox())!,
+      drawer: (await page.getByRole('navigation', { name: 'Drawer' }).boundingBox())!,
+      view: (await views.boundingBox())!,
+    });
+    const before = await at();
+    await start(page);
+    // The count-in is a cue: it shows in its row, and the row didn't grow for it.
+    await expect(cue).toContainText(/./, { timeout: 4000 });
+    const during = await at();
+    const size = `${width} x ${height}`;
+    expect(during.cue.height, size).toBe(before.cue.height);
+    expect(during.view.y, size).toBe(before.view.y);
+    // Under the transport, and above everything a view shows.
+    expect(during.cue.y, size).toBeGreaterThanOrEqual(during.head.y + during.head.height - 1);
+    expect(during.cue.y + during.cue.height, size).toBeLessThanOrEqual(during.view.y + 1);
+    if (width < height)
+      expect(during.cue.y + during.cue.height, size).toBeLessThanOrEqual(during.drawer.y + 1);
+    await page.getByRole('button', { name: 'Stop' }).click();
+  }
+});
+
 test('puts the views on a rail at the left of a phone on its side, at 844 x 390 and 667 x 375', async ({
   page,
 }) => {

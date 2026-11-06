@@ -264,7 +264,7 @@
   {/if}
 {/snippet}
 
-{#snippet overlay()}
+{#snippet cue()}
   <CueStrip
     {cues}
     beat={player.hud.beat}
@@ -272,4 +272,4 @@
   />
 {/snippet}
 
-<Shell {header} {drawer} {sheet} views={VIEWS} {stage} {overlay} />
+<Shell {header} {drawer} {sheet} views={VIEWS} {stage} {cue} />

@@ -8,7 +8,10 @@
   stays mounted and those not shown are hidden, so a card keeps what it
   shows and the band's state is drawn wherever one looks; cards under the
   shell are pinned open (`pinCards`). On a phone on its side the views move
-  to a rail at the left and the riders sit beside the header.
+  to a rail at the left and the riders sit beside the header. What is
+  coming, the band's cues, has a row of its own in the title bar, between
+  the header and the riders (beneath both on a phone on its side), as high
+  with a cue as without, so it covers nothing and moves nothing.
 -->
 <script lang="ts" module>
   import type { Snippet } from 'svelte';
@@ -40,8 +43,8 @@
     view?: string;
     /** The section whose sheet is down, or null. */
     drawn?: string | null;
-    /** What hangs from the header over the views, taps falling through it: the band's cues. */
-    overlay?: Snippet | undefined;
+    /** What is coming, the band's cues: a row of the title bar's own, between the header and the riders. */
+    cue?: Snippet | undefined;
   }
 
   let {
@@ -52,7 +55,7 @@
     stage,
     view = $bindable(views[0]?.id ?? ''),
     drawn = $bindable(null),
-    overlay,
+    cue,
   }: Props = $props();
 
   pinCards();
@@ -67,6 +70,7 @@
 <div class="shell">
   <div class="top">
     <div class="header">{@render header()}</div>
+    {#if cue}<div class="cue">{@render cue()}</div>{/if}
     <nav class="riders" aria-label="Drawer" style:--places={drawer.length}>
       {#each drawer as place (place.id)}
         <button
@@ -94,7 +98,6 @@
         {@render stage(place.id)}
       </div>
     {/each}
-    {#if overlay}<div class="overlay">{@render overlay()}</div>{/if}
     <button
       type="button"
       class="scrim"
@@ -157,6 +160,15 @@
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
+  /* The cue's row: the title bar's own, of a fixed height whether a cue is near or not, so nothing under it moves. */
+  .cue {
+    height: 40px;
+    border: 1px solid var(--line);
+    border-top: 1px dashed var(--line);
+    border-bottom: 0;
+    background: var(--surface);
+    overflow: hidden;
+  }
   .riders {
     display: grid;
     grid-template-columns: repeat(var(--places), minmax(0, 1fr));
@@ -207,15 +219,6 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-  }
-  /* Over the views, under the drawer's sheets: nothing in it takes a tap. */
-  .overlay {
-    position: absolute;
-    top: 0;
-    left: calc(var(--gutter) + 6px);
-    right: calc(var(--gutter) + 6px);
-    z-index: 1;
-    pointer-events: none;
   }
   .scrim {
     position: absolute;
@@ -310,6 +313,18 @@
       border-top: 1px solid var(--line);
       border-radius: 16px;
       padding: 1px;
+    }
+    .header {
+      grid-area: 1 / 1;
+    }
+    .riders {
+      grid-area: 1 / 2;
+    }
+    .cue {
+      grid-area: 2 / 1 / 3 / -1;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
     }
     .riders button {
       height: 48px;
