@@ -101,17 +101,28 @@ const STALL = 800;
 
 /**
  * The span, on the wall clock, in which a jump of a page's clock can leave
- * the two pages out. A jump of the host's clock that a stall of its main
+ * the two pages out. A jump of the host's clock lasts at least until the
+ * client's skew followed it (`followed`, read off its network pair) and the
+ * notes it laid before then have sounded: a busy machine's late timers can
+ * take the telling past `SETTLE` (#592). A jump of the host's clock that a stall of its main
  * thread begins before the host has told (within `SETTLE` of it) is told to
  * the client only when the host runs again, so it settles from the stall's
  * end, not from where the output pair placed it (`stalled`: the host's
  * stalls; none for the client's jumps).
  */
-const unsettled = ({ at, by }: ClockJump, stalled: readonly Stall[] = []) => {
+const unsettled = (
+  { at, by }: ClockJump,
+  stalled: readonly Stall[] = [],
+  followed: number | null = null,
+) => {
   const size = Math.abs(by);
   const slewing = size >= TOLD ? 0 : Math.max(0, size - IN_STEP) / SLEWED;
   const told = stalled.find((s) => s.from <= at + SETTLE && s.to >= at)?.to ?? at;
-  return { from: at - AHEAD, to: told + SETTLE + slewing, size };
+  return {
+    from: at - AHEAD,
+    to: Math.max(told + SETTLE + slewing, followed === null ? -Infinity : followed + AHEAD),
+    size,
+  };
 };
 
 /**
@@ -197,31 +208,35 @@ async function inStep(
     holdJumps.some((s) => Math.abs(s.by) >= TOLD),
     `jumps of the held clock: ${(await clockJumps(held)).map((s) => `${s.by.toFixed(1)} ms at ${((s.at - heldAt) / 1000).toFixed(3)} s`).join(', ')}`,
   ).toBe(true);
+  /** When, on the wall clock, the client's skew moved by half a jump of the host's clock: when it was told. Null where it never was (it joined after). */
+  const followedAt = (j: ClockJump) => {
+    const before = netAt(j.at)?.skew ?? null;
+    if (before === null) return null;
+    const told = net.find(
+      (n) => n.wall > j.at && n.skew !== null && Math.abs(n.skew - before) >= Math.abs(j.by) / 2,
+    );
+    return told?.wall ?? null;
+  };
+  const followedAfter = (j: ClockJump) => {
+    const told = followedAt(j);
+    return told === null ? 'never' : `${(told - j.at).toFixed(0)} ms`;
+  };
   const spans = [
-    ...hostJumps.map((j) => unsettled(j, hostStalls)),
+    ...hostJumps.map((j) => unsettled(j, hostStalls, followedAt(j))),
     ...clientJumps.map((j) => unsettled(j)),
   ];
   /** How far, in milliseconds, the jumps still settling at `t` may put a note out. */
   const settling = (t: number) =>
     spans.filter((s) => t >= s.from && t <= s.to).reduce((sum, s) => sum + s.size, 0);
-  /** How far past `TRIP`'s the client's network offset may be out for a note at `t`: half its best round trip as the note was laid or heard. */
-  const far = (t: number) =>
-    Math.max(0, ...[t - AHEAD, t].map((at) => ((netAt(at)?.trip ?? TRIP) - TRIP) / 2));
-  /** How far, in milliseconds, a note at `t` may be out: `IN_STEP`, every jump still settling there, and the client's round trip past `TRIP`. */
-  const allowed = (t: number) => IN_STEP + settling(t) + far(t);
-
-  /** How long after a jump of the host's clock, in milliseconds, the client's skew moved by half of it: when the client was told. */
-  const followedAfter = (j: ClockJump) => {
-    const before = netAt(j.at)?.skew ?? null;
-    const told = net.find(
-      (n) =>
-        n.wall > j.at &&
-        before !== null &&
-        n.skew !== null &&
-        Math.abs(n.skew - before) >= Math.abs(j.by) / 2,
-    );
-    return told ? `${(told.wall - j.at).toFixed(0)} ms` : 'never';
-  };
+  /**
+   * How far past `TRIP`'s the client's network offset may be out for a note: half its best round trip as the note was
+   * laid, by the skew in force then, or as it sounded. Early on, the best trip shrinks fast, and a note laid more than
+   * `AHEAD` before it sounds was laid by a reading the moment `AHEAD` before it missed (#592).
+   */
+  const far = ({ at, laid }: { at: number; laid: number }) =>
+    Math.max(0, ...[laid, at - AHEAD, at].map((t) => ((netAt(t)?.trip ?? TRIP) - TRIP) / 2));
+  /** How far, in milliseconds, a note may be out: `IN_STEP`, every jump still settling as it sounds, and the client's round trip past `TRIP`. */
+  const allowed = (g: { at: number; laid: number }) => IN_STEP + settling(g.at) + far(g);
 
   // Each note the client sounded, against the host's nearest of the same voice.
   const voice = (h: Heard) => `${h.kind} ${h.frequency}`;
@@ -243,7 +258,7 @@ async function inStep(
   // round trip past `TRIP`.
   const dropped = (t: number) => hostStalls.some((s) => t >= s.from && t <= s.to + 100);
   const judged = gaps.filter((g) => !(Math.abs(g.gap) >= 50 && dropped(g.at)));
-  const out = judged.filter((g) => !(Math.abs(g.gap) <= allowed(g.at)));
+  const out = judged.filter((g) => !(Math.abs(g.gap) <= allowed(g)));
   const wide = judged.filter((g) => Math.abs(g.gap) >= 50);
   const steady = judged.filter((g) => settling(g.at) === 0);
   const sorted = steady.map((g) => Math.abs(g.gap)).sort((a, b) => a - b);
@@ -255,7 +270,7 @@ async function inStep(
     `${wide.length} out by 50 ms or more in a jump; ` +
     `${steady.length} settled: median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms; ` +
     `clocks jumped ${jumps.map((s) => `${s.by.toFixed(1)} ms at ${since(s.at)} s`).join(', ')} from the hold; ` +
-    `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g.at).toFixed(1)}, the client's best round trip ${netAt(g.at)?.trip?.toFixed(1)} ms, laid ${(g.at - g.laid).toFixed(0)} ms before it sounded, the trip then ${netAt(g.laid)?.trip?.toFixed(1)} ms`).join('; ') || 'none'}; ` +
+    `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g).toFixed(1)}, the client's best round trip ${netAt(g.at)?.trip?.toFixed(1)} ms, laid ${(g.at - g.laid).toFixed(0)} ms before it sounded, the trip then ${netAt(g.laid)?.trip?.toFixed(1)} ms`).join('; ') || 'none'}; ` +
     `the client's skew followed the host's jumps ${hostJumps.map((j) => `${j.by.toFixed(1)} ms at ${since(j.at)} s after ${followedAfter(j)}`).join(', ') || 'none'}; ` +
     `the client's best round trip ${trips.length ? `${Math.min(...trips).toFixed(1)} to ${Math.max(...trips).toFixed(1)} ms` : 'unread'}; ` +
     `the host's stalls ${hostStalls.map((s) => `${since(s.from)} to ${since(s.to)} s`).join(', ')}`;
@@ -268,7 +283,7 @@ async function inStep(
   expect(median).toBeLessThan(1);
   // A failure carries the whole run, its jumps and stalls, so it can be read without a rerun (#342).
   expect(
-    out.map((g) => `${since(g.at)} s: ${g.gap.toFixed(1)} ms, past ${allowed(g.at).toFixed(1)}`),
+    out.map((g) => `${since(g.at)} s: ${g.gap.toFixed(1)} ms, past ${allowed(g).toFixed(1)}`),
     summary,
   ).toEqual([]);
 
@@ -361,7 +376,8 @@ test("a client in another browser context joins through the lobby server, in ste
 }) => {
   // Contexts share no BroadcastChannel: only the server connects them.
   const elsewhere = await browser.newContext();
-  await inStep(page, await elsewhere.newPage(), 'server jam', {
+  // The lobby server keeps a session's name a while after its host's page goes, so each repeat hosts its own.
+  await inStep(page, await elsewhere.newPage(), `server jam ${test.info().repeatEachIndex}`, {
     lobby: LOBBY,
     hold: 'client',
     holdFor: HOLDS.some,
