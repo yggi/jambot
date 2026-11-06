@@ -159,6 +159,7 @@ import {
   type SectionText,
   type SentBar,
   type Song,
+  type SessionEvent,
   type Station,
   TRANSPORT_TIMING,
   type TransportTiming,
@@ -183,6 +184,7 @@ import {
   type Intent,
   conduct,
   conductRadio,
+  targetOf,
   conductSwing,
   nudgeAfter,
   radioStyle,
@@ -193,6 +195,7 @@ import {
   wishAfter,
 } from './conductor.ts';
 import { meterNudged } from './meter-choice.ts';
+import { movedLine } from './session/log-lines.ts';
 import { Heard } from './heard.ts';
 import { type SectionTexts, browserTexts } from './section-texts.ts';
 import { Shadow } from './shadow.ts';
@@ -268,6 +271,8 @@ export interface Hosting {
   finale(bar: number): void;
   /** A section's cells text, as the band through cells states it (#446). */
   section(text: SectionText): void;
+  /** A line of the session's log the band says itself: the conductor's, at a section line (step 3). */
+  said(line: SessionEvent): void;
 }
 
 /** What a client tells its host, as it happens. */
@@ -790,9 +795,10 @@ export class Player {
    * for a beat a bar more or fewer, asked for from the next section, where
    * that bar is one the band is offered (`meterNudged`); none where it isn't.
    */
-  #stepMeter(by: 1 | -1) {
+  #stepMeter(by: 1 | -1): Meter | null {
     const next = meterNudged(this.#heading(), by);
     if (next) this.setMeter(next);
+    return next;
   }
 
   /**
@@ -810,6 +816,8 @@ export class Player {
       if (bar === 0 || bar % SECTION_BARS !== 0) continue;
       const step = this.#sectionStep();
       if (!step) continue;
+      const before = targetOf(this.track);
+      const meterBefore = this.#heading();
       const at = Math.max(carried.head.step, clock.barStart(bar));
       const conducted = conductRadio(this.track, step.style, at, this.tempoNudge);
       this.station = step.station;
@@ -817,7 +825,16 @@ export class Player {
       this.track = conducted.track;
       this.tempoNudge = conducted.nudge;
       if (step.key !== 0) this.#stepKey(step.key, step.style);
-      if (step.meter !== 0) this.#stepMeter(step.meter > 0 ? 1 : -1);
+      const meterAfter = step.meter !== 0 ? this.#stepMeter(step.meter > 0 ? 1 : -1) : null;
+      // The conductor says what the line moved, where a person would read a change.
+      const moved = movedLine(
+        bar,
+        before,
+        targetOf(this.track),
+        step.key,
+        meterAfter && { from: meterBefore, to: meterAfter },
+      );
+      if (moved) this.hosting?.said(moved);
     }
     if (this.station !== station) this.hosting?.station(this.station);
     if (this.station !== station || this.nudges !== nudges) {

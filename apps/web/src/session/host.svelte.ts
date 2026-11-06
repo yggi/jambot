@@ -28,7 +28,7 @@
  * step 2 of docs/briefs/session-roles.md); a listener's is dropped.
  */
 
-import type { ForecastBar } from '@jambot/engine';
+import { type ForecastBar, SECTION_BARS } from '@jambot/engine';
 import {
   CODE_WRONG,
   type ClientMessage,
@@ -50,11 +50,22 @@ import {
   playerSource,
   present,
   recast,
+  said,
+  type SessionEvent,
+  tailOf,
   WRONG_CODES,
   wrongCodesWithin,
 } from '@jambot/session';
 import type { Hosting, Player } from '../player.svelte.ts';
 import type { DeviceClocks } from './clocks.ts';
+import {
+  castLine,
+  composedLine,
+  joinedLine,
+  leftLine,
+  museLines,
+  nudgedLine,
+} from './log-lines.ts';
 import type { HostLink, Lobby } from './lobby.ts';
 
 /** How long, in seconds, a client may be silent before it is taken to have gone. */
@@ -95,6 +106,8 @@ export class HostSession {
   ended: string | null = $state(null);
   /** The code clients are admitted by (#461), or null while the session is open to anyone who finds it. */
   code: string | null = $state(null);
+  /** The session's log, oldest first (`log.ts`): what the players and the band said. */
+  log: readonly SessionEvent[] = $state.raw([]);
 
   #player: Player;
   #clocks: DeviceClocks;
@@ -121,6 +134,11 @@ export class HostSession {
     players: {},
   };
   #sweep: ReturnType<typeof setInterval> | null = null;
+  /** The last section the composer's line was said for, from the song's start. */
+  #composedUpTo = -1;
+  /** The last bar the Muse's lines were said for, and the offer she stood by. */
+  #musedUpTo = -1;
+  #offered: { readonly source: string; readonly bar: number } | null = null;
 
   /**
    * `clocks` are what clients set their clocks by; `wallNow`, in seconds,
@@ -228,6 +246,47 @@ export class HostSession {
     if (!member || member.role === role) return;
     this.#seat(recast(this.#roster, id, role));
     if (member.link !== null) this.#send({ kind: 'role', role }, member.link);
+    this.#say(castLine(this.#bar(), this.#hostName(), member.name, role));
+  }
+
+  /** Say a line of the session's log: kept here, and told to every client (`event`). */
+  #say(line: SessionEvent) {
+    this.log = said(this.log, line);
+    this.#send({ kind: 'event', ...line });
+  }
+
+  /** The bar the band plays now, or null while it is stopped: what a player's line is about. */
+  #bar(): number | null {
+    return this.#player.status === 'playing' ? (this.#player.hud.bar?.bar ?? null) : null;
+  }
+
+  #hostName(): string {
+    return this.#player.players[HOST_PLAYER] ?? 'the host';
+  }
+
+  /**
+   * The composer's line for each section it planned that none has been said
+   * for, once it is the next: within a section of the bar the band plays, so
+   * the log says sections in the order they come, not all the forecast holds.
+   */
+  #composed(bars: readonly ForecastBar[]) {
+    const near = (this.#player.hud.bar?.bar ?? 0) + SECTION_BARS;
+    // The bars ahead start at the first of the section heard, so a section's first bar here is its start.
+    for (const { bar, plan } of bars) {
+      if (plan.section.index <= this.#composedUpTo || bar > near) continue;
+      this.#composedUpTo = plan.section.index;
+      this.#say(composedLine(bar, plan.section.type, plan.key, plan.meter));
+    }
+  }
+
+  /** The Muse's lines for each bar she read that none has been said for. */
+  #mused(muse: MuseState) {
+    for (const output of muse.log) {
+      if (output.bar <= this.#musedUpTo) continue;
+      this.#musedUpTo = output.bar;
+      for (const line of museLines(output, muse.players, this.#offered)) this.#say(line);
+      if (output.offer) this.#offered = { source: output.offer.source, bar: output.offer.bar };
+    }
   }
 
   /** The session is closed on purpose: its clients hear it, and nothing is kept to come back to. */
@@ -274,6 +333,7 @@ export class HostSession {
     this.session = null;
     this.code = null;
     this.guests = [];
+    this.log = [];
     this.#roster = [];
     this.#wrongCodes = [];
     this.#lastHeard = {};
@@ -291,16 +351,24 @@ export class HostSession {
 
   #hosting(): Hosting {
     return {
-      started: (song) => this.#send({ kind: 'start', song }),
+      started: (song) => {
+        // A song plans its sections from the first again, and the Muse starts afresh with it.
+        this.#composedUpTo = -1;
+        this.#musedUpTo = -1;
+        this.#offered = null;
+        this.#send({ kind: 'start', song });
+      },
       stopped: () => this.#send({ kind: 'stop' }),
       finale: (bar) => this.#send({ kind: 'finale', bar }),
       section: (text) => this.#send({ kind: 'section', ...text }),
       composed: (bars) => {
         for (const sent of bars) this.#send({ kind: 'bar', sent });
+        this.#composed(this.#forecast);
       },
       decided: (bars) => {
         this.#send({ kind: 'forecast', forecast: forecastDelta(this.#forecast, bars) });
         this.#forecast = bars;
+        if (this.#player.status === 'playing') this.#composed(bars);
       },
       track: (track, swing, tempoMeter) => {
         this.#send({ kind: 'track', track, swing, tempoMeter });
@@ -311,7 +379,9 @@ export class HostSession {
       muse: (muse) => {
         this.#muse = muse;
         this.#send({ kind: 'muse', muse });
+        this.#mused(muse);
       },
+      said: (line) => this.#say(line),
     };
   }
 
@@ -335,9 +405,13 @@ export class HostSession {
       case 'nudge':
         // A listener's nudge reaches nothing, as what it plays doesn't.
         if (member.role === 'listener') return;
-        return this.#player.nudgeFrom(message.target, message.by, this.#players());
+        this.#player.nudgeFrom(message.target, message.by, this.#players());
+        return this.#say(
+          nudgedLine(this.#bar(), member.id, member.name, message.target, message.by),
+        );
       case 'leave':
-        return this.#seat(leave(this.#roster, from));
+        this.#seat(leave(this.#roster, from));
+        return this.#say(leftLine(this.#bar(), member.id, member.name));
       case 'lost':
         return this.#lose(from);
     }
@@ -392,6 +466,8 @@ export class HostSession {
       return this.#send({ kind: 'refused', reason: admitted.refusal }, from);
     }
     const { roster, member } = admitted;
+    // A join whose token opened a seat comes back; any other is new.
+    const back = this.#roster.some((m) => m.id === member.id);
     this.#name(member.id, member.name, false);
     this.#seat(roster);
     this.#lastHeard[from] = this.#wallNow();
@@ -411,11 +487,13 @@ export class HostSession {
         forecast: forecastDelta([], this.#forecast),
         muse: this.#muse,
         ...(member.role === 'listener' ? { listening: true as const } : {}),
+        events: tailOf(this.log),
       },
       from,
     );
-    // Everyone else learns the new player's name.
+    // Everyone else learns the new player's name, and everyone, the newcomer too, reads it joined.
     this.#send({ kind: 'muse', muse: this.#muse });
+    this.#say(joinedLine(this.#bar(), member.id, member.name, member.role, back));
   }
 
   /**
@@ -431,7 +509,9 @@ export class HostSession {
   /** A client's link is gone: its seat is kept for it to come back to. */
   #lose(link: string) {
     delete this.#lastHeard[link];
+    const member = memberAt(this.#roster, link);
     this.#seat(lose(this.#roster, link, this.#wallNow()));
+    if (member) this.#say(leftLine(this.#bar(), member.id, member.name, true));
   }
 
   #dropSilent() {
