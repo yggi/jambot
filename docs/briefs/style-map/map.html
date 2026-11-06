@@ -27,8 +27,7 @@ svg { display:block; width:100%; height:auto; }
 .pill { border:1px solid var(--line); border-radius:999px; padding:4px 10px; color:var(--ink); background:var(--bg); }
 .pill.on { background:var(--teal-bg); border-color:var(--teal); color:var(--teal); font-weight:600; }
 .note { font-size:12px; color:var(--muted); margin:8px 0 0; }
-.glyphs { display:flex; gap:16px; align-items:center; }
-.glyph { width:104px; height:auto; border:1px solid var(--line); border-radius:10px; background:var(--bg); }
+.glyphs { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
 </style>
 <h1>Style: a map of music</h1>
 <p class="lede">Mock for the Style sheet. A preset is a place; the band's style is a point that moves; entropy is how far it may wander, drawn as its reach, not as a fifth slider. Map axes: across, <b>harmony</b> (a static vamp → moving, rich); up, <b>drive</b> (legato and sparse → staccato and dense, the mean of articulation and energy, which correlate 0.84 over the presets). The third, <b>groove</b> (sync), is the strip below. Faint dots: the library's fragments (where the composer finds parts).</p>
@@ -96,9 +95,22 @@ const FRAMES = {
       <p class="note">A player's nudge is a drag that leaves an arrow: their wish. The band leans by the players' wishes inside the reach; a wish fades as nudges do today.</p></div>`;
   },
   glyph: () => {
-    const small = (pt) => map({ point: pt, entropy: .3, labels: false }).replace('<svg ', '<svg class="glyph" ');
-    return `<div class="frame"><h2>Folded · the card's glyph</h2><div class="glyphs">${small([.3,.45,.55,.55])}${small([1,.12,.85,.75])}${small([.35,1,.3,.6])}</div>
-      <p class="note">The radar of five axes becomes the map in miniature: the point and its reach over the places. Synth-pop, Funk, Swing jazz.</p></div>`;
+    // The folded glyph: the map's frame, its centre cross, and one marker where the style is; its colour is the groove
+    // (sync), from on the beat (blue) to off the beat (pink). Nothing else: no places, no dots, no reach.
+    const syncColour = (v) => `color-mix(in oklab, var(--source-2) ${Math.round(v * 100)}%, var(--source-3))`;
+    const tiny = (s, h, a, e, size) => {
+      const x = 10 + h * 20, y = 30 - drive(a, e) * 20;
+      return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" role="img" aria-label="style glyph">
+        <rect x="1" y="1" width="38" height="38" rx="8" fill="var(--bg)" stroke="var(--line)"/>
+        <line x1="20" y1="6" x2="20" y2="34" stroke="var(--line)"/><line x1="6" y1="20" x2="34" y2="20" stroke="var(--line)"/>
+        <circle cx="${x}" cy="${y}" r="5.5" fill="${syncColour(s)}" stroke="var(--surface)" stroke-width="1.5"/></svg>`;
+    };
+    const SHOWN = ['Synth-pop', 'Funk', 'Swing jazz', 'Ambient', 'Techno'];
+    const cells = SHOWN.map((n) => { const p = PRESETS.find((q) => q[0] === n);
+      return `<figure style="margin:0;text-align:center">${tiny(p[1], p[2], p[3], p[4], 52)}<figcaption style="font-size:11px;color:var(--muted)">${n}</figcaption></figure>`; }).join('');
+    const legend = `<div class="strip"><svg viewBox="0 0 356 16"><defs><linearGradient id="sg"><stop offset="0" stop-color="var(--source-3)"/><stop offset="1" stop-color="var(--source-2)"/></linearGradient></defs><rect x="10" y="4" width="336" height="8" rx="4" fill="url(#sg)"/></svg><div class="lab"><span>marker colour, groove: on the beat</span><span>off the beat</span></div></div>`;
+    return `<div class="frame"><h2>Folded · the card's glyph</h2><div class="glyphs">${cells}</div>${legend}
+      <p class="note">At the glyph's size (52 px) only the position reads: the marker on the map's frame, across harmony, up drive, coloured by groove. The places, the library and the reach stay on the unfolded map.</p></div>`;
   },
 };
 const only = new URLSearchParams(location.search).get('only');

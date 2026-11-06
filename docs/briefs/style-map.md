@@ -12,7 +12,7 @@ What it shows:
 - The band's style is a point, and entropy is its reach, a ring around it, not a fifth slider.
 - With the radio on, the trail of the last five sections and the place it drifts toward.
 - In a session, each player's wish as an arrow from the point.
-- Folded, the map in miniature is the card's glyph, in place of the radar.
+- Folded, the card's glyph is the map's frame and one marker where the style is, coloured by groove (blue on the beat, pink off it), in place of the radar: at 52 px only the position reads, so the places, the dots and the reach stay on the unfolded map.
 
 The preset points and the fragments' points are cells' at 1f7fa74, written into the file.
 The axes of the map are open: they follow yggi/cells#539's ruling on energy and articulation, and #598 compares three choices.
