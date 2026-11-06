@@ -1,0 +1,118 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Style Map Mockup</title>
+<style>
+/* A mock of the Style sheet as a map of music (yggi/cells style epic): the presets as places, the band's style as a point
+   with its entropy as a reach, the radio's trail and the players' wishes. Tokens are the app's own (apps/web/src/app.css).
+   No dependencies. ?only=radio|session|glyph shows one frame. */
+:root { --bg:#e9ecf3; --surface:#fff; --ink:#1b2340; --muted:#59617d; --line:#d3d8e4; --amber:#9a6200; --teal:#0f7a6a; --teal-bg:#d8f0eb;
+  --source-1:#6a4fc7; --source-2:#b8336a; --source-3:#2465c9; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#131a2e; --surface:#1c2440; --ink:#ede7da; --muted:#9ba3c0; --line:#2e385c;
+  --amber:#f2b134; --teal:#6fd3c1; --teal-bg:#193a3a; --source-1:#b3a1ff; --source-2:#ff8fb8; --source-3:#7fb2ff; } }
+:root[data-theme="dark"] { --bg:#131a2e; --surface:#1c2440; --ink:#ede7da; --muted:#9ba3c0; --line:#2e385c; --amber:#f2b134; --teal:#6fd3c1;
+  --teal-bg:#193a3a; --source-1:#b3a1ff; --source-2:#ff8fb8; --source-3:#7fb2ff; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.35 system-ui, sans-serif; padding:16px; }
+h1 { font-size:16px; margin:0 0 4px; } p.lede { margin:0 0 16px; color:var(--muted); max-width:70ch; }
+.frames { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
+.frame { width:380px; max-width:100%; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px; }
+.frame h2 { font-size:13px; margin:0 0 2px; letter-spacing:.02em; text-transform:uppercase; color:var(--muted); }
+.now { display:flex; justify-content:space-between; align-items:baseline; margin:2px 0 8px; }
+.now b { font-size:17px; } .now span { color:var(--muted); font-size:12px; }
+svg { display:block; width:100%; height:auto; }
+.strip { margin-top:10px; }
+.strip .lab { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+.row { display:flex; gap:8px; margin-top:10px; align-items:center; font-size:12px; color:var(--muted); }
+.pill { border:1px solid var(--line); border-radius:999px; padding:4px 10px; color:var(--ink); background:var(--bg); }
+.pill.on { background:var(--teal-bg); border-color:var(--teal); color:var(--teal); font-weight:600; }
+.note { font-size:12px; color:var(--muted); margin:8px 0 0; }
+.glyphs { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+</style>
+<h1>Style: a map of music</h1>
+<p class="lede">Mock for the Style sheet. A preset is a place; the band's style is a point that moves; entropy is how far it may wander, drawn as its reach, not as a fifth slider. Map axes: across, <b>harmony</b> (a static vamp → moving, rich); up, <b>drive</b> (legato and sparse → staccato and dense, the mean of articulation and energy, which correlate 0.84 over the presets). The third, <b>groove</b> (sync), is the strip below. Faint dots: the library's fragments (where the composer finds parts).</p>
+<div class="frames" id="frames"></div>
+<script>
+const FRAG = [["meter","meter",0.3,0.45,0.55,0.55,1],["meter","meter",0.12,0,1,0.8,1],["meter","meter",0.75,0.85,0.45,0.45,1],["meter(swing=8n:2/3)","meter",0.35,1,0.3,0.6,1],["meter(swing=8n:2/3)","meter",0.55,0.75,0.6,0.75,1],["meter(swing=16n:.65)","meter",0.5,0.75,0.35,0.5,1],["meter(swing=16n:.6)","meter",0.35,0.55,0.65,0.65,1],["meter(swing=16n:.6)","meter",1,0.12,0.85,0.75,1],["meter(swing=16n:31/60)","meter",0.05,0.3,0,0.2,1],["meter(grouping=meter(\"2/2\", 2))","meter",0.2,0.6,0.9,1,1],["meter(grouping=meter(\"2/4\"))","meter",0,0.1,0.6,1,1],["meter(grouping=meter(\"3/4\"))","meter",0,0.7,0.3,0,1],["meter(grouping=meter(\"3/4\"))","meter",0.2,0.9,0.3,0.43,1],["meter(grouping=meter(\"6/8\"))","meter",0.3,0.2,0.2,0,1],["meter(grouping=meter(\"6/8\"))","meter",0.2,0.9,0.3,0.27,1],["meter(grouping=meter(\"12/8\"))","meter",0.7,0.6,0,0.2,1],["meter(grouping=meter(\"5/4\"))","meter",0.4,0.9,0.5,0.3,1],["meter(grouping=meter(\"5/4\"))","meter",0.2,0.9,0.3,0.35,1],["meter(grouping=meter(\"7/8\"))","meter",0.8,0.6,1,1,1],["meter(grouping=meter(\"10/8\"))","meter",0.6,0.9,0.8,0.9,1],["synth_pop_drums","rhythm",0.3,0.45,0.55,0.55,1],["techno_drums","rhythm",0.12,0,1,0.8,1],["deep_house_drums","rhythm",0.35,0.55,0.65,0.65,1],["ambient_drums","rhythm",0.05,0.3,0,0.2,1],["lo_fi_hip_hop_drums","rhythm",0.5,0.75,0.35,0.5,1],["funk_drums","rhythm",1,0.12,0.85,0.75,1],["bossa_nova_drums","rhythm",0.75,0.85,0.45,0.45,1],["swing_jazz_drums","rhythm",0.35,1,0.3,0.6,1],["son_clave_3_2","rhythm",0.875,0.485,0.65,0.6,1],["son_clave_2_3","rhythm",0.95,0.35,0.75,0.65,1],["rumba_clave_3_2","rhythm",1,0.2,0.75,0.8,1],["bossa_nova_clave","rhythm",0.8,0.85,0.45,0.35,1],["bossa_nova_clave_one_bar","rhythm",0.8,0.85,0.45,0.45,1],["electro_swing_drums","rhythm",0.55,0.75,0.6,0.75,1],["spooky_drums","rhythm",0.2,0.9,0.3,0.35,1],["ghost_drums","rhythm",0.1,0.9,0.3,0.25,1],["kinderlied_drums","rhythm",0.1,0.12,0.5,0.35,0.25],["root_bass","bass",0,0.3,0,0,1],["root_bass","bass",0.3,0.45,0.55,0.55,1],["root_bass","bass",0.35,0.55,0.65,0.65,1],["root_bass","bass",0.05,0.3,0,0.2,1],["pumping_bass","bass",0,0,1,0,1],["pumping_bass","bass",0.12,0,1,0.8,1],["eighths_bass","bass",0,0.3,0,1,1],["funk_bass","bass",1,0.12,0.85,0.75,1],["funk_bass","bass",0.5,0.75,0.35,0.5,1],["funk_bass","bass",0.75,0.85,0.45,0.45,1],["walking_bass","bass",0.35,1,0.3,0.6,1],["walking_bass","bass",0.55,0.75,0.6,0.75,1],["creeping_bass","bass",0.2,0.9,0.3,0.35,1],["tiptoe_bass","bass",0.2,0.9,0.25,0.3,1],["tonic_vamp","harmony",0.12,0,1,0.8,1],["tonic_vamp","harmony",1,0.12,0.85,0.75,1],["vamp_to_the_seventh","harmony",0.12,0,1,0.8,1],["vamp_to_the_seventh","harmony",1,0.12,0.85,0.75,1],["vamp_to_the_fourth","harmony",0.12,0,1,0.8,1],["vamp_to_the_fourth","harmony",1,0.12,0.85,0.75,1],["vamp_to_the_fourth","harmony",0.05,0.12,0,0.2,1],["vamp_to_the_sixth","harmony",0.12,0,1,0.8,1],["vamp_to_the_sixth","harmony",0.05,0.12,0,0.2,1],["vamp_to_the_fifth","harmony",0.05,0.12,0,0.2,1],["vamp_to_the_fifth","harmony",0.1,0.12,0.5,0.35,0.5],["dark_cadence","harmony",0.2,0.9,0.3,0.35,0.4],["haunted_progression","harmony",0.2,0.9,0.3,0.3,0.4],["gm_kit","instrument",0.5,0.5,0.5,0.5,1],["bass","instrument",0.5,0.5,0.5,0.5,0.25],["keys","instrument",0.5,0.5,0.5,0.5,0.25],["pad","instrument",0.5,0.5,0.5,0.5,0.25],["lead","instrument",0.5,0.5,0.5,0.5,0.25],["upright_bass","instrument",0.55,0.75,0.6,0.75,0.125],["brass_stab","instrument",0.55,0.75,0.6,0.75,0.125],["clarinet","instrument",0.55,0.75,0.6,0.75,0.125],["muted_trumpet","instrument",0.55,0.75,0.6,0.75,0.125],["round_bass","instrument",0.2,0.9,0.3,0.35,0.125],["organ","instrument",0.2,0.9,0.3,0.35,0.125],["theremin","instrument",0.2,0.9,0.3,0.35,0.125],["celesta","instrument",0.2,0.9,0.3,0.35,0.125],["haunted_pad","instrument",0.2,0.9,0.3,0.3,0.125],["vibrato","expression",0.5,0.5,0.5,0.5,0.25],["envelopes","expression",0.5,0.5,0.5,0.5,0.25],["diatonic(mode=aeolian)","mode",0.3,0.45,0.55,0.55,1],["diatonic(mode=aeolian)","mode",0.12,0,1,0.8,1],["diatonic(mode=aeolian)","mode",0.5,0.75,0.35,0.5,1],["diatonic(mode=dorian)","mode",0.35,0.55,0.65,0.65,1],["diatonic(mode=dorian)","mode",1,0.12,0.85,0.75,1],["diatonic(mode=ionian)","mode",0.05,0.3,0,0.2,1],["diatonic(mode=ionian)","mode",0.75,0.85,0.45,0.45,1],["diatonic(mode=ionian)","mode",0.35,1,0.3,0.6,1],["diatonic(mode=ionian)","mode",0.1,0.12,0.5,0.35,1],["diatonic(mode=mixolydian)","mode",0.875,0.485,0.65,0.6,1],["diatonic(mode=phrygian)","mode",0.6,0.6,0.7,0.85,1],["diatonic(mode=lydian)","mode",0.15,0.6,0.15,0.3,1],["diatonic(mode=locrian)","mode",0.9,1,0.6,0.9,1],["bell_and_scale","mode",0.383,0.717,0.25,0.417,1],["bell_and_scale","rhythm",0.8,0.1,0.9,0.6,1],["harmonic_minor","mode",0.55,0.75,0.6,0.75,1],["harmonic_minor","mode",0.2,0.9,0.3,0.35,1],["drums_performer","performer",0.3,0.45,0.55,0.55,1],["drums_performer","performer",0.12,0,1,0.8,1],["drums_performer","performer",0.35,0.55,0.65,0.65,1],["drums_performer","performer",0.05,0.3,0,0.2,1],["drums_performer","performer",0.5,0.75,0.35,0.5,1],["drums_performer","performer",1,0.12,0.85,0.75,1],["drums_performer","performer",0.75,0.85,0.45,0.45,1],["drums_performer","performer",0.35,1,0.3,0.6,1],["bass_performer","performer",0.3,0.45,0.55,0.55,1],["bass_performer","performer",0.12,0,1,0.8,1],["bass_performer","performer",0.35,0.55,0.65,0.65,1],["bass_performer","performer",0.05,0.3,0,0.2,1],["bass_performer","performer",0.5,0.75,0.35,0.5,1],["bass_performer","performer",1,0.12,0.85,0.75,1],["bass_performer","performer",0.75,0.85,0.45,0.45,1],["bass_performer","performer",0.35,1,0.3,0.6,1],["pad_performer","performer",0.3,0.45,0.55,0.55,1],["pad_performer","performer",0.12,0,1,0.8,1],["pad_performer","performer",0.35,0.55,0.65,0.65,1],["pad_performer","performer",0.05,0.3,0,0.2,1],["pad_performer","performer",0.5,0.75,0.35,0.5,1],["pad_performer","performer",1,0.12,0.85,0.75,1],["pad_performer","performer",0.75,0.85,0.45,0.45,1],["pad_performer","performer",0.35,1,0.3,0.6,1],["stab_performer","performer",0.3,0.45,0.55,0.55,1],["stab_performer","performer",0.12,0,1,0.8,1],["stab_performer","performer",0.35,0.55,0.65,0.65,1],["stab_performer","performer",0.05,0.3,0,0.2,1],["stab_performer","performer",0.5,0.75,0.35,0.5,1],["stab_performer","performer",1,0.12,0.85,0.75,1],["stab_performer","performer",0.75,0.85,0.45,0.45,1],["stab_performer","performer",0.35,1,0.3,0.6,1],["lead_performer","performer",0.3,0.45,0.55,0.55,1],["lead_performer","performer",0.12,0,1,0.8,1],["lead_performer","performer",0.35,0.55,0.65,0.65,1],["lead_performer","performer",0.05,0.3,0,0.2,1],["lead_performer","performer",0.5,0.75,0.35,0.5,1],["lead_performer","performer",1,0.12,0.85,0.75,1],["lead_performer","performer",0.75,0.85,0.45,0.45,1],["lead_performer","performer",0.35,1,0.3,0.6,1],["charleston_stabs","stab",0.55,0.75,0.6,0.75,0.4],["hook","motif",0.3,0.45,0.55,0.55,1],["octaves","motif",0.12,0,1,0.8,1],["sigh","motif",0.35,0.55,0.65,0.65,1],["rising","motif",0.05,0.3,0,0.2,1],["lazy","motif",0.5,0.75,0.35,0.5,1],["riff","motif",1,0.12,0.85,0.75,1],["tresillo","motif",0.75,0.85,0.45,0.45,1],["bebop","motif",0.35,1,0.3,0.6,1],["gypsy","motif",0.55,0.75,0.6,0.75,1],["diesIrae","motif",0.2,0.9,0.3,0.35,1],["refrain","motif",0.3,0.45,0.55,0.65,1],["pulse","motif",0.12,0,1,0.9,1],["soul","motif",0.35,0.55,0.65,0.75,1],["drift","motif",0.05,0.3,0,0.3,1],["dusty","motif",0.5,0.75,0.35,0.6,1],["slap","motif",1,0.12,0.85,0.85,1],["saudade","motif",0.75,0.85,0.45,0.55,1],["blue","motif",0.35,1,0.3,0.7,1],["lindy","motif",0.55,0.75,0.6,0.85,1],["toll","motif",0.2,0.9,0.3,0.45,1],["waltz","motif",0,0.7,0.3,0,1],["musicBox","motif",0.2,0.9,0.3,0.43,1],["rocking","motif",0.3,0.2,0.2,0,1],["sway","motif",0.2,0.9,0.3,0.27,1],["fivefold","motif",0.4,0.9,0.5,0.3,1],["limp","motif",0.8,0.6,1,1,1],["dancer","motif",0.6,0.9,0.8,0.9,1],["shuffle","motif",0.7,0.6,0,0.2,1],["march","motif",0,0.1,0.6,1,1],["fanfare","motif",0.2,0.6,0.9,1,1],["question","motif",0.5,0.5,0.5,0.5,1],["reply","motif",0.5,0.5,0.5,0.3,1],["arpeggio","motif",0.5,0.3,0.5,0.5,1],["run","motif",0.5,0.7,0.5,0.5,1],["neighbour","motif",0.5,0.5,0.3,0.5,1],["leap","motif",0.5,0.5,0.7,0.5,1],["wail","motif",0.2,0.9,0.3,0.3,1],["haunt","motif",0.15,0.9,0.25,0.35,1],["lament","motif",0.2,0.9,0.25,0.3,1],["peek","motif",0.3,0.9,0.3,0.3,1],["twinkle","motif",0.1,0.12,0.5,0.35,1],["wonder","motif",0.1,0.12,0.5,0.25,1],["haenschen","motif",0.1,0.12,0.6,0.45,1],["hinein","motif",0.1,0.12,0.6,0.35,1],["heim","motif",0.1,0.12,0.6,0.25,1],["weinet","motif",0.1,0.12,0.7,0.45,1],["call_and_answer","form",0.5,0.5,0.5,0.5,1],["sentence","form",0.5,0.5,0.5,0.5,1],["period","form",0.5,0.5,0.5,0.5,1],["AABA","form",0.5,0.5,0.5,0.5,1],["ternary","form",0.1,0.12,0.5,0.35,0.5],["rounded_binary","form",0.1,0.12,0.6,0.45,0.5],["band","band",0.5,0.5,0.5,0.5,1],["osc","module",0.5,0.5,0.5,0.5,0.25],["lowpass","module",0.5,0.5,0.5,0.5,0.25],["highpass","module",0.5,0.5,0.5,0.5,0.25],["amp","module",0.5,0.5,0.5,0.5,0.25],["lfo","module",0.5,0.5,0.5,0.5,0.25],["sh","module",0.5,0.5,0.5,0.5,0.25],["bandpass","module",0.5,0.5,0.5,0.5,0.25],["lowpass24","module",0.5,0.5,0.5,0.5,0.25]];
+const PRESETS = [
+  ['Synth-pop',.3,.45,.55,.55],['Techno',.12,0,1,.8],['Deep house',.35,.55,.65,.65],['Ambient',.05,.3,0,.2],['Lo-fi hip hop',.5,.75,.35,.5],
+  ['Funk',1,.12,.85,.75],['Bossa nova',.75,.85,.45,.45],['Swing jazz',.35,1,.3,.6],['Electro swing',.55,.75,.6,.75],['Spooky',.2,.9,.3,.35],
+  ['Kinderlied',.1,.12,.5,.35,'proposed'],
+];
+const W = 356, H = 330, PAD = 26;
+const X = (h) => PAD + h * (W - 2 * PAD), Y = (d) => H - PAD - d * (H - 2 * PAD);
+const drive = (a, e) => (a + e) / 2;
+const at = (s, h, a, e) => [X(h), Y(drive(a, e))];
+const LABEL = { 'Lo-fi hip hop':[-6,16,'end'], 'Bossa nova':[0,19,'middle'], 'Spooky':[10,4,'start'], 'Swing jazz':[4,-11,'end'], 'Electro swing':[0,-11,'middle'],
+  'Deep house':[0,-11,'middle'], 'Synth-pop':[-8,4,'end'], 'Techno':[8,4,'start'], 'Funk':[8,4,'start'], 'Ambient':[8,4,'start'], 'Kinderlied':[8,4,'start'] };
+function map({ point, entropy, trail = [], wishes = [], toward = null, labels = true }) {
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of music">`;
+  s += `<rect x="${PAD}" y="${PAD}" width="${W - 2 * PAD}" height="${H - 2 * PAD}" rx="8" fill="var(--bg)" stroke="var(--line)"/>`;
+  for (const t of [.25,.5,.75]) s += `<line x1="${X(t)}" y1="${PAD}" x2="${X(t)}" y2="${H-PAD}" stroke="var(--line)" stroke-dasharray="2 4"/><line x1="${PAD}" y1="${Y(t)}" x2="${W-PAD}" y2="${Y(t)}" stroke="var(--line)" stroke-dasharray="2 4"/>`;
+  for (const f of FRAG) { const [x, y] = at(f[2], f[3], f[4], f[5]); s += `<circle cx="${x}" cy="${y}" r="2.2" fill="var(--muted)" opacity=".28"/>`; }
+  for (const p of PRESETS) { const [x, y] = at(p[1], p[2], p[3], p[4]); const near = toward === p[0];
+    s += `<circle cx="${x}" cy="${y}" r="15" fill="var(--teal)" opacity="${near ? .22 : .09}"/>`;
+    s += `<circle cx="${x}" cy="${y}" r="4" fill="${p[5] ? 'none' : 'var(--teal)'}" stroke="var(--teal)" stroke-width="1.5" ${p[5] ? 'stroke-dasharray="2 2"' : ''}/>`;
+    if (!labels) continue;
+    const [dx, dy, anchor] = LABEL[p[0]] ?? [8, 4, 'start'];
+    s += `<text x="${x + dx}" y="${y + dy}" text-anchor="${anchor}" font-size="11" font-weight="${near ? 700 : 500}" fill="var(--ink)">${p[0]}${p[5] ? ' ·' : ''}</text>`; }
+  const [px, py] = at(...point);
+  const reach = entropy * 0.35 * (W - 2 * PAD);
+  s += `<circle cx="${px}" cy="${py}" r="${reach}" fill="var(--amber)" opacity=".10" stroke="var(--amber)" stroke-opacity=".5" stroke-dasharray="4 3"/>`;
+  if (trail.length) { const pts = [...trail, point].map((q) => at(...q));
+    s += `<polyline points="${pts.map((p) => p.join(',')).join(' ')}" fill="none" stroke="var(--amber)" stroke-width="1.5" opacity=".55"/>`;
+    pts.slice(0, -1).forEach(([x, y], i) => (s += `<circle cx="${x}" cy="${y}" r="2.6" fill="var(--amber)" opacity="${.2 + .6 * i / pts.length}"/>`)); }
+  const COL = ['var(--source-1)','var(--source-2)','var(--source-3)'];
+  wishes.forEach((w, i) => { const [wx, wy] = at(...w.to);
+    s += `<defs><marker id="m${i}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="${COL[i]}"/></marker></defs>`;
+    s += `<line x1="${px}" y1="${py}" x2="${wx}" y2="${wy}" stroke="${COL[i]}" stroke-width="2" marker-end="url(#m${i})"/>`;
+    s += `<text x="${wx + 6}" y="${wy - 6}" font-size="10" fill="${COL[i]}" font-weight="600">${w.who}</text>`; });
+  s += `<circle cx="${px}" cy="${py}" r="7" fill="var(--amber)" stroke="var(--surface)" stroke-width="2.5"/>`;
+  if (labels) s += `<text x="${W/2}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">harmony: static vamp → moving, rich</text>`;
+  if (labels) s += `<text transform="translate(11 ${H/2}) rotate(-90)" text-anchor="middle" font-size="10" fill="var(--muted)">drive: legato, sparse → staccato, dense</text>`;
+  return s + '</svg>';
+}
+function strip(sync) {
+  const w = 356, x = (v) => 10 + v * (w - 20);
+  let s = `<svg viewBox="0 0 ${w} 34"><line x1="10" y1="16" x2="${w-10}" y2="16" stroke="var(--line)" stroke-width="6" stroke-linecap="round"/>`;
+  for (const p of PRESETS) s += `<line x1="${x(p[1])}" y1="9" x2="${x(p[1])}" y2="23" stroke="var(--teal)" stroke-width="1.5" opacity=".6"/>`;
+  s += `<circle cx="${x(sync)}" cy="16" r="7" fill="var(--amber)" stroke="var(--surface)" stroke-width="2.5"/></svg>`;
+  return `<div class="strip">${s}<div class="lab"><span>groove: on the beat</span><span>off the beat</span></div></div>`;
+}
+const FRAMES = {
+  radio: () => {
+    const point = [.46,.66,.42,.52], trail = [[.3,.45,.55,.55],[.33,.5,.5,.55],[.38,.55,.47,.54],[.4,.6,.45,.53],[.44,.63,.43,.52]];
+    return `<div class="frame"><h2>Radio · nobody playing</h2><div class="now"><b>Synth-pop → Lo-fi hip hop</b><span>section 6 · drifting</span></div>
+      ${map({ point, entropy: .3, trail, toward: 'Lo-fi hip hop' })}${strip(point[0])}
+      <div class="row"><span class="pill on">Radio</span><span class="pill">Reach ◯ .30</span><span class="pill">Presets ▾</span></div>
+      <p class="note">The trail is the last five sections. The ring is the reach entropy gives the drift. A tap on a place glides there over 8 bars; a drag of the point is the host's.</p></div>`;
+  },
+  session: () => {
+    const point = [.62,.2,.72,.72];
+    return `<div class="frame"><h2>Session · three players</h2><div class="now"><b>Near Funk</b><span>2 wishes held · fading</span></div>
+      ${map({ point, entropy: .45, toward: 'Funk', wishes: [{ who:'Ana', to:[.62,.3,.9,.85] }, { who:'Bo', to:[.62,.38,.65,.62] }] })}${strip(point[0])}
+      <div class="row"><span class="pill">Radio</span><span class="pill">Reach ◯ .45</span><span class="pill">Presets ▾</span></div>
+      <p class="note">A player's nudge is a drag that leaves an arrow: their wish. The band leans by the players' wishes inside the reach; a wish fades as nudges do today.</p></div>`;
+  },
+  glyph: () => {
+    // The folded glyph: the map's frame, its centre cross, and one marker where the style is; its colour is the groove
+    // (sync), from on the beat (blue) to off the beat (pink). Nothing else: no places, no dots, no reach.
+    const syncColour = (v) => `color-mix(in oklab, var(--source-2) ${Math.round(v * 100)}%, var(--source-3))`;
+    const tiny = (s, h, a, e, size) => {
+      const x = 10 + h * 20, y = 30 - drive(a, e) * 20;
+      return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" role="img" aria-label="style glyph">
+        <rect x="1" y="1" width="38" height="38" rx="8" fill="var(--bg)" stroke="var(--line)"/>
+        <line x1="20" y1="6" x2="20" y2="34" stroke="var(--line)"/><line x1="6" y1="20" x2="34" y2="20" stroke="var(--line)"/>
+        <circle cx="${x}" cy="${y}" r="5.5" fill="${syncColour(s)}" stroke="var(--surface)" stroke-width="1.5"/></svg>`;
+    };
+    const SHOWN = ['Synth-pop', 'Funk', 'Swing jazz', 'Ambient', 'Techno'];
+    const cells = SHOWN.map((n) => { const p = PRESETS.find((q) => q[0] === n);
+      return `<figure style="margin:0;text-align:center">${tiny(p[1], p[2], p[3], p[4], 52)}<figcaption style="font-size:11px;color:var(--muted)">${n}</figcaption></figure>`; }).join('');
+    const legend = `<div class="strip"><svg viewBox="0 0 356 16"><defs><linearGradient id="sg"><stop offset="0" stop-color="var(--source-3)"/><stop offset="1" stop-color="var(--source-2)"/></linearGradient></defs><rect x="10" y="4" width="336" height="8" rx="4" fill="url(#sg)"/></svg><div class="lab"><span>marker colour, groove: on the beat</span><span>off the beat</span></div></div>`;
+    return `<div class="frame"><h2>Folded · the card's glyph</h2><div class="glyphs">${cells}</div>${legend}
+      <p class="note">At the glyph's size (52 px) only the position reads: the marker on the map's frame, across harmony, up drive, coloured by groove. The places, the library and the reach stay on the unfolded map.</p></div>`;
+  },
+};
+const only = new URLSearchParams(location.search).get('only');
+document.getElementById('frames').innerHTML = Object.entries(FRAMES).filter(([k]) => !only || k === only).map(([, f]) => f()).join('');
+</script>
