@@ -61,7 +61,7 @@ interface PairingSample {
 
 /**
  * Listens to the app: every sound source it starts, with its kind and time;
- * every Worker it runs; and a tap on everything that reaches the speakers.
+ * every Worker it runs; and a monitor on everything that reaches the speakers.
  */
 export async function listen(page: Page, path = '/') {
   const errors: string[] = [];
@@ -71,7 +71,7 @@ export async function listen(page: Page, path = '/') {
     const w = window as unknown as {
       starts: Start[];
       workers: { running: number; made: number };
-      tap?: AnalyserNode;
+      monitor?: AnalyserNode;
       contexts: AudioContext[];
       pairings: PairingSample[];
       stalls: Stall[];
@@ -164,8 +164,8 @@ export async function listen(page: Page, path = '/') {
       if (this instanceof GainNode && target instanceof DynamicsCompressorNode)
         masters.add(this.gain);
       if (target instanceof AudioDestinationNode) {
-        w.tap ??= target.context.createAnalyser();
-        connect.call(this, w.tap);
+        w.monitor ??= target.context.createAnalyser();
+        connect.call(this, w.monitor);
       }
       return connect.call(this, target, ...rest);
     } as typeof AudioNode.prototype.connect;
@@ -250,9 +250,9 @@ export const onsets = async (page: Page) =>
 /** The loudest sample the speakers are getting now. */
 export const level = (page: Page) =>
   page.evaluate(() => {
-    const tap = (window as unknown as { tap: AnalyserNode }).tap;
-    const data = new Float32Array(tap.fftSize);
-    tap.getFloatTimeDomainData(data);
+    const monitor = (window as unknown as { monitor: AnalyserNode }).monitor;
+    const data = new Float32Array(monitor.fftSize);
+    monitor.getFloatTimeDomainData(data);
     return Math.max(...data.map(Math.abs));
   });
 

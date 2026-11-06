@@ -15,7 +15,7 @@ export interface Mic {
   /** What the device calls itself. */
   readonly label: string;
   /** Where the sound is, in the audio graph, for routing it somewhere else: a live correction takes it from here. */
-  readonly source?: Tap;
+  readonly source?: Monitor;
   /** The newest `count` samples, oldest first, at most what it holds. */
   latest(count: number): Float32Array;
   /** Let go of the device. */
@@ -23,7 +23,7 @@ export interface Mic {
 }
 
 /** A place in an audio graph where a sound can be taken from: its context and the node it leaves by. */
-export interface Tap {
+export interface Monitor {
   readonly context: AudioContext;
   readonly node: AudioNode;
 }
@@ -62,7 +62,7 @@ export function listenThrough(
   sampleRate: number,
   label: string,
   release: () => void,
-  source?: Tap,
+  source?: Monitor,
 ): Mic {
   analyser.fftSize = HELD;
   const held = new Float32Array(HELD);

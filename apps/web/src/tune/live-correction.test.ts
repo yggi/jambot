@@ -11,7 +11,7 @@ describe('the live correction', () => {
     const w = browser();
     const correction = new LiveCorrection({ mic: w.micSource, moduleUrl: '/correct.js' });
     expect(correction.status).toBe('off');
-    expect(correction.outputTap()).toBeUndefined();
+    expect(correction.outputMonitor()).toBeUndefined();
     await correction.start();
     expect(correction.status).toBe('running');
     expect(w.opened).toEqual([undefined]);
@@ -28,7 +28,7 @@ describe('the live correction', () => {
     expect(w.log.gains[0]!.connected).toEqual([
       (w.context as unknown as { destination: unknown }).destination,
     ]);
-    expect(correction.outputTap()).toEqual({ context: w.context, node });
+    expect(correction.outputMonitor()).toEqual({ context: w.context, node });
   });
 
   it('keeps what it plays quiet until the person asks to hear it, since a microphone that hears its own output feeds back', async () => {
@@ -104,7 +104,7 @@ describe('the live correction', () => {
     expect(correction.status).toBe('off');
     expect(w.log.nodes[0]!.disconnected).toBeGreaterThan(0);
     expect(w.stopped.count).toBe(1);
-    expect(correction.outputTap()).toBeUndefined();
+    expect(correction.outputMonitor()).toBeUndefined();
     expect(correction.heard).toBeNull();
   });
 

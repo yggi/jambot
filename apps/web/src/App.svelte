@@ -110,11 +110,11 @@
   /** The metronome (#259): a bar of any meter on this device's synth. */
   const meterPlayer = new MeterPlayer({ audio: () => device.clockOf() });
   /** The tuner (#269): listens to an input, and looks at its sound in a worker made at the first look. */
-  const inputs = withSynth(browserMic(), () => device.clockOf().base.tap?.());
+  const inputs = withSynth(browserMic(), () => device.clockOf().base.monitor?.());
   /** The live correction (#298): takes the sound from an input and corrects it toward a scale in a worklet. */
   const correction = new LiveCorrection({ mic: inputs, moduleUrl: correctWorkletUrl });
   const tuner = new Tuner({
-    mic: withCorrected(inputs, () => correction.outputTap()),
+    mic: withCorrected(inputs, () => correction.outputMonitor()),
     analyse: new WorkerAnalysis(() => new AnalysisWorker()).analyse,
   });
   /** The note the tuner's screen holds, on this device's synth or a MIDI port, to tune an instrument by. */

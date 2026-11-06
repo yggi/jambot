@@ -28,7 +28,7 @@ function synth() {
   };
   return {
     log,
-    tap: { context: context as unknown as AudioContext, node: node as unknown as AudioNode },
+    monitor: { context: context as unknown as AudioContext, node: node as unknown as AudioNode },
   };
 }
 
@@ -49,13 +49,13 @@ const microphone = (): MicSource & { opened: (string | undefined)[] } => {
 
 describe('withSynth', () => {
   it('adds the synth to the inputs there are, last, without making the synth’s context to list them', async () => {
-    const tap = vi.fn();
-    const inputs = await withSynth(microphone(), tap).devices();
+    const monitor = vi.fn();
+    const inputs = await withSynth(microphone(), monitor).devices();
     expect(inputs).toEqual([
       { id: 'm', label: 'Mic' },
       { id: SYNTH_INPUT, label: 'This device’s synth (what it plays)' },
     ]);
-    expect(tap).not.toHaveBeenCalled();
+    expect(monitor).not.toHaveBeenCalled();
   });
 
   it('opens the microphones as before, the default one too', async () => {
@@ -67,8 +67,8 @@ describe('withSynth', () => {
   });
 
   it('listens to what the synth plays: an analyser on its output, at its rate, and never on to the speakers', async () => {
-    const { log, tap } = synth();
-    const mic = await withSynth(microphone(), () => tap).open(SYNTH_INPUT);
+    const { log, monitor } = synth();
+    const mic = await withSynth(microphone(), () => monitor).open(SYNTH_INPUT);
     expect(log).toMatchObject({ analysers: 1, connected: 1, resumed: 1 });
     expect(mic.sampleRate).toBe(44100);
     expect(mic.label).toBe('This device’s synth');

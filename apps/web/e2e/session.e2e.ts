@@ -466,12 +466,12 @@ const record = (page: Page, ms: number) =>
   page.evaluate(
     (ms) =>
       new Promise<{ began: number; samples: { t: number; level: number }[] }>((resolve) => {
-        const tap = (window as unknown as { tap: AnalyserNode }).tap;
-        const data = new Float32Array(tap.fftSize);
+        const monitor = (window as unknown as { monitor: AnalyserNode }).monitor;
+        const data = new Float32Array(monitor.fftSize);
         const out: { t: number; level: number }[] = [];
         const began = performance.now();
         const id = setInterval(() => {
-          tap.getFloatTimeDomainData(data);
+          monitor.getFloatTimeDomainData(data);
           const t = performance.now() - began;
           out.push({ t, level: Math.max(...data.map(Math.abs)) });
           if (t > ms) {
