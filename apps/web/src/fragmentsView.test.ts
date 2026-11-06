@@ -31,7 +31,7 @@ const section = (index: number, over: Partial<TakenSection> = {}): TakenSection 
 const filedFile = (
   id: string,
   source: string,
-  over: { tags?: string[]; varies?: string; facet?: string } = {},
+  over: { tags?: string[]; varies?: string; by?: string; facet?: string } = {},
 ): LearnedLayer['filed'][number] => ({
   fragment: {
     id,
@@ -49,6 +49,7 @@ const filedFile = (
     created: `song 1, bar 8`,
     tags: over.tags ?? ['groove', 'Garage'],
     ...(over.varies === undefined ? {} : { varies: over.varies }),
+    ...(over.by === undefined ? {} : { by: over.by }),
   },
   prose: '',
 });
@@ -181,6 +182,25 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
       source: 'Ada',
       muse: true,
       colour: 1,
+    });
+  });
+
+  it('shows how a variation varies its groove (by), and none where a layer filed before #442 says nothing of it', () => {
+    const filed = [
+      filedFile('composer song 1, bar 24', COMPOSER, {
+        varies: 'drummer song 1, bar 8',
+        by: 'drop &hat 6',
+      }),
+      filedFile('composer song 1, bar 16', COMPOSER, { varies: 'drummer song 1, bar 8' }),
+    ];
+    const all = rows({ layer: layer({ filed }) });
+    expect(byName(all, 'composer song 1, bar 24')).toMatchObject({
+      varies: 'drummer song 1, bar 8',
+      by: 'drop &hat 6',
+    });
+    expect(byName(all, 'composer song 1, bar 16')).toMatchObject({
+      varies: 'drummer song 1, bar 8',
+      by: null,
     });
   });
 

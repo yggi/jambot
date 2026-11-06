@@ -6,7 +6,7 @@
   a mark for each place it has been (filed, retrieved, the Muse's), who made
   it, how many sections heard took it and since when. A row picked opens
   under it: its cells text, the point it is found at on the style's axes,
-  its tags, what it varies and what it was used together with. It logs the
+  its tags, what it varies and how, and what it was used together with. It logs the
   sections heard itself, a section at a time, so it stays mounted while
   another view shows. Where this device keeps what the band learned (a
   host's, solo's), it carries it (#398): the layer exported as JSON, its
@@ -183,7 +183,11 @@
         </p>
       {/if}
       {#if open.varies !== null}
-        <p class="line"><span>Varies</span><span>{open.varies}</span></p>
+        <p class="line">
+          <span>Varies</span><span
+            >{open.by === null ? open.varies : `${open.varies} by ${open.by}`}</span
+          >
+        </p>
       {/if}
       {#if open.tags.length > 0}
         <ul class="tags" aria-label="Tags">
