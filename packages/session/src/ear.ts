@@ -34,6 +34,9 @@ import {
   type SongClock,
   barOfIn,
   judgeBar,
+  NO_HANDS,
+  type Hands,
+  handsAfter,
   keptAfter,
 } from '@jambot/engine';
 import { PLAYED_MOST, type PlayedBar } from './protocol.ts';
@@ -44,6 +47,8 @@ export const EAR_AFTER = 4;
 export interface EarCarried {
   /** Notes heard in bars not judged yet. */
   readonly pending: readonly HeardNote[];
+  /** Each source's hand, as the phrases it closed have shown it (#580, rung 6): what its next phrase is read under. */
+  readonly hands: Hands;
   /** Drum notes heard in bars not passed on yet. */
   readonly drums: readonly HeardNote[];
   /** Notes played on the bass part (#569), in bars not passed on yet. */
@@ -52,7 +57,7 @@ export interface EarCarried {
   readonly next: number | null;
 }
 
-export const EAR: EarCarried = { pending: [], drums: [], bass: [], next: null };
+export const EAR: EarCarried = { pending: [], hands: NO_HANDS, drums: [], bass: [], next: null };
 
 /**
  * The ear after notes arrived (`arrived`, and on drums `drums`) and the
@@ -71,6 +76,7 @@ export function earListen(
 ): { carried: EarCarried; judged: BarJudgement[]; played: PlayedBar[] } {
   let { next } = carried;
   let pending = [...carried.pending, ...arrived];
+  let { hands } = carried;
   let struck = [...carried.drums, ...drums];
   let bassed = [...carried.bass, ...bass];
   if (next !== null) struck = struck.filter((n) => barOfIn(n, clock) >= next!);
@@ -80,11 +86,11 @@ export function earListen(
   const judged: BarJudgement[] = [];
   const played: PlayedBar[] = [];
   if (next === null)
-    return { carried: { pending, drums: struck, bass: bassed, next }, judged, played };
+    return { carried: { pending, hands, drums: struck, bass: bassed, next }, judged, played };
   for (; clock.barStart(next + 1) + EAR_AFTER <= heard; next++) {
     const key = keyOf(next);
     if (key)
-      for (const judgement of judgeBar(pending, next, key, 'phrases', clock))
+      for (const judgement of judgeBar(pending, next, key, 'phrases', clock, hands))
         judged.push({ bar: next, judgement });
     const bar = next;
     // (a bass: the bar's low notes, and what was played on the bass part, in the order they were played)
@@ -94,6 +100,7 @@ export function earListen(
     ].toSorted((x, y) => x.position - y.position);
     if (low.length > 0) played.push({ part: 'bass', bar, notes: low.slice(0, PLAYED_MOST) });
     bassed = bassed.filter((n) => barOfIn(n, clock) > bar);
+    hands = handsAfter(hands, pending, next, clock);
     pending = keptAfter(pending, next, clock);
     const notes = struck
       .filter((n) => barOfIn(n, clock) === bar)
@@ -102,7 +109,7 @@ export function earListen(
     if (notes.length > 0) played.push({ part: 'drums', bar, notes });
     struck = struck.filter((n) => barOfIn(n, clock) > bar);
   }
-  return { carried: { pending, drums: struck, bass: bassed, next }, judged, played };
+  return { carried: { pending, hands, drums: struck, bass: bassed, next }, judged, played };
 }
 
 /** The notes of a bar each source played wholly in the bass's register, in the order they were played. */

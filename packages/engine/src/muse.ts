@@ -55,7 +55,8 @@ import { SONG_CLOCK, type SongClock } from './events.ts';
 import { fold } from './fading.ts';
 import { type Key, keyHelix } from './key.ts';
 import type { Machine } from './machine.ts';
-import { phrasesOf, readHeardWithMargins } from './phrase.ts';
+import { A_HAND, phrasesOf, readHeardWithMargins } from './phrase.ts';
+import { type Hands, NO_HANDS, priorOf } from './hand.ts';
 
 /** A note a player played, heard at an exact position. */
 export interface HeardNote {
@@ -151,13 +152,15 @@ export interface HeardBar {
  * phrases (`readHeard`), whole phrases so far and no notes of the bars after
  * the one heard, so that what the band plays never depends on what came
  * later (F7); then those read into the bar. What a player's lane shows and
- * what is judged are this.
+ * what is judged are this. Each source is read under its hand's memory
+ * where `hands` has one (`hand.ts`, #580), else as a hand not yet heard.
  */
 export function heardInBar(
   notes: readonly HeardNote[],
   bar: number,
   reading: Reading = 'phrases',
   clock: SongClock = SONG_CLOCK,
+  hands: Hands = NO_HANDS,
 ): HeardBar[] {
   const edge = clock.barStart(bar + 1);
   const upTo = notes.filter((n) => n.position < edge);
@@ -168,7 +171,11 @@ export function heardInBar(
       const heard = heardIn(own, bar, clock);
       return heard.length === 0 ? [] : [{ source, notes: heard }];
     }
-    const { notes: read, margins } = readHeardWithMargins(own, clock);
+    const { notes: read, margins } = readHeardWithMargins(
+      own,
+      clock,
+      priorOf(Object.hasOwn(hands, source) ? hands[source] : undefined) ?? A_HAND,
+    );
     const heard = heardIn(read, bar, clock);
     if (heard.length === 0) return [];
     const mean = heard.reduce((sum, n) => sum + margins.get(n)!, 0) / heard.length;
@@ -183,8 +190,9 @@ export function judgeBar(
   key: Key,
   reading: Reading = 'phrases',
   clock: SongClock = SONG_CLOCK,
+  hands: Hands = NO_HANDS,
 ): Judgement[] {
-  return heardInBar(notes, bar, reading, clock).map(({ source, notes: heard, confidence }) =>
+  return heardInBar(notes, bar, reading, clock, hands).map(({ source, notes: heard, confidence }) =>
     judge(source, heard, bar, key, clock, confidence),
   );
 }

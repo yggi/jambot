@@ -1,4 +1,4 @@
-import { type HeardNote, type Key, judgeBar } from '@jambot/engine';
+import { type HeardNote, type Key, NO_HANDS, judgeBar } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { EAR, EAR_AFTER, earListen } from './ear.ts';
 import { PLAYED_MOST } from './protocol.ts';
@@ -28,6 +28,31 @@ describe("a client's ear", () => {
     expect(due.judged).toHaveLength(2);
     // Judged once: nothing more comes of it.
     expect(earListen(due.carried, [], 10 * 16, keys([2])).judged).toEqual([]);
+  });
+
+  it('carries each player’s hand from bar to bar, so a player late by a steady step is read on the beat from their third phrase (#580, rung 6)', () => {
+    // (eighths on the beat in bars 1, 3, 5 and 7, every one 120 ms late at 120 bpm: 0.96 of a step)
+    const late = (bar: number) =>
+      [0, 2, 4, 6, 8].map((at, i) => ({
+        note: 57 + 3 * i,
+        velocity: 100,
+        source: 'a MIDI port',
+        position: 16 * bar + at + 0.96 + [0.04, -0.03, 0.05, -0.02, 0.01][i]!,
+        end: 16 * bar + at + 2.4,
+      }));
+    let carried = EAR;
+    for (const bar of [1, 3, 5])
+      carried = earListen(carried, late(bar), 16 * (bar + 2), keys([])).carried;
+    expect(carried.hands['a MIDI port']?.phrases).toBe(2);
+    const { judged } = earListen(carried, late(7), 16 * 9, keys([7]));
+    const motif = judged.find((j) => j.bar === 7)?.judgement;
+    const notes = (m: typeof motif) =>
+      m?.kind === 'motif' ? m.motif.onsets.filter((_, i) => m.motif.degrees[i] !== null) : null;
+    expect(notes(motif)).toEqual([0, 2, 4, 6, 8]);
+    // (without the memory, the same bar is read a step later)
+    expect(notes(judgeBar(late(7), 7, A_MINOR, 'phrases', undefined, NO_HANDS)[0])).toEqual([
+      1, 3, 5, 7, 9,
+    ]);
   });
 
   it('judges a note played just before a bar in that bar, where it is heard', () => {

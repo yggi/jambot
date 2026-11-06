@@ -20,6 +20,8 @@ import {
   type BandBar,
   SONG_CLOCK,
   type SongClock,
+  NO_HANDS,
+  handsAfter,
   heardInBar,
   heardStep,
   type HeardNote,
@@ -120,7 +122,7 @@ export function patternBarOf(bar: BandBar): PatternBar {
 /**
  * What each source played in `bar`, as rows of notes, by source id: each as
  * the Muse hears it (`heardInBar`, a phrase read so far), in the bar and on
- * the step she read it on, so the row shows what she heard. A note still held, or released on the
+ * the step she read it on, under each source's hand as she remembers it, so the row shows what she heard. A note still held, or released on the
  * step it was struck, lasts one step.
  */
 export function playedIn(
@@ -130,7 +132,9 @@ export function playedIn(
 ): Readonly<Record<string, readonly PatternNote[]>> {
   const start = clock.barStart(bar);
   const rows: Record<string, PatternNote[]> = {};
-  for (const { source, notes: heard } of heardInBar(notes, bar, 'phrases', clock))
+  // (each source under its hand's memory as the transport keeps it: of every phrase it closed before the bar)
+  const hands = handsAfter(NO_HANDS, notes, bar - 1, clock);
+  for (const { source, notes: heard } of heardInBar(notes, bar, 'phrases', clock, hands))
     for (const n of heard) {
       const step = heardStep(n) - start;
       const end = n.end === null ? null : heardStep({ position: n.end }) - start;

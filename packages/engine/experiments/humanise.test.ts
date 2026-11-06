@@ -21,6 +21,7 @@ import {
   phraseRate as measure,
   played,
   readingRate,
+  sessionRate,
   stepMs,
   syncopatedPattern,
 } from './humanise.ts';
@@ -440,5 +441,42 @@ describe('a hand late by a steady latency (E17, #580)', () => {
 
   it('loses a tight hand 100 ms late, past LATEST, as the nearest step does: under 11 % right (rung 6’s)', () => {
     for (const source of SOURCES) expect(right(AS_PHRASES, 100, 10, source)).toBeLessThan(0.11);
+  });
+});
+
+/**
+ * #580's rung 6, the hand's memory: one hand a session of eight phrases, its one latency and jitter, over the four
+ * kinds of pattern in turn, read without the memory and with it (`sessionRate`). The phrases from the third on are
+ * read once the memory has formed (`HAND_EVIDENCE`).
+ */
+describe('a session of one hand, read with its memory (E17, #580)', () => {
+  const MIX = [pattern, beatPattern, beginnerPattern, syncopatedPattern];
+  const rates = new Map<string, number>();
+  const later = (lateMs: number, jitterMs: number, remember: boolean) => {
+    const id = `${lateMs}/${jitterMs}/${remember}`;
+    if (!rates.has(id)) {
+      const r = sessionRate({ lateMs, jitterMs }, KEY, MIX, remember);
+      rates.set(id, r.laterRight / r.laterBars);
+    }
+    return rates.get(id)!;
+  };
+
+  it('costs a hand on time nothing, at a jitter of 10, 20 or 30 ms', () => {
+    for (const jitterMs of [10, 20, 30])
+      expect(later(0, jitterMs, true)).toBe(later(0, jitterMs, false));
+  });
+
+  it('reads a tight hand 100 to 180 ms late right in at least 95 % of bars, where without it under 7 %', () => {
+    for (const lateMs of [100, 120, 150, 180]) {
+      expect(later(lateMs, 10, true), `${lateMs} ms`).toBeGreaterThanOrEqual(0.95);
+      expect(later(lateMs, 10, false), `${lateMs} ms`).toBeLessThan(0.07);
+    }
+  });
+
+  it('reads a looser hand 120 or 180 ms late within 3.5 points of the same hand on time, where without it under 10 %', () => {
+    for (const lateMs of [120, 180]) {
+      expect(later(lateMs, 20, true)).toBeGreaterThan(later(0, 20, false) - 0.035);
+      expect(later(lateMs, 20, false)).toBeLessThan(0.1);
+    }
   });
 });

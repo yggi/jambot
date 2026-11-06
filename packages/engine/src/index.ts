@@ -15,6 +15,7 @@ export * from './fading.ts';
 export * from './genre.ts';
 export * from './groove.ts';
 export * from './form.ts';
+export * from './hand.ts';
 export * from './key.ts';
 export * from './lattice.ts';
 export * from './layer.ts';
