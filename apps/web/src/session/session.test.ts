@@ -542,6 +542,53 @@ describe('a host and a client session', () => {
     hosting.close();
   });
 
+  it('keep one log, the same on the host and each client: who joined, nudged, was let in and left, the composer’s sections, the conductor’s moves, and its tail for one who joins late (step 3)', async () => {
+    const lobby = memoryLobby();
+    const host = device(10);
+    const ada = device(3);
+    const bo = device(4);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
+      draw: () => '042917',
+    });
+    await hosting.open(lobby, 'jam', 'Cy');
+    const playing = new ClientSession(ada.player, ada.clocks);
+    await playing.join(lobby, 'jam', 'Ada');
+    hosting.admitByCode(true);
+    const texts = () => hosting.log.map((l) => l.text);
+    expect(texts()).toEqual(['Ada joined, to play.']);
+    await host.player.start();
+    await run([host, ada], 3);
+    playing.nudge('energy', 1);
+    await run([host, ada], 0.1);
+    expect(texts()).toContain('Ada nudged energy up.');
+    // The composer said the song's first section as it planned it.
+    expect(
+      hosting.log.some((l) => l.who === 'composer' && /^Intro from bar 1: /.test(l.text)),
+    ).toBe(true);
+    // Through the next section line, the conductor says what the nudge moved.
+    await run([host, ada], 20);
+    // The composer says each section as it comes next: in order, never more than a section ahead.
+    const composed = hosting.log.filter((l) => l.who === 'composer').map((l) => l.bar!);
+    expect(composed).toEqual([...composed].sort((a, b) => a - b));
+    expect(new Set(composed).size).toBe(composed.length);
+    expect(Math.max(...composed)).toBeLessThanOrEqual(host.player.hud.bar!.bar + SECTION_BARS);
+    const moved = hosting.log.find((l) => l.who === 'conductor');
+    expect(moved?.text).toMatch(/^From bar 9: energy \d+ → \d+ %/);
+    // Bo joins late, to listen, and reads what came before; then is let in, and leaves.
+    const listening = new ClientSession(bo.player, bo.clocks);
+    await listening.join(lobby, 'jam', 'Bo');
+    await run([host, ada, bo], 0.1);
+    expect(listening.log.map((l) => l.text)).toEqual(texts());
+    expect(texts().at(-1)).toBe('Bo joined, to listen.');
+    hosting.cast(hosting.guests[1]!.id, 'player');
+    listening.leave();
+    await run([host, ada, bo], 0.1);
+    expect(texts().slice(-2)).toEqual(['Cy let Bo play.', 'Bo left.']);
+    // Ada's log is the host's, line for line.
+    expect(playing.log).toEqual(hosting.log);
+    hosting.close();
+  });
+
   it("name the host's own notes by its player, so a client never reads them as its own", async () => {
     const lobby = memoryLobby();
     const host = device(10);

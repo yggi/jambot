@@ -33,6 +33,8 @@ import {
   type ClientMessage,
   type HostMessage,
   type Role,
+  type SessionEvent,
+  said,
   FIRST_PROTOCOL,
   PROTOCOL,
   type SectionText,
@@ -108,6 +110,8 @@ export class ClientSession {
   hostAway = $state(false);
   /** What the host seated this client as: a listener, without its code (#461), reaches no Muse. */
   role: Role = $state('player');
+  /** The session's log as the host tells it, oldest first: its tail from the welcome, then each line said. */
+  log: readonly SessionEvent[] = $state.raw([]);
 
   #player: Player;
   #clocks: DeviceClocks;
@@ -185,6 +189,7 @@ export class ClientSession {
     const attempt = ++this.#joins;
     this.ended = null;
     this.status = 'joining';
+    this.log = [];
     this.session = session.trim();
     this.name = name.trim();
     this.#lobby = lobby;
@@ -404,6 +409,7 @@ export class ClientSession {
         this.status = 'joined';
         this.hostAway = false;
         this.role = message.listening === true ? 'listener' : 'player';
+        this.log = message.events ?? [];
         this.#token = message.resume;
         this.#remember();
         this.#forecast(message.forecast);
@@ -445,6 +451,12 @@ export class ClientSession {
       case 'role':
         this.role = message.role;
         return;
+      case 'event': {
+        const { kind, ...line } = message;
+        void kind;
+        this.log = said(this.log, line);
+        return;
+      }
       case 'away':
         this.hostAway = true;
         return;

@@ -395,6 +395,11 @@ test('a host that admits by a code turns away a join with another, saying why, s
   await openStyle(client);
   await client.getByRole('button', { name: 'Energy up' }).click();
   await expect(client.locator('p.nudged')).toContainText('You nudged energy up');
+  // The host's log says it, and the joins before it (step 3).
+  await openSession(page);
+  const log = page.getByRole('list', { name: 'Session log' });
+  await expect(log).toContainText('Ada nudged energy up.');
+  await expect(log).toContainText('Ada joined, to listen.');
   await end(client, 'Leave session', 'Yes, leave');
   await expect(state(page)).toContainText('Hosting · nobody has joined');
 

@@ -397,6 +397,7 @@
       },
       onadmit: (byCode: boolean) => hostSession.admitByCode(byCode),
       oncast: (id: string, role: Role) => hostSession.cast(id, role),
+      log: player.mode === 'host' ? hostSession.log : clientSession.log,
       onnudge: (axis: Nudged, by: 1 | -1) => clientSession.nudge(axis, by),
       following: {
         status: clientSession.status,
