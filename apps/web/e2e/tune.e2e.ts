@@ -112,23 +112,29 @@ test('names a recorded A2, 20 cents sharp, reads it over a frame longer than the
   await expect(spectrum.locator('line.pitch')).toHaveCount(1);
 
   // The waterfall: a pixel a band across, the newest look on the top line, and the note's own column bright in it.
-  const top = await page.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+  // Chromium's fake capture device drops or repeats a chunk now and then (a jump of up to 0.49 in 14 of 299
+  // frames of a seamless sine, 2026-11-06), and a look whose frame holds one is painted smeared, bright across.
+  // So the newest 10 lines are read, and the line of the median spread judged, as the reading takes 10 looks.
+  const lines = await page.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
     const { width } = canvas;
-    const line = canvas.getContext('2d')!.getImageData(0, 0, width, 1).data;
-    const light = Array.from(
-      { length: width },
-      (_, x) => line[x * 4]! + line[x * 4 + 1]! + line[x * 4 + 2]!,
-    );
-    return {
-      width,
-      brightest: light.indexOf(Math.max(...light)),
-      max: Math.max(...light),
-      median: [...light].sort((a, b) => a - b)[width >> 1]!,
-    };
+    return Array.from({ length: 10 }, (_, y) => {
+      const line = canvas.getContext('2d')!.getImageData(0, y, width, 1).data;
+      const light = Array.from(
+        { length: width },
+        (_, x) => line[x * 4]! + line[x * 4 + 1]! + line[x * 4 + 2]!,
+      );
+      return {
+        width,
+        brightest: light.indexOf(Math.max(...light)),
+        max: Math.max(...light),
+        median: [...light].sort((a, b) => a - b)[width >> 1]!,
+      };
+    });
   });
+  const top = [...lines].sort((a, b) => a.median - b.median)[lines.length >> 1]!;
   expect(top.width).toBe(175);
-  expect(top.max).toBeGreaterThan(450);
-  expect(top.median).toBeLessThan(200);
+  expect(top.max, JSON.stringify(lines)).toBeGreaterThan(450);
+  expect(top.median, JSON.stringify(lines)).toBeLessThan(200);
   // The bright column is the note's band: a quarter tone each, counted from A0 (27.5 Hz).
   expect(Math.abs(top.brightest - Math.round(24 * Math.log2(HEARD_HZ / 27.5)))).toBeLessThanOrEqual(
     3,

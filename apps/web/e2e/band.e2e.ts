@@ -84,16 +84,19 @@ test('counts a bar in with the click, whether it is on or not, and the band come
   await start(page);
   // Synth-pop, 108 bpm: a beat is 60 / 108 s, and a bar of them comes first.
   await expect(transport(page).getByText(/^Count-in/)).toBeVisible();
-  await page.waitForTimeout(2000);
-  const counted = await starts(page);
+  // What sounded before the band's first note is the count-in, read once the band is in, on the audio clock, so a
+  // loaded machine that reads late (#449) reads the same.
+  await expect
+    .poll(async () => (await starts(page)).some((s) => !isClick(s)), { timeout: 10_000 })
+    .toBe(true);
+  const all = await starts(page);
+  const band = all.filter((s) => !isClick(s));
+  const counted = all.filter((s) => s.when < band[0]!.when);
   expect(counted.length).toBe(4);
   expect(counted.every(isClick)).toBe(true);
   expect(counted.map((s) => s.kind)).toEqual(['square', 'triangle', 'triangle', 'triangle']);
   const beat = 60 / 108;
   counted.slice(1).forEach((s, i) => expect(s.when - counted[i]!.when).toBeCloseTo(beat, 3));
-  await page.waitForTimeout(1500);
-  const band = (await starts(page)).filter((s) => !isClick(s));
-  expect(band.length).toBeGreaterThan(0);
   // The band's first note falls one beat after the last click.
   expect(band[0]!.when - counted[3]!.when).toBeCloseTo(beat, 3);
   await expect(transport(page).getByText(/^Count-in/)).toBeHidden();
@@ -206,13 +209,16 @@ test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   await page.getByRole('radio', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
-  const times = await playing(page);
+  await playing(page);
   // Swing jazz: 148 bpm, full triplet swing. The offbeat 8th lies 2/3 of a
   // step late, which a 16th shuffle never plays, and every onset is on a
-  // third of a step.
-  const found = new Set(phases(times, 148));
-  expect(found.has(NaN)).toBe(false);
-  expect(found.has(2 / 3)).toBe(true);
+  // third of a step. Whether the band's first onsets hold an offbeat 8th
+  // depends on what it composes first (#416), so the check waits for one,
+  // up to 8 s (about 5 bars), and then reads every onset so far.
+  await expect
+    .poll(async () => phases(await onsets(page), 148).includes(2 / 3), { timeout: 8000 })
+    .toBe(true);
+  expect(phases(await onsets(page), 148).filter(Number.isNaN)).toEqual([]);
 });
 
 test('clicks the band’s own beats, and the swing moves its offbeats to the band’s (#166)', async ({
