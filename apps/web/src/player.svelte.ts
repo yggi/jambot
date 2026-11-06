@@ -174,7 +174,7 @@ import {
   releaseNudges,
   tuneIn,
 } from '@jambot/session';
-import { type Meter, stepsOf } from '@jambot/theory';
+import { type Meter, mod, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { browserLayerStore } from './layer-storage.ts';
 import { warmAtIdle, warmedOnFiling } from './warm.ts';
@@ -192,6 +192,7 @@ import {
   takesFromRadio,
   wishAfter,
 } from './conductor.ts';
+import { meterNudged } from './meter-choice.ts';
 import { Heard } from './heard.ts';
 import { type SectionTexts, browserTexts } from './section-texts.ts';
 import { Shadow } from './shadow.ts';
@@ -751,16 +752,47 @@ export class Player {
    * is on the air, then the players' lean, the share of their nudges it
    * releases; null where neither moves it.
    */
-  #sectionStep(): { station: Station | null; nudges: Nudges; style: Style } | null {
+  #sectionStep(): {
+    station: Station | null;
+    nudges: Nudges;
+    style: Style;
+    key: number;
+    meter: number;
+  } | null {
     const from = radioStyle(this.track, this.tempoNudge);
     const walked = this.station ? onward(this.station, from) : null;
+    // Nudges pending fade at every section line, those that take no step too.
+    if (!walked && !leans(this.nudges)) return null;
     const { lean, nudges } = releaseNudges(this.nudges);
-    if (!walked && !leans(lean)) return null;
     return {
       station: walked?.station ?? null,
       nudges,
       style: leaned(walked?.style ?? from, lean),
+      key: lean.key ?? 0,
+      meter: lean.meter ?? 0,
     };
+  }
+
+  /**
+   * The players' step of the key (session contract minor 6): the wish's tonic
+   * a fifth from the key the band is heading for, toward the sharps for 1,
+   * held within the reach the style leaves, as a key nudged on the card is;
+   * the band takes it at the next section it plans.
+   */
+  #stepKey(by: number, style: Style) {
+    const heading = this.#bars.at(-1)?.plan.key ?? this.home;
+    const tonic = mod(heading.tonic + 7 * by, 12);
+    this.wish = wishAfter(this.wish, { kind: 'key', wish: { tonic } }, style, this.home);
+  }
+
+  /**
+   * The players' step of the meter (minor 6): the meter the band is heading
+   * for a beat a bar more or fewer, asked for from the next section, where
+   * that bar is one the band is offered (`meterNudged`); none where it isn't.
+   */
+  #stepMeter(by: 1 | -1) {
+    const next = meterNudged(this.#heading(), by);
+    if (next) this.setMeter(next);
   }
 
   /**
@@ -784,6 +816,8 @@ export class Player {
       this.nudges = step.nudges;
       this.track = conducted.track;
       this.tempoNudge = conducted.nudge;
+      if (step.key !== 0) this.#stepKey(step.key, step.style);
+      if (step.meter !== 0) this.#stepMeter(step.meter > 0 ? 1 : -1);
     }
     if (this.station !== station) this.hosting?.station(this.station);
     if (this.station !== station || this.nudges !== nudges) {

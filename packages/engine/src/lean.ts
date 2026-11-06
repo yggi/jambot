@@ -22,12 +22,25 @@ import { TEMPO_STEP } from './licence.ts';
 import { quantize } from './random.ts';
 import { AXES, type Style } from './style.ts';
 
-/** What a player may nudge: the axes the radio walks, and the tempo, by the style's own names. */
-export const NUDGED = ['sync', 'harm', 'artic', 'energy', 'bpm'] as const;
+/** What of the style a player may nudge: the axes the radio walks, and the tempo, by the style's own names; each leans by a share of a step. */
+export const LEANED = ['sync', 'harm', 'artic', 'energy', 'bpm'] as const;
+export type Leaned = (typeof LEANED)[number];
+
+/**
+ * What else a player may nudge, which moves only by whole steps (session
+ * contract minor 6): the key, a fifth a step, and the meter, a beat a bar a
+ * step. The session says when a step is taken (`nudges.ts`), and the player
+ * takes it: a style has neither.
+ */
+export const STEPPED = ['key', 'meter'] as const;
+export type Stepped = (typeof STEPPED)[number];
+
+/** Everything a player may nudge. */
+export const NUDGED = [...LEANED, ...STEPPED] as const;
 export type Nudged = (typeof NUDGED)[number];
 
-/** A nudge's step on each: a tenth of a unit axis, and `TEMPO_STEP` of an octave on the tempo. */
-export const NUDGE_STEP: Readonly<Record<Nudged, number>> = {
+/** A nudge's step on each style axis: a tenth of a unit axis, and `TEMPO_STEP` of an octave on the tempo. */
+export const NUDGE_STEP: Readonly<Record<Leaned, number>> = {
   sync: 0.1,
   harm: 0.1,
   artic: 0.1,
@@ -35,16 +48,16 @@ export const NUDGE_STEP: Readonly<Record<Nudged, number>> = {
   bpm: TEMPO_STEP,
 };
 
-/** A lean in steps on each axis a player may nudge: up where positive, none where absent. */
+/** A lean in steps on each thing a player may nudge: up where positive, none where absent; whole steps on the key and the meter. */
 export type Lean = Readonly<Partial<Record<Nudged, number>>>;
 
 /** Whether a lean moves anything. */
 export const leans = (lean: Lean): boolean => NUDGED.some((axis) => (lean[axis] ?? 0) !== 0);
 
-/** `style` leaned by `lean` steps on each axis, held within the axis. */
+/** `style` leaned by `lean` steps on each of its axes, held within the axis; the key and the meter aren't the style's, and are left to the player. */
 export function leaned(style: Style, lean: Lean): Style {
   const next = { ...style };
-  for (const axis of NUDGED) {
+  for (const axis of LEANED) {
     const steps = lean[axis] ?? 0;
     if (steps === 0) continue;
     const { min, max } = AXES[axis];

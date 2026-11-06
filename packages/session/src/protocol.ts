@@ -63,17 +63,21 @@ import type { ForecastDelta } from './forecast.ts';
  * client the role it now seats it as when it changes it (`role`, #567).
  * Version 18 has a player nudge a style axis or the tempo up or down
  * (`nudge`, docs/briefs/session-roles.md step 2), which a host leans its band
- * by. It is version 1's last: version 2 starts at 19.
+ * by. Version 19 has a player nudge the key, a fifth a step, and the
+ * meter, a beat a bar a step (`nudge`'s `key` and `meter`), and version 20
+ * has a host tell every client each line of the session's log (`event`, and
+ * a welcome's `events`). Version 1 keeps 19 to 29 for its minors: version 2
+ * starts at 30 (the owner's ruling of 2026-11-06).
  *
  * From 13 on, a protocol is a minor version of the session contract's major
  * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, and 18 minor 5. A host admits a join of any
+ * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, 18 minor 5, 19 minor 6 and 20 minor 7. A host admits a join of any
  * of them, and a client stays with a host of any (`sameMajor`), each
  * ignoring a kind it doesn't know, so a minor that adds a kind deploys
  * without every client in lockstep: a client at 13 drops the `section`
  * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
-export const PROTOCOL = 18;
+export const PROTOCOL = 20;
 
 /**
  * What a client may be seated as (docs/briefs/session-roles.md): a
@@ -133,6 +137,26 @@ export interface SectionText {
   /** The bars, by their place from `bar`, a note was cut in, which the text doesn't play as the band does. */
   readonly cut: readonly number[];
 }
+
+/**
+ * A line of the session's log (protocol 20, docs/briefs/session-roles.md
+ * step 3): human-readable, like a chat, the players' and the band's own
+ * voices in one place. The host keeps the log and says each line to every
+ * client; a welcome carries its tail.
+ */
+export interface SessionEvent {
+  /** The bar it is about, or null while the band is stopped. */
+  readonly bar: number | null;
+  /** Who says it: a player's id, as the Muse's players name it, or one of the band's voices. */
+  readonly who: string;
+  /** What kind of line: joined, left, nudged, moved, composed, inspired and more, kept whatever it says. */
+  readonly what: string;
+  /** The line, for people. */
+  readonly text: string;
+}
+
+/** The band's own voices in the log, which no player's id is: a lobby gives `c0`, `c1`, …, and the host plays as `host`. */
+export const BAND_VOICES = ['conductor', 'composer', 'muse'] as const;
 
 /**
  * What a client's players played on one part in one bar, as its ear heard
@@ -230,6 +254,8 @@ export type HostMessage =
        * (`CODE_LISTENS`).
        */
       readonly listening?: true;
+      /** The session's log, its tail as the host keeps it (protocol 20), absent from a host before it. */
+      readonly events?: readonly SessionEvent[];
     }
   | { readonly kind: 'refused'; readonly reason: string }
   | { readonly kind: 'start'; readonly song: Song }
@@ -275,6 +301,8 @@ export type HostMessage =
    * when the host changes it, never with a welcome, whose `listening` says it.
    */
   | { readonly kind: 'role'; readonly role: Role }
+  /** A line of the session's log (protocol 20), as the host says it to every client. */
+  | ({ readonly kind: 'event' } & SessionEvent)
   /**
    * Said by a lobby, never by a host: the host's link dropped, and the
    * session waits for it to come back (`away`), or it has (`back`), when a
@@ -391,6 +419,13 @@ const isText = (t: unknown): boolean =>
   isObject(t.frame.key) &&
   each(t.foreseen, isString) &&
   each(t.cut, Number.isInteger);
+/** A line of the session's log: the bar it is about or none, who says it, what kind of line, and the line. */
+const isEvent = (e: unknown): boolean =>
+  isObject(e) &&
+  orNull(e.bar, Number.isInteger) &&
+  isString(e.who) &&
+  isString(e.what) &&
+  isString(e.text);
 /** A welcome's song: its bars not yet played, and its texts, absent from a host of 13. */
 const isPlaying = (s: unknown): boolean =>
   isSong(s) && each(s.bars, isSent) && (s.texts === undefined || each(s.texts, isText));
@@ -408,6 +443,7 @@ const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>)
     isString(m.session) &&
     isString(m.resume) &&
     (m.listening === undefined || m.listening === true) &&
+    (m.events === undefined || each(m.events, isEvent)) &&
     orNull(m.song, isPlaying) &&
     isForecast(m.forecast) &&
     isMuse(m.muse),
@@ -424,6 +460,7 @@ const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>)
     Number.isFinite(m.sent) && Number.isFinite(m.host) && orNull(m.heard, Number.isFinite),
   closed: () => true,
   role: (m) => (ROLES as readonly unknown[]).includes(m.role),
+  event: isEvent,
 };
 
 /**

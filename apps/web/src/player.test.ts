@@ -39,6 +39,7 @@ import type { Output } from './audio/output.ts';
 import { Metronome } from './metronome.svelte.ts';
 import { EVEN_MIX, type Mix, withLevel } from './mix.ts';
 import { targetOf } from './conductor.ts';
+import { meterNudged } from './meter-choice.ts';
 import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Hosting, type Surroundings } from './player.svelte.ts';
 import { inlineEar } from './ear.ts';
@@ -1405,6 +1406,28 @@ describe('the radio (#313)', () => {
         expect({ ...target, sync: 0, bpm: 0 }).toEqual({ ...opening, sync: 0, bpm: 0 });
       }
     }
+  });
+
+  it('steps the key a fifth and the meter a beat at the next section line, from where the band is heading, on a lone player’s nudge; one of three takes no step, and fades (minor 6)', async () => {
+    const { player, run } = await playing(false);
+    run(OPENING + 0.5 * SECTION);
+    const heading = () => player.hud.heading!;
+    const key = heading();
+    const meter = player.hud.bar!.meter;
+    player.nudgeFrom('key', 1, 1);
+    player.nudgeFrom('meter', 1, 1);
+    run(SECTION);
+    expect(player.wish.tonic).toBe((key.tonic + 7) % 12);
+    expect(player.meter).toEqual(meterNudged(meter, 1));
+    expect(player.nudges).toEqual({});
+    const asked = player.meter;
+    player.nudgeFrom('meter', -1, 3);
+    run(SECTION);
+    expect(player.meter).toBe(asked);
+    expect(player.nudges.meter).toBeCloseTo(-1 / 6, 12);
+    for (let n = 0; n < 6; n++) run(SECTION);
+    expect(player.nudges).toEqual({});
+    expect(player.meter).toBe(asked);
   });
 
   it('glides from where the track is, never before the head: no axis of the style ever jumps', async () => {

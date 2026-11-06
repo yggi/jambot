@@ -74,6 +74,8 @@
     /** Whether this device sets the key (`Can`'s `set`): a client's host does, and it draws no control. */
     sets?: boolean;
     onintent: (intent: Intent) => void;
+    /** A player's, who doesn't set the key: nudge it a fifth, a bias the band moves by at a section once the players' nudges come to half a step. */
+    onnudge?: ((axis: 'key', by: 1 | -1) => void) | undefined;
   }
 
   let {
@@ -86,9 +88,12 @@
     melodicReach = ['plain'],
     sets = true,
     onintent,
+    onnudge,
   }: Props = $props();
 
   const key = $derived(heading ?? INITIAL_KEY);
+  /** The way this player nudged the key last, said under the nudge until it nudges again. */
+  let nudgedLast: 1 | -1 | null = $state(null);
   const scale = $derived(positions(keyHelix(key)));
   /** The tonics the licence doesn't reach, in the mode playing. */
   const beyond = $derived(
@@ -156,6 +161,23 @@
       {history}
     />
   </div>
+  {#if !sets && onnudge}
+    <Nudge
+      label="Nudge the key"
+      down={{ name: 'Nudge down', glyph: '↺', title: 'Lean the band a fifth down' }}
+      up={{ name: 'Nudge up', glyph: '↻', title: 'Lean the band a fifth up' }}
+      onnudge={(by) => {
+        onnudge('key', by);
+        nudgedLast = by;
+      }}>a fifth</Nudge
+    >
+    {#if nudgedLast !== null}
+      <p class="nudged" role="status">
+        You nudged the key a fifth {nudgedLast > 0 ? 'up' : 'down'}: the band moves there at a
+        section once the players' nudges come to half a step.
+      </p>
+    {/if}
+  {/if}
   {#if sets}
     <Nudge
       label="Nudge the key"
@@ -196,6 +218,11 @@
 </Card>
 
 <style>
+  .nudged {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
   .wheel {
     width: min(360px, 100%);
     margin-inline: auto;

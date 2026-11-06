@@ -1,6 +1,6 @@
 /**
- * The family's session contract (yggi/music-commons `contracts/session`,
- * version 1, minor 5: protocol 18) run against this package's readers, as
+ * The family's session contract, version 1 (yggi/music-commons `contracts/session-v1`,
+ * version 1, minor 7: protocol 20) run against this package's readers, as
  * yggi/webmidi and yggi/cells run theirs: the hub's `vectors.json` is copied
  * into `fixtures/contracts/session.json` with a first field, `lifted`, naming
  * the hub and the commit it came from, and the hub's `README.md` for the
@@ -182,19 +182,19 @@ const RECORDED: Readonly<Record<string, string>> = {};
 const strays = (names: readonly string[], recorded: readonly string[]) =>
   recorded.filter((n) => !names.includes(n));
 
-describe('the session contract (yggi/music-commons contracts/session, version 1, minor 5)', () => {
+describe('the session contract (yggi/music-commons contracts/session-v1, version 1, minor 7)', () => {
   const names = contract.vectors.map((v) => v.name);
   const named = (name: string) => contract.vectors.find((v) => v.name === name)!;
 
   it('is the version Jambot speaks, lifted with its source named, each vector named once', () => {
     expect(contract.lifted).toMatch(
-      /^Lifted from yggi\/music-commons contracts\/session\/vectors\.json @ [0-9a-f]{7,40}$/,
+      /^Lifted from yggi\/music-commons contracts\/session-v1\/vectors\.json @ [0-9a-f]{7,40}$/,
     );
-    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 5]);
+    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 7]);
     expect([contract.protocol, contract.firstProtocol]).toEqual([PROTOCOL, FIRST_PROTOCOL]);
     expect(new Set(names).size).toBe(names.length);
     expect(strays(names, Object.keys(RECORDED))).toEqual([]);
-    expect(names).toHaveLength(325);
+    expect(names).toHaveLength(351);
   });
 
   it("holds Jambot's parts and the limits this package keeps", () => {

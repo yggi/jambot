@@ -203,6 +203,7 @@
   {:else if id === 'key'}
     <KeyPicker
       sets={can.set}
+      {onnudge}
       heading={player.hud.heading}
       heard={player.hud.bar}
       reach={keyReachOf(player.track)}
