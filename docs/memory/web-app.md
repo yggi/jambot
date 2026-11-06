@@ -57,6 +57,7 @@ Facts about `apps/web`: the screen, its components and what its end-to-end check
   Its loop toggle holds its own state and is wired to nothing yet: what holding a section means is open (#327).
   It is one height, 64 px, whatever it says.
   Under it the Session card (`Session.svelte`, `sessionState.ts`) says who the band plays with and is the way out.
+  In a session it also shows the session's log under the players, host and client alike: each line with its bar, newest at the bottom, scrolled to it as it comes, the speaker's name beside a line that doesn't name them (`speakerOf`); a voice of the band (Conductor, Composer, Muse) in amber.
   Its main element is the session by name ("Garage", or "Solo"); its sub element is the state, or "Solo · counting in" and "Solo · ending" (and the like for a host and a client) while the song begins and ends ("Hosting · 2 joined", "Following · host playing", "Reconnecting · playing on what it has", "This device only"); its glyph is the players as a network (`Network`: the host in the middle, the others round it, each in its player's colour, pinging on each bar heard).
   Start counts a bar in with the click (`Player.counting`, `Metronome.countIn`: the click's own volume, whether it is on or not) before the band comes in.
   Stop asks the band to end (`Player.ending`): it plays to its next bar's end on a cadence and lets the last chord ring before it halts, and a second Stop, or a Stop in the count-in, halts at once.

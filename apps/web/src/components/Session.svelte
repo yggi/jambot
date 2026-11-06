@@ -16,7 +16,8 @@
   playing in its session. Solo shares nothing, so it goes back at once.
 -->
 <script lang="ts">
-  import { CODE_LISTENS, type Role } from '@jambot/session';
+  import { CODE_LISTENS, type Role, type SessionEvent } from '@jambot/session';
+  import { VOICE_NAMES, speakerOf } from '../session/log-lines.ts';
   import type { Mode } from '../player.svelte.ts';
   import {
     type Following,
@@ -49,6 +50,8 @@
     onadmit?: ((byCode: boolean) => void) | undefined;
     /** A host's: seat a client as a player or a listener (#567). */
     oncast?: ((id: string, role: Role) => void) | undefined;
+    /** The session's log, oldest first: what the players and the band said (step 3). */
+    log?: readonly SessionEvent[] | undefined;
   }
 
   let {
@@ -62,7 +65,15 @@
     onend,
     onadmit,
     oncast,
+    log = [],
   }: Props = $props();
+
+  let lines: HTMLOListElement | undefined = $state();
+  // Like a chat: the newest line in view as it comes.
+  $effect(() => {
+    void log.length;
+    if (lines) lines.scrollTop = lines.scrollHeight;
+  });
 
   let asking = $state(false);
 
@@ -161,6 +172,25 @@
     </Group>
   {/if}
 
+  {#if mode !== 'solo'}
+    <Group title="Log">
+      {#if log.length === 0}
+        <p class="note">What the players and the band say shows here.</p>
+      {:else}
+        <ol class="log" aria-label="Session log" bind:this={lines}>
+          {#each log as line, i (i)}
+            {@const speaker = speakerOf(line, players)}
+            <li class:band={line.who in VOICE_NAMES} data-what={line.what}>
+              {#if speaker}<b>{speaker}</b>{/if}
+              <span class:alone={!speaker}>{line.text}</span>
+              {#if line.bar !== null}<small>bar {line.bar + 1}</small>{/if}
+            </li>
+          {/each}
+        </ol>
+      {/if}
+    </Group>
+  {/if}
+
   {#if asking}
     <div
       class="ask"
@@ -221,6 +251,40 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
+  }
+  .log {
+    display: grid;
+    gap: 6px;
+    max-height: 260px;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+    font-size: 13.5px;
+  }
+  .log li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .log b {
+    font-weight: 700;
+  }
+  .log span.alone {
+    grid-column: 1 / 3;
+  }
+  .log li.band b {
+    color: var(--amber);
+  }
+  .log li.band span {
+    color: var(--muted);
+  }
+  .log small {
+    font-size: 11.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
   .check {
     display: flex;
