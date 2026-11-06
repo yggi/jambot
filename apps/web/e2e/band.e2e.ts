@@ -209,13 +209,16 @@ test('swings a swung preset into triplet 8ths (T4)', async ({ page }) => {
   await page.getByRole('radio', { name: 'Swing jazz' }).click();
   await page.getByRole('slider', { name: /Energy/ }).fill('100');
   await start(page);
-  const times = await playing(page);
+  await playing(page);
   // Swing jazz: 148 bpm, full triplet swing. The offbeat 8th lies 2/3 of a
   // step late, which a 16th shuffle never plays, and every onset is on a
-  // third of a step.
-  const found = new Set(phases(times, 148));
-  expect(found.has(NaN)).toBe(false);
-  expect(found.has(2 / 3)).toBe(true);
+  // third of a step. Whether the band's first onsets hold an offbeat 8th
+  // depends on what it composes first (#416), so the check waits for one,
+  // up to 8 s (about 5 bars), and then reads every onset so far.
+  await expect
+    .poll(async () => phases(await onsets(page), 148).includes(2 / 3), { timeout: 8000 })
+    .toBe(true);
+  expect(phases(await onsets(page), 148).filter(Number.isNaN)).toEqual([]);
 });
 
 test('clicks the band’s own beats, and the swing moves its offbeats to the band’s (#166)', async ({
