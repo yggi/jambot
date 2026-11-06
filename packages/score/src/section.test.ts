@@ -385,14 +385,16 @@ describe('a section’s bars, each stated once where it recurs (#498)', () => {
     });
   });
 
-  it('states a drum role’s levels as one bar spliced in a section long where each is its step’s in the bar, and keeps each hit’s own where it is shorter', () => {
+  it('states a drum role’s levels as one bar, looped, where each is its step’s in the bar, and keeps each hit’s own where it is shorter', () => {
     const texts = PRESETS.map((p) => sectionTextOf(sectionAsCells(section(p.name))));
     const looped = texts.flatMap((t) =>
-      [...t.matchAll(/^&(\w+)Level map=amp step=16n &\1LevelA!8$/gm)].map((m) => m[1]!),
+      [...t.matchAll(/^&(\w+)Level map=amp step=16n &\1LevelA$/gm)].map((m) => m[1]!),
     );
     expect(looped.length).toBeGreaterThan(0);
     for (const t of texts)
-      for (const role of looped.filter((r) => t.includes(`&${r}LevelA!8`))) {
+      for (const role of looped.filter((r) =>
+        new RegExp(`^&${r}Level map=amp step=16n &${r}LevelA$`, 'm').test(t),
+      )) {
         expect(t).toMatch(new RegExp(`^&drumlines \\[.*&${role} \\* &${role}Level\\b`, 'm'));
         expect(t).not.toMatch(new RegExp(`^&${role}[A-Z]? .*&\\w+:0:`, 'm'));
       }
@@ -426,7 +428,7 @@ describe('a section’s bars, each stated once where it recurs (#498)', () => {
     ]);
   });
 
-  it('a bar of levels a bar long and looped levels each lap’s first hit, at 84 bpm swung, since cells v0.17.0 (yggi/cells#460): the splice a section long is no longer needed, kept until it is taken out', () => {
+  it('a bar of levels a bar long and looped levels each lap’s first hit, at 84 bpm swung, since cells v0.17.0 (yggi/cells#460): why the bar of levels is looped, not spliced a section long', () => {
     const lines = (level: string) => [
       '&bar meter("4/4") step=84bpm swing=16n:.65',
       '&hat step=16n &hh ~@15 &hh ~@15 &hh ~@15 &hh ~@15',

@@ -226,14 +226,14 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 2,878 characters a section, 2,546 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,877 characters a section, 2,545 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 184197,
+      total: 184143,
       meter: 5000,
       key: 1436,
       harmony: 7197,
-      drums: 79837,
+      drums: 79783,
       bass: 32580,
       comp: 30029,
       lead: 21237,
@@ -254,21 +254,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2878);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2546);
+    expect(Math.round(e35.total / 64)).toBe(2877);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2545);
     expect(Math.round(e33.total / 64)).toBe(7549);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(66);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [22845, 20182],
-      Techno: [22702, 19587],
-      'Deep house': [27018, 23875],
-      Ambient: [14050, 12627],
-      'Lo-fi hip hop': [24860, 21968],
-      Funk: [26487, 24257],
-      'Bossa nova': [25240, 22588],
-      'Swing jazz': [20995, 17876],
+      'Synth-pop': [22837, 20174],
+      Techno: [22697, 19582],
+      'Deep house': [27008, 23865],
+      Ambient: [14048, 12625],
+      'Lo-fi hip hop': [24854, 21962],
+      Funk: [26480, 24250],
+      'Bossa nova': [25230, 22578],
+      'Swing jazz': [20989, 17870],
     });
   });
 
@@ -579,7 +579,7 @@ describe.runIf(process.env.E35_FULL)(
       }
     });
 
-    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,162 characters a section, 1,925 without the lead, against E33’s 6,602', () => {
+    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,384 characters a section, 2,121 without the lead, against E33’s 6,602', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -596,11 +596,11 @@ describe.runIf(process.env.E35_FULL)(
         [216, 0, 0],
       ]);
       const e35 = characters(sections.map((s) => s.text));
-      expect([e35.total, e35.lead]).toEqual([691754, 75767]);
+      expect([e35.total, e35.lead]).toEqual([762991, 84407]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
       expect(e33).toBe(2112582);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        2162, 1925, 6602,
+        2384, 2121, 6602,
       ]);
     });
   },

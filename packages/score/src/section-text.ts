@@ -678,8 +678,8 @@ function drumLines(
       );
     const own = braidOf(hitLevel);
     const each = [...own.cells, `&${role} step=16n ${own.words}`];
-    // A hit is a step long, so where a role's level is its step's in the bar, one bar of levels states them all: spliced
-    // in a section long, since a line of levels a bar long, looped, misses a hit on a bar's first step at some tempos.
+    // A hit is a step long, so where a role's level is its step's in the bar, one bar of levels states them all, looped:
+    // cells levels each lap's first hit of a looped line of levels (yggi/cells#460), so it needn't be a section long.
     const atStep = new Map<number, number>();
     const placed = hits.every((h) => {
       const step = h.at % steps;
@@ -697,7 +697,7 @@ function drumLines(
           eachStep(steps, (s) => (atStep.has(s) ? levelOf(atStep.get(s)!) : '~')),
           steps,
         ).words.replace(/~/g, '0')}`,
-        `&${role}Level map=amp step=16n &${role}LevelA${bars > 1 ? `!${bars}` : ''}`,
+        `&${role}Level map=amp step=16n &${role}LevelA`,
       ];
       const term = `&${role} * &${role}Level`;
       if (looped.join('\n').length + term.length < each.join('\n').length + role.length + 1) {
