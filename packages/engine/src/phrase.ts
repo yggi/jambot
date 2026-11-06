@@ -144,6 +144,35 @@ export const EARLIEST = 0.6;
 export const PHASED_FEWEST = 3;
 
 /**
+ * What a phrase is read under, as to its hand's steady latency (#580), in steps: the latency's mean and spread, the
+ * phases tried about it, and the earliest and latest offset a phase other than the nearest may read. Every phrase is
+ * read under `A_HAND`, the prior of a hand not yet heard, unless the hand's memory has one of its own (`hand.ts`).
+ */
+export interface HandPrior {
+  readonly latency: number;
+  readonly spread: number;
+  readonly phases: readonly number[];
+  readonly earliest: number;
+  readonly latest: number;
+  /**
+   * Whether a phase other than the nearest is weighed at the looseness about its own mean: a hand's memory's readings
+   * (`hand.ts`). A hand not yet heard weighs every phase at the looseness about its offset shrunk toward none, as #587
+   * read it: weighed at its own mean, the Muse's hearing of the band's own lead in 5/8, 7/8 and 10/8 moves, which the
+   * shadow test holds.
+   */
+  readonly ownMean?: boolean;
+}
+
+/** The prior of a hand not yet heard: `LATENCY_MEAN` and `LATENCY_SPREAD`, the phases `PHASES`, from `EARLIEST` early to `LATEST` late. */
+export const A_HAND: HandPrior = {
+  latency: LATENCY_MEAN,
+  spread: LATENCY_SPREAD,
+  phases: PHASES,
+  earliest: -EARLIEST,
+  latest: LATEST,
+};
+
+/**
  * The phrase's offset (#580). The nearest steps read a hand late by more
  * than half a step as the phrase a step later and early: every residual
  * wraps. So the phrase is also read at each phase of `PHASES`, every onset
@@ -163,10 +192,39 @@ export const PHASED_FEWEST = 3;
  * nearest steps keep the offset and looseness they always had
  * (`shrunkOffset`), so a phrase read there reads as before.
  */
-function offsetOf(
+export function offsetOf(
   xs: readonly number[],
   clock: SongClock,
+  hand: HandPrior = A_HAND,
 ): { readonly offset: number; readonly looseness: number } {
+  const readings = phaseReadings(xs, clock, hand);
+  let best = 0;
+  readings.forEach((r, i) => {
+    if (r.cost < readings[best]!.cost && r.offset <= hand.latest && r.offset >= hand.earliest)
+      best = i;
+  });
+  // (the nearest steps keep the offset and looseness they always had)
+  const { offset, looseness, shrunk } = readings[best]!;
+  return { offset: best === 0 ? shrunk : offset, looseness };
+}
+
+/** A phrase read at one phase (`phaseReadings`): its offset, its looseness, what the reading costs, in nats, and the nearest steps' own offset. */
+export interface PhaseReading {
+  readonly offset: number;
+  readonly looseness: number;
+  readonly cost: number;
+  readonly shrunk: number;
+}
+
+/**
+ * A phrase read at each of its hand's phases, the nearest steps first, each phase giving other steps once (`offsetOf`'s
+ * readings, uncapped): what the hand's memory weighs a phrase's evidence by (`hand.ts`).
+ */
+export function phaseReadings(
+  xs: readonly number[],
+  clock: SongClock,
+  hand: HandPrior = A_HAND,
+): PhaseReading[] {
   const spreadAbout = (residuals: readonly number[], offset: number) =>
     Math.max(
       LOOSENESS_FLOOR,
@@ -176,23 +234,26 @@ function offsetOf(
   // (each phase's steps, its residuals and its own offset, shrunk as the nearest steps' is; half rounds up, so a phase
   // below rounds toward the earlier step: an exact onset stays on its step either way)
   const readings: { key: string; steps: number[]; residuals: number[]; shrunk: number }[] = [];
-  for (const phase of xs.length < PHASED_FEWEST ? [0] : PHASES) {
+  for (const phase of xs.length < PHASED_FEWEST
+    ? [0]
+    : [0, ...hand.phases.filter((p) => p !== 0)]) {
     const steps = xs.map((x) => (phase < 0 ? -Math.round(phase - x) : Math.round(x - phase)));
     const key = steps.join();
     if (readings.some((r) => r.key === key)) continue;
     const residuals = xs.map((x, i) => x - steps[i]!);
     readings.push({ key, steps, residuals, shrunk: shrunkOffset(residuals) });
   }
-  const spreads = readings.map((r) => spreadAbout(r.residuals, r.shrunk));
-  let best = 0;
-  let least = Infinity;
-  const offsets = readings.map(({ steps, residuals }, i) => {
+  return readings.map(({ steps, residuals, shrunk }, i) => {
     // (each phase at its own looseness, and what that looseness costs: a hand read tighter is likelier, by a nat for
-    // each onset and each e-fold, so no phase can explain a loose hand away; quantised, so no engine's last bit decides)
-    const looseness = spreads[i]!;
-    const prior = looseness ** 2 / LATENCY_SPREAD ** 2;
+    // each onset and each e-fold, so no phase can explain a loose hand away; quantised, so no engine's last bit decides.
+    // Under a hand's memory another phase's looseness is about its own mean: shrunk toward none, it would make a hand a
+    // step late look a quarter of a step loose)
+    const mean = residuals.reduce((sum, r) => sum + r, 0) / residuals.length;
+    const looseness = spreadAbout(residuals, i > 0 && hand.ownMean ? mean : shrunk);
+    // (a prior of no spread at all weighs nothing: `hand.ts` reads a phrase's own evidence so)
+    const prior = hand.spread === Infinity ? 0 : looseness ** 2 / hand.spread ** 2;
     const offset =
-      (residuals.reduce((sum, r) => sum + r, 0) + prior * LATENCY_MEAN) /
+      (residuals.reduce((sum, r) => sum + r, 0) + prior * hand.latency) /
       (residuals.length + prior);
     const bar = clock.barStart(clock.barAt(steps[0]!));
     const cost =
@@ -201,18 +262,10 @@ function offsetOf(
         looseness,
       ) +
       xs.length * quantize(Math.log(looseness)) +
-      (offset - LATENCY_MEAN) ** 2 / (2 * LATENCY_SPREAD ** 2) -
+      (hand.spread === Infinity ? 0 : (offset - hand.latency) ** 2 / (2 * hand.spread ** 2)) -
       (onBeat(steps[0]!) ? BEAT_EVIDENCE : 0);
-    if (cost < least && (i === 0 || (offset <= LATEST && offset >= -EARLIEST))) {
-      least = cost;
-      best = i;
-    }
-    return offset;
+    return { offset, looseness, cost, shrunk };
   });
-  // (the nearest steps keep the offset and looseness they always had)
-  return best === 0
-    ? { offset: readings[0]!.shrunk, looseness: spreads[0]! }
-    : { offset: offsets[best]!, looseness: spreads[best]! };
 }
 
 /**
@@ -239,12 +292,14 @@ const margin = (x: number, value: number) => Math.max(0, 1 - (2 * distance(x, va
 export function readPhraseWithMargins(
   phrase: readonly HeardNote[],
   clock: SongClock = SONG_CLOCK,
+  hand: HandPrior = A_HAND,
 ): PhraseReading {
   const notes = [...phrase].sort((a, b) => a.position - b.position);
   if (notes.length === 0) return { notes: [], margins: [] };
   const { offset, looseness } = offsetOf(
     notes.map((n) => n.position),
     clock,
+    hand,
   );
   const steps = notes.map((n) => Math.round(n.position - offset));
   const first = notes[0]!.position - offset;
@@ -273,8 +328,9 @@ export function readPhraseWithMargins(
 export function readPhrase(
   phrase: readonly HeardNote[],
   clock: SongClock = SONG_CLOCK,
+  hand: HandPrior = A_HAND,
 ): HeardNote[] {
-  return readPhraseWithMargins(phrase, clock).notes;
+  return readPhraseWithMargins(phrase, clock, hand).notes;
 }
 
 /** The lower quartile of a list, or 0 of none: what most of it is at least. */
@@ -347,25 +403,30 @@ function releasesOf(
   });
 }
 
-/** Everything heard, read phrase by phrase, in time. */
-export function readHeard(notes: readonly HeardNote[], clock: SongClock = SONG_CLOCK): HeardNote[] {
-  return phrasesOf(notes, clock).flatMap((phrase) => readPhrase(phrase, clock));
+/** Everything heard, read phrase by phrase, in time: one hand's notes, under its prior. */
+export function readHeard(
+  notes: readonly HeardNote[],
+  clock: SongClock = SONG_CLOCK,
+  hand: HandPrior = A_HAND,
+): HeardNote[] {
+  return phrasesOf(notes, clock).flatMap((phrase) => readPhrase(phrase, clock, hand));
 }
 
 /**
  * Everything heard, read phrase by phrase, with each read note's margin,
- * keyed by the note read.
+ * keyed by the note read: one hand's notes, under its prior.
  */
 export function readHeardWithMargins(
   notes: readonly HeardNote[],
   clock: SongClock = SONG_CLOCK,
+  hand: HandPrior = A_HAND,
 ): {
   readonly notes: HeardNote[];
   readonly margins: ReadonlyMap<HeardNote, number>;
 } {
   const margins = new Map<HeardNote, number>();
   const read = phrasesOf(notes, clock).flatMap((phrase) => {
-    const reading = readPhraseWithMargins(phrase, clock);
+    const reading = readPhraseWithMargins(phrase, clock, hand);
     reading.notes.forEach((n, i) => margins.set(n, reading.margins[i]!));
     return reading.notes;
   });

@@ -84,6 +84,7 @@ import {
 import { SECTION_BARS, type Section, barEnergy } from './form.ts';
 import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
+import { type Hands, NO_HANDS, handsAfter } from './hand.ts';
 import type { LearnedLayer } from './layer.ts';
 import type { MeterRepository } from './meter-query.ts';
 import type { RhythmRepository } from './rhythm-query.ts';
@@ -333,6 +334,8 @@ export interface Listening {
   readonly muse: MuseCarried;
   /** Notes heard in bars not judged yet. */
   readonly pending: readonly HeardNote[];
+  /** Each source's hand, as the phrases it closed have shown it (#580, rung 6): what its next phrase is read under. */
+  readonly hands: Hands;
   /** Drum notes heard in bars not judged yet (#401). */
   readonly drums: readonly HeardNote[];
   /** Drum bars judged and not yet handed to the band (#401). */
@@ -364,6 +367,7 @@ export interface Listening {
 const LISTENING: Listening = {
   muse: muse.initial,
   pending: [],
+  hands: NO_HANDS,
   drums: [],
   drumBars: [],
   bass: [],
@@ -546,6 +550,7 @@ function listen(
   let {
     muse: carried,
     pending,
+    hands,
     drums,
     drumBars,
     bass,
@@ -566,7 +571,7 @@ function listen(
     bassBars = [...bassBars, ...lows];
     bass = bass.filter((n) => clock.barAt(heardStep(n)) > bar);
     const judgements = [
-      ...judgeBar(pending, bar, key, 'phrases', clock),
+      ...judgeBar(pending, bar, key, 'phrases', clock, hands),
       ...remote.filter((r) => r.bar === bar).map((r) => r.judgement),
     ];
     // (a lead: each motif judged, of a source not heard as a bass in the bar)
@@ -588,6 +593,7 @@ function listen(
     carried = next.carried;
     judged.push(next.output);
     forget = false;
+    hands = handsAfter(hands, pending, bar, clock);
     pending = keptAfter(pending, bar, clock);
     remote = remote.filter((r) => r.bar > bar);
     unjudged = unjudged.slice(1);
@@ -595,6 +601,7 @@ function listen(
   return {
     muse: carried,
     pending,
+    hands,
     drums,
     drumBars,
     bass,

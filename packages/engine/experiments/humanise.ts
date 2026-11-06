@@ -34,6 +34,11 @@ import {
   readHeard,
   taken,
   type Reading,
+  folded,
+  priorOf,
+  type Hand as RememberedHand,
+  SONG_CLOCK,
+  phrasesOf,
 } from '../src/index.ts';
 
 /** A reader: what the Muse would make of the notes heard, for one bar. */
@@ -572,4 +577,70 @@ export function choiceRate(sloppinessA: number, sloppinessB: number, key: Key, s
     }
   }
   return { pairs, byNotes, bySureness };
+}
+
+/** What a hearing made of a session's phrases (#580, rung 6): all of them, and those after the hand's memory has formed. */
+export interface SessionRate {
+  readonly bars: number;
+  readonly right: number;
+  /** The bars of the phrases from the third on, read once `HAND_EVIDENCE` phrases are folded. */
+  readonly laterBars: number;
+  readonly laterRight: number;
+}
+
+/** The phrases a session plays: `PHRASES_IN_SESSION` of them, each one bar or two, an empty bar between. */
+export const PHRASES_IN_SESSION = 8;
+
+/** The sessions a rate is measured over, each of one hand. */
+export const SESSIONS = 60;
+
+/**
+ * One hand plays a session (#580, rung 6): `PHRASES_IN_SESSION` phrases, each of one or two bars of patterns of the
+ * kinds `sources` cycles through, an empty bar between, all at the hand's one latency and jitter. Each phrase is read
+ * as the Muse reads it, whole, under a prior: a hand not yet heard's, or with `remember`, the hand's memory of the
+ * phrases before it (`priorOf`, `folded`). Bars right as in `phraseRate`.
+ */
+export function sessionRate(
+  hand: Hand,
+  key: Key,
+  sources: readonly ((index: number) => Segment[])[],
+  remember: boolean,
+  seed = 1,
+): SessionRate {
+  let bars = 0;
+  let right = 0;
+  let laterBars = 0;
+  let laterRight = 0;
+  for (let session = 0; session < SESSIONS; session++) {
+    let memory: RememberedHand | undefined;
+    let bar = 1;
+    for (let k = 0; k < PHRASES_IN_SESSION; k++) {
+      const index = session * PHRASES_IN_SESSION + k;
+      const source = sources[(session + k) % sources.length]!;
+      const length = 1 + (index % 2);
+      const exact = range(length).flatMap((j) =>
+        played(source(index * 2 + j), bar + j, index * 2 + j),
+      );
+      const heard = handed(exact, hand, seed, index);
+      const prior = remember ? priorOf(memory) : undefined;
+      const read = phrasesOf(heard).flatMap((phrase) => readHeard(phrase, undefined, prior));
+      for (let j = 0; j < length; j++) {
+        const target = motifOf(judgeBar(exact, bar + j, key, 'nearest'));
+        if (!target) continue;
+        const got = motifOf(judgeBar(read, bar + j, key, 'nearest'));
+        const same =
+          got && rhythmOf(got) === rhythmOf(target) && got.degrees.join() === target.degrees.join();
+        bars++;
+        if (same) right++;
+        if (k >= 2) {
+          laterBars++;
+          if (same) laterRight++;
+        }
+      }
+      if (remember)
+        for (const phrase of phrasesOf(heard)) memory = folded(memory, phrase, SONG_CLOCK);
+      bar += length + 1;
+    }
+  }
+  return { bars, right, laterBars, laterRight };
 }
