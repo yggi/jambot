@@ -292,15 +292,14 @@ export const levelSwings = (meter: Meter, level: MeterSwing['level']) =>
   level !== '8n' || pulseLengths(meter).includes(2);
 
 /**
- * A meter's swing as cells states it on `&bar`: none where the band plays it straight (#438), and on `8n` in a meter
- * of pulses of 2 and of 3 eighths (5/8, 7/8, 10/8) its pairs alone, `:pairs` (yggi/cells decision 053, #451): the
- * band swings each pulse of 2 eighths and plays a pulse of 3 straight (T16), where cells' `swing=8n:r` alone leans a
- * group of three too (decision 040). A meter whose pulses are all 2 eighths plays the two alike, and is stated plain.
+ * A meter's swing as cells states it on `&bar`: none where the band plays it straight (#438), and plain elsewhere. In a
+ * meter of pulses of 2 and of 3 eighths (5/8, 7/8, 10/8) the band swings each pulse of 2 eighths and plays a pulse of 3
+ * straight (T16), which is what cells' `swing=8n:r` means since yggi/cells v0.18.0 (decision 071): a swing leans pairs
+ * only, so the `:pairs` decision 053 needed says nothing more.
  */
 export function swingText(meter: Meter, swing: MeterSwing): string {
   if (swing.share === STRAIGHT.share || !levelSwings(meter, swing.level)) return '';
-  const pairs = swing.level === '8n' && pulseLengths(meter).some((length) => length !== 2);
-  return ` swing=${swing.level}:${shareText(swing.share)}${pairs ? ':pairs' : ''}`;
+  return ` swing=${swing.level}:${shareText(swing.share)}`;
 }
 
 /** An index into the chord in force as a cells number writes it: `n` its tone (a lap up past its last), `alter` an accidental. */
