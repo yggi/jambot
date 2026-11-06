@@ -1,4 +1,5 @@
-import { EMPTY_LAYER, type LearnedLayer } from '@jambot/engine';
+import { EMPTY_LAYER, type LearnedLayer, RETIRED_LEAD_VOICE, leadRepository } from '@jambot/engine';
+import { METERS } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   LAYER_FORMAT,
@@ -69,6 +70,30 @@ describe('the learned layer a host keeps (#398)', () => {
     expect(read.problem).toBeNull();
     // (the same points and pairs, none left out as unheld)
     expect(read.layer).toEqual(LEARNED);
+  });
+
+  it('reads a layer kept before #580, its lead lines carrying the lead’s voice and card, with the lines alone', () => {
+    const filed = leadRepository().file!(EMPTY_LAYER, {
+      notes: [
+        { step: 0, degree: 0, alter: 0 },
+        { step: 4, degree: 2, alter: 0 },
+        { step: 8, degree: 4, alter: 0 },
+      ],
+      bench: { meter: METERS['4/4'], meterFragment: 'meter_4_4' },
+      point: { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5 },
+      source: 'Ada',
+      created: 'song 1, bar 0',
+      tags: ['lead line'],
+    }).layer;
+    const file = filed.filed[0]!;
+    const text = [file.fragment.text, ...RETIRED_LEAD_VOICE].join('\n');
+    const before: LearnedLayer = {
+      ...filed,
+      filed: [{ ...file, fragment: { ...file.fragment, text } }],
+    };
+    const read = readLayerText(layerText(before));
+    expect(read.problem).toBeNull();
+    expect(read.layer).toEqual(filed);
   });
 
   it('loads nothing kept as the empty layer, without a warning', async () => {

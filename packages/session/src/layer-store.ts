@@ -19,12 +19,7 @@
  * nothing learned, never stopping on it. Pure: the app gives the slot.
  */
 
-import {
-  EMPTY_LAYER,
-  type LearnedLayer,
-  layerInWords,
-  repositoryLayerProblems,
-} from '@jambot/engine';
+import { EMPTY_LAYER, type LearnedLayer, keptLayer, repositoryLayerProblems } from '@jambot/engine';
 
 /** Where a host keeps its learned layer: loaded once a page starts, saved as the band learns. */
 export interface LayerStore {
@@ -70,8 +65,8 @@ export function readLayerText(text: string | null): LayerRead {
     return wrong(`its version, ${String(record.version)}, is not ${LAYER_VERSION}`);
   const problems = repositoryLayerProblems(record.layer);
   if (problems.length) return wrong(problems.join('; '));
-  // (a layer kept before cells v0.16.0 names the seed's old ids: read as the words they are now, #558)
-  return { layer: layerInWords(record.layer as LearnedLayer), problem: null };
+  // (a layer kept before cells v0.16.0 names the seed's old ids, #558, and one kept before #580 carries the lead's voice)
+  return { layer: keptLayer(record.layer as LearnedLayer), problem: null };
 }
 
 /** A store that keeps the layer in memory: for tests, and a host with nowhere to keep it. */
