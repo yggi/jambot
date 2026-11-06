@@ -18,6 +18,8 @@ export interface Start {
   when: number;
   /** Which of the page's audio contexts started it, in the order they were made. */
   context: number;
+  /** When it was laid (its `start` called), on the wall clock in milliseconds: before it sounds by the lookahead, a tick and the output's latency. */
+  laid: number;
 }
 
 /** A span, on the wall clock in milliseconds, in which a page's main thread did nothing. */
@@ -27,7 +29,7 @@ export interface Stall {
 }
 
 /**
- * A client's network pair as it read, from where its trip or offset changed, on the wall
+ * A client's network pair as it read, from where its trip, offset or skew changed, on the wall
  * clock in milliseconds: its best round trip lately (the offset is good to
  * half of it), the network's offset and the skew played by, in milliseconds.
  */
@@ -128,7 +130,12 @@ export async function listen(page: Page, path = '/') {
           skew: net.skew === null ? null : net.skew * 1000,
         };
         const was = w.network.at(-1);
-        if (!was || was.trip !== sample.trip || was.offset !== sample.offset)
+        if (
+          !was ||
+          was.trip !== sample.trip ||
+          was.offset !== sample.offset ||
+          was.skew !== sample.skew
+        )
           w.network.push(sample);
       }
       w.contexts.forEach((ctx, context) => {
@@ -155,6 +162,7 @@ export async function listen(page: Page, path = '/') {
           frequency: osc?.frequency.value ?? null,
           when,
           context: w.contexts.indexOf(this.context as AudioContext),
+          laid: performance.timeOrigin + performance.now(),
         });
         return start.call(this, when, ...rest);
       };

@@ -210,6 +210,19 @@ async function inStep(
   /** How far, in milliseconds, a note at `t` may be out: `IN_STEP`, every jump still settling there, and the client's round trip past `TRIP`. */
   const allowed = (t: number) => IN_STEP + settling(t) + far(t);
 
+  /** How long after a jump of the host's clock, in milliseconds, the client's skew moved by half of it: when the client was told. */
+  const followedAfter = (j: ClockJump) => {
+    const before = netAt(j.at)?.skew ?? null;
+    const told = net.find(
+      (n) =>
+        n.wall > j.at &&
+        before !== null &&
+        n.skew !== null &&
+        Math.abs(n.skew - before) >= Math.abs(j.by) / 2,
+    );
+    return told ? `${(told.wall - j.at).toFixed(0)} ms` : 'never';
+  };
+
   // Each note the client sounded, against the host's nearest of the same voice.
   const voice = (h: Heard) => `${h.kind} ${h.frequency}`;
   const gaps = followed.map((f) => {
@@ -219,7 +232,7 @@ async function inStep(
         (best, h) => (Math.abs(f.heard - h.heard) < Math.abs(best) ? f.heard - h.heard : best),
         Infinity,
       );
-    return { at: f.heard, gap, voice: voice(f) };
+    return { at: f.heard, laid: f.laid, gap, voice: voice(f) };
   });
   // A note the client sounded and the host didn't is one the host's
   // transport dropped, where its page stalled past it (T1): from the stall
@@ -242,7 +255,8 @@ async function inStep(
     `${wide.length} out by 50 ms or more in a jump; ` +
     `${steady.length} settled: median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms; ` +
     `clocks jumped ${jumps.map((s) => `${s.by.toFixed(1)} ms at ${since(s.at)} s`).join(', ')} from the hold; ` +
-    `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g.at).toFixed(1)}, the client's best round trip ${netAt(g.at)?.trip?.toFixed(1)} ms`).join('; ') || 'none'}; ` +
+    `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g.at).toFixed(1)}, the client's best round trip ${netAt(g.at)?.trip?.toFixed(1)} ms, laid ${(g.at - g.laid).toFixed(0)} ms before it sounded, the trip then ${netAt(g.laid)?.trip?.toFixed(1)} ms`).join('; ') || 'none'}; ` +
+    `the client's skew followed the host's jumps ${hostJumps.map((j) => `${j.by.toFixed(1)} ms at ${since(j.at)} s after ${followedAfter(j)}`).join(', ') || 'none'}; ` +
     `the client's best round trip ${trips.length ? `${Math.min(...trips).toFixed(1)} to ${Math.max(...trips).toFixed(1)} ms` : 'unread'}; ` +
     `the host's stalls ${hostStalls.map((s) => `${since(s.from)} to ${since(s.to)} s`).join(', ')}`;
   console.log(summary);
