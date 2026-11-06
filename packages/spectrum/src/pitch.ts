@@ -42,9 +42,18 @@ export type PitchEstimator = (
 
 const DEFAULTS = { minHz: 30, maxHz: 4200, minClarity: 0.5 };
 
-/** The correlations both need: r and m, m[lag] being the energy of the two stretches r[lag] correlates. */
-function correlations(samples: ArrayLike<number>) {
-  const n = samples.length;
+/**
+ * The correlations both need: r and m, m[lag] being the energy of the two stretches r[lag] correlates.
+ * They are taken of the frame less its mean, so a DC offset (a line input's, an interface's) is no part of
+ * the energy: McLeod's otherwise finds no pitch once the offset is as large as the sound, and YIN's
+ * difference is the same either way.
+ */
+function correlations(raw: ArrayLike<number>) {
+  const n = raw.length;
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += raw[i]!;
+  const mean = n > 0 ? sum / n : 0;
+  const samples = Float64Array.from({ length: n }, (_, i) => raw[i]! - mean);
   const r = autocorrelation(samples);
   const m = new Float64Array(n);
   let energy = 0;
