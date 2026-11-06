@@ -43,7 +43,7 @@ The log takes in the Muse's log, joins and leaves, asks and answers, reactions, 
 
 - A client is host or client (`mode`); a seat is a player or a listener (`role`, `packages/session/src/roster.ts`), a client admitted without a code a listener (#461), and the host drops a listener's `judged`, `played` and `forget`.
 - A client sends the host its ear's motif judgement, its drums and bass, and Forget; there is no nudge message, and `Player.apply` drops every client intent.
-- Joins and leaves are not logged; the Muse's log keeps its last five lines.
+- The session has one log (step 3, below), which says joins and leaves; the Muse's own log beside it keeps its last five lines.
 - There is no handover: a host away for the lobby's 30 s grace ends the session; a reloaded host restores from its own `HostSnapshot`.
 - The lobby server relays session messages unread, so a new kind needs no lobby deploy, and an older client drops a kind it doesn't know.
 - Protocol 17 is the hub's session contract at minor 4 (`docs/memory/session.md`).
@@ -64,8 +64,14 @@ Each step is one protocol minor and one pull request; the hub's session contract
 
    - the key and the meter, at protocol 19, minor 6 (yggi/music-commons#57: version 1 grows on, and version 2 starts at 30): a player's Key card nudges a fifth, and its Metrum a beat a bar; both move only by whole steps, one at a section line where the players' nudges come to half a step or more (`releaseNudges`), the key's as the wish's tonic a fifth from where the band is heading, within the style's reach, and the meter's as the meter asked for a pulse more or fewer, only where that is a meter the band offers (`meterNudged`).
 
-   Not yet: the cue that shows a nudge to everyone (step 3's log).
+   Each nudge is a line of the session's log (step 3) for everyone.
 3. **The log.** A host's `event`: the bar, who, the kind (joined, left, nudged, moved, Muse, reacted, announced) and a short text; the host keeps the last 200 and the welcome carries the tail. `cuesOf` grows an asked kind, and a cue whose moment passes becomes an event.
+   Built at protocol 20, minor 7 (yggi/music-commons#57), human-readable and like a chat, as the owner asked (2026-11-06):
+   - the players' lines (`HostSession`): joined, to play or to listen, back, left, lost the link, let in or made to listen, nudged what;
+   - the band's voices (`apps/web/src/session/log-lines.ts`): the conductor says what each section line moved, the style's axes, the tempo, a key step and a meter asked for (`Player`'s section line, `movedLine`); the composer each section as it comes next, its type, key and meter (`composedLine`); the Muse the motif she takes up, a player she hears play one again, and what she forgets (`museLines`);
+   - the host keeps the last 200 (`LOG_KEPT`), says each line to every client, and a welcome carries the last 50 (`LOG_TAIL`, `packages/session/src/log.ts`); the Session card shows the log under the players, newest at the bottom, the speaker's name beside a line that doesn't name them (`speakerOf`).
+
+   Not yet: a filter by a tap on a person, the host's own sets (a preset, a slider) as lines, and the cues that pass as lines.
 4. **Reactions and announcements.** `react` from anyone (an emoji of a fixed set, the bar, the fragment playing it answers) and `announce` from a host or co-host, relayed as events. A reaction leans too: it is associated with the fragment it answers (a drum pattern, a melody, a bass line), and changes the chance of that fragment playing again.
 5. **Co-host.** A co-host's set as an `intent` the host applies outright; the host shares its reclaim secret and a periodic `HostSnapshot` with co-hosts, so one can reclaim the session within the lobby's grace and restore the song by today's path.
 6. **Music chat**, later: a `post` carrying a cells fragment, as the section texts (#446) carry theirs.

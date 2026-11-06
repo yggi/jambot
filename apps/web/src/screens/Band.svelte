@@ -46,6 +46,7 @@
       following: ComponentProps<typeof Session>['following'];
       onadmit?: ComponentProps<typeof Session>['onadmit'];
       oncast?: ComponentProps<typeof Session>['oncast'];
+      log?: ComponentProps<typeof Session>['log'];
       /** A client's: nudge an axis or the tempo a step (step 2 of docs/briefs/session-roles.md). */
       onnudge?: ((axis: Nudged, by: 1 | -1) => void) | undefined;
     };
@@ -166,6 +167,7 @@
       following={session.following}
       onadmit={session.onadmit}
       oncast={session.oncast}
+      log={session.log}
       players={player.players}
       playerId={player.playerId}
       {phase}

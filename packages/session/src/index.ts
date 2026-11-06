@@ -7,6 +7,7 @@ export * from './forecast.ts';
 export * from './host.ts';
 export * from './layer-store.ts';
 export * from './lobby.ts';
+export * from './log.ts';
 export * from './protocol.ts';
 export * from './reconnect.ts';
 export * from './nudges.ts';

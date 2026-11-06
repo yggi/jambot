@@ -172,6 +172,43 @@ describe('the session card', () => {
     });
   });
 
+  describe('the log (step 3)', () => {
+    it('shows the session’s log, oldest first, each line by who said it, a player by name or a voice of the band, with its bar', async () => {
+      render(
+        Session,
+        props({
+          players: { host: 'Cy', c0: 'Ada' },
+          log: [
+            { bar: null, who: 'c0', what: 'joined', text: 'Ada joined, to play.' },
+            { bar: 4, who: 'c0', what: 'nudged', text: 'Ada nudged energy up.' },
+            { bar: 8, who: 'conductor', what: 'moved', text: 'From bar 9: energy 55 → 60 %.' },
+            { bar: 8, who: 'muse', what: 'inspired', text: 'The Muse takes up a motif.' },
+          ],
+        }),
+      );
+      await unfold();
+      const lines = within(screen.getByRole('list', { name: 'Session log' })).getAllByRole(
+        'listitem',
+      );
+      expect(lines.map((l) => l.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+        'Ada joined, to play.',
+        'Ada nudged energy up. bar 5',
+        'Conductor From bar 9: energy 55 → 60 %. bar 9',
+        'The Muse takes up a motif. bar 9',
+      ]);
+    });
+
+    it('says where the log will show before anything is said, for a client too, and has none alone', async () => {
+      const { unmount } = render(Session, props({ mode: 'client' }));
+      await unfold();
+      expect(screen.getByText('What the players and the band say shows here.')).toBeInTheDocument();
+      unmount();
+      render(Session, props({ mode: 'solo' }));
+      await unfold();
+      expect(screen.queryByText('What the players and the band say shows here.')).toBeNull();
+    });
+  });
+
   describe('the way out', () => {
     it('lets a host close its session only after asking, and says how many are playing in it', async () => {
       const onend = vi.fn();
