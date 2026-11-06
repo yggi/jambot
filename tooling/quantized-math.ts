@@ -36,6 +36,9 @@ export const AUDITED: Readonly<Record<string, string>> = {
     "Math.log2 bounds a tempo nudge at the tempo axis's ends; clamping to it is " +
     'continuous (a max or min of two values meets where they are equal), and ' +
     'the tempo it gives only glides, never reaching a chance(), pick() or round.',
+  'packages/engine/src/phrase.ts':
+    "offsetOf's Math.log is a looseness's cost in a comparison of a phrase's phases (#580): it is quantised to QUANTUM " +
+    'before it is added, so a last bit cannot decide which phase wins.',
   'packages/engine/src/style.ts':
     "glideTo's Math.pow/Math.exp compute a continuous glide value (tempo's log " +
     'space); nothing rounds or compares it directly, only chance()/pick() ' +

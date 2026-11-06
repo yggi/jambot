@@ -2,7 +2,7 @@ import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { BAR_STEPS, clockOf } from './events.ts';
 import type { HeardNote } from './muse.ts';
-import { EMPTY_BAR, phrasesOf, readHeard, readPhrase } from './phrase.ts';
+import { EARLIEST, EMPTY_BAR, LATEST, phrasesOf, readHeard, readPhrase } from './phrase.ts';
 
 /** Notes struck at these positions, each released at `end` or held. */
 const heard = (positions: number[], end?: (p: number) => number | null): HeardNote[] =>
@@ -185,5 +185,34 @@ describe('phrases on other meters (#260)', () => {
     expect(
       phrasesOf(heard([0, 4, 4 + EMPTY_BAR]), clockOf([{ bar: 0, meter: METERS['4/4'] }])),
     ).toHaveLength(2);
+  });
+});
+
+/** Eighths `0 2 4 2 0` on the beat from bar 1, every onset `late` steps late and off it by a jitter of under a 25th of a step. */
+const eighths = (late: number) =>
+  heard([0, 2, 4, 6, 8].map((at, i) => 16 + at + late + [0.04, -0.03, 0.05, -0.02, 0.01][i]!));
+
+describe('a hand late or early by a steady latency (#580)', () => {
+  it('reads eighths played on the beat by a tight hand 70 ms late on the beat, not a sixteenth later (the owner’s example)', () => {
+    // (at 120 bpm a step is 125 ms: 70 ms is 0.56 of a step, past the halfway, where the nearest step reads `1 3 5 7 9`)
+    expect(positionsOf(readPhrase(eighths(0.56)))).toEqual([16, 18, 20, 22, 24]);
+    expect(positionsOf(readPhrase(eighths(0.4)))).toEqual([16, 18, 20, 22, 24]);
+  });
+
+  it('reads them on the beat from a hand 70 ms early too', () => {
+    expect(positionsOf(readPhrase(eighths(-0.56)))).toEqual([16, 18, 20, 22, 24]);
+  });
+
+  it('keeps a tight hand’s offbeats on time where it played them: a syncopation is not moved onto the beat', () => {
+    expect(positionsOf(readPhrase(eighths(1)))).toEqual([17, 19, 21, 23, 25]);
+    const clave = [0, 3, 6, 10, 12].map((at) => 16 + at);
+    expect(positionsOf(readPhrase(heard(clave)))).toEqual(clave);
+    expect(positionsOf(readPhrase(heard(clave.map((at) => at + 0.56))))).toEqual(clave);
+  });
+
+  it('reads a hand later than LATEST or earlier than EARLIEST as the nearest steps do: past them a phase is not tried', () => {
+    expect([LATEST, EARLIEST]).toEqual([0.75, 0.6]);
+    expect(positionsOf(readPhrase(eighths(0.85)))).toEqual([17, 19, 21, 23, 25]);
+    expect(positionsOf(readPhrase(eighths(-0.7)))).toEqual([15, 17, 19, 21, 23]);
   });
 });

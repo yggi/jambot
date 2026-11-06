@@ -12,6 +12,8 @@ import {
   type PhraseRate,
   type Segment,
   beatPattern,
+  beginnerPattern,
+  handRate,
   PATTERNS,
   TRIALS,
   humanise,
@@ -20,6 +22,7 @@ import {
   played,
   readingRate,
   stepMs,
+  syncopatedPattern,
 } from './humanise.ts';
 
 const KEY: Key = { tonic: 9, mode: 'aeolian' };
@@ -197,10 +200,10 @@ describe('reading phrases of a sloppy hand (E17)', () => {
   );
 
   it.each([
-    [10, 0.999, 1, 0.999],
-    [20, 0.848, 0.932, 0.877],
-    [30, 0.46, 0.566, 0.638],
-    [40, 0.231, 0.3, 0.447],
+    [10, 0.998, 0.999, 0.998],
+    [20, 0.876, 0.949, 0.895],
+    [30, 0.532, 0.646, 0.667],
+    [40, 0.268, 0.349, 0.451],
   ])(
     'a phrase read whole, at %i ms, reads %f of the bars, puts %f of their onsets and %f of their rests right',
     (s, right, onsets, rests) => {
@@ -253,8 +256,8 @@ describe('reading phrases whose beats divide by themselves (E17)', () => {
   it.each([
     [20, AS_HEARD, 0.7, 0.789, 0.713],
     [30, AS_HEARD, 0.253, 0.37, 0.275],
-    [20, AS_PHRASES, 0.816, 0.917, 0.855],
-    [30, AS_PHRASES, 0.344, 0.446, 0.537],
+    [20, AS_PHRASES, 0.862, 0.947, 0.886],
+    [30, AS_PHRASES, 0.42, 0.535, 0.585],
   ])(
     'at %i ms, reads %f of the bars, %f of their onsets and %f of their rests right',
     (s, hearing, right, onsets, rests) => {
@@ -287,9 +290,9 @@ describe('the Muse’s own judgement of a sloppy hand (E17)', () => {
   const muse = (s: number, source = pattern) => phraseRate(AS_HEARD, s, KEY, 1, source, 'phrases');
 
   it.each([
-    [20, pattern, 0.846, 0.934, 0.873],
-    [30, pattern, 0.458, 0.574, 0.624],
-    [30, beatPattern, 0.346, 0.447, 0.535],
+    [20, pattern, 0.87, 0.95, 0.89],
+    [30, pattern, 0.527, 0.651, 0.655],
+    [30, beatPattern, 0.426, 0.538, 0.584],
   ])(
     'at %i ms reads %f of the bars, %f of their onsets and %f of their rests right',
     (s, source, right, onsets, rests) => {
@@ -336,8 +339,8 @@ describe('the confidence of a bar read as a motif (E17)', () => {
   });
 
   it.each([
-    [20, 0.777],
-    [30, 0.726],
+    [20, 0.721],
+    [30, 0.748],
   ])('at %i ms sorts right from wrong with a chance of %f', (s, expected) => {
     expect(Math.abs(separation(at(s)) - expected)).toBeLessThan(0.03);
   });
@@ -373,9 +376,9 @@ describe('the confidence of a bar read as a motif (E17)', () => {
  */
 describe('the motif taken of two players (E17)', () => {
   it.each([
-    [0, 40, 0.654, 1],
-    [20, 40, 0.542, 0.777],
-    [30, 30, 0.411, 0.584],
+    [0, 40, 0.658, 1],
+    [20, 40, 0.563, 0.778],
+    [30, 30, 0.472, 0.65],
   ])('players at %i and %i ms: the most notes %f, the surest reading %f', (a, b, notes, sure) => {
     const c = choiceRate(a, b, KEY);
     expect(c.pairs).toBeGreaterThan(700);
@@ -392,5 +395,50 @@ describe('the motif taken of two players (E17)', () => {
       const c = choiceRate(a, b, KEY);
       expect(c.bySureness).toBeGreaterThanOrEqual(c.byNotes);
     }
+  });
+});
+
+/**
+ * #580's hands: a steady latency and a jitter, over four kinds of pattern, a
+ * tight hand's (10 ms) and a looser one's (20 ms). The nearest step loses a
+ * tight hand from 60 ms late, every residual wrapped; a phrase read whole
+ * keeps it to 80 ms (`LATEST`, 94 ms at 120 bpm), and loses it past that as
+ * the nearest step does, which is the hand's memory's to tell (rung 6).
+ */
+describe('a hand late by a steady latency (E17, #580)', () => {
+  const SOURCES = [pattern, beatPattern, beginnerPattern, syncopatedPattern];
+  const rates = new Map<string, number>();
+  const right = (hearing: Hearing, lateMs: number, jitterMs: number, source = pattern) => {
+    const id = `${hearing === AS_HEARD ? 'near' : 'whole'}/${lateMs}/${jitterMs}/${SOURCES.indexOf(source)}`;
+    if (!rates.has(id)) {
+      const r = handRate(hearing, { lateMs, jitterMs }, KEY, 1, source);
+      rates.set(id, r.right / r.bars);
+    }
+    return rates.get(id)!;
+  };
+
+  it('reads a tight hand 70 or 80 ms late right in at least 96.5 % of bars of every kind, where the nearest step reads under 1 %', () => {
+    for (const source of SOURCES)
+      for (const lateMs of [70, 80]) {
+        expect(right(AS_PHRASES, lateMs, 10, source), `${lateMs} ms`).toBeGreaterThanOrEqual(0.965);
+        expect(right(AS_HEARD, lateMs, 10, source), `${lateMs} ms`).toBeLessThan(0.01);
+      }
+  });
+
+  it('reads a looser hand 70 ms late within 1.5 points of the same hand on time, in every kind', () => {
+    for (const source of SOURCES)
+      expect(right(AS_PHRASES, 70, 20, source)).toBeGreaterThan(
+        right(AS_PHRASES, 0, 20, source) - 0.015,
+      );
+  });
+
+  it('keeps a tight hand on time as it was: every kind at least 99.8 % right, the syncopations all', () => {
+    for (const source of SOURCES)
+      expect(right(AS_PHRASES, 0, 10, source)).toBeGreaterThanOrEqual(0.998);
+    expect(right(AS_PHRASES, 0, 10, syncopatedPattern)).toBe(1);
+  });
+
+  it('loses a tight hand 100 ms late, past LATEST, as the nearest step does: under 11 % right (rung 6’s)', () => {
+    for (const source of SOURCES) expect(right(AS_PHRASES, 100, 10, source)).toBeLessThan(0.11);
   });
 });

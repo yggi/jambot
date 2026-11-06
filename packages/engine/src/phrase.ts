@@ -10,7 +10,9 @@
  * three things are found in what is left:
  *
  * - the phrase's offset: the whole phrase a little early or late, the mean
- *   of its onsets' residuals from the steps, shrunk toward none;
+ *   of its onsets' residuals from the steps, shrunk toward none, against the
+ *   same phrase on steps half a step, a step or more away, where a steady
+ *   latency put every onset past the halfway (`offsetOf`, #580);
  * - the hand's looseness, the spread of what is left, which says how far an
  *   onset may be from the step it meant;
  * - the phrase's start, which very probably is on a beat: a first onset
@@ -29,8 +31,8 @@
 
 import { BAR_STEPS, SONG_CLOCK, type SongClock } from './events.ts';
 import type { HeardNote } from './muse.ts';
-import { LOOSENESS_FLOOR, distance, snapToValues, valueOf } from './lattice.ts';
-import { readOnsets } from './reading.ts';
+import { LOOSENESS_FLOOR, distance, leastCost, snapToValues, valueOf } from './lattice.ts';
+import { quantize } from './random.ts';
 
 /**
  * How long a silence ends a phrase: a whole bar, less a step, since a hand
@@ -101,8 +103,116 @@ export function phrasesOf(
  * that is early or late as a whole says so; the player aims at the same
  * grid the band plays, so an offset is a claim that needs its evidence.
  */
-function offsetOf(residuals: readonly number[]): number {
+function shrunkOffset(residuals: readonly number[]): number {
   return residuals.reduce((sum, r) => sum + r, 0) / (residuals.length + 1);
+}
+
+/**
+ * A hand's steady latency, as a prior (#580), in steps: its mean, a fifth of
+ * a step late, 25 ms at 120 bpm, and its spread, half a step, about 60 ms. A
+ * hand that hears the band late through its input, its audio and its own
+ * lead is late by the same over a phrase: #242's first round found a mean of
+ * 5 to 34 ms late in every run that kept the beat. Swept on E17 and #580's
+ * hands: a mean of none read a phrase 70 ms late as the same phrase a step
+ * later and early in about 9 % of bars of one value, and of 0.1 still lost a
+ * hand 80 ms late in 10 %; a spread of 0.6 lost 5.5 points of an offbeat
+ * phrase played on time.
+ */
+export const LATENCY_MEAN = 0.2;
+export const LATENCY_SPREAD = 0.5;
+
+/**
+ * The phases a phrase's steps are tried at, in steps from the nearest, the nearest first: half a step either way,
+ * which reads a hand late or early by more than half a step. A whole step more can't be told from the same phrase
+ * syncopated a step later, in one phrase; that is the hand's memory's to tell (#580, rung 6).
+ */
+export const PHASES = [0, -0.5, 0.5] as const;
+
+/**
+ * The latest and the earliest a phase reads a phrase, in steps (#580): three quarters of a step late, about 94 ms at
+ * 120 bpm, and 0.6 of a step early, 75 ms. Past them, a phrase a little off is read as the same phrase on the beat
+ * most of a step away (E17's offbeat phrases at 10 ms); a hand that rushes is rarer than one that drags.
+ */
+export const LATEST = 0.75;
+export const EARLIEST = 0.6;
+
+/**
+ * The fewest onsets a phrase is read at another phase with: three, the fewest the Muse hears a motif in. A steady
+ * latency is what a phrase's onsets share, and one or two say nothing of it: any phase fits a lone note, and the lattice
+ * would put it on whichever step is the coarser.
+ */
+export const PHASED_FEWEST = 3;
+
+/**
+ * The phrase's offset (#580). The nearest steps read a hand late by more
+ * than half a step as the phrase a step later and early: every residual
+ * wraps. So the phrase is also read at each phase of `PHASES`, every onset
+ * half a step earlier or later, each phase with its own offset (the mean of
+ * its residuals under the latency's prior, `LATENCY_MEAN`, `LATENCY_SPREAD`)
+ * and its own looseness, and each reading costs, in nats:
+ * - its onsets less its offset on the lattice that describes them best
+ *   (`leastCost`: a place each, and the distance from it over the looseness):
+ *   eighths on the beat cost less than the same a sixteenth later, and a
+ *   loose hand's quarters less than a rhythm that fits its every slip;
+ * - what the looseness costs, a nat an onset for each e-fold of it: a hand
+ *   read tighter is likelier, and no phase can explain a loose hand away;
+ * - the offset against the latency's prior;
+ * - less `BEAT_EVIDENCE` where its first onset is on a beat.
+ * The cheapest wins, the nearest steps on a tie and wherever another phase
+ * reads the hand later than `LATEST` or earlier than `EARLIEST`. The
+ * nearest steps keep the offset and looseness they always had
+ * (`shrunkOffset`), so a phrase read there reads as before.
+ */
+function offsetOf(
+  xs: readonly number[],
+  clock: SongClock,
+): { readonly offset: number; readonly looseness: number } {
+  const spreadAbout = (residuals: readonly number[], offset: number) =>
+    Math.max(
+      LOOSENESS_FLOOR,
+      Math.sqrt(residuals.reduce((sum, r) => sum + (r - offset) ** 2, 0) / residuals.length),
+    );
+  const onBeat = (step: number) => clock.beatStart(clock.beatAt(step)) === step;
+  // (each phase's steps, its residuals and its own offset, shrunk as the nearest steps' is; half rounds up, so a phase
+  // below rounds toward the earlier step: an exact onset stays on its step either way)
+  const readings: { key: string; steps: number[]; residuals: number[]; shrunk: number }[] = [];
+  for (const phase of xs.length < PHASED_FEWEST ? [0] : PHASES) {
+    const steps = xs.map((x) => (phase < 0 ? -Math.round(phase - x) : Math.round(x - phase)));
+    const key = steps.join();
+    if (readings.some((r) => r.key === key)) continue;
+    const residuals = xs.map((x, i) => x - steps[i]!);
+    readings.push({ key, steps, residuals, shrunk: shrunkOffset(residuals) });
+  }
+  const spreads = readings.map((r) => spreadAbout(r.residuals, r.shrunk));
+  let best = 0;
+  let least = Infinity;
+  const offsets = readings.map(({ steps, residuals }, i) => {
+    // (each phase at its own looseness, and what that looseness costs: a hand read tighter is likelier, by a nat for
+    // each onset and each e-fold, so no phase can explain a loose hand away; quantised, so no engine's last bit decides)
+    const looseness = spreads[i]!;
+    const prior = looseness ** 2 / LATENCY_SPREAD ** 2;
+    const offset =
+      (residuals.reduce((sum, r) => sum + r, 0) + prior * LATENCY_MEAN) /
+      (residuals.length + prior);
+    const bar = clock.barStart(clock.barAt(steps[0]!));
+    const cost =
+      leastCost(
+        xs.map((x) => x - offset - bar),
+        looseness,
+      ) +
+      xs.length * quantize(Math.log(looseness)) +
+      (offset - LATENCY_MEAN) ** 2 / (2 * LATENCY_SPREAD ** 2) -
+      (onBeat(steps[0]!) ? BEAT_EVIDENCE : 0);
+    if (cost < least && (i === 0 || (offset <= LATEST && offset >= -EARLIEST))) {
+      least = cost;
+      best = i;
+    }
+    return offset;
+  });
+  // (the nearest steps keep the offset and looseness they always had)
+  return best === 0
+    ? { offset: readings[0]!.shrunk, looseness: spreads[0]! }
+    : { offset: offsets[best]!, looseness: spreads[best]! };
 }
 
 /**
@@ -132,14 +242,9 @@ export function readPhraseWithMargins(
 ): PhraseReading {
   const notes = [...phrase].sort((a, b) => a.position - b.position);
   if (notes.length === 0) return { notes: [], margins: [] };
-  const { residuals } = readOnsets(
+  const { offset, looseness } = offsetOf(
     notes.map((n) => n.position),
-    0,
-  );
-  const offset = offsetOf(residuals);
-  const looseness = Math.max(
-    LOOSENESS_FLOOR,
-    Math.sqrt(residuals.reduce((sum, r) => sum + (r - offset) ** 2, 0) / residuals.length),
+    clock,
   );
   const steps = notes.map((n) => Math.round(n.position - offset));
   const first = notes[0]!.position - offset;
