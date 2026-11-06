@@ -259,6 +259,11 @@ async function inStep(
   const judged = gaps.filter((g) => !(Math.abs(g.gap) >= 50 && dropped(g.at)));
   const out = judged.filter((g) => !(Math.abs(g.gap) <= allowed(g)));
   const wide = judged.filter((g) => Math.abs(g.gap) >= 50);
+  // The notes a hold of the host's could put out: laid by the old skew, before the client followed the hold's jump,
+  // and sounding after the hold. The band may rest there (a sparse first section), and then there are none.
+  const holdJump = hold === 'host' ? holdJumps.find((j) => Math.abs(j.by) >= TOLD) : undefined;
+  const holdTold = holdJump ? followedAt(holdJump) : null;
+  const reached = judged.filter((g) => holdTold !== null && g.at >= heldAt && g.laid <= holdTold);
   const steady = judged.filter((g) => settling(g) === 0);
   const sorted = steady.map((g) => Math.abs(g.gap)).sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)]!;
@@ -271,7 +276,7 @@ async function inStep(
   const summary =
     `${lobby || 'tabs'}, the ${hold} held: ${followed.length} notes, ` +
     `${gaps.length - judged.length} dropped in the host's ${hostStalls.length} stalls, ` +
-    `${wide.length} out by 50 ms or more in a jump; ` +
+    `${wide.length} out by 50 ms or more in a jump${hold === 'host' ? `, ${reached.length} of them the hold could reach` : ''}; ` +
     `${steady.length} settled: median ${median.toFixed(2)} ms, worst ${sorted.at(-1)!.toFixed(2)} ms; ` +
     `clocks jumped ${jumps.map((s) => `${s.by.toFixed(1)} ms at ${since(s.at)} s`).join(', ')} from the hold; ` +
     `out past what is allowed: ${out.map((g) => `${g.voice} ${g.gap.toFixed(1)} at ${since(g.at)} s, past ${allowed(g).toFixed(1)}, the client's best round trip ${netAt(g.at)?.trip?.toFixed(1)} ms, laid ${(g.at - g.laid).toFixed(0)} ms before it sounded, the trip then ${netAt(g.laid)?.trip?.toFixed(1)} ms`).join('; ') || 'none'}; ` +
@@ -286,9 +291,10 @@ async function inStep(
     `the host's stalls ${hostStalls.map((s) => `${since(s.from)} to ${since(s.to)} s`).join(', ')}`;
   console.log(summary);
   // Each fault met its path: the stall dropped host notes the client
-  // played, and the wide hold put notes 50 ms or more out.
+  // played, and the wide hold put notes 50 ms or more out, where the band played any it could reach.
   if (stallHost) expect(gaps.length - judged.length).toBeGreaterThan(0);
-  if (holdFor === HOLDS.wide) expect(wide.length).toBeGreaterThan(0);
+  if (holdFor === HOLDS.wide && reached.length > 0)
+    expect(reached.filter((g) => Math.abs(g.gap) >= 50).length, summary).toBeGreaterThan(0);
   expect(steady.length).toBeGreaterThan(40);
   expect(median).toBeLessThan(1);
   // A failure carries the whole run, its jumps and stalls, so it can be read without a rerun (#342).
