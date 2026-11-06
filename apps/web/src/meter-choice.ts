@@ -57,3 +57,20 @@ export const METER_CHOICES: readonly MeterChoice[] = (Object.keys(METERS) as Met
     }));
   },
 );
+
+/**
+ * A meter a beat a bar more or fewer (`by`), as a player's nudge of the
+ * meter steps it (session contract minor 6): the last pulse again at the end
+ * of the bar, or the last pulse taken off, the rest where they were; null
+ * where the bar that makes is no choice (`METER_CHOICES`), or would have a
+ * pulse alone, so a step never asks the band for a meter it isn't offered.
+ */
+export function meterNudged(meter: Meter, by: 1 | -1): Meter | null {
+  const pulses = gaps(meter);
+  const next =
+    by > 0 ? [...pulses, pulses.at(-1)!] : pulses.length > 2 ? pulses.slice(0, -1) : null;
+  if (next === null) return null;
+  const heights = next.slice(0, -1).reduce((at, gap) => [...at, at.at(-1)! + gap], [0]);
+  const nudged: Meter = { cycle: next.reduce((a, b) => a + b, 0), heights };
+  return METER_CHOICES.find((c) => sameMeter(c.meter, nudged))?.meter ?? null;
+}

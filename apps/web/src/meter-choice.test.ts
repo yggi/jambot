@@ -1,7 +1,7 @@
 import { clockOf, sameMeter } from '@jambot/engine';
 import { METERS, type MeterName, gaps, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { METER_CHOICES, meterLabel } from './meter-choice.ts';
+import { METER_CHOICES, meterLabel, meterNudged } from './meter-choice.ts';
 
 describe('the meters on offer', () => {
   it('holds every named meter, in order, and names it as it is named', () => {
@@ -45,5 +45,39 @@ describe('the meters on offer', () => {
     expect(seven.toSorted()).toEqual(['2+2+3', '2+3+2', '3+2+2']);
     for (const c of METER_CHOICES.filter((c) => c.text.startsWith('7/8')))
       expect(c.meter.cycle).toBe(7);
+  });
+});
+
+describe('a meter nudged a beat a bar (session contract minor 6)', () => {
+  it('adds the last pulse again, or takes the last off, where the bar that makes is a choice: every choice, both ways', () => {
+    const step = (text: string, by: 1 | -1) => {
+      const choice = METER_CHOICES.find((c) => c.text === text)!;
+      const next = meterNudged(choice.meter, by);
+      return next === null ? null : meterLabel(next);
+    };
+    const table = Object.fromEntries(
+      METER_CHOICES.map((c) => [c.text, [step(c.text, -1), step(c.text, 1)]]),
+    );
+    expect(table).toEqual({
+      // No 2/4 is offered (the meter contract records it), so 3/4 takes no beat off.
+      '3/4': [null, '4/4'],
+      '4/4': ['3/4', '5/4'],
+      '5/4': ['4/4', null],
+      '5/8': [null, '7/8'],
+      '5/8 2+3': [null, null],
+      '6/8': [null, '9/8'],
+      '7/8': ['5/8', null],
+      '7/8 2+2+3': [null, null],
+      '7/8 2+3+2': ['5/8 2+3', null],
+      '9/8': ['6/8', '12/8'],
+      '10/8': [null, null],
+      '12/8': ['9/8', null],
+    });
+  });
+
+  it('keeps the pulses it keeps where they were: a beat more is the last again, at the end of the bar', () => {
+    const more = meterNudged(METERS['3/4'], 1)!;
+    expect(gaps(more)).toEqual([2, 2, 2, 2]);
+    expect(more.heights.slice(0, 3)).toEqual(METERS['3/4'].heights);
   });
 });

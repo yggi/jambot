@@ -65,7 +65,7 @@
     sets?: boolean;
     onintent: (intent: Intent) => void;
     /** A player's, who doesn't set the tempo: nudge it a step, a bias the band leans by from the next section. */
-    onnudge?: ((axis: 'bpm', by: 1 | -1) => void) | undefined;
+    onnudge?: ((axis: 'bpm' | 'meter', by: 1 | -1) => void) | undefined;
     /** The meter asked for the next section, which the band takes where it starts; null for none, the repository's. */
     asked?: Meter | null;
     onmeter?: (meter: Meter | null) => void;
@@ -88,7 +88,11 @@
   }: Props = $props();
 
   /** The way this player nudged the tempo last, said under the nudge until it nudges again. */
-  let nudgedLast: 1 | -1 | null = $state(null);
+  let nudgedLast: string | null = $state(null);
+  const nudge = (axis: 'bpm' | 'meter', by: 1 | -1, said: string) => {
+    onnudge?.(axis, by);
+    nudgedLast = said;
+  };
 
   /** The choice that asks for no meter: the composer's, from the repository (#375). */
   const BY_STYLE = 'By style';
@@ -135,17 +139,8 @@
       label="Nudge the tempo"
       down={{ name: 'Slower', glyph: '−', title: 'Lean the band slower' }}
       up={{ name: 'Faster', glyph: '+', title: 'Lean the band faster' }}
-      onnudge={(by) => {
-        onnudge('bpm', by);
-        nudgedLast = by;
-      }}>tempo</Nudge
+      onnudge={(by) => nudge('bpm', by, `the tempo ${by > 0 ? 'faster' : 'slower'}`)}>tempo</Nudge
     >
-    {#if nudgedLast !== null}
-      <p class="nudged" role="status">
-        You nudged the tempo {nudgedLast > 0 ? 'faster' : 'slower'}: the band leans that way from
-        the next section, more the fewer play.
-      </p>
-    {/if}
   {/if}
   <div class="swing">
     {#if sets}
@@ -193,6 +188,19 @@
       onselect={(text) =>
         onmeter(METER_CHOICES.find((choice) => choice.text === text)?.meter ?? null)}
     />
+  {:else if onnudge}
+    <Nudge
+      label="Nudge the meter"
+      down={{ name: 'A beat fewer', glyph: '−', title: 'Lean the band a beat a bar fewer' }}
+      up={{ name: 'A beat more', glyph: '+', title: 'Lean the band a beat a bar more' }}
+      onnudge={(by) => nudge('meter', by, `the meter a beat ${by > 0 ? 'more' : 'fewer'}`)}
+      >beats a bar</Nudge
+    >
+  {/if}
+  {#if nudgedLast !== null}
+    <p class="nudged" role="status">
+      You nudged {nudgedLast}: the band leans that way from the next section, more the fewer play.
+    </p>
   {/if}
   <div class="click" role="group" aria-label="Click">
     <button

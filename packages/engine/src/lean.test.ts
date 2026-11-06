@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NUDGED, NUDGE_STEP, leaned, leans } from './lean.ts';
+import { LEANED, NUDGED, NUDGE_STEP, STEPPED, leaned, leans } from './lean.ts';
 import { TEMPO_STEP } from './licence.ts';
 import { AXES, INITIAL_STYLE, PRESETS, type Style } from './style.ts';
 
@@ -12,7 +12,7 @@ const STYLES: readonly { name: string; style: Style }[] = PRESETS.map((p) => ({
 describe("the players' lean", () => {
   it('moves each axis a player may nudge by its steps, a tenth a step, and nothing else', () => {
     for (const { name, style } of STYLES)
-      for (const axis of NUDGED.filter((a) => a !== 'bpm'))
+      for (const axis of LEANED.filter((a) => a !== 'bpm'))
         for (const steps of [-2, -1, 1, 2]) {
           const next = leaned(style, { [axis]: steps });
           const { min, max } = AXES[axis];
@@ -38,6 +38,14 @@ describe("the players' lean", () => {
     const style = { ...INITIAL_STYLE, energy: 0.95, sync: 0.02 };
     const next = leaned(style, { energy: 1, sync: -1 });
     expect([next.energy, next.sync]).toEqual([1, 0]);
+  });
+
+  it('leaves the key and the meter to the player: a style has neither (minor 6)', () => {
+    expect(NUDGED).toEqual([...LEANED, ...STEPPED]);
+    expect(STEPPED).toEqual(['key', 'meter']);
+    expect(leaned(INITIAL_STYLE, { key: 1, meter: -1 })).toEqual(INITIAL_STYLE);
+    expect(leans({ key: 1 })).toBe(true);
+    expect(leans({ meter: 0 })).toBe(false);
   });
 
   it('takes no step on entropy, and leans nothing with no steps', () => {

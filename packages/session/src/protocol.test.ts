@@ -33,6 +33,7 @@ import {
   wrongCodesWithin,
   PROTOCOL,
   ROLES,
+  BAND_VOICES,
   type SectionText,
   codeOf,
   heardFrom,
@@ -221,6 +222,27 @@ describe('the session protocol', () => {
       expect(readClientMessage({ kind: 'nudge', target, by }), `${target} ${by}`).toBeNull();
   });
 
+  it('reads a line of the session’s log, and a welcome with its tail, with their fields of their types (protocol 20)', () => {
+    const line = {
+      kind: 'event',
+      bar: 16,
+      who: 'conductor',
+      what: 'moved',
+      text: 'The tempo leans to 117.',
+    };
+    expect(readHostMessage(line)).toEqual(line);
+    expect(readHostMessage({ ...line, bar: null, who: 'c0', what: 'joined' })).not.toBeNull();
+    expect(readClientMessage(line)).toBeNull();
+    for (const [field, value] of [
+      ['bar', 1.5],
+      ['who', 7],
+      ['what', undefined],
+      ['text', 7],
+    ] as const)
+      expect(readHostMessage({ ...line, [field]: value }), field).toBeNull();
+    expect(BAND_VOICES).toEqual(['conductor', 'composer', 'muse']);
+  });
+
   it('reads a host’s role message of each role, and refuses any other (protocol 17, #567)', () => {
     for (const role of ROLES) {
       expect(readHostMessage({ kind: 'role', role })).toEqual({ kind: 'role', role });
@@ -290,12 +312,12 @@ describe('the session protocol', () => {
   });
 
   it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
-    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([18, 13]);
-    for (const protocol of [13, 14, 15, 16, 17, 18, 19])
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([20, 13]);
+    for (const protocol of [13, 14, 15, 16, 17, 18, 19, 20, 21])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
     for (const protocol of [12, 1, 13.5, Number.NaN])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
-        /version 18 .* takes 13 on/,
+        /version 20 .* takes 13 on/,
       );
     expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
     expect(sameMajor('14')).toBe(false);
@@ -394,11 +416,12 @@ describe('the session protocol', () => {
       played: shapeOf(playedBars()),
       section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
-    // The session contract (yggi/music-commons `contracts/session`, minor 5) holds the same
+    // The session contract, version 1 (yggi/music-commons `contracts/session-v1`, minor 7) holds the same
     // shapes, which it states at protocol 15: 16 adds a listed session's `away` (#496), a
-    // lobby's word, 17 a host's `role` (#567) and 18 a player's `nudge`, read by field; none
+    // lobby's word, 17 a host's `role` (#567), 18 a player's `nudge`, 19 its key and meter, and
+    // 20 the log's `event`, read by field; none
     // adds a shape here.
-    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([18, 15, 18]);
+    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([20, 15, 20]);
     expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
   });
 
@@ -454,7 +477,7 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 18,
+  protocol: 20,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',

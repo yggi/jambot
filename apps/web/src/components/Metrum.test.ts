@@ -87,6 +87,19 @@ describe('the metrum', () => {
     expect(onintent).not.toHaveBeenCalled();
   });
 
+  it('gives a player a nudge of the meter, a beat a bar, sent, not asked for, and says so (minor 6)', async () => {
+    const onnudge = vi.fn();
+    const onmeter = vi.fn();
+    render(Metrum, props(new Metronome(), { sets: false, onnudge, onmeter }));
+    expect(screen.queryByRole('radiogroup', { name: 'Meter for the next section' })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'A beat more' }));
+    expect(onnudge).toHaveBeenLastCalledWith('meter', 1);
+    expect(screen.getByRole('status')).toHaveTextContent('You nudged the meter a beat more');
+    await fireEvent.click(screen.getByRole('button', { name: 'A beat fewer' }));
+    expect(onnudge).toHaveBeenLastCalledWith('meter', -1);
+    expect(onmeter).not.toHaveBeenCalled();
+  });
+
   it('shows the swing’s share as a gauge, empty when straight and full at the dotted figure', () => {
     const marker = (swing: MeterSwing) => {
       const { container, unmount } = render(Metrum, props(new Metronome(), { swing }));

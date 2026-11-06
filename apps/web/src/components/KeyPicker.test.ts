@@ -163,6 +163,26 @@ describe('the key picker', () => {
     expect(screen.getByLabelText(/^A minor: A B C D E F G/)).toBeInTheDocument();
   });
 
+  it('gives a player a nudge of the key, a fifth, sent, not set, and says so (minor 6)', async () => {
+    const onnudge = vi.fn();
+    const onintent = vi.fn();
+    render(KeyPicker, {
+      heading: { tonic: 9, mode: 'aeolian' },
+      history: NO_HISTORY,
+      reach: 6,
+      sets: false,
+      onintent,
+      onnudge,
+    });
+    expect(screen.queryAllByRole('radio')).toEqual([]);
+    await fireEvent.click(screen.getByRole('button', { name: /Nudge up/ }));
+    expect(onnudge).toHaveBeenLastCalledWith('key', 1);
+    expect(screen.getByRole('status')).toHaveTextContent('You nudged the key a fifth up');
+    await fireEvent.click(screen.getByRole('button', { name: /Nudge down/ }));
+    expect(onnudge).toHaveBeenLastCalledWith('key', -1);
+    expect(onintent).not.toHaveBeenCalled();
+  });
+
   it('dims the tonics beyond the reach of the home it is given, the harmonic history’s centre (#169)', () => {
     // Home E aeolian, one fifth either way: A, E and B aeolian, and no further.
     render(KeyPicker, {
