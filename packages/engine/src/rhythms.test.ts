@@ -92,7 +92,8 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
         r.hits.map((h) => [h.role, h.note]),
         r.id,
       ).toEqual(Array(5).fill(['clave', CLAVES_NOTE]));
-      expect(r.bars, r.id).toBe(r.id.endsWith('_one_bar') ? 1 : 2);
+      // (a clave of one bar says so in its id, but the cinquillo, one bar by nature, cells v0.19.0)
+      expect(r.bars, r.id).toBe(r.id.endsWith('_one_bar') || r.id === 'cinquillo' ? 1 : 2);
     }
   });
 
@@ -120,7 +121,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
 
   it('finds none it can’t read under the section’s meter, though cells fits it: a hit between the bar’s sixteenths (yggi/cells#360)', () => {
     const synthPop = PROTOTYPE_PRESETS[0]!;
-    const bench = { meter: METERS['4/4'], meterFragment: 'meter_4_4' };
+    const bench = { meter: METERS['4/4'], meterFragment: 'meter' };
     const all = rhythmRepository(RHYTHM_FRAGMENTS, () => true);
     const found = all.query(stylePoint(synthPop.style), bench)[0]!.id;
     const unreadable = rhythmRepository(
@@ -267,15 +268,15 @@ describe('the rhythm and the learned layer (#397, #398)', () => {
     expect(bars.map((b) => b.dough)).toEqual(run(funk, 1, true).map((b) => b.dough));
     const learned = layer! as LearnedLayer;
     expect(new Set(learned.points.map((p) => p.id))).toEqual(
-      new Set(['meter_4_4_leaning_lightly_on_16n', 'funk_drums', 'rumba_clave_3_2']),
+      new Set(['meter(swing=16n:.6)', 'funk_drums', 'rumba_clave_3_2']),
     );
     expect(
       learned.points.filter((p) => p.id === 'rumba_clave_3_2').every((p) => p.facet === 'rhythm'),
     ).toBe(true);
     // 4 sections played, and the fifth decided a bar ahead: each the rhythm and the clave kept together, and each with the meter (#401)
     expect(learned.together).toEqual([
-      { ids: ['meter_4_4_leaning_lightly_on_16n', 'funk_drums'], count: 5 },
-      { ids: ['meter_4_4_leaning_lightly_on_16n', 'rumba_clave_3_2'], count: 5 },
+      { ids: ['meter(swing=16n:.6)', 'funk_drums'], count: 5 },
+      { ids: ['meter(swing=16n:.6)', 'rumba_clave_3_2'], count: 5 },
       { ids: ['funk_drums', 'rumba_clave_3_2'], count: 5 },
     ]);
   });
@@ -316,10 +317,10 @@ describe('the pull of a group the composer keeps, from its place on the ladder (
   // Funk's drum bar and the 4/4 meter fragment, known together (cells' 10 uses)
   const layer: LearnedLayer = {
     ...EMPTY_LAYER,
-    together: [{ ids: ['meter_4_4', 'funk_drums'], count: 10 }],
+    together: [{ ids: ['meter', 'funk_drums'], count: 10 }],
   };
   const taken = (entropy: number) =>
-    composedRhythm(RHYTHM_REPOSITORY, style, bench, null, layer, ['meter_4_4'], [], pullOf(entropy))
+    composedRhythm(RHYTHM_REPOSITORY, style, bench, null, layer, ['meter'], [], pullOf(entropy))
       .rhythmFragment;
 
   it('keeps the group at entropy 0 (repeat), and follows the style at entropy 1 (fetch far): the nearest by style alone', () => {

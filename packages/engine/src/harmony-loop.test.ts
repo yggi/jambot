@@ -248,7 +248,7 @@ describe('the composer plays a progression filed, never varied, and leaves out o
   const point = stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 1 }));
   const seeded = HARMONY_REPOSITORY.file!(EMPTY_LAYER, {
     notes: ADA,
-    bench: { meter: METERS['4/4'], meterFragment: 'meter_4_4' },
+    bench: { meter: METERS['4/4'], meterFragment: 'meter' },
     point,
     source: 'Ada',
     created: 'song 0, bar 0',
@@ -283,7 +283,7 @@ describe('the composer plays a progression filed, never varied, and leaves out o
       index: 0,
     };
     const key = { tonic: 9, mode: 'aeolian' } as const;
-    const bench = { meter: METERS['4/4'], meterFragment: 'meter_4_4' };
+    const bench = { meter: METERS['4/4'], meterFragment: 'meter' };
     const none = { A: null, B: null };
     expect(sectionTheme(env, 'A', key, bench, none, none).fragment).toBe(seeded.id);
     const rejected = sectionTheme(env, 'A', key, bench, none, none, [seeded.id]);

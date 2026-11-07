@@ -165,7 +165,7 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
 
   it('learns nothing given no layer, from a meter asked for, or on a miss', () => {
     expect(planned(OFF, undefined, 3).map((c) => c.layer)).toEqual([null, null, null]);
-    const meter = METER_REPOSITORY.fragments.get('meter_7_8')!.meter;
+    const meter = METER_REPOSITORY.fragments.get('meter(grouping=meter("7/8"))')!.meter;
     expect(planned(OFF, EMPTY_LAYER, 3, meter).map((c) => c.layer)).toEqual([
       EMPTY_LAYER,
       EMPTY_LAYER,
@@ -183,24 +183,21 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
 
   it('moves a border by what it learned: a meter kept reaches a fifth farther, no more', () => {
     // Along the line from 4/4's point to 5/4's, once 4/4 was kept at its point.
-    const [a, b] = [seedPoint('meter_4_4').point, seedPoint('meter_5_4').point];
+    const [a, b] = [seedPoint('meter').point, seedPoint('meter(grouping=meter("5/4"))').point];
     const along = (t: number) =>
       Object.fromEntries(
         Object.keys(a).map((axis) => [axis, a[axis]! + t * (b[axis]! - a[axis]!)]),
       );
     const learned = planned({ ...SYNTH_POP, ...a }, EMPTY_LAYER, 3).at(-1)!.layer!;
-    expect(learned.points.map((p) => [p.id, p.weight])).toEqual([['meter_4_4', 1.2]]);
+    expect(learned.points.map((p) => [p.id, p.weight])).toEqual([['meter', 1.2]]);
     let flips = 0;
     for (const t of range(201).map((i) => i / 200)) {
       const found = METER_REPOSITORY.query(along(t));
-      const [nearest, own] = [
-        found[0]!.distance,
-        found.find((f) => f.id === 'meter_4_4')!.distance,
-      ];
+      const [nearest, own] = [found[0]!.distance, found.find((f) => f.id === 'meter')!.distance];
       const first = METER_REPOSITORY.query(along(t), learned)[0]!.id;
       if (first !== found[0]!.id) flips++;
       // 4/4 is first wherever it lies within 1.2 times the nearest's distance, and nowhere else.
-      if (own < 1.2 * nearest - 1e-9) expect(first, `at ${t}`).toBe('meter_4_4');
+      if (own < 1.2 * nearest - 1e-9) expect(first, `at ${t}`).toBe('meter');
       else if (own > 1.2 * nearest + 1e-9) expect(first, `at ${t}`).toBe(found[0]!.id);
     }
     expect(flips).toBeGreaterThan(0);
@@ -208,7 +205,7 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
 
   it('holds the meter playing, with a layer, where another is nearer by less than METER_HOLD', () => {
     // Section 0 at 4/4's point keeps 4/4 and learns it; section 1 steps toward 5/4, to where another meter is nearest by less than the margin.
-    const [a, b] = [seedPoint('meter_4_4').point, seedPoint('meter_5_4').point];
+    const [a, b] = [seedPoint('meter').point, seedPoint('meter(grouping=meter("5/4"))').point];
     const along = (t: number): Style => ({
       ...SYNTH_POP,
       ...Object.fromEntries(
@@ -220,16 +217,16 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
       .map((i) => i / 1000)
       .find((t) => {
         const found = METER_REPOSITORY.query(stylePoint(along(t)), learned);
-        const own = found.find((f) => f.id === 'meter_4_4')!.distance;
+        const own = found.find((f) => f.id === 'meter')!.distance;
         return (
-          found[0]!.id !== 'meter_4_4' &&
+          found[0]!.id !== 'meter' &&
           own - found[0]!.distance < METER_HOLD / 2 &&
           own <= MISS_DISTANCE
         );
       })!;
     expect(border).toBeDefined();
     const nearest = METER_REPOSITORY.query(stylePoint(along(border)), learned)[0]!.id;
-    expect(nearest).not.toBe('meter_4_4');
+    expect(nearest).not.toBe('meter');
     let carried: PlanCarried = planner.initial;
     const plans = [along(0), along(border)].map((style, index) => {
       const next = planner.advance(
@@ -248,11 +245,11 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
       carried = next.carried;
       return next.output;
     });
-    expect(plans.map((p) => p.meterFragment)).toEqual(['meter_4_4', 'meter_4_4']);
+    expect(plans.map((p) => p.meterFragment)).toEqual(['meter', 'meter']);
     // Asked afresh, with nothing playing, the composer would take the nearest.
     expect(composedMeter(METER_REPOSITORY, along(border), null, learned)!.id).toBe(nearest);
     // The held meter is a use too, at the border's point.
-    expect(carried.layer!.points.map((p) => [p.id, p.weight])).toEqual([['meter_4_4', 1.2]]);
+    expect(carried.layer!.points.map((p) => [p.id, p.weight])).toEqual([['meter', 1.2]]);
   });
 
   it('plays the same from the same seed, style and layer: the plans carry the layer, so a forecast learns as the band will', () => {
@@ -338,8 +335,8 @@ describe('a layer the host keeps, read and written (#398)', () => {
     expect(repositoryLayerProblems({ filed: [], points: 'x', together: [] })).toEqual([
       'the layer: points is not a list',
     ]);
-    expect(repositoryLayerProblems({ ...EMPTY_LAYER, filed: [filed('meter_4_4')] })).toEqual([
-      "the layer files meter_4_4, a seed fragment's id",
+    expect(repositoryLayerProblems({ ...EMPTY_LAYER, filed: [filed('meter')] })).toEqual([
+      "the layer files meter, a seed fragment's id",
     ]);
   });
 

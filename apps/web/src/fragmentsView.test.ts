@@ -22,7 +22,7 @@ import type { MemoryView } from './hud.ts';
 const section = (index: number, over: Partial<TakenSection> = {}): TakenSection => ({
   index,
   section: 'Groove',
-  meter: 'meter_4_4_swung_on_8n',
+  meter: 'meter(swing=8n:2/3)',
   rhythm: 'lo_fi_hip_hop_drums',
   clave: null,
   ...over,
@@ -122,7 +122,7 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
       playing: true,
       source: 'seed',
     });
-    expect(byName(all, 'meter_4_4_swung_on_8n')).toMatchObject({
+    expect(byName(all, 'meter(swing=8n:2/3)')).toMatchObject({
       role: 'meter',
       sections: 2,
       playing: false,
@@ -133,7 +133,7 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
     expect(all.map((r) => r.name)).toEqual([
       'lo_fi_hip_hop_drums',
       '3/4',
-      'meter_4_4_swung_on_8n',
+      'meter(swing=8n:2/3)',
       'bossa_nova_clave',
     ]);
   });
@@ -248,7 +248,7 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
 
   it('lists what each fragment was used together with, the most first', () => {
     const together = [
-      { ids: ['meter_4_4_swung_on_8n', 'lo_fi_hip_hop_drums'] as const, count: 4 },
+      { ids: ['meter(swing=8n:2/3)', 'lo_fi_hip_hop_drums'] as const, count: 4 },
       { ids: ['lo_fi_hip_hop_drums', 'bossa_nova_clave'] as const, count: 6 },
       { ids: ['3/4', 'funk_drums'] as const, count: 2 },
     ];
@@ -258,7 +258,7 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
     );
     expect(row.together).toEqual([
       { id: 'bossa_nova_clave', count: 6 },
-      { id: 'meter_4_4_swung_on_8n', count: 4 },
+      { id: 'meter(swing=8n:2/3)', count: 4 },
     ]);
   });
 
@@ -291,7 +291,7 @@ describe('the filters', () => {
       shownRows(all, filter).map((r) => r.name);
     expect(names('all')).toHaveLength(all.length);
     expect(names('filed')).toEqual(['drummer song 1, bar 8', 'Ada song 1, bar 16']);
-    expect(names('retrieved')).toEqual(['meter_4_4_swung_on_8n', 'drummer song 1, bar 8']);
+    expect(names('retrieved')).toEqual(['meter(swing=8n:2/3)', 'drummer song 1, bar 8']);
     expect(names('muse')).toEqual(['Ada song 1, bar 16', "Ada's keys, bar 12"]);
   });
 

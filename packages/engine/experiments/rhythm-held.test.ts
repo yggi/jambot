@@ -104,8 +104,8 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     });
   });
 
-  it(`keeps a layer of at most 3,813 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3813);
+  it(`keeps a layer of at most 3,735 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3735);
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(3);
   });
 });

@@ -17,14 +17,14 @@ const FOUND: Readonly<
   Record<string, { meter: string; swing: string; mode: string; rhythm: string; bass: string }>
 > = {
   'Electro swing': {
-    meter: 'meter_4_4_swung_on_8n',
+    meter: 'meter(swing=8n:2/3)',
     swing: '8n 0.667',
     mode: 'aeolian', // (cells' harmonic minor, read as aeolian: #516)
     rhythm: 'electro_swing_drums',
     bass: 'walking_bass',
   },
   Spooky: {
-    meter: 'meter_5_4',
+    meter: 'meter(grouping=meter("5/4"))',
     swing: '16n 0.500',
     mode: 'aeolian',
     rhythm: 'spooky_drums',

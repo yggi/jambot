@@ -67,14 +67,22 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
   it('reads eleven of cells’ thirteen meters into the band’s, and says why it leaves out the other two', () => {
     const left = METER_READINGS.filter((r) => typeof r.read === 'string');
     expect(Object.fromEntries(left.map((r) => [r.id, r.read]))).toEqual({
-      meter_4_4_alla_breve: "its meter, 2 beats in 8 eighths at 0 4, is none of the band's",
-      meter_2_4: "its meter, 2 beats in 4 eighths at 0 2, is none of the band's",
+      'meter(grouping=meter("2/2", 2))':
+        "its meter, 2 beats in 8 eighths at 0 4, is none of the band's",
+      'meter(grouping=meter("2/4"))':
+        "its meter, 2 beats in 4 eighths at 0 2, is none of the band's",
     });
     expect([...METER_REPOSITORY.fragments.keys()]).toHaveLength(11);
-    expect(METER_REPOSITORY.fragments.get('meter_10_8')!.meter).toEqual(METERS['10/8']);
-    expect(METER_REPOSITORY.fragments.get('meter_7_8')!.meter).toEqual(METERS['7/8']);
-    expect(METER_REPOSITORY.fragments.get('meter_12_8')!.meter).toEqual(METERS['12/8']);
-    expect(METER_REPOSITORY.fragments.get('meter_4_4_swung_on_8n')!.swing).toEqual({
+    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("10/8"))')!.meter).toEqual(
+      METERS['10/8'],
+    );
+    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("7/8"))')!.meter).toEqual(
+      METERS['7/8'],
+    );
+    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("12/8"))')!.meter).toEqual(
+      METERS['12/8'],
+    );
+    expect(METER_REPOSITORY.fragments.get('meter(swing=8n:2/3)')!.swing).toEqual({
       level: '8n',
       share: 2 / 3,
     });
@@ -191,7 +199,7 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
   it('picks the meters it picked under cells v0.8.0 but near the new presets’ points, at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = meterQueries(METER_REPOSITORY);
     // (as under cells v0.8.0 but near Electro swing's and Spooky's points, whose meters cells v0.12.0 placed there)
-    expect([asked.length, hashOf(asked)]).toEqual([89, '1b079a45']);
+    expect([asked.length, hashOf(asked)]).toEqual([89, '52f7563e']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
     expect(hashOf(asBefore(asked))).toBe('5fd35b0e');
     // (what of cells' library is neither a meter nor a rhythm: bass lines, harmonies, kits, modes … whatever it holds)
@@ -203,9 +211,10 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     const asked = rhythmQueries(RHYTHM_REPOSITORY);
     // (as under cells v0.8.0 but where Electro swing drums (held since #508) or Spooky drums (cells v0.12.0) is nearer, or
     // since cells v0.15.0 Ghost drums, near Spooky, in 476 answers, and Kinderlied drums in 14, yggi/cells#409 and #417)
-    expect([asked.length, hashOf(asked)]).toEqual([1780, '0387bfe1']);
+    expect([asked.length, hashOf(asked)]).toEqual([1780, '8dec1ce9']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
-    expect(hashOf(asBefore(asked))).toBe('49339569');
+    // (since cells v0.19.0 the cinquillo is the nearest clave beside 84 of them, never within CO_SELECT, so never layered)
+    expect(hashOf(asBefore(asked))).toBe('8b3c0a2d');
     // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
     // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits; and since cells v0.15.0
     // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one)

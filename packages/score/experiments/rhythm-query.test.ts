@@ -96,14 +96,14 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
         ]),
       ),
     ).toEqual({
-      'Synth-pop': 'meter_4_4',
-      Techno: 'meter_4_4',
-      'Deep house': 'meter_4_4_leaning_lightly_on_16n',
-      Ambient: 'meter_4_4_leaning_faintly_on_16n',
-      'Lo-fi hip hop': 'meter_4_4_leaning_on_16n',
-      Funk: 'meter_4_4_leaning_lightly_on_16n',
-      'Bossa nova': 'meter_4_4',
-      'Swing jazz': 'meter_4_4_swung_on_8n',
+      'Synth-pop': 'meter',
+      Techno: 'meter',
+      'Deep house': 'meter(swing=16n:.6)',
+      Ambient: 'meter(swing=16n:31/60)',
+      'Lo-fi hip hop': 'meter(swing=16n:.65)',
+      Funk: 'meter(swing=16n:.6)',
+      'Bossa nova': 'meter',
+      'Swing jazz': 'meter(swing=8n:2/3)',
     });
   });
 
@@ -122,23 +122,23 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
       ]),
     );
     expect(verdicts).toEqual({
-      meter_4_4: ['found'],
-      meter_4_4_swung_on_8n: ['found'],
-      meter_4_4_leaning_on_16n: ['found'],
-      meter_4_4_leaning_lightly_on_16n: ['found'],
-      meter_4_4_leaning_faintly_on_16n: ['found'],
-      meter_3_4: ['found', 'distance'],
-      meter_6_8: ['found', 'distance'],
-      meter_12_8: ['found', 'distance'],
-      meter_5_4: ['found', 'distance'],
-      meter_7_8: ['distance', 'found'],
-      meter_10_8: ['found', 'distance'],
+      meter: ['found'],
+      'meter(swing=8n:2/3)': ['found'],
+      'meter(swing=16n:.65)': ['found'],
+      'meter(swing=16n:.6)': ['found'],
+      'meter(swing=16n:31/60)': ['found'],
+      'meter(grouping=meter("3/4"))': ['found', 'distance'],
+      'meter(grouping=meter("6/8"))': ['found', 'distance'],
+      'meter(grouping=meter("12/8"))': ['found', 'distance'],
+      'meter(grouping=meter("5/4"))': ['found', 'distance'],
+      'meter(grouping=meter("7/8"))': ['distance', 'found'],
+      'meter(grouping=meter("10/8"))': ['found', 'distance'],
     });
   });
 
   // (none refused by the fit since cells v0.15.0: Ghost drums fits 7/8, the one meter no seed rhythm fitted)
   it(`misses over a grid of the four axes, the meter found first: 69 % found, none refused by the fit, 31 % past ${RHYTHM_MISS}`, () => {
-    expect(gridAnswers(11)).toEqual({ found: 10148, fit: 0, distance: 4493 });
+    expect(gridAnswers(11)).toEqual({ found: 10158, fit: 0, distance: 4483 });
   });
 
   // a bound in wall-clock time, so it runs only when asked: on a shared runner it reads past 5 ms with nothing wrong (5.16 ms, #485's CI)
@@ -360,9 +360,9 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
         return [p.name, found.id, Math.round(found.distance * 1000) / 1000];
       }),
     ).toEqual([
-      ['Synth-pop', 'son_clave_3_2', 0.293],
+      ['Synth-pop', 'cinquillo', 0.287],
       ['Techno', 'rumba_clave_3_2', 0.468],
-      ['Deep house', 'son_clave_3_2', 0.266],
+      ['Deep house', 'cinquillo', 0.254],
       ['Ambient', 'bossa_nova_clave', 0.522],
       ['Lo-fi hip hop', 'bossa_nova_clave_one_bar', 0.168],
       ['Funk', 'rumba_clave_3_2', 0.069],

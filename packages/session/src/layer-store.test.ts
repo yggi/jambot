@@ -15,19 +15,19 @@ const LEARNED: LearnedLayer = {
   filed: [],
   points: [
     {
-      id: 'meter_4_4_leaning_on_16n',
+      id: 'meter(swing=16n:.65)',
       point: { sync: 0.5, harm: 0.75, artic: 0.35, energy: 0.5 },
       weight: 1.2,
       facet: 'meter',
     },
     {
-      id: 'meter_5_4',
+      id: 'meter(grouping=meter("5/4"))',
       point: { sync: 0.3, harm: 0.4, artic: 0.6, energy: 0.45 },
       weight: 1.1,
       facet: 'meter',
     },
   ],
-  together: [{ ids: ['meter_4_4', 'meter_5_4'], count: 3 }],
+  together: [{ ids: ['meter', 'meter(grouping=meter("5/4"))'], count: 3 }],
 };
 
 /** A slot in memory, with every warning a store gave. */
@@ -79,7 +79,7 @@ describe('the learned layer a host keeps (#398)', () => {
         { step: 4, degree: 2, alter: 0 },
         { step: 8, degree: 4, alter: 0 },
       ],
-      bench: { meter: METERS['4/4'], meterFragment: 'meter_4_4' },
+      bench: { meter: METERS['4/4'], meterFragment: 'meter' },
       point: { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5 },
       source: 'Ada',
       created: 'song 1, bar 0',
@@ -133,7 +133,7 @@ describe('the learned layer a host keeps (#398)', () => {
           filed: [
             {
               fragment: {
-                id: 'meter_4_4',
+                id: 'meter',
                 text: '&bar meter("4/4")',
                 association: [{ point: { sync: 0.5 }, weight: 0.1 }],
               },
@@ -143,7 +143,7 @@ describe('the learned layer a host keeps (#398)', () => {
           ],
         },
       }),
-      "the layer files meter_4_4, a seed fragment's id",
+      "the layer files meter, a seed fragment's id",
     ],
   ])('loads %s as the empty layer, with one warning that says why', async (_, text, why) => {
     const { store, warnings } = slot(text);
