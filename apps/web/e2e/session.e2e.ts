@@ -83,6 +83,11 @@ const IN_STEP = 2.5;
  */
 const TRIP = 1;
 /**
+ * How long after a jump of the host's clock, in milliseconds, a move of the client's skew may be its following: the
+ * longest seen was 356 ms, a steady ping and late timers on a busy machine (#592). A move later than this is not it.
+ */
+const FOLLOWS = 2000;
+/**
  * How long, in milliseconds, a test holds a page's audio: 40 ms jumps its
  * clock by some 30, and 80 by some 70, past the 50 ms within which a
  * note is taken for the host's. Held on the host, the client plays by
@@ -205,13 +210,20 @@ async function inStep(
     holdJumps.some((s) => Math.abs(s.by) >= TOLD),
     `jumps of the held clock: ${(await clockJumps(held)).map((s) => `${s.by.toFixed(1)} ms at ${((s.at - heldAt) / 1000).toFixed(3)} s`).join(', ')}`,
   ).toBe(true);
-  /** When, on the wall clock, the client's skew moved by half a jump of the host's clock: when it was told. Null where it never was (it joined after). */
+  /**
+   * When, on the wall clock, the client's skew moved by about a jump of the host's clock (half to one and a half of
+   * it), within `FOLLOWS` of it: when it was told. Null where it never was: it joined after, or the jump was one its
+   * host's output pair slews. A move of another size, or later, is something else, as the client's own hold.
+   */
   const followedAt = (j: ClockJump) => {
     const before = netAt(j.at)?.skew ?? null;
     if (before === null) return null;
-    const told = net.find(
-      (n) => n.wall > j.at && n.skew !== null && Math.abs(n.skew - before) >= Math.abs(j.by) / 2,
-    );
+    const size = Math.abs(j.by);
+    const told = net.find((n) => {
+      if (n.wall <= j.at || n.wall > j.at + FOLLOWS || n.skew === null) return false;
+      const moved = Math.abs(n.skew - before);
+      return moved >= size / 2 && moved <= (3 * size) / 2;
+    });
     return told?.wall ?? null;
   };
   const followedAfter = (j: ClockJump) => {
