@@ -11,7 +11,7 @@ import {
   ANY_INPUT,
   withPlays,
 } from '@yggi/webmidi/core';
-import { Device, FADE_IN, FADE_OUT, VOLUME_KEY, taper } from './device.svelte.ts';
+import { CONNECT_WAIT, Device, FADE_IN, FADE_OUT, VOLUME_KEY, taper } from './device.svelte.ts';
 import { BAND } from './midi/patch.ts';
 
 /** A device on a fake audio context, and the gain that is its current bus. */
@@ -276,6 +276,54 @@ describe('the device’s MIDI ports', () => {
     expect(() => d.refresh()).not.toThrow();
     expect(d.ports).toEqual({ inputs: [], outputs: [] });
     expect(d.remembersPorts).toBe(false);
+  });
+
+  it('says the browser is still asking when it hasn’t answered, and lets Connect be pressed again', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('navigator', { requestMIDIAccess: () => new Promise(() => {}) });
+      const { device: d } = device();
+      void d.connect(() => {});
+      expect(d.connecting).toBe(true);
+      await vi.advanceTimersByTimeAsync(CONNECT_WAIT);
+      expect(d.connecting).toBe(false);
+      expect(d.message).toMatch(/^Still waiting for the browser to allow MIDI/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says what went wrong with a test note, and with a port that throws, instead of failing silently', async () => {
+    const { synth } = midi();
+    const { device: d } = device();
+    d.testNote('o1', 1);
+    expect(d.problems).toEqual([
+      'The test note has no port to go to: choose a device that is plugged in',
+    ]);
+    changed(d, (book) => chooseDevice(book, 'o1', { id: 'out-1', name: 'Synth' }));
+    await d.connect(() => {});
+    synth.send = () => {
+      throw new DOMException('port gone', 'InvalidStateError');
+    };
+    d.testNote('o1', 1);
+    expect(d.problems.at(-1)).toBe('The test note couldn’t be sent (InvalidStateError: port gone)');
+    d.dismissProblems();
+    expect(d.problems).toEqual([]);
+  });
+
+  it('says a note it couldn’t play, and plays the next', async () => {
+    const { keys } = midi();
+    const { device: d } = device();
+    changed(d, (book) => withPlays(book, 'in:Keys', 'default'));
+    const heard: number[] = [];
+    await d.connect((note) => {
+      if (note.note === 61) throw new Error('no part');
+      heard.push(note.note);
+    });
+    keys.play([0x90, 61, 100]);
+    keys.play([0x90, 60, 100]);
+    expect(heard).toEqual([60]);
+    expect(d.problems).toEqual(['A note from Keys couldn’t be played (Error: no part)']);
   });
 
   it('says why it could not connect', async () => {

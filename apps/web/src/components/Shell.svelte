@@ -22,6 +22,8 @@
     readonly id: string;
     readonly title: string;
     readonly icon: IconName;
+    /** A sheet that takes the whole width of the screen, not the column the rest keeps to: one holding a wide table (the MIDI patch). */
+    readonly wide?: boolean;
   }
 </script>
 
@@ -107,7 +109,7 @@
       onclick={() => (drawn = null)}
     ></button>
     {#each drawer as place (place.id)}
-      <div class="sheet" id="sheet-{place.id}" hidden={drawn !== place.id}>
+      <div class="sheet" class:wide={place.wide} id="sheet-{place.id}" hidden={drawn !== place.id}>
         <div class="content">{@render sheet(place.id)}</div>
         <button
           type="button"
@@ -243,6 +245,11 @@
     box-shadow: 0 16px 34px rgb(0 0 0 / 0.25);
     overflow: hidden;
   }
+  /* A wide sheet: the screen's whole width, up to 1200 px, centred. */
+  .sheet.wide {
+    left: max(8px, calc((100vw - 1200px) / 2), env(safe-area-inset-left, 0px));
+    right: max(8px, calc((100vw - 1200px) / 2), env(safe-area-inset-right, 0px));
+  }
   .content {
     overflow: auto;
     overscroll-behavior: contain;
@@ -346,6 +353,11 @@
     .sheet {
       left: auto;
       width: min(480px, 100%);
+    }
+    .sheet.wide {
+      left: 0;
+      right: 0;
+      width: auto;
     }
   }
 </style>

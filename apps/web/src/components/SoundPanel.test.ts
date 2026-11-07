@@ -1,5 +1,13 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
-import { DRUM_PRESETS, KEYS, chooseDevice, inputRow, withCrossing } from '@yggi/webmidi/core';
+import {
+  DRUM_PRESETS,
+  KEYS,
+  type SetupBook,
+  addOutput,
+  chooseDevice,
+  inputRow,
+  withCrossing,
+} from '@yggi/webmidi/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BAND } from '../midi/patch.ts';
 import { MidiSettings } from '../midi/settings.svelte.ts';
@@ -31,6 +39,13 @@ function onSynth() {
   const settings = new MidiSettings();
   settings.book = chooseDevice(settings.book, 'o1', PORTS.outputs[0]!);
   return settings;
+}
+
+/** An output's device settings opened, from its button under the patch. */
+async function inspect(slot = 1) {
+  const devices = within(screen.getByRole('group', { name: 'Device settings' }));
+  await fireEvent.click(devices.getByRole('button', { name: new RegExp(`^OUT ${slot} `) }));
+  return within(screen.getByRole('dialog', { name: new RegExp(`^OUT ${slot}: `) }));
 }
 
 const jack = (row: string, output: string) =>
@@ -108,6 +123,17 @@ describe('SoundPanel', () => {
     ).toHaveValue('none');
   });
 
+  it('draws two inputs under one name (Android names a device’s every port so) as one row, and says so', () => {
+    const twin = { id: 'in-2', name: 'KeyStep' };
+    panel({ ports: { ...PORTS, inputs: [...PORTS.inputs, twin] } });
+    const inputs = within(screen.getByRole('table'))
+      .getAllByRole('rowheader')
+      .map((h) => h.querySelector('.label')?.textContent)
+      .filter((label) => label === 'KeyStep');
+    expect(inputs).toEqual(['KeyStep']);
+    expect(screen.getByText('2 ports')).toBeInTheDocument();
+  });
+
   it('sets what an input plays, which the Muse hears, as a custom variant of the setup (yggi/webmidi#43)', async () => {
     const { settings } = panel();
     const plays = screen.getByRole('combobox', { name: 'What KeyStep plays, heard by the Muse' });
@@ -136,9 +162,10 @@ describe('SoundPanel', () => {
     expect(settings.setup.routes[BAND]![inputRow(PORTS.inputs[0]!)]).toEqual({ o1: 0 });
   });
 
-  it('chooses the output’s device in the inspector, and sends it the clock from the clock row', async () => {
+  it('chooses the output’s device in its settings, and sends it the clock from the clock row', async () => {
     const { settings } = panel();
-    await fireEvent.change(screen.getByLabelText('Port'), { target: { value: 'out-1' } });
+    const dialog = await inspect();
+    await fireEvent.change(dialog.getByLabelText('Port'), { target: { value: 'out-1' } });
     expect(settings.setup.outputs).toEqual([{ key: 'o1', id: 'out-1', name: 'Synth' }]);
     await fireEvent.click(screen.getByRole('button', { name: 'Clock to Synth' }));
     expect(settings.setup.clock).toEqual(['o1']);
@@ -146,6 +173,7 @@ describe('SoundPanel', () => {
 
   it('keeps a device’s drum map and latency with the device, by its name', async () => {
     const { settings } = panel({ settings: onSynth() });
+    await inspect();
     await fireEvent.change(screen.getByLabelText(/Drum map/), {
       target: { value: 'Novation Circuit' },
     });
@@ -160,20 +188,23 @@ describe('SoundPanel', () => {
     expect(kick).toHaveValue(36);
     await fireEvent.change(kick, { target: { value: '200' } });
     expect(settings.book.devices.Synth!.drums[36]).toBe(127);
+    await inspect();
     expect(screen.getByLabelText(/Drum map/)).toHaveValue('Custom');
   });
 
-  it('offers no drum notes for an output the drums don’t go to', () => {
+  it('offers no drum notes for an output the drums don’t go to', async () => {
     const settings = onSynth();
     settings.book = withCrossing(settings.book, BAND, 'drums', 'o1', undefined);
     panel({ settings });
     expect(screen.queryByLabelText(/^Kick on/)).toBeNull();
+    await inspect();
     expect(screen.queryByLabelText(/Drum map/)).toBeNull();
   });
 
   it('sends a test note on the output’s first channel, once connected', async () => {
     const ontest = vi.fn();
     panel({ settings: onSynth(), ontest });
+    await inspect();
     await fireEvent.click(screen.getByRole('button', { name: 'Test note' }));
     expect(ontest).toHaveBeenCalledWith('o1', 1);
   });
@@ -182,5 +213,76 @@ describe('SoundPanel', () => {
     panel({ settings: onSynth(), ports: { inputs: [], outputs: [] }, message: 'MIDI connected.' });
     expect(screen.getByText(/1 of this setup’s devices isn’t plugged in/)).toBeInTheDocument();
     expect(screen.getByText('Not plugged in')).toBeInTheDocument();
+  });
+
+  it('opens an output’s settings from its head in the patch too, and closes them', async () => {
+    panel({ settings: onSynth() });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await fireEvent.click(
+      within(screen.getByRole('table')).getByRole('button', { name: /^OUT 1 Synth/ }),
+    );
+    expect(screen.getByRole('dialog', { name: 'OUT 1: Synth' })).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('removes an output from its settings; the last is left with no device, its routes kept', async () => {
+    const settings = onSynth();
+    settings.book = addOutput(settings.book, { id: 'out-2', name: 'Other' }).book;
+    panel({ settings });
+    await (await inspect(2)).findByRole('heading', { name: 'Other' });
+    await fireEvent.click(screen.getByRole('button', { name: 'Remove output' }));
+    expect(settings.setup.outputs.map((o) => o.name)).toEqual(['Synth']);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await inspect(1);
+    await fireEvent.click(screen.getByRole('button', { name: 'Remove output' }));
+    expect(settings.setup.outputs).toEqual([{ key: 'o1', id: 'none', name: '' }]);
+    expect(settings.setup.routes[BAND]!.lead).toEqual({ o1: 1 });
+  });
+
+  it('forgets a device’s settings, offered only where it has its own', async () => {
+    const settings = onSynth();
+    panel({ settings });
+    await inspect();
+    expect(screen.queryByRole('button', { name: 'Forget Synth’s settings' })).toBeNull();
+    await fireEvent.change(screen.getByLabelText(/Latency/), { target: { value: '9' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Forget Synth’s settings' }));
+    expect(settings.book.devices).not.toHaveProperty('Synth');
+  });
+
+  it('shows what went wrong with MIDI, until dismissed', async () => {
+    const ondismiss = vi.fn();
+    panel({ problems: ['The test note couldn’t be sent (InvalidStateError: gone)'], ondismiss });
+    expect(screen.getByRole('alert', { name: 'MIDI problems' })).toHaveTextContent(
+      'The test note couldn’t be sent (InvalidStateError: gone)',
+    );
+    await fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(ondismiss).toHaveBeenCalledOnce();
+  });
+
+  it('resets the MIDI settings after asking', async () => {
+    const settings = onSynth();
+    panel({ settings });
+    await fireEvent.click(screen.getByRole('button', { name: 'Reset MIDI settings…' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Reset MIDI settings' }));
+    expect(settings.setup.outputs).toEqual([{ key: 'o1', id: 'none', name: '' }]);
+  });
+
+  it('stops MIDI alone when it throws, says why, and offers a way back; the built-in synth still switches', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const settings = new MidiSettings();
+    const book = settings.book;
+    settings.book = { ...book, setups: [], active: 'gone' } as SetupBook;
+    panel({ settings });
+    expect(screen.getByRole('alert')).toHaveTextContent('The MIDI settings hit a problem');
+    expect(screen.getByRole('alert')).toHaveTextContent('TypeError');
+    await fireEvent.click(screen.getByLabelText('Play the built-in synth'));
+    expect(settings.internal).toBe(false);
+    await fireEvent.click(
+      within(screen.getByRole('alert')).getByRole('button', { name: 'Reset MIDI settings' }),
+    );
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(settings.book).toEqual(book);
+    error.mockRestore();
   });
 });

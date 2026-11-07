@@ -63,7 +63,7 @@
   let { player, metronome, instruments, session, onend, layers, sound, timing }: Props = $props();
 
   const DRAWER: readonly Place[] = [
-    { id: 'sound', title: 'Sound', icon: 'sound' },
+    { id: 'sound', title: 'Sound', icon: 'sound', wide: true },
     { id: 'session', title: 'Session', icon: 'session' },
     { id: 'style', title: 'Style', icon: 'style' },
     { id: 'time', title: 'Time', icon: 'time' },

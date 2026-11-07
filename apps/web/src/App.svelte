@@ -372,6 +372,8 @@
       connecting={device.connecting}
       ports={device.ports}
       message={device.message}
+      problems={device.problems}
+      ondismiss={() => device.dismissProblems()}
       onconnect={connectMidi}
       onrefresh={() => device.refresh()}
       onpanic={() => player.panicMidi()}
@@ -384,73 +386,124 @@
   <TimingPanel report={timing} onexport={exportTiming} />
 {/snippet}
 
-{#if screen === 'band'}
-  <Band
-    {player}
-    {metronome}
-    {instruments}
-    session={{
-      hosting: {
-        session: hostSession.session,
-        guests: hostSession.guests,
-        code: hostSession.code,
-      },
-      onadmit: (byCode: boolean) => hostSession.admitByCode(byCode),
-      oncast: (id: string, role: Role) => hostSession.cast(id, role),
-      log: player.mode === 'host' ? hostSession.log : clientSession.log,
-      onnudge: (axis: Nudged, by: 1 | -1) => clientSession.nudge(axis, by),
-      following: {
-        status: clientSession.status,
-        session: clientSession.session,
-        name: clientSession.name,
-        hostPlaying: clientSession.hostPlaying,
-        hostAway: clientSession.hostAway,
-        role: clientSession.role,
-        trip: clientSession.trip,
-        lacked: player.lacked,
-      },
-    }}
-    onend={() => void leave()}
-    {layers}
-    sound={soundCard}
-    timing={timingShown ? timingPanel : undefined}
-  />
-{:else}
-  <Door
-    bind:view={doorView}
-    lobby={{
-      suggest: randomSessionName,
-      found,
-      joining: clientSession.status === 'joining',
-      notice: sessions.ended,
-      onsolo: solo,
-      onhost: host,
-      onjoin: join,
-      struck: instruments.struck,
-    }}
-    you={{
-      name: profile.name,
-      onname: (name) => (profile.name = name),
-      onsettle: () => profile.settle(),
-      onregenerate: () => profile.regenerate(),
-    }}
-    settings={{
-      theme: theme.name,
-      ontheme: (name) => (theme.name = name),
-      address: sessions.address,
-      onaddress: (url) => (sessions.address = url),
-    }}
-    restoring={screen === 'restoring'}
-    ondrop={() => sessions.drop()}
-    {tuner}
-    {sender}
-    {correction}
-    metronome={meterPlayer}
-    test={testing}
-    onexport={exportRuns}
-    sound={soundCard}
-    counters={timingShown ? timingPanel : undefined}
-  />
-{/if}
+<!--
+  Whatever throws while a screen draws is shown, with a way on, rather than
+  leaving a page that silently stops redrawing; the band and the sessions,
+  which live outside the screens, go on.
+-->
+<svelte:boundary onerror={(error) => console.error('The screen stopped:', error)}>
+  {#if screen === 'band'}
+    <Band
+      {player}
+      {metronome}
+      {instruments}
+      session={{
+        hosting: {
+          session: hostSession.session,
+          guests: hostSession.guests,
+          code: hostSession.code,
+        },
+        onadmit: (byCode: boolean) => hostSession.admitByCode(byCode),
+        oncast: (id: string, role: Role) => hostSession.cast(id, role),
+        log: player.mode === 'host' ? hostSession.log : clientSession.log,
+        onnudge: (axis: Nudged, by: 1 | -1) => clientSession.nudge(axis, by),
+        following: {
+          status: clientSession.status,
+          session: clientSession.session,
+          name: clientSession.name,
+          hostPlaying: clientSession.hostPlaying,
+          hostAway: clientSession.hostAway,
+          role: clientSession.role,
+          trip: clientSession.trip,
+          lacked: player.lacked,
+        },
+      }}
+      onend={() => void leave()}
+      {layers}
+      sound={soundCard}
+      timing={timingShown ? timingPanel : undefined}
+    />
+  {:else}
+    <Door
+      bind:view={doorView}
+      lobby={{
+        suggest: randomSessionName,
+        found,
+        joining: clientSession.status === 'joining',
+        notice: sessions.ended,
+        onsolo: solo,
+        onhost: host,
+        onjoin: join,
+        struck: instruments.struck,
+      }}
+      you={{
+        name: profile.name,
+        onname: (name) => (profile.name = name),
+        onsettle: () => profile.settle(),
+        onregenerate: () => profile.regenerate(),
+      }}
+      settings={{
+        theme: theme.name,
+        ontheme: (name) => (theme.name = name),
+        address: sessions.address,
+        onaddress: (url) => (sessions.address = url),
+      }}
+      restoring={screen === 'restoring'}
+      ondrop={() => sessions.drop()}
+      {tuner}
+      {sender}
+      {correction}
+      metronome={meterPlayer}
+      test={testing}
+      onexport={exportRuns}
+      sound={soundCard}
+      counters={timingShown ? timingPanel : undefined}
+    />
+  {/if}
+
+  {#snippet failed(error, reset)}
+    <div class="stopped" role="alert">
+      <p>Something on this screen stopped working.</p>
+      <p>
+        <code>{error instanceof Error ? `${error.name}: ${error.message}` : String(error)}</code>
+      </p>
+      <p>
+        <button type="button" onclick={reset}>Try again</button>
+        <button type="button" onclick={() => location.reload()}>Reload</button>
+      </p>
+    </div>
+  {/snippet}
+</svelte:boundary>
 
 <UpdateToast />
+
+<style>
+  .stopped {
+    display: grid;
+    gap: 10px;
+    max-width: 560px;
+    margin: 48px auto;
+    padding: 16px;
+    border: 1px solid var(--amber);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .stopped p {
+    margin: 0;
+  }
+  .stopped code {
+    overflow-wrap: anywhere;
+  }
+  .stopped button {
+    min-height: 40px;
+    margin-right: 8px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+  }
+</style>
