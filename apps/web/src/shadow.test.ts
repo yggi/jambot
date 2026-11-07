@@ -126,7 +126,7 @@ function run({
 }): Run & { client?: Run } {
   // The page's clock, in milliseconds: the run's, plus the real time since the run's was last set. A cost is timed
   // on it in real time, and a text's arrival, between two ticks, on the run's clock alone, whatever the machine's load:
-  // so it is set again as each tick starts, as answers arrive and as each shadow ticks.
+  // so it is set again as each tick starts, as each answer arrives (`offPage`) and as each shadow ticks.
   let clock = 0;
   let wall = performance.now();
   const page = () => clock * 1000 + performance.now() - wall;
@@ -135,6 +135,16 @@ function run({
     wall = performance.now();
   };
   const due: { at: number; deliver: () => void }[] = [];
+  /**
+   * A worker's job, done here on the test's thread, and its answer given as a worker's arrives: the page's clock set
+   * back to the run's first, so the job's own time, which a worker spends off the page, isn't the page's. On a busy
+   * machine that time came to some 90 ms, which read a text as arriving that much later (#551).
+   */
+  const offPage = <T>(job: () => T, answer: (done: T) => void) => {
+    const done = job();
+    at(clock);
+    answer(done);
+  };
   const state = (bars: Parameters<typeof stateSection>[0]) => {
     const stated = stateSection(bars, edit);
     return unstated === undefined ? stated : { ...stated, unstated };
@@ -150,12 +160,15 @@ function run({
             const copy = structuredClone(bars);
             due.push({
               at: clock + delay,
-              deliver: () => answer(structuredClone(state(copy))),
+              deliver: () => offPage(() => structuredClone(state(copy)), answer),
             });
           },
           play(given, answer) {
             const copy = structuredClone(given);
-            due.push({ at: clock + delay, deliver: () => answer(structuredClone(playText(copy))) });
+            due.push({
+              at: clock + delay,
+              deliver: () => offPage(() => structuredClone(playText(copy)), answer),
+            });
           },
         };
   const shadow = new Shadow(page, texts(delay));
