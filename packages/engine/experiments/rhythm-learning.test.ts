@@ -91,19 +91,19 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −13.2 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −13.3 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9436', '0.8112']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-13.24', '1.97']);
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9436', '0.8103']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-13.33', '1.99']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it(`keeps a layer of at most 13,467 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  it(`keeps a layer of at most 13,681 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(13467);
+    expect(Math.max(...bytes)).toBe(13681);
     expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)

@@ -1762,13 +1762,13 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     // the meter's use, the rhythm's that fits it (#397), the bass line's (#423), and the lead line's, cells' motif (#520)
     expect(saved.map((l) => l.points.map((p) => [p.id, p.weight]))).toEqual([
       [
-        ['meter_4_4', 1.1],
+        ['meter', 1.1],
         ['synth_pop_drums', 1.1],
         ['root_bass', 1.1],
         ['hook', 1.1],
       ],
       [
-        ['meter_4_4', 1.2],
+        ['meter', 1.2],
         ['synth_pop_drums', 1.2],
         ['root_bass', 1.2],
         ['hook', 1.2],

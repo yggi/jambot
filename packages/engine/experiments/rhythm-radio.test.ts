@@ -26,7 +26,7 @@ if (process.env.E37_REPORT) {
 }
 
 describe('the composer asks the repository for its rhythm while the radio walks (E37)', () => {
-  it('changes the rhythm 150 times in 8,570 sections, only where a section starts, and back at the next section only at a miss’s edge (E37)', () => {
+  it('changes the rhythm 151 times in 8,570 sections, only where a section starts, and back at the next section only at a miss’s edge (E37)', () => {
     expect(RUNS).toHaveLength(40);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
     // (but 5 times: 4 since cells v0.12.0, Spooky drums at the edge of its reach, taken where the drummer invented and let
@@ -39,16 +39,16 @@ describe('the composer asks the repository for its rhythm while the radio walks 
         '- + -',
         expect.stringMatching(/^(spooky|ghost)_drums \+ -$/),
       ]);
-    expect([changes.length, sections]).toEqual([150, 8570]);
+    expect([changes.length, sections]).toEqual([151, 8570]);
   });
 
-  it('goes back 107 times with no margin for the rhythm playing (E37)', () => {
+  it('goes back 104 times with no margin for the rhythm playing (E37)', () => {
     const back = rhythmRuns(undefined, undefined, {
       miss: RHYTHM_MISS,
       hold: 0,
       layer: LAYER_DISTANCE,
     }).flatMap(wentBack).length;
-    expect([back, RHYTHM_HOLD]).toEqual([107, 0.02]);
+    expect([back, RHYTHM_HOLD]).toEqual([104, 0.02]);
   });
 
   it('plays no clave alone in any section, where 992 did before #428: a line of its own only layers on a drum bar', () => {

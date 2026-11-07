@@ -274,7 +274,7 @@ describe('the composer tires of a lead line: varies it by lift or turn over, the
   const point = stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 1 }));
   const seeded = FILED.file!(EMPTY_LAYER, {
     notes: ADA_LINE,
-    bench: { meter: METERS['4/4'], meterFragment: 'meter_4_4' },
+    bench: { meter: METERS['4/4'], meterFragment: 'meter' },
     point,
     source: 'Ada',
     created: 'song 0, bar 0',
