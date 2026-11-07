@@ -231,3 +231,23 @@ export function nameByPorts(
   };
   return { ...named, devices, defaults: DEFAULT_PROFILE };
 }
+
+/**
+ * The ports plugged in, one per name, and each name more than one port has,
+ * with how many. The book keeps an input by its name (`in:<name>`), so ports
+ * under one name are routed and heard alike, and Android names a device's
+ * every port after the device; handed to the matrix twice, one name would be
+ * a row twice, which a keyed list refuses by throwing.
+ */
+export function onePerName(ports: readonly PortOption[]): {
+  readonly ports: PortOption[];
+  readonly shared: { readonly name: string; readonly count: number }[];
+} {
+  const named = (port: PortOption) => port.name || port.id;
+  const counts = new Map<string, number>();
+  for (const port of ports) counts.set(named(port), (counts.get(named(port)) ?? 0) + 1);
+  return {
+    ports: ports.filter((port, i) => ports.findIndex((p) => named(p) === named(port)) === i),
+    shared: [...counts].filter(([, count]) => count > 1).map(([name, count]) => ({ name, count })),
+  };
+}

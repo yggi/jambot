@@ -28,6 +28,7 @@ import {
   drumsTo,
   wantsInputs,
   missingOutputs,
+  onePerName,
   nameByPorts,
   partPlayed,
   withOutputProfile,
@@ -264,5 +265,22 @@ describe('what the inspector shows of an output', () => {
   it('how many of the setup’s devices aren’t plugged in', () => {
     expect(missingOutputs(setup, PORTS.outputs)).toBe(0);
     expect(missingOutputs(setup, [])).toBe(1);
+  });
+});
+
+describe('ports under one name', () => {
+  it('are handed on once each, the first kept, and each name shared is said with its count', () => {
+    const ports = [
+      { id: 'a', name: 'USB MIDI' },
+      { id: 'b', name: 'KeyStep' },
+      { id: 'c', name: 'USB MIDI' },
+      { id: 'd', name: '' },
+      { id: 'e', name: 'USB MIDI' },
+    ];
+    expect(onePerName(ports)).toEqual({
+      ports: [ports[0], ports[1], ports[3]],
+      shared: [{ name: 'USB MIDI', count: 3 }],
+    });
+    expect(onePerName(ports.slice(1, 2))).toEqual({ ports: [ports[1]], shared: [] });
   });
 });

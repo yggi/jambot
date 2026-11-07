@@ -13,6 +13,11 @@
  * band goes to each of its outputs, a note from an input is passed on where
  * its row crosses an output whether or not it is heard, and only a heard
  * input's notes reach the Muse and the instruments (`connect`'s `onNote`).
+ *
+ * Nothing MIDI does may stop the page: a port that throws, a permission the
+ * browser never answers, a note that a part can't take. Each is caught where
+ * it happens and said in `problems`, which the Sound panel shows, so a
+ * setup that doesn't work says why instead of failing silently.
  */
 
 import { bandOutput } from './audio/band-output.ts';
@@ -63,8 +68,21 @@ const storedVolume = (): number => {
 /** A test note's length, in ms. */
 const TEST_NOTE = 300;
 
+/** How long, in ms, the browser may take to answer a request for MIDI before the panel says it is still waiting. */
+export const CONNECT_WAIT = 8000;
+/** How many problems the panel keeps: the latest, each once. */
+const PROBLEMS = 4;
+
+/** An error, in words a person can pass on: its name and message. */
+export const described = (error: unknown): string =>
+  error instanceof Error
+    ? `${error.name}: ${error.message}`
+    : typeof error === 'string'
+      ? error
+      : 'unknown error';
+
 export class Device {
-  readonly settings = new MidiSettings({ onchange: () => this.#listen() });
+  readonly settings: MidiSettings = new MidiSettings({ onchange: () => this.#listen() });
   /** The Web MIDI connection, once made. */
   access: MidiAccess | null = $state(null);
   /** Asking for Web MIDI: Connect waits. */
@@ -72,16 +90,32 @@ export class Device {
   /** The ports plugged in, as of the last look: at connecting, when one came or went, and when a person asked. */
   ports: { inputs: PortOption[]; outputs: PortOption[] } = $state.raw({ inputs: [], outputs: [] });
   message = $state('Without MIDI, the built-in synth and the keys still run the whole loop.');
+  /** What went wrong with MIDI lately, in words, the latest last: shown until dismissed. */
+  problems: readonly string[] = $state.raw([]);
+
+  /** Say a problem: kept once, the latest few. */
+  report(what: string, error?: unknown) {
+    const line = error === undefined ? what : `${what} (${described(error)})`;
+    this.problems = [...this.problems.filter((p) => p !== line), line].slice(-PROBLEMS);
+  }
+
+  /** Clear the problems said, once a person has read them. */
+  dismissProblems() {
+    this.problems = [];
+  }
 
   /** Each output of the setup in use, by key, as the port it resolves to now (by id, else by name). */
   #outPorts: readonly { readonly key: string; readonly port: MidiPort | null }[] = $derived.by(
     () => {
       void this.ports; // looked at again: a port plugged in again is a new object
       const access = this.access;
-      return this.settings.setup.outputs.map((o) => ({
-        key: o.key,
-        port: access ? outputNow(access, o) : null,
-      }));
+      return this.settings.setup.outputs.map((o) => {
+        try {
+          return { key: o.key, port: access ? outputNow(access, o) : null };
+        } catch {
+          return { key: o.key, port: null };
+        }
+      });
     },
   );
   /** What the band sends to each output. */
@@ -179,33 +213,60 @@ export class Device {
    * Connect to Web MIDI. A note in is passed on where the patch sends its
    * input's row (webmidi's `forwardsOfInput`), and, from an input the setup
    * hears, goes to `onNote` with the name of the port it came from and the
-   * part it plays (`partPlayed`, yggi/webmidi#43).
+   * part it plays (`partPlayed`, yggi/webmidi#43). A browser that hasn't
+   * answered after `CONNECT_WAIT` is said to be waiting (a permission prompt
+   * hidden, or one a tablet never shows), and Connect can be pressed again.
    */
   async connect(onNote: (note: ParsedNote, source: string, part: Part) => void) {
+    if (this.access) return;
     this.connecting = true;
-    const result = await MidiAccess.connect({
-      onNote: (note, source) => {
-        const book = this.settings.book;
-        this.#send(
-          forwardsOfInput(
-            book,
-            BAND,
-            { id: '', name: source },
-            noteBytes(note.note, note.velocity, note.on, note.channel),
-          ),
-        );
-        const part = partPlayed(book, source, note.channel);
-        if (part) onNote(note, source, part);
-      },
-      onChange: () => this.#changed(),
-    });
-    this.connecting = false;
-    if (typeof result === 'string') {
-      this.message = result;
-      return;
+    const waiting = setTimeout(() => {
+      if (this.access) return;
+      this.connecting = false;
+      this.message =
+        'Still waiting for the browser to allow MIDI. Look for its permission prompt, or allow MIDI in the site’s settings and press Connect again.';
+    }, CONNECT_WAIT);
+    try {
+      const result = await MidiAccess.connect({
+        onNote: (note, source) => this.#heard(note, source, onNote),
+        onChange: () => this.#changed(),
+      });
+      if (typeof result === 'string') {
+        this.message = result;
+        return;
+      }
+      if (this.access) return; // a second request answered first
+      this.access = result;
+      this.#changed();
+    } catch (error) {
+      this.message = `MIDI couldn’t connect (${described(error)}).`;
+    } finally {
+      clearTimeout(waiting);
+      this.connecting = false;
     }
-    this.access = result;
-    this.#changed();
+  }
+
+  /** A note from an input: passed on where its row is patched, then to `onNote` if the setup hears it. */
+  #heard(
+    note: ParsedNote,
+    source: string,
+    onNote: (note: ParsedNote, source: string, part: Part) => void,
+  ) {
+    try {
+      const book = this.settings.book;
+      this.#send(
+        forwardsOfInput(
+          book,
+          BAND,
+          { id: '', name: source },
+          noteBytes(note.note, note.velocity, note.on, note.channel),
+        ),
+      );
+      const part = partPlayed(book, source, note.channel);
+      if (part) onNote(note, source, part);
+    } catch (error) {
+      this.report(`A note from ${source} couldn’t be played`, error);
+    }
   }
 
   /** Look at the ports again, on a person's asking: the list, the outputs and the inputs as they are now. */
@@ -216,16 +277,24 @@ export class Device {
   /** The ports may have changed: list them, name what the book kept by id alone, and listen again. */
   #changed() {
     const access = this.access;
-    this.ports = { inputs: access?.inputs ?? [], outputs: access?.outputs ?? [] };
-    if (!access) return;
-    this.message = portsMessage(this.ports);
-    this.settings.name(this.ports);
+    try {
+      this.ports = { inputs: access?.inputs ?? [], outputs: access?.outputs ?? [] };
+      if (!access) return;
+      this.message = portsMessage(this.ports);
+      this.settings.name(this.ports);
+    } catch (error) {
+      this.report('The ports couldn’t be read', error);
+    }
     this.#listen();
   }
 
   /** Listen to the inputs the setup in use hears or routes, and to no other. */
   #listen() {
-    this.access?.listen(listenOf(this.settings.setup));
+    try {
+      this.access?.listen(listenOf(this.settings.setup));
+    } catch (error) {
+      this.report('The inputs couldn’t be listened to', error);
+    }
   }
 
   /** Send each message passed on to its output, at once. */
@@ -233,8 +302,9 @@ export class Device {
     for (const { output, data } of forwards) {
       try {
         this.#portOf(output)?.send(data);
-      } catch {
-        // A port can vanish mid-send (unplugged, revoked); nothing to do about it.
+      } catch (error) {
+        // A port can vanish mid-send (unplugged, revoked): said, and the rest still sent.
+        this.report('A note couldn’t be passed on', error);
       }
     }
   }
@@ -248,11 +318,15 @@ export class Device {
   testNote(key: string, channel: number) {
     const port = this.#portOf(key);
     const status = (channel - 1) & 15;
+    if (!port) {
+      this.report('The test note has no port to go to: choose a device that is plugged in');
+      return;
+    }
     try {
-      port?.send([0x90 | status, 60, 100]);
-      port?.send([0x80 | status, 60, 0], performance.now() + TEST_NOTE);
-    } catch {
-      // As above: a port gone is nothing to report.
+      port.send([0x90 | status, 60, 100]);
+      port.send([0x80 | status, 60, 0], performance.now() + TEST_NOTE);
+    } catch (error) {
+      this.report('The test note couldn’t be sent', error);
     }
   }
 

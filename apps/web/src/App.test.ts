@@ -7,6 +7,15 @@ import { fakeAudioContext } from './audio/fake-context.ts';
 import { FADE_OUT } from './device.svelte.ts';
 import { CLIENT_KEY } from './session/storage.ts';
 
+/** The first output's device settings opened, from its button under the patch. */
+const openOutput = () =>
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'Device settings', hidden: true })).getByRole(
+      'button',
+      { name: /^OUT 1/, hidden: true },
+    ),
+  );
+
 /** The page past its door: solo chosen, the band behind it. */
 async function renderBand() {
   const rendered = render(App);
@@ -445,6 +454,7 @@ describe('the app', () => {
       await waitFor(() =>
         expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument(),
       );
+      await openOutput();
       expect(screen.getByLabelText('Port')).toHaveValue('out-1');
 
       delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
@@ -479,6 +489,7 @@ describe('the app', () => {
       await renderBand();
       await pull('Sound');
       await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+      await openOutput();
       await fireEvent.change(await screen.findByRole('combobox', { name: 'Port' }), {
         target: { value: 'out-1' },
       });

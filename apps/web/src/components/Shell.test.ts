@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import Shell, { type Place } from './Shell.svelte';
 
 const DRAWER: Place[] = [
-  { id: 'sound', title: 'Sound', icon: 'sound' },
+  { id: 'sound', title: 'Sound', icon: 'sound', wide: true },
   { id: 'style', title: 'Style', icon: 'style' },
 ];
 const VIEWS: Place[] = [
@@ -51,6 +51,12 @@ describe('the shell', () => {
     expect(screen.getByText('the style sheet')).toBeVisible();
     await fireEvent.click(rider('Style'));
     expect(screen.getByText('the style sheet')).not.toBeVisible();
+  });
+
+  it('gives a wide section’s sheet the screen’s whole width, and the others the column', () => {
+    draw();
+    expect(document.getElementById('sheet-sound')).toHaveClass('wide');
+    expect(document.getElementById('sheet-style')).not.toHaveClass('wide');
   });
 
   it('lays a sheet over the view, which stays as it is underneath', async () => {
