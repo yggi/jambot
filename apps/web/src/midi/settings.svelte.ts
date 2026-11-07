@@ -174,6 +174,15 @@ export class MidiSettings {
     return this.#setup;
   }
 
+  /**
+   * Forget every setup and device profile: the book a first visit gets, saved
+   * at once. A way back from a setup that doesn't work; the built-in synth's
+   * switch, Jambot's own, stays as it is.
+   */
+  reset() {
+    this.book = fromJambot(LEGACY_DEFAULTS, NO_PORTS);
+  }
+
   /** Give the ports kept by id alone their names, now the ports plugged in say them (`nameByPorts`). */
   name(ports: { readonly inputs: readonly PortOption[]; readonly outputs: readonly PortOption[] }) {
     const named = nameByPorts(this.#book, ports);

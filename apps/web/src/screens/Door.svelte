@@ -74,7 +74,7 @@
   }: Props = $props();
 
   const DRAWER: readonly Place[] = [
-    { id: 'sound', title: 'Sound', icon: 'sound' },
+    { id: 'sound', title: 'Sound', icon: 'sound', wide: true },
     { id: 'you', title: 'You', icon: 'you' },
     { id: 'settings', title: 'Settings', icon: 'settings' },
     { id: 'about', title: 'About', icon: 'about' },

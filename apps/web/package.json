@@ -17,7 +17,7 @@
     "@jambot/session": "workspace:*",
     "@jambot/spectrum": "workspace:*",
     "@jambot/theory": "workspace:*",
-    "@yggi/webmidi": "github:yggi/webmidi#v0.2.1"
+    "@yggi/webmidi": "github:yggi/webmidi#v0.3.0"
   },
   "devDependencies": {
     "@jambot/lobby": "workspace:*",

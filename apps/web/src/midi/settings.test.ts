@@ -52,6 +52,17 @@ describe('MidiSettings', () => {
     expect(localStorage.getItem(SYNTH_KEY)).toBe('false');
   });
 
+  it('resets to a first visit’s book, saved, the synth’s switch left as it was', () => {
+    const settings = new MidiSettings();
+    const first = settings.book;
+    settings.internal = false;
+    settings.book = withCrossing(settings.book, BAND, KEYS, 'o1', 4);
+    settings.reset();
+    expect(settings.book).toEqual(first);
+    expect(kept()).toEqual(JSON.parse(JSON.stringify(first)));
+    expect(settings.internal).toBe(false);
+  });
+
   it('says when the book changes, as the device listens again', () => {
     const onchange = vi.fn();
     const settings = new MidiSettings({ store: memoryStore(), onchange });
