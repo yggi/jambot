@@ -67,8 +67,8 @@ import {
   stylePoint,
 } from './meter-query.ts';
 import { BASS_FACET, type LineNote, type LineRepository, composedLine } from './bass-query.ts';
-import { LEAD_FACET, type LeadNote, type LeadRepository, composedLead } from './lead-query.ts';
-import { distilledLead } from './muse-lead.ts';
+import { LEAD_FACET, type LeadRepository, composedLead } from './lead-query.ts';
+import { type LeadBar, distilledLead } from './muse-lead.ts';
 import {
   HARMONY_FACET,
   type HarmonyRepository,
@@ -175,7 +175,7 @@ export interface PlanEnv {
    * lead's own bars where it played its own on a miss, and each player's
    * motifs; she files each source's line at the section's end.
    */
-  readonly leadHeard?: readonly HeardBars<readonly LeadNote[]>[] | undefined;
+  readonly leadHeard?: readonly HeardBars<LeadBar>[] | undefined;
   /**
    * The repository the composer asks for a theme where it builds one (#425,
    * `harmony-query.ts`); with none, or on a miss, the mode's tables write it
@@ -529,9 +529,10 @@ function harmonyLearned(
 export const LEAD_TAG = 'lead line';
 
 /**
- * What the Muse files of the lead at a section's end (#424): each source's recurring line heard over the section before
- * (`distilledLead`), as `museFiledLines` files a bass line, its notes those within a bar of the section's meter: a note
- * past it is the next bar's, which the line's text can't hold (a 4/4 motif heard in a bar of 3/4, `leadText`).
+ * What the Muse files of the lead at a section's end (#424): each source's recurring line heard over the section before,
+ * a phrase of up to `PHRASE_BARS` bars (`distilledLead`, #580 rung 3), as `museFiledLines` files a bass line, each bar's
+ * notes those within a bar of the section's meter: a note past it is the next bar's, which the line's text can't hold
+ * (a 4/4 motif heard in a bar of 3/4, `leadText`).
  */
 export function museFiledLeads(
   given: PlanEnv,
@@ -543,7 +544,9 @@ export function museFiledLeads(
     given.leads,
     given.leadHeard ?? [],
     (bars) => {
-      const notes = distilledLead(bars)?.filter((n) => n.step < stepsOf(before.meter));
+      const steps = stepsOf(before.meter);
+      const inBar = bars.map((b) => ({ ...b, notes: b.notes.filter((n) => n.step < steps) }));
+      const notes = distilledLead(inBar, steps);
       return notes?.length ? { notes } : null;
     },
     { meter: before.meter, meterFragment: before.meterFragment },

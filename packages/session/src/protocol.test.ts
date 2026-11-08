@@ -312,12 +312,12 @@ describe('the session protocol', () => {
   });
 
   it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
-    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([20, 13]);
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([21, 13]);
     for (const protocol of [13, 14, 15, 16, 17, 18, 19, 20, 21])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
     for (const protocol of [12, 1, 13.5, Number.NaN])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
-        /version 20 .* takes 13 on/,
+        /version 21 .* takes 13 on/,
       );
     expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
     expect(sameMajor('14')).toBe(false);
@@ -421,7 +421,7 @@ describe('the session protocol', () => {
     // lobby's word, 17 a host's `role` (#567), 18 a player's `nudge`, 19 its key and meter, and
     // 20 the log's `event`, read by field; none
     // adds a shape here.
-    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([20, 15, 20]);
+    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([21, 15, 21]);
     expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
   });
 
@@ -477,7 +477,7 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 20,
+  protocol: 21,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -555,6 +555,7 @@ const SHAPES = {
     'motif.degrees[]: null',
     'motif.degrees[]: number',
     'motif.onsets[]: number',
+    'origin: number',
     'source: string',
   ],
   log: [
@@ -570,6 +571,7 @@ const SHAPES = {
     'judgements[].motif.degrees[]: null',
     'judgements[].motif.degrees[]: number',
     'judgements[].motif.onsets[]: number',
+    'judgements[].origin: number',
     'judgements[].source: string',
     'offer.bar: number',
     'offer.level: number',

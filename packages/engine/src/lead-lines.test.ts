@@ -82,6 +82,18 @@ describe('a lead line as cells text, and read back (#424)', () => {
     );
   });
 
+  it('writes a phrase of two bars as one line of two bars, which reads back as its notes (#580, rung 3)', () => {
+    const two = [
+      ...PLAIN,
+      ...PLAIN.map((n) => ({ ...n, step: n.step + 16, degree: n.degree - 1 })),
+    ];
+    const text = leadText(two, 16);
+    expect(text).toBe(
+      '&lead over=&key step=16n 0 ~ ~ 2 ~ ~ -1 ~ 4 ~ ~ ~ ~ ~ ~ ~ -1 ~ ~ 1 ~ ~ -2 ~ 3 ~ ~ ~ ~ ~ ~ ~',
+    );
+    expect(readLead(text, METERS['4/4'])).toEqual({ bars: 2, notes: two });
+  });
+
   it('reads a line filed with the voice and card it carried before #580 as the line alone', () => {
     const line = leadText(BENT, 16);
     const before = [line, ...RETIRED_LEAD_VOICE].join('\n');

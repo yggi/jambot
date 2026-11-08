@@ -34,6 +34,7 @@ import {
 } from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
+import { PHRASE_BARS } from './muse-lead.ts';
 
 /** The facet a lead line is associated as (#424, the owner's ruling of 2026-10-18: bass, lead, harmony). */
 export const LEAD_FACET = 'lead';
@@ -103,7 +104,12 @@ export function composedLead(
     stylePoint(style),
     bench,
     playing,
-    (read) => read !== null && read.bars === 1,
+    // (a line of a bar, or a phrase of up to `PHRASE_BARS` the Muse filed in the layer, #580 rung 3; a seed motif of two
+    // bars stays out, as it was)
+    (read, id) =>
+      read !== null &&
+      (read.bars === 1 ||
+        (read.bars <= PHRASE_BARS && (layer?.filed.some((f) => f.fragment.id === id) ?? false))),
     layer,
     chosen,
     rejected,
@@ -154,7 +160,17 @@ export function leadPhrase(
   layer?: LearnedLayer,
 ): readonly Motif[] | null {
   const read = id === undefined ? null : repository.read(id, meter, layer);
-  if (!read || read.bars !== 1 || !read.notes.length) return null;
+  if (!read || !read.notes.length || read.bars > PHRASE_BARS) return null;
+  // (a phrase of several bars the Muse filed plays as its bars in turn, #580 rung 3)
+  if (read.bars > 1)
+    return Array.from({ length: read.bars }, (_, k) =>
+      motifOf(
+        read.notes
+          .filter((n) => n.step >= k * steps && n.step < (k + 1) * steps)
+          .map((n) => ({ ...n, step: n.step - k * steps })),
+        steps,
+      ),
+    );
   const formed = repository.phrase?.(read.notes, meter);
   if (!formed || formed.bars < 2) return [motifOf(read.notes, steps)];
   return Array.from({ length: formed.bars }, (_, k) =>

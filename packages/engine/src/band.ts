@@ -45,8 +45,8 @@ import { bass, playBass } from './bass.ts';
 import { type LineNote, type LineRepository, sectionNotes } from './bass-query.ts';
 import { comp } from './comp.ts';
 import { type LeadCarried, inventedBar, lead, playLead } from './lead.ts';
-import { type LeadNote, type LeadRepository, leadPhrase } from './lead-query.ts';
-import { type HeardLeadBar, SOLOIST, leadOf } from './muse-lead.ts';
+import { type LeadRepository, leadPhrase } from './lead-query.ts';
+import { type HeardLeadBar, type LeadBar, SOLOIST, leadOf } from './muse-lead.ts';
 import type { HarmonyRepository } from './harmony-query.ts';
 import { type HeardHarmonyBar, sectionHarmony } from './muse-harmony.ts';
 import { drums } from './drums.ts';
@@ -157,7 +157,7 @@ export interface Ear {
   readonly section: number;
   readonly drums: HeardSection<readonly FragmentHit[]>;
   readonly bass: HeardSection<readonly LineNote[]>;
-  readonly lead: HeardSection<readonly LeadNote[]>;
+  readonly lead: HeardSection<LeadBar>;
   /** The bass's own bar heard last, waiting for the chords of the bar after it. */
   readonly unheard: BarEnv | null;
   /**
@@ -320,9 +320,11 @@ function barEnvOf(env: BandEnv, here: DecidedBar, next: readonly BarChord[]): Ba
   };
 }
 
-/** The lead's own bars as the Muse hears them: each a line over its key, those it rested in left out. */
-const leadOwn = (bars: readonly BarEnv[]): (readonly LeadNote[])[] =>
-  bars.map((b) => leadOf(inventedBar(b), b.plan.key)).filter((line) => line.length > 0);
+/** The lead's own bars as the Muse hears them: each a line over its key, those it rested in left out, each a phrase of its own (no origin). */
+const leadOwn = (bars: readonly BarEnv[]): LeadBar[] =>
+  bars
+    .map((b, i) => ({ bar: i, notes: leadOf(inventedBar(b), b.plan.key) }))
+    .filter((line) => line.notes.length > 0);
 
 /** What the Muse heard of a member, as the planner files it: the member's own first, under its source, then each player's. */
 const heardOf = <Bar>(section: HeardSection<Bar>, member: string): HeardBars<Bar>[] => [
@@ -393,9 +395,9 @@ function heard(env: BandEnv, here: DecidedBar, plans: PlanCarried, ear: Ear | nu
   for (const { source, bar, notes } of env.bassHeard ?? [])
     if (Math.floor(bar / SECTION_BARS) === section)
       now = { ...now, bass: withPlayer(now.bass, source, notes) };
-  for (const { source, bar, notes } of env.leadHeard ?? [])
+  for (const { source, bar, notes, origin, confidence } of env.leadHeard ?? [])
     if (Math.floor(bar / SECTION_BARS) === section)
-      now = { ...now, lead: withPlayer(now.lead, source, notes) };
+      now = { ...now, lead: withPlayer(now.lead, source, { bar, origin, notes, confidence }) };
   if (env.harmonies) {
     const chords = (env.harmonyHeard ?? []).filter(
       (h) => Math.floor(h.bar / SECTION_BARS) >= section - 1,

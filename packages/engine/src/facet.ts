@@ -181,7 +181,7 @@ export function nearestFigure<R extends { readonly bars: number }, C>(
   point: StylePoint,
   bench: Bench,
   playing: string | undefined,
-  admits: (read: R | null) => boolean,
+  admits: (read: R | null, id: string) => boolean,
   layer?: LearnedLayer,
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
@@ -192,7 +192,7 @@ export function nearestFigure<R extends { readonly bars: number }, C>(
     repository
       .query(point, bench, layer, chosen, miss, pull)
       .filter((f) => f.distance <= miss && !rejected.includes(f.id))
-      .filter((f) => admits(repository.read(f.id, bench.meter, layer))),
+      .filter((f) => admits(repository.read(f.id, bench.meter, layer), f.id)),
     playing,
     miss,
     hold,
