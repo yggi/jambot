@@ -99,10 +99,11 @@ const tokenOf = ({ degree, alter }: LeadNote): string =>
   `${degree}${(alter > 0 ? '#' : 'b').repeat(Math.abs(alter))}`;
 
 /**
- * A bar's lead line as cells text, open on its meter and its key (no `&bar`,
- * no key): its notes as degrees of the key on the coarsest grid they fall
- * on, and nothing else, no voice and no card (#580). It reads back as the
- * notes it was stated from (`readLead`, the round trip).
+ * A lead line as cells text, open on its meter and its key (no `&bar`, no
+ * key): its notes as degrees of the key on the coarsest grid they fall on,
+ * over the bars of `steps` they span (a phrase's several, #580 rung 3), and
+ * nothing else, no voice and no card (#580). It reads back as the notes it
+ * was stated from (`readLead`, the round trip).
  */
 export function leadText(notes: readonly LeadNote[], steps: number): string {
   const sorted = [...notes].sort((a, b) => a.step - b.step);
@@ -110,7 +111,9 @@ export function leadText(notes: readonly LeadNote[], steps: number): string {
     sorted.map((n) => n.step),
     steps,
   );
-  const tokens = Array.from({ length: steps / grid.length }, (_, i) => {
+  // (a phrase's line spans the bars its notes do, #580 rung 3: a bar's line one)
+  const bars = Math.max(1, Math.ceil(((sorted.at(-1)?.step ?? 0) + 1) / steps));
+  const tokens = Array.from({ length: (bars * steps) / grid.length }, (_, i) => {
     const here = sorted.find((n) => n.step === i * grid.length);
     return here ? tokenOf(here) : '~';
   });

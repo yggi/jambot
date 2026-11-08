@@ -71,13 +71,13 @@ import type { ForecastDelta } from './forecast.ts';
  *
  * From 13 on, a protocol is a minor version of the session contract's major
  * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, 18 minor 5, 19 minor 6 and 20 minor 7. A host admits a join of any
+ * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, 18 minor 5, 19 minor 6, 20 minor 7 and 21 minor 8 (a motif's judgement carries its `origin`, #580 rung 3). A host admits a join of any
  * of them, and a client stays with a host of any (`sameMajor`), each
  * ignoring a kind it doesn't know, so a minor that adds a kind deploys
  * without every client in lockstep: a client at 13 drops the `section`
  * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
-export const PROTOCOL = 20;
+export const PROTOCOL = 21;
 
 /**
  * What a client may be seated as (docs/briefs/session-roles.md): a

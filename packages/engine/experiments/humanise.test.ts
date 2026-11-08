@@ -21,6 +21,7 @@ import {
   phraseRate as measure,
   played,
   readingRate,
+  phraseFiledRate,
   sessionRate,
   stepMs,
   syncopatedPattern,
@@ -478,5 +479,16 @@ describe('a session of one hand, read with its memory (E17, #580)', () => {
       expect(later(lateMs, 20, true)).toBeGreaterThan(later(0, 20, false) - 0.035);
       expect(later(lateMs, 20, false)).toBeLessThan(0.1);
     }
+  });
+});
+
+/**
+ * #580's rung 3: Twinkle's first two bars, played twice by a hand of each looseness, as the Muse files them, over 40
+ * hands: one line of two bars, the two playings confirming each other (`phrasesOfLead`).
+ */
+describe('a phrase of two bars filed as one line (E17, #580)', () => {
+  it('files Twinkle’s two bars as one line in every hand up to 20 ms, and in at least 90 % of hands at 30 ms', () => {
+    for (const s of [0, 10, 20]) expect(phraseFiledRate(s, KEY, 40).right, `${s} ms`).toBe(40);
+    expect(phraseFiledRate(30, KEY, 40).right).toBeGreaterThanOrEqual(36);
   });
 });
