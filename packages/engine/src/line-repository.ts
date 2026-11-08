@@ -45,6 +45,8 @@ export interface LineKind<N extends { readonly step: number }> {
   readonly vary?: ((name: MeterName) => VaryOptions) | undefined;
   /** The bars a line filed holds, which its text states and reads back as: one where none is said. */
   readonly bars?: number | undefined;
+  /** Whether the composer varies a line of this text: every one where none is said. */
+  readonly varies?: ((text: string) => boolean) | undefined;
 }
 
 /** A meter's name as cells writes it in `meter("…")`, or null for one cells has no name for. */
@@ -76,7 +78,10 @@ export function gridOf(
 /** A repository of a member's lines, ranked by cells' query on its facet and read by its kind. */
 export function lineRepositoryOf<N extends { readonly step: number }>(
   kind: LineKind<N>,
-): FacetRepository<LinesRead<N>, { readonly notes: readonly N[] }> {
+): FacetRepository<
+  LinesRead<N>,
+  { readonly notes: readonly N[]; readonly text?: string | undefined }
+> {
   const { facet, fragments, read, bars = 1 } = kind;
   const varyOptions = kind.vary;
   // (the lines with cells' meters beside them, which a line query never ranks, its facet theirs alone: so a line and
@@ -141,8 +146,9 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
           ...stillHeld(cells, layer, alongside).map((id) => ({ id })),
         ]),
       ),
-    file(layer, { notes, bench, point, source, created, tags, varies, by }) {
-      const text = kind.text(notes, stepsOf(bench.meter));
+    file(layer, { notes, text: given, bench, point, source, created, tags, varies, by }) {
+      // (a line given as its text, a form over the seed's motifs, is filed as it; any other is stated from its notes)
+      const text = given ?? kind.text(notes, stepsOf(bench.meter));
       const filed = fileFragment(cells, layer, {
         text,
         point,
@@ -163,7 +169,7 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
           : useFragments(cells, filed.layer, [{ id: filed.id }, { id: meterFragment }]);
       // (the round trip: a line stated from its notes reads back as them, on its bench)
       const known = `${text}\n${meterKey(bench.meter)}`;
-      if (filed.file && !reads.has(known))
+      if (filed.file && given === undefined && !reads.has(known))
         reads.set(known, {
           // (a line of a phrase spans the bars its notes do, #580 rung 3)
           bars: Math.max(
@@ -181,6 +187,7 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
     vary(id, bench, draw, layer) {
       if (!varyOptions) return null;
       const text = textOf(id, layer);
+      if (text !== undefined && kind.varies && !kind.varies(text)) return null;
       const name = nameOf(bench.meter);
       if (text === undefined || name === null || readText(text, bench.meter) === null) return null;
       const all = variationsOn(text, name);

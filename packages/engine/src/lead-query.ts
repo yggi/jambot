@@ -34,7 +34,7 @@ import {
 } from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
-import { PHRASE_BARS } from './muse-lead.ts';
+import { FORM_BARS } from './muse-lead.ts';
 
 /** The facet a lead line is associated as (#424, the owner's ruling of 2026-10-18: bass, lead, harmony). */
 export const LEAD_FACET = 'lead';
@@ -58,6 +58,8 @@ export interface LeadRead {
 /** What a lead line filed and a line's variation carry of what the lead plays: a bar's notes. */
 export interface LeadContent {
   readonly notes: readonly LeadNote[];
+  /** The line as a form over the seed's motifs, where the Muse heard one (#580 rung 4): filed as this text, not its notes. */
+  readonly text?: string | undefined;
 }
 
 /** A lead line to file: a bar's notes, the bench it was played on, where and by whom (`muse-lead.ts`). */
@@ -104,12 +106,12 @@ export function composedLead(
     stylePoint(style),
     bench,
     playing,
-    // (a line of a bar, or a phrase of up to `PHRASE_BARS` the Muse filed in the layer, #580 rung 3; a seed motif of two
-    // bars stays out, as it was)
+    // (a line of a bar, or one the Muse filed in the layer: a phrase of up to `PHRASE_BARS`, #580 rung 3, or a form of up
+    // to `FORM_BARS`, rung 4; a seed motif of two bars stays out, as it was)
     (read, id) =>
       read !== null &&
       (read.bars === 1 ||
-        (read.bars <= PHRASE_BARS && (layer?.filed.some((f) => f.fragment.id === id) ?? false))),
+        (read.bars <= FORM_BARS && (layer?.filed.some((f) => f.fragment.id === id) ?? false))),
     layer,
     chosen,
     rejected,
@@ -160,8 +162,8 @@ export function leadPhrase(
   layer?: LearnedLayer,
 ): readonly Motif[] | null {
   const read = id === undefined ? null : repository.read(id, meter, layer);
-  if (!read || !read.notes.length || read.bars > PHRASE_BARS) return null;
-  // (a phrase of several bars the Muse filed plays as its bars in turn, #580 rung 3)
+  if (!read || !read.notes.length || read.bars > FORM_BARS) return null;
+  // (a phrase or a form of several bars the Muse filed plays as its bars in turn, #580 rungs 3 and 4)
   if (read.bars > 1)
     return Array.from({ length: read.bars }, (_, k) =>
       motifOf(

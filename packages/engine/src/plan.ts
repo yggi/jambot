@@ -69,6 +69,7 @@ import {
 import { BASS_FACET, type LineNote, type LineRepository, composedLine } from './bass-query.ts';
 import { LEAD_FACET, type LeadRepository, composedLead } from './lead-query.ts';
 import { type LeadBar, distilledLead } from './muse-lead.ts';
+import { nameOf } from './line-repository.ts';
 import {
   HARMONY_FACET,
   type HarmonyRepository,
@@ -546,8 +547,11 @@ export function museFiledLeads(
     (bars) => {
       const steps = stepsOf(before.meter);
       const inBar = bars.map((b) => ({ ...b, notes: b.notes.filter((n) => n.step < steps) }));
-      const notes = distilledLead(inBar, steps);
-      return notes?.length ? { notes } : null;
+      // (a run that is a form over the seed's motifs is filed as it, #580 rung 4)
+      const line = distilledLead(inBar, steps, nameOf(before.meter) ?? undefined);
+      return line?.notes.length
+        ? { notes: line.notes, ...(line.text ? { text: line.text } : {}) }
+        : null;
     },
     { meter: before.meter, meterFragment: before.meterFragment },
     filingAt({ ...given, index: given.index - 1 }, point, LEAD_TAG),

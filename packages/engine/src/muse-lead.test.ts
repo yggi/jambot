@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { Key } from './key.ts';
 import type { LeadNote } from './lead-query.ts';
 import type { Judgement } from './muse.ts';
+import { METERS } from '@jambot/theory';
+import { writtenOut } from '@yggi/cells/repository/decompose';
+import { readLead } from './lead-lines.ts';
 import {
   type LeadBar,
   PHRASE_BARS,
@@ -49,8 +52,8 @@ describe('the Muse’s ear for lead lines (#424)', () => {
     const b = [note(0, 0), note(4, 1), note(8, 2)];
     const alone = (bars: (readonly LeadNote[])[]): LeadBar[] =>
       bars.map((notes, bar) => ({ bar, notes }));
-    expect(distilledLead(alone([b, a, a, b, a]), 16)).toEqual(a);
-    expect(distilledLead(alone([b, a]), 16)).toEqual(b);
+    expect(distilledLead(alone([b, a, a, b, a]), 16)).toEqual({ notes: a });
+    expect(distilledLead(alone([b, a]), 16)).toEqual({ notes: b });
     expect(distilledLead(alone([[note(0, 0), note(8, 2)]]), 16)).toBeNull();
   });
 
@@ -138,8 +141,78 @@ describe('a player’s phrases, bars in a row joined by their origins (#580, run
 
   it('distils the phrase played most, ties to the longer: Twinkle’s two bars over a bar heard once alone', () => {
     const alone: LeadBar = { bar: 2, notes: [note(0, 0), note(4, 1), note(8, 2)] };
-    const line = distilledLead([alone, ...TWINKLE], 16)!;
-    expect(line).toHaveLength(14);
-    expect(line.at(-1)).toEqual(note(28, 0));
+    const { notes } = distilledLead([alone, ...TWINKLE], 16)!;
+    expect(notes).toHaveLength(14);
+    expect(notes.at(-1)).toEqual(note(28, 0));
+  });
+});
+
+/**
+ * A tune as the Muse hears it played whole, bar by bar: cells' form over the seed's motifs written out (`writtenOut`),
+ * read back as the key's degrees, and each bar as she judges it, its degrees from its first note and that note's place
+ * in the key its origin (the tonic in A4's octave, 35).
+ */
+function heardWhole(text: string): LeadBar[] {
+  const line = writtenOut(text, 'song', '4/4', 'lead')!;
+  const read = readLead(line, METERS['4/4'])!;
+  return Array.from({ length: read.bars }, (_, bar) => {
+    const notes = read.notes.filter((n) => n.step >= 16 * bar && n.step < 16 * (bar + 1));
+    const first = notes[0]!.degree;
+    return {
+      bar: 8 + bar,
+      origin: 35 + first,
+      notes: notes.map((n) => ({ ...n, step: n.step - 16 * bar, degree: n.degree - first })),
+    };
+  });
+}
+
+describe('a player’s run that is a form over the seed’s motifs, filed as it (#580, rung 4)', () => {
+  it('files Twinkle played whole, six bars, as ternary over twinkle, its answer wonder, in the key’s own degrees', () => {
+    const bars = heardWhole(
+      '&twinkle from twinkle &key\n&wonder from wonder &key\n&song from ternary(answer=&wonder) &twinkle',
+    );
+    const line = distilledLead(bars, 16, '4/4')!;
+    expect(line.text).toBe(
+      [
+        '&twinkle from twinkle &key',
+        '&wonder from wonder &key',
+        '&lead from ternary(answer=&wonder) &twinkle',
+      ].join('\n'),
+    );
+    // (its notes, each degree from its first, the six bars rung 3 would have played)
+    expect(line.notes).toHaveLength(42);
+    expect(readLead(line.text!, METERS['4/4'])!.bars).toBe(6);
+  });
+
+  it('files Hänschen klein played whole, eight bars from the fifth, as rounded binary over haenschen, its answers and bridge the tune’s', () => {
+    const bars = heardWhole(
+      [
+        '&haenschen from haenschen &key',
+        '&hinein from hinein &key',
+        '&heim from heim &key',
+        '&weinet from weinet &key',
+        '&song from rounded_binary(answer=&hinein, close=&heim, bridge=&weinet) &haenschen',
+      ].join('\n'),
+    );
+    expect(bars[0]!.origin).toBe(39);
+    expect(distilledLead(bars, 16, '4/4')?.text).toBe(
+      [
+        '&haenschen from haenschen &key',
+        '&hinein from hinein &key',
+        '&heim from heim &key',
+        '&weinet from weinet &key',
+        '&lead from rounded_binary(answer=&hinein, close=&heim, bridge=&weinet) &haenschen',
+      ].join('\n'),
+    );
+  });
+
+  it('files a run that is no form as rung 3 does, and tries no form without a meter, or for a bar alone', () => {
+    // (four bars that repeat nothing: no form says them in less than the line)
+    const bars = heardWhole(
+      '&song over=&key step=8n 0 2 4 2 0 1 3 5 6 4 2 1 -1 0 3 2 1 5 2 6 0 4 3 -2 2 0 -3 1 4 6 5 3',
+    );
+    expect(distilledLead(bars, 16, '4/4')).toEqual(distilledLead(bars, 16));
+    expect(distilledLead(bars, 16)?.text).toBeUndefined();
+    expect(distilledLead(TWINKLE.slice(0, 1), 16, '4/4')?.text).toBeUndefined();
   });
 });

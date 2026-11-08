@@ -30,6 +30,7 @@
  */
 
 import { type Motif, alteredDegree } from '@jambot/theory';
+import { decompose } from '@yggi/cells/repository/decompose';
 import { type Key, keyHelix } from './key.ts';
 import type { LeadNote } from './lead-query.ts';
 import { type Judgement, MUSE } from './muse.ts';
@@ -125,6 +126,15 @@ function slips(a: readonly LeadNote[], b: readonly LeadNote[]): number {
  * tie). A bar without an origin is a phrase of its own. In the order played.
  */
 export function phrasesOfLead(bars: readonly LeadBar[], steps: number): (readonly LeadNote[])[] {
+  return runsOf(bars).flatMap((run) =>
+    Array.from({ length: Math.ceil(run.length / PHRASE_BARS) }, (_, k) =>
+      lineOf(unitOf(run.slice(k * PHRASE_BARS, (k + 1) * PHRASE_BARS)), steps),
+    ),
+  );
+}
+
+/** A source's bars in runs: each of `LEAD_FEWEST` notes or more, a bar with an origin joining the bar before it with one. */
+function runsOf(bars: readonly LeadBar[]): LeadBar[][] {
   const sorted = [...bars]
     .filter((b) => b.notes.length >= LEAD_FEWEST)
     .sort((a, b) => a.bar - b.bar);
@@ -142,54 +152,116 @@ export function phrasesOfLead(bars: readonly LeadBar[], steps: number): (readonl
       run.push(b);
     else runs.push([b]);
   }
-  const chunks = runs.flatMap((run) =>
-    Array.from({ length: Math.ceil(run.length / PHRASE_BARS) }, (_, k) =>
-      run.slice(k * PHRASE_BARS, (k + 1) * PHRASE_BARS),
-    ),
-  );
+  return runs;
+}
+
+/** Bars that play their first bars again and again, within `PHRASE_SLIPS` notes and in one place in the key, as those bars, each the surest of its playings. */
+function unitOf(chunk: readonly LeadBar[]): LeadBar[] {
   const sameBar = (a: LeadBar, b: LeadBar) =>
     a.origin === b.origin && slips(a.notes, b.notes) <= PHRASE_SLIPS;
-  return chunks.map((chunk) => {
-    const period =
-      [...Array(chunk.length).keys()]
-        .map((p) => p + 1)
-        .find(
-          (p) =>
-            chunk.length % p === 0 && chunk.every((b, i) => i < p || sameBar(b, chunk[i - p]!)),
-        ) ?? chunk.length;
-    // (each bar of the unit, the surest of its playings)
-    const unit = chunk
-      .slice(0, period)
-      .map((first, i) =>
-        chunk
-          .filter((_, j) => j % period === i)
-          .reduce((best, b) => ((b.confidence ?? 1) > (best.confidence ?? 1) ? b : best), first),
-      );
-    const origin = unit[0]!.origin ?? 0;
-    return unit.flatMap((b, i) =>
-      b.notes.map((n) => ({
-        ...n,
-        step: n.step + i * steps,
-        degree: n.degree + (b.origin ?? 0) - origin,
-      })),
+  const period =
+    [...Array(chunk.length).keys()]
+      .map((p) => p + 1)
+      .find(
+        (p) => chunk.length % p === 0 && chunk.every((b, i) => i < p || sameBar(b, chunk[i - p]!)),
+      ) ?? chunk.length;
+  return chunk
+    .slice(0, period)
+    .map((first, i) =>
+      chunk
+        .filter((_, j) => j % period === i)
+        .reduce((best, b) => ((b.confidence ?? 1) > (best.confidence ?? 1) ? b : best), first),
     );
-  });
+}
+
+/** Bars as one line of `steps` a bar, each note's degree counted from the first bar's first note, plus `from`. */
+function lineOf(unit: readonly LeadBar[], steps: number, from = 0): LeadNote[] {
+  const origin = unit[0]!.origin ?? 0;
+  return unit.flatMap((b, i) =>
+    b.notes.map((n) => ({
+      ...n,
+      step: n.step + i * steps,
+      degree: n.degree + (b.origin ?? 0) - origin + from,
+    })),
+  );
 }
 
 /**
- * A section's recurring lead line, `steps` a bar: of its phrases (`phrasesOfLead`), the first that plays the pattern
- * most of them play, ties to the longer, then the earliest; null where none has enough notes.
+ * A line as cells text, `length` steps long, for `decompose` to read: on the coarsest grid its notes fall on (a bar,
+ * a half, a quarter, an eighth, a sixteenth), each note its degree and accidental, a rest `~`, as `leadText` writes a
+ * line, so the line is weighed as briefly as it is written.
  */
-export function distilledLead(bars: readonly LeadBar[], steps: number): readonly LeadNote[] | null {
-  const counts = new Map<string, { count: number; first: readonly LeadNote[]; at: number }>();
-  phrasesOfLead(bars, steps).forEach((phrase, at) => {
-    const pattern = patternOf(phrase);
+function lineText(notes: readonly LeadNote[], length: number, steps: number): string {
+  const grids = [
+    { tap: '1m', size: steps },
+    { tap: '2n', size: 8 },
+    { tap: '4n', size: 4 },
+    { tap: '8n', size: 2 },
+    { tap: '16n', size: 1 },
+  ];
+  const grid = grids.find(
+    (g) =>
+      length % g.size === 0 && steps % g.size === 0 && notes.every((n) => n.step % g.size === 0),
+  )!;
+  const at = new Map(notes.map((n) => [n.step, n]));
+  const token = (n: LeadNote) =>
+    `${n.degree}${(n.alter > 0 ? '#' : 'b').repeat(Math.abs(n.alter))}`;
+  const tokens = Array.from({ length: length / grid.size }, (_, i) =>
+    at.has(i * grid.size) ? token(at.get(i * grid.size)!) : '~',
+  );
+  return `&lead over=&key step=${grid.tap} ${tokens.join(' ')}`;
+}
+
+/** The most bars a phrase is tried as a form over (#580 rung 4, the owner's ruling of 2026-11-08): eight, a section, as long as the Muse's ear holds. */
+export const FORM_BARS = 8;
+
+/** A lead line the Muse distils: its notes, each degree from its first note, and where it is a form over the seed's motifs, the text that says so. */
+export interface DistilledLead {
+  readonly notes: readonly LeadNote[];
+  /** The line as a form over the seed's motifs (cells' `decompose`), its degrees the key's own; absent for a line. */
+  readonly text?: string;
+}
+
+/**
+ * A source's run as a form over the seed's motifs (#580 rung 4, the owner's rulings of 2026-11-08): the run, its repeat
+ * taken as once (`unitOf`), of 2 to `FORM_BARS` bars, written in the key's own degrees (its first note's place in the
+ * key, its `origin` less whole octaves of seven) and decomposed by cells (`decompose`, in `meter`); null where it is
+ * no form, or its bars say no place in the key.
+ */
+function formOf(run: readonly LeadBar[], steps: number, meter: string): DistilledLead | null {
+  const unit = unitOf(run);
+  const origin = unit[0]?.origin;
+  if (unit.length < 2 || unit.length > FORM_BARS || origin === undefined) return null;
+  const notes = lineOf(unit, steps);
+  const keyed = lineOf(unit, steps, ((origin % 7) + 7) % 7);
+  const d = decompose(lineText(keyed, unit.length * steps, steps), 'lead', meter);
+  return d.form === null ? null : { notes, text: d.text };
+}
+
+/**
+ * A section's recurring lead line, `steps` a bar: of its phrases, the first that plays the pattern most of them play,
+ * ties to the longer, then the earliest; null where none has enough notes. A run that is a form over the seed's motifs
+ * (`formOf`, tried where `meter` names the section's meter) is that form, one phrase; any other is cut into phrases
+ * (`phrasesOfLead`), as before.
+ */
+export function distilledLead(
+  bars: readonly LeadBar[],
+  steps: number,
+  meter?: string,
+): DistilledLead | null {
+  const phrases: DistilledLead[] = runsOf(bars).flatMap((run) => {
+    const form = meter === undefined ? null : formOf(run, steps, meter);
+    return form ? [form] : phrasesOfLead(run, steps).map((notes) => ({ notes }));
+  });
+  const counts = new Map<string, { count: number; first: DistilledLead }>();
+  for (const phrase of phrases) {
+    const pattern = phrase.text ?? patternOf(phrase.notes);
     const seen = counts.get(pattern);
     if (seen) seen.count++;
-    else counts.set(pattern, { count: 1, first: phrase, at });
-  });
-  const span = (notes: readonly LeadNote[]) => Math.floor(notes.at(-1)!.step / steps);
-  let best: { count: number; first: readonly LeadNote[]; at: number } | null = null;
+    else counts.set(pattern, { count: 1, first: phrase });
+  }
+  const span = (line: DistilledLead) => Math.floor(line.notes.at(-1)!.step / steps);
+  let best: { count: number; first: DistilledLead } | null = null;
   for (const entry of counts.values())
     if (
       !best ||

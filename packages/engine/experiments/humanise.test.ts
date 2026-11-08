@@ -21,6 +21,7 @@ import {
   phraseRate as measure,
   played,
   readingRate,
+  formFiledRate,
   phraseFiledRate,
   sessionRate,
   stepMs,
@@ -490,5 +491,24 @@ describe('a phrase of two bars filed as one line (E17, #580)', () => {
   it('files Twinkle’s two bars as one line in every hand up to 20 ms, and in at least 90 % of hands at 30 ms', () => {
     for (const s of [0, 10, 20]) expect(phraseFiledRate(s, KEY, 40).right, `${s} ms`).toBe(40);
     expect(phraseFiledRate(30, KEY, 40).right).toBeGreaterThanOrEqual(36);
+  });
+});
+
+/**
+ * #580's rung 4: Twinkle whole (six bars) and Hänschen klein whole (eight, from the fifth), played once by 40 hands of
+ * each looseness, as the Muse files them: as the form over the seed's motifs, cells' `decompose`.
+ */
+describe('a tune played whole filed as its form (E17, #580)', () => {
+  it('files Twinkle as the ternary and Hänschen klein as the rounded binary in every hand up to 20 ms', () => {
+    for (const tune of ['twinkle', 'haenschen'] as const)
+      for (const s of [0, 10, 20])
+        expect(formFiledRate(tune, s, KEY).right, `${tune} at ${s} ms`).toBe(40);
+  });
+
+  it('files them so in 34 and 35 hands of 40 at 30 ms, where every bar must be read right', () => {
+    expect([
+      formFiledRate('twinkle', 30, KEY).right,
+      formFiledRate('haenschen', 30, KEY).right,
+    ]).toEqual([34, 35]);
   });
 });
