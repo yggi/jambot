@@ -3,6 +3,8 @@ import {
   DRUM_PRESETS,
   KEYS,
   type SetupBook,
+  BUILT_IN,
+  HEARD,
   addOutput,
   chooseDevice,
   inputRow,
@@ -17,7 +19,7 @@ beforeEach(() => localStorage.clear());
 
 const PORTS = {
   inputs: [{ id: 'in-1', name: 'KeyStep' }],
-  outputs: [{ id: 'out-1', name: 'Synth' }],
+  outputs: [{ id: 'out-1', name: 'Juno' }],
 };
 
 /** The panel, connected or not, on settings of its own. */
@@ -35,7 +37,7 @@ function panel(over: Record<string, unknown> = {}) {
 }
 
 /** Settings whose one output is the synth plugged in. */
-function onSynth() {
+function onJuno() {
   const settings = new MidiSettings();
   settings.book = chooseDevice(settings.book, 'o1', PORTS.outputs[0]!);
   return settings;
@@ -77,19 +79,18 @@ describe('SoundPanel', () => {
     expect(onpanic).toHaveBeenCalledOnce();
   });
 
-  it('toggles the built-in synth', async () => {
-    const { settings } = panel();
-    await fireEvent.click(screen.getByLabelText('Play the built-in synth'));
-    expect(settings.internal).toBe(false);
-  });
-
-  it('splits the built-in synth from MIDI', () => {
-    panel();
-    const headings = screen.getAllByRole('heading').map((h) => h.textContent);
-    expect(headings.slice(0, 2)).toEqual(['Built-in synth', 'MIDI']);
-    const synth = within(screen.getByRole('region', { name: 'Built-in synth' }));
-    expect(synth.getByLabelText('Play the built-in synth')).toBeInTheDocument();
-    expect(synth.queryByRole('table')).toBeNull();
+  it('plays a part on the built-in synth or not from its column, first in the patch, the MIDI outputs numbered after it', async () => {
+    const { settings } = panel({ settings: onJuno() });
+    expect(screen.queryByLabelText('Play the built-in synth')).toBeNull();
+    const heads = within(screen.getByRole('table'))
+      .getAllByRole('columnheader')
+      .map((h) => h.querySelector('.slot')?.textContent)
+      .filter(Boolean);
+    expect(heads).toEqual(['BUILT-IN', 'OUT 1']);
+    expect(jack('Stab', 'Synth')).toHaveAccessibleName('Stab to Synth: heard');
+    await fireEvent.click(jack('Stab', 'Synth'));
+    expect(settings.synth).toEqual(['lead', 'bass', 'pad', 'drums']);
+    expect(settings.setup.name).toBe('Jambot - custom');
   });
 
   it('patches the clock, the five parts with the drum sounds, the keys, then each input with what it plays', () => {
@@ -153,11 +154,11 @@ describe('SoundPanel', () => {
   });
 
   it('routes a row to a channel from the jack’s picker', async () => {
-    const { settings } = panel({ settings: onSynth() });
-    await fireEvent.click(jack('Keys', 'Synth'));
+    const { settings } = panel({ settings: onJuno() });
+    await fireEvent.click(jack('Keys', 'Juno'));
     await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '5' }));
     expect(settings.setup.routes[BAND]![KEYS]).toEqual({ o1: 5 });
-    await fireEvent.click(jack(PORTS.inputs[0]!.name, 'Synth'));
+    await fireEvent.click(jack(PORTS.inputs[0]!.name, 'Juno'));
     await fireEvent.click(screen.getByRole('button', { name: '= As played' }));
     expect(settings.setup.routes[BAND]![inputRow(PORTS.inputs[0]!)]).toEqual({ o1: 0 });
   });
@@ -166,34 +167,34 @@ describe('SoundPanel', () => {
     const { settings } = panel();
     const dialog = await inspect();
     await fireEvent.change(dialog.getByLabelText('Port'), { target: { value: 'out-1' } });
-    expect(settings.setup.outputs).toEqual([{ key: 'o1', id: 'out-1', name: 'Synth' }]);
-    await fireEvent.click(screen.getByRole('button', { name: 'Clock to Synth' }));
+    expect(settings.setup.outputs).toEqual([BUILT_IN, { key: 'o1', id: 'out-1', name: 'Juno' }]);
+    await fireEvent.click(screen.getByRole('button', { name: 'Clock to Juno' }));
     expect(settings.setup.clock).toEqual(['o1']);
   });
 
   it('keeps a device’s drum map and latency with the device, by its name', async () => {
-    const { settings } = panel({ settings: onSynth() });
+    const { settings } = panel({ settings: onJuno() });
     await inspect();
     await fireEvent.change(screen.getByLabelText(/Drum map/), {
       target: { value: 'Novation Circuit' },
     });
-    expect(settings.book.devices.Synth!.drums).toEqual(DRUM_PRESETS['Novation Circuit']);
+    expect(settings.book.devices.Juno!.drums).toEqual(DRUM_PRESETS['Novation Circuit']);
     await fireEvent.change(screen.getByLabelText(/Latency/), { target: { value: '9' } });
-    expect(settings.book.devices.Synth!.latency).toBe(9);
+    expect(settings.book.devices.Juno!.latency).toBe(9);
   });
 
   it('edits a drum sound’s note on an output in the patch, clamped to 0–127, the map then a custom one (yggi/webmidi#36)', async () => {
-    const { settings } = panel({ settings: onSynth() });
-    const kick = screen.getByLabelText(/^Kick on Synth/);
+    const { settings } = panel({ settings: onJuno() });
+    const kick = screen.getByLabelText(/^Kick on Juno/);
     expect(kick).toHaveValue(36);
     await fireEvent.change(kick, { target: { value: '200' } });
-    expect(settings.book.devices.Synth!.drums[36]).toBe(127);
+    expect(settings.book.devices.Juno!.drums[36]).toBe(127);
     await inspect();
     expect(screen.getByLabelText(/Drum map/)).toHaveValue('Custom');
   });
 
   it('offers no drum notes for an output the drums don’t go to', async () => {
-    const settings = onSynth();
+    const settings = onJuno();
     settings.book = withCrossing(settings.book, BAND, 'drums', 'o1', undefined);
     panel({ settings });
     expect(screen.queryByLabelText(/^Kick on/)).toBeNull();
@@ -203,51 +204,75 @@ describe('SoundPanel', () => {
 
   it('sends a test note on the output’s first channel, once connected', async () => {
     const ontest = vi.fn();
-    panel({ settings: onSynth(), ontest });
+    panel({ settings: onJuno(), ontest });
     await inspect();
     await fireEvent.click(screen.getByRole('button', { name: 'Test note' }));
     expect(ontest).toHaveBeenCalledWith('o1', 1);
   });
 
   it('shows a device of the setup that isn’t plugged in as such, and says how many are missing', () => {
-    panel({ settings: onSynth(), ports: { inputs: [], outputs: [] }, message: 'MIDI connected.' });
+    panel({ settings: onJuno(), ports: { inputs: [], outputs: [] }, message: 'MIDI connected.' });
     expect(screen.getByText(/1 of this setup’s devices isn’t plugged in/)).toBeInTheDocument();
     expect(screen.getByText('Not plugged in')).toBeInTheDocument();
   });
 
   it('opens an output’s settings from its head in the patch too, and closes them', async () => {
-    panel({ settings: onSynth() });
+    panel({ settings: onJuno() });
     expect(screen.queryByRole('dialog')).toBeNull();
     await fireEvent.click(
-      within(screen.getByRole('table')).getByRole('button', { name: /^OUT 1 Synth/ }),
+      within(screen.getByRole('table')).getByRole('button', { name: /^OUT 1 Juno/ }),
     );
-    expect(screen.getByRole('dialog', { name: 'OUT 1: Synth' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'OUT 1: Juno' })).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('removes an output from its settings; the last is left with no device, its routes kept', async () => {
-    const settings = onSynth();
+  it('removes an output from its settings; with the synth beside it, the last MIDI output goes, the synth playing on', async () => {
+    const settings = onJuno();
     settings.book = addOutput(settings.book, { id: 'out-2', name: 'Other' }).book;
     panel({ settings });
     await (await inspect(2)).findByRole('heading', { name: 'Other' });
     await fireEvent.click(screen.getByRole('button', { name: 'Remove output' }));
-    expect(settings.setup.outputs.map((o) => o.name)).toEqual(['Synth']);
+    expect(settings.setup.outputs.map((o) => o.name)).toEqual(['', 'Juno']);
     expect(screen.queryByRole('dialog')).toBeNull();
     await inspect(1);
     await fireEvent.click(screen.getByRole('button', { name: 'Remove output' }));
-    expect(settings.setup.outputs).toEqual([{ key: 'o1', id: 'none', name: '' }]);
-    expect(settings.setup.routes[BAND]!.lead).toEqual({ o1: 1 });
+    expect(settings.setup.outputs).toEqual([BUILT_IN]);
+    expect(settings.setup.routes[BAND]!.lead).toEqual({ builtin: HEARD });
+  });
+
+  it('opens the synth’s own settings: its volume, the parts it plays, and taking it out of the setup', async () => {
+    const onvolume = vi.fn();
+    const { settings } = panel({ settings: onJuno(), volume: 0.5, onvolume });
+    const devices = within(screen.getByRole('group', { name: 'Device settings' }));
+    await fireEvent.click(devices.getByRole('button', { name: /^BUILT-IN Synth/ }));
+    const dialog = within(screen.getByRole('dialog', { name: 'BUILT-IN: Synth' }));
+    expect(dialog.getByRole('slider', { name: /Volume/ })).toHaveValue('50');
+    await fireEvent.input(dialog.getByRole('slider', { name: /Volume/ }), {
+      target: { value: '25' },
+    });
+    expect(onvolume).toHaveBeenCalledWith(0.25);
+    await fireEvent.click(dialog.getByRole('button', { name: 'Pad' }));
+    expect(settings.synth).toEqual(['lead', 'bass', 'stab', 'drums']);
+    await fireEvent.click(dialog.getByRole('button', { name: 'None' }));
+    expect(settings.synth).toEqual([]);
+    await fireEvent.click(dialog.getByRole('button', { name: 'All parts' }));
+    expect(settings.synth).toHaveLength(5);
+    await fireEvent.click(dialog.getByRole('button', { name: 'Remove from this setup' }));
+    expect(settings.setup.outputs.map((o) => o.key)).toEqual(['o1']);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: '+ Synth' }));
+    expect(settings.synth).toHaveLength(5);
   });
 
   it('forgets a device’s settings, offered only where it has its own', async () => {
-    const settings = onSynth();
+    const settings = onJuno();
     panel({ settings });
     await inspect();
-    expect(screen.queryByRole('button', { name: 'Forget Synth’s settings' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Forget Juno’s settings' })).toBeNull();
     await fireEvent.change(screen.getByLabelText(/Latency/), { target: { value: '9' } });
-    await fireEvent.click(screen.getByRole('button', { name: 'Forget Synth’s settings' }));
-    expect(settings.book.devices).not.toHaveProperty('Synth');
+    await fireEvent.click(screen.getByRole('button', { name: 'Forget Juno’s settings' }));
+    expect(settings.book.devices).not.toHaveProperty('Juno');
   });
 
   it('shows what went wrong with MIDI, until dismissed', async () => {
@@ -261,14 +286,14 @@ describe('SoundPanel', () => {
   });
 
   it('resets the MIDI settings after asking', async () => {
-    const settings = onSynth();
+    const settings = onJuno();
     panel({ settings });
     await fireEvent.click(screen.getByRole('button', { name: 'Reset MIDI settings…' }));
     await fireEvent.click(screen.getByRole('button', { name: 'Reset MIDI settings' }));
-    expect(settings.setup.outputs).toEqual([{ key: 'o1', id: 'none', name: '' }]);
+    expect(settings.setup.outputs).toEqual([BUILT_IN, { key: 'o1', id: 'none', name: '' }]);
   });
 
-  it('stops MIDI alone when it throws, says why, and offers a way back; the built-in synth still switches', async () => {
+  it('stops the patch alone when it throws, says why, and offers a way back', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const settings = new MidiSettings();
     const book = settings.book;
@@ -276,8 +301,6 @@ describe('SoundPanel', () => {
     panel({ settings });
     expect(screen.getByRole('alert')).toHaveTextContent('The MIDI settings hit a problem');
     expect(screen.getByRole('alert')).toHaveTextContent('TypeError');
-    await fireEvent.click(screen.getByLabelText('Play the built-in synth'));
-    expect(settings.internal).toBe(false);
     await fireEvent.click(
       within(screen.getByRole('alert')).getByRole('button', { name: 'Reset MIDI settings' }),
     );

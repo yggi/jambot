@@ -120,6 +120,21 @@ describe('bandOutput', () => {
     expect(sent[0]!.data[0]).toBe(NOTE_ON | 1);
   });
 
+  it('plays on the built-in synth only the parts it is patched to, part by part, and sends MIDI for each', () => {
+    const base = fakeBase();
+    const { port, sent } = fakePort();
+    const settings: BandOutputSettings = {
+      internal: (part) => part === 'drums',
+      outputs: () => [route({ port })],
+    };
+    const output = bandOutput(settings, base.output);
+    void output.currentTime;
+    output.play('lead', 60, 100, 0, 1, timbre);
+    output.play('drums', 36, 100, 0, 1, timbre);
+    expect(base.plays.map((p) => p[0])).toEqual(['drums']);
+    expect(sent).toHaveLength(2);
+  });
+
   it('sends nothing over MIDI without a port, even with the synth on', () => {
     const base = fakeBase();
     const { settings } = fakeSettings();

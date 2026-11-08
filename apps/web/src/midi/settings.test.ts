@@ -1,6 +1,8 @@
 import { DRUM_NOTES, type DrumSound } from '@jambot/engine';
 import {
+  BUILT_IN,
   DRUM_PRESETS,
+  HEARD,
   KEYS,
   type DrumMap,
   activeSetup,
@@ -8,6 +10,8 @@ import {
   fromJambot,
   memoryStore,
   presetNameOf,
+  saveAs,
+  withBuiltIn,
   withCrossing,
 } from '@yggi/webmidi/core';
 import { DEFAULT_CHANNELS, type DrumNotes } from '../audio/midi-out.ts';
@@ -20,6 +24,7 @@ import {
   LEGACY_KEY,
   MidiSettings,
   SYNTH_KEY,
+  SYNTH_MOVED,
   readLegacy,
 } from './settings.svelte.ts';
 
@@ -28,39 +33,63 @@ beforeEach(() => localStorage.clear());
 const kept = () => JSON.parse(localStorage.getItem(BOOK_KEY)!);
 
 describe('MidiSettings', () => {
-  it('opens a first visit with the built-in synth on and one setup: the five parts on their channels, to no device', () => {
+  it('opens a first visit with one setup: the synth first, playing the five parts, which go on their channels to no device too', () => {
     const settings = new MidiSettings();
-    expect(settings.internal).toBe(true);
     const setup = settings.setup;
     expect(setup.name).toBe('Jambot');
-    expect(setup.outputs).toEqual([{ key: 'o1', id: 'none', name: '' }]);
+    expect(setup.outputs).toEqual([BUILT_IN, { key: 'o1', id: 'none', name: '' }]);
+    expect(settings.synth).toEqual(['lead', 'bass', 'pad', 'stab', 'drums']);
     expect(setup.plays).toEqual({});
     expect(setup.clock).toEqual([]);
     expect(setup.routes[BAND]).toEqual(
-      Object.fromEntries(Object.entries(DEFAULT_CHANNELS).map(([part, ch]) => [part, { o1: ch }])),
+      Object.fromEntries(
+        Object.entries(DEFAULT_CHANNELS).map(([part, ch]) => [part, { o1: ch, builtin: HEARD }]),
+      ),
     );
     expect(kept()).toEqual(JSON.parse(JSON.stringify(settings.book)));
+    expect(localStorage.getItem(SYNTH_KEY)).toBe(SYNTH_MOVED);
   });
 
-  it('keeps the book and the synth across instances', () => {
+  it('keeps the book, the synth in it, across instances: taken out of a setup, it stays out', () => {
     const settings = new MidiSettings();
-    settings.internal = false;
+    settings.book = withBuiltIn(settings.book, false);
     settings.book = withCrossing(settings.book, BAND, KEYS, 'o1', 4);
     const reopened = new MidiSettings();
-    expect(reopened.internal).toBe(false);
+    expect(reopened.synth).toEqual([]);
     expect(reopened.book).toEqual(settings.book);
-    expect(localStorage.getItem(SYNTH_KEY)).toBe('false');
   });
 
-  it('resets to a first visit’s book, saved, the synth’s switch left as it was', () => {
+  it('moves the switch kept before into every setup once, as it is, no named setup made a custom variant', () => {
+    for (const [kept, parts] of [
+      ['true', 5],
+      [null, 5],
+      ['false', 0],
+    ] as const) {
+      localStorage.clear();
+      let book = fromJambot(LEGACY_DEFAULTS, { inputs: [], outputs: [] });
+      book = saveAs(book, 'Venue');
+      localStorage.setItem(BOOK_KEY, JSON.stringify(book));
+      if (kept !== null) localStorage.setItem(SYNTH_KEY, kept);
+      const settings = new MidiSettings();
+      expect(settings.book.setups.map((s) => [s.name, s.outputs.length])).toEqual([
+        ['Jambot', parts ? 2 : 1],
+        ['Venue', parts ? 2 : 1],
+      ]);
+      expect(settings.synth.length).toBe(parts);
+      expect(localStorage.getItem(SYNTH_KEY)).toBe(SYNTH_MOVED);
+      // once: a setup the synth is taken out of afterwards stays without it
+      settings.book = withBuiltIn(settings.book, false);
+      expect(new MidiSettings().synth).toEqual([]);
+    }
+  });
+
+  it('resets to a first visit’s book, the synth playing every part, saved', () => {
     const settings = new MidiSettings();
     const first = settings.book;
-    settings.internal = false;
-    settings.book = withCrossing(settings.book, BAND, KEYS, 'o1', 4);
+    settings.book = withBuiltIn(withCrossing(settings.book, BAND, KEYS, 'o1', 4), false);
     settings.reset();
     expect(settings.book).toEqual(first);
     expect(kept()).toEqual(JSON.parse(JSON.stringify(first)));
-    expect(settings.internal).toBe(false);
   });
 
   it('says when the book changes, as the device listens again', () => {
@@ -83,7 +112,7 @@ describe('MidiSettings', () => {
     };
     localStorage.setItem(LEGACY_KEY, JSON.stringify(old));
     const settings = new MidiSettings();
-    expect(settings.internal).toBe(false);
+    expect(settings.synth).toEqual([]);
     expect(settings.book).toEqual(fromJambot(old, { inputs: [], outputs: [] }));
     expect(kept()).toEqual(JSON.parse(JSON.stringify(settings.book)));
     expect(JSON.parse(localStorage.getItem(LEGACY_KEY)!)).toEqual(old);
@@ -96,18 +125,21 @@ describe('MidiSettings', () => {
   it('names the ports the store kept by id alone once they are seen, and keeps the names', () => {
     localStorage.setItem(LEGACY_KEY, JSON.stringify({ outPortId: 'out-1', clock: true }));
     const settings = new MidiSettings();
-    expect(settings.setup.outputs[0]).toEqual({ key: 'o1', id: 'out-1', name: '' });
+    expect(settings.setup.outputs[1]).toEqual({ key: 'o1', id: 'out-1', name: '' });
     const ports = { inputs: [], outputs: [{ id: 'out-1', name: 'Circuit' }] };
     settings.name(ports);
-    expect(settings.setup.outputs[0]).toEqual({ key: 'o1', id: 'out-1', name: 'Circuit' });
-    expect(new MidiSettings().setup.outputs[0]!.name).toBe('Circuit');
+    expect(settings.setup.outputs[1]).toEqual({ key: 'o1', id: 'out-1', name: 'Circuit' });
+    expect(new MidiSettings().setup.outputs[1]!.name).toBe('Circuit');
   });
 
   it('reads the store before the book as its load did: junk as nothing, a partial save filled from the defaults', () => {
     expect(readLegacy()).toBeNull();
     localStorage.setItem(LEGACY_KEY, '{not json');
     expect(readLegacy()).toBeNull();
-    expect(activeSetup(new MidiSettings().book).routes[BAND]!.lead).toEqual({ o1: 1 });
+    expect(activeSetup(new MidiSettings().book).routes[BAND]!.lead).toEqual({
+      o1: 1,
+      builtin: HEARD,
+    });
     localStorage.clear();
     localStorage.setItem(LEGACY_KEY, JSON.stringify({ channels: { lead: 9 } }));
     expect(readLegacy()).toEqual({

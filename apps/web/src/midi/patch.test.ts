@@ -6,6 +6,8 @@ import {
   KEYS,
   activeSetup,
   addOutput,
+  BUILT_IN,
+  HEARD,
   applyPreset,
   chooseDevice,
   forwardsOf,
@@ -13,6 +15,7 @@ import {
   withClock,
   withCrossing,
   withPlays,
+  withBuiltIn,
   withProfile,
   type MidiPort,
   type SetupBook,
@@ -28,6 +31,9 @@ import {
   drumsTo,
   wantsInputs,
   missingOutputs,
+  synthParts,
+  synthPlays,
+  withSynth,
   nameByPorts,
   partPlayed,
   withOutputProfile,
@@ -264,5 +270,33 @@ describe('what the inspector shows of an output', () => {
   it('how many of the setup’s devices aren’t plugged in', () => {
     expect(missingOutputs(setup, PORTS.outputs)).toBe(0);
     expect(missingOutputs(setup, [])).toBe(1);
+  });
+});
+
+describe('the built-in synth, a column of the setup (yggi/webmidi decision 004)', () => {
+  const book = () => fromJambot(stored(), NONE);
+
+  it('plays the parts its column crosses, and none without the column', () => {
+    let b = withBuiltIn(book(), true, { [BAND]: ['lead', 'drums'] });
+    expect(synthParts(b)).toEqual(['lead', 'drums']);
+    expect([synthPlays(b, 'lead'), synthPlays(b, 'bass')]).toEqual([true, false]);
+    b = withBuiltIn(b, false);
+    expect(synthParts(b)).toEqual([]);
+  });
+
+  it('is no output the band sends MIDI to, nor one missing', () => {
+    const b = withBuiltIn(chooseDevice(book(), 'o1', { id: 'out-1', name: 'Synth' }), true);
+    expect(bandRoutes(b, () => null).map((r) => r.key)).toEqual(['o1']);
+    expect(missingOutputs(activeSetup(b), [])).toBe(1);
+    expect(missingOutputs(activeSetup(b), [{ id: 'out-1', name: 'Synth' }])).toBe(0);
+  });
+
+  it('moves the switch into a setup as it is: on, first, playing every part beside its channels; off, nothing; once', () => {
+    const setup = activeSetup(book());
+    const on = withSynth(setup, true);
+    expect(on.outputs).toEqual([BUILT_IN, ...setup.outputs]);
+    expect(on.routes[BAND]!.lead).toEqual({ o1: 1, builtin: HEARD });
+    expect(on.routes[BAND]![KEYS]).toBeUndefined();
+    expect([withSynth(setup, false), withSynth(on, true)]).toEqual([setup, on]);
   });
 });

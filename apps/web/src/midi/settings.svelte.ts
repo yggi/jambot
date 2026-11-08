@@ -1,10 +1,17 @@
 /**
  * What this device remembers of how it sounds, saved on every change so a
- * reload keeps it: whether the built-in synth plays (`internal`, Jambot's
- * own), and the MIDI setups, webmidi's book (yggi/webmidi decision 002):
- * device profiles kept by port name (drum map, bend, latency), named setups
- * with their outputs, the inputs heard, the routes of the context `band`
- * (`midi/patch.ts`) and the clock row.
+ * reload keeps it: the MIDI setups, webmidi's book (yggi/webmidi decision
+ * 002): device profiles kept by port name (drum map, bend, latency), named
+ * setups with their outputs, the inputs heard, the routes of the context
+ * `band` (`midi/patch.ts`) and the clock row; and the built-in synth, an
+ * output of each setup (webmidi's `BUILT_IN`, decision 004) whose crossings
+ * are the parts it plays (`synthPlays`).
+ *
+ * The synth was a switch of Jambot's own, kept under `SYNTH_KEY`, for every
+ * part and every setup. It is moved into the book once (`withSynth`): every
+ * setup gets the synth playing every part if the switch was on (or never
+ * set), none if it was off; `SYNTH_KEY` then says `book`, so a setup without
+ * it afterwards is one a person took it out of.
  *
  * The book is kept under `BOOK_KEY` (webmidi's `localBookStore`). A first
  * load with nothing kept there migrates the store from before the book
@@ -36,7 +43,8 @@ import {
   type DrumNotes,
 } from '../audio/midi-out.ts';
 import { drumMapOf } from './drums.ts';
-import { nameByPorts } from './patch.ts';
+import type { Part } from '@jambot/engine';
+import { nameByPorts, synthParts, withSynth } from './patch.ts';
 
 /** Where the book of setups is kept. */
 export const BOOK_KEY = 'jambot:midi-setups';
@@ -115,14 +123,30 @@ export function readLegacy(): LegacyPrefs | null {
 
 const NO_PORTS = { inputs: [], outputs: [] } as const;
 
-function readSynth(): boolean | null {
+/** What `SYNTH_KEY` says once the switch has moved into the book. */
+export const SYNTH_MOVED = 'book';
+
+/** The switch as kept: on, off, never set (null), or moved into the book already. */
+function readSynth(): boolean | null | typeof SYNTH_MOVED {
   try {
     const kept = localStorage.getItem(SYNTH_KEY);
-    return kept === 'true' ? true : kept === 'false' ? false : null;
+    return kept === 'true'
+      ? true
+      : kept === 'false'
+        ? false
+        : kept === SYNTH_MOVED
+          ? SYNTH_MOVED
+          : null;
   } catch {
     return null;
   }
 }
+
+/** Every setup of a book with the synth in it or not (`withSynth`), as the switch said. */
+const synthEverywhere = (book: SetupBook, on: boolean): SetupBook => ({
+  ...book,
+  setups: book.setups.map((setup) => withSynth(setup, on)),
+});
 
 export interface MidiSettingsOptions {
   /** Where the book is kept: `localStorage` under `BOOK_KEY` by default. */
@@ -132,7 +156,6 @@ export interface MidiSettingsOptions {
 }
 
 export class MidiSettings {
-  #internal = $state(true);
   #book: SetupBook = $state.raw(fromJambot(LEGACY_DEFAULTS, NO_PORTS));
   #setup: Setup = $derived(activeSetup(this.#book));
   readonly #store: BookStore;
@@ -142,20 +165,16 @@ export class MidiSettings {
     this.#store = store;
     this.#changed = onchange;
     const legacy = readLegacy();
-    this.#internal = readSynth() ?? legacy?.internal ?? true;
     this.#book = loadBook(store, () => fromJambot(legacy ?? LEGACY_DEFAULTS, NO_PORTS));
-  }
-
-  /** Whether the built-in synth plays. */
-  get internal(): boolean {
-    return this.#internal;
-  }
-  set internal(value: boolean) {
-    this.#internal = value;
-    try {
-      localStorage.setItem(SYNTH_KEY, String(value));
-    } catch {
-      // Storage can be unavailable (private browsing, quota); it just won't persist.
+    const synth = readSynth();
+    if (synth !== SYNTH_MOVED) {
+      this.#book = synthEverywhere(this.#book, synth ?? legacy?.internal ?? true);
+      store.save(this.#book);
+      try {
+        localStorage.setItem(SYNTH_KEY, SYNTH_MOVED);
+      } catch {
+        // Storage can be unavailable: the switch is moved again next time, the same way.
+      }
     }
   }
 
@@ -174,13 +193,18 @@ export class MidiSettings {
     return this.#setup;
   }
 
+  /** The parts the built-in synth plays in the setup in use. */
+  get synth(): Part[] {
+    return synthParts(this.#book);
+  }
+
   /**
-   * Forget every setup and device profile: the book a first visit gets, saved
-   * at once. A way back from a setup that doesn't work; the built-in synth's
-   * switch, Jambot's own, stays as it is.
+   * Forget every setup and device profile: the book a first visit gets, the
+   * synth playing every part, saved at once. A way back from a setup that
+   * doesn't work.
    */
   reset() {
-    this.book = fromJambot(LEGACY_DEFAULTS, NO_PORTS);
+    this.book = synthEverywhere(fromJambot(LEGACY_DEFAULTS, NO_PORTS), true);
   }
 
   /** Give the ports kept by id alone their names, now the ports plugged in say them (`nameByPorts`). */
