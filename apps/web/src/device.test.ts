@@ -7,6 +7,7 @@ import {
   KEYS,
   type SetupBook,
   chooseDevice,
+  hardwareOutputs,
   withCrossing,
   ANY_INPUT,
   withPlays,
@@ -152,7 +153,7 @@ describe('the device’s MIDI ports', () => {
     expect(d.remembersPorts).toBe(true);
     const heard = vi.fn();
     await d.connect(heard);
-    expect(d.settings.setup.outputs[0]!.name).toBe('Synth');
+    expect(hardwareOutputs(d.settings.setup)[0]!.name).toBe('Synth');
     expect(pads.onmidimessage).toBeNull();
     keys.play([0x90, 60, 100]);
     keys.play([0x80, 60, 0]);

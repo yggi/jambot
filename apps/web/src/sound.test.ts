@@ -1,4 +1,4 @@
-import { ANY_INPUT, inputRow, type PortOption, type Setup } from '@yggi/webmidi/core';
+import { ANY_INPUT, BUILT_IN, inputRow, type PortOption, type Setup } from '@yggi/webmidi/core';
 import { describe, expect, it } from 'vitest';
 import { EQUALIZER_FLOOR, equalizerLevels, soundSummary } from './sound.ts';
 
@@ -23,14 +23,28 @@ const setup = (outputs = [none], heard: PortOption[] | 'all' = []): Setup => ({
   routes: {},
   clock: [],
 });
-const settings = { internal: true, setup: setup() };
+const ALL = ['lead', 'bass', 'pad', 'stab', 'drums'] as const;
+const settings = { synth: ALL, setup: setup() };
 
 describe('what the sound card says', () => {
   it('names the synth and that MIDI is not connected', () => {
     expect(soundSummary(settings, ports, false)).toBe('Synth · MIDI not connected');
-    expect(soundSummary({ ...settings, internal: false }, ports, false)).toBe(
+    expect(soundSummary({ ...settings, synth: [] }, ports, false)).toBe(
       'Synth off · MIDI not connected',
     );
+  });
+
+  it('names the parts the synth plays where it plays some, and never names the synth an output', () => {
+    expect(soundSummary({ ...settings, synth: ['lead', 'drums'] }, ports, false)).toBe(
+      'Synth: lead + drums · MIDI not connected',
+    );
+    expect(
+      soundSummary(
+        { ...settings, setup: setup([BUILT_IN, out('out-1', 'Launchpad')]) },
+        ports,
+        true,
+      ),
+    ).toBe('Synth · MIDI out Launchpad');
   });
 
   it('names the setup’s outputs and the inputs it hears', () => {
@@ -41,11 +55,7 @@ describe('what the sound card says', () => {
       soundSummary({ ...settings, setup: setup([none], [ports.inputs[1]!]) }, ports, true),
     ).toBe('Synth · MIDI in Pads');
     expect(
-      soundSummary(
-        { internal: false, setup: setup([out('out-1', 'Launchpad')], 'all') },
-        ports,
-        true,
-      ),
+      soundSummary({ synth: [], setup: setup([out('out-1', 'Launchpad')], 'all') }, ports, true),
     ).toBe('Synth off · MIDI out Launchpad, in all inputs');
     expect(
       soundSummary(

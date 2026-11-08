@@ -3,7 +3,8 @@
  *
  * The synth's audio clock is always the master clock, whether or not the
  * synth itself is heard: MIDI timestamps ride on it through `clockOffset`,
- * so turning the synth off (`internal`) never disturbs MIDI timing.
+ * so the synth playing a part or not (`internal`, the setup's built-in
+ * column: `synthPlays`) never disturbs MIDI timing.
  * `settings` is read live and may change while playing: a new port or
  * channel mapping silences what the old one held before adopting it.
  *
@@ -20,14 +21,15 @@
  */
 
 import { LOOKAHEAD } from '@jambot/engine';
+import type { Part } from '@jambot/engine';
 import { type ClockOffset, clockOffset } from '@yggi/webmidi/core';
 import type { BandRoute } from '../midi/patch.ts';
 import { MidiOut } from './midi-out.ts';
 import { type Output, webAudioOutput } from './output.ts';
 
 export interface BandOutputSettings {
-  /** Whether the built-in synth is heard. */
-  internal(): boolean;
+  /** Whether the built-in synth plays a part. */
+  internal(part: Part): boolean;
   /** Each MIDI output the band sends to, in the setup's order: none sends nowhere. */
   outputs(): readonly BandRoute[];
 }
@@ -75,7 +77,7 @@ export function bandOutput(
     resume: () => base.resume(),
     level: (gain, seconds) => base.level?.(gain, seconds),
     play(part, note, velocity, seconds, duration, timbre) {
-      if (settings.internal()) base.play(part, note, velocity, seconds, duration, timbre);
+      if (settings.internal(part)) base.play(part, note, velocity, seconds, duration, timbre);
       for (const midi of outs.values())
         midi.play(part, note, velocity, seconds, duration, offset.toDeviceMs);
     },

@@ -1,12 +1,16 @@
 /**
  * What the sound card says and draws: the summary line of how this device
- * sounds (the built-in synth, and the MIDI setup's ports), and the levels of
+ * sounds (the parts the built-in synth plays, and the MIDI setup's ports), and the levels of
  * its equalizer glyph. The card's numbers are read here, apart from the
  * component, so a test can hold each wording and each level.
  */
 
-import { heardOf, type PortOption, type Setup } from '@yggi/webmidi/core';
+import type { Part } from '@jambot/engine';
+import { hardwareOutputs, heardOf, type PortOption, type Setup } from '@yggi/webmidi/core';
 import { PERFORMERS, type SoundingNotes } from './sounding.ts';
+
+/** How many parts the band has: the synth playing as many plays them all. */
+const ALL_PARTS = 5;
 
 /** How much of the equalizer's height a bar at rest has, 0 to 1: a resting bar is still a bar. */
 export const EQUALIZER_FLOOR = 0.15;
@@ -28,27 +32,34 @@ export function equalizerLevels(sounding: SoundingNotes, volume: number): number
 }
 
 export interface SoundSettings {
-  readonly internal: boolean;
+  /** The parts the built-in synth plays in the setup in use (`synthParts`), in the band's order. */
+  readonly synth: readonly Part[];
   /** The MIDI setup in use: its outputs, and what its inputs play (the inputs it hears, `heardOf`). */
   readonly setup: Setup;
 }
 
 /**
  * How this device sounds, in one line: "Synth · MIDI out Launchpad, in Keys",
- * the setup's outputs and the inputs it hears, each joined by "+". A port
- * chosen before that is not plugged in now is "not found".
+ * the setup's outputs and the inputs it hears, each joined by "+". The synth
+ * playing every part is "Synth", none "Synth off", some "Synth: lead +
+ * drums". A port chosen before that is not plugged in now is "not found".
  */
 export function soundSummary(
   settings: SoundSettings,
   ports: { readonly inputs: readonly PortOption[]; readonly outputs: readonly PortOption[] },
   connected: boolean,
 ): string {
-  const synth = settings.internal ? 'Synth' : 'Synth off';
+  const synth =
+    settings.synth.length === ALL_PARTS
+      ? 'Synth'
+      : settings.synth.length
+        ? `Synth: ${settings.synth.join(' + ')}`
+        : 'Synth off';
   if (!connected) return `${synth} · MIDI not connected`;
   const named = (list: readonly PortOption[], chosen: PortOption) =>
     list.find((port) => port.id === chosen.id || (!!chosen.name && port.name === chosen.name))
       ?.name ?? (chosen.name ? `${chosen.name} not found` : 'not found');
-  const outputs = settings.setup.outputs.filter((o) => o.id !== 'none');
+  const outputs = hardwareOutputs(settings.setup).filter((o) => o.id !== 'none');
   const heard = heardOf(settings.setup);
   const out = outputs.length
     ? `out ${outputs.map((o) => named(ports.outputs, o)).join(' + ')}`

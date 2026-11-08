@@ -24,7 +24,12 @@ import {
   type Setup,
   type SetupBook,
   type SetupOutput,
+  BUILT_IN,
+  HEARD,
   activeSetup,
+  builtInHears,
+  hardwareOutputs,
+  isBuiltIn,
   listenOf,
   namePorts,
   playsOf,
@@ -87,7 +92,16 @@ export const BAND_ROWS: readonly MatrixRow[] = [
     kind: 'member',
     note: DRUM_NOTES[sound],
   })),
-  { id: KEYS, label: 'Keys', sub: 'you play', kind: 'voice', group: true, playable: false },
+  // (the keys sound on the synth through the part they play: no crossing of the built-in of their own)
+  {
+    id: KEYS,
+    label: 'Keys',
+    sub: 'you play',
+    kind: 'voice',
+    group: true,
+    playable: false,
+    builtIn: false,
+  },
 ];
 
 /** The parts an input can play along on: each of the band's, as the player takes them (`AlongPart`, #564). */
@@ -137,7 +151,8 @@ export function bandRoutes(
 ): BandRoute[] {
   const setup = activeSetup(book);
   const routes = bandRoutesOf(setup);
-  return setup.outputs.map((output) => {
+  // (the built-in synth is no output the band sends MIDI to: `synthPlays` is its)
+  return hardwareOutputs(setup).map((output) => {
     const channels: Partial<Record<Part, number>> = {};
     for (const part of BAND_PARTS) {
       const crossings = own(routes, part);
@@ -164,10 +179,39 @@ export const wantsInputs = (setup: Setup): boolean => {
 
 /** How many of the setup's devices aren't plugged in, by id or by name as webmidi finds them. */
 export const missingOutputs = (setup: Setup, plugged: readonly PortOption[]): number =>
-  setup.outputs.filter(
+  hardwareOutputs(setup).filter(
     (o) =>
       o.id !== 'none' && !plugged.some((p) => p.id === o.id || (!!o.name && p.name === o.name)),
   ).length;
+
+/**
+ * Whether the built-in synth plays a part in the setup in use: its column
+ * (webmidi's `BUILT_IN`, decision 004) crosses the part's row.
+ */
+export const synthPlays = (book: SetupBook, part: Part): boolean => builtInHears(book, BAND, part);
+
+/** The parts the built-in synth plays in the setup in use, in the band's order. */
+export const synthParts = (book: SetupBook): Part[] =>
+  BAND_PARTS.filter((part) => synthPlays(book, part));
+
+/**
+ * A setup with the built-in synth in it, playing every part, or without it:
+ * what the switch it replaces said (on or off), moved into each setup once.
+ * The setup is changed as it is, a named one too: this is no person's change.
+ */
+export function withSynth(setup: Setup, on: boolean): Setup {
+  // (off: a setup kept before the synth was a column never has it)
+  if (!on || setup.outputs.some(isBuiltIn)) return setup;
+  const band = bandRoutesOf(setup);
+  const routes = Object.fromEntries(
+    BAND_PARTS.map((part) => [part, { ...(own(band, part) ?? {}), [BUILT_IN.key]: HEARD }]),
+  );
+  return {
+    ...setup,
+    outputs: [BUILT_IN, ...setup.outputs],
+    routes: { ...setup.routes, [BAND]: { ...band, ...routes } },
+  };
+}
 
 /** The channels the band and the keys send on to an output, for the inspector's meter. */
 export const channelsTo = (setup: Setup, key: string): number[] => [

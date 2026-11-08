@@ -33,12 +33,13 @@ import {
   clockOffset,
   forwardsOf,
   forwardsOfInput,
+  hardwareOutputs,
   listenOf,
   outputNow,
   portsMessage,
 } from '@yggi/webmidi/core';
 import { MidiAccess } from '@yggi/webmidi/web';
-import { BAND, bandRoutes, partPlayed, wantsInputs } from './midi/patch.ts';
+import { BAND, bandRoutes, partPlayed, synthPlays, wantsInputs } from './midi/patch.ts';
 import { MidiSettings } from './midi/settings.svelte.ts';
 import { type Surroundings, browserSurroundings } from './player.svelte.ts';
 import type { DeviceClocks } from './session/clocks.ts';
@@ -203,7 +204,7 @@ export class Device {
   readonly surroundings: Surroundings = browserSurroundings(() => {
     const { base, offset } = this.clockOf();
     return bandOutput(
-      { internal: () => this.settings.internal, outputs: () => this.#routes },
+      { internal: (part) => synthPlays(this.settings.book, part), outputs: () => this.#routes },
       base,
       offset,
     );
@@ -333,7 +334,7 @@ export class Device {
   /** Whether a port was chosen before: a granted permission needs no gesture to connect again. */
   get remembersPorts(): boolean {
     const setup = this.settings.setup;
-    return setup.outputs.some((o) => o.id !== 'none') || wantsInputs(setup);
+    return hardwareOutputs(setup).some((o) => o.id !== 'none') || wantsInputs(setup);
   }
 }
 
