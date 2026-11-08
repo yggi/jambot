@@ -6,7 +6,7 @@ import { COMPOSER } from './facet.ts';
 import { SECTION_BARS } from './form.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { keyHelix } from './key.ts';
-import { LEAD_REPOSITORY, MOTIF_LEADS, leadRepository, leadText } from './lead-lines.ts';
+import { LEAD_REPOSITORY, MOTIF_LEADS, leadRepository, leadText, readLead } from './lead-lines.ts';
 import type { LeadNote } from './lead-query.ts';
 import { stylePoint } from './meter-query.ts';
 import type { HeardNote } from './muse.ts';
@@ -167,9 +167,12 @@ function song(
   ],
 ): LearnedLayer {
   const sections = 2;
-  // (the melody's bars in turn, over the second half of the second section)
-  const played: HeardNote[] = range(SECTION_BARS / 2).flatMap((k) => {
-    const bar = SECTION_BARS + SECTION_BARS / 2 + k;
+  // (the melody's bars in turn, over the second half of the second section; a melody longer than that, once, from the
+  // section's first bar: the section's last two bars are judged after it is filed, so a phrase that ends with it loses them)
+  const length = Math.max(SECTION_BARS / 2, melody.length);
+  const first = melody.length > SECTION_BARS / 2 ? SECTION_BARS : SECTION_BARS + SECTION_BARS / 2;
+  const played: HeardNote[] = range(length).flatMap((k) => {
+    const bar = first + k;
     const notes = melody[k % melody.length]!;
     return notes.map(([step, note], i) => ({
       note: note + shift,
@@ -283,8 +286,15 @@ describe('the Muse files a player’s phrase of two bars as one line, and it com
   const layer = song(3, 'Bo', 0, TWINKLE);
   const bo = leadLines(layer).find((f) => f.meta.source === 'Bo')!;
 
-  it('files Twinkle’s two bars, played twice, as one line of two bars, not its first bar alone', () => {
-    expect(bo.fragment.text).toBe(leadText(TWINKLE_LINE, 16));
+  it('files Twinkle’s two bars, played twice, as one line of two bars: since rung 4 the call and answer over twinkle, its answer wonder', () => {
+    expect(bo.fragment.text).toBe(
+      [
+        '&twinkle from twinkle &key',
+        '&wonder from wonder &key',
+        '&lead from call_and_answer(answer=&wonder) &twinkle',
+      ].join('\n'),
+    );
+    // (it plays the notes the line of rung 3 played: Twinkle starts on the tonic, so its degrees of the key are its own)
     expect(FILED.read(bo.fragment.id, METERS['4/4'], layer)).toEqual({
       bars: 2,
       notes: TWINKLE_LINE,
@@ -317,6 +327,67 @@ describe('the Muse files a player’s phrase of two bars as one line, and it com
     expect(
       leadsOf(run).every((id) => id === '-' || FILED.read(id, METERS['4/4'])?.bars === 1),
     ).toBe(true);
+  });
+});
+
+/** Twinkle whole in A minor, six bars of eighths: its call, its answer, its bridge twice, its call and answer again. */
+const TWINKLE_WHOLE = [
+  [69, 69, 76, 76, 77, 77, 76],
+  [74, 74, 72, 72, 71, 71, 69],
+  [76, 76, 74, 74, 72, 72, 71],
+  [76, 76, 74, 74, 72, 72, 71],
+  [69, 69, 76, 76, 77, 77, 76],
+  [74, 74, 72, 72, 71, 71, 69],
+].map((bar) => bar.map((note, i) => [2 * i, note] as const));
+
+describe('the Muse files Twinkle played whole as the ternary over twinkle, and it comes back (#580, rung 4)', () => {
+  const layer = song(3, 'Cy', 0, TWINKLE_WHOLE);
+  const cy = leadLines(layer).find((f) => f.meta.source === 'Cy')!;
+
+  it('files its six bars as the form over the seed’s motifs, in the key’s own degrees, unvaried', () => {
+    expect(cy.fragment.text).toBe(
+      [
+        '&twinkle from twinkle &key',
+        '&wonder from wonder &key',
+        '&lead from ternary(answer=&wonder) &twinkle',
+      ].join('\n'),
+    );
+    expect(FILED.read(cy.fragment.id, METERS['4/4'], layer)?.bars).toBe(6);
+    expect(FILED.keyed?.(cy.fragment.id, layer)).toBe(true);
+    expect(
+      FILED.vary?.(cy.fragment.id, { meter: METERS['4/4'], meterFragment: 'meter' }, 0.5, layer),
+    ).toBeNull();
+  });
+
+  it('plays it in a later song: six bars in turn, Twinkle’s notes on their steps, every second bar’s last the cadence’s', () => {
+    const near: Style = { ...SYNTH_POP.style, sync: SYNTH_POP.style.sync + 0.05, entropy: 0.3 };
+    const whole = readLead(cy.fragment.text, METERS['4/4'])!.notes;
+    const fromFirst = whole.map((n) => ({ ...n, degree: n.degree - whole[0]!.degree }));
+    let heard = 0;
+    for (const seed of [5, 6, 7]) {
+      const run = play(8 * SECTION_BARS, near, { layer }, seed);
+      for (const at of phraseStarts(run, cy.fragment.id).filter((b) => b % SECTION_BARS === 0)) {
+        const bars = range(6).map((k) => run[at + k]!.bar);
+        const played = leadOf(
+          bars.flatMap((bar, k) =>
+            bar.written
+              .filter((n) => n.part === 'lead')
+              .map((n) => ({ ...n, step: n.step + 16 * k })),
+          ),
+          bars[0]!.plan.key,
+        );
+        // (but the last note of every second bar, which the phrase grammar closes on a chord tone, as it closes bars 2 and 4)
+        const cadence = (n: LeadNote) =>
+          fromFirst.some((m, i) => m.step === n.step && (fromFirst[i + 1]?.step ?? 96) % 32 === 0);
+        expect(
+          played.filter((n) => !cadence(n)),
+          `seed ${seed}, bar ${at}`,
+        ).toEqual(fromFirst.filter((n) => !cadence(n)));
+        expect(played.map((n) => n.step)).toEqual(fromFirst.map((n) => n.step));
+        heard++;
+      }
+    }
+    expect(heard).toBeGreaterThan(0);
   });
 });
 

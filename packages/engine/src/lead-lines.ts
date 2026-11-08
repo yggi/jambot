@@ -40,7 +40,8 @@ import type { Meter, MeterName } from '@jambot/theory';
 import { METERS, stepsOf } from '@jambot/theory';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { bodyOf } from '@yggi/cells/engine/use';
-import { flatten } from '@yggi/cells/engine/flatten';
+import { flatten, tapped } from '@yggi/cells/engine/flatten';
+import { resolveSeed } from '@yggi/cells/repository/library';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { type Operator, variations } from '@yggi/cells/engine/vary/index';
 import { tapWhole } from '@yggi/cells/engine/vary/lines';
@@ -132,7 +133,10 @@ export function leadText(notes: readonly LeadNote[], steps: number): string {
 export function readLead(text: string, meter: Meter): LeadRead | null {
   const name = nameOf(meter);
   if (!name) return null;
-  const result = compileSource(unionOf(text, leadBench(name)).text);
+  // (a line the Muse filed as a form over the seed's motifs takes them from cells' library, #580 rung 4)
+  const result = compileSource(unionOf(text, leadBench(name)).text, undefined, {
+    resolve: resolveSeed,
+  });
   if (!result.ok) return null;
   const cell = result.cells.get('lead');
   if (!cell?.step) return null;
@@ -147,13 +151,15 @@ export function readLead(text: string, meter: Meter): LeadRead | null {
   if (Math.abs(lap - Math.round(lap)) > 1e-9) return null;
   const bars = Math.round(lap);
   const notes: LeadNote[] = [];
-  for (const e of flatten(result, 'lead', codeShifts(result))) {
-    if (e.table !== 'key' || e.via || e.tableShift !== 0 || (e.transpose ?? 0) !== 0) return null;
+  const shifts = codeShifts(result);
+  for (const e of flatten(result, 'lead', shifts)) {
+    if (e.table !== 'key' || e.tableShift !== 0 || (e.transpose ?? 0) !== 0) return null;
     const at = (e.step * whole) / perStep;
     const step = Math.round(at);
     if (Math.abs(at - step) > 1e-6 || step < 0 || step >= bars * steps) return null;
-    // (`+ 0`: an inversion mirrors a 0 to -0)
-    notes.push({ step, degree: e.value + 0, alter: e.alter + 0 });
+    // (a form's relative picks, `inverse(&call)`, as they sound; `+ 0`: an inversion mirrors a 0 to -0)
+    const { value, alter } = tapped(result, e, shifts);
+    notes.push({ step, degree: value + 0, alter: alter + 0 });
   }
   if (!notes.length) return null;
   return { bars, notes: notes.sort((a, b) => a.step - b.step) };
@@ -240,6 +246,8 @@ export function leadRepository(
       read,
       text: leadText,
       vary: (name) => ({ workbench: leadBench(name), operators: LEAD_OPERATORS, degrees: [LIFT] }),
+      // (a form over the seed's motifs the Muse filed isn't varied: varying inside a form is not ruled yet, #580 rung 4)
+      varies: (text) => !formed(text),
     }),
     phrase: (notes, meter) => phraseOf(notes, meter, LEAD_FORM),
     keyed: (id, layer) => keyedLine(fragments, id, layer),
@@ -256,12 +264,21 @@ export function keyedLine(seeds: readonly Fragment[], id: string, layer?: Learne
   const seen = new Set<string>();
   for (let at: string | undefined = id; at !== undefined && !seen.has(at);) {
     if (seeds.some((f) => f.id === at)) return true;
+    // (a form over the seed's motifs the Muse filed is written in the key's own degrees, as its motifs are, #580 rung 4)
+    const filed = layer?.filed.find((f) => f.fragment.id === at);
+    if (filed && formed(filed.fragment.text)) return true;
     seen.add(at);
     const varies: unknown = layer?.filed.find((f) => f.fragment.id === at)?.meta['varies'];
     at = typeof varies === 'string' ? varies : undefined;
   }
   return false;
 }
+
+/**
+ * Whether a lead line's text is a form over the seed's motifs, as the Muse files a phrase that is one (#580 rung 4,
+ * cells' `decompose`): a line that takes a seed fragment (`&twinkle from twinkle &key`), not a line of notes.
+ */
+export const formed = (text: string): boolean => /^&\w+ from \w/m.test(text);
 
 /** Cells' motifs and the lead lines the layer files, as the composer asks them. */
 export const LEAD_REPOSITORY: LeadRepository = leadRepository();

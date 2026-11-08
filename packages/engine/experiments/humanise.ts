@@ -40,9 +40,13 @@ import {
   type LeadNote,
   distilledLead,
   heardLead,
+  readLead,
+  keyHelix,
   SONG_CLOCK,
   phrasesOf,
 } from '../src/index.ts';
+import { METERS, heightOf } from '@jambot/theory';
+const METERS_4_4 = METERS['4/4'];
 
 /** A reader: what the Muse would make of the notes heard, for one bar. */
 export type Reader = (notes: readonly HeardNote[], bar: number, key: Key) => Judgement[];
@@ -687,8 +691,54 @@ export function phraseFiledRate(
     });
     const heard = humanise(exact, sloppiness, seed, 0);
     const bars = range(4).flatMap((k) => heardLead(judgeBar(heard, 1 + k, key), 1 + k));
-    const line = distilledLead(bars, BAR_STEPS);
+    const line = distilledLead(bars, BAR_STEPS)?.notes;
     if (line && JSON.stringify(line) === JSON.stringify(TWINKLE_LINE)) right++;
+  }
+  return { seeds, right };
+}
+
+/** Twinkle whole and Hänschen klein whole, each as cells writes it: the form over the seed's motifs (#580, rung 4). */
+export const TUNES_WHOLE = {
+  twinkle: [
+    '&twinkle from twinkle &key',
+    '&wonder from wonder &key',
+    '&lead from ternary(answer=&wonder) &twinkle',
+  ].join('\n'),
+  haenschen: [
+    '&haenschen from haenschen &key',
+    '&hinein from hinein &key',
+    '&heim from heim &key',
+    '&weinet from weinet &key',
+    '&lead from rounded_binary(answer=&hinein, close=&heim, bridge=&weinet) &haenschen',
+  ].join('\n'),
+} as const;
+
+/**
+ * How often the Muse files a tune played whole as the form it is (#580, rung 4): over `seeds` hands of `sloppiness`,
+ * each playing the tune's notes (cells' form over its motifs, read as the key's degrees, in `key` from the tonic of
+ * A4's octave) from bar 1 once, every bar judged as she judges it, heard as a lead and the section distilled in 4/4;
+ * right where she files the tune's own text.
+ */
+export function formFiledRate(
+  tune: keyof typeof TUNES_WHOLE,
+  sloppiness: number,
+  key: Key,
+  seeds = 40,
+): { readonly seeds: number; readonly right: number } {
+  const read = readLead(TUNES_WHOLE[tune], METERS_4_4)!;
+  const scale = keyHelix(key);
+  const exact: HeardNote[] = read.notes.map((n, i) => ({
+    note: heightOf(scale, 35 + n.degree),
+    velocity: 100,
+    source: 'a hand',
+    position: barStart(1) + n.step,
+    end: barStart(1) + (read.notes[i + 1]?.step ?? read.bars * BAR_STEPS),
+  }));
+  let right = 0;
+  for (let seed = 1; seed <= seeds; seed++) {
+    const heard = humanise(exact, sloppiness, seed, 0);
+    const bars = range(read.bars).flatMap((k) => heardLead(judgeBar(heard, 1 + k, key), 1 + k));
+    if (distilledLead(bars, BAR_STEPS, '4/4')?.text === TUNES_WHOLE[tune]) right++;
   }
   return { seeds, right };
 }
