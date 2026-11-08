@@ -379,6 +379,8 @@ describe('the Muse’s judgement', () => {
       motif: plain([0, 4, 8], [0, 2, 1]),
       level: 100,
       confidence: 1,
+      // (its first note, A4, the key's 35th degree: five octaves of seven over A0, #580 rung 3)
+      origin: 35,
     });
   });
 
@@ -394,6 +396,7 @@ describe('the Muse’s judgement', () => {
         motif: plain([0, 3, 6, 9, 12], shape),
         level: 100,
         confidence: 1,
+        origin: 35,
       });
     }
   });
@@ -662,6 +665,7 @@ describe('the Muse’s judgement', () => {
         },
         level: 100,
         confidence: 1,
+        origin: 30,
       },
       {
         kind: 'motif',
@@ -669,6 +673,7 @@ describe('the Muse’s judgement', () => {
         motif: plain([0, 4, 8], [0, 2, 4]),
         level: 100,
         confidence: 1,
+        origin: 35,
       },
     ]);
   });

@@ -158,16 +158,25 @@ const ADA_LINE: LeadNote[] = [0, 2, 1, 4, 3].map((degree, i) => ({
  * The layer after a song at Synth-pop at entropy 0.3 in which a player played Ada's motif `shift` semitones moved, in
  * the second half of its second section, answering the lead's phrase there, and the 2 sections after.
  */
-function song(seed = 3, source = 'Ada', shift = 0): LearnedLayer {
+function song(
+  seed = 3,
+  source = 'Ada',
+  shift = 0,
+  melody: readonly (readonly (readonly [step: number, note: number])[])[] = [
+    ADA.map((n, i) => [ADA_STEPS[i]!, n] as const),
+  ],
+): LearnedLayer {
   const sections = 2;
+  // (the melody's bars in turn, over the second half of the second section)
   const played: HeardNote[] = range(SECTION_BARS / 2).flatMap((k) => {
     const bar = SECTION_BARS + SECTION_BARS / 2 + k;
-    return ADA.map((note, i) => ({
+    const notes = melody[k % melody.length]!;
+    return notes.map(([step, note], i) => ({
       note: note + shift,
       velocity: 96,
       source,
-      position: bar * 16 + ADA_STEPS[i]!,
-      end: bar * 16 + (ADA_STEPS[i + 1] ?? 16),
+      position: bar * 16 + step,
+      end: bar * 16 + (notes[i + 1]?.[0] ?? 16),
     }));
   });
   const env: TransportEnv = {
@@ -255,6 +264,59 @@ describe('the Muse files a player’s motif as a lead line, and it comes back in
       ADA_LINE.slice(0, -1).map((n) => ({ ...n, step: n.step + 16, degree: n.degree - 2 })),
     );
     expect(leadOf(lead(3), bars[3]!.plan.key)).not.toEqual(ADA_LINE);
+  });
+});
+
+/** Twinkle's first two bars in A minor, eighths, the last of each held: A A E E F F E, D D C C B B A. */
+const TWINKLE = [
+  [69, 69, 76, 76, 77, 77, 76],
+  [74, 74, 72, 72, 71, 71, 69],
+].map((bar) => bar.map((note, i) => [2 * i, note] as const));
+/** Twinkle's two bars as one line: degrees from its first note, over two bars. */
+const TWINKLE_LINE: LeadNote[] = [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0].map((degree, i) => ({
+  step: 2 * i + (i >= 7 ? 2 : 0),
+  degree,
+  alter: 0,
+}));
+
+describe('the Muse files a player’s phrase of two bars as one line, and it comes back whole (#580, rung 3)', () => {
+  const layer = song(3, 'Bo', 0, TWINKLE);
+  const bo = leadLines(layer).find((f) => f.meta.source === 'Bo')!;
+
+  it('files Twinkle’s two bars, played twice, as one line of two bars, not its first bar alone', () => {
+    expect(bo.fragment.text).toBe(leadText(TWINKLE_LINE, 16));
+    expect(FILED.read(bo.fragment.id, METERS['4/4'], layer)).toEqual({
+      bars: 2,
+      notes: TWINKLE_LINE,
+    });
+  });
+
+  it('plays it in a later song, both its bars in turn, at a style point near it, its last note the cadence’s', () => {
+    const near: Style = { ...SYNTH_POP.style, sync: SYNTH_POP.style.sync + 0.05, entropy: 0.3 };
+    let heard = 0;
+    for (const seed of [5, 6, 7]) {
+      const run = play(8 * SECTION_BARS, near, { layer }, seed);
+      for (const at of phraseStarts(run, bo.fragment.id)) {
+        const [one, two] = [run[at]!.bar, run[at + 1]!.bar];
+        const lead = (bar: typeof one) => bar.written.filter((n) => n.part === 'lead');
+        // (every note but the last, which the phrase's cadence closes on a chord tone, as it closes an answer's)
+        const played = leadOf(
+          [...lead(one), ...lead(two).map((n) => ({ ...n, step: n.step + 16 }))],
+          one.plan.key,
+        );
+        expect(played.slice(0, -1), `seed ${seed}, bar ${at}`).toEqual(TWINKLE_LINE.slice(0, -1));
+        expect(played.at(-1)?.step).toBe(TWINKLE_LINE.at(-1)!.step);
+        heard++;
+      }
+    }
+    expect(heard).toBeGreaterThan(0);
+  });
+
+  it('takes a seed motif of two bars no more than before: only a phrase the Muse filed', () => {
+    const run = play(4 * SECTION_BARS, { ...SYNTH_POP.style, entropy: 0.3 }, {}, 5);
+    expect(
+      leadsOf(run).every((id) => id === '-' || FILED.read(id, METERS['4/4'])?.bars === 1),
+    ).toBe(true);
   });
 });
 

@@ -37,6 +37,9 @@ import {
   folded,
   priorOf,
   type Hand as RememberedHand,
+  type LeadNote,
+  distilledLead,
+  heardLead,
   SONG_CLOCK,
   phrasesOf,
 } from '../src/index.ts';
@@ -643,4 +646,49 @@ export function sessionRate(
     }
   }
   return { bars, right, laterBars, laterRight };
+}
+
+/** Twinkle's first two bars in A minor, eighths, the last of each held: A A E E F F E, D D C C B B A (#580, rung 3). */
+export const TWINKLE_BARS: readonly (readonly (readonly [step: number, note: number])[])[] = [
+  [69, 69, 76, 76, 77, 77, 76],
+  [74, 74, 72, 72, 71, 71, 69],
+].map((bar) => bar.map((note, i) => [2 * i, note] as const));
+
+/** Twinkle's two bars as the one line the Muse should file: degrees from its first note, over two bars. */
+export const TWINKLE_LINE: readonly LeadNote[] = [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0].map(
+  (degree, i) => ({
+    step: 2 * i + (i >= 7 ? 2 : 0),
+    degree,
+    alter: 0,
+  }),
+);
+
+/**
+ * How often the Muse files Twinkle's two bars as one line of two bars (#580, rung 3): over `seeds` hands of
+ * `sloppiness`, each playing the two bars twice from bar 1 as one phrase, every bar judged as she judges it, the bars
+ * heard as a lead (`heardLead`) and the section distilled (`distilledLead`).
+ */
+export function phraseFiledRate(
+  sloppiness: number,
+  key: Key,
+  seeds = 20,
+): { readonly seeds: number; readonly right: number } {
+  let right = 0;
+  for (let seed = 1; seed <= seeds; seed++) {
+    const exact: HeardNote[] = range(4).flatMap((k) => {
+      const bar = TWINKLE_BARS[k % 2]!;
+      return bar.map(([step, note], i) => ({
+        note,
+        velocity: 100,
+        source: 'a hand',
+        position: barStart(1 + k) + step,
+        end: barStart(1 + k) + (bar[i + 1]?.[0] ?? 16),
+      }));
+    });
+    const heard = humanise(exact, sloppiness, seed, 0);
+    const bars = range(4).flatMap((k) => heardLead(judgeBar(heard, 1 + k, key), 1 + k));
+    const line = distilledLead(bars, BAR_STEPS);
+    if (line && JSON.stringify(line) === JSON.stringify(TWINKLE_LINE)) right++;
+  }
+  return { seeds, right };
 }

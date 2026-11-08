@@ -84,6 +84,13 @@ export type Judgement =
        * nearest step, which has no such measure.
        */
       readonly confidence?: number;
+      /**
+       * The degree of the key the bar's first note is on, counted from the key's tonic in its lowest octave (A4 in A
+       * minor is 35, five octaves of seven), as the key's helix counts, as the motif's degrees are counted
+       * from that note (#580, rung 3; session contract v1 minor 8): what joins a player's bars in a row into a phrase.
+       * Absent from a judgement of protocol 20 or before.
+       */
+      readonly origin?: number;
     }
   | { readonly kind: 'mashing'; readonly source: string; readonly count: number }
   | { readonly kind: 'too few'; readonly source: string; readonly count: number }
@@ -302,6 +309,7 @@ function judge(
     motif: accents.some((a) => a !== 0) ? { ...motif, accents } : motif,
     level,
     ...(confidence === undefined ? {} : { confidence }),
+    origin,
   };
 }
 

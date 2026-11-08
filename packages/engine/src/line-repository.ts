@@ -164,7 +164,14 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
       // (the round trip: a line stated from its notes reads back as them, on its bench)
       const known = `${text}\n${meterKey(bench.meter)}`;
       if (filed.file && !reads.has(known))
-        reads.set(known, { bars, notes: [...notes].sort((a, b) => a.step - b.step) });
+        reads.set(known, {
+          // (a line of a phrase spans the bars its notes do, #580 rung 3)
+          bars: Math.max(
+            bars,
+            Math.ceil((Math.max(...notes.map((n) => n.step)) + 1) / stepsOf(bench.meter)),
+          ),
+          notes: [...notes].sort((a, b) => a.step - b.step),
+        });
       return { layer: cappedLayer(together), id: filed.id, held: filed.file === null };
     },
     read(id, meter, layer) {
