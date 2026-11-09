@@ -745,3 +745,48 @@ test('puts the views on a rail at the left of a phone on its side, at 844 x 390 
     ).toBeLessThanOrEqual(0);
   }
 });
+
+test('the loop button repeats the section heard, bar for bar, every note written and every onset where it fell in the section before (#628)', async ({
+  page,
+}) => {
+  // 24 bars at 108 bpm, 53 s, after the count-in.
+  test.setTimeout(120_000);
+  const errors = await listen(page);
+  await solo(page);
+  // The radio off, so the tempo holds and a bar plays again in the time it first took.
+  await openStyle(page);
+  await page.getByRole('switch', { name: 'Radio' }).uncheck();
+  await start(page);
+  await playing(page);
+  const events = () => page.evaluate(() => window.jambot!.played().events);
+  const lastBar = async () => Math.max(-1, ...(await events()).map((e) => e.bar));
+  // At 108 bpm a bar is 2.2 s: tap in the second section, before its last bar is composed.
+  await expect.poll(lastBar, { timeout: 30_000 }).toBeGreaterThanOrEqual(9);
+  expect(await lastBar()).toBeLessThan(14);
+  const loop = page.getByRole('button', { name: 'Loop' });
+  await loop.click();
+  await expect(loop).toHaveText('repeat');
+  await expect.poll(lastBar, { timeout: 40_000 }).toBeGreaterThanOrEqual(24);
+  await expect(loop).toHaveText('loop');
+  const played = await events();
+  const bars = (from: number) =>
+    played
+      .filter((e) => e.bar >= from && e.bar < from + 8)
+      .sort((a, b) => a.seconds - b.seconds || a.note - b.note || a.part.localeCompare(b.part));
+  const first = bars(8);
+  const again = bars(16);
+  // What is written plays again; the performer draws its feel (a velocity, a length) for each bar it plays, as a repeat sign is played.
+  const written = ({ bar, part, step, note }: (typeof played)[number]) => ({
+    bar: bar % 8,
+    part,
+    step,
+    note,
+  });
+  expect(first.length).toBeGreaterThan(20);
+  expect(again.map(written)).toEqual(first.map(written));
+  // Every onset falls the same time after the first's: the section, 8 bars later, within 1 ms.
+  const shift = again[0]!.seconds - first[0]!.seconds;
+  const spread = again.map((e, i) => Math.abs(e.seconds - first[i]!.seconds - shift));
+  expect(Math.max(...spread)).toBeLessThan(0.001);
+  expect(errors).toEqual([]);
+});
