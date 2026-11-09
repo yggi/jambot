@@ -108,4 +108,25 @@ describe('the transport', () => {
     render(Transport, props({ playing: true }));
     expect(screen.queryByRole('button', { name: 'Loop' })).toBeNull();
   });
+  it('has a looper of 1, 2 and 4 bars that asks for the window tapped, and rests while a section plays again (#629)', async () => {
+    const onbars = vi.fn();
+    const { rerender } = render(
+      Transport,
+      props({ playing: true, looping: 'off', onloop: () => {}, onbars }),
+    );
+    const looper = screen.getByRole('group', { name: 'Looper' });
+    const two = screen.getByRole('button', { name: 'Loop the last 2 bars' });
+    expect(looper).toContainElement(two);
+    expect(screen.getByRole('button', { name: 'Loop the last bar' })).toBeEnabled();
+    await fireEvent.click(two);
+    expect(onbars).toHaveBeenCalledWith(2);
+    await rerender({ looped: 2 });
+    expect(two).toHaveAttribute('aria-pressed', 'true');
+    expect(two.getAttribute('title')).toMatch(/let it go/);
+    // The section's button rests while the looper plays, and the looper while a section plays again.
+    expect(screen.getByRole('button', { name: 'Loop' })).toBeDisabled();
+    await rerender({ looped: null, looping: 'locked' });
+    expect(two).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Loop' })).toBeEnabled();
+  });
 });

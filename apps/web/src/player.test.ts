@@ -1404,6 +1404,29 @@ describe('the loop (#628)', () => {
     expect(player.station!.walked).toBeGreaterThan(walked);
   });
 
+  it('loops the last 2 bars from the next, the radio held, and plays where the song is when let go (#629)', async () => {
+    const { player, bars, run } = await playing();
+    run(OPENING + 1.3 * SECTION);
+    player.tapBars(2);
+    expect(player.loopedBars).toBe(2);
+    expect(player.looping).toBe('off');
+    const loop = player.loop!;
+    expect(loop.song).toBe('runs');
+    const walked = player.station!.walked;
+    run(1.5 * SECTION);
+    expect(player.station!.walked).toBe(walked);
+    player.tapBars(2);
+    const end = loopEnd(player.loop!)!;
+    run(SECTION);
+    expect(player.loopedBars).toBeNull();
+    expect(player.loop).toBeNull();
+    const at = (bar: number) => bars.find((b) => b.bar === bar)!;
+    for (let bar = loop.at; bar < end; bar++)
+      expect(sound(at(bar)), `bar ${bar}`).toEqual(sound(at(loop.from + ((bar - loop.at) % 2))));
+    // The song ran on beneath: the bar after the loop is in its place in its section.
+    expect(at(end).barInSection).toBe(end % SECTION_BARS);
+  });
+
   it('does nothing for a band not playing', () => {
     const player = new Player(surroundings().s);
     player.tapLoop();
