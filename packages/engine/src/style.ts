@@ -13,7 +13,11 @@
  * point the same way (`presetMode`, `mode-repository.ts`, #420).
  *
  * Style space's four axes, and what each measures, are cells' table of axes
- * (yggi/cells#397); entropy and the bpm are the track's own.
+ * (yggi/cells#397, decision 076): `sync harm bite mood`. Jambot names cells'
+ * `bite` `artic`, the articulation it is, as the session's wire, the feel's
+ * frame and the score write it (`CELLS_AXIS`). Energy, the intensity Jambot
+ * plays a style at (cells decision 076 §3), entropy and the bpm are the
+ * track's own.
  *
  * Positions are steps of the song, counted from its start, 16 to a bar.
  */
@@ -32,15 +36,26 @@ export interface AxisRange {
 
 const unit: AxisRange = { min: 0, max: 1, space: 'linear' };
 
+/** The style space's axes, by Jambot's names (cells' `bite` is Jambot's `artic`, `CELLS_AXIS`). */
+export type StyleAxisName = 'sync' | 'harm' | 'artic' | 'mood';
+
+/**
+ * Each style axis's name in cells' table (`AXES`, decision 076): its own, but `artic`, which cells calls `bite`. The
+ * session's wire (its `track` and `nudge`), the feel's frame and the score write it `artic`, and keep doing so.
+ */
+export const CELLS_AXIS: Readonly<Record<StyleAxisName, string>> = {
+  sync: 'sync',
+  harm: 'harm',
+  artic: 'bite',
+  mood: 'mood',
+};
+
 /** A style axis as cells' table of axes has it (yggi/cells#397, `AXES`): its range, glided linearly. */
 function cellsAxis(name: StyleAxisName): AxisRange {
-  const axis = CELLS_AXES.find((a) => a.name === name);
-  if (!axis) throw new Error(`cells' table of axes has no ${name}`);
+  const axis = CELLS_AXES.find((a) => a.name === CELLS_AXIS[name]);
+  if (!axis) throw new Error(`cells' table of axes has no ${CELLS_AXIS[name]}`);
   return { min: axis.range[0], max: axis.range[1], space: 'linear' };
 }
-
-/** The style space's axes, cells' (yggi/cells#397): what each measures is said there. */
-export type StyleAxisName = 'sync' | 'harm' | 'artic' | 'energy';
 
 /**
  * Style space's axes in cells' order (`AXES`): the one list of them in Jambot (#596). Their names are typed here, the
@@ -49,10 +64,10 @@ export type StyleAxisName = 'sync' | 'harm' | 'artic' | 'energy';
  */
 export const STYLE_AXIS_NAMES: readonly StyleAxisName[] = (() => {
   const names = CELLS_AXES.map((a) => a.name);
-  const typed: readonly StyleAxisName[] = ['sync', 'harm', 'artic', 'energy'];
-  if (names.length !== typed.length || names.some((n, i) => n !== typed[i]))
+  const typed: readonly StyleAxisName[] = ['sync', 'harm', 'artic', 'mood'];
+  if (names.length !== typed.length || names.some((n, i) => n !== CELLS_AXIS[typed[i]!]))
     throw new Error(
-      `cells' table of axes is ${names.join(' ')}; Jambot reads ${typed.join(' ')} (style.ts)`,
+      `cells' table of axes is ${names.join(' ')}; Jambot reads ${typed.map((a) => CELLS_AXIS[a]).join(' ')} (style.ts)`,
     );
   return typed;
 })();
@@ -62,28 +77,35 @@ export const STYLE_AXIS_WORDS: Readonly<
   Record<StyleAxisName, { readonly label: string; readonly ends: readonly [string, string] }>
 > = Object.fromEntries(
   STYLE_AXIS_NAMES.map((name) => {
-    const axis = CELLS_AXES.find((a) => a.name === name)!;
+    const axis = CELLS_AXES.find((a) => a.name === CELLS_AXIS[name])!;
     return [name, { label: axis.label, ends: axis.ends }];
   }),
 ) as Record<StyleAxisName, { label: string; ends: readonly [string, string] }>;
 
 /**
  * The track's axes: style space's four from cells' table (sync, harm, artic,
- * energy), and the two that are the track's own, entropy and the bpm.
+ * mood), and the three that are the track's own, energy, entropy and the bpm.
+ * Mood comes last: the radio draws an axis's step by its place here
+ * (`walkRadio`), so the axes before it walk as they did before it came.
  */
 export const AXES = {
   /** On the beat (0) to off the beat (1). */
   sync: cellsAxis('sync'),
   /** A static vamp (0) to moving, rich harmony (1). */
   harm: cellsAxis('harm'),
-  /** Legato (0) to staccato (1). */
+  /** Legato, paddy (0) to staccato, stabby (1): cells' `bite`. */
   artic: cellsAxis('artic'),
-  /** Sparse (0) to dense (1). */
-  energy: cellsAxis('energy'),
+  /**
+   * Sparse (0) to dense (1): the intensity the band plays the style at, which its sections offset (`barEnergy`).
+   * Jambot's own since cells v0.23.0, where it left the style point (cells decision 076 §3).
+   */
+  energy: unit,
   /** Predictable (0) to surprising (1). */
   entropy: unit,
   /** Beats per minute: the beats of the meter the track counts (`tempo.ts`, #367). */
   bpm: { min: 60, max: 180, space: 'log' },
+  /** Darker (0) to brighter (1): what the mode says, moved by tension (cells decision 076 §2). */
+  mood: cellsAxis('mood'),
 } as const satisfies Record<string, AxisRange>;
 
 export type Axis = keyof typeof AXES;
@@ -125,18 +147,40 @@ export interface Preset {
 }
 
 /**
+ * The energy each preset plays at: the energy cells' library placed it at until v0.23.0, where energy left the style
+ * point (cells decision 076 §3, its intensity an offset from the style's, yggi/cells#571). Lifted from yggi/cells
+ * `fragments/styles/01-styles.md` @ v0.22.0. A style cells places later, with none here, plays at its `bite`, which
+ * energy followed across the library (decision 076: the two correlate 0.84 over the presets).
+ */
+const PRESET_ENERGY: Readonly<Record<string, number>> = {
+  synthPop: 0.55,
+  techno: 0.8,
+  deepHouse: 0.65,
+  ambient: 0.2,
+  lofi: 0.5,
+  funk: 0.75,
+  bossaNova: 0.45,
+  swingJazz: 0.6,
+  electroSwing: 0.75,
+  spooky: 0.35,
+  kinderlied: 0.35,
+};
+
+/**
  * Every preset: cells' library of styles (`STYLES`, yggi/cells#537), each its id, its display name, its point and its
- * default tempo, in the library's order. Jambot holds no preset of its own (#596): a preset is a line in cells'
- * `styles`, and its meter, drums, bass and mode are what the repository finds at its point (#420).
+ * default tempo, in the library's order, and the energy it plays at (`PRESET_ENERGY`). Jambot holds no preset's point of
+ * its own (#596): a preset is a line in cells' `styles`, and its meter, drums, bass and mode are what the repository
+ * finds at its point (#420).
  */
 export const PRESETS: readonly Preset[] = STYLES.map((s) => ({
   id: s.id,
   name: s.name,
   style: {
-    ...(Object.fromEntries(STYLE_AXIS_NAMES.map((a) => [a, s.point[a]!])) as Record<
+    ...(Object.fromEntries(STYLE_AXIS_NAMES.map((a) => [a, s.point[CELLS_AXIS[a]]!])) as Record<
       StyleAxisName,
       number
     >),
+    energy: PRESET_ENERGY[s.id] ?? s.point.bite!,
     bpm: s.tempo,
   },
 }));
@@ -247,6 +291,28 @@ export function styleAt(track: StyleTrack, position: number): Style {
   return Object.fromEntries(
     AXIS_NAMES.map((axis) => [axis, valueAt(axis, track[axis], position)]),
   ) as Style;
+}
+
+/**
+ * A track as a host sent it, every axis gliding: one from a host before protocol 22, which carried no mood (cells'
+ * axis since v0.23.0), holds mood at the centre of its axis, which no part reads but the composer's queries.
+ */
+export function everyAxis(track: StyleTrack): StyleTrack {
+  if (AXIS_NAMES.every((axis) => track[axis] !== undefined)) return track;
+  const centre = (axis: Axis) => (AXES[axis].min + AXES[axis].max) / 2;
+  return Object.fromEntries(
+    AXIS_NAMES.map((axis) => [
+      axis,
+      track[axis] ?? {
+        from: centre(axis),
+        to: centre(axis),
+        start: 0,
+        length: 0,
+        slope: 0,
+        brake: 0,
+      },
+    ]),
+  ) as StyleTrack;
 }
 
 /** A track that holds a style still. */

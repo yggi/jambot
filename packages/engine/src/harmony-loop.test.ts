@@ -58,7 +58,7 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
   );
 
   // (but Spooky, which takes the haunted progression cells placed for it, yggi/cells#409: i III+ iv V VI ii° V i)
-  it("plays main's themes, degree for degree in every slot, over the presets × 2 seeds × 64 bars, Spooky the haunted progression and Kinderlied the vamp to the fifth", () => {
+  it("plays main's themes, degree for degree in every slot, over the presets × 2 seeds × 64 bars, Spooky the haunted progression, Kinderlied the vamp to the fifth and Acid and Dark ambient the tonic vamp", () => {
     for (const r of runs.filter((r) => r.preset.name === 'Spooky'))
       for (const { bar } of r.loop.filter(({ bar }) => bar.plan.theme.kind === 'A'))
         expect(
@@ -69,8 +69,14 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
       expect(new Set(r.loop.map(({ plans }) => plans.themeFragments.A))).toEqual(
         new Set(['vamp_to_the_fifth']),
       );
+    // (and Acid and Dark ambient, presets since cells v0.23.0, which take the tonic vamp cells placed at their points,
+    // yggi/cells#572: every section from the seed)
+    for (const r of runs.filter((r) => ['Acid', 'Dark ambient'].includes(r.preset.name)))
+      expect(new Set(r.loop.map(({ plans }) => plans.themeFragments.A))).toEqual(
+        new Set(['tonic_vamp']),
+      );
     for (const { main, loop } of runs.filter(
-      (r) => r.preset.name !== 'Spooky' && r.preset.name !== 'Kinderlied',
+      (r) => !['Spooky', 'Kinderlied', 'Acid', 'Dark ambient'].includes(r.preset.name),
     ))
       for (let bar = 0; bar < 64; bar++) {
         const m = main[bar]!.bar;

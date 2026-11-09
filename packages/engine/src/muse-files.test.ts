@@ -13,7 +13,7 @@ import { GROOVE_TAG } from './plan.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import type { FragmentHit, RhythmBench } from './rhythm-query.ts';
 import { RHYTHM_REPOSITORY, readRhythm, rhythmRepository } from './rhythms.ts';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
+import { RHYTHM_FRAGMENTS } from './library.ts';
 import { SHORT_TERM_FLOOR } from './short-term.ts';
 import { PRESETS, type Style, holding, writtenStyle } from './style.ts';
 import { holdingSwing } from './swing.ts';

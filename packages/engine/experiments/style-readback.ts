@@ -158,6 +158,7 @@ export const MIDDLE: Style = {
   energy: 0.5,
   entropy: 0.3,
   bpm: 110,
+  mood: 0.5,
 };
 
 export const SEEDS = [1, 2, 3, 4, 5];

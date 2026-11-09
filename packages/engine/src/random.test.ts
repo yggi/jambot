@@ -1,4 +1,4 @@
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
+import { RHYTHM_FRAGMENTS } from './library.ts';
 import { describe, expect, it } from 'vitest';
 import {
   QUANTUM,

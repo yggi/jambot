@@ -1,5 +1,7 @@
 import { METERS, type MeterName } from '@jambot/theory';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
+import { RHYTHM_FRAGMENTS } from './library.ts';
+import { cachedFit } from '@yggi/cells/repository/fit';
+import { resolveSeed } from '@yggi/cells/repository/library';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
 import { CLAVES_NOTE, DRUM_NOTES } from './drums.ts';
@@ -11,12 +13,14 @@ import { composedRhythm, isOwnLine } from './rhythm-query.ts';
 import {
   RHYTHM_BENCHES,
   RHYTHM_REPOSITORY,
+  benchText,
   cellsFit,
   heldRhythms,
   readRhythm,
   rhythmRepository,
 } from './rhythms.ts';
 import { pullOf } from './novelty.ts';
+import { collides, unionOn } from './taken.ts';
 import { PROTOTYPE_PRESETS, holding } from './style.ts';
 import { holdingSwing } from './swing.ts';
 import {
@@ -173,24 +177,56 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
 
   // (cells v0.12.0's Spooky drums fits every meter but 7/8: within reach, it is taken where the drummer invented; the
   // owner's ruling at the pin, #513: repository first)
-  // (under 7/8, the one seed that fits is Ghost drums, placed near Spooky: yggi/cells#409)
-  it('under every meter but the 4/4s, at every preset’s point, takes Spooky drums where it is within reach, Ghost drums under 7/8, else misses and the drummer invents', () => {
-    const NEAR = ['Synth-pop', 'Deep house', 'Lo-fi hip hop', 'Bossa nova', 'Swing jazz'];
-    const GHOST = ['Lo-fi hip hop', 'Swing jazz'];
+  // (under 7/8, the one seed of v0.15.0 that fits is Ghost drums, placed near Spooky: yggi/cells#409)
+  // (cells v0.23.0's Happy hardcore and Acid drums fit every meter too, placed near Synth-pop, Deep house and Techno:
+  // yggi/cells#572)
+  it('under every meter but the 4/4s, at every preset’s point, takes a drum bar that fits it where one is within reach, else misses and the drummer invents', () => {
+    const NEAR: Readonly<Record<string, string>> = {
+      'Synth-pop': 'happy_hardcore_drums',
+      Techno: 'acid_drums',
+      'Deep house': 'happy_hardcore_drums',
+      'Lo-fi hip hop': 'spooky_drums',
+      'Swing jazz': 'spooky_drums',
+    };
+    const GHOST: Readonly<Record<string, string>> = {
+      ...NEAR,
+      'Lo-fi hip hop': 'ghost_drums',
+      'Swing jazz': 'ghost_drums',
+    };
     for (const name of ['3/4', '6/8', '12/8', '5/4', '7/8', '10/8'] as MeterName[])
-      for (const p of PROTOTYPE_PRESETS)
+      for (const p of PROTOTYPE_PRESETS) {
+        const taken = (name === '7/8' ? GHOST : NEAR)[p.name];
         expect(
           composedRhythm(RHYTHM_REPOSITORY, p.style, { meter: METERS[name] }, null),
           `${name} ${p.name}`,
-        ).toEqual(
-          name === '7/8'
-            ? GHOST.includes(p.name)
-              ? { rhythmFragment: 'ghost_drums' }
-              : {}
-            : NEAR.includes(p.name)
-              ? { rhythmFragment: 'spooky_drums' }
-              : {},
-        );
+        ).toEqual(taken ? { rhythmFragment: taken } : {});
+      }
+  });
+});
+
+describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
+  // (so a layering's fit is the workbench's, compiled once, not the union's with every rhythm chosen: the warm-up's
+  // most compiles, until cells v0.23.0's drum bars that fit every meter made them its third)
+  it('fits the union where it fits the workbench, every seed rhythm beside every other it layers with, on every bench', () => {
+    const fit = cachedFit(resolveSeed, 4096);
+    const held = heldRhythms();
+    const benches = [
+      ...new Set(RHYTHM_BENCHES.map(benchText).filter((t): t is string => t !== null)),
+    ];
+    let pairs = 0;
+    for (const workbench of benches)
+      for (const chosen of held) {
+        if (!fit(chosen.text, workbench).fits) continue;
+        const withIt = unionOn(chosen.text, workbench) ?? fit(chosen.text, workbench).text;
+        for (const other of held) {
+          if (other.text === chosen.text || collides(other.text, withIt)) continue;
+          pairs++;
+          expect(fit(other.text, withIt).fits, `${chosen.id} + ${other.id}`).toBe(
+            fit(other.text, workbench).fits,
+          );
+        }
+      }
+    expect(pairs).toBe(1632);
   });
 });
 
@@ -291,11 +327,11 @@ describe('the pull of a group the composer keeps, from its place on the ladder (
   const bench = { meter: METERS['4/4'] };
   const at = (t: number) =>
     Object.fromEntries(
-      (['sync', 'harm', 'artic', 'energy'] as const).map((axis) => [
+      (['sync', 'harm', 'artic', 'mood'] as const).map((axis) => [
         axis,
         FUNK[axis] + (POP[axis] - FUNK[axis]) * t,
       ]),
-    ) as Pick<typeof FUNK, 'sync' | 'harm' | 'artic' | 'energy'>;
+    ) as Pick<typeof FUNK, 'sync' | 'harm' | 'artic' | 'mood'>;
   const drumBars = (t: number) =>
     RHYTHM_REPOSITORY.query(stylePoint(at(t)), bench).filter(
       (f) => !isOwnLine(RHYTHM_REPOSITORY.read(f.id, bench.meter)!),
@@ -353,7 +389,7 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
         sync: (i * 0.618) % 1,
         harm: (i * 0.414) % 1,
         artic: (i * 0.732) % 1,
-        energy: (i * 0.236) % 1,
+        mood: (i * 0.236) % 1,
       })),
     ];
     for (const style of styles)
@@ -443,8 +479,8 @@ describe('a groove filed, warmed ahead (#412)', () => {
     const near = Array.from({ length: 20 }, (_, i) => ({
       sync: point.sync! + ((i % 5) - 2) * 0.05,
       harm: point.harm! + (((i * 3) % 5) - 2) * 0.05,
-      artic: point.artic!,
-      energy: point.energy! + ((i % 4) - 1.5) * 0.04,
+      artic: point.bite!,
+      mood: point.mood! + ((i % 4) - 1.5) * 0.04,
     }));
     for (const at of near)
       for (const bench of RHYTHM_BENCHES) {

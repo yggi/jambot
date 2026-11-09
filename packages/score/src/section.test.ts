@@ -133,10 +133,9 @@ describe('a section as one cells text, for the app (#399)', () => {
       const performer = compileSection(
         `&${part}line step=4n 0\n&${part}Level map=amp 1\n${fromPerformer(part)}\n&out map=midi &${part}Out`,
       ).result.performers[0]!;
-      const voice = performer.voices[0]!;
-      const use = resolveSeed(performerOf(part))!.match(
-        new RegExp(`^&${voice} from (\\S+)$`, 'm'),
-      )!;
+      // (a performer given no voice plays its copy of its own instrument, `&bass_bassV`: yggi/cells#631)
+      const voice = performer.voices[0]!.replace(`${part}_`, '');
+      const use = resolveSeed(performerOf(part))!.match(new RegExp(`^&${voice} from (\\w+)`, 'm'))!;
       const loop = resolveSeed(use[1]!.replace(/"/g, ''))!.match(/loop=(\S+)/)![1]!;
       return [
         part,
@@ -271,11 +270,11 @@ describe('a section as one cells text, for the app (#399)', () => {
     // (on a MIDI card a note is struck at its product's gain there; a voice's own `gain=` the card doesn't read)
     const struck = (gain: string) =>
       text.replace(/^(&out map=midi .*)&bassOut /m, `$1[&bassOut * ${gain}] `);
-    // (the bass's instrument, its register the seed's, given a gain of its own after the performer that uses it)
+    // (the bass's instrument, its register the seed's, given a gain of its own and passed to the performer that uses it)
     const voiced = (gain: string) => {
       const edited = text.replace(
         /^&bass, &bassOut from bass_performer.*$/m,
-        (line) => `${line}\n&bassV loop=C2 gain=${gain}`,
+        () => `${fromPerformer('bass', true)}\n&bassV loop=C2 gain=${gain}`,
       );
       expect(edited).not.toBe(text);
       return edited;
@@ -295,7 +294,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     const gains = (source: string) => {
       const plan = planOf(source, undefined, { resolve: resolveSeed });
       const route = router(plan.result, channelTable(plan.result));
-      const bass = windowAt(plan, 0, 2).events.filter((e) => e.output?.startsWith('bassV:'));
+      const bass = windowAt(plan, 0, 2).events.filter((e) => e.output?.startsWith('bass_bassV:'));
       return [...new Set(bass.flatMap((e) => routesOf(route(e)).map((r) => r.gain)))];
     };
     expect([gains(struck('-.5')), gains(struck('.5'))]).toEqual([[-0.5], [0.5]]);
@@ -478,11 +477,16 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     '&keysV s=square loop=C3 lpf=2400 lpq=3 env=&(map=adsr .02 .2 .7 .15) pitch=&(map=lin loop=5.5 0 .12 0 -.12 0)';
   const BASS = '&bassV s=saw loop=C2 lpf=300..1200 * &bassMove';
 
-  // (the instruments found at two presets' points, yggi/cells#366, by the waveform each plays: elsewhere a voice
-  // holds a register only, and the synth colours it by the style)
+  // (the instruments found at presets' points, yggi/cells#366 and, since cells v0.23.0, #572, by the waveform each
+  // plays: elsewhere a voice is the performer's own instrument, and the synth colours it by the style)
   const WAVES: Record<string, Record<string, string>> = {
     'Electro swing': { bass: 'sawtooth', lead: 'square', stab: 'sawtooth' },
     Spooky: { bass: 'triangle', lead: 'sine', pad: 'square', stab: 'sine' },
+    Kinderlied: { bass: 'sine', lead: 'triangle' },
+    Acid: { bass: 'sawtooth' },
+    'Happy hardcore': { lead: 'sawtooth' },
+    Elektro: { bass: 'square' },
+    'Dark ambient': { pad: 'sawtooth', lead: 'triangle' },
   };
 
   it.each(PRESETS.map((p) => p.name))(
@@ -501,8 +505,10 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
       for (const [line, heard] of waves)
         expect([...heard], `${name}: ${line}`).toEqual([want[line]]);
       // (and heard: the first section plays the bass and the stab or the pad, the lead coming in later)
-      if (name in WAVES)
-        expect(Object.keys(want).filter((line) => waves.has(line)).length).toBeGreaterThan(1);
+      const early = Object.keys(want).filter((line) => line !== 'lead');
+      expect(Object.keys(want).filter((line) => waves.has(line)).length).toBeGreaterThanOrEqual(
+        Math.min(2, early.length),
+      );
     },
   );
 
@@ -513,10 +519,13 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
       const text = sectionAsCells(bars);
       const voiced = playSection(sectionTextOf(text), bars);
       expect(voiced.diagnostics).toEqual([]);
-      // (the text with its instruments' lines and the card that hears them left out: the performers' own)
+      // (the text with its instruments' lines and the card that hears them left out, and no voice passed to a
+      // performer: the performers' own)
       const own = {
         ...text,
-        lines: text.lines.filter((l) => !/^&(bassV|padV|keysV|leadV|heard) /.test(l.text)),
+        lines: text.lines
+          .filter((l) => !/^&(bassV|padV|keysV|leadV|heard) /.test(l.text))
+          .map((l) => ({ ...l, text: l.text.replace(/, (bassV|padV|keysV|leadV)=&\w+/, '') })),
       };
       expect(own.lines.length).toBeLessThan(text.lines.length);
       const plain = playSection(sectionTextOf(own), bars);
@@ -528,7 +537,13 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     const bars = section('Funk');
     const text = sectionTextOf(sectionAsCells(bars));
     // (the text's own sound card hears every pitched part, so a voice it writes with a sound is heard: cells v0.15.0)
-    const voiced = `${text}\n${STAB}\n${BASS}\n&bassMove step=1m 0 1`;
+    // (each passed to its performer, which reads only what it declares: yggi/cells#631)
+    const passed = (['stab', 'bass'] as const).reduce(
+      (t, part) => t.replace(fromPerformer(part), fromPerformer(part, true)),
+      text,
+    );
+    expect(passed).not.toBe(text);
+    const voiced = `${passed}\n${STAB}\n${BASS}\n&bassMove step=1m 0 1`;
     const plain = playSection(text, bars);
     const played = playSection(voiced, bars);
     expect(played.diagnostics).toEqual([]);

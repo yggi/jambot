@@ -20,11 +20,15 @@
 
 import { TEMPO_STEP } from './licence.ts';
 import { quantize } from './random.ts';
-import { AXES, STYLE_AXIS_NAMES, type Style, type StyleAxisName } from './style.ts';
+import { AXES, type Axis, type Style } from './style.ts';
 
-/** What of the style a player may nudge: the axes the radio walks, and the tempo, by the style's own names; each leans by a share of a step. */
-export const LEANED: readonly Leaned[] = [...STYLE_AXIS_NAMES, 'bpm'];
-export type Leaned = StyleAxisName | 'bpm';
+/**
+ * What of the style a player may nudge, by the style's own names, each leaning by a share of a step: the session's
+ * `nudge` targets (yggi/music-commons `contracts/session`), the axes the radio walked before mood came, and the tempo.
+ * Mood, cells' since v0.23.0, is nudged once the contract carries it.
+ */
+export const LEANED = ['sync', 'harm', 'artic', 'energy', 'bpm'] as const satisfies readonly Axis[];
+export type Leaned = (typeof LEANED)[number];
 
 /**
  * What else a player may nudge, which moves only by whole steps (session

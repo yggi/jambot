@@ -10,7 +10,7 @@ import {
   withInstruments,
 } from '@jambot/engine';
 import { even, positions } from '@jambot/theory';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
+import { RHYTHM_FRAGMENTS } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { DRUM_WORDS } from '../src/score.ts';
 import {

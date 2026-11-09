@@ -50,9 +50,8 @@ import { type Fragment, createRepository } from '@yggi/cells/repository/fragment
 import { holesOf } from '@yggi/cells/repository/holes';
 import { instrumentsFor, withInstruments } from './instruments.ts';
 import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
-import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
+import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { DRUM_ROLES, sameMeter } from './events.ts';
 import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
@@ -257,7 +256,9 @@ export function rhythmRepository(
     return withIts.get(key)!;
   };
   // Whether a seed fragment layers with `chosen` on the workbench: another text, whose union with theirs renames none
-  // of its names. Tested one fragment at a time, so a section tests it only for those within its reach.
+  // of its names. Tested one fragment at a time, so a section tests it only for those within its reach. One that
+  // layers fits the union where it fits the workbench, over every seed rhythm on every bench (`rhythms.test.ts`), so
+  // its fit is the workbench's, compiled once for every rhythm chosen beside it.
   const layersWith = (id: string, chosen: string, workbench: string) => {
     const key = `${id}\n${chosen}\n${workbench}`;
     if (!layering.has(key)) {
@@ -334,7 +335,7 @@ export function rhythmRepository(
           (f) =>
             f.distance <= reach &&
             layersWith(f.id, chosenText, workbench) &&
-            fits(f.text, withItOf(chosenText, workbench)) &&
+            fits(f.text, workbench) &&
             readable(f.text, bench.meter),
         )
         .map(({ id, distance }) => ({ id, distance }));
@@ -428,11 +429,11 @@ export function rhythmRepository(
             variationsOn(text, workbench);
             yield;
           }
-          const withIt = withItOf(text, workbench);
+          withItOf(text, workbench);
           yield;
           for (const other of fragments) {
             if (layersWith(other.id, text, workbench)) {
-              fits(other.text, withIt);
+              fits(other.text, workbench);
               readText(other.text, bench.meter);
             }
             yield;

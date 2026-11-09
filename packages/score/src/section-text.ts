@@ -67,6 +67,8 @@ import {
   euclidOf,
   instrumentsAt,
   PRESETS,
+  CELLS_AXIS,
+  PERFORMER_VOICES,
   STYLE_AXIS_NAMES,
   type StyleAxisName,
   levelOf,
@@ -359,19 +361,14 @@ export type PitchedName = 'bass' | 'pad' | 'stab' | 'lead';
  */
 export const performerOf = (part: PitchedName | 'drums') => `${part}_performer`;
 
-/**
- * The line that takes a part's performer from cells' seed library, as cells'
- * Normalise writes it (decision 065): the performer's head and its gate from
- * the template, its main argument the part's line, and a pitched part's level
- * its own line of levels (`&bassLevel`).
- */
 /** A number as a style's axis writes it: three decimals at most, no leading zero (`.35`, `1`). */
 const axisText = (x: number) => String(Math.round(x * 1000) / 1000).replace(/^0\./, '.');
 
 /**
  * The section's style as cells reads it (decision 063 §3): the note `&style`, named by its preset's id in cells'
  * library of styles where it sits on one (`&funk from styles`, `&style style=&funk`, #596), else at its point, each
- * axis by its name (`STYLE_AXIS_NAMES`), so a cells version whose axes differ says so rather than reading it otherwise.
+ * axis by its name in cells' table (`STYLE_AXIS_NAMES`, `CELLS_AXIS`), so a cells version whose axes differ says so
+ * rather than reading it otherwise.
  */
 const styleLines = (style: Readonly<Record<StyleAxisName, number>>): string[] => {
   const on = PRESETS.find((p) =>
@@ -379,14 +376,31 @@ const styleLines = (style: Readonly<Record<StyleAxisName, number>>): string[] =>
   );
   if (on) return [`&${on.id} from styles`, `&style style=&${on.id}`];
   return [
-    `&style style=&(map=style ${STYLE_AXIS_NAMES.map((a) => `${a}=${axisText(style[a])}`).join(' ')})`,
+    `&style style=&(map=style ${STYLE_AXIS_NAMES.map((a) => `${CELLS_AXIS[a]}=${axisText(style[a])}`).join(' ')})`,
   ];
 };
 
-export const fromPerformer = (part: PitchedName | 'drums') =>
-  part === 'drums'
-    ? `&drums, &drumsOut from ${performerOf('drums')} &drumlines`
-    : `&${part}, &${part}Out from ${performerOf(part)}(${part}Level=&${part}Level) &${part}line`;
+/**
+ * The line that takes a part's performer from cells' seed library, as cells'
+ * Normalise writes it (decision 065): the performer's head and its gate from
+ * the template, its main argument the part's line, and a pitched part's level
+ * its own line of levels (`&bassLevel`). A pitched performer reads only what
+ * it declares (yggi/cells#631, decision 075), so it is passed the section's
+ * `&style`, and its voice (`bassV=&bassV`) where the text writes one, `voiced`
+ * (an instrument found at the style, `instrumentsAt`), as cells' Migrate
+ * writes them (its rule `arguments`). Given none, it plays its own
+ * instrument, its voice named `&bass_bassV`.
+ */
+export const fromPerformer = (part: PitchedName | 'drums', voiced = false) => {
+  if (part === 'drums') return `&drums, &drumsOut from ${performerOf('drums')} &drumlines`;
+  const { voice } = PERFORMER_VOICES[part];
+  const args = [
+    `${part}Level=&${part}Level`,
+    ...(voiced ? [`${voice}=&${voice}`] : []),
+    'style=&style',
+  ];
+  return `&${part}, &${part}Out from ${performerOf(part)}(${args.join(', ')}) &${part}line`;
+};
 
 /** A note as composed or as cells plays it: its part, step in its bar, MIDI note, velocity, written and sounding length in steps. */
 export interface SectionNote {
@@ -917,11 +931,11 @@ export function sectionAsCells(
     const line = pitchedLine(name, own, key, total, steps, voice, tableAt, asked, cuts);
     pitched.push(line.pitched);
     outs[name] = true;
+    const instrument = instruments[name];
     lines.push(...line.lines.map((text) => ({ part, text })), {
       part,
-      text: fromPerformer(name),
+      text: fromPerformer(name, instrument !== undefined),
     });
-    const instrument = instruments[name];
     if (instrument) lines.push({ part, text: instrument.line });
     // (every instrument has a sound since cells v0.15.0: a sound card hears each part, as Jambot's synth does)
     heard.push(name);

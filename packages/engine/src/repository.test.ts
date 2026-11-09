@@ -14,13 +14,15 @@ import {
 } from './repository.ts';
 import type { RhythmRepository } from './rhythm-query.ts';
 import { RHYTHM_BENCHES, RHYTHM_REPOSITORY, rhythmRepository } from './rhythms.ts';
-import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
-import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
-import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
+import {
+  BASS_FRAGMENTS,
+  MOTIF_FRAGMENTS,
+  HARMONY_FRAGMENTS,
+  METER_FRAGMENTS,
+  RHYTHM_FRAGMENTS,
+} from './library.ts';
 import { LIBRARY } from '@yggi/cells/repository/library';
-import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
-import { PROTOTYPE_PRESETS, holding } from './style.ts';
+import { CELLS_AXIS, PROTOTYPE_PRESETS, holding } from './style.ts';
 import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
 import { presetMode } from './mode-repository.ts';
 import { RENAMED_IDS } from '@yggi/cells/engine/renamed';
@@ -158,7 +160,7 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
   // Each preset's point, and the 81 corners and midpoints of the four axes asked on: 89 points.
   const steps = [0, 0.5, 1];
   const grid = QUERY_AXES.reduce<Record<string, number>[]>(
-    (points, axis) => points.flatMap((p) => steps.map((v) => ({ ...p, [axis]: v }))),
+    (points, axis) => points.flatMap((p) => steps.map((v) => ({ ...p, [CELLS_AXIS[axis]]: v }))),
     [{}],
   );
   const POINTS = [...PROTOTYPE_PRESETS.map((p) => stylePoint(p.style)), ...grid];
@@ -198,10 +200,12 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
 
   it('picks the meters it picked under cells v0.8.0 but near the new presets’ points, at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = meterQueries(METER_REPOSITORY);
-    // (as under cells v0.8.0 but near Electro swing's and Spooky's points, whose meters cells v0.12.0 placed there)
-    expect([asked.length, hashOf(asked)]).toEqual([89, '52f7563e']);
+    // (as under cells v0.8.0 but near Electro swing's and Spooky's points, whose meters cells v0.12.0 placed there;
+    // re-recorded at cells v0.23.0, whose grid lies on sync harm bite mood and whose 4/4 is placed at Kinderlied's and
+    // the four new styles' points too: the nearest moves at 41 of the 81 grid points and at none of the presets')
+    expect([asked.length, hashOf(asked)]).toEqual([89, '830cf46b']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
-    expect(hashOf(asBefore(asked))).toBe('5fd35b0e');
+    expect(hashOf(asBefore(asked))).toBe('e511e72c');
     // (what of cells' library is neither a meter nor a rhythm: bass lines, harmonies, kits, modes … whatever it holds)
     expect(OTHERS.length).toBeGreaterThan(0);
     expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
@@ -211,10 +215,12 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     const asked = rhythmQueries(RHYTHM_REPOSITORY);
     // (as under cells v0.8.0 but where Electro swing drums (held since #508) or Spooky drums (cells v0.12.0) is nearer, or
     // since cells v0.15.0 Ghost drums, near Spooky, in 476 answers, and Kinderlied drums in 14, yggi/cells#409 and #417)
-    expect([asked.length, hashOf(asked)]).toEqual([1780, '8dec1ce9']);
+    // (re-recorded at cells v0.23.0, on sync harm bite mood, with its four new drum bars, three of which fit every
+    // meter, and its industrial drums: the nearest moves in 1,172 of the 1,780 answers, none on a preset's own 4/4)
+    expect([asked.length, hashOf(asked)]).toEqual([1780, '01d78123']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
     // (since cells v0.19.0 the cinquillo is the nearest clave beside 84 of them, never within CO_SELECT, so never layered)
-    expect(hashOf(asBefore(asked))).toBe('8b3c0a2d');
+    expect(hashOf(asBefore(asked))).toBe('829cc923');
     // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
     // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits; and since cells v0.15.0
     // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one)

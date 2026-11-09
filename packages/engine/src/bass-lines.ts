@@ -53,7 +53,7 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { expansion } from '@yggi/cells/engine/use';
 import { PITCHED_OPERATORS } from '@yggi/cells/engine/vary/index';
 import { linesOf } from '@yggi/cells/engine/vary/lines';
-import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
+import { BASS_FRAGMENTS } from './library.ts';
 import type { Fragment } from '@yggi/cells/repository/fragments';
 import { BASS_FACET, type LineNote, type LineRead, type LineRepository } from './bass-query.ts';
 import type { Bench } from './facet.ts';

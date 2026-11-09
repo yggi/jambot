@@ -94,7 +94,9 @@ describe('genre probabilities: nearness to the presets', () => {
 describe('the nearest preset as cells ranks it (#596)', () => {
   // (the distance Jambot took before #596, its own: the root mean square over the axes a reading has)
   const ownDistance = (read: Record<string, number>, at: Record<string, number>) => {
-    const axes = ['energy', 'sync', 'artic', 'bpm', 'harm'].filter((a) => read[a] !== undefined);
+    const axes = ['energy', 'sync', 'artic', 'bpm', 'harm', 'mood'].filter(
+      (a) => read[a] !== undefined && at[a] !== undefined,
+    );
     return Math.sqrt(axes.reduce((sum, a) => sum + (read[a]! - at[a]!) ** 2, 0) / axes.length);
   };
   const ownNearest = (style: Style) => {
@@ -107,7 +109,15 @@ describe('the nearest preset as cells ranks it (#596)', () => {
   // (1,000 seeded styles over the whole space: each axis uniform, the tempo uniform in log space)
   const styles: Style[] = Array.from({ length: 1000 }, (_, i) => {
     const r = mulberry32(596 * 1000 + i);
-    return { sync: r(), harm: r(), artic: r(), energy: r(), entropy: r(), bpm: 60 * 3 ** r() };
+    return {
+      sync: r(),
+      harm: r(),
+      artic: r(),
+      energy: r(),
+      entropy: r(),
+      bpm: 60 * 3 ** r(),
+      mood: r(),
+    };
   });
 
   it('names the preset Jambot’s own distance named, at each of 1,000 seeded styles', () => {

@@ -59,3 +59,4 @@ export * from './swing.ts';
 export * from './tempo.ts';
 export * from './themes.ts';
 export * from './transport.ts';
+export * from './library.ts';

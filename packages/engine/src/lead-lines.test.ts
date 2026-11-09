@@ -4,8 +4,7 @@ import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/mid
 import { describe, expect, it } from 'vitest';
 import { keyHelix } from './key.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
-import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
-import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
+import { MOTIF_FRAGMENTS, INSTRUMENT_FRAGMENTS } from './library.ts';
 import { bodyOf } from '@yggi/cells/engine/use';
 import {
   LEAD_FORM,
@@ -124,11 +123,14 @@ describe('a lead line as cells text, and read back (#424)', () => {
 const FILING: LeadFiling = {
   notes: PLAIN,
   bench: { meter: METERS['4/4'], meterFragment: 'meter' },
-  point: { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5 },
+  point: { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 },
   source: 'Ada',
   created: 'song 1, bar 0',
   tags: ['lead line'],
 };
+
+/** Motifs that share another's point, and the one found first there. */
+const SHARED: Readonly<Record<string, string>> = { wail: 'lament', weinet: 'haenschen' };
 
 describe('the lead’s repository (#424)', () => {
   it('holds cells’ motifs as its seeds, each found first at its own point in every meter it fits, a rest after it; the presets’ ten in 4/4 and 5/4, and 3/4 its own (#520, yggi/cells#370)', () => {
@@ -140,7 +142,12 @@ describe('the lead’s repository (#424)', () => {
       for (const name of Object.keys(METERS) as (keyof typeof METERS)[]) {
         const found = LEAD_REPOSITORY.query(point, at(name), EMPTY_LAYER);
         if (!found.some((f) => f.id === motif.id)) continue;
-        expect(found[0], `${motif.id} in ${name}`).toEqual({ id: motif.id, distance: 0, score: 0 });
+        // (two pairs share one point since cells v0.23.0: wail's bite is lament's, .25, and haenschen's weinet's, .7,
+        // where their articulations were .3 and .25, .6 and .7; each is found at distance 0 there, the one found first
+        // named in `SHARED`)
+        const first = SHARED[motif.id] ?? motif.id;
+        expect(found[0], `${motif.id} in ${name}`).toEqual({ id: first, distance: 0, score: 0 });
+        expect(found.find((f) => f.id === motif.id)?.distance, `${motif.id} in ${name}`).toBe(0);
         fits.set(motif.id, [...(fits.get(motif.id) ?? []), name]);
       }
       expect(fits.get(motif.id)?.length, motif.id).toBeGreaterThan(0);

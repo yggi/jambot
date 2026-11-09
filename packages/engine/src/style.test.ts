@@ -7,11 +7,13 @@ import {
   AXES,
   AXIS_NAMES,
   type Axis,
+  CELLS_AXIS,
   type Glide,
   INITIAL_STYLE,
   PROTOTYPE_PRESETS,
   PRESET_GLIDE,
   SLIDER_GLIDE,
+  STYLE_AXIS_NAMES,
   glideTo,
   holding,
   rateAt,
@@ -27,8 +29,8 @@ const across = (axis: Axis, n = 9) =>
 
 describe('the axes', () => {
   it('have their ranges and the space they glide in (C2)', () => {
-    // Swing is the meter's, not an axis (#360).
-    expect(AXIS_NAMES).toEqual(['sync', 'harm', 'artic', 'energy', 'entropy', 'bpm']);
+    // Swing is the meter's, not an axis (#360); mood, cells' since v0.23.0, comes last (`walkRadio` draws by place).
+    expect(AXIS_NAMES).toEqual(['sync', 'harm', 'artic', 'energy', 'entropy', 'bpm', 'mood']);
     for (const axis of AXIS_NAMES.filter((a) => a !== 'bpm'))
       expect(AXES[axis]).toEqual({ min: 0, max: 1, space: 'linear' });
     // Tempo is heard in ratios, so it glides in log space: halfway from 60
@@ -40,15 +42,15 @@ describe('the axes', () => {
 describe('the presets', () => {
   it('are the prototype’s eight points in style space', () => {
     expect(PROTOTYPE_PRESETS.map((p) => [p.name, ...Object.values(p.style)])).toEqual([
-      // name, sync, harm, artic, energy, bpm
-      ['Synth-pop', 0.3, 0.45, 0.55, 0.55, 108],
-      ['Techno', 0.12, 0, 1, 0.8, 130],
-      ['Deep house', 0.35, 0.55, 0.65, 0.65, 122],
-      ['Ambient', 0.05, 0.3, 0, 0.2, 72],
-      ['Lo-fi hip hop', 0.5, 0.75, 0.35, 0.5, 84],
-      ['Funk', 1, 0.12, 0.85, 0.75, 104],
-      ['Bossa nova', 0.75, 0.85, 0.45, 0.45, 132],
-      ['Swing jazz', 0.35, 1, 0.3, 0.6, 148],
+      // name, sync, harm, artic (cells' bite), mood, energy (Jambot's own since cells v0.23.0), bpm
+      ['Synth-pop', 0.3, 0.45, 0.55, 0.5, 0.55, 108],
+      ['Techno', 0.12, 0, 1, 0.4, 0.8, 130],
+      ['Deep house', 0.35, 0.55, 0.65, 0.65, 0.65, 122],
+      ['Ambient', 0.05, 0.3, 0, 0.9, 0.2, 72],
+      ['Lo-fi hip hop', 0.5, 0.75, 0.35, 0.5, 0.5, 84],
+      ['Funk', 1, 0.12, 0.85, 0.65, 0.75, 104],
+      ['Bossa nova', 0.75, 0.85, 0.45, 0.9, 0.45, 132],
+      ['Swing jazz', 0.35, 1, 0.3, 0.85, 0.6, 148],
     ]);
   });
 
@@ -420,11 +422,12 @@ describe('writtenStyle', () => {
 });
 
 describe('the axes (yggi/cells#397)', () => {
-  it('takes style space’s four from cells’ table, in its order and at its ranges, and keeps entropy and the bpm its own', () => {
-    expect(AXIS_NAMES).toEqual(['sync', 'harm', 'artic', 'energy', 'entropy', 'bpm']);
-    expect(CELLS_AXES.map((a) => a.name)).toEqual(AXIS_NAMES.slice(0, 4));
-    for (const axis of CELLS_AXES) {
-      const ours = AXES[axis.name as keyof typeof AXES];
+  it('takes style space’s four from cells’ table, in its order and at its ranges (its bite Jambot’s artic), and keeps energy, entropy and the bpm its own', () => {
+    expect(STYLE_AXIS_NAMES).toEqual(['sync', 'harm', 'artic', 'mood']);
+    expect(CELLS_AXES.map((a) => a.name)).toEqual(STYLE_AXIS_NAMES.map((a) => CELLS_AXIS[a]));
+    expect(CELLS_AXES.map((a) => a.name)).toEqual(['sync', 'harm', 'bite', 'mood']);
+    for (const [i, axis] of CELLS_AXES.entries()) {
+      const ours = AXES[STYLE_AXIS_NAMES[i]!];
       expect([ours.min, ours.max, ours.space], axis.name).toEqual([...axis.range, 'linear']);
     }
   });

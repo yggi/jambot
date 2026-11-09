@@ -31,17 +31,16 @@
 import { METERS, type Meter } from '@jambot/theory';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { setTiming } from '@yggi/cells/engine/edit';
+import { OLD_AXES, newPoint } from '@yggi/cells/engine/migrate/axes';
 import {
   type Fragment,
   type LearnedLayer,
+  type WeightedPoint,
   createRepository,
   layerProblems,
 } from '@yggi/cells/repository/fragments';
 import { renamedLayer, useFragments } from '@yggi/cells/repository/learned';
-import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
-import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
-import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
+import { METER_FRAGMENTS, BASS_FRAGMENTS, HARMONY_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
 import { MOTIF_LEADS, leadsAlone } from './lead-lines.ts';
@@ -196,10 +195,48 @@ export const SEED_FRAGMENTS: readonly Fragment[] = [
  * - its lead lines without the voice and card they carried before #580 (`leadsAlone`), so a line heard again is
  *   known as the one filed;
  * - its bass lines and progressions with the signature they are stated with since cells v0.21.0 (`signedLayer`,
- *   #562), so a line heard again is known as the one filed.
+ *   #562), so a line heard again is known as the one filed;
+ * - its points on the style axes since cells v0.23.0, `sync harm bite mood` (`axedLayer`), for one kept before.
  */
 export const keptLayer = (layer: LearnedLayer): LearnedLayer =>
-  signedLayer(leadsAlone(renamedLayer(layer)));
+  axedLayer(signedLayer(leadsAlone(renamedLayer(layer))));
+
+/** The facets a point speaks to mood for (cells decision 076 §2): a tonal fragment's; a meter's or a rhythm's has none. */
+const MOODY = new Set(['bass', 'harmony', 'lead', 'motif', 'mode', 'stab', 'instrument']);
+
+/**
+ * A layer's points written on the style axes before cells v0.23.0, `sync harm artic energy`, on the axes now, as cells'
+ * Migrate moved its own library's (`newPoint`, its rule `axes`, decision 076): `bite` the articulation, energy dropped,
+ * and a tonal facet's `mood` read where the old point sits. A layer kept since is the layer itself.
+ */
+export function axedLayer(layer: LearnedLayer): LearnedLayer {
+  const old = (point: WeightedPoint['point']) =>
+    OLD_AXES.every((a) => typeof point[a] === 'number');
+  const moved = <P extends WeightedPoint>(p: P): P =>
+    old(p.point)
+      ? {
+          ...p,
+          point: newPoint(
+            p.point as Record<(typeof OLD_AXES)[number], number>,
+            p.facet !== undefined && MOODY.has(p.facet),
+          ),
+        }
+      : p;
+  if (
+    ![...layer.points, ...layer.filed.flatMap((f) => f.fragment.association)].some((p) =>
+      old(p.point),
+    )
+  )
+    return layer;
+  return {
+    ...layer,
+    points: layer.points.map(moved),
+    filed: layer.filed.map((file) => ({
+      ...file,
+      fragment: { ...file.fragment, association: file.fragment.association.map(moved) },
+    })),
+  };
+}
 
 export function repositoryLayerProblems(layer: unknown): string[] {
   if (typeof layer !== 'object' || layer === null || Array.isArray(layer))

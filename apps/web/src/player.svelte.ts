@@ -135,6 +135,7 @@ import {
   foldBar,
   forecast,
   foresight,
+  everyAxis,
   holding,
   rebeat,
   holdingSwing,
@@ -1275,7 +1276,7 @@ export class Player {
     this.status = 'playing';
     this.#seed = song.seed;
     this.#start = song.start;
-    this.track = song.track;
+    this.track = everyAxis(song.track);
     this.swing = song.swing;
     this.tempoMeter = song.tempoMeter;
     this.#begin(output);
@@ -1301,7 +1302,7 @@ export class Player {
 
   followTrack(track: StyleTrack, swing: SwingTrack, tempoMeter: Meter) {
     if (!this.#follow) return;
-    this.track = track;
+    this.track = everyAxis(track);
     this.swing = swing;
     this.tempoMeter = tempoMeter;
   }

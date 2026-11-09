@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Fragment } from '@yggi/cells/repository/fragments';
-import { MODE_FRAGMENTS } from '@yggi/cells/repository/modes';
+import { MODE_FRAGMENTS } from './library.ts';
 import { COMPOSER_MODES, INITIAL_KEY, type ComposerMode } from './key.ts';
 import { stylePoint } from './meter-query.ts';
 import {
@@ -27,6 +27,11 @@ const HAND_MODE: Readonly<Record<string, ComposerMode>> = {
   Spooky: 'aeolian',
   // (cells' Kinderlied, a preset since #596: its twinkle's major)
   Kinderlied: 'ionian',
+  // (the four styles cut from cells' examples at v0.23.0, each in A minor: yggi/cells#572)
+  Acid: 'aeolian',
+  'Happy hardcore': 'aeolian',
+  Elektro: 'aeolian',
+  'Dark ambient': 'aeolian',
 };
 
 /** A fragment of the key, its tonic its main parameter where it reads one (`&key from &tonic`), as cells writes a mode (decision 075). */

@@ -1,5 +1,5 @@
 import { METERS, type MeterName } from '@jambot/theory';
-import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
+import { HARMONY_FRAGMENTS } from './library.ts';
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES } from './key.ts';
 import {
@@ -34,12 +34,14 @@ const VAMP_SEEDS = READ_SEEDS.filter(
 );
 
 describe("cells' harmonies read into a theme's slots (#425)", () => {
-  it('reads none of four bars: the dark cadence is no progression the composer takes (#517)', () => {
+  it('reads none of four bars: the dark cadence and the axis progression are no progression the composer takes (#517)', () => {
     const cadence = HARMONY_FRAGMENTS.find((f) => f.id === 'dark_cadence')!;
     expect(cadence.text).toMatch(/ cycle=4 /);
     expect(readProgression(cadence.text, METERS['4/4'])).toBeNull();
+    // (cells v0.23.0's axis progression, i VI III VII a bar each, yggi/cells#572)
     expect(HARMONY_FRAGMENTS.filter((f) => !READ_SEEDS.includes(f)).map((f) => f.id)).toEqual([
       'dark_cadence',
+      'axis_progression',
     ]);
   });
 

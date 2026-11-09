@@ -64,7 +64,8 @@ export interface RadioParams {
 
 /**
  * The radio's walk by default. The unit axes are heard unequally: energy
- * steps least, harmony and articulation most. Swing is the meter's, not an
+ * and mood step least, harmony and articulation most (mood, cells' since
+ * v0.23.0, at energy's step, the axis it took on the style point). Swing is the meter's, not an
  * axis (#360), so the radio leaves it where it is. The tempo is heard most,
  * so its step and its lean together stay at 0.01 in log tempo, about 1 % a
  * section, a twentieth of it the lean: about 8 % an hour at an energy of 1.
@@ -77,6 +78,7 @@ export const RADIO: RadioParams = {
     energy: 0.06,
     entropy: 0,
     bpm: 0.0095,
+    mood: 0.06,
   },
   tempoLean: 0.0005,
 };

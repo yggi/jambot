@@ -22,7 +22,7 @@ import { AXES, PRESETS, type Style, type StyleAxisName } from './style.ts';
 import type { StyleReading, TimingReading } from './style-reading.ts';
 
 /** The axes of a reading that sit on the style space's own. */
-export type ReadAxes = Partial<Pick<Style, StyleAxisName | 'bpm'>>;
+export type ReadAxes = Partial<Pick<Style, StyleAxisName | 'energy' | 'bpm'>>;
 
 /**
  * The tempo on its own axis's scale, 0 to 1: the axis glides in log space,
@@ -76,8 +76,10 @@ export interface Genre {
 /** A named point on the axes a reading has. */
 export interface Landmark {
   readonly name: string;
-  /** The tempo is on its unit scale (`bpmUnit`). */
-  readonly at: Readonly<Record<StyleAxisName | 'bpm', number>>;
+  /** The tempo is on its unit scale (`bpmUnit`); mood where the landmark has one, which no reading has yet (yggi/cells#541). */
+  readonly at: Readonly<Record<Exclude<StyleAxisName, 'mood'> | 'energy' | 'bpm', number>> & {
+    readonly mood?: number;
+  };
 }
 
 /** The presets' own points: where the composer is asked to play. */
