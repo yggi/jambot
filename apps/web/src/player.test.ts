@@ -1932,7 +1932,9 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
           tags: ['progression'],
         },
       ]);
-      expect(progressions[0]!.fragment.text, part).toMatch(/^&harm over=&key step=1m cycle=8 /);
+      expect(progressions[0]!.fragment.text, part).toMatch(
+        /^&harm from &key\n&harm over=&key step=1m cycle=8 /,
+      );
       expect(leads, part).toEqual([]);
     }
   });
