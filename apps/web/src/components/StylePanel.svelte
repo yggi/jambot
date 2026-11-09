@@ -20,7 +20,7 @@
   Each preset glows as near as the style heard is to it (`presetGlow`), so a
   style halfway between two lights both. Under them the radio (#313), a
   switch: on the air, the band drifts through style space by itself a section
-  at a time, until a preset or an axis it walks takes it back. A client,
+  at a time, and a preset or an axis set is where it drifts on from (#627). A client,
   which follows its host's radio, has no switch: its header says the radio.
 -->
 <script lang="ts">
@@ -109,7 +109,7 @@
       <span class="name">Radio</span>
       <span class="note"
         >{radio
-          ? 'Drifting through style space, a section at a time. A preset or an axis takes it back.'
+          ? 'Drifting through style space, a section at a time, on from any preset or axis you set.'
           : 'Holding the style you set.'}</span
       >
     </label>

@@ -33,7 +33,6 @@ import {
   conduct,
   conductRadio,
   radioStyle,
-  takesFromRadio,
   conductSwing,
   stopSwing,
   keyReachOf,
@@ -420,16 +419,5 @@ describe('the radio’s section (#313)', () => {
       track = conductRadio(track, style, (n + 1) * section, 0).track;
       expect(styleAt(track, (n + 2) * section)).toEqual(style);
     }
-  });
-
-  it('is taken from by a preset or an axis the walk moves, and by no dial or nudge', () => {
-    expect(takesFromRadio({ kind: 'preset', preset: funk })).toBe(true);
-    for (const axis of ['sync', 'harm', 'artic', 'bpm'] as const)
-      expect(takesFromRadio({ kind: 'axis', axis, value: 0.5 }), axis).toBe(true);
-    for (const axis of ['energy', 'entropy'] as const)
-      expect(takesFromRadio({ kind: 'axis', axis, value: 0.5 }), axis).toBe(false);
-    expect(takesFromRadio({ kind: 'tempo', nudge: 0.1 })).toBe(false);
-    expect(takesFromRadio({ kind: 'key', wish: { tonic: 2 } })).toBe(false);
-    expect(takesFromRadio({ kind: 'swing', swing: { share: 0.6 } })).toBe(false);
   });
 });

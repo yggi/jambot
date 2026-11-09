@@ -191,7 +191,6 @@ import {
   stopAt,
   stopSwing,
   styleAfter,
-  takesFromRadio,
   wishAfter,
 } from './conductor.ts';
 import { meterNudged } from './meter-choice.ts';
@@ -733,8 +732,9 @@ export class Player {
   /**
    * Put the radio on the air or take it off (#313). Tuned in, it holds the
    * style the track is going to until the next section starts, and walks from
-   * there; a person who sets a preset or an axis it walks takes the track back
-   * (`takesFromRadio`).
+   * there. Only this takes it off the air: a preset or an axis a person sets
+   * is where the walk goes on from (the owner, #627), since the station keeps
+   * no style of its own.
    */
   tuneRadio(on: boolean) {
     if (this.mode === 'client' || (this.station !== null) === on) return;
@@ -861,7 +861,6 @@ export class Player {
 
   apply(intent: Intent) {
     if (this.mode === 'client') return;
-    if (this.station && takesFromRadio(intent)) this.tuneRadio(false);
     // A swing set on the Metrum card asks for the meter the band is heading
     // for, so the card's swing wins over the repository's from the next
     // section, as a meter asked for there does (#375).

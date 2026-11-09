@@ -171,7 +171,7 @@ test('plays a straight preset on the 16th grid', async ({ page }) => {
   expect(new Set(phases(times, 108))).toEqual(new Set([0]));
 });
 
-test('on the radio by default, the band wanders its style by itself a section at a time, plays on, and a preset takes it back (#313)', async ({
+test('on the radio by default, the band wanders its style by itself a section at a time, plays on, and drifts on from a preset chosen (#313, #627)', async ({
   page,
 }) => {
   const errors = await listen(page);
@@ -198,7 +198,8 @@ test('on the radio by default, the band wanders its style by itself a section at
     .poll(async () => (await onsets(page)).length, { timeout: 10_000 })
     .toBeGreaterThan(sounded);
   await page.getByRole('radio', { name: 'Techno' }).click();
-  await expect(page.getByRole('switch', { name: 'Radio' })).not.toBeChecked();
+  await expect(page.getByRole('switch', { name: 'Radio' })).toBeChecked();
+  await expect(page.locator('details[aria-label="Style"] summary')).toContainText('Radio · ');
   expect(errors).toEqual([]);
 });
 
