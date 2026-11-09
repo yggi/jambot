@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fakeAudioContext } from './fake-context.ts';
+import { INITIAL_STYLE, STRAIGHT, timbreOf } from '@jambot/engine';
 import { PEAK, voices } from './voices.ts';
 
 /** The built-in synth's voices on a fake context, playing into its destination. */
@@ -65,4 +66,36 @@ describe('a voice’s own sound in the built-in synth (#497)', () => {
     v.play('lead', 69, 127, 1, 0.5, { triangle: 1, square: 0.5, cutoff: 2000, attack: 0.01 });
     expect(fake.oscillators.map((o) => o.type)).toEqual(['square', 'triangle']);
   });
+});
+
+describe('a pitched part is played with every field its voice reads (#341)', () => {
+  const parts = ['bass', 'pad', 'stab', 'lead'] as const;
+
+  it('refuses an empty timbre for each pitched part at the typecheck, where Web Audio refused it in the browser', () => {
+    const { voices: v } = synth();
+    const empty = () => {
+      // @ts-expect-error: the bass reads saw, triangle, cutoff and resonance
+      v.play('bass', 40, 100, 0, 1, {});
+      // @ts-expect-error: the pad reads attack and release
+      v.play('pad', 60, 100, 0, 1, {});
+      // @ts-expect-error: the stab reads attack and release
+      v.play('stab', 60, 100, 0, 1, { attack: 0.01 });
+      // @ts-expect-error: the lead reads triangle, square, cutoff and attack
+      v.play('lead', 72, 100, 0, 1, { triangle: 1 });
+    };
+    expect(empty).toBeTypeOf('function');
+  });
+
+  it.each(parts)(
+    '%s: its timbre from the style plays a note on a context that refuses a non-finite value, as Chromium does',
+    (part) => {
+      const { fake, voices: v } = synth();
+      expect(() =>
+        v.play(part, 60, 100, 0, 1, timbreOf(part, INITIAL_STYLE, STRAIGHT, 0.5)),
+      ).not.toThrow();
+      expect(fake.oscillators.length).toBeGreaterThan(0);
+      // (and an empty one, past the typecheck, is what the context refuses)
+      expect(() => synth().voices.play(part, 60, 100, 0, 1, {} as never)).toThrow(/non-finite/);
+    },
+  );
 });

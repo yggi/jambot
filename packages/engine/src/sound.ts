@@ -13,7 +13,7 @@
  * the built-in synth plays it instead (#497).
  */
 
-import type { Part, Timbre } from './events.ts';
+import type { Part, TimbreFor } from './events.ts';
 import type { Style } from './style.ts';
 import { type MeterSwing, eighthSwing } from './swing.ts';
 
@@ -21,7 +21,22 @@ import { type MeterSwing, eighthSwing } from './swing.ts';
 const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
 
 /** A part's colour: its style and its meter's swing, at the energy it plays at. The drums read none. */
-export function timbreOf(part: Part, style: Style, swing: MeterSwing, energy: number): Timbre {
+export function timbreOf<P extends Part>(
+  part: P,
+  style: Style,
+  swing: MeterSwing,
+  energy: number,
+): TimbreFor<P> {
+  return timbreOfPart(part, style, swing, energy) as TimbreFor<P>;
+}
+
+/** The colour itself, every field the part's voice reads (`TimbreFor`). */
+function timbreOfPart(
+  part: Part,
+  style: Style,
+  swing: MeterSwing,
+  energy: number,
+): TimbreFor<Part> {
   const { artic } = style;
   switch (part) {
     case 'lead':

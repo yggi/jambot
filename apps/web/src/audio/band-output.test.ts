@@ -23,7 +23,16 @@ import type { Output } from './output.ts';
 
 const NOTE_ON = 0x90;
 
-const timbre: Timbre = { triangle: 1, square: 0, cutoff: 1000, attack: 0.01 };
+// (every field a pitched voice reads, so any part may be played with it, #341)
+const timbre: Required<Omit<Timbre, 'sound'>> = {
+  triangle: 1,
+  square: 0,
+  saw: 0,
+  cutoff: 1000,
+  resonance: 1,
+  attack: 0.01,
+  release: 0.1,
+};
 
 /** A base `Output` a test drives by hand, standing in for Web Audio. */
 function fakeBase() {

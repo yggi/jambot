@@ -12,17 +12,17 @@
  * rig (yggi/cells decision 063).
  */
 
-import type { Part, Timbre, VoiceSound } from '@jambot/engine';
+import type { Part, PitchedPart, TimbreFor, VoiceSound } from '@jambot/engine';
 
 export interface Voices {
   /** Play a pitched part's note at a time on the context's clock, for a duration in seconds. */
-  play(
-    part: Exclude<Part, 'drums'>,
+  play<P extends PitchedPart>(
+    part: P,
     note: number,
     velocity: number,
     seconds: number,
     duration: number,
-    timbre: Timbre,
+    timbre: TimbreFor<P>,
   ): void;
 }
 
