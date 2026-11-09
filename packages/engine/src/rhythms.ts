@@ -205,15 +205,28 @@ const isRhythm = ({ fragment }: LearnedLayer['filed'][number]) =>
   fragment.association.some((p) => p.facet === 'rhythm');
 
 /**
+ * The rhythms held of each list of fragments, kept by the list: a read of each is a compile, about 100 ms over cells'
+ * seed, which every repository made of the seed (one for each groove a test files) would otherwise pay again.
+ */
+const HELD = new WeakMap<readonly Fragment[], readonly Fragment[]>();
+
+/**
  * The fragments the drummer holds: all but a rhythm it can't play, one with no mix of lines (`mixOf`) or a line that
  * strikes a sound it has no role for (`roleOf`), read in 4/4. Since #508 that is every rhythm of cells' seed.
  */
-export const heldRhythms = (fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): Fragment[] =>
-  fragments.filter(
-    (f) =>
-      !f.association.some((p) => p.facet === 'rhythm') ||
-      readRhythm(f.text, METERS['4/4']) !== null,
-  );
+export function heldRhythms(fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): Fragment[] {
+  let held = HELD.get(fragments);
+  if (!held)
+    HELD.set(
+      fragments,
+      (held = fragments.filter(
+        (f) =>
+          !f.association.some((p) => p.facet === 'rhythm') ||
+          readRhythm(f.text, METERS['4/4']) !== null,
+      )),
+    );
+  return [...held];
+}
 
 /** A repository of these rhythms, ranked by cells' query on the facet `rhythm`, filtered by the fit and read by `read` (cells', unless a test counts them). */
 export function rhythmRepository(
