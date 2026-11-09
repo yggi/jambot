@@ -763,7 +763,7 @@ test('the loop button repeats the section heard, bar for bar, every note written
   // At 108 bpm a bar is 2.2 s: tap in the second section, before its last bar is composed.
   await expect.poll(lastBar, { timeout: 30_000 }).toBeGreaterThanOrEqual(9);
   expect(await lastBar()).toBeLessThan(14);
-  const loop = page.getByRole('button', { name: 'Loop' });
+  const loop = page.getByRole('button', { name: 'Loop', exact: true });
   await loop.click();
   await expect(loop).toHaveText('repeat');
   await expect.poll(lastBar, { timeout: 40_000 }).toBeGreaterThanOrEqual(24);
