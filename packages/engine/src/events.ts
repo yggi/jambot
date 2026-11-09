@@ -236,6 +236,25 @@ export interface Timbre {
   readonly sound?: VoiceSound;
 }
 
+/** The parts the built-in synth plays as pitches: all but the drums. */
+export type PitchedPart = Exclude<Part, 'drums'>;
+
+/** The fields of a `Timbre` each pitched part's own voice reads. */
+interface TimbreNeeds {
+  readonly bass: 'saw' | 'triangle' | 'cutoff' | 'resonance';
+  readonly pad: 'attack' | 'release';
+  readonly stab: 'attack' | 'release';
+  readonly lead: 'triangle' | 'square' | 'cutoff' | 'attack';
+}
+
+/**
+ * A timbre a part can be played with: for a pitched part every field its own voice reads, or a sound of its own,
+ * which the synth plays in their place; the drums read none (#341: `{}` for the bass typechecked and Web Audio refused it).
+ */
+export type TimbreFor<P extends Part> = P extends PitchedPart
+  ? Timbre & (Required<Pick<Timbre, TimbreNeeds[P]>> | { readonly sound: VoiceSound })
+  : Timbre;
+
 /**
  * A pitched voice's own sound, as a cells text writes it on the voice
  * (`&leadV s=square lpf=2400 env=&(map=adsr .02 .2 .7 .15)`): its waveform,

@@ -4,7 +4,7 @@
  * stand in for Web Audio.
  */
 
-import type { Part, ScheduledStep, Timbre } from '@jambot/engine';
+import type { Part, PitchedPart, ScheduledStep, TimbreFor } from '@jambot/engine';
 import type { Weight } from '@jambot/theory';
 import { drumKit } from './drums.ts';
 import { clickVoice } from './metronome-click.ts';
@@ -27,13 +27,13 @@ export interface Output {
    * Play a part's note at a time on the clock, for a duration in seconds,
    * as its bar sounds. The drums play General MIDI drum notes.
    */
-  play(
-    part: Part,
+  play<P extends Part>(
+    part: P,
     note: number,
     velocity: number,
     seconds: number,
     duration: number,
-    timbre: Timbre,
+    timbre: TimbreFor<P>,
   ): void;
   /**
    * The level of what plays, from 0 to 1, reached at once or, given
@@ -107,7 +107,16 @@ export function webAudioOutput(): Output {
     },
     play(part, note, velocity, seconds, duration, timbre) {
       if (part === 'drums') current.kit.play(note, velocity, seconds);
-      else current.voices.play(part, note, velocity, seconds, duration, timbre);
+      // (the drums are the one part whose timbre is any: the rest is the pitched part's, as play's type says)
+      else
+        current.voices.play(
+          part as PitchedPart,
+          note,
+          velocity,
+          seconds,
+          duration,
+          timbre as TimbreFor<PitchedPart>,
+        );
     },
     click(weight, seconds, gain) {
       current.click.play(weight, seconds, gain);
