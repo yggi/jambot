@@ -4,13 +4,16 @@ import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
 import { MODE_FRAGMENTS } from '@yggi/cells/repository/modes';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { describe, expect, it } from 'vitest';
+import { METERS } from '@jambot/theory';
 import {
   INSTRUMENT_LINES,
+  notedVoices,
   PERFORMER_VOICES,
   instrumentsAt,
   instrumentsFor,
   withInstruments,
 } from './instruments.ts';
+import { readRhythm } from './rhythms.ts';
 import { PRESETS } from './style.ts';
 
 const errors = (text: string) =>
@@ -47,13 +50,36 @@ describe("the instruments a fragment's sound holes are filled from (yggi/cells#2
     expect(instrumentsFor('&kick step=16n &bd ~ &bd:0:.5 ~\n&drums map=midi(10) [&kick]')).toEqual([
       lineOf('gm_kit', 'bd'),
     ]);
-    // (a groove filed before the pin states its own voices: it keeps them)
+    // (a groove filed before cells v0.10.0 states its own voices: it keeps them, each with the note its name gave)
     const own = '&kick step=16n &bd ~ &bd ~\n&bd s=white\n&drums map=midi(10) [&kick]';
-    expect(withInstruments(own)).toBe(own);
+    expect(withInstruments(own)).toBe(own.replace('&bd s=white', '&bd note=36 s=white'));
     // (a voice no instrument defines is left for the compile to name)
     expect(instrumentsFor('&x step=16n &nosuchvoice ~')).toEqual([]);
     // (a name that only starts with an instrument's is not it)
     expect(instrumentsFor('&x step=16n &bdx ~')).toEqual([]);
+  });
+});
+
+describe('a groove filed with its own voices, read at cells v0.22.0 (yggi/cells#626)', () => {
+  it('sends each of its drums as General MIDI’s note for its name, which cells gives a name no longer: as it was filed', () => {
+    const old = [
+      '&kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~',
+      '&backbeat step=16n ~ ~ ~ ~ &sd ~ ~ ~ ~ ~ ~ ~ &sd ~ ~ ~',
+      '&hat step=16n &hh ~ &hh ~ &hh ~ &hh ~ &hh ~ &hh ~ &hh ~ &hh ~',
+      '&bd s=white',
+      '&sd s=white',
+      '&hh s=white',
+      '&groove [&kick, &backbeat, &hat]',
+    ].join('\n');
+    const read = readRhythm(old, METERS['4/4'])!;
+    expect([...new Set(read.hits.map((h) => `${h.role} ${h.note}`))].sort()).toEqual([
+      'backbeat 38',
+      'hat 42',
+      'kick 36',
+    ]);
+    // (a voice that writes its note keeps it, and a line with no sound is no voice to write one on)
+    expect(notedVoices('&bd note=40 s=white')).toBe('&bd note=40 s=white');
+    expect(notedVoices('&bd gain=1')).toBe('&bd gain=1');
   });
 });
 

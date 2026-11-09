@@ -33,13 +33,20 @@ if (process.env.E31_REPORT) console.log(WITNESSES.map(report).join('\n\n'));
 
 const of = (preset: string) => WITNESSES.find((w) => w.preset === preset)!;
 
-/** A one-line drum text at 120 bpm: a line of hits (on 16ths unless `step` says), played on channel 10 by voices with the given attributes. */
+/** Each drum voice's General MIDI note, as the kit writes it (`VOICE_OF_NOTE` turned round). */
+const NOTE_OF_VOICE = new Map([...VOICE_OF_NOTE].map(([note, voice]) => [voice, note]));
+
+/**
+ * A one-line drum text at 120 bpm: a line of hits (on 16ths unless `step` says), played on channel 10 by voices with
+ * the given attributes, each writing the note it sends (`note=`, as Migrate's rule `notes` writes it: a drum's name
+ * gives none since cells v0.22.0, yggi/cells#626).
+ */
 const line = (hits: string, voices: string, sound = 's=white', step = '16n') =>
   [
     '&bar scan(1 1 1 1) step=120bpm',
     `&groove step=${step} ${hits}`,
     '&drums map=midi(10) [&groove]',
-    ...voices.split(' ').map((v) => `&${v} ${sound}`),
+    ...voices.split(' ').map((v) => `&${v} note=${NOTE_OF_VOICE.get(v)} ${sound}`.trimEnd()),
   ].join('\n');
 
 describe("the band's drums as cells text, one bar per preset (E31)", () => {
@@ -100,7 +107,7 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
 });
 
 describe('the forms the translator relies on, over every case', () => {
-  it('names each of the band’s drum sounds by a word that cells sends as its General MIDI note', () => {
+  it('sends each of the band’s drum sounds as the General MIDI note its voice writes (`note=`), which its name gives none of (cells v0.22.0, yggi/cells#626)', () => {
     for (const [sound, note] of Object.entries(DRUM_NOTES)) {
       const voice = VOICE_OF_NOTE.get(note)!;
       const { hits, diagnostics } = cellsDrums(line(`&${voice} ~!15`, voice), 120);
@@ -109,6 +116,25 @@ describe('the forms the translator relies on, over every case', () => {
         hits.map((h) => h.note),
         sound,
       ).toEqual([note]);
+      // The same note under any name: the note is the voice's, not its name's.
+      const renamed = [
+        '&bar scan(1 1 1 1) step=120bpm',
+        '&groove step=16n &drum ~!15',
+        '&drums map=midi(10) [&groove]',
+        `&drum note=${note} s=white`,
+      ].join('\n');
+      expect(
+        cellsDrums(renamed, 120).hits.map((h) => h.note),
+        sound,
+      ).toEqual([note]);
+      // A voice named as General MIDI's that writes no note is warned, and takes the next free note from 36.
+      const unnoted = line(`&${voice} ~!15`, voice).replace(/ note=\d+/, '');
+      const read = cellsDrums(unnoted, 120);
+      expect(read.diagnostics.join(), sound).toMatch(/a name gives no note/);
+      expect(
+        read.hits.map((h) => h.note),
+        sound,
+      ).toEqual([36]);
     }
   });
 
@@ -126,7 +152,7 @@ describe('the forms the translator relies on, over every case', () => {
       `&groove step=16n ${velocities.map(() => '&bd').join(' ')}`,
       `&levels map=amp step=16n ${velocities.map(levelOf).join(' ')}`,
       '&drums map=midi(10) [&groove * &levels]',
-      '&bd s=white',
+      '&bd note=36 s=white',
     ].join('\n');
     const read = cellsDrums(text, 120, 127);
     expect(read.diagnostics).toEqual([]);
@@ -170,9 +196,9 @@ describe('what cells could not say (E31: the gaps)', () => {
     const w = of('Synth-pop');
     expect(w.cells).toHaveLength(12);
     for (const sound of ['gain=1', 'oneshot', '']) {
-      // (each voice's line, which the kit gives it, stripped of its sound)
-      const text = w.text.replace(/^&(\w+) s=.*$/gm, (_, voice: string) =>
-        sound ? `&${voice} ${sound}` : `&${voice}`,
+      // (each voice's line, which the kit gives it, stripped of its sound and keeping its note, `note=`)
+      const text = w.text.replace(/^&(\w+) (note=\d+) s=.*$/gm, (_, voice: string, note: string) =>
+        sound ? `&${voice} ${note} ${sound}` : `&${voice} ${note}`,
       );
       expect(text).not.toBe(w.text);
       const { hits, diagnostics } = cellsDrums(text, w.bar.style.bpm);

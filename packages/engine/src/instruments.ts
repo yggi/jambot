@@ -11,9 +11,13 @@
  * note in the register `loop=C2` sets), which the instrument's sound doesn't
  * move.
  *
- * A text that defines a voice keeps its own (a groove filed before this pin
- * states `&bd s=white`), and one that strikes a voice no instrument defines
- * is left as it is, for the compile to name. The performers' own instruments
+ * A text that defines a voice keeps its own (a groove filed before cells
+ * v0.10.0 states `&bd s=white`), with the General MIDI note its name gave
+ * written in (`note=36`), as cells' Migrate writes it: since cells v0.22.0 a
+ * drum's name gives no note (yggi/cells#626), so such a groove would
+ * otherwise send the next free notes from 36 (`notedVoices`). One that
+ * strikes a voice no instrument defines is left as it is, for the compile to
+ * name. The performers' own instruments
  * (`bass`, `keys`, `pad`, `lead`) fill a hole before any other that defines
  * its voice: a preset's instrument is found by style (`instrumentsAt`).
  *
@@ -27,6 +31,8 @@
  * holds its default's register, so MIDI out sends the same notes.
  */
 
+import { setAttr } from '@yggi/cells/engine/edit';
+import { gmDrumNote } from '@yggi/cells/engine/midi';
 import type { Fragment } from '@yggi/cells/repository/fragments';
 import { createRepository } from '@yggi/cells/repository/fragments';
 import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
@@ -122,8 +128,25 @@ export function instrumentsFor(text: string): string[] {
   );
 }
 
-/** A text with its instruments appended (`instrumentsFor`); the text itself where it lacks none. */
+/**
+ * A text's own drum voices named as General MIDI's that write no `note=`, written with the note the name gave, as cells'
+ * Migrate writes it (its rule `notes`, yggi/cells#626): `&bd s=white` is `&bd note=36 s=white`. A voice is a line with a
+ * sound (`s=`); the text itself where it has none to write.
+ */
+export function notedVoices(text: string): string {
+  let out = text;
+  for (const line of text.split('\n')) {
+    const name = /^&(\w+)\s/.exec(line)?.[1];
+    const note = name === undefined ? null : gmDrumNote(name);
+    if (note !== null && /\ss=/.test(line) && !/\snote=/.test(line))
+      out = setAttr(out, name!, 'note', String(note));
+  }
+  return out;
+}
+
+/** A text with its own drum voices' notes written (`notedVoices`) and its instruments appended (`instrumentsFor`); the text itself where it lacks none. */
 export function withInstruments(text: string): string {
-  const lines = instrumentsFor(text);
-  return lines.length ? `${text}\n${lines.join('\n')}` : text;
+  const noted = notedVoices(text);
+  const lines = instrumentsFor(noted);
+  return lines.length ? `${noted}\n${lines.join('\n')}` : noted;
 }
