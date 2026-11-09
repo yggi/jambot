@@ -1,7 +1,6 @@
 import { METERS, type MeterName, alteredHeight, stepsOf, wrap } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { unionOf } from '@yggi/cells/repository/fit';
 import { describe, expect, it } from 'vitest';
 import { keyHelix } from './key.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
@@ -22,6 +21,7 @@ import {
   readLead,
 } from './lead-lines.ts';
 import { type LeadFiling, type LeadNote, leadMotif, leadPhrase } from './lead-query.ts';
+import { takenOn } from './taken.ts';
 import { stepSeconds } from './tempo.ts';
 
 const NAMES = Object.keys(METERS) as MeterName[];
@@ -53,8 +53,8 @@ const LEAD_INSTRUMENT = [
 function cellsPlays(text: string, name: MeterName, key: string): string[] {
   const meter = METERS[name];
   const bench = `&bar meter("${name}") step=120bpm\n&key scale(${key})\n${LEAD_INSTRUMENT}`;
-  const source = unionOf(text, bench).text;
-  const plan = planOf(source);
+  const taken = takenOn(text, bench, { head: '&lead', main: '&key' });
+  const plan = planOf(taken.text, undefined, { resolve: taken.resolve });
   const route = router(plan.result, channelTable(plan.result));
   const step = stepSeconds(120, meter);
   const out: string[] = [];

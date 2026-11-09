@@ -1,6 +1,5 @@
 import { METERS, type MeterName } from '@jambot/theory';
 import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
-import { bodyOf } from '@yggi/cells/engine/use';
 import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES } from './key.ts';
 import {
@@ -65,8 +64,8 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
   it('states each seed’s slots as the seed’s own text, character for character (identity)', () => {
     for (const f of READ_SEEDS)
       expect(progressionText(readProgression(f.text, METERS['4/4'])!.notes)).toBe(
-        // (the seed's body: a template's signature line, `&harm from &key`, says what it takes)
-        bodyOf(f.text).trim(),
+        // (the seed's text, its signature line too, `&harm from &key`: a progression stated is a template, #562)
+        f.text.trim(),
       );
   });
 
@@ -106,7 +105,7 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
     expect(vampOf(read)).toBeNull();
     // (the round trip: the slots stated read back as themselves)
     expect(readProgression(progressionText(read.notes), METERS['4/4'])).toEqual(read);
-    expect(progressionText(read.notes)).toBe(text);
+    expect(progressionText(read.notes)).toBe(`&harm from &key\n${text}`);
   });
 
   it('reads no text that isn’t eight bars of stacks of 3 or 4 tones on the key’s degrees, each altered a semitone at most, on a bar’s start or its half', () => {

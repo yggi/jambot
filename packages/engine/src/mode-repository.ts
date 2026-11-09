@@ -5,9 +5,11 @@
  * read by cells' own compiler into one of the composer's modes
  * (`readModeFragment`) and ranked by cells' own `query` on the facet `mode`.
  *
- * A fragment states the mode and leaves the tonic to the host, a hole
- * (`scale(dorian, &tonic)`, yggi/cells#300), which the key plan sets as it
- * moves. One the band can't play is left out, and says why: a scale that is
+ * A fragment states the mode and leaves the tonic to the host, its
+ * signature's main parameter (`&key from &tonic`, yggi/cells#300 and
+ * decision 075), which the key plan sets as it moves: it is taken onto a
+ * bench of a meter and a tonic by a `from` line, the bench's tonic its main
+ * argument (#562). One the band can't play is left out, and says why: a scale that is
  * none of `COMPOSER_MODES` nor stands in for one, a tonic fixed, no key, or
  * a text that doesn't compile. Cells' are all played, the bell and scale as
  * ionian, and harmonic minor as aeolian on its tonic (#516): the score
@@ -27,8 +29,9 @@ import { type Fragment, createRepository } from '@yggi/cells/repository/fragment
 import { holesOf } from '@yggi/cells/repository/holes';
 import { MODE_FRAGMENTS } from '@yggi/cells/repository/modes';
 import { COMPOSER_MODES, type ComposerMode } from './key.ts';
-import { withInstruments } from './instruments.ts';
+import { instrumentsFor } from './instruments.ts';
 import { MISS_DISTANCE, type StylePoint, stylePoint } from './meter-query.ts';
+import { compileTaken, takenOn } from './taken.ts';
 import type { Preset } from './style.ts';
 
 /** A mode fragment as the band plays it: its id in the repository, and its mode. */
@@ -56,14 +59,16 @@ const STEPS: readonly { readonly mode: ComposerMode; readonly steps: readonly nu
 
 /** A fragment read by cells' compiler into one of the composer's modes, or why the band can't play it. */
 export function readModeFragment(fragment: Fragment): ModeFragment | string {
-  // (the bell and scale strikes the General MIDI kit's agogô, a hole its instrument fills: yggi/cells#260)
-  const compiled = compileSource(`${BENCH}\n${withInstruments(fragment.text)}`);
+  // (the bell and scale strikes the General MIDI kit's agogô, a hole its instrument fills on the bench: yggi/cells#260)
+  const bench = [BENCH, ...instrumentsFor(fragment.text)].join('\n');
+  const compiled = compileTaken(takenOn(fragment.text, bench, { head: '&key', main: '&tonic' }));
   const errors = compiled.diagnostics.filter((d) => d.severity === 'error');
   if (errors.length) return `it doesn't compile: ${errors.map((d) => d.message).join('; ')}`;
   const key = compiled.mainKey === undefined ? undefined : compiled.cells.get(compiled.mainKey);
   if (!key?.scan) return 'it has no key, a scale(…)';
-  if (!holesOf(fragment.text, compileSource).uses.includes('&tonic'))
-    return 'its tonic is fixed, which the key plan sets: scale(…, &tonic) leaves it to the host';
+  // (its signature's main parameter, the bench's tonic: decision 075, a name is only a name, #562)
+  if (!holesOf(fragment.text, compileSource).signature?.main)
+    return 'its tonic is fixed, which the key plan sets: a main parameter (`&key from &tonic`) leaves it to the host';
   const { lap, steps } = key.scan;
   const found = STEPS.find((mode) => lap === 12 && mode.steps.join(' ') === steps.join(' '))?.mode;
   if (!found) return `its scale, ${steps.join(' ')}, is none of the composer's modes`;

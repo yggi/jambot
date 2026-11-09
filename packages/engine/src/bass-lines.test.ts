@@ -4,7 +4,7 @@ import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/mid
 import { PITCHED_OPERATORS, variations } from '@yggi/cells/engine/vary/index';
 import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
 import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
-import { unionOf } from '@yggi/cells/repository/fit';
+import { bodyOf } from '@yggi/cells/engine/use';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_REPOSITORY,
@@ -17,8 +17,9 @@ import {
 } from './bass-lines.ts';
 import { type LineNote, type LineRead, isWalk, lineTone } from './bass-query.ts';
 import type { BarChord } from './chords.ts';
-import { EMPTY_LAYER } from './layer.ts';
+import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { type Key, keyHelix } from './key.ts';
+import { signedLayer, takenOn } from './taken.ts';
 import { stepSeconds } from './tempo.ts';
 
 const KEY: Key = { tonic: 9, mode: 'aeolian' };
@@ -51,7 +52,7 @@ const BASS = INSTRUMENT_FRAGMENTS.find((f) => f.id === 'bass')!.text;
 
 function cellsPlays(text: string, name: MeterName, bars: number): string[] {
   const meter = METERS[name];
-  const source = unionOf(
+  const taken = takenOn(
     text,
     [
       `&bar meter("${name}") step=${READ_AT}bpm`,
@@ -60,8 +61,9 @@ function cellsPlays(text: string, name: MeterName, bars: number): string[] {
       BASS,
       ...BASS_VOICE,
     ].join('\n'),
-  ).text;
-  const plan = planOf(source);
+    { head: '&bassline', main: '&harm' },
+  );
+  const plan = planOf(taken.text, undefined, { resolve: taken.resolve });
   const route = router(plan.result, channelTable(plan.result));
   const step = stepSeconds(READ_AT, meter);
   const steps = stepsOf(meter);
@@ -199,10 +201,13 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       expect(text).not.toMatch(/map=midi/);
     }
     expect(() => lineText([note(0, { alter: 1 })], 16)).toThrow(/accidental/);
-    expect(lineText([note(0), note(8)], 16).split('\n')[0]).toBe(
-      '&bassline over=&harm step=2n 0 0',
-    );
-    expect(lineText([note(0), note(12, { chord: 1, shift: -1 })], 16).split('\n')[0]).toBe(
+    // (a template, as a seed line is: its signature first, the harmony its main parameter, #562)
+    expect(
+      lineText([note(0), note(8)], 16)
+        .split('\n')
+        .slice(0, 2),
+    ).toEqual(['&bassline from &harm', '&bassline over=&harm step=2n 0 0']);
+    expect(lineText([note(0), note(12, { chord: 1, shift: -1 })], 16).split('\n')[1]).toBe(
       '&bassline over=&harm step=4n 0 ~ ~ &bassNext^$-1',
     );
   });
@@ -239,6 +244,21 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     expect([seed.held, seed.id, seed.layer.filed.length]).toEqual([true, 'root_bass', 0]);
     const again = lineRepository().file!(filed.layer, { ...filing, created: 'song 1, bar 16' });
     expect([again.held, again.id, again.layer.filed.length]).toEqual([true, filed.id, 1]);
+    // A line filed before cells v0.21.0, with no signature, is known as the one heard once a kept layer signs it (#562).
+    const file = filed.layer.filed[0]!;
+    const before: LearnedLayer = {
+      ...filed.layer,
+      filed: [{ ...file, fragment: { ...file.fragment, text: bodyOf(file.fragment.text) } }],
+    };
+    expect(lineRepository().file!(before, { ...filing, created: 'song 2' }).held).toBe(false);
+    const signed = signedLayer(before);
+    expect(signed.filed[0]!.fragment.text).toBe(file.fragment.text);
+    expect(lineRepository().file!(signed, { ...filing, created: 'song 2' })).toMatchObject({
+      id: filed.id,
+      held: true,
+    });
+    // (a layer with nothing to sign is the same layer)
+    expect(signedLayer(filed.layer)).toBe(filed.layer);
   });
 
   it('reads nothing but from its cache once warmed on every bench, its variations too', () => {

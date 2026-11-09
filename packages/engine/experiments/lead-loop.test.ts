@@ -81,10 +81,11 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     }
   });
 
-  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 31 sections of 5,387`, () => {
+  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 28 sections of 5,387`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThanOrEqual(LAYER_CAP);
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15991, 31]);
+    // (15,991 and 31 before cells v0.21.0, whose bass lines and progressions are filed with their signature, #562)
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15978, 28]);
     expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5387);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);
   });

@@ -179,6 +179,7 @@ export function playText(
 
 /** A text of the worker's own, in the forms a section's text uses, compiled as it starts, so the first section's compiles warm. */
 const WARM_TEXT = [
+  '&harm, &key from',
   '&bar meter("4/4") step=120bpm',
   '&key scale(aeolian, A)',
   '&style style=&(map=style .5 .5 .5 .5)',

@@ -12,7 +12,7 @@
  * under its meter played straight, the swing left out, since the band swings
  * its hits as it swings its own (E36: a Euclid on `1m` stays straight under
  * a swung meter in cells, yggi/cells#121). Fragments are ranked by cells'
- * `query` and filtered by cells' `fitOf`, the fit its query's workbench
+ * `query` and filtered by cells' `fitsAs`, the fit its query's workbench
  * applies, each fit and read kept for the repository's life, so a section
  * asks again at the cost of a lookup. A fit not yet tested costs a compile
  * (2 to 15 ms), too much for a section's start while the band plays, so
@@ -43,7 +43,9 @@ import { planOf, windowAt } from '@yggi/cells';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { setTiming } from '@yggi/cells/engine/edit';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { cachedCompile, fitOf, unionOf } from '@yggi/cells/repository/fit';
+import { cachedFit } from '@yggi/cells/repository/fit';
+import { resolveSeed } from '@yggi/cells/repository/library';
+import { collides, unionOn } from './taken.ts';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
 import { holesOf } from '@yggi/cells/repository/holes';
 import { instrumentsFor, withInstruments } from './instruments.ts';
@@ -78,6 +80,17 @@ const nameOf = (meter: Meter): MeterName | null =>
 
 /** A meter played straight, at the reading tempo. */
 const straight = (name: MeterName) => `&bar meter("${name}") step=${READ_AT}bpm`;
+
+/**
+ * A rhythm on a workbench, as cells' fit reads it (#562): a rhythm is a collection, judged by its lines, so its text is
+ * their union with the workbench, and `union` what became of its names there (renamed where the workbench defines one
+ * by another line). Cached by text, as the fit is.
+ */
+const onBench = cachedFit(resolveSeed, COMPILES);
+
+/** A rhythm's union with a workbench, its text: written as it is where nothing is renamed (`unionOn`), else cells'. */
+const unionText = (text: string, workbench: string): string =>
+  unionOn(text, workbench) ?? onBench(text, workbench).text;
 
 /** The workbench of a bench: its meter fragment at the reading tempo, or the meter named. */
 export function benchText({ meter, meterFragment }: RhythmBench): string | null {
@@ -139,7 +152,9 @@ function readLines(text: string, meter: Meter, bars: number, only?: string): Fra
     if (only !== undefined && line !== only) continue;
     // (the mix as the card on channel 10, of this line alone)
     const alone = text.replace(mix.line, `&${mix.name} map=midi(10) [${term}]`);
-    const plan = planOf(unionOf(withInstruments(alone), straight(name)).text);
+    const plan = planOf(unionText(withInstruments(alone), straight(name)), undefined, {
+      resolve: resolveSeed,
+    });
     const route = router(plan.result, channelTable(plan.result));
     for (const e of windowAt(plan, 0, steps * step).events)
       for (const r of routesOf(route(e))) {
@@ -177,13 +192,13 @@ const inOrder = (hits: readonly FragmentHit[]): FragmentHit[] =>
 /** A meter's key in the caches: its cycle and pulses. */
 const meterKey = (meter: Meter) => `${meter.cycle}:${meter.heights.join(' ')}`;
 
-/** Whether a fragment fits a workbench: cells' `fitOf`, its compiles cached by text. */
+/** Whether a fragment fits a workbench: cells' `fitsAs` (#562), its compiles cached by text. */
 export type RhythmFit = (fragment: string, workbench: string) => boolean;
 
-/** Cells' fit, with a cache of compiles of its own. */
+/** Cells' fit, with a cache of compiles and answers of its own, its `from` lines read from cells' seed library. */
 export function cellsFit(): RhythmFit {
-  const compiled = cachedCompile(COMPILES);
-  return (fragment, workbench) => fitOf(fragment, workbench, compiled).fits;
+  const fit = cachedFit(resolveSeed, COMPILES);
+  return (fragment, workbench) => fit(fragment, workbench).fits;
 }
 
 /** Whether a filed fragment is a rhythm: associated as one at some point. */
@@ -204,7 +219,8 @@ export const heldRhythms = (fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): 
 /** A repository of these rhythms, ranked by cells' query on the facet `rhythm`, filtered by the fit and read by `read` (cells', unless a test counts them). */
 export function rhythmRepository(
   fragments: readonly Fragment[] = RHYTHM_FRAGMENTS,
-  fit: RhythmFit = cellsFit(),
+  // (by default the union's own fit, `onBench`, so a fit and a union asked alike compile once)
+  fit: RhythmFit = (fragment, workbench) => onBench(fragment, workbench).fits,
   read: (text: string, meter: Meter) => FragmentRead | null = readRhythm,
 ): RhythmRepository {
   fragments = heldRhythms(fragments);
@@ -237,7 +253,7 @@ export function rhythmRepository(
   };
   const withItOf = (chosen: string, workbench: string) => {
     const key = `${chosen}\n${workbench}`;
-    if (!withIts.has(key)) withIts.set(key, unionOf(chosen, workbench).text);
+    if (!withIts.has(key)) withIts.set(key, unionText(chosen, workbench));
     return withIts.get(key)!;
   };
   // Whether a seed fragment layers with `chosen` on the workbench: another text, whose union with theirs renames none
@@ -248,9 +264,7 @@ export function rhythmRepository(
       const text = texts.get(id);
       layering.set(
         key,
-        text !== undefined &&
-          text !== chosen &&
-          unionOf(text, withItOf(chosen, workbench)).renamed.size === 0,
+        text !== undefined && text !== chosen && !collides(text, withItOf(chosen, workbench)),
       );
     }
     return layering.get(key)!;

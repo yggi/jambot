@@ -814,6 +814,9 @@ function pitchedLine(
   };
 }
 
+/** What a section offers the band, the heads of its own signature (yggi/cells decision 075): its harmony and its key. */
+const OFFERS = '&harm, &key from';
+
 /** How a section is stated: the rim as Euclids or a line, the tables the pitched lines read, and whether its tempo may move. */
 export interface Statement {
   readonly euclid?: boolean;
@@ -826,9 +829,10 @@ export interface Statement {
 }
 
 /**
- * A section's bars, every part, as one cells text. The host's lines come
- * first, stated once (`hostOf` refuses bars that part on them), then the
- * harmony, then the parts, open on them.
+ * A section's bars, every part, as one cells text. What it offers the band
+ * comes first (`&harm, &key from`), then the host's lines, stated once
+ * (`hostOf` refuses bars that part on them), then the harmony, then the
+ * parts, open on them.
  */
 export function sectionAsCells(
   bars: readonly BandBar[],
@@ -852,6 +856,9 @@ export function sectionAsCells(
   const chordStack = (numeral: string) =>
     chordTones(key, lowerNumeral(key, parseNumeral(numeral)!));
   const lines: SectionLine[] = [
+    // (the section offers the band its harmony and its key, the heads of its own signature: a part that doesn't read
+    // the harmony leaves it unread, not silent, yggi/cells decision 075, #609)
+    { part: 'harmony', text: OFFERS },
     { part: 'meter', text: `&bar meter("${host.meter}") step=${host.bpm}bpm${host.swing}` },
     { part: 'key', text: `&key ${host.key}` },
     // (the section's style, where its first bar sits: what the instruments read, `&style[artic]`, decision 063 §3)

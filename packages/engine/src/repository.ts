@@ -52,6 +52,7 @@ import {
   stylePoint,
 } from './meter-query.ts';
 import type { Preset } from './style.ts';
+import { signedLayer } from './taken.ts';
 import { type MeterSwing, STRAIGHT, SWING_LEVELS, type SwingLevel } from './swing.ts';
 
 /** The eighths in a pulse of a meter's note value: two of a quarter, one of an eighth. */
@@ -193,9 +194,12 @@ export const SEED_FRAGMENTS: readonly Fragment[] = [
  * - its seed ids written as the words they are now (cells' `renamedLayer`, yggi/cells#443), for one kept before cells
  *   v0.16.0, so a band keeps the points and pairs it learned, which would otherwise be left out as unheld (#558);
  * - its lead lines without the voice and card they carried before #580 (`leadsAlone`), so a line heard again is
- *   known as the one filed.
+ *   known as the one filed;
+ * - its bass lines and progressions with the signature they are stated with since cells v0.21.0 (`signedLayer`,
+ *   #562), so a line heard again is known as the one filed.
  */
-export const keptLayer = (layer: LearnedLayer): LearnedLayer => leadsAlone(renamedLayer(layer));
+export const keptLayer = (layer: LearnedLayer): LearnedLayer =>
+  signedLayer(leadsAlone(renamedLayer(layer)));
 
 export function repositoryLayerProblems(layer: unknown): string[] {
   if (typeof layer !== 'object' || layer === null || Array.isArray(layer))
