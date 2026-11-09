@@ -38,21 +38,20 @@
 
 import type { Meter, MeterName } from '@jambot/theory';
 import { METERS, stepsOf } from '@jambot/theory';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { bodyOf } from '@yggi/cells/engine/use';
+import { bodyOf, signatureOf } from '@yggi/cells/engine/use';
 import { flatten, tapped } from '@yggi/cells/engine/flatten';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { type Operator, variations } from '@yggi/cells/engine/vary/index';
 import { tapWhole } from '@yggi/cells/engine/vary/lines';
-import { unionOf } from '@yggi/cells/repository/fit';
+import { useOn } from '@yggi/cells/repository/fit';
 import type { Fragment } from '@yggi/cells/repository/fragments';
 import { FORM_FRAGMENTS } from '@yggi/cells/repository/forms';
-import { holesOf } from '@yggi/cells/repository/holes';
 import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
 import { LEAD_FACET, type LeadNote, type LeadRead, type LeadRepository } from './lead-query.ts';
 import type { LearnedLayer } from './layer.ts';
 import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';
+import { compileTaken, takenOn } from './taken.ts';
 
 /**
  * The lead's voice and card a filed lead line carried before #580 (rung 1): its register's floor (`C4`) and its card
@@ -133,10 +132,9 @@ export function leadText(notes: readonly LeadNote[], steps: number): string {
 export function readLead(text: string, meter: Meter): LeadRead | null {
   const name = nameOf(meter);
   if (!name) return null;
-  // (a line the Muse filed as a form over the seed's motifs takes them from cells' library, #580 rung 4)
-  const result = compileSource(unionOf(text, leadBench(name)).text, undefined, {
-    resolve: resolveSeed,
-  });
+  // (a line the Muse filed as a form over the seed's motifs takes them from cells' library, #580 rung 4; a line is a
+  // collection, read by its lines on the bench, and a template is taken as `&lead` over the bench's key, #562)
+  const result = compileTaken(takenOn(text, leadBench(name), { head: '&lead', main: '&key' }));
   if (!result.ok) return null;
   const cell = result.cells.get('lead');
   if (!cell?.step) return null;
@@ -291,11 +289,10 @@ export const LEAD_REPOSITORY: LeadRepository = leadRepository();
  */
 export const LEAD_FORM: Fragment = FORM_FRAGMENTS.find((f) => f.id === 'call_and_answer')!;
 
-/** A form's head, the line it plays, and its hole, the line it moves and answers: `&phrase` and `&call` for the call and its answer. */
-function formParts(form: Fragment): { readonly head: string; readonly hole: string } | null {
-  const head = /^&(\w+)/m.exec(form.text)?.[1];
-  const hole = holesOf(form.text, compileSource).lines[0];
-  return head && hole ? { head, hole } : null;
+/** A form's head, the line it plays, where its signature has a main parameter, the line it moves and answers: `&phrase` for the call and its answer (`&phrase from (&answer) &call`). */
+function formHead(form: Fragment): string | null {
+  const signature = signatureOf(form.text);
+  return signature?.main && signature.names.length === 1 ? signature.names[0]! : null;
 }
 
 /** Every phrase read, by form, meter and line: kept for the module's life, as a repository keeps its reads. */
@@ -321,20 +318,16 @@ export function phraseOf(
   });
   const key = `${form.id}\n${meter.cycle}:${meter.heights.join(' ')}\n${tokens.join(' ')}`;
   if (!phrases.has(key)) {
-    const parts = formParts(form);
-    phrases.set(
-      key,
-      parts &&
-        readLead(
-          [
-            form.text,
-            `&leadCall over=&key step=8n ${tokens.join(' ')}`,
-            `&${parts.hole.slice(1)} step=8n &leadCall`,
-            `&lead step=8n &${parts.head}`,
-          ].join('\n'),
-          meter,
-        ),
-    );
+    const head = formHead(form);
+    // (the form taken by a `from` line, the line its main argument, #562: `&phrase from call_and_answer &leadCall`)
+    const taken =
+      head &&
+      useOn(`&leadCall over=&key step=8n ${tokens.join(' ')}`, form.id, {
+        resolve: (id, hash) => (id === form.id ? form.text : resolveSeed(id, hash)),
+        head,
+        main: '&leadCall',
+      });
+    phrases.set(key, taken ? readLead(`${taken.text}\n&lead step=8n ${head}`, meter) : null);
   }
   return phrases.get(key)!;
 }

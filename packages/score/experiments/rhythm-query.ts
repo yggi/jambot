@@ -17,7 +17,7 @@
  * style's point on the meter's four axes (`stylePoint`), the facet `rhythm`,
  * and the workbench the section's meter fragment as the band hosts it, its
  * tempo set (`setTiming`, as `repository.ts` reads a meter), so the fit
- * (`fitOf`, decision 047) ranks only the rhythms that fit the meter
+ * (`fitsAs`, decision 047) ranks only the rhythms that fit the meter
  * (`askRhythm`). A section gets the nearest that fits, or a named miss: the
  * fit refusing every rhythm, or the nearest that fits lying past
  * `RHYTHM_MISS`, the meter's own distance.
@@ -75,13 +75,20 @@ import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { setTiming } from '@yggi/cells/engine/edit';
-import { unionOf } from '@yggi/cells/repository/fit';
+import { cachedFit } from '@yggi/cells/repository/fit';
+import { resolveSeed } from '@yggi/cells/repository/library';
 import { type Fragment, type Repository, createRepository } from '@yggi/cells/repository/fragments';
 import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
 import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { type Hit, witnesses } from './drums-in-cells.ts';
 import { meterName } from './bar-in-cells.ts';
 import { wordOf } from '@yggi/cells/engine/renamed';
+
+/**
+ * A rhythm on a workbench, as cells' fit reads a collection (`fitsAs`, #562): the union of its lines with the
+ * workbench's, and what became of its names there. Cached by text.
+ */
+export const onBench = cachedFit(resolveSeed, 2048);
 
 /** The corpus: E35's seeds, entropy and length. */
 export const SEEDS = [1, 2, 3, 4, 5] as const;
@@ -239,7 +246,9 @@ export function readFragment(
     .flatMap((term) => {
       const role = /^&(\w+)/.exec(term)![1]!;
       const alone = fragment.replace(line, `&${name} map=midi(10) [${term}]`);
-      const plan = planOf(unionOf(withInstruments(alone), workbench).text);
+      const plan = planOf(onBench(withInstruments(alone), workbench).text, undefined, {
+        resolve: resolveSeed,
+      });
       const route = router(plan.result, channelTable(plan.result));
       return windowAt(plan, 0, bars * 16 * step).events.flatMap((e) =>
         routesOf(route(e)).flatMap((r) => {
@@ -428,7 +437,7 @@ export function coSelect(
   within = CO_SELECT,
 ): { id: string; distance: number } | null {
   const text = repository.fragments.find((f) => f.id === chosen)!.text;
-  const bench = unionOf(text, workbench).text;
+  const bench = onBench(text, workbench).text;
   const found = repository
     .query(
       point,
@@ -436,7 +445,9 @@ export function coSelect(
       {},
       { facet: 'rhythm', workbench: bench, chosen: [chosen] },
     )
-    .find((f) => f.fragment.id !== chosen && unionOf(f.fragment.text, bench).renamed.size === 0);
+    .find(
+      (f) => f.fragment.id !== chosen && onBench(f.fragment.text, bench).union?.renamed.size === 0,
+    );
   return found && found.distance <= within
     ? { id: found.fragment.id, distance: found.distance }
     : null;

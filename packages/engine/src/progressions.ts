@@ -21,11 +21,9 @@
  */
 
 import type { Meter, MeterName } from '@jambot/theory';
-import { compileSource } from '@yggi/cells/engine/compile';
 import { flatten } from '@yggi/cells/engine/flatten';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { tapWhole } from '@yggi/cells/engine/vary/lines';
-import { unionOf } from '@yggi/cells/repository/fit';
 import type { Fragment } from '@yggi/cells/repository/fragments';
 import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
 import { SECTION_BARS } from './form.ts';
@@ -37,6 +35,7 @@ import {
   SLOT_BAR,
 } from './harmony-query.ts';
 import { lineRepositoryOf, nameOf } from './line-repository.ts';
+import { compileTaken, takenOn } from './taken.ts';
 import type { StackTone } from './themes.ts';
 
 /** The workbench a progression is read on: the meter, and a key, so its hole is filled. */
@@ -60,7 +59,9 @@ const MOST_ALTER = 1;
 
 /**
  * A section's progression as cells text, open on its meter and its key: a
- * bar a step (`1m`), each its slot's stack as written or the triad on its
+ * template, as a seed progression is, its signature `&harm from &key` (the
+ * key its main parameter, yggi/cells decision 065), so a progression heard
+ * is known as the seed it plays (#562); a bar a step (`1m`), each its slot's stack as written or the triad on its
  * degree, or its two halves'
  * where it has a slot on its half, runs of a bar written `!n`. It reads
  * back as the slots it was stated from (`readProgression`, the round trip).
@@ -80,7 +81,7 @@ export function progressionText(notes: readonly HarmonySlot[]): string {
     runs.push(n > 1 ? `${bars[b]}!${n}` : bars[b]!);
     b += n;
   }
-  return `&harm over=&key step=1m cycle=${SECTION_BARS} ${runs.join(' ')}`;
+  return `&harm from &key\n&harm over=&key step=1m cycle=${SECTION_BARS} ${runs.join(' ')}`;
 }
 
 /**
@@ -96,7 +97,8 @@ export function progressionText(notes: readonly HarmonySlot[]): string {
 export function readProgression(text: string, meter: Meter): HarmonyRead | null {
   const name = nameOf(meter);
   if (!name) return null;
-  const result = compileSource(unionOf(text, harmonyBench(name)).text);
+  // (a seed progression, a template, taken as `&harm` over the bench's key, its main argument, #562)
+  const result = compileTaken(takenOn(text, harmonyBench(name), { head: '&harm', main: '&key' }));
   if (!result.ok) return null;
   const cell = result.cells.get('harm');
   if (!cell?.step) return null;

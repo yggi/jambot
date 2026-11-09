@@ -47,20 +47,20 @@
 
 import { type Meter, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
-import { compileSource } from '@yggi/cells/engine/compile';
 import { flatten } from '@yggi/cells/engine/flatten';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { codeShifts } from '@yggi/cells/engine/program';
+import { expansion } from '@yggi/cells/engine/use';
 import { PITCHED_OPERATORS } from '@yggi/cells/engine/vary/index';
 import { linesOf } from '@yggi/cells/engine/vary/lines';
 import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
-import { unionOf } from '@yggi/cells/repository/fit';
 import type { Fragment } from '@yggi/cells/repository/fragments';
 import { BASS_FACET, type LineNote, type LineRead, type LineRepository } from './bass-query.ts';
 import type { Bench } from './facet.ts';
 import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';
 import { withInstruments } from './instruments.ts';
 import { RHYTHM_BENCHES } from './rhythms.ts';
+import { compileTaken, takenOn } from './taken.ts';
 import { stepSeconds } from './tempo.ts';
 
 /** The tempo a line is read at: any, since it is open on its tempo. */
@@ -99,13 +99,19 @@ const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 export function readLine(text: string, meter: Meter): LineRead | null {
   const name = nameOf(meter);
   if (!name) return null;
-  // (with the card on the bench: a seed line carries none since yggi/cells#299, and a filed one's, the same line, is kept once)
-  const source = withInstruments(
-    unionOf(text, [readingBench(name), ...BASS_VOICE].join('\n')).text,
-  );
-  const result = compileSource(source);
+  // (with the card on the bench: a seed line carries none since yggi/cells#299, and a filed one's, the same line, is kept
+  // once; a seed line, a template, is taken as `&bassline` over the bench's harmony, its main argument, #562)
+  const taken = takenOn(text, [readingBench(name), ...BASS_VOICE].join('\n'), {
+    head: '&bassline',
+    main: '&harm',
+  });
+  const source = withInstruments(taken.text);
+  const result = compileTaken({ ...taken, text: source });
   if (!result.ok) return null;
-  const pitched = linesOf(source, result).filter((l) => l.pitched);
+  // (the lines read off the text the compiler reads: a template's copy written out)
+  const pitched = linesOf(expansion(source, { resolve: taken.resolve }).text, result).filter(
+    (l) => l.pitched,
+  );
   if (pitched.length !== 1) return null;
   const [line] = pitched as [(typeof pitched)[number]];
   if (line.pitched!.table !== 'harm' || line.stepWhole === null || !line.meter) return null;
@@ -128,7 +134,7 @@ export function readLine(text: string, meter: Meter): LineRead | null {
   const bars = line.steps / gcd(line.steps, ticks);
   const steps = stepsOf(meter);
   const step = stepSeconds(READ_AT, meter);
-  const plan = planOf(source);
+  const plan = planOf(source, undefined, { resolve: taken.resolve });
   const route = router(plan.result, channelTable(plan.result));
   const onsets: number[] = [];
   for (const e of windowAt(plan, 0, bars * steps * step).events)
@@ -159,10 +165,12 @@ function tokenOf(note: LineNote): string {
 }
 
 /**
- * A bar's line as cells text, open on its meter and its chords (no `&bar`, no key, no harmony): its notes as indices
- * over the chord in force on the coarsest grid they fall on, `&bassNext` and `&bassRoot` defined where a note splices
- * them (`tokenOf`), and no card, as a seed line has none (`BASS_VOICE` is the reading's). It reads back as the notes it
- * was stated from (`readLine`, the round trip).
+ * A bar's line as cells text, open on its meter and its chords (no `&bar`, no key, no harmony): a template, as a seed
+ * line is, its signature `&bassline from &harm` (the harmony its main parameter, yggi/cells decision 065), so a line
+ * heard is known as the seed whose notes it plays (cells' identity keeps the names a signature declares, #562); its
+ * notes as indices over the chord in force on the coarsest grid they fall on, `&bassNext` and `&bassRoot` defined
+ * where a note splices them (`tokenOf`), and no card, as a seed line has none (`BASS_VOICE` is the reading's). It
+ * reads back as the notes it was stated from (`readLine`, the round trip).
  */
 export function lineText(notes: readonly LineNote[], steps: number): string {
   const sorted = [...notes].sort((a, b) => a.step - b.step);
@@ -176,6 +184,7 @@ export function lineText(notes: readonly LineNote[], steps: number): string {
   });
   const spliced = (cell: string) => sorted.some((n) => tokenOf(n).includes(cell));
   return [
+    '&bassline from &harm',
     `&bassline over=&harm step=${grid.tap} ${tokens.join(' ')}`,
     ...(spliced('&bassNext') ? ['&bassNext over=&harm[>>] 0'] : []),
     ...(spliced('&bassRoot') ? ['&bassRoot over=&harm 0'] : []),

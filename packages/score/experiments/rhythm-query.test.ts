@@ -1,6 +1,5 @@
 import { PROTOTYPE_PRESETS, stylePoint } from '@jambot/engine';
 import { METERS } from '@jambot/theory';
-import { unionOf } from '@yggi/cells/repository/fit';
 import { describe, expect, it } from 'vitest';
 import { witnesses } from './drums-in-cells.ts';
 import {
@@ -17,6 +16,7 @@ import {
   entered,
   gridAnswers,
   meterSweep,
+  onBench,
   queryCost,
   readFragment,
   report,
@@ -369,10 +369,10 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
       ['Bossa nova', 'bossa_nova_clave_one_bar', 0.025],
       ['Swing jazz', 'bossa_nova_clave_one_bar', 0.26],
     ]);
-    const withSynth = unionOf(drumFragmentOf('Synth-pop').text, bench).text;
-    expect([...unionOf(drumFragmentOf('Deep house').text, withSynth).renamed.keys()]).toContain(
-      '&kick',
-    );
+    const withSynth = onBench(drumFragmentOf('Synth-pop').text, bench).text;
+    expect([
+      ...onBench(drumFragmentOf('Deep house').text, withSynth).union!.renamed.keys(),
+    ]).toContain('&kick');
   });
 });
 

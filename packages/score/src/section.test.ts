@@ -80,10 +80,29 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(() => hostOf(bars)).toThrow(/bpm changes at its bar 1/);
     expect(hostOf(bars, { tempo: 'first' }).bpm).toBe(bars[0]!.style.bpm);
     const text = sectionTextOf(sectionAsCells(bars, { tempo: 'first' }));
-    expect(text.split('\n')[0]).toBe(`&bar meter("4/4") step=${bars[0]!.style.bpm}bpm`);
+    expect(text.split('\n')[1]).toBe(`&bar meter("4/4") step=${bars[0]!.style.bpm}bpm`);
     // The rest of the text is the held tempo's.
     const held = sectionTextOf(sectionAsCells(section('Synth-pop')));
     expect(text.split('\n').slice(1)).toEqual(held.split('\n').slice(1));
+  });
+
+  it('offers the band its harmony and its key at its head, so a section whose parts leave the harmony unread says nothing of it (yggi/cells decision 075, #609)', () => {
+    // The drums alone, as a section with no bass, pad or stab: nothing of the section's own reads `&harm`.
+    const bars = section('Synth-pop').map((bar) => ({
+      ...bar,
+      written: bar.written.filter((w) => w.part === 'drums'),
+    }));
+    const text = sectionTextOf(sectionAsCells(bars));
+    expect(text.split('\n')[0]).toBe('&harm, &key from');
+    expect(text).not.toMatch(/over=&harm/);
+    // (compiled without the reading's own lines, which read the harmony: `compileSection`)
+    const said = (t: string) =>
+      planOf(t, undefined, { resolve: resolveSeed }).result.diagnostics.map((d) => d.message);
+    expect(said(text)).toEqual([]);
+    // Without the offer, cells says the harmony is silent: a line that steps on a clock, and that nothing plays or reads.
+    expect(said(text.split('\n').slice(1).join('\n'))).toEqual([
+      expect.stringMatching(/^&harm is written and nothing plays or reads it/),
+    ]);
   });
 
   it('plays each part through its seed performer, the card sending their gates, each moved from its instrument’s register to the part’s (yggi/cells decisions 058 and 061, #490)', () => {

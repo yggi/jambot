@@ -27,9 +27,10 @@ const HAND_MODE: Readonly<Record<string, ComposerMode>> = {
   Spooky: 'aeolian',
 };
 
+/** A fragment of the key, its tonic its main parameter where it reads one (`&key from &tonic`), as cells writes a mode (decision 075). */
 const fragment = (id: string, text: string, point = PRESETS[0]!.style): Fragment => ({
   id,
-  text,
+  text: text.includes('&tonic') && !text.includes(' from ') ? `&key from &tonic\n${text}` : text,
   association: [{ point: stylePoint(point), weight: 1, facet: 'mode' }],
 });
 
@@ -62,6 +63,10 @@ describe("cells' mode fragments, as the band reads them", () => {
       /none of the composer's/,
     );
     expect(readModeFragment(fragment('fixed', '&key scale(dorian, D)'))).toMatch(/tonic/);
+    // (a tonic read by its name, with no signature that declares it, is no parameter: decision 075, #562)
+    expect(
+      readModeFragment({ ...fragment('by name', ''), text: '&key scale(dorian, &tonic)' }),
+    ).toMatch(/tonic is fixed/);
     expect(readModeFragment(fragment('no key', '&tune step=4n 0 1 2'))).toMatch(/no key/);
     expect(readModeFragment(fragment('broken', '&key scale(dorian, &tonic'))).toMatch(
       /doesn't compile/,
