@@ -45,6 +45,7 @@ import { setTiming } from '@yggi/cells/engine/edit';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { cachedFit } from '@yggi/cells/repository/fit';
 import { resolveSeed } from '@yggi/cells/repository/library';
+import { collides, unionOn } from './taken.ts';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
 import { holesOf } from '@yggi/cells/repository/holes';
 import { instrumentsFor, withInstruments } from './instruments.ts';
@@ -86,6 +87,10 @@ const straight = (name: MeterName) => `&bar meter("${name}") step=${READ_AT}bpm`
  * by another line). Cached by text, as the fit is.
  */
 const onBench = cachedFit(resolveSeed, COMPILES);
+
+/** A rhythm's union with a workbench, its text: written as it is where nothing is renamed (`unionOn`), else cells'. */
+const unionText = (text: string, workbench: string): string =>
+  unionOn(text, workbench) ?? onBench(text, workbench).text;
 
 /** The workbench of a bench: its meter fragment at the reading tempo, or the meter named. */
 export function benchText({ meter, meterFragment }: RhythmBench): string | null {
@@ -147,7 +152,7 @@ function readLines(text: string, meter: Meter, bars: number, only?: string): Fra
     if (only !== undefined && line !== only) continue;
     // (the mix as the card on channel 10, of this line alone)
     const alone = text.replace(mix.line, `&${mix.name} map=midi(10) [${term}]`);
-    const plan = planOf(onBench(withInstruments(alone), straight(name)).text, undefined, {
+    const plan = planOf(unionText(withInstruments(alone), straight(name)), undefined, {
       resolve: resolveSeed,
     });
     const route = router(plan.result, channelTable(plan.result));
@@ -248,7 +253,7 @@ export function rhythmRepository(
   };
   const withItOf = (chosen: string, workbench: string) => {
     const key = `${chosen}\n${workbench}`;
-    if (!withIts.has(key)) withIts.set(key, onBench(chosen, workbench).text);
+    if (!withIts.has(key)) withIts.set(key, unionText(chosen, workbench));
     return withIts.get(key)!;
   };
   // Whether a seed fragment layers with `chosen` on the workbench: another text, whose union with theirs renames none
@@ -259,9 +264,7 @@ export function rhythmRepository(
       const text = texts.get(id);
       layering.set(
         key,
-        text !== undefined &&
-          text !== chosen &&
-          onBench(text, withItOf(chosen, workbench)).union?.renamed.size === 0,
+        text !== undefined && text !== chosen && !collides(text, withItOf(chosen, workbench)),
       );
     }
     return layering.get(key)!;

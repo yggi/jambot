@@ -15,35 +15,70 @@
  */
 
 import { compileSource } from '@yggi/cells/engine/compile';
-import { signatureOf } from '@yggi/cells/engine/use';
+import { hasUse, signatureOf } from '@yggi/cells/engine/use';
 import type { CompileResult, Resolve } from '@yggi/cells/engine/program';
-import { fitsAs, useOn } from '@yggi/cells/repository/fit';
+import { declarations, fitsAs, useOn } from '@yggi/cells/repository/fit';
 import type { LearnedLayer } from '@yggi/cells/repository/fragments';
 import { resolveSeed } from '@yggi/cells/repository/library';
 
 /** The id a template is taken by on its workbench. */
 const TAKEN = 'taken';
 
-/** The compiles a collection's fit is judged by, kept by text: the last `COMPILES`, its `from` lines read from cells' seed. */
+/**
+ * Compiles kept by text, the last `COMPILES`: a template's, read through its own resolve, kept by the template too (each
+ * is taken as `taken`), and a collection's, read from cells' seed. A template's copy is compiled by `useOn` and again by
+ * its reader, and a collection's fit compiles the workbench each time: once each, so the warm-up that reads them costs
+ * the page's main thread no more than a union did (#562).
+ */
 const COMPILES = 2048;
 const compiles = new Map<string, CompileResult>();
-function compiledSeed(text: string): CompileResult {
-  const kept = compiles.get(text);
-  if (kept) {
-    compiles.delete(text);
-    compiles.set(text, kept);
-    return kept;
-  }
-  const result = compileSource(text, undefined, { resolve: resolveSeed });
-  compiles.set(text, result);
-  if (compiles.size > COMPILES) compiles.delete(compiles.keys().next().value!);
-  return result;
+function compiledBy(template: string, resolve: Resolve): (text: string) => CompileResult {
+  return (text) => {
+    const key = `${template}\u0000${text}`;
+    const kept = compiles.get(key);
+    if (kept) {
+      compiles.delete(key);
+      compiles.set(key, kept);
+      return kept;
+    }
+    const result = compileSource(text, undefined, { resolve });
+    compiles.set(key, result);
+    if (compiles.size > COMPILES) compiles.delete(compiles.keys().next().value!);
+    return result;
+  };
 }
 
-/** A fragment on a workbench: the text, and how its `from` lines read. */
+/**
+ * Whether a collection's union with a workbench renames any of its names: whether a name both define is defined by
+ * different lines (cells' union by lines renames those, and only after one of those any other).
+ */
+export function collides(text: string, bench: string): boolean {
+  const there = new Map(declarations(bench).map((l) => [l.name, l.code]));
+  return declarations(text).some((l) => there.has(l.name) && there.get(l.name) !== l.code);
+}
+
+/**
+ * A collection's union with a workbench, written without judging the fit, where cells' union by lines is no more than
+ * text: no name collides and the collection takes nothing by a `from` line. The workbench, then each of its lines the
+ * workbench doesn't give word for word (lifted from yggi/cells src/repository/fit.ts `unionByName` @ v0.21.0, its case
+ * with nothing to rename). Null otherwise: cells' `fitsAs` writes it. A union is text a read compiles, and judging it
+ * there costs the warm-up its compiles on the page's main thread (#562).
+ */
+export function unionOn(text: string, bench: string): string | null {
+  if (hasUse(text) || collides(text, bench)) return null;
+  const there = new Map(declarations(bench).map((l) => [l.name, l.code]));
+  const head = bench.replace(/\s+$/, '');
+  const kept = declarations(text)
+    .filter((l) => there.get(l.name) !== l.code)
+    .map((l) => l.written);
+  return [...(head ? [head] : []), ...kept].join('\n');
+}
+
+/** A fragment on a workbench: the text, how its `from` lines read, and its compile, kept by text. */
 export interface Taken {
   readonly text: string;
   readonly resolve: Resolve;
+  readonly compiled: (text: string) => CompileResult;
 }
 
 /** What a template is taken as: its head's name and its main argument, both the workbench's to give. */
@@ -57,17 +92,22 @@ export interface TakenAs {
  * collection by its lines.
  */
 export function takenOn(text: string, bench: string, as: TakenAs): Taken {
-  const resolve: Resolve = (id, hash) => (id === TAKEN ? text : resolveSeed(id, hash));
-  const on = signatureOf(text)
-    ? useOn(bench, TAKEN, { resolve, ...as }).text
-    : // (a collection's fit compiles its lines and the workbench's, never the id it is taken by: kept by text)
-      fitsAs(TAKEN, bench, { resolve, compiled: compiledSeed }).text;
-  return { text: on, resolve };
+  const template = signatureOf(text) !== null;
+  const resolve: Resolve = (id, hash) => (template && id === TAKEN ? text : resolveSeed(id, hash));
+  // (a collection's fit compiles its lines and the workbench's, never the id it is taken by: kept by text alone)
+  const compiled = compiledBy(template ? text : '', resolve);
+  const on = template
+    ? useOn(bench, TAKEN, { resolve, compiled, ...as }).text
+    : (unionOn(text, bench) ??
+      fitsAs(TAKEN, bench, {
+        resolve: (id, hash) => (id === TAKEN ? text : resolveSeed(id, hash)),
+        compiled,
+      }).text);
+  return { text: on, resolve, compiled };
 }
 
-/** A taken text compiled through its resolve. */
-export const compileTaken = ({ text, resolve }: Taken): CompileResult =>
-  compileSource(text, undefined, { resolve });
+/** A taken text compiled through its resolve, kept by text. */
+export const compileTaken = ({ text, compiled }: Taken): CompileResult => compiled(text);
 
 /** The signature each facet's stated lines are written with (`lineText`, `progressionText`), by facet and head. */
 const SIGNED: readonly {

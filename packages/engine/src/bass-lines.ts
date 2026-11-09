@@ -101,7 +101,8 @@ export function readLine(text: string, meter: Meter): LineRead | null {
   if (!name) return null;
   // (with the card on the bench: a seed line carries none since yggi/cells#299, and a filed one's, the same line, is kept
   // once; a seed line, a template, is taken as `&bassline` over the bench's harmony, its main argument, #562)
-  const taken = takenOn(text, [readingBench(name), ...BASS_VOICE].join('\n'), {
+  // (the bench brings the voice its card plays through, so the copy `useOn` compiles is the one read: one compile)
+  const taken = takenOn(text, withInstruments([readingBench(name), ...BASS_VOICE].join('\n')), {
     head: '&bassline',
     main: '&harm',
   });
