@@ -19,6 +19,7 @@ export * from './hand.ts';
 export * from './key.ts';
 export * from './lattice.ts';
 export * from './layer.ts';
+export * from './replay.ts';
 export * from './harmony-query.ts';
 export * from './history.ts';
 export * from './homeostat.ts';

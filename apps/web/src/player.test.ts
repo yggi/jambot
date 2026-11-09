@@ -24,10 +24,13 @@ import {
   styleAt,
   walkRadio,
   leaned,
+  loopEnd,
+  repeatSection,
 } from '@jambot/engine';
 import {
   type LayerStore,
   type SectionText,
+  type SentBar,
   type Station,
   memoryLayerStore,
   releaseNudges,
@@ -105,6 +108,7 @@ function surroundings() {
   return { world, s };
 }
 
+const range = (n: number) => [...Array(n).keys()];
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
 describe('the player', () => {
@@ -1318,6 +1322,93 @@ describe('the meter asked for (#262)', () => {
     player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
     player.setMeter(METERS['5/8']);
     expect(player.meter).toBeNull();
+  });
+});
+
+describe('the loop (#628)', () => {
+  /** A player playing with the radio on the air, ticked by hand, with every bar it composed and every section text it took. */
+  async function playing() {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    const host = told();
+    const bars: SentBar['bar'][] = [];
+    player.hosting = {
+      ...host.hosting,
+      composed: (sent) => sent.forEach(({ bar }) => bars.push(bar)),
+    };
+    void player.start();
+    world.resolve();
+    await settle();
+    player.tuneRadio(true);
+    const run = (seconds: number) => {
+      for (let t = 0; t < seconds - 1e-9; t += 0.025) {
+        world.currentTime += 0.025;
+        world.tickers[0]!.tick();
+        world.frames[0]!.follow();
+      }
+    };
+    return { player, bars, sections: host.sections, run };
+  }
+
+  const SECTION = (SECTION_BARS * 4 * 60) / INITIAL_STYLE.bpm;
+  const OPENING = countInSeconds(holdingSynthPop()) + 0.1;
+  /** A bar as heard, its number aside. */
+  const sound = (bar: SentBar['bar']) => ({ ...bar, bar: 0 });
+
+  it('repeats the section heard once, a repeat sign: its bars again, the radio held, then on with the song', async () => {
+    const { player, bars, sections, run } = await playing();
+    run(OPENING + 1.3 * SECTION);
+    expect(player.hud.bar?.bar).toBeGreaterThanOrEqual(SECTION_BARS);
+    player.tapLoop();
+    expect(player.looping).toBe('repeat');
+    expect(player.loop).toEqual(repeatSection(SECTION_BARS, 1));
+    const walked = player.station!.walked;
+    run(SECTION);
+    // The section line at bar 16 played the section again: the radio held.
+    expect(player.station!.walked).toBe(walked);
+    run(1.2 * SECTION);
+    expect(player.station!.walked).toBe(walked + 1);
+    expect(player.looping).toBe('off');
+    expect(player.loop).toBeNull();
+    const at = (bar: number) => bars.find((b) => b.bar === bar)!;
+    for (const i of range(SECTION_BARS)) expect(sound(at(16 + i))).toEqual(sound(at(8 + i)));
+    expect(at(24).barInSection).toBe(0);
+    // Cells plays the same text again.
+    const textAt = (bar: number) => sections.filter((t) => t.bar === bar).at(-1)!;
+    expect(textAt(16).text).not.toBe('');
+    expect(textAt(16).text).toBe(textAt(8).text);
+  });
+
+  it('locks a section on a second tap, for as long as it is locked, and lets it go at the end of its lap on a third', async () => {
+    const { player, bars, run } = await playing();
+    run(OPENING + 1.3 * SECTION);
+    player.tapLoop();
+    player.tapLoop();
+    expect(player.looping).toBe('locked');
+    const walked = player.station!.walked;
+    run(3.5 * SECTION);
+    expect(player.looping).toBe('locked');
+    expect(player.station!.walked).toBe(walked);
+    player.tapLoop();
+    expect(player.looping).toBe('repeat');
+    const end = loopEnd(player.loop!)!;
+    expect(end % SECTION_BARS).toBe(0);
+    expect(end).toBeGreaterThanOrEqual(40);
+    run(1.2 * SECTION);
+    expect(player.looping).toBe('off');
+    const at = (bar: number) => bars.find((b) => b.bar === bar)!;
+    for (let bar = 16; bar < end; bar++)
+      expect(sound(at(bar)), `bar ${bar}`).toEqual(sound(at(8 + (bar % 8))));
+    expect(at(end).barInSection).toBe(0);
+    // The radio walks again from the first section line after the lock.
+    expect(player.station!.walked).toBeGreaterThan(walked);
+  });
+
+  it('does nothing for a band not playing', () => {
+    const player = new Player(surroundings().s);
+    player.tapLoop();
+    expect(player.loop).toBeNull();
+    expect(player.looping).toBe('off');
   });
 });
 

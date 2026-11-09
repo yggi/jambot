@@ -124,7 +124,6 @@
       playing={listening}
       labels={{ start: 'Start', stop: 'Stop' }}
       cadence={false}
-      loop={false}
       busy={tuner.status === 'starting'}
       ontoggle={() => (listening ? tuner.stop() : void tuner.start())}
     />
@@ -138,7 +137,6 @@
       playing={metronome.playing}
       labels={{ start: 'Play', stop: 'Stop' }}
       cadence={false}
-      loop={false}
       ontoggle={() => (metronome.playing ? metronome.stop() : void metronome.start())}
     />
   {:else if view === 'timing'}
@@ -157,7 +155,6 @@
       playing={testing}
       labels={{ start: test.phase === 'done' ? 'Run again' : 'Start the test', stop: 'Stop' }}
       cadence={false}
-      loop={false}
       ontoggle={() => (testing ? test.stop() : void test.start())}
     />
   {:else}

@@ -86,6 +86,7 @@ import type { Key, KeyWish } from './key.ts';
 import type { Machine } from './machine.ts';
 import { type Hands, NO_HANDS, handsAfter } from './hand.ts';
 import type { LearnedLayer } from './layer.ts';
+import { type Loop, replayOf } from './replay.ts';
 import type { MeterRepository } from './meter-query.ts';
 import type { RhythmRepository } from './rhythm-query.ts';
 import type { Meter } from '@jambot/theory';
@@ -194,6 +195,8 @@ export interface TransportEnv {
    * entropy leaned (`leanedEntropy`); none leans nothing.
    */
   readonly leans?: readonly LeanChange[] | undefined;
+  /** A window of bars played again (#628, `replay.ts`), which the band reads at every bar; none plays no loop. */
+  readonly loop?: Loop | undefined;
 }
 
 /** A bar a player's notes were judged in elsewhere, such as on a client, and the judgement. */
@@ -311,7 +314,8 @@ export const bandSource: BarSource<BandCarried> = {
   },
   pass: passBar,
   meterOf: (env, carried) =>
-    carried.next
+    keptMeter(env, carried) ??
+    (carried.next
       ? carried.next.bar === env.bar
         ? carried.next.plan.meter
         : null
@@ -325,9 +329,15 @@ export const bandSource: BarSource<BandCarried> = {
             },
             null,
           ).meter
-        : null,
+        : null),
   finale: finaleBar,
 };
+
+/** The meter of a bar a loop plays again, the kept bar's (#628); null where none is played again. */
+function keptMeter(env: BandEnv, carried: BandCarried): Meter | null {
+  const again = replayOf(env.loop, env.bar);
+  return carried.kept.find((k) => k.decided.bar === again)?.decided.plan.meter ?? null;
+}
 
 /** What the transport carries for the Muse: its state, and what waits to be judged. */
 export interface Listening {
@@ -482,6 +492,7 @@ export function bandEnvAt(
     leads,
     harmonies,
     leans,
+    loop,
   }: TransportEnv,
   bar: number,
   offer: Offer | null,
@@ -508,6 +519,7 @@ export function bandEnvAt(
     ...(bassLines === undefined ? {} : { bassLines }),
     ...(leads === undefined ? {} : { leads }),
     ...(harmonies === undefined ? {} : { harmonies }),
+    ...(loop === undefined ? {} : { loop }),
   };
 }
 

@@ -148,6 +148,8 @@ import {
   swingAt,
   valueAt,
   writtenAt,
+  type Loop,
+  replayOf,
 } from '@jambot/engine';
 import {
   EAR,
@@ -179,6 +181,7 @@ import { type Meter, mod, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { browserLayerStore } from './layer-storage.ts';
 import { warmAtIdle, warmedOnFiling } from './warm.ts';
+import { type LoopState, loopPast, loopState, tapped } from './looper.ts';
 import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
 import {
   type Intent,
@@ -413,6 +416,14 @@ export class Player {
   layer: LearnedLayer = $state.raw(EMPTY_LAYER);
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
+  /**
+   * A window of bars the band plays again (#628, `replay.ts`): a section
+   * repeated, or locked. The host's, or a band's alone: a client plays the
+   * bars it is sent. Gone once the band is past it.
+   */
+  loop: Loop | null = $state.raw(null);
+  /** What the loop button says (`looper.ts`). */
+  looping: LoopState = $state('off');
   /**
    * The meter asked for, which the band takes at the next section's boundary
    * (#261): a person's choice, held here as the key wish is. Null, as at
@@ -743,6 +754,28 @@ export class Player {
   }
 
   /**
+   * A tap on the loop button (#628, `looper.ts`): the section heard repeated
+   * once, then locked, then released at the end of its lap. The radio and the
+   * players' lean hold while a section plays again (`#sectionLine`): they
+   * move at the written song's section lines, the owner's ruling on #626.
+   */
+  tapLoop() {
+    const carried = this.#carried;
+    if (this.mode === 'client' || this.status !== 'playing' || !carried) return;
+    const next = carried.nextBar;
+    this.loop = tapped(this.loop, this.hud.bar?.bar ?? Math.max(0, next - 1), next);
+    this.looping = loopState(this.loop, next);
+    this.#decide();
+  }
+
+  /** The loop as the band stands at `next`, the first bar not yet composed: gone once the band is past it. */
+  #loopOn(next: number) {
+    if (this.loop && loopPast(this.loop, next)) this.loop = null;
+    const state = loopState(this.loop, next);
+    if (state !== this.looping) this.looping = state;
+  }
+
+  /**
    * A player's nudge, heard by the host (step 2 of
    * docs/briefs/session-roles.md): a step up or down on an axis, weighed by
    * the `players` present, which the section lines release (`nudges.ts`).
@@ -813,7 +846,8 @@ export class Player {
     if (!station && !leans(nudges)) return;
     const clock = clockOfTransport(carried);
     for (const { bar } of composed) {
-      if (bar === 0 || bar % SECTION_BARS !== 0) continue;
+      // A section played again is no section line: the walk and the lean hold (#628).
+      if (bar === 0 || bar % SECTION_BARS !== 0 || replayOf(this.loop, bar) !== null) continue;
       const step = this.#sectionStep();
       if (!step) continue;
       const before = targetOf(this.track);
@@ -852,7 +886,7 @@ export class Player {
   #envFrom(first: number): TransportEnv {
     const env = this.#env;
     const carried = this.#carried;
-    if (!carried || first === 0) return env;
+    if (!carried || first === 0 || replayOf(this.loop, first) !== null) return env;
     const step = this.#sectionStep();
     if (!step) return env;
     const at = Math.max(carried.head.step, clockOfTransport(carried).barStart(first));
@@ -1083,6 +1117,8 @@ export class Player {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
     this.lastBar = null;
+    this.loop = null;
+    this.looping = 'off';
     // Its texts asked for from the band's own bars, alone or hosting; given by the host to a client (#446).
     this.shadow.reset(this.#follow ? 'given' : 'asked');
     if (!this.#follow) this.hearing?.begin();
@@ -1362,6 +1398,8 @@ export class Player {
     this.status = 'stopped';
     this.ending = false;
     this.lastBar = null;
+    this.loop = null;
+    this.looping = 'off';
     this.counting = false;
     this.countStep = null;
     if (!wasPlaying) return;
@@ -1407,6 +1445,7 @@ export class Player {
       swing: this.swing,
       tempoMeter: this.tempoMeter,
       leans: this.#follow ? undefined : this.hearing?.leans,
+      loop: this.loop ?? undefined,
     };
   }
 
@@ -1497,6 +1536,7 @@ export class Player {
     if (decided && this.#countTempoIn(decided.plan.meter))
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
     this.#sectionLine(scheduled.composed, carried!);
+    this.#loopOn(carried!.nextBar);
     // The band hears what it composed, off the clock, and leans from a section on (#495).
     if (scheduled.composed.length > 0)
       this.hearing?.composed(scheduled.composed, carried!.source.plans.layer, (bar) => {
