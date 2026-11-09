@@ -433,10 +433,11 @@ const read = (env: BandEnv): BandEnv => ({ ...env, style: writtenStyle(env.style
 /**
  * The bar to play now, the plans as of it, and the carried state with the
  * bar after it decided. In a loop (`env.loop`) it is the bar a lap before,
- * as heard, played again (`replayed`): the plans are as they were, the bar
- * decided next moves on with the clock, and the bar played again is kept as
- * heard, so the next lap finds it; where the loop lets go, the bar decided
- * next is played there, a repeat sign inserted (#628). With `replay` false, as for the song's last bar, the
+ * as heard, played again (`replayed`), kept as heard so the next lap finds
+ * it. With the song held, the plans are as they were and the bar decided
+ * next moves on with the clock, so where the loop lets go it is played
+ * there, a repeat sign inserted (#628); with the song running beneath, the
+ * band decides the bar as if it passed it (#629). With `replay` false, as for the song's last bar, the
  * loop plays nothing again.
  */
 function step(
@@ -449,15 +450,22 @@ function step(
   if (kept) {
     const here = { ...kept.decided, bar: env.bar };
     const played = kept.played && { ...kept.played, bar: env.bar };
+    // Held, the bar decided next moves on with the clock, so wherever the loop lets go it plays
+    // there; running beneath, the band decides the bar as it passes one.
+    const beneath =
+      env.loop!.song === 'runs'
+        ? step(env, carried, false).carried
+        : {
+            ...carried,
+            next: carried.next && { ...carried.next, bar: env.bar + 1 },
+            nextBar: env.bar + 1,
+          };
     return {
       here,
       at: kept.plans,
       carried: {
-        ...carried,
-        // The bar decided next moves on with the clock: wherever the loop lets go, it plays there.
-        next: carried.next && { ...carried.next, bar: env.bar + 1 },
+        ...beneath,
         kept: [...carried.kept, { decided: here, plans: kept.plans, played }].slice(-KEPT_BARS),
-        nextBar: env.bar + 1,
       },
       replayed: kept,
     };

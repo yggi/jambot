@@ -156,6 +156,8 @@
     ontoggle={() => (player.playing ? player.stop() : player.start())}
     looping={player.looping}
     onloop={() => player.tapLoop()}
+    looped={player.loopedBars}
+    onbars={(bars) => player.tapBars(bars)}
   />
 {/snippet}
 

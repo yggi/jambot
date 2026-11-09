@@ -181,7 +181,7 @@ import { type Meter, mod, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { browserLayerStore } from './layer-storage.ts';
 import { warmAtIdle, warmedOnFiling } from './warm.ts';
-import { type LoopState, loopPast, loopState, tapped } from './looper.ts';
+import { type LoopState, barsLooped, loopPast, loopState, tapped, tappedBars } from './looper.ts';
 import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
 import {
   type Intent,
@@ -424,6 +424,8 @@ export class Player {
   loop: Loop | null = $state.raw(null);
   /** What the loop button says (`looper.ts`). */
   looping: LoopState = $state('off');
+  /** How many bars the looper plays (#629), or null for none. */
+  loopedBars: number | null = $state(null);
   /**
    * The meter asked for, which the band takes at the next section's boundary
    * (#261): a person's choice, held here as the key wish is. Null, as at
@@ -764,7 +766,20 @@ export class Player {
     if (this.mode === 'client' || this.status !== 'playing' || !carried) return;
     const next = carried.nextBar;
     this.loop = tapped(this.loop, this.hud.bar?.bar ?? Math.max(0, next - 1), next);
-    this.looping = loopState(this.loop, next);
+    this.#loopOn(next);
+    this.#decide();
+  }
+
+  /**
+   * A tap on the looper's `bars` (#629, `looper.ts`): the last bars played
+   * again from the next, locked, the song running on beneath; on the window
+   * playing, let go at the end of its lap; on another, halved or doubled.
+   */
+  tapBars(bars: number) {
+    const carried = this.#carried;
+    if (this.mode === 'client' || this.status !== 'playing' || !carried) return;
+    this.loop = tappedBars(this.loop, bars, carried.nextBar);
+    this.#loopOn(carried.nextBar);
     this.#decide();
   }
 
@@ -773,6 +788,8 @@ export class Player {
     if (this.loop && loopPast(this.loop, next)) this.loop = null;
     const state = loopState(this.loop, next);
     if (state !== this.looping) this.looping = state;
+    const bars = barsLooped(this.loop, next);
+    if (bars !== this.loopedBars) this.loopedBars = bars;
   }
 
   /**
@@ -1119,6 +1136,7 @@ export class Player {
     this.lastBar = null;
     this.loop = null;
     this.looping = 'off';
+    this.loopedBars = null;
     // Its texts asked for from the band's own bars, alone or hosting; given by the host to a client (#446).
     this.shadow.reset(this.#follow ? 'given' : 'asked');
     if (!this.#follow) this.hearing?.begin();
@@ -1400,6 +1418,7 @@ export class Player {
     this.lastBar = null;
     this.loop = null;
     this.looping = 'off';
+    this.loopedBars = null;
     this.counting = false;
     this.countStep = null;
     if (!wasPlaying) return;

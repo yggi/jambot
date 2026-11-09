@@ -13,7 +13,9 @@ import { SECTION_BARS } from './form.ts';
 import { MELODIC_SCALES } from './key.ts';
 import {
   type Loop,
+  BAR_LOOPS,
   KEPT_BARS,
+  barLoop,
   loopEnd,
   loopFrom,
   loopReleased,
@@ -69,7 +71,7 @@ describe('a loop (#628)', () => {
     ]);
     const locked = repeatSection(8, null);
     for (const bar of range(200)) expect(replayOf(locked, bar)).toBe(bar < 16 ? null : bar - 8);
-    const short: Loop = { bars: 2, at: 7, laps: 3 };
+    const short: Loop = { bars: 2, at: 7, laps: 3, song: 'runs' };
     expect(range(16).map((bar) => replayOf(short, bar))).toEqual([
       ...range(7).map(() => null),
       ...range(6).map((i) => 5 + i),
@@ -85,6 +87,11 @@ describe('a loop (#628)', () => {
     expect(() => repeatSection(-8, 1)).toThrow();
     expect(() => repeatSection(8, 0)).toThrow();
     expect(() => repeatSection(8, 1.5)).toThrow();
+    expect(() => repeatSection(4, 1)).toThrow();
+    expect(() => barLoop(1, 2)).toThrow();
+    expect(() => barLoop(20, 9)).toThrow();
+    for (const bars of BAR_LOOPS)
+      expect(barLoop(20, bars)).toEqual({ bars, at: 20, laps: null, song: 'runs' });
     expect(KEPT_BARS).toBe(SECTION_BARS);
   });
 
@@ -200,5 +207,45 @@ describe('a loop (#628)', () => {
     const { bar } = finaleBar(envAt(8, loop)(21), carried);
     expect(bar.bar).toBe(21);
     expect(bar.chords).toEqual(cadence(played[16]!.plan.key));
+  });
+  for (const bars of BAR_LOOPS)
+    it(`loops the last ${bars} bars from the next bar, the song running on beneath it, and plays where the song is when let go (#629)`, () => {
+      const seed = 9;
+      const plain = run(seed, 48).played;
+      // Locked at bar 13, let go as bar 22 is the next to compose.
+      const locked = barLoop(13, bars);
+      const loop = loopReleased(locked, 22)!;
+      const end = loopEnd(loop)!;
+      expect(end).toBeGreaterThanOrEqual(22);
+      expect(end - 22).toBeLessThan(bars);
+      const looped = run(seed, 48, loop).played;
+      expect(looped.slice(0, 13)).toEqual(plain.slice(0, 13));
+      for (let bar = 13; bar < end; bar++) {
+        expect(looped[bar]!.bar).toBe(bar);
+        expect(sound(looped[bar]!), `bar ${bar}`).toEqual(
+          sound(plain[13 - bars + ((bar - 13) % bars)]!),
+        );
+      }
+      // Beneath the loop the song ran on: from its end each bar's section, plan and chords are the song's.
+      for (let bar = end; bar < 48; bar++) {
+        expect(looped[bar]!.barInSection).toBe(bar % SECTION_BARS);
+        expect(looped[bar]!.plan, `bar ${bar}`).toEqual(plain[bar]!.plan);
+        expect(looped[bar]!.chords, `bar ${bar}`).toEqual(plain[bar]!.chords);
+      }
+    });
+
+  it('looks ahead through a looper as it plays', () => {
+    for (const bars of BAR_LOOPS) {
+      const loop = loopReleased(barLoop(13, bars), 26)!;
+      const { played } = run(5, 40, loop);
+      for (const from of [10, 13, 14, 17, 25]) {
+        const { carried } = run(5, from, loop);
+        const ahead = lookAhead(carried, (bar) => envAt(5, loop)(bar), 40 - from);
+        expect(
+          ahead.map(({ bar, plan, chords }) => ({ bar, plan, chords })),
+          `${bars} bars, looked ahead from bar ${from}`,
+        ).toEqual(played.slice(from).map(({ bar, plan, chords }) => ({ bar, plan, chords })));
+      }
+    }
   });
 });
