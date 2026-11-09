@@ -1,6 +1,7 @@
 // The presets past the prototype's eight (#517): Electro swing and Spooky, each a name and a point and nothing else, its
 // meter, swing, mode, drums and bass the ones cells' seeds hold at its point (yggi/cells#305, #349, #360), found there at
 // distance 0, and played so by the band held there.
+import { STYLES } from '@yggi/cells/repository/styles';
 import { describe, expect, it } from 'vitest';
 import { type BandCarried, band } from './band.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
@@ -14,7 +15,10 @@ const NEW = PRESETS.slice(PROTOTYPE_PRESETS.length);
 
 /** What each new preset finds at its point: the meter and its swing, the mode, the drum bar and the bass line. */
 const FOUND: Readonly<
-  Record<string, { meter: string; swing: string; mode: string; rhythm: string; bass: string }>
+  Record<
+    string,
+    { meter: string; swing: string; mode: string; rhythm: string; bass: string; meterAt?: number }
+  >
 > = {
   'Electro swing': {
     meter: 'meter(swing=8n:2/3)',
@@ -30,23 +34,38 @@ const FOUND: Readonly<
     rhythm: 'spooky_drums',
     bass: 'creeping_bass',
   },
+  // (cells' Kinderlied, a preset since #596: no meter sits at its point yet, so it finds the plain 4/4 0.219 away,
+  //  cells' library to fill, yggi/cells#540; its drum bar, its bass line and its mode at distance 0)
+  Kinderlied: {
+    meter: 'meter',
+    mode: 'ionian',
+    rhythm: 'kinderlied_drums',
+    bass: 'root_bass',
+    meterAt: 0.219,
+    swing: '16n 0.500',
+  },
 };
 
 describe('the presets (#517)', () => {
-  it('are the prototype’s eight, then Electro swing and Spooky, each named once', () => {
+  it('are the prototype’s eight, then Electro swing, Spooky and Kinderlied, each named once: cells’ library of styles (#596)', () => {
     expect(PRESETS.slice(0, PROTOTYPE_PRESETS.length)).toEqual(PROTOTYPE_PRESETS);
-    expect(NEW.map((p) => [p.name, ...Object.values(p.style)])).toEqual([
-      ['Electro swing', 0.55, 0.75, 0.6, 0.75, 124],
-      ['Spooky', 0.2, 0.9, 0.3, 0.35, 100],
-    ]);
+    expect(NEW.map((p) => p.name)).toEqual(['Electro swing', 'Spooky', 'Kinderlied']);
+    // (each its point and its tempo as cells' library writes them, to the last bit)
+    for (const p of PRESETS) {
+      const s = STYLES.find((x) => x.id === p.id)!;
+      expect({ ...p.style }).toEqual({ ...s.point, bpm: s.tempo });
+    }
     expect(new Set(PRESETS.map((p) => p.name)).size).toBe(PRESETS.length);
   });
 
   it.each(NEW.map((p) => [p.name, p] as const))(
-    '%s finds its meter, swing and mode at its point, at distance 0',
+    '%s finds its meter, swing and mode at its point, at distance 0 (Kinderlied’s meter as named)',
     (name, preset) => {
       const meter = presetMeter(preset)!;
-      expect([meter.fragment.id, meter.distance]).toEqual([FOUND[name]!.meter, 0]);
+      expect([meter.fragment.id, +meter.distance.toFixed(3)]).toEqual([
+        FOUND[name]!.meter,
+        FOUND[name]!.meterAt ?? 0,
+      ]);
       const swing = presetSwing(preset)!;
       expect(`${swing.level} ${swing.share.toFixed(3)}`).toBe(FOUND[name]!.swing);
       expect(presetMode(preset)).toBe(FOUND[name]!.mode);

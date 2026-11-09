@@ -448,6 +448,7 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     'Swing jazz': 'bebop',
     'Electro swing': 'gypsy',
     Spooky: 'diesIrae',
+    Kinderlied: 'twinkle',
   };
 
   it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape and its second the answer: in 4/4, and the Dies irae in Spooky’s 5/4', () => {

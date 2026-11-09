@@ -66,6 +66,9 @@ import {
   VOICE_OF_NOTE,
   euclidOf,
   instrumentsAt,
+  PRESETS,
+  STYLE_AXIS_NAMES,
+  type StyleAxisName,
   levelOf,
   type MelodicScale,
   type MeterSwing,
@@ -365,9 +368,20 @@ export const performerOf = (part: PitchedName | 'drums') => `${part}_performer`;
 /** A number as a style's axis writes it: three decimals at most, no leading zero (`.35`, `1`). */
 const axisText = (x: number) => String(Math.round(x * 1000) / 1000).replace(/^0\./, '.');
 
-/** The section's style as cells reads it (decision 063 §3): the note `&style` at a point of the four axes. */
-const styleLine = (style: { sync: number; harm: number; artic: number; energy: number }) =>
-  `&style style=&(map=style ${[style.sync, style.harm, style.artic, style.energy].map(axisText).join(' ')})`;
+/**
+ * The section's style as cells reads it (decision 063 §3): the note `&style`, named by its preset's id in cells'
+ * library of styles where it sits on one (`&funk from styles`, `&style style=&funk`, #596), else at its point, each
+ * axis by its name (`STYLE_AXIS_NAMES`), so a cells version whose axes differ says so rather than reading it otherwise.
+ */
+const styleLines = (style: Readonly<Record<StyleAxisName, number>>): string[] => {
+  const on = PRESETS.find((p) =>
+    STYLE_AXIS_NAMES.every((a) => Math.abs(p.style[a] - style[a]) < 1e-9),
+  );
+  if (on) return [`&${on.id} from styles`, `&style style=&${on.id}`];
+  return [
+    `&style style=&(map=style ${STYLE_AXIS_NAMES.map((a) => `${a}=${axisText(style[a])}`).join(' ')})`,
+  ];
+};
 
 export const fromPerformer = (part: PitchedName | 'drums') =>
   part === 'drums'
@@ -862,7 +876,7 @@ export function sectionAsCells(
     { part: 'meter', text: `&bar meter("${host.meter}") step=${host.bpm}bpm${host.swing}` },
     { part: 'key', text: `&key ${host.key}` },
     // (the section's style, where its first bar sits: what the instruments read, `&style[artic]`, decision 063 §3)
-    { part: 'meter', text: styleLine(bars[0]!.style) },
+    ...styleLines(bars[0]!.style).map((text) => ({ part: 'meter' as const, text })),
     {
       part: 'harmony',
       text: `&harm over=&key ${rhythmText(chords, (i) => stackText(chordStack(chords[i]!.numeral)), total, steps)}`,

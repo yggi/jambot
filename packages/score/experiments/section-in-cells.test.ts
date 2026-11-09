@@ -109,8 +109,10 @@ describe('the band writes a whole section as one cells text, every part, the lea
       expect(lines[0]).toMatch(/^&bar meter\("4\/4"\) step=\d+bpm( swing=(8n|16n):[\d./]+)?$/);
       expect(lines[1]).toMatch(/^&key scale\((aeolian|dorian|ionian|mixolydian), [A-G][b#]?\)$/);
       // (the section's style, where its first bar sits: cells v0.15.0's instruments read it, decision 063 §3)
-      expect(lines[2]).toMatch(/^&style style=&\(map=style( [\d.]+){4}\)$/);
-      expect(lines[3]).toMatch(/^&harm over=&key step=(1m|2n) /);
+      // (named by its preset's id in cells' library where it sits on one, #596: every section here is held at a preset)
+      expect(lines[2]).toMatch(/^&(\w+) from styles$/);
+      expect(lines[3]).toBe(`&style style=&${/^&(\w+)/.exec(lines[2]!)![1]}`);
+      expect(lines[4]).toMatch(/^&harm over=&key step=(1m|2n) /);
       // No other line names a meter or a key; every line on a clock taps the main meter, and reads the main key, the
       // chord in force or the melodic scale.
       for (const line of lines.slice(1)) {
@@ -228,11 +230,11 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 2,894 characters a section, 2,562 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,897 characters a section, 2,566 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 185231,
-      meter: 5000,
+      total: 185439,
+      meter: 5208,
       key: 1436,
       harmony: 8285,
       drums: 79783,
@@ -256,21 +258,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2894);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2562);
+    expect(Math.round(e35.total / 64)).toBe(2897);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2566);
     expect(Math.round(e33.total / 64)).toBe(7549);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(66);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [22973, 20310],
-      Techno: [22833, 19718],
-      'Deep house': [27144, 24001],
-      Ambient: [14184, 12761],
-      'Lo-fi hip hop': [24990, 22098],
-      Funk: [26616, 24386],
-      'Bossa nova': [25366, 22714],
-      'Swing jazz': [21125, 18006],
+      'Synth-pop': [23005, 20342],
+      Techno: [22865, 19750],
+      'Deep house': [27184, 24041],
+      Ambient: [14224, 12801],
+      'Lo-fi hip hop': [24966, 22074],
+      Funk: [26592, 24362],
+      'Bossa nova': [25406, 22754],
+      'Swing jazz': [21197, 18078],
     });
   });
 
@@ -581,7 +583,7 @@ describe.runIf(process.env.E35_FULL)(
       }
     });
 
-    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,401 characters a section, 2,138 without the lead, against E33’s 6,602', () => {
+    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,405 characters a section, 2,141 without the lead, against E33’s 6,602', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -598,11 +600,11 @@ describe.runIf(process.env.E35_FULL)(
         [216, 0, 0],
       ]);
       const e35 = characters(sections.map((s) => s.text));
-      expect([e35.total, e35.lead]).toEqual([768431, 84407]);
+      expect([e35.total, e35.lead]).toEqual([769471, 84407]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
       expect(e33).toBe(2112582);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        2401, 2138, 6602,
+        2405, 2141, 6602,
       ]);
     });
   },

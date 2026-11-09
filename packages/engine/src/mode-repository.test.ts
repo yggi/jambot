@@ -25,6 +25,8 @@ const HAND_MODE: Readonly<Record<string, ComposerMode>> = {
   // (cells' harmonic minor, read as aeolian: #516)
   'Electro swing': 'aeolian',
   Spooky: 'aeolian',
+  // (cells' Kinderlied, a preset since #596: its twinkle's major)
+  Kinderlied: 'ionian',
 };
 
 /** A fragment of the key, its tonic its main parameter where it reads one (`&key from &tonic`), as cells writes a mode (decision 075). */
