@@ -20,11 +20,11 @@
 
 import { TEMPO_STEP } from './licence.ts';
 import { quantize } from './random.ts';
-import { AXES, type Style } from './style.ts';
+import { AXES, STYLE_AXIS_NAMES, type Style, type StyleAxisName } from './style.ts';
 
 /** What of the style a player may nudge: the axes the radio walks, and the tempo, by the style's own names; each leans by a share of a step. */
-export const LEANED = ['sync', 'harm', 'artic', 'energy', 'bpm'] as const;
-export type Leaned = (typeof LEANED)[number];
+export const LEANED: readonly Leaned[] = [...STYLE_AXIS_NAMES, 'bpm'];
+export type Leaned = StyleAxisName | 'bpm';
 
 /**
  * What else a player may nudge, which moves only by whole steps (session

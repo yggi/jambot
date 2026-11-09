@@ -32,7 +32,7 @@
 
 import type { Meter } from '@jambot/theory';
 import type { LearnedLayer } from './layer.ts';
-import type { Style } from './style.ts';
+import { STYLE_AXIS_NAMES, type Style, type StyleAxisName } from './style.ts';
 import type { MeterSwing } from './swing.ts';
 
 /** A meter fragment as the band plays it: its id in the repository, its meter and its swing. */
@@ -63,10 +63,10 @@ export interface MeterRepository {
 }
 
 /** The axes the composer asks on: the style's but its tempo and its entropy (cells decision 037's D6). */
-export const QUERY_AXES = ['sync', 'harm', 'artic', 'energy'] as const;
+export const QUERY_AXES = STYLE_AXIS_NAMES;
 
 /** What the composer reads of a style: the axes it asks on. */
-export type QueriedStyle = Pick<Style, (typeof QUERY_AXES)[number]>;
+export type QueriedStyle = Pick<Style, StyleAxisName>;
 
 /** The style's point on the axes the composer asks on. */
 export const stylePoint = (style: QueriedStyle): StylePoint =>

@@ -15,6 +15,9 @@
 import {
   type Key,
   LEANED,
+  STYLE_AXIS_NAMES,
+  STYLE_AXIS_WORDS,
+  type StyleAxisName,
   type Leaned,
   type MuseOutput,
   type Nudged,
@@ -50,10 +53,9 @@ export function speakerOf(
 
 /** A style axis as a line names it. */
 const AXIS_WORDS: Readonly<Record<Leaned, string>> = {
-  sync: 'syncopation',
-  harm: 'harmony',
-  artic: 'articulation',
-  energy: 'energy',
+  ...(Object.fromEntries(
+    STYLE_AXIS_NAMES.map((a) => [a, STYLE_AXIS_WORDS[a].label.toLowerCase()]),
+  ) as Record<StyleAxisName, string>),
   bpm: 'the tempo',
 };
 

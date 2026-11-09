@@ -19,6 +19,8 @@
  */
 
 import { AXES as CELLS_AXES } from '@yggi/cells/engine/style';
+import { STYLES } from '@yggi/cells/repository/styles';
+export { pointDistance } from '@yggi/cells/repository/fragments';
 import { barStart } from './events.ts';
 
 export interface AxisRange {
@@ -38,7 +40,32 @@ function cellsAxis(name: StyleAxisName): AxisRange {
 }
 
 /** The style space's axes, cells' (yggi/cells#397): what each measures is said there. */
-type StyleAxisName = 'sync' | 'harm' | 'artic' | 'energy';
+export type StyleAxisName = 'sync' | 'harm' | 'artic' | 'energy';
+
+/**
+ * Style space's axes in cells' order (`AXES`): the one list of them in Jambot (#596). Their names are typed here, the
+ * one place they are written; a cells version whose table differs fails here, at import, rather than reading a style
+ * on the wrong axes.
+ */
+export const STYLE_AXIS_NAMES: readonly StyleAxisName[] = (() => {
+  const names = CELLS_AXES.map((a) => a.name);
+  const typed: readonly StyleAxisName[] = ['sync', 'harm', 'artic', 'energy'];
+  if (names.length !== typed.length || names.some((n, i) => n !== typed[i]))
+    throw new Error(
+      `cells' table of axes is ${names.join(' ')}; Jambot reads ${typed.join(' ')} (style.ts)`,
+    );
+  return typed;
+})();
+
+/** Each style axis's words, cells' (`AXES`, yggi/cells#538): its label, and what its low and high ends sound like. */
+export const STYLE_AXIS_WORDS: Readonly<
+  Record<StyleAxisName, { readonly label: string; readonly ends: readonly [string, string] }>
+> = Object.fromEntries(
+  STYLE_AXIS_NAMES.map((name) => {
+    const axis = CELLS_AXES.find((a) => a.name === name)!;
+    return [name, { label: axis.label, ends: axis.ends }];
+  }),
+) as Record<StyleAxisName, { label: string; ends: readonly [string, string] }>;
 
 /**
  * The track's axes: style space's four from cells' table (sync, harm, artic,
@@ -90,48 +117,54 @@ export interface Glide {
 export type StyleTrack = Readonly<Record<Axis, Glide>>;
 
 export interface Preset {
+  /** Its id in cells' library of styles (`&funk`): what a section text names it by. */
+  readonly id: string;
   readonly name: string;
   /** Every axis but entropy, which stays where the players put it. */
   readonly style: Readonly<Record<Exclude<Axis, 'entropy'>, number>>;
 }
 
-/** A preset's axes in order: sync, harm, artic, energy, bpm. */
-type PresetAxes = [number, number, number, number, number];
+/**
+ * Every preset: cells' library of styles (`STYLES`, yggi/cells#537), each its id, its display name, its point and its
+ * default tempo, in the library's order. Jambot holds no preset of its own (#596): a preset is a line in cells'
+ * `styles`, and its meter, drums, bass and mode are what the repository finds at its point (#420).
+ */
+export const PRESETS: readonly Preset[] = STYLES.map((s) => ({
+  id: s.id,
+  name: s.name,
+  style: {
+    ...(Object.fromEntries(STYLE_AXIS_NAMES.map((a) => [a, s.point[a]!])) as Record<
+      StyleAxisName,
+      number
+    >),
+    bpm: s.tempo,
+  },
+}));
 
-const preset = (name: string, [sync, harm, artic, energy, bpm]: PresetAxes): Preset => ({
-  name,
-  style: { sync, harm, artic, energy, bpm },
-});
+/** A preset by its id in cells' library. */
+const presetById = (id: string): Preset => {
+  const p = PRESETS.find((q) => q.id === id);
+  if (!p) throw new Error(`cells' library of styles has no ${id}`);
+  return p;
+};
 
 /**
- * The prototype's presets. Each swings as it did on the swing axis: the
- * meter the repository finds at its point swings at the level and share
- * `swingParts` gave at its value there (`presetSwing`), the straight ones
- * on the 16ths, where nothing brings in the jazz band. Each one's mode is
- * the one the repository finds at its point (`presetMode`).
+ * The prototype's eight presets, by id. Each swings as it did on the swing axis: the meter the repository finds at
+ * its point swings at the level and share `swingParts` gave at its value there (`presetSwing`), the straight ones on
+ * the 16ths, where nothing brings in the jazz band. Each one's mode is the one the repository finds at its point
+ * (`presetMode`). The experiments' records were measured over these eight, and so are the tests that hold what `main`
+ * plays.
  */
 export const PROTOTYPE_PRESETS: readonly Preset[] = [
-  preset('Synth-pop', [0.3, 0.45, 0.55, 0.55, 108]),
-  preset('Techno', [0.12, 0, 1, 0.8, 130]),
-  preset('Deep house', [0.35, 0.55, 0.65, 0.65, 122]),
-  preset('Ambient', [0.05, 0.3, 0, 0.2, 72]),
-  preset('Lo-fi hip hop', [0.5, 0.75, 0.35, 0.5, 84]),
-  preset('Funk', [1, 0.12, 0.85, 0.75, 104]),
-  preset('Bossa nova', [0.75, 0.85, 0.45, 0.45, 132]),
-  preset('Swing jazz', [0.35, 1, 0.3, 0.6, 148]),
-];
-
-/**
- * Every preset: the prototype's eight, then the two cells' seeds sit at (yggi/cells#305 and #349; #517, the owner's
- * "electroswing" and "spooky" for Halloween), each a name and a point and nothing else (#420): its meter, its drums,
- * its bass and its mode are what the repository finds there. The experiments' records were measured over the
- * prototype's eight (`PROTOTYPE_PRESETS`), and so are the tests that hold what `main` plays.
- */
-export const PRESETS: readonly Preset[] = [
-  ...PROTOTYPE_PRESETS,
-  preset('Electro swing', [0.55, 0.75, 0.6, 0.75, 124]),
-  preset('Spooky', [0.2, 0.9, 0.3, 0.35, 100]),
-];
+  'synthPop',
+  'techno',
+  'deepHouse',
+  'ambient',
+  'lofi',
+  'funk',
+  'bossaNova',
+  'swingJazz',
+].map(presetById);
 
 /** A preset glides over 8 bars, a slider over one. */
 export const PRESET_GLIDE = barStart(8);

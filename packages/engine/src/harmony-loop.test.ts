@@ -58,13 +58,20 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
   );
 
   // (but Spooky, which takes the haunted progression cells placed for it, yggi/cells#409: i III+ iv V VI ii° V i)
-  it("plays main's themes, degree for degree in every slot, over 9 presets × 2 seeds × 64 bars, and Spooky the haunted progression", () => {
+  it("plays main's themes, degree for degree in every slot, over the presets × 2 seeds × 64 bars, Spooky the haunted progression and Kinderlied the vamp to the fifth", () => {
     for (const r of runs.filter((r) => r.preset.name === 'Spooky'))
       for (const { bar } of r.loop.filter(({ bar }) => bar.plan.theme.kind === 'A'))
         expect(
           bar.plan.theme.bars.map((b) => b.map((slot) => ('degree' in slot ? slot.degree : -1))),
         ).toEqual([0, 2, 3, 4, 5, 1, 4, 0].map((d) => [d]));
-    for (const { main, loop } of runs.filter((r) => r.preset.name !== 'Spooky'))
+    // (and Kinderlied, a preset since #596, which takes the vamp to the fifth cells placed at its point, yggi/cells#547)
+    for (const r of runs.filter((r) => r.preset.name === 'Kinderlied'))
+      expect(new Set(r.loop.map(({ plans }) => plans.themeFragments.A))).toEqual(
+        new Set(['vamp_to_the_fifth']),
+      );
+    for (const { main, loop } of runs.filter(
+      (r) => r.preset.name !== 'Spooky' && r.preset.name !== 'Kinderlied',
+    ))
       for (let bar = 0; bar < 64; bar++) {
         const m = main[bar]!.bar;
         const l = loop[bar]!.bar;

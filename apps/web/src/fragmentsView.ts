@@ -27,6 +27,7 @@ import {
   SOLOIST,
   type LearnedLayer,
   SEED_FRAGMENTS,
+  STYLE_AXIS_NAMES,
 } from '@jambot/engine';
 import { SOURCE_COLOURS } from './attribution.ts';
 import type { BarView, MemoryView } from './hud.ts';
@@ -48,8 +49,8 @@ export type FragmentRole = 'meter' | 'rhythm' | 'clave' | 'bass' | 'lead' | 'har
 /** The order a section names its fragments in. */
 const SLOTS = ['meter', 'rhythm', 'clave'] as const;
 
-/** The axes a fragment's point is shown on, in the style card's order. */
-const POINT_AXES = ['sync', 'harm', 'artic', 'energy'] as const;
+/** The axes a fragment's point is shown on, in the style card's order: cells' (#596). */
+const POINT_AXES = STYLE_AXIS_NAMES;
 
 /** A fragment met, as a row of the table. */
 export interface FragmentRow {

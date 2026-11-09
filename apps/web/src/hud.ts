@@ -35,6 +35,10 @@ import {
   MUSE,
   type Offer,
   PRESETS,
+  STYLE_AXIS_NAMES,
+  STYLE_AXIS_WORDS,
+  type StyleAxisName,
+  pointDistance,
   type Remembered,
   type SectionType,
   type SongClock,
@@ -151,8 +155,8 @@ export interface GlideView {
 }
 
 /** The five axes a style is drawn and set on: tempo has its own card, and swing is the meter's (#360). */
-export const STYLE_AXES = ['sync', 'harm', 'artic', 'energy', 'entropy'] as const;
-export type StyleAxis = (typeof STYLE_AXES)[number];
+export const STYLE_AXES: readonly StyleAxis[] = [...STYLE_AXIS_NAMES, 'entropy'];
+export type StyleAxis = StyleAxisName | 'entropy';
 export type AxisValues = Readonly<Record<StyleAxis, number>>;
 
 /** The five axes of a style, 0 to 1. */
@@ -302,12 +306,12 @@ export function leadStatus(hud: Pick<Hud, 'bar' | 'beat'>): string {
   return hud.bar.lead === 'resting' ? 'Lead is resting.' : 'Lead is improvising.';
 }
 
-/** The word for an axis at its low or its high end, for a style no preset names. */
+/** The word for an axis at its low or its high end, for a style no preset names: cells' for its axes, and entropy's. */
 const AXIS_WORDS: Record<StyleAxis, readonly [string, string]> = {
-  sync: ['on the beat', 'syncopated'],
-  harm: ['static', 'rich'],
-  artic: ['legato', 'staccato'],
-  energy: ['sparse', 'dense'],
+  ...(Object.fromEntries(STYLE_AXIS_NAMES.map((a) => [a, STYLE_AXIS_WORDS[a].ends])) as Record<
+    StyleAxisName,
+    readonly [string, string]
+  >),
   entropy: ['predictable', 'surprising'],
 };
 
@@ -346,10 +350,12 @@ export function presetGlow(axes: AxisValues): number[] {
 /** The radar's axes that name a preset: those a preset sets, but energy. */
 const GLOW_AXES = STYLE_AXES.filter((axis) => (NAMING_AXES as readonly string[]).includes(axis));
 
-const axesDistance = (a: Partial<AxisValues>, b: Partial<AxisValues>): number =>
-  Math.sqrt(
-    GLOW_AXES.reduce((sum, axis) => sum + (a[axis]! - b[axis]!) ** 2, 0) / GLOW_AXES.length,
-  );
+/** Cells' distance between two styles (`pointDistance`), over the glow's axes. */
+const axesDistance = (a: Partial<AxisValues>, b: Partial<AxisValues>): number => {
+  const on = (x: Partial<AxisValues>) =>
+    Object.fromEntries(GLOW_AXES.map((axis) => [axis, x[axis]!]));
+  return pointDistance(on(a), on(b));
+};
 
 /** How far the glow fades by e: a nearest-neighbour distance, the median over the presets (0.147), halves it. */
 const GLOW_FADE = (() => {
