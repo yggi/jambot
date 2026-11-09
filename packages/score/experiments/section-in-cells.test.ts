@@ -107,8 +107,10 @@ describe('the band writes a whole section as one cells text, every part, the lea
       expect(lines[0]).toMatch(/^&bar meter\("4\/4"\) step=\d+bpm( swing=(8n|16n):[\d./]+)?$/);
       expect(lines[1]).toMatch(/^&key scale\((aeolian|dorian|ionian|mixolydian), [A-G][b#]?\)$/);
       // (the section's style, where its first bar sits: cells v0.15.0's instruments read it, decision 063 §3)
-      expect(lines[2]).toMatch(/^&style style=&\(map=style( [\d.]+){4}\)$/);
-      expect(lines[3]).toMatch(/^&harm over=&key step=(1m|2n) /);
+      // (named by its preset's id in cells' library where it sits on one, #596: every section here is held at a preset)
+      expect(lines[2]).toMatch(/^&(\w+) from styles$/);
+      expect(lines[3]).toBe(`&style style=&${/^&(\w+)/.exec(lines[2]!)![1]}`);
+      expect(lines[4]).toMatch(/^&harm over=&key step=(1m|2n) /);
       // No other line names a meter or a key; every line on a clock taps the main meter, and reads the main key, the
       // chord in force or the melodic scale.
       for (const line of lines.slice(1)) {
@@ -226,11 +228,11 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 2,877 characters a section, 2,545 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,880 characters a section, 2,549 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 184143,
-      meter: 5000,
+      total: 184351,
+      meter: 5208,
       key: 1436,
       harmony: 7197,
       drums: 79783,
@@ -254,21 +256,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2877);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2545);
+    expect(Math.round(e35.total / 64)).toBe(2880);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2549);
     expect(Math.round(e33.total / 64)).toBe(7549);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(66);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [22837, 20174],
-      Techno: [22697, 19582],
-      'Deep house': [27008, 23865],
-      Ambient: [14048, 12625],
-      'Lo-fi hip hop': [24854, 21962],
-      Funk: [26480, 24250],
-      'Bossa nova': [25230, 22578],
-      'Swing jazz': [20989, 17870],
+      'Synth-pop': [22869, 20206],
+      Techno: [22729, 19614],
+      'Deep house': [27048, 23905],
+      Ambient: [14088, 12665],
+      'Lo-fi hip hop': [24830, 21938],
+      Funk: [26456, 24226],
+      'Bossa nova': [25270, 22618],
+      'Swing jazz': [21061, 17942],
     });
   });
 

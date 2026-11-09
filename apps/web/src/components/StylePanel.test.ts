@@ -1,4 +1,4 @@
-import { INITIAL_STYLE, PRESETS, holding } from '@jambot/engine';
+import { INITIAL_STYLE, PRESETS, STYLE_AXIS_WORDS, holding } from '@jambot/engine';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import StylePanel from './StylePanel.svelte';
@@ -46,7 +46,9 @@ describe('the style card', () => {
       }),
     });
     expect(container.querySelector('summary .main')).toHaveTextContent('Ambient');
-    expect(container.querySelector('summary .sub')).toHaveTextContent('Custom · rich, sparse');
+    expect(container.querySelector('summary .sub')).toHaveTextContent(
+      `Custom · ${STYLE_AXIS_WORDS.harm.ends[1]}, ${STYLE_AXIS_WORDS.energy.ends[0]}`,
+    );
   });
 
   it('draws the glyph from the axes of the style heard, not those it is going to', () => {

@@ -25,6 +25,8 @@ const HAND_MODE: Readonly<Record<string, ComposerMode>> = {
   // (cells' harmonic minor, read as aeolian: #516)
   'Electro swing': 'aeolian',
   Spooky: 'aeolian',
+  // (cells' Kinderlied, a preset since #596: its twinkle's major)
+  Kinderlied: 'ionian',
 };
 
 const fragment = (id: string, text: string, point = PRESETS[0]!.style): Fragment => ({

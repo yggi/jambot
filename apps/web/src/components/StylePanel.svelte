@@ -24,7 +24,14 @@
   which follows its host's radio, has no switch: its header says the radio.
 -->
 <script lang="ts">
-  import { NUDGED, type Nudged, PRESETS, type StyleTrack } from '@jambot/engine';
+  import {
+    NUDGED,
+    type Nudged,
+    PRESETS,
+    STYLE_AXIS_NAMES,
+    STYLE_AXIS_WORDS,
+    type StyleTrack,
+  } from '@jambot/engine';
   import type { Intent } from '../conductor.ts';
   import { type StyleAxis, type StyleView, presetGlow, styleName, styleSub } from '../hud.ts';
   import Card from './Card.svelte';
@@ -64,11 +71,9 @@
   /** How far a nudge moves an axis. */
   const STEP = 0.1;
 
-  const AXES: { axis: StyleAxis; label: string; ends: [string, string] }[] = [
-    { axis: 'sync', label: 'Syncopation', ends: ['on the beat', 'off the beat'] },
-    { axis: 'harm', label: 'Harmony', ends: ['static vamp', 'moving, rich'] },
-    { axis: 'artic', label: 'Articulation', ends: ['legato', 'staccato'] },
-    { axis: 'energy', label: 'Energy', ends: ['sparse', 'dense'] },
+  // (the style axes' words are cells', #596; entropy's are the track's own)
+  const AXES: { axis: StyleAxis; label: string; ends: readonly [string, string] }[] = [
+    ...STYLE_AXIS_NAMES.map((axis) => ({ axis, ...STYLE_AXIS_WORDS[axis] })),
     { axis: 'entropy', label: 'Entropy', ends: ['predictable', 'surprising'] },
   ];
 

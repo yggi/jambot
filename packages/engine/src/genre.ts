@@ -16,12 +16,13 @@
  * Pure: it counts and knows no clock, file or key.
  */
 
-import { centreOf } from './fading.ts';
-import { AXES, PRESETS, type Style } from './style.ts';
+import { pointDistance } from '@yggi/cells/repository/fragments';
+import { nearestStyle, type Style as CellsStyle } from '@yggi/cells/repository/styles';
+import { AXES, PRESETS, type Style, type StyleAxisName } from './style.ts';
 import type { StyleReading, TimingReading } from './style-reading.ts';
 
 /** The axes of a reading that sit on the style space's own. */
-export type ReadAxes = Partial<Pick<Style, 'energy' | 'sync' | 'artic' | 'bpm' | 'harm'>>;
+export type ReadAxes = Partial<Pick<Style, StyleAxisName | 'bpm'>>;
 
 /**
  * The tempo on its own axis's scale, 0 to 1: the axis glides in log space,
@@ -57,16 +58,13 @@ export function readingAxes(
   };
 }
 
-/** The axes a reading can have. */
-const READ_AXES = ['energy', 'sync', 'artic', 'bpm', 'harm'] as const;
-
-/** The root mean square of the differences, over the axes the reading has. */
+/**
+ * The root mean square of the differences, over the axes the reading has: cells' distance between two styles
+ * (`pointDistance`, over the axes both have), and 0 for a reading with none.
+ */
 export function styleDistance(read: ReadAxes, at: Landmark['at']): number {
-  const axes = READ_AXES.filter((axis) => read[axis] !== undefined);
-  if (axes.length === 0) return 0;
-  return Math.sqrt(
-    axes.reduce((sum, axis) => sum + (read[axis]! - at[axis]) ** 2, 0) / axes.length,
-  );
+  const has = Object.fromEntries(Object.entries(read).filter(([, v]) => v !== undefined));
+  return Object.keys(has).length === 0 ? 0 : pointDistance(has, at);
 }
 
 /** How likely a reading is each preset, in the presets' order. */
@@ -79,7 +77,7 @@ export interface Genre {
 export interface Landmark {
   readonly name: string;
   /** The tempo is on its unit scale (`bpmUnit`). */
-  readonly at: Readonly<Record<(typeof READ_AXES)[number], number>>;
+  readonly at: Readonly<Record<StyleAxisName | 'bpm', number>>;
 }
 
 /** The presets' own points: where the composer is asked to play. */
@@ -111,5 +109,13 @@ export function genreOf(
  */
 export function nearestPreset(style: Style): string {
   const read = { ...style, bpm: bpmUnit(style.bpm) };
-  return centreOf(PRESET_LANDMARKS, (landmark) => -styleDistance(read, landmark.at)).name;
+  return nearestStyle(read, { k: 1, styles: LANDMARK_STYLES })[0]!.style.name;
 }
+
+/** The presets' landmarks as cells' styles, the tempo an axis of their points: what `nearestStyle` ranks (yggi/cells#538). */
+const LANDMARK_STYLES: readonly CellsStyle[] = PRESETS.map((p, i) => ({
+  id: p.id,
+  name: p.name,
+  point: PRESET_LANDMARKS[i]!.at,
+  tempo: p.style.bpm,
+}));

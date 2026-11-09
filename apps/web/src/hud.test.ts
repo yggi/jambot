@@ -17,6 +17,8 @@ import {
   leadRests,
   MELODIC_SCALES,
   melodicHelix,
+  STYLE_AXIS_NAMES,
+  STYLE_AXIS_WORDS,
 } from '@jambot/engine';
 import { METERS, positions } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
@@ -617,7 +619,10 @@ describe('the style card’s words', () => {
       'Gliding to Ambient',
     );
     const richSparse = { ...axes, harm: 0.9, energy: 0.1, sync: 0.5, artic: 0.5 };
-    expect(styleSub(view({ preset: null, axes: richSparse }))).toBe('Custom · rich, sparse');
+    // (the axes' words are cells', #596)
+    expect(styleSub(view({ preset: null, axes: richSparse }))).toBe(
+      `Custom · ${STYLE_AXIS_WORDS.harm.ends[1]}, ${STYLE_AXIS_WORDS.energy.ends[0]}`,
+    );
   });
 
   it('says a custom style drifting toward another preset, where it heads for one', () => {
@@ -644,13 +649,11 @@ describe('the style card’s words', () => {
   it('gives a word to each end of each axis, the two furthest from the middle, in axis order', () => {
     const middle = { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5, entropy: 0.5 };
     expect(styleWords(middle)).toEqual([]);
+    // (the style axes' words are cells' AXES' ends, #596; entropy's the track's own)
     const ends = {
-      sync: ['on the beat', 'syncopated'],
-      harm: ['static', 'rich'],
-      artic: ['legato', 'staccato'],
-      energy: ['sparse', 'dense'],
+      ...Object.fromEntries(STYLE_AXIS_NAMES.map((a) => [a, STYLE_AXIS_WORDS[a].ends])),
       entropy: ['predictable', 'surprising'],
-    } as const;
+    };
     for (const [axis, [low, high]] of Object.entries(ends)) {
       expect(styleWords({ ...middle, [axis]: 0 })).toEqual([low]);
       expect(styleWords({ ...middle, [axis]: 1 })).toEqual([high]);
