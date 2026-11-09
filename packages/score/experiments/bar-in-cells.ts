@@ -514,15 +514,21 @@ export function barAsCells(
     notes.filter((n) => n.part === 'drums'),
     euclid,
   );
-  const voices = [
-    ...new Set(notes.filter((n) => n.part === 'drums').map((n) => VOICE_OF_NOTE.get(n.note)!)),
-  ];
+  // (each voice with the General MIDI note it sends, `note=`: a drum's name gives none since cells v0.22.0, yggi/cells#626)
+  const voices = new Map(
+    notes
+      .filter((n) => n.part === 'drums')
+      .map((n) => [VOICE_OF_NOTE.get(n.note)!, n.note] as const),
+  );
   lines.push(
     ...drums.lines.map((text) => ({ part: 'drums' as const, text })),
     ...(drums.terms.length
       ? [{ part: 'drums' as const, text: `&drums [${drums.terms.join(', ')}]` }]
       : []),
-    ...voices.map((voice) => ({ part: 'drums' as const, text: `&${voice} s=white` })),
+    ...[...voices].map(([voice, note]) => ({
+      part: 'drums' as const,
+      text: `&${voice} note=${note} s=white`,
+    })),
   );
   const bass = bar.written.some((w) => w.part === 'bass');
   if (bass) {

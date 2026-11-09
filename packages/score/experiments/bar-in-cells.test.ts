@@ -205,11 +205,11 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
 
   it('counts the characters of every part, the bass and the comp over the chord in force 716 more than over the key (#387)', () => {
     expect(characters(MEASURED)).toEqual({
-      total: 295332,
+      total: 305740,
       meter: 13664,
       key: 8640,
       harmony: 12921,
-      drums: 143841,
+      drums: 154249,
       bass: 54278,
       comp: 44287,
       card: 17701,
@@ -220,7 +220,7 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       r.bars.map((bar) => ({ text: barAsCells(bar, { table: 'key' }) })),
     );
     expect(characters(overKey)).toMatchObject({
-      total: 294616,
+      total: 305024,
       harmony: 12921,
       bass: 54221,
       comp: 43628,
@@ -233,18 +233,18 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     expect(
       Object.fromEntries(TABLE.map((row) => [`${row.preset} ${row.meter}`, row.characters.total])),
     ).toEqual({
-      'Synth-pop 4/4': 25150,
-      'Techno 4/4': 26619,
-      'Deep house 4/4': 26068,
-      'Ambient 4/4': 15672,
-      'Lo-fi hip hop 4/4': 26732,
-      'Funk 4/4': 35087,
-      'Bossa nova 4/4': 24930,
-      'Swing jazz 4/4': 26102,
-      'Synth-pop 3/4': 22671,
-      'Synth-pop 7/8': 22148,
-      'Bossa nova 3/4': 21907,
-      'Bossa nova 7/8': 22246,
+      'Synth-pop 4/4': 26022,
+      'Techno 4/4': 27643,
+      'Deep house 4/4': 26964,
+      'Ambient 4/4': 16072,
+      'Lo-fi hip hop 4/4': 27532,
+      'Funk 4/4': 36367,
+      'Bossa nova 4/4': 25730,
+      'Swing jazz 4/4': 27038,
+      'Synth-pop 3/4': 23543,
+      'Synth-pop 7/8': 23084,
+      'Bossa nova 3/4': 22699,
+      'Bossa nova 7/8': 23046,
     });
   });
 

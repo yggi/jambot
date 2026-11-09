@@ -230,7 +230,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  it('states the host’s lines and the harmony once a section: 2,897 characters a section, 2,566 without the lead, against E33’s 7,549 for the same 8 bars, 66 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,897 characters a section, 2,566 without the lead, against E33’s 7,792 for the same 8 bars, 67 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
       total: 185439,
@@ -248,11 +248,11 @@ describe('the band writes a whole section as one cells text, every part, the lea
       SECTIONS.flatMap((s) => s.bars.map((bar) => ({ text: barAsCells(bar) }))),
     );
     expect(e33).toEqual({
-      total: 483148,
+      total: 498676,
       meter: 19648,
       key: 11488,
       harmony: 17811,
-      drums: 251231,
+      drums: 266759,
       bass: 90065,
       comp: 68839,
       card: 24066,
@@ -260,8 +260,8 @@ describe('the band writes a whole section as one cells text, every part, the lea
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
     expect(Math.round(e35.total / 64)).toBe(2897);
     expect(Math.round((e35.total - e35.lead) / 64)).toBe(2566);
-    expect(Math.round(e33.total / 64)).toBe(7549);
-    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(66);
+    expect(Math.round(e33.total / 64)).toBe(7792);
+    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(67);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
@@ -583,7 +583,7 @@ describe.runIf(process.env.E35_FULL)(
       }
     });
 
-    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,405 characters a section, 2,141 without the lead, against E33’s 6,602', () => {
+    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,405 characters a section, 2,141 without the lead, against E33’s 6,806', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -602,9 +602,9 @@ describe.runIf(process.env.E35_FULL)(
       const e35 = characters(sections.map((s) => s.text));
       expect([e35.total, e35.lead]).toEqual([769471, 84407]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
-      expect(e33).toBe(2112582);
+      expect(e33).toBe(2178078);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        2405, 2141, 6602,
+        2405, 2141, 6806,
       ]);
     });
   },
