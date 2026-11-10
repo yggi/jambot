@@ -1,6 +1,6 @@
-import { SECTION_BARS, loopEnd, repeatSection, replayOf } from '@jambot/engine';
+import { BAR_LOOPS, SECTION_BARS, barLoop, loopEnd, repeatSection, replayOf } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import { loopPast, loopState, tapped } from './looper.ts';
+import { barsLooped, loopPast, loopState, tapped, tappedBars } from './looper.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -44,5 +44,38 @@ describe('the loop button (#628)', () => {
     expect(loopState(null, 3)).toBe('off');
     // A tap on a loop that is past arms a new one.
     expect(tapped(once, 30, 31)).toEqual(repeatSection(24, 1));
+  });
+
+  it('loops the last bars from the next on a tap of the looper, for every window and every bar (#629)', () => {
+    for (const bars of BAR_LOOPS)
+      for (const next of range(20).map((n) => n + 4)) {
+        const loop = tappedBars(null, bars, next)!;
+        expect(loop).toEqual(barLoop(next, bars));
+        expect(barsLooped(loop, next)).toBe(bars);
+        // The section's button says nothing of it, and a tap there leaves it.
+        expect(loopState(loop, next)).toBe('off');
+        expect(tapped(loop, next - 1, next)).toBe(loop);
+      }
+  });
+
+  it('lets the window go at the end of its lap on a second tap, and halves or doubles it from where it ends on another', () => {
+    const two = tappedBars(null, 2, 13)!;
+    // Let go as bar 18 is next: the lap from 17 plays to its end, at 19.
+    const gone = tappedBars(two, 2, 18)!;
+    expect(loopEnd(gone)).toBe(19);
+    expect(barsLooped(gone, 18)).toBe(2);
+    expect(barsLooped(gone, 20)).toBeNull();
+    // Halved as bar 16 is next: the last of the two bars, from 16.
+    const one = tappedBars(two, 1, 16)!;
+    expect([16, 17, 18].map((bar) => replayOf(one, bar))).toEqual([12, 12, 12]);
+    // Doubled: the four bars ending where the two did.
+    const four = tappedBars(two, 4, 16)!;
+    expect([16, 17, 18, 19, 20].map((bar) => replayOf(four, bar))).toEqual([9, 10, 11, 12, 9]);
+  });
+
+  it('rests while a section plays again', () => {
+    const section = repeatSection(8, null);
+    expect(tappedBars(section, 2, 18)).toBe(section);
+    expect(barsLooped(section, 18)).toBeNull();
   });
 });

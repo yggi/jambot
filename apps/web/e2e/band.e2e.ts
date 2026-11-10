@@ -771,7 +771,7 @@ test('the loop button repeats the section heard, bar for bar, every note written
   // At 108 bpm a bar is 2.2 s: tap in the second section, before its last bar is composed.
   await expect.poll(lastBar, { timeout: 30_000 }).toBeGreaterThanOrEqual(9);
   expect(await lastBar()).toBeLessThan(14);
-  const loop = page.getByRole('button', { name: 'Loop' });
+  const loop = page.getByRole('button', { name: 'Loop', exact: true });
   await loop.click();
   await expect(loop).toHaveText('repeat');
   await expect.poll(lastBar, { timeout: 40_000 }).toBeGreaterThanOrEqual(24);
@@ -796,5 +796,53 @@ test('the loop button repeats the section heard, bar for bar, every note written
   const shift = again[0]!.seconds - first[0]!.seconds;
   const spread = again.map((e, i) => Math.abs(e.seconds - first[i]!.seconds - shift));
   expect(Math.max(...spread)).toBeLessThan(0.001);
+  expect(errors).toEqual([]);
+});
+
+test('the looper plays the last 2 bars again, every note and onset as they fell, until let go (#629)', async ({
+  page,
+}) => {
+  // 22 bars at 108 bpm, 49 s, after the count-in.
+  test.setTimeout(120_000);
+  const errors = await listen(page);
+  await solo(page);
+  await openStyle(page);
+  await page.getByRole('switch', { name: 'Radio' }).uncheck();
+  await start(page);
+  await playing(page);
+  const events = () => page.evaluate(() => window.jambot!.played().events);
+  const lastBar = async () => Math.max(-1, ...(await events()).map((e) => e.bar));
+  await expect.poll(lastBar, { timeout: 30_000 }).toBeGreaterThanOrEqual(5);
+  const two = page.getByRole('button', { name: 'Loop the last 2 bars' });
+  await two.click();
+  await expect(two).toHaveAttribute('aria-pressed', 'true');
+  const tapped = await lastBar();
+  await expect.poll(lastBar, { timeout: 40_000 }).toBeGreaterThanOrEqual(tapped + 10);
+  await two.click();
+  await expect(two).toHaveAttribute('aria-pressed', 'false', { timeout: 15_000 });
+  const played = await events();
+  // The window is the two bars before the first bar played again: find it by the first bar whose notes repeat two bars on, every two bars after.
+  const barOf = (bar: number) =>
+    played
+      .filter((e) => e.bar === bar)
+      .sort((a, b) => a.seconds - b.seconds || a.note - b.note || a.part.localeCompare(b.part));
+  const written = ({ part, step, note }: (typeof played)[number]) => ({ part, step, note });
+  const same = (a: number, b: number) =>
+    JSON.stringify(barOf(a).map(written)) === JSON.stringify(barOf(b).map(written));
+  const from = [...Array(6).keys()]
+    .map((i) => tapped - 2 + i)
+    .find((bar) => same(bar, bar + 2) && same(bar + 1, bar + 3) && same(bar, bar + 4))!;
+  expect(from).toBeDefined();
+  for (let lap = 1; lap <= 3; lap++)
+    for (const i of [0, 1]) {
+      const first = barOf(from + i);
+      const again = barOf(from + i + 2 * lap);
+      expect(again.map(written)).toEqual(first.map(written));
+      expect(first.length).toBeGreaterThan(0);
+      // Each note falls where it fell in its bar, within 1 ms: the shift is the laps' bars.
+      const shift = again[0]!.seconds - first[0]!.seconds;
+      const spread = again.map((e, n) => Math.abs(e.seconds - first[n]!.seconds - shift));
+      expect(Math.max(...spread)).toBeLessThan(0.001);
+    }
   expect(errors).toEqual([]);
 });

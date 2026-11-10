@@ -433,9 +433,10 @@ const read = (env: BandEnv): BandEnv => ({ ...env, style: writtenStyle(env.style
 /**
  * The bar to play now, the plans as of it, and the carried state with the
  * bar after it decided. In a loop (`env.loop`) it is a bar kept, played
- * again, and the carried state is as it was (`replayed`); where the loop
- * ends, the bar the band decided next is played there, a repeat sign
- * inserted (#628). With `replay` false, as for the song's last bar, the
+ * again (`replayed`): with the song held, the carried state is as it was,
+ * and where the loop ends, the bar the band decided next is played there, a
+ * repeat sign inserted (#628); with the song running beneath, the band
+ * decides the bar as if it passed it, its kept bars as they were (#629). With `replay` false, as for the song's last bar, the
  * loop plays nothing again.
  */
 function step(
@@ -445,13 +446,19 @@ function step(
 ): { here: DecidedBar; at: PlanCarried; carried: BandCarried; replayed?: KeptBar } {
   const again = replay ? replayOf(env.loop, env.bar) : null;
   const kept = again === null ? undefined : carried.kept.find((k) => k.decided.bar === again);
-  if (kept)
+  if (kept) {
+    // The song held, nothing moves; running beneath, the band decides the bar as it passes one, and keeps what it played before.
+    const beneath =
+      env.loop!.song === 'runs'
+        ? { ...step(env, carried, false).carried, kept: carried.kept }
+        : { ...carried, nextBar: env.bar + 1 };
     return {
       here: { ...kept.decided, bar: env.bar },
       at: kept.plans,
-      carried: { ...carried, nextBar: env.bar + 1 },
+      carried: beneath,
       replayed: kept,
     };
+  }
   let { plans, history } = carried;
   let here = carried.next;
   if (!here) {
@@ -459,7 +466,7 @@ function step(
     ({ plans, decided: here, history } = decide(env, 0, plans, history));
   } else if (here.bar !== env.bar) {
     // The bar the loop put off plays where the loop let go of it.
-    if (env.loop && here.bar === env.loop.at && env.bar > here.bar)
+    if (env.loop?.song === 'held' && here.bar === env.loop.at && env.bar > here.bar)
       here = { ...here, bar: env.bar };
     else throw new Error(`band: bar ${env.bar}, but the band decided bar ${here.bar} next`);
   }
