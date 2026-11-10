@@ -30,6 +30,9 @@ The pointers to what holds each are in the sentences.
 - The band decides each bar when it composes the bar before: the section's plan at a section's first bar, and the bar's chords.
   So a part can lead into the next bar's chords (`BarEnv.next`), and they are what plays.
   A bar the clock has passed is passed (`passBar`), not composed.
+- A loop plays bars again (`replay.ts`, #628): a window of the bars the band kept (`BandCarried.kept`, the last `KEPT_BARS`, a section's), from a later bar, a number of laps or locked (`laps` null), read as a standing input at every bar (`BandEnv.loop`, `TransportEnv.loop`), so `lookAhead`, `forecast` and `foresight` play it as the band does.
+  A bar played again is the kept bar as it played, its number the clock's, and the band carries nothing on from it but the bar it plays next (`BandCarried.nextBar`); where the loop ends, the bar it had decided next plays, a repeat sign inserted (the owner's ruling on #626), and a song ended inside a loop closes in its lap's key.
+  A bar the clock passed plays nothing again.
 - A song starts and ends in the engine (`ending.ts`, `transport.ts`).
   The count-in is one bar of the song's beats before its first step, at the tempo the song opens at (`countIn`, `countInSeconds`): the player lays the clicks and starts the transport's clock a bar later, and a transport whose source is asked bars ahead composes bar 0 at once, so a host can send it during the count-in.
   A song ends on request (`finish` in the transport's input): the band composes `finaleBar` in place of the next bar it would, the transport schedules through it and no further, and `Finale.ended` says when it ended on the clock; a client is told the last bar (`ends`) and does the same.

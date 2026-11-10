@@ -7,8 +7,10 @@
   and the line counts them down; while the band ends the button is an
   outline, the last bar's beats still to come are hatched the same way, and
   a second Stop stops it now. A device that doesn't set the band, a client
-  (`Can`), has neither button: its host starts and stops the band. The loop toggle is the place for holding a section and is not wired
-  yet (#327). It stays one height whatever it says, so nothing under it moves.
+  (`Can`), has neither button: its host starts and stops the band. The loop
+  button plays a section again (#628, `looper.ts`): a tap repeats the section
+  heard once, a second locks it, a third lets it go at the end of its lap; it
+  says which. It stays one height whatever it says, so nothing under it moves.
   It is the transport of whatever a screen plays: the lobby's metronome,
   timing test and tuner use it too, with their own labels, their bar's cells
   or none, and no loop.
@@ -16,6 +18,7 @@
 <script lang="ts">
   import type { Meter } from '@jambot/theory';
   import type { Phase } from '../sessionState.ts';
+  import type { LoopState } from '../looper.ts';
   import { transportCells, transportHeard } from '../transportView.ts';
 
   interface Props {
@@ -38,8 +41,10 @@
     labels?: { start: string; stop: string };
     /** Whether Stop asks the band to end on a cadence, as the band's does, and a second stops it now. */
     cadence?: boolean;
-    /** Whether it has a loop toggle: the band's has. */
-    loop?: boolean;
+    /** What the loop button says, where there is one: the band's has (#628). */
+    looping?: LoopState;
+    /** A tap on the loop button. */
+    onloop?: () => void;
     /** Whether the button rests for a moment, as while a microphone is asked for. */
     busy?: boolean;
   }
@@ -56,11 +61,17 @@
     ontoggle,
     labels = { start: 'Start the band', stop: 'Stop' },
     cadence = true,
-    loop = true,
+    looping,
+    onloop,
     busy = false,
   }: Props = $props();
 
-  let looping = $state(false);
+  /** What the loop button says and what a tap on it will do, by its state. */
+  const LOOP_WORDS: Record<LoopState, { word: string; title: string }> = {
+    off: { word: 'loop', title: 'Repeat this section once' },
+    repeat: { word: 'repeat', title: 'Repeating this section once: tap to lock it' },
+    locked: { word: 'locked', title: 'Section locked: tap to let it go at the end of the lap' },
+  };
 
   const cells = $derived(meter ? transportCells(meter) : []);
   const lit = $derived(meter ? transportHeard(meter, step) : null);
@@ -127,19 +138,22 @@
     <b title={main}>{main}</b>
     <span title={sub}>{sub}</span>
   </div>
-  {#if loop && sets}
+  {#if looping !== undefined && onloop && sets}
     <button
       type="button"
       class="loop"
-      aria-pressed={looping}
-      title="Loop this section (not wired yet)"
-      onclick={() => (looping = !looping)}
+      aria-label="Loop"
+      aria-pressed={looping !== 'off'}
+      data-looping={looping}
+      title={LOOP_WORDS[looping].title}
+      disabled={!playing}
+      onclick={onloop}
     >
       <svg viewBox="0 0 20 20" aria-hidden="true">
         <path d="M5 8 a4 4 0 0 1 4-4 h3 M15 12 a4 4 0 0 1-4 4 h-3" />
         <path d="M11 1.5 l2 2.5 -2 2.5 M9 13.5 l-2 2.5 2 2.5" />
       </svg>
-      <span>loop</span>
+      <span>{LOOP_WORDS[looping].word}</span>
     </button>
   {/if}
 </section>

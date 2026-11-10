@@ -154,6 +154,8 @@
     playing={player.playing}
     sets={can.set}
     ontoggle={() => (player.playing ? player.stop() : player.start())}
+    looping={player.looping}
+    onloop={() => player.tapLoop()}
   />
 {/snippet}
 

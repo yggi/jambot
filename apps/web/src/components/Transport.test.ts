@@ -36,7 +36,7 @@ describe('the transport', () => {
   });
 
   it('draws neither Start nor the loop for a device that doesn’t set the band, and still says its lines', () => {
-    render(Transport, props({ sets: false }));
+    render(Transport, props({ sets: false, looping: 'off', onloop: () => {} }));
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByRole('region', { name: 'Transport' })).toHaveTextContent('Groove 3/8');
   });
@@ -85,11 +85,27 @@ describe('the transport', () => {
     expect(container.querySelectorAll('.cell.on, .cell.ahead, i.on')).toHaveLength(0);
   });
 
-  it('has a loop toggle that holds its own state, wired to nothing yet', async () => {
-    render(Transport, props());
-    const loop = screen.getByRole('button', { name: /loop/ });
+  it('says what the loop does in each state, and asks for a tap only while the band plays (#628)', async () => {
+    const onloop = vi.fn();
+    const { rerender } = render(Transport, props({ looping: 'off', onloop }));
+    const loop = screen.getByRole('button', { name: 'Loop' });
+    expect(loop).toBeDisabled();
+    await rerender({ playing: true });
     expect(loop).toHaveAttribute('aria-pressed', 'false');
+    expect(loop).toHaveTextContent('loop');
+    expect(loop).toHaveAttribute('title', 'Repeat this section once');
     await fireEvent.click(loop);
+    expect(onloop).toHaveBeenCalledTimes(1);
+    await rerender({ looping: 'repeat' });
     expect(loop).toHaveAttribute('aria-pressed', 'true');
+    expect(loop).toHaveTextContent('repeat');
+    await rerender({ looping: 'locked' });
+    expect(loop).toHaveTextContent('locked');
+    expect(loop.getAttribute('title')).toMatch(/end of the lap/);
+  });
+
+  it('has no loop button where nothing loops, as the lobby’s tools', () => {
+    render(Transport, props({ playing: true }));
+    expect(screen.queryByRole('button', { name: 'Loop' })).toBeNull();
   });
 });
