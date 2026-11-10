@@ -117,8 +117,11 @@ export const DRUM_WORDS: Readonly<Record<DrumSound, string>> = {
 export type DrumLines = Readonly<Partial<Record<DrumSound, readonly number[]>>>;
 
 /**
- * The style's axes, in the order `style` writes them: the engine's (`AXES`).
- * Swing is the meter's, not the style's (#360), so `style` states none.
+ * The style's axes, in the order `style` writes them: the engine's (`AXES`),
+ * but mood. Swing is the meter's, not the style's (#360), so `style` states
+ * none; mood, cells' since v0.23.0 (its decision 076), is read by the
+ * composer's queries at a section's start and by no part, and the score's
+ * spelling is frozen (D5), so `style` states none either.
  */
 export const STYLE_AXES = ['sync', 'harm', 'artic', 'energy', 'entropy', 'bpm'] as const;
 export type StyleAxis = (typeof STYLE_AXES)[number];

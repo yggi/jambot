@@ -621,7 +621,7 @@ describe('the style card’s words', () => {
     const richSparse = { ...axes, harm: 0.9, energy: 0.1, sync: 0.5, artic: 0.5 };
     // (the axes' words are cells', #596)
     expect(styleSub(view({ preset: null, axes: richSparse }))).toBe(
-      `Custom · ${STYLE_AXIS_WORDS.harm.ends[1]}, ${STYLE_AXIS_WORDS.energy.ends[0]}`,
+      `Custom · ${STYLE_AXIS_WORDS.harm.ends[1]}, sparse`,
     );
   });
 
@@ -647,11 +647,12 @@ describe('the style card’s words', () => {
   });
 
   it('gives a word to each end of each axis, the two furthest from the middle, in axis order', () => {
-    const middle = { sync: 0.5, harm: 0.5, artic: 0.5, energy: 0.5, entropy: 0.5 };
+    const middle = { sync: 0.5, harm: 0.5, artic: 0.5, mood: 0.5, energy: 0.5, entropy: 0.5 };
     expect(styleWords(middle)).toEqual([]);
-    // (the style axes' words are cells' AXES' ends, #596; entropy's the track's own)
+    // (the style axes' words are cells' AXES' ends, #596; energy's and entropy's the track's own)
     const ends = {
       ...Object.fromEntries(STYLE_AXIS_NAMES.map((a) => [a, STYLE_AXIS_WORDS[a].ends])),
+      energy: ['sparse', 'dense'],
       entropy: ['predictable', 'surprising'],
     };
     for (const [axis, [low, high]] of Object.entries(ends)) {
@@ -659,7 +660,7 @@ describe('the style card’s words', () => {
       expect(styleWords({ ...middle, [axis]: 1 })).toEqual([high]);
     }
     expect(styleWords({ ...middle, artic: 1, entropy: 0.9, harm: 0.8 })).toEqual([
-      'staccato',
+      'stabby',
       'surprising',
     ]);
   });

@@ -127,7 +127,7 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
   it('moves the share over all members down as the lean rises, in every preset, held at entropy 0.3', () => {
     expect(
       [held.down, held.open, held.up, held.top].map((r) => fixed(against(r, 'all').mean)),
-    ).toEqual([0.78, 0.733, 0.638, 0.56]);
+    ).toEqual([0.788, 0.743, 0.656, 0.584]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
         against(
@@ -150,9 +150,9 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
 describe('the controller closed (E45, #237)', () => {
   it('brings more sections inside the band than left alone, held and walked, and no more than the lean at its top', () => {
     expect([held.open, held.closed, held.top].map((r) => fixed(insideOf(r)))).toEqual([
-      0.302, 0.771, 0.844,
+      0.292, 0.75, 0.833,
     ]);
-    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.328, 0.773]);
+    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.289, 0.734]);
   });
 
   it('reaches the ruled 80 % of sections inside at the lean’s top, open, further than at entropy 1 alone (#536)', () => {
@@ -163,7 +163,7 @@ describe('the controller closed (E45, #237)', () => {
   it('reverses within the ruled one per four sections', () => {
     expect(
       [held.closed, held.fromDown, walked.closed].map((r) => fixed(reversalsOf(r).most)),
-    ).toEqual([0.333, 0, 0.25]);
+    ).toEqual([0, 0, 0.25]);
   });
 
   it('climbs where bored: every preset held ends leaned up, none down', () => {
@@ -173,7 +173,7 @@ describe('the controller closed (E45, #237)', () => {
   });
 
   it('measures how many sections a run leaned all the way down takes to come inside, and what a bar costs', () => {
-    expect(cameInside(held.fromDown)).toEqual([2, 1, 2, 3, 1, 4, 3, 6]);
+    expect(cameInside(held.fromDown)).toEqual([2, 1, 3, 3, 1, 4, 3, 6]);
     for (const runs of [held.closed, walked.closed])
       expect(Number.isFinite(costOf(runs).p95)).toBe(true);
   });
@@ -182,14 +182,14 @@ describe('the controller closed (E45, #237)', () => {
 describe('the controller on the page’s schedule (#495: read at a section’s last bar, leaned two sections on)', () => {
   it('brings sections inside the band, held and walked, behind the schedule read a bar before the section it leans', () => {
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.302, 0.677, 0.771,
+      0.292, 0.646, 0.75,
     ]);
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.328, 0.719, 0.773,
+      0.289, 0.656, 0.734,
     ]);
   });
 
   it('reverses within the ruled one per four sections, held and walked', () => {
-    expect([held.page, walked.page].map((r) => fixed(reversalsOf(r).most))).toEqual([0.333, 0.25]);
+    expect([held.page, walked.page].map((r) => fixed(reversalsOf(r).most))).toEqual([0, 0.25]);
   });
 });

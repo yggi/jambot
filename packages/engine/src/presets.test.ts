@@ -1,4 +1,4 @@
-// The presets past the prototype's eight (#517): Electro swing and Spooky, each a name and a point and nothing else, its
+// The presets past the prototype's eight (#517): Electro swing, Spooky and those after them, each a name and a point, its
 // meter, swing, mode, drums and bass the ones cells' seeds hold at its point (yggi/cells#305, #349, #360), found there at
 // distance 0, and played so by the band held there.
 import { STYLES } from '@yggi/cells/repository/styles';
@@ -34,26 +34,62 @@ const FOUND: Readonly<
     rhythm: 'spooky_drums',
     bass: 'creeping_bass',
   },
-  // (cells' Kinderlied, a preset since #596: no meter sits at its point yet, so it finds the plain 4/4 0.219 away,
-  //  cells' library to fill, yggi/cells#540; its drum bar, its bass line and its mode at distance 0)
+  // (cells' Kinderlied, a preset since #596: since cells v0.23.0 the plain 4/4 sits at its point too, yggi/cells#572)
   Kinderlied: {
     meter: 'meter',
     mode: 'ionian',
     rhythm: 'kinderlied_drums',
     bass: 'root_bass',
-    meterAt: 0.219,
+    swing: '16n 0.500',
+  },
+  // (the four styles cut from cells' examples at v0.23.0, yggi/cells#572: each its piece's parts, in A minor)
+  Acid: {
+    meter: 'meter',
+    mode: 'aeolian',
+    rhythm: 'acid_drums',
+    bass: 'acid_bass',
+    swing: '16n 0.500',
+  },
+  'Happy hardcore': {
+    meter: 'meter',
+    mode: 'aeolian',
+    rhythm: 'happy_hardcore_drums',
+    bass: 'pumping_bass',
+    swing: '16n 0.500',
+  },
+  Elektro: {
+    meter: 'meter',
+    mode: 'aeolian',
+    rhythm: 'elektro_drums',
+    bass: 'octave_bass',
+    swing: '16n 0.500',
+  },
+  'Dark ambient': {
+    meter: 'meter',
+    mode: 'aeolian',
+    rhythm: 'industrial_drums',
+    bass: 'drone_bass',
     swing: '16n 0.500',
   },
 };
 
 describe('the presets (#517)', () => {
-  it('are the prototype’s eight, then Electro swing, Spooky and Kinderlied, each named once: cells’ library of styles (#596)', () => {
+  it('are the prototype’s eight, then Electro swing, Spooky, Kinderlied and the four cut from cells’ examples, each named once: cells’ library of styles (#596)', () => {
     expect(PRESETS.slice(0, PROTOTYPE_PRESETS.length)).toEqual(PROTOTYPE_PRESETS);
-    expect(NEW.map((p) => p.name)).toEqual(['Electro swing', 'Spooky', 'Kinderlied']);
-    // (each its point and its tempo as cells' library writes them, to the last bit)
+    expect(NEW.map((p) => p.name)).toEqual([
+      'Electro swing',
+      'Spooky',
+      'Kinderlied',
+      'Acid',
+      'Happy hardcore',
+      'Elektro',
+      'Dark ambient',
+    ]);
+    // (each its point, its bite Jambot's artic, and its tempo as cells' library writes them, to the last bit)
     for (const p of PRESETS) {
       const s = STYLES.find((x) => x.id === p.id)!;
-      expect({ ...p.style }).toEqual({ ...s.point, bpm: s.tempo });
+      const { sync, harm, artic, mood, bpm } = p.style;
+      expect({ sync, harm, bite: artic, mood, bpm }).toEqual({ ...s.point, bpm: s.tempo });
     }
     expect(new Set(PRESETS.map((p) => p.name)).size).toBe(PRESETS.length);
   });

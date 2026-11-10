@@ -39,7 +39,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     expect(CLIMBING).toHaveLength(40);
     expect(mostUsedRhythm(MAIN)).toEqual({ sections: 8450, mostUsed: 8450, share: 1 });
     const { sections, mostUsed, share } = mostUsedRhythm(CLIMBING);
-    expect([sections, mostUsed]).toEqual([8450, 3939]);
+    expect([sections, mostUsed]).toEqual([8450, 3944]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -81,31 +81,33 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       Techno: 0,
       'Deep house': 0.01,
       Ambient: 0,
-      'Lo-fi hip hop': 0,
+      'Lo-fi hip hop': 0.01,
       Funk: 0.03,
-      'Bossa nova': 0.01,
+      'Bossa nova': 0.02,
       'Swing jazz': 0.05,
     });
   });
 
-  it('keeps 75 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
+  // (since cells v0.23.0 the next nearest drum bar is Acid drums at Techno, where the drummer invented, and Electro swing
+  // drums at Lo-fi hip hop and Bossa nova, on sync harm bite mood: each plays the drums further from main's)
+  it('keeps 59 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
     expect(drumOverlap(MAIN, MAIN)).toEqual(
       Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
     );
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0.92,
-      Techno: 0.82,
+      Techno: 0.59,
       'Deep house': 0.95,
       Ambient: 0.89,
-      'Lo-fi hip hop': 0.93,
+      'Lo-fi hip hop': 0.67,
       Funk: 0.75,
-      'Bossa nova': 0.91,
+      'Bossa nova': 0.65,
       'Swing jazz': 0.78,
     });
   });
 
-  it(`keeps a layer of at most 3,735 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3735);
+  it(`keeps a layer of at most 3,682 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3682);
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(3);
   });
 });

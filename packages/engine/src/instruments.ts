@@ -32,10 +32,11 @@
  */
 
 import { setAttr } from '@yggi/cells/engine/edit';
+import { bodyOf } from '@yggi/cells/engine/use';
 import { gmDrumNote } from '@yggi/cells/engine/midi';
 import type { Fragment } from '@yggi/cells/repository/fragments';
 import { createRepository } from '@yggi/cells/repository/fragments';
-import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
+import { INSTRUMENT_FRAGMENTS } from './library.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
 
 /** The order the instrument fragments fill a voice in: the first that defines it gives its line. */
@@ -79,7 +80,9 @@ export function instrumentsAt(
     (typeof PERFORMER_VOICES)[VoicedPart],
   ][]) {
     for (const { fragment } of ranked) {
-      const line = fragment.text.split('\n').find((l) => l.startsWith(`&${voice} `));
+      const line = bodyOf(fragment.text)
+        .split('\n')
+        .find((l) => l.startsWith(`&${voice} `));
       if (line === undefined) continue;
       if (fragment.id !== own) found[part] = { id: fragment.id, line };
       break;
@@ -88,14 +91,18 @@ export function instrumentsAt(
   return found;
 }
 
-/** Each voice an instrument fragment defines, by its name, and the line that defines it. */
+/**
+ * Each voice an instrument fragment defines, by its name, and the line that defines it: read off its body, past the
+ * signature of an instrument that declares what it reads (`&bassV from (&style)`, yggi/cells#631), so a default it
+ * declares (its `&style`, the centre of style space) is a line here too.
+ */
 export const INSTRUMENT_LINES: ReadonlyMap<string, string> = (() => {
   const lines = new Map<string, string>();
   const ordered = [...INSTRUMENT_FRAGMENTS].sort(
     (a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id),
   );
   for (const fragment of ordered)
-    for (const line of fragment.text.split('\n')) {
+    for (const line of bodyOf(fragment.text).split('\n')) {
       const voice = /^&(\w+)\s/.exec(line)?.[1];
       if (voice !== undefined && !lines.has(voice)) lines.set(voice, line);
     }
@@ -119,13 +126,24 @@ const readIn = (text: string): Set<string> =>
       .flatMap((line) => [...line.replace(/^&\w+/, '').matchAll(/&(\w+)/g)].map((m) => m[1]!)),
   );
 
-/** The line of each instrument voice a text reads and doesn't define, in the order the instruments write them. */
+/**
+ * The line of each instrument voice a text reads and doesn't define, in the order the instruments write them, and of
+ * each such line reads in turn (the bass's `&style`, its default), so what is added compiles.
+ */
 export function instrumentsFor(text: string): string[] {
   const defined = definedIn(text);
   const read = readIn(text);
-  return [...INSTRUMENT_LINES].flatMap(([voice, line]) =>
-    read.has(voice) && !defined.has(voice) ? [line] : [],
-  );
+  const added = new Set<string>();
+  for (let more = true; more;) {
+    more = false;
+    for (const [voice, line] of INSTRUMENT_LINES)
+      if (read.has(voice) && !defined.has(voice) && !added.has(voice)) {
+        added.add(voice);
+        for (const name of readIn(line)) read.add(name);
+        more = true;
+      }
+  }
+  return [...INSTRUMENT_LINES].flatMap(([voice, line]) => (added.has(voice) ? [line] : []));
 }
 
 /**

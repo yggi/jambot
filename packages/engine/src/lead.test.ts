@@ -144,6 +144,7 @@ describe('the lead', () => {
       energy: 0.8,
       entropy: 0.9,
       bpm: 120,
+      mood: 0.5,
     };
     const bar61 = run(9, repro, presetSwing(PROTOTYPE_PRESETS[7]!)!, 62).filter(
       (n) => n.bar === 61,
@@ -167,7 +168,7 @@ describe('the lead', () => {
               [1, 1],
             ] as const)
               for (const seed of range(3)) {
-                const style = { sync, harm, artic, energy, entropy, bpm: 120 };
+                const style = { sync, harm, artic, energy, entropy, bpm: 120, mood: 0.5 };
                 for (const n of run(seed, style, swing, 64)) {
                   notes++;
                   if (n.note < 60 || n.note > 86)

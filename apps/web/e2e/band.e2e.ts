@@ -178,7 +178,7 @@ test('on the radio by default, the band wanders its style by itself a section at
   await solo(page);
   await openStyle(page);
   await page.getByRole('slider', { name: 'Entropy' }).fill('100');
-  const axes = ['Syncopation', 'Harmony', 'Articulation'];
+  const axes = ['Syncopation', 'Harmony', 'Bite'];
   const values = () =>
     Promise.all(axes.map((name) => page.getByRole('slider', { name, exact: true }).inputValue()));
   const opening = await values();
@@ -322,7 +322,13 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
   });
   // The band is on the same grid: every note of it falls on a step of a bar of 14, none past the bar, and every bar
   // of the song laid whole, from the first after the count-in to the last before the latest downbeat, has notes.
-  const band = [...new Set(all.filter((s) => !isClick(s)).map((s) => s.when))].sort(
+  // (a clap sounds as three bursts of noise, 11 ms apart, `CLAP` in `src/audio/drums.ts`: its later two are no onset.
+  // Since cells v0.23.0 Synth-pop in 7/8 plays Happy hardcore drums, whose clap is struck)
+  const noise = all.filter((s) => s.kind === 'noise').map((s) => s.when);
+  const burst = (s: Start) =>
+    s.kind === 'noise' &&
+    noise.some((t) => [0.011, 0.022].some((after) => Math.abs(s.when - t - after) < 1e-6));
+  const band = [...new Set(all.filter((s) => !isClick(s) && !burst(s)).map((s) => s.when))].sort(
     (x, y) => x - y,
   );
   for (const t of band) {
@@ -615,7 +621,7 @@ test('keeps the preset segments inside the style card, four to a row, at 760 px 
       .getByRole('radiogroup', { name: 'Genre presets' })
       .getByRole('radio')
       .all();
-    expect(segments).toHaveLength(11);
+    expect(segments).toHaveLength(15);
     const rows = new Set<number>();
     for (const segment of segments) {
       const box = (await segment.boundingBox())!;
@@ -623,8 +629,9 @@ test('keeps the preset segments inside the style card, four to a row, at 760 px 
       expect(box.x + box.width).toBeLessThanOrEqual(card.x + card.width);
       rows.add(Math.round(box.y));
     }
-    // (cells' library of styles, #596: the prototype's eight, Electro swing and Spooky (#517) and Kinderlied, rows of four)
-    expect(rows.size).toBe(3);
+    // (cells' library of styles, #596: the prototype's eight, Electro swing and Spooky (#517), Kinderlied, and Acid, Happy
+    // hardcore, Elektro and Dark ambient (cells v0.23.0), rows of four)
+    expect(rows.size).toBe(4);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width,
     );

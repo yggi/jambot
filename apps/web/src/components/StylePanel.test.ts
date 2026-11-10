@@ -47,7 +47,7 @@ describe('the style card', () => {
     });
     expect(container.querySelector('summary .main')).toHaveTextContent('Ambient');
     expect(container.querySelector('summary .sub')).toHaveTextContent(
-      `Custom · ${STYLE_AXIS_WORDS.harm.ends[1]}, ${STYLE_AXIS_WORDS.energy.ends[0]}`,
+      `Custom · ${STYLE_AXIS_WORDS.harm.ends[1]}, sparse`,
     );
   });
 
@@ -83,11 +83,11 @@ describe('the style card', () => {
     expect(screen.getByRole('radio', { name: 'Techno' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('has a gauge and a nudge for each of the five axes', () => {
+  it('has a gauge and a nudge for each of the six axes', () => {
     render(StylePanel, props());
-    expect(screen.getAllByRole('slider')).toHaveLength(5);
-    expect(screen.getAllByRole('group', { name: /^Nudge / })).toHaveLength(5);
-    expect(screen.getAllByRole('img', { name: /^\w+ \d+ %$/ })).toHaveLength(5);
+    expect(screen.getAllByRole('slider')).toHaveLength(6);
+    expect(screen.getAllByRole('group', { name: /^Nudge / })).toHaveLength(6);
+    expect(screen.getAllByRole('img', { name: /^\w+ \d+ %$/ })).toHaveLength(6);
   });
 
   it('presses no preset for a custom style', () => {
@@ -141,13 +141,14 @@ describe('the style card', () => {
       const label = {
         sync: 'Syncopation',
         harm: 'Harmony',
-        artic: 'Articulation',
+        artic: 'Bite',
+        mood: 'Mood',
         energy: 'Energy',
         entropy: 'Entropy',
       }[axis];
       expect(screen.getByText(label)).toBeInTheDocument();
     }
-    expect(screen.getByText('on the beat – off the beat')).toBeInTheDocument();
+    expect(screen.getByText('on the beat – offbeat')).toBeInTheDocument();
     expect(container.querySelector('summary .sub')).toHaveTextContent('the host sets it');
   });
 
@@ -157,10 +158,11 @@ describe('the style card', () => {
     render(StylePanel, props({ sets: false, onnudge, onintent }));
     expect(screen.queryAllByRole('slider')).toEqual([]);
     expect(screen.queryAllByRole('radio')).toEqual([]);
-    for (const label of ['Syncopation', 'Harmony', 'Articulation', 'Energy'])
+    for (const label of ['Syncopation', 'Harmony', 'Bite', 'Energy'])
       for (const side of ['up', 'down'])
         expect(screen.getByRole('button', { name: `${label} ${side}` })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Entropy/ })).toBeNull();
+    // (mood, cells' since v0.23.0, is nudged once the session contract carries it)
+    expect(screen.queryByRole('button', { name: /Entropy|Mood/ })).toBeNull();
     await fireEvent.click(screen.getByRole('button', { name: 'Syncopation up' }));
     expect(onnudge).toHaveBeenLastCalledWith('sync', 1);
     expect(screen.getByRole('status')).toHaveTextContent(

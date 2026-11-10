@@ -55,7 +55,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
   it('plays its run’s most used lead line in under 60 % of the sections that play one, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { playing, mostUsed, share } = mostUsedLead(LEARNED);
-    expect([playing, mostUsed]).toEqual([8509, 2847]);
+    expect([playing, mostUsed]).toEqual([8459, 2631]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -63,30 +63,39 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     const { added, error } = lockIn(asLeads(UNLEARNED), asLeads(LEARNED));
     // (with nothing learned the lead plays cells' motif nearest the walk in nearly every section, 99 % among a run's
     // 3 most used: the share can only fall)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-19.15', '2.21']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-21.41', '1.82']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   it('files the player’s lines, the lead’s own the player answered and the composer’s variations, each reading back as filed', () => {
     expect([by(PLAYER), by(SOLOIST), by(COMPOSER), FILED.filter((f) => f.held).length]).toEqual([
       // (the lead’s own, once: it plays a motif of cells’ in nearly every section, #520)
-      333, 0, 174, 1791,
+      389, 0, 185, 1723,
     ]);
+    // (each still in its run's last layer: since cells v0.23.0, whose walk files more grooves, one run's hour reaches the
+    // layer's cap and drops one of the lines it filed)
+    let dropped = 0;
     for (const { filing, id } of FILED.filter((f) => !f.held)) {
       const layer = LEARNED.find((r) => r.leadFilings.some((f) => f.id === id))!.learning!.layer;
-      const text = layer.filed.find((f) => f.fragment.id === id)!.fragment.text;
-      expect(readLead(text, filing.bench.meter)!.notes, id).toEqual(
+      const file = layer.filed.find((f) => f.fragment.id === id);
+      if (!file) {
+        dropped++;
+        continue;
+      }
+      expect(readLead(file.fragment.text, filing.bench.meter)!.notes, id).toEqual(
         [...filing.notes].sort((a, b) => a.step - b.step),
       );
     }
+    expect(dropped).toBe(1);
   });
 
-  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 28 sections of 5,387`, () => {
+  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 85 sections of 5,265`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThanOrEqual(LAYER_CAP);
-    // (15,991 and 31 before cells v0.21.0, whose bass lines and progressions are filed with their signature, #562)
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15978, 28]);
-    expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5387);
+    // (15,978, 28 and 5,387 before cells v0.23.0, whose walk files more grooves; 15,991 and 31 before cells v0.21.0,
+    // whose bass lines and progressions are filed with their signature, #562)
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15994, 85]);
+    expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5265);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);
   });
 });

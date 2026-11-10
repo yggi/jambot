@@ -207,7 +207,9 @@ const stated = (played: Played): ScoreBar => ({
   key: played.bar.plan.key,
   ...(played.bar.meter === SONG_METER ? {} : { meter: played.bar.meter }),
   theme: played.bar.plan.theme.kind,
-  style: played.bar.style,
+  style: Object.fromEntries(
+    STYLE_AXES.map((axis) => [axis, played.bar.style[axis]]),
+  ) as ScoreBar['style'],
   harm: played.bar.chords.map((chord) => ({
     step: slotStepOn(played.bar.meter, chord.slot.step),
     numeral: parseNumeral(chordNumeral(chord, played.bar.plan.key))!,
@@ -218,8 +220,10 @@ const stated = (played: Played): ScoreBar => ({
 });
 
 describe('the seam, over the bars the band writes', () => {
-  it("reads the band's own style axes, in order, on the band's grid (C7)", () => {
-    expect([...STYLE_AXES]).toEqual(AXIS_NAMES);
+  it("reads the band's own style axes, in order, on the band's grid, all but mood (C7)", () => {
+    // (mood, cells' since v0.23.0, is read by the composer's queries at a section's start, not by a part; the score's
+    // spelling is frozen, D5, so a form that states it is cells' to say)
+    expect([...STYLE_AXES]).toEqual(AXIS_NAMES.filter((axis) => axis !== 'mood'));
     expect(STYLE_DECIMALS).toBe(ENGINE_STYLE_DECIMALS);
   });
 

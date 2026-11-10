@@ -30,12 +30,12 @@ const at = (distances: Record<string, number>): MeterRepository => ({
 });
 
 describe('the composer asks the repository for a meter (#375)', () => {
-  it('asks on sync, harm, artic and energy: not on the tempo or the entropy', () => {
+  it('asks on cells’ sync, harm, bite and mood: not on the tempo, the energy or the entropy', () => {
     expect(stylePoint(INITIAL_STYLE)).toEqual({
       sync: INITIAL_STYLE.sync,
       harm: INITIAL_STYLE.harm,
-      artic: INITIAL_STYLE.artic,
-      energy: INITIAL_STYLE.energy,
+      bite: INITIAL_STYLE.artic,
+      mood: INITIAL_STYLE.mood,
     });
   });
 

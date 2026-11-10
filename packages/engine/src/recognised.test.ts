@@ -130,8 +130,12 @@ describe('a bar recognised (recognisedBar)', () => {
       }
   });
 
-  // (the variations whose bar strikes the steps its source does, so it reads as the source)
-  const SAME_ONSETS = ['spooky_drums: drop &euclid 1'];
+  // (the variations whose bar strikes the steps its source does, so it reads as the source: Spooky drums' rim, and Acid
+  // drums' one clap, each where the kick strikes too)
+  const SAME_ONSETS = ['spooky_drums: drop &euclid 1', 'acid_drums: drop &clap 1'];
+  // (the variations the ear hears as no seed: a closed hat added to Acid drums' open one, a step of two hats, which no
+  // seed strikes, yggi/cells#572's drum bar)
+  const UNHEARD = ['acid_drums: add &hat 1'];
   it('recognises every variation the composer may make of a seed rhythm or bass line, by its operator, or as its source where it strikes the source’s steps', () => {
     let variations = 0;
     for (const facet of ['rhythm', 'bass'] as const)
@@ -139,6 +143,7 @@ describe('a bar recognised (recognisedBar)', () => {
         const options = recogniseOptionsOf(facet, FOUR)!;
         for (const { variation } of readVariations(fragment.text, options).variations) {
           variations++;
+          if (UNHEARD.includes(`${fragment.id}: ${variation.by}`)) continue;
           const text = variation.apply(fragment.text);
           const found = recogniser.recognise(text, libraryOf(facet), options);
           // (Spooky drums' rim knocks once, mid-bar, where in 4/4 its kick strikes too: dropped, its bar reads as the

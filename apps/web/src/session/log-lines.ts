@@ -14,7 +14,6 @@
 
 import {
   type Key,
-  LEANED,
   STYLE_AXIS_NAMES,
   STYLE_AXIS_WORDS,
   type StyleAxisName,
@@ -51,11 +50,15 @@ export function speakerOf(
   return line.text.startsWith(`${name} `) || line.text.startsWith(`The ${name} `) ? null : name;
 }
 
-/** A style axis as a line names it. */
-const AXIS_WORDS: Readonly<Record<Leaned, string>> = {
+/** What a moved line says, in its order: cells' style axes, the energy and the tempo. */
+const MOVED = [...STYLE_AXIS_NAMES, 'energy', 'bpm'] as const;
+
+/** A style axis as a line names it: cells' word for its axes, and the track's own. */
+const AXIS_WORDS: Readonly<Record<Leaned | StyleAxisName, string>> = {
   ...(Object.fromEntries(
     STYLE_AXIS_NAMES.map((a) => [a, STYLE_AXIS_WORDS[a].label.toLowerCase()]),
   ) as Record<StyleAxisName, string>),
+  energy: 'energy',
   bpm: 'the tempo',
 };
 
@@ -135,7 +138,7 @@ export function movedLine(
   meter: { readonly from: Meter; readonly to: Meter } | null = null,
 ): SessionEvent | null {
   const parts: string[] = [];
-  for (const axis of LEANED) {
+  for (const axis of MOVED) {
     if (axis === 'bpm') {
       const [from, to] = [Math.round(before.bpm), Math.round(after.bpm)];
       if (from !== to) parts.push(`tempo ${from} → ${to} bpm`);

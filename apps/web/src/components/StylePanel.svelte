@@ -3,7 +3,7 @@
   entropy don't make a style custom), or for a custom style the preset nearest,
   as the session's "Now playing" names it, over what the band is doing
   (playing it, gliding to it, or for a custom style "Custom" and the preset it
-  drifts toward, else its most telling axes); the glyph is a radar of the five axes drawn from the
+  drifts toward, else its most telling axes); the glyph is a radar of the six axes drawn from the
   style the band is at (`hud.style.axes`), so a glide moves it. Unfolded, the
   genre presets as a segmented choice, four to a row (the same component as the key's scale), and each axis as a gauge with a drag and
   a nudge. The gauge shows where the axis is going, not the glide, and the
@@ -71,9 +71,10 @@
   /** How far a nudge moves an axis. */
   const STEP = 0.1;
 
-  // (the style axes' words are cells', #596; entropy's are the track's own)
+  // (the style axes' words are cells', #596; energy's and entropy's are the track's own)
   const AXES: { axis: StyleAxis; label: string; ends: readonly [string, string] }[] = [
     ...STYLE_AXIS_NAMES.map((axis) => ({ axis, ...STYLE_AXIS_WORDS[axis] })),
+    { axis: 'energy', label: 'Energy', ends: ['sparse', 'dense'] },
     { axis: 'entropy', label: 'Entropy', ends: ['predictable', 'surprising'] },
   ];
 

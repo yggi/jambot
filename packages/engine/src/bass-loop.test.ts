@@ -163,9 +163,10 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
     expect(sectionLine(env, { ...meter, swing: '8n', share: 2 / 3 }, undefined)).toBe(
       'walking_bass',
     );
-    // (since cells v0.12.0 the next nearest is Spooky's creeping bass, 0.15 from Swing jazz's point, where funk bass was)
+    // (the next nearest: funk bass; Spooky's creeping bass from cells v0.12.0 until v0.23.0's axes, where mood parts
+    // Swing jazz's bright ionian from Spooky's dark harmonic minor, yggi/cells#572)
     expect(sectionLine(env, { meter: METERS['4/4'], swing: '16n', share: 0.5 }, undefined)).toBe(
-      'creeping_bass',
+      'funk_bass',
     );
   });
 
@@ -344,7 +345,8 @@ describe('the composer tires of a line: varies it by cells’ pitched operators,
       'composer song 1, bar 24 2',
       'composer song 1, bar 24 2',
     ]);
-    expect(lines.slice(6, 9)).toEqual(['funk_bass', 'funk_bass', 'funk_bass']);
+    // (the next nearest Synth-pop's point: Elektro's octave bass since cells v0.23.0, yggi/cells#572; funk bass before)
+    expect(lines.slice(6, 9)).toEqual(['octave_bass', 'octave_bass', 'octave_bass']);
   });
 
   it('files the variation by the composer, naming the line it varies and the operator, and never moves the root on the downbeat', () => {

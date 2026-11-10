@@ -131,14 +131,16 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
       'meter(grouping=meter("6/8"))': ['found', 'distance'],
       'meter(grouping=meter("12/8"))': ['found', 'distance'],
       'meter(grouping=meter("5/4"))': ['found', 'distance'],
-      'meter(grouping=meter("7/8"))': ['distance', 'found'],
+      'meter(grouping=meter("7/8"))': ['found', 'distance'],
       'meter(grouping=meter("10/8"))': ['found', 'distance'],
     });
   });
 
   // (none refused by the fit since cells v0.15.0: Ghost drums fits 7/8, the one meter no seed rhythm fitted)
-  it(`misses over a grid of the four axes, the meter found first: 69 % found, none refused by the fit, 31 % past ${RHYTHM_MISS}`, () => {
-    expect(gridAnswers(11)).toEqual({ found: 10158, fit: 0, distance: 4483 });
+  // (90 % found since cells v0.23.0, its four new drum bars, three of which fit every meter, and a rhythm's point on
+  // sync, harm and bite, which the grid's mood moves nowhere: 69 % before)
+  it(`misses over a grid of the four axes, the meter found first: 90 % found, none refused by the fit, 10 % past ${RHYTHM_MISS}`, () => {
+    expect(gridAnswers(11)).toEqual({ found: 13244, fit: 0, distance: 1397 });
   });
 
   // a bound in wall-clock time, so it runs only when asked: on a shared runner it reads past 5 ms with nothing wrong (5.16 ms, #485's CI)
@@ -359,15 +361,17 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
         )!;
         return [p.name, found.id, Math.round(found.distance * 1000) / 1000];
       }),
+      // (since cells v0.23.0 a clave's point is on sync, harm and bite, so each lies a little farther from a preset's;
+      // Techno's nearest is the son clave 2-3, Lo-fi hip hop's and Swing jazz's the two-bar bossa nova clave)
     ).toEqual([
-      ['Synth-pop', 'cinquillo', 0.287],
-      ['Techno', 'rumba_clave_3_2', 0.468],
-      ['Deep house', 'cinquillo', 0.254],
-      ['Ambient', 'bossa_nova_clave', 0.522],
-      ['Lo-fi hip hop', 'bossa_nova_clave_one_bar', 0.168],
-      ['Funk', 'rumba_clave_3_2', 0.069],
-      ['Bossa nova', 'bossa_nova_clave_one_bar', 0.025],
-      ['Swing jazz', 'bossa_nova_clave_one_bar', 0.26],
+      ['Synth-pop', 'cinquillo', 0.33],
+      ['Techno', 'son_clave_2_3', 0.54],
+      ['Deep house', 'cinquillo', 0.292],
+      ['Ambient', 'bossa_nova_clave', 0.574],
+      ['Lo-fi hip hop', 'bossa_nova_clave', 0.183],
+      ['Funk', 'rumba_clave_3_2', 0.074],
+      ['Bossa nova', 'bossa_nova_clave_one_bar', 0.029],
+      ['Swing jazz', 'bossa_nova_clave', 0.275],
     ]);
     const withSynth = onBench(drumFragmentOf('Synth-pop').text, bench).text;
     expect([
@@ -377,25 +381,9 @@ describe('a clave chosen with the drum bar, cells decision 046 (E36)', () => {
 });
 
 describe('the point the rhythm is asked at (E36)', () => {
-  it('takes another fragment in 81 of 320 sections at the section’s energy, 40 of them a clave alone, with no band role', () => {
-    const moved = atSectionEnergy(ASKED);
-    expect(moved).toHaveLength(81);
-    expect(moved.filter((m) => m.noRole)).toHaveLength(40);
-    expect([...new Set(moved.map((m) => `${m.preset} ${m.type} ${m.id}`))]).toEqual([
-      'Synth-pop drop deep_house_drums',
-      'Deep house intro synth_pop_drums',
-      'Deep house breakdown synth_pop_drums',
-      'Lo-fi hip hop drop electro_swing_drums',
-      'Lo-fi hip hop breakdown bossa_nova_clave',
-      'Funk drop rumba_clave_3_2',
-      'Funk breakdown son_clave_2_3',
-      'Bossa nova intro bossa_nova_clave',
-      'Bossa nova build bossa_nova_clave',
-      'Bossa nova drop electro_swing_drums',
-      'Bossa nova bridge bossa_nova_clave',
-      'Bossa nova breakdown bossa_nova_clave',
-      'Swing jazz intro spooky_drums',
-      'Swing jazz breakdown spooky_drums',
-    ]);
+  // (81 of 320 sections, 40 of them a clave alone, took another fragment at the section's energy before cells v0.23.0,
+  // which is why the composer asks at the style's point; since then energy is on no point, decision 076)
+  it('takes no other fragment at the section’s energy: energy is on no point since cells v0.23.0', () => {
+    expect(atSectionEnergy(ASKED)).toEqual([]);
   });
 });

@@ -272,10 +272,10 @@ export const wentBack = (run: MeterRun): MeterChangeSeen[] =>
 export function gridDistances(steps = 20): number[] {
   const at = (i: number) => i / steps;
   return range((steps + 1) ** 4).map((i) => {
-    const [sync, harm, artic, energy] = [0, 1, 2, 3].map((axis) =>
+    const [sync, harm, artic, mood] = [0, 1, 2, 3].map((axis) =>
       at(Math.floor(i / (steps + 1) ** axis) % (steps + 1)),
     );
-    const point = stylePoint({ sync: sync!, harm: harm!, artic: artic!, energy: energy! });
+    const point = stylePoint({ sync: sync!, harm: harm!, artic: artic!, mood: mood! });
     return METER_REPOSITORY.query(point)[0]!.distance;
   });
 }

@@ -36,23 +36,27 @@ beforeAll(() => {
 });
 
 describe('the composer asks the repository for its meter while the radio walks (E34)', () => {
-  it('changes the meter only where a section starts, 234 times in 120 hours, and never back at the next section (E34)', () => {
+  // (since cells v0.23.0 a meter's point is on sync, harm and bite alone, energy having left the style point and a meter
+  // speaking to no mood, so the walk crosses its borders about twice as often, and goes back once: decision 076)
+  it('changes the meter only where a section starts, 416 times in 120 hours, and back at the next section once (E34)', () => {
     expect(RUNS).toHaveLength(40);
-    expect(changes).toHaveLength(234);
+    expect(changes).toHaveLength(416);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
-    expect(RUNS.flatMap(wentBack)).toEqual([]);
-    expect(sections).toBe(26868);
+    expect(RUNS.flatMap(wentBack)).toEqual([
+      { bar: 656, section: 82, from: 'meter', to: 'meter(grouping=meter("10/8"))' },
+    ]);
+    expect(sections).toBe(26706);
   });
 
-  it('goes back 328 times with no margin for the meter playing, and once with half of it (E34)', () => {
-    expect(backs).toEqual([328, 1]);
+  it('goes back 381 times with no margin for the meter playing, and 18 times with half of it (E34)', () => {
+    expect(backs).toEqual([381, 18]);
   });
 
-  it('misses in 204 of the radio’s sections, 10 % of the axes’ space, toward its corners (E34)', () => {
-    expect(RUNS.reduce((n, r) => n + r.missed, 0)).toBe(204);
+  it('misses in 70 of the radio’s sections, 3 % of the axes’ space, toward its corners (E34)', () => {
+    expect(RUNS.reduce((n, r) => n + r.missed, 0)).toBe(70);
     const grid = gridDistances();
-    expect(missShare(grid).toFixed(4)).toBe('0.1009');
-    expect(grid.reduce((a, d) => Math.max(a, d), 0).toFixed(3)).toBe('0.466');
+    expect(missShare(grid).toFixed(4)).toBe('0.0294');
+    expect(grid.reduce((a, d) => Math.max(a, d), 0).toFixed(3)).toBe('0.449');
   });
 
   it('moves the style’s point 0.014 a section on average, 0.021 at the 99th percentile: about the margin (E34)', () => {
@@ -73,27 +77,27 @@ describe('the band learns the meters it keeps while the radio walks (E34, #398)'
     LEARNED = learningRuns();
   });
 
-  it('adds 1.8 points to the share of sections among a run’s 3 most used meters, within 5 with twice its error (cells decision 048)', () => {
+  it('adds 1.9 points to the share of sections among a run’s 3 most used meters, within 5 with twice its error (cells decision 048)', () => {
     // The same walks, each run paired with its own unlearned: a meter learned may last other than the one it replaced, so the hours hold other counts of sections.
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(RUNS.map((r) => [r.preset, r.seed]));
-    expect(LEARNED.reduce((n, r) => n + r.sections, 0)).toBe(26749);
+    expect(LEARNED.reduce((n, r) => n + r.sections, 0)).toBe(26776);
     const { before, after, added, error } = lockIn(RUNS, LEARNED);
     if (process.env.E34_REPORT) console.log({ before, after, added, error });
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9668', '0.9853']);
-    expect(added.toFixed(2)).toBe('1.84');
-    expect(error.toFixed(2)).toBe('0.58');
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9272', '0.9464']);
+    expect(added.toFixed(2)).toBe('1.92');
+    expect(error.toFixed(2)).toBe('0.79');
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it('changes the meter 126 times in 120 hours, never back at the next section, and misses 16 times (204 unlearned): learning reaches farther', () => {
-    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(126);
+  it('changes the meter 248 times in 120 hours, never back at the next section, and misses never (70 unlearned): learning reaches farther', () => {
+    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(248);
     expect(LEARNED.flatMap(wentBack)).toEqual([]);
-    expect(LEARNED.reduce((n, r) => n + r.missed, 0)).toBe(16);
+    expect(LEARNED.reduce((n, r) => n + r.missed, 0)).toBe(0);
   });
 
-  it(`keeps a layer of at most 748 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+  it(`keeps a layer of at most 945 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
     const bytes = learnedBytes(LEARNED);
-    expect(Math.max(...bytes)).toBe(748);
-    expect(Math.max(...LEARNED.map((r) => r.layer!.points.length))).toBe(6);
+    expect(Math.max(...bytes)).toBe(945);
+    expect(Math.max(...LEARNED.map((r) => r.layer!.points.length))).toBe(9);
   });
 });

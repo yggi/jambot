@@ -27,6 +27,7 @@ import {
   SOLOIST,
   type LearnedLayer,
   SEED_FRAGMENTS,
+  CELLS_AXIS,
   STYLE_AXIS_NAMES,
 } from '@jambot/engine';
 import { SOURCE_COLOURS } from './attribution.ts';
@@ -49,7 +50,7 @@ export type FragmentRole = 'meter' | 'rhythm' | 'clave' | 'bass' | 'lead' | 'har
 /** The order a section names its fragments in. */
 const SLOTS = ['meter', 'rhythm', 'clave'] as const;
 
-/** The axes a fragment's point is shown on, in the style card's order: cells' (#596). */
+/** The axes a fragment's point is shown on, in the style card's order: cells' (#596), each read by its name there (`CELLS_AXIS`). */
 const POINT_AXES = STYLE_AXIS_NAMES;
 
 /** A fragment met, as a row of the table. */
@@ -133,10 +134,9 @@ function pointOf(fragment: Fragment | undefined, facet: string | null): Fragment
   const found =
     fragment?.association.find((p) => p.facet === facet) ?? fragment?.association[0] ?? null;
   if (!found) return [];
-  return POINT_AXES.filter((axis) => typeof found.point[axis] === 'number').map((axis) => ({
-    axis,
-    value: found.point[axis]!,
-  }));
+  return POINT_AXES.filter((axis) => typeof found.point[CELLS_AXIS[axis]] === 'number').map(
+    (axis) => ({ axis, value: found.point[CELLS_AXIS[axis]]! }),
+  );
 }
 
 /** What each fragment was used together with, the most first. */

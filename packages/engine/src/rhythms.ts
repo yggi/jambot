@@ -50,9 +50,8 @@ import { type Fragment, createRepository } from '@yggi/cells/repository/fragment
 import { holesOf } from '@yggi/cells/repository/holes';
 import { instrumentsFor, withInstruments } from './instruments.ts';
 import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
-import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
+import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
 import { DRUM_ROLES, sameMeter } from './events.ts';
 import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
@@ -206,15 +205,28 @@ const isRhythm = ({ fragment }: LearnedLayer['filed'][number]) =>
   fragment.association.some((p) => p.facet === 'rhythm');
 
 /**
+ * The rhythms held of each list of fragments, kept by the list: a read of each is a compile, about 100 ms over cells'
+ * seed, which every repository made of the seed (one for each groove a test files) would otherwise pay again.
+ */
+const HELD = new WeakMap<readonly Fragment[], readonly Fragment[]>();
+
+/**
  * The fragments the drummer holds: all but a rhythm it can't play, one with no mix of lines (`mixOf`) or a line that
  * strikes a sound it has no role for (`roleOf`), read in 4/4. Since #508 that is every rhythm of cells' seed.
  */
-export const heldRhythms = (fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): Fragment[] =>
-  fragments.filter(
-    (f) =>
-      !f.association.some((p) => p.facet === 'rhythm') ||
-      readRhythm(f.text, METERS['4/4']) !== null,
-  );
+export function heldRhythms(fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): Fragment[] {
+  let held = HELD.get(fragments);
+  if (!held)
+    HELD.set(
+      fragments,
+      (held = fragments.filter(
+        (f) =>
+          !f.association.some((p) => p.facet === 'rhythm') ||
+          readRhythm(f.text, METERS['4/4']) !== null,
+      )),
+    );
+  return [...held];
+}
 
 /** A repository of these rhythms, ranked by cells' query on the facet `rhythm`, filtered by the fit and read by `read` (cells', unless a test counts them). */
 export function rhythmRepository(
@@ -257,7 +269,9 @@ export function rhythmRepository(
     return withIts.get(key)!;
   };
   // Whether a seed fragment layers with `chosen` on the workbench: another text, whose union with theirs renames none
-  // of its names. Tested one fragment at a time, so a section tests it only for those within its reach.
+  // of its names. Tested one fragment at a time, so a section tests it only for those within its reach. One that
+  // layers fits the union where it fits the workbench, over every seed rhythm on every bench (`rhythms.test.ts`), so
+  // its fit is the workbench's, compiled once for every rhythm chosen beside it.
   const layersWith = (id: string, chosen: string, workbench: string) => {
     const key = `${id}\n${chosen}\n${workbench}`;
     if (!layering.has(key)) {
@@ -334,7 +348,7 @@ export function rhythmRepository(
           (f) =>
             f.distance <= reach &&
             layersWith(f.id, chosenText, workbench) &&
-            fits(f.text, withItOf(chosenText, workbench)) &&
+            fits(f.text, workbench) &&
             readable(f.text, bench.meter),
         )
         .map(({ id, distance }) => ({ id, distance }));
@@ -428,11 +442,11 @@ export function rhythmRepository(
             variationsOn(text, workbench);
             yield;
           }
-          const withIt = withItOf(text, workbench);
+          withItOf(text, workbench);
           yield;
           for (const other of fragments) {
             if (layersWith(other.id, text, workbench)) {
-              fits(other.text, withIt);
+              fits(other.text, workbench);
               readText(other.text, bench.meter);
             }
             yield;

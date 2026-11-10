@@ -1,8 +1,11 @@
 import { compileSource } from '@yggi/cells/engine/compile';
-import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
-import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
-import { MODE_FRAGMENTS } from '@yggi/cells/repository/modes';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
+import { bodyOf } from '@yggi/cells/engine/use';
+import {
+  BASS_FRAGMENTS,
+  INSTRUMENT_FRAGMENTS,
+  MODE_FRAGMENTS,
+  RHYTHM_FRAGMENTS,
+} from './library.ts';
 import { describe, expect, it } from 'vitest';
 import { METERS } from '@jambot/theory';
 import {
@@ -21,9 +24,10 @@ const errors = (text: string) =>
     .diagnostics.filter((d) => d.severity === 'error')
     .map((d) => d.message);
 
+/** The line an instrument defines a voice with: of its body, past a signature (`&bassV from (&style)`, yggi/cells#631). */
 const lineOf = (id: string, voice: string) =>
-  INSTRUMENT_FRAGMENTS.find((f) => f.id === id)!
-    .text.split('\n')
+  bodyOf(INSTRUMENT_FRAGMENTS.find((f) => f.id === id)!.text)
+    .split('\n')
     .find((line) => line.startsWith(`&${voice} `))!;
 
 describe("the instruments a fragment's sound holes are filled from (yggi/cells#244)", () => {
@@ -84,7 +88,7 @@ describe('a groove filed with its own voices, read at cells v0.22.0 (yggi/cells#
 });
 
 describe('the instruments a section’s performers play, found at its style (#497)', () => {
-  const point = { sync: 0.9, harm: 0.1, artic: 0.9, energy: 0.1 };
+  const point = { sync: 0.9, harm: 0.1, bite: 0.9, mood: 0.1 };
   /** An instrument for the lead at a point of its own, as yggi/cells#350's are at the two presets'. */
   const theirs = {
     id: 'test whistle',
@@ -92,10 +96,19 @@ describe('the instruments a section’s performers play, found at its style (#49
     association: [{ point, weight: 0.125, facet: 'instrument' }],
   };
 
-  /** The instruments cells wrote for two presets' points (yggi/cells#366): elsewhere each performer plays its own. */
+  /**
+   * The instruments cells wrote for presets' points: Electro swing's and Spooky's (yggi/cells#366), and since cells
+   * v0.23.0 those of the styles cut from its examples, Kinderlied's and the four new (yggi/cells#572). Elsewhere each
+   * performer plays its own.
+   */
   const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
     'Electro swing': { bass: 'upright_bass', lead: 'clarinet', stab: 'brass_stab' },
     Spooky: { bass: 'round_bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
+    Kinderlied: { bass: 'sine_bass', lead: 'recorder' },
+    Acid: { bass: 'tb303' },
+    'Happy hardcore': { lead: 'rave_lead' },
+    Elektro: { bass: 'square_bass' },
+    'Dark ambient': { pad: 'drone_pad', lead: 'prepared_piano' },
   };
 
   it.each(PRESETS.map((p) => p.name))(
@@ -124,13 +137,18 @@ describe('the instruments a section’s performers play, found at its style (#49
   );
 
   it('at an instrument’s own point, the performer whose voice it defines plays it, and the others their own', () => {
-    expect(instrumentsAt(point, [...INSTRUMENT_FRAGMENTS, theirs])).toEqual({
+    expect(
+      instrumentsAt({ sync: point.sync, harm: point.harm, artic: point.bite, mood: point.mood }, [
+        ...INSTRUMENT_FRAGMENTS,
+        theirs,
+      ]),
+    ).toEqual({
       lead: { id: 'test whistle', line: theirs.text },
     });
   });
 
   // (since cells v0.15.0 each default instrument has a sound, `s=` and its filters, and reads the section's &style:
-  // the lead's a blend of two waves, `s=tri..square * &style[artic]`, cells decision 066)
+  // the lead's a blend of two waves, `s=tri..square * &style[bite]`, cells decision 066)
   it('names each pitched performer’s voice as its own instrument defines it, its register and its sound', () => {
     for (const { voice, own } of Object.values(PERFORMER_VOICES))
       expect(lineOf(own, voice), own).toMatch(

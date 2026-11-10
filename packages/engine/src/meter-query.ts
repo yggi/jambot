@@ -6,8 +6,8 @@
  * A repository holds meter fragments, each cells text read into what the
  * band plays: a named meter and its swing (`MeterFragment`). The composer
  * asks it with the style's point on the four axes the meters are placed on,
- * `sync`, `harm`, `artic` and `energy` (`stylePoint`): the tempo and the
- * entropy stay out (cells decision 037's D6). The repository ranks its
+ * cells' `sync`, `harm`, `bite` and `mood` (`stylePoint`): the tempo, the
+ * energy and the entropy stay out (cells decisions 037's D6 and 076). The repository ranks its
  * fragments as cells' `query` does; the composer takes the nearest, with two
  * rules of its own (`composedMeter`):
  *
@@ -32,7 +32,7 @@
 
 import type { Meter } from '@jambot/theory';
 import type { LearnedLayer } from './layer.ts';
-import { STYLE_AXIS_NAMES, type Style, type StyleAxisName } from './style.ts';
+import { CELLS_AXIS, STYLE_AXIS_NAMES, type Style, type StyleAxisName } from './style.ts';
 import type { MeterSwing } from './swing.ts';
 
 /** A meter fragment as the band plays it: its id in the repository, its meter and its swing. */
@@ -62,15 +62,15 @@ export interface MeterRepository {
   readonly margins?: { readonly miss: number; readonly hold: number };
 }
 
-/** The axes the composer asks on: the style's but its tempo and its entropy (cells decision 037's D6). */
+/** The axes the composer asks on: the style's but its tempo, its energy and its entropy (cells decisions 037's D6 and 076). */
 export const QUERY_AXES = STYLE_AXIS_NAMES;
 
 /** What the composer reads of a style: the axes it asks on. */
 export type QueriedStyle = Pick<Style, StyleAxisName>;
 
-/** The style's point on the axes the composer asks on. */
+/** The style's point on the axes the composer asks on, each by its name in cells' table (`CELLS_AXIS`). */
 export const stylePoint = (style: QueriedStyle): StylePoint =>
-  Object.fromEntries(QUERY_AXES.map((axis) => [axis, style[axis]]));
+  Object.fromEntries(QUERY_AXES.map((axis) => [CELLS_AXIS[axis], style[axis]]));
 
 /**
  * The farthest a fragment may lie from the style for the composer to take

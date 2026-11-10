@@ -25,7 +25,7 @@ import { flatten } from '@yggi/cells/engine/flatten';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { tapWhole } from '@yggi/cells/engine/vary/lines';
 import type { Fragment } from '@yggi/cells/repository/fragments';
-import { HARMONY_FRAGMENTS } from '@yggi/cells/repository/harmony';
+import { HARMONY_FRAGMENTS } from './library.ts';
 import { SECTION_BARS } from './form.ts';
 import {
   HARMONY_FACET,

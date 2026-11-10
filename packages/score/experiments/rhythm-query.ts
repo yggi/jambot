@@ -78,8 +78,7 @@ import { setTiming } from '@yggi/cells/engine/edit';
 import { cachedFit } from '@yggi/cells/repository/fit';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { type Fragment, type Repository, createRepository } from '@yggi/cells/repository/fragments';
-import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
-import { RHYTHM_FRAGMENTS } from '@yggi/cells/repository/rhythms';
+import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from '@jambot/engine';
 import { type Hit, witnesses } from './drums-in-cells.ts';
 import { meterName } from './bar-in-cells.ts';
 import { wordOf } from '@yggi/cells/engine/renamed';
@@ -701,10 +700,10 @@ export function gridAnswers(n: number, bpm = 120): Record<'found' | 'fit' | 'dis
   for (const sync of axis)
     for (const harm of axis)
       for (const artic of axis)
-        for (const energy of axis) {
-          const meter = composedMeter(METER_REPOSITORY, { sync, harm, artic, energy }, null);
+        for (const mood of axis) {
+          const meter = composedMeter(METER_REPOSITORY, { sync, harm, artic, mood }, null);
           const bench = meter ? benches.get(meter.id)! : song;
-          const answer = askRhythm(repository, { sync, harm, artic, energy }, bench);
+          const answer = askRhythm(repository, { sync, harm, artic, mood }, bench);
           counts['miss' in answer ? answer.miss : 'found']++;
         }
   return counts;

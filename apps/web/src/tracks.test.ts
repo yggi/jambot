@@ -42,7 +42,7 @@ const hud = (over: Partial<Hud> = {}): Hud => ({
   style: {
     preset: 'Techno',
     glide: null,
-    axes: { sync: 0, harm: 0, artic: 0, energy: 0, entropy: 0 },
+    axes: { sync: 0, harm: 0, artic: 0, mood: 0, energy: 0, entropy: 0 },
     near: { at: 'Techno', toward: null },
   },
   heading: { tonic: 9, mode: 'aeolian' },

@@ -219,7 +219,7 @@ describe('the app', () => {
     await pull('Style');
     for (const p of PRESETS)
       expect(screen.getByRole('radio', { name: p.name })).toBeInTheDocument();
-    for (const name of ['Syncopation', 'Harmony', 'Articulation', 'Energy', 'Entropy'])
+    for (const name of ['Syncopation', 'Harmony', 'Bite', 'Mood', 'Energy', 'Entropy'])
       expect(screen.getByRole('slider', { name: new RegExp(name) })).toBeInTheDocument();
     expect(
       within(screen.getByRole('region', { name: 'Transport' })).getByText('Ready'),

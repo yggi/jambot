@@ -38,7 +38,7 @@ const filedFile = (
     text: '&kick step=16n &bd ~ ~ ~',
     association: [
       {
-        point: { sync: 0.4, harm: 0.7, artic: 0.3, energy: 0.6 },
+        point: { sync: 0.4, harm: 0.7, bite: 0.3, mood: 0.6 },
         weight: 0.1,
         facet: over.facet ?? 'rhythm',
       },
@@ -143,10 +143,12 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
     const row = byName(rows({ log: [section(0)] }), 'lo_fi_hip_hop_drums');
     expect(row.text).toBe(seed.text);
     expect(row.point).toEqual(
-      ['sync', 'harm', 'artic', 'energy'].map((axis) => ({
-        axis,
-        value: seed.association[0]!.point[axis],
-      })),
+      // (a rhythm's point has no mood, cells decision 076; its bite is the axis Jambot calls artic)
+      [
+        ['sync', 'sync'],
+        ['harm', 'harm'],
+        ['artic', 'bite'],
+      ].map(([axis, cells]) => ({ axis, value: seed.association[0]!.point[cells!] })),
     );
   });
 

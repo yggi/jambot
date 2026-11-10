@@ -154,12 +154,15 @@ export interface GlideView {
   readonly bars: number;
 }
 
-/** The five axes a style is drawn and set on: tempo has its own card, and swing is the meter's (#360). */
-export const STYLE_AXES: readonly StyleAxis[] = [...STYLE_AXIS_NAMES, 'entropy'];
-export type StyleAxis = StyleAxisName | 'entropy';
+/**
+ * The six axes a style is drawn and set on: cells' four, and the track's energy and entropy. Tempo has its own card,
+ * and swing is the meter's (#360).
+ */
+export const STYLE_AXES: readonly StyleAxis[] = [...STYLE_AXIS_NAMES, 'energy', 'entropy'];
+export type StyleAxis = StyleAxisName | 'energy' | 'entropy';
 export type AxisValues = Readonly<Record<StyleAxis, number>>;
 
-/** The five axes of a style, 0 to 1. */
+/** The six axes of a style, 0 to 1. */
 export const axesOf = (style: Style): AxisValues =>
   Object.fromEntries(STYLE_AXES.map((axis) => [axis, style[axis]])) as AxisValues;
 
@@ -167,7 +170,7 @@ export interface StyleView {
   /** The preset the style is at or heading for, or null for a custom style. */
   readonly preset: string | null;
   readonly glide: GlideView | null;
-  /** The five axes where the band is at the step heard, so a glide moves them. */
+  /** The six axes where the band is at the step heard, so a glide moves them. */
   readonly axes: AxisValues;
   /** The preset nearest where the band is, and the one it heads for where that is another: the session's words (`nowPlaying`). */
   readonly near: { readonly at: string; readonly toward: string | null };
@@ -306,12 +309,13 @@ export function leadStatus(hud: Pick<Hud, 'bar' | 'beat'>): string {
   return hud.bar.lead === 'resting' ? 'Lead is resting.' : 'Lead is improvising.';
 }
 
-/** The word for an axis at its low or its high end, for a style no preset names: cells' for its axes, and entropy's. */
+/** The word for an axis at its low or its high end, for a style no preset names: cells' for its axes, and energy's and entropy's. */
 const AXIS_WORDS: Record<StyleAxis, readonly [string, string]> = {
   ...(Object.fromEntries(STYLE_AXIS_NAMES.map((a) => [a, STYLE_AXIS_WORDS[a].ends])) as Record<
     StyleAxisName,
     readonly [string, string]
   >),
+  energy: ['sparse', 'dense'],
   entropy: ['predictable', 'surprising'],
 };
 

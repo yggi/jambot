@@ -81,14 +81,16 @@ const fixed = (a: ReturnType<typeof against>) =>
   [a.sections, a.mean, a.spread, a.inside, a.pinned].map((x) => Number(x.toFixed(3)));
 
 describe('the share of bars recognised over 8 bars, over the 8 presets at entropy 0.3 (E44, #237)', () => {
-  it('sits below the ruled band over all members, held and walked: 70 % of sections or more under 0.4 (93 of 128 held; 97 before the motifs kept their degrees, #529)', () => {
+  // (since cells v0.23.0 a member's library holds the parts of four styles more, so more of what the band plays is
+  // heard as a seed: 93 of 128 sections held were under 0.4 before, 97 before the motifs kept their degrees, #529)
+  it('sits below the ruled band over all members, held and walked: 60 % of sections or more under 0.4 (80 of 128 held)', () => {
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
-    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.239, 0.189, 0.273, 0.172]);
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.236, 0.185, 0.225, 0.195]);
+    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.307, 0.177, 0.375, 0.07]);
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.295, 0.171, 0.328, 0.064]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeLessThan(BAND.low);
-      expect(all.below).toBeGreaterThanOrEqual(0.7);
+      expect(all.below).toBeGreaterThanOrEqual(0.6);
     }
   });
 
@@ -122,12 +124,12 @@ describe('the share over entropy and tolerance (E44, #237)', () => {
         ).toBeLessThan(0.03);
   });
 
-  it('rises with the tolerance, to 66 % of sections inside the band at 4 notes, over all members (held at 0.3)', () => {
+  it('rises with the tolerance, to 60 % of sections inside the band at 4 notes, over all members (held at 0.3)', () => {
     const means = [held[0.3]!, ...TOLERANCES.map((t) => tolerant[t]!)].map((r) =>
       Number(against(r, 'all').mean.toFixed(3)),
     );
-    expect(means).toEqual([0.239, 0.278, 0.384, 0.581]);
-    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.581, 0.158, 0.656, 0]);
+    expect(means).toEqual([0.307, 0.346, 0.452, 0.603]);
+    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.603, 0.159, 0.602, 0.008]);
   });
 });
 

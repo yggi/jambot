@@ -2,8 +2,7 @@ import { METERS, type Meter, type MeterName, heightOf, stepsOf, wrap } from '@ja
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { PITCHED_OPERATORS, variations } from '@yggi/cells/engine/vary/index';
-import { INSTRUMENT_FRAGMENTS } from '@yggi/cells/repository/instruments';
-import { BASS_FRAGMENTS } from '@yggi/cells/repository/bass';
+import { INSTRUMENT_FRAGMENTS, BASS_FRAGMENTS } from './library.ts';
 import { bodyOf } from '@yggi/cells/engine/use';
 import { describe, expect, it } from 'vitest';
 import {

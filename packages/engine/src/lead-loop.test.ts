@@ -1,6 +1,6 @@
 import { METERS, alteredDegree, stepsOf, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { MOTIF_FRAGMENTS } from '@yggi/cells/repository/motifs';
+import { MOTIF_FRAGMENTS } from './library.ts';
 import { type BandCarried, type BandEnv, band } from './band.ts';
 import { COMPOSER } from './facet.ts';
 import { SECTION_BARS } from './form.ts';
@@ -436,7 +436,7 @@ describe('the composer tires of a lead line: varies it by lift or turn over, the
 });
 
 describe('cells’ motifs are the lead’s lines (#520)', () => {
-  /** Each preset's motif, the one cells wrote at its point. */
+  /** Each preset's motif, the one cells wrote at its point, else the nearest. */
   const MOTIFS: Record<string, string> = {
     'Synth-pop': 'hook',
     Techno: 'octaves',
@@ -449,6 +449,12 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     'Electro swing': 'gypsy',
     Spooky: 'diesIrae',
     Kinderlied: 'twinkle',
+    // (the four cut from cells' examples at v0.23.0, yggi/cells#572; Acid has no motif of its own, and plays the
+    // nearest, the pulse, 0.17 away)
+    Acid: 'pulse',
+    'Happy hardcore': 'raveHook',
+    Elektro: 'sequencer',
+    'Dark ambient': 'ghostPhrase',
   };
 
   it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape and its second the answer: in 4/4, and the Dies irae in Spooky’s 5/4', () => {

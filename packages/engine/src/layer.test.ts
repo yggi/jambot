@@ -1,5 +1,5 @@
 import { readFragment } from '@yggi/cells/repository/files';
-import { METER_FRAGMENTS } from '@yggi/cells/repository/meters';
+import { METER_FRAGMENTS } from './library.ts';
 import { describe, expect, it } from 'vitest';
 import { band } from './band.ts';
 import { NO_HISTORY } from './history.ts';
@@ -80,9 +80,11 @@ const range = (n: number) => [...Array(n).keys()];
  * Main's events, as recorded on `main` at 22c47fe before the layer was carried: their count and hash.
  * The walk's hash is re-recorded at feel v2 (yggi/music-commons#45), where the performer's own accent reads the meter's
  * pulses, so velocities in the meters the radio walks into that have a pulse of three move (6444f418 at v1); the held
- * presets play 4/4 and don't.
+ * presets play 4/4 and don't. The walk's is re-recorded at cells v0.23.0 too (13,019 events, 563952d0, before): the
+ * composer asks on sync harm bite mood, where it asked on energy, and the radio walks mood, so the walk finds other
+ * meters and parts; the held presets play as before.
  */
-const MAIN = { held: [15061, '98f62766'], walked: [13019, '563952d0'] } as const;
+const MAIN = { held: [15061, '98f62766'], walked: [13074, '940a389c'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
   it('over the 8 presets held, 2 seeds of 32 bars: 15,061 events, each to 1e-9 s', () => {
@@ -92,7 +94,7 @@ describe('the band given an empty learned layer plays exactly what main plays (#
     }
   });
 
-  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,019 events', () => {
+  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,074 events', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(1, true, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.walked);
@@ -171,8 +173,8 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
       EMPTY_LAYER,
       EMPTY_LAYER,
     ]);
-    // Every axis at its end: no meter lies within the miss distance of this corner.
-    const corner = { ...SYNTH_POP, sync: 1, harm: 0, artic: 1, energy: 0 };
+    // Every axis at its end: no meter lies within the miss distance of this corner (a meter's point has no mood).
+    const corner = { ...SYNTH_POP, sync: 1, harm: 0, artic: 0, mood: 0 };
     expect(composedMeter(METER_REPOSITORY, corner, null)).toBeNull();
     expect(planned(corner, EMPTY_LAYER, 3).map((c) => c.layer)).toEqual([
       EMPTY_LAYER,
