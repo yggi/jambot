@@ -31,7 +31,10 @@ The pointers to what holds each are in the sentences.
   So a part can lead into the next bar's chords (`BarEnv.next`), and they are what plays.
   A bar the clock has passed is passed (`passBar`), not composed.
 - A loop plays bars again (`replay.ts`, #628): a window of the bars the band kept (`BandCarried.kept`, the last `KEPT_BARS`, a section's), from a later bar, a number of laps or locked (`laps` null), read as a standing input at every bar (`BandEnv.loop`, `TransportEnv.loop`), so `lookAhead`, `forecast` and `foresight` play it as the band does.
-  A bar played again is the kept bar as it played, its number the clock's, and the band carries nothing on from it but the bar it plays next (`BandCarried.nextBar`); where the loop ends, the bar it had decided next plays, a repeat sign inserted (the owner's ruling on #626), and a song ended inside a loop closes in its lap's key.
+  A bar played again is the kept bar as it played, its number the clock's; what the song does meanwhile is the loop's `song`.
+  Held (a section repeated or locked, `repeatSection`), the band carries nothing on but the bar it plays next (`BandCarried.nextBar`), and where the loop ends the bar it had decided next plays, a repeat sign inserted (the owner's ruling on #626); a held loop plays a whole section, so the song keeps its grid of sections.
+  Running (the looper's 1, 2 or 4 bars, `barLoop`, #629), the band decides each bar beneath the loop as it does a bar the clock passed, its kept bars as they were, and where the loop ends it plays the bar the song has reached: a window off the grid of sections never moves the song off it.
+  A song ended inside a loop closes in its lap's key.
   A bar the clock passed plays nothing again.
 - A song starts and ends in the engine (`ending.ts`, `transport.ts`).
   The count-in is one bar of the song's beats before its first step, at the tempo the song opens at (`countIn`, `countInSeconds`): the player lays the clicks and starts the transport's clock a bar later, and a transport whose source is asked bars ahead composes bar 0 at once, so a host can send it during the count-in.
