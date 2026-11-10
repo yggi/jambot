@@ -178,17 +178,6 @@ export function conductRadio(
   };
 }
 
-/**
- * Whether an intent takes the track from the radio: a preset, or an axis the
- * walk moves. Energy and entropy are the dials the radio is run by (the
- * owner, #313), and the tempo, key and swing are nudges on top of it, so
- * they leave it on the air.
- */
-export function takesFromRadio(intent: Intent): boolean {
-  if (intent.kind === 'preset') return true;
-  return intent.kind === 'axis' && intent.axis !== 'energy' && intent.axis !== 'entropy';
-}
-
 /** The meter's swing a stopped band keeps: where it was going, held. */
 export const stopSwing = (swing: SwingTrack): SwingTrack => holdingSwing(swingTarget(swing));
 

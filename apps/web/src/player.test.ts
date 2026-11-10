@@ -38,7 +38,7 @@ import { describe, expect, it } from 'vitest';
 import type { Output } from './audio/output.ts';
 import { Metronome } from './metronome.svelte.ts';
 import { EVEN_MIX, type Mix, withLevel } from './mix.ts';
-import { targetOf } from './conductor.ts';
+import { radioStyle, targetOf } from './conductor.ts';
 import { meterNudged } from './meter-choice.ts';
 import { PATTERN_BARS } from './pattern.ts';
 import { Player, type Hosting, type Surroundings } from './player.svelte.ts';
@@ -1450,21 +1450,31 @@ describe('the radio (#313)', () => {
     expect(biggest).toBeLessThan(0.02);
   });
 
-  it('is taken off the air by a preset, or an axis it walks, and by nothing else a person sets', async () => {
-    const { player, said } = await playing();
+  it('stays on the air through a preset or any axis a person sets, and walks on from there at the next section (#627)', async () => {
+    const { player, said, run, world } = await playing();
+    const seed = world.seeds.at(-1)!;
+    run(OPENING + 1.5 * SECTION);
     player.apply({ kind: 'axis', axis: 'energy', value: 0.9 });
-    player.apply({ kind: 'axis', axis: 'entropy', value: 0.5 });
     player.apply({ kind: 'tempo', nudge: 0.05 });
     player.apply({ kind: 'key', wish: { tonic: 2 } });
     player.apply({ kind: 'swing', swing: { share: 0.55 } });
-    expect(player.station).not.toBeNull();
-    player.apply({ kind: 'axis', axis: 'sync', value: 0.9 });
-    expect(player.station).toBeNull();
-    expect(said.map((s) => s.station === null)).toEqual([false, true]);
-
-    player.tuneRadio(true);
+    for (const axis of ['sync', 'harm', 'artic', 'bpm'] as const)
+      player.apply({ kind: 'axis', axis, value: axis === 'bpm' ? 100 : 0.9 });
     player.apply({ kind: 'preset', preset: PRESETS[1]! });
-    expect(player.station).toBeNull();
+    expect(player.station).not.toBeNull();
+    expect(said.some((s) => s.station === null)).toBe(false);
+
+    // The walk goes on from the preset: the next section's style is a step of it.
+    const walked = player.station!.walked;
+    const from = radioStyle(player.track, player.tempoNudge);
+    expect(from).toMatchObject(PRESETS[1]!.style);
+    run(SECTION);
+    expect(player.station!.walked).toBe(walked + 1);
+    // The tempo goes through the players' nudge and back, so it is compared to 3 decimals.
+    const { bpm, ...reached } = radioStyle(player.track, player.tempoNudge);
+    const { bpm: walkedBpm, ...walkedTo } = walkRadio(from, seed, walked);
+    expect(reached).toEqual(walkedTo);
+    expect(bpm).toBeCloseTo(walkedBpm, 3);
   });
 
   it('walks on from the energy and entropy a person set, which are its temperature', async () => {
