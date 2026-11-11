@@ -15,7 +15,7 @@
  */
 
 import { compileSource } from '@yggi/cells/engine/compile';
-import { hasUse, signatureOf } from '@yggi/cells/engine/use';
+import { hasFrom, signatureOf } from '@yggi/cells/engine/use';
 import type { CompileResult, Resolve } from '@yggi/cells/engine/program';
 import { declarations, fitsAs, useOn } from '@yggi/cells/repository/fit';
 import type { LearnedLayer } from '@yggi/cells/repository/fragments';
@@ -49,12 +49,27 @@ function compiledBy(template: string, resolve: Resolve): (text: string) => Compi
 }
 
 /**
+ * A text's declarations (cells' `declarations`), kept by text, the last `COMPILES`: the warm-up asks whether each of a
+ * few dozen rhythms layers with each other on every bench, so each text is read once, not once a pair.
+ */
+const declared = new Map<string, ReturnType<typeof declarations>>();
+function declarationsOf(text: string): ReturnType<typeof declarations> {
+  let lines = declared.get(text);
+  if (!lines) {
+    lines = declarations(text);
+    declared.set(text, lines);
+    if (declared.size > COMPILES) declared.delete(declared.keys().next().value!);
+  }
+  return lines;
+}
+
+/**
  * Whether a collection's union with a workbench renames any of its names: whether a name both define is defined by
  * different lines (cells' union by lines renames those, and only after one of those any other).
  */
 export function collides(text: string, bench: string): boolean {
-  const there = new Map(declarations(bench).map((l) => [l.name, l.code]));
-  return declarations(text).some((l) => there.has(l.name) && there.get(l.name) !== l.code);
+  const there = new Map(declarationsOf(bench).map((l) => [l.name, l.code]));
+  return declarationsOf(text).some((l) => there.has(l.name) && there.get(l.name) !== l.code);
 }
 
 /**
@@ -65,10 +80,10 @@ export function collides(text: string, bench: string): boolean {
  * there costs the warm-up its compiles on the page's main thread (#562).
  */
 export function unionOn(text: string, bench: string): string | null {
-  if (hasUse(text) || collides(text, bench)) return null;
-  const there = new Map(declarations(bench).map((l) => [l.name, l.code]));
+  if (hasFrom(text) || collides(text, bench)) return null;
+  const there = new Map(declarationsOf(bench).map((l) => [l.name, l.code]));
   const head = bench.replace(/\s+$/, '');
-  const kept = declarations(text)
+  const kept = declarationsOf(text)
     .filter((l) => there.get(l.name) !== l.code)
     .map((l) => l.written);
   return [...(head ? [head] : []), ...kept].join('\n');

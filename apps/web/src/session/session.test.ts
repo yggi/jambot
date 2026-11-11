@@ -417,7 +417,7 @@ describe('a host and a client session', () => {
     expect(host.player.layer.filed.map((f) => f.meta)).toEqual([
       { source: 'Ada', created: expect.stringMatching(/, bar 0$/), tags: ['groove', 'jam'] },
     ]);
-    expect(host.player.layer.filed[0]!.fragment.text).toMatch(/^&kick step=16n &bd:0:/m);
+    expect(host.player.layer.filed[0]!.fragment.text).toMatch(/^&kick role=kick step=16n &bd:0:/m);
     // A client keeps no layer and files nothing of its own.
     expect(client.player.layer.filed).toEqual([]);
   });

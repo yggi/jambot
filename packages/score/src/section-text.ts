@@ -16,7 +16,9 @@
  *   nothing plays;
  * - the drums, a line a role on `16n` over the section's steps (E31), the
  *   rim a Euclid token a bar on `1m` where the meter is straight (E33's gap 4),
- *   stacked as the drummer's part (`&drumlines`);
+ *   stacked as the drummer's part (`&drumlines`), each line its role as a
+ *   value (`&kick role=kick step=16n …`), which the feel reads, never its
+ *   name (cells decision 075, feel v3, #615);
  * - the bass, the pad and the stab, each a line on `16n` over the chord in
  *   force (`over=&harm`, E33), a line with a note no index reaches over the
  *   key (`over=&key`), held `@k` for the written length and sounding its share
@@ -28,7 +30,10 @@
  * - each part played by its performer from cells' seed library (`&bass,
  *   &bassOut from bass_performer(…) &bassline`, `performerOf`): a gate, `&bassOut`, playing the part's
  *   lines (`&bassline`, `&bassLevel`) on its instrument, moved to the part's
- *   register (`PIN_VOICES`), its role the part's (`&bass map=role &bassOut`);
+ *   register (`PIN_VOICES`), its role cell the part's (`&bass map=role
+ *   part=bass &bassOut`, cells' own), which declares the part of every note
+ *   the gate plays (#615; a `part=` on the line itself breaks the
+ *   performer's compile at cells v0.24.0, and adds nothing);
  * - the instrument each performer plays at the section's style, where it
  *   isn't the performer's own (`instrumentsAt`, #497): its voice's line,
  *   which the text's own line makes win over the performer's (a clarinet's
@@ -667,7 +672,7 @@ function drumLines(
           })
         : null;
     if (rims && rims.every((r) => r !== null)) {
-      lines.push(`&${role} step=1m ${rims.join(' ')}`);
+      lines.push(`&${role} role=${role} step=1m ${rims.join(' ')}`);
       const velocities = new Set(hits.map((h) => h.velocity));
       const perBar = Array.from({ length: bars }, (_, i) => [
         ...new Set(ofBar(i).map((h) => h.velocity)),
@@ -704,7 +709,7 @@ function drumLines(
         steps,
       );
     const own = braidOf(hitLevel);
-    const each = [...own.cells, `&${role} step=16n ${own.words}`];
+    const each = [...own.cells, `&${role} role=${role} step=16n ${own.words}`];
     // A hit is a step long, so where a role's level is its step's in the bar, one bar of levels states them all, looped:
     // cells levels each lap's first hit of a looped line of levels (yggi/cells#460), so it needn't be a section long.
     const atStep = new Map<number, number>();
@@ -718,7 +723,7 @@ function drumLines(
       const bare = braidOf(() => '');
       const looped = [
         ...bare.cells,
-        `&${role} step=16n ${bare.words}`,
+        `&${role} role=${role} step=16n ${bare.words}`,
         `&${role}LevelA ${barred(
           `${role}Level`,
           eachStep(steps, (s) => (atStep.has(s) ? levelOf(atStep.get(s)!) : '~')),

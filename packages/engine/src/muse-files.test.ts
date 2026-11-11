@@ -35,8 +35,9 @@ const STYLE: Style = { ...FUNK.style, entropy: 0.3 };
  */
 const COOL: Style = { ...STYLE, sync: 0.4, harm: 0.9, artic: 0.5, energy: 0.3 };
 const range = (n: number) => [...Array(n).keys()];
-// (the seeds that fit nearly every meter: Spooky drums, and since cells v0.15.0 Ghost drums and Kinderlied drums)
-const EVERY_METER = ['spooky_drums', 'ghost_drums', 'kinderlied_drums'];
+// (the seeds that fit nearly every meter: Spooky drums, since cells v0.15.0 Ghost drums and Kinderlied drums, and
+// since cells v0.24.0 the quiet pulse, a tick on each beat, yggi/cells#679)
+const EVERY_METER = ['spooky_drums', 'ghost_drums', 'kinderlied_drums', 'quiet_pulse'];
 const NO_SPOOKY = rhythmRepository(RHYTHM_FRAGMENTS.filter((f) => !EVERY_METER.includes(f.id)));
 
 /** How cells' vary names a variation: its operator, its line and, but for a rotation, its step. */

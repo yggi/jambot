@@ -14,7 +14,12 @@ import {
 import { METER_HOLD, MISS_DISTANCE, composedMeter, stylePoint } from './meter-query.ts';
 import { type PlanCarried, type PlanEnv, planner } from './plan.ts';
 import { walkRadio } from './radio.ts';
-import { METER_REPOSITORY, repositoryLayerProblems, presetSwing } from './repository.ts';
+import {
+  METER_REPOSITORY,
+  meterRepository,
+  repositoryLayerProblems,
+  presetSwing,
+} from './repository.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { PROTOTYPE_PRESETS, PRESET_GLIDE, type Style, glideTo, holding } from './style.ts';
 import { STRAIGHT, holdingSwing } from './swing.ts';
@@ -82,9 +87,11 @@ const range = (n: number) => [...Array(n).keys()];
  * pulses, so velocities in the meters the radio walks into that have a pulse of three move (6444f418 at v1); the held
  * presets play 4/4 and don't. The walk's is re-recorded at cells v0.23.0 too (13,019 events, 563952d0, before): the
  * composer asks on sync harm bite mood, where it asked on energy, and the radio walks mood, so the walk finds other
- * meters and parts; the held presets play as before.
+ * meters and parts; the held presets play as before. And at cells v0.24.0 (13,074 events, 940a389c, before): cells
+ * places the plain and the swung 4/4 at its eight new styles' points too, so the walk finds them where it found other
+ * meters; with v0.23.0's meter fragments it plays 940a389c still. The held presets play as before.
  */
-const MAIN = { held: [15061, '98f62766'], walked: [13074, '940a389c'] } as const;
+const MAIN = { held: [15061, '98f62766'], walked: [13004, '970c805d'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
   it('over the 8 presets held, 2 seeds of 32 bars: 15,061 events, each to 1e-9 s', () => {
@@ -94,7 +101,7 @@ describe('the band given an empty learned layer plays exactly what main plays (#
     }
   });
 
-  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,074 events', () => {
+  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,004 events', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(1, true, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.walked);
@@ -173,8 +180,9 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
       EMPTY_LAYER,
       EMPTY_LAYER,
     ]);
-    // Every axis at its end: no meter lies within the miss distance of this corner (a meter's point has no mood).
-    const corner = { ...SYNTH_POP, sync: 1, harm: 0, artic: 0, mood: 0 };
+    // Every axis at its end: no meter lies within the miss distance of this corner (a meter's point has no mood). (At
+    // sync 1, harm 0, bite 0 the plain 4/4 cells v0.24.0 placed at Trip-hop's point lies within it.)
+    const corner = { ...SYNTH_POP, sync: 1, harm: 1, artic: 0, mood: 0 };
     expect(composedMeter(METER_REPOSITORY, corner, null)).toBeNull();
     expect(planned(corner, EMPTY_LAYER, 3).map((c) => c.layer)).toEqual([
       EMPTY_LAYER,
@@ -184,7 +192,13 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
   });
 
   it('moves a border by what it learned: a meter kept reaches a fifth farther, no more', () => {
-    // Along the line from 4/4's point to 5/4's, once 4/4 was kept at its point.
+    // Along the line from 4/4's point to 5/4's, once 4/4 was kept at its point. (4/4 held at that point alone: cells
+    // places it at several, since v0.24.0 one near this line, and a use raises only the point that found it.)
+    const held = meterRepository(
+      METER_FRAGMENTS.map((f) =>
+        f.id === 'meter' ? { ...f, association: [f.association[0]!] } : f,
+      ),
+    );
     const [a, b] = [seedPoint('meter').point, seedPoint('meter(grouping=meter("5/4"))').point];
     const along = (t: number) =>
       Object.fromEntries(
@@ -194,9 +208,9 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
     expect(learned.points.map((p) => [p.id, p.weight])).toEqual([['meter', 1.2]]);
     let flips = 0;
     for (const t of range(201).map((i) => i / 200)) {
-      const found = METER_REPOSITORY.query(along(t));
+      const found = held.query(along(t));
       const [nearest, own] = [found[0]!.distance, found.find((f) => f.id === 'meter')!.distance];
-      const first = METER_REPOSITORY.query(along(t), learned)[0]!.id;
+      const first = held.query(along(t), learned)[0]!.id;
       if (first !== found[0]!.id) flips++;
       // 4/4 is first wherever it lies within 1.2 times the nearest's distance, and nowhere else.
       if (own < 1.2 * nearest - 1e-9) expect(first, `at ${t}`).toBe('meter');

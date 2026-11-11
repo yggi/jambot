@@ -41,6 +41,7 @@ import { type Meter, meterOnSteps, stepsOf } from '@jambot/theory';
 import { bjorklund } from '@yggi/cells/engine/parser/generators';
 import { CLAVES_NOTE, DRUM_NOTES, type DrumSound, backbeatOf } from './drums.ts';
 import { BAR_STEPS, DRUM_ROLES, type DrumRole, type SongClock } from './events.ts';
+import type { LearnedLayer } from './layer.ts';
 import { type HeardNote, heardStep } from './muse.ts';
 import type { FragmentHit } from './rhythm-query.ts';
 
@@ -115,7 +116,7 @@ function roleLines(hits: readonly FragmentHit[], steps: number): { lines: string
     const level = (step: number) => hits.find((h) => h.step === step)?.velocity;
     return {
       lines: [
-        `&${role} step=1m &${voice}(${euclid.k},${steps},${euclid.r})`,
+        `&${role} role=${role} step=1m &${voice}(${euclid.k},${steps},${euclid.r})`,
         `&${role}Level map=amp step=16n ${eachStep(steps, (s) => (level(s) ? levelOf(level(s)!) : '0'))}`,
       ],
       term: `&${role} * &${role}Level`,
@@ -127,12 +128,14 @@ function roleLines(hits: readonly FragmentHit[], steps: number): { lines: string
       .map((h) => `&${VOICE_OF_NOTE.get(h.note)!}${hitLevel(h.velocity)}`);
     return words.length === 0 ? '~' : words.length === 1 ? words[0]! : `[${words.join(',')}]`;
   });
-  return { lines: [`&${role} step=16n ${braid}`], term: `&${role}` };
+  return { lines: [`&${role} role=${role} step=16n ${braid}`], term: `&${role}` };
 }
 
 /**
  * A bar's drum hits as cells text, open on its meter (E31's translation, no
- * `&bar`): the lines of each role in the band's order and their mix,
+ * `&bar`): the lines of each role in the band's order, each its role as a
+ * value (`&kick role=kick …`, as cells' seed grooves write it since v0.24.0,
+ * decision 075: a name gives none), and their mix,
  * `&groove`, which a reading sends on channel 10. Its voices are holes a kit fills, as cells' seed
  * rhythms' are (yggi/cells#260), so a groove that plays a seed's hits is
  * that seed's text. Every hit's note must be one of the kit's
@@ -251,4 +254,23 @@ export function heardDrums(
     const hits = inOrder([...kept.values()]);
     return hits.length ? [{ source, bar, hits }] : [];
   });
+}
+
+/** A line of a groove named as a drum role that writes no `role=`: its name, and where the role goes. */
+const UNROLED = new RegExp(`^&(${DRUM_ROLES.join('|')}) (?!.*\\brole=)`, 'gm');
+
+/**
+ * A kept layer's grooves with each line's drum role written as a value (`&kick role=kick …`), as `grooveText` states
+ * one since cells v0.24.0 (decision 075), for one filed before: cells' identity reads the text, so a groove heard again
+ * is known as the one filed only once both write it. A layer with none to write is returned as it is.
+ */
+export function roledLayer(layer: LearnedLayer): LearnedLayer {
+  const roled = (file: LearnedLayer['filed'][number]) => {
+    const { text, association } = file.fragment;
+    if (!association.some((p) => p.facet === 'rhythm')) return file;
+    const written = text.replace(UNROLED, (line, role: string) => `&${role} role=${role} `);
+    return written === text ? file : { ...file, fragment: { ...file.fragment, text: written } };
+  };
+  const filed = layer.filed.map(roled);
+  return filed.every((file, i) => file === layer.filed[i]) ? layer : { ...layer, filed };
 }

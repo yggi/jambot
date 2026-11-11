@@ -16,7 +16,7 @@ import {
   instrumentsFor,
   withInstruments,
 } from './instruments.ts';
-import { readRhythm } from './rhythms.ts';
+import { grooveLines, readRhythm } from './rhythms.ts';
 import { PRESETS } from './style.ts';
 
 const errors = (text: string) =>
@@ -32,7 +32,12 @@ const lineOf = (id: string, voice: string) =>
 
 describe("the instruments a fragment's sound holes are filled from (yggi/cells#244)", () => {
   it("fills every seed rhythm's, bass line's and mode's sound holes, so each compiles with nothing unknown but the workbench's names", () => {
-    const seeds = [...RHYTHM_FRAGMENTS, ...BASS_FRAGMENTS, ...MODE_FRAGMENTS];
+    // (a groove by its lines, as the band reads it: its drums the parameters its `from gm_kit` line fills, #634)
+    const seeds = [
+      ...RHYTHM_FRAGMENTS.map((f) => ({ ...f, text: grooveLines(f.text) })),
+      ...BASS_FRAGMENTS,
+      ...MODE_FRAGMENTS,
+    ];
     expect(seeds.length).toBeGreaterThan(20);
     // (`&harm`, `&bar`, `&key` and the modes' `&tonic` are the workbench's, which a bench brings: not an instrument's)
     const unknownVoices = (text: string) =>
@@ -98,7 +103,8 @@ describe('the instruments a section’s performers play, found at its style (#49
 
   /**
    * The instruments cells wrote for presets' points: Electro swing's and Spooky's (yggi/cells#366), and since cells
-   * v0.23.0 those of the styles cut from its examples, Kinderlied's and the four new (yggi/cells#572). Elsewhere each
+   * v0.23.0 those of the styles cut from its examples, Kinderlied's and the four new (yggi/cells#572), and since v0.24.0
+   * the eight it placed by hand and cut from its examples (yggi/cells#675, #679). Elsewhere each
    * performer plays its own.
    */
   const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
@@ -109,6 +115,15 @@ describe('the instruments a section’s performers play, found at its style (#49
     'Happy hardcore': { lead: 'rave_lead' },
     Elektro: { bass: 'square_bass' },
     'Dark ambient': { pad: 'drone_pad', lead: 'prepared_piano' },
+    // (the eight styles placed at cells v0.24.0, yggi/cells#675 and #679: each a lead of its own)
+    Baroque: { lead: 'moog' },
+    'Blues shuffle': { lead: 'blues_horn' },
+    'Sea shanty': { lead: 'fiddle' },
+    Chiptune: { lead: 'pulse_lead' },
+    Salsa: { lead: 'montuno_piano' },
+    Waltz: { lead: 'accordion' },
+    March: { lead: 'brass_band' },
+    'Trip-hop': { lead: 'electric_piano' },
   };
 
   it.each(PRESETS.map((p) => p.name))(

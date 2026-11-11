@@ -45,6 +45,7 @@ import { setTiming } from '@yggi/cells/engine/edit';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { cachedFit } from '@yggi/cells/repository/fit';
 import { resolveSeed } from '@yggi/cells/repository/library';
+import { hasFrom } from '@yggi/cells/engine/use';
 import { collides, unionOn } from './taken.ts';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
 import { holesOf } from '@yggi/cells/repository/holes';
@@ -76,6 +77,21 @@ const READ_AT = 120;
 /** A meter's name as cells writes it in `meter("…")`, or null for one cells has no name for. */
 const nameOf = (meter: Meter): MeterName | null =>
   (Object.keys(METERS) as MeterName[]).find((name) => sameMeter(METERS[name], meter)) ?? null;
+
+/**
+ * A groove's lines (cells v0.24.0, #634): a seed groove is a template whose lines are its heads and whose drums are
+ * optional parameters, each `gm_kit`'s own line by default (`&bd, &sd, &hh from gm_kit`). Its lines alone, signature
+ * and `from` lines aside, read those drums by their names, as cells' `sameText` reads a held template, and are the text
+ * the groove was before: the band reads, fits, unions and varies them, and the kit's lines its voices are filled from
+ * (`withInstruments`) are those same defaults. A text with no `from` line (a groove the Muse filed) is itself.
+ */
+export const grooveLines = (text: string): string =>
+  hasFrom(text)
+    ? text
+        .split('\n')
+        .filter((line) => !hasFrom(line))
+        .join('\n')
+    : text;
 
 /** A meter played straight, at the reading tempo. */
 const straight = (name: MeterName) => `&bar meter("${name}") step=${READ_AT}bpm`;
@@ -132,10 +148,25 @@ const whole = (x: number) => (Math.abs(x - Math.round(x)) < 1e-6 ? Math.round(x)
  * fragment no mix (`mixOf`), a hit falls off the steps, or one strikes a
  * sound the drummer has no role for.
  */
-export function readRhythm(text: string, meter: Meter): FragmentRead | null {
+export function readRhythm(template: string, meter: Meter): FragmentRead | null {
+  const text = grooveLines(template);
   if (!nameOf(meter) || !mixOf(text)) return null;
-  const bars = Math.max(1, ...holesOf(text, compileSource).clock.map((need) => need.bars));
-  return readLines(text, meter, bars);
+  return readLines(text, meter, lapOf(text));
+}
+
+/**
+ * The bars a fragment's lines lap (`cycle=`), at least one: its text's alone, whatever the meter, so kept by text, the
+ * last `COMPILES`, and a fragment read under each of the band's meters compiles for it once.
+ */
+const laps = new Map<string, number>();
+function lapOf(text: string): number {
+  let bars = laps.get(text);
+  if (bars === undefined) {
+    bars = Math.max(1, ...holesOf(text, compileSource).clock.map((need) => need.bars));
+    laps.set(text, bars);
+    if (laps.size > COMPILES) laps.delete(laps.keys().next().value!);
+  }
+  return bars;
 }
 
 /** A fragment's hits over a lap of `bars` (`readRhythm`), each line's, or one line's alone where its name is given. */
@@ -211,19 +242,23 @@ const isRhythm = ({ fragment }: LearnedLayer['filed'][number]) =>
 const HELD = new WeakMap<readonly Fragment[], readonly Fragment[]>();
 
 /**
- * The fragments the drummer holds: all but a rhythm it can't play, one with no mix of lines (`mixOf`) or a line that
- * strikes a sound it has no role for (`roleOf`), read in 4/4. Since #508 that is every rhythm of cells' seed.
+ * The fragments the drummer holds, each by its lines (`grooveLines`: what is fitted, read, unioned, layered, varied and
+ * filed beside): all but a rhythm it can't play, one with no mix of lines (`mixOf`) or a line that strikes a sound it
+ * has no role for (`roleOf`), read in 4/4. Of cells' seed that is every rhythm but `salsa_drums`, whose tumbao strikes
+ * the toms (cells v0.24.0), a sound the drummer has no role for.
  */
 export function heldRhythms(fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): Fragment[] {
   let held = HELD.get(fragments);
   if (!held)
     HELD.set(
       fragments,
-      (held = fragments.filter(
-        (f) =>
-          !f.association.some((p) => p.facet === 'rhythm') ||
-          readRhythm(f.text, METERS['4/4']) !== null,
-      )),
+      (held = fragments
+        .filter(
+          (f) =>
+            !f.association.some((p) => p.facet === 'rhythm') ||
+            readRhythm(f.text, METERS['4/4']) !== null,
+        )
+        .map((f) => ({ ...f, text: grooveLines(f.text) }))),
     );
   return [...held];
 }
@@ -326,6 +361,7 @@ export function rhythmRepository(
           workbench: [workbench, ...instrumentsFor(text)].join('\n'),
           keep: GROOVE_KEEP,
           fewest: GROOVE_FEWEST,
+          resolve: resolveSeed,
         }),
       );
     return varied.get(key)!;

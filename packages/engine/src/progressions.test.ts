@@ -38,18 +38,24 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
     const cadence = HARMONY_FRAGMENTS.find((f) => f.id === 'dark_cadence')!;
     expect(cadence.text).toMatch(/ cycle=4 /);
     expect(readProgression(cadence.text, METERS['4/4'])).toBeNull();
-    // (cells v0.23.0's axis progression, i VI III VII a bar each, yggi/cells#572)
+    // (cells v0.23.0's axis progression, i VI III VII a bar each, yggi/cells#572; cells v0.24.0's twelve-bar blues, 12
+    // bars, and montuno, I IV V IV a bar each, yggi/cells#675 and #679: none is a section's 8 bars)
     expect(HARMONY_FRAGMENTS.filter((f) => !READ_SEEDS.includes(f)).map((f) => f.id)).toEqual([
       'dark_cadence',
       'axis_progression',
+      'twelve_bar',
+      'montuno',
     ]);
   });
 
-  it('reads each of the seeds, in every named meter, as a vamp from the tonic, its first chord four bars and its second four, but the haunted progression, which walks', () => {
+  it('reads each of the seeds, in every named meter, as a vamp from the tonic, its first chord four bars and its second four, but the three that walk', () => {
     // (which seeds cells offers, and to which degree each vamps, is cells' library's, yggi/music-commons#37)
     expect(VAMP_SEEDS.length).toBeGreaterThan(0);
+    // (and since cells v0.24.0 the fifths sequence, I IV vii° iii vi ii V I, and Korobeiniki's changes, i i V i iv i V i)
     expect(READ_SEEDS.filter((f) => !VAMP_SEEDS.includes(f)).map((f) => f.id)).toEqual([
       'haunted_progression',
+      'fifths_sequence',
+      'korobeiniki_changes',
     ]);
     for (const f of VAMP_SEEDS) {
       const vamp = vampOf(readProgression(f.text, METERS['4/4'])!);
@@ -63,12 +69,17 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
         );
   });
 
-  it('states each seed’s slots as the seed’s own text, character for character (identity)', () => {
-    for (const f of READ_SEEDS)
-      expect(progressionText(readProgression(f.text, METERS['4/4'])!.notes)).toBe(
-        // (the seed's text, its signature line too, `&harm from &key`: a progression stated is a template, #562)
-        f.text.trim(),
-      );
+  it('states each seed’s slots as the seed’s own text, character for character (identity), but Korobeiniki’s changes', () => {
+    // (cells' Korobeiniki's changes write a chord held two bars twice, `[0,2,4] [0,2,4]`, where the band writes it
+    // `[0,2,4]!2`, and cells' `sameText` tells the two apart: so the Muse would file the changes the band played as a
+    // progression of its own, cells v0.24.0, yggi/cells#679)
+    const SPELT_OTHERWISE = ['korobeiniki_changes'];
+    for (const f of READ_SEEDS) {
+      const stated = progressionText(readProgression(f.text, METERS['4/4'])!.notes);
+      // (the seed's text, its signature line too, `&harm from &key`: a progression stated is a template, #562)
+      if (SPELT_OTHERWISE.includes(f.id)) expect(stated, f.id).not.toBe(f.text.trim());
+      else expect(stated, f.id).toBe(f.text.trim());
+    }
   });
 
   it('reads back every progression of a chord a bar on degrees 0 to 6, with a half-bar change in bar 2 or none (the round trip)', () => {
@@ -201,11 +212,15 @@ describe('the composer’s ask (#425)', () => {
       'vamp_to_the_fifth',
       'vamp_to_the_sixth',
     ]);
-    // (above VAMP_HARM no vamp fits: Spooky takes the progression placed for it, yggi/cells#409, and the rest walk the tables)
+    // (above VAMP_HARM no vamp fits: Spooky takes the progression placed for it, yggi/cells#409, since cells v0.24.0
+    // Baroque and Chiptune theirs, yggi/cells#679, and the rest walk the tables)
+    const PLACED: Readonly<Record<string, string>> = {
+      Spooky: 'haunted_progression',
+      Baroque: 'fifths_sequence',
+      Chiptune: 'korobeiniki_changes',
+    };
     for (const p of PRESETS.filter((p) => p.style.harm >= VAMP_HARM))
-      expect(offered(p.name), p.name).toEqual(
-        range(8).map(() => (p.name === 'Spooky' ? 'haunted_progression' : undefined)),
-      );
+      expect(offered(p.name), p.name).toEqual(range(8).map(() => PLACED[p.name]));
   });
 
   it('keeps a seed’s equals on offer however often use raises one, past cells’ cap (OFFER)', () => {

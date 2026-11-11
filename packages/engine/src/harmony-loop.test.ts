@@ -75,8 +75,24 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
       expect(new Set(r.loop.map(({ plans }) => plans.themeFragments.A))).toEqual(
         new Set(['tonic_vamp']),
       );
+    // (and cells v0.24.0's styles, which take what cells placed at their points, yggi/cells#675 and #679: Baroque the
+    // fifths sequence, Chiptune Korobeiniki's changes, Sea shanty the vamp to the seventh, March to the fifth and
+    // Trip-hop to the sixth; Salsa's montuno, 4 bars, is no section's, and Salsa, Blues shuffle and Waltz walk)
+    const PLACED: Readonly<Record<string, string>> = {
+      Baroque: 'fifths_sequence',
+      Chiptune: 'korobeiniki_changes',
+      'Sea shanty': 'vamp_to_the_seventh',
+      March: 'vamp_to_the_fifth',
+      'Trip-hop': 'vamp_to_the_sixth',
+    };
+    for (const r of runs.filter((r) => r.preset.name in PLACED))
+      expect(new Set(r.loop.map(({ plans }) => plans.themeFragments.A)), r.preset.name).toEqual(
+        new Set([PLACED[r.preset.name]]),
+      );
     for (const { main, loop } of runs.filter(
-      (r) => !['Spooky', 'Kinderlied', 'Acid', 'Dark ambient'].includes(r.preset.name),
+      (r) =>
+        !['Spooky', 'Kinderlied', 'Acid', 'Dark ambient'].includes(r.preset.name) &&
+        !(r.preset.name in PLACED),
     ))
       for (let bar = 0; bar < 64; bar++) {
         const m = main[bar]!.bar;
@@ -104,7 +120,12 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
     for (const r of runs.filter((r) => r.preset.style.harm >= 0.33))
       for (const { plans } of r.loop)
         expect(plans.themeFragments, r.preset.name).toEqual({
-          A: r.preset.name === 'Spooky' ? 'haunted_progression' : null,
+          A:
+            {
+              Spooky: 'haunted_progression',
+              Baroque: 'fifths_sequence',
+              Chiptune: 'korobeiniki_changes',
+            }[r.preset.name] ?? null,
           B: null,
         });
   });

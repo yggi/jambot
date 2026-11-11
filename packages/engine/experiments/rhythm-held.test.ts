@@ -88,15 +88,16 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     });
   });
 
-  // (since cells v0.23.0 the next nearest drum bar is Acid drums at Techno, where the drummer invented, and Electro swing
-  // drums at Lo-fi hip hop and Bossa nova, on sync harm bite mood: each plays the drums further from main's)
-  it('keeps 59 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
+  // (since cells v0.23.0 the next nearest drum bar is Electro swing drums at Lo-fi hip hop and Bossa nova, on sync harm
+  // bite mood, and Acid drums at Techno, where the drummer invented, until cells v0.24.0's March drums, nearer: each
+  // plays the drums further from main's; Techno 59 % with Acid drums)
+  it('keeps 65 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
     expect(drumOverlap(MAIN, MAIN)).toEqual(
       Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
     );
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0.92,
-      Techno: 0.59,
+      Techno: 0.82,
       'Deep house': 0.95,
       Ambient: 0.89,
       'Lo-fi hip hop': 0.67,
@@ -106,8 +107,10 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     });
   });
 
-  it(`keeps a layer of at most 3,682 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3682);
+  // (3,682 bytes before cells v0.24.0, whose grooves' lines write their roles, `role=kick`, and whose March drums Techno
+  // turns to)
+  it(`keeps a layer of at most 3,860 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3860);
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(3);
   });
 });

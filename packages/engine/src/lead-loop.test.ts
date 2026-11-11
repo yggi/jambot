@@ -455,6 +455,15 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     'Happy hardcore': 'raveHook',
     Elektro: 'sequencer',
     'Dark ambient': 'ghostPhrase',
+    // (the eight of cells v0.24.0, each its piece's or its own, yggi/cells#675 and #679)
+    Baroque: 'royalTheme',
+    'Blues shuffle': 'bluesRiff',
+    'Sea shanty': 'drunkenSailor',
+    Chiptune: 'korobeiniki',
+    Salsa: 'guajeo',
+    Waltz: 'waltz',
+    March: 'march',
+    'Trip-hop': 'smoke',
   };
 
   it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape and its second the answer: in 4/4, and the Dies irae in Spooky’s 5/4', () => {

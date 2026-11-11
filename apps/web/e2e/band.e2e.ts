@@ -622,7 +622,7 @@ test('keeps the preset segments inside the style card, four to a row, at 760 px 
       .getByRole('radiogroup', { name: 'Genre presets' })
       .getByRole('radio')
       .all();
-    expect(segments).toHaveLength(15);
+    expect(segments).toHaveLength(23);
     const rows = new Set<number>();
     for (const segment of segments) {
       const box = (await segment.boundingBox())!;
@@ -630,9 +630,9 @@ test('keeps the preset segments inside the style card, four to a row, at 760 px 
       expect(box.x + box.width).toBeLessThanOrEqual(card.x + card.width);
       rows.add(Math.round(box.y));
     }
-    // (cells' library of styles, #596: the prototype's eight, Electro swing and Spooky (#517), Kinderlied, and Acid, Happy
-    // hardcore, Elektro and Dark ambient (cells v0.23.0), rows of four)
-    expect(rows.size).toBe(4);
+    // (cells' library of styles, #596: the prototype's eight, Electro swing and Spooky (#517), Kinderlied, Acid, Happy
+    // hardcore, Elektro and Dark ambient (cells v0.23.0), and the eight of cells v0.24.0, rows of four)
+    expect(rows.size).toBe(6);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width,
     );

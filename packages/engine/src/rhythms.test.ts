@@ -15,6 +15,7 @@ import {
   RHYTHM_REPOSITORY,
   benchText,
   cellsFit,
+  grooveLines,
   heldRhythms,
   readRhythm,
   rhythmRepository,
@@ -81,17 +82,21 @@ const PAIRS = PROTOTYPE_PRESETS.map((preset) => ({
 
 describe("cells' rhythms, as the composer asks them (#397)", () => {
   it('reads every rhythm under 4/4 played straight: the drum bars, a line a role, the claves 5 strokes a lap on their own sound, General MIDI’s 75 (cells v0.7.0)', () => {
-    const read = RHYTHM_FRAGMENTS.filter((f) => f.id !== 'electro_swing_drums').map((f) => ({
-      id: f.id,
-      ...readRhythm(f.text, METERS['4/4'])!,
-    }));
-    const drumBars = read.filter((r) => r.id.endsWith('_drums'));
+    const read = heldRhythms()
+      .filter((f) => f.id !== 'electro_swing_drums')
+      .map((f) => ({
+        id: f.id,
+        ...readRhythm(f.text, METERS['4/4'])!,
+      }));
+    // (a clave by its name; every other a drum bar, cells v0.24.0's ride shuffle and quiet pulse among them)
+    const isClave = (id: string) => /clave|cinquillo/.test(id);
+    const drumBars = read.filter((r) => !isClave(r.id));
     expect(drumBars.length).toBeGreaterThan(0);
     for (const r of drumBars) expect(r.hits.length, r.id).toBeGreaterThan(0);
     expect(new Set(drumBars.flatMap((r) => r.hits.map((h) => h.role)))).toEqual(
       new Set(DRUM_ROLES.filter((role) => role !== 'clave')),
     );
-    for (const r of read.filter((x) => !x.id.endsWith('_drums'))) {
+    for (const r of read.filter((x) => isClave(x.id))) {
       expect(
         r.hits.map((h) => [h.role, h.note]),
         r.id,
@@ -132,7 +137,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
       RHYTHM_FRAGMENTS,
       () => true,
       (text, meter) =>
-        text === RHYTHM_FRAGMENTS.find((f) => f.id === found)!.text
+        text === grooveLines(RHYTHM_FRAGMENTS.find((f) => f.id === found)!.text)
           ? null
           : readRhythm(text, meter),
     );
@@ -141,8 +146,13 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     expect(ids).not.toContain(found);
   });
 
-  it('holds every rhythm of cells’ seed, and none whose line strikes a sound outside the kit', () => {
-    expect(heldRhythms().map((f) => f.id)).toEqual(RHYTHM_FRAGMENTS.map((f) => f.id));
+  it('holds every rhythm of cells’ seed but Salsa’s, whose tumbao strikes the toms, and none whose line strikes a sound outside the kit', () => {
+    expect(heldRhythms().map((f) => f.id)).toEqual(
+      RHYTHM_FRAGMENTS.map((f) => f.id).filter((id) => id !== 'salsa_drums'),
+    );
+    expect(
+      readRhythm(RHYTHM_FRAGMENTS.find((f) => f.id === 'salsa_drums')!.text, METERS['4/4']),
+    ).toBeNull();
     const crash = {
       ...RHYTHM_FRAGMENTS[0]!,
       id: 'crash',
@@ -193,9 +203,17 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
       'Lo-fi hip hop': 'ghost_drums',
       'Swing jazz': 'ghost_drums',
     };
+    // (cells v0.24.0's grooves, yggi/cells#675 and #679: Waltz drums, near Ambient, fit 3/4, 6/8 and 12/8; March
+    // drums, nearer Techno than Acid drums, fit 12/8; the quiet pulse, nearer Lo-fi hip hop than Ghost drums, fits 7/8)
+    const NEW: Readonly<Partial<Record<MeterName, Readonly<Record<string, string>>>>> = {
+      '3/4': { Ambient: 'waltz_drums' },
+      '6/8': { Ambient: 'waltz_drums' },
+      '12/8': { Ambient: 'waltz_drums', Techno: 'march_drums' },
+      '7/8': { 'Lo-fi hip hop': 'quiet_pulse' },
+    };
     for (const name of ['3/4', '6/8', '12/8', '5/4', '7/8', '10/8'] as MeterName[])
       for (const p of PROTOTYPE_PRESETS) {
-        const taken = (name === '7/8' ? GHOST : NEAR)[p.name];
+        const taken = NEW[name]?.[p.name] ?? (name === '7/8' ? GHOST : NEAR)[p.name];
         expect(
           composedRhythm(RHYTHM_REPOSITORY, p.style, { meter: METERS[name] }, null),
           `${name} ${p.name}`,
@@ -213,7 +231,14 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
     const benches = [
       ...new Set(RHYTHM_BENCHES.map(benchText).filter((t): t is string => t !== null)),
     ];
+    // (cells v0.24.0's seven the drummer holds, yggi/cells#675 and #679)
+    const added = ['ride_shuffle', 'shanty_drums', 'chip_drums', 'quiet_pulse'].concat([
+      'waltz_drums',
+      'march_drums',
+      'trip_hop_drums',
+    ]);
     let pairs = 0;
+    let before = 0;
     for (const workbench of benches)
       for (const chosen of held) {
         if (!fit(chosen.text, workbench).fits) continue;
@@ -221,12 +246,14 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
         for (const other of held) {
           if (other.text === chosen.text || collides(other.text, withIt)) continue;
           pairs++;
+          if (!added.includes(chosen.id) && !added.includes(other.id)) before++;
           expect(fit(other.text, withIt).fits, `${chosen.id} + ${other.id}`).toBe(
             fit(other.text, workbench).fits,
           );
         }
       }
-    expect(pairs).toBe(1632);
+    // (1,632 over the 22 rhythms held at cells v0.23.0, as there; with cells v0.24.0's seven, 2,322)
+    expect([before, pairs]).toEqual([1632, 2322]);
   });
 });
 
