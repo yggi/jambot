@@ -6,7 +6,14 @@ import { COMPOSER } from './facet.ts';
 import { SECTION_BARS } from './form.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { keyHelix } from './key.ts';
-import { LEAD_REPOSITORY, MOTIF_LEADS, leadRepository, leadText, readLead } from './lead-lines.ts';
+import {
+  LEAD_REPOSITORY,
+  MOTIF_LEADS,
+  leadFormAt,
+  leadRepository,
+  leadText,
+  readLead,
+} from './lead-lines.ts';
 import type { LeadNote } from './lead-query.ts';
 import { stylePoint } from './meter-query.ts';
 import type { HeardNote } from './muse.ts';
@@ -249,24 +256,34 @@ describe('the Muse files a player’s motif as a lead line, and it comes back in
     }
   });
 
-  it('plays the line in cells’ call and answer: the call, its answer two degrees down, the call again, the answer varied (#520)', () => {
+  it('plays the line in the form found at Synth-pop, cells’ sentence: the call, the call a degree up, the call mirrored, the call backwards (#547 rung 4)', () => {
     const run = play(4 * SECTION_BARS, { ...SYNTH_POP.style, entropy: 0.3 }, { layer }, 5);
+    expect(leadFormAt(stylePoint(SYNTH_POP.style)).id).toBe('sentence');
     const at = phraseStarts(run, ada.fragment.id)[0]!;
     expect(at).toBeDefined();
     const bars = range(4).map((k) => run[at + k]!.bar);
     const lead = (k: number) => bars[k]!.written.filter((n) => n.part === 'lead');
     expect(leadOf(lead(0), bars[0]!.plan.key)).toEqual(ADA_LINE);
-    expect(leadOf(lead(2), bars[2]!.plan.key)).toEqual(ADA_LINE);
-    // the call and its answer heard as one line: the answer's notes two degrees below the call's, but its last, which
-    // the phrase's cadence closes on a chord tone
+    // the presentation heard as one line: its second bar's notes a degree above the call's, but its last, which the
+    // phrase's cadence closes on a chord tone
     const both = leadOf(
       [...lead(0), ...lead(1).map((n) => ({ ...n, step: n.step + 16 }))],
       bars[0]!.plan.key,
     );
     expect(both.slice(ADA_LINE.length, -1)).toEqual(
-      ADA_LINE.slice(0, -1).map((n) => ({ ...n, step: n.step + 16, degree: n.degree - 2 })),
+      ADA_LINE.slice(0, -1).map((n) => ({ ...n, step: n.step + 16, degree: n.degree + 1 })),
     );
-    expect(leadOf(lead(3), bars[3]!.plan.key)).not.toEqual(ADA_LINE);
+    // the continuation: the call mirrored about its first note, then backwards, on its own onsets
+    const third = leadOf(
+      [...lead(0), ...lead(2).map((n) => ({ ...n, step: n.step + 32 }))],
+      bars[0]!.plan.key,
+    );
+    expect(third.slice(ADA_LINE.length).map((n) => n.step)).toEqual(
+      ADA_LINE.map((n) => n.step + 32),
+    );
+    expect(third.slice(ADA_LINE.length, -1).map((n) => n.degree)).toEqual(
+      ADA_LINE.slice(0, -1).map((n) => -n.degree || 0),
+    );
   });
 });
 
@@ -466,10 +483,58 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     'Trip-hop': 'smoke',
   };
 
-  it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape and its second the answer: in 4/4, and the Dies irae in Spooky’s 5/4', () => {
+  /**
+   * The form each preset's lead plays its motif in (#547 rung 4; the owner, 2026-11-09: "form follows idiom"): the one
+   * cells finds at its point (yggi/cells#371), call and answer where none lies within the miss distance (Techno, Chiptune).
+   */
+  const FORMS: Record<string, string> = {
+    'Synth-pop': 'sentence',
+    Techno: 'call_and_answer',
+    'Deep house': 'sentence',
+    Ambient: 'period',
+    'Lo-fi hip hop': 'AABA',
+    Funk: 'call_and_answer',
+    'Bossa nova': 'AABA',
+    'Swing jazz': 'AABA',
+    'Electro swing': 'AABA',
+    Spooky: 'AABA',
+    Kinderlied: 'ternary',
+    Acid: 'call_and_answer',
+    'Happy hardcore': 'sentence',
+    Elektro: 'sentence',
+    'Dark ambient': 'period',
+    // (the eight of cells v0.24.0: Chiptune's nearest form, the sentence, lies 0.307 away, a miss)
+    Baroque: 'sentence',
+    'Blues shuffle': 'call_and_answer',
+    'Sea shanty': 'rounded_binary',
+    Chiptune: 'call_and_answer',
+    Salsa: 'call_and_answer',
+    Waltz: 'sentence',
+    March: 'rounded_binary',
+    'Trip-hop': 'call_and_answer',
+  };
+  /** Each form's second bar, as degrees from its call: the answer two down, the presentation's or the antecedent's one up, AABA's A again. */
+  const SECOND: Record<string, number> = {
+    call_and_answer: -2,
+    sentence: 1,
+    period: 1,
+    AABA: 0,
+    ternary: -2,
+    rounded_binary: 1,
+  };
+
+  it('plays each preset’s motif in the form found at its point: Techno and Chiptune, misses, in call and answer', () => {
+    expect(Object.keys(FORMS)).toEqual(PRESETS.map((p) => p.name));
+    expect(PRESETS.map((p) => [p.name, leadFormAt(stylePoint(p.style)).id])).toEqual(
+      Object.entries(FORMS),
+    );
+  });
+
+  it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape and its second its form’s: in 4/4, and the Dies irae in Spooky’s 5/4', () => {
     expect(Object.keys(MOTIFS)).toEqual(PRESETS.map((p) => p.name));
     for (const preset of PRESETS) {
       const id = MOTIFS[preset.name]!;
+      const second = SECOND[FORMS[preset.name]!]!;
       const run = play(
         4 * SECTION_BARS,
         { ...preset.style, entropy: 0 },
@@ -483,7 +548,8 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
       if (preset.name === 'Spooky') expect(meter).toEqual(METERS['5/4']);
       const line = LEAD_REPOSITORY.read(id, meter, EMPTY_LAYER)!.notes;
       const first = line[0]!.degree;
-      const starts = phraseStarts(run, id);
+      // (each section's start: a form of six or eight bars starts only there)
+      const starts = phraseStarts(run, id).filter((b) => b % SECTION_BARS === 0);
       expect(starts.length, preset.name).toBeGreaterThan(0);
       for (const at of starts) {
         const bar = run[at]!.bar;
@@ -503,8 +569,8 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
           [wrap(played.degree, 7), played.accidental],
           `${preset.name}, bar ${at}: its first degree`,
         ).toEqual([wrap(first, 7), line[0]!.alter]);
-        // and the next its answer, two degrees down (#520, rung 2), heard with the call as one line; its last note the
-        // cadence's
+        // and the next its form's second bar (#520, rung 2; #547 rung 4), heard with the call as one line; its last note
+        // the cadence's
         const steps = stepsOf(meter);
         const both = leadOf(
           [
@@ -519,8 +585,57 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
         expect(both.slice(line.length, -1), `${preset.name}, bar ${at + 1}`).toEqual(
           line
             .slice(0, -1)
-            .map((n) => ({ ...n, step: n.step + steps, degree: n.degree - first - 2 })),
+            .map((n) => ({ ...n, step: n.step + steps, degree: n.degree - first + second })),
         );
+      }
+    }
+  });
+
+  it('plays Kinderlied’s twinkle in the ternary song to its end, six bars, at entropy 0, seeds 1 and 2: call, answer, the bridge twice, call, answer (#547 rung 4)', () => {
+    const kinderlied = PRESETS.find((p) => p.name === 'Kinderlied')!;
+    // (the ternary's bars as degrees from its call: its answer two down, its bridge the answer a degree up; the answer
+    // is its default until cells groups wonder with twinkle, a follow-up)
+    const OFFSETS = [0, -2, -1, -1, 0, -2];
+    for (const seed of [1, 2]) {
+      const run = play(
+        8 * SECTION_BARS,
+        { ...kinderlied.style, entropy: 0 },
+        { leads: LEAD_REPOSITORY },
+        seed,
+        kinderlied,
+      );
+      const meter = run[0]!.bar.plan.meter;
+      const line = LEAD_REPOSITORY.read('twinkle', meter, EMPTY_LAYER)!.notes;
+      const steps = stepsOf(meter);
+      // (each section the lead plays in from its start)
+      const starts = phraseStarts(run, 'twinkle').filter((b) => b % SECTION_BARS === 0);
+      expect(starts.length, `seed ${seed}`).toBeGreaterThan(0);
+      for (const at of starts) {
+        const call = leadOf(
+          run[at]!.bar.written.filter((n) => n.part === 'lead'),
+          run[at]!.bar.plan.key,
+        );
+        OFFSETS.forEach((offset, k) => {
+          const heard = leadOf(
+            [
+              ...run[at]!.bar.written.filter((n) => n.part === 'lead'),
+              ...run[at + k]!.bar.written.filter((n) => n.part === 'lead').map((n) => ({
+                ...n,
+                step: n.step + steps,
+              })),
+            ],
+            run[at]!.bar.plan.key,
+          ).slice(call.length);
+          // (but the last note of bars 2, 4 and 6, which the phrase's cadence closes on a chord tone)
+          const cadenced = k % 2 === 1;
+          expect(cadenced ? heard.slice(0, -1) : heard, `seed ${seed}, bar ${at + k}`).toEqual(
+            (cadenced ? line.slice(0, -1) : line).map((n) => ({
+              ...n,
+              step: n.step + steps,
+              degree: n.degree - line[0]!.degree + offset,
+            })),
+          );
+        });
       }
     }
   });

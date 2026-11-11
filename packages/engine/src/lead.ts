@@ -184,6 +184,8 @@ export interface LeadCarried {
   readonly form?: readonly LeadShape[] | null;
   /** Where the form's call started, on the scale it is played on: the answer is played from there, so it keeps its place below the call. */
   readonly anchor?: number | null;
+  /** The bar of the form played last, where the form is longer than a phrase (#547 rung 4): the next bar plays the one after it. */
+  readonly formAt?: number | null;
   /** Each theme's melody: the theme it belongs to, and its shape. */
   readonly melodies: Partial<
     Record<ThemeKind, { readonly theme: number; readonly shape: LeadShape }>
@@ -598,6 +600,9 @@ function keyedFirst(scale: Helix, degree: number, accidental: number, last: numb
 /** Where the lead starts before it has played: the A above middle C. */
 const FIRST_LAST = 69;
 
+/** The bars of the lead's own phrase, and of a found line's phrase in a form no longer than it. */
+const PHRASE_SPAN = 4;
+
 /**
  * The lead's bar, given where it was and the motif of the lead line its
  * section plays from (#424), if the composer found one (`leadMotif`). A
@@ -623,23 +628,36 @@ export function playLead(
   if (offer) {
     const { written, last } = realize(offer.motif, env, carried.last, false);
     return {
-      carried: { ...carried, last, phrase: null, form: null, anchor: null, offered: offer.bar },
+      carried: {
+        ...carried,
+        last,
+        phrase: null,
+        form: null,
+        anchor: null,
+        formAt: null,
+        offered: offer.bar,
+      },
       output: written,
     };
   }
   const { section, theme } = plan;
   if (leadRests(section.type, energy))
     return {
-      carried: { ...carried, phrase: null, form: null, anchor: null, offered: null },
+      carried: { ...carried, phrase: null, form: null, anchor: null, formAt: null, offered: null },
       output: [],
     };
 
   const bars = figure === null ? [] : 'cycle' in figure ? [figure] : figure;
-  const phase = barInSection % 4;
+  const phase = barInSection % PHRASE_SPAN;
+  // (a form longer than a phrase, a ternary song's six bars or a rounded binary's eight, is played to its end before a
+  // phrase starts again, wherever the four-bar grid falls, but at a section's start: #547 rung 4)
+  const long = (carried.form?.length ?? 0) > PHRASE_SPAN;
+  const continuing =
+    long && barInSection > 0 && carried.formAt != null && carried.formAt + 1 < carried.form!.length;
   let { phrase, melodies } = carried;
   let form = carried.form ?? null;
   let shape: LeadShape;
-  const fresh = phase === 0 || !phrase;
+  const fresh = !continuing && (phase === 0 || !phrase || long);
   if (fresh) {
     const kept = melodies[theme.kind];
     const returns =
@@ -674,7 +692,13 @@ export function playLead(
   // A found line in a form (#520, rung 2): its bars in turn, the call, its answer, and so on round the four bars, the
   // phrase's last bar varied where the form is shorter than the phrase; alone, the line is the shape and the lead's own
   // phrase grammar (shape, variation, shape, variation).
-  const at = form ? phase % form.length : 0;
+  const at = !form
+    ? 0
+    : form.length > PHRASE_SPAN
+      ? fresh
+        ? 0
+        : carried.formAt! + 1
+      : phase % form.length;
   if (form) {
     shape = form[at]!;
     if (!fresh && phase >= form.length && at === form.length - 1) shape = varied(shape, env);
@@ -698,6 +722,7 @@ export function playLead(
       offered: null,
       form,
       anchor: form ? (at === 0 ? played.anchor : (carried.anchor ?? played.anchor)) : null,
+      formAt: form && form.length > PHRASE_SPAN ? at : null,
     },
     output: played.written,
   };
@@ -726,6 +751,7 @@ export const lead: Machine<BarEnv, LeadCarried, null, WrittenNote[]> = {
     offered: null,
     form: null,
     anchor: null,
+    formAt: null,
   },
   advance: (env, carried) => playLead(env, carried),
 };

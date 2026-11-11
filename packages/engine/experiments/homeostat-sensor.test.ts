@@ -86,8 +86,8 @@ describe('the share of bars recognised over 8 bars, over the 8 presets at entrop
   // cells v0.24.0's eight styles more move the pooled spread and the share pinned, held, and the walk's every figure)
   it('sits below the ruled band over all members, held and walked: 60 % of sections or more under 0.4 (80 of 128 held)', () => {
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
-    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.307, 0.176, 0.375, 0.063]);
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.298, 0.168, 0.34, 0.061]);
+    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.309, 0.185, 0.391, 0.063]);
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.291, 0.177, 0.34, 0.061]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeLessThan(BAND.low);
@@ -129,8 +129,8 @@ describe('the share over entropy and tolerance (E44, #237)', () => {
     const means = [held[0.3]!, ...TOLERANCES.map((t) => tolerant[t]!)].map((r) =>
       Number(against(r, 'all').mean.toFixed(3)),
     );
-    expect(means).toEqual([0.307, 0.348, 0.457, 0.606]);
-    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.606, 0.157, 0.602, 0.008]);
+    expect(means).toEqual([0.309, 0.346, 0.448, 0.6]);
+    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.6, 0.158, 0.633, 0.008]);
   });
 });
 
