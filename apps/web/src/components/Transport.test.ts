@@ -2,6 +2,7 @@ import { METERS } from '@jambot/theory';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import type { ComponentProps } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
+import { loopView } from '../looper.ts';
 import Transport from './Transport.svelte';
 
 type Props = ComponentProps<typeof Transport>;
@@ -36,7 +37,10 @@ describe('the transport', () => {
   });
 
   it('draws neither Start nor the loop for a device that doesn’t set the band, and still says its lines', () => {
-    render(Transport, props({ sets: false, looping: 'off', onloop: () => {} }));
+    render(
+      Transport,
+      props({ sets: false, loop: loopView(null, 0), onsection: () => {}, onbars: () => {} }),
+    );
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByRole('region', { name: 'Transport' })).toHaveTextContent('Groove 3/8');
   });
@@ -85,48 +89,22 @@ describe('the transport', () => {
     expect(container.querySelectorAll('.cell.on, .cell.ahead, i.on')).toHaveLength(0);
   });
 
-  it('says what the loop does in each state, and asks for a tap only while the band plays (#628)', async () => {
-    const onloop = vi.fn();
-    const { rerender } = render(Transport, props({ looping: 'off', onloop }));
-    const loop = screen.getByRole('button', { name: 'Loop' });
-    expect(loop).toBeDisabled();
-    await rerender({ playing: true });
-    expect(loop).toHaveAttribute('aria-pressed', 'false');
-    expect(loop).toHaveTextContent('loop');
-    expect(loop).toHaveAttribute('title', 'Repeat this section once');
-    await fireEvent.click(loop);
-    expect(onloop).toHaveBeenCalledTimes(1);
-    await rerender({ looping: 'repeat' });
-    expect(loop).toHaveAttribute('aria-pressed', 'true');
-    expect(loop).toHaveTextContent('repeat');
-    await rerender({ looping: 'locked' });
-    expect(loop).toHaveTextContent('locked');
-    expect(loop.getAttribute('title')).toMatch(/end of the lap/);
-  });
-
-  it('has no loop button where nothing loops, as the lobby’s tools', () => {
-    render(Transport, props({ playing: true }));
-    expect(screen.queryByRole('button', { name: 'Loop' })).toBeNull();
-  });
-  it('has a looper of 1, 2 and 4 bars that asks for the window tapped, and rests while a section plays again (#629)', async () => {
-    const onbars = vi.fn();
+  it('has the loop menu’s one trigger where the band loops, resting while it doesn’t play (#628, #629)', async () => {
     const { rerender } = render(
       Transport,
-      props({ playing: true, looping: 'off', onloop: () => {}, onbars }),
+      props({ loop: loopView(null, 0), onsection: () => {}, onbars: () => {} }),
     );
-    const looper = screen.getByRole('group', { name: 'Looper' });
-    const two = screen.getByRole('button', { name: 'Loop the last 2 bars' });
-    expect(looper).toContainElement(two);
-    expect(screen.getByRole('button', { name: 'Loop the last bar' })).toBeEnabled();
-    await fireEvent.click(two);
-    expect(onbars).toHaveBeenCalledWith(2);
-    await rerender({ looped: 2 });
-    expect(two).toHaveAttribute('aria-pressed', 'true');
-    expect(two.getAttribute('title')).toMatch(/let it go/);
-    // The section's button rests while the looper plays, and the looper while a section plays again.
-    expect(screen.getByRole('button', { name: 'Loop' })).toBeDisabled();
-    await rerender({ looped: null, looping: 'locked' });
-    expect(two).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Loop' })).toBeEnabled();
+    const trigger = screen.getByRole('button', { name: 'Loop' });
+    expect(trigger).toBeDisabled();
+    await rerender({ playing: true });
+    expect(trigger).toBeEnabled();
+    // Nothing of the menu is drawn in the header until it opens.
+    expect(screen.queryByRole('button', { name: 'Repeat once' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Loop the last 2 bars' })).toBeNull();
+  });
+
+  it('has no loop where nothing loops, as the lobby’s tools', () => {
+    render(Transport, props({ playing: true }));
+    expect(screen.queryByRole('button', { name: 'Loop' })).toBeNull();
   });
 });

@@ -17,6 +17,7 @@ import {
   KEPT_BARS,
   barLoop,
   loopEnd,
+  loopFrom,
   loopReleased,
   repeatSection,
   replayOf,
@@ -61,7 +62,7 @@ function run(seed: number, bars: number, loop?: Loop): { played: BandBar[]; carr
 const sound = (bar: BandBar) => ({ ...bar, bar: 0 });
 
 describe('a loop (#628)', () => {
-  it('names the bar each bar of the clock plays again, for a repeat, a lock and a short window', () => {
+  it('names the bar each bar of the clock plays again, a lap before it, for a repeat, a lock and a short window', () => {
     const once = repeatSection(8, 1);
     expect(range(32).map((bar) => replayOf(once, bar))).toEqual([
       ...range(16).map(() => null),
@@ -69,27 +70,14 @@ describe('a loop (#628)', () => {
       ...range(8).map(() => null),
     ]);
     const locked = repeatSection(8, null);
-    for (const bar of range(200))
-      expect(replayOf(locked, bar)).toBe(bar < 16 ? null : 8 + (bar % 8));
-    const short: Loop = { from: 5, bars: 2, at: 7, laps: 3, song: 'runs' };
+    for (const bar of range(200)) expect(replayOf(locked, bar)).toBe(bar < 16 ? null : bar - 8);
+    const short: Loop = { bars: 2, at: 7, laps: 3, song: 'runs' };
     expect(range(16).map((bar) => replayOf(short, bar))).toEqual([
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      5,
-      6,
-      5,
-      6,
-      5,
-      6,
-      null,
-      null,
-      null,
+      ...range(7).map(() => null),
+      ...range(6).map((i) => 5 + i),
+      ...range(3).map(() => null),
     ]);
+    expect(loopFrom(short)).toBe(5);
     expect(replayOf(null, 20)).toBeNull();
     expect(loopEnd(once)).toBe(24);
     expect(loopEnd(locked)).toBeNull();
@@ -103,13 +91,7 @@ describe('a loop (#628)', () => {
     expect(() => barLoop(1, 2)).toThrow();
     expect(() => barLoop(20, 9)).toThrow();
     for (const bars of BAR_LOOPS)
-      expect(barLoop(20, bars)).toEqual({
-        from: 20 - bars,
-        bars,
-        at: 20,
-        laps: null,
-        song: 'runs',
-      });
+      expect(barLoop(20, bars)).toEqual({ bars, at: 20, laps: null, song: 'runs' });
     expect(KEPT_BARS).toBe(SECTION_BARS);
   });
 
@@ -146,11 +128,42 @@ describe('a loop (#628)', () => {
       );
     });
 
-  it('holds a section locked for as long as it is, and holds what the band carries', () => {
+  it('holds a section locked for as long as it is, and holds what the band plans', () => {
     const { played, carried } = run(4, 16 + 5 * SECTION_BARS + 3, repeatSection(8, null));
     for (const bar of range(played.length - 16).map((b) => b + 16))
       expect(sound(played[bar]!), `bar ${bar}`).toEqual(sound(played[8 + (bar % 8)]!));
-    expect(carried).toEqual({ ...run(4, 16).carried, nextBar: played.length });
+    const before = run(4, 16).carried;
+    for (const held of ['plans', 'history', 'parts', 'ear'] as const)
+      expect(carried[held], held).toEqual(before[held]);
+    // The bar decided next moves on with the clock, and the bars kept are the last played.
+    expect(carried.next).toEqual({ ...before.next!, bar: played.length });
+    expect(carried.nextBar).toBe(played.length);
+    expect(carried.kept.map((k) => k.decided.bar)).toEqual(
+      range(8).map((i) => played.length - 8 + i),
+    );
+  });
+
+  for (const stopAt of range(SECTION_BARS * 2).map((i) => 16 + i))
+    it(`ends a song at any bar inside a lock, bar ${stopAt}, and the band goes on from it in its place`, () => {
+      const loop = repeatSection(8, null);
+      const { carried } = run(3, stopAt, loop);
+      const finale = finaleBar(envAt(3, loop)(stopAt), carried);
+      expect(finale.bar.bar).toBe(stopAt);
+      // A forecast from the state it leaves still runs, the loop still standing or let go.
+      for (const after of [loop, undefined]) {
+        const ahead = lookAhead(finale.carried, (bar) => envAt(3, after)(bar), 12);
+        expect(ahead.map((b) => b.bar)).toEqual(range(12).map((i) => stopAt + 1 + i));
+      }
+    });
+
+  it('lets a lock go at any bar, the loop dropped mid-lap, and the band goes on in its place', () => {
+    for (const drop of range(SECTION_BARS * 2).map((i) => 16 + i)) {
+      const loop = repeatSection(8, null);
+      let { carried } = run(2, drop, loop);
+      for (let bar = drop; bar < drop + 12; bar++)
+        carried = band.advance(envAt(2)(bar), carried, null).carried;
+      expect(carried.nextBar, `dropped at bar ${drop}`).toBe(drop + 12);
+    }
   });
 
   it('looks ahead through a loop as it plays: the plans and chords decided are those that play', () => {
@@ -167,10 +180,13 @@ describe('a loop (#628)', () => {
     }
   });
 
-  it('passes a bar played again as it passes any, with nothing carried moved', () => {
+  it('passes a bar played again as it passes any, with nothing planned moved', () => {
     const loop = repeatSection(8, null);
     const { carried } = run(6, 18, loop);
-    expect(passBar(envAt(6, loop)(18), carried)).toEqual({ ...carried, nextBar: 19 });
+    const passed = passBar(envAt(6, loop)(18), carried);
+    for (const held of ['plans', 'history', 'parts', 'ear'] as const)
+      expect(passed[held], held).toEqual(carried[held]);
+    expect(passed.nextBar).toBe(19);
   });
 
   it('plays nothing again for a bar it passed, as nothing played there', () => {

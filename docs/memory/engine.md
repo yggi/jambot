@@ -30,10 +30,11 @@ The pointers to what holds each are in the sentences.
 - The band decides each bar when it composes the bar before: the section's plan at a section's first bar, and the bar's chords.
   So a part can lead into the next bar's chords (`BarEnv.next`), and they are what plays.
   A bar the clock has passed is passed (`passBar`), not composed.
-- A loop plays bars again (`replay.ts`, #628): a window of the bars the band kept (`BandCarried.kept`, the last `KEPT_BARS`, a section's), from a later bar, a number of laps or locked (`laps` null), read as a standing input at every bar (`BandEnv.loop`, `TransportEnv.loop`), so `lookAhead`, `forecast` and `foresight` play it as the band does.
-  A bar played again is the kept bar as it played, its number the clock's; what the song does meanwhile is the loop's `song`.
-  Held (a section repeated or locked, `repeatSection`), the band carries nothing on but the bar it plays next (`BandCarried.nextBar`), and where the loop ends the bar it had decided next plays, a repeat sign inserted (the owner's ruling on #626); a held loop plays a whole section, so the song keeps its grid of sections.
-  Running (the looper's 1, 2 or 4 bars, `barLoop`, #629), the band decides each bar beneath the loop as it does a bar the clock passed, its kept bars as they were, and where the loop ends it plays the bar the song has reached: a window off the grid of sections never moves the song off it.
+- A loop plays bars again (`replay.ts`, #628): the last bars the band played, from the next, a number of laps or locked (`laps` null), read as a standing input at every bar (`BandEnv.loop`, `TransportEnv.loop`), so `lookAhead`, `forecast` and `foresight` play it as the band does.
+  A bar in a loop plays the bar a lap before it as it was heard (`replayOf`), its number the clock's; the band keeps its last `KEPT_BARS` bars as heard (`BandCarried.kept`), a bar played again among them, so the bar it plays again is always kept, however long the loop runs.
+  What the song does meanwhile is the loop's `song`.
+  Held (a section repeated or locked, `repeatSection`), it plans nothing, and the bar it decided next moves on with the clock (`BandCarried.next`, `nextBar`), so wherever the loop lets go, at a lap's end, a song ended inside it, or a loop dropped mid-lap, that bar plays there and the band never loses its place; at a lap's end that is a repeat sign inserted (the owner's ruling on #626), and a held loop plays a whole section, so the song keeps its grid of sections.
+  Running (the looper's 1, 2 or 4 bars, `barLoop`, #629), the band decides each bar beneath the loop as it does a bar the clock passed, and where the loop ends it plays the bar the song has reached: a window off the grid of sections never moves the song off it.
   A song ended inside a loop closes in its lap's key.
   A bar the clock passed plays nothing again.
 - A song starts and ends in the engine (`ending.ts`, `transport.ts`).
