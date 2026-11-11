@@ -45,11 +45,12 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { type Operator, variations } from '@yggi/cells/engine/vary/index';
 import { tapWhole } from '@yggi/cells/engine/vary/lines';
 import { useOn } from '@yggi/cells/repository/fit';
-import type { Fragment } from '@yggi/cells/repository/fragments';
+import { createRepository, type Fragment, type StylePoint } from '@yggi/cells/repository/fragments';
 import { FORM_FRAGMENTS, MOTIF_FRAGMENTS } from './library.ts';
 import { LEAD_FACET, type LeadNote, type LeadRead, type LeadRepository } from './lead-query.ts';
 import type { LearnedLayer } from './layer.ts';
 import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';
+import { MISS_DISTANCE } from './meter-query.ts';
 import { compileTaken, takenOn } from './taken.ts';
 
 /**
@@ -246,7 +247,7 @@ export function leadRepository(
       // (a form over the seed's motifs the Muse filed isn't varied: varying inside a form is not ruled yet, #580 rung 4)
       varies: (text) => !formed(text),
     }),
-    phrase: (notes, meter) => phraseOf(notes, meter, LEAD_FORM),
+    phrase: (notes, meter, point) => phraseOf(notes, meter, point ? leadFormAt(point) : LEAD_FORM),
     keyed: (id, layer) => keyedLine(fragments, id, layer),
   };
 }
@@ -281,12 +282,33 @@ export const formed = (text: string): boolean => /^&\w+ from \w/m.test(text);
 export const LEAD_REPOSITORY: LeadRepository = leadRepository();
 
 /**
- * The form the lead plays a found line in (#520, rung 2): cells' `call_and_answer`, the call, then the call two degrees
- * down, the owner's ask (2026-10-29: "jambot should be able to do call and answer, like the electroswing example").
- * Named, not found: cells holds its four forms at the centre of style space and breaks the tie by id, so a query finds
- * AABA everywhere (yggi/cells#371); once each form has a point of its own, the lead asks for one.
+ * The form the lead plays a found line in where cells finds none near the style (#520, rung 2; #547 rung 4): cells'
+ * `call_and_answer`, the call, then the call two degrees down, the owner's ask (2026-10-29: "jambot should be able to do
+ * call and answer, like the electroswing example"). It is the miss's form: where a form lies within `MISS_DISTANCE`,
+ * the lead plays that one (`leadFormAt`).
  */
 export const LEAD_FORM: Fragment = FORM_FRAGMENTS.find((f) => f.id === 'call_and_answer')!;
+
+/** Cells' forms, as a query on the facet `form` ranks them. */
+const FORMS = createRepository(FORM_FRAGMENTS);
+
+/** Every form found, by the style's point: kept for the module's life, as a repository keeps its reads. */
+const formsAt = new Map<string, Fragment>();
+
+/**
+ * The form the lead plays a found line in at a style (#547 rung 4; the owner, 2026-11-09: "form follows idiom"): the
+ * form cells finds first at the style's point on the facet `form`, each placed where its idiom is (yggi/cells#371),
+ * such as AABA at Swing jazz and the ternary song at Kinderlied; `LEAD_FORM`, call and answer, where none lies within
+ * `MISS_DISTANCE`, as at Techno.
+ */
+export function leadFormAt(point: StylePoint): Fragment {
+  const key = JSON.stringify(point);
+  if (!formsAt.has(key)) {
+    const [first] = FORMS.query(point, 1, {}, { facet: 'form' });
+    formsAt.set(key, first && first.distance <= MISS_DISTANCE ? first.fragment : LEAD_FORM);
+  }
+  return formsAt.get(key)!;
+}
 
 /** A form's head, the line it plays, where its signature has a main parameter, the line it moves and answers: `&phrase` for the call and its answer (`&phrase from (&answer) &call`). */
 function formHead(form: Fragment): string | null {

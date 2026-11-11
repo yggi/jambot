@@ -8,8 +8,9 @@
  * Muse hears one (U4), its notes' onsets and degrees, each altered where it
  * is off the key. The band reads one into its notes over the bar
  * (`LeadNote`: a step, a degree and an accidental), and the lead plays them
- * as the bars of its phrase (`leadPhrase`): in cells' call and answer where
- * the repository can play it there (#520, rung 2), else the line alone
+ * as the bars of its phrase (`leadPhrase`): in the form cells finds at the
+ * style's point, call and answer on a miss, where the repository can play it
+ * there (#520, rung 2; #547 rung 4), else the line alone
  * (`leadMotif`); realized as it realizes the Muse's: the call's first note
  * where its phrase starts, each held to the next, in the key's own degrees,
  * as heard (`lead.ts`).
@@ -32,6 +33,7 @@ import {
   type Varied,
   nearestFigure,
 } from './facet.ts';
+import type { StylePoint } from '@yggi/cells/repository/fragments';
 import type { LearnedLayer } from './layer.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
 import { FORM_BARS } from './muse-lead.ts';
@@ -71,10 +73,15 @@ export type LeadVariation = Varied<LeadContent>;
 /** A repository of lead lines the composer asks (#424): the loop's repository for the facet `lead` (`facet.ts`). */
 export type LeadRepository = FacetRepository<LeadRead, LeadContent> & {
   /**
-   * A line's notes played in the lead's form (#520, rung 2): the phrase's bars, each note a degree from the line's
-   * first; null where the line can't be played in it, and none where the repository knows no forms.
+   * A line's notes played in the lead's form (#520, rung 2), the form found at the style's point where one is given
+   * (#547 rung 4): the phrase's bars, each note a degree from the line's first; null where the line can't be played in
+   * it, and none where the repository knows no forms.
    */
-  readonly phrase?: (notes: readonly LeadNote[], meter: Meter) => LeadRead | null;
+  readonly phrase?: (
+    notes: readonly LeadNote[],
+    meter: Meter,
+    point?: StylePoint,
+  ) => LeadRead | null;
   /**
    * Whether a line keeps its degrees of the key as written (#529): cells' motifs, and the composer's variations of
    * them, which the lead plays from their own degree; not a line the Muse filed, heard from its first note. None
@@ -149,8 +156,8 @@ function motifOf(bar: readonly LeadNote[], steps: number): Motif {
 }
 
 /**
- * A lead line as the bars of its phrase (#520, rung 2): played in the repository's form (`call_and_answer`: the call,
- * then its answer two degrees down), a motif a bar, each note a degree from the line's
+ * A lead line as the bars of its phrase (#520, rung 2): played in the repository's form, the one found at the style
+ * where it is given (#547 rung 4; `call_and_answer` on a miss: the call, then its answer two degrees down), a motif a bar, each note a degree from the line's
  * first, so the answer keeps its place below the call; the line alone, one bar, where it can't be played in a form;
  * none with no line, or one that can't be read.
  */
@@ -160,6 +167,7 @@ export function leadPhrase(
   meter: Meter,
   steps: number,
   layer?: LearnedLayer,
+  style?: QueriedStyle,
 ): readonly Motif[] | null {
   const read = id === undefined ? null : repository.read(id, meter, layer);
   if (!read || !read.notes.length || read.bars > FORM_BARS) return null;
@@ -173,7 +181,7 @@ export function leadPhrase(
         steps,
       ),
     );
-  const formed = repository.phrase?.(read.notes, meter);
+  const formed = repository.phrase?.(read.notes, meter, style && stylePoint(style));
   if (!formed || formed.bars < 2) return [motifOf(read.notes, steps)];
   return Array.from({ length: formed.bars }, (_, k) =>
     motifOf(

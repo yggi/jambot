@@ -575,6 +575,7 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
           bar.meter,
           stepsOf(bar.meter),
           after.plans.layer ?? undefined,
+          bar.style,
         )
       : null;
     const keyed =
