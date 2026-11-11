@@ -12,7 +12,7 @@
  *   its text, the point it was filed at, its tags and what it varies, and how. Only a
  *   host or a band alone keeps a layer.
  * - **Muse**: what she collected: the players' grooves she filed, and the
- *   motifs she remembers, which are not cells fragments yet (#309) and take a
+ *   motifs she remembers, which are not cells fragments yet (#547, #580) and take a
  *   row of their own.
  *
  * What the composer has in mind (its short-term memory, `short-term.ts`) is
