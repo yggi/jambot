@@ -2,8 +2,9 @@
  * Meter: how a bar's pulses group its eighths, as a helix.
  *
  * A meter is a `Helix` whose cycle is the bar's length in eighths, the one
- * unit that makes every meter here comparable (6 for 3/4, 8 for 4/4, 10 for
- * 5/4, 5 for 5/8, 6 for 6/8, and so on), and whose heights are where its pulses start,
+ * unit that makes every meter here comparable (4 for 2/4, 6 for 3/4, 8 for
+ * 4/4 and for 2/2, 10 for 5/4, 5 for 5/8, 6 for 6/8, and so on), and whose
+ * heights are where its pulses start,
  * the downbeat at 0. It is the same object as a scale over the chromatic
  * circle or a rhythm over a bar's steps, so every tool the helix has applies
  * unchanged: `gaps` gives each pulse's length in eighths, `mode` another
@@ -12,8 +13,9 @@
  * way").
  *
  * Every named meter is maximally even, `even(pulses, eighths)`, and one
- * formula covers three named cases: a *simple* meter (3/4, 4/4) divides
- * evenly into 2 eighths a pulse, a *compound* one (6/8, 12/8) into 3, and an
+ * formula covers four named cases: a *simple* meter (2/4, 3/4, 4/4) divides
+ * evenly into 2 eighths a pulse, *alla breve* (2/2) into 4, a *compound* one
+ * (6/8, 12/8) into 3, and an
  * *additive* one, whose pulses aren't equal (5/8 as 3+2, 7/8 as 3+2+2,
  * 10/8 as 3+2+3+2, as cells' repository writes it, yggi/cells#97), is
  * what `even` gives when the pulses don't divide the eighths at all: the
@@ -28,14 +30,27 @@
  * `even`: ten eighths as 3+3+2+2 has the pulse lengths `even(4, 10)` gives,
  * but not their cyclic order (`even` alternates them, 3+2+3+2). Of the 149
  * groupings of up to 16 eighths into 2s and 3s, 79 are modes of `even`
- * (`meter.test.ts`, T6). A meter outside that reach is given by its
+ * (`meter.test.ts`, T6). Alla breve's pulses of 4 eighths fall outside that
+ * rule and are still `even`'s, as cells' meter fragment writes 2/2
+ * (`meter("2/2", 2)`). A meter outside `even`'s reach is given by its
  * heights, as the son clave is among the rhythms; none here needs one.
  */
 
 import { even } from './even.ts';
 import { type Helix, compose } from './helix.ts';
 
-export type MeterName = '3/4' | '4/4' | '5/4' | '5/8' | '6/8' | '7/8' | '9/8' | '10/8' | '12/8';
+export type MeterName =
+  | '2/4'
+  | '3/4'
+  | '4/4'
+  | '2/2'
+  | '5/4'
+  | '5/8'
+  | '6/8'
+  | '7/8'
+  | '9/8'
+  | '10/8'
+  | '12/8';
 
 /**
  * A meter: its pulses (the heights, the downbeat at 0) over its bar's
@@ -44,8 +59,10 @@ export type MeterName = '3/4' | '4/4' | '5/4' | '5/8' | '6/8' | '7/8' | '9/8' | 
 export type Meter = Helix;
 
 export const METERS: Record<MeterName, Meter> = {
+  '2/4': even(2, 4),
   '3/4': even(3, 6),
   '4/4': even(4, 8),
+  '2/2': even(2, 8), // alla breve: two half notes, each of 4 eighths
   '5/4': even(5, 10),
   '5/8': even(2, 5), // 3+2
   '6/8': even(2, 6),

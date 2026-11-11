@@ -55,26 +55,17 @@ const groupsOf = ({ cycle, heights }: Meter) =>
 /** A vector's grades an eighth at a time, spaced, as `accentLine` writes them. */
 const byEighth = (v: Vector) => [...v.grades].filter((_, s) => s % 2 === 0).join(' ');
 
-/** Whether a grouping is of 2s and 3s alone: a meter Jambot can be (T6: every pulse spans 2 or 3 eighths). */
-const ofTwosAndThrees = (groups: readonly number[]) => groups.every((g) => g === 2 || g === 3);
-
 /**
- * The groupings Jambot doesn't meet, by why: a group of 4 or 6 eighths (version 2) is two or three quarters, which
- * the contract grades with a tier of its own inside the group. Jambot's meters group eighths in 2s and 3s only (T6,
- * `meter.ts`), so `accentsOf` has no such tier, and no preset or meter query plays such a meter.
+ * The groupings Jambot doesn't meet, by why: a grading five tiers deep, which the contract marks `:` and
+ * `accentsOf` can't, having four (`ACCENT_GRADES`). Seven pulses need it (`2+2+2+2+2+2+2`, halved 4+3 and again),
+ * and so do the quarters inside a group of 4 or 6 where the bar's pulses already reach the third tier (`2+2+2+4`).
+ * No meter Jambot names (`MeterName`) is one of them: the deepest it names, 5/4, 10/8 and 12/8, grade in four.
  */
-const RECORDED_GROUPING =
-  'a group of 4 or 6 eighths: Jambot groups eighths in 2s and 3s (T6), so its accents have no tier for the quarters inside one';
+const RECORDED_DEEP =
+  'a grading five tiers deep (the contract marks it `:`), and accentsOf grades four: no meter Jambot names needs it';
 
-/**
- * A grouping of 2s and 3s deep enough for a fifth tier: seven groups, halved 4+3, the four halved again and each two
- * flat, so the contract marks those groups' starts `:`. `accentsOf` grades four tiers (`ACCENT_GRADES`), enough for
- * every meter Jambot names (at most five pulses), and gives them `.`; seven pulses is 7/4, a meter Jambot doesn't name.
- */
-const RECORDED_DEEP: Readonly<Record<string, string>> = {
-  '2+2+2+2+2+2+2':
-    'seven pulses need a fifth tier, and accentsOf grades four: 7/4, which Jambot does not name',
-};
+/** Whether a vector's grades reach the fifth tier, `:`. */
+const fifthTier = (v: Vector) => v.grades.includes(':');
 
 /** The names Jambot doesn't have, by why: a meter it doesn't name (`MeterName`) is one no preset or meter query plays. */
 const RECORDED_NAME = 'not a meter Jambot names (`MeterName`): no preset or meter query plays it';
@@ -88,15 +79,10 @@ describe('the meter contract (yggi/music-commons contracts/meter, version 2)', (
     expect(contract.vectors).toHaveLength(149);
   });
 
-  it('accentsOf grades every eighth of every grouping of 2s and 3s as the contract does', () => {
-    const met = contract.vectors.filter((v) => ofTwosAndThrees(v.groups));
-    expect(met).toHaveLength(52);
-    for (const v of met) {
-      const grades = accentLine(meterOf(v.groups));
-      if (v.groups.join('+') in RECORDED_DEEP)
-        expect(grades, v.groups.join('+')).not.toBe(byEighth(v));
-      else expect(grades, v.groups.join('+')).toBe(byEighth(v));
-    }
+  it('accentsOf grades every eighth of every grouping as the contract does, the quarters inside a group of 4 or 6 included', () => {
+    const met = contract.vectors.filter((v) => !fifthTier(v));
+    expect(met).toHaveLength(103);
+    for (const v of met) expect(accentLine(meterOf(v.groups)), v.groups.join('+')).toBe(byEighth(v));
   });
 
   it('…and a step between two eighths is the finest grade, below every one accentsOf gives', () => {
@@ -109,12 +95,14 @@ describe('the meter contract (yggi/music-commons contracts/meter, version 2)', (
     }
   });
 
-  it(`a grouping with a 4 or a 6 is recorded (${RECORDED_GROUPING}), and still differs`, () => {
-    const recorded = contract.vectors.filter((v) => !ofTwosAndThrees(v.groups));
-    expect(recorded).toHaveLength(97);
-    // (a record that has gone stale fails: each still grades otherwise, the quarters inside its group unmarked)
+  it(`a grouping five tiers deep is recorded (${RECORDED_DEEP}), and still differs`, () => {
+    const recorded = contract.vectors.filter(fifthTier);
+    expect(recorded).toHaveLength(46);
+    // (a record that has gone stale fails: each still grades otherwise, its fifth tier a leaf)
     for (const v of recorded)
       expect(accentLine(meterOf(v.groups)), v.groups.join('+')).not.toBe(byEighth(v));
+    for (const name of Object.keys(METERS) as MeterName[])
+      expect([name, recorded.some((v) => v.groups.join() === groupsOf(METERS[name]).join())]).toEqual([name, false]);
   });
 
   it(`every name Jambot has is the grouping the contract names; the others are recorded (${RECORDED_NAME})`, () => {
@@ -124,12 +112,10 @@ describe('the meter contract (yggi/music-commons contracts/meter, version 2)', (
     }
     expect(Object.keys(METERS).filter((name) => !(name in contract.names))).toEqual([]);
     expect(Object.keys(contract.names).filter((name) => !(name in METERS))).toEqual([
-      '2/4',
       '6/4',
       '7/4',
       '9/4',
       '12/4',
-      '2/2',
       '3/2',
       '4/2',
       '2/8',
