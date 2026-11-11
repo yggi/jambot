@@ -537,7 +537,7 @@ run; the others have.
 - **E26. One voice of the band read alone** (#15 step 4, N3), in
   [`packages/engine/experiments/voice-reading.ts`](../packages/engine/experiments/voice-reading.ts),
   held by [`packages/engine/experiments/voice-reading.test.ts`](../packages/engine/experiments/voice-reading.test.ts):
-  `readVoice` (`packages/engine/src/part-reading.ts`) reads the drums, the bass, the comp (pad and stab together) and the lead each from its own notes: its density (its share of the 16 steps), its `sync`, the `artic` of the bass and lead, and the `harm` of the comp.
+  `readVoice` (`packages/engine/src/part-reading.ts`) reads the drums, the bass, the comp (pad and stab together) and the lead each from its own notes: its density (its share of the 16 steps), its `sync`, the `bite` of the bass and lead (the style's `artic`), and the `harm` of the comp.
   The distance of a voice from a landmark is a root mean square over the axes both have.
   The presets held, 5 seeds of 32 bars each, against landmarks that are where each voice reads at each preset (5 other seeds).
   - Every voice says something of the style by itself: the nearest of the eight landmarks, for that voice alone, is the preset that wrote the bar in 0.61 of the bass's bars, 0.49 of the comp's, 0.40 of the lead's and 0.29 of the drums' (chance 0.125).
