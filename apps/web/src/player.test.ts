@@ -1360,8 +1360,8 @@ describe('the loop (#628)', () => {
     const { player, bars, sections, run } = await playing();
     run(OPENING + 1.3 * SECTION);
     expect(player.hud.bar?.bar).toBeGreaterThanOrEqual(SECTION_BARS);
-    player.tapLoop();
-    expect(player.looping).toBe('repeat');
+    player.askSection('repeat');
+    expect(player.loopMenu.state).toBe('repeat');
     expect(player.loop).toEqual(repeatSection(SECTION_BARS, 1));
     const walked = player.station!.walked;
     run(SECTION);
@@ -1369,7 +1369,7 @@ describe('the loop (#628)', () => {
     expect(player.station!.walked).toBe(walked);
     run(1.2 * SECTION);
     expect(player.station!.walked).toBe(walked + 1);
-    expect(player.looping).toBe('off');
+    expect(player.loopMenu.state).toBe('off');
     expect(player.loop).toBeNull();
     const at = (bar: number) => bars.find((b) => b.bar === bar)!;
     for (const i of range(SECTION_BARS)) expect(sound(at(16 + i))).toEqual(sound(at(8 + i)));
@@ -1380,23 +1380,23 @@ describe('the loop (#628)', () => {
     expect(textAt(16).text).toBe(textAt(8).text);
   });
 
-  it('locks a section on a second tap, for as long as it is locked, and lets it go at the end of its lap on a third', async () => {
+  it('locks a section a repeat was asked for, for as long as it is locked, and lets it go at the end of its lap when asked again', async () => {
     const { player, bars, run } = await playing();
     run(OPENING + 1.3 * SECTION);
-    player.tapLoop();
-    player.tapLoop();
-    expect(player.looping).toBe('locked');
+    player.askSection('repeat');
+    player.askSection('lock');
+    expect(player.loopMenu.state).toBe('locked');
     const walked = player.station!.walked;
     run(3.5 * SECTION);
-    expect(player.looping).toBe('locked');
+    expect(player.loopMenu.state).toBe('locked');
     expect(player.station!.walked).toBe(walked);
-    player.tapLoop();
-    expect(player.looping).toBe('repeat');
+    player.askSection('lock');
+    expect(player.loopMenu.state).toBe('repeat');
     const end = loopEnd(player.loop!)!;
     expect(end % SECTION_BARS).toBe(0);
     expect(end).toBeGreaterThanOrEqual(40);
     run(1.2 * SECTION);
-    expect(player.looping).toBe('off');
+    expect(player.loopMenu.state).toBe('off');
     const at = (bar: number) => bars.find((b) => b.bar === bar)!;
     for (let bar = 16; bar < end; bar++)
       expect(sound(at(bar)), `bar ${bar}`).toEqual(sound(at(8 + (bar % 8))));
@@ -1428,7 +1428,7 @@ describe('the loop (#628)', () => {
           world.frames.at(-1)!.follow();
           if (t < tap) continue;
           const kind = draw();
-          if (kind < 0.6) player.tapLoop();
+          if (kind < 0.6) player.askSection(draw() < 0.5 ? 'repeat' : 'lock');
           else if (kind < 0.85) player.tapBars(BAR_LOOPS[Math.floor(draw() * BAR_LOOPS.length)]!);
           else if (kind < 0.9) world.currentTime += draw() * 3 * bar;
           else if (kind < 0.95) player.stop();
@@ -1438,7 +1438,7 @@ describe('the loop (#628)', () => {
             await settle();
           }
           did.push(
-            `${t.toFixed(2)} s: ${kind < 0.6 ? player.looping : kind < 0.85 ? `${player.loopedBars} bars` : kind < 0.9 ? 'stall' : kind < 0.95 ? 'stop' : 'start'}`,
+            `${t.toFixed(2)} s: ${kind < 0.6 ? player.loopMenu.state : kind < 0.85 ? `${player.loopMenu.bars} bars` : kind < 0.9 ? 'stall' : kind < 0.95 ? 'stop' : 'start'}`,
           );
           tap = t + draw() * 4 * bar;
         }
@@ -1452,8 +1452,8 @@ describe('the loop (#628)', () => {
     const { player, bars, run } = await playing();
     run(OPENING + 1.3 * SECTION);
     player.tapBars(2);
-    expect(player.loopedBars).toBe(2);
-    expect(player.looping).toBe('off');
+    expect(player.loopMenu.bars).toBe(2);
+    expect(player.loopMenu.state).toBe('off');
     const loop = player.loop!;
     expect(loop.song).toBe('runs');
     const walked = player.station!.walked;
@@ -1462,7 +1462,7 @@ describe('the loop (#628)', () => {
     player.tapBars(2);
     const end = loopEnd(player.loop!)!;
     run(SECTION);
-    expect(player.loopedBars).toBeNull();
+    expect(player.loopMenu.bars).toBeNull();
     expect(player.loop).toBeNull();
     const at = (bar: number) => bars.find((b) => b.bar === bar)!;
     for (let bar = loop.at; bar < end; bar++)
@@ -1473,9 +1473,9 @@ describe('the loop (#628)', () => {
 
   it('does nothing for a band not playing', () => {
     const player = new Player(surroundings().s);
-    player.tapLoop();
+    player.askSection('repeat');
     expect(player.loop).toBeNull();
-    expect(player.looping).toBe('off');
+    expect(player.loopMenu.state).toBe('off');
   });
 });
 

@@ -765,6 +765,7 @@ test('the loop button repeats the section heard, bar for bar, every note written
   expect(await lastBar()).toBeLessThan(14);
   const loop = page.getByRole('button', { name: 'Loop', exact: true });
   await loop.click();
+  await page.getByRole('button', { name: 'Repeat once' }).click();
   await expect(loop).toHaveText('repeat');
   await expect.poll(lastBar, { timeout: 40_000 }).toBeGreaterThanOrEqual(24);
   await expect(loop).toHaveText('loop');
@@ -805,13 +806,17 @@ test('the looper plays the last 2 bars again, every note and onset as they fell,
   const events = () => page.evaluate(() => window.jambot!.played().events);
   const lastBar = async () => Math.max(-1, ...(await events()).map((e) => e.bar));
   await expect.poll(lastBar, { timeout: 30_000 }).toBeGreaterThanOrEqual(5);
+  const loop = page.getByRole('button', { name: 'Loop', exact: true });
   const two = page.getByRole('button', { name: 'Loop the last 2 bars' });
+  await loop.click();
   await two.click();
-  await expect(two).toHaveAttribute('aria-pressed', 'true');
+  await expect(loop).toHaveText('2 bars');
   const tapped = await lastBar();
   await expect.poll(lastBar, { timeout: 40_000 }).toBeGreaterThanOrEqual(tapped + 10);
+  await loop.click();
+  await expect(two).toHaveAttribute('aria-pressed', 'true');
   await two.click();
-  await expect(two).toHaveAttribute('aria-pressed', 'false', { timeout: 15_000 });
+  await expect(loop).toHaveText('loop', { timeout: 15_000 });
   const played = await events();
   // The window is the two bars before the first bar played again: find it by the first bar whose notes repeat two bars on, every two bars after.
   const barOf = (bar: number) =>
