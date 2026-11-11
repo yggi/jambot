@@ -52,15 +52,17 @@ beforeAll(() => {
 
 describe('the Muse files the drummer’s grooves while the radio walks (E38, #401)', () => {
   // (since cells v0.24.0, whose seven new drum bars the drummer holds lie along the walk: 249 grooves, 46 and 203, the
-  // misses 2,455 to 46, over 26,604 sections, 14,109 of them a groove filed, before)
-  it('files 242 grooves in 120 hours, 35 the drummer’s on a miss and 207 the composer’s variations (#411, #414), and the misses fall from 1,679 sections to 35: what was filed is found again', () => {
+  // misses 2,455 to 46, over 26,604 sections, 14,109 of them a groove filed, before; and with 2/4 and 2/2 among the
+  // band's meters, #652, where 877 sections learning play 2/4, which lasts half a 4/4, and 65 play 2/2: 242 grooves,
+  // 207 the composer's, over 26,501 sections, 12,804 of them a groove filed, before)
+  it('files 244 grooves in 120 hours, 35 the drummer’s on a miss and 209 the composer’s variations (#411, #414), and the misses fall from 1,679 sections to 35: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
-    expect(count(LEARNED, (r) => r.sections)).toBe(26501);
+    expect(count(LEARNED, (r) => r.sections)).toBe(26986);
     expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([35, 1679]);
-    expect(FILINGS.length).toBe(242);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([35, 207]);
+    expect(FILINGS.length).toBe(244);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([35, 209]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(12804);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(12851);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -93,14 +95,15 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −17.3 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −17.4 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
-    // (0.8738 to 0.6987, −17.51 (1.95), before cells v0.24.0)
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8383', '0.6656']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-17.28', '1.80']);
+    // (0.8738 to 0.6987, −17.51 (1.95), before cells v0.24.0; 0.8383 to 0.6656, −17.28 (1.80), before 2/4 and 2/2 were
+    // among the band's meters, #652)
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8357', '0.6617']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-17.40', '1.79']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
