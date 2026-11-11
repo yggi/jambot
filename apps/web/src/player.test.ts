@@ -1404,6 +1404,49 @@ describe('the loop (#628)', () => {
     expect(player.station!.walked).toBeGreaterThan(walked);
   });
 
+  it('plays on through taps at any moment, stalls, and a stop inside a loop: the band never loses its place', async () => {
+    const bar = SECTION / SECTION_BARS;
+    const broken: string[] = [];
+    for (let trial = 0; trial < 40; trial++) {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      player.hosting = told().hosting;
+      void player.start();
+      world.resolve();
+      await settle();
+      if (trial % 2) player.tuneRadio(true);
+      // A walk of its own a trial, so a failure names the taps that broke it.
+      let r = trial * 7919 + 13;
+      const draw = () => (r = (r * 48271) % 2147483647) / 2147483647;
+      const did: string[] = [];
+      try {
+        let tap = 2 * bar + draw() * 6 * bar;
+        for (let t = 0; t < 30 * bar; t += 0.025) {
+          world.currentTime += 0.025;
+          world.tickers.at(-1)!.tick();
+          world.frames.at(-1)!.follow();
+          if (t < tap) continue;
+          const kind = draw();
+          if (kind < 0.85) player.tapLoop();
+          else if (kind < 0.9) world.currentTime += draw() * 3 * bar;
+          else if (kind < 0.95) player.stop();
+          else if (player.status === 'stopped') {
+            void player.start();
+            world.resolve();
+            await settle();
+          }
+          did.push(
+            `${t.toFixed(2)} s: ${kind < 0.85 ? player.looping : kind < 0.9 ? 'stall' : kind < 0.95 ? 'stop' : 'start'}`,
+          );
+          tap = t + draw() * 4 * bar;
+        }
+      } catch (e) {
+        broken.push(`trial ${trial}: ${(e as Error).message} after ${did.join(', ')}`);
+      }
+    }
+    expect(broken).toEqual([]);
+  }, 120_000);
+
   it('does nothing for a band not playing', () => {
     const player = new Player(surroundings().s);
     player.tapLoop();

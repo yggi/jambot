@@ -30,7 +30,8 @@ describe('the loop button (#628)', () => {
     const ending = tapped(locked, 34, 35)!;
     expect(loopEnd(ending)).toBe(40);
     expect(loopState(ending, 35)).toBe('repeat');
-    expect(replayOf(ending, 39)).toBe(15);
+    // Bar 39 plays the bar a lap before it, 31, itself bar 15 played again.
+    expect(replayOf(ending, 39)).toBe(31);
     expect(replayOf(ending, 40)).toBeNull();
   });
 

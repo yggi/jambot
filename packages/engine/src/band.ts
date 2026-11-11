@@ -211,7 +211,7 @@ export interface BandCarried {
   readonly parts: PartsCarried;
   /** What the Muse has heard played in the section playing (#401, #423); null before a bar is heard, or with nothing to file in. */
   readonly ear: Ear | null;
-  /** The last bars the band decided, `KEPT_BARS` of them, to play again in a loop (#628). */
+  /** The last bars the band decided, `KEPT_BARS` of them, a bar played again among them as heard, to play again in a loop (#628). */
   readonly kept: readonly KeptBar[];
   /** The bar the band plays next on the song's clock: the bar decided next's, except where a loop put that bar off (#628). */
   readonly nextBar: number;
@@ -432,10 +432,11 @@ const read = (env: BandEnv): BandEnv => ({ ...env, style: writtenStyle(env.style
 
 /**
  * The bar to play now, the plans as of it, and the carried state with the
- * bar after it decided. In a loop (`env.loop`) it is a bar kept, played
- * again, and the carried state is as it was (`replayed`); where the loop
- * ends, the bar the band decided next is played there, a repeat sign
- * inserted (#628). With `replay` false, as for the song's last bar, the
+ * bar after it decided. In a loop (`env.loop`) it is the bar a lap before,
+ * as heard, played again (`replayed`): the plans are as they were, the bar
+ * decided next moves on with the clock, and the bar played again is kept as
+ * heard, so the next lap finds it; where the loop lets go, the bar decided
+ * next is played there, a repeat sign inserted (#628). With `replay` false, as for the song's last bar, the
  * loop plays nothing again.
  */
 function step(
@@ -445,24 +446,29 @@ function step(
 ): { here: DecidedBar; at: PlanCarried; carried: BandCarried; replayed?: KeptBar } {
   const again = replay ? replayOf(env.loop, env.bar) : null;
   const kept = again === null ? undefined : carried.kept.find((k) => k.decided.bar === again);
-  if (kept)
+  if (kept) {
+    const here = { ...kept.decided, bar: env.bar };
+    const played = kept.played && { ...kept.played, bar: env.bar };
     return {
-      here: { ...kept.decided, bar: env.bar },
+      here,
       at: kept.plans,
-      carried: { ...carried, nextBar: env.bar + 1 },
+      carried: {
+        ...carried,
+        // The bar decided next moves on with the clock: wherever the loop lets go, it plays there.
+        next: carried.next && { ...carried.next, bar: env.bar + 1 },
+        kept: [...carried.kept, { decided: here, plans: kept.plans, played }].slice(-KEPT_BARS),
+        nextBar: env.bar + 1,
+      },
       replayed: kept,
     };
+  }
   let { plans, history } = carried;
   let here = carried.next;
   if (!here) {
     if (env.bar !== 0) throw new Error(`band: bar ${env.bar}, but the song starts at bar 0`);
     ({ plans, decided: here, history } = decide(env, 0, plans, history));
-  } else if (here.bar !== env.bar) {
-    // The bar the loop put off plays where the loop let go of it.
-    if (env.loop && here.bar === env.loop.at && env.bar > here.bar)
-      here = { ...here, bar: env.bar };
-    else throw new Error(`band: bar ${env.bar}, but the band decided bar ${here.bar} next`);
-  }
+  } else if (here.bar !== env.bar)
+    throw new Error(`band: bar ${env.bar}, but the band decided bar ${here.bar} next`);
   // The bar is heard before the next is decided, so a section's last bar joins what is filed at its end.
   const ear = heard(env, here, plans, carried.ear);
   const after = decide(env, env.bar + 1, plans, history, ear);
