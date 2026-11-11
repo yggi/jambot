@@ -191,9 +191,9 @@ describe('the session contract (yggi/music-commons contracts/session-v1, version
       /^Lifted from yggi\/music-commons contracts\/session-v1\/vectors\.json @ [0-9a-f]{7,40}$/,
     );
     expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 8]);
-    // (Jambot speaks minor 9, protocol 22, since cells v0.23.0: the style's mood, a shape the hub records at its next
-    // lift; minor 8's vectors still hold, a minor only adding)
-    expect([contract.protocol + 1, contract.firstProtocol]).toEqual([PROTOCOL, FIRST_PROTOCOL]);
+    // (Jambot speaks minor 10, protocol 23: minor 9 since cells v0.23.0, the style's mood, a shape the hub records at
+    // its next lift, and minor 10 a drum hit's role `ostinato`, #651; minor 8's vectors still hold, a minor only adding)
+    expect([contract.protocol + 2, contract.firstProtocol]).toEqual([PROTOCOL, FIRST_PROTOCOL]);
     expect(new Set(names).size).toBe(names.length);
     expect(strays(names, Object.keys(RECORDED))).toEqual([]);
     expect(names).toHaveLength(356);

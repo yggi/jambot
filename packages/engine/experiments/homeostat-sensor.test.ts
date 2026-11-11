@@ -87,7 +87,8 @@ describe('the share of bars recognised over 8 bars, over the 8 presets at entrop
   it('sits below the ruled band over all members, held and walked: 60 % of sections or more under 0.4 (80 of 128 held)', () => {
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
     expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.309, 0.185, 0.391, 0.063]);
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.291, 0.177, 0.34, 0.061]);
+    // (the walk's spread 0.177 before #651 held Salsa drums)
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.291, 0.176, 0.34, 0.061]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeLessThan(BAND.low);

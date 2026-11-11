@@ -97,6 +97,25 @@ describe('cells’ events as the performer plays them (#552)', () => {
     expect(loose / notes).toBeGreaterThan(0.5);
   });
 
+  it('plays a fragment’s ostinato as the band’s own performer plays it, a finite velocity, though cells’ feel weighs no such role yet (#651, until yggi/cells#717)', () => {
+    let hits = 0;
+    for (const b of bars.slice(0, 96))
+      for (const step of range(stepsOf(b.meter))) {
+        const w: WrittenNote = { part: 'drums', role: 'ostinato', step, note: 45, length: 1 };
+        const s = stated(b, w);
+        const own = perform(b, w);
+        const played = performCells(b, s);
+        expect(Number.isFinite(played.velocity)).toBe(true);
+        expect([played.velocity, played.length, played.role]).toEqual([
+          own.velocity,
+          own.length,
+          'ostinato',
+        ]);
+        hits++;
+      }
+    expect(hits).toBeGreaterThan(1000);
+  });
+
   it('carries a stated note’s voice sound onto what it plays, in place of nothing else, and none where none is stated (#497)', () => {
     const sound = { wave: 'square', lpf: 2400, bends: [{ at: 0.02, cents: 12 }] } as const;
     for (const b of bars.slice(0, 48))

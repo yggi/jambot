@@ -8,7 +8,10 @@ import {
   presetMode,
   type BandBar,
   type BandCarried,
+  METER_REPOSITORY,
   PRESETS,
+  RHYTHM_REPOSITORY,
+  TOM_NOTES,
   SECTION_BARS,
   LEAD_LEVEL,
   type MeterSwing,
@@ -48,8 +51,11 @@ import {
   writtenNotes,
 } from './section-text.ts';
 
-/** A preset's first section, as the band composes it at entropy 0.3, seed 1, in its meter or the one asked for. */
-function section(name: string, meter?: MeterName): BandBar[] {
+/**
+ * A preset's first section, as the band composes it at entropy 0.3, seed 1, in its meter or the one asked for; its drums
+ * from the repository's rhythm where `found` asks for it, the meter the repository's.
+ */
+function section(name: string, meter?: MeterName, found = false): BandBar[] {
   const preset = PRESETS.find((p) => p.name === name)!;
   let carried: BandCarried = band.initial;
   return Array.from({ length: SECTION_BARS }, (_, bar) => {
@@ -61,6 +67,7 @@ function section(name: string, meter?: MeterName): BandBar[] {
         wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         swing: presetSwing(preset)!,
         ...(meter && { meter: METERS[meter] }),
+        ...(found && { repository: METER_REPOSITORY, rhythms: RHYTHM_REPOSITORY }),
         offer: null,
       },
       carried,
@@ -203,6 +210,33 @@ describe('a section as one cells text, for the app (#399)', () => {
       expect(sent.filter((o) => read(o.id) === null).map((o) => o.id)).toEqual([]);
     },
   );
+
+  it('writes a found ostinato as a drum line of its role, which cells reads none of until it knows the role, so it plays by its line’s name, as the band writes it (#651, yggi/cells#717)', () => {
+    const bars = section('Salsa', undefined, true);
+    expect(bars[0]!.plan.rhythmFragment).toBe('salsa_drums');
+    const text = sectionTextOf(sectionAsCells(bars));
+    expect(text).toMatch(/^&ostinato role=ostinato step=16n /m);
+    // (its bar a cell of its own, played every bar: the tumbao on the mid, high and low toms)
+    expect(text).toMatch(/^&ostinatoA (?=.*&mt)(?=.*&ht)(?=.*&lt)/m);
+    const { result } = compileSection(text);
+    expect(result.diagnostics).toEqual([]);
+    const toms = result.outputs.filter((o) => o.id.startsWith('kit:voices:ostinato:'));
+    expect(toms.length).toBeGreaterThan(0);
+    // (cells v0.24.0's roles are eight, `ostinato` none of them: its reader reads none, and the line's name gives it)
+    const read = readerOf(result);
+    expect(toms.filter((o) => read(o.id) !== null)).toEqual([]);
+    for (const o of toms) expect(lineOf(o.id, result)).toEqual({ line: 'drums', role: 'ostinato' });
+    const played = playSection(text, bars);
+    expect(played.diagnostics).toEqual([]);
+    const tomNotes = new Set<number>(Object.values(TOM_NOTES));
+    for (const [i, bar] of bars.entries()) {
+      const p = played.bars[i]!;
+      expect(mismatches(writtenNotes(bar), p.notes), `bar ${i}`).toEqual([]);
+      const ostinato = p.notes.filter((_, j) => p.roles[j] === 'ostinato');
+      expect(ostinato.length, `bar ${i}`).toBe(8);
+      for (const n of ostinato) expect(tomNotes.has(n.note)).toBe(true);
+    }
+  });
 
   it.each(['Swing jazz', 'Synth-pop', 'Bossa nova'])(
     'plays %s’s section back with each note’s line and role as the band writes them, its onset where the swing puts its step, and its end past it',

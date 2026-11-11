@@ -4,13 +4,22 @@
  * filtered noise. These are the prototype's voices; the claves (75, #397)
  * are noise too, a narrow band, short and woody, and so is the clap (39,
  * #508): three bursts of band-passed noise a few milliseconds apart, the
- * hands not quite together, then a short tail.
+ * hands not quite together, then a short tail. The toms (41, 45 and 48), which
+ * a fragment's ostinato strikes (Salsa's tumbao, #651), are synthesised as the
+ * kick is, higher: a sine whose pitch falls to the tom's own.
  */
 
 export interface DrumKit {
   /** Strike a General MIDI drum note at a time on the context's clock. */
   play(note: number, velocity: number, seconds: number): void;
 }
+
+/** Each tom's note and the pitch it falls to, in Hz: the low, mid and high toms of General MIDI. */
+const TOMS: ReadonlyMap<number, number> = new Map([
+  [41, 95],
+  [45, 130],
+  [48, 175],
+]);
 
 /** The clap's bursts: when each starts after the hit, and how long it decays, the last the tail. */
 const CLAP: readonly (readonly [number, number])[] = [
@@ -48,6 +57,16 @@ export function drumKit(ctx: BaseAudioContext, out: AudioNode): DrumKit {
     osc.start(t);
     osc.stop(t + 0.4);
   };
+  const tom = (t: number, v: number, hz: number) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.setValueAtTime(hz * 1.5, t);
+    osc.frequency.exponentialRampToValueAtTime(hz, t + 0.08);
+    envelope(gain, t, 0.6 * v, 0.003, 0.25);
+    osc.connect(gain).connect(out);
+    osc.start(t);
+    osc.stop(t + 0.3);
+  };
   const snare = (t: number, v: number) => {
     const filter = ctx.createBiquadFilter();
     const gain = ctx.createGain();
@@ -83,6 +102,7 @@ export function drumKit(ctx: BaseAudioContext, out: AudioNode): DrumKit {
     play(note, velocity, t) {
       const v = velocity / 127;
       if (note === 36) kick(t, v);
+      else if (TOMS.has(note)) tom(t, v, TOMS.get(note)!);
       else if (note === 38) snare(t, v);
       else if (note === 39)
         for (const [at, decay] of CLAP) metal(t + at, 0.3 * v, 1200, decay, 1.5);

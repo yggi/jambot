@@ -1,9 +1,9 @@
 import {
   DRUMMER,
   DRUM_NOTES,
-  DRUM_ROLES,
   DRUM_VOICES,
   EMPTY_LAYER,
+  OWN_ROLES,
   PROTOTYPE_PRESETS,
   RHYTHM_REPOSITORY,
   SONG_METER,
@@ -52,10 +52,8 @@ const line = (hits: string, voices: string, sound = 's=white', step = '16n') =>
 describe("the band's drums as cells text, one bar per preset (E31)", () => {
   it('has a witness for every preset, and between them every role and every sound the drums play', () => {
     expect(WITNESSES.map((w) => w.preset)).toEqual(PROTOTYPE_PRESETS.map((p) => p.name));
-    // every role the drummer writes itself: the clave is the composer's line (#397)
-    expect(new Set(WITNESSES.flatMap((w) => rolesOf(w.bar)))).toEqual(
-      new Set(DRUM_ROLES.filter((role) => role !== 'clave')),
-    );
+    // every role the drummer writes itself: the clave and the ostinato are a fragment's lines (#397, #651)
+    expect(new Set(WITNESSES.flatMap((w) => rolesOf(w.bar)))).toEqual(new Set(OWN_ROLES));
     // every sound the drummer strikes itself: the clap is a fragment's (#508)
     expect(new Set(WITNESSES.flatMap((w) => w.band.map((h) => h.note)))).toEqual(
       new Set(Object.values(DRUM_NOTES).filter((n) => n !== DRUM_NOTES.clap)),

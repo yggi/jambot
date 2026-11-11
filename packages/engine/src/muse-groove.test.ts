@@ -1,6 +1,6 @@
 import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { CLAVES_NOTE, DRUM_NOTES, type DrumSound } from './drums.ts';
+import { CLAVES_NOTE, DRUM_NOTES, type DrumSound, TOM_NOTES } from './drums.ts';
 import { DRUM_ROLES, SONG_METER, clockOf } from './events.ts';
 import type { HeardNote } from './muse.ts';
 import {
@@ -82,10 +82,30 @@ describe('a groove stated as cells text, open on its meter (#401, E31’s transl
     expect(readRhythm(grooveText(off, steps), METERS['5/4'])!.hits).toEqual(inOrder(off));
   });
 
-  it('voices every sound of the kit and the claves, and refuses a note outside them', () => {
-    expect(VOICE_OF_NOTE.size).toBe(Object.keys(DRUM_NOTES).length + 1);
+  it('voices every sound of the kit, the toms and the claves, and refuses a note outside them', () => {
+    expect(VOICE_OF_NOTE.size).toBe(
+      Object.keys(DRUM_NOTES).length + Object.keys(TOM_NOTES).length + 1,
+    );
     expect(new Set(Object.values(DRUM_VOICES)).size).toBe(Object.keys(DRUM_NOTES).length);
+    // (cells' `gm_kit` names: `&lt` 41, `&mt` 45, `&ht` 48)
+    expect(Object.values(TOM_NOTES).map((n) => VOICE_OF_NOTE.get(n))).toEqual(['lt', 'mt', 'ht']);
     expect(() => grooveText([hit('hat', 0, 49)], 16)).toThrow(/note 49/);
+  });
+
+  it('states an ostinato on the toms as a line of its role, and reads it back so (#651)', () => {
+    const { lowTom, midTom, highTom } = TOM_NOTES;
+    const tumbao = [
+      hit('ostinato', 0, midTom, 70),
+      hit('ostinato', 4, highTom, 90),
+      hit('ostinato', 12, lowTom, 98),
+      hit('ostinato', 14, lowTom, 90),
+    ];
+    const text = grooveText([hit('kick', 0, DRUM_NOTES.kick, 100), ...tumbao], 16);
+    expect(text).toMatch(/^&ostinato role=ostinato step=16n &mt:0:\S+ ~ ~ ~ &ht:0:/m);
+    expect(text.split('\n').at(-1)).toBe('&groove [&kick, &ostinato]');
+    expect(readRhythm(text, METERS['4/4'])!.hits.filter((h) => h.role === 'ostinato')).toEqual(
+      tumbao,
+    );
   });
 
   it('states a clave line on the claves, which cells sends as 75 and reads back so (cells v0.7.0)', () => {
@@ -251,7 +271,27 @@ describe('a player’s drums as the Muse hears them (#401)', () => {
           expect(roleOfSound(DRUM_NOTES[sound], step, meter), `${name} ${sound} ${step}`).toBe(
             others[sound] ?? (backbeats[name]!.includes(step) ? 'backbeat' : 'ghost'),
           );
+        for (const tom of Object.values(TOM_NOTES))
+          expect(roleOfSound(tom, step, meter), `${name} ${tom} ${step}`).toBe('ostinato');
         expect(roleOfSound(49, step, meter)).toBeNull();
       }
+  });
+
+  it('files a player’s tumbao on the toms as an ostinato line (#651)', () => {
+    const { lowTom, midTom, highTom } = TOM_NOTES;
+    const heard = [
+      note(midTom, 16),
+      note(highTom, 20, 100),
+      note(lowTom, 28, 110),
+      note(lowTom, 30, 100),
+    ];
+    const [bar] = heardDrums(heard, 1, SONG_METER, clock);
+    expect(bar!.hits).toEqual([
+      hit('ostinato', 0, midTom, 90),
+      hit('ostinato', 4, highTom, 100),
+      hit('ostinato', 12, lowTom, 110),
+      hit('ostinato', 14, lowTom, 100),
+    ]);
+    expect(grooveText(bar!.hits, 16).split('\n')[0]).toMatch(/^&ostinato role=ostinato step=16n /);
   });
 });

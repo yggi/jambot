@@ -39,7 +39,8 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     expect(CLIMBING).toHaveLength(40);
     expect(mostUsedRhythm(MAIN)).toEqual({ sections: 8450, mostUsed: 8450, share: 1 });
     const { sections, mostUsed, share } = mostUsedRhythm(CLIMBING);
-    expect([sections, mostUsed]).toEqual([8450, 3944]);
+    // (3,944 before #651 held Salsa drums, which Funk's runs turn to once tired of their own)
+    expect([sections, mostUsed]).toEqual([8450, 3969]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -68,13 +69,17 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     }
   });
 
-  it('brings a drum bar back with the clave chosen with it, and the drummer’s groove back without the one it was lent (#430; on main at 09ec1be, 100 sections lost their own)', () => {
-    // Funk's variation returns with the rumba clave in each of its 5 runs; the drummer's variation, which the rumba clave
-    // layered on at one section while Funk's lineage had faded, returns without it, out with Funk's lineage, 20 sections a run
+  it('brings a drum bar back with the clave chosen with it, and lends it to no groove of the drummer’s (#430; on main at 09ec1be, 100 sections lost their own)', () => {
+    // Funk's variation returns with the rumba clave in each of its 5 runs. Before #651 held Salsa drums, Funk's tired
+    // runs had no drum bar near, the drummer invented, and its variation, which the rumba clave layered on at one section
+    // while Funk's lineage had faded, returned without it, 20 sections a run (100 lent); now those sections play Salsa
+    // drums, which plays its own clave, and the drummer invents nothing there to lend it to
     expect(claveLost(MAIN)).toEqual({ lost: 0, lent: 0 });
-    expect(claveLost(CLIMBING)).toEqual({ lost: 0, lent: 100 });
+    expect(claveLost(CLIMBING)).toEqual({ lost: 0, lent: 0 });
   });
 
+  // (the roles the drummer writes of its own, `OWN_ROLES`: Salsa drums' ostinato, which Funk's runs play once tired,
+  // plays as written, #651; Funk 0.03 before, where the drummer's own groove played past the drum bar)
   it('moves the drummer’s hits a role by section type at most 0.05 from main’s: the variations move hits, the drummer still decides how many', () => {
     expect(drumDistance(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0,
@@ -82,7 +87,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       'Deep house': 0.01,
       Ambient: 0,
       'Lo-fi hip hop': 0.01,
-      Funk: 0.03,
+      Funk: 0,
       'Bossa nova': 0.02,
       'Swing jazz': 0.05,
     });
@@ -101,16 +106,16 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       'Deep house': 0.95,
       Ambient: 0.89,
       'Lo-fi hip hop': 0.67,
-      Funk: 0.75,
+      Funk: 0.74,
       'Bossa nova': 0.65,
       'Swing jazz': 0.78,
     });
   });
 
-  // (3,682 bytes before cells v0.24.0, whose grooves' lines write their roles, `role=kick`, and whose March drums Techno
-  // turns to)
-  it(`keeps a layer of at most 3,860 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3860);
+  // (3,860 bytes before #651, where Funk's drummer filed its own once tired of Funk's, which now plays Salsa drums; 3,682
+  // before cells v0.24.0, whose grooves' lines write their roles, `role=kick`, and whose March drums Techno turns to)
+  it(`keeps a layer of at most 2,936 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(2936);
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(3);
   });
 });
