@@ -1,0 +1,163 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cells View Mock</title>
+<style>
+/* A mock of the Cells view as a tree of what the band plays (docs/briefs/cells-view.md): the section heard, as the
+   composer's workbench, every part a block nested in the one it is taken on. Tokens are the app's own
+   (apps/web/src/app.css). No dependencies. ?only=wide|phone shows one frame; ?theme=dark forces dark. */
+:root { --bg:#e9ecf3; --surface:#fff; --ink:#1b2340; --muted:#59617d; --line:#d3d8e4; --amber:#9a6200; --on-amber:#fff;
+  --teal:#0f7a6a; --teal-bg:#d8f0eb; --source-1:#6a4fc7; --source-2:#b8336a; --source-3:#2465c9; --source-4:#4d7a12;
+  --source-5:#a13d2d; color-scheme: light dark; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#131a2e; --surface:#1c2440; --ink:#ede7da;
+  --muted:#9ba3c0; --line:#2e385c; --amber:#f2b134; --on-amber:#131a2e; --teal:#6fd3c1; --teal-bg:#193a3a;
+  --source-1:#b3a1ff; --source-2:#ff8fb8; --source-3:#7fb2ff; --source-4:#a8d66b; --source-5:#ff9a85; } }
+:root[data-theme="dark"] { color-scheme: dark; --bg:#131a2e; --surface:#1c2440; --ink:#ede7da; --muted:#9ba3c0;
+  --line:#2e385c; --amber:#f2b134; --on-amber:#131a2e; --teal:#6fd3c1; --teal-bg:#193a3a; --source-1:#b3a1ff;
+  --source-2:#ff8fb8; --source-3:#7fb2ff; --source-4:#a8d66b; --source-5:#ff9a85; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.35 system-ui, sans-serif; padding:16px; }
+h1 { font-size:16px; margin:0 0 4px; }
+p.lede { margin:0 0 16px; color:var(--muted); max-width:80ch; }
+.frames { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
+.frame { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; display:grid; gap:10px; }
+.frame.wide { width:1120px; max-width:100%; }
+.frame.phone { width:380px; max-width:100%; }
+.head { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.head b { font-size:17px; }
+.head span { color:var(--muted); font-size:12px; }
+.seg { display:flex; border:1px solid var(--line); border-radius:19px; overflow:hidden; width:max-content; max-width:100%; }
+.seg span { padding:6px 12px; font-size:13px; border-right:1px solid var(--line); white-space:nowrap; }
+.seg span:last-child { border-right:0; }
+.tabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.seg.small span { padding:4px 10px; font-size:12px; }
+.seg span.on { background:var(--teal-bg); color:var(--teal); font-weight:600; }
+.legend { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:var(--muted); }
+.legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+.legend i.code { border:1px dashed var(--muted); background:none; }
+
+/* The tree: a block a row, nested by a rail in its parent's colour, like a C block holding what is taken on it. */
+.tree { border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:13px; }
+.hdr, .row { display:grid; grid-template-columns: 290px minmax(270px, 1fr) 190px 190px 44px 56px; align-items:center; }
+.hdr { color:var(--muted); font-size:11px; font-weight:500; border-bottom:1px solid var(--line); }
+.hdr > div { padding:8px; }
+.row { border-bottom:1px solid var(--line); min-height:36px; }
+.row:last-child { border-bottom:0; }
+.row > div { padding:4px 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row.playing .part b::after { content:""; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--amber); margin-left:6px; vertical-align:2px; }
+.row.picked { background:var(--teal-bg); }
+.part { display:flex; align-items:stretch; gap:0; padding:0 !important; height:100%; }
+.rail { width:14px; flex:none; border-left:4px solid var(--c, var(--line)); margin-left:8px; }
+.block { display:flex; align-items:center; gap:6px; padding:4px 8px 4px 6px; flex:1; min-width:0; }
+.block .tw { color:var(--muted); width:10px; font-size:10px; }
+.block .chip { flex:none; width:10px; height:18px; border-radius:3px; background:var(--c); }
+.block .chip.code { background:none; border:1.5px dashed var(--muted); }
+.block b { font-weight:500; overflow:hidden; text-overflow:ellipsis; }
+.frag { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; }
+.frag .id { color:var(--c); font-weight:600; }
+.frag .muted, .muted { color:var(--muted); }
+.frag.code { font-family:inherit; font-size:12px; color:var(--muted); font-style:italic; }
+.issue { display:inline-block; font-style:normal; font-family:inherit; font-size:11px; padding:0 6px; border:1px solid var(--line); border-radius:9px; color:var(--ink); margin-left:4px; }
+.issue.new { border-style:dashed; color:var(--amber); border-color:var(--amber); }
+.how { font-size:12px; }
+.how .tag { display:inline-block; padding:0 6px; border-radius:9px; font-size:11px; border:1px solid var(--line); color:var(--muted); }
+.how .tag.repo { border-color:var(--teal); color:var(--teal); }
+.how .tag.varied { border-color:var(--amber); color:var(--amber); }
+.how .tag.player { border-color:var(--source-2); color:var(--source-2); }
+.how .tag.host { border-style:dashed; }
+.n { text-align:right; font-variant-numeric:tabular-nums; font-size:12px; }
+.on { font-size:12px; color:var(--muted); }
+.detail { border:1px solid var(--line); border-radius:10px; padding:10px; display:grid; gap:6px; font-size:12px; }
+.detail h3 { margin:0; font-size:14px; }
+.detail pre { margin:0; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:12px; line-height:1.5; overflow:auto; }
+.detail .line { display:flex; justify-content:space-between; gap:8px; }
+.detail .line span:first-child { color:var(--muted); }
+.mind { display:flex; flex-wrap:wrap; gap:6px; font-size:12px; align-items:center; }
+.mind .lab { color:var(--muted); margin-right:2px; }
+.mind span.m { border:1px solid var(--line); border-radius:9px; padding:1px 8px; }
+.mind span.m i { font-style:normal; color:var(--muted); margin-left:4px; }
+
+/* The phone: two lines a block, the fragment under its part, the how and the numbers to the right. */
+.phone .hdr { display:none; }
+.phone .row { grid-template-columns: 1fr auto; grid-template-rows:auto auto; }
+.phone .row > .part { grid-column:1; grid-row:1 / span 2; flex-direction:row; }
+.phone .row > .frag, .phone .row > .on, .phone .row > .n.d { display:none; }
+.phone .row > .how { grid-column:2; grid-row:1; text-align:right; }
+.phone .row > .n.w { grid-column:2; grid-row:2; }
+.phone .block { flex-direction:row; flex-wrap:wrap; row-gap:0; }
+.phone .block .sub { flex-basis:100%; padding-left:28px; font-family:ui-monospace, Menlo, monospace; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wide .block .sub { display:none; }
+.phone .rail { width:8px; margin-left:4px; border-left-width:3px; }
+.phone .block .sub { padding-left:16px; }
+</style>
+<h1>Cells: what the band plays, as the composer's workbench</h1>
+<p class="lede">Mock for the Cells view. The default is <b>Playing</b>: the section heard as a tree of blocks, each part nested in what it is taken on, the meter first (yggi/cells decision 043: the composer fills an empty workbench by asking for every part, the meter first). A solid chip is a cells fragment, its <code>from</code> line beside it; a dashed chip is a part the band still decides in code, with the issue that makes it a fragment (dashed amber: no issue yet, proposed in the brief). <i>host</i> marks an id that doesn't reach a client today. The scene: Funk, section 3, a Groove, bar 5 of 8, D dorian, a player Maya in the session.</p>
+<div class="frames" id="frames"></div>
+<script>
+// [depth, part, chip colour or null for code, fragment cell (html), plays on, how (html), distance, in mind, sub (phone), playing, picked]
+const C = { form:'var(--muted)', meter:'var(--source-3)', key:'var(--teal)', rhythm:'var(--amber)', clave:'var(--source-2)',
+  harmony:'var(--source-1)', bass:'var(--source-4)', lead:'var(--source-5)', style:'var(--teal)' };
+const tag = (cls, text) => `<span class="tag ${cls}">${text}</span>`;
+const issue = (n, isNew) => `<span class="issue${isNew ? ' new' : ''}">${n}</span>`;
+const code = (where, ...issues) => `<span class="frag code">code · ${where}${issues.join('')}</span>`;
+const frag = (colour, before, id, after = '') =>
+  `<span class="frag" style="--c:${colour}"><span class="muted">${before} from </span><span class="id">${id}</span><span class="muted">${after}</span></span>`;
+const ROWS = [
+  [0, 'Song', null, code('form.ts', issue('#633'), issue('#547 r5')), '', tag('', 'Markov chain'), '', '', 'form · a chain of 6 section types', false],
+  [1, '§3 Groove · bar 5/8', null, code('form.ts, 8 bars', issue('#633')), '', tag('', 'form'), '', '', 'section · 8 bars', true],
+  [2, 'Meter', C.meter, frag(C.meter, '&bar', 'meter', '(swing=16n:.6) &tempo'), '', tag('repo', 'repository'), '.04', '1.0', '&bar from meter(swing=16n:.6)', true, true],
+  [3, 'Tempo', null, code('style point, 104 bpm', issue('D6 · #617')), '', tag('', 'style'), '', '', 'stays Jambot’s by ruling', true],
+  [3, 'Drums', C.rhythm, frag(C.rhythm, '&drumlines', 'funk_drums~2', ''), 'drums_performer · gm_kit', tag('varied', 'varied: drop &hat 6'), '.02', '0.5', '&drumlines from funk_drums~2', true],
+  [4, 'Clave', C.clave, frag(C.clave, '&clave', 'son_clave_3_2'), 'gm_kit · claves', tag('repo', 'layers on drums'), '.07', '0.5', '&clave from son_clave_3_2', true],
+  [4, 'Fills', null, code('drums.ts', issue('fills', true)), 'drums_performer', tag('', 'drummer'), '', '', 'the drummer’s, in code', false],
+  [3, 'Key', C.key, frag(C.key, '&key', 'diatonic', '(mode=dorian) D'), '', tag('repo', 'mode by preset') + ' ' + tag('', 'tonic: code'), '', '', '&key from diatonic(mode=dorian) D', true],
+  [4, 'Harmony · theme A', C.harmony, frag(C.harmony, '&harm', 'vamp_to_the_seventh', ' &key'), '', tag('repo host', 'repository · host'), '.05', '', '&harm from vamp_to_the_seventh &key', true],
+  [5, 'Chord colour', null, code('chords.ts', issue('#425')), '', tag('', 'sevenths, V/x'), '', '', 'sevenths and secondary dominants, in code', true],
+  [5, 'Bass', C.bass, frag(C.bass, '&bassline', 'funk_bass', ' &harm'), 'bass_performer · bass', tag('repo host', 'repository · host'), '.03', '0.5', '&bassline from funk_bass &harm', true],
+  [5, 'Pad', null, code('comp.ts', issue('#541')), 'pad_performer · pad', tag('', 'comp'), '', '', 'the comp, in code', true],
+  [5, 'Stab', null, code('comp.ts', issue('#541')), 'stab_performer · keys', tag('', 'comp'), '', '', 'stab facet never asked', false],
+  [4, 'Melodic scale', null, code('licence.ts', issue('scale', true)), '', tag('', 'licence'), '', '', 'dorian, by licence', true],
+  [5, 'Lead', C.lead, frag(C.lead, '&leadline', 'call_and_answer', '(&call=riff)'), 'lead_performer · lead', tag('repo host', 'form fixed · host'), '.06', '0.5', '&leadline from call_and_answer(riff)', true],
+  [6, 'Maya’s motif, bar 12', 'var(--source-2)', `<span class="frag code">heard, not a fragment yet${issue('#547 r6')}${issue('#580')}</span>`, '', tag('player', 'Muse · on offer'), '', '62 %', 'heard 3 bars, on offer', false],
+  [2, 'Feel and dynamics', null, code('dynamics.ts, performer.ts', issue('#324'), issue('cells#571')), '', tag('', 'energy 0.62'), '', '', 'velocity curve and licences, in code', true],
+  [2, 'Style', C.style, frag(C.style, '&style', 'styles', '.funk'), '', tag('repo', 'preset Funk'), '', '', 'sync .85 · harm 1 · bite .12 · mood .75', true],
+];
+function tree(cls) {
+  const hdr = `<div class="hdr"><div>Part</div><div>Fragment</div><div>Plays on</div><div>How</div><div class="n">Dist.</div><div class="n">In mind</div></div>`;
+  const above = [];
+  const rows = ROWS.map(([depth, part, colour, fragment, on, how, dist, mind, sub, playing, picked], at) => {
+    above.length = depth;
+    // Each rail is in the colour of the block it nests in, so a part reads as held by what it is taken on.
+    const rails = above.map((c) => `<span class="rail" style="--c:${c ?? 'var(--line)'}"></span>`).join('');
+    above.push(colour);
+    const hasKids = (ROWS[at + 1]?.[0] ?? -1) > depth;
+    return `<div class="row${playing ? ' playing' : ''}${picked ? ' picked' : ''}">
+      <div class="part">${rails}<div class="block"><span class="tw">${hasKids ? '▾' : ''}</span>
+        <span class="chip${colour ? '' : ' code'}" style="--c:${colour}"></span><b>${part}</b><span class="sub">${sub}</span></div></div>
+      <div class="frag-cell ${'frag'}">${fragment}</div><div class="on">${on}</div><div class="how">${how}</div>
+      <div class="n d">${dist}</div><div class="n w">${mind}</div></div>`;
+  }).join('');
+  return `<div class="tree ${cls}">${hdr}${rows}</div>`;
+}
+const legend = `<div class="legend"><span><i style="background:var(--source-3)"></i>meter</span><span><i style="background:var(--teal)"></i>key, style</span>
+  <span><i style="background:var(--amber)"></i>drums</span><span><i style="background:var(--source-2)"></i>clave, a player</span>
+  <span><i style="background:var(--source-1)"></i>harmony</span><span><i style="background:var(--source-4)"></i>bass</span>
+  <span><i style="background:var(--source-5)"></i>lead</span><span><i class="code"></i>still code</span></div>`;
+const seg = `<div class="tabs"><div class="seg"><span class="on">Playing</span><span>Next §</span><span>In mind 6</span><span>Library 41</span></div>
+  <div class="seg small" aria-label="Tree from"><span class="on">From the ground</span><span>From the outputs</span></div></div>`;
+const mind = `<div class="mind"><span class="lab">In mind (#443)</span><span class="m">meter<i>1.0</i></span><span class="m">funk_drums~2<i>.5</i></span>
+  <span class="m">son_clave_3_2<i>.5</i></span><span class="m">funk_bass<i>.5</i></span><span class="m">funk_drums~1<i>.25</i></span><span class="m">riff<i>.25</i></span></div>`;
+const detail = `<section class="detail"><h3>Meter</h3><pre>&amp;bar from meter(swing=16n:.6) &amp;tempo</pre>
+  <div class="line"><span>Found at</span><span>.04 from the style (.03 with what was chosen, #444)</span></div>
+  <div class="line"><span>Takes on it</span><span>drums, key, feel</span></div>
+  <div class="line"><span>Used together with</span><span>funk_drums × 7 · funk_bass × 4</span></div></section>`;
+const FRAMES = {
+  wide: `<div class="frame wide" data-frame="wide"><div class="head"><b>Cells · Playing</b><span>14 parts · 9 fragments · 6 in code · 3 host only</span></div>${seg}${legend}${tree('')}${mind}${detail}</div>`,
+  phone: `<div class="frame phone" data-frame="phone"><div class="head"><b>Cells · Playing</b><span>9 of 14 parts fragments</span></div>${seg}${tree('')}${mind}</div>`,
+};
+const q = new URLSearchParams(location.search);
+if (q.get('theme')) document.documentElement.dataset.theme = q.get('theme');
+const only = q.get('only');
+document.getElementById('frames').innerHTML = Object.entries(FRAMES).filter(([k]) => !only || k === only).map(([, v]) => v).join('');
+if (only) { document.querySelector('h1').remove(); document.querySelector('.lede').remove(); }
+</script>
