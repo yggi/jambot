@@ -52,6 +52,7 @@ import {
 } from './meter-query.ts';
 import type { Preset } from './style.ts';
 import { signedLayer } from './taken.ts';
+import { roledLayer } from './muse-groove.ts';
 import { type MeterSwing, STRAIGHT, SWING_LEVELS, type SwingLevel } from './swing.ts';
 
 /** The eighths in a pulse of a meter's note value: two of a quarter, one of an eighth. */
@@ -196,10 +197,12 @@ export const SEED_FRAGMENTS: readonly Fragment[] = [
  *   known as the one filed;
  * - its bass lines and progressions with the signature they are stated with since cells v0.21.0 (`signedLayer`,
  *   #562), so a line heard again is known as the one filed;
- * - its points on the style axes since cells v0.23.0, `sync harm bite mood` (`axedLayer`), for one kept before.
+ * - its points on the style axes since cells v0.23.0, `sync harm bite mood` (`axedLayer`), for one kept before;
+ * - its grooves with each line's drum role written as a value since cells v0.24.0 (`roledLayer`), so a groove heard
+ *   again is known as the one filed.
  */
 export const keptLayer = (layer: LearnedLayer): LearnedLayer =>
-  axedLayer(signedLayer(leadsAlone(renamedLayer(layer))));
+  roledLayer(axedLayer(signedLayer(leadsAlone(renamedLayer(layer)))));
 
 /** The facets a point speaks to mood for (cells decision 076 §2): a tonal fragment's; a meter's or a rhythm's has none. */
 const MOODY = new Set(['bass', 'harmony', 'lead', 'motif', 'mode', 'stab', 'instrument']);

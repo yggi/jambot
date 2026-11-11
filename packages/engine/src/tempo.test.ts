@@ -71,8 +71,8 @@ describe('tempoMap', () => {
 
 describe('position and clock time', () => {
   const { min, max } = AXES.bpm;
-  /** The ends of the tempo axis, and every preset's tempo. */
-  const tempos = [min, ...PRESETS.map((p) => p.style.bpm), max];
+  /** The ends of the tempo axis, and every preset's tempo, each once (presets share tempos: a glide is checked once). */
+  const tempos = [...new Set([min, ...PRESETS.map((p) => p.style.bpm), max])];
   const lengths = [0, SLIDER_GLIDE, PRESET_GLIDE];
   /** From rest at each tempo to each other, starting at step 8, at each length. */
   const fromRest = lengths.map((length) =>
@@ -122,13 +122,17 @@ describe('position and clock time', () => {
   };
   const holds = { order: undefined, error: expect.any(Number) as number };
 
-  it('holds from rest between any two of the axis ends and the presets’ tempos, at every glide length (T4, Q1c)', () => {
-    for (const track of fromRest.flat()) {
-      const found = breaks(tempoMap(track, anchor));
-      expect(found).toEqual(holds);
-      expect(found.error).toBeLessThan(1e-9);
-    }
-  });
+  // (a test a glide length, each under its timeout with cells v0.24.0's 23 presets)
+  it.each(lengths.map((length, i) => [length, i] as const))(
+    'holds from rest between any two of the axis ends and the presets’ tempos, gliding over %s steps (T4, Q1c)',
+    (_, i) => {
+      for (const track of fromRest[i]!) {
+        const found = breaks(tempoMap(track, anchor));
+        expect(found).toEqual(holds);
+        expect(found.error).toBeLessThan(1e-9);
+      }
+    },
+  );
 
   it('holds through glides retargeted while they move, which carry their slope and may brake (T4, Q1c)', () => {
     const glides = retargeted.map((t) => t.bpm);

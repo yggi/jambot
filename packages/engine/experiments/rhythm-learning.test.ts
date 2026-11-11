@@ -8,7 +8,7 @@ import { GROOVE_KEEP, familyOf } from '../src/novelty.ts';
 import { RHYTHM_FRAGMENTS } from '../src/library.ts';
 import { variations } from '@yggi/cells/engine/vary/index';
 import { COMPOSER } from '../src/facet.ts';
-import { benchText, readRhythm, rhythmRepository } from '../src/rhythms.ts';
+import { benchText, grooveLines, readRhythm, rhythmRepository } from '../src/rhythms.ts';
 import {
   type Filing,
   LEARNING_HOURS,
@@ -51,14 +51,16 @@ beforeAll(() => {
 });
 
 describe('the Muse files the drummer’s grooves while the radio walks (E38, #401)', () => {
-  it('files 249 grooves in 120 hours, 46 the drummer’s on a miss and 203 the composer’s variations (#411, #414), and the misses fall from 2,455 sections to 46: what was filed is found again', () => {
+  // (since cells v0.24.0, whose seven new drum bars the drummer holds lie along the walk: 249 grooves, 46 and 203, the
+  // misses 2,455 to 46, over 26,604 sections, 14,109 of them a groove filed, before)
+  it('files 242 grooves in 120 hours, 35 the drummer’s on a miss and 207 the composer’s variations (#411, #414), and the misses fall from 1,679 sections to 35: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
-    expect(count(LEARNED, (r) => r.sections)).toBe(26604);
-    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([46, 2455]);
-    expect(FILINGS.length).toBe(249);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([46, 203]);
+    expect(count(LEARNED, (r) => r.sections)).toBe(26501);
+    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([35, 1679]);
+    expect(FILINGS.length).toBe(242);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([35, 207]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(14109);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(12804);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -91,20 +93,22 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −17.5 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −17.3 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8738', '0.6987']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-17.51', '1.95']);
+    // (0.8738 to 0.6987, −17.51 (1.95), before cells v0.24.0)
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8383', '0.6656']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-17.28', '1.80']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  it(`keeps a layer of at most 15,938 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  // (15,938 bytes and 15 grooves before cells v0.24.0)
+  it(`keeps a layer of at most 15,114 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(15938);
-    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(15);
+    expect(Math.max(...bytes)).toBe(15114);
+    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(12);
     // every groove its run filed is still there
     for (const run of LEARNED)
       expect(run.learning!.layer.filed.map((f) => f.fragment.id)).toEqual(
@@ -137,9 +141,11 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
           expect(parent, id).toBeGreaterThanOrEqual(0);
           expect(parent, id).toBeLessThan(filings.findIndex((f) => f.id === id));
         }
-        const text =
-          RHYTHM_FRAGMENTS.find((f) => f.id === varies)?.text ??
-          layer.filed.find((f) => f.fragment.id === varies)!.fragment.text;
+        // (a seed by its lines, as the repository varies it, #634)
+        const seed = RHYTHM_FRAGMENTS.find((f) => f.id === varies);
+        const text = seed
+          ? grooveLines(seed.text)
+          : layer.filed.find((f) => f.fragment.id === varies)!.fragment.text;
         const named = variations(text, {
           // (the bench and the instruments the rhythm strikes, as the repository varies it)
           workbench: [benchText(bench)!, ...instrumentsFor(text)].join('\n'),
@@ -160,7 +166,8 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
     }
   });
 
-  it('has the drummer invent again where the composer rejected every groove a meter holds: 19 grooves beyond the first of their meter', () => {
+  // (19 before cells v0.24.0, whose new drum bars leave the drummer fewer misses)
+  it('has the drummer invent again where the composer rejected every groove a meter holds: 12 grooves beyond the first of their meter', () => {
     const again = LEARNED.flatMap((run) => {
       const firsts = new Set<string>();
       return run.learning!.filings.filter((f) => {
@@ -171,6 +178,6 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
         return !first;
       });
     });
-    expect(again).toHaveLength(19);
+    expect(again).toHaveLength(12);
   });
 });

@@ -1944,10 +1944,10 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
       { source: 'the pads', created: expect.stringMatching(/, bar 0$/), tags: ['groove'] },
     ]);
     expect(filed[0]!.fragment.text).toMatch(
-      /^&kick step=16n &bd:0:\.620001 ~ ~ ~ ~ ~ ~ ~ &bd:0:\.620001 ~ ~ ~ ~ ~ ~ ~$/m,
+      /^&kick role=kick step=16n &bd:0:\.620001 ~ ~ ~ ~ ~ ~ ~ &bd:0:\.620001 ~ ~ ~ ~ ~ ~ ~$/m,
     );
     expect(filed[0]!.fragment.text).toMatch(
-      /^&backbeat step=16n ~ ~ ~ ~ &sd:0:\.620001 ~ ~ ~ ~ ~ ~ ~ &sd:0:\.620001 ~ ~ ~$/m,
+      /^&backbeat role=backbeat step=16n ~ ~ ~ ~ &sd:0:\.620001 ~ ~ ~ ~ ~ ~ ~ &sd:0:\.620001 ~ ~ ~$/m,
     );
   });
 

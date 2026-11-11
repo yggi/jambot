@@ -127,7 +127,8 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
   it('moves the share over all members down as the lean rises, in every preset, held at entropy 0.3', () => {
     expect(
       [held.down, held.open, held.up, held.top].map((r) => fixed(against(r, 'all').mean)),
-    ).toEqual([0.788, 0.743, 0.656, 0.584]);
+      // (0.788, 0.743, 0.656 and 0.584 before cells v0.24.0)
+    ).toEqual([0.789, 0.744, 0.656, 0.583]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
         against(
@@ -149,8 +150,9 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
 
 describe('the controller closed (E45, #237)', () => {
   it('brings more sections inside the band than left alone, held and walked, and no more than the lean at its top', () => {
+    // (0.833 at the top before cells v0.24.0)
     expect([held.open, held.closed, held.top].map((r) => fixed(insideOf(r)))).toEqual([
-      0.292, 0.75, 0.833,
+      0.292, 0.75, 0.823,
     ]);
     expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.289, 0.734]);
   });

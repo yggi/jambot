@@ -13,7 +13,11 @@ import {
   heardDrums,
   levelOf,
   roleOfSound,
+  roledLayer,
 } from './muse-groove.ts';
+import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
+import { RHYTHM_REPOSITORY } from './rhythms.ts';
+import { keptLayer } from './repository.ts';
 import type { FragmentHit } from './rhythm-query.ts';
 import { cellsFit, readRhythm } from './rhythms.ts';
 
@@ -71,10 +75,10 @@ describe('a groove stated as cells text, open on its meter (#401, E31’s transl
     expect(euclidOf(e, steps)).toEqual({ k: 5, r: 3 });
     const rim = e.map((step) => hit('euclid', step, DRUM_NOTES.rim, 80));
     const text = grooveText(rim, steps);
-    expect(text).toMatch(/^&euclid step=1m &rim\(5,20,3\)$/m);
+    expect(text).toMatch(/^&euclid role=euclid step=1m &rim\(5,20,3\)$/m);
     expect(readRhythm(text, METERS['5/4'])!.hits).toEqual(rim);
     const off = [...rim.slice(1), hit('euclid', 0, DRUM_NOTES.rim, 80)];
-    expect(grooveText(off, steps)).toMatch(/^&euclid step=16n &rim:0:/m);
+    expect(grooveText(off, steps)).toMatch(/^&euclid role=euclid step=16n &rim:0:/m);
     expect(readRhythm(grooveText(off, steps), METERS['5/4'])!.hits).toEqual(inOrder(off));
   });
 
@@ -87,8 +91,65 @@ describe('a groove stated as cells text, open on its meter (#401, E31’s transl
   it('states a clave line on the claves, which cells sends as 75 and reads back so (cells v0.7.0)', () => {
     const clave = [0, 6, 12].map((step) => hit('clave', step, CLAVES_NOTE, 90));
     const text = grooveText([hit('kick', 0, DRUM_NOTES.kick, 100), ...clave], 16);
-    expect(text).toMatch(/^&clave step=16n &claves:0:/m);
+    expect(text).toMatch(/^&clave role=clave step=16n &claves:0:/m);
     expect(readRhythm(text, METERS['4/4'])!.hits.filter((h) => h.role === 'clave')).toEqual(clave);
+  });
+});
+
+describe('a groove’s drum roles as values (cells v0.24.0, decision 075)', () => {
+  const hits = [
+    hit('kick', 0, DRUM_NOTES.kick),
+    hit('backbeat', 4, DRUM_NOTES.snare),
+    hit('hat', 2, DRUM_NOTES.closedHat),
+    hit('kick', 8, DRUM_NOTES.kick),
+    hit('backbeat', 12, DRUM_NOTES.snare),
+    hit('hat', 10, DRUM_NOTES.closedHat),
+  ];
+  const filing = {
+    hits,
+    bench: { meter: SONG_METER },
+    point: { sync: 0.9, harm: 0.1, bite: 0.1, mood: 0.1 },
+    source: 'drummer',
+    created: 'song 1, bar 0',
+    tags: [],
+  };
+
+  it('writes each line’s role as its line names it, as cells’ seed grooves do (E31’s seed bars, drums-in-cells.test.ts)', () => {
+    expect(
+      grooveText(hits, 16)
+        .split('\n')
+        .map((line) => line.split(' step=')[0]),
+    ).toEqual([
+      '&kick role=kick',
+      '&backbeat role=backbeat',
+      '&hat role=hat',
+      '&groove [&kick, &backbeat, &hat]',
+    ]);
+  });
+
+  it('writes them into a kept layer’s grooves filed before, so a groove heard again is known as the one filed', () => {
+    const filed = RHYTHM_REPOSITORY.file!(EMPTY_LAYER, filing);
+    expect(filed.held).toBe(false);
+    const file = filed.layer.filed[0]!;
+    const before: LearnedLayer = {
+      ...filed.layer,
+      filed: [
+        {
+          ...file,
+          fragment: { ...file.fragment, text: file.fragment.text.replace(/ role=\w+/g, '') },
+        },
+      ],
+    };
+    expect(RHYTHM_REPOSITORY.file!(before, { ...filing, created: 'song 2' }).held).toBe(false);
+    for (const kept of [roledLayer(before), keptLayer(before)]) {
+      expect(kept.filed[0]!.fragment.text).toBe(file.fragment.text);
+      expect(RHYTHM_REPOSITORY.file!(kept, { ...filing, created: 'song 2' })).toMatchObject({
+        id: filed.id,
+        held: true,
+      });
+    }
+    // (a layer with nothing to write is the same layer)
+    expect(roledLayer(filed.layer)).toBe(filed.layer);
   });
 });
 

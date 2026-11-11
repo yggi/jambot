@@ -10,7 +10,7 @@ import {
   withInstruments,
 } from '@jambot/engine';
 import { even, positions } from '@jambot/theory';
-import { RHYTHM_FRAGMENTS } from '@jambot/engine';
+import { RHYTHM_FRAGMENTS, grooveLines } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
 import { DRUM_WORDS } from '../src/score.ts';
 import {
@@ -85,7 +85,7 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
     const rims = WITNESSES.filter((w) => rolesOf(w.bar).includes('euclid'));
     expect(rims.map((w) => w.preset)).toEqual(['Lo-fi hip hop', 'Funk', 'Bossa nova']);
     for (const w of rims) {
-      expect(w.text, w.preset).toMatch(/^&euclid step=1m &rim\([357],16,\d+\)$/m);
+      expect(w.text, w.preset).toMatch(/^&euclid role=euclid step=1m &rim\([357],16,\d+\)$/m);
       expect(w.text, w.preset).toMatch(/^&euclidLevel map=amp step=16n /m);
     }
   });
@@ -234,7 +234,10 @@ describe('E31’s translation as the engine states a groove the Muse files (#401
   it('states each witness bar as cells’ seed drum bar for its preset, character for character, less the bar line and its card, each with the kit it strikes', () => {
     for (const w of WITNESSES) {
       const seed = RHYTHM_FRAGMENTS.find((f) => f.id === wordOf(`${w.preset} drums`))!;
-      expect(w.text.split('\n').slice(2).join('\n'), w.preset).toBe(withInstruments(seed.text));
+      // (the seed's lines: a groove is a template since cells v0.24.0, its drums `gm_kit`'s by default, #634)
+      expect(w.text.split('\n').slice(2).join('\n'), w.preset).toBe(
+        withInstruments(grooveLines(seed.text)),
+      );
     }
   });
 

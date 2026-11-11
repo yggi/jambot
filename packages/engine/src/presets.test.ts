@@ -71,10 +71,75 @@ const FOUND: Readonly<
     bass: 'drone_bass',
     swing: '16n 0.500',
   },
+  // (the eight styles placed at cells v0.24.0, yggi/cells#675 and #679, each with its parts, where the band plays them)
+  Baroque: {
+    meter: 'meter',
+    mode: 'ionian',
+    rhythm: 'quiet_pulse',
+    bass: 'continuo_bass',
+    swing: '16n 0.500',
+  },
+  'Blues shuffle': {
+    meter: 'meter(swing=8n:2/3)',
+    swing: '8n 0.667',
+    mode: 'mixolydian',
+    rhythm: 'ride_shuffle',
+    bass: 'blues_walk',
+  },
+  // (cells' quarter_bass, the root on every beat, is a walk to the band, which walks only under a swung meter
+  // (`isWalk`): the root bass, the next nearest, plays)
+  'Sea shanty': {
+    meter: 'meter',
+    mode: 'dorian',
+    rhythm: 'shanty_drums',
+    bass: 'root_bass',
+    swing: '16n 0.500',
+  },
+  // (cells' harmonic minor, read as aeolian: #516)
+  Chiptune: {
+    meter: 'meter',
+    mode: 'aeolian',
+    rhythm: 'chip_drums',
+    bass: 'octave_bass',
+    swing: '16n 0.500',
+  },
+  // (cells' salsa_drums strike the toms, which the drummer has no role for (`heldRhythms`): the ride shuffle, the next
+  // nearest, plays)
+  Salsa: {
+    meter: 'meter',
+    mode: 'mixolydian',
+    rhythm: 'ride_shuffle',
+    bass: 'tumbao_bass',
+    swing: '16n 0.500',
+  },
+  Waltz: {
+    meter: 'meter(grouping=meter("3/4"))',
+    mode: 'ionian',
+    rhythm: 'waltz_drums',
+    bass: 'waltz_bass',
+    swing: '16n 0.500',
+  },
+  // (cells' 2/4 is none of the band's meters (`METER_READINGS`): the plain 4/4, the next nearest, at .108; on it the
+  // oom-pah, a note on every beat, is a walk to the band (`isWalk`), so the pumping bass plays)
+  March: {
+    meter: 'meter',
+    meterAt: 0.108,
+    mode: 'ionian',
+    rhythm: 'march_drums',
+    bass: 'pumping_bass',
+    swing: '16n 0.500',
+  },
+  'Trip-hop': {
+    meter: 'meter',
+    mode: 'aeolian',
+    rhythm: 'trip_hop_drums',
+    bass: 'dub_bass',
+    swing: '16n 0.500',
+  },
 };
 
 describe('the presets (#517)', () => {
-  it('are the prototype’s eight, then Electro swing, Spooky, Kinderlied and the four cut from cells’ examples, each named once: cells’ library of styles (#596)', () => {
+  it('are the prototype’s eight, then Electro swing, Spooky, Kinderlied, the four cut from cells’ examples at v0.23.0 and the eight of v0.24.0, each named once: cells’ library of styles (#596)', () => {
     expect(PRESETS.slice(0, PROTOTYPE_PRESETS.length)).toEqual(PROTOTYPE_PRESETS);
     expect(NEW.map((p) => p.name)).toEqual([
       'Electro swing',
@@ -84,6 +149,14 @@ describe('the presets (#517)', () => {
       'Happy hardcore',
       'Elektro',
       'Dark ambient',
+      'Baroque',
+      'Blues shuffle',
+      'Sea shanty',
+      'Chiptune',
+      'Salsa',
+      'Waltz',
+      'March',
+      'Trip-hop',
     ]);
     // (each its point, its bite Jambot's artic, and its tempo as cells' library writes them, to the last bit)
     for (const p of PRESETS) {
@@ -95,7 +168,7 @@ describe('the presets (#517)', () => {
   });
 
   it.each(NEW.map((p) => [p.name, p] as const))(
-    '%s finds its meter, swing and mode at its point, at distance 0 (Kinderlied’s meter as named)',
+    '%s finds its meter, swing and mode at its point, at distance 0 (March’s plain 4/4 as named, cells’ 2/4 none of the band’s)',
     (name, preset) => {
       const meter = presetMeter(preset)!;
       expect([meter.fragment.id, +meter.distance.toFixed(3)]).toEqual([

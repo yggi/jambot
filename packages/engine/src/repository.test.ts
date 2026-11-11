@@ -202,10 +202,11 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     const asked = meterQueries(METER_REPOSITORY);
     // (as under cells v0.8.0 but near Electro swing's and Spooky's points, whose meters cells v0.12.0 placed there;
     // re-recorded at cells v0.23.0, whose grid lies on sync harm bite mood and whose 4/4 is placed at Kinderlied's and
-    // the four new styles' points too: the nearest moves at 41 of the 81 grid points and at none of the presets')
-    expect([asked.length, hashOf(asked)]).toEqual([89, '830cf46b']);
+    // the four new styles' points too: the nearest moves at 41 of the 81 grid points and at none of the presets'; and at
+    // cells v0.24.0, whose plain and swung 4/4 sit at its eight new styles' points too: at 24 more, none a preset's)
+    expect([asked.length, hashOf(asked)]).toEqual([89, '787bc72a']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
-    expect(hashOf(asBefore(asked))).toBe('e511e72c');
+    expect(hashOf(asBefore(asked))).toBe('112cb67a');
     // (what of cells' library is neither a meter nor a rhythm: bass lines, harmonies, kits, modes … whatever it holds)
     expect(OTHERS.length).toBeGreaterThan(0);
     expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
@@ -217,10 +218,13 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     // since cells v0.15.0 Ghost drums, near Spooky, in 476 answers, and Kinderlied drums in 14, yggi/cells#409 and #417)
     // (re-recorded at cells v0.23.0, on sync harm bite mood, with its four new drum bars, three of which fit every
     // meter, and its industrial drums: the nearest moves in 1,172 of the 1,780 answers, none on a preset's own 4/4)
-    expect([asked.length, hashOf(asked)]).toEqual([1780, '01d78123']);
+    // (and at cells v0.24.0, with its seven new drum bars the drummer holds, yggi/cells#675 and #679: the nearest drum bar
+    // or its clave moves in 401 answers, none on a preset's own 4/4; at a preset's point under another meter, Waltz drums
+    // or March drums or the quiet pulse where Ghost drums or Acid drums were, 17 answers)
+    expect([asked.length, hashOf(asked)]).toEqual([1780, '754c3384']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
     // (since cells v0.19.0 the cinquillo is the nearest clave beside 84 of them, never within CO_SELECT, so never layered)
-    expect(hashOf(asBefore(asked))).toBe('829cc923');
+    expect(hashOf(asBefore(asked))).toBe('71ea5405');
     // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
     // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits; and since cells v0.15.0
     // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one)

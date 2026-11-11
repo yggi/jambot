@@ -76,7 +76,7 @@ import { leadOf } from './muse-lead.ts';
 import { GROOVE_KEEP } from './novelty.ts';
 import { harmonyBench, progressionText } from './progressions.ts';
 import { SEED_FRAGMENTS } from './repository.ts';
-import { RHYTHM_BENCHES, benchText } from './rhythms.ts';
+import { RHYTHM_BENCHES, benchText, grooveLines } from './rhythms.ts';
 import type { Theme } from './themes.ts';
 
 /** cells' recogniser, cold: what a page hears with where it can't warm one off the clock. */
@@ -146,8 +146,14 @@ export function playedInto(lately: Lately, texts: BarTexts): Lately {
  * (#237's controller, E45: what a listener has just heard is what is known).
  */
 export function libraryOf(facet: LoopFacet, layer?: LearnedLayer, lately?: Lately): Fragment[] {
-  // (the lead's lines stated from their first note, as `leadOf` hears a bar: a keyed line is known by its shape, #529)
-  const heard = (f: Fragment) => (facet === 'lead' ? fromFirstNote(f) : f);
+  // (the lead's lines stated from their first note, as `leadOf` hears a bar: a keyed line is known by its shape, #529;
+  // a seed groove by its lines, as the band reads it, its drums the kit's, #634)
+  const heard = (f: Fragment) =>
+    facet === 'lead'
+      ? fromFirstNote(f)
+      : facet === 'rhythm'
+        ? { ...f, text: grooveLines(f.text) }
+        : f;
   return [
     ...SEED_FRAGMENTS.filter(isOf(facet)).map(heard),
     ...(layer?.filed ?? [])
@@ -168,7 +174,10 @@ const KIT_VOICES = [...new Set(VOICE_OF_NOTE.values())].map((v) => `&${v}`).join
 /** The instruments a member's voices sound through: its seeds', and those its own texts read. */
 const INSTRUMENTS: Readonly<Record<LoopFacet, readonly string[]>> = {
   rhythm: instrumentsFor(
-    [`&kit ${KIT_VOICES}`, ...SEED_FRAGMENTS.filter(isOf('rhythm')).map((f) => f.text)].join('\n'),
+    [
+      `&kit ${KIT_VOICES}`,
+      ...SEED_FRAGMENTS.filter(isOf('rhythm')).map((f) => grooveLines(f.text)),
+    ].join('\n'),
   ),
   bass: instrumentsFor(
     [...BASS_VOICE, ...SEED_FRAGMENTS.filter(isOf('bass')).map((f) => f.text)].join('\n'),

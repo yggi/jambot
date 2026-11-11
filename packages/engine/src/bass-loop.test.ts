@@ -163,10 +163,11 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
     expect(sectionLine(env, { ...meter, swing: '8n', share: 2 / 3 }, undefined)).toBe(
       'walking_bass',
     );
-    // (the next nearest: funk bass; Spooky's creeping bass from cells v0.12.0 until v0.23.0's axes, where mood parts
-    // Swing jazz's bright ionian from Spooky's dark harmonic minor, yggi/cells#572)
+    // (the next nearest: since cells v0.24.0 Baroque's continuo bass, yggi/cells#679; funk bass before; Spooky's
+    // creeping bass from cells v0.12.0 until v0.23.0's axes, where mood parts Swing jazz's bright ionian from Spooky's
+    // dark harmonic minor, yggi/cells#572)
     expect(sectionLine(env, { meter: METERS['4/4'], swing: '16n', share: 0.5 }, undefined)).toBe(
-      'funk_bass',
+      'continuo_bass',
     );
   });
 
@@ -202,7 +203,16 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
 });
 
 /** A style no line of cells' lies within the miss distance of: full sync, the rest at 0 (the nearest, the root bass, 0.51 away). */
-const FAR: Style = { ...byName('Funk').style, sync: 1, harm: 0, artic: 0, energy: 0, entropy: 0.3 };
+// (its mood at 1 since cells v0.24.0: at Funk's mood the dub bass cells placed at Trip-hop's point lies within 0.3)
+const FAR: Style = {
+  ...byName('Funk').style,
+  sync: 1,
+  harm: 0,
+  artic: 0,
+  mood: 1,
+  energy: 0,
+  entropy: 0.3,
+};
 
 describe('the bass is the generator on a miss, and the Muse files what it played (#423)', () => {
   it('finds no line at a point far from every seed line, plays its own, and the Muse files that line where the next section is planned', () => {

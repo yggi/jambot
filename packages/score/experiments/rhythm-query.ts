@@ -78,7 +78,7 @@ import { setTiming } from '@yggi/cells/engine/edit';
 import { cachedFit } from '@yggi/cells/repository/fit';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { type Fragment, type Repository, createRepository } from '@yggi/cells/repository/fragments';
-import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from '@jambot/engine';
+import { METER_FRAGMENTS } from '@jambot/engine';
 import { type Hit, witnesses } from './drums-in-cells.ts';
 import { meterName } from './bar-in-cells.ts';
 import { wordOf } from '@yggi/cells/engine/renamed';
@@ -273,7 +273,7 @@ export function readFragment(
 
 /** The drum-bar fragment E31 wrote for a preset. */
 export const drumFragmentOf = (preset: string): Fragment =>
-  RHYTHM_FRAGMENTS.find((f) => f.id === wordOf(`${preset} drums`))!;
+  heldRhythms().find((f) => f.id === wordOf(`${preset} drums`))!;
 
 /** A straight 4/4 at a tempo, as a workbench. */
 export const straightBench = (bpm: number) => hosted('&bar meter("4/4")', bpm);

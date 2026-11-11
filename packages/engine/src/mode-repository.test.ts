@@ -32,6 +32,15 @@ const HAND_MODE: Readonly<Record<string, ComposerMode>> = {
   'Happy hardcore': 'aeolian',
   Elektro: 'aeolian',
   'Dark ambient': 'aeolian',
+  // (the eight styles placed at cells v0.24.0, yggi/cells#675 and #679: each its piece's mode, harmonic minor as aeolian)
+  Baroque: 'ionian',
+  'Blues shuffle': 'mixolydian',
+  'Sea shanty': 'dorian',
+  Chiptune: 'aeolian',
+  Salsa: 'mixolydian',
+  Waltz: 'ionian',
+  March: 'ionian',
+  'Trip-hop': 'aeolian',
 };
 
 /** A fragment of the key, its tonic its main parameter where it reads one (`&key from &tonic`), as cells writes a mode (decision 075). */

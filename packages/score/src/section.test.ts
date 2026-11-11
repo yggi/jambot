@@ -24,6 +24,7 @@ import {
 import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { resolveSeed } from '@yggi/cells/repository/library';
+import { readerOf } from '@yggi/cells/engine/perform/feel';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
 import {
@@ -149,7 +150,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     );
   });
 
-  it('names each note’s line by the role of the performer whose gate plays it, a drum hit’s role by its line, and else by the output cells gives it (feel v1.2, yggi/music-commons#35)', () => {
+  it('names each note’s line by the part its performer’s role cell declares, else its line’s, a drum hit’s role by its line’s role=, never by a name (feel v3, yggi/cells decision 075, #615)', () => {
     const text = [
       '&bar meter("4/4") step=120bpm',
       '&key scale(aeolian, A)',
@@ -157,14 +158,14 @@ describe('a section as one cells text, for the app (#399)', () => {
       '&tune over=&key step=4n 0 2 4 2',
       '&violin play=&tune &padV',
       '&padV loop=C3',
-      '&pad map=role &violin',
-      '&hats step=4n &hh &hh',
+      '&strings map=role part=pad &violin',
+      '&hats role=hat step=4n &hh &hh',
       '&hh from gm_kit',
       '&kitV &hh',
       '&skins play=&hats &kitV',
       '&drums map=role &skins',
-      '&busk play=&lead &leadV',
-      '&lead over=&key step=4n 4',
+      '&busk play=&melody &leadV',
+      '&melody part=lead over=&key step=4n 4',
       '&leadV loop=C4',
       '&out map=midi &busk ~ &violin ~!6 &skins',
     ].join('\n');
@@ -172,20 +173,36 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(result.diagnostics).toEqual([]);
     const read = (id: string) =>
       lineOf(result.outputs.find((o) => o.id.startsWith(id))!.id, result);
-    // The violin plays its tune as the pad; the skins the hats as the drums, the hats' role their line's.
+    // The violin plays its tune as the pad its role cell declares, named `&strings`; the skins the hats as a hat, their
+    // line's `role=`; the busker's line is the lead its `part=` says, named `&melody`.
     expect(read('padV:tune:')).toEqual({ line: 'pad' });
-    expect(read('kit:voices:hats:')).toEqual({ line: 'drums', role: 'hats' });
-    // A gate no role cell names plays as written: its line's name says.
-    expect(read('leadV:lead:')).toEqual({ line: 'lead' });
-    expect(lineOf(result.outputs.find((o) => o.id.startsWith('padV:tune:'))!.id)).toEqual({
-      line: 'tune',
-    });
+    expect(read('kit:voices:hats:')).toEqual({ line: 'drums', role: 'hat' });
+    expect(read('leadV:melody:')).toEqual({ line: 'lead' });
+    // Undeclared, an output reads by its id, as the feel's version 2 read it.
+    const bare = compileSection(text.replace(' part=pad', '').replace(' role=hat', '')).result;
+    const readBare = (id: string) =>
+      lineOf(bare.outputs.find((o) => o.id.startsWith(id))!.id, bare);
+    expect(readBare('padV:tune:')).toEqual({ line: 'tune' });
+    expect(readBare('kit:voices:hats:')).toEqual({ line: 'drums', role: 'hats' });
     expect(lineOf('compV:pad:17:14')).toEqual({ line: 'pad' });
-    expect(lineOf('compV:stab:19:15')).toEqual({ line: 'stab' });
-    expect(lineOf('bassV:bass:14:15')).toEqual({ line: 'bass' });
-    expect(lineOf('leadV:lead:30:15')).toEqual({ line: 'lead' });
     expect(lineOf('kit:voices:hat:9:35')).toEqual({ line: 'drums', role: 'hat' });
   });
+
+  it.each(['Swing jazz', 'Synth-pop', 'Bossa nova', 'Funk'])(
+    'declares the part or the drum role of every note %s’s section sends, so none is read by its name (#615)',
+    (name) => {
+      const bars = section(name);
+      const { result } = compileSection(sectionTextOf(sectionAsCells(bars)));
+      const read = readerOf(result);
+      const sent = result.outputs.filter(
+        (o) =>
+          !o.id.startsWith('readV:') &&
+          (o.id.startsWith('kit:') || o.via.length + o.through.length > 0),
+      );
+      expect(sent.length).toBeGreaterThan(0);
+      expect(sent.filter((o) => read(o.id) === null).map((o) => o.id)).toEqual([]);
+    },
+  );
 
   it.each(['Swing jazz', 'Synth-pop', 'Bossa nova'])(
     'plays %s’s section back with each note’s line and role as the band writes them, its onset where the swing puts its step, and its end past it',
