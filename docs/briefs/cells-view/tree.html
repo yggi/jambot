@@ -29,6 +29,8 @@ p.lede { margin:0 0 16px; color:var(--muted); max-width:80ch; }
 .seg { display:flex; border:1px solid var(--line); border-radius:19px; overflow:hidden; width:max-content; max-width:100%; }
 .seg span { padding:6px 12px; font-size:13px; border-right:1px solid var(--line); white-space:nowrap; }
 .seg span:last-child { border-right:0; }
+.tabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.seg.small span { padding:4px 10px; font-size:12px; }
 .seg span.on { background:var(--teal-bg); color:var(--teal); font-weight:600; }
 .legend { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:var(--muted); }
 .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
@@ -141,7 +143,8 @@ const legend = `<div class="legend"><span><i style="background:var(--source-3)">
   <span><i style="background:var(--amber)"></i>drums</span><span><i style="background:var(--source-2)"></i>clave, a player</span>
   <span><i style="background:var(--source-1)"></i>harmony</span><span><i style="background:var(--source-4)"></i>bass</span>
   <span><i style="background:var(--source-5)"></i>lead</span><span><i class="code"></i>still code</span></div>`;
-const seg = `<div class="seg"><span class="on">Playing</span><span>Next §</span><span>In mind 6</span><span>Library 41</span></div>`;
+const seg = `<div class="tabs"><div class="seg"><span class="on">Playing</span><span>Next §</span><span>In mind 6</span><span>Library 41</span></div>
+  <div class="seg small" aria-label="Tree from"><span class="on">From the ground</span><span>From the outputs</span></div></div>`;
 const mind = `<div class="mind"><span class="lab">In mind (#443)</span><span class="m">meter<i>1.0</i></span><span class="m">funk_drums~2<i>.5</i></span>
   <span class="m">son_clave_3_2<i>.5</i></span><span class="m">funk_bass<i>.5</i></span><span class="m">funk_drums~1<i>.25</i></span><span class="m">riff<i>.25</i></span></div>`;
 const detail = `<section class="detail"><h3>Meter</h3><pre>&amp;bar from meter(swing=16n:.6) &amp;tempo</pre>

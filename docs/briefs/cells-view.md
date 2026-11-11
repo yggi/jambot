@@ -9,6 +9,16 @@
 >
 > investigate first, this is part ui/ux work, part survey along the main epic.
 
+And on the first draft of this brief:
+
+> attach cells, check how much of this can live as a general mechanism in the language repo itself
+>
+> I think the shallow form is right for the jambot cells-view, maybe switchable to the other, out-based one.
+>
+> we should push for 531 and 553, not build around them
+>
+> revise the plan and file issues, then open a pr
+
 ## The mock
 
 The mock is [`cells-view/tree.html`](cells-view/tree.html), one HTML file with no dependencies, in the app's tokens, light and dark; `?only=wide` and `?only=phone` show one frame each, `?theme=dark` forces the dark theme.
@@ -21,7 +31,9 @@ What it shows:
 - **Playing is the default.** The section heard, as a tree with one block to a row, each part nested in the part it is taken on. The rows stay in step with the section, as the Retrieved log is today.
 - **The nesting is the workbench's order.** The composer fills an empty workbench by asking for every part, the meter first (yggi/cells decision 043). So the meter holds the drums (only rhythms that fit it rank, `fitsAs`) and the key. The drums hold the clave that layers on them. The key holds the harmony (`&harm from … &key`). The harmony holds the bass (`&bassline from … &harm`) and the comp. The melodic scale holds the lead, and the lead holds the motif a player offers it.
   A block's rail is the colour of the block it nests in, so it reads as a Scratch C-block holding what it takes.
-- **A block is a fragment or says why it isn't.** A solid chip is a cells fragment, and the Fragment column shows its `from` line as cells writes it. A dashed chip is a part the band still decides in code. Its file is named, beside the issue that makes it a fragment, or a dashed amber chip where no issue exists yet (proposed below).
+- **A block is a fragment or says why it isn't.** A solid chip is a cells fragment, and the Fragment column shows its `from` line as cells writes it.
+  A dashed chip is a part the band still decides in code. The mock names its file and the issue that makes it a fragment, which is the survey's view; in the app, such a part is one the score writes out, and the view shows it as written.
+- **The tree runs from the ground by default, and a switch flips it to the outputs.** From the ground, a part sits under what it is taken on, and performers and instruments are a column, so the tree stays shallow. From the outputs, each performer holds the line it plays, and the line holds what it reads.
 - **The columns:**
   - what the fragment plays on (its performer and instrument);
   - how it came: found in the repository, a variation and how (`drop &hat 6`), layered, a player's via the Muse, invented on a miss, asked for, or code;
@@ -46,64 +58,78 @@ It feeds #624, the inventory by part, but not that issue's numbers (the share of
 | Section length | `form.ts` `SECTION_BARS` = 8 | no | – | #633 |
 | Meter and swing | `meter-query.ts` `composedMeter` | yes, `Plan.meterFragment`, `Plan.share` | yes | #444 (distance) |
 | Tempo | the style's `bpm`, `tempo.ts` | no, by ruling (D6) | as bpm | #617 |
-| Mode | `mode-repository.ts` `presetMode`, at a preset's choice only | yes, but its id is dropped | no | none for the id |
+| Mode | `mode-repository.ts` `presetMode`, at a preset's choice only | yes, but its id is dropped | no | #531 (asked) |
 | Tonic and key moves | `plan.ts` `bandWish`, `key.ts` `nextKey` | no | as the key | #233, cells#647 |
-| Melodic scale | `licence.ts` | no | as its name | none |
+| Melodic scale | `licence.ts` | no | as its name | #644 |
 | Progression (theme) | `harmony-query.ts` `composedHarmony`; on a miss `themes.ts` | yes, `PlanCarried.themeFragments` | no, host only | #425 |
 | Chord colour (sevenths, V/x) | `chords.ts` `barChords` | no | as chords | #425 (in part) |
 | Drums | `rhythm-query.ts` `composedRhythm`, the ladder in `plan.ts` `climbed`; on a miss `drums.ts` | yes, `Plan.rhythmFragment` | yes | #634, #615, #632 |
 | Clave | chosen with the drums (`LAYER_DISTANCE`) | yes, `Plan.claveFragment` | yes | #439 |
-| Fills | `drums.ts`, the drummer's | no | – | **none** |
+| Fills | `drums.ts`, the drummer's | no | – | #643 |
 | Kit and drum notes | `gm_kit`; `drums.ts` `DRUM_NOTES` | the kit yes, the note table no | in the section text | #615 |
-| Bass line | `bass-query.ts` `composedLine`; on a miss `bass.ts` | yes, `PlanCarried.bassFragment` | no, host only | **none for the id** |
-| Lead line | `lead-query.ts` `composedLead`; on a miss `lead.ts` | yes, `PlanCarried.leadFragment` | no, host only | #547, **none for the id** |
+| Bass line | `bass-query.ts` `composedLine`; on a miss `bass.ts` | yes, `PlanCarried.bassFragment` | no, host only | #531 (asked) |
+| Lead line | `lead-query.ts` `composedLead`; on a miss `lead.ts` | yes, `PlanCarried.leadFragment` | no, host only | #547, #531 (asked) |
 | The lead's form | `lead-lines.ts` `LEAD_FORM`, fixed to `call_and_answer` | a fragment by name, never asked for | no | #547 rung 4 |
 | Comp: pad and stab | `comp.ts` | no (cells' stab facet is never asked) | – | #541 |
 | Instruments | `instruments.ts` `instrumentsAt`, facet `instrument` | yes, `FoundInstrument.id` | only in the section text | #531 item 5 (`timbreOf`) |
 | Performers | `section-text.ts` `performerOf` | yes, by name | in the section text | #107 |
 | Feel and timing licence | `performer.ts`, `licence.ts` | no | – | #324, #107 |
-| Dynamics and energy | `dynamics.ts`, `form.ts` `barEnergy` | no | as energy | cells#571, **no Jambot twin** |
-| Ending and count-in | `ending.ts` | no | – | **none** (or #633) |
+| Dynamics and energy | `dynamics.ts`, `form.ts` `barEnergy` | no | as energy | #645, cells#571 |
+| Ending and count-in | `ending.ts` | no | – | #646 |
 | The Muse's motifs | `muse.ts` | no (her lead lines are filed) | yes, as her memory | #547 rung 6, #580 |
 | Style | cells' `STYLES` (#596) | a preset is a cells style | as its name | #597, #598 |
 | Short-term memory | `short-term.ts` | ids of fragments | no, host only | #443 |
 
-Three findings change how the view can be built:
+Three findings shape the plan:
 
-- **A client can draw the top of the tree but not the middle.** The meter, the drums and the clave ride on the plan. The progression, the bass line and the lead line are carried in `PlanCarried` and stay on the host, as do the short-term memory and the boredom. No issue asks for those ids to travel: #444 and #445 carry distances and the filed fragments, not the section's picks.
-- **The nesting is already written down, in cells.** Cells' `from` lines say what takes what (`&harm from vamp_to_the_seventh &key`, `&bassline from walking_bass &harm`), and since cells#638 `references(text)` reads a text's `from` lines without compiling it.
-  Today the band's section text, which does reach every client (protocol 14), writes its parts out note by note. Its only `from` lines are the performers. #531 (`* from band`) and #553 (the score carries the fragments a client lacks, the Muse filing by reference) move it toward writing the parts by reference.
-  Once it does, the tree is `references(sectionText)` on any device, and no id needs a field of its own on the plan.
-- **One comment is stale.** `fragmentsView.ts` says the Muse's motifs are "not cells fragments yet (#309)". #309 is closed; their issues are #547 rung 6 and #580.
+- **A client can draw the top of the tree but not the middle.** The meter, the drums and the clave ride on the plan. The progression, the bass line and the lead line are carried in `PlanCarried` and stay on the host, as do the short-term memory and the boredom.
+- **The nesting is already written down, in cells.** Cells' `from` lines say what takes what (`&harm from vamp_to_the_seventh &key`, `&bassline from walking_bass &harm`).
+  Today the band's section text, which does reach every client (protocol 14), writes its parts out note by note, and its only `from` lines are the performers.
+- **One comment was stale.** `fragmentsView.ts` said the Muse's motifs are "not cells fragments yet (#309)". #309 is closed; it now names #547 and #580.
 
-## Recommendation
+## What lives in cells
 
-Build the view's model from one record of the section's picks, `SectionFragments` (meter, drums, clave, mode, progression, bass, lead, lead form, instruments). A pure function turns it into rows with a depth, the way `fragmentRows` turns the log into rows today. The Library tab keeps `fragmentRows` as it is.
+Most of the mechanism is the language's, not Jambot's: what a score takes, from where, and how its parts read each other is the same question for Cell studio's fragments (yggi/cell-studio#621).
 
-Fill the record in two steps, so the view doesn't wait on the score:
+Cells holds already:
 
-1. **Now:** carry the progression, bass, lead and mode ids on the plan. This is a protocol bump, and a client then draws the whole tree, as the host does.
-2. **Later:** when the section text writes its parts by reference (#531, #553), read the record off `references(text)` and retire the plan's id fields.
+- `references(text)` (yggi/cells#638): each `from` line, its id, names and arguments, without compiling;
+- `catalogue()` (yggi/cells#638): each fragment's facets, signature and the ids it takes;
+- `expansion(text).takes`: what each `from` line gave the piece, what the piece overrode and its arguments;
+- `expansion(text).origins` (yggi/cells#639): each given name's chain of `{ id, line }`;
+- `writtenGraph(result)`: the program's cells and links, its depth growing outward from the roots, which is the ground-up order at the level of cells;
+- the lockfile a piece file carries (`uses:`, each id and hash), which #553 puts on the wire.
 
-Step 2 is the general form, and step 1 is the special case it removes.
-The other way is to wait for step 2 and draw a client's middle as *host* until then.
-The owner chooses between the two.
+Cells lacks one pure function, the piece's **outline**: its parts, each the head of a `from` line or a line the piece writes itself, linked by what reads what, with two projections of the same graph, from the ground and from the outputs.
+That is yggi/cells#695.
 
-## Issues
+What stays Jambot's is what only the composer knows, joined to the outline by fragment id:
 
-These already exist and the view leans on them: #443 (In mind), #444 (Dist.), #445 (the Library on a client), #624 (the inventory), #541 (the comp), #547 (the lead's form, the Muse's motifs), #633 (form), #531 and #553 (the score by reference).
+- a query's distance (#444);
+- a fragment's weight in mind and its boredom (#443);
+- how a part came: found, varied, layered, a player's via the Muse;
+- the tabs, the transport and the drawing.
 
-Proposed, not yet filed:
+## The plan
 
-- The Cells view as the band's workbench: the Playing tree by default, with Next §, In mind and Library as tabs (this brief and its mock).
-- The section's progression, bass, lead, mode and instrument ids reach the screen: on the plan, then read from the section text.
-- The drummer's fills as fragments of the drums (facet `fill`, or a line of the rhythm the drummer keeps today, `GROOVE_KEEP`).
-- The melodic scale from the key's fragment, not the licence's table.
-- Section energy and the dynamics curve as cells' intensity offset: the Jambot twin of cells#571.
-- The ending and the count-in as fragments, or a line in #633 that says they stay code.
+The view is not built around the plan's fields. It reads the score, so the work goes into the score:
+
+1. **#531 writes each part the repository found as its `from` line** (asked there): the meter, the key with its mode, the harmony, the drums, the clave, the bass and the lead, with the argument each is taken on. A part generated on a miss stays written out, and so does a line the band changes (a fill, the levels), the piece's own line winning over the fragment's.
+2. **#553 sends the lockfile:** each id and hash, and the text of each fragment a client lacks, a filed variation's among them (asked there).
+3. **yggi/cells#695 gives the outline,** in a cells release that Jambot pins.
+4. **#642 builds the view on these:** Playing by default, from the ground with a switch to the outputs; Next §, In mind (#443) and Library as tabs.
+   The Library tab and #443 don't wait on 1 to 3.
+
+The parts with no fragment get one through their own issues:
+
+- #643, the drummer's fills;
+- #644, the melodic scale;
+- #645, a section's intensity and the dynamics (the twin of yggi/cells#571);
+- #646, the ending and the count-in;
+- and, already open, #633 (form), #541 (the comp), #547 (the lead's form, the Muse's motifs), #233 and yggi/cells#647 (the tonic), #425 (the chord colour).
+  The tempo stays out of fragments by ruling (D6, #617).
 
 ## Open questions
 
-- Should the tree run from the ground up, as the mock does (the meter holds what fits on it), or in Scratch's direction, from the output down (the performer holds the line it plays)? The ground-up order is the composer's, and it keeps the tree shallow, since the performers and instruments become a column.
 - Should Next § show the section composed ahead with its differences marked, or only its picks?
 - Should the tempo, which stays out of fragments by ruling, show as a block at all, or as a figure in the section's row?

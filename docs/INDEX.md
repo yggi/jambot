@@ -47,7 +47,7 @@ A source file has no line here: its header comment says what it is, and `tooling
     - [`eternal-jam.md`](briefs/eternal-jam.md): eternal jam sessions, Jambot and Cell studio back together: the owner's brief, its reading, and the plan
     - [`mobile-ui.md`](briefs/mobile-ui.md): the band on a phone (#327): the owner's brief and reply, with the mocks (five options, then the stage chosen) and their screenshots in `briefs/mobile-ui/`
     - [`style-map.md`](briefs/style-map.md): the Style sheet as a map of music (#598, yggi/cells#536): presets as places, the style as a point with entropy as its reach, the radio's trail and the players' wishes, with the mock and its screenshots in `briefs/style-map/`
-    - [`cells-view.md`](briefs/cells-view.md): the Cells view as the composer's workbench: what the band plays as a tree of fragments, each nested in what it is taken on, a survey of which parts are fragments and which issue makes the rest one, with the mock and its screenshots in `briefs/cells-view/`
+    - [`cells-view.md`](briefs/cells-view.md): the Cells view as the composer's workbench (#642): what the band plays as a tree of fragments read off the score, a survey of which parts are fragments and which issue makes the rest one, what lives in cells (yggi/cells#695), with the mock and its screenshots in `briefs/cells-view/`
     - [`session-roles.md`](briefs/session-roles.md): the host sets, everyone else asks: roles per code, asks with feedback, the Room's log, reactions and announcements, and the protocol groundwork
 - `prototype/`: the baseline the port is oriented by
   - [`README.md`](../prototype/README.md): concept, spirit, prototype architecture, the score language, the plan for learned models, open threads
