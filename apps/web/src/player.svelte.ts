@@ -182,7 +182,14 @@ import { type Meter, mod, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import { browserLayerStore } from './layer-storage.ts';
 import { warmAtIdle, warmedOnFiling } from './warm.ts';
-import { type LoopState, barsLooped, loopPast, loopState, tapped, tappedBars } from './looper.ts';
+import {
+  type LoopView,
+  type SectionAsk,
+  askedSection,
+  loopPast,
+  loopView,
+  tappedBars,
+} from './looper.ts';
 import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
 import {
   type Intent,
@@ -422,10 +429,8 @@ export class Player {
    * bars it is sent. Gone once the band is past it.
    */
   loop: Loop | null = $state.raw(null);
-  /** What the loop button says (`looper.ts`). */
-  looping: LoopState = $state('off');
-  /** How many bars the looper plays (#629), or null for none. */
-  loopedBars: number | null = $state(null);
+  /** What the loop menu shows (`looper.ts`): the section's state, the looper's window, the trigger's word. */
+  loopMenu: LoopView = $state.raw(loopView(null, 0));
   /**
    * The meter asked for, which the band takes at the next section's boundary
    * (#261): a person's choice, held here as the key wish is. Null, as at
@@ -757,16 +762,17 @@ export class Player {
   }
 
   /**
-   * A tap on the loop button (#628, `looper.ts`): the section heard repeated
-   * once, then locked, then released at the end of its lap. The radio and the
-   * players' lean hold while a section plays again (`#sectionLine`): they
-   * move at the written song's section lines, the owner's ruling on #626.
+   * The loop menu asks a section to play once more or to lock (#628,
+   * `askedSection`); asked again, it is called off or let go at its lap's
+   * end. The radio and the players' lean hold while a section plays again
+   * (`#sectionLine`): they move at the written song's section lines, the
+   * owner's ruling on #626.
    */
-  tapLoop() {
+  askSection(ask: SectionAsk) {
     const carried = this.#carried;
     if (this.mode === 'client' || this.status !== 'playing' || !carried) return;
     const next = carried.nextBar;
-    this.loop = tapped(this.loop, this.hud.bar?.bar ?? Math.max(0, next - 1), next);
+    this.loop = askedSection(this.loop, ask, this.hud.bar?.bar ?? Math.max(0, next - 1), next);
     this.#loopOn(next);
     this.#decide();
   }
@@ -787,10 +793,9 @@ export class Player {
   /** The loop as the band stands at `next`, the first bar not yet composed: gone once the band is past it. */
   #loopOn(next: number) {
     if (this.loop && loopPast(this.loop, next)) this.loop = null;
-    const state = loopState(this.loop, next);
-    if (state !== this.looping) this.looping = state;
-    const bars = barsLooped(this.loop, next);
-    if (bars !== this.loopedBars) this.loopedBars = bars;
+    const view = loopView(this.loop, next);
+    const { state, bars, word } = this.loopMenu;
+    if (view.state !== state || view.bars !== bars || view.word !== word) this.loopMenu = view;
   }
 
   /**
@@ -1135,8 +1140,7 @@ export class Player {
     this.#carried = null;
     this.lastBar = null;
     this.loop = null;
-    this.looping = 'off';
-    this.loopedBars = null;
+    this.loopMenu = loopView(null, 0);
     // Its texts asked for from the band's own bars, alone or hosting; given by the host to a client (#446).
     this.shadow.reset(this.#follow ? 'given' : 'asked');
     if (!this.#follow) this.hearing?.begin();
@@ -1417,8 +1421,7 @@ export class Player {
     this.ending = false;
     this.lastBar = null;
     this.loop = null;
-    this.looping = 'off';
-    this.loopedBars = null;
+    this.loopMenu = loopView(null, 0);
     this.counting = false;
     this.countStep = null;
     if (!wasPlaying) return;

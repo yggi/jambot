@@ -24,6 +24,7 @@ import {
   styleAt,
   walkRadio,
   leaned,
+  BAR_LOOPS,
   loopEnd,
   repeatSection,
 } from '@jambot/engine';
@@ -1359,8 +1360,8 @@ describe('the loop (#628)', () => {
     const { player, bars, sections, run } = await playing();
     run(OPENING + 1.3 * SECTION);
     expect(player.hud.bar?.bar).toBeGreaterThanOrEqual(SECTION_BARS);
-    player.tapLoop();
-    expect(player.looping).toBe('repeat');
+    player.askSection('repeat');
+    expect(player.loopMenu.state).toBe('repeat');
     expect(player.loop).toEqual(repeatSection(SECTION_BARS, 1));
     const walked = player.station!.walked;
     run(SECTION);
@@ -1368,7 +1369,7 @@ describe('the loop (#628)', () => {
     expect(player.station!.walked).toBe(walked);
     run(1.2 * SECTION);
     expect(player.station!.walked).toBe(walked + 1);
-    expect(player.looping).toBe('off');
+    expect(player.loopMenu.state).toBe('off');
     expect(player.loop).toBeNull();
     const at = (bar: number) => bars.find((b) => b.bar === bar)!;
     for (const i of range(SECTION_BARS)) expect(sound(at(16 + i))).toEqual(sound(at(8 + i)));
@@ -1379,23 +1380,23 @@ describe('the loop (#628)', () => {
     expect(textAt(16).text).toBe(textAt(8).text);
   });
 
-  it('locks a section on a second tap, for as long as it is locked, and lets it go at the end of its lap on a third', async () => {
+  it('locks a section a repeat was asked for, for as long as it is locked, and lets it go at the end of its lap when asked again', async () => {
     const { player, bars, run } = await playing();
     run(OPENING + 1.3 * SECTION);
-    player.tapLoop();
-    player.tapLoop();
-    expect(player.looping).toBe('locked');
+    player.askSection('repeat');
+    player.askSection('lock');
+    expect(player.loopMenu.state).toBe('locked');
     const walked = player.station!.walked;
     run(3.5 * SECTION);
-    expect(player.looping).toBe('locked');
+    expect(player.loopMenu.state).toBe('locked');
     expect(player.station!.walked).toBe(walked);
-    player.tapLoop();
-    expect(player.looping).toBe('repeat');
+    player.askSection('lock');
+    expect(player.loopMenu.state).toBe('repeat');
     const end = loopEnd(player.loop!)!;
     expect(end % SECTION_BARS).toBe(0);
     expect(end).toBeGreaterThanOrEqual(40);
     run(1.2 * SECTION);
-    expect(player.looping).toBe('off');
+    expect(player.loopMenu.state).toBe('off');
     const at = (bar: number) => bars.find((b) => b.bar === bar)!;
     for (let bar = 16; bar < end; bar++)
       expect(sound(at(bar)), `bar ${bar}`).toEqual(sound(at(8 + (bar % 8))));
@@ -1404,12 +1405,55 @@ describe('the loop (#628)', () => {
     expect(player.station!.walked).toBeGreaterThan(walked);
   });
 
+  it('plays on through taps on the loop and the looper at any moment, stalls, and a stop inside a loop: the band never loses its place', async () => {
+    const bar = SECTION / SECTION_BARS;
+    const broken: string[] = [];
+    for (let trial = 0; trial < 40; trial++) {
+      const { world, s } = surroundings();
+      const player = new Player(s);
+      player.hosting = told().hosting;
+      void player.start();
+      world.resolve();
+      await settle();
+      if (trial % 2) player.tuneRadio(true);
+      // A walk of its own a trial, so a failure names the taps that broke it.
+      let r = trial * 7919 + 13;
+      const draw = () => (r = (r * 48271) % 2147483647) / 2147483647;
+      const did: string[] = [];
+      try {
+        let tap = 2 * bar + draw() * 6 * bar;
+        for (let t = 0; t < 30 * bar; t += 0.025) {
+          world.currentTime += 0.025;
+          world.tickers.at(-1)!.tick();
+          world.frames.at(-1)!.follow();
+          if (t < tap) continue;
+          const kind = draw();
+          if (kind < 0.6) player.askSection(draw() < 0.5 ? 'repeat' : 'lock');
+          else if (kind < 0.85) player.tapBars(BAR_LOOPS[Math.floor(draw() * BAR_LOOPS.length)]!);
+          else if (kind < 0.9) world.currentTime += draw() * 3 * bar;
+          else if (kind < 0.95) player.stop();
+          else if (player.status === 'stopped') {
+            void player.start();
+            world.resolve();
+            await settle();
+          }
+          did.push(
+            `${t.toFixed(2)} s: ${kind < 0.6 ? player.loopMenu.state : kind < 0.85 ? `${player.loopMenu.bars} bars` : kind < 0.9 ? 'stall' : kind < 0.95 ? 'stop' : 'start'}`,
+          );
+          tap = t + draw() * 4 * bar;
+        }
+      } catch (e) {
+        broken.push(`trial ${trial}: ${(e as Error).message} after ${did.join(', ')}`);
+      }
+    }
+    expect(broken).toEqual([]);
+  }, 120_000);
   it('loops the last 2 bars from the next, the radio held, and plays where the song is when let go (#629)', async () => {
     const { player, bars, run } = await playing();
     run(OPENING + 1.3 * SECTION);
     player.tapBars(2);
-    expect(player.loopedBars).toBe(2);
-    expect(player.looping).toBe('off');
+    expect(player.loopMenu.bars).toBe(2);
+    expect(player.loopMenu.state).toBe('off');
     const loop = player.loop!;
     expect(loop.song).toBe('runs');
     const walked = player.station!.walked;
@@ -1418,20 +1462,20 @@ describe('the loop (#628)', () => {
     player.tapBars(2);
     const end = loopEnd(player.loop!)!;
     run(SECTION);
-    expect(player.loopedBars).toBeNull();
+    expect(player.loopMenu.bars).toBeNull();
     expect(player.loop).toBeNull();
     const at = (bar: number) => bars.find((b) => b.bar === bar)!;
     for (let bar = loop.at; bar < end; bar++)
-      expect(sound(at(bar)), `bar ${bar}`).toEqual(sound(at(loop.from + ((bar - loop.at) % 2))));
+      expect(sound(at(bar)), `bar ${bar}`).toEqual(sound(at(bar - 2)));
     // The song ran on beneath: the bar after the loop is in its place in its section.
     expect(at(end).barInSection).toBe(end % SECTION_BARS);
   });
 
   it('does nothing for a band not playing', () => {
     const player = new Player(surroundings().s);
-    player.tapLoop();
+    player.askSection('repeat');
     expect(player.loop).toBeNull();
-    expect(player.looping).toBe('off');
+    expect(player.loopMenu.state).toBe('off');
   });
 });
 

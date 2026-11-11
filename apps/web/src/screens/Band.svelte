@@ -154,9 +154,8 @@
     playing={player.playing}
     sets={can.set}
     ontoggle={() => (player.playing ? player.stop() : player.start())}
-    looping={player.looping}
-    onloop={() => player.tapLoop()}
-    looped={player.loopedBars}
+    loop={player.loopMenu}
+    onsection={(ask) => player.askSection(ask)}
     onbars={(bars) => player.tapBars(bars)}
   />
 {/snippet}
