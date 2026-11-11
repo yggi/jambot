@@ -243,7 +243,10 @@ describe('meter', () => {
         for (let k = 2; k < n; k++)
           expect(gaps(even(k, n)).every((g) => g === 2 || g === 3)).toBe(2 * k <= n && n <= 3 * k);
       for (const [name, meter] of Object.entries(METERS))
-        expect([name, gaps(meter).every((l) => l === 2 || l === 3)]).toEqual([name, name !== '2/2']);
+        expect([name, gaps(meter).every((l) => l === 2 || l === 3)]).toEqual([
+          name,
+          name !== '2/2',
+        ]);
       expect(gaps(METERS['2/2'])).toEqual([4, 4]);
     });
 

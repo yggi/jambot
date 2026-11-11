@@ -40,17 +40,7 @@ import { even } from './even.ts';
 import { type Helix, compose } from './helix.ts';
 
 export type MeterName =
-  | '2/4'
-  | '3/4'
-  | '4/4'
-  | '2/2'
-  | '5/4'
-  | '5/8'
-  | '6/8'
-  | '7/8'
-  | '9/8'
-  | '10/8'
-  | '12/8';
+  '2/4' | '3/4' | '4/4' | '2/2' | '5/4' | '5/8' | '6/8' | '7/8' | '9/8' | '10/8' | '12/8';
 
 /**
  * A meter: its pulses (the heights, the downbeat at 0) over its bar's

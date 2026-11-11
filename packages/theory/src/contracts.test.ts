@@ -82,7 +82,8 @@ describe('the meter contract (yggi/music-commons contracts/meter, version 2)', (
   it('accentsOf grades every eighth of every grouping as the contract does, the quarters inside a group of 4 or 6 included', () => {
     const met = contract.vectors.filter((v) => !fifthTier(v));
     expect(met).toHaveLength(103);
-    for (const v of met) expect(accentLine(meterOf(v.groups)), v.groups.join('+')).toBe(byEighth(v));
+    for (const v of met)
+      expect(accentLine(meterOf(v.groups)), v.groups.join('+')).toBe(byEighth(v));
   });
 
   it('…and a step between two eighths is the finest grade, below every one accentsOf gives', () => {
@@ -102,7 +103,10 @@ describe('the meter contract (yggi/music-commons contracts/meter, version 2)', (
     for (const v of recorded)
       expect(accentLine(meterOf(v.groups)), v.groups.join('+')).not.toBe(byEighth(v));
     for (const name of Object.keys(METERS) as MeterName[])
-      expect([name, recorded.some((v) => v.groups.join() === groupsOf(METERS[name]).join())]).toEqual([name, false]);
+      expect([
+        name,
+        recorded.some((v) => v.groups.join() === groupsOf(METERS[name]).join()),
+      ]).toEqual([name, false]);
   });
 
   it(`every name Jambot has is the grouping the contract names; the others are recorded (${RECORDED_NAME})`, () => {

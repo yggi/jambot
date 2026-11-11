@@ -79,11 +79,15 @@ export function accentsOf(meter: Meter, mirrored = false): AccentGrade[] {
   // (the quarters inside a pulse of 4 or 6 eighths: one tier below the deepest pulse, or a leaf past the tiers there are)
   const quarter =
     ACCENT_GRADES[
-      Math.min(Math.max(...meter.heights.map((e) => ACCENT_GRADES.indexOf(grades[e]!))) + 1, ACCENT_GRADES.length - 1)
+      Math.min(
+        Math.max(...meter.heights.map((e) => ACCENT_GRADES.indexOf(grades[e]!))) + 1,
+        ACCENT_GRADES.length - 1,
+      )
     ]!;
   gaps(meter).forEach((length, pulse) => {
     if (length < 4 || length % 2 === 1) return;
-    for (let inside = 2; inside < length; inside += 2) grades[meter.heights[pulse]! + inside] = quarter;
+    for (let inside = 2; inside < length; inside += 2)
+      grades[meter.heights[pulse]! + inside] = quarter;
   });
   return grades;
 }

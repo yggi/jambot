@@ -66,15 +66,15 @@ describe("cells' seed, as a screen reads it", () => {
 });
 
 describe("cells' repository of meters, as the composer asks it (#375)", () => {
-  it('reads eleven of cells’ thirteen meters into the band’s, and says why it leaves out the other two', () => {
-    const left = METER_READINGS.filter((r) => typeof r.read === 'string');
-    expect(Object.fromEntries(left.map((r) => [r.id, r.read]))).toEqual({
-      'meter(grouping=meter("2/2", 2))':
-        "its meter, 2 beats in 8 eighths at 0 4, is none of the band's",
-      'meter(grouping=meter("2/4"))':
-        "its meter, 2 beats in 4 eighths at 0 2, is none of the band's",
-    });
-    expect([...METER_REPOSITORY.fragments.keys()]).toHaveLength(11);
+  it('reads every one of cells’ thirteen meters into the band’s, 2/4 and alla breve among them (#652)', () => {
+    expect(METER_READINGS.filter((r) => typeof r.read === 'string')).toEqual([]);
+    expect([...METER_REPOSITORY.fragments.keys()]).toHaveLength(13);
+    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("2/4"))')!.meter).toEqual(
+      METERS['2/4'],
+    );
+    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("2/2", 2))')!.meter).toEqual(
+      METERS['2/2'],
+    );
     expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("10/8"))')!.meter).toEqual(
       METERS['10/8'],
     );
@@ -212,7 +212,7 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
   });
 
-  it('picks the rhythms, and the clave layered on the drum bar picked, as under cells v0.8.0 but where a newer seed is nearer, on each of 20 benches at each of 89 points, and as with every other facet of the library beside them', () => {
+  it('picks the rhythms, and the clave layered on the drum bar picked, as under cells v0.8.0 but where a newer seed is nearer, on each of 24 benches at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = rhythmQueries(RHYTHM_REPOSITORY);
     // (as under cells v0.8.0 but where Electro swing drums (held since #508) or Spooky drums (cells v0.12.0) is nearer, or
     // since cells v0.15.0 Ghost drums, near Spooky, in 476 answers, and Kinderlied drums in 14, yggi/cells#409 and #417)
@@ -221,16 +221,19 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     // (and at cells v0.24.0, with its seven new drum bars the drummer holds, yggi/cells#675 and #679: the nearest drum bar
     // or its clave moves in 401 answers, none on a preset's own 4/4; at a preset's point under another meter, Waltz drums
     // or March drums or the quiet pulse where Ghost drums or Acid drums were, 17 answers)
-    expect([asked.length, hashOf(asked)]).toEqual([1780, '754c3384']);
+    // (and with 2/4 and 2/2 among the band's meters, #652: four benches more, 356 answers, a drum bar found in each and a
+    // clave beside 178; the 1,780 answers on the other twenty benches are as they were, hashed 754c3384)
+    expect([asked.length, hashOf(asked)]).toEqual([2136, '347f5962']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
     // (since cells v0.19.0 the cinquillo is the nearest clave beside 84 of them, never within CO_SELECT, so never layered)
-    expect(hashOf(asBefore(asked))).toBe('71ea5405');
+    // (with the four benches of #652 since: 71ea5405 over the twenty before)
+    expect(hashOf(asBefore(asked))).toBe('eae5bc89');
     // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
     // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits; and since cells v0.15.0
     // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one)
     const found = asked.filter((line) => !line.startsWith(' |'));
     expect([found.length, found.filter((line) => !line.endsWith('| ')).length]).toEqual([
-      1780, 534,
+      2136, 712,
     ]);
     expect(rhythmQueries(rhythmRepository([...RHYTHM_FRAGMENTS, ...OTHERS]))).toEqual(asked);
   });

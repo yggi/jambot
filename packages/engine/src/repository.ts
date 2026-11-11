@@ -9,8 +9,8 @@
  * A fragment the band can't play yet is left out, and says why: a meter
  * that is none of the band's named meters (`METERS`), a swing on more than
  * one level, or an articulation by level (`legato=`), which the band's
- * dynamics don't read. Of cells' thirteen, eleven are played: the alla breve
- * (two beats of a half) and 2/4 (a bar of 8 steps) are not.
+ * dynamics don't read. Every one of cells' thirteen is played, 2/4 (a bar of
+ * 8 steps) and the alla breve (two beats of a half) among them (#652).
  *
  * What the host has learned (#398, cells decision 048) is merged at each
  * query where a layer is given, and a meter kept is a use of it at the
