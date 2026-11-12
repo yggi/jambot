@@ -1,7 +1,9 @@
 import {
+  BORED,
   COMPOSER,
   DRUMMER,
   EMPTY_LAYER,
+  GROOVE_RUNGS,
   type LearnedLayer,
   SEED_FRAGMENTS,
   SOLOIST,
@@ -11,6 +13,7 @@ import {
   FRAGMENT_FILTERS,
   type FragmentRow,
   type TakenSection,
+  type Workbench,
   fragmentRows,
   fragmentsMain,
   fragmentsSub,
@@ -302,5 +305,78 @@ describe('the filters', () => {
     expect(fragmentsMain(all.slice(0, 1))).toBe('1 fragment');
     expect(fragmentsSub(all)).toBe('2 filed · 2 retrieved · 2 from the Muse');
     expect(fragmentsSub([])).toBe('What the band takes, files and hears shows here');
+  });
+});
+
+describe('the composer’s workbench, in mind (#443)', () => {
+  const workbench = (over: Partial<Workbench> = {}): Workbench => ({
+    inMind: [
+      { id: 'lo_fi_hip_hop_drums', weight: 1 },
+      { id: 'Ada song 1, bar 16', weight: 0.5 },
+      { id: 'funk_bass', weight: 0.25 },
+    ],
+    boredom: [
+      {
+        grooves: ['lo_fi_hip_hop_drums', 'composer song 1, bar 24'],
+        boredom: 1.5,
+        rejected: false,
+      },
+    ],
+    ...over,
+  });
+  const all = rows({
+    layer: layer({ filed: [filedFile('Ada song 1, bar 16', 'Ada')] }),
+    log: [section(0)],
+    players: { p2: 'Ada' },
+    workbench: workbench(),
+  });
+  const row = (name: string) => all.find((r) => r.name === name)!;
+
+  it('marks each fragment in mind with its weight, and adds one in mind the band neither took nor filed', () => {
+    expect(row('lo_fi_hip_hop_drums')).toMatchObject({ mind: true, weight: 1, retrieved: true });
+    expect(row('Ada song 1, bar 16')).toMatchObject({ mind: true, weight: 0.5, filed: true });
+    expect(row('funk_bass')).toMatchObject({
+      mind: true,
+      weight: 0.25,
+      role: 'bass',
+      retrieved: false,
+      filed: false,
+    });
+    expect(row('meter(swing=8n:2/3)')).toMatchObject({ mind: false, weight: null, lineage: null });
+    expect(shownRows(all, 'mind').map((r) => r.name)).toEqual([
+      'lo_fi_hip_hop_drums',
+      'Ada song 1, bar 16',
+      'funk_bass',
+    ]);
+  });
+
+  it('gives a rhythm its lineage: the boredom, its rung and the rhythms it holds', () => {
+    expect(row('lo_fi_hip_hop_drums').lineage).toEqual({
+      boredom: 1.5,
+      rung: 'repeat',
+      grooves: ['lo_fi_hip_hop_drums', 'composer song 1, bar 24'],
+    });
+    expect(row('funk_bass').lineage).toBeNull();
+  });
+
+  it('names every rung: repeated below one rung of boredom, varied below the last, set aside past it or once rejected', () => {
+    const rung = (boredom: number, rejected = false) =>
+      rows({
+        log: [section(0)],
+        workbench: workbench({
+          boredom: [{ grooves: ['lo_fi_hip_hop_drums'], boredom, rejected }],
+        }),
+      })[1]!.lineage?.rung;
+    expect(
+      [0, BORED - 0.1, BORED, GROOVE_RUNGS * BORED - 0.1, GROOVE_RUNGS * BORED].map((b) => rung(b)),
+    ).toEqual(['repeat', 'repeat', 'vary', 'vary', 'set aside']);
+    expect(rung(0.5, true)).toBe('set aside');
+  });
+
+  it('says how many are in mind, and nothing of it where there is no workbench (a client)', () => {
+    expect(fragmentsSub(all)).toBe('1 filed · 2 retrieved · 1 from the Muse · 3 in mind');
+    const client = rows({ log: [section(0)] });
+    expect(client.every((r) => !r.mind && r.weight === null && r.lineage === null)).toBe(true);
+    expect(fragmentsSub(client)).toBe('0 filed · 2 retrieved · 0 from the Muse');
   });
 });
