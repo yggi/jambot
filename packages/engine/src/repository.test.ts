@@ -221,10 +221,13 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     // (and at cells v0.24.0, with its seven new drum bars the drummer holds, yggi/cells#675 and #679: the nearest drum bar
     // or its clave moves in 401 answers, none on a preset's own 4/4; at a preset's point under another meter, Waltz drums
     // or March drums or the quiet pulse where Ghost drums or Acid drums were, 17 answers)
-    expect([asked.length, hashOf(asked)]).toEqual([1780, '754c3384']);
+    // (and at cells v0.25.0, with its aksak and twelve-eight drums the drummer holds, yggi/cells#707: 45 answers name one,
+    // and those 45 alone move, without the two the hash is v0.24.0's, 754c3384)
+    expect([asked.length, hashOf(asked)]).toEqual([1780, '882bfaea']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
     // (since cells v0.19.0 the cinquillo is the nearest clave beside 84 of them, never within CO_SELECT, so never layered)
-    expect(hashOf(asBefore(asked))).toBe('71ea5405');
+    // (71ea5405 before cells v0.25.0, whose two new drum bars' 45 answers have no name before)
+    expect(hashOf(asBefore(asked))).toBe('6cd9792d');
     // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
     // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits; and since cells v0.15.0
     // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one)
