@@ -57,8 +57,8 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     const { playing, mostUsed, share } = mostUsedLead(LEARNED);
     // (8,459 and 2,631 before cells v0.24.0, whose meters and motifs are placed at its new styles' points too; 8,408 and
     // 2,622 before 2/4 and 2/2 were among the band's meters, #652, where 250 sections now play 2/4, which lasts half a
-    // 4/4, and none plays 2/2)
-    expect([playing, mostUsed]).toEqual([8533, 2601]);
+    // 4/4, and none plays 2/2; 2,601 before the walk rule was retired, #650)
+    expect([playing, mostUsed]).toEqual([8533, 2605]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -66,8 +66,9 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     const { added, error } = lockIn(asLeads(UNLEARNED), asLeads(LEARNED));
     // (with nothing learned the lead plays cells' motif nearest the walk in nearly every section, 99 % among a run's
     // 3 most used: the share can only fall)
-    // (−21.41 and 1.82 before cells v0.24.0; −20.61 and 1.86 before 2/4 and 2/2 were among the band's meters, #652)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-21.88', '1.99']);
+    // (−21.41 and 1.82 before cells v0.24.0; −20.61 and 1.86 before 2/4 and 2/2 were among the band's meters, #652; −21.88 and 1.99
+    // before the walk rule was retired, #650)
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-21.82', '1.98']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
@@ -96,14 +97,14 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     expect(dropped).toBe(1);
   });
 
-  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 101 sections of 5,343`, () => {
+  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 103 sections of 5,343`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThanOrEqual(LAYER_CAP);
-    // (94 and 5,281 before 2/4 and 2/2 were among the band's meters, #652, where 120 sections now play 2/4, which
+    // (15,991 and 101 before the walk rule was retired, #650; 94 and 5,281 before 2/4 and 2/2 were among the band's meters, #652, where 120 sections now play 2/4, which
     // lasts half a 4/4; 15,994, 85 and 5,265 before cells v0.24.0; 15,978, 28 and 5,387 before cells v0.23.0, whose walk
     // files more grooves; 15,991 and 31 before cells v0.21.0, whose bass lines and progressions are filed with their
     // signature, #562)
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15991, 101]);
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15979, 103]);
     expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5343);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);
   });
