@@ -32,11 +32,12 @@ describe('the style read back from the notes it wrote (E23)', () => {
     expect(by(sweeps.artic, 'artic').distance).toBeLessThan(0.25);
   });
 
-  it('reads the syncopation as rising with the axis, but compressed and blurred: the drums carry it, and the chords never leave the grid (E23)', () => {
+  it('reads the syncopation as rising with the axis, but compressed and blurred: the drums and the stab carry it, and the fixed grid outnumbers them (E23, #673)', () => {
     expect(by(sweeps.sync, 'sync').tau).toBeGreaterThan(0.25);
     expect(by(held, 'sync').tau).toBeGreaterThan(0.25);
     expect(by(tour, 'sync').tau).toBeGreaterThan(0.1);
-    // From the sweep's end to its end the reading covers about a quarter of the axis.
+    // From the sweep's end to its end the reading covers about a sixth of the axis: 0.07 to 0.22 with cells' `sync`
+    // (yggi/cells#723, on the owner's ruling on yggi/cells#681), 0.03 to 0.29 with the old off-pulse share.
     expect(by(sweeps.sync, 'sync').distance).toBeGreaterThan(0.25);
   });
 

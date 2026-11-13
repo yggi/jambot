@@ -81,17 +81,20 @@ describe('a style read on other meters (#260)', () => {
     expect(readStyle([note('bass', 0)]).density).toBe(1 / 16);
   });
 
-  it('counts a note off its meter’s pulses and off its eighths as syncopated, and no other (finite: every meter, every step)', () => {
+  it('reads a bar on each of Jambot’s meters as cells reads it over that meter’s bar (finite: every meter, every step)', () => {
+    // The syncopation rule itself is cells' (yggi/cells#723), held by its own tests.
     for (const [name, meter] of named) {
-      const pulses = meterOnSteps(meter).heights;
-      for (const step of range(stepsOf(meter))) {
-        const onGrid = pulses.includes(step) || step % 2 === 0;
-        expect([name, step, readStyle([note('lead', step)], meter).sync]).toEqual([
+      const bar = readingBar(meter);
+      const everyStep = range(stepsOf(meter)).flatMap((step) => [
+        note('drums', step),
+        note('bass', step, 2),
+      ]);
+      for (const notes of [...range(stepsOf(meter)).map((step) => [note('lead', step)]), everyStep])
+        expect([name, notes, readStyle(notes, meter)]).toEqual([
           name,
-          step,
-          onGrid ? 0 : 1,
+          notes,
+          readCellsStyle(notes, bar),
         ]);
-      }
     }
   });
 
