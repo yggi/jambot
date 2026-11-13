@@ -19,60 +19,20 @@
  * strikes a voice no instrument defines is left as it is, for the compile to
  * name. The performers' own instruments
  * (`bass`, `keys`, `pad`, `lead`) fill a hole before any other that defines
- * its voice: a preset's instrument is found by style (`instrumentsAt`).
+ * its voice.
  *
- * The instruments a section's performers play are part of its style
- * (#497): at the style's point, cells' query on the facet `instrument`
- * ranks them, and each performer's voice is the first that defines it
- * (`instrumentsAt`), within reach of the style. Where none is, the performer
- * plays its own, which holds a register and no sound, so the band sounds as
- * the style colours it; at Electro swing's point a clarinet, at Spooky's a
- * theremin, each with a sound of its own (yggi/cells#350) that the built-in
- * synth plays. Every one holds its default's register, so MIDI out sends the
- * same notes.
+ * Which instrument a section's performers play at its style is the band's
+ * choice, made where the score is played (cells' `resolveBand`, #531), not
+ * the composer's.
  */
 
 import { setAttr } from '@yggi/cells/engine/edit';
 import { bodyOf } from '@yggi/cells/engine/use';
 import { gmDrumNote } from '@yggi/cells/engine/midi';
-import type { Fragment } from '@yggi/cells/repository/fragments';
-import { instrumentsAt as cellsInstrumentsAt } from '@yggi/cells/repository/band';
 import { INSTRUMENT_FRAGMENTS } from './library.ts';
-import { type QueriedStyle, stylePoint } from './meter-query.ts';
 
 /** The order the instrument fragments fill a voice in: the first that defines it gives its line. */
 const INSTRUMENT_ORDER = ['gm_kit', 'bass', 'keys', 'pad', 'lead'];
-
-/** The voice each pitched performer plays (cells' seed performers, decision 058), and the instrument it takes it from. */
-export const PERFORMER_VOICES = {
-  bass: { voice: 'bassV', own: 'bass' },
-  pad: { voice: 'padV', own: 'pad' },
-  stab: { voice: 'keysV', own: 'keys' },
-  lead: { voice: 'leadV', own: 'lead' },
-} as const;
-
-/** A pitched performer: one of `PERFORMER_VOICES`. */
-export type VoicedPart = keyof typeof PERFORMER_VOICES;
-
-/** An instrument a performer plays in place of its own: the fragment's id and the line that defines the voice. */
-export interface FoundInstrument {
-  readonly id: string;
-  readonly line: string;
-}
-
-/**
- * The instrument each pitched performer plays at a style's point, where it
- * isn't the performer's own: cells' `instrumentsAt`, the first that defines
- * the performer's voice in its ranking on the facet `instrument`, within
- * `INSTRUMENT_REACH` (0.3, the composer's `MISS_DISTANCE`, cells v0.25.1). A
- * performer whose own instrument ranks first, or that finds none within
- * reach, is left out, and plays as its fragment says: an instrument placed
- * at one style isn't another's because nothing nearer defines its voice.
- */
-export const instrumentsAt = (
-  style: QueriedStyle,
-  fragments: readonly Fragment[] = INSTRUMENT_FRAGMENTS,
-): Partial<Record<VoicedPart, FoundInstrument>> => cellsInstrumentsAt(stylePoint(style), fragments);
 
 /**
  * Each voice an instrument fragment defines, by its name, and the line that defines it: read off its body, past the

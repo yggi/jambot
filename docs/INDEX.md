@@ -44,6 +44,7 @@ A source file has no line here: its header comment says what it is, and `tooling
   - `docs/briefs/`: task briefs, kept verbatim
     - [`analyzer.md`](briefs/analyzer.md): the MIDI → score analyzer (#3)
     - [`host-mode.md`](briefs/host-mode.md): a plan sketch for host and client mode: the seams, the Muse on both sides, time, links
+    - [`conductor-and-player.md`](briefs/conductor-and-player.md): the conductor and the player (#531 item 3): `Player` mapped by side, where solo and a client part, the debt the cut removes, and the order, the wire first
     - [`eternal-jam.md`](briefs/eternal-jam.md): eternal jam sessions, Jambot and Cell studio back together: the owner's brief, its reading, and the plan
     - [`mobile-ui.md`](briefs/mobile-ui.md): the band on a phone (#327): the owner's brief and reply, with the mocks (five options, then the stage chosen) and their screenshots in `briefs/mobile-ui/`
     - [`style-map.md`](briefs/style-map.md): the Style sheet as a map of music (#598, yggi/cells#536): presets as places, the style as a point with entropy as its reach, the radio's trail and the players' wishes, with the mock and its screenshots in `briefs/style-map/`

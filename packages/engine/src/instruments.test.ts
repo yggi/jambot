@@ -8,18 +8,8 @@ import {
 } from './library.ts';
 import { describe, expect, it } from 'vitest';
 import { METERS } from '@jambot/theory';
-import {
-  INSTRUMENT_LINES,
-  notedVoices,
-  PERFORMER_VOICES,
-  instrumentsAt,
-  instrumentsFor,
-  withInstruments,
-} from './instruments.ts';
+import { INSTRUMENT_LINES, notedVoices, instrumentsFor, withInstruments } from './instruments.ts';
 import { grooveLines, readRhythm } from './rhythms.ts';
-import { MISS_DISTANCE } from './meter-query.ts';
-import { PRESETS } from './style.ts';
-import { INSTRUMENT_REACH } from '@yggi/cells/repository/band';
 
 const errors = (text: string) =>
   compileSource(text)
@@ -91,108 +81,5 @@ describe('a groove filed with its own voices, read at cells v0.22.0 (yggi/cells#
     // (a voice that writes its note keeps it, and a line with no sound is no voice to write one on)
     expect(notedVoices('&bd note=40 s=white')).toBe('&bd note=40 s=white');
     expect(notedVoices('&bd gain=1')).toBe('&bd gain=1');
-  });
-});
-
-describe('the instruments a section’s performers play, found at its style (#497)', () => {
-  const point = { sync: 0.9, harm: 0.1, bite: 0.9, mood: 0.1 };
-  /** An instrument for the lead at a point of its own, as yggi/cells#350's are at the two presets'. */
-  const theirs = {
-    id: 'test whistle',
-    text: '&leadV s=sine loop=C4 env=&(map=adsr .05 .1 .8 .2)',
-    association: [{ point, weight: 0.125, facet: 'instrument' }],
-  };
-
-  /**
-   * The instruments cells wrote for presets' points: Electro swing's and Spooky's (yggi/cells#366), and since cells
-   * v0.23.0 those of the styles cut from its examples, Kinderlied's and the four new (yggi/cells#572), and since v0.24.0
-   * the eight it placed by hand and cut from its examples (yggi/cells#675, #679). Since v0.25.1 nothing stands at the
-   * centre and each style has a second choice within each facet (yggi/cells#540): the defaults and the shared
-   * instruments are placed by idiom, so Ambient, Funk and Swing jazz find instruments of their own, and Baroque, Blues
-   * shuffle, Chiptune and Salsa more. Past `INSTRUMENT_REACH` each performer plays its own.
-   */
-  const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
-    Ambient: { bass: 'sine_bass' },
-    Funk: { stab: 'brass_stab' },
-    'Swing jazz': { bass: 'upright_bass', lead: 'muted_trumpet' },
-    'Electro swing': { bass: 'upright_bass', lead: 'clarinet', stab: 'brass_stab' },
-    Spooky: { bass: 'round_bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
-    Kinderlied: { bass: 'sine_bass', lead: 'recorder' },
-    Acid: { bass: 'tb303' },
-    'Happy hardcore': { lead: 'rave_lead' },
-    Elektro: { bass: 'square_bass' },
-    'Dark ambient': { pad: 'drone_pad', lead: 'prepared_piano' },
-    // (the eight styles placed at cells v0.24.0, yggi/cells#675 and #679: each a lead of its own, and since v0.25.1
-    // four of them more)
-    Baroque: { stab: 'celesta', lead: 'moog' },
-    'Blues shuffle': { bass: 'upright_bass', pad: 'organ', lead: 'blues_horn' },
-    'Sea shanty': { lead: 'fiddle' },
-    Chiptune: { bass: 'square_bass', lead: 'pulse_lead' },
-    Salsa: { stab: 'brass_stab', lead: 'montuno_piano' },
-    Waltz: { lead: 'accordion' },
-    March: { lead: 'brass_band' },
-    'Trip-hop': { lead: 'electric_piano' },
-  };
-
-  it.each(PRESETS.map((p) => p.name))(
-    'at %s, a performer plays the instrument found at its point where it isn’t its own, its own elsewhere',
-    (name) => {
-      const style = PRESETS.find((p) => p.name === name)!.style;
-      for (const library of [INSTRUMENT_FRAGMENTS, [...INSTRUMENT_FRAGMENTS, theirs]]) {
-        const found = instrumentsAt(style, library);
-        expect(
-          Object.fromEntries(Object.entries(found).map(([part, { id }]) => [part, id])),
-        ).toEqual(FOUND[name] ?? {});
-        // (the line each plays is the one its instrument defines the performer's voice with)
-        for (const [part, { id, line }] of Object.entries(found))
-          expect(line).toBe(
-            lineOf(id, PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES].voice),
-          );
-        // (and holds its performer's own instrument's register, so MIDI out sends the same notes)
-        for (const [part, { line }] of Object.entries(found)) {
-          const { own, voice } = PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES];
-          expect(/loop=(\S+)/.exec(line)![1], `${name} ${part}`).toBe(
-            /loop=(\S+)/.exec(lineOf(own, voice))![1],
-          );
-        }
-      }
-    },
-  );
-
-  it('at an instrument’s own point, the performer whose voice it defines plays it, and the others their own', () => {
-    expect(
-      instrumentsAt({ sync: point.sync, harm: point.harm, artic: point.bite, mood: point.mood }, [
-        ...INSTRUMENT_FRAGMENTS,
-        theirs,
-      ]),
-    ).toEqual({
-      lead: { id: 'test whistle', line: theirs.text },
-    });
-  });
-
-  it('takes an instrument within `INSTRUMENT_REACH` of the style, the composer’s miss distance, and none farther (cells v0.25.1)', () => {
-    expect(INSTRUMENT_REACH).toBe(MISS_DISTANCE);
-    // (each axis moved by `d` from the instrument's point lies `d` from it, the root of the mean squared difference, and
-    // the ranking divides that by the point's weight: the whistle at weight 1)
-    const whistle = { ...theirs, association: [{ point, weight: 1, facet: 'instrument' }] };
-    const off = (d: number) => ({
-      sync: point.sync - d,
-      harm: point.harm + d,
-      artic: point.bite - d,
-      mood: point.mood + d,
-    });
-    expect(instrumentsAt(off(0.29), [whistle])).toEqual({
-      lead: { id: 'test whistle', line: theirs.text },
-    });
-    expect(instrumentsAt(off(0.31), [whistle])).toEqual({});
-  });
-
-  // (since cells v0.15.0 each default instrument has a sound, `s=` and its filters, and reads the section's &style:
-  // the lead's a blend of two waves, `s=tri..square * &style[bite]`, cells decision 066)
-  it('names each pitched performer’s voice as its own instrument defines it, its register and its sound', () => {
-    for (const { voice, own } of Object.values(PERFORMER_VOICES))
-      expect(lineOf(own, voice), own).toMatch(
-        new RegExp(`^&${voice} s=\\S+( \\* &\\S+)? loop=C\\d( |$)`),
-      );
   });
 });
