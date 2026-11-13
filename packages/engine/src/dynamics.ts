@@ -39,7 +39,9 @@ function roleAccent(env: BarEnv, role: DrumRole, step: number): number {
       return onBeat(env, step) ? 78 : step % 2 === 0 ? 66 : 50;
     case 'pedal':
       return 58;
+    // (a pattern beside the groove, level on every step: the rim's Euclid, and a fragment's ostinato and clave)
     case 'euclid':
+    case 'ostinato':
     case 'clave':
       return 72;
     case 'fill': {

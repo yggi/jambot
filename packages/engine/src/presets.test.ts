@@ -100,12 +100,11 @@ const FOUND: Readonly<
     bass: 'octave_bass',
     swing: '16n 0.500',
   },
-  // (cells' salsa_drums strike the toms, which the drummer has no role for (`heldRhythms`): the ride shuffle, the next
-  // nearest, plays)
+  // (cells' salsa_drums play the conga's tumbao on the toms, which the drummer plays as an ostinato, #651)
   Salsa: {
     meter: 'meter',
     mode: 'mixolydian',
-    rhythm: 'ride_shuffle',
+    rhythm: 'salsa_drums',
     bass: 'tumbao_bass',
     swing: '16n 0.500',
   },

@@ -112,6 +112,9 @@ describe('the performer', () => {
       ['hat', 1, 50],
       ['pedal', 4, 58],
       ['euclid', 5, 72],
+      // (a fragment's ostinato, as its clave, #651: a figure beside the groove, level on every step)
+      ['ostinato', 0, 72],
+      ['ostinato', 7, 72],
       ['fill', 12, 50],
       ['fill', 15, 95],
     ];

@@ -97,14 +97,15 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     expect(dropped).toBe(1);
   });
 
-  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 99 sections of 5,345`, () => {
+  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 100 sections of 5,345`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThanOrEqual(LAYER_CAP);
     // (15,994, 85 and 5,265 before cells v0.24.0; 15,978, 28 and 5,387 before cells v0.23.0, whose walk files more
     // grooves; 15,991 and 31 before cells v0.21.0, whose bass lines and progressions are filed with their signature,
     // #562; 15,991 before v0.25.0; 15,995 and 94 before 2/4 and 2/2 were among the band's meters on top of v0.25.0,
-    // #652, where 120 sections now play 2/4, which lasts half a 4/4)
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15991, 99]);
+    // #652, where 120 sections now play 2/4, which lasts half a 4/4; 99 drops before the ostinato on top of 2/4 and 2/2,
+    // #651)
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15991, 100]);
     // (5,281 before cells v0.25.0; 5,283 before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652)
     expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5345);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);

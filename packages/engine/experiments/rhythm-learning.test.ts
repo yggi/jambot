@@ -60,15 +60,16 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
   // twelve-eight drums fill more of the space: 242 grooves, 35 and 207, the misses 1,679 to 35, 12,804 a groove filed,
   // before; and with 2/4 and 2/2 among the band's meters on top of v0.25.0, #652, where 877 sections learning play 2/4,
   // which lasts half a 4/4, and 65 play 2/2: 238 grooves, 208 the composer's, over 26,501 sections, 12,554 of them a
-  // groove filed, before)
-  it('files 240 grooves in 120 hours, 30 the drummer’s on a miss and 210 the composer’s variations (#411, #414), and the misses fall from 1,394 sections to 30: what was filed is found again', () => {
+  // groove filed, before; and with the ostinato on top of 2/4 and 2/2, #651, whose Salsa drums the drummer holds near
+  // Salsa's point: 240 grooves, 30 and 210, the misses 1,394 to 30, 12,601 a groove filed, before)
+  it('files 233 grooves in 120 hours, 28 the drummer’s on a miss and 205 the composer’s variations (#411, #414), and the misses fall from 1,394 sections to 28: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     expect(count(LEARNED, (r) => r.sections)).toBe(26986);
-    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([30, 1394]);
-    expect(FILINGS.length).toBe(240);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([30, 210]);
+    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([28, 1394]);
+    expect(FILINGS.length).toBe(233);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([28, 205]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(12601);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(11942);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -101,22 +102,24 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −16.8 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −17.0 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
     // (0.8738 to 0.6987, −17.51 (1.95), before cells v0.24.0; 0.8383 to 0.6656, −17.28 (1.80), before v0.25.0; 0.8320
-    // to 0.6656, −16.64 (1.90), before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652)
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8295', '0.6617']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-16.78', '1.89']);
+    // to 0.6656, −16.64 (1.90), before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652; 0.8295 to
+    // 0.6617, −16.78 (1.89), before the ostinato on top of 2/4 and 2/2, #651)
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8258', '0.6555']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-17.03', '2.03']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  // (15,938 bytes and 15 grooves before cells v0.24.0; 12 grooves before v0.25.0)
-  it(`keeps a layer of at most 15,114 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  // (15,938 bytes and 15 grooves before cells v0.24.0; 12 grooves before v0.25.0; 15,114 bytes before #651 held Salsa
+  // drums)
+  it(`keeps a layer of at most 15,147 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(15114);
+    expect(Math.max(...bytes)).toBe(15147);
     expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)

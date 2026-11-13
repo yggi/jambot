@@ -127,8 +127,9 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
   it('moves the share over all members down as the lean rises, in every preset, held at entropy 0.3', () => {
     expect(
       [held.down, held.open, held.up, held.top].map((r) => fixed(against(r, 'all').mean)),
-      // (0.788, 0.743, 0.656 and 0.584 before cells v0.24.0; 0.808, 0.763, 0.668 and 0.596 before v0.25.0)
-    ).toEqual([0.814, 0.768, 0.68, 0.607]);
+      // (0.788, 0.743, 0.656 and 0.584 before cells v0.24.0; 0.808, 0.763, 0.668 and 0.596 before v0.25.0; 0.607 at the
+      // top before #651 held Salsa drums, which Funk turns to once tired)
+    ).toEqual([0.814, 0.768, 0.68, 0.606]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
         against(
@@ -150,11 +151,12 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
 
 describe('the controller closed (E45, #237)', () => {
   it('brings more sections inside the band than left alone, held and walked, and no more than the lean at its top', () => {
-    // (0.833 at the top before cells v0.24.0; 0.229, 0.698 and 0.802 held, 0.219 and 0.711 walked, before v0.25.0)
+    // (0.833 at the top before cells v0.24.0; 0.229, 0.698 and 0.802 held, 0.219 and 0.711 walked, before v0.25.0; 0.792
+    // at the top and 0.664 walked before #651 held Salsa drums)
     expect([held.open, held.closed, held.top].map((r) => fixed(insideOf(r)))).toEqual([
-      0.198, 0.646, 0.792,
+      0.198, 0.646, 0.802,
     ]);
-    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.211, 0.664]);
+    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.211, 0.672]);
   });
 
   // (80 % ruled on #536; loosened to 79 % at cells v0.25.0, the owner on #660, 2026-11-12: six of the eight presets play
@@ -188,12 +190,13 @@ describe('the controller closed (E45, #237)', () => {
 
 describe('the controller on the page’s schedule (#495: read at a section’s last bar, leaned two sections on)', () => {
   it('brings sections inside the band, held and walked, behind the schedule read a bar before the section it leans', () => {
-    // (0.229, 0.635 and 0.698 held, 0.219, 0.641 and 0.711 walked, before cells v0.25.0)
+    // (0.229, 0.635 and 0.698 held, 0.219, 0.641 and 0.711 walked, before cells v0.25.0; 0.604 held, 0.602 and 0.664
+    // walked, before #651 held Salsa drums)
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.198, 0.604, 0.646,
+      0.198, 0.615, 0.646,
     ]);
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.211, 0.602, 0.664,
+      0.211, 0.609, 0.672,
     ]);
   });
 

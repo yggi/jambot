@@ -4,7 +4,7 @@ import { cachedFit } from '@yggi/cells/repository/fit';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
-import { CLAVES_NOTE, DRUM_NOTES } from './drums.ts';
+import { CLAVES_NOTE, DRUM_NOTES, TOM_NOTES } from './drums.ts';
 import { DRUM_ROLES } from './events.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { stylePoint } from './meter-query.ts';
@@ -93,8 +93,9 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     const drumBars = read.filter((r) => !isClave(r.id));
     expect(drumBars.length).toBeGreaterThan(0);
     for (const r of drumBars) expect(r.hits.length, r.id).toBeGreaterThan(0);
+    // (every role among them: Salsa drums' tumbao the ostinato and its son clave the clave, #651)
     expect(new Set(drumBars.flatMap((r) => r.hits.map((h) => h.role)))).toEqual(
-      new Set(DRUM_ROLES.filter((role) => role !== 'clave')),
+      new Set(DRUM_ROLES),
     );
     for (const r of read.filter((x) => isClave(x.id))) {
       expect(
@@ -146,13 +147,9 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     expect(ids).not.toContain(found);
   });
 
-  it('holds every rhythm of cells’ seed but Salsa’s, whose tumbao strikes the toms, and none whose line strikes a sound outside the kit', () => {
-    expect(heldRhythms().map((f) => f.id)).toEqual(
-      RHYTHM_FRAGMENTS.map((f) => f.id).filter((id) => id !== 'salsa_drums'),
-    );
-    expect(
-      readRhythm(RHYTHM_FRAGMENTS.find((f) => f.id === 'salsa_drums')!.text, METERS['4/4']),
-    ).toBeNull();
+  it('holds every rhythm of cells’ seed, 32 of 32, and none whose line strikes a sound outside the kit', () => {
+    expect(heldRhythms().map((f) => f.id)).toEqual(RHYTHM_FRAGMENTS.map((f) => f.id));
+    expect(RHYTHM_FRAGMENTS).toHaveLength(32);
     const crash = {
       ...RHYTHM_FRAGMENTS[0]!,
       id: 'crash',
@@ -162,6 +159,28 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     expect(
       heldRhythms([{ ...crash, text: crash.text.replace('&cr', '&cp') }]).map((f) => f.id),
     ).toEqual(['crash']);
+  });
+
+  it('reads Salsa’s tumbao, which writes no `role=` and strikes the toms alone, as an ostinato, beside its clave and its cáscara (#651, until yggi/cells#717)', () => {
+    const salsa = RHYTHM_FRAGMENTS.find((f) => f.id === 'salsa_drums')!;
+    // (cells v0.25.0: the line writes no role, so its sounds give it)
+    expect(salsa.text).toMatch(/^&tumbao step=8n /m);
+    const read = readRhythm(salsa.text, METERS['4/4'])!;
+    const { lowTom, midTom, highTom } = TOM_NOTES;
+    const at = (role: string) =>
+      read.hits.filter((h) => h.role === role).map((h) => `${h.step}:${h.note}`);
+    expect(read.bars).toBe(2);
+    expect(new Set(read.hits.map((h) => h.role))).toEqual(new Set(['clave', 'ostinato', 'hat']));
+    expect(at('ostinato')).toEqual(
+      [0, 16].flatMap((bar) =>
+        [midTom, midTom, highTom, midTom, midTom, midTom, lowTom, lowTom].map(
+          (note, i) => `${bar + 2 * i}:${note}`,
+        ),
+      ),
+    );
+    expect(at('hat')).toEqual([0, 4, 8, 12, 16, 20, 24, 28].map((s) => `${s}:${DRUM_NOTES.ride}`));
+    // It is a drum bar, not a line of its own as a clave is: a section can take it.
+    expect(isOwnLine(read)).toBe(false);
   });
 
   it('holds cells v0.25.0’s aksak and twelve-eight drums (yggi/cells#707), and finds each first at its point under its own meter: the aksak’s in 7/8, the twelve-eight’s in 12/8, its hat on the ride', () => {

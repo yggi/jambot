@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BarEnv } from './bar.ts';
-import { CLAVES_NOTE, DRUM_NOTES } from './drums.ts';
+import { CLAVES_NOTE, DRUM_NOTES, TOM_NOTES } from './drums.ts';
 import { type DrumRole, SONG_METER, type WrittenNote } from './events.ts';
 import { grooveBar } from './groove.ts';
 import { INITIAL_KEY } from './key.ts';
@@ -136,6 +136,40 @@ describe('the drummer plays from the composer’s rhythm, `groove` as the owner 
   it('writes each hit as the drummer writes its own, a step long, the velocity left to the performer', () => {
     const [hit] = grooveBar(ENV, [own('kick', 0)], [frag('kick', 4, 17)]);
     expect(hit).toEqual(own('kick', 4));
+  });
+
+  it('plays a fragment’s ostinato as written, every hit, since the drummer has no ostinato of its own to count it by (#651, a first piece of #656)', () => {
+    const { lowTom, midTom, highTom } = TOM_NOTES;
+    // (Salsa's tumbao: the mid tom's muted strokes, the high tom's slap on two, the low tom's open tones)
+    const tumbao = [
+      frag('ostinato', 0, 38, midTom),
+      frag('ostinato', 2, 25, midTom),
+      frag('ostinato', 4, 64, highTom),
+      frag('ostinato', 6, 25, midTom),
+      frag('ostinato', 8, 38, midTom),
+      frag('ostinato', 10, 25, midTom),
+      frag('ostinato', 12, 76, lowTom),
+      frag('ostinato', 14, 64, lowTom),
+    ];
+    const bar = [own('kick', 0), own('hat', 2, DRUM_NOTES.closedHat)];
+    expect(read(grooveBar(ENV, bar, [frag('kick', 0), ...tumbao]))).toEqual([
+      'kick0:36',
+      'ostinato0:45',
+      'hat2:42',
+      'ostinato2:45',
+      'ostinato4:48',
+      'ostinato6:45',
+      'ostinato8:45',
+      'ostinato10:45',
+      'ostinato12:41',
+      'ostinato14:41',
+    ]);
+    // A bar of the drummer's that plays nothing of its own still plays it, as it plays a clave.
+    expect(read(grooveBar(ENV, [], tumbao))).toEqual(
+      tumbao.map((h) => `ostinato${h.step}:${h.note}`),
+    );
+    // Each a step long, the velocity left to the performer, as the drummer's own.
+    expect(grooveBar(ENV, [], [tumbao[2]!])).toEqual([own('ostinato', 4, highTom)]);
   });
 
   it('plays no hit off the bar’s steps', () => {

@@ -32,8 +32,11 @@ export type Part = (typeof PARTS)[number];
 /**
  * What a drum hit does in the groove, which sets its accent. Where two land
  * on one sound and step, the one listed first stays: of the drummer's own,
- * only the snare's backbeat, fill and ghost ever meet; the clave, a line the
- * composer chose from the repository (#397), comes last, so the rim's
+ * only the snare's backbeat, fill and ghost ever meet. Two come only from a
+ * fragment's line, the drummer having no part of its own for them
+ * (`OWN_ROLES`): the ostinato, a pitched figure repeated on the toms or the
+ * congas (cells' `salsa_drums`' tumbao, #651, yggi/cells#717), and last the
+ * clave, a line the composer chose from the repository (#397), so the rim's
  * Euclid wins a step they share.
  */
 export const DRUM_ROLES = [
@@ -44,6 +47,7 @@ export const DRUM_ROLES = [
   'hat',
   'pedal',
   'euclid',
+  'ostinato',
   'clave',
 ] as const;
 export type DrumRole = (typeof DRUM_ROLES)[number];

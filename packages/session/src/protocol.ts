@@ -69,18 +69,20 @@ import type { ForecastDelta } from './forecast.ts';
  * a welcome's `events`). Version 22 has a bar's style and the track carry
  * `mood`, cells' style axis since its v0.23.0 (decision 076), which the
  * composer's queries read (a client takes a track without it as held at the
- * centre, `everyAxis`). Version 1 keeps 19 to 29 for its minors: version 2
+ * centre, `everyAxis`). Version 23 has a drum hit be a fragment's
+ * ostinato (`DrumRole`'s `ostinato`, #651: Salsa's tumbao on the toms),
+ * which a client's performer accents. Version 1 keeps 19 to 29 for its minors: version 2
  * starts at 30 (the owner's ruling of 2026-11-06).
  *
  * From 13 on, a protocol is a minor version of the session contract's major
  * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, 18 minor 5, 19 minor 6, 20 minor 7, 21 minor 8 (a motif's judgement carries its `origin`, #580 rung 3) and 22 minor 9. A host admits a join of any
+ * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, 18 minor 5, 19 minor 6, 20 minor 7, 21 minor 8 (a motif's judgement carries its `origin`, #580 rung 3), 22 minor 9 and 23 minor 10. A host admits a join of any
  * of them, and a client stays with a host of any (`sameMajor`), each
  * ignoring a kind it doesn't know, so a minor that adds a kind deploys
  * without every client in lockstep: a client at 13 drops the `section`
  * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
-export const PROTOCOL = 22;
+export const PROTOCOL = 23;
 
 /**
  * What a client may be seated as (docs/briefs/session-roles.md): a
