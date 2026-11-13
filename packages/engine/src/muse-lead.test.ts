@@ -169,13 +169,13 @@ function heardWhole(text: string): LeadBar[] {
 describe('a player’s run that is a form over the seed’s motifs, filed as it (#580, rung 4)', () => {
   it('files Twinkle played whole, six bars, as ternary over twinkle, its answer wonder, in the key’s own degrees', () => {
     const bars = heardWhole(
-      '&twinkle from twinkle &key\n&wonder from wonder &key\n&song from ternary(answer=&wonder) &twinkle',
+      '&twinkle from kinderlied &key\n&wonder from kinderlied &key\n&song from ternary(answer=&wonder) &twinkle',
     );
     const line = distilledLead(bars, 16, '4/4')!;
     expect(line.text).toBe(
       [
-        '&twinkle from twinkle &key',
-        '&wonder from wonder &key',
+        '&twinkle from kinderlied &key',
+        '&wonder from kinderlied &key',
         '&lead from ternary(answer=&wonder) &twinkle',
       ].join('\n'),
     );
@@ -187,20 +187,20 @@ describe('a player’s run that is a form over the seed’s motifs, filed as it 
   it('files Hänschen klein played whole, eight bars from the fifth, as rounded binary over haenschen, its answers and bridge the tune’s', () => {
     const bars = heardWhole(
       [
-        '&haenschen from haenschen &key',
-        '&hinein from hinein &key',
-        '&heim from heim &key',
-        '&weinet from weinet &key',
+        '&haenschen from kinderlied &key',
+        '&hinein from kinderlied &key',
+        '&heim from kinderlied &key',
+        '&weinet from kinderlied &key',
         '&song from rounded_binary(answer=&hinein, close=&heim, bridge=&weinet) &haenschen',
       ].join('\n'),
     );
     expect(bars[0]!.origin).toBe(39);
     expect(distilledLead(bars, 16, '4/4')?.text).toBe(
       [
-        '&haenschen from haenschen &key',
-        '&hinein from hinein &key',
-        '&heim from heim &key',
-        '&weinet from weinet &key',
+        '&haenschen from kinderlied &key',
+        '&hinein from kinderlied &key',
+        '&heim from kinderlied &key',
+        '&weinet from kinderlied &key',
         '&lead from rounded_binary(answer=&hinein, close=&heim, bridge=&weinet) &haenschen',
       ].join('\n'),
     );

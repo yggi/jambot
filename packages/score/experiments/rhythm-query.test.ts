@@ -144,11 +144,12 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
   // (none refused by the fit since cells v0.15.0: Ghost drums fits 7/8, the one meter no seed rhythm fitted)
   // (90 % found since cells v0.23.0, its four new drum bars, three of which fit every meter, and a rhythm's point on
   // sync, harm and bite, which the grid's mood moves nowhere: 69 % before)
-  // (93 % since cells v0.24.0's seven drum bars the drummer holds, yggi/cells#675 and #679: 90 % before; and as many
-  // with 2/4 and 2/2 among the band's meters, #652, the 132 points that now choose 2/4 finding March or Kinderlied
+  // (93 % since cells v0.24.0's seven drum bars the drummer holds, yggi/cells#675 and #679: 90 % before)
+  // (96 % since cells v0.25.0's aksak and twelve-eight drums, yggi/cells#707: 13,673 and 968 before; and as many with 2/4
+  // and 2/2 among the band's meters on top of it, #652, the 132 points that now choose 2/4 finding March or Kinderlied
   // drums and the 66 that choose 2/2 Chip, Elektro or Deep house drums or the quiet pulse)
-  it(`misses over a grid of the four axes, the meter found first: 93 % found, none refused by the fit, 7 % past ${RHYTHM_MISS}`, () => {
-    expect(gridAnswers(11)).toEqual({ found: 13673, fit: 0, distance: 968 });
+  it(`misses over a grid of the four axes, the meter found first: 96 % found, none refused by the fit, 4 % past ${RHYTHM_MISS}`, () => {
+    expect(gridAnswers(11)).toEqual({ found: 14102, fit: 0, distance: 539 });
   });
 
   // a bound in wall-clock time, so it runs only when asked: on a shared runner it reads past 5 ms with nothing wrong (5.16 ms, #485's CI)

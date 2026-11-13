@@ -127,8 +127,9 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
   it('moves the share over all members down as the lean rises, in every preset, held at entropy 0.3', () => {
     expect(
       [held.down, held.open, held.up, held.top].map((r) => fixed(against(r, 'all').mean)),
-      // (0.788, 0.743, 0.656 and 0.584 before cells v0.24.0; 0.668 and 0.596 at the top two before the walk rule was retired, #650)
-    ).toEqual([0.808, 0.763, 0.673, 0.602]);
+      // (0.788, 0.743, 0.656 and 0.584 before cells v0.24.0; 0.808, 0.763, 0.668 and 0.596 before v0.25.0; 0.68 and
+      // 0.607 at the top two before the walk rule retired on top of cells v0.25.0, #650)
+    ).toEqual([0.814, 0.768, 0.685, 0.613]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
         against(
@@ -150,23 +151,31 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
 
 describe('the controller closed (E45, #237)', () => {
   it('brings more sections inside the band than left alone, held and walked, and no more than the lean at its top', () => {
-    // (0.833 at the top before cells v0.24.0; 0.698 closed before the walk rule was retired, #650)
+    // (0.833 at the top before cells v0.24.0; 0.229, 0.698 and 0.802 held, 0.219 and 0.711 walked, before v0.25.0;
+    // 0.646 and 0.792 held, and 0.664 walked, before the walk rule retired on top of cells v0.25.0, #650)
     expect([held.open, held.closed, held.top].map((r) => fixed(insideOf(r)))).toEqual([
-      0.229, 0.688, 0.802,
+      0.198, 0.635, 0.781,
     ]);
-    // (0.711 walked closed before the walk rule was retired, #650)
-    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.219, 0.688]);
+    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.211, 0.68]);
   });
 
-  it('reaches the ruled 80 % of sections inside at the lean’s top, open, further than at entropy 1 alone (#536)', () => {
-    expect(insideOf(held.top)).toBeGreaterThanOrEqual(0.8);
+  // (80 % ruled on #536; loosened to 79 % at cells v0.25.0, the owner on #660, 2026-11-12: six of the eight presets play
+  // a harmony of cells' since, which the sensor knows, and the lean's top brings 79.2 % inside, 80.2 % before.
+  // Restated in sections by the owner, 2026-11-13: one section is the measure's step, 1.04 points at 96 sections; `main`
+  // passed 79 % with one section to spare, 76 of 96, and retiring the walk rule (#650) costs one section, at one seed per
+  // preset, so 75 of 96. A bound that carries the measure's error, measured over more seeds, is the follow-up, once #666
+  // makes the run cheaper)
+  it('reaches 75 of 96 sections inside at the lean’s top, open, further than at entropy 1 alone (#536, #660, #650)', () => {
+    expect(insideOf(held.top)).toBeGreaterThanOrEqual(75 / 96);
     expect(insideOf(held.top)).toBeGreaterThan(insideOf(held.up));
   });
 
-  it('reverses within the ruled one per four sections', () => {
+  // (one per four sections ruled; loosened to one per two walked at cells v0.25.0, the owner on #660, 2026-11-12: its
+  // harmonies of four bars read twice move the walk's share more, 0.25 before)
+  it('reverses within one per four sections held, and one per two walked (#660)', () => {
     expect(
       [held.closed, held.fromDown, walked.closed].map((r) => fixed(reversalsOf(r).most)),
-      // (0.25 walked before the walk rule was retired, #650)
+      // (0.5 walked before the walk rule retired on top of cells v0.25.0, #650)
     ).toEqual([0, 0, 0]);
   });
 
@@ -177,7 +186,8 @@ describe('the controller closed (E45, #237)', () => {
   });
 
   it('measures how many sections a run leaned all the way down takes to come inside, and what a bar costs', () => {
-    expect(cameInside(held.fromDown)).toEqual([3, 1, 2, 3, 1, 4, 4, 6]);
+    // ([3, 1, 2, 3, 1, 4, 4, 6] before cells v0.25.0)
+    expect(cameInside(held.fromDown)).toEqual([3, 1, 3, 3, 5, 4, 4, 6]);
     for (const runs of [held.closed, walked.closed])
       expect(Number.isFinite(costOf(runs).p95)).toBe(true);
   });
@@ -185,12 +195,13 @@ describe('the controller closed (E45, #237)', () => {
 
 describe('the controller on the page’s schedule (#495: read at a section’s last bar, leaned two sections on)', () => {
   it('brings sections inside the band, held and walked, behind the schedule read a bar before the section it leans', () => {
+    // (0.229, 0.635 and 0.698 held, 0.219, 0.641 and 0.711 walked, before cells v0.25.0; 0.604 and 0.646 held, and
+    // 0.602 and 0.664 walked, before the walk rule retired on top of cells v0.25.0, #650)
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.229, 0.635, 0.688,
+      0.198, 0.594, 0.635,
     ]);
-    // (0.698 held closed, and 0.641 and 0.711 walked, before the walk rule was retired, #650)
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.219, 0.656, 0.688,
+      0.211, 0.609, 0.68,
     ]);
   });
 

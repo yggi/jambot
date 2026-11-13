@@ -130,7 +130,10 @@ const FILING: LeadFiling = {
 };
 
 /** Motifs that share another's point, and the one found first there. */
-const SHARED: Readonly<Record<string, string>> = { wail: 'lament', weinet: 'haenschen' };
+const SHARED: Readonly<Record<string, string>> = {
+  wail: 'lament',
+  'kinderlied/weinet': 'kinderlied/haenschen',
+};
 
 describe('the lead’s repository (#424)', () => {
   it('holds cells’ motifs as its seeds, each found first at its own point in every meter it fits, a rest after it; the presets’ ten in 4/4 and 5/4, and 3/4 its own (#520, yggi/cells#370)', () => {
@@ -165,9 +168,9 @@ describe('the lead’s repository (#424)', () => {
       'diesIrae',
     ])
       expect(fits.get(id), id).toEqual(expect.arrayContaining(['4/4', '5/4']));
-    // (3/4 had none until cells' waltz and music box)
+    // (3/4 had none until cells' waltz and music box; the waltz's motif is `waltzBar` since cells v0.25.0, one namespace)
     expect([...fits].filter(([, names]) => names.includes('3/4')).map(([id]) => id)).toEqual(
-      expect.arrayContaining(['waltz', 'musicBox']),
+      expect.arrayContaining(['waltzBar', 'musicBox']),
     );
   });
 

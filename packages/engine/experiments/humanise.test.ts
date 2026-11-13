@@ -499,11 +499,17 @@ describe('a phrase of two bars filed as one line (E17, #580)', () => {
  * each looseness, as the Muse files them: as the form over the seed's motifs, cells' `decompose`.
  */
 describe('a tune played whole filed as its form (E17, #580)', () => {
-  it('files Twinkle as the ternary and Hänschen klein as the rounded binary in every hand up to 20 ms', () => {
-    for (const tune of ['twinkle', 'haenschen'] as const)
-      for (const s of [0, 10, 20])
-        expect(formFiledRate(tune, s, KEY).right, `${tune} at ${s} ms`).toBe(40);
-  });
+  // (one test per tune and looseness: the six together came within a second of the 60 s timeout on CI)
+  it.each(
+    (['twinkle', 'haenschen'] as const).flatMap((tune) =>
+      [0, 10, 20].map((s) => [tune, s] as const),
+    ),
+  )(
+    'files %s as its form (Twinkle the ternary, Hänschen klein the rounded binary) in every hand at %i ms',
+    (tune, s) => {
+      expect(formFiledRate(tune, s, KEY).right, `${tune} at ${s} ms`).toBe(40);
+    },
+  );
 
   it('files them so in 34 and 35 hands of 40 at 30 ms, where every bar must be read right', () => {
     expect([

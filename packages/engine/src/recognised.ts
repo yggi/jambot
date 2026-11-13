@@ -10,7 +10,7 @@
  * (`barTexts`): the drums' hits by `grooveText`, the clave aside, since a
  * clave is a fragment of its own the drum bar layers with; the bass's notes
  * as a line over the bar's chords by `lineText`; the lead's as a line in the
- * bar's key by `leadText`; and the harmony's by `progressionText`, of its
+ * bar's key by `leadText`; and the harmony's by `statedProgression`, of its
  * section's eight bars, since a progression is a section's (`progressions.ts`),
  * so every bar of a section states the theme it plays, which the composer
  * knows from the section's start. A member that plays no note in a bar, or
@@ -74,7 +74,7 @@ import { GROOVE_FEWEST, VOICE_OF_NOTE, grooveText } from './muse-groove.ts';
 import { lineOf } from './muse-line.ts';
 import { leadOf } from './muse-lead.ts';
 import { GROOVE_KEEP } from './novelty.ts';
-import { harmonyBench, progressionText } from './progressions.ts';
+import { harmonyBench, statedProgression } from './progressions.ts';
 import { SEED_FRAGMENTS } from './repository.ts';
 import { RHYTHM_BENCHES, benchText, grooveLines } from './rhythms.ts';
 import type { Theme } from './themes.ts';
@@ -305,7 +305,7 @@ export function barTexts(bar: BandBar): BarTexts {
   const lead = bar.written.filter((n) => n.part === 'lead' && n.step < steps);
   if (lead.length) out.lead = leadText(leadOf(lead, bar.plan.key), steps);
   const slots = themeSlots(bar.plan.theme);
-  if (slots) out.harmony = progressionText(slots);
+  if (slots) out.harmony = statedProgression(slots);
   return out;
 }
 

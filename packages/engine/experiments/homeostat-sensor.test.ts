@@ -83,16 +83,21 @@ const fixed = (a: ReturnType<typeof against>) =>
 describe('the share of bars recognised over 8 bars, over the 8 presets at entropy 0.3 (E44, #237)', () => {
   // (since cells v0.23.0 a member's library holds the parts of four styles more, so more of what the band plays is
   // heard as a seed: 93 of 128 sections held were under 0.4 before, 97 before the motifs kept their degrees, #529;
-  // cells v0.24.0's eight styles more move the pooled spread and the share pinned, held, and the walk's every figure)
-  it('sits below the ruled band over all members, held and walked: 60 % of sections or more under 0.4 (80 of 128 held)', () => {
+  // cells v0.24.0's eight styles more move the pooled spread and the share pinned, held, and the walk's every figure;
+  // until cells v0.25.0 six of the eight presets' harmonies were the tables', which no seed states, and 60 % of sections
+  // or more sat under 0.4, 0.309 (0.185) held and 0.291 walked, 0.391 and 0.34 inside: since v0.25.0 each plays a
+  // harmony of cells', yggi/cells#540, heard as the seed it is, 0.63 held)
+  it('sits just under the ruled band over all members, held and walked: its mean under 0.4, about half its sections under it (61 of 128 held)', () => {
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
-    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.309, 0.185, 0.391, 0.063]);
-    // (0.291, 0.177, 0.34 and 0.061 walked before the walk rule was retired, #650: the bass is recognised more)
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.301, 0.173, 0.352, 0.055]);
+    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.398, 0.162, 0.523, 0.023]);
+    // (0.376, 0.17, 0.496 and 0.047 walked before the walk rule retired on top of cells v0.25.0, #650: the bass is
+    // recognised more)
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.385, 0.167, 0.518, 0.041]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeLessThan(BAND.low);
-      expect(all.below).toBeGreaterThanOrEqual(0.6);
+      expect(all.below).toBeGreaterThanOrEqual(0.45);
+      expect(all.below).toBeLessThan(0.5);
     }
   });
 
@@ -126,12 +131,13 @@ describe('the share over entropy and tolerance (E44, #237)', () => {
         ).toBeLessThan(0.03);
   });
 
-  it('rises with the tolerance, to 60 % of sections inside the band at 4 notes, over all members (held at 0.3)', () => {
+  // (0.309, 0.346, 0.448 and 0.6 before cells v0.25.0, 63 % inside at 4 notes)
+  it('rises with the tolerance, past the band’s middle at 4 notes, 48 % of sections inside it and the rest above, over all members (held at 0.3)', () => {
     const means = [held[0.3]!, ...TOLERANCES.map((t) => tolerant[t]!)].map((r) =>
       Number(against(r, 'all').mean.toFixed(3)),
     );
-    expect(means).toEqual([0.309, 0.346, 0.448, 0.6]);
-    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.6, 0.158, 0.633, 0.008]);
+    expect(means).toEqual([0.398, 0.439, 0.528, 0.652]);
+    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.652, 0.152, 0.484, 0.016]);
   });
 });
 

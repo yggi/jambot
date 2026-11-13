@@ -249,8 +249,19 @@ describe('what each member played, as cells text (barTexts)', () => {
       const lead = bar.written.some((n) => n.part === 'lead');
       expect(barTexts(bar).lead !== undefined).toBe(lead);
     }
-    // (Bossa nova's theme leads to a dominant, which no progression states)
-    expect(barTexts(played('Bossa nova', 1)[0]!).harmony).toBeUndefined();
+    // (Bossa nova's A is cells' ii V I since v0.25.0, four bars read twice, stated in the seed's words, yggi/cells#540)
+    const bossa = played('Bossa nova', 64);
+    expect(barTexts(bossa[0]!).harmony).toBe(
+      libraryOf('harmony')
+        .find((f) => f.id === 'ii_v_i')!
+        .text.trim(),
+    );
+    // (and a theme of the tables' that leads to a dominant, its B, no progression states)
+    const dominant = bossa.filter(({ plan }) =>
+      plan.theme.bars.some((b) => b.some((slot) => 'dominantOf' in slot)),
+    );
+    expect(dominant.length).toBeGreaterThan(0);
+    for (const bar of dominant) expect(barTexts(bar).harmony).toBeUndefined();
   });
 });
 
