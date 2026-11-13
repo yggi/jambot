@@ -3,8 +3,11 @@
  * then the tests. The static stages share nothing and are mostly
  * single-threaded, so together they take as long as the slowest. The tests
  * come after them, not beside them: they take every core, and a suite with
- * timing in it fails when starved. Nothing is skipped: the tests run unless
- * a static stage has failed, which is enough to fix first.
+ * timing in it fails when starved. For the same reason they run under the
+ * machine's lock for heavy runs (`tooling/heavy.ts`), so two verifies on one
+ * machine, from two worktrees, never test at once: the second waits (#666).
+ * Nothing is skipped: the tests run unless a static stage has failed, which is
+ * enough to fix first.
  *
  * The output holds each stage's until it ends, and ends with the stages that
  * failed, whole, so a reader of the tail (`review-pr`, the pre-push hook)
@@ -30,10 +33,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { holding, lockPath, type Waiting } from './heavy.ts';
 
 export interface Stage {
   name: string;
   command: string;
+  /** Whether it takes every core, and so runs under the machine's lock for heavy runs. */
+  heavy?: true;
 }
 
 export interface Outcome extends Stage {
@@ -50,7 +56,7 @@ export const GROUPS: Stage[][] = [
     { name: 'format', command: 'pnpm format:check' },
     { name: 'build', command: 'pnpm build' },
   ],
-  [{ name: 'test', command: 'pnpm test' }],
+  [{ name: 'test', command: 'pnpm test', heavy: true }],
 ];
 
 /**
@@ -61,7 +67,7 @@ export const GROUPS: Stage[][] = [
  */
 export const DOCS_GROUPS: Stage[][] = [
   [{ name: 'format', command: 'pnpm format:check' }],
-  [{ name: 'test', command: 'pnpm exec vitest run tooling' }],
+  [{ name: 'test', command: 'pnpm exec vitest run tooling', heavy: true }],
 ];
 
 /** What a checkout without `node_modules` runs before anything else. */
@@ -72,13 +78,20 @@ export function plan(installed: boolean, groups: Stage[][] = GROUPS): Stage[][] 
   return installed ? groups : [[INSTALL], ...groups];
 }
 
-function runStage(stage: Stage): Promise<Outcome> {
+function runStage(stage: Stage, waiting: Waiting): Promise<Outcome> {
+  const env = { ...process.env };
+  if (stage.heavy) env.JAMBOT_HEAVY_HELD = waiting.path ?? lockPath();
+  const run = () => runAlone(stage, env);
+  return stage.heavy ? holding(`pnpm verify (${stage.command})`, run, waiting) : run();
+}
+
+function runAlone(stage: Stage, env: NodeJS.ProcessEnv): Promise<Outcome> {
   return new Promise((done) => {
     const started = Date.now();
     let output = '';
     const end = (ok: boolean) =>
       done({ ...stage, ok, seconds: (Date.now() - started) / 1000, output });
-    const child = spawn('sh', ['-c', stage.command], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('sh', ['-c', stage.command], { stdio: ['ignore', 'pipe', 'pipe'], env });
     child.stdout.on('data', (chunk: Buffer) => (output += chunk));
     child.stderr.on('data', (chunk: Buffer) => (output += chunk));
     child.on('error', (error) => {
@@ -89,11 +102,17 @@ function runStage(stage: Stage): Promise<Outcome> {
   });
 }
 
-/** Runs the groups in turn, each group's stages at once, and stops after a group with a failure. */
-export async function verify(groups: readonly (readonly Stage[])[]): Promise<Outcome[]> {
+/**
+ * Runs the groups in turn, each group's stages at once, and stops after a group with a failure. A heavy stage waits
+ * for the machine's lock (`waiting` says where it is), and its time is its own, without the wait.
+ */
+export async function verify(
+  groups: readonly (readonly Stage[])[],
+  waiting: Waiting = {},
+): Promise<Outcome[]> {
   const outcomes: Outcome[] = [];
   for (const group of groups) {
-    outcomes.push(...(await Promise.all(group.map(runStage))));
+    outcomes.push(...(await Promise.all(group.map((stage) => runStage(stage, waiting)))));
     if (outcomes.some((o) => !o.ok)) break;
   }
   return outcomes;

@@ -11,7 +11,8 @@ How the repository is built, gated, deployed and licensed.
   And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
   When the install lacks `@yggi/cells`, its fetch from the public yggi/cells failed on the network or the proxy, and the hook's first line says so: run `pnpm install --frozen-lockfile` again.
   The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
-- The gate is `pnpm verify`, where it costs no minutes: every `git push` of a branch runs it first, through git's pre-push hook (`.githooks/pre-push`: about 3 min alone, the tests 2 min 20 s of it, and 4 to 5 min beside another agent's tests, 2026-10-17), and is blocked if it fails.
+- The gate is `pnpm verify`, where it costs no minutes: every `git push` of a branch runs it first, through git's pre-push hook (`.githooks/pre-push`), and is blocked if it fails.
+  Its tests take the machine's lock for heavy runs (`tooling/heavy.ts`, shared with `pnpm e2e`, the soaks and `pnpm test:slow`), so a second verify on the machine, from another worktree, waits for the first rather than time it out, and says every minute who holds the lock (#666).
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
   It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
   A tree that passed is remembered in the git directory (`jambot-verified`), with its count of tests, by the hook and by a `pnpm verify` run by hand, so neither a retried push nor one right after a verify runs it again, and the hook still prints the count.
@@ -22,7 +23,7 @@ How the repository is built, gated, deployed and licensed.
   No tracked file keeps a line git left as a conflict marker (`tooling/conflict-markers.ts`, lifted from yggi/webmidi): it runs in verify and in the docs check alike, since Prettier formats a marker in markdown as ordinary text and a hand-resolved merge of the changelog or the memory could otherwise push one.
   The GitHub MCP tools that write files (`push_files`, `create_or_update_file`, `delete_file`) skip git, and so the hook: `.claude/settings.json` denies them.
   The pull request names the commit that passed it, in its Verified section.
-- CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: `check` (`pnpm verify`) and `e2e` (`pnpm e2e` in two shards, `e2e-shard`, on two runners: about half the wall time; `e2e` passes when both did), side by side, on a pull request when it is opened, pushed to, reopened or taken out of draft.
+- CI (`.github/workflows/ci.yml`) is a witness to that, not the gate: `check` (`pnpm verify`), `slow` (`pnpm test:slow`, the experiments left out of the gate) and `e2e` (`pnpm e2e` in two shards, `e2e-shard`, on two runners: about half the wall time; `e2e` passes when both did), side by side, on a pull request when it is opened, pushed to, reopened or taken out of draft.
   A draft runs nothing, and a newer push cancels the run still going, so a pull request stays a draft while it moves.
   Nightly on `main` both run, and so do the radio and the session soaks (`soak`, 30 minutes each, on a served build), their readouts kept as the run's artifacts; the session soak fails where its bound breaks (#462).
   By hand (Actions → CI → Run workflow, or `actions_run_trigger` on `ci.yml`) any branch gets `check` and `e2e`, and the soaks with `soak` ticked; runs by hand are never cancelled, so several on one branch give a pass rate.
@@ -41,7 +42,7 @@ How the repository is built, gated, deployed and licensed.
   It then waits for the live site to serve that build and checks it again.
   Pages publishes the branch as it is: the repository's Pages source is "Deploy from a branch", `gh-pages`, `/`.
   `pnpm pages build` and `pnpm pages serve` show the site on `http://localhost:4318/jambot/` first, served as Pages serves it (404 for what isn't a file, where `vite preview` would answer with the app).
-- `pnpm verify` (`tooling/verify.ts`) runs the typecheck, lint, format check and build side by side, then the tests, which take every core and would time out timing-sensitive tests if beside them.
+- `pnpm verify` (`tooling/verify.ts`) runs the typecheck, lint, format check and build side by side, then the tests, which take every core and would time out timing-sensitive tests if beside them, and so run under the machine's lock.
   If a static stage fails, the tests are skipped, and the output ends with the failed stages, whole.
   Lint and the format check keep a cache by content in `node_modules/.cache`, so a second run checks only the files that changed.
 - What makes the tests slow, on the four cores of a Claude Code session: the machine is CPU-bound, so only less work speeds them up, and parallel stages do not.

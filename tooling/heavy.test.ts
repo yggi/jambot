@@ -2,8 +2,9 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { type Holder, holder, release, runHeavy, take } from './heavy.ts';
+import { type Holder, holder, holding, release, runHeavy, take } from './heavy.ts';
 
 const dirs: string[] = [];
 const lock = () => {
@@ -85,6 +86,37 @@ describe('the heavy runs’ lock', () => {
     release(path, process.ppid);
     expect(await ran).toBe(3);
     expect(existsSync(path)).toBe(false);
+  });
+
+  it('starts at once what the holder of the lock runs: a command under the lock is told so, and does not wait for it', async () => {
+    const path = lock();
+    const said: string[] = [];
+    // The command asks for the lock its parent holds: without the word passed down it would wait for ever.
+    const inner = `node --experimental-strip-types --no-warnings ${fileURLToPath(new URL('./heavy.ts', import.meta.url))} sh -c 'exit 4'`;
+    const before = process.env.JAMBOT_HEAVY_LOCK;
+    process.env.JAMBOT_HEAVY_LOCK = path;
+    try {
+      expect(await runHeavy(['sh', '-c', inner], { path, say: (l) => said.push(l) })).toBe(4);
+    } finally {
+      if (before === undefined) delete process.env.JAMBOT_HEAVY_LOCK;
+      else process.env.JAMBOT_HEAVY_LOCK = before;
+    }
+    expect(said).toEqual([]);
+    // Another's lock is still waited for, whatever lock an ancestor holds.
+    take(path, me(process.ppid));
+    const ran = holding('inner', () => Promise.resolve(5), {
+      path,
+      pollMs: 20,
+      say: (l) => said.push(l),
+      env: { JAMBOT_HEAVY_HELD: `${path}-another` },
+    });
+    await new Promise((done) => setTimeout(done, 100));
+    expect(said).toHaveLength(1);
+    release(path, process.ppid);
+    expect(await ran).toBe(5);
+    expect(
+      await holding('inner', () => Promise.resolve(6), { path, env: { JAMBOT_HEAVY_HELD: path } }),
+    ).toBe(6);
   });
 
   it('gives the lock back when the command cannot start', async () => {
