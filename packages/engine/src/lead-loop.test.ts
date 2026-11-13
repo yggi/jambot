@@ -1,4 +1,5 @@
 import { METERS, alteredDegree, stepsOf, wrap } from '@jambot/theory';
+import { usesOf } from '@yggi/cells/repository/library';
 import { describe, expect, it } from 'vitest';
 import { MOTIF_FRAGMENTS } from './library.ts';
 import { type BandCarried, type BandEnv, band } from './band.ts';
@@ -10,6 +11,7 @@ import {
   LEAD_REPOSITORY,
   MOTIF_LEADS,
   leadFormAt,
+  ownFormOf,
   leadRepository,
   leadText,
   readLead,
@@ -20,7 +22,8 @@ import type { HeardNote } from './muse.ts';
 import { SOLOIST, leadOf } from './muse-lead.ts';
 import { BY, VARIES } from './novelty.ts';
 import { LEAD_TAG } from './plan.ts';
-import { METER_REPOSITORY, presetSwing } from './repository.ts';
+import { METER_REPOSITORY, keptLayer, movedLayer, movedText, presetSwing } from './repository.ts';
+import keptTwinkle from './kept-twinkle.fixture.json';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
 import { PRESETS, PROTOTYPE_PRESETS, type Style, holding, writtenStyle } from './style.ts';
@@ -306,8 +309,8 @@ describe('the Muse files a player’s phrase of two bars as one line, and it com
   it('files Twinkle’s two bars, played twice, as one line of two bars: since rung 4 the call and answer over twinkle, its answer wonder', () => {
     expect(bo.fragment.text).toBe(
       [
-        '&twinkle from twinkle &key',
-        '&wonder from wonder &key',
+        '&twinkle from kinderlied &key',
+        '&wonder from kinderlied &key',
         '&lead from call_and_answer(answer=&wonder) &twinkle',
       ].join('\n'),
     );
@@ -364,8 +367,8 @@ describe('the Muse files Twinkle played whole as the ternary over twinkle, and i
   it('files its six bars as the form over the seed’s motifs, in the key’s own degrees, unvaried', () => {
     expect(cy.fragment.text).toBe(
       [
-        '&twinkle from twinkle &key',
-        '&wonder from wonder &key',
+        '&twinkle from kinderlied &key',
+        '&wonder from kinderlied &key',
         '&lead from ternary(answer=&wonder) &twinkle',
       ].join('\n'),
     );
@@ -405,6 +408,75 @@ describe('the Muse files Twinkle played whole as the ternary over twinkle, and i
       }
     }
     expect(heard).toBeGreaterThan(0);
+  });
+});
+
+describe('a layer kept at cells v0.24.0, holding the filed Twinkle, loads and plays as it did (#660)', () => {
+  // (the fixture: on main at cells v0.24.0, `song(3, 'Cy', 0, TWINKLE_WHOLE)`'s layer through JSON, and the notes the
+  // band played with it over 16 bars near Synth-pop at entropy 0, seed 1, each bar's `part:step:note:length:velocity`)
+  const kept = keptTwinkle.layer as unknown as LearnedLayer;
+  const style: Style = { ...SYNTH_POP.style, sync: SYNTH_POP.style.sync + 0.05, entropy: 0 };
+  const notesOf = (run: ReturnType<typeof play>) =>
+    run.map(({ bar }) =>
+      bar.written
+        .map((n, i) => [n.part, n.step, n.note, n.length, bar.dough[i]!.velocity].join(':'))
+        .join(' '),
+    );
+
+  it('reads the filed Twinkle’s takes of twinkle and wonder as Kinderlieder’s parts, and plays the same notes, 16 bars at entropy 0, seed 1', () => {
+    const filed = kept.filed.find((f) => f.meta.source === 'Cy')!;
+    expect(filed.fragment.text).toMatch(/^&twinkle from twinkle &key$/m);
+    const loaded = keptLayer(kept);
+    expect(loaded.filed.find((f) => f.meta.source === 'Cy')!.fragment.text).toBe(
+      [
+        '&twinkle from kinderlied &key',
+        '&wonder from kinderlied &key',
+        '&lead from ternary(answer=&wonder) &twinkle',
+      ].join('\n'),
+    );
+    const run = play(16, style, { layer: loaded }, 1);
+    expect(run.map(({ carried }) => carried.plans.leadFragment ?? '-')).toEqual(keptTwinkle.leads);
+    expect(notesOf(run)).toEqual(keptTwinkle.notes);
+  });
+
+  it('plays another lead where the layer is read as it was kept: its texts take ids cells refuses now', () => {
+    const run = play(16, style, { layer: kept }, 1);
+    expect(run.map(({ carried }) => carried.plans.leadFragment ?? '-')).not.toEqual(
+      keptTwinkle.leads,
+    );
+  });
+
+  it('moves the ids in its points, its pairs and a line’s varies chain, and takes the two motifs renamed by their ids now, under the names its lines read', () => {
+    const at = { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 };
+    const layer: LearnedLayer = {
+      ...EMPTY_LAYER,
+      points: [{ id: 'twinkle', point: at, weight: 1, facet: 'lead' }],
+      together: [{ ids: ['meter', 'waltz'], count: 2 }],
+      filed: [
+        {
+          fragment: {
+            id: 'Ed song 1, bar 0',
+            text: '&lead over=&key step=8n 0 2 4',
+            association: [{ point: at, weight: 1, facet: 'lead' }],
+          },
+          meta: { source: 'Ed', created: 'song 1, bar 0', varies: 'korobeiniki' },
+          prose: '',
+        },
+      ],
+    } as unknown as LearnedLayer;
+    const moved = movedLayer(layer);
+    expect(moved.points.map((p) => p.id)).toEqual(['kinderlied/twinkle']);
+    expect(moved.together.map((p) => p.ids)).toEqual([['meter', 'waltzBar']]);
+    expect(moved.filed[0]!.meta['varies']).toBe('korobeinikiBar');
+    expect(movedLayer(EMPTY_LAYER)).toBe(EMPTY_LAYER);
+    const waltz = '&waltz from waltz &key\n&lead from call_and_answer &waltz';
+    expect(movedText(waltz)).toBe(
+      '&waltz=waltzBar from waltzBar &key\n&lead from call_and_answer &waltz',
+    );
+    expect(readLead(waltz, METERS['3/4'])).toBeNull();
+    expect(readLead(movedText(waltz), METERS['3/4'])?.bars).toBe(2);
+    // (a text that takes nothing moved is as it was)
+    expect(movedText('&lead over=&key step=8n 0 2 4')).toBe('&lead over=&key step=8n 0 2 4');
   });
 });
 
@@ -465,7 +537,7 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     'Swing jazz': 'bebop',
     'Electro swing': 'gypsy',
     Spooky: 'diesIrae',
-    Kinderlied: 'twinkle',
+    Kinderlied: 'kinderlied/twinkle',
     // (the four cut from cells' examples at v0.23.0, yggi/cells#572; Acid has no motif of its own, and plays the
     // nearest, the pulse, 0.17 away)
     Acid: 'pulse',
@@ -476,9 +548,9 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     Baroque: 'royalTheme',
     'Blues shuffle': 'bluesRiff',
     'Sea shanty': 'drunkenSailor',
-    Chiptune: 'korobeiniki',
+    Chiptune: 'korobeinikiBar',
     Salsa: 'guajeo',
-    Waltz: 'waltz',
+    Waltz: 'waltzBar',
     March: 'march',
     'Trip-hop': 'smoke',
   };
@@ -570,7 +642,8 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
           `${preset.name}, bar ${at}: its first degree`,
         ).toEqual([wrap(first, 7), line[0]!.alter]);
         // and the next its form's second bar (#520, rung 2; #547 rung 4), heard with the call as one line; its last note
-        // the cadence's
+        // the cadence's (but a tune its own document plays in a form, Kinderlied's twinkle, the next test's)
+        if (ownFormOf(id)) continue;
         const steps = stepsOf(meter);
         const both = leadOf(
           [
@@ -591,31 +664,45 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     }
   });
 
-  it('plays Kinderlied’s twinkle in the ternary song to its end, six bars, at entropy 0, seeds 1 and 2: call, answer, the bridge twice, call, answer (#547 rung 4)', () => {
+  it('plays Kinderlied’s twinkle in its own form, the ternary song with wonder its answer, at entropy 0, seeds 1 and 2, 32 bars: every section Twinkle whole, call, wonder, wonder a degree up twice, call, wonder (#547 rung 4, yggi/cells#692)', () => {
     const kinderlied = PRESETS.find((p) => p.name === 'Kinderlied')!;
-    // (the ternary's bars as degrees from its call: its answer two down, its bridge the answer a degree up; the answer
-    // is its default until cells groups wonder with twinkle, a follow-up)
-    const OFFSETS = [0, -2, -1, -1, 0, -2];
+    // (the tune's own document plays it so, cells' `usesOf`: its form beats the one the style finds, decision 082 ruling 4)
+    expect(usesOf('kinderlied/twinkle')).toEqual([
+      { id: 'ternary', args: { answer: 'kinderlied/wonder' } },
+    ]);
     for (const seed of [1, 2]) {
       const run = play(
-        8 * SECTION_BARS,
+        4 * SECTION_BARS,
         { ...kinderlied.style, entropy: 0 },
         { leads: LEAD_REPOSITORY },
         seed,
         kinderlied,
       );
+      expect(leadsOf(run), `seed ${seed}`).toEqual(range(4).map(() => 'kinderlied/twinkle'));
       const meter = run[0]!.bar.plan.meter;
-      const line = LEAD_REPOSITORY.read('twinkle', meter, EMPTY_LAYER)!.notes;
       const steps = stepsOf(meter);
-      // (each section the lead plays in from its start)
-      const starts = phraseStarts(run, 'twinkle').filter((b) => b % SECTION_BARS === 0);
+      const line = (id: string) => LEAD_REPOSITORY.read(id, meter, EMPTY_LAYER)!.notes;
+      const twinkle = line('kinderlied/twinkle');
+      const wonder = line('kinderlied/wonder');
+      const up = (notes: readonly LeadNote[]) => notes.map((n) => ({ ...n, degree: n.degree + 1 }));
+      // (each bar's line, in the key's degrees from the call's first note)
+      const WHOLE = [twinkle, wonder, up(wonder), up(wonder), twinkle, wonder];
+      // (each bar the lead comes in at: a section's start, or a phrase's where it rested before, `leadRests`; the form
+      // plays from there to the section's end, its lap again after its sixth bar)
+      const plays = (b: number) => run[b]?.bar.written.some((n) => n.part === 'lead') ?? false;
+      const starts = phraseStarts(run, 'kinderlied/twinkle').filter(
+        (b) => b % SECTION_BARS === 0 || !plays(b - 1),
+      );
       expect(starts.length, `seed ${seed}`).toBeGreaterThan(0);
+      let bars = 0;
       for (const at of starts) {
         const call = leadOf(
           run[at]!.bar.written.filter((n) => n.part === 'lead'),
           run[at]!.bar.plan.key,
         );
-        OFFSETS.forEach((offset, k) => {
+        range(SECTION_BARS - (at % SECTION_BARS)).forEach((k) => {
+          const bar = WHOLE[k % WHOLE.length]!;
+          bars++;
           const heard = leadOf(
             [
               ...run[at]!.bar.written.filter((n) => n.part === 'lead'),
@@ -628,15 +715,22 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
           ).slice(call.length);
           // (but the last note of bars 2, 4 and 6, which the phrase's cadence closes on a chord tone)
           const cadenced = k % 2 === 1;
+          const want = bar.map((n) => ({
+            ...n,
+            step: n.step + steps,
+            degree: n.degree - twinkle[0]!.degree,
+          }));
           expect(cadenced ? heard.slice(0, -1) : heard, `seed ${seed}, bar ${at + k}`).toEqual(
-            (cadenced ? line.slice(0, -1) : line).map((n) => ({
-              ...n,
-              step: n.step + steps,
-              degree: n.degree - line[0]!.degree + offset,
-            })),
+            cadenced ? want.slice(0, -1) : want,
           );
+          expect(
+            heard.map((n) => n.step),
+            `seed ${seed}, bar ${at + k}`,
+          ).toEqual(want.map((n) => n.step));
         });
       }
+      // (every bar the lead plays in the 32 is one of these)
+      expect(bars, `seed ${seed}`).toBe(range(run.length).filter(plays).length);
     }
   });
 

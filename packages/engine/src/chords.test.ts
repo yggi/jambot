@@ -343,6 +343,24 @@ describe("a bar's chords", () => {
       ]);
     });
 
+    it('plays a ninth written, five tones (cells v0.25.0, yggi/cells#540), as its seventh chord with the ninth its tension, every key and degree: where the four make no chord with a numeral, the triad on its root', () => {
+      let ninths = 0;
+      for (const key of keys)
+        for (const degree of range(7)) {
+          const stack = [0, 2, 4, 6, 8].map((k) => tone(degree + k));
+          const scale = keyHelix(key);
+          const written = stack.map((t) => heightOf(scale, t.degree));
+          const chord = play(key, slotOf(stack), 0.5).chord;
+          const four = written.slice(0, 4);
+          if (qualityOf(four.map((x) => x - four[0]!))) {
+            expect(chord.helix.heights, `${keyName(key)} ${degree}`).toEqual(four);
+            expect(chord.tensions, `${keyName(key)} ${degree}`).toEqual([written[4]]);
+            ninths++;
+          } else expect(chord.tensions).toEqual([]);
+        }
+      expect(ninths).toBeGreaterThan(0);
+    });
+
     it('spells its notes from the root its name gives: ♭II on B♭, vii°7 on G♯', () => {
       const aMinor: Key = { tonic: 9, mode: 'aeolian' };
       const spelled = (stack: (typeof STACKS)[number]) =>
@@ -468,6 +486,8 @@ describe("a bar's chords", () => {
 
   it('reads a theme’s slot steps, 0 and the bar’s half, on a meter: the same in 4/4, the meter’s half in another (finite: every meter)', () => {
     const expected: Record<string, number> = {
+      '2/4': 4,
+      '2/2': 8,
       '3/4': 6,
       '4/4': 8,
       '5/4': 10,

@@ -107,7 +107,10 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
     });
   });
 
-  it('misses past the distance only: the 4/4s find each preset’s drum bar, the five other meters Spooky drums where it is within reach, and 7/8 Ghost drums (cells v0.15.0), past them a miss by the distance', () => {
+  // (2/2 and 2/4 among the band's meters since #652: 2/2's bar is a 4/4's, so every preset's drum bar fits it, and 2/4
+  // finds Spooky, March or Happy hardcore drums at five presets' points and misses by the distance at Ambient's, Funk's
+  // and Bossa nova's)
+  it('misses past the distance only: the 4/4s and 2/2 find each preset’s drum bar, the five other meters Spooky drums where it is within reach, 2/4 the drum bars of two beats, and 7/8 Ghost drums (cells v0.15.0), past them a miss by the distance', () => {
     const sweep = meterSweep();
     const verdicts = Object.fromEntries(
       [...new Set(sweep.map((r) => r.meter))].map((meter) => [
@@ -130,6 +133,8 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
       'meter(grouping=meter("3/4"))': ['found', 'distance'],
       'meter(grouping=meter("6/8"))': ['found', 'distance'],
       'meter(grouping=meter("12/8"))': ['found', 'distance'],
+      'meter(grouping=meter("2/2", 2))': ['found'],
+      'meter(grouping=meter("2/4"))': ['found', 'distance'],
       'meter(grouping=meter("5/4"))': ['found', 'distance'],
       'meter(grouping=meter("7/8"))': ['found', 'distance'],
       'meter(grouping=meter("10/8"))': ['found', 'distance'],
@@ -140,8 +145,11 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
   // (90 % found since cells v0.23.0, its four new drum bars, three of which fit every meter, and a rhythm's point on
   // sync, harm and bite, which the grid's mood moves nowhere: 69 % before)
   // (93 % since cells v0.24.0's seven drum bars the drummer holds, yggi/cells#675 and #679: 90 % before)
-  it(`misses over a grid of the four axes, the meter found first: 93 % found, none refused by the fit, 7 % past ${RHYTHM_MISS}`, () => {
-    expect(gridAnswers(11)).toEqual({ found: 13673, fit: 0, distance: 968 });
+  // (96 % since cells v0.25.0's aksak and twelve-eight drums, yggi/cells#707: 13,673 and 968 before; and as many with 2/4
+  // and 2/2 among the band's meters on top of it, #652, the 132 points that now choose 2/4 finding March or Kinderlied
+  // drums and the 66 that choose 2/2 Chip, Elektro or Deep house drums or the quiet pulse)
+  it(`misses over a grid of the four axes, the meter found first: 96 % found, none refused by the fit, 4 % past ${RHYTHM_MISS}`, () => {
+    expect(gridAnswers(11)).toEqual({ found: 14102, fit: 0, distance: 539 });
   });
 
   // a bound in wall-clock time, so it runs only when asked: on a shared runner it reads past 5 ms with nothing wrong (5.16 ms, #485's CI)

@@ -181,7 +181,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
     // Witness: Synth-pop's section 2 in A aeolian, its lead from C4 and its levels on the beat and off it.
     const text = textOf(at('Synth-pop', 2).text);
     expect(text).toMatch(
-      /^&leadline over=&key step=16n legato=\.6375 &leadlineA ~@5 8@3 6@6 3@2 /m,
+      /^&leadline part=lead over=&key step=16n legato=\.6375 &leadlineA ~@5 8@3 6@6 3@2 /m,
     );
     // (a bar it plays more than once stated once, and spliced in where it plays)
     expect(text).toMatch(/^&leadlineA ~@5 5@3 5@6 8@2$/m);
@@ -211,20 +211,20 @@ describe('the band writes a whole section as one cells text, every part, the lea
       }
   });
 
-  // (since cells v0.24.0 each drum line writes its role, `role=kick`, decision 075; since #531 the section is a score:
-  // no performer, voice or card, the parts passed to the band, `* from band(…)`, and each level the shortest decimal
-  // cells strikes at its velocity, `scoreLevel`)
-  it('states the host’s lines and the harmony once a section: 2,490 characters a section, 2,233 without the lead, against E33’s 7,792 for the same 8 bars, 71 % fewer', () => {
+  // (since cells v0.24.0 each drum line writes its role, `role=kick`, decision 075; since v0.25.0 each pitched line says
+  // its part, `part=bass`, yggi/cells#708; since #531 the section is a score: no performer, voice or card, the parts
+  // passed to the band, `* from band(…)`, and each level the shortest decimal cells strikes at its velocity, `scoreLevel`)
+  it('states the host’s lines and the harmony once a section: 2,529 characters a section, 2,262 without the lead, against E33’s 7,792 for the same 8 bars, 71 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 159358,
+      total: 161854,
       meter: 6096,
       key: 1436,
       harmony: 8285,
       drums: 67280,
-      bass: 23603,
-      comp: 23743,
-      lead: 16457,
+      bass: 24243,
+      comp: 24959,
+      lead: 17097,
       band: 12458,
     });
     // E33 states every bar alone: its meter, key, harmony, voices, mix and card every bar, and no lead.
@@ -242,21 +242,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2490);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2233);
+    expect(Math.round(e35.total / 64)).toBe(2529);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2262);
     expect(Math.round(e33.total / 64)).toBe(7792);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(71);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [19870, 17803],
-      Techno: [19530, 17127],
-      'Deep house': [23115, 20668],
-      Ambient: [12605, 11510],
-      'Lo-fi hip hop': [21275, 19023],
-      Funk: [22813, 21067],
-      'Bossa nova': [21932, 19900],
-      'Swing jazz': [18218, 15803],
+      'Synth-pop': [20182, 18035],
+      Techno: [19842, 17359],
+      'Deep house': [23427, 20900],
+      Ambient: [12917, 11742],
+      'Lo-fi hip hop': [21587, 19255],
+      Funk: [23125, 21299],
+      'Bossa nova': [22244, 20132],
+      'Swing jazz': [18530, 16035],
     });
   });
 
@@ -272,7 +272,8 @@ describe('the band writes a whole section as one cells text, every part, the lea
     // The chord is stated once: respelled, the stab that reads it moves with it.
     expect(differs('Synth-pop', 2, /\[0,2,4\] /, '[0,2#,4] ').written).toEqual(['comp', 'harmony']);
     expect(
-      differs('Synth-pop', 2, /^&bassline over=&harm/m, '&bassline over=&key').written,
+      differs('Synth-pop', 2, /^&bassline part=bass over=&harm/m, '&bassline part=bass over=&key')
+        .written,
     ).toEqual(['bass']);
     // The parts are open on the host's key: a key moved moves every pitched part, and the drums stay.
     expect(differs('Synth-pop', 2, /scale\(aeolian, A\)/, 'scale(aeolian, B)').written).toEqual([
@@ -336,7 +337,7 @@ describe('the lead over its melodic scale (a probe off the corpus: the players w
     )!;
     expect(textOf(lofi.text)).toMatch(/^&melo over=&key step=1m \[0,2,3,4b,4,6\]$/m);
     expect(textOf(lofi.text)).toMatch(
-      /^&leadline over=&melo step=16n legato=\.7875 ~@4 0 2@5 1@3 0@3 /m,
+      /^&leadline part=lead over=&melo step=16n legato=\.7875 ~@4 0 2@5 1@3 0@3 /m,
     );
   });
 
@@ -443,7 +444,7 @@ describe('the forms it relies on, over every case', () => {
     expect(shared.map((s) => s.section)).toEqual([3, 6]);
     for (const s of shared) {
       expect(s.bars[0]!.plan.section.type).toBe('breakdown');
-      expect(textOf(s.text)).toMatch(/^&bassline over=\S+ step=16n legato=&bassShare /m);
+      expect(textOf(s.text)).toMatch(/^&bassline part=bass over=\S+ step=16n legato=&bassShare /m);
       expect(textOf(s.text)).toMatch(/^&bassShare step=16n .*\.98125@16.*&bassShareA/m);
       expect(textOf(s.text)).toMatch(/^&bassShareA \.9625@8 \.9625@8$/m);
       expect(s.measured.every((m) => m.equal.bass)).toBe(true);
@@ -569,7 +570,7 @@ describe.runIf(process.env.E35_FULL)(
       }
     });
 
-    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,095 characters a section, 1,886 without the lead, against E33’s 6,806', () => {
+    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,134 characters a section, 1,915 without the lead, against E33’s 6,806', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -588,11 +589,11 @@ describe.runIf(process.env.E35_FULL)(
       const e35 = characters(sections.map((s) => s.text));
       // (797,294 before #531, whose section is a score passed to the band, its levels each the shortest decimal; 782,673
       // before cells v0.24.0, whose drum lines write their roles, `role=kick`)
-      expect([e35.total, e35.lead]).toEqual([670298, 66644]);
+      expect([e35.total, e35.lead]).toEqual([682778, 69844]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
       expect(e33).toBe(2178078);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        2095, 1886, 6806,
+        2134, 1915, 6806,
       ]);
     });
   },

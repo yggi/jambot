@@ -18,11 +18,17 @@
  * level's own, would tie 12/8's second pulse with its third, and has not been
  * heard.
  *
+ * A pulse of 4 or 6 eighths (2/2's halves, a group of 4 or 6 in the
+ * family's meter contract) holds two or three quarters, and the quarters
+ * after its first take one tier of their own, below the bar's deepest pulse:
+ * `2/2 * . - . + . - .`, as the contract grades it.
+ *
  * These grades are the family's meter contract's grades, from the ends
  * (yggi/music-commons `contracts/meter`, version 2), whose vectors
  * `contracts.test.ts` runs against `accentsOf` and `METERS` (#474, #581):
- * every grouping of 2s and 3s, but seven pulses, which needs a fifth tier;
- * a group of 4 or 6 eighths is not a pulse here (T6).
+ * every grouping but those that need a fifth tier, which `ACCENT_GRADES`
+ * doesn't have (seven pulses, or quarters below a bar already graded to its
+ * pulses' third tier).
  *
  * The engine's `Weight` has three (downbeat, pulse, subdivision): these are
  * the tree's first four levels, and the drums read their kick from them
@@ -30,6 +36,7 @@
  */
 
 import { even } from './even.ts';
+import { gaps } from './helix.ts';
 import { type Meter, meterWeights } from './meter.ts';
 
 export type AccentGrade = 'downbeat' | 'half' | 'pulse' | 'between';
@@ -68,6 +75,19 @@ export function accentsOf(meter: Meter, mirrored = false): AccentGrade[] {
   const grades: AccentGrade[] = meterWeights(meter).map(() => 'between');
   meter.heights.forEach((eighth, pulse) => {
     grades[eighth] = ACCENT_GRADES[Math.min(depth[pulse]!, ACCENT_GRADES.length) - 1]!;
+  });
+  // (the quarters inside a pulse of 4 or 6 eighths: one tier below the deepest pulse, or a leaf past the tiers there are)
+  const quarter =
+    ACCENT_GRADES[
+      Math.min(
+        Math.max(...meter.heights.map((e) => ACCENT_GRADES.indexOf(grades[e]!))) + 1,
+        ACCENT_GRADES.length - 1,
+      )
+    ]!;
+  gaps(meter).forEach((length, pulse) => {
+    if (length < 4 || length % 2 === 1) return;
+    for (let inside = 2; inside < length; inside += 2)
+      grades[meter.heights[pulse]! + inside] = quarter;
   });
   return grades;
 }

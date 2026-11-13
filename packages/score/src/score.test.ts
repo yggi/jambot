@@ -773,7 +773,7 @@ describe('a bar in a meter (#261)', () => {
 
   it('refuses a meter that is not named, in a header and in a bar', () => {
     expect(scoreProblems(text('bar 1 groove key=C:ionian meter=8/8 theme=A'))).toEqual([
-      'meter=8/8 is not one of 3/4, 4/4, 5/4, 5/8, 6/8, 7/8, 9/8, 10/8, 12/8',
+      'meter=8/8 is not one of 2/4, 3/4, 4/4, 2/2, 5/4, 5/8, 6/8, 7/8, 9/8, 10/8, 12/8',
     ]);
     expect(() => encodeBar({ ...A_BAR, meter: { cycle: 8, heights: [0, 3, 6] } })).toThrow(
       'the meter is not one of the named meters',

@@ -235,6 +235,8 @@ describe('a player’s drums as the Muse hears them (#401)', () => {
       ride: 'hat',
     };
     const backbeats: Record<string, readonly number[]> = {
+      '2/4': [4],
+      '2/2': [8],
       '3/4': [4, 8],
       '4/4': [4, 12],
       '5/4': [4, 12],

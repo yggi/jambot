@@ -159,8 +159,12 @@ describe('a section’s text on the wire, host to client (#446)', () => {
   // (since cells v0.14.0 a part's performer is taken by its `from` line, its arguments written out, some 150 characters a section more;
   // since v0.15.0 the section writes its `&style` and a sound card hearing its pitched parts, some 80 more: Ambient, the
   // sparsest, plays 6.7 times its text; since v0.23.0 a pitched performer is passed the style, and its voice where the
-  // text writes one, 28 to 95 characters more, yggi/cells#631, and Elektro, a preset since, is the longest, 3,415)
-  it('sends the text, 1.6 to 3.4 KB a section as JSON, under 3.5 KB, where what cells plays from it is 6.7 to 30 times that', () => {
+  // text writes one, 28 to 95 characters more, yggi/cells#631, and Elektro, a preset since, is the longest, 3,415;
+  // since v0.25.0 each pitched line says its part, `part=bass`, yggi/cells#708: Chiptune the longest, 3,588, Ambient
+  // playing 6.44 times its text and Electro swing 28.8; since #531 the section is a score, its performers and cards the
+  // band's and its levels the shortest decimals: Chiptune 3,126, Ambient the shortest, 1,644, playing 6.93 times its
+  // text, and Electro swing 35.4)
+  it('sends the text, 1.6 to 3.1 KB a section as JSON, under 3.2 KB, where what cells plays from it is 6.9 to 35 times that', () => {
     const sizes = PRESETS.map((p) => {
       const bars = section(p.name, SECTION_BARS);
       const stated = stateSection(bars);
@@ -170,11 +174,11 @@ describe('a section’s text on the wire, host to client (#446)', () => {
       };
     });
     for (const { text, events } of sizes) {
-      expect(text).toBeLessThan(3.5 * 1024);
-      expect(events / text).toBeGreaterThan(6.5);
+      expect(text).toBeLessThan(3.2 * 1024);
+      expect(events / text).toBeGreaterThan(6.9);
     }
-    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(1.5 * 1024);
-    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(29);
+    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(1.6 * 1024);
+    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(35);
   });
 
   it('says where no text states the bars, and a client given that plays nothing, for the same reason', () => {

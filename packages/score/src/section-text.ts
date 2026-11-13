@@ -32,8 +32,11 @@
  *   scale from its register, C4, over the key where the scale is the key's own,
  *   else over the scale stated as a stack of the key's degrees (`&melo`);
  * - each part's velocities, a line of levels or one level (`&bassLevel`);
+ * - each line says its part (`&bassline part=bass …`, feel v3, #615), a word
+ *   about the line that sounds nothing, which a performer takes since cells
+ *   v0.25.0 (yggi/cells#708);
  * - a tacet for each of the band's five parts that rests the whole section
- *   (`&leadline step=1m ~`, decision 063 §4: a line with no clock
+ *   (`&leadline part=lead step=1m ~`, decision 063 §4: a line with no clock
  *   starts nothing, an error);
  * - and last the band, `* from band(…)`, passed what the score writes
  *   (cells' `bandLine`): each part and its levels, and the style.
@@ -846,7 +849,7 @@ function pitchedLine(
   return {
     lines: [
       ...line.cells,
-      `&${name}line over=&${over} step=16n${legato} ${line.words}`,
+      `&${name}line part=${name} over=&${over} step=16n${legato} ${line.words}`,
       ...(shareSet.length > 1 ? [...share.cells, `&${name}Share step=16n ${share.words}`] : []),
       ...(one ? [] : level.cells),
       `&${name}Level map=amp ${one ? scoreLevel(notes[0]!.velocity) : `step=16n ${level.words}`}`,
@@ -967,7 +970,11 @@ export function sectionAsCells(
   }
   // (a part that rests the whole section is a tacet, so the score says it rests: decision 063 §4)
   const tacets = BAND_PARTS.filter((p) => !lines.some((l) => l.text.startsWith(`&${p} `))).map(
-    (p) => ({ part: PART_OF_LINE[p], text: `&${p} step=1m ~` }),
+    // (a pitched tacet says its part, as every pitched line does: #615)
+    (p) => ({
+      part: PART_OF_LINE[p],
+      text: p === 'drumlines' ? `&${p} step=1m ~` : `&${p} part=${p.replace('line', '')} step=1m ~`,
+    }),
   );
   lines.push(...tacets);
   lines.push({ part: 'band', text: bandLine(lines.map((l) => l.text).join('\n')) });

@@ -150,8 +150,8 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(text).not.toMatch(/_performer|^&\w+V |map=midi|map=sample|^use /m);
     // (Funk's first section plays the drums, the bass and the stab; the pad and the lead rest)
     expect(text.split('\n').slice(-3)).toEqual([
-      '&padline step=1m ~',
-      '&leadline step=1m ~',
+      '&padline part=pad step=1m ~',
+      '&leadline part=lead step=1m ~',
       '* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, stabLevel=&stabLevel, style=&style)',
     ]);
     for (const part of BAND_PARTS) expect(text).toMatch(new RegExp(`^&${part} `, 'm'));
@@ -165,7 +165,8 @@ describe('a section as one cells text, for the app (#399)', () => {
     ]);
     // A tacet with no clock starts nothing: an error, which is why each is written on `1m`.
     expect(
-      compileSection(text.replace('&padline step=1m ~', '&padline ~')).result.diagnostics,
+      compileSection(text.replace('&padline part=pad step=1m ~', '&padline part=pad ~')).result
+        .diagnostics,
     ).not.toEqual([]);
   });
 
@@ -272,6 +273,17 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(lineOf('compV:pad:17:14')).toEqual({ line: 'pad' });
     expect(lineOf('kit:voices:hat:9:35')).toEqual({ line: 'drums', role: 'hat' });
   });
+
+  it.each(['Swing jazz', 'Synth-pop', 'Bossa nova', 'Funk'])(
+    'writes each pitched line of %s’s section with its part, `&bassline part=bass …`, and compiles it with no problem (#615, yggi/cells#708)',
+    (name) => {
+      const text = sectionTextOf(sectionAsCells(section(name)));
+      const lines = text.split('\n').filter((l) => /^&(bass|pad|stab|lead)line /.test(l));
+      expect(lines.length).toBeGreaterThan(0);
+      for (const line of lines) expect(line, line).toMatch(/^&(bass|pad|stab|lead)line part=\1 /);
+      expect(compileSection(text).result.ok).toBe(true);
+    },
+  );
 
   it.each(['Swing jazz', 'Synth-pop', 'Bossa nova', 'Funk'])(
     'declares the part or the drum role of every note %s’s section sends, so none is read by its name (#615)',
@@ -409,6 +421,9 @@ describe('a section as one cells text, for the app (#399)', () => {
     const names = Object.keys(METERS) as MeterName[];
     expect(Object.fromEntries(names.map((name) => [name, swingText(METERS[name], swing)]))).toEqual(
       {
+        '2/4': ' swing=8n:2/3',
+        // (alla breve's pulses are 4 eighths, which an 8n swing doesn't lean (`pulseAt`): the band plays it straight)
+        '2/2': '',
         '3/4': ' swing=8n:2/3',
         '4/4': ' swing=8n:2/3',
         '5/4': ' swing=8n:2/3',
@@ -615,7 +630,7 @@ describe('a section as a score holds what the band plays (#531’s bounds)', () 
     expect(resting.length).toBeGreaterThan(0);
     for (const bars of resting) {
       const text = sectionTextOf(sectionAsCells(bars));
-      expect(text).toMatch(/^&leadline step=1m ~$/m);
+      expect(text).toMatch(/^&leadline part=lead step=1m ~$/m);
       expect(text).toMatch(/^\* from band\(.*\bleadline=&leadline\b/m);
       expect(compileSection(text).result.diagnostics).toEqual([]);
     }

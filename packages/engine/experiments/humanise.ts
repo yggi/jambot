@@ -697,18 +697,18 @@ export function phraseFiledRate(
   return { seeds, right };
 }
 
-/** Twinkle whole and Hänschen klein whole, each as cells writes it: the form over the seed's motifs (#580, rung 4). */
+/** Twinkle whole and Hänschen klein whole, each as cells writes it: the form over Kinderlieder's parts (#580, rung 4; yggi/cells#642). */
 export const TUNES_WHOLE = {
   twinkle: [
-    '&twinkle from twinkle &key',
-    '&wonder from wonder &key',
+    '&twinkle from kinderlied &key',
+    '&wonder from kinderlied &key',
     '&lead from ternary(answer=&wonder) &twinkle',
   ].join('\n'),
   haenschen: [
-    '&haenschen from haenschen &key',
-    '&hinein from hinein &key',
-    '&heim from heim &key',
-    '&weinet from weinet &key',
+    '&haenschen from kinderlied &key',
+    '&hinein from kinderlied &key',
+    '&heim from kinderlied &key',
+    '&weinet from kinderlied &key',
     '&lead from rounded_binary(answer=&hinein, close=&heim, bridge=&weinet) &haenschen',
   ].join('\n'),
 } as const;

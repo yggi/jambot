@@ -186,11 +186,11 @@ const WARM_TEXT = [
   '&harm over=&key step=1m [0,2,4] [5,7,9]',
   '&kick role=kick step=16n &bd:0:.4 ~ ~ ~',
   '&drumlines [&kick]',
-  '&bassline over=&harm step=16n legato=.6 0@4 3@4',
+  '&bassline part=bass over=&harm step=16n legato=.6 0@4 3@4',
   '&bassLevel map=amp step=16n .4@8',
-  '&padline step=1m ~',
-  '&stabline step=1m ~',
-  '&leadline step=1m ~',
+  '&padline part=pad step=1m ~',
+  '&stabline part=stab step=1m ~',
+  '&leadline part=lead step=1m ~',
   '* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, style=&style)',
 ].join('\n');
 
