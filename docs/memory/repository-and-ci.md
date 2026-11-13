@@ -13,6 +13,7 @@ How the repository is built, gated, deployed and licensed.
   The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
 - The gate is `pnpm verify`, where it costs no minutes: every `git push` of a branch runs it first, through git's pre-push hook (`.githooks/pre-push`), and is blocked if it fails.
   Its tests take the machine's lock for heavy runs (`tooling/heavy.ts`, shared with `pnpm e2e`, the soaks and `pnpm test:slow`), so a second verify on the machine, from another worktree, waits for the first rather than time it out, and says every minute who holds the lock (#666).
+  The lock is the family's (`music-heavy.lock` in the temporary directory, moved by `MUSIC_HEAVY_LOCK`): cells and Cell studio take the same one for their tests, so a session over several of them never tests two at once.
   `pnpm install` and `session-start.sh` set `core.hooksPath` to it.
   It refuses a dirty tracked tree and a commit other than the one checked out, since it checks the tree, so commit before pushing.
   A tree that passed is remembered in the git directory (`jambot-verified`), with its count of tests, by the hook and by a `pnpm verify` run by hand, so neither a retried push nor one right after a verify runs it again, and the hook still prints the count.

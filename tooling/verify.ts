@@ -80,7 +80,7 @@ export function plan(installed: boolean, groups: Stage[][] = GROUPS): Stage[][] 
 
 function runStage(stage: Stage, waiting: Waiting): Promise<Outcome> {
   const env = { ...process.env };
-  if (stage.heavy) env.JAMBOT_HEAVY_HELD = waiting.path ?? lockPath();
+  if (stage.heavy) env.MUSIC_HEAVY_HELD = waiting.path ?? lockPath();
   const run = () => runAlone(stage, env);
   return stage.heavy ? holding(`pnpm verify (${stage.command})`, run, waiting) : run();
 }
