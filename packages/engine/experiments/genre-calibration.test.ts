@@ -14,7 +14,7 @@ describe('does Techno land where techno lands? (E24)', () => {
     // 0.69 since swing left the style (#360), 0.81 when it was read.
     expect(mean(read.map((r) => r.bar))).toBeGreaterThan(0.65);
     // Against the presets' placed points the mean is recorded, not bounded: placements are the composer's intent,
-    // readings the critic's, two scales (the owner's ruling on yggi/cells#681, 2026-11-13).
+    // readings the critic's, two scales (the owner's ruling on yggi/cells#681, cells decision 088 in yggi/cells#752, 2026-11-13).
     // On 2026-11-13, per bar, it is 0.655 with no `sync`, 0.528 with the old reading and 0.483 with cells'.
     // Against the placed points no reading beats leaving `sync` out, because the composer barely expresses the axis (#673).
   });

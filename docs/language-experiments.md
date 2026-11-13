@@ -490,7 +490,7 @@ run; the others have.
     Their lengths fill the gap to the next onset in every bar (reading 0 in all 3,900 bars measured), because the gate is the performer's (T4); it is read from `BandBar.dough`, and then rises with the axis: tau 0.92 over the presets, 0.95 over its sweep and 0.71 over the tour, where the style is moving inside each bar.
     It lies 0.16 from the axis (0.21 in the tour): the reading tops out short of staccato, since a bass or lead note is never gated below a quarter of its length.
   - The syncopation rises with the axis but weakly: tau 0.40 over the presets, 0.36 over its sweep and 0.26 over the tour, and the sweep's mean reading covers 0.07 to 0.22 of an axis that spans 0 to 1.
-    It is read as syncopation proper, cells' reading (yggi/cells#723, taken on the owner's ruling on yggi/cells#681): an onset on a weak place whose line leaves the next stronger place silent counts by how much weaker its place is, and a bar's reading is the mean over its lines.
+    It is read as syncopation proper, cells' reading (yggi/cells#723, taken on the owner's ruling on yggi/cells#681, cells decision 088 in yggi/cells#752): an onset on a weak place whose line leaves the next stronger place silent counts by how much weaker its place is, and a bar's reading is the mean over its lines.
     The old reading, the share of onsets off the pulses and off the eighths, gives tau 0.37, 0.34 and 0.23 on the same bars, and covers 0.03 to 0.30.
     From `sync` 0 to 1 the drums read 0.07 to 0.26 and the stab 0.12 to 0.40, the bass follows (0.08 to 0.17), and the pad never leaves the pulses (0).
     The stab's off-beat eighths are what the old reading missed: it counted every eighth as on the grid, and read the stab 0 to 0.08.
@@ -514,7 +514,7 @@ run; the others have.
   The reading has five axes (`energy` from the density, `sync`, `artic`, `bpm` on its log axis scaled to 0 to 1, and `harm`); the distance is a root mean square over them.
   Swing is not one: it is the meter's (#360), and each preset plays in its meter's swing, which the drums, the bass and the lead still hear.
   5 seeds of 32 bars per preset at entropy 0.3, temperature 0.1, against two sets of landmarks: the presets' own points, and where the presets' bars read (the mean over 5 other seeds).
-  The critic is held to where the presets read, and the placed points are recorded, not bounded: placements are the composer's intent and readings the critic's, two scales (readings are compared with readings, the owner's ruling on yggi/cells#681, 2026-11-13).
+  The critic is held to where the presets read, and the placed points are recorded, not bounded: placements are the composer's intent and readings the critic's, two scales (readings are compared with readings, the owner's ruling on yggi/cells#681, cells decision 088 in yggi/cells#752, 2026-11-13).
   - Against where the presets read, a single bar lands as its own preset in 0.69 of bars on average (chance 0.125): Ambient 0.91, Funk 0.80, Lo-fi hip hop 0.77, Techno 0.76, Swing jazz 0.74, Deep house 0.63, Bossa nova 0.56 and Synth-pop 0.40.
     So the critic's landmarks are measured, not read off the presets.
   - Against the presets' points, 0.48: Ambient 1.00, Synth-pop 0.81, Techno 0.81, Swing jazz 0.71, Deep house 0.44 and Lo-fi hip hop 0.09, but Funk 0.00 and Bossa nova 0.00.
@@ -557,7 +557,7 @@ run; the others have.
   `readVoice` (`packages/engine/src/part-reading.ts`) reads the drums, the bass, the comp (pad and stab together) and the lead each from its own notes: its density (its share of the 16 steps), its `sync`, the `bite` of the bass and lead (the style's `artic`), and the `harm` of the comp.
   The distance of a voice from a landmark is a root mean square over the axes both have.
   The presets held, 5 seeds of 32 bars each, against landmarks that are where each voice reads at each preset (5 other seeds).
-  - Every voice says something of the style by itself: the nearest of the eight landmarks, for that voice alone, is the preset that wrote the bar in 0.73 of the bass's bars, 0.54 of the comp's, 0.46 of the lead's and 0.30 of the drums' (chance 0.125), with `sync` read by cells' reading (yggi/cells#723, on the owner's ruling on yggi/cells#681; 0.61, 0.49, 0.40 and 0.29 with the old reading).
+  - Every voice says something of the style by itself: the nearest of the eight landmarks, for that voice alone, is the preset that wrote the bar in 0.73 of the bass's bars, 0.54 of the comp's, 0.46 of the lead's and 0.30 of the drums' (chance 0.125), with `sync` read by cells' reading (yggi/cells#723, on the owner's ruling on yggi/cells#681, cells decision 088 in yggi/cells#752; 0.61, 0.49, 0.40 and 0.29 with the old reading).
     The drums say least although they carry most of the bar's `sync` (E23): their density and `sync` are the two axes they have, and the presets share them.
   - A voice lies 0.080 (bass), 0.083 (comp), 0.12 (lead) and 0.16 (drums) from its own landmark on average.
     The comp and the bass are nearest, within 0.005 of each other: their order flipped by 0.002 under cells' `sync` (the comp 0.064 and the bass 0.096 with the old reading).
