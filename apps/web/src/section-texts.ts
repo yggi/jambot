@@ -187,7 +187,7 @@ const WARM_TEXT = [
   '&kick step=16n &bd:0:.4 ~ ~ ~',
   '&drumlines [&kick]',
   '&drums, &drumsOut from drums_performer &drumlines',
-  '&bassline over=&harm step=16n legato=.6 0@4 3@4',
+  '&bassline part=bass over=&harm step=16n legato=.6 0@4 3@4',
   '&bassLevel map=amp step=16n .4@8',
   '&bass, &bassOut from bass_performer(bassLevel=&bassLevel) &bassline',
   '&out map=midi ~ &bassOut ~!7 &drumsOut',

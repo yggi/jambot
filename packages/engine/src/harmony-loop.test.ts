@@ -10,8 +10,9 @@ import { LEAD_REPOSITORY } from './lead-lines.ts';
 import { stylePoint } from './meter-query.ts';
 import { presetMode } from './mode-repository.ts';
 import type { HeardNote } from './muse.ts';
+import { HARMONY_FRAGMENTS } from './library.ts';
 import { HARMONY_TAG, sectionTheme } from './plan.ts';
-import { HARMONY_REPOSITORY, progressionText } from './progressions.ts';
+import { HARMONY_REPOSITORY, harmonyRepository, progressionText } from './progressions.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { PRESETS, type Preset, type Style, holding, writtenStyle } from './style.ts';
@@ -57,43 +58,53 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
     })),
   );
 
-  // (but Spooky, which takes the haunted progression cells placed for it, yggi/cells#409: i III+ iv V VI ii° V i)
-  it("plays main's themes, degree for degree in every slot, over the presets × 2 seeds × 64 bars, Spooky the haunted progression, Kinderlied the vamp to the fifth and Acid and Dark ambient the tonic vamp", () => {
+  /**
+   * What each preset takes where cells placed a harmony at its point (yggi/cells#409, #547, #572, #675, #679, and #540 at
+   * v0.25.0, whose harmonies of 4 bars and of two chords to the bar are read again to a section's 8): every section's
+   * A, over both seeds. Blues shuffle, with three equally near, draws a different one at each seed.
+   */
+  const PLACED: Readonly<Record<string, readonly string[]>> = {
+    'Synth-pop': ['axis_progression'],
+    'Deep house': ['ninth_vamp'],
+    'Lo-fi hip hop': ['ninth_loop'],
+    'Bossa nova': ['ii_v_i'],
+    'Swing jazz': ['turnaround'],
+    'Electro swing': ['minor_swing'],
+    Spooky: ['dark_cadence'],
+    Kinderlied: ['vamp_to_the_fifth'],
+    Acid: ['tonic_vamp'],
+    'Happy hardcore': ['axis_progression'],
+    Elektro: ['axis_progression'],
+    'Dark ambient': ['tonic_vamp'],
+    Baroque: ['fifths_sequence'],
+    'Blues shuffle': ['minor_swing', 'ninth_vamp'],
+    'Sea shanty': ['vamp_to_the_seventh'],
+    Chiptune: ['korobeiniki_changes'],
+    Salsa: ['montuno'],
+    Waltz: ['ninth_vamp'],
+    March: ['vamp_to_the_fifth'],
+    'Trip-hop': ['vamp_to_the_sixth'],
+  };
+
+  it("plays main's themes, degree for degree in every slot, over the presets × 2 seeds × 64 bars, where cells placed no harmony; elsewhere the one it placed, Spooky the dark cadence", () => {
+    // (Spooky's dark cadence, i VI iv V, read twice: its haunted progression, nearer before v0.25.0 read the cadence's
+    // four bars, lies past it)
     for (const r of runs.filter((r) => r.preset.name === 'Spooky'))
       for (const { bar } of r.loop.filter(({ bar }) => bar.plan.theme.kind === 'A'))
         expect(
           bar.plan.theme.bars.map((b) => b.map((slot) => ('degree' in slot ? slot.degree : -1))),
-        ).toEqual([0, 2, 3, 4, 5, 1, 4, 0].map((d) => [d]));
-    // (and Kinderlied, a preset since #596, which takes the vamp to the fifth cells placed at its point, yggi/cells#547)
-    for (const r of runs.filter((r) => r.preset.name === 'Kinderlied'))
-      expect(new Set(r.loop.map(({ plans }) => plans.themeFragments.A))).toEqual(
-        new Set(['vamp_to_the_fifth']),
-      );
-    // (and Acid and Dark ambient, presets since cells v0.23.0, which take the tonic vamp cells placed at their points,
-    // yggi/cells#572: every section from the seed)
-    for (const r of runs.filter((r) => ['Acid', 'Dark ambient'].includes(r.preset.name)))
-      expect(new Set(r.loop.map(({ plans }) => plans.themeFragments.A))).toEqual(
-        new Set(['tonic_vamp']),
-      );
-    // (and cells v0.24.0's styles, which take what cells placed at their points, yggi/cells#675 and #679: Baroque the
-    // fifths sequence, Chiptune Korobeiniki's changes, Sea shanty the vamp to the seventh, March to the fifth and
-    // Trip-hop to the sixth; Salsa's montuno, 4 bars, is no section's, and Salsa, Blues shuffle and Waltz walk)
-    const PLACED: Readonly<Record<string, string>> = {
-      Baroque: 'fifths_sequence',
-      Chiptune: 'korobeiniki_changes',
-      'Sea shanty': 'vamp_to_the_seventh',
-      March: 'vamp_to_the_fifth',
-      'Trip-hop': 'vamp_to_the_sixth',
-    };
-    for (const r of runs.filter((r) => r.preset.name in PLACED))
-      expect(new Set(r.loop.map(({ plans }) => plans.themeFragments.A)), r.preset.name).toEqual(
-        new Set([PLACED[r.preset.name]]),
-      );
-    for (const { main, loop } of runs.filter(
-      (r) =>
-        !['Spooky', 'Kinderlied', 'Acid', 'Dark ambient'].includes(r.preset.name) &&
-        !(r.preset.name in PLACED),
-    ))
+        ).toEqual([0, 5, 3, 4, 0, 5, 3, 4].map((d) => [d]));
+    for (const r of runs.filter((r) => r.preset.name in PLACED)) {
+      const taken = new Set(r.loop.map(({ plans }) => plans.themeFragments.A));
+      expect(taken.size, `${r.preset.name}, seed ${r.seed}`).toBe(1);
+      expect(PLACED[r.preset.name], `${r.preset.name}, seed ${r.seed}`).toContain([...taken][0]);
+    }
+    expect(PRESETS.filter((p) => !(p.name in PLACED)).map((p) => p.name)).toEqual([
+      'Techno',
+      'Ambient',
+      'Funk',
+    ]);
+    for (const { main, loop } of runs.filter((r) => !(r.preset.name in PLACED)))
       for (let bar = 0; bar < 64; bar++) {
         const m = main[bar]!.bar;
         const l = loop[bar]!.bar;
@@ -102,7 +113,7 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
       }
   });
 
-  it('plays a seed vamp where main plays a vamp, and the tables where it walks them', () => {
+  it('plays a seed vamp where main plays a vamp, a placed harmony where cells placed one, and the tables where it walks them', () => {
     const fromSeed = (name: string) =>
       runs
         .filter((r) => r.preset.name === name)
@@ -112,36 +123,45 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
             return kind === 'build' || plans.themeFragments[kind] !== null;
           }),
         );
+    // (A and B both from the seeds: the three that vamp, and Blues shuffle, whose B draws another of its three equals)
     expect(PRESETS.filter((p) => fromSeed(p.name)).map((p) => p.name)).toEqual([
       'Techno',
       'Ambient',
       'Funk',
+      'Blues shuffle',
     ]);
-    for (const r of runs.filter((r) => r.preset.style.harm >= 0.33))
-      for (const { plans } of r.loop)
-        expect(plans.themeFragments, r.preset.name).toEqual({
-          A:
-            {
-              Spooky: 'haunted_progression',
-              Baroque: 'fifths_sequence',
-              Chiptune: 'korobeiniki_changes',
-            }[r.preset.name] ?? null,
-          B: null,
-        });
+    // (above the vamps, A is what cells placed and B the tables', for contrast, where nothing else is equally near)
+    for (const r of runs.filter(
+      (r) => r.preset.style.harm >= 0.33 && r.preset.name !== 'Blues shuffle',
+    ))
+      for (const { plans } of r.loop) {
+        expect(PLACED[r.preset.name], r.preset.name).toContain(plans.themeFragments.A);
+        expect(plans.themeFragments.B, r.preset.name).toBeNull();
+      }
   });
 });
 
 /** A minor, held: Ada's chords are read in it. */
 const A_MINOR: KeyWish = { tonic: 9, mode: 'aeolian', melodic: null };
 
-/** Ada's progression in A minor, a chord a bar, twice: Am F C G (i VI III VII). */
-const ADA_DEGREES = [0, 5, 2, 6, 0, 5, 2, 6];
+/**
+ * Ada's progression in A minor, a chord a bar, twice: Am F G Em (i VI VII v), no seed's (since cells v0.25.0 the axis
+ * progression, i VI III VII, is read twice to a section, and the Muse knows it played as the seed, `seedTextOf`).
+ */
+const ADA_DEGREES = [0, 5, 6, 4, 0, 5, 6, 4];
 const ADA_VOICINGS: Record<number, readonly number[]> = {
   0: [57, 60, 64],
   5: [53, 57, 60],
-  2: [60, 64, 67],
   6: [55, 59, 62],
+  4: [52, 55, 59],
 };
+
+/**
+ * Cells' harmonies but the axis progression, which cells v0.25.0 places at Synth-pop's point (yggi/cells#540), where
+ * it is nearer than a progression filed while the style walked near it: so what is filed here is the nearest, as it
+ * is wherever no seed lies at the point (the filing and its coming back, not the seeds, are what these tests hold).
+ */
+const AWAY = harmonyRepository(HARMONY_FRAGMENTS.filter((f) => f.id !== 'axis_progression'));
 const ADA: HarmonySlot[] = ADA_DEGREES.map((degree, b) => ({ step: b * 16, degree }));
 
 /** A player's block chords over `sections` sections from section 1, each bar's struck on its beats one and three, `shift` semitones moved. */
@@ -177,7 +197,7 @@ function song(
     wish: A_MINOR,
     repository: METER_REPOSITORY,
     rhythms: RHYTHM_REPOSITORY,
-    harmonies: HARMONY_REPOSITORY,
+    harmonies: AWAY,
     layer: EMPTY_LAYER,
   };
   let carried: TransportCarried | null = transport.initial;
@@ -214,7 +234,7 @@ function play(bars: number, style: Style, extra: Partial<BandEnv> = {}, seed = 1
         offer: null,
         repository: METER_REPOSITORY,
         rhythms: RHYTHM_REPOSITORY,
-        harmonies: HARMONY_REPOSITORY,
+        harmonies: AWAY,
         layer: EMPTY_LAYER,
         ...extra,
       },
@@ -236,7 +256,7 @@ describe('the Muse files a player’s progression, and it comes back in a later 
     expect(ada.fragment.text).toBe(progressionText(ADA));
     // (a template, as a seed progression is: its signature, the key its main parameter, #562)
     expect(ada.fragment.text).toBe(
-      '&harm from &key\n&harm over=&key step=1m cycle=8 [0,2,4] [5,7,9] [2,4,6] [6,8,10] [0,2,4] [5,7,9] [2,4,6] [6,8,10]',
+      '&harm from &key\n&harm over=&key step=1m cycle=8 [0,2,4] [5,7,9] [6,8,10] [4,6,8] [0,2,4] [5,7,9] [6,8,10] [4,6,8]',
     );
     expect(ada.fragment.association[0]).toEqual({
       point: stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 0.3 })),
@@ -281,7 +301,7 @@ describe('the Muse files a player’s progression, and it comes back in a later 
 
 describe('the composer plays a progression filed, never varied, and leaves out one it rejects (#425)', () => {
   const point = stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 1 }));
-  const seeded = HARMONY_REPOSITORY.file!(EMPTY_LAYER, {
+  const seeded = AWAY.file!(EMPTY_LAYER, {
     notes: ADA,
     bench: { meter: METERS['4/4'], meterFragment: 'meter' },
     point,
@@ -311,7 +331,7 @@ describe('the composer plays a progression filed, never varied, and leaves out o
 
   it('builds the theme from the tables where it rejects the progression', () => {
     const env = {
-      harmonies: HARMONY_REPOSITORY,
+      harmonies: AWAY,
       style: writtenStyle({ ...SYNTH_POP.style, entropy: 1 }),
       layer: seeded.layer,
       seed: 1,
@@ -321,7 +341,11 @@ describe('the composer plays a progression filed, never varied, and leaves out o
     const bench = { meter: METERS['4/4'], meterFragment: 'meter' };
     const none = { A: null, B: null };
     expect(sectionTheme(env, 'A', key, bench, none, none).fragment).toBe(seeded.id);
-    const rejected = sectionTheme(env, 'A', key, bench, none, none, [seeded.id]);
+    // (and each of cells' harmonies, since cells v0.25.0 places some within reach of Synth-pop at entropy 1)
+    const rejected = sectionTheme(env, 'A', key, bench, none, none, [
+      seeded.id,
+      ...HARMONY_FRAGMENTS.map((f) => f.id),
+    ]);
     expect(rejected.fragment).toBeNull();
     expect(rejected.theme).toEqual(
       buildTheme({ seed: 1, index: 0, kind: 'A', key, harm: env.style.harm, entropy: 1, a: null }),

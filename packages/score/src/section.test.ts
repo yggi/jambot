@@ -189,6 +189,17 @@ describe('a section as one cells text, for the app (#399)', () => {
   });
 
   it.each(['Swing jazz', 'Synth-pop', 'Bossa nova', 'Funk'])(
+    'writes each pitched line of %s’s section with its part, `&bassline part=bass …`, and compiles it with no problem (#615, yggi/cells#708)',
+    (name) => {
+      const text = sectionTextOf(sectionAsCells(section(name)));
+      const lines = text.split('\n').filter((l) => /^&(bass|pad|stab|lead)line /.test(l));
+      expect(lines.length).toBeGreaterThan(0);
+      for (const line of lines) expect(line, line).toMatch(/^&(bass|pad|stab|lead)line part=\1 /);
+      expect(compileSection(text).result.ok).toBe(true);
+    },
+  );
+
+  it.each(['Swing jazz', 'Synth-pop', 'Bossa nova', 'Funk'])(
     'declares the part or the drum role of every note %s’s section sends, so none is read by its name (#615)',
     (name) => {
       const bars = section(name);

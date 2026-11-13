@@ -32,8 +32,9 @@
  *   lines (`&bassline`, `&bassLevel`) on its instrument, moved to the part's
  *   register (`PIN_VOICES`), its role cell the part's (`&bass map=role
  *   part=bass &bassOut`, cells' own), which declares the part of every note
- *   the gate plays (#615; a `part=` on the line itself breaks the
- *   performer's compile at cells v0.24.0, and adds nothing);
+ *   the gate plays; and each line says its part too (`&bassline part=bass …`,
+ *   feel v3, #615), a word about the line that sounds nothing, which a
+ *   performer takes since cells v0.25.0 (yggi/cells#708);
  * - the instrument each performer plays at the section's style, where it
  *   isn't the performer's own (`instrumentsAt`, #497): its voice's line,
  *   which the text's own line makes win over the performer's (a clarinet's
@@ -832,7 +833,7 @@ function pitchedLine(
   return {
     lines: [
       ...line.cells,
-      `&${name}line over=&${over} step=16n${legato} ${line.words}`,
+      `&${name}line part=${name} over=&${over} step=16n${legato} ${line.words}`,
       ...(shareSet.length > 1 ? [...share.cells, `&${name}Share step=16n ${share.words}`] : []),
       ...(one ? [] : level.cells),
       `&${name}Level map=amp ${one ? levelOf(notes[0]!.velocity) : `step=16n ${level.words}`}`,
