@@ -8,9 +8,10 @@
  * each of its steps plays: `leanMap` over the grouping, a lean a level
  * (`leanOfShare`). Every vector runs, and Jambot meets each.
  *
- * The feel contract's copy sits beside it (`fixtures/contracts/feel.json`),
- * and `packages/score/src/contracts.test.ts` runs it: cells' default
- * performer plays each of cells' events (`performCells`, #552).
+ * The feel contract's copy sits beside it (`fixtures/contracts/feel.json`,
+ * version 3), and `packages/score/src/contracts.test.ts` runs it: cells'
+ * default performer plays each of cells' events (`performCells`, #552), and
+ * `lineOf` reads each case's lines.
  */
 import { describe, expect, it } from 'vitest';
 import swingHub from '../fixtures/contracts/swing.json';
