@@ -64,14 +64,16 @@ const smooth = (x: number) => {
 
 /**
  * A stack a progression wrote, as written (#539): each tone the key's degree
- * moved by its accidental, nothing added; null where the key makes it no
- * chord with a name and a numeral, so the slot plays the triad on its root.
+ * moved by its accidental, nothing added; a fifth tone, a ninth (cells' `[0,2,4,6,8]`),
+ * the chord's tension over its four, as the band colours a seventh with one. Null where the key makes its
+ * chord no chord with a name and a numeral, so the slot plays the triad on its root.
  */
 function writtenChord(scale: Helix, stack: readonly StackTone[]): Chord | null {
-  const heights = stack.map((t) => heightOf(scale, t.degree) + t.alter);
+  const all = stack.map((t) => heightOf(scale, t.degree) + t.alter);
+  const heights = all.slice(0, 4);
   const quality = qualityOf(heights.map((x) => x - heights[0]!));
   if (!quality || !numeralOf(scale, { root: wrap(heights[0]!, 12), quality })) return null;
-  return { helix: { cycle: 12, heights }, tensions: [] };
+  return { helix: { cycle: 12, heights }, tensions: all.slice(4) };
 }
 
 /** The chords of one bar, one per slot of the theme's bar. */

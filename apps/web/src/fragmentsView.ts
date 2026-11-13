@@ -15,12 +15,18 @@
  *   motifs she remembers, which are not cells fragments yet (#547, #580) and take a
  *   row of their own.
  *
- * What the composer has in mind (its short-term memory, `short-term.ts`) is
- * carried inside the transport and doesn't reach the screen yet (#443).
+ * - **In mind**: the composer's workbench (#443), a host's and solo's: each
+ *   fragment its short-term memory holds (`short-term.ts`), with its weight,
+ *   and for a rhythm the boredom of its lineage and the rung it stands on
+ *   (`novelty.ts`): repeated, varied, or set aside.
  */
 
 import {
   BASSIST,
+  type Boredom,
+  GROOVE_RUNGS,
+  rungOf,
+  type ShortTerm,
   COMPOSER,
   DRUMMER,
   type Fragment,
@@ -44,6 +50,17 @@ export interface TakenSection {
   readonly clave: string | null;
 }
 
+/** The composer's workbench as of the section planned last (#443). */
+export interface Workbench {
+  /** What it has in mind, each fragment by id with its weight, 0.25 to 1. */
+  readonly inMind: ShortTerm;
+  /** How bored it is with each rhythm it played lately, and the variations it made of it. */
+  readonly boredom: Boredom;
+}
+
+/** Where a lineage stands on the novelty ladder: played as found, varied, or set aside until its boredom fades. */
+export type Rung = 'repeat' | 'vary' | 'set aside';
+
 /** The part a fragment plays: its slot in a section, its facet where it took none, or a motif. */
 export type FragmentRole = 'meter' | 'rhythm' | 'clave' | 'bass' | 'lead' | 'harmony' | 'motif';
 
@@ -66,6 +83,8 @@ export interface FragmentRow {
   readonly retrieved: boolean;
   /** Whether the Muse collected it: a player's groove she filed, or a motif she remembers. */
   readonly muse: boolean;
+  /** Whether the composer has it in mind (#443). */
+  readonly mind: boolean;
   /** Whether the section heard last plays it. */
   readonly playing: boolean;
   /** Who made it, as a person reads it: "seed", "The drummer", "The composer", a player's name. */
@@ -89,6 +108,14 @@ export interface FragmentRow {
   readonly together: readonly { readonly id: string; readonly count: number }[];
   /** A motif's weight in her memory, 0 to 1; null for a fragment. */
   readonly strength: number | null;
+  /** Its weight in the composer's mind, 0.25 to 1; null where it isn't in mind. */
+  readonly weight: number | null;
+  /** The lineage of a rhythm the composer played lately: how bored it is, on what rung, and its rhythms; null for any other. */
+  readonly lineage: {
+    readonly boredom: number;
+    readonly rung: Rung;
+    readonly grooves: readonly string[];
+  } | null;
 }
 
 /** The section a bar heard is in, and what it took, or null before anything is heard. */
@@ -159,6 +186,14 @@ export interface FragmentsInput {
   readonly memory: readonly MemoryView[];
   /** The session's players' names, by id, in the order they joined. */
   readonly players: Readonly<Record<string, string>>;
+  /** The composer's workbench, where this device plans (a host, a band alone); null for a client. */
+  readonly workbench?: Workbench | null;
+}
+
+/** Where a lineage's boredom stands on the ladder. */
+function rungAt(boredom: number): Rung {
+  const rung = rungOf(boredom);
+  return rung >= GROOVE_RUNGS ? 'set aside' : rung >= 1 ? 'vary' : 'repeat';
 }
 
 /**
@@ -166,8 +201,25 @@ export interface FragmentsInput {
  * played, then as a section names them; then those filed and not taken,
  * the newest first; then the Muse's motifs, the strongest first.
  */
-export function fragmentRows({ layer, log, memory, players }: FragmentsInput): FragmentRow[] {
+export function fragmentRows({
+  layer,
+  log,
+  memory,
+  players,
+  workbench = null,
+}: FragmentsInput): FragmentRow[] {
   const filed = new Map((layer?.filed ?? []).map((f, order) => [f.fragment.id, { ...f, order }]));
+  const weights = new Map((workbench?.inMind ?? []).map((m) => [m.id, m.weight]));
+  const lineageOf = (id: string): FragmentRow['lineage'] => {
+    const found = workbench?.boredom.find((l) => l.grooves.includes(id));
+    return found
+      ? {
+          boredom: found.boredom,
+          rung: found.rejected ? 'set aside' : rungAt(found.boredom),
+          grooves: found.grooves,
+        }
+      : null;
+  };
   const now = log.at(-1);
 
   const taken = new Map<
@@ -206,6 +258,7 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
       filed: file !== undefined,
       retrieved: took !== undefined,
       muse: !band,
+      mind: weights.has(id),
       playing: now !== undefined && SLOTS.some((slot) => now[slot] === id),
       source: BAND_SOURCES[source] ?? source,
       colour: band ? null : colourOf(source, players),
@@ -222,6 +275,8 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
       by: typeof file?.meta.by === 'string' ? file.meta.by : null,
       together: togetherOf(layer, id),
       strength: null,
+      weight: weights.get(id) ?? null,
+      lineage: lineageOf(id),
     };
   };
 
@@ -232,6 +287,8 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
     .filter((f) => !taken.has(f.fragment.id))
     .sort((a, b) => b.order - a.order)
     .map((f) => f.fragment.id);
+  // (what the composer has in mind and neither took for a section heard nor filed: a seed it kept, a song ago)
+  const mindIds = [...weights.keys()].filter((id) => !taken.has(id) && !filed.has(id));
   const motifs = [...memory]
     .sort((a, b) => b.strength - a.strength)
     .map((m): FragmentRow => ({
@@ -241,6 +298,7 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
       filed: false,
       retrieved: false,
       muse: true,
+      mind: false,
       playing: m.offered,
       source: m.name,
       colour: m.colour,
@@ -254,8 +312,10 @@ export function fragmentRows({ layer, log, memory, players }: FragmentsInput): F
       by: null,
       together: [],
       strength: m.strength,
+      weight: null,
+      lineage: null,
     }));
-  return [...takenIds.map(row), ...filedIds.map(row), ...motifs];
+  return [...takenIds.map(row), ...filedIds.map(row), ...mindIds.map(row), ...motifs];
 }
 
 /** The table's filters: every row, or those that have been somewhere. */
@@ -264,6 +324,7 @@ export const FRAGMENT_FILTERS = [
   { id: 'filed', label: 'Filed' },
   { id: 'retrieved', label: 'Retrieved' },
   { id: 'muse', label: 'Muse' },
+  { id: 'mind', label: 'In mind' },
 ] as const;
 
 export type FragmentFilter = (typeof FRAGMENT_FILTERS)[number]['id'];
@@ -283,5 +344,6 @@ export function fragmentsMain(rows: readonly FragmentRow[]): string {
 export function fragmentsSub(rows: readonly FragmentRow[]): string {
   if (rows.length === 0) return 'What the band takes, files and hears shows here';
   const count = (filter: Exclude<FragmentFilter, 'all'>) => shownRows(rows, filter).length;
-  return `${count('filed')} filed · ${count('retrieved')} retrieved · ${count('muse')} from the Muse`;
+  const mind = count('mind');
+  return `${count('filed')} filed · ${count('retrieved')} retrieved · ${count('muse')} from the Muse${mind > 0 ? ` · ${mind} in mind` : ''}`;
 }

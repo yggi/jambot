@@ -20,7 +20,7 @@
  * progression: one it tires of repeats until it is rejected (`novelty.ts`).
  */
 
-import type { Meter, MeterName } from '@jambot/theory';
+import { METERS, type Meter, type MeterName } from '@jambot/theory';
 import { flatten } from '@yggi/cells/engine/flatten';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { tapWhole } from '@yggi/cells/engine/vary/lines';
@@ -53,8 +53,8 @@ const toneText = ({ degree, alter }: StackTone) =>
 const stackOf = ({ degree, stack }: HarmonySlot) =>
   `[${(stack ?? [0, 2, 4].map((k) => ({ degree: degree + k, alter: 0 }))).map(toneText).join(',')}]`;
 
-/** The tones a stack may hold where it is written as it is (#539): 3 or 4, each moved a semitone at most. */
-const STACK_TONES = [3, 4];
+/** The tones a stack may hold where it is written as it is (#539): 3 to 5, each moved a semitone at most. */
+const STACK_TONES = [3, 4, 5];
 const MOST_ALTER = 1;
 
 /**
@@ -88,10 +88,11 @@ export function progressionText(notes: readonly HarmonySlot[]): string {
  * A progression's slots under a meter: each stack's onset, in bars from its
  * start (a bar's start or its half), and the degree its triad stands on,
  * from cells' flattening of `&harm`. Null where the meter has no name in
- * cells, the text doesn't compile on the workbench, its lap is other than a
- * section's bars, a stack is neither the triad on a degree of the key nor 3
- * or 4 tones on distinct degrees, each moved a semitone at most (one read
- * as written, #539), one starts off a bar's start
+ * cells, the text doesn't compile on the workbench, its lap fills no
+ * section's bars a whole number of times (a lap of 2 or 4 bars is read
+ * again to the section's end, as the cell plays it), a stack is neither the triad on a degree of the key nor 3
+ * to 5 tones on distinct degrees, each moved a semitone at most (one read
+ * as written, #539; a fifth tone is a ninth, `chords.ts`), one starts off a bar's start
  * or half, or a bar starts with none.
  */
 export function readProgression(text: string, meter: Meter): HarmonyRead | null {
@@ -107,7 +108,8 @@ export function readProgression(text: string, meter: Meter): HarmonyRead | null 
   if (whole === null || !cellMeter) return null;
   const barWhole = cellMeter.pulses / cellMeter.unit;
   const lap = (cell.steps * whole) / barWhole;
-  if (Math.abs(lap - SECTION_BARS) > 1e-9) return null;
+  const laps = SECTION_BARS / lap;
+  if (Math.abs(laps - Math.round(laps)) > 1e-9) return null;
   const stacks = new Map<number, StackTone[]>();
   for (const e of flatten(result, 'harm', codeShifts(result))) {
     if (e.table !== 'key' || e.via || e.tableShift !== 0 || (e.transpose ?? 0) !== 0) return null;
@@ -115,8 +117,11 @@ export function readProgression(text: string, meter: Meter): HarmonyRead | null 
     const at = (e.step * whole) / barWhole;
     const step = Math.round(at * SLOT_BAR);
     if (Math.abs(at * SLOT_BAR - step) > 1e-6 || step % HALF !== 0) return null;
-    if (step < 0 || step >= SECTION_BARS * SLOT_BAR) return null;
-    stacks.set(step, [...(stacks.get(step) ?? []), { degree: e.value, alter: e.alter }]);
+    if (step < 0 || step >= lap * SLOT_BAR) return null;
+    for (let k = 0; k < Math.round(laps); k++) {
+      const again = step + Math.round(k * lap * SLOT_BAR);
+      stacks.set(again, [...(stacks.get(again) ?? []), { degree: e.value, alter: e.alter }]);
+    }
   }
   const notes: HarmonySlot[] = [];
   for (const [step, written] of [...stacks].sort(([a], [b]) => a - b)) {
@@ -140,19 +145,46 @@ export function readProgression(text: string, meter: Meter): HarmonyRead | null 
   return { bars: SECTION_BARS, notes: kept };
 }
 
+/**
+ * A section's progression stated as the seed that reads as it, in the seed's own words, else as `progressionText`
+ * writes it: a seed of a shorter lap read again (`[0,2,4] [5,7,9] [2,4,6] [6,8,10]` at `cycle=4`) and one whose held
+ * chords are written out (Korobeiniki's changes, `[0,2,4] [0,2,4]` at `cycle=8`, which cells' `sameText` keeps apart
+ * from `[0,2,4]!2` in a cell with `cycle=`, yggi/cells#710) are each known as that seed, by what they play.
+ * A progression reads the same in every named meter, so 4/4's reading is the key.
+ */
+export function seedTextOf(
+  fragments: readonly Fragment[],
+  read: (text: string, meter: Meter) => HarmonyRead | null = readProgression,
+): (notes: readonly HarmonySlot[]) => string {
+  let seeds: Map<string, string> | undefined;
+  return (notes) => {
+    seeds ??= new Map(
+      fragments.flatMap((f): [string, string][] => {
+        const heard = read(f.text, METERS['4/4']);
+        return heard ? [[JSON.stringify(heard.notes), f.text.trim()]] : [];
+      }),
+    );
+    return seeds.get(JSON.stringify(notes)) ?? progressionText(notes);
+  };
+}
+
 /** A repository of progressions, ranked by cells' query on the facet `harmony` and read by `read` (cells', unless a test counts them). */
 export function harmonyRepository(
   fragments: readonly Fragment[] = HARMONY_FRAGMENTS,
   read: (text: string, meter: Meter) => HarmonyRead | null = readProgression,
 ): HarmonyRepository {
+  const stated = seedTextOf(fragments, read);
   return lineRepositoryOf<HarmonySlot>({
     facet: HARMONY_FACET,
     fragments,
     read,
-    text: (notes) => progressionText(notes),
+    text: (notes) => stated(notes),
     bars: SECTION_BARS,
   });
 }
+
+/** A section's progression as cells' seed that plays it, else as `progressionText` writes it (`seedTextOf`). */
+export const statedProgression = seedTextOf(HARMONY_FRAGMENTS);
 
 /** Cells' harmonies, and the progressions the layer files, as the composer asks them. */
 export const HARMONY_REPOSITORY: HarmonyRepository = harmonyRepository();

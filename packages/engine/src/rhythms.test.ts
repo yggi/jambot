@@ -164,6 +164,34 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     ).toEqual(['crash']);
   });
 
+  it('holds cells v0.25.0’s aksak and twelve-eight drums (yggi/cells#707), and finds each first at its point under its own meter: the aksak’s in 7/8, the twelve-eight’s in 12/8, its hat on the ride', () => {
+    const held = heldRhythms().map((f) => f.id);
+    const at = (id: string, name: MeterName) => {
+      const fragment = RHYTHM_FRAGMENTS.find((f) => f.id === id)!;
+      const { point } = fragment.association[0]!;
+      const found = RHYTHM_REPOSITORY.query(
+        { mood: 0.5, ...point },
+        { meter: METERS[name] },
+        EMPTY_LAYER,
+      );
+      return { fragment, found, read: readRhythm(fragment.text, METERS[name])! };
+    };
+    for (const [id, name] of [
+      ['aksak_drums', '7/8'],
+      ['twelve_eight_drums', '12/8'],
+    ] as const) {
+      expect(held, id).toContain(id);
+      const { found, read } = at(id, name);
+      expect(found[0]?.id, `${id} in ${name}`).toBe(id);
+      expect(read.hits.length, `${id} in ${name}`).toBeGreaterThan(0);
+    }
+    // (the twelve-eight’s `&hat` strikes the ride, as Swing jazz drums’ does)
+    const twelve = at('twelve_eight_drums', '12/8').read;
+    expect(new Set(twelve.hits.filter((h) => h.role === 'hat').map((h) => h.note))).toEqual(
+      new Set([DRUM_NOTES.ride]),
+    );
+  });
+
   it('finds each preset’s own drum bar at its point, under the meter its sections choose, and the clave near Funk and Bossa nova', () => {
     const found = PROTOTYPE_PRESETS.map((preset) => {
       const meter = METER_REPOSITORY.query(stylePoint(preset.style))[0]!.id;
@@ -231,11 +259,13 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
     const benches = [
       ...new Set(RHYTHM_BENCHES.map(benchText).filter((t): t is string => t !== null)),
     ];
-    // (cells v0.24.0's seven the drummer holds, yggi/cells#675 and #679)
+    // (cells v0.24.0's seven the drummer holds, yggi/cells#675 and #679, and v0.25.0's two, yggi/cells#707)
     const added = ['ride_shuffle', 'shanty_drums', 'chip_drums', 'quiet_pulse'].concat([
       'waltz_drums',
       'march_drums',
       'trip_hop_drums',
+      'aksak_drums',
+      'twelve_eight_drums',
     ]);
     let pairs = 0;
     let before = 0;
@@ -252,8 +282,8 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
           );
         }
       }
-    // (1,632 over the 22 rhythms held at cells v0.23.0, as there; with cells v0.24.0's seven, 2,322)
-    expect([before, pairs]).toEqual([1632, 2322]);
+    // (1,632 over the 22 rhythms held at cells v0.23.0, as there; with cells v0.24.0's seven, 2,322; with v0.25.0's two, 2,436)
+    expect([before, pairs]).toEqual([1632, 2436]);
   });
 });
 

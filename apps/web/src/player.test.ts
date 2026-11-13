@@ -16,6 +16,7 @@ import {
   holdingSwing,
   STRAIGHT,
   SECTION_BARS,
+  SHORT_TERM_FLOOR,
   type Style,
   type StyleTrack,
   EMPTY_LAYER,
@@ -27,6 +28,7 @@ import {
   BAR_LOOPS,
   loopEnd,
   repeatSection,
+  HARMONY_REPOSITORY,
 } from '@jambot/engine';
 import {
   type LayerStore,
@@ -385,6 +387,28 @@ describe('the player', () => {
     // Synth-pop at 108 bpm: 30 s is into the second section.
     expect(player.hud.bar!.bar).toBeGreaterThan(8);
     expect(checked).toBeGreaterThan(500);
+  });
+
+  it("shows the composer's workbench as a host or solo, once a section as its plans move on (#443)", async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    expect(player.workbench).toBeNull();
+    void player.start();
+    world.resolve();
+    await settle();
+    const seen = new Set<unknown>();
+    for (let t = 0; t < 30; t += 0.025) {
+      world.currentTime += 0.025;
+      world.tickers[0]!.tick();
+      seen.add(player.workbench);
+    }
+    // Synth-pop at 108 bpm: 30 s plans into the third section, and each new plan is one new workbench.
+    const sections = Math.floor(player.hud.bar!.bar / SECTION_BARS) + 3;
+    expect(seen.size).toBeGreaterThan(1);
+    expect(seen.size).toBeLessThanOrEqual(sections);
+    const { inMind } = player.workbench!;
+    expect(inMind.length).toBeGreaterThan(0);
+    for (const { weight } of inMind) expect(weight).toBeGreaterThanOrEqual(SHORT_TERM_FLOOR);
   });
 
   it('opens in a key picked while stopped, and shows it heading there', () => {
@@ -814,7 +838,14 @@ describe('the player', () => {
       }
       // The band's own decisions, run apart from the player: the history is
       // the fold of the chords of the first bars it decided, however many.
-      const env = { seed: world.seeds.at(-1)!, start: 0, track: player.track, wish: player.wish };
+      // (with cells' harmonies, as the player asks them: Synth-pop's is the axis progression since cells v0.25.0)
+      const env = {
+        seed: world.seeds.at(-1)!,
+        start: 0,
+        track: player.track,
+        wish: player.wish,
+        harmonies: HARMONY_REPOSITORY,
+      };
       const bars = lookAhead(band.initial, (bar) => bandEnvAt(env, bar, null), 32);
       const folds = bars.reduce<HarmonicWeights[]>(
         (all, bar) => [...all, foldBar(all.at(-1) ?? NO_HISTORY, bar.chords)],
@@ -1924,7 +1955,7 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     return player;
   }
 
-  it('keeps each meter, rhythm, bass line and lead line the composer keeps, once a section, as the band plans it', async () => {
+  it('keeps each meter, rhythm, bass line, lead line and harmony the composer keeps, once a section, as the band plans it', async () => {
     const { layers, saved } = kept();
     // Synth-pop at 108 bpm: a bar is 2.2 s, so 24 s plan the first two sections and not the third.
     const player = await playing(layers, 24);
@@ -1936,12 +1967,15 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
         ['synth_pop_drums', 1.1],
         ['root_bass', 1.1],
         ['hook', 1.1],
+        // (and the harmony's, cells' axis progression, placed at Synth-pop's point since cells v0.25.0, yggi/cells#540)
+        ['axis_progression', 0.5],
       ],
       [
         ['meter', 1.2],
         ['synth_pop_drums', 1.2],
         ['root_bass', 1.2],
         ['hook', 1.2],
+        ['axis_progression', 0.6],
       ],
     ]);
     expect(player.layer).toBe(saved.at(-1));
