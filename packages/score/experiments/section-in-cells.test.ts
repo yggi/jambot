@@ -232,18 +232,19 @@ describe('the band writes a whole section as one cells text, every part, the lea
 
   // (since cells v0.23.0 each pitched performer is passed the section's style, `style=&style`: 2,842 characters more;
   // since cells v0.24.0 each drum line writes its role, `role=kick`, decision 075: 3,462 more; since v0.25.0 each
-  // pitched line says its part, `part=bass`, yggi/cells#708: 1,994 more)
-  it('states the host’s lines and the harmony once a section: 3,027 characters a section, 2,675 without the lead, against E33’s 7,792 for the same 8 bars, 66 % fewer', () => {
+  // pitched line says its part, `part=bass`, yggi/cells#708: 1,994 more; since v0.25.1 Ambient's, Funk's and Swing
+  // jazz's performers play instruments found at their points, yggi/cells#540, each a line: 2,575 more)
+  it('states the host’s lines and the harmony once a section: 3,067 characters a section, 2,702 without the lead, against E33’s 7,792 for the same 8 bars, 65 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 193737,
+      total: 196312,
       meter: 5208,
       key: 1436,
       harmony: 8285,
       drums: 83245,
-      bass: 34116,
-      comp: 32033,
-      lead: 22533,
+      bass: 35244,
+      comp: 32633,
+      lead: 23380,
       card: 6881,
     });
     // E33 states every bar alone: its meter, key, harmony, voices, mix and card every bar, and no lead.
@@ -261,21 +262,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(3027);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2675);
+    expect(Math.round(e35.total / 64)).toBe(3067);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2702);
     expect(Math.round(e33.total / 64)).toBe(7792);
-    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(66);
+    expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(65);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
       'Synth-pop': [24028, 21197],
       Techno: [23820, 20537],
       'Deep house': [28232, 24921],
-      Ambient: [15050, 13507],
+      Ambient: [15578, 14035],
       'Lo-fi hip hop': [26067, 23007],
-      Funk: [27685, 25287],
+      Funk: [28285, 25887],
       'Bossa nova': [26564, 23744],
-      'Swing jazz': [22291, 19004],
+      'Swing jazz': [23738, 19604],
     });
   });
 
@@ -587,7 +588,7 @@ describe.runIf(process.env.E35_FULL)(
       }
     });
 
-    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,492 characters a section, 2,218 without the lead, against E33’s 6,806', () => {
+    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,558 characters a section, 2,266 without the lead, against E33’s 6,806', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -604,12 +605,14 @@ describe.runIf(process.env.E35_FULL)(
         [216, 0, 0],
       ]);
       const e35 = characters(sections.map((s) => s.text));
-      // (782,673 before cells v0.24.0, whose drum lines write their roles, `role=kick`)
-      expect([e35.total, e35.lead]).toEqual([797294, 87431]);
+      // (806,523 and 89,591 before cells v0.25.1, whose instruments found at Ambient's, Funk's and Swing jazz's points
+      // are each a line, yggi/cells#540; 797,294 and 87,431 before cells v0.25.0's `part=bass`, yggi/cells#708; 782,673
+      // before cells v0.24.0, whose drum lines write their roles, `role=kick`)
+      expect([e35.total, e35.lead]).toEqual([818418, 93221]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
       expect(e33).toBe(2178078);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        2492, 2218, 6806,
+        2558, 2266, 6806,
       ]);
     });
   },

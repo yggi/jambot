@@ -111,9 +111,12 @@ describe('a section as one cells text, for the app (#399)', () => {
     const text = sectionTextOf(sectionAsCells(bars));
     const { result } = compileSection(text);
     expect(result.diagnostics).toEqual([]);
-    expect(text.match(/^.* from \w+_performer.*$/gm)).toEqual(
-      (['drums', 'bass', 'stab'] as const).map((p) => fromPerformer(p)),
-    );
+    // (the stab plays the brass stab found at Funk's point since cells v0.25.1, yggi/cells#540: its voice passed)
+    expect(text.match(/^.* from \w+_performer.*$/gm)).toEqual([
+      fromPerformer('drums'),
+      fromPerformer('bass'),
+      fromPerformer('stab', true),
+    ]);
     // (the MIDI card, then the sound card that hears every pitched part: cells v0.15.0's instruments each have a sound)
     expect(text.split('\n').slice(-2)).toEqual([
       '&out map=midi ~ &bassOut &stabOut ~!6 &drumsOut',
@@ -509,8 +512,12 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
   const BASS = '&bassV s=saw loop=C2 lpf=300..1200 * &bassMove';
 
   // (the instruments found at presets' points, yggi/cells#366 and, since cells v0.23.0, #572, by the waveform each
-  // plays: elsewhere a voice is the performer's own instrument, and the synth colours it by the style)
+  // plays, and since cells v0.25.1 those placed by idiom within `INSTRUMENT_REACH`, yggi/cells#540: elsewhere a voice is
+  // the performer's own instrument, and the synth colours it by the style)
   const WAVES: Record<string, Record<string, string>> = {
+    Ambient: { bass: 'sine' },
+    Funk: { stab: 'sawtooth' },
+    'Swing jazz': { bass: 'sawtooth', lead: 'sawtooth' },
     'Electro swing': { bass: 'sawtooth', lead: 'square', stab: 'sawtooth' },
     Spooky: { bass: 'triangle', lead: 'sine', pad: 'square', stab: 'sine' },
     Kinderlied: { bass: 'sine', lead: 'triangle' },
@@ -518,6 +525,9 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     'Happy hardcore': { lead: 'sawtooth' },
     Elektro: { bass: 'square' },
     'Dark ambient': { pad: 'sawtooth', lead: 'triangle' },
+    'Blues shuffle': { bass: 'sawtooth', pad: 'square', lead: 'sawtooth' },
+    Chiptune: { bass: 'square' },
+    Salsa: { stab: 'sawtooth', lead: 'square' },
   };
 
   it.each(PRESETS.map((p) => p.name))(
@@ -566,7 +576,13 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
 
   it('gives each note its voice’s sound where the text writes one, and sends the same notes', () => {
     const bars = section('Funk');
-    const text = sectionTextOf(sectionAsCells(bars));
+    // (on the performers' own instruments: Funk's stab plays the brass stab found at its point since cells v0.25.1,
+    // yggi/cells#540, left out here as above, and no voice passed)
+    const text = sectionTextOf(sectionAsCells(bars))
+      .split('\n')
+      .filter((l) => !/^&(bassV|padV|keysV|leadV) /.test(l))
+      .map((l) => l.replace(/, (bassV|padV|keysV|leadV)=&\w+/, ''))
+      .join('\n');
     // (the text's own sound card hears every pitched part, so a voice it writes with a sound is heard: cells v0.15.0)
     // (each passed to its performer, which reads only what it declares: yggi/cells#631)
     const passed = (['stab', 'bass'] as const).reduce(

@@ -24,18 +24,19 @@
  * The instruments a section's performers play are part of its style
  * (#497): at the style's point, cells' query on the facet `instrument`
  * ranks them, and each performer's voice is the first that defines it
- * (`instrumentsAt`). At the eight presets that is the performer's own, which
- * holds a register and no sound, so the band sounds as the style colours it;
- * at Electro swing's point a clarinet, at Spooky's a theremin, each with a
- * sound of its own (yggi/cells#350) that the built-in synth plays. Every one
- * holds its default's register, so MIDI out sends the same notes.
+ * (`instrumentsAt`), within reach of the style. Where none is, the performer
+ * plays its own, which holds a register and no sound, so the band sounds as
+ * the style colours it; at Electro swing's point a clarinet, at Spooky's a
+ * theremin, each with a sound of its own (yggi/cells#350) that the built-in
+ * synth plays. Every one holds its default's register, so MIDI out sends the
+ * same notes.
  */
 
 import { setAttr } from '@yggi/cells/engine/edit';
 import { bodyOf } from '@yggi/cells/engine/use';
 import { gmDrumNote } from '@yggi/cells/engine/midi';
 import type { Fragment } from '@yggi/cells/repository/fragments';
-import { createRepository } from '@yggi/cells/repository/fragments';
+import { instrumentsAt as cellsInstrumentsAt } from '@yggi/cells/repository/band';
 import { INSTRUMENT_FRAGMENTS } from './library.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
 
@@ -59,37 +60,19 @@ export interface FoundInstrument {
   readonly line: string;
 }
 
-const repositories = new WeakMap<readonly Fragment[], ReturnType<typeof createRepository>>();
-
 /**
  * The instrument each pitched performer plays at a style's point, where it
- * isn't the performer's own: the first that defines the performer's voice in
- * cells' ranking on the facet `instrument`. A performer whose own instrument
- * ranks first is left out, and plays as its fragment says.
+ * isn't the performer's own: cells' `instrumentsAt`, the first that defines
+ * the performer's voice in its ranking on the facet `instrument`, within
+ * `INSTRUMENT_REACH` (0.3, the composer's `MISS_DISTANCE`, cells v0.25.1). A
+ * performer whose own instrument ranks first, or that finds none within
+ * reach, is left out, and plays as its fragment says: an instrument placed
+ * at one style isn't another's because nothing nearer defines its voice.
  */
-export function instrumentsAt(
+export const instrumentsAt = (
   style: QueriedStyle,
   fragments: readonly Fragment[] = INSTRUMENT_FRAGMENTS,
-): Partial<Record<VoicedPart, FoundInstrument>> {
-  let repository = repositories.get(fragments);
-  if (!repository) repositories.set(fragments, (repository = createRepository(fragments)));
-  const ranked = repository.query(stylePoint(style), fragments.length, {}, { facet: 'instrument' });
-  const found: Partial<Record<VoicedPart, FoundInstrument>> = {};
-  for (const [part, { voice, own }] of Object.entries(PERFORMER_VOICES) as [
-    VoicedPart,
-    (typeof PERFORMER_VOICES)[VoicedPart],
-  ][]) {
-    for (const { fragment } of ranked) {
-      const line = bodyOf(fragment.text)
-        .split('\n')
-        .find((l) => l.startsWith(`&${voice} `));
-      if (line === undefined) continue;
-      if (fragment.id !== own) found[part] = { id: fragment.id, line };
-      break;
-    }
-  }
-  return found;
-}
+): Partial<Record<VoicedPart, FoundInstrument>> => cellsInstrumentsAt(stylePoint(style), fragments);
 
 /**
  * Each voice an instrument fragment defines, by its name, and the line that defines it: read off its body, past the

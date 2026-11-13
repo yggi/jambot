@@ -17,7 +17,9 @@ import {
   withInstruments,
 } from './instruments.ts';
 import { grooveLines, readRhythm } from './rhythms.ts';
+import { MISS_DISTANCE } from './meter-query.ts';
 import { PRESETS } from './style.ts';
+import { INSTRUMENT_REACH } from '@yggi/cells/repository/band';
 
 const errors = (text: string) =>
   compileSource(text)
@@ -104,10 +106,15 @@ describe('the instruments a section’s performers play, found at its style (#49
   /**
    * The instruments cells wrote for presets' points: Electro swing's and Spooky's (yggi/cells#366), and since cells
    * v0.23.0 those of the styles cut from its examples, Kinderlied's and the four new (yggi/cells#572), and since v0.24.0
-   * the eight it placed by hand and cut from its examples (yggi/cells#675, #679). Elsewhere each
-   * performer plays its own.
+   * the eight it placed by hand and cut from its examples (yggi/cells#675, #679). Since v0.25.1 nothing stands at the
+   * centre and each style has a second choice within each facet (yggi/cells#540): the defaults and the shared
+   * instruments are placed by idiom, so Ambient, Funk and Swing jazz find instruments of their own, and Baroque, Blues
+   * shuffle, Chiptune and Salsa more. Past `INSTRUMENT_REACH` each performer plays its own.
    */
   const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
+    Ambient: { bass: 'sine_bass' },
+    Funk: { stab: 'brass_stab' },
+    'Swing jazz': { bass: 'upright_bass', lead: 'muted_trumpet' },
     'Electro swing': { bass: 'upright_bass', lead: 'clarinet', stab: 'brass_stab' },
     Spooky: { bass: 'round_bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
     Kinderlied: { bass: 'sine_bass', lead: 'recorder' },
@@ -115,12 +122,13 @@ describe('the instruments a section’s performers play, found at its style (#49
     'Happy hardcore': { lead: 'rave_lead' },
     Elektro: { bass: 'square_bass' },
     'Dark ambient': { pad: 'drone_pad', lead: 'prepared_piano' },
-    // (the eight styles placed at cells v0.24.0, yggi/cells#675 and #679: each a lead of its own)
-    Baroque: { lead: 'moog' },
-    'Blues shuffle': { lead: 'blues_horn' },
+    // (the eight styles placed at cells v0.24.0, yggi/cells#675 and #679: each a lead of its own, and since v0.25.1
+    // four of them more)
+    Baroque: { stab: 'celesta', lead: 'moog' },
+    'Blues shuffle': { bass: 'upright_bass', pad: 'organ', lead: 'blues_horn' },
     'Sea shanty': { lead: 'fiddle' },
-    Chiptune: { lead: 'pulse_lead' },
-    Salsa: { lead: 'montuno_piano' },
+    Chiptune: { bass: 'square_bass', lead: 'pulse_lead' },
+    Salsa: { stab: 'brass_stab', lead: 'montuno_piano' },
     Waltz: { lead: 'accordion' },
     March: { lead: 'brass_band' },
     'Trip-hop': { lead: 'electric_piano' },
@@ -160,6 +168,23 @@ describe('the instruments a section’s performers play, found at its style (#49
     ).toEqual({
       lead: { id: 'test whistle', line: theirs.text },
     });
+  });
+
+  it('takes an instrument within `INSTRUMENT_REACH` of the style, the composer’s miss distance, and none farther (cells v0.25.1)', () => {
+    expect(INSTRUMENT_REACH).toBe(MISS_DISTANCE);
+    // (each axis moved by `d` from the instrument's point lies `d` from it, the root of the mean squared difference, and
+    // the ranking divides that by the point's weight: the whistle at weight 1)
+    const whistle = { ...theirs, association: [{ point, weight: 1, facet: 'instrument' }] };
+    const off = (d: number) => ({
+      sync: point.sync - d,
+      harm: point.harm + d,
+      artic: point.bite - d,
+      mood: point.mood + d,
+    });
+    expect(instrumentsAt(off(0.29), [whistle])).toEqual({
+      lead: { id: 'test whistle', line: theirs.text },
+    });
+    expect(instrumentsAt(off(0.31), [whistle])).toEqual({});
   });
 
   // (since cells v0.15.0 each default instrument has a sound, `s=` and its filters, and reads the section's &style:
