@@ -14,11 +14,12 @@
  * miss, where the bass's own machine is the generator (`bass.ts`), as the
  * drummer invents, and the Muse files what it played (`muse-line.ts`).
  *
- * It admits a line it can read under the section's meter, and a walk (a
- * note on every pulse and nowhere else, as `bass.ts`'s walk) only where the
- * section's meter swings its 8ths (`eighthSwing` above 0): the swing that
- * makes `bass.ts` walk is the meter's, which the style's point doesn't see
- * (the owner's ruling on yggi/cells#209, recorded on #423).
+ * It admits any line it can read under the section's meter. Where a walk
+ * belongs is cells' placement of it, at a style's point, not a reading of
+ * its rhythm: the owner's ruling on #650 (2026-11-11), which retires the
+ * rule ruled on yggi/cells#209 (recorded on #423) that admitted a walk only
+ * under a meter swung on its 8ths, since a root on every beat or a march's
+ * oom-pah read as one.
  *
  * What the bass plays from a line is `bass.ts`'s; the pitch a note of it
  * reads over the bar's chords is `lineTone`, as cells reads `over=&harm`
@@ -31,7 +32,7 @@
  * from cells' bass lines by `bass-lines.ts`.
  */
 
-import { type Meter, alteredDegree, heightOf, joinChord, meterOnSteps } from '@jambot/theory';
+import { type Meter, alteredDegree, heightOf, joinChord } from '@jambot/theory';
 import { type BarChord, chordAt } from './chords.ts';
 import {
   type Bench,
@@ -43,7 +44,6 @@ import {
 import { type Key, keyHelix } from './key.ts';
 import type { LearnedLayer } from './layer.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
-import { type MeterSwing, eighthSwing } from './swing.ts';
 
 /** The facet a bass line is associated as (yggi/cells#211, the owner's ruling). */
 export const BASS_FACET = 'bass';
@@ -82,27 +82,10 @@ export type LineVariation = Varied<LineContent>;
 /** A repository of bass lines the composer asks (#423): the loop's repository for the facet `bass` (`facet.ts`). */
 export type LineRepository = FacetRepository<LineRead, LineContent>;
 
-/** Whether a line walks: in every bar of its lap, a note on each of the meter's pulses and on no other step. */
-export function isWalk(read: LineRead, meter: Meter, steps: number): boolean {
-  const pulses = meterOnSteps(meter).heights;
-  for (let bar = 0; bar < read.bars; bar++) {
-    const onsets = [
-      ...new Set(
-        read.notes
-          .filter((n) => n.step >= bar * steps && n.step < (bar + 1) * steps)
-          .map((n) => n.step - bar * steps),
-      ),
-    ].sort((a, b) => a - b);
-    if (onsets.join() !== pulses.join()) return false;
-  }
-  return true;
-}
-
 /**
- * The bass line the composer takes at a style, on a bench under the
- * section's swing, given the section before's: the nearest it admits (a
- * line it can read under the meter; a walk only where the meter swings its
- * 8ths), held as the meter is, none on a miss or with no repository. Those
+ * The bass line the composer takes at a style, on a bench, given the
+ * section before's: the nearest it admits (a line it can read under the
+ * meter), held as the meter is, none on a miss or with no repository. Those
  * `chosen` (its short-term memory and the section's meter) pull the lines
  * used with them; those `rejected` (lines it has tired of, `novelty.ts`) it
  * leaves out, so the next nearest is taken, or none. It asks with `pull`,
@@ -112,21 +95,18 @@ export function composedLine(
   repository: LineRepository,
   style: QueriedStyle,
   bench: Bench,
-  swing: MeterSwing,
-  steps: number,
   playing: string | undefined,
   layer?: LearnedLayer,
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
   pull?: number,
 ): string | undefined {
-  const swings = eighthSwing(swing) > 0;
   return nearestFigure(
     repository,
     stylePoint(style),
     bench,
     playing,
-    (read) => read !== null && (swings || !isWalk(read, bench.meter, steps)),
+    (read) => read !== null,
     layer,
     chosen,
     rejected,

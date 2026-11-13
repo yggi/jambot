@@ -505,8 +505,8 @@ export function museFiledLines(
  * The bass line a section takes where it starts, after its meter and
  * rhythm (#423): the one the composer finds in the repository at the style,
  * read under the section's meter (`composedLine`), the section before's
- * held, none of those `rejected`, a walk only under a meter that swings its
- * 8ths; none with no repository or on a miss, where the bass plays its own.
+ * held, none of those `rejected`; none with no repository or on a miss,
+ * where the bass plays its own.
  * It asks with the pull of use together its entropy sets (#389, `pullOf`).
  */
 /**
@@ -673,7 +673,7 @@ export function sectionTheme(
 }
 
 export function sectionLine(
-  { bassLines, style, layer, share }: Pick<PlanEnv, 'bassLines' | 'style' | 'layer' | 'share'>,
+  { bassLines, style, layer }: Pick<PlanEnv, 'bassLines' | 'style' | 'layer'>,
   meter: SectionMeter,
   before: string | undefined,
   chosen: readonly string[] = [],
@@ -684,8 +684,6 @@ export function sectionLine(
         bassLines,
         style,
         { meter: meter.meter, meterFragment: meter.meterFragment },
-        { level: meter.swing, share: meter.share ?? share ?? 0.5 },
-        stepsOf(meter.meter),
         before,
         layer,
         chosen,

@@ -90,7 +90,9 @@ describe('the share of bars recognised over 8 bars, over the 8 presets at entrop
   it('sits just under the ruled band over all members, held and walked: its mean under 0.4, about half its sections under it (61 of 128 held)', () => {
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
     expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.398, 0.162, 0.523, 0.023]);
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.376, 0.17, 0.496, 0.047]);
+    // (0.376, 0.17, 0.496 and 0.047 walked before the walk rule retired on top of cells v0.25.0, #650: the bass is
+    // recognised more)
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.385, 0.167, 0.518, 0.041]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeLessThan(BAND.low);
