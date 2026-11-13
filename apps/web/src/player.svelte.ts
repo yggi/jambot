@@ -113,6 +113,7 @@ import {
   type BandBar,
   EMPTY_LAYER,
   type LearnedLayer,
+  type PlanCarried,
   type TransportCarried,
   type TransportEnv,
   type TransportOutput,
@@ -180,6 +181,7 @@ import {
 } from '@jambot/session';
 import { type Meter, mod, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
+import type { Workbench } from './fragmentsView.ts';
 import { browserLayerStore } from './layer-storage.ts';
 import { warmAtIdle, warmedOnFiling } from './warm.ts';
 import {
@@ -421,6 +423,13 @@ export class Player {
    * replaced by an import (`useLayer`).
    */
   layer: LearnedLayer = $state.raw(EMPTY_LAYER);
+  /**
+   * The composer's workbench as of the section planned last (#443): the
+   * fragments it has in mind, each with its weight (`short-term.ts`), and how
+   * bored it is with each rhythm it played lately (`novelty.ts`). A host's and
+   * solo's, read once a section; null for a client, or before a song.
+   */
+  workbench: Workbench | null = $state.raw(null);
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
   /**
@@ -1552,6 +1561,7 @@ export class Player {
     this.#carried = carried;
     if (carried!.finale.bar !== this.lastBar) this.lastBar = carried!.finale.bar;
     this.#learned(carried!.source.plans.layer);
+    this.#mindful(carried!.source.plans);
     // The band decided its next bar in another meter: from now the bpm counts
     // that meter's beats, every step as long as it was (#367).
     const decided = carried!.source.next;
@@ -1638,6 +1648,13 @@ export class Player {
     if (!layer || layer === this.layer) return;
     this.layer = layer;
     if (this.#layerLoaded) void this.#surroundings.layers?.save(layer);
+  }
+
+  /** What the composer has in mind, kept as it changes: once a section, as its plans move on. */
+  #mindful({ shortTerm, boredom }: Pick<PlanCarried, 'shortTerm' | 'boredom'>) {
+    const was = this.workbench;
+    if (was?.inMind === shortTerm && was.boredom === boredom) return;
+    this.workbench = { inMind: shortTerm, boredom };
   }
 
   /** Whether the song's last bar has ended and its last chord has rung out, at `now` on the transport's clock. */

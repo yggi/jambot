@@ -47,6 +47,7 @@ export * from './progressions.ts';
 export * from './lean.ts';
 export * from './radio.ts';
 export * from './random.ts';
+export { type Boredom, type Lineage, BORED, GROOVE_RUNGS, rungOf } from './novelty.ts';
 export * from './reading.ts';
 export * from './recognised.ts';
 export * from './repository.ts';

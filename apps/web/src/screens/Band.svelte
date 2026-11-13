@@ -266,6 +266,7 @@
       memory={player.hud.muse.memory}
       players={player.players}
       carry={layers && !following ? { playing: player.playing, ...layers } : null}
+      workbench={following ? null : player.workbench}
     />
   {/if}
 {/snippet}
