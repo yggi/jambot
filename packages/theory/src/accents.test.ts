@@ -4,8 +4,10 @@ import { type Meter, METERS } from './meter.ts';
 
 /** Every named meter's accent line, by hand, an eighth to a symbol: the ground truth `accentLine` is checked against. */
 const LINES: Record<keyof typeof METERS, string> = {
+  '2/4': '* . + .',
   '3/4': '* . + . + .',
   '4/4': '* . - . + . - .',
+  '2/2': '* . - . + . - .',
   '5/4': '* . - . - . + . - .',
   '5/8': '* . . + .',
   '6/8': '* . . + . .',

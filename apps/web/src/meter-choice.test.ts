@@ -59,15 +59,17 @@ describe('a meter nudged a beat a bar (session contract minor 6)', () => {
       METER_CHOICES.map((c) => [c.text, [step(c.text, -1), step(c.text, 1)]]),
     );
     expect(table).toEqual({
-      // No 2/4 is offered (the meter contract records it), so 3/4 takes no beat off.
-      '3/4': [null, '4/4'],
+      '2/4': [null, '3/4'],
+      '3/4': ['2/4', '4/4'],
+      // (alla breve's pulses are halves: a beat of a half added or taken off makes no meter offered)
+      '2/2': [null, null],
       '4/4': ['3/4', '5/4'],
       '5/4': ['4/4', null],
       '5/8': [null, '7/8'],
       '5/8 2+3': [null, null],
       '6/8': [null, '9/8'],
       '7/8': ['5/8', null],
-      '7/8 2+2+3': [null, null],
+      '7/8 2+2+3': ['2/4', null],
       '7/8 2+3+2': ['5/8 2+3', null],
       '9/8': ['6/8', '12/8'],
       '10/8': [null, null],

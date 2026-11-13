@@ -486,6 +486,8 @@ describe("a bar's chords", () => {
 
   it('reads a theme’s slot steps, 0 and the bar’s half, on a meter: the same in 4/4, the meter’s half in another (finite: every meter)', () => {
     const expected: Record<string, number> = {
+      '2/4': 4,
+      '2/2': 8,
       '3/4': 6,
       '4/4': 8,
       '5/4': 10,

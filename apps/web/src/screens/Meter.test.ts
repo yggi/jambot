@@ -29,7 +29,7 @@ describe('the metronome screen', () => {
   it('keeps what is written apart from what the players may bend: the signature holds the meter and its grouping, the licence the tempo, the swings, the accents and the hemiola, the sound the layers', () => {
     shown();
     const signature = within(screen.getByRole('region', { name: 'Signature' }));
-    expect(signature.getAllByRole('radio')).toHaveLength(9);
+    expect(signature.getAllByRole('radio')).toHaveLength(11);
     expect(signature.getByRole('button', { name: 'Mirror the grouping' })).toBeInTheDocument();
     expect(signature.queryByRole('slider')).toBeNull();
     const licence = within(screen.getByRole('region', { name: 'Licence' }));
@@ -51,7 +51,19 @@ describe('the metronome screen', () => {
     shown();
     const signature = within(screen.getByRole('region', { name: 'Signature' }));
     const meters = signature.getAllByRole('radio').map((r) => r.textContent?.trim());
-    expect(meters).toEqual(['3/4', '4/4', '5/4', '5/8', '6/8', '7/8', '9/8', '10/8', '12/8']);
+    expect(meters).toEqual([
+      '2/4',
+      '3/4',
+      '4/4',
+      '2/2',
+      '5/4',
+      '5/8',
+      '6/8',
+      '7/8',
+      '9/8',
+      '10/8',
+      '12/8',
+    ]);
     expect(screen.getByRole('radio', { name: '4/4' })).toBeChecked();
     expect(screen.getByLabelText('Accents')).toHaveTextContent('* . - . + . - .');
   });
