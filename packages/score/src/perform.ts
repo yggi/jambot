@@ -54,7 +54,7 @@ export interface CellsNote {
 }
 
 /**
- * The role cells' feel weighs a drum hit by: its own, but the ostinato, which cells' feel (v0.24.0) knows none of and
+ * The role cells' feel weighs a drum hit by: its own, but the ostinato, which cells' feel (v0.25.0) knows none of and
  * would weigh as nothing (NaN), weighed as the clave, whose base is the ostinato's (72, `dynamics.ts`), so it plays
  * as the band's own performer plays it (#651). This stands until yggi/cells#717 adds `ostinato` to cells' roles.
  */
