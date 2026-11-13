@@ -15,6 +15,7 @@ import {
   SECTION_BARS,
   LEAD_LEVEL,
   type MeterSwing,
+  STYLE_AXIS_NAMES,
   SWING_LEVELS,
   type WrittenNote,
   band,
@@ -26,6 +27,8 @@ import {
 } from '@jambot/engine';
 import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
+import type { Resolve } from '@yggi/cells/engine/program';
+import { bodyOf } from '@yggi/cells/engine/use';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { readerOf } from '@yggi/cells/engine/perform/feel';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
@@ -39,12 +42,20 @@ import {
   soundOf,
 } from './section-play.ts';
 import {
+  PERFORMER_VOICES,
+  bandAt,
+  instrumentsAt,
+  resolveBand,
+  scoreStyle,
+} from '@yggi/cells/repository/band';
+import {
+  BAND_PARTS,
   PIN_VOICES,
   type SectionNote,
   barred,
-  fromPerformer,
-  performerOf,
   hostOf,
+  levelOf,
+  scoreLevel,
   sectionAsCells,
   sectionTextOf,
   swingText,
@@ -76,6 +87,31 @@ function section(name: string, meter?: MeterName, found = false): BandBar[] {
     carried = made.carried;
     return made.output;
   });
+}
+
+/** A preset's first `count` bars as the band composes them at entropy 0.3, by seed, cut into its sections. */
+function sections(name: string, seed: number, count: number): BandBar[][] {
+  const preset = PRESETS.find((p) => p.name === name)!;
+  let carried: BandCarried = band.initial;
+  const bars = Array.from({ length: count }, (_, bar) => {
+    const made = band.advance(
+      {
+        seed,
+        bar,
+        style: { ...preset.style, entropy: 0.3 },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
+        swing: presetSwing(preset)!,
+        offer: null,
+      },
+      carried,
+      null,
+    );
+    carried = made.carried;
+    return made.output;
+  });
+  return Array.from({ length: count / SECTION_BARS }, (_, i) =>
+    bars.slice(i * SECTION_BARS, (i + 1) * SECTION_BARS),
+  );
 }
 
 /** The bars with a tempo that glides through them, a bpm higher each bar. */
@@ -113,47 +149,97 @@ describe('a section as one cells text, for the app (#399)', () => {
     ]);
   });
 
-  it('plays each part through its seed performer, the card sending their gates, each moved from its instrument’s register to the part’s (yggi/cells decisions 058 and 061, #490)', () => {
+  it('is a score: no performer, voice or card, the parts it plays passed to the band and the rest written as tacets (yggi/cells decision 063, #531)', () => {
     const bars = section('Funk');
     const text = sectionTextOf(sectionAsCells(bars));
     const { result } = compileSection(text);
     expect(result.diagnostics).toEqual([]);
-    expect(text.match(/^.* from \w+_performer.*$/gm)).toEqual(
-      (['drums', 'bass', 'stab'] as const).map((p) => fromPerformer(p)),
-    );
-    // (the MIDI card, then the sound card that hears every pitched part: cells v0.15.0's instruments each have a sound)
-    expect(text.split('\n').slice(-2)).toEqual([
-      '&out map=midi ~ &bassOut &stabOut ~!6 &drumsOut',
-      '&heard map=sample [&bassOut, &stabOut]',
+    expect(text).not.toMatch(/_performer|^&\w+V |map=midi|map=sample|^use /m);
+    // (Funk's first section plays the drums, the bass and the stab; the pad and the lead rest)
+    expect(text.split('\n').slice(-3)).toEqual([
+      '&padline part=pad step=1m ~',
+      '&leadline part=lead step=1m ~',
+      '* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, stabLevel=&stabLevel, style=&style)',
     ]);
+    for (const part of BAND_PARTS) expect(text).toMatch(new RegExp(`^&${part} `, 'm'));
+    // The band, resolved where the score is played, plays each part through its seed performer.
     expect(result.performers.map((p) => [p.name, p.role, p.part])).toEqual([
       ['drumsOut', 'drums', 'drumlines'],
       ['bassOut', 'bass', 'bassline'],
+      ['padOut', 'pad', 'padline'],
       ['stabOut', 'stab', 'stabline'],
+      ['leadOut', 'lead', 'leadline'],
     ]);
-    // Each performer's move is the part's register less its instrument's, which the instrument fragment holds.
+    // A tacet with no clock starts nothing: an error, which is why each is written on `1m`.
+    expect(
+      compileSection(text.replace('&padline part=pad step=1m ~', '&padline part=pad ~')).result
+        .diagnostics,
+    ).not.toEqual([]);
+  });
+
+  it('plays each pitched part at its register: the band’s performer moves its instrument’s register to the part’s (yggi/cells decisions 058 and 061, #490)', () => {
     const midiOf = (name: string) => {
       const [, letter, octave] = /^([A-G])(-?\d+)$/.exec(name)!;
       return 12 * (Number(octave) + 1) + [0, 2, 4, 5, 7, 9, 11]['CDEFGAB'.indexOf(letter!)]!;
     };
     const register = { bass: 'bass', pad: 'comp', stab: 'comp', lead: 'lead' } as const;
+    const band = resolveSeed('band')!;
     const moves = (['bass', 'pad', 'stab', 'lead'] as const).map((part) => {
-      const performer = compileSection(
-        `&${part}line step=4n 0\n&${part}Level map=amp 1\n${fromPerformer(part)}\n&out map=midi &${part}Out`,
-      ).result.performers[0]!;
-      // (a performer given no voice plays its copy of its own instrument, `&bass_bassV`: yggi/cells#631)
-      const voice = performer.voices[0]!.replace(`${part}_`, '');
-      const use = resolveSeed(performerOf(part))!.match(new RegExp(`^&${voice} from (\\w+)`, 'm'))!;
-      const loop = resolveSeed(use[1]!.replace(/"/g, ''))!.match(/loop=(\S+)/)![1]!;
+      const { result } = compileSection(
+        [
+          '&bar meter("4/4") step=120bpm',
+          '&key scale(aeolian, A)',
+          '&harm over=&key step=1m [0,2,4]',
+          `&${part}line step=4n 0`,
+          `* from band(${part}line=&${part}line)`,
+        ].join('\n'),
+      );
+      expect(result.diagnostics).toEqual([]);
+      const performer = result.performers.find((p) => p.role === part)!;
+      // (the voice the band gives the performer, and the instrument it takes it from)
+      const voice = new RegExp(
+        `^&${part}, &${part}Out from ${part}_performer\\(.*\\b(\\w+V)=&`,
+        'm',
+      ).exec(band)![1]!;
+      const instrument = new RegExp(`^&${voice} from (\\w+)`, 'm').exec(band)![1]!;
+      const loop = resolveSeed(instrument)!.match(/loop=(\S+)/)![1]!;
       return [
         part,
         (performer.move?.transpose ?? 0) === midiOf(PIN_VOICES[register[part]]) - midiOf(loop),
       ];
     });
     expect(Object.fromEntries(moves)).toEqual({ bass: true, pad: true, stab: true, lead: true });
-    // A role on the card is an error: it names gates, and is no sound to send.
-    expect(compileSection(text.replace(/&bassOut(?= )/, '&bass')).result.diagnostics).not.toEqual(
-      [],
+  });
+
+  it('writes the section’s style over its bars, labelled, a range where it moves within the section (decision 063 §3)', () => {
+    const bars = section('Funk');
+    const at = (text: string) =>
+      text.split('\n').filter((l) => /^&(style|\w+(, &\w+)*) /.test(l) && /style/.test(l));
+    expect(at(sectionTextOf(sectionAsCells(bars)))).toEqual([
+      '&funk from styles',
+      '&style label="intro" style=&funk',
+    ]);
+    const bossa = PRESETS.find((p) => p.name === 'Bossa nova')!;
+    const moving = bars.map((bar, i) =>
+      i === bars.length - 1
+        ? {
+            ...bar,
+            style: {
+              ...bar.style,
+              ...Object.fromEntries(STYLE_AXIS_NAMES.map((a) => [a, bossa.style[a]])),
+            },
+          }
+        : bar,
+    );
+    const text = sectionTextOf(sectionAsCells(moving));
+    expect(at(text)).toEqual([
+      `&funk, &${bossa.id} from styles`,
+      `&style label="intro" style=&funk..&${bossa.id}`,
+    ]);
+    expect(compileSection(text).result.diagnostics).toEqual([]);
+    const off = bars.map((bar) => ({ ...bar, style: { ...bar.style, sync: 0.123 } }));
+    expect(at(sectionTextOf(sectionAsCells(off)))[0]).toMatch(
+      /^&style label="intro" style=&\(map=style sync=\.123 harm=\S+ bite=\S+ mood=\S+\)$/,
     );
   });
 
@@ -326,37 +412,39 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(mismatches(band, [note(2, 37), note(1.5, 46)])).toHaveLength(2);
   });
 
-  it('sends a negative gain’s size as velocity: a section whose bass is struck at `-.5` sends the velocities of `.5`, the sign kept in cells’ route alone (cells v0.7.0, #413)', () => {
+  it('sends a negative gain’s size as velocity: a band whose MIDI card strikes the bass at `-.5` sends the velocities of `.5`, the sign kept in cells’ route alone (cells v0.7.0, #413)', () => {
     const bars = section('Synth-pop');
     const text = sectionTextOf(sectionAsCells(bars));
-    // (on a MIDI card a note is struck at its product's gain there; a voice's own `gain=` the card doesn't read)
-    const struck = (gain: string) =>
-      text.replace(/^(&out map=midi .*)&bassOut /m, `$1[&bassOut * ${gain}] `);
-    // (the bass's instrument, its register the seed's, given a gain of its own and passed to the performer that uses it)
-    const voiced = (gain: string) => {
-      const edited = text.replace(
-        /^&bass, &bassOut from bass_performer.*$/m,
-        () => `${fromPerformer('bass', true)}\n&bassV loop=C2 gain=${gain}`,
+    // (on a MIDI card a note is struck at its product's gain there; a voice's own `gain=` the card doesn't read: a
+    // client's band whose card strikes the bass at a gain)
+    const struck = (gain: string): Resolve => {
+      const band = resolveSeed('band')!.replace(
+        /^(&midi map=midi \S+ )&bassOut /m,
+        `$1[&bassOut * ${gain}] `,
       );
-      expect(edited).not.toBe(text);
-      return edited;
+      expect(band).not.toBe(resolveSeed('band'));
+      return (id, hash) => (id === 'band' ? band : resolveSeed(id, hash));
     };
-    const velocities = (source: string) =>
-      playSection(source, bars).bars.flatMap((bar) =>
+    // (the bass's instrument, its register the seed's, given a gain of its own in the score, which the band's
+    // performer plays in place of its own)
+    const voiced = (gain: string) => `${text}\n&bassV loop=C2 gain=${gain}`;
+    const velocities = (source: string, resolve: Resolve = resolveSeed) =>
+      playSection(source, bars, compileSection(source, resolve)).bars.flatMap((bar) =>
         bar.notes.filter((n) => n.part === 'bass').map((n) => n.velocity),
       );
     const own = velocities(text);
-    const heard = velocities(struck('.5'));
+    const heard = velocities(text, struck('.5'));
     expect(heard).toHaveLength(own.length);
     // (the gain is played: half the level, each velocity lower than the bass's own)
     heard.forEach((v, i) => expect(v).toBeLessThan(own[i]!));
-    expect(velocities(struck('-.5'))).toEqual(heard);
+    expect(velocities(text, struck('-.5'))).toEqual(heard);
     expect([velocities(voiced('-.5')), velocities(voiced('.5'))]).toEqual([own, own]);
     // The sign reaches cells' route, which MIDI has no word for: the bass is routed at -.5, and struck at its size.
-    const gains = (source: string) => {
-      const plan = planOf(source, undefined, { resolve: resolveSeed });
+    const gains = (resolve: Resolve) => {
+      const plan = planOf(text, undefined, { resolve });
       const route = router(plan.result, channelTable(plan.result));
-      const bass = windowAt(plan, 0, 2).events.filter((e) => e.output?.startsWith('bass_bassV:'));
+      const bass = windowAt(plan, 0, 2).events.filter((e) => e.output?.startsWith('bassV:'));
+      expect(bass.length).toBeGreaterThan(0);
       return [...new Set(bass.flatMap((e) => routesOf(route(e)).map((r) => r.gain)))];
     };
     expect([gains(struck('-.5')), gains(struck('.5'))]).toEqual([[-0.5], [0.5]]);
@@ -423,11 +511,9 @@ describe('a section as one cells text, for the app (#399)', () => {
 
 /** The drums cells sends on channel 10 in a text's first `seconds`: each hit's note and velocity, by onset. */
 function drumsSent(lines: readonly string[], seconds: number): string[] {
-  const plan = planOf(
-    [...lines, fromPerformer('drums'), '&out map=midi ~!9 &drumsOut'].join('\n'),
-    undefined,
-    { resolve: resolveSeed },
-  );
+  const plan = planOf([...lines, '* from band(drumlines=&drumlines)'].join('\n'), undefined, {
+    resolve: resolveSeed,
+  });
   expect(plan.result.diagnostics).toEqual([]);
   const route = router(plan.result, channelTable(plan.result));
   return windowAt(plan, 0, seconds)
@@ -525,13 +611,122 @@ describe('a section’s bars, each stated once where it recurs (#498)', () => {
   });
 });
 
-describe('a section’s performers, taken as cells writes them (yggi/cells decision 065)', () => {
+describe('a section as a score, played on the band the client resolves (yggi/cells decision 063, #531)', () => {
   it.each(PRESETS.map((p) => p.name))(
-    'writes %s’s performers by `from` lines, its section compiling with no diagnostic: no `use`, which warns',
+    'writes %s’s section as a score that compiles on the band with no diagnostic, and ends in the band',
     (name) => {
       const text = sectionTextOf(sectionAsCells(section(name)));
-      expect(text).not.toMatch(/^use /m);
+      expect(text).not.toMatch(/^use |_performer|map=midi|map=sample/m);
+      expect(text.split('\n').at(-1)).toMatch(/^\* from band\(/);
       expect(compileSection(text).result.diagnostics).toEqual([]);
+    },
+  );
+});
+
+describe('a section as a score holds what the band plays (#531’s bounds)', () => {
+  it.each(PRESETS.map((p) => p.name))(
+    'plays %s’s 32 bars, seeds 1 and 2, on the band each note as the band writes it, sounding as long, with no diagnostic',
+    (name) => {
+      for (const seed of [1, 2])
+        for (const bars of sections(name, seed, 32)) {
+          const text = sectionTextOf(sectionAsCells(bars, { tempo: 'first' }));
+          const played = playSection(text, bars);
+          expect(played.diagnostics, `${name} ${seed} ${bars[0]!.bar}`).toEqual([]);
+          for (const [i, bar] of bars.entries())
+            expect(
+              mismatches(writtenNotes(bar), played.bars[i]!.notes, true),
+              `${name} ${seed} ${bar.bar}`,
+            ).toEqual([]);
+        }
+    },
+  );
+
+  it('is shown firing: a band whose bass sits an octave up plays other notes than the band writes', () => {
+    const bars = section('Funk');
+    const text = sectionTextOf(sectionAsCells(bars));
+    const higher = resolveSeed('band')!.replace(/^&bassV .*$/m, '&bassV s=saw loop=C3');
+    expect(higher).not.toBe(resolveSeed('band'));
+    const played = playSection(
+      text,
+      bars,
+      compileSection(text, (id, hash) => (id === 'band' ? higher : resolveSeed(id, hash))),
+    );
+    expect(played.diagnostics).toEqual([]);
+    expect(
+      bars.flatMap((bar, i) => mismatches(writtenNotes(bar), played.bars[i]!.notes)).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('writes Spooky’s resting lead as a tacet, with no error and no info (energy 0.35)', () => {
+    const resting = sections('Spooky', 1, 32).filter((bars) =>
+      bars.every((bar) => bar.written.every((w) => w.part !== 'lead')),
+    );
+    expect(resting.length).toBeGreaterThan(0);
+    for (const bars of resting) {
+      const text = sectionTextOf(sectionAsCells(bars));
+      expect(text).toMatch(/^&leadline part=lead step=1m ~$/m);
+      expect(text).toMatch(/^\* from band\(.*\bleadline=&leadline\b/m);
+      expect(compileSection(text).result.diagnostics).toEqual([]);
+    }
+  });
+
+  it('writes each level as the shortest decimal cells strikes at its velocity, every velocity from 1 to 127', () => {
+    for (let v = 1; v <= 127; v++) {
+      const level = scoreLevel(v);
+      expect(Math.round(127 * Math.sqrt(Number(level))), level).toBe(v);
+      expect(level.replace(/^\./, '').length).toBeLessThanOrEqual(4);
+      // (shorter than the square the Muse files a groove with, but where that is short already)
+      expect(level.length).toBeLessThanOrEqual(levelOf(v).length);
+    }
+    expect([scoreLevel(127), scoreLevel(64), scoreLevel(8)]).toEqual(['1', '.254', '.004']);
+  });
+});
+
+describe('the instruments the band plays a score on, found at its style (#497, #531 item 4)', () => {
+  /**
+   * The instruments cells wrote for presets' points: Electro swing's and Spooky's (yggi/cells#366), and since cells
+   * v0.23.0 those of the styles cut from its examples, Kinderlied's and the four new (yggi/cells#572), and since v0.24.0
+   * the eight it placed by hand and cut from its examples (yggi/cells#675, #679). Elsewhere each performer plays its own.
+   */
+  const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
+    'Electro swing': { bass: 'upright_bass', lead: 'clarinet', stab: 'brass_stab' },
+    Spooky: { bass: 'round_bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
+    Kinderlied: { bass: 'sine_bass', lead: 'recorder' },
+    Acid: { bass: 'tb303' },
+    'Happy hardcore': { lead: 'rave_lead' },
+    Elektro: { bass: 'square_bass' },
+    'Dark ambient': { pad: 'drone_pad', lead: 'prepared_piano' },
+    Baroque: { lead: 'moog' },
+    'Blues shuffle': { lead: 'blues_horn' },
+    'Sea shanty': { lead: 'fiddle' },
+    Chiptune: { lead: 'pulse_lead' },
+    Salsa: { lead: 'montuno_piano' },
+    Waltz: { lead: 'accordion' },
+    March: { lead: 'brass_band' },
+    'Trip-hop': { lead: 'electric_piano' },
+  };
+
+  it.each(PRESETS.map((p) => p.name))(
+    'at %s, the band the score resolves plays the instrument found at its style where it isn’t the performer’s own, in its register',
+    (name) => {
+      const text = sectionTextOf(sectionAsCells(section(name)));
+      const found = instrumentsAt(scoreStyle(text)!);
+      expect(Object.fromEntries(Object.entries(found).map(([part, f]) => [part, f.id]))).toEqual(
+        FOUND[name] ?? {},
+      );
+      const band = resolveBand(text)('band')!;
+      const own = resolveSeed('band')!;
+      for (const [part, { line }] of Object.entries(found)) {
+        const { voice, own: instrument } = PERFORMER_VOICES[part as keyof typeof PERFORMER_VOICES];
+        expect(band.split('\n'), `${name} ${part}`).toContain(line);
+        expect(own.split('\n')).not.toContain(line);
+        // (and holds its performer's own instrument's register, so MIDI out sends the same notes)
+        const ownLine = bodyOf(resolveSeed(instrument)!)
+          .split('\n')
+          .find((l) => l.startsWith(`&${voice} `))!;
+        expect(/loop=(\S+)/.exec(line)![1], `${name} ${part}`).toBe(/loop=(\S+)/.exec(ownLine)![1]);
+      }
+      if (Object.keys(found).length === 0) expect(band).toBe(own);
     },
   );
 });
@@ -578,37 +773,26 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
   );
 
   it.each(['Electro swing', 'Spooky'])(
-    'plays %s’s section on its instruments with the same notes as on the performers’ own (yggi/cells#350)',
+    'plays %s’s section on the instruments the band finds at its style with the same notes as on the band’s defaults (yggi/cells#350)',
     (name) => {
       const bars = section(name);
-      const text = sectionAsCells(bars);
-      const voiced = playSection(sectionTextOf(text), bars);
+      const text = sectionTextOf(sectionAsCells(bars));
+      expect(Object.keys(instrumentsAt(scoreStyle(text)!)).length).toBeGreaterThan(0);
+      const voiced = playSection(text, bars);
       expect(voiced.diagnostics).toEqual([]);
-      // (the text with its instruments' lines and the card that hears them left out, and no voice passed to a
-      // performer: the performers' own)
-      const own = {
-        ...text,
-        lines: text.lines
-          .filter((l) => !/^&(bassV|padV|keysV|leadV|heard) /.test(l.text))
-          .map((l) => ({ ...l, text: l.text.replace(/, (bassV|padV|keysV|leadV)=&\w+/, '') })),
-      };
-      expect(own.lines.length).toBeLessThan(text.lines.length);
-      const plain = playSection(sectionTextOf(own), bars);
+      // (the band as cells' library holds it, each performer on its own instrument)
+      const plain = playSection(text, bars, compileSection(text, resolveSeed));
+      expect(plain.diagnostics).toEqual([]);
       expect(voiced.bars.map((b) => b.notes)).toEqual(plain.bars.map((b) => b.notes));
+      expect(bandAt(scoreStyle(text)!)).not.toBe(resolveSeed('band'));
     },
   );
 
   it('gives each note its voice’s sound where the text writes one, and sends the same notes', () => {
     const bars = section('Funk');
     const text = sectionTextOf(sectionAsCells(bars));
-    // (the text's own sound card hears every pitched part, so a voice it writes with a sound is heard: cells v0.15.0)
-    // (each passed to its performer, which reads only what it declares: yggi/cells#631)
-    const passed = (['stab', 'bass'] as const).reduce(
-      (t, part) => t.replace(fromPerformer(part), fromPerformer(part, true)),
-      text,
-    );
-    expect(passed).not.toBe(text);
-    const voiced = `${passed}\n${STAB}\n${BASS}\n&bassMove step=1m 0 1`;
+    // (a voice the score writes is the one the band's performer plays: the band's own line for it gives way)
+    const voiced = `${text}\n${STAB}\n${BASS}\n&bassMove step=1m 0 1`;
     const plain = playSection(text, bars);
     const played = playSection(voiced, bars);
     expect(played.diagnostics).toEqual([]);

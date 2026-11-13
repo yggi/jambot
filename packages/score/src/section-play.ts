@@ -1,8 +1,10 @@
 /**
- * A section's cells text played through cells' engine and read back bar by
- * bar (E35's reading, #395), which the experiment and the app share (#399).
+ * A section's score played through cells' engine and read back bar by bar
+ * (E35's reading, #395), which the experiment and the app share (#399).
  *
- * The text is compiled (`planOf`), its notes worked out over the section
+ * The score is compiled on the band the client resolves (`compileSection`,
+ * cells' `resolveBand`: the default band at the score's style, never sent,
+ * #531), its notes worked out over the section
  * (`windowAt`) and sent through cells' MIDI out (`channelTable`, `router`,
  * `midiNote`), as Jambot's own MIDI out would hear them: 1 the lead, 2 the
  * bass, 3 the pad and the stab, 10 the drums. Two lines of the reading's own
@@ -43,7 +45,9 @@ import { type Meter, formatNumeral, joinChord, stepsOf } from '@jambot/theory';
 import { type CompileResult, type Plan, type Played, planOf, windowAt } from '@yggi/cells';
 import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
 import { readerOf } from '@yggi/cells/engine/perform/feel';
+import type { Resolve } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
+import { CENTRE, instrumentsAt, resolveBand, scoreStyle } from '@yggi/cells/repository/band';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { heldAt } from '@yggi/cells/engine/series';
 import {
@@ -171,18 +175,18 @@ const FILTERS = ['lpf', 'lpq', 'hpf', 'hpq'] as const;
  * filters (a moving one at where its range starts), the envelope the note
  * plays with and its bends, at seconds from its start. None where the voice
  * has no waveform of the four, as a voice that holds only a register
- * (`&bassV loop=C2`) or a drum's noise; and, given the cells a text writes
- * (`written`), none where the text doesn't write the voice: cells' default
- * instruments have a sound since v0.15.0, which Jambot's synth doesn't play
- * yet (yggi/jambot#531).
+ * (`&bassV loop=C2`) or a drum's noise; and, given the voices that sound as
+ * their own (`written`), none for another: cells' default instruments have a
+ * sound since v0.15.0, which Jambot's synth doesn't play yet, colouring the
+ * part by the style itself (#531 item 5).
  */
 export function soundOf(
   event: Played,
   result: Pick<CompileResult, 'cells'>,
   written?: ReadonlySet<string>,
 ): VoiceSound | undefined {
-  // (a voice the text doesn't write is an instrument's own, from cells' library: Jambot's synth plays its own timbre
-  // there until it plays cells' instruments, yggi/jambot#531; a voice the text writes, an instrument found at the style)
+  // (a voice the band plays on its default instrument: Jambot's synth plays its own timbre there until it plays cells'
+  // instruments, #531 item 5; a voice the text writes, or an instrument the band found at the style, its own)
   if (written && !written.has(event.voice)) return undefined;
   const cell = result.cells.get(event.voice);
   const wave = cell?.params.s === undefined ? undefined : DOUGH_SOURCES[String(cell.params.s)];
@@ -217,11 +221,29 @@ export interface SectionFrame {
 }
 
 /**
- * A section's text compiled with the reading's own lines beside it: what `playSection` plays. Its `use` lines (the
- * performers', `&bass, &bassOut from bass_performer(…) &bassline`) read through cells' seed library (`resolveSeed`, cells v0.10.1's engine host).
+ * A section's score compiled with the reading's own lines beside it: what `playSection` plays. Its band
+ * (`* from band(…)`) is the client's, resolved here and never sent (decision 063 §1): cells' default band at the
+ * score's style (`resolveBand`), each pitched performer on the instrument found there; every other fragment it takes
+ * `from` reads through cells' seed library (`resolveSeed`). A client with a band of its own resolves `band` with it
+ * (`resolve`).
  */
-export const compileSection = (text: string): Plan =>
-  planOf(`${text}\n${READING}`, undefined, { resolve: resolveSeed });
+export const compileSection = (
+  text: string,
+  resolve: Resolve = resolveBand(text, resolveSeed),
+): Plan => planOf(`${text}\n${READING}`, undefined, { resolve });
+
+/**
+ * The voices whose own sound a score's notes are played with (`soundOf`): each the score writes itself, and each the
+ * band plays on an instrument it found at the score's style in place of its default (cells' `instrumentsAt`, at
+ * `scoreStyle`, as `resolveBand` finds them), a clarinet's at Electro swing's point.
+ */
+export function ownSounds(text: string): Set<string> {
+  const found = Object.values(instrumentsAt(scoreStyle(text, resolveSeed) ?? CENTRE));
+  return new Set([
+    ...text.split('\n').flatMap((l) => /^&(\w+)\s/.exec(l)?.[1] ?? []),
+    ...found.flatMap((f) => /^&(\w+)\s/.exec(f.line)?.[1] ?? []),
+  ]);
+}
 
 /**
  * A section's text played through cells' MIDI out, read back bar by bar
@@ -239,8 +261,8 @@ export function playSection(
   const estimate = bars.length * steps * stepSeconds(bars[0]!.style.bpm, bars[0]!.meter);
   const route = router(plan.result, channelTable(plan.result));
   const lineAt = lineReader(plan.result);
-  // (the cells the text's own lines define: a voice's sound is the text's where it writes the voice)
-  const written = new Set(text.split('\n').flatMap((l) => /^&(\w+)\s/.exec(l)?.[1] ?? []));
+  // (a voice's sound is its own where the text writes the voice, or the band found its instrument at the style)
+  const written = ownSounds(text);
   const out = windowAt(plan, 0, estimate * 1.25).events.flatMap((e) =>
     routesOf(route(e)).flatMap((r) => {
       const n = midiNote(e, r);

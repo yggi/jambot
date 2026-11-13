@@ -1,9 +1,10 @@
 /**
- * A section the band composed as one cells text: the builder E35 found
- * (#390, #395, #396), which the experiment and the app share (#399; the seam,
- * #63; #358).
+ * A section the band composed as a score: one cells text, the builder E35
+ * found (#390, #395, #396), which the experiment and the app share (#399; the
+ * seam, #63), written as yggi/cells decision 063 has a score (#531).
  *
- * The text, one section of the band's bars:
+ * The score, one section of the band's bars, says what is played and never
+ * who plays it, on what, or where it goes out:
  *
  * - the host's lines, stated once: the meter with the section's tempo and
  *   swing (`&bar meter("4/4") step=84bpm swing=16n:.65`) and the key
@@ -11,9 +12,13 @@
  *   for the section's bars, so each is one line (`hostOf` refuses a section
  *   whose bars part on any of them, the tempo too unless the statement lets
  *   it move: `tempo: 'first'`);
+ * - the section's style, the note `&style` (decision 063 §3): labelled with
+ *   the section's kind, at its first bar's point, or a range to
+ *   its last bar's where the style moves within it (`style=&from..&to`), each
+ *   end named by its preset's id in cells' library of styles where it sits on
+ *   one (`&funk from styles`);
  * - the harmony once, `&harm over=&key step=1m [0,2,4] [3,5,7] …`, every
- *   chord the band writes in the section at its slot (E32's stacks), which
- *   nothing plays;
+ *   chord the band writes in the section at its slot (E32's stacks);
  * - the drums, a line a role on `16n` over the section's steps (E31), the
  *   rim a Euclid token a bar on `1m` where the meter is straight (E33's gap 4),
  *   stacked as the drummer's part (`&drumlines`), each line its role as a
@@ -27,25 +32,21 @@
  *   scale from its register, C4, over the key where the scale is the key's own,
  *   else over the scale stated as a stack of the key's degrees (`&melo`);
  * - each part's velocities, a line of levels or one level (`&bassLevel`);
- * - each part played by its performer from cells' seed library (`&bass,
- *   &bassOut from bass_performer(…) &bassline`, `performerOf`): a gate, `&bassOut`, playing the part's
- *   lines (`&bassline`, `&bassLevel`) on its instrument, moved to the part's
- *   register (`PIN_VOICES`), its role cell the part's (`&bass map=role
- *   part=bass &bassOut`, cells' own), which declares the part of every note
- *   the gate plays; and each line says its part too (`&bassline part=bass …`,
- *   feel v3, #615), a word about the line that sounds nothing, which a
- *   performer takes since cells v0.25.0 (yggi/cells#708);
- * - the instrument each performer plays at the section's style, where it
- *   isn't the performer's own (`instrumentsAt`, #497): its voice's line,
- *   which the text's own line makes win over the performer's (a clarinet's
- *   `&leadV s=square loop=C4 …` at Electro swing's point);
- * - one MIDI card that sends the gates on Jambot's channels: 1 the lead, 2 the
- *   bass, 3 the pad and the stab, 10 the drums; and a sound card that hears
- *   every pitched part's gate (`&heard`), each instrument having a sound of
- *   its own, so cells and a follower hear it and MIDI out sends its notes as
- *   before;
- * - the section's style, the note `&style` at its first bar's point, which
- *   the instruments read (`&style[artic]`, cells decision 063 §3).
+ * - each line says its part (`&bassline part=bass …`, feel v3, #615), a word
+ *   about the line that sounds nothing, which a performer takes since cells
+ *   v0.25.0 (yggi/cells#708);
+ * - a tacet for each of the band's five parts that rests the whole section
+ *   (`&leadline part=lead step=1m ~`, decision 063 §4: a line with no clock
+ *   starts nothing, an error);
+ * - and last the band, `* from band(…)`, passed what the score writes
+ *   (cells' `bandLine`): each part and its levels, and the style.
+ *
+ * The band is the client's own, resolved where the score is played and never
+ * sent (`compileSection`, cells' `resolveBand`): cells' default `band` plays
+ * each part through its seed performer at the part's register (`PIN_VOICES`),
+ * on the instrument found at the score's style (a clarinet at Electro swing's
+ * point), and sends it on Jambot's channels: 1 the lead, 2 the bass, 3 the pad
+ * and the stab, 10 the drums.
  *
  * Each line on `16n` states a bar it plays more than once once, a cell of its
  * own spliced in where it plays (`&bassline … &basslineA!4 &basslineB`,
@@ -55,7 +56,7 @@
  *
  * What it states is the written layer: each note's step, pitch, velocity as
  * the performer plays it at feel 0 (`writtenNotes`) and written length, and
- * each chord. Playing a text back is `section-play.ts`.
+ * each chord. Playing a score back is `section-play.ts`.
  *
  * The helpers come from the experiments that found each form: the drums'
  * voices and levels (E31), the key, the stacks and the pins (E32), and the
@@ -71,13 +72,10 @@ import {
   type Key,
   VOICE_OF_NOTE,
   euclidOf,
-  instrumentsAt,
   PRESETS,
   CELLS_AXIS,
-  PERFORMER_VOICES,
   STYLE_AXIS_NAMES,
   type StyleAxisName,
-  levelOf,
   type MelodicScale,
   type MeterSwing,
   STRAIGHT,
@@ -110,6 +108,7 @@ import {
   stepsOf,
   wrap,
 } from '@jambot/theory';
+import { bandLine } from '@yggi/cells/repository/band';
 import { type ScoreKey, lowerNumeral } from './score.ts';
 
 // ---------------------------------------------------------------------------
@@ -229,9 +228,9 @@ export function rhythmText(
 
 /**
  * Where a pin counts from: its part's register, a C, and the key's tonic above it; the lead's C4 is E35's.
- * The part sounds there through its performer (`performerOf`), whose gate plays it on an instrument that holds a
- * register of its own and moves it by this one less the instrument's: the bass's C1 is cells' `bass` (C2) an octave
- * down, `^$-12`, and the others' are their instruments' own (yggi/cells decision 058).
+ * The part sounds there through the band's performer, whose gate plays it on an instrument that holds a register of
+ * its own and moves it by this one less the instrument's: the bass's C1 is cells' `bass` (C2) an octave down, `^$-12`,
+ * and the others' are their instruments' own (yggi/cells decision 058).
  */
 export const PIN_VOICES = { comp: 'C3', bass: 'C1', lead: 'C4' } as const;
 const PIN_FROM = { comp: 48, bass: 24, lead: 60 } as const;
@@ -360,53 +359,51 @@ export type NotePart = Exclude<SectionPart, 'harmony'>;
 /** A pitched line of the text: one per sound. */
 export type PitchedName = 'bass' | 'pad' | 'stab' | 'lead';
 
-/**
- * The seed performer that plays a part (yggi/cells decisions 058 and 061): a gate, `&bassOut`, playing the part's
- * holes (`&bassline`, `&bassLevel`; the drummer's `&drumlines`) on its instrument, its role the part's (`&bass map=role
- * &bassOut`).
- */
-export const performerOf = (part: PitchedName | 'drums') => `${part}_performer`;
+/** The part each of the band's lines states. */
+const PART_OF_LINE = {
+  drumlines: 'drums',
+  bassline: 'bass',
+  padline: 'comp',
+  stabline: 'comp',
+  leadline: 'lead',
+} as const;
 
 /** A number as a style's axis writes it: three decimals at most, no leading zero (`.35`, `1`). */
 const axisText = (x: number) => String(Math.round(x * 1000) / 1000).replace(/^0\./, '.');
 
+/** A style as Jambot holds it: a value on each of its axes. */
+type StylePoint = Readonly<Record<StyleAxisName, number>>;
+
+/** Whether two styles are one: every axis within a billionth. */
+const sameStyle = (a: StylePoint, b: StylePoint) =>
+  STYLE_AXIS_NAMES.every((x) => Math.abs(a[x] - b[x]) < 1e-9);
+
 /**
- * The section's style as cells reads it (decision 063 §3): the note `&style`, named by its preset's id in cells'
- * library of styles where it sits on one (`&funk from styles`, `&style style=&funk`, #596), else at its point, each
- * axis by its name in cells' table (`STYLE_AXIS_NAMES`, `CELLS_AXIS`), so a cells version whose axes differ says so
- * rather than reading it otherwise.
+ * The section's style as cells reads it (decision 063 §3): the note `&style`, labelled with the section's kind
+ * (`label="groove"`, never its place in the song, so a section the band repeats is the same score), at its first bar's
+ * point, or where the style moves within the section,
+ * a range from its first bar's point to its last's (`style=&funk..&bossaNova`), which cells glides over the score's
+ * bars. Each end is named by its preset's id in cells' library of styles where it sits on one (`&funk from styles`,
+ * #596), else written at its point, each axis by its name in cells' table (`STYLE_AXIS_NAMES`, `CELLS_AXIS`), so a
+ * cells version whose axes differ says so rather than reading it otherwise.
  */
-const styleLines = (style: Readonly<Record<StyleAxisName, number>>): string[] => {
-  const on = PRESETS.find((p) =>
-    STYLE_AXIS_NAMES.every((a) => Math.abs(p.style[a] - style[a]) < 1e-9),
+const styleLines = (first: StylePoint, last: StylePoint, label: string): string[] => {
+  const ends = sameStyle(first, last) ? [first] : [first, last];
+  const named = ends.map((style) => PRESETS.find((p) => sameStyle(p.style, style))?.id);
+  const taken = [...new Set(named.filter((id) => id !== undefined))];
+  const written = ends.map((style, i) =>
+    named[i] !== undefined
+      ? `&${named[i]}`
+      : `&(map=style ${STYLE_AXIS_NAMES.map((a) => `${CELLS_AXIS[a]}=${axisText(style[a])}`).join(' ')})`,
   );
-  if (on) return [`&${on.id} from styles`, `&style style=&${on.id}`];
   return [
-    `&style style=&(map=style ${STYLE_AXIS_NAMES.map((a) => `${CELLS_AXIS[a]}=${axisText(style[a])}`).join(' ')})`,
+    ...(taken.length ? [`${taken.map((id) => `&${id}`).join(', ')} from styles`] : []),
+    `&style label="${label}" style=${written.join('..')}`,
   ];
 };
 
-/**
- * The line that takes a part's performer from cells' seed library, as cells'
- * Normalise writes it (decision 065): the performer's head and its gate from
- * the template, its main argument the part's line, and a pitched part's level
- * its own line of levels (`&bassLevel`). A pitched performer reads only what
- * it declares (yggi/cells#631, decision 075), so it is passed the section's
- * `&style`, and its voice (`bassV=&bassV`) where the text writes one, `voiced`
- * (an instrument found at the style, `instrumentsAt`), as cells' Migrate
- * writes them (its rule `arguments`). Given none, it plays its own
- * instrument, its voice named `&bass_bassV`.
- */
-export const fromPerformer = (part: PitchedName | 'drums', voiced = false) => {
-  if (part === 'drums') return `&drums, &drumsOut from ${performerOf('drums')} &drumlines`;
-  const { voice } = PERFORMER_VOICES[part];
-  const args = [
-    `${part}Level=&${part}Level`,
-    ...(voiced ? [`${voice}=&${voice}`] : []),
-    'style=&style',
-  ];
-  return `&${part}, &${part}Out from ${performerOf(part)}(${args.join(', ')}) &${part}line`;
-};
+/** The band's five parts, as its signature names each part's line: what a score passes it, or writes as a tacet. */
+export const BAND_PARTS = ['drumlines', 'bassline', 'padline', 'stabline', 'leadline'] as const;
 
 /** A note as composed or as cells plays it: its part, step in its bar, MIDI note, velocity, written and sounding length in steps. */
 export interface SectionNote {
@@ -455,7 +452,7 @@ export function writtenNotes(bar: BandBar): ComposedNote[] {
 
 /** A line of the text, and which part it states. */
 export interface SectionLine {
-  readonly part: 'meter' | 'key' | SectionPart | 'card';
+  readonly part: 'meter' | 'key' | SectionPart | 'band';
   readonly text: string;
 }
 
@@ -636,8 +633,27 @@ function sectionChords(bars: readonly BandBar[], steps: number) {
 const eachStep = (steps: number, f: (step: number) => string): Span[] =>
   Array.from({ length: steps }, (_, at) => ({ at, length: 1, text: f(at) }));
 
+/**
+ * A velocity as the score writes its level: the shortest decimal cells strikes at that velocity, `round(127 · √level)`
+ * (cells' `velocityOf`), kept off the ends of the velocity's interval by a thousandth of its width, so a level is two or
+ * three digits where the square of `velocity / 127` is six (`levelOf`, which the Muse files a groove with). 127 is `1`.
+ */
+export function scoreLevel(velocity: number): string {
+  if (velocity >= 127) return '1';
+  // (squares and powers of ten by multiplication, exact on every engine: no `Math.pow`)
+  const square = (v: number) => (Math.max(0, v) / 127) * (Math.max(0, v) / 127);
+  const [lo, hi] = [square(velocity - 0.5), square(velocity + 0.5)];
+  const margin = (hi - lo) / 1000;
+  const mid = (lo + hi) / 2;
+  for (let digits = 1, scale = 10; ; digits++, scale *= 10) {
+    const near = Math.round(mid * scale) / scale;
+    if (near > lo + margin && near < hi - margin)
+      return String(Number(near.toFixed(digits))).replace(/^0\./, '.');
+  }
+}
+
 /** A hit's own level after its voice, none at full velocity. */
-const hitLevel = (velocity: number) => (velocity >= 127 ? '' : `:0:${levelOf(velocity)}`);
+const hitLevel = (velocity: number) => (velocity >= 127 ? '' : `:0:${scoreLevel(velocity)}`);
 
 /** A section's note, at its step in the section. */
 type AtStep = ComposedNote & { readonly at: number };
@@ -680,17 +696,17 @@ function drumLines(
       ]);
       if (velocities.size === 1) {
         const v = hits[0]!.velocity;
-        terms.push(v >= 127 ? `&${role}` : `&${role} * ${levelOf(v)}`);
+        terms.push(v >= 127 ? `&${role}` : `&${role} * ${scoreLevel(v)}`);
       } else if (perBar.every((v) => v.length <= 1)) {
         lines.push(
-          `&${role}Level map=amp step=1m ${perBar.map((v) => (v.length ? levelOf(v[0]!) : '0')).join(' ')}`,
+          `&${role}Level map=amp step=1m ${perBar.map((v) => (v.length ? scoreLevel(v[0]!) : '0')).join(' ')}`,
         );
         terms.push(`&${role} * &${role}Level`);
       } else {
         const level = (s: number) => hits.find((h) => h.at === s)?.velocity;
         const levels = barred(
           `${role}Level`,
-          eachStep(bars * steps, (s) => (level(s) ? levelOf(level(s)!) : '0')),
+          eachStep(bars * steps, (s) => (level(s) ? scoreLevel(level(s)!) : '0')),
           steps,
         );
         lines.push(...levels.cells, `&${role}Level map=amp step=16n ${levels.words}`);
@@ -727,7 +743,7 @@ function drumLines(
         `&${role} role=${role} step=16n ${bare.words}`,
         `&${role}LevelA ${barred(
           `${role}Level`,
-          eachStep(steps, (s) => (atStep.has(s) ? levelOf(atStep.get(s)!) : '~')),
+          eachStep(steps, (s) => (atStep.has(s) ? scoreLevel(atStep.get(s)!) : '~')),
           steps,
         ).words.replace(/~/g, '0')}`,
         `&${role}Level map=amp step=16n &${role}LevelA`,
@@ -813,7 +829,7 @@ function pitchedLine(
         }),
       ),
     );
-    levels.push({ at: step, length, text: levelOf(here[0]!.velocity) });
+    levels.push({ at: step, length, text: scoreLevel(here[0]!.velocity) });
     shares.push({ at: step, length, text: numberText(here[0]!.length / here[0]!.written) });
     at = step + length;
   }
@@ -836,7 +852,7 @@ function pitchedLine(
       `&${name}line part=${name} over=&${over} step=16n${legato} ${line.words}`,
       ...(shareSet.length > 1 ? [...share.cells, `&${name}Share step=16n ${share.words}`] : []),
       ...(one ? [] : level.cells),
-      `&${name}Level map=amp ${one ? levelOf(notes[0]!.velocity) : `step=16n ${level.words}`}`,
+      `&${name}Level map=amp ${one ? scoreLevel(notes[0]!.velocity) : `step=16n ${level.words}`}`,
     ],
     pitched: {
       part: name,
@@ -863,10 +879,10 @@ export interface Statement {
 }
 
 /**
- * A section's bars, every part, as one cells text. What it offers the band
- * comes first (`&harm, &key from`), then the host's lines, stated once
- * (`hostOf` refuses bars that part on them), then the harmony, then the
- * parts, open on them.
+ * A section's bars, every part, as a score. What it offers the band comes
+ * first (`&harm, &key from`), then the host's lines, stated once (`hostOf`
+ * refuses bars that part on them), the style, then the harmony, then the
+ * parts and the tacets, and last the band (`* from band(…)`).
  */
 export function sectionAsCells(
   bars: readonly BandBar[],
@@ -895,8 +911,11 @@ export function sectionAsCells(
     { part: 'harmony', text: OFFERS },
     { part: 'meter', text: `&bar meter("${host.meter}") step=${host.bpm}bpm${host.swing}` },
     { part: 'key', text: `&key ${host.key}` },
-    // (the section's style, where its first bar sits: what the instruments read, `&style[artic]`, decision 063 §3)
-    ...styleLines(bars[0]!.style).map((text) => ({ part: 'meter' as const, text })),
+    // (the section's style over its bars: what the band's instruments read, `&style[bite]`, decision 063 §3)
+    ...styleLines(bars[0]!.style, bars.at(-1)!.style, bars[0]!.plan.section.type).map((text) => ({
+      part: 'meter' as const,
+      text,
+    })),
     {
       part: 'harmony',
       text: `&harm over=&key ${rhythmText(chords, (i) => stackText(chordStack(chords[i]!.numeral)), total, steps)}`,
@@ -912,19 +931,15 @@ export function sectionAsCells(
     steps,
     euclid,
   );
-  // (the drummer plays the 13 voices of the General MIDI kit it takes, every voice the band strikes: cells' `drums_performer`, yggi/cells#287, #338)
+  // (the band's drummer plays the 13 voices of the General MIDI kit it takes, every voice the band strikes: cells'
+  // `drums_performer`, yggi/cells#287, #338)
   lines.push(
     ...drums.lines.map((text) => ({ part: 'drums' as const, text })),
     ...(drums.terms.length
-      ? [
-          { part: 'drums' as const, text: `&drumlines [${drums.terms.join(', ')}]` },
-          { part: 'drums' as const, text: fromPerformer('drums') },
-        ]
+      ? [{ part: 'drums' as const, text: `&drumlines [${drums.terms.join(', ')}]` }]
       : []),
   );
   const outs: Partial<Record<PitchedName, true>> = {};
-  const instruments = instrumentsAt(bars[0]!.style);
-  const heard: PitchedName[] = [];
   const state = (
     name: PitchedName,
     part: 'bass' | 'comp' | 'lead',
@@ -937,14 +952,7 @@ export function sectionAsCells(
     const line = pitchedLine(name, own, key, total, steps, voice, tableAt, asked, cuts);
     pitched.push(line.pitched);
     outs[name] = true;
-    const instrument = instruments[name];
-    lines.push(...line.lines.map((text) => ({ part, text })), {
-      part,
-      text: fromPerformer(name, instrument !== undefined),
-    });
-    if (instrument) lines.push({ part, text: instrument.line });
-    // (every instrument has a sound since cells v0.15.0: a sound card hears each part, as Jambot's synth does)
-    heard.push(name);
+    lines.push(...line.lines.map((text) => ({ part, text })));
   };
   state('bass', 'bass', 'bass', inForce, table);
   state('pad', 'comp', 'comp', inForce, table);
@@ -960,21 +968,15 @@ export function sectionAsCells(
     const melo = lines.findIndex((l) => l.text.startsWith('&melo '));
     if (melo >= 0 && pitched.find((p) => p.part === 'lead')!.table === 'key') lines.splice(melo, 1);
   }
-  const comp = (['pad', 'stab'] as const).filter((p) => outs[p]);
-  const compEntry =
-    comp.length === 0
-      ? '~'
-      : comp.length === 1
-        ? `&${comp[0]}Out`
-        : `[${comp.map((p) => `&${p}Out`).join(', ')}]`;
-  lines.push({
-    part: 'card',
-    text: `&out map=midi ${outs.lead ? '&leadOut' : '~'} ${outs.bass ? '&bassOut' : '~'} ${compEntry} ~!6 ${drums.terms.length ? '&drumsOut' : '~'}`,
-  });
-  if (heard.length)
-    lines.push({
-      part: 'card',
-      text: `&heard map=sample [${heard.map((p) => `&${p}Out`).join(', ')}]`,
-    });
+  // (a part that rests the whole section is a tacet, so the score says it rests: decision 063 §4)
+  const tacets = BAND_PARTS.filter((p) => !lines.some((l) => l.text.startsWith(`&${p} `))).map(
+    // (a pitched tacet says its part, as every pitched line does: #615)
+    (p) => ({
+      part: PART_OF_LINE[p],
+      text: p === 'drumlines' ? `&${p} step=1m ~` : `&${p} part=${p.replace('line', '')} step=1m ~`,
+    }),
+  );
+  lines.push(...tacets);
+  lines.push({ part: 'band', text: bandLine(lines.map((l) => l.text).join('\n')) });
   return { lines, pitched, cuts };
 }
