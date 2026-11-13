@@ -40,7 +40,7 @@ import type { Meter, MeterName } from '@jambot/theory';
 import { METERS, stepsOf } from '@jambot/theory';
 import { bodyOf, signatureOf } from '@yggi/cells/engine/use';
 import { flatten, tapped } from '@yggi/cells/engine/flatten';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { fromId, headOf, resolveSeed, usesOf } from '@yggi/cells/repository/library';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { type Operator, variations } from '@yggi/cells/engine/vary/index';
 import { tapWhole } from '@yggi/cells/engine/vary/lines';
@@ -185,13 +185,14 @@ function paddedLead(
 export const MOTIF_FACET = 'motif';
 
 /**
- * A motif of cells' as a lead line (#520): its head (`&<id>`) renamed `&lead`, with no voice beside it, as the Muse
+ * A motif of cells' as a lead line (#520): its head renamed `&lead` (`&<id>`, or a part's own head, `&twinkle` for
+ * `kinderlied/twinkle`, cells' `headOf`), with no voice beside it, as the Muse
  * files a line (#580), and its association moved from the facet `motif` to `lead`, at the same points and weights. It keeps
  * its degrees of the key as written (#529: `&diesIrae`'s `2 1 2 0 …` starts on the third), since a motif written in
  * cells sets its place in the key, and the lead plays it from there (`keyed`, `lead.ts`).
  */
 export function motifLead(motif: Fragment): Fragment {
-  const head = new RegExp(`^&${motif.id}(?=\\s)`, 'm');
+  const head = new RegExp(`^&${headOf(motif.id)}(?=\\s)`, 'm');
   // (its body: a template's signature line, `&hook from &key`, says what it takes, which the lead's bench gives)
   const text = bodyOf(motif.text).replace(head, '&lead');
   return {
@@ -247,7 +248,13 @@ export function leadRepository(
       // (a form over the seed's motifs the Muse filed isn't varied: varying inside a form is not ruled yet, #580 rung 4)
       varies: (text) => !formed(text),
     }),
-    phrase: (notes, meter, point) => phraseOf(notes, meter, point ? leadFormAt(point) : LEAD_FORM),
+    phrase: (notes, meter, point, id) => {
+      // (a tune's own form beats the style's, decision 082 ruling 4, the owner 2026-11-11: Twinkle the ternary song)
+      const own = id === undefined ? undefined : ownFormOf(id);
+      return own
+        ? phraseOf(notes, meter, own.form, own.args)
+        : phraseOf(notes, meter, point ? leadFormAt(point) : LEAD_FORM);
+    },
     keyed: (id, layer) => keyedLine(fragments, id, layer),
   };
 }
@@ -274,7 +281,8 @@ export function keyedLine(seeds: readonly Fragment[], id: string, layer?: Learne
 
 /**
  * Whether a lead line's text is a form over the seed's motifs, as the Muse files a phrase that is one (#580 rung 4,
- * cells' `decompose`): a line that takes a seed fragment (`&twinkle from twinkle &key`), not a line of notes.
+ * cells' `decompose`): a line that takes a seed fragment or a document's part (`&twinkle from kinderlied &key`), not a
+ * line of notes.
  */
 export const formed = (text: string): boolean => /^&\w+ from \w/m.test(text);
 
@@ -310,6 +318,22 @@ export function leadFormAt(point: StylePoint): Fragment {
   return formsAt.get(key)!;
 }
 
+/**
+ * The form a found line's own document plays it in, with its named arguments (yggi/cells#692, decision 082 ruling 4:
+ * "tunes own form beats the style"): cells' `usesOf`, the first use that is one of cells' forms, as
+ * `kinderlied/twinkle` is played by `ternary(answer=&wonder)`. Undefined for a line no document plays in a form: every
+ * fragment but a document's part, and a line the Muse filed.
+ */
+export function ownFormOf(
+  id: string,
+): { readonly form: Fragment; readonly args: Readonly<Record<string, string>> } | undefined {
+  for (const use of usesOf(id)) {
+    const form = FORM_FRAGMENTS.find((f) => f.id === use.id);
+    if (form) return { form, args: use.args };
+  }
+  return undefined;
+}
+
 /** A form's head, the line it plays, where its signature has a main parameter, the line it moves and answers: `&phrase` for the call and its answer (`&phrase from (&answer) &call`). */
 function formHead(form: Fragment): string | null {
   const signature = signatureOf(form.text);
@@ -325,11 +349,14 @@ const phrases = new Map<string, LeadRead | null>();
  * `&lead`, read by cells' compiler (`readLead`) over the bars it plays: the call and its answer two bars, each note a
  * degree from the line's first, the answer two below. Null where a note falls between the bar's eighths (a line on
  * sixteenths, which a form would play at half speed), the bar has no whole number of eighths, or cells can't read it.
+ * Its named arguments, `args`, are the form's, as a document plays it (`ownFormOf`): one that names a document's part
+ * (`kinderlied/wonder`) takes the part over the key by its head (`&wonder from kinderlied &key`) and passes it.
  */
 export function phraseOf(
   notes: readonly LeadNote[],
   meter: Meter,
   form: Fragment,
+  args: Readonly<Record<string, string>> = {},
 ): LeadRead | null {
   const steps = stepsOf(meter);
   if (steps % 2 !== 0 || notes.some((n) => n.step % 2 !== 0 || n.step >= steps)) return null;
@@ -337,16 +364,25 @@ export function phraseOf(
     const here = notes.find((n) => n.step === 2 * i);
     return here ? tokenOf(here) : '~';
   });
-  const key = `${form.id}\n${meter.cycle}:${meter.heights.join(' ')}\n${tokens.join(' ')}`;
+  const named = Object.entries(args);
+  const key = `${form.id}(${named.join(' ')})\n${meter.cycle}:${meter.heights.join(' ')}\n${tokens.join(' ')}`;
   if (!phrases.has(key)) {
     const head = formHead(form);
+    // (each argument a document's part, taken over the key by its head: `&wonder from kinderlied &key`)
+    const parts = named.flatMap(([, value]) =>
+      value.includes('/') ? [`&${headOf(value)} from ${fromId(value)} &key`] : [],
+    );
+    const passed = Object.fromEntries(
+      named.map(([name, value]) => [name, value.includes('/') ? `&${headOf(value)}` : value]),
+    );
     // (the form taken by a `from` line, the line its main argument, #562: `&phrase from call_and_answer &leadCall`)
     const taken =
       head &&
-      useOn(`&leadCall over=&key step=8n ${tokens.join(' ')}`, form.id, {
+      useOn([...parts, `&leadCall over=&key step=8n ${tokens.join(' ')}`].join('\n'), form.id, {
         resolve: (id, hash) => (id === form.id ? form.text : resolveSeed(id, hash)),
         head,
         main: '&leadCall',
+        ...(named.length ? { args: passed } : {}),
       });
     phrases.set(key, taken ? readLead(`${taken.text}\n&lead step=8n ${head}`, meter) : null);
   }

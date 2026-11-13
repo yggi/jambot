@@ -16,6 +16,7 @@ import {
   harmonyRepository,
   progressionText,
   readProgression,
+  seedTextOf,
 } from './progressions.ts';
 import { PRESETS } from './style.ts';
 import { VAMPS, VAMP_HARM, buildTheme } from './themes.ts';
@@ -34,28 +35,43 @@ const VAMP_SEEDS = READ_SEEDS.filter(
 );
 
 describe("cells' harmonies read into a theme's slots (#425)", () => {
-  it('reads none of four bars: the dark cadence and the axis progression are no progression the composer takes (#517)', () => {
+  it('reads a lap that fills a section a whole number of times read again to its end: four bars twice, two bars four times; none of twelve (#517, yggi/cells#540)', () => {
     const cadence = HARMONY_FRAGMENTS.find((f) => f.id === 'dark_cadence')!;
     expect(cadence.text).toMatch(/ cycle=4 /);
-    expect(readProgression(cadence.text, METERS['4/4'])).toBeNull();
-    // (cells v0.23.0's axis progression, i VI III VII a bar each, yggi/cells#572; cells v0.24.0's twelve-bar blues, 12
-    // bars, and montuno, I IV V IV a bar each, yggi/cells#675 and #679: none is a section's 8 bars)
+    // (i VI iv V, a bar each, twice)
+    expect(
+      readProgression(cadence.text, METERS['4/4'])!.notes.map((n) => [n.step / 16, n.degree]),
+    ).toEqual([0, 5, 3, 4, 0, 5, 3, 4].map((d, b) => [b, d]));
+    // (the turnaround, two chords to the bar over two bars: Imaj9 vi9 | ii9 V9, four times)
+    const turnaround = HARMONY_FRAGMENTS.find((f) => f.id === 'turnaround')!;
+    expect(
+      readProgression(turnaround.text, METERS['4/4'])!.notes.map((n) => [n.step / 8, n.degree]),
+    ).toEqual(range(16).map((h) => [h, [0, 5, 1, 4][h % 4]!]));
+    // (cells v0.24.0's twelve-bar blues, 12 bars, is no section's 8, yggi/cells#675 and #679)
     expect(HARMONY_FRAGMENTS.filter((f) => !READ_SEEDS.includes(f)).map((f) => f.id)).toEqual([
-      'dark_cadence',
-      'axis_progression',
       'twelve_bar',
-      'montuno',
     ]);
   });
 
-  it('reads each of the seeds, in every named meter, as a vamp from the tonic, its first chord four bars and its second four, but the three that walk', () => {
+  it('reads each of the seeds, in every named meter, as a vamp from the tonic, its first chord four bars and its second four, but those that walk', () => {
     // (which seeds cells offers, and to which degree each vamps, is cells' library's, yggi/music-commons#37)
     expect(VAMP_SEEDS.length).toBeGreaterThan(0);
-    // (and since cells v0.24.0 the fifths sequence, I IV vii° iii vi ii V I, and Korobeiniki's changes, i i V i iv i V i)
+    // (since cells v0.24.0 the fifths sequence, I IV vii° iii vi ii V I, and Korobeiniki's changes, i i V i iv i V i;
+    // since v0.25.0 the four-bar laps read twice, the dark cadence, the axis progression and the montuno, and its
+    // five for the presets that had none, yggi/cells#540: a ninth's two-bar vamp walks, i9 i9 IV9 IV9, a vamp from the
+    // tonic being two chords of four bars each)
     expect(READ_SEEDS.filter((f) => !VAMP_SEEDS.includes(f)).map((f) => f.id)).toEqual([
+      'dark_cadence',
       'haunted_progression',
+      'axis_progression',
       'fifths_sequence',
       'korobeiniki_changes',
+      'montuno',
+      'ninth_vamp',
+      'ninth_loop',
+      'turnaround',
+      'ii_v_i',
+      'minor_swing',
     ]);
     for (const f of VAMP_SEEDS) {
       const vamp = vampOf(readProgression(f.text, METERS['4/4'])!);
@@ -69,17 +85,32 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
         );
   });
 
-  it('states each seed’s slots as the seed’s own text, character for character (identity), but Korobeiniki’s changes', () => {
-    // (cells' Korobeiniki's changes write a chord held two bars twice, `[0,2,4] [0,2,4]`, where the band writes it
-    // `[0,2,4]!2`, and cells' `sameText` tells the two apart: so the Muse would file the changes the band played as a
-    // progression of its own, cells v0.24.0, yggi/cells#679)
-    const SPELT_OTHERWISE = ['korobeiniki_changes'];
-    for (const f of READ_SEEDS) {
-      const stated = progressionText(readProgression(f.text, METERS['4/4'])!.notes);
-      // (the seed's text, its signature line too, `&harm from &key`: a progression stated is a template, #562)
-      if (SPELT_OTHERWISE.includes(f.id)) expect(stated, f.id).not.toBe(f.text.trim());
-      else expect(stated, f.id).toBe(f.text.trim());
-    }
+  it('states each seed’s slots as the seed’s own text, character for character (identity), where it plays them again', () => {
+    // (the seed's text, its signature line too, `&harm from &key`: a progression stated is a template, #562)
+    const stated = seedTextOf(HARMONY_FRAGMENTS);
+    for (const f of READ_SEEDS)
+      expect(stated(readProgression(f.text, METERS['4/4'])!.notes), f.id).toBe(f.text.trim());
+    // (`progressionText` alone spells some otherwise: Korobeiniki's changes write a chord held two bars twice,
+    // `[0,2,4] [0,2,4]`, where it writes `[0,2,4]!2`, which cells' `sameText` keeps apart in a cell with `cycle=`,
+    // yggi/cells#710; a lap read again it writes out to eight bars; and two chords to the bar, `step=2n`, it writes a
+    // bar's two halves, `[[0,2,4,6,8] [5,7,9,11,13]]`)
+    expect(
+      READ_SEEDS.filter(
+        (f) => progressionText(readProgression(f.text, METERS['4/4'])!.notes) !== f.text.trim(),
+      ).map((f) => f.id),
+    ).toEqual([
+      'dark_cadence',
+      'axis_progression',
+      'korobeiniki_changes',
+      'montuno',
+      'ninth_vamp',
+      'ninth_loop',
+      'turnaround',
+      'ii_v_i',
+    ]);
+    // (and what no seed plays it states as `progressionText` does)
+    const own = [0, 5, 6, 4, 0, 5, 6, 4].map((degree, b) => ({ step: b * 16, degree }));
+    expect(stated(own)).toBe(progressionText(own));
   });
 
   it('reads back every progression of a chord a bar on degrees 0 to 6, with a half-bar change in bar 2 or none (the round trip)', () => {
@@ -121,11 +152,12 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
     expect(progressionText(read.notes)).toBe(`&harm from &key\n${text}`);
   });
 
-  it('reads no text that isn’t eight bars of stacks of 3 or 4 tones on the key’s degrees, each altered a semitone at most, on a bar’s start or its half', () => {
+  it('reads no text that isn’t a lap filling eight bars a whole number of times, of stacks of 3 to 5 tones on the key’s degrees, each altered a semitone at most, on a bar’s start or its half', () => {
     for (const text of [
-      '&harm over=&key step=1m cycle=4 [0,2,4]!4',
+      '&harm over=&key step=1m cycle=3 [0,2,4]!3',
+      '&harm over=&key step=1m cycle=12 [0,2,4]!12',
       '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,4]!4',
-      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,2,4,6,8]!4',
+      '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,2,4,6,8,10]!4',
       '&harm over=&key step=1m cycle=8 [0,2,4]!4 [0,2bb,4]!4',
       '&harm over=&key step=4n cycle=32 [0,2,4]!32',
       '&harm over=&key step=1m cycle=8 [[0,2,4] [3,5,7] [4,6,8]] [0,2,4]!7',
@@ -212,15 +244,27 @@ describe('the composer’s ask (#425)', () => {
       'vamp_to_the_fifth',
       'vamp_to_the_sixth',
     ]);
-    // (above VAMP_HARM no vamp fits: Spooky takes the progression placed for it, yggi/cells#409, since cells v0.24.0
-    // Baroque and Chiptune theirs, yggi/cells#679, and the rest walk the tables)
-    const PLACED: Readonly<Record<string, string>> = {
-      Spooky: 'haunted_progression',
-      Baroque: 'fifths_sequence',
-      Chiptune: 'korobeiniki_changes',
+    // (above VAMP_HARM no vamp fits: each takes the progression cells placed at its point, Spooky's dark cadence,
+    // yggi/cells#409, Baroque's and Chiptune's, yggi/cells#679, and since cells v0.25.0 one at every preset, yggi/cells#540,
+    // read twice where it is four bars; Blues shuffle has three equally near, and the draw takes each)
+    const PLACED: Readonly<Record<string, readonly string[]>> = {
+      'Synth-pop': ['axis_progression'],
+      'Deep house': ['ninth_vamp'],
+      'Lo-fi hip hop': ['ninth_loop'],
+      'Bossa nova': ['ii_v_i'],
+      'Swing jazz': ['turnaround'],
+      'Electro swing': ['minor_swing'],
+      Spooky: ['dark_cadence'],
+      'Happy hardcore': ['axis_progression'],
+      Elektro: ['axis_progression'],
+      Baroque: ['fifths_sequence'],
+      'Blues shuffle': ['minor_swing', 'ninth_loop', 'ninth_vamp'],
+      Chiptune: ['korobeiniki_changes'],
+      Salsa: ['montuno'],
+      Waltz: ['turnaround', 'ninth_vamp'],
     };
     for (const p of PRESETS.filter((p) => p.style.harm >= VAMP_HARM))
-      expect(offered(p.name), p.name).toEqual(range(8).map(() => PLACED[p.name]));
+      expect([...new Set(offered(p.name))], p.name).toEqual(PLACED[p.name]);
   });
 
   it('keeps a seed’s equals on offer however often use raises one, past cells’ cap (OFFER)', () => {

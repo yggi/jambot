@@ -28,6 +28,7 @@ import {
   BAR_LOOPS,
   loopEnd,
   repeatSection,
+  HARMONY_REPOSITORY,
 } from '@jambot/engine';
 import {
   type LayerStore,
@@ -837,7 +838,14 @@ describe('the player', () => {
       }
       // The band's own decisions, run apart from the player: the history is
       // the fold of the chords of the first bars it decided, however many.
-      const env = { seed: world.seeds.at(-1)!, start: 0, track: player.track, wish: player.wish };
+      // (with cells' harmonies, as the player asks them: Synth-pop's is the axis progression since cells v0.25.0)
+      const env = {
+        seed: world.seeds.at(-1)!,
+        start: 0,
+        track: player.track,
+        wish: player.wish,
+        harmonies: HARMONY_REPOSITORY,
+      };
       const bars = lookAhead(band.initial, (bar) => bandEnvAt(env, bar, null), 32);
       const folds = bars.reduce<HarmonicWeights[]>(
         (all, bar) => [...all, foldBar(all.at(-1) ?? NO_HISTORY, bar.chords)],
@@ -1947,7 +1955,7 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     return player;
   }
 
-  it('keeps each meter, rhythm, bass line and lead line the composer keeps, once a section, as the band plans it', async () => {
+  it('keeps each meter, rhythm, bass line, lead line and harmony the composer keeps, once a section, as the band plans it', async () => {
     const { layers, saved } = kept();
     // Synth-pop at 108 bpm: a bar is 2.2 s, so 24 s plan the first two sections and not the third.
     const player = await playing(layers, 24);
@@ -1959,12 +1967,15 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
         ['synth_pop_drums', 1.1],
         ['root_bass', 1.1],
         ['hook', 1.1],
+        // (and the harmony's, cells' axis progression, placed at Synth-pop's point since cells v0.25.0, yggi/cells#540)
+        ['axis_progression', 0.5],
       ],
       [
         ['meter', 1.2],
         ['synth_pop_drums', 1.2],
         ['root_bass', 1.2],
         ['hook', 1.2],
+        ['axis_progression', 0.6],
       ],
     ]);
     expect(player.layer).toBe(saved.at(-1));

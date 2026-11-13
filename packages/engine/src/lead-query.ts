@@ -74,13 +74,15 @@ export type LeadVariation = Varied<LeadContent>;
 export type LeadRepository = FacetRepository<LeadRead, LeadContent> & {
   /**
    * A line's notes played in the lead's form (#520, rung 2), the form found at the style's point where one is given
-   * (#547 rung 4): the phrase's bars, each note a degree from the line's first; null where the line can't be played in
+   * (#547 rung 4), or the form the line's own document plays it in where its id has one (`ownFormOf`, decision 082
+   * ruling 4): the phrase's bars, each note a degree from the line's first; null where the line can't be played in
    * it, and none where the repository knows no forms.
    */
   readonly phrase?: (
     notes: readonly LeadNote[],
     meter: Meter,
     point?: StylePoint,
+    id?: string,
   ) => LeadRead | null;
   /**
    * Whether a line keeps its degrees of the key as written (#529): cells' motifs, and the composer's variations of
@@ -181,7 +183,7 @@ export function leadPhrase(
         steps,
       ),
     );
-  const formed = repository.phrase?.(read.notes, meter, style && stylePoint(style));
+  const formed = repository.phrase?.(read.notes, meter, style && stylePoint(style), id);
   if (!formed || formed.bars < 2) return [motifOf(read.notes, steps)];
   return Array.from({ length: formed.bars }, (_, k) =>
     motifOf(

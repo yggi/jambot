@@ -1,0 +1,126 @@
+{
+  "layer": {
+    "filed": [
+      {
+        "fragment": {
+          "id": "soloist song 3, bar 8",
+          "text": "&lead over=&key step=16n ~ ~ ~ ~ 0 ~ 2 4 ~ ~ ~ ~ 4 ~ 2 ~",
+          "association": [
+            {
+              "point": {
+                "sync": 0.3,
+                "harm": 0.45,
+                "bite": 0.55,
+                "mood": 0.5
+              },
+              "weight": 0.1,
+              "facet": "lead"
+            }
+          ]
+        },
+        "meta": {
+          "source": "soloist",
+          "created": "song 3, bar 8",
+          "tags": ["lead line"]
+        },
+        "prose": ""
+      },
+      {
+        "fragment": {
+          "id": "Cy song 3, bar 8",
+          "text": "&twinkle from twinkle &key\n&wonder from wonder &key\n&lead from ternary(answer=&wonder) &twinkle",
+          "association": [
+            {
+              "point": {
+                "sync": 0.3,
+                "harm": 0.45,
+                "bite": 0.55,
+                "mood": 0.5
+              },
+              "weight": 0.4,
+              "facet": "lead"
+            }
+          ]
+        },
+        "meta": {
+          "source": "Cy",
+          "created": "song 3, bar 8",
+          "tags": ["lead line"]
+        },
+        "prose": ""
+      }
+    ],
+    "points": [
+      {
+        "id": "meter",
+        "point": {
+          "sync": 0.3,
+          "harm": 0.45,
+          "bite": 0.55
+        },
+        "weight": 1.2,
+        "facet": "meter"
+      },
+      {
+        "id": "synth_pop_drums",
+        "point": {
+          "sync": 0.3,
+          "harm": 0.45,
+          "bite": 0.55
+        },
+        "weight": 1.2,
+        "facet": "rhythm"
+      }
+    ],
+    "together": [
+      {
+        "ids": ["meter", "synth_pop_drums"],
+        "count": 5
+      },
+      {
+        "ids": ["meter", "soloist song 3, bar 8"],
+        "count": 1
+      },
+      {
+        "ids": ["meter", "Cy song 3, bar 8"],
+        "count": 4
+      }
+    ]
+  },
+  "leads": [
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8",
+    "Cy song 3, bar 8"
+  ],
+  "notes": [
+    "drums:0:36:1:84 drums:4:38:1:74 drums:4:42:1:57 drums:8:42:1:57 drums:12:38:1:78 drums:12:42:1:57 bass:0:45:6:81 bass:6:45:2:68 bass:8:45:2:81 bass:10:57:1:67 bass:11:45:3:68 bass:14:45:2:69 pad:0:57:16:55 pad:0:60:16:55 pad:0:64:16:55",
+    "drums:0:36:1:83 drums:4:38:1:73 drums:4:42:1:58 drums:8:42:1:58 drums:12:38:1:77 drums:12:42:1:58 drums:14:42:1:48 bass:0:41:6:81 bass:6:41:2:68 bass:8:41:2:80 bass:10:53:1:70 bass:11:41:3:67 bass:14:41:2:68 pad:0:57:16:55 pad:0:60:16:55 pad:0:65:16:55",
+    "drums:0:36:1:82 drums:4:38:1:73 drums:4:42:1:58 drums:8:42:1:57 drums:12:38:1:78 drums:12:42:1:58 bass:0:36:6:80 bass:6:36:2:68 bass:8:36:2:81 bass:10:48:1:69 bass:11:36:3:67 bass:14:36:2:69 pad:0:55:16:54 pad:0:60:16:54 pad:0:64:16:54",
+    "drums:0:36:1:82 drums:4:38:1:74 drums:4:42:1:57 drums:8:42:1:57 drums:12:38:1:78 drums:12:42:1:57 bass:0:40:6:81 bass:6:40:2:68 bass:8:40:2:81 bass:10:52:1:68 bass:11:40:3:66 bass:14:40:2:69 pad:0:56:16:55 pad:0:59:16:55 pad:0:64:16:55",
+    "drums:0:36:1:83 drums:4:38:1:73 drums:4:42:1:58 drums:8:42:1:58 drums:12:38:1:78 drums:12:42:1:58 bass:0:45:6:82 bass:6:45:2:67 bass:8:45:2:81 bass:10:57:1:69 bass:11:45:3:67 bass:14:45:2:69 pad:0:57:16:55 pad:0:60:16:55 pad:0:64:16:55",
+    "drums:0:36:1:83 drums:4:38:1:73 drums:4:42:1:58 drums:8:42:1:59 drums:12:38:1:79 drums:12:42:1:57 bass:0:41:6:82 bass:6:41:2:68 bass:8:41:2:81 bass:10:53:1:69 bass:11:41:3:68 bass:14:41:2:69 pad:0:57:16:54 pad:0:60:16:54 pad:0:65:16:54",
+    "drums:0:36:1:83 drums:4:38:1:73 drums:4:42:1:57 drums:8:42:1:57 drums:12:38:1:79 drums:12:42:1:58 bass:0:36:6:81 bass:6:36:2:69 bass:8:36:2:82 bass:10:48:1:68 bass:11:36:3:68 bass:14:36:2:69 pad:0:55:16:54 pad:0:60:16:54 pad:0:64:16:54",
+    "drums:0:36:1:82 drums:4:38:1:73 drums:4:42:1:58 drums:8:42:1:57 drums:12:38:1:79 drums:12:42:1:56 drums:13:38:1:47 drums:14:38:1:59 drums:15:38:1:69 bass:0:40:6:81 bass:6:40:2:69 bass:8:40:2:80 bass:10:52:1:70 bass:11:40:3:67 bass:14:40:2:68 pad:0:56:16:55 pad:0:59:16:55 pad:0:64:16:55",
+    "drums:0:36:1:95 drums:0:42:1:66 drums:1:37:1:61 drums:2:42:1:57 drums:3:36:1:76 drums:4:36:1:76 drums:4:38:1:85 drums:4:42:1:66 drums:5:37:1:59 drums:6:42:1:56 drums:8:36:1:95 drums:8:37:1:60 drums:8:42:1:67 drums:11:37:1:61 drums:12:38:1:90 drums:12:42:1:66 drums:14:37:1:62 drums:14:42:1:57 bass:0:45:10:90 bass:10:45:1:76 bass:11:45:5:75 stab:0:57:1:82 stab:0:60:1:82 stab:0:64:1:82 stab:2:57:1:81 stab:2:60:1:81 stab:2:64:1:81 stab:4:57:1:80 stab:4:60:1:80 stab:4:64:1:80 stab:8:57:1:80 stab:8:60:1:80 stab:8:64:1:80 lead:0:69:2:92 lead:2:69:2:90 lead:4:76:2:90 lead:6:76:2:91 lead:8:77:2:91 lead:10:77:2:91 lead:12:76:4:92",
+    "drums:0:36:1:95 drums:0:42:1:66 drums:1:37:1:60 drums:2:42:1:56 drums:3:36:1:76 drums:4:36:1:77 drums:4:38:1:84 drums:4:42:1:65 drums:5:37:1:61 drums:6:42:1:58 drums:8:36:1:94 drums:8:37:1:60 drums:8:42:1:65 drums:11:37:1:61 drums:12:38:1:89 drums:12:42:1:66 drums:14:37:1:60 drums:14:42:1:56 bass:0:41:10:88 bass:10:41:1:75 bass:11:41:5:75 stab:0:57:1:82 stab:0:60:1:82 stab:0:65:1:82 stab:2:57:1:81 stab:2:60:1:81 stab:2:65:1:81 stab:4:57:1:81 stab:4:60:1:81 stab:4:65:1:81 stab:8:57:1:80 stab:8:60:1:80 stab:8:65:1:80 lead:0:74:2:92 lead:2:74:2:91 lead:4:72:2:91 lead:6:72:2:91 lead:8:71:2:91 lead:10:71:2:92 lead:12:69:4:91",
+    "drums:0:36:1:95 drums:0:42:1:65 drums:1:37:1:60 drums:2:42:1:57 drums:3:36:1:78 drums:4:36:1:77 drums:4:38:1:85 drums:4:42:1:66 drums:5:37:1:59 drums:6:42:1:55 drums:8:36:1:94 drums:8:37:1:61 drums:8:42:1:65 drums:11:37:1:60 drums:12:38:1:91 drums:12:42:1:67 drums:14:37:1:61 drums:14:42:1:56 bass:0:36:10:88 bass:10:36:1:74 bass:11:36:5:75 stab:0:55:1:82 stab:0:60:1:82 stab:0:64:1:82 stab:2:55:1:82 stab:2:60:1:82 stab:2:64:1:82 stab:4:55:1:80 stab:4:60:1:80 stab:4:64:1:80 stab:8:55:1:82 stab:8:60:1:82 stab:8:64:1:82 lead:0:76:2:90 lead:2:76:2:91 lead:4:74:2:91 lead:6:74:2:91 lead:8:72:2:90 lead:10:72:2:91 lead:12:71:4:91",
+    "drums:0:36:1:94 drums:0:42:1:64 drums:1:37:1:60 drums:2:42:1:55 drums:3:36:1:77 drums:4:36:1:78 drums:4:38:1:85 drums:4:42:1:67 drums:5:37:1:61 drums:6:42:1:56 drums:8:36:1:95 drums:8:37:1:61 drums:8:42:1:65 drums:11:37:1:59 drums:12:38:1:90 drums:12:42:1:64 drums:14:37:1:61 drums:14:42:1:57 bass:0:40:3:89 bass:3:40:7:75 bass:10:40:1:76 bass:11:40:5:73 stab:0:56:1:81 stab:0:59:1:81 stab:0:64:1:81 stab:2:56:1:82 stab:2:59:1:82 stab:2:64:1:82 stab:4:56:1:80 stab:4:59:1:80 stab:4:64:1:80 stab:8:56:1:82 stab:8:59:1:82 stab:8:64:1:82 lead:0:76:2:92 lead:2:76:2:92 lead:4:74:2:91 lead:6:74:2:92 lead:8:72:2:91 lead:10:72:2:91 lead:12:76:4:90",
+    "drums:0:36:1:94 drums:0:42:1:66 drums:1:37:1:61 drums:2:42:1:56 drums:3:36:1:78 drums:4:36:1:77 drums:4:38:1:84 drums:4:42:1:66 drums:5:37:1:61 drums:6:42:1:56 drums:8:36:1:93 drums:8:37:1:61 drums:8:42:1:65 drums:11:37:1:59 drums:12:38:1:88 drums:12:42:1:66 drums:14:37:1:62 drums:14:42:1:56 bass:0:45:10:88 bass:10:45:1:75 bass:11:45:5:73 stab:0:57:1:81 stab:0:60:1:81 stab:0:64:1:81 stab:2:57:1:80 stab:2:60:1:80 stab:2:64:1:80 stab:4:57:1:82 stab:4:60:1:82 stab:4:64:1:82 stab:8:57:1:82 stab:8:60:1:82 stab:8:64:1:82 lead:0:69:2:91 lead:2:69:2:91 lead:4:76:2:92 lead:6:76:2:92 lead:8:77:2:92 lead:10:77:2:92 lead:12:76:4:92",
+    "drums:0:36:1:95 drums:0:42:1:66 drums:1:37:1:60 drums:2:42:1:55 drums:3:36:1:76 drums:4:36:1:77 drums:4:38:1:83 drums:4:42:1:65 drums:5:37:1:61 drums:6:42:1:56 drums:8:36:1:94 drums:8:37:1:60 drums:8:42:1:65 drums:11:37:1:61 drums:12:38:1:89 drums:12:42:1:66 drums:14:37:1:61 drums:14:42:1:57 bass:0:41:3:90 bass:3:41:7:73 bass:10:41:1:76 bass:11:41:5:73 stab:0:57:1:81 stab:0:60:1:81 stab:0:65:1:81 stab:2:57:1:80 stab:2:60:1:80 stab:2:65:1:80 stab:4:57:1:81 stab:4:60:1:81 stab:4:65:1:81 stab:8:57:1:81 stab:8:60:1:81 stab:8:65:1:81 lead:0:74:2:91 lead:2:74:2:91 lead:4:72:2:91 lead:6:72:2:92 lead:8:71:2:91 lead:10:71:2:92 lead:12:69:4:91",
+    "drums:0:36:1:94 drums:0:42:1:65 drums:1:37:1:59 drums:2:42:1:55 drums:3:36:1:79 drums:4:36:1:79 drums:4:38:1:85 drums:4:42:1:65 drums:5:37:1:60 drums:6:42:1:56 drums:8:36:1:95 drums:8:37:1:60 drums:8:42:1:66 drums:11:37:1:60 drums:12:38:1:90 drums:12:42:1:66 drums:14:37:1:62 drums:14:42:1:56 bass:0:36:10:89 bass:10:36:1:75 bass:11:36:5:74 stab:0:55:1:81 stab:0:60:1:81 stab:0:64:1:81 stab:2:55:1:83 stab:2:60:1:83 stab:2:64:1:83 stab:4:55:1:81 stab:4:60:1:81 stab:4:64:1:81 stab:8:55:1:81 stab:8:60:1:81 stab:8:64:1:81 lead:0:69:2:90 lead:2:69:2:91 lead:4:76:2:91 lead:6:76:2:91 lead:8:77:2:90 lead:10:77:2:91 lead:12:76:4:91",
+    "drums:0:36:1:95 drums:0:42:1:66 drums:1:37:1:61 drums:2:42:1:57 drums:3:36:1:76 drums:4:36:1:78 drums:4:38:1:84 drums:4:42:1:65 drums:5:37:1:60 drums:6:42:1:55 drums:8:36:1:93 drums:8:37:1:60 drums:8:42:1:66 drums:11:37:1:59 drums:12:38:1:90 drums:12:42:1:66 drums:13:38:1:54 drums:14:37:1:61 drums:14:38:1:68 drums:14:42:1:56 drums:15:38:1:78 bass:0:40:10:88 bass:10:40:1:76 bass:11:40:5:75 stab:0:56:1:82 stab:0:59:1:82 stab:0:64:1:82 stab:2:56:1:82 stab:2:59:1:82 stab:2:64:1:82 stab:4:56:1:80 stab:4:59:1:80 stab:4:64:1:80 stab:8:56:1:80 stab:8:59:1:80 stab:8:64:1:80 lead:0:74:2:91 lead:2:74:2:91 lead:4:72:2:91 lead:6:72:2:92 lead:8:71:2:91 lead:10:71:2:92 lead:12:64:4:92"
+  ]
+}
