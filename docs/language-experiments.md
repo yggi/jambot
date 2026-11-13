@@ -491,7 +491,7 @@ run; the others have.
     It lies 0.16 from the axis (0.21 in the tour): the reading tops out short of staccato, since a bass or lead note is never gated below a quarter of its length.
   - The syncopation rises with the axis but weakly: tau 0.40 over the presets, 0.36 over its sweep and 0.26 over the tour, and the sweep's mean reading covers 0.07 to 0.22 of an axis that spans 0 to 1.
     It is read as syncopation proper, cells' reading (yggi/cells#723, taken on the owner's ruling on yggi/cells#681): an onset on a weak place whose line leaves the next stronger place silent counts by how much weaker its place is, and a bar's reading is the mean over its lines.
-    The old reading, the share of onsets off the pulses and off the eighths, gave tau 0.37, 0.34 and 0.22, and covered 0.03 to 0.29.
+    The old reading, the share of onsets off the pulses and off the eighths, gives tau 0.37, 0.34 and 0.23 on the same bars, and covers 0.03 to 0.30.
     From `sync` 0 to 1 the drums read 0.07 to 0.26 and the stab 0.12 to 0.40, the bass follows (0.08 to 0.17), and the pad never leaves the pulses (0).
     The stab's off-beat eighths are what the old reading missed: it counted every eighth as on the grid, and read the stab 0 to 0.08.
     The lead is not monotone (0.10, 0.31, 0.15, 0.20, 0.50 at 0, 0.25, 0.5, 0.75, 1).

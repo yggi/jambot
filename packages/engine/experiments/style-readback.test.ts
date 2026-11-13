@@ -37,7 +37,7 @@ describe('the style read back from the notes it wrote (E23)', () => {
     expect(by(held, 'sync').tau).toBeGreaterThan(0.25);
     expect(by(tour, 'sync').tau).toBeGreaterThan(0.1);
     // From the sweep's end to its end the reading covers about a sixth of the axis: 0.07 to 0.22 with cells' `sync`
-    // (yggi/cells#723, on the owner's ruling on yggi/cells#681), 0.03 to 0.29 with the old off-pulse share.
+    // (yggi/cells#723, on the owner's ruling on yggi/cells#681), 0.03 to 0.30 with the old off-pulse share.
     expect(by(sweeps.sync, 'sync').distance).toBeGreaterThan(0.25);
   });
 
