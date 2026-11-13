@@ -62,15 +62,17 @@ describe('the harmony on the radio’s walk, learning (E43, #425)', () => {
     const { sections, mostUsed, share, fromRepository } = mostUsedTheme(LEARNED);
     // (8,459, 1,759 and 2,419 before cells v0.24.0, whose new progressions and vamps' points lie along the walk; 1,872
     // and 2,675 before v0.25.0, whose harmonies placed at the presets that had none, and its progressions of four bars
-    // read twice, lie along it too)
-    expect([sections, mostUsed, fromRepository]).toEqual([8408, 3191, 5360]);
+    // read twice, lie along it too; 8,408, 3,191 and 5,360 before 2/4 and 2/2 were among the band's meters on top of
+    // v0.25.0, #652, where 250 sections now play 2/4, which lasts half a 4/4, and none plays 2/2)
+    expect([sections, mostUsed, fromRepository]).toEqual([8533, 3182, 5460]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used themes within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asThemes(UNLEARNED), asThemes(LEARNED));
-    // (0.54 and 0.32 before cells v0.24.0; 2.01 and 0.83 before v0.25.0)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-0.99', '0.44']);
+    // (0.54 and 0.32 before cells v0.24.0; 2.01 and 0.83 before v0.25.0; −0.99 and 0.44 before 2/4 and 2/2 were among
+    // the band's meters on top of v0.25.0, #652)
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-0.99', '0.43']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 });
@@ -78,8 +80,9 @@ describe('the harmony on the radio’s walk, learning (E43, #425)', () => {
 describe('the harmony on the radio’s walk, a player playing progressions one section in four (E43, #425)', () => {
   it('plays its run’s most used theme in under 60 % of its sections', () => {
     const { sections, mostUsed, share } = mostUsedTheme(PLAYED);
-    // (8,459 and 2,455 before cells v0.24.0; 2,442 before v0.25.0)
-    expect([sections, mostUsed]).toEqual([8408, 2559]);
+    // (8,459 and 2,455 before cells v0.24.0; 2,442 before v0.25.0; 8,408 and 2,559 before 2/4 and 2/2 were among the
+    // band's meters on top of v0.25.0, #652)
+    expect([sections, mostUsed]).toEqual([8533, 2596]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -88,16 +91,18 @@ describe('the harmony on the radio’s walk, a player playing progressions one s
     // near Spooky's haunted progression, yggi/cells#409, and each section that played one was a use: the share rose
     // 12.93 points (2.66), 13.42 (2.69) before v0.24.0, what was heard returning, the loop doing its job, as the owner
     // ruled on #484, 2026-10-23; since v0.25.0 a harmony of cells' lies at every preset's point, yggi/cells#540, nearer
-    // than a progression filed while the walk passed near it, so the walk plays cells' and the player's less: #660)
+    // than a progression filed while the walk passed near it, so the walk plays cells' and the player's less: #660;
+    // −5.69 and 1.36 before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652)
     const { added, error } = lockIn(asThemes(PLAYED_UNLEARNED), asThemes(PLAYED));
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-5.69', '1.36']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-5.67', '1.35']);
   });
 
   it('files the player’s progressions under the player’s name, each reading back as filed', () => {
     const fresh = FILED.filter((f) => !f.held);
     // (1,768 held before cells v0.24.0, over its 8,459 sections; 320 and 1,754 before v0.25.0, whose dark cadence, i VI
-    // iv V read twice, is one of the player's eight, known now as the seed)
-    expect([fresh.length, FILED.length - fresh.length]).toEqual([280, 1794]);
+    // iv V read twice, is one of the player's eight, known now as the seed; 1,794 held before 2/4 and 2/2 were among
+    // the band's meters on top of v0.25.0, #652, over its 8,408)
+    expect([fresh.length, FILED.length - fresh.length]).toEqual([280, 1827]);
     for (const { filing, id } of fresh) {
       expect(filing.source).toBe(PLAYER);
       const layer = PLAYED.find((r) => r.harmonyFilings.some((f) => f.id === id))!.learning!.layer;

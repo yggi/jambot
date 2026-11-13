@@ -333,6 +333,9 @@ describe('a section as one cells text, for the app (#399)', () => {
     const names = Object.keys(METERS) as MeterName[];
     expect(Object.fromEntries(names.map((name) => [name, swingText(METERS[name], swing)]))).toEqual(
       {
+        '2/4': ' swing=8n:2/3',
+        // (alla breve's pulses are 4 eighths, which an 8n swing doesn't lean (`pulseAt`): the band plays it straight)
+        '2/2': '',
         '3/4': ' swing=8n:2/3',
         '4/4': ' swing=8n:2/3',
         '5/4': ' swing=8n:2/3',

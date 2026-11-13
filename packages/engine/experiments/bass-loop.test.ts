@@ -115,22 +115,25 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
   it('plays its run’s most used line in under 60 % of a run’s sections, over 40 runs of an hour at entropy 0.3', () => {
     expect(LEARNED).toHaveLength(40);
     const { sections, mostUsed, share } = mostUsedLine(LEARNED);
-    // (8,459 and 3,852 before cells v0.24.0, whose meters and lines are placed at its new styles' points too)
-    expect([sections, mostUsed]).toEqual([8408, 3753]);
+    // (8,459 and 3,852 before cells v0.24.0, whose meters and lines are placed at its new styles' points too; 8,408 and
+    // 3,753 before 2/4 and 2/2 were among the band's meters, #652, where 250 sections now play 2/4, which lasts half a
+    // 4/4, the pumping bass in 123 of them and the composer's variations in the rest, and none plays 2/2)
+    expect([sections, mostUsed]).toEqual([8533, 3818]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used lines within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asLines(UNLEARNED), asLines(LEARNED));
-    // (−7.10 and 1.39 before cells v0.24.0)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-7.65', '1.31']);
+    // (−7.10 and 1.39 before cells v0.24.0; −7.65 and 1.31 before 2/4 and 2/2 were among the band's meters, #652)
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-7.66', '1.32']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   it('files the bass’s own lines on a miss and the composer’s variations, each reading back as filed', () => {
     const by = (source: string) => FILED.filter((f) => f.filing.source === source).length;
-    // (100, 5 and 95 before cells v0.24.0, whose new bass lines leave the bass no miss)
-    expect([FILED.length, by(BASSIST), by(COMPOSER)]).toEqual([103, 0, 103]);
+    // (100, 5 and 95 before cells v0.24.0, whose new bass lines leave the bass no miss; 103 the composer's before 2/4
+    // and 2/2 were among the band's meters, #652)
+    expect([FILED.length, by(BASSIST), by(COMPOSER)]).toEqual([102, 0, 102]);
     for (const run of LEARNED)
       for (const { id } of run.lineFilings.filter((f) => !f.held))
         expect(linesFiled(run.learning!.layer).map((f) => f.fragment.id)).toContain(id);

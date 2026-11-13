@@ -47,11 +47,21 @@ describe('bpm counts the meter’s beats (#367, cells decision 040)', () => {
     expect(stepSeconds(90, METERS['7/8'])).toBeCloseTo(2 / 14, 12);
   });
 
-  it('keeps every step where it was when the meter it counts changes: the number converts once (finite: every pair of named meters, through a glide) (T7)', () => {
+  it('keeps every step where it was when the meter it counts changes: the number converts once (finite: every pair of named meters whose number stays on the axis, through a glide) (T7)', () => {
     const gliding = glideTo(holding({ ...INITIAL_STYLE, bpm: 100 }), { bpm: 115 }, 8, 64);
     const anchor = { step: 0, seconds: 1 };
+    // (alla breve counts halves: 100 to 115 quarters a minute are 50 to 57.5 halves, past the axis's 60, where the
+    // conversion stops, so a pair whose number leaves the axis moves its steps; at these tempos each has 2/2 in it)
+    const leaves = (from: MeterName, to: MeterName) => {
+      const ratio = stepSeconds(1, METERS[to]) / stepSeconds(1, METERS[from]);
+      return [100, 115].some((bpm) => bpm * ratio < 60 || bpm * ratio > 180);
+    };
     for (const from of NAMES)
       for (const to of NAMES) {
+        if (leaves(from, to)) {
+          expect([from, to].includes('2/2'), `${from} to ${to}`).toBe(true);
+          continue;
+        }
         const before = tempoMap(gliding, anchor, METERS[from]);
         const after = tempoMap(rebeat(gliding, METERS[from], METERS[to]), anchor, METERS[to]);
         for (const step of range(97))
@@ -75,6 +85,9 @@ describe('bpm counts the meter’s beats (#367, cells decision 040)', () => {
     expect(styleAt(rebeat(fast, METERS['6/8'], METERS['4/4']), 0).bpm).toBe(180);
     const slow = holding({ ...INITIAL_STYLE, bpm: 70 });
     expect(styleAt(rebeat(slow, METERS['4/4'], METERS['6/8']), 0).bpm).toBe(60);
+    // (alla breve counts halves, so a 4/4 under 120 a minute turning to 2/2 stops at 60 halves, 120 quarters: faster)
+    const quarters = holding({ ...INITIAL_STYLE, bpm: 100 });
+    expect(styleAt(rebeat(quarters, METERS['4/4'], METERS['2/2']), 0).bpm).toBe(60);
   });
 
   it('lays a song in 6/8 counted in its beats: each bar 2 × 60 / bpm long, and the band writes the bpm it plays at', () => {
