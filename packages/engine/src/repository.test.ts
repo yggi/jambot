@@ -221,13 +221,17 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     // (and at cells v0.24.0, with its seven new drum bars the drummer holds, yggi/cells#675 and #679: the nearest drum bar
     // or its clave moves in 401 answers, none on a preset's own 4/4; at a preset's point under another meter, Waltz drums
     // or March drums or the quiet pulse where Ghost drums or Acid drums were, 17 answers)
-    // (and with 2/4 and 2/2 among the band's meters, #652: four benches more, 356 answers, a drum bar found in each and a
-    // clave beside 178; the 1,780 answers on the other twenty benches are as they were, hashed 754c3384)
-    expect([asked.length, hashOf(asked)]).toEqual([2136, '347f5962']);
+    // (and at cells v0.25.0, with its aksak and twelve-eight drums the drummer holds, yggi/cells#707: 45 answers name one,
+    // and those 45 alone move, without the two the hash is v0.24.0's, 754c3384)
+    // (and with 2/4 and 2/2 among the band's meters on top of cells v0.25.0, #652: four benches more, 356 answers, a drum
+    // bar found in each and a clave beside 178; the 1,780 answers on the other twenty benches are as they were, hashed
+    // 882bfaea)
+    expect([asked.length, hashOf(asked)]).toEqual([2136, '1715f0de']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
     // (since cells v0.19.0 the cinquillo is the nearest clave beside 84 of them, never within CO_SELECT, so never layered)
-    // (with the four benches of #652 since: 71ea5405 over the twenty before)
-    expect(hashOf(asBefore(asked))).toBe('eae5bc89');
+    // (71ea5405 before cells v0.25.0, whose two new drum bars' 45 answers have no name before; 6cd9792d before 2/4 and
+    // 2/2 were among the band's meters on top of v0.25.0, #652, and its four benches)
+    expect(hashOf(asBefore(asked))).toBe('07713acd');
     // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
     // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits; and since cells v0.15.0
     // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one)
