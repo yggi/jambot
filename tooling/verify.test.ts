@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -34,6 +34,48 @@ describe('verify', () => {
     ]);
     expect(outcomes.map((o) => o.name)).toEqual(['a', 'b']);
     expect(outcomes[1]!.output).toBe('second\n');
+  });
+
+  it('runs a heavy stage under the machine’s lock, so two verifies never test at once: the second waits (#666)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'jambot-verify-lock-'));
+    const waiting = { path: join(dir, 'lock'), pollMs: 20, say: () => {}, env: {} };
+    const log = join(dir, 'log');
+    // Each says when it starts and ends; a run beside another would read `start start`.
+    const tests: Stage = {
+      name: 'test',
+      command: `echo start >>${log}; sleep 0.3; echo end >>${log}`,
+      heavy: true,
+    };
+    const outcomes = await Promise.all([verify([[tests]], waiting), verify([[tests]], waiting)]);
+    expect(outcomes.flat().map((o) => o.ok)).toEqual([true, true]);
+    expect(readFileSync(log, 'utf8').split('\n').filter(Boolean)).toEqual([
+      'start',
+      'end',
+      'start',
+      'end',
+    ]);
+    // The same two with no lock to take overlap: the check above can fail.
+    writeFileSync(log, '');
+    const light: Stage = { name: tests.name, command: tests.command };
+    await Promise.all([verify([[light]], waiting), verify([[light]], waiting)]);
+    expect(readFileSync(log, 'utf8').split('\n').filter(Boolean)).toEqual([
+      'start',
+      'start',
+      'end',
+      'end',
+    ]);
+    expect(existsSync(waiting.path)).toBe(false);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('takes the lock for the tests alone, in both checks', () => {
+    for (const groups of [GROUPS, DOCS_GROUPS])
+      expect(
+        groups
+          .flat()
+          .filter((s) => s.heavy)
+          .map((s) => s.name),
+      ).toEqual(['test']);
   });
 
   it('lets the stages of a group all end when one fails, then stops', async () => {

@@ -18,6 +18,17 @@ import {
 
 /** Every named meter's weights, by hand: the ground truth `meterWeights` is checked against. */
 const WEIGHTS: Record<MeterName, Weight[]> = {
+  '2/4': ['downbeat', 'subdivision', 'pulse', 'subdivision'],
+  '2/2': [
+    'downbeat',
+    'subdivision',
+    'subdivision',
+    'subdivision',
+    'pulse',
+    'subdivision',
+    'subdivision',
+    'subdivision',
+  ],
   '3/4': ['downbeat', 'subdivision', 'pulse', 'subdivision', 'pulse', 'subdivision'],
   '4/4': [
     'downbeat',
@@ -108,8 +119,10 @@ const fromDownbeat = (helix: Meter): Meter => shift(helix, -heightOf(helix, 0));
 describe('meter', () => {
   it('gives every named meter as a helix of its pulses over its bar’s eighths', () => {
     expect(METERS).toEqual({
+      '2/4': { cycle: 4, heights: [0, 2] },
       '3/4': { cycle: 6, heights: [0, 2, 4] },
       '4/4': { cycle: 8, heights: [0, 2, 4, 6] },
+      '2/2': { cycle: 8, heights: [0, 4] },
       '5/4': { cycle: 10, heights: [0, 2, 4, 6, 8] },
       '5/8': { cycle: 5, heights: [0, 3] },
       '6/8': { cycle: 6, heights: [0, 3] },
@@ -126,8 +139,10 @@ describe('meter', () => {
     );
     // 040's table gives 3/4, 4/4, 6/8, 9/8 and 7/8; the rest follow its rule, a beat to a pulse here.
     expect(counted).toEqual({
+      '2/4': 2,
       '3/4': 3,
       '4/4': 4,
+      '2/2': 2,
       '5/4': 5,
       '5/8': 2,
       '6/8': 2,
@@ -223,12 +238,16 @@ describe('meter', () => {
     const modeGroupings = (meter: Meter): string[] =>
       modes(meter).map((m) => gaps(fromDownbeat(m)).join('+'));
 
-    it('groups pulses in 2s and 3s exactly when 2 · pulses ≤ eighths ≤ 3 · pulses, and every named meter does (finite: every 2 ≤ k < n ≤ 16) (T6)', () => {
+    it('groups pulses in 2s and 3s exactly when 2 · pulses ≤ eighths ≤ 3 · pulses, and every named meter does but alla breve, two pulses of 4 (finite: every 2 ≤ k < n ≤ 16) (T6)', () => {
       for (let n = 3; n <= 16; n++)
         for (let k = 2; k < n; k++)
           expect(gaps(even(k, n)).every((g) => g === 2 || g === 3)).toBe(2 * k <= n && n <= 3 * k);
-      for (const meter of Object.values(METERS))
-        expect(gaps(meter).every((l) => l === 2 || l === 3)).toBe(true);
+      for (const [name, meter] of Object.entries(METERS))
+        expect([name, gaps(meter).every((l) => l === 2 || l === 3)]).toEqual([
+          name,
+          name !== '2/2',
+        ]);
+      expect(gaps(METERS['2/2'])).toEqual([4, 4]);
     });
 
     it('reads an additive meter’s groupings as the modes of its helix, and `even` as the brightest, long first (T6)', () => {

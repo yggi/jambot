@@ -15,10 +15,7 @@ const NEW = PRESETS.slice(PROTOTYPE_PRESETS.length);
 
 /** What each new preset finds at its point: the meter and its swing, the mode, the drum bar and the bass line. */
 const FOUND: Readonly<
-  Record<
-    string,
-    { meter: string; swing: string; mode: string; rhythm: string; bass: string; meterAt?: number }
-  >
+  Record<string, { meter: string; swing: string; mode: string; rhythm: string; bass: string }>
 > = {
   'Electro swing': {
     meter: 'meter(swing=8n:2/3)',
@@ -118,11 +115,10 @@ const FOUND: Readonly<
     bass: 'waltz_bass',
     swing: '16n 0.500',
   },
-  // (cells' 2/4 is none of the band's meters (`METER_READINGS`): the plain 4/4, the next nearest, at .108; on it the
-  // oom-pah, a note on every beat, is a walk to the band (`isWalk`), so the pumping bass plays)
+  // (cells' 2/4, one of the band's meters since #652; on it the oom-pah, a note on every pulse, is a walk to the band,
+  // which walks only under a swung meter (`isWalk`, #650), so the pumping bass, the next nearest, plays)
   March: {
-    meter: 'meter',
-    meterAt: 0.108,
+    meter: 'meter(grouping=meter("2/4"))',
     mode: 'ionian',
     rhythm: 'march_drums',
     bass: 'pumping_bass',
@@ -167,13 +163,10 @@ describe('the presets (#517)', () => {
   });
 
   it.each(NEW.map((p) => [p.name, p] as const))(
-    '%s finds its meter, swing and mode at its point, at distance 0 (March’s plain 4/4 as named, cells’ 2/4 none of the band’s)',
+    '%s finds its meter, swing and mode at its point, at distance 0',
     (name, preset) => {
       const meter = presetMeter(preset)!;
-      expect([meter.fragment.id, +meter.distance.toFixed(3)]).toEqual([
-        FOUND[name]!.meter,
-        FOUND[name]!.meterAt ?? 0,
-      ]);
+      expect([meter.fragment.id, +meter.distance.toFixed(3)]).toEqual([FOUND[name]!.meter, 0]);
       const swing = presetSwing(preset)!;
       expect(`${swing.level} ${swing.share.toFixed(3)}`).toBe(FOUND[name]!.swing);
       expect(presetMode(preset)).toBe(FOUND[name]!.mode);

@@ -416,18 +416,14 @@ describe('the session protocol', () => {
       played: shapeOf(playedBars()),
       section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
-    // The session contract, version 1 (yggi/music-commons `contracts/session-v1`, minor 7) holds the same
+    // The session contract, version 1 (yggi/music-commons `contracts/session-v1`, minor 9) holds the same
     // shapes, which it states at protocol 15: 16 adds a listed session's `away` (#496), a
     // lobby's word, 17 a host's `role` (#567), 18 a player's `nudge`, 19 its key and meter, and
-    // 20 the log's `event`, read by field; none
-    // adds a shape here. 22 adds the style's `mood` (cells v0.23.0), which the hub records at its next lift, and 23 a
-    // drum hit's role `ostinato` (#651), a value, no shape.
-    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([21, 15, 23]);
-    expect({
-      ...hub.shapes,
-      protocol: PROTOCOL,
-      bar: [...hub.shapes.bar, 'bar.style.mood: number'].sort(),
-    }).toEqual(SHAPES);
+    // 20 the log's `event`, read by field, none adding a shape here; 21 adds a judgement's
+    // `origin` and 22 the style's `mood` (cells v0.23.0), which the hub's shapes carry. 23 has a drum hit's role be
+    // `ostinato` (#651), a value and no shape, which the hub records at its next lift.
+    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([22, 15, 23]);
+    expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
   });
 
   it('never carries a performer’s fill on the wire: a bar states only what a WrittenNote holds (#107, #140)', () => {

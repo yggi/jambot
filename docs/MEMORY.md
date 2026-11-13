@@ -12,6 +12,7 @@ pnpm install
 pnpm dev          # web app with hot reload; the prototype is at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
+pnpm test:slow    # the six experiments left out of verify: when what the band plays changes (same lock)
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes (waits for the heavy runs' lock)
 pnpm soak         # a soak of a served build (apps/web/e2e/soak.ts), under the same lock; pnpm heavy --status says who holds it
 pnpm lobby        # the lobby server for sessions across machines, on 8787
@@ -30,7 +31,7 @@ pnpm pages deploy # publish main to GitHub Pages, and check the live site
 - The direction is to bring the two back together for eternal jam sessions: cells as the score language and its engine as the player, Jambot as the composer, and a shared repository of cell fragments ([brief](briefs/eternal-jam.md)).
 - The language becomes a core of its own, [yggi/cells](https://github.com/yggi/cells), which Jambot and Cell studio consume at a tag (D1 on #309).
 - The music projects (Cell studio, cells, webmidi, quintenzirkel, play-aeiou, lib-aeiou, flow3r-aeiou, KO-Multitool, ep133-sysex and this one) share a hub, [yggi/music-commons](https://github.com/yggi/music-commons): an atlas, a charter, a glossary and contracts with vectors.
-  Jambot runs their vectors (and passes session, meter, swing and feel), each by a `contracts.test.ts` over the package's `fixtures/contracts/`: meter, euclid and notes (`packages/theory`), swing and feel at minor 1 (`packages/engine`, the reading in `packages/score`; `feel` is its performer's own playing, lifted, #474) and session at version 1, minor 7 (`packages/session`).
+  Jambot runs their vectors (and passes session, meter, swing and feel), each by a `contracts.test.ts` over the package's `fixtures/contracts/`: meter, euclid and notes (`packages/theory`), swing at version 1 and feel at version 3 (`packages/engine`, the reading in `packages/score`, 5 of its 11 lines recorded, #506; `feel` is its performer's own playing, lifted, #474) and session at version 1, minor 9 (`packages/session`).
 - The handshake is ruled (#309; yggi/cells decision 037): a new score form (#287, #306, #275, #265) is said in cells, its meaning kept and no spelling of its own grown here.
 - Its words and Jambot's part in places (`^`, `_`, `shift`, `cycle=`, Euclid's rotation): read [`cell-studio`](memory/cell-studio.md) before porting a form either way.
 

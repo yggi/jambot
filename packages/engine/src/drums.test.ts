@@ -325,6 +325,8 @@ describe('the drums on other meters (#260)', () => {
 
   it('puts the backbeat on every pulse after the downbeat of a bar of two or three, and the odd ones from four (finite: every meter)', () => {
     const expected: Record<string, number[]> = {
+      '2/4': [1],
+      '2/2': [1],
       '3/4': [1, 2],
       '4/4': [1, 3],
       '5/4': [1, 3],

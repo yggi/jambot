@@ -16,6 +16,7 @@ import {
   holdingSwing,
   STRAIGHT,
   SECTION_BARS,
+  SHORT_TERM_FLOOR,
   type Style,
   type StyleTrack,
   EMPTY_LAYER,
@@ -386,6 +387,28 @@ describe('the player', () => {
     // Synth-pop at 108 bpm: 30 s is into the second section.
     expect(player.hud.bar!.bar).toBeGreaterThan(8);
     expect(checked).toBeGreaterThan(500);
+  });
+
+  it("shows the composer's workbench as a host or solo, once a section as its plans move on (#443)", async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    expect(player.workbench).toBeNull();
+    void player.start();
+    world.resolve();
+    await settle();
+    const seen = new Set<unknown>();
+    for (let t = 0; t < 30; t += 0.025) {
+      world.currentTime += 0.025;
+      world.tickers[0]!.tick();
+      seen.add(player.workbench);
+    }
+    // Synth-pop at 108 bpm: 30 s plans into the third section, and each new plan is one new workbench.
+    const sections = Math.floor(player.hud.bar!.bar / SECTION_BARS) + 3;
+    expect(seen.size).toBeGreaterThan(1);
+    expect(seen.size).toBeLessThanOrEqual(sections);
+    const { inMind } = player.workbench!;
+    expect(inMind.length).toBeGreaterThan(0);
+    for (const { weight } of inMind) expect(weight).toBeGreaterThanOrEqual(SHORT_TERM_FLOOR);
   });
 
   it('opens in a key picked while stopped, and shows it heading there', () => {

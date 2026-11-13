@@ -301,8 +301,9 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
           );
         }
       }
-    // (1,632 over the 22 rhythms held at cells v0.23.0, as there; with cells v0.24.0's seven, 2,322; with v0.25.0's two, 2,436)
-    expect([before, pairs]).toEqual([1632, 2436]);
+    // (1,632 over the 22 rhythms held at cells v0.23.0, as there; with cells v0.24.0's seven, 2,322; with v0.25.0's two, 2,436;
+    // and on the four benches of 2/4 and 2/2 the band plays since #652, on top of v0.25.0's, 2,088 and 3,108)
+    expect([before, pairs]).toEqual([2088, 3108]);
   });
 });
 
@@ -451,7 +452,8 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
       fits++;
       return fit(fragment, workbench);
     });
-    expect(RHYTHM_BENCHES.length).toBe(11 + Object.keys(METERS).length);
+    // (a bench for each of cells' 13 meter fragments, all the band's since #652, and one for each named meter)
+    expect(RHYTHM_BENCHES.length).toBe(13 + Object.keys(METERS).length);
     const steps = [...repository.warm!(RHYTHM_BENCHES)].length;
     const warmed = fits;
     // (how many there are follows from cells' library, its drum bars' variations among them, which the composer's ladder

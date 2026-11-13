@@ -27,8 +27,8 @@ export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments
  * host's record of it, the layer and some 50 bytes around it, stays under
  * #398's bound of 16 KiB. A layer that learned only meters stays far under
  * it: after 3 hours of the radio's walk it weighs at most about 1.6 KB (E34,
- * learning), since use raises a point where one is, and the eleven meters
- * have one each; with the rhythms, and the grooves the Muse files on a miss
+ * learning), since use raises a point where one is, and the meters have one
+ * each; with the rhythms, and the grooves the Muse files on a miss
  * (#401) and the composer's variations of them and of the seed rhythms
  * (#411, #414), at most 11,550 bytes, eleven grooves at most (E38, E39);
  * with the bass lines too, at most 15,035 (E41). With the lead lines and a
