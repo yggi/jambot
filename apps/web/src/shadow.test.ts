@@ -603,6 +603,34 @@ describe('the band through cells (#399, #469)', () => {
   });
 });
 
+describe('a note its text declares none of the feel’s parts or roles for (feel v3, #506)', () => {
+  it('plays it as cells gives it: a section whose drum lines declare no role= strikes every drum hit on its step, with no role and its velocity and length unfelt, and the pitched parts as the band does', () => {
+    const own = run({ bars: 16 });
+    const unroled = run({ bars: 16, edit: (t) => t.replace(/ role=\w+/g, '') });
+    expect(unroled.readout.errors).toEqual([]);
+    expect(unroled.readout.gaps).toEqual({});
+    const drums = (r: Run, drum: boolean) =>
+      r.played.filter((e) => (e.event.part === 'drums') === drum);
+    playsAsTheBand(drums(own, false), drums(unroled, false));
+    const [felt, given] = [drums(own, true), drums(unroled, true)];
+    const hit = (e: TimedEvent) => `${e.bar} ${e.event.step} ${e.event.note}`;
+    expect(given.length).toBeGreaterThan(16 * 4);
+    expect(given.map(hit).sort()).toEqual(felt.map(hit).sort());
+    for (const e of given) {
+      expect(e.event).not.toHaveProperty('role');
+      expect(Number.isInteger(e.event.velocity)).toBe(true);
+      expect(e.event.gain).toBe(e.event.velocity / 127);
+    }
+    // (shown firing: the feel moves most of the hits it reads, so a hit read as a role would differ)
+    const at = new Map(felt.map((e) => [hit(e), e.event] as const));
+    const moved = given.filter((e) => {
+      const f = at.get(hit(e))!;
+      return f.velocity !== e.event.velocity || Math.abs(f.length - e.event.length) > 1e-9;
+    });
+    expect(moved.length / given.length).toBeGreaterThan(0.5);
+  });
+});
+
 /** Every meter the band plays: those `METERS` names, which hold each of cells' meter fragments the band plays (`METER_REPOSITORY`). */
 const EVERY_METER = Object.keys(METERS) as MeterName[];
 

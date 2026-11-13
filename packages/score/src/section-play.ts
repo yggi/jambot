@@ -27,8 +27,9 @@
  * end in the bar's steps through the swing (`onsets`, `ends`), which a host
  * lays on its own clock, and which line and drum role it comes from: the
  * part the text declares for it, and the drum role its line declares
- * (`lineOf`; `lines` and `roles`), and the sound its voice is given, where
- * the text gives it one (`soundOf`; `sounds`), which the built-in synth plays.
+ * (`lineOf`; `lines` and `roles`; none where it declares none of the feel's),
+ * and the sound its voice is given, where the text gives it one (`soundOf`;
+ * `sounds`), which the built-in synth plays.
  */
 
 import {
@@ -91,9 +92,9 @@ export interface PlayedBar {
   readonly onsets: number[];
   /** Each end in the bar's steps as played, through the swing: past the bar's last step where it runs on. */
   readonly ends: number[];
-  /** The line each note comes from: a pitched line, or the drums. */
-  readonly lines: (PitchedName | 'drums')[];
-  /** Each drum hit's role, as its line names it; none for a pitched note. */
+  /** The line each note comes from, as its text declares it (`lineOf`): a pitched line, or the drums; none where it declares none of the feel's. */
+  readonly lines: (PitchedName | 'drums' | undefined)[];
+  /** Each drum hit's role, as its line declares it; none for a pitched note, or a hit whose line declares no role of the feel's. */
   readonly roles: (DrumRole | undefined)[];
   /** Each note's voice's own sound, where the text gives it one (`soundOf`); none where its voice holds only a register. */
   readonly sounds: (VoiceSound | undefined)[];
@@ -135,17 +136,16 @@ function shareOf(plan: Plan, output: string | undefined, at: number): number {
  * The line a note comes from, as the text declares it (feel version 3, yggi/cells decision 075, #615): cells' own
  * reader (`readerOf`), the part a performer's role cell declares (`&bass map=role part=bass &bassOut`, cells' seed
  * performers) for the gate that plays it, else its line's `part=`, and for a drum hit the drums, its role its line's
- * `role=` (`&kick role=kick …`, as the section text and cells' grooves write it). A name gives neither.
+ * `role=` (`&kick role=kick …`, as the section text and cells' grooves write it).
  *
- * An output nothing declares a part of (or read with no compile) is read by its id, as the feel's version 2 read every
- * output: a kit's member the drums, its role the line's name (`kit:voices:hat:…`), else the line's name
- * (`compV:pad:…`). The band's own sections declare every note they play (`section.test.ts`), so none is read so; a text
- * written before #615, or edited by hand, plays as it did.
+ * A name gives neither: an output whose text declares none of the feel's parts, or no drum role of the feel's, is
+ * none of the feel's (`null`), and plays as cells gives it (#506). The band's own sections declare every note they
+ * play (`section.test.ts`), so none of theirs reads so.
  */
 export const lineOf = (
   output: string | undefined,
-  result?: Pick<CompileResult, 'outputs' | 'performers' | 'cells'>,
-): NoteLine => lineReader(result)(output);
+  result: Pick<CompileResult, 'outputs' | 'performers' | 'cells'>,
+): NoteLine | null => lineReader(result)(output);
 
 /** A note's line and drum role, as `lineOf` reads them. */
 export interface NoteLine {
@@ -155,15 +155,12 @@ export interface NoteLine {
 
 /** `lineOf` over one compile, its declarations read once. */
 export function lineReader(
-  result?: Pick<CompileResult, 'outputs' | 'performers' | 'cells'>,
-): (output: string | undefined) => NoteLine {
-  const read = result ? readerOf(result) : () => null;
+  result: Pick<CompileResult, 'outputs' | 'performers' | 'cells'>,
+): (output: string | undefined) => NoteLine | null {
+  const read = readerOf(result);
   return (output) => {
     const reading = read(output);
-    if (reading) return { line: reading.part, ...(reading.role ? { role: reading.role } : {}) };
-    const [first, second, third] = (output ?? '').split(':');
-    if (first === 'kit') return { line: 'drums', role: third as DrumRole };
-    return { line: second as PitchedName };
+    return reading && { line: reading.part, ...(reading.role ? { role: reading.role } : {}) };
   };
 }
 
@@ -266,15 +263,16 @@ export function playSection(
   const out = windowAt(plan, 0, estimate * 1.25).events.flatMap((e) =>
     routesOf(route(e)).flatMap((r) => {
       const n = midiNote(e, r);
+      const read = lineAt(e.output);
       return n
         ? [
             {
               ...n,
               share: shareOf(plan, e.output, e.at),
-              ...lineAt(e.output),
-              // (a drum is struck on the kit, whatever its voice's waveform)
-              sound:
-                lineAt(e.output).line === 'drums' ? undefined : soundOf(e, plan.result, written),
+              line: read?.line,
+              role: read?.role,
+              // (a drum is struck on the kit, whatever its voice's waveform: a note on the drums' channel, read or not)
+              sound: n.channel === CHANNEL_OF.drums ? undefined : soundOf(e, plan.result, written),
             },
           ]
         : [];
@@ -291,7 +289,7 @@ export function playSection(
     share: number;
     onset: number;
     end: number;
-    line: PitchedName | 'drums';
+    line: PitchedName | 'drums' | undefined;
     role: DrumRole | undefined;
     sound: VoiceSound | undefined;
   };
