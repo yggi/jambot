@@ -70,7 +70,7 @@ These principles come from the prototype
 What these say fails a check, usually inside `pnpm verify`; the check's own test shows it firing.
 
 - **`pnpm verify` before pushing.**
-  It runs everything but the end-to-end checks (below), and it is the gate: the pull request names the commit that passed it.
+  It runs everything but the slow tier and the end-to-end checks (below), takes the machine's lock for its tests, so a second verify waits for the first rather than time it out (`tooling/heavy.ts`), and it is the gate: the pull request names the commit that passed it.
   CI runs the same on a ready pull request as a witness, and a run blocked for want of Actions minutes says nothing (`docs/memory/repository-and-ci.md`).
   A checkout without `node_modules`, such as a fresh git worktree, gets `pnpm install --frozen-lockfile` from `pnpm verify` first (seconds): install, never skip the tests.
   Claude Code sessions do this at start through `.claude/hooks/session-start.sh`.
@@ -93,6 +93,9 @@ Nothing checks these; you and the reviewer hold them.
   gathers constraints run side by side without waiting for each other. What one
   finds goes to the other, and a test on `main` holds it. See
   [`docs/ratchet.md`](docs/ratchet.md).
+- **`pnpm test:slow` when what the band plays changes.**
+  Six experiments play hours of music each, so they are no part of `pnpm verify` (`slowTests` in `packages/engine/vitest.config.ts`, #666): about 6 minutes on four cores alone (2026-11-13), under the machine's lock.
+  Run them in the background before pushing a change to the engine, the theory or the cells pin, or leave them to CI's `slow` job on the ready pull request and quote its run.
 - **`pnpm e2e` when what the app plays, or when, changes.**
   The end-to-end checks run the built app in Chromium and measure its audio: the exact time of every onset, and whether the band sounds and stops.
   They take about 6 minutes (44 checks in 5.9 min, 2026-10-17), mostly the band playing in real time, and need a browser, so they are not part of `pnpm verify`: run them in the background.

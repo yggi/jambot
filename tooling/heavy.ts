@@ -1,8 +1,11 @@
 /**
  * The lock for the heavy runs: `pnpm e2e` and the soaks measure the app's audio
  * in real time, so two at once on one machine starve each other's clock (#199,
- * #203, #471). Each takes the lock before it starts and gives it back when it
- * ends, however it ends; a second waits, saying every minute who holds it.
+ * #203, #471), and `pnpm verify`'s tests take every core, so two at once time
+ * each other out (#666). Each takes the lock before it starts and gives it
+ * back when it ends, however it ends; a second waits, saying every minute who
+ * holds it. `pnpm verify` takes it for its tests alone (`holding`, from
+ * `tooling/verify.ts`), not for its static stages.
  *
  *   node tooling/heavy.ts <command> [args...]   run the command under the lock, with its exit code
  *   node tooling/heavy.ts --status              say who holds the lock, if anyone
@@ -11,7 +14,9 @@
  * checkout and worktree on the machine shares it (`JAMBOT_HEAVY_LOCK` moves
  * it). `mkdir` takes it or fails at once, and the holder's process id, command,
  * directory and start go in `holder.json` beside it. A lock whose holder is
- * gone, killed before it could give the lock back, is taken over.
+ * gone, killed before it could give the lock back, is taken over. A command
+ * run under the lock is told so (`JAMBOT_HEAVY_HELD`, the lock's path), and
+ * what it starts doesn't wait for the lock its parent holds.
  */
 import { spawn } from 'node:child_process';
 import {
@@ -121,17 +126,33 @@ const describe = (h: Holder) =>
     ? 'a run just starting'
     : `${h.command} (pid ${h.pid}, in ${h.cwd}, since ${h.since})`;
 
+/** How a run waits for the lock: where it is, how often it looks, and where it says who holds it. */
+export interface Waiting {
+  path?: string;
+  pollMs?: number;
+  say?: (line: string) => void;
+  env?: NodeJS.ProcessEnv;
+}
+
 /**
- * Runs `command` once the lock is taken, polling every `pollMs`, and gives
- * the lock back when it ends. Resolves with its exit code.
+ * Runs `run` once the lock is taken for `command`, polling every `pollMs`, and
+ * gives the lock back when it ends. Where an ancestor holds the lock already
+ * (`JAMBOT_HEAVY_HELD` names its path), `run` starts at once.
  */
-export async function runHeavy(
-  command: readonly string[],
-  { path = lockPath(), pollMs = 2000, say = (line: string) => console.error(line) } = {},
-): Promise<number> {
+export async function holding<T>(
+  command: string,
+  run: () => Promise<T>,
+  {
+    path = lockPath(),
+    pollMs = 2000,
+    say = (line: string) => console.error(line),
+    env = process.env,
+  }: Waiting = {},
+): Promise<T> {
+  if (env.JAMBOT_HEAVY_HELD === path) return run();
   const who: Holder = {
     pid: process.pid,
-    command: command.join(' '),
+    command,
     cwd: process.cwd(),
     since: new Date().toISOString(),
   };
@@ -148,25 +169,40 @@ export async function runHeavy(
   const give = () => release(path, process.pid);
   process.on('exit', give);
   try {
-    return await new Promise<number>((done) => {
-      const child = spawn(command[0]!, command.slice(1), { stdio: 'inherit' });
-      const pass = (signal: NodeJS.Signals) => child.kill(signal);
-      process.on('SIGINT', pass);
-      process.on('SIGTERM', pass);
-      child.on('error', (error) => {
-        say(`heavy: ${String(error)}`);
-        done(127);
-      });
-      child.on('close', (code, signal) => {
-        process.off('SIGINT', pass);
-        process.off('SIGTERM', pass);
-        done(code ?? (signal ? 128 : 1));
-      });
-    });
+    return await run();
   } finally {
     give();
     process.off('exit', give);
   }
+}
+
+/** Runs `command` under the lock (`holding`), and resolves with its exit code. */
+export async function runHeavy(command: readonly string[], waiting: Waiting = {}): Promise<number> {
+  const path = waiting.path ?? lockPath();
+  const say = waiting.say ?? ((line: string) => console.error(line));
+  return holding(
+    command.join(' '),
+    () =>
+      new Promise<number>((done) => {
+        const child = spawn(command[0]!, command.slice(1), {
+          stdio: 'inherit',
+          env: { ...process.env, JAMBOT_HEAVY_HELD: path },
+        });
+        const pass = (signal: NodeJS.Signals) => child.kill(signal);
+        process.on('SIGINT', pass);
+        process.on('SIGTERM', pass);
+        child.on('error', (error) => {
+          say(`heavy: ${String(error)}`);
+          done(127);
+        });
+        child.on('close', (code, signal) => {
+          process.off('SIGINT', pass);
+          process.off('SIGTERM', pass);
+          done(code ?? (signal ? 128 : 1));
+        });
+      }),
+    { ...waiting, path, say },
+  );
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
