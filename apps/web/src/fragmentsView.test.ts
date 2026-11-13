@@ -350,6 +350,20 @@ describe('the composer’s workbench, in mind (#443)', () => {
     ]);
   });
 
+  it("keys a document's part by its id and reads it from cells' seed (`kinderlied/twinkle`, cells v0.25.0)", () => {
+    const [twinkle, ...rest] = rows({
+      workbench: workbench({ inMind: [{ id: 'kinderlied/twinkle', weight: 1 }], boredom: [] }),
+    });
+    expect(rest).toEqual([]);
+    expect(twinkle).toMatchObject({
+      key: 'kinderlied/twinkle',
+      name: 'kinderlied/twinkle',
+      role: 'lead',
+      mind: true,
+    });
+    expect(twinkle!.text).toContain('&lead');
+  });
+
   it('gives a rhythm its lineage: the boredom, its rung and the rhythms it holds', () => {
     expect(row('lo_fi_hip_hop_drums').lineage).toEqual({
       boredom: 1.5,
