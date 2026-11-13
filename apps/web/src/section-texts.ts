@@ -182,16 +182,16 @@ const WARM_TEXT = [
   '&harm, &key from',
   '&bar meter("4/4") step=120bpm',
   '&key scale(aeolian, A)',
-  '&style style=&(map=style .5 .5 .5 .5)',
+  '&style label="groove" style=&(map=style .5 .5 .5 .5)',
   '&harm over=&key step=1m [0,2,4] [5,7,9]',
-  '&kick step=16n &bd:0:.4 ~ ~ ~',
+  '&kick role=kick step=16n &bd:0:.4 ~ ~ ~',
   '&drumlines [&kick]',
-  '&drums, &drumsOut from drums_performer &drumlines',
   '&bassline part=bass over=&harm step=16n legato=.6 0@4 3@4',
   '&bassLevel map=amp step=16n .4@8',
-  '&bass, &bassOut from bass_performer(bassLevel=&bassLevel) &bassline',
-  '&out map=midi ~ &bassOut ~!7 &drumsOut',
-  '&heard map=sample [&bassOut]',
+  '&padline part=pad step=1m ~',
+  '&stabline part=stab step=1m ~',
+  '&leadline part=lead step=1m ~',
+  '* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, style=&style)',
 ].join('\n');
 
 /** The warm-up, what a worker does as it starts: its text compiled; what cells said of it. */
