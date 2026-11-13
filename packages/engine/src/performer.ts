@@ -32,7 +32,7 @@
  * prototype's accents and gates.
  *
  * This hand is the family's feel contract (yggi/music-commons
- * `contracts/feel`, version 2), whose rule cells' default performer plays
+ * `contracts/feel`, version 3), whose rule cells' default performer plays
  * (`played`, yggi/cells v0.15.0), lifted from here. A note a cells text
  * states is played by cells' (`performCells`, `@jambot/score`, #552), and
  * `packages/score/src/perform.test.ts` holds that the two play every note

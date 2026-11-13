@@ -1,12 +1,14 @@
 <!--
   Cells, a card (`fragmentsView.ts`): every cells fragment the band has met,
   as one table told apart by where each has been. Folded, how many over how
-  many of each; unfolded, a filter (All, Filed, Retrieved, Muse) over the
-  table, a row for each: its name, its part (meter, rhythm, clave, motif),
-  a mark for each place it has been (filed, retrieved, the Muse's), who made
-  it, how many sections heard took it and since when. A row picked opens
-  under it: its cells text, the point it is found at on the style's axes,
-  its tags, what it varies and how, and what it was used together with. It logs the
+  many of each; unfolded, a filter (All, Filed, Retrieved, Muse, In mind)
+  over the table, a row for each: its name, its part (meter, rhythm, clave,
+  motif), a mark for each place it has been (filed, retrieved, the Muse's,
+  in the composer's mind), who made it, how many sections heard took it and
+  since when. A row picked opens under it: its cells text, the point it is
+  found at on the style's axes, its weight in the composer's mind and, for a
+  rhythm, the boredom of its lineage and its rung (#443), its tags, what it
+  varies and how, and what it was used together with. It logs the
   sections heard itself, a section at a time, so it stays mounted while
   another view shows. Where this device keeps what the band learned (a
   host's, solo's), it carries it (#398): the layer exported as JSON, its
@@ -15,6 +17,7 @@
 -->
 <script lang="ts">
   import type { LearnedLayer } from '@jambot/engine';
+  import type { Workbench } from '../fragmentsView.ts';
   import { untrack } from 'svelte';
   import {
     FRAGMENT_FILTERS,
@@ -43,6 +46,8 @@
     players: Readonly<Record<string, string>>;
     /** How the learned layer is carried to and from files; null for a client. */
     carry?: Carry | null;
+    /** The composer's workbench, where this device plans; null for a client. */
+    workbench?: Workbench | null;
   }
 
   interface Carry {
@@ -56,7 +61,7 @@
     onimport: (text: string) => string | null;
   }
 
-  let { bar, layer, memory, players, carry = null }: Props = $props();
+  let { bar, layer, memory, players, carry = null, workbench = null }: Props = $props();
 
   /** What the last import said: that it took, or why not. */
   let imported: string | null = $state(null);
@@ -77,7 +82,7 @@
   let filter: FragmentFilter = $state('all');
   let picked: string | null = $state(null);
 
-  const rows = $derived(fragmentRows({ layer, log, memory, players }));
+  const rows = $derived(fragmentRows({ layer, log, memory, players, workbench }));
   const shown = $derived(shownRows(rows, filter));
   const open = $derived(shown.find((r) => r.key === picked) ?? null);
 
@@ -93,6 +98,7 @@
     ['filed', 'F', 'Filed'],
     ['retrieved', 'R', 'Retrieved'],
     ['muse', 'M', 'From the Muse'],
+    ['mind', 'I', 'In mind'],
   ] as const;
 
   const dot = (row: FragmentRow) =>
@@ -118,7 +124,8 @@
           <tr>
             <th scope="col">Fragment</th>
             <th scope="col">Part</th>
-            <th scope="col"><span aria-hidden="true">F R M</span><span class="sr">Where</span></th>
+            <th scope="col"><span aria-hidden="true">F R M I</span><span class="sr">Where</span></th
+            >
             <th scope="col">Source</th>
             <th scope="col" class="n">Sections</th>
             <th scope="col" class="n">Since</th>
@@ -176,6 +183,16 @@
             </div>
           {/each}
         </div>
+      {/if}
+      {#if open.weight !== null}
+        <p class="line">
+          <span>In mind</span><span>{Math.round(open.weight * 100)} %</span>
+        </p>
+      {/if}
+      {#if open.lineage !== null}
+        <p class="line">
+          <span>Boredom</span><span>{open.lineage.boredom.toFixed(1)} · {open.lineage.rung}</span>
+        </p>
       {/if}
       {#if open.strength !== null}
         <p class="line">

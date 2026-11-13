@@ -42,6 +42,25 @@ const names = () =>
     .map((b) => b.textContent?.trim());
 
 describe('the cells card', () => {
+  it("filters what the composer has in mind, and opens a rhythm's weight and boredom (#443)", async () => {
+    render(
+      Cells,
+      props({
+        bar: bar(0),
+        workbench: {
+          inMind: [{ id: 'funk_drums', weight: 0.5 }],
+          boredom: [{ grooves: ['funk_drums'], boredom: 3.3, rejected: false }],
+        },
+      }),
+    );
+    await fireEvent.click(screen.getByRole('radio', { name: /In mind/ }));
+    expect(names()).toEqual(['funk_drums']);
+    await fireEvent.click(screen.getByRole('button', { name: 'funk_drums' }));
+    const detail = screen.getByRole('region', { name: 'funk_drums' });
+    expect(detail).toHaveTextContent('In mind50 %');
+    expect(detail).toHaveTextContent('Boredom3.3 · vary');
+  });
+
   it('says there is nothing yet, before the band has met any fragment', () => {
     const { container } = render(Cells, props());
     expect(container.querySelector('summary .main')).toHaveTextContent('None yet');
