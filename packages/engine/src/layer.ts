@@ -36,7 +36,9 @@ export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments
  * (#411, #414), at most 11,550 bytes, eleven grooves at most (E38, E39);
  * with the bass lines too, at most 15,035 (E41). With the lead lines and a
  * player answering one section in four (E42), it reaches the cap, which drops
- * its oldest in 29 sections of 5,385 over 3 hours (#580).
+ * its oldest in 29 sections of 5,385 over 3 hours (#580). Weighed as a host
+ * keeps it (`storedLayer`, #553), E38's grooves come to 11,015 bytes, E41's
+ * layer stays under the cap, and E42's drops its oldest in 72 sections of 5,374.
  */
 export const LAYER_CAP = 16_000;
 
