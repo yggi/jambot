@@ -1,8 +1,15 @@
-import { EMPTY_LAYER, type LearnedLayer, RETIRED_LEAD_VOICE, leadRepository } from '@jambot/engine';
+import {
+  EMPTY_LAYER,
+  type LearnedLayer,
+  RETIRED_LEAD_VOICE,
+  RHYTHM_REPOSITORY,
+  leadRepository,
+} from '@jambot/engine';
 import { METERS } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   LAYER_FORMAT,
+  LAYER_VERSION,
   type TextSlot,
   layerText,
   memoryLayerStore,
@@ -74,10 +81,11 @@ describe('the learned layer a host keeps (#398)', () => {
 
   it('reads a layer kept before #580, its lead lines carrying the lead’s voice and card, with the lines alone', () => {
     const filed = leadRepository().file!(EMPTY_LAYER, {
+      // (a line no seed motif plays: one that is a seed's is a use of it, not filed, #553)
       notes: [
         { step: 0, degree: 0, alter: 0 },
-        { step: 4, degree: 2, alter: 0 },
-        { step: 8, degree: 4, alter: 0 },
+        { step: 4, degree: 3, alter: 0 },
+        { step: 8, degree: 1, alter: 0 },
       ],
       bench: { meter: METERS['4/4'], meterFragment: 'meter' },
       point: { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 },
@@ -145,8 +153,8 @@ describe('the learned layer a host keeps (#398)', () => {
     ],
     [
       'an unknown version',
-      JSON.stringify({ format: LAYER_FORMAT, version: 2, layer: EMPTY_LAYER }),
-      'its version, 2, is not 1',
+      JSON.stringify({ format: LAYER_FORMAT, version: 3, layer: EMPTY_LAYER }),
+      'its version, 3, is not 1 or 2',
     ],
     [
       'a malformed layer',
@@ -197,5 +205,45 @@ describe('the learned layer a host keeps (#398)', () => {
     expect(await store.load()).toBe(EMPTY_LAYER);
     await store.save(LEARNED);
     expect(await store.load()).toBe(LEARNED);
+  });
+});
+
+describe('a layer kept with its groove variations by reference (#553)', () => {
+  const FOUR = { meter: METERS['4/4'], meterFragment: 'meter' };
+  const v = RHYTHM_REPOSITORY.vary!('techno_drums', FOUR, 0.5)!;
+  const VARIED = RHYTHM_REPOSITORY.file!(EMPTY_LAYER, {
+    hits: v.hits,
+    bench: FOUR,
+    point: { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 },
+    source: 'composer',
+    created: 'song 1, bar 24',
+    tags: ['groove'],
+    varies: 'techno_drums',
+    by: v.by,
+  }).layer;
+
+  it('keeps a variation’s text out of the record, and reads the record back to the same layer and the same text', () => {
+    const text = layerText(VARIED);
+    const record = JSON.parse(text) as { version: number; layer: LearnedLayer };
+    expect(record.version).toBe(LAYER_VERSION);
+    expect(record.layer.filed[0]!.fragment.text).toBe('');
+    expect(text.length).toBeLessThan(JSON.stringify(VARIED).length);
+    const read = readLayerText(text);
+    expect(read).toEqual({ layer: VARIED, problem: null });
+    expect(layerText(read.layer)).toBe(text);
+  });
+
+  it('loads a variation it can’t rebuild left out, with one warning that names it', async () => {
+    const record = JSON.parse(layerText(VARIED)) as { layer: LearnedLayer };
+    const file = record.layer.filed[0]!;
+    record.layer = {
+      ...record.layer,
+      filed: [{ ...file, meta: { ...file.meta, by: 'drop &hat 99' } }],
+    };
+    const { store, warnings } = slot(JSON.stringify(record));
+    expect((await store.load()).filed).toEqual([]);
+    expect(warnings).toEqual([
+      `1 groove the band varied could not be rebuilt from its source and is left out: ${file.fragment.id}.`,
+    ]);
   });
 });
