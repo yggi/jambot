@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import {
   DOCS_GROUPS,
   GROUPS,
   INSTALL,
+  installOf,
   passedTests,
   plan,
   remember,
@@ -132,6 +133,20 @@ describe('verify', () => {
     expect(plan(true)).toEqual(GROUPS);
     expect(plan(false)).toEqual([[INSTALL], ...GROUPS]);
     expect(INSTALL.command).toBe('pnpm install --frozen-lockfile');
+  });
+
+  it('reads an install as none, stale or current by the lockfile pnpm installed from', () => {
+    const root = mkdtempSync(join(tmpdir(), 'jambot-install-'));
+    writeFileSync(join(root, 'pnpm-lock.yaml'), 'cells: v0.25.1\n');
+    expect(installOf(root)).toBe('none');
+    mkdirSync(join(root, 'node_modules/.pnpm'), { recursive: true });
+    // (an install that left no copy of its lockfile is not known to be current)
+    expect(installOf(root)).toBe('stale');
+    writeFileSync(join(root, 'node_modules/.pnpm/lock.yaml'), 'cells: v0.25.0\n');
+    expect(installOf(root)).toBe('stale');
+    writeFileSync(join(root, 'node_modules/.pnpm/lock.yaml'), 'cells: v0.25.1\n');
+    expect(installOf(root)).toBe('current');
+    rmSync(root, { recursive: true, force: true });
   });
 
   it('installs first for the docs check too, a checkout without node_modules being no different', () => {

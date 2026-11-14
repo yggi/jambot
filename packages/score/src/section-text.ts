@@ -6,12 +6,15 @@
  * The score, one section of the band's bars, says what is played and never
  * who plays it, on what, or where it goes out:
  *
- * - the host's lines, stated once: the meter with the section's tempo and
- *   swing (`&bar meter("4/4") step=84bpm swing=16n:.65`) and the key
- *   (`&key scale(aeolian, A)`); the plan holds both, and the melodic scale,
- *   for the section's bars, so each is one line (`hostOf` refuses a section
- *   whose bars part on any of them, the tempo too unless the statement lets
- *   it move: `tempo: 'first'`);
+ * - the host's lines, stated once, each taken by its `from` line from the
+ *   fragment it is (#531, yggi/cells#714): the meter from cells' `meter`
+ *   template with the section's tempo and swing (`&bar from
+ *   meter(swing=16n:.65) 84bpm`, which plays `&bar meter("4/4") step=84bpm
+ *   swing=16n:.65`) and the key from its mode fragment (`&key from
+ *   diatonic(mode=aeolian) A`, which plays `scale(aeolian, A)`); the plan
+ *   holds both, and the melodic scale, for the section's bars, so each is one
+ *   line (`hostOf` refuses a section whose bars part on any of them, the
+ *   tempo too unless the statement lets it move: `tempo: 'first'`);
  * - the section's style, the note `&style` (decision 063 §3): labelled with
  *   the section's kind, at its first bar's point, or a range to
  *   its last bar's where the style moves within it (`style=&from..&to`), each
@@ -23,7 +26,11 @@
  *   rim a Euclid token a bar on `1m` where the meter is straight (E33's gap 4),
  *   stacked as the drummer's part (`&drumlines`), each line its role as a
  *   value (`&kick role=kick step=16n …`), which the feel reads, never its
- *   name (cells decision 075, feel v3, #615);
+ *   name (cells decision 075, feel v3, #615); the clave the composer chose
+ *   with the rhythm taken by its `from` line where the section plays it
+ *   whole (`&clave from son_clave_3_2`, at the drummer's level in the mix,
+ *   `takenClave`); the drums and the bass the composer found are written out
+ *   until the band plays a found part whole (#656);
  * - the bass, the pad and the stab, each a line on `16n` over the chord in
  *   force (`over=&harm`, E33), a line with a note no index reaches over the
  *   key (`over=&key`), held `@k` for the written length and sounding its share
@@ -84,6 +91,7 @@ import {
   chordNumeral,
   keyHelix,
   melodicHelix,
+  readRhythm,
   sameMeter,
   slotStepOn,
 } from '@jambot/engine';
@@ -108,7 +116,9 @@ import {
   stepsOf,
   wrap,
 } from '@jambot/theory';
+import { fromLine } from '@yggi/cells';
 import { bandLine } from '@yggi/cells/repository/band';
+import { resolveSeed } from '@yggi/cells/repository/library';
 import { type ScoreKey, lowerNumeral } from './score.ts';
 
 // ---------------------------------------------------------------------------
@@ -130,6 +140,31 @@ function tonicName(key: ScoreKey): string {
 
 /** A key as cells writes it: `scale(aeolian, A)`. */
 export const keyText = (key: ScoreKey) => `scale(${key.mode}, ${tonicName(key)})`;
+
+/**
+ * The key as the score takes it (#531, yggi/cells#714): cells' mode fragment, `diatonic`, with the mode as its argument
+ * and the tonic its main one, `&key from diatonic(mode=aeolian) A`, which plays `scale(aeolian, A)`.
+ */
+export const keyLine = (key: ScoreKey) =>
+  fromLine({
+    names: ['&key'],
+    id: 'diatonic',
+    args: [{ name: 'mode', value: key.mode }],
+    main: tonicName(key),
+  });
+
+/**
+ * The meter as the score takes it (#531): cells' `meter` template, its grouping where it isn't the template's 4/4 and its
+ * swing where it swings, the tempo its main argument, `&bar from meter(swing=16n:.6) 104bpm`, which plays `&bar
+ * meter("4/4") step=104bpm swing=16n:.6`. Where the composer took a meter from the repository, this is that fragment.
+ */
+export function meterLine(meter: string, bpm: number, swing: string): string {
+  const args = [
+    ...(meter === '4/4' ? [] : [{ name: 'grouping', value: `meter("${meter}")` }]),
+    ...(swing ? [{ name: 'swing', value: swing.replace(/^ swing=/, '') }] : []),
+  ];
+  return fromLine({ names: ['&bar'], id: 'meter', args, main: `${bpm}bpm` });
+}
 
 /** A degree as a cells number writes it: the accidental after it (`6#`, `3bb`), as decision 033 reads. */
 export const degreeText = (degree: number, accidental: number) =>
@@ -864,6 +899,42 @@ function pitchedLine(
   };
 }
 
+/**
+ * The clave the composer chose with the section's rhythm, taken by its `from` line (#531): `&clave from son_clave_3_2`,
+ * at the level the drummer plays it, `&clave * .27`. Only where the section plays the fragment whole, every hit the
+ * drummer writes the fragment's and every hit of the fragment written, its lap counted from the section's start as the
+ * band counts it (`sectionHits`), at one level: a hit the rim wins (`groove.ts`) or a fragment cells' seed doesn't hold
+ * (one the layer filed) leaves the clave written out.
+ */
+function takenClave(
+  bars: readonly BandBar[],
+  notes: readonly AtStep[],
+  steps: number,
+): { readonly line: string; readonly term: string } | null {
+  const id = bars[0]!.plan.claveFragment;
+  if (id === undefined || bars.some((bar) => bar.plan.claveFragment !== id)) return null;
+  const text = resolveSeed(id);
+  const read = text === null ? null : readRhythm(text, bars[0]!.meter);
+  if (!read || read.hits.some((h) => h.role !== 'clave')) return null;
+  const hits = notes.filter((n) => n.part === 'drums' && n.role === 'clave');
+  const levels = new Set(hits.map((h) => h.velocity));
+  if (levels.size !== 1) return null;
+  const expected = bars.flatMap((_, b) =>
+    read.hits
+      .filter((h) => Math.floor(h.step / steps) === b % read.bars)
+      .map((h) => `${b * steps + (h.step % steps)}:${h.note}`),
+  );
+  const written = hits.map((h) => `${h.at}:${h.note}`);
+  const same = (a: readonly string[], b: readonly string[]) =>
+    a.length === b.length && [...a].sort().join() === [...b].sort().join();
+  if (!same(expected, written)) return null;
+  const v = hits[0]!.velocity;
+  return {
+    line: fromLine({ names: ['&clave'], id }),
+    term: v >= 127 ? '&clave' : `&clave * ${scoreLevel(v)}`,
+  };
+}
+
 /** What a section offers the band, the heads of its own signature (yggi/cells decision 075): its harmony and its key. */
 const OFFERS = '&harm, &key from';
 
@@ -909,8 +980,8 @@ export function sectionAsCells(
     // (the section offers the band its harmony and its key, the heads of its own signature: a part that doesn't read
     // the harmony leaves it unread, not silent, yggi/cells decision 075, #609)
     { part: 'harmony', text: OFFERS },
-    { part: 'meter', text: `&bar meter("${host.meter}") step=${host.bpm}bpm${host.swing}` },
-    { part: 'key', text: `&key ${host.key}` },
+    { part: 'meter', text: meterLine(host.meter, host.bpm, host.swing) },
+    { part: 'key', text: keyLine(key) },
     // (the section's style over its bars: what the band's instruments read, `&style[bite]`, decision 063 §3)
     ...styleLines(bars[0]!.style, bars.at(-1)!.style, bars[0]!.plan.section.type).map((text) => ({
       part: 'meter' as const,
@@ -925,12 +996,17 @@ export function sectionAsCells(
     const c = chords.findLast((x) => x.step <= at);
     return c ? chordStack(c.numeral) : null;
   };
+  const clave = takenClave(bars, notes, steps);
   const drums = drumLines(
-    notes.filter((n) => n.part === 'drums'),
+    notes.filter((n) => n.part === 'drums' && !(clave && n.role === 'clave')),
     bars.length,
     steps,
     euclid,
   );
+  if (clave) {
+    lines.push({ part: 'drums', text: clave.line });
+    drums.terms.push(clave.term);
+  }
   // (the band's drummer plays the 13 voices of the General MIDI kit it takes, every voice the band strikes: cells'
   // `drums_performer`, yggi/cells#287, #338)
   lines.push(

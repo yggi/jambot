@@ -93,13 +93,13 @@ describe('the heavy runs’ lock', () => {
     const said: string[] = [];
     // The command asks for the lock its parent holds: without the word passed down it would wait for ever.
     const inner = `node --experimental-strip-types --no-warnings ${fileURLToPath(new URL('./heavy.ts', import.meta.url))} sh -c 'exit 4'`;
-    const before = process.env.JAMBOT_HEAVY_LOCK;
-    process.env.JAMBOT_HEAVY_LOCK = path;
+    const before = process.env.MUSIC_HEAVY_LOCK;
+    process.env.MUSIC_HEAVY_LOCK = path;
     try {
       expect(await runHeavy(['sh', '-c', inner], { path, say: (l) => said.push(l) })).toBe(4);
     } finally {
-      if (before === undefined) delete process.env.JAMBOT_HEAVY_LOCK;
-      else process.env.JAMBOT_HEAVY_LOCK = before;
+      if (before === undefined) delete process.env.MUSIC_HEAVY_LOCK;
+      else process.env.MUSIC_HEAVY_LOCK = before;
     }
     expect(said).toEqual([]);
     // Another's lock is still waited for, whatever lock an ancestor holds.
@@ -108,14 +108,14 @@ describe('the heavy runs’ lock', () => {
       path,
       pollMs: 20,
       say: (l) => said.push(l),
-      env: { JAMBOT_HEAVY_HELD: `${path}-another` },
+      env: { MUSIC_HEAVY_HELD: `${path}-another` },
     });
     await new Promise((done) => setTimeout(done, 100));
     expect(said).toHaveLength(1);
     release(path, process.ppid);
     expect(await ran).toBe(5);
     expect(
-      await holding('inner', () => Promise.resolve(6), { path, env: { JAMBOT_HEAVY_HELD: path } }),
+      await holding('inner', () => Promise.resolve(6), { path, env: { MUSIC_HEAVY_HELD: path } }),
     ).toBe(6);
   });
 

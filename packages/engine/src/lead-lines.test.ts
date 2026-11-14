@@ -129,12 +129,6 @@ const FILING: LeadFiling = {
   tags: ['lead line'],
 };
 
-/** Motifs that share another's point, and the one found first there. */
-const SHARED: Readonly<Record<string, string>> = {
-  wail: 'lament',
-  'kinderlied/weinet': 'kinderlied/haenschen',
-};
-
 describe('the lead’s repository (#424)', () => {
   it('holds cells’ motifs as its seeds, each found first at its own point in every meter it fits, a rest after it; the presets’ ten in 4/4 and 5/4, and 3/4 its own (#520, yggi/cells#370)', () => {
     expect(MOTIF_LEADS.map((f) => f.id)).toEqual(MOTIF_FRAGMENTS.map((f) => f.id));
@@ -145,12 +139,8 @@ describe('the lead’s repository (#424)', () => {
       for (const name of Object.keys(METERS) as (keyof typeof METERS)[]) {
         const found = LEAD_REPOSITORY.query(point, at(name), EMPTY_LAYER);
         if (!found.some((f) => f.id === motif.id)) continue;
-        // (two pairs share one point since cells v0.23.0: wail's bite is lament's, .25, and haenschen's weinet's, .7,
-        // where their articulations were .3 and .25, .6 and .7; each is found at distance 0 there, the one found first
-        // named in `SHARED`)
-        const first = SHARED[motif.id] ?? motif.id;
-        expect(found[0], `${motif.id} in ${name}`).toEqual({ id: first, distance: 0, score: 0 });
-        expect(found.find((f) => f.id === motif.id)?.distance, `${motif.id} in ${name}`).toBe(0);
+        // (no two motifs share a point since cells v0.25.1, yggi/cells#674: wail at bite .27, haenschen at .65)
+        expect(found[0], `${motif.id} in ${name}`).toEqual({ id: motif.id, distance: 0, score: 0 });
         fits.set(motif.id, [...(fits.get(motif.id) ?? []), name]);
       }
       expect(fits.get(motif.id)?.length, motif.id).toBeGreaterThan(0);

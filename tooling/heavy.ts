@@ -10,12 +10,13 @@
  *   node tooling/heavy.ts <command> [args...]   run the command under the lock, with its exit code
  *   node tooling/heavy.ts --status              say who holds the lock, if anyone
  *
- * The lock is a directory in the machine's temporary directory, so every
- * checkout and worktree on the machine shares it (`JAMBOT_HEAVY_LOCK` moves
+ * The lock is a directory in the machine's temporary directory, named for the
+ * family (`music-heavy.lock`), so every checkout and worktree on the machine
+ * shares it, cells' and Cell studio's too, whose `tools/heavy.ts` take the same one (`MUSIC_HEAVY_LOCK` moves
  * it). `mkdir` takes it or fails at once, and the holder's process id, command,
  * directory and start go in `holder.json` beside it. A lock whose holder is
  * gone, killed before it could give the lock back, is taken over. A command
- * run under the lock is told so (`JAMBOT_HEAVY_HELD`, the lock's path), and
+ * run under the lock is told so (`MUSIC_HEAVY_HELD`, the lock's path), and
  * what it starts doesn't wait for the lock its parent holds.
  */
 import { spawn } from 'node:child_process';
@@ -41,9 +42,9 @@ export interface Holder {
   since: string;
 }
 
-/** Where the lock lives: `JAMBOT_HEAVY_LOCK`, or `jambot-heavy.lock` in the temporary directory. */
+/** Where the lock lives: `MUSIC_HEAVY_LOCK`, or `music-heavy.lock` in the temporary directory. */
 export function lockPath(env: NodeJS.ProcessEnv = process.env): string {
-  return env.JAMBOT_HEAVY_LOCK ?? join(tmpdir(), 'jambot-heavy.lock');
+  return env.MUSIC_HEAVY_LOCK ?? join(tmpdir(), 'music-heavy.lock');
 }
 
 /** Whether a process with this id is running. */
@@ -137,7 +138,7 @@ export interface Waiting {
 /**
  * Runs `run` once the lock is taken for `command`, polling every `pollMs`, and
  * gives the lock back when it ends. Where an ancestor holds the lock already
- * (`JAMBOT_HEAVY_HELD` names its path), `run` starts at once.
+ * (`MUSIC_HEAVY_HELD` names its path), `run` starts at once.
  */
 export async function holding<T>(
   command: string,
@@ -149,7 +150,7 @@ export async function holding<T>(
     env = process.env,
   }: Waiting = {},
 ): Promise<T> {
-  if (env.JAMBOT_HEAVY_HELD === path) return run();
+  if (env.MUSIC_HEAVY_HELD === path) return run();
   const who: Holder = {
     pid: process.pid,
     command,
@@ -186,7 +187,7 @@ export async function runHeavy(command: readonly string[], waiting: Waiting = {}
       new Promise<number>((done) => {
         const child = spawn(command[0]!, command.slice(1), {
           stdio: 'inherit',
-          env: { ...process.env, JAMBOT_HEAVY_HELD: path },
+          env: { ...process.env, MUSIC_HEAVY_HELD: path },
         });
         const pass = (signal: NodeJS.Signals) => child.kill(signal);
         process.on('SIGINT', pass);

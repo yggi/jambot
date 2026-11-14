@@ -12,7 +12,7 @@ import {
 } from '@jambot/engine';
 import { stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { type CellsNote, performCells } from './perform.ts';
+import { type CellsNote, asCellsGives, performCells } from './perform.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -46,15 +46,22 @@ const bars = [1, 2, 3].flatMap((seed) => tour(seed));
 
 const clamp = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
-/** A written note as a text states it and cells plays it: its line, step, pitch and role, its velocity at feel 0 as MIDI says it, and its sounding length at feel 0. */
-const stated = (env: BarEnv, w: WrittenNote): CellsNote => ({
-  part: w.part,
-  step: w.step,
-  note: w.note,
-  ...(w.role !== undefined && { role: w.role }),
-  velocity: clamp(composedLevel(env, w)),
-  length: baseLengthOf(env, w),
-});
+/**
+ * A written note as a text states it and cells plays it: its line, step, pitch and role, its velocity at feel 0 as MIDI
+ * says it, and its sounding length at feel 0. The tour finds no rhythm, so it plays no ostinato, a role cells' feel
+ * reads none of until yggi/cells#717 (#651).
+ */
+const stated = (env: BarEnv, w: WrittenNote): CellsNote => {
+  if (w.role === 'ostinato') throw new Error('the tour plays no ostinato');
+  return {
+    part: w.part,
+    step: w.step,
+    note: w.note,
+    ...(w.role !== undefined && { role: w.role }),
+    velocity: clamp(composedLevel(env, w)),
+    length: baseLengthOf(env, w),
+  };
+};
 
 describe('cells’ events as the performer plays them (#552)', () => {
   it('plays a note as a text states it as the band’s own performer plays the note written: the same velocity and length, every note of the tour, accented past MIDI’s 1 to 127 too, and every motif’s accent on the lead’s level (#405, #433, decision 037)', () => {
@@ -97,25 +104,6 @@ describe('cells’ events as the performer plays them (#552)', () => {
     expect(loose / notes).toBeGreaterThan(0.5);
   });
 
-  it('plays a fragment’s ostinato as the band’s own performer plays it, a finite velocity, though cells’ feel weighs no such role yet (#651, until yggi/cells#717)', () => {
-    let hits = 0;
-    for (const b of bars.slice(0, 96))
-      for (const step of range(stepsOf(b.meter))) {
-        const w: WrittenNote = { part: 'drums', role: 'ostinato', step, note: 45, length: 1 };
-        const s = stated(b, w);
-        const own = perform(b, w);
-        const played = performCells(b, s);
-        expect(Number.isFinite(played.velocity)).toBe(true);
-        expect([played.velocity, played.length, played.role]).toEqual([
-          own.velocity,
-          own.length,
-          'ostinato',
-        ]);
-        hits++;
-      }
-    expect(hits).toBeGreaterThan(1000);
-  });
-
   it('carries a stated note’s voice sound onto what it plays, in place of nothing else, and none where none is stated (#497)', () => {
     const sound = { wave: 'square', lpf: 2400, bends: [{ at: 0.02, cents: 12 }] } as const;
     for (const b of bars.slice(0, 48))
@@ -125,5 +113,31 @@ describe('cells’ events as the performer plays them (#552)', () => {
         expect(plain).not.toHaveProperty('sound');
         expect(performCells(b, { ...s, sound })).toEqual({ ...plain, sound });
       }
+  });
+
+  it('plays a note none of the feel’s as cells gives it: its velocity and length unmoved, no role, sounded as its channel’s part, where the feel moves most (feel v3, #506)', () => {
+    let notes = 0;
+    let moved = 0;
+    for (const b of bars.slice(0, 48))
+      for (const w of b.written) {
+        const s = stated(b, w);
+        // (a role it is given is dropped: the note is none of the feel's)
+        const { part, ...given } = s;
+        const sent = part === 'pad' || part === 'stab' ? 'comp' : part;
+        const asGiven = asCellsGives(b, sent, given);
+        expect(asGiven).toMatchObject({
+          velocity: s.velocity,
+          length: s.length,
+          gain: s.velocity / 127,
+          part: part === 'stab' ? 'pad' : part,
+        });
+        expect(asGiven).not.toHaveProperty('role');
+        const felt = performCells(b, s);
+        if (felt.velocity !== s.velocity || felt.length !== s.length) moved++;
+        notes++;
+      }
+    expect(notes).toBeGreaterThan(1_000);
+    // (shown firing: the feel would have moved most of them)
+    expect(moved / notes).toBeGreaterThan(0.5);
   });
 });

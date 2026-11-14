@@ -36,7 +36,7 @@ const mean = (xs: readonly number[]) =>
   xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
 
 const LANDMARK_SEEDS = [11, 12, 13, 14, 15];
-const AXES = ['density', 'sync', 'artic', 'harm'] as const;
+const AXES = ['density', 'sync', 'bite', 'harm'] as const;
 
 /** One composed bar: its voices read, and whether the drummer fills in it. */
 export interface VoiceBar {

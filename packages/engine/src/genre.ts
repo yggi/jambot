@@ -6,10 +6,12 @@
  * to every preset's point, turned into probabilities by a softmax over the
  * distances. The temperature is one more place entropy may act.
  *
- * A reading covers `sync`, `artic` and the density, which `energyOf` puts on
- * the energy axis (`readStyle`), and the `bpm` of the clock (`readTiming`),
- * and `harm` from the chords (`readHarm`); it lacks `entropy`. Swing is the
- * meter's, not a point in style space (#360), so no genre is read from it. So a distance is taken over
+ * A reading covers `sync`, `bite` (the style's `artic`) and the density,
+ * which `energyOf` puts on the energy axis (`readStyle`), the `bpm` of the
+ * clock (`readTiming`), `harm` from the chords (`readHarm`), and `mood` where
+ * it has one (cells' `readPoint` reads it from a span of bars, the mode the
+ * notes fit); it lacks `entropy`. Swing is the meter's, not a point in style
+ * space (#360), so no genre is read from it. So a distance is taken over
  * the axes the reading has, as a root mean square, and a reading with none
  * is at the same distance (0) from every genre.
  *
@@ -45,16 +47,17 @@ export function energyOf(density: number): number {
   return Math.min(1, Math.max(0, (density - DENSITY_AT_MIN) / (DENSITY_AT_MAX - DENSITY_AT_MIN)));
 }
 
-/** A reading on the style space's axes: the ones it has. */
+/** A reading on the style space's axes: the ones it has, its `bite` on the style's `artic` (`CELLS_AXIS`). */
 export function readingAxes(
-  reading: StyleReading & TimingReading & { readonly harm?: number },
+  reading: StyleReading & TimingReading & { readonly harm?: number; readonly mood?: number },
 ): ReadAxes {
   return {
     energy: energyOf(reading.density),
     ...(reading.harm === undefined ? {} : { harm: reading.harm }),
     ...(reading.bpm === undefined ? {} : { bpm: bpmUnit(reading.bpm) }),
     ...(reading.sync === undefined ? {} : { sync: reading.sync }),
-    ...(reading.artic === undefined ? {} : { artic: reading.artic }),
+    ...(reading.bite === undefined ? {} : { artic: reading.bite }),
+    ...(reading.mood === undefined ? {} : { mood: reading.mood }),
   };
 }
 
@@ -76,7 +79,7 @@ export interface Genre {
 /** A named point on the axes a reading has. */
 export interface Landmark {
   readonly name: string;
-  /** The tempo is on its unit scale (`bpmUnit`); mood where the landmark has one, which no reading has yet (yggi/cells#541). */
+  /** The tempo is on its unit scale (`bpmUnit`); mood where the landmark has one, as a reading has where cells' `readPoint` read one (yggi/cells#541). */
   readonly at: Readonly<Record<Exclude<StyleAxisName, 'mood'> | 'energy' | 'bpm', number>> & {
     readonly mood?: number;
   };

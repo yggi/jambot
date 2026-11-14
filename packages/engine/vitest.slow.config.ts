@@ -9,9 +9,10 @@ export default defineProject({
     name: 'engine-slow',
     include: slowTests,
     exclude: [],
-    // The slowest hook is E45's (`homeostat.test.ts`): its file takes 392 s beside three others (2026-11-13), and
-    // 614 s alone on a slower machine (2026-11-11, #666). An hour is about six times that, the timeout of a hook that
-    // hangs; the tests after it take the engine's 60 s.
+    // The slowest hook is E42's (`lead-loop.test.ts`): its file takes 191 s beside three others (2026-11-13) and
+    // about 160 s alone (2026-11-14). An hour is about twenty times that, the timeout of a hook that hangs on a
+    // slower machine (E45's took 614 s alone on one before it left the tier, #666); the tests after it take the
+    // engine's 60 s.
     hookTimeout: 3_600_000,
   },
 });

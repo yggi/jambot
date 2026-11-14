@@ -163,7 +163,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
 
   it('reads Salsa’s tumbao, which writes no `role=` and strikes the toms alone, as an ostinato, beside its clave and its cáscara (#651, until yggi/cells#717)', () => {
     const salsa = RHYTHM_FRAGMENTS.find((f) => f.id === 'salsa_drums')!;
-    // (cells v0.25.0: the line writes no role, so its sounds give it)
+    // (cells v0.25.1: the line writes no role, so its sounds give it)
     expect(salsa.text).toMatch(/^&tumbao step=8n /m);
     const read = readRhythm(salsa.text, METERS['4/4'])!;
     const { lowTom, midTom, highTom } = TOM_NOTES;
