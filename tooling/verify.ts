@@ -15,7 +15,8 @@
  * counts `review-pr` reports, and the summary line names how many passed.
  *
  * A checkout with no `node_modules`, as a git worktree an agent opens, is
- * installed first (`plan`). A tree that passed is remembered where the
+ * installed first (`plan`), and so is one whose install is not what the
+ * lockfile says (`installOf`). A tree that passed is remembered where the
  * pre-push hook (`.githooks/pre-push`) keeps its own, so a push right after a
  * verify by hand doesn't run it again (`workingTree`, `remember`). The tree is
  * that of every file verify saw, untracked ones too, so a commit that leaves
@@ -73,7 +74,22 @@ export const DOCS_GROUPS: Stage[][] = [
 /** What a checkout without `node_modules` runs before anything else. */
 export const INSTALL: Stage = { name: 'install', command: 'pnpm install --frozen-lockfile' };
 
-/** The groups to run: `groups`, after an install when nothing is installed. */
+/**
+ * What a checkout has installed: `none` without `node_modules`, `stale` where the lockfile pnpm installed from
+ * (its copy, `node_modules/.pnpm/lock.yaml`) is not the checkout's `pnpm-lock.yaml`, as after `main` moved a pin
+ * under a checkout that stayed open, and `current` otherwise. A stale install fails tests with nothing wrong in the
+ * code: an experiment's numbers read off the older cells.
+ */
+export function installOf(root: string): 'none' | 'stale' | 'current' {
+  if (!existsSync(join(root, 'node_modules'))) return 'none';
+  const read = (path: string) => (existsSync(path) ? readFileSync(path, 'utf8') : undefined);
+  const wanted = read(join(root, 'pnpm-lock.yaml'));
+  return wanted !== undefined && wanted === read(join(root, 'node_modules/.pnpm/lock.yaml'))
+    ? 'current'
+    : 'stale';
+}
+
+/** The groups to run: `groups`, after an install when nothing is installed, or not what the lockfile says. */
 export function plan(installed: boolean, groups: Stage[][] = GROUPS): Stage[][] {
   return installed ? groups : [[INSTALL], ...groups];
 }
@@ -213,10 +229,13 @@ export function remember(dir: string, tree: string, tests?: number): void {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = fileURLToPath(new URL('..', import.meta.url));
-  const installed = existsSync(join(root, 'node_modules'));
+  const install = installOf(root);
+  const installed = install === 'current';
   if (!installed)
     console.log(
-      'verify: no node_modules in this checkout (a git worktree starts with none), so pnpm install --frozen-lockfile runs first',
+      install === 'none'
+        ? 'verify: no node_modules in this checkout (a git worktree starts with none), so pnpm install --frozen-lockfile runs first'
+        : 'verify: node_modules is not what pnpm-lock.yaml says (the lockfile moved since the install), so pnpm install --frozen-lockfile runs first',
     );
   const docs = process.argv.includes('--docs');
   const groups = plan(installed, docs ? DOCS_GROUPS : GROUPS);
