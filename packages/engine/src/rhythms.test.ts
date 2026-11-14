@@ -6,7 +6,16 @@ import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
 import { CLAVES_NOTE, DRUM_NOTES } from './drums.ts';
 import { DRUM_ROLES } from './events.ts';
-import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
+import {
+  EMPTY_LAYER,
+  HASH,
+  type LearnedLayer,
+  ON,
+  cappedLayer,
+  isReference,
+  layerBytes,
+  storedLayer,
+} from './layer.ts';
 import { stylePoint } from './meter-query.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import { composedRhythm, isOwnLine } from './rhythm-query.ts';
@@ -577,5 +586,74 @@ describe('a groove the layer’s cap dropped (#424)', () => {
     );
     // (and one it holds is learned as used)
     expect(repository.used!(filed.layer, [filed.id], point)).not.toEqual(filed.layer);
+  });
+});
+
+describe('a groove variation stored by reference (#553 item 2, the owner’s choice C)', () => {
+  const repository = rhythmRepository();
+  const bench = { meter: METERS['4/4'] };
+  const point = { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 };
+  /** The layer with `varies` varied by the variation a draw takes, filed as the composer files one. */
+  const filedVariation = (layer: LearnedLayer, varies: string, draw: number) => {
+    const variation = repository.vary!(varies, bench, draw, layer);
+    if (!variation) return null;
+    const { by, ...content } = variation;
+    return repository.file!(layer, {
+      ...content,
+      bench,
+      point,
+      source: 'composer',
+      created: 'song 1, bar 8',
+      tags: [],
+      varies,
+      by,
+    });
+  };
+
+  it('stores every variation of every seed drum bar it can rebuild without its text, and reads each back as filed', () => {
+    let marked = 0;
+    let all = 0;
+    for (const { id } of RHYTHM_FRAGMENTS.filter((f) =>
+      f.association.some((p) => p.facet === 'rhythm'),
+    ))
+      for (const draw of [0, 0.25, 0.5, 0.75]) {
+        const filed = filedVariation(EMPTY_LAYER, id, draw);
+        if (!filed || filed.held) continue;
+        all++;
+        const entry = filed.layer.filed.find((f) => f.fragment.id === filed.id)!;
+        if (!isReference(entry)) continue;
+        marked++;
+        expect(entry.meta).toMatchObject({ [ON]: '4/4', varies: id });
+        const stored = storedLayer(filed.layer);
+        expect(stored.filed.find((f) => f.fragment.id === filed.id)!.fragment.text).toBe('');
+        expect(layerBytes(filed.layer)).toBeLessThan(JSON.stringify(filed.layer).length);
+        expect(repository.restored!(stored), `${id} ${draw}`).toEqual(filed.layer);
+      }
+    expect(all).toBeGreaterThan(40);
+    expect(marked).toBe(all);
+  });
+
+  it('drops a reference rebuilt to another text than its hash says, and keeps a layer with none as it is', () => {
+    const filed = filedVariation(EMPTY_LAYER, 'funk_drums', 0)!;
+    const tampered = {
+      ...filed.layer,
+      filed: filed.layer.filed.map((f) => ({
+        ...f,
+        meta: { ...f.meta, [HASH]: 'e1:0000000000000000' },
+      })),
+    };
+    expect(repository.restored!(storedLayer(tampered)).filed).toEqual([]);
+    expect(repository.restored!(EMPTY_LAYER)).toBe(EMPTY_LAYER);
+  });
+
+  it('never drops a source a reference still needs: the cap drops the oldest that none needs', () => {
+    // (a variation filed, then a variation of it: the first is the oldest filed, and the second needs it)
+    const groove = filedVariation(EMPTY_LAYER, 'funk_drums', 0)!;
+    const varied = filedVariation(groove.layer, groove.id, 0.5)!;
+    expect(varied.layer.filed.map((f) => f.meta.varies)).toEqual(['funk_drums', groove.id]);
+    expect(varied.layer.filed.every(isReference)).toBe(true);
+    const capped = cappedLayer(varied.layer, layerBytes(varied.layer) - 1);
+    expect(capped.filed.map((f) => f.fragment.id)).toEqual([groove.id]);
+    expect(repository.restored!(storedLayer(capped))).toEqual(capped);
   });
 });

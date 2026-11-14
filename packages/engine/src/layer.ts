@@ -14,11 +14,21 @@
  * Past `LAYER_CAP` bytes of JSON, the oldest of what it learned goes first
  * (`cappedLayer`): its points, then its counts of use together, then its
  * filed fragments, each list oldest first, as each grows at its end.
+ *
+ * **A groove variation is stored by reference** (#553 item 2, the owner's
+ * choice C): the composer's variation of a groove records what it varies and
+ * how (`varies`, `by`), and where those and the bench it was varied on
+ * rebuild its text exactly (`RhythmRepository.file` checks, and marks it
+ * `on` its bench with its text's `hash`), the layer is kept without its text
+ * (`storedLayer`), weighed so (`layerBytes`), and rebuilt as it is read
+ * (`RhythmRepository.restored`). The cap never drops a source a reference
+ * still needs: it drops the oldest that none needs.
  */
 
 import type { FragmentFile } from '@yggi/cells/repository/files';
 import { writeFragment } from '@yggi/cells/repository/files';
 import type { LearnedLayer, Repository } from '@yggi/cells/repository/fragments';
+import { BY, VARIES } from './novelty.ts';
 
 export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments';
 
@@ -56,13 +66,44 @@ function utf8Bytes(text: string): number {
   return bytes;
 }
 
-/** What a layer weighs: the bytes of its JSON, as a host keeps it. */
-export const layerBytes = (layer: LearnedLayer): number => utf8Bytes(JSON.stringify(layer));
+/**
+ * The meta key of a variation stored by reference: the bench it was varied on, its meter's name and the meter fragment
+ * where it had one (`4/4`, `4/4 meter(swing=16n:.6)`), on which its source varied by its `by` rebuilds its text.
+ */
+export const ON = 'on';
+
+/** The meta key of the hash of a reference's text (cells' `fragmentHash`): a text rebuilt otherwise is not taken. */
+export const HASH = 'hash';
+
+type Filed = LearnedLayer['filed'][number];
+
+/** Whether a filed fragment is a variation stored by reference: marked on its bench, with what it varies, how, and its hash. */
+export const isReference = ({ meta }: Filed): boolean =>
+  typeof meta[ON] === 'string' &&
+  typeof meta[VARIES] === 'string' &&
+  typeof meta[BY] === 'string' &&
+  typeof meta[HASH] === 'string';
+
+/** The layer as a host keeps it: each variation stored by reference without its text. */
+export const storedLayer = (layer: LearnedLayer): LearnedLayer =>
+  layer.filed.some(isReference)
+    ? {
+        ...layer,
+        filed: layer.filed.map((f) =>
+          isReference(f) ? { ...f, fragment: { ...f.fragment, text: '' } } : f,
+        ),
+      }
+    : layer;
+
+/** What a layer weighs: the bytes of its JSON as a host keeps it (`storedLayer`). */
+export const layerBytes = (layer: LearnedLayer): number =>
+  utf8Bytes(JSON.stringify(storedLayer(layer)));
 
 /**
  * The layer within `cap` bytes: the same layer where it is, else with the
  * oldest of its points dropped first, then of its pairs, then of its filed
- * fragments, until it is.
+ * fragments, until it is: the oldest that no reference left still varies, so
+ * the cap never drops a source a reference needs (its text would have nothing to be rebuilt from).
  */
 export function cappedLayer(layer: LearnedLayer, cap: number = LAYER_CAP): LearnedLayer {
   if (layerBytes(layer) <= cap) return layer;
@@ -70,7 +111,12 @@ export function cappedLayer(layer: LearnedLayer, cap: number = LAYER_CAP): Learn
   const weight = () => layerBytes({ filed, points, together });
   while (points.length > 0 && weight() > cap) points = points.slice(1);
   while (together.length > 0 && weight() > cap) together = together.slice(1);
-  while (filed.length > 0 && weight() > cap) filed = filed.slice(1);
+  while (filed.length > 0 && weight() > cap) {
+    const needed = new Set(filed.filter(isReference).map((f) => f.meta[VARIES]));
+    // (a reference is never needed by an older one, so the newest is always free to go)
+    const oldest = filed.findIndex((f) => !needed.has(f.fragment.id));
+    filed = filed.filter((_, i) => i !== oldest);
+  }
   return { filed, points, together };
 }
 

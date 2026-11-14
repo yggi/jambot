@@ -45,7 +45,7 @@ import { setTiming } from '@yggi/cells/engine/edit';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { cachedFit } from '@yggi/cells/repository/fit';
 import { resolveSeed } from '@yggi/cells/repository/library';
-import { hasFrom } from '@yggi/cells/engine/use';
+import { fragmentHash, hasFrom } from '@yggi/cells/engine/use';
 import { collides, unionOn } from './taken.ts';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
 import { holesOf } from '@yggi/cells/repository/holes';
@@ -54,11 +54,11 @@ import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
 import { DRUM_ROLES, sameMeter } from './events.ts';
-import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
+import { HASH, type LearnedLayer, ON, cappedLayer, isReference, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
 import { GROOVE_FEWEST, grooveText, roleOfSound } from './muse-groove.ts';
-import { BY, GROOVE_KEEP } from './novelty.ts';
+import { BY, GROOVE_KEEP, VARIES } from './novelty.ts';
 import {
   type FragmentHit,
   type FragmentRead,
@@ -263,6 +263,23 @@ export function heldRhythms(fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): 
   return [...held];
 }
 
+/** A bench as a variation stored by reference names it (`ON`): its meter's name, then its meter fragment where it has one. */
+const onOf = (bench: RhythmBench): string | null => {
+  const name = nameOf(bench.meter);
+  return name === null
+    ? null
+    : [name, ...(bench.meterFragment === undefined ? [] : [bench.meterFragment])].join(' ');
+};
+
+/** The bench a variation stored by reference names (`onOf`), or null for a meter cells has no name for. */
+function benchFrom(on: string): RhythmBench | null {
+  const space = on.indexOf(' ');
+  const name = (space < 0 ? on : on.slice(0, space)) as MeterName;
+  const meter = METERS[name];
+  if (!meter) return null;
+  return space < 0 ? { meter } : { meter, meterFragment: on.slice(space + 1) };
+}
+
 /** A repository of these rhythms, ranked by cells' query on the facet `rhythm`, filtered by the fit and read by `read` (cells', unless a test counts them). */
 export function rhythmRepository(
   fragments: readonly Fragment[] = RHYTHM_FRAGMENTS,
@@ -366,6 +383,27 @@ export function rhythmRepository(
       );
     return varied.get(key)!;
   };
+  // A rhythm's hits with one line varied as `variation` rewrites it: only that line read back from its text, over the
+  // rhythm's lap (one compile), the rest as the rhythm plays them.
+  const variedHits = (text: string, variation: Variation, whole: FragmentRead, meter: Meter) => {
+    const name = variation.line.slice(1);
+    const line = readLines(variation.apply(text), meter, whole.bars, name);
+    if (line === null) return null;
+    return played({
+      bars: whole.bars,
+      hits: inOrder([...whole.hits.filter((h) => (h.line ?? h.role) !== name), ...line.hits]),
+    }).hits;
+  };
+  // The text of a rhythm varied by the variation cells names `by` on a bench, as the composer files it: what a variation
+  // stored by reference is rebuilt from, or null where the rhythm has no such variation there.
+  const rebuilt = (text: string, by: string, bench: RhythmBench): string | null => {
+    const workbench = benchOf(bench);
+    const whole = readText(text, bench.meter);
+    if (workbench === null || whole === null) return null;
+    const variation = variationsOn(text, workbench).find((v) => v.by === by);
+    const hits = variation && variedHits(text, variation, whole, bench.meter);
+    return hits ? grooveText(hits, stepsOf(bench.meter)) : null;
+  };
   return {
     query(point, bench, layer, chosen = [], reach = Infinity, pull) {
       const workbench = benchOf(bench);
@@ -398,6 +436,12 @@ export function rhythmRepository(
       ),
     file(layer, { hits, bench, point, source, created, tags, varies, by }) {
       const text = grooveText(hits, stepsOf(bench.meter));
+      // (a variation whose source and `by` rebuild its text exactly on its bench is stored by reference: #553 item 2)
+      const variedText = varies === undefined ? undefined : textOf(varies, layer);
+      const on =
+        variedText !== undefined && by !== undefined && rebuilt(variedText, by, bench) === text
+          ? onOf(bench)
+          : null;
       const filed = fileFragment(cells, layer, {
         text,
         point,
@@ -408,6 +452,7 @@ export function rhythmRepository(
           tags: [...tags],
           ...(varies === undefined ? {} : { varies }),
           ...(by === undefined ? {} : { [BY]: by }),
+          ...(on === null ? {} : { [ON]: on, [HASH]: fragmentHash(text) }),
         },
       });
       // (filing is its use at the point; beside the meter fragment it was played in, a use together)
@@ -438,16 +483,27 @@ export function rhythmRepository(
       if (!all.length) return null;
       // (a variation rewrites one line, so only that line is read back from its text, over the rhythm's lap: one compile)
       const variation = all[drawn(draw, all.length)]!;
-      const name = variation.line.slice(1);
-      const line = readLines(variation.apply(text), bench.meter, whole.bars, name);
-      if (line === null) return null;
-      return {
-        hits: played({
-          bars: whole.bars,
-          hits: inOrder([...whole.hits.filter((h) => (h.line ?? h.role) !== name), ...line.hits]),
-        }).hits,
-        by: variation.by,
-      };
+      const hits = variedHits(text, variation, whole, bench.meter);
+      return hits && { hits, by: variation.by };
+    },
+    restored(layer) {
+      if (!layer.filed.some(isReference)) return layer;
+      let filed: LearnedLayer['filed'] = [];
+      for (const f of layer.filed) {
+        if (!isReference(f) || f.fragment.text !== '') {
+          filed = [...filed, f];
+          continue;
+        }
+        const source = textOf(String(f.meta[VARIES]), { ...layer, filed });
+        const bench = benchFrom(String(f.meta[ON]));
+        const text =
+          source === undefined || bench === null
+            ? null
+            : rebuilt(source, String(f.meta[BY]), bench);
+        if (text !== null && fragmentHash(text) === f.meta[HASH])
+          filed = [...filed, { ...f, fragment: { ...f.fragment, text } }];
+      }
+      return { ...layer, filed };
     },
     *warm(benches, layer) {
       // (cells' rhythms, and the grooves the layer filed, newest first; a rhythm warmed on a workbench takes no step again)

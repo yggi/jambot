@@ -123,6 +123,12 @@ export interface RhythmRepository extends FacetRepository<FragmentRead, GrooveCo
     more?: readonly string[],
     pull?: number,
   ): readonly FoundRhythm[];
+  /**
+   * The layer as kept (`storedLayer`) with each variation stored by reference rebuilt (#553 item 2): its source, filed
+   * before it or a seed, varied by its `by` on its bench (`ON`), as the composer varied it; one rebuilt to another text
+   * than its hash says (cells' variations moved since it was kept) is dropped. A layer with none is itself.
+   */
+  restored?(layer: LearnedLayer): LearnedLayer;
   /** The composer's margins, where they are other than `RHYTHM_MISS`, `RHYTHM_HOLD` and `LAYER_DISTANCE`: an experiment tries others. */
   readonly margins?: { readonly miss: number; readonly hold: number; readonly layer: number };
 }

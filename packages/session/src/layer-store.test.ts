@@ -1,4 +1,10 @@
-import { EMPTY_LAYER, type LearnedLayer, RETIRED_LEAD_VOICE, leadRepository } from '@jambot/engine';
+import {
+  EMPTY_LAYER,
+  type LearnedLayer,
+  RETIRED_LEAD_VOICE,
+  RHYTHM_REPOSITORY,
+  leadRepository,
+} from '@jambot/engine';
 import { METERS } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
@@ -55,6 +61,33 @@ describe('the learned layer a host keeps (#398)', () => {
     await again.store.save(loaded);
     expect(again.kept.text).toBe(written);
     expect(again.warnings).toEqual([]);
+  });
+
+  it('keeps a groove variation by reference, without its text, and reads it back rebuilt, byte for byte (#553 item 2)', async () => {
+    const bench = { meter: METERS['4/4'] };
+    const variation = RHYTHM_REPOSITORY.vary!('funk_drums', bench, 0)!;
+    const { by, ...content } = variation;
+    const { layer, id } = RHYTHM_REPOSITORY.file!(EMPTY_LAYER, {
+      ...content,
+      bench,
+      point: { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 },
+      source: 'composer',
+      created: 'song 1, bar 8',
+      tags: [],
+      varies: 'funk_drums',
+      by,
+    });
+    const text = layerText(layer);
+    const filed = layer.filed.find((f) => f.fragment.id === id)!;
+    expect(text).not.toContain(JSON.stringify(filed.fragment.text));
+    expect(JSON.parse(text).version).toBe(2);
+    const read = readLayerText(text);
+    expect(read).toEqual({ layer, problem: null });
+    expect(layerText(read.layer)).toBe(text);
+    // (a record of version 1, every text written, reads as it did)
+    expect(
+      readLayerText(JSON.stringify({ format: LAYER_FORMAT, version: 1, layer })).layer,
+    ).toEqual(layer);
   });
 
   it('reads a layer kept at cells v0.15.0, which names the seed ids before they were words, as the same layer in words (#558)', () => {
@@ -145,8 +178,8 @@ describe('the learned layer a host keeps (#398)', () => {
     ],
     [
       'an unknown version',
-      JSON.stringify({ format: LAYER_FORMAT, version: 2, layer: EMPTY_LAYER }),
-      'its version, 2, is not 1',
+      JSON.stringify({ format: LAYER_FORMAT, version: 3, layer: EMPTY_LAYER }),
+      'its version, 3, is not 1 or 2',
     ],
     [
       'a malformed layer',
