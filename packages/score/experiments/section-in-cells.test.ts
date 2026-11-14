@@ -107,8 +107,11 @@ describe('the band writes a whole section as one cells text, every part, the lea
       // (what the section offers the band, its harmony and its key: yggi/cells decision 075, #609)
       const [offer, ...lines] = text.split('\n');
       expect(offer).toBe('&harm, &key from');
-      expect(lines[0]).toMatch(/^&bar meter\("4\/4"\) step=\d+bpm( swing=(8n|16n):[\d./]+)?$/);
-      expect(lines[1]).toMatch(/^&key scale\((aeolian|dorian|ionian|mixolydian), [A-G][b#]?\)$/);
+      // (each taken by its `from` line, the meter from cells' template and the key from its mode fragment: #531)
+      expect(lines[0]).toMatch(/^&bar from meter(\(swing=(8n|16n):[\d./]+\))? \d+bpm$/);
+      expect(lines[1]).toMatch(
+        /^&key from diatonic\(mode=(aeolian|dorian|ionian|mixolydian)\) [A-G][b#]?$/,
+      );
       // (the section's style, where its first bar sits: cells v0.15.0's instruments read it, decision 063 §3)
       // (named by its preset's id in cells' library where it sits on one, #596: every section here is held at a preset)
       expect(lines[2]).toMatch(/^&(\w+) from styles$/);
@@ -124,7 +127,8 @@ describe('the band writes a whole section as one cells text, every part, the lea
         expect(line).not.toMatch(/step=(?!(16n|2n|1m)( |$))/);
         expect(line).not.toMatch(/over=(?!(&key|&harm|&melo)( |$))/);
       }
-      expect(lines.filter((l) => /scale\(/.test(l))).toHaveLength(1);
+      // (one key: the one taken from its mode fragment)
+      expect(lines.filter((l) => /scale\(|diatonic\(/.test(l))).toHaveLength(1);
     }
   });
 
@@ -214,12 +218,12 @@ describe('the band writes a whole section as one cells text, every part, the lea
   // (since cells v0.24.0 each drum line writes its role, `role=kick`, decision 075; since v0.25.0 each pitched line says
   // its part, `part=bass`, yggi/cells#708; since #531 the section is a score: no performer, voice or card, the parts
   // passed to the band, `* from band(…)`, and each level the shortest decimal cells strikes at its velocity, `scoreLevel`)
-  it('states the host’s lines and the harmony once a section: 2,529 characters a section, 2,262 without the lead, against E33’s 7,792 for the same 8 bars, 71 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,535 characters a section, 2,267 without the lead, against E33’s 7,792 for the same 8 bars, 71 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 161854,
-      meter: 6096,
-      key: 1436,
+      total: 162214,
+      meter: 5688,
+      key: 2204,
       harmony: 8285,
       drums: 67280,
       bass: 24243,
@@ -242,21 +246,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2529);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2262);
+    expect(Math.round(e35.total / 64)).toBe(2535);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2267);
     expect(Math.round(e33.total / 64)).toBe(7792);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(71);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [20182, 18035],
-      Techno: [19842, 17359],
-      'Deep house': [23427, 20900],
-      Ambient: [12917, 11742],
-      'Lo-fi hip hop': [21587, 19255],
-      Funk: [23125, 21299],
-      'Bossa nova': [22244, 20132],
-      'Swing jazz': [18530, 16035],
+      'Synth-pop': [20222, 18075],
+      Techno: [19882, 17399],
+      'Deep house': [23475, 20948],
+      Ambient: [12965, 11790],
+      'Lo-fi hip hop': [21635, 19303],
+      Funk: [23173, 21347],
+      'Bossa nova': [22284, 20172],
+      'Swing jazz': [18578, 16083],
     });
   });
 
@@ -276,12 +280,9 @@ describe('the band writes a whole section as one cells text, every part, the lea
         .written,
     ).toEqual(['bass']);
     // The parts are open on the host's key: a key moved moves every pitched part, and the drums stay.
-    expect(differs('Synth-pop', 2, /scale\(aeolian, A\)/, 'scale(aeolian, B)').written).toEqual([
-      'bass',
-      'comp',
-      'harmony',
-      'lead',
-    ]);
+    expect(
+      differs('Synth-pop', 2, /diatonic\(mode=aeolian\) A$/m, 'diatonic(mode=aeolian) B').written,
+    ).toEqual(['bass', 'comp', 'harmony', 'lead']);
     // A share is how long a note sounds, not how long it is held: the written layer stays.
     expect(differs('Synth-pop', 2, /legato=\.6375/, 'legato=.7')).toEqual({
       written: [],
@@ -291,7 +292,10 @@ describe('the band writes a whole section as one cells text, every part, the lea
     expect(farthest('Synth-pop', (t) => t)).toBeLessThan(1e-11);
     expect(
       farthest('Synth-pop', (t) =>
-        t.replace(/step=([\d.]+)bpm/, (_, bpm) => `step=${Number(bpm) + 0.01}bpm`),
+        t.replace(
+          /^(&bar from .* )([\d.]+)bpm$/m,
+          (_, line, bpm) => `${line}${Number(bpm) + 0.01}bpm`,
+        ),
       ),
     ).toBeGreaterThan(0.001);
   });
