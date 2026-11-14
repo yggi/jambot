@@ -57,8 +57,9 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     const { playing, mostUsed, share } = mostUsedLead(LEARNED);
     // (8,459 and 2,631 before cells v0.24.0, whose meters and motifs are placed at its new styles' points too; 8,408 and
     // 2,622 before 2/4 and 2/2 were among the band's meters, #652, where 250 sections now play 2/4, which lasts half a
-    // 4/4, and none plays 2/2; 2,601 before a line heard that is a seed's was that seed, #553)
-    expect([playing, mostUsed]).toEqual([8533, 2646]);
+    // 4/4, and none plays 2/2; 2,601 before a line heard that is a seed's was that seed, #553; 2,646 before the Muse
+    // knew a player's line she had filed when it came again, and the next section played it back, #547 rung 6)
+    expect([playing, mostUsed]).toEqual([8533, 1854]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -69,8 +70,9 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     // (−21.41 and 1.82 before cells v0.24.0; −20.61 and 1.86 before v0.25.0; −20.55 and 1.85 before 2/4 and 2/2 were
     // among the band's meters on top of v0.25.0, #652; −21.82 and 1.98 before cells v0.25.1, whose `wail`, `haenschen`
     // and `question` stand apart and off the centre, yggi/cells#674 and #540; −21.44 and 1.97 before a line heard that is
-    // a seed's was that seed, #553)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-20.73', '1.95']);
+    // a seed's was that seed, #553; −20.73 and 1.95 before a player's line played again came back in the next section,
+    // #547 rung 6)
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-41.92', '1.43']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
@@ -80,9 +82,10 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
       // cells v0.24.0, over its 8,459 sections; 379 and 1,721 before v0.25.0; 380, 181 and 1,720 before 2/4 and 2/2
       // were among the band's meters on top of v0.25.0, #652, over its 8,408; 183 variations before cells v0.25.1's
       // motifs placed apart, yggi/cells#674 and #540; 390, 185 and 1,715 before a line heard that is a seed's was a use of
-      // that seed, #553: 48 of the player's lines are a motif's, note for note)
-      342,
-      0, 177, 1763,
+      // that seed, #553: 48 of the player's lines are a motif's, note for note; 342, 177 and 1,763 before the Muse knew a
+      // player's line she had filed when it came again, #547 rung 6: a line played again is no longer filed, held)
+      332,
+      0, 214, 258,
     ]);
     // (each still in its run's last layer: from cells v0.23.0, whose walk files more grooves, one run's hour reached the
     // layer's cap and dropped one of the lines it filed, until the layer kept its groove variations by reference, #553)
@@ -101,7 +104,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     expect(dropped).toBe(0);
   });
 
-  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 72 sections of 5,374`, () => {
+  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 65 sections of 5,366`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThanOrEqual(LAYER_CAP);
     // (15,994, 85 and 5,265 before cells v0.24.0; 15,978, 28 and 5,387 before cells v0.23.0, whose walk files more
@@ -109,11 +112,13 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     // #562; 15,991 before v0.25.0; 15,995 and 94 before 2/4 and 2/2 were among the band's meters on top of v0.25.0,
     // #652, where 120 sections now play 2/4, which lasts half a 4/4; 99 dropped before cells v0.25.1's motifs placed
     // apart, yggi/cells#674 and #540; 15,991 and 102 over 5,346 sections before the layer kept its groove variations by
-    // reference and a line heard that is a seed's was that seed, #553)
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15984, 72]);
+    // reference and a line heard that is a seed's was that seed, #553; 15,984 and 72 before a player's line played
+    // again came back in the next section, #547 rung 6)
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15980, 65]);
     // (5,281 before cells v0.25.0; 5,283 before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652; 5,345
-    // before cells v0.25.1, whose swung sixteenths near Acid's point move the walk's meters, yggi/cells#540)
-    expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5374);
+    // before cells v0.25.1, whose swung sixteenths near Acid's point move the walk's meters, yggi/cells#540; 5,374 before a
+    // player's line played again came back in the next section, #547 rung 6)
+    expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5366);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);
   });
 });

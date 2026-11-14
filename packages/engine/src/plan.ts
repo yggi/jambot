@@ -68,7 +68,9 @@ import {
 } from './meter-query.ts';
 import { BASS_FACET, type LineNote, type LineRepository, composedLine } from './bass-query.ts';
 import { LEAD_FACET, type LeadRepository, composedLead } from './lead-query.ts';
-import { type LeadBar, distilledLead } from './muse-lead.ts';
+import { type LeadBar, SOLOIST, distilledLead } from './muse-lead.ts';
+import { knownLead } from './recognised.ts';
+import { leadText } from './lead-lines.ts';
 import { nameOf } from './line-repository.ts';
 import {
   HARMONY_FACET,
@@ -540,23 +542,57 @@ export function museFiledLeads(
   layer: LearnedLayer,
   before: Plan,
   point: StylePoint,
-): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
-  return filedHeard(
+): {
+  readonly layer: LearnedLayer;
+  readonly ids: readonly string[];
+  /** The motifs the Muse knew a source's line as (#547 rung 6), which she filed nothing for. */
+  readonly known: readonly string[];
+} {
+  const steps = stepsOf(before.meter);
+  const bench = { meter: before.meter, meterFragment: before.meterFragment };
+  const distil = (bars: readonly LeadBar[]) => {
+    const inBar = bars.map((b) => ({ ...b, notes: b.notes.filter((n) => n.step < steps) }));
+    // (a run that is a form over the seed's motifs is filed as it, #580 rung 4)
+    const line = distilledLead(inBar, steps, nameOf(before.meter) ?? undefined);
+    return line?.notes.length
+      ? { notes: line.notes, ...(line.text ? { text: line.text } : {}) }
+      : null;
+  };
+  // (a player's line that is a motif the lead plays, exactly, is known as it: the Muse files its use where it was heard,
+  // not a line of the player's own, and the next section plays it, #547 rung 6)
+  const known: string[] = [];
+  const unknown = (given.leadHeard ?? []).filter(({ source, bars }) => {
+    // (the lead's own bars are the band's, never a player's wish: filed as they were, a motif of cells' as its use)
+    if (source === SOLOIST) return true;
+    const line = distil(bars);
+    if (!line || line.text !== undefined) return true;
+    const id = knownLead(leadText(line.notes, steps), bench, layer);
+    if (id === undefined || !given.leads?.read(id, before.meter, layer)) return true;
+    if (!known.includes(id)) known.push(id);
+    return false;
+  });
+  const heard =
+    known.length && given.leads?.used
+      ? given.leads.used(
+          layer,
+          known,
+          point,
+          before.meterFragment === undefined ? [] : [before.meterFragment],
+        )
+      : layer;
+  const filed = filedHeard(
     given.leads,
-    given.leadHeard ?? [],
-    (bars) => {
-      const steps = stepsOf(before.meter);
-      const inBar = bars.map((b) => ({ ...b, notes: b.notes.filter((n) => n.step < steps) }));
-      // (a run that is a form over the seed's motifs is filed as it, #580 rung 4)
-      const line = distilledLead(inBar, steps, nameOf(before.meter) ?? undefined);
-      return line?.notes.length
-        ? { notes: line.notes, ...(line.text ? { text: line.text } : {}) }
-        : null;
-    },
-    { meter: before.meter, meterFragment: before.meterFragment },
+    unknown,
+    distil,
+    bench,
     filingAt({ ...given, index: given.index - 1 }, point, LEAD_TAG),
-    layer,
+    heard,
   );
+  return {
+    layer: filed.layer,
+    ids: [...known, ...filed.ids.filter((id) => !known.includes(id))],
+    known,
+  };
 }
 
 /**
@@ -573,7 +609,13 @@ export function sectionLead(
   before: string | undefined,
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
+  known: readonly string[] = [],
 ): string | undefined {
+  // (a motif a player just played, which the Muse knew, is the section's line, as a player's tonic wins: #547 rung 6)
+  const heard = known.find(
+    (id) => !rejected.includes(id) && leads?.read(id, meter.meter, layer)?.bars === 1,
+  );
+  if (heard !== undefined) return heard;
   return leads
     ? composedLead(
         leads,
@@ -737,7 +779,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     const motifs =
       filed.layer && before && asked
         ? museFiledLeads(given, filed.layer, before, asked)
-        : { layer: filed.layer, ids: [] };
+        : { layer: filed.layer, ids: [], known: [] };
     const progressions =
       motifs.layer && earlier
         ? museFiledHarmonies(given, motifs.layer, earlier)
@@ -829,6 +871,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       leadFragment ?? undefined,
       [...chosen, ...(meterFragment === undefined ? [] : [meterFragment])],
       rejectedOf(boredom, claveOwners),
+      motifs.known,
     );
     const leadLadder = lineLadder.layer
       ? climbedFigure(

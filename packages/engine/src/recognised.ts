@@ -247,6 +247,24 @@ export function recognisedBar(
   return out;
 }
 
+/** The recogniser the Muse knows a motif by (#547 rung 6): one for the module's life, as a page's is for a song. */
+const MUSE_RECOGNISER = createRecogniser();
+
+/**
+ * The lead line a player's line is, where it is one exactly (#547 rung 6): a line stated as `leadText` states it,
+ * recognised among the lead's library (cells' motifs and the lines the layer filed, each from its first note,
+ * `libraryOf`) with no note differing and no operator, on the bench's workbench; its id, or undefined where it is none
+ * or the bench's meter has no workbench. Twinkle's opening bar, played from the tonic, is `kinderlied/twinkle`.
+ */
+export function knownLead(text: string, bench: Bench, layer?: LearnedLayer): string | undefined {
+  const options = recogniseOptionsOf('lead', bench);
+  if (options === null) return undefined;
+  return MUSE_RECOGNISER.recognise(text, libraryOf('lead', layer), {
+    ...options,
+    tolerance: 0,
+  }).find((r) => r.path.length === 0 && r.distance === 0)?.fragment.id;
+}
+
 /**
  * A recogniser warmed on every member's seeds as `recognisedBar` reads them
  * on each named meter's bench, on every bench a section can ask on
