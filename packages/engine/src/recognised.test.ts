@@ -39,10 +39,11 @@ const recogniser = createRecogniser();
 const byName = (name: string) => PRESETS.find((p) => p.name === name)!;
 
 /** A layer with one lead line filed, as the Muse files a player's. */
+// (a line no seed motif plays: `rising`'s 0 2 4 is a seed's, and a line heard that is one is a use of it, not filed, #553)
 const LINE: LeadNote[] = [
   { step: 0, degree: 0, alter: 0 },
-  { step: 4, degree: 2, alter: 0 },
-  { step: 8, degree: 4, alter: 0 },
+  { step: 4, degree: 3, alter: 0 },
+  { step: 8, degree: 1, alter: 0 },
 ];
 const WITH_LINE: LearnedLayer = LEAD_REPOSITORY.file!(EMPTY_LAYER, {
   notes: LINE,
