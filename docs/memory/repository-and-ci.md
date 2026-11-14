@@ -11,6 +11,7 @@ How the repository is built, gated, deployed and licensed.
   And `.claude/settings.json` allows the checks and the music-theory scripts without a prompt.
   When the install lacks `@yggi/cells`, its fetch from the public yggi/cells failed on the network or the proxy, and the hook's first line says so: run `pnpm install --frozen-lockfile` again.
   The hook installs only the checkout the session opened; `pnpm verify` installs first where `node_modules` is missing, as in a git worktree, and says so.
+  It installs first, too, where the install is not what `pnpm-lock.yaml` says (`installOf` in `tooling/verify.ts`: pnpm's copy of the lockfile it installed from, `node_modules/.pnpm/lock.yaml`, differs), as after `main` moved the cells pin under a checkout that stayed open: tests then fail on numbers read off the older cells, with nothing wrong in the code.
 - The gate is `pnpm verify`, where it costs no minutes: every `git push` of a branch runs it first, through git's pre-push hook (`.githooks/pre-push`), and is blocked if it fails.
   Its tests take the machine's lock for heavy runs (`tooling/heavy.ts`, shared with `pnpm e2e`, the soaks and `pnpm test:slow`), so a second verify on the machine, from another worktree, waits for the first rather than time it out, and says every minute who holds the lock (#666).
   The lock is the family's (`music-heavy.lock` in the temporary directory, moved by `MUSIC_HEAVY_LOCK`): cells and Cell studio take the same one for their tests, so a session over several of them never tests two at once.
