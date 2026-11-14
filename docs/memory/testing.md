@@ -40,6 +40,10 @@ How a gate is shown to fire, and the checks that back the house rules.
 ## Experiments
 
 - An experiment is a script under a package's `experiments/`, outside its pure `src/`, with its entry and E number in [`language-experiments.md`](../language-experiments.md).
+- An experiment's numbers are recorded beside its test, in `<name>.recorded.json`, by a tool and not by hand (`recording` in `packages/engine/experiments/recorded.ts`, yggi/music-commons#68): the test says `record(name, value)` for what it measured, and asserts what must hold whatever the numbers (a bound, a count).
+  `pnpm record <test file>` plays the experiment under the machine's lock and writes the file, a name to a line; a pull request's diff of it shows each number before and after, and the pull request says why they moved.
+  A conflict in a recorded file is not settled by hand: take either side and record again on the merged code.
+  E42 (`lead-loop.test.ts`) is recorded this way; the other experiments still hold their numbers as literals in their tests, each with the values before it in a comment, and move over as they are next re-recorded.
 - `pnpm verify` typechecks every `packages/*/experiments/*.ts`: tooling's `check` runs `tooling/tsconfig.experiments.json`, with the base config's strictness and Node's types (`tooling/experiments.test.ts`).
   Node's `--experimental-strip-types` drops types without checking them, so a stale experiment runs on without this.
 - An experiment that reads two packages lives in the `experiments/` of the package whose question it answers, imports that package from `../src/` and the other by its name, and the home package lists the other in its `devDependencies`.
